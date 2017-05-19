@@ -24,3 +24,18 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 - [x] Design a makeshift (rough around the edges) portal provider using internal wand mechanics
 - [x] Design a world edit wand provider (for selecting portals with a wand instead of auto detection)
 - [ ] Automagically detect if a player (with permission) has built a portal, register it, and broadcast it's registration to other servers if they exist
+- [ ] Support Sounds across portals
+- [ ] Support particles across portals
+- [ ] Adapt vertical portals when players exit them
+- [ ] Do not hide entities INSIDE the frame
+- [ ] Do not teleport entities unless they are inside the frame
+
+## Planned Version Support
+| Version | Status    |
+|---------|-----------|
+| 1.7.10  | ~~Not Supported~~   |
+| 1.8.X   | Planned   |
+| 1.9.X   | **Supported** |
+| 1.10.X  | Planned   |
+| 1.11.X  | Planned   |
+| 1.12.X  | Planned   |
