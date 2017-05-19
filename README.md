@@ -43,8 +43,8 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 ## Plugin Compatability
 | Plugin      | Interaction                                |
 |-------------|--------------------------------------------|
-| ProtocolLib | Required                                   |
+| ProtocolLib | **Required**                                   |
 | WorldEdit   | Planned (Selection)                        |
 | WorldGuard  | Planned (Protection)                       |
 | Vault       | Planned (Economy & Per Portal Permissions) |
-| ViaVersion  | Untested                                   |
+| ViaVersion  | ~~Untested~~                                   |
