@@ -30,6 +30,7 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 - [ ] Do not hide entities INSIDE the frame
 - [ ] Do not teleport entities unless they are inside the frame
 - [ ] Simplistic Configuration system with an "advanced mode" via command to unlock more experimental options
+- [ ] Portals should save and load automatically
 
 ## Version Support
 | Version | Status    |
