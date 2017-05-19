@@ -30,7 +30,7 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 - [ ] Do not hide entities INSIDE the frame
 - [ ] Do not teleport entities unless they are inside the frame
 
-## Planned Version Support
+## Version Support
 | Version | Status    |
 |---------|-----------|
 | 1.7.10  | ~~Not Supported~~   |
@@ -39,3 +39,12 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 | 1.10.X  | 80% Progress   |
 | 1.11.X  | 80% Progress   |
 | 1.12.X  | 50% Progress   |
+
+## Plugin Compatability
+| Plugin      | Interaction                                |
+|-------------|--------------------------------------------|
+| ProtocolLib | Required                                   |
+| WorldEdit   | Planned (Selection)                        |
+| WorldGuard  | Planned (Protection)                       |
+| Vault       | Planned (Economy & Per Portal Permissions) |
+| ViaVersion  | Untested                                   |
