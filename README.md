@@ -34,8 +34,8 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 | Version | Status    |
 |---------|-----------|
 | 1.7.10  | ~~Not Supported~~   |
-| 1.8.X   | Progress   |
+| 1.8.X   | 25% Progress   |
 | 1.9.X   | **Supported** |
-| 1.10.X  | Progress   |
-| 1.11.X  | Progress   |
-| 1.12.X  | Progress   |
+| 1.10.X  | 80% Progress   |
+| 1.11.X  | 80% Progress   |
+| 1.12.X  | 50% Progress   |
