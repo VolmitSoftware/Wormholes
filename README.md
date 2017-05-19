@@ -28,9 +28,11 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 - [ ] Support particles across portals
 - [ ] Adapt vertical portals when players exit them
 - [ ] Do not hide entities INSIDE the frame
-- [ ] Do not teleport entities unless they are inside the frame
+- [x] Capture fast moving entities (such as arrows)
+- [x] Do not teleport entities unless they are inside the frame
+- [ ] Do not capture player entities for the viewing player
 - [ ] Simplistic Configuration system with an "advanced mode" via command to unlock more experimental options
-- [ ] Portals should save and load automatically
+- [x] Portals should save and load automatically
 
 ## Version Support
 | Version | Status    |
