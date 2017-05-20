@@ -34,8 +34,9 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 - [ ] Simplistic Configuration system with an "advanced mode" via command to unlock more experimental options
 - [x] Portals should save and load automatically
 - [x] Keep portal area chunks loaded at all times
-- [ ] A Simple command system for listing portals, going to them and more
+- [x] A Simple command system for listing portals, going to them and more
 - [ ] Use permissions with perhaps different ways of creating portals
+- [ ] Create an event system for once
 
 ## Version Support
 | Version | Status    |
