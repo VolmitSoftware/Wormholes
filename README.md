@@ -33,6 +33,7 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 - [x] Do not capture player entities for the viewing player
 - [ ] Simplistic Configuration system with an "advanced mode" via command to unlock more experimental options
 - [x] Portals should save and load automatically
+- [x] Keep portal area chunks loaded at all times
 
 ## Version Support
 | Version | Status    |
