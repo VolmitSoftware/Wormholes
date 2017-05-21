@@ -37,6 +37,7 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 - [ ] Adapt vertical portals when players exit them
 - [ ] Do not send a player to the destination if a link cannot be established (causes a player to enter the server in the wrong position if a link is missing)
 - [ ] Safley spawn actual player entities via protocollib to display players on the other side of the portal
+- [ ] Destroy projections and spawned entities when a portal is destroyed
 
 ## Version Support
 | Version | Status    |
