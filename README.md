@@ -26,11 +26,11 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 - [x] A Simple command system for listing portals, going to them and more
 - [x] Destroy projections and spawned entities when a portal is destroyed
 - [x] Automagically detect if a player (with permission) has built a portal, register it, and broadcast it's registration to other servers if they exist
+- [x] Use Relative move packets instead of only teleport packets
+- [x] Create an event system for once
 - [ ] Use permissions with perhaps different ways of creating portals
-- [ ] Create an event system for once
 - [ ] Use a name tag to indicate the player's name, and some symbol to represent the fact that they arent on this server and simply on the destination portal
 - [ ] Display player abilities across portals (crouching, punching, item in hand, armor, and sprinting)
-- [ ] Use Relative move packets instead of only teleport packets
 - [ ] Correctly show relative look packets (inaccurate right now)
 - [ ] Simplistic Configuration system with an "advanced mode" via command to unlock more experimental options
 - [ ] Support Sounds across portals
