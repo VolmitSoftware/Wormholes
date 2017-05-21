@@ -57,3 +57,13 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 | WorldGuard  | Planned (Protection)                       |
 | Vault       | Planned (Economy & Per Portal Permissions) |
 | ViaVersion  | ~~Untested~~                                   |
+
+## Tests Required for Release
+| Module         | Local         | Bungeecord   |
+|----------------|---------------|--------------|
+| Projection SVC | 100% Complete | 80% Complete |
+| Aperture SVC   | 100% Complete | 45% Complete |
+| Wormhole SVC   | 100% Complete | 75% Complete |
+| Transport SVC  | 80% Complete  | 20% Complete |
+| Discovery SVC  | 100% Complete | 75% Complete |
+| Oriented SVC   | 100% Complete | 60% Complete |
