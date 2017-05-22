@@ -28,16 +28,19 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 - [x] Automagically detect if a player (with permission) has built a portal, register it, and broadcast it's registration to other servers if they exist
 - [x] Use Relative move packets instead of only teleport packets
 - [x] Create an event system for once
+- [x] Simplistic Configuration system with an "advanced mode" via command to unlock more experimental options
+- [x] Support Aperture SVC through bungeecord
+- [x] Configurable option for max portals
 - [ ] Use permissions with perhaps different ways of creating portals
 - [ ] Use a name tag to indicate the player's name, and some symbol to represent the fact that they arent on this server and simply on the destination portal
 - [ ] Display player abilities across portals (crouching, punching, item in hand, armor, and sprinting)
 - [ ] Correctly show relative look packets (inaccurate right now)
-- [ ] Simplistic Configuration system with an "advanced mode" via command to unlock more experimental options
 - [ ] Support Sounds across portals
 - [ ] Support particles across portals
 - [ ] Adapt vertical portals when players exit them
 - [ ] Do not send a player to the destination if a link cannot be established (causes a player to enter the server in the wrong position if a link is missing)
 - [ ] Safley spawn actual player entities via protocollib to display players on the other side of the portal
+
 
 ## Version Support
 | Version | Status    |
@@ -61,9 +64,9 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 ## Tests Required for Release
 | Module         | Local         | Bungeecord   |
 |----------------|---------------|--------------|
-| Projection SVC | 100% Complete | 80% Complete |
-| Aperture SVC   | 100% Complete | 45% Complete |
-| Wormhole SVC   | 100% Complete | 75% Complete |
-| Transport SVC  | 80% Complete  | 20% Complete |
-| Discovery SVC  | 100% Complete | 75% Complete |
-| Oriented SVC   | 100% Complete | 60% Complete |
+| Projection SVC | 100% Complete | 100% Complete |
+| Aperture SVC   | 100% Complete | 100% Complete |
+| Wormhole SVC   | 100% Complete | 100% Complete |
+| Transport SVC  | 80% Complete  | 60% Complete |
+| Discovery SVC  | 100% Complete | 100% Complete |
+| Oriented SVC   | 100% Complete | 90% Complete |
