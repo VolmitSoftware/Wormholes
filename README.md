@@ -32,6 +32,7 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 - [x] Support Aperture SVC through bungeecord
 - [x] Configurable option for max portals
 - [x] Basic permission system for administrative operations
+- [x] Polish messages, text etc. Use Command Tags.
 - [ ] Use permissions with perhaps different ways of creating portals
 - [ ] Use a name tag to indicate the player's name, and some symbol to represent the fact that they arent on this server and simply on the destination portal
 - [ ] Display player abilities across portals (crouching, punching, item in hand, armor, and sprinting)
