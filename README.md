@@ -42,17 +42,19 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 - [ ] Adapt vertical portals when players exit them
 - [ ] Do not send a player to the destination if a link cannot be established (causes a player to enter the server in the wrong position if a link is missing)
 - [ ] Safley spawn actual player entities via protocollib to display players on the other side of the portal
+- [ ] Create a hud when right clicking portals for per portal settings
+- [ ] Support per portal settings
 
 
 ## Version Support
 | Version | Status    |
 |---------|-----------|
 | 1.7.10  | ~~Not Supported~~   |
-| 1.8.X   | 25% Progress   |
+| 1.8.X   | **Supported**   |
 | 1.9.X   | **Supported** |
-| 1.10.X  | 80% Progress   |
-| 1.11.X  | 80% Progress   |
-| 1.12.X  | 50% Progress   |
+| 1.10.X  | **Supported**   |
+| 1.11.X  | **Supported**   |
+| 1.12.X  | **Supported**   |
 
 ## Plugin Compatability
 | Plugin      | Interaction                                |
@@ -69,6 +71,6 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 | Projection SVC | 100% Complete | 100% Complete |
 | Aperture SVC   | 100% Complete | 100% Complete |
 | Wormhole SVC   | 100% Complete | 100% Complete |
-| Transport SVC  | 80% Complete  | 60% Complete |
+| Transport SVC  | 90% Complete  | 60% Complete |
 | Discovery SVC  | 100% Complete | 100% Complete |
 | Oriented SVC   | 100% Complete | 90% Complete |
