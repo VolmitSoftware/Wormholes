@@ -35,6 +35,9 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 - [x] Polish messages, text etc. Use Command Tags.
 - [x] Improve projection speed by ~10x by only scanning viewports
 - [x] Improve packet utilization
+- [x] Create a hud when right clicking portals for per portal settings
+- [x] Support per portal settings
+- [ ] Safley spawn actual player entities via protocollib to display players on the other side of the portal
 - [ ] Use permissions with perhaps different ways of creating portals
 - [ ] Use a name tag to indicate the player's name, and some symbol to represent the fact that they arent on this server and simply on the destination portal
 - [ ] Display player abilities across portals (crouching, punching, item in hand, armor, and sprinting)
@@ -43,9 +46,6 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 - [ ] Support particles across portals
 - [ ] Adapt vertical portals when players exit them
 - [ ] Do not send a player to the destination if a link cannot be established (causes a player to enter the server in the wrong position if a link is missing)
-- [ ] Safley spawn actual player entities via protocollib to display players on the other side of the portal
-- [ ] Create a hud when right clicking portals for per portal settings
-- [ ] Support per portal settings
 
 
 ## Version Support
