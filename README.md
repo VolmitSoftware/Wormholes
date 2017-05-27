@@ -68,9 +68,9 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 ## Tests Required for Release
 | Module         | Local         | Bungeecord   |
 |----------------|---------------|--------------|
-| Projection SVC | 100% Complete | 100% Complete |
-| Aperture SVC   | 100% Complete | 100% Complete |
-| Wormhole SVC   | 100% Complete | 100% Complete |
+| Projection SVC | **Complete** | **Complete** |
+| Aperture SVC   | **Complete** | **Complete** |
+| Wormhole SVC   | **Complete** | **Complete** |
 | Transport SVC  | 90% Complete  | 60% Complete |
-| Discovery SVC  | 100% Complete | 100% Complete |
-| Oriented SVC   | 100% Complete | 90% Complete |
+| Discovery SVC  | **Complete** | **Complete** |
+| Oriented SVC   | **Complete** | 90% Complete |
