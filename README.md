@@ -107,3 +107,10 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
   * **Improve Projection Permutation Time**
     * **Reduce sample data for blocks (ignore blocks surrounded by all solid blocks)**
     * **Reduce permutation scope (only run permutations on the viewport, not the entire sample map)**
+    * **Improve viewport check time by keeping prebuilt cuboids on hand**
+    * Split up viewports with partial renderers to create a more responsive renderer at the same speed
+  * **Reduce Bandwidth usage of players**
+    * **Chunk send up to 6 chunks every 2 ticks instead of all at once**
+    * **Reduce over-sending of modifications behind the queue (oversending useless packets)**
+  * **Reduce Clientside hitches due to assumed lighting updates**
+    * Split up packets containing block changes that would result in a lighting check clientside
