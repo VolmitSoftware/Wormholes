@@ -61,7 +61,16 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
     * **Utilize left and right click as action intents**
     * **Auto close when the player moves position, but allow looking around freely**
     * **Add the ability to reverse portal polarities**
-
+  * **Design a simple debugging system for monitoring portal performance**
+* **Polishing**
+  * ~~Better user feedback such as action bars, titles, chat messages etc~~
+    * ~~Use chat tags. Everybody is doing it.~~
+    * ~~Add hr breaks for chat, it looks good.~~
+    * ~~Add hover and action clicks for command messages~~
+    * ~~Better sound effects please~~
+  * ~~Add additional configuration options~~
+  * ~~Some sort of splash screen?~~
+  * ~~Support WorldEdit, WorldGuard, and others.~~
 
 ## Version Support
 | Version | Status    |
