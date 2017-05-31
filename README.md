@@ -37,6 +37,7 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 - [x] Improve packet utilization
 - [x] Create a hud when right clicking portals for per portal settings
 - [x] Support per portal settings
+- [x] Do not send a player to the destination if a link cannot be established (causes a player to enter the server in the wrong position if a link is missing)
 - [ ] Safley spawn actual player entities via protocollib to display players on the other side of the portal
 - [ ] Use permissions with perhaps different ways of creating portals
 - [ ] Use a name tag to indicate the player's name, and some symbol to represent the fact that they arent on this server and simply on the destination portal
@@ -45,7 +46,6 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 - [ ] Support Sounds across portals
 - [ ] Support particles across portals
 - [ ] Adapt vertical portals when players exit them
-- [ ] Do not send a player to the destination if a link cannot be established (causes a player to enter the server in the wrong position if a link is missing)
 
 
 ## Version Support
@@ -73,6 +73,37 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 | Projection SVC | **Complete** | **Complete** |
 | Aperture SVC   | **Complete** | **Complete** |
 | Wormhole SVC   | **Complete** | **Complete** |
-| Transport SVC  | 90% Complete  | 60% Complete |
+| Transport SVC  | **Complete**  | **Complete** |
 | Discovery SVC  | **Complete** | **Complete** |
-| Oriented SVC   | **Complete** | 90% Complete |
+| Oriented SVC   | **Complete** | **Complete** |
+
+## Development Phase
+* **Structure Core Functionality**
+  * **Design Networking Backend for Local and Mutex connections**
+    * **Design Wormhole connectons as effective proxy sockets**
+    * **Design a layered stream system for prioritizing communication**
+    * **Design a teleport handshake protocol for ensuring players are transported**
+    * **Handle sending very large sets of data comprised of small stream packets**
+  * **Design Coretick Threads for offloading work to other threads**
+  * **Design Portal structure**
+    * **Design PortalIdentity for directional and keyed identities**
+    * **Design PortalPosition for local position and volume properties**
+    * **Design LocalPortal for local usage such as fx, positioning and more**
+    * **Design RemotePortal for remote reference usage containing only the PortalIdentity**
+  * **Design a Service manager**
+    * **Design a Provider service for creating and managing portals**
+    * **Design a Mutex Service for managing communication between portals**
+    * **Design a Projection Service for managing block projections**
+    * **Design an Aperture Service for managing entity projections**
+    * **Design an Entity Service for managing the visibility of entities inside projections**
+  * **Create utilities for grasping portal surroundings, area, and relative information**
+    * **Vector Math, Rotation, Permutations and Frustrum raycasts**
+    * **Portal Positioning, Greyboxing areas and throw direction**
+* **Optimization Pass**
+  * **Improve efficiency of Viewport checking**
+    * **Use Prebuilt cuboid frustrums instead of rebuilding it**
+    * **Use build-deny checks for "before portal" checks instead of raycasting the player**
+    * **Cache viewports instead of recreating them as needed**
+  * **Improve Projection Permutation Time**
+    * **Reduce sample data for blocks (ignore blocks surrounded by all solid blocks)**
+    * **Reduce permutation scope (only run permutations on the viewport, not the entire sample map)**
