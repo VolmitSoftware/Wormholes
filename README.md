@@ -91,7 +91,7 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 | 1.9.X   | **Supported** |
 | 1.10.X  | **Supported**   |
 | 1.11.X  | **Supported**   |
-| 1.12.X  | **Supported**   |
+| 1.12.X  | 20% Complete   |
 
 ## Plugin Compatability
 | Plugin      | Interaction                                |
