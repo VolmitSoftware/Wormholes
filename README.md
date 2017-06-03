@@ -1,5 +1,13 @@
-# Wormholes
-See what's on the other side
+# What Are Wormholes?
+Wormholes are portals with a twist. You can peer into a portal, and see the destination's blocks, and entities walking around. As you walk around the portal, the blocks through the portal update to the destination's blocks. 
+
+Walking through a portal is smooth. Looking to the side and strafing through the portal will send you strafing out. Portals carry velocity and have the ability to transport all types of entities. That means you could look into a portal, see an enemy and fire an arrow through the portal and hit the enemy. 
+
+Portals work cross world, cross location, and even cross server. Portals are capable of any size that is odd numbered, and the same width and height. For example, 3x3, 5x5, 7x7, 9x9 (or higher). Portals can also face any direction including vertical portals. Meaning you could have a vertical portal peering down on a pvp map. Any player looking through a portal would see a top down projection of that pvp map!
+
+Have a series of pictures called a video. (click)
+
+[![Video...](https://img.youtube.com/vi/pR23FDMmbr4/0.jpg)](https://www.youtube.com/watch?v=pR23FDMmbr4)
 
 ## Makeshift Beta Access
 You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
