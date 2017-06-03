@@ -47,6 +47,7 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
     * ~~Support world edit selection with a portal command~~
     * ~~Make use of world edit to "auto generate" portals~~
     * **Support a method by throwing an ender pearl through the portal to "open the portal"**
+    * **Support lighting it like a normal portal**
   * **Make use of MFA Sound scheduling (Multi Freq Audio)
     * **Play a sound when opening or destroying portals**
     * **Play portal sounds with some rnd across the entire portal mesh**
@@ -71,6 +72,8 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
   * ~~Add additional configuration options~~
   * ~~Some sort of splash screen?~~
   * ~~Support WorldEdit, WorldGuard, and others.~~
+* **Networking**
+  * **Quickly send players through portals correctly**
 
 ## Version Support
 | Version | Status    |
