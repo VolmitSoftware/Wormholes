@@ -74,7 +74,7 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
   * ~~Support WorldEdit, WorldGuard, and others.~~
 * **Networking**
   * **Quickly send players through portals correctly**
-
+  
 ## Version Support
 | Version | Status    |
 |---------|-----------|
