@@ -87,11 +87,11 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 | Version | Status    |
 |---------|-----------|
 | 1.7.10  | ~~Not Supported~~   |
-| 1.8.X   | **Supported**   |
+| 1.8.X   | **Needs Testing**   |
 | 1.9.X   | **Supported** |
 | 1.10.X  | **Supported**   |
 | 1.11.X  | **Supported**   |
-| 1.12.X  | 20% Complete   |
+| 1.12.X  | **Supported**   |
 
 ## Plugin Compatability
 | Plugin      | Interaction                                |
