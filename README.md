@@ -111,3 +111,10 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 | Transport SVC  | **Complete**  | **Complete** |
 | Discovery SVC  | **Complete** | **Complete** |
 | Oriented SVC   | **Complete** | **Complete** |
+
+## Support
+| Feature                 | Status    |
+|-------------------------|-----------|
+| ViaVersion              | Supported |
+| Bungeecord (1.8+ combo) | Supported |
+| 1.8+ Spigot             | Supported |
