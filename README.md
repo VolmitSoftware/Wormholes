@@ -124,3 +124,4 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 * Add a portal wand for designing portal frames (quickly)
 * Add additional feedback to error messages via title message
 * Add feedback for giving a portal a name
+* Auto Build setting (on by default) no longer requires flint and steel to activate a portal. Just place the four color blocks!
