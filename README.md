@@ -118,3 +118,10 @@ You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
 | ViaVersion              | Supported |
 | Bungeecord (1.8+ combo) | Supported |
 | 1.8+ Spigot             | Supported |
+
+## Rolling Changelog 1.1p
+* Use Chunk Map packets for projections instead of block change packets to prevent lighting issues for clients (lag)
+* Add a portal wand for designing portal frames (quickly)
+* Add additional feedback to error messages via title message
+* Add feedback for giving a portal a name
+* Auto Build setting (on by default) no longer requires flint and steel to activate a portal. Just place the four color blocks!
