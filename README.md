@@ -9,9 +9,6 @@ Have a series of pictures called a video. (click)
 
 [![Video...](https://img.youtube.com/vi/pR23FDMmbr4/0.jpg)](https://www.youtube.com/watch?v=pR23FDMmbr4)
 
-## Makeshift Beta Access
-You can sign up for beta access here https://goo.gl/forms/sXD4mGG6hETO5neB3
-
 ## Development Progress
 * **Structure Core Functionality**
   * **Design Networking Backend for Local and Mutex connections**
