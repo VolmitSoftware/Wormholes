@@ -3,6 +3,7 @@ package art.arcane.wormholes.network.replication;
 public record BlockChange(int packedXyz, String state, byte flags) {
     public static final byte FLAG_NONE = 0;
     public static final byte FLAG_BLOCK_ENTITY_FOLLOWS = 1;
+    public static final byte FLAG_OCCLUDED = 2;
 
     public static int pack(int lx, int ly, int lz) {
         int x = lx & 0xF;

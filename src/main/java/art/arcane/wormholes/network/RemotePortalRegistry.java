@@ -74,6 +74,11 @@ public final class RemotePortalRegistry {
         refreshed.setMirroredBlackoutBackground(existing.isMirroredBlackoutBackground());
         refreshed.setMirroredBlackoutColor(existing.getMirroredBlackoutColor());
         refreshed.setMirroredActivationRange(existing.getMirroredActivationRange());
+        refreshed.setMirroredRenderMode(existing.getMirroredRenderMode());
+        refreshed.setMirroredAmbientStyle(existing.getMirroredAmbientStyle());
+        refreshed.setMirroredAmbientColor(existing.getMirroredAmbientColor());
+        refreshed.setMirroredSurfaceSkin(existing.getMirroredSurfaceSkin());
+        refreshed.setMirroredSurfaceThickness(existing.getMirroredSurfaceThickness());
         return refreshed;
     }
 }

@@ -31,6 +31,9 @@ public final class WormholesMessages {
     public static final TextKey COMMAND_ADMIN_DESCRIPTION = text("command.help.admin", "Destructive Wormholes maintenance commands");
     public static final TextKey COMMAND_DELETE_PORTALS_DESCRIPTION = text("command.help.admin.delete_portals", "Delete every local portal and saved portal link");
     public static final TextKey COMMAND_DELETE_EVERYTHING_DESCRIPTION = text("command.help.admin.delete_everything", "Reset Wormholes data, config, trust, identity, and network state");
+    public static final TextKey COMMAND_FREEZE_DESCRIPTION = text("command.help.admin.freeze", "Freeze all portal projections in place for a number of seconds (seconds=0 resumes)");
+    public static final TextKey COMMAND_FREEZE_SECONDS_DESCRIPTION = text("command.help.admin.freeze.seconds", "How long to hold the frozen frame (5-300, 0 resumes now)");
+    public static final TextKey COMMAND_FLUSH_DESCRIPTION = text("command.help.admin.flush", "Revert every observer's projected blocks to ground truth and rebuild them");
     public static final TextKey COMMAND_NETWORK_DESCRIPTION = text("command.help.network", "Cross-server wormhole network");
     public static final TextKey COMMAND_NETWORK_IMPORT_DESCRIPTION = text("command.help.network.import", "Import a portal code from another server (saves an internal route; link via a gateway's Link menu)");
     public static final TextKey COMMAND_NETWORK_CODE_DESCRIPTION = text("command.help.network.import.code", "Portal code from the other server's Export button");
@@ -91,6 +94,14 @@ public final class WormholesMessages {
     public static final TextKey COMMAND_DELETE_SCHEDULE_FAILED = text("command.admin.delete_schedule_failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Could not schedule the portal reset.");
     public static final TextKey COMMAND_RESET_FAILED = text("command.admin.reset_failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Failed to reset Wormholes. Check console for the full stacktrace.");
     public static final TextKey COMMAND_RESET_SCHEDULE_FAILED = text("command.admin.reset_schedule_failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Could not schedule the Wormholes reset.");
+    public static final TextKey COMMAND_PROJECTION_FROZEN = text("command.admin.projection_frozen", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Froze all portal projections in place for <white>{seconds}<green> seconds. They resume automatically.");
+    public static final TextKey COMMAND_PROJECTION_RESUMED = text("command.admin.projection_resumed", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portal projections resumed.");
+    public static final PluralKey COMMAND_PROJECTION_FLUSHED = plural("command.admin.projection_flushed", "count", Map.of(
+            "one", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Flushed <white>{count}<green> projection observer; clients are rebuilding from ground truth.",
+            "other", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Flushed <white>{count}<green> projection observers; clients are rebuilding from ground truth."
+    ));
+    public static final TextKey COMMAND_PROJECTION_FAILED = text("command.admin.projection_failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Failed to update portal projections. Check console for the full stacktrace.");
+    public static final TextKey COMMAND_PROJECTION_SCHEDULE_FAILED = text("command.admin.projection_schedule_failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Could not schedule the projection update.");
 
     public static final TextKey NETWORK_NOT_INITIALIZED = text("network.not_initialized", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Networking is not initialized.");
     public static final TextKey NETWORK_DISABLED = text("network.status.disabled", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Networking is <red>disabled<gray> (config/wormholes.toml).");
@@ -170,6 +181,9 @@ public final class WormholesMessages {
     public static final TextKey PORTAL_DESTINATION_UNREACHABLE_DETAIL = text("portal.travel.destination_unreachable_detail", "<red>Destination server unreachable: {reason}");
     public static final TextKey PORTAL_TRANSFER_BLOCKED = text("portal.travel.transfer_blocked", "<red>Portal transfer blocked: {reason}");
     public static final TextKey PORTAL_TRANSFER_BLOCKED_RETRY = text("portal.travel.transfer_blocked_retry", "<red>Portal transfer blocked: {reason} (retry in {seconds}s)");
+    public static final TextKey PORTAL_TRANSFER_HOLDING = text("portal.travel.transfer_holding", "<gold>Linking to the destination server...");
+    public static final TextKey PORTAL_TRANSFER_INTERRUPTED = text("portal.travel.transfer_interrupted", "<red>Portal transfer interrupted: you moved away from the portal.");
+    public static final TextKey PORTAL_TRANSFER_SOURCE_UNAVAILABLE = text("portal.travel.transfer_source_unavailable", "<red>Portal transfer interrupted: the source portal is no longer available.");
 
     public static final TextKey WAND_CORNER_A = text("wand.selection.corner_a", "<aqua>Corner A set. Right-click the opposite corner.");
     public static final TextKey WAND_CORNER_B = text("wand.selection.corner_b", "<aqua>Corner B set. Left-click the opposite corner.");
@@ -363,6 +377,73 @@ public final class WormholesMessages {
             "<dark_gray>Shift-left: +{large_step}",
             "<dark_gray>Shift-right: -{large_step}",
             "<dark_gray>Below 8 resets to Global.");
+    public static final LinesKey PORTAL_MENU_RENDER_MODE = lines("portal.menu.render_mode",
+            "<aqua><bold>Render Mode <white>{mode}</bold>",
+            "<gray>How much of the destination volume this portal projects.",
+            "",
+            "<gray>Mode: <white>{mode}",
+            "",
+            "<dark_gray>PanOptic renders the full destination volume.",
+            "<dark_gray>Venticular hides fully-enclosed interior blocks for lighter streams.",
+            "",
+            "<dark_gray>Left: cycle mode.");
+    public static final LinesKey PORTAL_MENU_AMBIENT_PARTICLES = lines("portal.menu.ambient_particles",
+            "<aqua><bold>Ambient Particles</bold>",
+            "<gray>Decorative dust that drifts around this portal.",
+            "",
+            "<gray>Style: <white>{style} <dark_gray>({color})",
+            "",
+            "<dark_gray>Left: cycle style.",
+            "<dark_gray>Right: choose a color.");
+    public static final LinesKey PORTAL_MENU_AMBIENT_COLOR_PLACARD = lines("portal.menu.ambient_color.placard",
+            "<gold><bold>Ambient Color</bold>",
+            "<gray>Color of the ambient dust particles.",
+            "",
+            "<gray>Currently: <white>{color}");
+    public static final LinesKey PORTAL_MENU_AMBIENT_CHANNEL = lines("portal.menu.ambient_color.channel",
+            "<aqua><bold>{label} <white>{value}</bold>",
+            "",
+            "<dark_gray>Left click: +{step}",
+            "<dark_gray>Right click: -{step}",
+            "<dark_gray>Shift-left: +{large_step}",
+            "<dark_gray>Shift-right: -{large_step}");
+    public static final LinesKey PORTAL_MENU_AMBIENT_COLOR_OPTION = lines("portal.menu.ambient_color.option",
+            "<aqua><bold>{color}</bold>",
+            "",
+            "<dark_gray>Click to select.");
+    public static final LinesKey PORTAL_MENU_SURFACE_SKIN = lines("portal.menu.surface_skin",
+            "<aqua><bold>Surface Skin</bold>",
+            "<gray>Cover the portal aperture with a rendered block or fluid pane.",
+            "",
+            "<gray>Skin: <white>{skin}",
+            "<gray>Thickness: <white>{thickness}",
+            "",
+            "<dark_gray>Left: clear the skin.",
+            "<dark_gray>Right: open skin options.");
+    public static final LinesKey PORTAL_MENU_SURFACE_SKIN_PLACARD = lines("portal.menu.surface_skin.placard",
+            "<gold><bold>Surface Skin</bold>",
+            "<gray>Right-click the portal with a block or bucket to apply a skin.",
+            "",
+            "<gray>Skin: <white>{skin}",
+            "<gray>Thickness: <white>{thickness}");
+    public static final LinesKey PORTAL_MENU_SURFACE_THICKNESS = lines("portal.menu.surface_skin.thickness",
+            "<aqua><bold>Surface Thickness <white>{value}</bold>",
+            "<gray>Depth of the rendered pane in blocks.",
+            "",
+            "<dark_gray>Left click: +{step}",
+            "<dark_gray>Right click: -{step}",
+            "<dark_gray>Shift-left: +{large_step}",
+            "<dark_gray>Shift-right: -{large_step}");
+    public static final LinesKey PORTAL_MENU_SURFACE_SKIN_GLASS = lines("portal.menu.surface_skin.glass",
+            "<aqua><bold>Glass Skin</bold>",
+            "<gray>A clear glass window over the aperture.",
+            "",
+            "<dark_gray>Click to apply glass.");
+    public static final LinesKey PORTAL_MENU_SURFACE_SKIN_CLEAR = lines("portal.menu.surface_skin.clear",
+            "<red><bold>Clear Skin</bold>",
+            "<gray>Remove the skin and restore projections.",
+            "",
+            "<dark_gray>Click to remove the skin.");
     public static final LinesKey PORTAL_MENU_PLACARD_RTP = lines("portal.menu.placard.rtp",
             "<gold><bold>{portal}</bold>",
             "<gray>Type: <yellow>{type}",
@@ -602,7 +683,20 @@ public final class WormholesMessages {
     public static final TextKey PORTAL_NETWORK_LABEL_BLACKOUT = text("portal.network.label.blackout", "Blackout Background");
     public static final TextKey PORTAL_NETWORK_LABEL_BLACKOUT_COLOR = text("portal.network.label.blackout_color", "Blackout Color");
     public static final TextKey PORTAL_NETWORK_LABEL_ACTIVATION_RANGE = text("portal.network.label.activation_range", "Activation Range");
+    public static final TextKey PORTAL_NETWORK_LABEL_RENDER_MODE = text("portal.network.label.render_mode", "Render Mode");
     public static final TextKey PORTAL_LABEL_ACTIVATION_GLOBAL = text("portal.label.activation_global", "Global ({range})");
+    public static final TextKey PORTAL_NETWORK_LABEL_AMBIENT_STYLE = text("portal.network.label.ambient_style", "Ambient Particles");
+    public static final TextKey PORTAL_NETWORK_LABEL_AMBIENT_COLOR = text("portal.network.label.ambient_color", "Ambient Color");
+    public static final TextKey PORTAL_NETWORK_LABEL_SURFACE_SKIN = text("portal.network.label.surface_skin", "Surface Skin");
+    public static final TextKey PORTAL_NETWORK_LABEL_SURFACE_THICKNESS = text("portal.network.label.surface_thickness", "Surface Thickness");
+    public static final TextKey PORTAL_LABEL_AMBIENT_RED = text("portal.label.ambient.red", "Red");
+    public static final TextKey PORTAL_LABEL_AMBIENT_GREEN = text("portal.label.ambient.green", "Green");
+    public static final TextKey PORTAL_LABEL_AMBIENT_BLUE = text("portal.label.ambient.blue", "Blue");
+    public static final TextKey PORTAL_LABEL_AMBIENT_STYLE_SPARKS = text("portal.label.ambient_style.sparks", "Sparks");
+    public static final TextKey PORTAL_LABEL_AMBIENT_STYLE_OUTLINE = text("portal.label.ambient_style.outline", "Outline");
+    public static final TextKey PORTAL_LABEL_AMBIENT_STYLE_CORNERS = text("portal.label.ambient_style.corners", "Corners");
+    public static final TextKey PORTAL_LABEL_AMBIENT_STYLE_OFF = text("portal.label.ambient_style.off", "Off");
+    public static final TextKey PORTAL_LABEL_SKIN_NONE = text("portal.label.skin.none", "None");
     public static final LinesKey PORTAL_PROMPT_DIRECTION = lines("portal.prompt.direction",
             "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Look in a direction then left click to apply.",
             "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Shift-Left click to cancel.");

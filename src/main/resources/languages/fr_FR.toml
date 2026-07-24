@@ -2,6 +2,22 @@ schema = 1
 locale = "fr_FR"
 
 [text]
+"portal.network.label.render_mode" = "Mode de rendu"
+"portal.travel.transfer_holding" = "<gold>Connexion au serveur de destination..."
+"portal.travel.transfer_interrupted" = "<red>Transfert de portail interrompu : vous vous êtes éloigné du portail."
+"portal.travel.transfer_source_unavailable" = "<red>Transfert de portail interrompu : le portail source n'est plus disponible."
+"portal.network.label.ambient_style" = "Particules d'ambiance"
+"portal.network.label.ambient_color" = "Couleur d'ambiance"
+"portal.network.label.surface_skin" = "Habillage de surface"
+"portal.network.label.surface_thickness" = "Épaisseur de surface"
+"portal.label.ambient.red" = "Rouge"
+"portal.label.ambient.green" = "Vert"
+"portal.label.ambient.blue" = "Bleu"
+"portal.label.ambient_style.sparks" = "Étincelles"
+"portal.label.ambient_style.outline" = "Contour"
+"portal.label.ambient_style.corners" = "Coins"
+"portal.label.ambient_style.off" = "Désactivé"
+"portal.label.skin.none" = "Aucun"
 "director.help.navigation.parent.hover" = "Revenir au groupe de commandes parent"
 "director.help.navigation.back" = "Retour"
 "director.help.no_subcommands" = "Aucune sous-commande sur cette page."
@@ -39,6 +55,9 @@ locale = "fr_FR"
 "command.help.admin" = "Commandes de maintenance destructives de Wormholes"
 "command.help.admin.delete_portals" = "Supprimer tous les portails locaux et leurs liens enregistrés"
 "command.help.admin.delete_everything" = "Réinitialiser les données, la configuration, la confiance, l'identité et le réseau de Wormholes"
+"command.help.admin.freeze" = "Gèle toutes les projections de portail sur place pendant un certain nombre de secondes (seconds=0 reprend)"
+"command.help.admin.freeze.seconds" = "Durée de maintien de l'image figée (5-300, 0 reprend immédiatement)"
+"command.help.admin.flush" = "Rétablit les blocs projetés de chaque observateur à l'état réel et les reconstruit"
 "command.help.network" = "Réseau de trous de ver interserveurs"
 "command.help.network.import" = "Importer le code d'un portail d'un autre serveur (enregistre une route interne ; liaison depuis le menu Lien d'une passerelle)"
 "command.help.network.import.code" = "Code du portail obtenu avec le bouton Exporter de l'autre serveur"
@@ -61,6 +80,10 @@ locale = "fr_FR"
 "command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Impossible de planifier la réinitialisation des portails."
 "command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Échec de la réinitialisation de Wormholes. Consultez la console pour la trace complète de la pile."
 "command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Impossible de planifier la réinitialisation de Wormholes."
+"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Toutes les projections de portail ont été gelées pendant <white>{seconds}<green> secondes. Elles reprennent automatiquement."
+"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Projections de portail reprises."
+"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Impossible de mettre à jour les projections de portail. Consultez la console pour la trace complète."
+"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Impossible de planifier la mise à jour de la projection."
 "network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Le réseau n'est pas initialisé."
 "network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Le réseau est <red>désactivé<gray> (config/wormholes.toml)."
 "network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Le réseau est activé, mais ne fonctionne pas. Vérifiez le stockage de l'identité et le port réseau."
@@ -307,6 +330,16 @@ locale = "fr_FR"
 "rtp.duration.decimal_seconds" = "{value}s"
 
 [lines]
+"portal.menu.render_mode" = ["<aqua><bold>Mode de rendu <white>{mode}</bold>","<gray>Quelle part du volume de destination ce portail projette.","","<gray>Mode : <white>{mode}","","<dark_gray>PanOptic rend l'intégralité du volume de destination.","<dark_gray>Venticular masque les blocs intérieurs entièrement enfermés pour alléger les flux.","","<dark_gray>Gauche : changer de mode."]
+"portal.menu.ambient_particles" = ["<aqua><bold>Particules d'ambiance</bold>","<gray>Poussière décorative qui flotte autour de ce portail.","","<gray>Style : <white>{style} <dark_gray>({color})","","<dark_gray>Gauche : changer de style.","<dark_gray>Droit : choisir une couleur."]
+"portal.menu.ambient_color.placard" = ["<gold><bold>Couleur d'ambiance</bold>","<gray>Couleur des particules de poussière d'ambiance.","","<gray>Actuel : <white>{color}"]
+"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>Clic gauche : +{step}","<dark_gray>Clic droit : -{step}","<dark_gray>Maj + clic gauche : +{large_step}","<dark_gray>Maj + clic droit : -{large_step}"]
+"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>Cliquez pour sélectionner."]
+"portal.menu.surface_skin" = ["<aqua><bold>Habillage de surface</bold>","<gray>Recouvre l'ouverture du portail d'un panneau de bloc ou de fluide rendu.","","<gray>Habillage : <white>{skin}","<gray>Épaisseur : <white>{thickness}","","<dark_gray>Gauche : retirer l'habillage.","<dark_gray>Droit : ouvrir les options d'habillage."]
+"portal.menu.surface_skin.placard" = ["<gold><bold>Habillage de surface</bold>","<gray>Clic droit sur le portail avec un bloc ou un seau pour appliquer un habillage.","","<gray>Habillage : <white>{skin}","<gray>Épaisseur : <white>{thickness}"]
+"portal.menu.surface_skin.thickness" = ["<aqua><bold>Épaisseur de surface <white>{value}</bold>","<gray>Profondeur du panneau rendu en blocs.","","<dark_gray>Clic gauche : +{step}","<dark_gray>Clic droit : -{step}","<dark_gray>Maj + clic gauche : +{large_step}","<dark_gray>Maj + clic droit : -{large_step}"]
+"portal.menu.surface_skin.glass" = ["<aqua><bold>Habillage en verre</bold>","<gray>Une fenêtre en verre transparent sur l'ouverture.","","<dark_gray>Cliquez pour appliquer du verre."]
+"portal.menu.surface_skin.clear" = ["<red><bold>Retirer l'habillage</bold>","<gray>Retire l'habillage et restaure les projections.","","<dark_gray>Cliquez pour retirer l'habillage."]
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Aide des portails : <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Utilisez la baguette de portail sur un portail pour régler sa destination, sa vue, le passage et l'accès."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Vous avez reçu une baguette de portail et 1 rune de trou de ver.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Construisez DEUX formes en runes de trou de ver (toute forme reliée sur une surface plane), reliez-les et restez à moins de 16 blocs pour voir la projection.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Exécutez <white>/wormholes info<gray> pour afficher toutes les étapes."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Fichier d'instantané : <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Suivez ce fichier pour partager l'état en direct du réseau et des vues. Il est remplacé à chaque intervalle."]
@@ -444,3 +477,7 @@ other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes a été réini
 [plural."wand.selection.selected"]
 one = "<aqua>{count} bloc sélectionné. Faites un clic gauche sur le panneau de verre pour ouvrir le portail."
 other = "<aqua>{count} blocs sélectionnés. Faites un clic gauche sur le panneau de verre pour ouvrir le portail."
+
+[plural."command.admin.projection_flushed"]
+one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> observateur de projection vidé ; les clients se reconstruisent depuis l'état réel."
+other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> observateurs de projection vidés ; les clients se reconstruisent depuis l'état réel."

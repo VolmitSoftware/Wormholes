@@ -8,11 +8,13 @@ import art.arcane.wormholes.network.replication.BlockEntityDiff;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.replication.LightDiff;
 import art.arcane.wormholes.network.view.ViewSlice;
+import art.arcane.wormholes.render.view.OccludedMarker;
 
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -22,9 +24,21 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class RegionalDiffAccumulator {
     private static final int STATE_STRING_CACHE_MAX = 4096;
 
+    @FunctionalInterface
+    public interface BlockReader {
+        BlockData at(World world, int x, int y, int z);
+    }
+
+    @FunctionalInterface
+    public interface DataOcclusion {
+        boolean occluding(BlockData data);
+    }
+
     private final ChunkReplicationManager replication;
     private final BlockChangeFeed feed;
     private volatile CaptureSettings settings;
+    private volatile BlockReader blockReader = (world, x, y, z) -> world.getBlockAt(x, y, z).getBlockData();
+    private volatile DataOcclusion dataOcclusion = OccludedMarker::isOccluding;
     private final Map<UUID, Map<Long, ChunkDirtySet>> worldDirty = new ConcurrentHashMap<>();
     private final Map<UUID, Map<Long, ChunkLightShadow>> worldLightShadows = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<BlockData, String> stateStrings = new ConcurrentHashMap<>(256);
@@ -69,6 +83,17 @@ public final class RegionalDiffAccumulator {
             }
             return;
         }
+        boolean venticular = replication.hasVenticularSubscriber(world, chunkKey);
+        byte storedFlags = flags;
+        Map<Integer, Boolean> occlusionCache = null;
+        boolean centerOccluding = false;
+        if (venticular) {
+            occlusionCache = new HashMap<>(32);
+            centerOccluding = dataOcclusion.occluding(newData);
+            if (buried(world, chunkX, chunkZ, worldX, worldY, worldZ, centerOccluding, worldX, worldY, worldZ, occlusionCache)) {
+                storedFlags = (byte) (flags | BlockChange.FLAG_OCCLUDED);
+            }
+        }
         int lx = worldX & 0xF;
         int lz = worldZ & 0xF;
         int packed = BlockChange.pack(lx, worldY, lz);
@@ -78,7 +103,7 @@ public final class RegionalDiffAccumulator {
         }
         ChunkDirtySet set = dirtySetFor(world, chunkKey);
         int currentCap = settings.maxQueuedDiffsPerChunk();
-        if (!set.putBlockIfBelowCapacity(packed, stateString, flags, currentCap)) {
+        if (!set.putBlockIfBelowCapacity(packed, stateString, storedFlags, currentCap)) {
             overflowDrops.incrementAndGet();
             blocksDropped.incrementAndGet();
             synchronized (set) {
@@ -88,6 +113,86 @@ public final class RegionalDiffAccumulator {
             return;
         }
         blocksCaptured.incrementAndGet();
+        if (venticular) {
+            reemitNeighbors(world, chunkX, chunkZ, worldX, worldY, worldZ, centerOccluding, set, currentCap, occlusionCache);
+        }
+    }
+
+    void setCaptureOcclusionModel(BlockReader reader, DataOcclusion occlusion) {
+        this.blockReader = reader;
+        this.dataOcclusion = occlusion;
+    }
+
+    private void reemitNeighbors(World world, int chunkX, int chunkZ, int cx, int cy, int cz, boolean centerOccluding,
+                                 ChunkDirtySet set, int capacity, Map<Integer, Boolean> cache) {
+        reemitNeighbor(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, cx + 1, cy, cz, set, capacity, cache);
+        reemitNeighbor(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, cx - 1, cy, cz, set, capacity, cache);
+        reemitNeighbor(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, cx, cy + 1, cz, set, capacity, cache);
+        reemitNeighbor(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, cx, cy - 1, cz, set, capacity, cache);
+        reemitNeighbor(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, cx, cy, cz + 1, set, capacity, cache);
+        reemitNeighbor(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, cx, cy, cz - 1, set, capacity, cache);
+    }
+
+    private void reemitNeighbor(World world, int chunkX, int chunkZ, int cx, int cy, int cz, boolean centerOccluding,
+                                int nx, int ny, int nz, ChunkDirtySet set, int capacity, Map<Integer, Boolean> cache) {
+        if ((nx >> 4) != chunkX || (nz >> 4) != chunkZ) {
+            return;
+        }
+        if (ny < world.getMinHeight() || ny > world.getMaxHeight() - 1) {
+            return;
+        }
+        BlockData data = blockReader.at(world, nx, ny, nz);
+        if (!dataOcclusion.occluding(data)) {
+            return;
+        }
+        byte flags = buried(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, nx, ny, nz, cache)
+            ? BlockChange.FLAG_OCCLUDED : BlockChange.FLAG_NONE;
+        int packed = BlockChange.pack(nx & 0xF, ny, nz & 0xF);
+        if (set.putBlockIfAbsentBelowCapacity(packed, stateStringFor(data), flags, capacity)) {
+            blocksCaptured.incrementAndGet();
+        }
+    }
+
+    private boolean buried(World world, int chunkX, int chunkZ, int cx, int cy, int cz, boolean centerOccluding,
+                           int tx, int ty, int tz, Map<Integer, Boolean> cache) {
+        if (!occlusionAt(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, tx, ty, tz, cache)) {
+            return false;
+        }
+        return occlusionAt(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, tx + 1, ty, tz, cache)
+            && occlusionAt(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, tx - 1, ty, tz, cache)
+            && occlusionAt(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, tx, ty + 1, tz, cache)
+            && occlusionAt(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, tx, ty - 1, tz, cache)
+            && occlusionAt(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, tx, ty, tz + 1, cache)
+            && occlusionAt(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, tx, ty, tz - 1, cache);
+    }
+
+    private boolean occlusionAt(World world, int chunkX, int chunkZ, int cx, int cy, int cz, boolean centerOccluding,
+                                int x, int y, int z, Map<Integer, Boolean> cache) {
+        if (x == cx && y == cy && z == cz) {
+            return centerOccluding;
+        }
+        if ((x >> 4) != chunkX || (z >> 4) != chunkZ) {
+            return false;
+        }
+        if (y < world.getMinHeight() || y > world.getMaxHeight() - 1) {
+            return false;
+        }
+        int dx = x - cx;
+        int dy = y - cy;
+        int dz = z - cz;
+        Integer key = null;
+        if (dx >= -2 && dx <= 2 && dy >= -2 && dy <= 2 && dz >= -2 && dz <= 2) {
+            key = Integer.valueOf(((dx + 2) * 25) + ((dy + 2) * 5) + (dz + 2));
+            Boolean cached = cache.get(key);
+            if (cached != null) {
+                return cached.booleanValue();
+            }
+        }
+        boolean occluding = dataOcclusion.occluding(blockReader.at(world, x, y, z));
+        if (key != null) {
+            cache.put(key, Boolean.valueOf(occluding));
+        }
+        return occluding;
     }
 
     public void recordBlockEntityChange(World world, int worldX, int worldY, int worldZ, byte[] nbt) {

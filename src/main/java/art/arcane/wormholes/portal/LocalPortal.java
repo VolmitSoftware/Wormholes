@@ -21,8 +21,11 @@ import java.util.function.IntSupplier;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
+import org.bukkit.DyeColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
@@ -94,6 +97,7 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 	private static final long REENTRY_WAITING_EXIT_GRACE_MILLIS = 2_000L;
 	private static final long TELEPORT_IN_FLIGHT_TTL_MILLIS = 30_000L;
 	private static final double REENTRY_EXIT_MARGIN = 2.0D;
+	private static final double DEPARTURE_COMMITMENT_RADIUS_SQUARED = 256.0D;
 	private static final long RTP_HOLD_NOTICE_DELAY_MILLIS = 500L;
 	private static final long RTP_HOLD_NOTICE_PERIOD_MILLIS = 1_000L;
 	private static final long RTP_UNREADY_NOTICE_PERIOD_MILLIS = 1_500L;
@@ -110,6 +114,15 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 	private static final boolean DEFAULT_BLACKOUT_BACKGROUND = true;
 	private static final BlackoutColor DEFAULT_BLACKOUT_COLOR = BlackoutColor.BLACK;
 	private static final int DEFAULT_ACTIVATION_RANGE = 0;
+	private static final ProjectionRenderMode DEFAULT_RENDER_MODE = ProjectionRenderMode.PANOPTIC;
+	private static final AmbientParticleStyle DEFAULT_AMBIENT_STYLE = AmbientParticleStyle.SPARKS;
+	private static final int DEFAULT_AMBIENT_COLOR = 0xB969FF;
+	private static final String DEFAULT_SURFACE_SKIN = "";
+	private static final int DEFAULT_SURFACE_THICKNESS = 20;
+	private static final int AMBIENT_OUTLINE_MAX_POINTS = 96;
+	private static final int AMBIENT_OUTLINE_OPEN_WINDOW = 32;
+	private static final int AMBIENT_OUTLINE_CLOSED_WINDOW = 8;
+	private static final int AMBIENT_CORNERS_CLOSED_WINDOW = 2;
 	private static final ConcurrentHashMap<UUID, Long> TELEPORT_COOLDOWNS = new ConcurrentHashMap<UUID, Long>();
 	private static final ConcurrentHashMap<UUID, ReentryLatch> REENTRY_LATCHES = new ConcurrentHashMap<UUID, ReentryLatch>();
 	private static final ConcurrentHashMap<UUID, Long> TELEPORT_IN_FLIGHT = new ConcurrentHashMap<UUID, Long>();
@@ -152,6 +165,11 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 	private boolean blackoutBackground;
 	private BlackoutColor blackoutColor;
 	private int activationRange;
+	private ProjectionRenderMode renderMode;
+	private AmbientParticleStyle ambientStyle;
+	private int ambientColor;
+	private String surfaceSkin;
+	private int surfaceThickness;
 	private boolean settingsSyncEnabled;
 	private final ConcurrentHashMap<UUID, ShortTitleHold> shortTitleHolds = new ConcurrentHashMap<UUID, ShortTitleHold>();
 	private final Map<UUID, UIWindow> openMenus = new ConcurrentHashMap<UUID, UIWindow>();
@@ -159,6 +177,8 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 	private final AtomicBoolean destructionStarted = new AtomicBoolean();
 	private final AtomicLong effectSequence = new AtomicLong();
 	private final Object persistenceLock = new Object();
+	private final AmbientOutlineGeometry ambientOutline = new AmbientOutlineGeometry();
+	private long ambientCursor;
 
 	public LocalPortal(UUID id, PortalType type, PortalStructure structure)
 	{
@@ -194,6 +214,11 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 			blackoutBackground = DEFAULT_BLACKOUT_BACKGROUND;
 			blackoutColor = DEFAULT_BLACKOUT_COLOR;
 			activationRange = DEFAULT_ACTIVATION_RANGE;
+			renderMode = DEFAULT_RENDER_MODE;
+			ambientStyle = DEFAULT_AMBIENT_STYLE;
+			ambientColor = DEFAULT_AMBIENT_COLOR;
+			surfaceSkin = DEFAULT_SURFACE_SKIN;
+			surfaceThickness = DEFAULT_SURFACE_THICKNESS;
 			settingsSyncEnabled = true;
 			view = computeView();
 		}
@@ -224,6 +249,11 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 		j.put("blackoutBackground", blackoutBackground);
 		j.put("blackoutColor", blackoutColor.name());
 		j.put("activationRange", activationRange);
+		j.put("renderMode", renderMode.name());
+		j.put("ambientStyle", ambientStyle.name());
+		j.put("ambientColor", ambientColor);
+		j.put("surfaceSkin", surfaceSkin);
+		j.put("surfaceThickness", surfaceThickness);
 		j.put("settingsSyncEnabled", settingsSyncEnabled);
 
 		if(tunnel != null)
@@ -270,6 +300,11 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 			blackoutBackground = j.optBoolean("blackoutBackground", DEFAULT_BLACKOUT_BACKGROUND);
 			blackoutColor = BlackoutColor.fromName(j.optString("blackoutColor", ""), DEFAULT_BLACKOUT_COLOR);
 			activationRange = readActivationRange(j, "activationRange");
+			renderMode = ProjectionRenderMode.fromName(j.optString("renderMode", ""), DEFAULT_RENDER_MODE);
+			ambientStyle = AmbientParticleStyle.fromName(j.optString("ambientStyle", ""), DEFAULT_AMBIENT_STYLE);
+			ambientColor = normalizeAmbientColor(j.optInt("ambientColor", DEFAULT_AMBIENT_COLOR));
+			surfaceSkin = PortalSurfaceSkins.normalizeSkin(j.optString("surfaceSkin", DEFAULT_SURFACE_SKIN));
+			surfaceThickness = normalizeSurfaceThickness(j.optInt("surfaceThickness", DEFAULT_SURFACE_THICKNESS));
 			settingsSyncEnabled = !j.has("settingsSyncEnabled") || j.getBoolean("settingsSyncEnabled");
 			view = computeView();
 
@@ -580,6 +615,11 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 				continue;
 			}
 
+			if(isTeleportInFlight(entityId, now))
+			{
+				continue;
+			}
+
 			Traversive traversive = rayTeleport(i);
 			if(traversive == null)
 			{
@@ -588,8 +628,7 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 
 			if(rtp)
 			{
-				if(Wormholes.rtpRuntime == null || isTeleportInFlight(entityId, now)
-						|| !BukkitRtpRuntime.physicallyTraversable(i))
+				if(Wormholes.rtpRuntime == null || !BukkitRtpRuntime.physicallyTraversable(i))
 				{
 					continue;
 				}
@@ -633,10 +672,15 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 			}
 
 			markTeleportCooldown(entityId, now);
+			boolean crossServerHandoff = activeTunnel instanceof UniversalTunnel && Wormholes.traversalService != null;
 			Wormholes.v("[cross] " + i.getName() + " crossing portal " + getId() + " -> " + (activeTunnel instanceof UniversalTunnel ? "CROSS-SERVER handoff" : "local teleport"));
 			if(!(activeTunnel instanceof UniversalTunnel && i instanceof Player))
 			{
 				playEffect(PortalEffect.PUSH, traversive.getInPoint().toLocation(getStructure().getWorld()));
+			}
+			if(crossServerHandoff)
+			{
+				markTeleportInFlight(entityId, now);
 			}
 			pushTraversive(traversive, activeTunnel);
 		}
@@ -926,17 +970,11 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 				}
 				break;
 			case AMBIENT_CLOSED:
-				for(int i = 0; i < 1; i++)
-				{
-					ParticleEffect.TOWN_AURA.display(0f, 1, getStructure().randomLocation(), 16);
-				}
+				renderAmbientParticles(false);
 
 				break;
 			case AMBIENT_OPEN:
-				for(int i = 0; i < 4; i++)
-				{
-					ParticleEffect.TOWN_AURA.display(0f, 1, getStructure().randomLocation(), 16);
-				}
+				renderAmbientParticles(true);
 
 				if(isPortalSoundEnabled() && M.r(0.01))
 				{
@@ -1003,6 +1041,93 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 	{
 		RtpSettings settings = rtpSettings;
 		return type != PortalType.RTP || settings == null || settings.isSoundEnabled();
+	}
+
+	private void renderAmbientParticles(boolean open)
+	{
+		if(!Settings.ENABLE_PARTICLES)
+		{
+			return;
+		}
+
+		switch(ambientStyle)
+		{
+			case OFF ->
+			{
+			}
+			case SPARKS -> renderAmbientSparks(open);
+			case CORNERS -> renderAmbientCorners(open);
+			case OUTLINE -> renderAmbientOutline(open);
+		}
+	}
+
+	private void renderAmbientSparks(boolean open)
+	{
+		int count = open ? 4 : 1;
+		for(int i = 0; i < count; i++)
+		{
+			ParticleEffect.TOWN_AURA.display(0f, 1, getStructure().randomLocation(), 16);
+		}
+	}
+
+	private void renderAmbientCorners(boolean open)
+	{
+		PortalStructure structure = getStructure();
+		World world = structure.getWorld();
+		if(world == null)
+		{
+			return;
+		}
+
+		List<Location> corners = new ArrayList<Location>(structure.getCorners());
+		if(corners.isEmpty())
+		{
+			return;
+		}
+
+		Particle.DustOptions dust = new Particle.DustOptions(Color.fromRGB(ambientColor), 1.0f);
+		if(open)
+		{
+			for(Location corner : corners)
+			{
+				world.spawnParticle(Particle.DUST, corner, 1, dust);
+			}
+			return;
+		}
+
+		int start = (int) Math.floorMod(ambientCursor++, corners.size());
+		int window = Math.min(AMBIENT_CORNERS_CLOSED_WINDOW, corners.size());
+		for(int i = 0; i < window; i++)
+		{
+			world.spawnParticle(Particle.DUST, corners.get((start + i) % corners.size()), 1, dust);
+		}
+	}
+
+	private void renderAmbientOutline(boolean open)
+	{
+		PortalStructure structure = getStructure();
+		World world = structure.getWorld();
+		PortalFrame frame = getFrame();
+		if(world == null || frame == null)
+		{
+			return;
+		}
+
+		List<double[]> points = ambientOutline.points(structure.getRevision(), frame.getNormal().getAxis(), structure.getBlockPositions());
+		if(points.isEmpty())
+		{
+			return;
+		}
+
+		Particle.DustOptions dust = new Particle.DustOptions(Color.fromRGB(ambientColor), 1.0f);
+		int window = Math.min(open ? AMBIENT_OUTLINE_OPEN_WINDOW : AMBIENT_OUTLINE_CLOSED_WINDOW, AMBIENT_OUTLINE_MAX_POINTS);
+		window = Math.min(window, points.size());
+		int start = (int) Math.floorMod(ambientCursor++, points.size());
+		for(int i = 0; i < window; i++)
+		{
+			double[] point = points.get((start + i) % points.size());
+			world.spawnParticle(Particle.DUST, point[0], point[1], point[2], 1, 0.0D, 0.0D, 0.0D, 0.0D, dust);
+		}
 	}
 
 	@Override
@@ -1222,7 +1347,7 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 	@Override
 	public boolean canCompleteDeparture(Entity entity, Traversive traversive)
 	{
-		if(entity == null || traversive == null || !entity.isValid() || !isOpen() || !canDepart(entity))
+		if(entity == null || traversive == null || !entity.isValid())
 		{
 			return false;
 		}
@@ -1233,7 +1358,7 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 		{
 			return false;
 		}
-		return remainsCommittedToDeparture(traversive, location.toVector());
+		return withinDepartureCommitmentRadius(traversive.getInPoint().distanceSquared(location.toVector()));
 	}
 
 	@Override
@@ -1330,9 +1455,9 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 		return point.clone().subtract(traversive.getInPoint()).dot(normal);
 	}
 
-	static boolean remainsCommittedToDeparture(Traversive traversive, Vector point)
+	static boolean withinDepartureCommitmentRadius(double distanceSquared)
 	{
-		return sourceSideDistance(traversive, point) <= REENTRY_EXIT_MARGIN;
+		return distanceSquared <= DEPARTURE_COMMITMENT_RADIUS_SQUARED;
 	}
 
 	static Vector sourceRejectionVelocity(Traversive traversive)
@@ -1514,6 +1639,66 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 		{
 			WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_RTP_TRAVERSAL_FAILED));
 		}
+	}
+
+	public void startPlayerDepartureHold(Player player, Traversive traversive)
+	{
+		PortalStructure portalStructure = getStructure();
+		World sourceWorld = portalStructure == null ? null : portalStructure.getWorld();
+		if(sourceWorld == null || Wormholes.instance == null)
+		{
+			return;
+		}
+		UUID playerId = player.getUniqueId();
+		Location anchor = player.getLocation().clone();
+		long startedAtMillis = System.currentTimeMillis();
+		long[] lastNoticeMillis = new long[] {0L};
+		Runnable[] step = new Runnable[1];
+		step[0] = () ->
+		{
+			if(!player.isValid())
+			{
+				return;
+			}
+			long nowMillis = System.currentTimeMillis();
+			boolean inFlight = isTeleportInFlight(playerId, nowMillis);
+			boolean sameWorld = sourceWorld.equals(player.getWorld());
+			Location current = player.getLocation();
+			double driftSquared = sameWorld ? current.distanceSquared(anchor) : Double.MAX_VALUE;
+			double sideDistance = sameWorld ? sourceSideDistance(traversive, current.toVector()) : 0.0D;
+			switch(DepartureHoldPolicy.decide(inFlight, sameWorld, sideDistance, driftSquared, nowMillis - startedAtMillis))
+			{
+				case STOP ->
+				{
+				}
+				case CANCEL_RETREAT ->
+				{
+					if(Wormholes.traversalService != null)
+					{
+						Wormholes.traversalService.cancelPendingHandoff(playerId);
+					}
+				}
+				case HOLD_PIN ->
+				{
+					if(nowMillis - startedAtMillis >= RTP_HOLD_NOTICE_DELAY_MILLIS
+							&& nowMillis - lastNoticeMillis[0] >= RTP_HOLD_NOTICE_PERIOD_MILLIS)
+					{
+						lastNoticeMillis[0] = nowMillis;
+						WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_TRANSFER_HOLDING));
+					}
+					player.setVelocity(new Vector(0, 0, 0));
+					if(driftSquared > DepartureHoldPolicy.LEASH_DRIFT_SQUARED)
+					{
+						Location snap = anchor.clone();
+						snap.setYaw(current.getYaw());
+						snap.setPitch(current.getPitch());
+						player.teleport(snap, PlayerTeleportEvent.TeleportCause.PLUGIN);
+					}
+					FoliaScheduler.runEntity(Wormholes.instance, player, step[0], 1L);
+				}
+			}
+		};
+		FoliaScheduler.runEntity(Wormholes.instance, player, step[0], 1L);
 	}
 
 	public void completeRtpTraversal(Entity entity, Traversive traversive, PortalFrame targetFrame, Location target)
@@ -2657,7 +2842,7 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 		window.setTitle(getRouter(true));
 		window.setResolution(WindowResolution.W9_H6);
 		boolean custom = getNetworkViewQuality() == NetworkViewQuality.CUSTOM;
-		window.setViewportHeight(custom ? 5 : 4);
+		window.setViewportHeight(custom ? 6 : 4);
 		window.setDecorator(new UIPaneDecorator(Material.GRAY_STAINED_GLASS_PANE));
 
 		window.setElement(0, 0, settingsPlacardElement());
@@ -2685,17 +2870,23 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 					WormholesMessages.PORTAL_NETWORK_LABEL_VIEW_GRACE,
 					WormholesMessages.PORTAL_NETWORK_DESCRIPTION_VIEW_GRACE,
 					Material.REDSTONE, this::getNetworkViewUnsubscribeGraceSeconds, this::setNetworkViewUnsubscribeGraceSeconds, 5, 30));
-			window.setElement(-2, 3, blackoutElement(window, p));
+			window.setElement(-4, 3, blackoutElement(window, p));
+			window.setElement(-2, 3, ambientParticlesElement(window, p));
 			window.setElement(0, 3, networkViewFallbackElement(p, window));
-			window.setElement(2, 3, activationRangeElement(window, p));
+			window.setElement(2, 3, surfaceSkinElement(window, p));
+			window.setElement(4, 3, activationRangeElement(window, p));
+			window.setElement(0, 4, renderModeElement(window, p));
 		}
 		else
 		{
-			window.setElement(-1, 2, blackoutElement(window, p));
-			window.setElement(1, 2, activationRangeElement(window, p));
+			window.setElement(-4, 2, blackoutElement(window, p));
+			window.setElement(-2, 2, activationRangeElement(window, p));
+			window.setElement(0, 2, renderModeElement(window, p));
+			window.setElement(2, 2, ambientParticlesElement(window, p));
+			window.setElement(4, 2, surfaceSkinElement(window, p));
 		}
 
-		window.setElement(0, custom ? 4 : 3, backToPortalMenuElement(window, p));
+		window.setElement(0, custom ? 5 : 3, backToPortalMenuElement(window, p));
 
 		return window;
 	}
@@ -2724,8 +2915,11 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 				WormholesMessages.PORTAL_NETWORK_LABEL_VIEW_GRACE,
 				WormholesMessages.PORTAL_NETWORK_DESCRIPTION_VIEW_GRACE,
 				Material.REDSTONE, this::getNetworkViewUnsubscribeGraceSeconds, this::setNetworkViewUnsubscribeGraceSeconds, 5, 30));
+		window.setElement(-2, 2, ambientParticlesElement(window, p));
 		window.setElement(0, 2, networkViewFallbackElement(p, window));
+		window.setElement(2, 2, surfaceSkinElement(window, p));
 		window.setElement(-2, 3, blackoutElement(window, p));
+		window.setElement(0, 3, renderModeElement(window, p));
 		window.setElement(2, 3, activationRangeElement(window, p));
 		window.setElement(0, 4, backToSettingsMenuElement(window, p));
 		window.setVisible(true);
@@ -3272,6 +3466,471 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 		}
 		return Wormholes.text().plain(WormholesMessages.PORTAL_LABEL_ACTIVATION_GLOBAL,
 				arguments("range", (int) Math.round(Settings.PROJECTION_RANGE)));
+	}
+
+	private Element renderModeElement(Window window, Player viewer)
+	{
+		UIElement element = new UIElement("render-mode");
+		element.onLeftClick((e) ->
+		{
+			setRenderMode(getRenderMode().next());
+			applyRenderModeElement(element);
+			window.updateInventory();
+			notifySetting(viewer, WormholesMessages.PORTAL_NETWORK_VALUE_CHANGED,
+					arguments("label", localized(WormholesMessages.PORTAL_NETWORK_LABEL_RENDER_MODE),
+							"value", getRenderMode().displayName()));
+		});
+		applyRenderModeElement(element);
+		return element;
+	}
+
+	private void applyRenderModeElement(Element element)
+	{
+		Wormholes.text().apply(element, WormholesMessages.PORTAL_MENU_RENDER_MODE,
+				arguments("mode", getRenderMode().displayName()));
+		element.setMaterial(new MaterialBlock(Material.valueOf(getRenderMode().iconMaterialName())));
+		element.setEnchanted(getRenderMode() == ProjectionRenderMode.VENTICULAR);
+	}
+
+	private Element ambientParticlesElement(Window window, Player viewer)
+	{
+		UIElement element = new UIElement("ambient-particles");
+		element.onLeftClick((e) ->
+		{
+			setAmbientStyle(getAmbientStyle().next());
+			applyAmbientParticlesElement(element);
+			window.updateInventory();
+			notifySetting(viewer, WormholesMessages.PORTAL_NETWORK_VALUE_CHANGED,
+					arguments("label", localized(WormholesMessages.PORTAL_NETWORK_LABEL_AMBIENT_STYLE),
+							"value", ambientStyleDisplay()));
+		});
+		element.onRightClick((e) -> FoliaScheduler.runEntity(Wormholes.instance, viewer, () ->
+		{
+			window.close();
+			uiOpenAmbientColorMenu(viewer);
+		}));
+		applyAmbientParticlesElement(element);
+		return element;
+	}
+
+	private void applyAmbientParticlesElement(Element element)
+	{
+		Wormholes.text().apply(element, WormholesMessages.PORTAL_MENU_AMBIENT_PARTICLES,
+				arguments(
+						"style", ambientStyleDisplay(),
+						"color", ambientColorHex()));
+		element.setMaterial(new MaterialBlock(Material.valueOf(getAmbientStyle().iconMaterialName())));
+		element.setEnchanted(getAmbientStyle() != AmbientParticleStyle.OFF);
+	}
+
+	private void uiOpenAmbientColorMenu(Player viewer)
+	{
+		UIWindow window = new UIWindow(Wormholes.instance, viewer);
+		window.setTitle(getRouter(true));
+		window.setResolution(WindowResolution.W9_H6);
+		window.setViewportHeight(5);
+		window.setDecorator(new UIPaneDecorator(Material.BLACK_STAINED_GLASS_PANE));
+		refreshAmbientColorMenu(window, viewer);
+		window.setElement(0, 4, backToSettingsMenuElement(window, viewer));
+		window.setVisible(true);
+	}
+
+	private void refreshAmbientColorMenu(Window window, Player viewer)
+	{
+		window.setElement(0, 0, ambientColorPlacardElement());
+		window.setElement(-2, 1, ambientChannelElement(window, viewer, "ambient-red",
+				WormholesMessages.PORTAL_LABEL_AMBIENT_RED, Material.RED_DYE, this::getAmbientRed, this::setAmbientRed));
+		window.setElement(0, 1, ambientChannelElement(window, viewer, "ambient-green",
+				WormholesMessages.PORTAL_LABEL_AMBIENT_GREEN, Material.GREEN_DYE, this::getAmbientGreen, this::setAmbientGreen));
+		window.setElement(2, 1, ambientChannelElement(window, viewer, "ambient-blue",
+				WormholesMessages.PORTAL_LABEL_AMBIENT_BLUE, Material.BLUE_DYE, this::getAmbientBlue, this::setAmbientBlue));
+		DyeColor[] dyes = DyeColor.values();
+		for(int index = 0; index < dyes.length; index++)
+		{
+			int row = 2 + (index / 8);
+			int column = -4 + (index % 8);
+			window.setElement(column, row, ambientColorOptionElement(window, viewer, dyes[index]));
+		}
+	}
+
+	private Element ambientColorPlacardElement()
+	{
+		return localizedElement("ambient-color-placard", WormholesMessages.PORTAL_MENU_AMBIENT_COLOR_PLACARD,
+				arguments("color", ambientColorHex()), Material.FIREWORK_STAR);
+	}
+
+	private Element ambientChannelElement(Window window, Player viewer, String id, TextKey label, Material material, IntSupplier getter, IntConsumer setter)
+	{
+		UIElement element = new UIElement(id);
+		element.onLeftClick((e) -> adjustAmbientChannel(window, viewer, label, getter, setter, 8));
+		element.onRightClick((e) -> adjustAmbientChannel(window, viewer, label, getter, setter, -8));
+		element.onShiftLeftClick((e) -> adjustAmbientChannel(window, viewer, label, getter, setter, 32));
+		element.onShiftRightClick((e) -> adjustAmbientChannel(window, viewer, label, getter, setter, -32));
+		applyAmbientChannelElement(element, label, material, getter);
+		return element;
+	}
+
+	private void adjustAmbientChannel(Window window, Player viewer, TextKey label, IntSupplier getter, IntConsumer setter, int delta)
+	{
+		int previous = getter.getAsInt();
+		setter.accept(previous + delta);
+		int current = getter.getAsInt();
+		refreshAmbientColorMenu(window, viewer);
+		window.updateInventory();
+		if(current != previous)
+		{
+			notifySetting(viewer, WormholesMessages.PORTAL_NETWORK_VALUE_CHANGED,
+					arguments("label", localized(label), "value", current));
+		}
+	}
+
+	private void applyAmbientChannelElement(Element element, TextKey label, Material material, IntSupplier getter)
+	{
+		Wormholes.text().apply(element, WormholesMessages.PORTAL_MENU_AMBIENT_CHANNEL,
+				arguments(
+						"label", localized(label),
+						"value", getter.getAsInt(),
+						"step", 8,
+						"large_step", 32));
+		element.setMaterial(new MaterialBlock(material));
+	}
+
+	private Element ambientColorOptionElement(Window window, Player viewer, DyeColor color)
+	{
+		int rgb = dyeRgb(color);
+		UIElement element = localizedElement("ambient-color-" + color.name().toLowerCase(Locale.ROOT),
+				WormholesMessages.PORTAL_MENU_AMBIENT_COLOR_OPTION,
+				arguments("color", dyeDisplayName(color)), dyeMaterial(color));
+		element.setEnchanted(nearestDye(getAmbientColor()) == color);
+		element.onLeftClick((e) ->
+		{
+			setAmbientColor(rgb);
+			refreshAmbientColorMenu(window, viewer);
+			window.updateInventory();
+			notifySetting(viewer, WormholesMessages.PORTAL_NETWORK_VALUE_CHANGED,
+					arguments("label", localized(WormholesMessages.PORTAL_NETWORK_LABEL_AMBIENT_COLOR),
+							"value", dyeDisplayName(color)));
+		});
+		return element;
+	}
+
+	private int getAmbientRed()
+	{
+		return (getAmbientColor() >> 16) & 0xFF;
+	}
+
+	private int getAmbientGreen()
+	{
+		return (getAmbientColor() >> 8) & 0xFF;
+	}
+
+	private int getAmbientBlue()
+	{
+		return getAmbientColor() & 0xFF;
+	}
+
+	private void setAmbientRed(int value)
+	{
+		setAmbientColor((getAmbientColor() & 0x00FFFF) | (clampColorChannel(value) << 16));
+	}
+
+	private void setAmbientGreen(int value)
+	{
+		setAmbientColor((getAmbientColor() & 0xFF00FF) | (clampColorChannel(value) << 8));
+	}
+
+	private void setAmbientBlue(int value)
+	{
+		setAmbientColor((getAmbientColor() & 0xFFFF00) | clampColorChannel(value));
+	}
+
+	private static int clampColorChannel(int value)
+	{
+		if(value < 0)
+		{
+			return 0;
+		}
+		if(value > 255)
+		{
+			return 255;
+		}
+		return value;
+	}
+
+	private String ambientColorHex()
+	{
+		return String.format(Locale.ROOT, "#%06X", getAmbientColor());
+	}
+
+	private String ambientStyleDisplay()
+	{
+		return localized(ambientStyleLabel(getAmbientStyle()));
+	}
+
+	private static TextKey ambientStyleLabel(AmbientParticleStyle style)
+	{
+		return switch(style)
+		{
+			case SPARKS -> WormholesMessages.PORTAL_LABEL_AMBIENT_STYLE_SPARKS;
+			case OUTLINE -> WormholesMessages.PORTAL_LABEL_AMBIENT_STYLE_OUTLINE;
+			case CORNERS -> WormholesMessages.PORTAL_LABEL_AMBIENT_STYLE_CORNERS;
+			case OFF -> WormholesMessages.PORTAL_LABEL_AMBIENT_STYLE_OFF;
+		};
+	}
+
+	private static int dyeRgb(DyeColor color)
+	{
+		Color rgb = color.getColor();
+		return (rgb.getRed() << 16) | (rgb.getGreen() << 8) | rgb.getBlue();
+	}
+
+	private static DyeColor nearestDye(int rgb)
+	{
+		int red = (rgb >> 16) & 0xFF;
+		int green = (rgb >> 8) & 0xFF;
+		int blue = rgb & 0xFF;
+		DyeColor best = DyeColor.WHITE;
+		long bestDistance = Long.MAX_VALUE;
+		for(DyeColor color : DyeColor.values())
+		{
+			Color candidate = color.getColor();
+			long dr = red - candidate.getRed();
+			long dg = green - candidate.getGreen();
+			long db = blue - candidate.getBlue();
+			long distance = (dr * dr) + (dg * dg) + (db * db);
+			if(distance < bestDistance)
+			{
+				bestDistance = distance;
+				best = color;
+			}
+		}
+		return best;
+	}
+
+	private static Material dyeMaterial(DyeColor color)
+	{
+		return Material.valueOf(color.name() + "_WOOL");
+	}
+
+	private static String dyeDisplayName(DyeColor color)
+	{
+		String[] parts = color.name().split("_");
+		StringBuilder builder = new StringBuilder();
+		for(int index = 0; index < parts.length; index++)
+		{
+			if(index > 0)
+			{
+				builder.append(' ');
+			}
+			String part = parts[index];
+			builder.append(part.substring(0, 1).toUpperCase(Locale.ROOT));
+			builder.append(part.substring(1).toLowerCase(Locale.ROOT));
+		}
+		return builder.toString();
+	}
+
+	private Element surfaceSkinElement(Window window, Player viewer)
+	{
+		UIElement element = new UIElement("surface-skin");
+		element.onLeftClick((e) ->
+		{
+			if(!hasSurfaceSkin())
+			{
+				return;
+			}
+			setSurfaceSkin("");
+			applySurfaceSkinElement(element);
+			window.updateInventory();
+			notifySetting(viewer, WormholesMessages.PORTAL_NETWORK_VALUE_CHANGED,
+					arguments("label", localized(WormholesMessages.PORTAL_NETWORK_LABEL_SURFACE_SKIN),
+							"value", surfaceSkinDisplay()));
+		});
+		element.onRightClick((e) -> FoliaScheduler.runEntity(Wormholes.instance, viewer, () ->
+		{
+			window.close();
+			uiOpenSurfaceSkinMenu(viewer);
+		}));
+		applySurfaceSkinElement(element);
+		return element;
+	}
+
+	private void applySurfaceSkinElement(Element element)
+	{
+		Wormholes.text().apply(element, WormholesMessages.PORTAL_MENU_SURFACE_SKIN,
+				arguments(
+						"skin", surfaceSkinDisplay(),
+						"thickness", surfaceThicknessDisplay()));
+		element.setMaterial(new MaterialBlock(surfaceSkinIcon()));
+		element.setEnchanted(hasSurfaceSkin());
+	}
+
+	private void uiOpenSurfaceSkinMenu(Player viewer)
+	{
+		UIWindow window = new UIWindow(Wormholes.instance, viewer);
+		window.setTitle(getRouter(true));
+		window.setResolution(WindowResolution.W9_H6);
+		window.setViewportHeight(4);
+		window.setDecorator(new UIPaneDecorator(Material.CYAN_STAINED_GLASS_PANE));
+		refreshSurfaceSkinMenu(window, viewer);
+		window.setElement(0, 3, backToSettingsMenuElement(window, viewer));
+		window.setVisible(true);
+	}
+
+	private void refreshSurfaceSkinMenu(Window window, Player viewer)
+	{
+		window.setElement(0, 0, surfaceSkinPlacardElement());
+		window.setElement(0, 1, surfaceThicknessElement(window, viewer));
+		window.setElement(-1, 2, surfaceSkinGlassElement(window, viewer));
+		window.setElement(1, 2, surfaceSkinClearElement(window, viewer));
+	}
+
+	private Element surfaceSkinPlacardElement()
+	{
+		return localizedElement("surface-skin-placard", WormholesMessages.PORTAL_MENU_SURFACE_SKIN_PLACARD,
+				arguments("skin", surfaceSkinDisplay(), "thickness", surfaceThicknessDisplay()), surfaceSkinIcon());
+	}
+
+	private Element surfaceThicknessElement(Window window, Player viewer)
+	{
+		UIElement element = new UIElement("surface-thickness");
+		element.onLeftClick((e) -> adjustSurfaceThickness(element, window, viewer, 5));
+		element.onRightClick((e) -> adjustSurfaceThickness(element, window, viewer, -5));
+		element.onShiftLeftClick((e) -> adjustSurfaceThickness(element, window, viewer, 25));
+		element.onShiftRightClick((e) -> adjustSurfaceThickness(element, window, viewer, -25));
+		applySurfaceThicknessElement(element);
+		return element;
+	}
+
+	private void adjustSurfaceThickness(UIElement element, Window window, Player viewer, int delta)
+	{
+		int previous = getSurfaceThickness();
+		setSurfaceThickness(previous + delta);
+		int current = getSurfaceThickness();
+		applySurfaceThicknessElement(element);
+		window.updateInventory();
+		if(current != previous)
+		{
+			notifySetting(viewer, WormholesMessages.PORTAL_NETWORK_VALUE_CHANGED,
+					arguments("label", localized(WormholesMessages.PORTAL_NETWORK_LABEL_SURFACE_THICKNESS), "value", surfaceThicknessDisplay()));
+		}
+	}
+
+	private void applySurfaceThicknessElement(Element element)
+	{
+		Wormholes.text().apply(element, WormholesMessages.PORTAL_MENU_SURFACE_THICKNESS,
+				arguments("value", surfaceThicknessDisplay(), "step", 5, "large_step", 25));
+		element.setMaterial(new MaterialBlock(Material.PAPER));
+	}
+
+	private Element surfaceSkinGlassElement(Window window, Player viewer)
+	{
+		UIElement element = localizedElement("surface-skin-glass", WormholesMessages.PORTAL_MENU_SURFACE_SKIN_GLASS,
+				MessageArgs.empty(), Material.GLASS);
+		element.setEnchanted("minecraft:glass".equals(getSurfaceSkin()));
+		element.onLeftClick((e) ->
+		{
+			setSurfaceSkin("minecraft:glass");
+			refreshSurfaceSkinMenu(window, viewer);
+			window.updateInventory();
+			notifySetting(viewer, WormholesMessages.PORTAL_NETWORK_VALUE_CHANGED,
+					arguments("label", localized(WormholesMessages.PORTAL_NETWORK_LABEL_SURFACE_SKIN),
+							"value", surfaceSkinDisplay()));
+		});
+		return element;
+	}
+
+	private Element surfaceSkinClearElement(Window window, Player viewer)
+	{
+		UIElement element = localizedElement("surface-skin-clear", WormholesMessages.PORTAL_MENU_SURFACE_SKIN_CLEAR,
+				MessageArgs.empty(), Material.BARRIER);
+		element.onLeftClick((e) ->
+		{
+			if(!hasSurfaceSkin())
+			{
+				return;
+			}
+			setSurfaceSkin("");
+			refreshSurfaceSkinMenu(window, viewer);
+			window.updateInventory();
+			notifySetting(viewer, WormholesMessages.PORTAL_NETWORK_VALUE_CHANGED,
+					arguments("label", localized(WormholesMessages.PORTAL_NETWORK_LABEL_SURFACE_SKIN),
+							"value", surfaceSkinDisplay()));
+		});
+		return element;
+	}
+
+	private String surfaceThicknessDisplay()
+	{
+		return String.format(Locale.ROOT, "%.2f", getSurfaceThickness() / 100.0);
+	}
+
+	private String surfaceSkinDisplay()
+	{
+		if(!hasSurfaceSkin())
+		{
+			return localized(WormholesMessages.PORTAL_LABEL_SKIN_NONE);
+		}
+		return getSurfaceSkin();
+	}
+
+	private Material surfaceSkinIcon()
+	{
+		if(!hasSurfaceSkin())
+		{
+			return Material.GLASS;
+		}
+		if(PortalSurfaceSkins.isFluid(getSurfaceSkin()))
+		{
+			return getSurfaceSkin().contains("lava") ? Material.LAVA_BUCKET : Material.WATER_BUCKET;
+		}
+		Material material = skinMaterial(getSurfaceSkin());
+		return material != null && material.isItem() ? material : Material.GLASS;
+	}
+
+	private static Material skinMaterial(String skin)
+	{
+		try
+		{
+			return Bukkit.createBlockData(skin).getMaterial();
+		}
+		catch(IllegalArgumentException ex)
+		{
+			return null;
+		}
+	}
+
+	public boolean applySurfaceSkinFromInteraction(Player player, String skin)
+	{
+		if(!ensureCanManagePortal(player))
+		{
+			return false;
+		}
+		String previous = getSurfaceSkin();
+		setSurfaceSkin(skin);
+		if(!previous.equals(getSurfaceSkin()))
+		{
+			notifySetting(player, WormholesMessages.PORTAL_NETWORK_VALUE_CHANGED,
+					arguments("label", localized(WormholesMessages.PORTAL_NETWORK_LABEL_SURFACE_SKIN),
+							"value", surfaceSkinDisplay()));
+		}
+		return true;
+	}
+
+	public boolean clearSurfaceSkinFromInteraction(Player player)
+	{
+		if(!ensureCanManagePortal(player))
+		{
+			return false;
+		}
+		if(!hasSurfaceSkin())
+		{
+			return false;
+		}
+		setSurfaceSkin("");
+		notifySetting(player, WormholesMessages.PORTAL_NETWORK_VALUE_CHANGED,
+				arguments("label", localized(WormholesMessages.PORTAL_NETWORK_LABEL_SURFACE_SKIN),
+						"value", surfaceSkinDisplay()));
+		return true;
 	}
 
 	@Override
@@ -4392,7 +5051,7 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 				return;
 			}
 			networkViewHeartbeatTicks = normalized;
-			networkViewSettingsChanged();
+			renderSettingsChanged();
 		}
 
 		@Override
@@ -4410,7 +5069,7 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 				return;
 			}
 			networkViewEntityIntervalTicks = normalized;
-			networkViewSettingsChanged();
+			renderSettingsChanged();
 		}
 
 		@Override
@@ -4428,7 +5087,7 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 				return;
 			}
 			networkViewUnsubscribeGraceSeconds = normalized;
-			networkViewSettingsChanged();
+			renderSettingsChanged();
 		}
 
 		@Override
@@ -4446,7 +5105,7 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 				return;
 			}
 			networkViewFallbackBlock = normalized;
-			networkViewSettingsChanged();
+			renderSettingsChanged();
 		}
 
 		@Override
@@ -4463,7 +5122,7 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 				return;
 			}
 			blackoutBackground = enabled;
-			networkViewSettingsChanged();
+			renderSettingsChanged();
 		}
 
 		@Override
@@ -4480,7 +5139,7 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 				return;
 			}
 			blackoutColor = color;
-			networkViewSettingsChanged();
+			renderSettingsChanged();
 		}
 
 		@Override
@@ -4498,7 +5157,7 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 				return;
 			}
 			activationRange = normalized;
-			networkViewSettingsChanged();
+			renderSettingsChanged();
 		}
 
 		@Override
@@ -4507,10 +5166,108 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 			return activationRange > 0 ? activationRange : Settings.PROJECTION_RANGE;
 		}
 
+		@Override
+		public ProjectionRenderMode getRenderMode()
+		{
+			return renderMode;
+		}
+
+		@Override
+		public void setRenderMode(ProjectionRenderMode mode)
+		{
+			if(mode == null || renderMode == mode)
+			{
+				return;
+			}
+			renderMode = mode;
+			networkViewSettingsChanged();
+		}
+
+		@Override
+		public AmbientParticleStyle getAmbientStyle()
+		{
+			return ambientStyle;
+		}
+
+		@Override
+		public void setAmbientStyle(AmbientParticleStyle style)
+		{
+			if(style == null || ambientStyle == style)
+			{
+				return;
+			}
+			ambientStyle = style;
+			renderSettingsChanged();
+		}
+
+		@Override
+		public int getAmbientColor()
+		{
+			return ambientColor;
+		}
+
+		@Override
+		public void setAmbientColor(int color)
+		{
+			int normalized = normalizeAmbientColor(color);
+			if(ambientColor == normalized)
+			{
+				return;
+			}
+			ambientColor = normalized;
+			renderSettingsChanged();
+		}
+
+		@Override
+		public String getSurfaceSkin()
+		{
+			return surfaceSkin;
+		}
+
+		@Override
+		public void setSurfaceSkin(String skin)
+		{
+			String normalized = PortalSurfaceSkins.normalizeSkin(skin);
+			if(surfaceSkin.equals(normalized))
+			{
+				return;
+			}
+			surfaceSkin = normalized;
+			renderSettingsChanged();
+		}
+
+		@Override
+		public int getSurfaceThickness()
+		{
+			return surfaceThickness;
+		}
+
+		@Override
+		public void setSurfaceThickness(int thicknessCentiblocks)
+		{
+			int normalized = normalizeSurfaceThickness(thicknessCentiblocks);
+			if(surfaceThickness == normalized)
+			{
+				return;
+			}
+			surfaceThickness = normalized;
+			renderSettingsChanged();
+		}
+
 		private void networkViewSettingsChanged()
 		{
+			settingsChanged(true);
+		}
+
+		private void renderSettingsChanged()
+		{
+			settingsChanged(false);
+		}
+
+		private void settingsChanged(boolean captureShapeChanged)
+		{
 			save();
-			if(Wormholes.viewServer != null)
+			if(captureShapeChanged && Wormholes.viewServer != null)
 			{
 				Wormholes.viewServer.refreshPortal(this);
 			}
@@ -4610,6 +5367,16 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 		private static int normalizeActivationRange(int value)
 		{
 			return value <= 0 ? 0 : clampNetworkViewInt(value, 8, 256);
+		}
+
+		private static int normalizeAmbientColor(int color)
+		{
+			return clampNetworkViewInt(color, 0, 0xFFFFFF);
+		}
+
+		private static int normalizeSurfaceThickness(int thicknessCentiblocks)
+		{
+			return clampNetworkViewInt(thicknessCentiblocks, 5, 100);
 		}
 
 		private static int clampNetworkViewInt(int value, int min, int max)

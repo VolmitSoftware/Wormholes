@@ -3,6 +3,7 @@ package art.arcane.wormholes.network.view;
 import art.arcane.wormholes.network.replication.ChunkBulk;
 import art.arcane.wormholes.network.replication.ChunkDiffBatch;
 import art.arcane.wormholes.network.replication.RemoteChunkStore;
+import art.arcane.wormholes.render.view.OccludedMarker;
 
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
@@ -288,7 +289,7 @@ public final class RemoteViewCache {
         }
         if (matched) {
             if (publishedPeers.add(peerName)) {
-                art.arcane.wormholes.Wormholes.instance.getLogger().info("[view] first remote chunk slice published to projector for peer " + peerName + " (block data is flowing)");
+                art.arcane.wormholes.Wormholes.i("[view] first remote chunk slice published to projector for peer " + peerName + " (block data is flowing)");
             }
         } else if (noViewPeers.add(peerName)) {
             art.arcane.wormholes.Wormholes.w("[view] received remote chunk slices for peer " + peerName + " but no projector view is subscribed to it (peer-name mismatch or no active subscription)");
@@ -325,7 +326,25 @@ public final class RemoteViewCache {
     }
 
     public void remove(String peerName, UUID portalId) {
-        views.remove(key(peerName, portalId));
+        RemoteView removed = views.remove(key(peerName, portalId));
+        if (removed == null) {
+            return;
+        }
+        RemoteChunkStore store = chunkStores.get(peerName);
+        if (store == null || removed.slices.isEmpty()) {
+            return;
+        }
+        Set<Long> retained = new HashSet<Long>();
+        for (RemoteView view : views.values()) {
+            if (view.peerName.equals(peerName)) {
+                retained.addAll(view.slices.keySet());
+            }
+        }
+        for (Long columnKey : removed.slices.keySet()) {
+            if (!retained.contains(columnKey)) {
+                store.remove(columnKey.longValue());
+            }
+        }
     }
 
     public void markViewReady(String peerName, UUID portalId) {
@@ -458,6 +477,9 @@ public final class RemoteViewCache {
     }
 
     private BlockData parseBlockData(String stateString) {
+        if (OccludedMarker.isSentinelState(stateString)) {
+            return OccludedMarker.standIn();
+        }
         BlockData cached = parsedBlockData.get(stateString);
         if (cached != null) {
             return cached;

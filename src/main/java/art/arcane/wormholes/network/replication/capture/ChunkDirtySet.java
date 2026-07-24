@@ -39,6 +39,17 @@ public final class ChunkDirtySet {
         return true;
     }
 
+    public synchronized boolean putBlockIfAbsentBelowCapacity(int packedXyz, String state, byte flags, int capacity) {
+        if (blocks.containsKey(packedXyz)) {
+            return false;
+        }
+        if (blocks.size() >= capacity) {
+            return false;
+        }
+        blocks.put(packedXyz, new BlockSlot(state, flags));
+        return true;
+    }
+
     public synchronized void putBlockEntity(int packedXyz, BlockEntityDiff diff) {
         entities.put(packedXyz, diff);
     }

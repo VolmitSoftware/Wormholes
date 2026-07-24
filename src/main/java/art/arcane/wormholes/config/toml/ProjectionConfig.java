@@ -28,4 +28,11 @@ public class ProjectionConfig {
     public int maxNewObserverScansPerTick = 64;
     public int interestGraceTicks = 5;
     public int initialResendPasses = 4;
+    @ConfigDescription({
+        "Hard ceiling on how many blocks a single portal may project in one pass.",
+        "Standing inside a portal aperture makes the visible cone approach a full hemisphere, which costs depth-blocks cubed;",
+        "when the cone exceeds this budget the render depth is shortened for that pass instead, which keeps the aperture rim intact.",
+        "Set to 0 to disable the ceiling (not recommended: the through-portal frame can then cost millions of cells)."
+    })
+    public int maxProjectedCells = 250000;
 }

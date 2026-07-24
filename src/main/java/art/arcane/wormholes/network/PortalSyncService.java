@@ -2,6 +2,7 @@ package art.arcane.wormholes.network;
 
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.BlackoutColor;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ITunnel;
@@ -10,6 +11,7 @@ import art.arcane.wormholes.portal.MirrorRotation;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalPermissionMode;
 import art.arcane.wormholes.portal.ProjectionMode;
+import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.util.AxisAlignedBB;
@@ -39,6 +41,11 @@ public final class PortalSyncService {
     public static final String KEY_BLACKOUT_BACKGROUND = "blackoutBackground";
     public static final String KEY_BLACKOUT_COLOR = "blackoutColor";
     public static final String KEY_ACTIVATION_RANGE = "activationRange";
+    public static final String KEY_RENDER_MODE = "renderMode";
+    public static final String KEY_AMBIENT_STYLE = "ambientStyle";
+    public static final String KEY_AMBIENT_COLOR = "ambientColor";
+    public static final String KEY_SURFACE_SKIN = "surfaceSkin";
+    public static final String KEY_SURFACE_THICKNESS = "surfaceThickness";
     public static final String KEY_SETTINGS_SYNC = "settingsSyncEnabled";
     static final String KEY_REMOTE_CACHE_ONLY = "remoteCacheOnly";
 
@@ -221,6 +228,11 @@ public final class PortalSyncService {
         settings.put(KEY_BLACKOUT_BACKGROUND, Boolean.toString(portal.isBlackoutBackground()));
         settings.put(KEY_BLACKOUT_COLOR, portal.getBlackoutColor().name());
         settings.put(KEY_ACTIVATION_RANGE, Integer.toString(portal.getActivationRange()));
+        settings.put(KEY_RENDER_MODE, portal.getRenderMode().name());
+        settings.put(KEY_AMBIENT_STYLE, portal.getAmbientStyle().name());
+        settings.put(KEY_AMBIENT_COLOR, Integer.toString(portal.getAmbientColor()));
+        settings.put(KEY_SURFACE_SKIN, portal.getSurfaceSkin());
+        settings.put(KEY_SURFACE_THICKNESS, Integer.toString(portal.getSurfaceThickness()));
         settings.put(KEY_SETTINGS_SYNC, Boolean.toString(portal.isSettingsSyncEnabled()));
         return settings;
     }
@@ -264,6 +276,11 @@ public final class PortalSyncService {
             case KEY_BLACKOUT_BACKGROUND -> portal.setBlackoutBackground(Boolean.parseBoolean(value));
             case KEY_BLACKOUT_COLOR -> portal.setBlackoutColor(BlackoutColor.fromName(value, portal.getBlackoutColor()));
             case KEY_ACTIVATION_RANGE -> portal.setActivationRange(parseIntOr(value, portal.getActivationRange()));
+            case KEY_RENDER_MODE -> portal.setRenderMode(ProjectionRenderMode.fromName(value, portal.getRenderMode()));
+            case KEY_AMBIENT_STYLE -> portal.setAmbientStyle(AmbientParticleStyle.fromName(value, portal.getAmbientStyle()));
+            case KEY_AMBIENT_COLOR -> portal.setAmbientColor(parseIntOr(value, portal.getAmbientColor()));
+            case KEY_SURFACE_SKIN -> portal.setSurfaceSkin(value);
+            case KEY_SURFACE_THICKNESS -> portal.setSurfaceThickness(parseIntOr(value, portal.getSurfaceThickness()));
             case KEY_SETTINGS_SYNC -> portal.setSettingsSyncEnabled(Boolean.parseBoolean(value));
             default -> {
             }
@@ -298,6 +315,11 @@ public final class PortalSyncService {
                 case KEY_BLACKOUT_BACKGROUND -> remote.setMirroredBlackoutBackground(Boolean.parseBoolean(value));
                 case KEY_BLACKOUT_COLOR -> remote.setMirroredBlackoutColor(BlackoutColor.fromName(value, remote.getMirroredBlackoutColor()));
                 case KEY_ACTIVATION_RANGE -> remote.setMirroredActivationRange(parseIntOr(value, remote.getMirroredActivationRange()));
+                case KEY_RENDER_MODE -> remote.setMirroredRenderMode(ProjectionRenderMode.fromName(value, remote.getMirroredRenderMode()));
+                case KEY_AMBIENT_STYLE -> remote.setMirroredAmbientStyle(AmbientParticleStyle.fromName(value, remote.getMirroredAmbientStyle()));
+                case KEY_AMBIENT_COLOR -> remote.setMirroredAmbientColor(parseIntOr(value, remote.getMirroredAmbientColor()));
+                case KEY_SURFACE_SKIN -> remote.setMirroredSurfaceSkin(value);
+                case KEY_SURFACE_THICKNESS -> remote.setMirroredSurfaceThickness(parseIntOr(value, remote.getMirroredSurfaceThickness()));
                 default -> {
                 }
             }

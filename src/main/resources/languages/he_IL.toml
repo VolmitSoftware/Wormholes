@@ -2,6 +2,22 @@ schema = 1
 locale = "he_IL"
 
 [text]
+"portal.network.label.render_mode" = "מצב עיבוד"
+"portal.travel.transfer_holding" = "<gold>מתחבר לשרת היעד..."
+"portal.travel.transfer_interrupted" = "<red>העברת השער הופסקה: התרחקת מהשער."
+"portal.travel.transfer_source_unavailable" = "<red>העברת השער הופסקה: שער המקור אינו זמין עוד."
+"portal.network.label.ambient_style" = "חלקיקי סביבה"
+"portal.network.label.ambient_color" = "צבע סביבה"
+"portal.network.label.surface_skin" = "מעטה משטח"
+"portal.network.label.surface_thickness" = "עובי משטח"
+"portal.label.ambient.red" = "אדום"
+"portal.label.ambient.green" = "ירוק"
+"portal.label.ambient.blue" = "כחול"
+"portal.label.ambient_style.sparks" = "ניצוצות"
+"portal.label.ambient_style.outline" = "מתאר"
+"portal.label.ambient_style.corners" = "פינות"
+"portal.label.ambient_style.off" = "כבוי"
+"portal.label.skin.none" = "ללא"
 "director.help.navigation.parent.hover" = "חזרה לקבוצת הפקודות הקודמת"
 "director.help.navigation.back" = "חזרה"
 "director.help.no_subcommands" = "אין פקודות משנה בדף הזה."
@@ -39,6 +55,9 @@ locale = "he_IL"
 "command.help.admin" = "פקודות תחזוקה הרסניות של Wormholes"
 "command.help.admin.delete_portals" = "מחיקת כל הפורטלים המקומיים וקישורי הפורטלים השמורים"
 "command.help.admin.delete_everything" = "איפוס הנתונים, התצורה, האמון, הזהות ומצב הרשת של Wormholes"
+"command.help.admin.freeze" = "מקפיא את כל הקרנות השער במקומן למשך מספר שניות (seconds=0 מחדש)"
+"command.help.admin.freeze.seconds" = "כמה זמן להחזיק את התמונה הקפואה (5-300, 0 מחדש מיד)"
+"command.help.admin.flush" = "מחזיר את הבלוקים המוקרנים של כל צופה למצב האמת ובונה אותם מחדש"
 "command.help.network" = "רשת חור תולעת בין שרתים"
 "command.help.network.import" = "ייבוא קוד פורטל משרת אחר (שומר נתיב פנימי; הקישור נעשה דרך תפריט הקישור של שער)"
 "command.help.network.import.code" = "קוד פורטל מכפתור הייצוא בשרת האחר"
@@ -61,6 +80,10 @@ locale = "he_IL"
 "command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>לא ניתן לתזמן את איפוס הפורטלים."
 "command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>איפוס Wormholes נכשל. בדקו את המסוף לקבלת מעקב המחסנית המלא."
 "command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>לא ניתן לתזמן את איפוס Wormholes."
+"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>כל הקרנות השער הוקפאו למשך <white>{seconds}<green> שניות. הן יתחדשו אוטומטית."
+"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>הקרנות השער חודשו."
+"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>עדכון הקרנות השער נכשל. בדוק את המסוף לקבלת עקבת הקריסה המלאה."
+"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>לא ניתן לתזמן את עדכון ההקרנה."
 "network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>הרשת לא אותחלה."
 "network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>הרשת <red>כבויה<gray> (config/wormholes.toml)."
 "network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>הרשת מופעלת אך אינה פועלת. בדקו את מאגר הזהות ואת יציאת הרשת."
@@ -307,6 +330,16 @@ locale = "he_IL"
 "rtp.duration.decimal_seconds" = "{value}s"
 
 [lines]
+"portal.menu.render_mode" = ["<aqua><bold>מצב עיבוד <white>{mode}</bold>","<gray>כמה מנפח היעד השער הזה מקרין.","","<gray>מצב: <white>{mode}","","<dark_gray>PanOptic מעבד את כל נפח היעד.","<dark_gray>Venticular מסתיר בלוקים פנימיים סגורים לחלוטין לזרמים קלים יותר.","","<dark_gray>שמאל: החלף מצב."]
+"portal.menu.ambient_particles" = ["<aqua><bold>חלקיקי סביבה</bold>","<gray>אבק דקורטיבי שמרחף סביב השער הזה.","","<gray>סגנון: <white>{style} <dark_gray>({color})","","<dark_gray>שמאלי: החלף סגנון.","<dark_gray>ימני: בחר צבע."]
+"portal.menu.ambient_color.placard" = ["<gold><bold>צבע סביבה</bold>","<gray>צבע חלקיקי האבק הסביבתיים.","","<gray>נוכחי: <white>{color}"]
+"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>לחיצה שמאלית: +{step}","<dark_gray>לחיצה ימנית: -{step}","<dark_gray>Shift + לחיצה שמאלית: +{large_step}","<dark_gray>Shift + לחיצה ימנית: -{large_step}"]
+"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>לחץ כדי לבחור."]
+"portal.menu.surface_skin" = ["<aqua><bold>מעטה משטח</bold>","<gray>כסה את פתח השער בלוח בלוק או נוזל מרונדר.","","<gray>מעטה: <white>{skin}","<gray>עובי: <white>{thickness}","","<dark_gray>שמאלי: הסר את המעטה.","<dark_gray>ימני: פתח אפשרויות מעטה."]
+"portal.menu.surface_skin.placard" = ["<gold><bold>מעטה משטח</bold>","<gray>לחץ ימני על השער עם בלוק או דלי כדי להחיל מעטה.","","<gray>מעטה: <white>{skin}","<gray>עובי: <white>{thickness}"]
+"portal.menu.surface_skin.thickness" = ["<aqua><bold>עובי משטח <white>{value}</bold>","<gray>עומק הלוח המרונדר בבלוקים.","","<dark_gray>לחיצה שמאלית: +{step}","<dark_gray>לחיצה ימנית: -{step}","<dark_gray>Shift + לחיצה שמאלית: +{large_step}","<dark_gray>Shift + לחיצה ימנית: -{large_step}"]
+"portal.menu.surface_skin.glass" = ["<aqua><bold>מעטה זכוכית</bold>","<gray>חלון זכוכית שקוף מעל הפתח.","","<dark_gray>לחץ כדי להחיל זכוכית."]
+"portal.menu.surface_skin.clear" = ["<red><bold>הסר מעטה</bold>","<gray>מסיר את המעטה ומשחזר את ההקרנות.","","<dark_gray>לחץ כדי להסיר את המעטה."]
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>עזרה לפורטל: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>השתמשו במטה הפורטל על פורטל כדי לפתוח את הגדרות היעד, התצוגה, המעבר והגישה שלו."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>הוענקו מטה פורטל ו-1 רונת חור תולעת.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>בנו שתי צורות של רונות חור תולעת (כל צורה מחוברת על משטח שטוח אחד), קשרו ביניהן ועמדו בטווח של 16 בלוקים כדי לראות את ההקרנה.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>הריצו <white>/wormholes info<gray> לקבלת הוראות מלאות שלב אחר שלב."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>קובץ תמונת מצב: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>עקבו אחר סוף הקובץ כדי לשתף מצב רשת ותצוגה בזמן אמת. הקובץ נכתב מחדש בכל מרווח זמן."]
@@ -444,3 +477,7 @@ other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes אופס למ�
 [plural."wand.selection.selected"]
 one = "<aqua>נבחר {count} בלוק. לחצו שמאל על לוח הזכוכית כדי לפתוח את הפורטל."
 other = "<aqua>נבחרו {count} בלוקים. לחצו שמאל על לוח הזכוכית כדי לפתוח את הפורטל."
+
+[plural."command.admin.projection_flushed"]
+one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>נוקה <white>{count}<green> צופה הקרנה; הלקוחות נבנים מחדש ממצב האמת."
+other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>נוקו <white>{count}<green> צופי הקרנה; הלקוחות נבנים מחדש ממצב האמת."

@@ -26,9 +26,11 @@ class LocalPortalRejectionTest {
     }
 
     @Test
-    void forwardMotionRemainsCommittedWhileBackingAwayCancels() {
-        assertDepartureCommitment(traversive(true));
-        assertDepartureCommitment(traversive(false));
+    void departureCommitmentAcceptsWithinRadiusAndRejectsBeyond() {
+        assertTrue(LocalPortal.withinDepartureCommitmentRadius(0.0D));
+        assertTrue(LocalPortal.withinDepartureCommitmentRadius(255.9D));
+        assertTrue(LocalPortal.withinDepartureCommitmentRadius(256.0D));
+        assertFalse(LocalPortal.withinDepartureCommitmentRadius(256.1D));
     }
 
     private static Traversive traversive(boolean frontSide) {
@@ -49,16 +51,5 @@ class LocalPortalRejectionTest {
         assertEquals(expected.getX(), actual.getX(), 1.0E-9D);
         assertEquals(expected.getY(), actual.getY(), 1.0E-9D);
         assertEquals(expected.getZ(), actual.getZ(), 1.0E-9D);
-    }
-
-    private static void assertDepartureCommitment(Traversive traversive) {
-        Vector normal = traversive.getInFrame().getNormal().toVector().normalize();
-        Vector boundary = traversive.getInPoint().clone().add(normal.clone().multiply(2.0D));
-        Vector backedAway = traversive.getInPoint().clone().add(normal.clone().multiply(2.01D));
-        Vector forward = traversive.getInPoint().clone().subtract(normal.clone().multiply(8.0D));
-
-        assertTrue(LocalPortal.remainsCommittedToDeparture(traversive, boundary));
-        assertFalse(LocalPortal.remainsCommittedToDeparture(traversive, backedAway));
-        assertTrue(LocalPortal.remainsCommittedToDeparture(traversive, forward));
     }
 }

@@ -19,6 +19,7 @@ import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.replication.ChunkResyncRequest;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.util.AxisAlignedBB;
 
 import org.bukkit.Bukkit;
@@ -95,6 +96,7 @@ public final class ViewServer implements Listener {
         private final UUID subscriptionId;
         private final World world;
         private final ViewBox box;
+        private final ProjectionRenderMode renderMode;
         private final int centerChunkX;
         private final int centerChunkZ;
         private final double portalCenterX;
@@ -119,12 +121,13 @@ public final class ViewServer implements Listener {
         private volatile EntityCaptureToken activeEntityCapture;
         private volatile int lastSkyDarken = -1;
 
-        private Session(UUID portalId, World world, ViewBox box, int centerChunkX, int centerChunkZ,
+        private Session(UUID portalId, World world, ViewBox box, ProjectionRenderMode renderMode, int centerChunkX, int centerChunkZ,
                         double portalCenterX, double portalCenterY, double portalCenterZ) {
             this.portalId = portalId;
             this.subscriptionId = UUID.randomUUID();
             this.world = world;
             this.box = box;
+            this.renderMode = renderMode == null ? ProjectionRenderMode.PANOPTIC : renderMode;
             this.centerChunkX = centerChunkX;
             this.centerChunkZ = centerChunkZ;
             this.portalCenterX = portalCenterX;
@@ -288,6 +291,15 @@ public final class ViewServer implements Listener {
         this.network = network;
         this.chunkBulkBuilder = new ChunkBulkBuilder(blockDataStrings);
         network.getReplicationManager().setBulkRetryListener(this::retryCanonicalBulk);
+        network.getReplicationManager().setRenderModeResolver(ViewServer::resolveVenticular);
+    }
+
+    private static boolean resolveVenticular(UUID portalId) {
+        if (portalId == null || Wormholes.portalManager == null) {
+            return false;
+        }
+        ILocalPortal portal = Wormholes.portalManager.getLocalPortal(portalId);
+        return portal != null && portal.getRenderMode() == ProjectionRenderMode.VENTICULAR;
     }
 
     public static ViewBox computeBox(ILocalPortal portal, int radius) {
@@ -316,6 +328,7 @@ public final class ViewServer implements Listener {
             id,
             portal.getStructure().getWorld(),
             computeBox(portal, portal.getNetworkViewDepth()),
+            portal.getRenderMode(),
             ((int) Math.floor(portal.getOrigin().getX())) >> 4,
             ((int) Math.floor(portal.getOrigin().getZ())) >> 4,
             portal.getOrigin().getX(),
@@ -1326,7 +1339,7 @@ public final class ViewServer implements Listener {
                             done.complete(false);
                             return;
                         }
-                        ViewSlice slice = chunkBulkBuilder.buildSlice(session.box, chunkX, chunkZ, snapshot);
+                        ViewSlice slice = chunkBulkBuilder.buildSlice(session.box, chunkX, chunkZ, snapshot, session.renderMode);
                         if (slice == null) {
                             done.complete(isSessionChunkActive(session, peerName, chunkKey));
                             return;

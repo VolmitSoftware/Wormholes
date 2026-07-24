@@ -2,6 +2,22 @@ schema = 1
 locale = "vi_VI"
 
 [text]
+"portal.network.label.render_mode" = "Chế độ kết xuất"
+"portal.travel.transfer_holding" = "<gold>Đang kết nối tới máy chủ đích..."
+"portal.travel.transfer_interrupted" = "<red>Chuyển cổng bị gián đoạn: bạn đã rời khỏi cổng."
+"portal.travel.transfer_source_unavailable" = "<red>Chuyển cổng bị gián đoạn: cổng nguồn không còn khả dụng."
+"portal.network.label.ambient_style" = "Hạt môi trường"
+"portal.network.label.ambient_color" = "Màu môi trường"
+"portal.network.label.surface_skin" = "Giao diện bề mặt"
+"portal.network.label.surface_thickness" = "Độ dày bề mặt"
+"portal.label.ambient.red" = "Đỏ"
+"portal.label.ambient.green" = "Xanh lá"
+"portal.label.ambient.blue" = "Xanh dương"
+"portal.label.ambient_style.sparks" = "Tia lửa"
+"portal.label.ambient_style.outline" = "Đường viền"
+"portal.label.ambient_style.corners" = "Góc"
+"portal.label.ambient_style.off" = "Tắt"
+"portal.label.skin.none" = "Không có"
 "director.help.navigation.parent.hover" = "Trở lại nhóm lệnh bậc cha"
 "director.help.navigation.back" = "Trở lại"
 "director.help.no_subcommands" = "Không có lệnh phụ trên trang này."
@@ -39,6 +55,9 @@ locale = "vi_VI"
 "command.help.admin" = "Các lệnh bảo trì Wormholes có tính hủy dữ liệu"
 "command.help.admin.delete_portals" = "Xóa mọi cổng cục bộ và liên kết cổng đã lưu"
 "command.help.admin.delete_everything" = "Đặt lại dữ liệu, cấu hình, độ tin cậy, danh tính và trạng thái mạng của Wormholes"
+"command.help.admin.freeze" = "Đóng băng tất cả hình chiếu cổng tại chỗ trong một số giây (seconds=0 tiếp tục)"
+"command.help.admin.freeze.seconds" = "Giữ khung hình đã đóng băng trong bao lâu (5-300, 0 tiếp tục ngay)"
+"command.help.admin.flush" = "Khôi phục các khối được chiếu của mọi người quan sát về trạng thái thực và dựng lại chúng"
 "command.help.network" = "Mạng lỗ sâu giữa các máy chủ"
 "command.help.network.import" = "Nhập mã cổng từ máy chủ khác (lưu tuyến nội bộ; liên kết qua trình đơn Liên kết của cổng liên máy chủ)"
 "command.help.network.import.code" = "Mã cổng từ nút Xuất trên máy chủ kia"
@@ -61,6 +80,10 @@ locale = "vi_VI"
 "command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Không thể lên lịch đặt lại cổng dịch chuyển."
 "command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Không thể đặt lại Wormholes. Hãy xem toàn bộ dấu vết ngăn xếp trong bảng điều khiển."
 "command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Không thể lên lịch đặt lại Wormholes."
+"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Đã đóng băng tất cả hình chiếu cổng trong <white>{seconds}<green> giây. Chúng sẽ tự động tiếp tục."
+"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Đã tiếp tục hình chiếu cổng."
+"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Không thể cập nhật hình chiếu cổng. Kiểm tra bảng điều khiển để xem toàn bộ dấu vết ngăn xếp."
+"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Không thể lên lịch cập nhật hình chiếu."
 "network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Mạng chưa được khởi tạo."
 "network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Mạng đang <red>tắt<gray> (config/wormholes.toml)."
 "network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Mạng đã bật nhưng không chạy. Hãy kiểm tra kho danh tính và cổng mạng."
@@ -307,6 +330,16 @@ locale = "vi_VI"
 "rtp.duration.decimal_seconds" = "{value}s"
 
 [lines]
+"portal.menu.render_mode" = ["<aqua><bold>Chế độ kết xuất <white>{mode}</bold>","<gray>Cổng này chiếu bao nhiêu phần của khối tích đích.","","<gray>Chế độ: <white>{mode}","","<dark_gray>PanOptic kết xuất toàn bộ khối tích đích.","<dark_gray>Venticular ẩn các khối bên trong bị bao kín hoàn toàn để luồng nhẹ hơn.","","<dark_gray>Trái: đổi chế độ."]
+"portal.menu.ambient_particles" = ["<aqua><bold>Hạt môi trường</bold>","<gray>Bụi trang trí bay lơ lửng quanh cổng này.","","<gray>Kiểu: <white>{style} <dark_gray>({color})","","<dark_gray>Trái: đổi kiểu.","<dark_gray>Phải: chọn màu."]
+"portal.menu.ambient_color.placard" = ["<gold><bold>Màu môi trường</bold>","<gray>Màu của các hạt bụi môi trường.","","<gray>Hiện tại: <white>{color}"]
+"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>Nhấp trái: +{step}","<dark_gray>Nhấp phải: -{step}","<dark_gray>Shift + nhấp trái: +{large_step}","<dark_gray>Shift + nhấp phải: -{large_step}"]
+"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>Nhấp để chọn."]
+"portal.menu.surface_skin" = ["<aqua><bold>Giao diện bề mặt</bold>","<gray>Phủ khung cổng bằng một tấm khối hoặc chất lỏng được kết xuất.","","<gray>Giao diện: <white>{skin}","<gray>Độ dày: <white>{thickness}","","<dark_gray>Trái: xóa giao diện.","<dark_gray>Phải: mở tùy chọn giao diện."]
+"portal.menu.surface_skin.placard" = ["<gold><bold>Giao diện bề mặt</bold>","<gray>Nhấp chuột phải vào cổng khi cầm khối hoặc xô để áp dụng giao diện.","","<gray>Giao diện: <white>{skin}","<gray>Độ dày: <white>{thickness}"]
+"portal.menu.surface_skin.thickness" = ["<aqua><bold>Độ dày bề mặt <white>{value}</bold>","<gray>Độ sâu của tấm được kết xuất tính theo khối.","","<dark_gray>Nhấp trái: +{step}","<dark_gray>Nhấp phải: -{step}","<dark_gray>Shift + nhấp trái: +{large_step}","<dark_gray>Shift + nhấp phải: -{large_step}"]
+"portal.menu.surface_skin.glass" = ["<aqua><bold>Giao diện kính</bold>","<gray>Một cửa sổ kính trong suốt trên khung cổng.","","<dark_gray>Nhấp để áp dụng kính."]
+"portal.menu.surface_skin.clear" = ["<red><bold>Xóa giao diện</bold>","<gray>Xóa giao diện và khôi phục các phép chiếu.","","<dark_gray>Nhấp để xóa giao diện."]
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Trợ giúp cổng dịch chuyển: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Dùng gậy cổng dịch chuyển lên cổng để mở các tùy chọn điểm đến, khung nhìn, di chuyển và truy cập."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Đã cấp gậy cổng dịch chuyển và 1 rune lỗ sâu.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tạo hai hình rune lỗ sâu (bất kỳ hình nối liền nào trên cùng bề mặt phẳng), liên kết chúng và đứng trong phạm vi 16 khối để xem hình chiếu.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Chạy <white>/wormholes info<gray> để xem hướng dẫn đầy đủ từng bước."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tệp ảnh chụp: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Theo dõi cuối tệp này để chia sẻ trạng thái mạng và khung nhìn trực tiếp. Tệp được ghi đè tại chỗ theo từng khoảng thời gian."]
@@ -444,3 +477,7 @@ other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes đã được 
 [plural."wand.selection.selected"]
 one = "<aqua>Đã chọn {count} khối. Nhấp trái vào tấm kính để mở cổng."
 other = "<aqua>Đã chọn {count} khối. Nhấp trái vào tấm kính để mở cổng."
+
+[plural."command.admin.projection_flushed"]
+one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Đã xóa <white>{count}<green> người quan sát hình chiếu; máy khách đang dựng lại từ trạng thái thực."
+other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Đã xóa <white>{count}<green> người quan sát hình chiếu; máy khách đang dựng lại từ trạng thái thực."

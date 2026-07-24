@@ -3,6 +3,7 @@ package art.arcane.wormholes.network;
 import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.BlackoutColor;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.MirrorRotation;
@@ -10,6 +11,7 @@ import art.arcane.wormholes.portal.PortalPermissionMode;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
+import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.util.Cuboid;
 import org.junit.jupiter.api.Test;
@@ -163,6 +165,11 @@ class PortalSettingsSyncTest {
         settings.put(PortalSyncService.KEY_BLACKOUT_BACKGROUND, "false");
         settings.put(PortalSyncService.KEY_BLACKOUT_COLOR, "RED");
         settings.put(PortalSyncService.KEY_ACTIVATION_RANGE, "96");
+        settings.put(PortalSyncService.KEY_RENDER_MODE, "VENTICULAR");
+        settings.put(PortalSyncService.KEY_AMBIENT_STYLE, "OUTLINE");
+        settings.put(PortalSyncService.KEY_AMBIENT_COLOR, Integer.toString(0x123456));
+        settings.put(PortalSyncService.KEY_SURFACE_SKIN, "minecraft:glass");
+        settings.put(PortalSyncService.KEY_SURFACE_THICKNESS, "45");
 
         PortalSyncService.applyToRemote(remote, settings);
 
@@ -181,6 +188,11 @@ class PortalSettingsSyncTest {
         assertFalse(remote.isMirroredBlackoutBackground());
         assertEquals(BlackoutColor.RED, remote.getMirroredBlackoutColor());
         assertEquals(96, remote.getMirroredActivationRange());
+        assertEquals(ProjectionRenderMode.VENTICULAR, remote.getMirroredRenderMode());
+        assertEquals(AmbientParticleStyle.OUTLINE, remote.getMirroredAmbientStyle());
+        assertEquals(0x123456, remote.getMirroredAmbientColor());
+        assertEquals("minecraft:glass", remote.getMirroredSurfaceSkin());
+        assertEquals(45, remote.getMirroredSurfaceThickness());
     }
 
     @Test
@@ -255,6 +267,72 @@ class PortalSettingsSyncTest {
         assertFalse(refreshed.isMirroredBlackoutBackground());
         assertEquals(BlackoutColor.RED, refreshed.getMirroredBlackoutColor());
         assertEquals(96, refreshed.getMirroredActivationRange());
+    }
+
+    @Test
+    void collectSettingsIncludesCosmetics() {
+        LocalPortal portal = localPortal();
+        portal.setAmbientStyle(AmbientParticleStyle.CORNERS);
+        portal.setAmbientColor(0x00FF00);
+        portal.setSurfaceSkin("minecraft:glass");
+        portal.setSurfaceThickness(45);
+
+        Map<String, String> settings = PortalSyncService.collectSettings(portal);
+
+        assertEquals("CORNERS", settings.get(PortalSyncService.KEY_AMBIENT_STYLE));
+        assertEquals(Integer.toString(0x00FF00), settings.get(PortalSyncService.KEY_AMBIENT_COLOR));
+        assertEquals("minecraft:glass", settings.get(PortalSyncService.KEY_SURFACE_SKIN));
+        assertEquals("45", settings.get(PortalSyncService.KEY_SURFACE_THICKNESS));
+    }
+
+    @Test
+    void applyToLocalAppliesCosmeticsWithSafeParsing() {
+        LocalPortal portal = localPortal();
+        Map<String, String> valid = new LinkedHashMap<>();
+        valid.put(PortalSyncService.KEY_AMBIENT_STYLE, "CORNERS");
+        valid.put(PortalSyncService.KEY_AMBIENT_COLOR, Integer.toString(0x00FF00));
+        valid.put(PortalSyncService.KEY_SURFACE_SKIN, "minecraft:glass");
+        valid.put(PortalSyncService.KEY_SURFACE_THICKNESS, "45");
+
+        PortalSyncService.applyToLocal(portal, valid);
+
+        assertEquals(AmbientParticleStyle.CORNERS, portal.getAmbientStyle());
+        assertEquals(0x00FF00, portal.getAmbientColor());
+        assertEquals("minecraft:glass", portal.getSurfaceSkin());
+        assertEquals(45, portal.getSurfaceThickness());
+        assertTrue(portal.hasSurfaceSkin());
+
+        Map<String, String> malformed = new LinkedHashMap<>();
+        malformed.put(PortalSyncService.KEY_AMBIENT_STYLE, "NOT_A_STYLE");
+        malformed.put(PortalSyncService.KEY_AMBIENT_COLOR, "xyz");
+        malformed.put(PortalSyncService.KEY_SURFACE_THICKNESS, "abc");
+
+        PortalSyncService.applyToLocal(portal, malformed);
+
+        assertEquals(AmbientParticleStyle.CORNERS, portal.getAmbientStyle());
+        assertEquals(0x00FF00, portal.getAmbientColor());
+        assertEquals(45, portal.getSurfaceThickness());
+    }
+
+    @Test
+    void directoryRefreshCarriesMirroredCosmetics() {
+        RemotePortalRegistry registry = new RemotePortalRegistry();
+        UUID portalId = UUID.randomUUID();
+        registry.applyUpsert("alpha", portalInfo(portalId, true));
+        RemotePortal remote = registry.get("alpha", portalId);
+        remote.setMirroredAmbientStyle(AmbientParticleStyle.CORNERS);
+        remote.setMirroredAmbientColor(0x00FF00);
+        remote.setMirroredSurfaceSkin("minecraft:glass");
+        remote.setMirroredSurfaceThickness(45);
+
+        registry.applyDirectory("alpha", List.of(portalInfo(portalId, true)));
+
+        RemotePortal refreshed = registry.get("alpha", portalId);
+        assertNotNull(refreshed);
+        assertEquals(AmbientParticleStyle.CORNERS, refreshed.getMirroredAmbientStyle());
+        assertEquals(0x00FF00, refreshed.getMirroredAmbientColor());
+        assertEquals("minecraft:glass", refreshed.getMirroredSurfaceSkin());
+        assertEquals(45, refreshed.getMirroredSurfaceThickness());
     }
 
     @Test

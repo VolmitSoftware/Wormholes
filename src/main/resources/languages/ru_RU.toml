@@ -2,6 +2,22 @@ schema = 1
 locale = "ru_RU"
 
 [text]
+"portal.network.label.render_mode" = "Режим отрисовки"
+"portal.travel.transfer_holding" = "<gold>Подключение к целевому серверу..."
+"portal.travel.transfer_interrupted" = "<red>Переход через портал прерван: вы отошли от портала."
+"portal.travel.transfer_source_unavailable" = "<red>Переход через портал прерван: исходный портал больше недоступен."
+"portal.network.label.ambient_style" = "Частицы окружения"
+"portal.network.label.ambient_color" = "Цвет окружения"
+"portal.network.label.surface_skin" = "Скин поверхности"
+"portal.network.label.surface_thickness" = "Толщина поверхности"
+"portal.label.ambient.red" = "Красный"
+"portal.label.ambient.green" = "Зелёный"
+"portal.label.ambient.blue" = "Синий"
+"portal.label.ambient_style.sparks" = "Искры"
+"portal.label.ambient_style.outline" = "Контур"
+"portal.label.ambient_style.corners" = "Углы"
+"portal.label.ambient_style.off" = "Выкл."
+"portal.label.skin.none" = "Нет"
 "director.help.navigation.parent.hover" = "Возвращение к группе родительских команд"
 "director.help.navigation.back" = "Вернуться"
 "director.help.no_subcommands" = "На этой странице нет подкоманд."
@@ -39,6 +55,9 @@ locale = "ru_RU"
 "command.help.admin" = "Разрушительные команды обслуживания Wormholes"
 "command.help.admin.delete_portals" = "Удалить все локальные порталы и сохраненные ссылки на портал"
 "command.help.admin.delete_everything" = "Сбросить данные, конфигурацию, доверие, идентификаторы и состояние сети Wormholes"
+"command.help.admin.freeze" = "Заморозить все проекции порталов на месте на указанное число секунд (seconds=0 возобновляет)"
+"command.help.admin.freeze.seconds" = "Как долго удерживать замороженный кадр (5-300, 0 возобновляет сразу)"
+"command.help.admin.flush" = "Вернуть проецируемые блоки каждого наблюдателя к реальному состоянию и перестроить их"
 "command.help.network" = "Сеть червоточины между серверами"
 "command.help.network.import" = "Импортировать код портала с другого сервера (сохраняет внутренний маршрут; ссылка через меню Ссылок в шлюзе)"
 "command.help.network.import.code" = "Код портала из кнопки экспорта на другом сервере"
@@ -61,6 +80,10 @@ locale = "ru_RU"
 "command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Не удалось запланировать сброс порталов."
 "command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Не удалось сбросить Wormholes. Полная трассировка стека выведена в консоль."
 "command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Не удалось запланировать сброс Wormholes."
+"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Все проекции порталов заморожены на <white>{seconds}<green> секунд. Они возобновятся автоматически."
+"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Проекции порталов возобновлены."
+"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Не удалось обновить проекции порталов. Проверьте консоль для полного стека вызовов."
+"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Не удалось запланировать обновление проекции."
 "network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Сеть ещё не инициализирована."
 "network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Сеть <red>отключена<gray> (config/wormholes.toml)."
 "network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Сетевое взаимодействие включено, но не работает. Проверьте хранилище идентификации и порт сети."
@@ -307,6 +330,16 @@ locale = "ru_RU"
 "rtp.duration.decimal_seconds" = "{value}s"
 
 [lines]
+"portal.menu.render_mode" = ["<aqua><bold>Режим отрисовки <white>{mode}</bold>","<gray>Какую часть целевого объёма проецирует этот портал.","","<gray>Режим: <white>{mode}","","<dark_gray>PanOptic отрисовывает весь целевой объём.","<dark_gray>Venticular скрывает полностью закрытые внутренние блоки для более лёгких потоков.","","<dark_gray>ЛКМ: сменить режим."]
+"portal.menu.ambient_particles" = ["<aqua><bold>Частицы окружения</bold>","<gray>Декоративная пыль, парящая вокруг этого портала.","","<gray>Стиль: <white>{style} <dark_gray>({color})","","<dark_gray>Левый клик: сменить стиль.","<dark_gray>Правый клик: выбрать цвет."]
+"portal.menu.ambient_color.placard" = ["<gold><bold>Цвет окружения</bold>","<gray>Цвет частиц пыли окружения.","","<gray>Сейчас: <white>{color}"]
+"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>Левый клик: +{step}","<dark_gray>Правый клик: -{step}","<dark_gray>Shift + левый клик: +{large_step}","<dark_gray>Shift + правый клик: -{large_step}"]
+"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>Нажмите, чтобы выбрать."]
+"portal.menu.surface_skin" = ["<aqua><bold>Скин поверхности</bold>","<gray>Закройте проём портала отрисованной панелью блока или жидкости.","","<gray>Скин: <white>{skin}","<gray>Толщина: <white>{thickness}","","<dark_gray>Левый клик: убрать скин.","<dark_gray>Правый клик: открыть параметры скина."]
+"portal.menu.surface_skin.placard" = ["<gold><bold>Скин поверхности</bold>","<gray>Щёлкните ПКМ по порталу с блоком или ведром, чтобы применить скин.","","<gray>Скин: <white>{skin}","<gray>Толщина: <white>{thickness}"]
+"portal.menu.surface_skin.thickness" = ["<aqua><bold>Толщина поверхности <white>{value}</bold>","<gray>Глубина отрисованной панели в блоках.","","<dark_gray>Левый клик: +{step}","<dark_gray>Правый клик: -{step}","<dark_gray>Shift + левый клик: +{large_step}","<dark_gray>Shift + правый клик: -{large_step}"]
+"portal.menu.surface_skin.glass" = ["<aqua><bold>Стеклянный скин</bold>","<gray>Прозрачное стеклянное окно над проёмом.","","<dark_gray>Нажмите, чтобы применить стекло."]
+"portal.menu.surface_skin.clear" = ["<red><bold>Убрать скин</bold>","<gray>Убирает скин и восстанавливает проекции.","","<dark_gray>Нажмите, чтобы убрать скин."]
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Справка по порталам: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Используйте жезл портала на портале, чтобы открыть настройки назначения, вида, перемещения и доступа."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Выданы жезл портала и 1 руна червоточины.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Создайте две фигуры из рун червоточины (любая связанная фигура на одной плоской поверхности), свяжите их и встаньте в пределах 16 блоков, чтобы увидеть проекцию.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Полная пошаговая инструкция доступна по команде <white>/wormholes info<gray>."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Файл снимка: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Следите за этим файлом для просмотра состояния сети и проекций в реальном времени. Файл перезаписывается каждый цикл."]
@@ -444,3 +477,7 @@ other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes сброшен
 [plural."wand.selection.selected"]
 one = "<aqua>Выбран {count} блок. Нажмите левой кнопкой, чтобы открыть портал."
 other = "<aqua>Выбрано {count} блоков. Нажмите левой кнопкой, чтобы открыть портал."
+
+[plural."command.admin.projection_flushed"]
+one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Очищен <white>{count}<green> наблюдатель проекции; клиенты перестраиваются из реального состояния."
+other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Очищено <white>{count}<green> наблюдателей проекции; клиенты перестраиваются из реального состояния."

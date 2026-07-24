@@ -39,6 +39,7 @@ public final class Settings {
     public static volatile int PROJECTION_MAX_NEW_OBSERVER_SCANS_PER_TICK = 64;
     public static volatile int PROJECTION_INTEREST_GRACE_TICKS = 5;
     public static volatile int PROJECTION_INITIAL_RESEND_PASSES = 4;
+    public static volatile int PROJECTION_MAX_PROJECTED_CELLS = 250000;
     public static volatile long TELEPORT_COOLDOWN_MILLIS = 1000L;
     public static volatile boolean ARRIVAL_PREWARM_ON_INTEREST = true;
     public static volatile int ARRIVAL_WARM_RADIUS_CHUNKS = 4;
@@ -96,6 +97,7 @@ public final class Settings {
         PROJECTION_MAX_NEW_OBSERVER_SCANS_PER_TICK = clampInt(projection.maxNewObserverScansPerTick, 1, 4096);
         PROJECTION_INTEREST_GRACE_TICKS = clampInt(projection.interestGraceTicks, 0, 100);
         PROJECTION_INITIAL_RESEND_PASSES = clampInt(projection.initialResendPasses, 0, 20);
+        PROJECTION_MAX_PROJECTED_CELLS = clampInt(projection.maxProjectedCells, 0, 50000000);
 
         LIGHTING_FIDELITY = render.lightingFidelity;
         LIGHTING_REFRESH_INTERVAL_TICKS = clampInt(render.lightingRefreshIntervalTicks, 1, 40);

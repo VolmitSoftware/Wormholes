@@ -2,6 +2,22 @@ schema = 1
 locale = "es_ES"
 
 [text]
+"portal.network.label.render_mode" = "Modo de renderizado"
+"portal.travel.transfer_holding" = "<gold>Conectando con el servidor de destino..."
+"portal.travel.transfer_interrupted" = "<red>Transferencia de portal interrumpida: te alejaste del portal."
+"portal.travel.transfer_source_unavailable" = "<red>Transferencia de portal interrumpida: el portal de origen ya no está disponible."
+"portal.network.label.ambient_style" = "Partículas ambientales"
+"portal.network.label.ambient_color" = "Color ambiental"
+"portal.network.label.surface_skin" = "Aspecto de superficie"
+"portal.network.label.surface_thickness" = "Grosor de superficie"
+"portal.label.ambient.red" = "Rojo"
+"portal.label.ambient.green" = "Verde"
+"portal.label.ambient.blue" = "Azul"
+"portal.label.ambient_style.sparks" = "Chispas"
+"portal.label.ambient_style.outline" = "Contorno"
+"portal.label.ambient_style.corners" = "Esquinas"
+"portal.label.ambient_style.off" = "Apagado"
+"portal.label.skin.none" = "Ninguno"
 "director.help.navigation.parent.hover" = "Volver al grupo de comandos superior"
 "director.help.navigation.back" = "Atrás"
 "director.help.no_subcommands" = "No hay subcomandos en esta página."
@@ -39,6 +55,9 @@ locale = "es_ES"
 "command.help.admin" = "Comandos destructivos de mantenimiento de Wormholes"
 "command.help.admin.delete_portals" = "Eliminar todos los portales locales y sus enlaces guardados"
 "command.help.admin.delete_everything" = "Restablecer los datos, la configuración, la confianza, la identidad y la red de Wormholes"
+"command.help.admin.freeze" = "Congela todas las proyecciones de portal en su sitio durante varios segundos (seconds=0 reanuda)"
+"command.help.admin.freeze.seconds" = "Cuánto tiempo mantener el fotograma congelado (5-300, 0 reanuda ahora)"
+"command.help.admin.flush" = "Revierte los bloques proyectados de cada observador al estado real y los reconstruye"
 "command.help.network" = "Red de agujeros de gusano entre servidores"
 "command.help.network.import" = "Importar un código de portal de otro servidor (guarda una ruta interna; se enlaza desde el menú Enlace de una puerta de enlace)"
 "command.help.network.import.code" = "Código de portal del botón Exportar del otro servidor"
@@ -61,6 +80,10 @@ locale = "es_ES"
 "command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No se pudo programar el restablecimiento de los portales."
 "command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No se pudo restablecer Wormholes. Consulta la traza completa en la consola."
 "command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No se pudo programar el restablecimiento de Wormholes."
+"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Se congelaron todas las proyecciones de portal durante <white>{seconds}<green> segundos. Se reanudan automáticamente."
+"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Proyecciones de portal reanudadas."
+"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No se pudieron actualizar las proyecciones de portal. Consulta la consola para ver el stacktrace completo."
+"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No se pudo programar la actualización de la proyección."
 "network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>La red todavía no se ha inicializado."
 "network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>La red está <red>desactivada<gray> (config/wormholes.toml)."
 "network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>La red está activada, pero no se está ejecutando. Comprueba el almacén de identidad y el puerto de red."
@@ -307,6 +330,16 @@ locale = "es_ES"
 "rtp.duration.decimal_seconds" = "{value}s"
 
 [lines]
+"portal.menu.render_mode" = ["<aqua><bold>Modo de renderizado <white>{mode}</bold>","<gray>Cuánto del volumen de destino proyecta este portal.","","<gray>Modo: <white>{mode}","","<dark_gray>PanOptic renderiza todo el volumen de destino.","<dark_gray>Venticular oculta los bloques interiores completamente cerrados para transmisiones más ligeras.","","<dark_gray>Izquierda: cambiar de modo."]
+"portal.menu.ambient_particles" = ["<aqua><bold>Partículas ambientales</bold>","<gray>Polvo decorativo que flota alrededor de este portal.","","<gray>Estilo: <white>{style} <dark_gray>({color})","","<dark_gray>Izquierdo: cambiar de estilo.","<dark_gray>Derecho: elegir un color."]
+"portal.menu.ambient_color.placard" = ["<gold><bold>Color ambiental</bold>","<gray>Color de las partículas de polvo ambientales.","","<gray>Actual: <white>{color}"]
+"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>Clic izquierdo: +{step}","<dark_gray>Clic derecho: -{step}","<dark_gray>Mayús + clic izquierdo: +{large_step}","<dark_gray>Mayús + clic derecho: -{large_step}"]
+"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>Haz clic para seleccionar."]
+"portal.menu.surface_skin" = ["<aqua><bold>Aspecto de superficie</bold>","<gray>Cubre la abertura del portal con un panel de bloque o fluido renderizado.","","<gray>Aspecto: <white>{skin}","<gray>Grosor: <white>{thickness}","","<dark_gray>Izquierdo: quitar el aspecto.","<dark_gray>Derecho: abrir opciones de aspecto."]
+"portal.menu.surface_skin.placard" = ["<gold><bold>Aspecto de superficie</bold>","<gray>Haz clic derecho en el portal con un bloque o cubo para aplicar un aspecto.","","<gray>Aspecto: <white>{skin}","<gray>Grosor: <white>{thickness}"]
+"portal.menu.surface_skin.thickness" = ["<aqua><bold>Grosor de superficie <white>{value}</bold>","<gray>Profundidad del panel renderizado en bloques.","","<dark_gray>Clic izquierdo: +{step}","<dark_gray>Clic derecho: -{step}","<dark_gray>Mayús + clic izquierdo: +{large_step}","<dark_gray>Mayús + clic derecho: -{large_step}"]
+"portal.menu.surface_skin.glass" = ["<aqua><bold>Aspecto de cristal</bold>","<gray>Una ventana de cristal transparente sobre la abertura.","","<dark_gray>Haz clic para aplicar cristal."]
+"portal.menu.surface_skin.clear" = ["<red><bold>Quitar aspecto</bold>","<gray>Quita el aspecto y restaura las proyecciones.","","<dark_gray>Haz clic para quitar el aspecto."]
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Ayuda de portales: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Usa la Varita del Portal sobre un portal para configurar el destino, la vista, el viaje y el acceso."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Has recibido una Varita del Portal y 1 Runa de Agujero de Gusano.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Construye DOS formas con runas de agujero de gusano (cualquier forma conectada sobre una superficie plana), enlázalas y permanece a menos de 16 bloques para ver la proyección.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Ejecuta <white>/wormholes info<gray> para consultar todos los pasos."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Archivo de instantánea: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Observa este archivo para compartir el estado en vivo de la red y las vistas. Se reemplaza en cada intervalo."]
@@ -444,3 +477,7 @@ other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes se restableci�
 [plural."wand.selection.selected"]
 one = "<aqua>{count} bloque seleccionado. Haz clic izquierdo en el panel de cristal para abrir el portal."
 other = "<aqua>{count} bloques seleccionados. Haz clic izquierdo en el panel de cristal para abrir el portal."
+
+[plural."command.admin.projection_flushed"]
+one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Se vació <white>{count}<green> observador de proyección; los clientes se reconstruyen desde el estado real."
+other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Se vaciaron <white>{count}<green> observadores de proyección; los clientes se reconstruyen desde el estado real."

@@ -71,6 +71,7 @@ public final class WormholesPlatform {
     private static final Method PLUGIN_NAMESPACE = resolveMethod(Plugin.class, "namespace");
     private static final Method PLAYER_GET_SEND_VIEW_DISTANCE = resolveMethod(Player.class, "getSendViewDistance");
     private static final Method PLAYER_IS_CHUNK_SENT = resolveMethod(Player.class, "isChunkSent", long.class);
+    private static final java.lang.invoke.MethodHandle PLAYER_IS_CHUNK_SENT_HANDLE = unreflectNoThrow(PLAYER_IS_CHUNK_SENT);
     private static final Method LIVING_CAN_USE_EQUIPMENT_SLOT = resolveMethod(
         LivingEntity.class,
         "canUseEquipmentSlot",
@@ -266,7 +267,25 @@ public final class WormholesPlatform {
             return false;
         }
         long chunkKey = ((long) chunkX & 0xFFFFFFFFL) | (((long) chunkZ & 0xFFFFFFFFL) << 32);
+        if (PLAYER_IS_CHUNK_SENT_HANDLE != null) {
+            try {
+                return (boolean) PLAYER_IS_CHUNK_SENT_HANDLE.invoke(player, chunkKey);
+            } catch (Throwable ignored) {
+                return false;
+            }
+        }
         return Boolean.TRUE.equals(invokeNoThrow(PLAYER_IS_CHUNK_SENT, player, Long.valueOf(chunkKey)));
+    }
+
+    private static java.lang.invoke.MethodHandle unreflectNoThrow(Method method) {
+        if (method == null) {
+            return null;
+        }
+        try {
+            return java.lang.invoke.MethodHandles.lookup().unreflect(method);
+        } catch (IllegalAccessException e) {
+            return null;
+        }
     }
 
     public static boolean isLeashed(LivingEntity entity) {

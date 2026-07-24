@@ -170,6 +170,31 @@ public interface ILocalPortal extends IPortal, IPersistant, Listener
 
 	public double getEffectiveActivationRange();
 
+	public ProjectionRenderMode getRenderMode();
+
+	public void setRenderMode(ProjectionRenderMode mode);
+
+	public AmbientParticleStyle getAmbientStyle();
+
+	public void setAmbientStyle(AmbientParticleStyle style);
+
+	public int getAmbientColor();
+
+	public void setAmbientColor(int color);
+
+	public String getSurfaceSkin();
+
+	public void setSurfaceSkin(String skin);
+
+	public int getSurfaceThickness();
+
+	public void setSurfaceThickness(int thicknessCentiblocks);
+
+	public default boolean hasSurfaceSkin()
+	{
+		return !getSurfaceSkin().isEmpty();
+	}
+
 	public AxisAlignedBB getView();
 
 	public World getWorld();

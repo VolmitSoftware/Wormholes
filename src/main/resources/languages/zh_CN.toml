@@ -2,6 +2,22 @@ schema = 1
 locale = "zh_CN"
 
 [text]
+"portal.network.label.render_mode" = "渲染模式"
+"portal.travel.transfer_holding" = "<gold>正在连接到目标服务器..."
+"portal.travel.transfer_interrupted" = "<red>传送门传输中断：你离开了传送门。"
+"portal.travel.transfer_source_unavailable" = "<red>传送门传输中断：源传送门已不可用。"
+"portal.network.label.ambient_style" = "环境粒子"
+"portal.network.label.ambient_color" = "环境颜色"
+"portal.network.label.surface_skin" = "表面皮肤"
+"portal.network.label.surface_thickness" = "表面厚度"
+"portal.label.ambient.red" = "红色"
+"portal.label.ambient.green" = "绿色"
+"portal.label.ambient.blue" = "蓝色"
+"portal.label.ambient_style.sparks" = "火花"
+"portal.label.ambient_style.outline" = "轮廓"
+"portal.label.ambient_style.corners" = "角落"
+"portal.label.ambient_style.off" = "关闭"
+"portal.label.skin.none" = "无"
 "director.help.navigation.parent.hover" = "返回上一级命令组"
 "director.help.navigation.back" = "返回"
 "director.help.no_subcommands" = "此页面没有子命令。"
@@ -39,6 +55,9 @@ locale = "zh_CN"
 "command.help.admin" = "Wormholes 破坏性维护命令"
 "command.help.admin.delete_portals" = "删除所有本地传送门及已保存的传送门链接"
 "command.help.admin.delete_everything" = "重置 Wormholes 数据、配置、信任、身份和网络状态"
+"command.help.admin.freeze" = "将所有传送门投影原地冻结指定秒数 (seconds=0 恢复)"
+"command.help.admin.freeze.seconds" = "保持冻结画面的时长 (5-300, 0 立即恢复)"
+"command.help.admin.flush" = "将每个观察者的投影方块恢复为真实状态并重建"
 "command.help.network" = "跨服务器虫洞网络"
 "command.help.network.import" = "从其他服务器导入传送门代码(保存内部路由；通过网关的链接菜单进行连接)"
 "command.help.network.import.code" = "其他服务器通过导出按钮生成的传送门代码"
@@ -61,6 +80,10 @@ locale = "zh_CN"
 "command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>无法调度传送门重置。"
 "command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>无法重置 Wormholes。请在控制台查看完整堆栈跟踪。"
 "command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>无法调度 Wormholes 重置。"
+"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已将所有传送门投影原地冻结 <white>{seconds}<green> 秒。它们会自动恢复。"
+"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已恢复传送门投影。"
+"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>无法更新传送门投影。请查看控制台获取完整堆栈跟踪。"
+"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>无法安排投影更新。"
 "network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>网络尚未初始化。"
 "network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>网络已<red>禁用<gray> (config/wormholes.toml)。"
 "network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>网络已启用但未运行。请检查身份存储和网络端口。"
@@ -307,6 +330,16 @@ locale = "zh_CN"
 "rtp.duration.decimal_seconds" = "{value}s"
 
 [lines]
+"portal.menu.render_mode" = ["<aqua><bold>渲染模式 <white>{mode}</bold>","<gray>此传送门投影目标区域的多少体积。","","<gray>模式: <white>{mode}","","<dark_gray>PanOptic 渲染完整的目标区域体积。","<dark_gray>Venticular 隐藏完全封闭的内部方块以减轻传输量。","","<dark_gray>左键: 切换模式。"]
+"portal.menu.ambient_particles" = ["<aqua><bold>环境粒子</bold>","<gray>在此传送门周围漂浮的装饰性尘埃。","","<gray>样式：<white>{style} <dark_gray>({color})","","<dark_gray>左键：切换样式。","<dark_gray>右键：选择颜色。"]
+"portal.menu.ambient_color.placard" = ["<gold><bold>环境颜色</bold>","<gray>环境尘埃粒子的颜色。","","<gray>当前：<white>{color}"]
+"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>左键点击：+{step}","<dark_gray>右键点击：-{step}","<dark_gray>Shift + 左键点击：+{large_step}","<dark_gray>Shift + 右键点击：-{large_step}"]
+"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>点击以选择。"]
+"portal.menu.surface_skin" = ["<aqua><bold>表面皮肤</bold>","<gray>用渲染的方块或流体面板覆盖传送门开口。","","<gray>皮肤：<white>{skin}","<gray>厚度：<white>{thickness}","","<dark_gray>左键：清除皮肤。","<dark_gray>右键：打开皮肤选项。"]
+"portal.menu.surface_skin.placard" = ["<gold><bold>表面皮肤</bold>","<gray>手持方块或桶右键点击传送门以应用皮肤。","","<gray>皮肤：<white>{skin}","<gray>厚度：<white>{thickness}"]
+"portal.menu.surface_skin.thickness" = ["<aqua><bold>表面厚度 <white>{value}</bold>","<gray>渲染面板的厚度（以方块计）。","","<dark_gray>左键点击：+{step}","<dark_gray>右键点击：-{step}","<dark_gray>Shift + 左键点击：+{large_step}","<dark_gray>Shift + 右键点击：-{large_step}"]
+"portal.menu.surface_skin.glass" = ["<aqua><bold>玻璃皮肤</bold>","<gray>覆盖开口的透明玻璃窗。","","<dark_gray>点击以应用玻璃。"]
+"portal.menu.surface_skin.clear" = ["<red><bold>清除皮肤</bold>","<gray>移除皮肤并恢复投影。","","<dark_gray>点击以移除皮肤。"]
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>传送门帮助：<white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>对传送门使用传送门法杖，可打开目的地、视图、通行和访问控制。"]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>已给予传送门法杖和 1 枚虫洞符文。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>搭建两个虫洞符文形状(同一平面上的任意相连形状)，将它们链接，并站在 16 个方块内查看投影。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>运行 <white>/wormholes info<gray> 查看完整分步说明。"]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>快照文件：<white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>持续查看此文件可共享实时网络与视图状态。每个周期都会原地覆盖该文件。"]
@@ -444,3 +477,7 @@ other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes 已重置为�
 [plural."wand.selection.selected"]
 one = "<aqua>已选择 {count} 个方块。左键点击玻璃板以开启传送门。"
 other = "<aqua>已选择 {count} 个方块。左键点击玻璃板以开启传送门。"
+
+[plural."command.admin.projection_flushed"]
+one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已刷新 <white>{count}<green> 个投影观察者；客户端正在从真实状态重建。"
+other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已刷新 <white>{count}<green> 个投影观察者；客户端正在从真实状态重建。"

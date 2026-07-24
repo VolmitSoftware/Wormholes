@@ -45,6 +45,7 @@ import art.arcane.wormholes.portal.rtp.RtpProjectionView;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
 import art.arcane.wormholes.portal.rtp.RtpRotationMode;
 import art.arcane.wormholes.network.view.ViewServer;
+import art.arcane.wormholes.render.PortalSkinRenderer;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
 import art.arcane.wormholes.render.ProjectionClientChunkTracker;
 import art.arcane.wormholes.render.PortalProjector;
@@ -62,6 +63,7 @@ public class ProjectionManager implements Listener {
     private final ProjectionClientChunkTracker clientChunkTracker;
     private final ProjectionWorldViewProvider viewProvider;
     private final RtpRimRenderer rtpRimRenderer;
+    private final PortalSkinRenderer skinRenderer;
     private final Map<UUID, Map<UUID, PortalProjector>> projectors;
     private final Map<UUID, Map<UUID, Long>> interestGraceUntil;
     private final Map<UUID, Integer> observerPortalCursors;
@@ -78,6 +80,7 @@ public class ProjectionManager implements Listener {
     private long tickCount;
     private boolean firstTickLogged;
     private volatile boolean closed;
+    private volatile long projectionFrozenUntilMillis;
     private volatile RtpProjectionProvider rtpProjectionProvider;
     private int taskId;
     private int currentInterval;
@@ -89,6 +92,7 @@ public class ProjectionManager implements Listener {
         this.clientChunkTracker = clientChunkTracker;
         this.claimArbiter = new ProjectionClaimArbiter(viewProvider, clientChunkTracker);
         this.rtpRimRenderer = new RtpRimRenderer();
+        this.skinRenderer = new PortalSkinRenderer(claimArbiter);
         this.projectors = new ConcurrentHashMap<UUID, Map<UUID, PortalProjector>>();
         this.interestGraceUntil = new ConcurrentHashMap<UUID, Map<UUID, Long>>();
         this.observerPortalCursors = new ConcurrentHashMap<UUID, Integer>();
@@ -105,6 +109,7 @@ public class ProjectionManager implements Listener {
         this.tickCount = 0L;
         this.firstTickLogged = false;
         this.closed = false;
+        this.projectionFrozenUntilMillis = 0L;
         this.taskId = -1;
         this.currentInterval = -1;
         scheduleTick();
@@ -117,16 +122,19 @@ public class ProjectionManager implements Listener {
     @EventHandler
     public void on(PlayerQuitEvent e) {
         observerTasksInFlight.remove(e.getPlayer().getUniqueId());
+        skinRenderer.discardObserver(e.getPlayer().getUniqueId());
         discardObserverProjectors(e.getPlayer());
     }
 
     @EventHandler
     public void on(PlayerJoinEvent e) {
+        skinRenderer.discardObserver(e.getPlayer().getUniqueId());
         discardObserverProjectors(e.getPlayer());
     }
 
     @EventHandler
     public void on(PlayerChangedWorldEvent e) {
+        skinRenderer.discardObserver(e.getPlayer().getUniqueId());
         discardObserverProjectors(e.getPlayer());
     }
 
@@ -164,6 +172,9 @@ public class ProjectionManager implements Listener {
         if (closed) {
             return;
         }
+        if (projectionsFrozen(projectionFrozenUntilMillis, System.currentTimeMillis())) {
+            return;
+        }
         tickCount++;
         retryPendingCloses();
 
@@ -177,6 +188,11 @@ public class ProjectionManager implements Listener {
                 Wormholes.w("[ProjectionManager] portalManager is null on tick " + tickCount);
             }
             return;
+        }
+
+        List<ILocalPortal> skinnedPortals = collectSkinnedPortals();
+        if (!skinnedPortals.isEmpty() || skinRenderer.isActive()) {
+            skinRenderer.tick(skinnedPortals, new ArrayList<Player>(Wormholes.instance.getServer().getOnlinePlayers()));
         }
 
         lastInterestedObservers.set(0);
@@ -290,7 +306,7 @@ public class ProjectionManager implements Listener {
                 active.add(portal);
                 continue;
             }
-            if (!portal.supportsProjections() || !portal.isProjecting()) {
+            if (!portal.supportsProjections() || !portal.isProjecting() || portal.hasSurfaceSkin()) {
                 continue;
             }
             if (!portal.isOpen()) {
@@ -303,6 +319,16 @@ public class ProjectionManager implements Listener {
         }
 
         return active;
+    }
+
+    private List<ILocalPortal> collectSkinnedPortals() {
+        List<ILocalPortal> skinned = new ArrayList<ILocalPortal>();
+        for (ILocalPortal portal : Wormholes.portalManager.getLocalPortals()) {
+            if (portal.hasSurfaceSkin() && !portal.isDestroyed() && portal.getWorld() != null) {
+                skinned.add(portal);
+            }
+        }
+        return skinned;
     }
 
     private void cleanupInactivePortals(List<ILocalPortal> active) {
@@ -618,7 +644,7 @@ public class ProjectionManager implements Listener {
                 provider.dispatchRim(portal, observer, sample.get());
             }
         }
-        if (!portal.supportsProjections() || !portal.isProjecting() || !portal.isOpen()) {
+        if (!portal.supportsProjections() || !portal.isProjecting() || !portal.isOpen() || portal.hasSurfaceSkin()) {
             return ProjectionResolution.suppressed(rtp);
         }
         if (!rtp) {
@@ -643,7 +669,7 @@ public class ProjectionManager implements Listener {
     }
 
     private boolean isPortalStillProjectable(ILocalPortal portal, boolean rtp) {
-        if (portal == null || !portal.supportsProjections() || !portal.isProjecting() || !portal.isOpen()) {
+        if (portal == null || !portal.supportsProjections() || !portal.isProjecting() || !portal.isOpen() || portal.hasSurfaceSkin()) {
             return false;
         }
         if (!rtp && !portal.isMirrorMode() && !portal.hasTunnel()) {
@@ -853,6 +879,38 @@ public class ProjectionManager implements Listener {
         FoliaScheduler.runEntity(Wormholes.instance, player, () -> removeProjector(player), 20L);
     }
 
+    static boolean projectionsFrozen(long frozenUntilMillis, long nowMillis) {
+        return frozenUntilMillis > nowMillis;
+    }
+
+    public long freezeProjections(long durationMillis) {
+        if (durationMillis <= 0L) {
+            projectionFrozenUntilMillis = 0L;
+            return 0L;
+        }
+        long deadline = System.currentTimeMillis() + durationMillis;
+        projectionFrozenUntilMillis = deadline;
+        return deadline;
+    }
+
+    public int flushProjections() {
+        Set<UUID> observersWithProjectors = new HashSet<UUID>();
+        for (Map<UUID, PortalProjector> portalProjectors : projectors.values()) {
+            observersWithProjectors.addAll(portalProjectors.keySet());
+        }
+        int flushed = 0;
+        for (Player player : new ArrayList<Player>(Wormholes.instance.getServer().getOnlinePlayers())) {
+            UUID observerId = player.getUniqueId();
+            boolean hadProjectors = observersWithProjectors.contains(observerId);
+            removeProjector(player);
+            clientChunkTracker.forget(observerId);
+            if (hadProjectors) {
+                flushed++;
+            }
+        }
+        return flushed;
+    }
+
     public void removeProjector(ILocalPortal portal, Player player) {
         Map<UUID, PortalProjector> portalProjectors = projectors.get(portal.getId());
         if (portalProjectors == null) {
@@ -870,6 +928,7 @@ public class ProjectionManager implements Listener {
             return;
         }
         closed = true;
+        skinRenderer.shutdown();
         if (taskId >= 0) {
             J.csr(taskId);
             taskId = -1;

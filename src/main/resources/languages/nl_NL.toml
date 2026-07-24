@@ -2,6 +2,22 @@ schema = 1
 locale = "nl_NL"
 
 [text]
+"portal.network.label.render_mode" = "Weergavemodus"
+"portal.travel.transfer_holding" = "<gold>Verbinding maken met de bestemmingsserver..."
+"portal.travel.transfer_interrupted" = "<red>Portaaloverdracht onderbroken: je bent van het portaal weggelopen."
+"portal.travel.transfer_source_unavailable" = "<red>Portaaloverdracht onderbroken: het bronportaal is niet meer beschikbaar."
+"portal.network.label.ambient_style" = "Omgevingsdeeltjes"
+"portal.network.label.ambient_color" = "Omgevingskleur"
+"portal.network.label.surface_skin" = "Oppervlakteskin"
+"portal.network.label.surface_thickness" = "Oppervlaktedikte"
+"portal.label.ambient.red" = "Rood"
+"portal.label.ambient.green" = "Groen"
+"portal.label.ambient.blue" = "Blauw"
+"portal.label.ambient_style.sparks" = "Vonken"
+"portal.label.ambient_style.outline" = "Omtrek"
+"portal.label.ambient_style.corners" = "Hoeken"
+"portal.label.ambient_style.off" = "Uit"
+"portal.label.skin.none" = "Geen"
 "director.help.navigation.parent.hover" = "Terug naar de bovenliggende opdrachtgroep"
 "director.help.navigation.back" = "Terug"
 "director.help.no_subcommands" = "Geen subopdrachten op deze pagina."
@@ -39,6 +55,9 @@ locale = "nl_NL"
 "command.help.admin" = "Destructieve onderhoudscommando's voor Wormholes"
 "command.help.admin.delete_portals" = "Verwijder alle lokale portalen en opgeslagen portaalverbindingen"
 "command.help.admin.delete_everything" = "Reset Wormholes-gegevens, configuratie, vertrouwen, identiteit en netwerkstatus"
+"command.help.admin.freeze" = "Bevries alle portaalprojecties ter plekke voor een aantal seconden (seconds=0 hervat)"
+"command.help.admin.freeze.seconds" = "Hoe lang het bevroren beeld wordt vastgehouden (5-300, 0 hervat direct)"
+"command.help.admin.flush" = "Zet de geprojecteerde blokken van elke waarnemer terug naar de werkelijke staat en bouwt ze opnieuw op"
 "command.help.network" = "Serveroverschrijdend wormgatnetwerk"
 "command.help.network.import" = "Importeer een portaalcode van een andere server (slaat een interne route op; koppel via het menu Verbinding van een gateway)"
 "command.help.network.import.code" = "Portaalcode van de knop Exporteren op de andere server"
@@ -61,6 +80,10 @@ locale = "nl_NL"
 "command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>De portaalreset kon niet worden gepland."
 "command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Wormholes kon niet worden gereset. Bekijk de volledige stacktrace in de console."
 "command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>De reset van Wormholes kon niet worden gepland."
+"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Alle portaalprojecties zijn <white>{seconds}<green> seconden bevroren. Ze hervatten automatisch."
+"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portaalprojecties hervat."
+"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Kon de portaalprojecties niet bijwerken. Controleer de console voor de volledige stacktrace."
+"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Kon de projectie-update niet inplannen."
 "network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Het netwerk is nog niet geïnitialiseerd."
 "network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Het netwerk is <red>uitgeschakeld<gray> (config/wormholes.toml)."
 "network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Het netwerk is ingeschakeld maar draait niet. Controleer de identiteitsopslag en netwerkpoort."
@@ -307,6 +330,16 @@ locale = "nl_NL"
 "rtp.duration.decimal_seconds" = "{value}s"
 
 [lines]
+"portal.menu.render_mode" = ["<aqua><bold>Weergavemodus <white>{mode}</bold>","<gray>Hoeveel van het bestemmingsvolume dit portaal projecteert.","","<gray>Modus: <white>{mode}","","<dark_gray>PanOptic geeft het volledige bestemmingsvolume weer.","<dark_gray>Venticular verbergt volledig ingesloten binnenblokken voor lichtere streams.","","<dark_gray>Links: modus wisselen."]
+"portal.menu.ambient_particles" = ["<aqua><bold>Omgevingsdeeltjes</bold>","<gray>Decoratief stof dat rond dit portaal zweeft.","","<gray>Stijl: <white>{style} <dark_gray>({color})","","<dark_gray>Links: stijl wisselen.","<dark_gray>Rechts: een kleur kiezen."]
+"portal.menu.ambient_color.placard" = ["<gold><bold>Omgevingskleur</bold>","<gray>Kleur van de omgevingsstofdeeltjes.","","<gray>Huidig: <white>{color}"]
+"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>Linksklik: +{step}","<dark_gray>Rechtsklik: -{step}","<dark_gray>Shift + linksklik: +{large_step}","<dark_gray>Shift + rechtsklik: -{large_step}"]
+"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>Klik om te selecteren."]
+"portal.menu.surface_skin" = ["<aqua><bold>Oppervlakteskin</bold>","<gray>Bedek de portaalopening met een gerenderd blok- of vloeistofpaneel.","","<gray>Skin: <white>{skin}","<gray>Dikte: <white>{thickness}","","<dark_gray>Links: skin wissen.","<dark_gray>Rechts: skinopties openen."]
+"portal.menu.surface_skin.placard" = ["<gold><bold>Oppervlakteskin</bold>","<gray>Rechtsklik op het portaal met een blok of emmer om een skin toe te passen.","","<gray>Skin: <white>{skin}","<gray>Dikte: <white>{thickness}"]
+"portal.menu.surface_skin.thickness" = ["<aqua><bold>Oppervlaktedikte <white>{value}</bold>","<gray>Diepte van het gerenderde paneel in blokken.","","<dark_gray>Linksklik: +{step}","<dark_gray>Rechtsklik: -{step}","<dark_gray>Shift + linksklik: +{large_step}","<dark_gray>Shift + rechtsklik: -{large_step}"]
+"portal.menu.surface_skin.glass" = ["<aqua><bold>Glazen skin</bold>","<gray>Een helder glazen venster over de opening.","","<dark_gray>Klik om glas toe te passen."]
+"portal.menu.surface_skin.clear" = ["<red><bold>Skin wissen</bold>","<gray>Verwijdert de skin en herstelt projecties.","","<dark_gray>Klik om de skin te verwijderen."]
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Portaalhulp: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Gebruik de portaalstaf op een portaal om bestemming, weergave, reizen en toegang in te stellen."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Je hebt een portaalstaf en 1 wormgatrune ontvangen.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Bouw TWEE vormen van wormgatrunen (een willekeurige verbonden vorm op één vlak oppervlak), verbind ze en blijf binnen 16 blokken om de projectie te zien.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Voer <white>/wormholes info<gray> uit voor alle stappen."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Opnamebestand: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Volg dit bestand om de live status van het netwerk en de weergaven te delen. Het wordt bij elk interval vervangen."]
@@ -444,3 +477,7 @@ other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes is teruggezet 
 [plural."wand.selection.selected"]
 one = "<aqua>{count} blok geselecteerd. Klik met links op het glaspaneel om het portaal te openen."
 other = "<aqua>{count} blokken geselecteerd. Klik met links op het glaspaneel om het portaal te openen."
+
+[plural."command.admin.projection_flushed"]
+one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> projectiewaarnemer geleegd; clients bouwen opnieuw op vanaf de werkelijke staat."
+other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> projectiewaarnemers geleegd; clients bouwen opnieuw op vanaf de werkelijke staat."

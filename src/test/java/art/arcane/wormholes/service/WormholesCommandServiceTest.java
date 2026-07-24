@@ -49,7 +49,10 @@ class WormholesCommandServiceTest {
         assertNotNull(findChild(network, "status"));
         assertNotNull(findChild(network, "doctor"));
         assertNotNull(findChild(network, "import"));
-        assertNotNull(findChild(root, "admin"));
+        DirectorRuntimeNode admin = findChild(root, "admin");
+        assertNotNull(admin);
+        assertNotNull(findChild(admin, "freeze"));
+        assertNotNull(findChild(admin, "flush"));
         assertNull(findChild(root, "rune"));
         assertNull(findChild(root, "reset"));
     }

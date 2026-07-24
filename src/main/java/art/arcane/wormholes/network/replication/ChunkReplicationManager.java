@@ -2,6 +2,7 @@ package art.arcane.wormholes.network.replication;
 
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.WireMessage;
+import art.arcane.wormholes.render.view.OccludedMarker;
 
 import org.bukkit.World;
 
@@ -35,6 +36,11 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         void onBulkRetryRequired(String peerName, long chunkKey);
     }
 
+    @FunctionalInterface
+    public interface RenderModeResolver {
+        boolean isVenticular(UUID portalId);
+    }
+
     private static final class CanonicalHashCache {
         private volatile long hash;
 
@@ -60,6 +66,7 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
     private volatile ReplicationConfig config;
     private volatile ChunkEvictionListener evictionListener;
     private volatile BulkRetryListener bulkRetryListener;
+    private volatile RenderModeResolver renderModeResolver;
     private final Map<String, Map<Long, ChunkReplicationState>> peerStates = new ConcurrentHashMap<>();
     private final Map<String, Map<Long, Set<SubscriptionRef>>> peerSubscriptions = new ConcurrentHashMap<>();
     private final Map<UUID, Map<Long, ConcurrentHashMap<String, ChunkReplicationState>>> worldSubscribers = new ConcurrentHashMap<>();
@@ -87,6 +94,28 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
 
     public void setBulkRetryListener(BulkRetryListener listener) {
         this.bulkRetryListener = listener;
+    }
+
+    public void setRenderModeResolver(RenderModeResolver resolver) {
+        this.renderModeResolver = resolver;
+    }
+
+    public boolean hasVenticularSubscriber(World world, long chunkKey) {
+        if (renderModeResolver == null) {
+            return false;
+        }
+        ConcurrentHashMap<String, ChunkReplicationState> subscribers = subscribersFor(world, chunkKey);
+        if (subscribers == null || subscribers.isEmpty()) {
+            return false;
+        }
+        for (String peerName : subscribers.keySet()) {
+            synchronized (peerGate(peerName)) {
+                if (peerChunkVenticular(peerName, chunkKey)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public ReplicationConfig config() {
@@ -349,8 +378,9 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
                 }
                 boolean overflowed = false;
                 if (hasBlocks) {
+                    boolean venticular = peerChunkVenticular(peerName, chunkKey);
                     for (int i = 0; i < blocks.size(); i++) {
-                        if (!state.appendBlock(blocks.get(i), capacity)) {
+                        if (!state.appendBlock(transformForPeer(blocks.get(i), venticular), capacity)) {
                             overflowed = true;
                             break;
                         }
@@ -509,6 +539,37 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         subscriptions.add(subscription);
         ChunkReplicationState state = stateFor(peerName, chunkKey, true);
         registerWorldSubscriber(world, chunkKey, state);
+    }
+
+    private static BlockChange transformForPeer(BlockChange change, boolean venticular) {
+        byte flags = change.flags();
+        if ((flags & BlockChange.FLAG_OCCLUDED) == 0) {
+            return change;
+        }
+        byte stripped = (byte) (flags & ~BlockChange.FLAG_OCCLUDED);
+        String state = venticular ? OccludedMarker.STATE_STRING : change.state();
+        return new BlockChange(change.packedXyz(), state, stripped);
+    }
+
+    private boolean peerChunkVenticular(String peerName, long chunkKey) {
+        RenderModeResolver resolver = renderModeResolver;
+        if (resolver == null) {
+            return false;
+        }
+        Map<Long, Set<SubscriptionRef>> peerChunks = peerSubscriptions.get(peerName);
+        if (peerChunks == null) {
+            return false;
+        }
+        Set<SubscriptionRef> subscriptions = peerChunks.get(chunkKey);
+        if (subscriptions == null) {
+            return false;
+        }
+        for (SubscriptionRef ref : subscriptions) {
+            if (resolver.isVenticular(ref.portalId())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean hasSubscriptionLocked(String peerName, SubscriptionRef subscription, long chunkKey) {

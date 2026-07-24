@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
@@ -305,6 +306,9 @@ public final class ProjectionClaimArbiter {
         Long2ObjectMap<BlockData> blockChanges = new Long2ObjectOpenHashMap<BlockData>(mapCapacity);
         if (canSend) {
             ProjectionWorldView localView = viewProvider.view(localWorld);
+            Long2ByteOpenHashMap chunkSentMemo = new Long2ByteOpenHashMap(16);
+            Long2LongOpenHashMap chunkRevisionMemo = new Long2LongOpenHashMap(16);
+            chunkRevisionMemo.defaultReturnValue(Long.MIN_VALUE);
             LongIterator packetIterator = packetKeys.iterator();
             while (packetIterator.hasNext()) {
                 long key = packetIterator.nextLong();
@@ -314,7 +318,13 @@ public final class ProjectionClaimArbiter {
                 int z = unpackZ(key);
                 int chunkX = x >> 4;
                 int chunkZ = z >> 4;
-                if (!chunkVisibility.isChunkSent(observer, chunkX, chunkZ)) {
+                long chunkKey = (((long) chunkX) << 32) | (chunkZ & 0xFFFFFFFFL);
+                byte sentState = chunkSentMemo.get(chunkKey);
+                if (sentState == 0) {
+                    sentState = chunkVisibility.isChunkSent(observer, chunkX, chunkZ) ? (byte) 1 : (byte) 2;
+                    chunkSentMemo.put(chunkKey, sentState);
+                }
+                if (sentState == 2) {
                     observerClaims.sentBlocks.remove(key);
                     observerClaims.sentBlockChunkRevisions.remove(key);
                     observerClaims.lighting.discardChunk(chunkX, chunkZ);
@@ -347,8 +357,12 @@ public final class ProjectionClaimArbiter {
                         continue;
                     }
                     observerClaims.sentBlocks.put(key, winnerData);
-                    observerClaims.sentBlockChunkRevisions.put(key,
-                        chunkVisibility.chunkRevision(observer, chunkX, chunkZ));
+                    long chunkRevision = chunkRevisionMemo.get(chunkKey);
+                    if (chunkRevision == Long.MIN_VALUE) {
+                        chunkRevision = chunkVisibility.chunkRevision(observer, chunkX, chunkZ);
+                        chunkRevisionMemo.put(chunkKey, chunkRevision);
+                    }
+                    observerClaims.sentBlockChunkRevisions.put(key, chunkRevision);
                     blockChanges.put(key, winnerData);
                 }
             }

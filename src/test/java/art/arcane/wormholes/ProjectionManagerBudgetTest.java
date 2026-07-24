@@ -6,9 +6,19 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProjectionManagerBudgetTest {
+    @Test
+    void freezeGateHoldsFrameUntilDeadlinePasses() {
+        assertTrue(ProjectionManager.projectionsFrozen(2_000L, 1_500L));
+        assertFalse(ProjectionManager.projectionsFrozen(2_000L, 2_000L));
+        assertFalse(ProjectionManager.projectionsFrozen(2_000L, 2_500L));
+        assertFalse(ProjectionManager.projectionsFrozen(0L, 0L));
+        assertFalse(ProjectionManager.projectionsFrozen(0L, 5_000L));
+    }
+
     @Test
     void rotatesScarceBudgetAcrossObservers() {
         assertArrayEquals(new int[] {1, 1, 0}, ProjectionManager.fairBudgetAllocations(3, 2, 1, 0L));

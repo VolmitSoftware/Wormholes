@@ -31,6 +31,11 @@ public class RemotePortal extends Portal implements IRemotePortal {
     private volatile boolean mirroredBlackoutBackground;
     private volatile BlackoutColor mirroredBlackoutColor;
     private volatile int mirroredActivationRange;
+    private volatile ProjectionRenderMode mirroredRenderMode;
+    private volatile AmbientParticleStyle mirroredAmbientStyle;
+    private volatile int mirroredAmbientColor;
+    private volatile String mirroredSurfaceSkin;
+    private volatile int mirroredSurfaceThickness;
 
     public RemotePortal(UUID id, RemoteWorld server, Vector origin, PortalType type, boolean open, AxisAlignedBB area) {
         super(id, origin);
@@ -53,6 +58,11 @@ public class RemotePortal extends Portal implements IRemotePortal {
         this.mirroredBlackoutBackground = true;
         this.mirroredBlackoutColor = BlackoutColor.BLACK;
         this.mirroredActivationRange = 0;
+        this.mirroredRenderMode = ProjectionRenderMode.PANOPTIC;
+        this.mirroredAmbientStyle = AmbientParticleStyle.SPARKS;
+        this.mirroredAmbientColor = 0xB969FF;
+        this.mirroredSurfaceSkin = "";
+        this.mirroredSurfaceThickness = 20;
     }
 
     public static RemotePortal fromInfo(String serverName, PortalInfo info) {
@@ -224,5 +234,45 @@ public class RemotePortal extends Portal implements IRemotePortal {
 
     public void setMirroredActivationRange(int rangeBlocks) {
         this.mirroredActivationRange = rangeBlocks;
+    }
+
+    public ProjectionRenderMode getMirroredRenderMode() {
+        return mirroredRenderMode;
+    }
+
+    public void setMirroredRenderMode(ProjectionRenderMode mode) {
+        this.mirroredRenderMode = mode == null ? ProjectionRenderMode.PANOPTIC : mode;
+    }
+
+    public AmbientParticleStyle getMirroredAmbientStyle() {
+        return mirroredAmbientStyle;
+    }
+
+    public void setMirroredAmbientStyle(AmbientParticleStyle style) {
+        this.mirroredAmbientStyle = style == null ? AmbientParticleStyle.SPARKS : style;
+    }
+
+    public int getMirroredAmbientColor() {
+        return mirroredAmbientColor;
+    }
+
+    public void setMirroredAmbientColor(int color) {
+        this.mirroredAmbientColor = color;
+    }
+
+    public String getMirroredSurfaceSkin() {
+        return mirroredSurfaceSkin;
+    }
+
+    public void setMirroredSurfaceSkin(String skin) {
+        this.mirroredSurfaceSkin = skin == null ? "" : skin;
+    }
+
+    public int getMirroredSurfaceThickness() {
+        return mirroredSurfaceThickness;
+    }
+
+    public void setMirroredSurfaceThickness(int thicknessCentiblocks) {
+        this.mirroredSurfaceThickness = thicknessCentiblocks;
     }
 }

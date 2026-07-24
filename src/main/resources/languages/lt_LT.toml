@@ -2,6 +2,22 @@ schema = 1
 locale = "lt_LT"
 
 [text]
+"portal.network.label.render_mode" = "Atvaizdavimo režimas"
+"portal.travel.transfer_holding" = "<gold>Jungiamasi prie paskirties serverio..."
+"portal.travel.transfer_interrupted" = "<red>Portalo perkėlimas nutrauktas: pasitraukėte nuo portalo."
+"portal.travel.transfer_source_unavailable" = "<red>Portalo perkėlimas nutrauktas: pradinis portalas nebepasiekiamas."
+"portal.network.label.ambient_style" = "Aplinkos dalelės"
+"portal.network.label.ambient_color" = "Aplinkos spalva"
+"portal.network.label.surface_skin" = "Paviršiaus apdanga"
+"portal.network.label.surface_thickness" = "Paviršiaus storis"
+"portal.label.ambient.red" = "Raudona"
+"portal.label.ambient.green" = "Žalia"
+"portal.label.ambient.blue" = "Mėlyna"
+"portal.label.ambient_style.sparks" = "Kibirkštys"
+"portal.label.ambient_style.outline" = "Kontūras"
+"portal.label.ambient_style.corners" = "Kampai"
+"portal.label.ambient_style.off" = "Išjungta"
+"portal.label.skin.none" = "Nėra"
 "director.help.navigation.parent.hover" = "Grįžti į pirminę komandų grupę"
 "director.help.navigation.back" = "Atgal"
 "director.help.no_subcommands" = "Šiame puslapyje nėra antrinių komandų."
@@ -39,6 +55,9 @@ locale = "lt_LT"
 "command.help.admin" = "Naikinančios Wormholes priežiūros komandos"
 "command.help.admin.delete_portals" = "Ištrinti visus vietinius portalus ir išsaugotas jų jungtis"
 "command.help.admin.delete_everything" = "Atkurti Wormholes duomenis, nuostatas, pasitikėjimą, tapatybę ir tinklo būseną"
+"command.help.admin.freeze" = "Užšaldyti visas portalo projekcijas vietoje tam tikram sekundžių skaičiui (seconds=0 tęsia)"
+"command.help.admin.freeze.seconds" = "Kiek laiko laikyti užšaldytą kadrą (5-300, 0 tęsia iškart)"
+"command.help.admin.flush" = "Grąžinti kiekvieno stebėtojo projektuojamus blokus į tikrąją būseną ir juos atkurti"
 "command.help.network" = "Tarpserverinis kirmgraužų tinklas"
 "command.help.network.import" = "Importuoti portalo kodą iš kito serverio (išsaugo vidinį maršrutą; susieti per tinklo vartų meniu Jungtis)"
 "command.help.network.import.code" = "Portalo kodas iš kito serverio mygtuko Eksportuoti"
@@ -61,6 +80,10 @@ locale = "lt_LT"
 "command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Nepavyko suplanuoti portalų atkūrimo."
 "command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Nepavyko atkurti Wormholes. Visą klaidos išklotinę rasite konsolėje."
 "command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Nepavyko suplanuoti Wormholes atkūrimo."
+"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Visos portalo projekcijos užšaldytos <white>{seconds}<green> sekundėms. Jos atsinaujins automatiškai."
+"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portalo projekcijos atnaujintos."
+"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Nepavyko atnaujinti portalo projekcijų. Patikrinkite konsolę dėl viso steko pėdsako."
+"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Nepavyko suplanuoti projekcijos atnaujinimo."
 "network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Tinklas dar neinicijuotas."
 "network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tinklas <red>išjungtas<gray> (config/wormholes.toml)."
 "network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Tinklas įjungtas, bet neveikia. Patikrinkite tapatybės saugyklą ir tinklo prievadą."
@@ -307,6 +330,16 @@ locale = "lt_LT"
 "rtp.duration.decimal_seconds" = "{value}s"
 
 [lines]
+"portal.menu.render_mode" = ["<aqua><bold>Atvaizdavimo režimas <white>{mode}</bold>","<gray>Kiek paskirties tūrio projektuoja šis portalas.","","<gray>Režimas: <white>{mode}","","<dark_gray>PanOptic atvaizduoja visą paskirties tūrį.","<dark_gray>Venticular paslepia visiškai uždarytus vidinius blokus, kad srautai būtų lengvesni.","","<dark_gray>Kairysis: keisti režimą."]
+"portal.menu.ambient_particles" = ["<aqua><bold>Aplinkos dalelės</bold>","<gray>Dekoratyvios dulkės, sklandančios aplink šį portalą.","","<gray>Stilius: <white>{style} <dark_gray>({color})","","<dark_gray>Kairys: keisti stilių.","<dark_gray>Dešinys: pasirinkti spalvą."]
+"portal.menu.ambient_color.placard" = ["<gold><bold>Aplinkos spalva</bold>","<gray>Aplinkos dulkių dalelių spalva.","","<gray>Dabartinis: <white>{color}"]
+"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>Kairysis spustelėjimas: +{step}","<dark_gray>Dešinysis spustelėjimas: -{step}","<dark_gray>Shift + kairysis spustelėjimas: +{large_step}","<dark_gray>Shift + dešinysis spustelėjimas: -{large_step}"]
+"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>Spustelėkite, kad pasirinktumėte."]
+"portal.menu.surface_skin" = ["<aqua><bold>Paviršiaus apdanga</bold>","<gray>Uždenkite portalo angą atvaizduota bloko arba skysčio plokštuma.","","<gray>Apdanga: <white>{skin}","<gray>Storis: <white>{thickness}","","<dark_gray>Kairys: pašalinti apdangą.","<dark_gray>Dešinys: atverti apdangos parinktis."]
+"portal.menu.surface_skin.placard" = ["<gold><bold>Paviršiaus apdanga</bold>","<gray>Spustelėkite portalą dešiniuoju pelės mygtuku laikydami bloką arba kibirą, kad pritaikytumėte apdangą.","","<gray>Apdanga: <white>{skin}","<gray>Storis: <white>{thickness}"]
+"portal.menu.surface_skin.thickness" = ["<aqua><bold>Paviršiaus storis <white>{value}</bold>","<gray>Atvaizduotos plokštumos gylis blokais.","","<dark_gray>Kairysis spustelėjimas: +{step}","<dark_gray>Dešinysis spustelėjimas: -{step}","<dark_gray>Shift + kairysis spustelėjimas: +{large_step}","<dark_gray>Shift + dešinysis spustelėjimas: -{large_step}"]
+"portal.menu.surface_skin.glass" = ["<aqua><bold>Stiklo apdanga</bold>","<gray>Skaidrus stiklo langas virš angos.","","<dark_gray>Spustelėkite, kad pritaikytumėte stiklą."]
+"portal.menu.surface_skin.clear" = ["<red><bold>Pašalinti apdangą</bold>","<gray>Pašalina apdangą ir atkuria projekcijas.","","<dark_gray>Spustelėkite, kad pašalintumėte apdangą."]
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Portalų pagalba: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Naudokite portalo lazdelę portale, kad keistumėte jo tikslą, vaizdą, keliavimą ir prieigą."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Gavote portalo lazdelę ir 1 kirmgraužos runą.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Sukurkite DVI kirmgraužos runų formas (bet kokią sujungtą formą ant vieno lygaus paviršiaus), susiekite jas ir stovėkite ne toliau kaip 16 blokų, kad matytumėte projekciją.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Visus veiksmus rasite įvykdę <white>/wormholes info<gray>."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Momentinės kopijos failas: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Stebėkite šį failą, kad bendrintumėte tiesioginę tinklo ir vaizdų būseną. Jis pakeičiamas kiekvienu intervalu."]
@@ -444,3 +477,7 @@ other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Atkurta numatytoji Wormh
 [plural."wand.selection.selected"]
 one = "<aqua>Pasirinktas {count} blokas. Kairiuoju mygtuku spustelėkite stiklo plokštę, kad atvertumėte portalą."
 other = "<aqua>Pasirinkti {count} blokai. Kairiuoju mygtuku spustelėkite stiklo plokštę, kad atvertumėte portalą."
+
+[plural."command.admin.projection_flushed"]
+one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Išvalytas <white>{count}<green> projekcijos stebėtojas; klientai atkuriami iš tikrosios būsenos."
+other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Išvalyta <white>{count}<green> projekcijos stebėtojų; klientai atkuriami iš tikrosios būsenos."

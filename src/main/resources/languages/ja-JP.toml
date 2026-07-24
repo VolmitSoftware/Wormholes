@@ -2,6 +2,22 @@ schema = 1
 locale = "ja-JP"
 
 [text]
+"portal.network.label.render_mode" = "レンダリングモード"
+"portal.travel.transfer_holding" = "<gold>接続先サーバーに接続しています..."
+"portal.travel.transfer_interrupted" = "<red>ポータル転送が中断されました: ポータルから離れました。"
+"portal.travel.transfer_source_unavailable" = "<red>ポータル転送が中断されました: 転送元ポータルは利用できなくなりました。"
+"portal.network.label.ambient_style" = "アンビエントパーティクル"
+"portal.network.label.ambient_color" = "アンビエントカラー"
+"portal.network.label.surface_skin" = "表面スキン"
+"portal.network.label.surface_thickness" = "表面の厚さ"
+"portal.label.ambient.red" = "赤"
+"portal.label.ambient.green" = "緑"
+"portal.label.ambient.blue" = "青"
+"portal.label.ambient_style.sparks" = "スパーク"
+"portal.label.ambient_style.outline" = "アウトライン"
+"portal.label.ambient_style.corners" = "コーナー"
+"portal.label.ambient_style.off" = "オフ"
+"portal.label.skin.none" = "なし"
 "director.help.navigation.parent.hover" = "元のコマンドグループに戻る"
 "director.help.navigation.back" = "戻る"
 "director.help.no_subcommands" = "このページにはサブコマンドがありません。"
@@ -39,6 +55,9 @@ locale = "ja-JP"
 "command.help.admin" = "Wormholes の破壊的なメンテナンスコマンド"
 "command.help.admin.delete_portals" = "すべてのローカルポータルと保存済みポータルリンクを削除します"
 "command.help.admin.delete_everything" = "Wormholes のデータ、設定、信頼情報、ID、ネットワーク状態をリセットします"
+"command.help.admin.freeze" = "すべてのポータル投影を指定した秒数だけその場で凍結します (seconds=0 で再開)"
+"command.help.admin.freeze.seconds" = "凍結したフレームを保持する時間 (5-300、0 で即時再開)"
+"command.help.admin.flush" = "各観測者の投影ブロックを実際の状態に戻して再構築します"
 "command.help.network" = "サーバー間ワームホールネットワーク"
 "command.help.network.import" = "別のサーバーからポータルコードをインポートする (ゲートウェイのリンクメニューでリンクする)"
 "command.help.network.import.code" = "別のサーバーのエクスポートボタンで生成したポータルコード"
@@ -61,6 +80,10 @@ locale = "ja-JP"
 "command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ポータルのリセットを予約できませんでした。"
 "command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Wormholes をリセットできませんでした。完全なスタックトレースはコンソールで確認してください。"
 "command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Wormholes のリセットを予約できませんでした。"
+"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>すべてのポータル投影を <white>{seconds}<green> 秒間その場で凍結しました。自動的に再開します。"
+"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>ポータル投影を再開しました。"
+"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ポータル投影を更新できませんでした。完全なスタックトレースはコンソールを確認してください。"
+"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>投影の更新を予約できませんでした。"
 "network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ネットワークはまだ初期化されていません。"
 "network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>ネットワークは<red>無効<gray>です (config/wormholes.toml)。"
 "network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ネットワークは有効ですが実行されていません。ID ストレージとネットワークポートを確認してください。"
@@ -307,6 +330,16 @@ locale = "ja-JP"
 "rtp.duration.decimal_seconds" = "{value}s"
 
 [lines]
+"portal.menu.render_mode" = ["<aqua><bold>レンダリングモード <white>{mode}</bold>","<gray>このポータルが投影する目的地ボリュームの範囲。","","<gray>モード: <white>{mode}","","<dark_gray>PanOptic は目的地ボリューム全体をレンダリングします。","<dark_gray>Venticular は完全に囲まれた内部ブロックを非表示にし、ストリームを軽くします。","","<dark_gray>左クリック: モードを切り替え。"]
+"portal.menu.ambient_particles" = ["<aqua><bold>アンビエントパーティクル</bold>","<gray>このポータルの周りに漂う装飾的なほこり。","","<gray>スタイル: <white>{style} <dark_gray>({color})","","<dark_gray>左: スタイルを切り替え。","<dark_gray>右: 色を選択。"]
+"portal.menu.ambient_color.placard" = ["<gold><bold>アンビエントカラー</bold>","<gray>アンビエントのほこり粒子の色。","","<gray>現在: <white>{color}"]
+"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>左クリック: +{step}","<dark_gray>右クリック: -{step}","<dark_gray>Shift + 左クリック: +{large_step}","<dark_gray>Shift + 右クリック: -{large_step}"]
+"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>クリックして選択します。"]
+"portal.menu.surface_skin" = ["<aqua><bold>表面スキン</bold>","<gray>レンダリングされたブロックまたは液体のパネルでポータルの開口部を覆います。","","<gray>スキン: <white>{skin}","<gray>厚さ: <white>{thickness}","","<dark_gray>左: スキンを削除。","<dark_gray>右: スキンオプションを開く。"]
+"portal.menu.surface_skin.placard" = ["<gold><bold>表面スキン</bold>","<gray>ブロックまたはバケツを持ってポータルを右クリックしてスキンを適用します。","","<gray>スキン: <white>{skin}","<gray>厚さ: <white>{thickness}"]
+"portal.menu.surface_skin.thickness" = ["<aqua><bold>表面の厚さ <white>{value}</bold>","<gray>レンダリングされたパネルの厚さ（ブロック単位）。","","<dark_gray>左クリック: +{step}","<dark_gray>右クリック: -{step}","<dark_gray>Shift + 左クリック: +{large_step}","<dark_gray>Shift + 右クリック: -{large_step}"]
+"portal.menu.surface_skin.glass" = ["<aqua><bold>ガラススキン</bold>","<gray>開口部を覆う透明なガラスの窓。","","<dark_gray>クリックしてガラスを適用します。"]
+"portal.menu.surface_skin.clear" = ["<red><bold>スキンを削除</bold>","<gray>スキンを削除し、投影を復元します。","","<dark_gray>クリックしてスキンを削除します。"]
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>ポータルのヘルプ: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>ポータルにポータルワンドを使うと、目的地、表示、移動、アクセス設定を開けます。"]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>ポータルワンドとワームホールルーン 1 個を付与しました。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>ワームホールルーンの形を 2 つ(同じ平面上の任意のつながった形)作ってリンクし、16 ブロック以内に立つと投影が見えます。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>詳しい手順は <white>/wormholes info<gray> で確認できます。"]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>スナップショットファイル: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>このファイルを監視すると、ネットワークとビューの状態をリアルタイムで確認できます。ファイルは周期ごとに上書きされます。"]
@@ -444,3 +477,7 @@ other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes を既定の�
 [plural."wand.selection.selected"]
 one = "<aqua>{count} ブロックを選択しました。左クリックでポータルを開きます。"
 other = "<aqua>{count} ブロックを選択しました。左クリックでポータルを開きます。"
+
+[plural."command.admin.projection_flushed"]
+one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>投影観測者 <white>{count}<green> 件をフラッシュしました。クライアントは実際の状態から再構築します。"
+other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>投影観測者 <white>{count}<green> 件をフラッシュしました。クライアントは実際の状態から再構築します。"

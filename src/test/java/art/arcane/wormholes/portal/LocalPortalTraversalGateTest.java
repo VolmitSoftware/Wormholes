@@ -62,4 +62,16 @@ public final class LocalPortalTraversalGateTest
 		assertTrue(LocalPortal.clearTeleportInFlight(staleId));
 		assertFalse(LocalPortal.clearTeleportInFlight(staleId));
 	}
+
+	@Test
+	public void inFlightDepartureIsSkippedUntilItsTerminalClearsTheToken()
+	{
+		UUID entityId = UUID.nameUUIDFromBytes("in-flight-skip".getBytes());
+		long now = 40_000_000L;
+		assertFalse(LocalPortal.isTeleportInFlight(entityId, now));
+		assertTrue(LocalPortal.markTeleportInFlight(entityId, now));
+		assertTrue(LocalPortal.isTeleportInFlight(entityId, now + 250L));
+		LocalPortal.clearTeleportInFlight(entityId);
+		assertFalse(LocalPortal.isTeleportInFlight(entityId, now + 300L));
+	}
 }

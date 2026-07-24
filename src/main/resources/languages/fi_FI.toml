@@ -2,6 +2,22 @@ schema = 1
 locale = "fi_FI"
 
 [text]
+"portal.network.label.render_mode" = "Renderöintitila"
+"portal.travel.transfer_holding" = "<gold>Yhdistetään kohdepalvelimeen..."
+"portal.travel.transfer_interrupted" = "<red>Portaalisiirto keskeytyi: siirryit pois portaalista."
+"portal.travel.transfer_source_unavailable" = "<red>Portaalisiirto keskeytyi: lähdeportaali ei ole enää käytettävissä."
+"portal.network.label.ambient_style" = "Ympäristöhiukkaset"
+"portal.network.label.ambient_color" = "Ympäristöväri"
+"portal.network.label.surface_skin" = "Pinnan ulkoasu"
+"portal.network.label.surface_thickness" = "Pinnan paksuus"
+"portal.label.ambient.red" = "Punainen"
+"portal.label.ambient.green" = "Vihreä"
+"portal.label.ambient.blue" = "Sininen"
+"portal.label.ambient_style.sparks" = "Kipinät"
+"portal.label.ambient_style.outline" = "Ääriviiva"
+"portal.label.ambient_style.corners" = "Kulmat"
+"portal.label.ambient_style.off" = "Pois"
+"portal.label.skin.none" = "Ei mitään"
 "director.help.navigation.parent.hover" = "Palaa ylempään komentoryhmään"
 "director.help.navigation.back" = "Takaisin"
 "director.help.no_subcommands" = "Tällä sivulla ei ole alikomentoja."
@@ -39,6 +55,9 @@ locale = "fi_FI"
 "command.help.admin" = "Wormholes-lisäosan tuhoavat ylläpitokomennot"
 "command.help.admin.delete_portals" = "Poista kaikki paikalliset portaalit ja tallennetut portaalilinkit"
 "command.help.admin.delete_everything" = "Nollaa Wormholes-lisäosan tiedot, asetukset, luottamus, identiteetti ja verkon tila"
+"command.help.admin.freeze" = "Jäädytä kaikki portaaliprojektiot paikoilleen tietyksi sekuntimääräksi (seconds=0 jatkaa)"
+"command.help.admin.freeze.seconds" = "Kuinka kauan jäädytettyä ruutua pidetään (5-300, 0 jatkaa heti)"
+"command.help.admin.flush" = "Palauta jokaisen tarkkailijan projisoidut lohkot todelliseen tilaan ja rakenna ne uudelleen"
 "command.help.network" = "Palvelinten välinen madonreikäverkko"
 "command.help.network.import" = "Tuo portaalikoodi toiselta palvelimelta (tallentaa sisäisen reitin; linkitä yhdyskäytävän Linkki-valikosta)"
 "command.help.network.import.code" = "Toisen palvelimen Vie-painikkeesta saatu portaalikoodi"
@@ -61,6 +80,10 @@ locale = "fi_FI"
 "command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Portaalien nollausta ei voitu ajastaa."
 "command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Wormholes-laajennusta ei voitu nollata. Katso täydellinen virhepino konsolista."
 "command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Wormholes-laajennuksen nollausta ei voitu ajastaa."
+"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Kaikki portaaliprojektiot jäädytettiin <white>{seconds}<green> sekunniksi. Ne jatkuvat automaattisesti."
+"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portaaliprojektiot jatkettu."
+"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Portaaliprojektioiden päivitys epäonnistui. Tarkista konsolista koko virhepino."
+"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Projektiopäivitystä ei voitu ajastaa."
 "network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Verkkoa ei ole vielä alustettu."
 "network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Verkko on <red>poissa käytöstä<gray> (config/wormholes.toml)."
 "network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Verkko on käytössä, mutta ei ole käynnissä. Tarkista identiteettivarasto ja verkkoportti."
@@ -307,6 +330,16 @@ locale = "fi_FI"
 "rtp.duration.decimal_seconds" = "{value}s"
 
 [lines]
+"portal.menu.render_mode" = ["<aqua><bold>Renderöintitila <white>{mode}</bold>","<gray>Kuinka suuren osan kohdetilavuudesta tämä portaali projisoi.","","<gray>Tila: <white>{mode}","","<dark_gray>PanOptic renderöi koko kohdetilavuuden.","<dark_gray>Venticular piilottaa täysin ympäröidyt sisälohkot kevyempiä lähetyksiä varten.","","<dark_gray>Vasen: vaihda tilaa."]
+"portal.menu.ambient_particles" = ["<aqua><bold>Ympäristöhiukkaset</bold>","<gray>Koristeellista pölyä, joka leijuu tämän portaalin ympärillä.","","<gray>Tyyli: <white>{style} <dark_gray>({color})","","<dark_gray>Vasen: vaihda tyyliä.","<dark_gray>Oikea: valitse väri."]
+"portal.menu.ambient_color.placard" = ["<gold><bold>Ympäristöväri</bold>","<gray>Ympäristön pölyhiukkasten väri.","","<gray>Nykyinen: <white>{color}"]
+"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>Vasen napsautus: +{step}","<dark_gray>Oikea napsautus: -{step}","<dark_gray>Shift + vasen napsautus: +{large_step}","<dark_gray>Shift + oikea napsautus: -{large_step}"]
+"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>Valitse napsauttamalla."]
+"portal.menu.surface_skin" = ["<aqua><bold>Pinnan ulkoasu</bold>","<gray>Peitä portaalin aukko renderöidyllä lohko- tai nestepaneelilla.","","<gray>Ulkoasu: <white>{skin}","<gray>Paksuus: <white>{thickness}","","<dark_gray>Vasen: poista ulkoasu.","<dark_gray>Oikea: avaa ulkoasun asetukset."]
+"portal.menu.surface_skin.placard" = ["<gold><bold>Pinnan ulkoasu</bold>","<gray>Napsauta portaalia hiiren oikealla lohkolla tai ämpärillä ottaaksesi ulkoasun käyttöön.","","<gray>Ulkoasu: <white>{skin}","<gray>Paksuus: <white>{thickness}"]
+"portal.menu.surface_skin.thickness" = ["<aqua><bold>Pinnan paksuus <white>{value}</bold>","<gray>Renderöidyn paneelin syvyys lohkoina.","","<dark_gray>Vasen napsautus: +{step}","<dark_gray>Oikea napsautus: -{step}","<dark_gray>Shift + vasen napsautus: +{large_step}","<dark_gray>Shift + oikea napsautus: -{large_step}"]
+"portal.menu.surface_skin.glass" = ["<aqua><bold>Lasi-ulkoasu</bold>","<gray>Kirkas lasi-ikkuna aukon päällä.","","<dark_gray>Napsauta ottaaksesi lasin käyttöön."]
+"portal.menu.surface_skin.clear" = ["<red><bold>Poista ulkoasu</bold>","<gray>Poistaa ulkoasun ja palauttaa projektiot.","","<dark_gray>Napsauta poistaaksesi ulkoasun."]
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Portaaliohje: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Käytä portaalisauvaa portaaliin avataksesi kohteen, näkymän, matkustamisen ja käyttöoikeuksien asetukset."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Sait portaalisauvan ja 1 madonreikäriimun.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Rakenna KAKSI madonreikäriimukuviota (mikä tahansa yhtenäinen kuvio yhdellä tasaisella pinnalla), linkitä ne ja pysy 16 lohkon sisällä nähdäksesi projektion.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Katso kaikki vaiheet komennolla <white>/wormholes info<gray>."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tilastotiedosto: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Seuraa tätä tiedostoa jakaaksesi verkon ja näkymien reaaliaikaisen tilan. Tiedosto korvataan jokaisella aikavälillä."]
@@ -444,3 +477,7 @@ other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes palautettiin o
 [plural."wand.selection.selected"]
 one = "<aqua>{count} lohko valittu. Avaa portaali napsauttamalla lasipaneelia vasemmalla."
 other = "<aqua>{count} lohkoa valittu. Avaa portaali napsauttamalla lasipaneelia vasemmalla."
+
+[plural."command.admin.projection_flushed"]
+one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Tyhjennettiin <white>{count}<green> projektiotarkkailija; asiakkaat rakentavat uudelleen todellisesta tilasta."
+other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Tyhjennettiin <white>{count}<green> projektiotarkkailijaa; asiakkaat rakentavat uudelleen todellisesta tilasta."

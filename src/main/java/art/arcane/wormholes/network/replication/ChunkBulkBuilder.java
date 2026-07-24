@@ -3,6 +3,8 @@ package art.arcane.wormholes.network.replication;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.network.view.ViewBox;
 import art.arcane.wormholes.network.view.ViewSlice;
+import art.arcane.wormholes.portal.ProjectionRenderMode;
+import art.arcane.wormholes.render.view.OccludedMarker;
 
 import org.bukkit.ChunkSnapshot;
 import org.bukkit.block.Biome;
@@ -25,7 +27,7 @@ public final class ChunkBulkBuilder {
         this.blockDataStrings = blockDataStrings;
     }
 
-    public ViewSlice buildSlice(ViewBox box, int chunkX, int chunkZ, ChunkSnapshot snapshot) {
+    public ViewSlice buildSlice(ViewBox box, int chunkX, int chunkZ, ChunkSnapshot snapshot, ProjectionRenderMode mode) {
         int minX = Math.max(box.minX(), chunkX << 4);
         int maxX = Math.min(box.maxX(), (chunkX << 4) + 15);
         int minZ = Math.max(box.minZ(), chunkZ << 4);
@@ -46,6 +48,8 @@ public final class ChunkBulkBuilder {
         HashMap<String, Integer> biomePaletteLookup = new HashMap<>(16);
         short[] indices = new short[cells];
         byte[] light = new byte[cells];
+        boolean venticular = mode == ProjectionRenderMode.VENTICULAR;
+        boolean[] occluding = venticular ? new boolean[cells] : null;
 
         int cell = 0;
         for (int y = minY; y <= maxY; y++) {
@@ -62,12 +66,19 @@ public final class ChunkBulkBuilder {
                         paletteLookup.put(stateString, paletteIndex);
                     }
                     indices[cell] = (short) paletteIndex.intValue();
+                    if (venticular) {
+                        occluding[cell] = OccludedMarker.isOccluding(data);
+                    }
                     int sky = snapshot.getBlockSkyLight(lx, y, lz);
                     int emitted = snapshot.getBlockEmittedLight(lx, y, lz);
                     light[cell] = (byte) (((sky & 0x0F) << 4) | (emitted & 0x0F));
                     cell++;
                 }
             }
+        }
+
+        if (venticular) {
+            substituteBuriedCells(minX, minY, minZ, sizeX, sizeY, sizeZ, occluding, indices, palette, paletteLookup);
         }
 
         short[] biomes = buildBiomeGrid(minX, minY, minZ, sizeX, sizeY, sizeZ, (localX, worldY, localZ) -> {
@@ -83,6 +94,53 @@ public final class ChunkBulkBuilder {
         });
 
         return new ViewSlice(minX, minY, minZ, sizeX, sizeY, sizeZ, palette, indices, light, biomePalette, biomes);
+    }
+
+    static void substituteBuriedCells(int minX, int minY, int minZ, int sizeX, int sizeY, int sizeZ,
+                                      boolean[] occluding, short[] indices, List<String> palette, HashMap<String, Integer> paletteLookup) {
+        int maxX = minX + sizeX - 1;
+        int maxY = minY + sizeY - 1;
+        int maxZ = minZ + sizeZ - 1;
+        int sentinelIndex = -1;
+        int cell = 0;
+        for (int y = minY; y <= maxY; y++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                for (int x = minX; x <= maxX; x++) {
+                    if (occluding[cell]
+                        && sliceOccluding(occluding, minX, minY, minZ, sizeX, sizeY, sizeZ, x + 1, y, z)
+                        && sliceOccluding(occluding, minX, minY, minZ, sizeX, sizeY, sizeZ, x - 1, y, z)
+                        && sliceOccluding(occluding, minX, minY, minZ, sizeX, sizeY, sizeZ, x, y + 1, z)
+                        && sliceOccluding(occluding, minX, minY, minZ, sizeX, sizeY, sizeZ, x, y - 1, z)
+                        && sliceOccluding(occluding, minX, minY, minZ, sizeX, sizeY, sizeZ, x, y, z + 1)
+                        && sliceOccluding(occluding, minX, minY, minZ, sizeX, sizeY, sizeZ, x, y, z - 1)) {
+                        if (sentinelIndex < 0) {
+                            sentinelIndex = sentinelPaletteIndex(palette, paletteLookup);
+                        }
+                        indices[cell] = (short) sentinelIndex;
+                    }
+                    cell++;
+                }
+            }
+        }
+    }
+
+    private static boolean sliceOccluding(boolean[] occluding, int minX, int minY, int minZ, int sizeX, int sizeY, int sizeZ, int x, int y, int z) {
+        if (x < minX || x >= minX + sizeX || y < minY || y >= minY + sizeY || z < minZ || z >= minZ + sizeZ) {
+            return false;
+        }
+        int index = (((y - minY) * sizeZ + (z - minZ)) * sizeX) + (x - minX);
+        return occluding[index];
+    }
+
+    private static int sentinelPaletteIndex(List<String> palette, HashMap<String, Integer> paletteLookup) {
+        Integer existing = paletteLookup.get(OccludedMarker.STATE_STRING);
+        if (existing != null) {
+            return existing.intValue();
+        }
+        int index = palette.size();
+        palette.add(OccludedMarker.STATE_STRING);
+        paletteLookup.put(OccludedMarker.STATE_STRING, index);
+        return index;
     }
 
     @FunctionalInterface

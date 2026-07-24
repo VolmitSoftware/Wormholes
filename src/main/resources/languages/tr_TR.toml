@@ -2,6 +2,22 @@ schema = 1
 locale = "tr_TR"
 
 [text]
+"portal.network.label.render_mode" = "Görüntüleme modu"
+"portal.travel.transfer_holding" = "<gold>Hedef sunucuya bağlanılıyor..."
+"portal.travel.transfer_interrupted" = "<red>Portal aktarımı kesildi: portaldan uzaklaştın."
+"portal.travel.transfer_source_unavailable" = "<red>Portal aktarımı kesildi: kaynak portal artık kullanılamıyor."
+"portal.network.label.ambient_style" = "Ortam Parçacıkları"
+"portal.network.label.ambient_color" = "Ortam Rengi"
+"portal.network.label.surface_skin" = "Yüzey Görünümü"
+"portal.network.label.surface_thickness" = "Yüzey Kalınlığı"
+"portal.label.ambient.red" = "Kırmızı"
+"portal.label.ambient.green" = "Yeşil"
+"portal.label.ambient.blue" = "Mavi"
+"portal.label.ambient_style.sparks" = "Kıvılcımlar"
+"portal.label.ambient_style.outline" = "Dış Hat"
+"portal.label.ambient_style.corners" = "Köşeler"
+"portal.label.ambient_style.off" = "Kapalı"
+"portal.label.skin.none" = "Yok"
 "director.help.navigation.parent.hover" = "Ana komut grubuna geri dönün"
 "director.help.navigation.back" = "Geri dön"
 "director.help.no_subcommands" = "Bu sayfada alt komut yok."
@@ -39,6 +55,9 @@ locale = "tr_TR"
 "command.help.admin" = "Yıkıcı Wormholes bakım komutları"
 "command.help.admin.delete_portals" = "Tüm yerel portalleri ve kaydedilmiş portal bağlantılarını sil"
 "command.help.admin.delete_everything" = "Wormholes verilerini, yapılandırmasını, güvenini, kimliğini ve ağ durumunu sıfırla"
+"command.help.admin.freeze" = "Tüm portal projeksiyonlarını belirli bir saniye boyunca yerinde dondur (seconds=0 sürdürür)"
+"command.help.admin.freeze.seconds" = "Dondurulan karenin ne kadar tutulacağı (5-300, 0 hemen sürdürür)"
+"command.help.admin.flush" = "Her gözlemcinin yansıtılan bloklarını gerçek duruma döndür ve yeniden oluştur"
 "command.help.network" = "Sunucular arası solucan deliği ağı"
 "command.help.network.import" = "Başka bir sunucudan portal kodu aktarın (dahili bir rota kaydeder; bağlantıyı geçidin Bağlantı menüsünden kurun)"
 "command.help.network.import.code" = "Diğer sunucunun Dışa Aktar düğmesinden alınan portal kodu"
@@ -61,6 +80,10 @@ locale = "tr_TR"
 "command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Portal sıfırlama işlemi planlanamadı."
 "command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Wormholes sıfırlanamadı. Tam yığın izini konsoldan inceleyin."
 "command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Wormholes sıfırlama işlemi planlanamadı."
+"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Tüm portal projeksiyonları <white>{seconds}<green> saniye boyunca donduruldu. Otomatik olarak devam edecekler."
+"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portal projeksiyonları sürdürüldü."
+"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Portal projeksiyonları güncellenemedi. Tam yığın izi için konsolu kontrol edin."
+"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Projeksiyon güncellemesi zamanlanamadı."
 "network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Ağ henüz başlatılmadı."
 "network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Ağ <red>devre dışı<gray> (config/wormholes.toml)."
 "network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Ağ etkin ancak çalışmıyor. Kimlik deposunu ve ağ bağlantı noktasını kontrol edin."
@@ -307,6 +330,16 @@ locale = "tr_TR"
 "rtp.duration.decimal_seconds" = "{value}s"
 
 [lines]
+"portal.menu.render_mode" = ["<aqua><bold>Görüntüleme modu <white>{mode}</bold>","<gray>Bu portalın hedef hacminin ne kadarını yansıttığı.","","<gray>Mod: <white>{mode}","","<dark_gray>PanOptic tüm hedef hacmi görüntüler.","<dark_gray>Venticular, daha hafif akışlar için tamamen kapalı iç blokları gizler.","","<dark_gray>Sol: modu değiştir."]
+"portal.menu.ambient_particles" = ["<aqua><bold>Ortam Parçacıkları</bold>","<gray>Bu portalın etrafında süzülen dekoratif toz.","","<gray>Stil: <white>{style} <dark_gray>({color})","","<dark_gray>Sol: stili değiştir.","<dark_gray>Sağ: bir renk seç."]
+"portal.menu.ambient_color.placard" = ["<gold><bold>Ortam Rengi</bold>","<gray>Ortam toz parçacıklarının rengi.","","<gray>Mevcut: <white>{color}"]
+"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>Sol tıklama: +{step}","<dark_gray>Sağ tıklama: -{step}","<dark_gray>Shift + sol tıklama: +{large_step}","<dark_gray>Shift + sağ tıklama: -{large_step}"]
+"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>Seçmek için tıklayın."]
+"portal.menu.surface_skin" = ["<aqua><bold>Yüzey Görünümü</bold>","<gray>Portal açıklığını işlenmiş bir blok veya sıvı paneliyle kapatın.","","<gray>Görünüm: <white>{skin}","<gray>Kalınlık: <white>{thickness}","","<dark_gray>Sol: görünümü kaldır.","<dark_gray>Sağ: görünüm seçeneklerini aç."]
+"portal.menu.surface_skin.placard" = ["<gold><bold>Yüzey Görünümü</bold>","<gray>Bir görünüm uygulamak için portala blok veya kova ile sağ tıklayın.","","<gray>Görünüm: <white>{skin}","<gray>Kalınlık: <white>{thickness}"]
+"portal.menu.surface_skin.thickness" = ["<aqua><bold>Yüzey Kalınlığı <white>{value}</bold>","<gray>İşlenmiş panelin blok cinsinden derinliği.","","<dark_gray>Sol tıklama: +{step}","<dark_gray>Sağ tıklama: -{step}","<dark_gray>Shift + sol tıklama: +{large_step}","<dark_gray>Shift + sağ tıklama: -{large_step}"]
+"portal.menu.surface_skin.glass" = ["<aqua><bold>Cam Görünümü</bold>","<gray>Açıklığın üzerinde şeffaf bir cam pencere.","","<dark_gray>Cam uygulamak için tıklayın."]
+"portal.menu.surface_skin.clear" = ["<red><bold>Görünümü Kaldır</bold>","<gray>Görünümü kaldırır ve projeksiyonları geri yükler.","","<dark_gray>Görünümü kaldırmak için tıklayın."]
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Portal yardımı: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Hedef, görünüm, seyahat ve erişim ayarlarını açmak için portal asasını portalda kullanın."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portal asası ve 1 solucan deliği rünü verildi.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>İki solucan deliği rünü şekli oluşturun (tek düz yüzeyde bağlantılı herhangi bir şekil), bunları bağlayın ve projeksiyonu görmek için 16 blok içinde durun.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tüm adımları görmek için <white>/wormholes info<gray> komutunu çalıştırın."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Anlık görüntü dosyası: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Canlı ağ ve görünüm durumunu izlemek için bu dosyayı takip edin. Dosya her döngüde yerinde yeniden yazılır."]
@@ -444,3 +477,7 @@ other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes varsayılan du
 [plural."wand.selection.selected"]
 one = "<aqua>{count} blok seçildi. Portalı açmak için bir cam panele sol tıklayın."
 other = "<aqua>{count} blok seçildi. Portalı açmak için bir cam panele sol tıklayın."
+
+[plural."command.admin.projection_flushed"]
+one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> projeksiyon gözlemcisi boşaltıldı; istemciler gerçek durumdan yeniden oluşturuyor."
+other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> projeksiyon gözlemcisi boşaltıldı; istemciler gerçek durumdan yeniden oluşturuyor."
