@@ -1,18 +1,21 @@
 package art.arcane.wormholes.render;
 
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2IntMap;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.ToIntFunction;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -247,16 +250,18 @@ public final class ProjectionClaimArbiter {
     }
 
     static void groupBySection(Long2ObjectMap<BlockData> blockChanges,
-                               ToIntFunction<BlockData> idResolver,
+                               Long2IntMap blockIds,
                                Long2ObjectMap<List<WrapperPlayServerMultiBlockChange.EncodedBlock>> sectionsOut,
                                Long2ObjectMap<BlockData> fallbackOut) {
-        for (Long2ObjectMap.Entry<BlockData> change : blockChanges.long2ObjectEntrySet()) {
+        ObjectIterator<Long2ObjectMap.Entry<BlockData>> changeIterator = Long2ObjectMaps.fastIterator(blockChanges);
+        while (changeIterator.hasNext()) {
+            Long2ObjectMap.Entry<BlockData> change = changeIterator.next();
             long key = change.getLongKey();
             BlockData data = change.getValue();
             int x = unpackX(key);
             int y = unpackY(key);
             int z = unpackZ(key);
-            int id = idResolver.applyAsInt(data);
+            int id = blockIds.get(key);
             if (id < 0 || (id == 0 && !ProjectionWorldView.isAir(data.getMaterial()))) {
                 fallbackOut.put(key, data);
                 continue;
@@ -296,7 +301,7 @@ public final class ProjectionClaimArbiter {
         if (canSend) {
             reconcileClientChunks(observer, observerClaims);
         }
-        LongOpenHashSet packetKeys = new LongOpenHashSet(setResult.getPacketChangeKeys());
+        LongOpenHashSet packetKeys = setResult.getPacketChangeKeys();
         packetKeys.addAll(observerClaims.pendingRevertKeys);
         packetKeys.addAll(observerClaims.pendingSendKeys);
         observerClaims.pendingRevertKeys.clear();
@@ -304,11 +309,18 @@ public final class ProjectionClaimArbiter {
         int expectedChanges = packetKeys.size();
         int mapCapacity = expectedChanges <= 2 ? 4 : (expectedChanges * 4 / 3) + 2;
         Long2ObjectMap<BlockData> blockChanges = new Long2ObjectOpenHashMap<BlockData>(mapCapacity);
+        Long2IntOpenHashMap blockChangeIds = new Long2IntOpenHashMap(mapCapacity);
+        blockChangeIds.defaultReturnValue(-1);
         if (canSend) {
             ProjectionWorldView localView = viewProvider.view(localWorld);
-            Long2ByteOpenHashMap chunkSentMemo = new Long2ByteOpenHashMap(16);
-            Long2LongOpenHashMap chunkRevisionMemo = new Long2LongOpenHashMap(16);
-            chunkRevisionMemo.defaultReturnValue(Long.MIN_VALUE);
+            Long2ByteOpenHashMap chunkSentMemo = observerClaims.chunkSentMemo;
+            Long2LongOpenHashMap chunkRevisionMemo = observerClaims.chunkRevisionMemo;
+            long visibilityRevision = observerClaims.clientChunkRevision;
+            if (visibilityRevision == Long.MIN_VALUE || visibilityRevision != observerClaims.chunkMemoRevision) {
+                chunkSentMemo.clear();
+                chunkRevisionMemo.clear();
+                observerClaims.chunkMemoRevision = visibilityRevision;
+            }
             LongIterator packetIterator = packetKeys.iterator();
             while (packetIterator.hasNext()) {
                 long key = packetIterator.nextLong();
@@ -350,6 +362,7 @@ public final class ProjectionClaimArbiter {
                         continue;
                     }
                     blockChanges.put(key, localData);
+                    blockChangeIds.put(key, resolveGlobalId(localData));
                 } else {
                     BlockData sentData = observerClaims.sentBlocks.get(key);
                     BlockData winnerData = winner.getData();
@@ -364,10 +377,11 @@ public final class ProjectionClaimArbiter {
                     }
                     observerClaims.sentBlockChunkRevisions.put(key, chunkRevision);
                     blockChanges.put(key, winnerData);
+                    blockChangeIds.put(key, claimGlobalId(winner, winnerData));
                 }
             }
             if (!blockChanges.isEmpty()) {
-                sendBlockChanges(observer, localWorld, blockChanges);
+                sendBlockChanges(observer, localWorld, blockChanges, blockChangeIds);
             }
         } else {
             LongIterator packetIterator = packetKeys.iterator();
@@ -467,9 +481,14 @@ public final class ProjectionClaimArbiter {
         state.lighting.discardUnsentChunks(observer);
     }
 
-    private void sendBlockChanges(Player observer, World localWorld, Long2ObjectMap<BlockData> blockChanges) {
+    private void sendBlockChanges(Player observer,
+                                  World localWorld,
+                                  Long2ObjectMap<BlockData> blockChanges,
+                                  Long2IntMap blockChangeIds) {
         if (blockChanges.size() == 1 || blockMappingFailed) {
-            for (Long2ObjectMap.Entry<BlockData> change : blockChanges.long2ObjectEntrySet()) {
+            ObjectIterator<Long2ObjectMap.Entry<BlockData>> singleIterator = Long2ObjectMaps.fastIterator(blockChanges);
+            while (singleIterator.hasNext()) {
+                Long2ObjectMap.Entry<BlockData> change = singleIterator.next();
                 long key = change.getLongKey();
                 observer.sendBlockChange(new Location(localWorld, unpackX(key), unpackY(key), unpackZ(key)), change.getValue());
                 WormholesTelemetry.countBlockChange();
@@ -480,7 +499,7 @@ public final class ProjectionClaimArbiter {
         Long2ObjectOpenHashMap<List<WrapperPlayServerMultiBlockChange.EncodedBlock>> sections =
             new Long2ObjectOpenHashMap<List<WrapperPlayServerMultiBlockChange.EncodedBlock>>(8);
         Long2ObjectOpenHashMap<BlockData> fallback = new Long2ObjectOpenHashMap<BlockData>(4);
-        groupBySection(blockChanges, this::resolveGlobalId, sections, fallback);
+        groupBySection(blockChanges, blockChangeIds, sections, fallback);
         for (Long2ObjectMap.Entry<List<WrapperPlayServerMultiBlockChange.EncodedBlock>> entry : sections.long2ObjectEntrySet()) {
             long sectionKey = entry.getLongKey();
             List<WrapperPlayServerMultiBlockChange.EncodedBlock> entries = entry.getValue();
@@ -502,7 +521,20 @@ public final class ProjectionClaimArbiter {
         }
     }
 
+    private int claimGlobalId(ProjectedBlockClaim claim, BlockData data) {
+        int cached = claim.getGlobalId();
+        if (cached != ProjectedBlockClaim.UNRESOLVED_GLOBAL_ID) {
+            return cached;
+        }
+        int resolved = resolveGlobalId(data);
+        claim.setGlobalId(resolved);
+        return resolved;
+    }
+
     private int resolveGlobalId(BlockData data) {
+        if (blockMappingFailed) {
+            return -1;
+        }
         Integer cached = blockGlobalIds.get(data);
         if (cached != null) {
             return cached.intValue();
@@ -565,6 +597,9 @@ public final class ProjectionClaimArbiter {
         state.pendingSendKeys.clear();
         state.sentBlocks.clear();
         state.sentBlockChunkRevisions.clear();
+        state.chunkSentMemo.clear();
+        state.chunkRevisionMemo.clear();
+        state.chunkMemoRevision = Long.MIN_VALUE;
         state.lighting.discard();
         state.frame = null;
         state.retired = true;
@@ -649,9 +684,12 @@ public final class ProjectionClaimArbiter {
         private final LongOpenHashSet pendingSendKeys;
         private final Long2ObjectOpenHashMap<BlockData> sentBlocks;
         private final Long2LongOpenHashMap sentBlockChunkRevisions;
+        private final Long2ByteOpenHashMap chunkSentMemo;
+        private final Long2LongOpenHashMap chunkRevisionMemo;
         private final ProjectorLighting lighting;
         private ObserverFrame frame;
         private long clientChunkRevision;
+        private long chunkMemoRevision;
         private boolean retired;
 
         private ObserverClaims(UUID worldId, ProjectionChunkVisibility chunkVisibility) {
@@ -663,9 +701,13 @@ public final class ProjectionClaimArbiter {
             this.sentBlocks = new Long2ObjectOpenHashMap<BlockData>(256);
             this.sentBlockChunkRevisions = new Long2LongOpenHashMap(256);
             this.sentBlockChunkRevisions.defaultReturnValue(Long.MIN_VALUE);
+            this.chunkSentMemo = new Long2ByteOpenHashMap(64);
+            this.chunkRevisionMemo = new Long2LongOpenHashMap(64);
+            this.chunkRevisionMemo.defaultReturnValue(Long.MIN_VALUE);
             this.lighting = new ProjectorLighting(chunkVisibility);
             this.frame = null;
             this.clientChunkRevision = Long.MIN_VALUE;
+            this.chunkMemoRevision = Long.MIN_VALUE;
             this.retired = false;
         }
     }

@@ -779,7 +779,33 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 			return;
 		}
 
+		if(traversive.getObject() instanceof Entity undeliverable && !canDeliverThrough(activeTunnel))
+		{
+			rejectUndeliverableTraversal(undeliverable, traversive);
+			return;
+		}
+
 		activeTunnel.push(traversive);
+	}
+
+	private static boolean canDeliverThrough(ITunnel activeTunnel)
+	{
+		if(activeTunnel == null || activeTunnel instanceof UniversalTunnel)
+		{
+			return false;
+		}
+
+		return activeTunnel.isValid();
+	}
+
+	private void rejectUndeliverableTraversal(Entity entity, Traversive traversive)
+	{
+		bounceRejectedTraversal(entity, traversive);
+
+		if(entity instanceof Player player)
+		{
+			WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_DESTINATION_UNAVAILABLE));
+		}
 	}
 
 	private void rejectTraversal(Entity entity, Traversive traversive)
@@ -1274,6 +1300,7 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 			UUID entityId = p.getUniqueId();
 			if(!markTeleportInFlight(entityId, System.currentTimeMillis()))
 			{
+				rejectUndeliverableTraversal(p, t);
 				return;
 			}
 
@@ -1289,6 +1316,7 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 				clearTeleportInFlight(entityId);
 				if(error != null || !Boolean.TRUE.equals(success))
 				{
+					FoliaScheduler.runEntity(Wormholes.instance, p, () -> rejectUndeliverableTraversal(p, t));
 					return;
 				}
 				FoliaScheduler.runEntity(Wormholes.instance, p, () ->
@@ -1998,6 +2026,18 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 		{
 			throw new RuntimeException("Unable to determine identity of new destination!");
 		}
+
+		syncLinkedLocalsIfEnabled();
+	}
+
+	private void syncLinkedLocalsIfEnabled()
+	{
+		if(!settingsSyncEnabled || PortalSyncService.isApplyingRemote() || Wormholes.portalSyncService == null)
+		{
+			return;
+		}
+
+		Wormholes.portalSyncService.syncLinkedLocals(this);
 	}
 
 	@Override
@@ -2201,6 +2241,7 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 		}
 		dimensionalCounterpartId = counterpartId;
 		save();
+		syncLinkedLocalsIfEnabled();
 	}
 
 	@Override

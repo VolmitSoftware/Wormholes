@@ -3,6 +3,7 @@ package art.arcane.wormholes.render;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
@@ -10,7 +11,6 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.List;
-import java.util.function.ToIntFunction;
 
 import org.bukkit.Material;
 import org.bukkit.block.data.BlockData;
@@ -29,9 +29,9 @@ public final class ProjectionBlockSectionBatchTest {
         Long2ObjectOpenHashMap<List<WrapperPlayServerMultiBlockChange.EncodedBlock>> sections =
             new Long2ObjectOpenHashMap<List<WrapperPlayServerMultiBlockChange.EncodedBlock>>(4);
         Long2ObjectOpenHashMap<BlockData> fallback = new Long2ObjectOpenHashMap<BlockData>(4);
-        ToIntFunction<BlockData> resolver = ignored -> 42;
+        Long2IntOpenHashMap ids = uniformIds(changes, 42);
 
-        ProjectionClaimArbiter.groupBySection(changes, resolver, sections, fallback);
+        ProjectionClaimArbiter.groupBySection(changes, ids, sections, fallback);
 
         assertEquals(3, sections.size());
         assertTrue(fallback.isEmpty());
@@ -63,7 +63,7 @@ public final class ProjectionBlockSectionBatchTest {
             new Long2ObjectOpenHashMap<List<WrapperPlayServerMultiBlockChange.EncodedBlock>>(1);
         Long2ObjectOpenHashMap<BlockData> fallback = new Long2ObjectOpenHashMap<BlockData>(1);
 
-        ProjectionClaimArbiter.groupBySection(changes, ignored -> 9, sections, fallback);
+        ProjectionClaimArbiter.groupBySection(changes, uniformIds(changes, 9), sections, fallback);
 
         assertEquals(1, sections.size());
         long sectionKey = sections.long2ObjectEntrySet().iterator().next().getLongKey();
@@ -80,7 +80,7 @@ public final class ProjectionBlockSectionBatchTest {
             new Long2ObjectOpenHashMap<List<WrapperPlayServerMultiBlockChange.EncodedBlock>>(1);
         Long2ObjectOpenHashMap<BlockData> fallback = new Long2ObjectOpenHashMap<BlockData>(1);
 
-        ProjectionClaimArbiter.groupBySection(changes, ignored -> 7, sections, fallback);
+        ProjectionClaimArbiter.groupBySection(changes, uniformIds(changes, 7), sections, fallback);
 
         WrapperPlayServerMultiBlockChange.EncodedBlock encoded = sections.long2ObjectEntrySet().iterator().next().getValue().get(0);
         assertEquals(-5, encoded.getX());
@@ -101,7 +101,7 @@ public final class ProjectionBlockSectionBatchTest {
             new Long2ObjectOpenHashMap<List<WrapperPlayServerMultiBlockChange.EncodedBlock>>(2);
         Long2ObjectOpenHashMap<BlockData> fallback = new Long2ObjectOpenHashMap<BlockData>(2);
 
-        ProjectionClaimArbiter.groupBySection(changes, ignored -> 0, sections, fallback);
+        ProjectionClaimArbiter.groupBySection(changes, uniformIds(changes, 0), sections, fallback);
 
         assertEquals(1, fallback.size());
         assertTrue(fallback.containsKey(stoneKey));
@@ -118,11 +118,20 @@ public final class ProjectionBlockSectionBatchTest {
             new Long2ObjectOpenHashMap<List<WrapperPlayServerMultiBlockChange.EncodedBlock>>(1);
         Long2ObjectOpenHashMap<BlockData> fallback = new Long2ObjectOpenHashMap<BlockData>(1);
 
-        ProjectionClaimArbiter.groupBySection(changes, ignored -> -1, sections, fallback);
+        ProjectionClaimArbiter.groupBySection(changes, uniformIds(changes, -1), sections, fallback);
 
         assertTrue(sections.isEmpty());
         assertEquals(1, fallback.size());
         assertTrue(fallback.containsKey(key));
+    }
+
+    private static Long2IntOpenHashMap uniformIds(Long2ObjectOpenHashMap<BlockData> changes, int id) {
+        Long2IntOpenHashMap ids = new Long2IntOpenHashMap(Math.max(4, changes.size()));
+        ids.defaultReturnValue(-1);
+        for (long key : changes.keySet()) {
+            ids.put(key, id);
+        }
+        return ids;
     }
 
     private static long packKey(int x, int y, int z) {

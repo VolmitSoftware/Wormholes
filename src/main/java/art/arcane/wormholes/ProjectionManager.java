@@ -965,6 +965,11 @@ public class ProjectionManager implements Listener {
     }
 
     public void onSettingsReloaded() {
+        for (Map<UUID, PortalProjector> portalProjectors : projectors.values()) {
+            for (PortalProjector projector : portalProjectors.values()) {
+                projector.invalidateProjectionReuse();
+            }
+        }
         scheduleTick();
     }
 

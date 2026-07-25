@@ -15,6 +15,11 @@ public interface ProjectionWorldView {
 
     BlockData sampleBlockData(int x, int y, int z);
 
+    default Material sampleMaterial(int x, int y, int z) {
+        BlockData data = sampleBlockData(x, y, z);
+        return data == null ? null : data.getMaterial();
+    }
+
     String sampleBiome(int x, int y, int z);
 
     int getLight(int x, int y, int z);

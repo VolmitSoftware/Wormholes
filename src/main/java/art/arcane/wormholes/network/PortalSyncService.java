@@ -10,6 +10,7 @@ import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.MirrorRotation;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalPermissionMode;
+import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.portal.RemotePortal;
@@ -112,13 +113,85 @@ public final class PortalSyncService {
     }
 
     public void broadcastSettings(ILocalPortal portal) {
-        if (portal == null || !network.isRunning() || APPLYING_REMOTE.get().booleanValue()) {
+        if (portal == null || APPLYING_REMOTE.get().booleanValue()) {
             return;
         }
         if (!(portal instanceof LocalPortal local) || !local.isSettingsSyncEnabled()) {
             return;
         }
+        applyToLinkedLocals(local);
+        if (network == null || !network.isRunning()) {
+            return;
+        }
         sendSettings(local);
+    }
+
+    public void syncLinkedLocals(ILocalPortal portal) {
+        if (portal == null || APPLYING_REMOTE.get().booleanValue()) {
+            return;
+        }
+        if (!(portal instanceof LocalPortal local) || !local.isSettingsSyncEnabled()) {
+            return;
+        }
+        applyToLinkedLocals(local);
+    }
+
+    private void applyToLinkedLocals(LocalPortal source) {
+        List<LocalPortal> counterparts = linkedLocalCounterparts(source);
+        for (LocalPortal counterpart : counterparts) {
+            Map<String, String> payload = collectLocalPairSettings(source);
+            applyToLocal(counterpart, payload);
+            counterpart.refreshOpenMenus();
+        }
+    }
+
+    private List<LocalPortal> linkedLocalCounterparts(LocalPortal source) {
+        List<LocalPortal> counterparts = new ArrayList<>(2);
+        if (source == null || portalSource == null) {
+            return counterparts;
+        }
+        UUID sourceId = source.getId();
+        UUID forwardId = forwardLinkId(source);
+        UUID counterpartId = source.getDimensionalCounterpartId();
+        if (forwardId == null && counterpartId == null) {
+            return counterparts;
+        }
+        for (ILocalPortal candidate : portalSource.get()) {
+            if (!(candidate instanceof LocalPortal local)) {
+                continue;
+            }
+            UUID candidateId = local.getId();
+            if (candidateId == null || candidateId.equals(sourceId)) {
+                continue;
+            }
+            if (!candidateId.equals(forwardId) && !candidateId.equals(counterpartId)) {
+                continue;
+            }
+            if (local.getType() == PortalType.RTP || !local.isSettingsSyncEnabled()) {
+                continue;
+            }
+            if (!containsPortal(counterparts, candidateId)) {
+                counterparts.add(local);
+            }
+        }
+        return counterparts;
+    }
+
+    private static UUID forwardLinkId(LocalPortal source) {
+        ITunnel tunnel = source.getTunnel();
+        if (tunnel == null || tunnel instanceof UniversalTunnel) {
+            return null;
+        }
+        return tunnel.getDestinationId();
+    }
+
+    private static boolean containsPortal(List<LocalPortal> portals, UUID portalId) {
+        for (LocalPortal portal : portals) {
+            if (portalId.equals(portal.getId())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public void broadcastSettingsToggle(ILocalPortal portal) {
@@ -210,6 +283,14 @@ public final class PortalSyncService {
         return null;
     }
 
+    static Map<String, String> collectLocalPairSettings(LocalPortal portal) {
+        Map<String, String> settings = collectSettings(portal);
+        settings.remove(KEY_OUTGOING_TRAVERSALS);
+        settings.remove(KEY_INCOMING_TRAVERSALS);
+        settings.remove(KEY_SETTINGS_SYNC);
+        return settings;
+    }
+
     static Map<String, String> collectSettings(LocalPortal portal) {
         Map<String, String> settings = new LinkedHashMap<>();
         settings.put(KEY_PROJECTION_MODE, portal.isMirrorMode() ? "MIRROR" : portal.getProjectionMode().name());
@@ -238,6 +319,7 @@ public final class PortalSyncService {
     }
 
     static void applyToLocal(LocalPortal portal, Map<String, String> settings) {
+        boolean previous = APPLYING_REMOTE.get().booleanValue();
         APPLYING_REMOTE.set(Boolean.TRUE);
         try {
             applyProjectionState(portal, settings);
@@ -248,7 +330,7 @@ public final class PortalSyncService {
                 applyLocalKey(portal, entry.getKey(), entry.getValue());
             }
         } finally {
-            APPLYING_REMOTE.set(Boolean.FALSE);
+            APPLYING_REMOTE.set(Boolean.valueOf(previous));
         }
     }
 

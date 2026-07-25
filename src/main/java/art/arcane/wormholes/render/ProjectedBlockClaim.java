@@ -6,17 +6,20 @@ import art.arcane.wormholes.render.view.ProjectionWorldView;
 
 final class ProjectedBlockClaim {
     static final long NO_REMOTE_KEY = Long.MIN_VALUE;
+    static final int UNRESOLVED_GLOBAL_ID = Integer.MIN_VALUE;
 
     private final BlockData data;
     private final ProjectionWorldView lightView;
     private final long lightRemoteKey;
     private final boolean maskAir;
+    private int globalId;
 
     ProjectedBlockClaim(BlockData data, ProjectionWorldView lightView, long lightRemoteKey, boolean maskAir) {
         this.data = data;
         this.lightView = lightView;
         this.lightRemoteKey = lightRemoteKey;
         this.maskAir = maskAir;
+        this.globalId = UNRESOLVED_GLOBAL_ID;
     }
 
     BlockData getData() {
@@ -33,6 +36,14 @@ final class ProjectedBlockClaim {
 
     boolean isMaskAir() {
         return maskAir;
+    }
+
+    int getGlobalId() {
+        return globalId;
+    }
+
+    void setGlobalId(int globalId) {
+        this.globalId = globalId;
     }
 
     boolean hasRemoteLight() {

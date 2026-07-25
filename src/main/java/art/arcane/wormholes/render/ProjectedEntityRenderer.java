@@ -1285,18 +1285,20 @@ public final class ProjectedEntityRenderer {
             reportLocalHideOwnershipFailure(error);
             return;
         }
+        UUID observerId = observer.getUniqueId();
         for (Entity entity : candidates) {
             try {
-                if (!shouldHideLocalEntity(observer, entity, origin, frame, frustum, eyeFrontSide, clearance, maxDepth)) {
+                if (!shouldHideLocalEntity(observerId, entity, origin, frame, frustum, eyeFrontSide, clearance, maxDepth)) {
                     continue;
                 }
-                visibleLocalHides.add(entity.getUniqueId());
-                if (hiddenLocalEntities.containsKey(entity.getUniqueId())) {
-                    hiddenLocalEntities.put(entity.getUniqueId(), entity);
+                UUID entityId = entity.getUniqueId();
+                visibleLocalHides.add(entityId);
+                if (hiddenLocalEntities.containsKey(entityId)) {
+                    hiddenLocalEntities.put(entityId, entity);
                     continue;
                 }
                 observer.hideEntity(Wormholes.instance, entity);
-                hiddenLocalEntities.put(entity.getUniqueId(), entity);
+                hiddenLocalEntities.put(entityId, entity);
             } catch (IllegalStateException error) {
                 reportLocalHideOwnershipFailure(error);
             }
@@ -1330,7 +1332,7 @@ public final class ProjectedEntityRenderer {
         error.printStackTrace();
     }
 
-    private boolean shouldHideLocalEntity(Player observer,
+    private boolean shouldHideLocalEntity(UUID observerId,
                                           Entity entity,
                                           Vector origin,
                                           PortalFrame frame,
@@ -1341,7 +1343,7 @@ public final class ProjectedEntityRenderer {
         if (entity == null || entity.isDead() || !entity.isValid()) {
             return false;
         }
-        if (entity.getUniqueId().equals(observer.getUniqueId())) {
+        if (entity.getUniqueId().equals(observerId)) {
             return false;
         }
         WormholesPlatform.entityPosition(entity, scratchEntityPosition);

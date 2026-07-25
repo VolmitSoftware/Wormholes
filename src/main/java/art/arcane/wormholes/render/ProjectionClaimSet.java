@@ -2,10 +2,12 @@ package art.arcane.wormholes.render;
 
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -20,6 +22,11 @@ final class ProjectionClaimSet {
     private final Long2ObjectOpenHashMap<ProjectedBlockClaim> winningClaims;
     private final Long2IntOpenHashMap claimCounts;
     private final Long2ObjectOpenHashMap<PortalClaims> singleOwners;
+    private final LongOpenHashSet contestedKeys;
+    private final LongArrayList affectedScratch;
+    private final LongArrayList staleScratch;
+    private final WinnerChoice winnerScratch;
+    private long generation;
 
     ProjectionClaimSet() {
         this.portals = new HashMap<UUID, PortalClaims>();
@@ -27,54 +34,79 @@ final class ProjectionClaimSet {
         this.winningClaims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(256);
         this.claimCounts = new Long2IntOpenHashMap(256);
         this.singleOwners = new Long2ObjectOpenHashMap<PortalClaims>(256);
+        this.contestedKeys = new LongOpenHashSet(16);
+        this.affectedScratch = new LongArrayList(256);
+        this.staleScratch = new LongArrayList(64);
+        this.winnerScratch = new WinnerChoice();
+        this.generation = 0L;
     }
 
     ProjectionClaimSetResult replacePortalClaims(UUID portalId,
                                                  String tieKey,
                                                  double priorityDistance,
                                                  Long2ObjectMap<ProjectedBlockClaim> claims) {
-        PortalClaims existing = portals.get(portalId);
         if (claims == null || claims.isEmpty()) {
             return releasePortal(portalId);
         }
 
-        LongArrayList affected = new LongArrayList();
-        PortalClaims portalClaims = existing == null ? new PortalClaims(portalId) : existing;
-        boolean priorityChanged = existing != null && hasPriorityChanged(existing, tieKey, priorityDistance);
-
-        if (existing != null) {
-            Iterator<Long2ObjectMap.Entry<ProjectedBlockClaim>> existingIterator = existing.claims.long2ObjectEntrySet().iterator();
-            while (existingIterator.hasNext()) {
-                Long2ObjectMap.Entry<ProjectedBlockClaim> entry = existingIterator.next();
-                long key = entry.getLongKey();
-                if (claims.containsKey(key)) {
-                    continue;
-                }
-                decrementClaimCount(key, portalClaims);
-                affected.add(key);
-                existingIterator.remove();
-            }
+        PortalClaims existing = portals.get(portalId);
+        PortalClaims portalClaims;
+        boolean priorityChanged;
+        if (existing == null) {
+            portalClaims = new PortalClaims(portalId);
+            portals.put(portalId, portalClaims);
+            priorityChanged = false;
+        } else {
+            portalClaims = existing;
+            priorityChanged = hasPriorityChanged(existing, tieKey, priorityDistance);
         }
 
-        for (Long2ObjectMap.Entry<ProjectedBlockClaim> entry : claims.long2ObjectEntrySet()) {
+        long passGeneration = ++generation;
+        int previousSize = portalClaims.claims.size();
+        int carriedOver = 0;
+        LongArrayList affected = affectedScratch;
+        affected.clear();
+
+        ObjectIterator<Long2ObjectMap.Entry<ProjectedBlockClaim>> incoming = Long2ObjectMaps.fastIterator(claims);
+        while (incoming.hasNext()) {
+            Long2ObjectMap.Entry<ProjectedBlockClaim> entry = incoming.next();
             long key = entry.getLongKey();
             ProjectedBlockClaim nextClaim = entry.getValue();
-            ProjectedBlockClaim previousClaim = portalClaims.claims.get(key);
-            if (previousClaim == null) {
+            ClaimSlot slot = portalClaims.claims.get(key);
+            if (slot == null) {
                 incrementClaimCount(key, portalClaims);
-                portalClaims.claims.put(key, nextClaim);
+                portalClaims.claims.put(key, new ClaimSlot(key, nextClaim, passGeneration));
                 affected.add(key);
-            } else if (!sameClaim(previousClaim, nextClaim)) {
-                portalClaims.claims.put(key, nextClaim);
-                affected.add(key);
-            } else if (priorityChanged && claimCounts.get(key) > 1) {
+                continue;
+            }
+            carriedOver++;
+            slot.generation = passGeneration;
+            if (sameClaim(slot.claim, nextClaim)) {
+                continue;
+            }
+            slot.claim = nextClaim;
+            slot.affectedGeneration = passGeneration;
+            affected.add(key);
+        }
+
+        if (carriedOver != previousSize) {
+            collectStaleKeys(portalClaims, passGeneration);
+            int staleCount = staleScratch.size();
+            for (int i = 0; i < staleCount; i++) {
+                long key = staleScratch.getLong(i);
+                portalClaims.claims.remove(key);
+                decrementClaimCount(key, portalClaims);
                 affected.add(key);
             }
         }
 
         portalClaims.tieKey = tieKey;
         portalClaims.priorityDistance = priorityDistance;
-        portals.put(portalId, portalClaims);
+
+        if (priorityChanged && !contestedKeys.isEmpty()) {
+            appendContestedKeys(portalClaims, passGeneration, affected);
+        }
+
         return recomputeAffected(affected);
     }
 
@@ -83,8 +115,9 @@ final class ProjectionClaimSet {
         if (existing == null) {
             return new ProjectionClaimSetResult();
         }
+        LongArrayList affected = affectedScratch;
+        affected.clear();
         LongIterator existingIterator = existing.claims.keySet().iterator();
-        LongArrayList affected = new LongArrayList(existing.claims.size());
         while (existingIterator.hasNext()) {
             long key = existingIterator.nextLong();
             affected.add(key);
@@ -100,6 +133,9 @@ final class ProjectionClaimSet {
         winningClaims.clear();
         claimCounts.clear();
         singleOwners.clear();
+        contestedKeys.clear();
+        affectedScratch.clear();
+        staleScratch.clear();
     }
 
     boolean isEmpty() {
@@ -112,78 +148,6 @@ final class ProjectionClaimSet {
 
     ProjectedBlockClaim getWinningClaim(long key) {
         return winningClaims.get(key);
-    }
-
-    private ProjectionClaimSetResult recomputeAffected(LongArrayList affected) {
-        ProjectionClaimSetResult result = new ProjectionClaimSetResult(affected.size());
-        LongIterator iterator = affected.iterator();
-        while (iterator.hasNext()) {
-            long key = iterator.nextLong();
-            WinningClaim previous = winners.get(key);
-            WinnerChoice choice = chooseWinner(key);
-            if (choice.claimCount > 1) {
-                result.conflicts++;
-            }
-            WinningClaim next = choice.winner;
-            if (next == null) {
-                if (previous != null) {
-                    winners.remove(key);
-                    winningClaims.remove(key);
-                    result.packetChangeKeys.add(key);
-                    result.dirtyLightingKeys.add(key);
-                    result.reverts++;
-                }
-                continue;
-            }
-
-            boolean ownerChanged = previous == null || !previous.portalId.equals(next.portalId);
-            boolean dataChanged = previous == null || !previous.claim.getData().equals(next.claim.getData());
-            boolean lightChanged = previous == null || !previous.claim.sameLightSource(next.claim);
-            winners.put(key, next);
-            winningClaims.put(key, next.claim);
-            if (dataChanged) {
-                result.packetChangeKeys.add(key);
-            }
-            if (ownerChanged) {
-                result.winnerChanges++;
-            }
-            if (lightChanged) {
-                result.dirtyLightingKeys.add(key);
-            }
-        }
-        return result;
-    }
-
-    private WinnerChoice chooseWinner(long key) {
-        int storedClaimCount = claimCounts.get(key);
-        if (storedClaimCount <= 0) {
-            return new WinnerChoice(null, 0);
-        }
-        if (storedClaimCount == 1) {
-            PortalClaims singleOwner = singleOwners.get(key);
-            if (singleOwner != null) {
-                ProjectedBlockClaim claim = singleOwner.claims.get(key);
-                if (claim != null) {
-                    return new WinnerChoice(new WinningClaim(singleOwner.portalId, singleOwner.tieKey, singleOwner.priorityDistance, claim), 1);
-                }
-            }
-        }
-
-        WinningClaim best = null;
-        int claimCount = 0;
-        Iterator<PortalClaims> iterator = portals.values().iterator();
-        while (iterator.hasNext()) {
-            PortalClaims portalClaims = iterator.next();
-            ProjectedBlockClaim claim = portalClaims.claims.get(key);
-            if (claim == null) {
-                continue;
-            }
-            claimCount++;
-            if (best == null || isHigherPriority(portalClaims.priorityDistance, portalClaims.tieKey, claim, best.priorityDistance, best.tieKey, best.claim)) {
-                best = new WinningClaim(portalClaims.portalId, portalClaims.tieKey, portalClaims.priorityDistance, claim);
-            }
-        }
-        return new WinnerChoice(best, claimCount);
     }
 
     static boolean isHigherPriority(double candidateDistance, String candidateTieKey, double currentDistance, String currentTieKey) {
@@ -211,6 +175,124 @@ final class ProjectionClaimSet {
             return false;
         }
         return candidateTieKey.compareTo(currentTieKey) < 0;
+    }
+
+    private void collectStaleKeys(PortalClaims portalClaims, long passGeneration) {
+        staleScratch.clear();
+        ObjectIterator<ClaimSlot> slotIterator = portalClaims.claims.values().iterator();
+        while (slotIterator.hasNext()) {
+            ClaimSlot slot = slotIterator.next();
+            if (slot.generation == passGeneration) {
+                continue;
+            }
+            staleScratch.add(slot.key);
+        }
+    }
+
+    private void appendContestedKeys(PortalClaims portalClaims, long passGeneration, LongArrayList affected) {
+        LongIterator contestedIterator = contestedKeys.iterator();
+        while (contestedIterator.hasNext()) {
+            long key = contestedIterator.nextLong();
+            ClaimSlot slot = portalClaims.claims.get(key);
+            if (slot == null || slot.affectedGeneration == passGeneration) {
+                continue;
+            }
+            slot.affectedGeneration = passGeneration;
+            affected.add(key);
+        }
+    }
+
+    private ProjectionClaimSetResult recomputeAffected(LongArrayList affected) {
+        int affectedCount = affected.size();
+        ProjectionClaimSetResult result = new ProjectionClaimSetResult(affectedCount);
+        for (int i = 0; i < affectedCount; i++) {
+            long key = affected.getLong(i);
+            WinningClaim previous = winners.get(key);
+            WinnerChoice choice = chooseWinner(key);
+            if (choice.claimCount > 1) {
+                result.conflicts++;
+            }
+            PortalClaims nextOwner = choice.owner;
+            if (nextOwner == null) {
+                if (previous != null) {
+                    winners.remove(key);
+                    winningClaims.remove(key);
+                    result.packetChangeKeys.add(key);
+                    result.dirtyLightingKeys.add(key);
+                    result.reverts++;
+                }
+                continue;
+            }
+
+            ProjectedBlockClaim nextClaim = choice.claim;
+            boolean ownerChanged = previous == null || isDifferentOwner(previous.owner, nextOwner);
+            boolean dataChanged = previous == null || !previous.claim.getData().equals(nextClaim.getData());
+            boolean lightChanged = previous == null || !previous.claim.sameLightSource(nextClaim);
+            if (previous == null) {
+                winners.put(key, new WinningClaim(nextOwner, nextClaim));
+                winningClaims.put(key, nextClaim);
+            } else {
+                previous.owner = nextOwner;
+                if (previous.claim != nextClaim) {
+                    previous.claim = nextClaim;
+                    winningClaims.put(key, nextClaim);
+                }
+            }
+            if (dataChanged) {
+                result.packetChangeKeys.add(key);
+            }
+            if (ownerChanged) {
+                result.winnerChanges++;
+            }
+            if (lightChanged) {
+                result.dirtyLightingKeys.add(key);
+            }
+        }
+        return result;
+    }
+
+    private WinnerChoice chooseWinner(long key) {
+        WinnerChoice choice = winnerScratch;
+        choice.owner = null;
+        choice.claim = null;
+        choice.claimCount = 0;
+        int storedClaimCount = claimCounts.get(key);
+        if (storedClaimCount <= 0) {
+            return choice;
+        }
+        if (storedClaimCount == 1) {
+            PortalClaims singleOwner = singleOwners.get(key);
+            if (singleOwner != null) {
+                ClaimSlot slot = singleOwner.claims.get(key);
+                if (slot != null && slot.claim != null) {
+                    choice.owner = singleOwner;
+                    choice.claim = slot.claim;
+                    choice.claimCount = 1;
+                    return choice;
+                }
+            }
+        }
+
+        Iterator<PortalClaims> iterator = portals.values().iterator();
+        while (iterator.hasNext()) {
+            PortalClaims portalClaims = iterator.next();
+            ClaimSlot slot = portalClaims.claims.get(key);
+            if (slot == null || slot.claim == null) {
+                continue;
+            }
+            choice.claimCount++;
+            if (choice.owner == null
+                || isHigherPriority(portalClaims.priorityDistance, portalClaims.tieKey, slot.claim,
+                    choice.owner.priorityDistance, choice.owner.tieKey, choice.claim)) {
+                choice.owner = portalClaims;
+                choice.claim = slot.claim;
+            }
+        }
+        return choice;
+    }
+
+    private static boolean isDifferentOwner(PortalClaims previousOwner, PortalClaims nextOwner) {
+        return previousOwner != nextOwner && !previousOwner.portalId.equals(nextOwner.portalId);
     }
 
     private static boolean hasPriorityChanged(PortalClaims existing, String tieKey, double priorityDistance) {
@@ -243,6 +325,7 @@ final class ProjectionClaimSet {
             singleOwners.remove(key);
         }
         claimCounts.put(key, count + 1);
+        contestedKeys.add(key);
     }
 
     private void decrementClaimCount(long key, PortalClaims removedOwner) {
@@ -254,6 +337,7 @@ final class ProjectionClaimSet {
         }
         if (count == 2) {
             claimCounts.put(key, 1);
+            contestedKeys.remove(key);
             PortalClaims remainingOwner = findRemainingOwner(key, removedOwner);
             if (remainingOwner == null) {
                 singleOwners.remove(key);
@@ -280,10 +364,8 @@ final class ProjectionClaimSet {
     }
 
     static final class ProjectionClaimSetResult {
-        private final LongArrayList packetChangeKeys;
-        private final LongArrayList dirtyLightingKeys;
-        private LongOpenHashSet mergedPacketChangeKeys;
-        private LongOpenHashSet mergedDirtyLightingKeys;
+        private final LongOpenHashSet packetChangeKeys;
+        private final LongOpenHashSet dirtyLightingKeys;
         private int conflicts;
         private int winnerChanges;
         private int reverts;
@@ -293,20 +375,18 @@ final class ProjectionClaimSet {
         }
 
         ProjectionClaimSetResult(int expectedKeys) {
-            this.packetChangeKeys = new LongArrayList(expectedKeys);
-            this.dirtyLightingKeys = new LongArrayList(expectedKeys);
-            this.mergedPacketChangeKeys = null;
-            this.mergedDirtyLightingKeys = null;
+            this.packetChangeKeys = new LongOpenHashSet(expectedKeys);
+            this.dirtyLightingKeys = new LongOpenHashSet(expectedKeys);
             this.conflicts = 0;
             this.winnerChanges = 0;
             this.reverts = 0;
         }
 
-        LongArrayList getPacketChangeKeys() {
+        LongOpenHashSet getPacketChangeKeys() {
             return packetChangeKeys;
         }
 
-        LongArrayList getDirtyLightingKeys() {
+        LongOpenHashSet getDirtyLightingKeys() {
             return dirtyLightingKeys;
         }
 
@@ -330,82 +410,60 @@ final class ProjectionClaimSet {
             if (other == null || other.isEmpty()) {
                 return;
             }
-            appendUniquePacketKeys(other.packetChangeKeys);
-            appendUniqueLightingKeys(other.dirtyLightingKeys);
+            packetChangeKeys.addAll(other.packetChangeKeys);
+            dirtyLightingKeys.addAll(other.dirtyLightingKeys);
             conflicts += other.conflicts;
             winnerChanges += other.winnerChanges;
             reverts += other.reverts;
-        }
-
-        private void appendUniquePacketKeys(LongArrayList keys) {
-            if (keys.isEmpty()) {
-                return;
-            }
-            if (mergedPacketChangeKeys == null) {
-                mergedPacketChangeKeys = new LongOpenHashSet(packetChangeKeys);
-            }
-            LongIterator iterator = keys.iterator();
-            while (iterator.hasNext()) {
-                long key = iterator.nextLong();
-                if (!mergedPacketChangeKeys.add(key)) {
-                    continue;
-                }
-                packetChangeKeys.add(key);
-            }
-        }
-
-        private void appendUniqueLightingKeys(LongArrayList keys) {
-            if (keys.isEmpty()) {
-                return;
-            }
-            if (mergedDirtyLightingKeys == null) {
-                mergedDirtyLightingKeys = new LongOpenHashSet(dirtyLightingKeys);
-            }
-            LongIterator iterator = keys.iterator();
-            while (iterator.hasNext()) {
-                long key = iterator.nextLong();
-                if (!mergedDirtyLightingKeys.add(key)) {
-                    continue;
-                }
-                dirtyLightingKeys.add(key);
-            }
         }
     }
 
     private static final class PortalClaims {
         private final UUID portalId;
-        private final Long2ObjectOpenHashMap<ProjectedBlockClaim> claims;
+        private final Long2ObjectOpenHashMap<ClaimSlot> claims;
         private String tieKey;
         private double priorityDistance;
 
         private PortalClaims(UUID portalId) {
             this.portalId = portalId;
-            this.claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(256);
+            this.claims = new Long2ObjectOpenHashMap<ClaimSlot>(256);
             this.tieKey = portalId.toString();
             this.priorityDistance = 0.0D;
         }
     }
 
-    private static final class WinnerChoice {
-        private final WinningClaim winner;
-        private final int claimCount;
+    private static final class ClaimSlot {
+        private final long key;
+        private ProjectedBlockClaim claim;
+        private long generation;
+        private long affectedGeneration;
 
-        private WinnerChoice(WinningClaim winner, int claimCount) {
-            this.winner = winner;
-            this.claimCount = claimCount;
+        private ClaimSlot(long key, ProjectedBlockClaim claim, long generation) {
+            this.key = key;
+            this.claim = claim;
+            this.generation = generation;
+            this.affectedGeneration = generation;
+        }
+    }
+
+    private static final class WinnerChoice {
+        private PortalClaims owner;
+        private ProjectedBlockClaim claim;
+        private int claimCount;
+
+        private WinnerChoice() {
+            this.owner = null;
+            this.claim = null;
+            this.claimCount = 0;
         }
     }
 
     private static final class WinningClaim {
-        private final UUID portalId;
-        private final String tieKey;
-        private final double priorityDistance;
-        private final ProjectedBlockClaim claim;
+        private PortalClaims owner;
+        private ProjectedBlockClaim claim;
 
-        private WinningClaim(UUID portalId, String tieKey, double priorityDistance, ProjectedBlockClaim claim) {
-            this.portalId = portalId;
-            this.tieKey = tieKey;
-            this.priorityDistance = priorityDistance;
+        private WinningClaim(PortalClaims owner, ProjectedBlockClaim claim) {
+            this.owner = owner;
             this.claim = claim;
         }
     }

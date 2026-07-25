@@ -264,6 +264,15 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         }
 
         @Override
+        public Material sampleMaterial(int x, int y, int z) {
+            CapturedChunk chunk = capturedChunk(x, z);
+            if (chunk == null || y < chunk.minHeight || y >= chunk.maxHeight) {
+                return null;
+            }
+            return chunk.snapshot.getBlockType(x & 15, y, z & 15);
+        }
+
+        @Override
         public String sampleBiome(int x, int y, int z) {
             CapturedChunk chunk = capturedChunk(x, z);
             if (chunk == null || y < chunk.minHeight || y >= chunk.maxHeight) {

@@ -173,6 +173,7 @@ public final class WormholesMessages {
     public static final TextKey PORTAL_OPENED = text("portal.form.opened", "<green>Portal opened. Hold the wand and CLICK the portal to configure.");
     public static final TextKey PORTAL_COOLDOWN = text("portal.travel.cooldown", "<gold>Portal cooling down");
     public static final TextKey PORTAL_ACCESS_DENIED = text("portal.travel.access_denied", "<red>Portal access denied");
+    public static final TextKey PORTAL_DESTINATION_UNAVAILABLE = text("portal.travel.destination_unavailable", "<red>Portal destination unavailable");
     public static final TextKey PORTAL_EDIT_DENIED = text("portal.edit.denied", "<red>Only the portal owner or an administrator can edit this portal.");
     public static final TextKey PORTAL_DELETED = text("portal.deleted", "<red>{portal} Deleted");
     public static final TextKey PORTAL_ARRIVAL_FAILED = text("portal.travel.arrival_failed", "<red>Portal arrival could not be placed; you remain at the destination spawn");

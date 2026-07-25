@@ -35,11 +35,16 @@ public final class LiveWorldView implements ProjectionWorldView {
         if (y < world.getMinHeight() || y > world.getMaxHeight() - 1) {
             return null;
         }
-        Material type = world.getType(x, y, z);
-        if (ProjectionWorldView.isAir(type)) {
-            return sharedAir;
+        BlockData data = world.getBlockData(x, y, z);
+        return ProjectionWorldView.isAir(data.getMaterial()) ? sharedAir : data;
+    }
+
+    @Override
+    public Material sampleMaterial(int x, int y, int z) {
+        if (y < world.getMinHeight() || y > world.getMaxHeight() - 1) {
+            return null;
         }
-        return world.getBlockData(x, y, z);
+        return world.getType(x, y, z);
     }
 
     @Override
