@@ -1,0 +1,190 @@
+package art.arcane.wormholes.render;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.lang.reflect.Proxy;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.block.data.BlockData;
+import org.junit.jupiter.api.Test;
+
+import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.render.view.ProjectionWorldView;
+import art.arcane.wormholes.util.AxisAlignedBB;
+
+public final class ProjectorSealAndMemoTest {
+    private static final AxisAlignedBB APERTURE = new AxisAlignedBB(10.0D, 10.0D, 64.0D, 68.0D, -3.0D, 1.0D);
+    private static final double DEPTH_BLOCKS = 48.0D;
+
+    private static double referenceSealDepth(double eyeNormal, double originNormal, double cellNormal) {
+        double facePlane = ProjectorBlackoutSeal.eyeSideFacePlane(eyeNormal, originNormal, APERTURE.getXa(), APERTURE.getXb());
+        double farSign = eyeNormal >= originNormal ? -1.0D : 1.0D;
+        return farSign * (cellNormal - facePlane);
+    }
+
+    private static boolean referenceSeal(double eyeNormal, double originNormal,
+                                         double cellX, double cellY, double cellZ) {
+        double lateralMargin = 1.0D + Settings.PROJECTION_APERTURE_PADDING_BLOCKS;
+        double rightLow = APERTURE.getZa() - DEPTH_BLOCKS + lateralMargin;
+        double rightHigh = APERTURE.getZb() + DEPTH_BLOCKS - lateralMargin;
+        double upLow = APERTURE.getYa() - DEPTH_BLOCKS + lateralMargin;
+        double upHigh = APERTURE.getYb() + DEPTH_BLOCKS - lateralMargin;
+        return ProjectorBlackoutSeal.isFarPlaneCell(referenceSealDepth(eyeNormal, originNormal, cellX),
+            DEPTH_BLOCKS - 1.0D,
+            cellZ, rightLow, rightHigh,
+            cellY, upLow, upHigh);
+    }
+
+    @Test
+    public void configuredBandsMatchTheReferenceSealForEitherEyeSide() {
+        double originNormal = 10.5D;
+        double[] eyeNormals = new double[] { 4.0D, 10.5D, 30.0D };
+        double[] cellNormals = new double[] { -40.5D, -1.5D, 10.5D, 40.5D, 58.5D };
+        double[] laterals = new double[] { -47.5D, -3.5D, 0.5D, 47.5D };
+
+        for (double eyeNormal : eyeNormals) {
+            ProjectorBlackoutSeal seal = new ProjectorBlackoutSeal();
+            seal.configureBands(APERTURE, 0, 2, 1, originNormal, eyeNormal, DEPTH_BLOCKS);
+            for (double cellNormal : cellNormals) {
+                for (double right : laterals) {
+                    for (double up : laterals) {
+                        assertEquals(referenceSeal(eyeNormal, originNormal, cellNormal, up, right),
+                            seal.sealsCell(cellNormal, up, right),
+                            "eye=" + eyeNormal + " cell=" + cellNormal + " right=" + right + " up=" + up);
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    public void aSealIsInertUntilAPassEnablesIt() {
+        ProjectorBlackoutSeal seal = new ProjectorBlackoutSeal();
+        assertFalse(seal.isEnabled());
+        seal.disable();
+        assertFalse(seal.isEnabled());
+    }
+
+    @Test
+    public void sampleMemoKeepsOneEntryPerViewAndCell() {
+        ProjectorSampleMemo memo = new ProjectorSampleMemo();
+        FakeWorldView first = new FakeWorldView();
+        FakeWorldView second = new FakeWorldView();
+        ProjectorSample firstSample = ProjectorSample.noSample();
+        ProjectorSample secondSample = ProjectorSample.maskAir(blockData(Material.AIR));
+
+        assertNull(memo.cachedSample(first, 3, 70, -4));
+        memo.cacheSample(first, 3, 70, -4, firstSample);
+        assertSame(firstSample, memo.cachedSample(first, 3, 70, -4));
+        assertNull(memo.cachedSample(first, 4, 70, -4));
+        assertNull(memo.cachedSample(second, 3, 70, -4));
+
+        memo.cacheSample(second, 3, 70, -4, secondSample);
+        assertSame(secondSample, memo.cachedSample(second, 3, 70, -4));
+        assertSame(firstSample, memo.cachedSample(first, 3, 70, -4));
+
+        memo.clearDestinationSamples();
+        assertNull(memo.cachedSample(first, 3, 70, -4));
+        assertNull(memo.cachedSample(second, 3, 70, -4));
+    }
+
+    @Test
+    public void localAirMemoSamplesEachCellOnlyOnce() {
+        ProjectorSampleMemo memo = new ProjectorSampleMemo();
+        FakeWorldView view = new FakeWorldView();
+        view.put(1, 65, 2, blockData(Material.AIR));
+        view.put(1, 66, 2, blockData(Material.STONE));
+
+        assertTrue(memo.isLocalAir(view, 1, 65, 2));
+        assertTrue(memo.isLocalAir(view, 1, 65, 2));
+        assertFalse(memo.isLocalAir(view, 1, 66, 2));
+        assertFalse(memo.isLocalAir(view, 1, 66, 2));
+        assertEquals(2, view.reads, "memoized cells must not be re-sampled");
+
+        assertFalse(memo.isLocalAir(view, 9, 9, 9));
+        assertEquals(3, view.reads);
+    }
+
+    @Test
+    public void discardDropsEveryMemoizedView() {
+        ProjectorSampleMemo memo = new ProjectorSampleMemo();
+        FakeWorldView view = new FakeWorldView();
+        view.put(0, 0, 0, blockData(Material.AIR));
+        memo.cacheSample(view, 0, 0, 0, ProjectorSample.noSample());
+        assertTrue(memo.isLocalAir(view, 0, 0, 0));
+
+        memo.discard();
+
+        assertNull(memo.cachedSample(view, 0, 0, 0));
+        assertTrue(memo.isLocalAir(view, 0, 0, 0));
+        assertEquals(2, view.reads, "a discarded local air memo must re-read the view");
+    }
+
+    private static BlockData blockData(Material material) {
+        return (BlockData) Proxy.newProxyInstance(BlockData.class.getClassLoader(), new Class<?>[] { BlockData.class },
+            (proxy, method, args) -> switch (method.getName()) {
+                case "getMaterial" -> material;
+                case "toString", "getAsString" -> String.valueOf(material);
+                case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
+                case "equals" -> Boolean.valueOf(proxy == args[0]);
+                case "clone" -> proxy;
+                default -> null;
+            });
+    }
+
+    private static final class FakeWorldView implements ProjectionWorldView {
+        private final Map<String, BlockData> blocks = new HashMap<String, BlockData>();
+        private int reads;
+
+        private void put(int x, int y, int z, BlockData data) {
+            blocks.put(key(x, y, z), data);
+        }
+
+        @Override
+        public World getWorld() {
+            return null;
+        }
+
+        @Override
+        public int getMinHeight() {
+            return -64;
+        }
+
+        @Override
+        public int getMaxHeight() {
+            return 320;
+        }
+
+        @Override
+        public BlockData sampleBlockData(int x, int y, int z) {
+            reads++;
+            return blocks.get(key(x, y, z));
+        }
+
+        @Override
+        public String sampleBiome(int x, int y, int z) {
+            return null;
+        }
+
+        @Override
+        public int getLight(int x, int y, int z) {
+            return ProjectionWorldView.LIGHT_UNAVAILABLE;
+        }
+
+        @Override
+        public int getSkyDarken() {
+            return 0;
+        }
+
+        private static String key(int x, int y, int z) {
+            return x + ":" + y + ":" + z;
+        }
+    }
+}

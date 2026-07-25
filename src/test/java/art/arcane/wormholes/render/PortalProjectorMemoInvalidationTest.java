@@ -14,11 +14,11 @@ public final class PortalProjectorMemoInvalidationTest {
     @Test
     public void aChangedSourceViewRevisionAlwaysDropsTheDestinationMemos() {
         AtomicInteger dirtyProbes = new AtomicInteger();
-        assertTrue(PortalProjector.destinationMemosStale(7L, 6L, true, () -> {
+        assertTrue(ProjectorSampleMemo.destinationMemosStale(7L, 6L, true, () -> {
             dirtyProbes.incrementAndGet();
             return false;
         }));
-        assertTrue(PortalProjector.destinationMemosStale(0L, Long.MIN_VALUE, false, () -> {
+        assertTrue(ProjectorSampleMemo.destinationMemosStale(0L, Long.MIN_VALUE, false, () -> {
             dirtyProbes.incrementAndGet();
             return false;
         }));
@@ -27,36 +27,36 @@ public final class PortalProjectorMemoInvalidationTest {
 
     @Test
     public void crossServerDestinationsRelyOnTheViewRevisionAlone() {
-        assertFalse(PortalProjector.destinationMemosStale(11L, 11L, false, () -> true));
-        assertTrue(PortalProjector.destinationMemosStale(12L, 11L, false, () -> false));
+        assertFalse(ProjectorSampleMemo.destinationMemosStale(11L, 11L, false, () -> true));
+        assertTrue(ProjectorSampleMemo.destinationMemosStale(12L, 11L, false, () -> false));
     }
 
     @Test
     public void localDestinationsDropTheMemosWhenTheDestinationChunksChange() {
-        assertTrue(PortalProjector.destinationMemosStale(0L, 0L, true, () -> true));
-        assertFalse(PortalProjector.destinationMemosStale(0L, 0L, true, () -> false));
+        assertTrue(ProjectorSampleMemo.destinationMemosStale(0L, 0L, true, () -> true));
+        assertFalse(ProjectorSampleMemo.destinationMemosStale(0L, 0L, true, () -> false));
     }
 
     @Test
     public void theLocalAirMemoSurvivesOnlyWhenNothingCanHaveChangedIt() {
-        assertFalse(PortalProjector.localSampleMemoStale(false, false, 4L, 4L, 10, 4096));
+        assertFalse(ProjectorSampleMemo.localSampleMemoStale(false, false, 4L, 4L, 10, 4096));
     }
 
     @Test
     public void theFullRefreshBackstopAlwaysDropsTheLocalAirMemo() {
-        assertTrue(PortalProjector.localSampleMemoStale(true, false, 4L, 4L, 10, 4096),
+        assertTrue(ProjectorSampleMemo.localSampleMemoStale(true, false, 4L, 4L, 10, 4096),
             "a forced resample pass must re-read local block states, not trust the memo");
     }
 
     @Test
     public void aLocalViewRevisionChangeDropsTheLocalAirMemo() {
-        assertTrue(PortalProjector.localSampleMemoStale(false, false, 5L, 4L, 10, 4096));
+        assertTrue(ProjectorSampleMemo.localSampleMemoStale(false, false, 5L, 4L, 10, 4096));
     }
 
     @Test
     public void trackedLocalChangesAndMemoOverflowDropTheLocalAirMemo() {
-        assertTrue(PortalProjector.localSampleMemoStale(false, true, 4L, 4L, 10, 4096));
-        assertTrue(PortalProjector.localSampleMemoStale(false, false, 4L, 4L, 4097, 4096));
+        assertTrue(ProjectorSampleMemo.localSampleMemoStale(false, true, 4L, 4L, 10, 4096));
+        assertTrue(ProjectorSampleMemo.localSampleMemoStale(false, false, 4L, 4L, 4097, 4096));
     }
 
     @Test
@@ -64,16 +64,16 @@ public final class PortalProjectorMemoInvalidationTest {
         ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
         long memoVersion = tracker.currentVersion();
 
-        assertFalse(PortalProjector.destinationMemosStale(0L, 0L, true,
+        assertFalse(ProjectorSampleMemo.destinationMemosStale(0L, 0L, true,
             () -> tracker.dirtySince(DESTINATION_WORLD, -4, -4, 4, 4, memoVersion)));
 
         tracker.markChanged(DESTINATION_WORLD, 33, -17);
 
-        assertTrue(PortalProjector.destinationMemosStale(0L, 0L, true,
+        assertTrue(ProjectorSampleMemo.destinationMemosStale(0L, 0L, true,
             () -> tracker.dirtySince(DESTINATION_WORLD, -4, -4, 4, 4, memoVersion)));
 
         long refreshedVersion = tracker.currentVersion();
-        assertFalse(PortalProjector.destinationMemosStale(0L, 0L, true,
+        assertFalse(ProjectorSampleMemo.destinationMemosStale(0L, 0L, true,
             () -> tracker.dirtySince(DESTINATION_WORLD, -4, -4, 4, 4, refreshedVersion)));
     }
 }

@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -37,6 +39,8 @@ import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.service.WormholesTelemetry;
 
 public final class ProjectionClaimArbiter {
+    static final String BLOCK_MAPPING_FAILURE_REASON = "RENDER_CLAIM_BLOCK_MAPPING_FAILED";
+
     private final ConcurrentHashMap<UUID, ObserverClaims> observers;
     private final ConcurrentHashMap<BlockData, Integer> blockGlobalIds;
     private final ProjectionWorldViewProvider viewProvider;
@@ -258,9 +262,9 @@ public final class ProjectionClaimArbiter {
             Long2ObjectMap.Entry<BlockData> change = changeIterator.next();
             long key = change.getLongKey();
             BlockData data = change.getValue();
-            int x = unpackX(key);
-            int y = unpackY(key);
-            int z = unpackZ(key);
+            int x = ProjectionCellKey.unpackX(key);
+            int y = ProjectionCellKey.unpackY(key);
+            int z = ProjectionCellKey.unpackZ(key);
             int id = blockIds.get(key);
             if (id < 0 || (id == 0 && !ProjectionWorldView.isAir(data.getMaterial()))) {
                 fallbackOut.put(key, data);
@@ -277,18 +281,15 @@ public final class ProjectionClaimArbiter {
     }
 
     static int unpackSectionX(long key) {
-        long raw = (key >> 38) & 0x3FFFFFFL;
-        return (int) ((raw << 38) >> 38);
+        return ProjectionCellKey.unpackX(key);
     }
 
     static int unpackSectionY(long key) {
-        long raw = (key >> 26) & 0xFFFL;
-        return (int) ((raw << 52) >> 52);
+        return ProjectionCellKey.unpackY(key);
     }
 
     static int unpackSectionZ(long key) {
-        long raw = key & 0x3FFFFFFL;
-        return (int) ((raw << 38) >> 38);
+        return ProjectionCellKey.unpackZ(key);
     }
 
     private ClaimUpdateResult applyResult(Player observer,
@@ -325,9 +326,9 @@ public final class ProjectionClaimArbiter {
             while (packetIterator.hasNext()) {
                 long key = packetIterator.nextLong();
                 ProjectedBlockClaim winner = observerClaims.claimSet.getWinningClaim(key);
-                int x = unpackX(key);
-                int y = unpackY(key);
-                int z = unpackZ(key);
+                int x = ProjectionCellKey.unpackX(key);
+                int y = ProjectionCellKey.unpackY(key);
+                int z = ProjectionCellKey.unpackZ(key);
                 int chunkX = x >> 4;
                 int chunkZ = z >> 4;
                 long chunkKey = (((long) chunkX) << 32) | (chunkZ & 0xFFFFFFFFL);
@@ -450,8 +451,8 @@ public final class ProjectionClaimArbiter {
         LongIterator iterator = state.sentBlocks.keySet().iterator();
         while (iterator.hasNext()) {
             long key = iterator.nextLong();
-            int chunkX = unpackX(key) >> 4;
-            int chunkZ = unpackZ(key) >> 4;
+            int chunkX = ProjectionCellKey.unpackX(key) >> 4;
+            int chunkZ = ProjectionCellKey.unpackZ(key) >> 4;
             long chunkKey = packChunkKey(chunkX, chunkZ);
             if (validChunks.contains(chunkKey)) {
                 continue;
@@ -490,7 +491,7 @@ public final class ProjectionClaimArbiter {
             while (singleIterator.hasNext()) {
                 Long2ObjectMap.Entry<BlockData> change = singleIterator.next();
                 long key = change.getLongKey();
-                observer.sendBlockChange(new Location(localWorld, unpackX(key), unpackY(key), unpackZ(key)), change.getValue());
+                observer.sendBlockChange(new Location(localWorld, ProjectionCellKey.unpackX(key), ProjectionCellKey.unpackY(key), ProjectionCellKey.unpackZ(key)), change.getValue());
                 WormholesTelemetry.countBlockChange();
                 WormholesTelemetry.countPacket();
             }
@@ -515,7 +516,7 @@ public final class ProjectionClaimArbiter {
         }
         for (Long2ObjectMap.Entry<BlockData> change : fallback.long2ObjectEntrySet()) {
             long key = change.getLongKey();
-            observer.sendBlockChange(new Location(localWorld, unpackX(key), unpackY(key), unpackZ(key)), change.getValue());
+            observer.sendBlockChange(new Location(localWorld, ProjectionCellKey.unpackX(key), ProjectionCellKey.unpackY(key), ProjectionCellKey.unpackZ(key)), change.getValue());
             WormholesTelemetry.countBlockChange();
             WormholesTelemetry.countPacket();
         }
@@ -544,12 +545,22 @@ public final class ProjectionClaimArbiter {
             id = SpigotConversionUtil.fromBukkitBlockData(data).getGlobalId();
         } catch (RuntimeException ex) {
             blockMappingFailed = true;
-            Wormholes.w("[ClaimArbiter] block state mapping failed for " + data.getAsString() + ", falling back to bukkit block updates");
-            ex.printStackTrace();
+            noteBlockMappingFailure(data.getAsString(), ex);
             return -1;
         }
         blockGlobalIds.put(data, Integer.valueOf(id));
         return id;
+    }
+
+    static void noteBlockMappingFailure(String blockDescription, RuntimeException ex) {
+        WormholesTelemetry.countFailure(BLOCK_MAPPING_FAILURE_REASON);
+        logger().log(Level.WARNING, "[ClaimArbiter] block state mapping failed for " + blockDescription
+            + ", falling back to bukkit block updates for every projected cell", ex);
+    }
+
+    private static Logger logger() {
+        Wormholes plugin = Wormholes.instance;
+        return plugin == null ? Logger.getLogger("Wormholes") : plugin.getLogger();
     }
 
     private void removeObserverIfEmpty(UUID observerId, ObserverClaims state) {
@@ -618,26 +629,11 @@ public final class ProjectionClaimArbiter {
     }
 
     private static long packSectionKey(int sectionX, int sectionY, int sectionZ) {
-        return (((long) sectionX & 0x3FFFFFFL) << 38) | ((((long) sectionY) & 0xFFFL) << 26) | (((long) sectionZ) & 0x3FFFFFFL);
+        return ProjectionCellKey.pack(sectionX, sectionY, sectionZ);
     }
 
     private static long packChunkKey(int chunkX, int chunkZ) {
         return (((long) chunkX) << 32) | (((long) chunkZ) & 0xFFFFFFFFL);
-    }
-
-    private static int unpackX(long key) {
-        long raw = (key >> 38) & 0x3FFFFFFL;
-        return (int) ((raw << 38) >> 38);
-    }
-
-    private static int unpackY(long key) {
-        long raw = (key >> 26) & 0xFFFL;
-        return (int) ((raw << 52) >> 52);
-    }
-
-    private static int unpackZ(long key) {
-        long raw = key & 0x3FFFFFFL;
-        return (int) ((raw << 38) >> 38);
     }
 
     public static final class ClaimUpdateResult {

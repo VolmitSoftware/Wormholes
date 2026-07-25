@@ -56,7 +56,18 @@ public final class WormholesAudience {
             }
         }
 
-        sender.sendMessage(LegacyComponentSerializer.legacySection().serialize(component));
+        try {
+            sender.sendMessage(LegacyComponentSerializer.legacySection().serialize(component));
+        } catch (Throwable ex) {
+            WormholesTelemetry.countFailure("AUDIENCE_MESSAGE_DELIVERY_FAILED");
+            logger().log(Level.WARNING, "audience: message delivery failed for " + sender.getClass().getName(), ex);
+            throw ex;
+        }
+    }
+
+    private static Logger logger() {
+        Wormholes plugin = Wormholes.instance;
+        return plugin == null ? Logger.getLogger("Wormholes") : plugin.getLogger();
     }
 
     private static boolean sendDirectMessage(CommandSender sender, Component component) {

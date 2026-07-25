@@ -211,13 +211,18 @@ public final class PortalSkinRenderer {
         if (cells.isEmpty()) {
             return false;
         }
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(cells.size() * 2);
+        claimArbiter.submit(observer, portal, world, fluidClaims(cells, data), priorityDistance(observer, portal), false);
+        return true;
+    }
+
+    static Long2ObjectOpenHashMap<ProjectedBlockClaim> fluidClaims(List<Vector> cells, BlockData data) {
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims =
+            new Long2ObjectOpenHashMap<ProjectedBlockClaim>(Math.max(4, cells.size() * 2));
         for (Vector cell : cells) {
-            long key = packKey(cell.getBlockX(), cell.getBlockY(), cell.getBlockZ());
+            long key = ProjectionCellKey.pack(cell.getBlockX(), cell.getBlockY(), cell.getBlockZ());
             claims.put(key, new ProjectedBlockClaim(data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
         }
-        claimArbiter.submit(observer, portal, world, claims, priorityDistance(observer, portal), false);
-        return true;
+        return claims;
     }
 
     private PortalSkinState spawnDisplays(Player observer, ILocalPortal portal, BlockData data, String stateKey) {
@@ -385,10 +390,6 @@ public final class PortalSkinRenderer {
         double translationY = normalAxis == Axis.Y ? -thickness / 2.0D : 0.0D;
         double translationZ = normalAxis == Axis.Z ? -thickness / 2.0D : 0.0D;
         return new SkinTransform(anchorX, anchorY, anchorZ, translationX, translationY, translationZ, sizeX, sizeY, sizeZ);
-    }
-
-    private static long packKey(int x, int y, int z) {
-        return (((long) x & 0x3FFFFFFL) << 38) | ((((long) y) & 0xFFFL) << 26) | (((long) z) & 0x3FFFFFFL);
     }
 
     enum SkinRenderMode {

@@ -520,6 +520,200 @@ public final class RtpServiceTest
 		assertEquals(1, harness.executor.size());
 	}
 
+	@Test
+	public void claimTraversalCompletesExceptionallyWhenSourceWorkThrowsAsynchronously()
+	{
+		TestHarness harness = new TestHarness(uniqueSampler());
+		UUID portalId = uuid("claim-throw-portal");
+		UUID viewerId = uuid("claim-throw-viewer");
+		harness.register(portalId, settings(RtpAllocationMode.SHARED, RtpRotationMode.ON_TRAVERSAL));
+		harness.service.touchViewer(portalId, viewerId).join();
+		harness.executor.runAll();
+
+		harness.service.leaveViewer(portalId, viewerId).join();
+		harness.advance(30_000L);
+		harness.service.touchViewer(portalId, viewerId).join();
+
+		harness.dispatcher.deferExecute();
+		CompletableFuture<Optional<RtpService.TraversalPreparation>> claim = harness.service.claimTraversal(
+				portalId,
+				RtpService.TraversalActor.player(uuid("claim-throw"), viewerId));
+		assertFalse(claim.isDone());
+		harness.clock.failNext();
+		harness.dispatcher.runDeferred();
+
+		assertTrue(claim.isDone());
+		assertTrue(claim.isCompletedExceptionally());
+		assertEquals(0, harness.dispatcher.escapedFailures());
+	}
+
+	@Test
+	public void preparationDeadlineThatCannotBeArmedReleasesTheClaimInsteadOfPinningIt()
+	{
+		TestHarness harness = new TestHarness(uniqueSampler());
+		UUID portalId = uuid("deadline-arming-portal");
+		UUID viewerId = uuid("deadline-arming-viewer");
+		harness.register(portalId, settings(RtpAllocationMode.SHARED, RtpRotationMode.ON_TRAVERSAL));
+		harness.service.touchViewer(portalId, viewerId).join();
+		harness.executor.runAll();
+
+		harness.dispatcher.deferExecute();
+		harness.dispatcher.failSchedule();
+		CompletableFuture<Optional<RtpService.TraversalPreparation>> claim = harness.service.claimTraversal(
+				portalId,
+				RtpService.TraversalActor.player(uuid("deadline-arming-claim"), viewerId));
+		harness.dispatcher.runDeferred();
+
+		assertTrue(claim.isDone());
+		assertTrue(claim.join().isEmpty());
+		assertEquals(0, harness.service.snapshot(portalId).orElseThrow().runtime().sharedClaims());
+		assertEquals(1, harness.dispatcher.escapedFailures());
+	}
+
+	@Test
+	public void preparationDeadlineThatCannotBeArmedReleasesTheClaimWhenTerminalDispatchIsRejectedToo()
+	{
+		TestHarness harness = new TestHarness(uniqueSampler());
+		UUID portalId = uuid("deadline-shutdown-portal");
+		UUID viewerId = uuid("deadline-shutdown-viewer");
+		harness.register(portalId, settings(RtpAllocationMode.SHARED, RtpRotationMode.ON_TRAVERSAL));
+		harness.service.touchViewer(portalId, viewerId).join();
+		harness.executor.runAll();
+
+		harness.dispatcher.deferExecute();
+		CompletableFuture<Optional<RtpService.TraversalPreparation>> claim = harness.service.claimTraversal(
+				portalId,
+				RtpService.TraversalActor.player(uuid("deadline-shutdown-claim"), viewerId));
+		harness.dispatcher.failSchedule();
+		harness.dispatcher.failNestedExecute();
+		harness.dispatcher.runDeferred();
+
+		assertTrue(claim.isDone());
+		assertTrue(claim.join().isEmpty());
+		assertEquals(0, harness.service.snapshot(portalId).orElseThrow().runtime().sharedClaims());
+
+		harness.dispatcher.restoreDispatch();
+		CompletableFuture<Optional<RtpService.TraversalPreparation>> recovered = harness.service.claimTraversal(
+				portalId,
+				RtpService.TraversalActor.player(uuid("deadline-shutdown-recovery"), viewerId));
+
+		assertTrue(recovered.join().isPresent());
+	}
+
+	@Test
+	public void accessOutageReleasesTheClaimAndAdmissionWhenTerminalDispatchIsRejected()
+	{
+		TestHarness harness = new TestHarness(uniqueSampler());
+		UUID portalId = uuid("access-shutdown-portal");
+		UUID viewerId = uuid("access-shutdown-viewer");
+		harness.register(portalId, settings(RtpAllocationMode.SHARED, RtpRotationMode.ON_TRAVERSAL));
+		harness.service.touchViewer(portalId, viewerId).join();
+		harness.executor.runAll();
+
+		harness.access.holdNext();
+		CompletableFuture<Optional<RtpService.TraversalPreparation>> claim = harness.service.claimTraversal(
+				portalId,
+				RtpService.TraversalActor.player(uuid("access-shutdown-claim"), viewerId));
+		assertFalse(claim.isDone());
+		harness.dispatcher.failNestedExecute();
+		harness.access.completeNext(RtpAccessResult.failureResult(new IllegalStateException("access backend down")));
+
+		assertTrue(claim.isDone());
+		assertTrue(claim.join().isEmpty());
+		assertEquals(0, harness.service.snapshot(portalId).orElseThrow().runtime().sharedClaims());
+
+		harness.dispatcher.restoreDispatch();
+		CompletableFuture<Optional<RtpService.TraversalPreparation>> recovered = harness.service.claimTraversal(
+				portalId,
+				RtpService.TraversalActor.player(uuid("access-shutdown-recovery"), viewerId));
+
+		assertTrue(recovered.join().isPresent());
+	}
+
+	@Test
+	public void deniedAccessReleasesTheClaimAndAdmissionWhenTerminalDispatchIsRejected()
+	{
+		TestHarness harness = new TestHarness(uniqueSampler());
+		UUID portalId = uuid("denied-shutdown-portal");
+		UUID viewerId = uuid("denied-shutdown-viewer");
+		harness.register(portalId, settings(RtpAllocationMode.SHARED, RtpRotationMode.ON_TRAVERSAL));
+		harness.service.touchViewer(portalId, viewerId).join();
+		harness.executor.runAll();
+
+		harness.access.holdNext();
+		CompletableFuture<Optional<RtpService.TraversalPreparation>> claim = harness.service.claimTraversal(
+				portalId,
+				RtpService.TraversalActor.player(uuid("denied-shutdown-claim"), viewerId));
+		assertFalse(claim.isDone());
+		harness.dispatcher.failNestedExecute();
+		harness.access.completeNext(RtpAccessResult.deniedResult());
+
+		assertTrue(claim.isDone());
+		assertTrue(claim.join().isEmpty());
+		assertEquals(0, harness.service.snapshot(portalId).orElseThrow().runtime().sharedClaims());
+
+		harness.dispatcher.restoreDispatch();
+		CompletableFuture<Optional<RtpService.TraversalPreparation>> recovered = harness.service.claimTraversal(
+				portalId,
+				RtpService.TraversalActor.player(uuid("denied-shutdown-recovery"), viewerId));
+
+		assertTrue(recovered.join().isPresent());
+	}
+
+	@Test
+	public void closingAnEntryReleasesEveryPendingClaimWhenTerminalCleanupIsRejected()
+	{
+		TestHarness harness = new TestHarness(uniqueSampler());
+		UUID portalId = uuid("cancel-all-portal");
+		UUID firstViewer = uuid("cancel-all-viewer-one");
+		UUID secondViewer = uuid("cancel-all-viewer-two");
+		harness.register(portalId, settings(RtpAllocationMode.SHARED, RtpRotationMode.STATIC));
+		harness.service.touchViewer(portalId, firstViewer).join();
+		harness.service.touchViewer(portalId, secondViewer).join();
+		harness.executor.runAll();
+		harness.access.holdNext();
+		CompletableFuture<Optional<RtpService.TraversalPreparation>> first = harness.service.claimTraversal(
+				portalId,
+				RtpService.TraversalActor.player(uuid("cancel-all-claim-one"), firstViewer));
+		harness.access.holdNext();
+		CompletableFuture<Optional<RtpService.TraversalPreparation>> second = harness.service.claimTraversal(
+				portalId,
+				RtpService.TraversalActor.player(uuid("cancel-all-claim-two"), secondViewer));
+		assertFalse(first.isDone());
+		assertFalse(second.isDone());
+
+		harness.dispatcher.failNestedExecute();
+		CompletableFuture<Boolean> unregistered = harness.service.unregister(portalId);
+
+		assertTrue(unregistered.isCompletedExceptionally());
+		assertTrue(first.isDone());
+		assertTrue(second.isDone());
+		assertTrue(first.join().isEmpty());
+		assertTrue(second.join().isEmpty());
+		assertTrue(harness.service.snapshot(portalId).isEmpty());
+	}
+
+	@Test
+	public void traversalAccessOutageMarksTheIntegrationUnavailable()
+	{
+		TestHarness harness = new TestHarness(uniqueSampler());
+		UUID portalId = uuid("access-outage-portal");
+		UUID viewerId = uuid("access-outage-viewer");
+		harness.register(portalId, settings(RtpAllocationMode.SHARED, RtpRotationMode.STATIC));
+		harness.service.touchViewer(portalId, viewerId).join();
+		harness.executor.runAll();
+		assertTrue(harness.service.snapshot(portalId).orElseThrow().integrationAvailable());
+
+		harness.access.holdNext();
+		CompletableFuture<Optional<RtpService.TraversalPreparation>> claim = harness.service.claimTraversal(
+				portalId,
+				RtpService.TraversalActor.player(uuid("access-outage-claim"), viewerId));
+		harness.access.completeNext(RtpAccessResult.failureResult(new IllegalStateException("access backend down")));
+
+		assertTrue(claim.join().isEmpty());
+		assertFalse(harness.service.snapshot(portalId).orElseThrow().integrationAvailable());
+	}
+
 	private static CountingSampler uniqueSampler()
 	{
 		return new CountingSampler(attempt -> destination(0L, attempt, attempt * 16, 64, attempt * -16));
@@ -662,9 +856,25 @@ public final class RtpServiceTest
 	private static final class ManualClock implements RtpService.TimeSource
 	{
 		private long nowMillis;
+		private boolean failNext;
 
 		@Override
 		public long nowMillis()
+		{
+			if(failNext)
+			{
+				failNext = false;
+				throw new IllegalStateException("time source unavailable");
+			}
+			return nowMillis;
+		}
+
+		private void failNext()
+		{
+			failNext = true;
+		}
+
+		private long currentMillis()
 		{
 			return nowMillis;
 		}
@@ -679,23 +889,100 @@ public final class RtpServiceTest
 	{
 		private final ManualClock clock;
 		private final List<ScheduledCommand> scheduled;
+		private final Deque<Runnable> deferred;
+		private final AtomicInteger escaped;
+		private boolean deferExecute;
+		private boolean failSchedule;
+		private boolean failNestedExecute;
+		private int depth;
 
 		private ManualSourceDispatcher(ManualClock clock)
 		{
 			this.clock = clock;
 			this.scheduled = new ArrayList<ScheduledCommand>();
+			this.deferred = new ArrayDeque<Runnable>();
+			this.escaped = new AtomicInteger();
 		}
 
 		@Override
 		public void execute(UUID portalId, Runnable command)
 		{
-			command.run();
+			if(failNestedExecute && depth > 0)
+			{
+				throw new IllegalStateException("nested source dispatch rejected");
+			}
+			if(deferExecute)
+			{
+				deferred.addLast(command);
+				return;
+			}
+			depth++;
+			try
+			{
+				command.run();
+			}
+			finally
+			{
+				depth--;
+			}
 		}
 
 		@Override
 		public void schedule(UUID portalId, Runnable command, long delayMillis)
 		{
-			scheduled.add(new ScheduledCommand(clock.nowMillis() + delayMillis, portalId, command));
+			if(failSchedule)
+			{
+				throw new IllegalStateException("delayed source dispatch rejected");
+			}
+			scheduled.add(new ScheduledCommand(clock.currentMillis() + delayMillis, portalId, command));
+		}
+
+		private void deferExecute()
+		{
+			deferExecute = true;
+		}
+
+		private void failSchedule()
+		{
+			failSchedule = true;
+		}
+
+		private void failNestedExecute()
+		{
+			failNestedExecute = true;
+		}
+
+		private void restoreDispatch()
+		{
+			failSchedule = false;
+			failNestedExecute = false;
+		}
+
+		private void runDeferred()
+		{
+			deferExecute = false;
+			while(!deferred.isEmpty())
+			{
+				Runnable command = deferred.removeFirst();
+				depth++;
+				try
+				{
+					command.run();
+				}
+				catch(RuntimeException exception)
+				{
+					escaped.incrementAndGet();
+				}
+				finally
+				{
+					depth--;
+				}
+			}
+		}
+
+		private int escapedFailures()
+		{
+			return escaped.get();
 		}
 
 		private void runDue()
@@ -708,7 +995,7 @@ public final class RtpServiceTest
 				for(int index = 0; index < scheduled.size(); index++)
 				{
 					ScheduledCommand command = scheduled.get(index);
-					if(command.deadlineMillis() > clock.nowMillis())
+					if(command.deadlineMillis() > clock.currentMillis())
 					{
 						continue;
 					}

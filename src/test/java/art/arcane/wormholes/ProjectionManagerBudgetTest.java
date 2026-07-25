@@ -2,12 +2,19 @@ package art.arcane.wormholes;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 class ProjectionManagerBudgetTest {
     @Test
@@ -73,6 +80,85 @@ class ProjectionManagerBudgetTest {
             ProjectionManager.observerDiscoveryStart(1_000, 0, 1L),
             ProjectionManager.observerDiscoveryStart(32, 64, 2L)
         });
+    }
+
+    @Test
+    void retiredObserverFrameReleasesTheLeaseSoTheObserverIsNotStarved() {
+        Set<UUID> inFlight = ConcurrentHashMap.newKeySet();
+        UUID observerId = UUID.randomUUID();
+        AtomicInteger remaining = new AtomicInteger();
+        List<Runnable> retirements = new ArrayList<Runnable>();
+
+        boolean scheduled = ProjectionManager.dispatchObserverFrame(inFlight, null, observerId, remaining, 3,
+            () -> fail("frame must not run once the task is retired"),
+            (observer, frame, retired) -> {
+                assertNotNull(retired, "an observer frame must hand the scheduler a retirement callback");
+                retirements.add(retired);
+                return true;
+            });
+
+        assertTrue(scheduled);
+        assertTrue(inFlight.contains(observerId));
+        assertEquals(0, remaining.get());
+
+        assertEquals(1, retirements.size());
+        retirements.get(0).run();
+
+        assertFalse(inFlight.contains(observerId));
+        assertEquals(3, remaining.get());
+        assertTrue(inFlight.add(observerId));
+    }
+
+    @Test
+    void rejectedObserverFrameReleasesTheLeaseAndReturnsItsBudget() {
+        Set<UUID> inFlight = ConcurrentHashMap.newKeySet();
+        UUID observerId = UUID.randomUUID();
+        AtomicInteger remaining = new AtomicInteger();
+
+        boolean scheduled = ProjectionManager.dispatchObserverFrame(inFlight, null, observerId, remaining, 4,
+            () -> fail("frame must not run when scheduling is refused"),
+            (observer, frame, retired) -> false);
+
+        assertFalse(scheduled);
+        assertTrue(inFlight.isEmpty());
+        assertEquals(4, remaining.get());
+    }
+
+    @Test
+    void retiredThenRejectedObserverFrameReturnsItsBudgetOnlyOnce() {
+        Set<UUID> inFlight = ConcurrentHashMap.newKeySet();
+        UUID observerId = UUID.randomUUID();
+        AtomicInteger remaining = new AtomicInteger();
+
+        boolean scheduled = ProjectionManager.dispatchObserverFrame(inFlight, null, observerId, remaining, 5,
+            () -> fail("frame must not run when scheduling is refused"),
+            (observer, frame, retired) -> {
+                retired.run();
+                return false;
+            });
+
+        assertFalse(scheduled);
+        assertTrue(inFlight.isEmpty());
+        assertEquals(5, remaining.get());
+    }
+
+    @Test
+    void observerFrameStillInFlightIsSkippedAndHandsBackItsBudget() {
+        Set<UUID> inFlight = ConcurrentHashMap.newKeySet();
+        UUID observerId = UUID.randomUUID();
+        AtomicInteger remaining = new AtomicInteger();
+        inFlight.add(observerId);
+
+        boolean scheduled = ProjectionManager.dispatchObserverFrame(inFlight, null, observerId, remaining, 2,
+            () -> fail("frame must not run while one is in flight"),
+            (observer, frame, retired) -> {
+                fail("in flight observer must not be scheduled again");
+                return false;
+            });
+
+        assertFalse(scheduled);
+        assertTrue(inFlight.contains(observerId));
+        assertEquals(2, remaining.get());
     }
 
     @Test

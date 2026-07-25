@@ -128,11 +128,11 @@ public final class ProjectionClaimSetTest {
 
     @Test
     public void maskAirAlwaysProjectsWhileRemoteAirSkipsLocalAir() {
-        assertTrue(PortalProjector.shouldProjectAirSample(PortalProjector.ProjectedSampleKind.MASK_AIR, true));
-        assertTrue(PortalProjector.shouldProjectAirSample(PortalProjector.ProjectedSampleKind.MASK_AIR, false));
-        assertFalse(PortalProjector.shouldProjectAirSample(PortalProjector.ProjectedSampleKind.REMOTE_AIR, true));
-        assertTrue(PortalProjector.shouldProjectAirSample(PortalProjector.ProjectedSampleKind.REMOTE_AIR, false));
-        assertFalse(PortalProjector.shouldProjectAirSample(PortalProjector.ProjectedSampleKind.NO_SAMPLE, false));
+        assertTrue(PortalProjector.shouldProjectAirSample(ProjectorSample.Kind.MASK_AIR, true));
+        assertTrue(PortalProjector.shouldProjectAirSample(ProjectorSample.Kind.MASK_AIR, false));
+        assertFalse(PortalProjector.shouldProjectAirSample(ProjectorSample.Kind.REMOTE_AIR, true));
+        assertTrue(PortalProjector.shouldProjectAirSample(ProjectorSample.Kind.REMOTE_AIR, false));
+        assertFalse(PortalProjector.shouldProjectAirSample(ProjectorSample.Kind.NO_SAMPLE, false));
     }
 
     private static Long2ObjectOpenHashMap<ProjectedBlockClaim> singleClaim(BlockData data) {

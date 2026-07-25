@@ -23,10 +23,10 @@ public final class TraversalServiceTransitStampTest {
             boolean invulnerable = (mask & 1) != 0;
             boolean silent = (mask & 2) != 0;
             boolean gravity = (mask & 4) != 0;
-            byte stamp = TraversalService.encodeTransitStamp(invulnerable, silent, gravity);
-            assertEquals(invulnerable, TraversalService.stampInvulnerable(stamp));
-            assertEquals(silent, TraversalService.stampSilent(stamp));
-            assertEquals(gravity, TraversalService.stampGravity(stamp));
+            byte stamp = TraversalEntityTransit.encodeTransitStamp(invulnerable, silent, gravity);
+            assertEquals(invulnerable, TraversalEntityTransit.stampInvulnerable(stamp));
+            assertEquals(silent, TraversalEntityTransit.stampSilent(stamp));
+            assertEquals(gravity, TraversalEntityTransit.stampGravity(stamp));
         }
     }
 
@@ -49,7 +49,7 @@ public final class TraversalServiceTransitStampTest {
     public void strandedStampRestoresFlagsAndClearsStamp() {
         TraversalService service = new TraversalService(null);
         FakeEntityState state = new FakeEntityState(UUID.randomUUID());
-        state.pdc.put(TraversalService.TRANSIT_STAMP_KEY, Byte.valueOf(TraversalService.encodeTransitStamp(false, true, true)));
+        state.pdc.put(TraversalEntityTransit.TRANSIT_STAMP_KEY, Byte.valueOf(TraversalEntityTransit.encodeTransitStamp(false, true, true)));
         Entity entity = fakeEntity(state);
 
         service.reconcileLoadedEntity(entity);
@@ -58,7 +58,7 @@ public final class TraversalServiceTransitStampTest {
         assertEquals(Boolean.FALSE, state.invulnerable);
         assertEquals(Boolean.TRUE, state.silent);
         assertEquals(Boolean.TRUE, state.gravity);
-        assertNull(state.pdc.get(TraversalService.TRANSIT_STAMP_KEY));
+        assertNull(state.pdc.get(TraversalEntityTransit.TRANSIT_STAMP_KEY));
     }
 
     @Test

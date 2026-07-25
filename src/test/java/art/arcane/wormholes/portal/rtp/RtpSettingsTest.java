@@ -384,9 +384,12 @@ public final class RtpSettingsTest
 
 	private static void setTunnel(LocalPortal portal, LocalTunnel tunnel) throws Exception
 	{
-		Field tunnelField = LocalPortal.class.getDeclaredField("tunnel");
+		Field linkingField = LocalPortal.class.getDeclaredField("linking");
+		linkingField.setAccessible(true);
+		Object linking = linkingField.get(portal);
+		Field tunnelField = linking.getClass().getDeclaredField("tunnel");
 		tunnelField.setAccessible(true);
-		tunnelField.set(portal, tunnel);
+		tunnelField.set(linking, tunnel);
 	}
 
 	private static LocalPortal loadPortal(JSONObject stored, World world) throws Exception

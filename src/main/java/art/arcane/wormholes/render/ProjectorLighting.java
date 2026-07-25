@@ -25,7 +25,6 @@ import art.arcane.wormholes.service.WormholesTelemetry;
 
 public final class ProjectorLighting {
     private static final int SECTION_NIBBLE_BYTES = 2048;
-    private static final long NO_REMOTE_KEY = Long.MIN_VALUE;
     private static final long BASELINE_MAX_AGE_MILLIS = 2000L;
 
     private final Long2ObjectOpenHashMap<IntOpenHashSet> sentChunkSections = new Long2ObjectOpenHashMap<IntOpenHashSet>(8);
@@ -106,13 +105,13 @@ public final class ProjectorLighting {
         Long2ObjectOpenHashMap<IntOpenHashSet> current = new Long2ObjectOpenHashMap<IntOpenHashSet>(8);
         for (Long2ObjectMap.Entry<ProjectedBlockClaim> entry : projectedClaims.long2ObjectEntrySet()) {
             ProjectedBlockClaim claim = entry.getValue();
-            if (claim.getLightRemoteKey() == NO_REMOTE_KEY || claim.getLightView() == null) {
+            if (claim.getLightRemoteKey() == ProjectedBlockClaim.NO_REMOTE_KEY || claim.getLightView() == null) {
                 continue;
             }
             long packed = entry.getLongKey();
-            int worldX = unpackX(packed);
-            int worldY = unpackY(packed);
-            int worldZ = unpackZ(packed);
+            int worldX = ProjectionCellKey.unpackX(packed);
+            int worldY = ProjectionCellKey.unpackY(packed);
+            int worldZ = ProjectionCellKey.unpackZ(packed);
             if (!isWorldYInsideWorld(localView, worldY)) {
                 continue;
             }
@@ -131,9 +130,9 @@ public final class ProjectorLighting {
         LongIterator iterator = dirtyKeys.iterator();
         while (iterator.hasNext()) {
             long packed = iterator.nextLong();
-            int worldX = unpackX(packed);
-            int worldY = unpackY(packed);
-            int worldZ = unpackZ(packed);
+            int worldX = ProjectionCellKey.unpackX(packed);
+            int worldY = ProjectionCellKey.unpackY(packed);
+            int worldZ = ProjectionCellKey.unpackZ(packed);
             if (!isWorldYInsideWorld(localView, worldY)) {
                 continue;
             }
@@ -382,21 +381,21 @@ public final class ProjectorLighting {
         int sectionMinY = section << 4;
         for (Long2ObjectMap.Entry<ProjectedBlockClaim> entry : projectedClaims.long2ObjectEntrySet()) {
             long localKey = entry.getLongKey();
-            int x = unpackX(localKey);
-            int y = unpackY(localKey);
-            int z = unpackZ(localKey);
+            int x = ProjectionCellKey.unpackX(localKey);
+            int y = ProjectionCellKey.unpackY(localKey);
+            int z = ProjectionCellKey.unpackZ(localKey);
             if ((x >> 4) != chunkX || (z >> 4) != chunkZ || (y >> 4) != section) {
                 continue;
             }
             ProjectedBlockClaim claim = entry.getValue();
             long remoteKey = claim.getLightRemoteKey();
             ProjectionWorldView sourceView = claim.getLightView();
-            if (remoteKey == NO_REMOTE_KEY || sourceView == null) {
+            if (remoteKey == ProjectedBlockClaim.NO_REMOTE_KEY || sourceView == null) {
                 continue;
             }
-            int rx = unpackX(remoteKey);
-            int ry = unpackY(remoteKey);
-            int rz = unpackZ(remoteKey);
+            int rx = ProjectionCellKey.unpackX(remoteKey);
+            int ry = ProjectionCellKey.unpackY(remoteKey);
+            int rz = ProjectionCellKey.unpackZ(remoteKey);
             if (ry < sourceView.getMinHeight() || ry > sourceView.getMaxHeight() - 1) {
                 continue;
             }
@@ -571,21 +570,6 @@ public final class ProjectorLighting {
 
     private static boolean isWorldYInsideWorld(ProjectionWorldView view, int y) {
         return y >= view.getMinHeight() && y < view.getMaxHeight();
-    }
-
-    private static int unpackX(long key) {
-        long raw = (key >> 38) & 0x3FFFFFFL;
-        return (int) ((raw << 38) >> 38);
-    }
-
-    private static int unpackY(long key) {
-        long raw = (key >> 26) & 0xFFFL;
-        return (int) ((raw << 52) >> 52);
-    }
-
-    private static int unpackZ(long key) {
-        long raw = key & 0x3FFFFFFL;
-        return (int) ((raw << 38) >> 38);
     }
 
     private static final class SectionBaseline {

@@ -81,7 +81,7 @@ public final class PortalProjectorFrameTransformTest {
     public void hoistedTransformMatchesTheFrameProjectionForEveryCardinalFramePair() {
         double[] expected = new double[3];
         double[] actual = new double[3];
-        PortalProjector.HoistedFrameTransform transform = new PortalProjector.HoistedFrameTransform();
+        ProjectorFrameTransform transform = new ProjectorFrameTransform();
         for (Direction fromNormal : NORMALS) {
             PortalFrame from = PortalFrame.canonical(fromNormal);
             for (Direction toNormal : NORMALS) {
@@ -107,7 +107,7 @@ public final class PortalProjectorFrameTransformTest {
         double[] expected = new double[3];
         double[] actual = new double[3];
         double[] scratch = new double[3];
-        PortalProjector.HoistedFrameTransform transform = new PortalProjector.HoistedFrameTransform();
+        ProjectorFrameTransform transform = new ProjectorFrameTransform();
         for (Direction normal : NORMALS) {
             PortalFrame frame = PortalFrame.canonical(normal);
             for (int quarterTurns = 0; quarterTurns < 4; quarterTurns++) {
@@ -134,7 +134,7 @@ public final class PortalProjectorFrameTransformTest {
         double[] scratch = new double[3];
         PortalFrame from = PortalFrame.canonical(Direction.N);
         PortalFrame to = PortalFrame.canonical(Direction.E);
-        PortalProjector.HoistedFrameTransform transform = new PortalProjector.HoistedFrameTransform();
+        ProjectorFrameTransform transform = new ProjectorFrameTransform();
 
         transform.configureMirror(from, 1, 4.5D, 70.5D, 9.5D, scratch);
         referenceMirrorApply(from, 1, 4.5D, 70.5D, 9.5D, 11.5D, 74.5D, 2.5D, expected);

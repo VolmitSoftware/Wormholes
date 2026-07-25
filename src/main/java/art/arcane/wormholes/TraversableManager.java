@@ -11,6 +11,8 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.util.Vector;
 
 import art.arcane.volmlib.util.collection.KMap;
+import art.arcane.wormholes.portal.LocalPortal;
+import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.util.VectorMath;
 
 public class TraversableManager implements Listener
@@ -32,9 +34,15 @@ public class TraversableManager implements Listener
 	@EventHandler
 	public void on(PlayerQuitEvent e)
 	{
-		velocities.remove(e.getPlayer().getUniqueId());
-		art.arcane.wormholes.portal.LocalPortal.clearReentryLatch(e.getPlayer().getUniqueId());
-		art.arcane.wormholes.portal.LocalPortal.clearTeleportInFlight(e.getPlayer().getUniqueId());
+		UUID playerId = e.getPlayer().getUniqueId();
+		velocities.remove(playerId);
+		LocalPortal.clearReentryLatch(playerId);
+		LocalPortal.clearTeleportCooldown(playerId);
+		if(LocalPortal.clearTeleportInFlight(playerId))
+		{
+			Wormholes.v("[traversal] released an in-flight traversal claim for quitting player " + playerId);
+			WormholesTelemetry.countFailure("TRAVERSAL_QUIT_MID_TRANSIT");
+		}
 	}
 
 	public Vector getVelocity(Player p)

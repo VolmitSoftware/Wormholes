@@ -43,6 +43,17 @@ class WormholesTelemetryTest {
         assertEquals(2.0D, WormholesTelemetry.packetsPerSecond(2_000L));
     }
 
+    @Test
+    void failureReasonCountTracksDistinctReasonsWithoutBuildingTheBreakdown() {
+        WormholesTelemetry.countFailure("TRAVERSAL_SOURCE_BOUNCE_SCHEDULE_REJECTED");
+        WormholesTelemetry.countFailure("TRAVERSAL_SOURCE_BOUNCE_SCHEDULE_REJECTED");
+        WormholesTelemetry.countFailure("DOOR_TRANSIT_SCHEDULE_REJECTED");
+
+        assertEquals(3L, WormholesTelemetry.failures());
+        assertEquals(2, WormholesTelemetry.failureReasonCount());
+        assertEquals(WormholesTelemetry.failureBreakdown().size(), WormholesTelemetry.failureReasonCount());
+    }
+
     private static void primeRateWindow() {
         WormholesTelemetry.blockChangesPerSecond(1_000L);
     }

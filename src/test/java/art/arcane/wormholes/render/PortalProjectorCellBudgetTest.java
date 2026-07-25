@@ -24,7 +24,7 @@ public final class PortalProjectorCellBudgetTest {
     }
 
     private static double fittedRangeAtEyeDistance(double eyeDistance) {
-        return PortalProjector.fitRangeToCellBudget(DEPTH_BLOCKS, BUDGET,
+        return ProjectorViewFrustum.fitRangeToCellBudget(DEPTH_BLOCKS, BUDGET,
             candidate -> cellsAtEyeDistance(eyeDistance, candidate));
     }
 
@@ -42,7 +42,7 @@ public final class PortalProjectorCellBudgetTest {
             double cells = cellsAtEyeDistance(eyeDistance, fitted);
             assertTrue(cells <= BUDGET,
                 "fitted range " + fitted + " at eye distance " + eyeDistance + " still projects " + cells + " cells");
-            assertTrue(fitted >= PortalProjector.CELL_BUDGET_MIN_RANGE,
+            assertTrue(fitted >= ProjectorViewFrustum.CELL_BUDGET_MIN_RANGE,
                 "fitted range must never collapse below the floor at eye distance " + eyeDistance);
         }
     }
@@ -59,6 +59,6 @@ public final class PortalProjectorCellBudgetTest {
     @Test
     public void aDisabledBudgetLeavesTheRangeUntouched() {
         assertEquals(DEPTH_BLOCKS,
-            PortalProjector.fitRangeToCellBudget(DEPTH_BLOCKS, 0, candidate -> Double.MAX_VALUE), 1.0E-9D);
+            ProjectorViewFrustum.fitRangeToCellBudget(DEPTH_BLOCKS, 0, candidate -> Double.MAX_VALUE), 1.0E-9D);
     }
 }

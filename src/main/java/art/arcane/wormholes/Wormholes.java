@@ -10,43 +10,30 @@ import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.door.DimensionalDoorManager;
-import art.arcane.wormholes.door.DimensionalDoorRepository;
-import art.arcane.wormholes.door.DoorStoreSnapshot;
 import art.arcane.wormholes.localization.WormholesLocalization;
-import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.network.ImportExportService;
 import art.arcane.wormholes.network.NetworkManager;
-import art.arcane.wormholes.network.NetworkRouter;
-import art.arcane.wormholes.network.PlayerTransfer;
 import art.arcane.wormholes.network.PortalSyncService;
 import art.arcane.wormholes.network.RemotePortalRegistry;
 import art.arcane.wormholes.network.TraversalService;
 import art.arcane.wormholes.network.replication.capture.CaptureRuntime;
-import art.arcane.wormholes.network.replication.capture.CaptureSettings;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.network.view.ViewServer;
 import art.arcane.wormholes.network.view.ViewSubscriptionManager;
-import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ArrivalWarmer;
 import art.arcane.wormholes.portal.rtp.BukkitRtpEnvironment;
 import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
 import art.arcane.wormholes.portal.vanilla.VanillaPortalReplacer;
-import art.arcane.wormholes.service.DebugTelemetryService;
-import art.arcane.wormholes.service.MetricsRuntime;
 import art.arcane.wormholes.service.PacketEventsRuntime;
 import art.arcane.wormholes.service.StatsSnapshotWriter;
 import art.arcane.wormholes.service.WormholesAudience;
 import art.arcane.wormholes.service.WormholesCommandService;
 import art.arcane.wormholes.service.WormholesIntegrationService;
-import art.arcane.wormholes.survival.doors.dimension.PocketDatapackInstaller;
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import art.arcane.wormholes.util.J;
 import art.arcane.wormholes.util.common.SplashScreen;
-import art.arcane.wormholes.util.project.config.HotloadManager;
 import io.github.slimjar.app.builder.SpigotApplicationBuilder;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -57,24 +44,14 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public final class Wormholes extends JavaPlugin implements ReloadAware {
-    private static final int BSTATS_PLUGIN_ID = 27950;
-    private static final NamespacedKey VANILLA_OVERWORLD = new NamespacedKey("minecraft", "overworld");
-
     public static Wormholes INSTANCE;
     public static Wormholes instance;
     public static String tag = ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + "Wormholes" + ChatColor.DARK_GRAY + "] " + ChatColor.GRAY;
@@ -105,18 +82,14 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     private static final ConcurrentHashMap<UUID, Consumer<String>> CHAT_INPUTS = new ConcurrentHashMap<>();
 
     private final AtomicBoolean alreadyDrained = new AtomicBoolean(false);
-    private final AtomicBoolean dimensionalDoorDisablePending = new AtomicBoolean(false);
-    private boolean pocketDatapackRestartRequired;
+    private final WormholesDoorLifecycle doors = new WormholesDoorLifecycle(this);
+    private final WormholesNetworkRuntime network = new WormholesNetworkRuntime(this);
+    private final WormholesDiagnosticsRuntime diagnostics = new WormholesDiagnosticsRuntime(this);
+    private final WormholesReloadCoordinator reloads = new WormholesReloadCoordinator(this, doors, network, diagnostics);
     private SchedulerRuntime schedulerRuntime;
     private PacketEventsRuntime packetEventsRuntime;
-    private MetricsRuntime metricsRuntime;
     private WormholesCommandService commandService;
     private WormholesIntegrationService integrationService;
-    private HotloadManager hotloadManager;
-    private DebugTelemetryService debugTelemetryService;
-    private StatsSnapshotWriter statsSnapshotWriter;
-    private CaptureRuntime captureRuntime;
-    private Instant pluginStartedAt;
 
     public Wormholes() {
         getLogger().info("Loading dependencies...");
@@ -138,14 +111,15 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         boolean success = true;
         String errorMessage = "";
 
-        prepareSpigotPocketDatapack();
+        resetForEnable();
+        doors.prepareSpigotPocketDatapack();
         preloadPersistenceClasses();
 
         try {
             settings = WormholesSettings.loadAll(getDataFolder().toPath());
             Settings.refresh(settings);
             localization = new WormholesLocalization();
-            reloadLocalization(settings);
+            reloads.reloadLocalization(settings);
             this.schedulerRuntime = installSchedulerBridge();
             installChunkLeaseRegistry();
 
@@ -163,7 +137,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             arrivalWarmer = new ArrivalWarmer();
             rtpRuntime = new BukkitRtpEnvironment(this, portalManager).createRuntime();
             projectionManager.setRtpProjectionProvider(rtpRuntime);
-            applyDimensionalDoorSetting(settings);
+            doors.applySetting(settings);
 
             getServer().getPluginManager().registerEvents(blockManager, this);
             getServer().getPluginManager().registerEvents(effectManager, this);
@@ -184,38 +158,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
                 }
             }, 20);
 
-            remotePortalRegistry = new RemotePortalRegistry();
-            networkManager = new NetworkManager(getLogger(), settings.getNetwork(), WormholesPlatform.minecraftVersion(), WormholesPlatform.pluginVersion(this), Bukkit.getPort(), getDataFolder().toPath());
-            importExportService = new ImportExportService(networkManager);
-            portalSyncService = new PortalSyncService(
-                networkManager,
-                () -> portalManager.getLocalPortals(),
-                runnable -> FoliaScheduler.runGlobal(this, runnable)
-            );
-            traversalService = new TraversalService(networkManager);
-            remoteViewCache = new RemoteViewCache();
-            viewSubscriptions = new ViewSubscriptionManager(networkManager, remoteViewCache);
-            viewServer = new ViewServer(networkManager);
-            NetworkRouter networkRouter = new NetworkRouter(remotePortalRegistry, portalSyncService, traversalService, viewServer, remoteViewCache, viewSubscriptions, networkManager.getReplicationManager(), networkManager);
-            networkManager.setMessageSink(networkRouter::onMessage);
-            networkManager.setPeerStateSink(networkRouter::onPeerState);
-            registerStatusBridgeListener(networkManager);
-            getServer().getPluginManager().registerEvents(traversalService, this);
-            getServer().getPluginManager().registerEvents(viewServer, this);
-            traversalService.sweepStrandedTransitEntities();
-            getServer().getMessenger().registerOutgoingPluginChannel(this, PlayerTransfer.PROXY_CHANNEL);
-            packetEvents().registerTransferGate();
-            networkManager.start();
-            J.ar(() -> {
-                ViewSubscriptionManager subscriptions = viewSubscriptions;
-                if (subscriptions != null) {
-                    subscriptions.sweep();
-                }
-                ViewServer activeViewServer = viewServer;
-                if (activeViewServer != null) {
-                    activeViewServer.syncGatewayTickets();
-                }
-            }, 100);
+            network.bootstrap(settings);
             J.ar(() -> {
                 ArrivalWarmer activeWarmer = arrivalWarmer;
                 if (activeWarmer != null) {
@@ -230,14 +173,10 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             integrationService = new WormholesIntegrationService();
             integrationService.register();
 
-            hotloadManager = new HotloadManager(getDataFolder().toPath(), getLogger(), this::onConfigHotReload);
-            hotloadManager.start();
+            reloads.startHotloadManager();
 
-            this.metricsRuntime = MetricsRuntime.start(this, BSTATS_PLUGIN_ID);
-            this.pluginStartedAt = Instant.now();
-            startDebugTelemetryService();
-            startStatsSnapshotWriter();
-            startCaptureRuntime();
+            diagnostics.start();
+            network.startCaptureRuntime();
         } catch (Exception ex) {
             success = false;
             errorMessage = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
@@ -245,32 +184,53 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         }
 
         SplashScreen.print(this, success, errorMessage);
+
+        if (!success) {
+            abortFailedEnable();
+        }
+    }
+
+    private void resetForEnable() {
+        instance = this;
+        INSTANCE = this;
+        alreadyDrained.set(false);
+        doors.clearDisablePending();
+        unregisterIntegrationService();
+        try {
+            HandlerList.unregisterAll(this);
+        } catch (Throwable ex) {
+            getLogger().log(Level.WARNING, "Error clearing stale listeners before enable", ex);
+        }
+    }
+
+    private void abortFailedEnable() {
+        try {
+            tearDownBeforeDrain();
+        } catch (Throwable ex) {
+            getLogger().log(Level.SEVERE, "Error tearing down Wormholes after a failed enable", ex);
+        }
+        try {
+            getServer().getPluginManager().disablePlugin(this);
+        } catch (Throwable ex) {
+            getLogger().log(Level.SEVERE, "Wormholes failed to enable and could not disable itself", ex);
+        }
     }
 
     @Override
     public void onDisable() {
-        unregisterIntegrationService();
-        shutdownDimensionalDoorsBeforeSchedulers();
-        shutdownPocketWorldService();
-        shutdownRtpBeforeSchedulers();
-        shutdownProjectionBeforeSchedulers();
-        shutdownViewServerBeforeSchedulers();
-        shutdownArrivalWarmerBeforeSchedulers();
-        shutdownChunkLeasesBeforeSchedulers();
-        shutdownEffectsBeforeSchedulers();
-        if (schedulerRuntime != null) {
-            schedulerRuntime.cancelPluginTasks();
-        }
-        FoliaScheduler.cancelTasks(this);
-        drain();
+        tearDownBeforeDrain();
     }
 
     @Override
     public void onPreUnload(ReloadAware.PreUnloadReason reason) {
         getLogger().info("BileTools pre-unload hook fired (" + reason + "). Tearing down Wormholes managers and PacketEvents.");
+        tearDownBeforeDrain();
+    }
+
+    private void tearDownBeforeDrain() {
         unregisterIntegrationService();
-        shutdownDimensionalDoorsBeforeSchedulers();
-        shutdownPocketWorldService();
+        doors.shutdownManagerBeforeSchedulers();
+        doors.shutdownPocketWorldService();
         shutdownRtpBeforeSchedulers();
         shutdownProjectionBeforeSchedulers();
         shutdownViewServerBeforeSchedulers();
@@ -337,222 +297,6 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         }
     }
 
-    private void shutdownPocketWorldService() {
-        PocketWorldService activeService = pocketWorldService;
-        pocketWorldService = null;
-        if (activeService == null) {
-            return;
-        }
-        try {
-            activeService.close();
-        } catch (Throwable ex) {
-            getLogger().log(Level.WARNING, "Error during PocketWorldService shutdown", ex);
-        }
-    }
-
-    private void shutdownDimensionalDoorsBeforeSchedulers() {
-        DimensionalDoorManager activeManager = dimensionalDoorManager;
-        dimensionalDoorManager = null;
-        if (activeManager == null) {
-            return;
-        }
-        try {
-            activeManager.close();
-        } catch (Throwable ex) {
-            getLogger().log(Level.WARNING, "Error during Dimensional Doors shutdown", ex);
-        }
-    }
-
-    private void startDimensionalDoorsSafely() {
-        try {
-            startDimensionalDoorsOrThrow();
-        } catch (Throwable ex) {
-            getLogger().log(Level.SEVERE,
-                "Dimensional Doors could not start. Core Wormholes features will remain available.", ex);
-        }
-    }
-
-    private void startDimensionalDoorsOrThrow() throws IOException {
-        if (dimensionalDoorManager != null) {
-            return;
-        }
-        PocketWorldService activePocketWorld = pocketWorldService;
-        boolean createdPocketWorldService = false;
-        if (activePocketWorld == null) {
-            activePocketWorld = new PocketWorldService(this);
-            try {
-                activePocketWorld.start();
-            } catch (RuntimeException ex) {
-                try {
-                    activePocketWorld.close();
-                } catch (Throwable closeError) {
-                    getLogger().log(Level.WARNING, "Error cleaning up a failed pocket-world service startup", closeError);
-                }
-                throw ex;
-            }
-            pocketWorldService = activePocketWorld;
-            createdPocketWorldService = true;
-        }
-
-        DimensionalDoorManager manager = new DimensionalDoorManager(this, activePocketWorld);
-        try {
-            manager.start();
-            dimensionalDoorManager = manager;
-        } catch (IOException | RuntimeException ex) {
-            try {
-                manager.close();
-            } catch (Throwable closeError) {
-                getLogger().log(Level.WARNING, "Error cleaning up a failed Dimensional Doors startup", closeError);
-            }
-            if (createdPocketWorldService) {
-                shutdownPocketWorldService();
-            }
-            throw ex;
-        }
-    }
-
-    private void applyDimensionalDoorSetting(WormholesSettings activeSettings) {
-        if (activeSettings.getMain().dimensionalDoorsEnabled) {
-            if (pocketDatapackRestartRequired) {
-                getLogger().warning("Dimensional Doors are dormant until a full server restart loads the Wormholes pocket datapack.");
-                return;
-            }
-            dimensionalDoorDisablePending.set(false);
-            DimensionalDoorManager activeManager = dimensionalDoorManager;
-            if (activeManager != null) {
-                activeManager.resumeEntries();
-                return;
-            }
-            startDimensionalDoorsSafely();
-            return;
-        }
-        DimensionalDoorManager activeManager = dimensionalDoorManager;
-        if (activeManager == null) {
-            dimensionalDoorDisablePending.set(false);
-            shutdownPocketWorldService();
-            return;
-        }
-        activeManager.beginDrain();
-        if (!hasDimensionalDoorDrainWork(activeManager)) {
-            dimensionalDoorDisablePending.set(false);
-            finishDimensionalDoorDisable(activeManager);
-            return;
-        }
-        if (dimensionalDoorDisablePending.compareAndSet(false, true)) {
-            getLogger().warning("Dimensional Doors are draining current transits and pocket occupants before disabling.");
-            notifyPocketOccupantsOfDisable();
-            scheduleDimensionalDoorDisableCheck(activeSettings, activeManager);
-        }
-    }
-
-    private void prepareSpigotPocketDatapack() {
-        if (isPaperRuntime()) {
-            return;
-        }
-        List<World> worlds = Bukkit.getWorlds();
-        if (worlds.isEmpty()) {
-            pocketDatapackRestartRequired = true;
-            getLogger().severe("The primary Spigot world is unavailable; the Wormholes pocket datapack could not be installed.");
-            return;
-        }
-        Path levelRoot = primarySpigotWorld(worlds).getWorldFolder().toPath();
-        try {
-            PocketDatapackInstaller.InstallResult result = PocketDatapackInstaller.install(levelRoot);
-            boolean pocketWorldLoaded = WormholesPlatform.getWorld(PocketWorldService.WORLD_KEY) != null;
-            pocketDatapackRestartRequired = result != PocketDatapackInstaller.InstallResult.UNCHANGED || !pocketWorldLoaded;
-            if (result == PocketDatapackInstaller.InstallResult.INSTALLED) {
-                getLogger().warning("Installed the Wormholes pocket datapack. A full server restart is required before Dimensional Doors can start.");
-            } else if (result == PocketDatapackInstaller.InstallResult.UPDATED) {
-                getLogger().warning("Updated the Wormholes pocket datapack. A full server restart is required before Dimensional Doors can start.");
-            } else if (!pocketWorldLoaded) {
-                getLogger().warning("The Wormholes pocket datapack is installed, but wormholes:pockets is not loaded. Ensure file/wormholes-pockets.zip is enabled, then perform a full server restart; /reload is insufficient.");
-            }
-        } catch (IOException exception) {
-            pocketDatapackRestartRequired = true;
-            getLogger().log(Level.SEVERE, "The Wormholes pocket datapack could not be installed. Core portals will remain available, but Dimensional Doors are disabled.", exception);
-        }
-    }
-
-    private static boolean isPaperRuntime() {
-        try {
-            Class.forName("io.papermc.paper.plugin.bootstrap.PluginBootstrap", false, Wormholes.class.getClassLoader());
-            return true;
-        } catch (ClassNotFoundException exception) {
-            return false;
-        }
-    }
-
-    private static World primarySpigotWorld(List<World> worlds) {
-        World keyedOverworld = WormholesPlatform.getWorld(VANILLA_OVERWORLD);
-        if (keyedOverworld != null) {
-            return keyedOverworld;
-        }
-        for (World world : worlds) {
-            if (world.getEnvironment() == World.Environment.NORMAL) {
-                return world;
-            }
-        }
-        return worlds.get(0);
-    }
-
-    private void scheduleDimensionalDoorDisableCheck(
-        WormholesSettings expectedSettings,
-        DimensionalDoorManager expectedManager
-    ) {
-        boolean scheduled = FoliaScheduler.runGlobal(this, () -> {
-            if (settings != expectedSettings
-                || expectedSettings.getMain().dimensionalDoorsEnabled
-                || dimensionalDoorManager != expectedManager) {
-                dimensionalDoorDisablePending.set(false);
-                return;
-            }
-            if (hasDimensionalDoorDrainWork(expectedManager)) {
-                scheduleDimensionalDoorDisableCheck(expectedSettings, expectedManager);
-                return;
-            }
-            dimensionalDoorDisablePending.set(false);
-            finishDimensionalDoorDisable(expectedManager);
-        }, 20L);
-        if (!scheduled) {
-            dimensionalDoorDisablePending.set(false);
-            getLogger().warning("Could not schedule the Dimensional Doors disable drain check.");
-        }
-    }
-
-    private boolean hasDimensionalDoorDrainWork(DimensionalDoorManager manager) {
-        World pocketWorld = activePocketWorld();
-        return manager.hasActiveTransits()
-            || (pocketWorld != null && !pocketWorld.getPlayers().isEmpty());
-    }
-
-    private void notifyPocketOccupantsOfDisable() {
-        World pocketWorld = activePocketWorld();
-        if (pocketWorld == null) {
-            return;
-        }
-        for (Player player : pocketWorld.getPlayers()) {
-            FoliaScheduler.runEntity(this, player, () -> WormholesAudience.sendMessage(
-                player,
-                text().component(WormholesMessages.DOOR_DISABLE_WARNING)));
-        }
-    }
-
-    private World activePocketWorld() {
-        PocketWorldService activeService = pocketWorldService;
-        return activeService == null
-            ? WormholesPlatform.getWorld(PocketWorldService.WORLD_KEY)
-            : activeService.world().orElseGet(() -> WormholesPlatform.getWorld(PocketWorldService.WORLD_KEY));
-    }
-
-    private void finishDimensionalDoorDisable(DimensionalDoorManager expectedManager) {
-        if (dimensionalDoorManager != expectedManager) {
-            return;
-        }
-        shutdownDimensionalDoorsBeforeSchedulers();
-        shutdownPocketWorldService();
-        getLogger().info("Dimensional Doors disabled; placed doors now behave as ordinary physical doors.");
-    }
-
     private void shutdownEffectsBeforeSchedulers() {
         EffectManager activeEffects = effectManager;
         if (activeEffects != null) {
@@ -594,8 +338,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     }
 
     public LocalizationReloadResult reloadAll() {
-        WormholesSettings reloaded = WormholesSettings.loadAll(getDataFolder().toPath());
-        return applyReloadedSettings(reloaded);
+        return reloads.reloadAll();
     }
 
     public int deleteAllPortalsNow() {
@@ -607,275 +350,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     }
 
     public ResetResult resetEverythingNow() throws IOException {
-        Path dataFolder = getDataFolder().toPath();
-        DimensionalDoorManager resetManager = dimensionalDoorManager;
-        boolean resumeEntries = resetManager != null && resetManager.beginDrain();
-        World pocketWorld = activePocketWorld();
-        if ((pocketWorld != null && !pocketWorld.getPlayers().isEmpty())
-            || (resetManager != null && resetManager.hasActiveTransits())) {
-            if (resumeEntries) {
-                resetManager.resumeEntries();
-            }
-            throw new IOException("Cannot reset Wormholes while players are inside or transiting a pocket dimension");
-        }
-        long retiredPocketSlots = resetManager == null
-            ? loadRetiredPocketSlots(dataFolder)
-            : resetManager.state().snapshot().nextPocketSlot();
-        dimensionalDoorDisablePending.set(false);
-        shutdownDimensionalDoorsBeforeSchedulers();
-        stopHotloadManager();
-        int deletedPortals = deleteAllPortalsNow();
-        resetNetworkRuntime();
-        CHAT_INPUTS.clear();
-        deletePathTree(dataFolder.resolve("config"));
-        deletePathTree(dataFolder.resolve("identity"));
-        deletePathTree(dataFolder.resolve("routes"));
-        deletePathTree(dataFolder.resolve("trust"));
-        deletePathTree(dataFolder.resolve("portals"));
-        deletePathTree(dataFolder.resolve("doors"));
-        DimensionalDoorRepository.under(dataFolder).save(new DoorStoreSnapshot(
-            DoorStoreSnapshot.CURRENT_SCHEMA,
-            retiredPocketSlots,
-            List.of(),
-            List.of(),
-            List.of(),
-            List.of()
-        ));
-        WormholesSettings defaults = WormholesSettings.loadAll(dataFolder);
-        settings = defaults;
-        Settings.refresh(defaults);
-        reloadLocalization(defaults);
-        synchronizeDebugTelemetrySetting();
-        if (defaults.getMain().dimensionalDoorsEnabled) {
-            startDimensionalDoorsOrThrow();
-        } else {
-            shutdownPocketWorldService();
-        }
-        rebuildNetworkRuntime(defaults);
-        WormholesCommandService activeService = commandService;
-        if (activeService != null) {
-            activeService.invalidateCache();
-        }
-        hotloadManager = new HotloadManager(getDataFolder().toPath(), getLogger(), this::onConfigHotReload);
-        hotloadManager.start();
-        return new ResetResult(deletedPortals);
-    }
-
-    private long loadRetiredPocketSlots(Path dataFolder) throws IOException {
-        DimensionalDoorRepository repository = DimensionalDoorRepository.under(dataFolder);
-        try {
-            return repository.load().nextPocketSlot();
-        } catch (IOException parseFailure) {
-            long recovered = repository.recoverNextPocketSlot();
-            getLogger().log(Level.WARNING,
-                "Recovered the retired pocket slot from malformed Dimensional Doors state during reset.",
-                parseFailure);
-            return recovered;
-        }
-    }
-
-    private void onConfigHotReload(WormholesSettings reloaded) {
-        applyReloadedSettings(reloaded);
-    }
-
-    private LocalizationReloadResult applyReloadedSettings(WormholesSettings reloaded) {
-        if (reloaded == null) {
-            throw new IllegalArgumentException("Reloaded settings cannot be null");
-        }
-        LocalizationReloadResult localizationResult = reloadLocalization(reloaded);
-        settings = reloaded;
-        Settings.refresh(reloaded);
-        synchronizeDebugTelemetrySetting();
-        FoliaScheduler.runGlobal(this, () -> applyReloadedManagers(reloaded));
-        return localizationResult;
-    }
-
-    private void applyReloadedManagers(WormholesSettings reloaded) {
-        if (settings != reloaded) {
-            return;
-        }
-        BlockManager activeBlockManager = blockManager;
-        if (activeBlockManager != null) {
-            try {
-                activeBlockManager.onLanguageReload();
-            } catch (Throwable ex) {
-                getLogger().log(Level.WARNING, "BlockManager rejected language reload notification", ex);
-            }
-        }
-        applyDimensionalDoorSetting(reloaded);
-        DimensionalDoorManager activeDoorManager = dimensionalDoorManager;
-        if (activeDoorManager != null) {
-            try {
-                activeDoorManager.onLanguageReload();
-            } catch (Throwable ex) {
-                getLogger().log(Level.WARNING, "DimensionalDoorManager rejected language reload notification", ex);
-            }
-        }
-        ProjectionManager activeProjection = projectionManager;
-        if (activeProjection != null) {
-            try {
-                activeProjection.onSettingsReloaded();
-            } catch (Throwable ex) {
-                getLogger().log(Level.WARNING, "ProjectionManager rejected hot-reload notification", ex);
-            }
-        }
-        WormholesCommandService activeService = commandService;
-        if (activeService != null) {
-            try {
-                activeService.invalidateCache();
-            } catch (Throwable ex) {
-                getLogger().log(Level.WARNING, "CommandService cache invalidation failed", ex);
-            }
-        }
-        NetworkManager activeNetwork = networkManager;
-        if (activeNetwork != null) {
-            try {
-                activeNetwork.applyConfig(reloaded.getNetwork());
-            } catch (Throwable ex) {
-                getLogger().log(Level.WARNING, "NetworkManager rejected hot-reload notification", ex);
-            }
-        }
-        try {
-            stopStatsSnapshotWriter();
-            startStatsSnapshotWriter();
-        } catch (Throwable ex) {
-            getLogger().log(Level.WARNING, "StatsSnapshotWriter rejected hot-reload notification", ex);
-        }
-        try {
-            CaptureRuntime activeCapture = captureRuntime;
-            if (!reloaded.getNetwork().enabled) {
-                stopCaptureRuntime();
-            } else if (activeCapture == null) {
-                startCaptureRuntime();
-            } else {
-                activeCapture.applySettings(reloaded.getNetwork());
-            }
-        } catch (Throwable ex) {
-            getLogger().log(Level.WARNING, "CaptureRuntime rejected hot-reload notification", ex);
-        }
-        getLogger().info("Configuration hot-reloaded.");
-    }
-
-    private LocalizationReloadResult reloadLocalization(WormholesSettings reloaded) {
-        WormholesLocalization activeLocalization = localization;
-        if (activeLocalization == null) {
-            activeLocalization = new WormholesLocalization();
-            localization = activeLocalization;
-        }
-        LocalizationReloadResult result = activeLocalization.reload(
-            getDataFolder().toPath(),
-            reloaded.getMain().language,
-            reloaded.getMain().languageFallbacks
-        );
-        if (!result.applied()) {
-            getLogger().log(
-                Level.WARNING,
-                "Language reload was rejected; retaining the last valid localization snapshot.",
-                result.failure()
-            );
-            return result;
-        }
-        if (!result.validation().warnings().isEmpty()) {
-            getLogger().info("Language reload applied with " + result.validation().warnings().size()
-                + " missing translation key(s) falling through to a lower-priority locale or built-in English.");
-        }
-        return result;
-    }
-
-    private void resetNetworkRuntime() {
-        unregisterStatusBridgeListener();
-        stopCaptureRuntime();
-        if (viewServer != null) {
-            try {
-                viewServer.shutdown();
-            } catch (Throwable ex) {
-                getLogger().log(Level.WARNING, "Error during ViewServer reset", ex);
-            }
-            HandlerList.unregisterAll(viewServer);
-        }
-        if (traversalService != null) {
-            HandlerList.unregisterAll(traversalService);
-        }
-        if (networkManager != null) {
-            try {
-                networkManager.stop();
-            } catch (Throwable ex) {
-                getLogger().log(Level.WARNING, "Error during NetworkManager reset", ex);
-            }
-        }
-        remotePortalRegistry = new RemotePortalRegistry();
-        portalSyncService = null;
-        traversalService = null;
-        remoteViewCache = new RemoteViewCache();
-        viewSubscriptions = null;
-        viewServer = null;
-        importExportService = null;
-        networkManager = null;
-    }
-
-    private void rebuildNetworkRuntime(WormholesSettings activeSettings) {
-        remotePortalRegistry = new RemotePortalRegistry();
-        networkManager = new NetworkManager(getLogger(), activeSettings.getNetwork(), WormholesPlatform.minecraftVersion(), WormholesPlatform.pluginVersion(this), Bukkit.getPort(), getDataFolder().toPath());
-        importExportService = new ImportExportService(networkManager);
-        portalSyncService = new PortalSyncService(
-            networkManager,
-            () -> portalManager.getLocalPortals(),
-            runnable -> FoliaScheduler.runGlobal(this, runnable)
-        );
-        traversalService = new TraversalService(networkManager);
-        remoteViewCache = new RemoteViewCache();
-        viewSubscriptions = new ViewSubscriptionManager(networkManager, remoteViewCache);
-        viewServer = new ViewServer(networkManager);
-        NetworkRouter networkRouter = new NetworkRouter(remotePortalRegistry, portalSyncService, traversalService, viewServer, remoteViewCache, viewSubscriptions, networkManager.getReplicationManager(), networkManager);
-        networkManager.setMessageSink(networkRouter::onMessage);
-        networkManager.setPeerStateSink(networkRouter::onPeerState);
-        registerStatusBridgeListener(networkManager);
-        getServer().getPluginManager().registerEvents(traversalService, this);
-        getServer().getPluginManager().registerEvents(viewServer, this);
-        traversalService.sweepStrandedTransitEntities();
-        networkManager.start();
-        startCaptureRuntime();
-    }
-
-    private void registerStatusBridgeListener(NetworkManager manager) {
-        packetEvents().registerStatusBridge(manager);
-    }
-
-    private void unregisterStatusBridgeListener() {
-        PacketEventsRuntime runtime = packetEventsRuntime;
-        if (runtime != null) {
-            runtime.unregisterStatusBridge();
-        }
-    }
-
-    private void stopHotloadManager() {
-        HotloadManager activeHotload = hotloadManager;
-        hotloadManager = null;
-        if (activeHotload != null) {
-            activeHotload.stop();
-        }
-    }
-
-    private static void deletePathTree(Path path) throws IOException {
-        if (!Files.exists(path)) {
-            return;
-        }
-        Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                Files.deleteIfExists(file);
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-                if (exc != null) {
-                    throw exc;
-                }
-                Files.deleteIfExists(dir);
-                return FileVisitResult.CONTINUE;
-            }
-        });
+        return reloads.resetEverythingNow();
     }
 
     public WormholesSettings getSettings() {
@@ -961,17 +436,16 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     }
 
     public static void w(String message) {
-        if (instance == null) {
-            return;
-        }
-        instance.getLogger().warning(message);
+        log().warning(message);
     }
 
     public static void f(String message) {
-        if (instance == null) {
-            return;
-        }
-        instance.getLogger().severe(message);
+        log().severe(message);
+    }
+
+    static Logger log() {
+        Wormholes active = instance;
+        return active == null ? Logger.getLogger("Wormholes") : active.getLogger();
     }
 
     public static void awaitChatInput(Player player, Consumer<String> callback) {
@@ -979,6 +453,10 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             return;
         }
         CHAT_INPUTS.put(player.getUniqueId(), callback);
+    }
+
+    static void clearChatInputs() {
+        CHAT_INPUTS.clear();
     }
 
     public record ResetResult(int deletedPortals) {
@@ -994,7 +472,10 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             }
             event.setCancelled(true);
             String text = event.getMessage();
-            FoliaScheduler.runEntity(Wormholes.instance, event.getPlayer(), () -> consumer.accept(text));
+            if (!FoliaScheduler.runEntity(Wormholes.instance, event.getPlayer(), () -> consumer.accept(text))) {
+                CHAT_INPUTS.putIfAbsent(id, consumer);
+                w("Could not deliver chat input from " + event.getPlayer().getName() + "; the prompt remains open for another attempt.");
+            }
         }
     }
 
@@ -1007,7 +488,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     private SchedulerRuntime installSchedulerBridge() {
         SchedulerRuntime runtime = new SchedulerRuntime(
             () -> this,
-            runnable -> FoliaScheduler.runAsync(this, runnable),
+            this::runAsyncTask,
             message -> getLogger().fine(message),
             message -> getLogger().warning(message),
             throwable -> getLogger().log(Level.SEVERE, "Wormholes scheduler error", throwable)
@@ -1025,25 +506,31 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         return runtime;
     }
 
+    private void runAsyncTask(Runnable runnable) {
+        if (!FoliaScheduler.runAsync(this, runnable)) {
+            getLogger().warning("An asynchronous Wormholes task was rejected by the scheduler and did not run.");
+        }
+    }
+
     private void drain() {
         if (!alreadyDrained.compareAndSet(false, true)) {
             return;
         }
 
         try {
-            stopDebugTelemetryService();
+            diagnostics.stopDebugTelemetryService();
         } catch (Throwable ex) {
             getLogger().log(Level.WARNING, "Error during DebugTelemetryService stop", ex);
         }
 
         try {
-            stopStatsSnapshotWriter();
+            diagnostics.stopStatsSnapshotWriter();
         } catch (Throwable ex) {
             getLogger().log(Level.WARNING, "Error during StatsSnapshotWriter stop", ex);
         }
 
         try {
-            stopCaptureRuntime();
+            network.stopCaptureRuntime();
         } catch (Throwable ex) {
             getLogger().log(Level.WARNING, "Error during CaptureRuntime stop", ex);
         }
@@ -1051,10 +538,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         shutdownRtpBeforeSchedulers();
 
         try {
-            if (hotloadManager != null) {
-                hotloadManager.stop();
-                hotloadManager = null;
-            }
+            reloads.stopHotloadManagerDuringDrain();
         } catch (Throwable ex) {
             getLogger().log(Level.WARNING, "Error during HotloadManager stop", ex);
         }
@@ -1074,27 +558,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             }
         }
 
-        try {
-            if (viewServer != null) {
-                viewServer.shutdown();
-            }
-        } catch (Throwable ex) {
-            getLogger().log(Level.WARNING, "Error during ViewServer shutdown", ex);
-        }
-
-        try {
-            if (networkManager != null) {
-                networkManager.stop();
-            }
-        } catch (Throwable ex) {
-            getLogger().log(Level.WARNING, "Error during NetworkManager shutdown", ex);
-        }
-
-        try {
-            unregisterStatusBridgeListener();
-        } catch (Throwable ex) {
-            getLogger().log(Level.WARNING, "Error unregistering status bridge listener", ex);
-        }
+        network.drain();
 
         try {
             if (projectionManager != null) {
@@ -1135,136 +599,72 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             activePacketEvents.terminate();
         }
 
-        MetricsRuntime activeMetrics = metricsRuntime;
-        metricsRuntime = null;
-        if (activeMetrics != null) {
-            activeMetrics.shutdown();
-        }
+        diagnostics.shutdownMetrics();
 
         WormholesAudience.stop(getLogger());
+
+        clearStaticServices();
+    }
+
+    private void clearStaticServices() {
+        packetEventsRuntime = null;
+        schedulerRuntime = null;
+
+        if (INSTANCE != null && INSTANCE != this) {
+            return;
+        }
+
+        viewServer = null;
+        viewSubscriptions = null;
+        remoteViewCache = null;
+        traversalService = null;
+        portalSyncService = null;
+        importExportService = null;
+        networkManager = null;
+        remotePortalRegistry = null;
+        dimensionalDoorManager = null;
+        pocketWorldService = null;
+        rtpRuntime = null;
+        arrivalWarmer = null;
+        projectionChangeTracker = null;
+        projectionManager = null;
+        traversableManager = null;
+        portalManager = null;
+        wandSelectionManager = null;
+        constructionManager = null;
+        effectManager = null;
+        blockManager = null;
+        clearChatInputs();
+        instance = null;
+        INSTANCE = null;
     }
 
     public StatsSnapshotWriter getStatsSnapshotWriter() {
-        return statsSnapshotWriter;
+        return diagnostics.statsSnapshotWriter();
     }
 
     public void toggleDebugTelemetry(String actor) {
-        DebugTelemetryService service = debugTelemetryService;
-        if (service != null) {
-            service.toggle(actor);
-            return;
-        }
-        boolean enabled = !Settings.DEBUG;
-        Settings.DEBUG = enabled;
-        getLogger().info("[debug] verbose logging " + (enabled ? "ENABLED" : "DISABLED") + " by " + actor + "; telemetry reporter unavailable");
-    }
-
-    private void startDebugTelemetryService() {
-        if (debugTelemetryService != null) {
-            return;
-        }
-        DebugTelemetryService service = new DebugTelemetryService(this);
-        service.start();
-        debugTelemetryService = service;
-    }
-
-    private void stopDebugTelemetryService() {
-        DebugTelemetryService service = debugTelemetryService;
-        debugTelemetryService = null;
-        if (service != null) {
-            service.stop();
-        }
-    }
-
-    private void synchronizeDebugTelemetrySetting() {
-        DebugTelemetryService service = debugTelemetryService;
-        if (service != null) {
-            service.onSettingsReloaded();
-        }
-    }
-
-    private void startCaptureRuntime() {
-        if (captureRuntime != null) {
-            return;
-        }
-        if (networkManager == null) {
-            return;
-        }
-        if (settings == null || settings.getNetwork() == null || !settings.getNetwork().enabled) {
-            return;
-        }
-        CaptureSettings initial = settings == null ? CaptureSettings.defaults() : CaptureSettings.from(settings.getNetwork());
-        CaptureRuntime runtime = new CaptureRuntime(this, getLogger(), networkManager.getReplicationManager(), networkManager.getReplicationManager(), initial);
-        runtime.start();
-        captureRuntime = runtime;
-    }
-
-    private void stopCaptureRuntime() {
-        CaptureRuntime runtime = captureRuntime;
-        captureRuntime = null;
-        if (runtime != null) {
-            runtime.stop();
-        }
+        diagnostics.toggleDebugTelemetry(actor);
     }
 
     public CaptureRuntime getCaptureRuntime() {
-        return captureRuntime;
+        return network.captureRuntime();
     }
 
-    private void startStatsSnapshotWriter() {
-        if (statsSnapshotWriter != null) {
-            return;
-        }
-        if (settings == null) {
-            return;
-        }
-        if (settings.getNetwork() == null || settings.getNetwork().stats == null) {
-            return;
-        }
-        if (!settings.getNetwork().stats.enabled) {
-            return;
-        }
-        int intervalSec = Math.max(1, settings.getNetwork().stats.intervalSec);
-        Path output = resolveStatsOutputPath(settings.getNetwork().stats.pathOverride);
-        StatsSnapshotWriter writer = StatsSnapshotWriter.forRuntime(
-            this,
-            networkManager,
-            viewServer,
-            traversalService,
-            null,
-            output,
-            Duration.ofSeconds(intervalSec),
-            pluginStartedAt == null ? Instant.now() : pluginStartedAt
-        );
-        writer.start();
-        statsSnapshotWriter = writer;
+    WormholesCommandService commandService() {
+        return commandService;
     }
 
-    private void stopStatsSnapshotWriter() {
-        StatsSnapshotWriter writer = statsSnapshotWriter;
-        statsSnapshotWriter = null;
-        if (writer != null) {
-            writer.stop();
-        }
-    }
-
-    private Path resolveStatsOutputPath(String override) {
-        if (override == null || override.isBlank()) {
-            return getDataFolder().toPath().resolve("wormholes-stats.txt");
-        }
-        Path path = Path.of(override);
-        if (path.isAbsolute()) {
-            return path;
-        }
-        return getDataFolder().toPath().resolve(override);
-    }
-
-    private PacketEventsRuntime packetEvents() {
+    PacketEventsRuntime packetEvents() {
         PacketEventsRuntime runtime = packetEventsRuntime;
         if (runtime == null) {
             runtime = new PacketEventsRuntime(this);
             packetEventsRuntime = runtime;
         }
         return runtime;
+    }
+
+    PacketEventsRuntime packetEventsIfPresent() {
+        return packetEventsRuntime;
     }
 }

@@ -44,7 +44,7 @@ public final class PortalPlaneWindowSlabTest {
     public void degenerateEyeOnPlaneFallsBackToFullWindow() {
         PortalFrame frame = PortalFrame.canonical(Direction.N);
         AxisAlignedBB area = apertureArea(frame, 3.0D, 3.0D);
-        PortalProjector.PortalPlaneWindow window = PortalProjector.PortalPlaneWindow.create(null, area, frame,
+        ProjectorPlaneWindow window = ProjectorPlaneWindow.create(null, area, frame,
             ORIGIN_X, ORIGIN_Y, ORIGIN_Z, 0.0D, 0.0D);
 
         double[] bounds = new double[4];
@@ -76,7 +76,7 @@ public final class PortalPlaneWindowSlabTest {
         double eyeZ = ORIGIN_Z + (normal.z() * eyeSignedDistance) + (right.z() * eyeRightOffset) + (up.z() * eyeUpOffset);
         double actualEyeDistance = ((eyeX - ORIGIN_X) * normal.x()) + ((eyeY - ORIGIN_Y) * normal.y()) + ((eyeZ - ORIGIN_Z) * normal.z());
 
-        PortalProjector.PortalPlaneWindow window = PortalProjector.PortalPlaneWindow.create(null, area, frame,
+        ProjectorPlaneWindow window = ProjectorPlaneWindow.create(null, area, frame,
             ORIGIN_X, ORIGIN_Y, ORIGIN_Z, padding, actualEyeDistance);
 
         int normalBase = (int) Math.floor(origin[normalAxis]);
@@ -94,10 +94,10 @@ public final class PortalPlaneWindowSlabTest {
             int upBlockMin = 0;
             int upBlockMax = 0;
             if (slabAccepted) {
-                rightBlockMin = PortalProjector.PortalPlaneWindow.slabBlockMin(bounds[0], bounds[1], rightSign, origin[rightAxis], rightBase - 1000);
-                rightBlockMax = PortalProjector.PortalPlaneWindow.slabBlockMax(bounds[0], bounds[1], rightSign, origin[rightAxis], rightBase + 1000);
-                upBlockMin = PortalProjector.PortalPlaneWindow.slabBlockMin(bounds[2], bounds[3], upSign, origin[upAxis], upBase - 1000);
-                upBlockMax = PortalProjector.PortalPlaneWindow.slabBlockMax(bounds[2], bounds[3], upSign, origin[upAxis], upBase + 1000);
+                rightBlockMin = ProjectorPlaneWindow.slabBlockMin(bounds[0], bounds[1], rightSign, origin[rightAxis], rightBase - 1000);
+                rightBlockMax = ProjectorPlaneWindow.slabBlockMax(bounds[0], bounds[1], rightSign, origin[rightAxis], rightBase + 1000);
+                upBlockMin = ProjectorPlaneWindow.slabBlockMin(bounds[2], bounds[3], upSign, origin[upAxis], upBase - 1000);
+                upBlockMax = ProjectorPlaneWindow.slabBlockMax(bounds[2], bounds[3], upSign, origin[upAxis], upBase + 1000);
             }
             coords[normalAxis] = n;
             for (int r = rightBase - LATERAL_RADIUS; r <= rightBase + LATERAL_RADIUS; r++) {

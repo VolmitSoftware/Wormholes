@@ -20,40 +20,40 @@ import art.arcane.wormholes.util.Direction;
 public final class PortalProjectorBlackoutTest {
 	@Test
 	public void farPlaneCellTriggersOnAnchoredDepthBand() {
-		assertTrue(PortalProjector.isFarPlaneCell(47.5D, 47.0D, 0.0D, -49.0D, 49.0D, 0.0D, -49.0D, 49.0D));
-		assertFalse(PortalProjector.isFarPlaneCell(40.0D, 47.0D, 0.0D, -49.0D, 49.0D, 0.0D, -49.0D, 49.0D));
+		assertTrue(ProjectorBlackoutSeal.isFarPlaneCell(47.5D, 47.0D, 0.0D, -49.0D, 49.0D, 0.0D, -49.0D, 49.0D));
+		assertFalse(ProjectorBlackoutSeal.isFarPlaneCell(40.0D, 47.0D, 0.0D, -49.0D, 49.0D, 0.0D, -49.0D, 49.0D));
 	}
 
 	@Test
 	public void farPlaneCellTriggersOnAnchoredLateralBands() {
-		assertTrue(PortalProjector.isFarPlaneCell(10.0D, 47.0D, 49.5D, -49.0D, 49.0D, 0.0D, -49.0D, 49.0D));
-		assertTrue(PortalProjector.isFarPlaneCell(10.0D, 47.0D, -49.5D, -49.0D, 49.0D, 0.0D, -49.0D, 49.0D));
-		assertTrue(PortalProjector.isFarPlaneCell(10.0D, 47.0D, 0.0D, -49.0D, 49.0D, 49.2D, -49.0D, 49.0D));
-		assertFalse(PortalProjector.isFarPlaneCell(10.0D, 47.0D, 48.0D, -49.0D, 49.0D, -48.0D, -49.0D, 49.0D));
+		assertTrue(ProjectorBlackoutSeal.isFarPlaneCell(10.0D, 47.0D, 49.5D, -49.0D, 49.0D, 0.0D, -49.0D, 49.0D));
+		assertTrue(ProjectorBlackoutSeal.isFarPlaneCell(10.0D, 47.0D, -49.5D, -49.0D, 49.0D, 0.0D, -49.0D, 49.0D));
+		assertTrue(ProjectorBlackoutSeal.isFarPlaneCell(10.0D, 47.0D, 0.0D, -49.0D, 49.0D, 49.2D, -49.0D, 49.0D));
+		assertFalse(ProjectorBlackoutSeal.isFarPlaneCell(10.0D, 47.0D, 48.0D, -49.0D, 49.0D, -48.0D, -49.0D, 49.0D));
 	}
 
 	@Test
 	public void shouldBlackoutSampleFillsEverythingExceptOccludingBlocks() {
-		assertTrue(PortalProjector.shouldBlackoutSample(PortalProjector.ProjectedSampleKind.NO_SAMPLE, false));
-		assertTrue(PortalProjector.shouldBlackoutSample(PortalProjector.ProjectedSampleKind.NO_SAMPLE, true));
-		assertTrue(PortalProjector.shouldBlackoutSample(PortalProjector.ProjectedSampleKind.MASK_AIR, false));
-		assertTrue(PortalProjector.shouldBlackoutSample(PortalProjector.ProjectedSampleKind.MASK_AIR, true));
-		assertTrue(PortalProjector.shouldBlackoutSample(PortalProjector.ProjectedSampleKind.REMOTE_AIR, false));
-		assertTrue(PortalProjector.shouldBlackoutSample(PortalProjector.ProjectedSampleKind.REMOTE_AIR, true));
-		assertTrue(PortalProjector.shouldBlackoutSample(PortalProjector.ProjectedSampleKind.BLOCK, false));
-		assertFalse(PortalProjector.shouldBlackoutSample(PortalProjector.ProjectedSampleKind.BLOCK, true));
-		assertFalse(PortalProjector.shouldBlackoutSample(PortalProjector.ProjectedSampleKind.OCCLUDED, false));
-		assertFalse(PortalProjector.shouldBlackoutSample(PortalProjector.ProjectedSampleKind.OCCLUDED, true));
+		assertTrue(ProjectorBlackoutSeal.shouldBlackoutSample(ProjectorSample.Kind.NO_SAMPLE, false));
+		assertTrue(ProjectorBlackoutSeal.shouldBlackoutSample(ProjectorSample.Kind.NO_SAMPLE, true));
+		assertTrue(ProjectorBlackoutSeal.shouldBlackoutSample(ProjectorSample.Kind.MASK_AIR, false));
+		assertTrue(ProjectorBlackoutSeal.shouldBlackoutSample(ProjectorSample.Kind.MASK_AIR, true));
+		assertTrue(ProjectorBlackoutSeal.shouldBlackoutSample(ProjectorSample.Kind.REMOTE_AIR, false));
+		assertTrue(ProjectorBlackoutSeal.shouldBlackoutSample(ProjectorSample.Kind.REMOTE_AIR, true));
+		assertTrue(ProjectorBlackoutSeal.shouldBlackoutSample(ProjectorSample.Kind.BLOCK, false));
+		assertFalse(ProjectorBlackoutSeal.shouldBlackoutSample(ProjectorSample.Kind.BLOCK, true));
+		assertFalse(ProjectorBlackoutSeal.shouldBlackoutSample(ProjectorSample.Kind.OCCLUDED, false));
+		assertFalse(ProjectorBlackoutSeal.shouldBlackoutSample(ProjectorSample.Kind.OCCLUDED, true));
 	}
 
 	@Test
 	public void buriedCellRequiresSelfAndAllSixNeighborsOccluding() {
-		assertFalse(PortalProjector.buriedCell(false, new boolean[] { true, true, true, true, true, true }));
-		assertTrue(PortalProjector.buriedCell(true, new boolean[] { true, true, true, true, true, true }));
+		assertFalse(ProjectorSampleMemo.buriedCell(false, new boolean[] { true, true, true, true, true, true }));
+		assertTrue(ProjectorSampleMemo.buriedCell(true, new boolean[] { true, true, true, true, true, true }));
 		for (int i = 0; i < 6; i++) {
 			boolean[] neighbors = new boolean[] { true, true, true, true, true, true };
 			neighbors[i] = false;
-			assertFalse(PortalProjector.buriedCell(true, neighbors), "exposed neighbor " + i + " must leave the cell un-buried");
+			assertFalse(ProjectorSampleMemo.buriedCell(true, neighbors), "exposed neighbor " + i + " must leave the cell un-buried");
 		}
 	}
 
@@ -61,16 +61,16 @@ public final class PortalProjectorBlackoutTest {
 	public void occludingSampleTreatsUnknownAndAirNeighborsAsNonOccluding() {
 		FakeWorldView view = new FakeWorldView();
 		view.put(0, 0, 0, blockData(Material.AIR));
-		assertFalse(PortalProjector.occludingSample(view, 0, 0, 0));
-		assertFalse(PortalProjector.occludingSample(view, 1, 0, 0));
+		assertFalse(ProjectorSampleMemo.occludingSample(view, 0, 0, 0));
+		assertFalse(ProjectorSampleMemo.occludingSample(view, 1, 0, 0));
 	}
 
 	@Test
 	public void buriedInViewLeavesAirAndUnknownSelfExposed() {
 		FakeWorldView view = new FakeWorldView();
 		boolean[] scratch = new boolean[6];
-		assertFalse(PortalProjector.buriedInView(view, 0, 0, 0, blockData(Material.AIR), scratch));
-		assertFalse(PortalProjector.buriedInView(view, 0, 0, 0, null, scratch));
+		assertFalse(ProjectorSampleMemo.buriedInView(view, 0, 0, 0, blockData(Material.AIR), scratch));
+		assertFalse(ProjectorSampleMemo.buriedInView(view, 0, 0, 0, null, scratch));
 	}
 
 	@Test
@@ -176,9 +176,9 @@ public final class PortalProjectorBlackoutTest {
 		double cellX = deepestX + 0.5D;
 		double cellY = deepestY + 0.5D;
 		double cellZ = deepestZ + 0.5D;
-		double blackoutPlaneX = PortalProjector.eyeSideFacePlane(eyeX, centerX, structureMinX, structureMaxX);
+		double blackoutPlaneX = ProjectorBlackoutSeal.eyeSideFacePlane(eyeX, centerX, structureMinX, structureMaxX);
 		double depthBeyondFacePlane = blackoutPlaneX - cellX;
-		assertTrue(PortalProjector.isFarPlaneCell(depthBeyondFacePlane, depthSealThreshold,
+		assertTrue(ProjectorBlackoutSeal.isFarPlaneCell(depthBeyondFacePlane, depthSealThreshold,
 				cellY, lateralSealLow, lateralSealHigh, cellZ, lateralSealLow, lateralSealHigh),
 			"deepest frustum-surviving cell must be blackout-filled for thickness "
 				+ thickness + " slope " + offAxisSlope + " eye distance " + eyeDistance);

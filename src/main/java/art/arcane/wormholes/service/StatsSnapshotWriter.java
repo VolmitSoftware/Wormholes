@@ -3,6 +3,7 @@ package art.arcane.wormholes.service;
 import art.arcane.volmlib.util.scheduling.SchedulerRuntime;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.door.DimensionalDoorManager;
 import art.arcane.wormholes.network.CompressionDictionary;
 import art.arcane.wormholes.network.DictionarySampleCollector;
 import art.arcane.wormholes.network.NetworkManager;
@@ -24,7 +25,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -53,11 +56,20 @@ public final class StatsSnapshotWriter {
                               double intervalSeconds) {
     }
 
+    public record FailureState(long pluginTotal, double pluginPerMinute, Map<String, Long> pluginBreakdown,
+                               long traversalTerminal, Map<String, Long> traversalBreakdown,
+                               long doorTerminal, Map<String, Long> doorBreakdown) {
+    }
+
     public record SnapshotData(Instant generatedAt, Duration uptime, String pluginVersion, int intervalSec,
                                String localName, TransportSettings transport, ViewSettings view,
                                String udsDirDisplay, List<NetworkManager.PeerSnapshot> peers,
                                CompressionState compression, ViewMetrics viewMetrics,
-                               TraversalService.Stats transfers, List<String> recentErrors) {
+                               TraversalService.Stats transfers, List<String> recentErrors,
+                               FailureState failures) {
+        public SnapshotData {
+            Objects.requireNonNull(failures, "failures");
+        }
     }
 
     private static final DateTimeFormatter ISO_INSTANT = DateTimeFormatter.ISO_INSTANT.withZone(ZoneOffset.UTC);
@@ -96,8 +108,7 @@ public final class StatsSnapshotWriter {
             return;
         }
         SchedulerRuntime runtime = plugin.getSchedulerRuntime();
-        if (runtime == null) {
-            logger.warning("stats: scheduler runtime unavailable, snapshot file disabled");
+        if (!schedulerAvailable(runtime, logger)) {
             started.set(false);
             return;
         }
@@ -121,16 +132,33 @@ public final class StatsSnapshotWriter {
     }
 
     public void writeNow() {
+        writeSnapshot(logger, dataSupplier, outputFile);
+    }
+
+    static boolean schedulerAvailable(SchedulerRuntime runtime, Logger logger) {
+        if (runtime != null) {
+            return true;
+        }
+        WormholesTelemetry.countFailure("STATS_SNAPSHOT_SCHEDULER_UNAVAILABLE");
+        logger.warning("stats: scheduler runtime unavailable, snapshot file disabled");
+        return false;
+    }
+
+    static boolean writeSnapshot(Logger logger, Supplier<SnapshotData> dataSupplier, Path outputFile) {
         try {
             SnapshotData data = dataSupplier.get();
-            if (data == null) {
-                return;
+            if (data != null) {
+                writeAtomic(outputFile, render(data));
+                return true;
             }
-            String rendered = render(data);
-            writeAtomic(outputFile, rendered);
         } catch (Throwable ex) {
-            logger.log(Level.WARNING, "stats: snapshot write failed", ex);
+            WormholesTelemetry.countFailure("STATS_SNAPSHOT_WRITE_FAILED");
+            logger.log(Level.WARNING, "stats: snapshot write failed (" + outputFile + ")", ex);
+            return false;
         }
+        WormholesTelemetry.countFailure("STATS_SNAPSHOT_DATA_UNAVAILABLE");
+        logger.warning("stats: snapshot data unavailable, file left stale (" + outputFile + ")");
+        return false;
     }
 
     public static void writeAtomic(Path outputFile, String contents) throws IOException {
@@ -287,6 +315,20 @@ public final class StatsSnapshotWriter {
             .append('\n');
         out.append('\n');
 
+        FailureState failures = data.failures();
+        out.append("FAILURES\n");
+        out.append("  plugin:    total ").append(failures.pluginTotal())
+            .append("   rate ").append(formatDouble(failures.pluginPerMinute(), 1)).append("/min").append('\n');
+        out.append("  traversal: terminal ").append(failures.traversalTerminal())
+            .append("   recorded ").append(sumBreakdown(failures.traversalBreakdown()))
+            .append("   (recorded also counts recovered paths, so it does not sum to terminal)").append('\n');
+        out.append("  doors:     terminal ").append(failures.doorTerminal())
+            .append("   recorded ").append(sumBreakdown(failures.doorBreakdown())).append('\n');
+        appendBreakdown(out, "plugin reasons", failures.pluginBreakdown());
+        appendBreakdown(out, "traversal reasons", failures.traversalBreakdown());
+        appendBreakdown(out, "door reasons", failures.doorBreakdown());
+        out.append('\n');
+
         out.append("ERRORS (last 60s)\n");
         List<String> errors = data.recentErrors();
         if (errors == null || errors.isEmpty()) {
@@ -299,6 +341,40 @@ public final class StatsSnapshotWriter {
         }
 
         return out.toString();
+    }
+
+    static Map<String, Long> sortedNonZero(Map<String, Long> breakdown) {
+        Map<String, Long> sorted = new TreeMap<>();
+        if (breakdown == null) {
+            return sorted;
+        }
+        for (Map.Entry<String, Long> entry : breakdown.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null || entry.getValue().longValue() <= 0L) {
+                continue;
+            }
+            sorted.put(entry.getKey(), entry.getValue());
+        }
+        return sorted;
+    }
+
+    static long sumBreakdown(Map<String, Long> breakdown) {
+        long total = 0L;
+        for (Long value : sortedNonZero(breakdown).values()) {
+            total += value.longValue();
+        }
+        return total;
+    }
+
+    private static void appendBreakdown(StringBuilder out, String label, Map<String, Long> breakdown) {
+        Map<String, Long> sorted = sortedNonZero(breakdown);
+        out.append("  ").append(label).append(" (").append(sorted.size()).append(")\n");
+        if (sorted.isEmpty()) {
+            out.append("    - (none)\n");
+            return;
+        }
+        for (Map.Entry<String, Long> entry : sorted.entrySet()) {
+            out.append("    - ").append(padRight(entry.getKey(), 46)).append(' ').append(entry.getValue()).append('\n');
+        }
     }
 
     private static SnapshotData buildRuntimeSnapshot(Wormholes plugin, NetworkManager network, ViewServer viewServer,
@@ -372,6 +448,16 @@ public final class StatsSnapshotWriter {
         TraversalService.Stats transferStats = traversal == null
             ? new TraversalService.Stats(0L, 0L, 0)
             : traversal.statsSnapshot();
+        DimensionalDoorManager doors = Wormholes.dimensionalDoorManager;
+        FailureState failureState = new FailureState(
+            WormholesTelemetry.failures(),
+            WormholesTelemetry.failuresPerMinute(now.toEpochMilli()),
+            WormholesTelemetry.failureBreakdown(),
+            transferStats.failed(),
+            traversal == null ? Map.of() : traversal.failureBreakdown(),
+            doors == null ? 0L : doors.failedTransits(),
+            doors == null ? Map.of() : doors.failedTransitBreakdown()
+        );
         List<String> errors = List.of();
         return new SnapshotData(
             now,
@@ -386,7 +472,8 @@ public final class StatsSnapshotWriter {
             compressionState,
             viewMetrics,
             transferStats,
-            errors
+            errors,
+            failureState
         );
     }
 

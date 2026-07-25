@@ -174,6 +174,9 @@ public final class WormholesMessages {
     public static final TextKey PORTAL_COOLDOWN = text("portal.travel.cooldown", "<gold>Portal cooling down");
     public static final TextKey PORTAL_ACCESS_DENIED = text("portal.travel.access_denied", "<red>Portal access denied");
     public static final TextKey PORTAL_DESTINATION_UNAVAILABLE = text("portal.travel.destination_unavailable", "<red>Portal destination unavailable");
+    public static final TextKey PORTAL_ARRIVAL_DENIED = text("portal.travel.arrival_denied", "<red>The destination portal refused your arrival.");
+    public static final TextKey PORTAL_ARRIVAL_RETURNED = text("portal.travel.arrival_returned", "<red>The destination portal refused your arrival; returning you to {server}");
+    public static final TextKey DOOR_TRANSIT_SHUTDOWN = text("door.transit.shutdown", "Dimensional Doors shut down before the transit completed.");
     public static final TextKey PORTAL_EDIT_DENIED = text("portal.edit.denied", "<red>Only the portal owner or an administrator can edit this portal.");
     public static final TextKey PORTAL_DELETED = text("portal.deleted", "<red>{portal} Deleted");
     public static final TextKey PORTAL_ARRIVAL_FAILED = text("portal.travel.arrival_failed", "<red>Portal arrival could not be placed; you remain at the destination spawn");
@@ -224,6 +227,8 @@ public final class WormholesMessages {
     public static final TextKey DOOR_RETURN_POINT_OBSTRUCTED = text("door.transit.return_point_obstructed", "Your saved return point is obstructed.");
     public static final TextKey DOOR_RETURN_CHUNK_FAILED = text("door.transit.return_chunk_failed", "Your saved return chunk could not be loaded.");
     public static final TextKey DOOR_CLOSED_DURING_TRANSIT = text("door.transit.closed", "The dimensional door closed before transit completed.");
+    public static final TextKey DOOR_CYCLE_CONSUMED = text("door.transit.cycle_consumed", "This door's open cycle was already used. Close and reopen the door.");
+    public static final TextKey DOOR_SOURCE_MISSING = text("door.transit.source_missing", "The dimensional door is no longer there.");
     public static final TextKey DOOR_SOURCE_CLOSE_FAILED = text("door.transit.source_close_failed", "The source door could not close safely.");
     public static final TextKey DOOR_SOURCE_REGION_UNAVAILABLE = text("door.transit.source_region_unavailable", "The source door region is unavailable.");
     public static final TextKey DOOR_TRANSIT_START_FAILED = text("door.transit.start_failed", "The dimensional transit could not start.");

@@ -5,6 +5,7 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.door.DimensionalDoorManager;
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.TraversalService;
 import art.arcane.wormholes.network.WireCompression;
@@ -45,8 +46,7 @@ public final class DebugTelemetryService {
             return;
         }
         SchedulerRuntime runtime = plugin.getSchedulerRuntime();
-        if (runtime == null) {
-            logger.warning("[debug] scheduler runtime unavailable; console telemetry disabled");
+        if (!schedulerAvailable(runtime, logger)) {
             return;
         }
         started = true;
@@ -101,24 +101,45 @@ public final class DebugTelemetryService {
             previous = null;
             return;
         }
-        try {
-            if (!observedEnabled) {
-                observedEnabled = true;
-                logRuntimeConfig();
-            }
-            RuntimeSnapshot current = snapshot(System.nanoTime());
-            RateSnapshot rates = previous == null
-                ? RateSnapshot.zero()
-                : RateSnapshot.between(previous, current.counters());
-            previous = current.counters();
-            logProjection();
-            logView(current, rates);
-            logNetwork(current, rates);
-            logTransfers(current, rates);
-            logPeers(current.peers(), current.network());
-        } catch (Throwable error) {
-            logger.log(Level.WARNING, "[debug] console telemetry sample failed", error);
+        runSample(logger, this::sampleOnce);
+    }
+
+    static boolean schedulerAvailable(SchedulerRuntime runtime, Logger logger) {
+        if (runtime != null) {
+            return true;
         }
+        WormholesTelemetry.countFailure("DEBUG_TELEMETRY_SCHEDULER_UNAVAILABLE");
+        logger.warning("[debug] scheduler runtime unavailable; console telemetry disabled");
+        return false;
+    }
+
+    static boolean runSample(Logger logger, Runnable sample) {
+        try {
+            sample.run();
+            return true;
+        } catch (Throwable error) {
+            WormholesTelemetry.countFailure("DEBUG_TELEMETRY_SAMPLE_FAILED");
+            logger.log(Level.WARNING, "[debug] console telemetry sample failed", error);
+            return false;
+        }
+    }
+
+    private void sampleOnce() {
+        if (!observedEnabled) {
+            observedEnabled = true;
+            logRuntimeConfig();
+        }
+        RuntimeSnapshot current = snapshot(System.nanoTime());
+        RateSnapshot rates = previous == null
+            ? RateSnapshot.zero()
+            : RateSnapshot.between(previous, current.counters());
+        previous = current.counters();
+        logProjection();
+        logView(current, rates);
+        logNetwork(current, rates);
+        logTransfers(current, rates);
+        logFailures(current, rates);
+        logPeers(current.peers(), current.network());
     }
 
     private RuntimeSnapshot snapshot(long nowNanos) {
@@ -148,6 +169,9 @@ public final class DebugTelemetryService {
             ? new RegionalDiffAccumulator.Stats(0L, 0L, 0L, 0L, 0L, 0L)
             : captureRuntime.statsSnapshot().accumulator();
 
+        DimensionalDoorManager doors = plugin.getDimensionalDoorManager();
+        long doorTransitsFailed = doors == null ? 0L : doors.failedTransits();
+
         CounterSnapshot counters = new CounterSnapshot(
             nowNanos,
             wire.rawBytesIn(),
@@ -165,7 +189,8 @@ public final class DebugTelemetryService {
             networkDebug.sidebandDroppedBytes(),
             networkDebug.sidebandDroppedCount(),
             capture.blocksDropped(),
-            capture.overflowDrops()
+            capture.overflowDrops(),
+            doorTransitsFailed
         );
         return new RuntimeSnapshot(counters, network, networkDebug, peers, view, replication, transfers, capture);
     }
@@ -245,6 +270,26 @@ public final class DebugTelemetryService {
             + " failed=" + transfers.failed() + " (+" + formatRate(rates.transfersFailedPerSecond()) + "/s)"
             + " captureDropped=" + capture.blocksDropped() + " (+" + formatRate(rates.captureDroppedPerSecond()) + "/s)"
             + " captureOverflow=" + capture.overflowDrops() + " (+" + formatRate(rates.captureOverflowPerSecond()) + "/s)");
+    }
+
+    private void logFailures(RuntimeSnapshot current, RateSnapshot rates) {
+        logger.info(failureLine(
+            System.currentTimeMillis(),
+            current.transfers().failed(),
+            rates.transfersFailedPerSecond(),
+            current.counters().doorTransitsFailed(),
+            rates.doorTransitsFailedPerSecond()
+        ));
+    }
+
+    static String failureLine(long nowMillis, long traversalFailed, double traversalFailedPerSecond,
+                              long doorTransitsFailed, double doorTransitsFailedPerSecond) {
+        return "[debug/failures] plugin=" + WormholesTelemetry.failures()
+            + " (+" + formatRate(WormholesTelemetry.failuresPerMinute(nowMillis)) + "/min)"
+            + " traversal=" + traversalFailed + " (+" + formatRate(traversalFailedPerSecond) + "/s)"
+            + " doors=" + doorTransitsFailed + " (+" + formatRate(doorTransitsFailedPerSecond) + "/s)"
+            + " pluginReasons=" + WormholesTelemetry.failureReasonCount()
+            + " (see stats snapshot for the per-reason breakdown)";
     }
 
     private void logPeers(List<NetworkManager.PeerSnapshot> peers, NetworkManager network) {
@@ -341,7 +386,8 @@ public final class DebugTelemetryService {
                            long replicatedBlocks, long resyncs,
                            long transfersCompleted, long transfersFailed,
                            long sidebandDroppedBytes, long sidebandDroppedCount,
-                           long captureDropped, long captureOverflow) {
+                           long captureDropped, long captureOverflow,
+                           long doorTransitsFailed) {
     }
 
     record RateSnapshot(double elapsedSeconds,
@@ -352,10 +398,11 @@ public final class DebugTelemetryService {
                         double replicatedBlocksPerSecond, double resyncPerSecond,
                         double transfersCompletedPerSecond, double transfersFailedPerSecond,
                         double sidebandDroppedBytesPerSecond, double sidebandDroppedCountPerSecond,
-                        double captureDroppedPerSecond, double captureOverflowPerSecond) {
+                        double captureDroppedPerSecond, double captureOverflowPerSecond,
+                        double doorTransitsFailedPerSecond) {
         static RateSnapshot zero() {
             return new RateSnapshot(0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D,
-                0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D);
+                0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D);
         }
 
         static RateSnapshot between(CounterSnapshot previous, CounterSnapshot current) {
@@ -381,7 +428,8 @@ public final class DebugTelemetryService {
                 rate(previous.sidebandDroppedBytes(), current.sidebandDroppedBytes(), seconds),
                 rate(previous.sidebandDroppedCount(), current.sidebandDroppedCount(), seconds),
                 rate(previous.captureDropped(), current.captureDropped(), seconds),
-                rate(previous.captureOverflow(), current.captureOverflow(), seconds)
+                rate(previous.captureOverflow(), current.captureOverflow(), seconds),
+                rate(previous.doorTransitsFailed(), current.doorTransitsFailed(), seconds)
             );
         }
 

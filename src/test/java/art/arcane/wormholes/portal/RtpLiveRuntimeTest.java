@@ -3,6 +3,7 @@ package art.arcane.wormholes.portal;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.InvocationHandler;
@@ -36,6 +37,7 @@ import art.arcane.wormholes.portal.rtp.RtpSafetyResult;
 import art.arcane.wormholes.portal.rtp.RtpService;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.wormholes.portal.rtp.RtpValidationRequest;
+import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.util.Cuboid;
 
 public final class RtpLiveRuntimeTest
@@ -249,8 +251,201 @@ public final class RtpLiveRuntimeTest
 		harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity()));
 		harness.runtime.leaveViewer(traveler.id);
 
+		assertEquals(1L, harness.runtime.traversalFailures());
 		assertTrue(harness.portal.beginRtpTraversal(traveler.entity(), harness.environment.nowMillis));
 		harness.portal.cancelRtpTraversal(traveler.entity());
+	}
+
+	@Test
+	public void travelerMovedOffTheConfirmedDestinationIsStillDeliveredNotBounced()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.entity(harness.world, harness.sourceLocation());
+		harness.environment.failureMode = FailureMode.ARRIVAL_DRIFT;
+
+		harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity()));
+
+		assertEquals(1, harness.environment.teleports.get());
+		assertEquals(1, harness.environment.successes.get());
+		assertEquals(1L, harness.runtime.traversalRecoveries());
+		assertTrue(LocalPortal.isTeleportCoolingDown(traveler.id, harness.environment.nowMillis));
+		assertTrue(LocalPortal.isReentryLatched(traveler.id));
+	}
+
+	@Test
+	public void travelerStillInsideTheSourceAfterAFailedMoveIsReleasedForTheBounce()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.entity(harness.world, harness.sourceLocation());
+		harness.environment.failureMode = FailureMode.TELEPORT;
+
+		harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity()));
+
+		assertEquals(0, harness.environment.successes.get());
+		assertEquals(0L, harness.runtime.traversalRecoveries());
+		assertEquals(1L, harness.runtime.traversalFailures());
+		assertFalse(LocalPortal.isTeleportCoolingDown(traveler.id, harness.environment.nowMillis));
+		assertTrue(harness.portal.beginRtpTraversal(traveler.entity(), harness.environment.nowMillis));
+		harness.portal.cancelRtpTraversal(traveler.entity());
+	}
+
+	@Test
+	public void arrivalAfterTheDispatchDeadlineStillCompletesTheTraversalForTheTraveler()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.entity(harness.world, harness.sourceLocation());
+		harness.environment.holdEntitySchedules = true;
+
+		assertTrue(harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+		harness.environment.runNextEntityCommand();
+		int scheduledBeforeDispatch = harness.environment.dispatcher.size();
+		harness.environment.runNextEntityCommand();
+		assertEquals(1, harness.environment.teleports.get());
+		harness.environment.dispatcher.runFrom(scheduledBeforeDispatch);
+		harness.environment.runNextEntityCommand();
+
+		assertEquals(1, harness.environment.successes.get());
+		assertEquals(1L, harness.runtime.traversalRecoveries());
+		assertTrue(LocalPortal.isTeleportCoolingDown(traveler.id, harness.environment.nowMillis));
+		assertTrue(LocalPortal.isReentryLatched(traveler.id));
+	}
+
+	@Test
+	public void cancelledTraversalDoesNotReenterThePipelineWhenItsClaimArrivesLate()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.player(harness.world, harness.sourceLocation(), false);
+		Location before = traveler.location.clone();
+		harness.environment.holdNextAccess = true;
+
+		assertTrue(harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+		harness.runtime.leaveViewer(traveler.id);
+		harness.environment.holdEntitySchedules = true;
+		assertTrue(harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+		int scheduledForLiveTraversal = harness.environment.entitySchedules.get();
+		harness.environment.releaseHeldAccess();
+
+		assertEquals(scheduledForLiveTraversal, harness.environment.entitySchedules.get());
+		assertEquals(0, harness.environment.teleports.get());
+		assertEquals(0, harness.environment.successes.get());
+		assertLocation(before, traveler.location);
+	}
+
+	@Test
+	public void tickRejectsAMissingPortalIdentityLikeEverySiblingEntryPoint()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+
+		NullPointerException failure = assertThrows(NullPointerException.class, () -> harness.runtime.tick(null));
+
+		assertEquals("portalId", failure.getMessage());
+	}
+
+	@Test
+	public void stageFailureIsCountedOnTheSharedFailureSurface()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.entity(harness.world, harness.sourceLocation());
+		harness.environment.failureMode = FailureMode.TELEPORT;
+		long failuresBefore = WormholesTelemetry.failures();
+		long stageBefore = failureCount("RTP_TRAVERSAL_STAGE_FAILED");
+
+		harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity()));
+
+		assertEquals(1L, harness.runtime.traversalFailures());
+		assertEquals(stageBefore + 1L, failureCount("RTP_TRAVERSAL_STAGE_FAILED"));
+		assertEquals(failuresBefore + 1L, WormholesTelemetry.failures());
+	}
+
+	@Test
+	public void cancelledTraversalIsCountedOnTheSharedFailureSurface()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.entity(harness.world, harness.sourceLocation());
+		harness.environment.deferTraversalLoad = true;
+		long failuresBefore = WormholesTelemetry.failures();
+		long cancelledBefore = failureCount("RTP_TRAVERSAL_CANCELLED");
+
+		harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity()));
+		harness.runtime.leaveViewer(traveler.id);
+
+		assertEquals(1L, harness.runtime.traversalFailures());
+		assertEquals(cancelledBefore + 1L, failureCount("RTP_TRAVERSAL_CANCELLED"));
+		assertEquals(failuresBefore + 1L, WormholesTelemetry.failures());
+	}
+
+	@Test
+	public void rejectedEntityScheduleIsCountedOnTheSharedFailureSurface()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.entity(harness.world, harness.sourceLocation());
+		harness.environment.rejectEntitySchedules = true;
+		long failuresBefore = WormholesTelemetry.failures();
+		long rejectedBefore = failureCount("RTP_TRAVERSAL_ENTITY_SCHEDULER_REJECTED");
+
+		harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity()));
+
+		assertEquals(1L, harness.runtime.traversalFailures());
+		assertEquals(rejectedBefore + 1L, failureCount("RTP_TRAVERSAL_ENTITY_SCHEDULER_REJECTED"));
+		assertEquals(failuresBefore + 1L, WormholesTelemetry.failures());
+		assertTrue(harness.portal.beginRtpTraversal(traveler.entity(), harness.environment.nowMillis));
+		harness.portal.cancelRtpTraversal(traveler.entity());
+	}
+
+	@Test
+	public void supersededClaimIsCountedOnTheSharedFailureSurface()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.player(harness.world, harness.sourceLocation(), false);
+		harness.environment.holdNextAccess = true;
+		long failuresBefore = WormholesTelemetry.failures();
+		long supersededBefore = failureCount("RTP_TRAVERSAL_CLAIM_SUPERSEDED");
+		long cancelledBefore = failureCount("RTP_TRAVERSAL_CANCELLED");
+
+		assertTrue(harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+		harness.runtime.leaveViewer(traveler.id);
+		harness.environment.holdEntitySchedules = true;
+		assertTrue(harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+		harness.environment.releaseHeldAccess();
+
+		assertEquals(supersededBefore + 1L, failureCount("RTP_TRAVERSAL_CLAIM_SUPERSEDED"));
+		assertEquals(cancelledBefore + 1L, failureCount("RTP_TRAVERSAL_CANCELLED"));
+		assertEquals(failuresBefore + 2L, WormholesTelemetry.failures());
+	}
+
+	@Test
+	public void rejectedClaimIsCountedOnTheSharedFailureSurface()
+	{
+		Harness harness = new Harness(RtpRotationMode.ON_TRAVERSAL);
+		harness.prepareReady();
+		MutableEntity first = MutableEntity.entity(harness.world, harness.sourceLocation());
+		MutableEntity second = MutableEntity.entity(harness.world, harness.sourceLocation());
+		harness.environment.holdEntitySchedules = true;
+		long failuresBefore = WormholesTelemetry.failures();
+		long rejectedBefore = failureCount("RTP_TRAVERSAL_CLAIM_REJECTED");
+
+		assertTrue(harness.runtime.traverse(harness.portal, first.entity(), harness.traversive(first.entity())));
+		assertTrue(harness.runtime.traverse(harness.portal, second.entity(), harness.traversive(second.entity())));
+
+		assertEquals(rejectedBefore + 1L, failureCount("RTP_TRAVERSAL_CLAIM_REJECTED"));
+		assertEquals(failuresBefore + 1L, WormholesTelemetry.failures());
+		assertTrue(harness.portal.beginRtpTraversal(second.entity(), harness.environment.nowMillis));
+		harness.portal.cancelRtpTraversal(second.entity());
+	}
+
+	private static long failureCount(String reason)
+	{
+		Long count = WormholesTelemetry.failureBreakdown().get(reason);
+		return count == null ? 0L : count.longValue();
 	}
 
 	@Test
@@ -337,7 +532,8 @@ public final class RtpLiveRuntimeTest
 		LOAD,
 		SAFETY,
 		ACCESS,
-		TELEPORT
+		TELEPORT,
+		ARRIVAL_DRIFT
 	}
 
 	private static final class Harness
@@ -401,21 +597,8 @@ public final class RtpLiveRuntimeTest
 
 	private static RtpService service(FakeEnvironment environment)
 	{
-		RtpService.SourceDispatcher dispatcher = new RtpService.SourceDispatcher()
-		{
-			@Override
-			public void execute(UUID portalId, Runnable command)
-			{
-				command.run();
-			}
-
-			@Override
-			public void schedule(UUID portalId, Runnable command, long delayMillis)
-			{
-			}
-		};
 		RtpService.Dependencies dependencies = new RtpService.Dependencies(
-				dispatcher,
+				environment.dispatcher,
 				Runnable::run,
 				() -> environment.nowMillis,
 				(registration, generation, attempt) -> new RtpDestination(registration.settings().getTargetWorldKey(),
@@ -423,10 +606,42 @@ public final class RtpLiveRuntimeTest
 				request -> CompletableFuture.completedFuture(new RtpService.LoadedCandidate(
 						validationRequest(request.destination()), () -> environment.retentionCloses.incrementAndGet())),
 				request -> CompletableFuture.completedFuture(RtpSafetyResult.safe(request.destination())),
-				(portalId, viewerId, destination) -> CompletableFuture.completedFuture(RtpAccessResult.allowedResult()),
+				environment::checkAccess,
 				(portalId, viewerId, destination, routeRevision) -> readyData(portalId, destination, routeRevision),
 				new art.arcane.wormholes.portal.rtp.RtpRimRenderer());
 		return new RtpService(dependencies);
+	}
+
+	private static final class RecordingSourceDispatcher implements RtpService.SourceDispatcher
+	{
+		private final List<Runnable> scheduled = new java.util.ArrayList<Runnable>();
+
+		@Override
+		public void execute(UUID portalId, Runnable command)
+		{
+			command.run();
+		}
+
+		@Override
+		public void schedule(UUID portalId, Runnable command, long delayMillis)
+		{
+			scheduled.add(command);
+		}
+
+		private int size()
+		{
+			return scheduled.size();
+		}
+
+		private void runFrom(int index)
+		{
+			List<Runnable> due = List.copyOf(scheduled.subList(index, scheduled.size()));
+			for(Runnable command : due)
+			{
+				scheduled.remove(command);
+				command.run();
+			}
+		}
 	}
 
 	private static RtpProjectionView.ReadyData readyData(UUID portalId, RtpDestination destination, long routeRevision)
@@ -529,26 +744,62 @@ public final class RtpLiveRuntimeTest
 	private static final class FakeEnvironment implements BukkitRtpRuntime.Environment
 	{
 		private final World world;
+		private final RecordingSourceDispatcher dispatcher;
 		private final AtomicInteger teleports;
 		private final AtomicInteger successes;
 		private final AtomicInteger worldUnloads;
 		private final AtomicInteger closes;
 		private final AtomicInteger retentionCloses;
+		private final AtomicInteger entitySchedules;
+		private final java.util.Deque<Runnable> heldEntityCommands;
 		private long nowMillis;
 		private FailureMode failureMode;
 		private boolean deferTraversalLoad;
+		private boolean holdEntitySchedules;
+		private boolean rejectEntitySchedules;
+		private boolean holdNextAccess;
 		private CompletableFuture<RtpService.LoadedCandidate> deferredLoad;
+		private CompletableFuture<RtpAccessResult> heldAccess;
 
 		private FakeEnvironment(World world)
 		{
 			this.world = world;
+			dispatcher = new RecordingSourceDispatcher();
 			teleports = new AtomicInteger();
 			successes = new AtomicInteger();
 			worldUnloads = new AtomicInteger();
 			closes = new AtomicInteger();
 			retentionCloses = new AtomicInteger();
+			entitySchedules = new AtomicInteger();
+			heldEntityCommands = new java.util.ArrayDeque<Runnable>();
 			nowMillis = 0L;
 			failureMode = FailureMode.NONE;
+		}
+
+		private CompletionStage<RtpAccessResult> checkAccess(
+				UUID portalId,
+				Optional<UUID> viewerId,
+				RtpDestination destination)
+		{
+			if(!holdNextAccess)
+			{
+				return CompletableFuture.completedFuture(RtpAccessResult.allowedResult());
+			}
+			holdNextAccess = false;
+			heldAccess = new CompletableFuture<RtpAccessResult>();
+			return heldAccess;
+		}
+
+		private void releaseHeldAccess()
+		{
+			CompletableFuture<RtpAccessResult> pending = heldAccess;
+			heldAccess = null;
+			pending.complete(RtpAccessResult.allowedResult());
+		}
+
+		private void runNextEntityCommand()
+		{
+			heldEntityCommands.removeFirst().run();
 		}
 
 		@Override
@@ -611,6 +862,16 @@ public final class RtpLiveRuntimeTest
 		@Override
 		public boolean scheduleEntity(Entity entity, Runnable command, Runnable retired)
 		{
+			entitySchedules.incrementAndGet();
+			if(rejectEntitySchedules)
+			{
+				return false;
+			}
+			if(holdEntitySchedules)
+			{
+				heldEntityCommands.addLast(command);
+				return true;
+			}
 			command.run();
 			return true;
 		}
@@ -624,7 +885,9 @@ public final class RtpLiveRuntimeTest
 				return CompletableFuture.completedFuture(Boolean.FALSE);
 			}
 			MutableEntity mutable = MutableEntity.of(entity);
-			mutable.location = target.clone();
+			mutable.location = failureMode == FailureMode.ARRIVAL_DRIFT
+					? target.clone().add(0.75D, 0.0D, 0.0D)
+					: target.clone();
 			return CompletableFuture.completedFuture(Boolean.TRUE);
 		}
 

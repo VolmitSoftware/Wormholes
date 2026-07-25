@@ -1,31 +1,13 @@
 package art.arcane.wormholes;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
+import java.util.logging.Level;
 
-import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
-import org.bukkit.Keyed;
 import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
-import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.block.data.BlockData;
-import org.bukkit.enchantments.Enchantment;
-import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -36,131 +18,44 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.Recipe;
-import org.bukkit.inventory.ShapedRecipe;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.util.Vector;
 
-import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.volmlib.util.localization.MessageArgument;
+import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.PortalBlock;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.service.WormholesAudience;
 import art.arcane.wormholes.util.GChunk;
-import art.arcane.volmlib.util.bukkit.WorldIdentity;
-import art.arcane.volmlib.util.collection.KList;
 import art.arcane.wormholes.util.J;
-import art.arcane.wormholes.util.M;
-import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 
 public class BlockManager implements Listener
 {
-	private static final int[][] ADJACENT_OFFSETS = new int[][] {
-			{ 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 0, -1, 0 }, { 0, 0, 1 }, { 0, 0, -1 }
-	};
-	private final Map<GChunk, Set<PortalBlock>> blocks;
-	private final Object runeMutationLock = new Object();
-	private final Set<RuneCell> reservedRuneCells = ConcurrentHashMap.newKeySet();
-	private final List<ItemStack> acceptedWandTemplates = new CopyOnWriteArrayList<ItemStack>();
-	private final List<ItemStack> acceptedPortalRuneTemplates = new CopyOnWriteArrayList<ItemStack>();
-	private final List<ItemStack> acceptedWormholeRuneTemplates = new CopyOnWriteArrayList<ItemStack>();
-	private final List<ItemStack> acceptedGatewayRuneTemplates = new CopyOnWriteArrayList<ItemStack>();
-	private volatile ItemStack wandTemplate;
-	private volatile ItemStack portalRuneTemplate;
-	private volatile ItemStack wormholeRuneTemplate;
-	private volatile ItemStack gatewayRuneTemplate;
+	static final String RUNE_BREAK_DROP_FAILED = "RUNE_BREAK_DROP_FAILED";
+	static final String RUNE_BREAK_DROP_SCHEDULE_REJECTED = "RUNE_BREAK_DROP_SCHEDULE_REJECTED";
+
+	private final BlockOpsRuneCatalog catalog;
+	private final BlockOpsRuneIndex index;
+	private final BlockOpsRuneConstruction construction;
 
 	public BlockManager()
 	{
 		Wormholes.v("Starting Block Manager");
-		WormholesLocalization english = WormholesLocalization.english();
-		wandTemplate = buildTemplate(Material.BLAZE_ROD, WormholesMessages.ITEM_PORTAL_WAND, english);
-		portalRuneTemplate = buildTemplate(Material.PRISMARINE, WormholesMessages.ITEM_PORTAL_RUNE, english);
-		wormholeRuneTemplate = buildTemplate(Material.DARK_PRISMARINE, WormholesMessages.ITEM_WORMHOLE_RUNE, english);
-		gatewayRuneTemplate = buildTemplate(Material.BLACK_STAINED_GLASS, WormholesMessages.ITEM_GATEWAY_RUNE, english);
-		refreshLocalizedTemplates();
-		registerRecipes();
-		blocks = new ConcurrentHashMap<GChunk, Set<PortalBlock>>();
-		J.ar(() -> updatePlacedBlocks(), 9);
-	}
-
-	private static ItemStack buildTemplate(Material material, LinesKey key, WormholesLocalization localization)
-	{
-		ItemStack is = new ItemStack(material);
-		ItemMeta meta = is.getItemMeta();
-		meta.addEnchant(Enchantment.INFINITY, 1, true);
-		meta.setDisplayName(localization.legacyLines(key).getFirst());
-		is.setItemMeta(meta);
-
-		return is;
+		catalog = new BlockOpsRuneCatalog();
+		index = new BlockOpsRuneIndex();
+		construction = new BlockOpsRuneConstruction(index, catalog);
+		J.ar(() -> index.updatePlacedBlocks(), 9);
 	}
 
 	public void onLanguageReload()
 	{
-		refreshLocalizedTemplates();
-		registerRecipes();
-	}
-
-	private void refreshLocalizedTemplates()
-	{
-		rememberTemplate(acceptedWandTemplates, wandTemplate);
-		rememberTemplate(acceptedPortalRuneTemplates, portalRuneTemplate);
-		rememberTemplate(acceptedWormholeRuneTemplates, wormholeRuneTemplate);
-		rememberTemplate(acceptedGatewayRuneTemplates, gatewayRuneTemplate);
-		WormholesLocalization localization = Wormholes.text();
-		wandTemplate = buildTemplate(Material.BLAZE_ROD, WormholesMessages.ITEM_PORTAL_WAND, localization);
-		portalRuneTemplate = buildTemplate(Material.PRISMARINE, WormholesMessages.ITEM_PORTAL_RUNE, localization);
-		wormholeRuneTemplate = buildTemplate(Material.DARK_PRISMARINE, WormholesMessages.ITEM_WORMHOLE_RUNE, localization);
-		gatewayRuneTemplate = buildTemplate(Material.BLACK_STAINED_GLASS, WormholesMessages.ITEM_GATEWAY_RUNE, localization);
-		rememberTemplate(acceptedWandTemplates, wandTemplate);
-		rememberTemplate(acceptedPortalRuneTemplates, portalRuneTemplate);
-		rememberTemplate(acceptedWormholeRuneTemplates, wormholeRuneTemplate);
-		rememberTemplate(acceptedGatewayRuneTemplates, gatewayRuneTemplate);
-	}
-
-	private static void rememberTemplate(List<ItemStack> acceptedTemplates, ItemStack template)
-	{
-		for(ItemStack acceptedTemplate : acceptedTemplates)
-		{
-			if(acceptedTemplate.isSimilar(template))
-			{
-				return;
-			}
-		}
-		acceptedTemplates.add(template.clone());
-	}
-
-	private boolean matchesAnyTemplate(ItemStack item, List<ItemStack> acceptedTemplates)
-	{
-		for(ItemStack acceptedTemplate : acceptedTemplates)
-		{
-			if(isTemplateMatch(item, acceptedTemplate))
-			{
-				return true;
-			}
-		}
-		return false;
+		catalog.onLanguageReload();
 	}
 
 	public void destroyAll()
 	{
-		Wormholes.v("Releasing tracked portal blocks (" + blocks.size() + " chunks)");
-		blocks.clear();
-		unregisterAllRecipes();
-	}
-
-	private void destroyAllInChunk(GChunk c)
-	{
-		Wormholes.v("Destroying " + blocks.get(c).size() + " portal blocks in chunk " + c.getX() + ", " + c.getZ());
-
-		for(PortalBlock i : blocks.get(c))
-		{
-			i.getLocation().getBlock().setType(Material.AIR);
-		}
-
-		blocks.remove(c);
+		index.destroyAll();
+		catalog.unregisterAllRecipes();
 	}
 
 	@EventHandler
@@ -168,65 +63,16 @@ public class BlockManager implements Listener
 	{
 		try
 		{
-			if(blocks.containsKey(new GChunk(e.getChunk())))
+			if(index.destroyAllInChunk(new GChunk(e.getChunk())))
 			{
-				destroyAllInChunk(new GChunk(e.getChunk()));
 				J.s(() -> e.getChunk().unload());
 			}
 		}
 
 		catch(Throwable ex)
 		{
-			ex.printStackTrace();
-		}
-	}
-
-	private void updatePlacedBlocks()
-	{
-		for(Player i : Bukkit.getOnlinePlayers())
-		{
-			FoliaScheduler.runEntity(Wormholes.instance, i, () -> animatePlacedBlocksFor(i));
-		}
-	}
-
-	private void animatePlacedBlocksFor(Player i)
-	{
-		try
-		{
-			Location at = i.getLocation();
-			if(at == null || at.getWorld() == null)
-			{
-				return;
-			}
-
-			String worldKey = WorldIdentity.serialize(at.getWorld());
-			int cx = at.getBlockX() >> 4;
-			int cz = at.getBlockZ() >> 4;
-
-			for(int dx = -1; dx <= 1; dx++)
-			{
-				for(int dz = -1; dz <= 1; dz++)
-				{
-					Set<PortalBlock> set = blocks.get(new GChunk(cx + dx, cz + dz, worldKey));
-					if(set == null)
-					{
-						continue;
-					}
-
-					for(PortalBlock k : set)
-					{
-						if(M.r(0.35))
-						{
-							k.animate(i);
-						}
-					}
-				}
-			}
-		}
-
-		catch(Throwable e)
-		{
-
+			Wormholes.log().log(Level.WARNING, "Could not clear tracked portal runes from chunk "
+					+ e.getChunk().getX() + ", " + e.getChunk().getZ() + " in " + e.getWorld().getName(), ex);
 		}
 	}
 
@@ -242,7 +88,7 @@ public class BlockManager implements Listener
 			return;
 		}
 
-		if(isReservedRuneCell(e.getClickedBlock()))
+		if(index.isReservedRuneCell(e.getClickedBlock()))
 		{
 			e.setUseInteractedBlock(Event.Result.DENY);
 			e.setCancelled(true);
@@ -266,347 +112,13 @@ public class BlockManager implements Listener
 		WormholesAudience.sendActionBar(e.getPlayer(), Wormholes.text().component(
 				WormholesMessages.PORTAL_FORMING,
 				WormholesLocalization.args(MessageArgument.untrusted("type", b.getType().name().toLowerCase()))));
-		construct(e.getPlayer(), e.getClickedBlock());
-	}
-
-	private void construct(Player player, Block clickedBlock)
-	{
-		RuneReservation reservation = reserveConnectedRunes(clickedBlock);
-		if(reservation == null)
-		{
-			return;
-		}
-		if(!reservation.coplanar())
-		{
-			Wormholes.effectManager.playNotificationFail(Wormholes.text().legacy(WormholesMessages.PORTAL_MUST_BE_FLAT), clickedBlock.getLocation());
-			return;
-		}
-		Vector look = player.getLocation().getDirection();
-		consumeConnectedRunes(player, player.getUniqueId(), clickedBlock.getWorld(), reservation.blocks(), reservation.type(), look);
-	}
-
-	private RuneReservation reserveConnectedRunes(Block clickedBlock)
-	{
-		synchronized(runeMutationLock)
-		{
-			String worldKey = WorldIdentity.serialize(clickedBlock.getWorld());
-			PortalBlock init = findTrackedBlock(worldKey, clickedBlock.getX(), clickedBlock.getY(), clickedBlock.getZ());
-			if(init == null)
-			{
-				return null;
-			}
-			PortalType type = init.getType();
-			Set<PortalBlock> connected = connectedRunes(worldKey, RuneCoordinate.from(init.getLocation()), type);
-			if(connected.isEmpty())
-			{
-				return null;
-			}
-			if(!isCoplanar(connected))
-			{
-				return new RuneReservation(type, Set.copyOf(connected), false);
-			}
-			for(PortalBlock portalBlock : connected)
-			{
-				Set<PortalBlock> tracked = blocks.get(chunkKey(portalBlock.getLocation()));
-				if(tracked == null || !tracked.contains(portalBlock))
-				{
-					return null;
-				}
-			}
-			for(PortalBlock portalBlock : connected)
-			{
-				unregisterBlockLocked(portalBlock);
-				reservedRuneCells.add(RuneCell.from(portalBlock.getLocation()));
-			}
-			return new RuneReservation(type, Set.copyOf(connected), true);
-		}
-	}
-
-	private Set<PortalBlock> connectedRunes(String worldKey, RuneCoordinate start, PortalType type)
-	{
-		Set<PortalBlock> connected = new HashSet<PortalBlock>();
-		Set<RuneCoordinate> visited = new HashSet<RuneCoordinate>();
-		ArrayDeque<RuneCoordinate> search = new ArrayDeque<RuneCoordinate>();
-		search.add(start);
-		while(!search.isEmpty())
-		{
-			RuneCoordinate coordinate = search.removeFirst();
-			if(!visited.add(coordinate))
-			{
-				continue;
-			}
-			PortalBlock portalBlock = findTrackedBlock(worldKey, coordinate.x(), coordinate.y(), coordinate.z());
-			if(portalBlock == null || portalBlock.getType() != type)
-			{
-				continue;
-			}
-			connected.add(portalBlock);
-			for(int[] offset : ADJACENT_OFFSETS)
-			{
-				search.addLast(new RuneCoordinate(coordinate.x() + offset[0], coordinate.y() + offset[1], coordinate.z() + offset[2]));
-			}
-		}
-		return connected;
-	}
-
-	private static boolean isCoplanar(Set<PortalBlock> connected)
-	{
-		int minX = Integer.MAX_VALUE;
-		int maxX = Integer.MIN_VALUE;
-		int minY = Integer.MAX_VALUE;
-		int maxY = Integer.MIN_VALUE;
-		int minZ = Integer.MAX_VALUE;
-		int maxZ = Integer.MIN_VALUE;
-		for(PortalBlock portalBlock : connected)
-		{
-			Location location = portalBlock.getLocation();
-			minX = Math.min(minX, location.getBlockX());
-			maxX = Math.max(maxX, location.getBlockX());
-			minY = Math.min(minY, location.getBlockY());
-			maxY = Math.max(maxY, location.getBlockY());
-			minZ = Math.min(minZ, location.getBlockZ());
-			maxZ = Math.max(maxZ, location.getBlockZ());
-		}
-		return ConstructionManager.isCoplanarPortalArea(maxX - minX, maxY - minY, maxZ - minZ);
-	}
-
-	private void consumeConnectedRunes(Player player, UUID ownerId, World world, Set<PortalBlock> connected, PortalType type, Vector look)
-	{
-		Map<ChunkCoordinate, List<PortalBlock>> byChunk = new HashMap<ChunkCoordinate, List<PortalBlock>>();
-		for(PortalBlock portalBlock : connected)
-		{
-			Location location = portalBlock.getLocation();
-			ChunkCoordinate chunk = new ChunkCoordinate(location.getBlockX() >> 4, location.getBlockZ() >> 4);
-			byChunk.computeIfAbsent(chunk, ignored -> new ArrayList<PortalBlock>()).add(portalBlock);
-		}
-		List<EffectManager.PortalBlockSnapshot> snapshots = Collections.synchronizedList(new ArrayList<EffectManager.PortalBlockSnapshot>());
-		Set<Block> consumed = ConcurrentHashMap.newKeySet();
-		AtomicBoolean failed = new AtomicBoolean();
-		AtomicInteger remaining = new AtomicInteger(byChunk.size());
-		Material expectedMaterial = runeMaterial(type);
-		for(Map.Entry<ChunkCoordinate, List<PortalBlock>> entry : byChunk.entrySet())
-		{
-			ChunkCoordinate chunk = entry.getKey();
-			boolean scheduled = FoliaScheduler.runRegion(Wormholes.instance, world, chunk.x(), chunk.z(), () ->
-			{
-				try
-				{
-					for(PortalBlock portalBlock : entry.getValue())
-					{
-						Location location = portalBlock.getLocation();
-						Block block = world.getBlockAt(location.getBlockX(), location.getBlockY(), location.getBlockZ());
-						if(block.getType() != expectedMaterial)
-						{
-							failed.set(true);
-							continue;
-						}
-						EffectManager.PortalBlockSnapshot snapshot = new EffectManager.PortalBlockSnapshot(block.getLocation(), block.getBlockData());
-						block.setType(Material.AIR, false);
-						snapshots.add(snapshot);
-						consumed.add(block);
-					}
-				}
-				catch(Throwable error)
-				{
-					failed.set(true);
-				}
-				finally
-				{
-					if(remaining.decrementAndGet() == 0)
-					{
-						finishRuneConstruction(player, ownerId, world, snapshots, consumed, connected, type, look, failed.get());
-					}
-				}
-			});
-			if(!scheduled)
-			{
-				failed.set(true);
-				if(remaining.decrementAndGet() == 0)
-				{
-					finishRuneConstruction(player, ownerId, world, snapshots, consumed, connected, type, look, true);
-				}
-			}
-		}
-	}
-
-	private void finishRuneConstruction(Player player, UUID ownerId, World world, List<EffectManager.PortalBlockSnapshot> synchronizedSnapshots,
-			Set<Block> consumed, Set<PortalBlock> reserved, PortalType type, Vector look, boolean failed)
-	{
-		List<EffectManager.PortalBlockSnapshot> snapshots;
-		synchronized(synchronizedSnapshots)
-		{
-			snapshots = List.copyOf(synchronizedSnapshots);
-		}
-		if(failed || snapshots.size() != reserved.size() || consumed.size() != reserved.size())
-		{
-			rollbackRuneReservation(world, reserved, snapshots, type);
-			notifyRuneRollback(player);
-			return;
-		}
-		if(snapshots.isEmpty())
-		{
-			return;
-		}
-		double sumX = 0.0D;
-		double sumY = 0.0D;
-		double sumZ = 0.0D;
-		for(EffectManager.PortalBlockSnapshot snapshot : snapshots)
-		{
-			sumX += snapshot.location().getX() + 0.5D;
-			sumY += snapshot.location().getY() + 0.5D;
-			sumZ += snapshot.location().getZ() + 0.5D;
-		}
-		Location center = new Location(world, sumX / snapshots.size(), sumY / snapshots.size(), sumZ / snapshots.size());
-		boolean scheduled = FoliaScheduler.runRegion(Wormholes.instance, center, () ->
-		{
-			if(Wormholes.constructionManager.constructPortal(ownerId, consumed, type, look))
-			{
-				clearReservedCells(reserved);
-				Wormholes.effectManager.playPortalVortex(world, center, snapshots);
-				return;
-			}
-			rollbackRuneReservation(world, reserved, snapshots, type);
-			notifyRuneRollback(player);
-		});
-		if(!scheduled)
-		{
-			rollbackRuneReservation(world, reserved, snapshots, type);
-			notifyRuneRollback(player);
-		}
-	}
-
-	private void notifyRuneRollback(Player player)
-	{
-		if(player != null)
-		{
-			FoliaScheduler.runEntity(Wormholes.instance, player,
-					() -> WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_FORM_INTERRUPTED)));
-		}
-	}
-
-	private void rollbackRuneReservation(World world, Set<PortalBlock> reserved, List<EffectManager.PortalBlockSnapshot> snapshots, PortalType type)
-	{
-		Map<RuneCoordinate, BlockData> originals = new HashMap<RuneCoordinate, BlockData>();
-		for(EffectManager.PortalBlockSnapshot snapshot : snapshots)
-		{
-			originals.put(RuneCoordinate.from(snapshot.location()), snapshot.data());
-		}
-		Map<ChunkCoordinate, List<PortalBlock>> byChunk = new HashMap<ChunkCoordinate, List<PortalBlock>>();
-		for(PortalBlock portalBlock : reserved)
-		{
-			Location location = portalBlock.getLocation();
-			ChunkCoordinate chunk = new ChunkCoordinate(location.getBlockX() >> 4, location.getBlockZ() >> 4);
-			byChunk.computeIfAbsent(chunk, ignored -> new ArrayList<PortalBlock>()).add(portalBlock);
-		}
-		Material expectedMaterial = runeMaterial(type);
-		for(Map.Entry<ChunkCoordinate, List<PortalBlock>> entry : byChunk.entrySet())
-		{
-			ChunkCoordinate chunk = entry.getKey();
-			Runnable rollback = () ->
-			{
-				for(PortalBlock portalBlock : entry.getValue())
-				{
-					Location location = portalBlock.getLocation();
-					Block block = world.getBlockAt(location.getBlockX(), location.getBlockY(), location.getBlockZ());
-					BlockData original = originals.get(RuneCoordinate.from(location));
-					if(original != null && block.getType().isAir())
-					{
-						block.setBlockData(original, false);
-					}
-					if(block.getType() == expectedMaterial)
-					{
-						registerBlockSilently(portalBlock);
-					}
-					reservedRuneCells.remove(RuneCell.from(location));
-				}
-			};
-			boolean scheduled = FoliaScheduler.runRegion(Wormholes.instance, world, chunk.x(), chunk.z(), rollback);
-			if(!scheduled && FoliaScheduler.isOwnedByCurrentRegion(world, chunk.x(), chunk.z()))
-			{
-				rollback.run();
-			}
-			else if(!scheduled)
-			{
-				for(PortalBlock portalBlock : entry.getValue())
-				{
-					reservedRuneCells.remove(RuneCell.from(portalBlock.getLocation()));
-				}
-				Wormholes.w("Could not restore reserved portal runes in " + world.getName() + " chunk " + chunk.x() + "," + chunk.z() + " because region scheduling was rejected");
-			}
-		}
-	}
-
-	private boolean isReservedRuneCell(Block block)
-	{
-		return reservedRuneCells.contains(RuneCell.from(block));
-	}
-
-	private void clearReservedCells(Set<PortalBlock> reserved)
-	{
-		for(PortalBlock portalBlock : reserved)
-		{
-			reservedRuneCells.remove(RuneCell.from(portalBlock.getLocation()));
-		}
-	}
-
-	private static Material runeMaterial(PortalType type)
-	{
-		return switch(type)
-		{
-			case PORTAL -> Material.PRISMARINE;
-			case WORMHOLE -> Material.DARK_PRISMARINE;
-			case GATEWAY -> Material.BLACK_STAINED_GLASS;
-			case RTP -> throw new IllegalArgumentException("RTP is not a constructible rune type");
-		};
-	}
-
-	private record RuneReservation(PortalType type, Set<PortalBlock> blocks, boolean coplanar)
-	{
-	}
-
-	private record RuneCoordinate(int x, int y, int z)
-	{
-		private static RuneCoordinate from(Location location)
-		{
-			return new RuneCoordinate(location.getBlockX(), location.getBlockY(), location.getBlockZ());
-		}
-	}
-
-	private record ChunkCoordinate(int x, int z)
-	{
-	}
-
-	private record RuneCell(String worldKey, int x, int y, int z)
-	{
-		private static RuneCell from(Block block)
-		{
-			return new RuneCell(WorldIdentity.serialize(block.getWorld()), block.getX(), block.getY(), block.getZ());
-		}
-
-		private static RuneCell from(Location location)
-		{
-			return new RuneCell(WorldIdentity.serialize(location.getWorld()), location.getBlockX(), location.getBlockY(), location.getBlockZ());
-		}
+		construction.construct(e.getPlayer(), e.getClickedBlock());
 	}
 
 	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void on(BlockPlaceEvent e)
 	{
-		ItemStack inHand = e.getItemInHand();
-		PortalType placedType = null;
-
-		if(matchesAnyTemplate(inHand, acceptedPortalRuneTemplates))
-		{
-			placedType = PortalType.PORTAL;
-		}
-		else if(matchesAnyTemplate(inHand, acceptedWormholeRuneTemplates))
-		{
-			placedType = PortalType.WORMHOLE;
-		}
-		else if(matchesAnyTemplate(inHand, acceptedGatewayRuneTemplates))
-		{
-			placedType = PortalType.GATEWAY;
-		}
+		PortalType placedType = catalog.placedRuneType(e.getItemInHand());
 
 		if(placedType == null)
 		{
@@ -620,7 +132,7 @@ public class BlockManager implements Listener
 	@EventHandler(priority = EventPriority.LOWEST)
 	public void denyWandRuneBreak(BlockBreakEvent e)
 	{
-		if(isReservedRuneCell(e.getBlock()))
+		if(index.isReservedRuneCell(e.getBlock()))
 		{
 			e.setCancelled(true);
 			return;
@@ -639,11 +151,11 @@ public class BlockManager implements Listener
 	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void on(BlockBreakEvent e)
 	{
-		if(blocks.containsKey(new GChunk(e.getBlock().getLocation().getChunk())))
+		if(index.tracksChunk(new GChunk(e.getBlock().getLocation().getChunk())))
 		{
 			ItemStack drop = null;
 
-			for(PortalBlock i : new KList<PortalBlock>(blocks.get(new GChunk(e.getBlock().getLocation().getChunk()))))
+			for(PortalBlock i : index.snapshotChunk(new GChunk(e.getBlock().getLocation().getChunk())))
 			{
 				if(i.getLocation().equals(e.getBlock().getLocation()))
 				{
@@ -675,289 +187,103 @@ public class BlockManager implements Listener
 				ItemStack dr = drop;
 				Block dropBlock = e.getBlock();
 				BlockBreakEvent breakEvent = e;
+				Location dropAt = dropBlock.getLocation();
+				String owner = e.getPlayer().getName();
 
-				FoliaScheduler.runRegion(Wormholes.instance, dropBlock.getLocation(), () ->
-				{
-					if(!breakEvent.isCancelled() && dropBlock.isEmpty())
-					{
-						dropBlock.getWorld().dropItemNaturally(dropBlock.getLocation().clone().add(0.5, 0.5, 0.5), dr);
-					}
-				}, 1L);
+				dropBrokenRune(
+						task -> FoliaScheduler.runRegion(Wormholes.instance, dropAt, task, 1L),
+						() -> FoliaScheduler.isOwnedByCurrentRegion(dropAt),
+						() -> "Could not return a broken portal rune to " + owner + " at " + dropAt,
+						() ->
+						{
+							if(!breakEvent.isCancelled() && dropBlock.isEmpty())
+							{
+								dropBlock.getWorld().dropItemNaturally(dropAt.clone().add(0.5, 0.5, 0.5), dr);
+							}
+						},
+						() -> dropBlock.getWorld().dropItemNaturally(dropAt.clone().add(0.5, 0.5, 0.5), dr));
 			}
 		}
 	}
 
-	public boolean isBlock(Block block, PortalType type)
+	static void dropBrokenRune(BlockOpsGuardedDispatch.RegionDispatch dispatch, BooleanSupplier ownsRegion, Supplier<String> context,
+			Runnable scheduledDrop, Runnable localDrop)
 	{
-		PortalBlock b = getBlock(block);
-
-		if(b == null)
+		if(BlockOpsGuardedDispatch.dispatchGuarded(dispatch, ownsRegion, RUNE_BREAK_DROP_FAILED, RUNE_BREAK_DROP_SCHEDULE_REJECTED,
+				context, scheduledDrop, localDrop))
 		{
-			return false;
+			return;
 		}
 
-		return b.getType().equals(type);
+		Wormholes.w(context.get() + " because region scheduling was rejected");
 	}
 
 	public PortalBlock getBlock(Block block)
 	{
-		synchronized(runeMutationLock)
-		{
-			return findTrackedBlock(WorldIdentity.serialize(block.getWorld()), block.getX(), block.getY(), block.getZ());
-		}
+		return index.getBlock(block);
 	}
 
 	public void removeBlock(PortalBlock block)
 	{
-		if(unregisterBlock(block))
+		if(index.unregisterBlock(block))
 		{
 			Wormholes.effectManager.playPortalBlockDestroyed(block.getLocation().getBlock());
 		}
 	}
 
-	private boolean unregisterBlock(PortalBlock block)
-	{
-		synchronized(runeMutationLock)
-		{
-			return unregisterBlockLocked(block);
-		}
-	}
-
-	private boolean unregisterBlockLocked(PortalBlock block)
-	{
-		GChunk chunk = chunkKey(block.getLocation());
-		Set<PortalBlock> tracked = blocks.get(chunk);
-		if(tracked == null || !tracked.remove(block))
-		{
-			return false;
-		}
-		if(tracked.isEmpty())
-		{
-			blocks.remove(chunk, tracked);
-		}
-		return true;
-	}
-
 	public void placeBlock(PortalBlock block)
 	{
-		registerBlockSilently(block);
+		index.registerBlockSilently(block);
 		Wormholes.effectManager.playPortalBlockPlaced(block.getLocation().getBlock());
-	}
-
-	private void registerBlockSilently(PortalBlock block)
-	{
-		synchronized(runeMutationLock)
-		{
-			GChunk chunk = chunkKey(block.getLocation());
-			blocks.computeIfAbsent(chunk, ignored -> ConcurrentHashMap.newKeySet()).add(block);
-		}
-	}
-
-	private PortalBlock findTrackedBlock(String worldKey, int x, int y, int z)
-	{
-		Set<PortalBlock> tracked = blocks.get(new GChunk(x >> 4, z >> 4, worldKey));
-		if(tracked == null)
-		{
-			return null;
-		}
-		for(PortalBlock portalBlock : tracked)
-		{
-			Location location = portalBlock.getLocation();
-			if(location.getBlockX() == x && location.getBlockY() == y && location.getBlockZ() == z)
-			{
-				return portalBlock;
-			}
-		}
-		return null;
-	}
-
-	private static GChunk chunkKey(Location location)
-	{
-		return new GChunk(location.getBlockX() >> 4, location.getBlockZ() >> 4, WorldIdentity.serialize(location.getWorld()));
 	}
 
 	public void registerRecipes()
 	{
-		unregisterAllRecipes();
-
-		//@builder
-		registerRecipe(new ShapedRecipe(new NamespacedKey(Wormholes.instance, "portal_wand"), getWand())
-				.shape("d d", " r ", " d ")
-				.setIngredient('d', Material.GLOWSTONE_DUST)
-				.setIngredient('r', Material.BLAZE_ROD));
-		registerRecipe(new ShapedRecipe(new NamespacedKey(Wormholes.instance, "portal_rune"), getPortalRune(4))
-				.shape("pbp", "bdb", "pbp")
-				.setIngredient('d', Material.BLAZE_POWDER)
-				.setIngredient('b', Material.PRISMARINE_CRYSTALS)
-				.setIngredient('p', Material.ENDER_PEARL));
-		registerRecipe(new ShapedRecipe(new NamespacedKey(Wormholes.instance, "wormhole_rune"), getWormholeRune(4))
-				.shape("pbp", "bdb", "pbp")
-				.setIngredient('d', Material.NETHER_STAR)
-				.setIngredient('b', Material.PRISMARINE_SHARD)
-				.setIngredient('p', Material.ENDER_EYE));
-		//@done
-	}
-
-	private void registerRecipe(Recipe r)
-	{
-		if(r instanceof Keyed)
-		{
-			Keyed k = (Keyed) r;
-
-			try
-			{
-				Bukkit.addRecipe(r);
-				Wormholes.instance.getLogger().info("Registered Recipe: " + k.getKey().toString());
-			}
-
-			catch(Throwable e)
-			{
-				Wormholes.instance.getLogger().warning("Recipe: " + k.getKey().toString() + " is already registered. Skipping registry.");
-			}
-		}
-	}
-
-	private void unregisterAllRecipes()
-	{
-		Iterator<Recipe> it = Bukkit.getServer().recipeIterator();
-
-		while(it.hasNext())
-		{
-			Recipe r = it.next();
-
-			if(r instanceof Keyed)
-			{
-				Keyed k = (Keyed) r;
-
-				if(k.getKey().getKey().equals("wormholes"))
-				{
-					Wormholes.instance.getLogger().info("Unregistering Recipe: " + k.getKey().toString());
-					it.remove();
-				}
-			}
-		}
-	}
-
-	public boolean isSame(ItemStack is, ItemStack ib)
-	{
-		if(is == null && ib == null)
-		{
-			return true;
-		}
-
-		if(is == null || ib == null)
-		{
-			return false;
-		}
-
-		if(is.getType() != ib.getType())
-		{
-			return false;
-		}
-
-		return is.isSimilar(ib);
+		catalog.registerRecipes();
 	}
 
 	public boolean isPortalTool(ItemStack item)
 	{
-		return isWand(item) || isPortalRune(item);
+		return catalog.isPortalTool(item);
 	}
 
 	public boolean isWand(ItemStack item)
 	{
-		return matchesAnyTemplate(item, acceptedWandTemplates);
+		return catalog.isWand(item);
 	}
 
 	public boolean isPortalRune(ItemStack item)
 	{
-		return matchesAnyTemplate(item, acceptedPortalRuneTemplates)
-				|| matchesAnyTemplate(item, acceptedWormholeRuneTemplates)
-				|| matchesAnyTemplate(item, acceptedGatewayRuneTemplates);
+		return catalog.isPortalRune(item);
 	}
 
 	public ItemStack getWand()
 	{
-		return wandTemplate.clone();
+		return catalog.getWand();
 	}
 
 	public ItemStack getPortalRune(int c)
 	{
-		ItemStack is = portalRuneTemplate.clone();
-		is.setAmount(c);
-
-		return is;
+		return catalog.getPortalRune(c);
 	}
 
 	public ItemStack getWormholeRune(int c)
 	{
-		ItemStack is = wormholeRuneTemplate.clone();
-		is.setAmount(c);
-
-		return is;
+		return catalog.getWormholeRune(c);
 	}
 
 	public ItemStack getGatewayRune(int c)
 	{
-		ItemStack is = gatewayRuneTemplate.clone();
-		is.setAmount(c);
-
-		return is;
-	}
-
-	private boolean isTemplateMatch(ItemStack item, ItemStack template)
-	{
-		return item != null && item.getType() == template.getType() && item.isSimilar(template);
+		return catalog.getGatewayRune(c);
 	}
 
 	public void refund(Set<Block> blocks, PortalType type)
 	{
-		if(blocks == null || blocks.isEmpty())
-		{
-			return;
-		}
-
-		KList<Block> refund = new KList<Block>(blocks);
-		ItemStack is = get(type, 1);
-		Location anchor = refund.get(0).getLocation();
-
-		Runnable[] tickHolder = new Runnable[1];
-		tickHolder[0] = () ->
-		{
-			if(refund.isEmpty())
-			{
-				return;
-			}
-
-			if(M.r(Settings.PORTAL_COLAPSE_SPEED))
-			{
-				Block b = refund.pop();
-				FoliaScheduler.runRegion(Wormholes.instance, b.getLocation(), () ->
-				{
-					b.getWorld().dropItemNaturally(b.getLocation().clone().add(0.5, 0.5, 0.5), is);
-					Wormholes.effectManager.playPortalFailRefund(b);
-				});
-			}
-
-			FoliaScheduler.runRegion(Wormholes.instance, anchor, tickHolder[0], 1L);
-		};
-
-		FoliaScheduler.runRegion(Wormholes.instance, anchor, tickHolder[0]);
+		construction.refund(blocks, type);
 	}
 
 	public ItemStack get(PortalType t, int stack)
 	{
-		switch(t)
-		{
-			case GATEWAY:
-				return getGatewayRune(stack);
-			case PORTAL:
-				return getPortalRune(stack);
-			case WORMHOLE:
-				return getWormholeRune(stack);
-			case RTP:
-				return null;
-		}
-
-		return null;
+		return catalog.get(t, stack);
 	}
 }

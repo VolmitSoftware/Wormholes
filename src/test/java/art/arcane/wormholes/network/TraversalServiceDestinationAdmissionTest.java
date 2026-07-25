@@ -8,54 +8,54 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class TraversalServiceDestinationAdmissionTest {
     @Test
     void directTransferRequiresDestinationSupport() {
-        TraversalService.DestinationPlayerState state = state(true, false, false, false, false, false, 0, 20);
+        TraversalAdmissionPolicy.DestinationPlayerState state = state(true, false, false, false, false, false, 0, 20);
 
-        assertEquals("destination does not accept direct transfers", TraversalService.destinationPlayerDenialReason(state));
+        assertEquals("destination does not accept direct transfers", TraversalAdmissionPolicy.destinationPlayerDenialReason(state));
     }
 
     @Test
     void proxyTransferDoesNotRequireNativeTransferSupport() {
-        TraversalService.DestinationPlayerState state = state(false, false, false, false, false, false, 0, 20);
+        TraversalAdmissionPolicy.DestinationPlayerState state = state(false, false, false, false, false, false, 0, 20);
 
-        assertNull(TraversalService.destinationPlayerDenialReason(state));
+        assertNull(TraversalAdmissionPolicy.destinationPlayerDenialReason(state));
     }
 
     @Test
     void bannedProfileIsDeniedBeforeWhitelistAndCapacity() {
-        TraversalService.DestinationPlayerState state = state(true, true, true, true, false, false, 20, 20);
+        TraversalAdmissionPolicy.DestinationPlayerState state = state(true, true, true, true, false, false, 20, 20);
 
-        assertEquals("player is banned", TraversalService.destinationPlayerDenialReason(state));
+        assertEquals("player is banned", TraversalAdmissionPolicy.destinationPlayerDenialReason(state));
     }
 
     @Test
     void whitelistRequiresMembershipForNonOperator() {
-        TraversalService.DestinationPlayerState state = state(true, true, false, true, false, false, 0, 20);
+        TraversalAdmissionPolicy.DestinationPlayerState state = state(true, true, false, true, false, false, 0, 20);
 
-        assertEquals("player is not whitelisted", TraversalService.destinationPlayerDenialReason(state));
+        assertEquals("player is not whitelisted", TraversalAdmissionPolicy.destinationPlayerDenialReason(state));
     }
 
     @Test
     void reservationsCountTowardExactCapacityBoundary() {
-        TraversalService.DestinationPlayerState state = state(true, true, false, false, false, false, 20, 20);
+        TraversalAdmissionPolicy.DestinationPlayerState state = state(true, true, false, false, false, false, 20, 20);
 
-        assertEquals("destination server is full", TraversalService.destinationPlayerDenialReason(state));
+        assertEquals("destination server is full", TraversalAdmissionPolicy.destinationPlayerDenialReason(state));
     }
 
     @Test
     void operatorBypassesWhitelistWhenCapacityRemains() {
-        TraversalService.DestinationPlayerState state = state(true, true, false, true, false, true, 19, 20);
+        TraversalAdmissionPolicy.DestinationPlayerState state = state(true, true, false, true, false, true, 19, 20);
 
-        assertNull(TraversalService.destinationPlayerDenialReason(state));
+        assertNull(TraversalAdmissionPolicy.destinationPlayerDenialReason(state));
     }
 
     @Test
     void operatorIsDeniedWhenPlayerLimitBypassCannotBeVerified() {
-        TraversalService.DestinationPlayerState state = state(true, true, false, true, false, true, 20, 20);
+        TraversalAdmissionPolicy.DestinationPlayerState state = state(true, true, false, true, false, true, 20, 20);
 
-        assertEquals("destination server is full", TraversalService.destinationPlayerDenialReason(state));
+        assertEquals("destination server is full", TraversalAdmissionPolicy.destinationPlayerDenialReason(state));
     }
 
-    private static TraversalService.DestinationPlayerState state(
+    private static TraversalAdmissionPolicy.DestinationPlayerState state(
         boolean directTransfer,
         boolean transferSupported,
         boolean banned,
@@ -65,7 +65,7 @@ class TraversalServiceDestinationAdmissionTest {
         int admittedPlayers,
         int maxPlayers
     ) {
-        return new TraversalService.DestinationPlayerState(
+        return new TraversalAdmissionPolicy.DestinationPlayerState(
             directTransfer,
             transferSupported,
             banned,

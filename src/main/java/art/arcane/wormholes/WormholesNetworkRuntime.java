@@ -1,0 +1,215 @@
+package art.arcane.wormholes;
+
+import art.arcane.volmlib.util.scheduling.FoliaScheduler;
+import art.arcane.wormholes.config.WormholesSettings;
+import art.arcane.wormholes.network.ImportExportService;
+import art.arcane.wormholes.network.NetworkManager;
+import art.arcane.wormholes.network.NetworkRouter;
+import art.arcane.wormholes.network.PlayerTransfer;
+import art.arcane.wormholes.network.PortalSyncService;
+import art.arcane.wormholes.network.RemotePortalRegistry;
+import art.arcane.wormholes.network.TraversalService;
+import art.arcane.wormholes.network.replication.capture.CaptureRuntime;
+import art.arcane.wormholes.network.replication.capture.CaptureSettings;
+import art.arcane.wormholes.network.view.RemoteViewCache;
+import art.arcane.wormholes.network.view.ViewServer;
+import art.arcane.wormholes.network.view.ViewSubscriptionManager;
+import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.wormholes.service.PacketEventsRuntime;
+import art.arcane.wormholes.service.WormholesTelemetry;
+import art.arcane.wormholes.util.J;
+import org.bukkit.Bukkit;
+import org.bukkit.event.HandlerList;
+
+import java.util.Objects;
+import java.util.logging.Level;
+
+final class WormholesNetworkRuntime {
+    private static final long TRAVERSAL_MAINTENANCE_INTERVAL_TICKS = 100L;
+
+    private final Wormholes plugin;
+    private CaptureRuntime captureRuntime;
+
+    WormholesNetworkRuntime(Wormholes plugin) {
+        this.plugin = Objects.requireNonNull(plugin);
+    }
+
+    void bootstrap(WormholesSettings activeSettings) {
+        construct(activeSettings);
+        plugin.getServer().getMessenger().registerOutgoingPluginChannel(plugin, PlayerTransfer.PROXY_CHANNEL);
+        plugin.packetEvents().registerTransferGate();
+        Wormholes.networkManager.start();
+        J.ar(() -> {
+            ViewSubscriptionManager subscriptions = Wormholes.viewSubscriptions;
+            if (subscriptions != null) {
+                subscriptions.sweep();
+            }
+            ViewServer activeViewServer = Wormholes.viewServer;
+            if (activeViewServer != null) {
+                activeViewServer.syncGatewayTickets();
+            }
+        }, 100);
+    }
+
+    void rebuild(WormholesSettings activeSettings) {
+        construct(activeSettings);
+        Wormholes.networkManager.start();
+        startCaptureRuntime();
+    }
+
+    private void construct(WormholesSettings activeSettings) {
+        Wormholes.remotePortalRegistry = new RemotePortalRegistry();
+        Wormholes.networkManager = new NetworkManager(plugin.getLogger(), activeSettings.getNetwork(), WormholesPlatform.minecraftVersion(), WormholesPlatform.pluginVersion(plugin), Bukkit.getPort(), plugin.getDataFolder().toPath());
+        Wormholes.importExportService = new ImportExportService(Wormholes.networkManager);
+        Wormholes.portalSyncService = new PortalSyncService(
+            Wormholes.networkManager,
+            () -> Wormholes.portalManager.getLocalPortals(),
+            this::runPortalSyncTask
+        );
+        Wormholes.traversalService = new TraversalService(Wormholes.networkManager);
+        Wormholes.remoteViewCache = new RemoteViewCache();
+        Wormholes.viewSubscriptions = new ViewSubscriptionManager(Wormholes.networkManager, Wormholes.remoteViewCache);
+        Wormholes.viewServer = new ViewServer(Wormholes.networkManager);
+        NetworkRouter networkRouter = new NetworkRouter(Wormholes.remotePortalRegistry, Wormholes.portalSyncService, Wormholes.traversalService, Wormholes.viewServer, Wormholes.remoteViewCache, Wormholes.viewSubscriptions, Wormholes.networkManager.getReplicationManager(), Wormholes.networkManager);
+        Wormholes.networkManager.setMessageSink(networkRouter::onMessage);
+        Wormholes.networkManager.setPeerStateSink(networkRouter::onPeerState);
+        registerStatusBridgeListener(Wormholes.networkManager);
+        plugin.getServer().getPluginManager().registerEvents(Wormholes.traversalService, plugin);
+        plugin.getServer().getPluginManager().registerEvents(Wormholes.viewServer, plugin);
+        Wormholes.traversalService.sweepStrandedTransitEntities();
+        scheduleTraversalMaintenance(Wormholes.traversalService);
+    }
+
+    private void scheduleTraversalMaintenance(TraversalService service) {
+        if (FoliaScheduler.runGlobal(plugin, () -> runTraversalMaintenance(service), TRAVERSAL_MAINTENANCE_INTERVAL_TICKS)
+            || !plugin.isEnabled()) {
+            return;
+        }
+        plugin.getLogger().warning("Global scheduler refused traversal recovery maintenance; queued transit rollbacks and expired transfers will only be reclaimed when their chunks reload.");
+        WormholesTelemetry.countFailure("TRAVERSAL_MAINTENANCE_SCHEDULE_REJECTED");
+    }
+
+    private void runTraversalMaintenance(TraversalService service) {
+        if (Wormholes.traversalService != service) {
+            return;
+        }
+        try {
+            service.runRecoveryMaintenance();
+        } catch (Throwable ex) {
+            plugin.getLogger().log(Level.WARNING, "Traversal recovery maintenance failed", ex);
+        }
+        scheduleTraversalMaintenance(service);
+    }
+
+    void reset() {
+        unregisterStatusBridgeListener();
+        stopCaptureRuntime();
+        if (Wormholes.viewServer != null) {
+            try {
+                Wormholes.viewServer.shutdown();
+            } catch (Throwable ex) {
+                plugin.getLogger().log(Level.WARNING, "Error during ViewServer reset", ex);
+            }
+            HandlerList.unregisterAll(Wormholes.viewServer);
+        }
+        if (Wormholes.traversalService != null) {
+            HandlerList.unregisterAll(Wormholes.traversalService);
+        }
+        if (Wormholes.networkManager != null) {
+            try {
+                Wormholes.networkManager.stop();
+            } catch (Throwable ex) {
+                plugin.getLogger().log(Level.WARNING, "Error during NetworkManager reset", ex);
+            }
+        }
+        Wormholes.remotePortalRegistry = new RemotePortalRegistry();
+        Wormholes.portalSyncService = null;
+        Wormholes.traversalService = null;
+        Wormholes.remoteViewCache = new RemoteViewCache();
+        Wormholes.viewSubscriptions = null;
+        Wormholes.viewServer = null;
+        Wormholes.importExportService = null;
+        Wormholes.networkManager = null;
+    }
+
+    void drain() {
+        try {
+            if (Wormholes.viewServer != null) {
+                Wormholes.viewServer.shutdown();
+            }
+        } catch (Throwable ex) {
+            plugin.getLogger().log(Level.WARNING, "Error during ViewServer shutdown", ex);
+        }
+
+        try {
+            if (Wormholes.networkManager != null) {
+                Wormholes.networkManager.stop();
+            }
+        } catch (Throwable ex) {
+            plugin.getLogger().log(Level.WARNING, "Error during NetworkManager shutdown", ex);
+        }
+
+        try {
+            unregisterStatusBridgeListener();
+        } catch (Throwable ex) {
+            plugin.getLogger().log(Level.WARNING, "Error unregistering status bridge listener", ex);
+        }
+    }
+
+    private void runPortalSyncTask(Runnable runnable) {
+        if (!FoliaScheduler.runGlobal(plugin, runnable)) {
+            plugin.getLogger().warning("Portal sync work was rejected by the global scheduler and did not run.");
+        }
+    }
+
+    private void registerStatusBridgeListener(NetworkManager manager) {
+        plugin.packetEvents().registerStatusBridge(manager);
+    }
+
+    void unregisterStatusBridgeListener() {
+        PacketEventsRuntime runtime = plugin.packetEventsIfPresent();
+        if (runtime != null) {
+            runtime.unregisterStatusBridge();
+        }
+    }
+
+    void applyCaptureSettings(WormholesSettings reloaded) {
+        CaptureRuntime activeCapture = captureRuntime;
+        if (!reloaded.getNetwork().enabled) {
+            stopCaptureRuntime();
+        } else if (activeCapture == null) {
+            startCaptureRuntime();
+        } else {
+            activeCapture.applySettings(reloaded.getNetwork());
+        }
+    }
+
+    void startCaptureRuntime() {
+        if (captureRuntime != null) {
+            return;
+        }
+        if (Wormholes.networkManager == null) {
+            return;
+        }
+        WormholesSettings activeSettings = Wormholes.settings;
+        if (activeSettings == null || activeSettings.getNetwork() == null || !activeSettings.getNetwork().enabled) {
+            return;
+        }
+        CaptureSettings initial = CaptureSettings.from(activeSettings.getNetwork());
+        CaptureRuntime runtime = new CaptureRuntime(plugin, plugin.getLogger(), Wormholes.networkManager.getReplicationManager(), Wormholes.networkManager.getReplicationManager(), initial);
+        runtime.start();
+        captureRuntime = runtime;
+    }
+
+    void stopCaptureRuntime() {
+        CaptureRuntime runtime = captureRuntime;
+        captureRuntime = null;
+        if (runtime != null) {
+            runtime.stop();
+        }
+    }
+
+    CaptureRuntime captureRuntime() {
+        return captureRuntime;
+    }
+}

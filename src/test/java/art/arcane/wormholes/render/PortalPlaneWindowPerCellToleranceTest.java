@@ -20,8 +20,8 @@ public final class PortalPlaneWindowPerCellToleranceTest {
     private static final double EYE_SIGNED_DISTANCE = EYE_Z - ORIGIN_Z;
     private static final double CELL_SIGNED_DISTANCE = 16.0D - ORIGIN_Z;
 
-    private static PortalProjector.PortalPlaneWindow window(double padding) {
-        return PortalProjector.PortalPlaneWindow.create(new NotchedStructure(),
+    private static ProjectorPlaneWindow window(double padding) {
+        return ProjectorPlaneWindow.create(new NotchedStructure(),
             new AxisAlignedBB(0.0D, 3.0D, 64.0D, 66.0D, 10.0D, 11.0D),
             PortalFrame.canonical(Direction.S),
             ORIGIN_X, ORIGIN_Y, ORIGIN_Z,

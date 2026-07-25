@@ -80,10 +80,10 @@ public final class TraversalServiceEntityTombstoneTest {
         UUID transferId = UUID.randomUUID();
 
         service.recordEntityTransferTombstone(transferId, entity, PEER, 0L);
-        assertNotNull(service.claimEntityTransferTombstone(PEER, transferId, TraversalService.ENTITY_DEDUPE_TTL_MILLIS - 1L));
+        assertNotNull(service.claimEntityTransferTombstone(PEER, transferId, TraversalEntityTransit.DEDUPE_TTL_MILLIS - 1L));
 
         service.recordEntityTransferTombstone(transferId, entity, PEER, 0L);
-        assertNull(service.claimEntityTransferTombstone(PEER, transferId, TraversalService.ENTITY_DEDUPE_TTL_MILLIS + 1L));
+        assertNull(service.claimEntityTransferTombstone(PEER, transferId, TraversalEntityTransit.DEDUPE_TTL_MILLIS + 1L));
     }
 
     @Test

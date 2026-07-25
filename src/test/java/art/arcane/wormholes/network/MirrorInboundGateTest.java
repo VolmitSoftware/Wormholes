@@ -21,10 +21,10 @@ import art.arcane.wormholes.util.RemoteWorld;
 public final class MirrorInboundGateTest {
     @Test
     public void networkPreflightRejectsMirrorBeforeTransfer() {
-        assertFalse(TraversalService.acceptsInbound(portal(true, true)));
-        assertFalse(TraversalService.acceptsInbound(portal(false, false)));
-        assertTrue(TraversalService.acceptsInbound(portal(false, true)));
-        assertFalse(TraversalService.acceptsInbound(null));
+        assertFalse(TraversalAdmissionPolicy.acceptsInbound(portal(true, true)));
+        assertFalse(TraversalAdmissionPolicy.acceptsInbound(portal(false, false)));
+        assertTrue(TraversalAdmissionPolicy.acceptsInbound(portal(false, true)));
+        assertFalse(TraversalAdmissionPolicy.acceptsInbound(null));
     }
 
     @Test
