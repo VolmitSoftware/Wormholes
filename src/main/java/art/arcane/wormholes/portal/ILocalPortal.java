@@ -66,9 +66,9 @@ public interface ILocalPortal extends IPortal, IPersistant, Listener
 
 	public boolean hasTunnel();
 
-	public void setDestination(IPortal portal);
+	public boolean setDestination(IPortal portal);
 
-	public void linkRemote(String serverName, UUID portalId);
+	public boolean linkRemote(String serverName, UUID portalId);
 
 	public void unlink();
 

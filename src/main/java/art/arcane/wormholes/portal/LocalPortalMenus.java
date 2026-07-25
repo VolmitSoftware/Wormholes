@@ -110,13 +110,14 @@ final class LocalPortalMenus
 
 			RtpSettings currentRtpSettings = portal.getRtpSettings();
 			boolean rtp = portal.getType() == PortalType.RTP && currentRtpSettings != null;
+			IPortal linkedDestination = linkedDestination();
 			UIElement destination = new UIElement("set-destination");
 			LinesKey destinationKey = rtp
 					? WormholesMessages.PORTAL_MENU_RTP_DESTINATION
 					: portal.isGateway() ? WormholesMessages.PORTAL_MENU_GATEWAY_DESTINATION : WormholesMessages.PORTAL_MENU_DESTINATION;
 			String destinationLabel = rtp
 					? text.rtpRotationSummary(currentRtpSettings)
-					: portal.hasTunnel() ? portal.getTunnel().getDestination().getName() : LocalPortalText.localized(WormholesMessages.LABEL_NONE);
+					: linkedDestination != null ? linkedDestination.getName() : LocalPortalText.localized(WormholesMessages.LABEL_NONE);
 			String destinationArgument = rtp ? "rotation" : "destination";
 			Wormholes.text().apply(destination, destinationKey, LocalPortalText.arguments(destinationArgument, destinationLabel));
 			destination.setMaterial(new MaterialBlock(rtp ? Material.COMPASS : portal.isGateway() ? Material.END_CRYSTAL : Material.ENDER_EYE));
@@ -244,11 +245,18 @@ final class LocalPortalMenus
 		window.setVisible(true);
 	}
 
+	private IPortal linkedDestination()
+	{
+		ITunnel activeTunnel = portal.getTunnel();
+		return activeTunnel == null ? null : activeTunnel.getDestination();
+	}
+
 	private Element portalPlacardElement()
 	{
 		UIElement element = new UIElement("portal-placard");
 		element.setMaterial(new MaterialBlock(Material.BOOK));
 		RtpSettings rtpSettings = portal.getRtpSettings();
+		IPortal linkedDestination = linkedDestination();
 		if(portal.getType() == PortalType.RTP && rtpSettings != null)
 		{
 			Wormholes.text().apply(element, WormholesMessages.PORTAL_MENU_PLACARD_RTP,
@@ -259,14 +267,14 @@ final class LocalPortalMenus
 							"allocation", LocalPortalText.rtpAllocationLabel(rtpSettings.getAllocationMode()),
 							"rotation", text.rtpRotationSummary(rtpSettings)));
 		}
-		else if(portal.hasTunnel())
+		else if(linkedDestination != null)
 		{
 			Wormholes.text().apply(element, WormholesMessages.PORTAL_MENU_PLACARD_LINKED,
 					LocalPortalText.arguments(
 							"portal", portal.getName(),
 							"type", text.currentModeLabel(),
 							"facing", LocalPortalText.directionLabel(portal.getDirection()),
-							"destination", portal.getTunnel().getDestination().getName()));
+							"destination", linkedDestination.getName()));
 		}
 		else
 		{
@@ -364,14 +372,16 @@ final class LocalPortalMenus
 	{
 		UIElement element = new UIElement("gateway-pair-placard");
 		element.setMaterial(new MaterialBlock(Material.RESPAWN_ANCHOR));
-		if(!portal.hasTunnel())
+		ITunnel activeTunnel = portal.getTunnel();
+		IPortal linkedDestination = activeTunnel == null ? null : activeTunnel.getDestination();
+		if(linkedDestination == null)
 		{
 			Wormholes.text().apply(element, WormholesMessages.PORTAL_MENU_GATEWAY_UNPAIRED);
 			return element;
 		}
 		Wormholes.text().apply(element, WormholesMessages.PORTAL_MENU_GATEWAY_PAIRED,
-				LocalPortalText.arguments("destination", portal.getTunnel().getDestination().getName()));
-		if(portal.getTunnel() instanceof UniversalTunnel universal && Wormholes.networkManager != null)
+				LocalPortalText.arguments("destination", linkedDestination.getName()));
+		if(activeTunnel instanceof UniversalTunnel universal && Wormholes.networkManager != null)
 		{
 			String peer = universal.getServerName();
 			boolean ready = Wormholes.networkManager.isPeerReady(peer);

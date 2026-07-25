@@ -29,6 +29,7 @@ public final class WormholesLifecycleBytecodeTest {
     private static final String FOLIA_SCHEDULER = "art/arcane/volmlib/util/scheduling/FoliaScheduler";
 
     private static final List<String> REVERSE_CONSTRUCTION_ORDER = List.of(
+        "placeholders",
         "viewServer",
         "viewSubscriptions",
         "remoteViewCache",

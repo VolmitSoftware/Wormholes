@@ -170,6 +170,10 @@ final class LocalPortalSettings
 
 	void setMirrorMode(boolean mirrorMode)
 	{
+		if(mirrorMode && portal.getTunnel() != null && PortalSyncService.isApplyingRemote())
+		{
+			return;
+		}
 		if(mirrorMode && portal.getType() == PortalType.RTP)
 		{
 			portal.setType(PortalType.PORTAL);
@@ -180,6 +184,10 @@ final class LocalPortalSettings
 			return;
 		}
 		this.mirrorMode = normalized;
+		if(normalized && portal.getTunnel() != null)
+		{
+			portal.linking().assignTunnel(null);
+		}
 		portal.gate().invalidateProjection();
 		portal.save();
 		if(Wormholes.portalSyncService != null)

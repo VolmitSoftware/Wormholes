@@ -1,5 +1,6 @@
 package art.arcane.wormholes;
 
+import art.arcane.wormholes.chunk.presend.ChunkPreSendSettings;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.VisualQualityProfile;
 import art.arcane.wormholes.config.toml.MainConfig;
@@ -41,6 +42,14 @@ public final class Settings {
     public static volatile int PROJECTION_INITIAL_RESEND_PASSES = 4;
     public static volatile int PROJECTION_MAX_PROJECTED_CELLS = 250000;
     public static volatile long TELEPORT_COOLDOWN_MILLIS = 1000L;
+    public static volatile boolean TRAVERSAL_API_ENABLED = true;
+    public static volatile String TRAVERSAL_API_PROVIDER_FAILURE_POLICY = "allow";
+    public static volatile int TRAVERSAL_API_PROVIDER_FAULT_LIMIT = 5;
+    public static volatile long TRAVERSAL_API_SLOW_PROVIDER_MILLIS = 5L;
+    public static volatile boolean CHUNK_PRE_SEND_ENABLED = false;
+    public static volatile int CHUNK_PRE_SEND_RADIUS_CHUNKS = 3;
+    public static volatile int CHUNK_PRE_SEND_MAX_CHUNKS = 32;
+    public static volatile int CHUNK_PRE_SEND_BUDGET_MICROS = 2000;
     public static volatile boolean ARRIVAL_PREWARM_ON_INTEREST = true;
     public static volatile int ARRIVAL_WARM_RADIUS_CHUNKS = 4;
     public static volatile int ARRIVAL_WARM_MAX_RADIUS_CHUNKS = 10;
@@ -48,6 +57,9 @@ public final class Settings {
     public static volatile long ARRIVAL_WARM_THROTTLE_MILLIS = 1000L;
     public static volatile boolean ARRIVAL_TRANSITION_MASK = true;
     public static volatile int ARRIVAL_TRANSITION_MASK_TICKS = 25;
+    public static volatile boolean CHUNK_SEND_RATE_TUNER = true;
+    public static volatile double CHUNK_SEND_RATE_TARGET = 1000.0D;
+    public static volatile double CHUNK_LOAD_RATE_TARGET = 1000.0D;
     public static volatile boolean REPLACE_NETHER_AND_END_PORTALS = true;
     public static volatile boolean DIMENSIONAL_DOORS_ENABLED = true;
     public static volatile boolean DEBUG = false;
@@ -69,6 +81,15 @@ public final class Settings {
         PORTAL_COLAPSE_SPEED = clampDouble(main.portalCollapseSpeed, 0.0D, 1.0D);
         DEBUG_RENDERING = main.debugRendering;
         TELEPORT_COOLDOWN_MILLIS = clampInt(main.teleportCooldownMillis, 0, 60_000);
+        TRAVERSAL_API_ENABLED = main.traversalApiEnabled;
+        TRAVERSAL_API_PROVIDER_FAILURE_POLICY = main.traversalApiProviderFailurePolicy;
+        TRAVERSAL_API_PROVIDER_FAULT_LIMIT = main.traversalApiProviderFaultLimit;
+        TRAVERSAL_API_SLOW_PROVIDER_MILLIS = main.traversalApiSlowProviderMillis;
+        CHUNK_PRE_SEND_ENABLED = main.chunkPreSendEnabled;
+        CHUNK_PRE_SEND_RADIUS_CHUNKS = clampInt(main.chunkPreSendRadiusChunks, 0, 16);
+        CHUNK_PRE_SEND_MAX_CHUNKS = clampInt(main.chunkPreSendMaxChunks, 0, 1024);
+        CHUNK_PRE_SEND_BUDGET_MICROS = clampInt(main.chunkPreSendBudgetMicros, 0, 25_000);
+        ChunkPreSendSettings.apply(CHUNK_PRE_SEND_ENABLED, CHUNK_PRE_SEND_RADIUS_CHUNKS, CHUNK_PRE_SEND_MAX_CHUNKS, CHUNK_PRE_SEND_BUDGET_MICROS);
         ARRIVAL_PREWARM_ON_INTEREST = main.arrivalPrewarmOnInterest;
         ARRIVAL_WARM_RADIUS_CHUNKS = clampInt(main.arrivalWarmRadiusChunks, 0, 12);
         ARRIVAL_WARM_MAX_RADIUS_CHUNKS = clampInt(main.arrivalWarmMaxRadiusChunks, ARRIVAL_WARM_RADIUS_CHUNKS, 32);
@@ -76,6 +97,9 @@ public final class Settings {
         ARRIVAL_WARM_THROTTLE_MILLIS = clampInt(main.arrivalWarmThrottleMillis, 0, 60_000);
         ARRIVAL_TRANSITION_MASK = main.arrivalTransitionMask;
         ARRIVAL_TRANSITION_MASK_TICKS = clampInt(main.arrivalTransitionMaskTicks, 0, 200);
+        CHUNK_SEND_RATE_TUNER = main.chunkSendRateTuner;
+        CHUNK_SEND_RATE_TARGET = clampDouble(main.chunkSendRateTarget, 0.0D, 10000.0D);
+        CHUNK_LOAD_RATE_TARGET = clampDouble(main.chunkLoadRateTarget, 0.0D, 10000.0D);
         REPLACE_NETHER_AND_END_PORTALS = main.replaceNetherAndEndPortals;
         DIMENSIONAL_DOORS_ENABLED = main.dimensionalDoorsEnabled;
         DEBUG = main.verboseLogging;

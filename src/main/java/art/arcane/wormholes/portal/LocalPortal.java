@@ -450,15 +450,15 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 	}
 
 	@Override
-	public void setDestination(IPortal portal)
+	public boolean setDestination(IPortal portal)
 	{
-		linking.setDestination(portal);
+		return linking.setDestination(portal);
 	}
 
 	@Override
-	public void linkRemote(String serverName, UUID portalId)
+	public boolean linkRemote(String serverName, UUID portalId)
 	{
-		linking.linkRemote(serverName, portalId);
+		return linking.linkRemote(serverName, portalId);
 	}
 
 	@Override

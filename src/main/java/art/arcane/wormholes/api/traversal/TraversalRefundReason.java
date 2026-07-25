@@ -1,0 +1,15 @@
+package art.arcane.wormholes.api.traversal;
+
+public enum TraversalRefundReason {
+    TRAVERSAL_ABORTED,
+    DESTINATION_REJECTED,
+    DESTINATION_UNAVAILABLE,
+    TELEPORT_FAILED,
+    TIMED_OUT,
+    TRAVELER_RETREATED,
+    TRAVELER_LEFT,
+    RATE_LIMITED,
+    CHARGE_ROLLBACK,
+    EXPIRED,
+    SERVER_SHUTDOWN
+}

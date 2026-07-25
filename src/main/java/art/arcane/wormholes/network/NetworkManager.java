@@ -83,6 +83,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     private volatile BiConsumer<String, Boolean> peerStateSink;
     private volatile ScheduledExecutorService scheduler;
     private volatile ExecutorService statusPollExecutor;
+    private volatile int connectedPeers;
 
     public NetworkManager(Logger logger, NetworkConfig config, String mcVersion, String pluginVersion, int gamePort) {
         this(logger, config, mcVersion, pluginVersion, gamePort, Path.of("plugins", "Wormholes"));
@@ -314,6 +315,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         }
         listener.closeTransports();
         links.closeAll("shutdown");
+        refreshConnectedPeers();
         presence.clear();
         nextStatusAttempt.clear();
         sideband.clear();
@@ -453,6 +455,18 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
 
     public List<PeerSnapshot> peerSnapshots() {
         return reporter.peerSnapshots();
+    }
+
+    public int connectedPeers() {
+        return connectedPeers;
+    }
+
+    public int knownPeerCount() {
+        return directory.all().size();
+    }
+
+    private void refreshConnectedPeers() {
+        connectedPeers = links.readyCount();
     }
 
     public WireCompression wireCompressionMetrics() {
@@ -613,8 +627,11 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         directory.learnFromConnection(connection);
 
         if (!links.promote(name, connection, this::initiatorName)) {
+            refreshConnectedPeers();
             return;
         }
+
+        refreshConnectedPeers();
 
         synchronized (statusPeerGate(name)) {
             clearStatusSidebandLocked(name);
@@ -721,6 +738,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         links.removePending(connection);
         String name = connection.getPeerName();
         boolean wasReady = name != null && links.removeReady(name, connection);
+        refreshConnectedPeers();
         if (wasReady) {
             logger.info("net: peer " + name + " disconnected: " + reason);
             relay.forgetVia(name);

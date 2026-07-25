@@ -1,13 +1,17 @@
 package art.arcane.wormholes;
 
 import art.arcane.volmlib.integration.ReloadAware;
+import art.arcane.volmlib.util.bukkit.papi.PlaceholderRegistration;
 import art.arcane.volmlib.util.localization.LocalizationReloadResult;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.volmlib.util.scheduling.SchedulerBridge;
 import art.arcane.volmlib.util.scheduling.SchedulerRuntime;
+import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
+import art.arcane.wormholes.api.traversal.internal.TraversalCostPolicy;
 import art.arcane.wormholes.chunk.BukkitChunkLeasePlatform;
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
+import art.arcane.wormholes.chunk.ChunkSendRateTuner;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.door.DimensionalDoorManager;
 import art.arcane.wormholes.localization.WormholesLocalization;
@@ -20,6 +24,7 @@ import art.arcane.wormholes.network.replication.capture.CaptureRuntime;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.network.view.ViewServer;
 import art.arcane.wormholes.network.view.ViewSubscriptionManager;
+import art.arcane.wormholes.papi.WormholesPlaceholders;
 import art.arcane.wormholes.portal.ArrivalWarmer;
 import art.arcane.wormholes.portal.rtp.BukkitRtpEnvironment;
 import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
@@ -71,6 +76,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     public static volatile RemotePortalRegistry remotePortalRegistry;
     public static volatile PortalSyncService portalSyncService;
     public static volatile TraversalService traversalService;
+    public static volatile TraversalCostGateway traversalCostGateway;
     public static volatile RemoteViewCache remoteViewCache;
     public static volatile ViewSubscriptionManager viewSubscriptions;
     public static volatile ViewServer viewServer;
@@ -78,6 +84,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     public static volatile PocketWorldService pocketWorldService;
     public static volatile DimensionalDoorManager dimensionalDoorManager;
     public static volatile WormholesLocalization localization;
+    public static volatile WormholesPlaceholders placeholders;
 
     private static final ConcurrentHashMap<UUID, Consumer<String>> CHAT_INPUTS = new ConcurrentHashMap<>();
 
@@ -122,6 +129,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             reloads.reloadLocalization(settings);
             this.schedulerRuntime = installSchedulerBridge();
             installChunkLeaseRegistry();
+            ChunkSendRateTuner.install(this);
 
             packetEvents().init();
             WormholesAudience.start(this);
@@ -173,6 +181,14 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             integrationService = new WormholesIntegrationService();
             integrationService.register();
 
+            registerPlaceholders();
+
+            traversalCostGateway = TraversalCostGateway.bukkit(this, () -> TraversalCostPolicy.of(
+                Settings.TRAVERSAL_API_ENABLED,
+                Settings.TRAVERSAL_API_PROVIDER_FAILURE_POLICY,
+                Settings.TRAVERSAL_API_PROVIDER_FAULT_LIMIT,
+                Settings.TRAVERSAL_API_SLOW_PROVIDER_MILLIS));
+
             reloads.startHotloadManager();
 
             diagnostics.start();
@@ -196,6 +212,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         alreadyDrained.set(false);
         doors.clearDisablePending();
         unregisterIntegrationService();
+        unregisterPlaceholders();
         try {
             HandlerList.unregisterAll(this);
         } catch (Throwable ex) {
@@ -229,6 +246,12 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
 
     private void tearDownBeforeDrain() {
         unregisterIntegrationService();
+        unregisterPlaceholders();
+        TraversalCostGateway gateway = traversalCostGateway;
+        if (gateway != null) {
+            gateway.shutdown();
+            traversalCostGateway = null;
+        }
         doors.shutdownManagerBeforeSchedulers();
         doors.shutdownPocketWorldService();
         shutdownRtpBeforeSchedulers();
@@ -334,6 +357,34 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         if (integrationService != null) {
             integrationService.unregister();
             integrationService = null;
+        }
+    }
+
+    private void registerPlaceholders() {
+        if (!PlaceholderRegistration.isPlaceholderApiEnabled()) {
+            return;
+        }
+
+        WormholesPlaceholders active = new WormholesPlaceholders(getDescription().getVersion(), getLogger());
+
+        if (active.register()) {
+            placeholders = active;
+            getLogger().info("PlaceholderAPI expansion registered as %wormholes_*%");
+        }
+    }
+
+    private void unregisterPlaceholders() {
+        WormholesPlaceholders active = placeholders;
+        placeholders = null;
+
+        if (active == null) {
+            return;
+        }
+
+        try {
+            active.unregister();
+        } catch (Throwable ex) {
+            getLogger().log(Level.WARNING, "Error unregistering the PlaceholderAPI expansion", ex);
         }
     }
 
@@ -614,6 +665,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             return;
         }
 
+        placeholders = null;
         viewServer = null;
         viewSubscriptions = null;
         remoteViewCache = null;

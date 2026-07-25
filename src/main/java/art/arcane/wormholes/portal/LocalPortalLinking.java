@@ -51,6 +51,20 @@ final class LocalPortalLinking
 		}
 		dimensionalCounterpartId = LocalPortalPersistence.resolveOptionalUuid(j.optString("dimensionalCounterpartId", ""));
 		dimensionalPortalKind = DimensionalPortalKind.fromName(j.optString("dimensionalPortalKind", ""));
+		if(normalizeMirrorState())
+		{
+			portal.save();
+		}
+	}
+
+	boolean normalizeMirrorState()
+	{
+		if(tunnel == null || !portal.settings().isMirrorMode() || dimensionalPortalKind.isManagedPortal())
+		{
+			return false;
+		}
+		tunnel = null;
+		return true;
 	}
 
 	ITunnel getTunnel()
@@ -65,7 +79,8 @@ final class LocalPortalLinking
 
 	boolean hasTunnel()
 	{
-		return tunnel != null && tunnel.getDestination() != null;
+		ITunnel activeTunnel = tunnel;
+		return activeTunnel != null && activeTunnel.getDestination() != null;
 	}
 
 	void setType(PortalType type)
@@ -117,17 +132,21 @@ final class LocalPortalLinking
 		}
 	}
 
-	void setDestination(IPortal destinationPortal)
+	boolean setDestination(IPortal destinationPortal)
 	{
+		if(portal.settings().isMirrorMode())
+		{
+			return false;
+		}
 		if(portal.getType() == PortalType.RTP
 				|| (destinationPortal instanceof ILocalPortal localPortal && localPortal.getType() == PortalType.RTP))
 		{
-			return;
+			return false;
 		}
 		if(dimensionalPortalKind.isReceiverOnly()
 				|| (dimensionalPortalKind.isManagedPortal() && dimensionalCounterpartId != null))
 		{
-			return;
+			return false;
 		}
 		detachDimensionalPairIdentity();
 		if(destinationPortal instanceof ILocalPortal)
@@ -159,17 +178,23 @@ final class LocalPortalLinking
 		}
 
 		portal.settings().syncLinkedLocalsIfEnabled();
+		return true;
 	}
 
-	void linkRemote(String serverName, UUID portalId)
+	boolean linkRemote(String serverName, UUID portalId)
 	{
+		if(portal.settings().isMirrorMode())
+		{
+			return false;
+		}
 		if(portal.getType() == PortalType.RTP || dimensionalPortalKind.isManagedPortal())
 		{
-			return;
+			return false;
 		}
 		detachDimensionalPairIdentity();
 		tunnel = new UniversalTunnel(serverName, portalId);
 		portal.save();
+		return true;
 	}
 
 	void destroy()

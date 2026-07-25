@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class WormholesTelemetry {
@@ -14,16 +15,16 @@ public final class WormholesTelemetry {
     private static final AtomicLong RENDER_NANOS = new AtomicLong();
     private static final AtomicLong FAILURES = new AtomicLong();
     private static final ConcurrentMap<String, AtomicLong> FAILURE_REASONS = new ConcurrentHashMap<>();
-    private static final Object RATE_LOCK = new Object();
+    private static final AtomicBoolean RATE_GATE = new AtomicBoolean();
     private static volatile int activeProjections;
     private static volatile int projectionObservers;
     private static volatile int spoofedEntities;
-    private static long windowStartMs;
-    private static long windowBlockChanges;
-    private static long windowPackets;
-    private static long windowTraversals;
-    private static long windowRenderNanos;
-    private static long windowFailures;
+    private static volatile long windowStartMs;
+    private static volatile long windowBlockChanges;
+    private static volatile long windowPackets;
+    private static volatile long windowTraversals;
+    private static volatile long windowRenderNanos;
+    private static volatile long windowFailures;
     private static volatile double blockChangesPerSecond;
     private static volatile double packetsPerSecond;
     private static volatile double traversalsPerMinute;
@@ -118,7 +119,11 @@ public final class WormholesTelemetry {
     }
 
     public static void clear() {
-        synchronized (RATE_LOCK) {
+        while (!RATE_GATE.compareAndSet(false, true)) {
+            Thread.onSpinWait();
+        }
+
+        try {
             BLOCK_CHANGES.set(0L);
             PACKETS.set(0L);
             TRAVERSALS.set(0L);
@@ -136,23 +141,37 @@ public final class WormholesTelemetry {
             traversalsPerMinute = 0D;
             renderMsPerSecond = 0D;
             failuresPerMinute = 0D;
+        } finally {
+            RATE_GATE.set(false);
         }
         setProjectionGauges(0, 0, 0);
     }
 
     private static void refreshRates(long now) {
-        synchronized (RATE_LOCK) {
-            if (windowStartMs == 0L) {
-                windowStartMs = now;
+        long observedStart = windowStartMs;
+
+        if (observedStart != 0L && now - observedStart < RATE_WINDOW_MS) {
+            return;
+        }
+
+        if (!RATE_GATE.compareAndSet(false, true)) {
+            return;
+        }
+
+        try {
+            long windowStart = windowStartMs;
+
+            if (windowStart == 0L) {
                 windowBlockChanges = BLOCK_CHANGES.get();
                 windowPackets = PACKETS.get();
                 windowTraversals = TRAVERSALS.get();
                 windowRenderNanos = RENDER_NANOS.get();
                 windowFailures = FAILURES.get();
+                windowStartMs = now;
                 return;
             }
 
-            long elapsed = now - windowStartMs;
+            long elapsed = now - windowStart;
             if (elapsed < RATE_WINDOW_MS) {
                 return;
             }
@@ -176,6 +195,8 @@ public final class WormholesTelemetry {
             windowTraversals = traversals;
             windowRenderNanos = renderNanos;
             windowFailures = failures;
+        } finally {
+            RATE_GATE.set(false);
         }
     }
 }

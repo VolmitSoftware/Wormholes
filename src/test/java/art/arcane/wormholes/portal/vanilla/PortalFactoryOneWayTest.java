@@ -182,7 +182,7 @@ public final class PortalFactoryOneWayTest
 		{
 			mutations++;
 			destination = (IPortal) arguments[0];
-			return null;
+			return Boolean.TRUE;
 		}
 
 		private Object assignDimensionalCounterpart(Object[] arguments)

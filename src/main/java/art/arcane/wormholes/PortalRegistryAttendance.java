@@ -1,6 +1,5 @@
 package art.arcane.wormholes;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -9,14 +8,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
+import art.arcane.wormholes.papi.PortalProximityIndex;
+import art.arcane.wormholes.papi.WormholesPlaceholderPublisher;
+import art.arcane.wormholes.papi.WormholesPlaceholders;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.util.AxisAlignedBB;
 
 final class PortalRegistryAttendance
 {
 	private static final double BASE_RANGE = 64.0D;
+	private static final long PLACEHOLDER_PUBLISH_INTERVAL = 4L;
 
 	private final Map<UUID, PlayerPosition> playerPositions = new ConcurrentHashMap<UUID, PlayerPosition>();
+	private long refreshCount;
 
 	void record(Player player, Location location)
 	{
@@ -24,20 +28,28 @@ final class PortalRegistryAttendance
 		{
 			return;
 		}
-		playerPositions.put(player.getUniqueId(), new PlayerPosition(location.getWorld().getUID(), location.getX(), location.getY(), location.getZ()));
+		playerPositions.put(player.getUniqueId(), new PlayerPosition(location.getWorld().getUID(), location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch()));
 	}
 
 	void forget(UUID playerId)
 	{
 		playerPositions.remove(playerId);
+		WormholesPlaceholders placeholders = Wormholes.placeholders;
+		if(placeholders != null)
+		{
+			placeholders.forget(playerId);
+		}
 	}
 
 	void refresh(List<ILocalPortal> snapshot)
 	{
-		Collection<PlayerPosition> positions = playerPositions.values();
+		refreshCount++;
+		WormholesPlaceholders placeholders = Wormholes.placeholders;
+		PortalProximityIndex index = placeholders != null && (refreshCount % PLACEHOLDER_PUBLISH_INTERVAL) == 0L ? new PortalProximityIndex() : null;
 
-		for(ILocalPortal portal : snapshot)
+		for(int portalIndex = 0; portalIndex < snapshot.size(); portalIndex++)
 		{
+			ILocalPortal portal = snapshot.get(portalIndex);
 			Location center = portal.getCenter();
 			if(center == null || center.getWorld() == null)
 			{
@@ -54,26 +66,38 @@ final class PortalRegistryAttendance
 			double thresholdSquared = threshold * threshold;
 			UUID worldId = center.getWorld().getUID();
 			boolean attended = false;
-			for(PlayerPosition position : positions)
+			for(Map.Entry<UUID, PlayerPosition> entry : playerPositions.entrySet())
 			{
+				PlayerPosition position = entry.getValue();
 				if(!worldId.equals(position.worldId()))
 				{
 					continue;
 				}
-				double dx = position.x() - center.getX();
-				double dy = position.y() - center.getY();
-				double dz = position.z() - center.getZ();
-				if((dx * dx) + (dy * dy) + (dz * dz) <= thresholdSquared)
+				double dx = center.getX() - position.x();
+				double dy = center.getY() - position.y();
+				double dz = center.getZ() - position.z();
+				double distanceSquared = (dx * dx) + (dy * dy) + (dz * dz);
+				if(distanceSquared > thresholdSquared)
 				{
-					attended = true;
+					continue;
+				}
+				attended = true;
+				if(index == null)
+				{
 					break;
 				}
+				index.offer(entry.getKey(), portalIndex, distanceSquared, PortalProximityIndex.facingCosine(position.yaw(), position.pitch(), dx, dy, dz, distanceSquared));
 			}
 			portal.setAmbientAttended(attended);
 		}
+
+		if(index != null)
+		{
+			WormholesPlaceholderPublisher.publish(placeholders, snapshot, index, playerPositions.keySet(), System.currentTimeMillis());
+		}
 	}
 
-	private record PlayerPosition(UUID worldId, double x, double y, double z)
+	private record PlayerPosition(UUID worldId, double x, double y, double z, float yaw, float pitch)
 	{
 	}
 }

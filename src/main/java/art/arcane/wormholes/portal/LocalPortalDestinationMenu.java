@@ -35,6 +35,11 @@ final class LocalPortalDestinationMenu
 			menus.text().notifySetting(p, WormholesMessages.PORTAL_RTP_CANNOT_LINK);
 			return;
 		}
+		if(portal.isMirrorMode())
+		{
+			menus.text().notifySetting(p, WormholesMessages.PORTAL_TRAVEL_MIRROR_LOCKED);
+			return;
+		}
 		if(portal.getDimensionalPortalKind().isManagedPortal())
 		{
 			menus.text().notifySetting(p, WormholesMessages.PORTAL_DIMENSIONAL_LINK_MANAGED);
@@ -181,7 +186,9 @@ final class LocalPortalDestinationMenu
 
 	private boolean isLinkedToLocal(ILocalPortal target)
 	{
-		return portal.hasTunnel() && portal.getTunnel().getDestination().getId().equals(target.getId());
+		ITunnel activeTunnel = portal.getTunnel();
+		IPortal destination = activeTunnel == null ? null : activeTunnel.getDestination();
+		return destination != null && destination.getId().equals(target.getId());
 	}
 
 	private double localDestinationDistanceSquared(ILocalPortal target)

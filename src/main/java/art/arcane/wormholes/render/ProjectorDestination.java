@@ -14,6 +14,7 @@ import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.network.view.ViewSubscriptionManager;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
+import art.arcane.wormholes.portal.ITunnel;
 import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
@@ -67,7 +68,9 @@ final class ProjectorDestination {
         boolean rtpMode = rtpTarget != null;
         mirrorMode = !rtpMode && portal.isMirrorMode();
         mirrorRotationQuarterTurns = mirrorMode ? portal.getMirrorRotation().getQuarterTurns() : 0;
-        if (!rtpMode && !mirrorMode && !portal.hasTunnel()) {
+        ITunnel activeTunnel = portal.getTunnel();
+        IPortal linkedDestination = activeTunnel == null ? null : activeTunnel.getDestination();
+        if (!rtpMode && !mirrorMode && linkedDestination == null) {
             Wormholes.v("[Projector] portal " + portal.getName() + " no longer linked, closing projector");
             return Outcome.CLOSE;
         }
@@ -83,12 +86,12 @@ final class ProjectorDestination {
             destAnchor = portal;
             destWorld = localWorld;
         } else {
-            IPortal destPortal = portal.getTunnel().getDestination();
+            IPortal destPortal = linkedDestination;
             if (destPortal instanceof ILocalPortal localDest) {
                 dest = localDest;
                 destAnchor = localDest;
                 destWorld = dest.getWorld();
-            } else if (destPortal instanceof RemotePortal remotePortal && portal.getTunnel() instanceof UniversalTunnel universal) {
+            } else if (destPortal instanceof RemotePortal remotePortal && activeTunnel instanceof UniversalTunnel universal) {
                 dest = null;
                 destAnchor = remotePortal;
                 destWorld = null;

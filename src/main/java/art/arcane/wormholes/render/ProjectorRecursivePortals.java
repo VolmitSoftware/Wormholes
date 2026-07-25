@@ -12,6 +12,7 @@ import org.bukkit.World;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.wormholes.portal.ITunnel;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.util.AxisAlignedBB;
 
@@ -316,6 +317,7 @@ final class ProjectorRecursivePortals {
             boolean canTraverse;
             boolean mirrors;
             int mirrorQuarterTurns;
+            ITunnel candidateTunnel = candidate.getTunnel();
             if (candidate.isMirrorMode()) {
                 destination = candidate;
                 destinationWorld = candidate.getWorld();
@@ -326,7 +328,7 @@ final class ProjectorRecursivePortals {
                 canTraverse = destinationWorld != null;
                 mirrors = true;
                 mirrorQuarterTurns = candidate.getMirrorRotation().getQuarterTurns();
-            } else if (candidate.getTunnel() != null && candidate.getTunnel().getDestination() instanceof ILocalPortal linkedDestination) {
+            } else if (candidateTunnel != null && candidateTunnel.getDestination() instanceof ILocalPortal linkedDestination) {
                 destination = linkedDestination;
                 destinationWorld = linkedDestination.getWorld();
                 destinationFrame = linkedDestination.getFrame() == null ? null : PortalProjector.viewFrame(linkedDestination.getFrame(), frontSide);

@@ -68,8 +68,18 @@ tasks.named('jar').configure {
     enabled = false
 }
 
+def apiJarTask = tasks.register('apiJar', Jar) {
+    group = 'build'
+    description = 'Packages only the public third-party API so other plugins can compile against it.'
+    archiveClassifier.set('api')
+    from(sourceSets.main.output) {
+        include 'art/arcane/wormholes/api/**'
+        exclude 'art/arcane/wormholes/api/**/internal/**'
+    }
+}
+
 tasks.named('build').configure {
-    dependsOn(shadowJarTask)
+    dependsOn(shadowJarTask, apiJarTask)
 }
 
 shadowJarTask.configure {
@@ -173,6 +183,9 @@ repositories {
         url = uri('https://hub.spigotmc.org/nexus/content/repositories/snapshots/')
     }
     maven {
+        url = uri('https://repo.extendedclip.com/content/repositories/placeholderapi/')
+    }
+    maven {
         url = uri('https://repo.codemc.io/repository/maven-releases/')
     }
     maven {
@@ -192,9 +205,11 @@ repositories {
 dependencies {
     implementation('de.crazydev22.slimjar.helper:spigot:2.1.9')
     compileOnly('com.github.luben:zstd-jni:1.5.7-11')
+    compileOnly('me.clip:placeholderapi:2.11.6') { transitive = false }
     compileOnly(libs.paper)
     compileOnly(libs.fastutil)
     spigotCompatibility("org.spigotmc:spigot-api:${spigotApiVersion}")
+    testImplementation('me.clip:placeholderapi:2.11.6') { transitive = false }
     testImplementation(libs.paper)
     testImplementation(libs.fastutil)
     testImplementation('com.github.luben:zstd-jni:1.5.7-11')

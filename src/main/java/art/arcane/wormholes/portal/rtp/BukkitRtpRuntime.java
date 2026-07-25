@@ -142,6 +142,15 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 								.anyMatch(view -> view.state() == RtpProjectionView.State.READY));
 	}
 
+	public RtpService.Snapshot snapshotOrNull(UUID portalId)
+	{
+		if(closed.get() || portalId == null)
+		{
+			return null;
+		}
+		return service.snapshot(portalId).orElse(null);
+	}
+
 	public Optional<RtpPortalEditorModel.StatusSnapshot> editorStatus(UUID portalId)
 	{
 		if(closed.get())

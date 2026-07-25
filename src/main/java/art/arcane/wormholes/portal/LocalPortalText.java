@@ -61,10 +61,13 @@ final class LocalPortalText
 
 		str += (dark ? ChatColor.BLACK : ChatColor.GOLD) + "" + ChatColor.BOLD + portal.getName();
 
-		if(portal.hasTunnel())
+		ITunnel activeTunnel = portal.getTunnel();
+		IPortal linkedDestination = activeTunnel == null ? null : activeTunnel.getDestination();
+
+		if(linkedDestination != null)
 		{
 			str += ChatColor.GRAY + " -> ";
-			str += (dark ? ChatColor.GRAY : ChatColor.GRAY) + "" + ChatColor.BOLD + portal.getTunnel().getDestination().getName();
+			str += (dark ? ChatColor.GRAY : ChatColor.GRAY) + "" + ChatColor.BOLD + linkedDestination.getName();
 		}
 
 		return str;

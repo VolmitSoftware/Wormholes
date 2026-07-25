@@ -116,6 +116,11 @@ public class EffectManager implements Listener
 		}
 	}
 
+	public boolean isPortalSyncing(UUID portalId)
+	{
+		return portalId != null && Boolean.TRUE.equals(portalSyncActive.get(portalId));
+	}
+
 	public static boolean isPortalEffectEntity(Entity entity)
 	{
 		return EffectDisplayRegistry.isEffectEntity(entity);

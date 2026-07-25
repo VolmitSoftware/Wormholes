@@ -144,6 +144,55 @@ the client's address, LAN classification, selected `host:port`, and every
 configured endpoint; the destination logs when its transfer gate receives and
 rewrites the incoming handshake. Run the same command again to stop the stream.
 
+## PlaceholderAPI
+
+Wormholes registers a `%wormholes_*%` expansion when PlaceholderAPI is enabled,
+and unregisters it on disable, reload, and hot load. Every key below is a
+complete list; anything else returns the literal text so a typo stays visible.
+A key that is spelled correctly but has no value right now returns `---`.
+
+Server-wide keys:
+
+| Key | Value |
+|---|---|
+| `%wormholes_available%` | `true` once the first snapshot is published, `false` before that |
+| `%wormholes_portals%` | portals loaded on this server |
+| `%wormholes_projections.active%` | portals currently projecting |
+| `%wormholes_projections.observers%` | players currently receiving a projection |
+| `%wormholes_peers.connected%` | cross-server peers with a live link |
+| `%wormholes_peers.link%` | `offline`, `solo`, `down`, `degraded`, or `linked` |
+| `%wormholes_transfers.in-flight%` | cross-server handoffs and entity transfers in progress |
+| `%wormholes_failures%` | terminal failures counted since start |
+| `%wormholes_failures.per-minute%` | terminal failures per minute over the last window |
+
+Per-player keys, all describing one portal: the portal the player is looking at
+if there is one within its activation range, otherwise the nearest portal in
+range. Range is the same threshold the ambient attendance pass already uses,
+so the portal answered here is always a portal the player is close enough to
+affect. A player with no portal in range gets `false` and `---`.
+
+| Key | Value |
+|---|---|
+| `%wormholes_portal.available%` | `true` when a portal is in range, `false` otherwise |
+| `%wormholes_portal.name%` | the portal's name, stripped of colour codes and `%` |
+| `%wormholes_portal.state%` | `open`, `closed`, or `syncing` |
+| `%wormholes_portal.destination%` | linked portal's name, or the peer server name for an unresolved cross-server link |
+| `%wormholes_portal.distance%` | blocks from the player to the portal centre, two decimals |
+| `%wormholes_portal.cross-server%` | `true` when the destination is on another server |
+| `%wormholes_rtp.state%` | `rerolling`, `warming`, `ready`, `cooldown`, or `idle`; `---` when that portal is not a Random Teleport portal |
+| `%wormholes_rtp.cooldown%` | seconds until the next destination search is allowed, two decimals |
+
+Values carry no units, no grouping separators, no `%`, and no colour codes, so
+they can be parsed and safely re-substituted by a scoreboard or tab plugin.
+
+Resolution cost is one volatile read plus one map lookup and allocates nothing.
+Nothing is computed while a placeholder is being resolved: the per-player answer
+is built once a second on the thread that already owns the portal registry, by
+the same pass that decides portal ambient attendance, and the server-wide answer
+is built in that same pass. PlaceholderAPI does not need to be installed for any
+of this - when it is absent the expansion is never registered and the publishing
+pass never runs.
+
 ## Runtime
 
 Java 25 server launch commands should include
