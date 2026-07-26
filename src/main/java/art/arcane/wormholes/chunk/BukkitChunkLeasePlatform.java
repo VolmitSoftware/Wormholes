@@ -63,6 +63,9 @@ public final class BukkitChunkLeasePlatform implements ChunkLeasePlatform<World>
     @Override
     public CompletionStage<Boolean> remove(World world, int chunkX, int chunkZ) {
         World activeWorld = Objects.requireNonNull(world);
+        if (!plugin.isEnabled()) {
+            return CompletableFuture.completedFuture(Boolean.TRUE);
+        }
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         boolean scheduled;
         try {

@@ -136,7 +136,7 @@ public final class PortalProjectorBlackoutTest {
 		Location eye = new Location(null, eyeX, eyeY, eyeZ);
 
 		AxisAlignedBB apertureFace = new AxisAlignedBB(realFacePlaneX, realFacePlaneX, -2.0D, 2.0D, -2.0D, 2.0D);
-		Frustum frustum = new Frustum(eye, apertureFace, Direction.E, range, 0.0D);
+		Frustum frustum = new Frustum(eye, apertureFace, Direction.E, null, range, range, 0.0D);
 
 		double stepLimit = eyeDistance + (range * 3.0D) + clearance + 8.0D;
 		boolean found = false;

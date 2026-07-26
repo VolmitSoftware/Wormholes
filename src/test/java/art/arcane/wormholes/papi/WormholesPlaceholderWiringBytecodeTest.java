@@ -28,24 +28,43 @@ public final class WormholesPlaceholderWiringBytecodeTest {
     private static final String HOLDER = "art/arcane/wormholes/papi/WormholesPlaceholders";
     private static final String REGISTRATION = "art/arcane/volmlib/util/bukkit/papi/PlaceholderRegistration";
     private static final String STORE = "art/arcane/volmlib/util/bukkit/papi/PlayerSnapshotStore";
+    private static final String INSTALLER = "art/arcane/wormholes/papi/WormholesPlaceholderInstaller";
     private static final long GRACE_MS = 60_000L;
 
     @Test
-    void registerPlaceholdersAsksWhetherPlaceholderApiIsPresentBeforeItTouchesAnythingElse() throws IOException {
-        ClassModel wormholes = parse(WORMHOLES);
+    void registrationIsGatedOnPlaceholderApiAndRetriedWhenItEnablesLater() throws IOException {
+        ClassModel holder = parse(HOLDER);
+        List<Instruction> register = body(holder, "register");
+        int gate = -1;
+        int install = -1;
 
-        for (Instruction instruction : body(wormholes, "registerPlaceholders")) {
-            if (instruction instanceof InvokeInstruction invoke) {
-                assertEquals(REGISTRATION + ".isPlaceholderApiEnabled",
-                    invoke.owner().asInternalName() + "." + invoke.name().stringValue(),
-                    "registerPlaceholders() must gate on PlaceholderAPI being enabled before it builds, registers "
-                        + "or logs anything; without that gate a server without PlaceholderAPI still walks into the "
-                        + "expansion wiring");
-                return;
+        for (int i = 0; i < register.size(); i++) {
+            if (!(register.get(i) instanceof InvokeInstruction invoke)) {
+                continue;
+            }
+
+            String target = invoke.owner().asInternalName() + "." + invoke.name().stringValue();
+
+            if (gate < 0 && target.equals(REGISTRATION + ".isPlaceholderApiEnabled")) {
+                gate = i;
+            }
+
+            if (install < 0 && target.equals(INSTALLER + ".install")) {
+                install = i;
             }
         }
 
-        throw new AssertionError("registerPlaceholders() must call PlaceholderRegistration.isPlaceholderApiEnabled()");
+        assertTrue(gate >= 0,
+            "register() must gate on PlaceholderAPI being enabled before it builds or registers anything; "
+                + "without that gate a server without PlaceholderAPI walks into the expansion wiring");
+        assertTrue(install < 0 || gate < install,
+            "the gate must run before the installer is touched, because the installer is the class that "
+                + "carries the PlaceholderAPI dependency");
+
+        assertTrue(invoked(body(holder, "install")).contains(
+                "org/bukkit/plugin/PluginManager.registerEvents"),
+            "install() must register the retry listener; PlaceholderAPI can enable after this plugin, "
+                + "in which case the enable-time attempt fails and only the retry ever registers the expansion");
     }
 
     @Test

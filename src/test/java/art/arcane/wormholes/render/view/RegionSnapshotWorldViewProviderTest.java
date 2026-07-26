@@ -48,6 +48,37 @@ class RegionSnapshotWorldViewProviderTest {
         assertFalse(RegionSnapshotWorldViewProvider.isChunkDirty(tracker, worldId, 2, 3, tracker.currentVersion()));
     }
 
+    @Test
+    void reusesBlockSnapshotUntilItsChunkChanges() {
+        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        UUID worldId = UUID.randomUUID();
+        long capturedVersion = tracker.currentVersion();
+
+        assertTrue(RegionSnapshotWorldViewProvider.requiresBlockSnapshotRefresh(
+            tracker, worldId, 2, 3, false, capturedVersion, 1_000L, 1_001L));
+        assertFalse(RegionSnapshotWorldViewProvider.requiresBlockSnapshotRefresh(
+            tracker, worldId, 2, 3, true, capturedVersion, 1_000L, 1_001L));
+
+        tracker.markChanged(worldId, 2 << 4, 3 << 4);
+
+        assertTrue(RegionSnapshotWorldViewProvider.requiresBlockSnapshotRefresh(
+            tracker, worldId, 2, 3, true, capturedVersion, 1_000L, 1_001L));
+    }
+
+    @Test
+    void refreshesBlockSnapshotWhenChangeTrackingIsUnavailable() {
+        assertTrue(RegionSnapshotWorldViewProvider.requiresBlockSnapshotRefresh(
+            null, UUID.randomUUID(), 2, 3, true, 4L, 1_000L, 1_001L));
+    }
+
+    @Test
+    void refreshesBlockSnapshotAfterSafetyBackstop() {
+        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+
+        assertTrue(RegionSnapshotWorldViewProvider.requiresBlockSnapshotRefresh(
+            tracker, UUID.randomUUID(), 2, 3, true, tracker.currentVersion(), 1_000L, 61_000L));
+    }
+
     private static EntityVisual visual(UUID id, double x, byte[] metadata, byte[] equipment) {
         return EntityVisual.full(id, "minecraft:zombie", x, 64.0D, 0.0D, 1.8D,
             0.0D, 0.0D, 1.0D, 0.0F, 0.0F, 0.0D, 0.0D, 0.0D, true,

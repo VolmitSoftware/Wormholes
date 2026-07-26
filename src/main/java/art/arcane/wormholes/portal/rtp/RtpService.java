@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -187,7 +188,9 @@ public final class RtpService
 	private Snapshot registerOnSource(Registration registration)
 	{
 		RtpPortalEntry previous = entries.get(registration.portalId());
-		long generation = previous == null ? 1L : nextGeneration(previous.generation);
+		long generation = previous == null
+				? ThreadLocalRandom.current().nextLong(1L, Long.MAX_VALUE >> 8)
+				: nextGeneration(previous.generation);
 		Set<UUID> viewers = previous == null ? Set.of() : Set.copyOf(previous.viewers);
 		RtpPortalEntry replacement = new RtpPortalEntry(this, registration, generation, createRuntime(generation, registration.settings()));
 		replacement.viewers.addAll(viewers);

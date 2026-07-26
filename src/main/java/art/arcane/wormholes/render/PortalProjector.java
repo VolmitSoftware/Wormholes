@@ -235,7 +235,7 @@ public final class PortalProjector {
         boolean stableResample = schedule.stableResample(firstProjectionDone, destination.destView,
             destWorld, destinationOriginX, destinationOriginZ);
         boolean localDirty = sampleMemo.localRegionDirty(localWorldId);
-        if (canReuseProjection(eye, stableResample, localDirty, destination.remoteView == null)) {
+        if (canReuseProjection(eye, stableResample, localDirty)) {
             lastReuseSkips++;
             lastBlockChanges = 0;
             lastProjectNanos = System.nanoTime() - startNanos;
@@ -247,17 +247,15 @@ public final class PortalProjector {
         }
 
         double portalDepth = portal.getNetworkViewDepth();
-        double range;
         Frustum4D next;
         try {
-            range = viewFrustum.fitRange(observer, portal.getStructure(), eye, portalDepth);
-            next = viewFrustum.frustumFor(eye, portal.getStructure(), range);
+            next = viewFrustum.fit(observer, portal.getStructure(), eye, portalDepth, portal.getNetworkViewLateralPad());
         } catch (RuntimeException ex) {
             noteFrustumFailure("block", ex);
             return;
         }
         frustumFailures.recordSuccess();
-        double depthBlocks = range;
+        double depthBlocks = viewFrustum.fittedDepth();
         if (portal.isBlackoutBackground()) {
             blackout.beginPass(portal.getBlackoutColor());
         } else {
@@ -271,7 +269,8 @@ public final class PortalProjector {
         if (!firstProjectionDone) {
             Wormholes.v("[Projector] portal=" + portal.getName() + " observer=" + observer.getName()
                 + " first frustum: faceCount=" + next.getFaceCount() + " region=" + formatBox(next.getRegion())
-                + " range=" + range + " depth=" + depthBlocks
+                + " depth=" + depthBlocks + " requestedDepth=" + portalDepth
+                + " lateralPad=" + portal.getNetworkViewLateralPad()
                 + " aperturePadding=" + Settings.PROJECTION_APERTURE_PADDING_BLOCKS);
         }
 
@@ -354,17 +353,15 @@ public final class PortalProjector {
         }
 
         double portalDepth = portal.getNetworkViewDepth();
-        double range;
         Frustum4D frustum;
         try {
-            range = viewFrustum.fitRange(observer, portal.getStructure(), eye, portalDepth);
-            frustum = viewFrustum.frustumFor(eye, portal.getStructure(), range);
+            frustum = viewFrustum.fit(observer, portal.getStructure(), eye, portalDepth, portal.getNetworkViewLateralPad());
         } catch (RuntimeException ex) {
             noteFrustumFailure("entity", ex);
             return;
         }
         frustumFailures.recordSuccess();
-        double depthBlocks = range;
+        double depthBlocks = viewFrustum.fittedDepth();
 
         PortalFrame localFrame = portal.getFrame();
         PortalFrame remoteFrame = destination.mirrorMode ? localFrame.flipNormal() : destination.destAnchor.getFrame();
@@ -499,7 +496,7 @@ public final class PortalProjector {
         return (int) Math.floor(centerMax - 0.499999D);
     }
 
-    private boolean canReuseProjection(Location eye, boolean stableResample, boolean localDirty, boolean localDestination) {
+    private boolean canReuseProjection(Location eye, boolean stableResample, boolean localDirty) {
         if (reuseInvalidated) {
             return false;
         }
@@ -509,7 +506,7 @@ public final class PortalProjector {
         boolean sideFlipped = hasCameraSnapshot
             && (axisValueOf(eye.getX(), eye.getY(), eye.getZ(), normal) >= originNormal)
                 != (axisValueOf(lastEyeX, lastEyeY, lastEyeZ, normal) >= originNormal);
-        return canReuseProjection(firstProjectionDone, cellScan.hasProjection(), hasCameraSnapshot, localDestination,
+        return canReuseProjection(firstProjectionDone, cellScan.hasProjection(), hasCameraSnapshot,
             initialFullSendPassesRemaining, stableResample, schedule.isRemoteResamplePending(), lightingBlocked, sideFlipped,
             localDirty,
             eye.getX(), eye.getY(), eye.getZ(), lastEyeX, lastEyeY, lastEyeZ);
@@ -528,7 +525,6 @@ public final class PortalProjector {
     static boolean canReuseProjection(boolean firstProjectionDone,
                                       boolean hasProjection,
                                       boolean hasCameraSnapshot,
-                                      boolean localDestination,
                                       int initialFullSendPassesRemaining,
                                       boolean stableResample,
                                       boolean pendingRemoteResample,
@@ -541,7 +537,7 @@ public final class PortalProjector {
                                       double lastEyeX,
                                       double lastEyeY,
                                       double lastEyeZ) {
-        if (!firstProjectionDone || !hasProjection || !hasCameraSnapshot || !localDestination) {
+        if (!firstProjectionDone || !hasProjection || !hasCameraSnapshot) {
             return false;
         }
         if (initialFullSendPassesRemaining > 0 || stableResample || pendingRemoteResample || lightingBlocked) {

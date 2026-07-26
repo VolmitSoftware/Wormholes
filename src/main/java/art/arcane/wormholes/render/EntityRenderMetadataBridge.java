@@ -26,7 +26,7 @@ import art.arcane.wormholes.render.view.ProjectionEntityView;
 final class EntityRenderMetadataBridge {
     private static final int CUSTOM_NAME_INDEX = 2;
     private static final int CUSTOM_NAME_VISIBLE_INDEX = 3;
-    private static final int PLAYER_SKIN_PARTS_INDEX = 17;
+    private static final int PLAYER_SKIN_PARTS_INDEX = 16;
     private static final byte CAPE_PART_BIT = 0x01;
     static final long METADATA_BRIDGE_RETRY_MILLIS = 60_000L;
 
@@ -135,17 +135,7 @@ final class EntityRenderMetadataBridge {
 
     private List<EntityData<?>> withUpsideDownMetadata(Entity entity, List<EntityData<?>> metadata) {
         if (entity instanceof Player) {
-            List<EntityData<?>> patched = new ArrayList<EntityData<?>>(metadata.size() + 1);
-            byte skinParts = 0;
-            for (EntityData<?> data : metadata) {
-                if (data.getIndex() == PLAYER_SKIN_PARTS_INDEX && data.getValue() instanceof Byte) {
-                    skinParts = ((Byte) data.getValue()).byteValue();
-                    continue;
-                }
-                patched.add(data);
-            }
-            patched.add(new EntityData<Byte>(PLAYER_SKIN_PARTS_INDEX, EntityDataTypes.BYTE, Byte.valueOf((byte) (skinParts | CAPE_PART_BIT))));
-            return patched;
+            return withUpsideDownPlayerMetadata(metadata);
         }
         if (!(entity instanceof LivingEntity)) {
             return metadata;
@@ -166,17 +156,7 @@ final class EntityRenderMetadataBridge {
 
     private List<EntityData<?>> withUpsideDownMetadataRemote(boolean isPlayer, List<EntityData<?>> metadata) {
         if (isPlayer) {
-            List<EntityData<?>> patched = new ArrayList<EntityData<?>>(metadata.size() + 1);
-            byte skinParts = 0;
-            for (EntityData<?> data : metadata) {
-                if (data.getIndex() == PLAYER_SKIN_PARTS_INDEX && data.getValue() instanceof Byte) {
-                    skinParts = ((Byte) data.getValue()).byteValue();
-                    continue;
-                }
-                patched.add(data);
-            }
-            patched.add(new EntityData<Byte>(PLAYER_SKIN_PARTS_INDEX, EntityDataTypes.BYTE, Byte.valueOf((byte) (skinParts | CAPE_PART_BIT))));
-            return patched;
+            return withUpsideDownPlayerMetadata(metadata);
         }
         List<EntityData<?>> patched = new ArrayList<EntityData<?>>(metadata.size() + 2);
         for (EntityData<?> data : metadata) {
@@ -187,6 +167,21 @@ final class EntityRenderMetadataBridge {
         }
         patched.add(new EntityData<Optional<Component>>(CUSTOM_NAME_INDEX, EntityDataTypes.OPTIONAL_ADV_COMPONENT, Optional.of(Component.text(ProjectedEntityRenderer.FLIP_NAME))));
         patched.add(new EntityData<Boolean>(CUSTOM_NAME_VISIBLE_INDEX, EntityDataTypes.BOOLEAN, Boolean.FALSE));
+        return patched;
+    }
+
+    static List<EntityData<?>> withUpsideDownPlayerMetadata(List<EntityData<?>> metadata) {
+        List<EntityData<?>> patched = new ArrayList<EntityData<?>>(metadata.size() + 1);
+        byte skinParts = 0;
+        for (EntityData<?> data : metadata) {
+            if (data.getIndex() == PLAYER_SKIN_PARTS_INDEX && data.getValue() instanceof Byte) {
+                skinParts = ((Byte) data.getValue()).byteValue();
+                continue;
+            }
+            patched.add(data);
+        }
+        patched.add(new EntityData<Byte>(PLAYER_SKIN_PARTS_INDEX, EntityDataTypes.BYTE,
+            Byte.valueOf((byte) (skinParts | CAPE_PART_BIT))));
         return patched;
     }
 

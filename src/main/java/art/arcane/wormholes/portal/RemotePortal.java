@@ -49,8 +49,8 @@ public class RemotePortal extends Portal implements IRemotePortal {
         this.mirroredPermissionMode = PortalPermissionMode.BLACKLIST;
         this.mirroredOutgoingTraversalsEnabled = true;
         this.mirroredIncomingTraversalsEnabled = true;
-        this.mirroredNetworkViewDepth = 32;
-        this.mirroredNetworkViewLateralPad = 8;
+        this.mirroredNetworkViewDepth = 64;
+        this.mirroredNetworkViewLateralPad = 48;
         this.mirroredNetworkViewHeartbeatTicks = 60;
         this.mirroredNetworkViewEntityIntervalTicks = 10;
         this.mirroredNetworkViewUnsubscribeGraceSeconds = 30;

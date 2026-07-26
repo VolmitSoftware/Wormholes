@@ -8,6 +8,7 @@ import java.util.List;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.PortalStructure;
+import art.arcane.wormholes.util.Axis;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 
@@ -24,15 +25,31 @@ public final class Frustum4D {
     private final double regionZa;
     private final double regionZb;
 
-    public Frustum4D(Location iris, PortalStructure structure, double range) {
-        Location center = structure.getCenter();
-        double portalToEyeRawX = iris.getX() - center.getX();
-        double portalToEyeRawY = iris.getY() - center.getY();
-        double portalToEyeRawZ = iris.getZ() - center.getZ();
+    public Frustum4D(Location iris, PortalStructure structure, double axialRange, double lateralRange) {
+        AxisAlignedBB aperture = structure.getArea();
+        Vector apertureCenter = aperture.center();
+        Axis thinAxis = aperture.getThinAxis();
+        double portalToEyeRawX = thinAxis == Axis.X || thinAxis == null
+            ? iris.getX() - apertureCenter.getX()
+            : iris.getX() - clamp(iris.getX(), aperture.getXa(), aperture.getXb());
+        double portalToEyeRawY = thinAxis == Axis.Y || thinAxis == null
+            ? iris.getY() - apertureCenter.getY()
+            : iris.getY() - clamp(iris.getY(), aperture.getYa(), aperture.getYb());
+        double portalToEyeRawZ = thinAxis == Axis.Z || thinAxis == null
+            ? iris.getZ() - apertureCenter.getZ()
+            : iris.getZ() - clamp(iris.getZ(), aperture.getZa(), aperture.getZb());
         double distanceToPortal = Math.sqrt((portalToEyeRawX * portalToEyeRawX)
             + (portalToEyeRawY * portalToEyeRawY)
             + (portalToEyeRawZ * portalToEyeRawZ));
-        double effectiveRange = range;
+        if (distanceToPortal <= EPSILON) {
+            Location center = structure.getCenter();
+            portalToEyeRawX = iris.getX() - center.getX();
+            portalToEyeRawY = iris.getY() - center.getY();
+            portalToEyeRawZ = iris.getZ() - center.getZ();
+            distanceToPortal = Math.sqrt((portalToEyeRawX * portalToEyeRawX)
+                + (portalToEyeRawY * portalToEyeRawY)
+                + (portalToEyeRawZ * portalToEyeRawZ));
+        }
         double inverseDistance = distanceToPortal <= EPSILON ? 0.0D : 1.0D / distanceToPortal;
         double portalToEyeX = portalToEyeRawX * inverseDistance;
         double portalToEyeY = portalToEyeRawY * inverseDistance;
@@ -52,33 +69,33 @@ public final class Frustum4D {
         KList<Frustum> built = new KList<Frustum>();
         for (Direction face : DIRECTIONS) {
             if (face.x() == 1 && portalToEyeX > cullRatio) {
-                addFrustums(built, apex, structure, face, effectiveRange, aperturePadding);
+                addFrustums(built, apex, structure, face, thinAxis, axialRange, lateralRange, aperturePadding);
                 continue;
             }
             if (face.x() == -1 && portalToEyeX < -cullRatio) {
-                addFrustums(built, apex, structure, face, effectiveRange, aperturePadding);
+                addFrustums(built, apex, structure, face, thinAxis, axialRange, lateralRange, aperturePadding);
                 continue;
             }
             if (face.y() == 1 && portalToEyeY > cullRatio) {
-                addFrustums(built, apex, structure, face, effectiveRange, aperturePadding);
+                addFrustums(built, apex, structure, face, thinAxis, axialRange, lateralRange, aperturePadding);
                 continue;
             }
             if (face.y() == -1 && portalToEyeY < -cullRatio) {
-                addFrustums(built, apex, structure, face, effectiveRange, aperturePadding);
+                addFrustums(built, apex, structure, face, thinAxis, axialRange, lateralRange, aperturePadding);
                 continue;
             }
             if (face.z() == 1 && portalToEyeZ > cullRatio) {
-                addFrustums(built, apex, structure, face, effectiveRange, aperturePadding);
+                addFrustums(built, apex, structure, face, thinAxis, axialRange, lateralRange, aperturePadding);
                 continue;
             }
             if (face.z() == -1 && portalToEyeZ < -cullRatio) {
-                addFrustums(built, apex, structure, face, effectiveRange, aperturePadding);
+                addFrustums(built, apex, structure, face, thinAxis, axialRange, lateralRange, aperturePadding);
             }
         }
 
         if (built.isEmpty()) {
             Direction fallback = Direction.closest(-portalToEyeX, -portalToEyeY, -portalToEyeZ);
-            addFrustums(built, apex, structure, fallback, effectiveRange, aperturePadding);
+            addFrustums(built, apex, structure, fallback, thinAxis, axialRange, lateralRange, aperturePadding);
         }
 
         this.frustums = built.toArray(new Frustum[built.size()]);
@@ -126,10 +143,22 @@ public final class Frustum4D {
         return frustums.length;
     }
 
-    private static void addFrustums(KList<Frustum> frustums, Location apex, PortalStructure structure, Direction face, double range, double aperturePadding) {
+    private static double clamp(double value, double low, double high) {
+        return value < low ? low : (value > high ? high : value);
+    }
+
+    private static void addFrustums(KList<Frustum> frustums,
+                                    Location apex,
+                                    PortalStructure structure,
+                                    Direction face,
+                                    Axis portalNormalAxis,
+                                    double axialRange,
+                                    double lateralRange,
+                                    double aperturePadding) {
         List<AxisAlignedBB> apertureFaces = structure.getCachedApertureFaces(face);
         for (AxisAlignedBB apertureFace : apertureFaces) {
-            frustums.add(new Frustum(apex, apertureFace, face, range, aperturePadding));
+            frustums.add(new Frustum(apex, apertureFace, face, portalNormalAxis, axialRange, lateralRange,
+                aperturePadding));
         }
     }
 }

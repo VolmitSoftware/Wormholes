@@ -19,7 +19,7 @@ public final class Frustum4DCullingTest {
         double previousRatio = Settings.FRUSTUM_CULLING_RATIO;
         Settings.FRUSTUM_CULLING_RATIO = 0.2D;
         try {
-            Frustum4D frustum = new Frustum4D(new Location(null, 1.5D, 1.5D, 0.0D), new TestStructure(), 16.0D);
+            Frustum4D frustum = new Frustum4D(new Location(null, 1.5D, 1.5D, 0.0D), new TestStructure(), 16.0D, 16.0D);
 
             assertEquals(1, frustum.getFaceCount());
         } finally {
@@ -32,7 +32,7 @@ public final class Frustum4DCullingTest {
         double previousRatio = Settings.FRUSTUM_CULLING_RATIO;
         Settings.FRUSTUM_CULLING_RATIO = 0.2D;
         try {
-            Frustum4D frustum = new Frustum4D(new Location(null, 8.0D, 1.5D, 0.0D), new TestStructure(), 16.0D);
+            Frustum4D frustum = new Frustum4D(new Location(null, 8.0D, 1.5D, 0.0D), new TestStructure(), 16.0D, 16.0D);
 
             assertEquals(2, frustum.getFaceCount());
         } finally {
@@ -41,6 +41,11 @@ public final class Frustum4DCullingTest {
     }
 
     private static final class TestStructure extends PortalStructure {
+        @Override
+        public AxisAlignedBB getArea() {
+            return new AxisAlignedBB(0.0D, 3.0D, 0.0D, 3.0D, 5.0D, 5.0D);
+        }
+
         @Override
         public Location getCenter() {
             return new Location(null, 1.5D, 1.5D, 5.0D);

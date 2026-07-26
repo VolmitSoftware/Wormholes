@@ -361,17 +361,11 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     }
 
     private void registerPlaceholders() {
-        if (!PlaceholderRegistration.isPlaceholderApiEnabled()) {
-            return;
-        }
-
         WormholesPlaceholders active = new WormholesPlaceholders(getDescription().getVersion(), getLogger());
-
-        if (active.register()) {
-            placeholders = active;
-            getLogger().info("PlaceholderAPI expansion registered as %wormholes_*%");
-        }
+        placeholders = active;
+        active.install(this);
     }
+
 
     private void unregisterPlaceholders() {
         WormholesPlaceholders active = placeholders;

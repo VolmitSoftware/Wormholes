@@ -6,12 +6,21 @@ import art.arcane.volmlib.util.bukkit.papi.PlaceholderSnapshot;
 import art.arcane.volmlib.util.bukkit.papi.PlaceholderValues;
 import art.arcane.volmlib.util.bukkit.papi.PlayerSnapshotStore;
 
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
+import org.bukkit.event.server.PluginEnableEvent;
+import org.bukkit.plugin.Plugin;
+
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.logging.Logger;
 
-public final class WormholesPlaceholders {
+public final class WormholesPlaceholders implements Listener {
+    private static final String PLACEHOLDER_API = "PlaceholderAPI";
+
     private final PlaceholderSnapshot<WormholesRuntimeSnapshot> runtime = new PlaceholderSnapshot<>();
     private final PlayerSnapshotStore<WormholesPortalSnapshot> portals = new PlayerSnapshotStore<>();
     private final PlaceholderKeyRegistry keys = registry(runtime, portals);
@@ -25,11 +34,30 @@ public final class WormholesPlaceholders {
         this.registration = new PlaceholderRegistration(this.logger);
     }
 
+    public void install(Plugin plugin) {
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
+        register();
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPluginEnable(PluginEnableEvent event) {
+        if (!PLACEHOLDER_API.equals(event.getPlugin().getName())) {
+            return;
+        }
+
+        register();
+    }
+
     public boolean register() {
-        return registration.register(() -> new WormholesPlaceholderExpansion(version, keys, logger));
+        if (!PlaceholderRegistration.isPlaceholderApiEnabled()) {
+            return false;
+        }
+
+        return WormholesPlaceholderInstaller.install(registration, version, keys, logger);
     }
 
     public void unregister() {
+        HandlerList.unregisterAll(this);
         registration.unregister();
         portals.clear();
         runtime.publish(null);

@@ -3,7 +3,6 @@ package art.arcane.wormholes.render;
 import org.bukkit.Location;
 import org.bukkit.util.Vector;
 
-import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.util.Axis;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
@@ -31,16 +30,20 @@ public final class Frustum {
     private final double faceZa;
     private final double faceZb;
 
-    public Frustum(Location apex, PortalStructure structure, Direction cubeFace, double range, double aperturePadding) {
-        this(apex, structure.getArea().getFace(cubeFace), cubeFace, range, aperturePadding);
-    }
-
-    public Frustum(Location apex, AxisAlignedBB apertureFace, Direction cubeFace, double range, double aperturePadding) {
-        this.originX = apex.getX();
-        this.originY = apex.getY();
-        this.originZ = apex.getZ();
+    public Frustum(Location apex,
+                   AxisAlignedBB apertureFace,
+                   Direction cubeFace,
+                   Axis portalNormalAxis,
+                   double axialRange,
+                   double lateralRange,
+                   double aperturePadding) {
         AxisAlignedBB face = padAperture(apertureFace, cubeFace, aperturePadding);
         this.normalAxis = cubeFace.getAxis();
+        Axis depthAxis = portalNormalAxis == null ? normalAxis : portalNormalAxis;
+        double faceNormalRange = normalAxis == depthAxis ? axialRange : lateralRange;
+        double xRange = depthAxis == Axis.X ? axialRange : lateralRange;
+        double yRange = depthAxis == Axis.Y ? axialRange : lateralRange;
+        double zRange = depthAxis == Axis.Z ? axialRange : lateralRange;
         this.planeCoordinate = axisValue(face.center(), normalAxis);
         this.faceXa = face.getXa();
         this.faceXb = face.getXb();
@@ -48,26 +51,30 @@ public final class Frustum {
         this.faceYb = face.getYb();
         this.faceZa = face.getZa();
         this.faceZb = face.getZb();
+
+        this.originX = apex.getX();
+        this.originY = apex.getY();
+        this.originZ = apex.getZ();
         this.planeDelta = planeCoordinate - axisValue(originX, originY, originZ, normalAxis);
 
         double normalMin;
         double normalMax;
         if (Math.abs(planeDelta) <= EPSILON) {
-            normalMin = planeCoordinate - range;
-            normalMax = planeCoordinate + range;
+            normalMin = planeCoordinate - faceNormalRange;
+            normalMax = planeCoordinate + faceNormalRange;
         } else if (planeDelta > 0.0D) {
             normalMin = planeCoordinate;
-            normalMax = planeCoordinate + range;
+            normalMax = planeCoordinate + faceNormalRange;
         } else {
-            normalMin = planeCoordinate - range;
+            normalMin = planeCoordinate - faceNormalRange;
             normalMax = planeCoordinate;
         }
-        double boxXa = normalAxis == Axis.X ? normalMin : faceXa - range;
-        double boxXb = normalAxis == Axis.X ? normalMax : faceXb + range;
-        double boxYa = normalAxis == Axis.Y ? normalMin : faceYa - range;
-        double boxYb = normalAxis == Axis.Y ? normalMax : faceYb + range;
-        double boxZa = normalAxis == Axis.Z ? normalMin : faceZa - range;
-        double boxZb = normalAxis == Axis.Z ? normalMax : faceZb + range;
+        double boxXa = normalAxis == Axis.X ? normalMin : faceXa - xRange;
+        double boxXb = normalAxis == Axis.X ? normalMax : faceXb + xRange;
+        double boxYa = normalAxis == Axis.Y ? normalMin : faceYa - yRange;
+        double boxYb = normalAxis == Axis.Y ? normalMax : faceYb + yRange;
+        double boxZa = normalAxis == Axis.Z ? normalMin : faceZa - zRange;
+        double boxZb = normalAxis == Axis.Z ? normalMax : faceZb + zRange;
 
         double minX = boxXa;
         double minY = boxYa;
@@ -77,7 +84,7 @@ public final class Frustum {
         double maxZ = boxZb;
         if (Math.abs(planeDelta) > EPSILON) {
             Axis thinAxis = face.getThinAxis();
-            double scale = range / Math.abs(planeDelta);
+            double scale = faceNormalRange / Math.abs(planeDelta);
             minX = Double.POSITIVE_INFINITY;
             minY = Double.POSITIVE_INFINITY;
             minZ = Double.POSITIVE_INFINITY;

@@ -15,7 +15,7 @@ public final class FrustumContainmentTest {
     private static final double RANGE = 8.0D;
 
     private static Frustum frustumAt(double eyeX, double eyeY, double eyeZ) {
-        return new Frustum(new Location(null, eyeX, eyeY, eyeZ), APERTURE, Direction.S, RANGE, 0.0D);
+        return new Frustum(new Location(null, eyeX, eyeY, eyeZ), APERTURE, Direction.S, null, RANGE, RANGE, 0.0D);
     }
 
     @Test

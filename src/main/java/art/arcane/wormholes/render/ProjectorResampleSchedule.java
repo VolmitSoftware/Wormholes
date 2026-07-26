@@ -10,7 +10,7 @@ import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.RemoteWorldView;
 
 final class ProjectorResampleSchedule {
-    private static final int STABLE_RESAMPLE_BACKSTOP_TICKS = 40;
+    private static final int STABLE_RESAMPLE_BACKSTOP_TICKS = 1_200;
 
     private final ILocalPortal portal;
     private long projectCallCount;
@@ -96,13 +96,13 @@ final class ProjectorResampleSchedule {
         if (!firstProjectionDone) {
             return true;
         }
-        int cadence = stablePassInterval(stableResampleCadenceTicks());
-        if (sourceView instanceof RemoteWorldView) {
-            return (projectCallCount % cadence) == 0L;
-        }
         if (sourceView.getRevision() != lastSourceViewRevision) {
             return true;
         }
+        if (sourceView instanceof RemoteWorldView) {
+            return false;
+        }
+        int cadence = stablePassInterval(stableResampleCadenceTicks());
         int backstop = stablePassInterval(fullRefreshBackstopTicks());
         if ((projectCallCount % backstop) == 0L) {
             return true;

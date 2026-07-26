@@ -20,7 +20,7 @@ final class LocalPortalSettings
 	private static final int DEFAULT_NETWORK_VIEW_ENTITY_INTERVAL_TICKS = 10;
 	private static final int DEFAULT_NETWORK_VIEW_UNSUBSCRIBE_GRACE_SECONDS = 30;
 	static final String DEFAULT_NETWORK_VIEW_FALLBACK_BLOCK = "minecraft:air";
-	private static final boolean DEFAULT_BLACKOUT_BACKGROUND = true;
+	private static final boolean DEFAULT_BLACKOUT_BACKGROUND = false;
 	private static final BlackoutColor DEFAULT_BLACKOUT_COLOR = BlackoutColor.BLACK;
 	private static final int DEFAULT_ACTIVATION_RANGE = 0;
 	private static final ProjectionRenderMode DEFAULT_RENDER_MODE = ProjectionRenderMode.PANOPTIC;
@@ -112,7 +112,7 @@ final class LocalPortalSettings
 		outgoingTraversalsEnabled = !j.has("outgoingTraversalsEnabled") || j.getBoolean("outgoingTraversalsEnabled");
 		incomingTraversalsEnabled = !j.has("incomingTraversalsEnabled") || j.getBoolean("incomingTraversalsEnabled");
 		networkViewDepth = readNetworkViewInt(j, "networkViewDepth", DEFAULT_NETWORK_VIEW_DEPTH, 1, 128);
-		networkViewLateralPad = readNetworkViewInt(j, "networkViewLateralPad", DEFAULT_NETWORK_VIEW_LATERAL_PAD, 0, 128);
+		networkViewLateralPad = readNetworkViewInt(j, "networkViewLateralPad", DEFAULT_NETWORK_VIEW_LATERAL_PAD, 0, 64);
 		networkViewHeartbeatTicks = readNetworkViewInt(j, "networkViewHeartbeatTicks", DEFAULT_NETWORK_VIEW_HEARTBEAT_TICKS, 2, 600);
 		networkViewEntityIntervalTicks = readNetworkViewInt(j, "networkViewEntityIntervalTicks", DEFAULT_NETWORK_VIEW_ENTITY_INTERVAL_TICKS, 2, 600);
 		networkViewUnsubscribeGraceSeconds = readNetworkViewInt(j, "networkViewUnsubscribeGraceSeconds", DEFAULT_NETWORK_VIEW_UNSUBSCRIBE_GRACE_SECONDS, 5, 600);

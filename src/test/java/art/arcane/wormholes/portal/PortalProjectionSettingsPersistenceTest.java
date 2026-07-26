@@ -46,7 +46,7 @@ public final class PortalProjectionSettingsPersistenceTest
 	}
 
 	@Test
-	public void loadJsonDefaultsMissingKeysToEnabledBlackAndGlobal() throws Exception
+	public void loadJsonDefaultsMissingKeysToDisabledBlackAndGlobal() throws Exception
 	{
 		World world = world("overworld", -64, 320, 63);
 		LocalPortal portal = portal(world);
@@ -57,7 +57,7 @@ public final class PortalProjectionSettingsPersistenceTest
 
 		LocalPortal reloaded = loadPortal(json, world);
 
-		assertTrue(reloaded.isBlackoutBackground());
+		assertFalse(reloaded.isBlackoutBackground());
 		assertEquals(BlackoutColor.BLACK, reloaded.getBlackoutColor());
 		assertEquals(0, reloaded.getActivationRange());
 	}

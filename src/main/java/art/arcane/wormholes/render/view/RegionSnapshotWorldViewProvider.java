@@ -42,6 +42,7 @@ import java.util.logging.Level;
 
 public final class RegionSnapshotWorldViewProvider implements ProjectionWorldViewProvider {
     private static final long REFRESH_INTERVAL_MILLIS = 250L;
+    private static final long BLOCK_SNAPSHOT_BACKSTOP_MILLIS = 60_000L;
     private static final int MAX_CHUNKS_PER_WORLD = 256;
     private static final int MAX_ENTITIES_PER_CHUNK = 128;
     private static final long ENTITY_STATE_REFRESH_MILLIS = 500L;
@@ -116,12 +117,21 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
                 return;
             }
             Chunk chunk = world.getChunkAt(chunkX, chunkZ);
+            long now = System.currentTimeMillis();
             ProjectionWorldChangeTracker tracker = Wormholes.projectionChangeTracker;
             long trackerVersion = tracker == null ? Long.MIN_VALUE : tracker.currentVersion();
-            ChunkSnapshot snapshot = WormholesPlatform.chunkSnapshot(chunk, false, true, false, true);
+            CapturedChunk current = view.captured(key);
+            boolean refreshBlocks = requiresBlockSnapshotRefresh(tracker, world.getUID(), chunkX, chunkZ,
+                current != null, current == null ? Long.MIN_VALUE : current.trackerVersion,
+                current == null ? Long.MIN_VALUE : current.capturedAtMillis, now);
+            ChunkSnapshot snapshot = refreshBlocks
+                ? WormholesPlatform.chunkSnapshot(chunk, false, true, false, true)
+                : current.snapshot;
             List<CapturedEntity> entities = captureEntities(view, chunk, key);
-            CapturedChunk captured = new CapturedChunk(snapshot, world.getMinHeight(), world.getMaxHeight(),
-                ProjectionWorldView.computeSkyDarken(world.getTime()), System.currentTimeMillis(), entities,
+            int minHeight = current == null ? world.getMinHeight() : current.minHeight;
+            int maxHeight = current == null ? world.getMaxHeight() : current.maxHeight;
+            CapturedChunk captured = new CapturedChunk(snapshot, minHeight, maxHeight,
+                ProjectionWorldView.computeSkyDarken(world.getTime()), now, entities,
                 chunkX, chunkZ, trackerVersion);
             view.publish(key, captured);
         } catch (Throwable ex) {
@@ -392,6 +402,10 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             return chunk;
         }
 
+        private CapturedChunk captured(long key) {
+            return chunks.get(Long.valueOf(key));
+        }
+
         private void requestIfStale(int chunkX, int chunkZ, long key, CapturedChunk current) {
             long now = System.currentTimeMillis();
             if (current != null && now - current.capturedAtMillis < REFRESH_INTERVAL_MILLIS) {
@@ -507,6 +521,19 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
                                 long trackerVersion) {
         return tracker != null && trackerVersion != Long.MIN_VALUE
             && tracker.dirtySince(worldId, chunkX, chunkZ, chunkX, chunkZ, trackerVersion);
+    }
+
+    static boolean requiresBlockSnapshotRefresh(ProjectionWorldChangeTracker tracker,
+                                                UUID worldId,
+                                                int chunkX,
+                                                int chunkZ,
+                                                boolean hasSnapshot,
+                                                long trackerVersion,
+                                                long capturedAtMillis,
+                                                long nowMillis) {
+        return !hasSnapshot || tracker == null || trackerVersion == Long.MIN_VALUE
+            || nowMillis - capturedAtMillis >= BLOCK_SNAPSHOT_BACKSTOP_MILLIS
+            || isChunkDirty(tracker, worldId, chunkX, chunkZ, trackerVersion);
     }
 
     private static final class CapturedChunk {

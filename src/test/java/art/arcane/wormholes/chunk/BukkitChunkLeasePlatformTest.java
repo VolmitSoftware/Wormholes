@@ -73,6 +73,16 @@ class BukkitChunkLeasePlatformTest {
     }
 
     @Test
+    void removeTreatsDisabledPluginAsAlreadyReleasedWithoutScheduling() {
+        ManualOperations operations = new ManualOperations();
+        BukkitChunkLeasePlatform platform = new BukkitChunkLeasePlatform(plugin(
+            Logger.getLogger("BukkitChunkLeasePlatformDisabledTest"), false), operations);
+
+        assertTrue(platform.remove(WORLD, 4, -7).toCompletableFuture().join());
+        assertEquals(0, operations.regionRuns);
+    }
+
+    @Test
     void delayedScheduleRoundsMillisecondsUpToTicksAndPreservesRejection() {
         ManualOperations operations = new ManualOperations();
         operations.asyncAccepted = false;
@@ -95,7 +105,7 @@ class BukkitChunkLeasePlatformTest {
         ManualOperations operations = new ManualOperations();
         IllegalStateException failure = new IllegalStateException("scheduler unavailable");
         operations.asyncFailure = failure;
-        BukkitChunkLeasePlatform platform = new BukkitChunkLeasePlatform(plugin(logger), operations);
+        BukkitChunkLeasePlatform platform = new BukkitChunkLeasePlatform(plugin(logger, true), operations);
 
         boolean accepted = platform.schedule(() -> {
         }, 1L);
@@ -111,7 +121,7 @@ class BukkitChunkLeasePlatformTest {
         Logger logger = Logger.getLogger("BukkitChunkLeasePlatformTest");
         logger.setUseParentHandlers(false);
         logger.addHandler(handler);
-        Plugin plugin = plugin(logger);
+        Plugin plugin = plugin(logger, true);
         BukkitChunkLeasePlatform platform = new BukkitChunkLeasePlatform(plugin, new ManualOperations());
         IllegalStateException failure = new IllegalStateException("physical ticket failure");
 
@@ -121,12 +131,13 @@ class BukkitChunkLeasePlatformTest {
         logger.removeHandler(handler);
     }
 
-    private static Plugin plugin(Logger logger) {
+    private static Plugin plugin(Logger logger, boolean enabled) {
         return (Plugin) Proxy.newProxyInstance(
             Plugin.class.getClassLoader(),
             new Class<?>[]{Plugin.class},
             (instance, method, arguments) -> switch (method.getName()) {
                 case "getLogger" -> logger;
+                case "isEnabled" -> enabled;
                 case "hashCode" -> System.identityHashCode(instance);
                 case "equals" -> instance == arguments[0];
                 case "toString" -> "PluginProxy";
@@ -175,6 +186,7 @@ class BukkitChunkLeasePlatformTest {
             type.getClassLoader(),
             new Class<?>[]{type},
             (instance, method, arguments) -> switch (method.getName()) {
+                case "isEnabled" -> true;
                 case "hashCode" -> System.identityHashCode(instance);
                 case "equals" -> instance == arguments[0];
                 case "toString" -> type.getSimpleName() + "Proxy";

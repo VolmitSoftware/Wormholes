@@ -38,12 +38,15 @@ dependencies:
 `join-classpath: true` is mandatory on Paper — plugin classloaders are isolated, and without it you get
 `NoClassDefFoundError` on `art.arcane.wormholes.api.traversal.*` even though the classes ship unrelocated.
 
+To compile, put the API-only artifact on your compile classpath rather than the whole plugin jar — see
+[README.md](README.md) for how to obtain it and for the other integration surfaces.
+
 ---
 
 ## The lifecycle
 
 ```
-quote(context)          side-effect free. Say FREE, PAYABLE, INSUFFICIENT or DENIED.
+quote(context)          side-effect free. Say PASS, PAYABLE, INSUFFICIENT or DENIED.
    |
    |  (only if you said PAYABLE, and only if nobody denied)
    v
@@ -62,8 +65,9 @@ Rules Wormholes guarantees:
 - Exactly **one** of `commit` or `refund` is called for each receipt. Whichever arrives first wins.
 - **`commit` is final.** A refund attempted after commit is a no-op and never reaches you.
 - A receipt you never see resolved is refunded with `EXPIRED` once it is 30 seconds old. The reclaim is a
-  backstop, not a timer: it runs when Wormholes next evaluates a traversal or prunes on its slow timer, so on
-  a completely idle server the refund waits until something else happens, or until shutdown.
+  backstop, not a timer: the sweep runs at the head of the next traversal evaluation, and at most once per
+  second. On a server where nobody else uses a portal, the refund waits until somebody does, or until
+  shutdown.
 - On plugin shutdown, every unresolved receipt is refunded with `SERVER_SHUTDOWN`.
 - A player has at most **one** traversal in flight at a time. A second attempt while the first is unresolved
   is refused outright and never reaches a provider, so you cannot be asked to charge the same player twice
@@ -71,13 +75,25 @@ Rules Wormholes guarantees:
 
 ## Threading
 
-Every call — `quote`, `reserve`, `commit`, `refund` — runs on the region thread that owns the portal.
-Reading and mutating the traveling player's inventory, experience and location is legal there.
+`quote`, `reserve` and `commit` run inline on the region thread that owns the portal being used. Reading and
+mutating the traveling player's inventory, experience and location is legal there.
 
-**Do not block.** No I/O, no `CompletableFuture.join`, no `callSyncMethod`, no locks held across the call.
-Wormholes ticks every portal in that region from this thread; a provider that blocks stalls them all. Slow
-providers are logged with a warning naming your plugin, but the warning never changes the decision — a
-provider that hangs cannot be interrupted, so the contract is the only protection.
+`refund` runs on that same thread for every reason **except two**:
+
+- `EXPIRED`. The reclaim of an unresolved receipt happens at the head of the next traversal evaluation, so
+  the call arrives on the region thread of whatever portal somebody used next — not the one you were quoted
+  for.
+- `SERVER_SHUTDOWN`. Wormholes refunds from its own unload path, on whichever thread is disabling the plugin.
+
+On both of those paths the traveler may be owned by a different region thread, or may not be on the server at
+all. Reverse the charge against your own state and nothing else: no inventory writes, no teleports, no entity,
+block or chunk access. If a refund genuinely has to touch the player, hop to that player's entity scheduler
+and handle the hop being refused.
+
+**Do not block**, in any of the four. No I/O, no `CompletableFuture.join`, no `callSyncMethod`, no locks held
+across the call. Wormholes ticks every portal in that region from this thread; a provider that blocks stalls
+them all. Slow providers are logged with a warning naming your plugin, but the warning never changes the
+decision — a provider that hangs cannot be interrupted, so the contract is the only protection.
 
 If you need remote data, cache it (prime it on `PlayerJoinEvent`).
 
@@ -90,9 +106,9 @@ travel entirely when the player has none.
 
 ### The receipt
 
-The receipt is yours and it is **opaque**. `TraversalReceipt` declares no methods: Wormholes stores the
-object verbatim, never calls anything on it — not even `toString()` — and hands the exact same instance back
-to `commit` or `refund`. Put whatever you need to reverse the charge in it.
+The receipt is yours and it is **opaque**. `TraversalReceipt` declares no instance methods: Wormholes stores
+the object verbatim, never calls anything on it — not even `toString()` — and hands the exact same instance
+back to `commit` or `refund`. Put whatever you need to reverse the charge in it.
 
 ```java
 package com.example.mana;
@@ -106,7 +122,8 @@ public record ManaReceipt(UUID playerId, int amount) implements TraversalReceipt
 
 Wormholes pairs every receipt with the provider that returned it, so a receipt never has to identify itself
 and can never be attributed to anyone else. `TraversalReceipt.of("label")` is there for providers that need
-no state — the label is for your own logs, and Wormholes never reads it.
+no state — the label is for your own logs, and Wormholes never reads it. The factory does sanitise it on the
+way in, so `label()` is not necessarily the string you passed.
 
 ### The provider
 
@@ -186,10 +203,19 @@ public final class ManaTravelCost implements TraversalCostProvider {
             case RANDOM_TELEPORT -> 10;
             case CROSS_SERVER -> 5;
             case LOCAL, DIMENSIONAL_DOOR -> 3;
+            default -> 3;
         };
     }
 }
 ```
+
+The `default` arm in `priceOf` is not padding. `TraversalKind` may gain a constant, and an exhaustive `switch`
+expression compiled against today's jar throws `IncompatibleClassChangeError` the moment it does — see
+[Switching over the enums](#switching-over-the-enums).
+
+`reserve` is handed the exact `TraversalQuote` instance your `quote` returned, so a provider that would rather
+not recompute can read `amount()` and `unit()` straight back off it. `quote.payable()` and
+`reservation.reserved()` are shorthands for the status comparison.
 
 ### Registration
 
@@ -231,21 +257,43 @@ run, so quarantine and dedupe still work, but it is not a name an admin can reco
 ## What the context tells you
 
 ```java
-public record TraversalContext(
-    UUID traversalId,                        // unique per attempt; the key for this whole transaction
-    TraversalKind kind,                      // LOCAL | CROSS_SERVER | RANDOM_TELEPORT | DIMENSIONAL_DOOR
-    Player traveler,
-    UUID portalId,
-    String portalName,
-    Location origin,                         // defensive copy on every read
-    Optional<TraversalDestination> destination)
+public record TraversalContext(UUID traversalId, TraversalKind kind, Player traveler, UUID portalId,
+                               String portalName, Location origin, Optional<TraversalDestination> destination)
 ```
 
-`destination` is present when Wormholes knows it. It is empty for a random teleport (no destination exists
-at quote time). `TraversalDestination.sameServer()` is false for a cross-server hop, where `serverName()`
-names the peer and `location()` is empty.
+| Component     | What it is                                                                        |
+|---------------|------------------------------------------------------------------------------------|
+| `traversalId` | Unique per attempt. The key for this whole transaction                              |
+| `kind`        | `LOCAL`, `CROSS_SERVER`, `RANDOM_TELEPORT` or `DIMENSIONAL_DOOR`                     |
+| `traveler`    | The live `Player`                                                                    |
+| `portalId`    | The portal being entered; the door, for a dimensional door                           |
+| `portalName`  | That portal's name, sanitised. Empty for an unnamed portal                           |
+| `origin`      | Where the traveler is entering from. A fresh clone on every read                     |
+| `destination` | Present when Wormholes knows it                                                      |
+
+`destination` is empty for a random teleport, because no destination exists at quote time.
+`TraversalDestination.sameServer()` is false for a cross-server hop, where `serverName()` names the peer and
+`location()` is empty.
+
+`origin()` and `TraversalDestination.location()` both return a fresh clone on every call, so mutating what
+you get back changes nothing. `travelerId()` is the shorthand for `traveler().getUniqueId()`.
+`TraversalDestination.portalName()` is sanitised by the same rule that governs your own text;
+`serverName()` is only trimmed of surrounding whitespace.
+
+The static factories — `TraversalContext.local`, `crossServer`, `randomTeleport` and `dimensionalDoor`, and
+`TraversalDestination.portal` and `remotePortal` — exist so Wormholes can build these records and so you can
+build one in your own unit tests. Nothing else calls them.
 
 Only players are gated. Minecarts, mobs and dropped items never reach a provider.
+
+### Two public types you will never be handed
+
+`TraversalDecision` is the verdict Wormholes produces for itself: the traversal id, the outcome, a reason and
+the provider that caused it. It is not passed to a provider and it is not carried on an event. Read it as
+documentation of what the outcomes mean, not as something to consume.
+
+`TraversalReceipt.SimpleReceipt` is the record behind `TraversalReceipt.of(label)`. Match on it only if you
+created it; a `SimpleReceipt` you did not create belongs to another provider and will never reach you.
 
 ---
 
@@ -267,9 +315,17 @@ public void onTraversed(WormholesPortalTraversedEvent event) {
 }
 ```
 
-`WormholesPortalTraverseEvent` fires **before** any provider is quoted, so a cancel costs nothing.
+`WormholesPortalTraverseEvent` fires **before** any provider is quoted, so a cancel costs nothing. It is a
+synchronous event delivered inline on the region thread that owns the portal, and the same no-blocking rule
+that governs providers governs your handler.
+
 `WormholesPortalTraversedEvent` fires after the traversal is committed, on the traveler's entity scheduler.
-Each event has its own `HandlerList`; there is no shared base class.
+If that scheduler refuses the task — the traveler is gone, the server is stopping — the event is dropped and
+a warning is logged. Do not use it as a ledger of record; the charged providers already committed.
+
+Each event extends `org.bukkit.event.Event` directly and owns its own `HandlerList`; there is no shared
+Wormholes base class, and neither event is constructed as asynchronous. Neither event is dispatched when no
+listener is registered for it, and neither fires at all when `traversal-api-enabled` is false.
 
 ---
 
@@ -279,24 +335,29 @@ Wormholes assumes a provider will throw, return null, hand back somebody else's 
 
 | Misbehaviour                          | What Wormholes does                                                    |
 |---------------------------------------|------------------------------------------------------------------------|
-| `quote` throws or returns null        | Counted as a fault, logged with the stack trace, treated as a refusal to charge |
+| `quote` throws or returns null        | Counted as a fault and logged — with the stack trace when it threw — and treated as a refusal to charge |
 | `reserve` throws or returns null      | Everything already reserved is refunded in reverse order; nobody pays  |
 | A receipt that throws from `toString`/`equals`/`hashCode` | Nothing. Wormholes never calls a receipt |
 | `reserve` returns `failed(reason)`    | Not a fault — a deliberate late refusal. Rollback, then deny with your reason |
 | `commit` throws                       | Logged and counted. The traversal already happened; it is not undone   |
 | `refund` throws                       | Logged and counted, and the rollback loop **continues** to the next receipt |
 | Repeated faults                       | Provider is quarantined with one log line naming your plugin, and skipped until it re-registers |
-| Slow call                             | Throttled warning naming your plugin. Never changes the outcome        |
+| Slow call                             | Throttled warning naming your plugin, at most one a minute per provider. Never changes the outcome |
 | `providerId()` throws or is blank     | The registration is ignored with a warning                             |
 | Two providers claim one `providerId`  | The higher-priority one is kept, the other is ignored with a warning   |
+| The same provider instance registered twice | Collapsed silently to the higher-priority registration. Your `quote` is called once, not twice |
+| A provider starts another traversal from inside `quote`, `reserve`, or an `EXPIRED` or `CHARGE_ROLLBACK` `refund` | The nested attempt is refused with `DENIED_REENTRANT` before it reaches any provider, and logged. The guard is per thread and spans the whole evaluation, including the expiry sweep that runs at its head |
+| Your plugin is disabled mid-traversal | Wormholes stops quoting you immediately, but still calls `refund` for receipts you already hold, and logs that it is refunding through a disabled plugin |
 
 No value ever moves through this API. `TraversalQuote` carries an **optional** `amount()` / `unit()` that
 exists so Wormholes can show a price in its own voice; it is display-only, refused at construction if it is
 negative, and never reconstructs, inspects or arithmetics what you actually charge. You own the movement of
 value end to end, and a quote without `withPrice(…)` is perfectly valid.
 
-All third-party text — quote descriptions, refusal reasons, event cancel reasons — is trimmed of control
-characters and truncated to 128 characters before Wormholes shows it to anyone.
+All third-party text — quote descriptions, refusal reasons, event cancel reasons, and the label handed to
+`TraversalReceipt.of` — is truncated to 128 characters, has its control characters flattened to spaces, and is
+stripped of surrounding whitespace. The sanitising happens where the value is constructed, so reading the
+field back gives you the sanitised form, not the original.
 
 ### Configuration
 
@@ -306,8 +367,8 @@ characters and truncated to 128 characters before Wormholes shows it to anyone.
 |----------------------------------------|---------|--------------------------------------------------------------------|
 | `traversal-api-enabled`                | `true`  | Master switch. When false, no provider is called and neither event fires |
 | `traversal-api-provider-failure-policy` | `allow` | `allow`: a faulting provider is treated as a refusal to charge and the traversal proceeds free. `deny`: a faulting provider closes the portal |
-| `traversal-api-provider-fault-limit`   | `5`     | Faults before a provider is quarantined. `0` disables quarantine    |
-| `traversal-api-slow-provider-millis`   | `5`     | Warn when one provider call takes at least this long. `0` disables  |
+| `traversal-api-provider-fault-limit`   | `5`     | Quarantine trips on the Nth fault, so the default tolerates four. Clamped to `0`–`1000`; `0` disables quarantine |
+| `traversal-api-slow-provider-millis`   | `5`     | Warn when one provider call takes at least this long. Clamped to `0`–`60000`; `0` disables |
 
 The default is **fail-open** on purpose. A third-party bug making every portal on the server free is
 recoverable and loudly logged; a third-party bug making every portal on the server unusable is not. Admins
@@ -315,6 +376,11 @@ who need hard gating set `traversal-api-provider-failure-policy = "deny"`.
 
 A deliberate `DENIED` or `INSUFFICIENT` quote always denies, whatever this setting says. The policy governs
 **faults only**.
+
+A quarantine is tied to the registration, not to the server run. The fault count and the quarantine flag are
+both dropped as soon as that `providerId` stops appearing in the `ServicesManager` registrations, so
+unregistering and registering again — a plugin reload is enough — clears the record. Nothing is persisted
+across a restart, and there is no command to lift a quarantine.
 
 ---
 
@@ -330,9 +396,69 @@ the moment one is added.
 ```java
 String message = switch (event.getOutcome()) {
     case ALLOWED_CHARGED -> "paid";
-    case DENIED_INSUFFICIENT -> "too poor";
+    case ALLOWED_FREE -> "free";
     default -> "";
 };
 ```
 
 `TraversalOutcome.allowed()` answers the only question most consumers actually have, without a switch.
+
+### The constants as they stand
+
+`TraversalKind` — what sort of trip this is. It is the only enum you are expected to switch on for pricing.
+
+| Constant           | Meaning                                                                 |
+|--------------------|-------------------------------------------------------------------------|
+| `LOCAL`            | Portal to portal on this server                                          |
+| `CROSS_SERVER`     | Portal to a portal on a peer server                                      |
+| `RANDOM_TELEPORT`  | An RTP portal. `destination` is empty at quote time                      |
+| `DIMENSIONAL_DOOR` | A dimensional door. `portalId` and `portalName` describe the door        |
+
+`TraversalQuoteStatus` — what your `quote` said. `PASS` is the free answer; there is no `FREE`.
+
+| Constant       | Meaning                                                                       |
+|----------------|-------------------------------------------------------------------------------|
+| `PASS`         | Nothing to charge. `reserve` is not called                                     |
+| `PAYABLE`      | You will charge if everyone else agrees. `reserve` follows                     |
+| `INSUFFICIENT` | The traveler cannot afford it. Denies with `DENIED_INSUFFICIENT`               |
+| `DENIED`       | Refused outright. Denies with `DENIED_BY_PROVIDER`                             |
+
+`TraversalReservationStatus` — `RESERVED` and `FAILED`. Use `TraversalReservation.reserved(receipt)` and
+`TraversalReservation.failed(reason)`; constructing a `RESERVED` reservation without a receipt throws
+`IllegalArgumentException`.
+
+`TraversalRefundReason` — why a receipt is being reversed. All eleven arrive at `refund`.
+
+| Constant                  | Meaning                                                             |
+|---------------------------|---------------------------------------------------------------------|
+| `TRAVERSAL_ABORTED`       | The trip was abandoned; also the fallback when no reason was given   |
+| `DESTINATION_REJECTED`    | The far side refused the traveler                                    |
+| `DESTINATION_UNAVAILABLE` | There was nowhere to arrive                                          |
+| `TELEPORT_FAILED`         | The move itself failed                                               |
+| `TIMED_OUT`               | The traversal did not complete in time                               |
+| `TRAVELER_RETREATED`      | The traveler stepped back out before committing                      |
+| `TRAVELER_LEFT`           | The traveler disconnected                                            |
+| `RATE_LIMITED`            | The traversal was throttled                                          |
+| `CHARGE_ROLLBACK`         | Another provider failed to reserve; nobody pays                      |
+| `EXPIRED`                 | The receipt outlived its 30-second ticket and was reclaimed          |
+| `SERVER_SHUTDOWN`         | Wormholes is unloading                                               |
+
+`TraversalOutcome` — the final verdict, carried on `WormholesPortalTraversedEvent`. Four allow, six deny.
+
+| Constant                   | `allowed()` | Meaning                                                       |
+|----------------------------|-------------|----------------------------------------------------------------|
+| `DISABLED`                 | `true`      | `traversal-api-enabled` is false; no provider ran               |
+| `ALLOWED_FREE`             | `true`      | Nobody charged                                                  |
+| `ALLOWED_CHARGED`          | `true`      | At least one provider reserved                                  |
+| `ALLOWED_PROVIDER_FAILED`  | `true`      | Somebody faulted and the policy is `allow`                      |
+| `DENIED_BY_LISTENER`       | `false`     | `WormholesPortalTraverseEvent` was cancelled                    |
+| `DENIED_BY_PROVIDER`       | `false`     | A provider returned `DENIED`                                    |
+| `DENIED_INSUFFICIENT`      | `false`     | A provider returned `INSUFFICIENT`, or failed to reserve        |
+| `DENIED_PROVIDER_FAILED`   | `false`     | Somebody faulted and the policy is `deny`                       |
+| `DENIED_IN_PROGRESS`       | `false`     | That traveler already has a traversal in flight                 |
+| `DENIED_REENTRANT`         | `false`     | A traversal was started from inside the traversal pipeline      |
+
+`WormholesPortalTraversedEvent` only ever fires for a traversal that reached commit, so its `getOutcome()` is
+always `ALLOWED_FREE`, `ALLOWED_CHARGED` or `ALLOWED_PROVIDER_FAILED`. **There is no event for a denial.**
+The deny-side constants exist for logs and for future use; if you need to observe refusals, observe them from
+your own `quote` and from `WormholesPortalTraverseEvent`, which is the only place a cancel is visible.
