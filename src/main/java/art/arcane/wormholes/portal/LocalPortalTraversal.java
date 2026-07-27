@@ -189,6 +189,14 @@ final class LocalPortalTraversal
 					rejectUnreadyRtpTraversal(i, traversive);
 					continue;
 				}
+				PortalTravelCost rtpCost = travelCost(i);
+				PortalTravelCost.Status rtpCostStatus = rtpCost == null
+						? PortalTravelCost.Status.AVAILABLE : rtpCost.status((Player) i);
+				if(rtpCost != null && rtpCostStatus != PortalTravelCost.Status.AVAILABLE)
+				{
+					rejectCostTraversal(i, traversive, rtpCost, rtpCostStatus);
+					continue;
+				}
 				completeRtpDispatch(i, traversive, Wormholes.rtpRuntime.traverse(portal, i, traversive));
 				continue;
 			}
@@ -205,8 +213,32 @@ final class LocalPortalTraversal
 				continue;
 			}
 
-			LocalPortalTransitRegistry.markTeleportCooldown(entityId, now);
+			PortalTravelCost cost = travelCost(i);
 			boolean crossServerHandoff = activeTunnel instanceof UniversalTunnel && Wormholes.traversalService != null;
+			PortalTravelCost.Reservation reservation = null;
+			if(cost != null)
+			{
+				if(crossServerHandoff)
+				{
+					PortalTravelCost.Status status = cost.status((Player) i);
+					if(status != PortalTravelCost.Status.AVAILABLE)
+					{
+						rejectCostTraversal(i, traversive, cost, status);
+						continue;
+					}
+				}
+				else
+				{
+					PortalTravelCost.ReserveResult result = cost.reserve((Player) i);
+					if(!result.successful())
+					{
+						rejectCostTraversal(i, traversive, cost, result.status());
+						continue;
+					}
+					reservation = result.reservation();
+				}
+			}
+			LocalPortalTransitRegistry.markTeleportCooldown(entityId, now);
 			Wormholes.v("[cross] " + i.getName() + " crossing portal " + portal.getId() + " -> " + (activeTunnel instanceof UniversalTunnel ? "CROSS-SERVER handoff" : "local teleport"));
 			if(!(activeTunnel instanceof UniversalTunnel && i instanceof Player))
 			{
@@ -216,7 +248,7 @@ final class LocalPortalTraversal
 			{
 				LocalPortalTransitRegistry.markTeleportInFlight(entityId, now);
 			}
-			pushTraversive(traversive, activeTunnel);
+			pushTraversive(traversive, activeTunnel, reservation);
 		}
 	}
 
@@ -301,7 +333,10 @@ final class LocalPortalTraversal
 		return true;
 	}
 
-	private void pushTraversive(Traversive traversive, ITunnel activeTunnel)
+	private void pushTraversive(
+			Traversive traversive,
+			ITunnel activeTunnel,
+			PortalTravelCost.Reservation reservation)
 	{
 		if(activeTunnel instanceof UniversalTunnel universal && Wormholes.traversalService != null && traversive.getObject() instanceof Entity entity)
 		{
@@ -316,11 +351,22 @@ final class LocalPortalTraversal
 
 		if(traversive.getObject() instanceof Entity undeliverable && !canDeliverThrough(activeTunnel))
 		{
+			refund(reservation);
 			rejectUndeliverableTraversal(undeliverable, traversive);
 			return;
 		}
 
-		activeTunnel.push(traversive);
+		IPortal destination = activeTunnel.getDestination();
+		if(destination instanceof LocalPortal localDestination)
+		{
+			localDestination.receive(traversive, reservation);
+			return;
+		}
+		refund(reservation);
+		if(traversive.getObject() instanceof Entity undeliverable)
+		{
+			rejectUndeliverableTraversal(undeliverable, traversive);
+		}
 	}
 
 	private static boolean canDeliverThrough(ITunnel activeTunnel)
@@ -355,6 +401,35 @@ final class LocalPortalTraversal
 		if(entity instanceof Player player)
 		{
 			WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_COOLDOWN));
+		}
+	}
+
+	void rejectCostTraversal(Entity entity, Traversive traversive, PortalTravelCost cost, PortalTravelCost.Status status)
+	{
+		bounceRejectedTraversal(entity, traversive);
+		if(entity instanceof Player player)
+		{
+			if(status == PortalTravelCost.Status.UNAVAILABLE)
+			{
+				WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_COST_VAULT_UNAVAILABLE));
+				return;
+			}
+			if(status == PortalTravelCost.Status.FAILED)
+			{
+				WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_COST_TRANSACTION_FAILED));
+				return;
+			}
+			if(cost instanceof VaultTravelCost vault)
+			{
+				WormholesAudience.sendActionBar(player, Wormholes.text().component(
+						WormholesMessages.PORTAL_COST_VAULT_INSUFFICIENT,
+						LocalPortalText.arguments("amount", vault.getFormattedAmount())));
+				return;
+			}
+			VanillaTravelCost vanilla = (VanillaTravelCost) cost;
+			WormholesAudience.sendActionBar(player, Wormholes.text().component(
+					WormholesMessages.PORTAL_COST_INSUFFICIENT,
+					LocalPortalText.arguments("quantity", vanilla.getQuantity(), "item", vanilla.getItemLabel())));
 		}
 	}
 
@@ -416,11 +491,17 @@ final class LocalPortalTraversal
 
 	void receive(Traversive t)
 	{
+		receive(t, null);
+	}
+
+	void receive(Traversive t, PortalTravelCost.Reservation reservation)
+	{
 		if(t.getType().equals(TraversableType.PLAYER) || t.getType().equals(TraversableType.ENTITY))
 		{
 			Entity p = (Entity) t.getObject();
 			if(!portal.canArrive(p))
 			{
+				refund(reservation);
 				rejectTraversal(p, t);
 				return;
 			}
@@ -437,6 +518,7 @@ final class LocalPortalTraversal
 			UUID entityId = p.getUniqueId();
 			if(!LocalPortalTransitRegistry.markTeleportInFlight(entityId, System.currentTimeMillis()))
 			{
+				refund(reservation);
 				rejectUndeliverableTraversal(p, t);
 				return;
 			}
@@ -454,14 +536,24 @@ final class LocalPortalTraversal
 				{
 					LocalPortalTransitRegistry.clearTeleportInFlight(entityId);
 					logTeleportFailure(p, "deliver", error);
-					if(!runtime.dispatch(p, () -> rejectUndeliverableTraversal(p, t), 0L))
+					if(!runtime.dispatch(p, () ->
 					{
+						refund(reservation);
+						rejectUndeliverableTraversal(p, t);
+					}, 0L))
+					{
+						refund(reservation);
 						Wormholes.w("Entity scheduler rejected the arrival bounce for " + p.getName() + " at portal " + portal.getId());
 					}
 					return;
 				}
-				if(!runtime.dispatch(p, () -> settleArrival(p, entityId, outVelocity, exit, reloadExpected), 0L))
+				if(!runtime.dispatch(p, () ->
 				{
+					commit(reservation);
+					settleArrival(p, entityId, outVelocity, exit, reloadExpected);
+				}, 0L))
+				{
+					commit(reservation);
 					Wormholes.w("Entity scheduler rejected the arrival settle for " + p.getName() + " at portal " + portal.getId()
 							+ "; the arrival was recorded without its landing effects");
 					WormholesTelemetry.countTraversal();
@@ -470,6 +562,29 @@ final class LocalPortalTraversal
 					LocalPortalTransitRegistry.clearTeleportInFlight(entityId);
 				}
 			});
+			return;
+		}
+		refund(reservation);
+	}
+
+	private PortalTravelCost travelCost(Entity entity)
+	{
+		return entity instanceof Player ? portal.getTravelCost() : null;
+	}
+
+	private static void commit(PortalTravelCost.Reservation reservation)
+	{
+		if(reservation != null)
+		{
+			reservation.commit();
+		}
+	}
+
+	private static void refund(PortalTravelCost.Reservation reservation)
+	{
+		if(reservation != null)
+		{
+			reservation.refund();
 		}
 	}
 

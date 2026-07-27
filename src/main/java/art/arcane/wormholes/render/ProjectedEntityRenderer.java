@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 
@@ -33,6 +34,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import art.arcane.wormholes.EffectManager;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
@@ -66,6 +68,9 @@ public final class ProjectedEntityRenderer {
     private final double[] scratchDirection;
     private final double[] scratchLook;
     private final double[] scratchEntityPosition;
+    private final AtomicBoolean teardownRetryScheduled;
+    private final AtomicBoolean teardownFailureReported;
+    private volatile boolean recoveryPending;
     private volatile int publishedSpoofedCount;
 
     public ProjectedEntityRenderer() {
@@ -92,6 +97,9 @@ public final class ProjectedEntityRenderer {
         this.scratchDirection = new double[3];
         this.scratchLook = new double[3];
         this.scratchEntityPosition = new double[5];
+        this.teardownRetryScheduled = new AtomicBoolean(false);
+        this.teardownFailureReported = new AtomicBoolean(false);
+        this.recoveryPending = false;
     }
 
     public int getSpoofedCount() {
@@ -118,7 +126,8 @@ public final class ProjectedEntityRenderer {
             return;
         }
 
-        channel.begin(observer);
+        prepareRenderBatch(observer);
+        RuntimeException batchFailure = null;
         try {
             double range = Math.min(Settings.ENTITY_SPOOF_RANGE, projectionDepth);
             registry.clearVisible();
@@ -146,9 +155,11 @@ public final class ProjectedEntityRenderer {
 
             registry.destroyHidden(observer);
             occluder.restoreLocalEntities(observer);
+        } catch (RuntimeException error) {
+            batchFailure = error;
+            throw error;
         } finally {
-            channel.end();
-            publishedSpoofedCount = registry.size();
+            finishRenderBatch(observer, batchFailure);
         }
     }
 
@@ -171,7 +182,8 @@ public final class ProjectedEntityRenderer {
             return;
         }
 
-        channel.begin(observer);
+        prepareRenderBatch(observer);
+        RuntimeException batchFailure = null;
         try {
             double range = Math.min(Settings.ENTITY_SPOOF_RANGE, projectionDepth);
             registry.clearVisible();
@@ -195,9 +207,11 @@ public final class ProjectedEntityRenderer {
             registry.destroyHidden(observer);
             registry.applyRelationships(observer, visuals);
             occluder.restoreLocalEntities(observer);
+        } catch (RuntimeException error) {
+            batchFailure = error;
+            throw error;
         } finally {
-            channel.end();
-            publishedSpoofedCount = registry.size();
+            finishRenderBatch(observer, batchFailure);
         }
     }
 
@@ -223,7 +237,8 @@ public final class ProjectedEntityRenderer {
         double remoteOriginX = remotePortal.getOrigin().getX();
         double remoteOriginY = remotePortal.getOrigin().getY();
         double remoteOriginZ = remotePortal.getOrigin().getZ();
-        channel.begin(observer);
+        prepareRenderBatch(observer);
+        RuntimeException batchFailure = null;
         try {
             double range = Math.min(Settings.ENTITY_SPOOF_RANGE, projectionDepth);
             registry.clearVisible();
@@ -249,42 +264,94 @@ public final class ProjectedEntityRenderer {
             registry.destroyHidden(observer);
             registry.applyRelationships(observer, visuals);
             occluder.restoreLocalEntities(observer);
+        } catch (RuntimeException error) {
+            batchFailure = error;
+            throw error;
         } finally {
-            channel.end();
-            publishedSpoofedCount = registry.size();
+            finishRenderBatch(observer, batchFailure);
         }
     }
 
     public void close(Player observer) {
-        occluder.requestRestoreAll();
-        try {
-            sendTeardown(observer);
-        } finally {
-            dropRenderState(observer);
-        }
+        teardown(observer);
     }
 
     public void discard(Player observer) {
+        teardown(observer);
+    }
+
+    private void teardown(Player observer) {
         occluder.requestRestoreAll();
+        if (observer == null || !observer.isOnline()) {
+            dropRenderState(observer);
+            return;
+        }
         try {
             sendTeardown(observer);
+            dropRenderState(observer);
         } catch (RuntimeException error) {
             reportTeardownFailure(observer, error);
+            scheduleTeardownRetry(observer);
         } finally {
-            dropRenderState(observer);
+            occluder.restoreAllLocalEntities(observer);
         }
     }
 
     private void sendTeardown(Player observer) {
-        if (observer == null || !observer.isOnline()) {
-            return;
+        try {
+            channel.begin(observer);
+        } catch (RuntimeException error) {
+            markRecoveryPending(observer);
+            throw error;
         }
-        channel.begin(observer);
+        RuntimeException batchFailure = null;
         try {
             registry.destroyAll(observer);
-            identity.removeVanillaNameTeam(observer);
+            identity.sendVanillaNameTeamRemoval(observer);
+        } catch (RuntimeException error) {
+            batchFailure = error;
+            throw error;
         } finally {
+            finishRenderBatch(observer, batchFailure);
+        }
+        identity.forgetVanillaNameTeam();
+        recoveryPending = false;
+        teardownFailureReported.set(false);
+    }
+
+    private void prepareRenderBatch(Player observer) {
+        if (recoveryPending) {
+            sendTeardown(observer);
+        }
+        try {
+            channel.begin(observer);
+        } catch (RuntimeException error) {
+            markRecoveryPending(observer);
+            throw error;
+        }
+    }
+
+    private void finishRenderBatch(Player observer, RuntimeException batchFailure) {
+        RuntimeException flushFailure = null;
+        try {
             channel.end();
+        } catch (RuntimeException error) {
+            flushFailure = error;
+        }
+        if (batchFailure == null && flushFailure == null) {
+            registry.commitDestroyed();
+        } else {
+            markRecoveryPending(observer);
+        }
+        publishedSpoofedCount = registry.size();
+        if (batchFailure != null) {
+            if (flushFailure != null) {
+                batchFailure.addSuppressed(flushFailure);
+            }
+            return;
+        }
+        if (flushFailure != null) {
+            throw flushFailure;
         }
     }
 
@@ -293,12 +360,49 @@ public final class ProjectedEntityRenderer {
         registry.clear();
         occluder.clearVisibleHides();
         identity.forgetVanillaNameTeam();
+        recoveryPending = false;
         publishedSpoofedCount = 0;
     }
 
-    private static void reportTeardownFailure(Player observer, RuntimeException error) {
+    private void markRecoveryPending(Player observer) {
+        recoveryPending = true;
+        occluder.requestRestoreAll();
+        occluder.restoreAllLocalEntities(observer);
+        publishedSpoofedCount = registry.size();
+        scheduleTeardownRetry(observer);
+    }
+
+    private void scheduleTeardownRetry(Player observer) {
         Wormholes plugin = Wormholes.instance;
-        if (plugin == null) {
+        if (plugin == null || observer == null || !observer.isOnline()
+            || !recoveryPending || !teardownRetryScheduled.compareAndSet(false, true)) {
+            return;
+        }
+        boolean scheduled = FoliaScheduler.runEntity(plugin, observer, () -> {
+            teardownRetryScheduled.set(false);
+            if (!recoveryPending) {
+                return;
+            }
+            if (!observer.isOnline()) {
+                dropRenderState(observer);
+                return;
+            }
+            try {
+                sendTeardown(observer);
+                dropRenderState(observer);
+            } catch (RuntimeException error) {
+                reportTeardownFailure(observer, error);
+                scheduleTeardownRetry(observer);
+            }
+        }, 1L);
+        if (!scheduled) {
+            teardownRetryScheduled.set(false);
+        }
+    }
+
+    private void reportTeardownFailure(Player observer, RuntimeException error) {
+        Wormholes plugin = Wormholes.instance;
+        if (plugin == null || !teardownFailureReported.compareAndSet(false, true)) {
             return;
         }
         plugin.getLogger().log(Level.WARNING, "[spoof] failed to send projected entity teardown to "
@@ -390,8 +494,7 @@ public final class ProjectedEntityRenderer {
 
         EntityRenderSpoofedEntity state = registry.get(entity.getUniqueId());
         if (state != null && state.upsideDown != upsideDown) {
-            registry.destroySingle(observer, state);
-            registry.forget(entity.getUniqueId());
+            registry.destroySingle(observer, entity.getUniqueId(), state);
             state = null;
         }
         if (state == null) {

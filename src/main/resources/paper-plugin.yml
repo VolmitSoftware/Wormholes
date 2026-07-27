@@ -17,6 +17,10 @@ dependencies:
       load: BEFORE
       required: false
       join-classpath: true
+    Vault:
+      load: BEFORE
+      required: false
+      join-classpath: true
 permissions:
   wormholes.*:
     description: Gives access to all Wormholes permissions.
@@ -32,6 +36,7 @@ permissions:
       wormholes.admin.reload: true
       wormholes.admin.items: true
       wormholes.admin.network: true
+      wormholes.admin.projection: true
       wormholes.admin.reset: true
   wormholes.admin.reload:
     description: Allows reloading Wormholes configuration.
@@ -41,6 +46,9 @@ permissions:
     default: op
   wormholes.admin.network:
     description: Allows managing Wormholes network links.
+    default: op
+  wormholes.admin.projection:
+    description: Allows freezing and flushing portal projection state.
     default: op
   wormholes.admin.reset:
     description: Allows deleting portals and resetting Wormholes data.

@@ -83,7 +83,7 @@ final class ViewSessionRegistry {
 
     boolean isSessionChunkActive(ViewSession session, String peerName, long chunkKey) {
         return isSessionPeerActive(session, peerName)
-            && network.getReplicationManager().isSubscribed(peerName, session.subscriptionId, chunkKey);
+            && network.getReplicationManager().isSubscribed(peerName, session.subscriptionId, session.streamFor(chunkKey));
     }
 
     boolean isSessionCurrent(ViewSession session) {
@@ -101,7 +101,7 @@ final class ViewSessionRegistry {
     void unsubscribeSessionReplication(ViewSession session) {
         ChunkReplicationManager replication = network.getReplicationManager();
         for (String peerName : session.peers) {
-            replication.unsubscribeAll(peerName, session.subscriptionId, session.chunkKeys);
+            replication.unsubscribeAll(peerName, session.subscriptionId, session.streamKeys);
         }
     }
 }

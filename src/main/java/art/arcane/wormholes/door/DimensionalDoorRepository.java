@@ -8,12 +8,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 /** JSON persistence for dimensional-door identity and allocation state. */
 public final class DimensionalDoorRepository {
@@ -23,6 +27,7 @@ public final class DimensionalDoorRepository {
     private static final Pattern POCKET_SLOT = Pattern.compile("\\\"slot\\\"\\s*:\\s*(\\d+)");
 
     private final Path stateFile;
+    private final Path ticketDirectory;
     private DoorStoreSnapshot loaded;
 
     /** Uses {@code <plugin data>/doors/state.json}. */
@@ -34,28 +39,42 @@ public final class DimensionalDoorRepository {
     /** Accepts the exact state-file path, primarily for tests and migrations. */
     public DimensionalDoorRepository(Path stateFile) {
         this.stateFile = Objects.requireNonNull(stateFile, "stateFile").toAbsolutePath().normalize();
+        ticketDirectory = this.stateFile.resolveSibling(this.stateFile.getFileName() + ".tickets");
     }
 
     public synchronized DoorStoreSnapshot load() throws IOException {
         if (loaded != null) {
             return loaded;
         }
-        if (!Files.isRegularFile(stateFile)) {
-            loaded = DoorStoreSnapshot.empty();
-            return loaded;
+        DoorStoreSnapshot stored = DoorStoreSnapshot.empty();
+        if (Files.isRegularFile(stateFile)) {
+            try {
+                stored = fromJson(new JSONObject(VIO.readAll(stateFile.toFile())));
+            } catch (RuntimeException e) {
+                throw new IOException("Could not parse dimensional-door state at " + stateFile, e);
+            }
         }
 
-        try {
-            loaded = fromJson(new JSONObject(VIO.readAll(stateFile.toFile())));
-            return loaded;
-        } catch (RuntimeException e) {
-            throw new IOException("Could not parse dimensional-door state at " + stateFile, e);
+        LinkedHashMap<UUID, ReturnTicket> tickets = new LinkedHashMap<>();
+        for (ReturnTicket ticket : stored.returnTickets()) {
+            tickets.put(ticket.playerId(), ticket);
         }
+        for (ReturnTicket ticket : loadTicketFiles()) {
+            tickets.put(ticket.playerId(), ticket);
+        }
+        DoorStoreSnapshot combined = withTickets(stored, new ArrayList<>(tickets.values()));
+        if (!stored.returnTickets().isEmpty()) {
+            reconcileTicketFiles(combined.returnTickets());
+            writeStateFile(combined);
+        }
+        loaded = combined;
+        return loaded;
     }
 
     public synchronized void save(DoorStoreSnapshot snapshot) throws IOException {
         Objects.requireNonNull(snapshot, "snapshot");
-        VIO.writeAll(stateFile.toFile(), toJson(snapshot).toString(2));
+        reconcileTicketFiles(snapshot.returnTickets());
+        writeStateFile(snapshot);
         loaded = snapshot;
     }
 
@@ -64,20 +83,31 @@ public final class DimensionalDoorRepository {
     }
 
     public synchronized void putReturnTicket(ReturnTicket ticket) throws IOException {
-        save(load().withReturnTicket(Objects.requireNonNull(ticket, "ticket")));
+        ReturnTicket required = Objects.requireNonNull(ticket, "ticket");
+        DoorStoreSnapshot current = load();
+        writeTicketFile(required);
+        loaded = current.withReturnTicket(required);
     }
 
     public synchronized Optional<ReturnTicket> removeReturnTicket(UUID playerId) throws IOException {
         Objects.requireNonNull(playerId, "playerId");
-        Optional<ReturnTicket> removed = load().returnTicket(playerId);
+        DoorStoreSnapshot current = load();
+        Optional<ReturnTicket> removed = current.returnTicket(playerId);
         if (removed.isPresent()) {
-            save(loaded.withoutReturnTicket(playerId));
+            Files.deleteIfExists(ticketFile(playerId));
+            loaded = current.withoutReturnTicket(playerId);
         }
         return removed;
     }
 
     public Path stateFile() {
         return stateFile;
+    }
+
+    synchronized void saveState(DoorStoreSnapshot snapshot) throws IOException {
+        Objects.requireNonNull(snapshot, "snapshot");
+        writeStateFile(snapshot);
+        loaded = snapshot;
     }
 
     public synchronized long recoverNextPocketSlot() throws IOException {
@@ -153,21 +183,102 @@ public final class DimensionalDoorRepository {
         }
         root.put("spaces", spaces);
 
-        JSONArray tickets = new JSONArray();
-        for (ReturnTicket ticket : snapshot.returnTickets()) {
-            tickets.put(new JSONObject()
-                .put("playerId", ticket.playerId().toString())
-                .put("sourceEndpointId", ticket.sourceEndpointId().toString())
-                .put("sourceWorldId", ticket.sourceWorldId().toString())
-                .put("sourceWorldKey", ticket.sourceWorldKey())
-                .put("x", ticket.x())
-                .put("y", ticket.y())
-                .put("z", ticket.z())
-                .put("yaw", ticket.yaw())
-                .put("pitch", ticket.pitch()));
-        }
-        root.put("returnTickets", tickets);
+        root.put("returnTickets", new JSONArray());
         return root;
+    }
+
+    private void writeStateFile(DoorStoreSnapshot snapshot) throws IOException {
+        VIO.writeAll(stateFile.toFile(), toJson(snapshot).toString(2));
+    }
+
+    private void reconcileTicketFiles(List<ReturnTicket> tickets) throws IOException {
+        Set<String> expectedFiles = new HashSet<>();
+        for (ReturnTicket ticket : tickets) {
+            expectedFiles.add(ticketFile(ticket.playerId()).getFileName().toString());
+            writeTicketFile(ticket);
+        }
+        if (!Files.isDirectory(ticketDirectory)) {
+            return;
+        }
+        try (Stream<Path> paths = Files.list(ticketDirectory)) {
+            for (Path path : paths.filter(Files::isRegularFile).toList()) {
+                if (!expectedFiles.contains(path.getFileName().toString())) {
+                    Files.deleteIfExists(path);
+                }
+            }
+        }
+    }
+
+    private List<ReturnTicket> loadTicketFiles() throws IOException {
+        if (!Files.isDirectory(ticketDirectory)) {
+            return List.of();
+        }
+        List<ReturnTicket> tickets = new ArrayList<>();
+        try (Stream<Path> paths = Files.list(ticketDirectory)) {
+            List<Path> files = paths
+                .filter(Files::isRegularFile)
+                .filter(path -> path.getFileName().toString().endsWith(".json"))
+                .sorted()
+                .toList();
+            for (Path path : files) {
+                try {
+                    ReturnTicket ticket = ticketFromJson(new JSONObject(VIO.readAll(path.toFile())));
+                    if (!path.equals(ticketFile(ticket.playerId()))) {
+                        throw new IOException("Return-ticket filename does not match player ID at " + path);
+                    }
+                    tickets.add(ticket);
+                } catch (RuntimeException exception) {
+                    throw new IOException("Could not parse dimensional-door return ticket at " + path, exception);
+                }
+            }
+        }
+        return tickets;
+    }
+
+    private void writeTicketFile(ReturnTicket ticket) throws IOException {
+        VIO.writeAll(ticketFile(ticket.playerId()).toFile(), ticketToJson(ticket).toString(2));
+    }
+
+    private Path ticketFile(UUID playerId) {
+        return ticketDirectory.resolve(playerId + ".json");
+    }
+
+    private static JSONObject ticketToJson(ReturnTicket ticket) {
+        return new JSONObject()
+            .put("playerId", ticket.playerId().toString())
+            .put("sourceEndpointId", ticket.sourceEndpointId().toString())
+            .put("sourceWorldId", ticket.sourceWorldId().toString())
+            .put("sourceWorldKey", ticket.sourceWorldKey())
+            .put("x", ticket.x())
+            .put("y", ticket.y())
+            .put("z", ticket.z())
+            .put("yaw", ticket.yaw())
+            .put("pitch", ticket.pitch());
+    }
+
+    private static ReturnTicket ticketFromJson(JSONObject ticket) {
+        return new ReturnTicket(
+            uuid(ticket, "playerId"),
+            uuid(ticket, "sourceEndpointId"),
+            uuid(ticket, "sourceWorldId"),
+            ticket.getString("sourceWorldKey"),
+            ticket.getDouble("x"),
+            ticket.getDouble("y"),
+            ticket.getDouble("z"),
+            (float) ticket.getDouble("yaw"),
+            (float) ticket.getDouble("pitch")
+        );
+    }
+
+    private static DoorStoreSnapshot withTickets(DoorStoreSnapshot snapshot, List<ReturnTicket> tickets) {
+        return new DoorStoreSnapshot(
+            snapshot.schema(),
+            snapshot.nextPocketSlot(),
+            snapshot.pairs(),
+            snapshot.endpoints(),
+            snapshot.spaces(),
+            tickets
+        );
     }
 
     private static DoorStoreSnapshot fromJson(JSONObject root) {

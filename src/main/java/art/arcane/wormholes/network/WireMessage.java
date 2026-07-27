@@ -1,8 +1,11 @@
 package art.arcane.wormholes.network;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -159,7 +162,10 @@ public sealed interface WireMessage {
         }
     }
 
-    record Routed(String sourceServer, String targetServer, int ttl, WireMessageType innerType, byte[] payload) implements WireMessage {
+    record Routed(String sourceServer, String targetServer, int ttl, WireMessageType innerType, byte[] payload, byte[] signature) implements WireMessage {
+        private static final String SIGNATURE_DOMAIN = "wormholes:routed:v1";
+        private static final String RELAY_AUDIENCE = "*";
+
         @Override
         public WireMessageType type() {
             return WireMessageType.ROUTED;
@@ -172,6 +178,7 @@ public sealed interface WireMessage {
             out.writeByte(ttl);
             out.writeByte(innerType.id());
             WireCodec.writeByteArray(out, payload, WireCodec.MAX_FRAME_BYTES);
+            WireCodec.writeByteArray(out, signature, Handshake.SIGNATURE_MAX_LENGTH);
         }
 
         public static Routed read(DataInputStream in) throws IOException {
@@ -183,7 +190,60 @@ public sealed interface WireMessage {
                 throw new IOException("Invalid routed message type");
             }
             byte[] payload = WireCodec.readByteArray(in, WireCodec.MAX_FRAME_BYTES);
-            return new Routed(sourceServer, targetServer, ttl, innerType, payload);
+            byte[] signature = WireCodec.readByteArray(in, Handshake.SIGNATURE_MAX_LENGTH);
+            return new Routed(sourceServer, targetServer, ttl, innerType, payload, signature);
+        }
+
+        public static Routed sign(String sourceServer, String targetServer, int ttl, WireMessage message, PrivateKey privateKey) throws IOException {
+            if (message instanceof Routed) {
+                throw new IllegalArgumentException("Nested routed messages are not supported");
+            }
+            byte[] payload = WireCodec.encodePayload(message);
+            byte[] signature = Handshake.sign(
+                privateKey,
+                authenticationHeader(sourceServer, targetServer, message.type(), payload.length),
+                payload
+            );
+            return new Routed(sourceServer, targetServer, ttl, message.type(), payload, signature);
+        }
+
+        public boolean authenticates(PublicKey publicKey) {
+            try {
+                return Handshake.verify(
+                    publicKey,
+                    signature,
+                    authenticationHeader(sourceServer, targetServer, innerType, payload.length),
+                    payload
+                );
+            } catch (IOException | RuntimeException e) {
+                return false;
+            }
+        }
+
+        public Routed withTarget(String targetServer) {
+            return new Routed(sourceServer, targetServer, ttl, innerType, payload, signature);
+        }
+
+        public Routed withTtl(int ttl) {
+            return new Routed(sourceServer, targetServer, ttl, innerType, payload, signature);
+        }
+
+        static boolean isRelayAnnouncement(WireMessageType type) {
+            return type == WireMessageType.PORTAL_DIRECTORY
+                || type == WireMessageType.PORTAL_UPSERT
+                || type == WireMessageType.PORTAL_REMOVE;
+        }
+
+        private static byte[] authenticationHeader(String sourceServer, String targetServer, WireMessageType innerType, int payloadLength) throws IOException {
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream(128);
+            DataOutputStream out = new DataOutputStream(buffer);
+            out.writeUTF(SIGNATURE_DOMAIN);
+            out.writeUTF(sourceServer);
+            out.writeUTF(isRelayAnnouncement(innerType) ? RELAY_AUDIENCE : targetServer);
+            out.writeByte(innerType.id());
+            out.writeInt(payloadLength);
+            out.flush();
+            return buffer.toByteArray();
         }
     }
 
@@ -226,6 +286,8 @@ public sealed interface WireMessage {
 
     record DictData(int version, int chunkIndex, int chunkTotal, byte[] hash, byte[] chunk) implements WireMessage {
         public static final int MAX_CHUNK_BYTES = 64 * 1024;
+        public static final int MAX_CHUNKS = 16;
+        public static final int MAX_DICTIONARY_BYTES = MAX_CHUNK_BYTES * MAX_CHUNKS;
 
         @Override
         public WireMessageType type() {
@@ -245,6 +307,9 @@ public sealed interface WireMessage {
             int version = in.readInt();
             int chunkIndex = in.readInt();
             int chunkTotal = in.readInt();
+            if (chunkTotal <= 0 || chunkTotal > MAX_CHUNKS || chunkIndex < 0 || chunkIndex >= chunkTotal) {
+                throw new IOException("Invalid dictionary chunk coordinates: " + chunkIndex + "/" + chunkTotal);
+            }
             byte[] hash = WireCodec.readFixedBytes(in, CompressionDictionary.HASH_LENGTH);
             byte[] chunk = WireCodec.readByteArray(in, MAX_CHUNK_BYTES);
             return new DictData(version, chunkIndex, chunkTotal, hash, chunk);

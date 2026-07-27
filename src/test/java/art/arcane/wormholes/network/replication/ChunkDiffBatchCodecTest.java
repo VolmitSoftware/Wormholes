@@ -45,11 +45,11 @@ class ChunkDiffBatchCodecTest {
         byte[] nbt = new byte[]{1, 2, 3, 4, 5};
         BlockEntityDiff entity = new BlockEntityDiff(BlockChange.pack(3, 70, 4), nbt);
 
-        ChunkDiffBatch batch = new ChunkDiffBatch(chunkKey, sequence, List.of(b1, b2), List.of(light), List.of(entity));
+        ChunkDiffBatch batch = new ChunkDiffBatch(ReplicationTestStream.stream(chunkKey), sequence, List.of(b1, b2), List.of(light), List.of(entity));
         byte[] encoded = batch.encode();
         ChunkDiffBatch decoded = ChunkDiffBatch.decode(encoded);
 
-        assertEquals(chunkKey, decoded.chunkKey());
+        assertEquals(chunkKey, decoded.stream().chunkKey());
         assertEquals(sequence, decoded.sequence());
         assertEquals(2, decoded.blocks().size());
         assertEquals(b1.packedXyz(), decoded.blocks().get(0).packedXyz());
@@ -78,7 +78,7 @@ class ChunkDiffBatchCodecTest {
             String state = (i & 1) == 0 ? stone : fence;
             blocks.add(new BlockChange(BlockChange.pack(i & 0xF, 60 + (i >> 4), (i >> 2) & 0xF), state, BlockChange.FLAG_NONE));
         }
-        ChunkDiffBatch batch = new ChunkDiffBatch(1L, 9L, blocks, List.<LightDiff>of(), List.<BlockEntityDiff>of());
+        ChunkDiffBatch batch = new ChunkDiffBatch(ReplicationTestStream.stream(1L), 9L, blocks, List.<LightDiff>of(), List.<BlockEntityDiff>of());
         byte[] encoded = batch.encode();
         ChunkDiffBatch decoded = ChunkDiffBatch.decode(encoded);
         assertEquals(500, decoded.blocks().size());
@@ -123,7 +123,7 @@ class ChunkDiffBatchCodecTest {
     void emptyBlocksBatchRoundTripsWithZeroTable() throws IOException {
         byte[] lightData = new byte[LightDiff.DATA_LENGTH];
         lightData[7] = (byte) 0x5A;
-        ChunkDiffBatch batch = new ChunkDiffBatch(3L, 4L,
+        ChunkDiffBatch batch = new ChunkDiffBatch(ReplicationTestStream.stream(3L), 4L,
             List.<BlockChange>of(),
             List.of(LightDiff.full(2, LightDiff.TYPE_BLOCKLIGHT, lightData)),
             List.<BlockEntityDiff>of());
@@ -149,7 +149,7 @@ class ChunkDiffBatchCodecTest {
         byte[] fullData = new byte[LightDiff.DATA_LENGTH];
         fullData[100] = (byte) 0xAB;
         LightDiff full = LightDiff.full(-2, LightDiff.TYPE_BLOCKLIGHT, fullData);
-        ChunkDiffBatch batch = new ChunkDiffBatch(5L, 6L,
+        ChunkDiffBatch batch = new ChunkDiffBatch(ReplicationTestStream.stream(5L), 6L,
             List.<BlockChange>of(),
             List.of(pendingSparse, full),
             List.<BlockEntityDiff>of());

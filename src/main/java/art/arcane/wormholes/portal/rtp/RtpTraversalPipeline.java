@@ -21,6 +21,7 @@ import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.Traversive;
+import art.arcane.wormholes.portal.PortalTravelCost;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.util.AxisAlignedBB;
 
@@ -68,12 +69,19 @@ final class RtpTraversalPipeline
 		{
 			return false;
 		}
-		Active claimed = new Active(portal, entity);
+		PortalTravelCost travelCost = entity instanceof Player ? portal.getTravelCost() : null;
+		if(travelCost != null && travelCost.status((Player) entity) != PortalTravelCost.Status.AVAILABLE)
+		{
+			portal.cancelRtpTraversal(entity);
+			return false;
+		}
+		Active claimed = new Active(portal, entity, travelCost);
 		if(active.putIfAbsent(entity.getUniqueId(), claimed) != null)
 		{
 			countTerminalFailure(FAILURE_DUPLICATE_CLAIM);
 			failures.report("duplicate-traversal:" + portal.getId(),
 					new IllegalStateException("RTP traversal already in progress for " + entity.getUniqueId()));
+			claimed.refund();
 			portal.cancelRtpTraversal(entity);
 			return false;
 		}
@@ -90,6 +98,7 @@ final class RtpTraversalPipeline
 				}
 				countTerminalFailure(FAILURE_CLAIM_REJECTED);
 				active.remove(entity.getUniqueId(), claimed);
+				claimed.refund();
 				portal.cancelRtpTraversal(entity);
 				return;
 			}
@@ -97,6 +106,7 @@ final class RtpTraversalPipeline
 			if(active.get(entity.getUniqueId()) != claimed)
 			{
 				countTerminalFailure(FAILURE_CLAIM_SUPERSEDED);
+				claimed.refund();
 				releaseClaim(portal.getId(), admitted);
 				return;
 			}
@@ -154,6 +164,7 @@ final class RtpTraversalPipeline
 	private void cancel(Active traversal)
 	{
 		countTerminalFailure(FAILURE_CANCELLED);
+		traversal.refund();
 		traversal.portal().cancelRtpTraversal(traversal.entity());
 	}
 
@@ -306,6 +317,19 @@ final class RtpTraversalPipeline
 					fail(portal, entity, preparation, markFailure);
 					return;
 				}
+				Active current = active.get(entity.getUniqueId());
+				PortalTravelCost.Status reserveStatus = current == null
+						? PortalTravelCost.Status.FAILED : current.reserve();
+				if(current == null || reserveStatus != PortalTravelCost.Status.AVAILABLE)
+				{
+					if(current != null)
+					{
+						portal.rejectRtpCost(entity, traversive, current.travelCost(), reserveStatus);
+					}
+					retained.close();
+					fail(portal, entity, preparation, null);
+					return;
+				}
 				CompletionStage<Boolean> teleportStage;
 				try
 				{
@@ -365,6 +389,11 @@ final class RtpTraversalPipeline
 				recoveredArrivals.incrementAndGet();
 				failures.report("arrival-mismatch:" + portal.getId(),
 						new IllegalStateException("RTP traveller left the source without reaching the confirmed destination"));
+			}
+			Active current = active.get(entity.getUniqueId());
+			if(current != null)
+			{
+				current.commit();
 			}
 			service.completeTraversal(preparation, true).whenComplete((completed, completionFailure) -> guard(portal, entity, preparation, retained, () ->
 			{
@@ -436,7 +465,11 @@ final class RtpTraversalPipeline
 			failures.report("traversal:" + portal.getId(), failure);
 		}
 		countTerminalFailure(reason);
-		active.remove(entity.getUniqueId());
+		Active removed = active.remove(entity.getUniqueId());
+		if(removed != null)
+		{
+			removed.refund();
+		}
 		portal.cancelRtpTraversal(entity);
 		releaseClaim(portal.getId(), preparation);
 	}
@@ -533,12 +566,60 @@ final class RtpTraversalPipeline
 				&& Math.abs(current.getZ() - target.getZ()) <= ARRIVAL_TOLERANCE;
 	}
 
-	private record Active(LocalPortal portal, Entity entity)
+	private static final class Active
 	{
-		private Active
+		private final LocalPortal portal;
+		private final Entity entity;
+		private final PortalTravelCost travelCost;
+		private PortalTravelCost.Reservation reservation;
+
+		private Active(LocalPortal portal, Entity entity, PortalTravelCost travelCost)
 		{
-			Objects.requireNonNull(portal, "portal");
-			Objects.requireNonNull(entity, "entity");
+			this.portal = Objects.requireNonNull(portal, "portal");
+			this.entity = Objects.requireNonNull(entity, "entity");
+			this.travelCost = travelCost;
+		}
+
+		private LocalPortal portal()
+		{
+			return portal;
+		}
+
+		private Entity entity()
+		{
+			return entity;
+		}
+
+		private PortalTravelCost travelCost()
+		{
+			return travelCost;
+		}
+
+		private synchronized PortalTravelCost.Status reserve()
+		{
+			if(travelCost == null || reservation != null)
+			{
+				return PortalTravelCost.Status.AVAILABLE;
+			}
+			PortalTravelCost.ReserveResult result = travelCost.reserve((Player) entity);
+			reservation = result.reservation();
+			return result.status();
+		}
+
+		private synchronized void commit()
+		{
+			if(reservation != null)
+			{
+				reservation.commit();
+			}
+		}
+
+		private synchronized void refund()
+		{
+			if(reservation != null)
+			{
+				reservation.refund();
+			}
 		}
 	}
 

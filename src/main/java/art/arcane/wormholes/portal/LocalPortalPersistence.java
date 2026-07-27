@@ -3,9 +3,11 @@ package art.arcane.wormholes.portal;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import java.util.logging.Level;
 
 import art.arcane.wormholes.Wormholes;
@@ -15,14 +17,22 @@ import art.arcane.wormholes.util.VIO;
 final class LocalPortalPersistence
 {
 	private final LocalPortal portal;
+	private final Function<UUID, File> saveFileResolver;
 	private final AtomicLong dirtyGeneration = new AtomicLong();
 	private final AtomicBoolean saveInFlight = new AtomicBoolean();
+	private final AtomicBoolean deleted = new AtomicBoolean();
 	private final Object persistenceLock = new Object();
 	private volatile long savedGeneration;
 
 	LocalPortalPersistence(LocalPortal portal)
 	{
-		this.portal = portal;
+		this(portal, id -> Wormholes.portalManager.getSaveFile(id));
+	}
+
+	LocalPortalPersistence(LocalPortal portal, Function<UUID, File> saveFileResolver)
+	{
+		this.portal = Objects.requireNonNull(portal, "portal");
+		this.saveFileResolver = Objects.requireNonNull(saveFileResolver, "saveFileResolver");
 		savedGeneration = dirtyGeneration.get();
 	}
 
@@ -80,23 +90,46 @@ final class LocalPortalPersistence
 
 	boolean needsSaving()
 	{
-		return !saveInFlight.get() && dirtyGeneration.get() != savedGeneration;
+		return !deleted.get() && !saveInFlight.get() && dirtyGeneration.get() != savedGeneration;
 	}
 
-	void willSave()
+	PortalSaveSnapshot prepareSave()
 	{
-		saveInFlight.compareAndSet(false, true);
+		if(deleted.get() || portal.isDestroyed() || !saveInFlight.compareAndSet(false, true))
+		{
+			return null;
+		}
+		try
+		{
+			return captureSnapshot();
+		}
+		catch(RuntimeException | Error error)
+		{
+			saveInFlight.set(false);
+			throw error;
+		}
 	}
 
-	void saveNow() throws IOException
+	void writeSave(PortalSaveSnapshot snapshot) throws IOException
 	{
 		try
 		{
-			if(portal.isDestroyed())
+			synchronized(persistenceLock)
 			{
-				return;
+				if(deleted.get())
+				{
+					return;
+				}
+				if(snapshot.generation() < savedGeneration)
+				{
+					return;
+				}
+				File file = snapshot.file();
+				file.getParentFile().mkdirs();
+				VIO.writeAll(file, snapshot.encoded());
+				savedGeneration = snapshot.generation();
+				Wormholes.v("Saved Portal " + snapshot.portalId() + " (" + snapshot.portalName() + ")");
 			}
-			doSave();
 		}
 		finally
 		{
@@ -104,28 +137,45 @@ final class LocalPortalPersistence
 		}
 	}
 
-	private void doSave() throws IOException
+	void rejectSave()
 	{
-		synchronized(persistenceLock)
+		saveInFlight.set(false);
+	}
+
+	void saveNow() throws IOException
+	{
+		if(deleted.get() || portal.isDestroyed())
 		{
-			if(portal.isDestroyed())
+			return;
+		}
+		try
+		{
+			synchronized(persistenceLock)
 			{
-				return;
+				if(deleted.get() || portal.isDestroyed())
+				{
+					return;
+				}
+				PortalSaveSnapshot snapshot = captureSnapshot();
+				File file = snapshot.file();
+				file.getParentFile().mkdirs();
+				VIO.writeAll(file, snapshot.encoded());
+				savedGeneration = snapshot.generation();
+				Wormholes.v("Saved Portal " + snapshot.portalId() + " (" + snapshot.portalName() + ")");
 			}
-			long generation = dirtyGeneration.get();
-			File f = Wormholes.portalManager.getSaveFile(portal.getId());
-			f.getParentFile().mkdirs();
-			VIO.writeAll(f, portal.toJSON().toString(2));
-			savedGeneration = generation;
-			Wormholes.v("Saved Portal " + portal.getId().toString() + " (" + portal.getName() + ")");
+		}
+		finally
+		{
+			saveInFlight.set(false);
 		}
 	}
 
 	void deleteData()
 	{
+		deleted.set(true);
 		synchronized(persistenceLock)
 		{
-			File f = Wormholes.portalManager.getSaveFile(portal.getId());
+			File f = saveFileResolver.apply(portal.getId());
 			try
 			{
 				Files.deleteIfExists(f.toPath());
@@ -147,6 +197,19 @@ final class LocalPortalPersistence
 		{
 			directory.delete();
 		}
+	}
+
+	private PortalSaveSnapshot captureSnapshot()
+	{
+		long generation = dirtyGeneration.get();
+		File file = saveFileResolver.apply(portal.getId());
+		return new PortalSaveSnapshot(
+			file,
+			portal.toJSON().toString(2),
+			generation,
+			portal.getId(),
+			portal.getName()
+		);
 	}
 
 	static UUID resolveOptionalUuid(String value)

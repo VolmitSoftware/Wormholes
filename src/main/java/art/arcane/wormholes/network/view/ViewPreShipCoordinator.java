@@ -88,15 +88,16 @@ final class ViewPreShipCoordinator {
                     if (ticket.isPromoted()) {
                         continue;
                     }
-                    List<long[]> ticketColumns = sessionColumnsForPortal(ticket.getPortalId());
-                    if (ticketColumns.isEmpty()) {
+                    ViewSession targetSession = registry.get(ticket.getPortalId());
+                    if (targetSession == null || targetSession.columns.isEmpty()) {
                         continue;
                     }
-                    List<Long> chunkKeys = new ArrayList<>(ticketColumns.size());
-                    for (long[] column : ticketColumns) {
+                    List<Long> chunkKeys = new ArrayList<>(targetSession.columns.size());
+                    for (long[] column : targetSession.columns) {
                         chunkKeys.add(ViewSlice.columnKey((int) column[0], (int) column[1]));
                     }
-                    replication.subscribePreShip(pose.subscriberId(), ticket.getPortalId(), session.world, chunkKeys);
+                    replication.subscribePreShip(pose.subscriberId(), ticket.getPortalId(), targetSession.world,
+                        targetSession.renderMode, chunkKeys);
                 }
             }
         }
@@ -104,14 +105,6 @@ final class ViewPreShipCoordinator {
         for (PreShipPredictor.PreShipTicket ticket : cancelled) {
             replication.cancelPreShip(ticket.getSubscriberId(), ticket.getPortalId());
         }
-    }
-
-    private List<long[]> sessionColumnsForPortal(UUID portalId) {
-        ViewSession session = registry.get(portalId);
-        if (session == null) {
-            return List.of();
-        }
-        return session.columns;
     }
 
     private PreShipPredictor.Settings settings(NetworkConfig.ViewConfig view) {

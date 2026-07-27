@@ -75,12 +75,12 @@ class BlockChangeCodecTest {
             new BlockEntityDiff(BlockChange.pack(14, -10, 9), nbtB)
         );
 
-        ChunkDiffBatch original = new ChunkDiffBatch(0x1234567890ABCDEFL, 42L, blocks, lights, entities);
+        ChunkDiffBatch original = new ChunkDiffBatch(ReplicationTestStream.stream(0x1234567890ABCDEFL), 42L, blocks, lights, entities);
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         original.writeTo(new DataOutputStream(buffer));
         ChunkDiffBatch decoded = ChunkDiffBatch.read(new DataInputStream(new ByteArrayInputStream(buffer.toByteArray())));
 
-        assertEquals(original.chunkKey(), decoded.chunkKey());
+        assertEquals(original.stream().chunkKey(), decoded.stream().chunkKey());
         assertEquals(original.sequence(), decoded.sequence());
         assertEquals(original.blocks().size(), decoded.blocks().size());
         for (int i = 0; i < original.blocks().size(); i++) {
@@ -109,7 +109,7 @@ class BlockChangeCodecTest {
 
     @Test
     void emptyBatchEncodesAndDecodes() throws IOException {
-        ChunkDiffBatch original = new ChunkDiffBatch(1L, 1L, List.<BlockChange>of(), List.<LightDiff>of(), List.<BlockEntityDiff>of());
+        ChunkDiffBatch original = new ChunkDiffBatch(ReplicationTestStream.stream(1L), 1L, List.<BlockChange>of(), List.<LightDiff>of(), List.<BlockEntityDiff>of());
         byte[] encoded = original.encode();
         ChunkDiffBatch decoded = ChunkDiffBatch.decode(encoded);
         assertNotNull(decoded);

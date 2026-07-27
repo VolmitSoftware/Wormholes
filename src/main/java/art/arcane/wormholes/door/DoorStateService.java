@@ -14,9 +14,9 @@ import java.util.UUID;
 /**
  * Thread-safe mutable owner of dimensional-door identity state.
  *
- * <p>Every mutation is copy-on-write: a complete candidate snapshot is
- * atomically persisted before it replaces the visible in-memory state. This
- * keeps runtime and disk state aligned even when persistence fails.</p>
+ * <p>Every mutation is persisted before it replaces visible in-memory state.
+ * Core identity changes use a complete atomic snapshot, while return tickets
+ * use isolated per-player atomic files.</p>
  */
 public final class DoorStateService {
     private final DimensionalDoorRepository repository;
@@ -203,7 +203,8 @@ public final class DoorStateService {
         }
         LinkedHashMap<UUID, ReturnTicket> candidateTickets = new LinkedHashMap<>(ticketsByPlayer);
         candidateTickets.put(ticket.playerId(), ticket);
-        persistAndPublish(registry, allocator, pairsById, candidateTickets);
+        repository.putReturnTicket(ticket);
+        ticketsByPlayer = candidateTickets;
     }
 
     public synchronized Optional<ReturnTicket> removeReturnTicket(UUID playerId) throws IOException {
@@ -214,7 +215,8 @@ public final class DoorStateService {
         }
         LinkedHashMap<UUID, ReturnTicket> candidateTickets = new LinkedHashMap<>(ticketsByPlayer);
         candidateTickets.remove(playerId);
-        persistAndPublish(registry, allocator, pairsById, candidateTickets);
+        repository.removeReturnTicket(playerId);
+        ticketsByPlayer = candidateTickets;
         return Optional.of(existing);
     }
 
@@ -254,7 +256,7 @@ public final class DoorStateService {
             candidatePairs.values(),
             candidateTickets.values()
         );
-        repository.save(candidate);
+        repository.saveState(candidate);
         registry = candidateRegistry;
         allocator = candidateAllocator;
         pairsById = candidatePairs;

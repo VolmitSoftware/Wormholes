@@ -10,6 +10,7 @@ import art.arcane.wormholes.network.replication.BlockEntityDiff;
 import art.arcane.wormholes.network.replication.ChunkBulk;
 import art.arcane.wormholes.network.replication.ChunkBulkBuilder;
 import art.arcane.wormholes.network.replication.ChunkDiffBatch;
+import art.arcane.wormholes.network.replication.ReplicationTestStream;
 import art.arcane.wormholes.network.replication.LightDiff;
 import art.arcane.wormholes.network.view.EntityDeltaCodec;
 import art.arcane.wormholes.network.view.EntitySendState;
@@ -244,7 +245,8 @@ public final class WormholesBandwidthHarness {
                         String state = HARNESS_BLOCK_STATES[subscriber.random.nextInt(HARNESS_BLOCK_STATES.length)];
                         blocks.add(new BlockChange(packed, state, BlockChange.FLAG_NONE));
                     }
-                    batches.add(new ChunkDiffBatch(chunkKey, blockSequence++, blocks, List.<LightDiff>of(), List.<BlockEntityDiff>of()));
+                    batches.add(new ChunkDiffBatch(ReplicationTestStream.stream(chunkKey), blockSequence++, blocks,
+                        List.<LightDiff>of(), List.<BlockEntityDiff>of()));
                 }
                 WireMessage.ChunkDiff message = new WireMessage.ChunkDiff(batches);
                 byte[] frame = WireCodec.encodeFrame(message);
@@ -351,7 +353,7 @@ public final class WormholesBandwidthHarness {
         ViewSlice slice = synthesizeSlice(subscriber.random, tick, subscriber.id, columnIndex);
         byte[] payload = ChunkBulkBuilder.encodeSliceBytes(slice);
         long chunkKey = ViewSlice.columnKey(columnIndex, subscriber.id);
-        ChunkBulk bulk = new ChunkBulk(chunkKey, tick, payload);
+        ChunkBulk bulk = new ChunkBulk(ReplicationTestStream.stream(chunkKey), tick, payload);
         return new WireMessage.ChunkBulkBatch(List.of(bulk));
     }
 

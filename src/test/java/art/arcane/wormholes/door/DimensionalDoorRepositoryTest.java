@@ -58,8 +58,15 @@ class DimensionalDoorRepositoryTest {
 
         assertEquals(expected, actual);
         assertTrue(Files.readString(stateFile).contains("\"nextPocketSlot\": 2"));
+        assertTrue(Files.readString(stateFile).contains("\"returnTickets\": []"));
+        Path ticketDirectory = stateFile.resolveSibling("custom-state.json.tickets");
+        assertTrue(Files.isRegularFile(ticketDirectory.resolve(ticket.playerId() + ".json")));
         try (Stream<Path> files = Files.list(temporaryDirectory)) {
-            assertEquals(List.of(stateFile), files.toList(), "atomic temp file must be cleaned up");
+            assertEquals(
+                List.of(stateFile, ticketDirectory),
+                files.sorted().toList(),
+                "atomic temp files must be cleaned up"
+            );
         }
     }
 
@@ -158,15 +165,65 @@ class DimensionalDoorRepositoryTest {
         );
 
         repository.putReturnTicket(first);
+        assertFalse(Files.exists(stateFile), "ticket writes must not rewrite the complete door-state file");
         assertEquals(first, repository.getReturnTicket(first.playerId()).orElseThrow());
         repository.putReturnTicket(replacement);
+        assertFalse(Files.exists(stateFile), "ticket replacements must remain isolated per player");
         assertEquals(replacement, repository.getReturnTicket(first.playerId()).orElseThrow());
         assertEquals(1, repository.load().returnTickets().size());
+        assertEquals(
+            replacement,
+            new DimensionalDoorRepository(stateFile).getReturnTicket(first.playerId()).orElseThrow()
+        );
 
         assertEquals(replacement, repository.removeReturnTicket(first.playerId()).orElseThrow());
         assertTrue(repository.getReturnTicket(first.playerId()).isEmpty());
         assertTrue(new DimensionalDoorRepository(stateFile).load().returnTickets().isEmpty());
         assertTrue(repository.removeReturnTicket(first.playerId()).isEmpty());
+    }
+
+    @Test
+    void embeddedReturnTicketsMigrateToIsolatedFilesOnLoad() throws Exception {
+        Path stateFile = temporaryDirectory.resolve("state.json");
+        ReturnTicket ticket = ticket(id(24), id(25));
+        Files.writeString(stateFile, """
+            {
+              "schema": 3,
+              "nextPocketSlot": 0,
+              "pairs": [],
+              "endpoints": [],
+              "spaces": [],
+              "returnTickets": [{
+                "playerId": "%s",
+                "sourceEndpointId": "%s",
+                "sourceWorldId": "%s",
+                "sourceWorldKey": "%s",
+                "x": %s,
+                "y": %s,
+                "z": %s,
+                "yaw": %s,
+                "pitch": %s
+              }]
+            }
+            """.formatted(
+                ticket.playerId(),
+                ticket.sourceEndpointId(),
+                ticket.sourceWorldId(),
+                ticket.sourceWorldKey(),
+                ticket.x(),
+                ticket.y(),
+                ticket.z(),
+                ticket.yaw(),
+                ticket.pitch()
+            ));
+
+        DoorStoreSnapshot migrated = new DimensionalDoorRepository(stateFile).load();
+
+        assertEquals(List.of(ticket), migrated.returnTickets());
+        assertTrue(Files.readString(stateFile).contains("\"returnTickets\": []"));
+        assertTrue(Files.isRegularFile(
+            stateFile.resolveSibling("state.json.tickets").resolve(ticket.playerId() + ".json")
+        ));
     }
 
     @Test

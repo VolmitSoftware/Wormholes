@@ -2,6 +2,7 @@ package art.arcane.wormholes.network.replication;
 
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.WireMessage;
+import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.render.view.OccludedMarker;
 
 import org.bukkit.World;
@@ -33,12 +34,7 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
 
     @FunctionalInterface
     public interface BulkRetryListener {
-        void onBulkRetryRequired(String peerName, long chunkKey);
-    }
-
-    @FunctionalInterface
-    public interface RenderModeResolver {
-        boolean isVenticular(UUID portalId);
+        void onBulkRetryRequired(String peerName, ReplicationStreamKey stream);
     }
 
     private static final class CanonicalHashCache {
@@ -50,28 +46,28 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
     }
 
     private static final class PreShipState {
-        private final UUID portalId;
         private boolean promoted;
 
-        private PreShipState(UUID portalId) {
-            this.portalId = portalId;
+        private PreShipState() {
             this.promoted = false;
         }
     }
 
-    private record SubscriptionRef(UUID portalId, boolean preShip) {
+    private record SubscriptionRef(UUID subscriptionId, boolean preShip) {
+    }
+
+    private record PeerStreamKey(String peerName, ReplicationStreamKey stream) {
     }
 
     private final NetworkManager network;
     private volatile ReplicationConfig config;
     private volatile ChunkEvictionListener evictionListener;
     private volatile BulkRetryListener bulkRetryListener;
-    private volatile RenderModeResolver renderModeResolver;
-    private final Map<String, Map<Long, ChunkReplicationState>> peerStates = new ConcurrentHashMap<>();
-    private final Map<String, Map<Long, Set<SubscriptionRef>>> peerSubscriptions = new ConcurrentHashMap<>();
-    private final Map<UUID, Map<Long, ConcurrentHashMap<String, ChunkReplicationState>>> worldSubscribers = new ConcurrentHashMap<>();
-    private final Map<String, Map<Long, CanonicalHashCache>> peerHashes = new ConcurrentHashMap<>();
-    private final Map<String, Map<UUID, Map<Long, PreShipState>>> peerPreShip = new ConcurrentHashMap<>();
+    private final Map<String, Map<ReplicationStreamKey, ChunkReplicationState>> peerStates = new ConcurrentHashMap<>();
+    private final Map<String, Map<ReplicationStreamKey, Set<SubscriptionRef>>> peerSubscriptions = new ConcurrentHashMap<>();
+    private final Map<UUID, Map<Long, ConcurrentHashMap<PeerStreamKey, ChunkReplicationState>>> worldSubscribers = new ConcurrentHashMap<>();
+    private final Map<String, Map<ReplicationStreamKey, CanonicalHashCache>> peerHashes = new ConcurrentHashMap<>();
+    private final Map<String, Map<UUID, Map<ReplicationStreamKey, PreShipState>>> peerPreShip = new ConcurrentHashMap<>();
     private final Map<String, Object> peerGates = new ConcurrentHashMap<>();
     private final AtomicLong bulkSent = new AtomicLong();
     private final AtomicLong diffsSent = new AtomicLong();
@@ -96,23 +92,14 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         this.bulkRetryListener = listener;
     }
 
-    public void setRenderModeResolver(RenderModeResolver resolver) {
-        this.renderModeResolver = resolver;
-    }
-
     public boolean hasVenticularSubscriber(World world, long chunkKey) {
-        if (renderModeResolver == null) {
-            return false;
-        }
-        ConcurrentHashMap<String, ChunkReplicationState> subscribers = subscribersFor(world, chunkKey);
+        ConcurrentHashMap<PeerStreamKey, ChunkReplicationState> subscribers = subscribersFor(world, chunkKey);
         if (subscribers == null || subscribers.isEmpty()) {
             return false;
         }
-        for (String peerName : subscribers.keySet()) {
-            synchronized (peerGate(peerName)) {
-                if (peerChunkVenticular(peerName, chunkKey)) {
-                    return true;
-                }
+        for (ChunkReplicationState state : subscribers.values()) {
+            if (state.stream().renderMode() == ProjectionRenderMode.VENTICULAR) {
+                return true;
             }
         }
         return false;
@@ -122,74 +109,74 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         return config;
     }
 
-    public boolean isBulked(String peerName, long chunkKey) {
-        ChunkReplicationState state = stateFor(peerName, chunkKey, false);
+    public boolean isBulked(String peerName, ReplicationStreamKey stream) {
+        ChunkReplicationState state = stateFor(peerName, stream, false);
         return state != null && state.isBulkSent();
     }
 
-    public boolean isSubscribed(String peerName, long chunkKey) {
-        return stateFor(peerName, chunkKey, false) != null;
+    public boolean isSubscribed(String peerName, ReplicationStreamKey stream) {
+        return stateFor(peerName, stream, false) != null;
     }
 
-    public boolean isSubscribed(String peerName, UUID portalId, long chunkKey) {
+    public boolean isSubscribed(String peerName, UUID subscriptionId, ReplicationStreamKey stream) {
         synchronized (peerGate(peerName)) {
-            return hasSubscriptionLocked(peerName, new SubscriptionRef(portalId, false), chunkKey);
+            return hasSubscriptionLocked(peerName, new SubscriptionRef(subscriptionId, false), stream);
         }
     }
 
-    public void subscribe(String peerName, UUID portalId, World world, long chunkKey) {
-        if (portalId == null) {
+    public void subscribe(String peerName, UUID subscriptionId, World world, ReplicationStreamKey stream) {
+        if (subscriptionId == null || !validWorld(world, stream)) {
             return;
         }
         synchronized (peerGate(peerName)) {
-            subscribeLocked(peerName, new SubscriptionRef(portalId, false), world, chunkKey);
+            subscribeLocked(peerName, new SubscriptionRef(subscriptionId, false), world, stream);
         }
     }
 
-    public void subscribePreShip(String peerName, UUID portalId, World world, List<Long> chunkKeys) {
-        if (peerName == null || portalId == null || chunkKeys == null || chunkKeys.isEmpty()) {
+    public void subscribePreShip(String peerName, UUID portalId, World world, ProjectionRenderMode renderMode, List<Long> chunkKeys) {
+        if (peerName == null || portalId == null || world == null || renderMode == null || chunkKeys == null || chunkKeys.isEmpty()) {
             return;
         }
         synchronized (peerGate(peerName)) {
-            Map<UUID, Map<Long, PreShipState>> portalMap = peerPreShip.computeIfAbsent(peerName, ignored -> new ConcurrentHashMap<>());
-            Map<Long, PreShipState> chunkMap = portalMap.computeIfAbsent(portalId, ignored -> new ConcurrentHashMap<>());
+            Map<UUID, Map<ReplicationStreamKey, PreShipState>> portalMap = peerPreShip.computeIfAbsent(peerName, ignored -> new ConcurrentHashMap<>());
+            Map<ReplicationStreamKey, PreShipState> streamMap = portalMap.computeIfAbsent(portalId, ignored -> new ConcurrentHashMap<>());
             SubscriptionRef subscription = new SubscriptionRef(portalId, true);
             for (Long chunkKey : chunkKeys) {
-                long key = chunkKey.longValue();
-                subscribeLocked(peerName, subscription, world, key);
-                chunkMap.putIfAbsent(key, new PreShipState(portalId));
+                ReplicationStreamKey stream = new ReplicationStreamKey(portalId, world.getUID(), chunkKey.longValue(), renderMode);
+                subscribeLocked(peerName, subscription, world, stream);
+                streamMap.putIfAbsent(stream, new PreShipState());
                 preShipBulksDeferred.incrementAndGet();
             }
         }
     }
 
     public void promotePreShip(String peerName, UUID portalId) {
-        Map<UUID, Map<Long, PreShipState>> portalMap = peerPreShip.get(peerName);
+        Map<UUID, Map<ReplicationStreamKey, PreShipState>> portalMap = peerPreShip.get(peerName);
         if (portalMap == null) {
             return;
         }
-        Map<Long, PreShipState> chunkMap = portalMap.get(portalId);
-        if (chunkMap == null) {
+        Map<ReplicationStreamKey, PreShipState> streamMap = portalMap.get(portalId);
+        if (streamMap == null) {
             return;
         }
-        for (PreShipState state : chunkMap.values()) {
+        for (PreShipState state : streamMap.values()) {
             state.promoted = true;
         }
     }
 
     public void cancelPreShip(String peerName, UUID portalId) {
         synchronized (peerGate(peerName)) {
-            Map<UUID, Map<Long, PreShipState>> portalMap = peerPreShip.get(peerName);
+            Map<UUID, Map<ReplicationStreamKey, PreShipState>> portalMap = peerPreShip.get(peerName);
             if (portalMap == null) {
                 return;
             }
-            Map<Long, PreShipState> removed = portalMap.remove(portalId);
+            Map<ReplicationStreamKey, PreShipState> removed = portalMap.remove(portalId);
             if (removed == null) {
                 return;
             }
             SubscriptionRef subscription = new SubscriptionRef(portalId, true);
-            for (Long chunkKey : removed.keySet()) {
-                unsubscribeLocked(peerName, subscription, chunkKey.longValue());
+            for (ReplicationStreamKey stream : removed.keySet()) {
+                unsubscribeLocked(peerName, subscription, stream);
             }
             if (portalMap.isEmpty()) {
                 peerPreShip.remove(peerName, portalMap);
@@ -197,49 +184,50 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         }
     }
 
-    public boolean isPreShipPromoted(String peerName, UUID portalId, long chunkKey) {
-        Map<UUID, Map<Long, PreShipState>> portalMap = peerPreShip.get(peerName);
+    public boolean isPreShipPromoted(String peerName, UUID portalId, ReplicationStreamKey stream) {
+        Map<UUID, Map<ReplicationStreamKey, PreShipState>> portalMap = peerPreShip.get(peerName);
         if (portalMap == null) {
             return false;
         }
-        Map<Long, PreShipState> chunkMap = portalMap.get(portalId);
-        if (chunkMap == null) {
+        Map<ReplicationStreamKey, PreShipState> streamMap = portalMap.get(portalId);
+        if (streamMap == null) {
             return false;
         }
-        PreShipState state = chunkMap.get(chunkKey);
+        PreShipState state = streamMap.get(stream);
         return state != null && state.promoted;
     }
 
-    public void unsubscribe(String peerName, UUID portalId, long chunkKey) {
-        if (portalId == null) {
+    public void unsubscribe(String peerName, UUID subscriptionId, ReplicationStreamKey stream) {
+        if (subscriptionId == null || stream == null) {
             return;
         }
         synchronized (peerGate(peerName)) {
-            unsubscribeLocked(peerName, new SubscriptionRef(portalId, false), chunkKey);
+            unsubscribeLocked(peerName, new SubscriptionRef(subscriptionId, false), stream);
         }
     }
 
-    public void unsubscribeAll(String peerName, UUID portalId, List<Long> chunkKeys) {
-        if (portalId == null) {
+    public void unsubscribeAll(String peerName, UUID subscriptionId, List<ReplicationStreamKey> streams) {
+        if (subscriptionId == null) {
             return;
         }
         synchronized (peerGate(peerName)) {
-            SubscriptionRef subscription = new SubscriptionRef(portalId, false);
-            for (Long chunkKey : chunkKeys) {
-                unsubscribeLocked(peerName, subscription, chunkKey.longValue());
+            SubscriptionRef subscription = new SubscriptionRef(subscriptionId, false);
+            for (ReplicationStreamKey stream : streams) {
+                unsubscribeLocked(peerName, subscription, stream);
             }
         }
     }
 
     public void clearPeer(String peerName) {
         synchronized (peerGate(peerName)) {
-            Map<Long, ChunkReplicationState> chunks = peerStates.remove(peerName);
+            Map<ReplicationStreamKey, ChunkReplicationState> chunks = peerStates.remove(peerName);
             if (chunks != null) {
-                for (Map.Entry<UUID, Map<Long, ConcurrentHashMap<String, ChunkReplicationState>>> worldEntry : worldSubscribers.entrySet()) {
-                    Map<Long, ConcurrentHashMap<String, ChunkReplicationState>> worldMap = worldEntry.getValue();
-                    for (Map.Entry<Long, ConcurrentHashMap<String, ChunkReplicationState>> entry : worldMap.entrySet()) {
-                        ConcurrentHashMap<String, ChunkReplicationState> chunkPeers = entry.getValue();
-                        if (chunkPeers.remove(peerName) == null) {
+                for (Map.Entry<UUID, Map<Long, ConcurrentHashMap<PeerStreamKey, ChunkReplicationState>>> worldEntry : worldSubscribers.entrySet()) {
+                    Map<Long, ConcurrentHashMap<PeerStreamKey, ChunkReplicationState>> worldMap = worldEntry.getValue();
+                    for (Map.Entry<Long, ConcurrentHashMap<PeerStreamKey, ChunkReplicationState>> entry : worldMap.entrySet()) {
+                        ConcurrentHashMap<PeerStreamKey, ChunkReplicationState> chunkPeers = entry.getValue();
+                        boolean removed = chunkPeers.keySet().removeIf(key -> key.peerName().equals(peerName));
+                        if (!removed) {
                             continue;
                         }
                         if (chunkPeers.isEmpty()) {
@@ -255,17 +243,17 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         }
     }
 
-    public boolean sendBulk(String peerName, UUID portalId, long chunkKey, byte[] payload, long contentHash) {
-        return sendBulk(peerName, portalId, chunkKey, payload, contentHash, -1L);
+    public boolean sendBulk(String peerName, UUID subscriptionId, ReplicationStreamKey stream, byte[] payload, long contentHash) {
+        return sendBulk(peerName, subscriptionId, stream, payload, contentHash, -1L);
     }
 
-    public boolean sendBulk(String peerName, UUID portalId, long chunkKey, byte[] payload, long contentHash, long expectedGeneration) {
+    public boolean sendBulk(String peerName, UUID subscriptionId, ReplicationStreamKey stream, byte[] payload, long contentHash, long expectedGeneration) {
         synchronized (peerGate(peerName)) {
-            SubscriptionRef subscription = new SubscriptionRef(portalId, false);
-            if (!hasSubscriptionLocked(peerName, subscription, chunkKey)) {
+            SubscriptionRef subscription = new SubscriptionRef(subscriptionId, false);
+            if (!hasSubscriptionLocked(peerName, subscription, stream)) {
                 return false;
             }
-            ChunkReplicationState state = stateFor(peerName, chunkKey, false);
+            ChunkReplicationState state = stateFor(peerName, stream, false);
             if (state == null) {
                 return false;
             }
@@ -276,27 +264,27 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
                 return false;
             }
             long sequence = state.nextBroadcastSeq();
-            WireMessage.ChunkBulkBatch batch = new WireMessage.ChunkBulkBatch(List.of(new ChunkBulk(chunkKey, sequence, payload)));
+            WireMessage.ChunkBulkBatch batch = new WireMessage.ChunkBulkBatch(List.of(new ChunkBulk(stream, sequence, payload)));
             if (!network.send(peerName, batch)) {
                 return false;
             }
             state.markBulkSent();
             bulkSent.incrementAndGet();
             if (!state.hasPendingBlocks()) {
-                cacheCanonicalHash(peerName, chunkKey, contentHash);
+                cacheCanonicalHash(peerName, stream, contentHash);
             }
             return true;
         }
     }
 
-    public boolean sendWhenAllBulked(String peerName, UUID portalId, List<Long> chunkKeys, BooleanSupplier sender) {
+    public boolean sendWhenAllBulked(String peerName, UUID subscriptionId, List<ReplicationStreamKey> streams, BooleanSupplier sender) {
         synchronized (peerGate(peerName)) {
-            SubscriptionRef subscription = new SubscriptionRef(portalId, false);
-            for (Long chunkKey : chunkKeys) {
-                if (!hasSubscriptionLocked(peerName, subscription, chunkKey.longValue())) {
+            SubscriptionRef subscription = new SubscriptionRef(subscriptionId, false);
+            for (ReplicationStreamKey stream : streams) {
+                if (!hasSubscriptionLocked(peerName, subscription, stream)) {
                     return false;
                 }
-                ChunkReplicationState state = stateFor(peerName, chunkKey.longValue(), false);
+                ChunkReplicationState state = stateFor(peerName, stream, false);
                 if (state == null || !state.isBulkSent()) {
                     return false;
                 }
@@ -305,60 +293,61 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         }
     }
 
-    public long canonicalHash(String peerName, long chunkKey) {
-        Map<Long, CanonicalHashCache> hashMap = peerHashes.get(peerName);
+    public long canonicalHash(String peerName, ReplicationStreamKey stream) {
+        Map<ReplicationStreamKey, CanonicalHashCache> hashMap = peerHashes.get(peerName);
         if (hashMap == null) {
             return 0L;
         }
-        CanonicalHashCache cache = hashMap.get(chunkKey);
+        CanonicalHashCache cache = hashMap.get(stream);
         if (cache == null) {
             return 0L;
         }
         return cache.hash;
     }
 
-    public long bulkGeneration(String peerName, long chunkKey) {
-        ChunkReplicationState state = stateFor(peerName, chunkKey, false);
+    public long bulkGeneration(String peerName, ReplicationStreamKey stream) {
+        ChunkReplicationState state = stateFor(peerName, stream, false);
         return state == null ? -1L : state.bulkGeneration();
     }
 
-    public void requestResync(String peerName, long chunkKey) {
+    public void requestResync(String peerName, ReplicationStreamKey stream) {
         synchronized (peerGate(peerName)) {
-            ChunkReplicationState state = stateFor(peerName, chunkKey, false);
+            ChunkReplicationState state = stateFor(peerName, stream, false);
             if (state == null) {
                 return;
             }
             state.resetBulk();
             resyncRequests.incrementAndGet();
-            Map<Long, CanonicalHashCache> hashMap = peerHashes.get(peerName);
+            Map<ReplicationStreamKey, CanonicalHashCache> hashMap = peerHashes.get(peerName);
             if (hashMap != null) {
-                hashMap.remove(chunkKey);
+                hashMap.remove(stream);
             }
         }
     }
 
     public void forceResync(World world, long chunkKey) {
-        ConcurrentHashMap<String, ChunkReplicationState> subscribers = subscribersFor(world, chunkKey);
+        ConcurrentHashMap<PeerStreamKey, ChunkReplicationState> subscribers = subscribersFor(world, chunkKey);
         if (subscribers == null || subscribers.isEmpty()) {
             return;
         }
         for (ChunkReplicationState candidate : subscribers.values()) {
             String peerName = candidate.peerName();
             synchronized (peerGate(peerName)) {
-                ChunkReplicationState state = stateFor(peerName, chunkKey, false);
+                ReplicationStreamKey stream = candidate.stream();
+                ChunkReplicationState state = stateFor(peerName, stream, false);
                 if (state != candidate) {
                     continue;
                 }
                 invalidateForBulkResend(peerName, state);
                 resyncRequests.incrementAndGet();
-                notifyBulkRetry(peerName, chunkKey);
+                notifyBulkRetry(peerName, stream);
             }
         }
     }
 
     @Override
     public void onChunkDrain(World world, long chunkKey, List<BlockChange> blocks, List<LightDiff> lights, List<BlockEntityDiff> entities) {
-        ConcurrentHashMap<String, ChunkReplicationState> subscribers = subscribersFor(world, chunkKey);
+        ConcurrentHashMap<PeerStreamKey, ChunkReplicationState> subscribers = subscribersFor(world, chunkKey);
         if (subscribers == null || subscribers.isEmpty()) {
             return;
         }
@@ -372,20 +361,21 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         for (ChunkReplicationState candidate : subscribers.values()) {
             String peerName = candidate.peerName();
             synchronized (peerGate(peerName)) {
-                ChunkReplicationState state = stateFor(peerName, chunkKey, false);
+                ReplicationStreamKey stream = candidate.stream();
+                ChunkReplicationState state = stateFor(peerName, stream, false);
                 if (state != candidate) {
                     continue;
                 }
                 boolean overflowed = false;
                 if (hasBlocks) {
-                    boolean venticular = peerChunkVenticular(peerName, chunkKey);
+                    boolean venticular = stream.renderMode() == ProjectionRenderMode.VENTICULAR;
                     for (int i = 0; i < blocks.size(); i++) {
                         if (!state.appendBlock(transformForPeer(blocks.get(i), venticular), capacity)) {
                             overflowed = true;
                             break;
                         }
                     }
-                    markHashDirty(peerName, chunkKey);
+                    markHashDirty(peerName, stream);
                 }
                 if (!overflowed && hasLights) {
                     for (int i = 0; i < lights.size(); i++) {
@@ -406,7 +396,7 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
                 if (overflowed) {
                     invalidateForBulkResend(peerName, state);
                     resyncRequests.incrementAndGet();
-                    notifyBulkRetry(peerName, chunkKey);
+                    notifyBulkRetry(peerName, stream);
                 }
             }
         }
@@ -418,17 +408,17 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
     }
 
     public void flushTick() {
-        for (Map.Entry<String, Map<Long, ChunkReplicationState>> peerEntry : peerStates.entrySet()) {
+        for (Map.Entry<String, Map<ReplicationStreamKey, ChunkReplicationState>> peerEntry : peerStates.entrySet()) {
             String peerName = peerEntry.getKey();
             synchronized (peerGate(peerName)) {
-                Map<Long, ChunkReplicationState> chunks = peerEntry.getValue();
-                if (peerStates.get(peerName) != chunks) {
+                Map<ReplicationStreamKey, ChunkReplicationState> streams = peerEntry.getValue();
+                if (peerStates.get(peerName) != streams) {
                     continue;
                 }
                 List<ChunkDiffBatch> batches = new ArrayList<>();
                 List<ChunkReplicationState> drainedStates = new ArrayList<>();
                 int blockTotal = 0;
-                for (ChunkReplicationState state : chunks.values()) {
+                for (ChunkReplicationState state : streams.values()) {
                     if (!state.isBulkSent()) {
                         continue;
                     }
@@ -440,7 +430,7 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
                         continue;
                     }
                     long sequence = state.nextBroadcastSeq();
-                    batches.add(new ChunkDiffBatch(state.chunkKey(), sequence, drained.blocks(), drained.lights(), drained.entities()));
+                    batches.add(new ChunkDiffBatch(state.stream(), sequence, drained.blocks(), drained.lights(), drained.entities()));
                     drainedStates.add(state);
                     blockTotal += drained.blocks().size();
                 }
@@ -451,7 +441,7 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
                 if (!network.send(peerName, message)) {
                     for (ChunkReplicationState state : drainedStates) {
                         invalidateForBulkResend(peerName, state);
-                        notifyBulkRetry(peerName, state.chunkKey());
+                        notifyBulkRetry(peerName, state.stream());
                     }
                     continue;
                 }
@@ -461,21 +451,21 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         }
     }
 
-    public List<Long> chunksFor(String peerName) {
-        Map<Long, ChunkReplicationState> chunks = peerStates.get(peerName);
-        if (chunks == null || chunks.isEmpty()) {
+    public List<ReplicationStreamKey> streamsFor(String peerName) {
+        Map<ReplicationStreamKey, ChunkReplicationState> streams = peerStates.get(peerName);
+        if (streams == null || streams.isEmpty()) {
             return List.of();
         }
-        return new ArrayList<>(chunks.keySet());
+        return new ArrayList<>(streams.keySet());
     }
 
     public List<Long> subscribedChunkKeys(UUID worldId) {
-        Map<Long, ConcurrentHashMap<String, ChunkReplicationState>> worldMap = worldSubscribers.get(worldId);
+        Map<Long, ConcurrentHashMap<PeerStreamKey, ChunkReplicationState>> worldMap = worldSubscribers.get(worldId);
         if (worldMap == null || worldMap.isEmpty()) {
             return List.of();
         }
         List<Long> keys = new ArrayList<>(worldMap.size());
-        for (Map.Entry<Long, ConcurrentHashMap<String, ChunkReplicationState>> entry : worldMap.entrySet()) {
+        for (Map.Entry<Long, ConcurrentHashMap<PeerStreamKey, ChunkReplicationState>> entry : worldMap.entrySet()) {
             if (!entry.getValue().isEmpty()) {
                 keys.add(entry.getKey());
             }
@@ -483,8 +473,8 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         return keys;
     }
 
-    public long lastBroadcastSeq(String peerName, long chunkKey) {
-        ChunkReplicationState state = stateFor(peerName, chunkKey, false);
+    public long lastBroadcastSeq(String peerName, ReplicationStreamKey stream) {
+        ChunkReplicationState state = stateFor(peerName, stream, false);
         return state == null ? 0L : state.lastBroadcastSeq();
     }
 
@@ -498,15 +488,15 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
 
     public int totalSubscriptionCount() {
         int total = 0;
-        for (Map<Long, ChunkReplicationState> chunks : peerStates.values()) {
-            total += chunks.size();
+        for (Map<ReplicationStreamKey, ChunkReplicationState> streams : peerStates.values()) {
+            total += streams.size();
         }
         return total;
     }
 
     public boolean hasSubscribers(long chunkKey) {
-        for (Map<Long, ConcurrentHashMap<String, ChunkReplicationState>> worldMap : worldSubscribers.values()) {
-            ConcurrentHashMap<String, ChunkReplicationState> chunkPeers = worldMap.get(chunkKey);
+        for (Map<Long, ConcurrentHashMap<PeerStreamKey, ChunkReplicationState>> worldMap : worldSubscribers.values()) {
+            ConcurrentHashMap<PeerStreamKey, ChunkReplicationState> chunkPeers = worldMap.get(chunkKey);
             if (chunkPeers != null && !chunkPeers.isEmpty()) {
                 return true;
             }
@@ -518,11 +508,11 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         if (world == null) {
             return hasSubscribers(chunkKey);
         }
-        Map<Long, ConcurrentHashMap<String, ChunkReplicationState>> worldMap = worldSubscribers.get(world.getUID());
+        Map<Long, ConcurrentHashMap<PeerStreamKey, ChunkReplicationState>> worldMap = worldSubscribers.get(world.getUID());
         if (worldMap == null) {
             return false;
         }
-        ConcurrentHashMap<String, ChunkReplicationState> chunkPeers = worldMap.get(chunkKey);
+        ConcurrentHashMap<PeerStreamKey, ChunkReplicationState> chunkPeers = worldMap.get(chunkKey);
         return chunkPeers != null && !chunkPeers.isEmpty();
     }
 
@@ -533,12 +523,12 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         }
     }
 
-    private void subscribeLocked(String peerName, SubscriptionRef subscription, World world, long chunkKey) {
-        Map<Long, Set<SubscriptionRef>> peerChunks = peerSubscriptions.computeIfAbsent(peerName, ignored -> new ConcurrentHashMap<>());
-        Set<SubscriptionRef> subscriptions = peerChunks.computeIfAbsent(chunkKey, ignored -> new HashSet<>());
+    private void subscribeLocked(String peerName, SubscriptionRef subscription, World world, ReplicationStreamKey stream) {
+        Map<ReplicationStreamKey, Set<SubscriptionRef>> peerStreams = peerSubscriptions.computeIfAbsent(peerName, ignored -> new ConcurrentHashMap<>());
+        Set<SubscriptionRef> subscriptions = peerStreams.computeIfAbsent(stream, ignored -> new HashSet<>());
         subscriptions.add(subscription);
-        ChunkReplicationState state = stateFor(peerName, chunkKey, true);
-        registerWorldSubscriber(world, chunkKey, state);
+        ChunkReplicationState state = stateFor(peerName, stream, true);
+        registerWorldSubscriber(world, state);
     }
 
     private static BlockChange transformForPeer(BlockChange change, boolean venticular) {
@@ -551,136 +541,115 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         return new BlockChange(change.packedXyz(), state, stripped);
     }
 
-    private boolean peerChunkVenticular(String peerName, long chunkKey) {
-        RenderModeResolver resolver = renderModeResolver;
-        if (resolver == null) {
+    private boolean hasSubscriptionLocked(String peerName, SubscriptionRef subscription, ReplicationStreamKey stream) {
+        Map<ReplicationStreamKey, Set<SubscriptionRef>> peerStreams = peerSubscriptions.get(peerName);
+        if (peerStreams == null) {
             return false;
         }
-        Map<Long, Set<SubscriptionRef>> peerChunks = peerSubscriptions.get(peerName);
-        if (peerChunks == null) {
-            return false;
-        }
-        Set<SubscriptionRef> subscriptions = peerChunks.get(chunkKey);
-        if (subscriptions == null) {
-            return false;
-        }
-        for (SubscriptionRef ref : subscriptions) {
-            if (resolver.isVenticular(ref.portalId())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean hasSubscriptionLocked(String peerName, SubscriptionRef subscription, long chunkKey) {
-        Map<Long, Set<SubscriptionRef>> peerChunks = peerSubscriptions.get(peerName);
-        if (peerChunks == null) {
-            return false;
-        }
-        Set<SubscriptionRef> subscriptions = peerChunks.get(chunkKey);
+        Set<SubscriptionRef> subscriptions = peerStreams.get(stream);
         return subscriptions != null && subscriptions.contains(subscription);
     }
 
-    private void unsubscribeLocked(String peerName, SubscriptionRef subscription, long chunkKey) {
-        Map<Long, Set<SubscriptionRef>> peerChunks = peerSubscriptions.get(peerName);
-        if (peerChunks == null) {
+    private void unsubscribeLocked(String peerName, SubscriptionRef subscription, ReplicationStreamKey stream) {
+        Map<ReplicationStreamKey, Set<SubscriptionRef>> peerStreams = peerSubscriptions.get(peerName);
+        if (peerStreams == null) {
             return;
         }
-        Set<SubscriptionRef> subscriptions = peerChunks.get(chunkKey);
+        Set<SubscriptionRef> subscriptions = peerStreams.get(stream);
         if (subscriptions == null || !subscriptions.remove(subscription)) {
             return;
         }
         if (!subscriptions.isEmpty()) {
             return;
         }
-        peerChunks.remove(chunkKey);
-        if (peerChunks.isEmpty()) {
-            peerSubscriptions.remove(peerName, peerChunks);
+        peerStreams.remove(stream);
+        if (peerStreams.isEmpty()) {
+            peerSubscriptions.remove(peerName, peerStreams);
         }
-        Map<Long, ChunkReplicationState> chunks = peerStates.get(peerName);
-        if (chunks == null || chunks.remove(chunkKey) == null) {
+        Map<ReplicationStreamKey, ChunkReplicationState> streams = peerStates.get(peerName);
+        if (streams == null || streams.remove(stream) == null) {
             return;
         }
-        if (chunks.isEmpty()) {
-            peerStates.remove(peerName, chunks);
+        if (streams.isEmpty()) {
+            peerStates.remove(peerName, streams);
         }
-        for (Map.Entry<UUID, Map<Long, ConcurrentHashMap<String, ChunkReplicationState>>> worldEntry : worldSubscribers.entrySet()) {
-            Map<Long, ConcurrentHashMap<String, ChunkReplicationState>> worldMap = worldEntry.getValue();
-            Map<String, ChunkReplicationState> chunkPeers = worldMap.get(chunkKey);
-            if (chunkPeers == null) {
-                continue;
-            }
-            chunkPeers.remove(peerName);
-            if (chunkPeers.isEmpty()) {
-                worldMap.remove(chunkKey, chunkPeers);
-                notifyEviction(worldEntry.getKey(), chunkKey);
+        Map<Long, ConcurrentHashMap<PeerStreamKey, ChunkReplicationState>> worldMap = worldSubscribers.get(stream.sourceWorldId());
+        if (worldMap != null) {
+            ConcurrentHashMap<PeerStreamKey, ChunkReplicationState> chunkPeers = worldMap.get(stream.chunkKey());
+            if (chunkPeers != null) {
+                chunkPeers.remove(new PeerStreamKey(peerName, stream));
+                if (chunkPeers.isEmpty()) {
+                    worldMap.remove(stream.chunkKey(), chunkPeers);
+                    notifyEviction(stream.sourceWorldId(), stream.chunkKey());
+                }
             }
         }
-        Map<Long, CanonicalHashCache> hashMap = peerHashes.get(peerName);
+        Map<ReplicationStreamKey, CanonicalHashCache> hashMap = peerHashes.get(peerName);
         if (hashMap != null) {
-            hashMap.remove(chunkKey);
+            hashMap.remove(stream);
         }
     }
 
     private void invalidateForBulkResend(String peerName, ChunkReplicationState state) {
         state.resetBulk();
-        Map<Long, CanonicalHashCache> hashMap = peerHashes.get(peerName);
+        Map<ReplicationStreamKey, CanonicalHashCache> hashMap = peerHashes.get(peerName);
         if (hashMap != null) {
-            hashMap.remove(state.chunkKey());
+            hashMap.remove(state.stream());
         }
     }
 
-    private void notifyBulkRetry(String peerName, long chunkKey) {
+    private void notifyBulkRetry(String peerName, ReplicationStreamKey stream) {
         BulkRetryListener listener = bulkRetryListener;
         if (listener != null) {
-            listener.onBulkRetryRequired(peerName, chunkKey);
+            listener.onBulkRetryRequired(peerName, stream);
         }
     }
 
-    private ChunkReplicationState stateFor(String peerName, long chunkKey, boolean create) {
+    private ChunkReplicationState stateFor(String peerName, ReplicationStreamKey stream, boolean create) {
         if (create) {
-            Map<Long, ChunkReplicationState> chunks = peerStates.computeIfAbsent(peerName, ignored -> new ConcurrentHashMap<>());
-            return chunks.computeIfAbsent(chunkKey, key -> new ChunkReplicationState(peerName, key));
+            Map<ReplicationStreamKey, ChunkReplicationState> streams = peerStates.computeIfAbsent(peerName, ignored -> new ConcurrentHashMap<>());
+            return streams.computeIfAbsent(stream, key -> new ChunkReplicationState(peerName, key));
         }
-        Map<Long, ChunkReplicationState> chunks = peerStates.get(peerName);
-        if (chunks == null) {
+        Map<ReplicationStreamKey, ChunkReplicationState> streams = peerStates.get(peerName);
+        if (streams == null) {
             return null;
         }
-        return chunks.get(chunkKey);
+        return streams.get(stream);
     }
 
-    private void registerWorldSubscriber(World world, long chunkKey, ChunkReplicationState state) {
+    private void registerWorldSubscriber(World world, ChunkReplicationState state) {
         if (world == null) {
             return;
         }
-        Map<Long, ConcurrentHashMap<String, ChunkReplicationState>> worldMap = worldSubscribers.computeIfAbsent(world.getUID(), ignored -> new ConcurrentHashMap<>());
-        ConcurrentHashMap<String, ChunkReplicationState> chunkPeers = worldMap.computeIfAbsent(chunkKey, ignored -> new ConcurrentHashMap<>());
-        chunkPeers.put(state.peerName(), state);
+        ReplicationStreamKey stream = state.stream();
+        Map<Long, ConcurrentHashMap<PeerStreamKey, ChunkReplicationState>> worldMap = worldSubscribers.computeIfAbsent(world.getUID(), ignored -> new ConcurrentHashMap<>());
+        ConcurrentHashMap<PeerStreamKey, ChunkReplicationState> chunkPeers = worldMap.computeIfAbsent(stream.chunkKey(), ignored -> new ConcurrentHashMap<>());
+        chunkPeers.put(new PeerStreamKey(state.peerName(), stream), state);
     }
 
-    private ConcurrentHashMap<String, ChunkReplicationState> subscribersFor(World world, long chunkKey) {
+    private ConcurrentHashMap<PeerStreamKey, ChunkReplicationState> subscribersFor(World world, long chunkKey) {
         if (world == null) {
             return null;
         }
-        Map<Long, ConcurrentHashMap<String, ChunkReplicationState>> worldMap = worldSubscribers.get(world.getUID());
+        Map<Long, ConcurrentHashMap<PeerStreamKey, ChunkReplicationState>> worldMap = worldSubscribers.get(world.getUID());
         if (worldMap == null) {
             return null;
         }
         return worldMap.get(chunkKey);
     }
 
-    private void cacheCanonicalHash(String peerName, long chunkKey, long hash) {
-        Map<Long, CanonicalHashCache> hashMap = peerHashes.computeIfAbsent(peerName, ignored -> new ConcurrentHashMap<>());
-        CanonicalHashCache cache = hashMap.computeIfAbsent(chunkKey, ignored -> new CanonicalHashCache());
+    private void cacheCanonicalHash(String peerName, ReplicationStreamKey stream, long hash) {
+        Map<ReplicationStreamKey, CanonicalHashCache> hashMap = peerHashes.computeIfAbsent(peerName, ignored -> new ConcurrentHashMap<>());
+        CanonicalHashCache cache = hashMap.computeIfAbsent(stream, ignored -> new CanonicalHashCache());
         cache.hash = hash;
     }
 
-    private void markHashDirty(String peerName, long chunkKey) {
-        Map<Long, CanonicalHashCache> hashMap = peerHashes.get(peerName);
+    private void markHashDirty(String peerName, ReplicationStreamKey stream) {
+        Map<ReplicationStreamKey, CanonicalHashCache> hashMap = peerHashes.get(peerName);
         if (hashMap == null) {
             return;
         }
-        CanonicalHashCache cache = hashMap.get(chunkKey);
+        CanonicalHashCache cache = hashMap.get(stream);
         if (cache != null) {
             cache.hash = 0L;
         }
@@ -688,5 +657,9 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
 
     private Object peerGate(String peerName) {
         return peerGates.computeIfAbsent(peerName, ignored -> new Object());
+    }
+
+    private static boolean validWorld(World world, ReplicationStreamKey stream) {
+        return world != null && stream != null && world.getUID().equals(stream.sourceWorldId());
     }
 }

@@ -25,12 +25,12 @@ class HashProbeSchedulerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(2, 4);
-        manager.subscribe(PEER, world.getUID(), world, chunkKey);
+        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(2, 4);
-        manager.sendBulk(PEER, world.getUID(), chunkKey, payload, contentHashOf(payload));
+        manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload));
         sink.clear();
         long expected = contentHashOf(payload);
-        ChunkHashProbe.ChunkHashEntry entry = new ChunkHashProbe.ChunkHashEntry(chunkKey, manager.lastBroadcastSeq(PEER, chunkKey), manager.canonicalHash(PEER, chunkKey));
+        ChunkHashProbe.ChunkHashEntry entry = new ChunkHashProbe.ChunkHashEntry(ReplicationTestStream.stream(world.getUID(), world, chunkKey), manager.lastBroadcastSeq(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey)), manager.canonicalHash(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey)));
         assertEquals(expected, entry.hash());
         assertNotEquals(0L, entry.hash());
 
@@ -44,7 +44,7 @@ class HashProbeSchedulerTest {
         WireMessage.ChunkHashProbeMessage probe = (WireMessage.ChunkHashProbeMessage) probeMsg;
         boolean foundChunk = false;
         for (ChunkHashProbe.ChunkHashEntry probedEntry : probe.probe().entries()) {
-            if (probedEntry.chunkKey() == chunkKey) {
+            if (probedEntry.stream().chunkKey() == chunkKey) {
                 foundChunk = true;
                 assertEquals(expected, probedEntry.hash());
             }
@@ -58,20 +58,20 @@ class HashProbeSchedulerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        manager.subscribe(PEER, world.getUID(), world, chunkKey);
+        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(0, 0);
-        manager.sendBulk(PEER, world.getUID(), chunkKey, payload, contentHashOf(payload));
+        manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload));
 
         RemoteChunkStore store = new RemoteChunkStore();
         try {
-            store.applyBulk(new ChunkBulk(chunkKey, 1L, payload));
+            store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(world.getUID(), world, chunkKey), 1L, payload));
         } catch (java.io.IOException ex) {
             throw new AssertionError(ex);
         }
-        long localHash = store.hashAt(chunkKey);
-        long senderHash = manager.canonicalHash(PEER, chunkKey);
+        long localHash = store.hashAt(ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        long senderHash = manager.canonicalHash(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         assertEquals(senderHash, localHash);
-        List<Long> mismatches = store.mismatches(List.of(new ChunkHashProbe.ChunkHashEntry(chunkKey, 1L, senderHash)));
+        List<ReplicationStreamKey> mismatches = store.mismatches(List.of(new ChunkHashProbe.ChunkHashEntry(ReplicationTestStream.stream(world.getUID(), world, chunkKey), 1L, senderHash)));
         assertTrue(mismatches.isEmpty());
     }
 
@@ -81,21 +81,21 @@ class HashProbeSchedulerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        manager.subscribe(PEER, world.getUID(), world, chunkKey);
+        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(0, 0);
-        manager.sendBulk(PEER, world.getUID(), chunkKey, payload, contentHashOf(payload));
+        manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload));
 
         RemoteChunkStore store = new RemoteChunkStore();
         try {
             byte[] mutated = withFlippedBlock(payload);
-            store.applyBulk(new ChunkBulk(chunkKey, 1L, mutated));
+            store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(world.getUID(), world, chunkKey), 1L, mutated));
         } catch (java.io.IOException ex) {
             throw new AssertionError(ex);
         }
-        long senderHash = manager.canonicalHash(PEER, chunkKey);
-        List<Long> mismatches = store.mismatches(List.of(new ChunkHashProbe.ChunkHashEntry(chunkKey, 1L, senderHash)));
+        long senderHash = manager.canonicalHash(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        List<ReplicationStreamKey> mismatches = store.mismatches(List.of(new ChunkHashProbe.ChunkHashEntry(ReplicationTestStream.stream(world.getUID(), world, chunkKey), 1L, senderHash)));
         assertEquals(1, mismatches.size());
-        assertEquals(chunkKey, mismatches.get(0).longValue());
+        assertEquals(chunkKey, mismatches.get(0).chunkKey());
     }
 
     @Test
@@ -105,9 +105,9 @@ class HashProbeSchedulerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(6, 6);
-        manager.subscribe(PEER, world.getUID(), world, chunkKey);
+        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(6, 6);
-        manager.sendBulk(PEER, world.getUID(), chunkKey, payload, contentHashOf(payload));
+        manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload));
         manager.onChunkDrain(world, chunkKey,
             List.of(new BlockChange(BlockChange.pack(1, 62, 1), "minecraft:dirt", BlockChange.FLAG_NONE)),
             List.of(), List.of());
@@ -124,10 +124,10 @@ class HashProbeSchedulerTest {
         WireMessage.ChunkHashProbeMessage probe = (WireMessage.ChunkHashProbeMessage) probeMsg;
         boolean foundChunk = false;
         for (ChunkHashProbe.ChunkHashEntry probedEntry : probe.probe().entries()) {
-            if (probedEntry.chunkKey() == chunkKey) {
+            if (probedEntry.stream().chunkKey() == chunkKey) {
                 foundChunk = true;
                 assertEquals(0L, probedEntry.hash());
-                assertEquals(manager.lastBroadcastSeq(PEER, chunkKey), probedEntry.sequence());
+                assertEquals(manager.lastBroadcastSeq(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey)), probedEntry.sequence());
                 assertTrue(probedEntry.sequence() >= 2L);
             }
         }

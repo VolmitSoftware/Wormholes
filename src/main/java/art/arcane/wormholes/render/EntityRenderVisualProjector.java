@@ -77,8 +77,7 @@ final class EntityRenderVisualProjector {
 
         EntityRenderSpoofedEntity state = registry.get(visual.id());
         if (state != null && state.upsideDown != upsideDown) {
-            registry.destroySingle(observer, state);
-            registry.forget(visual.id());
+            registry.destroySingle(observer, visual.id(), state);
             state = null;
         }
         if (state == null) {
@@ -175,8 +174,7 @@ final class EntityRenderVisualProjector {
 
         EntityRenderSpoofedEntity state = registry.get(visual.id());
         if (state != null && state.upsideDown != upsideDown) {
-            registry.destroySingle(observer, state);
-            registry.forget(visual.id());
+            registry.destroySingle(observer, visual.id(), state);
             state = null;
         }
         if (state == null) {

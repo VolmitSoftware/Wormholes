@@ -2,6 +2,7 @@ package art.arcane.wormholes.network.replication;
 
 import art.arcane.wormholes.network.WireMessage;
 import art.arcane.wormholes.network.view.ViewSlice;
+import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.render.view.OccludedMarker;
 
 import org.bukkit.World;
@@ -23,11 +24,11 @@ class ChunkReplicationManagerVenticularDiffTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         UUID portalId = UUID.randomUUID();
-        manager.setRenderModeResolver(portalId::equals);
         long chunkKey = ViewSlice.columnKey(0, 0);
-        manager.subscribe(PEER, portalId, world, chunkKey);
+        ReplicationStreamKey stream = ReplicationTestStream.stream(portalId, world, chunkKey, ProjectionRenderMode.VENTICULAR);
+        manager.subscribe(PEER, portalId, world, stream);
         byte[] payload = bulkPayload();
-        manager.sendBulk(PEER, portalId, chunkKey, payload, contentHashOf(payload));
+        manager.sendBulk(PEER, portalId, stream, payload, contentHashOf(payload));
         sink.clear();
 
         BlockChange occluded = new BlockChange(BlockChange.pack(3, 80, 7), "minecraft:stone", BlockChange.FLAG_OCCLUDED);
@@ -49,11 +50,11 @@ class ChunkReplicationManagerVenticularDiffTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         UUID portalId = UUID.randomUUID();
-        manager.setRenderModeResolver(id -> false);
         long chunkKey = ViewSlice.columnKey(0, 0);
-        manager.subscribe(PEER, portalId, world, chunkKey);
+        ReplicationStreamKey stream = ReplicationTestStream.stream(portalId, world, chunkKey);
+        manager.subscribe(PEER, portalId, world, stream);
         byte[] payload = bulkPayload();
-        manager.sendBulk(PEER, portalId, chunkKey, payload, contentHashOf(payload));
+        manager.sendBulk(PEER, portalId, stream, payload, contentHashOf(payload));
         sink.clear();
 
         BlockChange occluded = new BlockChange(BlockChange.pack(3, 80, 7), "minecraft:stone", BlockChange.FLAG_OCCLUDED);

@@ -45,7 +45,6 @@ public final class ProjectionClaimArbiter {
     private final ConcurrentHashMap<BlockData, Integer> blockGlobalIds;
     private final ProjectionWorldViewProvider viewProvider;
     private final ProjectionChunkVisibility chunkVisibility;
-    private volatile boolean blockMappingFailed;
 
     public ProjectionClaimArbiter() {
         this(ProjectionWorldViewProvider.live());
@@ -60,7 +59,6 @@ public final class ProjectionClaimArbiter {
         this.blockGlobalIds = new ConcurrentHashMap<BlockData, Integer>();
         this.viewProvider = viewProvider;
         this.chunkVisibility = chunkVisibility;
-        this.blockMappingFailed = false;
     }
 
     public void beginFrame(Player observer, World localWorld, boolean allowLightingUpdate) {
@@ -486,7 +484,7 @@ public final class ProjectionClaimArbiter {
                                   World localWorld,
                                   Long2ObjectMap<BlockData> blockChanges,
                                   Long2IntMap blockChangeIds) {
-        if (blockChanges.size() == 1 || blockMappingFailed) {
+        if (blockChanges.size() == 1) {
             ObjectIterator<Long2ObjectMap.Entry<BlockData>> singleIterator = Long2ObjectMaps.fastIterator(blockChanges);
             while (singleIterator.hasNext()) {
                 Long2ObjectMap.Entry<BlockData> change = singleIterator.next();
@@ -533,9 +531,6 @@ public final class ProjectionClaimArbiter {
     }
 
     private int resolveGlobalId(BlockData data) {
-        if (blockMappingFailed) {
-            return -1;
-        }
         Integer cached = blockGlobalIds.get(data);
         if (cached != null) {
             return cached.intValue();
@@ -544,7 +539,10 @@ public final class ProjectionClaimArbiter {
         try {
             id = SpigotConversionUtil.fromBukkitBlockData(data).getGlobalId();
         } catch (RuntimeException ex) {
-            blockMappingFailed = true;
+            Integer previous = blockGlobalIds.putIfAbsent(data, Integer.valueOf(-1));
+            if (previous != null) {
+                return previous.intValue();
+            }
             noteBlockMappingFailure(data.getAsString(), ex);
             return -1;
         }
@@ -555,7 +553,7 @@ public final class ProjectionClaimArbiter {
     static void noteBlockMappingFailure(String blockDescription, RuntimeException ex) {
         WormholesTelemetry.countFailure(BLOCK_MAPPING_FAILURE_REASON);
         logger().log(Level.WARNING, "[ClaimArbiter] block state mapping failed for " + blockDescription
-            + ", falling back to bukkit block updates for every projected cell", ex);
+            + ", falling back to Bukkit block updates for this state", ex);
     }
 
     private static Logger logger() {

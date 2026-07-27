@@ -17,7 +17,7 @@ class ChunkReplicationStateLightDropTest {
 
     @Test
     void droppedSparseSectionForcesFullOnNextAppend() {
-        ChunkReplicationState state = new ChunkReplicationState("peer", 1L);
+        ChunkReplicationState state = new ChunkReplicationState("peer", ReplicationTestStream.stream(1L));
         assertFalse(state.appendLight(LightDiff.pending(4, LightDiff.TYPE_BLOCKLIGHT, data((byte) 0x01), new int[]{5}), 0L));
         assertTrue(state.appendLight(LightDiff.pending(4, LightDiff.TYPE_BLOCKLIGHT, data((byte) 0x02), new int[]{9}), 16L));
         ChunkReplicationState.DrainResult drained = state.drain();
@@ -29,7 +29,7 @@ class ChunkReplicationStateLightDropTest {
 
     @Test
     void droppedSectionDoesNotAffectOtherSectionsOrTypes() {
-        ChunkReplicationState state = new ChunkReplicationState("peer", 1L);
+        ChunkReplicationState state = new ChunkReplicationState("peer", ReplicationTestStream.stream(1L));
         assertFalse(state.appendLight(LightDiff.pending(4, LightDiff.TYPE_BLOCKLIGHT, data((byte) 0x01), new int[]{5}), 0L));
         assertTrue(state.appendLight(LightDiff.pending(4, LightDiff.TYPE_SKYLIGHT, data((byte) 0x03), new int[]{7}), 16L));
         assertTrue(state.appendLight(LightDiff.pending(5, LightDiff.TYPE_BLOCKLIGHT, data((byte) 0x04), new int[]{8}), 16L));
@@ -41,7 +41,7 @@ class ChunkReplicationStateLightDropTest {
 
     @Test
     void resetBulkClearsDroppedSectionTracking() {
-        ChunkReplicationState state = new ChunkReplicationState("peer", 1L);
+        ChunkReplicationState state = new ChunkReplicationState("peer", ReplicationTestStream.stream(1L));
         assertFalse(state.appendLight(LightDiff.pending(4, LightDiff.TYPE_BLOCKLIGHT, data((byte) 0x01), new int[]{5}), 0L));
         state.resetBulk();
         assertTrue(state.appendLight(LightDiff.pending(4, LightDiff.TYPE_BLOCKLIGHT, data((byte) 0x02), new int[]{9}), 16L));

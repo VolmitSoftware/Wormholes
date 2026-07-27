@@ -150,6 +150,16 @@ class PortalRegistryAttendancePlaceholderTest {
         assertTrue(rim.attended(), "the traveller is within range of the rim portal");
     }
 
+    @Test
+    void negativeCellCoordinatesRemainDiscoverable() {
+        attendance.record(player(TRAVELLER), location(-10.0D, 70.0D, -10.0D));
+
+        publishSweep();
+
+        assertTrue(hub.attended());
+        assertEquals("Hub Gate", resolve(TRAVELLER, "portal.name"));
+    }
+
     private void publishSweep() {
         for (int sweep = 0; sweep < PUBLISH_INTERVAL; sweep++) {
             attendance.refresh(registry);

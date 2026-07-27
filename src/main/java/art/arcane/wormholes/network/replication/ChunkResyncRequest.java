@@ -4,15 +4,15 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-public record ChunkResyncRequest(long chunkKey, long expectedSequence) {
+public record ChunkResyncRequest(ReplicationStreamKey stream, long expectedSequence) {
     public void writeTo(DataOutputStream out) throws IOException {
-        out.writeLong(chunkKey);
+        stream.writeTo(out);
         ReplicationVarint.writeULong(out, expectedSequence);
     }
 
     public static ChunkResyncRequest read(DataInputStream in) throws IOException {
-        long chunkKey = in.readLong();
+        ReplicationStreamKey stream = ReplicationStreamKey.read(in);
         long expectedSequence = ReplicationVarint.readULong(in);
-        return new ChunkResyncRequest(chunkKey, expectedSequence);
+        return new ChunkResyncRequest(stream, expectedSequence);
     }
 }

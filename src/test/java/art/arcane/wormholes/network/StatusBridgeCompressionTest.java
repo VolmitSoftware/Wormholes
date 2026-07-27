@@ -1,6 +1,7 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.network.replication.ChunkBulk;
+import art.arcane.wormholes.network.replication.ReplicationTestStream;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -39,7 +40,7 @@ class StatusBridgeCompressionTest {
         WireCompression decodeSide = new WireCompression(WireCompression.DEFAULT_LEVEL);
         List<MinecraftStatusBridge.EncodedMessage> messages = new ArrayList<>();
         for (int i = 0; i < 8; i++) {
-            WireMessage.Routed routed = new WireMessage.Routed("alpha", "beta", 4, WireMessageType.PING, repeating((byte) ('a' + i), SMALL_PAYLOAD_BYTES));
+            WireMessage.Routed routed = routed(repeating((byte) ('a' + i), SMALL_PAYLOAD_BYTES));
             messages.add(new MinecraftStatusBridge.EncodedMessage(routed, WireCodec.encodeFrame(routed)));
         }
 
@@ -79,6 +80,7 @@ class StatusBridgeCompressionTest {
             assertEquals(original.ttl(), result.ttl());
             assertEquals(original.innerType(), result.innerType());
             assertArrayEquals(original.payload(), result.payload());
+            assertArrayEquals(original.signature(), result.signature());
         }
     }
 
@@ -89,7 +91,7 @@ class StatusBridgeCompressionTest {
         byte[] repeatedPayload = patternedBytes(3_000);
         List<MinecraftStatusBridge.EncodedMessage> messages = new ArrayList<>();
         for (int i = 0; i < 12; i++) {
-            WireMessage.Routed routed = new WireMessage.Routed("alpha", "beta", 4, WireMessageType.PING, repeatedPayload);
+            WireMessage.Routed routed = routed(repeatedPayload);
             messages.add(new MinecraftStatusBridge.EncodedMessage(routed, WireCodec.encodeFrame(routed)));
         }
         MinecraftStatusBridge.StatusPacket packet = MinecraftStatusBridge.create(
@@ -114,7 +116,8 @@ class StatusBridgeCompressionTest {
         WireCompression decodeSide = new WireCompression(WireCompression.DEFAULT_LEVEL);
 
         WireMessage.ChunkBulkBatch bulk = new WireMessage.ChunkBulkBatch(List.of(
-            new ChunkBulk(0x1122334455667788L, 7L, patternedBytes(LARGE_CHUNK_PAYLOAD_BYTES))));
+            new ChunkBulk(ReplicationTestStream.stream(0x1122334455667788L), 7L,
+                patternedBytes(LARGE_CHUNK_PAYLOAD_BYTES))));
         byte[] plainFrame = WireCodec.encodeFrame(bulk);
         assertTrue(plainFrame.length > MinecraftStatusBridge.MAX_FRAME_BYTES, "frame must exceed the per-frame budget to force fragmentation");
 
@@ -139,7 +142,7 @@ class StatusBridgeCompressionTest {
         WireMessage recoveredMessage = WireCodec.readFrame(new DataInputStream(new ByteArrayInputStream(recoveredFrame)));
         WireMessage.ChunkBulkBatch recoveredBulk = assertInstanceOf(WireMessage.ChunkBulkBatch.class, recoveredMessage);
         assertEquals(1, recoveredBulk.chunks().size());
-        assertEquals(bulk.chunks().get(0).chunkKey(), recoveredBulk.chunks().get(0).chunkKey());
+        assertEquals(bulk.chunks().get(0).stream(), recoveredBulk.chunks().get(0).stream());
         assertEquals(bulk.chunks().get(0).sequence(), recoveredBulk.chunks().get(0).sequence());
         assertArrayEquals(bulk.chunks().get(0).bulkPayload(), recoveredBulk.chunks().get(0).bulkPayload());
     }
@@ -152,7 +155,7 @@ class StatusBridgeCompressionTest {
         assertEquals(64, MinecraftStatusBridge.MAX_MESSAGES);
         List<MinecraftStatusBridge.EncodedMessage> messages = new ArrayList<>(MinecraftStatusBridge.MAX_MESSAGES);
         for (int i = 0; i < MinecraftStatusBridge.MAX_MESSAGES; i++) {
-            WireMessage.Routed routed = new WireMessage.Routed("alpha", "beta", 4, WireMessageType.PING, repeating((byte) ('a' + (i % 26)), 200));
+            WireMessage.Routed routed = routed(repeating((byte) ('a' + (i % 26)), 200));
             messages.add(new MinecraftStatusBridge.EncodedMessage(routed, WireCodec.encodeFrame(routed)));
         }
 
@@ -221,6 +224,10 @@ class StatusBridgeCompressionTest {
             fragments.add(new MinecraftStatusBridge.EncodedMessage(fragment, WireCodec.encodeFrame(fragment)));
         }
         return fragments;
+    }
+
+    private static WireMessage.Routed routed(byte[] payload) {
+        return new WireMessage.Routed("alpha", "beta", 4, WireMessageType.PING, payload, new byte[64]);
     }
 
     private static byte[] reassembleFragments(List<WireMessage> messages) {

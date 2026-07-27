@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.PublicKey;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,6 +15,7 @@ public final class PeerTrustStore {
 
     private final Path file;
     private final Map<String, byte[]> trustedKeys = new ConcurrentHashMap<>();
+    private final Map<String, PublicKey> decodedTrustedKeys = new ConcurrentHashMap<>();
 
     private PeerTrustStore(Path file) {
         this.file = file;
@@ -31,6 +33,19 @@ public final class PeerTrustStore {
         return trustedKeys.get(serverName);
     }
 
+    public PublicKey getPublicKey(String serverName) {
+        if (!trustedKeys.containsKey(serverName)) {
+            return null;
+        }
+        return decodedTrustedKeys.computeIfAbsent(serverName, ignored -> {
+            try {
+                return Handshake.decodePublicKey(trustedKeys.get(serverName));
+            } catch (Exception e) {
+                return null;
+            }
+        });
+    }
+
     public boolean isTrusted(String serverName, byte[] publicKey) {
         byte[] trusted = trustedKeys.get(serverName);
         return trusted != null && Handshake.sameKey(trusted, publicKey);
@@ -44,6 +59,7 @@ public final class PeerTrustStore {
         if (previous != null) {
             return Handshake.sameKey(previous, publicKey);
         }
+        decodedTrustedKeys.remove(serverName);
         persist();
         return true;
     }
@@ -56,11 +72,13 @@ public final class PeerTrustStore {
         if (previous != null && Handshake.sameKey(previous, publicKey)) {
             return;
         }
+        decodedTrustedKeys.remove(serverName);
         persist();
     }
 
     private void load() throws IOException {
         trustedKeys.clear();
+        decodedTrustedKeys.clear();
         if (!Files.isRegularFile(file)) {
             persist();
             return;

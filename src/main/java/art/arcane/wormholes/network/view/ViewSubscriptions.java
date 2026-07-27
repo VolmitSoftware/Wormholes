@@ -44,7 +44,8 @@ final class ViewSubscriptions {
         timeDelivery.queue(session, peerName, initialSkyDarken);
         ChunkReplicationManager replication = registry.replication();
         for (long[] column : session.columns) {
-            replication.subscribe(peerName, session.subscriptionId, session.world, ViewSlice.columnKey((int) column[0], (int) column[1]));
+            long chunkKey = ViewSlice.columnKey((int) column[0], (int) column[1]);
+            replication.subscribe(peerName, session.subscriptionId, session.world, session.streamFor(chunkKey));
         }
         int totalColumns = session.columns.size();
         if (totalColumns == 0) {
@@ -80,7 +81,7 @@ final class ViewSubscriptions {
             return;
         }
         ChunkReplicationManager replication = registry.replication();
-        replication.unsubscribeAll(peerName, session.subscriptionId, session.chunkKeys);
+        replication.unsubscribeAll(peerName, session.subscriptionId, session.streamKeys);
         session.peers.remove(peerName);
         session.sendStates.remove(peerName);
         session.lastSentPresentIds.remove(peerName);

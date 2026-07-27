@@ -54,6 +54,18 @@ public final class Handshake {
         }
     }
 
+    public static byte[] sign(PrivateKey privateKey, byte[] prefix, byte[] payload) {
+        try {
+            Signature signature = Signature.getInstance(SIGNATURE_ALGORITHM);
+            signature.initSign(privateKey);
+            signature.update(prefix);
+            signature.update(payload);
+            return signature.sign();
+        } catch (Exception e) {
+            throw new IllegalStateException("Ed25519 signing unavailable", e);
+        }
+    }
+
     public static boolean verify(byte[] publicKey, byte[] signatureBytes, String role, String signerName, String peerName, byte[] dialerNonce, byte[] acceptorNonce, byte[] signerPublicKey, byte[] peerPublicKey) {
         if (publicKey == null || signatureBytes == null) {
             return false;
@@ -75,6 +87,21 @@ public final class Handshake {
         try {
             Signature signature = Signature.getInstance(SIGNATURE_ALGORITHM);
             signature.initVerify(decodePublicKey(publicKey));
+            signature.update(payload);
+            return signature.verify(signatureBytes);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static boolean verify(PublicKey publicKey, byte[] signatureBytes, byte[] prefix, byte[] payload) {
+        if (publicKey == null || signatureBytes == null || prefix == null || payload == null) {
+            return false;
+        }
+        try {
+            Signature signature = Signature.getInstance(SIGNATURE_ALGORITHM);
+            signature.initVerify(publicKey);
+            signature.update(prefix);
             signature.update(payload);
             return signature.verify(signatureBytes);
         } catch (Exception e) {

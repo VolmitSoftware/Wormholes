@@ -10,6 +10,7 @@ import art.arcane.volmlib.util.localization.LocalizationReloadResult;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.MessageArgument;
 import art.arcane.volmlib.util.localization.TextKey;
+import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.door.DimensionalDoorManager;
@@ -117,10 +118,7 @@ public class CommandWormholes {
             send(sender, WormholesMessages.COMMAND_NO_PERMISSION);
             return;
         }
-        LocalizationReloadResult result = plugin.reloadAll();
-        send(sender, result.applied()
-                ? WormholesMessages.COMMAND_RELOADED
-                : WormholesMessages.COMMAND_RELOADED_LANGUAGE_RETAINED);
+        plugin.reloadAll().whenComplete((result, failure) -> sendReloadResult(sender, result, failure));
     }
 
     @Director(name = "debug", sync = true, descriptionKey = "command.help.debug", description = "Toggle verbose console logs and one-second telemetry")
@@ -179,6 +177,31 @@ public class CommandWormholes {
     private static void sendLines(CommandSender sender, LinesKey key, MessageArgs arguments) {
         for (Component line : Wormholes.text().components(key, arguments)) {
             WormholesAudience.sendMessage(sender, line);
+        }
+    }
+
+    private void sendReloadResult(
+        CommandSender sender,
+        LocalizationReloadResult result,
+        Throwable failure
+    ) {
+        Runnable delivery = () -> {
+            if (failure != null) {
+                send(sender, WormholesMessages.COMMAND_RELOAD_FAILED);
+                return;
+            }
+            send(sender, result.applied()
+                ? WormholesMessages.COMMAND_RELOADED
+                : WormholesMessages.COMMAND_RELOADED_LANGUAGE_RETAINED);
+        };
+        if (sender instanceof Player player) {
+            if (!FoliaScheduler.runEntity(plugin, player, delivery)) {
+                plugin.getLogger().warning("Could not deliver the configuration reload result to " + player.getUniqueId());
+            }
+            return;
+        }
+        if (!FoliaScheduler.runGlobal(plugin, delivery)) {
+            plugin.getLogger().warning("Could not deliver the configuration reload result to " + sender.getName());
         }
     }
 

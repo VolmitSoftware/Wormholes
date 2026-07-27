@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 
 import org.bukkit.World;
@@ -27,6 +28,7 @@ final class ViewSession {
     final double portalCenterZ;
     final List<long[]> columns;
     final List<Long> chunkKeys;
+    final List<ReplicationStreamKey> streamKeys;
     final BoundingBox bounds;
     final Set<String> peers = ConcurrentHashMap.newKeySet();
     final Set<UUID> sentProfiles = ConcurrentHashMap.newKeySet();
@@ -58,6 +60,7 @@ final class ViewSession {
         this.portalCenterZ = portalCenterZ;
         this.columns = columnsFor(box);
         this.chunkKeys = chunkKeysFor(columns);
+        this.streamKeys = streamKeysFor(portalId, world.getUID(), chunkKeys, this.renderMode);
         this.bounds = new BoundingBox(box.minX(), box.minY(), box.minZ(),
             box.maxX() + 1, box.maxY() + 1, box.maxZ() + 1);
     }
@@ -73,6 +76,10 @@ final class ViewSession {
             }
         }
         return false;
+    }
+
+    ReplicationStreamKey streamFor(long chunkKey) {
+        return new ReplicationStreamKey(portalId, world.getUID(), chunkKey, renderMode);
     }
 
     static List<long[]> columnsFor(ViewBox box) {
@@ -91,5 +98,14 @@ final class ViewSession {
             chunkKeys.add(ViewSlice.columnKey((int) column[0], (int) column[1]));
         }
         return List.copyOf(chunkKeys);
+    }
+
+    private static List<ReplicationStreamKey> streamKeysFor(UUID portalId, UUID worldId, List<Long> chunkKeys,
+                                                             ProjectionRenderMode renderMode) {
+        List<ReplicationStreamKey> streams = new ArrayList<>(chunkKeys.size());
+        for (Long chunkKey : chunkKeys) {
+            streams.add(new ReplicationStreamKey(portalId, worldId, chunkKey.longValue(), renderMode));
+        }
+        return List.copyOf(streams);
     }
 }

@@ -10,7 +10,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -18,19 +17,28 @@ public final class HotloadManager {
     private static final long POLL_INTERVAL_MS = 200L;
     private static final long STABILITY_WINDOW_MS = 350L;
     private static final long STOP_JOIN_TIMEOUT_MS = 2_000L;
+    private static final long RETRY_BASE_MS = 1_000L;
+    private static final long RETRY_MAX_MS = 30_000L;
+    private static final long APPLICATION_TIMEOUT_MS = 10_000L;
     private static final String[] WATCHED_FILES = {"wormholes.toml"};
 
     private final Path dataFolder;
     private final Path configDir;
     private final Logger logger;
-    private final Consumer<WormholesSettings> reloadCallback;
+    private final ReloadCallback reloadCallback;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final Map<String, FileSignature> lastApplied = new HashMap<>();
     private final Map<String, FileSignature> lastRejected = new HashMap<>();
     private final Map<String, PendingChange> pending = new HashMap<>();
+    private long reloadAttempt;
+    private long activeAttempt;
+    private long retryAfterMillis;
+    private long applicationStartedMillis;
+    private int deferredRetryCount;
+    private boolean applicationInFlight;
     private Thread watcherThread;
 
-    public HotloadManager(Path dataFolder, Logger logger, Consumer<WormholesSettings> reloadCallback) {
+    public HotloadManager(Path dataFolder, Logger logger, ReloadCallback reloadCallback) {
         this.dataFolder = dataFolder;
         this.configDir = dataFolder.resolve("config");
         this.logger = logger;
@@ -99,7 +107,7 @@ public final class HotloadManager {
         }
     }
 
-    private void checkForChanges() {
+    private synchronized void checkForChanges() {
         long now = System.currentTimeMillis();
         Set<String> stableChangedFiles = new HashSet<>();
 
@@ -125,6 +133,7 @@ public final class HotloadManager {
             }
             PendingChange existing = pending.get(name);
             if (existing == null || !existing.signature.matches(current)) {
+                resetDeferredRetry();
                 pending.put(name, new PendingChange(current, now));
                 continue;
             }
@@ -140,18 +149,23 @@ public final class HotloadManager {
         if (!running.get()) {
             return;
         }
+        if (applicationInFlight && now - applicationStartedMillis >= APPLICATION_TIMEOUT_MS) {
+            applicationInFlight = false;
+            activeAttempt = 0L;
+            registerDeferredRetry(new IllegalStateException(
+                "Scheduled configuration application did not complete within " + APPLICATION_TIMEOUT_MS + "ms"
+            ));
+        }
+        if (applicationInFlight || now < retryAfterMillis) {
+            return;
+        }
         reloadAll(stableChangedFiles);
     }
 
     private void reloadAll(Set<String> changedFiles) {
+        WormholesSettings reloaded;
         try {
-            WormholesSettings reloaded = WormholesSettings.loadAll(dataFolder);
-            if (!running.get()) {
-                return;
-            }
-            reloadCallback.accept(reloaded);
-            captureAppliedSignatures();
-            logger.info("[Hotload] Configuration reloaded: " + String.join(", ", changedFiles));
+            reloaded = WormholesSettings.loadAll(dataFolder);
         } catch (Exception e) {
             logger.log(Level.WARNING, "[Hotload] Failed to reload configuration; keeping the last-known-good settings.", e);
             for (String name : changedFiles) {
@@ -160,20 +174,114 @@ public final class HotloadManager {
                     lastRejected.put(name, signature);
                 }
             }
-        } finally {
             pending.clear();
+            resetDeferredRetry();
+            return;
+        }
+        if (!running.get()) {
+            return;
+        }
+
+        Map<String, FileSignature> expectedSignatures = currentSignatures();
+        Set<String> expectedChangedFiles = Set.copyOf(changedFiles);
+        long attempt = ++reloadAttempt;
+        activeAttempt = attempt;
+        applicationInFlight = true;
+        applicationStartedMillis = System.currentTimeMillis();
+        boolean accepted;
+        try {
+            accepted = reloadCallback.schedule(
+                reloaded,
+                (applied, failure) -> completeApplication(
+                    attempt,
+                    expectedSignatures,
+                    expectedChangedFiles,
+                    applied,
+                    failure
+                )
+            );
+        } catch (RuntimeException failure) {
+            activeAttempt = 0L;
+            applicationInFlight = false;
+            applicationStartedMillis = 0L;
+            registerDeferredRetry(failure);
+            return;
+        } catch (Error failure) {
+            activeAttempt = 0L;
+            applicationInFlight = false;
+            applicationStartedMillis = 0L;
+            registerDeferredRetry(failure);
+            throw failure;
+        }
+        if (!accepted && activeAttempt == attempt && applicationInFlight) {
+            activeAttempt = 0L;
+            applicationInFlight = false;
+            applicationStartedMillis = 0L;
+            registerDeferredRetry(null);
         }
     }
 
-    private void captureAppliedSignatures() {
+    private synchronized void completeApplication(
+        long attempt,
+        Map<String, FileSignature> expectedSignatures,
+        Set<String> changedFiles,
+        boolean applied,
+        Throwable failure
+    ) {
+        if (activeAttempt != attempt) {
+            return;
+        }
+        activeAttempt = 0L;
+        applicationInFlight = false;
+        applicationStartedMillis = 0L;
+        if (!applied) {
+            registerDeferredRetry(failure);
+            return;
+        }
+        for (Map.Entry<String, FileSignature> entry : expectedSignatures.entrySet()) {
+            lastApplied.put(entry.getKey(), entry.getValue());
+            lastRejected.remove(entry.getKey());
+            PendingChange pendingChange = pending.get(entry.getKey());
+            if (pendingChange != null && pendingChange.signature.matches(entry.getValue())) {
+                pending.remove(entry.getKey());
+            }
+        }
+        resetDeferredRetry();
+        logger.info("[Hotload] Configuration reloaded: " + String.join(", ", changedFiles));
+    }
+
+    private Map<String, FileSignature> currentSignatures() {
+        Map<String, FileSignature> signatures = new HashMap<>();
         for (String name : WATCHED_FILES) {
             FileSignature signature = readSignature(name, configDir.resolve(name));
             if (signature == null) {
                 continue;
             }
-            lastApplied.put(name, signature);
-            lastRejected.remove(name);
+            signatures.put(name, signature);
         }
+        return Map.copyOf(signatures);
+    }
+
+    private void registerDeferredRetry(Throwable failure) {
+        deferredRetryCount++;
+        int shift = Math.min(5, deferredRetryCount - 1);
+        long delay = Math.min(RETRY_MAX_MS, RETRY_BASE_MS << shift);
+        retryAfterMillis = System.currentTimeMillis() + delay;
+        if (failure != null) {
+            logger.log(
+                Level.WARNING,
+                "[Hotload] Configuration application failed; retrying after " + delay + "ms.",
+                failure
+            );
+        } else if (deferredRetryCount == 1 || deferredRetryCount % 5 == 0) {
+            logger.warning("[Hotload] Configuration application was deferred because the server refused the global task; retrying after "
+                + delay + "ms.");
+        }
+    }
+
+    private void resetDeferredRetry() {
+        deferredRetryCount = 0;
+        retryAfterMillis = 0L;
     }
 
     private FileSignature readSignature(String name, Path file) {
@@ -218,5 +326,15 @@ public final class HotloadManager {
             this.signature = signature;
             this.firstSeenMillis = firstSeenMillis;
         }
+    }
+
+    @FunctionalInterface
+    public interface ReloadCallback {
+        boolean schedule(WormholesSettings settings, ReloadCompletion completion);
+    }
+
+    @FunctionalInterface
+    public interface ReloadCompletion {
+        void complete(boolean applied, Throwable failure);
     }
 }

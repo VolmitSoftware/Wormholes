@@ -5,8 +5,10 @@ import art.arcane.wormholes.network.replication.BlockChangeFeed;
 import art.arcane.wormholes.network.replication.BlockEntityDiff;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.replication.LightDiff;
+import art.arcane.wormholes.network.replication.ReplicationTestStream;
 import art.arcane.wormholes.network.replication.TestNetworkSink;
 import art.arcane.wormholes.network.view.ViewSlice;
+import art.arcane.wormholes.portal.ProjectionRenderMode;
 
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
@@ -56,6 +58,20 @@ class RegionalDiffAccumulatorVenticularTest {
             "a neighbor that lost its occluding face must be re-emitted as exposed");
     }
 
+    @Test
+    void snapshotDiffOcclusionNeverReadsLiveWorldBlocks(@TempDir Path dir) {
+        Harness harness = new Harness(dir);
+        harness.accumulator.setCaptureOcclusionModel((world, x, y, z) -> {
+            throw new AssertionError("snapshot comparison read a live block");
+        }, data -> data == SOLID);
+
+        harness.accumulator.recordSnapshotBlockChange(harness.world, 8, 64, 8, SOLID, BlockChange.FLAG_NONE,
+            (x, y, z) -> SOLID, -64, 320);
+        harness.accumulator.drainChunk(harness.world, harness.chunkKey);
+
+        assertEquals(7, harness.feed.flagsByPacked().size());
+    }
+
     private static final class Harness {
         private final World world;
         private final long chunkKey;
@@ -67,9 +83,9 @@ class RegionalDiffAccumulatorVenticularTest {
             ChunkReplicationManager replication = sink.getReplicationManager();
             this.world = fakeWorld(UUID.randomUUID());
             UUID portalId = UUID.randomUUID();
-            replication.setRenderModeResolver(portalId::equals);
             this.chunkKey = ViewSlice.columnKey(0, 0);
-            replication.subscribe(PEER, portalId, world, chunkKey);
+            replication.subscribe(PEER, portalId, world,
+                ReplicationTestStream.stream(portalId, world, chunkKey, ProjectionRenderMode.VENTICULAR));
             this.feed = new CapturingFeed();
             this.accumulator = new RegionalDiffAccumulator(replication, feed, CaptureSettings.defaults());
             this.accumulator.setCaptureOcclusionModel((w, x, y, z) -> SOLID, data -> data == SOLID);

@@ -1,6 +1,7 @@
 package art.arcane.wormholes;
 
 import art.arcane.volmlib.integration.ReloadAware;
+import art.arcane.volmlib.integration.VaultEconomy;
 import art.arcane.volmlib.util.bukkit.papi.PlaceholderRegistration;
 import art.arcane.volmlib.util.localization.LocalizationReloadResult;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
@@ -26,6 +27,7 @@ import art.arcane.wormholes.network.view.ViewServer;
 import art.arcane.wormholes.network.view.ViewSubscriptionManager;
 import art.arcane.wormholes.papi.WormholesPlaceholders;
 import art.arcane.wormholes.portal.ArrivalWarmer;
+import art.arcane.wormholes.portal.VanillaTravelCostCapture;
 import art.arcane.wormholes.portal.rtp.BukkitRtpEnvironment;
 import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
 import art.arcane.wormholes.portal.vanilla.VanillaPortalReplacer;
@@ -51,6 +53,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -77,6 +80,8 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     public static volatile PortalSyncService portalSyncService;
     public static volatile TraversalService traversalService;
     public static volatile TraversalCostGateway traversalCostGateway;
+    public static volatile VaultEconomy vaultEconomy;
+    public static volatile VanillaTravelCostCapture vanillaTravelCostCapture;
     public static volatile RemoteViewCache remoteViewCache;
     public static volatile ViewSubscriptionManager viewSubscriptions;
     public static volatile ViewServer viewServer;
@@ -125,6 +130,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         try {
             settings = WormholesSettings.loadAll(getDataFolder().toPath());
             Settings.refresh(settings);
+            vaultEconomy = new VaultEconomy(this);
             localization = new WormholesLocalization();
             reloads.reloadLocalization(settings);
             this.schedulerRuntime = installSchedulerBridge();
@@ -138,6 +144,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             effectManager = new EffectManager();
             constructionManager = new ConstructionManager();
             wandSelectionManager = new WandSelectionManager();
+            vanillaTravelCostCapture = new VanillaTravelCostCapture();
             portalManager = new PortalManager();
             traversableManager = new TraversableManager();
             projectionManager = new ProjectionManager(packetEvents().projectionChunkTracker());
@@ -151,6 +158,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             getServer().getPluginManager().registerEvents(effectManager, this);
             getServer().getPluginManager().registerEvents(constructionManager, this);
             getServer().getPluginManager().registerEvents(wandSelectionManager, this);
+            getServer().getPluginManager().registerEvents(vanillaTravelCostCapture, this);
             getServer().getPluginManager().registerEvents(new PortalSkinListener(), this);
             getServer().getPluginManager().registerEvents(portalManager, this);
             getServer().getPluginManager().registerEvents(traversableManager, this);
@@ -382,7 +390,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         }
     }
 
-    public LocalizationReloadResult reloadAll() {
+    public CompletableFuture<LocalizationReloadResult> reloadAll() {
         return reloads.reloadAll();
     }
 
@@ -676,10 +684,15 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         projectionManager = null;
         traversableManager = null;
         portalManager = null;
+        if (vanillaTravelCostCapture != null) {
+            vanillaTravelCostCapture.clear();
+            vanillaTravelCostCapture = null;
+        }
         wandSelectionManager = null;
         constructionManager = null;
         effectManager = null;
         blockManager = null;
+        vaultEconomy = null;
         clearChatInputs();
         instance = null;
         INSTANCE = null;

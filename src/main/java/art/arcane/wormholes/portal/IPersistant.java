@@ -8,7 +8,11 @@ public interface IPersistant
 
 	public boolean needsSaving();
 
-	public void willSave();
+	public PortalSaveSnapshot prepareSave();
+
+	public void writeSave(PortalSaveSnapshot snapshot) throws IOException;
+
+	public void rejectSave();
 
 	public void saveNow() throws IOException;
 

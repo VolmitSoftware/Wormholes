@@ -1,11 +1,13 @@
 package art.arcane.wormholes.portal;
 
 import java.util.Locale;
+import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
@@ -51,6 +53,7 @@ final class LocalPortalSettings
 	private int ambientColor;
 	private String surfaceSkin;
 	private int surfaceThickness;
+	private PortalTravelCost travelCost;
 	private boolean settingsSyncEnabled;
 
 	LocalPortalSettings(LocalPortal portal)
@@ -76,6 +79,7 @@ final class LocalPortalSettings
 		ambientColor = DEFAULT_AMBIENT_COLOR;
 		surfaceSkin = DEFAULT_SURFACE_SKIN;
 		surfaceThickness = DEFAULT_SURFACE_THICKNESS;
+		travelCost = null;
 		settingsSyncEnabled = true;
 	}
 
@@ -98,6 +102,10 @@ final class LocalPortalSettings
 		j.put("ambientColor", ambientColor);
 		j.put("surfaceSkin", surfaceSkin);
 		j.put("surfaceThickness", surfaceThickness);
+		if(travelCost != null)
+		{
+			j.put("travelCost", travelCost.toJson());
+		}
 		j.put("settingsSyncEnabled", settingsSyncEnabled);
 	}
 
@@ -125,9 +133,36 @@ final class LocalPortalSettings
 		ambientColor = normalizeAmbientColor(j.optInt("ambientColor", DEFAULT_AMBIENT_COLOR));
 		surfaceSkin = PortalSurfaceSkins.normalizeSkin(j.optString("surfaceSkin", DEFAULT_SURFACE_SKIN));
 		surfaceThickness = normalizeSurfaceThickness(j.optInt("surfaceThickness", DEFAULT_SURFACE_THICKNESS));
+		boolean malformedTravelCost = j.has("travelCost")
+				&& !j.isNull("travelCost")
+				&& j.optJSONObject("travelCost") == null;
+		boolean invalidTravelCost = malformedTravelCost;
+		try
+		{
+			travelCost = malformedTravelCost
+					? null : PortalTravelCost.fromJson(j.optJSONObject("travelCost"));
+		}
+		catch(IllegalArgumentException exception)
+		{
+			travelCost = null;
+			invalidTravelCost = true;
+			if(Wormholes.instance == null)
+			{
+				Wormholes.w("Portal " + portal.getId() + " has an invalid travel cost");
+			}
+			else
+			{
+				Wormholes.instance.getLogger().log(Level.WARNING,
+						"Portal " + portal.getId() + " has an invalid travel cost; travel will be free", exception);
+			}
+		}
+		if(malformedTravelCost)
+		{
+			Wormholes.w("Portal " + portal.getId() + " has a malformed travel cost; travel will be free");
+		}
 		settingsSyncEnabled = !j.has("settingsSyncEnabled") || j.getBoolean("settingsSyncEnabled");
 		boolean projectionStateNormalized = !j.has("mirrorMode") || !storedProjectionMode.equals(projectionMode.name());
-		return storedMirrorRotation != mirrorRotation || projectionStateNormalized;
+		return storedMirrorRotation != mirrorRotation || projectionStateNormalized || invalidTravelCost;
 	}
 
 	boolean isProjecting()
@@ -322,6 +357,49 @@ final class LocalPortalSettings
 	void assignOutgoingTraversalsEnabled(boolean enabled)
 	{
 		outgoingTraversalsEnabled = enabled;
+	}
+
+	PortalTravelCost getTravelCost()
+	{
+		return travelCost;
+	}
+
+	void setVanillaTravelCostItem(ItemStack item)
+	{
+		int quantity = travelCost instanceof VanillaTravelCost vanilla ? vanilla.getQuantity() : 1;
+		travelCost = VanillaTravelCost.of(item, quantity);
+		travelCostChanged();
+	}
+
+	void setVanillaTravelCostQuantity(int quantity)
+	{
+		if(!(travelCost instanceof VanillaTravelCost vanilla))
+		{
+			return;
+		}
+		VanillaTravelCost updated = vanilla.withQuantity(quantity);
+		if(updated.getQuantity() == vanilla.getQuantity())
+		{
+			return;
+		}
+		travelCost = updated;
+		travelCostChanged();
+	}
+
+	void setVaultTravelCost(String amount)
+	{
+		travelCost = VaultTravelCost.of(amount);
+		travelCostChanged();
+	}
+
+	void clearTravelCost()
+	{
+		if(travelCost == null)
+		{
+			return;
+		}
+		travelCost = null;
+		travelCostChanged();
 	}
 
 	boolean isIncomingTraversalsEnabled()
@@ -657,6 +735,12 @@ final class LocalPortalSettings
 	private void networkViewSettingsChanged()
 	{
 		settingsChanged(true);
+	}
+
+	private void travelCostChanged()
+	{
+		portal.save();
+		refreshOpenMenusUnlessApplyingRemote();
 	}
 
 	private void renderSettingsChanged()

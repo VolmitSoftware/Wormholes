@@ -18,7 +18,7 @@ public final class RemoteChunkStore {
     public static final long DEFAULT_RESYNC_TIMEOUT_MS = 5_000L;
 
     public static final class ReplicatedChunk {
-        private final long chunkKey;
+        private final ReplicationStreamKey stream;
         private volatile ViewSlice slice;
         private volatile long lastAppliedSeq;
         private volatile long firstGapMillis;
@@ -27,12 +27,12 @@ public final class RemoteChunkStore {
         private long cachedContentHash;
         private boolean contentHashValid;
 
-        private ReplicatedChunk(long chunkKey) {
-            this.chunkKey = chunkKey;
+        private ReplicatedChunk(ReplicationStreamKey stream) {
+            this.stream = stream;
         }
 
-        public long chunkKey() {
-            return chunkKey;
+        public ReplicationStreamKey stream() {
+            return stream;
         }
 
         public ViewSlice slice() {
@@ -46,7 +46,7 @@ public final class RemoteChunkStore {
 
     private final int diffWindowSize;
     private final long resyncTimeoutMillis;
-    private final Map<Long, ReplicatedChunk> chunks = new ConcurrentHashMap<>();
+    private final Map<ReplicationStreamKey, ReplicatedChunk> chunks = new ConcurrentHashMap<>();
 
     public RemoteChunkStore() {
         this(DEFAULT_DIFF_WINDOW_SIZE, DEFAULT_RESYNC_TIMEOUT_MS);
@@ -65,17 +65,18 @@ public final class RemoteChunkStore {
         return resyncTimeoutMillis;
     }
 
-    public ReplicatedChunk get(long chunkKey) {
-        return chunks.get(chunkKey);
+    public ReplicatedChunk get(ReplicationStreamKey stream) {
+        return chunks.get(stream);
     }
 
-    public List<Long> chunkKeys() {
+    public List<ReplicationStreamKey> streams() {
         return new ArrayList<>(chunks.keySet());
     }
 
     public ReplicatedChunk applyBulk(ChunkBulk bulk) throws IOException {
         ViewSlice decoded = ViewSlice.read(new DataInputStream(new ByteArrayInputStream(bulk.bulkPayload())));
-        ReplicatedChunk chunk = chunks.computeIfAbsent(bulk.chunkKey(), ReplicatedChunk::new);
+        validateSliceStream(decoded, bulk.stream());
+        ReplicatedChunk chunk = chunks.computeIfAbsent(bulk.stream(), ReplicatedChunk::new);
         synchronized (chunk) {
             if (chunk.slice != null && bulk.sequence() < chunk.lastAppliedSeq) {
                 // A stale re-bulk that arrived after newer diffs were already applied; ignore it so it
@@ -101,14 +102,14 @@ public final class RemoteChunkStore {
     }
 
     public ApplyOutcome applyDiff(ChunkDiffBatch batch) {
-        ReplicatedChunk chunk = chunks.get(batch.chunkKey());
+        ReplicatedChunk chunk = chunks.get(batch.stream());
         if (chunk == null) {
-            return new ApplyOutcome(false, true, batch.chunkKey(), 0L);
+            return new ApplyOutcome(false, true, batch.stream(), 0L);
         }
         synchronized (chunk) {
             long expected = chunk.lastAppliedSeq + 1L;
             if (batch.sequence() < expected) {
-                return new ApplyOutcome(true, false, batch.chunkKey(), chunk.lastAppliedSeq);
+                return new ApplyOutcome(true, false, batch.stream(), chunk.lastAppliedSeq);
             }
             if (batch.sequence() == expected) {
                 applyBatchToSlice(chunk, batch);
@@ -117,7 +118,7 @@ public final class RemoteChunkStore {
                 if (chunk.pending.isEmpty()) {
                     chunk.firstGapMillis = 0L;
                 }
-                return new ApplyOutcome(true, false, batch.chunkKey(), chunk.lastAppliedSeq);
+                return new ApplyOutcome(true, false, batch.stream(), chunk.lastAppliedSeq);
             }
             chunk.pending.put(batch.sequence(), batch);
             if (chunk.firstGapMillis == 0L) {
@@ -127,9 +128,9 @@ public final class RemoteChunkStore {
                 long expectedSequence = chunk.lastAppliedSeq + 1L;
                 chunk.pending.clear();
                 chunk.firstGapMillis = 0L;
-                return new ApplyOutcome(false, true, batch.chunkKey(), expectedSequence);
+                return new ApplyOutcome(false, true, batch.stream(), expectedSequence);
             }
-            return new ApplyOutcome(true, false, batch.chunkKey(), chunk.lastAppliedSeq);
+            return new ApplyOutcome(true, false, batch.stream(), chunk.lastAppliedSeq);
         }
     }
 
@@ -146,14 +147,14 @@ public final class RemoteChunkStore {
                 long expectedSequence = chunk.lastAppliedSeq + 1L;
                 chunk.pending.clear();
                 chunk.firstGapMillis = 0L;
-                requests.add(new ChunkResyncRequest(chunk.chunkKey(), expectedSequence));
+                requests.add(new ChunkResyncRequest(chunk.stream(), expectedSequence));
             }
         }
         return requests;
     }
 
-    public long hashAt(long chunkKey) {
-        ReplicatedChunk chunk = chunks.get(chunkKey);
+    public long hashAt(ReplicationStreamKey stream) {
+        ReplicatedChunk chunk = chunks.get(stream);
         if (chunk == null) {
             return 0L;
         }
@@ -170,8 +171,8 @@ public final class RemoteChunkStore {
         }
     }
 
-    public void remove(long chunkKey) {
-        chunks.remove(chunkKey);
+    public void remove(ReplicationStreamKey stream) {
+        chunks.remove(stream);
     }
 
     public void clear() {
@@ -182,30 +183,42 @@ public final class RemoteChunkStore {
         return chunks.size();
     }
 
-    public List<Long> mismatches(List<ChunkHashProbe.ChunkHashEntry> entries) {
-        List<Long> mismatchKeys = new ArrayList<>();
+    public List<ReplicationStreamKey> mismatches(List<ChunkHashProbe.ChunkHashEntry> entries) {
+        List<ReplicationStreamKey> mismatchKeys = new ArrayList<>();
         for (ChunkHashProbe.ChunkHashEntry entry : entries) {
-            ReplicatedChunk chunk = chunks.get(entry.chunkKey());
+            ReplicatedChunk chunk = chunks.get(entry.stream());
             if (chunk == null) {
-                mismatchKeys.add(entry.chunkKey());
+                mismatchKeys.add(entry.stream());
                 continue;
             }
             if (chunk.lastAppliedSeq < entry.sequence()) {
-                mismatchKeys.add(entry.chunkKey());
+                mismatchKeys.add(entry.stream());
                 continue;
             }
             if (entry.hash() == 0L) {
                 continue;
             }
-            long localHash = hashAt(entry.chunkKey());
+            long localHash = hashAt(entry.stream());
             if (localHash != entry.hash()) {
-                mismatchKeys.add(entry.chunkKey());
+                mismatchKeys.add(entry.stream());
             }
         }
         return Collections.unmodifiableList(mismatchKeys);
     }
 
-    public record ApplyOutcome(boolean applied, boolean resyncRequested, long chunkKey, long expectedSequenceOrLastApplied) {
+    public record ApplyOutcome(boolean applied, boolean resyncRequested, ReplicationStreamKey stream,
+                               long expectedSequenceOrLastApplied) {
+    }
+
+    private static void validateSliceStream(ViewSlice slice, ReplicationStreamKey stream) throws IOException {
+        int expectedChunkX = (int) (stream.chunkKey() >> 32);
+        int expectedChunkZ = (int) stream.chunkKey();
+        long maxX = (long) slice.minX() + slice.sizeX() - 1L;
+        long maxZ = (long) slice.minZ() + slice.sizeZ() - 1L;
+        if ((slice.minX() >> 4) != expectedChunkX || (slice.minZ() >> 4) != expectedChunkZ
+            || (maxX >> 4) != expectedChunkX || (maxZ >> 4) != expectedChunkZ) {
+            throw new IOException("View slice coordinates do not match replication stream chunk");
+        }
     }
 
     private void drainBuffered(ReplicatedChunk chunk) {
@@ -234,8 +247,8 @@ public final class RemoteChunkStore {
             chunk.contentHashValid = false;
         }
         for (BlockChange change : batch.blocks()) {
-            int worldX = (((int) (chunk.chunkKey() >> 32)) << 4) + BlockChange.unpackX(change.packedXyz());
-            int worldZ = (((int) chunk.chunkKey()) << 4) + BlockChange.unpackZ(change.packedXyz());
+            int worldX = (((int) (chunk.stream().chunkKey() >> 32)) << 4) + BlockChange.unpackX(change.packedXyz());
+            int worldZ = (((int) chunk.stream().chunkKey()) << 4) + BlockChange.unpackZ(change.packedXyz());
             int worldY = BlockChange.unpackY(change.packedXyz());
             if (!current.contains(worldX, worldY, worldZ)) {
                 continue;

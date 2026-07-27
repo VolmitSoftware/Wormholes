@@ -4,6 +4,7 @@ import art.arcane.wormholes.network.replication.BlockChange;
 import art.arcane.wormholes.network.replication.BlockChangeFeed;
 import art.arcane.wormholes.network.replication.BlockEntityDiff;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
+import art.arcane.wormholes.network.replication.ReplicationTestStream;
 import art.arcane.wormholes.network.replication.LightDiff;
 import art.arcane.wormholes.network.replication.StubWorld;
 import art.arcane.wormholes.network.replication.TestNetworkSink;
@@ -24,6 +25,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ChunkSnapshotComparatorTest {
@@ -35,7 +37,7 @@ class ChunkSnapshotComparatorTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, chunkKey);
+        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
         RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, CaptureSettings.defaults());
         accumulator.recordBlockChange(world, 3, 70, 3, fakeBlockData("minecraft:stone"), BlockChange.FLAG_NONE);
@@ -50,7 +52,7 @@ class ChunkSnapshotComparatorTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, chunkKey);
+        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
         RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, CaptureSettings.defaults());
         accumulator.recordBlockChange(world, 1, -64, 1, fakeBlockData("minecraft:deepslate"), BlockChange.FLAG_NONE);
@@ -75,7 +77,7 @@ class ChunkSnapshotComparatorTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, chunkKey);
+        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
         RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, CaptureSettings.defaults());
         ChunkSnapshotComparator comparator = new ChunkSnapshotComparator(null, replication, accumulator, CaptureSettings.defaults(), null);
@@ -97,7 +99,7 @@ class ChunkSnapshotComparatorTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, chunkKey);
+        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
         RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, CaptureSettings.defaults());
         ChunkSnapshotComparator comparator = new ChunkSnapshotComparator(null, replication, accumulator, CaptureSettings.defaults(), null);
@@ -117,10 +119,58 @@ class ChunkSnapshotComparatorTest {
         assertEquals(1L, comparator.stats().divergencesEmitted());
     }
 
+    @Test
+    void broadDivergenceRequestsOneFullResyncInsteadOfQueuingEveryCell(@TempDir Path dir) throws Exception {
+        TestNetworkSink sink = new TestNetworkSink(dir);
+        ChunkReplicationManager replication = sink.getReplicationManager();
+        World world = StubWorld.create(UUID.randomUUID());
+        long chunkKey = ViewSlice.columnKey(0, 0);
+        replication.subscribe(PEER, world.getUID(), world,
+            ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        CapturingFeed feed = new CapturingFeed();
+        CaptureSettings settings = new CaptureSettings(100, 16, true, true);
+        RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, settings);
+        ChunkSnapshotComparator comparator = new ChunkSnapshotComparator(null, replication, accumulator, settings, null);
+
+        BlockData stone = fakeBlockData("minecraft:stone");
+        BlockData dirt = fakeBlockData("minecraft:dirt");
+        ChunkSnapshot baseline = fakeSnapshot(stone, Map.of(), 5);
+        ChunkSnapshot mutated = fakeSnapshot(stone, Map.of(
+            cellKey(1, 7, 1), dirt,
+            cellKey(2, 7, 2), dirt,
+            cellKey(3, 7, 3), dirt), 5);
+        invokeCompare(comparator, world, chunkKey, 0, 0, baseline, 0, 16);
+        invokeCompare(comparator, world, chunkKey, 0, 0, mutated, 0, 16);
+        drainAllSafely(accumulator, world);
+
+        assertTrue(feed.blocks.isEmpty());
+        assertEquals(1L, replication.statsSnapshot().resyncRequests());
+    }
+
+    @Test
+    void activeChunksOnlyReceiveSparseIntegrityCaptures(@TempDir Path dir) {
+        TestNetworkSink sink = new TestNetworkSink(dir);
+        ChunkReplicationManager replication = sink.getReplicationManager();
+        RegionalDiffAccumulator accumulator =
+            new RegionalDiffAccumulator(replication, new CapturingFeed(), CaptureSettings.defaults());
+        ChunkSnapshotComparator comparator =
+            new ChunkSnapshotComparator(null, replication, accumulator, CaptureSettings.defaults(), null);
+        UUID worldId = UUID.randomUUID();
+        long chunkKey = ViewSlice.columnKey(3, -7);
+
+        assertTrue(comparator.shouldCaptureSnapshot(worldId, chunkKey));
+        for (int sweep = 1; sweep < ChunkSnapshotComparator.INTEGRITY_BACKSTOP_SWEEPS; sweep++) {
+            assertFalse(comparator.shouldCaptureSnapshot(worldId, chunkKey));
+        }
+        assertTrue(comparator.shouldCaptureSnapshot(worldId, chunkKey));
+        assertFalse(comparator.shouldCaptureSnapshot(worldId, chunkKey));
+    }
+
     private static void invokeCompare(ChunkSnapshotComparator comparator, World world, long chunkKey, int chunkX, int chunkZ, ChunkSnapshot snapshot, int minHeight, int maxHeight) throws Exception {
-        Method method = ChunkSnapshotComparator.class.getDeclaredMethod("compareSnapshot", World.class, long.class, int.class, int.class, ChunkSnapshot.class, int.class, int.class);
+        Method method = ChunkSnapshotComparator.class.getDeclaredMethod("compareSnapshot", World.class, UUID.class,
+            long.class, int.class, int.class, ChunkSnapshot.class, int.class, int.class);
         method.setAccessible(true);
-        method.invoke(comparator, world, chunkKey, chunkX, chunkZ, snapshot, minHeight, maxHeight);
+        method.invoke(comparator, world, world.getUID(), chunkKey, chunkX, chunkZ, snapshot, minHeight, maxHeight);
     }
 
     private static int cellKey(int x, int y, int z) {

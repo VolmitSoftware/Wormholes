@@ -32,10 +32,12 @@ public final class PaperPluginMetadataTest {
         assertTrue(metadata.contains("folia-supported: true"));
         assertTrue(metadata.contains("PlaceholderAPI:"));
         assertTrue(metadata.contains("Iris:"));
+        assertTrue(metadata.contains("Vault:"));
         assertTrue(metadata.contains("load: BEFORE"));
         assertTrue(metadata.contains("required: false"));
         assertTrue(metadata.contains("join-classpath: true"));
         assertTrue(metadata.contains("wormholes.portals.wormhole:"));
+        assertTrue(metadata.contains("wormholes.admin.projection:"));
         assertFalse(metadata.contains("commands:"), "Paper commands must be registered through lifecycle events");
     }
 
@@ -52,11 +54,18 @@ public final class PaperPluginMetadataTest {
         assertEquals(Wormholes.class.getName(), metadata.getMain());
         assertEquals("26.2", metadata.getAPIVersion());
         assertEquals(PluginLoadOrder.POSTWORLD, metadata.getLoad());
-        assertEquals(List.of("PlaceholderAPI", "Iris"), metadata.getSoftDepend());
+        assertEquals(List.of("PlaceholderAPI", "Iris", "Vault"), metadata.getSoftDepend());
         Map<String, Map<String, Object>> commands = metadata.getCommands();
         assertTrue(commands.containsKey("wormholes"));
         assertEquals(List.of("wh", "wormhole"), commands.get("wormholes").get("aliases"));
         assertTrue(metadata.getPermissions().stream().anyMatch(permission -> permission.getName().equals("wormholes.admin")));
+        assertTrue(metadata.getPermissions().stream().anyMatch(permission -> permission.getName().equals("wormholes.admin.projection")));
+        assertTrue(metadata.getPermissions().stream()
+            .filter(permission -> permission.getName().equals("wormholes.admin"))
+            .findFirst()
+            .orElseThrow()
+            .getChildren()
+            .containsKey("wormholes.admin.projection"));
         assertTrue(metadata.getPermissions().stream().anyMatch(permission -> permission.getName().equals("wormholes.portals.portal")));
     }
 

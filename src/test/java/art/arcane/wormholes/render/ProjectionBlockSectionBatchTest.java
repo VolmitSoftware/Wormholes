@@ -125,6 +125,29 @@ public final class ProjectionBlockSectionBatchTest {
         assertTrue(fallback.containsKey(key));
     }
 
+    @Test
+    public void oneMappingFailureDoesNotDisableBatchingForValidCells() {
+        Long2ObjectOpenHashMap<BlockData> changes = new Long2ObjectOpenHashMap<BlockData>(2);
+        long validKey = packKey(1, 65, 2);
+        long failedKey = packKey(2, 65, 2);
+        changes.put(validKey, blockData(Material.STONE));
+        changes.put(failedKey, blockData(Material.DIRT));
+        Long2IntOpenHashMap ids = new Long2IntOpenHashMap(2);
+        ids.defaultReturnValue(-1);
+        ids.put(validKey, 42);
+        ids.put(failedKey, -1);
+        Long2ObjectOpenHashMap<List<WrapperPlayServerMultiBlockChange.EncodedBlock>> sections =
+            new Long2ObjectOpenHashMap<List<WrapperPlayServerMultiBlockChange.EncodedBlock>>(1);
+        Long2ObjectOpenHashMap<BlockData> fallback = new Long2ObjectOpenHashMap<BlockData>(1);
+
+        ProjectionClaimArbiter.groupBySection(changes, ids, sections, fallback);
+
+        assertEquals(1, sections.size());
+        assertEquals(1, sections.long2ObjectEntrySet().iterator().next().getValue().size());
+        assertEquals(1, fallback.size());
+        assertTrue(fallback.containsKey(failedKey));
+    }
+
     private static Long2IntOpenHashMap uniformIds(Long2ObjectOpenHashMap<BlockData> changes, int id) {
         Long2IntOpenHashMap ids = new Long2IntOpenHashMap(Math.max(4, changes.size()));
         ids.defaultReturnValue(-1);

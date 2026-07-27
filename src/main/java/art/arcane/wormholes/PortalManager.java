@@ -6,7 +6,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -28,11 +32,16 @@ import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
 import art.arcane.wormholes.network.view.ViewServer;
 import art.arcane.wormholes.util.Direction;
 import art.arcane.wormholes.util.J;
+import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 
 public class PortalManager implements Listener
 {
 	private static final int LOAD_RETRY_INTERVAL_TICKS = 20;
 	private static final int LOAD_RETRY_ATTEMPTS = 30;
+	private static final int INITIAL_LOAD_RETRY_INTERVAL_TICKS = 100;
+	private static final int INITIAL_LOAD_RETRY_MAX_INTERVAL_TICKS = 1200;
+	private static final int PARTIAL_LOAD_RETRY_ATTEMPTS = 6;
+	private static final int PARTIAL_LOAD_RETRY_INTERVAL_TICKS = 200;
 
 	private final Map<UUID, ILocalPortal> portals;
 	private volatile List<ILocalPortal> portalSnapshot = List.of();
@@ -40,7 +49,12 @@ public class PortalManager implements Listener
 	private final PortalRegistryStorage storage = new PortalRegistryStorage();
 	private final PortalRegistryPendingFiles pendingPortalFiles;
 	private final PortalRegistryUpdateDriver updateDriver;
-	private boolean initialLoadComplete;
+	private final AtomicBoolean initialLoadRetryQueued;
+	private final AtomicBoolean initialLoadRejectionReported;
+	private final AtomicBoolean partialLoadRetryQueued;
+	private volatile boolean initialLoadComplete;
+	private int initialLoadFailureCount;
+	private int partialLoadRetriesRemaining;
 
 	public PortalManager()
 	{
@@ -48,9 +62,14 @@ public class PortalManager implements Listener
 		portals = new ConcurrentHashMap<UUID, ILocalPortal>();
 		pendingPortalFiles = new PortalRegistryPendingFiles();
 		updateDriver = new PortalRegistryUpdateDriver(attendance);
+		initialLoadRetryQueued = new AtomicBoolean();
+		initialLoadRejectionReported = new AtomicBoolean();
+		partialLoadRetryQueued = new AtomicBoolean();
 		initialLoadComplete = false;
+		initialLoadFailureCount = 0;
+		partialLoadRetriesRemaining = PARTIAL_LOAD_RETRY_ATTEMPTS;
 		int loadDelay = Bukkit.getWorlds().isEmpty() ? 40 : 1;
-		J.s(() -> loadExistingPortals(), loadDelay);
+		scheduleInitialLoadAttempt(loadDelay);
 		schedulePendingLoadRetry(LOAD_RETRY_ATTEMPTS);
 		J.ar(() -> updateLocalPortals(), 0);
 	}
@@ -124,12 +143,37 @@ public class PortalManager implements Listener
 	private void loadExistingPortals()
 	{
 		Wormholes.v("Loading existing portals (worlds available: " + Bukkit.getWorlds().size() + ")...");
-		List<File> portalFiles = storage.listPortalFiles();
-		if(portalFiles == null)
+		PortalRegistryStorage.PortalFileListing listing;
+		try
 		{
-			initialLoadComplete = true;
+			listing = storage.listPortalFiles();
+		}
+		catch(IOException error)
+		{
+			initialLoadFailureCount++;
+			if(initialLoadFailureCount == 1 || initialLoadFailureCount % 5 == 0)
+			{
+				Wormholes.instance.getLogger().log(Level.SEVERE,
+					"Could not enumerate stored portals; portal updates remain paused and loading will retry.",
+					error);
+			}
+			if(initialLoadComplete)
+			{
+				schedulePartialLoadRetry();
+			}
+			else
+			{
+				int shift = Math.min(3, initialLoadFailureCount - 1);
+				long retryDelay = Math.min(
+					INITIAL_LOAD_RETRY_MAX_INTERVAL_TICKS,
+					(long) INITIAL_LOAD_RETRY_INTERVAL_TICKS << shift
+				);
+				scheduleInitialLoadAttempt(retryDelay);
+			}
 			return;
 		}
+		initialLoadFailureCount = 0;
+		List<File> portalFiles = listing.files();
 
 		int found = 0;
 		int loaded = 0;
@@ -155,7 +199,78 @@ public class PortalManager implements Listener
 		}
 
 		initialLoadComplete = true;
+		if(!listing.failures().isEmpty())
+		{
+			Wormholes.instance.getLogger().log(
+				Level.SEVERE,
+				"Loaded readable portal files but skipped " + listing.failures().size()
+					+ " path(s) that could not be enumerated.",
+				listing.aggregateFailure()
+			);
+			schedulePartialLoadRetry();
+		}
+		else
+		{
+			partialLoadRetriesRemaining = PARTIAL_LOAD_RETRY_ATTEMPTS;
+		}
 		Wormholes.v("Portal load complete: " + loaded + " loaded, " + skipped + " skipped (of " + found + " files), pending=" + pendingPortalFiles.size());
+	}
+
+	private void schedulePartialLoadRetry()
+	{
+		if(partialLoadRetriesRemaining <= 0 || !Wormholes.instance.isEnabled()
+			|| !partialLoadRetryQueued.compareAndSet(false, true))
+		{
+			return;
+		}
+		int attempt = PARTIAL_LOAD_RETRY_ATTEMPTS - partialLoadRetriesRemaining;
+		long retryDelay = Math.min(
+			INITIAL_LOAD_RETRY_MAX_INTERVAL_TICKS,
+			(long) PARTIAL_LOAD_RETRY_INTERVAL_TICKS << Math.min(3, attempt)
+		);
+		boolean scheduled = FoliaScheduler.runGlobal(Wormholes.instance, () ->
+		{
+			partialLoadRetryQueued.set(false);
+			loadExistingPortals();
+		}, retryDelay);
+		if(scheduled)
+		{
+			partialLoadRetriesRemaining--;
+			return;
+		}
+		CompletableFuture.delayedExecutor(1L, TimeUnit.SECONDS).execute(() ->
+		{
+			partialLoadRetryQueued.set(false);
+			schedulePartialLoadRetry();
+		});
+	}
+
+	private void scheduleInitialLoadAttempt(long delayTicks)
+	{
+		if(initialLoadComplete || !Wormholes.instance.isEnabled())
+		{
+			return;
+		}
+		if(FoliaScheduler.runGlobal(Wormholes.instance, this::loadExistingPortals, delayTicks))
+		{
+			initialLoadRetryQueued.set(false);
+			initialLoadRejectionReported.set(false);
+			return;
+		}
+		if(!initialLoadRetryQueued.compareAndSet(false, true))
+		{
+			return;
+		}
+		if(initialLoadRejectionReported.compareAndSet(false, true))
+		{
+			Wormholes.instance.getLogger().warning(
+				"Global scheduler refused portal loading; a scheduler submission retry will run in one second.");
+		}
+		CompletableFuture.delayedExecutor(1L, TimeUnit.SECONDS).execute(() ->
+		{
+			initialLoadRetryQueued.set(false);
+			scheduleInitialLoadAttempt(0L);
+		});
 	}
 
 	private synchronized PortalLoadResult loadPortal(File k)

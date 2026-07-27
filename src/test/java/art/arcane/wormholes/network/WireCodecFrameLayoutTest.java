@@ -1,6 +1,7 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.network.replication.ChunkBulk;
+import art.arcane.wormholes.network.replication.ReplicationTestStream;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -125,7 +126,7 @@ class WireCodecFrameLayoutTest {
             for (int i = 0; i < 3; i++) {
                 byte[] payload = new byte[2 * 1024 * 1024];
                 random.nextBytes(payload);
-                chunks.add(new ChunkBulk(i, i + 1L, payload));
+                chunks.add(new ChunkBulk(ReplicationTestStream.stream(i), i + 1L, payload));
             }
             WireMessage.ChunkBulkBatch batch = new WireMessage.ChunkBulkBatch(chunks);
             IOException failure = assertThrows(IOException.class, () -> WireCodec.encodeFrame(batch, compression, 0));

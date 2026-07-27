@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.portal.rtp.RtpSettings;
@@ -146,6 +147,31 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 		rtp.setRtpSettings(settings);
 	}
 
+	public PortalTravelCost getTravelCost()
+	{
+		return settings.getTravelCost();
+	}
+
+	public void setVanillaTravelCostItem(ItemStack item)
+	{
+		settings.setVanillaTravelCostItem(item);
+	}
+
+	public void setVanillaTravelCostQuantity(int quantity)
+	{
+		settings.setVanillaTravelCostQuantity(quantity);
+	}
+
+	public void setVaultTravelCost(String amount)
+	{
+		settings.setVaultTravelCost(amount);
+	}
+
+	public void clearTravelCost()
+	{
+		settings.clearTravelCost();
+	}
+
 	@Override
 	public void update()
 	{
@@ -265,6 +291,11 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 		traversal.receive(t);
 	}
 
+	void receive(Traversive t, PortalTravelCost.Reservation reservation)
+	{
+		traversal.receive(t, reservation);
+	}
+
 	@Override
 	public Location computeExitTarget(Traversive t)
 	{
@@ -326,6 +357,11 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 	public void cancelRtpTraversal(Entity entity)
 	{
 		rtp.cancelTraversal(entity);
+	}
+
+	public void rejectRtpCost(Entity entity, Traversive traversive, PortalTravelCost cost, PortalTravelCost.Status status)
+	{
+		traversal.rejectCostTraversal(entity, traversive, cost, status);
 	}
 
 	public void completeRtpTraversal(Entity entity, Traversive traversive, PortalFrame targetFrame, Location target)
@@ -931,9 +967,21 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 	}
 
 	@Override
-	public void willSave()
+	public PortalSaveSnapshot prepareSave()
 	{
-		persistence.willSave();
+		return persistence.prepareSave();
+	}
+
+	@Override
+	public void writeSave(PortalSaveSnapshot snapshot) throws IOException
+	{
+		persistence.writeSave(snapshot);
+	}
+
+	@Override
+	public void rejectSave()
+	{
+		persistence.rejectSave();
 	}
 
 	@Override

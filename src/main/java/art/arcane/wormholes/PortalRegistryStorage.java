@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -23,55 +24,50 @@ import art.arcane.wormholes.util.VIO;
 
 final class PortalRegistryStorage
 {
+	private final File portalFolder;
+
+	PortalRegistryStorage()
+	{
+		this(new File(Wormholes.instance.getDataFolder(), "portals"));
+	}
+
+	PortalRegistryStorage(File portalFolder)
+	{
+		this.portalFolder = portalFolder;
+	}
+
 	File saveFile(UUID id)
 	{
 		return new File(new File(new File(portalFolder(), id.toString().split("-")[1]), id.toString().split("-")[0]), id.toString() + ".json");
 	}
 
-	List<File> listPortalFiles()
+	PortalFileListing listPortalFiles() throws IOException
 	{
-		File portalFolder = portalFolder();
-		portalFolder.mkdirs();
-
-		File[] firstLevel = portalFolder.listFiles();
-		if(firstLevel == null)
-		{
-			return null;
-		}
-
+		Path root = portalFolder().toPath();
+		Files.createDirectories(root);
 		List<File> files = new ArrayList<File>();
-		for(File i : firstLevel)
+		List<EnumerationFailure> failures = new ArrayList<EnumerationFailure>();
+		Files.walkFileTree(root, new SimpleFileVisitor<Path>()
 		{
-			if(!i.isDirectory())
+			@Override
+			public FileVisitResult visitFile(Path file, BasicFileAttributes attributes)
 			{
-				continue;
+				if(attributes.isRegularFile() && file.getFileName().toString().endsWith(".json"))
+				{
+					files.add(file.toFile());
+				}
+				return FileVisitResult.CONTINUE;
 			}
-			File[] secondLevel = i.listFiles();
-			if(secondLevel == null)
+
+			@Override
+			public FileVisitResult visitFileFailed(Path file, IOException error)
 			{
-				continue;
+				failures.add(new EnumerationFailure(file, error));
+				return FileVisitResult.CONTINUE;
 			}
-			for(File j : secondLevel)
-			{
-				if(!j.isDirectory())
-				{
-					continue;
-				}
-				File[] portalFiles = j.listFiles();
-				if(portalFiles == null)
-				{
-					continue;
-				}
-				for(File k : portalFiles)
-				{
-					if(k.isFile() && k.getName().endsWith(".json"))
-					{
-						files.add(k);
-					}
-				}
-			}
-		}
-		return files;
+		});
+		files.sort(Comparator.comparing(File::getAbsolutePath));
+		return new PortalFileListing(files, failures);
 	}
 
 	StoredPortal readPortal(File file) throws IOException
@@ -209,7 +205,7 @@ final class PortalRegistryStorage
 
 	private File portalFolder()
 	{
-		return new File(Wormholes.instance.getDataFolder(), "portals");
+		return portalFolder;
 	}
 
 	private static void logCounterpartFailure(String action, UUID portalId, UUID expectedCounterpartId, Throwable error)
@@ -234,6 +230,34 @@ final class PortalRegistryStorage
 	}
 
 	record StoredPortal(String worldKey, ILocalPortal portal, boolean pendingWorld)
+	{
+	}
+
+	record PortalFileListing(List<File> files, List<EnumerationFailure> failures)
+	{
+		PortalFileListing
+		{
+			files = List.copyOf(files);
+			failures = List.copyOf(failures);
+		}
+
+		IOException aggregateFailure()
+		{
+			IOException aggregate = new IOException(
+				"Could not enumerate " + failures.size() + " portal data path(s)"
+			);
+			for(EnumerationFailure failure : failures)
+			{
+				aggregate.addSuppressed(new IOException(
+					"Could not enumerate portal data at " + failure.path(),
+					failure.error()
+				));
+			}
+			return aggregate;
+		}
+	}
+
+	record EnumerationFailure(Path path, IOException error)
 	{
 	}
 }

@@ -1,15 +1,21 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.volmlib.util.localization.MessageArgument;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.network.TraversalFailureLedger.Failure;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
+import art.arcane.wormholes.portal.PortalTravelCost;
 import art.arcane.wormholes.portal.Traversive;
 import art.arcane.wormholes.portal.UniversalTunnel;
+import art.arcane.wormholes.portal.VanillaTravelCost;
+import art.arcane.wormholes.portal.VaultTravelCost;
+import art.arcane.wormholes.service.WormholesAudience;
 import art.arcane.wormholes.service.WormholesTelemetry;
 
 import org.bukkit.Bukkit;
@@ -37,7 +43,8 @@ public final class TraversalService implements Listener {
     }
 
     private record PendingHandoff(Player player, UUID playerId, String peerName, UUID sourcePortalId,
-                                  Traversive traversive, PlayerTransfer.Method transferMethod) {
+                                  Traversive traversive, PlayerTransfer.Method transferMethod,
+                                  PortalTravelCost travelCost) {
     }
 
     private record PendingEntityTransfer(Entity entity, String peerName, UUID sourcePortalId, Traversive traversive,
@@ -96,6 +103,14 @@ public final class TraversalService implements Listener {
         String peerName = tunnel.getServerName();
         NetworkConfig config = Wormholes.settings.getNetwork();
         UUID playerId = player.getUniqueId();
+        PortalTravelCost travelCost = sourcePortal == null ? null : sourcePortal.getTravelCost();
+        PortalTravelCost.Status travelCostStatus = travelCost == null
+            ? PortalTravelCost.Status.AVAILABLE : travelCost.status(player);
+        if (travelCost != null && travelCostStatus != PortalTravelCost.Status.AVAILABLE) {
+            rejectSource(player, sourcePortal, traversive);
+            notifyCostFailure(player, travelCost, travelCostStatus);
+            return;
+        }
         long now = System.currentTimeMillis();
         long rateLimitMillis = TraversalAdmissionPolicy.handoffRateLimitMillis();
         PlayerHandoffRateLimiter.Decision rateDecision = outboundRateLimiter.acquire(playerId, now, rateLimitMillis);
@@ -135,7 +150,8 @@ public final class TraversalService implements Listener {
             peerName,
             sourcePortalId(sourcePortal),
             traversive,
-            transferMethod
+            transferMethod,
+            travelCost
         ));
         boolean directTransfer = transferMethod == PlayerTransfer.Method.DIRECT;
         Wormholes.i("[handoff] begin " + player.getName() + " -> peer=" + peerName + " destPortal=" + tunnel.getDestinationPortalId() + " transferId=" + transferId + " method=" + transferMethod + " transactional=true");
@@ -473,11 +489,33 @@ public final class TraversalService implements Listener {
                     : WormholesMessages.PORTAL_TRANSFER_INTERRUPTED);
                 return;
             }
+            PortalTravelCost.ReserveResult costResult = handoff.travelCost() == null
+                ? null : handoff.travelCost().reserve(player);
+            PortalTravelCost.Reservation costReservation = costResult == null ? null : costResult.reservation();
+            if (costResult != null && !costResult.successful()) {
+                network.send(peerName, new WireMessage.HandoffCancel(ack.transferId(), handoff.playerId()));
+                transferLocks.unlock(handoff.playerId());
+                outboundRateLimiter.penalize(handoff.playerId(), System.currentTimeMillis(), TraversalAdmissionPolicy.handoffRateLimitMillis());
+                rejectSource(player, handoff);
+                notifyCostFailure(player, handoff.travelCost(), costResult.status());
+                return;
+            }
             if (source != null) {
                 source.confirmDeparture(player, handoff.traversive());
             }
             String privateEndpoint = network.privatePlayerEndpoint(peerName);
-            if (!PlayerTransfer.send(player, peer, handoff.transferMethod(), privateEndpoint)) {
+            boolean transferred;
+            try {
+                transferred = PlayerTransfer.send(player, peer, handoff.transferMethod(), privateEndpoint);
+            } catch (RuntimeException exception) {
+                transferred = false;
+                Wormholes.instance.getLogger().log(Level.WARNING,
+                    "Failed to dispatch player " + player.getName() + " to " + peerName, exception);
+            }
+            if (!transferred) {
+                if (costReservation != null) {
+                    costReservation.refund();
+                }
                 network.send(peerName, new WireMessage.HandoffCancel(ack.transferId(), handoff.playerId()));
                 transferLocks.unlock(handoff.playerId());
                 outboundRateLimiter.penalize(handoff.playerId(), System.currentTimeMillis(), TraversalAdmissionPolicy.handoffRateLimitMillis());
@@ -485,6 +523,9 @@ public final class TraversalService implements Listener {
                 rejectSource(player, handoff);
                 notices.unreachable(player, "transfer method '" + handoff.transferMethod() + "' was rejected by Bukkit");
                 return;
+            }
+            if (costReservation != null) {
+                costReservation.commit();
             }
             completedTransfers.incrementAndGet();
             Wormholes.i("[handoff] ack RX from peer=" + peerName + " — transfer of " + player.getName() + " dispatched via " + handoff.transferMethod());
@@ -713,6 +754,29 @@ public final class TraversalService implements Listener {
 
     private void rejectSource(Player player, PendingHandoff handoff) {
         rejectSource(player, handoff.sourcePortalId(), handoff.traversive());
+    }
+
+    private static void notifyCostFailure(Player player, PortalTravelCost cost, PortalTravelCost.Status status) {
+        if (status == PortalTravelCost.Status.UNAVAILABLE) {
+            WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_COST_VAULT_UNAVAILABLE));
+            return;
+        }
+        if (status == PortalTravelCost.Status.FAILED) {
+            WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_COST_TRANSACTION_FAILED));
+            return;
+        }
+        if (cost instanceof VaultTravelCost vault) {
+            WormholesAudience.sendActionBar(player, Wormholes.text().component(
+                WormholesMessages.PORTAL_COST_VAULT_INSUFFICIENT,
+                WormholesLocalization.args(MessageArgument.untrusted("amount", vault.getFormattedAmount()))));
+            return;
+        }
+        VanillaTravelCost vanilla = (VanillaTravelCost) cost;
+        WormholesAudience.sendActionBar(player, Wormholes.text().component(
+            WormholesMessages.PORTAL_COST_INSUFFICIENT,
+            WormholesLocalization.args(
+                MessageArgument.untrusted("quantity", Integer.toString(vanilla.getQuantity())),
+                MessageArgument.untrusted("item", vanilla.getItemLabel()))));
     }
 
     private void rejectSource(Entity entity, ILocalPortal sourcePortal, Traversive traversive) {

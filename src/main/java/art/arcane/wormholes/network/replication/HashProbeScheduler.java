@@ -59,26 +59,26 @@ public final class HashProbeScheduler {
 
     public void probeOnce() {
         for (String peerName : currentPeers()) {
-            List<Long> chunkKeys = replication.chunksFor(peerName);
-            if (chunkKeys.isEmpty()) {
+            List<ReplicationStreamKey> streams = replication.streamsFor(peerName);
+            if (streams.isEmpty()) {
                 continue;
             }
             int cursor = rotationCursors.getOrDefault(peerName, 0);
-            if (cursor >= chunkKeys.size()) {
+            if (cursor >= streams.size()) {
                 cursor = 0;
             }
-            List<ChunkHashProbe.ChunkHashEntry> entries = new ArrayList<>(Math.min(chunksPerProbe, chunkKeys.size()));
+            List<ChunkHashProbe.ChunkHashEntry> entries = new ArrayList<>(Math.min(chunksPerProbe, streams.size()));
             int taken = 0;
             int index = cursor;
-            while (taken < chunksPerProbe && taken < chunkKeys.size()) {
-                long chunkKey = chunkKeys.get(index % chunkKeys.size());
-                long sequence = replication.lastBroadcastSeq(peerName, chunkKey);
-                long hash = replication.canonicalHash(peerName, chunkKey);
-                entries.add(new ChunkHashProbe.ChunkHashEntry(chunkKey, sequence, hash));
+            while (taken < chunksPerProbe && taken < streams.size()) {
+                ReplicationStreamKey stream = streams.get(index % streams.size());
+                long sequence = replication.lastBroadcastSeq(peerName, stream);
+                long hash = replication.canonicalHash(peerName, stream);
+                entries.add(new ChunkHashProbe.ChunkHashEntry(stream, sequence, hash));
                 index++;
                 taken++;
             }
-            rotationCursors.put(peerName, index % chunkKeys.size());
+            rotationCursors.put(peerName, index % streams.size());
             if (entries.isEmpty()) {
                 continue;
             }

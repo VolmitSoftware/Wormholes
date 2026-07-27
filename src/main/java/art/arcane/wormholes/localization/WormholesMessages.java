@@ -62,6 +62,7 @@ public final class WormholesMessages {
     public static final TextKey COMMAND_GRANTED_DOOR = text("command.door.granted", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Granted a <white>{type}<green> dimensional door item.");
     public static final TextKey COMMAND_RELOADED = text("command.reload.applied", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes configuration and language files reloaded.");
     public static final TextKey COMMAND_RELOADED_LANGUAGE_RETAINED = text("command.reload.language_retained", "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Configuration reloaded, but the language file was rejected. The last valid language remains active; check the console.");
+    public static final TextKey COMMAND_RELOAD_FAILED = text("command.reload.failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Configuration reload failed; the edit remains pending and will be retried. Check the console.");
     public static final TextKey COMMAND_STATS_UNAVAILABLE = text("command.stats.unavailable", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Stats snapshot writer is unavailable.");
     public static final TextKey COMMAND_STATS_REFRESHED = text("command.stats.refreshed", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Snapshot refreshed.");
     public static final LinesKey COMMAND_STATS_PATH = lines("command.stats.path",
@@ -173,6 +174,10 @@ public final class WormholesMessages {
     public static final TextKey PORTAL_OPENED = text("portal.form.opened", "<green>Portal opened. Hold the wand and CLICK the portal to configure.");
     public static final TextKey PORTAL_COOLDOWN = text("portal.travel.cooldown", "<gold>Portal cooling down");
     public static final TextKey PORTAL_ACCESS_DENIED = text("portal.travel.access_denied", "<red>Portal access denied");
+    public static final TextKey PORTAL_COST_INSUFFICIENT = text("portal.travel.cost_insufficient", "<red>You need {quantity}x {item} to use this portal.");
+    public static final TextKey PORTAL_COST_VAULT_INSUFFICIENT = text("portal.travel.cost_vault_insufficient", "<red>You need {amount} to use this portal.");
+    public static final TextKey PORTAL_COST_VAULT_UNAVAILABLE = text("portal.travel.cost_vault_unavailable", "<red>This portal's economy cost is unavailable.");
+    public static final TextKey PORTAL_COST_TRANSACTION_FAILED = text("portal.travel.cost_transaction_failed", "<red>The portal could not process your travel cost.");
     public static final TextKey PORTAL_DESTINATION_UNAVAILABLE = text("portal.travel.destination_unavailable", "<red>Portal destination unavailable");
     public static final TextKey PORTAL_ARRIVAL_DENIED = text("portal.travel.arrival_denied", "<red>The destination portal refused your arrival.");
     public static final TextKey PORTAL_ARRIVAL_RETURNED = text("portal.travel.arrival_returned", "<red>The destination portal refused your arrival; returning you to {server}");
@@ -479,6 +484,70 @@ public final class WormholesMessages {
             "",
             "<gray>Larger depth / shorter ticks =",
             "<gray>richer view, more bandwidth.");
+    public static final LinesKey PORTAL_MENU_COST_OPENER = lines("portal.menu.cost.opener",
+            "<gold><bold>Travel Cost</bold>",
+            "<gray>Require an exact item or Vault currency",
+            "<gray>when a player uses this portal.",
+            "",
+            "<gray>Mode: <white>{mode}",
+            "<gray>Cost: <white>{cost}",
+            "",
+            "<dark_gray>Click to configure.");
+    public static final LinesKey PORTAL_MENU_COST_PLACARD = lines("portal.menu.cost.placard",
+            "<gold><bold>Travel Cost</bold>",
+            "<gray>Players must pay before this portal",
+            "<gray>allows them to travel.",
+            "",
+            "<gray>Mode: <white>{mode}",
+            "<gray>Cost: <white>{cost}");
+    public static final LinesKey PORTAL_MENU_COST_MODE_FREE = lines("portal.menu.cost.mode_free",
+            "<green><bold>Free</bold>",
+            "<gray>No payment is required.",
+            "",
+            "<dark_gray>Click to make travel free.");
+    public static final LinesKey PORTAL_MENU_COST_MODE_VANILLA = lines("portal.menu.cost.mode_vanilla",
+            "<aqua><bold>Vanilla Item</bold>",
+            "<gray>Consume an exact matching item.",
+            "",
+            "<dark_gray>Click, hold the item, then press Drop.");
+    public static final LinesKey PORTAL_MENU_COST_MODE_VAULT = lines("portal.menu.cost.mode_vault",
+            "<green><bold>Vault Economy</bold>",
+            "<gray>Withdraw currency through Vault.",
+            "",
+            "<dark_gray>Click to enter an amount.");
+    public static final LinesKey PORTAL_MENU_COST_MODE_VAULT_UNAVAILABLE = lines("portal.menu.cost.mode_vault_unavailable",
+            "<red><bold>Vault Economy Unavailable</bold>",
+            "<gray>Vault and an economy provider are required.",
+            "",
+            "<dark_gray>Install or enable both to use this mode.");
+    public static final LinesKey PORTAL_MENU_COST_FREE_DETAIL = lines("portal.menu.cost.free_detail",
+            "<green><bold>No Cost</bold>",
+            "<gray>Travel through this portal is free.");
+    public static final LinesKey PORTAL_MENU_COST_SECONDARY_EMPTY = lines("portal.menu.cost.secondary_empty",
+            "<dark_gray><bold>No Additional Setting</bold>");
+    public static final LinesKey PORTAL_MENU_COST_ITEM = lines("portal.menu.cost.item",
+            "<aqua><bold>{item}</bold>",
+            "<gray>This exact item is required for travel.",
+            "<gray>The selection item is never consumed.",
+            "",
+            "<dark_gray>Left: select another held item.",
+            "<dark_gray>Right: clear the cost.");
+    public static final LinesKey PORTAL_MENU_COST_QUANTITY = lines("portal.menu.cost.quantity",
+            "<aqua><bold>Quantity {quantity}</bold>",
+            "<gray>How many exact matching items",
+            "<gray>are consumed per traversal.",
+            "",
+            "<dark_gray>Left click: +1",
+            "<dark_gray>Right click: -1",
+            "<dark_gray>Shift-left: +8",
+            "<dark_gray>Shift-right: -8",
+            "<dark_gray>Maximum: {maximum}");
+    public static final LinesKey PORTAL_MENU_COST_VAULT_AMOUNT = lines("portal.menu.cost.vault_amount",
+            "<green><bold>{amount}</bold>",
+            "<gray>Currency withdrawn per traversal.",
+            "",
+            "<dark_gray>Left: enter another amount.",
+            "<dark_gray>Right: clear the cost.");
     public static final LinesKey PORTAL_MENU_MODE_PLACARD = lines("portal.menu.mode_placard",
             "<yellow><bold>Portal Mode</bold>",
             "<gray>Current: <yellow>{mode}",
@@ -607,6 +676,8 @@ public final class WormholesMessages {
     public static final TextKey PORTAL_PROMPT_INVITE = text("portal.prompt.invite", "<aqua>Paste the portal invite in chat (or '{cancel}'):");
     public static final TextKey PORTAL_PROMPT_BLOCK_STATE = text("portal.prompt.block_state", "<aqua>Enter a block state for this portal's network view edge, or '{cancel}':");
     public static final TextKey PORTAL_PROMPT_NAME = text("portal.prompt.name", "<aqua>Type the new portal name in chat (or '{cancel}'):");
+    public static final TextKey PORTAL_PROMPT_COST_ITEM = text("portal.prompt.cost_item", "<aqua>Hold the exact cost item in your main hand, then press Drop. The item will not leave your inventory.");
+    public static final TextKey PORTAL_PROMPT_COST_VAULT = text("portal.prompt.cost_vault", "<aqua>Enter the Vault currency amount per traversal (or '{cancel}'):");
     public static final TextKey PORTAL_INPUT_CANCEL = text("portal.input.cancel", "cancel");
     public static final TextKey PORTAL_RTP_EDITOR_TITLE = text("portal.rtp.editor_title", "RTP: {portal}");
     public static final TextKey PORTAL_DIMENSIONAL_LINK_MANAGED = text("portal.notice.dimensional_link_managed", "This dimensional portal keeps its generated link.");
@@ -636,6 +707,13 @@ public final class WormholesMessages {
     public static final TextKey PORTAL_PROJECTION_CHANGED = text("portal.notice.projection_changed", "Projections: {mode}");
     public static final TextKey PORTAL_SETTINGS_SYNC_CHANGED = text("portal.notice.settings_sync_changed", "Settings Sync {state}");
     public static final TextKey PORTAL_ACCESS_CHANGED = text("portal.notice.access_changed", "Access {mode}");
+    public static final TextKey PORTAL_COST_ITEM_SET = text("portal.notice.cost_item_set", "Travel now requires {item}.");
+    public static final TextKey PORTAL_COST_ITEM_INVALID = text("portal.notice.cost_item_invalid", "That item could not be saved as a travel cost.");
+    public static final TextKey PORTAL_COST_CLEARED = text("portal.notice.cost_cleared", "Travel cost cleared.");
+    public static final TextKey PORTAL_COST_QUANTITY_CHANGED = text("portal.notice.cost_quantity_changed", "Travel cost quantity: {quantity}");
+    public static final TextKey PORTAL_COST_VAULT_CHANGED = text("portal.notice.cost_vault_changed", "Vault travel cost: {amount}");
+    public static final TextKey PORTAL_COST_VAULT_INVALID = text("portal.notice.cost_vault_invalid", "Enter a positive currency amount no greater than {maximum}.");
+    public static final TextKey PORTAL_COST_VAULT_UNAVAILABLE_NOTICE = text("portal.notice.cost_vault_unavailable", "Vault and an economy provider must be available before selecting this cost.");
     public static final TextKey PORTAL_MIRROR_SELECT_FIRST = text("portal.notice.mirror_select_first", "Choose Mirror before rotating the image.");
     public static final TextKey PORTAL_MIRROR_ROTATION_CHANGED = text("portal.notice.mirror_rotation_changed", "Mirror Rotation {degrees} degrees");
     public static final TextKey PORTAL_RTP_CANNOT_LINK = text("portal.notice.rtp_cannot_link", "Random teleport portals do not link to destinations.");
@@ -645,6 +723,9 @@ public final class WormholesMessages {
     public static final TextKey PORTAL_LABEL_LOCKED = text("portal.label.travel.locked", "Locked");
     public static final TextKey PORTAL_LABEL_ARRIVAL_ONLY = text("portal.label.travel.arrival", "Arrival Only");
     public static final TextKey PORTAL_LABEL_DEPARTURE_ONLY = text("portal.label.travel.departure", "Departure Only");
+    public static final TextKey PORTAL_LABEL_COST_FREE = text("portal.label.cost.free", "Free");
+    public static final TextKey PORTAL_LABEL_COST_VANILLA = text("portal.label.cost.vanilla", "Vanilla Item");
+    public static final TextKey PORTAL_LABEL_COST_VAULT = text("portal.label.cost.vault", "Vault Economy");
     public static final TextKey PORTAL_LABEL_DIMENSIONAL_BOTH_ACTIVE = text("portal.label.travel.dimensional_both", "Both linked halves stay active.");
     public static final TextKey PORTAL_LABEL_DIMENSIONAL_RETURN_DISABLED = text("portal.label.travel.dimensional_return_disabled", "The return path stays disabled.");
     public static final TextKey PORTAL_LABEL_STANDARD = text("portal.label.quality.standard", "Standard");

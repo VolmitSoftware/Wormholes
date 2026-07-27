@@ -187,7 +187,14 @@ class SidebandOutboxTest {
         );
         WireMessage.Routed routedFull = routed(full);
         WireMessage.Routed routedDelta = routed(delta);
-        WireMessage.Routed malformed = new WireMessage.Routed("alpha", "beta", 4, WireMessageType.VIEW_ENTITIES, new byte[]{1});
+        WireMessage.Routed malformed = new WireMessage.Routed(
+            "alpha",
+            "beta",
+            4,
+            WireMessageType.VIEW_ENTITIES,
+            new byte[]{1},
+            new byte[64]
+        );
 
         assertEquals(SidebandOutbox.TIER_BULK, SidebandOutbox.tierOf(routedFull));
         assertEquals(SidebandOutbox.TIER_BEST_EFFORT, SidebandOutbox.tierOf(routedDelta));
@@ -348,7 +355,14 @@ class SidebandOutboxTest {
     }
 
     private static WireMessage.Routed routed(WireMessage.ViewEntities message) throws IOException {
-        return new WireMessage.Routed("alpha", "beta", 4, WireMessageType.VIEW_ENTITIES, WireCodec.encodePayload(message));
+        return new WireMessage.Routed(
+            "alpha",
+            "beta",
+            4,
+            WireMessageType.VIEW_ENTITIES,
+            WireCodec.encodePayload(message),
+            new byte[64]
+        );
     }
 
     private static MinecraftStatusBridge.EncodedMessage fragment(long id, int index, int total, int frameBytes) {

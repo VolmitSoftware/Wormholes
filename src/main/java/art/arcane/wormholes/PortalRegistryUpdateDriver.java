@@ -6,22 +6,32 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.wormholes.portal.PortalSaveSnapshot;
 import art.arcane.wormholes.portal.PortalUpdateGate;
 
 final class PortalRegistryUpdateDriver
 {
 	private static final int ATTENDANCE_REFRESH_INTERVAL_TICKS = 5;
 	private static final long REFUSAL_REPORT_INTERVAL = 1200L;
+	private static final long SAVE_RETRY_BASE_TICKS = 20L;
+	private static final long SAVE_RETRY_MAX_TICKS = 600L;
 
 	private final PortalRegistryAttendance attendance;
 	private final boolean foliaRuntime;
-	private long driverTick;
+	private final Map<UUID, Long> saveRetryAfterTick = new ConcurrentHashMap<UUID, Long>();
+	private final Map<UUID, Integer> saveFailureCounts = new ConcurrentHashMap<UUID, Integer>();
+	private final AtomicLong refusedSaveCount = new AtomicLong();
+	private final AtomicLong nextRefusedSaveReportTick = new AtomicLong();
+	private volatile long driverTick;
 	private long refusedUpdates;
 
 	PortalRegistryUpdateDriver(PortalRegistryAttendance attendance)
@@ -123,7 +133,7 @@ final class PortalRegistryUpdateDriver
 		refusedUpdates++;
 	}
 
-	private static void runPortalUpdate(ILocalPortal portal)
+	private void runPortalUpdate(ILocalPortal portal)
 	{
 		try
 		{
@@ -136,36 +146,100 @@ final class PortalRegistryUpdateDriver
 
 		if(portal.needsSaving())
 		{
-			portal.willSave();
-
-			if(Wormholes.portalSyncService != null)
+			Long retryAfter = saveRetryAfterTick.get(portal.getId());
+			if(retryAfter != null && driverTick < retryAfter)
 			{
-				Wormholes.portalSyncService.broadcastPortal(portal);
+				return;
+			}
+			PortalSaveSnapshot save = portal.prepareSave();
+			if(save == null)
+			{
+				return;
 			}
 
-			boolean scheduled = FoliaScheduler.runAsync(Wormholes.instance, () ->
+			try
 			{
-				try
+				boolean scheduled = FoliaScheduler.runAsync(Wormholes.instance, () ->
 				{
-					portal.saveNow();
-				}
-				catch(IOException e)
+					try
+					{
+						portal.writeSave(save);
+						clearSaveFailure(portal.getId());
+					}
+					catch(IOException e)
+					{
+						recordSaveFailure(portal.getId(), e);
+					}
+					catch(RuntimeException error)
+					{
+						recordSaveFailure(portal.getId(), error);
+					}
+					catch(Error error)
+					{
+						recordSaveFailure(portal.getId(), error);
+						throw error;
+					}
+				});
+				if(!scheduled)
 				{
-					e.printStackTrace();
+					portal.rejectSave();
+					recordSaveFailure(portal.getId(), null);
+					return;
 				}
-			});
-			if(!scheduled)
+				if(Wormholes.portalSyncService != null)
+				{
+					try
+					{
+						Wormholes.portalSyncService.broadcastPortal(portal);
+					}
+					catch(Throwable error)
+					{
+						Wormholes.instance.getLogger().log(
+							Level.WARNING,
+							"Could not broadcast the accepted portal save for " + portal.getId(),
+							error
+						);
+					}
+				}
+			}
+			catch(RuntimeException | Error error)
 			{
-				try
-				{
-					portal.saveNow();
-				}
-				catch(IOException e)
-				{
-					e.printStackTrace();
-				}
+				portal.rejectSave();
+				throw error;
 			}
 		}
+	}
+
+	private void recordSaveFailure(UUID portalId, Throwable error)
+	{
+		int failures = saveFailureCounts.merge(portalId, 1, Integer::sum);
+		int shift = Math.min(5, failures - 1);
+		long retryDelay = Math.min(SAVE_RETRY_MAX_TICKS, SAVE_RETRY_BASE_TICKS << shift);
+		saveRetryAfterTick.put(portalId, driverTick + retryDelay);
+		if(error != null)
+		{
+			Wormholes.instance.getLogger().log(
+				Level.WARNING,
+				"Could not persist portal " + portalId + "; retrying after " + retryDelay + " ticks",
+				error
+			);
+			return;
+		}
+		long refused = refusedSaveCount.incrementAndGet();
+		long tick = driverTick;
+		long nextReport = nextRefusedSaveReportTick.get();
+		if(tick >= nextReport && nextRefusedSaveReportTick.compareAndSet(nextReport, tick + REFUSAL_REPORT_INTERVAL))
+		{
+			Wormholes.w("Async scheduling has refused " + refused
+				+ " portal save(s); dirty portals remain queued with bounded retry backoff");
+			refusedSaveCount.set(0L);
+		}
+	}
+
+	private void clearSaveFailure(UUID portalId)
+	{
+		saveRetryAfterTick.remove(portalId);
+		saveFailureCounts.remove(portalId);
 	}
 
 	private record WorldBatch(Location anchor, List<ILocalPortal> portals)

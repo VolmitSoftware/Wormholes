@@ -44,7 +44,7 @@ final class LocalPortalSettingsMenu
 		window.setTitle(portal.getRouter(true));
 		window.setResolution(WindowResolution.W9_H6);
 		boolean custom = portal.settings().getNetworkViewQuality() == NetworkViewQuality.CUSTOM;
-		window.setViewportHeight(custom ? 6 : 4);
+		window.setViewportHeight(custom ? 6 : 5);
 		window.setDecorator(new UIPaneDecorator(Material.GRAY_STAINED_GLASS_PANE));
 
 		window.setElement(0, 0, settingsPlacardElement());
@@ -77,7 +77,8 @@ final class LocalPortalSettingsMenu
 			window.setElement(0, 3, networkViewFallbackElement(p, window));
 			window.setElement(2, 3, menus.cosmetics().surfaceSkinElement(window, p));
 			window.setElement(4, 3, activationRangeElement(window, p));
-			window.setElement(0, 4, renderModeElement(window, p));
+			window.setElement(-1, 4, renderModeElement(window, p));
+			window.setElement(1, 4, costOpenerElement(window, p));
 		}
 		else
 		{
@@ -86,9 +87,10 @@ final class LocalPortalSettingsMenu
 			window.setElement(0, 2, renderModeElement(window, p));
 			window.setElement(2, 2, menus.cosmetics().ambientParticlesElement(window, p));
 			window.setElement(4, 2, menus.cosmetics().surfaceSkinElement(window, p));
+			window.setElement(0, 3, costOpenerElement(window, p));
 		}
 
-		window.setElement(0, custom ? 5 : 3, menus.backToPortalMenuElement(window, p));
+		window.setElement(0, custom ? 5 : 4, menus.backToPortalMenuElement(window, p));
 
 		return window;
 	}
@@ -425,6 +427,44 @@ final class LocalPortalSettingsMenu
 							"value", portal.getRenderMode().displayName()));
 		});
 		applyRenderModeElement(element);
+		return element;
+	}
+
+	private Element costOpenerElement(Window window, Player viewer)
+	{
+		PortalTravelCost cost = portal.getTravelCost();
+		String mode = LocalPortalText.localized(cost == null
+				? WormholesMessages.PORTAL_LABEL_COST_FREE
+				: cost.getType() == PortalTravelCost.Type.VANILLA
+						? WormholesMessages.PORTAL_LABEL_COST_VANILLA
+						: WormholesMessages.PORTAL_LABEL_COST_VAULT);
+		String summary = LocalPortalText.localized(WormholesMessages.PORTAL_LABEL_COST_FREE);
+		Material material = Material.HOPPER;
+		if(cost instanceof VanillaTravelCost vanilla)
+		{
+			summary = vanilla.getQuantity() + "x " + vanilla.getItemLabel();
+			material = vanilla.getMaterial();
+		}
+		else if(cost instanceof VaultTravelCost vault)
+		{
+			summary = vault.getFormattedAmount();
+			material = Material.EMERALD;
+		}
+		UIElement element = LocalPortalText.localizedElement("travel-cost", WormholesMessages.PORTAL_MENU_COST_OPENER,
+				LocalPortalText.arguments("mode", mode, "cost", summary), material);
+		if(cost instanceof VanillaTravelCost vanilla)
+		{
+			element.setBaseItemStack(vanilla.getTemplate());
+		}
+		if(cost != null)
+		{
+			element.setEnchanted(true);
+		}
+		element.onLeftClick((event) ->
+		{
+			window.close();
+			menus.costs().open(viewer);
+		});
 		return element;
 	}
 

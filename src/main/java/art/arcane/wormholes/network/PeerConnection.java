@@ -38,8 +38,6 @@ public final class PeerConnection {
 
         void recordDictionarySample(WireMessageType type, byte[] payload);
 
-        void onDictionaryAdvertised(PeerConnection connection, byte[] peerDictHash, int peerDictVersion);
-
         void onDictionaryNegotiated(PeerConnection connection, int dictVersion);
     }
 
@@ -358,7 +356,6 @@ public final class PeerConnection {
         if (compressionProvider == null || !localCompressionSupported() || !peerCompressionSupported) {
             return;
         }
-        compressionProvider.onDictionaryAdvertised(this, peerDictHash, peerDictVersion);
         CompressionDictionary local = compressionProvider.currentDictionary();
         if (local == null || peerDictHash == null) {
             return;

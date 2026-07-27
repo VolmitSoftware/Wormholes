@@ -256,6 +256,8 @@ class NetworkManagerTest {
         NetworkManager anchor = manager(anchorConfig, 25565, "relay-anchor");
         NetworkManager boatA = manager(boatAConfig, 25566, "relay-boat-a");
         NetworkManager boatB = manager(boatBConfig, 25567, "relay-boat-b");
+        boatA.trustPeer("boat-b", boatB.getPublicKey());
+        boatB.trustPeer("boat-a", boatA.getPublicKey());
         boatA.savePeer(route("anchor", anchorPort));
         boatB.savePeer(route("anchor", anchorPort));
         LinkedBlockingQueue<String> boatBMessages = new LinkedBlockingQueue<>();
@@ -307,6 +309,8 @@ class NetworkManagerTest {
         NetworkManager alpha = manager(alphaConfig, gameAlpha, "sideband-relay-alpha");
         NetworkManager beta = manager(betaConfig, gameBeta, "sideband-relay-beta");
         NetworkManager gamma = manager(gammaConfig, gameGamma, "sideband-relay-gamma");
+        alpha.trustPeer("gamma", gamma.getPublicKey());
+        gamma.trustPeer(ALPHA_NAME, alpha.getPublicKey());
         alpha.savePeer(sidebandRoute(BETA_NAME, rawBeta, gameBeta));
         beta.savePeer(sidebandRoute(ALPHA_NAME, rawAlpha, gameAlpha));
         beta.savePeer(sidebandRoute("gamma", rawGamma, gameGamma));
@@ -359,13 +363,7 @@ class NetworkManagerTest {
         beta.start();
         UUID portalId = UUID.randomUUID();
         WireMessage.ViewTime inner = new WireMessage.ViewTime(portalId, 9);
-        WireMessage.Routed routed = new WireMessage.Routed(
-            ALPHA_NAME,
-            "missing-target",
-            4,
-            inner.type(),
-            WireCodec.encodePayload(inner)
-        );
+        WireMessage.Routed routed = alpha.relay().createRouted("missing-target", 4, inner);
         MinecraftStatusBridge.EncodedMessage encoded = new MinecraftStatusBridge.EncodedMessage(
             routed,
             WireCodec.encodeFrame(routed)
@@ -380,13 +378,7 @@ class NetworkManagerTest {
         NetworkManager alpha = manager(config(freePort(), ALPHA_NAME), ALPHA_GAME_PORT, "relay-response-alpha");
         NetworkManager beta = manager(config(freePort(), BETA_NAME), BETA_GAME_PORT, "relay-response-beta");
         WireMessage.ViewTime inner = new WireMessage.ViewTime(UUID.randomUUID(), 11);
-        WireMessage.Routed routed = new WireMessage.Routed(
-            BETA_NAME,
-            "missing-target",
-            4,
-            inner.type(),
-            WireCodec.encodePayload(inner)
-        );
+        WireMessage.Routed routed = beta.relay().createRouted("missing-target", 4, inner);
         MinecraftStatusBridge.EncodedMessage encoded = new MinecraftStatusBridge.EncodedMessage(
             routed,
             WireCodec.encodeFrame(routed)

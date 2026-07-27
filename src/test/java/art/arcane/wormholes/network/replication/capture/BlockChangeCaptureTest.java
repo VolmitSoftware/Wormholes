@@ -4,6 +4,7 @@ import art.arcane.wormholes.network.replication.BlockChange;
 import art.arcane.wormholes.network.replication.BlockChangeFeed;
 import art.arcane.wormholes.network.replication.BlockEntityDiff;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
+import art.arcane.wormholes.network.replication.ReplicationTestStream;
 import art.arcane.wormholes.network.replication.LightDiff;
 import art.arcane.wormholes.network.replication.StubWorld;
 import art.arcane.wormholes.network.replication.TestNetworkSink;
@@ -33,7 +34,7 @@ class BlockChangeCaptureTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, chunkKey);
+        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
 
         CapturingFeed feed = new CapturingFeed();
         RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, CaptureSettings.defaults());
@@ -65,10 +66,10 @@ class BlockChangeCaptureTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, chunkKey);
-        assertTrue(replication.sendBulk(PEER, world.getUID(), chunkKey, new byte[]{1}, 1L));
+        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        assertTrue(replication.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), new byte[]{1}, 1L));
         List<Long> retries = new ArrayList<>();
-        replication.setBulkRetryListener((peerName, key) -> retries.add(key));
+        replication.setBulkRetryListener((peerName, key) -> retries.add(key.chunkKey()));
         CapturingFeed feed = new CapturingFeed();
         CaptureSettings tight = new CaptureSettings(100, 4, true, true);
         RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, tight);
@@ -78,7 +79,7 @@ class BlockChangeCaptureTest {
         drainAllSafely(accumulator, world);
         assertTrue(feed.blocks.isEmpty());
         assertTrue(accumulator.stats().overflowDrops() > 0L);
-        assertFalse(replication.isBulked(PEER, chunkKey));
+        assertFalse(replication.isBulked(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey)));
         assertTrue(retries.contains(chunkKey));
     }
 

@@ -2,6 +2,7 @@ package art.arcane.wormholes.network.replication;
 
 import art.arcane.wormholes.network.view.PreShipPredictor;
 import art.arcane.wormholes.network.view.ViewSlice;
+import art.arcane.wormholes.portal.ProjectionRenderMode;
 
 import org.bukkit.World;
 import org.junit.jupiter.api.Test;
@@ -36,9 +37,10 @@ class PreShipPredictorWiringTest {
         assertEquals(1, opened.size());
 
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribePreShip(PEER, PORTAL_ID, world, List.of(chunkKey));
+        ReplicationStreamKey stream = ReplicationTestStream.stream(PORTAL_ID, world, chunkKey);
+        replication.subscribePreShip(PEER, PORTAL_ID, world, ProjectionRenderMode.PANOPTIC, List.of(chunkKey));
         assertEquals(1, replication.totalSubscriptionCount());
-        assertFalse(replication.isPreShipPromoted(PEER, PORTAL_ID, chunkKey));
+        assertFalse(replication.isPreShipPromoted(PEER, PORTAL_ID, stream));
     }
 
     @Test
@@ -47,7 +49,8 @@ class PreShipPredictorWiringTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(2, 2);
-        replication.subscribePreShip(PEER, PORTAL_ID, world, List.of(chunkKey));
+        ReplicationStreamKey stream = ReplicationTestStream.stream(PORTAL_ID, world, chunkKey);
+        replication.subscribePreShip(PEER, PORTAL_ID, world, ProjectionRenderMode.PANOPTIC, List.of(chunkKey));
 
         PreShipPredictor predictor = new PreShipPredictor();
         PreShipPredictor.Settings settings = new PreShipPredictor.Settings(true, 24.0D, 0.1D, 0.25D, 2.0D);
@@ -61,7 +64,7 @@ class PreShipPredictorWiringTest {
         assertTrue(promoted != null && promoted.isPromoted());
 
         replication.promotePreShip(PEER, PORTAL_ID);
-        assertTrue(replication.isPreShipPromoted(PEER, PORTAL_ID, chunkKey));
+        assertTrue(replication.isPreShipPromoted(PEER, PORTAL_ID, stream));
     }
 
     @Test
@@ -70,7 +73,7 @@ class PreShipPredictorWiringTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(3, 3);
-        replication.subscribePreShip(PEER, PORTAL_ID, world, List.of(chunkKey));
+        replication.subscribePreShip(PEER, PORTAL_ID, world, ProjectionRenderMode.PANOPTIC, List.of(chunkKey));
         assertEquals(1, replication.totalSubscriptionCount());
         replication.cancelPreShip(PEER, PORTAL_ID);
         assertEquals(0, replication.totalSubscriptionCount());

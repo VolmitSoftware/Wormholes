@@ -2,6 +2,7 @@ package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.network.replication.ChunkBulk;
+import art.arcane.wormholes.network.replication.ReplicationTestStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -142,7 +143,7 @@ class PeerConnectionAsyncEncodeTest {
         for (int i = 0; i < 3; i++) {
             byte[] payload = new byte[2 * 1024 * 1024];
             random.nextBytes(payload);
-            chunks.add(new ChunkBulk(i, i + 1L, payload));
+            chunks.add(new ChunkBulk(ReplicationTestStream.stream(i), i + 1L, payload));
         }
         WireMessage.ChunkBulkBatch oversized = new WireMessage.ChunkBulkBatch(chunks);
         assertTrue(alpha.send(BETA_NAME, oversized), "oversized message should queue; the drop happens at writer-thread encode");

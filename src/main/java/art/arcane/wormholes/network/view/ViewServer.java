@@ -9,6 +9,7 @@ import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.replication.ChunkResyncRequest;
+import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.util.AxisAlignedBB;
@@ -58,7 +59,7 @@ public final class ViewServer implements Listener {
     record BlobCaptureState(long lastCaptureTick, Pose pose, boolean onFire, int equipmentSignature) {
     }
 
-    record BulkRetryKey(UUID subscriptionId, String peerName, long chunkKey, long bulkGeneration) {
+    record BulkRetryKey(UUID subscriptionId, String peerName, ReplicationStreamKey stream, long bulkGeneration) {
     }
 
     record EntityRank(UUID id, boolean player, double distanceSquared) {
@@ -241,15 +242,6 @@ public final class ViewServer implements Listener {
         this.preShip = new ViewPreShipCoordinator(registry);
         this.subscriptions = new ViewSubscriptions(registry, tickets, timeDelivery, bulkPipeline, this::startTask);
         network.getReplicationManager().setBulkRetryListener(bulkPipeline::retryCanonicalBulk);
-        network.getReplicationManager().setRenderModeResolver(ViewServer::resolveVenticular);
-    }
-
-    private static boolean resolveVenticular(UUID portalId) {
-        if (portalId == null || Wormholes.portalManager == null) {
-            return false;
-        }
-        ILocalPortal portal = Wormholes.portalManager.getLocalPortal(portalId);
-        return portal != null && portal.getRenderMode() == ProjectionRenderMode.VENTICULAR;
     }
 
     public static ViewBox computeBox(ILocalPortal portal, int radius) {
@@ -278,8 +270,8 @@ public final class ViewServer implements Listener {
         bulkPipeline.onChunkResyncRequest(peerName, request);
     }
 
-    public void requestChunkResync(String peerName, long chunkKey, long expectedSequence) {
-        bulkPipeline.onChunkResyncRequest(peerName, new ChunkResyncRequest(chunkKey, expectedSequence));
+    public void requestChunkResync(String peerName, ReplicationStreamKey stream, long expectedSequence) {
+        bulkPipeline.onChunkResyncRequest(peerName, new ChunkResyncRequest(stream, expectedSequence));
     }
 
     public void refreshPortal(ILocalPortal portal) {

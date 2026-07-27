@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public final class ChunkReplicationState {
     private final String peerName;
-    private final long chunkKey;
+    private final ReplicationStreamKey stream;
     private final AtomicLong lastBroadcastSeq = new AtomicLong(0L);
     private final AtomicLong lastAcked = new AtomicLong(0L);
     private final AtomicLong bulkGeneration = new AtomicLong(0L);
@@ -19,17 +19,17 @@ public final class ChunkReplicationState {
     private final AtomicLong queuedDiffCount = new AtomicLong(0L);
     private final Set<Integer> droppedLightSections = ConcurrentHashMap.newKeySet();
 
-    public ChunkReplicationState(String peerName, long chunkKey) {
+    public ChunkReplicationState(String peerName, ReplicationStreamKey stream) {
         this.peerName = peerName;
-        this.chunkKey = chunkKey;
+        this.stream = stream;
     }
 
     public String peerName() {
         return peerName;
     }
 
-    public long chunkKey() {
-        return chunkKey;
+    public ReplicationStreamKey stream() {
+        return stream;
     }
 
     public long lastBroadcastSeq() {

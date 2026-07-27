@@ -13,6 +13,7 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -25,8 +26,16 @@ import java.util.logging.Logger;
 public final class ChunkSnapshotComparator {
     private static final int SURFACE_SCAN_MARGIN = 8;
     private static final int MAX_PROBES_PER_TICK = 4;
+    private static final int MAX_CHANGED_CELLS_PER_BATCH = 32;
+    static final int INTEGRITY_BACKSTOP_SWEEPS = 12;
 
     private record PendingProbe(World world, long chunkKey, int chunkX, int chunkZ) {
+    }
+
+    private record SnapshotChange(int worldX, int worldY, int worldZ, BlockData data) {
+    }
+
+    private record SnapshotComparison(List<SnapshotChange> changes, boolean resyncRequired) {
     }
 
     private final Plugin plugin;
@@ -37,9 +46,9 @@ public final class ChunkSnapshotComparator {
     private final boolean folia;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private int paperTaskId = -1;
-    private final ArrayDeque<PendingProbe> paperProbeQueue = new ArrayDeque<>();
+    private final ArrayDeque<PendingProbe> probeQueue = new ArrayDeque<>();
     private final Map<UUID, Map<Long, ChunkSnapshot>> worldShadows = new ConcurrentHashMap<>();
-    private final Map<UUID, Map<Long, Long>> lastInhabitedTime = new ConcurrentHashMap<>();
+    private final Map<UUID, Map<Long, Integer>> captureSweepCounts = new ConcurrentHashMap<>();
     private final AtomicLong sweepsRun = new AtomicLong();
     private final AtomicLong chunksProbed = new AtomicLong();
     private final AtomicLong divergencesEmitted = new AtomicLong();
@@ -90,9 +99,9 @@ public final class ChunkSnapshotComparator {
         if (shadowMap != null) {
             shadowMap.remove(chunkKey);
         }
-        Map<Long, Long> inhabitedMap = lastInhabitedTime.get(worldId);
-        if (inhabitedMap != null) {
-            inhabitedMap.remove(chunkKey);
+        Map<Long, Integer> sweepMap = captureSweepCounts.get(worldId);
+        if (sweepMap != null) {
+            sweepMap.remove(chunkKey);
         }
     }
 
@@ -123,14 +132,7 @@ public final class ChunkSnapshotComparator {
                     long chunkKey = keyBoxed.longValue();
                     int chunkX = (int) (chunkKey >> 32);
                     int chunkZ = (int) chunkKey;
-                    if (!world.isChunkLoaded(chunkX, chunkZ)) {
-                        continue;
-                    }
-                    if (folia) {
-                        FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ, () -> probeChunk(world, chunkKey, chunkX, chunkZ));
-                    } else {
-                        paperProbeQueue.add(new PendingProbe(world, chunkKey, chunkX, chunkZ));
-                    }
+                    probeQueue.add(new PendingProbe(world, chunkKey, chunkX, chunkZ));
                 }
             }
         } catch (Throwable ex) {
@@ -138,39 +140,54 @@ public final class ChunkSnapshotComparator {
                 logger.log(Level.WARNING, "Snapshot-diff sweep failure", ex);
             }
         } finally {
-            if (folia) {
+            if (probeQueue.isEmpty()) {
                 scheduleNext();
             } else {
-                drainPaperProbeQueue();
+                drainProbeQueue();
             }
         }
     }
 
-    private void drainPaperProbeQueue() {
+    private void drainProbeQueue() {
         if (!running.get()) {
-            paperProbeQueue.clear();
+            probeQueue.clear();
             return;
         }
         int processed = 0;
-        while (processed < MAX_PROBES_PER_TICK && !paperProbeQueue.isEmpty()) {
-            PendingProbe probe = paperProbeQueue.poll();
-            probeChunk(probe.world(), probe.chunkKey(), probe.chunkX(), probe.chunkZ());
+        while (processed < MAX_PROBES_PER_TICK && !probeQueue.isEmpty()) {
+            PendingProbe probe = probeQueue.poll();
+            if (folia) {
+                FoliaScheduler.runRegion(plugin, probe.world(), probe.chunkX(), probe.chunkZ(),
+                    () -> probeChunk(probe.world(), probe.chunkKey(), probe.chunkX(), probe.chunkZ()));
+            } else {
+                probeChunk(probe.world(), probe.chunkKey(), probe.chunkX(), probe.chunkZ());
+            }
             processed++;
         }
-        if (paperProbeQueue.isEmpty()) {
+        if (probeQueue.isEmpty()) {
             scheduleNext();
             return;
         }
-        paperTaskId = Bukkit.getScheduler().runTaskLater(plugin, this::drainPaperProbeQueue, 1L).getTaskId();
+        if (folia) {
+            FoliaScheduler.runGlobal(plugin, this::drainProbeQueue, 1L);
+        } else {
+            paperTaskId = Bukkit.getScheduler().runTaskLater(plugin, this::drainProbeQueue, 1L).getTaskId();
+        }
     }
 
-    private boolean hasInhabitedTimeChanged(World world, long chunkKey, long current) {
-        Map<Long, Long> worldMap = lastInhabitedTime.computeIfAbsent(world.getUID(), ignored -> new ConcurrentHashMap<>());
-        Long previous = worldMap.put(chunkKey, current);
+    boolean shouldCaptureSnapshot(UUID worldId, long chunkKey) {
+        Map<Long, Integer> sweepMap = captureSweepCounts.computeIfAbsent(worldId, ignored -> new ConcurrentHashMap<>());
+        Integer previous = sweepMap.putIfAbsent(chunkKey, Integer.valueOf(0));
         if (previous == null) {
             return true;
         }
-        return previous.longValue() != current;
+        int elapsedSweeps = sweepMap.merge(chunkKey, Integer.valueOf(1),
+            (current, increment) -> Integer.valueOf(current.intValue() + increment.intValue())).intValue();
+        if (elapsedSweeps < INTEGRITY_BACKSTOP_SWEEPS) {
+            return false;
+        }
+        sweepMap.put(chunkKey, Integer.valueOf(0));
+        return true;
     }
 
     private void probeChunk(World world, long chunkKey, int chunkX, int chunkZ) {
@@ -180,13 +197,15 @@ public final class ChunkSnapshotComparator {
         if (!replication.hasSubscribers(world, chunkKey)) {
             return;
         }
+        UUID worldId = world.getUID();
+        if (!shouldCaptureSnapshot(worldId, chunkKey)) {
+            return;
+        }
         Chunk chunk;
         try {
             chunk = world.getChunkAt(chunkX, chunkZ);
         } catch (Throwable ignored) {
-            return;
-        }
-        if (!hasInhabitedTimeChanged(world, chunkKey, chunk.getInhabitedTime())) {
+            resetCaptureCadence(worldId, chunkKey);
             return;
         }
         chunksProbed.incrementAndGet();
@@ -194,25 +213,36 @@ public final class ChunkSnapshotComparator {
         try {
             snapshot = WormholesPlatform.chunkSnapshot(chunk, true, false, false, false);
         } catch (Throwable ignored) {
+            resetCaptureCadence(worldId, chunkKey);
             return;
         }
         int minHeight = world.getMinHeight();
         int maxHeight = world.getMaxHeight();
-        FoliaScheduler.runAsync(plugin, () -> compareSnapshot(world, chunkKey, chunkX, chunkZ, snapshot, minHeight, maxHeight));
+        boolean scheduled = FoliaScheduler.runAsync(plugin,
+            () -> compareSnapshot(world, worldId, chunkKey, chunkX, chunkZ, snapshot, minHeight, maxHeight));
+        if (!scheduled) {
+            resetCaptureCadence(worldId, chunkKey);
+        }
     }
 
-    private void compareSnapshot(World world, long chunkKey, int chunkX, int chunkZ, ChunkSnapshot snapshot, int minHeight, int maxHeight) {
-        if (!replication.hasSubscribers(world, chunkKey)) {
-            evict(world.getUID(), chunkKey);
-            return;
-        }
-        Map<Long, ChunkSnapshot> worldMap = worldShadows.computeIfAbsent(world.getUID(), ignored -> new ConcurrentHashMap<>());
+    private void compareSnapshot(World world,
+                                 UUID worldId,
+                                 long chunkKey,
+                                 int chunkX,
+                                 int chunkZ,
+                                 ChunkSnapshot snapshot,
+                                 int minHeight,
+                                 int maxHeight) {
+        Map<Long, ChunkSnapshot> worldMap = worldShadows.computeIfAbsent(worldId, ignored -> new ConcurrentHashMap<>());
         ChunkSnapshot previous = worldMap.put(chunkKey, snapshot);
         if (previous == null) {
             return;
         }
-        boolean diverged = false;
+        int maxChangedCells = Math.max(1, settings.maxQueuedDiffsPerChunk() / 7);
+        List<SnapshotChange> changes = new ArrayList<SnapshotChange>(Math.min(32, maxChangedCells));
+        boolean resyncRequired = false;
         int ceiling = maxHeight - 1;
+        scan:
         for (int x = 0; x < 16; x++) {
             for (int z = 0; z < 16; z++) {
                 int curTop = snapshot.getHighestBlockYAt(x, z);
@@ -230,13 +260,73 @@ public final class ChunkSnapshotComparator {
                     if (current == null || current.equals(prior)) {
                         continue;
                     }
-                    diverged = true;
-                    accumulator.recordBlockChange(world, (chunkX << 4) | x, y, (chunkZ << 4) | z, current, BlockChange.FLAG_NONE);
+                    if (changes.size() >= maxChangedCells) {
+                        resyncRequired = true;
+                        break scan;
+                    }
+                    changes.add(new SnapshotChange((chunkX << 4) | x, y, (chunkZ << 4) | z, current));
                 }
             }
         }
-        if (diverged) {
-            divergencesEmitted.incrementAndGet();
+        if (changes.isEmpty() && !resyncRequired) {
+            return;
+        }
+        divergencesEmitted.incrementAndGet();
+        SnapshotComparison comparison = new SnapshotComparison(List.copyOf(changes), resyncRequired);
+        if (plugin == null) {
+            applyComparisonBatch(world, worldId, chunkKey, chunkX, chunkZ, snapshot, minHeight, maxHeight, comparison, 0);
+            return;
+        }
+        FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ,
+            () -> applyComparisonBatch(world, worldId, chunkKey, chunkX, chunkZ, snapshot, minHeight, maxHeight, comparison, 0));
+    }
+
+    private void applyComparisonBatch(World world,
+                                      UUID worldId,
+                                      long chunkKey,
+                                      int chunkX,
+                                      int chunkZ,
+                                      ChunkSnapshot snapshot,
+                                      int minHeight,
+                                      int maxHeight,
+                                      SnapshotComparison comparison,
+                                      int startIndex) {
+        if (!replication.hasSubscribers(world, chunkKey)) {
+            evict(worldId, chunkKey);
+            return;
+        }
+        if (comparison.resyncRequired()) {
+            replication.forceResync(world, chunkKey);
+            return;
+        }
+        int endIndex = Math.min(comparison.changes().size(), startIndex + MAX_CHANGED_CELLS_PER_BATCH);
+        RegionalDiffAccumulator.SnapshotBlockReader reader =
+            (x, y, z) -> snapshot.getBlockData(x & 0xF, y, z & 0xF);
+        for (int index = startIndex; index < endIndex; index++) {
+            SnapshotChange change = comparison.changes().get(index);
+            accumulator.recordSnapshotBlockChange(world, change.worldX(), change.worldY(), change.worldZ(),
+                change.data(), BlockChange.FLAG_NONE, reader, minHeight, maxHeight);
+        }
+        if (endIndex >= comparison.changes().size()) {
+            return;
+        }
+        if (plugin == null) {
+            applyComparisonBatch(world, worldId, chunkKey, chunkX, chunkZ, snapshot, minHeight,
+                maxHeight, comparison, endIndex);
+            return;
+        }
+        boolean scheduled = FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ,
+            () -> applyComparisonBatch(world, worldId, chunkKey, chunkX, chunkZ, snapshot, minHeight,
+                maxHeight, comparison, endIndex), 1L);
+        if (!scheduled) {
+            replication.forceResync(world, chunkKey);
+        }
+    }
+
+    private void resetCaptureCadence(UUID worldId, long chunkKey) {
+        Map<Long, Integer> sweepMap = captureSweepCounts.get(worldId);
+        if (sweepMap != null) {
+            sweepMap.remove(chunkKey);
         }
     }
 

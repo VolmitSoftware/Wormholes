@@ -22,12 +22,16 @@ import org.bukkit.Bukkit;
 import org.bukkit.event.HandlerList;
 
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 
 final class WormholesNetworkRuntime {
     private static final long TRAVERSAL_MAINTENANCE_INTERVAL_TICKS = 100L;
 
     private final Wormholes plugin;
+    private volatile TraversalMaintenanceSchedule traversalMaintenanceSchedule;
     private CaptureRuntime captureRuntime;
 
     WormholesNetworkRuntime(Wormholes plugin) {
@@ -77,31 +81,51 @@ final class WormholesNetworkRuntime {
         plugin.getServer().getPluginManager().registerEvents(Wormholes.traversalService, plugin);
         plugin.getServer().getPluginManager().registerEvents(Wormholes.viewServer, plugin);
         Wormholes.traversalService.sweepStrandedTransitEntities();
-        scheduleTraversalMaintenance(Wormholes.traversalService);
+        TraversalMaintenanceSchedule schedule = new TraversalMaintenanceSchedule(Wormholes.traversalService);
+        traversalMaintenanceSchedule = schedule;
+        scheduleTraversalMaintenance(schedule);
     }
 
-    private void scheduleTraversalMaintenance(TraversalService service) {
-        if (FoliaScheduler.runGlobal(plugin, () -> runTraversalMaintenance(service), TRAVERSAL_MAINTENANCE_INTERVAL_TICKS)
-            || !plugin.isEnabled()) {
+    private void scheduleTraversalMaintenance(TraversalMaintenanceSchedule schedule) {
+        if (!plugin.isEnabled() || traversalMaintenanceSchedule != schedule
+            || Wormholes.traversalService != schedule.service) {
             return;
         }
-        plugin.getLogger().warning("Global scheduler refused traversal recovery maintenance; queued transit rollbacks and expired transfers will only be reclaimed when their chunks reload.");
-        WormholesTelemetry.countFailure("TRAVERSAL_MAINTENANCE_SCHEDULE_REJECTED");
+        if (FoliaScheduler.runGlobal(
+            plugin,
+            () -> runTraversalMaintenance(schedule),
+            TRAVERSAL_MAINTENANCE_INTERVAL_TICKS
+        )) {
+            schedule.rejectionReported.set(false);
+            return;
+        }
+        if (schedule.rejectionReported.compareAndSet(false, true)) {
+            plugin.getLogger().warning("Global scheduler refused traversal recovery maintenance; scheduler submission will retry in one second.");
+            WormholesTelemetry.countFailure("TRAVERSAL_MAINTENANCE_SCHEDULE_REJECTED");
+        }
+        if (!schedule.retryQueued.compareAndSet(false, true)) {
+            return;
+        }
+        CompletableFuture.delayedExecutor(1L, TimeUnit.SECONDS).execute(() -> {
+            schedule.retryQueued.set(false);
+            scheduleTraversalMaintenance(schedule);
+        });
     }
 
-    private void runTraversalMaintenance(TraversalService service) {
-        if (Wormholes.traversalService != service) {
+    private void runTraversalMaintenance(TraversalMaintenanceSchedule schedule) {
+        if (traversalMaintenanceSchedule != schedule || Wormholes.traversalService != schedule.service) {
             return;
         }
         try {
-            service.runRecoveryMaintenance();
+            schedule.service.runRecoveryMaintenance();
         } catch (Throwable ex) {
             plugin.getLogger().log(Level.WARNING, "Traversal recovery maintenance failed", ex);
         }
-        scheduleTraversalMaintenance(service);
+        scheduleTraversalMaintenance(schedule);
     }
 
     void reset() {
+        traversalMaintenanceSchedule = null;
         unregisterStatusBridgeListener();
         stopCaptureRuntime();
         if (Wormholes.viewServer != null) {
@@ -133,6 +157,7 @@ final class WormholesNetworkRuntime {
     }
 
     void drain() {
+        traversalMaintenanceSchedule = null;
         try {
             if (Wormholes.viewServer != null) {
                 Wormholes.viewServer.shutdown();
@@ -211,5 +236,17 @@ final class WormholesNetworkRuntime {
 
     CaptureRuntime captureRuntime() {
         return captureRuntime;
+    }
+
+    private static final class TraversalMaintenanceSchedule {
+        private final TraversalService service;
+        private final AtomicBoolean rejectionReported;
+        private final AtomicBoolean retryQueued;
+
+        private TraversalMaintenanceSchedule(TraversalService service) {
+            this.service = service;
+            rejectionReported = new AtomicBoolean();
+            retryQueued = new AtomicBoolean();
+        }
     }
 }

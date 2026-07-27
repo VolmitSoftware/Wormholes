@@ -2,6 +2,7 @@ package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.config.toml.NetworkConfig;
 
+import java.security.PublicKey;
 import java.util.logging.Logger;
 
 final class PeerTrustGate {
@@ -17,6 +18,10 @@ final class PeerTrustGate {
 
     byte[] key(String peerName) {
         return trustStore.get(peerName);
+    }
+
+    PublicKey publicKey(String peerName) {
+        return trustStore.getPublicKey(peerName);
     }
 
     void trustPeer(String peerName, String publicKey) {

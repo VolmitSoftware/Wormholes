@@ -10,7 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public record ChunkDiffBatch(long chunkKey, long sequence, List<BlockChange> blocks, List<LightDiff> lights, List<BlockEntityDiff> entities) {
+public record ChunkDiffBatch(ReplicationStreamKey stream, long sequence, List<BlockChange> blocks, List<LightDiff> lights, List<BlockEntityDiff> entities) {
     public static final int MAX_BLOCKS = 65_536;
     public static final int MAX_LIGHTS = 256;
     public static final int MAX_ENTITIES = 4_096;
@@ -26,7 +26,7 @@ public record ChunkDiffBatch(long chunkKey, long sequence, List<BlockChange> blo
     }
 
     public void writeTo(DataOutputStream out) throws IOException {
-        out.writeLong(chunkKey);
+        stream.writeTo(out);
         ReplicationVarint.writeULong(out, sequence);
         Map<String, Integer> table = new LinkedHashMap<>(Math.max(4, blocks.size()));
         for (BlockChange change : blocks) {
@@ -134,7 +134,7 @@ public record ChunkDiffBatch(long chunkKey, long sequence, List<BlockChange> blo
     }
 
     public static ChunkDiffBatch read(DataInputStream in) throws IOException {
-        long chunkKey = in.readLong();
+        ReplicationStreamKey stream = ReplicationStreamKey.read(in);
         long sequence = ReplicationVarint.readULong(in);
         int tableSize = ReplicationVarint.readUInt(in);
         if (tableSize < 0 || tableSize > MAX_BLOCKS) {
@@ -181,7 +181,7 @@ public record ChunkDiffBatch(long chunkKey, long sequence, List<BlockChange> blo
             in.readFully(nbt);
             entities.add(new BlockEntityDiff(packedXyz, nbt));
         }
-        return new ChunkDiffBatch(chunkKey, sequence, blocks, lights, entities);
+        return new ChunkDiffBatch(stream, sequence, blocks, lights, entities);
     }
 
     public boolean isEmpty() {

@@ -153,14 +153,12 @@ final class EntityRenderPlayerIdentity {
         }
     }
 
-    void removeVanillaNameTeam(Player observer) {
+    void sendVanillaNameTeamRemoval(Player observer) {
         if (!vanillaNameTeamSent) {
             return;
         }
         channel.send(observer, new WrapperPlayServerTeams(vanillaNameTeamName,
             WrapperPlayServerTeams.TeamMode.REMOVE, (WrapperPlayServerTeams.ScoreBoardTeamInfo) null, List.of()));
-        vanillaNameTeamMembers.clear();
-        vanillaNameTeamSent = false;
     }
 
     void forgetVanillaNameTeam() {

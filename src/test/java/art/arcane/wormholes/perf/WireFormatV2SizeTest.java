@@ -4,6 +4,7 @@ import art.arcane.wormholes.network.replication.BlockChange;
 import art.arcane.wormholes.network.replication.BlockEntityDiff;
 import art.arcane.wormholes.network.replication.ChunkBulkBuilder;
 import art.arcane.wormholes.network.replication.ChunkDiffBatch;
+import art.arcane.wormholes.network.replication.ReplicationTestStream;
 import art.arcane.wormholes.network.replication.LightDiff;
 import art.arcane.wormholes.network.view.ViewSlice;
 
@@ -79,7 +80,8 @@ class WireFormatV2SizeTest {
         for (int i = 0; i < 20; i++) {
             blocks.add(new BlockChange(BlockChange.pack(i & 0xF, 64 + i, (i * 3) & 0xF), states[i % 3], BlockChange.FLAG_NONE));
         }
-        ChunkDiffBatch batch = new ChunkDiffBatch(7L, 12L, blocks, List.<LightDiff>of(), List.<BlockEntityDiff>of());
+        ChunkDiffBatch batch = new ChunkDiffBatch(ReplicationTestStream.stream(7L), 12L, blocks,
+            List.<LightDiff>of(), List.<BlockEntityDiff>of());
         byte[] encoded = batch.encode();
 
         long v1Bytes = 8L + 1L + 1L + 1L + 1L;

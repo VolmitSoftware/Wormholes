@@ -113,7 +113,8 @@ class StatusSidebandReliabilityTest {
         assertNotEquals(firstResponse.nonce(), retriedResponse.nonce());
         assertEquals(request.nonce(), retriedResponse.ackNonce());
         assertEquals(1, retriedResponse.messages().size());
-        assertInstanceOf(WireMessage.PortalDirectory.class, retriedResponse.messages().getFirst());
+        WireMessage.Routed retried = assertInstanceOf(WireMessage.Routed.class, retriedResponse.messages().getFirst());
+        assertEquals(WireMessageType.PORTAL_DIRECTORY, retried.innerType());
         assertTrue(beta.hasPendingStatusResponse(ALPHA));
     }
 

@@ -2,7 +2,9 @@ package art.arcane.wormholes.network.view;
 
 import art.arcane.wormholes.network.replication.ChunkBulk;
 import art.arcane.wormholes.network.replication.ChunkDiffBatch;
+import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.network.replication.RemoteChunkStore;
+import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.render.view.OccludedMarker;
 
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
@@ -100,6 +102,8 @@ public final class RemoteViewCache {
         private volatile long revision;
         private volatile int skyDarken;
         private volatile boolean viewReady;
+        private volatile UUID sourceWorldId;
+        private volatile ProjectionRenderMode renderMode;
         private volatile List<EntityVisual> entities = List.of();
         private final Map<UUID, EntityVisual> lastEntityState = new ConcurrentHashMap<>();
         private final Map<UUID, Integer> stateVersions = new ConcurrentHashMap<>();
@@ -167,6 +171,14 @@ public final class RemoteViewCache {
             return viewReady;
         }
 
+        public UUID getSourceWorldId() {
+            return sourceWorldId;
+        }
+
+        public ProjectionRenderMode getRenderMode() {
+            return renderMode;
+        }
+
         public int getStateVersion(UUID entityId) {
             Integer version = stateVersions.get(entityId);
             return version == null ? 0 : version;
@@ -204,7 +216,7 @@ public final class RemoteViewCache {
     private final Map<String, RemoteView> views = new ConcurrentHashMap<>();
     private final Map<String, BlockData> parsedBlockData = new ConcurrentHashMap<>();
     private final Map<String, RemoteChunkStore> chunkStores = new ConcurrentHashMap<>();
-    private final Map<String, Map<Long, CachedDecodedSlice>> decodedSlices = new ConcurrentHashMap<>();
+    private final Map<String, Map<ReplicationStreamKey, CachedDecodedSlice>> decodedSlices = new ConcurrentHashMap<>();
     private final Set<String> bulkDecodeErrorPeers = ConcurrentHashMap.newKeySet();
     private final Set<String> noViewPeers = ConcurrentHashMap.newKeySet();
     private final Set<String> publishedPeers = ConcurrentHashMap.newKeySet();
@@ -250,7 +262,7 @@ public final class RemoteViewCache {
             RemoteChunkStore.ApplyOutcome outcome = store.applyDiff(batch);
             outcomes.add(outcome);
             if (outcome.applied()) {
-                RemoteChunkStore.ReplicatedChunk chunk = store.get(batch.chunkKey());
+                RemoteChunkStore.ReplicatedChunk chunk = store.get(batch.stream());
                 if (chunk != null) {
                     publishSliceToViews(peerName, chunk);
                 }
@@ -267,25 +279,35 @@ public final class RemoteViewCache {
         if (slice == null) {
             return;
         }
-        long columnKey = chunk.chunkKey();
-        DecodedSlice decoded = decodedSliceFor(peerName, columnKey, slice);
+        ReplicationStreamKey stream = chunk.stream();
+        long columnKey = stream.chunkKey();
+        DecodedSlice decoded = decodedSliceFor(peerName, stream, slice);
         boolean matched = false;
         for (RemoteView view : views.values()) {
-            if (!view.peerName.equals(peerName)) {
+            if (!view.peerName.equals(peerName) || !view.portalId.equals(stream.portalId())) {
                 continue;
             }
             matched = true;
-            ViewBox existing = view.box;
-            ViewBox sliceBox = new ViewBox(slice.minX(), slice.minY(), slice.minZ(),
-                slice.minX() + slice.sizeX() - 1, slice.minY() + slice.sizeY() - 1, slice.minZ() + slice.sizeZ() - 1);
-            if (existing == null) {
-                view.box = sliceBox;
-            } else if (!columnIntersectsBox(columnKey, existing)) {
-                view.box = unionBoxes(existing, sliceBox);
+            synchronized (view) {
+                if (!stream.sourceWorldId().equals(view.sourceWorldId) || stream.renderMode() != view.renderMode) {
+                    view.slices.clear();
+                    view.box = null;
+                    view.viewReady = false;
+                    view.sourceWorldId = stream.sourceWorldId();
+                    view.renderMode = stream.renderMode();
+                }
+                ViewBox existing = view.box;
+                ViewBox sliceBox = new ViewBox(slice.minX(), slice.minY(), slice.minZ(),
+                    slice.minX() + slice.sizeX() - 1, slice.minY() + slice.sizeY() - 1, slice.minZ() + slice.sizeZ() - 1);
+                if (existing == null) {
+                    view.box = sliceBox;
+                } else if (!columnIntersectsBox(columnKey, existing)) {
+                    view.box = unionBoxes(existing, sliceBox);
+                }
+                view.slices.put(columnKey, decoded);
+                view.revision++;
+                view.lastUpdateMillis = System.currentTimeMillis();
             }
-            view.slices.put(columnKey, decoded);
-            view.revision++;
-            view.lastUpdateMillis = System.currentTimeMillis();
         }
         if (matched) {
             if (publishedPeers.add(peerName)) {
@@ -331,19 +353,17 @@ public final class RemoteViewCache {
             return;
         }
         RemoteChunkStore store = chunkStores.get(peerName);
-        if (store == null || removed.slices.isEmpty()) {
+        if (store == null) {
             return;
         }
-        Set<Long> retained = new HashSet<Long>();
-        for (RemoteView view : views.values()) {
-            if (view.peerName.equals(peerName)) {
-                retained.addAll(view.slices.keySet());
+        for (ReplicationStreamKey stream : store.streams()) {
+            if (stream.portalId().equals(portalId)) {
+                store.remove(stream);
             }
         }
-        for (Long columnKey : removed.slices.keySet()) {
-            if (!retained.contains(columnKey)) {
-                store.remove(columnKey.longValue());
-            }
+        Map<ReplicationStreamKey, CachedDecodedSlice> peerSlices = decodedSlices.get(peerName);
+        if (peerSlices != null) {
+            peerSlices.keySet().removeIf(stream -> stream.portalId().equals(portalId));
         }
     }
 
@@ -455,15 +475,15 @@ public final class RemoteViewCache {
         decodedSlices.clear();
     }
 
-    private DecodedSlice decodedSliceFor(String peerName, long columnKey, ViewSlice slice) {
-        Map<Long, CachedDecodedSlice> byChunk = decodedSlices.computeIfAbsent(peerName, ignored -> new ConcurrentHashMap<>());
-        CachedDecodedSlice cached = byChunk.get(columnKey);
+    private DecodedSlice decodedSliceFor(String peerName, ReplicationStreamKey stream, ViewSlice slice) {
+        Map<ReplicationStreamKey, CachedDecodedSlice> byStream = decodedSlices.computeIfAbsent(peerName, ignored -> new ConcurrentHashMap<>());
+        CachedDecodedSlice cached = byStream.get(stream);
         int paletteSize = slice.palette().size();
         if (cached != null && cached.source == slice && cached.paletteSize == paletteSize) {
             return cached.decoded;
         }
         DecodedSlice decoded = decode(slice);
-        byChunk.put(columnKey, new CachedDecodedSlice(slice, paletteSize, decoded));
+        byStream.put(stream, new CachedDecodedSlice(slice, paletteSize, decoded));
         return decoded;
     }
 

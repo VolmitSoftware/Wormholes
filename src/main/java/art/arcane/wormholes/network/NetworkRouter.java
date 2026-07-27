@@ -1,6 +1,8 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
+import art.arcane.wormholes.network.replication.ChunkResyncRequest;
+import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.network.replication.RemoteChunkStore;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.network.view.ViewServer;
@@ -45,7 +47,8 @@ public final class NetworkRouter {
         List<RemoteChunkStore.ApplyOutcome> outcomes = viewCache.applyChunkDiff(peerName, diff.batches());
         for (RemoteChunkStore.ApplyOutcome outcome : outcomes) {
             if (outcome.resyncRequested()) {
-                network.send(peerName, new WireMessage.ChunkResyncRequestMessage(new art.arcane.wormholes.network.replication.ChunkResyncRequest(outcome.chunkKey(), outcome.expectedSequenceOrLastApplied())));
+                network.send(peerName, new WireMessage.ChunkResyncRequestMessage(
+                    new ChunkResyncRequest(outcome.stream(), outcome.expectedSequenceOrLastApplied())));
             }
         }
     }
@@ -55,12 +58,12 @@ public final class NetworkRouter {
         if (store == null) {
             return;
         }
-        List<Long> mismatches = store.mismatches(probe.probe().entries());
+        List<ReplicationStreamKey> mismatches = store.mismatches(probe.probe().entries());
         if (mismatches.isEmpty()) {
             return;
         }
-        for (Long chunkKey : mismatches) {
-            network.send(peerName, new WireMessage.ChunkResyncRequestMessage(new art.arcane.wormholes.network.replication.ChunkResyncRequest(chunkKey, 0L)));
+        for (ReplicationStreamKey stream : mismatches) {
+            network.send(peerName, new WireMessage.ChunkResyncRequestMessage(new ChunkResyncRequest(stream, 0L)));
         }
     }
 

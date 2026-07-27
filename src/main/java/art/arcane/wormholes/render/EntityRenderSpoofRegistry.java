@@ -31,19 +31,21 @@ final class EntityRenderSpoofRegistry {
     private static final int[] NO_PASSENGERS = new int[0];
 
     private final Map<UUID, EntityRenderSpoofedEntity> spoofed;
+    private final Map<Integer, EntityRenderSpoofedEntity> pendingDestroy;
     private final Set<UUID> visible;
     private final EntityRenderPacketChannel channel;
     private final EntityRenderPlayerIdentity identity;
 
     EntityRenderSpoofRegistry(EntityRenderPacketChannel channel, EntityRenderPlayerIdentity identity) {
         this.spoofed = new HashMap<UUID, EntityRenderSpoofedEntity>(16);
+        this.pendingDestroy = new HashMap<Integer, EntityRenderSpoofedEntity>(4);
         this.visible = new HashSet<UUID>(16);
         this.channel = channel;
         this.identity = identity;
     }
 
     int size() {
-        return spoofed.size();
+        return spoofed.size() + pendingDestroy.size();
     }
 
     boolean contains(UUID sourceId) {
@@ -58,10 +60,6 @@ final class EntityRenderSpoofRegistry {
         spoofed.put(sourceId, state);
     }
 
-    void forget(UUID sourceId) {
-        spoofed.remove(sourceId);
-    }
-
     void clearVisible() {
         visible.clear();
     }
@@ -72,7 +70,12 @@ final class EntityRenderSpoofRegistry {
 
     void clear() {
         spoofed.clear();
+        pendingDestroy.clear();
         visible.clear();
+    }
+
+    void commitDestroyed() {
+        pendingDestroy.clear();
     }
 
     void syncMotion(Player observer,
@@ -184,11 +187,7 @@ final class EntityRenderSpoofRegistry {
         if (spoofed.isEmpty()) {
             return;
         }
-
-        int[] ids = null;
-        List<UUID> playerInfos = null;
-        List<EntityRenderSpoofedEntity> playerStates = null;
-        int count = 0;
+        List<EntityRenderSpoofedEntity> hiddenStates = new ArrayList<EntityRenderSpoofedEntity>(4);
         Iterator<Map.Entry<UUID, EntityRenderSpoofedEntity>> iterator = spoofed.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<UUID, EntityRenderSpoofedEntity> entry = iterator.next();
@@ -196,70 +195,63 @@ final class EntityRenderSpoofRegistry {
                 continue;
             }
             EntityRenderSpoofedEntity state = entry.getValue();
-            if (ids == null) {
-                ids = new int[spoofed.size() * 2];
-                playerInfos = new ArrayList<UUID>(4);
-                playerStates = new ArrayList<EntityRenderSpoofedEntity>(4);
-            }
-            ids[count] = state.fakeId;
-            count++;
-            if (state.playerEntry) {
-                ids[count] = state.labelFakeId;
-                count++;
-                playerInfos.add(state.fakeUuid);
-                playerStates.add(state);
-            }
             if (Settings.DEBUG) {
                 Wormholes.v("[spoof] CULL " + (state.playerEntry ? "player" : "entity") + " src=" + entry.getKey() + " fakeId=" + state.fakeId + " -> " + observer.getName() + " (no longer in view)");
             }
             iterator.remove();
+            pendingDestroy.put(Integer.valueOf(state.fakeId), state);
+            hiddenStates.add(state);
         }
-
-        if (count == 0) {
+        if (hiddenStates.isEmpty()) {
             return;
         }
-
-        int[] trimmed = count == ids.length ? ids : Arrays.copyOf(ids, count);
-        channel.send(observer, new WrapperPlayServerDestroyEntities(trimmed));
-        if (!playerInfos.isEmpty()) {
-            channel.send(observer, new WrapperPlayServerPlayerInfoRemove(playerInfos));
-            for (EntityRenderSpoofedEntity state : playerStates) {
-                identity.releaseVanillaNametag(observer, state);
-            }
-        }
+        sendDestroyStates(observer, hiddenStates);
     }
 
     void destroyAll(Player observer) {
-        List<UUID> players = new ArrayList<UUID>();
-        int size = spoofed.size();
-        if (size > 0) {
-            int[] ids = new int[size * 2];
-            int index = 0;
-            for (EntityRenderSpoofedEntity state : spoofed.values()) {
-                ids[index] = state.fakeId;
-                index++;
-                if (state.playerEntry) {
-                    ids[index] = state.labelFakeId;
-                    index++;
-                    players.add(state.fakeUuid);
-                }
-            }
-            int[] trimmed = index == ids.length ? ids : Arrays.copyOf(ids, index);
-            channel.send(observer, new WrapperPlayServerDestroyEntities(trimmed));
+        for (EntityRenderSpoofedEntity state : spoofed.values()) {
+            pendingDestroy.put(Integer.valueOf(state.fakeId), state);
         }
-        if (!players.isEmpty()) {
-            channel.send(observer, new WrapperPlayServerPlayerInfoRemove(players));
+        spoofed.clear();
+        if (pendingDestroy.isEmpty()) {
+            return;
         }
+        sendDestroyStates(observer, new ArrayList<EntityRenderSpoofedEntity>(pendingDestroy.values()));
     }
 
-    void destroySingle(Player observer, EntityRenderSpoofedEntity state) {
-        int[] ids = state.playerEntry
-            ? new int[] { state.fakeId, state.labelFakeId }
-            : new int[] { state.fakeId };
-        channel.send(observer, new WrapperPlayServerDestroyEntities(ids));
-        if (state.playerEntry) {
-            identity.releaseVanillaNametag(observer, state);
-            channel.send(observer, new WrapperPlayServerPlayerInfoRemove(List.of(state.fakeUuid)));
+    void destroySingle(Player observer, UUID sourceId, EntityRenderSpoofedEntity state) {
+        if (sourceId == null || state == null || !spoofed.remove(sourceId, state)) {
+            return;
+        }
+        pendingDestroy.put(Integer.valueOf(state.fakeId), state);
+        sendDestroyStates(observer, List.of(state));
+    }
+
+    private void sendDestroyStates(Player observer, List<EntityRenderSpoofedEntity> states) {
+        int idCapacity = states.size() * 2;
+        int[] ids = new int[idCapacity];
+        List<UUID> playerInfos = new ArrayList<UUID>(Math.min(4, states.size()));
+        int count = 0;
+        for (EntityRenderSpoofedEntity state : states) {
+            ids[count] = state.fakeId;
+            count++;
+            if (!state.playerEntry) {
+                continue;
+            }
+            ids[count] = state.labelFakeId;
+            count++;
+            playerInfos.add(state.fakeUuid);
+        }
+        int[] trimmed = count == ids.length ? ids : Arrays.copyOf(ids, count);
+        channel.send(observer, new WrapperPlayServerDestroyEntities(trimmed));
+        if (playerInfos.isEmpty()) {
+            return;
+        }
+        channel.send(observer, new WrapperPlayServerPlayerInfoRemove(playerInfos));
+        for (EntityRenderSpoofedEntity state : states) {
+            if (state.playerEntry) {
+                identity.releaseVanillaNametag(observer, state);
+            }
         }
     }
 }

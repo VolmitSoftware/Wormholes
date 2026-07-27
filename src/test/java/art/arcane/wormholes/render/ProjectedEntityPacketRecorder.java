@@ -24,6 +24,7 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
     private final List<PacketWrapper<?>> sent = new ArrayList<PacketWrapper<?>>();
     private final PacketEventsAPI<?> previous;
     private int batchLookups;
+    private boolean failNextSend;
 
     private final PlayerManager playerManager = new PlayerManager() {
         @Override
@@ -49,6 +50,10 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
 
         @Override
         public void sendPacket(Object player, PacketWrapper<?> wrapper) {
+            if (failNextSend) {
+                failNextSend = false;
+                throw new IllegalStateException("injected packet send failure");
+            }
             sent.add(wrapper);
         }
     };
@@ -81,6 +86,10 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
 
     int batchLookups() {
         return batchLookups;
+    }
+
+    void failNextSend() {
+        failNextSend = true;
     }
 
     <T extends PacketWrapper<?>> List<T> sentOfType(Class<T> type) {

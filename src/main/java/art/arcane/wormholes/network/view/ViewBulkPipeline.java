@@ -6,6 +6,7 @@ import art.arcane.wormholes.network.WireMessage;
 import art.arcane.wormholes.network.replication.ChunkBulkBuilder;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.replication.ChunkResyncRequest;
+import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.platform.WormholesPlatform;
 
 import org.bukkit.ChunkSnapshot;
@@ -43,40 +44,34 @@ final class ViewBulkPipeline {
 
     void onChunkResyncRequest(String peerName, ChunkResyncRequest request) {
         ChunkReplicationManager replication = registry.replication();
-        if (!replication.isBulked(peerName, request.chunkKey())) {
+        ReplicationStreamKey stream = request.stream();
+        if (!replication.isBulked(peerName, stream)) {
             // The initial bulk for this chunk is still in flight; an early diff merely outran it. The
             // pending bulk will deliver current state, so do NOT re-bulk from a (stale) fresh snapshot
             // here -- that is the spurious resync loop that was clobbering live block edits.
             return;
         }
-        replication.requestResync(peerName, request.chunkKey());
-        for (ViewSession session : registry.sessions()) {
-            if (!session.peers.contains(peerName)) {
-                continue;
-            }
-            int chunkX = (int) (request.chunkKey() >> 32);
-            int chunkZ = (int) request.chunkKey();
-            if (!session.containsChunk(chunkX, chunkZ)) {
-                continue;
-            }
-            sendInitialBulkWithRetry(session, peerName, chunkX, chunkZ);
+        replication.requestResync(peerName, stream);
+        ViewSession session = registry.get(stream.portalId());
+        if (!matches(session, peerName, stream)) {
             return;
         }
+        int chunkX = (int) (stream.chunkKey() >> 32);
+        int chunkZ = (int) stream.chunkKey();
+        sendInitialBulkWithRetry(session, peerName, chunkX, chunkZ);
     }
 
-    void retryCanonicalBulk(String peerName, long chunkKey) {
+    void retryCanonicalBulk(String peerName, ReplicationStreamKey stream) {
         if (!registry.isActive()) {
             return;
         }
-        int chunkX = (int) (chunkKey >> 32);
-        int chunkZ = (int) chunkKey;
-        for (ViewSession session : registry.sessions()) {
-            if (!session.peers.contains(peerName) || !session.containsChunk(chunkX, chunkZ)) {
-                continue;
-            }
-            sendInitialBulkWithRetry(session, peerName, chunkX, chunkZ);
+        ViewSession session = registry.get(stream.portalId());
+        if (!matches(session, peerName, stream)) {
             return;
         }
+        int chunkX = (int) (stream.chunkKey() >> 32);
+        int chunkZ = (int) stream.chunkKey();
+        sendInitialBulkWithRetry(session, peerName, chunkX, chunkZ);
     }
 
     CompletableFuture<Boolean> sendInitialBulkWithRetry(ViewSession session, String peerName, int chunkX, int chunkZ) {
@@ -99,25 +94,26 @@ final class ViewBulkPipeline {
         }
         ChunkReplicationManager replication = registry.replication();
         long chunkKey = ViewSlice.columnKey(chunkX, chunkZ);
+        ReplicationStreamKey stream = session.streamFor(chunkKey);
         if (!registry.isSessionChunkActive(session, peerName, chunkKey)) {
             result.complete(false);
             return;
         }
-        if (replication.isBulked(peerName, chunkKey)) {
+        if (replication.isBulked(peerName, stream)) {
             result.complete(true);
             return;
         }
-        long bulkGeneration = replication.bulkGeneration(peerName, chunkKey);
+        long bulkGeneration = replication.bulkGeneration(peerName, stream);
         if (bulkGeneration < 0L) {
             result.complete(false);
             return;
         }
-        ViewServer.BulkRetryKey key = new ViewServer.BulkRetryKey(session.subscriptionId, peerName, chunkKey, bulkGeneration);
+        ViewServer.BulkRetryKey key = new ViewServer.BulkRetryKey(session.subscriptionId, peerName, stream, bulkGeneration);
         CompletableFuture<Boolean> generationResult = bulkRetryCoordinator.run(
             key,
             () -> registry.isSessionChunkActive(session, peerName, chunkKey)
-                && replication.bulkGeneration(peerName, chunkKey) == bulkGeneration
-                && !replication.isBulked(peerName, chunkKey),
+                && replication.bulkGeneration(peerName, stream) == bulkGeneration
+                && !replication.isBulked(peerName, stream),
             () -> sendInitialBulk(session, peerName, chunkX, chunkZ, bulkGeneration),
             (retry, delayTicks) -> FoliaScheduler.runAsync(Wormholes.instance, retry, delayTicks)
         );
@@ -129,11 +125,11 @@ final class ViewBulkPipeline {
                 result.complete(false);
                 return;
             }
-            if (replication.isBulked(peerName, chunkKey)) {
+            if (replication.isBulked(peerName, stream)) {
                 result.complete(true);
                 return;
             }
-            long currentGeneration = replication.bulkGeneration(peerName, chunkKey);
+            long currentGeneration = replication.bulkGeneration(peerName, stream);
             if (currentGeneration != bulkGeneration && currentGeneration >= 0L) {
                 continueInitialBulkRetry(session, peerName, chunkX, chunkZ, result);
                 return;
@@ -145,9 +141,10 @@ final class ViewBulkPipeline {
     private CompletableFuture<Boolean> sendInitialBulk(ViewSession session, String peerName, int chunkX, int chunkZ, long bulkGeneration) {
         ChunkReplicationManager replication = registry.replication();
         long chunkKey = ViewSlice.columnKey(chunkX, chunkZ);
+        ReplicationStreamKey stream = session.streamFor(chunkKey);
         CompletableFuture<Boolean> done = new CompletableFuture<>();
         if (!registry.isSessionChunkActive(session, peerName, chunkKey)
-            || replication.bulkGeneration(peerName, chunkKey) != bulkGeneration) {
+            || replication.bulkGeneration(peerName, stream) != bulkGeneration) {
             done.complete(false);
             return done;
         }
@@ -185,7 +182,7 @@ final class ViewBulkPipeline {
                             done.complete(false);
                             return;
                         }
-                        boolean accepted = replication.sendBulk(peerName, session.subscriptionId, chunkKey, payload, slice.contentHash(), bulkGeneration);
+                        boolean accepted = replication.sendBulk(peerName, session.subscriptionId, stream, payload, slice.contentHash(), bulkGeneration);
                         done.complete(accepted);
                     } catch (Throwable errorDuringBulk) {
                         done.complete(false);
@@ -216,12 +213,20 @@ final class ViewBulkPipeline {
             return;
         }
         ChunkReplicationManager replication = registry.replication();
-        if (replication.sendWhenAllBulked(peerName, session.subscriptionId, session.chunkKeys,
+        if (replication.sendWhenAllBulked(peerName, session.subscriptionId, session.streamKeys,
             () -> registry.network().send(peerName, new WireMessage.ViewBulkComplete(session.portalId)))) {
             bulkCompleteRetries.remove(key);
             return;
         }
         scheduleBulkCompleteRetry(session, peerName, key);
+    }
+
+    private static boolean matches(ViewSession session, String peerName, ReplicationStreamKey stream) {
+        return session != null
+            && session.peers.contains(peerName)
+            && session.world.getUID().equals(stream.sourceWorldId())
+            && session.renderMode == stream.renderMode()
+            && session.containsChunk((int) (stream.chunkKey() >> 32), (int) stream.chunkKey());
     }
 
     private void scheduleBulkCompleteRetry(ViewSession session, String peerName, BulkCompleteKey key) {

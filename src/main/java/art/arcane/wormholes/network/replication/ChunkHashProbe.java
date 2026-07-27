@@ -9,18 +9,18 @@ import java.util.List;
 public record ChunkHashProbe(List<ChunkHashEntry> entries) {
     public static final int MAX_ENTRIES = 1024;
 
-    public record ChunkHashEntry(long chunkKey, long sequence, long hash) {
+    public record ChunkHashEntry(ReplicationStreamKey stream, long sequence, long hash) {
         public void writeTo(DataOutputStream out) throws IOException {
-            out.writeLong(chunkKey);
+            stream.writeTo(out);
             ReplicationVarint.writeULong(out, sequence);
             out.writeLong(hash);
         }
 
         public static ChunkHashEntry read(DataInputStream in) throws IOException {
-            long chunkKey = in.readLong();
+            ReplicationStreamKey stream = ReplicationStreamKey.read(in);
             long sequence = ReplicationVarint.readULong(in);
             long hash = in.readLong();
-            return new ChunkHashEntry(chunkKey, sequence, hash);
+            return new ChunkHashEntry(stream, sequence, hash);
         }
     }
 

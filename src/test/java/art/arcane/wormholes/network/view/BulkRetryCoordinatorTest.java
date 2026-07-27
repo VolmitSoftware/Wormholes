@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.wormholes.network.replication.ReplicationTestStream;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayDeque;
@@ -54,8 +56,10 @@ class BulkRetryCoordinatorTest
 	{
 		BulkRetryCoordinator<ViewServer.BulkRetryKey> coordinator = new BulkRetryCoordinator<>(40L);
 		UUID subscriptionId = UUID.randomUUID();
-		ViewServer.BulkRetryKey oldGeneration = new ViewServer.BulkRetryKey(subscriptionId, "peer", 7L, 0L);
-		ViewServer.BulkRetryKey newGeneration = new ViewServer.BulkRetryKey(subscriptionId, "peer", 7L, 1L);
+		ViewServer.BulkRetryKey oldGeneration = new ViewServer.BulkRetryKey(subscriptionId, "peer",
+			ReplicationTestStream.stream(7L), 0L);
+		ViewServer.BulkRetryKey newGeneration = new ViewServer.BulkRetryKey(subscriptionId, "peer",
+			ReplicationTestStream.stream(7L), 1L);
 		CompletableFuture<Boolean> oldAttempt = new CompletableFuture<>();
 		AtomicInteger attempts = new AtomicInteger();
 

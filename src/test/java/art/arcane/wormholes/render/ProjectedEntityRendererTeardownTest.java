@@ -75,6 +75,38 @@ public final class ProjectedEntityRendererTeardownTest {
     }
 
     @Test
+    public void failedDestroyRemainsRetryableUntilThePacketSucceeds() {
+        ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.install();
+        try {
+            EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
+            EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
+            EntityRenderSpoofRegistry registry = new EntityRenderSpoofRegistry(channel, identity);
+            EntityRenderSpoofedEntity ghost = EntityRenderSpoofedEntity.create(false, false, true);
+            UUID sourceId = UUID.randomUUID();
+            registry.track(sourceId, ghost);
+            ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
+            Player observer = ProjectedEntityPacketRecorder.player(true);
+
+            recorder.failNextSend();
+            renderer.discard(observer);
+
+            assertFalse(renderer.hasProjectedEntity(sourceId));
+            assertEquals(1, renderer.getSpoofedCount());
+            assertTrue(recorder.sentOfType(WrapperPlayServerDestroyEntities.class).isEmpty());
+
+            renderer.discard(observer);
+
+            List<WrapperPlayServerDestroyEntities> destroys =
+                recorder.sentOfType(WrapperPlayServerDestroyEntities.class);
+            assertEquals(1, destroys.size());
+            assertArrayEquals(new int[] { ghost.fakeId }, destroys.get(0).getEntityIds());
+            assertEquals(0, renderer.getSpoofedCount());
+        } finally {
+            recorder.uninstall();
+        }
+    }
+
+    @Test
     public void snapshotPassDestroysCulledSpoofsBeforeEmittingRelationshipPackets() {
         boolean spoofing = Settings.ENTITY_SPOOFING;
         int maxSpoofed = Settings.MAX_SPOOFED_ENTITIES;

@@ -29,6 +29,7 @@ final class LocalPortalMenus
 	private final LocalPortal portal;
 	private final LocalPortalText text;
 	private final LocalPortalSettingsMenu settingsMenu;
+	private final LocalPortalCostMenu costMenu;
 	private final LocalPortalCosmeticsMenu cosmeticsMenu;
 	private final LocalPortalDestinationMenu destinationMenu;
 	private final LocalPortalRtpEditor rtpEditor;
@@ -40,6 +41,7 @@ final class LocalPortalMenus
 		text = new LocalPortalText(portal);
 		cosmeticsMenu = new LocalPortalCosmeticsMenu(portal, this);
 		settingsMenu = new LocalPortalSettingsMenu(portal, this);
+		costMenu = new LocalPortalCostMenu(portal, this);
 		destinationMenu = new LocalPortalDestinationMenu(portal, this);
 		rtpEditor = new LocalPortalRtpEditor(portal, this);
 	}
@@ -57,6 +59,11 @@ final class LocalPortalMenus
 	LocalPortalCosmeticsMenu cosmetics()
 	{
 		return cosmeticsMenu;
+	}
+
+	LocalPortalCostMenu costs()
+	{
+		return costMenu;
 	}
 
 	boolean ensureCanManage(Player player)

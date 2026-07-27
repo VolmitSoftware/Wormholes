@@ -5,7 +5,7 @@ api-version: ${apiVersion}
 load: POSTWORLD
 description: Through-portal projection. See what is on the other side without crossing.
 authors: [ VolmitSoftware ]
-softdepend: [ PlaceholderAPI, Iris ]
+softdepend: [ PlaceholderAPI, Iris, Vault ]
 libraries:
   - com.github.luben:zstd-jni:1.5.7-11
 commands:
@@ -28,6 +28,7 @@ permissions:
       wormholes.admin.reload: true
       wormholes.admin.items: true
       wormholes.admin.network: true
+      wormholes.admin.projection: true
       wormholes.admin.reset: true
   wormholes.admin.reload:
     description: Allows reloading Wormholes configuration.
@@ -37,6 +38,9 @@ permissions:
     default: op
   wormholes.admin.network:
     description: Allows managing Wormholes network links.
+    default: op
+  wormholes.admin.projection:
+    description: Allows freezing and flushing portal projection state.
     default: op
   wormholes.admin.reset:
     description: Allows deleting portals and resetting Wormholes data.

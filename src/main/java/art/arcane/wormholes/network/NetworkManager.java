@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.file.Path;
+import java.security.PrivateKey;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.HashSet;
@@ -189,11 +190,6 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     }
 
     @Override
-    public void onDictionaryAdvertised(PeerConnection connection, byte[] peerDictHash, int peerDictVersion) {
-        dictionary.onDictionaryAdvertised(connection, peerDictHash, peerDictVersion);
-    }
-
-    @Override
     public void onDictionaryNegotiated(PeerConnection connection, int dictVersion) {
         dictionary.onDictionaryNegotiated(connection, dictVersion);
     }
@@ -216,6 +212,10 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
 
     public String getLocalName() {
         return identity.localName();
+    }
+
+    PrivateKey identityPrivateKey() {
+        return identity.privateKey();
     }
 
     public String getPublicKey() {
@@ -407,6 +407,15 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     }
 
     public void sendToPeers(Collection<String> peerNames, WireMessage message) {
+        if (message instanceof WireMessage.Routed) {
+            return;
+        }
+        if (WireMessage.Routed.isRelayAnnouncement(message.type())) {
+            for (String name : peerNames) {
+                send(name, message);
+            }
+            return;
+        }
         OutboundFrame frame = new OutboundFrame(message);
         for (String name : peerNames) {
             PeerConnection connection = links.ready(name);
@@ -419,14 +428,26 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     }
 
     public boolean send(String peerName, WireMessage message) {
+        if (message instanceof WireMessage.Routed) {
+            return false;
+        }
         PeerConnection connection = links.ready(peerName);
         if (connection != null) {
+            if (WireMessage.Routed.isRelayAnnouncement(message.type())) {
+                return relay.sendRouted(connection, peerName, RelayRouter.ROUTE_TTL, message);
+            }
             return connection.send(message);
         }
-        OutboundFrame frame = new OutboundFrame(message);
-        dictionary.recordFrameSample(frame);
         NetworkConfig.PeerEntry peer = directory.find(peerName);
-        if (canQueueStatusBridge(peer) && sideband.enqueue(peerName, frame)) {
+        if (canQueueStatusBridge(peer)) {
+            if (WireMessage.Routed.isRelayAnnouncement(message.type())) {
+                return relay.enqueueRouted(peerName, peerName, RelayRouter.ROUTE_TTL, message);
+            }
+            OutboundFrame frame = new OutboundFrame(message);
+            dictionary.recordFrameSample(frame);
+            if (!sideband.enqueue(peerName, frame)) {
+                return false;
+            }
             if (SidebandQueue.isLatencyCritical(message)) {
                 nudgeStatusPoll(peerName);
             }
@@ -438,11 +459,11 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         }
         PeerConnection route = links.ready(nextHop);
         if (route != null) {
-            return relay.sendRouted(route, getLocalName(), peerName, RelayRouter.ROUTE_TTL, message);
+            return relay.sendRouted(route, peerName, RelayRouter.ROUTE_TTL, message);
         }
         NetworkConfig.PeerEntry routedPeer = directory.find(nextHop);
         return routedPeer != null && canQueueStatusBridge(routedPeer)
-            && relay.enqueueRouted(nextHop, getLocalName(), peerName, RelayRouter.ROUTE_TTL, message);
+            && relay.enqueueRouted(nextHop, peerName, RelayRouter.ROUTE_TTL, message);
     }
 
     public NetworkConfig.PeerEntry getPeer(String name) {
@@ -642,6 +663,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         if (sidebandWasReady && sink != null) {
             sink.accept(name, false);
         }
+        dictionary.onPeerReady(connection);
         relay.sendRelayedDirectoriesTo(name);
         if (sink != null) {
             sink.accept(name, true);
@@ -661,12 +683,11 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
             relay.handleRouted(connection.getPeerName(), routed);
             return;
         }
-        relay.cacheAnnouncement(connection.getPeerName(), message);
-        relay.relayAnnouncement(connection.getPeerName(), connection.getPeerName(), RelayRouter.ROUTE_TTL, message);
         deliverMessage(connection.getPeerName(), message);
     }
 
     void maybeRetrainDictionary() {
+        dictionary.purgeExpired(System.currentTimeMillis());
         dictionary.maybeRetrain();
     }
 
@@ -700,8 +721,6 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         if (message instanceof WireMessage.Routed routed) {
             accepted = relay.handleRouted(peerName, routed);
         } else {
-            relay.cacheAnnouncement(peerName, message);
-            relay.relayAnnouncement(peerName, peerName, RelayRouter.ROUTE_TTL, message);
             deliverMessage(peerName, message);
             accepted = true;
         }
@@ -735,6 +754,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
 
     @Override
     public void onClosed(PeerConnection connection, String reason) {
+        dictionary.onPeerClosed(connection);
         links.removePending(connection);
         String name = connection.getPeerName();
         boolean wasReady = name != null && links.removeReady(name, connection);

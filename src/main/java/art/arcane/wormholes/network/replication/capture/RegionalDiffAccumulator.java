@@ -34,6 +34,11 @@ public final class RegionalDiffAccumulator {
         boolean occluding(BlockData data);
     }
 
+    @FunctionalInterface
+    interface SnapshotBlockReader {
+        BlockData at(int x, int y, int z);
+    }
+
     private final ChunkReplicationManager replication;
     private final BlockChangeFeed feed;
     private volatile CaptureSettings settings;
@@ -74,6 +79,34 @@ public final class RegionalDiffAccumulator {
         if (world == null || newData == null) {
             return;
         }
+        recordBlockChange(world, worldX, worldY, worldZ, newData, flags,
+            (x, y, z) -> blockReader.at(world, x, y, z), world.getMinHeight(), world.getMaxHeight());
+    }
+
+    void recordSnapshotBlockChange(World world,
+                                   int worldX,
+                                   int worldY,
+                                   int worldZ,
+                                   BlockData newData,
+                                   byte flags,
+                                   SnapshotBlockReader snapshot,
+                                   int minHeight,
+                                   int maxHeight) {
+        if (world == null || newData == null || snapshot == null) {
+            return;
+        }
+        recordBlockChange(world, worldX, worldY, worldZ, newData, flags, snapshot, minHeight, maxHeight);
+    }
+
+    private void recordBlockChange(World world,
+                                   int worldX,
+                                   int worldY,
+                                   int worldZ,
+                                   BlockData newData,
+                                   byte flags,
+                                   SnapshotBlockReader reader,
+                                   int minHeight,
+                                   int maxHeight) {
         int chunkX = worldX >> 4;
         int chunkZ = worldZ >> 4;
         long chunkKey = ViewSlice.columnKey(chunkX, chunkZ);
@@ -90,7 +123,8 @@ public final class RegionalDiffAccumulator {
         if (venticular) {
             occlusionCache = new HashMap<>(32);
             centerOccluding = dataOcclusion.occluding(newData);
-            if (buried(world, chunkX, chunkZ, worldX, worldY, worldZ, centerOccluding, worldX, worldY, worldZ, occlusionCache)) {
+            if (buried(chunkX, chunkZ, worldX, worldY, worldZ, centerOccluding, worldX, worldY, worldZ,
+                occlusionCache, reader, minHeight, maxHeight)) {
                 storedFlags = (byte) (flags | BlockChange.FLAG_OCCLUDED);
             }
         }
@@ -114,7 +148,8 @@ public final class RegionalDiffAccumulator {
         }
         blocksCaptured.incrementAndGet();
         if (venticular) {
-            reemitNeighbors(world, chunkX, chunkZ, worldX, worldY, worldZ, centerOccluding, set, currentCap, occlusionCache);
+            reemitNeighbors(chunkX, chunkZ, worldX, worldY, worldZ, centerOccluding, set, currentCap,
+                occlusionCache, reader, minHeight, maxHeight);
         }
     }
 
@@ -123,29 +158,31 @@ public final class RegionalDiffAccumulator {
         this.dataOcclusion = occlusion;
     }
 
-    private void reemitNeighbors(World world, int chunkX, int chunkZ, int cx, int cy, int cz, boolean centerOccluding,
-                                 ChunkDirtySet set, int capacity, Map<Integer, Boolean> cache) {
-        reemitNeighbor(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, cx + 1, cy, cz, set, capacity, cache);
-        reemitNeighbor(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, cx - 1, cy, cz, set, capacity, cache);
-        reemitNeighbor(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, cx, cy + 1, cz, set, capacity, cache);
-        reemitNeighbor(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, cx, cy - 1, cz, set, capacity, cache);
-        reemitNeighbor(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, cx, cy, cz + 1, set, capacity, cache);
-        reemitNeighbor(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, cx, cy, cz - 1, set, capacity, cache);
+    private void reemitNeighbors(int chunkX, int chunkZ, int cx, int cy, int cz, boolean centerOccluding,
+                                 ChunkDirtySet set, int capacity, Map<Integer, Boolean> cache,
+                                 SnapshotBlockReader reader, int minHeight, int maxHeight) {
+        reemitNeighbor(chunkX, chunkZ, cx, cy, cz, centerOccluding, cx + 1, cy, cz, set, capacity, cache, reader, minHeight, maxHeight);
+        reemitNeighbor(chunkX, chunkZ, cx, cy, cz, centerOccluding, cx - 1, cy, cz, set, capacity, cache, reader, minHeight, maxHeight);
+        reemitNeighbor(chunkX, chunkZ, cx, cy, cz, centerOccluding, cx, cy + 1, cz, set, capacity, cache, reader, minHeight, maxHeight);
+        reemitNeighbor(chunkX, chunkZ, cx, cy, cz, centerOccluding, cx, cy - 1, cz, set, capacity, cache, reader, minHeight, maxHeight);
+        reemitNeighbor(chunkX, chunkZ, cx, cy, cz, centerOccluding, cx, cy, cz + 1, set, capacity, cache, reader, minHeight, maxHeight);
+        reemitNeighbor(chunkX, chunkZ, cx, cy, cz, centerOccluding, cx, cy, cz - 1, set, capacity, cache, reader, minHeight, maxHeight);
     }
 
-    private void reemitNeighbor(World world, int chunkX, int chunkZ, int cx, int cy, int cz, boolean centerOccluding,
-                                int nx, int ny, int nz, ChunkDirtySet set, int capacity, Map<Integer, Boolean> cache) {
+    private void reemitNeighbor(int chunkX, int chunkZ, int cx, int cy, int cz, boolean centerOccluding,
+                                int nx, int ny, int nz, ChunkDirtySet set, int capacity, Map<Integer, Boolean> cache,
+                                SnapshotBlockReader reader, int minHeight, int maxHeight) {
         if ((nx >> 4) != chunkX || (nz >> 4) != chunkZ) {
             return;
         }
-        if (ny < world.getMinHeight() || ny > world.getMaxHeight() - 1) {
+        if (ny < minHeight || ny >= maxHeight) {
             return;
         }
-        BlockData data = blockReader.at(world, nx, ny, nz);
+        BlockData data = reader.at(nx, ny, nz);
         if (!dataOcclusion.occluding(data)) {
             return;
         }
-        byte flags = buried(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, nx, ny, nz, cache)
+        byte flags = buried(chunkX, chunkZ, cx, cy, cz, centerOccluding, nx, ny, nz, cache, reader, minHeight, maxHeight)
             ? BlockChange.FLAG_OCCLUDED : BlockChange.FLAG_NONE;
         int packed = BlockChange.pack(nx & 0xF, ny, nz & 0xF);
         if (set.putBlockIfAbsentBelowCapacity(packed, stateStringFor(data), flags, capacity)) {
@@ -153,28 +190,30 @@ public final class RegionalDiffAccumulator {
         }
     }
 
-    private boolean buried(World world, int chunkX, int chunkZ, int cx, int cy, int cz, boolean centerOccluding,
-                           int tx, int ty, int tz, Map<Integer, Boolean> cache) {
-        if (!occlusionAt(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, tx, ty, tz, cache)) {
+    private boolean buried(int chunkX, int chunkZ, int cx, int cy, int cz, boolean centerOccluding,
+                           int tx, int ty, int tz, Map<Integer, Boolean> cache, SnapshotBlockReader reader,
+                           int minHeight, int maxHeight) {
+        if (!occlusionAt(chunkX, chunkZ, cx, cy, cz, centerOccluding, tx, ty, tz, cache, reader, minHeight, maxHeight)) {
             return false;
         }
-        return occlusionAt(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, tx + 1, ty, tz, cache)
-            && occlusionAt(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, tx - 1, ty, tz, cache)
-            && occlusionAt(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, tx, ty + 1, tz, cache)
-            && occlusionAt(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, tx, ty - 1, tz, cache)
-            && occlusionAt(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, tx, ty, tz + 1, cache)
-            && occlusionAt(world, chunkX, chunkZ, cx, cy, cz, centerOccluding, tx, ty, tz - 1, cache);
+        return occlusionAt(chunkX, chunkZ, cx, cy, cz, centerOccluding, tx + 1, ty, tz, cache, reader, minHeight, maxHeight)
+            && occlusionAt(chunkX, chunkZ, cx, cy, cz, centerOccluding, tx - 1, ty, tz, cache, reader, minHeight, maxHeight)
+            && occlusionAt(chunkX, chunkZ, cx, cy, cz, centerOccluding, tx, ty + 1, tz, cache, reader, minHeight, maxHeight)
+            && occlusionAt(chunkX, chunkZ, cx, cy, cz, centerOccluding, tx, ty - 1, tz, cache, reader, minHeight, maxHeight)
+            && occlusionAt(chunkX, chunkZ, cx, cy, cz, centerOccluding, tx, ty, tz + 1, cache, reader, minHeight, maxHeight)
+            && occlusionAt(chunkX, chunkZ, cx, cy, cz, centerOccluding, tx, ty, tz - 1, cache, reader, minHeight, maxHeight);
     }
 
-    private boolean occlusionAt(World world, int chunkX, int chunkZ, int cx, int cy, int cz, boolean centerOccluding,
-                                int x, int y, int z, Map<Integer, Boolean> cache) {
+    private boolean occlusionAt(int chunkX, int chunkZ, int cx, int cy, int cz, boolean centerOccluding,
+                                int x, int y, int z, Map<Integer, Boolean> cache, SnapshotBlockReader reader,
+                                int minHeight, int maxHeight) {
         if (x == cx && y == cy && z == cz) {
             return centerOccluding;
         }
         if ((x >> 4) != chunkX || (z >> 4) != chunkZ) {
             return false;
         }
-        if (y < world.getMinHeight() || y > world.getMaxHeight() - 1) {
+        if (y < minHeight || y >= maxHeight) {
             return false;
         }
         int dx = x - cx;
@@ -188,7 +227,7 @@ public final class RegionalDiffAccumulator {
                 return cached.booleanValue();
             }
         }
-        boolean occluding = dataOcclusion.occluding(blockReader.at(world, x, y, z));
+        boolean occluding = dataOcclusion.occluding(reader.at(x, y, z));
         if (key != null) {
             cache.put(key, Boolean.valueOf(occluding));
         }
