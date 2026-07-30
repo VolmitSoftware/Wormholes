@@ -340,13 +340,11 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     private void preloadPersistenceClasses() {
         ClassLoader loader = getClass().getClassLoader();
         String[] names = {
-            "art.arcane.wormholes.util.JSONString",
-            "art.arcane.wormholes.util.JSONObject",
-            "art.arcane.wormholes.util.JSONArray",
-            "art.arcane.wormholes.util.JSONStringer",
-            "art.arcane.wormholes.util.JSONWriter",
-            "art.arcane.wormholes.util.JSONTokener",
-            "art.arcane.wormholes.util.JSONException"
+            "art.arcane.volmlib.util.json.JSONString",
+            "art.arcane.volmlib.util.json.JSONObject",
+            "art.arcane.volmlib.util.json.JSONArray",
+            "art.arcane.volmlib.util.json.JSONTokener",
+            "art.arcane.volmlib.util.json.JSONException"
         };
         for (String name : names) {
             try {
@@ -355,9 +353,9 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             }
         }
         try {
-            art.arcane.wormholes.util.JSONObject warm = new art.arcane.wormholes.util.JSONObject();
+            art.arcane.volmlib.util.json.JSONObject warm = new art.arcane.volmlib.util.json.JSONObject();
             warm.put("warmup", true);
-            warm.put("list", new art.arcane.wormholes.util.JSONArray().put(1));
+            warm.put("list", new art.arcane.volmlib.util.json.JSONArray().put(1));
             warm.toString();
         } catch (Throwable ignored) {
         }

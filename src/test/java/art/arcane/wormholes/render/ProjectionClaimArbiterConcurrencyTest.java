@@ -36,6 +36,23 @@ public final class ProjectionClaimArbiterConcurrencyTest {
     private static final UUID TEST_WORLD_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @Test
+    public void emptyFrameFlushesWithoutChangesAndReleasesObserverState() throws Exception {
+        ProjectionClaimArbiter arbiter = arbiter();
+        Player observer = player(UUID.fromString("00000000-0000-0000-0000-000000000010"));
+        World world = world();
+
+        arbiter.beginFrame(observer, world, false);
+        ProjectionClaimArbiter.ClaimUpdateResult result = arbiter.flushFrame(observer);
+
+        assertEquals(0, result.getBlockChanges());
+        assertEquals(0, result.getWinnerChanges());
+        assertEquals(0, result.getConflicts());
+        assertEquals(0, result.getReverts());
+        assertTrue(arbiter.isIdle());
+        assertTrue(observersMap(arbiter).isEmpty());
+    }
+
+    @Test
     public void framedSubmitFlushAndReleasePreserveSingleThreadedSemantics() throws Exception {
         ProjectionClaimArbiter arbiter = arbiter();
         UUID observerId = UUID.fromString("00000000-0000-0000-0000-000000000011");

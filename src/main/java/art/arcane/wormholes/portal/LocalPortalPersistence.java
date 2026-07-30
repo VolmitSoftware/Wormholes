@@ -11,7 +11,7 @@ import java.util.function.Function;
 import java.util.logging.Level;
 
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.util.VIO;
 
 final class LocalPortalPersistence

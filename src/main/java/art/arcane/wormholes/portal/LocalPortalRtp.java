@@ -19,7 +19,7 @@ import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 final class LocalPortalRtp
 {

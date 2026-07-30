@@ -2,6 +2,7 @@ package art.arcane.wormholes;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.config.WormholesSettings;
+import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.network.ImportExportService;
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.NetworkRouter;
@@ -71,7 +72,7 @@ final class WormholesNetworkRuntime {
             this::runPortalSyncTask
         );
         Wormholes.traversalService = new TraversalService(Wormholes.networkManager);
-        Wormholes.remoteViewCache = new RemoteViewCache();
+        Wormholes.remoteViewCache = createRemoteViewCache(activeSettings.getNetwork());
         Wormholes.viewSubscriptions = new ViewSubscriptionManager(Wormholes.networkManager, Wormholes.remoteViewCache);
         Wormholes.viewServer = new ViewServer(Wormholes.networkManager);
         NetworkRouter networkRouter = new NetworkRouter(Wormholes.remotePortalRegistry, Wormholes.portalSyncService, Wormholes.traversalService, Wormholes.viewServer, Wormholes.remoteViewCache, Wormholes.viewSubscriptions, Wormholes.networkManager.getReplicationManager(), Wormholes.networkManager);
@@ -185,6 +186,29 @@ final class WormholesNetworkRuntime {
         if (!FoliaScheduler.runGlobal(plugin, runnable)) {
             plugin.getLogger().warning("Portal sync work was rejected by the global scheduler and did not run.");
         }
+    }
+
+    static RemoteViewCache createRemoteViewCache(NetworkConfig networkConfig) {
+        NetworkConfig.ReplicationConfig replication = networkConfig == null ? null : networkConfig.replication;
+        if (replication == null) {
+            return new RemoteViewCache();
+        }
+        return new RemoteViewCache(
+            replication.diffWindowSize,
+            TimeUnit.SECONDS.toMillis(replication.resyncTimeoutSec)
+        );
+    }
+
+    void applyReplicationSettings(NetworkConfig networkConfig) {
+        RemoteViewCache cache = Wormholes.remoteViewCache;
+        NetworkConfig.ReplicationConfig replication = networkConfig == null ? null : networkConfig.replication;
+        if (cache == null || replication == null) {
+            return;
+        }
+        cache.applyReplicationSettings(
+            replication.diffWindowSize,
+            TimeUnit.SECONDS.toMillis(replication.resyncTimeoutSec)
+        );
     }
 
     private void registerStatusBridgeListener(NetworkManager manager) {

@@ -28,7 +28,7 @@ import art.arcane.wormholes.portal.LocalTunnel;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 public final class RtpSettingsTest
 {

@@ -24,7 +24,7 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         }
     }
 
-    public record Stats(long bulkSent, long diffsSent, long blocksSent, long resyncRequests, long preShipBulksDeferred) {
+    public record Stats(long bulkSent, long diffsSent, long blocksSent, long resyncRequests) {
     }
 
     @FunctionalInterface
@@ -45,15 +45,7 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         }
     }
 
-    private static final class PreShipState {
-        private boolean promoted;
-
-        private PreShipState() {
-            this.promoted = false;
-        }
-    }
-
-    private record SubscriptionRef(UUID subscriptionId, boolean preShip) {
+    private record SubscriptionRef(UUID subscriptionId) {
     }
 
     private record PeerStreamKey(String peerName, ReplicationStreamKey stream) {
@@ -67,13 +59,11 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
     private final Map<String, Map<ReplicationStreamKey, Set<SubscriptionRef>>> peerSubscriptions = new ConcurrentHashMap<>();
     private final Map<UUID, Map<Long, ConcurrentHashMap<PeerStreamKey, ChunkReplicationState>>> worldSubscribers = new ConcurrentHashMap<>();
     private final Map<String, Map<ReplicationStreamKey, CanonicalHashCache>> peerHashes = new ConcurrentHashMap<>();
-    private final Map<String, Map<UUID, Map<ReplicationStreamKey, PreShipState>>> peerPreShip = new ConcurrentHashMap<>();
     private final Map<String, Object> peerGates = new ConcurrentHashMap<>();
     private final AtomicLong bulkSent = new AtomicLong();
     private final AtomicLong diffsSent = new AtomicLong();
     private final AtomicLong blocksSent = new AtomicLong();
     private final AtomicLong resyncRequests = new AtomicLong();
-    private final AtomicLong preShipBulksDeferred = new AtomicLong();
 
     public ChunkReplicationManager(NetworkManager network, ReplicationConfig config) {
         this.network = network;
@@ -120,7 +110,7 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
 
     public boolean isSubscribed(String peerName, UUID subscriptionId, ReplicationStreamKey stream) {
         synchronized (peerGate(peerName)) {
-            return hasSubscriptionLocked(peerName, new SubscriptionRef(subscriptionId, false), stream);
+            return hasSubscriptionLocked(peerName, new SubscriptionRef(subscriptionId), stream);
         }
     }
 
@@ -129,72 +119,8 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
             return;
         }
         synchronized (peerGate(peerName)) {
-            subscribeLocked(peerName, new SubscriptionRef(subscriptionId, false), world, stream);
+            subscribeLocked(peerName, new SubscriptionRef(subscriptionId), world, stream);
         }
-    }
-
-    public void subscribePreShip(String peerName, UUID portalId, World world, ProjectionRenderMode renderMode, List<Long> chunkKeys) {
-        if (peerName == null || portalId == null || world == null || renderMode == null || chunkKeys == null || chunkKeys.isEmpty()) {
-            return;
-        }
-        synchronized (peerGate(peerName)) {
-            Map<UUID, Map<ReplicationStreamKey, PreShipState>> portalMap = peerPreShip.computeIfAbsent(peerName, ignored -> new ConcurrentHashMap<>());
-            Map<ReplicationStreamKey, PreShipState> streamMap = portalMap.computeIfAbsent(portalId, ignored -> new ConcurrentHashMap<>());
-            SubscriptionRef subscription = new SubscriptionRef(portalId, true);
-            for (Long chunkKey : chunkKeys) {
-                ReplicationStreamKey stream = new ReplicationStreamKey(portalId, world.getUID(), chunkKey.longValue(), renderMode);
-                subscribeLocked(peerName, subscription, world, stream);
-                streamMap.putIfAbsent(stream, new PreShipState());
-                preShipBulksDeferred.incrementAndGet();
-            }
-        }
-    }
-
-    public void promotePreShip(String peerName, UUID portalId) {
-        Map<UUID, Map<ReplicationStreamKey, PreShipState>> portalMap = peerPreShip.get(peerName);
-        if (portalMap == null) {
-            return;
-        }
-        Map<ReplicationStreamKey, PreShipState> streamMap = portalMap.get(portalId);
-        if (streamMap == null) {
-            return;
-        }
-        for (PreShipState state : streamMap.values()) {
-            state.promoted = true;
-        }
-    }
-
-    public void cancelPreShip(String peerName, UUID portalId) {
-        synchronized (peerGate(peerName)) {
-            Map<UUID, Map<ReplicationStreamKey, PreShipState>> portalMap = peerPreShip.get(peerName);
-            if (portalMap == null) {
-                return;
-            }
-            Map<ReplicationStreamKey, PreShipState> removed = portalMap.remove(portalId);
-            if (removed == null) {
-                return;
-            }
-            SubscriptionRef subscription = new SubscriptionRef(portalId, true);
-            for (ReplicationStreamKey stream : removed.keySet()) {
-                unsubscribeLocked(peerName, subscription, stream);
-            }
-            if (portalMap.isEmpty()) {
-                peerPreShip.remove(peerName, portalMap);
-            }
-        }
-    }
-
-    public boolean isPreShipPromoted(String peerName, UUID portalId, ReplicationStreamKey stream) {
-        Map<UUID, Map<ReplicationStreamKey, PreShipState>> portalMap = peerPreShip.get(peerName);
-        if (portalMap == null) {
-            return false;
-        }
-        Map<ReplicationStreamKey, PreShipState> streamMap = portalMap.get(portalId);
-        if (streamMap == null) {
-            return false;
-        }
-        PreShipState state = streamMap.get(stream);
-        return state != null && state.promoted;
     }
 
     public void unsubscribe(String peerName, UUID subscriptionId, ReplicationStreamKey stream) {
@@ -202,7 +128,7 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
             return;
         }
         synchronized (peerGate(peerName)) {
-            unsubscribeLocked(peerName, new SubscriptionRef(subscriptionId, false), stream);
+            unsubscribeLocked(peerName, new SubscriptionRef(subscriptionId), stream);
         }
     }
 
@@ -211,7 +137,7 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
             return;
         }
         synchronized (peerGate(peerName)) {
-            SubscriptionRef subscription = new SubscriptionRef(subscriptionId, false);
+            SubscriptionRef subscription = new SubscriptionRef(subscriptionId);
             for (ReplicationStreamKey stream : streams) {
                 unsubscribeLocked(peerName, subscription, stream);
             }
@@ -238,7 +164,6 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
                 }
             }
             peerHashes.remove(peerName);
-            peerPreShip.remove(peerName);
             peerSubscriptions.remove(peerName);
         }
     }
@@ -249,7 +174,7 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
 
     public boolean sendBulk(String peerName, UUID subscriptionId, ReplicationStreamKey stream, byte[] payload, long contentHash, long expectedGeneration) {
         synchronized (peerGate(peerName)) {
-            SubscriptionRef subscription = new SubscriptionRef(subscriptionId, false);
+            SubscriptionRef subscription = new SubscriptionRef(subscriptionId);
             if (!hasSubscriptionLocked(peerName, subscription, stream)) {
                 return false;
             }
@@ -279,7 +204,7 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
 
     public boolean sendWhenAllBulked(String peerName, UUID subscriptionId, List<ReplicationStreamKey> streams, BooleanSupplier sender) {
         synchronized (peerGate(peerName)) {
-            SubscriptionRef subscription = new SubscriptionRef(subscriptionId, false);
+            SubscriptionRef subscription = new SubscriptionRef(subscriptionId);
             for (ReplicationStreamKey stream : streams) {
                 if (!hasSubscriptionLocked(peerName, subscription, stream)) {
                     return false;
@@ -479,7 +404,7 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
     }
 
     public Stats statsSnapshot() {
-        return new Stats(bulkSent.get(), diffsSent.get(), blocksSent.get(), resyncRequests.get(), preShipBulksDeferred.get());
+        return new Stats(bulkSent.get(), diffsSent.get(), blocksSent.get(), resyncRequests.get());
     }
 
     public int peerCount() {

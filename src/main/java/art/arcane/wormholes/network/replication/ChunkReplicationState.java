@@ -10,7 +10,6 @@ public final class ChunkReplicationState {
     private final String peerName;
     private final ReplicationStreamKey stream;
     private final AtomicLong lastBroadcastSeq = new AtomicLong(0L);
-    private final AtomicLong lastAcked = new AtomicLong(0L);
     private final AtomicLong bulkGeneration = new AtomicLong(0L);
     private final AtomicBoolean bulkSent = new AtomicBoolean(false);
     private final ConcurrentLinkedQueue<BlockChange> pendingBlocks = new ConcurrentLinkedQueue<>();
@@ -40,20 +39,6 @@ public final class ChunkReplicationState {
         return lastBroadcastSeq.incrementAndGet();
     }
 
-    public long lastAcked() {
-        return lastAcked.get();
-    }
-
-    public void recordAcked(long sequence) {
-        long current;
-        do {
-            current = lastAcked.get();
-            if (sequence <= current) {
-                return;
-            }
-        } while (!lastAcked.compareAndSet(current, sequence));
-    }
-
     public boolean markBulkSent() {
         return bulkSent.compareAndSet(false, true);
     }
@@ -68,7 +53,6 @@ public final class ChunkReplicationState {
         // Do NOT reset lastBroadcastSeq to 0: a re-bulk must get a strictly increasing sequence so the
         // receiver can order it ahead of (and not collide with) diffs already in flight. Resetting it
         // made every re-bulk reuse seq=1, which clobbered newer diffs and dropped block changes.
-        lastAcked.set(0L);
         pendingBlocks.clear();
         pendingLights.clear();
         pendingEntities.clear();

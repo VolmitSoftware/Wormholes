@@ -7,7 +7,7 @@ import org.bukkit.entity.Player;
 
 import art.arcane.volmlib.integration.VaultEconomy;
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 public final class VaultTravelCost implements PortalTravelCost
 {

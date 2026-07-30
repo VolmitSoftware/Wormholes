@@ -8,6 +8,7 @@ import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -140,6 +141,23 @@ class ChunkPreSendInstallationTest {
         assertNull(delivery.handleMethod(SampleConnectionOwner.class));
     }
 
+    @Test
+    void compatiblePacketConstructorSelectionIsReusedAcrossAChunkBurst() {
+        NmsChunkPreSendDelivery delivery = new NmsChunkPreSendDelivery(
+            plugin(Logger.getLogger("ChunkPreSendInstallationTest-constructors")),
+            SampleChunkPacket.class
+        );
+
+        Constructor<?> selected = delivery.packetConstructor(SampleChunk.class, SampleLightEngine.class);
+
+        assertNotNull(selected);
+        assertEquals(4, selected.getParameterCount());
+        for (int chunk = 0; chunk < 49; chunk++) {
+            assertSame(selected, delivery.packetConstructor(SampleChunk.class, SampleLightEngine.class));
+        }
+        assertNull(delivery.packetConstructor(String.class, SampleLightEngine.class));
+    }
+
     private static long failureCount(String reason) {
         Long count = WormholesTelemetry.failureBreakdown().get(reason);
         return count == null ? 0L : count;
@@ -187,6 +205,21 @@ class ChunkPreSendInstallationTest {
 
         Object connection() {
             return connection;
+        }
+    }
+
+    private static final class SampleChunk {
+    }
+
+    private static final class SampleLightEngine {
+    }
+
+    private static final class SampleChunkPacket {
+        private SampleChunkPacket(SampleChunk chunk, SampleLightEngine lightEngine, Object filter, Object packetData) {
+        }
+
+        private SampleChunkPacket(SampleChunk chunk, SampleLightEngine lightEngine, Object filter, Object packetData,
+                                  boolean modifyBlocks) {
         }
     }
 

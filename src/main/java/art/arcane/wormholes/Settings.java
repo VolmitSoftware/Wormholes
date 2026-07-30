@@ -10,7 +10,6 @@ import art.arcane.wormholes.config.toml.RenderConfig;
 public final class Settings {
     public static volatile VisualQualityProfile VISUAL_QUALITY_PROFILE = VisualQualityProfile.AUTO;
     public static volatile boolean ENABLE_PARTICLES = true;
-    public static volatile double PORTAL_CONSTRUCT_SPEED = 0.975D;
     public static volatile double PORTAL_COLAPSE_SPEED = 0.91D;
     public static volatile boolean DEBUG_RENDERING = false;
     public static volatile double FRUSTUM_CULLING_RATIO = 0.2D;
@@ -46,10 +45,6 @@ public final class Settings {
     public static volatile String TRAVERSAL_API_PROVIDER_FAILURE_POLICY = "allow";
     public static volatile int TRAVERSAL_API_PROVIDER_FAULT_LIMIT = 5;
     public static volatile long TRAVERSAL_API_SLOW_PROVIDER_MILLIS = 5L;
-    public static volatile boolean CHUNK_PRE_SEND_ENABLED = false;
-    public static volatile int CHUNK_PRE_SEND_RADIUS_CHUNKS = 3;
-    public static volatile int CHUNK_PRE_SEND_MAX_CHUNKS = 32;
-    public static volatile int CHUNK_PRE_SEND_BUDGET_MICROS = 2000;
     public static volatile boolean ARRIVAL_PREWARM_ON_INTEREST = true;
     public static volatile int ARRIVAL_WARM_RADIUS_CHUNKS = 4;
     public static volatile int ARRIVAL_WARM_MAX_RADIUS_CHUNKS = 10;
@@ -77,7 +72,6 @@ public final class Settings {
         VISUAL_QUALITY_PROFILE = src.getVisualQualityProfile();
 
         ENABLE_PARTICLES = main.enableParticles;
-        PORTAL_CONSTRUCT_SPEED = clampDouble(main.portalConstructSpeed, 0.0D, 1.0D);
         PORTAL_COLAPSE_SPEED = clampDouble(main.portalCollapseSpeed, 0.0D, 1.0D);
         DEBUG_RENDERING = main.debugRendering;
         TELEPORT_COOLDOWN_MILLIS = clampInt(main.teleportCooldownMillis, 0, 60_000);
@@ -85,11 +79,11 @@ public final class Settings {
         TRAVERSAL_API_PROVIDER_FAILURE_POLICY = main.traversalApiProviderFailurePolicy;
         TRAVERSAL_API_PROVIDER_FAULT_LIMIT = main.traversalApiProviderFaultLimit;
         TRAVERSAL_API_SLOW_PROVIDER_MILLIS = main.traversalApiSlowProviderMillis;
-        CHUNK_PRE_SEND_ENABLED = main.chunkPreSendEnabled;
-        CHUNK_PRE_SEND_RADIUS_CHUNKS = clampInt(main.chunkPreSendRadiusChunks, 0, 16);
-        CHUNK_PRE_SEND_MAX_CHUNKS = clampInt(main.chunkPreSendMaxChunks, 0, 1024);
-        CHUNK_PRE_SEND_BUDGET_MICROS = clampInt(main.chunkPreSendBudgetMicros, 0, 25_000);
-        ChunkPreSendSettings.apply(CHUNK_PRE_SEND_ENABLED, CHUNK_PRE_SEND_RADIUS_CHUNKS, CHUNK_PRE_SEND_MAX_CHUNKS, CHUNK_PRE_SEND_BUDGET_MICROS);
+        boolean chunkPreSendEnabled = main.chunkPreSendEnabled;
+        int chunkPreSendRadiusChunks = clampInt(main.chunkPreSendRadiusChunks, 0, 16);
+        int chunkPreSendMaxChunks = clampInt(main.chunkPreSendMaxChunks, 0, 1024);
+        int chunkPreSendBudgetMicros = clampInt(main.chunkPreSendBudgetMicros, 0, 25_000);
+        ChunkPreSendSettings.apply(chunkPreSendEnabled, chunkPreSendRadiusChunks, chunkPreSendMaxChunks, chunkPreSendBudgetMicros);
         ARRIVAL_PREWARM_ON_INTEREST = main.arrivalPrewarmOnInterest;
         ARRIVAL_WARM_RADIUS_CHUNKS = clampInt(main.arrivalWarmRadiusChunks, 0, 12);
         ARRIVAL_WARM_MAX_RADIUS_CHUNKS = clampInt(main.arrivalWarmMaxRadiusChunks, ARRIVAL_WARM_RADIUS_CHUNKS, 32);

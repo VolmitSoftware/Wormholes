@@ -32,6 +32,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.world.EntitiesLoadEvent;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -59,6 +60,7 @@ public final class TraversalService implements Listener {
     private final PlayerHandoffRateLimiter outboundRateLimiter = new PlayerHandoffRateLimiter();
     private final Map<UUID, PendingEntityTransfer> pendingEntityTransfers = new ConcurrentHashMap<>();
     private final TraversalEntityTransferLedger appliedEntityTransfers = new TraversalEntityTransferLedger();
+    private final EntityTransferAckRetryQueue acceptedEntityAckRetries = new EntityTransferAckRetryQueue();
     private final TraversalTransferLocks transferLocks = new TraversalTransferLocks();
     private final AtomicLong completedTransfers = new AtomicLong();
     private final TraversalFailureLedger failures = new TraversalFailureLedger();
@@ -84,6 +86,7 @@ public final class TraversalService implements Listener {
     public void runRecoveryMaintenance() {
         entityTransit.drainQueuedTransitRestores();
         prunePendingEntityTransfers();
+        retryAcceptedEntityTransferAcks();
     }
 
     public Map<String, Long> failureBreakdown() {
@@ -172,10 +175,6 @@ public final class TraversalService implements Listener {
             notices.unreachable(player, peerName + " could not queue the handoff request");
             return;
         }
-        if (Wormholes.viewServer != null) {
-            Wormholes.viewServer.onPortalTraversed(peerName, tunnel.getDestinationPortalId());
-        }
-
         long timeoutTicks = Math.max(1L, config.handoffTimeoutMs / 50L);
         Runnable handoffTimeoutBody = () -> {
             PendingHandoff expired = pendingHandoffs.remove(transferId);
@@ -572,7 +571,7 @@ public final class TraversalService implements Listener {
         long now = System.currentTimeMillis();
         TraversalEntityTransferLedger.Claim claim = appliedEntityTransfers.claim(transfer.transferId(), now);
         if (claim.status() == TraversalEntityTransferLedger.ClaimStatus.APPLIED) {
-            network.send(peerName, new WireMessage.EntityTransferAck(transfer.transferId(), true));
+            sendEntityTransferAck(peerName, transfer.transferId(), true);
             return;
         }
         if (claim.status() == TraversalEntityTransferLedger.ClaimStatus.IN_FLIGHT) {
@@ -584,14 +583,14 @@ public final class TraversalService implements Listener {
             appliedEntityTransfers.release(transfer.transferId(), claim);
             failures.record(Failure.ENTITY_ARRIVAL_PORTAL_UNAVAILABLE, transfer.transferId(),
                 "exit portal " + transfer.destPortalId() + " is unknown, closed, or has no world for the entity from " + peerName);
-            network.send(peerName, new WireMessage.EntityTransferAck(transfer.transferId(), false));
+            sendEntityTransferAck(peerName, transfer.transferId(), false);
             return;
         }
         if (!TraversalAdmissionPolicy.acceptsInbound(exit)) {
             appliedEntityTransfers.release(transfer.transferId(), claim);
             failures.record(Failure.ENTITY_ARRIVAL_DENIED, transfer.transferId(),
                 "exit portal " + exit.getId() + " is not accepting inbound travelers from " + peerName);
-            network.send(peerName, new WireMessage.EntityTransferAck(transfer.transferId(), false));
+            sendEntityTransferAck(peerName, transfer.transferId(), false);
             return;
         }
 
@@ -603,7 +602,7 @@ public final class TraversalService implements Listener {
             appliedEntityTransfers.release(transfer.transferId(), claim);
             failures.record(Failure.ENTITY_ARRIVAL_SCHEDULE_REJECTED, transfer.transferId(),
                 "destination region scheduler refused the arrival at exit portal " + exit.getId() + " for the entity from " + peerName);
-            network.send(peerName, new WireMessage.EntityTransferAck(transfer.transferId(), false));
+            sendEntityTransferAck(peerName, transfer.transferId(), false);
         }
     }
 
@@ -640,7 +639,7 @@ public final class TraversalService implements Listener {
         } else {
             pruneAppliedEntityTransfers();
         }
-        network.send(peerName, new WireMessage.EntityTransferAck(transfer.transferId(), accepted));
+        sendEntityTransferAck(peerName, transfer.transferId(), accepted);
     }
 
     public void onEntityTransferAck(String peerName, WireMessage.EntityTransferAck ack) {
@@ -838,5 +837,28 @@ public final class TraversalService implements Listener {
 
     private void pruneAppliedEntityTransfers() {
         appliedEntityTransfers.pruneApplied(System.currentTimeMillis(), TraversalEntityTransit.DEDUPE_TTL_MILLIS, 256);
+    }
+
+    private void sendEntityTransferAck(String peerName, UUID transferId, boolean accepted) {
+        WireMessage.EntityTransferAck ack = new WireMessage.EntityTransferAck(transferId, accepted);
+        long now = System.currentTimeMillis();
+        if (accepted) {
+            acceptedEntityAckRetries.track(peerName, ack, now, TraversalEntityTransit.DEDUPE_TTL_MILLIS);
+        }
+        boolean queued = network != null && network.send(peerName, ack);
+        if (accepted && !queued) {
+            acceptedEntityAckRetries.expedite(transferId, now);
+        }
+    }
+
+    private void retryAcceptedEntityTransferAcks() {
+        long now = System.currentTimeMillis();
+        List<EntityTransferAckRetryQueue.Retry> retries = acceptedEntityAckRetries.due(now);
+        for (EntityTransferAckRetryQueue.Retry retry : retries) {
+            boolean queued = network != null && network.send(retry.peerName(), retry.ack());
+            if (!queued) {
+                acceptedEntityAckRetries.expedite(retry.ack().transferId(), now);
+            }
+        }
     }
 }

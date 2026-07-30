@@ -34,6 +34,7 @@ public final class PublicHostResolver {
     private final Object lock = new Object();
     private volatile ExecutorService executor;
     private volatile boolean inFlight;
+    private long generation;
 
     public PublicHostResolver(Logger logger) {
         this(logger, DEFAULT_ENDPOINTS, defaultClient());
@@ -71,7 +72,8 @@ public final class PublicHostResolver {
                 });
                 executor = active;
             }
-            active.submit(() -> runResolution(onComplete));
+            long requestGeneration = generation;
+            active.submit(() -> runResolution(onComplete, requestGeneration));
         }
     }
 
@@ -80,29 +82,41 @@ public final class PublicHostResolver {
     }
 
     public void shutdown() {
-        ExecutorService active = executor;
-        executor = null;
+        ExecutorService active;
+        synchronized (lock) {
+            generation++;
+            inFlight = false;
+            active = executor;
+            executor = null;
+        }
         if (active != null) {
             active.shutdownNow();
         }
     }
 
-    private void runResolution(Consumer<String> onComplete) {
+    private void runResolution(Consumer<String> onComplete, long requestGeneration) {
         try {
             String resolved = resolveOnce();
-            if (resolved != null) {
-                cached.set(resolved);
-                cachedAtNanos.set(System.nanoTime());
-                logger.info("net: public host resolved to " + resolved);
-            } else {
-                logger.fine("net: public host resolution returned no address");
-            }
-            if (onComplete != null) {
-                onComplete.accept(resolved);
+            synchronized (lock) {
+                if (generation != requestGeneration) {
+                    return;
+                }
+                if (resolved != null) {
+                    cached.set(resolved);
+                    cachedAtNanos.set(System.nanoTime());
+                    logger.info("net: public host resolved to " + resolved);
+                } else {
+                    logger.fine("net: public host resolution returned no address");
+                }
+                if (onComplete != null) {
+                    onComplete.accept(resolved);
+                }
             }
         } finally {
             synchronized (lock) {
-                inFlight = false;
+                if (generation == requestGeneration) {
+                    inFlight = false;
+                }
             }
         }
     }

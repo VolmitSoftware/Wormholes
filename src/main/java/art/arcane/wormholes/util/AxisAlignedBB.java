@@ -10,6 +10,7 @@ import org.bukkit.util.Vector;
 import art.arcane.wormholes.geometry.GeoPolygonProc;
 import art.arcane.wormholes.portal.IWritable;
 import art.arcane.volmlib.util.collection.KList;
+import art.arcane.volmlib.util.json.JSONObject;
 
 public class AxisAlignedBB implements IWritable
 {

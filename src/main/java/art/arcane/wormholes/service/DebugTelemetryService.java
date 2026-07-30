@@ -152,7 +152,7 @@ public final class DebugTelemetryService {
             : network.debugSnapshot();
         List<NetworkManager.PeerSnapshot> peers = network == null ? List.of() : network.peerSnapshots();
         ChunkReplicationManager.Stats replication = network == null
-            ? new ChunkReplicationManager.Stats(0L, 0L, 0L, 0L, 0L)
+            ? new ChunkReplicationManager.Stats(0L, 0L, 0L, 0L)
             : network.getReplicationManager().statsSnapshot();
 
         ViewServer viewServer = plugin.getViewServer();

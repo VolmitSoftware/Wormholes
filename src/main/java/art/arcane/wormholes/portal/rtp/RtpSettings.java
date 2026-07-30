@@ -6,7 +6,7 @@ import java.util.Objects;
 import org.bukkit.World;
 
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 public final class RtpSettings
 {

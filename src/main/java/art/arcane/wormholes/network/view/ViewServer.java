@@ -52,7 +52,6 @@ public final class ViewServer implements Listener {
     private final ViewBulkPipeline bulkPipeline;
     private final ViewEntityPublisher entityPublisher;
     private final ViewEntityPipeline entityPipeline;
-    private final ViewPreShipCoordinator preShip;
     private final ViewSubscriptions subscriptions;
     private final AtomicBoolean taskRunning = new AtomicBoolean(false);
 
@@ -239,7 +238,6 @@ public final class ViewServer implements Listener {
         this.bulkPipeline = new ViewBulkPipeline(registry, timeDelivery);
         this.entityPublisher = new ViewEntityPublisher(registry);
         this.entityPipeline = new ViewEntityPipeline(registry, timeDelivery, entityPublisher);
-        this.preShip = new ViewPreShipCoordinator(registry);
         this.subscriptions = new ViewSubscriptions(registry, tickets, timeDelivery, bulkPipeline, this::startTask);
         network.getReplicationManager().setBulkRetryListener(bulkPipeline::retryCanonicalBulk);
     }
@@ -292,14 +290,6 @@ public final class ViewServer implements Listener {
 
     public EntityRateScheduler getEntityRateScheduler() {
         return entityPipeline.scheduler();
-    }
-
-    public PreShipPredictor getPreShipPredictor() {
-        return preShip.predictor();
-    }
-
-    public void onPortalTraversed(String peerName, UUID destinationPortalId) {
-        preShip.onPortalTraversed(peerName, destinationPortalId);
     }
 
     public void forwardAnimation(UUID entityId, com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityAnimation.EntityAnimationType type) {
@@ -400,8 +390,6 @@ public final class ViewServer implements Listener {
 
         ChunkReplicationManager replication = registry.replication();
         replication.onTickEnd();
-
-        preShip.tick();
 
         for (ViewSession session : registry.sessions()) {
             ILocalPortal portal = Wormholes.portalManager == null ? null : Wormholes.portalManager.getLocalPortal(session.portalId);

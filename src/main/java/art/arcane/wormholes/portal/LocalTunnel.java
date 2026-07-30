@@ -1,7 +1,7 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 public class LocalTunnel extends Tunnel
 {

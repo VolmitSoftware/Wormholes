@@ -13,24 +13,24 @@ class LocalPortalRejectionTest {
     void frontSideRejectionReturnsTravelerAlongViewedNormal() {
         Traversive traversive = traversive(true);
 
-        assertVector(new Vector(2.0D, 65.0D, 1.75D), LocalPortal.sourceRejectionPoint(traversive));
-        assertVector(new Vector(0.0D, 0.0D, -3.0D), LocalPortal.sourceRejectionVelocity(traversive));
+        assertVector(new Vector(2.0D, 65.0D, 1.75D), LocalPortalTraversal.sourceRejectionPoint(traversive));
+        assertVector(new Vector(0.0D, 0.0D, -3.0D), LocalPortalTraversal.sourceRejectionVelocity(traversive));
     }
 
     @Test
     void backSideRejectionReturnsTravelerToOppositeSourceSide() {
         Traversive traversive = traversive(false);
 
-        assertVector(new Vector(2.0D, 65.0D, 4.25D), LocalPortal.sourceRejectionPoint(traversive));
-        assertVector(new Vector(0.0D, 0.0D, 3.0D), LocalPortal.sourceRejectionVelocity(traversive));
+        assertVector(new Vector(2.0D, 65.0D, 4.25D), LocalPortalTraversal.sourceRejectionPoint(traversive));
+        assertVector(new Vector(0.0D, 0.0D, 3.0D), LocalPortalTraversal.sourceRejectionVelocity(traversive));
     }
 
     @Test
     void departureCommitmentAcceptsWithinRadiusAndRejectsBeyond() {
-        assertTrue(LocalPortal.withinDepartureCommitmentRadius(0.0D));
-        assertTrue(LocalPortal.withinDepartureCommitmentRadius(255.9D));
-        assertTrue(LocalPortal.withinDepartureCommitmentRadius(256.0D));
-        assertFalse(LocalPortal.withinDepartureCommitmentRadius(256.1D));
+        assertTrue(LocalPortalTraversal.withinDepartureCommitmentRadius(0.0D));
+        assertTrue(LocalPortalTraversal.withinDepartureCommitmentRadius(255.9D));
+        assertTrue(LocalPortalTraversal.withinDepartureCommitmentRadius(256.0D));
+        assertFalse(LocalPortalTraversal.withinDepartureCommitmentRadius(256.1D));
     }
 
     private static Traversive traversive(boolean frontSide) {

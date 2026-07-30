@@ -18,7 +18,7 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 public final class PortalVanillaTravelCostPersistenceTest
 {

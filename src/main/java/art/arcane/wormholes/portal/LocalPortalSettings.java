@@ -12,7 +12,7 @@ import org.bukkit.inventory.ItemStack;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.PortalSyncService;
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 final class LocalPortalSettings
 {

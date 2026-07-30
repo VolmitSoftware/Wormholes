@@ -5,7 +5,7 @@ import java.util.UUID;
 import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.util.Direction;
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 public abstract class Portal implements IPortal
 {

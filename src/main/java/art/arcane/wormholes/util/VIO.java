@@ -17,6 +17,10 @@ public final class VIO {
     }
 
     public static void writeAll(File f, Object content) throws IOException {
+        writeAllBytes(f, String.valueOf(content).getBytes(StandardCharsets.UTF_8));
+    }
+
+    public static void writeAllBytes(File f, byte[] content) throws IOException {
         Path target = f.toPath();
         Path directory = target.toAbsolutePath().getParent();
         if (directory != null) {
@@ -24,7 +28,7 @@ public final class VIO {
         }
         Path temporary = Files.createTempFile(directory, f.getName() + ".", ".tmp");
         try {
-            Files.writeString(temporary, String.valueOf(content), StandardCharsets.UTF_8);
+            Files.write(temporary, content);
             try {
                 Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             } catch (AtomicMoveNotSupportedException ignored) {

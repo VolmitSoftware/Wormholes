@@ -4,10 +4,19 @@ import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RemoteViewReadyTest {
+    @Test
+    void configuredReplicationLimitsReachPeerChunkStores() {
+        RemoteViewCache cache = new RemoteViewCache(7, 12_000L);
+
+        assertEquals(7, cache.chunkStore("hub").diffWindowSize());
+        assertEquals(12_000L, cache.chunkStore("hub").resyncTimeoutMillis());
+    }
+
     @Test
     void newViewIsNotReady() {
         RemoteViewCache cache = new RemoteViewCache();

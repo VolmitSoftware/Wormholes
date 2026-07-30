@@ -100,4 +100,48 @@ class PublicHostResolverTest {
         assertEquals("203.0.113.42", resolver.cached());
         resolver.shutdown();
     }
+
+    @Test
+    void shutdownSuppressesStaleCallbackAndAllowsRestart() throws Exception {
+        HttpServer slow = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        CountDownLatch requestStarted = new CountDownLatch(1);
+        CountDownLatch releaseResponse = new CountDownLatch(1);
+        slow.createContext("/slow", exchange -> {
+            requestStarted.countDown();
+            try {
+                releaseResponse.await(5L, TimeUnit.SECONDS);
+                byte[] body = "203.0.113.42\n".getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(200, body.length);
+                try (OutputStream out = exchange.getResponseBody()) {
+                    out.write(body);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                exchange.close();
+            }
+        });
+        slow.start();
+        try {
+            PublicHostResolver resolver = new PublicHostResolver(LOGGER, List.of(url(slow, "/slow")), java.net.http.HttpClient.newHttpClient());
+            CountDownLatch staleCallback = new CountDownLatch(1);
+            resolver.refreshAsync(value -> staleCallback.countDown());
+            assertTrue(requestStarted.await(5L, TimeUnit.SECONDS));
+            resolver.shutdown();
+            releaseResponse.countDown();
+            assertFalse(staleCallback.await(300L, TimeUnit.MILLISECONDS));
+
+            AtomicReference<String> restartedValue = new AtomicReference<>();
+            CountDownLatch restartedCallback = new CountDownLatch(1);
+            resolver.refreshAsync(value -> {
+                restartedValue.set(value);
+                restartedCallback.countDown();
+            });
+            assertTrue(restartedCallback.await(5L, TimeUnit.SECONDS));
+            assertEquals("203.0.113.42", restartedValue.get());
+            resolver.shutdown();
+        } finally {
+            releaseResponse.countDown();
+            slow.stop(0);
+        }
+    }
 }

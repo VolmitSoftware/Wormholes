@@ -186,26 +186,6 @@ final class BlockOpsRuneCatalog
 		}
 	}
 
-	boolean isSame(ItemStack is, ItemStack ib)
-	{
-		if(is == null && ib == null)
-		{
-			return true;
-		}
-
-		if(is == null || ib == null)
-		{
-			return false;
-		}
-
-		if(is.getType() != ib.getType())
-		{
-			return false;
-		}
-
-		return is.isSimilar(ib);
-	}
-
 	boolean isPortalTool(ItemStack item)
 	{
 		return isWand(item) || isPortalRune(item);

@@ -1,7 +1,7 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 

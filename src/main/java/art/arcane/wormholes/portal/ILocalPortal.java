@@ -1,5 +1,6 @@
 package art.arcane.wormholes.portal;
 
+import java.io.IOException;
 import java.util.UUID;
 
 import org.bukkit.Location;
@@ -12,8 +13,22 @@ import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 import art.arcane.volmlib.util.inventorygui.Window;
 
-public interface ILocalPortal extends IPortal, IPersistant, Listener
+public interface ILocalPortal extends IPortal, Listener
 {
+	public void save();
+
+	public boolean needsSaving();
+
+	public PortalSaveSnapshot prepareSave();
+
+	public void writeSave(PortalSaveSnapshot snapshot) throws IOException;
+
+	public void rejectSave();
+
+	public void saveNow() throws IOException;
+
+	public void deleteData();
+
 	public PortalStructure getStructure();
 
 	public PortalType getType();

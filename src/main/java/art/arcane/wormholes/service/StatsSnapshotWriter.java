@@ -10,7 +10,6 @@ import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.TraversalService;
 import art.arcane.wormholes.network.WireCompression;
 import art.arcane.wormholes.network.view.EntityRateScheduler;
-import art.arcane.wormholes.network.view.PreShipPredictor;
 import art.arcane.wormholes.network.view.ViewServer;
 import art.arcane.wormholes.platform.WormholesPlatform;
 
@@ -38,10 +37,8 @@ public final class StatsSnapshotWriter {
                                     boolean udsEnabled, String udsDir, int retrainIntervalSec) {
     }
 
-    public record ViewSettings(double coneDegrees, double coneBehindFactor, boolean coneEnabled,
-                               int yBiasCaveYMax, int yBiasSkyYMin, double yBiasFactor, boolean yBiasEnabled,
-                               double entityRateNearHz, double entityRateMidHz, double entityRateFarHz, double entityRateVeryFarHz,
-                               boolean preshipEnabled, double preshipDistance, double preshipMinSpeed) {
+    public record ViewSettings(double entityRateNearHz, double entityRateMidHz,
+                               double entityRateFarHz, double entityRateVeryFarHz) {
     }
 
     public record DictState(boolean dictPresent, int version, String hashHex, long trainedAtMillis,
@@ -52,8 +49,7 @@ public final class StatsSnapshotWriter {
     }
 
     public record ViewMetrics(ViewServer.Stats viewStats, EntityRateScheduler.Stats rateStats,
-                              EntityRateScheduler.Bands bands, PreShipPredictor.Stats preship,
-                              double intervalSeconds) {
+                              EntityRateScheduler.Bands bands, double intervalSeconds) {
     }
 
     public record FailureState(long pluginTotal, double pluginPerMinute, Map<String, Long> pluginBreakdown,
@@ -93,9 +89,9 @@ public final class StatsSnapshotWriter {
     }
 
     public static StatsSnapshotWriter forRuntime(Wormholes plugin, NetworkManager network, ViewServer viewServer,
-                                                 TraversalService traversal, PreShipPredictor preShipPredictor,
-                                                 Path outputFile, Duration interval, Instant pluginStartedAt) {
-        Supplier<SnapshotData> supplier = () -> buildRuntimeSnapshot(plugin, network, viewServer, traversal, preShipPredictor, interval, pluginStartedAt);
+                                                 TraversalService traversal, Path outputFile,
+                                                 Duration interval, Instant pluginStartedAt) {
+        Supplier<SnapshotData> supplier = () -> buildRuntimeSnapshot(plugin, network, viewServer, traversal, interval, pluginStartedAt);
         return new StatsSnapshotWriter(plugin, supplier, outputFile, interval);
     }
 
@@ -196,18 +192,10 @@ public final class StatsSnapshotWriter {
         out.append("  uds:         ").append(transport.udsEnabled() ? "enabled" : "disabled")
             .append("                   udsDir: ").append(safe(data.udsDirDisplay())).append('\n');
         ViewSettings view = data.view();
-        out.append("  view.cone:   ").append(formatDouble(view.coneDegrees(), 0)).append(" deg, behind ")
-            .append(formatDouble(view.coneBehindFactor(), 2))
-            .append("       view.yBias: cave<").append(view.yBiasCaveYMax())
-            .append(" sky>").append(view.yBiasSkyYMin())
-            .append(" factor ").append(formatDouble(view.yBiasFactor(), 2)).append('\n');
         out.append("  entity rate: near ").append(formatDouble(view.entityRateNearHz(), 0)).append("Hz")
             .append(" mid ").append(formatDouble(view.entityRateMidHz(), 0)).append("Hz")
             .append(" far ").append(formatDouble(view.entityRateFarHz(), 0)).append("Hz")
             .append(" veryFar ").append(formatDouble(view.entityRateVeryFarHz(), 0)).append("Hz").append('\n');
-        out.append("  preship:     ").append(view.preshipEnabled() ? "enabled" : "disabled")
-            .append(", distance ").append(formatDouble(view.preshipDistance(), 0))
-            .append(", minSpeed ").append(formatDouble(view.preshipMinSpeed(), 2)).append('\n');
         out.append('\n');
 
         List<NetworkManager.PeerSnapshot> peers = data.peers() == null ? List.of() : new ArrayList<>(data.peers());
@@ -298,13 +286,6 @@ public final class StatsSnapshotWriter {
         out.append("  packets:       ").append(diffPct).append("% chunk diffs / ").append(bulkPct)
             .append("% chunk bulks (diffs=").append(viewStats.chunkDiffSentCount())
             .append(", bulks=").append(viewStats.chunkBulkSentCount()).append(")").append('\n');
-        out.append("  cone bias:     ").append(data.view().coneEnabled() ? "enabled" : "disabled").append('\n');
-        PreShipPredictor.Stats preship = viewMetrics.preship();
-        out.append("  preship:       active ").append(preship.active())
-            .append("   opened ").append(preship.opened())
-            .append("   promoted ").append(preship.promoted())
-            .append("   cancelled ").append(preship.cancelled())
-            .append('\n');
         out.append('\n');
 
         TraversalService.Stats transfers = data.transfers();
@@ -378,8 +359,8 @@ public final class StatsSnapshotWriter {
     }
 
     private static SnapshotData buildRuntimeSnapshot(Wormholes plugin, NetworkManager network, ViewServer viewServer,
-                                                     TraversalService traversal, PreShipPredictor preShipPredictor,
-                                                     Duration interval, Instant pluginStartedAt) {
+                                                     TraversalService traversal, Duration interval,
+                                                     Instant pluginStartedAt) {
         NetworkConfig config = Wormholes.settings == null ? new NetworkConfig() : Wormholes.settings.getNetwork();
         Instant now = Instant.now();
         Duration uptime = Duration.between(pluginStartedAt, now);
@@ -394,20 +375,10 @@ public final class StatsSnapshotWriter {
             config.transport.compressionRetrainIntervalSec
         );
         ViewSettings viewSettings = new ViewSettings(
-            config.view.coneDegrees,
-            config.view.coneBehindFactor,
-            config.view.coneEnabled,
-            config.view.yBiasCaveYMax,
-            config.view.yBiasSkyYMin,
-            config.view.yBiasFactor,
-            config.view.yBiasEnabled,
             config.view.entityRateNearHz,
             config.view.entityRateMidHz,
             config.view.entityRateFarHz,
-            config.view.entityRateVeryFarHz,
-            config.view.preshipEnabled,
-            config.view.preshipDistance,
-            config.view.preshipMinSpeed
+            config.view.entityRateVeryFarHz
         );
         String udsDirDisplay = (config.transport.udsDir == null || config.transport.udsDir.isBlank())
             ? "<plugin-data>/uds"
@@ -440,11 +411,8 @@ public final class StatsSnapshotWriter {
             ? new EntityRateScheduler.Stats(0L, 0L, 0L, 0L)
             : scheduler.snapshot();
         EntityRateScheduler.Bands bands = scheduler == null ? null : scheduler.getBands();
-        PreShipPredictor.Stats preshipStats = preShipPredictor == null
-            ? new PreShipPredictor.Stats(0L, 0L, 0L, 0)
-            : preShipPredictor.snapshot();
         double intervalSeconds = Math.max(1.0D, interval.getSeconds());
-        ViewMetrics viewMetrics = new ViewMetrics(viewStats, rateStats, bands, preshipStats, intervalSeconds);
+        ViewMetrics viewMetrics = new ViewMetrics(viewStats, rateStats, bands, intervalSeconds);
         TraversalService.Stats transferStats = traversal == null
             ? new TraversalService.Stats(0L, 0L, 0)
             : traversal.statsSnapshot();

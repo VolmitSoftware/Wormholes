@@ -88,11 +88,6 @@ public class Traversive
 		return inFrame.transformPoint(inPoint, inOrigin, outOrigin, outFrame.view(frontSide));
 	}
 
-	public Direction getInDirection()
-	{
-		return inFrame.getNormal();
-	}
-
 	public PortalFrame getInFrame()
 	{
 		return inFrame;

@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public final class PeerConnection {
@@ -123,9 +124,17 @@ public final class PeerConnection {
         writeQueue.offer(OutboundFrame.CLOSE);
         try {
             channel.close();
-        } catch (IOException ignored) {
+        } catch (IOException e) {
+            LOG.log(Level.FINE, "net: failed to close channel for " + describeRemote(), e);
         }
-        listener.onClosed(this, reason);
+        try {
+            listener.onClosed(this, reason);
+        } catch (RuntimeException e) {
+            LOG.log(Level.SEVERE, "net: close listener failed for " + describeRemote(), e);
+        } catch (Error e) {
+            LOG.log(Level.SEVERE, "net: close listener failed for " + describeRemote(), e);
+            throw e;
+        }
     }
 
     public State getState() {
@@ -215,6 +224,7 @@ public final class PeerConnection {
 
     private void runReader() {
         String failure = null;
+        Error terminalError = null;
         try {
             channel.setTcpNoDelay(true);
             channel.setReadTimeout(HANDSHAKE_TIMEOUT_MS);
@@ -248,8 +258,18 @@ public final class PeerConnection {
             failure = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
         } catch (HandshakeException e) {
             failure = e.getMessage();
+        } catch (RuntimeException e) {
+            failure = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            LOG.log(Level.SEVERE, "net: reader failed for " + describeRemote(), e);
+        } catch (Error e) {
+            failure = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            terminalError = e;
+            LOG.log(Level.SEVERE, "net: reader failed for " + describeRemote(), e);
         }
         close(failure == null ? "connection ended" : failure);
+        if (terminalError != null) {
+            throw terminalError;
+        }
     }
 
     private void handshakeAsDialer(DataInputStream in) throws IOException, HandshakeException {

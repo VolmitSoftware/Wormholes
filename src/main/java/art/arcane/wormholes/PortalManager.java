@@ -330,14 +330,6 @@ public class PortalManager implements Listener
 		}, LOAD_RETRY_INTERVAL_TICKS);
 	}
 
-	public void saveAll()
-	{
-		for(ILocalPortal i : getLocalPortals())
-		{
-			i.save();
-		}
-	}
-
 	public void saveAllNow()
 	{
 		for(ILocalPortal i : getLocalPortals())

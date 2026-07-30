@@ -1,6 +1,7 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.util.VIO;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -8,7 +9,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -87,10 +87,9 @@ public final class PeerRouteStore {
             properties.setProperty(encodeName(route.name), encode(route));
         }
         try {
-            Files.createDirectories(file.getParent());
-            try (OutputStream output = Files.newOutputStream(file)) {
-                properties.store(output, "Wormholes peer routes learned from portal links");
-            }
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            properties.store(output, "Wormholes peer routes learned from portal links");
+            VIO.writeAllBytes(file.toFile(), output.toByteArray());
         } catch (IOException e) {
             throw new IllegalStateException("Could not persist Wormholes peer route store", e);
         }

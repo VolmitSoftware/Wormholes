@@ -362,9 +362,6 @@ public final class TomlCodec {
                 out.append(indent).append("# ").append(line).append('\n');
             }
         }
-        if (f.isAnnotationPresent(RestartRequired.class)) {
-            out.append(indent).append("# (restart required to apply changes)").append('\n');
-        }
         out.append(indent).append(toTomlKey(f.getName())).append(" = ").append(formatValue(value)).append('\n');
     }
 

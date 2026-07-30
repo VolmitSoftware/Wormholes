@@ -5,7 +5,7 @@ import java.util.UUID;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.RemotePortalRegistry;
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 public class UniversalTunnel extends Tunnel
 {

@@ -156,7 +156,7 @@ public class RemotePortal extends Portal implements IRemotePortal {
         if (!(entity instanceof Player player) || player.isOp()) {
             return true;
         }
-        String node = "wormholes.portal." + LocalPortal.sanitizePermissionName(getName());
+        String node = "wormholes.portal." + LocalPortalSettings.sanitizePermissionName(getName());
         return mirroredPermissionMode.allows(player, node);
     }
 

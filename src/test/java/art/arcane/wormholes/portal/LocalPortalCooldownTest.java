@@ -31,8 +31,8 @@ public final class LocalPortalCooldownTest {
 
     @Test
     public void portalPermissionNamesAreStableNodes() {
-        assertEquals("alpha_gate", LocalPortal.sanitizePermissionName("Alpha Gate"));
-        assertEquals("portal-01.main", LocalPortal.sanitizePermissionName(" Portal-01.Main "));
-        assertEquals("unnamed", LocalPortal.sanitizePermissionName("   "));
+        assertEquals("alpha_gate", LocalPortalSettings.sanitizePermissionName("Alpha Gate"));
+        assertEquals("portal-01.main", LocalPortalSettings.sanitizePermissionName(" Portal-01.Main "));
+        assertEquals("unnamed", LocalPortalSettings.sanitizePermissionName("   "));
     }
 }

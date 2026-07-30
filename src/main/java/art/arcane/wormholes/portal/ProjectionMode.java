@@ -27,16 +27,6 @@ public enum ProjectionMode
 		return localizedLines().getFirst();
 	}
 
-	public String getLoreLine1()
-	{
-		return localizedLines().get(1);
-	}
-
-	public String getLoreLine2()
-	{
-		return localizedLines().get(2);
-	}
-
 	public Material getIcon()
 	{
 		return icon;

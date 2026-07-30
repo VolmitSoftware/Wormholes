@@ -36,27 +36,4 @@ public final class VectorMath {
         return n;
     }
 
-    public static Vector rotate90CX(Vector v) {
-        return new Vector(v.getX(), -v.getZ(), v.getY());
-    }
-
-    public static Vector rotate90CCX(Vector v) {
-        return new Vector(v.getX(), v.getZ(), -v.getY());
-    }
-
-    public static Vector rotate90CY(Vector v) {
-        return new Vector(v.getZ(), v.getY(), -v.getX());
-    }
-
-    public static Vector rotate90CCY(Vector v) {
-        return new Vector(-v.getZ(), v.getY(), v.getX());
-    }
-
-    public static Vector rotate90CZ(Vector v) {
-        return new Vector(-v.getY(), v.getX(), v.getZ());
-    }
-
-    public static Vector rotate90CCZ(Vector v) {
-        return new Vector(v.getY(), -v.getX(), v.getZ());
-    }
 }

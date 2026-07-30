@@ -110,6 +110,10 @@ final class NetworkIdentity {
         });
     }
 
+    void shutdown() {
+        publicHostResolver.shutdown();
+    }
+
     LocalIdentity snapshot() {
         return new LocalIdentity(localName(), mcVersion, pluginVersion, advertiseHost(), network.getBoundListenPort(),
             network.gamePort(), identityStore.publicKeyBytes(), identityStore.privateKey());

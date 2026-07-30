@@ -300,8 +300,10 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
 
     public void stop() {
         if (!running.compareAndSet(true, false)) {
+            identity.shutdown();
             return;
         }
+        identity.shutdown();
         hashProbeScheduler.stop();
         ScheduledExecutorService executor = scheduler;
         scheduler = null;
@@ -344,7 +346,9 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
             || previous.listenEnabled != next.listenEnabled
             || previous.listenPort != next.listenPort
             || overrideChanged
-            || !blank(previous.serverName).equals(blank(next.serverName));
+            || !blank(previous.serverName).equals(blank(next.serverName))
+            || previous.transport.udsEnabled != next.transport.udsEnabled
+            || !blank(previous.transport.udsDir).equals(blank(next.transport.udsDir));
         if (overrideChanged) {
             identity.forgetDetectedPublicHost();
         }

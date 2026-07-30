@@ -10,6 +10,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.net.StandardProtocolFamily;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 @Timeout(30)
 class NetworkManagerTest {
@@ -55,6 +59,14 @@ class NetworkManagerTest {
     private static int freePort() throws IOException {
         try (ServerSocket socket = new ServerSocket(0)) {
             return socket.getLocalPort();
+        }
+    }
+
+    private static boolean udsSupported() {
+        try (ServerSocketChannel ignored = ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
+            return true;
+        } catch (Throwable ignored) {
+            return false;
         }
     }
 
@@ -168,6 +180,56 @@ class NetworkManagerTest {
 
         awaitTrue("alpha sees beta READY", () -> alpha.isPeerReady(BETA_NAME), 10_000L);
         awaitTrue("beta sees alpha READY", () -> beta.isPeerReady(ALPHA_NAME), 10_000L);
+    }
+
+    @Test
+    void uncheckedMessageHandlerFailureClosesConnection() throws IOException {
+        int portA = freePort();
+        int portB = freePort();
+        NetworkManager alpha = manager(config(portA, ALPHA_NAME), ALPHA_GAME_PORT, "handler-alpha");
+        NetworkManager beta = manager(config(portB, BETA_NAME), BETA_GAME_PORT, "handler-beta");
+        alpha.savePeer(route(BETA_NAME, portB));
+        beta.savePeer(route(ALPHA_NAME, portA));
+        alpha.start();
+        beta.start();
+        awaitTrue("beta sees alpha READY", () -> beta.isPeerReady(ALPHA_NAME), 10_000L);
+
+        PeerConnection connection = beta.links().ready(ALPHA_NAME);
+        assertNotNull(connection);
+        beta.setMessageSink((peerName, message) -> {
+            throw new IllegalStateException("message handler failed");
+        });
+        assertTrue(alpha.send(BETA_NAME, new WireMessage.PortalDirectory(List.of())));
+
+        awaitTrue("failed handler closes connection", () -> connection.getState() == PeerConnection.State.CLOSED, 10_000L);
+    }
+
+    @Test
+    void udsHotloadRestartsListenerForToggleAndDirectoryChange() throws IOException {
+        assumeTrue(udsSupported(), "UNIX domain sockets unsupported on this JVM");
+        int listenPort = freePort();
+        Path firstDirectory = tempDir.resolve("uds-first");
+        Path secondDirectory = tempDir.resolve("uds-second");
+        NetworkConfig initial = config(listenPort, ALPHA_NAME);
+        initial.transport.udsEnabled = false;
+        initial.transport.udsDir = firstDirectory.toString();
+        NetworkManager alpha = manager(initial, ALPHA_GAME_PORT, "uds-hotload");
+        alpha.start();
+
+        NetworkConfig enabled = config(listenPort, ALPHA_NAME);
+        enabled.transport.udsEnabled = true;
+        enabled.transport.udsDir = firstDirectory.toString();
+        Path firstSocket = alpha.dialer().localSocketPath(enabled);
+        alpha.applyConfig(enabled);
+        awaitTrue("enabled UDS socket appears", () -> Files.exists(firstSocket), 5_000L);
+
+        NetworkConfig moved = config(listenPort, ALPHA_NAME);
+        moved.transport.udsEnabled = true;
+        moved.transport.udsDir = secondDirectory.toString();
+        Path secondSocket = alpha.dialer().localSocketPath(moved);
+        alpha.applyConfig(moved);
+        awaitTrue("old UDS socket disappears", () -> !Files.exists(firstSocket), 5_000L);
+        awaitTrue("moved UDS socket appears", () -> Files.exists(secondSocket), 5_000L);
     }
 
     @Test
@@ -398,8 +460,8 @@ class NetworkManagerTest {
                 messageId,
                 0,
                 2,
-                2,
-                new byte[] {1}
+                SidebandFragmenter.CHUNK_BYTES * 2,
+                new byte[SidebandFragmenter.CHUNK_BYTES]
             );
             MinecraftStatusBridge.EncodedMessage encoded = new MinecraftStatusBridge.EncodedMessage(
                 fragment,
@@ -412,8 +474,8 @@ class NetworkManagerTest {
             128L,
             0,
             2,
-            2,
-            new byte[] {1}
+            SidebandFragmenter.CHUNK_BYTES * 2,
+            new byte[SidebandFragmenter.CHUNK_BYTES]
         );
         MinecraftStatusBridge.EncodedMessage overflowEncoded = new MinecraftStatusBridge.EncodedMessage(
             overflow,

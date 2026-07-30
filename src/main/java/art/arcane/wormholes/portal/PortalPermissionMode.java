@@ -30,13 +30,6 @@ public enum PortalPermissionMode
 				: WormholesMessages.PORTAL_LABEL_BLACKLIST);
 	}
 
-	public String getLoreLine()
-	{
-		return Wormholes.text().plain(this == WHITELIST
-				? WormholesMessages.PORTAL_PERMISSION_DESCRIPTION_WHITELIST
-				: WormholesMessages.PORTAL_PERMISSION_DESCRIPTION_BLACKLIST);
-	}
-
 	public static PortalPermissionMode fromName(String name)
 	{
 		if(name == null)

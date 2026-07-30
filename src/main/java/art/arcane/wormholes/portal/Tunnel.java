@@ -2,7 +2,7 @@ package art.arcane.wormholes.portal;
 
 import java.util.UUID;
 
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 public abstract class Tunnel implements ITunnel
 {

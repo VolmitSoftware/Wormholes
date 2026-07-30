@@ -13,20 +13,20 @@ public final class LocalPortalTraversalGateTest
 	public void rejectedReentryLatchExpiresQuicklyWhileArrivalLatchPersists()
 	{
 		long stamp = 1_000_000L;
-		assertFalse(LocalPortal.reentryLatchExpired(true, stamp, stamp + 2_000L));
-		assertTrue(LocalPortal.reentryLatchExpired(true, stamp, stamp + 2_500L));
-		assertFalse(LocalPortal.reentryLatchExpired(false, stamp, stamp + 2_500L));
-		assertFalse(LocalPortal.reentryLatchExpired(false, stamp, stamp + 59_999L));
-		assertTrue(LocalPortal.reentryLatchExpired(false, stamp, stamp + 60_000L));
+		assertFalse(LocalPortalTransitRegistry.reentryLatchExpired(true, stamp, stamp + 2_000L));
+		assertTrue(LocalPortalTransitRegistry.reentryLatchExpired(true, stamp, stamp + 2_500L));
+		assertFalse(LocalPortalTransitRegistry.reentryLatchExpired(false, stamp, stamp + 2_500L));
+		assertFalse(LocalPortalTransitRegistry.reentryLatchExpired(false, stamp, stamp + 59_999L));
+		assertTrue(LocalPortalTransitRegistry.reentryLatchExpired(false, stamp, stamp + 60_000L));
 	}
 
 	@Test
 	public void waitingLatchReleasesOutsidePortalAfterGraceAndArmedLatchReleasesImmediately()
 	{
 		long stamp = 5_000_000L;
-		assertTrue(LocalPortal.shouldReleaseReentryLatchOutsidePortal(true, stamp, stamp));
-		assertFalse(LocalPortal.shouldReleaseReentryLatchOutsidePortal(false, stamp, stamp + 1_999L));
-		assertTrue(LocalPortal.shouldReleaseReentryLatchOutsidePortal(false, stamp, stamp + 2_000L));
+		assertTrue(LocalPortalTransitRegistry.shouldReleaseReentryLatchOutsidePortal(true, stamp, stamp));
+		assertFalse(LocalPortalTransitRegistry.shouldReleaseReentryLatchOutsidePortal(false, stamp, stamp + 1_999L));
+		assertTrue(LocalPortalTransitRegistry.shouldReleaseReentryLatchOutsidePortal(false, stamp, stamp + 2_000L));
 	}
 
 	@Test

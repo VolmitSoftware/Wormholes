@@ -806,12 +806,6 @@ public final class WormholesMessages {
     public static final TextKey LABEL_PREPARING = text("label.preparing", "Preparing");
     public static final TextKey LABEL_OPEN = text("label.open", "Open");
     public static final TextKey LABEL_CLOSED = text("label.closed", "Closed");
-    public static final TextKey LABEL_SELECTED = text("label.selected", "Selected");
-    public static final TextKey LABEL_LEFT_CLICK = text("label.left_click", "Left click");
-    public static final TextKey LABEL_BACK = text("label.back", "Back");
-    public static final TextKey LABEL_OVERVIEW = text("label.overview", "Overview");
-    public static final TextKey LABEL_CONFIRM = text("label.confirm", "Confirm");
-    public static final TextKey LABEL_CANCEL = text("label.cancel", "Cancel");
 
     public static final LinesKey RTP_OVERVIEW_DESTINATION = lines("rtp.overview.destination", "<yellow><bold>Destination & Area</bold>", "<gray>World, center, and radius.", "<yellow>Left click");
     public static final LinesKey RTP_OVERVIEW_LANDING = lines("rtp.overview.landing", "<yellow><bold>Landing Rules</bold>", "<gray>Surface and height behavior.", "<yellow>Left click");

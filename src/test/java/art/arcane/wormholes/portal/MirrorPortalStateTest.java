@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.wormholes.util.Direction;
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 public final class MirrorPortalStateTest {
     @Test
@@ -91,8 +91,8 @@ public final class MirrorPortalStateTest {
 
         JSONObject stored = new JSONObject();
         stored.put("mirrorRotationDegrees", 270);
-        assertEquals(MirrorRotation.DEGREES_270, LocalPortal.resolveMirrorRotation(stored));
-        assertEquals(MirrorRotation.DEGREES_0, LocalPortal.resolveMirrorRotation(new JSONObject()));
+        assertEquals(MirrorRotation.DEGREES_270, LocalPortalSettings.resolveMirrorRotation(stored));
+        assertEquals(MirrorRotation.DEGREES_0, LocalPortalSettings.resolveMirrorRotation(new JSONObject()));
         assertEquals(MirrorRotation.DEGREES_270, MirrorRotation.fromDegrees(-90));
         assertEquals(MirrorRotation.DEGREES_90, MirrorRotation.fromDegrees(450));
         assertEquals(MirrorRotation.DEGREES_0, MirrorRotation.DEGREES_270.clockwise());
@@ -128,30 +128,30 @@ public final class MirrorPortalStateTest {
     public void legacyProjectionStatesMigrateToIndependentFields() {
         JSONObject legacyMirror = new JSONObject();
         legacyMirror.put("projectionMode", "MIRROR");
-        assertEquals(ProjectionMode.ON, LocalPortal.resolveProjectionMode(legacyMirror));
-        assertTrue(LocalPortal.resolveMirrorMode(legacyMirror));
+        assertEquals(ProjectionMode.ON, LocalPortalSettings.resolveProjectionMode(legacyMirror));
+        assertTrue(LocalPortalSettings.resolveMirrorMode(legacyMirror));
 
         JSONObject legacyOneWay = new JSONObject();
         legacyOneWay.put("projectionMode", "ONE_WAY");
-        assertEquals(ProjectionMode.ON, LocalPortal.resolveProjectionMode(legacyOneWay));
-        assertFalse(LocalPortal.resolveMirrorMode(legacyOneWay));
+        assertEquals(ProjectionMode.ON, LocalPortalSettings.resolveProjectionMode(legacyOneWay));
+        assertFalse(LocalPortalSettings.resolveMirrorMode(legacyOneWay));
 
         JSONObject legacyOff = new JSONObject();
         legacyOff.put("projectionMode", "OFF");
-        assertEquals(ProjectionMode.OFF, LocalPortal.resolveProjectionMode(legacyOff));
-        assertFalse(LocalPortal.resolveMirrorMode(legacyOff));
+        assertEquals(ProjectionMode.OFF, LocalPortalSettings.resolveProjectionMode(legacyOff));
+        assertFalse(LocalPortalSettings.resolveMirrorMode(legacyOff));
 
         JSONObject explicitMirror = new JSONObject();
         explicitMirror.put("projectionMode", "OFF");
         explicitMirror.put("mirrorMode", true);
-        assertEquals(ProjectionMode.OFF, LocalPortal.resolveProjectionMode(explicitMirror));
-        assertTrue(LocalPortal.resolveMirrorMode(explicitMirror));
+        assertEquals(ProjectionMode.OFF, LocalPortalSettings.resolveProjectionMode(explicitMirror));
+        assertTrue(LocalPortalSettings.resolveMirrorMode(explicitMirror));
 
         JSONObject explicitNormal = new JSONObject();
         explicitNormal.put("projectionMode", "MIRROR");
         explicitNormal.put("mirrorMode", false);
-        assertEquals(ProjectionMode.ON, LocalPortal.resolveProjectionMode(explicitNormal));
-        assertFalse(LocalPortal.resolveMirrorMode(explicitNormal));
+        assertEquals(ProjectionMode.ON, LocalPortalSettings.resolveProjectionMode(explicitNormal));
+        assertFalse(LocalPortalSettings.resolveMirrorMode(explicitNormal));
     }
 
     private static LocalPortal portal(PortalType type) {

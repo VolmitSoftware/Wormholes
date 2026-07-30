@@ -13,7 +13,7 @@ import org.bukkit.inventory.PlayerInventory;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 public final class VanillaTravelCost implements PortalTravelCost
 {

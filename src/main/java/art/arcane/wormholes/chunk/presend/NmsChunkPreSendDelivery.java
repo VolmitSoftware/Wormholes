@@ -52,10 +52,15 @@ public final class NmsChunkPreSendDelivery implements ChunkPreSendDelivery {
     private final NmsMemberCache.Resolver<Method> senderResolver;
     private final AtomicBoolean viewCenterReported;
     private final AtomicBoolean chunkReported;
+    private volatile PacketConstructorSelection packetConstructorSelection;
 
     public NmsChunkPreSendDelivery(Plugin plugin) {
+        this(plugin, resolvePacketClass());
+    }
+
+    NmsChunkPreSendDelivery(Plugin plugin, Class<?> packetClass) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
-        this.packetClass = resolvePacketClass();
+        this.packetClass = packetClass;
         this.packetConstructors = resolvePacketConstructors(packetClass);
         this.playerHandles = new NmsMemberCache<>();
         this.worldHandles = new NmsMemberCache<>();
@@ -147,6 +152,10 @@ public final class NmsChunkPreSendDelivery implements ChunkPreSendDelivery {
         return connections.get(owner, CONNECTION_RESOLVER);
     }
 
+    Constructor<?> packetConstructor(Class<?> chunkType, Class<?> lightEngineType) {
+        return constructorSelection(chunkType, lightEngineType).constructor;
+    }
+
     private Object lookupChunk(Object serverLevel, int chunkX, int chunkZ) throws ReflectiveOperationException {
         Method chunkSourceMethod = chunkSources.get(serverLevel.getClass(), CHUNK_SOURCE_RESOLVER);
         if (chunkSourceMethod != null) {
@@ -163,23 +172,48 @@ public final class NmsChunkPreSendDelivery implements ChunkPreSendDelivery {
     }
 
     private Object buildPacket(Object levelChunk, Object lightEngine) throws ReflectiveOperationException {
+        PacketConstructorSelection selection = constructorSelection(
+            levelChunk.getClass(),
+            lightEngine.getClass()
+        );
+        Constructor<?> selected = selection.constructor;
+        if (selected == null) {
+            return null;
+        }
+        Object[] arguments = selection.fiveParameters
+            ? new Object[]{levelChunk, lightEngine, null, null, Boolean.FALSE}
+            : new Object[]{levelChunk, lightEngine, null, null};
+        return selected.newInstance(arguments);
+    }
+
+    private PacketConstructorSelection constructorSelection(Class<?> chunkType, Class<?> lightEngineType) {
+        PacketConstructorSelection cached = packetConstructorSelection;
+        if (cached != null && cached.chunkType == chunkType && cached.lightEngineType == lightEngineType) {
+            return cached;
+        }
+        Constructor<?> selected = selectPacketConstructor(chunkType, lightEngineType);
+        PacketConstructorSelection resolved = new PacketConstructorSelection(
+            chunkType,
+            lightEngineType,
+            selected,
+            selected != null && selected.getParameterCount() == 5
+        );
+        packetConstructorSelection = resolved;
+        return resolved;
+    }
+
+    private Constructor<?> selectPacketConstructor(Class<?> chunkType, Class<?> lightEngineType) {
         Constructor<?> selected = null;
         for (Constructor<?> candidate : packetConstructors) {
             Class<?>[] parameters = candidate.getParameterTypes();
-            if (!parameters[0].isInstance(levelChunk) || !parameters[1].isInstance(lightEngine)) {
+            if (!parameters[0].isAssignableFrom(chunkType) || !parameters[1].isAssignableFrom(lightEngineType)) {
                 continue;
             }
             if (selected == null || candidate.getParameterCount() < selected.getParameterCount()) {
                 selected = candidate;
             }
         }
-        if (selected == null) {
-            return null;
-        }
-        Object[] arguments = selected.getParameterCount() == 4
-            ? new Object[]{levelChunk, lightEngine, null, null}
-            : new Object[]{levelChunk, lightEngine, null, null, Boolean.FALSE};
-        return selected.newInstance(arguments);
+        return selected;
     }
 
     private static Object invoke(Method method, Object target) throws ReflectiveOperationException {
@@ -302,5 +336,13 @@ public final class NmsChunkPreSendDelivery implements ChunkPreSendDelivery {
         if (latch.compareAndSet(false, true)) {
             plugin.getLogger().log(Level.WARNING, message, failure);
         }
+    }
+
+    private record PacketConstructorSelection(
+        Class<?> chunkType,
+        Class<?> lightEngineType,
+        Constructor<?> constructor,
+        boolean fiveParameters
+    ) {
     }
 }

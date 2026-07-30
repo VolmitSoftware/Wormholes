@@ -4,6 +4,7 @@ import java.util.UUID;
 import java.util.logging.Level;
 
 import org.bukkit.Location;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -21,7 +22,6 @@ import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
-import art.arcane.wormholes.util.MSound;
 
 final class LocalPortalTraversal
 {
@@ -671,7 +671,7 @@ final class LocalPortalTraversal
 	{
 		if(entity instanceof Player player && portal.effects().isPortalSoundEnabled())
 		{
-			player.playSound(player.getLocation(), MSound.ENDERMAN_TELEPORT.bukkitSound(), 0.5F, 1.5F);
+			player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.5F, 1.5F);
 		}
 		PortalStructure portalStructure = portal.getStructure();
 		World world = portalStructure == null ? null : portalStructure.getWorld();

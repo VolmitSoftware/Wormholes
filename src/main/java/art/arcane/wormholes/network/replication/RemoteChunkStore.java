@@ -44,8 +44,8 @@ public final class RemoteChunkStore {
         }
     }
 
-    private final int diffWindowSize;
-    private final long resyncTimeoutMillis;
+    private volatile int diffWindowSize;
+    private volatile long resyncTimeoutMillis;
     private final Map<ReplicationStreamKey, ReplicatedChunk> chunks = new ConcurrentHashMap<>();
 
     public RemoteChunkStore() {
@@ -53,6 +53,10 @@ public final class RemoteChunkStore {
     }
 
     public RemoteChunkStore(int diffWindowSize, long resyncTimeoutMillis) {
+        applySettings(diffWindowSize, resyncTimeoutMillis);
+    }
+
+    public void applySettings(int diffWindowSize, long resyncTimeoutMillis) {
         this.diffWindowSize = Math.max(1, diffWindowSize);
         this.resyncTimeoutMillis = Math.max(0L, resyncTimeoutMillis);
     }

@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.bukkit.World;
 import org.junit.jupiter.api.Test;
 
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 public final class LocalPortalRtpPersistenceTest
 {

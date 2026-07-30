@@ -12,7 +12,7 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 final class LocalPortalLinking
 {

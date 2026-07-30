@@ -1,10 +1,11 @@
 package art.arcane.wormholes.portal;
 
 import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-import art.arcane.wormholes.util.ParticleEffect;
+import art.arcane.wormholes.Settings;
 
 public class PortalBlock
 {
@@ -73,6 +74,10 @@ public class PortalBlock
 
 	public void animate(Player i)
 	{
-		ParticleEffect.PORTAL.display(1.25f, 1, getLocation().clone().add(Vector.getRandom()), i);
+		if(!Settings.ENABLE_PARTICLES)
+		{
+			return;
+		}
+		i.spawnParticle(Particle.PORTAL, getLocation().clone().add(Vector.getRandom()), 1, 0.0D, 0.0D, 0.0D, 1.25D);
 	}
 }

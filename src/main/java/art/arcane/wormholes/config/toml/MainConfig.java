@@ -19,7 +19,6 @@ public class MainConfig {
 
     @ConfigDescription("Enable the complete Dimensional Doors survival feature set.")
     public boolean dimensionalDoorsEnabled = true;
-    public double portalConstructSpeed = 0.975;
     public double portalCollapseSpeed = 0.91;
     public boolean verboseLogging = false;
     public boolean debugRendering = false;

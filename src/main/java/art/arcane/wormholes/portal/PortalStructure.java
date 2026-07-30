@@ -14,12 +14,12 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.wormholes.util.Direction;
-import art.arcane.wormholes.util.JSONArray;
+import art.arcane.volmlib.util.json.JSONArray;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.collection.KSet;
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 public class PortalStructure implements IWritable
 {
@@ -84,22 +84,6 @@ public class PortalStructure implements IWritable
 	public World getWorld()
 	{
 		return world;
-	}
-
-	public KSet<Block> toBlocks()
-	{
-		KList<Block> list = new KList<Block>();
-		if(getWorld() == null)
-		{
-			return new KSet<Block>(list);
-		}
-
-		for(Vector block : blockPositions)
-		{
-			list.add(getWorld().getBlockAt(block.getBlockX(), block.getBlockY(), block.getBlockZ()));
-		}
-
-		return new KSet<Block>(list);
 	}
 
 	public AxisAlignedBB getBox()
@@ -262,16 +246,6 @@ public class PortalStructure implements IWritable
 		for(Vector block : blockPositions)
 		{
 			copy.add(block.clone());
-		}
-		return copy;
-	}
-
-	public KList<AxisAlignedBB> getApertureFaces(Direction face)
-	{
-		KList<AxisAlignedBB> copy = new KList<AxisAlignedBB>();
-		for(AxisAlignedBB apertureFace : getCachedApertureFaces(face))
-		{
-			copy.add(new AxisAlignedBB(apertureFace));
 		}
 		return copy;
 	}

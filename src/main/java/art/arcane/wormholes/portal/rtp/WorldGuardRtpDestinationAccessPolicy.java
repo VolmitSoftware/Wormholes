@@ -13,7 +13,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
-public final class WorldGuardRtpDestinationAccessPolicy implements RtpDestinationAccessPolicy
+public final class WorldGuardRtpDestinationAccessPolicy
 {
 	private static final String WORLD_GUARD_CLASS = "com.sk89q.worldguard.WorldGuard";
 	private static final String WORLD_GUARD_PLUGIN_CLASS = "com.sk89q.worldguard.bukkit.WorldGuardPlugin";
@@ -45,7 +45,6 @@ public final class WorldGuardRtpDestinationAccessPolicy implements RtpDestinatio
 		return null;
 	}
 
-	@Override
 	public CompletableFuture<RtpAccessResult> canUse(Player player, RtpDestination destination)
 	{
 		Player requiredPlayer = Objects.requireNonNull(player, "player");

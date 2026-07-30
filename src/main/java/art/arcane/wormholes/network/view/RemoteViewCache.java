@@ -221,9 +221,33 @@ public final class RemoteViewCache {
     private final Set<String> noViewPeers = ConcurrentHashMap.newKeySet();
     private final Set<String> publishedPeers = ConcurrentHashMap.newKeySet();
     private final Set<String> unparseableBlockStates = ConcurrentHashMap.newKeySet();
+    private volatile int diffWindowSize;
+    private volatile long resyncTimeoutMillis;
+
+    public RemoteViewCache() {
+        this(RemoteChunkStore.DEFAULT_DIFF_WINDOW_SIZE, RemoteChunkStore.DEFAULT_RESYNC_TIMEOUT_MS);
+    }
+
+    public RemoteViewCache(int diffWindowSize, long resyncTimeoutMillis) {
+        this.diffWindowSize = diffWindowSize;
+        this.resyncTimeoutMillis = resyncTimeoutMillis;
+    }
 
     public RemoteChunkStore chunkStore(String peerName) {
-        return chunkStores.computeIfAbsent(peerName, ignored -> new RemoteChunkStore());
+        RemoteChunkStore store = chunkStores.computeIfAbsent(
+            peerName,
+            ignored -> new RemoteChunkStore(diffWindowSize, resyncTimeoutMillis)
+        );
+        store.applySettings(diffWindowSize, resyncTimeoutMillis);
+        return store;
+    }
+
+    public void applyReplicationSettings(int diffWindowSize, long resyncTimeoutMillis) {
+        this.diffWindowSize = diffWindowSize;
+        this.resyncTimeoutMillis = resyncTimeoutMillis;
+        for (RemoteChunkStore store : chunkStores.values()) {
+            store.applySettings(diffWindowSize, resyncTimeoutMillis);
+        }
     }
 
     public RemoteChunkStore chunkStoreIfPresent(String peerName) {
@@ -282,12 +306,9 @@ public final class RemoteViewCache {
         ReplicationStreamKey stream = chunk.stream();
         long columnKey = stream.chunkKey();
         DecodedSlice decoded = decodedSliceFor(peerName, stream, slice);
-        boolean matched = false;
-        for (RemoteView view : views.values()) {
-            if (!view.peerName.equals(peerName) || !view.portalId.equals(stream.portalId())) {
-                continue;
-            }
-            matched = true;
+        RemoteView view = views.get(key(peerName, stream.portalId()));
+        boolean matched = view != null;
+        if (view != null) {
             synchronized (view) {
                 if (!stream.sourceWorldId().equals(view.sourceWorldId) || stream.renderMode() != view.renderMode) {
                     view.slices.clear();

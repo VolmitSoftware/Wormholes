@@ -17,7 +17,6 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
-import art.arcane.wormholes.util.MSound;
 
 final class EffectPortalAnimator
 {
@@ -59,7 +58,7 @@ final class EffectPortalAnimator
 		EffectManager.CloseEffectPlan effectPlan = EffectManager.closeEffectPlan(Settings.VISUAL_QUALITY_PROFILE);
 		if(audible.getAsBoolean())
 		{
-			world.playSound(center, MSound.ECHEST_CLOSE.bukkitSound(), SoundCategory.BLOCKS, 1.2f, 0.55f);
+			world.playSound(center, Sound.BLOCK_ENDER_CHEST_CLOSE, SoundCategory.BLOCKS, 1.2f, 0.55f);
 		}
 		if(!Settings.ENABLE_PARTICLES)
 		{

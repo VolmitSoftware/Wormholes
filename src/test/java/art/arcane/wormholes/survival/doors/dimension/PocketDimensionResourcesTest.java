@@ -1,6 +1,6 @@
 package art.arcane.wormholes.survival.doors.dimension;
 
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;

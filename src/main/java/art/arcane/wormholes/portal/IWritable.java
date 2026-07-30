@@ -1,6 +1,6 @@
 package art.arcane.wormholes.portal;
 
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 public interface IWritable
 {

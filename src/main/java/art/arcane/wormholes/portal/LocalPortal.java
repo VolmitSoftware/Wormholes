@@ -15,14 +15,12 @@ import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.volmlib.util.inventorygui.Window;
-import art.arcane.wormholes.util.Axis;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 import art.arcane.wormholes.util.F;
-import art.arcane.wormholes.util.JSONObject;
-import art.arcane.wormholes.util.ParticleEffect;
+import art.arcane.volmlib.util.json.JSONObject;
 
-public class LocalPortal extends Portal implements ILocalPortal, IProgressivePortal, IFXPortal, IOwnablePortal, Listener
+public class LocalPortal extends Portal implements ILocalPortal, Listener
 {
 	private final LocalPortalLinking linking = new LocalPortalLinking(this);
 	private final LocalPortalSettings settings = new LocalPortalSettings(this);
@@ -214,42 +212,31 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 		gate.setOpen(open);
 	}
 
-	public void phase(Axis a, ParticleEffect e, Location l, float scale)
-	{
-		effects.phase(a, e, l, scale);
-	}
-
-	@Override
 	public void playEffect(PortalEffect effect, Location location)
 	{
 		effects.playEffect(effect, location);
 	}
 
-	@Override
 	public void playEffect(PortalEffect effect)
 	{
 		playEffect(effect, null);
 	}
 
-	@Override
 	public void showProgress(String text)
 	{
 		prompts.showProgress(text);
 	}
 
-	@Override
 	public void hideProgress()
 	{
 		prompts.hideProgress();
 	}
 
-	@Override
 	public boolean isShowingProgress()
 	{
 		return prompts.isShowingProgress();
 	}
 
-	@Override
 	public String getCurrentProgress()
 	{
 		return prompts.getCurrentProgress();
@@ -424,59 +411,9 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 		LocalPortalTransitRegistry.clearReentryLatch(entityId);
 	}
 
-	static boolean reentryLatchExpired(boolean rejected, long stampMillis, long now)
-	{
-		return LocalPortalTransitRegistry.reentryLatchExpired(rejected, stampMillis, now);
-	}
-
-	static boolean shouldReleaseReentryLatchOutsidePortal(boolean armed, long stampMillis, long now)
-	{
-		return LocalPortalTransitRegistry.shouldReleaseReentryLatchOutsidePortal(armed, stampMillis, now);
-	}
-
 	public static void latchReentryIfInsidePortal(Entity entity)
 	{
 		LocalPortalTransitRegistry.latchReentryIfInsidePortal(entity);
-	}
-
-	static Vector sourceRejectionPoint(Traversive traversive)
-	{
-		return LocalPortalTraversal.sourceRejectionPoint(traversive);
-	}
-
-	static boolean withinDepartureCommitmentRadius(double distanceSquared)
-	{
-		return LocalPortalTraversal.withinDepartureCommitmentRadius(distanceSquared);
-	}
-
-	static Vector sourceRejectionVelocity(Traversive traversive)
-	{
-		return LocalPortalTraversal.sourceRejectionVelocity(traversive);
-	}
-
-	static ProjectionMode resolveProjectionMode(JSONObject j)
-	{
-		return LocalPortalSettings.resolveProjectionMode(j);
-	}
-
-	static boolean resolveMirrorMode(JSONObject j)
-	{
-		return LocalPortalSettings.resolveMirrorMode(j);
-	}
-
-	static MirrorRotation resolveMirrorRotation(JSONObject j)
-	{
-		return LocalPortalSettings.resolveMirrorRotation(j);
-	}
-
-	static String sanitizePermissionName(String name)
-	{
-		return LocalPortalSettings.sanitizePermissionName(name);
-	}
-
-	static UUID resolveOptionalUuid(String value)
-	{
-		return LocalPortalPersistence.resolveOptionalUuid(value);
 	}
 
 	@Override
@@ -900,25 +837,21 @@ public class LocalPortal extends Portal implements ILocalPortal, IProgressivePor
 		return gate.getView();
 	}
 
-	@Override
 	public UUID getOwner()
 	{
 		return owner;
 	}
 
-	@Override
 	public void setOwner(UUID owner)
 	{
 		this.owner = owner;
 	}
 
-	@Override
 	public boolean isSelfOwned()
 	{
 		return getOwner().equals(getId());
 	}
 
-	@Override
 	public void setSelfOwned()
 	{
 		setOwner(getId());

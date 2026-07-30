@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 
 import org.bukkit.Bukkit;
@@ -23,7 +24,17 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.inventory.ItemStack;
 import net.kyori.adventure.text.Component;
@@ -41,14 +52,12 @@ import art.arcane.wormholes.render.PortalToolPreviewRenderer;
 import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.volmlib.util.scheduling.AR;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
-import art.arcane.wormholes.util.Area;
 import art.arcane.volmlib.util.collection.KList;
-import art.arcane.wormholes.util.MSound;
-import art.arcane.wormholes.util.ParticleEffect;
 
 public class EffectManager implements Listener
 {
 	private static final int LOOKING_SCAN_INTERVAL_TICKS = 3;
+	private static final int TOOL_HOLDER_FALLBACK_INTERVAL_TICKS = 40;
 	private static final int SYNC_SWEEP_INTERVAL_TICKS = 15;
 	private static final double VORTEX_MATCH_RADIUS_SQUARED = 16.0D;
 	private final Map<UUID, Boolean> portalSyncActive = new ConcurrentHashMap<>();
@@ -56,11 +65,16 @@ public class EffectManager implements Listener
 	private final EffectPortalAnimator animator = new EffectPortalAnimator(displays);
 	private final EffectVortexDirector vortexDirector = new EffectVortexDirector(displays, animator);
 	private final PortalToolPreviewRenderer portalToolPreviewRenderer;
+	private final PortalToolHolderPolicy portalToolHolders;
+	private final AtomicLong lookingScanTick;
+	private volatile boolean shutdown;
 
 	public EffectManager()
 	{
 		Wormholes.v("Starting Effect Manager");
 		portalToolPreviewRenderer = new PortalToolPreviewRenderer();
+		portalToolHolders = new PortalToolHolderPolicy(TOOL_HOLDER_FALLBACK_INTERVAL_TICKS);
+		lookingScanTick = new AtomicLong();
 		displays.cleanupOrphaned();
 
 		new AR(LOOKING_SCAN_INTERVAL_TICKS)
@@ -68,7 +82,8 @@ public class EffectManager implements Listener
 			@Override
 			public void run()
 			{
-				if(Wormholes.portalManager == null)
+				long currentTick = lookingScanTick.addAndGet(LOOKING_SCAN_INTERVAL_TICKS);
+				if(shutdown || Wormholes.portalManager == null || Wormholes.instance == null)
 				{
 					return;
 				}
@@ -79,7 +94,17 @@ public class EffectManager implements Listener
 				}
 				for(Player player : Bukkit.getOnlinePlayers())
 				{
-					FoliaScheduler.runEntity(Wormholes.instance, player, () -> scanLookingPortalsFor(player, portals));
+					UUID playerId = player.getUniqueId();
+					if(!portalToolHolders.acquireValidation(playerId, currentTick))
+					{
+						continue;
+					}
+					boolean scheduled = FoliaScheduler.runEntity(Wormholes.instance, player,
+						() -> validatePortalToolHolder(player, portals, currentTick));
+					if(!scheduled)
+					{
+						portalToolHolders.rejectValidation(playerId);
+					}
 				}
 			}
 		};
@@ -96,6 +121,8 @@ public class EffectManager implements Listener
 
 	public void shutdown()
 	{
+		shutdown = true;
+		portalToolHolders.clear();
 		Set<UUID> pending = displays.beginShutdown();
 		if(pending == null)
 		{
@@ -105,6 +132,78 @@ public class EffectManager implements Listener
 		vortexDirector.clear();
 		portalToolPreviewRenderer.clear();
 		displays.drain(pending);
+	}
+
+	@EventHandler
+	public void on(PlayerJoinEvent event)
+	{
+		markPortalToolHolderDirty(event.getPlayer());
+	}
+
+	@EventHandler
+	public void on(PlayerQuitEvent event)
+	{
+		portalToolHolders.remove(event.getPlayer().getUniqueId());
+	}
+
+	@EventHandler
+	public void on(PlayerItemHeldEvent event)
+	{
+		markPortalToolHolderDirty(event.getPlayer());
+	}
+
+	@EventHandler
+	public void on(PlayerSwapHandItemsEvent event)
+	{
+		markPortalToolHolderDirty(event.getPlayer());
+	}
+
+	@EventHandler
+	public void on(PlayerDropItemEvent event)
+	{
+		markPortalToolHolderDirty(event.getPlayer());
+	}
+
+	@EventHandler
+	public void on(EntityPickupItemEvent event)
+	{
+		if(event.getEntity() instanceof Player)
+		{
+			Player player = (Player) event.getEntity();
+			markPortalToolHolderDirty(player);
+		}
+	}
+
+	@EventHandler
+	public void on(InventoryClickEvent event)
+	{
+		if(event.getWhoClicked() instanceof Player)
+		{
+			Player player = (Player) event.getWhoClicked();
+			markPortalToolHolderDirty(player);
+		}
+	}
+
+	@EventHandler
+	public void on(InventoryDragEvent event)
+	{
+		if(event.getWhoClicked() instanceof Player)
+		{
+			Player player = (Player) event.getWhoClicked();
+			markPortalToolHolderDirty(player);
+		}
+	}
+
+	@EventHandler
+	public void on(PlayerDeathEvent event)
+	{
+		markPortalToolHolderDirty(event.getEntity());
+	}
+
+	@EventHandler
+	public void on(PlayerRespawnEvent event)
+	{
+		markPortalToolHolderDirty(event.getPlayer());
 	}
 
 	@EventHandler(priority = EventPriority.LOWEST)
@@ -229,15 +328,49 @@ public class EffectManager implements Listener
 		world.playSound(center, Sound.BLOCK_BEACON_ACTIVATE, SoundCategory.BLOCKS, 0.55f, 1.5f);
 	}
 
-	private void scanLookingPortalsFor(Player player, List<ILocalPortal> portals)
+	private void validatePortalToolHolder(Player player, List<ILocalPortal> portals, long currentTick)
 	{
-		ItemStack mainHandItem = player.getInventory().getItemInMainHand();
-		ItemStack offHandItem = player.getInventory().getItemInOffHand();
-		if(!Wormholes.blockManager.isPortalTool(mainHandItem) && !Wormholes.blockManager.isPortalTool(offHandItem))
+		UUID playerId = player.getUniqueId();
+		boolean completed = false;
+		try
 		{
-			return;
+			if(!player.isOnline() || shutdown || Wormholes.blockManager == null)
+			{
+				portalToolHolders.remove(playerId);
+				completed = true;
+				return;
+			}
+			ItemStack mainHandItem = player.getInventory().getItemInMainHand();
+			ItemStack offHandItem = player.getInventory().getItemInOffHand();
+			boolean holdingPortalTool = Wormholes.blockManager.isPortalTool(mainHandItem)
+				|| Wormholes.blockManager.isPortalTool(offHandItem);
+			portalToolHolders.completeValidation(playerId, holdingPortalTool, currentTick);
+			completed = true;
+			if(!holdingPortalTool)
+			{
+				return;
+			}
+			scanLookingPortalsForHolder(player, portals);
 		}
+		finally
+		{
+			if(!completed)
+			{
+				portalToolHolders.rejectValidation(playerId);
+			}
+		}
+	}
 
+	private void markPortalToolHolderDirty(Player player)
+	{
+		if(!shutdown)
+		{
+			portalToolHolders.markDirty(player.getUniqueId());
+		}
+	}
+
+	private void scanLookingPortalsForHolder(Player player, List<ILocalPortal> portals)
+	{
 		portalToolPreviewRenderer.render(player, portals);
 		for(ILocalPortal portal : portals)
 		{
@@ -298,17 +431,33 @@ public class EffectManager implements Listener
 
 	public void playNotificationFail(String message, Location l)
 	{
-		for(Player i : new Area(l, 24).getNearbyPlayers())
+		if(l == null || l.getWorld() == null)
 		{
-			playNotificationFail(message, i);
+			return;
+		}
+		for(Entity entity : l.getWorld().getNearbyEntities(l, 24.0D, 24.0D, 24.0D, candidate -> candidate instanceof Player))
+		{
+			Player player = (Player) entity;
+			if(player.getLocation().distanceSquared(l) <= 576.0D)
+			{
+				playNotificationFail(message, player);
+			}
 		}
 	}
 
 	public void playNotificationSuccess(String message, Location l)
 	{
-		for(Player i : new Area(l, 24).getNearbyPlayers())
+		if(l == null || l.getWorld() == null)
 		{
-			playNotificationSuccess(message, i);
+			return;
+		}
+		for(Entity entity : l.getWorld().getNearbyEntities(l, 24.0D, 24.0D, 24.0D, candidate -> candidate instanceof Player))
+		{
+			Player player = (Player) entity;
+			if(player.getLocation().distanceSquared(l) <= 576.0D)
+			{
+				playNotificationSuccess(message, player);
+			}
 		}
 	}
 
@@ -344,12 +493,12 @@ public class EffectManager implements Listener
 
 	public void playPortalBlockPlaced(Block block)
 	{
-		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), MSound.FRAME_FILL.bukkitSound(), SoundCategory.BLOCKS, 0.65f, 1.1f + ((float) (Math.random() * 0.2)));
+		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.BLOCK_END_PORTAL_FRAME_FILL, SoundCategory.BLOCKS, 0.65f, 1.1f + ((float) (Math.random() * 0.2)));
 	}
 
 	public void playPortalBlockDestroyed(Block block)
 	{
-		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), MSound.GLASS.bukkitSound(), SoundCategory.BLOCKS, 0.5f, 1.55f + ((float) (Math.random() * 0.2)));
+		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.BLOCK_GLASS_BREAK, SoundCategory.BLOCKS, 0.5f, 1.55f + ((float) (Math.random() * 0.2)));
 	}
 
 	public void playPortalFailOpen(Set<Block> blocks)
@@ -358,15 +507,18 @@ public class EffectManager implements Listener
 
 		for(int i = 0; i < 4; i++)
 		{
-			block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), MSound.AMBIENCE_CAVE.bukkitSound(), 2.5f, 0.5f + ((float) (Math.random() * 1.45)));
+			block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.AMBIENT_CAVE, 2.5f, 0.5f + ((float) (Math.random() * 1.45)));
 		}
 	}
 
 	public void playPortalFailRefund(Block block)
 	{
-		ParticleEffect.EXPLOSION_LARGE.display(0f, 1, block.getLocation().clone().add(0.5, 0.5, 0.5), 32);
-		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), MSound.EXPLODE.bukkitSound(), 0.7f, (float) (1.6 + ((float) (Math.random() * 0.35))));
-		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), MSound.GLASS.bukkitSound(), 1.2f, (float) (0.25 + ((float) (Math.random() * 0.95))));
+		if(Settings.ENABLE_PARTICLES)
+		{
+			block.getWorld().spawnParticle(Particle.EXPLOSION, block.getLocation().clone().add(0.5, 0.5, 0.5), 1, 0.0D, 0.0D, 0.0D, 0.0D);
+		}
+		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.ENTITY_GENERIC_EXPLODE, 0.7f, (float) (1.6 + ((float) (Math.random() * 0.35))));
+		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.BLOCK_GLASS_BREAK, 1.2f, (float) (0.25 + ((float) (Math.random() * 0.95))));
 	}
 
 	public void playPortalVortex(World world, Location center, List<PortalBlockSnapshot> snapshots)
@@ -413,7 +565,7 @@ public class EffectManager implements Listener
 		{
 			if(audible.getAsBoolean())
 			{
-				world.playSound(center, MSound.FRAME_SPAWN.bukkitSound(), SoundCategory.BLOCKS, openingSoundPlan().frameVolume(), 0.35f);
+				world.playSound(center, Sound.BLOCK_END_PORTAL_SPAWN, SoundCategory.BLOCKS, openingSoundPlan().frameVolume(), 0.35f);
 			}
 			animator.playKawooshSounds(world, center, active, audible);
 			return;
@@ -424,7 +576,7 @@ public class EffectManager implements Listener
 		}
 		if(audible.getAsBoolean())
 		{
-			world.playSound(center, MSound.FRAME_SPAWN.bukkitSound(), SoundCategory.BLOCKS, openingSoundPlan().frameVolume(), 0.35f);
+			world.playSound(center, Sound.BLOCK_END_PORTAL_SPAWN, SoundCategory.BLOCKS, openingSoundPlan().frameVolume(), 0.35f);
 		}
 		animator.playOpenPrelude(world, center, sx, sy, sz, active, audible);
 	}

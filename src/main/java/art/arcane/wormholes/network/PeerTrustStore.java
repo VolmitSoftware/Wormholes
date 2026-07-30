@@ -1,8 +1,10 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.util.VIO;
+
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.PublicKey;
@@ -101,10 +103,9 @@ public final class PeerTrustStore {
             properties.setProperty(entry.getKey(), Handshake.encodePublicKey(entry.getValue()));
         }
         try {
-            Files.createDirectories(file.getParent());
-            try (OutputStream output = Files.newOutputStream(file)) {
-                properties.store(output, "Wormholes trusted peer public keys");
-            }
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            properties.store(output, "Wormholes trusted peer public keys");
+            VIO.writeAllBytes(file.toFile(), output.toByteArray());
         } catch (IOException e) {
             throw new IllegalStateException("Could not persist Wormholes peer trust store", e);
         }

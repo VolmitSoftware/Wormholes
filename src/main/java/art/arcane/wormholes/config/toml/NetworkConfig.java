@@ -34,18 +34,6 @@ public class NetworkConfig {
         public double entityRateMidHz = 10.0D;
         public double entityRateFarHz = 4.0D;
         public double entityRateVeryFarHz = 1.0D;
-        public boolean coneEnabled = true;
-        public double coneDegrees = 60.0D;
-        public double coneBehindFactor = 0.4D;
-        public boolean yBiasEnabled = true;
-        public int yBiasCaveYMax = 50;
-        public int yBiasSkyYMin = 200;
-        public double yBiasFactor = 0.5D;
-        public boolean preshipEnabled = true;
-        public double preshipDistance = 24.0D;
-        public double preshipMinSpeed = 0.1D;
-        public double preshipRateFraction = 0.25D;
-        public double preshipCancelGraceSeconds = 2.0D;
     }
 
     public static class TransportConfig {

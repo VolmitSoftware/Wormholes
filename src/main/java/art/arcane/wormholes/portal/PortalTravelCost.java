@@ -2,7 +2,7 @@ package art.arcane.wormholes.portal;
 
 import org.bukkit.entity.Player;
 
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 
 public interface PortalTravelCost
 {

@@ -238,22 +238,11 @@ final class WormholesReloadCoordinator {
         }
         NetworkManager activeNetwork = Wormholes.networkManager;
         if (activeNetwork != null) {
-            try {
-                activeNetwork.applyConfig(reloaded.getNetwork());
-            } catch (Throwable ex) {
-                plugin.getLogger().log(Level.WARNING, "NetworkManager rejected hot-reload notification", ex);
-            }
+            activeNetwork.applyConfig(reloaded.getNetwork());
         }
-        try {
-            diagnostics.restartStatsSnapshotWriter();
-        } catch (Throwable ex) {
-            plugin.getLogger().log(Level.WARNING, "StatsSnapshotWriter rejected hot-reload notification", ex);
-        }
-        try {
-            network.applyCaptureSettings(reloaded);
-        } catch (Throwable ex) {
-            plugin.getLogger().log(Level.WARNING, "CaptureRuntime rejected hot-reload notification", ex);
-        }
+        network.applyReplicationSettings(reloaded.getNetwork());
+        diagnostics.restartStatsSnapshotWriter();
+        network.applyCaptureSettings(reloaded);
         plugin.getLogger().info("Configuration hot-reloaded.");
     }
 

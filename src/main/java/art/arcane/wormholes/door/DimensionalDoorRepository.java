@@ -1,7 +1,7 @@
 package art.arcane.wormholes.door;
 
-import art.arcane.wormholes.util.JSONArray;
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONArray;
+import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.util.VIO;
 
 import java.io.IOException;

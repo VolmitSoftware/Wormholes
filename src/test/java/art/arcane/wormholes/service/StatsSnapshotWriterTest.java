@@ -4,7 +4,6 @@ import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.TraversalService;
 import art.arcane.wormholes.network.WireCompression;
 import art.arcane.wormholes.network.view.EntityRateScheduler;
-import art.arcane.wormholes.network.view.PreShipPredictor;
 import art.arcane.wormholes.network.view.ViewServer;
 import art.arcane.wormholes.service.StatsSnapshotWriter.CompressionState;
 import art.arcane.wormholes.service.StatsSnapshotWriter.DictState;
@@ -286,10 +285,7 @@ class StatsSnapshotWriterTest {
     private static SnapshotData sampleSnapshotWithPeers(List<NetworkManager.PeerSnapshot> peers) {
         TransportSettings transport = new TransportSettings(true, 3, 10_485_760L, true, "", 600);
         ViewSettings view = new ViewSettings(
-            60.0D, 0.40D, true,
-            50, 200, 0.50D, true,
-            20.0D, 10.0D, 4.0D, 1.0D,
-            true, 24.0D, 0.10D
+            20.0D, 10.0D, 4.0D, 1.0D
         );
         WireCompression.Stats wireStats = new WireCompression.Stats(
             13_000_000L, 3_600_000L, 19_000_000L, 5_500_000L,
@@ -304,8 +300,7 @@ class StatsSnapshotWriterTest {
         EntityRateScheduler.Stats rateStats = new EntityRateScheduler.Stats(360L, 470L, 356L, 158L);
         EntityRateScheduler.Bands bands = new EntityRateScheduler.Bands(16.0D, 64.0D, 128.0D,
             20.0D, 10.0D, 4.0D, 1.0D);
-        PreShipPredictor.Stats preship = new PreShipPredictor.Stats(192L, 51L, 138L, 3);
-        ViewMetrics viewMetrics = new ViewMetrics(viewStats, rateStats, bands, preship, 10.0D);
+        ViewMetrics viewMetrics = new ViewMetrics(viewStats, rateStats, bands, 10.0D);
 
         TraversalService.Stats transfers = new TraversalService.Stats(38L, 0L, 1);
 

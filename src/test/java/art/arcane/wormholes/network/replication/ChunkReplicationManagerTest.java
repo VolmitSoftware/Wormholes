@@ -400,21 +400,6 @@ class ChunkReplicationManagerTest {
     }
 
     @Test
-    void preShipSubscribeRegistersAndPromotes(@TempDir Path dir) {
-        TestNetworkSink sink = new TestNetworkSink(dir);
-        ChunkReplicationManager manager = sink.getReplicationManager();
-        World world = StubWorld.create(UUID.randomUUID());
-        UUID portalId = UUID.randomUUID();
-        long chunkKey = ViewSlice.columnKey(0, 1);
-        ReplicationStreamKey stream = ReplicationTestStream.stream(portalId, world, chunkKey);
-        manager.subscribePreShip(PEER, portalId, world, ProjectionRenderMode.PANOPTIC, List.of(chunkKey));
-        assertEquals(1, manager.totalSubscriptionCount());
-        assertFalse(manager.isPreShipPromoted(PEER, portalId, stream));
-        manager.promotePreShip(PEER, portalId);
-        assertTrue(manager.isPreShipPromoted(PEER, portalId, stream));
-    }
-
-    @Test
     void subscribedChunkKeysReflectsSubscribeAndUnsubscribe(@TempDir Path dir) {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager manager = sink.getReplicationManager();

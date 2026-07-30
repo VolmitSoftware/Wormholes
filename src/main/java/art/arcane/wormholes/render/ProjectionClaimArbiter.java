@@ -325,6 +325,12 @@ public final class ProjectionClaimArbiter {
         observerClaims.pendingRevertKeys.clear();
         observerClaims.pendingSendKeys.clear();
         int expectedChanges = packetKeys.size();
+        if (expectedChanges == 0) {
+            observerClaims.pendingLightingKeys.addAll(setResult.getDirtyLightingKeys());
+            applyLighting(observer, localWorld, observerClaims, canSend, allowLightingUpdate);
+            return new ClaimUpdateResult(0, setResult.getConflicts(),
+                setResult.getWinnerChanges(), setResult.getReverts());
+        }
         int mapCapacity = expectedChanges <= 2 ? 4 : (expectedChanges * 4 / 3) + 2;
         Long2ObjectMap<BlockData> blockChanges = new Long2ObjectOpenHashMap<BlockData>(mapCapacity);
         Long2IntOpenHashMap blockChangeIds = new Long2IntOpenHashMap(mapCapacity);

@@ -6,7 +6,10 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.BindException;
+import java.net.SocketTimeoutException;
 import java.net.StandardProtocolFamily;
+import java.net.UnixDomainSocketAddress;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,6 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -124,6 +128,64 @@ class UnixDomainPeerTransportTest {
             assertTrue(Files.exists(socketPath));
         } finally {
             transport.close();
+        }
+    }
+
+    @Test
+    void bindReplacesStaleSocketFile(@TempDir Path tempDir) throws Exception {
+        assumeTrue(udsSupported(), "UNIX domain sockets unsupported on this JVM");
+        Path socketPath = tempDir.resolve("stale.sock");
+        try (ServerSocketChannel stale = ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
+            stale.bind(UnixDomainSocketAddress.of(socketPath));
+        }
+        assertTrue(Files.exists(socketPath));
+        UnixDomainPeerTransport replacement = UnixDomainPeerTransport.bind(socketPath);
+        replacement.close();
+        assertTrue(!Files.exists(socketPath));
+    }
+
+    @Test
+    void bindRejectsLiveSocketFile(@TempDir Path tempDir) throws Exception {
+        assumeTrue(udsSupported(), "UNIX domain sockets unsupported on this JVM");
+        Path socketPath = tempDir.resolve("live.sock");
+        UnixDomainPeerTransport first = UnixDomainPeerTransport.bind(socketPath);
+        try {
+            assertThrows(BindException.class, () -> UnixDomainPeerTransport.bind(socketPath));
+            assertTrue(Files.exists(socketPath));
+        } finally {
+            first.close();
+        }
+    }
+
+    @Test
+    void previousOwnerCannotDeleteReplacementSocketFile(@TempDir Path tempDir) throws Exception {
+        assumeTrue(udsSupported(), "UNIX domain sockets unsupported on this JVM");
+        Path socketPath = tempDir.resolve("ownership.sock");
+        UnixDomainPeerTransport first = UnixDomainPeerTransport.bind(socketPath);
+        Files.delete(socketPath);
+        UnixDomainPeerTransport replacement = UnixDomainPeerTransport.bind(socketPath);
+        try {
+            first.close();
+            assertTrue(Files.exists(socketPath));
+        } finally {
+            replacement.close();
+        }
+    }
+
+    @Test
+    void readTimeoutInterruptsIdleRead(@TempDir Path tempDir) throws Exception {
+        assumeTrue(udsSupported(), "UNIX domain sockets unsupported on this JVM");
+        Path socketPath = tempDir.resolve("timeout.sock");
+        UnixDomainPeerTransport server = UnixDomainPeerTransport.bind(socketPath);
+        PeerTransport.PeerChannel client = UnixDomainPeerTransport.dial(socketPath);
+        PeerTransport.PeerChannel accepted = server.accept();
+        try {
+            client.setReadTimeout(100);
+            assertThrows(SocketTimeoutException.class, () -> client.getInputStream().read());
+        } finally {
+            client.close();
+            accepted.close();
+            server.close();
         }
     }
 

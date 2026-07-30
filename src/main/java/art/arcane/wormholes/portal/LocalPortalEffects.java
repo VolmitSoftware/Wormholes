@@ -9,19 +9,13 @@ import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
-import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
-import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
-import art.arcane.wormholes.util.Axis;
 import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
 import art.arcane.wormholes.util.M;
-import art.arcane.wormholes.util.MSound;
-import art.arcane.wormholes.util.ParticleEffect;
 
 final class LocalPortalEffects
 {
@@ -51,86 +45,27 @@ final class LocalPortalEffects
 		return portal.getType() != PortalType.RTP || settings == null || settings.isSoundEnabled();
 	}
 
-	void phase(Axis a, ParticleEffect e, Location l, float scale)
-	{
-		KList<Vector> vxz = new KList<Vector>();
-
-		for(Direction i : Direction.values())
-		{
-			if(i.getAxis().equals(a))
-			{
-				continue;
-			}
-
-			vxz.add(i.toVector());
-		}
-
-		int k = 1;
-
-		if(M.r(0.7))
-		{
-			k++;
-
-			if(M.r(0.4))
-			{
-				k++;
-
-				if(M.r(0.2))
-				{
-					k++;
-				}
-			}
-		}
-
-		for(int i = 0; i < 64; i++)
-		{
-			Vector vx = new Vector(0, 0, 0);
-
-			for(int j = 0; j < 18; j++)
-			{
-				vx.add(vxz.getRandom());
-			}
-
-			e.display(vx.clone().normalize(), 0.5f * scale, l, 32);
-
-			if(k > 1)
-			{
-				e.display(vx.clone().normalize(), 1f * scale, l, 32);
-
-				if(k > 2)
-				{
-					e.display(vx.clone().normalize(), 1.5f * scale, l, 32);
-
-					if(k > 3)
-					{
-						e.display(vx.clone().normalize(), 2.0f * scale, l, 32);
-					}
-				}
-			}
-		}
-	}
-
 	void playEffect(PortalEffect effect, Location location)
 	{
 		switch(effect)
 		{
 			case PUSH:
-				ParticleEffect.SMOKE.display(0.01f, 6, location, 32);
+				spawnSimpleParticle(location, Particle.SMOKE, 6, 0.01D);
 				if(location != null && location.getWorld() != null && isPortalSoundEnabled())
 				{
-					location.getWorld().playSound(location, MSound.ENDERMAN_TELEPORT.bukkitSound(), 0.5f, 1.7f + (float) (Math.random() * 0.2));
-					location.getWorld().playSound(location, MSound.ENDERMAN_TELEPORT.bukkitSound(), 0.5f, 1.5f + (float) (Math.random() * 0.2));
-					location.getWorld().playSound(location, MSound.ENDERMAN_TELEPORT.bukkitSound(), 0.5f, 1.3f + (float) (Math.random() * 0.2));
+					location.getWorld().playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 0.5f, 1.7f + (float) (Math.random() * 0.2));
+					location.getWorld().playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 0.5f, 1.5f + (float) (Math.random() * 0.2));
+					location.getWorld().playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 0.5f, 1.3f + (float) (Math.random() * 0.2));
 				}
 
 				break;
 			case REJECT:
-				ParticleEffect.SMOKE.display(0.08f, 24, location, 32);
-				ParticleEffect.REDSTONE.display(new ParticleEffect.OrdinaryColor(255, 70, 70), location, 32);
+				spawnSimpleParticle(location, Particle.SMOKE, 24, 0.08D);
+				spawnRejectDust(location);
 				if(location != null && location.getWorld() != null && isPortalSoundEnabled())
 				{
-					location.getWorld().playSound(location, MSound.ANVIL_LAND.bukkitSound(), 0.7f, 1.8f);
-					location.getWorld().playSound(location, MSound.GLASS.bukkitSound(), 0.6f, 0.7f);
+					location.getWorld().playSound(location, Sound.BLOCK_ANVIL_LAND, 0.7f, 1.8f);
+					location.getWorld().playSound(location, Sound.BLOCK_GLASS_BREAK, 0.6f, 0.7f);
 				}
 				break;
 			case AMBIENT_CLOSED:
@@ -147,7 +82,7 @@ final class LocalPortalEffects
 
 				if(isPortalSoundEnabled() && M.r(0.01))
 				{
-					portal.getStructure().getCenter().getWorld().playSound(portal.getStructure().getCenter(), MSound.PORTAL.bukkitSound(), 0.25f, 0.025f);
+					portal.getStructure().getCenter().getWorld().playSound(portal.getStructure().getCenter(), Sound.BLOCK_PORTAL_AMBIENT, 0.25f, 0.025f);
 				}
 
 				break;
@@ -224,8 +159,31 @@ final class LocalPortalEffects
 		int count = open ? 4 : 1;
 		for(int i = 0; i < count; i++)
 		{
-			ParticleEffect.TOWN_AURA.display(0f, 1, portal.getStructure().randomLocation(), 16);
+			Location location = portal.getStructure().randomLocation();
+			if(location != null && location.getWorld() != null)
+			{
+				location.getWorld().spawnParticle(Particle.MYCELIUM, location, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+			}
 		}
+	}
+
+	private void spawnSimpleParticle(Location location, Particle particle, int amount, double extra)
+	{
+		if(!Settings.ENABLE_PARTICLES || location == null || location.getWorld() == null)
+		{
+			return;
+		}
+		location.getWorld().spawnParticle(particle, location, amount, 0.0D, 0.0D, 0.0D, extra);
+	}
+
+	private void spawnRejectDust(Location location)
+	{
+		if(!Settings.ENABLE_PARTICLES || location == null || location.getWorld() == null)
+		{
+			return;
+		}
+		Particle.DustOptions options = new Particle.DustOptions(Color.fromRGB(255, 70, 70), 1.0F);
+		location.getWorld().spawnParticle(Particle.DUST, location, 1, options);
 	}
 
 	private void renderAmbientCorners(boolean open)

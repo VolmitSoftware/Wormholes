@@ -4,17 +4,21 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 final class SidebandFragmenter {
     static final int MAX_FRAME_BYTES = WireCodec.MAX_FRAME_BYTES + Integer.BYTES;
     static final int CHUNK_BYTES = 4 * 1024;
-    static final int MAX_COUNT = (MAX_FRAME_BYTES / CHUNK_BYTES) + 2;
+    static final int MAX_COUNT = (MAX_FRAME_BYTES + CHUNK_BYTES - 1) / CHUNK_BYTES;
+    static final long MAX_RETAINED_BYTES = 8L * MAX_FRAME_BYTES;
 
     private static final long ASSEMBLY_TTL_MS = 15L * 60_000L;
     private static final int ASSEMBLY_CAPACITY = 128;
@@ -22,11 +26,13 @@ final class SidebandFragmenter {
 
     private final NetworkManager network;
     private final Logger logger;
-    private final Map<String, Assembly> assemblies = new ConcurrentHashMap<>();
+    private final Object assemblyLock = new Object();
+    private final Map<String, Assembly> assemblies = new HashMap<>();
     private final Set<String> oversizeWarnings = ConcurrentHashMap.newKeySet();
     private final AtomicLong messageIds = new AtomicLong();
 
-    private volatile long nextExpiry;
+    private long nextExpiry;
+    private long retainedBytes;
 
     SidebandFragmenter(NetworkManager network, Logger logger) {
         this.network = network;
@@ -67,59 +73,105 @@ final class SidebandFragmenter {
 
     Result receive(String peerName, WireMessage.SidebandFragment fragment) {
         long now = System.currentTimeMillis();
-        if (now >= nextExpiry) {
-            nextExpiry = now + EXPIRY_GATE_MS;
-            expire(now);
-        }
         if (!isValid(fragment)) {
             return Result.acceptedIncomplete();
         }
         String key = key(peerName, fragment.messageId());
-        if (!assemblies.containsKey(key) && assemblies.size() >= ASSEMBLY_CAPACITY) {
-            return Result.rejected();
-        }
-        Assembly[] completedAssembly = new Assembly[1];
-        assemblies.compute(key, (ignored, previous) -> {
-            Assembly assembly = previous;
-            if (assembly == null || !assembly.accepts(fragment)) {
+        Assembly assembly;
+        synchronized (assemblyLock) {
+            if (now >= nextExpiry) {
+                nextExpiry = now + EXPIRY_GATE_MS;
+                expireLocked(now);
+            }
+            assembly = assemblies.get(key);
+            if (assembly != null && !assembly.accepts(fragment)) {
+                removeLocked(key, assembly);
+                assembly = null;
+            }
+            if (assembly == null) {
+                if (assemblies.size() >= ASSEMBLY_CAPACITY
+                    || retainedBytes + fragment.frameLength() > MAX_RETAINED_BYTES) {
+                    return Result.rejected();
+                }
                 assembly = new Assembly(fragment, now);
+                assemblies.put(key, assembly);
+                retainedBytes += assembly.retainedBytes();
             }
             assembly.add(fragment);
-            if (assembly.isComplete()) {
-                completedAssembly[0] = assembly;
+            if (!assembly.beginDecode()) {
+                return Result.acceptedIncomplete();
             }
-            return assembly;
-        });
-        Assembly assembly = completedAssembly[0];
-        if (assembly == null) {
-            return Result.acceptedIncomplete();
         }
         try {
             byte[] plainFrame = network.compression().decode(assembly.assemble()).payload();
             WireMessage message = WireCodec.readFrame(new DataInputStream(new ByteArrayInputStream(plainFrame)));
+            synchronized (assemblyLock) {
+                assembly.endDecode();
+            }
             return Result.completed(new Reassembled(message, key, assembly));
         } catch (IOException e) {
-            assemblies.remove(key, assembly);
+            synchronized (assemblyLock) {
+                removeLocked(key, assembly);
+            }
             logger.warning("net: dropped corrupt status sideband jumbo frame from " + peerName + ": " + e.getMessage());
             return Result.acceptedIncomplete();
+        } catch (RuntimeException e) {
+            synchronized (assemblyLock) {
+                removeLocked(key, assembly);
+            }
+            logger.log(Level.WARNING, "net: failed to decode status sideband jumbo frame from " + peerName, e);
+            return Result.acceptedIncomplete();
+        } catch (Error e) {
+            synchronized (assemblyLock) {
+                removeLocked(key, assembly);
+            }
+            throw e;
         }
     }
 
     void discard(Reassembled reassembled) {
-        assemblies.remove(reassembled.key(), reassembled.assembly());
+        synchronized (assemblyLock) {
+            removeLocked(reassembled.key(), reassembled.assembly());
+        }
     }
 
     void expire(long now) {
-        assemblies.entrySet().removeIf(entry -> now - entry.getValue().createdAtMillis() > ASSEMBLY_TTL_MS);
+        synchronized (assemblyLock) {
+            expireLocked(now);
+        }
     }
 
     void forget(String peerName) {
         String prefix = peerName + ":";
-        assemblies.keySet().removeIf(key -> key.startsWith(prefix));
+        synchronized (assemblyLock) {
+            Iterator<Map.Entry<String, Assembly>> iterator = assemblies.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<String, Assembly> entry = iterator.next();
+                if (entry.getKey().startsWith(prefix)) {
+                    retainedBytes -= entry.getValue().retainedBytes();
+                    iterator.remove();
+                }
+            }
+        }
     }
 
     void clear() {
-        assemblies.clear();
+        synchronized (assemblyLock) {
+            assemblies.clear();
+            retainedBytes = 0L;
+        }
+    }
+
+    long retainedBytes() {
+        synchronized (assemblyLock) {
+            return retainedBytes;
+        }
+    }
+
+    int assemblyCount() {
+        synchronized (assemblyLock) {
+            return assemblies.size();
+        }
     }
 
     private void warnFragmented(String peerName, WireMessage message, int frameLength, int fragments) {
@@ -146,11 +198,36 @@ final class SidebandFragmenter {
         if (fragment.frameLength() <= 0 || fragment.frameLength() > MAX_FRAME_BYTES) {
             return false;
         }
-        return fragment.chunk() != null && fragment.chunk().length > 0 && fragment.chunk().length <= CHUNK_BYTES;
+        int expectedTotal = (fragment.frameLength() + CHUNK_BYTES - 1) / CHUNK_BYTES;
+        if (fragment.total() != expectedTotal || fragment.chunk() == null) {
+            return false;
+        }
+        int expectedLength = fragment.index() == fragment.total() - 1
+            ? fragment.frameLength() - (fragment.index() * CHUNK_BYTES)
+            : CHUNK_BYTES;
+        return fragment.chunk().length == expectedLength;
     }
 
     private static String key(String peerName, long messageId) {
         return peerName + ":" + messageId;
+    }
+
+    private void expireLocked(long now) {
+        Iterator<Map.Entry<String, Assembly>> iterator = assemblies.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, Assembly> entry = iterator.next();
+            Assembly assembly = entry.getValue();
+            if (!assembly.decoding() && now - assembly.createdAtMillis() > ASSEMBLY_TTL_MS) {
+                retainedBytes -= assembly.retainedBytes();
+                iterator.remove();
+            }
+        }
+    }
+
+    private void removeLocked(String key, Assembly assembly) {
+        if (assembly != null && assemblies.remove(key, assembly)) {
+            retainedBytes -= assembly.retainedBytes();
+        }
     }
 
     record Reassembled(WireMessage message, String key, Assembly assembly) {
@@ -178,6 +255,7 @@ final class SidebandFragmenter {
         private final long createdAtMillis;
         private int received;
         private int receivedBytes;
+        private boolean decoding;
 
         private Assembly(WireMessage.SidebandFragment first, long createdAtMillis) {
             this.messageId = first.messageId();
@@ -211,8 +289,16 @@ final class SidebandFragmenter {
             return true;
         }
 
-        private boolean isComplete() {
-            return received == total && receivedBytes == frameLength;
+        private boolean beginDecode() {
+            if (decoding || received != total || receivedBytes != frameLength) {
+                return false;
+            }
+            decoding = true;
+            return true;
+        }
+
+        private void endDecode() {
+            decoding = false;
         }
 
         private byte[] assemble() {
@@ -227,6 +313,14 @@ final class SidebandFragmenter {
 
         private long createdAtMillis() {
             return createdAtMillis;
+        }
+
+        private long retainedBytes() {
+            return frameLength;
+        }
+
+        private boolean decoding() {
+            return decoding;
         }
     }
 }

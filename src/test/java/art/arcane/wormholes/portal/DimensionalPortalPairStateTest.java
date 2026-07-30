@@ -16,7 +16,7 @@ import org.bukkit.NamespacedKey;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.util.Cuboid;
-import art.arcane.wormholes.util.JSONObject;
+import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.portal.vanilla.PortalFactory;
 
 public final class DimensionalPortalPairStateTest
@@ -45,15 +45,15 @@ public final class DimensionalPortalPairStateTest
 		JSONObject stored = portal.toJSON();
 
 		assertEquals(counterpartId.toString(), stored.getString("dimensionalCounterpartId"));
-		assertEquals(counterpartId, LocalPortal.resolveOptionalUuid(stored.getString("dimensionalCounterpartId")));
+		assertEquals(counterpartId, LocalPortalPersistence.resolveOptionalUuid(stored.getString("dimensionalCounterpartId")));
 		assertEquals(DimensionalPortalKind.NETHER.name(), stored.getString("dimensionalPortalKind"));
 	}
 
 	@Test
 	public void malformedCounterpartIdentityIsIgnored()
 	{
-		assertNull(LocalPortal.resolveOptionalUuid(""));
-		assertNull(LocalPortal.resolveOptionalUuid("not-a-uuid"));
+		assertNull(LocalPortalPersistence.resolveOptionalUuid(""));
+		assertNull(LocalPortalPersistence.resolveOptionalUuid("not-a-uuid"));
 	}
 
 	@Test

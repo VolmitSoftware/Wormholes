@@ -31,7 +31,7 @@ public final class LocalPortalRtpRefusalTest
 				"a refused random-teleport must run the bounce funnel, not drop the subject");
 		assertTrue(LocalPortal.isReentryLatched(traveler.id()),
 				"a refused random-teleport must arm the rejected-reentry latch so the portal cannot re-trigger");
-		assertEquals(LocalPortal.sourceRejectionVelocity(traversive).getZ(), traveler.velocity().getZ(), 1.0E-9D,
+		assertEquals(LocalPortalTraversal.sourceRejectionVelocity(traversive).getZ(), traveler.velocity().getZ(), 1.0E-9D,
 				"the bounced traveler must be pushed back out of the source portal");
 		assertEquals(before + 1L, refusals(), "a terminal traversal failure must increment the failure counter");
 		LocalPortal.clearReentryLatch(traveler.id());

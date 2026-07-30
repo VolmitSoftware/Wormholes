@@ -89,7 +89,6 @@ final class WormholesDiagnosticsRuntime {
             Wormholes.networkManager,
             Wormholes.viewServer,
             Wormholes.traversalService,
-            null,
             output,
             Duration.ofSeconds(intervalSec),
             pluginStartedAt == null ? Instant.now() : pluginStartedAt

@@ -24,45 +24,16 @@ String jitpackAuthToken = authTokenProperty ?: providers.gradleProperty('jitpack
 def shadowJarTask = tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar)
 tasks.named('slimJar').get()
 
-// ADD YOURSELF AS A NEW LINE IF YOU WANT YOUR OWN BUILD TASK GENERATED
-// ======================== WIfffsDOWS =============================
-registerCustomOutputTask(
-    'Cyberpwn',
-    'C://Users/cyberpwn/Documents/development/server/plugins'
-)
-registerCustomOutputTask(
-    'Psycho',
-    'C://Dan/MinecraftDevelopment/Server/plugins'
-)
-registerCustomOutputTask(
-    'ArcaneArts',
-    'C://Users/arcane/Documents/development/server/plugins'
-)
-registerCustomOutputTask('Vatuu', 'D://Minecraft/Servers/1.20/plugins')
-registerCustomOutputTask('Nowhere', 'E://Desktop/server/plugins')
-registerCustomOutputTask(
-    'CrazyDev22',
-    'C://Users/Julian/Desktop/server/plugins'
-)
-registerCustomOutputTask(
-    'Pixel',
-    'D://Iris Dimension Engine//1.20.4 - Development//plugins'
-)
-// ========================== UNIX ==============================
-registerCustomOutputTaskUnix(
-    'CyberpwnLT',
-    '/Users/danielmills/development/server/plugins'
-)
-registerCustomOutputTaskUnix(
-    'PsychoLT',
-    '/Users/brianfopiano/Developer/RemoteGit/[Minecraft Server]/consumers/plugin-consumers/dropins/plugins'
-)
-registerCustomOutputTaskUnix(
-    'the456gamer',
-    '/home/the456gamer/projects/minecraft/adapt-testserver/plugins/update/',
-    false
-)
-// ==============================================================
+tasks.register('buildPsychoLT', Copy) {
+    group = 'development'
+    description = 'Builds and deploys Wormholes to the managed Minecraft test-server dropins.'
+    outputs.upToDateWhen { false }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    dependsOn(tasks.named('check'), shadowJarTask)
+    from(shadowJarTask.flatMap { it.archiveFile })
+    into(layout.projectDirectory.dir('../../[Minecraft Server]/consumers/plugin-consumers/dropins/plugins'))
+    rename { String ignored -> 'Wormholes.jar' }
+}
 
 tasks.named('jar').configure {
     enabled = false
@@ -265,35 +236,4 @@ if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_25)) {
     System.err.println('=========================================================================================================')
     System.err.println()
     System.exit(69)
-}
-
-void registerCustomOutputTask(String name, String path, boolean doRename = true) {
-    if (!System.getProperty('os.name').toLowerCase().contains('windows')) {
-        return
-    }
-
-    createOutputTask(name, path, doRename)
-}
-
-void registerCustomOutputTaskUnix(String name, String path, boolean doRename = true) {
-    if (System.getProperty('os.name').toLowerCase().contains('windows')) {
-        return
-    }
-
-    createOutputTask(name, path, doRename)
-}
-
-void createOutputTask(String name, String path, boolean doRename = true) {
-    def shadowJarTask = tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar)
-    tasks.register("build${name}", Copy) {
-        group = 'development'
-        outputs.upToDateWhen { false }
-        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-        dependsOn(tasks.named('check'), shadowJarTask)
-        from(shadowJarTask.flatMap { it.archiveFile })
-        into(file(path))
-        if (doRename) {
-            rename { String ignored -> 'Wormholes.jar' }
-        }
-    }
 }
