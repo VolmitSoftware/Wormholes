@@ -37,6 +37,7 @@ final class ProjectorFrameTransform {
     private double mirrorZX;
     private double mirrorZY;
     private double mirrorZZ;
+    private double coordinateSnapTolerance;
     boolean signedPermutation;
     private int permutationSourceX;
     private int permutationSourceY;
@@ -75,6 +76,8 @@ final class ProjectorFrameTransform {
         this.toOriginX = toOriginX;
         this.toOriginY = toOriginY;
         this.toOriginZ = toOriginZ;
+        this.coordinateSnapTolerance = coordinateSnapTolerance(
+            fromOriginX, fromOriginY, fromOriginZ, toOriginX, toOriginY, toOriginZ);
         double[] matrix = scratchMatrix;
         matrix[0] = (fromRightX * toRightX) + (fromUpX * toUpX) + (fromNormalX * toNormalX);
         matrix[1] = (fromRightY * toRightX) + (fromUpY * toUpX) + (fromNormalY * toNormalX);
@@ -98,6 +101,8 @@ final class ProjectorFrameTransform {
         this.toOriginX = originX;
         this.toOriginY = originY;
         this.toOriginZ = originZ;
+        this.coordinateSnapTolerance = coordinateSnapTolerance(
+            originX, originY, originZ, originX, originY, originZ);
         PortalCoordMap.mirrorDisplayToSourceVectorInto(1.0D, 0.0D, 0.0D, frame, quarterTurns, scratch3);
         mirrorXX = scratch3[0];
         mirrorYX = scratch3[1];
@@ -164,22 +169,41 @@ final class ProjectorFrameTransform {
             offsets[0] = offsetX;
             offsets[1] = offsetY;
             offsets[2] = offsetZ;
-            out3[0] = toOriginX + (permutationScaleX * offsets[permutationSourceX]);
-            out3[1] = toOriginY + (permutationScaleY * offsets[permutationSourceY]);
-            out3[2] = toOriginZ + (permutationScaleZ * offsets[permutationSourceZ]);
+            out3[0] = snapNearInteger(toOriginX + (permutationScaleX * offsets[permutationSourceX]), coordinateSnapTolerance);
+            out3[1] = snapNearInteger(toOriginY + (permutationScaleY * offsets[permutationSourceY]), coordinateSnapTolerance);
+            out3[2] = snapNearInteger(toOriginZ + (permutationScaleZ * offsets[permutationSourceZ]), coordinateSnapTolerance);
             return;
         }
         if (mirror) {
-            out3[0] = toOriginX + (offsetX * mirrorXX) + (offsetY * mirrorXY) + (offsetZ * mirrorXZ);
-            out3[1] = toOriginY + (offsetX * mirrorYX) + (offsetY * mirrorYY) + (offsetZ * mirrorYZ);
-            out3[2] = toOriginZ + (offsetX * mirrorZX) + (offsetY * mirrorZY) + (offsetZ * mirrorZZ);
+            out3[0] = snapNearInteger(toOriginX + (offsetX * mirrorXX) + (offsetY * mirrorXY) + (offsetZ * mirrorXZ), coordinateSnapTolerance);
+            out3[1] = snapNearInteger(toOriginY + (offsetX * mirrorYX) + (offsetY * mirrorYY) + (offsetZ * mirrorYZ), coordinateSnapTolerance);
+            out3[2] = snapNearInteger(toOriginZ + (offsetX * mirrorZX) + (offsetY * mirrorZY) + (offsetZ * mirrorZZ), coordinateSnapTolerance);
             return;
         }
         double frameRight = offsetX * fromRightX + offsetY * fromRightY + offsetZ * fromRightZ;
         double frameUp = offsetX * fromUpX + offsetY * fromUpY + offsetZ * fromUpZ;
         double frameNormal = offsetX * fromNormalX + offsetY * fromNormalY + offsetZ * fromNormalZ;
-        out3[0] = toOriginX + frameRight * toRightX + frameUp * toUpX + frameNormal * toNormalX;
-        out3[1] = toOriginY + frameRight * toRightY + frameUp * toUpY + frameNormal * toNormalY;
-        out3[2] = toOriginZ + frameRight * toRightZ + frameUp * toUpZ + frameNormal * toNormalZ;
+        out3[0] = snapNearInteger(toOriginX + frameRight * toRightX + frameUp * toUpX + frameNormal * toNormalX, coordinateSnapTolerance);
+        out3[1] = snapNearInteger(toOriginY + frameRight * toRightY + frameUp * toUpY + frameNormal * toNormalY, coordinateSnapTolerance);
+        out3[2] = snapNearInteger(toOriginZ + frameRight * toRightZ + frameUp * toUpZ + frameNormal * toNormalZ, coordinateSnapTolerance);
+    }
+
+    private static double coordinateSnapTolerance(double fromX,
+                                                  double fromY,
+                                                  double fromZ,
+                                                  double toX,
+                                                  double toY,
+                                                  double toZ) {
+        double largestUlp = Math.max(Math.ulp(fromX), Math.ulp(fromY));
+        largestUlp = Math.max(largestUlp, Math.ulp(fromZ));
+        largestUlp = Math.max(largestUlp, Math.ulp(toX));
+        largestUlp = Math.max(largestUlp, Math.ulp(toY));
+        largestUlp = Math.max(largestUlp, Math.ulp(toZ));
+        return Math.max(1.0E-10D, largestUlp * 8.0D);
+    }
+
+    private static double snapNearInteger(double value, double tolerance) {
+        double nearestInteger = Math.rint(value);
+        return Math.abs(value - nearestInteger) <= tolerance ? nearestInteger : value;
     }
 }

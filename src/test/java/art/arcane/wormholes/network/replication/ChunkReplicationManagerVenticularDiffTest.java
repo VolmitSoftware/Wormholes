@@ -19,13 +19,22 @@ class ChunkReplicationManagerVenticularDiffTest {
     private static final String PEER = "peer-v";
 
     @Test
-    void venticularPeerReceivesSentinelForOccludedCellsAndRealForExposed(@TempDir Path dir) {
+    void venticularPeerReceivesSentinelForBuriedCellsAndRealForExposed(@TempDir Path dir) {
+        assertOptimizedPeerReceivesSentinel(dir, ProjectionRenderMode.VENTICULAR);
+    }
+
+    @Test
+    void plannarOpticPeerReceivesSentinelForBuriedCellsAndRealForExposed(@TempDir Path dir) {
+        assertOptimizedPeerReceivesSentinel(dir, ProjectionRenderMode.PLANNAR_OPTIC);
+    }
+
+    private void assertOptimizedPeerReceivesSentinel(Path dir, ProjectionRenderMode renderMode) {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         UUID portalId = UUID.randomUUID();
         long chunkKey = ViewSlice.columnKey(0, 0);
-        ReplicationStreamKey stream = ReplicationTestStream.stream(portalId, world, chunkKey, ProjectionRenderMode.VENTICULAR);
+        ReplicationStreamKey stream = ReplicationTestStream.stream(portalId, world, chunkKey, renderMode);
         manager.subscribe(PEER, portalId, world, stream);
         byte[] payload = bulkPayload();
         manager.sendBulk(PEER, portalId, stream, payload, contentHashOf(payload));

@@ -310,7 +310,7 @@ public class EffectManager implements Listener
 		}
 		if(justStarted)
 		{
-			world.playSound(center, Sound.BLOCK_BEACON_AMBIENT, SoundCategory.BLOCKS, 0.3f, 1.7f);
+			world.playSound(center, Sound.BLOCK_BEACON_AMBIENT, SoundCategory.BLOCKS, Settings.portalSoundVolume(0.3f), 1.7f);
 		}
 	}
 
@@ -325,7 +325,7 @@ public class EffectManager implements Listener
 		{
 			world.spawnParticle(Particle.REVERSE_PORTAL, center, 12, 0.4, 0.6, 0.4, 0.4);
 		}
-		world.playSound(center, Sound.BLOCK_BEACON_ACTIVATE, SoundCategory.BLOCKS, 0.55f, 1.5f);
+		world.playSound(center, Sound.BLOCK_BEACON_ACTIVATE, SoundCategory.BLOCKS, Settings.portalSoundVolume(0.55f), 1.5f);
 	}
 
 	private void validatePortalToolHolder(Player player, List<ILocalPortal> portals, long currentTick)
@@ -486,19 +486,19 @@ public class EffectManager implements Listener
 			world.spawnParticle(Particle.PORTAL, center, 24, 0.3, 0.6, 0.3, 0.5);
 			world.spawnParticle(Particle.ELECTRIC_SPARK, center, 18, 0.4, 0.8, 0.4, 0.15);
 		}
-		world.playSound(center, Sound.BLOCK_GLASS_BREAK, SoundCategory.PLAYERS, 0.6f, 0.5f + ((float) (Math.random() * 0.15)));
-		world.playSound(center, Sound.BLOCK_AMETHYST_BLOCK_HIT, SoundCategory.PLAYERS, 1.0f, 0.5f);
-		world.playSound(center, Sound.ENTITY_ENDERMAN_TELEPORT, SoundCategory.PLAYERS, 0.8f, 0.55f + ((float) (Math.random() * 0.2)));
+		world.playSound(center, Sound.BLOCK_GLASS_BREAK, SoundCategory.PLAYERS, Settings.portalSoundVolume(0.6f), 0.5f + ((float) (Math.random() * 0.15)));
+		world.playSound(center, Sound.BLOCK_AMETHYST_BLOCK_HIT, SoundCategory.PLAYERS, Settings.portalSoundVolume(1.0f), 0.5f);
+		world.playSound(center, Sound.ENTITY_ENDERMAN_TELEPORT, SoundCategory.PLAYERS, Settings.portalSoundVolume(0.8f), 0.55f + ((float) (Math.random() * 0.2)));
 	}
 
 	public void playPortalBlockPlaced(Block block)
 	{
-		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.BLOCK_END_PORTAL_FRAME_FILL, SoundCategory.BLOCKS, 0.65f, 1.1f + ((float) (Math.random() * 0.2)));
+		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.BLOCK_END_PORTAL_FRAME_FILL, SoundCategory.BLOCKS, Settings.portalSoundVolume(0.65f), 1.1f + ((float) (Math.random() * 0.2)));
 	}
 
 	public void playPortalBlockDestroyed(Block block)
 	{
-		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.BLOCK_GLASS_BREAK, SoundCategory.BLOCKS, 0.5f, 1.55f + ((float) (Math.random() * 0.2)));
+		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.BLOCK_GLASS_BREAK, SoundCategory.BLOCKS, Settings.portalSoundVolume(0.5f), 1.55f + ((float) (Math.random() * 0.2)));
 	}
 
 	public void playPortalFailOpen(Set<Block> blocks)
@@ -507,7 +507,7 @@ public class EffectManager implements Listener
 
 		for(int i = 0; i < 4; i++)
 		{
-			block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.AMBIENT_CAVE, 2.5f, 0.5f + ((float) (Math.random() * 1.45)));
+			block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.AMBIENT_CAVE, Settings.portalSoundVolume(2.5f), 0.5f + ((float) (Math.random() * 1.45)));
 		}
 	}
 
@@ -517,8 +517,8 @@ public class EffectManager implements Listener
 		{
 			block.getWorld().spawnParticle(Particle.EXPLOSION, block.getLocation().clone().add(0.5, 0.5, 0.5), 1, 0.0D, 0.0D, 0.0D, 0.0D);
 		}
-		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.ENTITY_GENERIC_EXPLODE, 0.7f, (float) (1.6 + ((float) (Math.random() * 0.35))));
-		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.BLOCK_GLASS_BREAK, 1.2f, (float) (0.25 + ((float) (Math.random() * 0.95))));
+		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.ENTITY_GENERIC_EXPLODE, Settings.portalSoundVolume(0.7f), (float) (1.6 + ((float) (Math.random() * 0.35))));
+		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.BLOCK_GLASS_BREAK, Settings.portalSoundVolume(1.2f), (float) (0.25 + ((float) (Math.random() * 0.95))));
 	}
 
 	public void playPortalVortex(World world, Location center, List<PortalBlockSnapshot> snapshots)
@@ -632,7 +632,11 @@ public class EffectManager implements Listener
 
 	static OpeningSoundPlan openingSoundPlan()
 	{
-		return new OpeningSoundPlan(0.65f, 0.75f, 0.65f, 0.25f);
+		return new OpeningSoundPlan(
+				Settings.portalSoundVolume(0.65f),
+				Settings.portalSoundVolume(0.75f),
+				Settings.portalSoundVolume(0.65f),
+				Settings.portalSoundVolume(0.25f));
 	}
 
 	static double ellipseRadius(double halfA, double halfB, double angle)

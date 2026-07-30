@@ -165,7 +165,7 @@ class PortalSettingsSyncTest {
         settings.put(PortalSyncService.KEY_BLACKOUT_BACKGROUND, "false");
         settings.put(PortalSyncService.KEY_BLACKOUT_COLOR, "RED");
         settings.put(PortalSyncService.KEY_ACTIVATION_RANGE, "96");
-        settings.put(PortalSyncService.KEY_RENDER_MODE, "VENTICULAR");
+        settings.put(PortalSyncService.KEY_RENDER_MODE, "PLANNAR_OPTIC");
         settings.put(PortalSyncService.KEY_AMBIENT_STYLE, "OUTLINE");
         settings.put(PortalSyncService.KEY_AMBIENT_COLOR, Integer.toString(0x123456));
         settings.put(PortalSyncService.KEY_SURFACE_SKIN, "minecraft:glass");
@@ -188,7 +188,7 @@ class PortalSettingsSyncTest {
         assertFalse(remote.isMirroredBlackoutBackground());
         assertEquals(BlackoutColor.RED, remote.getMirroredBlackoutColor());
         assertEquals(96, remote.getMirroredActivationRange());
-        assertEquals(ProjectionRenderMode.VENTICULAR, remote.getMirroredRenderMode());
+        assertEquals(ProjectionRenderMode.PLANNAR_OPTIC, remote.getMirroredRenderMode());
         assertEquals(AmbientParticleStyle.OUTLINE, remote.getMirroredAmbientStyle());
         assertEquals(0x123456, remote.getMirroredAmbientColor());
         assertEquals("minecraft:glass", remote.getMirroredSurfaceSkin());

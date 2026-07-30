@@ -242,7 +242,7 @@ final class DoorPortalVisualService implements AutoCloseable
 				anchor.clone().add(0.0D, 1.0D, 0.0D),
 				Sound.BLOCK_PORTAL_AMBIENT,
 				SoundCategory.BLOCKS,
-				0.3F,
+				Settings.portalSoundVolume(0.3F),
 				0.65F + (random.nextFloat() * 0.3F));
 		}
 	}

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.door;
 
+import art.arcane.wormholes.Settings;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import org.bukkit.Chunk;
@@ -215,7 +216,7 @@ final class DoorRuntimeIndex implements AutoCloseable
 					new Location(world, plane.blockX() + 0.5D, plane.blockY() + 1.0D, plane.blockZ() + 0.5D),
 					DimensionalDoorSounds.closeSound(material),
 					SoundCategory.BLOCKS,
-					1.0F,
+					Settings.portalSoundVolume(1.0F),
 					1.0F);
 			}
 			catch(Throwable ex)

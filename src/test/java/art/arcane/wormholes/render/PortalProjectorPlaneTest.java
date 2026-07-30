@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 
@@ -93,6 +94,20 @@ public final class PortalProjectorPlaneTest {
 	public void reuseAllowsUnchangedRemoteProjection() {
 		assertTrue(PortalProjector.canReuseProjection(true, true, true, 0, false, false, false, false, false,
 			12.5D, 64.62D, -3.25D, 12.5D, 64.62D, -3.25D));
+	}
+
+	@Test
+	public void plannarOpticResamplesCellVisibilityAfterMeaningfulEyeMovement() {
+		assertFalse(PortalProjector.requiresPlannarCellResample(ProjectionRenderMode.PANOPTIC, true,
+			0.25D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D));
+		assertFalse(PortalProjector.requiresPlannarCellResample(ProjectionRenderMode.VENTICULAR, true,
+			0.25D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D));
+		assertFalse(PortalProjector.requiresPlannarCellResample(ProjectionRenderMode.PLANNAR_OPTIC, true,
+			0.249D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D));
+		assertTrue(PortalProjector.requiresPlannarCellResample(ProjectionRenderMode.PLANNAR_OPTIC, true,
+			0.25D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D));
+		assertFalse(PortalProjector.requiresPlannarCellResample(ProjectionRenderMode.PLANNAR_OPTIC, false,
+			4.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D));
 	}
 
 	@Test

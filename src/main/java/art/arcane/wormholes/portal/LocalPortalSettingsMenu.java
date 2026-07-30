@@ -473,7 +473,7 @@ final class LocalPortalSettingsMenu
 		Wormholes.text().apply(element, WormholesMessages.PORTAL_MENU_RENDER_MODE,
 				LocalPortalText.arguments("mode", portal.getRenderMode().displayName()));
 		element.setMaterial(new MaterialBlock(Material.valueOf(portal.getRenderMode().iconMaterialName())));
-		element.setEnchanted(portal.getRenderMode() == ProjectionRenderMode.VENTICULAR);
+		element.setEnchanted(portal.getRenderMode() != ProjectionRenderMode.PANOPTIC);
 	}
 
 	private Element settingsSyncElement(Window window, Player viewer)

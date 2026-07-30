@@ -32,7 +32,7 @@ final class ProjectorSampler {
     private Direction cachedToUp;
     private boolean cachedMirrorTransform;
     private int cachedMirrorRotationQuarterTurns;
-    private boolean venticularPass;
+    private boolean buriedCellCullingPass;
     private boolean recursiveSamplesCached;
     private int remoteSamples;
 
@@ -55,7 +55,7 @@ final class ProjectorSampler {
         this.cachedToUp = null;
         this.cachedMirrorTransform = false;
         this.cachedMirrorRotationQuarterTurns = 0;
-        this.venticularPass = false;
+        this.buriedCellCullingPass = false;
         this.recursiveSamplesCached = false;
         this.remoteSamples = 0;
     }
@@ -80,11 +80,11 @@ final class ProjectorSampler {
         recursiveSamplesCached = false;
     }
 
-    boolean setVenticularPass(boolean venticularCulling) {
-        if (venticularCulling == venticularPass) {
+    boolean setBuriedCellCullingPass(boolean buriedCellCulling) {
+        if (buriedCellCulling == buriedCellCullingPass) {
             return false;
         }
-        venticularPass = venticularCulling;
+        buriedCellCullingPass = buriedCellCulling;
         return true;
     }
 
@@ -105,18 +105,17 @@ final class ProjectorSampler {
                             double eyeZ,
                             ILocalPortal excludedPortal,
                             int remainingDepth,
-                            boolean applyVenticularCulling,
-                            ProjectorRecursivePortals.Index preparedIndex) {
+                            boolean applyBuriedCellCulling,
+                            ProjectorRecursivePortals.Index preparedIndex,
+                            ProjectorRecursivePortals.Hit preparedHit) {
         if (view == null) {
             return ProjectorSample.noSample();
         }
 
         World world = view.getWorld();
-        ProjectorRecursivePortals.Hit hit = null;
-        if (remainingDepth >= 0 && world != null) {
-            ProjectorRecursivePortals.Index index = preparedIndex != null
-                ? preparedIndex
-                : recursivePortals.indexFor(world, eyeX, eyeY, eyeZ, excludedPortal);
+        ProjectorRecursivePortals.Hit hit = preparedHit;
+        if (hit == null && preparedIndex == null && remainingDepth >= 0 && world != null) {
+            ProjectorRecursivePortals.Index index = recursivePortals.indexFor(world, eyeX, eyeY, eyeZ, excludedPortal);
             if (!index.isEmpty()) {
                 hit = index.find(sampleX, sampleY, sampleZ, remainingDepth);
             }
@@ -132,6 +131,7 @@ final class ProjectorSampler {
                 hit.destinationPortal,
                 remainingDepth - 1,
                 false,
+                null,
                 null);
             if (nested.kind == ProjectorSample.Kind.NO_SAMPLE) {
                 return maskAirSample;
@@ -148,7 +148,7 @@ final class ProjectorSampler {
         int x = (int) Math.floor(sampleX);
         int y = (int) Math.floor(sampleY);
         int z = (int) Math.floor(sampleZ);
-        boolean cacheable = applyVenticularCulling == venticularPass;
+        boolean cacheable = applyBuriedCellCulling == buriedCellCullingPass;
         if (cacheable) {
             ProjectorSample cached = memo.cachedSample(view, x, y, z);
             if (cached != null) {
@@ -171,7 +171,7 @@ final class ProjectorSampler {
             sample = new ProjectorSample(ProjectorSample.Kind.OCCLUDED, remoteData, view, remoteKey);
         } else if (ProjectorSampleMemo.isAir(remoteData.getMaterial())) {
             sample = new ProjectorSample(ProjectorSample.Kind.REMOTE_AIR, airBlockData, view, remoteKey);
-        } else if (applyVenticularCulling && memo.buriedInView(view, x, y, z, remoteData)) {
+        } else if (applyBuriedCellCulling && memo.buriedInView(view, x, y, z, remoteData)) {
             sample = new ProjectorSample(ProjectorSample.Kind.OCCLUDED, remoteData, view, remoteKey);
         } else {
             sample = new ProjectorSample(ProjectorSample.Kind.BLOCK, remoteData, view, remoteKey);

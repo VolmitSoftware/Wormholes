@@ -146,4 +146,35 @@ public final class PortalProjectorFrameTransformTest {
         transform.apply(11.5D, 74.5D, 2.5D, actual);
         assertSameBlock(expected, actual, "frame pass after mirror");
     }
+
+    @Test
+    public void realPortalCenterOffsetsDoNotFloorAnExactBoundaryIntoThePreviousBlock() {
+        PortalFrame frame = PortalFrame.canonical(Direction.N);
+        ProjectorFrameTransform transform = new ProjectorFrameTransform();
+        double[] actual = new double[3];
+        transform.configure(frame, frame,
+            1.9995D, 66.4995D, 0.9995D,
+            0.4995D, 66.4995D, 0.9995D);
+
+        transform.apply(4.5D, 70.5D, -3.5D, actual);
+
+        assertEquals(3.0D, actual[0], 0.0D);
+        assertEquals(3, (int) Math.floor(actual[0]));
+
+        transform.configure(frame, frame,
+            -1.0005D, 66.4995D, 0.9995D,
+            -2.5005D, 66.4995D, 0.9995D);
+        transform.apply(1.5D, 70.5D, -3.5D, actual);
+
+        assertEquals(0.0D, actual[0], 0.0D);
+        assertEquals(0, (int) Math.floor(actual[0]));
+
+        transform.configure(frame, frame,
+            9_349_874.9995D, 64.4995D, 0.4995D,
+            -16_777_220.5005D, 64.4995D, 0.4995D);
+        transform.apply(9_349_898.5D, 64.5D, 0.5D, actual);
+
+        assertEquals(-16_777_197.0D, actual[0], 0.0D);
+        assertEquals(-16_777_197, (int) Math.floor(actual[0]));
+    }
 }

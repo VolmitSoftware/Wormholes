@@ -1,7 +1,10 @@
 package art.arcane.wormholes.config;
 
 import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.config.toml.ProjectionConfig;
+import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.config.toml.WormholesConfigFile;
 import art.arcane.wormholes.util.project.config.TomlCodec;
 import org.junit.jupiter.api.Test;
@@ -44,6 +47,7 @@ class WormholesConfigFileTest {
         assertTrue(emitted.contains("[projection]"));
         assertTrue(emitted.contains("[render]"));
         assertTrue(emitted.contains("aperture-padding-blocks = 0.75"));
+        assertTrue(emitted.contains("blackout-shell-thickness-blocks = 2"));
 
         String content = String.join("\n", emitted);
         assertEveryKeyEmitted(content, WormholesConfigFile.class);
@@ -93,6 +97,7 @@ class WormholesConfigFileTest {
         assertTrue(emitted.contains("language = \"de_DE\""));
         assertTrue(emitted.contains("range = 72.0"));
         assertTrue(emitted.contains("aperture-padding-blocks = 0.75"));
+        assertTrue(emitted.contains("blackout-shell-thickness-blocks = 2"));
         assertTrue(emitted.contains("[network.transport]"));
         String content = String.join("\n", emitted);
         assertEveryKeyEmitted(content, WormholesConfigFile.class);
@@ -114,6 +119,27 @@ class WormholesConfigFileTest {
         Settings.refresh(enabled);
         assertTrue(enabled.getMain().dimensionalDoorsEnabled);
         assertTrue(Settings.DIMENSIONAL_DOORS_ENABLED);
+    }
+
+    @Test
+    void blackoutShellThicknessDefaultsToTwoAndClampsToOneOrTwo() {
+        ProjectionConfig projection = new ProjectionConfig();
+        refreshProjection(projection);
+        assertEquals(2, Settings.PROJECTION_BLACKOUT_SHELL_THICKNESS_BLOCKS);
+
+        projection.blackoutShellThicknessBlocks = 0;
+        refreshProjection(projection);
+        assertEquals(1, Settings.PROJECTION_BLACKOUT_SHELL_THICKNESS_BLOCKS);
+
+        projection.blackoutShellThicknessBlocks = 1;
+        refreshProjection(projection);
+        assertEquals(1, Settings.PROJECTION_BLACKOUT_SHELL_THICKNESS_BLOCKS);
+
+        projection.blackoutShellThicknessBlocks = 3;
+        refreshProjection(projection);
+        assertEquals(2, Settings.PROJECTION_BLACKOUT_SHELL_THICKNESS_BLOCKS);
+
+        refreshProjection(new ProjectionConfig());
     }
 
     @Test
@@ -236,6 +262,10 @@ class WormholesConfigFileTest {
             .map(String::trim)
             .filter(line -> !line.isEmpty() && !line.startsWith("#"))
             .toList();
+    }
+
+    private static void refreshProjection(ProjectionConfig projection) {
+        Settings.refresh(new WormholesSettings(new MainConfig(), projection, new RenderConfig(), new NetworkConfig()));
     }
 
     private static void assertEveryKeyEmitted(String content, Class<?> type) {

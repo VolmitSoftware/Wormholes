@@ -5,7 +5,8 @@ import java.util.Locale;
 public enum ProjectionRenderMode
 {
 	PANOPTIC("PanOptic", "SPYGLASS"),
-	VENTICULAR("Venticular", "TINTED_GLASS");
+	VENTICULAR("Venticular", "TINTED_GLASS"),
+	PLANNAR_OPTIC("PlannarOptic", "ENDER_EYE");
 
 	private static final ProjectionRenderMode[] VALUES = values();
 
@@ -26,6 +27,11 @@ public enum ProjectionRenderMode
 	public String iconMaterialName()
 	{
 		return iconMaterialName;
+	}
+
+	public boolean usesBuriedCellCulling()
+	{
+		return this != PANOPTIC;
 	}
 
 	public ProjectionRenderMode next()

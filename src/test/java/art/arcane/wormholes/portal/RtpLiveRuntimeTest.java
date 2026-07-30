@@ -257,7 +257,7 @@ public final class RtpLiveRuntimeTest
 	}
 
 	@Test
-	public void travelerMovedOffTheConfirmedDestinationIsStillDeliveredNotBounced()
+	public void successfulTeleportResultAcceptsAResolvedDestinationOffset()
 	{
 		Harness harness = new Harness(RtpRotationMode.STATIC);
 		harness.prepareReady();
@@ -268,7 +268,32 @@ public final class RtpLiveRuntimeTest
 
 		assertEquals(1, harness.environment.teleports.get());
 		assertEquals(1, harness.environment.successes.get());
-		assertEquals(1L, harness.runtime.traversalRecoveries());
+		assertEquals(0L, harness.runtime.traversalRecoveries());
+		assertFalse(harness.environment.reportedFailures.stream()
+				.anyMatch(context -> context.startsWith("arrival-mismatch:")));
+		assertTrue(LocalPortal.isTeleportCoolingDown(traveler.id, harness.environment.nowMillis));
+		assertTrue(LocalPortal.isReentryLatched(traveler.id));
+	}
+
+	@Test
+	public void foliaConfirmationAcceptsMovementAfterSuccessfulTeleport()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.entity(harness.world, harness.sourceLocation());
+		harness.environment.holdEntitySchedules = true;
+
+		assertTrue(harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+		harness.environment.runNextEntityCommand();
+		harness.environment.runNextEntityCommand();
+		assertEquals(1, harness.environment.teleports.get());
+		traveler.location = traveler.location.clone().add(0.75D, 0.0D, 0.0D);
+		harness.environment.runNextEntityCommand();
+
+		assertEquals(1, harness.environment.successes.get());
+		assertEquals(0L, harness.runtime.traversalRecoveries());
+		assertFalse(harness.environment.reportedFailures.stream()
+				.anyMatch(context -> context.startsWith("arrival-mismatch:")));
 		assertTrue(LocalPortal.isTeleportCoolingDown(traveler.id, harness.environment.nowMillis));
 		assertTrue(LocalPortal.isReentryLatched(traveler.id));
 	}
@@ -752,6 +777,7 @@ public final class RtpLiveRuntimeTest
 		private final AtomicInteger retentionCloses;
 		private final AtomicInteger entitySchedules;
 		private final java.util.Deque<Runnable> heldEntityCommands;
+		private final List<String> reportedFailures;
 		private long nowMillis;
 		private FailureMode failureMode;
 		private boolean deferTraversalLoad;
@@ -772,6 +798,7 @@ public final class RtpLiveRuntimeTest
 			retentionCloses = new AtomicInteger();
 			entitySchedules = new AtomicInteger();
 			heldEntityCommands = new java.util.ArrayDeque<Runnable>();
+			reportedFailures = new java.util.ArrayList<String>();
 			nowMillis = 0L;
 			failureMode = FailureMode.NONE;
 		}
@@ -912,6 +939,7 @@ public final class RtpLiveRuntimeTest
 		@Override
 		public void reportFailure(String context, Throwable failure)
 		{
+			reportedFailures.add(context);
 		}
 
 		@Override

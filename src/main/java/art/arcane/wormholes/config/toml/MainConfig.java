@@ -23,6 +23,10 @@ public class MainConfig {
     public boolean verboseLogging = false;
     public boolean debugRendering = false;
     public int teleportCooldownMillis = 1000;
+    @ConfigDescription("Scales rejected-traversal push velocity. 0 removes knockback, 1 preserves normal strength, and 4 is the maximum.")
+    public double portalPushbackMultiplier = 1.0;
+    @ConfigDescription("Scales portal, traversal, and dimensional-door sound volume. 0 mutes these sounds, 1 preserves normal volume, and 4 is the maximum.")
+    public double portalSoundVolumeMultiplier = 1.0;
     @ConfigDescription("Allow other plugins to price or veto a portal traversal through the Wormholes traversal API. When false, no cost provider is called and neither traversal event fires.")
     public boolean traversalApiEnabled = true;
     @ConfigDescription("What to do when a third-party traversal cost provider throws or misbehaves: allow (treat it as a refusal to charge and let the traversal through free) or deny (close the portal).")

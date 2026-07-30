@@ -33,7 +33,7 @@ public final class PortalCosmeticSettingsPersistenceTest
 		portal.setAmbientColor(0x123456);
 		portal.setSurfaceSkin("minecraft:glass");
 		portal.setSurfaceThickness(45);
-		portal.setRenderMode(ProjectionRenderMode.VENTICULAR);
+		portal.setRenderMode(ProjectionRenderMode.PLANNAR_OPTIC);
 
 		JSONObject json = portal.toJSON();
 
@@ -41,7 +41,7 @@ public final class PortalCosmeticSettingsPersistenceTest
 		assertEquals(0x123456, json.getInt("ambientColor"));
 		assertEquals("minecraft:glass", json.getString("surfaceSkin"));
 		assertEquals(45, json.getInt("surfaceThickness"));
-		assertEquals("VENTICULAR", json.getString("renderMode"));
+		assertEquals("PLANNAR_OPTIC", json.getString("renderMode"));
 
 		LocalPortal reloaded = loadPortal(json, world);
 		assertEquals(AmbientParticleStyle.OUTLINE, reloaded.getAmbientStyle());
@@ -49,7 +49,7 @@ public final class PortalCosmeticSettingsPersistenceTest
 		assertEquals("minecraft:glass", reloaded.getSurfaceSkin());
 		assertEquals(45, reloaded.getSurfaceThickness());
 		assertTrue(reloaded.hasSurfaceSkin());
-		assertEquals(ProjectionRenderMode.VENTICULAR, reloaded.getRenderMode());
+		assertEquals(ProjectionRenderMode.PLANNAR_OPTIC, reloaded.getRenderMode());
 	}
 
 	@Test

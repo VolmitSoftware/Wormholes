@@ -671,7 +671,7 @@ final class LocalPortalTraversal
 	{
 		if(entity instanceof Player player && portal.effects().isPortalSoundEnabled())
 		{
-			player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.5F, 1.5F);
+			player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, Settings.portalSoundVolume(0.5F), 1.5F);
 		}
 		PortalStructure portalStructure = portal.getStructure();
 		World world = portalStructure == null ? null : portalStructure.getWorld();
@@ -759,7 +759,7 @@ final class LocalPortalTraversal
 
 	static Vector sourceRejectionVelocity(Traversive traversive)
 	{
-		return traversive.getInFrame().getNormal().toVector().normalize().multiply(3.0D);
+		return traversive.getInFrame().getNormal().toVector().normalize().multiply(Settings.portalPushback(3.0D));
 	}
 
 	void rejectRemoteArrival(Entity entity, Traversive t)
@@ -791,7 +791,7 @@ final class LocalPortalTraversal
 		{
 			outVelocity = portal.getFrame().getNormal().toVector().normalize();
 		}
-		entity.setVelocity(outVelocity.multiply(2.0D));
+		entity.setVelocity(outVelocity.multiply(Settings.portalPushback(2.0D)));
 		LocalPortalTransitRegistry.markTeleportCooldown(entity.getUniqueId(), System.currentTimeMillis());
 		portal.playEffect(PortalEffect.REJECT, target);
 		notifyPortalDenied(entity);

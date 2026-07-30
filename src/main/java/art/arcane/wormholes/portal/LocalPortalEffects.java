@@ -53,9 +53,9 @@ final class LocalPortalEffects
 				spawnSimpleParticle(location, Particle.SMOKE, 6, 0.01D);
 				if(location != null && location.getWorld() != null && isPortalSoundEnabled())
 				{
-					location.getWorld().playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 0.5f, 1.7f + (float) (Math.random() * 0.2));
-					location.getWorld().playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 0.5f, 1.5f + (float) (Math.random() * 0.2));
-					location.getWorld().playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, 0.5f, 1.3f + (float) (Math.random() * 0.2));
+					location.getWorld().playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, Settings.portalSoundVolume(0.5f), 1.7f + (float) (Math.random() * 0.2));
+					location.getWorld().playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, Settings.portalSoundVolume(0.5f), 1.5f + (float) (Math.random() * 0.2));
+					location.getWorld().playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, Settings.portalSoundVolume(0.5f), 1.3f + (float) (Math.random() * 0.2));
 				}
 
 				break;
@@ -64,8 +64,8 @@ final class LocalPortalEffects
 				spawnRejectDust(location);
 				if(location != null && location.getWorld() != null && isPortalSoundEnabled())
 				{
-					location.getWorld().playSound(location, Sound.BLOCK_ANVIL_LAND, 0.7f, 1.8f);
-					location.getWorld().playSound(location, Sound.BLOCK_GLASS_BREAK, 0.6f, 0.7f);
+					location.getWorld().playSound(location, Sound.BLOCK_ANVIL_LAND, Settings.portalSoundVolume(0.7f), 1.8f);
+					location.getWorld().playSound(location, Sound.BLOCK_GLASS_BREAK, Settings.portalSoundVolume(0.6f), 0.7f);
 				}
 				break;
 			case AMBIENT_CLOSED:
@@ -77,12 +77,12 @@ final class LocalPortalEffects
 
 				if(isPortalSoundEnabled() && M.r(0.01))
 				{
-					portal.getStructure().getCenter().getWorld().playSound(portal.getStructure().getCenter(), Sound.BLOCK_LAVA_AMBIENT, 0.25f, 0.025f);
+					portal.getStructure().getCenter().getWorld().playSound(portal.getStructure().getCenter(), Sound.BLOCK_LAVA_AMBIENT, Settings.portalSoundVolume(0.25f), 0.025f);
 				}
 
 				if(isPortalSoundEnabled() && M.r(0.01))
 				{
-					portal.getStructure().getCenter().getWorld().playSound(portal.getStructure().getCenter(), Sound.BLOCK_PORTAL_AMBIENT, 0.25f, 0.025f);
+					portal.getStructure().getCenter().getWorld().playSound(portal.getStructure().getCenter(), Sound.BLOCK_PORTAL_AMBIENT, Settings.portalSoundVolume(0.25f), 0.025f);
 				}
 
 				break;

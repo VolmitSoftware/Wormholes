@@ -15,6 +15,11 @@ public class ProjectionConfig {
         "Raise this if real blocks bleed through at the rim of the projection; each +0.25 widens the rendered window by a quarter block on every side."
     })
     public double aperturePaddingBlocks = 0.75;
+    @ConfigDescription({
+        "Thickness in blocks of the solid blackout shell at the projection's far, left, right, top, and bottom boundaries.",
+        "Accepted values are 1 or 2."
+    })
+    public int blackoutShellThicknessBlocks = 2;
     public double frustumCullingRatio = 0.2;
     public int depthBlocks = 64;
     public int recursivePortalDepth = 3;

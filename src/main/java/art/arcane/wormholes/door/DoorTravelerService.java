@@ -3,6 +3,7 @@ package art.arcane.wormholes.door;
 import art.arcane.volmlib.util.localization.MessageArgument;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
@@ -64,7 +65,7 @@ final class DoorTravelerService
 					player.getLocation(),
 					DimensionalDoorSounds.teleportSound(),
 					SoundCategory.PLAYERS,
-					1.0F,
+					Settings.portalSoundVolume(1.0F),
 					1.0F);
 			}
 			else
@@ -73,7 +74,7 @@ final class DoorTravelerService
 					traveler.getLocation(),
 					DimensionalDoorSounds.teleportSound(),
 					SoundCategory.NEUTRAL,
-					1.0F,
+					Settings.portalSoundVolume(1.0F),
 					1.0F);
 			}
 		}

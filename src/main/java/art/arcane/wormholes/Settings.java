@@ -17,6 +17,7 @@ public final class Settings {
     public static volatile double PROJECTION_RANGE = 32.0D;
     public static volatile double NEAR_PLANE_PADDING = 2.0D;
     public static volatile double PROJECTION_APERTURE_PADDING_BLOCKS = 0.75D;
+    public static volatile int PROJECTION_BLACKOUT_SHELL_THICKNESS_BLOCKS = 2;
     public static volatile boolean LIGHTING_FIDELITY = false;
     public static volatile int LIGHTING_REFRESH_INTERVAL_TICKS = 4;
     public static volatile int LIGHTING_MAX_SECTIONS_PER_PASS = 2;
@@ -41,6 +42,8 @@ public final class Settings {
     public static volatile int PROJECTION_INITIAL_RESEND_PASSES = 4;
     public static volatile int PROJECTION_MAX_PROJECTED_CELLS = 250000;
     public static volatile long TELEPORT_COOLDOWN_MILLIS = 1000L;
+    public static volatile double PORTAL_PUSHBACK_MULTIPLIER = 1.0D;
+    public static volatile double PORTAL_SOUND_VOLUME_MULTIPLIER = 1.0D;
     public static volatile boolean TRAVERSAL_API_ENABLED = true;
     public static volatile String TRAVERSAL_API_PROVIDER_FAILURE_POLICY = "allow";
     public static volatile int TRAVERSAL_API_PROVIDER_FAULT_LIMIT = 5;
@@ -75,6 +78,8 @@ public final class Settings {
         PORTAL_COLAPSE_SPEED = clampDouble(main.portalCollapseSpeed, 0.0D, 1.0D);
         DEBUG_RENDERING = main.debugRendering;
         TELEPORT_COOLDOWN_MILLIS = clampInt(main.teleportCooldownMillis, 0, 60_000);
+        PORTAL_PUSHBACK_MULTIPLIER = clampFiniteDouble(main.portalPushbackMultiplier, 0.0D, 4.0D, 1.0D);
+        PORTAL_SOUND_VOLUME_MULTIPLIER = clampFiniteDouble(main.portalSoundVolumeMultiplier, 0.0D, 4.0D, 1.0D);
         TRAVERSAL_API_ENABLED = main.traversalApiEnabled;
         TRAVERSAL_API_PROVIDER_FAILURE_POLICY = main.traversalApiProviderFailurePolicy;
         TRAVERSAL_API_PROVIDER_FAULT_LIMIT = main.traversalApiProviderFaultLimit;
@@ -102,6 +107,7 @@ public final class Settings {
         PROJECTION_RANGE = clampDouble(projection.range, 1.0D, 256.0D);
         NEAR_PLANE_PADDING = clampDouble(projection.nearPlanePadding, 0.0D, 16.0D);
         PROJECTION_APERTURE_PADDING_BLOCKS = clampDouble(projection.aperturePaddingBlocks, 0.0D, 8.0D);
+        PROJECTION_BLACKOUT_SHELL_THICKNESS_BLOCKS = clampInt(projection.blackoutShellThicknessBlocks, 1, 2);
         PROJECTION_REFRESH_INTERVAL_TICKS = clampInt(projection.refreshIntervalTicks, 1, 20);
         PROJECTION_DEPTH_BLOCKS = clampInt(projection.depthBlocks, 1, 256);
         PROJECTION_RECURSIVE_PORTAL_DEPTH = clampInt(projection.recursivePortalDepth, 3, 64);
@@ -129,6 +135,14 @@ public final class Settings {
         CAPTURE_ZONE_RADIUS = clampDouble(render.captureZoneRadius, 1.0D, 64.0D);
 
         applyVisualQualityProfile();
+    }
+
+    public static double portalPushback(double baseStrength) {
+        return baseStrength * PORTAL_PUSHBACK_MULTIPLIER;
+    }
+
+    public static float portalSoundVolume(float baseVolume) {
+        return (float) (baseVolume * PORTAL_SOUND_VOLUME_MULTIPLIER);
     }
 
     private static void applyVisualQualityProfile() {
@@ -170,5 +184,9 @@ public final class Settings {
 
     private static double clampDouble(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private static double clampFiniteDouble(double value, double min, double max, double fallback) {
+        return Double.isFinite(value) ? clampDouble(value, min, max) : fallback;
     }
 }

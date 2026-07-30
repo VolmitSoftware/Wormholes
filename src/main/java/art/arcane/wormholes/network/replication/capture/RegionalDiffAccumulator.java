@@ -116,11 +116,11 @@ public final class RegionalDiffAccumulator {
             }
             return;
         }
-        boolean venticular = replication.hasVenticularSubscriber(world, chunkKey);
+        boolean buriedCellCulling = replication.hasBuriedCellCullingSubscriber(world, chunkKey);
         byte storedFlags = flags;
         Map<Integer, Boolean> occlusionCache = null;
         boolean centerOccluding = false;
-        if (venticular) {
+        if (buriedCellCulling) {
             occlusionCache = new HashMap<>(32);
             centerOccluding = dataOcclusion.occluding(newData);
             if (buried(chunkX, chunkZ, worldX, worldY, worldZ, centerOccluding, worldX, worldY, worldZ,
@@ -147,7 +147,7 @@ public final class RegionalDiffAccumulator {
             return;
         }
         blocksCaptured.incrementAndGet();
-        if (venticular) {
+        if (buriedCellCulling) {
             reemitNeighbors(chunkX, chunkZ, worldX, worldY, worldZ, centerOccluding, set, currentCap,
                 occlusionCache, reader, minHeight, maxHeight);
         }

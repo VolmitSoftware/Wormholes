@@ -58,13 +58,13 @@ final class EffectPortalAnimator
 		EffectManager.CloseEffectPlan effectPlan = EffectManager.closeEffectPlan(Settings.VISUAL_QUALITY_PROFILE);
 		if(audible.getAsBoolean())
 		{
-			world.playSound(center, Sound.BLOCK_ENDER_CHEST_CLOSE, SoundCategory.BLOCKS, 1.2f, 0.55f);
+			world.playSound(center, Sound.BLOCK_ENDER_CHEST_CLOSE, SoundCategory.BLOCKS, Settings.portalSoundVolume(1.2f), 0.55f);
 		}
 		if(!Settings.ENABLE_PARTICLES)
 		{
 			if(audible.getAsBoolean())
 			{
-				world.playSound(center, Sound.BLOCK_GLASS_BREAK, SoundCategory.BLOCKS, 1.0f, 0.9f);
+				world.playSound(center, Sound.BLOCK_GLASS_BREAK, SoundCategory.BLOCKS, Settings.portalSoundVolume(1.0f), 0.9f);
 			}
 			return;
 		}
@@ -142,9 +142,9 @@ final class EffectPortalAnimator
 				world.spawnParticle(Particle.FLASH, center, 1, 0.0, 0.0, 0.0, 0.0, Color.fromRGB(220, 235, 255));
 				if(audible.getAsBoolean())
 				{
-					world.playSound(center, Sound.BLOCK_GLASS_BREAK, SoundCategory.BLOCKS, 1.8f, 0.8f);
-					world.playSound(center, Sound.BLOCK_GLASS_BREAK, SoundCategory.BLOCKS, 1.1f, 1.05f);
-					world.playSound(center, Sound.ENTITY_ITEM_BREAK, SoundCategory.BLOCKS, 1.2f, 0.8f);
+					world.playSound(center, Sound.BLOCK_GLASS_BREAK, SoundCategory.BLOCKS, Settings.portalSoundVolume(1.8f), 0.8f);
+					world.playSound(center, Sound.BLOCK_GLASS_BREAK, SoundCategory.BLOCKS, Settings.portalSoundVolume(1.1f), 1.05f);
+					world.playSound(center, Sound.ENTITY_ITEM_BREAK, SoundCategory.BLOCKS, Settings.portalSoundVolume(1.2f), 0.8f);
 				}
 				return;
 			}
@@ -188,11 +188,11 @@ final class EffectPortalAnimator
 			}
 			if(t == 0 && audible.getAsBoolean())
 			{
-				world.playSound(center, Sound.BLOCK_GLASS_BREAK, SoundCategory.BLOCKS, 0.4f, 1.7f);
+				world.playSound(center, Sound.BLOCK_GLASS_BREAK, SoundCategory.BLOCKS, Settings.portalSoundVolume(0.4f), 1.7f);
 			}
 			if(t % 3 == 1 && audible.getAsBoolean())
 			{
-				world.playSound(center, Sound.BLOCK_AMETHYST_BLOCK_HIT, SoundCategory.BLOCKS, 0.5f, 0.7f);
+				world.playSound(center, Sound.BLOCK_AMETHYST_BLOCK_HIT, SoundCategory.BLOCKS, Settings.portalSoundVolume(0.5f), 0.7f);
 			}
 			if(!FoliaScheduler.runRegion(Wormholes.instance, center, holder[0], 1L))
 			{

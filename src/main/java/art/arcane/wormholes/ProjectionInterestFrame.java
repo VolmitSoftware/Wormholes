@@ -143,6 +143,7 @@ final class ProjectionInterestFrame {
         if (!alive.getAsBoolean() || observer == null || !observer.isOnline()) {
             return;
         }
+        List<PortalProjector> projected = new ArrayList<PortalProjector>(scheduledPortals.size());
         claimArbiter.beginFrame(observer, observer.getWorld(), false);
         try {
             for (ILocalPortal portal : scheduledPortals) {
@@ -158,13 +159,20 @@ final class ProjectionInterestFrame {
                 projector.setRtpProjectionTarget(rtpTarget);
                 try {
                     projector.project(updateBlocks, updateEntities);
+                    projected.add(projector);
                 } catch (Throwable ex) {
                     Wormholes.instance.getLogger().log(Level.WARNING,
                             "[ProjectionManager] projection error portal=" + portal.getName() + " observer=" + observer.getName(), ex);
                 }
             }
         } finally {
-            claimArbiter.flushFrame(observer);
+            try {
+                claimArbiter.flushFrame(observer);
+            } finally {
+                for (PortalProjector projector : projected) {
+                    projector.finishBlackoutDisplayFrame();
+                }
+            }
         }
     }
 

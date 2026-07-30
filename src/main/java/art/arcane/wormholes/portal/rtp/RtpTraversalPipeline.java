@@ -384,12 +384,6 @@ final class RtpTraversalPipeline
 				fail(portal, entity, preparation, null);
 				return;
 			}
-			if(!arrived)
-			{
-				recoveredArrivals.incrementAndGet();
-				failures.report("arrival-mismatch:" + portal.getId(),
-						new IllegalStateException("RTP traveller left the source without reaching the confirmed destination"));
-			}
 			Active current = active.get(entity.getUniqueId());
 			if(current != null)
 			{

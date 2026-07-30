@@ -48,8 +48,8 @@ public final class ChunkBulkBuilder {
         HashMap<String, Integer> biomePaletteLookup = new HashMap<>(16);
         short[] indices = new short[cells];
         byte[] light = new byte[cells];
-        boolean venticular = mode == ProjectionRenderMode.VENTICULAR;
-        boolean[] occluding = venticular ? new boolean[cells] : null;
+        boolean buriedCellCulling = mode.usesBuriedCellCulling();
+        boolean[] occluding = buriedCellCulling ? new boolean[cells] : null;
 
         int cell = 0;
         for (int y = minY; y <= maxY; y++) {
@@ -66,7 +66,7 @@ public final class ChunkBulkBuilder {
                         paletteLookup.put(stateString, paletteIndex);
                     }
                     indices[cell] = (short) paletteIndex.intValue();
-                    if (venticular) {
+                    if (buriedCellCulling) {
                         occluding[cell] = OccludedMarker.isOccluding(data);
                     }
                     int sky = snapshot.getBlockSkyLight(lx, y, lz);
@@ -77,7 +77,7 @@ public final class ChunkBulkBuilder {
             }
         }
 
-        if (venticular) {
+        if (buriedCellCulling) {
             substituteBuriedCells(minX, minY, minZ, sizeX, sizeY, sizeZ, occluding, indices, palette, paletteLookup);
         }
 

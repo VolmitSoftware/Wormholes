@@ -362,7 +362,7 @@ public final class WormholesMessages {
             "<dark_gray>Right: reset to air.");
     public static final LinesKey PORTAL_MENU_BLACKOUT = lines("portal.menu.blackout",
             "<aqua><bold>Blackout Background</bold>",
-            "<gray>Seal the projection's far plane with solid concrete so the local world never shows through.",
+            "<gray>Seal the projection's far and side boundaries with solid concrete so the local world never shows through.",
             "",
             "<gray>Currently: <white>{state} <dark_gray>({color})",
             "",
@@ -370,7 +370,7 @@ public final class WormholesMessages {
             "<dark_gray>Right: choose a color.");
     public static final LinesKey PORTAL_MENU_BLACKOUT_COLOR_PLACARD = lines("portal.menu.blackout_color.placard",
             "<gold><bold>Blackout Color</bold>",
-            "<gray>Concrete color used to seal the far plane.",
+            "<gray>Concrete color used for the blackout shell.",
             "",
             "<gray>Currently: <white>{color}");
     public static final LinesKey PORTAL_MENU_BLACKOUT_COLOR_OPTION = lines("portal.menu.blackout_color.option",
@@ -396,6 +396,7 @@ public final class WormholesMessages {
             "",
             "<dark_gray>PanOptic renders the full destination volume.",
             "<dark_gray>Venticular hides fully-enclosed interior blocks for lighter streams.",
+            "<dark_gray>PlannarOptic hides geometry behind visible opaque surfaces.",
             "",
             "<dark_gray>Left: cycle mode.");
     public static final LinesKey PORTAL_MENU_AMBIENT_PARTICLES = lines("portal.menu.ambient_particles",

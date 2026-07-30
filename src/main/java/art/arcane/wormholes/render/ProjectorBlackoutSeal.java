@@ -1,32 +1,24 @@
 package art.arcane.wormholes.render;
 
+import it.unimi.dsi.fastutil.longs.LongSet;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.data.BlockData;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.BlackoutColor;
-import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.wormholes.util.Direction;
 
 final class ProjectorBlackoutSeal {
-    private static final double PERPENDICULAR_BAND_MARGIN = 1.0D;
-
     private BlockData blackoutData;
     private BlackoutColor blackoutColorCache;
     private boolean enabled;
-    private int normalAxis;
-    private int rightAxis;
-    private int upAxis;
-    private double facePlane;
-    private double farSign;
-    private double depthSealThreshold;
-    private double rightSealLow;
-    private double rightSealHigh;
-    private double upSealLow;
-    private double upSealHigh;
+    private int thicknessBlocks;
 
     void beginPass(BlackoutColor blackoutColor) {
         enabled = true;
+        thicknessBlocks = Settings.PROJECTION_BLACKOUT_SHELL_THICKNESS_BLOCKS;
         if (blackoutData == null || blackoutColor != blackoutColorCache) {
             blackoutData = parseBlackout(blackoutColor);
             blackoutColorCache = blackoutColor;
@@ -45,50 +37,25 @@ final class ProjectorBlackoutSeal {
         return blackoutData;
     }
 
-    void configureBands(AxisAlignedBB blackoutArea,
-                        int normalAxis,
-                        int rightAxis,
-                        int upAxis,
-                        double originNormal,
-                        double eyeNormal,
-                        double depthBlocks) {
-        this.normalAxis = normalAxis;
-        this.rightAxis = rightAxis;
-        this.upAxis = upAxis;
-        double areaMinNormal = axisMin(blackoutArea, normalAxis);
-        double areaMaxNormal = axisMax(blackoutArea, normalAxis);
-        facePlane = eyeSideFacePlane(eyeNormal, originNormal, areaMinNormal, areaMaxNormal);
-        farSign = eyeNormal >= originNormal ? -1.0D : 1.0D;
-        depthSealThreshold = depthBlocks - PERPENDICULAR_BAND_MARGIN;
-        double lateralMargin = PERPENDICULAR_BAND_MARGIN + Settings.PROJECTION_APERTURE_PADDING_BLOCKS;
-        rightSealLow = axisMin(blackoutArea, rightAxis) - depthBlocks + lateralMargin;
-        rightSealHigh = axisMax(blackoutArea, rightAxis) + depthBlocks - lateralMargin;
-        upSealLow = axisMin(blackoutArea, upAxis) - depthBlocks + lateralMargin;
-        upSealHigh = axisMax(blackoutArea, upAxis) + depthBlocks - lateralMargin;
+    int thicknessBlocks() {
+        return thicknessBlocks;
     }
 
-    boolean covers(ProjectorSample.Kind kind, boolean occluding) {
-        return shouldBlackoutSample(kind, occluding);
+    boolean sealsCell(long key,
+                      LongSet geometry,
+                      Direction normal,
+                      Direction right,
+                      Direction up,
+                      int normalMin,
+                      int normalMax) {
+        return sealsGeometryCell(key, geometry, normal, right, up, normalMin, normalMax, thicknessBlocks);
     }
 
-    boolean sealsCell(double cellX, double cellY, double cellZ) {
-        double cellNormal = axisOf(cellX, cellY, cellZ, normalAxis);
-        double depth = farSign * (cellNormal - facePlane);
-        return isFarPlaneCell(depth, depthSealThreshold,
-            axisOf(cellX, cellY, cellZ, rightAxis), rightSealLow, rightSealHigh,
-            axisOf(cellX, cellY, cellZ, upAxis), upSealLow, upSealHigh);
-    }
-
-    private static double axisOf(double x, double y, double z, int axis) {
-        return axis == 0 ? x : (axis == 1 ? y : z);
-    }
-
-    private static double axisMin(AxisAlignedBB area, int axis) {
-        return axis == 0 ? area.getXa() : (axis == 1 ? area.getYa() : area.getZa());
-    }
-
-    private static double axisMax(AxisAlignedBB area, int axis) {
-        return axis == 0 ? area.getXb() : (axis == 1 ? area.getYb() : area.getZb());
+    boolean isSyntheticClaim(ProjectedBlockClaim claim) {
+        return claim != null
+            && claim.getLightView() == null
+            && claim.getLightRemoteKey() == ProjectedBlockClaim.NO_REMOTE_KEY
+            && !claim.isMaskAir();
     }
 
     private static BlockData parseBlackout(BlackoutColor color) {
@@ -99,25 +66,71 @@ final class ProjectorBlackoutSeal {
         }
     }
 
-    static boolean shouldBlackoutSample(ProjectorSample.Kind kind, boolean occluding) {
-        return switch (kind) {
-            case NO_SAMPLE, MASK_AIR, REMOTE_AIR -> true;
-            case BLOCK -> !occluding;
-            case OCCLUDED -> false;
-        };
-    }
-
-    static boolean isFarPlaneCell(double depthBeyondFacePlane, double depthSealThreshold,
-                                  double rightCoord, double rightSealLow, double rightSealHigh,
-                                  double upCoord, double upSealLow, double upSealHigh) {
-        if (depthBeyondFacePlane >= depthSealThreshold) {
+    static boolean sealsGeometryCell(long key,
+                                     LongSet geometry,
+                                     Direction normal,
+                                     Direction right,
+                                     Direction up,
+                                     int normalMin,
+                                     int normalMax,
+                                     int requestedThickness) {
+        int x = ProjectionCellKey.unpackX(key);
+        int y = ProjectionCellKey.unpackY(key);
+        int z = ProjectionCellKey.unpackZ(key);
+        int normalCoordinate = coordinate(x, y, z, normal);
+        int normalSign = normal.x() + normal.y() + normal.z();
+        int availableLayers = Math.max(0, normalMax - normalMin);
+        int requested = clampThickness(requestedThickness);
+        int thickness = Math.min(requested, availableLayers);
+        int farCoordinate = normalSign > 0 ? normalMin : normalMax;
+        int farOffset = (normalCoordinate - farCoordinate) * normalSign;
+        if (farOffset >= 0 && farOffset < thickness) {
             return true;
         }
-        return rightCoord <= rightSealLow || rightCoord >= rightSealHigh
-            || upCoord <= upSealLow || upCoord >= upSealHigh;
+
+        int frontCoordinate = normalSign > 0 ? normalMax : normalMin;
+        int depthFromFront = (frontCoordinate - normalCoordinate) * normalSign;
+        int lateralThickness = Math.min(requested, Math.max(0, depthFromFront));
+        for (int distance = 1; distance <= lateralThickness; distance++) {
+            if (missing(geometry, x, y, z, right, distance)
+                || missing(geometry, x, y, z, right, -distance)
+                || missing(geometry, x, y, z, up, distance)
+                || missing(geometry, x, y, z, up, -distance)) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    static double eyeSideFacePlane(double eyeNormal, double originNormal, double areaMinNormal, double areaMaxNormal) {
-        return eyeNormal >= originNormal ? areaMaxNormal : areaMinNormal;
+    static boolean isFarLayer(int normalCoordinate,
+                              int normalMin,
+                              int normalMax,
+                              int normalSign,
+                              int requestedThickness) {
+        int availableLayers = Math.max(0, normalMax - normalMin);
+        int thickness = Math.min(clampThickness(requestedThickness), availableLayers);
+        int farCoordinate = normalSign > 0 ? normalMin : normalMax;
+        int farOffset = (normalCoordinate - farCoordinate) * normalSign;
+        return farOffset >= 0 && farOffset < thickness;
+    }
+
+    private static boolean missing(LongSet geometry,
+                                   int x,
+                                   int y,
+                                   int z,
+                                   Direction direction,
+                                   int distance) {
+        return !geometry.contains(ProjectionCellKey.pack(
+            x + (direction.x() * distance),
+            y + (direction.y() * distance),
+            z + (direction.z() * distance)));
+    }
+
+    private static int coordinate(int x, int y, int z, Direction direction) {
+        return direction.x() != 0 ? x : direction.y() != 0 ? y : z;
+    }
+
+    private static int clampThickness(int thickness) {
+        return Math.max(1, Math.min(2, thickness));
     }
 }

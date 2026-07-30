@@ -82,13 +82,13 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         this.bulkRetryListener = listener;
     }
 
-    public boolean hasVenticularSubscriber(World world, long chunkKey) {
+    public boolean hasBuriedCellCullingSubscriber(World world, long chunkKey) {
         ConcurrentHashMap<PeerStreamKey, ChunkReplicationState> subscribers = subscribersFor(world, chunkKey);
         if (subscribers == null || subscribers.isEmpty()) {
             return false;
         }
         for (ChunkReplicationState state : subscribers.values()) {
-            if (state.stream().renderMode() == ProjectionRenderMode.VENTICULAR) {
+            if (state.stream().renderMode().usesBuriedCellCulling()) {
                 return true;
             }
         }
@@ -293,9 +293,9 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
                 }
                 boolean overflowed = false;
                 if (hasBlocks) {
-                    boolean venticular = stream.renderMode() == ProjectionRenderMode.VENTICULAR;
+                    boolean buriedCellCulling = stream.renderMode().usesBuriedCellCulling();
                     for (int i = 0; i < blocks.size(); i++) {
-                        if (!state.appendBlock(transformForPeer(blocks.get(i), venticular), capacity)) {
+                        if (!state.appendBlock(transformForPeer(blocks.get(i), buriedCellCulling), capacity)) {
                             overflowed = true;
                             break;
                         }
@@ -456,13 +456,13 @@ public final class ChunkReplicationManager implements BlockChangeFeed {
         registerWorldSubscriber(world, state);
     }
 
-    private static BlockChange transformForPeer(BlockChange change, boolean venticular) {
+    private static BlockChange transformForPeer(BlockChange change, boolean buriedCellCulling) {
         byte flags = change.flags();
         if ((flags & BlockChange.FLAG_OCCLUDED) == 0) {
             return change;
         }
         byte stripped = (byte) (flags & ~BlockChange.FLAG_OCCLUDED);
-        String state = venticular ? OccludedMarker.STATE_STRING : change.state();
+        String state = buriedCellCulling ? OccludedMarker.STATE_STRING : change.state();
         return new BlockChange(change.packedXyz(), state, stripped);
     }
 

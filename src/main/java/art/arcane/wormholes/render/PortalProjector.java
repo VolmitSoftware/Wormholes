@@ -45,6 +45,8 @@ public final class PortalProjector {
     private final ProjectorCellScan cellScan;
     private final ProjectorFrustumFailures frustumFailures;
     private final ProjectedEntityRenderer entityRenderer = new ProjectedEntityRenderer();
+    private final ProjectorBlackoutDisplayRenderer blackoutDisplayRenderer =
+        new ProjectorBlackoutDisplayRenderer();
 
     private volatile World claimWorld;
     private volatile UUID claimWorldId;
@@ -66,6 +68,7 @@ public final class PortalProjector {
     private boolean hasCameraSnapshot;
     private volatile boolean reuseInvalidated;
     private RtpProjectionTarget rtpProjectionTarget;
+    private ProjectionRenderMode lastRenderMode;
 
     public PortalProjector(ILocalPortal portal, Player observer, ProjectionClaimArbiter claimArbiter,
                            ProjectionWorldViewProvider viewProvider, BooleanSupplier activeGuard) {
@@ -104,6 +107,7 @@ public final class PortalProjector {
         this.lastEyeZ = 0.0D;
         this.hasCameraSnapshot = false;
         this.reuseInvalidated = false;
+        this.lastRenderMode = null;
     }
 
     public ILocalPortal getPortal() {
@@ -141,7 +145,7 @@ public final class PortalProjector {
     }
 
     public int getSpoofedEntityCount() {
-        return entityRenderer.getSpoofedCount();
+        return entityRenderer.getSpoofedCount() + blackoutDisplayRenderer.getPaneCount();
     }
 
     public boolean hasProjectedEntity(UUID entityId) {
@@ -168,9 +172,17 @@ public final class PortalProjector {
             + " planeReject=" + cellScan.planeRejected()
             + " windowReject=" + cellScan.windowRejected()
             + " frustumReject=" + cellScan.frustumRejected()
+            + " occlusionReject=" + cellScan.occlusionRejected()
+            + " occlusionSteps=" + cellScan.occlusionVoxelSteps()
+            + " occlusionBudgetExhausted=" + cellScan.occlusionBudgetExhausted()
             + " remoteSamples=" + sampler.remoteSampleCount()
             + " reuseSkips=" + lastReuseSkips
             + " maskAir=" + cellScan.maskedCells()
+            + " blackoutPanes=" + blackoutDisplayRenderer.getPaneCount()
+            + " blackoutFallback=" + cellScan.blackoutMesh().fallback()
+            + " blackoutSpawns=" + blackoutDisplayRenderer.getSpawns()
+            + " blackoutMetadata=" + blackoutDisplayRenderer.getMetadataUpdates()
+            + " blackoutDestroys=" + blackoutDisplayRenderer.getDestroys()
             + " claimConflicts=" + lastClaimConflicts
             + " winnerChanges=" + lastWinnerChanges
             + " claimReverts=" + lastClaimReverts
@@ -232,10 +244,14 @@ public final class PortalProjector {
         World destWorld = destination.destWorld;
         double destinationOriginX = destination.originX;
         double destinationOriginZ = destination.originZ;
+        ProjectionRenderMode renderMode = portal.getRenderMode();
+        boolean renderModeChanged = renderMode != lastRenderMode;
+        boolean plannarCameraMoved = requiresPlannarCellResample(renderMode, hasCameraSnapshot,
+            eye.getX(), eye.getY(), eye.getZ(), lastEyeX, lastEyeY, lastEyeZ);
         boolean stableResample = schedule.stableResample(firstProjectionDone, destination.destView,
             destWorld, destinationOriginX, destinationOriginZ);
         boolean localDirty = sampleMemo.localRegionDirty(localWorldId);
-        if (canReuseProjection(eye, stableResample, localDirty)) {
+        if (!renderModeChanged && canReuseProjection(eye, stableResample, localDirty)) {
             lastReuseSkips++;
             lastBlockChanges = 0;
             lastProjectNanos = System.nanoTime() - startNanos;
@@ -261,8 +277,8 @@ public final class PortalProjector {
         } else {
             blackout.disable();
         }
-        boolean venticularCulling = destination.remoteView == null && portal.getRenderMode() == ProjectionRenderMode.VENTICULAR;
-        if (sampler.setVenticularPass(venticularCulling)) {
+        boolean buriedCellCulling = destination.remoteView == null && renderMode.usesBuriedCellCulling();
+        if (sampler.setBuriedCellCullingPass(buriedCellCulling)) {
             sampleMemo.clearDestinationSamples();
         }
 
@@ -275,6 +291,9 @@ public final class PortalProjector {
         }
 
         boolean forceStableCellResample = schedule.consumeForcedResample(stableResample);
+        if (renderModeChanged || plannarCameraMoved) {
+            forceStableCellResample = true;
+        }
 
         long destinationRevision = destination.destView.getRevision();
         sampler.clearRecursivePortals();
@@ -297,7 +316,8 @@ public final class PortalProjector {
         lastClaimConflicts = 0;
         lastWinnerChanges = 0;
         lastClaimReverts = 0;
-        cellScan.run(destination, rtpTarget, eye, next, depthBlocks, forceStableCellResample, forceFullSend, venticularCulling);
+        cellScan.run(destination, rtpTarget, eye, next, depthBlocks, forceStableCellResample, forceFullSend,
+            buriedCellCulling, renderMode);
 
         if (!activeGuard.getAsBoolean()) {
             close();
@@ -306,6 +326,16 @@ public final class PortalProjector {
         if (discardRequested) {
             discard();
             return;
+        }
+
+        ProjectorBlackoutMesh.Result blackoutMesh = cellScan.blackoutMesh();
+        boolean displayReady = blackoutMesh.fallback()
+            ? blackoutDisplayRenderer.prepareEmpty()
+            : blackoutDisplayRenderer.prepare(observer, blackoutMesh.panels(), cellScan.blackoutData(),
+                depthBlocks, forceFullSend);
+        if (!displayReady) {
+            cellScan.useBlackoutFallback();
+            blackoutDisplayRenderer.prepareEmpty();
         }
 
         World submitWorld = destination.localWorld;
@@ -342,7 +372,14 @@ public final class PortalProjector {
         cellScan.commit();
 
         firstProjectionDone = true;
+        lastRenderMode = renderMode;
         rememberCamera(eye);
+    }
+
+    public void finishBlackoutDisplayFrame() {
+        if (!closed) {
+            blackoutDisplayRenderer.finish(observer);
+        }
     }
 
     private void updateEntitiesOnly(long startNanos, Location eye) {
@@ -553,6 +590,23 @@ public final class PortalProjector {
         return movedSquared < REUSE_EYE_EPSILON_SQUARED;
     }
 
+    static boolean requiresPlannarCellResample(ProjectionRenderMode renderMode,
+                                               boolean hasCameraSnapshot,
+                                               double eyeX,
+                                               double eyeY,
+                                               double eyeZ,
+                                               double lastEyeX,
+                                               double lastEyeY,
+                                               double lastEyeZ) {
+        if (renderMode != ProjectionRenderMode.PLANNAR_OPTIC || !hasCameraSnapshot) {
+            return false;
+        }
+        double dx = eyeX - lastEyeX;
+        double dy = eyeY - lastEyeY;
+        double dz = eyeZ - lastEyeZ;
+        return (dx * dx) + (dy * dy) + (dz * dz) >= REUSE_EYE_EPSILON_SQUARED;
+    }
+
     private void rememberCamera(Location eye) {
         lastEyeX = eye.getX();
         lastEyeY = eye.getY();
@@ -567,6 +621,7 @@ public final class PortalProjector {
         sampleMemo.discard();
         sampler.clearRecursivePortals();
         entityRenderer.close(observer);
+        blackoutDisplayRenderer.close(observer);
     }
 
     public synchronized void close() {
@@ -576,8 +631,10 @@ public final class PortalProjector {
         closed = true;
 
         if (releaseClaims()) {
+            blackoutDisplayRenderer.close(observer);
             entityRenderer.close(observer);
         } else {
+            blackoutDisplayRenderer.discard();
             entityRenderer.discard(observer);
         }
         cellScan.clear();
@@ -617,6 +674,7 @@ public final class PortalProjector {
         }
         cellScan.clear();
         lastRenderedCells = 0;
+        blackoutDisplayRenderer.discard();
         entityRenderer.discard(observer);
     }
 
