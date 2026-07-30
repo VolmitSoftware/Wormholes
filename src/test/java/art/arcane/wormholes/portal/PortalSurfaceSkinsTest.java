@@ -45,12 +45,20 @@ public final class PortalSurfaceSkinsTest
 		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:honey_block"));
 		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:barrier"));
 		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:water"));
-		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:lava"));
+		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:water[level=0]"));
 
-		assertFalse(PortalSurfaceSkins.isTransparentSkin("minecraft:stone"));
-		assertFalse(PortalSurfaceSkins.isTransparentSkin("minecraft:oak_planks"));
-		assertFalse(PortalSurfaceSkins.isTransparentSkin("minecraft:obsidian"));
+		assertFalse(PortalSurfaceSkins.isTransparentSkin("minecraft:lava"));
+		assertFalse(PortalSurfaceSkins.isTransparentSkin("minecraft:lava[level=0]"));
 		assertFalse(PortalSurfaceSkins.isTransparentSkin(""));
+	}
+
+	@Test
+	public void transparencyFallsBackToMaterialOcclusion()
+	{
+		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:oak_slab", id -> id.equals("oak_slab")));
+		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:oak_leaves[persistent=true]", id -> id.equals("oak_leaves")));
+		assertFalse(PortalSurfaceSkins.isTransparentSkin("minecraft:stone", id -> false));
+		assertFalse(PortalSurfaceSkins.isTransparentSkin("minecraft:not_a_real_block", id -> false));
 	}
 
 	@Test

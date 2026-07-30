@@ -81,7 +81,7 @@ final class ProjectorRecursivePortals {
         if (candidate == null || world == null) {
             return false;
         }
-        if (!candidate.supportsProjections() || !candidate.isProjecting() || !candidate.isOpen() || candidate.hasSurfaceSkin()) {
+        if (!candidate.supportsProjections() || !candidate.isProjecting() || !candidate.isOpen() || candidate.blocksProjection()) {
             return false;
         }
         World candidateWorld = candidate.getWorld();

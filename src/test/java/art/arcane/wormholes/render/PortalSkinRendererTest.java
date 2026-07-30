@@ -1,6 +1,9 @@
 package art.arcane.wormholes.render;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
@@ -36,6 +39,18 @@ public final class PortalSkinRendererTest
         assertEquals(SkinRenderMode.DISPLAY, PortalSkinRenderer.skinRenderMode("minecraft:glass"));
         assertEquals(SkinRenderMode.DISPLAY, PortalSkinRenderer.skinRenderMode("minecraft:stone"));
         assertEquals(SkinRenderMode.DISPLAY, PortalSkinRenderer.skinRenderMode("minecraft:blue_ice"));
+    }
+
+    @Test
+    public void fluidClaimOwnerIsStableAndDistinctFromProjectionOwner()
+    {
+        UUID portalId = UUID.fromString("4bf03082-84bb-4f14-bd51-138f08c71202");
+
+        UUID first = PortalSkinRenderer.fluidClaimOwnerId(portalId);
+        UUID second = PortalSkinRenderer.fluidClaimOwnerId(portalId);
+
+        assertEquals(first, second);
+        assertNotEquals(portalId, first);
     }
 
     @Test

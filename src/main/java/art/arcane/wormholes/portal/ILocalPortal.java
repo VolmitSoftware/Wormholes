@@ -195,6 +195,11 @@ public interface ILocalPortal extends IPortal, IPersistant, Listener
 		return !getSurfaceSkin().isEmpty();
 	}
 
+	public default boolean blocksProjection()
+	{
+		return hasSurfaceSkin() && !PortalSurfaceSkins.isTransparentSkin(getSurfaceSkin());
+	}
+
 	public AxisAlignedBB getView();
 
 	public World getWorld();

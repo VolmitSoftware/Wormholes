@@ -295,7 +295,7 @@ public class ProjectionManager implements Listener {
                 active.add(portal);
                 continue;
             }
-            if (!portal.supportsProjections() || !portal.isProjecting() || portal.hasSurfaceSkin()) {
+            if (!portal.supportsProjections() || !portal.isProjecting() || portal.blocksProjection()) {
                 continue;
             }
             if (!portal.isOpen()) {
@@ -392,7 +392,7 @@ public class ProjectionManager implements Listener {
                 provider.dispatchRim(portal, observer, sample.get());
             }
         }
-        if (!portal.supportsProjections() || !portal.isProjecting() || !portal.isOpen() || portal.hasSurfaceSkin()) {
+        if (!portal.supportsProjections() || !portal.isProjecting() || !portal.isOpen() || portal.blocksProjection()) {
             return ProjectionResolution.suppressed(rtp);
         }
         if (!rtp) {

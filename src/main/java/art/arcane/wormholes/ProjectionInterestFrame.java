@@ -169,7 +169,7 @@ final class ProjectionInterestFrame {
     }
 
     private static boolean isPortalStillProjectable(ILocalPortal portal, boolean rtp) {
-        if (portal == null || !portal.supportsProjections() || !portal.isProjecting() || !portal.isOpen() || portal.hasSurfaceSkin()) {
+        if (portal == null || !portal.supportsProjections() || !portal.isProjecting() || !portal.isOpen() || portal.blocksProjection()) {
             return false;
         }
         if (!rtp && !portal.isMirrorMode() && !portal.hasTunnel()) {

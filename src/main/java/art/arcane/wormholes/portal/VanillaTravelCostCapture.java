@@ -15,7 +15,7 @@ import org.bukkit.inventory.ItemStack;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.localization.WormholesMessages;
-import art.arcane.wormholes.service.WormholesAudience;
+import art.arcane.wormholes.service.WormholesHud;
 
 public final class VanillaTravelCostCapture implements Listener
 {
@@ -50,7 +50,7 @@ public final class VanillaTravelCostCapture implements Listener
 		if(portal.isDestroyed() || !PortalAccessPolicy.canManage(
 				portal.getId(), portal.getOwner(), player.getUniqueId(), administrator))
 		{
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_EDIT_DENIED));
+			WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_EDIT_DENIED));
 			return;
 		}
 		ItemStack selected = event.getItemDrop().getItemStack().clone();
@@ -59,13 +59,13 @@ public final class VanillaTravelCostCapture implements Listener
 		{
 			portal.setVanillaTravelCostItem(selected);
 			VanillaTravelCost cost = (VanillaTravelCost) portal.getTravelCost();
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(
+			WormholesHud.notice(player, Wormholes.text().component(
 					WormholesMessages.PORTAL_COST_ITEM_SET,
 					LocalPortalText.arguments("item", cost.getItemLabel())));
 		}
 		catch(IllegalArgumentException exception)
 		{
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_COST_ITEM_INVALID));
+			WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_COST_ITEM_INVALID));
 		}
 		capture.completion().accept(player);
 	}

@@ -15,7 +15,7 @@ import art.arcane.wormholes.portal.Traversive;
 import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.portal.VanillaTravelCost;
 import art.arcane.wormholes.portal.VaultTravelCost;
-import art.arcane.wormholes.service.WormholesAudience;
+import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.wormholes.service.WormholesTelemetry;
 
 import org.bukkit.Bukkit;
@@ -758,21 +758,21 @@ public final class TraversalService implements Listener {
 
     private static void notifyCostFailure(Player player, PortalTravelCost cost, PortalTravelCost.Status status) {
         if (status == PortalTravelCost.Status.UNAVAILABLE) {
-            WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_COST_VAULT_UNAVAILABLE));
+            WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_COST_VAULT_UNAVAILABLE));
             return;
         }
         if (status == PortalTravelCost.Status.FAILED) {
-            WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_COST_TRANSACTION_FAILED));
+            WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_COST_TRANSACTION_FAILED));
             return;
         }
         if (cost instanceof VaultTravelCost vault) {
-            WormholesAudience.sendActionBar(player, Wormholes.text().component(
+            WormholesHud.notice(player, Wormholes.text().component(
                 WormholesMessages.PORTAL_COST_VAULT_INSUFFICIENT,
                 WormholesLocalization.args(MessageArgument.untrusted("amount", vault.getFormattedAmount()))));
             return;
         }
         VanillaTravelCost vanilla = (VanillaTravelCost) cost;
-        WormholesAudience.sendActionBar(player, Wormholes.text().component(
+        WormholesHud.notice(player, Wormholes.text().component(
             WormholesMessages.PORTAL_COST_INSUFFICIENT,
             WormholesLocalization.args(
                 MessageArgument.untrusted("quantity", Integer.toString(vanilla.getQuantity())),

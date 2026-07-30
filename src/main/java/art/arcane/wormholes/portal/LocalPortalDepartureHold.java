@@ -13,7 +13,7 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.LocalPortalTransitRegistry.ReentryLatch;
 import art.arcane.wormholes.portal.rtp.RtpTraversalHoldPolicy;
-import art.arcane.wormholes.service.WormholesAudience;
+import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.wormholes.service.WormholesTelemetry;
 
 final class LocalPortalDepartureHold
@@ -90,7 +90,7 @@ final class LocalPortalDepartureHold
 							&& entity instanceof Player player)
 					{
 						lastNoticeMillis[0] = nowMillis;
-						WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_RTP_NOT_READY));
+						WormholesHud.hold(player, Wormholes.text().component(WormholesMessages.PORTAL_RTP_NOT_READY));
 					}
 					entity.setVelocity(new Vector(0, 0, 0));
 					if(driftSquared > RtpTraversalHoldPolicy.LEASH_DRIFT_SQUARED)
@@ -172,7 +172,7 @@ final class LocalPortalDepartureHold
 							&& nowMillis - lastNoticeMillis[0] >= HOLD_NOTICE_PERIOD_MILLIS)
 					{
 						lastNoticeMillis[0] = nowMillis;
-						WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_TRANSFER_HOLDING));
+						WormholesHud.hold(player, Wormholes.text().component(WormholesMessages.PORTAL_TRANSFER_HOLDING));
 					}
 					player.setVelocity(new Vector(0, 0, 0));
 					if(driftSquared > DepartureHoldPolicy.LEASH_DRIFT_SQUARED)
@@ -199,7 +199,7 @@ final class LocalPortalDepartureHold
 	{
 		abortDepartureHold(player.getUniqueId());
 		Wormholes.w("Cross-server departure hold at portal " + portal.getId() + " ended early for " + player.getName() + ": " + reason);
-		WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_TRANSFER_SOURCE_UNAVAILABLE));
+		WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_TRANSFER_SOURCE_UNAVAILABLE));
 		WormholesTelemetry.countFailure("TRAVERSAL_DEPARTURE_HOLD_FAILED");
 	}
 

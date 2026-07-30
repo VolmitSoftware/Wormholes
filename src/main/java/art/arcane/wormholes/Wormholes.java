@@ -35,6 +35,7 @@ import art.arcane.wormholes.service.PacketEventsRuntime;
 import art.arcane.wormholes.service.StatsSnapshotWriter;
 import art.arcane.wormholes.service.WormholesAudience;
 import art.arcane.wormholes.service.WormholesCommandService;
+import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.wormholes.service.WormholesIntegrationService;
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import art.arcane.wormholes.util.J;
@@ -139,6 +140,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
 
             packetEvents().init();
             WormholesAudience.start(this);
+            WormholesHud.start(this);
 
             blockManager = new BlockManager();
             effectManager = new EffectManager();
@@ -654,6 +656,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
 
         diagnostics.shutdownMetrics();
 
+        WormholesHud.stop();
         WormholesAudience.stop(getLogger());
 
         clearStaticServices();

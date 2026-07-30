@@ -2,6 +2,9 @@ package art.arcane.wormholes.portal;
 
 import java.util.Locale;
 import java.util.Optional;
+import java.util.function.Predicate;
+
+import org.bukkit.Material;
 
 public final class PortalSurfaceSkins
 {
@@ -33,23 +36,33 @@ public final class PortalSurfaceSkins
 
 	public static boolean isTransparentSkin(String skin)
 	{
+		return isTransparentSkin(skin, PortalSurfaceSkins::isNonOccludingBlock);
+	}
+
+	static boolean isTransparentSkin(String skin, Predicate<String> nonOccludingBlock)
+	{
 		String normalized = normalizeSkin(skin);
 		if(normalized.isEmpty())
 		{
 			return false;
 		}
 
-		if(isFluid(normalized))
+		String id = baseId(normalized);
+		if(id.equals("lava"))
+		{
+			return false;
+		}
+		if(id.equals("water")
+				|| id.contains("glass")
+				|| id.endsWith("ice")
+				|| id.contains("slime_block")
+				|| id.contains("honey_block")
+				|| id.contains("barrier"))
 		{
 			return true;
 		}
 
-		String id = baseId(normalized);
-		return id.contains("glass")
-			|| id.endsWith("ice")
-			|| id.contains("slime_block")
-			|| id.contains("honey_block")
-			|| id.contains("barrier");
+		return nonOccludingBlock.test(id);
 	}
 
 	public static Optional<String> skinForHeldItem(String materialName)
@@ -74,5 +87,11 @@ public final class PortalSurfaceSkins
 		String withoutProperties = bracket >= 0 ? normalized.substring(0, bracket) : normalized;
 		int colon = withoutProperties.indexOf(':');
 		return colon >= 0 ? withoutProperties.substring(colon + 1) : withoutProperties;
+	}
+
+	private static boolean isNonOccludingBlock(String id)
+	{
+		Material material = Material.matchMaterial(id);
+		return material != null && material.isBlock() && !material.isOccluding();
 	}
 }

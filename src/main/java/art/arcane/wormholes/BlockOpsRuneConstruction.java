@@ -30,7 +30,7 @@ import art.arcane.wormholes.BlockOpsRuneIndex.RuneReservation;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.PortalBlock;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.service.WormholesAudience;
+import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.util.M;
 
@@ -201,7 +201,7 @@ final class BlockOpsRuneConstruction
 					RUNE_ROLLBACK_NOTICE_FAILED,
 					RUNE_ROLLBACK_NOTICE_SCHEDULE_REJECTED,
 					() -> "Could not tell " + player.getName() + " that portal formation was interrupted",
-					() -> WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_FORM_INTERRUPTED)));
+					() -> WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_FORM_INTERRUPTED)));
 
 			if(!scheduled)
 			{

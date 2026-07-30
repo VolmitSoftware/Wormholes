@@ -12,6 +12,7 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.wormholes.service.WormholesAudience;
+import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.data.MaterialBlock;
 import art.arcane.volmlib.util.inventorygui.Element;
@@ -78,7 +79,7 @@ final class LocalPortalMenus
 		{
 			return true;
 		}
-		WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_EDIT_DENIED));
+		WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_EDIT_DENIED));
 		player.closeInventory();
 		return false;
 	}

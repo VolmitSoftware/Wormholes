@@ -38,7 +38,7 @@ import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.config.VisualQualityProfile;
 import art.arcane.wormholes.render.PortalToolPreviewRenderer;
-import art.arcane.wormholes.service.WormholesAudience;
+import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.volmlib.util.scheduling.AR;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.util.Area;
@@ -293,7 +293,7 @@ public class EffectManager implements Listener
 	public void playNotificationFail(String message, Player p)
 	{
 		Component component = LegacyComponentSerializer.legacySection().deserialize(message).colorIfAbsent(NamedTextColor.RED);
-		WormholesAudience.sendActionBar(p, component);
+		WormholesHud.notice(p, component);
 	}
 
 	public void playNotificationFail(String message, Location l)
@@ -315,7 +315,7 @@ public class EffectManager implements Listener
 	public void playNotificationSuccess(String message, Player p)
 	{
 		Component component = LegacyComponentSerializer.legacySection().deserialize(message).colorIfAbsent(NamedTextColor.GREEN);
-		WormholesAudience.sendActionBar(p, component);
+		WormholesHud.notice(p, component);
 	}
 
 	public void playGlitchOut(Location location)

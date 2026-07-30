@@ -83,6 +83,28 @@ public final class RtpProjectionIntegrationTest {
     }
 
     @Test
+    public void surfaceOpacityControlsReadyProjection() {
+        UUID viewerId = uuid("viewer-surface-opacity");
+        Player viewer = player(viewerId);
+        RecordingProvider provider = new RecordingProvider(new ArrayList<String>(),
+                ignored -> readyResult(viewerId, true), world("target"));
+
+        ProjectionManager.ProjectionResolution glass = ProjectionManager.resolveProjection(
+                provider, portal(uuid("glass-portal"), true, true, true, false, "minecraft:glass",
+                        new ArrayList<String>()), viewer, new RtpRimRenderer());
+        ProjectionManager.ProjectionResolution water = ProjectionManager.resolveProjection(
+                provider, portal(uuid("water-portal"), true, true, true, false, "minecraft:water",
+                        new ArrayList<String>()), viewer, new RtpRimRenderer());
+        ProjectionManager.ProjectionResolution lava = ProjectionManager.resolveProjection(
+                provider, portal(uuid("lava-portal"), true, true, true, false, "minecraft:lava",
+                        new ArrayList<String>()), viewer, new RtpRimRenderer());
+
+        assertTrue(glass.projectable());
+        assertTrue(water.projectable());
+        assertFalse(lava.projectable());
+    }
+
+    @Test
     public void nonReadyStateSuppressesOnlyThatViewerResolution() {
         List<String> events = new ArrayList<String>();
         UUID readyViewerId = uuid("viewer-ready-independent");
@@ -168,9 +190,15 @@ public final class RtpProjectionIntegrationTest {
 
     private static ILocalPortal portal(UUID portalId, boolean supportsProjections, boolean projecting, boolean open,
                                        boolean hasTunnel, List<String> events) {
+        return portal(portalId, supportsProjections, projecting, open, hasTunnel, "", events);
+    }
+
+    private static ILocalPortal portal(UUID portalId, boolean supportsProjections, boolean projecting, boolean open,
+                                       boolean hasTunnel, String surfaceSkin, List<String> events) {
         InvocationHandler handler = (Object proxy, Method method, Object[] args) -> switch (method.getName()) {
             case "getId" -> portalId;
             case "getName" -> "rtp-test";
+            case "getSurfaceSkin" -> surfaceSkin;
             case "supportsProjections" -> {
                 events.add("supportsProjections");
                 yield supportsProjections;
@@ -191,7 +219,9 @@ public final class RtpProjectionIntegrationTest {
             case "equals" -> proxy == args[0];
             case "hashCode" -> System.identityHashCode(proxy);
             case "toString" -> "RtpTestPortal";
-            default -> defaultValue(method.getReturnType());
+            default -> method.isDefault()
+                    ? InvocationHandler.invokeDefault(proxy, method, args)
+                    : defaultValue(method.getReturnType());
         };
         return (ILocalPortal) Proxy.newProxyInstance(
                 RtpProjectionIntegrationTest.class.getClassLoader(), new Class<?>[] {ILocalPortal.class}, handler);

@@ -2,6 +2,7 @@ package art.arcane.wormholes.render;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -119,6 +120,29 @@ public final class ProjectionClaimSetTest {
     }
 
     @Test
+    public void fluidSkinOwnerDoesNotReplaceOrReleaseProjectionClaims() {
+        ProjectionClaimSet set = new ProjectionClaimSet();
+        UUID projectionOwner = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID fluidOwner = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        long projectedCell = 42L;
+        long skinCell = 84L;
+        BlockData projectedData = blockData("projection");
+
+        set.replacePortalClaims(projectionOwner, projectionOwner.toString(), 2.0D,
+            singleClaim(projectedCell, projectedData));
+        set.replacePortalClaims(fluidOwner, fluidOwner.toString(), 2.0D,
+            singleClaim(skinCell, blockData("water")));
+
+        assertSame(projectedData, set.getWinningClaim(projectedCell).getData());
+        assertNotNull(set.getWinningClaim(skinCell));
+
+        set.releasePortal(fluidOwner);
+
+        assertSame(projectedData, set.getWinningClaim(projectedCell).getData());
+        assertNull(set.getWinningClaim(skinCell));
+    }
+
+    @Test
     public void recursivePortalFallbackPolicyMasksOnlyBlockedApertures() {
         assertTrue(PortalProjector.shouldMaskRecursivePortalAperture(true, false, 0));
         assertTrue(PortalProjector.shouldMaskRecursivePortalAperture(true, true, 3));
@@ -136,8 +160,12 @@ public final class ProjectionClaimSetTest {
     }
 
     private static Long2ObjectOpenHashMap<ProjectedBlockClaim> singleClaim(BlockData data) {
+        return singleClaim(CELL_KEY, data);
+    }
+
+    private static Long2ObjectOpenHashMap<ProjectedBlockClaim> singleClaim(long key, BlockData data) {
         Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(1);
-        claims.put(CELL_KEY, singleClaimValue(data));
+        claims.put(key, singleClaimValue(data));
         return claims;
     }
 

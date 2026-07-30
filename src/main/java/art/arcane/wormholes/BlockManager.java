@@ -25,7 +25,7 @@ import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.PortalBlock;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.service.WormholesAudience;
+import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.wormholes.util.GChunk;
 import art.arcane.wormholes.util.J;
 
@@ -106,10 +106,10 @@ public class BlockManager implements Listener
 		e.setCancelled(true);
 		if(b.getType() == PortalType.RTP)
 		{
-			WormholesAudience.sendActionBar(e.getPlayer(), Wormholes.text().component(WormholesMessages.PORTAL_RTP_RUNE_UNSUPPORTED));
+			WormholesHud.notice(e.getPlayer(), Wormholes.text().component(WormholesMessages.PORTAL_RTP_RUNE_UNSUPPORTED));
 			return;
 		}
-		WormholesAudience.sendActionBar(e.getPlayer(), Wormholes.text().component(
+		WormholesHud.notice(e.getPlayer(), Wormholes.text().component(
 				WormholesMessages.PORTAL_FORMING,
 				WormholesLocalization.args(MessageArgument.untrusted("type", b.getType().name().toLowerCase()))));
 		construction.construct(e.getPlayer(), e.getClickedBlock());
@@ -126,7 +126,7 @@ public class BlockManager implements Listener
 		}
 
 		placeBlock(new PortalBlock(placedType, e.getBlock().getLocation()));
-		WormholesAudience.sendActionBar(e.getPlayer(), Wormholes.text().component(WormholesMessages.PORTAL_RUNE_PLACED));
+		WormholesHud.notice(e.getPlayer(), Wormholes.text().component(WormholesMessages.PORTAL_RUNE_PLACED));
 	}
 
 	@EventHandler(priority = EventPriority.LOWEST)

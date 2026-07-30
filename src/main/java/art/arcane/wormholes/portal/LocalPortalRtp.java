@@ -14,7 +14,7 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
-import art.arcane.wormholes.service.WormholesAudience;
+import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
@@ -304,7 +304,7 @@ final class LocalPortalRtp
 				unreadyNoticeMillis.entrySet().removeIf(entry -> now - entry.getValue().longValue() >= UNREADY_NOTICE_PERIOD_MILLIS);
 			}
 			unreadyNoticeMillis.put(player.getUniqueId(), Long.valueOf(now));
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_RTP_NOT_READY));
+			WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_RTP_NOT_READY));
 		}
 	}
 

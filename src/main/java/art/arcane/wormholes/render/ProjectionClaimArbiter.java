@@ -116,6 +116,18 @@ public final class ProjectionClaimArbiter {
         if (observer == null || portal == null || portal.getId() == null || claims == null) {
             return ClaimUpdateResult.empty();
         }
+        return submit(observer, portal.getId(), localWorld, claims, priorityDistance, allowLightingUpdate);
+    }
+
+    public ClaimUpdateResult submit(Player observer,
+                                    UUID claimOwnerId,
+                                    World localWorld,
+                                    Long2ObjectMap<ProjectedBlockClaim> claims,
+                                    double priorityDistance,
+                                    boolean allowLightingUpdate) {
+        if (observer == null || claimOwnerId == null || claims == null) {
+            return ClaimUpdateResult.empty();
+        }
         while (true) {
             ObserverClaims state = acquireState(observer, localWorld);
             if (state == null) {
@@ -125,9 +137,9 @@ public final class ProjectionClaimArbiter {
                 if (state.retired) {
                     continue;
                 }
-                String tieKey = portal.getId().toString();
+                String tieKey = claimOwnerId.toString();
                 ProjectionClaimSet.ProjectionClaimSetResult setResult = state.claimSet.replacePortalClaims(
-                    portal.getId(), tieKey, priorityDistance, claims);
+                    claimOwnerId, tieKey, priorityDistance, claims);
                 ObserverFrame frame = state.frame;
                 if (frame != null) {
                     if (allowLightingUpdate) {
@@ -143,6 +155,13 @@ public final class ProjectionClaimArbiter {
 
     public ClaimUpdateResult release(Player observer, ILocalPortal portal, World localWorld, boolean allowLightingUpdate) {
         if (observer == null || portal == null || portal.getId() == null) {
+            return ClaimUpdateResult.empty();
+        }
+        return release(observer, portal.getId(), localWorld, allowLightingUpdate);
+    }
+
+    public ClaimUpdateResult release(Player observer, UUID claimOwnerId, World localWorld, boolean allowLightingUpdate) {
+        if (observer == null || claimOwnerId == null) {
             return ClaimUpdateResult.empty();
         }
         UUID observerId = observer.getUniqueId();
@@ -163,7 +182,7 @@ public final class ProjectionClaimArbiter {
                 observers.remove(observerId, state);
                 return ClaimUpdateResult.empty();
             }
-            ProjectionClaimSet.ProjectionClaimSetResult setResult = state.claimSet.releasePortal(portal.getId());
+            ProjectionClaimSet.ProjectionClaimSetResult setResult = state.claimSet.releasePortal(claimOwnerId);
             ClaimUpdateResult result = applyResult(observer, localWorld, state, setResult, allowLightingUpdate);
             removeObserverIfEmpty(observerId, state);
             return result;

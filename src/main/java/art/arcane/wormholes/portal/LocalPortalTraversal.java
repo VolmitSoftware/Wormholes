@@ -16,7 +16,7 @@ import art.arcane.wormholes.geometry.Raycast;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.LocalPortalTransitRegistry.ReentryLatch;
 import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
-import art.arcane.wormholes.service.WormholesAudience;
+import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.util.AxisAlignedBB;
@@ -385,7 +385,7 @@ final class LocalPortalTraversal
 
 		if(entity instanceof Player player)
 		{
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_DESTINATION_UNAVAILABLE));
+			WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_DESTINATION_UNAVAILABLE));
 		}
 	}
 
@@ -400,7 +400,7 @@ final class LocalPortalTraversal
 		bounceRejectedTraversal(entity, traversive);
 		if(entity instanceof Player player)
 		{
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_COOLDOWN));
+			WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_COOLDOWN));
 		}
 	}
 
@@ -411,23 +411,23 @@ final class LocalPortalTraversal
 		{
 			if(status == PortalTravelCost.Status.UNAVAILABLE)
 			{
-				WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_COST_VAULT_UNAVAILABLE));
+				WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_COST_VAULT_UNAVAILABLE));
 				return;
 			}
 			if(status == PortalTravelCost.Status.FAILED)
 			{
-				WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_COST_TRANSACTION_FAILED));
+				WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_COST_TRANSACTION_FAILED));
 				return;
 			}
 			if(cost instanceof VaultTravelCost vault)
 			{
-				WormholesAudience.sendActionBar(player, Wormholes.text().component(
+				WormholesHud.notice(player, Wormholes.text().component(
 						WormholesMessages.PORTAL_COST_VAULT_INSUFFICIENT,
 						LocalPortalText.arguments("amount", vault.getFormattedAmount())));
 				return;
 			}
 			VanillaTravelCost vanilla = (VanillaTravelCost) cost;
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(
+			WormholesHud.notice(player, Wormholes.text().component(
 					WormholesMessages.PORTAL_COST_INSUFFICIENT,
 					LocalPortalText.arguments("quantity", vanilla.getQuantity(), "item", vanilla.getItemLabel())));
 		}
@@ -438,7 +438,7 @@ final class LocalPortalTraversal
 		bounceRejectedTraversal(entity, traversive);
 		if(entity instanceof Player player)
 		{
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_RTP_NOT_READY));
+			WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_RTP_NOT_READY));
 		}
 	}
 
@@ -457,7 +457,7 @@ final class LocalPortalTraversal
 		bounceRejectedTraversal(entity, traversive);
 		if(entity instanceof Player player)
 		{
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_RTP_TRAVERSAL_FAILED));
+			WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_RTP_TRAVERSAL_FAILED));
 		}
 		WormholesTelemetry.countFailure("TRAVERSAL_RTP_BEGIN_REFUSED");
 	}
@@ -467,7 +467,7 @@ final class LocalPortalTraversal
 		rejectDeparture(entity, traversive);
 		if(entity instanceof Player player)
 		{
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_RTP_TRAVERSAL_FAILED));
+			WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_RTP_TRAVERSAL_FAILED));
 		}
 	}
 
@@ -485,7 +485,7 @@ final class LocalPortalTraversal
 	{
 		if(entity instanceof Player player)
 		{
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.PORTAL_ACCESS_DENIED));
+			WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_ACCESS_DENIED));
 		}
 	}
 

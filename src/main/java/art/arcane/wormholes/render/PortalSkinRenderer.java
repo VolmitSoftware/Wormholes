@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -142,7 +143,7 @@ public final class PortalSkinRenderer {
             PortalSkinState existing = current == null ? null : current.get(portalId);
             if (existing != null && existing.stateKey().equals(key)) {
                 if (existing.mode() == SkinRenderMode.FLUID_CLAIMS) {
-                    submitFluidClaims(observer, portal, world, skin);
+                    submitFluidClaims(observer, portal, world, skin, existing.claimOwnerId());
                 }
                 continue;
             }
@@ -195,13 +196,14 @@ public final class PortalSkinRenderer {
     }
 
     private PortalSkinState spawnFluid(Player observer, ILocalPortal portal, BlockData data, World world, String stateKey) {
-        if (!submitFluidClaims(observer, portal, world, portal.getSurfaceSkin())) {
+        UUID claimOwnerId = fluidClaimOwnerId(portal.getId());
+        if (!submitFluidClaims(observer, portal, world, portal.getSurfaceSkin(), claimOwnerId)) {
             return null;
         }
-        return new PortalSkinState(SkinRenderMode.FLUID_CLAIMS, stateKey, null, portal);
+        return new PortalSkinState(SkinRenderMode.FLUID_CLAIMS, stateKey, null, portal, claimOwnerId);
     }
 
-    private boolean submitFluidClaims(Player observer, ILocalPortal portal, World world, String skin) {
+    private boolean submitFluidClaims(Player observer, ILocalPortal portal, World world, String skin, UUID claimOwnerId) {
         BlockData data = blockDataFor(skin);
         if (data == null) {
             return false;
@@ -211,7 +213,7 @@ public final class PortalSkinRenderer {
         if (cells.isEmpty()) {
             return false;
         }
-        claimArbiter.submit(observer, portal, world, fluidClaims(cells, data), priorityDistance(observer, portal), false);
+        claimArbiter.submit(observer, claimOwnerId, world, fluidClaims(cells, data), priorityDistance(observer, portal), false);
         return true;
     }
 
@@ -240,7 +242,7 @@ public final class PortalSkinRenderer {
             ids[i] = id;
             sendDisplay(observer, id, panes.get(i), globalId);
         }
-        return new PortalSkinState(SkinRenderMode.DISPLAY, stateKey, ids, portal);
+        return new PortalSkinState(SkinRenderMode.DISPLAY, stateKey, ids, portal, null);
     }
 
     static List<SkinTransform> buildPanes(ILocalPortal portal) {
@@ -295,7 +297,7 @@ public final class PortalSkinRenderer {
 
     private void teardown(Player observer, PortalSkinState state, World world) {
         if (state.mode() == SkinRenderMode.FLUID_CLAIMS) {
-            claimArbiter.release(observer, state.portal(), world, true);
+            claimArbiter.release(observer, state.claimOwnerId(), world, true);
             return;
         }
         int[] ids = state.displayIds();
@@ -379,6 +381,10 @@ public final class PortalSkinRenderer {
         return SkinRenderMode.DISPLAY;
     }
 
+    static UUID fluidClaimOwnerId(UUID portalId) {
+        return UUID.nameUUIDFromBytes(("wormholes:surface-skin:" + portalId).getBytes(StandardCharsets.UTF_8));
+    }
+
     static SkinTransform skinTransforms(AxisAlignedBB area, Axis normalAxis, double planeCoordinate, double thickness) {
         double sizeX = normalAxis == Axis.X ? thickness : area.sizeX();
         double sizeY = normalAxis == Axis.Y ? thickness : area.sizeY();
@@ -410,6 +416,7 @@ public final class PortalSkinRenderer {
         double scaleZ) {
     }
 
-    private record PortalSkinState(SkinRenderMode mode, String stateKey, int[] displayIds, ILocalPortal portal) {
+    private record PortalSkinState(SkinRenderMode mode, String stateKey, int[] displayIds,
+                                   ILocalPortal portal, UUID claimOwnerId) {
     }
 }

@@ -108,6 +108,24 @@ public final class PortalCosmeticSettingsPersistenceTest
 	}
 
 	@Test
+	public void onlyOpaqueSurfaceSkinsBlockProjection()
+	{
+		LocalPortal portal = portal(world("overworld", -64, 320, 63));
+
+		portal.setSurfaceSkin("minecraft:glass");
+		assertFalse(portal.blocksProjection());
+
+		portal.setSurfaceSkin("minecraft:water");
+		assertFalse(portal.blocksProjection());
+
+		portal.setSurfaceSkin("minecraft:lava");
+		assertTrue(portal.blocksProjection());
+
+		portal.setSurfaceSkin("");
+		assertFalse(portal.blocksProjection());
+	}
+
+	@Test
 	public void ambientStyleSetterIgnoresNull()
 	{
 		World world = world("overworld", -64, 320, 63);

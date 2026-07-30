@@ -37,7 +37,7 @@ import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalType;
-import art.arcane.wormholes.service.WormholesAudience;
+import art.arcane.wormholes.service.WormholesHud;
 
 public class WandSelectionManager implements Listener
 {
@@ -250,7 +250,7 @@ public class WandSelectionManager implements Listener
 	{
 		if(!selection.isComplete())
 		{
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(
+			WormholesHud.notice(player, Wormholes.text().component(
 					primary ? WormholesMessages.WAND_CORNER_A : WormholesMessages.WAND_CORNER_B));
 			return;
 		}
@@ -260,19 +260,19 @@ public class WandSelectionManager implements Listener
 		long cells = cellCount(min, max);
 		if(flat < 0)
 		{
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.WAND_NOT_FLAT));
+			WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.WAND_NOT_FLAT));
 			return;
 		}
 		if(cells > MAX_DRAWN_CELLS)
 		{
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(
+			WormholesHud.notice(player, Wormholes.text().component(
 					WormholesMessages.WAND_TOO_LARGE,
 					WormholesLocalization.args(
 							MessageArgument.untrusted("count", cells),
 							MessageArgument.untrusted("maximum", MAX_DRAWN_CELLS))));
 			return;
 		}
-		WormholesAudience.sendActionBar(player, Wormholes.text().component(
+		WormholesHud.notice(player, Wormholes.text().component(
 				WormholesMessages.WAND_SELECTED,
 				WormholesLocalization.args(MessageArgument.untrusted("count", cells))));
 	}
@@ -283,13 +283,13 @@ public class WandSelectionManager implements Listener
 		int[] max = selectionMax(selection.cornerA, selection.cornerB);
 		if(flatAxis(min, max) < 0)
 		{
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.WAND_NOT_FLAT));
+			WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.WAND_NOT_FLAT));
 			return;
 		}
 		long cells = cellCount(min, max);
 		if(cells > MAX_DRAWN_CELLS)
 		{
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(
+			WormholesHud.notice(player, Wormholes.text().component(
 					WormholesMessages.WAND_TOO_LARGE,
 					WormholesLocalization.args(
 							MessageArgument.untrusted("count", cells),
@@ -311,10 +311,10 @@ public class WandSelectionManager implements Listener
 		clearSelection(player.getUniqueId());
 		if(Wormholes.constructionManager.constructPortal(player.getUniqueId(), blocks, PortalType.PORTAL, player.getLocation().getDirection()))
 		{
-			WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.WAND_OPENING));
+			WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.WAND_OPENING));
 			return;
 		}
-		WormholesAudience.sendActionBar(player, Wormholes.text().component(WormholesMessages.WAND_OPEN_FAILED));
+		WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.WAND_OPEN_FAILED));
 	}
 
 	private boolean isBuildClick(Player player, WandSelection selection, Block clicked)

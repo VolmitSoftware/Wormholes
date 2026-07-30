@@ -19,6 +19,7 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.geometry.Raycast;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.service.WormholesAudience;
+import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.volmlib.util.scheduling.AR;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.util.Direction;
@@ -139,6 +140,14 @@ final class LocalPortalPrompts
 					return;
 				}
 
+				if(!p.isOnline())
+				{
+					directionChanger = null;
+					WormholesHud.releaseDirection(p);
+					cancel();
+					return;
+				}
+
 				FoliaScheduler.runEntity(Wormholes.instance, p, () ->
 				{
 					if(directionChanger == null)
@@ -148,7 +157,7 @@ final class LocalPortalPrompts
 
 					chosenDirection = Direction.closest(p.getLocation().getDirection());
 					chosenLook = p.getLocation().getDirection();
-					sendShortTitle(p, ChatColor.GRAY + "" + ChatColor.BOLD + LocalPortalText.directionLabel(chosenDirection));
+					sendDirectionTitle(p, ChatColor.GRAY + "" + ChatColor.BOLD + LocalPortalText.directionLabel(chosenDirection));
 				});
 			}
 		};
@@ -184,6 +193,7 @@ final class LocalPortalPrompts
 				directionChanger = null;
 				chosenDirection = null;
 				chosenLook = null;
+				WormholesHud.releaseDirection(e.getPlayer());
 				WormholesAudience.sendMessage(e.getPlayer(), Wormholes.text().component(
 						cancelled ? WormholesMessages.PORTAL_DIRECTION_CANCELLED : WormholesMessages.PORTAL_DIRECTION_SET));
 			}
@@ -191,6 +201,24 @@ final class LocalPortalPrompts
 	}
 
 	private void sendShortTitle(Player player, String legacy)
+	{
+		Title title = buildShortTitle(player, legacy);
+		if(title != null)
+		{
+			WormholesHud.lookSubtitle(player, title);
+		}
+	}
+
+	private void sendDirectionTitle(Player player, String legacy)
+	{
+		Title title = buildShortTitle(player, legacy);
+		if(title != null)
+		{
+			WormholesHud.directionTitle(player, title);
+		}
+	}
+
+	private Title buildShortTitle(Player player, String legacy)
 	{
 		long now = System.currentTimeMillis();
 		UUID playerId = player.getUniqueId();
@@ -204,15 +232,14 @@ final class LocalPortalPrompts
 		}
 		if(!freshLook && now - lookStart < SHORT_TITLE_FADE_IN_MILLIS)
 		{
-			return;
+			return null;
 		}
 		Component subtitle = LegacyComponentSerializer.legacySection().deserialize(legacy);
 		Title.Times times = Title.Times.times(
 				freshLook ? Duration.ofMillis(SHORT_TITLE_FADE_IN_MILLIS) : Duration.ZERO,
 				Duration.ofMillis(SHORT_TITLE_STAY_MILLIS),
 				Duration.ofMillis(SHORT_TITLE_FADE_OUT_MILLIS));
-		Title title = Title.title(Component.empty(), subtitle, times);
-		WormholesAudience.showTitle(player, title);
+		return Title.title(Component.empty(), subtitle, times);
 	}
 
 	private record ShortTitleHold(long lookStartMillis, long lastSendMillis)

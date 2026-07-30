@@ -6,7 +6,7 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
-import art.arcane.wormholes.service.WormholesAudience;
+import art.arcane.wormholes.service.WormholesHud;
 
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
@@ -66,7 +66,7 @@ final class TraversalNotices {
         }
         Runnable delivery = () -> {
             if (player.isOnline()) {
-                WormholesAudience.sendActionBar(player, message);
+                WormholesHud.notice(player, message);
             }
         };
         if (FoliaScheduler.runEntity(Wormholes.instance, player, delivery)) {
