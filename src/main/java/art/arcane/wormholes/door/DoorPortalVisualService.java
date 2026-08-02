@@ -11,7 +11,6 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
-import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
@@ -240,7 +239,7 @@ final class DoorPortalVisualService implements AutoCloseable
 		{
 			world.playSound(
 				anchor.clone().add(0.0D, 1.0D, 0.0D),
-				Sound.BLOCK_PORTAL_AMBIENT,
+				DimensionalDoorSounds.portalAmbientSound(),
 				SoundCategory.BLOCKS,
 				Settings.portalSoundVolume(0.3F),
 				0.65F + (random.nextFloat() * 0.3F));

@@ -117,6 +117,7 @@ final class WormholesReloadCoordinator {
             List.of(),
             List.of(),
             List.of(),
+            List.of(),
             List.of()
         ));
         WormholesSettings defaults = WormholesSettings.loadAll(dataFolder);

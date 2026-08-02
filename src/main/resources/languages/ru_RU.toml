@@ -345,6 +345,30 @@ locale = "ru_RU"
 "rtp.duration.minutes" = "{value}m"
 "rtp.duration.seconds" = "{value}s"
 "rtp.duration.decimal_seconds" = "{value}s"
+"door.access.label.unrestricted" = "Без ограничений"
+"door.access.label.whitelist" = "Белый список"
+"door.access.label.blacklist" = "Чёрный список"
+"door.access.description.unrestricted" = "Этой дверью может пользоваться любой игрок."
+"door.access.description.whitelist" = "Дверью могут пользоваться только игроки из списка."
+"door.access.description.blacklist" = "Игроки из списка не могут пользоваться этой дверью."
+"door.access.kind.pair" = "Запутанная"
+"door.access.kind.personal" = "Личная"
+"door.access.kind.public" = "Общая"
+"door.access.kind.return" = "Выходная"
+"door.access.unknown_player" = "Неизвестный ({id})"
+"door.access.edit_denied" = "<red>Изменять эту дверь может только её владелец или администратор."
+"door.access.unavailable" = "<red>У этой двери измерения нет записи доступа."
+"door.access.save_failed" = "<red>Не удалось сохранить это изменение доступа к двери."
+"door.access.player_not_found" = "<red>Игрок с именем {name} не найден."
+"door.access.owner_always" = "<gray>У владельца двери доступ есть всегда."
+"door.access.already_listed" = "<gray>{name} уже есть в списке этой двери."
+"door.access.added" = "<green>{name} добавлен в список этой двери."
+"door.access.removed" = "<green>{name} удалён из списка этой двери."
+"door.access.mode_changed" = "<green>Доступ к двери изменён: {mode}."
+"door.access.prompt_player" = "<aqua>Введите в чат имя игрока для списка этой двери (или '{cancel}'):"
+"door.access.denied" = "<red>Эта дверь измерения вас не пропускает."
+"door.access.transit_denied" = "У вас нет доступа к этой двери измерения."
+"door.menu.access.title" = "Доступ к двери: {kind}"
 
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>Travel Cost</bold>", "<gray>Require an exact item or Vault currency", "<gray>when a player uses this portal.", "", "<gray>Mode: <white>{mode}", "<gray>Cost: <white>{cost}", "", "<dark_gray>Click to configure."]
@@ -489,6 +513,10 @@ locale = "ru_RU"
 "rtp.confirm.confirm" = ["<yellow><bold>Подтвердить</bold>","<gray>Выполнить действие сейчас.","<yellow>Левый клик"]
 "rtp.confirm.cancel" = ["<yellow><bold>Отменить</bold>","<gray>Вернуться без изменения рабочего состояния.","<yellow>Левый клик"]
 "rtp.status.header" = ["<gold><bold>Состояние случайного назначения</bold>","<gray>Состояние: {state}"]
+"door.menu.access.placard" = ["<gold><bold>Дверь измерения: {kind}</bold>","<gray>Владелец: <white>{owner}","<gray>Доступ: <gold>{mode}","<gray>Игроков в списке: <aqua>{count}","","<dark_gray>Дверь настраивают владелец и администраторы."]
+"door.menu.access.mode" = ["<gold><bold>Доступ: {mode}</bold>","<gray>{description}","","<gray>Сейчас: <gold>{mode}","","<dark_gray>Нажмите, чтобы переключить: без ограничений, белый список, чёрный список.","<dark_gray>Владелец и администраторы проходят всегда."]
+"door.menu.access.add_player" = ["<green><bold>Добавить игрока</bold>","<gray>Введите имя игрока в чат, чтобы добавить его в список.","","<dark_gray>Нажмите, чтобы добавить игрока."]
+"door.menu.access.entry" = ["<white>{name}","<gray>В списке этой двери.","","<dark_gray>Нажмите, чтобы удалить."]
 
 [plural."command.wand.granted_runes"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Выдана <white>{count} {rune}<green> руна."

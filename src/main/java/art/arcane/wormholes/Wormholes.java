@@ -95,10 +95,10 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     private static final ConcurrentHashMap<UUID, Consumer<String>> CHAT_INPUTS = new ConcurrentHashMap<>();
 
     private final AtomicBoolean alreadyDrained = new AtomicBoolean(false);
-    private final WormholesDoorLifecycle doors = new WormholesDoorLifecycle(this);
-    private final WormholesNetworkRuntime network = new WormholesNetworkRuntime(this);
-    private final WormholesDiagnosticsRuntime diagnostics = new WormholesDiagnosticsRuntime(this);
-    private final WormholesReloadCoordinator reloads = new WormholesReloadCoordinator(this, doors, network, diagnostics);
+    private final WormholesDoorLifecycle doors;
+    private final WormholesNetworkRuntime network;
+    private final WormholesDiagnosticsRuntime diagnostics;
+    private final WormholesReloadCoordinator reloads;
     private SchedulerRuntime schedulerRuntime;
     private PacketEventsRuntime packetEventsRuntime;
     private WormholesCommandService commandService;
@@ -109,6 +109,10 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         new SpigotApplicationBuilder(this)
             .build();
         getLogger().info("Dependencies loaded.");
+        doors = new WormholesDoorLifecycle(this);
+        network = new WormholesNetworkRuntime(this);
+        diagnostics = new WormholesDiagnosticsRuntime(this);
+        reloads = new WormholesReloadCoordinator(this, doors, network, diagnostics);
     }
 
     @Override

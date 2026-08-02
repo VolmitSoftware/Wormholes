@@ -17,7 +17,8 @@ public record DoorStoreSnapshot(
     List<DoorPairIdentity> pairs,
     List<PlacedDoorEndpoint> endpoints,
     List<PocketSpace> spaces,
-    List<ReturnTicket> returnTickets
+    List<ReturnTicket> returnTickets,
+    List<DoorAccessRecord> accessRecords
 ) {
     public static final int CURRENT_SCHEMA = 3;
 
@@ -32,11 +33,12 @@ public record DoorStoreSnapshot(
         endpoints = List.copyOf(Objects.requireNonNull(endpoints, "endpoints"));
         spaces = List.copyOf(Objects.requireNonNull(spaces, "spaces"));
         returnTickets = List.copyOf(Objects.requireNonNull(returnTickets, "returnTickets"));
-        validate(pairs, endpoints, spaces, returnTickets, nextPocketSlot);
+        accessRecords = List.copyOf(Objects.requireNonNull(accessRecords, "accessRecords"));
+        validate(pairs, endpoints, spaces, returnTickets, accessRecords, nextPocketSlot);
     }
 
     public static DoorStoreSnapshot empty() {
-        return new DoorStoreSnapshot(CURRENT_SCHEMA, 0, List.of(), List.of(), List.of(), List.of());
+        return new DoorStoreSnapshot(CURRENT_SCHEMA, 0, List.of(), List.of(), List.of(), List.of(), List.of());
     }
 
     public Optional<ReturnTicket> returnTicket(UUID playerId) {
@@ -53,7 +55,7 @@ public record DoorStoreSnapshot(
             }
         }
         updated.add(ticket);
-        return new DoorStoreSnapshot(schema, nextPocketSlot, pairs, endpoints, spaces, updated);
+        return new DoorStoreSnapshot(schema, nextPocketSlot, pairs, endpoints, spaces, updated, accessRecords);
     }
 
     public DoorStoreSnapshot withoutReturnTicket(UUID playerId) {
@@ -63,7 +65,7 @@ public record DoorStoreSnapshot(
             .toList();
         return updated.size() == returnTickets.size()
             ? this
-            : new DoorStoreSnapshot(schema, nextPocketSlot, pairs, endpoints, spaces, updated);
+            : new DoorStoreSnapshot(schema, nextPocketSlot, pairs, endpoints, spaces, updated, accessRecords);
     }
 
     private static void validate(
@@ -71,6 +73,7 @@ public record DoorStoreSnapshot(
         List<PlacedDoorEndpoint> endpoints,
         List<PocketSpace> spaces,
         List<ReturnTicket> returnTickets,
+        List<DoorAccessRecord> accessRecords,
         long nextPocketSlot
     ) {
         Map<UUID, DoorPairIdentity> pairsById = new HashMap<>();
@@ -126,6 +129,13 @@ public record DoorStoreSnapshot(
         for (ReturnTicket ticket : returnTickets) {
             if (!players.add(ticket.playerId())) {
                 throw new IllegalArgumentException("duplicate return ticket for player " + ticket.playerId());
+            }
+        }
+
+        Set<UUID> accessItemIds = new HashSet<>();
+        for (DoorAccessRecord record : accessRecords) {
+            if (!accessItemIds.add(record.itemId())) {
+                throw new IllegalArgumentException("duplicate access record for door item " + record.itemId());
             }
         }
     }

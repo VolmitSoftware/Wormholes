@@ -8,6 +8,7 @@ import org.bukkit.event.block.BlockBurnEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 
 import java.util.Objects;
@@ -47,6 +48,15 @@ public final class DoorBlockProtection implements Listener
 	public void onPistonRetract(BlockPistonRetractEvent event)
 	{
 		if(event.getBlocks().stream().anyMatch(this::isProtected))
+		{
+			event.setCancelled(true);
+		}
+	}
+
+	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+	public void onEntityChangeBlock(EntityChangeBlockEvent event)
+	{
+		if(isProtected(event.getBlock()))
 		{
 			event.setCancelled(true);
 		}

@@ -249,6 +249,57 @@ public final class WormholesMessages {
     public static final TextKey DOOR_RESCUE_START_FAILED = text("door.rescue.reason.start_failed", "The emergency ejection could not start.");
     public static final TextKey DOOR_RESCUE_FAILED = text("door.rescue.failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>{route} {fallback} You remain protected at one heart.");
 
+    public static final TextKey DOOR_ACCESS_LABEL_UNRESTRICTED = text("door.access.label.unrestricted", "Unrestricted");
+    public static final TextKey DOOR_ACCESS_LABEL_WHITELIST = text("door.access.label.whitelist", "Whitelist");
+    public static final TextKey DOOR_ACCESS_LABEL_BLACKLIST = text("door.access.label.blacklist", "Blacklist");
+    public static final TextKey DOOR_ACCESS_DESCRIPTION_UNRESTRICTED = text("door.access.description.unrestricted", "Everyone may use this door.");
+    public static final TextKey DOOR_ACCESS_DESCRIPTION_WHITELIST = text("door.access.description.whitelist", "Only listed players may use this door.");
+    public static final TextKey DOOR_ACCESS_DESCRIPTION_BLACKLIST = text("door.access.description.blacklist", "Listed players may not use this door.");
+    public static final TextKey DOOR_ACCESS_KIND_PAIR = text("door.access.kind.pair", "Entangled");
+    public static final TextKey DOOR_ACCESS_KIND_PERSONAL = text("door.access.kind.personal", "Personal");
+    public static final TextKey DOOR_ACCESS_KIND_PUBLIC = text("door.access.kind.public", "Public");
+    public static final TextKey DOOR_ACCESS_KIND_RETURN = text("door.access.kind.return", "Exit");
+    public static final TextKey DOOR_ACCESS_UNKNOWN_PLAYER = text("door.access.unknown_player", "Unknown ({id})");
+    public static final TextKey DOOR_ACCESS_EDIT_DENIED = text("door.access.edit_denied", "<red>Only the door owner or an administrator can edit this door.");
+    public static final TextKey DOOR_ACCESS_UNAVAILABLE = text("door.access.unavailable", "<red>This dimensional door has no access record.");
+    public static final TextKey DOOR_ACCESS_SAVE_FAILED = text("door.access.save_failed", "<red>That door access change could not be saved.");
+    public static final TextKey DOOR_ACCESS_PLAYER_NOT_FOUND = text("door.access.player_not_found", "<red>No player named {name} could be found.");
+    public static final TextKey DOOR_ACCESS_OWNER_ALWAYS = text("door.access.owner_always", "<gray>The door owner always has access.");
+    public static final TextKey DOOR_ACCESS_ALREADY_LISTED = text("door.access.already_listed", "<gray>{name} is already listed for this door.");
+    public static final TextKey DOOR_ACCESS_ADDED = text("door.access.added", "<green>{name} was added to this door's list.");
+    public static final TextKey DOOR_ACCESS_REMOVED = text("door.access.removed", "<green>{name} was removed from this door's list.");
+    public static final TextKey DOOR_ACCESS_MODE_CHANGED = text("door.access.mode_changed", "<green>Door access set to {mode}.");
+    public static final TextKey DOOR_ACCESS_PROMPT_PLAYER = text("door.access.prompt_player", "<aqua>Type the player name to list for this door (or '{cancel}'):");
+    public static final TextKey DOOR_ACCESS_DENIED = text("door.access.denied", "<red>This dimensional door refuses you.");
+    public static final TextKey DOOR_ACCESS_TRANSIT_DENIED = text("door.access.transit_denied", "You do not have access to this dimensional door.");
+
+    public static final TextKey DOOR_MENU_ACCESS_TITLE = text("door.menu.access.title", "Door Access: {kind}");
+    public static final LinesKey DOOR_MENU_ACCESS_PLACARD = lines("door.menu.access.placard",
+            "<gold><bold>{kind} Dimensional Door</bold>",
+            "<gray>Owner: <white>{owner}",
+            "<gray>Access: <gold>{mode}",
+            "<gray>Listed players: <aqua>{count}",
+            "",
+            "<dark_gray>Owners and administrators edit this door.");
+    public static final LinesKey DOOR_MENU_ACCESS_MODE = lines("door.menu.access.mode",
+            "<gold><bold>Access {mode}</bold>",
+            "<gray>{description}",
+            "",
+            "<gray>Currently: <gold>{mode}",
+            "",
+            "<dark_gray>Click to cycle unrestricted, whitelist, blacklist.",
+            "<dark_gray>The owner and operators always pass.");
+    public static final LinesKey DOOR_MENU_ACCESS_ADD_PLAYER = lines("door.menu.access.add_player",
+            "<green><bold>Add Player</bold>",
+            "<gray>Type a player name in chat to list them.",
+            "",
+            "<dark_gray>Click to add a player.");
+    public static final LinesKey DOOR_MENU_ACCESS_ENTRY = lines("door.menu.access.entry",
+            "<white>{name}",
+            "<gray>Listed for this door.",
+            "",
+            "<dark_gray>Click to remove.");
+
     public static final LinesKey PORTAL_MENU_DESTINATION = lines("portal.menu.destination",
             "<gold><bold>Destination</bold>",
             "<gray>Choose a portal to link to.",

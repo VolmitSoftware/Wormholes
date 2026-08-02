@@ -2,13 +2,13 @@ package art.arcane.wormholes.portal;
 
 import java.util.UUID;
 
-final class PortalAccessPolicy
+public final class PortalAccessPolicy
 {
 	private PortalAccessPolicy()
 	{
 	}
 
-	static boolean canManage(UUID portalId, UUID ownerId, UUID playerId, boolean administrator)
+	public static boolean canManage(UUID portalId, UUID ownerId, UUID playerId, boolean administrator)
 	{
 		if(administrator)
 		{

@@ -528,11 +528,6 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener
 		return menus.cosmetics().applySurfaceSkinFromInteraction(player, skin);
 	}
 
-	public boolean clearSurfaceSkinFromInteraction(Player player)
-	{
-		return menus.cosmetics().clearSurfaceSkinFromInteraction(player);
-	}
-
 	@EventHandler
 	public void on(PlayerInteractEvent e)
 	{

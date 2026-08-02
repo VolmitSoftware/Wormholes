@@ -20,6 +20,21 @@ final class DimensionalDoorSounds
 		return closeCue(doorMaterial).key();
 	}
 
+	static String denyBassSound()
+	{
+		return denyBassCue().key();
+	}
+
+	static String denyThudSound()
+	{
+		return denyThudCue().key();
+	}
+
+	static String portalAmbientSound()
+	{
+		return portalAmbientCue().key();
+	}
+
 	static SoundCue teleportCue()
 	{
 		return SoundCue.PLAYER_TELEPORT;
@@ -36,12 +51,30 @@ final class DimensionalDoorSounds
 		};
 	}
 
+	static SoundCue denyBassCue()
+	{
+		return SoundCue.DENY_BASS;
+	}
+
+	static SoundCue denyThudCue()
+	{
+		return SoundCue.DENY_THUD;
+	}
+
+	static SoundCue portalAmbientCue()
+	{
+		return SoundCue.PORTAL_AMBIENT;
+	}
+
 	enum SoundCue
 	{
 		PLAYER_TELEPORT("entity.player.teleport"),
 		IRON_DOOR_CLOSE("block.iron_door.close"),
 		NETHER_WOOD_DOOR_CLOSE("block.nether_wood_door.close"),
-		WOODEN_DOOR_CLOSE("block.wooden_door.close");
+		WOODEN_DOOR_CLOSE("block.wooden_door.close"),
+		DENY_BASS("block.note_block.bass"),
+		DENY_THUD("entity.warden.heartbeat"),
+		PORTAL_AMBIENT("block.portal.ambient");
 
 		private final String key;
 

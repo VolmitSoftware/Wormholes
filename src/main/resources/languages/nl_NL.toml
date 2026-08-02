@@ -345,6 +345,30 @@ locale = "nl_NL"
 "rtp.duration.minutes" = "{value}m"
 "rtp.duration.seconds" = "{value}s"
 "rtp.duration.decimal_seconds" = "{value}s"
+"door.access.label.unrestricted" = "Onbeperkt"
+"door.access.label.whitelist" = "Toestaanlijst"
+"door.access.label.blacklist" = "Blokkeerlijst"
+"door.access.description.unrestricted" = "Iedereen mag deze deur gebruiken."
+"door.access.description.whitelist" = "Alleen vermelde spelers mogen deze deur gebruiken."
+"door.access.description.blacklist" = "Vermelde spelers mogen deze deur niet gebruiken."
+"door.access.kind.pair" = "Verstrengeld"
+"door.access.kind.personal" = "Persoonlijk"
+"door.access.kind.public" = "Gedeeld"
+"door.access.kind.return" = "Uitgang"
+"door.access.unknown_player" = "Onbekend ({id})"
+"door.access.edit_denied" = "<red>Alleen de eigenaar van de deur of een beheerder kan deze deur bewerken."
+"door.access.unavailable" = "<red>Deze dimensiedeur heeft geen toegangsregistratie."
+"door.access.save_failed" = "<red>Die wijziging van de deurtoegang kon niet worden opgeslagen."
+"door.access.player_not_found" = "<red>Er is geen speler met de naam {name} gevonden."
+"door.access.owner_always" = "<gray>De eigenaar van de deur heeft altijd toegang."
+"door.access.already_listed" = "<gray>{name} staat al op de lijst van deze deur."
+"door.access.added" = "<green>{name} is toegevoegd aan de lijst van deze deur."
+"door.access.removed" = "<green>{name} is verwijderd van de lijst van deze deur."
+"door.access.mode_changed" = "<green>Deurtoegang ingesteld op {mode}."
+"door.access.prompt_player" = "<aqua>Typ de naam van de speler die je voor deze deur wilt vermelden (of '{cancel}'):"
+"door.access.denied" = "<red>Deze dimensiedeur weigert je."
+"door.access.transit_denied" = "Je hebt geen toegang tot deze dimensiedeur."
+"door.menu.access.title" = "Deurtoegang: {kind}"
 
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>Travel Cost</bold>", "<gray>Require an exact item or Vault currency", "<gray>when a player uses this portal.", "", "<gray>Mode: <white>{mode}", "<gray>Cost: <white>{cost}", "", "<dark_gray>Click to configure."]
@@ -489,6 +513,10 @@ locale = "nl_NL"
 "rtp.confirm.confirm" = ["<yellow><bold>Bevestigen</bold>","<gray>Voer de actie nu uit.","<yellow>Linksklik"]
 "rtp.confirm.cancel" = ["<yellow><bold>Annuleren</bold>","<gray>Ga terug zonder de uitvoeringsstatus te wijzigen.","<yellow>Linksklik"]
 "rtp.status.header" = ["<gold><bold>Status van willekeurige bestemming</bold>","<gray>Status: {state}"]
+"door.menu.access.placard" = ["<gold><bold>Dimensiedeur: {kind}</bold>","<gray>Eigenaar: <white>{owner}","<gray>Toegang: <gold>{mode}","<gray>Vermelde spelers: <aqua>{count}","","<dark_gray>Eigenaars en beheerders bewerken deze deur."]
+"door.menu.access.mode" = ["<gold><bold>Toegang: {mode}</bold>","<gray>{description}","","<gray>Huidig: <gold>{mode}","","<dark_gray>Klik om te wisselen tussen onbeperkt, toestaanlijst en blokkeerlijst.","<dark_gray>De eigenaar en operators komen er altijd door."]
+"door.menu.access.add_player" = ["<green><bold>Speler toevoegen</bold>","<gray>Typ een spelersnaam in de chat om die te vermelden.","","<dark_gray>Klik om een speler toe te voegen."]
+"door.menu.access.entry" = ["<white>{name}","<gray>Vermeld voor deze deur.","","<dark_gray>Klik om te verwijderen."]
 
 [plural."command.wand.granted_runes"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count} {rune}<green>-rune gegeven."

@@ -26,13 +26,16 @@ class DoorStateServiceTest {
         PocketAllocator allocator = new PocketAllocator();
         PocketSpace pocket = allocator.getOrAllocate(PocketBinding.personal(id(11)));
         ReturnTicket ticket = ticket(id(12), endpointA.identity().itemId());
+        DoorAccessRecord access = new DoorAccessRecord(
+            endpointA.identity().itemId(), DoorAccessMode.BLACKLIST, id(13), List.of(id(14)));
         DoorStoreSnapshot persisted = new DoorStoreSnapshot(
             DoorStoreSnapshot.CURRENT_SCHEMA,
             allocator.nextSlot(),
             List.of(pair),
             List.of(endpointA),
             List.of(pocket),
-            List.of(ticket)
+            List.of(ticket),
+            List.of(access)
         );
         DimensionalDoorRepository repository = repository();
         repository.save(persisted);
@@ -44,6 +47,8 @@ class DoorStateServiceTest {
         assertEquals(endpointA, service.findEndpointByItem(endpointA.identity().itemId()).orElseThrow());
         assertEquals(pocket, service.findPocket(pocket.binding()).orElseThrow());
         assertEquals(ticket, service.getReturnTicket(ticket.playerId()).orElseThrow());
+        assertEquals(access, service.accessRecord(access.itemId()).orElseThrow());
+        assertTrue(service.accessRecord(id(15)).isEmpty());
         assertEquals(persisted, service.snapshot());
     }
 
@@ -69,6 +74,139 @@ class DoorStateServiceTest {
         assertTrue(restarted.pairs().isEmpty());
         assertTrue(restarted.endpoints().isEmpty());
         assertEquals(service.snapshot(), restarted.snapshot());
+    }
+
+    @Test
+    void ownedRegistrationMintsOneAccessRecordThatSurvivesRePlacement() throws Exception {
+        DoorStateService service = DoorStateService.load(repository());
+        DoorItemIdentity identity = DoorItemIdentity.publicDoor(id(200));
+        PlacedDoorEndpoint placement = placed(id(201), "minecraft:overworld", 0, 64, 0, identity);
+        UUID owner = id(202);
+
+        assertTrue(service.registerEndpoint(placement, owner));
+        assertEquals(
+            new DoorAccessRecord(identity.itemId(), DoorAccessMode.UNRESTRICTED, owner, List.of()),
+            service.accessRecord(identity.itemId()).orElseThrow());
+        assertTrue(service.setAccessMode(identity.itemId(), DoorAccessMode.WHITELIST));
+        assertFalse(service.registerEndpoint(placement, id(203)));
+
+        assertEquals(placement, service.removeEndpoint(placement.position()).orElseThrow());
+        PlacedDoorEndpoint rePlacement = placed(id(201), "minecraft:overworld", 9, 70, 9, identity);
+        assertTrue(service.registerEndpoint(rePlacement, id(204)));
+
+        DoorAccessRecord retained = service.accessRecord(identity.itemId()).orElseThrow();
+        assertEquals(owner, retained.ownerId());
+        assertEquals(DoorAccessMode.WHITELIST, retained.mode());
+        assertEquals(1, service.snapshot().accessRecords().size());
+    }
+
+    @Test
+    void returnDoorsNeverReceiveAnAccessRecord() throws Exception {
+        DoorStateService service = DoorStateService.load(repository());
+        DoorItemIdentity identity = DoorItemIdentity.returnDoor(id(210), id(211));
+        PlacedDoorEndpoint placement = placed(id(212), "wormholes:pockets", 8, 128, 11, identity);
+
+        assertTrue(service.registerEndpoint(placement, id(213)));
+
+        assertTrue(service.accessRecord(identity.itemId()).isEmpty());
+        assertTrue(service.snapshot().accessRecords().isEmpty());
+    }
+
+    @Test
+    void aReplayedRegistrationNeverMintsAnAccessRecord() throws Exception {
+        DoorStateService service = DoorStateService.load(repository());
+        DoorItemIdentity identity = DoorItemIdentity.publicDoor(id(240));
+        PlacedDoorEndpoint placement = placed(id(241), "minecraft:overworld", 5, 64, 5, identity);
+
+        assertTrue(service.registerEndpoint(placement));
+        assertFalse(service.registerEndpoint(placement, id(242)));
+
+        assertTrue(service.accessRecord(identity.itemId()).isEmpty());
+        assertTrue(service.snapshot().accessRecords().isEmpty());
+    }
+
+    @Test
+    void aRolledBackPlacementCanDropTheRecordItMinted() throws Exception {
+        DoorStateService service = DoorStateService.load(repository());
+        DoorItemIdentity identity = DoorItemIdentity.publicDoor(id(250));
+        PlacedDoorEndpoint placement = placed(id(251), "minecraft:overworld", 7, 64, 7, identity);
+
+        assertTrue(service.registerEndpoint(placement, id(252)));
+        assertEquals(placement, service.removeEndpoint(placement.position()).orElseThrow());
+        assertTrue(service.removeAccessRecord(identity.itemId()));
+
+        assertFalse(service.removeAccessRecord(identity.itemId()));
+        assertTrue(service.accessRecord(identity.itemId()).isEmpty());
+        assertTrue(DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile()))
+            .accessRecord(identity.itemId()).isEmpty());
+    }
+
+    @Test
+    void aRePlacedDoorTakesTheOwnerOfWhoeverPlacedItAfterARollback() throws Exception {
+        DoorStateService service = DoorStateService.load(repository());
+        DoorItemIdentity identity = DoorItemIdentity.publicDoor(id(260));
+        PlacedDoorEndpoint firstAttempt = placed(id(261), "minecraft:overworld", 2, 64, 2, identity);
+        UUID first = id(262);
+        UUID second = id(263);
+
+        assertTrue(service.registerEndpoint(firstAttempt, first));
+        service.removeEndpoint(firstAttempt.position());
+        assertTrue(service.removeAccessRecord(identity.itemId()));
+
+        PlacedDoorEndpoint secondAttempt = placed(id(261), "minecraft:overworld", 12, 70, 12, identity);
+        assertTrue(service.registerEndpoint(secondAttempt, second));
+
+        assertEquals(second, service.accessRecord(identity.itemId()).orElseThrow().ownerId());
+    }
+
+    @Test
+    void accessMutationsRejectNoOpsAndPersistAcrossRestart() throws Exception {
+        DoorStateService service = DoorStateService.load(repository());
+        DoorItemIdentity identity = DoorItemIdentity.personal(id(220));
+        PlacedDoorEndpoint placement = placed(id(221), "minecraft:overworld", 3, 64, 3, identity);
+        UUID owner = id(222);
+        UUID guest = id(223);
+        UUID unknownItem = id(224);
+        service.registerEndpoint(placement, owner);
+
+        assertTrue(service.setAccessMode(identity.itemId(), DoorAccessMode.WHITELIST));
+        assertFalse(service.setAccessMode(identity.itemId(), DoorAccessMode.WHITELIST));
+        assertTrue(service.addAccessPlayer(identity.itemId(), guest));
+        assertFalse(service.addAccessPlayer(identity.itemId(), guest));
+        assertFalse(service.removeAccessPlayer(identity.itemId(), id(225)));
+        assertFalse(service.setAccessMode(unknownItem, DoorAccessMode.BLACKLIST));
+        assertFalse(service.addAccessPlayer(unknownItem, guest));
+        assertFalse(service.removeAccessPlayer(unknownItem, guest));
+
+        DoorStateService restarted = DoorStateService.load(
+            new DimensionalDoorRepository(service.repository().stateFile()));
+        assertEquals(
+            new DoorAccessRecord(identity.itemId(), DoorAccessMode.WHITELIST, owner, List.of(guest)),
+            restarted.accessRecord(identity.itemId()).orElseThrow());
+        assertEquals(service.snapshot(), restarted.snapshot());
+
+        assertTrue(restarted.removeAccessPlayer(identity.itemId(), guest));
+        assertTrue(DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile()))
+            .accessRecord(identity.itemId()).orElseThrow().players().isEmpty());
+    }
+
+    @Test
+    void accessRecordsOutliveEndpointRemoval() throws Exception {
+        DoorStateService service = DoorStateService.load(repository());
+        DoorItemIdentity identity = DoorItemIdentity.publicDoor(id(230));
+        PlacedDoorEndpoint placement = placed(id(231), "minecraft:overworld", 1, 64, 1, identity);
+        service.registerEndpoint(placement, id(232));
+        service.setAccessMode(identity.itemId(), DoorAccessMode.BLACKLIST);
+        service.addAccessPlayer(identity.itemId(), id(233));
+
+        assertEquals(placement, service.removeEndpoint(placement.position()).orElseThrow());
+
+        assertTrue(service.endpoints().isEmpty());
+        DoorAccessRecord expected = new DoorAccessRecord(
+            identity.itemId(), DoorAccessMode.BLACKLIST, id(232), List.of(id(233)));
+        assertEquals(expected, service.accessRecord(identity.itemId()).orElseThrow());
+        assertEquals(expected, DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile()))
+            .accessRecord(identity.itemId()).orElseThrow());
     }
 
     @Test
@@ -117,7 +255,7 @@ class DoorStateServiceTest {
             PocketAllocator.CHUNK_CENTER_OFFSET
         );
         DoorStoreSnapshot stateWithRetiredGap = new DoorStoreSnapshot(
-            DoorStoreSnapshot.CURRENT_SCHEMA, 4, List.of(), List.of(), List.of(existing), List.of()
+            DoorStoreSnapshot.CURRENT_SCHEMA, 4, List.of(), List.of(), List.of(existing), List.of(), List.of()
         );
         DimensionalDoorRepository repository = repository();
         repository.save(stateWithRetiredGap);
@@ -163,6 +301,7 @@ class DoorStateServiceTest {
         assertThrows(UnsupportedOperationException.class, () -> service.endpoints().clear());
         assertThrows(UnsupportedOperationException.class, () -> service.spaces().clear());
         assertThrows(UnsupportedOperationException.class, () -> service.returnTickets().clear());
+        assertThrows(UnsupportedOperationException.class, () -> service.accessRecords().clear());
     }
 
     @Test

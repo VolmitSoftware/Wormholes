@@ -345,6 +345,30 @@ locale = "pt_PT"
 "rtp.duration.minutes" = "{value}m"
 "rtp.duration.seconds" = "{value}s"
 "rtp.duration.decimal_seconds" = "{value}s"
+"door.access.label.unrestricted" = "Sem restrições"
+"door.access.label.whitelist" = "Lista de permissões"
+"door.access.label.blacklist" = "Lista de bloqueios"
+"door.access.description.unrestricted" = "Todos podem usar esta porta."
+"door.access.description.whitelist" = "Só os jogadores listados podem usar esta porta."
+"door.access.description.blacklist" = "Os jogadores listados não podem usar esta porta."
+"door.access.kind.pair" = "Entrelaçada"
+"door.access.kind.personal" = "Pessoal"
+"door.access.kind.public" = "Partilhada"
+"door.access.kind.return" = "Saída"
+"door.access.unknown_player" = "Desconhecido ({id})"
+"door.access.edit_denied" = "<red>Só o dono da porta ou um administrador pode editar esta porta."
+"door.access.unavailable" = "<red>Esta porta dimensional não tem registo de acesso."
+"door.access.save_failed" = "<red>Não foi possível guardar essa alteração de acesso à porta."
+"door.access.player_not_found" = "<red>Não foi encontrado nenhum jogador com o nome {name}."
+"door.access.owner_always" = "<gray>O dono da porta tem sempre acesso."
+"door.access.already_listed" = "<gray>{name} já consta na lista desta porta."
+"door.access.added" = "<green>{name} foi adicionado à lista desta porta."
+"door.access.removed" = "<green>{name} foi removido da lista desta porta."
+"door.access.mode_changed" = "<green>Acesso da porta definido para {mode}."
+"door.access.prompt_player" = "<aqua>Digite no chat o nome do jogador a listar para esta porta (ou '{cancel}'):"
+"door.access.denied" = "<red>Esta porta dimensional recusa-o."
+"door.access.transit_denied" = "Não tem acesso a esta porta dimensional."
+"door.menu.access.title" = "Acesso da porta: {kind}"
 
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>Travel Cost</bold>", "<gray>Require an exact item or Vault currency", "<gray>when a player uses this portal.", "", "<gray>Mode: <white>{mode}", "<gray>Cost: <white>{cost}", "", "<dark_gray>Click to configure."]
@@ -489,6 +513,10 @@ locale = "pt_PT"
 "rtp.confirm.confirm" = ["<yellow><bold>Confirmar</bold>","<gray>Executar a ação agora.","<yellow>Clique esquerdo"]
 "rtp.confirm.cancel" = ["<yellow><bold>Cancelar</bold>","<gray>Voltar sem alterar o estado de execução.","<yellow>Clique esquerdo"]
 "rtp.status.header" = ["<gold><bold>Estado do destino aleatório</bold>","<gray>Estado: {state}"]
+"door.menu.access.placard" = ["<gold><bold>Porta Dimensional: {kind}</bold>","<gray>Dono: <white>{owner}","<gray>Acesso: <gold>{mode}","<gray>Jogadores listados: <aqua>{count}","","<dark_gray>Os donos e os administradores editam esta porta."]
+"door.menu.access.mode" = ["<gold><bold>Acesso: {mode}</bold>","<gray>{description}","","<gray>Atual: <gold>{mode}","","<dark_gray>Clique para alternar entre sem restrições, lista de permissões e lista de bloqueios.","<dark_gray>O dono e os operadores passam sempre."]
+"door.menu.access.add_player" = ["<green><bold>Adicionar jogador</bold>","<gray>Digite um nome de jogador no chat para o listar.","","<dark_gray>Clique para adicionar um jogador."]
+"door.menu.access.entry" = ["<white>{name}","<gray>Listado para esta porta.","","<dark_gray>Clique para remover."]
 
 [plural."command.wand.granted_runes"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Concedida <white>{count} {rune}<green> runa."

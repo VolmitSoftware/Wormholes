@@ -1,6 +1,7 @@
 package art.arcane.wormholes.survival.doors.dimension;
 
 import art.arcane.wormholes.Wormholes;
+import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.PluginLoadOrder;
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,7 @@ public final class PaperPluginMetadataTest {
         assertTrue(metadata.contains("join-classpath: true"));
         assertTrue(metadata.contains("wormholes.portals.wormhole:"));
         assertTrue(metadata.contains("wormholes.admin.projection:"));
+        assertTrue(metadata.contains("wormholes.doors.bypass:"));
         assertFalse(metadata.contains("commands:"), "Paper commands must be registered through lifecycle events");
     }
 
@@ -67,6 +69,21 @@ public final class PaperPluginMetadataTest {
             .getChildren()
             .containsKey("wormholes.admin.projection"));
         assertTrue(metadata.getPermissions().stream().anyMatch(permission -> permission.getName().equals("wormholes.portals.portal")));
+        assertEquals(
+            PermissionDefault.OP,
+            metadata.getPermissions().stream()
+                .filter(permission -> permission.getName().equals("wormholes.doors.bypass"))
+                .findFirst()
+                .orElseThrow()
+                .getDefault());
+        assertEquals(
+            Boolean.TRUE,
+            metadata.getPermissions().stream()
+                .filter(permission -> permission.getName().equals("wormholes.admin"))
+                .findFirst()
+                .orElseThrow()
+                .getChildren()
+                .get("wormholes.doors.bypass"));
     }
 
     @Test

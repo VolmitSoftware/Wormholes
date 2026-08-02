@@ -541,21 +541,4 @@ final class LocalPortalCosmeticsMenu
 		}
 		return true;
 	}
-
-	boolean clearSurfaceSkinFromInteraction(Player player)
-	{
-		if(!menus.ensureCanManage(player))
-		{
-			return false;
-		}
-		if(!portal.hasSurfaceSkin())
-		{
-			return false;
-		}
-		portal.setSurfaceSkin("");
-		menus.text().notifySetting(player, WormholesMessages.PORTAL_NETWORK_VALUE_CHANGED,
-				LocalPortalText.arguments("label", LocalPortalText.localized(WormholesMessages.PORTAL_NETWORK_LABEL_SURFACE_SKIN),
-						"value", surfaceSkinDisplay()));
-		return true;
-	}
 }

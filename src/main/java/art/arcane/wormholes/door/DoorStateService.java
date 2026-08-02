@@ -25,6 +25,7 @@ public final class DoorStateService {
     private PocketAllocator allocator;
     private LinkedHashMap<UUID, DoorPairIdentity> pairsById;
     private LinkedHashMap<UUID, ReturnTicket> ticketsByPlayer;
+    private LinkedHashMap<UUID, DoorAccessRecord> accessByItem;
 
     private DoorStateService(DimensionalDoorRepository repository, DoorStoreSnapshot snapshot) {
         this.repository = Objects.requireNonNull(repository, "repository");
@@ -32,6 +33,7 @@ public final class DoorStateService {
         allocator = PocketAllocator.restore(snapshot);
         pairsById = indexPairs(snapshot.pairs());
         ticketsByPlayer = indexTickets(snapshot.returnTickets());
+        accessByItem = indexAccessRecords(snapshot.accessRecords());
     }
 
     public static DoorStateService load(DimensionalDoorRepository repository) throws IOException {
@@ -87,7 +89,7 @@ public final class DoorStateService {
 
         LinkedHashMap<UUID, DoorPairIdentity> candidatePairs = new LinkedHashMap<>(pairsById);
         candidatePairs.put(pair.pairId(), pair);
-        persistAndPublish(registry, allocator, candidatePairs, ticketsByPlayer);
+        persistAndPublish(registry, allocator, candidatePairs, ticketsByPlayer, accessByItem);
         return true;
     }
 
@@ -105,7 +107,7 @@ public final class DoorStateService {
 
         LinkedHashMap<UUID, DoorPairIdentity> candidatePairs = new LinkedHashMap<>(pairsById);
         candidatePairs.remove(pairId);
-        persistAndPublish(registry, allocator, candidatePairs, ticketsByPlayer);
+        persistAndPublish(registry, allocator, candidatePairs, ticketsByPlayer, accessByItem);
         return Optional.of(existing);
     }
 
@@ -118,7 +120,30 @@ public final class DoorStateService {
         if (!candidateRegistry.register(endpoint)) {
             return false;
         }
-        persistAndPublish(candidateRegistry, allocator, pairsById, ticketsByPlayer);
+        persistAndPublish(candidateRegistry, allocator, pairsById, ticketsByPlayer, accessByItem);
+        return true;
+    }
+
+    public synchronized boolean registerEndpoint(PlacedDoorEndpoint endpoint, UUID ownerId) throws IOException {
+        Objects.requireNonNull(endpoint, "endpoint");
+        Objects.requireNonNull(ownerId, "ownerId");
+        DoorItemIdentity identity = endpoint.identity();
+        DoorRegistry candidateRegistry = copyRegistry();
+        if (!candidateRegistry.register(endpoint)) {
+            return false;
+        }
+
+        LinkedHashMap<UUID, DoorAccessRecord> candidateAccess = accessByItem;
+        if (identity.kind() != DoorKind.RETURN && !accessByItem.containsKey(identity.itemId())) {
+            candidateAccess = new LinkedHashMap<>(accessByItem);
+            candidateAccess.put(identity.itemId(), new DoorAccessRecord(
+                identity.itemId(),
+                DoorAccessMode.UNRESTRICTED,
+                ownerId,
+                List.of()
+            ));
+        }
+        persistAndPublish(candidateRegistry, allocator, pairsById, ticketsByPlayer, candidateAccess);
         return true;
     }
 
@@ -144,7 +169,7 @@ public final class DoorStateService {
         candidateRegistry.remove(expected.position())
             .orElseThrow(() -> new IllegalStateException("endpoint relocation source is missing"));
         candidateRegistry.register(replacement);
-        persistAndPublish(candidateRegistry, allocator, pairsById, ticketsByPlayer);
+        persistAndPublish(candidateRegistry, allocator, pairsById, ticketsByPlayer, accessByItem);
         return true;
     }
 
@@ -155,7 +180,7 @@ public final class DoorStateService {
         if (removed.isEmpty()) {
             return Optional.empty();
         }
-        persistAndPublish(candidateRegistry, allocator, pairsById, ticketsByPlayer);
+        persistAndPublish(candidateRegistry, allocator, pairsById, ticketsByPlayer, accessByItem);
         return removed;
     }
 
@@ -184,7 +209,7 @@ public final class DoorStateService {
 
         PocketAllocator candidateAllocator = copyAllocator();
         PocketSpace allocated = candidateAllocator.getOrAllocate(binding);
-        persistAndPublish(registry, candidateAllocator, pairsById, ticketsByPlayer);
+        persistAndPublish(registry, candidateAllocator, pairsById, ticketsByPlayer, accessByItem);
         return allocated;
     }
 
@@ -220,6 +245,55 @@ public final class DoorStateService {
         return Optional.of(existing);
     }
 
+    public synchronized Optional<DoorAccessRecord> accessRecord(UUID itemId) {
+        return Optional.ofNullable(accessByItem.get(Objects.requireNonNull(itemId, "itemId")));
+    }
+
+    public synchronized boolean setAccessMode(UUID itemId, DoorAccessMode mode) throws IOException {
+        Objects.requireNonNull(itemId, "itemId");
+        Objects.requireNonNull(mode, "mode");
+        DoorAccessRecord existing = accessByItem.get(itemId);
+        if (existing == null) {
+            return false;
+        }
+        return publishAccessRecord(existing, existing.withMode(mode));
+    }
+
+    public synchronized boolean addAccessPlayer(UUID itemId, UUID playerId) throws IOException {
+        Objects.requireNonNull(itemId, "itemId");
+        Objects.requireNonNull(playerId, "playerId");
+        DoorAccessRecord existing = accessByItem.get(itemId);
+        if (existing == null) {
+            return false;
+        }
+        return publishAccessRecord(existing, existing.withPlayerAdded(playerId));
+    }
+
+    public synchronized boolean removeAccessPlayer(UUID itemId, UUID playerId) throws IOException {
+        Objects.requireNonNull(itemId, "itemId");
+        Objects.requireNonNull(playerId, "playerId");
+        DoorAccessRecord existing = accessByItem.get(itemId);
+        if (existing == null) {
+            return false;
+        }
+        return publishAccessRecord(existing, existing.withPlayerRemoved(playerId));
+    }
+
+    public synchronized boolean removeAccessRecord(UUID itemId) throws IOException {
+        Objects.requireNonNull(itemId, "itemId");
+        if (!accessByItem.containsKey(itemId)) {
+            return false;
+        }
+        LinkedHashMap<UUID, DoorAccessRecord> candidateAccess = new LinkedHashMap<>(accessByItem);
+        candidateAccess.remove(itemId);
+        persistAndPublish(registry, allocator, pairsById, ticketsByPlayer, candidateAccess);
+        return true;
+    }
+
+    public synchronized List<DoorAccessRecord> accessRecords() {
+        return List.copyOf(accessByItem.values());
+    }
+
     public synchronized List<DoorPairIdentity> pairs() {
         return List.copyOf(pairsById.values());
     }
@@ -237,30 +311,43 @@ public final class DoorStateService {
     }
 
     public synchronized DoorStoreSnapshot snapshot() {
-        return buildSnapshot(registry, allocator, pairsById.values(), ticketsByPlayer.values());
+        return buildSnapshot(registry, allocator, pairsById.values(), ticketsByPlayer.values(), accessByItem.values());
     }
 
     public DimensionalDoorRepository repository() {
         return repository;
     }
 
+    private boolean publishAccessRecord(DoorAccessRecord existing, DoorAccessRecord updated) throws IOException {
+        if (updated.equals(existing)) {
+            return false;
+        }
+        LinkedHashMap<UUID, DoorAccessRecord> candidateAccess = new LinkedHashMap<>(accessByItem);
+        candidateAccess.put(updated.itemId(), updated);
+        persistAndPublish(registry, allocator, pairsById, ticketsByPlayer, candidateAccess);
+        return true;
+    }
+
     private void persistAndPublish(
         DoorRegistry candidateRegistry,
         PocketAllocator candidateAllocator,
         LinkedHashMap<UUID, DoorPairIdentity> candidatePairs,
-        LinkedHashMap<UUID, ReturnTicket> candidateTickets
+        LinkedHashMap<UUID, ReturnTicket> candidateTickets,
+        LinkedHashMap<UUID, DoorAccessRecord> candidateAccess
     ) throws IOException {
         DoorStoreSnapshot candidate = buildSnapshot(
             candidateRegistry,
             candidateAllocator,
             candidatePairs.values(),
-            candidateTickets.values()
+            candidateTickets.values(),
+            candidateAccess.values()
         );
         repository.saveState(candidate);
         registry = candidateRegistry;
         allocator = candidateAllocator;
         pairsById = candidatePairs;
         ticketsByPlayer = candidateTickets;
+        accessByItem = candidateAccess;
     }
 
     private DoorRegistry copyRegistry() {
@@ -280,7 +367,8 @@ public final class DoorStateService {
         DoorRegistry registry,
         PocketAllocator allocator,
         Collection<DoorPairIdentity> pairs,
-        Collection<ReturnTicket> tickets
+        Collection<ReturnTicket> tickets,
+        Collection<DoorAccessRecord> accessRecords
     ) {
         return new DoorStoreSnapshot(
             DoorStoreSnapshot.CURRENT_SCHEMA,
@@ -288,7 +376,8 @@ public final class DoorStateService {
             new ArrayList<>(pairs),
             registry.endpoints(),
             allocator.spaces(),
-            new ArrayList<>(tickets)
+            new ArrayList<>(tickets),
+            new ArrayList<>(accessRecords)
         );
     }
 
@@ -304,6 +393,14 @@ public final class DoorStateService {
         LinkedHashMap<UUID, ReturnTicket> indexed = new LinkedHashMap<>();
         for (ReturnTicket ticket : tickets) {
             indexed.put(ticket.playerId(), ticket);
+        }
+        return indexed;
+    }
+
+    private static LinkedHashMap<UUID, DoorAccessRecord> indexAccessRecords(List<DoorAccessRecord> accessRecords) {
+        LinkedHashMap<UUID, DoorAccessRecord> indexed = new LinkedHashMap<>();
+        for (DoorAccessRecord record : accessRecords) {
+            indexed.put(record.itemId(), record);
         }
         return indexed;
     }

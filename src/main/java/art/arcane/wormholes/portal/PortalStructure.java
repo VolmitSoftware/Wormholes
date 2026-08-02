@@ -240,6 +240,25 @@ public class PortalStructure implements IWritable
 		return Arrays.binarySearch(blockKeys, 0, blockKeyCount, packBlockKey(x, y, z)) >= 0;
 	}
 
+	public boolean containsOrAdjoinsBlock(int x, int y, int z)
+	{
+		for(int offsetX = -1; offsetX <= 1; offsetX++)
+		{
+			for(int offsetY = -1; offsetY <= 1; offsetY++)
+			{
+				for(int offsetZ = -1; offsetZ <= 1; offsetZ++)
+				{
+					if(containsBlock(x + offsetX, y + offsetY, z + offsetZ))
+					{
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
 	public KList<Vector> getBlockPositions()
 	{
 		KList<Vector> copy = new KList<Vector>();

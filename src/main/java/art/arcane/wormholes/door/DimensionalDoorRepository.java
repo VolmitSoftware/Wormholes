@@ -184,6 +184,20 @@ public final class DimensionalDoorRepository {
         root.put("spaces", spaces);
 
         root.put("returnTickets", new JSONArray());
+
+        JSONArray access = new JSONArray();
+        for (DoorAccessRecord record : snapshot.accessRecords()) {
+            JSONArray players = new JSONArray();
+            for (UUID player : record.players()) {
+                players.put(player.toString());
+            }
+            access.put(new JSONObject()
+                .put("itemId", record.itemId().toString())
+                .put("mode", record.mode().name())
+                .put("ownerId", record.ownerId().toString())
+                .put("players", players));
+        }
+        root.put("access", access);
         return root;
     }
 
@@ -277,7 +291,8 @@ public final class DimensionalDoorRepository {
             snapshot.pairs(),
             snapshot.endpoints(),
             snapshot.spaces(),
-            tickets
+            tickets,
+            snapshot.accessRecords()
         );
     }
 
@@ -363,8 +378,37 @@ public final class DimensionalDoorRepository {
             pairs,
             endpoints,
             spaces,
-            tickets
+            tickets,
+            decodeAccessRecords(root.optJSONArray("access"))
         );
+    }
+
+    private static List<DoorAccessRecord> decodeAccessRecords(JSONArray accessJson) {
+        if (accessJson == null) {
+            return List.of();
+        }
+        List<DoorAccessRecord> accessRecords = new ArrayList<>(accessJson.length());
+        for (int i = 0; i < accessJson.length(); i++) {
+            JSONObject record = accessJson.getJSONObject(i);
+            accessRecords.add(new DoorAccessRecord(
+                uuid(record, "itemId"),
+                DoorAccessMode.fromName(record.getString("mode")),
+                uuid(record, "ownerId"),
+                decodeAccessPlayers(record.optJSONArray("players"))
+            ));
+        }
+        return accessRecords;
+    }
+
+    private static List<UUID> decodeAccessPlayers(JSONArray playerJson) {
+        if (playerJson == null) {
+            return List.of();
+        }
+        List<UUID> players = new ArrayList<>(playerJson.length());
+        for (int i = 0; i < playerJson.length(); i++) {
+            players.add(UUID.fromString(playerJson.getString(i)));
+        }
+        return players;
     }
 
     private static DoorKind decodeDoorKind(int schema, String value) {

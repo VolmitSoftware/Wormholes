@@ -8,6 +8,7 @@ import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.Plugin;
 
@@ -119,6 +120,14 @@ final class DoorTransitCoordinator
 				traveler,
 				WormholesMessages.DOOR_TRANSIT_SHUTDOWN,
 				DoorTransitFailures.Failure.ENTRY_SHUTTING_DOWN);
+			return;
+		}
+		if(!hasDoorAccess(endpoint, traveler))
+		{
+			abortEntry(
+				traveler,
+				WormholesMessages.DOOR_ACCESS_TRANSIT_DENIED,
+				DoorTransitFailures.Failure.ENTRY_ACCESS_DENIED);
 			return;
 		}
 		World sourceWorld = runtimes.world(endpoint.position());
@@ -517,6 +526,18 @@ final class DoorTransitCoordinator
 		{
 			tickets.removeAfterRetirement(traveler.getUniqueId(), ticketContext.expected());
 		}
+	}
+
+	private boolean hasDoorAccess(PlacedDoorEndpoint endpoint, Entity traveler)
+	{
+		if(endpoint.identity().kind() == DoorKind.RETURN || !(traveler instanceof Player player))
+		{
+			return true;
+		}
+		return DoorAccessPolicy.canUse(
+			guard.state().accessRecord(endpoint.identity().itemId()).orElse(null),
+			player.getUniqueId(),
+			player.hasPermission(DoorAccessPolicy.BYPASS_NODE));
 	}
 
 	private void refuseEntry(Entity traveler, TextKey reason, DoorTransitFailures.Failure failure)

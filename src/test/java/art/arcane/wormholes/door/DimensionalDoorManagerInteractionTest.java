@@ -4,6 +4,7 @@ import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -17,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class DimensionalDoorManagerInteractionTest
@@ -78,6 +80,58 @@ final class DimensionalDoorManagerInteractionTest
 
 		assertNotNull(handler);
 		assertFalse(handler.ignoreCancelled());
+	}
+
+	@Test
+	void accessMenuOpensOnlyForSneakingEmptyHandedManagers()
+	{
+		assertTrue(DimensionalDoorManager.shouldOpenAccessMenu(true, true, true, true));
+		assertFalse(DimensionalDoorManager.shouldOpenAccessMenu(true, false, true, true));
+		assertFalse(DimensionalDoorManager.shouldOpenAccessMenu(true, true, false, true));
+		assertFalse(DimensionalDoorManager.shouldOpenAccessMenu(true, true, true, false));
+		assertFalse(DimensionalDoorManager.shouldOpenAccessMenu(true, false, false, false));
+		assertFalse(DimensionalDoorManager.shouldOpenAccessMenu(true, false, false, true));
+		assertFalse(DimensionalDoorManager.shouldOpenAccessMenu(true, false, true, false));
+		assertFalse(DimensionalDoorManager.shouldOpenAccessMenu(true, true, false, false));
+	}
+
+	@Test
+	void doorsWithoutAnAccessRecordFallThroughToTheVanillaToggle()
+	{
+		assertFalse(DimensionalDoorManager.shouldOpenAccessMenu(false, true, true, true));
+		assertFalse(DimensionalDoorManager.shouldOpenAccessMenu(false, true, true, false));
+		assertFalse(DimensionalDoorManager.shouldOpenAccessMenu(false, false, true, true));
+	}
+
+	@Test
+	void returnDoorsAreNeverAccessGated()
+	{
+		assertFalse(DimensionalDoorManager.isAccessGated(DoorKind.RETURN));
+	}
+
+	@Test
+	void everyPlaceableDoorKindIsAccessGated()
+	{
+		assertTrue(DimensionalDoorManager.isAccessGated(DoorKind.PAIR));
+		assertTrue(DimensionalDoorManager.isAccessGated(DoorKind.PERSONAL));
+		assertTrue(DimensionalDoorManager.isAccessGated(DoorKind.PUBLIC));
+	}
+
+	@Test
+	void accessGatingRejectsNullKind()
+	{
+		assertThrows(NullPointerException.class, () -> DimensionalDoorManager.isAccessGated(null));
+	}
+
+	@Test
+	void accessInteractRunsBeforeTheVanillaDoorToggleAndSkipsCancelledClicks() throws NoSuchMethodException
+	{
+		Method method = DimensionalDoorManager.class.getMethod("onDoorAccessInteract", PlayerInteractEvent.class);
+		EventHandler handler = method.getAnnotation(EventHandler.class);
+
+		assertNotNull(handler);
+		assertEquals(EventPriority.HIGH, handler.priority());
+		assertTrue(handler.ignoreCancelled());
 	}
 
 	@Test

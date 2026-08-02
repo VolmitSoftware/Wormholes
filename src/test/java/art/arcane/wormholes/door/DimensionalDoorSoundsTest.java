@@ -4,6 +4,7 @@ import org.bukkit.Material;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class DimensionalDoorSoundsTest
@@ -51,6 +52,38 @@ class DimensionalDoorSoundsTest
 			DimensionalDoorSounds.SoundCue.WOODEN_DOOR_CLOSE,
 			DimensionalDoorSounds.closeCue(Material.PALE_OAK_DOOR));
 		assertEquals("block.wooden_door.close", DimensionalDoorSounds.closeCue(Material.OAK_DOOR).key());
+	}
+
+	@Test
+	void deniedAccessUsesTheDeepBassCue()
+	{
+		assertEquals(DimensionalDoorSounds.SoundCue.DENY_BASS, DimensionalDoorSounds.denyBassCue());
+		assertEquals("block.note_block.bass", DimensionalDoorSounds.denyBassCue().key());
+		assertEquals("block.note_block.bass", DimensionalDoorSounds.denyBassSound());
+	}
+
+	@Test
+	void deniedAccessUsesTheWardenHeartbeatThudCue()
+	{
+		assertEquals(DimensionalDoorSounds.SoundCue.DENY_THUD, DimensionalDoorSounds.denyThudCue());
+		assertEquals("entity.warden.heartbeat", DimensionalDoorSounds.denyThudCue().key());
+		assertEquals("entity.warden.heartbeat", DimensionalDoorSounds.denyThudSound());
+	}
+
+	@Test
+	void portalSurfaceUsesTheAmbientPortalCue()
+	{
+		assertEquals(DimensionalDoorSounds.SoundCue.PORTAL_AMBIENT, DimensionalDoorSounds.portalAmbientCue());
+		assertEquals("block.portal.ambient", DimensionalDoorSounds.portalAmbientCue().key());
+		assertEquals("block.portal.ambient", DimensionalDoorSounds.portalAmbientSound());
+	}
+
+	@Test
+	void denyCuesAreDistinctFromDoorCloseCues()
+	{
+		assertNotEquals(DimensionalDoorSounds.denyBassSound(), DimensionalDoorSounds.denyThudSound());
+		assertNotEquals(DimensionalDoorSounds.denyBassSound(), DimensionalDoorSounds.closeSound(Material.OAK_DOOR));
+		assertNotEquals(DimensionalDoorSounds.denyThudSound(), DimensionalDoorSounds.teleportSound());
 	}
 
 	@Test

@@ -7,6 +7,7 @@ import org.bukkit.ChunkSnapshot;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -72,6 +73,13 @@ public final class WormholesPlatform {
     private static final Method PLAYER_GET_SEND_VIEW_DISTANCE = resolveMethod(Player.class, "getSendViewDistance");
     private static final Method PLAYER_IS_CHUNK_SENT = resolveMethod(Player.class, "isChunkSent", long.class);
     private static final java.lang.invoke.MethodHandle PLAYER_IS_CHUNK_SENT_HANDLE = unreflectNoThrow(PLAYER_IS_CHUNK_SENT);
+    private static final Method BUKKIT_OFFLINE_PLAYER_IF_CACHED = resolveMethod(
+        Bukkit.class,
+        "getOfflinePlayerIfCached",
+        String.class
+    );
+    private static final java.lang.invoke.MethodHandle BUKKIT_OFFLINE_PLAYER_IF_CACHED_HANDLE =
+        unreflectNoThrow(BUKKIT_OFFLINE_PLAYER_IF_CACHED);
     private static final Method LIVING_CAN_USE_EQUIPMENT_SLOT = resolveMethod(
         LivingEntity.class,
         "canUseEquipmentSlot",
@@ -275,6 +283,23 @@ public final class WormholesPlatform {
             }
         }
         return Boolean.TRUE.equals(invokeNoThrow(PLAYER_IS_CHUNK_SENT, player, Long.valueOf(chunkKey)));
+    }
+
+    public static OfflinePlayer offlinePlayerIfCached(String name) {
+        if (name == null || name.isBlank()) {
+            return null;
+        }
+        String trimmed = name.trim();
+        if (BUKKIT_OFFLINE_PLAYER_IF_CACHED_HANDLE != null) {
+            try {
+                Object cached = BUKKIT_OFFLINE_PLAYER_IF_CACHED_HANDLE.invoke(trimmed);
+                return cached instanceof OfflinePlayer offlinePlayer ? offlinePlayer : null;
+            } catch (Throwable unsupported) {
+                return null;
+            }
+        }
+        Object direct = invokeNoThrow(BUKKIT_OFFLINE_PLAYER_IF_CACHED, null, trimmed);
+        return direct instanceof OfflinePlayer offlinePlayer ? offlinePlayer : null;
     }
 
     private static java.lang.invoke.MethodHandle unreflectNoThrow(Method method) {

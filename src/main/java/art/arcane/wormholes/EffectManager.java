@@ -44,6 +44,9 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.ITunnel;
+import art.arcane.wormholes.portal.LocalPortal;
+import art.arcane.wormholes.portal.PortalAccessPolicy;
+import art.arcane.wormholes.portal.PortalInteractionGestures;
 import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.network.view.RemoteViewCache;
@@ -421,6 +424,86 @@ public class EffectManager implements Listener
 			portal.onWanded(player);
 			return;
 		}
+	}
+
+	@EventHandler(priority = EventPriority.LOW)
+	public void onPortalMenuGesture(PlayerInteractEvent e)
+	{
+		if(e.getAction() != Action.RIGHT_CLICK_BLOCK)
+		{
+			return;
+		}
+
+		Player player = e.getPlayer();
+		if(!player.isSneaking())
+		{
+			return;
+		}
+
+		Block clicked = e.getClickedBlock();
+		if(clicked == null)
+		{
+			return;
+		}
+
+		boolean mainHandEmpty = isMainHandEmpty(player);
+		boolean opensMenu = PortalInteractionGestures.opensPortalMenu(true, mainHandEmpty, e.getAction(), e.getHand());
+		if(!opensMenu && !PortalInteractionGestures.deniesOffHandUse(true, mainHandEmpty, e.getAction(), e.getHand()))
+		{
+			return;
+		}
+
+		LocalPortal target = manageablePortalTouching(player, clicked);
+		if(target == null)
+		{
+			return;
+		}
+
+		e.setCancelled(true);
+		if(!opensMenu)
+		{
+			return;
+		}
+
+		Wormholes.v("QA_EVT {\"event\":\"portal_menu_open\",\"status\":\"info\",\"details\":\"sneak_gesture\",\"context\":{\"portal\":\""
+				+ target.getId() + "\"}}");
+		target.onWanded(player);
+	}
+
+	private static LocalPortal manageablePortalTouching(Player player, Block clicked)
+	{
+		World world = clicked.getWorld();
+		boolean administrator = player.isOp() || player.hasPermission("wormholes.admin");
+		UUID playerId = player.getUniqueId();
+		for(ILocalPortal portal : Wormholes.portalManager.getLocalPortals())
+		{
+			if(!(portal instanceof LocalPortal local))
+			{
+				continue;
+			}
+			if(!world.equals(local.getStructure().getWorld()))
+			{
+				continue;
+			}
+			if(!local.getStructure().containsOrAdjoinsBlock(clicked.getX(), clicked.getY(), clicked.getZ()))
+			{
+				continue;
+			}
+			if(!PortalAccessPolicy.canManage(local.getId(), local.getOwner(), playerId, administrator))
+			{
+				continue;
+			}
+
+			return local;
+		}
+
+		return null;
+	}
+
+	private static boolean isMainHandEmpty(Player player)
+	{
+		ItemStack handItem = player.getInventory().getItemInMainHand();
+		return handItem == null || handItem.getType().isAir();
 	}
 
 	public void playNotificationFail(String message, Player p)

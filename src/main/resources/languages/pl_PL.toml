@@ -345,6 +345,30 @@ locale = "pl_PL"
 "rtp.duration.minutes" = "{value}m"
 "rtp.duration.seconds" = "{value}s"
 "rtp.duration.decimal_seconds" = "{value}s"
+"door.access.label.unrestricted" = "Bez ograniczeń"
+"door.access.label.whitelist" = "Lista dozwolonych"
+"door.access.label.blacklist" = "Lista zablokowanych"
+"door.access.description.unrestricted" = "Każdy może korzystać z tych drzwi."
+"door.access.description.whitelist" = "Tylko gracze z listy mogą korzystać z tych drzwi."
+"door.access.description.blacklist" = "Gracze z listy nie mogą korzystać z tych drzwi."
+"door.access.kind.pair" = "Splątane"
+"door.access.kind.personal" = "Osobiste"
+"door.access.kind.public" = "Wspólne"
+"door.access.kind.return" = "Wyjściowe"
+"door.access.unknown_player" = "Nieznany ({id})"
+"door.access.edit_denied" = "<red>Tylko właściciel drzwi lub administrator może je edytować."
+"door.access.unavailable" = "<red>Te drzwi wymiarowe nie mają wpisu dostępu."
+"door.access.save_failed" = "<red>Nie udało się zapisać tej zmiany dostępu do drzwi."
+"door.access.player_not_found" = "<red>Nie znaleziono gracza o nazwie {name}."
+"door.access.owner_always" = "<gray>Właściciel drzwi zawsze ma dostęp."
+"door.access.already_listed" = "<gray>{name} jest już na liście tych drzwi."
+"door.access.added" = "<green>Dodano gracza {name} do listy tych drzwi."
+"door.access.removed" = "<green>Usunięto gracza {name} z listy tych drzwi."
+"door.access.mode_changed" = "<green>Dostęp do drzwi ustawiono na: {mode}."
+"door.access.prompt_player" = "<aqua>Wpisz nazwę gracza, którego dodać na listę tych drzwi (lub '{cancel}'):"
+"door.access.denied" = "<red>Te drzwi wymiarowe cię nie przepuszczają."
+"door.access.transit_denied" = "Nie masz dostępu do tych drzwi wymiarowych."
+"door.menu.access.title" = "Dostęp do drzwi: {kind}"
 
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>Travel Cost</bold>", "<gray>Require an exact item or Vault currency", "<gray>when a player uses this portal.", "", "<gray>Mode: <white>{mode}", "<gray>Cost: <white>{cost}", "", "<dark_gray>Click to configure."]
@@ -489,6 +513,10 @@ locale = "pl_PL"
 "rtp.confirm.confirm" = ["<yellow><bold>Potwierdź</bold>","<gray>Wykonaj czynność teraz.","<yellow>Lewy przycisk"]
 "rtp.confirm.cancel" = ["<yellow><bold>Anuluj</bold>","<gray>Wróć bez zmiany stanu działania.","<yellow>Lewy przycisk"]
 "rtp.status.header" = ["<gold><bold>Stan losowego celu</bold>","<gray>Stan: {state}"]
+"door.menu.access.placard" = ["<gold><bold>Drzwi Wymiarowe: {kind}</bold>","<gray>Właściciel: <white>{owner}","<gray>Dostęp: <gold>{mode}","<gray>Gracze na liście: <aqua>{count}","","<dark_gray>Drzwi edytują właściciele i administratorzy."]
+"door.menu.access.mode" = ["<gold><bold>Dostęp: {mode}</bold>","<gray>{description}","","<gray>Obecnie: <gold>{mode}","","<dark_gray>Kliknij, aby przełączać: bez ograniczeń, lista dozwolonych, lista zablokowanych.","<dark_gray>Właściciel i operatorzy zawsze przechodzą."]
+"door.menu.access.add_player" = ["<green><bold>Dodaj gracza</bold>","<gray>Wpisz nazwę gracza na czacie, aby dodać go na listę.","","<dark_gray>Kliknij, aby dodać gracza."]
+"door.menu.access.entry" = ["<white>{name}","<gray>Na liście tych drzwi.","","<dark_gray>Kliknij, aby usunąć."]
 
 [plural."command.wand.granted_runes"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Przyznano <white>{count} {rune}<green> runę."

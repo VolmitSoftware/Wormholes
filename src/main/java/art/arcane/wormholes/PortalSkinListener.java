@@ -15,6 +15,7 @@ import org.bukkit.inventory.ItemStack;
 
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
+import art.arcane.wormholes.portal.PortalInteractionGestures;
 import art.arcane.wormholes.portal.PortalSurfaceSkins;
 
 public class PortalSkinListener implements Listener
@@ -43,15 +44,14 @@ public class PortalSkinListener implements Listener
 
 		Player player = e.getPlayer();
 		ItemStack hand = player.getInventory().getItemInMainHand();
-		if(Wormholes.blockManager.isPortalTool(hand))
+		boolean empty = hand == null || hand.getType() == Material.AIR;
+		if(!PortalInteractionGestures.appliesSurfaceSkin(Wormholes.blockManager.isPortalTool(hand), empty))
 		{
 			return;
 		}
 
-		boolean empty = hand == null || hand.getType() == Material.AIR;
-		boolean clearIntent = empty && player.isSneaking();
-		String skin = empty ? null : skinForItem(hand.getType());
-		if(skin == null && !clearIntent)
+		String skin = skinForItem(hand.getType());
+		if(skin == null)
 		{
 			return;
 		}
@@ -66,19 +66,8 @@ public class PortalSkinListener implements Listener
 			{
 				continue;
 			}
-			if(clearIntent && !local.hasSurfaceSkin())
-			{
-				continue;
-			}
 			deny(e);
-			if(clearIntent)
-			{
-				local.clearSurfaceSkinFromInteraction(player);
-			}
-			else
-			{
-				local.applySurfaceSkinFromInteraction(player, skin);
-			}
+			local.applySurfaceSkinFromInteraction(player, skin);
 			return;
 		}
 	}
