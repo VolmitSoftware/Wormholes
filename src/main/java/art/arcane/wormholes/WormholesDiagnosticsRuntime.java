@@ -1,16 +1,29 @@
 package art.arcane.wormholes;
 
+import art.arcane.wormholes.config.WormholesSettings;
+import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.network.NetworkManager;
+import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.service.DebugTelemetryService;
 import art.arcane.wormholes.service.MetricsRuntime;
 import art.arcane.wormholes.service.StatsSnapshotWriter;
 
+import org.bstats.charts.AdvancedPie;
+import org.bstats.charts.SimplePie;
+import org.bstats.charts.SingleLineChart;
+
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 final class WormholesDiagnosticsRuntime {
-    private static final int BSTATS_PLUGIN_ID = 27950;
+    // bstats.org plugin id; 0 disables submission until the id is assigned
+    private static final int BSTATS_PLUGIN_ID = 0;
 
     private final Wormholes plugin;
     private MetricsRuntime metricsRuntime;
@@ -23,10 +36,55 @@ final class WormholesDiagnosticsRuntime {
     }
 
     void start() {
-        this.metricsRuntime = MetricsRuntime.start(plugin, BSTATS_PLUGIN_ID);
+        if (BSTATS_PLUGIN_ID > 0) {
+            MetricsRuntime runtime = MetricsRuntime.start(plugin, BSTATS_PLUGIN_ID);
+            registerMetricsCharts(runtime);
+            this.metricsRuntime = runtime;
+        }
         this.pluginStartedAt = Instant.now();
         startDebugTelemetryService();
         startStatsSnapshotWriter();
+    }
+
+    // Chart callables run on the bStats daemon thread (never main, even on Folia): read only volatile
+    // statics and immutable snapshots, and return null so the cycle is skipped when a manager is down.
+    private void registerMetricsCharts(MetricsRuntime metrics) {
+        metrics.addChart(new SingleLineChart("total_portals", () -> {
+            PortalManager portals = Wormholes.portalManager;
+            return portals == null ? null : Integer.valueOf(portals.getTotalPortalCount());
+        }));
+
+        metrics.addChart(new AdvancedPie("portals_by_type", () -> {
+            PortalManager portals = Wormholes.portalManager;
+            if (portals == null) {
+                return null;
+            }
+            Map<String, Integer> counts = new HashMap<String, Integer>();
+            for (ILocalPortal portal : portals.getLocalPortals()) {
+                PortalType type = portal.getType();
+                if (type == null) {
+                    continue;
+                }
+                counts.merge(type.name().toLowerCase(Locale.ROOT), Integer.valueOf(1), Integer::sum);
+            }
+            return counts;
+        }));
+
+        metrics.addChart(new SimplePie("cross_server", () -> {
+            WormholesSettings activeSettings = Wormholes.settings;
+            NetworkConfig network = activeSettings == null ? null : activeSettings.getNetwork();
+            return network == null ? null : String.valueOf(network.enabled);
+        }));
+
+        metrics.addChart(new SimplePie("wire_compression", () -> {
+            NetworkManager network = Wormholes.networkManager;
+            return network == null ? null : String.valueOf(network.compressionEnabled());
+        }));
+
+        metrics.addChart(new SingleLineChart("connected_peers", () -> {
+            NetworkManager network = Wormholes.networkManager;
+            return network == null ? null : Integer.valueOf(network.connectedPeers());
+        }));
     }
 
     void toggleDebugTelemetry(String actor) {
