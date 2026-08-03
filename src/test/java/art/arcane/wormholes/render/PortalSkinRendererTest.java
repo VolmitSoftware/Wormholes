@@ -1,16 +1,27 @@
 package art.arcane.wormholes.render;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
+import java.lang.reflect.Proxy;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
+import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.render.PortalSkinRenderer.SkinRenderMode;
 import art.arcane.wormholes.render.PortalSkinRenderer.SkinTransform;
 import art.arcane.wormholes.util.Axis;
 import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.wormholes.util.Cuboid;
+import art.arcane.wormholes.util.Direction;
 
 public final class PortalSkinRendererTest
 {
@@ -105,6 +116,53 @@ public final class PortalSkinRendererTest
         assertEquals(-0.5D, transform.translationY(), EPSILON);
         assertEquals(0.0D, transform.translationZ(), EPSILON);
         assertNormalSlabCenteredOnPlane(transform.anchorY(), transform.translationY(), transform.scaleY(), 64.5D, 1.0D);
+    }
+
+    @Test
+    public void everySkinPaneIsExactlyOneBlockThickAlongTheNormal()
+    {
+        List<SkinTransform> squarePanes = PortalSkinRenderer.buildPanes(portal(0, 0, 64, 66, 0, 2));
+        List<SkinTransform> singleCellPanes = PortalSkinRenderer.buildPanes(portal(0, 0, 64, 64, 0, 0));
+
+        assertFalse(squarePanes.isEmpty());
+        assertFalse(singleCellPanes.isEmpty());
+        for (SkinTransform pane : squarePanes)
+        {
+            assertEquals(1.0D, pane.scaleX(), EPSILON);
+            assertNormalSlabCenteredOnPlane(pane.anchorX(), pane.translationX(), pane.scaleX(), 0.0D, 1.0D);
+        }
+        for (SkinTransform pane : singleCellPanes)
+        {
+            assertEquals(1.0D, pane.scaleX(), EPSILON);
+            assertNormalSlabCenteredOnPlane(pane.anchorX(), pane.translationX(), pane.scaleX(), 0.0D, 1.0D);
+        }
+    }
+
+    private static ILocalPortal portal(int x1, int x2, int y1, int y2, int z1, int z2)
+    {
+        Map<String, Object> values = new HashMap<String, Object>();
+        values.put("worldKey", "minecraft:overworld");
+        values.put("x1", Integer.valueOf(x1));
+        values.put("y1", Integer.valueOf(y1));
+        values.put("z1", Integer.valueOf(z1));
+        values.put("x2", Integer.valueOf(x2));
+        values.put("y2", Integer.valueOf(y2));
+        values.put("z2", Integer.valueOf(z2));
+        PortalStructure structure = new PortalStructure();
+        structure.setArea(new Cuboid(values));
+        PortalFrame frame = PortalFrame.canonical(Direction.E);
+        Vector origin = new Vector(0.0D, y1, z1);
+        return (ILocalPortal) Proxy.newProxyInstance(ILocalPortal.class.getClassLoader(),
+            new Class<?>[] { ILocalPortal.class }, (proxy, method, arguments) -> switch(method.getName())
+            {
+                case "getStructure" -> structure;
+                case "getFrame" -> frame;
+                case "getOrigin" -> origin;
+                case "toString" -> "PortalSkinRendererTestPortal";
+                case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
+                case "equals" -> Boolean.valueOf(proxy == arguments[0]);
+                default -> throw new UnsupportedOperationException(method.getName());
+            });
     }
 
     private static void assertNormalSlabCenteredOnPlane(double anchor, double translation, double scale, double planeCoordinate, double thickness)

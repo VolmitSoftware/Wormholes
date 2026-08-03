@@ -18,11 +18,14 @@ final class DoorAccessPolicy {
         if (record.ownerId().equals(playerId)) {
             return true;
         }
-        return switch (record.mode()) {
-            case UNRESTRICTED -> true;
-            case WHITELIST -> record.players().contains(playerId);
-            case BLACKLIST -> !record.players().contains(playerId);
-        };
+        DoorAccessState state = record.stateOf(playerId);
+        if (state == DoorAccessState.BLACKLIST) {
+            return false;
+        }
+        if (!record.hasWhitelist()) {
+            return true;
+        }
+        return state == DoorAccessState.WHITELIST;
     }
 
     static boolean canManage(DoorAccessRecord record, UUID playerId, boolean administrator) {

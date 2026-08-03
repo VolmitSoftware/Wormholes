@@ -2,7 +2,6 @@ package art.arcane.wormholes.door;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -12,6 +11,7 @@ class DoorAccessPolicyTest {
     private static final UUID ITEM = new UUID(0, 1);
     private static final UUID OWNER = new UUID(0, 2);
     private static final UUID LISTED = new UUID(0, 3);
+    private static final UUID OTHER = new UUID(0, 5);
     private static final UUID STRANGER = new UUID(0, 4);
 
     @Test
@@ -21,43 +21,70 @@ class DoorAccessPolicyTest {
     }
 
     @Test
-    void bypassAndOwnershipDefeatEveryMode() {
-        for (DoorAccessMode mode : DoorAccessMode.values()) {
-            DoorAccessRecord record = record(mode, List.of(LISTED));
-            assertTrue(DoorAccessPolicy.canUse(record, STRANGER, true), mode.name());
-            assertTrue(DoorAccessPolicy.canUse(record, OWNER, false), mode.name());
+    void bypassAndOwnershipDefeatEveryState() {
+        for (DoorAccessState state : DoorAccessState.values()) {
+            DoorAccessRecord record = record(LISTED, state);
+            assertTrue(DoorAccessPolicy.canUse(record, STRANGER, true), state.name());
+            assertTrue(DoorAccessPolicy.canUse(record, OWNER, false), state.name());
         }
     }
 
     @Test
-    void unrestrictedDoorsAdmitEveryoneRegardlessOfTheList() {
-        DoorAccessRecord record = record(DoorAccessMode.UNRESTRICTED, List.of(LISTED));
+    void emptyListsAdmitEveryone() {
+        DoorAccessRecord record = DoorAccessRecord.unrestricted(ITEM, OWNER);
 
         assertTrue(DoorAccessPolicy.canUse(record, LISTED, false));
         assertTrue(DoorAccessPolicy.canUse(record, STRANGER, false));
     }
 
     @Test
-    void whitelistAdmitsOnlyListedPlayers() {
-        DoorAccessRecord record = record(DoorAccessMode.WHITELIST, List.of(LISTED));
+    void neutralEntriesChangeNothingOnTheirOwn() {
+        DoorAccessRecord record = record(LISTED, DoorAccessState.NEUTRAL);
 
         assertTrue(DoorAccessPolicy.canUse(record, LISTED, false));
-        assertFalse(DoorAccessPolicy.canUse(record, STRANGER, false));
-        assertFalse(DoorAccessPolicy.canUse(record(DoorAccessMode.WHITELIST, List.of()), LISTED, false));
+        assertTrue(DoorAccessPolicy.canUse(record, STRANGER, false));
     }
 
     @Test
-    void blacklistRefusesOnlyListedPlayers() {
-        DoorAccessRecord record = record(DoorAccessMode.BLACKLIST, List.of(LISTED));
+    void blacklistedPlayersAreAlwaysDenied() {
+        DoorAccessRecord record = record(LISTED, DoorAccessState.BLACKLIST);
 
         assertFalse(DoorAccessPolicy.canUse(record, LISTED, false));
         assertTrue(DoorAccessPolicy.canUse(record, STRANGER, false));
-        assertTrue(DoorAccessPolicy.canUse(record(DoorAccessMode.BLACKLIST, List.of()), LISTED, false));
+        assertFalse(DoorAccessPolicy.canUse(
+            record.withPlayerState(OTHER, DoorAccessState.WHITELIST), LISTED, false));
+    }
+
+    @Test
+    void anyWhitelistEntryLocksOutEveryUnlistedPlayer() {
+        DoorAccessRecord record = record(LISTED, DoorAccessState.WHITELIST);
+
+        assertTrue(DoorAccessPolicy.canUse(record, LISTED, false));
+        assertFalse(DoorAccessPolicy.canUse(record, STRANGER, false));
+        assertFalse(DoorAccessPolicy.canUse(
+            record.withPlayerState(OTHER, DoorAccessState.NEUTRAL), OTHER, false));
+    }
+
+    @Test
+    void ownersPassEvenWhenTheirOwnPaneIsBlacklisted() {
+        DoorAccessRecord record = DoorAccessRecord.unrestricted(ITEM, OWNER)
+            .withPlayerState(OWNER, DoorAccessState.BLACKLIST);
+
+        assertTrue(DoorAccessPolicy.canUse(record, OWNER, false));
+    }
+
+    @Test
+    void ownerAsTheSoleWhitelistEntryLocksOutStrangersButNeverTheOwner() {
+        DoorAccessRecord record = DoorAccessRecord.unrestricted(ITEM, OWNER)
+            .withPlayerState(OWNER, DoorAccessState.WHITELIST);
+
+        assertTrue(DoorAccessPolicy.canUse(record, OWNER, false));
+        assertFalse(DoorAccessPolicy.canUse(record, STRANGER, false));
     }
 
     @Test
     void onlyOwnersAndAdministratorsCanManage() {
-        DoorAccessRecord record = record(DoorAccessMode.WHITELIST, List.of(LISTED));
+        DoorAccessRecord record = record(LISTED, DoorAccessState.WHITELIST);
 
         assertTrue(DoorAccessPolicy.canManage(record, OWNER, false));
         assertFalse(DoorAccessPolicy.canManage(record, LISTED, false));
@@ -71,7 +98,7 @@ class DoorAccessPolicyTest {
         assertTrue(DoorAccessPolicy.canManage(null, OWNER, true));
     }
 
-    private static DoorAccessRecord record(DoorAccessMode mode, List<UUID> players) {
-        return new DoorAccessRecord(ITEM, mode, OWNER, players);
+    private static DoorAccessRecord record(UUID playerId, DoorAccessState state) {
+        return DoorAccessRecord.unrestricted(ITEM, OWNER).withPlayerState(playerId, state);
     }
 }

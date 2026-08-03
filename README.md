@@ -45,8 +45,17 @@ clearance beside the hinge, and extends flush to the opposite latch edge.
 Every crossing preserves the entered closed-door face at the destination:
 front-to-front and back-to-back, facing outward while preserving relative look
 direction and safely adjusting upward or downward for uneven terrain.
-There are no access lists, portal menus, or per-door configuration; normal door
-interaction and any server protection plugin remain the authority.
+Access is per player, not per door. The owner sneak-right-clicks a placed door
+with an empty hand to open a compact access window that grows one row for every
+nine listed players: a header with the door placard and the add-player button,
+then one stained-glass pane per listed player. Black is neutral and changes
+nothing, green whitelists, red blacklists. Left-click a pane to whitelist,
+right-click to blacklist, and middle-click or shift-left-click to drop the
+player from the list. A blacklisted player is always refused; once anybody is
+whitelisted, everyone who is not whitelisted is refused as well. The owner,
+operators, `wormholes.admin`, and `wormholes.doors.bypass` holders always pass,
+and exit doors inside pockets are never gated. Normal door interaction and any
+server protection plugin remain the authority everywhere else.
 
 - **Entangled Door Pair:** right-click either the air or a block with the crafted
   bundle to unpack automatically linked A/B Wormhole Doors. Either endpoint can
@@ -110,6 +119,19 @@ ordinary doors, while saved door and pocket identities remain available if the
 setting is re-enabled.
 
 ## Cross-server handoff
+
+Servers pair by exchanging pasteable codes. `/wormhole server export` prints a
+click-to-copy server code (console output prints the raw code instead); paste it
+on the other server with `/wormhole server import <code>` to store the route and
+trusted key under `routes/` and `trust/` in the plugin data folder. Portal codes
+from a gateway's Export button are accepted by the same import and save the same
+route. `/wormhole server list` shows every linked server with its live
+reachability, `/wormhole server remove <name>` deletes a link again (while
+`trust-on-first-use` is enabled, an online peer that still has this server saved
+re-registers itself through the sideband, so remove the link on both servers),
+and
+`/wormhole server <name>` (long form `/wormhole server connect <name>`) transfers
+you to that server over the same direct or proxy path portal traversals use.
 
 Imported portal codes retain both public and LAN route candidates. Direct player
 handoffs use a private fallback only when the player connected from loopback or

@@ -11,7 +11,9 @@ import java.security.KeyPairGenerator;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NetworkPersistenceTest {
@@ -75,5 +77,34 @@ class NetworkPersistenceTest {
         PeerTrustStore reloaded = PeerTrustStore.loadOrCreate(tempDir);
         assertTrue(reloaded.isTrusted("beta", publicKey));
         assertArrayEquals(publicKey, reloaded.get("beta"));
+    }
+
+    @Test
+    void peerRouteStoreRemoveDeletesPersistedRoute() throws Exception {
+        PeerRouteStore store = PeerRouteStore.loadOrCreate(tempDir);
+        NetworkConfig.PeerEntry route = new NetworkConfig.PeerEntry();
+        route.name = "beta";
+        route.host = "10.0.0.2";
+        store.save(route);
+
+        assertTrue(store.remove("beta"));
+        assertNull(store.get("beta"));
+        assertFalse(store.remove("beta"));
+        assertNull(PeerRouteStore.loadOrCreate(tempDir).get("beta"));
+    }
+
+    @Test
+    void peerTrustStoreRemoveForgetsPersistedKey() throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("Ed25519");
+        byte[] publicKey = generator.generateKeyPair().getPublic().getEncoded();
+        PeerTrustStore store = PeerTrustStore.loadOrCreate(tempDir);
+        assertTrue(store.trust("beta", publicKey));
+
+        assertTrue(store.remove("beta"));
+        assertNull(store.get("beta"));
+        assertNull(store.getPublicKey("beta"));
+        assertFalse(store.isTrusted("beta", publicKey));
+        assertFalse(store.remove("beta"));
+        assertNull(PeerTrustStore.loadOrCreate(tempDir).get("beta"));
     }
 }

@@ -47,6 +47,8 @@ import art.arcane.wormholes.util.Direction;
 
 public final class PortalSkinRenderer {
     static final int MAX_PER_CELL_PANES = 128;
+    // Skin panes are always a full block deep so they never thin out at grazing view angles.
+    static final double SURFACE_THICKNESS_BLOCKS = 1.0D;
     private static final int FULL_BRIGHT = (15 << 4) | (15 << 20);
     private static final float VIEW_RANGE = 64.0F;
     private static final AtomicInteger NEXT_SKIN_ID = new AtomicInteger(1_800_000_000);
@@ -249,10 +251,9 @@ public final class PortalSkinRenderer {
         PortalStructure structure = portal.getStructure();
         Axis normalAxis = portal.getFrame().getNormal().getAxis();
         double planeCoordinate = axisComponent(portal.getOrigin(), normalAxis);
-        double thickness = portal.getSurfaceThickness() / 100.0D;
         KList<Vector> cells = structure.getBlockPositions();
         if (structure.isFullCuboid() || cells.isEmpty() || cells.size() > MAX_PER_CELL_PANES) {
-            return List.of(skinTransforms(structure.getArea(), normalAxis, planeCoordinate, thickness));
+            return List.of(skinTransforms(structure.getArea(), normalAxis, planeCoordinate, SURFACE_THICKNESS_BLOCKS));
         }
         List<SkinTransform> panes = new ArrayList<SkinTransform>(cells.size());
         for (Vector cell : cells) {
@@ -260,7 +261,7 @@ public final class PortalSkinRenderer {
             int y = cell.getBlockY();
             int z = cell.getBlockZ();
             AxisAlignedBB cellBox = new AxisAlignedBB(x, x + 1.0D, y, y + 1.0D, z, z + 1.0D);
-            panes.add(skinTransforms(cellBox, normalAxis, planeCoordinate, thickness));
+            panes.add(skinTransforms(cellBox, normalAxis, planeCoordinate, SURFACE_THICKNESS_BLOCKS));
         }
         return panes;
     }
@@ -350,7 +351,7 @@ public final class PortalSkinRenderer {
     }
 
     private static String stateKey(ILocalPortal portal) {
-        return portal.getStructure().getRevision() + "|" + portal.getSurfaceSkin() + "|" + portal.getSurfaceThickness();
+        return portal.getStructure().getRevision() + "|" + portal.getSurfaceSkin();
     }
 
     private static double priorityDistance(Player observer, ILocalPortal portal) {

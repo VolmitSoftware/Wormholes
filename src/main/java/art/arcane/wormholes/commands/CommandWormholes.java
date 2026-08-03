@@ -34,6 +34,7 @@ public class CommandWormholes {
     private final Wormholes plugin;
     private CommandAdmin admin = new CommandAdmin();
     private CommandNetwork network = new CommandNetwork();
+    private CommandServer server = new CommandServer();
 
     public CommandWormholes(Wormholes plugin) {
         this.plugin = plugin;

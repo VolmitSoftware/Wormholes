@@ -66,6 +66,15 @@ public final class PeerTrustStore {
         return true;
     }
 
+    public boolean remove(String serverName) {
+        if (serverName == null || serverName.isBlank() || trustedKeys.remove(serverName) == null) {
+            return false;
+        }
+        decodedTrustedKeys.remove(serverName);
+        persist();
+        return true;
+    }
+
     public void trustOrReplace(String serverName, byte[] publicKey) {
         if (serverName == null || serverName.isBlank() || publicKey == null || publicKey.length == 0) {
             return;

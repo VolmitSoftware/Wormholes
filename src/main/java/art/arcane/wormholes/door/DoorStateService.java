@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -136,12 +135,7 @@ public final class DoorStateService {
         LinkedHashMap<UUID, DoorAccessRecord> candidateAccess = accessByItem;
         if (identity.kind() != DoorKind.RETURN && !accessByItem.containsKey(identity.itemId())) {
             candidateAccess = new LinkedHashMap<>(accessByItem);
-            candidateAccess.put(identity.itemId(), new DoorAccessRecord(
-                identity.itemId(),
-                DoorAccessMode.UNRESTRICTED,
-                ownerId,
-                List.of()
-            ));
+            candidateAccess.put(identity.itemId(), DoorAccessRecord.unrestricted(identity.itemId(), ownerId));
         }
         persistAndPublish(candidateRegistry, allocator, pairsById, ticketsByPlayer, candidateAccess);
         return true;
@@ -249,24 +243,25 @@ public final class DoorStateService {
         return Optional.ofNullable(accessByItem.get(Objects.requireNonNull(itemId, "itemId")));
     }
 
-    public synchronized boolean setAccessMode(UUID itemId, DoorAccessMode mode) throws IOException {
+    public synchronized boolean setAccessState(UUID itemId, UUID playerId, DoorAccessState state) throws IOException {
         Objects.requireNonNull(itemId, "itemId");
-        Objects.requireNonNull(mode, "mode");
+        Objects.requireNonNull(playerId, "playerId");
+        Objects.requireNonNull(state, "state");
         DoorAccessRecord existing = accessByItem.get(itemId);
-        if (existing == null) {
+        if (existing == null || !existing.isListed(playerId)) {
             return false;
         }
-        return publishAccessRecord(existing, existing.withMode(mode));
+        return publishAccessRecord(existing, existing.withPlayerState(playerId, state));
     }
 
     public synchronized boolean addAccessPlayer(UUID itemId, UUID playerId) throws IOException {
         Objects.requireNonNull(itemId, "itemId");
         Objects.requireNonNull(playerId, "playerId");
         DoorAccessRecord existing = accessByItem.get(itemId);
-        if (existing == null) {
+        if (existing == null || existing.isListed(playerId)) {
             return false;
         }
-        return publishAccessRecord(existing, existing.withPlayerAdded(playerId));
+        return publishAccessRecord(existing, existing.withPlayerState(playerId, DoorAccessState.NEUTRAL));
     }
 
     public synchronized boolean removeAccessPlayer(UUID itemId, UUID playerId) throws IOException {

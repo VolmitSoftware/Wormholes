@@ -21,6 +21,10 @@ public final class RemotePortalRegistry {
         byPeer.put(peerName, fresh);
     }
 
+    public void removePeer(String peerName) {
+        byPeer.remove(peerName);
+    }
+
     public void applyUpsert(String peerName, PortalInfo info) {
         byPeer.computeIfAbsent(peerName, key -> new ConcurrentHashMap<>())
             .compute(info.id(), (id, existing) -> refreshedPortal(peerName, info, existing));
@@ -78,7 +82,6 @@ public final class RemotePortalRegistry {
         refreshed.setMirroredAmbientStyle(existing.getMirroredAmbientStyle());
         refreshed.setMirroredAmbientColor(existing.getMirroredAmbientColor());
         refreshed.setMirroredSurfaceSkin(existing.getMirroredSurfaceSkin());
-        refreshed.setMirroredSurfaceThickness(existing.getMirroredSurfaceThickness());
         return refreshed;
     }
 }

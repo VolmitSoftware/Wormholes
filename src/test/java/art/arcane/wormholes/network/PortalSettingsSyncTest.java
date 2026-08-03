@@ -34,6 +34,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PortalSettingsSyncTest {
+    // Wire key retired with the per-portal surface thickness knob; older peers still send it.
+    private static final String LEGACY_KEY_SURFACE_THICKNESS = "surfaceThickness";
+
     @Test
     void productionSettingsKeepProjectionAndMirrorIndependent() {
         LocalPortal portal = localPortal();
@@ -169,7 +172,6 @@ class PortalSettingsSyncTest {
         settings.put(PortalSyncService.KEY_AMBIENT_STYLE, "OUTLINE");
         settings.put(PortalSyncService.KEY_AMBIENT_COLOR, Integer.toString(0x123456));
         settings.put(PortalSyncService.KEY_SURFACE_SKIN, "minecraft:glass");
-        settings.put(PortalSyncService.KEY_SURFACE_THICKNESS, "45");
 
         PortalSyncService.applyToRemote(remote, settings);
 
@@ -192,7 +194,6 @@ class PortalSettingsSyncTest {
         assertEquals(AmbientParticleStyle.OUTLINE, remote.getMirroredAmbientStyle());
         assertEquals(0x123456, remote.getMirroredAmbientColor());
         assertEquals("minecraft:glass", remote.getMirroredSurfaceSkin());
-        assertEquals(45, remote.getMirroredSurfaceThickness());
     }
 
     @Test
@@ -275,14 +276,13 @@ class PortalSettingsSyncTest {
         portal.setAmbientStyle(AmbientParticleStyle.CORNERS);
         portal.setAmbientColor(0x00FF00);
         portal.setSurfaceSkin("minecraft:glass");
-        portal.setSurfaceThickness(45);
 
         Map<String, String> settings = PortalSyncService.collectSettings(portal);
 
         assertEquals("CORNERS", settings.get(PortalSyncService.KEY_AMBIENT_STYLE));
         assertEquals(Integer.toString(0x00FF00), settings.get(PortalSyncService.KEY_AMBIENT_COLOR));
         assertEquals("minecraft:glass", settings.get(PortalSyncService.KEY_SURFACE_SKIN));
-        assertEquals("45", settings.get(PortalSyncService.KEY_SURFACE_THICKNESS));
+        assertFalse(settings.containsKey(LEGACY_KEY_SURFACE_THICKNESS));
     }
 
     @Test
@@ -292,26 +292,43 @@ class PortalSettingsSyncTest {
         valid.put(PortalSyncService.KEY_AMBIENT_STYLE, "CORNERS");
         valid.put(PortalSyncService.KEY_AMBIENT_COLOR, Integer.toString(0x00FF00));
         valid.put(PortalSyncService.KEY_SURFACE_SKIN, "minecraft:glass");
-        valid.put(PortalSyncService.KEY_SURFACE_THICKNESS, "45");
 
         PortalSyncService.applyToLocal(portal, valid);
 
         assertEquals(AmbientParticleStyle.CORNERS, portal.getAmbientStyle());
         assertEquals(0x00FF00, portal.getAmbientColor());
         assertEquals("minecraft:glass", portal.getSurfaceSkin());
-        assertEquals(45, portal.getSurfaceThickness());
         assertTrue(portal.hasSurfaceSkin());
 
         Map<String, String> malformed = new LinkedHashMap<>();
         malformed.put(PortalSyncService.KEY_AMBIENT_STYLE, "NOT_A_STYLE");
         malformed.put(PortalSyncService.KEY_AMBIENT_COLOR, "xyz");
-        malformed.put(PortalSyncService.KEY_SURFACE_THICKNESS, "abc");
 
         PortalSyncService.applyToLocal(portal, malformed);
 
         assertEquals(AmbientParticleStyle.CORNERS, portal.getAmbientStyle());
         assertEquals(0x00FF00, portal.getAmbientColor());
-        assertEquals(45, portal.getSurfaceThickness());
+    }
+
+    @Test
+    void legacyPeerSurfaceThicknessKeyIsIgnoredWithoutDisturbingOtherSettings() {
+        LocalPortal portal = localPortal();
+        Map<String, String> fromOlderPeer = new LinkedHashMap<>();
+        fromOlderPeer.put(LEGACY_KEY_SURFACE_THICKNESS, "45");
+        fromOlderPeer.put(PortalSyncService.KEY_SURFACE_SKIN, "minecraft:glass");
+        fromOlderPeer.put(PortalSyncService.KEY_ACTIVATION_RANGE, "96");
+
+        PortalSyncService.applyToLocal(portal, fromOlderPeer);
+
+        assertEquals("minecraft:glass", portal.getSurfaceSkin());
+        assertEquals(96, portal.getActivationRange());
+
+        RemotePortal remote = newRemotePortal("alpha", UUID.randomUUID());
+
+        PortalSyncService.applyToRemote(remote, fromOlderPeer);
+
+        assertEquals("minecraft:glass", remote.getMirroredSurfaceSkin());
+        assertEquals(96, remote.getMirroredActivationRange());
     }
 
     @Test
@@ -323,7 +340,6 @@ class PortalSettingsSyncTest {
         remote.setMirroredAmbientStyle(AmbientParticleStyle.CORNERS);
         remote.setMirroredAmbientColor(0x00FF00);
         remote.setMirroredSurfaceSkin("minecraft:glass");
-        remote.setMirroredSurfaceThickness(45);
 
         registry.applyDirectory("alpha", List.of(portalInfo(portalId, true)));
 
@@ -332,7 +348,6 @@ class PortalSettingsSyncTest {
         assertEquals(AmbientParticleStyle.CORNERS, refreshed.getMirroredAmbientStyle());
         assertEquals(0x00FF00, refreshed.getMirroredAmbientColor());
         assertEquals("minecraft:glass", refreshed.getMirroredSurfaceSkin());
-        assertEquals(45, refreshed.getMirroredSurfaceThickness());
     }
 
     @Test

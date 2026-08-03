@@ -804,18 +804,6 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener
 		settings.setSurfaceSkin(skin);
 	}
 
-	@Override
-	public int getSurfaceThickness()
-	{
-		return settings.getSurfaceThickness();
-	}
-
-	@Override
-	public void setSurfaceThickness(int thicknessCentiblocks)
-	{
-		settings.setSurfaceThickness(thicknessCentiblocks);
-	}
-
 	public boolean isSettingsSyncEnabled()
 	{
 		return settings.isSettingsSyncEnabled();

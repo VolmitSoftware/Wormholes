@@ -32,7 +32,6 @@ public final class PortalCosmeticSettingsPersistenceTest
 		portal.setAmbientStyle(AmbientParticleStyle.OUTLINE);
 		portal.setAmbientColor(0x123456);
 		portal.setSurfaceSkin("minecraft:glass");
-		portal.setSurfaceThickness(45);
 		portal.setRenderMode(ProjectionRenderMode.PLANNAR_OPTIC);
 
 		JSONObject json = portal.toJSON();
@@ -40,16 +39,30 @@ public final class PortalCosmeticSettingsPersistenceTest
 		assertEquals("OUTLINE", json.getString("ambientStyle"));
 		assertEquals(0x123456, json.getInt("ambientColor"));
 		assertEquals("minecraft:glass", json.getString("surfaceSkin"));
-		assertEquals(45, json.getInt("surfaceThickness"));
+		assertFalse(json.has("surfaceThickness"));
 		assertEquals("PLANNAR_OPTIC", json.getString("renderMode"));
 
 		LocalPortal reloaded = loadPortal(json, world);
 		assertEquals(AmbientParticleStyle.OUTLINE, reloaded.getAmbientStyle());
 		assertEquals(0x123456, reloaded.getAmbientColor());
 		assertEquals("minecraft:glass", reloaded.getSurfaceSkin());
-		assertEquals(45, reloaded.getSurfaceThickness());
 		assertTrue(reloaded.hasSurfaceSkin());
 		assertEquals(ProjectionRenderMode.PLANNAR_OPTIC, reloaded.getRenderMode());
+	}
+
+	@Test
+	public void legacySurfaceThicknessKeyLoadsAndIsDroppedOnResave() throws Exception
+	{
+		World world = world("overworld", -64, 320, 63);
+		LocalPortal portal = portal(world);
+		portal.setSurfaceSkin("minecraft:glass");
+		JSONObject json = portal.toJSON();
+		json.put("surfaceThickness", 45);
+
+		LocalPortal reloaded = loadPortal(json, world);
+
+		assertEquals("minecraft:glass", reloaded.getSurfaceSkin());
+		assertFalse(reloaded.toJSON().has("surfaceThickness"));
 	}
 
 	@Test
@@ -61,7 +74,6 @@ public final class PortalCosmeticSettingsPersistenceTest
 		json.remove("ambientStyle");
 		json.remove("ambientColor");
 		json.remove("surfaceSkin");
-		json.remove("surfaceThickness");
 		json.remove("renderMode");
 
 		LocalPortal reloaded = loadPortal(json, world);
@@ -69,13 +81,12 @@ public final class PortalCosmeticSettingsPersistenceTest
 		assertEquals(AmbientParticleStyle.SPARKS, reloaded.getAmbientStyle());
 		assertEquals(0xB969FF, reloaded.getAmbientColor());
 		assertEquals("", reloaded.getSurfaceSkin());
-		assertEquals(20, reloaded.getSurfaceThickness());
 		assertFalse(reloaded.hasSurfaceSkin());
 		assertEquals(ProjectionRenderMode.PANOPTIC, reloaded.getRenderMode());
 	}
 
 	@Test
-	public void settersNormalizeColorThicknessAndSkin()
+	public void settersNormalizeColorAndSkin()
 	{
 		World world = world("overworld", -64, 320, 63);
 		LocalPortal portal = portal(world);
@@ -88,15 +99,6 @@ public final class PortalCosmeticSettingsPersistenceTest
 
 		portal.setAmbientColor(0x00FF00);
 		assertEquals(0x00FF00, portal.getAmbientColor());
-
-		portal.setSurfaceThickness(1);
-		assertEquals(5, portal.getSurfaceThickness());
-
-		portal.setSurfaceThickness(500);
-		assertEquals(100, portal.getSurfaceThickness());
-
-		portal.setSurfaceThickness(30);
-		assertEquals(30, portal.getSurfaceThickness());
 
 		portal.setSurfaceSkin("  Minecraft:Glass  ");
 		assertEquals("minecraft:glass", portal.getSurfaceSkin());

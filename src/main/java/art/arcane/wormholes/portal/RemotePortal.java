@@ -35,7 +35,6 @@ public class RemotePortal extends Portal implements IRemotePortal {
     private volatile AmbientParticleStyle mirroredAmbientStyle;
     private volatile int mirroredAmbientColor;
     private volatile String mirroredSurfaceSkin;
-    private volatile int mirroredSurfaceThickness;
 
     public RemotePortal(UUID id, RemoteWorld server, Vector origin, PortalType type, boolean open, AxisAlignedBB area) {
         super(id, origin);
@@ -62,7 +61,6 @@ public class RemotePortal extends Portal implements IRemotePortal {
         this.mirroredAmbientStyle = AmbientParticleStyle.SPARKS;
         this.mirroredAmbientColor = 0xB969FF;
         this.mirroredSurfaceSkin = "";
-        this.mirroredSurfaceThickness = 20;
     }
 
     public static RemotePortal fromInfo(String serverName, PortalInfo info) {
@@ -266,13 +264,5 @@ public class RemotePortal extends Portal implements IRemotePortal {
 
     public void setMirroredSurfaceSkin(String skin) {
         this.mirroredSurfaceSkin = skin == null ? "" : skin;
-    }
-
-    public int getMirroredSurfaceThickness() {
-        return mirroredSurfaceThickness;
-    }
-
-    public void setMirroredSurfaceThickness(int thicknessCentiblocks) {
-        this.mirroredSurfaceThickness = thicknessCentiblocks;
     }
 }

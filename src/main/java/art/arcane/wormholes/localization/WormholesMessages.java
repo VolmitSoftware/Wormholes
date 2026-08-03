@@ -39,6 +39,15 @@ public final class WormholesMessages {
     public static final TextKey COMMAND_NETWORK_CODE_DESCRIPTION = text("command.help.network.import.code", "Portal code from the other server's Export button");
     public static final TextKey COMMAND_NETWORK_STATUS_DESCRIPTION = text("command.help.network.status", "Show peer connection status");
     public static final TextKey COMMAND_NETWORK_DOCTOR_DESCRIPTION = text("command.help.network.doctor", "Explain why network peers are not connecting");
+    public static final TextKey COMMAND_SERVER_DESCRIPTION = text("command.help.server", "Cross-server travel: connect to, list, and exchange linked servers");
+    public static final TextKey COMMAND_SERVER_CONNECT_DESCRIPTION = text("command.help.server.connect", "Transfer yourself to a linked server (shorthand: /wh server \\<name>)");
+    public static final TextKey COMMAND_SERVER_CONNECT_NAME_DESCRIPTION = text("command.help.server.connect.name", "Linked server name (see /wh server list)");
+    public static final TextKey COMMAND_SERVER_EXPORT_DESCRIPTION = text("command.help.server.export", "Export this server as a code other servers can import");
+    public static final TextKey COMMAND_SERVER_IMPORT_DESCRIPTION = text("command.help.server.import", "Import a server or portal code exported by another server");
+    public static final TextKey COMMAND_SERVER_IMPORT_CODE_DESCRIPTION = text("command.help.server.import.code", "Code from the other server's export");
+    public static final TextKey COMMAND_SERVER_LIST_DESCRIPTION = text("command.help.server.list", "List linked servers and their connection state");
+    public static final TextKey COMMAND_SERVER_REMOVE_DESCRIPTION = text("command.help.server.remove", "Forget a linked server (deletes its route and trusted key)");
+    public static final TextKey COMMAND_SERVER_REMOVE_NAME_DESCRIPTION = text("command.help.server.remove.name", "Linked server name to forget");
 
     public static final TextKey COMMAND_NO_PERMISSION = text("command.error.no_permission", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>You do not have permission.");
     public static final TextKey COMMAND_NO_PERMISSION_USE = text("command.error.no_permission_use", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>You do not have permission to use that command.");
@@ -128,6 +137,21 @@ public final class WormholesMessages {
     public static final TextKey NETWORK_ROUTE_SAVED = text("network.code.route_saved", "<green>Saved route to {server} with public key {fingerprint}. '{portal}' will appear in gateway Link menus once connected.");
     public static final TextKey NETWORK_CHECK_STATUS = text("network.code.check_status", "<dark_gray>Check /wh network status for the connection state.");
     public static final TextKey NETWORK_USING_ADDRESS = text("network.code.using_address", "<gray>Using {address} in this portal code; the public address auto-detects and self-corrects over the signed handshake if it changes.");
+
+    public static final TextKey SERVER_COPY_CODE = text("server.code.copy", "<gold><bold>[Copy server code: {server}]</bold>");
+    public static final TextKey SERVER_COPY_CODE_HOVER = text("server.code.copy_hover", "<gray>Click to copy. Paste it on the other server:\n/wh server import \\<code>");
+    public static final TextKey SERVER_CODE_RAW = text("server.code.raw", "<gray>Server code: <white>{code}");
+    public static final TextKey SERVER_SAVED = text("server.code.saved", "<green>Saved server <white>{server}<green> with public key {fingerprint}. Connect with <white>/wh server {server}<green>.");
+    public static final TextKey SERVER_CONNECTING = text("server.connect.sending", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Sending you to <white>{server}<green>...");
+    public static final TextKey SERVER_NOT_READY = text("server.connect.not_ready", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{server} is not reachable right now. Check /wh network status.");
+    public static final TextKey SERVER_CONNECT_FAILED = text("server.connect.failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Could not transfer you to {server}. Check the console and /wh network status.");
+    public static final TextKey SERVER_ONLY_PLAYERS = text("server.connect.only_players", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Only players can connect to another server.");
+    public static final TextKey SERVER_UNKNOWN = text("server.unknown", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Unknown server '<white>{server}<red>'. Import its code first or see /wh server list.");
+    public static final TextKey SERVER_LIST_HEADER = text("server.list.header", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Linked servers:");
+    public static final TextKey SERVER_LIST_EMPTY = text("server.list.empty", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>No servers linked yet. Use <white>/wh server import \\<code><gray>.");
+    public static final TextKey SERVER_LIST_ENTRY = text("server.list.entry", "<dark_gray>[<gold>Wormholes<dark_gray>] <white>{server}<gray> {state} <dark_gray>{address}");
+    public static final TextKey SERVER_REMOVED = text("server.removed", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Removed server <white>{server}<green> and its trusted key.");
+    public static final TextKey SERVER_NAME_EMPTY = text("server.name_empty", "Server name cannot be empty");
 
     public static final LinesKey ITEM_PORTAL_WAND = lines("item.portal_wand", "<gold><bold>Portal Wand</bold>");
     public static final LinesKey ITEM_PORTAL_RUNE = lines("item.portal_rune", "<gold><bold>Portal Rune</bold>");
@@ -249,12 +273,9 @@ public final class WormholesMessages {
     public static final TextKey DOOR_RESCUE_START_FAILED = text("door.rescue.reason.start_failed", "The emergency ejection could not start.");
     public static final TextKey DOOR_RESCUE_FAILED = text("door.rescue.failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>{route} {fallback} You remain protected at one heart.");
 
-    public static final TextKey DOOR_ACCESS_LABEL_UNRESTRICTED = text("door.access.label.unrestricted", "Unrestricted");
+    public static final TextKey DOOR_ACCESS_LABEL_NEUTRAL = text("door.access.label.neutral", "Neutral");
     public static final TextKey DOOR_ACCESS_LABEL_WHITELIST = text("door.access.label.whitelist", "Whitelist");
     public static final TextKey DOOR_ACCESS_LABEL_BLACKLIST = text("door.access.label.blacklist", "Blacklist");
-    public static final TextKey DOOR_ACCESS_DESCRIPTION_UNRESTRICTED = text("door.access.description.unrestricted", "Everyone may use this door.");
-    public static final TextKey DOOR_ACCESS_DESCRIPTION_WHITELIST = text("door.access.description.whitelist", "Only listed players may use this door.");
-    public static final TextKey DOOR_ACCESS_DESCRIPTION_BLACKLIST = text("door.access.description.blacklist", "Listed players may not use this door.");
     public static final TextKey DOOR_ACCESS_KIND_PAIR = text("door.access.kind.pair", "Entangled");
     public static final TextKey DOOR_ACCESS_KIND_PERSONAL = text("door.access.kind.personal", "Personal");
     public static final TextKey DOOR_ACCESS_KIND_PUBLIC = text("door.access.kind.public", "Public");
@@ -268,7 +289,7 @@ public final class WormholesMessages {
     public static final TextKey DOOR_ACCESS_ALREADY_LISTED = text("door.access.already_listed", "<gray>{name} is already listed for this door.");
     public static final TextKey DOOR_ACCESS_ADDED = text("door.access.added", "<green>{name} was added to this door's list.");
     public static final TextKey DOOR_ACCESS_REMOVED = text("door.access.removed", "<green>{name} was removed from this door's list.");
-    public static final TextKey DOOR_ACCESS_MODE_CHANGED = text("door.access.mode_changed", "<green>Door access set to {mode}.");
+    public static final TextKey DOOR_ACCESS_STATE_CHANGED = text("door.access.state_changed", "<green>{name} is now {state} for this door.");
     public static final TextKey DOOR_ACCESS_PROMPT_PLAYER = text("door.access.prompt_player", "<aqua>Type the player name to list for this door (or '{cancel}'):");
     public static final TextKey DOOR_ACCESS_DENIED = text("door.access.denied", "<red>This dimensional door refuses you.");
     public static final TextKey DOOR_ACCESS_TRANSIT_DENIED = text("door.access.transit_denied", "You do not have access to this dimensional door.");
@@ -277,18 +298,10 @@ public final class WormholesMessages {
     public static final LinesKey DOOR_MENU_ACCESS_PLACARD = lines("door.menu.access.placard",
             "<gold><bold>{kind} Dimensional Door</bold>",
             "<gray>Owner: <white>{owner}",
-            "<gray>Access: <gold>{mode}",
+            "<gray>Whitelisted: <green>{whitelisted}",
+            "<gray>Blacklisted: <red>{blacklisted}",
             "<gray>Listed players: <aqua>{count}",
-            "",
             "<dark_gray>Owners and administrators edit this door.");
-    public static final LinesKey DOOR_MENU_ACCESS_MODE = lines("door.menu.access.mode",
-            "<gold><bold>Access {mode}</bold>",
-            "<gray>{description}",
-            "",
-            "<gray>Currently: <gold>{mode}",
-            "",
-            "<dark_gray>Click to cycle unrestricted, whitelist, blacklist.",
-            "<dark_gray>The owner and operators always pass.");
     public static final LinesKey DOOR_MENU_ACCESS_ADD_PLAYER = lines("door.menu.access.add_player",
             "<green><bold>Add Player</bold>",
             "<gray>Type a player name in chat to list them.",
@@ -296,9 +309,10 @@ public final class WormholesMessages {
             "<dark_gray>Click to add a player.");
     public static final LinesKey DOOR_MENU_ACCESS_ENTRY = lines("door.menu.access.entry",
             "<white>{name}",
-            "<gray>Listed for this door.",
+            "<gray>State: <aqua>{state}",
             "",
-            "<dark_gray>Click to remove.");
+            "<dark_gray>Left click: whitelist. Right click: blacklist.",
+            "<dark_gray>Middle click or shift + left click: remove.");
 
     public static final LinesKey PORTAL_MENU_DESTINATION = lines("portal.menu.destination",
             "<gold><bold>Destination</bold>",
@@ -479,7 +493,6 @@ public final class WormholesMessages {
             "<gray>Cover the portal aperture with a rendered block or fluid pane.",
             "",
             "<gray>Skin: <white>{skin}",
-            "<gray>Thickness: <white>{thickness}",
             "",
             "<dark_gray>Left: clear the skin.",
             "<dark_gray>Right: open skin options.");
@@ -487,16 +500,7 @@ public final class WormholesMessages {
             "<gold><bold>Surface Skin</bold>",
             "<gray>Right-click the portal with a block or bucket to apply a skin.",
             "",
-            "<gray>Skin: <white>{skin}",
-            "<gray>Thickness: <white>{thickness}");
-    public static final LinesKey PORTAL_MENU_SURFACE_THICKNESS = lines("portal.menu.surface_skin.thickness",
-            "<aqua><bold>Surface Thickness <white>{value}</bold>",
-            "<gray>Depth of the rendered pane in blocks.",
-            "",
-            "<dark_gray>Left click: +{step}",
-            "<dark_gray>Right click: -{step}",
-            "<dark_gray>Shift-left: +{large_step}",
-            "<dark_gray>Shift-right: -{large_step}");
+            "<gray>Skin: <white>{skin}");
     public static final LinesKey PORTAL_MENU_SURFACE_SKIN_GLASS = lines("portal.menu.surface_skin.glass",
             "<aqua><bold>Glass Skin</bold>",
             "<gray>A clear glass window over the aperture.",
@@ -827,7 +831,6 @@ public final class WormholesMessages {
     public static final TextKey PORTAL_NETWORK_LABEL_AMBIENT_STYLE = text("portal.network.label.ambient_style", "Ambient Particles");
     public static final TextKey PORTAL_NETWORK_LABEL_AMBIENT_COLOR = text("portal.network.label.ambient_color", "Ambient Color");
     public static final TextKey PORTAL_NETWORK_LABEL_SURFACE_SKIN = text("portal.network.label.surface_skin", "Surface Skin");
-    public static final TextKey PORTAL_NETWORK_LABEL_SURFACE_THICKNESS = text("portal.network.label.surface_thickness", "Surface Thickness");
     public static final TextKey PORTAL_LABEL_AMBIENT_RED = text("portal.label.ambient.red", "Red");
     public static final TextKey PORTAL_LABEL_AMBIENT_GREEN = text("portal.label.ambient.green", "Green");
     public static final TextKey PORTAL_LABEL_AMBIENT_BLUE = text("portal.label.ambient.blue", "Blue");

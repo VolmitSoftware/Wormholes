@@ -29,7 +29,6 @@ final class LocalPortalSettings
 	private static final AmbientParticleStyle DEFAULT_AMBIENT_STYLE = AmbientParticleStyle.SPARKS;
 	private static final int DEFAULT_AMBIENT_COLOR = 0xB969FF;
 	private static final String DEFAULT_SURFACE_SKIN = "";
-	private static final int DEFAULT_SURFACE_THICKNESS = 20;
 
 	private final LocalPortal portal;
 	private ProjectionMode projectionMode;
@@ -52,7 +51,6 @@ final class LocalPortalSettings
 	private AmbientParticleStyle ambientStyle;
 	private int ambientColor;
 	private String surfaceSkin;
-	private int surfaceThickness;
 	private PortalTravelCost travelCost;
 	private boolean settingsSyncEnabled;
 
@@ -78,7 +76,6 @@ final class LocalPortalSettings
 		ambientStyle = DEFAULT_AMBIENT_STYLE;
 		ambientColor = DEFAULT_AMBIENT_COLOR;
 		surfaceSkin = DEFAULT_SURFACE_SKIN;
-		surfaceThickness = DEFAULT_SURFACE_THICKNESS;
 		travelCost = null;
 		settingsSyncEnabled = true;
 	}
@@ -101,7 +98,6 @@ final class LocalPortalSettings
 		j.put("ambientStyle", ambientStyle.name());
 		j.put("ambientColor", ambientColor);
 		j.put("surfaceSkin", surfaceSkin);
-		j.put("surfaceThickness", surfaceThickness);
 		if(travelCost != null)
 		{
 			j.put("travelCost", travelCost.toJson());
@@ -132,7 +128,6 @@ final class LocalPortalSettings
 		ambientStyle = AmbientParticleStyle.fromName(j.optString("ambientStyle", ""), DEFAULT_AMBIENT_STYLE);
 		ambientColor = normalizeAmbientColor(j.optInt("ambientColor", DEFAULT_AMBIENT_COLOR));
 		surfaceSkin = PortalSurfaceSkins.normalizeSkin(j.optString("surfaceSkin", DEFAULT_SURFACE_SKIN));
-		surfaceThickness = normalizeSurfaceThickness(j.optInt("surfaceThickness", DEFAULT_SURFACE_THICKNESS));
 		boolean malformedTravelCost = j.has("travelCost")
 				&& !j.isNull("travelCost")
 				&& j.optJSONObject("travelCost") == null;
@@ -696,22 +691,6 @@ final class LocalPortalSettings
 		renderSettingsChanged();
 	}
 
-	int getSurfaceThickness()
-	{
-		return surfaceThickness;
-	}
-
-	void setSurfaceThickness(int thicknessCentiblocks)
-	{
-		int normalized = normalizeSurfaceThickness(thicknessCentiblocks);
-		if(surfaceThickness == normalized)
-		{
-			return;
-		}
-		surfaceThickness = normalized;
-		renderSettingsChanged();
-	}
-
 	boolean isSettingsSyncEnabled()
 	{
 		return settingsSyncEnabled;
@@ -818,11 +797,6 @@ final class LocalPortalSettings
 	private static int normalizeAmbientColor(int color)
 	{
 		return clampNetworkViewInt(color, 0, 0xFFFFFF);
-	}
-
-	private static int normalizeSurfaceThickness(int thicknessCentiblocks)
-	{
-		return clampNetworkViewInt(thicknessCentiblocks, 5, 100);
 	}
 
 	private static int clampNetworkViewInt(int value, int min, int max)

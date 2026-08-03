@@ -51,6 +51,14 @@ public final class PeerRouteStore {
         return entries;
     }
 
+    public boolean remove(String name) {
+        if (name == null || name.isBlank() || routes.remove(name) == null) {
+            return false;
+        }
+        persist();
+        return true;
+    }
+
     public void save(NetworkConfig.PeerEntry route) {
         if (route == null || route.name == null || route.name.isBlank()) {
             return;

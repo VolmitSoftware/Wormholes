@@ -11,6 +11,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -22,7 +24,8 @@ import java.util.stream.Stream;
 /** JSON persistence for dimensional-door identity and allocation state. */
 public final class DimensionalDoorRepository {
     private static final String STATE_FILE = "state.json";
-    private static final int LEGACY_SCHEMA = 2;
+    private static final int LEGACY_KIND_SCHEMA = 2;
+    private static final int DOOR_MODE_ACCESS_SCHEMA = 3;
     private static final Pattern NEXT_POCKET_SLOT = Pattern.compile("\\\"nextPocketSlot\\\"\\s*:\\s*(\\d+)");
     private static final Pattern POCKET_SLOT = Pattern.compile("\\\"slot\\\"\\s*:\\s*(\\d+)");
 
@@ -47,9 +50,12 @@ public final class DimensionalDoorRepository {
             return loaded;
         }
         DoorStoreSnapshot stored = DoorStoreSnapshot.empty();
+        int storedSchema = DoorStoreSnapshot.CURRENT_SCHEMA;
         if (Files.isRegularFile(stateFile)) {
             try {
-                stored = fromJson(new JSONObject(VIO.readAll(stateFile.toFile())));
+                JSONObject root = new JSONObject(VIO.readAll(stateFile.toFile()));
+                storedSchema = root.getInt("schema");
+                stored = fromJson(root);
             } catch (RuntimeException e) {
                 throw new IOException("Could not parse dimensional-door state at " + stateFile, e);
             }
@@ -65,6 +71,9 @@ public final class DimensionalDoorRepository {
         DoorStoreSnapshot combined = withTickets(stored, new ArrayList<>(tickets.values()));
         if (!stored.returnTickets().isEmpty()) {
             reconcileTicketFiles(combined.returnTickets());
+            writeStateFile(combined);
+        } else if (storedSchema != DoorStoreSnapshot.CURRENT_SCHEMA) {
+            // upgrade the on-disk shape once so the migration never runs twice
             writeStateFile(combined);
         }
         loaded = combined;
@@ -188,12 +197,13 @@ public final class DimensionalDoorRepository {
         JSONArray access = new JSONArray();
         for (DoorAccessRecord record : snapshot.accessRecords()) {
             JSONArray players = new JSONArray();
-            for (UUID player : record.players()) {
-                players.put(player.toString());
+            for (Map.Entry<UUID, DoorAccessState> listed : record.players().entrySet()) {
+                players.put(new JSONObject()
+                    .put("id", listed.getKey().toString())
+                    .put("state", listed.getValue().name()));
             }
             access.put(new JSONObject()
                 .put("itemId", record.itemId().toString())
-                .put("mode", record.mode().name())
                 .put("ownerId", record.ownerId().toString())
                 .put("players", players));
         }
@@ -298,7 +308,7 @@ public final class DimensionalDoorRepository {
 
     private static DoorStoreSnapshot fromJson(JSONObject root) {
         int schema = root.getInt("schema");
-        if (schema != DoorStoreSnapshot.CURRENT_SCHEMA && schema != LEGACY_SCHEMA) {
+        if (schema < LEGACY_KIND_SCHEMA || schema > DoorStoreSnapshot.CURRENT_SCHEMA) {
             throw new IllegalArgumentException("unsupported dimensional-door schema " + schema);
         }
         long nextPocketSlot = root.getLong("nextPocketSlot");
@@ -379,11 +389,11 @@ public final class DimensionalDoorRepository {
             endpoints,
             spaces,
             tickets,
-            decodeAccessRecords(root.optJSONArray("access"))
+            decodeAccessRecords(root.optJSONArray("access"), schema)
         );
     }
 
-    private static List<DoorAccessRecord> decodeAccessRecords(JSONArray accessJson) {
+    private static List<DoorAccessRecord> decodeAccessRecords(JSONArray accessJson, int schema) {
         if (accessJson == null) {
             return List.of();
         }
@@ -392,27 +402,46 @@ public final class DimensionalDoorRepository {
             JSONObject record = accessJson.getJSONObject(i);
             accessRecords.add(new DoorAccessRecord(
                 uuid(record, "itemId"),
-                DoorAccessMode.fromName(record.getString("mode")),
                 uuid(record, "ownerId"),
-                decodeAccessPlayers(record.optJSONArray("players"))
+                schema <= DOOR_MODE_ACCESS_SCHEMA
+                    ? migrateAccessPlayers(record.optString("mode"), record.optJSONArray("players"))
+                    : decodeAccessPlayers(record.optJSONArray("players"))
             ));
         }
         return accessRecords;
     }
 
-    private static List<UUID> decodeAccessPlayers(JSONArray playerJson) {
+    /** Schema 3 carried one door-wide mode plus a flat player list; every listed player inherits it. */
+    private static Map<UUID, DoorAccessState> migrateAccessPlayers(String mode, JSONArray playerJson) {
         if (playerJson == null) {
-            return List.of();
+            return Map.of();
         }
-        List<UUID> players = new ArrayList<>(playerJson.length());
+        DoorAccessState migrated = switch (mode == null ? "" : mode.toUpperCase(Locale.ROOT)) {
+            case "WHITELIST" -> DoorAccessState.WHITELIST;
+            case "BLACKLIST" -> DoorAccessState.BLACKLIST;
+            default -> DoorAccessState.NEUTRAL;
+        };
+        LinkedHashMap<UUID, DoorAccessState> players = new LinkedHashMap<>();
         for (int i = 0; i < playerJson.length(); i++) {
-            players.add(UUID.fromString(playerJson.getString(i)));
+            players.put(UUID.fromString(playerJson.getString(i)), migrated);
+        }
+        return players;
+    }
+
+    private static Map<UUID, DoorAccessState> decodeAccessPlayers(JSONArray playerJson) {
+        if (playerJson == null) {
+            return Map.of();
+        }
+        LinkedHashMap<UUID, DoorAccessState> players = new LinkedHashMap<>();
+        for (int i = 0; i < playerJson.length(); i++) {
+            JSONObject listed = playerJson.getJSONObject(i);
+            players.put(uuid(listed, "id"), DoorAccessState.valueOf(listed.getString("state")));
         }
         return players;
     }
 
     private static DoorKind decodeDoorKind(int schema, String value) {
-        if (schema == DoorStoreSnapshot.CURRENT_SCHEMA) {
+        if (schema > LEGACY_KIND_SCHEMA) {
             return DoorKind.valueOf(value);
         }
         return switch (value) {

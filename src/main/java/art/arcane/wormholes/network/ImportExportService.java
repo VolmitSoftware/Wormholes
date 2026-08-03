@@ -33,6 +33,11 @@ public final class ImportExportService {
         FoliaScheduler.runAsync(Wormholes.instance, () -> exportNow(player, portal));
     }
 
+    public void exportServerToChat(CommandSender sender) {
+        WormholesAudience.sendMessage(sender, Wormholes.text().component(WormholesMessages.NETWORK_BUILDING_CODE));
+        FoliaScheduler.runAsync(Wormholes.instance, () -> exportServerNow(sender));
+    }
+
     public void importCode(CommandSender sender, ILocalPortal portal, String raw) {
         FoliaScheduler.runAsync(Wormholes.instance, () -> importNow(sender, portal, raw));
     }
@@ -78,16 +83,60 @@ public final class ImportExportService {
         }
     }
 
+    private void exportServerNow(CommandSender sender) {
+        NetworkConfig config = Wormholes.settings.getNetwork();
+        String advertiseHost = resolveAdvertiseHost(sender, config);
+        if (!config.enabled) {
+            config.enabled = true;
+            persistConfig(config);
+        }
+        if (!network.isRunning()) {
+            network.start();
+        }
+
+        ServerCode code = new ServerCode(
+            network.getLocalName(),
+            advertiseHost,
+            alternateHosts(advertiseHost),
+            network.getBoundListenPort(),
+            Bukkit.getPort(),
+            network.getPublicKey()
+        );
+        String encoded = code.encode();
+
+        if (sender instanceof Player) {
+            Component message = Wormholes.text().component(
+                    WormholesMessages.SERVER_COPY_CODE,
+                    WormholesLocalization.args(MessageArgument.untrusted("server", network.getLocalName())))
+                .clickEvent(ClickEvent.copyToClipboard(encoded))
+                .hoverEvent(HoverEvent.showText(Wormholes.text().component(WormholesMessages.SERVER_COPY_CODE_HOVER)));
+            WormholesAudience.sendMessage(sender, message);
+        } else {
+            WormholesAudience.sendMessage(sender, Wormholes.text().component(
+                    WormholesMessages.SERVER_CODE_RAW,
+                    WormholesLocalization.args(MessageArgument.untrusted("code", encoded))));
+        }
+        WormholesAudience.sendMessage(sender, Wormholes.text().component(
+                WormholesMessages.NETWORK_CODE_FINGERPRINT,
+                WormholesLocalization.args(MessageArgument.untrusted("fingerprint", network.getPublicKeyFingerprint()))));
+        if (encoded.length() > CHAT_SAFE_CODE_LENGTH) {
+            WormholesAudience.sendMessage(sender, Wormholes.text().component(WormholesMessages.NETWORK_CODE_TOO_LONG));
+        }
+    }
+
     private void importNow(CommandSender sender, ILocalPortal portal, String raw) {
+        ServerCode serverCode = ServerCode.decode(raw);
+        if (serverCode != null) {
+            importServerNow(sender, serverCode);
+            return;
+        }
         PortalCode code = PortalCode.decode(raw);
         if (code == null) {
             WormholesAudience.sendMessage(sender, Wormholes.text().component(
                     WormholesMessages.NETWORK_CODE_INVALID,
-                    WormholesLocalization.args(MessageArgument.untrusted("prefix", PortalCode.PREFIX))));
+                    WormholesLocalization.args(MessageArgument.untrusted("prefix", PortalCode.PREFIX + " or " + ServerCode.PREFIX))));
             return;
         }
-
-        NetworkConfig config = Wormholes.settings.getNetwork();
 
         if (code.serverName().equals(network.getLocalName())) {
             boolean ownPortal = Wormholes.portalManager != null && Wormholes.portalManager.getLocalPortal(code.portalId()) != null;
@@ -102,24 +151,8 @@ public final class ImportExportService {
         }
 
         network.trustPeer(code.serverName(), code.publicKey());
-
-        NetworkConfig.PeerEntry entry = new NetworkConfig.PeerEntry();
-        entry.name = code.serverName();
-        entry.host = code.advertiseHost();
-        entry.fallbackHosts = joinFallbacks(code.advertiseHost(), code.fallbackHosts());
-        entry.port = code.wormholePort();
-        entry.publicHost = code.advertiseHost();
-        entry.publicPort = code.gamePort() > 0 ? code.gamePort() : 25565;
-        network.savePeer(entry);
-
-        if (!config.enabled) {
-            config.enabled = true;
-            persistConfig(config);
-        }
-
-        if (!network.isRunning()) {
-            network.start();
-        }
+        saveRoute(code.serverName(), code.advertiseHost(), code.fallbackHosts(), code.wormholePort(), code.gamePort());
+        enableAndStart();
 
         if (portal != null) {
             FoliaScheduler.runRegion(Wormholes.instance, portal.getCenter(), () -> portal.linkRemote(code.serverName(), code.portalId()));
@@ -138,6 +171,48 @@ public final class ImportExportService {
                             MessageArgument.untrusted("portal", code.portalName()))));
         }
         WormholesAudience.sendMessage(sender, Wormholes.text().component(WormholesMessages.NETWORK_CHECK_STATUS));
+    }
+
+    private void importServerNow(CommandSender sender, ServerCode code) {
+        if (code.serverName().equals(network.getLocalName())) {
+            WormholesAudience.sendMessage(sender, Wormholes.text().component(
+                    WormholesMessages.NETWORK_CODE_SAME_IDENTITY,
+                    WormholesLocalization.args(MessageArgument.untrusted("server", code.serverName()))));
+            return;
+        }
+
+        network.trustPeer(code.serverName(), code.publicKey());
+        saveRoute(code.serverName(), code.advertiseHost(), code.fallbackHosts(), code.wormholePort(), code.gamePort());
+        enableAndStart();
+
+        WormholesAudience.sendMessage(sender, Wormholes.text().component(
+                WormholesMessages.SERVER_SAVED,
+                WormholesLocalization.args(
+                        MessageArgument.untrusted("server", code.serverName()),
+                        MessageArgument.untrusted("fingerprint", Handshake.fingerprint(Handshake.decodePublicKeyText(code.publicKey()))))));
+        WormholesAudience.sendMessage(sender, Wormholes.text().component(WormholesMessages.NETWORK_CHECK_STATUS));
+    }
+
+    private void saveRoute(String serverName, String advertiseHost, List<String> fallbackHosts, int wormholePort, int gamePort) {
+        NetworkConfig.PeerEntry entry = new NetworkConfig.PeerEntry();
+        entry.name = serverName;
+        entry.host = advertiseHost;
+        entry.fallbackHosts = joinFallbacks(advertiseHost, fallbackHosts);
+        entry.port = wormholePort;
+        entry.publicHost = advertiseHost;
+        entry.publicPort = gamePort > 0 ? gamePort : 25565;
+        network.savePeer(entry);
+    }
+
+    private void enableAndStart() {
+        NetworkConfig config = Wormholes.settings.getNetwork();
+        if (!config.enabled) {
+            config.enabled = true;
+            persistConfig(config);
+        }
+        if (!network.isRunning()) {
+            network.start();
+        }
     }
 
     private String resolveAdvertiseHost(CommandSender sender, NetworkConfig config) {

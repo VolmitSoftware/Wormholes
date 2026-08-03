@@ -1241,4 +1241,25 @@ class NetworkManagerTest {
         List<NetworkManager.PeerStatus> statuses = alpha.status();
         assertTrue(statuses.size() == 1 && statuses.get(0).name().equals(BETA_NAME) && statuses.get(0).state().equals("CONNECTED"));
     }
+
+    @Test
+    void removePeerForgetsRouteAndTrustPersistently() throws Exception {
+        java.security.KeyPairGenerator generator = java.security.KeyPairGenerator.getInstance("Ed25519");
+        String betaKey = Handshake.encodePublicKey(generator.generateKeyPair().getPublic().getEncoded());
+        NetworkManager alpha = manager(config(8907, ALPHA_NAME), ALPHA_GAME_PORT, "remove-alpha");
+        alpha.savePeer(route(BETA_NAME, 8902));
+        alpha.trustPeer(BETA_NAME, betaKey);
+        assertNotNull(alpha.getPeer(BETA_NAME));
+        assertEquals(1, alpha.peers().size());
+
+        assertTrue(alpha.removePeer(BETA_NAME));
+        assertNull(alpha.getPeer(BETA_NAME));
+        assertEquals(0, alpha.knownPeerCount());
+        assertTrue(alpha.peers().isEmpty());
+        assertFalse(alpha.removePeer(BETA_NAME));
+
+        Path dataDirectory = tempDir.resolve("remove-alpha");
+        assertNull(PeerRouteStore.loadOrCreate(dataDirectory).get(BETA_NAME));
+        assertNull(PeerTrustStore.loadOrCreate(dataDirectory).get(BETA_NAME));
+    }
 }

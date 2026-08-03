@@ -15,23 +15,23 @@ import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.service.WormholesAudience;
-import art.arcane.wormholes.service.WormholesHud;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.SkullMeta;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.logging.Level;
 
 final class DoorAccessMenu {
-    private static final int HEADER_ROW = 0;
-    private static final int LIST_START_SLOT = 9;
+    static final int HEADER_ROW = 0;
+    static final int ROW_WIDTH = 9;
+    static final int MAX_VIEWPORT_HEIGHT = 6;
+    private static final int PLACARD_POSITION = -1;
+    private static final int ADD_POSITION = 1;
     private static final int SHORT_ID_LENGTH = 8;
     private static final String ADMINISTRATOR_NODE = "wormholes.admin";
 
@@ -49,18 +49,42 @@ final class DoorAccessMenu {
         if (record.ownerId().equals(resolvedId)) {
             return AddResolution.OWNER;
         }
-        if (record.players().contains(resolvedId)) {
+        if (record.isListed(resolvedId)) {
             return AddResolution.ALREADY_LISTED;
         }
         return AddResolution.ADD;
     }
 
-    static RemoveResolution resolveRemoval(DoorAccessRecord record, UUID playerId) {
-        Objects.requireNonNull(record, "record");
-        if (playerId == null || !record.players().contains(playerId)) {
-            return RemoveResolution.NOT_LISTED;
+    /** Entries fill left to right under the header row. */
+    static int entryRow(int index) {
+        if (index < 0) {
+            throw new IllegalArgumentException("entry index cannot be negative");
         }
-        return RemoveResolution.REMOVE;
+        return HEADER_ROW + 1 + (index / ROW_WIDTH);
+    }
+
+    static int entryPosition(int index) {
+        if (index < 0) {
+            throw new IllegalArgumentException("entry index cannot be negative");
+        }
+        return (index % ROW_WIDTH) - (ROW_WIDTH - 1) / 2;
+    }
+
+    /** The window is exactly as tall as the header plus the rows the list actually needs. */
+    static int viewportHeight(int listedCount) {
+        if (listedCount <= 0) {
+            return 1;
+        }
+        int rows = 1 + ((listedCount + ROW_WIDTH - 1) / ROW_WIDTH);
+        return Math.min(rows, MAX_VIEWPORT_HEIGHT);
+    }
+
+    static Material stateIcon(DoorAccessState state) {
+        return switch (Objects.requireNonNull(state, "state")) {
+            case NEUTRAL -> Material.BLACK_STAINED_GLASS_PANE;
+            case WHITELIST -> Material.GREEN_STAINED_GLASS_PANE;
+            case BLACKLIST -> Material.RED_STAINED_GLASS_PANE;
+        };
     }
 
     static String resolveDisplayName(String knownName, String fallback) {
@@ -75,18 +99,6 @@ final class DoorAccessMenu {
         return Objects.requireNonNull(playerId, "playerId").toString().substring(0, SHORT_ID_LENGTH);
     }
 
-    static Material modeIcon(DoorAccessMode mode) {
-        return switch (Objects.requireNonNull(mode, "mode")) {
-            case UNRESTRICTED -> Material.LEATHER_HELMET;
-            case WHITELIST -> Material.GOLDEN_HELMET;
-            case BLACKLIST -> Material.IRON_HELMET;
-        };
-    }
-
-    static boolean modeGlint(DoorAccessMode mode) {
-        return Objects.requireNonNull(mode, "mode") == DoorAccessMode.WHITELIST;
-    }
-
     void open(Player player, PlacedDoorEndpoint endpoint) {
         Player viewer = Objects.requireNonNull(player, "player");
         PlacedDoorEndpoint door = Objects.requireNonNull(endpoint, "endpoint");
@@ -95,13 +107,15 @@ final class DoorAccessMenu {
             return;
         }
         Wormholes.v("QA_EVT {\"event\":\"door_access_menu_open\",\"status\":\"info\",\"details\":\"open\",\"context\":{\"item\":\""
-            + door.identity().itemId() + "\",\"mode\":\"" + record.mode() + "\",\"listed\":" + record.players().size() + "}}");
+            + door.identity().itemId() + "\",\"listed\":" + record.players().size()
+            + ",\"whitelisted\":" + countState(record, DoorAccessState.WHITELIST)
+            + ",\"blacklisted\":" + countState(record, DoorAccessState.BLACKLIST) + "}}");
         UIWindow window = new UIWindow(Wormholes.instance, viewer);
         window.setTitle(Wormholes.text().legacy(
             WormholesMessages.DOOR_MENU_ACCESS_TITLE,
             arguments("kind", kindLabel(door.identity().kind()))));
         window.setResolution(WindowResolution.W9_H6);
-        window.setViewportHeight(3);
+        window.setViewportHeight(viewportHeight(record.players().size()));
         window.setDecorator(new UIPaneDecorator(Material.GRAY_STAINED_GLASS_PANE));
         populate(window, viewer, door, record);
         window.setVisible(true);
@@ -110,16 +124,15 @@ final class DoorAccessMenu {
     private void populate(UIWindow window, Player viewer, PlacedDoorEndpoint door, DoorAccessRecord record) {
         window.batch(() -> {
             window.clearElements();
-            window.setElement(-2, HEADER_ROW, placardElement(door, record));
-            window.setElement(0, HEADER_ROW, modeElement(window, viewer, door, record));
-            window.setElement(2, HEADER_ROW, addPlayerElement(window, viewer, door));
-            int slot = LIST_START_SLOT;
-            for (UUID listed : record.players()) {
+            window.setElement(PLACARD_POSITION, HEADER_ROW, placardElement(door, record));
+            window.setElement(ADD_POSITION, HEADER_ROW, addPlayerElement(window, viewer, door));
+            List<UUID> listed = record.listedPlayers();
+            for (int index = 0; index < listed.size(); index++) {
+                UUID playerId = listed.get(index);
                 window.setElement(
-                    window.getPosition(slot),
-                    window.getRow(slot),
-                    entryElement(window, viewer, door, listed));
-                slot++;
+                    entryPosition(index),
+                    entryRow(index),
+                    entryElement(window, viewer, door, playerId, record.stateOf(playerId)));
             }
         });
     }
@@ -131,20 +144,10 @@ final class DoorAccessMenu {
             arguments(
                 "kind", kindLabel(door.identity().kind()),
                 "owner", playerLabel(record.ownerId()),
-                "mode", modeLabel(record.mode()),
+                "whitelisted", countState(record, DoorAccessState.WHITELIST),
+                "blacklisted", countState(record, DoorAccessState.BLACKLIST),
                 "count", record.players().size()),
             DoorItemService.defaultMaterial(door.identity().kind()));
-    }
-
-    private UIElement modeElement(UIWindow window, Player viewer, PlacedDoorEndpoint door, DoorAccessRecord record) {
-        UIElement element = localizedElement(
-            "door-access-mode",
-            WormholesMessages.DOOR_MENU_ACCESS_MODE,
-            arguments("mode", modeLabel(record.mode()), "description", modeDescription(record.mode())),
-            modeIcon(record.mode()));
-        element.setEnchanted(modeGlint(record.mode()));
-        element.onLeftClick(clicked -> cycleMode(window, viewer, door));
-        return element;
     }
 
     private UIElement addPlayerElement(UIWindow window, Player viewer, PlacedDoorEndpoint door) {
@@ -157,30 +160,52 @@ final class DoorAccessMenu {
         return element;
     }
 
-    private UIElement entryElement(UIWindow window, Player viewer, PlacedDoorEndpoint door, UUID listed) {
+    private UIElement entryElement(
+        UIWindow window,
+        Player viewer,
+        PlacedDoorEndpoint door,
+        UUID listed,
+        DoorAccessState state
+    ) {
         UIElement element = localizedElement(
             "door-access-" + listed,
             WormholesMessages.DOOR_MENU_ACCESS_ENTRY,
-            arguments("name", playerLabel(listed)),
-            Material.PLAYER_HEAD);
-        element.setBaseItemStack(playerHead(listed));
-        element.onLeftClick(clicked -> removeListedPlayer(window, viewer, door, listed));
+            arguments("name", playerLabel(listed), "state", stateLabel(state)),
+            stateIcon(state));
+        element.onLeftClick(clicked -> applyState(window, viewer, door, listed, DoorAccessState.WHITELIST));
+        element.onRightClick(clicked -> applyState(window, viewer, door, listed, DoorAccessState.BLACKLIST));
+        // vanilla only sends a middle click in creative, so shift-left has to remove too
+        element.onMiddleClick(clicked -> removeListedPlayer(window, viewer, door, listed));
+        element.onShiftLeftClick(clicked -> removeListedPlayer(window, viewer, door, listed));
         return element;
     }
 
-    private void cycleMode(UIWindow window, Player viewer, PlacedDoorEndpoint door) {
+    private void applyState(
+        UIWindow window,
+        Player viewer,
+        PlacedDoorEndpoint door,
+        UUID listed,
+        DoorAccessState state
+    ) {
         DoorAccessRecord record = manageableRecord(viewer, door);
         if (record == null) {
             closeWindow(window, viewer);
             return;
         }
-        DoorAccessMode next = record.mode().next();
-        if (!apply(viewer, () -> manager.applyAccessMode(door.identity().itemId(), next))) {
+        if (!record.isListed(listed)) {
+            refresh(window, viewer, door);
             return;
         }
-        Wormholes.v("QA_EVT {\"event\":\"door_access_menu_apply\",\"status\":\"info\",\"details\":\"mode\",\"context\":{\"item\":\""
-            + door.identity().itemId() + "\",\"mode\":\"" + next + "\"}}");
-        notice(viewer, WormholesMessages.DOOR_ACCESS_MODE_CHANGED, arguments("mode", modeLabel(next)));
+        if (record.stateOf(listed) == state) {
+            return;
+        }
+        if (!apply(viewer, () -> manager.applyAccessState(door.identity().itemId(), listed, state))) {
+            return;
+        }
+        Wormholes.v("QA_EVT {\"event\":\"door_access_menu_apply\",\"status\":\"info\",\"details\":\"state\",\"context\":{\"item\":\""
+            + door.identity().itemId() + "\",\"player\":\"" + listed + "\",\"state\":\"" + state + "\"}}");
+        notice(viewer, WormholesMessages.DOOR_ACCESS_STATE_CHANGED,
+            arguments("name", playerLabel(listed), "state", stateLabel(state)));
         refresh(window, viewer, door);
     }
 
@@ -192,9 +217,8 @@ final class DoorAccessMenu {
         FoliaScheduler.runEntity(Wormholes.instance, viewer, () -> {
             window.close();
             viewer.closeInventory();
-            WormholesAudience.sendMessage(viewer, Wormholes.text().component(
-                WormholesMessages.DOOR_ACCESS_PROMPT_PLAYER,
-                arguments("cancel", Wormholes.text().plain(WormholesMessages.PORTAL_INPUT_CANCEL))));
+            notice(viewer, WormholesMessages.DOOR_ACCESS_PROMPT_PLAYER,
+                arguments("cancel", Wormholes.text().plain(WormholesMessages.PORTAL_INPUT_CANCEL)));
             Wormholes.awaitChatInput(viewer, input -> acceptPlayerName(viewer, door, input));
         });
     }
@@ -225,7 +249,7 @@ final class DoorAccessMenu {
             return;
         }
         Wormholes.v("QA_EVT {\"event\":\"door_access_menu_apply\",\"status\":\"info\",\"details\":\"add\",\"context\":{\"item\":\""
-            + door.identity().itemId() + "\",\"player\":\"" + playerId + "\"}}");
+            + door.identity().itemId() + "\",\"player\":\"" + playerId + "\",\"state\":\"" + DoorAccessState.NEUTRAL + "\"}}");
         notice(viewer, WormholesMessages.DOOR_ACCESS_ADDED, arguments("name", playerLabel(playerId)));
     }
 
@@ -235,7 +259,7 @@ final class DoorAccessMenu {
             closeWindow(window, viewer);
             return;
         }
-        if (resolveRemoval(record, listed) == RemoveResolution.NOT_LISTED) {
+        if (!record.isListed(listed)) {
             refresh(window, viewer, door);
             return;
         }
@@ -248,10 +272,16 @@ final class DoorAccessMenu {
         refresh(window, viewer, door);
     }
 
+    /** The window height tracks the list, so a size change has to reopen instead of repaint. */
     private void refresh(UIWindow window, Player viewer, PlacedDoorEndpoint door) {
         DoorAccessRecord record = manager.accessRecord(door.identity().itemId()).orElse(null);
         if (record == null) {
             closeWindow(window, viewer);
+            return;
+        }
+        if (window.getViewportHeight() != viewportHeight(record.players().size())) {
+            closeWindow(window, viewer);
+            reopen(viewer, door);
             return;
         }
         populate(window, viewer, door, record);
@@ -293,15 +323,14 @@ final class DoorAccessMenu {
         }
     }
 
-    private static ItemStack playerHead(UUID playerId) {
-        ItemStack stack = new ItemStack(Material.PLAYER_HEAD);
-        ItemMeta meta = stack.getItemMeta();
-        if (!(meta instanceof SkullMeta skull)) {
-            return stack;
+    private static int countState(DoorAccessRecord record, DoorAccessState state) {
+        int total = 0;
+        for (DoorAccessState listed : record.players().values()) {
+            if (listed == state) {
+                total++;
+            }
         }
-        skull.setOwningPlayer(Bukkit.getOfflinePlayer(playerId));
-        stack.setItemMeta(skull);
-        return stack;
+        return total;
     }
 
     private static UUID resolvePlayerId(String name) {
@@ -337,20 +366,11 @@ final class DoorAccessMenu {
         return Wormholes.text().plain(key);
     }
 
-    private static String modeLabel(DoorAccessMode mode) {
-        TextKey key = switch (mode) {
-            case UNRESTRICTED -> WormholesMessages.DOOR_ACCESS_LABEL_UNRESTRICTED;
+    private static String stateLabel(DoorAccessState state) {
+        TextKey key = switch (state) {
+            case NEUTRAL -> WormholesMessages.DOOR_ACCESS_LABEL_NEUTRAL;
             case WHITELIST -> WormholesMessages.DOOR_ACCESS_LABEL_WHITELIST;
             case BLACKLIST -> WormholesMessages.DOOR_ACCESS_LABEL_BLACKLIST;
-        };
-        return Wormholes.text().plain(key);
-    }
-
-    private static String modeDescription(DoorAccessMode mode) {
-        TextKey key = switch (mode) {
-            case UNRESTRICTED -> WormholesMessages.DOOR_ACCESS_DESCRIPTION_UNRESTRICTED;
-            case WHITELIST -> WormholesMessages.DOOR_ACCESS_DESCRIPTION_WHITELIST;
-            case BLACKLIST -> WormholesMessages.DOOR_ACCESS_DESCRIPTION_BLACKLIST;
         };
         return Wormholes.text().plain(key);
     }
@@ -359,8 +379,12 @@ final class DoorAccessMenu {
         return input.trim().equalsIgnoreCase(Wormholes.text().plain(WormholesMessages.PORTAL_INPUT_CANCEL));
     }
 
+    /**
+     * Chat, not the HUD: every one of these lands while the access window is open or is reopened in
+     * the same tick, and Minecraft does not draw the action bar behind a container screen.
+     */
     private static void notice(Player viewer, TextKey message, MessageArgs messageArguments) {
-        WormholesHud.notice(viewer, Wormholes.text().component(message, messageArguments));
+        WormholesAudience.sendMessage(viewer, Wormholes.text().component(message, messageArguments));
     }
 
     private static UIElement localizedElement(String id, LinesKey key, MessageArgs messageArguments, Material material) {
@@ -388,11 +412,6 @@ final class DoorAccessMenu {
         OWNER,
         ALREADY_LISTED,
         ADD
-    }
-
-    enum RemoveResolution {
-        NOT_LISTED,
-        REMOVE
     }
 
     @FunctionalInterface

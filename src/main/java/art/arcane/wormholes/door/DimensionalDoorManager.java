@@ -67,6 +67,9 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	private static final double ARRIVAL_OFFSET = 1.0D;
 	private static final int[] DOOR_ARRIVAL_Y_OFFSETS = {0, -1, 1, -2, 2};
 	private static final String ADMINISTRATOR_NODE = "wormholes.admin";
+	private static final String ENTITY_MOVE_EVENT_CLASS = "io.papermc.paper.event.entity.EntityMoveEvent";
+	private static final boolean ENTITY_MOVE_EVENT_AVAILABLE =
+		isEntityMoveEventAvailable(DimensionalDoorManager.class.getClassLoader());
 
 	private final Wormholes plugin;
 	private final PocketWorldService pocketWorldService;
@@ -157,6 +160,11 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 
 	private void registerLivingEntityMovement()
 	{
+		if(!ENTITY_MOVE_EVENT_AVAILABLE)
+		{
+			plugin.getLogger().info("Mob door traversal disabled: Paper's EntityMoveEvent is unavailable on this server.");
+			return;
+		}
 		try
 		{
 			Class<?> listenerType = Class.forName("art.arcane.wormholes.door.PaperLivingEntityMoveListener");
@@ -167,13 +175,22 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			plugin.getServer().getPluginManager().registerEvents(listener, plugin);
 			livingEntityMoveListener = listener;
 		}
-		catch(ClassNotFoundException | NoClassDefFoundError unavailable)
-		{
-			plugin.getLogger().warning("Living mobs require Paper's entity movement event to use dimensional doors.");
-		}
 		catch(ReflectiveOperationException | LinkageError | ClassCastException ex)
 		{
 			plugin.getLogger().log(Level.WARNING, "Could not register dimensional-door mob movement", ex);
+		}
+	}
+
+	static boolean isEntityMoveEventAvailable(ClassLoader loader)
+	{
+		try
+		{
+			Class.forName(ENTITY_MOVE_EVENT_CLASS, false, loader);
+			return true;
+		}
+		catch(ClassNotFoundException | LinkageError absent)
+		{
+			return false;
 		}
 	}
 
@@ -237,9 +254,9 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		return guard.state().accessRecord(itemId);
 	}
 
-	boolean applyAccessMode(UUID itemId, DoorAccessMode mode) throws IOException
+	boolean applyAccessState(UUID itemId, UUID playerId, DoorAccessState state) throws IOException
 	{
-		return guard.mutate(() -> guard.state().setAccessMode(itemId, mode));
+		return guard.mutate(() -> guard.state().setAccessState(itemId, playerId, state));
 	}
 
 	boolean addAccessPlayer(UUID itemId, UUID playerId) throws IOException

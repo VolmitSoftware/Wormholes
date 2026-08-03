@@ -242,6 +242,25 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         dialer.resetDialState(peer.name);
     }
 
+    public boolean removePeer(String name) {
+        if (name == null || name.isBlank()) {
+            return false;
+        }
+        PeerConnection connection = links.ready(name);
+        if (connection != null) {
+            connection.close("peer removed");
+        }
+        boolean removed = directory.remove(name);
+        removed |= trust.forgetPeer(name);
+        presence.forget(name);
+        dialer.resetDialState(name);
+        return removed;
+    }
+
+    public List<NetworkConfig.PeerEntry> peers() {
+        return directory.known();
+    }
+
     public String getListenAddress() {
         return "all interfaces:" + getBoundListenPort();
     }

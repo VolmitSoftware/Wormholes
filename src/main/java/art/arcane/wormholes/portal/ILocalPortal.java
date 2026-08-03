@@ -201,10 +201,6 @@ public interface ILocalPortal extends IPortal, Listener
 
 	public void setSurfaceSkin(String skin);
 
-	public int getSurfaceThickness();
-
-	public void setSurfaceThickness(int thicknessCentiblocks);
-
 	public default boolean hasSurfaceSkin()
 	{
 		return !getSurfaceSkin().isEmpty();

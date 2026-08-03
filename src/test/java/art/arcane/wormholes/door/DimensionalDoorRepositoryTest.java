@@ -43,10 +43,10 @@ class DimensionalDoorRepositoryTest {
         allocator.getOrAllocate(PocketBinding.personal(id(7)));
         allocator.getOrAllocate(PocketBinding.publicDoor(id(8)));
         ReturnTicket ticket = ticket(id(9), id(6));
-        DoorAccessRecord pairedAccess = new DoorAccessRecord(
-            pair.endpointAItemId(), DoorAccessMode.WHITELIST, id(10), List.of(id(11), id(12)));
-        DoorAccessRecord personalAccess = new DoorAccessRecord(
-            id(6), DoorAccessMode.UNRESTRICTED, id(13), List.of());
+        DoorAccessRecord pairedAccess = DoorAccessRecord.unrestricted(pair.endpointAItemId(), id(10))
+            .withPlayerState(id(11), DoorAccessState.WHITELIST)
+            .withPlayerState(id(12), DoorAccessState.BLACKLIST);
+        DoorAccessRecord personalAccess = DoorAccessRecord.unrestricted(id(6), id(13));
         DoorStoreSnapshot expected = new DoorStoreSnapshot(
             DoorStoreSnapshot.CURRENT_SCHEMA,
             allocator.nextSlot(),
@@ -65,7 +65,8 @@ class DimensionalDoorRepositoryTest {
         assertEquals(List.of(pairedAccess, personalAccess), actual.accessRecords());
         assertTrue(Files.readString(stateFile).contains("\"nextPocketSlot\": 2"));
         assertTrue(Files.readString(stateFile).contains("\"returnTickets\": []"));
-        assertTrue(Files.readString(stateFile).contains("\"mode\": \"WHITELIST\""));
+        assertTrue(Files.readString(stateFile).contains("\"state\": \"WHITELIST\""));
+        assertTrue(Files.readString(stateFile).contains("\"state\": \"BLACKLIST\""));
         Path ticketDirectory = stateFile.resolveSibling("custom-state.json.tickets");
         assertTrue(Files.isRegularFile(ticketDirectory.resolve(ticket.playerId() + ".json")));
         try (Stream<Path> files = Files.list(temporaryDirectory)) {
@@ -154,7 +155,7 @@ class DimensionalDoorRepositoryTest {
 
         repository.save(migrated);
         String canonical = Files.readString(stateFile);
-        assertTrue(canonical.contains("\"schema\": 3"));
+        assertTrue(canonical.contains("\"schema\": 4"));
         assertTrue(canonical.contains("\"kind\": \"PAIR\""));
         assertTrue(canonical.contains("\"kind\": \"PUBLIC\""));
         assertFalse(canonical.contains("\"kind\": \"PAIRED\""));
@@ -197,9 +198,102 @@ class DimensionalDoorRepositoryTest {
     }
 
     @Test
+    void schemaThreeDoorModesMigrateToPerPlayerStates() throws Exception {
+        Path stateFile = temporaryDirectory.resolve("mode-access-state.json");
+        Files.writeString(stateFile, """
+            {
+              "schema": 3,
+              "nextPocketSlot": 0,
+              "pairs": [],
+              "endpoints": [],
+              "spaces": [],
+              "returnTickets": [],
+              "access": [
+                {"itemId": "%s", "mode": "WHITELIST", "ownerId": "%s", "players": ["%s", "%s"]},
+                {"itemId": "%s", "mode": "BLACKLIST", "ownerId": "%s", "players": ["%s"]},
+                {"itemId": "%s", "mode": "UNRESTRICTED", "ownerId": "%s", "players": ["%s"]},
+                {"itemId": "%s", "mode": "WHITELIST", "ownerId": "%s", "players": []}
+              ]
+            }
+            """.formatted(
+                id(300), id(301), id(302), id(303),
+                id(310), id(311), id(312),
+                id(320), id(321), id(322),
+                id(330), id(331)));
+
+        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile);
+        DoorStoreSnapshot migrated = repository.load();
+
+        assertEquals(DoorStoreSnapshot.CURRENT_SCHEMA, migrated.schema());
+        assertEquals(
+            List.of(
+                DoorAccessRecord.unrestricted(id(300), id(301))
+                    .withPlayerState(id(302), DoorAccessState.WHITELIST)
+                    .withPlayerState(id(303), DoorAccessState.WHITELIST),
+                DoorAccessRecord.unrestricted(id(310), id(311))
+                    .withPlayerState(id(312), DoorAccessState.BLACKLIST),
+                DoorAccessRecord.unrestricted(id(320), id(321))
+                    .withPlayerState(id(322), DoorAccessState.NEUTRAL),
+                DoorAccessRecord.unrestricted(id(330), id(331))),
+            migrated.accessRecords());
+
+        String upgraded = Files.readString(stateFile);
+        assertTrue(upgraded.contains("\"schema\": 4"));
+        assertFalse(upgraded.contains("\"mode\""));
+        assertEquals(migrated, new DimensionalDoorRepository(stateFile).load());
+    }
+
+    @Test
+    void legacyBlacklistContainingTheOwnerNeverLocksTheOwnerOut() throws Exception {
+        Path stateFile = temporaryDirectory.resolve("owner-blacklist-state.json");
+        Files.writeString(stateFile, """
+            {
+              "schema": 3,
+              "nextPocketSlot": 0,
+              "pairs": [],
+              "endpoints": [],
+              "spaces": [],
+              "returnTickets": [],
+              "access": [
+                {"itemId": "%s", "mode": "BLACKLIST", "ownerId": "%s", "players": ["%s", "%s"]}
+              ]
+            }
+            """.formatted(id(340), id(341), id(341), id(342)));
+
+        DoorStoreSnapshot migrated = new DimensionalDoorRepository(stateFile).load();
+
+        DoorAccessRecord record = migrated.accessRecords().get(0);
+        assertEquals(DoorAccessState.BLACKLIST, record.stateOf(id(341)));
+        assertTrue(DoorAccessPolicy.canUse(record, id(341), false));
+        assertFalse(DoorAccessPolicy.canUse(record, id(342), false));
+    }
+
+    @Test
+    void corruptedAccessStatesFailTheLoadInsteadOfSilentlyUnlockingTheDoor() throws Exception {
+        Path stateFile = temporaryDirectory.resolve("corrupt-access-state.json");
+        Files.writeString(stateFile, """
+            {
+              "schema": 4,
+              "nextPocketSlot": 0,
+              "pairs": [],
+              "endpoints": [],
+              "spaces": [],
+              "returnTickets": [],
+              "access": [
+                {"itemId": "%s", "ownerId": "%s", "players": [
+                  {"id": "%s", "state": "WHITLIST"}
+                ]}
+              ]
+            }
+            """.formatted(id(350), id(351), id(352)));
+
+        assertThrows(IOException.class, () -> new DimensionalDoorRepository(stateFile).load());
+    }
+
+    @Test
     void snapshotRejectsDuplicateAccessRecordsForOneDoorItem() {
-        DoorAccessRecord first = new DoorAccessRecord(id(140), DoorAccessMode.WHITELIST, id(141), List.of());
-        DoorAccessRecord second = new DoorAccessRecord(id(140), DoorAccessMode.BLACKLIST, id(142), List.of());
+        DoorAccessRecord first = DoorAccessRecord.unrestricted(id(140), id(141));
+        DoorAccessRecord second = DoorAccessRecord.unrestricted(id(140), id(142));
 
         assertThrows(IllegalArgumentException.class, () -> new DoorStoreSnapshot(
             DoorStoreSnapshot.CURRENT_SCHEMA, 0, List.of(), List.of(), List.of(), List.of(), List.of(first, second)
@@ -359,14 +453,14 @@ class DimensionalDoorRepositoryTest {
         DoorStoreSnapshot snapshot = new DoorStoreSnapshot(
             DoorStoreSnapshot.CURRENT_SCHEMA, 0, List.of(), List.of(), List.of(), mutableTickets, mutableAccess);
         mutableTickets.add(ticket(id(50), id(51)));
-        mutableAccess.add(new DoorAccessRecord(id(57), DoorAccessMode.WHITELIST, id(58), List.of()));
+        mutableAccess.add(DoorAccessRecord.unrestricted(id(57), id(58)));
 
         assertTrue(snapshot.returnTickets().isEmpty());
         assertTrue(snapshot.accessRecords().isEmpty());
         assertThrows(UnsupportedOperationException.class,
             () -> snapshot.returnTickets().add(ticket(id(52), id(53))));
         assertThrows(UnsupportedOperationException.class,
-            () -> snapshot.accessRecords().add(new DoorAccessRecord(id(59), DoorAccessMode.BLACKLIST, id(60), List.of())));
+            () -> snapshot.accessRecords().add(DoorAccessRecord.unrestricted(id(59), id(60))));
         assertThrows(IllegalArgumentException.class,
             () -> new ReturnTicket(id(54), id(55), id(56), "minecraft:overworld", Double.NaN, 0, 0, 0, 0));
     }

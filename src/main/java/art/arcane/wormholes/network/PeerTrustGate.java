@@ -32,6 +32,10 @@ final class PeerTrustGate {
         trustStore.trustOrReplace(peerName, decoded);
     }
 
+    boolean forgetPeer(String peerName) {
+        return trustStore.remove(peerName);
+    }
+
     boolean approveConnection(String peerName, byte[] publicKey) {
         NetworkConfig active = network.activeConfig();
         byte[] trustedKey = trustStore.get(peerName);

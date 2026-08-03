@@ -16,6 +16,7 @@ import art.arcane.volmlib.util.director.theme.DirectorProduct;
 import art.arcane.volmlib.util.director.theme.DirectorTheme;
 import art.arcane.volmlib.util.director.theme.DirectorThemes;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.commands.CommandServer;
 import art.arcane.wormholes.commands.CommandWormholes;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.util.common.cache.AtomicCache;
@@ -33,6 +34,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -129,9 +131,20 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
             return true;
         }
 
+        if (!result.isHandled() && isServerShorthand(args)) {
+            CommandServer.connectAndReport(sender, args[1]);
+            playInfoChime(sender);
+            return true;
+        }
+
         WormholesAudience.sendMessage(sender, Wormholes.text().component(WormholesMessages.COMMAND_USAGE_HELP));
         playFailureChime(sender);
         return true;
+    }
+
+    static boolean isServerShorthand(String[] args) {
+        return args != null && args.length == 2 && "server".equalsIgnoreCase(args[0])
+            && args[1] != null && !args[1].isBlank() && args[1].indexOf('=') < 0;
     }
 
     @Nullable
@@ -147,7 +160,22 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
         if (!sender.hasPermission(ROOT_PERMISSION)) {
             return publicTabCompletions(args);
         }
-        return runDirectorTab(sender, alias, args);
+        List<String> completions = runDirectorTab(sender, alias, args);
+        if (args != null && args.length == 2 && "server".equalsIgnoreCase(args[0])) {
+            completions = mergeServerNames(completions, args[1]);
+        }
+        return completions;
+    }
+
+    private static List<String> mergeServerNames(List<String> completions, String partial) {
+        String prefix = partial == null ? "" : partial.trim().toLowerCase(Locale.ROOT);
+        LinkedHashSet<String> merged = new LinkedHashSet<>(completions == null ? List.of() : completions);
+        for (String name : CommandServer.knownServerNames()) {
+            if (prefix.isEmpty() || name.toLowerCase(Locale.ROOT).startsWith(prefix)) {
+                merged.add(name);
+            }
+        }
+        return List.copyOf(merged);
     }
 
 	private boolean sendPublicCommandIfRequested(CommandSender sender, String[] args) {

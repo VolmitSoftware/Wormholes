@@ -383,9 +383,7 @@ final class LocalPortalCosmeticsMenu
 	private void applySurfaceSkinElement(Element element)
 	{
 		Wormholes.text().apply(element, WormholesMessages.PORTAL_MENU_SURFACE_SKIN,
-				LocalPortalText.arguments(
-						"skin", surfaceSkinDisplay(),
-						"thickness", surfaceThicknessDisplay()));
+				LocalPortalText.arguments("skin", surfaceSkinDisplay()));
 		element.setMaterial(new MaterialBlock(surfaceSkinIcon()));
 		element.setEnchanted(portal.hasSurfaceSkin());
 	}
@@ -395,57 +393,24 @@ final class LocalPortalCosmeticsMenu
 		UIWindow window = new UIWindow(Wormholes.instance, viewer);
 		window.setTitle(portal.getRouter(true));
 		window.setResolution(WindowResolution.W9_H6);
-		window.setViewportHeight(4);
+		window.setViewportHeight(3);
 		window.setDecorator(new UIPaneDecorator(Material.CYAN_STAINED_GLASS_PANE));
 		refreshSurfaceSkinMenu(window, viewer);
-		window.setElement(0, 3, menus.settings().backToSettingsMenuElement(window, viewer));
+		window.setElement(0, 2, menus.settings().backToSettingsMenuElement(window, viewer));
 		window.setVisible(true);
 	}
 
 	private void refreshSurfaceSkinMenu(Window window, Player viewer)
 	{
 		window.setElement(0, 0, surfaceSkinPlacardElement());
-		window.setElement(0, 1, surfaceThicknessElement(window, viewer));
-		window.setElement(-1, 2, surfaceSkinGlassElement(window, viewer));
-		window.setElement(1, 2, surfaceSkinClearElement(window, viewer));
+		window.setElement(-1, 1, surfaceSkinGlassElement(window, viewer));
+		window.setElement(1, 1, surfaceSkinClearElement(window, viewer));
 	}
 
 	private Element surfaceSkinPlacardElement()
 	{
 		return LocalPortalText.localizedElement("surface-skin-placard", WormholesMessages.PORTAL_MENU_SURFACE_SKIN_PLACARD,
-				LocalPortalText.arguments("skin", surfaceSkinDisplay(), "thickness", surfaceThicknessDisplay()), surfaceSkinIcon());
-	}
-
-	private Element surfaceThicknessElement(Window window, Player viewer)
-	{
-		UIElement element = new UIElement("surface-thickness");
-		element.onLeftClick((e) -> adjustSurfaceThickness(element, window, viewer, 5));
-		element.onRightClick((e) -> adjustSurfaceThickness(element, window, viewer, -5));
-		element.onShiftLeftClick((e) -> adjustSurfaceThickness(element, window, viewer, 25));
-		element.onShiftRightClick((e) -> adjustSurfaceThickness(element, window, viewer, -25));
-		applySurfaceThicknessElement(element);
-		return element;
-	}
-
-	private void adjustSurfaceThickness(UIElement element, Window window, Player viewer, int delta)
-	{
-		int previous = portal.getSurfaceThickness();
-		portal.setSurfaceThickness(previous + delta);
-		int current = portal.getSurfaceThickness();
-		applySurfaceThicknessElement(element);
-		window.updateInventory();
-		if(current != previous)
-		{
-			menus.text().notifySetting(viewer, WormholesMessages.PORTAL_NETWORK_VALUE_CHANGED,
-					LocalPortalText.arguments("label", LocalPortalText.localized(WormholesMessages.PORTAL_NETWORK_LABEL_SURFACE_THICKNESS), "value", surfaceThicknessDisplay()));
-		}
-	}
-
-	private void applySurfaceThicknessElement(Element element)
-	{
-		Wormholes.text().apply(element, WormholesMessages.PORTAL_MENU_SURFACE_THICKNESS,
-				LocalPortalText.arguments("value", surfaceThicknessDisplay(), "step", 5, "large_step", 25));
-		element.setMaterial(new MaterialBlock(Material.PAPER));
+				LocalPortalText.arguments("skin", surfaceSkinDisplay()), surfaceSkinIcon());
 	}
 
 	private Element surfaceSkinGlassElement(Window window, Player viewer)
@@ -483,11 +448,6 @@ final class LocalPortalCosmeticsMenu
 							"value", surfaceSkinDisplay()));
 		});
 		return element;
-	}
-
-	private String surfaceThicknessDisplay()
-	{
-		return String.format(Locale.ROOT, "%.2f", portal.getSurfaceThickness() / 100.0);
 	}
 
 	private String surfaceSkinDisplay()

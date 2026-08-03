@@ -52,6 +52,14 @@ final class PeerDirectory {
         }
     }
 
+    boolean remove(String name) {
+        if (name == null || name.isBlank()) {
+            return false;
+        }
+        boolean forgotten = learnedPeers.remove(name) != null;
+        return routeStore.remove(name) || forgotten;
+    }
+
     void learnFromConnection(PeerConnection connection) {
         String name = connection.getPeerName();
         if (name == null || name.isBlank()) {
