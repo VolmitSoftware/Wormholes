@@ -5,6 +5,7 @@ api-version: ${apiVersion}
 load: POSTWORLD
 description: Through-portal projection. See what is on the other side without crossing.
 authors: [ VolmitSoftware ]
+website: VolmitSoftware.com
 softdepend: [ PlaceholderAPI, Iris, Vault ]
 libraries:
   - com.github.luben:zstd-jni:1.5.7-11

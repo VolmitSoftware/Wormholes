@@ -33,7 +33,8 @@ final class RuntimeDoor
 	void update(VanillaDoorSnapshot snapshot)
 	{
 		plane = snapshot.plane();
-		cycle.observe(snapshot.open());
+		// The cycle tracks portal-active, which may be the inverse of the raw open bit.
+		cycle.observe(snapshot.portalLive());
 	}
 
 	void invalidate()

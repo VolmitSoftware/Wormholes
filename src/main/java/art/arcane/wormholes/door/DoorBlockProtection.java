@@ -74,6 +74,11 @@ public final class DoorBlockProtection implements Listener
 		event.blockList().removeIf(this::isProtected);
 	}
 
+	/**
+	 * A hinged door claims both of its blocks, so the block one above a registered
+	 * position is its upper half. A trapdoor is a single block and claims nothing
+	 * above itself.
+	 */
 	Optional<PlacedDoorEndpoint> endpointForDoorBlock(Block block)
 	{
 		Optional<PlacedDoorEndpoint> lower = guard.state().findEndpoint(
@@ -83,13 +88,21 @@ public final class DoorBlockProtection implements Listener
 			return lower;
 		}
 		return guard.state().findEndpoint(
-			block.getWorld().getUID(), block.getX(), block.getY() - 1, block.getZ());
+				block.getWorld().getUID(), block.getX(), block.getY() - 1, block.getZ())
+			.filter(DoorBlockProtection::isHinged);
 	}
 
+	/** Only a hinged door falls when the block under it goes; a trapdoor stays put. */
 	Optional<PlacedDoorEndpoint> endpointSupportedBy(Block block)
 	{
 		return guard.state().findEndpoint(
-			block.getWorld().getUID(), block.getX(), block.getY() + 1, block.getZ());
+				block.getWorld().getUID(), block.getX(), block.getY() + 1, block.getZ())
+			.filter(DoorBlockProtection::isHinged);
+	}
+
+	private static boolean isHinged(PlacedDoorEndpoint endpoint)
+	{
+		return endpoint.identity().form() == DoorForm.DOOR;
 	}
 
 	boolean isPocketCore(Block block)

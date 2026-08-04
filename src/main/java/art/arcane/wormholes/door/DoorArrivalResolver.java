@@ -30,7 +30,7 @@ final class DoorArrivalResolver
 	void loadEndpointArrival(
 		PlacedDoorEndpoint endpoint,
 		DoorTransit transit,
-		Consumer<Location> success,
+		Consumer<DoorArrival> success,
 		Runnable failure)
 	{
 		World world = runtimes.world(endpoint.position());
@@ -47,22 +47,27 @@ final class DoorArrivalResolver
 				failure.run();
 				return;
 			}
-			Optional<Location> safe = safeDestinationDoorArrival(world, captured.get().plane(), transit);
+			DoorwayPlane destinationPlane = captured.get().plane();
+			Optional<Location> safe = safeDestinationDoorArrival(world, destinationPlane, transit);
 			if(safe.isEmpty())
 			{
 				failure.run();
 				return;
 			}
-			success.accept(safe.get());
+			// Already on the destination region thread with the chunk held, which is
+			// the only place the far door may be swung open for the arrival.
+			runtimes.openForArrival(endpoint, world, captured.get());
+			success.accept(new DoorArrival(safe.get(), destinationPlane));
 		}, failure);
 	}
 
 	Optional<Location> safeSourceDoorReturn(World world, DoorTransit transit)
 	{
-		DoorVec3 point = DimensionalDoorManager.arrivalPoint(transit.sourcePlane(), transit);
-		float yaw = DimensionalDoorManager.arrivalYaw(transit.sourcePlane(), transit.sourcePlane(), transit);
-		return safeVerticalDoorStandingLocation(
-			world, point, yaw, transit.pitch(), transit.halfWidth(), transit.height());
+		DoorwayPlane plane = transit.sourcePlane();
+		int sideSign = transit.direction().entrySideSign();
+		DoorVec3 point = DimensionalDoorManager.arrivalPoint(plane, transit, sideSign);
+		float yaw = DimensionalDoorManager.arrivalYaw(plane, plane, transit);
+		return safeArrivalLocation(world, point, yaw, transit, plane, sideSign);
 	}
 
 	Optional<Location> safeDestinationDoorArrival(
@@ -70,10 +75,11 @@ final class DoorArrivalResolver
 		DoorwayPlane destinationPlane,
 		DoorTransit transit)
 	{
-		DoorVec3 point = DimensionalDoorManager.arrivalPoint(destinationPlane, transit);
+		int sideSign = DoorPlanePairing.arrivalSideSign(
+			transit.sourcePlane(), destinationPlane, transit.direction());
+		DoorVec3 point = DimensionalDoorManager.arrivalPoint(destinationPlane, transit, sideSign);
 		float yaw = DimensionalDoorManager.arrivalYaw(transit.sourcePlane(), destinationPlane, transit);
-		return safeVerticalDoorStandingLocation(
-			world, point, yaw, transit.pitch(), transit.halfWidth(), transit.height());
+		return safeArrivalLocation(world, point, yaw, transit, destinationPlane, sideSign);
 	}
 
 	Optional<Location> findSafeNear(Location stored, int radius)
@@ -116,22 +122,101 @@ final class DoorArrivalResolver
 		return isSafeStanding(location, PLAYER_HALF_WIDTH, PLAYER_HEIGHT);
 	}
 
+	/**
+	 * Arrival test for one traveler. An object traveler only needs air to occupy:
+	 * demanding a floor under it would reject every arrow.
+	 */
+	static boolean isSafeArrival(Location location, DoorTransit transit)
+	{
+		return transit.travelerClass() == DoorTravelerClass.OBJECT
+			? isPassableVolume(location, transit.halfWidth(), transit.height())
+			: isSafeStanding(location, transit.halfWidth(), transit.height());
+	}
+
 	static int floor(double value)
 	{
 		return (int) Math.floor(value);
 	}
 
-	private Optional<Location> safeVerticalDoorStandingLocation(
+	/** Where a traveler lands, plus the plane it came out of so momentum can be mapped. */
+	record DoorArrival(Location location, DoorwayPlane plane)
+	{
+		DoorArrival
+		{
+			Objects.requireNonNull(location, "location");
+			Objects.requireNonNull(plane, "plane");
+		}
+	}
+
+	private Optional<Location> safeArrivalLocation(
 		World world,
 		DoorVec3 nominal,
 		float yaw,
-		float pitch,
-		double halfWidth,
-		double height)
+		DoorTransit transit,
+		DoorwayPlane destination,
+		int sideSign)
 	{
-		return DimensionalDoorManager.findSafeVerticalDoorStanding(nominal, candidate -> isSafeStanding(new Location(
-			world, candidate.x(), candidate.y(), candidate.z(), yaw, pitch), halfWidth, height))
-			.map(candidate -> new Location(world, candidate.x(), candidate.y(), candidate.z(), yaw, pitch));
+		if(transit.travelerClass() == DoorTravelerClass.OBJECT)
+		{
+			// No vertical search: an object either fits where the doorway spits it out
+			// or it never left the source door at all.
+			Location candidate = new Location(world, nominal.x(), nominal.y(), nominal.z(), yaw, transit.pitch());
+			return isPassableVolume(candidate, transit.halfWidth(), transit.height())
+				? Optional.of(candidate)
+				: Optional.empty();
+		}
+		// Leaving through a trapdoor aperture is a fall, not a step: demanding a floor
+		// under the traveler would reject every open drop and strand it at the plate.
+		boolean throughAperture = destination.horizontal() && !destination.contactSurface();
+		return DimensionalDoorManager.findSafeVerticalDoorStanding(
+			nominal,
+			DoorPlanePairing.arrivalYOffsets(destination, sideSign),
+			candidate -> fitsArrival(
+				new Location(world, candidate.x(), candidate.y(), candidate.z(), yaw, transit.pitch()),
+				transit,
+				throughAperture))
+			.map(candidate -> new Location(world, candidate.x(), candidate.y(), candidate.z(), yaw, transit.pitch()));
+	}
+
+	private static boolean fitsArrival(Location candidate, DoorTransit transit, boolean throughAperture)
+	{
+		return throughAperture
+			? isPassableVolume(candidate, transit.halfWidth(), transit.height())
+			: isSafeStanding(candidate, transit.halfWidth(), transit.height());
+	}
+
+	private static boolean isPassableVolume(Location location, double halfWidth, double height)
+	{
+		World world = location.getWorld();
+		if(world == null || location.getBlockY() <= world.getMinHeight()
+			|| location.getY() + height >= world.getMaxHeight())
+		{
+			return false;
+		}
+		int minX = floor(location.getX() - halfWidth + COLLISION_EPSILON);
+		int maxX = floor(location.getX() + halfWidth - COLLISION_EPSILON);
+		int minZ = floor(location.getZ() - halfWidth + COLLISION_EPSILON);
+		int maxZ = floor(location.getZ() + halfWidth - COLLISION_EPSILON);
+		if(!WormholesPlatform.isOwnedByCurrentRegion(world, minX >> 4, minZ >> 4, maxX >> 4, maxZ >> 4))
+		{
+			return false;
+		}
+		int lowestY = location.getBlockY();
+		int highestY = floor(location.getY() + height - COLLISION_EPSILON);
+		for(int x = minX; x <= maxX; x++)
+		{
+			for(int z = minZ; z <= maxZ; z++)
+			{
+				for(int y = lowestY; y <= highestY; y++)
+				{
+					if(!world.getBlockAt(x, y, z).isPassable())
+					{
+						return false;
+					}
+				}
+			}
+		}
+		return true;
 	}
 
 	private static boolean isSafeStanding(Location location, double halfWidth, double height)

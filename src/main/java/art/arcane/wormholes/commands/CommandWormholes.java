@@ -14,6 +14,7 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.door.DimensionalDoorManager;
+import art.arcane.wormholes.door.DoorForm;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.service.StatsSnapshotWriter;
@@ -29,7 +30,8 @@ import java.util.Locale;
 
 @Director(name = "wormholes", aliases = {"wh", "wormhole"}, descriptionKey = "command.help.root", description = "Wormholes command root")
 public class CommandWormholes {
-    private static final List<String> DOOR_TYPE_COMPLETIONS = List.of("pair", "personal", "public");
+    private static final List<String> DOOR_TYPE_COMPLETIONS = List.of(
+            "pair", "personal", "public", "pair_trapdoor", "personal_trapdoor", "public_trapdoor");
 
     private final Wormholes plugin;
     private CommandAdmin admin = new CommandAdmin();
@@ -82,7 +84,7 @@ public class CommandWormholes {
 
     @Director(name = "door", sync = true, descriptionKey = "command.help.door", description = "Give a survival Dimensional Door item")
     public void door(@Param(name = "sender", contextual = true) CommandSender sender,
-                     @Param(name = "type", descriptionKey = "command.help.door.type", description = "pair | personal | public", defaultValue = "pair", customHandler = DoorTypeHandler.class) String type) {
+                     @Param(name = "type", descriptionKey = "command.help.door.type", description = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor", defaultValue = "pair", customHandler = DoorTypeHandler.class) String type) {
         if (!sender.hasPermission("wormholes.admin.items")) {
             send(sender, WormholesMessages.COMMAND_NO_PERMISSION);
             return;
@@ -102,6 +104,9 @@ public class CommandWormholes {
             case "pair" -> manager.items().createPairKit();
             case "personal" -> manager.items().createPersonalDoor();
             case "public" -> manager.items().createPublicDoor();
+            case "pair_trapdoor" -> manager.items().createPairKit(DoorForm.TRAPDOOR);
+            case "personal_trapdoor" -> manager.items().createPersonalDoor(DoorForm.TRAPDOOR);
+            case "public_trapdoor" -> manager.items().createPublicDoor(DoorForm.TRAPDOOR);
             default -> null;
         };
         if (item == null) {

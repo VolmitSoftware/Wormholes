@@ -13,6 +13,7 @@ final class DoorTravelerPolicy
 		DoorKind kind,
 		boolean player,
 		boolean mobileEntity,
+		boolean objectEntity,
 		boolean boss,
 		boolean complex,
 		boolean constrained,
@@ -23,12 +24,26 @@ final class DoorTravelerPolicy
 		{
 			return true;
 		}
+		if(constrained || !fitsAperture(width, height))
+		{
+			return false;
+		}
+		if(objectEntity && !mobileEntity)
+		{
+			// A personal pocket is keyed to one player and a return ticket to one
+			// traveler; an unowned object has neither, so only shared destinations
+			// accept it.
+			return kind == DoorKind.PAIR || kind == DoorKind.PUBLIC;
+		}
 		return kind == DoorKind.PAIR
 			&& mobileEntity
 			&& !boss
-			&& !complex
-			&& !constrained
-			&& Double.isFinite(width)
+			&& !complex;
+	}
+
+	private static boolean fitsAperture(double width, double height)
+	{
+		return Double.isFinite(width)
 			&& width > 0.0D
 			&& width <= MAX_WIDTH
 			&& Double.isFinite(height)

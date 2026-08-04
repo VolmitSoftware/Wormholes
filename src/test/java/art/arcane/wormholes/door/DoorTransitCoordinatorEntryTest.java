@@ -150,7 +150,12 @@ final class DoorTransitCoordinatorEntryTest
 				traveler,
 				runtime,
 				new Location(world, 0.5D, 64.0D, 0.5D),
-				DoorwayCrossing.Direction.FRONT_TO_BACK,
+				new DoorwayCrossing(
+					plane.center(),
+					1.0D,
+					0.0D,
+					1.0D,
+					DoorwayCrossing.Direction.FRONT_TO_BACK),
 				snapshot);
 		}
 

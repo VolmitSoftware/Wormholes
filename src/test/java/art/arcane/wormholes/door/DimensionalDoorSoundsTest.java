@@ -87,8 +87,54 @@ class DimensionalDoorSoundsTest
 	}
 
 	@Test
+	void openCuesMirrorTheCloseCuesPerDoorMaterial()
+	{
+		assertEquals(
+			DimensionalDoorSounds.SoundCue.IRON_DOOR_OPEN,
+			DimensionalDoorSounds.openCue(Material.IRON_DOOR));
+		assertEquals(
+			DimensionalDoorSounds.SoundCue.NETHER_WOOD_DOOR_OPEN,
+			DimensionalDoorSounds.openCue(Material.CRIMSON_DOOR));
+		assertEquals(
+			DimensionalDoorSounds.SoundCue.NETHER_WOOD_DOOR_OPEN,
+			DimensionalDoorSounds.openCue(Material.WARPED_DOOR));
+		assertEquals(
+			DimensionalDoorSounds.SoundCue.WOODEN_DOOR_OPEN,
+			DimensionalDoorSounds.openCue(Material.OAK_DOOR));
+		assertEquals(
+			DimensionalDoorSounds.SoundCue.WOODEN_DOOR_OPEN,
+			DimensionalDoorSounds.openCue(Material.PALE_OAK_DOOR));
+	}
+
+	@Test
+	void openCuesUseTheVanillaOpenSoundKeys()
+	{
+		assertEquals("block.iron_door.open", DimensionalDoorSounds.openSound(Material.IRON_DOOR));
+		assertEquals("block.nether_wood_door.open", DimensionalDoorSounds.openSound(Material.WARPED_DOOR));
+		assertEquals("block.wooden_door.open", DimensionalDoorSounds.openSound(Material.OAK_DOOR));
+	}
+
+	@Test
+	void openAndCloseCuesAreNeverTheSame()
+	{
+		for(Material material : new Material[]{Material.IRON_DOOR, Material.CRIMSON_DOOR, Material.OAK_DOOR})
+		{
+			assertNotEquals(
+				DimensionalDoorSounds.closeSound(material),
+				DimensionalDoorSounds.openSound(material),
+				material.name());
+		}
+	}
+
+	@Test
 	void closeCueRejectsNullMaterial()
 	{
 		assertThrows(NullPointerException.class, () -> DimensionalDoorSounds.closeCue(null));
+	}
+
+	@Test
+	void openCueRejectsNullMaterial()
+	{
+		assertThrows(NullPointerException.class, () -> DimensionalDoorSounds.openCue(null));
 	}
 }

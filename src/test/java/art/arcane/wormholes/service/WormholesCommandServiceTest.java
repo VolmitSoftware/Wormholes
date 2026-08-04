@@ -62,16 +62,20 @@ class WormholesCommandServiceTest {
         DirectorRuntimeEngine engine = DirectorEngineFactory.create(new CommandWormholes(null));
         DirectorSender sender = directorSender();
 
+        List<String> everyType = List.of(
+            "type=pair", "type=pair_trapdoor",
+            "type=personal", "type=personal_trapdoor",
+            "type=public", "type=public_trapdoor");
         assertEquals(
-            List.of("type=pair", "type=personal", "type=public"),
+            everyType,
             engine.tabComplete(new DirectorInvocation(sender, "wormholes", List.of("door", "type=")))
         );
         assertEquals(
-            List.of("type=pair", "type=personal", "type=public"),
+            everyType,
             engine.tabComplete(new DirectorInvocation(sender, "wormholes", List.of("door", "type=p")))
         );
         assertEquals(
-            List.of("type=public"),
+            List.of("type=public", "type=public_trapdoor"),
             engine.tabComplete(new DirectorInvocation(sender, "wormholes", List.of("door", "type=pub")))
         );
         assertEquals(

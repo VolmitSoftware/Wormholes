@@ -2,6 +2,8 @@ package art.arcane.wormholes.door;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
+import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -12,6 +14,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.type.Door;
+import org.bukkit.block.data.type.TrapDoor;
 import org.bukkit.plugin.Plugin;
 
 import java.io.IOException;
@@ -24,10 +27,14 @@ import java.util.logging.Level;
 
 final class DoorRuntimeIndex implements AutoCloseable
 {
+	private static final long ARRIVAL_AUTO_CLOSE_TICKS = 30L;
+
 	private final Plugin plugin;
 	private final DoorStateGuard guard;
 	private final PocketWorldService pocketWorldService;
 	private final DoorPortalVisualService visuals;
+	private final DoorEntitySweep sweep;
+	private final DoorAutoCloseBook autoClose;
 	private final DoorSpatialIndex<RuntimeDoor> spatialIndex;
 	private final ConcurrentHashMap<UUID, RuntimeDoor> runtimes;
 
@@ -37,8 +44,15 @@ final class DoorRuntimeIndex implements AutoCloseable
 		this.guard = Objects.requireNonNull(guard, "guard");
 		this.pocketWorldService = Objects.requireNonNull(pocketWorldService, "pocketWorldService");
 		visuals = new DoorPortalVisualService(plugin);
+		sweep = new DoorEntitySweep(plugin, guard::closed);
+		autoClose = new DoorAutoCloseBook();
 		spatialIndex = new DoorSpatialIndex<>();
 		runtimes = new ConcurrentHashMap<>();
+	}
+
+	void attachMovementSink(DoorEntitySweep.MovementSink sink)
+	{
+		sweep.attach(sink);
 	}
 
 	RuntimeDoor install(PlacedDoorEndpoint endpoint)
@@ -61,6 +75,33 @@ final class DoorRuntimeIndex implements AutoCloseable
 		runtimes.remove(doorId);
 		spatialIndex.remove(doorId);
 		visuals.hide(doorId);
+		sweep.stop(doorId);
+		autoClose.forget(doorId);
+	}
+
+	boolean replace(PlacedDoorEndpoint expected, PlacedDoorEndpoint updated)
+	{
+		Objects.requireNonNull(expected, "expected");
+		Objects.requireNonNull(updated, "updated");
+		if(!expected.identity().equals(updated.identity())
+			|| !expected.position().equals(updated.position()))
+		{
+			throw new IllegalArgumentException("Runtime replacement must preserve door identity and position");
+		}
+		RuntimeDoor replacement = install(updated);
+		World world = world(updated.position());
+		if(world == null)
+		{
+			return true;
+		}
+		int chunkX = updated.position().x() >> 4;
+		int chunkZ = updated.position().z() >> 4;
+		if(WormholesPlatform.isOwnedByCurrentRegion(world, chunkX, chunkZ))
+		{
+			reconcile(replacement);
+			return true;
+		}
+		return FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ, () -> reconcile(replacement));
 	}
 
 	RuntimeDoor runtime(UUID doorId)
@@ -88,12 +129,12 @@ final class DoorRuntimeIndex implements AutoCloseable
 		World world = world(endpoint.position());
 		if(world == null)
 		{
-			runtime.invalidate();
+			invalidate(runtime);
 			return;
 		}
 		if(!convertLegacyIronDoor(endpoint, world))
 		{
-			runtime.invalidate();
+			invalidate(runtime);
 			return;
 		}
 		visuals.cleanChunk(world.getChunkAt(endpoint.position().x() >> 4, endpoint.position().z() >> 4));
@@ -105,7 +146,11 @@ final class DoorRuntimeIndex implements AutoCloseable
 		}
 		VanillaDoorSnapshot snapshot = captured.get();
 		runtime.update(snapshot);
-		if(snapshot.open() && destinationAvailable(endpoint.identity()))
+		// The only fresh reading of the door there is, so it is also where a pending
+		// auto-close is retired once a player has shut the door themselves.
+		autoClose.observe(endpoint.identity().itemId(), snapshot.portalLive());
+		boolean usable = snapshot.portalLive() && destinationAvailable(endpoint.identity());
+		if(usable)
 		{
 			visuals.show(endpoint, snapshot);
 		}
@@ -113,6 +158,15 @@ final class DoorRuntimeIndex implements AutoCloseable
 		{
 			visuals.hide(endpoint.identity().itemId());
 		}
+		// The only place the physical open state is re-read for every door, so it is
+		// also where the object sweep is started and stopped.
+		sweep.observe(endpoint, runtime, world, usable);
+	}
+
+	private void invalidate(RuntimeDoor runtime)
+	{
+		runtime.invalidate();
+		sweep.stop(runtime.endpoint().identity().itemId());
 	}
 
 	void scheduleReconcile(PlacedDoorEndpoint endpoint, long delay)
@@ -151,9 +205,22 @@ final class DoorRuntimeIndex implements AutoCloseable
 		}
 	}
 
+	/**
+	 * Drops every runtime attachment for doors in a chunk that is going away.
+	 *
+	 * <p>An unloaded chunk yields no entities and fires no block event, so a sweep
+	 * left running over one never sees its door close and never stops. Nothing
+	 * reschedules a reconcile there either, so the door has to be forgotten here
+	 * and re-read when the chunk comes back.</p>
+	 */
 	void forgetUnloadedChunk(Chunk chunk)
 	{
 		visuals.unloadChunk(chunk);
+		for(DoorSpatialIndex.Entry<RuntimeDoor> entry : spatialIndex.nearby(
+			chunk.getWorld().getUID(), chunk.getX() << 4, chunk.getZ() << 4, 0))
+		{
+			invalidate(entry.value());
+		}
 	}
 
 	void reconcileWorld(World world)
@@ -178,13 +245,15 @@ final class DoorRuntimeIndex implements AutoCloseable
 	Optional<VanillaDoorSnapshot> capture(PlacedDoorEndpoint endpoint, World world)
 	{
 		DoorPosition position = endpoint.position();
+		DoorForm form = endpoint.identity().form();
 		Block lower = world.getBlockAt(position.x(), position.y(), position.z());
-		if(!DoorSkin.isPlayerOperable(lower.getType()))
+		if(!DoorSkin.isPlayerOperable(lower.getType(), form))
 		{
 			return Optional.empty();
 		}
-		return VanillaDoorSnapshot.capture(lower)
-			.filter(snapshot -> snapshot.worldId().equals(position.worldId()));
+		return VanillaDoorSnapshot.capture(lower, endpoint.openState())
+			.filter(snapshot -> snapshot.worldId().equals(position.worldId())
+				&& snapshot.plane().form() == form);
 	}
 
 	World world(DoorPosition position)
@@ -192,38 +261,185 @@ final class DoorRuntimeIndex implements AutoCloseable
 		return DoorWorlds.of(plugin.getServer(), position);
 	}
 
-	void closePhysicalDoor(World world, DoorwayPlane plane)
+	/**
+	 * Returns one door to its dormant physical state. A closed-state contact
+	 * surface is already shut and is left exactly as it is.
+	 */
+	void closePhysicalDoor(World world, DoorwayPlane plane, UUID doorId)
 	{
-		Block lowerBlock = world.getBlockAt(plane.blockX(), plane.blockY(), plane.blockZ());
+		Objects.requireNonNull(doorId, "doorId");
+		if(plane.contactSurface())
+		{
+			return;
+		}
+		setPhysicalDoorOpen(world, plane, false);
+		autoClose.forget(doorId);
+		sweep.stop(doorId);
+		RuntimeDoor runtime = runtimes.get(doorId);
+		if(runtime != null)
+		{
+			runtime.cycle().observe(false);
+		}
+	}
+
+	/**
+	 * Brings a destination door to its live state for an arriving traveler and
+	 * schedules the matching restore. A door a player opened is left completely
+	 * alone: the server only ever undoes what it did. One the server is already
+	 * holding open has its close pushed back instead, so the timer armed for an
+	 * earlier traveler never shuts the door on a later one mid-flight.
+	 *
+	 * <p>A closed-state contact surface is never swung at all.</p>
+	 */
+	void openForArrival(PlacedDoorEndpoint endpoint, World world, VanillaDoorSnapshot snapshot)
+	{
+		// Trapdoor arrivals never pass through the destination aperture, and swinging the
+		// plate open would remove the floor an upward arrival was just validated against.
+		if(guard.closed()
+			|| snapshot.plane().form() != DoorForm.DOOR
+			|| snapshot.plane().openState() != DoorOpenState.OPEN)
+		{
+			return;
+		}
+		UUID doorId = endpoint.identity().itemId();
+		switch(autoClose.decideArrival(doorId, snapshot.portalLive()))
+		{
+			case OPEN -> openAndArm(endpoint, world, snapshot, doorId);
+			case EXTEND ->
+			{
+				long extended = autoClose.arm(doorId);
+				Wormholes.v("[door] ARRIVAL extend door=" + doorId + " token=" + extended);
+				scheduleAutoClose(endpoint, extended, 0);
+			}
+			case LEAVE ->
+			{
+			}
+		}
+	}
+
+	private void openAndArm(PlacedDoorEndpoint endpoint, World world, VanillaDoorSnapshot snapshot, UUID doorId)
+	{
+		try
+		{
+			setPhysicalDoorOpen(world, snapshot.plane(), true);
+		}
+		catch(Throwable ex)
+		{
+			plugin.getLogger().log(Level.WARNING, "Could not open a destination dimensional door", ex);
+			return;
+		}
+		// Armed first so a reconcile that finds the door gone also drops the pending close.
+		long token = autoClose.arm(doorId);
+		reconcile(runtimes.get(doorId));
+		Wormholes.v("[door] ARRIVAL open door=" + doorId + " token=" + token);
+		scheduleAutoClose(endpoint, token, 0);
+	}
+
+	private void scheduleAutoClose(PlacedDoorEndpoint endpoint, long token, int deferrals)
+	{
+		UUID doorId = endpoint.identity().itemId();
+		World world = world(endpoint.position());
+		if(world == null || !FoliaScheduler.runRegion(plugin, world,
+			endpoint.position().x() >> 4, endpoint.position().z() >> 4,
+			() -> runAutoClose(endpoint, token, deferrals), ARRIVAL_AUTO_CLOSE_TICKS))
+		{
+			autoClose.forget(doorId);
+		}
+	}
+
+	private void runAutoClose(PlacedDoorEndpoint endpoint, long token, int deferrals)
+	{
+		UUID doorId = endpoint.identity().itemId();
+		RuntimeDoor runtime = runtimes.get(doorId);
+		World world = world(endpoint.position());
+		if(guard.closed() || runtime == null || world == null)
+		{
+			autoClose.forget(doorId);
+			return;
+		}
+		// Capturing would force-load an unloaded chunk; the reload reconcile re-reads the door anyway.
+		if(!world.isChunkLoaded(endpoint.position().x() >> 4, endpoint.position().z() >> 4))
+		{
+			autoClose.forget(doorId);
+			return;
+		}
+		Optional<VanillaDoorSnapshot> captured = capture(endpoint, world);
+		DoorAutoCloseBook.Decision decision = autoClose.decide(
+			doorId,
+			token,
+			captured.isPresent() && captured.get().portalLive(),
+			runtime.cycle().phase() == DoorOpenCycle.Phase.IN_TRANSIT,
+			deferrals);
+		switch(decision)
+		{
+			case CLOSE ->
+			{
+				closePhysicalDoor(world, captured.get().plane(), doorId);
+				reconcile(runtime);
+				Wormholes.v("[door] ARRIVAL close door=" + doorId + " token=" + token);
+			}
+			case DEFER -> scheduleAutoClose(endpoint, token, deferrals + 1);
+			case ABANDONED -> Wormholes.v("[door] ARRIVAL close abandoned door=" + doorId + " token=" + token);
+			case SUPERSEDED, ALREADY_CLOSED ->
+			{
+			}
+		}
+	}
+
+	private void setPhysicalDoorOpen(World world, DoorwayPlane plane, boolean open)
+	{
+		Block block = world.getBlockAt(plane.blockX(), plane.blockY(), plane.blockZ());
+		Material material = block.getType();
+		boolean changed = plane.horizontal()
+			? swingTrapdoor(block, open)
+			: swingDoor(block, open);
+		if(!changed)
+		{
+			return;
+		}
+		try
+		{
+			world.playSound(
+				new Location(world, plane.blockX() + 0.5D, plane.blockY() + 1.0D, plane.blockZ() + 0.5D),
+				open
+					? DimensionalDoorSounds.openSound(material)
+					: DimensionalDoorSounds.closeSound(material),
+				SoundCategory.BLOCKS,
+				Settings.portalSoundVolume(1.0F),
+				1.0F);
+		}
+		catch(Throwable ex)
+		{
+			plugin.getLogger().log(Level.WARNING, "Could not play a dimensional-door swing sound", ex);
+		}
+	}
+
+	private static boolean swingDoor(Block lowerBlock, boolean open)
+	{
 		Block upperBlock = lowerBlock.getRelative(BlockFace.UP);
-		Material material = lowerBlock.getType();
-		boolean wasOpen = lowerBlock.getBlockData() instanceof Door lower && lower.isOpen();
+		boolean changed = lowerBlock.getBlockData() instanceof Door lower && lower.isOpen() != open;
 		if(lowerBlock.getBlockData() instanceof Door lower)
 		{
-			lower.setOpen(false);
+			lower.setOpen(open);
 			lowerBlock.setBlockData(lower, false);
 		}
 		if(upperBlock.getBlockData() instanceof Door upper)
 		{
-			upper.setOpen(false);
+			upper.setOpen(open);
 			upperBlock.setBlockData(upper, false);
 		}
-		if(wasOpen)
+		return changed;
+	}
+
+	private static boolean swingTrapdoor(Block block, boolean open)
+	{
+		if(!(block.getBlockData() instanceof TrapDoor plate) || plate.isOpen() == open)
 		{
-			try
-			{
-				world.playSound(
-					new Location(world, plane.blockX() + 0.5D, plane.blockY() + 1.0D, plane.blockZ() + 0.5D),
-					DimensionalDoorSounds.closeSound(material),
-					SoundCategory.BLOCKS,
-					Settings.portalSoundVolume(1.0F),
-					1.0F);
-			}
-			catch(Throwable ex)
-			{
-				plugin.getLogger().log(Level.WARNING, "Could not play a dimensional-door close sound", ex);
-			}
+			return false;
 		}
+		plate.setOpen(open);
+		block.setBlockData(plate, false);
+		return true;
 	}
 
 	void hideTransitVisual(UUID doorId)
@@ -241,6 +457,8 @@ final class DoorRuntimeIndex implements AutoCloseable
 	@Override
 	public void close()
 	{
+		sweep.close();
+		autoClose.clear();
 		visuals.close();
 		spatialIndex.clear();
 		runtimes.clear();
@@ -274,7 +492,7 @@ final class DoorRuntimeIndex implements AutoCloseable
 	private void removeStaleEndpoint(RuntimeDoor runtime)
 	{
 		PlacedDoorEndpoint endpoint = runtime.endpoint();
-		runtime.invalidate();
+		invalidate(runtime);
 		Optional<PlacedDoorEndpoint> mate = guard.state().findMate(endpoint.identity());
 		try
 		{
@@ -300,9 +518,11 @@ final class DoorRuntimeIndex implements AutoCloseable
 		};
 	}
 
+	/** Trapdoors were introduced after the iron-door era, so they never carry the legacy skin. */
 	private boolean convertLegacyIronDoor(PlacedDoorEndpoint endpoint, World world)
 	{
-		if(endpoint.identity().kind() != DoorKind.PUBLIC)
+		if(endpoint.identity().kind() != DoorKind.PUBLIC
+			|| endpoint.identity().form() != DoorForm.DOOR)
 		{
 			return true;
 		}

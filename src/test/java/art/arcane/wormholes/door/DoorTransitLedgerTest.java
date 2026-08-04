@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Proxy;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -98,6 +99,53 @@ final class DoorTransitLedgerTest
 		assertFalse(ledger.isTraveling(player.getUniqueId()));
 		assertFalse(ledger.isRescuing(player.getUniqueId()));
 		assertFalse(ledger.consumeEscapeGlitch(player.getUniqueId()));
+	}
+
+	@Test
+	void everyArrowInAVolleyGetsItsOwnClaim()
+	{
+		DoorTransitLedger ledger = ledger();
+		Entity first = entity(new UUID(1L, 1L));
+		Entity second = entity(new UUID(1L, 2L));
+		Entity third = entity(new UUID(1L, 3L));
+
+		assertTrue(ledger.claim(first));
+		assertTrue(ledger.claim(second));
+		assertTrue(ledger.claim(third));
+		assertFalse(ledger.claim(second));
+
+		ledger.release(second);
+
+		assertFalse(ledger.isTraveling(second.getUniqueId()));
+		assertTrue(ledger.isTraveling(first.getUniqueId()));
+		assertTrue(ledger.isTraveling(third.getUniqueId()));
+	}
+
+	@Test
+	void aSweptObjectIsNotReprocessedWhileItsTransitIsClaimed()
+	{
+		DoorTransitLedger ledger = ledger();
+		Entity arrow = entity(new UUID(2L, 1L));
+		ledger.claim(arrow);
+
+		assertTrue(ledger.isTraveling(arrow.getUniqueId()));
+		assertFalse(ledger.claim(arrow));
+	}
+
+	@Test
+	void anObjectCooldownBlocksReentryUntilItExpires()
+	{
+		DoorTransitLedger ledger = ledger();
+		Entity arrow = entity(new UUID(2L, 2L));
+		long now = System.nanoTime();
+
+		assertFalse(ledger.hasCooldown(arrow.getUniqueId(), now));
+
+		ledger.startCooldown(arrow);
+
+		assertTrue(ledger.hasCooldown(arrow.getUniqueId(), now));
+		assertFalse(ledger.hasCooldown(arrow.getUniqueId(), now + TimeUnit.SECONDS.toNanos(5L)));
+		assertFalse(ledger.hasCooldown(arrow.getUniqueId(), now));
 	}
 
 	@Test

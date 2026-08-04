@@ -35,20 +35,44 @@ envelope that passed the destination safety check.
 
 ## Survival Dimensional Doors
 
-Dimensional Doors are real vanilla doors: they activate only while physically
-open and only when an eligible traveler crosses the visible portal surface.
-After a successful crossing, the source door closes with its normal material
-sound and the traveler hears the player-teleport cue. The open doorway uses an
+Dimensional Doors are real vanilla doors. Their saved **OpenState** selects
+whether the portal is active while the physical block is Open or Closed, and
+newly placed doors default to Open. An eligible traveler must meet the visible
+portal surface while that state is active. An Open-state source returns to its
+closed dormant state after a living traveler crosses; a Closed-state contact
+surface remains shut. The traveler hears the player-teleport cue. The portal uses an
 opaque, fullbright Crying Obsidian backing with a client-animated Nether Portal
 veil. It is recessed one pixel inside the closed-door edge, keeps one pixel of
 clearance beside the hinge, and extends flush to the opposite latch edge.
 Every crossing preserves the entered closed-door face at the destination:
 front-to-front and back-to-back, facing outward while preserving relative look
 direction and safely adjusting upward or downward for uneven terrain.
+
+Doors carry more than players. Arrows, tridents, snowballs, thrown potions,
+dropped items, and experience orbs that fly through an active doorway cross it
+like anyone else, retaining the exact height and lateral position where they
+met the aperture as well as their remapped momentum. A live door sweeps the air around itself every tick, so
+entities that never fire a movement event are still caught mid-flight. A whole
+volley passes while the door stands open — an object never claims the door's
+single armed open cycle and never closes it behind itself — and momentum is
+carried across, remapped into the destination doorway's frame. Objects travel
+only through Pair and Public doors; a personal pocket is keyed to one player
+and a pocket's return door to one traveler, so both stay player-only, and an
+object is never issued a return ticket. Per-door access still applies: an
+arrow is judged by whoever shot it and a dropped item by whoever threw it,
+while an unowned object such as dispenser fire passes ungated. A physically
+closed destination door whose OpenState is Open swings itself open for an
+arriving traveler and shuts again moments later; a Closed-state destination
+remains shut. The server only ever closes a door it opened itself, leaves a
+door a player opened alone, and pushes a pending close back instead of
+slamming it while another arrival is still mid-flight.
+
 Access is per player, not per door. The owner sneak-right-clicks a placed door
 with an empty hand to open a compact access window that grows one row for every
-nine listed players: a header with the door placard and the add-player button,
-then one stained-glass pane per listed player. Black is neutral and changes
+nine listed players: a header with the door placard, a centered OpenState
+control, and the add-player button, then one stained-glass pane per listed
+player. The OpenState control applies to both doors and trapdoors; click it to
+switch which physical state presents the portal. Black is neutral and changes
 nothing, green whitelists, red blacklists. Left-click a pane to whitelist,
 right-click to blacklist, and middle-click or shift-left-click to drop the
 player from the list. A blacklisted player is always refused; once anybody is
@@ -67,6 +91,24 @@ server protection plugin remain the authority everywhere else.
 - **Public Dimension Door:** the item itself owns one shared persistent pocket. Breaking
   and moving that specific door preserves its destination; crafting another
   creates a different pocket. Every traveler using that door enters the same space.
+
+Each variant can also be crafted as a one-block **Dimensional Trapdoor** whose
+portal is the flat one-by-one plane its plate occupies, at the top or bottom
+of its own block depending on placement. The trapdoor pair kit unpacks linked
+A/B trapdoors exactly like the door kit, and Personal and Public trapdoors
+follow their door counterparts' rules. A fresh placement is live while open:
+swing it aside and fall, jump, or fly through the hole. Where two hinged doors
+mirror a traveler onto the matching side, a trapdoor hands it straight through:
+drop in the top of one and you come out under the far plate still falling, climb
+up through the bottom and you come out standing on top of it. A traveler with
+nowhere to fit on the far side is returned to the near trapdoor rather than
+being spat back out of the face it entered. The plane it crosses is the middle
+of the plate slab, exactly where the veil is drawn. Selecting Closed from the
+access window's OpenState control turns the shut plate into a contact pad:
+stepping onto it teleports, nothing crosses while it stands open, and a
+traveler already standing on the pad is not retriggered by shuffling around.
+Contact pads never swing, are never opened automatically for an arrival, and
+never consume an open cycle.
 
 All three support cross-dimensional player travel on the same server, and Pair
 doors load a far-away or unloaded destination chunk before transit. Pocket
@@ -92,14 +134,19 @@ _ D _                                     _ L _
 `E` is Ender Eye (pair), Ender Chest (other recipes); `D` is any vanilla door
 for every recipe; `O` is Obsidian, `C` is Recovery Compass, and `L` is
 Lodestone. Pair endpoints default to Oak, Personal Doors default to Dark Oak,
-and Public Doors default to Pale Oak.
+and Public Doors default to Pale Oak. The three trapdoor recipes use the same
+shapes with any wooden trapdoor as `D` and default to Oak, Dark Oak, and Pale
+Oak trapdoors; iron and copper trapdoors are refused everywhere because they
+only move by redstone.
 
 To change the appearance, combine one Dimensional Door with one ordinary
 wooden, bamboo, crimson, or warped door in any crafting-table arrangement. The
 result keeps the exact same pair, personal traveler mapping, or public pocket
 identity while adopting the ordinary door's material. Iron and copper doors
 cannot be selected as skins because every Dimensional Door must remain
-hand-openable. Existing placed Iron Dimension Doors are converted to the new
+hand-openable. A Dimensional Trapdoor reskins the same way with one ordinary
+hand-openable trapdoor, and a door can never be reskinned into a trapdoor or
+the reverse. Existing placed Iron Dimension Doors are converted to the new
 Pale Oak Public Door default without changing their saved destination.
 
 Identity-bearing kits and placed doors are consumed normally in Creative mode.
@@ -107,7 +154,8 @@ Breaking a Pair, Personal, or Public door always drops that exact door item,
 including in Creative, so its link or pocket destination survives being moved.
 
 Administrators can issue test items with
-`/wormholes door type=<pair|personal|public>`. Installing the feature or changing
+`/wormholes door type=<pair|personal|public|pair_trapdoor|personal_trapdoor|public_trapdoor>`.
+Installing the feature or changing
 its bundled dimension data requires a full server restart so Paper can rebuild
 the world registries.
 

@@ -178,6 +178,23 @@ public final class DoorStateService {
         return removed;
     }
 
+    public synchronized boolean setEndpointOpenState(DoorPosition position, DoorOpenState openState)
+        throws IOException {
+        Objects.requireNonNull(position, "position");
+        Objects.requireNonNull(openState, "openState");
+        PlacedDoorEndpoint existing = registry.at(position).orElse(null);
+        if (existing == null || existing.openState() == openState) {
+            return false;
+        }
+
+        DoorRegistry candidateRegistry = copyRegistry();
+        candidateRegistry.remove(position)
+            .orElseThrow(() -> new IllegalStateException("endpoint is not registered"));
+        candidateRegistry.register(existing.withOpenState(openState));
+        persistAndPublish(candidateRegistry, allocator, pairsById, ticketsByPlayer, accessByItem);
+        return true;
+    }
+
     public DoorDestination resolveDestination(DoorItemIdentity identity, UUID travelerId) {
         return DoorDestinationResolver.resolve(identity, travelerId);
     }

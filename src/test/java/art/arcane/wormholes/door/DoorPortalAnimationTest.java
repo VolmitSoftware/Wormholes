@@ -138,11 +138,55 @@ class DoorPortalAnimationTest
 	}
 
 	@Test
+	void aFlatPanelPulsesAcrossBothHorizontalAxesAndHoldsItsThickness()
+	{
+		DoorwayPlane plane = DoorwayPlane.trapdoor(
+			0,
+			64,
+			0,
+			BlockFace.SOUTH,
+			org.bukkit.block.data.Bisected.Half.BOTTOM,
+			DoorOpenState.OPEN);
+		DoorPortalVisualService.PortalPlaneGeometry base = DoorPortalVisualService.overlayGeometry(
+			DoorPortalVisualService.planeGeometry(plane, Door.Hinge.LEFT), BlockFace.UP);
+		float baseCenterX = base.translationX() + (base.scaleX() / 2.0F);
+		float baseCenterZ = base.translationZ() + (base.scaleZ() / 2.0F);
+		for(BlockFace face : new BlockFace[] {BlockFace.UP, BlockFace.DOWN})
+		{
+			for(int tick = 0; tick <= 288; tick += DoorPortalAnimation.FRAME_PERIOD_TICKS)
+			{
+				DoorPortalVisualService.PortalPlaneGeometry frame = DoorPortalAnimation.frame(base, face, tick);
+				assertEquals(base.translationY(), frame.translationY(), EPSILON);
+				assertEquals(base.scaleY(), frame.scaleY(), EPSILON);
+				assertTrue(frame.scaleX() <= base.scaleX() + EPSILON);
+				assertTrue(frame.scaleZ() <= base.scaleZ() + EPSILON);
+				assertTrue(frame.scaleX() >= (base.scaleX() * (1.0F - DoorPortalAnimation.PULSE_DEPTH)) - EPSILON);
+				assertTrue(frame.scaleZ() >= (base.scaleZ() * (1.0F - DoorPortalAnimation.PULSE_DEPTH)) - EPSILON);
+				assertEquals(
+					baseCenterX,
+					frame.translationX() + (frame.scaleX() / 2.0F),
+					DoorPortalAnimation.SWAY_AMPLITUDE + EPSILON);
+				assertEquals(baseCenterZ, frame.translationZ() + (frame.scaleZ() / 2.0F), EPSILON);
+			}
+
+			for(int arm = 0; arm < DoorPortalAnimation.ORBIT_ARMS; arm++)
+			{
+				double[] orbit = DoorPortalAnimation.orbitPoint(base, face, 7, arm);
+				assertEquals(base.translationY() + (base.scaleY() / 2.0D), orbit[1], EPSILON);
+			}
+			double[] scatter = DoorPortalAnimation.scatterPoint(base, face, 0.25D, 0.75D);
+			assertEquals(base.translationY() + (base.scaleY() / 2.0D), scatter[1], EPSILON);
+			assertEquals(base.translationX() + (0.25D * base.scaleX()), scatter[0], EPSILON);
+			assertEquals(base.translationZ() + (0.75D * base.scaleZ()), scatter[2], EPSILON);
+		}
+	}
+
+	@Test
 	void invalidInputsAreRejected()
 	{
 		DoorPortalVisualService.PortalPlaneGeometry base = overlay(BlockFace.NORTH);
 		assertThrows(IllegalArgumentException.class,
-			() -> DoorPortalAnimation.frame(base, BlockFace.UP, 0));
+			() -> DoorPortalAnimation.frame(base, BlockFace.NORTH_EAST, 0));
 		assertThrows(NullPointerException.class,
 			() -> DoorPortalAnimation.frame(null, BlockFace.NORTH, 0));
 		assertThrows(IllegalArgumentException.class,

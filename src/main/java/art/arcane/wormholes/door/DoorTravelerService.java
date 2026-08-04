@@ -48,9 +48,21 @@ final class DoorTravelerService
 
 	void settle(Entity traveler)
 	{
+		settle(traveler, null);
+	}
+
+	/**
+	 * Applies the arrival state for one traveler. A null velocity lands the
+	 * traveler at rest, which is what a player or mob expects; an object traveler
+	 * supplies its rotated momentum so it keeps flying out of the far door.
+	 */
+	void settle(Entity traveler, DoorVec3 velocity)
+	{
 		try
 		{
-			traveler.setVelocity(new Vector());
+			traveler.setVelocity(velocity == null
+				? new Vector()
+				: new Vector(velocity.x(), velocity.y(), velocity.z()));
 			traveler.setFallDistance(0.0F);
 		}
 		catch(Throwable ex)

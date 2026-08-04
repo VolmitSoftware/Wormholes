@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -86,6 +87,43 @@ class DoorIdentityTest {
             () -> new DoorItemIdentity(id(50), DoorKind.RETURN, null, null, null));
         assertThrows(IllegalArgumentException.class,
             () -> new DoorPairIdentity(id(50), id(51), id(51)));
+    }
+
+    @Test
+    void everyIdentityDefaultsToTheDoorForm() {
+        assertEquals(DoorForm.DOOR, DoorItemIdentity.personal(id(60)).form());
+        assertEquals(DoorForm.DOOR, DoorItemIdentity.publicDoor(id(61)).form());
+        assertEquals(DoorForm.DOOR, DoorItemIdentity.paired(id(62), id(63), PairEndpoint.A).form());
+        assertEquals(DoorForm.DOOR, DoorItemIdentity.returnDoor(id(64), id(65)).form());
+        assertEquals(DoorForm.DOOR, new DoorItemIdentity(id(66), DoorKind.PUBLIC, null, null, null).form());
+        assertFalse(DoorItemIdentity.publicDoor(id(67)).isTrapdoor());
+    }
+
+    @Test
+    void trapdoorFormIsCarriedByEveryPlaceableKind() {
+        assertEquals(DoorForm.TRAPDOOR, DoorItemIdentity.personal(id(70), DoorForm.TRAPDOOR).form());
+        assertEquals(DoorForm.TRAPDOOR, DoorItemIdentity.publicDoor(id(71), DoorForm.TRAPDOOR).form());
+        assertEquals(
+            DoorForm.TRAPDOOR,
+            DoorItemIdentity.paired(id(72), id(73), PairEndpoint.B, DoorForm.TRAPDOOR).form());
+        assertTrue(DoorItemIdentity.newPersonal(DoorForm.TRAPDOOR).isTrapdoor());
+        assertTrue(DoorItemIdentity.newPublic(DoorForm.TRAPDOOR).isTrapdoor());
+    }
+
+    @Test
+    void returnDoorsCanNeverBeTrapdoors() {
+        assertEquals(DoorForm.DOOR, DoorItemIdentity.newReturn(id(80)).form());
+        assertThrows(IllegalArgumentException.class,
+            () -> new DoorItemIdentity(id(81), DoorKind.RETURN, DoorForm.TRAPDOOR, null, null, id(82)));
+        assertThrows(NullPointerException.class,
+            () -> new DoorItemIdentity(id(83), DoorKind.PUBLIC, null, null, null, null));
+    }
+
+    @Test
+    void formIsPartOfIdentityEquality() {
+        assertNotEquals(
+            DoorItemIdentity.personal(id(90)),
+            DoorItemIdentity.personal(id(90), DoorForm.TRAPDOOR));
     }
 
     private static UUID id(long value) {

@@ -189,6 +189,34 @@ public final class WormholesMessages {
     public static final LinesKey ITEM_PUBLIC_DOOR_RECIPE = lines("item.door.public_recipe",
             "<gold>Public Dimension Door",
             "<gray>Every traveler enters this door's shared dimension.");
+    public static final LinesKey ITEM_ENTANGLED_TRAPDOOR_PAIR = lines("item.door.entangled_trapdoor_pair",
+            "<gold>Entangled Trapdoor Pair",
+            "<gray>Contains two automatically linked Wormhole Trapdoors.",
+            "<gray>Use it to unpack endpoints A and B.");
+    public static final LinesKey ITEM_PAIRED_TRAPDOOR = lines("item.door.paired_trapdoor",
+            "<gold>Wormhole Trapdoor {endpoint}",
+            "<gray>Automatically linked to endpoint {other}.",
+            "<gray>Open the trapdoor and drop through it.");
+    public static final LinesKey ITEM_PERSONAL_TRAPDOOR = lines("item.door.personal_trapdoor",
+            "<aqua>Personal Dimension Trapdoor",
+            "<gray>Each traveler enters their own persistent dimension.",
+            "<gray>The same traveler always reaches the same place.");
+    public static final LinesKey ITEM_PUBLIC_TRAPDOOR = lines("item.door.public_trapdoor",
+            "<gold>Public Dimension Trapdoor",
+            "<gray>Every traveler enters this trapdoor's shared dimension.",
+            "<gray>Breaking and moving it preserves the shared destination.");
+    public static final LinesKey ITEM_TRAPDOOR_SKIN = lines("item.door.trapdoor_skin",
+            "<gold>Dimensional Trapdoor Skin",
+            "<gray>Combine a dimensional trapdoor with a hand-openable trapdoor.");
+    public static final LinesKey ITEM_ENTANGLED_TRAPDOOR_PAIR_RECIPE = lines("item.door.entangled_trapdoor_pair_recipe",
+            "<gold>Entangled Trapdoor Pair",
+            "<gray>Contains two automatically linked Wormhole Trapdoors.");
+    public static final LinesKey ITEM_PERSONAL_TRAPDOOR_RECIPE = lines("item.door.personal_trapdoor_recipe",
+            "<aqua>Personal Dimension Trapdoor",
+            "<gray>Each traveler enters their own persistent dimension.");
+    public static final LinesKey ITEM_PUBLIC_TRAPDOOR_RECIPE = lines("item.door.public_trapdoor_recipe",
+            "<gold>Public Dimension Trapdoor",
+            "<gray>Every traveler enters this trapdoor's shared dimension.");
 
     public static final TextKey PORTAL_RTP_RUNE_UNSUPPORTED = text("portal.form.rtp_unsupported", "<red>Random teleport portals cannot be formed from runes.");
     public static final TextKey PORTAL_FORMING = text("portal.form.forming", "<aqua>Forming portal... {type} runes must connect on one flat wall, floor, or ceiling.");
@@ -276,6 +304,8 @@ public final class WormholesMessages {
     public static final TextKey DOOR_ACCESS_LABEL_NEUTRAL = text("door.access.label.neutral", "Neutral");
     public static final TextKey DOOR_ACCESS_LABEL_WHITELIST = text("door.access.label.whitelist", "Whitelist");
     public static final TextKey DOOR_ACCESS_LABEL_BLACKLIST = text("door.access.label.blacklist", "Blacklist");
+    public static final TextKey DOOR_OPEN_STATE_OPEN = text("door.open_state.open", "Open");
+    public static final TextKey DOOR_OPEN_STATE_CLOSED = text("door.open_state.closed", "Closed");
     public static final TextKey DOOR_ACCESS_KIND_PAIR = text("door.access.kind.pair", "Entangled");
     public static final TextKey DOOR_ACCESS_KIND_PERSONAL = text("door.access.kind.personal", "Personal");
     public static final TextKey DOOR_ACCESS_KIND_PUBLIC = text("door.access.kind.public", "Public");
@@ -307,6 +337,12 @@ public final class WormholesMessages {
             "<gray>Type a player name in chat to list them.",
             "",
             "<dark_gray>Click to add a player.");
+    public static final LinesKey DOOR_MENU_ACCESS_OPEN_STATE = lines("door.menu.access.open_state",
+            "<aqua><bold>OpenState: <white>{state}",
+            "<gray>The portal follows this block's physical state.",
+            "<gray>Active state: <white>{state}<gray>.",
+            "",
+            "<dark_gray>Next: {next}. Click to switch.");
     public static final LinesKey DOOR_MENU_ACCESS_ENTRY = lines("door.menu.access.entry",
             "<white>{name}",
             "<gray>State: <aqua>{state}",

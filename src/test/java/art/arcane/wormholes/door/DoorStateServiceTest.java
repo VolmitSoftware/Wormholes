@@ -399,6 +399,45 @@ class DoorStateServiceTest {
             DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile())).endpoints());
     }
 
+    @Test
+    void endpointOpenStatesPersistForBothDoorFormsAndSurviveRestart() throws Exception {
+        DoorStateService service = DoorStateService.load(repository());
+        PlacedDoorEndpoint door = placed(
+            id(601), "minecraft:overworld", 2, 64, 3, DoorItemIdentity.publicDoor(id(600)));
+        PlacedDoorEndpoint trapdoor = placed(
+            id(603), "minecraft:overworld", 4, 64, 3,
+            DoorItemIdentity.publicDoor(id(604), DoorForm.TRAPDOOR));
+        service.registerEndpoint(door, id(602));
+        service.registerEndpoint(trapdoor, id(602));
+
+        assertFalse(service.setEndpointOpenState(door.position(), DoorOpenState.OPEN));
+        assertTrue(service.setEndpointOpenState(door.position(), DoorOpenState.CLOSED));
+        assertTrue(service.setEndpointOpenState(trapdoor.position(), DoorOpenState.CLOSED));
+
+        DoorStateService restarted = DoorStateService.load(
+            new DimensionalDoorRepository(service.repository().stateFile()));
+        assertEquals(DoorOpenState.CLOSED, restarted.findEndpoint(door.position()).orElseThrow().openState());
+        assertEquals(DoorOpenState.CLOSED, restarted.findEndpoint(trapdoor.position()).orElseThrow().openState());
+        assertTrue(restarted.setEndpointOpenState(door.position(), DoorOpenState.OPEN));
+        assertEquals(DoorOpenState.OPEN,
+            DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile()))
+                .findEndpoint(door.position()).orElseThrow().openState());
+    }
+
+    @Test
+    void emptyPositionsAndNullStatesAreRejectedWithoutMutation() throws Exception {
+        DoorStateService service = DoorStateService.load(repository());
+        DoorItemIdentity identity = DoorItemIdentity.publicDoor(id(610));
+        PlacedDoorEndpoint placement = placed(id(611), "minecraft:overworld", 0, 64, 0, identity);
+        service.registerEndpoint(placement, id(612));
+
+        assertFalse(service.setEndpointOpenState(
+            new DoorPosition(id(613), "minecraft:overworld", 9, 64, 9), DoorOpenState.CLOSED));
+        assertThrows(NullPointerException.class,
+            () -> service.setEndpointOpenState(placement.position(), null));
+        assertEquals(DoorOpenState.OPEN, service.findEndpoint(placement.position()).orElseThrow().openState());
+    }
+
     private DimensionalDoorRepository repository() {
         return new DimensionalDoorRepository(temporaryDirectory.resolve("state.json"));
     }

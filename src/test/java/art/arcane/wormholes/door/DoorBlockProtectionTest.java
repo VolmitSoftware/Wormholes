@@ -74,6 +74,51 @@ final class DoorBlockProtectionTest
 		assertTrue(EntityChangeBlockEvent.class.isAssignableFrom(EntityBreakDoorEvent.class));
 	}
 
+	@Test
+	void aTrapdoorIsProtectedOnlyOnItsOwnSingleBlock() throws Exception
+	{
+		DoorBlockProtection protection = protection(trapdoorPlacement());
+
+		assertTrue(protection.endpointForDoorBlock(block(4, 64, 8)).isPresent());
+		assertTrue(protection.endpointForDoorBlock(block(4, 65, 8)).isEmpty(), "no upper half exists");
+		assertTrue(protection.endpointSupportedBy(block(4, 63, 8)).isEmpty(), "a trapdoor never falls");
+	}
+
+	@Test
+	void aHingedDoorClaimsItsUpperHalfAndTheBlockHoldingItUp() throws Exception
+	{
+		DoorBlockProtection protection = protection(placement());
+
+		assertTrue(protection.endpointForDoorBlock(block(4, 64, 8)).isPresent());
+		assertTrue(protection.endpointForDoorBlock(block(4, 65, 8)).isPresent());
+		assertTrue(protection.endpointSupportedBy(block(4, 63, 8)).isPresent());
+	}
+
+	@Test
+	void mobsMayBreakTheBlockUnderneathATrapdoorAndTheAirAboveIt() throws Exception
+	{
+		DoorBlockProtection protection = protection(trapdoorPlacement());
+		EntityChangeBlockEvent below = change(block(4, 63, 8));
+		EntityChangeBlockEvent above = change(block(4, 65, 8));
+
+		protection.onEntityChangeBlock(below);
+		protection.onEntityChangeBlock(above);
+
+		assertFalse(below.isCancelled());
+		assertFalse(above.isCancelled());
+	}
+
+	@Test
+	void mobsStillCannotDestroyTheTrapdoorItself() throws Exception
+	{
+		DoorBlockProtection protection = protection(trapdoorPlacement());
+		EntityChangeBlockEvent event = change(block(4, 64, 8));
+
+		protection.onEntityChangeBlock(event);
+
+		assertTrue(event.isCancelled());
+	}
+
 	private DoorBlockProtection protection(PlacedDoorEndpoint endpoint) throws Exception
 	{
 		DoorStateGuard guard = new DoorStateGuard();
@@ -87,6 +132,13 @@ final class DoorBlockProtectionTest
 		return new PlacedDoorEndpoint(
 			new DoorPosition(WORLD_ID, "minecraft:overworld", 4, 64, 8),
 			DoorItemIdentity.publicDoor(new UUID(0, 701)));
+	}
+
+	private static PlacedDoorEndpoint trapdoorPlacement()
+	{
+		return new PlacedDoorEndpoint(
+			new DoorPosition(WORLD_ID, "minecraft:overworld", 4, 64, 8),
+			DoorItemIdentity.publicDoor(new UUID(0, 702), DoorForm.TRAPDOOR));
 	}
 
 	private static EntityChangeBlockEvent change(Block block)

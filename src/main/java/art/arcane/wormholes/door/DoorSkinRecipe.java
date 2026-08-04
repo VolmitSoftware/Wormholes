@@ -15,7 +15,7 @@ final class DoorSkinRecipe
 
 	static Optional<Result> resolve(List<Ingredient> ingredients)
 	{
-		return resolve(ingredients, DoorSkin::isPlayerOperable);
+		return resolve(ingredients, DoorSkin::isPlayerOperableSkin);
 	}
 
 	static Optional<Result> resolve(List<Ingredient> ingredients, Predicate<Material> supportedSkin)
@@ -46,7 +46,10 @@ final class DoorSkinRecipe
 			return Optional.empty();
 		}
 
-		if(!DoorSkin.isDoor(source.material())
+		// a door can never be re-skinned into a trapdoor, or the reverse
+		DoorForm form = source.identity().form();
+		if(DoorSkin.formOf(source.material()) != form
+			|| DoorSkin.formOf(target.material()) != form
 			|| !supportedSkin.test(target.material())
 			|| source.material() == target.material())
 		{

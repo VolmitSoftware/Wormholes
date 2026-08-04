@@ -26,6 +26,8 @@ public final class DimensionalDoorRepository {
     private static final String STATE_FILE = "state.json";
     private static final int LEGACY_KIND_SCHEMA = 2;
     private static final int DOOR_MODE_ACCESS_SCHEMA = 3;
+    private static final int PRE_TRAPDOOR_SCHEMA = 4;
+    private static final int LEGACY_POLARITY_SCHEMA = 5;
     private static final Pattern NEXT_POCKET_SLOT = Pattern.compile("\\\"nextPocketSlot\\\"\\s*:\\s*(\\d+)");
     private static final Pattern POCKET_SLOT = Pattern.compile("\\\"slot\\\"\\s*:\\s*(\\d+)");
 
@@ -159,7 +161,8 @@ public final class DimensionalDoorRepository {
             DoorItemIdentity identity = endpoint.identity();
             JSONObject item = new JSONObject()
                 .put("itemId", identity.itemId().toString())
-                .put("kind", identity.kind().name());
+                .put("kind", identity.kind().name())
+                .put("form", identity.form().name());
             if (identity.pairId() != null) {
                 item.put("pairId", identity.pairId().toString());
             }
@@ -175,6 +178,7 @@ public final class DimensionalDoorRepository {
                 .put("x", position.x())
                 .put("y", position.y())
                 .put("z", position.z())
+                .put("openState", endpoint.openState().name())
                 .put("item", item));
         }
         root.put("endpoints", endpoints);
@@ -333,6 +337,7 @@ public final class DimensionalDoorRepository {
             DoorItemIdentity identity = new DoorItemIdentity(
                 uuid(item, "itemId"),
                 kind,
+                decodeDoorForm(schema, item),
                 optionalUuid(item, "pairId"),
                 item.has("pairEndpoint") ? PairEndpoint.valueOf(item.getString("pairEndpoint")) : null,
                 optionalUuid(item, "spaceId")
@@ -345,7 +350,8 @@ public final class DimensionalDoorRepository {
                     endpoint.getInt("y"),
                     endpoint.getInt("z")
                 ),
-                identity
+                identity,
+                decodeOpenState(schema, endpoint)
             ));
         }
 
@@ -438,6 +444,21 @@ public final class DimensionalDoorRepository {
             players.put(uuid(listed, "id"), DoorAccessState.valueOf(listed.getString("state")));
         }
         return players;
+    }
+
+    /** Everything written before trapdoors existed is a hinged door. */
+    private static DoorForm decodeDoorForm(int schema, JSONObject item) {
+        return schema <= PRE_TRAPDOOR_SCHEMA ? DoorForm.DOOR : DoorForm.valueOf(item.getString("form"));
+    }
+
+    private static DoorOpenState decodeOpenState(int schema, JSONObject endpoint) {
+        if (schema <= PRE_TRAPDOOR_SCHEMA) {
+            return DoorOpenState.OPEN;
+        }
+        if (schema == LEGACY_POLARITY_SCHEMA) {
+            return DoorOpenState.fromLegacy(endpoint.getBoolean("activeWhenOpen"));
+        }
+        return DoorOpenState.valueOf(endpoint.getString("openState"));
     }
 
     private static DoorKind decodeDoorKind(int schema, String value) {

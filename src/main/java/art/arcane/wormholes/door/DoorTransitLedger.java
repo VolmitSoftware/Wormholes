@@ -106,14 +106,27 @@ final class DoorTransitLedger
 		long expiresAt = System.nanoTime() + TRANSIT_COOLDOWN_NANOS;
 		transitCooldowns.put(travelerId, expiresAt);
 		Runnable cleanup = () -> transitCooldowns.remove(travelerId, expiresAt);
+		boolean scheduled = false;
 		try
 		{
-			WormholesPlatform.scheduleEntity(plugin, traveler, cleanup, cleanup, 20L);
+			scheduled = WormholesPlatform.scheduleEntity(plugin, traveler, cleanup, cleanup, 20L);
 		}
 		catch(Throwable ex)
 		{
 			plugin.getLogger().log(Level.FINE, "Could not schedule dimensional-door cooldown cleanup", ex);
 		}
+		if(!scheduled)
+		{
+			// no cleanup task will run for this entry; sweep already-expired ones so
+			// despawned objects whose UUIDs are never queried again cannot accumulate
+			purgeExpiredCooldowns();
+		}
+	}
+
+	private void purgeExpiredCooldowns()
+	{
+		long now = System.nanoTime();
+		transitCooldowns.entrySet().removeIf(entry -> entry.getValue() <= now);
 	}
 
 	void forget(Player player)

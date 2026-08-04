@@ -73,6 +73,21 @@ class DoorAccessMenuTest {
     }
 
     @Test
+    void openStateControlOwnsTheHeaderCenterAndShowsItsCurrentState() {
+        assertEquals(0, DoorAccessMenu.OPEN_STATE_POSITION);
+        assertEquals(Material.LIME_DYE, DoorAccessMenu.openStateIcon(DoorOpenState.OPEN));
+        assertEquals(Material.GRAY_DYE, DoorAccessMenu.openStateIcon(DoorOpenState.CLOSED));
+        assertThrows(NullPointerException.class, () -> DoorAccessMenu.openStateIcon(null));
+    }
+
+    @Test
+    void openStateControlFlipsBothWays() {
+        assertEquals(DoorOpenState.CLOSED, DoorAccessMenu.nextOpenState(DoorOpenState.OPEN));
+        assertEquals(DoorOpenState.OPEN, DoorAccessMenu.nextOpenState(DoorOpenState.CLOSED));
+        assertThrows(NullPointerException.class, () -> DoorAccessMenu.nextOpenState(null));
+    }
+
+    @Test
     void firstEntryLandsUnderTheHeaderAtTheLeftEdge() {
         assertEquals(DoorAccessMenu.HEADER_ROW + 1, DoorAccessMenu.entryRow(0));
         assertEquals(-4, DoorAccessMenu.entryPosition(0));

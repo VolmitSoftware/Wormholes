@@ -31,7 +31,10 @@ public final class DoorItemPdcCodecTest
 			pair.endpoint(PairEndpoint.B),
 			DoorItemIdentity.newPersonal(),
 			DoorItemIdentity.newPublic(),
-			DoorItemIdentity.newReturn(UUID.randomUUID()));
+			DoorItemIdentity.newReturn(UUID.randomUUID()),
+			DoorItemIdentity.paired(UUID.randomUUID(), pair.pairId(), PairEndpoint.A, DoorForm.TRAPDOOR),
+			DoorItemIdentity.newPersonal(DoorForm.TRAPDOOR),
+			DoorItemIdentity.newPublic(DoorForm.TRAPDOOR));
 
 		for(DoorItemIdentity identity : identities)
 		{
@@ -39,7 +42,84 @@ public final class DoorItemPdcCodecTest
 			codec.encodeIdentity(data, identity);
 
 			assertEquals(identity, codec.decodeIdentity(data).orElseThrow());
+			assertEquals(3, data.get(key("door_schema"), PersistentDataType.INTEGER));
+			assertEquals(identity.form().name(), data.get(key("door_form"), PersistentDataType.STRING));
 		}
+	}
+
+	@Test
+	public void identitiesWrittenBeforeTrapdoorsExistedDecodeAsDoors()
+	{
+		DoorItemPdcCodec codec = new DoorItemPdcCodec(NAMESPACE);
+		for(int schema : new int[]{1, 2})
+		{
+			PersistentDataContainer data = dataContainer();
+			data.set(key("door_schema"), PersistentDataType.INTEGER, schema);
+			data.set(key("door_item_id"), PersistentDataType.STRING, UUID.randomUUID().toString());
+			data.set(key("door_kind"), PersistentDataType.STRING, schema == 1 ? "IRON" : "PUBLIC");
+
+			DoorItemIdentity decoded = codec.decodeIdentity(data).orElseThrow();
+			assertEquals(DoorKind.PUBLIC, decoded.kind());
+			assertEquals(DoorForm.DOOR, decoded.form());
+		}
+	}
+
+	@Test
+	public void aCurrentSchemaItemStrippedOfItsFormIsRejectedRatherThanCalledADoor()
+	{
+		DoorItemPdcCodec codec = new DoorItemPdcCodec(NAMESPACE);
+		for(DoorForm form : DoorForm.values())
+		{
+			PersistentDataContainer data = dataContainer();
+			codec.encodeIdentity(data, DoorItemIdentity.newPublic(form));
+			data.remove(key("door_form"));
+
+			assertTrue(codec.decodeIdentity(data).isEmpty(), form + " item without its form stamp");
+		}
+	}
+
+	@Test
+	public void onlySchemasOlderThanTheFormStampDefaultToDoor()
+	{
+		DoorItemPdcCodec codec = new DoorItemPdcCodec(NAMESPACE);
+		PersistentDataContainer legacy = dataContainer();
+		legacy.set(key("door_schema"), PersistentDataType.INTEGER, 2);
+		legacy.set(key("door_item_id"), PersistentDataType.STRING, UUID.randomUUID().toString());
+		legacy.set(key("door_kind"), PersistentDataType.STRING, "PERSONAL");
+
+		assertEquals(DoorForm.DOOR, codec.decodeIdentity(legacy).orElseThrow().form());
+	}
+
+	@Test
+	public void unknownFormValuesAreInertRatherThanCrashing()
+	{
+		DoorItemPdcCodec codec = new DoorItemPdcCodec(NAMESPACE);
+		PersistentDataContainer data = dataContainer();
+		codec.encodeIdentity(data, DoorItemIdentity.newPublic(DoorForm.TRAPDOOR));
+		data.set(key("door_form"), PersistentDataType.STRING, "HATCH");
+
+		assertTrue(codec.decodeIdentity(data).isEmpty());
+	}
+
+	@Test
+	public void pairKitsCarryTheFormTheyUnpackInto()
+	{
+		DoorItemPdcCodec codec = new DoorItemPdcCodec(NAMESPACE);
+		UUID kitId = UUID.randomUUID();
+		PersistentDataContainer trapdoorKit = dataContainer();
+		codec.encodePairKit(trapdoorKit, kitId, DoorForm.TRAPDOOR);
+
+		assertEquals(
+			new DoorItemPdcCodec.PairKit(kitId, DoorForm.TRAPDOOR),
+			codec.decodePairKit(trapdoorKit).orElseThrow());
+		assertEquals(kitId, codec.decodePairKitId(trapdoorKit).orElseThrow());
+
+		PersistentDataContainer legacyKit = dataContainer();
+		legacyKit.set(key("door_pair_kit_id"), PersistentDataType.STRING, kitId.toString());
+
+		assertEquals(
+			new DoorItemPdcCodec.PairKit(kitId, DoorForm.DOOR),
+			codec.decodePairKit(legacyKit).orElseThrow());
 	}
 
 	@Test
@@ -61,7 +141,7 @@ public final class DoorItemPdcCodecTest
 		assertEquals(pairId, pair.pairId());
 		assertEquals(PairEndpoint.A, pair.pairEndpoint());
 		codec.encodeIdentity(pairData, pair);
-		assertEquals(2, pairData.get(key("door_schema"), PersistentDataType.INTEGER));
+		assertEquals(3, pairData.get(key("door_schema"), PersistentDataType.INTEGER));
 		assertEquals("PAIR", pairData.get(key("door_kind"), PersistentDataType.STRING));
 
 		UUID publicItemId = UUID.randomUUID();

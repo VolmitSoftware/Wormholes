@@ -155,7 +155,7 @@ class DimensionalDoorRepositoryTest {
 
         repository.save(migrated);
         String canonical = Files.readString(stateFile);
-        assertTrue(canonical.contains("\"schema\": 4"));
+        assertTrue(canonical.contains("\"schema\": 6"));
         assertTrue(canonical.contains("\"kind\": \"PAIR\""));
         assertTrue(canonical.contains("\"kind\": \"PUBLIC\""));
         assertFalse(canonical.contains("\"kind\": \"PAIRED\""));
@@ -238,7 +238,7 @@ class DimensionalDoorRepositoryTest {
             migrated.accessRecords());
 
         String upgraded = Files.readString(stateFile);
-        assertTrue(upgraded.contains("\"schema\": 4"));
+        assertTrue(upgraded.contains("\"schema\": 6"));
         assertFalse(upgraded.contains("\"mode\""));
         assertEquals(migrated, new DimensionalDoorRepository(stateFile).load());
     }
@@ -266,6 +266,156 @@ class DimensionalDoorRepositoryTest {
         assertEquals(DoorAccessState.BLACKLIST, record.stateOf(id(341)));
         assertTrue(DoorAccessPolicy.canUse(record, id(341), false));
         assertFalse(DoorAccessPolicy.canUse(record, id(342), false));
+    }
+
+    @Test
+    void doorFormsAndOpenStatesRoundTripThroughTheStateFile() throws Exception {
+        Path stateFile = temporaryDirectory.resolve("trapdoor-state.json");
+        PlacedDoorEndpoint closedTrapdoor = new PlacedDoorEndpoint(
+            new DoorPosition(id(400), "minecraft:overworld", 1, 64, 2),
+            DoorItemIdentity.publicDoor(id(401), DoorForm.TRAPDOOR),
+            DoorOpenState.CLOSED
+        );
+        PlacedDoorEndpoint closedDoor = new PlacedDoorEndpoint(
+            new DoorPosition(id(400), "minecraft:overworld", 4, 64, 2),
+            DoorItemIdentity.personal(id(402)),
+            DoorOpenState.CLOSED
+        );
+        DoorStoreSnapshot expected = new DoorStoreSnapshot(
+            DoorStoreSnapshot.CURRENT_SCHEMA, 0, List.of(), List.of(closedTrapdoor, closedDoor),
+            List.of(), List.of(), List.of()
+        );
+
+        new DimensionalDoorRepository(stateFile).save(expected);
+        DoorStoreSnapshot actual = new DimensionalDoorRepository(stateFile).load();
+
+        assertEquals(expected, actual);
+        assertEquals(DoorForm.TRAPDOOR, actual.endpoints().get(0).identity().form());
+        assertEquals(DoorOpenState.CLOSED, actual.endpoints().get(0).openState());
+        assertEquals(DoorForm.DOOR, actual.endpoints().get(1).identity().form());
+        assertEquals(DoorOpenState.CLOSED, actual.endpoints().get(1).openState());
+        String encoded = Files.readString(stateFile);
+        assertTrue(encoded.contains("\"form\": \"TRAPDOOR\""));
+        assertTrue(encoded.contains("\"form\": \"DOOR\""));
+        assertTrue(encoded.contains("\"openState\": \"CLOSED\""));
+        assertFalse(encoded.contains("activeWhenOpen"));
+    }
+
+    @Test
+    void preTrapdoorEndpointsMigrateToDoorFormAndOpenStateExactlyOnce() throws Exception {
+        Path stateFile = temporaryDirectory.resolve("pre-trapdoor-state.json");
+        Files.writeString(stateFile, """
+            {
+              "schema": 4,
+              "nextPocketSlot": 0,
+              "pairs": [],
+              "endpoints": [{
+                "worldId": "%s",
+                "worldKey": "minecraft:overworld",
+                "x": 1,
+                "y": 64,
+                "z": 2,
+                "item": {
+                  "itemId": "%s",
+                  "kind": "PUBLIC"
+                }
+              }],
+              "spaces": [],
+              "returnTickets": [],
+              "access": []
+            }
+            """.formatted(id(410), id(411)));
+
+        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile);
+        DoorStoreSnapshot migrated = repository.load();
+
+        assertEquals(DoorStoreSnapshot.CURRENT_SCHEMA, migrated.schema());
+        assertEquals(DoorForm.DOOR, migrated.endpoints().get(0).identity().form());
+        assertEquals(DoorOpenState.OPEN, migrated.endpoints().get(0).openState());
+
+        String upgraded = Files.readString(stateFile);
+        assertTrue(upgraded.contains("\"schema\": 6"));
+        assertTrue(upgraded.contains("\"form\": \"DOOR\""));
+        assertTrue(upgraded.contains("\"openState\": \"OPEN\""));
+
+        assertEquals(migrated, new DimensionalDoorRepository(stateFile).load());
+        assertEquals(upgraded, Files.readString(stateFile), "an already migrated file must not be rewritten");
+    }
+
+    @Test
+    void schemaFivePolarityMigratesToOpenState() throws Exception {
+        Path stateFile = temporaryDirectory.resolve("legacy-polarity-state.json");
+        Files.writeString(stateFile, endpointState(
+            5,
+            "\"form\": \"TRAPDOOR\",",
+            "\"activeWhenOpen\": false,"));
+
+        DoorStoreSnapshot migrated = new DimensionalDoorRepository(stateFile).load();
+
+        assertEquals(DoorOpenState.CLOSED, migrated.endpoints().get(0).openState());
+        String upgraded = Files.readString(stateFile);
+        assertTrue(upgraded.contains("\"schema\": 6"));
+        assertTrue(upgraded.contains("\"openState\": \"CLOSED\""));
+        assertFalse(upgraded.contains("activeWhenOpen"));
+    }
+
+    @Test
+    void corruptedFormAndOpenStateValuesFailTheLoadInsteadOfDefaultingSilently() throws Exception {
+        Path unknownForm = temporaryDirectory.resolve("unknown-form-state.json");
+        Files.writeString(unknownForm, endpointState(6, "\"form\": \"HATCH\",", "\"openState\": \"OPEN\","));
+        assertThrows(IOException.class, () -> new DimensionalDoorRepository(unknownForm).load());
+
+        Path missingForm = temporaryDirectory.resolve("missing-form-state.json");
+        Files.writeString(missingForm, endpointState(6, "", "\"openState\": \"OPEN\","));
+        assertThrows(IOException.class, () -> new DimensionalDoorRepository(missingForm).load());
+
+        Path missingOpenState = temporaryDirectory.resolve("missing-open-state.json");
+        Files.writeString(missingOpenState, endpointState(6, "\"form\": \"TRAPDOOR\",", ""));
+        assertThrows(IOException.class, () -> new DimensionalDoorRepository(missingOpenState).load());
+
+        Path corruptOpenState = temporaryDirectory.resolve("corrupt-open-state.json");
+        Files.writeString(corruptOpenState, endpointState(
+            6,
+            "\"form\": \"TRAPDOOR\",",
+            "\"openState\": \"SIDEWAYS\","));
+        assertThrows(IOException.class, () -> new DimensionalDoorRepository(corruptOpenState).load());
+    }
+
+    @Test
+    void corruptLegacyPolarityStillFailsMigration() throws Exception {
+        Path corrupt = temporaryDirectory.resolve("corrupt-legacy-polarity-state.json");
+        Files.writeString(corrupt, endpointState(
+            5,
+            "\"form\": \"DOOR\",",
+            "\"activeWhenOpen\": \"maybe\","));
+
+        assertThrows(IOException.class, () -> new DimensionalDoorRepository(corrupt).load());
+    }
+
+    private static String endpointState(int schema, String formEntry, String openStateEntry) {
+        return """
+            {
+              "schema": %d,
+              "nextPocketSlot": 0,
+              "pairs": [],
+              "endpoints": [{
+                "worldId": "%s",
+                "worldKey": "minecraft:overworld",
+                "x": 1,
+                "y": 64,
+                "z": 2,
+                %s
+                "item": {
+                  "itemId": "%s",
+                  %s
+                  "kind": "PUBLIC"
+                }
+              }],
+              "spaces": [],
+              "returnTickets": [],
+              "access": []
+            }
+            """.formatted(schema, id(420), openStateEntry, id(421), formEntry);
     }
 
     @Test

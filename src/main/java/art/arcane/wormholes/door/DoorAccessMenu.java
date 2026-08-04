@@ -31,6 +31,7 @@ final class DoorAccessMenu {
     static final int ROW_WIDTH = 9;
     static final int MAX_VIEWPORT_HEIGHT = 6;
     private static final int PLACARD_POSITION = -1;
+    static final int OPEN_STATE_POSITION = 0;
     private static final int ADD_POSITION = 1;
     private static final int SHORT_ID_LENGTH = 8;
     private static final String ADMINISTRATOR_NODE = "wormholes.admin";
@@ -87,6 +88,17 @@ final class DoorAccessMenu {
         };
     }
 
+    static Material openStateIcon(DoorOpenState state) {
+        return switch (Objects.requireNonNull(state, "state")) {
+            case OPEN -> Material.LIME_DYE;
+            case CLOSED -> Material.GRAY_DYE;
+        };
+    }
+
+    static DoorOpenState nextOpenState(DoorOpenState state) {
+        return Objects.requireNonNull(state, "state").flipped();
+    }
+
     static String resolveDisplayName(String knownName, String fallback) {
         Objects.requireNonNull(fallback, "fallback");
         if (knownName == null || knownName.isBlank()) {
@@ -101,7 +113,12 @@ final class DoorAccessMenu {
 
     void open(Player player, PlacedDoorEndpoint endpoint) {
         Player viewer = Objects.requireNonNull(player, "player");
-        PlacedDoorEndpoint door = Objects.requireNonNull(endpoint, "endpoint");
+        PlacedDoorEndpoint requested = Objects.requireNonNull(endpoint, "endpoint");
+        PlacedDoorEndpoint door = manager.endpoint(requested.identity().itemId()).orElse(null);
+        if (door == null) {
+            notice(viewer, WormholesMessages.DOOR_ACCESS_UNAVAILABLE, MessageArgs.empty());
+            return;
+        }
         DoorAccessRecord record = manageableRecord(viewer, door);
         if (record == null) {
             return;
@@ -125,6 +142,7 @@ final class DoorAccessMenu {
         window.batch(() -> {
             window.clearElements();
             window.setElement(PLACARD_POSITION, HEADER_ROW, placardElement(door, record));
+            window.setElement(OPEN_STATE_POSITION, HEADER_ROW, openStateElement(window, viewer, door));
             window.setElement(ADD_POSITION, HEADER_ROW, addPlayerElement(window, viewer, door));
             List<UUID> listed = record.listedPlayers();
             for (int index = 0; index < listed.size(); index++) {
@@ -147,7 +165,7 @@ final class DoorAccessMenu {
                 "whitelisted", countState(record, DoorAccessState.WHITELIST),
                 "blacklisted", countState(record, DoorAccessState.BLACKLIST),
                 "count", record.players().size()),
-            DoorItemService.defaultMaterial(door.identity().kind()));
+            DoorItemService.defaultMaterial(door.identity().kind(), door.identity().form()));
     }
 
     private UIElement addPlayerElement(UIWindow window, Player viewer, PlacedDoorEndpoint door) {
@@ -157,6 +175,19 @@ final class DoorAccessMenu {
             MessageArgs.empty(),
             Material.WRITABLE_BOOK);
         element.onLeftClick(clicked -> promptForPlayer(window, viewer, door));
+        return element;
+    }
+
+    private UIElement openStateElement(UIWindow window, Player viewer, PlacedDoorEndpoint door) {
+        DoorOpenState state = door.openState();
+        UIElement element = localizedElement(
+            "door-access-open-state",
+            WormholesMessages.DOOR_MENU_ACCESS_OPEN_STATE,
+            arguments(
+                "state", openStateLabel(state),
+                "next", openStateLabel(nextOpenState(state))),
+            openStateIcon(state));
+        element.onLeftClick(clicked -> toggleOpenState(window, viewer, door));
         return element;
     }
 
@@ -207,6 +238,21 @@ final class DoorAccessMenu {
         notice(viewer, WormholesMessages.DOOR_ACCESS_STATE_CHANGED,
             arguments("name", playerLabel(listed), "state", stateLabel(state)));
         refresh(window, viewer, door);
+    }
+
+    private void toggleOpenState(UIWindow window, Player viewer, PlacedDoorEndpoint door) {
+        PlacedDoorEndpoint current = manager.endpoint(door.identity().itemId()).orElse(null);
+        if (current == null || manageableRecord(viewer, current) == null) {
+            closeWindow(window, viewer);
+            return;
+        }
+        DoorOpenState state = nextOpenState(current.openState());
+        boolean changed = apply(viewer, () -> manager.applyOpenState(current, state));
+        if (changed) {
+            Wormholes.v("QA_EVT {\"event\":\"door_access_menu_apply\",\"status\":\"info\",\"details\":\"open_state\",\"context\":{\"item\":\""
+                + current.identity().itemId() + "\",\"state\":\"" + state + "\"}}");
+        }
+        refresh(window, viewer, current);
     }
 
     private void promptForPlayer(UIWindow window, Player viewer, PlacedDoorEndpoint door) {
@@ -274,17 +320,20 @@ final class DoorAccessMenu {
 
     /** The window height tracks the list, so a size change has to reopen instead of repaint. */
     private void refresh(UIWindow window, Player viewer, PlacedDoorEndpoint door) {
-        DoorAccessRecord record = manager.accessRecord(door.identity().itemId()).orElse(null);
-        if (record == null) {
+        PlacedDoorEndpoint current = manager.endpoint(door.identity().itemId()).orElse(null);
+        DoorAccessRecord record = current == null
+            ? null
+            : manager.accessRecord(current.identity().itemId()).orElse(null);
+        if (current == null || record == null) {
             closeWindow(window, viewer);
             return;
         }
         if (window.getViewportHeight() != viewportHeight(record.players().size())) {
             closeWindow(window, viewer);
-            reopen(viewer, door);
+            reopen(viewer, current);
             return;
         }
-        populate(window, viewer, door, record);
+        populate(window, viewer, current, record);
         window.updateInventory();
     }
 
@@ -371,6 +420,14 @@ final class DoorAccessMenu {
             case NEUTRAL -> WormholesMessages.DOOR_ACCESS_LABEL_NEUTRAL;
             case WHITELIST -> WormholesMessages.DOOR_ACCESS_LABEL_WHITELIST;
             case BLACKLIST -> WormholesMessages.DOOR_ACCESS_LABEL_BLACKLIST;
+        };
+        return Wormholes.text().plain(key);
+    }
+
+    private static String openStateLabel(DoorOpenState state) {
+        TextKey key = switch (Objects.requireNonNull(state, "state")) {
+            case OPEN -> WormholesMessages.DOOR_OPEN_STATE_OPEN;
+            case CLOSED -> WormholesMessages.DOOR_OPEN_STATE_CLOSED;
         };
         return Wormholes.text().plain(key);
     }

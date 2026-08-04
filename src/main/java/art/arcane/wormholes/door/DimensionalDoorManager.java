@@ -57,15 +57,16 @@ import java.util.logging.Level;
 /**
  * Survival runtime for physical Dimensional Doors.
  *
- * <p>The live vanilla {@link org.bukkit.block.data.type.Door#isOpen()} value
- * stays the traversal authority for the door itself. Per-door access records
+ * <p>The live vanilla block state stays the traversal authority for the door
+ * itself: each door or trapdoor can carry its portal while open or on contact
+ * with its closed surface. Per-door access records
  * additionally gate which players may open, break, or step through a placed
  * door; return doors are never gated.</p>
  */
 public final class DimensionalDoorManager implements Listener, AutoCloseable
 {
 	private static final double ARRIVAL_OFFSET = 1.0D;
-	private static final int[] DOOR_ARRIVAL_Y_OFFSETS = {0, -1, 1, -2, 2};
+	static final int[] DOOR_ARRIVAL_Y_OFFSETS = {0, -1, 1, -2, 2};
 	private static final String ADMINISTRATOR_NODE = "wormholes.admin";
 	private static final String ENTITY_MOVE_EVENT_CLASS = "io.papermc.paper.event.entity.EntityMoveEvent";
 	private static final boolean ENTITY_MOVE_EVENT_AVAILABLE =
@@ -143,6 +144,9 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		plugin.getServer().getPluginManager().registerEvents(this, plugin);
 		plugin.getServer().getPluginManager().registerEvents(protection, plugin);
 		registerLivingEntityMovement();
+		// Projectiles, dropped items, and orbs fire no movement event; an open door
+		// sweeps for them instead and feeds the same pipeline.
+		runtimes.attachMovementSink(this::handleMovement);
 		for(PlacedDoorEndpoint endpoint : state.endpoints())
 		{
 			runtimes.install(endpoint);
@@ -254,6 +258,39 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		return guard.state().accessRecord(itemId);
 	}
 
+	Optional<PlacedDoorEndpoint> endpoint(UUID itemId)
+	{
+		return guard.state().findEndpointByItem(itemId);
+	}
+
+	boolean applyOpenState(PlacedDoorEndpoint expected, DoorOpenState openState) throws IOException
+	{
+		Objects.requireNonNull(expected, "expected");
+		Objects.requireNonNull(openState, "openState");
+		boolean changed = guard.mutate(() ->
+		{
+			PlacedDoorEndpoint current = guard.state()
+				.findEndpointByItem(expected.identity().itemId())
+				.orElse(null);
+			return expected.equals(current)
+				&& guard.state().setEndpointOpenState(expected.position(), openState);
+		});
+		if(!changed)
+		{
+			return false;
+		}
+		PlacedDoorEndpoint updated = guard.state()
+			.findEndpointByItem(expected.identity().itemId())
+			.orElseThrow(() -> new IllegalStateException("Updated dimensional door is missing"));
+		if(!runtimes.replace(expected, updated))
+		{
+			plugin.getLogger().warning(
+				"Saved OpenState for dimensional door " + updated.identity().itemId()
+					+ " but could not schedule its live refresh");
+		}
+		return true;
+	}
+
 	boolean applyAccessState(UUID itemId, UUID playerId, DoorAccessState state) throws IOException
 	{
 		return guard.mutate(() -> guard.state().setAccessState(itemId, playerId, state));
@@ -297,12 +334,8 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			event.setCancelled(true);
 			return;
 		}
-		items().productFor(event.getRecipe()).ifPresent(product -> event.setResult(switch(product)
-		{
-			case PAIR_KIT -> items().createPairKit();
-			case PERSONAL_DOOR -> items().createPersonalDoor();
-			case PUBLIC_DOOR -> items().createPublicDoor();
-		}));
+		// the per-product mint switch moved into DoorItemService when trapdoor products were added
+		items().productFor(event.getRecipe()).ifPresent(product -> event.setResult(items().mint(product)));
 	}
 
 	@EventHandler(priority = EventPriority.HIGHEST)
@@ -343,7 +376,8 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	public void onDoorPlace(BlockPlaceEvent event)
 	{
 		Optional<DoorItemIdentity> carriedIdentity = items().decodeDoorIdentity(event.getItemInHand());
-		if(carriedIdentity.isPresent() && !DoorSkin.isPlayerOperable(event.getItemInHand().getType()))
+		if(carriedIdentity.isPresent()
+			&& !DoorSkin.isPlayerOperable(event.getItemInHand().getType(), carriedIdentity.get().form()))
 		{
 			event.setCancelled(true);
 			WormholesAudience.sendMessage(event.getPlayer(), Wormholes.text().component(WormholesMessages.DOOR_LEGACY_COMBINE));
@@ -367,8 +401,9 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			return;
 		}
 
+		// A fresh placement is always live while open; its access window can invert that state later.
 		Optional<VanillaDoorSnapshot> captured = VanillaDoorSnapshot.capture(event.getBlockPlaced());
-		if(captured.isEmpty())
+		if(captured.isEmpty() || captured.get().plane().form() != identity.form())
 		{
 			event.setCancelled(true);
 			return;
@@ -452,9 +487,10 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		Material liveMaterial = event.getBlock().getWorld()
 			.getBlockAt(endpoint.position().x(), endpoint.position().y(), endpoint.position().z())
 			.getType();
-		Material droppedMaterial = DoorSkin.isPlayerOperable(liveMaterial)
+		DoorForm form = endpoint.identity().form();
+		Material droppedMaterial = DoorSkin.isPlayerOperable(liveMaterial, form)
 			? liveMaterial
-			: DoorItemService.defaultMaterial(endpoint.identity().kind());
+			: DoorItemService.defaultMaterial(endpoint.identity().kind(), form);
 		event.setDropItems(false);
 		try
 		{
@@ -519,6 +555,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		event.setCancelled(true);
 		accessFeedback.deny(player, endpoint, planeOf(endpoint), clicked.getWorld());
 	}
+
 
 	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void onDoorInteract(PlayerInteractEvent event)
@@ -643,11 +680,14 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		}
 		DoorVec3 from = vector(fromLocation);
 		DoorVec3 to = vector(toLocation);
+		double travelerHalfWidth = traveler.getWidth() / 2.0D;
+		double travelerHeight = traveler.getHeight();
 		for(DoorSpatialIndex.Entry<RuntimeDoor> indexed : runtimes.nearby(
 			toLocation.getWorld().getUID(), toLocation.getBlockX(), toLocation.getBlockZ(), 1))
 		{
 			RuntimeDoor runtime = indexed.value();
-			Optional<DoorwayCrossing> crossing = DoorTransitGate.detect(runtime.plane(), from, to);
+			Optional<DoorwayCrossing> crossing = DoorTransitGate.detect(
+				runtime.plane(), from, to, travelerHalfWidth, travelerHeight);
 			if(crossing.isEmpty())
 			{
 				continue;
@@ -658,9 +698,16 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 				continue;
 			}
 			World sourceWorld = toLocation.getWorld();
-			if(traveler instanceof Player player && !canUseDoor(endpoint, player))
+			// An arrow is judged by whoever shot it; an unowned object is not gated.
+			Player responsible = DoorTravelerOwnership
+				.responsiblePlayer(plugin.getServer(), traveler)
+				.orElse(null);
+			if(responsible != null && !canUseDoor(endpoint, responsible))
 			{
-				accessFeedback.deny(player, endpoint, runtime.plane(), sourceWorld);
+				if(traveler instanceof Player player)
+				{
+					accessFeedback.deny(player, endpoint, runtime.plane(), sourceWorld);
+				}
 				continue;
 			}
 			if(!WormholesPlatform.isOwnedByCurrentRegion(
@@ -676,8 +723,9 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			}
 			VanillaDoorSnapshot crossingSnapshot = captured.get();
 			runtime.update(crossingSnapshot);
-			Optional<DoorwayCrossing> liveCrossing = DoorTransitGate.detect(crossingSnapshot.plane(), from, to);
-			if(liveCrossing.isEmpty() || !crossingSnapshot.open())
+			Optional<DoorwayCrossing> liveCrossing = DoorTransitGate.detect(
+				crossingSnapshot.plane(), from, to, travelerHalfWidth, travelerHeight);
+			if(liveCrossing.isEmpty() || !crossingSnapshot.portalLive())
 			{
 				continue;
 			}
@@ -685,7 +733,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 				traveler,
 				runtime,
 				toLocation.clone(),
-				liveCrossing.get().direction(),
+				liveCrossing.get(),
 				crossingSnapshot);
 			return;
 		}
@@ -774,7 +822,44 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	{
 		Objects.requireNonNull(plane, "plane");
 		Objects.requireNonNull(transit, "transit");
-		return plane.entrySidePoint(transit.direction(), arrivalOffset(transit));
+		return arrivalPoint(
+			plane,
+			transit,
+			DoorPlanePairing.arrivalSideSign(transit.sourcePlane(), plane, transit.direction()));
+	}
+
+	/**
+	 * The nominal landing point one side off a plane. A vertical plane pushes the
+	 * traveler a stride clear of the doorway; a horizontal one places its feet on
+	 * the plate for an upward exit and a full body below it for a downward one, so
+	 * a fall keeps falling.
+	 */
+	static DoorVec3 arrivalPoint(DoorwayPlane plane, DoorTransit transit, int sideSign)
+	{
+		Objects.requireNonNull(plane, "plane");
+		Objects.requireNonNull(transit, "transit");
+		if(transit.travelerClass() == DoorTravelerClass.OBJECT)
+		{
+			DoorVec3 aperturePoint = plane.equals(transit.sourcePlane())
+				? transit.crossing().point()
+				: DoorPlanePairing.mapAperturePoint(transit.sourcePlane(), plane, transit.crossing());
+			if(plane.horizontal())
+			{
+				double y = sideSign > 0 ? plane.planeY() : plane.planeY() - transit.height();
+				return new DoorVec3(aperturePoint.x(), y, aperturePoint.z());
+			}
+			double offset = arrivalOffset(transit) * sideSign;
+			return new DoorVec3(
+				aperturePoint.x() + (plane.normalX() * offset),
+				aperturePoint.y(),
+				aperturePoint.z() + (plane.normalZ() * offset));
+		}
+		if(plane.horizontal())
+		{
+			double y = sideSign > 0 ? plane.planeY() : plane.planeY() - transit.height();
+			return new DoorVec3(plane.blockX() + 0.5D, y, plane.blockZ() + 0.5D);
+		}
+		return plane.sidePoint(sideSign, arrivalOffset(transit));
 	}
 
 	static float arrivalYaw(DoorwayPlane source, DoorwayPlane destination, DoorTransit transit)
@@ -782,16 +867,25 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		Objects.requireNonNull(source, "source");
 		Objects.requireNonNull(destination, "destination");
 		Objects.requireNonNull(transit, "transit");
-		return source.rotateYawToMatchingSide(destination, transit.yaw());
+		return DoorPlanePairing.arrivalYaw(source, destination, transit.yaw());
 	}
 
 	static Optional<DoorVec3> findSafeVerticalDoorStanding(
 		DoorVec3 nominal,
 		Predicate<DoorVec3> isSafe)
 	{
+		return findSafeVerticalDoorStanding(nominal, DOOR_ARRIVAL_Y_OFFSETS, isSafe);
+	}
+
+	static Optional<DoorVec3> findSafeVerticalDoorStanding(
+		DoorVec3 nominal,
+		int[] verticalOffsets,
+		Predicate<DoorVec3> isSafe)
+	{
 		Objects.requireNonNull(nominal, "nominal");
+		Objects.requireNonNull(verticalOffsets, "verticalOffsets");
 		Objects.requireNonNull(isSafe, "isSafe");
-		for(int yOffset : DOOR_ARRIVAL_Y_OFFSETS)
+		for(int yOffset : verticalOffsets)
 		{
 			DoorVec3 candidate = new DoorVec3(nominal.x(), nominal.y() + yOffset, nominal.z());
 			if(isSafe.test(candidate))
@@ -846,6 +940,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			kind,
 			traveler instanceof Player,
 			traveler instanceof Mob || traveler instanceof Vehicle,
+			DoorEntitySweep.isSweepable(traveler),
 			traveler instanceof Boss,
 			traveler instanceof ComplexLivingEntity,
 			constrained,

@@ -17,7 +17,11 @@ final class DoorSkinRecipeTest
 		Material.OAK_DOOR,
 		Material.SPRUCE_DOOR,
 		Material.BIRCH_DOOR,
-		Material.CHERRY_DOOR)::contains;
+		Material.CHERRY_DOOR,
+		Material.OAK_TRAPDOOR,
+		Material.SPRUCE_TRAPDOOR,
+		Material.BAMBOO_TRAPDOOR,
+		Material.WARPED_TRAPDOOR)::contains;
 
 	@Test
 	void changesOnlyTheMaterialAndPreservesIdentity()
@@ -67,5 +71,49 @@ final class DoorSkinRecipeTest
 		assertTrue(DoorSkinRecipe.resolve(List.of(
 			new DoorSkinRecipe.Ingredient(Material.OAK_DOOR, identity),
 			new DoorSkinRecipe.Ingredient(Material.OAK_DOOR, null)), WOODEN_SKIN).isEmpty());
+	}
+
+	@Test
+	void trapdoorIdentitiesReskinIntoOtherHandOpenableTrapdoors()
+	{
+		DoorItemIdentity identity = DoorItemIdentity.publicDoor(UUID.randomUUID(), DoorForm.TRAPDOOR);
+
+		DoorSkinRecipe.Result result = DoorSkinRecipe.resolve(List.of(
+			new DoorSkinRecipe.Ingredient(Material.OAK_TRAPDOOR, identity),
+			new DoorSkinRecipe.Ingredient(Material.WARPED_TRAPDOOR, null)), WOODEN_SKIN).orElseThrow();
+
+		assertEquals(identity, result.identity());
+		assertEquals(Material.WARPED_TRAPDOOR, result.material());
+	}
+
+	@Test
+	void redstoneOnlyTrapdoorsAreNeverAValidSkin()
+	{
+		DoorItemIdentity identity = DoorItemIdentity.publicDoor(UUID.randomUUID(), DoorForm.TRAPDOOR);
+
+		assertTrue(DoorSkinRecipe.resolve(List.of(
+			new DoorSkinRecipe.Ingredient(Material.OAK_TRAPDOOR, identity),
+			new DoorSkinRecipe.Ingredient(Material.IRON_TRAPDOOR, null)), WOODEN_SKIN).isEmpty());
+		assertTrue(DoorSkinRecipe.resolve(List.of(
+			new DoorSkinRecipe.Ingredient(Material.OAK_TRAPDOOR, identity),
+			new DoorSkinRecipe.Ingredient(Material.COPPER_TRAPDOOR, null)), WOODEN_SKIN).isEmpty());
+	}
+
+	@Test
+	void skinningNeverCrossesBetweenDoorsAndTrapdoors()
+	{
+		DoorItemIdentity doorIdentity = DoorItemIdentity.newPersonal();
+		DoorItemIdentity trapdoorIdentity = DoorItemIdentity.newPersonal(DoorForm.TRAPDOOR);
+
+		assertTrue(DoorSkinRecipe.resolve(List.of(
+			new DoorSkinRecipe.Ingredient(Material.OAK_DOOR, doorIdentity),
+			new DoorSkinRecipe.Ingredient(Material.OAK_TRAPDOOR, null)), WOODEN_SKIN).isEmpty());
+		assertTrue(DoorSkinRecipe.resolve(List.of(
+			new DoorSkinRecipe.Ingredient(Material.OAK_TRAPDOOR, trapdoorIdentity),
+			new DoorSkinRecipe.Ingredient(Material.SPRUCE_DOOR, null)), WOODEN_SKIN).isEmpty());
+		// a trapdoor identity stamped onto a door item cannot launder itself back
+		assertTrue(DoorSkinRecipe.resolve(List.of(
+			new DoorSkinRecipe.Ingredient(Material.OAK_DOOR, trapdoorIdentity),
+			new DoorSkinRecipe.Ingredient(Material.SPRUCE_TRAPDOOR, null)), WOODEN_SKIN).isEmpty());
 	}
 }

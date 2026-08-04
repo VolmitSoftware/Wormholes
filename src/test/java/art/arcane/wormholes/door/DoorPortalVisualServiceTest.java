@@ -123,7 +123,130 @@ class DoorPortalVisualServiceTest
 			() -> DoorPortalVisualService.geometry(null, Door.Hinge.LEFT));
 		assertThrows(NullPointerException.class,
 			() -> DoorPortalVisualService.geometry(BlockFace.NORTH, null));
-		assertThrows(IllegalArgumentException.class, () -> DoorPortalVisualService.overlayAxis(BlockFace.UP));
+		assertThrows(IllegalArgumentException.class, () -> DoorPortalVisualService.overlayAxis(BlockFace.NORTH_EAST));
+	}
+
+	@Test
+	void trapdoorVeilIsAFlatUnitPanelLyingInThePlatePlane()
+	{
+		for(BlockFace facing : new BlockFace[] {BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST})
+		{
+			for(org.bukkit.block.data.Bisected.Half half : org.bukkit.block.data.Bisected.Half.values())
+			{
+					DoorwayPlane plane = DoorwayPlane.trapdoor(
+						4, 70, -9, facing, half, DoorOpenState.OPEN);
+				assertEquals(BlockFace.UP, DoorPortalVisualService.panelFace(plane));
+				DoorPortalVisualService.PortalPlaneGeometry geometry =
+					DoorPortalVisualService.planeGeometry(plane, Door.Hinge.LEFT);
+				assertEquals(geometry.scaleX(), geometry.scaleZ(), EPSILON);
+				assertTrue(geometry.scaleY() < geometry.scaleX());
+				// the panel is centred on the block and straddles the crossing plane, so what
+				// a traveler sees is the surface that fires
+				assertEquals(-geometry.scaleX() / 2.0F, geometry.translationX(), EPSILON);
+				assertEquals(-geometry.scaleZ() / 2.0F, geometry.translationZ(), EPSILON);
+				assertEquals(
+					(float) (plane.planeY() - plane.blockY()),
+					geometry.translationY() + (geometry.scaleY() / 2.0F),
+					EPSILON);
+				// and it stays inside its own block instead of floating into the one above
+				assertTrue(geometry.translationY() >= 0.0F);
+				assertTrue(geometry.translationY() + geometry.scaleY() <= 1.0F);
+
+				DoorPortalVisualService.PortalPlaneGeometry overlay =
+					DoorPortalVisualService.overlayGeometry(geometry, BlockFace.UP);
+				assertEquals(geometry.scaleX(), overlay.scaleX(), EPSILON);
+				assertEquals(geometry.scaleZ(), overlay.scaleZ(), EPSILON);
+				// the animated overlay straddles both faces of the flat backing, as it does on a hinged door
+				assertTrue(overlay.scaleY() > geometry.scaleY());
+				assertEquals(
+					geometry.translationY() + (geometry.scaleY() / 2.0F),
+					overlay.translationY() + (overlay.scaleY() / 2.0F),
+					EPSILON);
+				assertEquals(Axis.X, DoorPortalVisualService.overlayAxis(BlockFace.UP));
+			}
+		}
+	}
+
+	@Test
+	void hingeIsIgnoredForATrapdoorVeil()
+	{
+		DoorwayPlane plane = DoorwayPlane.trapdoor(
+			0,
+			64,
+			0,
+			BlockFace.NORTH,
+			org.bukkit.block.data.Bisected.Half.TOP,
+			DoorOpenState.CLOSED);
+		assertEquals(
+			DoorPortalVisualService.planeGeometry(plane, Door.Hinge.LEFT),
+			DoorPortalVisualService.planeGeometry(plane, Door.Hinge.RIGHT));
+	}
+
+	@Test
+	void hingedPlaneGeometryStillDelegatesToTheCardinalTable()
+	{
+		for(BlockFace facing : new BlockFace[] {BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST})
+		{
+			for(Door.Hinge hinge : Door.Hinge.values())
+			{
+				assertEquals(
+					DoorPortalVisualService.geometry(facing, hinge),
+					DoorPortalVisualService.planeGeometry(new DoorwayPlane(1, 2, 3, facing), hinge));
+			}
+		}
+	}
+
+	@Test
+	void closedSurfaceGeometryCoversThePhysicalLeafAndKeepsItsCenter()
+	{
+		float contactThickness = (float) DoorwayPlane.TRAPDOOR_PLATE_THICKNESS + 0.02F;
+		for(org.bukkit.block.data.Bisected.Half half : org.bukkit.block.data.Bisected.Half.values())
+		{
+			DoorwayPlane plane = DoorwayPlane.trapdoor(
+				0, 64, 0, BlockFace.NORTH, half, DoorOpenState.CLOSED);
+			DoorPortalVisualService.PortalPlaneGeometry geometry =
+				DoorPortalVisualService.planeGeometry(plane, Door.Hinge.LEFT);
+			float plateMinimum = half == org.bukkit.block.data.Bisected.Half.BOTTOM
+				? 0.0F
+				: 1.0F - (float) DoorwayPlane.TRAPDOOR_PLATE_THICKNESS;
+
+			assertEquals(contactThickness, geometry.scaleY(), EPSILON);
+			assertEquals(plateMinimum - 0.01F, geometry.translationY(), EPSILON);
+			assertEquals(
+				plateMinimum + (float) DoorwayPlane.TRAPDOOR_PLATE_THICKNESS + 0.01F,
+				geometry.translationY() + geometry.scaleY(),
+				EPSILON);
+			assertEquals(
+				(float) (plane.planeY() - plane.blockY()),
+				geometry.translationY() + (geometry.scaleY() / 2.0F),
+				EPSILON);
+		}
+
+		for(BlockFace facing : new BlockFace[] {BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST})
+		{
+			for(Door.Hinge hinge : Door.Hinge.values())
+			{
+				DoorPortalVisualService.PortalPlaneGeometry open = DoorPortalVisualService.geometry(facing, hinge);
+				DoorwayPlane plane = new DoorwayPlane(
+					0,
+					64,
+					0,
+					facing,
+					DoorForm.DOOR,
+					org.bukkit.block.data.Bisected.Half.BOTTOM,
+					DoorOpenState.CLOSED);
+				DoorPortalVisualService.PortalPlaneGeometry closed =
+					DoorPortalVisualService.planeGeometry(plane, hinge);
+
+				assertEquals(contactThickness, normalScale(closed, facing), EPSILON);
+				assertEquals(
+					normalTranslation(open, facing) + (normalScale(open, facing) / 2.0F),
+					normalTranslation(closed, facing) + (normalScale(closed, facing) / 2.0F),
+					EPSILON);
+				assertEquals(open.translationY(), closed.translationY(), EPSILON);
+				assertEquals(open.scaleY(), closed.scaleY(), EPSILON);
+			}
+		}
 	}
 
 	@Test

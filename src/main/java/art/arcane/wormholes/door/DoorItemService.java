@@ -10,6 +10,7 @@ import art.arcane.wormholes.platform.WormholesPlatform;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -41,13 +42,15 @@ public final class DoorItemService
 	public static final Material PAIR_DOOR_MATERIAL = Material.OAK_DOOR;
 	public static final Material PERSONAL_DOOR_MATERIAL = Material.DARK_OAK_DOOR;
 	public static final Material PUBLIC_DOOR_MATERIAL = Material.PALE_OAK_DOOR;
+	public static final Material PAIR_TRAPDOOR_MATERIAL = Material.OAK_TRAPDOOR;
+	public static final Material PERSONAL_TRAPDOOR_MATERIAL = Material.DARK_OAK_TRAPDOOR;
+	public static final Material PUBLIC_TRAPDOOR_MATERIAL = Material.PALE_OAK_TRAPDOOR;
 
 	private final List<ItemStack> wormholeRunes;
 	private final DoorItemPdcCodec codec;
-	private final NamespacedKey pairKitRecipeKey;
-	private final NamespacedKey personalDoorRecipeKey;
-	private final NamespacedKey publicDoorRecipeKey;
+	private final EnumMap<DoorCraftProduct, NamespacedKey> productRecipeKeys;
 	private final NamespacedKey doorSkinRecipeKey;
+	private final NamespacedKey trapdoorSkinRecipeKey;
 
 	public DoorItemService(Plugin plugin, ItemStack exactWormholeRune)
 	{
@@ -61,10 +64,18 @@ public final class DoorItemService
 		wormholeRunes = new CopyOnWriteArrayList<ItemStack>();
 		acceptWormholeRune(exactWormholeRune);
 		codec = new DoorItemPdcCodec(WormholesPlatform.pluginNamespace(plugin));
-		pairKitRecipeKey = new NamespacedKey(plugin, "dimensional_door_pair_kit");
-		personalDoorRecipeKey = new NamespacedKey(plugin, "personal_dimensional_door");
-		publicDoorRecipeKey = new NamespacedKey(plugin, "public_dimensional_door");
+		productRecipeKeys = new EnumMap<>(DoorCraftProduct.class);
+		for(DoorCraftProduct product : DoorCraftProduct.values())
+		{
+			productRecipeKeys.put(product, new NamespacedKey(plugin, product.recipeName()));
+		}
 		doorSkinRecipeKey = new NamespacedKey(plugin, "dimensional_door_skin");
+		trapdoorSkinRecipeKey = new NamespacedKey(plugin, "dimensional_trapdoor_skin");
+	}
+
+	public NamespacedKey recipeKey(DoorCraftProduct product)
+	{
+		return productRecipeKeys.get(Objects.requireNonNull(product, "product"));
 	}
 
 	public ItemStack createPairKit()
@@ -74,24 +85,48 @@ public final class DoorItemService
 
 	public ItemStack createPairKit(UUID kitId)
 	{
+		return createPairKit(kitId, DoorForm.DOOR);
+	}
+
+	public ItemStack createPairKit(DoorForm form)
+	{
+		return createPairKit(UUID.randomUUID(), form);
+	}
+
+	public ItemStack createPairKit(UUID kitId, DoorForm form)
+	{
+		Objects.requireNonNull(kitId, "kitId");
+		Objects.requireNonNull(form, "form");
 		ItemStack item = styledItem(
 			PAIR_KIT_MATERIAL,
-			WormholesMessages.ITEM_ENTANGLED_PAIR,
+			form == DoorForm.TRAPDOOR
+				? WormholesMessages.ITEM_ENTANGLED_TRAPDOOR_PAIR
+				: WormholesMessages.ITEM_ENTANGLED_PAIR,
 			MessageArgs.empty());
 		ItemMeta meta = item.getItemMeta();
-		codec.encodePairKit(meta.getPersistentDataContainer(), Objects.requireNonNull(kitId, "kitId"));
+		codec.encodePairKit(meta.getPersistentDataContainer(), kitId, form);
 		item.setItemMeta(meta);
 		return item;
 	}
 
 	public ItemStack createPersonalDoor()
 	{
-		return createDoor(DoorItemIdentity.newPersonal());
+		return createPersonalDoor(DoorForm.DOOR);
+	}
+
+	public ItemStack createPersonalDoor(DoorForm form)
+	{
+		return createDoor(DoorItemIdentity.newPersonal(form));
 	}
 
 	public ItemStack createPublicDoor()
 	{
-		return createDoor(DoorItemIdentity.newPublic());
+		return createPublicDoor(DoorForm.DOOR);
+	}
+
+	public ItemStack createPublicDoor(DoorForm form)
+	{
+		return createDoor(DoorItemIdentity.newPublic(form));
 	}
 
 	public ItemStack createReturnDoor(UUID spaceId)
@@ -102,31 +137,33 @@ public final class DoorItemService
 	public ItemStack createDoor(DoorItemIdentity identity)
 	{
 		Objects.requireNonNull(identity, "identity");
-		return createDoor(identity, defaultMaterial(identity.kind()));
+		return createDoor(identity, defaultMaterial(identity.kind(), identity.form()));
 	}
 
 	public ItemStack createDoor(DoorItemIdentity identity, Material material)
 	{
 		Objects.requireNonNull(identity, "identity");
-		if(!DoorSkin.isPlayerOperable(Objects.requireNonNull(material, "material")))
+		if(!DoorSkin.isPlayerOperable(Objects.requireNonNull(material, "material"), identity.form()))
 		{
-			throw new IllegalArgumentException("Dimensional-door skins must be player-operable doors");
+			throw new IllegalArgumentException(
+				"Dimensional-door skins must be player-operable " + identity.form() + " materials");
 		}
+		boolean trapdoor = identity.isTrapdoor();
 		ItemStack item = switch(identity.kind())
 		{
 			case PAIR -> styledItem(
 				material,
-				WormholesMessages.ITEM_PAIRED_DOOR,
+				trapdoor ? WormholesMessages.ITEM_PAIRED_TRAPDOOR : WormholesMessages.ITEM_PAIRED_DOOR,
 				WormholesLocalization.args(
 					MessageArgument.untrusted("endpoint", identity.pairEndpoint().name()),
 					MessageArgument.untrusted("other", identity.pairEndpoint().other().name())));
 			case PERSONAL -> styledItem(
 				material,
-				WormholesMessages.ITEM_PERSONAL_DOOR,
+				trapdoor ? WormholesMessages.ITEM_PERSONAL_TRAPDOOR : WormholesMessages.ITEM_PERSONAL_DOOR,
 				MessageArgs.empty());
 			case PUBLIC -> styledItem(
 				material,
-				WormholesMessages.ITEM_PUBLIC_DOOR,
+				trapdoor ? WormholesMessages.ITEM_PUBLIC_TRAPDOOR : WormholesMessages.ITEM_PUBLIC_DOOR,
 				MessageArgs.empty());
 			case RETURN -> styledItem(
 				material,
@@ -142,7 +179,8 @@ public final class DoorItemService
 
 	public Optional<DoorItemIdentity> decodeDoor(ItemStack item)
 	{
-		return decodeDoorIdentity(item).filter(identity -> DoorSkin.isPlayerOperable(item.getType()));
+		return decodeDoorIdentity(item)
+			.filter(identity -> DoorSkin.isPlayerOperable(item.getType(), identity.form()));
 	}
 
 	public Optional<DoorItemIdentity> decodeDoorIdentity(ItemStack item)
@@ -156,7 +194,7 @@ public final class DoorItemService
 
 	private Optional<DoorItemIdentity> decodeStoredIdentity(ItemStack item)
 	{
-		if(item == null || !DoorSkin.isDoor(item.getType()) || !item.hasItemMeta())
+		if(item == null || !DoorSkin.isDoorLike(item.getType()) || !item.hasItemMeta())
 		{
 			return Optional.empty();
 		}
@@ -165,11 +203,16 @@ public final class DoorItemService
 
 	public Optional<UUID> pairKitId(ItemStack item)
 	{
+		return pairKit(item).map(DoorItemPdcCodec.PairKit::kitId);
+	}
+
+	public Optional<DoorItemPdcCodec.PairKit> pairKit(ItemStack item)
+	{
 		if(item == null || item.getType() != PAIR_KIT_MATERIAL || item.getAmount() != 1 || !item.hasItemMeta())
 		{
 			return Optional.empty();
 		}
-		return codec.decodePairKitId(item.getItemMeta().getPersistentDataContainer());
+		return codec.decodePairKit(item.getItemMeta().getPersistentDataContainer());
 	}
 
 	/**
@@ -179,15 +222,20 @@ public final class DoorItemService
 	 */
 	public Optional<PairKitContents> unpackPairKit(ItemStack kit)
 	{
-		return pairKitId(kit).map(kitId ->
+		return pairKit(kit).map(stamp ->
 		{
-			DoorPairIdentity pair = pairIdentityForKit(kitId);
+			DoorPairIdentity pair = pairIdentityForKit(stamp.kitId());
 			return new PairKitContents(
-				kitId,
+				stamp.kitId(),
 				pair,
-				createDoor(pair.endpoint(PairEndpoint.A)),
-				createDoor(pair.endpoint(PairEndpoint.B)));
+				createDoor(endpointIdentity(pair, PairEndpoint.A, stamp.form())),
+				createDoor(endpointIdentity(pair, PairEndpoint.B, stamp.form())));
 		});
+	}
+
+	private static DoorItemIdentity endpointIdentity(DoorPairIdentity pair, PairEndpoint endpoint, DoorForm form)
+	{
+		return DoorItemIdentity.paired(pair.itemId(endpoint), pair.pairId(), endpoint, form);
 	}
 
 	public static DoorPairIdentity pairIdentityForKit(UUID kitId)
@@ -206,7 +254,12 @@ public final class DoorItemService
 		boolean personalAdded = WormholesPlatform.addRecipe(personalDoorRecipe(), false);
 		boolean publicAdded = WormholesPlatform.addRecipe(publicDoorRecipe(), true);
 		boolean skinAdded = WormholesPlatform.addRecipe(doorSkinRecipe(), false);
-		return pairAdded && personalAdded && publicAdded && skinAdded;
+		boolean trapdoorPairAdded = WormholesPlatform.addRecipe(trapdoorPairKitRecipe(), false);
+		boolean personalTrapdoorAdded = WormholesPlatform.addRecipe(personalTrapdoorRecipe(), false);
+		boolean publicTrapdoorAdded = WormholesPlatform.addRecipe(publicTrapdoorRecipe(), true);
+		boolean trapdoorSkinAdded = WormholesPlatform.addRecipe(trapdoorSkinRecipe(), false);
+		return pairAdded && personalAdded && publicAdded && skinAdded
+			&& trapdoorPairAdded && personalTrapdoorAdded && publicTrapdoorAdded && trapdoorSkinAdded;
 	}
 
 	public void acceptWormholeRune(ItemStack exactWormholeRune)
@@ -230,15 +283,19 @@ public final class DoorItemService
 
 	public void unregisterRecipes()
 	{
-		WormholesPlatform.removeRecipe(pairKitRecipeKey, false);
-		WormholesPlatform.removeRecipe(personalDoorRecipeKey, false);
-		WormholesPlatform.removeRecipe(publicDoorRecipeKey, true);
+		WormholesPlatform.removeRecipe(recipeKey(DoorCraftProduct.PAIR_KIT), false);
+		WormholesPlatform.removeRecipe(recipeKey(DoorCraftProduct.PERSONAL_DOOR), false);
+		WormholesPlatform.removeRecipe(recipeKey(DoorCraftProduct.PUBLIC_DOOR), true);
 		WormholesPlatform.removeRecipe(doorSkinRecipeKey, false);
+		WormholesPlatform.removeRecipe(recipeKey(DoorCraftProduct.TRAPDOOR_PAIR_KIT), false);
+		WormholesPlatform.removeRecipe(recipeKey(DoorCraftProduct.PERSONAL_TRAPDOOR), false);
+		WormholesPlatform.removeRecipe(recipeKey(DoorCraftProduct.PUBLIC_TRAPDOOR), true);
+		WormholesPlatform.removeRecipe(trapdoorSkinRecipeKey, false);
 	}
 
 	public ShapedRecipe pairKitRecipe()
 	{
-		return new ShapedRecipe(pairKitRecipeKey, craftTemplate(DoorCraftProduct.PAIR_KIT))
+		return new ShapedRecipe(recipeKey(DoorCraftProduct.PAIR_KIT), craftTemplate(DoorCraftProduct.PAIR_KIT))
 			.shape("EDE", "ORO", " D ")
 			.setIngredient('E', Material.ENDER_EYE)
 			.setIngredient('D', creationDoorIngredient())
@@ -248,7 +305,7 @@ public final class DoorItemService
 
 	public ShapedRecipe personalDoorRecipe()
 	{
-		return new ShapedRecipe(personalDoorRecipeKey, craftTemplate(DoorCraftProduct.PERSONAL_DOOR))
+		return new ShapedRecipe(recipeKey(DoorCraftProduct.PERSONAL_DOOR), craftTemplate(DoorCraftProduct.PERSONAL_DOOR))
 			.shape(" R ", "CDE")
 			.setIngredient('R', wormholeRuneChoice())
 			.setIngredient('C', Material.RECOVERY_COMPASS)
@@ -258,7 +315,7 @@ public final class DoorItemService
 
 	public ShapedRecipe publicDoorRecipe()
 	{
-		return new ShapedRecipe(publicDoorRecipeKey, craftTemplate(DoorCraftProduct.PUBLIC_DOOR))
+		return new ShapedRecipe(recipeKey(DoorCraftProduct.PUBLIC_DOOR), craftTemplate(DoorCraftProduct.PUBLIC_DOOR))
 			.shape("RDR", " E ", " L ")
 			.setIngredient('R', wormholeRuneChoice())
 			.setIngredient('D', creationDoorIngredient())
@@ -266,9 +323,45 @@ public final class DoorItemService
 			.setIngredient('L', Material.LODESTONE);
 	}
 
+	public ShapedRecipe trapdoorPairKitRecipe()
+	{
+		return new ShapedRecipe(recipeKey(DoorCraftProduct.TRAPDOOR_PAIR_KIT), craftTemplate(DoorCraftProduct.TRAPDOOR_PAIR_KIT))
+			.shape("EDE", "ORO", " D ")
+			.setIngredient('E', Material.ENDER_EYE)
+			.setIngredient('D', creationTrapdoorIngredient())
+			.setIngredient('O', Material.OBSIDIAN)
+			.setIngredient('R', wormholeRuneChoice());
+	}
+
+	public ShapedRecipe personalTrapdoorRecipe()
+	{
+		return new ShapedRecipe(recipeKey(DoorCraftProduct.PERSONAL_TRAPDOOR), craftTemplate(DoorCraftProduct.PERSONAL_TRAPDOOR))
+			.shape(" R ", "CDE")
+			.setIngredient('R', wormholeRuneChoice())
+			.setIngredient('C', Material.RECOVERY_COMPASS)
+			.setIngredient('D', creationTrapdoorIngredient())
+			.setIngredient('E', Material.ENDER_CHEST);
+	}
+
+	public ShapedRecipe publicTrapdoorRecipe()
+	{
+		return new ShapedRecipe(recipeKey(DoorCraftProduct.PUBLIC_TRAPDOOR), craftTemplate(DoorCraftProduct.PUBLIC_TRAPDOOR))
+			.shape("RDR", " E ", " L ")
+			.setIngredient('R', wormholeRuneChoice())
+			.setIngredient('D', creationTrapdoorIngredient())
+			.setIngredient('E', Material.ENDER_CHEST)
+			.setIngredient('L', Material.LODESTONE);
+	}
+
 	private static RecipeChoice.MaterialChoice creationDoorIngredient()
 	{
 		return new RecipeChoice.MaterialChoice(DoorSkin.doorMaterials());
+	}
+
+	/** Only hand-openable trapdoors can become dimensional trapdoors. */
+	private static RecipeChoice.MaterialChoice creationTrapdoorIngredient()
+	{
+		return new RecipeChoice.MaterialChoice(DoorSkin.playerOperableTrapdoorMaterials());
 	}
 
 	private RecipeChoice.ExactChoice wormholeRuneChoice()
@@ -287,9 +380,24 @@ public final class DoorItemService
 			.addIngredient(new RecipeChoice.MaterialChoice(DoorSkin.playerOperableMaterials()));
 	}
 
+	public ShapelessRecipe trapdoorSkinRecipe()
+	{
+		ItemStack template = styledItem(
+			PAIR_TRAPDOOR_MATERIAL,
+			WormholesMessages.ITEM_TRAPDOOR_SKIN,
+			MessageArgs.empty());
+		return new ShapelessRecipe(trapdoorSkinRecipeKey, template)
+			.addIngredient(new RecipeChoice.MaterialChoice(DoorSkin.trapdoorMaterials()))
+			.addIngredient(new RecipeChoice.MaterialChoice(DoorSkin.playerOperableTrapdoorMaterials()));
+	}
+
 	public boolean isDoorSkinRecipe(Recipe recipe)
 	{
-		return recipe instanceof Keyed keyed && doorSkinRecipeKey.equals(keyed.getKey());
+		if(!(recipe instanceof Keyed keyed))
+		{
+			return false;
+		}
+		return doorSkinRecipeKey.equals(keyed.getKey()) || trapdoorSkinRecipeKey.equals(keyed.getKey());
 	}
 
 	public Optional<ItemStack> skinCraftResult(ItemStack[] matrix)
@@ -374,19 +482,8 @@ public final class DoorItemService
 			return Optional.empty();
 		}
 		NamespacedKey key = keyed.getKey();
-		if(pairKitRecipeKey.equals(key))
-		{
-			return Optional.of(DoorCraftProduct.PAIR_KIT);
-		}
-		if(personalDoorRecipeKey.equals(key))
-		{
-			return Optional.of(DoorCraftProduct.PERSONAL_DOOR);
-		}
-		if(publicDoorRecipeKey.equals(key))
-		{
-			return Optional.of(DoorCraftProduct.PUBLIC_DOOR);
-		}
-		return Optional.empty();
+		// Name match alone is not enough: another plugin may own the same recipe name.
+		return DoorCraftProduct.forRecipeName(key.getKey()).filter(product -> recipeKey(product).equals(key));
 	}
 
 	public DoorItemPdcCodec codec()
@@ -394,13 +491,16 @@ public final class DoorItemService
 		return codec;
 	}
 
-	private ItemStack mint(DoorCraftProduct product)
+	public ItemStack mint(DoorCraftProduct product)
 	{
-		return switch(product)
+		Objects.requireNonNull(product, "product");
+		DoorForm form = product.form();
+		return switch(product.kind())
 		{
-			case PAIR_KIT -> createPairKit();
-			case PERSONAL_DOOR -> createPersonalDoor();
-			case PUBLIC_DOOR -> createPublicDoor();
+			case PAIR -> createPairKit(form);
+			case PERSONAL -> createPersonalDoor(form);
+			case PUBLIC -> createPublicDoor(form);
+			case RETURN -> throw new IllegalArgumentException("return doors are never crafted");
 		};
 	}
 
@@ -419,6 +519,18 @@ public final class DoorItemService
 			case PUBLIC_DOOR -> styledItem(
 				PUBLIC_DOOR_MATERIAL,
 				WormholesMessages.ITEM_PUBLIC_DOOR_RECIPE,
+				MessageArgs.empty());
+			case TRAPDOOR_PAIR_KIT -> styledItem(
+				PAIR_KIT_MATERIAL,
+				WormholesMessages.ITEM_ENTANGLED_TRAPDOOR_PAIR_RECIPE,
+				MessageArgs.empty());
+			case PERSONAL_TRAPDOOR -> styledItem(
+				PERSONAL_TRAPDOOR_MATERIAL,
+				WormholesMessages.ITEM_PERSONAL_TRAPDOOR_RECIPE,
+				MessageArgs.empty());
+			case PUBLIC_TRAPDOOR -> styledItem(
+				PUBLIC_TRAPDOOR_MATERIAL,
+				WormholesMessages.ITEM_PUBLIC_TRAPDOOR_RECIPE,
 				MessageArgs.empty());
 		};
 		ItemMeta meta = template.getItemMeta();
@@ -447,7 +559,23 @@ public final class DoorItemService
 
 	public static Material defaultMaterial(DoorKind kind)
 	{
-		return switch(Objects.requireNonNull(kind, "kind"))
+		return defaultMaterial(kind, DoorForm.DOOR);
+	}
+
+	public static Material defaultMaterial(DoorKind kind, DoorForm form)
+	{
+		Objects.requireNonNull(kind, "kind");
+		if(Objects.requireNonNull(form, "form") == DoorForm.TRAPDOOR)
+		{
+			return switch(kind)
+			{
+				case PAIR -> PAIR_TRAPDOOR_MATERIAL;
+				case PERSONAL -> PERSONAL_TRAPDOOR_MATERIAL;
+				case PUBLIC -> PUBLIC_TRAPDOOR_MATERIAL;
+				case RETURN -> throw new IllegalArgumentException("return doors are always DOOR form");
+			};
+		}
+		return switch(kind)
 		{
 			case PAIR -> PAIR_DOOR_MATERIAL;
 			case PERSONAL -> PERSONAL_DOOR_MATERIAL;
@@ -464,22 +592,42 @@ public final class DoorItemService
 
 	public NamespacedKey pairKitRecipeKey()
 	{
-		return pairKitRecipeKey;
+		return recipeKey(DoorCraftProduct.PAIR_KIT);
 	}
 
 	public NamespacedKey personalDoorRecipeKey()
 	{
-		return personalDoorRecipeKey;
+		return recipeKey(DoorCraftProduct.PERSONAL_DOOR);
 	}
 
 	public NamespacedKey publicDoorRecipeKey()
 	{
-		return publicDoorRecipeKey;
+		return recipeKey(DoorCraftProduct.PUBLIC_DOOR);
 	}
 
 	public NamespacedKey doorSkinRecipeKey()
 	{
 		return doorSkinRecipeKey;
+	}
+
+	public NamespacedKey trapdoorPairKitRecipeKey()
+	{
+		return recipeKey(DoorCraftProduct.TRAPDOOR_PAIR_KIT);
+	}
+
+	public NamespacedKey personalTrapdoorRecipeKey()
+	{
+		return recipeKey(DoorCraftProduct.PERSONAL_TRAPDOOR);
+	}
+
+	public NamespacedKey publicTrapdoorRecipeKey()
+	{
+		return recipeKey(DoorCraftProduct.PUBLIC_TRAPDOOR);
+	}
+
+	public NamespacedKey trapdoorSkinRecipeKey()
+	{
+		return trapdoorSkinRecipeKey;
 	}
 
 	public enum CraftHookResult

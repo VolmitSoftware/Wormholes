@@ -11,6 +11,7 @@ import java.util.UUID;
 public record DoorItemIdentity(
     UUID itemId,
     DoorKind kind,
+    DoorForm form,
     UUID pairId,
     PairEndpoint pairEndpoint,
     UUID spaceId
@@ -18,6 +19,7 @@ public record DoorItemIdentity(
     public DoorItemIdentity {
         Objects.requireNonNull(itemId, "itemId");
         Objects.requireNonNull(kind, "kind");
+        Objects.requireNonNull(form, "form");
 
         switch (kind) {
             case PAIR -> {
@@ -34,36 +36,69 @@ public record DoorItemIdentity(
                 requireNull(pairId, "return doors cannot carry pairId");
                 requireNull(pairEndpoint, "return doors cannot carry pairEndpoint");
                 Objects.requireNonNull(spaceId, "return doors require spaceId");
+                // pocket exits are built by the pocket structure and are never trapdoors
+                if (form != DoorForm.DOOR) {
+                    throw new IllegalArgumentException("return doors are always DOOR form");
+                }
             }
         }
     }
 
+    /** Identities written before trapdoors existed are always {@link DoorForm#DOOR}. */
+    public DoorItemIdentity(UUID itemId, DoorKind kind, UUID pairId, PairEndpoint pairEndpoint, UUID spaceId) {
+        this(itemId, kind, DoorForm.DOOR, pairId, pairEndpoint, spaceId);
+    }
+
     public static DoorItemIdentity paired(UUID itemId, UUID pairId, PairEndpoint endpoint) {
-        return new DoorItemIdentity(itemId, DoorKind.PAIR, pairId, endpoint, null);
+        return paired(itemId, pairId, endpoint, DoorForm.DOOR);
+    }
+
+    public static DoorItemIdentity paired(UUID itemId, UUID pairId, PairEndpoint endpoint, DoorForm form) {
+        return new DoorItemIdentity(itemId, DoorKind.PAIR, form, pairId, endpoint, null);
     }
 
     public static DoorItemIdentity personal(UUID itemId) {
-        return new DoorItemIdentity(itemId, DoorKind.PERSONAL, null, null, null);
+        return personal(itemId, DoorForm.DOOR);
+    }
+
+    public static DoorItemIdentity personal(UUID itemId, DoorForm form) {
+        return new DoorItemIdentity(itemId, DoorKind.PERSONAL, form, null, null, null);
     }
 
     public static DoorItemIdentity publicDoor(UUID itemId) {
-        return new DoorItemIdentity(itemId, DoorKind.PUBLIC, null, null, null);
+        return publicDoor(itemId, DoorForm.DOOR);
+    }
+
+    public static DoorItemIdentity publicDoor(UUID itemId, DoorForm form) {
+        return new DoorItemIdentity(itemId, DoorKind.PUBLIC, form, null, null, null);
     }
 
     public static DoorItemIdentity returnDoor(UUID itemId, UUID spaceId) {
-        return new DoorItemIdentity(itemId, DoorKind.RETURN, null, null, spaceId);
+        return new DoorItemIdentity(itemId, DoorKind.RETURN, DoorForm.DOOR, null, null, spaceId);
     }
 
     public static DoorItemIdentity newPersonal() {
-        return personal(UUID.randomUUID());
+        return newPersonal(DoorForm.DOOR);
+    }
+
+    public static DoorItemIdentity newPersonal(DoorForm form) {
+        return personal(UUID.randomUUID(), form);
     }
 
     public static DoorItemIdentity newPublic() {
-        return publicDoor(UUID.randomUUID());
+        return newPublic(DoorForm.DOOR);
+    }
+
+    public static DoorItemIdentity newPublic(DoorForm form) {
+        return publicDoor(UUID.randomUUID(), form);
     }
 
     public static DoorItemIdentity newReturn(UUID spaceId) {
         return returnDoor(UUID.randomUUID(), spaceId);
+    }
+
+    public boolean isTrapdoor() {
+        return form == DoorForm.TRAPDOOR;
     }
 
     private static void requireNull(Object value, String message) {

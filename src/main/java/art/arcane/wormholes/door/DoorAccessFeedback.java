@@ -12,6 +12,7 @@ import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.SoundCategory;
 import org.bukkit.World;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.type.Door;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -153,7 +154,8 @@ final class DoorAccessFeedback
 		ThreadLocalRandom random = ThreadLocalRandom.current();
 		PortalPlaneGeometry geometry = plane == null
 			? null
-			: DoorPortalVisualService.geometry(plane.facing(), Door.Hinge.LEFT);
+			: DoorPortalVisualService.planeGeometry(plane, Door.Hinge.LEFT);
+		BlockFace panelFace = plane == null ? null : DoorPortalVisualService.panelFace(plane);
 		for(int index = 0; index < DENY_DUST_COUNT; index++)
 		{
 			double u = random.nextDouble();
@@ -168,7 +170,7 @@ final class DoorAccessFeedback
 					1, 0.2D, 0.0D, 0.2D, 0.0D, DENY_DUST);
 				continue;
 			}
-			double[] point = DoorPortalAnimation.scatterPoint(geometry, plane.facing(), u, v);
+			double[] point = DoorPortalAnimation.scatterPoint(geometry, panelFace, u, v);
 			world.spawnParticle(
 				Particle.DUST,
 				anchorX + point[0],

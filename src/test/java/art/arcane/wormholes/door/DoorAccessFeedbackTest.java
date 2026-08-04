@@ -42,4 +42,25 @@ final class DoorAccessFeedbackTest
 			DoorAccessFeedback.nextAllowedMillis(5_000L) - 5_000L);
 		assertEquals(1500L, DoorAccessFeedback.DENY_COOLDOWN_MILLIS);
 	}
+
+	/** The deny burst is scattered over the panel, so a flat panel must not throw. */
+	@Test
+	void denyParticlesScatterOverATrapdoorPanelWithoutThrowing()
+	{
+		for(org.bukkit.block.data.Bisected.Half half : org.bukkit.block.data.Bisected.Half.values())
+		{
+			DoorOpenState openState = half == org.bukkit.block.data.Bisected.Half.TOP
+				? DoorOpenState.OPEN
+				: DoorOpenState.CLOSED;
+			DoorwayPlane plane = DoorwayPlane.trapdoor(
+				2, 64, 3, org.bukkit.block.BlockFace.NORTH, half, openState);
+			org.bukkit.block.BlockFace panelFace = DoorPortalVisualService.panelFace(plane);
+			DoorPortalVisualService.PortalPlaneGeometry geometry =
+				DoorPortalVisualService.planeGeometry(plane, org.bukkit.block.data.type.Door.Hinge.LEFT);
+
+			assertEquals(org.bukkit.block.BlockFace.UP, panelFace);
+			assertEquals(3, DoorPortalAnimation.scatterPoint(geometry, panelFace, 0.0D, 0.0D).length);
+			assertEquals(3, DoorPortalAnimation.scatterPoint(geometry, panelFace, 0.99D, 0.99D).length);
+		}
+	}
 }
