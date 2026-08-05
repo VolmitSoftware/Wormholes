@@ -115,7 +115,7 @@ final class WormholesDoorLifecycle {
         if (disablePending.compareAndSet(false, true)) {
             plugin.getLogger().warning("Dimensional Doors are draining current transits and pocket occupants before disabling.");
             notifyPocketOccupantsOfDisable();
-            scheduleDisableCheck(activeSettings, activeManager);
+            scheduleDisableCheck(activeManager);
         }
     }
 
@@ -193,19 +193,18 @@ final class WormholesDoorLifecycle {
         }
     }
 
-    private void scheduleDisableCheck(
-        WormholesSettings expectedSettings,
-        DimensionalDoorManager expectedManager
-    ) {
+    private void scheduleDisableCheck(DimensionalDoorManager expectedManager) {
         boolean scheduled = FoliaScheduler.runGlobal(plugin, () -> {
-            if (Wormholes.settings != expectedSettings
-                || expectedSettings.getMain().dimensionalDoorsEnabled
-                || Wormholes.dimensionalDoorManager != expectedManager) {
+            WormholesSettings currentSettings = Wormholes.settings;
+            if (!shouldContinueDisableCheck(
+                currentSettings,
+                Wormholes.dimensionalDoorManager == expectedManager
+            )) {
                 disablePending.set(false);
                 return;
             }
             if (hasDrainWork(expectedManager)) {
-                scheduleDisableCheck(expectedSettings, expectedManager);
+                scheduleDisableCheck(expectedManager);
                 return;
             }
             disablePending.set(false);
@@ -215,6 +214,15 @@ final class WormholesDoorLifecycle {
             disablePending.set(false);
             plugin.getLogger().warning("Could not schedule the Dimensional Doors disable drain check.");
         }
+    }
+
+    static boolean shouldContinueDisableCheck(
+        WormholesSettings currentSettings,
+        boolean expectedManagerActive
+    ) {
+        return currentSettings != null
+            && !currentSettings.getMain().dimensionalDoorsEnabled
+            && expectedManagerActive;
     }
 
     boolean hasDrainWork(DimensionalDoorManager manager) {

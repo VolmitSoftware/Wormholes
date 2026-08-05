@@ -32,6 +32,16 @@ final class DoorTravelerPolicyTest
 	}
 
 	@Test
+	void constrainedPlayersCannotEnterAnyDoor()
+	{
+		for(DoorKind kind : DoorKind.values())
+		{
+			assertFalse(DoorTravelerPolicy.canEnter(
+				kind, true, false, false, false, false, true, 0.6D, 1.8D), kind.name());
+		}
+	}
+
+	@Test
 	void fittingOrdinaryMobCanEnterPairDoor()
 	{
 		assertTrue(mob(DoorKind.PAIR, false, false, false, 0.6D, 1.8D));

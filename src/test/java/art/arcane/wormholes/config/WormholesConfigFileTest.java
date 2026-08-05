@@ -35,6 +35,8 @@ class WormholesConfigFileTest {
 
         assertEquals(VisualQualityProfile.AUTO, settings.getVisualQualityProfile());
         assertTrue(settings.getMain().dimensionalDoorsEnabled);
+        assertEquals(1, settings.getProjection().initialResendPasses);
+        assertFalse(settings.getNetwork().replication.captureBlockEntityEnabled);
         List<String> emitted = emittedSettings(file);
         assertEquals("schema = 2", emitted.get(0));
         assertEquals("quality = \"auto\"", emitted.get(1));
@@ -47,7 +49,8 @@ class WormholesConfigFileTest {
         assertTrue(emitted.contains("[projection]"));
         assertTrue(emitted.contains("[render]"));
         assertTrue(emitted.contains("aperture-padding-blocks = 0.75"));
-        assertTrue(emitted.contains("blackout-shell-thickness-blocks = 2"));
+        assertTrue(emitted.contains("initial-resend-passes = 1"));
+        assertTrue(emitted.contains("capture-block-entity-enabled = false"));
 
         String content = String.join("\n", emitted);
         assertEveryKeyEmitted(content, WormholesConfigFile.class);
@@ -61,8 +64,10 @@ class WormholesConfigFileTest {
         created.network.listenPort = 9001;
         created.network.trustOnFirstUse = false;
         created.network.transport.compressionLevel = 7;
+        created.network.replication.captureBlockEntityEnabled = true;
         created.main.enableParticles = false;
         created.projection.range = 72.0D;
+        created.projection.initialResendPasses = 3;
         created.render.entitySpoofing = false;
         TomlCodec.writeCanonical(file, created);
 
@@ -71,15 +76,19 @@ class WormholesConfigFileTest {
         assertTrue(written.contains("[network.transport]"));
         assertTrue(written.contains("compression-level = 7"));
         assertTrue(written.contains("compression-enabled = true"));
+        assertTrue(written.contains("capture-block-entity-enabled = true"));
         assertTrue(written.contains("[projection]"));
+        assertTrue(written.contains("initial-resend-passes = 3"));
 
         TomlCodec.LoadResult<WormholesConfigFile> result = TomlCodec.readExisting(file, WormholesConfigFile.class);
         assertTrue(result.isSuccess());
         assertEquals(9001, result.value().network.listenPort);
         assertFalse(result.value().network.trustOnFirstUse);
         assertEquals(7, result.value().network.transport.compressionLevel);
+        assertTrue(result.value().network.replication.captureBlockEntityEnabled);
         assertFalse(result.value().main.enableParticles);
         assertEquals(72.0D, result.value().projection.range);
+        assertEquals(3, result.value().projection.initialResendPasses);
         assertFalse(result.value().render.entitySpoofing);
     }
 
@@ -87,7 +96,9 @@ class WormholesConfigFileTest {
     void existingConfigGainsNewlyVisibleKeysOnLoadWithoutLosingValues() throws IOException {
         Path config = tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME);
         Files.createDirectories(config.getParent());
-        Files.writeString(config, "schema = 2\n[main]\nlanguage = \"de_DE\"\n[projection]\nrange = 72.0\n", StandardCharsets.UTF_8);
+        Files.writeString(config,
+            "schema = 2\n[main]\nlanguage = \"de_DE\"\n[projection]\nrange = 72.0\nblackout-shell-thickness-blocks = 2\n",
+            StandardCharsets.UTF_8);
 
         WormholesSettings settings = WormholesSettings.loadAll(tempDir);
 
@@ -97,7 +108,7 @@ class WormholesConfigFileTest {
         assertTrue(emitted.contains("language = \"de_DE\""));
         assertTrue(emitted.contains("range = 72.0"));
         assertTrue(emitted.contains("aperture-padding-blocks = 0.75"));
-        assertTrue(emitted.contains("blackout-shell-thickness-blocks = 2"));
+        assertFalse(emitted.contains("blackout-shell-thickness-blocks"));
         assertTrue(emitted.contains("[network.transport]"));
         String content = String.join("\n", emitted);
         assertEveryKeyEmitted(content, WormholesConfigFile.class);
@@ -122,22 +133,14 @@ class WormholesConfigFileTest {
     }
 
     @Test
-    void blackoutShellThicknessDefaultsToTwoAndClampsToOneOrTwo() {
+    void projectionInitialResendDefaultsToOneAndKeepsExplicitOverrides() {
         ProjectionConfig projection = new ProjectionConfig();
         refreshProjection(projection);
-        assertEquals(2, Settings.PROJECTION_BLACKOUT_SHELL_THICKNESS_BLOCKS);
+        assertEquals(1, Settings.PROJECTION_INITIAL_RESEND_PASSES);
 
-        projection.blackoutShellThicknessBlocks = 0;
+        projection.initialResendPasses = 3;
         refreshProjection(projection);
-        assertEquals(1, Settings.PROJECTION_BLACKOUT_SHELL_THICKNESS_BLOCKS);
-
-        projection.blackoutShellThicknessBlocks = 1;
-        refreshProjection(projection);
-        assertEquals(1, Settings.PROJECTION_BLACKOUT_SHELL_THICKNESS_BLOCKS);
-
-        projection.blackoutShellThicknessBlocks = 3;
-        refreshProjection(projection);
-        assertEquals(2, Settings.PROJECTION_BLACKOUT_SHELL_THICKNESS_BLOCKS);
+        assertEquals(3, Settings.PROJECTION_INITIAL_RESEND_PASSES);
 
         refreshProjection(new ProjectionConfig());
     }

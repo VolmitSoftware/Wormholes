@@ -51,11 +51,20 @@ public final class ProjectorLighting {
                       ProjectionWorldView localView,
                       Long2ObjectMap<ProjectedBlockClaim> projectedClaims,
                       LongSet dirtyLocalKeys) {
+        apply(observer, localView, projectedClaims, dirtyLocalKeys, true);
+    }
+
+    void apply(Player observer,
+               ProjectionWorldView localView,
+               Long2ObjectMap<ProjectedBlockClaim> projectedClaims,
+               LongSet dirtyLocalKeys,
+               boolean sourceLightingEnabled) {
         if (observer == null || !observer.isOnline()) {
             return;
         }
         boolean hasDirtyKeys = dirtyLocalKeys == null || !dirtyLocalKeys.isEmpty();
-        Long2ObjectOpenHashMap<IntOpenHashSet> currentSections = collectCurrentSections(localView, projectedClaims);
+        Long2ObjectOpenHashMap<IntOpenHashSet> currentSections = collectCurrentSections(
+            localView, projectedClaims, sourceLightingEnabled);
         revertStaleSections(observer, localView, currentSections);
         prunePendingSections(currentSections);
 
@@ -86,7 +95,8 @@ public final class ProjectorLighting {
             if (selected.isEmpty()) {
                 continue;
             }
-            if (!sendChunkLight(observer, localView, projectedClaims, chunkX, chunkZ, selected)) {
+            if (!sendChunkLight(observer, localView, projectedClaims, chunkX, chunkZ, selected,
+                sourceLightingEnabled)) {
                 continue;
             }
             recordSentSections(chunkKey, selected);
@@ -100,12 +110,13 @@ public final class ProjectorLighting {
 
     private Long2ObjectOpenHashMap<IntOpenHashSet> collectCurrentSections(
         ProjectionWorldView localView,
-        Long2ObjectMap<ProjectedBlockClaim> projectedClaims
+        Long2ObjectMap<ProjectedBlockClaim> projectedClaims,
+        boolean sourceLightingEnabled
     ) {
         Long2ObjectOpenHashMap<IntOpenHashSet> current = new Long2ObjectOpenHashMap<IntOpenHashSet>(8);
         for (Long2ObjectMap.Entry<ProjectedBlockClaim> entry : projectedClaims.long2ObjectEntrySet()) {
             ProjectedBlockClaim claim = entry.getValue();
-            if (claim.getLightRemoteKey() == ProjectedBlockClaim.NO_REMOTE_KEY || claim.getLightView() == null) {
+            if (!claim.requiresLightOverlay(sourceLightingEnabled)) {
                 continue;
             }
             long packed = entry.getLongKey();
@@ -320,7 +331,10 @@ public final class ProjectorLighting {
     private boolean sendChunkLight(Player observer,
                                 ProjectionWorldView localView,
                                 Long2ObjectMap<ProjectedBlockClaim> projectedClaims,
-                                int chunkX, int chunkZ, IntSet dirtySections) {
+                                int chunkX,
+                                int chunkZ,
+                                IntSet dirtySections,
+                                boolean sourceLightingEnabled) {
         if (!chunkVisibility.isChunkSent(observer, chunkX, chunkZ)) {
             return false;
         }
@@ -352,7 +366,8 @@ public final class ProjectorLighting {
             }
             byte[] skyArr = baseline.sky.clone();
             byte[] blockArr = baseline.block.clone();
-            overlayProjectedLight(projectedClaims, chunkX, chunkZ, section, localSkyDarken, skyArr, blockArr);
+            overlayProjectedLight(projectedClaims, chunkX, chunkZ, section, localSkyDarken,
+                skyArr, blockArr, sourceLightingEnabled);
 
             skyArrays[arrIdx] = skyArr;
             blockArrays[arrIdx] = blockArr;
@@ -375,6 +390,18 @@ public final class ProjectorLighting {
                                       int localSkyDarken,
                                       byte[] skyArr,
                                       byte[] blockArr) {
+        overlayProjectedLight(projectedClaims, chunkX, chunkZ, section, localSkyDarken,
+            skyArr, blockArr, true);
+    }
+
+    static void overlayProjectedLight(Long2ObjectMap<ProjectedBlockClaim> projectedClaims,
+                                      int chunkX,
+                                      int chunkZ,
+                                      int section,
+                                      int localSkyDarken,
+                                      byte[] skyArr,
+                                      byte[] blockArr,
+                                      boolean sourceLightingEnabled) {
         if (projectedClaims == null || projectedClaims.isEmpty()) {
             return;
         }
@@ -388,6 +415,14 @@ public final class ProjectorLighting {
                 continue;
             }
             ProjectedBlockClaim claim = entry.getValue();
+            int nibbleIdx = ((y - sectionMinY) << 8) | ((z & 0xF) << 4) | (x & 0xF);
+            if (claim.isFullBright()) {
+                writeLightNibble(skyArr, blockArr, nibbleIdx, 15, 15);
+                continue;
+            }
+            if (!sourceLightingEnabled || claim.getLightingPolicy() != ProjectedBlockClaim.LightingPolicy.SOURCE) {
+                continue;
+            }
             long remoteKey = claim.getLightRemoteKey();
             ProjectionWorldView sourceView = claim.getLightView();
             if (remoteKey == ProjectedBlockClaim.NO_REMOTE_KEY || sourceView == null) {
@@ -410,7 +445,6 @@ public final class ProjectorLighting {
             int sky = Math.min(15, sourceSkyBrightness + localSkyDarken);
             int target = Math.max(rawBlock, sourceSkyBrightness);
             int block = target > 15 - localSkyDarken ? target : rawBlock;
-            int nibbleIdx = ((y - sectionMinY) << 8) | ((z & 0xF) << 4) | (x & 0xF);
             writeLightNibble(skyArr, blockArr, nibbleIdx, sky, block);
         }
     }

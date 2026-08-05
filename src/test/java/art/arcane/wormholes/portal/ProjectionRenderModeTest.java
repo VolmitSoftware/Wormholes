@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 public final class ProjectionRenderModeTest
 {
 	@Test
-	public void defaultsToPanOpticFirst()
+	public void panOpticRetainsTheStableWireOrdinal()
 	{
 		assertSame(ProjectionRenderMode.PANOPTIC, ProjectionRenderMode.values()[0]);
 	}
@@ -16,10 +16,9 @@ public final class ProjectionRenderModeTest
 	@Test
 	public void nextCyclesThroughAllModesExactlyOnce()
 	{
-		assertEquals(3, ProjectionRenderMode.values().length);
+		assertEquals(2, ProjectionRenderMode.values().length);
 		assertSame(ProjectionRenderMode.VENTICULAR, ProjectionRenderMode.PANOPTIC.next());
-		assertSame(ProjectionRenderMode.PLANNAR_OPTIC, ProjectionRenderMode.VENTICULAR.next());
-		assertSame(ProjectionRenderMode.PANOPTIC, ProjectionRenderMode.PLANNAR_OPTIC.next());
+		assertSame(ProjectionRenderMode.PANOPTIC, ProjectionRenderMode.VENTICULAR.next());
 	}
 
 	@Test
@@ -27,7 +26,6 @@ public final class ProjectionRenderModeTest
 	{
 		assertSame(ProjectionRenderMode.VENTICULAR, ProjectionRenderMode.fromName("venticular", ProjectionRenderMode.PANOPTIC));
 		assertSame(ProjectionRenderMode.PANOPTIC, ProjectionRenderMode.fromName(" PanOptic ", ProjectionRenderMode.VENTICULAR));
-		assertSame(ProjectionRenderMode.PLANNAR_OPTIC, ProjectionRenderMode.fromName("plannar_optic", ProjectionRenderMode.PANOPTIC));
 		assertSame(ProjectionRenderMode.VENTICULAR, ProjectionRenderMode.fromName("nope", ProjectionRenderMode.VENTICULAR));
 		assertSame(ProjectionRenderMode.PANOPTIC, ProjectionRenderMode.fromName(null, ProjectionRenderMode.PANOPTIC));
 	}
@@ -37,7 +35,6 @@ public final class ProjectionRenderModeTest
 	{
 		assertEquals("PanOptic", ProjectionRenderMode.PANOPTIC.displayName());
 		assertEquals("Venticular", ProjectionRenderMode.VENTICULAR.displayName());
-		assertEquals("PlannarOptic", ProjectionRenderMode.PLANNAR_OPTIC.displayName());
 	}
 
 	@Test
@@ -45,7 +42,6 @@ public final class ProjectionRenderModeTest
 	{
 		assertEquals("SPYGLASS", ProjectionRenderMode.PANOPTIC.iconMaterialName());
 		assertEquals("TINTED_GLASS", ProjectionRenderMode.VENTICULAR.iconMaterialName());
-		assertEquals("ENDER_EYE", ProjectionRenderMode.PLANNAR_OPTIC.iconMaterialName());
 	}
 
 	@Test
@@ -53,6 +49,7 @@ public final class ProjectionRenderModeTest
 	{
 		assertEquals(false, ProjectionRenderMode.PANOPTIC.usesBuriedCellCulling());
 		assertEquals(true, ProjectionRenderMode.VENTICULAR.usesBuriedCellCulling());
-		assertEquals(true, ProjectionRenderMode.PLANNAR_OPTIC.usesBuriedCellCulling());
+		assertEquals(false, ProjectionRenderMode.PANOPTIC.usesObserverOcclusion());
+		assertEquals(true, ProjectionRenderMode.VENTICULAR.usesObserverOcclusion());
 	}
 }

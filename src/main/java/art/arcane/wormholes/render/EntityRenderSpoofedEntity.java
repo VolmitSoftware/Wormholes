@@ -5,9 +5,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.github.retrooper.packetevents.util.Vector3d;
 
+import art.arcane.wormholes.network.view.ProjectedMapData;
+
 final class EntityRenderSpoofedEntity {
     private static final AtomicInteger NEXT_FAKE_ID = new AtomicInteger(1_900_000_000);
     private static final int METADATA_REFRESH_PASSES = 10;
+    private static final int MAP_REFRESH_PASSES = 10;
     private static final double MIN_POSITION_DELTA_SQUARED = 1.0E-6D;
     private static final double MAX_RELATIVE_MOVE_DELTA = 7.75D;
 
@@ -21,6 +24,9 @@ final class EntityRenderSpoofedEntity {
     int leashedToFakeId = Integer.MIN_VALUE;
     int[] lastPassengers;
     int remoteStateVersion = -1;
+    int metadataTransformKey = Integer.MIN_VALUE;
+    private ProjectedMapData lastMapData;
+    private boolean lastMapReversed;
     String lastMetadataSignature;
     String lastEquipmentSignature;
     String playerProfileName;
@@ -40,7 +46,9 @@ final class EntityRenderSpoofedEntity {
     private boolean velocityKnown;
     private boolean positionKnown;
     private boolean labelPositionKnown;
+    private boolean mapPayloadFailureReported;
     private int metadataRefreshPasses;
+    private int mapRefreshPasses;
 
     static EntityRenderSpoofedEntity create(boolean playerEntry, boolean upsideDown, boolean living) {
         return new EntityRenderSpoofedEntity(NEXT_FAKE_ID.getAndIncrement(), UUID.randomUUID(), playerEntry, upsideDown, living);
@@ -69,7 +77,9 @@ final class EntityRenderSpoofedEntity {
         this.velocityKnown = false;
         this.positionKnown = false;
         this.labelPositionKnown = false;
+        this.mapPayloadFailureReported = false;
         this.metadataRefreshPasses = METADATA_REFRESH_PASSES;
+        this.mapRefreshPasses = MAP_REFRESH_PASSES;
     }
 
     void setPlayerIdentity(String profileName, String labelText) {
@@ -179,6 +189,31 @@ final class EntityRenderSpoofedEntity {
         return true;
     }
 
+    boolean updateMetadataTransform(int transformKey) {
+        if (metadataTransformKey == transformKey) {
+            return false;
+        }
+        metadataTransformKey = transformKey;
+        return true;
+    }
+
+    boolean updateMapData(ProjectedMapData mapData, boolean reversed) {
+        if (reversed == lastMapReversed && mapData.equals(lastMapData)) {
+            return false;
+        }
+        lastMapData = mapData;
+        lastMapReversed = reversed;
+        return true;
+    }
+
+    boolean markMapPayloadFailureReported() {
+        if (mapPayloadFailureReported) {
+            return false;
+        }
+        mapPayloadFailureReported = true;
+        return true;
+    }
+
     boolean shouldRefreshMetadata() {
         metadataRefreshPasses--;
         return metadataRefreshPasses <= 0;
@@ -186,6 +221,15 @@ final class EntityRenderSpoofedEntity {
 
     void resetMetadataCooldown() {
         metadataRefreshPasses = METADATA_REFRESH_PASSES;
+    }
+
+    boolean shouldRefreshMap() {
+        mapRefreshPasses--;
+        return mapRefreshPasses <= 0;
+    }
+
+    void resetMapCooldown() {
+        mapRefreshPasses = MAP_REFRESH_PASSES;
     }
 
     private static float angleDelta(float a, float b) {

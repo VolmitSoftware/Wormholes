@@ -392,7 +392,7 @@ locale = "es_ES"
 "rtp.duration.decimal_seconds" = "{value}s"
 
 [lines]
-"portal.menu.render_mode" = ["<aqua><bold>Modo de renderizado <white>{mode}</bold>","<gray>Cuánto del volumen de destino proyecta este portal.","","<gray>Modo: <white>{mode}","","<dark_gray>PanOptic renderiza todo el volumen de destino.","<dark_gray>Venticular oculta los bloques interiores completamente cerrados para transmisiones más ligeras.","<dark_gray>PlannarOptic oculta la geometría detrás de superficies opacas visibles.","","<dark_gray>Izquierda: cambiar de modo."]
+"portal.menu.render_mode" = ["<aqua><bold>Modo de renderizado <white>{mode}</bold>","<gray>Cuánto del volumen de destino proyecta este portal.","","<gray>Modo: <white>{mode}","","<dark_gray>PanOptic renderiza todo el volumen de destino.","<dark_gray>Venticular oculta la geometría detrás de superficies opacas visibles.","","<dark_gray>Izquierda: cambiar de modo."]
 "portal.menu.ambient_particles" = ["<aqua><bold>Partículas ambientales</bold>","<gray>Polvo decorativo que flota alrededor de este portal.","","<gray>Estilo: <white>{style} <dark_gray>({color})","","<dark_gray>Izquierdo: cambiar de estilo.","<dark_gray>Derecho: elegir un color."]
 "portal.menu.ambient_color.placard" = ["<gold><bold>Color ambiental</bold>","<gray>Color de las partículas de polvo ambientales.","","<gray>Actual: <white>{color}"]
 "portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>Clic izquierdo: +{step}","<dark_gray>Clic derecho: -{step}","<dark_gray>Mayús + clic izquierdo: +{large_step}","<dark_gray>Mayús + clic derecho: -{large_step}"]

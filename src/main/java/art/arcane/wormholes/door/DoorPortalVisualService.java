@@ -2,7 +2,9 @@ package art.arcane.wormholes.door;
 
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
+import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import org.bukkit.Axis;
 import org.bukkit.Chunk;
@@ -20,7 +22,6 @@ import org.bukkit.block.data.type.Door;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Transformation;
@@ -55,14 +56,21 @@ final class DoorPortalVisualService implements AutoCloseable
 
 	private final Plugin plugin;
 	private final NamespacedKey markerKey;
+	private final ViewerLookup viewerLookup;
 	private final ConcurrentHashMap<UUID, Visual> visuals;
 	private final Set<ChunkMarker> cleanedChunks;
 	private final AtomicBoolean closed;
 
 	DoorPortalVisualService(Plugin plugin)
 	{
+		this(plugin, DoorPortalVisualService::hasTrackedViewer);
+	}
+
+	DoorPortalVisualService(Plugin plugin, ViewerLookup viewerLookup)
+	{
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		markerKey = new NamespacedKey(plugin, "dimensional_door_visual");
+		this.viewerLookup = Objects.requireNonNull(viewerLookup, "viewerLookup");
 		visuals = new ConcurrentHashMap<>();
 		cleanedChunks = ConcurrentHashMap.newKeySet();
 		closed = new AtomicBoolean();
@@ -170,7 +178,6 @@ final class DoorPortalVisualService implements AutoCloseable
 				return;
 			}
 			int t = tick[0];
-			tick[0] = t + DoorPortalAnimation.FRAME_PERIOD_TICKS;
 			if(t % DoorPortalAnimation.ATTENDANCE_PERIOD_TICKS == 0)
 			{
 				attended[0] = hasNearbyViewer(world, anchor);
@@ -179,7 +186,9 @@ final class DoorPortalVisualService implements AutoCloseable
 			{
 				animateFrame(visual, world, anchor, facing, overlayGeometry, t);
 			}
-			FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ, holder[0], DoorPortalAnimation.FRAME_PERIOD_TICKS);
+			int delay = DoorPortalAnimation.nextDelay(attended[0]);
+			tick[0] = t + delay;
+			FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ, holder[0], delay);
 		};
 		FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ, holder[0], DoorPortalAnimation.FRAME_PERIOD_TICKS);
 	}
@@ -189,16 +198,26 @@ final class DoorPortalVisualService implements AutoCloseable
 		return !closed.get() && visuals.get(doorId) == visual && visual.isValid();
 	}
 
-	private boolean hasNearbyViewer(World world, Location anchor)
+	boolean hasNearbyViewer(World world, Location anchor)
 	{
-		for(Player player : world.getPlayers())
-		{
-			if(player.getWorld() == world && player.getLocation().distanceSquared(anchor) <= DoorPortalAnimation.ATTENDANCE_RANGE_SQUARED)
-			{
-				return true;
-			}
-		}
-		return false;
+		return viewerLookup.hasPlayerWithin(
+			world.getUID(),
+			anchor.getX(),
+			anchor.getY(),
+			anchor.getZ(),
+			DoorPortalAnimation.ATTENDANCE_RANGE_SQUARED);
+	}
+
+	private static boolean hasTrackedViewer(
+		UUID worldId,
+		double x,
+		double y,
+		double z,
+		double rangeSquared)
+	{
+		PortalManager portalManager = Wormholes.portalManager;
+		return portalManager != null
+			&& portalManager.hasPlayerWithin(worldId, x, y, z, rangeSquared);
 	}
 
 	void animateFrame(
@@ -571,6 +590,17 @@ final class DoorPortalVisualService implements AutoCloseable
 	{
 		World byId = plugin.getServer().getWorld(position.worldId());
 		return byId == null ? WorldIdentity.resolve(position.worldKey()).orElse(null) : byId;
+	}
+
+	@FunctionalInterface
+	interface ViewerLookup
+	{
+		boolean hasPlayerWithin(
+			UUID worldId,
+			double x,
+			double y,
+			double z,
+			double rangeSquared);
 	}
 
 	record Visual(DoorPosition position, BlockDisplay backing, BlockDisplay overlay)

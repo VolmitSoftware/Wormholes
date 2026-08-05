@@ -281,6 +281,52 @@ class DoorPortalVisualServiceTest
 	}
 
 	@Test
+	void viewerAttendanceUsesTrackedCoordinatesWithoutPollingWorldPlayers()
+	{
+		UUID worldId = UUID.randomUUID();
+		AtomicReference<UUID> queriedWorld = new AtomicReference<>();
+		AtomicReference<double[]> query = new AtomicReference<>();
+		Plugin plugin = (Plugin) Proxy.newProxyInstance(
+			Plugin.class.getClassLoader(),
+			new Class<?>[]{Plugin.class},
+			(proxy, method, arguments) ->
+			{
+				if(method.getName().equals("namespace"))
+				{
+					return "test";
+				}
+				throw new AssertionError("Unexpected plugin method " + method.getName());
+			});
+		DoorPortalVisualService service = new DoorPortalVisualService(
+			plugin,
+			(queriedId, x, y, z, rangeSquared) ->
+			{
+				queriedWorld.set(queriedId);
+				query.set(new double[]{x, y, z, rangeSquared});
+				return true;
+			});
+		World world = (World) Proxy.newProxyInstance(
+			World.class.getClassLoader(),
+			new Class<?>[]{World.class},
+			(proxy, method, arguments) ->
+			{
+				if(method.getName().equals("getUID"))
+				{
+					return worldId;
+				}
+				throw new AssertionError("Attendance polled World." + method.getName());
+			});
+
+		assertTrue(service.hasNearbyViewer(world, new org.bukkit.Location(world, 1.25D, 64.5D, -3.75D)));
+
+		assertEquals(worldId, queriedWorld.get());
+		assertEquals(1.25D, query.get()[0]);
+		assertEquals(64.5D, query.get()[1]);
+		assertEquals(-3.75D, query.get()[2]);
+		assertEquals(DoorPortalAnimation.ATTENDANCE_RANGE_SQUARED, query.get()[3]);
+	}
+
+	@Test
 	void hidingPortalRemovesBackingAndAnimatedOverlay()
 	{
 		UUID worldId = UUID.randomUUID();

@@ -2,9 +2,10 @@ package art.arcane.wormholes.render;
 
 import java.util.List;
 
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import org.bukkit.Location;
@@ -24,7 +25,7 @@ final class ProjectorCellScan {
     private final ProjectorSampler sampler;
     private final ProjectorSampleMemo memo;
     private final ProjectorBlackoutSeal blackout;
-    private final ProjectorPlannarOcclusion plannarOcclusion;
+    private final ProjectorViewOcclusion viewOcclusion;
     private final ProjectorFrameTransform cellTransform;
     private final double[] scratchRot;
     private final double[] scratchRemotePoint;
@@ -34,17 +35,17 @@ final class ProjectorCellScan {
     private final double[] scratchAxisOrigin;
     private final double[] scratchSlabWindowBounds;
     private final int[] scratchCellCoords;
-    private final LongOpenHashSet blackoutGeometry;
+    private LongOpenHashSet projectedBlackoutGeometry;
+    private LongOpenHashSet blackoutGeometry;
+    private Long2LongOpenHashMap projectedBlackoutRemoteKeys;
+    private Long2LongOpenHashMap blackoutRemoteKeys;
+    private final LongOpenHashSet occlusionGeometry;
+    private final LongArrayList observerTargetCells;
     private Long2ObjectOpenHashMap<ProjectedBlockClaim> projected;
     private Long2ObjectOpenHashMap<ProjectedBlockClaim> nextProjected;
     private ProjectorBlackoutMesh.Result blackoutMesh;
-    private ProjectionWorldView blackoutLocalView;
-    private Direction blackoutNormal;
-    private Direction blackoutRight;
-    private Direction blackoutUp;
-    private int blackoutNormalMin;
-    private int blackoutNormalMax;
-    private boolean blackoutForceFullSend;
+    private ProjectionWorldView projectedBlackoutView;
+    private ProjectionWorldView blackoutView;
     private PortalFrame projectionLocalFrame;
     private PortalFrame projectionRemoteFrame;
     private double projectionEyeDot;
@@ -65,7 +66,7 @@ final class ProjectorCellScan {
         this.sampler = sampler;
         this.memo = memo;
         this.blackout = blackout;
-        this.plannarOcclusion = new ProjectorPlannarOcclusion();
+        this.viewOcclusion = new ProjectorViewOcclusion();
         this.cellTransform = new ProjectorFrameTransform();
         this.scratchRot = new double[3];
         this.scratchRemotePoint = new double[3];
@@ -75,7 +76,12 @@ final class ProjectorCellScan {
         this.scratchAxisOrigin = new double[3];
         this.scratchSlabWindowBounds = new double[4];
         this.scratchCellCoords = new int[3];
+        this.projectedBlackoutGeometry = new LongOpenHashSet(256);
         this.blackoutGeometry = new LongOpenHashSet(256);
+        this.projectedBlackoutRemoteKeys = new Long2LongOpenHashMap(256);
+        this.blackoutRemoteKeys = new Long2LongOpenHashMap(256);
+        this.occlusionGeometry = new LongOpenHashSet(256);
+        this.observerTargetCells = new LongArrayList(256);
         this.projected = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(256);
         this.nextProjected = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(256);
         this.blackoutMesh = ProjectorBlackoutMesh.empty();
@@ -138,11 +144,11 @@ final class ProjectorCellScan {
     }
 
     int occlusionVoxelSteps() {
-        return plannarOcclusion.voxelSteps();
+        return viewOcclusion.voxelSteps();
     }
 
     boolean occlusionBudgetExhausted() {
-        return plannarOcclusion.budgetExhausted();
+        return viewOcclusion.budgetExhausted();
     }
 
     int maskedCells() {
@@ -152,18 +158,29 @@ final class ProjectorCellScan {
     void clear() {
         projected.clear();
         nextProjected.clear();
+        projectedBlackoutGeometry.clear();
         blackoutGeometry.clear();
+        projectedBlackoutRemoteKeys.clear();
+        blackoutRemoteKeys.clear();
+        occlusionGeometry.clear();
+        observerTargetCells.clear();
         blackoutMesh = ProjectorBlackoutMesh.empty();
-        blackoutLocalView = null;
-        blackoutNormal = null;
-        blackoutRight = null;
-        blackoutUp = null;
+        projectedBlackoutView = null;
+        blackoutView = null;
     }
 
     void commit() {
         Long2ObjectOpenHashMap<ProjectedBlockClaim> swap = projected;
         projected = nextProjected;
         nextProjected = swap;
+        LongOpenHashSet blackoutSwap = projectedBlackoutGeometry;
+        projectedBlackoutGeometry = blackoutGeometry;
+        blackoutGeometry = blackoutSwap;
+        Long2LongOpenHashMap remoteKeySwap = projectedBlackoutRemoteKeys;
+        projectedBlackoutRemoteKeys = blackoutRemoteKeys;
+        blackoutRemoteKeys = remoteKeySwap;
+        projectedBlackoutView = blackoutView;
+        blackoutView = null;
     }
 
     void run(ProjectorDestination destination,
@@ -183,23 +200,23 @@ final class ProjectorCellScan {
 
         nextProjected.clear();
         blackoutGeometry.clear();
+        blackoutRemoteKeys.clear();
+        occlusionGeometry.clear();
+        observerTargetCells.clear();
         blackoutMesh = ProjectorBlackoutMesh.empty();
-        blackoutLocalView = null;
-        blackoutNormal = null;
-        blackoutRight = null;
-        blackoutUp = null;
+        blackoutView = null;
         enterCount = 0;
         keptCount = 0;
 
         int localMinY = localView.getMinHeight();
         int localMaxY = localView.getMaxHeight() - 1;
         AxisAlignedBB area = frustum.getRegion();
-        int xa = (int) Math.floor(area.getXa());
-        int ya = Math.max((int) Math.floor(area.getYa()), localMinY);
-        int za = (int) Math.floor(area.getZa());
-        int xb = (int) Math.floor(area.getXb());
-        int yb = Math.min((int) Math.floor(area.getYb()), localMaxY);
-        int zb = (int) Math.floor(area.getZb());
+        int xa = PortalProjector.minBlockForCenter(area.getXa());
+        int ya = Math.max(PortalProjector.minBlockForCenter(area.getYa()), localMinY);
+        int za = PortalProjector.minBlockForCenter(area.getZa());
+        int xb = PortalProjector.maxBlockForCenter(area.getXb());
+        int yb = Math.min(PortalProjector.maxBlockForCenter(area.getYb()), localMaxY);
+        int zb = PortalProjector.maxBlockForCenter(area.getZb());
 
         PortalFrame localFrame = portal.getFrame();
         PortalFrame remoteFrame = rtpTarget != null
@@ -238,7 +255,6 @@ final class ProjectorCellScan {
                 localOriginX, localOriginY, localOriginZ,
                 remoteOriginX, remoteOriginY, remoteOriginZ);
         }
-        plannarOcclusion.beginPass(remoteOriginX, remoteOriginY, remoteOriginZ, projectionRemoteFrame.getNormal());
         sampler.prepareTransformCache(projectionRemoteFrame, projectionLocalFrame, mirrorMode, mirrorRotationQuarterTurns);
         World destSampleWorld = destView.getWorld();
         ProjectorRecursivePortals.Index rootRecursiveIndex = destSampleWorld == null || Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH < 0
@@ -248,6 +264,7 @@ final class ProjectorCellScan {
         double projectionFacingY = projectionLocalFrame.getNormal().y();
         double projectionFacingZ = projectionLocalFrame.getNormal().z();
         projectionEyeDot = (eyeRelX * projectionFacingX) + (eyeRelY * projectionFacingY) + (eyeRelZ * projectionFacingZ);
+        boolean blackoutEnabled = blackout.isEnabled();
         double portalPlaneClearance = PortalProjector.portalPlaneClearance(portal.getStructure().getArea(), localFrame);
         double maxProjectionDepth = depthBlocks + portalPlaneClearance;
         double signedMinDistance = eyeFrontSide ? -maxProjectionDepth : portalPlaneClearance;
@@ -255,6 +272,10 @@ final class ProjectorCellScan {
         ProjectorPlaneWindow planeWindow = ProjectorPlaneWindow.create(portal.getStructure(), portal.getStructure().getArea(), projectionLocalFrame,
             localOriginX, localOriginY, localOriginZ, Settings.PROJECTION_APERTURE_PADDING_BLOCKS,
             projectionEyeDot);
+        ProjectorPlaneWindow blackoutWindow = blackoutEnabled
+            ? ProjectorPlaneWindow.create(portal.getStructure(), portal.getStructure().getArea(), projectionLocalFrame,
+                localOriginX, localOriginY, localOriginZ, 0.0D, projectionEyeDot)
+            : null;
         planeRejected = 0;
         windowRejected = 0;
         frustumRejected = 0;
@@ -301,11 +322,17 @@ final class ProjectorCellScan {
         double projectionFacingNormal = normalAxis == 0 ? projectionFacingX : (normalAxis == 1 ? projectionFacingY : projectionFacingZ);
         double[] slabWindowBounds = scratchSlabWindowBounds;
         int[] cellCoords = scratchCellCoords;
-        boolean blackoutEnabled = blackout.isEnabled();
-        int blackoutNormalMin = Integer.MAX_VALUE;
-        int blackoutNormalMax = Integer.MIN_VALUE;
+        if (blackoutEnabled) {
+            blackoutView = destView;
+        }
+        boolean observerOcclusion = renderMode.usesObserverOcclusion();
+        int normalStep = projectionFacingNormal > 0.0D ? -1 : 1;
+        int normalStart = normalStep > 0 ? axisMin[normalAxis] : axisMax[normalAxis];
+        int normalEnd = normalStep > 0 ? axisMax[normalAxis] : axisMin[normalAxis];
+        int blackoutFarCoordinate = 0;
+        boolean blackoutFarSliceFound = false;
 
-        for (int n = axisMin[normalAxis]; n <= axisMax[normalAxis]; n++) {
+        for (int n = normalStart; scanContinues(n, normalEnd, normalStep); n += normalStep) {
             double slabSignedDistance = projectionFacingNormal * ((n + 0.5D) - axisOrigin[normalAxis]);
             if (!planeWindow.slabWindow(eyeX, eyeY, eyeZ, slabSignedDistance, slabWindowBounds)) {
                 continue;
@@ -314,10 +341,14 @@ final class ProjectorCellScan {
             int rightBlockMax = ProjectorPlaneWindow.slabBlockMax(slabWindowBounds[0], slabWindowBounds[1], rightSign, axisOrigin[rightAxis], axisMax[rightAxis]);
             int upBlockMin = ProjectorPlaneWindow.slabBlockMin(slabWindowBounds[2], slabWindowBounds[3], upSign, axisOrigin[upAxis], axisMin[upAxis]);
             int upBlockMax = ProjectorPlaneWindow.slabBlockMax(slabWindowBounds[2], slabWindowBounds[3], upSign, axisOrigin[upAxis], axisMax[upAxis]);
+            int rightStart = rightSign > 0 ? rightBlockMin : rightBlockMax;
+            int rightEnd = rightSign > 0 ? rightBlockMax : rightBlockMin;
+            int upStart = upSign > 0 ? upBlockMin : upBlockMax;
+            int upEnd = upSign > 0 ? upBlockMax : upBlockMin;
             cellCoords[normalAxis] = n;
-            for (int r = rightBlockMin; r <= rightBlockMax; r++) {
+            for (int r = rightStart; scanContinues(r, rightEnd, rightSign); r += rightSign) {
                 cellCoords[rightAxis] = r;
-                for (int u = upBlockMin; u <= upBlockMax; u++) {
+                for (int u = upStart; scanContinues(u, upEnd, upSign); u += upSign) {
                     cellCoords[upAxis] = u;
                     int x = cellCoords[0];
                     int y = cellCoords[1];
@@ -352,10 +383,14 @@ final class ProjectorCellScan {
                     }
 
                     long key = ProjectionCellKey.pack(x, y, z);
-                    if (blackoutEnabled) {
-                        blackoutGeometry.add(key);
-                        blackoutNormalMin = Math.min(blackoutNormalMin, n);
-                        blackoutNormalMax = Math.max(blackoutNormalMax, n);
+                    boolean blackoutCell = blackoutEnabled
+                        && blackoutWindow.containsRayIntersection(
+                            eyeX, eyeY, eyeZ, cx, cy, cz, projectionCellDot);
+                    if (blackoutCell && (!blackoutFarSliceFound || blackoutFarCoordinate != n)) {
+                        blackoutGeometry.clear();
+                        blackoutRemoteKeys.clear();
+                        blackoutFarCoordinate = n;
+                        blackoutFarSliceFound = true;
                     }
                     cellTransform.apply(cx, cy, cz, scratchRemotePoint);
 
@@ -370,13 +405,27 @@ final class ProjectorCellScan {
                     if (!localView.isChunkReady(x, z)) {
                         localView.requestChunk(x, z);
                         if (previousCell != null) {
-                            nextProjected.put(key, previousCell);
+                            ProjectedBlockClaim retained = previousCell.withFullBright(blackoutEnabled);
+                            nextProjected.put(key, retained);
+                            rememberOcclusionBlocker(retained, observerOcclusion);
+                            if (blackoutCell) {
+                                rememberBlackoutCell(key, remoteKey, retained);
+                            }
+                        }
+                        if (blackoutCell && previousBlackoutMatches(destView, key, remoteKey)) {
+                            addBlackoutCell(key, remoteKey);
                         }
                         continue;
                     }
-                    if (previousCell != null && previousRemoteKey == remoteKey) {
+                    boolean previousLightingMatches = previousCell != null
+                        && previousCell.isFullBright() == blackoutEnabled;
+                    if (previousLightingMatches && previousRemoteKey == remoteKey) {
                         if (!forceStableCellResample && !forceFullSend) {
                             nextProjected.put(key, previousCell);
+                            rememberOcclusionBlocker(previousCell, observerOcclusion);
+                            if (blackoutCell) {
+                                rememberBlackoutCell(key, remoteKey, previousCell);
+                            }
                             continue;
                         }
                     }
@@ -385,14 +434,6 @@ final class ProjectorCellScan {
                         ? null
                         : rootRecursiveIndex.find(scratchRemotePoint[0], scratchRemotePoint[1], scratchRemotePoint[2],
                             Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH);
-                    if (renderMode == ProjectionRenderMode.PLANNAR_OPTIC
-                        && recursiveHit == null
-                        && !plannarOcclusion.visible(destView, rx, ry, rz,
-                            scratchRemoteEye[0], scratchRemoteEye[1], scratchRemoteEye[2])) {
-                        occlusionRejected++;
-                        continue;
-                    }
-
                     ProjectorSample sample = sampler.resolve(destView,
                         scratchRemotePoint[0], scratchRemotePoint[1], scratchRemotePoint[2],
                         scratchRemoteEye[0], scratchRemoteEye[1], scratchRemoteEye[2],
@@ -409,98 +450,123 @@ final class ProjectorCellScan {
                             && previousCell != null
                             && previousRemoteKey == remoteKey;
                         if (matchingRemoteUnavailable) {
-                            nextProjected.put(key, previousCell);
+                            ProjectedBlockClaim retained = previousCell.withFullBright(blackoutEnabled);
+                            nextProjected.put(key, retained);
+                            rememberOcclusionBlocker(retained, observerOcclusion);
+                            if (blackoutCell) {
+                                rememberBlackoutCell(key, remoteKey, retained);
+                            }
+                        }
+                        if (blackoutCell && previousBlackoutMatches(destView, key, remoteKey)) {
+                            addBlackoutCell(key, remoteKey);
                         }
                         continue;
                     }
-
-                    BlockData projectedHit;
+                    if (blackoutCell) {
+                        rememberBlackoutCell(key, remoteKey, sample);
+                    }
                     boolean maskAir = sample.kind == ProjectorSample.Kind.MASK_AIR;
                     boolean remoteAir = sample.kind == ProjectorSample.Kind.REMOTE_AIR;
+                    boolean localAir = remoteAir && memo.isLocalAir(localView, x, y, z);
+                    if ((maskAir || remoteAir) && !PortalProjector.shouldProjectAirSample(sample.kind, localAir)) {
+                        continue;
+                    }
+                    BlockData projectedHit;
                     if (maskAir || remoteAir) {
-                        boolean localAir = remoteAir && memo.isLocalAir(localView, x, y, z);
-                        if (!PortalProjector.shouldProjectAirSample(sample.kind, localAir)) {
-                            continue;
-                        }
                         projectedHit = sampler.air();
                     } else {
                         projectedHit = sampler.transformProjectedBlockData(sample.data, projectionRemoteFrame, projectionLocalFrame,
                             mirrorMode, localFrame, mirrorRotationQuarterTurns);
                     }
 
-                    ProjectedBlockClaim nextCell = sample.matchesClaim(previousCell, projectedHit, maskAir)
-                        ? previousCell
-                        : sample.asClaim(projectedHit);
+                    ProjectedBlockClaim nextCell;
+                    if (blackoutEnabled) {
+                        ProjectedBlockClaim.LightingPolicy lightingPolicy = ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT;
+                        nextCell = sample.matchesClaim(previousCell, projectedHit, maskAir, lightingPolicy)
+                            ? previousCell
+                            : sample.asClaim(projectedHit, lightingPolicy);
+                    } else {
+                        nextCell = sample.matchesClaim(previousCell, projectedHit, maskAir)
+                            ? previousCell
+                            : sample.asClaim(projectedHit);
+                    }
                     nextProjected.put(key, nextCell);
+                    if (observerOcclusion && recursiveHit == null) {
+                        observerTargetCells.add(key);
+                        rememberOcclusionBlocker(nextCell, true);
+                    }
                 }
             }
         }
 
-        if (blackoutEnabled && !blackoutGeometry.isEmpty()) {
-            blackoutLocalView = localView;
-            blackoutNormal = projectionNormalDirection;
-            blackoutRight = projectionRightDirection;
-            blackoutUp = projectionUpDirection;
-            this.blackoutNormalMin = blackoutNormalMin;
-            this.blackoutNormalMax = blackoutNormalMax;
-            blackoutForceFullSend = forceFullSend;
-            blackoutMesh = ProjectorBlackoutMesh.build(blackoutGeometry,
-                projectionNormalDirection, projectionRightDirection, projectionUpDirection,
-                blackoutNormalMin, blackoutNormalMax, blackout.thicknessBlocks());
-            removeSyntheticBlackoutClaims();
-            if (blackoutMesh.fallback()) {
-                applyBlackoutShell(localView, projectionNormalDirection, projectionRightDirection, projectionUpDirection,
-                    blackoutNormalMin, blackoutNormalMax);
-            }
+        viewOcclusion.beginPass(
+            remoteOriginX, remoteOriginY, remoteOriginZ, projectionRemoteFrame.getNormal(),
+            observerOcclusion ? occlusionGeometry : null);
+        if (observerOcclusion) {
+            filterObserverTargets(destView, scratchRemoteEye[0], scratchRemoteEye[1], scratchRemoteEye[2]);
+        }
+
+        if (blackoutEnabled && blackoutFarSliceFound && !blackoutGeometry.isEmpty()) {
+            blackoutMesh = ProjectorBlackoutMesh.build(
+                blackoutGeometry, projectionNormalDirection, blackoutFarCoordinate, blackoutFarCoordinate);
         }
         recountProjectionChanges(forceFullSend);
     }
 
-    void useBlackoutFallback() {
-        if (blackoutMesh.fallback() || blackoutGeometry.isEmpty() || blackoutLocalView == null) {
+    static boolean scanContinues(int coordinate, int end, int step) {
+        return step > 0 ? coordinate <= end : coordinate >= end;
+    }
+
+    void dropBlackoutDisplay() {
+        blackoutMesh = new ProjectorBlackoutMesh.Result(List.of(), true);
+    }
+
+    private void rememberOcclusionBlocker(ProjectedBlockClaim claim, boolean observerOcclusion) {
+        if (!observerOcclusion
+            || claim.getLightRemoteKey() == ProjectedBlockClaim.NO_REMOTE_KEY
+            || !viewOcclusion.isOccluding(claim.getData())) {
             return;
         }
-        removeSyntheticBlackoutClaims();
-        applyBlackoutShell(blackoutLocalView, blackoutNormal, blackoutRight, blackoutUp,
-            blackoutNormalMin, blackoutNormalMax);
-        blackoutMesh = new ProjectorBlackoutMesh.Result(
-            List.of(), blackoutMesh.shellCells(), blackoutMesh.unitFaces(), true);
-        recountProjectionChanges(blackoutForceFullSend);
+        occlusionGeometry.add(claim.getLightRemoteKey());
     }
 
-    private void applyBlackoutShell(ProjectionWorldView localView,
-                                    Direction normal,
-                                    Direction right,
-                                    Direction up,
-                                    int normalMin,
-                                    int normalMax) {
-        BlockData blackoutData = blackout.data();
-        LongIterator iterator = blackoutGeometry.iterator();
-        while (iterator.hasNext()) {
-            long key = iterator.nextLong();
-            if (!blackout.sealsCell(key, blackoutGeometry, normal, right, up, normalMin, normalMax)) {
-                continue;
-            }
-            int x = ProjectionCellKey.unpackX(key);
-            int z = ProjectionCellKey.unpackZ(key);
-            if (!localView.isChunkReady(x, z)) {
-                continue;
-            }
-            ProjectedBlockClaim previousCell = projected.get(key);
-            ProjectedBlockClaim blackoutClaim = blackout.isSyntheticClaim(previousCell)
-                && blackoutData.equals(previousCell.getData())
-                ? previousCell
-                : new ProjectedBlockClaim(blackoutData, null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
-            nextProjected.put(key, blackoutClaim);
+    private void rememberBlackoutCell(long key, long remoteKey, ProjectedBlockClaim claim) {
+        if (!viewOcclusion.isOccluding(claim.getData())) {
+            addBlackoutCell(key, remoteKey);
         }
     }
 
-    private void removeSyntheticBlackoutClaims() {
-        LongIterator iterator = nextProjected.keySet().iterator();
-        while (iterator.hasNext()) {
-            long key = iterator.nextLong();
-            if (blackout.isSyntheticClaim(nextProjected.get(key))) {
-                iterator.remove();
+    private void rememberBlackoutCell(long key, long remoteKey, ProjectorSample sample) {
+        if (!viewOcclusion.isOccluding(sample.data)) {
+            addBlackoutCell(key, remoteKey);
+        }
+    }
+
+    private void addBlackoutCell(long key, long remoteKey) {
+        blackoutGeometry.add(key);
+        blackoutRemoteKeys.put(key, remoteKey);
+    }
+
+    private boolean previousBlackoutMatches(ProjectionWorldView destView, long key, long remoteKey) {
+        return projectedBlackoutView == destView
+            && projectedBlackoutGeometry.contains(key)
+            && projectedBlackoutRemoteKeys.get(key) == remoteKey;
+    }
+
+    private void filterObserverTargets(ProjectionWorldView view, double eyeX, double eyeY, double eyeZ) {
+        for (int index = 0; index < observerTargetCells.size(); index++) {
+            long localKey = observerTargetCells.getLong(index);
+            ProjectedBlockClaim claim = nextProjected.get(localKey);
+            if (claim == null || claim.getLightRemoteKey() == ProjectedBlockClaim.NO_REMOTE_KEY) {
+                continue;
+            }
+            long remoteKey = claim.getLightRemoteKey();
+            int remoteX = ProjectionCellKey.unpackX(remoteKey);
+            int remoteY = ProjectionCellKey.unpackY(remoteKey);
+            int remoteZ = ProjectionCellKey.unpackZ(remoteKey);
+            if (!viewOcclusion.visible(view, remoteX, remoteY, remoteZ, eyeX, eyeY, eyeZ)) {
+                nextProjected.remove(localKey);
+                occlusionRejected++;
             }
         }
     }

@@ -23,7 +23,7 @@ class RegionSnapshotWorldViewProviderTest {
     }
 
     @Test
-    void changesEntityStateForMetadataEquipmentOrProfileChanges() {
+    void changesEntityStateForMetadataEquipmentMapOrProfileChanges() {
         UUID id = UUID.randomUUID();
         EntityVisual base = visual(id, 1.0D, new byte[] {1}, new byte[] {2});
         RemoteViewCache.RemoteProfile profile = new RemoteViewCache.RemoteProfile("Player", "texture", "signature");
@@ -32,6 +32,8 @@ class RegionSnapshotWorldViewProviderTest {
             visual(id, 1.0D, new byte[] {9}, new byte[] {2}), profile));
         assertFalse(RegionSnapshotWorldViewProvider.sameEntityState(base, profile,
             visual(id, 1.0D, new byte[] {1}, new byte[] {9}), profile));
+        assertFalse(RegionSnapshotWorldViewProvider.sameEntityState(base, profile,
+            visual(id, 1.0D, new byte[] {1}, new byte[] {2}, new byte[] {9}), profile));
         assertFalse(RegionSnapshotWorldViewProvider.sameEntityState(base, profile, base,
             new RemoteViewCache.RemoteProfile("Other", "texture", "signature")));
     }
@@ -80,8 +82,12 @@ class RegionSnapshotWorldViewProviderTest {
     }
 
     private static EntityVisual visual(UUID id, double x, byte[] metadata, byte[] equipment) {
+        return visual(id, x, metadata, equipment, new byte[0]);
+    }
+
+    private static EntityVisual visual(UUID id, double x, byte[] metadata, byte[] equipment, byte[] mapData) {
         return EntityVisual.full(id, "minecraft:zombie", x, 64.0D, 0.0D, 1.8D,
             0.0D, 0.0D, 1.0D, 0.0F, 0.0F, 0.0D, 0.0D, 0.0D, true,
-            "", "", "", null, null, metadata, equipment, 0);
+            "", "", "", null, null, metadata, equipment, mapData, 0);
     }
 }

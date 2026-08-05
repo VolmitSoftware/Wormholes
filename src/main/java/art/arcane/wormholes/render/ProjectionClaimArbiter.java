@@ -45,6 +45,7 @@ public final class ProjectionClaimArbiter {
     private final ConcurrentHashMap<BlockData, Integer> blockGlobalIds;
     private final ProjectionWorldViewProvider viewProvider;
     private final ProjectionChunkVisibility chunkVisibility;
+    private final LightingFactory lightingFactory;
 
     public ProjectionClaimArbiter() {
         this(ProjectionWorldViewProvider.live());
@@ -55,10 +56,17 @@ public final class ProjectionClaimArbiter {
     }
 
     public ProjectionClaimArbiter(ProjectionWorldViewProvider viewProvider, ProjectionChunkVisibility chunkVisibility) {
+        this(viewProvider, chunkVisibility, () -> new ProjectorLighting(chunkVisibility));
+    }
+
+    ProjectionClaimArbiter(ProjectionWorldViewProvider viewProvider,
+                           ProjectionChunkVisibility chunkVisibility,
+                           LightingFactory lightingFactory) {
         this.observers = new ConcurrentHashMap<UUID, ObserverClaims>();
         this.blockGlobalIds = new ConcurrentHashMap<BlockData, Integer>();
         this.viewProvider = viewProvider;
         this.chunkVisibility = chunkVisibility;
+        this.lightingFactory = lightingFactory;
     }
 
     public void beginFrame(Player observer, World localWorld, boolean allowLightingUpdate) {
@@ -101,7 +109,8 @@ public final class ProjectionClaimArbiter {
                 observers.remove(observerId, state);
                 return ClaimUpdateResult.empty();
             }
-            ClaimUpdateResult result = applyResult(frame.observer, frame.localWorld, state, frame.result, frame.allowLightingUpdate);
+            ClaimUpdateResult result = applyResult(
+                frame.observer, frame.localWorld, state, frame.result, frame.allowLightingUpdate, false);
             removeObserverIfEmpty(observerId, state);
             return result;
         }
@@ -148,7 +157,7 @@ public final class ProjectionClaimArbiter {
                     frame.result.merge(setResult);
                     return new ClaimUpdateResult(0, setResult.getConflicts(), setResult.getWinnerChanges(), setResult.getReverts());
                 }
-                return applyResult(observer, localWorld, state, setResult, allowLightingUpdate);
+                return applyResult(observer, localWorld, state, setResult, allowLightingUpdate, false);
             }
         }
     }
@@ -183,7 +192,7 @@ public final class ProjectionClaimArbiter {
                 return ClaimUpdateResult.empty();
             }
             ProjectionClaimSet.ProjectionClaimSetResult setResult = state.claimSet.releasePortal(claimOwnerId);
-            ClaimUpdateResult result = applyResult(observer, localWorld, state, setResult, allowLightingUpdate);
+            ClaimUpdateResult result = applyResult(observer, localWorld, state, setResult, allowLightingUpdate, false);
             removeObserverIfEmpty(observerId, state);
             return result;
         }
@@ -264,7 +273,7 @@ public final class ProjectionClaimArbiter {
                 return ClaimUpdateResult.empty();
             }
             ClaimUpdateResult result = applyResult(observer, localWorld, state,
-                new ProjectionClaimSet.ProjectionClaimSetResult(), true);
+                new ProjectionClaimSet.ProjectionClaimSetResult(), true, true);
             removeObserverIfEmpty(observerId, state);
             return result;
         }
@@ -313,10 +322,11 @@ public final class ProjectionClaimArbiter {
                                           World localWorld,
                                           ObserverClaims observerClaims,
                                           ProjectionClaimSet.ProjectionClaimSetResult setResult,
-                                          boolean allowLightingUpdate) {
+                                          boolean allowLightingUpdate,
+                                          boolean clientChunksReconciled) {
         boolean canSend = observerClaims.worldId.equals(worldId(localWorld))
             && isObserverInWorld(observer, observerClaims.worldId);
-        if (canSend) {
+        if (canSend && !clientChunksReconciled) {
             reconcileClientChunks(observer, observerClaims);
         }
         LongOpenHashSet packetKeys = setResult.getPacketChangeKeys();
@@ -325,9 +335,10 @@ public final class ProjectionClaimArbiter {
         observerClaims.pendingRevertKeys.clear();
         observerClaims.pendingSendKeys.clear();
         int expectedChanges = packetKeys.size();
+        boolean updateLightingNow = allowLightingUpdate || setResult.requiresImmediateLightingUpdate();
         if (expectedChanges == 0) {
             observerClaims.pendingLightingKeys.addAll(setResult.getDirtyLightingKeys());
-            applyLighting(observer, localWorld, observerClaims, canSend, allowLightingUpdate);
+            applyLighting(observer, localWorld, observerClaims, canSend, updateLightingNow);
             return new ClaimUpdateResult(0, setResult.getConflicts(),
                 setResult.getWinnerChanges(), setResult.getReverts());
         }
@@ -420,7 +431,7 @@ public final class ProjectionClaimArbiter {
         }
 
         observerClaims.pendingLightingKeys.addAll(setResult.getDirtyLightingKeys());
-        applyLighting(observer, localWorld, observerClaims, canSend, allowLightingUpdate);
+        applyLighting(observer, localWorld, observerClaims, canSend, updateLightingNow);
 
         return new ClaimUpdateResult(blockChanges.size(), setResult.getConflicts(),
             setResult.getWinnerChanges(), setResult.getReverts());
@@ -430,7 +441,9 @@ public final class ProjectionClaimArbiter {
         if (!canSend) {
             return;
         }
-        if (!Settings.LIGHTING_FIDELITY) {
+        boolean sourceLightingEnabled = Settings.LIGHTING_FIDELITY;
+        boolean fullBrightEnabled = observerClaims.claimSet.hasFullBrightClaims();
+        if (!sourceLightingEnabled && !fullBrightEnabled) {
             observerClaims.lighting.revert(observer, viewProvider.view(localWorld));
             observerClaims.pendingLightingKeys.clear();
             return;
@@ -440,7 +453,7 @@ public final class ProjectionClaimArbiter {
             observerClaims.pendingLightingKeys.clear();
             return;
         }
-        if (!allowLightingUpdate
+        if ((!allowLightingUpdate && !fullBrightEnabled)
             || (observerClaims.pendingLightingKeys.isEmpty() && !observerClaims.lighting.hasPendingUpdates())) {
             return;
         }
@@ -449,7 +462,7 @@ public final class ProjectionClaimArbiter {
             return;
         }
         observerClaims.lighting.apply(observer, localView, observerClaims.claimSet.getWinningClaims(),
-            observerClaims.pendingLightingKeys);
+            observerClaims.pendingLightingKeys, sourceLightingEnabled);
         observerClaims.pendingLightingKeys.clear();
     }
 
@@ -457,7 +470,7 @@ public final class ProjectionClaimArbiter {
         if (!state.pendingLightingKeys.isEmpty() || state.lighting.hasPendingUpdates()) {
             return true;
         }
-        if (!Settings.LIGHTING_FIDELITY && !state.lighting.isIdle()) {
+        if (!Settings.LIGHTING_FIDELITY && !state.claimSet.hasFullBrightClaims() && !state.lighting.isIdle()) {
             return true;
         }
         return state.claimSet.isEmpty() && !state.lighting.isIdle();
@@ -607,7 +620,7 @@ public final class ProjectionClaimArbiter {
         while (true) {
             ObserverClaims state = observers.get(observerId);
             if (state == null) {
-                ObserverClaims created = new ObserverClaims(worldId, chunkVisibility);
+                ObserverClaims created = new ObserverClaims(worldId, lightingFactory.create());
                 ObserverClaims raced = observers.putIfAbsent(observerId, created);
                 state = raced == null ? created : raced;
             }
@@ -711,7 +724,7 @@ public final class ProjectionClaimArbiter {
         private long chunkMemoRevision;
         private boolean retired;
 
-        private ObserverClaims(UUID worldId, ProjectionChunkVisibility chunkVisibility) {
+        private ObserverClaims(UUID worldId, ProjectorLighting lighting) {
             this.worldId = worldId;
             this.claimSet = new ProjectionClaimSet();
             this.pendingLightingKeys = new LongOpenHashSet();
@@ -723,7 +736,7 @@ public final class ProjectionClaimArbiter {
             this.chunkSentMemo = new Long2ByteOpenHashMap(64);
             this.chunkRevisionMemo = new Long2LongOpenHashMap(64);
             this.chunkRevisionMemo.defaultReturnValue(Long.MIN_VALUE);
-            this.lighting = new ProjectorLighting(chunkVisibility);
+            this.lighting = lighting;
             this.frame = null;
             this.clientChunkRevision = Long.MIN_VALUE;
             this.chunkMemoRevision = Long.MIN_VALUE;
@@ -743,5 +756,10 @@ public final class ProjectionClaimArbiter {
             this.allowLightingUpdate = allowLightingUpdate;
             this.result = new ProjectionClaimSet.ProjectionClaimSetResult();
         }
+    }
+
+    @FunctionalInterface
+    interface LightingFactory {
+        ProjectorLighting create();
     }
 }

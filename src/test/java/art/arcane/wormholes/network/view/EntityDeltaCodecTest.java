@@ -9,6 +9,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -160,7 +161,7 @@ class EntityDeltaCodecTest {
             previous.playerName(), previous.textureValue(), previous.textureSignature(),
             previous.passengerOf(),
             previous.leashHolder(),
-            previous.metadata(), previous.equipment()
+            previous.metadata(), previous.equipment(), previous.mapData()
         );
         EntityVisual delta = EntityDeltaCodec.buildDelta(current, previous, 1, EntityDeltaCodec.computeMask(current, previous));
         assertTrue((delta.presentMask() & EntityVisual.FIELD_YAW_PITCH) != 0);
@@ -184,10 +185,25 @@ class EntityDeltaCodecTest {
             previous.playerName(), previous.textureValue(), previous.textureSignature(),
             previous.passengerOf(),
             previous.leashHolder(),
-            previous.metadata(), new byte[]{9, 9, 9, 9}
+            previous.metadata(), new byte[]{9, 9, 9, 9}, previous.mapData()
         );
         EntityVisual delta = EntityDeltaCodec.buildDelta(current, previous, 1, EntityDeltaCodec.computeMask(current, previous));
         assertTrue((delta.presentMask() & EntityVisual.FIELD_EQUIPMENT) != 0);
+    }
+
+    @Test
+    void mapDataRoundTripsAndUsesItsOwnDeltaField() throws IOException {
+        EntityVisual previous = baseSnapshot(4);
+        byte[] mapData = new byte[]{7, 8, 9, 10};
+        EntityVisual current = withMapData(previous, mapData, 5);
+        int mask = EntityDeltaCodec.computeMask(current, previous);
+        assertTrue((mask & EntityVisual.FIELD_MAP_DATA) != 0);
+        assertEquals(0, mask & EntityVisual.FIELD_METADATA);
+
+        EntityVisual delta = EntityDeltaCodec.buildDelta(current, previous, 5, mask);
+        EntityVisual decoded = encodeAndDecode(delta);
+        EntityVisual merged = EntityDeltaCodec.applyDelta(decoded, previous);
+        assertArrayEquals(mapData, merged.mapData());
     }
 
     @Test
@@ -269,7 +285,7 @@ class EntityDeltaCodecTest {
             previous.playerName(), previous.textureValue(), previous.textureSignature(),
             previous.passengerOf(),
             previous.leashHolder(),
-            previous.metadata(), previous.equipment()
+            previous.metadata(), previous.equipment(), previous.mapData()
         );
         EntityVisual delta = EntityDeltaCodec.buildDelta(current, previous, 1, EntityDeltaCodec.computeMask(current, previous));
         assertEquals(0, delta.presentMask() & EntityVisual.FIELD_VELOCITY);
@@ -293,7 +309,7 @@ class EntityDeltaCodecTest {
             previous.playerName(), previous.textureValue(), previous.textureSignature(),
             previous.passengerOf(),
             previous.leashHolder(),
-            previous.metadata(), previous.equipment()
+            previous.metadata(), previous.equipment(), previous.mapData()
         );
         EntityVisual delta = EntityDeltaCodec.buildDelta(current, previous, 1, EntityDeltaCodec.computeMask(current, previous));
         assertTrue((delta.presentMask() & EntityVisual.FIELD_VELOCITY) != 0);
@@ -316,7 +332,25 @@ class EntityDeltaCodecTest {
             base.playerName(), base.textureValue(), base.textureSignature(),
             base.passengerOf(),
             base.leashHolder(),
-            base.metadata(), base.equipment()
+            base.metadata(), base.equipment(), base.mapData()
+        );
+    }
+
+    private static EntityVisual withMapData(EntityVisual base, byte[] mapData, int sequence) {
+        return EntityVisual.full(
+            base.id(),
+            base.typeKey(),
+            base.x(), base.y(), base.z(),
+            base.height(),
+            base.lookX(), base.lookY(), base.lookZ(),
+            base.yaw(), base.pitch(),
+            base.velocityX(), base.velocityY(), base.velocityZ(),
+            base.onGround(),
+            base.playerName(), base.textureValue(), base.textureSignature(),
+            base.passengerOf(),
+            base.leashHolder(),
+            base.metadata(), base.equipment(), mapData,
+            sequence
         );
     }
 
@@ -409,7 +443,7 @@ class EntityDeltaCodecTest {
             base.playerName(), base.textureValue(), base.textureSignature(),
             base.passengerOf(),
             base.leashHolder(),
-            base.metadata(), base.equipment()
+            base.metadata(), base.equipment(), base.mapData()
         );
         EntityVisual decoded = encodeAndDecode(delta);
         assertEquals(EntityVisual.MODE_DELTA, decoded.mode());

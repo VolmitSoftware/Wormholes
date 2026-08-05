@@ -25,7 +25,7 @@ final class LocalPortalSettings
 	private static final boolean DEFAULT_BLACKOUT_BACKGROUND = false;
 	private static final BlackoutColor DEFAULT_BLACKOUT_COLOR = BlackoutColor.BLACK;
 	private static final int DEFAULT_ACTIVATION_RANGE = 0;
-	private static final ProjectionRenderMode DEFAULT_RENDER_MODE = ProjectionRenderMode.PANOPTIC;
+	private static final ProjectionRenderMode DEFAULT_RENDER_MODE = ProjectionRenderMode.VENTICULAR;
 	private static final AmbientParticleStyle DEFAULT_AMBIENT_STYLE = AmbientParticleStyle.SPARKS;
 	private static final int DEFAULT_AMBIENT_COLOR = 0xB969FF;
 	private static final String DEFAULT_SURFACE_SKIN = "";

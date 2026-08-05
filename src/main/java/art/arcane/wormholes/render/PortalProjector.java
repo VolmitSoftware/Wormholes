@@ -167,7 +167,11 @@ public final class PortalProjector {
     }
 
     public String getDiagnostics() {
-        return "rendered=" + lastRenderedCells
+        return "mode=" + portal.getRenderMode().displayName()
+            + " fittedDepth=" + viewFrustum.fittedDepth()
+            + " fittedLateral=" + viewFrustum.fittedLateral()
+            + " candidateWork=" + viewFrustum.fittedCandidateWork()
+            + " rendered=" + lastRenderedCells
             + " changes=" + lastBlockChanges
             + " planeReject=" + cellScan.planeRejected()
             + " windowReject=" + cellScan.windowRejected()
@@ -246,7 +250,7 @@ public final class PortalProjector {
         double destinationOriginZ = destination.originZ;
         ProjectionRenderMode renderMode = portal.getRenderMode();
         boolean renderModeChanged = renderMode != lastRenderMode;
-        boolean plannarCameraMoved = requiresPlannarCellResample(renderMode, hasCameraSnapshot,
+        boolean viewCameraMoved = requiresViewCellResample(renderMode, hasCameraSnapshot,
             eye.getX(), eye.getY(), eye.getZ(), lastEyeX, lastEyeY, lastEyeZ);
         boolean stableResample = schedule.stableResample(firstProjectionDone, destination.destView,
             destWorld, destinationOriginX, destinationOriginZ);
@@ -265,7 +269,8 @@ public final class PortalProjector {
         double portalDepth = portal.getNetworkViewDepth();
         Frustum4D next;
         try {
-            next = viewFrustum.fit(observer, portal.getStructure(), eye, portalDepth, portal.getNetworkViewLateralPad());
+            next = viewFrustum.fit(observer, portal.getStructure(), portal.getFrame(), eye, portalDepth,
+                portal.getNetworkViewLateralPad());
         } catch (RuntimeException ex) {
             noteFrustumFailure("block", ex);
             return;
@@ -277,7 +282,7 @@ public final class PortalProjector {
         } else {
             blackout.disable();
         }
-        boolean buriedCellCulling = destination.remoteView == null && renderMode.usesBuriedCellCulling();
+        boolean buriedCellCulling = renderMode.usesBuriedCellCulling();
         if (sampler.setBuriedCellCullingPass(buriedCellCulling)) {
             sampleMemo.clearDestinationSamples();
         }
@@ -286,12 +291,14 @@ public final class PortalProjector {
             Wormholes.v("[Projector] portal=" + portal.getName() + " observer=" + observer.getName()
                 + " first frustum: faceCount=" + next.getFaceCount() + " region=" + formatBox(next.getRegion())
                 + " depth=" + depthBlocks + " requestedDepth=" + portalDepth
+                + " fittedLateral=" + viewFrustum.fittedLateral()
+                + " candidateWork=" + viewFrustum.fittedCandidateWork()
                 + " lateralPad=" + portal.getNetworkViewLateralPad()
                 + " aperturePadding=" + Settings.PROJECTION_APERTURE_PADDING_BLOCKS);
         }
 
         boolean forceStableCellResample = schedule.consumeForcedResample(stableResample);
-        if (renderModeChanged || plannarCameraMoved) {
+        if (renderModeChanged || viewCameraMoved) {
             forceStableCellResample = true;
         }
 
@@ -332,9 +339,9 @@ public final class PortalProjector {
         boolean displayReady = blackoutMesh.fallback()
             ? blackoutDisplayRenderer.prepareEmpty()
             : blackoutDisplayRenderer.prepare(observer, blackoutMesh.panels(), cellScan.blackoutData(),
-                depthBlocks, forceFullSend);
+                depthBlocks);
         if (!displayReady) {
-            cellScan.useBlackoutFallback();
+            cellScan.dropBlackoutDisplay();
             blackoutDisplayRenderer.prepareEmpty();
         }
 
@@ -392,7 +399,8 @@ public final class PortalProjector {
         double portalDepth = portal.getNetworkViewDepth();
         Frustum4D frustum;
         try {
-            frustum = viewFrustum.fit(observer, portal.getStructure(), eye, portalDepth, portal.getNetworkViewLateralPad());
+            frustum = viewFrustum.fit(observer, portal.getStructure(), portal.getFrame(), eye, portalDepth,
+                portal.getNetworkViewLateralPad());
         } catch (RuntimeException ex) {
             noteFrustumFailure("entity", ex);
             return;
@@ -590,7 +598,7 @@ public final class PortalProjector {
         return movedSquared < REUSE_EYE_EPSILON_SQUARED;
     }
 
-    static boolean requiresPlannarCellResample(ProjectionRenderMode renderMode,
+    static boolean requiresViewCellResample(ProjectionRenderMode renderMode,
                                                boolean hasCameraSnapshot,
                                                double eyeX,
                                                double eyeY,
@@ -598,7 +606,7 @@ public final class PortalProjector {
                                                double lastEyeX,
                                                double lastEyeY,
                                                double lastEyeZ) {
-        if (renderMode != ProjectionRenderMode.PLANNAR_OPTIC || !hasCameraSnapshot) {
+        if (renderMode == null || !renderMode.usesObserverOcclusion() || !hasCameraSnapshot) {
             return false;
         }
         double dx = eyeX - lastEyeX;

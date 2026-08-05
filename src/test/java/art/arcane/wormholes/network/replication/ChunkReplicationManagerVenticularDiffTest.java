@@ -23,11 +23,6 @@ class ChunkReplicationManagerVenticularDiffTest {
         assertOptimizedPeerReceivesSentinel(dir, ProjectionRenderMode.VENTICULAR);
     }
 
-    @Test
-    void plannarOpticPeerReceivesSentinelForBuriedCellsAndRealForExposed(@TempDir Path dir) {
-        assertOptimizedPeerReceivesSentinel(dir, ProjectionRenderMode.PLANNAR_OPTIC);
-    }
-
     private void assertOptimizedPeerReceivesSentinel(Path dir, ProjectionRenderMode renderMode) {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager manager = sink.getReplicationManager();

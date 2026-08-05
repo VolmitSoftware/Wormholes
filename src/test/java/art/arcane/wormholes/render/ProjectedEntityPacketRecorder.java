@@ -16,15 +16,20 @@ import com.github.retrooper.packetevents.manager.protocol.ProtocolManager;
 import com.github.retrooper.packetevents.manager.server.ServerManager;
 import com.github.retrooper.packetevents.manager.server.ServerVersion;
 import com.github.retrooper.packetevents.netty.NettyManager;
+import com.github.retrooper.packetevents.netty.buffer.ByteBufAllocationOperator;
+import com.github.retrooper.packetevents.netty.buffer.ByteBufOperator;
+import com.github.retrooper.packetevents.netty.channel.ChannelOperator;
 import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 import com.github.retrooper.packetevents.protocol.player.User;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
+import io.github.retrooper.packetevents.impl.netty.buffer.ByteBufAllocationOperatorImpl;
+import io.github.retrooper.packetevents.impl.netty.buffer.ByteBufOperatorImpl;
 
 final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
     private final List<PacketWrapper<?>> sent = new ArrayList<PacketWrapper<?>>();
     private final PacketEventsAPI<?> previous;
     private int batchLookups;
-    private boolean failNextSend;
+    private int failedSendsRemaining;
 
     private final PlayerManager playerManager = new PlayerManager() {
         @Override
@@ -50,10 +55,7 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
 
         @Override
         public void sendPacket(Object player, PacketWrapper<?> wrapper) {
-            if (failNextSend) {
-                failNextSend = false;
-                throw new IllegalStateException("injected packet send failure");
-            }
+            failSendIfRequested();
             sent.add(wrapper);
         }
     };
@@ -62,6 +64,26 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
         @Override
         public ServerVersion getVersion() {
             return ServerVersion.getLatest();
+        }
+    };
+
+    private final NettyManager nettyManager = new NettyManager() {
+        private final ByteBufOperator byteBufOperator = new ByteBufOperatorImpl();
+        private final ByteBufAllocationOperator byteBufAllocationOperator = new ByteBufAllocationOperatorImpl();
+
+        @Override
+        public ChannelOperator getChannelOperator() {
+            return null;
+        }
+
+        @Override
+        public ByteBufOperator getByteBufOperator() {
+            return byteBufOperator;
+        }
+
+        @Override
+        public ByteBufAllocationOperator getByteBufAllocationOperator() {
+            return byteBufAllocationOperator;
         }
     };
 
@@ -89,7 +111,11 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
     }
 
     void failNextSend() {
-        failNextSend = true;
+        failedSendsRemaining++;
+    }
+
+    void failNextSends(int count) {
+        failedSendsRemaining += Math.max(0, count);
     }
 
     <T extends PacketWrapper<?>> List<T> sentOfType(Class<T> type) {
@@ -100,6 +126,14 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
             }
         }
         return matches;
+    }
+
+    private void failSendIfRequested() {
+        if (failedSendsRemaining <= 0) {
+            return;
+        }
+        failedSendsRemaining--;
+        throw new IllegalStateException("injected packet send failure");
     }
 
     static Player player(boolean online) {
@@ -170,7 +204,7 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
 
     @Override
     public NettyManager getNettyManager() {
-        return null;
+        return nettyManager;
     }
 
     @Override

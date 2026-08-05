@@ -55,6 +55,16 @@ public final class PortalPlaneWindowSlabTest {
         assertEquals(Double.POSITIVE_INFINITY, bounds[3]);
     }
 
+    @Test
+    public void slabBoundsIncludeOnlyBlockCentersInsideTheWindow() {
+        assertEquals(-1, ProjectorPlaneWindow.slabBlockMin(-1.0D, 1.0D, 1, 0.5D, -100));
+        assertEquals(1, ProjectorPlaneWindow.slabBlockMax(-1.0D, 1.0D, 1, 0.5D, 100));
+        assertEquals(-1, ProjectorPlaneWindow.slabBlockMin(-1.0D, 1.0D, -1, 0.5D, -100));
+        assertEquals(1, ProjectorPlaneWindow.slabBlockMax(-1.0D, 1.0D, -1, 0.5D, 100));
+        assertEquals(0, ProjectorPlaneWindow.slabBlockMin(-100.0D, 100.0D, 1, 0.5D, 0));
+        assertEquals(2, ProjectorPlaneWindow.slabBlockMax(-100.0D, 100.0D, 1, 0.5D, 2));
+    }
+
     private static void sweepEye(PortalFrame frame,
                                  AxisAlignedBB area,
                                  double padding,

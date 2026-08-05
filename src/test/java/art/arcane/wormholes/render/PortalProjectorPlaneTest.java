@@ -97,16 +97,14 @@ public final class PortalProjectorPlaneTest {
 	}
 
 	@Test
-	public void plannarOpticResamplesCellVisibilityAfterMeaningfulEyeMovement() {
-		assertFalse(PortalProjector.requiresPlannarCellResample(ProjectionRenderMode.PANOPTIC, true,
+	public void viewOcclusionResamplesCellVisibilityAfterMeaningfulEyeMovement() {
+		assertFalse(PortalProjector.requiresViewCellResample(ProjectionRenderMode.PANOPTIC, true,
 			0.25D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D));
-		assertFalse(PortalProjector.requiresPlannarCellResample(ProjectionRenderMode.VENTICULAR, true,
-			0.25D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D));
-		assertFalse(PortalProjector.requiresPlannarCellResample(ProjectionRenderMode.PLANNAR_OPTIC, true,
+		assertFalse(PortalProjector.requiresViewCellResample(ProjectionRenderMode.VENTICULAR, true,
 			0.249D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D));
-		assertTrue(PortalProjector.requiresPlannarCellResample(ProjectionRenderMode.PLANNAR_OPTIC, true,
+		assertTrue(PortalProjector.requiresViewCellResample(ProjectionRenderMode.VENTICULAR, true,
 			0.25D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D));
-		assertFalse(PortalProjector.requiresPlannarCellResample(ProjectionRenderMode.PLANNAR_OPTIC, false,
+		assertFalse(PortalProjector.requiresViewCellResample(ProjectionRenderMode.VENTICULAR, false,
 			4.0D, 0.0D, 0.0D, 0.0D, 0.0D, 0.0D));
 	}
 

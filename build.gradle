@@ -186,6 +186,7 @@ dependencies {
     testImplementation(libs.paper)
     testImplementation(libs.fastutil)
     testImplementation('com.github.luben:zstd-jni:1.5.7-11')
+    testImplementation('io.netty:netty-buffer:4.2.15.Final')
     testImplementation(libs.junitJupiter)
     testRuntimeOnly(libs.junitPlatformLauncher)
     implementation(volmLibCoordinate) {

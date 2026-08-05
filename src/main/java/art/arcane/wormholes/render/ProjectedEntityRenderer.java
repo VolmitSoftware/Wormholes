@@ -13,7 +13,9 @@ import java.util.logging.Level;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Hanging;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
@@ -42,6 +44,7 @@ import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
 import art.arcane.wormholes.render.view.RemoteWorldView;
+import art.arcane.wormholes.util.Direction;
 
 public final class ProjectedEntityRenderer {
     static final String FLIP_NAME = "Dinnerbone";
@@ -454,22 +457,25 @@ public final class ProjectedEntityRenderer {
         }
 
         boolean mirror = remotePortal == localPortal;
+        Vector localOrigin = localPortal.getOrigin();
+        Vector remoteOrigin = remotePortal.getOrigin();
         PortalFrame mirrorPlaneFrame = mirror ? localPortal.getFrame() : null;
-        Vector mirrorPlaneOrigin = mirror ? localPortal.getOrigin() : null;
+        Vector mirrorPlaneOrigin = mirror ? localOrigin : null;
 
         WormholesPlatform.entityPosition(entity, scratchEntityPosition);
         double entityX = scratchEntityPosition[0];
         double entityZ = scratchEntityPosition[2];
         double halfHeight = entity.getHeight() * 0.5D;
-        double visibleY = scratchEntityPosition[1] + halfHeight;
+        boolean itemFrame = ProjectedItemFrameTransform.isItemFrame(packetType);
+        double visibleY = itemFrame ? scratchEntityPosition[1] : scratchEntityPosition[1] + halfHeight;
         if (mirror) {
             PortalCoordMap.mirrorSourceToDisplayPointInto(entityX, visibleY, entityZ,
                 mirrorPlaneOrigin.getX(), mirrorPlaneOrigin.getY(), mirrorPlaneOrigin.getZ(),
                 mirrorPlaneFrame, mirrorRotationQuarterTurns, scratchVisiblePoint);
         } else {
             PortalCoordMap.transformPointInto(entityX, visibleY, entityZ,
-                remotePortal.getOrigin().getX(), remotePortal.getOrigin().getY(), remotePortal.getOrigin().getZ(),
-                localPortal.getOrigin().getX(), localPortal.getOrigin().getY(), localPortal.getOrigin().getZ(),
+                remoteOrigin.getX(), remoteOrigin.getY(), remoteOrigin.getZ(),
+                localOrigin.getX(), localOrigin.getY(), localOrigin.getZ(),
                 remoteViewFrame, localViewFrame, scratchVisiblePoint);
         }
 
@@ -477,7 +483,14 @@ public final class ProjectedEntityRenderer {
             return false;
         }
 
-        lookDirectionInto((float) scratchEntityPosition[3], (float) scratchEntityPosition[4], scratchLook);
+        if (itemFrame && entity instanceof Hanging hanging) {
+            BlockFace facing = hanging.getFacing();
+            scratchLook[0] = facing.getModX();
+            scratchLook[1] = facing.getModY();
+            scratchLook[2] = facing.getModZ();
+        } else {
+            lookDirectionInto((float) scratchEntityPosition[3], (float) scratchEntityPosition[4], scratchLook);
+        }
         if (mirror) {
             PortalCoordMap.mirrorSourceToDisplayVectorInto(scratchLook[0], scratchLook[1], scratchLook[2],
                 mirrorPlaneFrame, mirrorRotationQuarterTurns, scratchDirection);
@@ -486,8 +499,31 @@ public final class ProjectedEntityRenderer {
         }
         float yaw = yaw(scratchDirection[0], scratchDirection[2]);
         float pitch = pitch(scratchDirection[0], scratchDirection[1], scratchDirection[2]);
-        double visualBaseY = scratchVisiblePoint[1] - halfHeight;
-        Vector3d position = new Vector3d(scratchVisiblePoint[0], visualBaseY, scratchVisiblePoint[2]);
+        Direction sourceFacing = Direction.closest(scratchLook[0], scratchLook[1], scratchLook[2]);
+        int metadataTransform = ProjectedItemFrameTransform.NONE;
+        if (itemFrame) {
+            metadataTransform = mirror
+                ? ProjectedItemFrameTransform.mirror(sourceFacing, mirrorPlaneFrame,
+                    mirrorRotationQuarterTurns, scratchDirection)
+                : ProjectedItemFrameTransform.between(sourceFacing, remoteViewFrame, localViewFrame,
+                    scratchDirection);
+        }
+        Vector3d position;
+        if (itemFrame && mirror) {
+            position = ProjectedItemFrameTransform.mirrorAnchor(
+                entityX, scratchEntityPosition[1], entityZ,
+                mirrorPlaneOrigin.getX(), mirrorPlaneOrigin.getY(), mirrorPlaneOrigin.getZ(),
+                mirrorPlaneFrame, mirrorRotationQuarterTurns, scratchVisiblePoint);
+        } else if (itemFrame) {
+            position = ProjectedItemFrameTransform.betweenAnchor(
+                entityX, scratchEntityPosition[1], entityZ,
+                remoteOrigin.getX(), remoteOrigin.getY(), remoteOrigin.getZ(),
+                localOrigin.getX(), localOrigin.getY(), localOrigin.getZ(),
+                remoteViewFrame, localViewFrame, scratchVisiblePoint);
+        } else {
+            double visualBaseY = scratchVisiblePoint[1] - halfHeight;
+            position = new Vector3d(scratchVisiblePoint[0], visualBaseY, scratchVisiblePoint[2]);
+        }
         Vector3d velocity = mirror
             ? mirroredVelocity(entity, mirrorPlaneFrame, mirrorRotationQuarterTurns)
             : transformedVelocity(entity, remoteViewFrame, localViewFrame);
@@ -505,19 +541,21 @@ public final class ProjectedEntityRenderer {
                 identity.sendPlayerInfo(observer, (Player) entity, state, upsideDown);
             }
             WrapperPlayServerSpawnEntity spawn = new WrapperPlayServerSpawnEntity(state.fakeId, Optional.of(state.fakeUuid),
-                packetType, position, pitch, yaw, yaw, 0, Optional.of(velocity));
+                packetType, position, pitch, yaw, yaw, ProjectedItemFrameTransform.spawnData(metadataTransform), Optional.of(velocity));
             channel.send(observer, spawn);
             identity.spawnPlayerLabel(observer, state, position, entity.getHeight());
             state.updateRotation(yaw, pitch);
+            state.updateMetadataTransform(metadataTransform);
             state.rememberPosition(position);
             registry.syncHeadLook(observer, state, yaw);
-            metadataBridge.sendEntityState(observer, entity, state, true);
+            metadataBridge.sendEntityState(observer, entity, state, metadataTransform, true);
             state.resetMetadataCooldown();
             return true;
         }
 
         EntityRenderSpoofedEntity.Move move = state.updatePosition(position);
         boolean rotationChanged = state.updateRotation(yaw, pitch);
+        boolean metadataTransformChanged = state.updateMetadataTransform(metadataTransform);
         registry.syncMotion(observer, state, move, rotationChanged, position, yaw, pitch, entity.isOnGround());
         identity.updatePlayerLabelPosition(observer, state, position, entity.getHeight());
         if (rotationChanged) {
@@ -526,8 +564,9 @@ public final class ProjectedEntityRenderer {
         if (state.updateVelocity(velocity)) {
             channel.send(observer, new WrapperPlayServerEntityVelocity(state.fakeId, velocity));
         }
-        if (state.shouldRefreshMetadata()) {
-            metadataBridge.sendEntityState(observer, entity, state, false);
+        boolean metadataRefreshDue = state.shouldRefreshMetadata();
+        if (metadataTransformChanged || metadataRefreshDue) {
+            metadataBridge.sendEntityState(observer, entity, state, metadataTransform, false);
             state.resetMetadataCooldown();
         }
         return true;

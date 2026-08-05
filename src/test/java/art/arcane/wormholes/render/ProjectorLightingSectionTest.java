@@ -170,6 +170,39 @@ public final class ProjectorLightingSectionTest {
     }
 
     @Test
+    public void fullBrightLightingRestoresTheLocalBaselineAfterRelease() {
+        List<LightData> packets = new ArrayList<LightData>();
+        ProjectorLighting lighting = new ProjectorLighting(
+            (observer, chunkX, chunkZ) -> true,
+            (observer, chunkX, chunkZ, data) -> packets.add(data)
+        );
+        Player observer = onlinePlayer();
+        ProjectionWorldView localView = lightView(new AtomicInteger(), 2, 3);
+        long localKey = packKey(1, 64, 1);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>();
+        claims.put(localKey, new ProjectedBlockClaim(
+            null, null, ProjectedBlockClaim.NO_REMOTE_KEY, false,
+            ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT));
+        LongOpenHashSet dirty = new LongOpenHashSet();
+        dirty.add(localKey);
+
+        lighting.apply(observer, localView, claims, dirty, false);
+
+        assertEquals(1, packets.size());
+        int nibbleIndex = (1 << 4) | 1;
+        assertEquals(15, readNibble(packets.get(0).getSkyLightArray()[0], nibbleIndex));
+        assertEquals(15, readNibble(packets.get(0).getBlockLightArray()[0], nibbleIndex));
+
+        claims.clear();
+        lighting.apply(observer, localView, claims, dirty, false);
+
+        assertEquals(2, packets.size());
+        assertEquals(2, readNibble(packets.get(1).getSkyLightArray()[0], nibbleIndex));
+        assertEquals(3, readNibble(packets.get(1).getBlockLightArray()[0], nibbleIndex));
+        assertTrue(lighting.isIdle());
+    }
+
+    @Test
     public void sentLightingKeepsTheRendererNonIdleUntilReverted() throws Exception {
         ProjectorLighting lighting = new ProjectorLighting();
         assertTrue(lighting.isIdle());
@@ -248,6 +281,14 @@ public final class ProjectorLightingSectionTest {
                 }
                 return null;
             });
+    }
+
+    private static int readNibble(byte[] array, int nibbleIndex) {
+        int byteIndex = nibbleIndex >> 1;
+        if ((nibbleIndex & 1) == 0) {
+            return array[byteIndex] & 0x0F;
+        }
+        return (array[byteIndex] >> 4) & 0x0F;
     }
 
     private static ProjectionWorldView lightView(AtomicInteger samples, int sky, int block) {

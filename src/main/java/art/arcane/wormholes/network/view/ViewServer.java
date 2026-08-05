@@ -2,6 +2,7 @@ package art.arcane.wormholes.network.view;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.wormholes.chunk.ChunkLease;
@@ -13,6 +14,7 @@ import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.wormholes.util.Direction;
 
 import org.bukkit.World;
 import org.bukkit.entity.Pose;
@@ -28,6 +30,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 public final class ViewServer implements Listener {
     public record Stats(int subscriptions, int trackedEntities, long chunkBulkSentCount, long chunkDiffSentCount, long entitySendCount, long timeSendCount) {
@@ -42,6 +45,7 @@ public final class ViewServer implements Listener {
     static final long SIDEBAND_FULL_RESYNC_TICKS = 80L;
     static final long SIDEBAND_FULL_RESYNC_JITTER_TICKS = 40L;
     static final long BLOB_RECAPTURE_INTERVAL_TICKS = 40L;
+    static final long MAP_RECAPTURE_INTERVAL_TICKS = 10L;
     static final long MAX_BULK_RETRY_DELAY_TICKS = 40L;
     static final long BULK_COMPLETE_RETRY_DELAY_TICKS = 5L;
     static final long VIEW_TIME_RETRY_DELAY_TICKS = 5L;
@@ -53,9 +57,10 @@ public final class ViewServer implements Listener {
     private final ViewEntityPublisher entityPublisher;
     private final ViewEntityPipeline entityPipeline;
     private final ViewSubscriptions subscriptions;
+    private volatile int captureApertureGuard;
     private final AtomicBoolean taskRunning = new AtomicBoolean(false);
 
-    record BlobCaptureState(long lastCaptureTick, Pose pose, boolean onFire, int equipmentSignature) {
+    record BlobCaptureState(long lastCaptureTick, Pose pose, boolean onFire, int stateSignature) {
     }
 
     record BulkRetryKey(UUID subscriptionId, String peerName, ReplicationStreamKey stream, long bulkGeneration) {
@@ -239,21 +244,33 @@ public final class ViewServer implements Listener {
         this.entityPublisher = new ViewEntityPublisher(registry);
         this.entityPipeline = new ViewEntityPipeline(registry, timeDelivery, entityPublisher);
         this.subscriptions = new ViewSubscriptions(registry, tickets, timeDelivery, bulkPipeline, this::startTask);
+        this.captureApertureGuard = currentCaptureApertureGuard();
         network.getReplicationManager().setBulkRetryListener(bulkPipeline::retryCanonicalBulk);
     }
 
     public static ViewBox computeBox(ILocalPortal portal, int radius) {
         AxisAlignedBB area = portal.getStructure().getArea();
         World world = portal.getStructure().getWorld();
-        int minX = (int) Math.floor(Math.min(area.getXa(), area.getXb())) - radius;
-        int minY = (int) Math.floor(Math.min(area.getYa(), area.getYb())) - radius;
-        int minZ = (int) Math.floor(Math.min(area.getZa(), area.getZb())) - radius;
-        int maxX = (int) Math.floor(Math.max(area.getXa(), area.getXb())) + radius;
-        int maxY = (int) Math.floor(Math.max(area.getYa(), area.getYb())) + radius;
-        int maxZ = (int) Math.floor(Math.max(area.getZa(), area.getZb())) + radius;
+        Direction normal = portal.getFrame().getNormal();
+        int depth = Math.max(0, radius);
+        int apertureGuard = currentCaptureApertureGuard();
+        int lateral = Math.max(0, portal.getNetworkViewLateralPad()) + apertureGuard;
+        int expandX = normal.x() == 0 ? lateral : depth;
+        int expandY = normal.y() == 0 ? lateral : depth;
+        int expandZ = normal.z() == 0 ? lateral : depth;
+        int minX = (int) Math.floor(Math.min(area.getXa(), area.getXb())) - expandX;
+        int minY = (int) Math.floor(Math.min(area.getYa(), area.getYb())) - expandY;
+        int minZ = (int) Math.floor(Math.min(area.getZa(), area.getZb())) - expandZ;
+        int maxX = (int) Math.floor(Math.max(area.getXa(), area.getXb())) + expandX;
+        int maxY = (int) Math.floor(Math.max(area.getYa(), area.getYb())) + expandY;
+        int maxZ = (int) Math.floor(Math.max(area.getZa(), area.getZb())) + expandZ;
         minY = Math.max(minY, world.getMinHeight());
         maxY = Math.min(maxY, world.getMaxHeight() - 1);
         return new ViewBox(minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    static int currentCaptureApertureGuard() {
+        return (int) Math.ceil(Math.max(0.0D, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
     }
 
     public void onSubscribe(String peerName, UUID portalId) {
@@ -274,6 +291,39 @@ public final class ViewServer implements Listener {
 
     public void refreshPortal(ILocalPortal portal) {
         subscriptions.refreshPortal(portal);
+    }
+
+    public synchronized void onProjectionSettingsReloaded() {
+        int currentGuard = currentCaptureApertureGuard();
+        if (captureApertureGuard == currentGuard) {
+            return;
+        }
+        List<UUID> activePortalIds = new ArrayList<UUID>();
+        for (ViewSession session : registry.sessions()) {
+            activePortalIds.add(session.portalId);
+        }
+        captureApertureGuard = updateCaptureApertureGuard(
+            captureApertureGuard, currentGuard, activePortalIds, portalId -> {
+                ILocalPortal portal = Wormholes.portalManager == null
+                    ? null
+                    : Wormholes.portalManager.getLocalPortal(portalId);
+                if (portal != null) {
+                    subscriptions.refreshPortal(portal);
+                }
+            });
+    }
+
+    static int updateCaptureApertureGuard(int previousGuard,
+                                          int currentGuard,
+                                          Iterable<UUID> activePortalIds,
+                                          Consumer<UUID> refreshPortal) {
+        if (previousGuard == currentGuard) {
+            return previousGuard;
+        }
+        for (UUID portalId : activePortalIds) {
+            refreshPortal.accept(portalId);
+        }
+        return currentGuard;
     }
 
     public void onPeerDisconnected(String peerName) {
@@ -347,13 +397,13 @@ public final class ViewServer implements Listener {
     }
 
     static boolean shouldRecaptureBlobs(EntityVisual previousVisual, BlobCaptureState previousBlobState, long entityTick, long intervalTicks,
-                                        Pose pose, boolean onFire, int equipmentSignature) {
+                                        Pose pose, boolean onFire, int stateSignature) {
         return previousVisual == null
             || previousBlobState == null
             || entityTick - previousBlobState.lastCaptureTick() >= intervalTicks
             || previousBlobState.pose() != pose
             || previousBlobState.onFire() != onFire
-            || previousBlobState.equipmentSignature() != equipmentSignature;
+            || previousBlobState.stateSignature() != stateSignature;
     }
 
     private static int compareRanks(EntityRank left, EntityRank right) {

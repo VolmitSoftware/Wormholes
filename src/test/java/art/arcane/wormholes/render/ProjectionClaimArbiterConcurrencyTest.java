@@ -28,6 +28,7 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 
@@ -375,6 +376,52 @@ public final class ProjectionClaimArbiterConcurrencyTest {
         assertTrue(arbiter.isIdle());
     }
 
+    @Test
+    public void overlappingFullBrightWinnerRestoresSourceLightingWithoutWaitingForCadence() {
+        boolean previousLightingFidelity = Settings.LIGHTING_FIDELITY;
+        boolean previousAdaptiveLighting = Settings.ADAPTIVE_LIGHTING;
+        Settings.LIGHTING_FIDELITY = true;
+        Settings.ADAPTIVE_LIGHTING = false;
+        try {
+            World world = world(UUID.fromString("00000000-0000-0000-0000-0000000000c3"));
+            AtomicReference<World> playerWorld = new AtomicReference<World>(world);
+            AtomicBoolean online = new AtomicBoolean(true);
+            Player observer = player(
+                UUID.fromString("00000000-0000-0000-0000-000000000055"), playerWorld, online);
+            ProjectionChunkVisibility visibility = (player, chunkX, chunkZ) -> true;
+            AtomicInteger lightPackets = new AtomicInteger();
+            ProjectionWorldView localView = availableView(world);
+            ProjectionWorldView sourceView = availableView(world);
+            ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
+                ignored -> localView,
+                visibility,
+                () -> new ProjectorLighting(visibility,
+                    (player, chunkX, chunkZ, data) -> lightPackets.incrementAndGet()));
+            UUID sourcePortal = UUID.fromString("00000000-0000-0000-0000-000000000066");
+            UUID blackoutPortal = UUID.fromString("00000000-0000-0000-0000-000000000067");
+            BlockData data = blockData("shared");
+            Long2ObjectOpenHashMap<ProjectedBlockClaim> sourceClaims = singleLightingClaim(
+                data, sourceView, ProjectedBlockClaim.LightingPolicy.SOURCE);
+            Long2ObjectOpenHashMap<ProjectedBlockClaim> fullBrightClaims = singleLightingClaim(
+                data, sourceView, ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT);
+
+            arbiter.submit(observer, sourcePortal, world, sourceClaims, 2.0D, true);
+            arbiter.submit(observer, blackoutPortal, world, fullBrightClaims, 1.0D, true);
+            int packetsBeforeTransition = lightPackets.get();
+
+            arbiter.beginFrame(observer, world, false);
+            arbiter.submit(observer, sourcePortal, world, sourceClaims, 2.0D, false);
+            arbiter.submit(observer, blackoutPortal, world, fullBrightClaims, 3.0D, false);
+            arbiter.flushFrame(observer);
+
+            assertEquals(packetsBeforeTransition + 1, lightPackets.get());
+            assertFalse(arbiter.hasPendingLighting(observer));
+        } finally {
+            Settings.LIGHTING_FIDELITY = previousLightingFidelity;
+            Settings.ADAPTIVE_LIGHTING = previousAdaptiveLighting;
+        }
+    }
+
     private static Map<?, ?> observersMap(ProjectionClaimArbiter arbiter) throws Exception {
         Field field = ProjectionClaimArbiter.class.getDeclaredField("observers");
         field.setAccessible(true);
@@ -411,6 +458,15 @@ public final class ProjectionClaimArbiterConcurrencyTest {
     private static Long2ObjectOpenHashMap<ProjectedBlockClaim> singleClaim(long key, BlockData data) {
         Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(1);
         claims.put(key, new ProjectedBlockClaim(data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
+        return claims;
+    }
+
+    private static Long2ObjectOpenHashMap<ProjectedBlockClaim> singleLightingClaim(
+        BlockData data,
+        ProjectionWorldView sourceView,
+        ProjectedBlockClaim.LightingPolicy lightingPolicy) {
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(1);
+        claims.put(CELL_KEY, new ProjectedBlockClaim(data, sourceView, CELL_KEY, false, lightingPolicy));
         return claims;
     }
 

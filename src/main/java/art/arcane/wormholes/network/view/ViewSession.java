@@ -52,7 +52,7 @@ final class ViewSession {
         this.subscriptionId = UUID.randomUUID();
         this.world = world;
         this.box = box;
-        this.renderMode = renderMode == null ? ProjectionRenderMode.PANOPTIC : renderMode;
+        this.renderMode = renderMode == null ? ProjectionRenderMode.VENTICULAR : renderMode;
         this.centerChunkX = centerChunkX;
         this.centerChunkZ = centerChunkZ;
         this.portalCenterX = portalCenterX;

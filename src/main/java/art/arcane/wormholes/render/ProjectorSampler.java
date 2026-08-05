@@ -171,10 +171,16 @@ final class ProjectorSampler {
             sample = new ProjectorSample(ProjectorSample.Kind.OCCLUDED, remoteData, view, remoteKey);
         } else if (ProjectorSampleMemo.isAir(remoteData.getMaterial())) {
             sample = new ProjectorSample(ProjectorSample.Kind.REMOTE_AIR, airBlockData, view, remoteKey);
-        } else if (applyBuriedCellCulling && memo.buriedInView(view, x, y, z, remoteData)) {
-            sample = new ProjectorSample(ProjectorSample.Kind.OCCLUDED, remoteData, view, remoteKey);
         } else {
-            sample = new ProjectorSample(ProjectorSample.Kind.BLOCK, remoteData, view, remoteKey);
+            int occlusionDepth = applyBuriedCellCulling
+                ? memo.occlusionDepthInView(view, x, y, z, remoteData)
+                : 0;
+            ProjectorSample.Kind kind = switch (occlusionDepth) {
+                case 1 -> ProjectorSample.Kind.BACKING_BLOCK;
+                case 2 -> ProjectorSample.Kind.OCCLUDED;
+                default -> ProjectorSample.Kind.BLOCK;
+            };
+            sample = new ProjectorSample(kind, remoteData, view, remoteKey);
         }
         if (cacheable) {
             memo.cacheSample(view, x, y, z, sample);

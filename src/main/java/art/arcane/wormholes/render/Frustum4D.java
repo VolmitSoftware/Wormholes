@@ -15,6 +15,7 @@ import art.arcane.wormholes.util.Direction;
 public final class Frustum4D {
     private static final double EPSILON = 1.0E-7D;
     private static final Direction[] DIRECTIONS = Direction.values();
+    private static final Frustum4D EMPTY = new Frustum4D();
 
     private final Frustum[] frustums;
     private final AxisAlignedBB region;
@@ -24,6 +25,17 @@ public final class Frustum4D {
     private final double regionYb;
     private final double regionZa;
     private final double regionZb;
+
+    private Frustum4D() {
+        this.frustums = new Frustum[0];
+        this.region = new AxisAlignedBB(0.25D, 0.25D, 0.25D, 0.25D, 0.25D, 0.25D);
+        this.regionXa = region.getXa();
+        this.regionXb = region.getXb();
+        this.regionYa = region.getYa();
+        this.regionYb = region.getYb();
+        this.regionZa = region.getZa();
+        this.regionZb = region.getZb();
+    }
 
     public Frustum4D(Location iris, PortalStructure structure, double axialRange, double lateralRange) {
         AxisAlignedBB aperture = structure.getArea();
@@ -111,6 +123,10 @@ public final class Frustum4D {
         this.regionYb = acc.getYb();
         this.regionZa = acc.getZa();
         this.regionZb = acc.getZb();
+    }
+
+    static Frustum4D empty() {
+        return EMPTY;
     }
 
     public boolean contains(Vector p) {

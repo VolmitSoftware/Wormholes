@@ -33,12 +33,26 @@ final class DoorTransitLedger
 
 	boolean claim(Entity traveler)
 	{
-		return travelersInTransit.putIfAbsent(traveler.getUniqueId(), traveler) == null;
+		return claim(traveler.getUniqueId(), traveler);
+	}
+
+	boolean claim(UUID travelerId, Entity traveler)
+	{
+		return travelersInTransit.putIfAbsent(
+			Objects.requireNonNull(travelerId, "travelerId"),
+			Objects.requireNonNull(traveler, "traveler")) == null;
 	}
 
 	void release(Entity traveler)
 	{
-		travelersInTransit.remove(traveler.getUniqueId(), traveler);
+		release(traveler.getUniqueId(), traveler);
+	}
+
+	void release(UUID travelerId, Entity traveler)
+	{
+		travelersInTransit.remove(
+			Objects.requireNonNull(travelerId, "travelerId"),
+			Objects.requireNonNull(traveler, "traveler"));
 	}
 
 	boolean isTraveling(UUID travelerId)
@@ -102,7 +116,13 @@ final class DoorTransitLedger
 
 	void startCooldown(Entity traveler)
 	{
-		UUID travelerId = traveler.getUniqueId();
+		startCooldown(traveler.getUniqueId(), traveler);
+	}
+
+	void startCooldown(UUID travelerId, Entity traveler)
+	{
+		Objects.requireNonNull(travelerId, "travelerId");
+		Objects.requireNonNull(traveler, "traveler");
 		long expiresAt = System.nanoTime() + TRANSIT_COOLDOWN_NANOS;
 		transitCooldowns.put(travelerId, expiresAt);
 		Runnable cleanup = () -> transitCooldowns.remove(travelerId, expiresAt);

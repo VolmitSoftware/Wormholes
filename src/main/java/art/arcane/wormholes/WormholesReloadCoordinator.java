@@ -229,6 +229,13 @@ final class WormholesReloadCoordinator {
                 plugin.getLogger().log(Level.WARNING, "ProjectionManager rejected hot-reload notification", ex);
             }
         }
+        if (Wormholes.viewServer != null) {
+            try {
+                Wormholes.viewServer.onProjectionSettingsReloaded();
+            } catch (Throwable ex) {
+                plugin.getLogger().log(Level.WARNING, "ViewServer rejected projection hot-reload notification", ex);
+            }
+        }
         WormholesCommandService activeService = plugin.commandService();
         if (activeService != null) {
             try {

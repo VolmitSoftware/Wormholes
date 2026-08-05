@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ChunkBulkBuilderVenticularTest {
     @Test
-    void fullyEnclosedInteriorCellIsSubstitutedWithSentinelWhileShellStaysReal() {
+    void oneBlockBackingLayerStaysRealInAThreeBlockVolume() {
         int size = 3;
         int cells = size * size * size;
         boolean[] occluding = new boolean[cells];
@@ -26,15 +26,36 @@ class ChunkBulkBuilderVenticularTest {
         HashMap<String, Integer> lookup = new HashMap<>();
         lookup.put("minecraft:stone", 0);
 
-        ChunkBulkBuilder.substituteBuriedCells(0, 0, 0, size, size, size, occluding, indices, palette, lookup);
+        ChunkBulkBuilder.substituteDeeplyBuriedCells(
+            0, 0, 0, size, size, size, occluding, indices, palette, lookup);
 
-        int centerCell = cellIndex(1, 1, 1, size, size);
+        assertEquals(-1, palette.indexOf(OccludedMarker.STATE_STRING));
+        for (int cell = 0; cell < cells; cell++) {
+            assertEquals(0, indices[cell], "surface and immediate backing cell " + cell + " must stay real");
+        }
+    }
+
+    @Test
+    void onlyDepthTwoInteriorIsSubstitutedInAFiveBlockVolume() {
+        int size = 5;
+        int cells = size * size * size;
+        boolean[] occluding = new boolean[cells];
+        Arrays.fill(occluding, true);
+        short[] indices = new short[cells];
+        List<String> palette = new ArrayList<>(List.of("minecraft:stone"));
+        HashMap<String, Integer> lookup = new HashMap<>();
+        lookup.put("minecraft:stone", 0);
+
+        ChunkBulkBuilder.substituteDeeplyBuriedCells(
+            0, 0, 0, size, size, size, occluding, indices, palette, lookup);
+
+        int centerCell = cellIndex(2, 2, 2, size, size);
         int sentinelIndex = palette.indexOf(OccludedMarker.STATE_STRING);
-        assertTrue(sentinelIndex >= 0, "sentinel must be added to palette when a cell is buried");
-        assertEquals(sentinelIndex, indices[centerCell], "the fully enclosed interior cell must become the sentinel");
+        assertTrue(sentinelIndex >= 0);
+        assertEquals(sentinelIndex, indices[centerCell]);
         for (int cell = 0; cell < cells; cell++) {
             if (cell != centerCell) {
-                assertEquals(0, indices[cell], "shell cell " + cell + " must stay its real block");
+                assertEquals(0, indices[cell], "non-deep cell " + cell + " must stay its real block");
             }
         }
     }
@@ -52,7 +73,8 @@ class ChunkBulkBuilderVenticularTest {
         HashMap<String, Integer> lookup = new HashMap<>();
         lookup.put("minecraft:stone", 0);
 
-        ChunkBulkBuilder.substituteBuriedCells(0, 0, 0, sizeX, sizeY, sizeZ, occluding, indices, palette, lookup);
+        ChunkBulkBuilder.substituteDeeplyBuriedCells(
+            0, 0, 0, sizeX, sizeY, sizeZ, occluding, indices, palette, lookup);
 
         assertEquals(1, palette.size(), "no buried cell means the sentinel must not be added");
         for (short index : indices) {
@@ -62,9 +84,9 @@ class ChunkBulkBuilderVenticularTest {
 
     @Test
     void venticularContentHashIsStableAcrossRebuildsAndDivergesFromPanopticOnlyWhenBuried() {
-        long panopticFullySolid = panopticHash(3, 3, 3);
-        long venticularFirst = venticularHash(3, 3, 3);
-        long venticularSecond = venticularHash(3, 3, 3);
+        long panopticFullySolid = panopticHash(5, 5, 5);
+        long venticularFirst = venticularHash(5, 5, 5);
+        long venticularSecond = venticularHash(5, 5, 5);
         assertEquals(venticularFirst, venticularSecond, "an identical venticular slice must hash identically on rebuild");
         assertNotEquals(panopticFullySolid, venticularFirst, "a buried interior must make venticular differ from panoptic");
 
@@ -87,7 +109,8 @@ class ChunkBulkBuilderVenticularTest {
         List<String> palette = new ArrayList<>(List.of("minecraft:stone"));
         HashMap<String, Integer> lookup = new HashMap<>();
         lookup.put("minecraft:stone", 0);
-        ChunkBulkBuilder.substituteBuriedCells(0, 0, 0, sizeX, sizeY, sizeZ, occluding, indices, palette, lookup);
+        ChunkBulkBuilder.substituteDeeplyBuriedCells(
+            0, 0, 0, sizeX, sizeY, sizeZ, occluding, indices, palette, lookup);
         return sliceHash(sizeX, sizeY, sizeZ, indices, palette);
     }
 

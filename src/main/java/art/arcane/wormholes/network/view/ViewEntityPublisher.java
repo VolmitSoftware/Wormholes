@@ -100,8 +100,11 @@ final class ViewEntityPublisher {
                         continue;
                     }
                     int sequence = state.allocateSequence();
-                    outbound.add(EntityDeltaCodec.buildDelta(currentFull, lastSent, sequence, mask));
-                    state.recordSent(currentFull, false, entityTick);
+                    boolean reliableFull = requiresFullSnapshot(mask);
+                    outbound.add(reliableFull
+                        ? withSequenceAndMode(currentFull, sequence, EntityVisual.MODE_FULL)
+                        : EntityDeltaCodec.buildDelta(currentFull, lastSent, sequence, mask));
+                    state.recordSent(currentFull, reliableFull, entityTick);
                 }
             }
             Set<UUID> previousPresent = session.lastSentPresentIds.get(peerName);
@@ -119,18 +122,25 @@ final class ViewEntityPublisher {
             if (outbound.isEmpty() && !presentChanged) {
                 continue;
             }
-            WireMessage.ViewEntities message = new WireMessage.ViewEntities(session.portalId, outbound, peerPresentIdList);
-            boolean sent = registry.network().send(peerName, message);
-            if (sent) {
-                session.lastSentPresentIds.put(peerName, peerPresentIds);
-                sendCount.addAndGet(outbound.size());
-            } else {
-                for (EntityVisual failedVisual : outbound) {
+            List<List<EntityVisual>> batches = deliveryBatches(outbound);
+            boolean presenceAccepted = false;
+            for (List<EntityVisual> batch : batches) {
+                WireMessage.ViewEntities message = new WireMessage.ViewEntities(session.portalId, batch, peerPresentIdList);
+                boolean sent = registry.network().send(peerName, message);
+                if (sent) {
+                    presenceAccepted = true;
+                    sendCount.addAndGet(batch.size());
+                    continue;
+                }
+                for (EntityVisual failedVisual : batch) {
                     EntitySendState failedState = peerStates.get(failedVisual.id());
                     if (failedState != null) {
                         failedState.requestFull();
                     }
                 }
+            }
+            if (presenceAccepted) {
+                session.lastSentPresentIds.put(peerName, peerPresentIds);
             }
         }
     }
@@ -176,8 +186,32 @@ final class ViewEntityPublisher {
             source.passengerOf(),
             source.leashHolder(),
             source.metadata(),
-            source.equipment()
+            source.equipment(),
+            source.mapData()
         );
+    }
+
+    static boolean requiresFullSnapshot(int mask) {
+        return (mask & EntityVisual.FIELD_MAP_DATA) != 0;
+    }
+
+    static List<List<EntityVisual>> deliveryBatches(List<EntityVisual> outbound) {
+        List<EntityVisual> reliable = new ArrayList<EntityVisual>(outbound.size());
+        List<EntityVisual> bestEffort = new ArrayList<EntityVisual>(outbound.size());
+        for (EntityVisual visual : outbound) {
+            if (visual.isFull()) {
+                reliable.add(visual);
+            } else {
+                bestEffort.add(visual);
+            }
+        }
+        if (reliable.isEmpty()) {
+            return List.of(bestEffort);
+        }
+        if (bestEffort.isEmpty()) {
+            return List.of(reliable);
+        }
+        return List.of(reliable, bestEffort);
     }
 
     private static Set<UUID> nearestEntityIds(ViewSession session, List<EntityVisual> visuals, int max) {

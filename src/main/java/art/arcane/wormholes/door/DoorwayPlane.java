@@ -144,6 +144,27 @@ public record DoorwayPlane(
 			: blockY + (TRAPDOOR_PLATE_THICKNESS / 2.0D);
 	}
 
+	double exposedSurfaceY(int sideSign)
+	{
+		if(form != DoorForm.TRAPDOOR)
+		{
+			throw new IllegalStateException("Only trapdoors have a horizontal exposed surface");
+		}
+		if(sideSign == 0)
+		{
+			throw new IllegalArgumentException("A trapdoor surface side cannot be zero");
+		}
+		if(half == Bisected.Half.TOP)
+		{
+			return sideSign > 0
+				? blockY + 1.0D
+				: blockY + 1.0D - TRAPDOOR_PLATE_THICKNESS;
+		}
+		return sideSign > 0
+			? blockY + TRAPDOOR_PLATE_THICKNESS
+			: blockY;
+	}
+
 	public double normalX()
 	{
 		return form == DoorForm.TRAPDOOR ? 0.0D : facing.getModX();

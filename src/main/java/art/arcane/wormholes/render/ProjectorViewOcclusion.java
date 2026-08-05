@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render;
 
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongSet;
 
 import org.bukkit.block.data.BlockData;
 
@@ -8,7 +9,7 @@ import art.arcane.wormholes.render.view.OccludedMarker;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.util.Direction;
 
-final class ProjectorPlannarOcclusion {
+final class ProjectorViewOcclusion {
     @FunctionalInterface
     interface BlockOcclusion {
         boolean occluding(BlockData data);
@@ -41,13 +42,14 @@ final class ProjectorPlannarOcclusion {
     private double portalNormalX;
     private double portalNormalY;
     private double portalNormalZ;
+    private LongSet eligibleBlockers;
     private final double[] scratchRayStart;
 
-    ProjectorPlannarOcclusion() {
+    ProjectorViewOcclusion() {
         this(OccludedMarker::isOccluding);
     }
 
-    ProjectorPlannarOcclusion(BlockOcclusion blockOcclusion) {
+    ProjectorViewOcclusion(BlockOcclusion blockOcclusion) {
         opacity = new Long2ByteOpenHashMap(256);
         opacity.defaultReturnValue((byte) -1);
         this.blockOcclusion = blockOcclusion;
@@ -58,6 +60,14 @@ final class ProjectorPlannarOcclusion {
                    double portalOriginY,
                    double portalOriginZ,
                    Direction portalNormal) {
+        beginPass(portalOriginX, portalOriginY, portalOriginZ, portalNormal, null);
+    }
+
+    void beginPass(double portalOriginX,
+                   double portalOriginY,
+                   double portalOriginZ,
+                   Direction portalNormal,
+                   LongSet eligibleBlockers) {
         opacity.clear();
         voxelSteps = 0;
         blockerX = 0;
@@ -74,6 +84,7 @@ final class ProjectorPlannarOcclusion {
         this.portalNormalX = portalNormal.x();
         this.portalNormalY = portalNormal.y();
         this.portalNormalZ = portalNormal.z();
+        this.eligibleBlockers = eligibleBlockers;
     }
 
     boolean visible(ProjectionWorldView view,
@@ -100,9 +111,6 @@ final class ProjectorPlannarOcclusion {
         }
         boolean hidden = opaquePlaneShadowsTarget(view, eyeX, eyeY, eyeZ, targetX, targetY, targetZ,
             blockerX, blockerY, blockerZ);
-        if (!hidden) {
-            hidden = allTargetCornersBlocked(view, eyeX, eyeY, eyeZ, targetX, targetY, targetZ);
-        }
         return !hidden || !stableRevision(view);
     }
 
@@ -116,6 +124,10 @@ final class ProjectorPlannarOcclusion {
 
     boolean budgetExhausted() {
         return budgetExhausted;
+    }
+
+    boolean isOccluding(BlockData data) {
+        return blockOcclusion.occluding(data);
     }
 
     private RayResult traceClippedRay(ProjectionWorldView view,
@@ -193,7 +205,7 @@ final class ProjectorPlannarOcclusion {
             if (x == targetX && y == targetY && z == targetZ) {
                 return RayResult.CLEAR;
             }
-            if (blocked(view, x, y, z)) {
+            if (rayBlocked(view, x, y, z)) {
                 blockerX = x;
                 blockerY = y;
                 blockerZ = z;
@@ -269,28 +281,6 @@ final class ProjectorPlannarOcclusion {
         return false;
     }
 
-    private boolean allTargetCornersBlocked(ProjectionWorldView view,
-                                            double eyeX,
-                                            double eyeY,
-                                            double eyeZ,
-                                            int targetX,
-                                            int targetY,
-                                            int targetZ) {
-        for (int xOffset = 0; xOffset <= 1; xOffset++) {
-            for (int yOffset = 0; yOffset <= 1; yOffset++) {
-                for (int zOffset = 0; zOffset <= 1; zOffset++) {
-                    RayResult result = traceClippedRay(view, eyeX, eyeY, eyeZ,
-                        targetX + xOffset, targetY + yOffset, targetZ + zOffset,
-                        targetX, targetY, targetZ);
-                    if (result != RayResult.BLOCKED) {
-                        return false;
-                    }
-                }
-            }
-        }
-        return true;
-    }
-
     private void clipStartToPortalPlane(double eyeX,
                                         double eyeY,
                                         double eyeZ,
@@ -345,6 +335,11 @@ final class ProjectorPlannarOcclusion {
             return false;
         }
         int blockAxis = coordinate(axis, blockX, blockY, blockZ);
+        int targetAxis = coordinate(axis, targetX, targetY, targetZ);
+        if ((direction > 0 && targetAxis <= blockAxis)
+            || (direction < 0 && targetAxis >= blockAxis)) {
+            return false;
+        }
         double plane = blockAxis + (direction < 0 ? 1.0D : 0.0D);
         double minFirst = Double.POSITIVE_INFINITY;
         double maxFirst = Double.NEGATIVE_INFINITY;
@@ -397,7 +392,7 @@ final class ProjectorPlannarOcclusion {
                 int x = axisCoordinate(0, axis, blockAxis, firstOtherAxis, first, second);
                 int y = axisCoordinate(1, axis, blockAxis, firstOtherAxis, first, second);
                 int z = axisCoordinate(2, axis, blockAxis, firstOtherAxis, first, second);
-                if (!blocked(view, x, y, z)) {
+                if (!rayBlocked(view, x, y, z)) {
                     return false;
                 }
             }
@@ -483,6 +478,13 @@ final class ProjectorPlannarOcclusion {
 
     private static int floor(double value) {
         return (int) Math.floor(value);
+    }
+
+    private boolean rayBlocked(ProjectionWorldView view, int x, int y, int z) {
+        if (eligibleBlockers != null) {
+            return eligibleBlockers.contains(ProjectionCellKey.pack(x, y, z));
+        }
+        return blocked(view, x, y, z);
     }
 
     private static double coordinate(int axis, double x, double y, double z) {

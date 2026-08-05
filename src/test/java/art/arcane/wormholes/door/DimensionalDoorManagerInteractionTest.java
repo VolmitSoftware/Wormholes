@@ -275,6 +275,60 @@ final class DimensionalDoorManagerInteractionTest
 	}
 
 	@Test
+	void closedTrapdoorArrivalsClearBothPlateFacesForEveryHalfAndTravelerClass()
+	{
+		for(org.bukkit.block.data.Bisected.Half half : org.bukkit.block.data.Bisected.Half.values())
+		{
+			DoorwayPlane plane = DoorwayPlane.trapdoor(
+				5, 70, -3, org.bukkit.block.BlockFace.EAST, half, DoorOpenState.CLOSED);
+			DoorTransit living = new DoorTransit(
+				plane, DoorwayCrossing.Direction.FRONT_TO_BACK, 0.0F, 0.0F, 0.3D, 1.8D);
+			DoorTransit object = new DoorTransit(
+				plane,
+				DoorwayCrossing.Direction.FRONT_TO_BACK,
+				0.0F,
+				0.0F,
+				0.125D,
+				0.25D,
+				DoorTravelerClass.OBJECT,
+				new DoorVec3(0.0D, 0.1D, 0.0D));
+			double expectedUpper = half == org.bukkit.block.data.Bisected.Half.TOP
+				? 71.0D
+				: 70.0D + DoorwayPlane.TRAPDOOR_PLATE_THICKNESS;
+			double expectedLower = half == org.bukkit.block.data.Bisected.Half.TOP
+				? 71.0D - DoorwayPlane.TRAPDOOR_PLATE_THICKNESS
+				: 70.0D;
+
+			assertEquals(expectedUpper, plane.exposedSurfaceY(1), 1.0E-9D);
+			assertEquals(expectedLower, plane.exposedSurfaceY(-1), 1.0E-9D);
+			for(DoorTransit transit : new DoorTransit[] {living, object})
+			{
+				for(int sideSign : new int[] {-1, 1})
+				{
+					DoorVec3 arrival = DimensionalDoorManager.arrivalPoint(plane, transit, sideSign);
+					double expectedY = sideSign > 0
+						? expectedUpper
+						: expectedLower - transit.height();
+
+					assertEquals(expectedY, arrival.y(), 1.0E-9D);
+					assertTrue(DoorArrivalResolver.isNonOverlappingContactSurfaceBlock(
+						plane,
+						5,
+						70,
+						-3,
+						arrival.y(),
+						arrival.y() + transit.height()));
+				}
+			}
+			assertFalse(DoorArrivalResolver.isNonOverlappingContactSurfaceBlock(
+				plane, 5, 70, -3, plane.planeY(), plane.planeY() + living.height()));
+			assertFalse(DoorArrivalResolver.isNonOverlappingContactSurfaceBlock(
+				plane, 6, 70, -3, expectedUpper, expectedUpper + living.height()));
+			assertThrows(IllegalArgumentException.class, () -> plane.exposedSurfaceY(0));
+		}
+	}
+
+	@Test
 	void aClosedHingedDestinationStillPreservesTheEnteredFace()
 	{
 		DoorwayPlane source = new DoorwayPlane(0, 64, 0, org.bukkit.block.BlockFace.NORTH);

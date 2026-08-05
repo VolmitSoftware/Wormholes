@@ -44,6 +44,7 @@ import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.Vector;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -71,6 +72,8 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	private static final String ENTITY_MOVE_EVENT_CLASS = "io.papermc.paper.event.entity.EntityMoveEvent";
 	private static final boolean ENTITY_MOVE_EVENT_AVAILABLE =
 		isEntityMoveEventAvailable(DimensionalDoorManager.class.getClassLoader());
+	private static final Runnable NO_OP = () -> {
+	};
 
 	private final Wormholes plugin;
 	private final PocketWorldService pocketWorldService;
@@ -85,6 +88,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	private final DoorTransitFailures transitFailures;
 	private final DoorAccessMenu accessMenu;
 	private final DoorAccessFeedback accessFeedback;
+	private final DoorAccessAuthorizer accessAuthorizer;
 
 	private volatile DoorItemService items;
 	private volatile Listener livingEntityMoveListener;
@@ -127,6 +131,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		protection = new DoorBlockProtection(guard, pockets);
 		accessMenu = new DoorAccessMenu(this);
 		accessFeedback = new DoorAccessFeedback(plugin);
+		accessAuthorizer = new DoorAccessAuthorizer(plugin);
 	}
 
 	public void start() throws IOException
@@ -672,16 +677,43 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		if(guard.closed() || traveler.isDead() || !traveler.isValid()
 			|| !hasChangedPosition(fromLocation, toLocation)
 			|| fromLocation.getWorld() == null || toLocation.getWorld() == null
-			|| !fromLocation.getWorld().getUID().equals(toLocation.getWorld().getUID())
-			|| ledger.isTraveling(traveler.getUniqueId())
-			|| ledger.hasCooldown(traveler.getUniqueId(), System.nanoTime()))
+			|| !fromLocation.getWorld().getUID().equals(toLocation.getWorld().getUID()))
 		{
 			return;
 		}
+		UUID travelerId = traveler.getUniqueId();
+		if(ledger.isTraveling(travelerId)
+			|| ledger.hasCooldown(travelerId, System.nanoTime()))
+		{
+			return;
+		}
+		Location from = fromLocation.clone();
+		Location to = toLocation.clone();
+		Optional<DoorTransitAttempt> prepared = prepareTransitAttempt(traveler, travelerId, from, to);
+		if(prepared.isEmpty())
+		{
+			maybeEjectEscapedTraveler(traveler, from, to);
+			return;
+		}
+		DoorTransitAttempt attempt = prepared.get();
+		accessAuthorizer.resolve(
+			traveler,
+			credentials -> transits.begin(attempt, credentials),
+			NO_OP);
+	}
+
+	private Optional<DoorTransitAttempt> prepareTransitAttempt(
+		Entity traveler,
+		UUID travelerId,
+		Location fromLocation,
+		Location toLocation)
+	{
 		DoorVec3 from = vector(fromLocation);
 		DoorVec3 to = vector(toLocation);
 		double travelerHalfWidth = traveler.getWidth() / 2.0D;
 		double travelerHeight = traveler.getHeight();
+		DoorTravelerClass travelerClass = travelerClass(traveler);
+		DoorVec3 velocity = travelerClass == DoorTravelerClass.OBJECT ? momentum(traveler) : null;
 		for(DoorSpatialIndex.Entry<RuntimeDoor> indexed : runtimes.nearby(
 			toLocation.getWorld().getUID(), toLocation.getBlockX(), toLocation.getBlockZ(), 1))
 		{
@@ -698,18 +730,6 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 				continue;
 			}
 			World sourceWorld = toLocation.getWorld();
-			// An arrow is judged by whoever shot it; an unowned object is not gated.
-			Player responsible = DoorTravelerOwnership
-				.responsiblePlayer(plugin.getServer(), traveler)
-				.orElse(null);
-			if(responsible != null && !canUseDoor(endpoint, responsible))
-			{
-				if(traveler instanceof Player player)
-				{
-					accessFeedback.deny(player, endpoint, runtime.plane(), sourceWorld);
-				}
-				continue;
-			}
 			if(!WormholesPlatform.isOwnedByCurrentRegion(
 				sourceWorld, endpoint.position().x() >> 4, endpoint.position().z() >> 4))
 			{
@@ -729,15 +749,24 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			{
 				continue;
 			}
-			transits.begin(
-				traveler,
-				runtime,
-				toLocation.clone(),
+			DoorTransit transit = new DoorTransit(
+				crossingSnapshot.plane(),
 				liveCrossing.get(),
-				crossingSnapshot);
-			return;
+				toLocation.getYaw(),
+				toLocation.getPitch(),
+				travelerHalfWidth,
+				travelerHeight,
+				travelerClass,
+				velocity);
+			return Optional.of(new DoorTransitAttempt(
+				traveler,
+				travelerId,
+				sourceWorld,
+				runtime,
+				crossingSnapshot,
+				transit));
 		}
-		maybeEjectEscapedTraveler(traveler, fromLocation, toLocation);
+		return Optional.empty();
 	}
 
 	private void maybeEjectEscapedTraveler(Entity traveler, Location fromLocation, Location toLocation)
@@ -845,7 +874,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 				: DoorPlanePairing.mapAperturePoint(transit.sourcePlane(), plane, transit.crossing());
 			if(plane.horizontal())
 			{
-				double y = sideSign > 0 ? plane.planeY() : plane.planeY() - transit.height();
+				double y = horizontalArrivalY(plane, transit, sideSign);
 				return new DoorVec3(aperturePoint.x(), y, aperturePoint.z());
 			}
 			double offset = arrivalOffset(transit) * sideSign;
@@ -856,10 +885,20 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		}
 		if(plane.horizontal())
 		{
-			double y = sideSign > 0 ? plane.planeY() : plane.planeY() - transit.height();
+			double y = horizontalArrivalY(plane, transit, sideSign);
 			return new DoorVec3(plane.blockX() + 0.5D, y, plane.blockZ() + 0.5D);
 		}
 		return plane.sidePoint(sideSign, arrivalOffset(transit));
+	}
+
+	private static double horizontalArrivalY(DoorwayPlane plane, DoorTransit transit, int sideSign)
+	{
+		if(plane.contactSurface())
+		{
+			double surfaceY = plane.exposedSurfaceY(sideSign);
+			return sideSign > 0 ? surfaceY : surfaceY - transit.height();
+		}
+		return sideSign > 0 ? plane.planeY() : plane.planeY() - transit.height();
 	}
 
 	static float arrivalYaw(DoorwayPlane source, DoorwayPlane destination, DoorTransit transit)
@@ -921,6 +960,34 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	private static DoorVec3 vector(Location location)
 	{
 		return new DoorVec3(location.getX(), location.getY(), location.getZ());
+	}
+
+	private static DoorTravelerClass travelerClass(Entity traveler)
+	{
+		return traveler instanceof LivingEntity || traveler instanceof Vehicle
+			? DoorTravelerClass.LIVING
+			: DoorTravelerClass.OBJECT;
+	}
+
+	private static DoorVec3 momentum(Entity traveler)
+	{
+		Vector velocity;
+		try
+		{
+			velocity = traveler.getVelocity();
+		}
+		catch(Throwable ex)
+		{
+			return null;
+		}
+		if(velocity == null
+			|| !Double.isFinite(velocity.getX())
+			|| !Double.isFinite(velocity.getY())
+			|| !Double.isFinite(velocity.getZ()))
+		{
+			return null;
+		}
+		return new DoorVec3(velocity.getX(), velocity.getY(), velocity.getZ());
 	}
 
 	private static boolean hasChangedPosition(Location from, Location to)

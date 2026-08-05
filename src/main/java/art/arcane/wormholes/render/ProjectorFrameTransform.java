@@ -188,12 +188,12 @@ final class ProjectorFrameTransform {
         out3[2] = snapNearInteger(toOriginZ + frameRight * toRightZ + frameUp * toUpZ + frameNormal * toNormalZ, coordinateSnapTolerance);
     }
 
-    private static double coordinateSnapTolerance(double fromX,
-                                                  double fromY,
-                                                  double fromZ,
-                                                  double toX,
-                                                  double toY,
-                                                  double toZ) {
+    static double coordinateSnapTolerance(double fromX,
+                                          double fromY,
+                                          double fromZ,
+                                          double toX,
+                                          double toY,
+                                          double toZ) {
         double largestUlp = Math.max(Math.ulp(fromX), Math.ulp(fromY));
         largestUlp = Math.max(largestUlp, Math.ulp(fromZ));
         largestUlp = Math.max(largestUlp, Math.ulp(toX));
@@ -202,7 +202,7 @@ final class ProjectorFrameTransform {
         return Math.max(1.0E-10D, largestUlp * 8.0D);
     }
 
-    private static double snapNearInteger(double value, double tolerance) {
+    static double snapNearInteger(double value, double tolerance) {
         double nearestInteger = Math.rint(value);
         return Math.abs(value - nearestInteger) <= tolerance ? nearestInteger : value;
     }

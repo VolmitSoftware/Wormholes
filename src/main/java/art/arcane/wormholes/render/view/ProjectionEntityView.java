@@ -5,6 +5,7 @@ import art.arcane.wormholes.network.view.RemoteViewCache;
 
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
+import org.bukkit.map.MapView;
 
 import java.util.List;
 import java.util.UUID;
@@ -17,6 +18,10 @@ public interface ProjectionEntityView {
     List<EntityData<?>> getMetadata(UUID entityId);
 
     List<Equipment> getEquipment(UUID entityId);
+
+    default MapView getMapView(UUID entityId) {
+        return null;
+    }
 
     int getStateVersion(UUID entityId);
 }

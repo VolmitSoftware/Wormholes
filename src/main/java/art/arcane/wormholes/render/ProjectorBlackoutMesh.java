@@ -3,31 +3,23 @@ package art.arcane.wormholes.render;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.TreeSet;
 
 import it.unimi.dsi.fastutil.longs.LongIterator;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 
 import art.arcane.wormholes.util.Direction;
 
 final class ProjectorBlackoutMesh {
     static final int MAX_PANELS = 128;
-    static final int MAX_PANEL_SPAN = 32;
+    static final int MAX_PANEL_SPAN = 64;
     static final double PANEL_THICKNESS = 1.0D / 64.0D;
     static final double PANEL_INSET = 1.0D / 1024.0D;
 
-    private static final Direction[] DIRECTIONS = Direction.values();
-    private static final Comparator<Plane> PLANE_ORDER = Comparator
-        .comparingInt(Plane::axis)
-        .thenComparingInt(Plane::sign)
-        .thenComparingInt(Plane::coordinate);
     private static final Comparator<Cell2> CELL_ORDER = Comparator
         .comparingInt(Cell2::v)
         .thenComparingInt(Cell2::u);
-    private static final Result EMPTY = new Result(List.of(), 0, 0, false);
+    private static final Result EMPTY = new Result(List.of(), false);
 
     private ProjectorBlackoutMesh() {
     }
@@ -38,64 +30,51 @@ final class ProjectorBlackoutMesh {
 
     static Result build(LongSet geometry,
                         Direction normal,
-                        Direction right,
-                        Direction up,
                         int normalMin,
-                        int normalMax,
-                        int thicknessBlocks) {
-        if (geometry.isEmpty()) {
+                        int normalMax) {
+        if (geometry.isEmpty() || normalMin > normalMax) {
             return EMPTY;
         }
 
-        LongOpenHashSet shell = new LongOpenHashSet(Math.max(16, geometry.size() / 4));
-        LongIterator geometryIterator = geometry.iterator();
-        while (geometryIterator.hasNext()) {
-            long key = geometryIterator.nextLong();
-            if (ProjectorBlackoutSeal.sealsGeometryCell(
-                key, geometry, normal, right, up, normalMin, normalMax, thicknessBlocks)) {
-                shell.add(key);
-            }
-        }
-        if (shell.isEmpty()) {
-            return EMPTY;
-        }
-
-        Map<Plane, TreeSet<Cell2>> facesByPlane = new TreeMap<Plane, TreeSet<Cell2>>(PLANE_ORDER);
-        int unitFaces = 0;
-        LongIterator shellIterator = shell.iterator();
-        while (shellIterator.hasNext()) {
-            long key = shellIterator.nextLong();
+        int normalAxis = axis(normal);
+        int normalSign = normal.x() + normal.y() + normal.z();
+        int farCoordinate = normalSign > 0 ? normalMin : normalMax;
+        int faceSign = -normalSign;
+        int plane = farCoordinate + (faceSign > 0 ? 1 : 0);
+        int uAxis = firstPlaneAxis(normalAxis);
+        int vAxis = secondPlaneAxis(normalAxis);
+        TreeSet<Cell2> cells = new TreeSet<Cell2>(CELL_ORDER);
+        LongIterator iterator = geometry.iterator();
+        while (iterator.hasNext()) {
+            long key = iterator.nextLong();
             int x = ProjectionCellKey.unpackX(key);
             int y = ProjectionCellKey.unpackY(key);
             int z = ProjectionCellKey.unpackZ(key);
-            for (Direction direction : DIRECTIONS) {
-                long neighbor = ProjectionCellKey.pack(
-                    x + direction.x(),
-                    y + direction.y(),
-                    z + direction.z());
-                if (!geometry.contains(neighbor) || shell.contains(neighbor)) {
-                    continue;
-                }
-                Face face = face(x, y, z, direction);
-                facesByPlane.computeIfAbsent(face.plane(), ignored -> new TreeSet<Cell2>(CELL_ORDER))
-                    .add(face.cell());
-                unitFaces++;
+            if (coordinate(x, y, z, normalAxis) == farCoordinate) {
+                cells.add(new Cell2(
+                    coordinate(x, y, z, uAxis),
+                    coordinate(x, y, z, vAxis)));
             }
+        }
+        if (cells.isEmpty()) {
+            return EMPTY;
         }
 
-        List<Panel> panels = new ArrayList<Panel>(Math.min(MAX_PANELS, unitFaces));
-        for (Map.Entry<Plane, TreeSet<Cell2>> entry : facesByPlane.entrySet()) {
-            meshPlane(entry.getKey(), entry.getValue(), panels);
-            if (panels.size() > MAX_PANELS) {
-                return new Result(List.of(), shell.size(), unitFaces, true);
-            }
+        List<Panel> panels = new ArrayList<Panel>(Math.min(MAX_PANELS, cells.size()));
+        meshPlane(normalAxis, faceSign, plane, cells, panels);
+        if (panels.size() > MAX_PANELS) {
+            return new Result(List.of(), true);
         }
-        return new Result(List.copyOf(panels), shell.size(), unitFaces, false);
+        return new Result(List.copyOf(panels), false);
     }
 
-    private static void meshPlane(Plane plane, TreeSet<Cell2> cells, List<Panel> panels) {
-        int uAxis = firstPlaneAxis(plane.axis());
-        int vAxis = secondPlaneAxis(plane.axis());
+    private static void meshPlane(int axis,
+                                  int sign,
+                                  int plane,
+                                  TreeSet<Cell2> cells,
+                                  List<Panel> panels) {
+        int uAxis = firstPlaneAxis(axis);
+        int vAxis = secondPlaneAxis(axis);
         while (!cells.isEmpty()) {
             Cell2 first = cells.first();
             int maxWidth = spanLimit(first.u(), uAxis);
@@ -115,8 +94,7 @@ final class ProjectorBlackoutMesh {
                     cells.remove(new Cell2(first.u() + uOffset, first.v() + vOffset));
                 }
             }
-            panels.add(new Panel(plane.axis(), plane.sign(), plane.coordinate(),
-                first.u(), first.v(), width, height));
+            panels.add(new Panel(axis, sign, plane, first.u(), first.v(), width, height));
             if (panels.size() > MAX_PANELS) {
                 return;
             }
@@ -138,17 +116,6 @@ final class ProjectorBlackoutMesh {
         }
         int toChunkBoundary = 16 - Math.floorMod(coordinate, 16);
         return Math.min(MAX_PANEL_SPAN, toChunkBoundary);
-    }
-
-    private static Face face(int x, int y, int z, Direction direction) {
-        int axis = axis(direction);
-        int sign = direction.x() + direction.y() + direction.z();
-        int coordinate = coordinate(x, y, z, axis) + (sign > 0 ? 1 : 0);
-        int uAxis = firstPlaneAxis(axis);
-        int vAxis = secondPlaneAxis(axis);
-        return new Face(
-            new Plane(axis, sign, coordinate),
-            new Cell2(coordinate(x, y, z, uAxis), coordinate(x, y, z, vAxis)));
     }
 
     private static int axis(Direction direction) {
@@ -173,21 +140,21 @@ final class ProjectorBlackoutMesh {
         return axis == 0 ? x : axis == 1 ? y : z;
     }
 
-    record Result(List<Panel> panels, int shellCells, int unitFaces, boolean fallback) {
+    record Result(List<Panel> panels, boolean fallback) {
         Result {
             panels = List.copyOf(panels);
         }
 
         boolean hasProjection() {
-            return fallback || !panels.isEmpty();
+            return !panels.isEmpty();
         }
     }
 
     record Panel(int axis, int sign, int plane, int u, int v, int uSize, int vSize) {
         Transform transform() {
             double minNormal = sign > 0
-                ? plane - PANEL_THICKNESS - PANEL_INSET
-                : plane + PANEL_INSET;
+                ? plane + PANEL_INSET
+                : plane - PANEL_THICKNESS - PANEL_INSET;
             if (axis == 0) {
                 return new Transform(minNormal, u, v, PANEL_THICKNESS, uSize, vSize);
             }
@@ -201,12 +168,6 @@ final class ProjectorBlackoutMesh {
     record Transform(double x, double y, double z, double scaleX, double scaleY, double scaleZ) {
     }
 
-    private record Plane(int axis, int sign, int coordinate) {
-    }
-
     private record Cell2(int u, int v) {
-    }
-
-    private record Face(Plane plane, Cell2 cell) {
     }
 }

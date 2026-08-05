@@ -13,11 +13,19 @@ public final class ChunkDirtySet {
     public record BlockSlot(String state, byte flags) {
     }
 
+    enum BlockPutResult {
+        INSERTED,
+        UPDATED,
+        CAPACITY_EXCEEDED,
+        STALE_REVISION
+    }
+
     private final long chunkKey;
     private final Map<Integer, BlockSlot> blocks = new HashMap<>(16);
     private final Map<Integer, BlockEntityDiff> entities = new HashMap<>(4);
     private final Map<Integer, LightDiff> blockLights = new HashMap<>(4);
     private final Map<Integer, LightDiff> skyLights = new HashMap<>(4);
+    private long liveBlockRevision;
 
     public ChunkDirtySet(long chunkKey) {
         this.chunkKey = chunkKey;
@@ -39,6 +47,22 @@ public final class ChunkDirtySet {
         return true;
     }
 
+    synchronized BlockPutResult putSnapshotBlockIfBelowCapacity(int packedXyz,
+                                                                 String state,
+                                                                 byte flags,
+                                                                 int capacity,
+                                                                 long expectedRevision) {
+        if (liveBlockRevision != expectedRevision) {
+            return BlockPutResult.STALE_REVISION;
+        }
+        BlockSlot existing = blocks.get(Integer.valueOf(packedXyz));
+        if (existing == null && blocks.size() >= capacity) {
+            return BlockPutResult.CAPACITY_EXCEEDED;
+        }
+        blocks.put(Integer.valueOf(packedXyz), new BlockSlot(state, flags));
+        return existing == null ? BlockPutResult.INSERTED : BlockPutResult.UPDATED;
+    }
+
     public synchronized boolean putBlockIfAbsentBelowCapacity(int packedXyz, String state, byte flags, int capacity) {
         if (blocks.containsKey(packedXyz)) {
             return false;
@@ -48,6 +72,53 @@ public final class ChunkDirtySet {
         }
         blocks.put(packedXyz, new BlockSlot(state, flags));
         return true;
+    }
+
+    synchronized BlockPutResult putBlockOcclusionIfBelowCapacity(int packedXyz,
+                                                                 String state,
+                                                                 byte occlusionFlags,
+                                                                 int capacity) {
+        return putBlockOcclusionIfBelowCapacity(packedXyz, state, occlusionFlags, capacity, false, 0L);
+    }
+
+    synchronized BlockPutResult putSnapshotBlockOcclusionIfBelowCapacity(int packedXyz,
+                                                                         String state,
+                                                                         byte occlusionFlags,
+                                                                         int capacity,
+                                                                         long expectedRevision) {
+        return putBlockOcclusionIfBelowCapacity(
+            packedXyz, state, occlusionFlags, capacity, true, expectedRevision);
+    }
+
+    synchronized long advanceLiveBlockRevision() {
+        liveBlockRevision++;
+        return liveBlockRevision;
+    }
+
+    synchronized long liveBlockRevision() {
+        return liveBlockRevision;
+    }
+
+    private BlockPutResult putBlockOcclusionIfBelowCapacity(int packedXyz,
+                                                            String state,
+                                                            byte occlusionFlags,
+                                                            int capacity,
+                                                            boolean revisionRequired,
+                                                            long expectedRevision) {
+        if (revisionRequired && liveBlockRevision != expectedRevision) {
+            return BlockPutResult.STALE_REVISION;
+        }
+        BlockSlot existing = blocks.get(Integer.valueOf(packedXyz));
+        if (existing == null && blocks.size() >= capacity) {
+            return BlockPutResult.CAPACITY_EXCEEDED;
+        }
+        byte mergedFlags = existing == null
+            ? occlusionFlags
+            : (byte) ((existing.flags() & ~BlockChange.FLAG_OCCLUDED)
+                | (occlusionFlags & BlockChange.FLAG_OCCLUDED));
+        String mergedState = existing == null ? state : existing.state();
+        blocks.put(Integer.valueOf(packedXyz), new BlockSlot(mergedState, mergedFlags));
+        return existing == null ? BlockPutResult.INSERTED : BlockPutResult.UPDATED;
     }
 
     public synchronized void putBlockEntity(int packedXyz, BlockEntityDiff diff) {

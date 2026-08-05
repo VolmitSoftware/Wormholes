@@ -1,10 +1,9 @@
 package art.arcane.wormholes;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.logging.Level;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Keyed;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -17,10 +16,13 @@ import org.bukkit.inventory.meta.ItemMeta;
 import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
+import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.PortalType;
 
 final class BlockOpsRuneCatalog
 {
+	private static final List<String> RECIPE_NAMES = List.of("portal_wand", "portal_rune", "wormhole_rune");
+
 	private final List<ItemStack> acceptedWandTemplates = new CopyOnWriteArrayList<ItemStack>();
 	private final List<ItemStack> acceptedPortalRuneTemplates = new CopyOnWriteArrayList<ItemStack>();
 	private final List<ItemStack> acceptedWormholeRuneTemplates = new CopyOnWriteArrayList<ItemStack>();
@@ -148,40 +150,34 @@ final class BlockOpsRuneCatalog
 
 	private void registerRecipe(Recipe r)
 	{
-		if(r instanceof Keyed)
+		if(!(r instanceof Keyed keyed))
 		{
-			Keyed k = (Keyed) r;
-
-			try
+			return;
+		}
+		try
+		{
+			if(WormholesPlatform.addRecipe(r, false))
 			{
-				Bukkit.addRecipe(r);
-				Wormholes.instance.getLogger().info("Registered Recipe: " + k.getKey().toString());
+				Wormholes.instance.getLogger().info("Registered Recipe: " + keyed.getKey());
+				return;
 			}
-
-			catch(Throwable e)
-			{
-				Wormholes.instance.getLogger().warning("Recipe: " + k.getKey().toString() + " is already registered. Skipping registry.");
-			}
+			Wormholes.instance.getLogger().warning("Recipe could not be registered: " + keyed.getKey());
+		}
+		catch(RuntimeException ex)
+		{
+			Wormholes.instance.getLogger().log(Level.WARNING,
+				"Recipe registration failed: " + keyed.getKey(), ex);
 		}
 	}
 
 	void unregisterAllRecipes()
 	{
-		Iterator<Recipe> it = Bukkit.getServer().recipeIterator();
-
-		while(it.hasNext())
+		for(String recipeName : RECIPE_NAMES)
 		{
-			Recipe r = it.next();
-
-			if(r instanceof Keyed)
+			NamespacedKey recipeKey = new NamespacedKey(Wormholes.instance, recipeName);
+			if(WormholesPlatform.removeRecipe(recipeKey, false))
 			{
-				Keyed k = (Keyed) r;
-
-				if(k.getKey().getKey().equals("wormholes"))
-				{
-					Wormholes.instance.getLogger().info("Unregistering Recipe: " + k.getKey().toString());
-					it.remove();
-				}
+				Wormholes.instance.getLogger().info("Unregistering Recipe: " + recipeKey);
 			}
 		}
 	}

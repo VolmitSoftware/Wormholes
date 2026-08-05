@@ -10,6 +10,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
+import org.bukkit.Location;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
@@ -34,11 +35,17 @@ final class ProjectorBlackoutDisplayRenderer {
     static final int FULL_BRIGHT = (15 << 4) | (15 << 20);
 
     private static final String FAILURE_REASON = "PROJECTION_BLACKOUT_DISPLAY_FAILURE";
+    private static final double MIN_CLIENT_ENTITY_DISTANCE_SCALE = 0.5D;
+    private static final double VIEW_RANGE_BLOCKS = 64.0D;
+    private static final double VIEW_RANGE_MARGIN_BLOCKS = 16.0D;
+    private static final double VIEW_RANGE_QUANTUM = 0.5D;
+    private static final float MAX_VIEW_RANGE = 32.0F;
     private static final AtomicInteger NEXT_DISPLAY_ID = new AtomicInteger(1_700_000_000);
 
     private final EntityRenderPacketChannel channel;
     private final Map<BlockData, Integer> globalIdCache;
     private Map<ProjectorBlackoutMesh.Panel, DisplayState> active;
+    private final Map<Integer, DisplayState> uncertain;
     private Map<ProjectorBlackoutMesh.Panel, DisplayState> pending;
     private boolean failureLogged;
     private int spawns;
@@ -53,6 +60,7 @@ final class ProjectorBlackoutDisplayRenderer {
         this.channel = channel;
         this.globalIdCache = new HashMap<BlockData, Integer>();
         this.active = new LinkedHashMap<ProjectorBlackoutMesh.Panel, DisplayState>();
+        this.uncertain = new LinkedHashMap<Integer, DisplayState>();
         this.pending = null;
         this.failureLogged = false;
         this.spawns = 0;
@@ -63,8 +71,7 @@ final class ProjectorBlackoutDisplayRenderer {
     boolean prepare(Player observer,
                     List<ProjectorBlackoutMesh.Panel> panels,
                     BlockData data,
-                    double projectionDepth,
-                    boolean forceRespawn) {
+                    double projectionDepth) {
         if (panels.isEmpty()) {
             return prepareEmpty();
         }
@@ -82,35 +89,36 @@ final class ProjectorBlackoutDisplayRenderer {
         if (globalId < 0) {
             return false;
         }
-        return prepare(observer, panels, globalId, projectionDepth, forceRespawn);
+        return prepare(observer, panels, globalId, projectionDepth);
     }
 
     boolean prepare(Player observer,
                     List<ProjectorBlackoutMesh.Panel> panels,
                     int globalId,
-                    double projectionDepth,
-                    boolean forceRespawn) {
+                    double projectionDepth) {
         if (panels.isEmpty()) {
             return prepareEmpty();
         }
 
         mergeAbandonedPending();
+        if (!cleanupUncertain(observer)) {
+            return false;
+        }
         Map<ProjectorBlackoutMesh.Panel, DisplayState> target =
             new LinkedHashMap<ProjectorBlackoutMesh.Panel, DisplayState>(Math.max(4, panels.size() * 2));
-        float viewRange = viewRange(projectionDepth);
+        List<DisplayState> newStates = new ArrayList<DisplayState>();
+        float viewRange = viewRange(observer, panels, projectionDepth);
         boolean prepared;
         try {
             channel.begin(observer);
-            if (forceRespawn && !active.isEmpty()) {
-                sendDestroy(observer, active.values());
-            }
             for (ProjectorBlackoutMesh.Panel panel : panels) {
                 DisplayState existing = active.get(panel);
                 DisplayState targetState = existing == null
                     ? new DisplayState(NEXT_DISPLAY_ID.getAndIncrement(), UUID.randomUUID(), globalId, viewRange)
                     : new DisplayState(existing.entityId(), existing.entityUuid(), globalId, viewRange);
                 target.put(panel, targetState);
-                if (existing == null || forceRespawn) {
+                if (existing == null) {
+                    newStates.add(targetState);
                     sendSpawn(observer, panel, targetState);
                     continue;
                 }
@@ -123,13 +131,13 @@ final class ProjectorBlackoutDisplayRenderer {
             failureLogged = false;
             prepared = true;
         } catch (RuntimeException ex) {
-            active.putAll(target);
+            markUncertain(newStates);
             pending = null;
             noteFailure("prepare", ex);
             prepared = false;
         }
         if (!finishBatch("prepare-flush")) {
-            active.putAll(target);
+            markUncertain(newStates);
             pending = null;
             return false;
         }
@@ -148,12 +156,15 @@ final class ProjectorBlackoutDisplayRenderer {
             return;
         }
         pending = null;
-        List<DisplayState> stale = new ArrayList<DisplayState>();
+        List<DisplayState> staleActive = new ArrayList<DisplayState>();
         for (Map.Entry<ProjectorBlackoutMesh.Panel, DisplayState> entry : active.entrySet()) {
             if (!target.containsKey(entry.getKey())) {
-                stale.add(entry.getValue());
+                staleActive.add(entry.getValue());
             }
         }
+        List<DisplayState> stale = new ArrayList<DisplayState>(staleActive.size() + uncertain.size());
+        stale.addAll(staleActive);
+        stale.addAll(uncertain.values());
         if (stale.isEmpty()) {
             active = target;
             return;
@@ -172,14 +183,16 @@ final class ProjectorBlackoutDisplayRenderer {
         boolean flushed = finishBatch("finish-flush");
         if (destroyed && flushed) {
             active = target;
+            uncertain.clear();
         } else {
-            active.putAll(target);
+            markUncertain(staleActive);
+            active = target;
         }
     }
 
     void close(Player observer) {
         mergeAbandonedPending();
-        if (active.isEmpty()) {
+        if (active.isEmpty() && uncertain.isEmpty()) {
             return;
         }
         if (observer == null || !observer.isOnline()) {
@@ -189,7 +202,10 @@ final class ProjectorBlackoutDisplayRenderer {
         boolean destroyed;
         try {
             channel.begin(observer);
-            sendDestroy(observer, active.values());
+            List<DisplayState> states = new ArrayList<DisplayState>(active.size() + uncertain.size());
+            states.addAll(active.values());
+            states.addAll(uncertain.values());
+            sendDestroy(observer, states);
             failureLogged = false;
             destroyed = true;
         } catch (RuntimeException ex) {
@@ -199,11 +215,16 @@ final class ProjectorBlackoutDisplayRenderer {
         boolean flushed = finishBatch("close-flush");
         if (destroyed && flushed) {
             active.clear();
+            uncertain.clear();
+        } else {
+            markUncertain(active.values());
+            active.clear();
         }
     }
 
     void discard() {
         active.clear();
+        uncertain.clear();
         if (pending != null) {
             pending.clear();
             pending = null;
@@ -211,7 +232,7 @@ final class ProjectorBlackoutDisplayRenderer {
     }
 
     int getPaneCount() {
-        return active.size();
+        return active.size() + uncertain.size();
     }
 
     int getSpawns() {
@@ -296,8 +317,47 @@ final class ProjectorBlackoutDisplayRenderer {
     }
 
     static float viewRange(double projectionDepth) {
-        double requiredBlocks = Math.max(0.0D, projectionDepth) + 16.0D;
-        return (float) Math.max(1.0D, Math.min(8.0D, requiredBlocks / 64.0D));
+        double requiredBlocks = Math.max(0.0D, projectionDepth) + VIEW_RANGE_MARGIN_BLOCKS;
+        return clampViewRange(requiredBlocks);
+    }
+
+    static float viewRange(double eyeX,
+                           double eyeY,
+                           double eyeZ,
+                           List<ProjectorBlackoutMesh.Panel> panels,
+                           double projectionDepth) {
+        double farthestSquared = 0.0D;
+        for (ProjectorBlackoutMesh.Panel panel : panels) {
+            ProjectorBlackoutMesh.Transform transform = panel.transform();
+            double deltaX = transform.x() - eyeX;
+            double deltaY = transform.y() - eyeY;
+            double deltaZ = transform.z() - eyeZ;
+            farthestSquared = Math.max(farthestSquared,
+                (deltaX * deltaX) + (deltaY * deltaY) + (deltaZ * deltaZ));
+        }
+        double requiredBlocks = Math.max(
+            Math.max(0.0D, projectionDepth), Math.sqrt(farthestSquared))
+            + VIEW_RANGE_MARGIN_BLOCKS;
+        return clampViewRange(requiredBlocks);
+    }
+
+    private static float viewRange(Player observer,
+                                   List<ProjectorBlackoutMesh.Panel> panels,
+                                   double projectionDepth) {
+        if (observer == null) {
+            return viewRange(projectionDepth);
+        }
+        Location eye = observer.getEyeLocation();
+        if (eye == null) {
+            return viewRange(projectionDepth);
+        }
+        return viewRange(eye.getX(), eye.getY(), eye.getZ(), panels, projectionDepth);
+    }
+
+    private static float clampViewRange(double requiredBlocks) {
+        double units = requiredBlocks / (VIEW_RANGE_BLOCKS * MIN_CLIENT_ENTITY_DISTANCE_SCALE);
+        double rounded = Math.ceil(units / VIEW_RANGE_QUANTUM) * VIEW_RANGE_QUANTUM;
+        return (float) Math.max(1.0D, Math.min(MAX_VIEW_RANGE, rounded));
     }
 
     private int globalIdFor(BlockData data) {
@@ -325,6 +385,34 @@ final class ProjectorBlackoutDisplayRenderer {
         }
         active.putAll(pending);
         pending = null;
+    }
+
+    private void markUncertain(Iterable<DisplayState> states) {
+        for (DisplayState state : states) {
+            uncertain.put(Integer.valueOf(state.entityId()), state);
+        }
+    }
+
+    private boolean cleanupUncertain(Player observer) {
+        if (uncertain.isEmpty()) {
+            return true;
+        }
+        boolean destroyed;
+        try {
+            channel.begin(observer);
+            sendDestroy(observer, uncertain.values());
+            failureLogged = false;
+            destroyed = true;
+        } catch (RuntimeException ex) {
+            noteFailure("retry", ex);
+            destroyed = false;
+        }
+        boolean flushed = finishBatch("retry-flush");
+        if (!destroyed || !flushed) {
+            return false;
+        }
+        uncertain.clear();
+        return true;
     }
 
     private boolean finishBatch(String stage) {

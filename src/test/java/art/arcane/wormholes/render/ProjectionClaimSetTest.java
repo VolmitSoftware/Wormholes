@@ -17,6 +17,8 @@ import java.util.UUID;
 import org.bukkit.block.data.BlockData;
 import org.junit.jupiter.api.Test;
 
+import art.arcane.wormholes.render.view.ProjectionWorldView;
+
 public final class ProjectionClaimSetTest {
     private static final long CELL_KEY = 42L;
 
@@ -120,6 +122,62 @@ public final class ProjectionClaimSetTest {
     }
 
     @Test
+    public void fullBrightPolicyChangesOnlyLightingAndTracksRelease() {
+        ProjectionClaimSet set = new ProjectionClaimSet();
+        UUID portal = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        BlockData data = blockData("stable");
+        set.replacePortalClaims(portal, portal.toString(), 2.0D, singleClaim(data));
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> fullBright = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(1);
+        fullBright.put(CELL_KEY, new ProjectedBlockClaim(
+            data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false,
+            ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT));
+
+        ProjectionClaimSet.ProjectionClaimSetResult changed =
+            set.replacePortalClaims(portal, portal.toString(), 2.0D, fullBright);
+
+        assertTrue(set.hasFullBrightClaims());
+        assertTrue(changed.getPacketChangeKeys().isEmpty());
+        assertTrue(changed.getDirtyLightingKeys().contains(CELL_KEY));
+
+        ProjectionClaimSet.ProjectionClaimSetResult released = set.releasePortal(portal);
+
+        assertFalse(set.hasFullBrightClaims());
+        assertTrue(released.getDirtyLightingKeys().contains(CELL_KEY));
+        assertTrue(released.requiresImmediateLightingUpdate());
+    }
+
+    @Test
+    public void unavailableClaimRetentionNormalizesBlackoutLightingWithoutLosingSource() {
+        ProjectionWorldView sourceView = (ProjectionWorldView) Proxy.newProxyInstance(
+            ProjectionWorldView.class.getClassLoader(), new Class<?>[] { ProjectionWorldView.class },
+            (proxy, method, args) -> primitiveDefault(method.getReturnType()));
+        BlockData data = blockData("retained");
+        ProjectedBlockClaim source = new ProjectedBlockClaim(data, sourceView, 91L, false);
+        source.setGlobalId(27);
+
+        ProjectedBlockClaim fullBright = source.withFullBright(true);
+
+        assertTrue(fullBright.isFullBright());
+        assertSame(data, fullBright.getData());
+        assertSame(sourceView, fullBright.getLightView());
+        assertEquals(91L, fullBright.getLightRemoteKey());
+        assertEquals(27, fullBright.getGlobalId());
+
+        ProjectedBlockClaim restored = fullBright.withFullBright(false);
+
+        assertEquals(ProjectedBlockClaim.LightingPolicy.SOURCE, restored.getLightingPolicy());
+        assertSame(sourceView, restored.getLightView());
+        assertEquals(91L, restored.getLightRemoteKey());
+        assertEquals(27, restored.getGlobalId());
+
+        ProjectedBlockClaim local = new ProjectedBlockClaim(
+            data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false,
+            ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT);
+        assertEquals(ProjectedBlockClaim.LightingPolicy.LOCAL,
+            local.withFullBright(false).getLightingPolicy());
+    }
+
+    @Test
     public void fluidSkinOwnerDoesNotReplaceOrReleaseProjectionClaims() {
         ProjectionClaimSet set = new ProjectionClaimSet();
         UUID projectionOwner = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -186,6 +244,25 @@ public final class ProjectionClaimSetTest {
     private static BlockData blockData(String name) {
         InvocationHandler handler = new NamedBlockData(name);
         return (BlockData) Proxy.newProxyInstance(BlockData.class.getClassLoader(), new Class<?>[] { BlockData.class }, handler);
+    }
+
+    private static Object primitiveDefault(Class<?> returnType) {
+        if (returnType == Boolean.TYPE) {
+            return Boolean.FALSE;
+        }
+        if (returnType == Integer.TYPE) {
+            return Integer.valueOf(0);
+        }
+        if (returnType == Long.TYPE) {
+            return Long.valueOf(0L);
+        }
+        if (returnType == Float.TYPE) {
+            return Float.valueOf(0.0F);
+        }
+        if (returnType == Double.TYPE) {
+            return Double.valueOf(0.0D);
+        }
+        return null;
     }
 
     private static final class NamedBlockData implements InvocationHandler {

@@ -209,6 +209,8 @@ public final class ChunkSnapshotComparator {
             return;
         }
         chunksProbed.incrementAndGet();
+        RegionalDiffAccumulator.BlockCaptureRevision blockRevision =
+            accumulator.captureBlockRevision(world, chunkKey);
         ChunkSnapshot snapshot;
         try {
             snapshot = WormholesPlatform.chunkSnapshot(chunk, true, false, false, false);
@@ -216,10 +218,15 @@ public final class ChunkSnapshotComparator {
             resetCaptureCadence(worldId, chunkKey);
             return;
         }
+        if (!accumulator.isBlockRevisionCurrent(world, chunkKey, blockRevision)) {
+            resetCaptureCadence(worldId, chunkKey);
+            return;
+        }
         int minHeight = world.getMinHeight();
         int maxHeight = world.getMaxHeight();
         boolean scheduled = FoliaScheduler.runAsync(plugin,
-            () -> compareSnapshot(world, worldId, chunkKey, chunkX, chunkZ, snapshot, minHeight, maxHeight));
+            () -> compareSnapshot(
+                world, worldId, chunkKey, chunkX, chunkZ, snapshot, minHeight, maxHeight, blockRevision));
         if (!scheduled) {
             resetCaptureCadence(worldId, chunkKey);
         }
@@ -232,13 +239,20 @@ public final class ChunkSnapshotComparator {
                                  int chunkZ,
                                  ChunkSnapshot snapshot,
                                  int minHeight,
-                                 int maxHeight) {
+                                 int maxHeight,
+                                 RegionalDiffAccumulator.BlockCaptureRevision blockRevision) {
+        if (!accumulator.isBlockRevisionCurrent(world, chunkKey, blockRevision)) {
+            return;
+        }
         Map<Long, ChunkSnapshot> worldMap = worldShadows.computeIfAbsent(worldId, ignored -> new ConcurrentHashMap<>());
         ChunkSnapshot previous = worldMap.put(chunkKey, snapshot);
         if (previous == null) {
             return;
         }
-        int maxChangedCells = Math.max(1, settings.maxQueuedDiffsPerChunk() / 7);
+        int diffAmplification = replication.hasBuriedCellCullingSubscriber(world, chunkKey)
+            ? RegionalDiffAccumulator.MAX_BLOCK_DIFFS_PER_CHANGE
+            : 1;
+        int maxChangedCells = Math.max(1, settings.maxQueuedDiffsPerChunk() / diffAmplification);
         List<SnapshotChange> changes = new ArrayList<SnapshotChange>(Math.min(32, maxChangedCells));
         boolean resyncRequired = false;
         int ceiling = maxHeight - 1;
@@ -274,11 +288,13 @@ public final class ChunkSnapshotComparator {
         divergencesEmitted.incrementAndGet();
         SnapshotComparison comparison = new SnapshotComparison(List.copyOf(changes), resyncRequired);
         if (plugin == null) {
-            applyComparisonBatch(world, worldId, chunkKey, chunkX, chunkZ, snapshot, minHeight, maxHeight, comparison, 0);
+            applyComparisonBatch(world, worldId, chunkKey, chunkX, chunkZ, snapshot, minHeight, maxHeight,
+                comparison, blockRevision, 0);
             return;
         }
         FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ,
-            () -> applyComparisonBatch(world, worldId, chunkKey, chunkX, chunkZ, snapshot, minHeight, maxHeight, comparison, 0));
+            () -> applyComparisonBatch(world, worldId, chunkKey, chunkX, chunkZ, snapshot, minHeight, maxHeight,
+                comparison, blockRevision, 0));
     }
 
     private void applyComparisonBatch(World world,
@@ -290,9 +306,14 @@ public final class ChunkSnapshotComparator {
                                       int minHeight,
                                       int maxHeight,
                                       SnapshotComparison comparison,
+                                      RegionalDiffAccumulator.BlockCaptureRevision blockRevision,
                                       int startIndex) {
         if (!replication.hasSubscribers(world, chunkKey)) {
             evict(worldId, chunkKey);
+            return;
+        }
+        if (!accumulator.isBlockRevisionCurrent(world, chunkKey, blockRevision)) {
+            replication.forceResync(world, chunkKey);
             return;
         }
         if (comparison.resyncRequired()) {
@@ -305,19 +326,23 @@ public final class ChunkSnapshotComparator {
         for (int index = startIndex; index < endIndex; index++) {
             SnapshotChange change = comparison.changes().get(index);
             accumulator.recordSnapshotBlockChange(world, change.worldX(), change.worldY(), change.worldZ(),
-                change.data(), BlockChange.FLAG_NONE, reader, minHeight, maxHeight);
+                change.data(), BlockChange.FLAG_NONE, reader, minHeight, maxHeight, blockRevision);
+            if (!accumulator.isBlockRevisionCurrent(world, chunkKey, blockRevision)) {
+                replication.forceResync(world, chunkKey);
+                return;
+            }
         }
         if (endIndex >= comparison.changes().size()) {
             return;
         }
         if (plugin == null) {
             applyComparisonBatch(world, worldId, chunkKey, chunkX, chunkZ, snapshot, minHeight,
-                maxHeight, comparison, endIndex);
+                maxHeight, comparison, blockRevision, endIndex);
             return;
         }
         boolean scheduled = FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ,
             () -> applyComparisonBatch(world, worldId, chunkKey, chunkX, chunkZ, snapshot, minHeight,
-                maxHeight, comparison, endIndex), 1L);
+                maxHeight, comparison, blockRevision, endIndex), 1L);
         if (!scheduled) {
             replication.forceResync(world, chunkKey);
         }

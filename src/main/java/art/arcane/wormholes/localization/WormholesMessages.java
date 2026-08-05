@@ -496,8 +496,7 @@ public final class WormholesMessages {
             "<gray>Mode: <white>{mode}",
             "",
             "<dark_gray>PanOptic renders the full destination volume.",
-            "<dark_gray>Venticular hides fully-enclosed interior blocks for lighter streams.",
-            "<dark_gray>PlannarOptic hides geometry behind visible opaque surfaces.",
+            "<dark_gray>Venticular keeps visible surfaces and omits hidden destination geometry.",
             "",
             "<dark_gray>Left: cycle mode.");
     public static final LinesKey PORTAL_MENU_AMBIENT_PARTICLES = lines("portal.menu.ambient_particles",

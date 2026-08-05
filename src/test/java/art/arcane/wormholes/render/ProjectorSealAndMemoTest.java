@@ -10,95 +10,14 @@ import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
 
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.render.view.ProjectionWorldView;
-import art.arcane.wormholes.util.Direction;
 
 public final class ProjectorSealAndMemoTest {
-    @Test
-    public void rectangularProjectionUsesAnExactFiveSidedShell() {
-        LongOpenHashSet geometry = rectangularGeometry(0, 4, 0, 6, 0, 6);
-        Direction normal = Direction.E;
-        Direction right = Direction.S;
-        Direction up = Direction.U;
-
-        assertTrue(seals(geometry, 0, 3, 3, normal, right, up, 1));
-        assertFalse(seals(geometry, 1, 3, 3, normal, right, up, 1));
-        assertFalse(seals(geometry, 4, 3, 3, normal, right, up, 1));
-        assertTrue(seals(geometry, 2, 0, 3, normal, right, up, 1));
-        assertTrue(seals(geometry, 2, 6, 3, normal, right, up, 1));
-        assertTrue(seals(geometry, 2, 3, 0, normal, right, up, 1));
-        assertTrue(seals(geometry, 2, 3, 6, normal, right, up, 1));
-        assertFalse(seals(geometry, 2, 3, 3, normal, right, up, 1));
-    }
-
-    @Test
-    public void twoBlockShellAddsOneInnerLayerWithoutClosingTheFront() {
-        LongOpenHashSet geometry = rectangularGeometry(0, 4, 0, 6, 0, 6);
-        Direction normal = Direction.E;
-        Direction right = Direction.S;
-        Direction up = Direction.U;
-
-        assertTrue(seals(geometry, 0, 3, 3, normal, right, up, 2));
-        assertTrue(seals(geometry, 1, 3, 3, normal, right, up, 2));
-        assertFalse(seals(geometry, 2, 3, 3, normal, right, up, 2));
-        assertFalse(seals(geometry, 4, 3, 3, normal, right, up, 2));
-        assertTrue(seals(geometry, 2, 1, 3, normal, right, up, 2));
-        assertFalse(seals(geometry, 2, 2, 3, normal, right, up, 2));
-    }
-
-    @Test
-    public void portalFacingSliceRemainsOpenAndSidesTaperInward() {
-        LongOpenHashSet geometry = rectangularGeometry(0, 4, 0, 6, 0, 6);
-
-        assertFalse(seals(geometry, 4, 3, 0, Direction.E, Direction.S, Direction.U, 2));
-        assertFalse(seals(geometry, 4, 0, 3, Direction.E, Direction.S, Direction.U, 2));
-        assertTrue(seals(geometry, 3, 3, 0, Direction.E, Direction.S, Direction.U, 2));
-        assertFalse(seals(geometry, 3, 3, 1, Direction.E, Direction.S, Direction.U, 2));
-        assertTrue(seals(geometry, 2, 3, 1, Direction.E, Direction.S, Direction.U, 2));
-        assertFalse(seals(geometry, 2, 3, 2, Direction.E, Direction.S, Direction.U, 2));
-
-        assertFalse(seals(geometry, 0, 3, 0, Direction.W, Direction.N, Direction.U, 2));
-        assertTrue(seals(geometry, 1, 3, 0, Direction.W, Direction.N, Direction.U, 2));
-        assertFalse(seals(geometry, 1, 3, 1, Direction.W, Direction.N, Direction.U, 2));
-        assertTrue(seals(geometry, 2, 3, 1, Direction.W, Direction.N, Direction.U, 2));
-        assertFalse(seals(geometry, 2, 3, 2, Direction.W, Direction.N, Direction.U, 2));
-    }
-
-    @Test
-    public void shearedProjectionSidesFollowTheActualGeometry() {
-        LongOpenHashSet geometry = new LongOpenHashSet();
-        for (int x = 0; x <= 4; x++) {
-            int lowZ = x - 4;
-            int highZ = x + 2;
-            for (int y = 0; y <= 6; y++) {
-                for (int z = lowZ; z <= highZ; z++) {
-                    geometry.add(ProjectionCellKey.pack(x, y, z));
-                }
-            }
-        }
-
-        assertTrue(seals(geometry, 2, 3, -2, Direction.E, Direction.S, Direction.U, 2));
-        assertTrue(seals(geometry, 2, 3, -1, Direction.E, Direction.S, Direction.U, 2));
-        assertFalse(seals(geometry, 2, 3, 0, Direction.E, Direction.S, Direction.U, 2));
-        assertTrue(seals(geometry, 2, 3, 4, Direction.E, Direction.S, Direction.U, 2));
-    }
-
-    @Test
-    public void farLayerReservesThePortalFacingCellInShallowVolumes() {
-        assertFalse(ProjectorBlackoutSeal.isFarLayer(5, 5, 5, 1, 2));
-        assertTrue(ProjectorBlackoutSeal.isFarLayer(5, 5, 6, 1, 2));
-        assertFalse(ProjectorBlackoutSeal.isFarLayer(6, 5, 6, 1, 2));
-        assertTrue(ProjectorBlackoutSeal.isFarLayer(6, 5, 6, -1, 2));
-        assertFalse(ProjectorBlackoutSeal.isFarLayer(5, 5, 6, -1, 2));
-    }
-
     @Test
     public void aSealIsInertUntilAPassEnablesIt() {
         ProjectorBlackoutSeal seal = new ProjectorBlackoutSeal();
@@ -128,6 +47,43 @@ public final class ProjectorSealAndMemoTest {
         memo.clearDestinationSamples();
         assertNull(memo.cachedSample(first, 3, 70, -4));
         assertNull(memo.cachedSample(second, 3, 70, -4));
+    }
+
+    @Test
+    public void occlusionDepthKeepsOneMaterialBackingLayerAndDropsOnlyDeepInterior() {
+        BlockData stone = blockData(Material.STONE);
+        FakeWorldView exposed = new FakeWorldView(stone);
+        exposed.put(1, 0, 0, blockData(Material.AIR));
+        FakeWorldView backing = new FakeWorldView(stone);
+        backing.put(2, 0, 0, blockData(Material.AIR));
+        FakeWorldView deep = new FakeWorldView(stone);
+        ProjectorSampleMemo memo = new ProjectorSampleMemo(
+            material -> material == Material.STONE);
+
+        assertEquals(0, memo.occlusionDepthInView(exposed, 0, 0, 0, stone));
+        assertEquals(1, memo.occlusionDepthInView(backing, 0, 0, 0, stone));
+        assertEquals(2, memo.occlusionDepthInView(deep, 0, 0, 0, stone));
+    }
+
+    @Test
+    public void fullBrightClaimMatchingStillRequiresCurrentRemoteCorrespondence() {
+        BlockData stone = blockData(Material.STONE);
+        FakeWorldView first = new FakeWorldView(stone);
+        FakeWorldView second = new FakeWorldView(stone);
+        ProjectorSample sample = new ProjectorSample(ProjectorSample.Kind.BLOCK, stone, first, 41L);
+        ProjectedBlockClaim matching = new ProjectedBlockClaim(
+            stone, first, 41L, false, ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT);
+        ProjectedBlockClaim moved = new ProjectedBlockClaim(
+            stone, first, 42L, false, ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT);
+        ProjectedBlockClaim differentView = new ProjectedBlockClaim(
+            stone, second, 41L, false, ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT);
+
+        assertTrue(sample.matchesClaim(
+            matching, stone, false, ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT));
+        assertFalse(sample.matchesClaim(
+            moved, stone, false, ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT));
+        assertFalse(sample.matchesClaim(
+            differentView, stone, false, ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT));
     }
 
     @Test
@@ -174,38 +130,18 @@ public final class ProjectorSealAndMemoTest {
             });
     }
 
-    private static LongOpenHashSet rectangularGeometry(int minX,
-                                                       int maxX,
-                                                       int minY,
-                                                       int maxY,
-                                                       int minZ,
-                                                       int maxZ) {
-        LongOpenHashSet geometry = new LongOpenHashSet();
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    geometry.add(ProjectionCellKey.pack(x, y, z));
-                }
-            }
-        }
-        return geometry;
-    }
-
-    private static boolean seals(LongOpenHashSet geometry,
-                                 int x,
-                                 int y,
-                                 int z,
-                                 Direction normal,
-                                 Direction right,
-                                 Direction up,
-                                 int thickness) {
-        return ProjectorBlackoutSeal.sealsGeometryCell(
-            ProjectionCellKey.pack(x, y, z), geometry, normal, right, up, 0, 4, thickness);
-    }
-
     private static final class FakeWorldView implements ProjectionWorldView {
         private final Map<String, BlockData> blocks = new HashMap<String, BlockData>();
+        private final BlockData defaultData;
         private int reads;
+
+        private FakeWorldView() {
+            this(null);
+        }
+
+        private FakeWorldView(BlockData defaultData) {
+            this.defaultData = defaultData;
+        }
 
         private void put(int x, int y, int z, BlockData data) {
             blocks.put(key(x, y, z), data);
@@ -229,7 +165,7 @@ public final class ProjectorSealAndMemoTest {
         @Override
         public BlockData sampleBlockData(int x, int y, int z) {
             reads++;
-            return blocks.get(key(x, y, z));
+            return blocks.getOrDefault(key(x, y, z), defaultData);
         }
 
         @Override

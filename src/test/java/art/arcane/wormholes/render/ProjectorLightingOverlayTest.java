@@ -87,6 +87,28 @@ public final class ProjectorLightingOverlayTest {
     }
 
     @Test
+    public void fullBrightClaimsOverrideBothChannelsWithoutSourceLighting() {
+        byte[] skyArr = new byte[2048];
+        byte[] blockArr = new byte[2048];
+        Arrays.fill(skyArr, (byte) 0x22);
+        Arrays.fill(blockArr, (byte) 0x33);
+        ProjectionWorldView view = stubView(8, 7, 0);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(2);
+        claims.put(packKey(0, 64, 0), new ProjectedBlockClaim(
+            null, view, packKey(20, 64, 20), false, ProjectedBlockClaim.LightingPolicy.SOURCE));
+        claims.put(packKey(1, 64, 0), new ProjectedBlockClaim(
+            null, null, ProjectedBlockClaim.NO_REMOTE_KEY, false,
+            ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT));
+
+        ProjectorLighting.overlayProjectedLight(claims, 0, 0, 4, 0, skyArr, blockArr, false);
+
+        assertEquals(2, readNibble(skyArr, 0));
+        assertEquals(3, readNibble(blockArr, 0));
+        assertEquals(15, readNibble(skyArr, 1));
+        assertEquals(15, readNibble(blockArr, 1));
+    }
+
+    @Test
     public void writeLightNibblePacksLowAndHighNibbles() {
         byte[] skyArr = new byte[2048];
         byte[] blockArr = new byte[2048];

@@ -19,19 +19,126 @@ import art.arcane.wormholes.util.Direction;
 
 public final class ProjectorBlackoutMeshTest {
     @Test
-    public void panelsExactlyCoverShellInteriorBoundaryForBothThicknesses() {
+    public void panelsCoverOnlyTheExactFarSlice() {
         LongOpenHashSet geometry = box(0, 4, 0, 4, 0, 4);
+        ProjectorBlackoutMesh.Result result = build(geometry, Direction.S);
 
-        for (int thickness = 1; thickness <= 2; thickness++) {
-            ProjectorBlackoutMesh.Result result = ProjectorBlackoutMesh.build(
-                geometry, Direction.S, Direction.E, Direction.U, 0, 4, thickness);
+        assertFalse(result.fallback());
+        assertEquals(expectedFarCap(geometry, Direction.S), expandedFaces(result.panels()));
+        assertTrue(result.panels().stream().allMatch(panel -> panel.axis() == 2));
+        assertTrue(result.panels().stream().allMatch(panel -> panel.sign() == -1));
+        assertTrue(result.panels().stream().allMatch(panel -> panel.plane() == 0));
+    }
+
+    @Test
+    public void everyPortalNormalUsesOnlyItsOutwardFarFace() {
+        LongOpenHashSet geometry = box(-3, 5, 20, 25, 7, 13);
+
+        for (Direction normal : Direction.values()) {
+            ProjectorBlackoutMesh.Result result = build(geometry, normal);
+            int normalAxis = axis(normal);
+            int outwardSign = -sign(normal);
+
+            assertFalse(result.fallback(), normal.name());
+            assertEquals(expectedFarCap(geometry, normal), expandedFaces(result.panels()), normal.name());
+            assertTrue(result.panels().stream().allMatch(panel -> panel.axis() == normalAxis), normal.name());
+            assertTrue(result.panels().stream().allMatch(panel -> panel.sign() == outwardSign), normal.name());
+        }
+    }
+
+    @Test
+    public void jaggedFarSliceDoesNotFillItsBoundingBox() {
+        LongOpenHashSet geometry = box(0, 4, 0, 4, -3, 2);
+        for (int x = 0; x <= 4; x++) {
+            for (int y = 0; y <= 4; y++) {
+                geometry.remove(ProjectionCellKey.pack(x, y, -3));
+            }
+        }
+        for (int x = 0; x <= 4; x++) {
+            geometry.add(ProjectionCellKey.pack(x, 0, -3));
+        }
+        for (int y = 0; y <= 4; y++) {
+            geometry.add(ProjectionCellKey.pack(0, y, -3));
+        }
+
+        ProjectorBlackoutMesh.Result result = build(geometry, Direction.S);
+        Set<UnitFace> faces = expandedFaces(result.panels());
+
+        assertEquals(expectedFarCap(geometry, Direction.S), faces);
+        assertEquals(9, faces.size());
+        assertFalse(faces.contains(new UnitFace(2, -1, -3, 4, 4)));
+    }
+
+    @Test
+    public void oneLayerVolumeReceivesOnlyAnOutsideFarCap() {
+        LongOpenHashSet geometry = box(0, 2, 0, 2, 0, 0);
+        ProjectorBlackoutMesh.Result result = build(geometry, Direction.S);
+
+        assertEquals(expectedFarCap(geometry, Direction.S), expandedFaces(result.panels()));
+        assertEquals(9, expandedFaces(result.panels()).size());
+        assertOutsideGeometry(result.panels(), Direction.S, 0);
+    }
+
+    @Test
+    public void panelsArePlacedWhollyBeyondTheFarSliceForEveryNormal() {
+        LongOpenHashSet geometry = box(-2, 3, 4, 8, -7, -1);
+
+        for (Direction normal : Direction.values()) {
+            int farCoordinate = farCoordinate(geometry, normal);
+            ProjectorBlackoutMesh.Result result = build(geometry, normal);
+
+            assertOutsideGeometry(result.panels(), normal, farCoordinate);
+        }
+    }
+
+    @Test
+    public void negativeChunkAndSixtyFourBlockSplitsHaveNoGapsOrOverlaps() {
+        LongOpenHashSet geometry = box(-17, 16, -2, 65, -17, 16);
+        ProjectorBlackoutMesh.Result result = build(geometry, Direction.S);
+        Set<UnitFace> expanded = expandedFaces(result.panels());
+        int expandedArea = 0;
+        for (ProjectorBlackoutMesh.Panel panel : result.panels()) {
+            expandedArea += panel.uSize() * panel.vSize();
+            assertTrue(panel.uSize() <= ProjectorBlackoutMesh.MAX_PANEL_SPAN);
+            assertTrue(panel.vSize() <= ProjectorBlackoutMesh.MAX_PANEL_SPAN);
+        }
+
+        assertFalse(result.fallback());
+        assertEquals(expandedArea, expanded.size());
+        assertEquals(expectedFarCap(geometry, Direction.S), expanded);
+    }
+
+    @Test
+    public void depth64DoorFrustumsStayOnBoundedFarCapPanels() {
+        int[][] apertures = new int[][] {{1, 2}, {3, 3}};
+        for (int[] aperture : apertures) {
+            LongOpenHashSet geometry = taperedFrustum(aperture[0], aperture[1], 64, 48);
+            ProjectorBlackoutMesh.Result result = build(geometry, Direction.S);
 
             assertFalse(result.fallback());
             assertFalse(result.panels().isEmpty());
-            assertEquals(expectedFaces(geometry, Direction.S, Direction.E, Direction.U, 0, 4, thickness),
-                expandedFaces(result.panels()));
-            assertTrue(result.panels().stream().noneMatch(panel -> panel.axis() == 2 && panel.plane() == 5));
+            assertTrue(result.panels().size() <= ProjectorBlackoutMesh.MAX_PANELS);
+            assertTrue(result.panels().stream().allMatch(panel -> panel.axis() == 2));
+            assertTrue(result.panels().stream().allMatch(panel -> panel.sign() == -1));
+            assertTrue(result.panels().stream().allMatch(panel -> panel.plane() == 0));
+            assertTrue(result.panels().stream().anyMatch(panel -> panel.uSize() > 1 || panel.vSize() > 1));
+            assertTrue(result.panels().size() < geometry.size());
+            assertEquals(expectedFarCap(geometry, Direction.S), expandedFaces(result.panels()));
         }
+    }
+
+    @Test
+    public void excessiveFragmentationDropsTheDisplayMesh() {
+        LongOpenHashSet geometry = new LongOpenHashSet();
+        for (int component = 0; component <= ProjectorBlackoutMesh.MAX_PANELS; component++) {
+            geometry.add(ProjectionCellKey.pack(component * 16, 0, 0));
+        }
+
+        ProjectorBlackoutMesh.Result result = build(geometry, Direction.S);
+
+        assertTrue(result.fallback());
+        assertFalse(result.hasProjection());
+        assertTrue(result.panels().isEmpty());
     }
 
     @Test
@@ -48,96 +155,90 @@ public final class ProjectorBlackoutMeshTest {
             reversed.add(key.longValue());
         }
 
-        ProjectorBlackoutMesh.Result first = ProjectorBlackoutMesh.build(
-            geometry, Direction.W, Direction.N, Direction.U, -3, 5, 2);
-        ProjectorBlackoutMesh.Result second = ProjectorBlackoutMesh.build(
-            reversed, Direction.W, Direction.N, Direction.U, -3, 5, 2);
-
-        assertEquals(first, second);
+        assertEquals(build(geometry, Direction.W), build(reversed, Direction.W));
     }
 
-    @Test
-    public void panelsStayInsideTheShellSideOfTheirSharedPlane() {
-        LongOpenHashSet geometry = box(0, 4, 0, 4, 0, 4);
-        ProjectorBlackoutMesh.Result result = ProjectorBlackoutMesh.build(
-            geometry, Direction.S, Direction.E, Direction.U, 0, 4, 2);
+    private static ProjectorBlackoutMesh.Result build(LongOpenHashSet geometry, Direction normal) {
+        int normalMin = Integer.MAX_VALUE;
+        int normalMax = Integer.MIN_VALUE;
+        int normalAxis = axis(normal);
+        LongIterator iterator = geometry.iterator();
+        while (iterator.hasNext()) {
+            long key = iterator.nextLong();
+            int coordinate = coordinate(key, normalAxis);
+            normalMin = Math.min(normalMin, coordinate);
+            normalMax = Math.max(normalMax, coordinate);
+        }
+        return ProjectorBlackoutMesh.build(geometry, normal, normalMin, normalMax);
+    }
 
-        for (ProjectorBlackoutMesh.Panel panel : result.panels()) {
+    private static Set<UnitFace> expectedFarCap(LongOpenHashSet geometry, Direction normal) {
+        Set<UnitFace> faces = new HashSet<UnitFace>();
+        int normalAxis = axis(normal);
+        int normalSign = sign(normal);
+        int farCoordinate = farCoordinate(geometry, normal);
+        int outwardSign = -normalSign;
+        int plane = farCoordinate + (outwardSign > 0 ? 1 : 0);
+        LongIterator iterator = geometry.iterator();
+        while (iterator.hasNext()) {
+            long key = iterator.nextLong();
+            if (coordinate(key, normalAxis) != farCoordinate) {
+                continue;
+            }
+            int x = ProjectionCellKey.unpackX(key);
+            int y = ProjectionCellKey.unpackY(key);
+            int z = ProjectionCellKey.unpackZ(key);
+            int u = normalAxis == 0 ? y : x;
+            int v = normalAxis == 2 ? y : z;
+            faces.add(new UnitFace(normalAxis, outwardSign, plane, u, v));
+        }
+        return faces;
+    }
+
+    private static void assertOutsideGeometry(List<ProjectorBlackoutMesh.Panel> panels,
+                                              Direction normal,
+                                              int farCoordinate) {
+        int normalSign = sign(normal);
+        for (ProjectorBlackoutMesh.Panel panel : panels) {
             ProjectorBlackoutMesh.Transform transform = panel.transform();
             double minimum = panel.axis() == 0 ? transform.x() : panel.axis() == 1 ? transform.y() : transform.z();
             double size = panel.axis() == 0
                 ? transform.scaleX()
                 : panel.axis() == 1 ? transform.scaleY() : transform.scaleZ();
             assertEquals(ProjectorBlackoutMesh.PANEL_THICKNESS, size);
-            assertEquals(panel.sign() > 0
-                    ? panel.plane() - ProjectorBlackoutMesh.PANEL_THICKNESS - ProjectorBlackoutMesh.PANEL_INSET
-                    : panel.plane() + ProjectorBlackoutMesh.PANEL_INSET,
-                minimum);
-        }
-    }
-
-    @Test
-    public void excessiveExactPanelsSelectCompleteBlockFallback() {
-        LongOpenHashSet geometry = new LongOpenHashSet();
-        for (int component = 0; component <= ProjectorBlackoutMesh.MAX_PANELS; component++) {
-            int originX = component * 5;
-            for (int x = originX; x < originX + 3; x++) {
-                for (int y = 0; y < 3; y++) {
-                    for (int z = 0; z < 2; z++) {
-                        geometry.add(ProjectionCellKey.pack(x, y, z));
-                    }
-                }
+            if (normalSign > 0) {
+                assertTrue(minimum + size < farCoordinate, normal.name());
+            } else {
+                assertTrue(minimum > farCoordinate + 1.0D, normal.name());
             }
         }
-
-        ProjectorBlackoutMesh.Result result = ProjectorBlackoutMesh.build(
-            geometry, Direction.S, Direction.E, Direction.U, 0, 1, 1);
-
-        assertTrue(result.fallback());
-        assertTrue(result.panels().isEmpty());
-        assertTrue(result.unitFaces() > ProjectorBlackoutMesh.MAX_PANELS);
     }
 
-    private static Set<UnitFace> expectedFaces(LongOpenHashSet geometry,
-                                               Direction normal,
-                                               Direction right,
-                                               Direction up,
-                                               int normalMin,
-                                               int normalMax,
-                                               int thickness) {
-        LongOpenHashSet shell = new LongOpenHashSet();
+    private static int farCoordinate(LongOpenHashSet geometry, Direction normal) {
+        int normalAxis = axis(normal);
+        int minimum = Integer.MAX_VALUE;
+        int maximum = Integer.MIN_VALUE;
         LongIterator iterator = geometry.iterator();
         while (iterator.hasNext()) {
-            long key = iterator.nextLong();
-            if (ProjectorBlackoutSeal.sealsGeometryCell(
-                key, geometry, normal, right, up, normalMin, normalMax, thickness)) {
-                shell.add(key);
-            }
+            int coordinate = coordinate(iterator.nextLong(), normalAxis);
+            minimum = Math.min(minimum, coordinate);
+            maximum = Math.max(maximum, coordinate);
         }
+        return sign(normal) > 0 ? minimum : maximum;
+    }
 
-        Set<UnitFace> faces = new HashSet<UnitFace>();
-        LongIterator shellIterator = shell.iterator();
-        while (shellIterator.hasNext()) {
-            long key = shellIterator.nextLong();
-            int x = ProjectionCellKey.unpackX(key);
-            int y = ProjectionCellKey.unpackY(key);
-            int z = ProjectionCellKey.unpackZ(key);
-            for (Direction direction : Direction.values()) {
-                long neighbor = ProjectionCellKey.pack(
-                    x + direction.x(), y + direction.y(), z + direction.z());
-                if (!geometry.contains(neighbor) || shell.contains(neighbor)) {
-                    continue;
-                }
-                int axis = direction.x() != 0 ? 0 : direction.y() != 0 ? 1 : 2;
-                int sign = direction.x() + direction.y() + direction.z();
-                int coordinate = axis == 0 ? x : axis == 1 ? y : z;
-                int plane = coordinate + (sign > 0 ? 1 : 0);
-                int u = axis == 0 ? y : x;
-                int v = axis == 2 ? y : z;
-                faces.add(new UnitFace(axis, sign, plane, u, v));
-            }
-        }
-        return faces;
+    private static int coordinate(long key, int axis) {
+        return axis == 0
+            ? ProjectionCellKey.unpackX(key)
+            : axis == 1 ? ProjectionCellKey.unpackY(key) : ProjectionCellKey.unpackZ(key);
+    }
+
+    private static int axis(Direction direction) {
+        return direction.x() != 0 ? 0 : direction.y() != 0 ? 1 : 2;
+    }
+
+    private static int sign(Direction direction) {
+        return direction.x() + direction.y() + direction.z();
     }
 
     private static Set<UnitFace> expandedFaces(List<ProjectorBlackoutMesh.Panel> panels) {
@@ -159,6 +260,23 @@ public final class ProjectorBlackoutMeshTest {
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
+                    geometry.add(ProjectionCellKey.pack(x, y, z));
+                }
+            }
+        }
+        return geometry;
+    }
+
+    private static LongOpenHashSet taperedFrustum(int width, int height, int depth, int farPadding) {
+        LongOpenHashSet geometry = new LongOpenHashSet(220_000);
+        for (int z = 0; z < depth; z++) {
+            int padding = (farPadding * (depth - 1 - z)) / (depth - 1);
+            int minX = -(width / 2) - padding;
+            int minY = 64 - (height / 2) - padding;
+            int maxX = minX + width + (padding * 2) - 1;
+            int maxY = minY + height + (padding * 2) - 1;
+            for (int x = minX; x <= maxX; x++) {
+                for (int y = minY; y <= maxY; y++) {
                     geometry.add(ProjectionCellKey.pack(x, y, z));
                 }
             }

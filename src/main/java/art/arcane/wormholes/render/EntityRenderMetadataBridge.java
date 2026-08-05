@@ -31,31 +31,55 @@ final class EntityRenderMetadataBridge {
     static final long METADATA_BRIDGE_RETRY_MILLIS = 60_000L;
 
     private final EntityRenderPacketChannel channel;
+    private final EntityRenderMapBridge mapBridge;
     private long metadataBridgeRetryAtMillis;
 
     EntityRenderMetadataBridge(EntityRenderPacketChannel channel) {
         this.channel = channel;
+        this.mapBridge = new EntityRenderMapBridge(channel);
         this.metadataBridgeRetryAtMillis = 0L;
     }
 
-    void sendEntityState(Player observer, Entity entity, EntityRenderSpoofedEntity state, boolean force) {
+    void sendEntityState(Player observer,
+                         Entity entity,
+                         EntityRenderSpoofedEntity state,
+                         int metadataTransform,
+                         boolean force) {
         long now = System.currentTimeMillis();
         EntityRenderCaches.sweepStaticCaches(now);
         EntityRenderCaches.EntityStateSnapshot snapshot = entityStateSnapshot(entity, now);
-        sendEntityMetadata(observer, entity, state, snapshot, force,
+        sendEntityMetadata(observer, entity, state, snapshot, metadataTransform, force,
             metadataBridgeAvailable(metadataBridgeRetryAtMillis, now));
         sendEntityEquipment(observer, state, snapshot, force);
     }
 
-    void sendRemoteEntityState(Player observer, ProjectionEntityView remoteView, EntityVisual visual, EntityRenderSpoofedEntity state) {
+    void sendRemoteEntityState(Player observer,
+                               ProjectionEntityView remoteView,
+                               EntityVisual visual,
+                               EntityRenderSpoofedEntity state,
+                               int metadataTransform,
+                               boolean force) {
         List<EntityData<?>> metadata = remoteView.getMetadata(visual.id());
         if (metadata != null && !metadata.isEmpty()) {
+            Integer sourceMapId = ProjectedItemFrameTransform.mapId(metadata);
+            EntityRenderMapBridge.Projection mapProjection = mapBridge.projectVisual(
+                observer, remoteView, visual, state, metadataTransform, sourceMapId, force);
+            metadata = ProjectedItemFrameTransform.transformMetadata(
+                metadata, metadataTransform, mapProjection.mapId(), mapProjection.stripMapId());
             List<EntityData<?>> patched = state.upsideDown ? withUpsideDownMetadataRemote(visual.isPlayer(), metadata) : metadata;
-            channel.send(observer, new WrapperPlayServerEntityMetadata(state.fakeId, patched));
+            String signature = metadataSignature(patched);
+            if (force || !signature.equals(state.lastMetadataSignature)) {
+                state.lastMetadataSignature = signature;
+                channel.send(observer, new WrapperPlayServerEntityMetadata(state.fakeId, patched));
+            }
         }
         List<Equipment> equipment = remoteView.getEquipment(visual.id());
         if (equipment != null && !equipment.isEmpty()) {
-            channel.send(observer, new WrapperPlayServerEntityEquipment(state.fakeId, equipment));
+            String signature = equipmentSignature(equipment);
+            if (force || !signature.equals(state.lastEquipmentSignature)) {
+                state.lastEquipmentSignature = signature;
+                channel.send(observer, new WrapperPlayServerEntityEquipment(state.fakeId, equipment));
+            }
         }
     }
 
@@ -102,12 +126,25 @@ final class EntityRenderMetadataBridge {
             + (METADATA_BRIDGE_RETRY_MILLIS / 1000L) + "s", error);
     }
 
-    private void sendEntityMetadata(Player observer, Entity entity, EntityRenderSpoofedEntity state, EntityRenderCaches.EntityStateSnapshot snapshot, boolean force, boolean bridgeAvailable) {
+    private void sendEntityMetadata(Player observer,
+                                    Entity entity,
+                                    EntityRenderSpoofedEntity state,
+                                    EntityRenderCaches.EntityStateSnapshot snapshot,
+                                    int metadataTransform,
+                                    boolean force,
+                                    boolean bridgeAvailable) {
         if (!bridgeAvailable) {
             return;
         }
-        List<EntityData<?>> metadata = snapshot.metadata;
-        String signature = snapshot.metadataSig;
+        Integer sourceMapId = ProjectedItemFrameTransform.mapId(snapshot.metadata);
+        EntityRenderMapBridge.Projection mapProjection = mapBridge.projectLocal(
+            observer, entity, state, metadataTransform, sourceMapId, force);
+        List<EntityData<?>> metadata = ProjectedItemFrameTransform.transformMetadata(
+            snapshot.metadata, metadataTransform, mapProjection.mapId(), mapProjection.stripMapId());
+        boolean metadataUnchanged = metadataTransform == ProjectedItemFrameTransform.NONE
+            && mapProjection.mapId() == null
+            && !mapProjection.stripMapId();
+        String signature = metadataUnchanged ? snapshot.metadataSig : metadataSignature(metadata);
         if (state.upsideDown) {
             metadata = withUpsideDownMetadata(entity, metadata);
             signature = metadataSignature(metadata);

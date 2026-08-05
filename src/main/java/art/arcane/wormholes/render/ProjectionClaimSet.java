@@ -26,6 +26,7 @@ final class ProjectionClaimSet {
     private final LongArrayList affectedScratch;
     private final LongArrayList staleScratch;
     private final WinnerChoice winnerScratch;
+    private int fullBrightWinnerCount;
     private long generation;
 
     ProjectionClaimSet() {
@@ -38,6 +39,7 @@ final class ProjectionClaimSet {
         this.affectedScratch = new LongArrayList(256);
         this.staleScratch = new LongArrayList(64);
         this.winnerScratch = new WinnerChoice();
+        this.fullBrightWinnerCount = 0;
         this.generation = 0L;
     }
 
@@ -136,10 +138,15 @@ final class ProjectionClaimSet {
         contestedKeys.clear();
         affectedScratch.clear();
         staleScratch.clear();
+        fullBrightWinnerCount = 0;
     }
 
     boolean isEmpty() {
         return winners.isEmpty();
+    }
+
+    boolean hasFullBrightClaims() {
+        return fullBrightWinnerCount > 0;
     }
 
     Long2ObjectOpenHashMap<ProjectedBlockClaim> getWinningClaims() {
@@ -215,6 +222,10 @@ final class ProjectionClaimSet {
             PortalClaims nextOwner = choice.owner;
             if (nextOwner == null) {
                 if (previous != null) {
+                    if (previous.claim.isFullBright()) {
+                        fullBrightWinnerCount--;
+                        result.immediateLightingUpdate = true;
+                    }
                     winners.remove(key);
                     winningClaims.remove(key);
                     result.packetChangeKeys.add(key);
@@ -228,12 +239,21 @@ final class ProjectionClaimSet {
             boolean ownerChanged = previous == null || isDifferentOwner(previous.owner, nextOwner);
             boolean dataChanged = previous == null || !previous.claim.getData().equals(nextClaim.getData());
             boolean lightChanged = previous == null || !previous.claim.sameLightSource(nextClaim);
+            if (previous != null && previous.claim.isFullBright() && !nextClaim.isFullBright()) {
+                result.immediateLightingUpdate = true;
+            }
             if (previous == null) {
                 winners.put(key, new WinningClaim(nextOwner, nextClaim));
                 winningClaims.put(key, nextClaim);
+                if (nextClaim.isFullBright()) {
+                    fullBrightWinnerCount++;
+                }
             } else {
                 previous.owner = nextOwner;
                 if (previous.claim != nextClaim) {
+                    if (previous.claim.isFullBright() != nextClaim.isFullBright()) {
+                        fullBrightWinnerCount += nextClaim.isFullBright() ? 1 : -1;
+                    }
                     previous.claim = nextClaim;
                     winningClaims.put(key, nextClaim);
                 }
@@ -369,6 +389,7 @@ final class ProjectionClaimSet {
         private int conflicts;
         private int winnerChanges;
         private int reverts;
+        private boolean immediateLightingUpdate;
 
         ProjectionClaimSetResult() {
             this(0);
@@ -380,6 +401,7 @@ final class ProjectionClaimSet {
             this.conflicts = 0;
             this.winnerChanges = 0;
             this.reverts = 0;
+            this.immediateLightingUpdate = false;
         }
 
         LongOpenHashSet getPacketChangeKeys() {
@@ -402,8 +424,13 @@ final class ProjectionClaimSet {
             return reverts;
         }
 
+        boolean requiresImmediateLightingUpdate() {
+            return immediateLightingUpdate;
+        }
+
         boolean isEmpty() {
-            return packetChangeKeys.isEmpty() && dirtyLightingKeys.isEmpty() && conflicts == 0 && winnerChanges == 0 && reverts == 0;
+            return packetChangeKeys.isEmpty() && dirtyLightingKeys.isEmpty() && conflicts == 0
+                && winnerChanges == 0 && reverts == 0 && !immediateLightingUpdate;
         }
 
         void merge(ProjectionClaimSetResult other) {
@@ -415,6 +442,7 @@ final class ProjectionClaimSet {
             conflicts += other.conflicts;
             winnerChanges += other.winnerChanges;
             reverts += other.reverts;
+            immediateLightingUpdate |= other.immediateLightingUpdate;
         }
     }
 

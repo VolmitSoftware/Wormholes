@@ -2,12 +2,13 @@ package art.arcane.wormholes.door;
 
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import net.kyori.adventure.text.Component;
-import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.type.Door;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.Test;
 
@@ -16,6 +17,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -94,6 +98,54 @@ final class DoorTransitCoordinatorEntryTest
 			harness.failures.breakdown());
 	}
 
+	@Test
+	void delayedAuthorizationDispatchesBoundaryAttemptWithoutReadingTravelerAgain()
+	{
+		List<Runnable> dispatched = new ArrayList<>();
+		AtomicInteger chunkX = new AtomicInteger(Integer.MIN_VALUE);
+		AtomicInteger chunkZ = new AtomicInteger(Integer.MIN_VALUE);
+		Harness harness = new Harness((world, requestedChunkX, requestedChunkZ, task) ->
+		{
+			chunkX.set(requestedChunkX);
+			chunkZ.set(requestedChunkZ);
+			dispatched.add(task);
+			return true;
+		});
+		UUID travelerId = new UUID(13L, 17L);
+		Player shooter = Harness.responsiblePlayer();
+		Entity traveler = Harness.projectile(shooter);
+		DoorTransitAttempt attempt = harness.attempt(traveler, travelerId, 16);
+		AtomicReference<Runnable> authorization = new AtomicReference<>();
+		AtomicBoolean unavailable = new AtomicBoolean();
+		DoorAccessAuthorizer authorizer = new DoorAccessAuthorizer(
+			Harness.authorizerServer(shooter),
+			(player, task, retired) ->
+			{
+				authorization.set(task);
+				return true;
+			});
+
+		authorizer.resolve(
+			traveler,
+			credentials -> harness.coordinator.begin(attempt, credentials),
+			() -> unavailable.set(true));
+
+		assertEquals(Integer.MIN_VALUE, chunkX.get());
+		assertFalse(harness.ledger.isTraveling(travelerId));
+
+		authorization.get().run();
+
+		assertEquals(1, chunkX.get());
+		assertEquals(0, chunkZ.get());
+		assertTrue(harness.ledger.isTraveling(travelerId));
+		assertFalse(unavailable.get());
+
+		harness.guard.markClosed();
+		dispatched.getFirst().run();
+
+		assertFalse(harness.ledger.isTraveling(travelerId));
+	}
+
 	private static final class Harness
 	{
 		private final DoorStateGuard guard;
@@ -138,25 +190,43 @@ final class DoorTransitCoordinatorEntryTest
 
 		private void walkThroughDoor()
 		{
-			DoorwayPlane plane = new DoorwayPlane(0, 64, 0, BlockFace.NORTH);
+			coordinator.begin(
+				attempt(traveler, TRAVELER_ID, 0),
+				DoorAccessCredentials.ungated());
+		}
+
+		private DoorTransitAttempt attempt(Entity activeTraveler, UUID travelerId, int blockX)
+		{
+			DoorwayPlane plane = new DoorwayPlane(blockX, 64, 0, BlockFace.NORTH);
 			PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(
-				new DoorPosition(WORLD_ID, "minecraft:overworld", 0, 64, 0),
+				new DoorPosition(WORLD_ID, "minecraft:overworld", blockX, 64, 0),
 				new DoorItemIdentity(new UUID(1L, 2L), DoorKind.PUBLIC, null, null, null));
 			VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(
 				WORLD_ID, plane, Door.Hinge.LEFT, true, false);
 			RuntimeDoor runtime = new RuntimeDoor(endpoint);
 			runtime.update(snapshot);
-			coordinator.begin(
-				traveler,
+			DoorwayCrossing crossing = new DoorwayCrossing(
+				plane.center(),
+				1.0D,
+				0.0D,
+				1.0D,
+				DoorwayCrossing.Direction.FRONT_TO_BACK);
+			DoorTransit transit = new DoorTransit(
+				plane,
+				crossing,
+				0.0F,
+				0.0F,
+				0.3D,
+				1.8D,
+				activeTraveler instanceof Player ? DoorTravelerClass.LIVING : DoorTravelerClass.OBJECT,
+				null);
+			return new DoorTransitAttempt(
+				activeTraveler,
+				travelerId,
+				world,
 				runtime,
-				new Location(world, 0.5D, 64.0D, 0.5D),
-				new DoorwayCrossing(
-					plane.center(),
-					1.0D,
-					0.0D,
-					1.0D,
-					DoorwayCrossing.Direction.FRONT_TO_BACK),
-				snapshot);
+				snapshot,
+				transit);
 		}
 
 		private static DoorChunkLoader.RegionDispatch dispatchImmediately()
@@ -205,6 +275,54 @@ final class DoorTransitCoordinatorEntryTest
 					case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
 					case "equals" -> Boolean.valueOf(proxy == arguments[0]);
 					default -> null;
+				});
+		}
+
+		private static Entity projectile(Player shooter)
+		{
+			AtomicBoolean shooterRead = new AtomicBoolean();
+			return (Entity) Proxy.newProxyInstance(
+				Projectile.class.getClassLoader(),
+				new Class<?>[]{Projectile.class},
+				(proxy, method, arguments) ->
+				{
+					if(method.getName().equals("getShooter") && shooterRead.compareAndSet(false, true))
+					{
+						return shooter;
+					}
+					throw new AssertionError("Delayed source-region handoff read Projectile." + method.getName());
+				});
+		}
+
+		private static Player responsiblePlayer()
+		{
+			return (Player) Proxy.newProxyInstance(
+				Player.class.getClassLoader(),
+				new Class<?>[]{Player.class},
+				(proxy, method, arguments) -> switch(method.getName())
+				{
+					case "isOnline" -> Boolean.TRUE;
+					case "getUniqueId" -> new UUID(19L, 23L);
+					case "hasPermission" -> Boolean.FALSE;
+					case "toString" -> "shooter";
+					case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
+					case "equals" -> Boolean.valueOf(proxy == arguments[0]);
+					default -> throw new AssertionError("Unexpected shooter method " + method.getName());
+				});
+		}
+
+		private static Server authorizerServer(Player shooter)
+		{
+			return (Server) Proxy.newProxyInstance(
+				Server.class.getClassLoader(),
+				new Class<?>[]{Server.class},
+				(proxy, method, arguments) -> switch(method.getName())
+				{
+					case "getPlayer" -> shooter;
+					case "toString" -> "server";
+					case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
+					case "equals" -> Boolean.valueOf(proxy == arguments[0]);
+					default -> throw new AssertionError("Unexpected server method " + method.getName());
 				});
 		}
 

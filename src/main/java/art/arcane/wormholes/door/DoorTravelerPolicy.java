@@ -20,11 +20,15 @@ final class DoorTravelerPolicy
 		double width,
 		double height)
 	{
+		if(constrained)
+		{
+			return false;
+		}
 		if(player)
 		{
 			return true;
 		}
-		if(constrained || !fitsAperture(width, height))
+		if(!fitsAperture(width, height))
 		{
 			return false;
 		}

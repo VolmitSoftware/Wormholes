@@ -32,13 +32,13 @@ class RegionalDiffAccumulatorVenticularTest {
     private static final BlockData AIR = fakeBlockData("minecraft:air");
 
     @Test
-    void placingIntoSolidRockMarksTheCellAndNeighborsOccluded(@TempDir Path dir) {
+    void placingIntoSolidRockMarksEveryDepthTwoAffectedCellOccluded(@TempDir Path dir) {
         Harness harness = new Harness(dir);
         harness.accumulator.recordBlockChange(harness.world, 8, 64, 8, SOLID, BlockChange.FLAG_NONE);
         harness.accumulator.drainChunk(harness.world, harness.chunkKey);
 
         Map<Integer, Byte> flags = harness.feed.flagsByPacked();
-        assertEquals(7, flags.size(), "the changed cell plus its six occluding neighbors must be emitted");
+        assertEquals(25, flags.size(), "the changed cell plus its Manhattan-radius-two dependents must be emitted");
         for (Map.Entry<Integer, Byte> entry : flags.entrySet()) {
             assertEquals(BlockChange.FLAG_OCCLUDED, entry.getValue().byteValue(), "every fully buried cell must carry the occluded flag");
         }
@@ -46,16 +46,18 @@ class RegionalDiffAccumulatorVenticularTest {
     }
 
     @Test
-    void breakingASolidCellReemitsNeighborsAsExposed(@TempDir Path dir) {
+    void breakingASolidCellReemitsEveryDepthTwoDependentAsExposed(@TempDir Path dir) {
         Harness harness = new Harness(dir);
         harness.accumulator.recordBlockChange(harness.world, 8, 64, 8, AIR, BlockChange.FLAG_NONE);
         harness.accumulator.drainChunk(harness.world, harness.chunkKey);
 
         Map<Integer, Byte> flags = harness.feed.flagsByPacked();
-        assertEquals(7, flags.size(), "the broken cell plus its six occluding neighbors must be re-emitted");
+        assertEquals(25, flags.size(), "the broken cell plus its Manhattan-radius-two dependents must be re-emitted");
         assertEquals(BlockChange.FLAG_NONE, flags.get(BlockChange.pack(8, 64, 8)).byteValue(), "the broken (air) cell is never buried");
-        assertEquals(BlockChange.FLAG_NONE, flags.get(BlockChange.pack(9, 64, 8)).byteValue(),
-            "a neighbor that lost its occluding face must be re-emitted as exposed");
+        for (Map.Entry<Integer, Byte> entry : flags.entrySet()) {
+            assertEquals(BlockChange.FLAG_NONE, entry.getValue().byteValue(),
+                "every cell whose depth-two status depends on the opening must be exposed");
+        }
     }
 
     @Test
@@ -65,11 +67,13 @@ class RegionalDiffAccumulatorVenticularTest {
             throw new AssertionError("snapshot comparison read a live block");
         }, data -> data == SOLID);
 
+        RegionalDiffAccumulator.BlockCaptureRevision revision =
+            harness.accumulator.captureBlockRevision(harness.world, harness.chunkKey);
         harness.accumulator.recordSnapshotBlockChange(harness.world, 8, 64, 8, SOLID, BlockChange.FLAG_NONE,
-            (x, y, z) -> SOLID, -64, 320);
+            (x, y, z) -> SOLID, -64, 320, revision);
         harness.accumulator.drainChunk(harness.world, harness.chunkKey);
 
-        assertEquals(7, harness.feed.flagsByPacked().size());
+        assertEquals(25, harness.feed.flagsByPacked().size());
     }
 
     private static final class Harness {

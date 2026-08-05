@@ -160,6 +160,24 @@ class PortalRegistryAttendancePlaceholderTest {
         assertEquals("Hub Gate", resolve(TRAVELLER, "portal.name"));
     }
 
+    @Test
+    void trackedPositionLookupUsesCurrentWorldDistanceAndCell() {
+        attendance.record(player(TRAVELLER), location(-65.0D, 70.0D, -65.0D));
+
+        assertTrue(attendance.hasPlayerWithin(OVERWORLD, -68.0D, 74.0D, -65.0D, 25.0D));
+        assertFalse(attendance.hasPlayerWithin(OVERWORLD, -68.0D, 74.01D, -65.0D, 25.0D));
+        assertFalse(attendance.hasPlayerWithin(UUID.randomUUID(), -65.0D, 70.0D, -65.0D, 1.0D));
+
+        attendance.record(player(TRAVELLER), location(130.0D, 70.0D, 130.0D));
+
+        assertFalse(attendance.hasPlayerWithin(OVERWORLD, -65.0D, 70.0D, -65.0D, 1.0D));
+        assertTrue(attendance.hasPlayerWithin(OVERWORLD, 130.0D, 70.0D, 130.0D, 0.0D));
+
+        attendance.forget(TRAVELLER);
+
+        assertFalse(attendance.hasPlayerWithin(OVERWORLD, 130.0D, 70.0D, 130.0D, 1.0D));
+    }
+
     private void publishSweep() {
         for (int sweep = 0; sweep < PUBLISH_INTERVAL; sweep++) {
             attendance.refresh(registry);

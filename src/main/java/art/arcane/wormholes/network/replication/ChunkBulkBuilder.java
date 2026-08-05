@@ -78,7 +78,8 @@ public final class ChunkBulkBuilder {
         }
 
         if (buriedCellCulling) {
-            substituteBuriedCells(minX, minY, minZ, sizeX, sizeY, sizeZ, occluding, indices, palette, paletteLookup);
+            substituteDeeplyBuriedCells(
+                minX, minY, minZ, sizeX, sizeY, sizeZ, occluding, indices, palette, paletteLookup);
         }
 
         short[] biomes = buildBiomeGrid(minX, minY, minZ, sizeX, sizeY, sizeZ, (localX, worldY, localZ) -> {
@@ -96,23 +97,37 @@ public final class ChunkBulkBuilder {
         return new ViewSlice(minX, minY, minZ, sizeX, sizeY, sizeZ, palette, indices, light, biomePalette, biomes);
     }
 
-    static void substituteBuriedCells(int minX, int minY, int minZ, int sizeX, int sizeY, int sizeZ,
-                                      boolean[] occluding, short[] indices, List<String> palette, HashMap<String, Integer> paletteLookup) {
+    static void substituteDeeplyBuriedCells(int minX,
+                                            int minY,
+                                            int minZ,
+                                            int sizeX,
+                                            int sizeY,
+                                            int sizeZ,
+                                            boolean[] occluding,
+                                            short[] indices,
+                                            List<String> palette,
+                                            HashMap<String, Integer> paletteLookup) {
         int maxX = minX + sizeX - 1;
         int maxY = minY + sizeY - 1;
         int maxZ = minZ + sizeZ - 1;
-        int sentinelIndex = -1;
+        boolean[] buried = new boolean[occluding.length];
         int cell = 0;
         for (int y = minY; y <= maxY; y++) {
             for (int z = minZ; z <= maxZ; z++) {
                 for (int x = minX; x <= maxX; x++) {
-                    if (occluding[cell]
-                        && sliceOccluding(occluding, minX, minY, minZ, sizeX, sizeY, sizeZ, x + 1, y, z)
-                        && sliceOccluding(occluding, minX, minY, minZ, sizeX, sizeY, sizeZ, x - 1, y, z)
-                        && sliceOccluding(occluding, minX, minY, minZ, sizeX, sizeY, sizeZ, x, y + 1, z)
-                        && sliceOccluding(occluding, minX, minY, minZ, sizeX, sizeY, sizeZ, x, y - 1, z)
-                        && sliceOccluding(occluding, minX, minY, minZ, sizeX, sizeY, sizeZ, x, y, z + 1)
-                        && sliceOccluding(occluding, minX, minY, minZ, sizeX, sizeY, sizeZ, x, y, z - 1)) {
+                    buried[cell] = surrounded(
+                        occluding, minX, minY, minZ, sizeX, sizeY, sizeZ, x, y, z);
+                    cell++;
+                }
+            }
+        }
+
+        int sentinelIndex = -1;
+        cell = 0;
+        for (int y = minY; y <= maxY; y++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                for (int x = minX; x <= maxX; x++) {
+                    if (surrounded(buried, minX, minY, minZ, sizeX, sizeY, sizeZ, x, y, z)) {
                         if (sentinelIndex < 0) {
                             sentinelIndex = sentinelPaletteIndex(palette, paletteLookup);
                         }
@@ -124,12 +139,40 @@ public final class ChunkBulkBuilder {
         }
     }
 
-    private static boolean sliceOccluding(boolean[] occluding, int minX, int minY, int minZ, int sizeX, int sizeY, int sizeZ, int x, int y, int z) {
+    private static boolean surrounded(boolean[] cells,
+                                      int minX,
+                                      int minY,
+                                      int minZ,
+                                      int sizeX,
+                                      int sizeY,
+                                      int sizeZ,
+                                      int x,
+                                      int y,
+                                      int z) {
+        return sliceValue(cells, minX, minY, minZ, sizeX, sizeY, sizeZ, x, y, z)
+            && sliceValue(cells, minX, minY, minZ, sizeX, sizeY, sizeZ, x + 1, y, z)
+            && sliceValue(cells, minX, minY, minZ, sizeX, sizeY, sizeZ, x - 1, y, z)
+            && sliceValue(cells, minX, minY, minZ, sizeX, sizeY, sizeZ, x, y + 1, z)
+            && sliceValue(cells, minX, minY, minZ, sizeX, sizeY, sizeZ, x, y - 1, z)
+            && sliceValue(cells, minX, minY, minZ, sizeX, sizeY, sizeZ, x, y, z + 1)
+            && sliceValue(cells, minX, minY, minZ, sizeX, sizeY, sizeZ, x, y, z - 1);
+    }
+
+    private static boolean sliceValue(boolean[] values,
+                                      int minX,
+                                      int minY,
+                                      int minZ,
+                                      int sizeX,
+                                      int sizeY,
+                                      int sizeZ,
+                                      int x,
+                                      int y,
+                                      int z) {
         if (x < minX || x >= minX + sizeX || y < minY || y >= minY + sizeY || z < minZ || z >= minZ + sizeZ) {
             return false;
         }
         int index = (((y - minY) * sizeZ + (z - minZ)) * sizeX) + (x - minX);
-        return occluding[index];
+        return values[index];
     }
 
     private static int sentinelPaletteIndex(List<String> palette, HashMap<String, Integer> paletteLookup) {

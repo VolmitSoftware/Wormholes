@@ -392,7 +392,7 @@ locale = "pl_PL"
 "door.menu.access.title" = "Dostęp do drzwi: {kind}"
 
 [lines]
-"portal.menu.render_mode" = ["<aqua><bold>Tryb renderowania <white>{mode}</bold>","<gray>Jaką część docelowej objętości projektuje ten portal.","","<gray>Tryb: <white>{mode}","","<dark_gray>PanOptic renderuje całą docelową objętość.","<dark_gray>Venticular ukrywa całkowicie zamknięte wewnętrzne bloki dla lżejszych strumieni.","<dark_gray>PlannarOptic ukrywa geometrię za widocznymi nieprzezroczystymi powierzchniami.","","<dark_gray>Lewy: zmień tryb."]
+"portal.menu.render_mode" = ["<aqua><bold>Tryb renderowania <white>{mode}</bold>","<gray>Jaką część docelowej objętości projektuje ten portal.","","<gray>Tryb: <white>{mode}","","<dark_gray>PanOptic renderuje całą docelową objętość.","<dark_gray>Venticular ukrywa geometrię za widocznymi nieprzezroczystymi powierzchniami.","","<dark_gray>Lewy: zmień tryb."]
 "portal.menu.ambient_particles" = ["<aqua><bold>Cząstki otoczenia</bold>","<gray>Dekoracyjny pył unoszący się wokół tego portalu.","","<gray>Styl: <white>{style} <dark_gray>({color})","","<dark_gray>Lewy: zmień styl.","<dark_gray>Prawy: wybierz kolor."]
 "portal.menu.ambient_color.placard" = ["<gold><bold>Kolor otoczenia</bold>","<gray>Kolor cząstek pyłu otoczenia.","","<gray>Bieżący: <white>{color}"]
 "portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>Lewy przycisk: +{step}","<dark_gray>Prawy przycisk: -{step}","<dark_gray>Shift + lewy przycisk: +{large_step}","<dark_gray>Shift + prawy przycisk: -{large_step}"]

@@ -392,7 +392,7 @@ locale = "lt_LT"
 "rtp.duration.decimal_seconds" = "{value}s"
 
 [lines]
-"portal.menu.render_mode" = ["<aqua><bold>Atvaizdavimo režimas <white>{mode}</bold>","<gray>Kiek paskirties tūrio projektuoja šis portalas.","","<gray>Režimas: <white>{mode}","","<dark_gray>PanOptic atvaizduoja visą paskirties tūrį.","<dark_gray>Venticular paslepia visiškai uždarytus vidinius blokus, kad srautai būtų lengvesni.","<dark_gray>PlannarOptic paslepia geometriją už matomų nepermatomų paviršių.","","<dark_gray>Kairysis: keisti režimą."]
+"portal.menu.render_mode" = ["<aqua><bold>Atvaizdavimo režimas <white>{mode}</bold>","<gray>Kiek paskirties tūrio projektuoja šis portalas.","","<gray>Režimas: <white>{mode}","","<dark_gray>PanOptic atvaizduoja visą paskirties tūrį.","<dark_gray>Venticular paslepia geometriją už matomų nepermatomų paviršių.","","<dark_gray>Kairysis: keisti režimą."]
 "portal.menu.ambient_particles" = ["<aqua><bold>Aplinkos dalelės</bold>","<gray>Dekoratyvios dulkės, sklandančios aplink šį portalą.","","<gray>Stilius: <white>{style} <dark_gray>({color})","","<dark_gray>Kairys: keisti stilių.","<dark_gray>Dešinys: pasirinkti spalvą."]
 "portal.menu.ambient_color.placard" = ["<gold><bold>Aplinkos spalva</bold>","<gray>Aplinkos dulkių dalelių spalva.","","<gray>Dabartinis: <white>{color}"]
 "portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>Kairysis spustelėjimas: +{step}","<dark_gray>Dešinysis spustelėjimas: -{step}","<dark_gray>Shift + kairysis spustelėjimas: +{large_step}","<dark_gray>Shift + dešinysis spustelėjimas: -{large_step}"]

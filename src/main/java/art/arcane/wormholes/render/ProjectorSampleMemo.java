@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
 import java.util.HashMap;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongPredicate;
@@ -16,12 +17,18 @@ import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.util.AxisAlignedBB;
 
 final class ProjectorSampleMemo {
+    @FunctionalInterface
+    interface MaterialOcclusion {
+        boolean occluding(Material material);
+    }
+
     private static final int MIN_BUDGET = 4096;
     private static final int BUDGET_FACTOR = 3;
 
     private final HashMap<ProjectionWorldView, Long2ObjectOpenHashMap<ProjectorSample>> remoteSamples;
     private final HashMap<ProjectionWorldView, Long2ByteOpenHashMap> occlusion;
     private final Long2ByteOpenHashMap localAir;
+    private final MaterialOcclusion materialOcclusion;
     private ProjectionWorldView lastSampleView;
     private Long2ObjectOpenHashMap<ProjectorSample> lastSampleMap;
     private ProjectionWorldView lastOcclusionView;
@@ -37,9 +44,16 @@ final class ProjectorSampleMemo {
     private int localRegionChunkMaxZ;
 
     ProjectorSampleMemo() {
+        this(material -> material != null
+            && !ProjectionWorldView.isAir(material)
+            && material.isOccluding());
+    }
+
+    ProjectorSampleMemo(MaterialOcclusion materialOcclusion) {
         this.remoteSamples = new HashMap<ProjectionWorldView, Long2ObjectOpenHashMap<ProjectorSample>>(4);
         this.occlusion = new HashMap<ProjectionWorldView, Long2ByteOpenHashMap>(4);
         this.localAir = new Long2ByteOpenHashMap(1024);
+        this.materialOcclusion = Objects.requireNonNull(materialOcclusion);
         this.destinationVersion = -1L;
         this.destinationRevision = Long.MIN_VALUE;
         this.localRevision = Long.MIN_VALUE;
@@ -85,13 +99,12 @@ final class ProjectorSampleMemo {
         return air;
     }
 
-    boolean buriedInView(ProjectionWorldView view, int x, int y, int z, BlockData selfData) {
+    int occlusionDepthInView(ProjectionWorldView view, int x, int y, int z, BlockData selfData) {
         if (selfData == null) {
-            return false;
+            return 0;
         }
-        Material selfMaterial = selfData.getMaterial();
-        if (ProjectionWorldView.isAir(selfMaterial) || !selfMaterial.isOccluding()) {
-            return false;
+        if (!materialOcclusion.occluding(selfData.getMaterial())) {
+            return 0;
         }
         Long2ByteOpenHashMap memo;
         if (view == lastOcclusionView && lastOcclusionMap != null) {
@@ -106,7 +119,27 @@ final class ProjectorSampleMemo {
             lastOcclusionMap = memo;
         }
         memo.put(ProjectionCellKey.pack(x, y, z), (byte) 1);
-        return occludingMemoized(view, memo, x + 1, y, z)
+        if (!surroundedInView(view, memo, x, y, z)) {
+            return 0;
+        }
+        if (!surroundedInView(view, memo, x + 1, y, z)
+            || !surroundedInView(view, memo, x - 1, y, z)
+            || !surroundedInView(view, memo, x, y + 1, z)
+            || !surroundedInView(view, memo, x, y - 1, z)
+            || !surroundedInView(view, memo, x, y, z + 1)
+            || !surroundedInView(view, memo, x, y, z - 1)) {
+            return 1;
+        }
+        return 2;
+    }
+
+    private boolean surroundedInView(ProjectionWorldView view,
+                                     Long2ByteOpenHashMap memo,
+                                     int x,
+                                     int y,
+                                     int z) {
+        return occludingMemoized(view, memo, x, y, z)
+            && occludingMemoized(view, memo, x + 1, y, z)
             && occludingMemoized(view, memo, x - 1, y, z)
             && occludingMemoized(view, memo, x, y + 1, z)
             && occludingMemoized(view, memo, x, y - 1, z)
@@ -114,13 +147,13 @@ final class ProjectorSampleMemo {
             && occludingMemoized(view, memo, x, y, z - 1);
     }
 
-    private static boolean occludingMemoized(ProjectionWorldView view, Long2ByteOpenHashMap memo, int x, int y, int z) {
+    private boolean occludingMemoized(ProjectionWorldView view, Long2ByteOpenHashMap memo, int x, int y, int z) {
         long key = ProjectionCellKey.pack(x, y, z);
         byte known = memo.get(key);
         if (known != 0) {
             return known == 1;
         }
-        boolean occluding = occludingSample(view, x, y, z);
+        boolean occluding = materialOcclusion.occluding(view.sampleMaterial(x, y, z));
         memo.put(key, occluding ? (byte) 1 : (byte) 2);
         return occluding;
     }
@@ -218,40 +251,6 @@ final class ProjectorSampleMemo {
 
     static boolean isAir(Material material) {
         return ProjectionWorldView.isAir(material);
-    }
-
-    static boolean occludingSample(ProjectionWorldView view, int x, int y, int z) {
-        Material material = view.sampleMaterial(x, y, z);
-        return material != null && !ProjectionWorldView.isAir(material) && material.isOccluding();
-    }
-
-    static boolean buriedCell(boolean selfOccluding, boolean[] neighborsOccluding) {
-        if (!selfOccluding) {
-            return false;
-        }
-        for (boolean neighborOccluding : neighborsOccluding) {
-            if (!neighborOccluding) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    static boolean buriedInView(ProjectionWorldView view, int x, int y, int z, BlockData selfData, boolean[] scratchNeighbors) {
-        if (selfData == null) {
-            return false;
-        }
-        Material selfMaterial = selfData.getMaterial();
-        if (ProjectionWorldView.isAir(selfMaterial) || !selfMaterial.isOccluding()) {
-            return false;
-        }
-        scratchNeighbors[0] = occludingSample(view, x + 1, y, z);
-        scratchNeighbors[1] = occludingSample(view, x - 1, y, z);
-        scratchNeighbors[2] = occludingSample(view, x, y + 1, z);
-        scratchNeighbors[3] = occludingSample(view, x, y - 1, z);
-        scratchNeighbors[4] = occludingSample(view, x, y, z + 1);
-        scratchNeighbors[5] = occludingSample(view, x, y, z - 1);
-        return buriedCell(true, scratchNeighbors);
     }
 
     static boolean localSampleMemoStale(boolean forceStableCellResample,

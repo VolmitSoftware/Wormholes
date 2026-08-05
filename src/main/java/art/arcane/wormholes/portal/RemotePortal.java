@@ -57,7 +57,7 @@ public class RemotePortal extends Portal implements IRemotePortal {
         this.mirroredBlackoutBackground = true;
         this.mirroredBlackoutColor = BlackoutColor.BLACK;
         this.mirroredActivationRange = 0;
-        this.mirroredRenderMode = ProjectionRenderMode.PANOPTIC;
+        this.mirroredRenderMode = ProjectionRenderMode.VENTICULAR;
         this.mirroredAmbientStyle = AmbientParticleStyle.SPARKS;
         this.mirroredAmbientColor = 0xB969FF;
         this.mirroredSurfaceSkin = "";
@@ -239,7 +239,7 @@ public class RemotePortal extends Portal implements IRemotePortal {
     }
 
     public void setMirroredRenderMode(ProjectionRenderMode mode) {
-        this.mirroredRenderMode = mode == null ? ProjectionRenderMode.PANOPTIC : mode;
+        this.mirroredRenderMode = mode == null ? ProjectionRenderMode.VENTICULAR : mode;
     }
 
     public AmbientParticleStyle getMirroredAmbientStyle() {

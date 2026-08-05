@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 public final class PortalRegistryPendingFilesTest
 {
 	@Test
-	public void duplicateQueuesAreIgnoredAndResolvedFilesLeaveTheQueue()
+	public void duplicateQueuesAreIgnoredAndResolvedFilesCanBeQueuedAgain()
 	{
 		PortalRegistryPendingFiles pending = new PortalRegistryPendingFiles();
 		File first = new File("first.json");
@@ -33,6 +33,9 @@ public final class PortalRegistryPendingFilesTest
 
 		assertEquals(1, pending.size());
 		assertFalse(pending.isEmpty());
+		assertTrue(pending.add(first));
+		assertFalse(pending.add(first));
+		assertEquals(2, pending.size());
 
 		pending.clear();
 

@@ -29,6 +29,9 @@ public final class EntityDeltaCodec {
         if (!Arrays.equals(safe(current.metadata()), safe(previous.metadata()))) {
             mask |= EntityVisual.FIELD_METADATA;
         }
+        if (!Arrays.equals(safe(current.mapData()), safe(previous.mapData()))) {
+            mask |= EntityVisual.FIELD_MAP_DATA;
+        }
         if (!Objects.equals(current.passengerOf(), previous.passengerOf())) {
             mask |= EntityVisual.FIELD_PASSENGER;
         }
@@ -66,6 +69,7 @@ public final class EntityDeltaCodec {
                 current.leashHolder(),
                 current.metadata(),
                 current.equipment(),
+                current.mapData(),
                 sequence
             );
         }
@@ -87,7 +91,8 @@ public final class EntityDeltaCodec {
             current.passengerOf(),
             current.leashHolder(),
             current.metadata() == null ? PacketBlobs.EMPTY : current.metadata(),
-            current.equipment() == null ? PacketBlobs.EMPTY : current.equipment()
+            current.equipment() == null ? PacketBlobs.EMPTY : current.equipment(),
+            current.mapData() == null ? PacketBlobs.EMPTY : current.mapData()
         );
     }
 
@@ -112,7 +117,8 @@ public final class EntityDeltaCodec {
                 incoming.passengerOf(),
                 incoming.leashHolder(),
                 incoming.metadata(),
-                incoming.equipment()
+                incoming.equipment(),
+                incoming.mapData()
             );
         }
         if (lastKnown == null) {
@@ -139,6 +145,7 @@ public final class EntityDeltaCodec {
         String textureSignature = (mask & EntityVisual.FIELD_PROFILE) != 0 ? incoming.textureSignature() : lastKnown.textureSignature();
         byte[] metadata = (mask & EntityVisual.FIELD_METADATA) != 0 ? incoming.metadata() : lastKnown.metadata();
         byte[] equipment = (mask & EntityVisual.FIELD_EQUIPMENT) != 0 ? incoming.equipment() : lastKnown.equipment();
+        byte[] mapData = (mask & EntityVisual.FIELD_MAP_DATA) != 0 ? incoming.mapData() : lastKnown.mapData();
         return new EntityVisual(
             EntityVisual.MODE_FULL,
             incoming.sequence(),
@@ -157,7 +164,8 @@ public final class EntityDeltaCodec {
             passengerOf,
             leashHolder,
             metadata,
-            equipment
+            equipment,
+            mapData
         );
     }
 

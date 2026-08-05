@@ -29,29 +29,48 @@ final class ProjectorSample {
     }
 
     ProjectorSample withData(BlockData transformed) {
-        return new ProjectorSample(Kind.BLOCK, transformed, lightView, remoteKey);
+        return new ProjectorSample(kind, transformed, lightView, remoteKey);
     }
 
     ProjectedBlockClaim asClaim(BlockData projectedData) {
-        if (kind == Kind.MASK_AIR) {
-            return new ProjectedBlockClaim(projectedData, null, ProjectedBlockClaim.NO_REMOTE_KEY, true);
-        }
-        return new ProjectedBlockClaim(projectedData, lightView, remoteKey, false);
+        return asClaim(projectedData, defaultLightingPolicy());
+    }
+
+    ProjectedBlockClaim asClaim(BlockData projectedData, ProjectedBlockClaim.LightingPolicy lightingPolicy) {
+        boolean maskAir = kind == Kind.MASK_AIR;
+        return new ProjectedBlockClaim(projectedData, lightView, remoteKey, maskAir, lightingPolicy);
     }
 
     boolean matchesClaim(ProjectedBlockClaim claim, BlockData projectedData, boolean maskAir) {
+        return matchesClaim(claim, projectedData, maskAir, defaultLightingPolicy());
+    }
+
+    boolean matchesClaim(ProjectedBlockClaim claim,
+                         BlockData projectedData,
+                         boolean maskAir,
+                         ProjectedBlockClaim.LightingPolicy lightingPolicy) {
         if (claim == null
-            || claim.getLightRemoteKey() != remoteKey
             || claim.isMaskAir() != maskAir
+            || claim.getLightingPolicy() != lightingPolicy
             || !claim.getData().equals(projectedData)) {
+            return false;
+        }
+        if (claim.getLightRemoteKey() != remoteKey) {
             return false;
         }
         ProjectionWorldView previousLightView = claim.getLightView();
         return previousLightView == null ? lightView == null : previousLightView.equals(lightView);
     }
 
+    private ProjectedBlockClaim.LightingPolicy defaultLightingPolicy() {
+        return lightView != null && remoteKey != ProjectedBlockClaim.NO_REMOTE_KEY
+            ? ProjectedBlockClaim.LightingPolicy.SOURCE
+            : ProjectedBlockClaim.LightingPolicy.LOCAL;
+    }
+
     enum Kind {
         BLOCK,
+        BACKING_BLOCK,
         REMOTE_AIR,
         MASK_AIR,
         OCCLUDED,

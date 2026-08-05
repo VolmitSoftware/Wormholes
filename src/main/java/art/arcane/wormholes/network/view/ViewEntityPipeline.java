@@ -13,7 +13,10 @@ import art.arcane.wormholes.platform.WormholesPlatform;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Hanging;
+import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Pose;
@@ -292,7 +295,7 @@ final class ViewEntityPipeline {
 
     private EntityVisual captureEntityVisualFull(ViewSession session, EntityCaptureContext context, Entity entity, long entityTick) {
         Location location = entity.getLocation();
-        Vector look = entity instanceof LivingEntity living ? living.getEyeLocation().getDirection() : location.getDirection();
+        Vector look = entityLook(entity, location);
         Vector velocity = entity.getVelocity();
         String playerName = "";
         String textureValue = "";
@@ -321,16 +324,24 @@ final class ViewEntityPipeline {
         ViewServer.BlobCaptureState previousBlobState = session.blobCaptureStates.get(entity.getUniqueId());
         Pose pose = entity.getPose();
         boolean onFire = entity.getFireTicks() > 0;
-        int equipmentSignature = equipmentSignature(entity);
+        int stateSignature = stateSignature(entity);
         byte[] metadata;
         byte[] equipment;
-        if (ViewServer.shouldRecaptureBlobs(previousVisual, previousBlobState, entityTick, ViewServer.BLOB_RECAPTURE_INTERVAL_TICKS, pose, onFire, equipmentSignature)) {
+        byte[] mapData;
+        long recaptureInterval = entity instanceof ItemFrame
+            ? ViewServer.MAP_RECAPTURE_INTERVAL_TICKS
+            : ViewServer.BLOB_RECAPTURE_INTERVAL_TICKS;
+        if (ViewServer.shouldRecaptureBlobs(previousVisual, previousBlobState, entityTick,
+            recaptureInterval, pose, onFire, stateSignature)) {
             metadata = PacketBlobs.captureMetadata(entity);
             equipment = PacketBlobs.captureEquipment(entity);
-            context.blobStateUpdates.put(entity.getUniqueId(), new ViewServer.BlobCaptureState(entityTick, pose, onFire, equipmentSignature));
+            mapData = captureMapData(entity);
+            context.blobStateUpdates.put(entity.getUniqueId(),
+                new ViewServer.BlobCaptureState(entityTick, pose, onFire, stateSignature));
         } else {
             metadata = previousVisual.metadata();
             equipment = previousVisual.equipment();
+            mapData = previousVisual.mapData();
         }
         return EntityVisual.full(
             entity.getUniqueId(),
@@ -348,8 +359,18 @@ final class ViewEntityPipeline {
             leashHolder,
             metadata,
             equipment,
+            mapData,
             0
         );
+    }
+
+    private static byte[] captureMapData(Entity entity) {
+        if (!(entity instanceof ItemFrame itemFrame)) {
+            return PacketBlobs.EMPTY;
+        }
+        return ProjectedMapData.capture(itemFrame)
+            .map(ProjectedMapData::encode)
+            .orElse(PacketBlobs.EMPTY);
     }
 
     private static int equipmentSignature(Entity entity) {
@@ -368,6 +389,26 @@ final class ViewEntityPipeline {
         signature = 31 * signature + itemSignature(equipment.getItemInMainHand());
         signature = 31 * signature + itemSignature(equipment.getItemInOffHand());
         return signature;
+    }
+
+    private static int stateSignature(Entity entity) {
+        if (entity instanceof ItemFrame itemFrame) {
+            int signature = itemFrame.getItem().hashCode();
+            signature = (31 * signature) + itemFrame.getRotation().ordinal();
+            return (31 * signature) + itemFrame.getFacing().ordinal();
+        }
+        return equipmentSignature(entity);
+    }
+
+    private static Vector entityLook(Entity entity, Location location) {
+        if (entity instanceof LivingEntity living) {
+            return living.getEyeLocation().getDirection();
+        }
+        if (entity instanceof Hanging hanging) {
+            BlockFace facing = hanging.getFacing();
+            return new Vector(facing.getModX(), facing.getModY(), facing.getModZ());
+        }
+        return location.getDirection();
     }
 
     private static int itemSignature(ItemStack stack) {

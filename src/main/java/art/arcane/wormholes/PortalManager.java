@@ -189,7 +189,6 @@ public class PortalManager implements Listener
 			}
 			else if(result == PortalLoadResult.PENDING_WORLD)
 			{
-				pendingPortalFiles.add(k);
 				skipped++;
 			}
 			else
@@ -281,7 +280,10 @@ public class PortalManager implements Listener
 
 			if(stored.pendingWorld())
 			{
-				Wormholes.w("Skipping portal " + k.getName() + " - world '" + stored.worldKey() + "' is not loaded");
+				if(pendingPortalFiles.add(k))
+				{
+					Wormholes.w("Deferring portal " + k.getName() + " until world '" + stored.worldKey() + "' is loaded");
+				}
 				return PortalLoadResult.PENDING_WORLD;
 			}
 
@@ -359,6 +361,16 @@ public class PortalManager implements Listener
 	public List<ILocalPortal> getLocalPortals()
 	{
 		return portalSnapshot;
+	}
+
+	public boolean hasPlayerWithin(
+		UUID worldId,
+		double x,
+		double y,
+		double z,
+		double rangeSquared)
+	{
+		return attendance.hasPlayerWithin(worldId, x, y, z, rangeSquared);
 	}
 
 	public boolean hasLocalPortal(UUID id)

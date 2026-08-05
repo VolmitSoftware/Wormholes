@@ -55,7 +55,11 @@ public class NetworkConfig {
         public int captureSnapshotIntervalTicks = 100;
         public int captureMaxQueuedDiffsPerChunk = 256;
         public boolean captureLightEnabled = true;
-        public boolean captureBlockEntityEnabled = true;
+        @ConfigDescription({
+            "Capture block-entity NBT in cross-server replication streams.",
+            "The projection renderer does not currently consume this payload, so it is disabled by default to avoid unused traffic."
+        })
+        public boolean captureBlockEntityEnabled = false;
     }
 
     public static class StatsConfig {

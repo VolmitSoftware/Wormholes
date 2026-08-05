@@ -4,7 +4,7 @@ import art.arcane.wormholes.config.toml.NetworkConfig;
 
 public record CaptureSettings(int snapshotIntervalTicks, int maxQueuedDiffsPerChunk, boolean lightCaptureEnabled, boolean blockEntityCaptureEnabled) {
     public static CaptureSettings defaults() {
-        return new CaptureSettings(100, 256, true, true);
+        return new CaptureSettings(100, 256, true, false);
     }
 
     public static CaptureSettings from(NetworkConfig config) {

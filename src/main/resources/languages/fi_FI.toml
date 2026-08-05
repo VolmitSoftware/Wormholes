@@ -392,7 +392,7 @@ locale = "fi_FI"
 "rtp.duration.decimal_seconds" = "{value}s"
 
 [lines]
-"portal.menu.render_mode" = ["<aqua><bold>Renderöintitila <white>{mode}</bold>","<gray>Kuinka suuren osan kohdetilavuudesta tämä portaali projisoi.","","<gray>Tila: <white>{mode}","","<dark_gray>PanOptic renderöi koko kohdetilavuuden.","<dark_gray>Venticular piilottaa täysin ympäröidyt sisälohkot kevyempiä lähetyksiä varten.","<dark_gray>PlannarOptic piilottaa näkyvien läpinäkymättömien pintojen takana olevan geometrian.","","<dark_gray>Vasen: vaihda tilaa."]
+"portal.menu.render_mode" = ["<aqua><bold>Renderöintitila <white>{mode}</bold>","<gray>Kuinka suuren osan kohdetilavuudesta tämä portaali projisoi.","","<gray>Tila: <white>{mode}","","<dark_gray>PanOptic renderöi koko kohdetilavuuden.","<dark_gray>Venticular piilottaa näkyvien läpinäkymättömien pintojen takana olevan geometrian.","","<dark_gray>Vasen: vaihda tilaa."]
 "portal.menu.ambient_particles" = ["<aqua><bold>Ympäristöhiukkaset</bold>","<gray>Koristeellista pölyä, joka leijuu tämän portaalin ympärillä.","","<gray>Tyyli: <white>{style} <dark_gray>({color})","","<dark_gray>Vasen: vaihda tyyliä.","<dark_gray>Oikea: valitse väri."]
 "portal.menu.ambient_color.placard" = ["<gold><bold>Ympäristöväri</bold>","<gray>Ympäristön pölyhiukkasten väri.","","<gray>Nykyinen: <white>{color}"]
 "portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>Vasen napsautus: +{step}","<dark_gray>Oikea napsautus: -{step}","<dark_gray>Shift + vasen napsautus: +{large_step}","<dark_gray>Shift + oikea napsautus: -{large_step}"]

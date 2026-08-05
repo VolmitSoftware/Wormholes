@@ -156,12 +156,14 @@ final class DoorArrivalResolver
 		DoorwayPlane destination,
 		int sideSign)
 	{
-		if(transit.travelerClass() == DoorTravelerClass.OBJECT)
+		boolean closedTrapdoorSurface = destination.horizontal() && destination.contactSurface();
+		if(transit.travelerClass() == DoorTravelerClass.OBJECT || closedTrapdoorSurface)
 		{
-			// No vertical search: an object either fits where the doorway spits it out
-			// or it never left the source door at all.
 			Location candidate = new Location(world, nominal.x(), nominal.y(), nominal.z(), yaw, transit.pitch());
-			return isPassableVolume(candidate, transit.halfWidth(), transit.height())
+			boolean fits = closedTrapdoorSurface
+				? fitsClosedTrapdoorSurface(candidate, transit, destination, sideSign)
+				: isPassableVolume(candidate, transit.halfWidth(), transit.height());
+			return fits
 				? Optional.of(candidate)
 				: Optional.empty();
 		}
@@ -185,7 +187,38 @@ final class DoorArrivalResolver
 			: isSafeStanding(candidate, transit.halfWidth(), transit.height());
 	}
 
+	private static boolean fitsClosedTrapdoorSurface(
+		Location candidate,
+		DoorTransit transit,
+		DoorwayPlane destination,
+		int sideSign)
+	{
+		double contactY = sideSign > 0
+			? candidate.getY()
+			: candidate.getY() + transit.height();
+		if(Math.abs(contactY - destination.exposedSurfaceY(sideSign)) > COLLISION_EPSILON)
+		{
+			return false;
+		}
+		return isPassableVolume(
+			candidate,
+			transit.halfWidth(),
+			transit.height(),
+			destination,
+			transit.travelerClass() != DoorTravelerClass.OBJECT);
+	}
+
 	private static boolean isPassableVolume(Location location, double halfWidth, double height)
+	{
+		return isPassableVolume(location, halfWidth, height, null, false);
+	}
+
+	private static boolean isPassableVolume(
+		Location location,
+		double halfWidth,
+		double height,
+		DoorwayPlane supportingSurface,
+		boolean rejectHazards)
 	{
 		World world = location.getWorld();
 		if(world == null || location.getBlockY() <= world.getMinHeight()
@@ -209,7 +242,18 @@ final class DoorArrivalResolver
 			{
 				for(int y = lowestY; y <= highestY; y++)
 				{
-					if(!world.getBlockAt(x, y, z).isPassable())
+					Block occupied = world.getBlockAt(x, y, z);
+					if(isNonOverlappingContactSurfaceBlock(
+						supportingSurface,
+						x,
+						y,
+						z,
+						location.getY(),
+						location.getY() + height))
+					{
+						continue;
+					}
+					if(!occupied.isPassable() || (rejectHazards && isHazard(occupied.getType())))
 					{
 						return false;
 					}
@@ -217,6 +261,24 @@ final class DoorArrivalResolver
 			}
 		}
 		return true;
+	}
+
+	static boolean isNonOverlappingContactSurfaceBlock(
+		DoorwayPlane surface,
+		int blockX,
+		int blockY,
+		int blockZ,
+		double minimumY,
+		double maximumY)
+	{
+		return surface != null
+			&& surface.horizontal()
+			&& surface.contactSurface()
+			&& surface.blockX() == blockX
+			&& surface.blockY() == blockY
+			&& surface.blockZ() == blockZ
+			&& (Math.abs(minimumY - surface.exposedSurfaceY(1)) <= COLLISION_EPSILON
+				|| Math.abs(maximumY - surface.exposedSurfaceY(-1)) <= COLLISION_EPSILON);
 	}
 
 	private static boolean isSafeStanding(Location location, double halfWidth, double height)

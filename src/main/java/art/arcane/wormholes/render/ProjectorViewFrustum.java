@@ -1,33 +1,20 @@
 package art.arcane.wormholes.render;
 
 import java.lang.reflect.Method;
-import java.util.function.DoubleUnaryOperator;
 import java.util.logging.Level;
 
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
-import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.wormholes.util.Direction;
 
 final class ProjectorViewFrustum {
-    static final double CELL_BUDGET_MIN_RANGE = 4.0D;
-    private static final double CELL_BUDGET_FLOOR_RANGE = 1.0D;
-    private static final double PERSPECTIVE_MIN_STANDOFF = 1.0E-6D;
-
-    private static final int CELL_BUDGET_LATERAL_ATTEMPTS = 4;
-    private static final double CELL_BUDGET_LATERAL_MIN_SHRINK = 0.35D;
-    private static final double CELL_BUDGET_LATERAL_MAX_GROWTH = 4.0D;
-    private static final double CELL_BUDGET_LATERAL_STEP = 0.05D;
-
-    private static final int CELL_BUDGET_FIT_ATTEMPTS = 4;
-    private static final int CELL_BUDGET_FORCED_ATTEMPTS = 8;
-    private static final double CELL_BUDGET_MIN_SHRINK = 0.35D;
-    private static final double CELL_BUDGET_FORCED_SHRINK = 0.5D;
-    private static final double CELL_BUDGET_FIT_MARGIN = 0.90D;
+    private static final int CELL_BUDGET_SEARCH_ATTEMPTS = 24;
 
     private static final Method CLIENT_VIEW_DISTANCE_METHOD = resolveClientViewDistanceMethod();
 
@@ -52,13 +39,23 @@ final class ProjectorViewFrustum {
     private double cachedFitEyeZ;
     private double cachedFitAxial;
     private double cachedFitLateralPad;
+    private Direction cachedFitNormal;
+    private Direction cachedFitRight;
+    private Direction cachedFitUp;
     private int cachedFitBudget;
     private double cachedFitNearPlanePadding;
     private double cachedFitCullingRatio;
     private double cachedFitAperturePadding;
     private double cachedFittedAxial;
+    private double cachedFittedLateral;
+    private long cachedFittedCandidateWork;
     private long fitRecalculationCount;
     private double fittedAxial;
+    private double fittedLateral;
+    private long fittedCandidateWork;
+    private final int[] scratchAxisMin;
+    private final int[] scratchAxisMax;
+    private final double[] scratchSlabWindowBounds;
 
     ProjectorViewFrustum() {
         this(CLIENT_VIEW_DISTANCE_METHOD);
@@ -70,9 +67,17 @@ final class ProjectorViewFrustum {
         this.cachedStructureRevision = Long.MIN_VALUE;
         this.cachedFitStructureRevision = Long.MIN_VALUE;
         this.fitRecalculationCount = 0L;
+        this.scratchAxisMin = new int[3];
+        this.scratchAxisMax = new int[3];
+        this.scratchSlabWindowBounds = new double[4];
     }
 
-    Frustum4D fit(Player observer, PortalStructure structure, Location eye, double portalDepth, double lateralPadBlocks) {
+    Frustum4D fit(Player observer,
+                  PortalStructure structure,
+                  PortalFrame frame,
+                  Location eye,
+                  double portalDepth,
+                  double lateralPadBlocks) {
         double axial = capProjectionDistance(observer, portalDepth);
         int budget = Settings.PROJECTION_MAX_PROJECTED_CELLS;
         long structureRevision = structure.getRevision();
@@ -88,21 +93,25 @@ final class ProjectorViewFrustum {
             && cachedFitEyeZ == eye.getZ()
             && cachedFitAxial == axial
             && cachedFitLateralPad == lateralPadBlocks
+            && cachedFitNormal == frame.getNormal()
+            && cachedFitRight == frame.getRight()
+            && cachedFitUp == frame.getUp()
             && cachedFitBudget == budget
             && cachedFitNearPlanePadding == nearPlanePadding
             && cachedFitCullingRatio == cullingRatio
             && cachedFitAperturePadding == aperturePadding) {
             fittedAxial = cachedFittedAxial;
+            fittedLateral = cachedFittedLateral;
+            fittedCandidateWork = cachedFittedCandidateWork;
             return reusable;
         }
         fitRecalculationCount++;
         double ceiling = lateralCeiling(axial, lateralPadBlocks);
-        double lateral = tuneLateralToCellBudget(structure, eye, axial, budget, ceiling,
-            fitLateralToCellBudget(structure, eye, axial, budget, lateralPadBlocks));
-        double fitted = fitRangeToCellBudget(axial, budget,
-            candidate -> regionCellCount(frustumFor(eye, structure, candidate, lateral).getRegion()));
-        fittedAxial = fitted;
-        Frustum4D result = frustumFor(eye, structure, fitted, lateral);
+        FitSolution solution = fitWithinCandidateBudget(structure, frame, eye, axial, ceiling, budget);
+        fittedAxial = solution.axial();
+        fittedLateral = solution.lateral();
+        fittedCandidateWork = solution.candidateWork();
+        Frustum4D result = solution.frustum();
         cachedFit = result;
         cachedFitStructure = structure;
         cachedFitStructureRevision = structureRevision;
@@ -111,49 +120,29 @@ final class ProjectorViewFrustum {
         cachedFitEyeZ = eye.getZ();
         cachedFitAxial = axial;
         cachedFitLateralPad = lateralPadBlocks;
+        cachedFitNormal = frame.getNormal();
+        cachedFitRight = frame.getRight();
+        cachedFitUp = frame.getUp();
         cachedFitBudget = budget;
         cachedFitNearPlanePadding = nearPlanePadding;
         cachedFitCullingRatio = cullingRatio;
         cachedFitAperturePadding = aperturePadding;
-        cachedFittedAxial = fitted;
+        cachedFittedAxial = fittedAxial;
+        cachedFittedLateral = fittedLateral;
+        cachedFittedCandidateWork = fittedCandidateWork;
         return result;
-    }
-
-    private double tuneLateralToCellBudget(PortalStructure structure,
-                                           Location eye,
-                                           double axial,
-                                           int budget,
-                                           double ceiling,
-                                           double lateral) {
-        if (budget <= 0) {
-            return lateral;
-        }
-        double target = budget * CELL_BUDGET_FIT_MARGIN;
-        double tuned = lateral;
-        for (int attempt = 0; attempt < CELL_BUDGET_LATERAL_ATTEMPTS; attempt++) {
-            double cells = regionCellCount(frustumFor(eye, structure, axial, tuned).getRegion());
-            if (cells > budget) {
-                tuned = tuned * Math.max(CELL_BUDGET_LATERAL_MIN_SHRINK, Math.sqrt(target / cells));
-                continue;
-            }
-            if (cells >= target || tuned >= ceiling) {
-                return tuned;
-            }
-            double growth = Math.min(CELL_BUDGET_LATERAL_MAX_GROWTH, Math.sqrt(target / Math.max(cells, 1.0D)));
-            double grown = Math.min(ceiling, tuned * growth);
-            if (grown - tuned <= CELL_BUDGET_LATERAL_STEP) {
-                return tuned;
-            }
-            if (regionCellCount(frustumFor(eye, structure, axial, grown).getRegion()) > budget) {
-                return tuned;
-            }
-            tuned = grown;
-        }
-        return tuned;
     }
 
     double fittedDepth() {
         return fittedAxial;
+    }
+
+    double fittedLateral() {
+        return fittedLateral;
+    }
+
+    long fittedCandidateWork() {
+        return fittedCandidateWork;
     }
 
     long fitRecalculationCount() {
@@ -194,104 +183,201 @@ final class ProjectorViewFrustum {
         return built;
     }
 
-    static double fitLateralToCellBudget(PortalStructure structure,
-                                         Location eye,
-                                         double axial,
-                                         int budget,
-                                         double lateralPadBlocks) {
-        double ceiling = lateralCeiling(axial, lateralPadBlocks);
-        if (budget <= 0) {
-            return ceiling;
+    private FitSolution fitWithinCandidateBudget(PortalStructure structure,
+                                                 PortalFrame frame,
+                                                 Location eye,
+                                                 double axial,
+                                                 double lateralCeiling,
+                                                 int budget) {
+        long limit = budget <= 0 ? Long.MAX_VALUE : budget;
+        Frustum4D full = frustumFor(eye, structure, axial, lateralCeiling);
+        long fullWork = estimateCandidateWork(structure, frame, eye, full, axial, limit);
+        if (budget <= 0 || fullWork <= budget) {
+            return new FitSolution(full, axial, lateralCeiling, fullWork);
         }
-        AxisAlignedBB area = structure.getArea();
-        double padding = Settings.PROJECTION_APERTURE_PADDING_BLOCKS;
-        double sizeX = area.sizeX();
-        double sizeY = area.sizeY();
-        double sizeZ = area.sizeZ();
-        double largest = Math.max(sizeX, Math.max(sizeY, sizeZ));
-        double smallest = Math.min(sizeX, Math.min(sizeY, sizeZ));
-        double middle = (sizeX + sizeY + sizeZ) - largest - smallest;
-        double first = largest + (2.0D * padding);
-        double second = middle + (2.0D * padding);
-        double allowedFaceArea = (budget * CELL_BUDGET_FIT_MARGIN) / Math.max(axial, 1.0D);
-        double linear = first + second;
-        double constant = (first * second) - allowedFaceArea;
-        double solved = constant >= 0.0D
-            ? 0.0D
-            : (Math.sqrt((linear * linear) - (4.0D * constant)) - linear) * 0.25D;
-        return Math.min(ceiling, Math.min(solved, perspectiveHalfSpan(area, eye, axial, smallest)));
+
+        Frustum4D narrow = frustumFor(eye, structure, axial, 0.0D);
+        long narrowWork = estimateCandidateWork(structure, frame, eye, narrow, axial, budget);
+        if (narrowWork <= budget) {
+            return fitLateralWithinBudget(structure, frame, eye, axial, lateralCeiling, budget, narrow, narrowWork);
+        }
+        return fitAxialWithinBudget(structure, frame, eye, axial, budget);
+    }
+
+    private FitSolution fitLateralWithinBudget(PortalStructure structure,
+                                               PortalFrame frame,
+                                               Location eye,
+                                               double axial,
+                                               double lateralCeiling,
+                                               int budget,
+                                               Frustum4D initial,
+                                               long initialWork) {
+        double low = 0.0D;
+        double high = lateralCeiling;
+        Frustum4D fitted = initial;
+        long fittedWork = initialWork;
+        for (int attempt = 0; attempt < CELL_BUDGET_SEARCH_ATTEMPTS; attempt++) {
+            double candidateLateral = (low + high) * 0.5D;
+            Frustum4D candidate = frustumFor(eye, structure, axial, candidateLateral);
+            long candidateWork = estimateCandidateWork(structure, frame, eye, candidate, axial, budget);
+            if (candidateWork <= budget) {
+                low = candidateLateral;
+                fitted = candidate;
+                fittedWork = candidateWork;
+            } else {
+                high = candidateLateral;
+            }
+        }
+        return new FitSolution(fitted, axial, low, fittedWork);
+    }
+
+    private FitSolution fitAxialWithinBudget(PortalStructure structure,
+                                             PortalFrame frame,
+                                             Location eye,
+                                             double axialCeiling,
+                                             int budget) {
+        double low = 0.0D;
+        double high = axialCeiling;
+        Frustum4D fitted = frustumFor(eye, structure, 0.0D, 0.0D);
+        long fittedWork = estimateCandidateWork(structure, frame, eye, fitted, 0.0D, budget);
+        if (fittedWork > budget) {
+            return new FitSolution(Frustum4D.empty(), 0.0D, 0.0D, 0L);
+        }
+        for (int attempt = 0; attempt < CELL_BUDGET_SEARCH_ATTEMPTS; attempt++) {
+            double candidateAxial = (low + high) * 0.5D;
+            Frustum4D candidate = frustumFor(eye, structure, candidateAxial, 0.0D);
+            long candidateWork = estimateCandidateWork(structure, frame, eye, candidate, candidateAxial, budget);
+            if (candidateWork <= budget) {
+                low = candidateAxial;
+                fitted = candidate;
+                fittedWork = candidateWork;
+            } else {
+                high = candidateAxial;
+            }
+        }
+        if (fittedWork == 0L) {
+            return new FitSolution(Frustum4D.empty(), 0.0D, 0.0D, 0L);
+        }
+        return new FitSolution(fitted, low, 0.0D, fittedWork);
+    }
+
+    long estimateCandidateWork(PortalStructure structure,
+                               PortalFrame frame,
+                               Location eye,
+                               Frustum4D frustum,
+                               double depthBlocks,
+                               long limit) {
+        AxisAlignedBB region = frustum.getRegion();
+        int[] axisMin = scratchAxisMin;
+        axisMin[0] = PortalProjector.minBlockForCenter(region.getXa());
+        axisMin[1] = PortalProjector.minBlockForCenter(region.getYa());
+        axisMin[2] = PortalProjector.minBlockForCenter(region.getZa());
+        int[] axisMax = scratchAxisMax;
+        axisMax[0] = PortalProjector.maxBlockForCenter(region.getXb());
+        axisMax[1] = PortalProjector.maxBlockForCenter(region.getYb());
+        axisMax[2] = PortalProjector.maxBlockForCenter(region.getZb());
+
+        Location center = structure.getCenter();
+        double originX = center.getX();
+        double originY = center.getY();
+        double originZ = center.getZ();
+        Direction normal = frame.getNormal();
+        double eyeRelX = eye.getX() - originX;
+        double eyeRelY = eye.getY() - originY;
+        double eyeRelZ = eye.getZ() - originZ;
+        boolean eyeFrontSide = dot(eyeRelX, eyeRelY, eyeRelZ, normal) >= 0.0D;
+        PortalFrame projectionFrame = frame.view(eyeFrontSide);
+        double projectionEyeDot = dot(eyeRelX, eyeRelY, eyeRelZ, projectionFrame.getNormal());
+        double portalPlaneClearance = PortalProjector.portalPlaneClearance(structure.getArea(), frame);
+        double maxProjectionDepth = depthBlocks + portalPlaneClearance;
+        double signedMinDistance = eyeFrontSide ? -maxProjectionDepth : portalPlaneClearance;
+        double signedMaxDistance = eyeFrontSide ? -portalPlaneClearance : maxProjectionDepth;
+        clampNormalBounds(axisMin, axisMax, normal, originX, originY, originZ, signedMinDistance, signedMaxDistance);
+
+        Direction projectionNormal = projectionFrame.getNormal();
+        Direction projectionRight = projectionFrame.getRight();
+        Direction projectionUp = projectionFrame.getUp();
+        int normalAxis = axis(projectionNormal);
+        int rightAxis = axis(projectionRight);
+        int upAxis = axis(projectionUp);
+        int rightSign = (int) coordinate(projectionRight, rightAxis);
+        int upSign = (int) coordinate(projectionUp, upAxis);
+        double rightOrigin = coordinate(rightAxis, originX, originY, originZ);
+        double upOrigin = coordinate(upAxis, originX, originY, originZ);
+        if (axisMin[normalAxis] > axisMax[normalAxis]
+            || axisMin[rightAxis] > axisMax[rightAxis]
+            || axisMin[upAxis] > axisMax[upAxis]) {
+            return 0L;
+        }
+
+        ProjectorPlaneWindow planeWindow = ProjectorPlaneWindow.create(structure, structure.getArea(), projectionFrame,
+            originX, originY, originZ, Settings.PROJECTION_APERTURE_PADDING_BLOCKS, projectionEyeDot);
+        double normalOrigin = coordinate(normalAxis, originX, originY, originZ);
+        double projectionFacingNormal = coordinate(projectionNormal, normalAxis);
+        long work = 0L;
+        for (int n = axisMin[normalAxis]; n <= axisMax[normalAxis]; n++) {
+            double slabSignedDistance = projectionFacingNormal * ((n + 0.5D) - normalOrigin);
+            if (!planeWindow.slabWindow(eye.getX(), eye.getY(), eye.getZ(), slabSignedDistance, scratchSlabWindowBounds)) {
+                continue;
+            }
+            int rightMin = ProjectorPlaneWindow.slabBlockMin(scratchSlabWindowBounds[0], scratchSlabWindowBounds[1],
+                rightSign, rightOrigin, axisMin[rightAxis]);
+            int rightMax = ProjectorPlaneWindow.slabBlockMax(scratchSlabWindowBounds[0], scratchSlabWindowBounds[1],
+                rightSign, rightOrigin, axisMax[rightAxis]);
+            int upMin = ProjectorPlaneWindow.slabBlockMin(scratchSlabWindowBounds[2], scratchSlabWindowBounds[3],
+                upSign, upOrigin, axisMin[upAxis]);
+            int upMax = ProjectorPlaneWindow.slabBlockMax(scratchSlabWindowBounds[2], scratchSlabWindowBounds[3],
+                upSign, upOrigin, axisMax[upAxis]);
+            long rightWork = axisCandidateWork(rightMin, rightMax);
+            long upWork = axisCandidateWork(upMin, upMax);
+            long slabWork = rightWork * upWork;
+            if (slabWork > limit - work) {
+                return limit == Long.MAX_VALUE ? Long.MAX_VALUE : limit + 1L;
+            }
+            work += slabWork;
+        }
+        return work;
+    }
+
+    private static long axisCandidateWork(int minimum, int maximum) {
+        return maximum < minimum ? 0L : (long) maximum - minimum + 1L;
+    }
+
+    private static void clampNormalBounds(int[] axisMin,
+                                          int[] axisMax,
+                                          Direction normal,
+                                          double originX,
+                                          double originY,
+                                          double originZ,
+                                          double signedMinDistance,
+                                          double signedMaxDistance) {
+        int normalAxis = axis(normal);
+        double normalComponent = coordinate(normal, normalAxis);
+        double normalOrigin = coordinate(normalAxis, originX, originY, originZ);
+        double centerA = normalOrigin + (signedMinDistance / normalComponent);
+        double centerB = normalOrigin + (signedMaxDistance / normalComponent);
+        axisMin[normalAxis] = Math.max(axisMin[normalAxis], PortalProjector.minBlockForCenter(Math.min(centerA, centerB)));
+        axisMax[normalAxis] = Math.min(axisMax[normalAxis], PortalProjector.maxBlockForCenter(Math.max(centerA, centerB)));
     }
 
     private static double lateralCeiling(double axial, double lateralPadBlocks) {
         return Math.min(Math.max(lateralPadBlocks, 0.0D), axial);
     }
 
-    private static double perspectiveHalfSpan(AxisAlignedBB area, Location eye, double axial, double smallest) {
-        double sizeX = area.sizeX();
-        double sizeY = area.sizeY();
-        double sizeZ = area.sizeZ();
-        Vector center = area.center();
-        double deltaX = eye.getX() - center.getX();
-        double deltaY = eye.getY() - center.getY();
-        double deltaZ = eye.getZ() - center.getZ();
-        double normalDelta;
-        double firstReach;
-        double secondReach;
-        if (smallest == sizeX) {
-            normalDelta = deltaX;
-            firstReach = (sizeY * 0.5D) + Math.abs(deltaY);
-            secondReach = (sizeZ * 0.5D) + Math.abs(deltaZ);
-        } else if (smallest == sizeY) {
-            normalDelta = deltaY;
-            firstReach = (sizeX * 0.5D) + Math.abs(deltaX);
-            secondReach = (sizeZ * 0.5D) + Math.abs(deltaZ);
-        } else {
-            normalDelta = deltaZ;
-            firstReach = (sizeX * 0.5D) + Math.abs(deltaX);
-            secondReach = (sizeY * 0.5D) + Math.abs(deltaY);
-        }
-        double standoff = Math.max(PERSPECTIVE_MIN_STANDOFF, Math.abs(normalDelta) - (smallest * 0.5D));
-        double reach = Math.max(firstReach, secondReach) + Settings.PROJECTION_APERTURE_PADDING_BLOCKS;
-        return reach * (axial / standoff);
+    private static double dot(double x, double y, double z, Direction direction) {
+        return (x * direction.x()) + (y * direction.y()) + (z * direction.z());
     }
 
-    static double fitRangeToCellBudget(double range, int budget, DoubleUnaryOperator cellCountForRange) {
-        if (budget <= 0 || range <= CELL_BUDGET_MIN_RANGE) {
-            return range;
-        }
-        double fitted = range;
-        for (int attempt = 0; attempt < CELL_BUDGET_FIT_ATTEMPTS; attempt++) {
-            double cells = cellCountForRange.applyAsDouble(fitted);
-            if (cells <= budget) {
-                return fitted;
-            }
-            double shrink = Math.max(CELL_BUDGET_MIN_SHRINK, Math.cbrt((budget * CELL_BUDGET_FIT_MARGIN) / cells));
-            double next = fitted * shrink;
-            if (next <= CELL_BUDGET_MIN_RANGE) {
-                fitted = CELL_BUDGET_MIN_RANGE;
-                break;
-            }
-            fitted = next;
-        }
-        for (int attempt = 0; attempt < CELL_BUDGET_FORCED_ATTEMPTS; attempt++) {
-            if (cellCountForRange.applyAsDouble(fitted) <= budget) {
-                return fitted;
-            }
-            double next = fitted * CELL_BUDGET_FORCED_SHRINK;
-            if (next <= CELL_BUDGET_FLOOR_RANGE) {
-                fitted = CELL_BUDGET_FLOOR_RANGE;
-                break;
-            }
-            fitted = next;
-        }
-        return fitted;
+    private static int axis(Direction direction) {
+        return direction.x() != 0 ? 0 : direction.y() != 0 ? 1 : 2;
     }
 
-    private static double regionCellCount(AxisAlignedBB region) {
-        double sizeX = Math.max(1.0D, region.getXb() - region.getXa());
-        double sizeY = Math.max(1.0D, region.getYb() - region.getYa());
-        double sizeZ = Math.max(1.0D, region.getZb() - region.getZa());
-        return sizeX * sizeY * sizeZ;
+    private static double coordinate(Direction direction, int axis) {
+        return axis == 0 ? direction.x() : axis == 1 ? direction.y() : direction.z();
+    }
+
+    private static double coordinate(int axis, double x, double y, double z) {
+        return axis == 0 ? x : axis == 1 ? y : z;
     }
 
     private double capProjectionDistance(Player observer, double requestedBlocks) {
@@ -338,5 +424,8 @@ final class ProjectorViewFrustum {
 
     boolean clientViewDistanceFailed() {
         return clientViewDistanceFailed;
+    }
+
+    private record FitSolution(Frustum4D frustum, double axial, double lateral, long candidateWork) {
     }
 }

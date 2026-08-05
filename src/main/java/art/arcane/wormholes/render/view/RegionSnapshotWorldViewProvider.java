@@ -5,6 +5,7 @@ import art.arcane.wormholes.EffectManager;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.network.view.PacketBlobs;
+import art.arcane.wormholes.network.view.ProjectedMapData;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
@@ -20,10 +21,15 @@ import org.bukkit.ChunkSnapshot;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Hanging;
+import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.meta.MapMeta;
+import org.bukkit.map.MapView;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Vector;
 
@@ -159,7 +165,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         EntityState previousState = view.entityStates.get(entity.getUniqueId());
         CapturedEntity previous = previousState == null ? null : previousState.entity;
         Location location = entity.getLocation();
-        Vector look = entity instanceof LivingEntity living ? living.getEyeLocation().getDirection() : location.getDirection();
+        Vector look = entityLook(entity, location);
         Vector velocity = entity.getVelocity();
         String playerName = "";
         String textureValue = "";
@@ -190,6 +196,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             && capturedAtMillis - previousState.capturedAtMillis < ENTITY_STATE_REFRESH_MILLIS;
         byte[] metadataBlob = reuseState ? previous.visual.metadata() : PacketBlobs.captureMetadata(entity);
         byte[] equipmentBlob = reuseState ? previous.visual.equipment() : PacketBlobs.captureEquipment(entity);
+        byte[] mapData = reuseState ? previous.visual.mapData() : captureMapData(entity);
         List<EntityData<?>> metadata = reuseState ? previous.metadata : List.copyOf(PacketBlobs.readMetadata(metadataBlob));
         List<Equipment> equipment = reuseState ? previous.equipment : List.copyOf(PacketBlobs.readEquipment(equipmentBlob));
         EntityVisual visual = EntityVisual.full(entity.getUniqueId(), entity.getType().getKey().toString(),
@@ -197,11 +204,12 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             look.getX(), look.getY(), look.getZ(), location.getYaw(), location.getPitch(),
             velocity.getX(), velocity.getY(), velocity.getZ(), entity.isOnGround(),
             playerName, textureValue, textureSignature, passengerOf, leashHolder,
-            metadataBlob, equipmentBlob, 0);
+            metadataBlob, equipmentBlob, mapData, 0);
+        MapView mapView = mapView(entity);
         RemoteViewCache.RemoteProfile profile = entity instanceof Player
             ? new RemoteViewCache.RemoteProfile(playerName, textureValue, textureSignature)
             : null;
-        return new CapturedEntity(chunkKey, visual, profile, metadata, equipment, capturedAtMillis);
+        return new CapturedEntity(chunkKey, visual, profile, metadata, equipment, mapView, capturedAtMillis);
     }
 
     private static String[] playerTextures(Player player) {
@@ -218,6 +226,17 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         } catch (Throwable ignored) {
         }
         return new String[] {"", ""};
+    }
+
+    private static Vector entityLook(Entity entity, Location location) {
+        if (entity instanceof LivingEntity living) {
+            return living.getEyeLocation().getDirection();
+        }
+        if (entity instanceof Hanging hanging) {
+            BlockFace facing = hanging.getFacing();
+            return new Vector(facing.getModX(), facing.getModY(), facing.getModZ());
+        }
+        return location.getDirection();
     }
 
     private final class SnapshotWorldView implements ProjectionWorldView, ProjectionEntityView {
@@ -384,6 +403,12 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         }
 
         @Override
+        public MapView getMapView(UUID entityId) {
+            EntityState state = entityStates.get(entityId);
+            return state == null ? null : state.entity.mapView;
+        }
+
+        @Override
         public int getStateVersion(UUID entityId) {
             EntityState state = entityStates.get(entityId);
             return state == null ? 0 : state.version;
@@ -514,7 +539,25 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         }
         return Arrays.equals(previousVisual.metadata(), currentVisual.metadata())
             && Arrays.equals(previousVisual.equipment(), currentVisual.equipment())
+            && Arrays.equals(previousVisual.mapData(), currentVisual.mapData())
             && Objects.equals(previousProfile, currentProfile);
+    }
+
+    private static byte[] captureMapData(Entity entity) {
+        if (!(entity instanceof ItemFrame itemFrame)) {
+            return PacketBlobs.EMPTY;
+        }
+        return ProjectedMapData.capture(itemFrame)
+            .map(ProjectedMapData::encode)
+            .orElse(PacketBlobs.EMPTY);
+    }
+
+    private static MapView mapView(Entity entity) {
+        if (!(entity instanceof ItemFrame itemFrame)
+            || !(itemFrame.getItem().getItemMeta() instanceof MapMeta mapMeta)) {
+            return null;
+        }
+        return mapMeta.getMapView();
     }
 
     static boolean isChunkDirty(ProjectionWorldChangeTracker tracker, UUID worldId, int chunkX, int chunkZ,
@@ -568,15 +611,18 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         private final RemoteViewCache.RemoteProfile profile;
         private final List<EntityData<?>> metadata;
         private final List<Equipment> equipment;
+        private final MapView mapView;
         private final long capturedAtMillis;
 
         private CapturedEntity(long chunkKey, EntityVisual visual, RemoteViewCache.RemoteProfile profile,
-                               List<EntityData<?>> metadata, List<Equipment> equipment, long capturedAtMillis) {
+                               List<EntityData<?>> metadata, List<Equipment> equipment, MapView mapView,
+                               long capturedAtMillis) {
             this.chunkKey = chunkKey;
             this.visual = visual;
             this.profile = profile;
             this.metadata = metadata;
             this.equipment = equipment;
+            this.mapView = mapView;
             this.capturedAtMillis = capturedAtMillis;
         }
     }

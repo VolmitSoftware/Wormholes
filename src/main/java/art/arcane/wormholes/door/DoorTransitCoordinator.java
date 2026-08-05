@@ -8,12 +8,8 @@ import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.Vehicle;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.util.Vector;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -69,50 +65,54 @@ final class DoorTransitCoordinator
 	}
 
 	void begin(
-		Entity traveler,
-		RuntimeDoor runtime,
-		Location sourceLocation,
-		DoorwayCrossing crossing,
-		VanillaDoorSnapshot crossingSnapshot)
+		DoorTransitAttempt attempt,
+		DoorAccessCredentials credentials)
 	{
-		DoorwayCrossing requiredCrossing = Objects.requireNonNull(crossing, "crossing");
+		DoorTransitAttempt requiredAttempt = Objects.requireNonNull(attempt, "attempt");
+		DoorAccessCredentials requiredCredentials = Objects.requireNonNull(credentials, "credentials");
+		Entity traveler = requiredAttempt.traveler();
+		UUID travelerId = requiredAttempt.travelerId();
+		RuntimeDoor runtime = requiredAttempt.runtime();
 		if(guard.closed()
 			|| (!guard.acceptingEntries() && runtime.endpoint().identity().kind() != DoorKind.RETURN))
 		{
 			refuseEntry(
 				traveler,
+				travelerId,
 				WormholesMessages.DOOR_TRANSIT_SHUTDOWN,
 				DoorTransitFailures.Failure.ENTRY_SHUTTING_DOWN);
 			return;
 		}
-		if(!ledger.claim(traveler))
+		if(!ledger.claim(travelerId, traveler))
 		{
 			return;
 		}
 		PlacedDoorEndpoint endpoint = runtime.endpoint();
-		World world = runtimes.world(endpoint.position());
-		if(world == null || !regions.run(world,
+		World sourceWorld = requiredAttempt.sourceWorld();
+		if(!regions.run(sourceWorld,
 			endpoint.position().x() >> 4, endpoint.position().z() >> 4,
-			() -> claim(traveler, runtime, sourceLocation, requiredCrossing, crossingSnapshot)))
+			() -> claim(requiredAttempt, requiredCredentials)))
 		{
 			abortEntry(
 				traveler,
+				travelerId,
 				WormholesMessages.DOOR_SOURCE_REGION_UNAVAILABLE,
 				DoorTransitFailures.Failure.ENTRY_REGION_UNAVAILABLE);
 		}
 	}
 
 	private void claim(
-		Entity traveler,
-		RuntimeDoor runtime,
-		Location sourceLocation,
-		DoorwayCrossing crossing,
-		VanillaDoorSnapshot crossingSnapshot)
+		DoorTransitAttempt attempt,
+		DoorAccessCredentials credentials)
 	{
+		Entity traveler = attempt.traveler();
+		UUID travelerId = attempt.travelerId();
+		RuntimeDoor runtime = attempt.runtime();
 		if(guard.closed())
 		{
 			abortEntry(
 				traveler,
+				travelerId,
 				WormholesMessages.DOOR_TRANSIT_SHUTDOWN,
 				DoorTransitFailures.Failure.ENTRY_SHUTTING_DOWN);
 			return;
@@ -122,43 +122,39 @@ final class DoorTransitCoordinator
 		{
 			abortEntry(
 				traveler,
+				travelerId,
 				WormholesMessages.DOOR_TRANSIT_SHUTDOWN,
 				DoorTransitFailures.Failure.ENTRY_SHUTTING_DOWN);
 			return;
 		}
-		if(!hasDoorAccess(endpoint, traveler))
+		if(!hasDoorAccess(endpoint, credentials))
 		{
 			abortEntry(
 				traveler,
+				travelerId,
 				WormholesMessages.DOOR_ACCESS_TRANSIT_DENIED,
 				DoorTransitFailures.Failure.ENTRY_ACCESS_DENIED);
 			return;
 		}
-		World sourceWorld = runtimes.world(endpoint.position());
-		if(sourceWorld == null)
-		{
-			abortEntry(
-				traveler,
-				WormholesMessages.DOOR_SOURCE_REGION_UNAVAILABLE,
-				DoorTransitFailures.Failure.ENTRY_REGION_UNAVAILABLE);
-			return;
-		}
+		World sourceWorld = attempt.sourceWorld();
 		Optional<VanillaDoorSnapshot> captured = runtimes.capture(endpoint, sourceWorld);
 		if(captured.isEmpty())
 		{
 			runtimes.reconcile(runtime);
 			abortEntry(
 				traveler,
+				travelerId,
 				WormholesMessages.DOOR_SOURCE_MISSING,
 				DoorTransitFailures.Failure.ENTRY_SOURCE_MISSING);
 			return;
 		}
 		VanillaDoorSnapshot sourceSnapshot = captured.get();
-		DoorTravelerClass travelerClass = travelerClass(traveler);
+		DoorTransit transit = attempt.transit();
+		VanillaDoorSnapshot crossingSnapshot = attempt.crossingSnapshot();
 		if(!crossingSnapshot.worldId().equals(sourceSnapshot.worldId())
-			|| !crossingSnapshot.plane().equals(sourceSnapshot.plane())
+			|| !transit.sourcePlane().equals(sourceSnapshot.plane())
 			|| !passesGate(
-				travelerClass,
+				transit.travelerClass(),
 				sourceSnapshot.plane(),
 				runtime.cycle(),
 				crossingSnapshot.portalLive(),
@@ -167,37 +163,31 @@ final class DoorTransitCoordinator
 			runtimes.reconcile(runtime);
 			abortEntry(
 				traveler,
+				travelerId,
 				WormholesMessages.DOOR_CYCLE_CONSUMED,
 				DoorTransitFailures.Failure.ENTRY_CYCLE_UNAVAILABLE);
 			return;
 		}
 		runtime.update(sourceSnapshot);
-		DoorTransit transit = new DoorTransit(
-			sourceSnapshot.plane(),
-			crossing,
-			sourceLocation.getYaw(),
-			sourceLocation.getPitch(),
-			traveler.getWidth() / 2.0D,
-			traveler.getHeight(),
-			travelerClass,
-			travelerClass == DoorTravelerClass.OBJECT ? momentum(traveler) : null);
 
-		DoorDestination destination = guard.state().resolveDestination(endpoint.identity(), traveler.getUniqueId());
+		DoorDestination destination = guard.state().resolveDestination(endpoint.identity(), travelerId);
 		switch(destination)
 		{
-			case PairedDoorDestination paired -> beginPaired(traveler, runtime, paired, transit);
-			case PocketDoorDestination pocket -> beginPocket(traveler, runtime, pocket, sourceWorld, transit);
-			case ReturnDoorDestination ignored -> beginReturn(traveler, runtime, transit);
+			case PairedDoorDestination paired -> beginPaired(traveler, travelerId, runtime, paired, transit);
+			case PocketDoorDestination pocket -> beginPocket(
+				traveler, travelerId, runtime, pocket, sourceWorld, transit);
+			case ReturnDoorDestination ignored -> beginReturn(traveler, travelerId, runtime, transit);
 		}
 	}
 
 	private void beginPaired(
 		Entity traveler,
+		UUID travelerId,
 		RuntimeDoor source,
 		PairedDoorDestination destination,
 		DoorTransit transit)
 	{
-		TransitContext context = TransitContext.none(transit);
+		TransitContext context = TransitContext.none(travelerId, transit);
 		Optional<PlacedDoorEndpoint> target = guard.state().findPairedEndpoint(
 			destination.pairId(), destination.endpoint());
 		if(target.isEmpty())
@@ -212,12 +202,13 @@ final class DoorTransitCoordinator
 
 	private void beginPocket(
 		Entity traveler,
+		UUID travelerId,
 		RuntimeDoor source,
 		PocketDoorDestination destination,
 		World sourceWorld,
 		DoorTransit transit)
 	{
-		TransitContext ticketless = TransitContext.none(transit);
+		TransitContext ticketless = TransitContext.none(travelerId, transit);
 		if(PocketWorldService.isPocketWorld(sourceWorld))
 		{
 			abortTransit(traveler, source, WormholesMessages.DOOR_NESTED_POCKET, ticketless);
@@ -256,7 +247,6 @@ final class DoorTransitCoordinator
 			}
 			savedReturnLocation = safeReturn.get();
 		}
-		UUID travelerId = traveler.getUniqueId();
 		UUID sourceEndpointId = source.endpoint().identity().itemId();
 		ReturnTicket pendingTicket = savedReturnLocation == null ? null : buildReturnTicket(
 			travelerId, sourceEndpointId, savedReturnLocation);
@@ -307,7 +297,7 @@ final class DoorTransitCoordinator
 					abortTransit(traveler, source, WormholesMessages.DOOR_RETURN_TICKET_SAVE_FAILED, ticketless);
 					return;
 				}
-				context = TransitContext.keep(transit, pendingTicket);
+				context = TransitContext.keep(travelerId, transit, pendingTicket);
 			}
 
 			Location arrival = pocketStructures.entryLocation(pocketWorld, space);
@@ -358,10 +348,14 @@ final class DoorTransitCoordinator
 		}
 	}
 
-	private void beginReturn(Entity traveler, RuntimeDoor source, DoorTransit transit)
+	private void beginReturn(
+		Entity traveler,
+		UUID travelerId,
+		RuntimeDoor source,
+		DoorTransit transit)
 	{
-		TransitContext ticketless = TransitContext.none(transit);
-		Optional<ReturnTicket> found = tickets.find(traveler.getUniqueId());
+		TransitContext ticketless = TransitContext.none(travelerId, transit);
+		Optional<ReturnTicket> found = tickets.find(travelerId);
 		if(found.isEmpty())
 		{
 			abortTransit(traveler, source, WormholesMessages.DOOR_NO_RETURN_ROUTE, ticketless);
@@ -369,22 +363,35 @@ final class DoorTransitCoordinator
 		}
 		ReturnTicket ticket = found.get();
 		Optional<PlacedDoorEndpoint> currentSource = guard.state().findEndpointByItem(ticket.sourceEndpointId());
-		if(currentSource.isPresent() && currentSource.get().identity().kind() != DoorKind.RETURN)
+		if(currentSource.isPresent())
 		{
-			arrivals.loadEndpointArrival(currentSource.get(), transit, arrival ->
-				closeAndTeleport(
-					traveler,
-					source,
-					arrival.location(),
-					TransitContext.remove(transit, ticket).at(arrival.plane())),
-				() -> abortTransit(
-					traveler,
-					source,
-					WormholesMessages.DOOR_RETURN_UNAVAILABLE,
-					ticketless));
-			return;
+			PlacedDoorEndpoint endpoint = currentSource.get();
+			World endpointWorld = runtimes.world(endpoint.position());
+			if(canRouteReturnToCurrentEndpoint(endpoint, endpointWorld))
+			{
+				arrivals.loadEndpointArrival(endpoint, transit, arrival ->
+					closeAndTeleport(
+						traveler,
+						source,
+						arrival.location(),
+						TransitContext.remove(travelerId, transit, ticket).at(arrival.plane())),
+					() -> abortTransit(
+						traveler,
+						source,
+						WormholesMessages.DOOR_RETURN_UNAVAILABLE,
+						ticketless));
+				return;
+			}
 		}
 		loadTicketFallback(traveler, source, transit, ticket);
+	}
+
+	static boolean canRouteReturnToCurrentEndpoint(PlacedDoorEndpoint endpoint, World world)
+	{
+		return endpoint != null
+			&& endpoint.identity().kind() != DoorKind.RETURN
+			&& world != null
+			&& !PocketWorldService.isPocketWorld(world);
 	}
 
 	private void loadTicketFallback(
@@ -393,7 +400,7 @@ final class DoorTransitCoordinator
 		DoorTransit transit,
 		ReturnTicket ticket)
 	{
-		TransitContext ticketless = TransitContext.none(transit);
+		TransitContext ticketless = TransitContext.none(ticket.playerId(), transit);
 		World world = DoorWorlds.of(plugin.getServer(), ticket);
 		if(world == null)
 		{
@@ -415,7 +422,11 @@ final class DoorTransitCoordinator
 					abortTransit(traveler, source, WormholesMessages.DOOR_RETURN_POINT_OBSTRUCTED, ticketless);
 					return;
 				}
-				closeAndTeleport(traveler, source, safe.get(), TransitContext.remove(transit, ticket));
+				closeAndTeleport(
+					traveler,
+					source,
+					safe.get(),
+					TransitContext.remove(ticket.playerId(), transit, ticket));
 			},
 			() -> abortTransit(traveler, source, WormholesMessages.DOOR_RETURN_CHUNK_FAILED, ticketless));
 	}
@@ -514,18 +525,18 @@ final class DoorTransitCoordinator
 				}
 				if(moved)
 				{
-					ledger.startCooldown(traveler);
+					ledger.startCooldown(context.travelerId(), traveler);
 					travelers.settle(traveler, arrivalVelocity);
 				}
 				completeCycle(source, context, moved, false);
-				ledger.release(traveler);
+				ledger.release(context.travelerId(), traveler);
 				if(moved && context.action() == TicketAction.REMOVE_ON_SUCCESS)
 				{
-					tickets.removeQuietly(traveler.getUniqueId(), context.expected());
+					tickets.removeQuietly(context.travelerId(), context.expected());
 				}
 				else if(!moved && context.action() == TicketAction.KEEP_ON_SUCCESS)
 				{
-					tickets.removeQuietly(traveler.getUniqueId(), context.expected());
+					tickets.removeQuietly(context.travelerId(), context.expected());
 				}
 				if(!moved)
 				{
@@ -548,7 +559,7 @@ final class DoorTransitCoordinator
 	{
 		failures.record(
 			DoorTransitFailures.Failure.TRANSIT_RETIRED,
-			traveler.getUniqueId(),
+			context.travelerId(),
 			WormholesMessages.DOOR_TRANSIT_CANCELLED.id());
 		releaseScheduledTransit(traveler, source, context);
 	}
@@ -557,7 +568,7 @@ final class DoorTransitCoordinator
 	{
 		failures.record(
 			DoorTransitFailures.Failure.TRANSIT_SCHEDULE_REJECTED,
-			traveler.getUniqueId(),
+			context.travelerId(),
 			WormholesMessages.DOOR_TRANSIT_SHUTDOWN.id());
 		releaseScheduledTransit(traveler, source, context);
 		travelers.message(traveler, WormholesMessages.DOOR_TRANSIT_SHUTDOWN);
@@ -566,42 +577,41 @@ final class DoorTransitCoordinator
 	private void releaseScheduledTransit(Entity traveler, RuntimeDoor source, TransitContext context)
 	{
 		completeCycle(source, context, false, false);
-		ledger.release(traveler);
+		ledger.release(context.travelerId(), traveler);
 		if(context.action() == TicketAction.KEEP_ON_SUCCESS)
 		{
-			tickets.removeAfterRetirement(traveler.getUniqueId(), context.expected());
+			tickets.removeAfterRetirement(context.travelerId(), context.expected());
 		}
 	}
 
-	private boolean hasDoorAccess(PlacedDoorEndpoint endpoint, Entity traveler)
+	private boolean hasDoorAccess(PlacedDoorEndpoint endpoint, DoorAccessCredentials credentials)
 	{
 		if(endpoint.identity().kind() == DoorKind.RETURN)
 		{
 			return true;
 		}
-		Player responsible = DoorTravelerOwnership
-			.responsiblePlayer(plugin.getServer(), traveler)
-			.orElse(null);
-		if(responsible == null)
-		{
-			return true;
-		}
-		return DoorAccessPolicy.canUse(
-			guard.state().accessRecord(endpoint.identity().itemId()).orElse(null),
-			responsible.getUniqueId(),
-			responsible.hasPermission(DoorAccessPolicy.BYPASS_NODE));
+		return credentials.canUse(
+			guard.state().accessRecord(endpoint.identity().itemId()).orElse(null));
 	}
 
-	private void refuseEntry(Entity traveler, TextKey reason, DoorTransitFailures.Failure failure)
+	private void refuseEntry(
+		Entity traveler,
+		UUID travelerId,
+		TextKey reason,
+		DoorTransitFailures.Failure failure)
 	{
-		failures.record(failure, traveler.getUniqueId(), reason.id());
+		failures.record(failure, travelerId, reason.id());
 		travelers.message(traveler, reason);
 	}
 
-	private void abortEntry(Entity traveler, TextKey reason, DoorTransitFailures.Failure failure)
+	private void abortEntry(
+		Entity traveler,
+		UUID travelerId,
+		TextKey reason,
+		DoorTransitFailures.Failure failure)
 	{
-		ledger.release(traveler);
-		refuseEntry(traveler, reason, failure);
+		ledger.release(travelerId, traveler);
+		refuseEntry(traveler, travelerId, reason, failure);
 	}
 
 	private void finishRetiredTransit(
@@ -611,11 +621,11 @@ final class DoorTransitCoordinator
 		TransitContext context)
 	{
 		completeCycle(source, context, moved, false);
-		ledger.release(traveler);
+		ledger.release(context.travelerId(), traveler);
 		if((moved && context.action() == TicketAction.REMOVE_ON_SUCCESS)
 			|| (!moved && context.action() == TicketAction.KEEP_ON_SUCCESS))
 		{
-			tickets.removeAfterRetirement(traveler.getUniqueId(), context.expected());
+			tickets.removeAfterRetirement(context.travelerId(), context.expected());
 		}
 	}
 
@@ -629,7 +639,7 @@ final class DoorTransitCoordinator
 		{
 			failures.record(
 				DoorTransitFailures.Failure.TRANSIT_RETIRED,
-				traveler.getUniqueId(),
+				context.travelerId(),
 				WormholesMessages.DOOR_TRANSIT_CANCELLED.id());
 		}
 		finishRetiredTransit(traveler, source, moved, context);
@@ -645,7 +655,7 @@ final class DoorTransitCoordinator
 		if(!moved)
 		{
 			failures.record(
-				failure, traveler.getUniqueId(), WormholesMessages.DOOR_TRANSIT_SHUTDOWN.id());
+				failure, context.travelerId(), WormholesMessages.DOOR_TRANSIT_SHUTDOWN.id());
 		}
 		finishRetiredTransit(traveler, source, moved, context);
 		if(!moved)
@@ -673,13 +683,13 @@ final class DoorTransitCoordinator
 	{
 		failures.record(
 			open ? DoorTransitFailures.Failure.TRANSIT_ABORTED : DoorTransitFailures.Failure.TRANSIT_FAILED,
-			traveler.getUniqueId(),
+			context.travelerId(),
 			reason.id());
 		completeCycle(source, context, false, open);
-		ledger.release(traveler);
+		ledger.release(context.travelerId(), traveler);
 		if(context.action() == TicketAction.KEEP_ON_SUCCESS)
 		{
-			tickets.removeQuietly(traveler.getUniqueId(), context.expected());
+			tickets.removeQuietly(context.travelerId(), context.expected());
 		}
 		travelers.message(traveler, reason);
 	}
@@ -712,34 +722,6 @@ final class DoorTransitCoordinator
 			: DoorTransitGate.claim(cycle, liveAtCrossing, stillLive);
 	}
 
-	private static DoorTravelerClass travelerClass(Entity traveler)
-	{
-		return traveler instanceof LivingEntity || traveler instanceof Vehicle
-			? DoorTravelerClass.LIVING
-			: DoorTravelerClass.OBJECT;
-	}
-
-	private static DoorVec3 momentum(Entity traveler)
-	{
-		Vector velocity;
-		try
-		{
-			velocity = traveler.getVelocity();
-		}
-		catch(Throwable ex)
-		{
-			return null;
-		}
-		if(velocity == null
-			|| !Double.isFinite(velocity.getX())
-			|| !Double.isFinite(velocity.getY())
-			|| !Double.isFinite(velocity.getZ()))
-		{
-			return null;
-		}
-		return new DoorVec3(velocity.getX(), velocity.getY(), velocity.getZ());
-	}
-
 	private static DoorVec3 arrivalVelocity(TransitContext context, Location target)
 	{
 		DoorTransit transit = context.transit();
@@ -766,6 +748,7 @@ final class DoorTransitCoordinator
 	}
 
 	private record TransitContext(
+		UUID travelerId,
 		DoorTransit transit,
 		TicketAction action,
 		ReturnTicket expected,
@@ -773,6 +756,7 @@ final class DoorTransitCoordinator
 	{
 		private TransitContext
 		{
+			Objects.requireNonNull(travelerId, "travelerId");
 			Objects.requireNonNull(transit, "transit");
 			Objects.requireNonNull(action, "action");
 			if(action != TicketAction.NONE)
@@ -784,22 +768,30 @@ final class DoorTransitCoordinator
 		/** A pocket arrival has no far plane, so the destination stays null there. */
 		private TransitContext at(DoorwayPlane plane)
 		{
-			return new TransitContext(transit, action, expected, plane);
+			return new TransitContext(travelerId, transit, action, expected, plane);
 		}
 
-		private static TransitContext none(DoorTransit transit)
+		private static TransitContext none(UUID travelerId, DoorTransit transit)
 		{
-			return new TransitContext(transit, TicketAction.NONE, null, null);
+			return new TransitContext(travelerId, transit, TicketAction.NONE, null, null);
 		}
 
-		private static TransitContext keep(DoorTransit transit, ReturnTicket ticket)
+		private static TransitContext keep(
+			UUID travelerId,
+			DoorTransit transit,
+			ReturnTicket ticket)
 		{
-			return new TransitContext(transit, TicketAction.KEEP_ON_SUCCESS, ticket, null);
+			return new TransitContext(
+				travelerId, transit, TicketAction.KEEP_ON_SUCCESS, ticket, null);
 		}
 
-		private static TransitContext remove(DoorTransit transit, ReturnTicket ticket)
+		private static TransitContext remove(
+			UUID travelerId,
+			DoorTransit transit,
+			ReturnTicket ticket)
 		{
-			return new TransitContext(transit, TicketAction.REMOVE_ON_SUCCESS, ticket, null);
+			return new TransitContext(
+				travelerId, transit, TicketAction.REMOVE_ON_SUCCESS, ticket, null);
 		}
 	}
 }

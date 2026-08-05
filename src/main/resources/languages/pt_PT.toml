@@ -392,7 +392,7 @@ locale = "pt_PT"
 "door.menu.access.title" = "Acesso da porta: {kind}"
 
 [lines]
-"portal.menu.render_mode" = ["<aqua><bold>Modo de renderização <white>{mode}</bold>","<gray>Quanto do volume de destino este portal projeta.","","<gray>Modo: <white>{mode}","","<dark_gray>PanOptic renderiza todo o volume de destino.","<dark_gray>Venticular oculta os blocos interiores totalmente fechados para transmissões mais leves.","<dark_gray>PlannarOptic oculta a geometria atrás de superfícies opacas visíveis.","","<dark_gray>Esquerda: alternar modo."]
+"portal.menu.render_mode" = ["<aqua><bold>Modo de renderização <white>{mode}</bold>","<gray>Quanto do volume de destino este portal projeta.","","<gray>Modo: <white>{mode}","","<dark_gray>PanOptic renderiza todo o volume de destino.","<dark_gray>Venticular oculta a geometria atrás de superfícies opacas visíveis.","","<dark_gray>Esquerda: alternar modo."]
 "portal.menu.ambient_particles" = ["<aqua><bold>Partículas ambientais</bold>","<gray>Poeira decorativa que flutua ao redor deste portal.","","<gray>Estilo: <white>{style} <dark_gray>({color})","","<dark_gray>Esquerdo: mudar de estilo.","<dark_gray>Direito: escolher uma cor."]
 "portal.menu.ambient_color.placard" = ["<gold><bold>Cor ambiental</bold>","<gray>Cor das partículas de poeira ambientais.","","<gray>Atual: <white>{color}"]
 "portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>Clique esquerdo: +{step}","<dark_gray>Clique direito: -{step}","<dark_gray>Shift + clique esquerdo: +{large_step}","<dark_gray>Shift + clique direito: -{large_step}"]

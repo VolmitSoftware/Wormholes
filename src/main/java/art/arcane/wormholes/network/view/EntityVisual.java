@@ -34,7 +34,8 @@ public record EntityVisual(
     UUID passengerOf,
     UUID leashHolder,
     byte[] metadata,
-    byte[] equipment
+    byte[] equipment,
+    byte[] mapData
 ) {
     public static final String PLAYER_TYPE_KEY = "minecraft:player";
     public static final byte MODE_FULL = 0;
@@ -52,8 +53,10 @@ public record EntityVisual(
     public static final int FIELD_PROFILE = 1 << 9;
     public static final int FIELD_LOOK_VEC = 1 << 10;
     public static final int FIELD_LEASH = 1 << 11;
+    public static final int FIELD_MAP_DATA = 1 << 12;
     public static final int FIELD_ALL_FULL = FIELD_POSITION | FIELD_YAW_PITCH | FIELD_VELOCITY | FIELD_EQUIPMENT
-        | FIELD_METADATA | FIELD_TYPE | FIELD_PASSENGER | FIELD_ON_GROUND | FIELD_HEIGHT | FIELD_PROFILE | FIELD_LOOK_VEC | FIELD_LEASH;
+        | FIELD_METADATA | FIELD_TYPE | FIELD_PASSENGER | FIELD_ON_GROUND | FIELD_HEIGHT | FIELD_PROFILE | FIELD_LOOK_VEC
+        | FIELD_LEASH | FIELD_MAP_DATA;
 
     public static final double POSITION_QUANTUM = 1.0D / 4096.0D;
     public static final double UNIT_SCALE = 32767.0D;
@@ -100,6 +103,52 @@ public record EntityVisual(
         byte[] equipment,
         int sequence
     ) {
+        return full(
+            id, typeKey,
+            x, y, z,
+            height,
+            lookX, lookY, lookZ,
+            yaw, pitch,
+            velocityX, velocityY, velocityZ,
+            onGround,
+            playerName,
+            textureValue,
+            textureSignature,
+            passengerOf,
+            leashHolder,
+            metadata,
+            equipment,
+            PacketBlobs.EMPTY,
+            sequence
+        );
+    }
+
+    public static EntityVisual full(
+        UUID id,
+        String typeKey,
+        double x,
+        double y,
+        double z,
+        double height,
+        double lookX,
+        double lookY,
+        double lookZ,
+        float yaw,
+        float pitch,
+        double velocityX,
+        double velocityY,
+        double velocityZ,
+        boolean onGround,
+        String playerName,
+        String textureValue,
+        String textureSignature,
+        UUID passengerOf,
+        UUID leashHolder,
+        byte[] metadata,
+        byte[] equipment,
+        byte[] mapData,
+        int sequence
+    ) {
         return new EntityVisual(
             MODE_FULL,
             sequence,
@@ -118,7 +167,8 @@ public record EntityVisual(
             passengerOf,
             leashHolder,
             metadata == null ? PacketBlobs.EMPTY : metadata,
-            equipment == null ? PacketBlobs.EMPTY : equipment
+            equipment == null ? PacketBlobs.EMPTY : equipment,
+            mapData == null ? PacketBlobs.EMPTY : mapData
         );
     }
 
@@ -182,6 +232,9 @@ public record EntityVisual(
         }
         if ((presentMask & FIELD_EQUIPMENT) != 0) {
             WireCodec.writeByteArray(out, equipment == null ? PacketBlobs.EMPTY : equipment, MAX_BLOB_BYTES);
+        }
+        if ((presentMask & FIELD_MAP_DATA) != 0) {
+            WireCodec.writeByteArray(out, mapData == null ? PacketBlobs.EMPTY : mapData, MAX_BLOB_BYTES);
         }
     }
 
@@ -260,6 +313,10 @@ public record EntityVisual(
         if ((presentMask & FIELD_EQUIPMENT) != 0) {
             equipment = WireCodec.readByteArray(in, MAX_BLOB_BYTES);
         }
+        byte[] mapData = PacketBlobs.EMPTY;
+        if ((presentMask & FIELD_MAP_DATA) != 0) {
+            mapData = WireCodec.readByteArray(in, MAX_BLOB_BYTES);
+        }
         return new EntityVisual(
             mode,
             sequence,
@@ -278,7 +335,8 @@ public record EntityVisual(
             passengerOf,
             leashHolder,
             metadata,
-            equipment
+            equipment,
+            mapData
         );
     }
 
@@ -378,7 +436,8 @@ public record EntityVisual(
             && Objects.equals(passengerOf, visual.passengerOf)
             && Objects.equals(leashHolder, visual.leashHolder)
             && Arrays.equals(metadata, visual.metadata)
-            && Arrays.equals(equipment, visual.equipment);
+            && Arrays.equals(equipment, visual.equipment)
+            && Arrays.equals(mapData, visual.mapData);
     }
 
     @Override
@@ -386,6 +445,7 @@ public record EntityVisual(
         int result = Objects.hash(mode, sequence, presentMask, id, typeKey, x, y, z, height, lookX, lookY, lookZ, yaw, pitch, velocityX, velocityY, velocityZ, onGround, playerName, textureValue, textureSignature, passengerOf, leashHolder);
         result = 31 * result + Arrays.hashCode(metadata);
         result = 31 * result + Arrays.hashCode(equipment);
+        result = 31 * result + Arrays.hashCode(mapData);
         return result;
     }
 }

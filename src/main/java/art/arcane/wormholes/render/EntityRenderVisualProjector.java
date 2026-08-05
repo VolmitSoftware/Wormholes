@@ -7,6 +7,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.util.Vector;
 
 import com.github.retrooper.packetevents.protocol.entity.type.EntityType;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
@@ -20,6 +21,7 @@ import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
+import art.arcane.wormholes.util.Direction;
 
 final class EntityRenderVisualProjector {
     private final EntityRenderPacketChannel channel;
@@ -57,10 +59,12 @@ final class EntityRenderVisualProjector {
             return false;
         }
 
-        double visibleY = visual.y() + (visual.height() * 0.5D);
+        Vector localOrigin = localPortal.getOrigin();
+        boolean itemFrame = ProjectedItemFrameTransform.isItemFrame(packetType);
+        double visibleY = itemFrame ? visual.y() : visual.y() + (visual.height() * 0.5D);
         PortalCoordMap.transformPointInto(visual.x(), visibleY, visual.z(),
             remoteOriginX, remoteOriginY, remoteOriginZ,
-            localPortal.getOrigin().getX(), localPortal.getOrigin().getY(), localPortal.getOrigin().getZ(),
+            localOrigin.getX(), localOrigin.getY(), localOrigin.getZ(),
             remoteViewFrame, localViewFrame, scratchVisiblePoint);
 
         if (!frustum.containsPrimitive(scratchVisiblePoint[0], scratchVisiblePoint[1], scratchVisiblePoint[2])) {
@@ -70,8 +74,21 @@ final class EntityRenderVisualProjector {
         remoteViewFrame.transformVectorInto(visual.lookX(), visual.lookY(), visual.lookZ(), localViewFrame, scratchDirection);
         float yaw = ProjectedEntityRenderer.yaw(scratchDirection[0], scratchDirection[2]);
         float pitch = ProjectedEntityRenderer.pitch(scratchDirection[0], scratchDirection[1], scratchDirection[2]);
-        double visualBaseY = scratchVisiblePoint[1] - (visual.height() * 0.5D);
-        Vector3d position = new Vector3d(scratchVisiblePoint[0], visualBaseY, scratchVisiblePoint[2]);
+        Direction sourceFacing = Direction.closest(visual.lookX(), visual.lookY(), visual.lookZ());
+        int metadataTransform = itemFrame
+            ? ProjectedItemFrameTransform.between(sourceFacing, remoteViewFrame, localViewFrame, scratchDirection)
+            : ProjectedItemFrameTransform.NONE;
+        Vector3d position;
+        if (itemFrame) {
+            position = ProjectedItemFrameTransform.betweenAnchor(
+                visual.x(), visual.y(), visual.z(),
+                remoteOriginX, remoteOriginY, remoteOriginZ,
+                localOrigin.getX(), localOrigin.getY(), localOrigin.getZ(),
+                remoteViewFrame, localViewFrame, scratchVisiblePoint);
+        } else {
+            double visualBaseY = scratchVisiblePoint[1] - (visual.height() * 0.5D);
+            position = new Vector3d(scratchVisiblePoint[0], visualBaseY, scratchVisiblePoint[2]);
+        }
         remoteViewFrame.transformVectorInto(visual.velocityX(), visual.velocityY(), visual.velocityZ(), localViewFrame, scratchDirection);
         Vector3d velocity = new Vector3d(scratchDirection[0], scratchDirection[1], scratchDirection[2]);
 
@@ -88,14 +105,16 @@ final class EntityRenderVisualProjector {
                 identity.sendRemotePlayerInfo(observer, remoteView.getProfile(visual.id()), state, upsideDown);
             }
             WrapperPlayServerSpawnEntity spawn = new WrapperPlayServerSpawnEntity(state.fakeId, Optional.of(state.fakeUuid),
-                packetType, position, pitch, yaw, yaw, 0, Optional.of(velocity));
+                packetType, position, pitch, yaw, yaw, ProjectedItemFrameTransform.spawnData(metadataTransform), Optional.of(velocity));
             channel.send(observer, spawn);
             identity.spawnPlayerLabel(observer, state, position, visual.height());
             state.updateRotation(yaw, pitch);
+            state.updateMetadataTransform(metadataTransform);
             state.rememberPosition(position);
             registry.syncHeadLook(observer, state, yaw);
             state.remoteStateVersion = remoteView.getStateVersion(visual.id());
-            metadataBridge.sendRemoteEntityState(observer, remoteView, visual, state);
+            metadataBridge.sendRemoteEntityState(observer, remoteView, visual, state, metadataTransform, true);
+            state.resetMapCooldown();
             if (Settings.DEBUG) {
                 Wormholes.v("[spoof] SPAWN " + (visual.isPlayer() ? "player" : "entity") + " src=" + visual.id() + " type=" + visual.typeKey() + " fakeId=" + state.fakeId + " -> " + observer.getName());
             }
@@ -104,6 +123,7 @@ final class EntityRenderVisualProjector {
 
         EntityRenderSpoofedEntity.Move move = state.updatePosition(position);
         boolean rotationChanged = state.updateRotation(yaw, pitch);
+        boolean metadataTransformChanged = state.updateMetadataTransform(metadataTransform);
         registry.syncMotion(observer, state, move, rotationChanged, position, yaw, pitch, visual.onGround());
         identity.updatePlayerLabelPosition(observer, state, position, visual.height());
         identity.updatePlayerLabelText(observer, state, remoteView.getProfile(visual.id()));
@@ -114,9 +134,11 @@ final class EntityRenderVisualProjector {
             channel.send(observer, new WrapperPlayServerEntityVelocity(state.fakeId, velocity));
         }
         int stateVersion = remoteView.getStateVersion(visual.id());
-        if (stateVersion != state.remoteStateVersion) {
+        boolean mapRefreshDue = itemFrame && remoteView.getMapView(visual.id()) != null && state.shouldRefreshMap();
+        if (stateVersion != state.remoteStateVersion || metadataTransformChanged || mapRefreshDue) {
             state.remoteStateVersion = stateVersion;
-            metadataBridge.sendRemoteEntityState(observer, remoteView, visual, state);
+            metadataBridge.sendRemoteEntityState(observer, remoteView, visual, state, metadataTransform, false);
+            state.resetMapCooldown();
         }
         return true;
     }
@@ -139,7 +161,9 @@ final class EntityRenderVisualProjector {
             return false;
         }
 
-        double visibleY = visual.y() + (visual.height() * 0.5D);
+        Vector localOrigin = localPortal.getOrigin();
+        boolean itemFrame = ProjectedItemFrameTransform.isItemFrame(packetType);
+        double visibleY = itemFrame ? visual.y() : visual.y() + (visual.height() * 0.5D);
         if (mirror) {
             PortalCoordMap.mirrorSourceToDisplayPointInto(visual.x(), visibleY, visual.z(),
                 remoteOriginX, remoteOriginY, remoteOriginZ, localPortal.getFrame(), mirrorRotationQuarterTurns,
@@ -147,7 +171,7 @@ final class EntityRenderVisualProjector {
         } else {
             PortalCoordMap.transformPointInto(visual.x(), visibleY, visual.z(),
                 remoteOriginX, remoteOriginY, remoteOriginZ,
-                localPortal.getOrigin().getX(), localPortal.getOrigin().getY(), localPortal.getOrigin().getZ(),
+                localOrigin.getX(), localOrigin.getY(), localOrigin.getZ(),
                 remoteViewFrame, localViewFrame, scratchVisiblePoint);
         }
         if (!frustum.containsPrimitive(scratchVisiblePoint[0], scratchVisiblePoint[1], scratchVisiblePoint[2])) {
@@ -162,8 +186,31 @@ final class EntityRenderVisualProjector {
         }
         float yaw = ProjectedEntityRenderer.yaw(scratchDirection[0], scratchDirection[2]);
         float pitch = ProjectedEntityRenderer.pitch(scratchDirection[0], scratchDirection[1], scratchDirection[2]);
-        double visualBaseY = scratchVisiblePoint[1] - (visual.height() * 0.5D);
-        Vector3d position = new Vector3d(scratchVisiblePoint[0], visualBaseY, scratchVisiblePoint[2]);
+        Direction sourceFacing = Direction.closest(visual.lookX(), visual.lookY(), visual.lookZ());
+        int metadataTransform = ProjectedItemFrameTransform.NONE;
+        if (itemFrame) {
+            metadataTransform = mirror
+                ? ProjectedItemFrameTransform.mirror(sourceFacing, localPortal.getFrame(),
+                    mirrorRotationQuarterTurns, scratchDirection)
+                : ProjectedItemFrameTransform.between(sourceFacing, remoteViewFrame, localViewFrame,
+                    scratchDirection);
+        }
+        Vector3d position;
+        if (itemFrame && mirror) {
+            position = ProjectedItemFrameTransform.mirrorAnchor(
+                visual.x(), visual.y(), visual.z(),
+                remoteOriginX, remoteOriginY, remoteOriginZ,
+                localPortal.getFrame(), mirrorRotationQuarterTurns, scratchVisiblePoint);
+        } else if (itemFrame) {
+            position = ProjectedItemFrameTransform.betweenAnchor(
+                visual.x(), visual.y(), visual.z(),
+                remoteOriginX, remoteOriginY, remoteOriginZ,
+                localOrigin.getX(), localOrigin.getY(), localOrigin.getZ(),
+                remoteViewFrame, localViewFrame, scratchVisiblePoint);
+        } else {
+            double visualBaseY = scratchVisiblePoint[1] - (visual.height() * 0.5D);
+            position = new Vector3d(scratchVisiblePoint[0], visualBaseY, scratchVisiblePoint[2]);
+        }
         if (mirror) {
             PortalCoordMap.mirrorSourceToDisplayVectorInto(visual.velocityX(), visual.velocityY(), visual.velocityZ(),
                 localPortal.getFrame(), mirrorRotationQuarterTurns, scratchDirection);
@@ -185,19 +232,22 @@ final class EntityRenderVisualProjector {
                 identity.sendRemotePlayerInfo(observer, entityView.getProfile(visual.id()), state, upsideDown);
             }
             WrapperPlayServerSpawnEntity spawn = new WrapperPlayServerSpawnEntity(state.fakeId, Optional.of(state.fakeUuid),
-                packetType, position, pitch, yaw, yaw, 0, Optional.of(velocity));
+                packetType, position, pitch, yaw, yaw, ProjectedItemFrameTransform.spawnData(metadataTransform), Optional.of(velocity));
             channel.send(observer, spawn);
             identity.spawnPlayerLabel(observer, state, position, visual.height());
             state.updateRotation(yaw, pitch);
+            state.updateMetadataTransform(metadataTransform);
             state.rememberPosition(position);
             registry.syncHeadLook(observer, state, yaw);
             state.remoteStateVersion = entityView.getStateVersion(visual.id());
-            metadataBridge.sendRemoteEntityState(observer, entityView, visual, state);
+            metadataBridge.sendRemoteEntityState(observer, entityView, visual, state, metadataTransform, true);
+            state.resetMapCooldown();
             return true;
         }
 
         EntityRenderSpoofedEntity.Move move = state.updatePosition(position);
         boolean rotationChanged = state.updateRotation(yaw, pitch);
+        boolean metadataTransformChanged = state.updateMetadataTransform(metadataTransform);
         registry.syncMotion(observer, state, move, rotationChanged, position, yaw, pitch, visual.onGround());
         identity.updatePlayerLabelPosition(observer, state, position, visual.height());
         identity.updatePlayerLabelText(observer, state, entityView.getProfile(visual.id()));
@@ -208,9 +258,11 @@ final class EntityRenderVisualProjector {
             channel.send(observer, new WrapperPlayServerEntityVelocity(state.fakeId, velocity));
         }
         int stateVersion = entityView.getStateVersion(visual.id());
-        if (stateVersion != state.remoteStateVersion) {
+        boolean mapRefreshDue = itemFrame && entityView.getMapView(visual.id()) != null && state.shouldRefreshMap();
+        if (stateVersion != state.remoteStateVersion || metadataTransformChanged || mapRefreshDue) {
             state.remoteStateVersion = stateVersion;
-            metadataBridge.sendRemoteEntityState(observer, entityView, visual, state);
+            metadataBridge.sendRemoteEntityState(observer, entityView, visual, state, metadataTransform, false);
+            state.resetMapCooldown();
         }
         return true;
     }

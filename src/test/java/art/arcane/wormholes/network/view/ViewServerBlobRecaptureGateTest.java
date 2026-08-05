@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ViewServerBlobRecaptureGateTest {
     private static final long INTERVAL = 40L;
-    private static final int NO_EQUIPMENT = 0;
+    private static final int UNCHANGED_STATE = 0;
 
     private static EntityVisual visual() {
         return EntityVisual.full(
@@ -34,42 +34,42 @@ class ViewServerBlobRecaptureGateTest {
     }
 
     private static ViewServer.BlobCaptureState state(long tick) {
-        return new ViewServer.BlobCaptureState(tick, Pose.STANDING, false, NO_EQUIPMENT);
+        return new ViewServer.BlobCaptureState(tick, Pose.STANDING, false, UNCHANGED_STATE);
     }
 
     @Test
     void nullPreviousVisualRecaptures() {
-        assertTrue(ViewServer.shouldRecaptureBlobs(null, state(0L), 1L, INTERVAL, Pose.STANDING, false, NO_EQUIPMENT));
+        assertTrue(ViewServer.shouldRecaptureBlobs(null, state(0L), 1L, INTERVAL, Pose.STANDING, false, UNCHANGED_STATE));
     }
 
     @Test
     void nullPreviousBlobStateRecaptures() {
-        assertTrue(ViewServer.shouldRecaptureBlobs(visual(), null, 1L, INTERVAL, Pose.STANDING, false, NO_EQUIPMENT));
+        assertTrue(ViewServer.shouldRecaptureBlobs(visual(), null, 1L, INTERVAL, Pose.STANDING, false, UNCHANGED_STATE));
     }
 
     @Test
     void intervalElapsedRecaptures() {
-        assertFalse(ViewServer.shouldRecaptureBlobs(visual(), state(0L), 39L, INTERVAL, Pose.STANDING, false, NO_EQUIPMENT));
-        assertTrue(ViewServer.shouldRecaptureBlobs(visual(), state(0L), 40L, INTERVAL, Pose.STANDING, false, NO_EQUIPMENT));
+        assertFalse(ViewServer.shouldRecaptureBlobs(visual(), state(0L), 39L, INTERVAL, Pose.STANDING, false, UNCHANGED_STATE));
+        assertTrue(ViewServer.shouldRecaptureBlobs(visual(), state(0L), 40L, INTERVAL, Pose.STANDING, false, UNCHANGED_STATE));
     }
 
     @Test
     void poseChangeRecapturesImmediately() {
-        assertTrue(ViewServer.shouldRecaptureBlobs(visual(), state(0L), 1L, INTERVAL, Pose.SNEAKING, false, NO_EQUIPMENT));
+        assertTrue(ViewServer.shouldRecaptureBlobs(visual(), state(0L), 1L, INTERVAL, Pose.SNEAKING, false, UNCHANGED_STATE));
     }
 
     @Test
     void fireToggleRecapturesImmediately() {
-        assertTrue(ViewServer.shouldRecaptureBlobs(visual(), state(0L), 1L, INTERVAL, Pose.STANDING, true, NO_EQUIPMENT));
+        assertTrue(ViewServer.shouldRecaptureBlobs(visual(), state(0L), 1L, INTERVAL, Pose.STANDING, true, UNCHANGED_STATE));
     }
 
     @Test
-    void equipmentChangeRecapturesImmediately() {
+    void entityStateChangeRecapturesImmediately() {
         assertTrue(ViewServer.shouldRecaptureBlobs(visual(), state(0L), 1L, INTERVAL, Pose.STANDING, false, 12345));
     }
 
     @Test
     void unchangedStateWithinIntervalReuses() {
-        assertFalse(ViewServer.shouldRecaptureBlobs(visual(), state(10L), 20L, INTERVAL, Pose.STANDING, false, NO_EQUIPMENT));
+        assertFalse(ViewServer.shouldRecaptureBlobs(visual(), state(10L), 20L, INTERVAL, Pose.STANDING, false, UNCHANGED_STATE));
     }
 }

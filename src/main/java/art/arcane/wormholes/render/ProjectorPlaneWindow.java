@@ -145,7 +145,7 @@ final class ProjectorPlaneWindow {
     static int slabBlockMin(double windowLow, double windowHigh, int sign, double axisOrigin, int clampMin) {
         double a = axisOrigin + (sign * windowLow);
         double b = axisOrigin + (sign * windowHigh);
-        double lowest = Math.floor(Math.min(a, b)) - 1.0D;
+        double lowest = Math.ceil(Math.min(a, b) - 0.5D);
         if (lowest <= clampMin) {
             return clampMin;
         }
@@ -155,7 +155,7 @@ final class ProjectorPlaneWindow {
     static int slabBlockMax(double windowLow, double windowHigh, int sign, double axisOrigin, int clampMax) {
         double a = axisOrigin + (sign * windowLow);
         double b = axisOrigin + (sign * windowHigh);
-        double highest = Math.ceil(Math.max(a, b)) + 1.0D;
+        double highest = Math.floor(Math.max(a, b) - 0.5D);
         if (highest >= clampMax) {
             return clampMax;
         }

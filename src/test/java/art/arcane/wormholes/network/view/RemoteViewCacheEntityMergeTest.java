@@ -14,6 +14,10 @@ class RemoteViewCacheEntityMergeTest {
     private static final String PEER = "peer-a";
 
     private static EntityVisual fullEntity(UUID id, double x) {
+        return fullEntity(id, x, new byte[0]);
+    }
+
+    private static EntityVisual fullEntity(UUID id, double x, byte[] mapData) {
         return EntityVisual.full(
             id, "minecraft:zombie",
             x, 64.0D, 0.0D, 1.95D,
@@ -24,7 +28,7 @@ class RemoteViewCacheEntityMergeTest {
             "", "", "",
             null,
             null,
-            new byte[0], new byte[0],
+            new byte[0], new byte[0], mapData,
             1);
     }
 
@@ -104,5 +108,23 @@ class RemoteViewCacheEntityMergeTest {
         cache.applyEntities(PEER, portalId, List.of(fullEntity(a, 1.0D)), List.of(a));
         cache.applyEntities(PEER, portalId, List.of(fullEntity(a, 1.5D)), List.of(a));
         assertEquals(0, view.getStateVersion(a));
+    }
+
+    @Test
+    void mapPixelChangesAndRemovalBumpStateVersion() {
+        RemoteViewCache cache = new RemoteViewCache();
+        UUID portalId = UUID.randomUUID();
+        UUID entityId = UUID.randomUUID();
+        RemoteViewCache.RemoteView view = cache.getOrCreate(PEER, portalId);
+
+        cache.applyEntities(PEER, portalId,
+            List.of(fullEntity(entityId, 1.0D, new byte[]{1})), List.of(entityId));
+        assertEquals(1, view.getStateVersion(entityId));
+        cache.applyEntities(PEER, portalId,
+            List.of(fullEntity(entityId, 1.0D, new byte[]{2})), List.of(entityId));
+        assertEquals(2, view.getStateVersion(entityId));
+        cache.applyEntities(PEER, portalId,
+            List.of(fullEntity(entityId, 1.0D)), List.of(entityId));
+        assertEquals(3, view.getStateVersion(entityId));
     }
 }

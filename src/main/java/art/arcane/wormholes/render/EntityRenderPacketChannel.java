@@ -8,7 +8,7 @@ import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 
 import art.arcane.wormholes.service.WormholesTelemetry;
 
-final class EntityRenderPacketChannel {
+class EntityRenderPacketChannel {
     private User batchUser;
 
     EntityRenderPacketChannel() {

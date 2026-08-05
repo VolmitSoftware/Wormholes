@@ -81,6 +81,76 @@ final class PortalRegistryAttendance
 		}
 	}
 
+	boolean hasPlayerWithin(
+		UUID worldId,
+		double x,
+		double y,
+		double z,
+		double rangeSquared)
+	{
+		if(worldId == null
+			|| !Double.isFinite(x)
+			|| !Double.isFinite(y)
+			|| !Double.isFinite(z)
+			|| !Double.isFinite(rangeSquared)
+			|| rangeSquared < 0.0D)
+		{
+			return false;
+		}
+		WorldCells worldCells = playerCellsByWorld.get(worldId);
+		if(worldCells == null || worldCells.players.isEmpty())
+		{
+			return false;
+		}
+		double range = Math.sqrt(rangeSquared);
+		int minimumCellX = cellCoordinate(x - range);
+		int maximumCellX = cellCoordinate(x + range);
+		int minimumCellZ = cellCoordinate(z - range);
+		int maximumCellZ = cellCoordinate(z + range);
+		long cellCount = ((long) maximumCellX - minimumCellX + 1L)
+			* ((long) maximumCellZ - minimumCellZ + 1L);
+		if(cellCount >= worldCells.players.size())
+		{
+			for(UUID playerId : worldCells.players.keySet())
+			{
+				if(isWithin(worldId, x, y, z, rangeSquared, playerPositions.get(playerId)))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		for(int cellX = minimumCellX; cellX <= maximumCellX; cellX++)
+		{
+			for(int cellZ = minimumCellZ; cellZ <= maximumCellZ; cellZ++)
+			{
+				long cell = cellKey(cellX, cellZ);
+				Map<UUID, Boolean> cellPlayers;
+				synchronized(worldCells)
+				{
+					cellPlayers = worldCells.cells.get(cell);
+				}
+				if(cellPlayers == null)
+				{
+					continue;
+				}
+				for(UUID playerId : cellPlayers.keySet())
+				{
+					PlayerPosition position = playerPositions.get(playerId);
+					if(position != null
+						&& worldId.equals(position.worldId())
+						&& cellKey(position) == cell
+						&& isWithin(worldId, x, y, z, rangeSquared, position))
+					{
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
 	void refresh(List<ILocalPortal> snapshot)
 	{
 		refreshCount++;
@@ -208,6 +278,24 @@ final class PortalRegistryAttendance
 			query.index().offer(playerId, query.portalIndex(), distanceSquared, PortalProximityIndex.facingCosine(position.yaw(), position.pitch(), dx, dy, dz, distanceSquared));
 		}
 		return true;
+	}
+
+	private static boolean isWithin(
+		UUID worldId,
+		double x,
+		double y,
+		double z,
+		double rangeSquared,
+		PlayerPosition position)
+	{
+		if(position == null || !worldId.equals(position.worldId()))
+		{
+			return false;
+		}
+		double dx = x - position.x();
+		double dy = y - position.y();
+		double dz = z - position.z();
+		return (dx * dx) + (dy * dy) + (dz * dz) <= rangeSquared;
 	}
 
 	private void removeFromCell(PlayerPosition position, UUID playerId, boolean removeFromWorld)

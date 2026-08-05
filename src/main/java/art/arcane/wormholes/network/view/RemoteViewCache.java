@@ -113,6 +113,7 @@ public final class RemoteViewCache {
         private final Map<UUID, List<Equipment>> entityEquipment = new ConcurrentHashMap<>();
         private final Map<UUID, byte[]> lastMetadataBlobs = new ConcurrentHashMap<>();
         private final Map<UUID, byte[]> lastEquipmentBlobs = new ConcurrentHashMap<>();
+        private final Map<UUID, byte[]> lastMapDataBlobs = new ConcurrentHashMap<>();
 
         private RemoteView(String peerName, UUID portalId) {
             this.peerName = peerName;
@@ -449,6 +450,7 @@ public final class RemoteViewCache {
             int presentMask = incoming.presentMask();
             boolean metadataIncluded = incoming.isFull() || (presentMask & EntityVisual.FIELD_METADATA) != 0;
             boolean equipmentIncluded = incoming.isFull() || (presentMask & EntityVisual.FIELD_EQUIPMENT) != 0;
+            boolean mapDataIncluded = incoming.isFull() || (presentMask & EntityVisual.FIELD_MAP_DATA) != 0;
             if (metadataIncluded && full.metadata() != null && full.metadata().length > 0
                 && blobChanged(view.lastMetadataBlobs.get(full.id()), full.metadata())) {
                 try {
@@ -467,6 +469,19 @@ public final class RemoteViewCache {
                 } catch (Throwable ignored) {
                 }
             }
+            if (mapDataIncluded) {
+                byte[] previousMapData = view.lastMapDataBlobs.get(full.id());
+                byte[] currentMapData = full.mapData();
+                if (currentMapData != null && currentMapData.length > 0
+                    && blobChanged(previousMapData, currentMapData)) {
+                    view.lastMapDataBlobs.put(full.id(), currentMapData);
+                    stateChanged = true;
+                } else if ((currentMapData == null || currentMapData.length == 0)
+                    && previousMapData != null && previousMapData.length > 0) {
+                    view.lastMapDataBlobs.remove(full.id());
+                    stateChanged = true;
+                }
+            }
             if (stateChanged) {
                 view.stateVersions.merge(full.id(), 1, Integer::sum);
             }
@@ -480,6 +495,7 @@ public final class RemoteViewCache {
             view.lastEntityState.keySet().retainAll(present);
             view.lastMetadataBlobs.keySet().retainAll(present);
             view.lastEquipmentBlobs.keySet().retainAll(present);
+            view.lastMapDataBlobs.keySet().retainAll(present);
         }
         view.entities = List.copyOf(view.lastEntityState.values());
         view.lastUpdateMillis = System.currentTimeMillis();

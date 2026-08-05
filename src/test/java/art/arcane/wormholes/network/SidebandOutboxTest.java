@@ -167,10 +167,16 @@ class SidebandOutboxTest {
             List.of(deltaVisual(new UUID(0L, 2L))),
             List.of(new UUID(0L, 2L))
         );
+        WireMessage.ViewEntities mapDelta = new WireMessage.ViewEntities(
+            UUID.randomUUID(),
+            List.of(mapDeltaVisual(new UUID(0L, 3L))),
+            List.of(new UUID(0L, 3L))
+        );
 
         assertEquals(SidebandOutbox.TIER_BULK, SidebandOutbox.tierOf(full));
         assertEquals(SidebandOutbox.TIER_BULK, SidebandOutbox.tierOf(empty));
         assertEquals(SidebandOutbox.TIER_BEST_EFFORT, SidebandOutbox.tierOf(delta));
+        assertEquals(SidebandOutbox.TIER_BEST_EFFORT, SidebandOutbox.tierOf(mapDelta));
     }
 
     @Test
@@ -185,8 +191,14 @@ class SidebandOutboxTest {
             List.of(deltaVisual(new UUID(0L, 2L))),
             List.of(new UUID(0L, 2L))
         );
+        WireMessage.ViewEntities mapDelta = new WireMessage.ViewEntities(
+            UUID.randomUUID(),
+            List.of(mapDeltaVisual(new UUID(0L, 3L))),
+            List.of(new UUID(0L, 3L))
+        );
         WireMessage.Routed routedFull = routed(full);
         WireMessage.Routed routedDelta = routed(delta);
+        WireMessage.Routed routedMapDelta = routed(mapDelta);
         WireMessage.Routed malformed = new WireMessage.Routed(
             "alpha",
             "beta",
@@ -198,6 +210,7 @@ class SidebandOutboxTest {
 
         assertEquals(SidebandOutbox.TIER_BULK, SidebandOutbox.tierOf(routedFull));
         assertEquals(SidebandOutbox.TIER_BEST_EFFORT, SidebandOutbox.tierOf(routedDelta));
+        assertEquals(SidebandOutbox.TIER_BEST_EFFORT, SidebandOutbox.tierOf(routedMapDelta));
         assertEquals(SidebandOutbox.TIER_BULK, SidebandOutbox.tierOf(malformed));
     }
 
@@ -352,6 +365,25 @@ class SidebandOutboxTest {
     private static EntityVisual deltaVisual(UUID id) {
         EntityVisual full = fullVisual(id);
         return EntityDeltaCodec.buildDelta(full, full, 1, EntityVisual.FIELD_POSITION);
+    }
+
+    private static EntityVisual mapDeltaVisual(UUID id) {
+        EntityVisual previous = fullVisual(id);
+        EntityVisual current = EntityVisual.full(
+            id,
+            previous.typeKey(),
+            previous.x(), previous.y(), previous.z(),
+            previous.height(),
+            previous.lookX(), previous.lookY(), previous.lookZ(),
+            previous.yaw(), previous.pitch(),
+            previous.velocityX(), previous.velocityY(), previous.velocityZ(),
+            previous.onGround(),
+            previous.playerName(), previous.textureValue(), previous.textureSignature(),
+            previous.passengerOf(), previous.leashHolder(),
+            previous.metadata(), previous.equipment(), new byte[]{1},
+            1
+        );
+        return EntityDeltaCodec.buildDelta(current, previous, 1, EntityVisual.FIELD_MAP_DATA);
     }
 
     private static WireMessage.Routed routed(WireMessage.ViewEntities message) throws IOException {
