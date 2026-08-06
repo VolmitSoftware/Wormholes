@@ -22,8 +22,8 @@ import java.util.Map;
 import java.util.Objects;
 
 final class WormholesDiagnosticsRuntime {
-    // bstats.org plugin id; 0 disables submission until the id is assigned
-    private static final int BSTATS_PLUGIN_ID = 0;
+    // bstats.org plugin id
+    private static final int BSTATS_PLUGIN_ID = 33193;
 
     private final Wormholes plugin;
     private MetricsRuntime metricsRuntime;
