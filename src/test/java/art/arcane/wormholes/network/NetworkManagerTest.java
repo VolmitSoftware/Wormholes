@@ -15,12 +15,16 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -126,7 +130,11 @@ class NetworkManagerTest {
     }
 
     private NetworkManager manager(NetworkConfig config, int gamePort, String identityName) {
-        NetworkManager manager = new NetworkManager(LOGGER, config, "26.2", "test", gamePort, tempDir.resolve(identityName));
+        return manager(config, gamePort, identityName, "26.2");
+    }
+
+    private NetworkManager manager(NetworkConfig config, int gamePort, String identityName, String mcVersion) {
+        NetworkManager manager = new NetworkManager(LOGGER, config, mcVersion, "test", gamePort, tempDir.resolve(identityName));
         managers.add(manager);
         return manager;
     }
@@ -180,6 +188,49 @@ class NetworkManagerTest {
 
         awaitTrue("alpha sees beta READY", () -> alpha.isPeerReady(BETA_NAME), 10_000L);
         awaitTrue("beta sees alpha READY", () -> beta.isPeerReady(ALPHA_NAME), 10_000L);
+    }
+
+    @Test
+    void mismatchedMinecraftVersionsRejectTheLink() throws IOException {
+        Logger peerLog = Logger.getLogger(PeerConnection.class.getName());
+        List<String> warnings = Collections.synchronizedList(new ArrayList<String>());
+        Handler capture = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                if (record.getLevel().intValue() >= Level.WARNING.intValue() && record.getMessage() != null) {
+                    warnings.add(record.getMessage());
+                }
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        peerLog.addHandler(capture);
+        try {
+            int portA = freePort();
+            int portB = freePort();
+            NetworkManager alpha = manager(config(portA, ALPHA_NAME), ALPHA_GAME_PORT, "mc-mismatch-alpha", "26.2");
+            NetworkManager beta = manager(config(portB, BETA_NAME), BETA_GAME_PORT, "mc-mismatch-beta", "26.1.2");
+            alpha.savePeer(route(BETA_NAME, portB));
+            beta.savePeer(route(ALPHA_NAME, portA));
+
+            alpha.start();
+            beta.start();
+
+            awaitTrue("acceptor logs the MC version rejection", () -> warnings.stream().anyMatch(message ->
+                message.contains("linked servers must run the same Minecraft version")
+                    && message.contains("26.1.2")
+                    && message.contains("26.2")), 10_000L);
+            assertFalse(alpha.isPeerReady(BETA_NAME));
+            assertFalse(beta.isPeerReady(ALPHA_NAME));
+        } finally {
+            peerLog.removeHandler(capture);
+        }
     }
 
     @Test

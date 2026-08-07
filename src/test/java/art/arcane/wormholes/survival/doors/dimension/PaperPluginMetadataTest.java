@@ -54,7 +54,7 @@ public final class PaperPluginMetadataTest {
         assertEquals("Wormholes", metadata.getName());
         assertEquals("1.0.0-26.2", metadata.getVersion());
         assertEquals(Wormholes.class.getName(), metadata.getMain());
-        assertEquals("26.2", metadata.getAPIVersion());
+        assertEquals("26.1", metadata.getAPIVersion());
         assertEquals(PluginLoadOrder.POSTWORLD, metadata.getLoad());
         assertEquals(List.of("PlaceholderAPI", "Iris", "Vault"), metadata.getSoftDepend());
         Map<String, Map<String, Object>> commands = metadata.getCommands();

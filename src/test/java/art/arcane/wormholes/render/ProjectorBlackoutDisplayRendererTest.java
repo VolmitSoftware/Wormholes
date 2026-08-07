@@ -184,7 +184,8 @@ public final class ProjectorBlackoutDisplayRendererTest {
     @Test
     public void rawMetadataRendererIsRestrictedToLeafsPinnedSchema() {
         assertTrue(ProjectorBlackoutDisplayRenderer.supports(ServerVersion.V_26_2));
-        assertFalse(ProjectorBlackoutDisplayRenderer.supports(ServerVersion.V_26_1_2));
+        assertTrue(ProjectorBlackoutDisplayRenderer.supports(ServerVersion.V_26_1_2));
+        assertFalse(ProjectorBlackoutDisplayRenderer.supports(ServerVersion.V_26_1_1));
         assertEquals(1.5F, ProjectorBlackoutDisplayRenderer.viewRange(32.0D));
         assertEquals(32.0F, ProjectorBlackoutDisplayRenderer.viewRange(1024.0D));
     }

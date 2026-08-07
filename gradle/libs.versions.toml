@@ -1,7 +1,7 @@
 [versions]
 shadow = "9.0.0-rc3"
 slimjar = "2.1.9"
-paper = "26.2.build.60-beta"
+paper = "26.1.2.build.74-stable"
 packetevents = "2.13.0"
 bstats = "3.2.1"
 toml4j = "0.7.2"

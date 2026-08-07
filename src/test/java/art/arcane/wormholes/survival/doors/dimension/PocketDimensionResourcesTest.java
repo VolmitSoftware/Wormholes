@@ -16,10 +16,11 @@ public final class PocketDimensionResourcesTest {
     private static final String ROOT = "/wormholes-pockets-pack/";
 
     @Test
-    void targetsThePaper262DatapackSchema() throws IOException {
+    void spansTheDatapackFormatsOf2612And262() throws IOException {
+        // 26.1.2 version.json: data pack format 101.1; 26.2 version.json: 107.1.
         JSONObject pack = json("pack.mcmeta").getJSONObject("pack");
         assertEquals(107, pack.getInt("max_format"));
-        assertEquals(107, pack.getJSONArray("min_format").getInt(0));
+        assertEquals(101, pack.getJSONArray("min_format").getInt(0));
         assertEquals(1, pack.getJSONArray("min_format").getInt(1));
     }
 

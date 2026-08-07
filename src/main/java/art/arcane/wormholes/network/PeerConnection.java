@@ -319,7 +319,11 @@ public final class PeerConnection {
             throw new HandshakeException("Protocol mismatch: peer " + hello.protocolVersion() + ", local " + WireCodec.PROTOCOL_VERSION);
         }
         if (!identity.mcVersion().equals(hello.mcVersion())) {
-            throw new HandshakeException("MC version mismatch: peer " + hello.mcVersion() + ", local " + identity.mcVersion());
+            LOG.warning("net: rejected link from '" + hello.serverName() + "' (" + describeRemote() + "): peer runs MC "
+                + hello.mcVersion() + ", local runs MC " + identity.mcVersion()
+                + "; linked servers must run the same Minecraft version");
+            throw new HandshakeException("MC version mismatch: peer " + hello.mcVersion() + ", local " + identity.mcVersion()
+                + "; linked servers must run the same Minecraft version");
         }
         if (!identity.pluginVersion().equals(hello.pluginVersion())) {
             throw new HandshakeException("Wormholes version mismatch: peer " + hello.pluginVersion() + ", local " + identity.pluginVersion());

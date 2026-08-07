@@ -313,7 +313,10 @@ final class ProjectorBlackoutDisplayRenderer {
     }
 
     static boolean supports(ServerVersion version) {
-        return version == ServerVersion.V_26_2;
+        // BlockDisplay metadata layout (indices 0,5,8-17,20,21,23; 23=BLOCK_STATE) verified
+        // bit-identical between 26.1.2 and 26.2 server jars (Entity/Display/BlockDisplay
+        // accessor order and EntityDataSerializers registry match).
+        return version == ServerVersion.V_26_1_2 || version == ServerVersion.V_26_2;
     }
 
     static float viewRange(double projectionDepth) {
