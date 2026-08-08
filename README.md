@@ -1,270 +1,38 @@
 # Wormholes
-Now, you can see the other side.
 
-## Language and localization
+Through-portal projection and traversal for Paper and Folia. Frame portals show the other side and move travelers; the same plugin covers random teleport portals, survival Dimensional Doors with pocket dimensions, and cross-server gateways.
 
-Canonical English is defined in the typed Java catalogs under `src/main/java/art/arcane/wormholes/localization`; Wormholes does not ship a separate English translation bundle. Complete bundles are included for German, Spanish, Finnish, French, Hebrew, Italian, Japanese, Korean, Lithuanian, Dutch, Polish, Portuguese, Russian, Turkish, Vietnamese, Simplified Chinese, and Traditional Chinese. The main configuration selects the active locale and optional fallback locales. A file at `plugins/Wormholes/languages/<locale>.toml` can override only the messages a server wants to change; omitted entries resolve through bundled fallbacks and finally code-owned English.
+## Documentation
 
-## Random Teleport portals
+Authoritative reference: flat numbered docs under [`docs/`](docs/). Start at [`docs/00 - Overview.md`](docs/00%20-%20Overview.md).
 
-Switch a portal to **RTP** from its Type menu, then open **Random Destination**
-on the portal home page to configure it. The editor controls the target world,
-portal-relative or custom search center, minimum and maximum radius, vertical
-search bounds, shared or per-player destinations, destination rotation, timing,
-reservation behavior, rim feedback, and portal-specific sound. Settings are
-grouped into direct-choice submenus with dedicated decrease/increase buttons;
-normal left clicks stage a draft and **Apply Changes** commits the batch once.
-Manual rerolls and private-pool rebuilds use an explicit confirmation page.
+| Track | Range |
+|-------|--------|
+| Operators / players | `00`–`15` |
+| Maintainers | `16` |
+| Plugin developers (API) | `20`–`23` |
 
-New RTP portals reroll their shared destination after every successful trip.
-Operators can instead choose a timed cycle or an intentionally static route;
-an explicitly saved Static choice remains static. Per-player portals expose a
-separate private rotation time and swap each reservation from an already warm
-pool. During refills, rerolls, and authorization checks, the last READY
-projection remains online until its replacement can be published; idle lease
-grace avoids cold churn when observers briefly step away.
+## Install
 
-Surface mode checks only the actual motion-blocking terrain surface. Water,
-waterlogged or aquatic blocks, tree structure, hazards, collisions, and cave
-fallbacks are rejected. Clear ground beneath a sufficiently high canopy remains
-valid. Each RTP portal can mute its own open, close, ambient, rejection, and
-travel sounds without disabling particles, and the layered opening impact uses
-a quieter mix. Travelers keep the look and movement orientation associated with
-the side they entered, and the final teleport uses the same complete entity
-envelope that passed the destination safety check.
+1. Java 25 on Paper, a Paper-compatible derivative such as Purpur, or Folia.
+2. Drop the shaded jar from `./gradlew shadowJar` into `plugins/`.
+3. Optional soft depends: PlaceholderAPI, Vault, Iris.
+4. First boot writes `plugins/Wormholes/config/wormholes.toml` (schema 2).
+5. JVM tip: `--enable-native-access=ALL-UNNAMED` for zstd-jni native access without warnings.
 
-## Survival Dimensional Doors
+Commands: `/wormholes` (aliases `/wh`, `/wormhole`). See `docs/09 - Commands & Permissions.md`.
 
-Dimensional Doors are real vanilla doors. Their saved **OpenState** selects
-whether the portal is active while the physical block is Open or Closed, and
-newly placed doors default to Open. An eligible traveler must meet the visible
-portal surface while that state is active. An Open-state source returns to its
-closed dormant state after a living traveler crosses; a Closed-state contact
-surface remains shut. The traveler hears the player-teleport cue. The portal uses an
-opaque, fullbright Crying Obsidian backing with a client-animated Nether Portal
-veil. It is recessed one pixel inside the closed-door edge, keeps one pixel of
-clearance beside the hinge, and extends flush to the opposite latch edge.
-Every crossing preserves the entered closed-door face at the destination:
-front-to-front and back-to-back, facing outward while preserving relative look
-direction and safely adjusting upward or downward for uneven terrain.
+## Build
 
-Doors carry more than players. Arrows, tridents, snowballs, thrown potions,
-dropped items, and experience orbs that fly through an active doorway cross it
-like anyone else, retaining the exact height and lateral position where they
-met the aperture as well as their remapped momentum. A live door sweeps the air around itself every tick, so
-entities that never fire a movement event are still caught mid-flight. A whole
-volley passes while the door stands open — an object never claims the door's
-single armed open cycle and never closes it behind itself — and momentum is
-carried across, remapped into the destination doorway's frame. Objects travel
-only through Pair and Public doors; a personal pocket is keyed to one player
-and a pocket's return door to one traveler, so both stay player-only, and an
-object is never issued a return ticket. Per-door access still applies: an
-arrow is judged by whoever shot it and a dropped item by whoever threw it,
-while an unowned object such as dispenser fire passes ungated. A physically
-closed destination door whose OpenState is Open swings itself open for an
-arriving traveler and shuts again moments later; a Closed-state destination
-remains shut. The server only ever closes a door it opened itself, leaves a
-door a player opened alone, and pushes a pending close back instead of
-slamming it while another arrival is still mid-flight.
-
-Access is per player, not per door. The owner sneak-right-clicks a placed door
-with an empty hand to open a compact access window that grows one row for every
-nine listed players: a header with the door placard, a centered OpenState
-control, and the add-player button, then one stained-glass pane per listed
-player. The OpenState control applies to both doors and trapdoors; click it to
-switch which physical state presents the portal. Black is neutral and changes
-nothing, green whitelists, red blacklists. Left-click a pane to whitelist,
-right-click to blacklist, and middle-click or shift-left-click to drop the
-player from the list. A blacklisted player is always refused; once anybody is
-whitelisted, everyone who is not whitelisted is refused as well. The owner,
-operators, `wormholes.admin`, and `wormholes.doors.bypass` holders always pass,
-and exit doors inside pockets are never gated. Normal door interaction and any
-server protection plugin remain the authority everywhere else.
-
-- **Entangled Door Pair:** right-click either the air or a block with the crafted
-  bundle to unpack automatically linked A/B Wormhole Doors. Either endpoint can
-  be moved without losing the pairing. Ordinary mobs and empty vehicles that
-  physically fit through a one-block-wide, two-block-high door can use it from
-  either side.
-- **Personal Dimension Door:** every traveler reaches their own persistent
-  pocket in the shared void dimension.
-- **Public Dimension Door:** the item itself owns one shared persistent pocket. Breaking
-  and moving that specific door preserves its destination; crafting another
-  creates a different pocket. Every traveler using that door enters the same space.
-
-Each variant can also be crafted as a one-block **Dimensional Trapdoor** whose
-portal is the flat one-by-one plane its plate occupies, at the top or bottom
-of its own block depending on placement. The trapdoor pair kit unpacks linked
-A/B trapdoors exactly like the door kit, and Personal and Public trapdoors
-follow their door counterparts' rules. A fresh placement is live while open:
-swing it aside and fall, jump, or fly through the hole. Where two hinged doors
-mirror a traveler onto the matching side, a trapdoor hands it straight through:
-drop in the top of one and you come out under the far plate still falling, climb
-up through the bottom and you come out standing on top of it. A traveler with
-nowhere to fit on the far side is returned to the near trapdoor rather than
-being spat back out of the face it entered. The plane it crosses is the middle
-of the plate slab, exactly where the veil is drawn. Selecting Closed from the
-access window's OpenState control turns the shut plate into a contact pad:
-stepping onto it teleports, nothing crosses while it stands open, and a
-traveler already standing on the pad is not retriggered by shuffling around.
-Contact pads never swing, are never opened automatically for an arrival, and
-never consume an open cycle.
-
-All three support cross-dimensional player travel on the same server, and Pair
-doors load a far-away or unloaded destination chunk before transit. Pocket
-spaces are separated by 8,192 blocks and use protected 32x32x32 shells with
-buildable 30x30x30 interiors. A manually operable return door is centered at
-floor level on one wall, with arrivals placed safely just inside it. Lethal
-damage anywhere in the shared pocket world leaves the player at one heart and
-ejects them through their saved return route, falling back to a safe loaded
-non-pocket world spawn when that route is unavailable. The dimension is
-fullbright without potion effects, and tick speed remains vanilla.
-
-### Recipes
-
-Each recipe uses the existing exact **Wormhole Rune** item (`R`).
-
-```text
-Entangled pair       Personal door       Public dimension door
-E D E                 _ R _               R D R
-O R O                 C D E               _ E _
-_ D _                                     _ L _
+```bash
+./gradlew build
+./gradlew test
+./gradlew shadowJar
+./gradlew apiJar
 ```
 
-`E` is Ender Eye (pair), Ender Chest (other recipes); `D` is any vanilla door
-for every recipe; `O` is Obsidian, `C` is Recovery Compass, and `L` is
-Lodestone. Pair endpoints default to Oak, Personal Doors default to Dark Oak,
-and Public Doors default to Pale Oak. The three trapdoor recipes use the same
-shapes with any wooden trapdoor as `D` and default to Oak, Dark Oak, and Pale
-Oak trapdoors; iron and copper trapdoors are refused everywhere because they
-only move by redstone.
+Third-party integrators compile against `build/libs/*-api.jar` (`compileOnly`). See `docs/20 - API - Getting Started.md`.
 
-To change the appearance, combine one Dimensional Door with one ordinary
-wooden, bamboo, crimson, or warped door in any crafting-table arrangement. The
-result keeps the exact same pair, personal traveler mapping, or public pocket
-identity while adopting the ordinary door's material. Iron and copper doors
-cannot be selected as skins because every Dimensional Door must remain
-hand-openable. A Dimensional Trapdoor reskins the same way with one ordinary
-hand-openable trapdoor, and a door can never be reskinned into a trapdoor or
-the reverse. Existing placed Iron Dimension Doors are converted to the new
-Pale Oak Public Door default without changing their saved destination.
+## License
 
-Identity-bearing kits and placed doors are consumed normally in Creative mode.
-Breaking a Pair, Personal, or Public door always drops that exact door item,
-including in Creative, so its link or pocket destination survives being moved.
-
-Administrators can issue test items with
-`/wormholes door type=<pair|personal|public|pair_trapdoor|personal_trapdoor|public_trapdoor>`.
-Installing the feature or changing
-its bundled dimension data requires a full server restart so Paper can rebuild
-the world registries.
-
-Set `[main] dimensional-doors-enabled = false` in `wormholes.toml` to disable
-the complete feature live. New entries stop immediately; active travelers and
-pocket occupants may finish through their return route before recipes,
-protection, and portal displays shut down. Existing blocks then behave as
-ordinary doors, while saved door and pocket identities remain available if the
-setting is re-enabled.
-
-## Cross-server handoff
-
-Servers pair by exchanging pasteable codes. `/wormhole server export` prints a
-click-to-copy server code (console output prints the raw code instead); paste it
-on the other server with `/wormhole server import <code>` to store the route and
-trusted key under `routes/` and `trust/` in the plugin data folder. Portal codes
-from a gateway's Export button are accepted by the same import and save the same
-route. `/wormhole server list` shows every linked server with its live
-reachability, `/wormhole server remove <name>` deletes a link again (while
-`trust-on-first-use` is enabled, an online peer that still has this server saved
-re-registers itself through the sideband, so remove the link on both servers),
-and
-`/wormhole server <name>` (long form `/wormhole server connect <name>`) transfers
-you to that server over the same direct or proxy path portal traversals use.
-
-Imported portal codes retain both public and LAN route candidates. Direct player
-handoffs use a private fallback only when the player connected from loopback or
-the LAN and Wormholes has verified that endpoint through an active
-private/loopback raw connection or a successful game-port sideband request. A
-localhost connection alone never makes a separately hosted peer's private
-address reachable. Internet players continue to receive the destination's
-public endpoint. Game-port sideband traffic tries the same fallbacks only when a
-socket connection was never established, and remembers the exact endpoint that
-answered for the player handoff.
-
-The source does not dispatch the client until the destination grants a
-rate-limited admission lease for that exact transfer. The destination checks
-that the live portal can receive, the selected direct or proxy method is
-supported, the profile passes the built-in ban and whitelist gates, and online
-players plus pending arrivals remain below the player limit. A denial, timeout,
-or active cooldown returns the traveler to the source-facing side of the portal
-instead of letting them remain inside the plane or disconnecting them. An
-accepted arrival remains reserved until its destination-portal teleport succeeds,
-with transient placement failures retried before falling back to the destination
-spawn. Both servers must run the same wire protocol version.
-
-Native Paper transfer admission should use `accepts-transfers=true` in every
-destination server's `server.properties` followed by a restart. Wormholes keeps
-its `network.autoAcceptTransfers` compatibility gate enabled by default for
-hosts where that property cannot be changed.
-
-Run `/wormhole debug` on both servers before reproducing a failed handoff. The
-command is a silent toggle in game and writes one-second projection, network,
-queue, peer, and handoff telemetry to each server console. Direct transfers log
-the client's address, LAN classification, selected `host:port`, and every
-configured endpoint; the destination logs when its transfer gate receives and
-rewrites the incoming handshake. Run the same command again to stop the stream.
-
-## PlaceholderAPI
-
-Wormholes registers a `%wormholes_*%` expansion when PlaceholderAPI is enabled,
-and unregisters it on disable, reload, and hot load. Every key below is a
-complete list; anything else returns the literal text so a typo stays visible.
-A key that is spelled correctly but has no value right now returns `---`.
-
-Server-wide keys:
-
-| Key | Value |
-|---|---|
-| `%wormholes_available%` | `true` once the first snapshot is published, `false` before that |
-| `%wormholes_portals%` | portals loaded on this server |
-| `%wormholes_projections.active%` | portals currently projecting |
-| `%wormholes_projections.observers%` | players currently receiving a projection |
-| `%wormholes_peers.connected%` | cross-server peers with a live link |
-| `%wormholes_peers.link%` | `offline`, `solo`, `down`, `degraded`, or `linked` |
-| `%wormholes_transfers.in-flight%` | cross-server handoffs and entity transfers in progress |
-| `%wormholes_failures%` | terminal failures counted since start |
-| `%wormholes_failures.per-minute%` | terminal failures per minute over the last window |
-
-Per-player keys, all describing one portal: the portal the player is looking at
-if there is one within its activation range, otherwise the nearest portal in
-range. Range is the same threshold the ambient attendance pass already uses,
-so the portal answered here is always a portal the player is close enough to
-affect. A player with no portal in range gets `false` and `---`.
-
-| Key | Value |
-|---|---|
-| `%wormholes_portal.available%` | `true` when a portal is in range, `false` otherwise |
-| `%wormholes_portal.name%` | the portal's name, stripped of colour codes and `%` |
-| `%wormholes_portal.state%` | `open`, `closed`, or `syncing` |
-| `%wormholes_portal.destination%` | linked portal's name, or the peer server name for an unresolved cross-server link |
-| `%wormholes_portal.distance%` | blocks from the player to the portal centre, two decimals |
-| `%wormholes_portal.cross-server%` | `true` when the destination is on another server |
-| `%wormholes_rtp.state%` | `rerolling`, `warming`, `ready`, `cooldown`, or `idle`; `---` when that portal is not a Random Teleport portal |
-| `%wormholes_rtp.cooldown%` | seconds until the next destination search is allowed, two decimals |
-
-Values carry no units, no grouping separators, no `%`, and no colour codes, so
-they can be parsed and safely re-substituted by a scoreboard or tab plugin.
-
-Resolution cost is one volatile read plus one map lookup and allocates nothing.
-Nothing is computed while a placeholder is being resolved: the per-player answer
-is built once a second on the thread that already owns the portal registry, by
-the same pass that decides portal ambient attendance, and the server-wide answer
-is built in that same pass. PlaceholderAPI does not need to be installed for any
-of this - when it is absent the expansion is never registered and the publishing
-pass never runs.
-
-## Runtime
-
-Java 25 server launch commands should include
-`--enable-native-access=ALL-UNNAMED` so zstd-jni can continue loading its native
-compression library without restricted-access warnings.
+See `LICENSE.md`.

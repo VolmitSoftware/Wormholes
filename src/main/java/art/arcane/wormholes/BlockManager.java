@@ -25,6 +25,7 @@ import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.PortalBlock;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.portal.PortalTypeAccess;
 import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.wormholes.util.GChunk;
 import art.arcane.wormholes.util.J;
@@ -107,6 +108,11 @@ public class BlockManager implements Listener
 		if(b.getType() == PortalType.RTP)
 		{
 			WormholesHud.notice(e.getPlayer(), Wormholes.text().component(WormholesMessages.PORTAL_RTP_RUNE_UNSUPPORTED));
+			return;
+		}
+		if(!PortalTypeAccess.allows(e.getPlayer(), b.getType()))
+		{
+			WormholesHud.notice(e.getPlayer(), Wormholes.text().component(WormholesMessages.COMMAND_NO_PERMISSION));
 			return;
 		}
 		WormholesHud.notice(e.getPlayer(), Wormholes.text().component(

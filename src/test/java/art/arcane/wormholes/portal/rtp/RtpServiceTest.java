@@ -222,6 +222,28 @@ public final class RtpServiceTest
 	}
 
 	@Test
+	public void perPlayerRoutingUsesTimedRuntimeAndTimedRimRegardlessOfSharedRotationSetting()
+	{
+		TestHarness harness = new TestHarness(uniqueSampler());
+		UUID portalId = uuid("private-timed-rim-portal");
+		UUID playerId = uuid("private-timed-rim-player");
+		harness.register(portalId, settings(RtpAllocationMode.PER_PLAYER, RtpRotationMode.ON_TRAVERSAL));
+		harness.service.touchViewer(portalId, playerId).join();
+		harness.executor.runAll();
+
+		RtpService.Snapshot snapshot = harness.service.snapshot(portalId).orElseThrow();
+		assertEquals(RtpRotationMode.ON_TRAVERSAL, snapshot.settings().getRotationMode());
+		assertEquals(RtpRotationMode.TIMED, snapshot.runtime().rotationMode());
+		RtpRimRenderer.Sample rim = harness.service.rimSample(
+				portalId,
+				playerId,
+				RtpRimRenderer.Phase.READY,
+				7_500L).orElseThrow();
+		assertEquals(new RtpRimRenderer.Color(255, 255, 0), rim.color());
+		assertEquals(0.5D, rim.progress());
+	}
+
+	@Test
 	public void manualRerollCommitsPairAndSettingsChangeRejectsLateGeneration()
 	{
 		TestHarness harness = new TestHarness(uniqueSampler());

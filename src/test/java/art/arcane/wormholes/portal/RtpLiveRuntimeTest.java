@@ -27,9 +27,11 @@ import org.bukkit.util.Vector;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import art.arcane.wormholes.ProjectionManager;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
 import art.arcane.wormholes.portal.rtp.RtpAccessResult;
+import art.arcane.wormholes.portal.rtp.RtpAllocationMode;
 import art.arcane.wormholes.portal.rtp.RtpDestination;
 import art.arcane.wormholes.portal.rtp.RtpProjectionView;
 import art.arcane.wormholes.portal.rtp.RtpRotationMode;
@@ -90,6 +92,24 @@ public final class RtpLiveRuntimeTest
 
 		assertFalse(harness.runtime.isReady(harness.portal.getId()));
 		assertFalse(harness.portal.isOpen());
+	}
+
+	@Test
+	public void perPlayerProjectionReportsItsTimedRuntimeMode()
+	{
+		Harness harness = new Harness(RtpRotationMode.ON_TRAVERSAL);
+		harness.portal.setRtpSettings(RtpSettings.builder(harness.world)
+				.radii(16, 64)
+				.allocationMode(RtpAllocationMode.PER_PLAYER)
+				.rotationMode(RtpRotationMode.ON_TRAVERSAL)
+				.cycleDurationMillis(15_000L)
+				.build());
+		harness.runtime.synchronize(harness.portal);
+
+		ProjectionManager.RtpProjectionResult result = harness.runtime.touch(harness.portal, harness.viewer.player());
+
+		assertEquals(RtpRotationMode.TIMED, result.rotationMode());
+		assertEquals(15_000L, result.durationMillis());
 	}
 
 	@Test

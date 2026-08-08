@@ -519,6 +519,14 @@ final class LocalPortalMenus
 		element.setEnchanted(current);
 		element.onLeftClick((e) -> FoliaScheduler.runEntity(Wormholes.instance, p, () ->
 		{
+			if(portal.getType() != target && !PortalTypeAccess.allows(p, target))
+			{
+				Wormholes.effectManager.playNotificationFail(
+						Wormholes.text().legacy(WormholesMessages.COMMAND_NO_PERMISSION),
+						portal.getStructure().getCenter());
+				window.close();
+				return;
+			}
 			boolean changed = false;
 			if(portal.isMirrorMode())
 			{

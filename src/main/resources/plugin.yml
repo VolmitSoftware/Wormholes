@@ -54,14 +54,14 @@ permissions:
     description: Allows creating and modifying gateway portals.
     default: op
   wormholes.portals:
-    description: Allows creating and using normal portal types.
+    description: Allows creating and modifying non-gateway frame portal types.
     default: true
     children:
       wormholes.portals.wormhole: true
       wormholes.portals.portal: true
   wormholes.portals.wormhole:
-    description: Allows creating and using wormhole portals (projecting).
+    description: Allows creating and modifying wormhole-type frame portals.
     default: true
   wormholes.portals.portal:
-    description: Allows creating and using normal portals (non-projecting).
+    description: Allows creating and modifying portal-type and RTP frame portals.
     default: true

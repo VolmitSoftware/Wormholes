@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -109,6 +110,16 @@ class WormholesCommandServiceTest {
 	}
 
 	@Test
+	void anyAdministrativeLeafOpensDirectorRouting()
+	{
+		assertTrue(WormholesCommandService.hasAdminCommandAccess(permissionSender(Set.of("wormholes.admin.reload"))));
+		assertTrue(WormholesCommandService.hasAdminCommandAccess(permissionSender(Set.of("wormholes.admin.network"))));
+		assertTrue(WormholesCommandService.hasAdminCommandAccess(permissionSender(Set.of("wormholes.admin"))));
+		assertEquals(false, WormholesCommandService.hasAdminCommandAccess(permissionSender(Set.of())));
+		assertEquals(false, WormholesCommandService.hasAdminCommandAccess(null));
+	}
+
+	@Test
 	void nonAdministratorExecutionCannotReachMutatingDirectorCommands()
 	{
 		List<String> messages = new ArrayList<>();
@@ -168,6 +179,21 @@ class WormholesCommandServiceTest {
 				}
 				return null;
 			});
+	}
+
+	private static CommandSender permissionSender(Set<String> permissions)
+	{
+		return (CommandSender) Proxy.newProxyInstance(
+				WormholesCommandServiceTest.class.getClassLoader(),
+				new Class<?>[] {CommandSender.class},
+				(proxy, method, arguments) -> switch(method.getName())
+				{
+					case "hasPermission" -> permissions.contains(String.valueOf(arguments[0]));
+					case "equals" -> proxy == arguments[0];
+					case "hashCode" -> System.identityHashCode(proxy);
+					case "toString" -> "WormholesCommandServiceTestSender";
+					default -> throw new UnsupportedOperationException(method.getName());
+				});
 	}
 
     private static DirectorSender directorSender() {

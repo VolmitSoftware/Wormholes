@@ -323,7 +323,8 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 		RtpRuntimeSnapshot runtime = snapshot.runtime();
 		RtpSettings liveSettings = portal instanceof LocalPortal localPortal && localPortal.getRtpSettings() != null
 				? localPortal.getRtpSettings() : snapshot.settings();
-		long durationMillis = liveSettings.getRotationMode() == RtpRotationMode.TIMED
+		RtpRotationMode runtimeRotationMode = runtime.rotationMode();
+		long durationMillis = runtimeRotationMode == RtpRotationMode.TIMED
 				? liveSettings.getCycleDurationMillis() : 0L;
 		long elapsedMillis = durationMillis == 0L || runtime.nextRotationAtMillis() <= 0L
 				? 0L : Math.max(0L, durationMillis - Math.max(0L, runtime.nextRotationAtMillis() - environment.nowMillis()));
@@ -337,7 +338,7 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 				portal.isProjecting(),
 				liveSettings.isRimEnabled(),
 				attended,
-				liveSettings.getRotationMode(),
+				runtimeRotationMode,
 				phase,
 				elapsedMillis,
 				durationMillis);

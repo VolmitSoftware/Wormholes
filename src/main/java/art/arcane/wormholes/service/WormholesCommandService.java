@@ -42,7 +42,14 @@ import java.util.logging.Level;
 
 public final class WormholesCommandService implements CommandExecutor, TabCompleter, DirectorInvocationHook {
     private static final String ROOT_COMMAND = "wormholes";
-    private static final String ROOT_PERMISSION = "wormholes.admin";
+    private static final List<String> ADMIN_COMMAND_PERMISSIONS = List.of(
+            "wormholes.admin",
+            "wormholes.admin.reload",
+            "wormholes.admin.items",
+            "wormholes.admin.network",
+            "wormholes.admin.projection",
+            "wormholes.admin.reset"
+    );
     private static final int HELP_PAGE_SIZE = 8;
 
     private final Wormholes plugin;
@@ -110,7 +117,7 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
     }
 
     boolean executeCommand(CommandSender sender, String label, String[] args) {
-        if (!sender.hasPermission(ROOT_PERMISSION)) {
+        if (!hasAdminCommandAccess(sender)) {
             if (sendPublicCommandIfRequested(sender, args)) {
                 playInfoChime(sender);
             } else {
@@ -157,7 +164,7 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
     }
 
     List<String> tabComplete(CommandSender sender, String alias, String[] args) {
-        if (!sender.hasPermission(ROOT_PERMISSION)) {
+        if (!hasAdminCommandAccess(sender)) {
             return publicTabCompletions(args);
         }
         List<String> completions = runDirectorTab(sender, alias, args);
@@ -214,6 +221,18 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
 		String prefix = args[0] == null ? "" : args[0].toLowerCase(Locale.ROOT);
 		return List.of("help", "info").stream().filter(value -> value.startsWith(prefix)).toList();
 	}
+
+    static boolean hasAdminCommandAccess(CommandSender sender) {
+        if (sender == null) {
+            return false;
+        }
+        for (String permission : ADMIN_COMMAND_PERMISSIONS) {
+            if (sender.hasPermission(permission)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private DirectorRuntimeEngine getDirector() {
         return directorCache.aquire(this::buildDirector);

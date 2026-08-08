@@ -24,6 +24,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
@@ -79,7 +80,7 @@ public class CommandWormholes {
         ItemStack wand = Wormholes.blockManager.getWand();
         ItemStack wormholeRune = Wormholes.blockManager.getWormholeRune(1);
         player.getInventory().addItem(wand, wormholeRune);
-        sendLines(player, WormholesMessages.COMMAND_GRANTED_STARTER, MessageArgs.empty());
+        sendLines(player, WormholesMessages.COMMAND_GRANTED_STARTER, args("range", projectionRange()));
     }
 
     @Director(name = "door", sync = true, descriptionKey = "command.help.door", description = "Give a survival Dimensional Door item")
@@ -158,11 +159,15 @@ public class CommandWormholes {
 
     @Director(name = "info", sync = true, descriptionKey = "command.help.info", description = "Show portal building instructions")
     public void info(@Param(name = "sender", contextual = true) CommandSender sender) {
-        sendLines(sender, WormholesMessages.COMMAND_INFO, MessageArgs.empty());
+        sendLines(sender, WormholesMessages.COMMAND_INFO, args("range", projectionRange()));
     }
 
     private static MessageArgs args(String name, Object value) {
         return WormholesLocalization.args(MessageArgument.untrusted(name, value));
+    }
+
+    private static String projectionRange() {
+        return BigDecimal.valueOf(Settings.PROJECTION_RANGE).stripTrailingZeros().toPlainString();
     }
 
     private static MessageArgs args(String firstName, Object firstValue, String secondName, Object secondValue) {

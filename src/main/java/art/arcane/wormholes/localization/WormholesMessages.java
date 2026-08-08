@@ -63,10 +63,10 @@ public final class WormholesMessages {
     ));
     public static final LinesKey COMMAND_GRANTED_STARTER = lines("command.wand.granted_starter",
             "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portal Wand and 1 Wormhole Rune granted.",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Build TWO wormhole-rune shapes (any connected shape on one flat surface), link them, and stand within 16 blocks to see the projection.",
+            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Build TWO wormhole-rune shapes (any connected shape on one flat surface), link them, and stand within {range} blocks to see the projection.",
             "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Run <white>/wormholes info<gray> for the full step-by-step.");
     public static final TextKey COMMAND_DOORS_UNAVAILABLE = text("command.door.unavailable", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Dimensional Doors are unavailable.");
-    public static final TextKey COMMAND_UNKNOWN_DOOR = text("command.door.unknown_type", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Unknown door type. Use pair, personal, or public.");
+    public static final TextKey COMMAND_UNKNOWN_DOOR = text("command.door.unknown_type", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Unknown door type. Use pair, personal, public, pair_trapdoor, personal_trapdoor, or public_trapdoor.");
     public static final TextKey COMMAND_EMPTY_DOOR = text("command.door.empty_type", "Door type cannot be empty");
     public static final TextKey COMMAND_GRANTED_DOOR = text("command.door.granted", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Granted a <white>{type}<green> dimensional door item.");
     public static final TextKey COMMAND_RELOADED = text("command.reload.applied", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes configuration and language files reloaded.");
@@ -84,14 +84,12 @@ public final class WormholesMessages {
             "<gray>   Any connected shape works: rectangles, lines (3x1), single blocks, L-shapes, crosses.",
             "<gray>   The runes must sit flat on one axis-aligned wall, floor, or ceiling.",
             "<dark_gray>3. <gray>Hold the Portal Wand and <white>left-click any rune block<gray> to form the portal.",
-            "<gray>   Shapes that do not sit flat on one surface are refunded automatically.",
             "<dark_gray>4. <gray>Build a SECOND portal somewhere else (any distance, any world).",
-            "<dark_gray>5. <gray>Click the open portal with the wand to open the main menu.",
+            "<dark_gray>5. <gray>Open the portal menu with the wand while looking at the portal, or sneak with an empty main hand and right-click a portal block (owner or admin).",
             "<gray>   Choose <white>Destination<gray> and select the other portal. Repeat from the other side.",
             "<gray>   Orientation and access controls are grouped into their own simple menus.",
-            "<dark_gray>6. <gray>Stand within 16 blocks of either portal — the destination world will project through the frame and walking in teleports you.",
-            "<gray>Administrators can create supplies with <white>/wormholes wand rune=\\<portal|wormhole|gateway> count=\\<n>",
-            "<gray>Dimensional Doors are crafted with Wormhole Runes. Open a placed door and physically cross its threshold to travel; a closed door never activates.");
+            "<dark_gray>6. <gray>Stand within {range} blocks of either portal (current global activation range) — the destination world will project through the frame and walking in teleports you.",
+            "<gray>Administrators can create supplies with <white>/wormholes wand rune=\\<portal|wormhole|gateway> count=\\<n>");
     public static final PluralKey COMMAND_DELETED_PORTALS = plural("command.admin.deleted_portals", "count", Map.of(
             "one", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Deleted <white>{count}<green> portal and cleared local portal links.",
             "other", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Deleted <white>{count}<green> portals and cleared local portal links."
@@ -114,7 +112,7 @@ public final class WormholesMessages {
     public static final TextKey COMMAND_PROJECTION_SCHEDULE_FAILED = text("command.admin.projection_schedule_failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Could not schedule the projection update.");
 
     public static final TextKey NETWORK_NOT_INITIALIZED = text("network.not_initialized", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Networking is not initialized.");
-    public static final TextKey NETWORK_DISABLED = text("network.status.disabled", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Networking is <red>disabled<gray> (config/wormholes.toml).");
+    public static final TextKey NETWORK_DISABLED = text("network.status.disabled", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Networking is <red>disabled<gray> (plugins/Wormholes/config/wormholes.toml).");
     public static final TextKey NETWORK_NOT_RUNNING = text("network.status.not_running", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Networking is enabled but not running. Check the identity store and network port.");
     public static final TextKey NETWORK_LISTENING = text("network.status.listening", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>This server: <white>{server}<gray> listening on <white>{address}");
     public static final TextKey NETWORK_OUTBOUND_ONLY = text("network.status.outbound_only", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>This server: <white>{server}<gray> outbound-only Boat mode");

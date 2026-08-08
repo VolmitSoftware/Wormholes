@@ -14,7 +14,7 @@ public final class Settings {
     public static volatile boolean DEBUG_RENDERING = false;
     public static volatile double FRUSTUM_CULLING_RATIO = 0.2D;
     public static volatile double CAPTURE_ZONE_RADIUS = 8.0D;
-    public static volatile double PROJECTION_RANGE = 32.0D;
+    public static volatile double PROJECTION_RANGE = 48.0D;
     public static volatile double NEAR_PLANE_PADDING = 2.0D;
     public static volatile double PROJECTION_APERTURE_PADDING_BLOCKS = 0.75D;
     public static volatile boolean LIGHTING_FIDELITY = false;

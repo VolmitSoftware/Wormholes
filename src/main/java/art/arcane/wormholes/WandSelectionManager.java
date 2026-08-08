@@ -37,6 +37,7 @@ import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.portal.PortalTypeAccess;
 import art.arcane.wormholes.service.WormholesHud;
 
 public class WandSelectionManager implements Listener
@@ -294,6 +295,11 @@ public class WandSelectionManager implements Listener
 					WormholesLocalization.args(
 							MessageArgument.untrusted("count", cells),
 							MessageArgument.untrusted("maximum", MAX_DRAWN_CELLS))));
+			return;
+		}
+		if(!PortalTypeAccess.allows(player, PortalType.PORTAL))
+		{
+			WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.COMMAND_NO_PERMISSION));
 			return;
 		}
 		World world = player.getWorld();

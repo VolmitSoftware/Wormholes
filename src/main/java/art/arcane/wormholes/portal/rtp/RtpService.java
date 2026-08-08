@@ -173,7 +173,7 @@ public final class RtpService
 				view,
 				snapshot.settings().isRimEnabled(),
 				snapshot.viewers().contains(requiredViewerId),
-				snapshot.settings().getRotationMode(),
+				snapshot.runtime().rotationMode(),
 				requiredPhase,
 				elapsedMillis,
 				snapshot.settings().getCycleDurationMillis());

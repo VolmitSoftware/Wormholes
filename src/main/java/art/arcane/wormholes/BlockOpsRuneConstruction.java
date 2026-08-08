@@ -30,6 +30,7 @@ import art.arcane.wormholes.BlockOpsRuneIndex.RuneReservation;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.PortalBlock;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.portal.PortalTypeAccess;
 import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.util.M;
@@ -60,6 +61,16 @@ final class BlockOpsRuneConstruction
 
 	void construct(Player player, Block clickedBlock)
 	{
+		PortalBlock clickedRune = index.getBlock(clickedBlock);
+		if(clickedRune == null)
+		{
+			return;
+		}
+		if(!PortalTypeAccess.allows(player, clickedRune.getType()))
+		{
+			Wormholes.effectManager.playNotificationFail(Wormholes.text().legacy(WormholesMessages.COMMAND_NO_PERMISSION), clickedBlock.getLocation());
+			return;
+		}
 		RuneReservation reservation = index.reserveConnectedRunes(clickedBlock);
 		if(reservation == null)
 		{

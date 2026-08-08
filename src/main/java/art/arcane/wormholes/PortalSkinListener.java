@@ -66,8 +66,10 @@ public class PortalSkinListener implements Listener
 			{
 				continue;
 			}
-			deny(e);
-			local.applySurfaceSkinFromInteraction(player, skin);
+			if(local.applySurfaceSkinFromInteraction(player, skin))
+			{
+				deny(e);
+			}
 			return;
 		}
 	}
