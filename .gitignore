@@ -25,3 +25,5 @@ logs/
 .claude/
 
 docs/specs/
+
+AGENTS.md

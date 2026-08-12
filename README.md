@@ -4,7 +4,7 @@ Through-portal projection and traversal for Paper and Folia. Frame portals show 
 
 ## Documentation
 
-Authoritative reference: flat numbered docs under [`docs/`](docs/). Start at [`docs/00 - Overview.md`](docs/00%20-%20Overview.md).
+Authoritative reference: the central [VolmitSoftware/docs](https://github.com/VolmitSoftware/docs/tree/master/wormholes) repository. Start at [00 - Overview](https://github.com/VolmitSoftware/docs/blob/master/wormholes/00-overview.md).
 
 | Track | Range |
 |-------|--------|
@@ -20,7 +20,7 @@ Authoritative reference: flat numbered docs under [`docs/`](docs/). Start at [`d
 4. First boot writes `plugins/Wormholes/config/wormholes.toml` (schema 2).
 5. JVM tip: `--enable-native-access=ALL-UNNAMED` for zstd-jni native access without warnings.
 
-Commands: `/wormholes` (aliases `/wh`, `/wormhole`). See `docs/09 - Commands & Permissions.md`.
+Commands: `/wormholes` (aliases `/wh`, `/wormhole`). See [09 - Commands & Permissions](https://github.com/VolmitSoftware/docs/blob/master/wormholes/09-commands-permissions.md).
 
 ## Build
 
@@ -31,7 +31,7 @@ Commands: `/wormholes` (aliases `/wh`, `/wormhole`). See `docs/09 - Commands & P
 ./gradlew apiJar
 ```
 
-Third-party integrators compile against `build/libs/*-api.jar` (`compileOnly`). See `docs/20 - API - Getting Started.md`.
+Third-party integrators compile against `build/libs/*-api.jar` (`compileOnly`). See [20 - API - Getting Started](https://github.com/VolmitSoftware/docs/blob/master/wormholes/20-api-getting-started.md).
 
 ## License
 
