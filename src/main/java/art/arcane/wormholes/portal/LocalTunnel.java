@@ -1,7 +1,6 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.Wormholes;
-import art.arcane.volmlib.util.json.JSONObject;
 
 public class LocalTunnel extends Tunnel
 {
@@ -17,25 +16,9 @@ public class LocalTunnel extends Tunnel
 	}
 
 	@Override
-	public void push(Traversive t)
-	{
-		ILocalPortal destination = resolveDestination();
-		if(t != null && destination instanceof LocalPortal)
-		{
-			((LocalPortal) destination).receive(t);
-		}
-	}
-
-	@Override
 	public boolean isValid()
 	{
 		return resolveDestination() != null;
-	}
-
-	@Override
-	public void loadJSON(JSONObject j)
-	{
-		super.loadJSON(j);
 	}
 
 	boolean hasRtpDestination()

@@ -175,11 +175,6 @@ public class AxisAlignedBB implements IWritable
 		return new Vector(x.x() == 1 ? xb : xa, y.y() == 1 ? yb : ya, z.z() == 1 ? zb : za);
 	}
 
-	public Cuboid toCuboid(World world)
-	{
-		return new Cuboid(min().toLocation(world), max().toLocation(world));
-	}
-
 	public Vector random()
 	{
 		return new Vector(M.rand(xa, xb), M.rand(ya, yb), M.rand(za, zb));
@@ -226,11 +221,6 @@ public class AxisAlignedBB implements IWritable
 	}
 
 	public boolean contains(Vector p)
-	{
-		return p.getX() >= xa && p.getX() <= xb && p.getY() >= ya && p.getY() <= yb && p.getZ() >= za && p.getZ() <= zb;
-	}
-
-	public boolean contains(AlignedPoint p)
 	{
 		return p.getX() >= xa && p.getX() <= xb && p.getY() >= ya && p.getY() <= yb && p.getZ() >= za && p.getZ() <= zb;
 	}

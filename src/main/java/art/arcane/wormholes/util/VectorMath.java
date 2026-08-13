@@ -7,10 +7,6 @@ public final class VectorMath {
     private VectorMath() {
     }
 
-    public static Vector direction(Location from, Location to) {
-        return to.clone().subtract(from).toVector().normalize();
-    }
-
     public static Vector directionNoNormal(Location from, Location to) {
         return to.clone().subtract(from).toVector();
     }

@@ -303,12 +303,13 @@ public final class PortalProjector {
         }
 
         long destinationRevision = destination.destView.getRevision();
-        sampler.clearRecursivePortals();
-        if (forceStableCellResample
+        boolean destinationSamplesStale = forceStableCellResample
             || sampler.recursiveSamplesCached()
             || sampleMemo.destinationStale(destinationRevision, destWorld != null,
                 sinceVersion -> schedule.destinationDirty(destWorld, destinationOriginX, destinationOriginZ, sinceVersion))
-            || sampleMemo.destinationOverBudget(sampleMemoBudget())) {
+            || sampleMemo.destinationOverBudget(sampleMemoBudget());
+        if (destinationSamplesStale) {
+            sampler.clearRecursivePortals();
             sampleMemo.clearDestinationSamples();
             sampleMemo.refreshDestination(destinationRevision);
         }

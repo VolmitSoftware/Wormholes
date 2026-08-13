@@ -12,8 +12,6 @@ public interface ITunnel extends IWritable
 
 	public TunnelType getTunnelType();
 
-	public void push(Traversive t);
-
 	public boolean isValid();
 
 	public static ITunnel createTunnel(JSONObject j)

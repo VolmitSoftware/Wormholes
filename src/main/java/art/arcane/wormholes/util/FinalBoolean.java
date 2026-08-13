@@ -40,9 +40,4 @@ public class FinalBoolean
 	{
 		this.i = i;
 	}
-
-	public void toggle()
-	{
-		set(!get());
-	}
 }

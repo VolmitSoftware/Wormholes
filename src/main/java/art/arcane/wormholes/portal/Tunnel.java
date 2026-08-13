@@ -30,9 +30,6 @@ public abstract class Tunnel implements ITunnel
 	}
 
 	@Override
-	public abstract void push(Traversive t);
-
-	@Override
 	public void saveJSON(JSONObject j)
 	{
 		j.put("type", getTunnelType().name());

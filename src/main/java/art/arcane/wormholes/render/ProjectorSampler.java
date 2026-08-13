@@ -1,7 +1,8 @@
 package art.arcane.wormholes.render;
 
-import java.util.HashMap;
 import java.util.function.Function;
+
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -22,7 +23,7 @@ final class ProjectorSampler {
     private final BlockData airBlockData;
     private final BlockData occludedStandIn;
     private final ProjectorSample maskAirSample;
-    private final HashMap<BlockData, BlockData> transformedBlockCache;
+    private final Object2ObjectOpenHashMap<BlockData, BlockData> transformedBlockCache;
     private final double[] scratchRot;
     private Direction cachedFromNormal;
     private Direction cachedFromRight;
@@ -45,7 +46,7 @@ final class ProjectorSampler {
         this.airBlockData = Material.AIR.createBlockData();
         this.occludedStandIn = OccludedMarker.standIn();
         this.maskAirSample = ProjectorSample.maskAir(airBlockData);
-        this.transformedBlockCache = new HashMap<BlockData, BlockData>(128);
+        this.transformedBlockCache = new Object2ObjectOpenHashMap<BlockData, BlockData>(128);
         this.scratchRot = new double[3];
         this.cachedFromNormal = null;
         this.cachedFromRight = null;

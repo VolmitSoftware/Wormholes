@@ -1004,10 +1004,6 @@ public final class WormholesMessages {
                 .build();
     }
 
-    public static List<MessageKey> keys() {
-        return List.copyOf(KEYS);
-    }
-
     private static TextKey text(String id, String english) {
         TextKey key = TextKey.of(id, english);
         KEYS.add(key);

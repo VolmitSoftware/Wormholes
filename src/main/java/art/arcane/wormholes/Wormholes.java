@@ -434,26 +434,6 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         return effectManager;
     }
 
-    public ConstructionManager getConstructionManager() {
-        return constructionManager;
-    }
-
-    public PortalManager getPortalManager() {
-        return portalManager;
-    }
-
-    public TraversableManager getTraversableManager() {
-        return traversableManager;
-    }
-
-    public ProjectionManager getProjectionManager() {
-        return projectionManager;
-    }
-
-    public PocketWorldService getPocketWorldService() {
-        return pocketWorldService;
-    }
-
     public DimensionalDoorManager getDimensionalDoorManager() {
         return dimensionalDoorManager;
     }

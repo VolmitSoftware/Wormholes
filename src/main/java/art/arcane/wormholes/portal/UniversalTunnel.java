@@ -30,11 +30,6 @@ public class UniversalTunnel extends Tunnel
 		return resolveDestination();
 	}
 
-	@Override
-	public void push(Traversive t)
-	{
-	}
-
 	public UUID getDestinationPortalId()
 	{
 		return pendingDestinationId;

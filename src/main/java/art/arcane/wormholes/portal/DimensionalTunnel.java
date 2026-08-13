@@ -16,16 +16,6 @@ public class DimensionalTunnel extends Tunnel
 	}
 
 	@Override
-	public void push(Traversive t)
-	{
-		ILocalPortal destination = resolveDestination();
-		if(t != null && destination instanceof LocalPortal)
-		{
-			((LocalPortal) destination).receive(t);
-		}
-	}
-
-	@Override
 	public boolean isValid()
 	{
 		return resolveDestination() != null;

@@ -499,10 +499,10 @@ final class ProjectorCellScan {
             }
         }
 
-        viewOcclusion.beginPass(
-            remoteOriginX, remoteOriginY, remoteOriginZ, projectionRemoteFrame.getNormal(),
-            observerOcclusion ? occlusionGeometry : null);
-        if (observerOcclusion) {
+        if (observerOcclusion && !observerTargetCells.isEmpty()) {
+            viewOcclusion.beginPass(
+                remoteOriginX, remoteOriginY, remoteOriginZ, projectionRemoteFrame.getNormal(),
+                occlusionGeometry);
             filterObserverTargets(destView, scratchRemoteEye[0], scratchRemoteEye[1], scratchRemoteEye[2]);
         }
 
@@ -510,7 +510,9 @@ final class ProjectorCellScan {
             blackoutMesh = ProjectorBlackoutMesh.build(
                 blackoutGeometry, projectionNormalDirection, blackoutFarCoordinate, blackoutFarCoordinate);
         }
-        recountProjectionChanges(forceFullSend);
+        if (Settings.DEBUG) {
+            recountProjectionChanges(forceFullSend);
+        }
     }
 
     static boolean scanContinues(int coordinate, int end, int step) {

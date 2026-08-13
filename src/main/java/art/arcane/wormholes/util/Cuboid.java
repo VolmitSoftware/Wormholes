@@ -6,7 +6,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.bukkit.Chunk;
 import org.bukkit.ChunkSnapshot;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -14,8 +13,6 @@ import org.bukkit.World;
 import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -66,11 +63,6 @@ public class Cuboid implements Iterable<Block>, Cloneable, ConfigurationSerializ
 		return new Vector(x.x() == 1 ? (x2 + s) : x1, y.y() == 1 ? (y2 + s) : y1, z.z() == 1 ? (z2 + s) : z1);
 	}
 
-	public Location randomLocation()
-	{
-		return new Location(getWorld(), M.rand(x1, x2), M.rand(y1, y2), M.rand(z1, z2));
-	}
-
 	public int depth(Axis a)
 	{
 		switch(a)
@@ -94,94 +86,6 @@ public class Cuboid implements Iterable<Block>, Cloneable, ConfigurationSerializ
 	 * @param l2
 	 *            b
 	 */
-	public void set(Location l1, Location l2)
-	{
-		x1 = Math.min(l1.getBlockX(), l2.getBlockX());
-		y1 = Math.min(l1.getBlockY(), l2.getBlockY());
-		z1 = Math.min(l1.getBlockZ(), l2.getBlockZ());
-		x2 = Math.max(l1.getBlockX(), l2.getBlockX());
-		y2 = Math.max(l1.getBlockY(), l2.getBlockY());
-		z2 = Math.max(l1.getBlockZ(), l2.getBlockZ());
-	}
-
-	public boolean hasPlayers()
-	{
-		return !getPlayers().isEmpty();
-	}
-
-	public KList<Player> getPlayers()
-	{
-		return new KList<Player>(new GListAdapter<Entity, Player>()
-		{
-			@Override
-			public Player onAdapt(Entity from)
-			{
-				if(from instanceof Player)
-				{
-					return (Player) from;
-				}
-
-				return null;
-			}
-		}.adapt(getEntities()));
-	}
-
-	public KList<Entity> getEntities()
-	{
-		KList<Entity> entities = new KList<Entity>();
-
-		try
-		{
-			for(Chunk i : getChunks())
-			{
-				for(Entity j : i.getEntities())
-				{
-					if(contains(j.getLocation()))
-					{
-						entities.add(j);
-					}
-
-					else if(contains(j.getLocation().add(j.getVelocity().clone().multiply(0.87))))
-					{
-						entities.add(j);
-					}
-
-					else if(contains(j.getLocation().add(j.getVelocity().clone().multiply(0.75))))
-					{
-						entities.add(j);
-					}
-
-					else if(contains(j.getLocation().add(j.getVelocity().clone().multiply(0.5))))
-					{
-						entities.add(j);
-					}
-
-					else if(contains(j.getLocation().add(j.getVelocity().clone().multiply(0.25))))
-					{
-						entities.add(j);
-					}
-
-					else if(contains(j.getLocation().add(j.getVelocity().clone().multiply(0.15))))
-					{
-						entities.add(j);
-					}
-
-					else if(contains(j.getLocation().add(j.getVelocity().clone().multiply(0.05))))
-					{
-						entities.add(j);
-					}
-				}
-			}
-		}
-
-		catch(Exception e)
-		{
-
-		}
-
-		return entities;
-	}
-
 	/**
 	 * Construct a one-block Cuboid at the given Location of the Cuboid.
 	 *
@@ -801,31 +705,6 @@ public class Cuboid implements Iterable<Block>, Cloneable, ConfigurationSerializ
 		return w.getBlockAt(x1 + x, y1 + y, z1 + z);
 	}
 
-	/**
-	 * Get a list of the chunks which are fully or partially contained in this
-	 * cuboid.
-	 *
-	 * @return a list of Chunk objects
-	 */
-	public List<Chunk> getChunks()
-	{
-		List<Chunk> res = new ArrayList<Chunk>();
-
-		World w = getWorld();
-		int x1 = getLowerX() & ~0xf;
-		int x2 = getUpperX() & ~0xf;
-		int z1 = getLowerZ() & ~0xf;
-		int z2 = getUpperZ() & ~0xf;
-		for(int x = x1; x <= x2; x += 16)
-		{
-			for(int z = z1; z <= z2; z += 16)
-			{
-				res.add(w.getChunkAt(x >> 4, z >> 4));
-			}
-		}
-		return res;
-	}
-
 	/*
 	 * (non-Javadoc)
 	 *
@@ -837,10 +716,7 @@ public class Cuboid implements Iterable<Block>, Cloneable, ConfigurationSerializ
 		return new CuboidIterator(getWorld(), x1, y1, z1, x2, y2, z2);
 	}
 
-	public Iterator<Block> iteratorSnapshot()
-	{
-		return iterator();
-	}
+
 
 	/*
 	 * (non-Javadoc)

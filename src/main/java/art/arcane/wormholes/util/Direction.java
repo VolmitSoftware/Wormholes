@@ -188,13 +188,6 @@ public enum Direction
 		this.f = f;
 	}
 
-	public Vector angle(Vector initial, Direction d)
-	{
-		double[] out = new double[3];
-		rotateInto(initial.getX(), initial.getY(), initial.getZ(), d, out);
-		return new Vector(out[0], out[1], out[2]);
-	}
-
 	public Direction reverse()
 	{
 		switch(this)
@@ -236,11 +229,6 @@ public enum Direction
 	public CuboidDirection f()
 	{
 		return f;
-	}
-
-	public static KList<Direction> news()
-	{
-		return new KList<Direction>().qadd(N).qadd(E).qadd(W).qadd(S);
 	}
 
 	public static Direction getDirection(Vector v)
