@@ -243,6 +243,24 @@ public final class ProjectorViewOcclusionTest {
     }
 
     @Test
+    public void eligibleBlockerOctreeMatchesDenseWorldSampling() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        fillPlane(view, 2, -8, 8, -8, 8, Material.STONE);
+        for (int y = -8; y <= 8; y++) {
+            for (int z = -8; z <= 8; z++) {
+                blockers.add(ProjectionCellKey.pack(2, y, z));
+            }
+        }
+        ProjectorViewOcclusion occlusion = occlusion();
+        occlusion.beginPass(0.5D, 1.5D, 1.5D, Direction.W, blockers);
+
+        assertTrue(occlusion.visible(view, 2, 1, 1, 0.5D, 1.5D, 1.5D));
+        assertFalse(occlusion.visible(view, 20, 1, 1, 0.5D, 1.5D, 1.5D));
+        assertFalse(occlusion.visible(view, 40, 3, -4, 0.5D, 1.5D, 1.5D));
+    }
+
+    @Test
     public void unavailableSnapshotCellFailsOpenAndRequestsCapture() {
         FakeWorldView view = new FakeWorldView();
         view.unknown(2, 1, 1);

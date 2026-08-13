@@ -43,6 +43,7 @@ final class ProjectorViewOcclusion {
     private double portalNormalY;
     private double portalNormalZ;
     private LongSet eligibleBlockers;
+    private final ProjectionOccupancyOctree eligibleOctree;
     private final double[] scratchRayStart;
 
     ProjectorViewOcclusion() {
@@ -53,6 +54,7 @@ final class ProjectorViewOcclusion {
         opacity = new Long2ByteOpenHashMap(256);
         opacity.defaultReturnValue((byte) -1);
         this.blockOcclusion = blockOcclusion;
+        this.eligibleOctree = new ProjectionOccupancyOctree();
         this.scratchRayStart = new double[3];
     }
 
@@ -85,6 +87,7 @@ final class ProjectorViewOcclusion {
         this.portalNormalY = portalNormal.y();
         this.portalNormalZ = portalNormal.z();
         this.eligibleBlockers = eligibleBlockers;
+        eligibleOctree.rebuild(eligibleBlockers);
     }
 
     boolean visible(ProjectionWorldView view,
@@ -211,6 +214,40 @@ final class ProjectorViewOcclusion {
                 blockerZ = z;
                 blockerEntryAxes = entryAxes;
                 return RayResult.BLOCKED;
+            }
+            if (eligibleBlockers != null) {
+                int emptyLog = eligibleOctree.largestEmptyLog(x, y, z);
+                if (emptyLog > 0) {
+                    double tExit = ProjectionOccupancyOctree.cubeExitT(
+                        x, y, z, emptyLog, startX, startY, startZ, deltaX, deltaY, deltaZ, stepX, stepY, stepZ);
+                    while (remaining > 0) {
+                        double skipT = Math.min(tMaxX, Math.min(tMaxY, tMaxZ));
+                        if (skipT >= tExit || skipT > 1.0D) {
+                            break;
+                        }
+                        if (voxelSteps >= MAX_VOXEL_STEPS_PER_PASS) {
+                            budgetExhausted = true;
+                            return RayResult.BUDGET_EXHAUSTED;
+                        }
+                        voxelSteps++;
+                        remaining--;
+                        if (tMaxX - skipT <= TIE_EPSILON) {
+                            x += stepX;
+                            tMaxX += tDeltaX;
+                        }
+                        if (tMaxY - skipT <= TIE_EPSILON) {
+                            y += stepY;
+                            tMaxY += tDeltaY;
+                        }
+                        if (tMaxZ - skipT <= TIE_EPSILON) {
+                            z += stepZ;
+                            tMaxZ += tDeltaZ;
+                        }
+                        if (x == targetX && y == targetY && z == targetZ) {
+                            return RayResult.CLEAR;
+                        }
+                    }
+                }
             }
         }
         return RayResult.CLEAR;
