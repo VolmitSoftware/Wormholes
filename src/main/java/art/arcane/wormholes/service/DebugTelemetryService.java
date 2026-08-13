@@ -37,8 +37,12 @@ public final class DebugTelemetryService {
     private CounterSnapshot previous;
 
     public DebugTelemetryService(Wormholes plugin) {
+        this(plugin, plugin.getLogger());
+    }
+
+    DebugTelemetryService(Wormholes plugin, Logger logger) {
         this.plugin = plugin;
-        this.logger = plugin.getLogger();
+        this.logger = logger;
     }
 
     public synchronized void start() {
@@ -84,9 +88,7 @@ public final class DebugTelemetryService {
     }
 
     public synchronized void onSettingsReloaded() {
-        if (runtimeOverride != null) {
-            Settings.DEBUG = runtimeOverride.booleanValue();
-        }
+        runtimeOverride = null;
     }
 
     private synchronized void report() {
@@ -316,6 +318,9 @@ public final class DebugTelemetryService {
     }
 
     private void logRuntimeConfig() {
+        if (plugin == null) {
+            return;
+        }
         WormholesSettings settings = plugin.getSettings();
         NetworkConfig networkConfig = settings == null ? null : settings.getNetwork();
         NetworkManager network = plugin.getNetworkManager();

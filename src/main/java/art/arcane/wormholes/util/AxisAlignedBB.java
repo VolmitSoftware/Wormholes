@@ -7,7 +7,6 @@ import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.util.Vector;
 
-import art.arcane.wormholes.geometry.GeoPolygonProc;
 import art.arcane.wormholes.portal.IWritable;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.json.JSONObject;
@@ -70,11 +69,6 @@ public class AxisAlignedBB implements IWritable
 	public AxisAlignedBB(AlignedPoint a, AlignedPoint b)
 	{
 		this(a.getX(), b.getX(), a.getY(), b.getY(), a.getZ(), b.getZ());
-	}
-
-	public AxisAlignedBB(GeoPolygonProc poly)
-	{
-		this(poly.getX0(), poly.getX1(), poly.getY0(), poly.getY1(), poly.getZ0(), poly.getZ1());
 	}
 
 	public AxisAlignedBB(KList<Location> rPoints)

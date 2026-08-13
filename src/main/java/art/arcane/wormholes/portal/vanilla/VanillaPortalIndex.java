@@ -1,6 +1,8 @@
 package art.arcane.wormholes.portal.vanilla;
 
+import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -15,11 +17,22 @@ final class VanillaPortalIndex
 {
 	static final String NETHER_TAG = "Nether Portal";
 	static final String END_TAG = "End Portal";
+	static final int END_SOURCE_SCAN_RADIUS = 4;
 	private static final int END_CANCEL_RADIUS = 6;
+
+	private final Set<PendingCoverage> pending = ConcurrentHashMap.newKeySet();
 
 	boolean covers(Location location)
 	{
-		if(location == null || location.getWorld() == null || Wormholes.portalManager == null)
+		if(location == null || location.getWorld() == null)
+		{
+			return false;
+		}
+		if(coversPending(location))
+		{
+			return true;
+		}
+		if(Wormholes.portalManager == null)
 		{
 			return false;
 		}
@@ -62,7 +75,15 @@ final class VanillaPortalIndex
 
 	boolean nearEndWindow(Location loc)
 	{
-		if(loc == null || loc.getWorld() == null || Wormholes.portalManager == null)
+		if(loc == null || loc.getWorld() == null)
+		{
+			return false;
+		}
+		if(nearPendingEndWindow(loc))
+		{
+			return true;
+		}
+		if(Wormholes.portalManager == null)
 		{
 			return false;
 		}
@@ -167,5 +188,138 @@ final class VanillaPortalIndex
 	{
 		DimensionalPortalKind savedKind = portal.getDimensionalPortalKind();
 		return savedKind == kind || (savedKind == DimensionalPortalKind.NONE && legacyTag.equals(portal.getName()));
+	}
+
+	PendingCoverage registerPending(Set<Block> cells)
+	{
+		if(cells == null || cells.isEmpty())
+		{
+			return null;
+		}
+		World world = null;
+		Set<PendingCell> pendingCells = new HashSet<PendingCell>();
+		for(Block cell : cells)
+		{
+			if(cell == null || cell.getWorld() == null)
+			{
+				continue;
+			}
+			if(world == null)
+			{
+				world = cell.getWorld();
+			}
+			else if(!world.equals(cell.getWorld()))
+			{
+				continue;
+			}
+			pendingCells.add(new PendingCell(cell.getX(), cell.getY(), cell.getZ()));
+		}
+		return addPending(world, pendingCells, false, 0, 0, 0);
+	}
+
+	PendingCoverage registerPendingEnd(Location frame)
+	{
+		if(frame == null || frame.getWorld() == null)
+		{
+			return null;
+		}
+		World world = frame.getWorld();
+		int originX = frame.getBlockX();
+		int originY = frame.getBlockY();
+		int originZ = frame.getBlockZ();
+		Set<PendingCell> pendingCells = new HashSet<PendingCell>();
+		for(int dx = -END_SOURCE_SCAN_RADIUS; dx <= END_SOURCE_SCAN_RADIUS; dx++)
+		{
+			for(int dz = -END_SOURCE_SCAN_RADIUS; dz <= END_SOURCE_SCAN_RADIUS; dz++)
+			{
+				pendingCells.add(new PendingCell(originX + dx, originY, originZ + dz));
+			}
+		}
+		return addPending(world, pendingCells, true, originX, originY, originZ);
+	}
+
+	void releasePending(PendingCoverage coverage)
+	{
+		if(coverage != null)
+		{
+			pending.remove(coverage);
+		}
+	}
+
+	private PendingCoverage addPending(World world, Set<PendingCell> cells, boolean endWindow, int endX, int endY, int endZ)
+	{
+		if(world == null || cells.isEmpty())
+		{
+			return null;
+		}
+		PendingCoverage coverage = new PendingCoverage(world, Set.copyOf(cells), endWindow, endX, endY, endZ);
+		pending.add(coverage);
+		return coverage;
+	}
+
+	private boolean coversPending(Location location)
+	{
+		for(PendingCoverage coverage : pending)
+		{
+			if(coverage.covers(location))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean nearPendingEndWindow(Location loc)
+	{
+		for(PendingCoverage coverage : pending)
+		{
+			if(coverage.nearEndWindow(loc))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	static final class PendingCoverage
+	{
+		private final World world;
+		private final Set<PendingCell> cells;
+		private final boolean endWindow;
+		private final int endX;
+		private final int endY;
+		private final int endZ;
+
+		private PendingCoverage(World world, Set<PendingCell> cells, boolean endWindow, int endX, int endY, int endZ)
+		{
+			this.world = world;
+			this.cells = cells;
+			this.endWindow = endWindow;
+			this.endX = endX;
+			this.endY = endY;
+			this.endZ = endZ;
+		}
+
+		private boolean covers(Location location)
+		{
+			return world.equals(location.getWorld())
+					&& cells.contains(new PendingCell(location.getBlockX(), location.getBlockY(), location.getBlockZ()));
+		}
+
+		private boolean nearEndWindow(Location loc)
+		{
+			if(!endWindow || !world.equals(loc.getWorld()))
+			{
+				return false;
+			}
+			double dx = (endX + 0.5D) - loc.getX();
+			double dy = (endY + 0.5D) - loc.getY();
+			double dz = (endZ + 0.5D) - loc.getZ();
+			return dx * dx + dy * dy + dz * dz <= END_CANCEL_RADIUS * END_CANCEL_RADIUS;
+		}
+	}
+
+	private record PendingCell(int x, int y, int z)
+	{
 	}
 }

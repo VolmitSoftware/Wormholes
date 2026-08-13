@@ -198,13 +198,7 @@ public final class WormholesIntegrationService implements IntegrationServiceCont
             return IntegrationMetricSample.unavailable(descriptor, "network-manager-not-ready", now);
         }
 
-        int connected = 0;
-        for (NetworkManager.PeerSnapshot peer : network.peerSnapshots()) {
-            if (peer.handshakeComplete() && !peer.disconnected()) {
-                connected++;
-            }
-        }
-        return IntegrationMetricSample.available(descriptor, connected, now);
+        return IntegrationMetricSample.available(descriptor, network.connectedPeers(), now);
     }
 
     private IntegrationMetricSample sampleRemotePortals(long now) {

@@ -60,9 +60,21 @@ public final class VanillaPortalReplacer implements Listener
 		}
 		World source = world;
 		Block anchor = cells.iterator().next();
+		VanillaPortalIndex.PendingCoverage pending = index.registerPending(cells);
 		Wormholes.w("[vanilla-portal] " + event.getReason() + " create: " + cells.size() + " nether cells in " + world.getName() + " @ " + anchor.getX() + "," + anchor.getY() + "," + anchor.getZ());
-		if(!FoliaScheduler.runRegion(Wormholes.instance, anchor.getLocation(), () -> netherPairing.pair(source, cells), 2L))
+		if(!FoliaScheduler.runRegion(Wormholes.instance, anchor.getLocation(), () ->
 		{
+			try
+			{
+				netherPairing.pair(source, cells);
+			}
+			finally
+			{
+				index.releasePending(pending);
+			}
+		}, 2L))
+		{
+			index.releasePending(pending);
 			Wormholes.w("[vanilla-portal] region refused the nether pairing pass at " + anchor.getX() + "," + anchor.getY() + "," + anchor.getZ()
 					+ " in " + world.getName() + "; portal stays vanilla until it is relit");
 		}
@@ -114,8 +126,20 @@ public final class VanillaPortalReplacer implements Listener
 			return;
 		}
 		Location frame = event.getClickedBlock().getLocation();
-		if(!FoliaScheduler.runRegion(Wormholes.instance, frame, () -> endPairing.pair(frame), 2L))
+		VanillaPortalIndex.PendingCoverage pending = index.registerPendingEnd(frame);
+		if(!FoliaScheduler.runRegion(Wormholes.instance, frame, () ->
 		{
+			try
+			{
+				endPairing.pair(frame);
+			}
+			finally
+			{
+				index.releasePending(pending);
+			}
+		}, 2L))
+		{
+			index.releasePending(pending);
 			Wormholes.w("[vanilla-portal] region refused the end pairing pass at " + frame.getBlockX() + "," + frame.getBlockY() + "," + frame.getBlockZ()
 					+ "; end portal stays vanilla until an eye is placed again");
 		}

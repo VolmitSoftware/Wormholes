@@ -187,20 +187,38 @@ final class BlockOpsRuneConstruction
 				() -> "Could not finish portal construction in " + world.getName() + " at " + center,
 				() ->
 				{
-					if(Wormholes.constructionManager.constructPortal(ownerId, consumed, type, look))
+					if(!Wormholes.constructionManager.startConstruct(ownerId, consumed, type, look, opened ->
 					{
-						index.clearReservedCells(reserved);
-						Wormholes.effectManager.playPortalVortex(world, center, snapshots);
-						return;
+						settleRuneConstruct(opened.booleanValue(), () ->
+						{
+							index.clearReservedCells(reserved);
+							Wormholes.effectManager.playPortalVortex(world, center, snapshots);
+						}, () ->
+						{
+							rollbackRuneReservation(world, reserved, snapshots, type);
+							notifyRuneRollback(player);
+						});
+					}))
+					{
+						rollbackRuneReservation(world, reserved, snapshots, type);
+						notifyRuneRollback(player);
 					}
-					rollbackRuneReservation(world, reserved, snapshots, type);
-					notifyRuneRollback(player);
 				});
 		if(!scheduled)
 		{
 			rollbackRuneReservation(world, reserved, snapshots, type);
 			notifyRuneRollback(player);
 		}
+	}
+
+	static void settleRuneConstruct(boolean opened, Runnable onOpened, Runnable onFailed)
+	{
+		if(opened)
+		{
+			onOpened.run();
+			return;
+		}
+		onFailed.run();
 	}
 
 	private void notifyRuneRollback(Player player)

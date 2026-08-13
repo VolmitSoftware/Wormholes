@@ -101,6 +101,7 @@ tasks.register('compileSpigotCompatibility', JavaCompile) {
         exclude '**/WormholesBootstrap.java'
         exclude '**/PaperCommandRegistrar.java'
         exclude '**/PaperLivingEntityMoveListener.java'
+        exclude '**/PaperAsyncChatListener.java'
     }
     classpath = files(sourceSets.main.compileClasspath.filter { File dependency ->
         !dependency.name.startsWith('paper-api-')
@@ -194,6 +195,7 @@ dependencies {
         transitive = false
     }
     slim(libs.bstats)
+    slim('com.github.luben:zstd-jni:1.5.7-11')
     slim(libs.packetevents) {
         exclude(group: 'net.kyori')
     }

@@ -46,14 +46,26 @@ class ChunkSendRateSettingsTest {
     }
 
     @Test
-    void negativeTargetSurvivesTheSettingsClampAsUnlimited() throws IOException {
+    void negativeAndAboveCapTargetsBecomeUnlimited() throws IOException {
         write("schema = 2\n[main]\nchunk-send-rate-target = -1.0\nchunk-load-rate-target = 99999.0\n");
 
         Settings.refresh(WormholesSettings.loadAll(tempDir));
 
         assertEquals(0.0D, Settings.CHUNK_SEND_RATE_TARGET);
-        assertEquals(10000.0D, Settings.CHUNK_LOAD_RATE_TARGET);
+        assertEquals(0.0D, Settings.CHUNK_LOAD_RATE_TARGET);
         assertEquals(ChunkSendRateTuner.UNLIMITED_RATE, ChunkSendRateTuner.effectiveRate(Settings.CHUNK_SEND_RATE_TARGET));
+        assertEquals(ChunkSendRateTuner.UNLIMITED_RATE, ChunkSendRateTuner.effectiveRate(Settings.CHUNK_LOAD_RATE_TARGET));
+    }
+
+    @Test
+    void exactCapStaysFiniteAndZeroStaysUnlimited() throws IOException {
+        write("schema = 2\n[main]\nchunk-send-rate-target = 10000.0\nchunk-load-rate-target = 0.0\n");
+
+        Settings.refresh(WormholesSettings.loadAll(tempDir));
+
+        assertEquals(10000.0D, Settings.CHUNK_SEND_RATE_TARGET);
+        assertEquals(0.0D, Settings.CHUNK_LOAD_RATE_TARGET);
+        assertEquals(10000.0D, ChunkSendRateTuner.effectiveRate(Settings.CHUNK_SEND_RATE_TARGET));
         assertEquals(ChunkSendRateTuner.UNLIMITED_RATE, ChunkSendRateTuner.effectiveRate(Settings.CHUNK_LOAD_RATE_TARGET));
     }
 

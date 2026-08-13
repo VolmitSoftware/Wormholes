@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
@@ -83,6 +84,8 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     private volatile BiConsumer<String, WireMessage> messageSink;
     private volatile BiConsumer<String, Boolean> peerStateSink;
     private volatile ScheduledExecutorService scheduler;
+    private volatile ScheduledFuture<?> dictionaryRetrainTask;
+    private volatile long scheduledDictionaryRetrainSec;
     private volatile ExecutorService statusPollExecutor;
     private volatile int connectedPeers;
 
@@ -299,9 +302,8 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         executor.scheduleWithFixedDelay(dialer::scan, 250L, PeerDialer.SCAN_INTERVAL_MS, TimeUnit.MILLISECONDS);
         executor.scheduleWithFixedDelay(this::pollStatusBridges, 300L, STATUS_BRIDGE_FAST_INTERVAL_MS, TimeUnit.MILLISECONDS);
         executor.scheduleWithFixedDelay(this::keepalive, KEEPALIVE_INTERVAL_MS, KEEPALIVE_INTERVAL_MS, TimeUnit.MILLISECONDS);
-        long retrainSec = Math.max(30L, active.transport.compressionRetrainIntervalSec);
-        executor.scheduleWithFixedDelay(this::maybeRetrainDictionary, retrainSec, retrainSec, TimeUnit.SECONDS);
         scheduler = executor;
+        scheduleDictionaryRetrain(executor, retrainIntervalSec(active));
 
         dictionary.loadPersisted(active);
         hashProbeScheduler.start();
@@ -324,6 +326,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         }
         identity.shutdown();
         hashProbeScheduler.stop();
+        cancelDictionaryRetrain();
         ScheduledExecutorService executor = scheduler;
         scheduler = null;
         if (executor != null) {
@@ -376,6 +379,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
             start();
             return;
         }
+        rescheduleDictionaryRetrain(previous, next);
         for (Map.Entry<String, PeerConnection> entry : links.readyEntries()) {
             if (directory.find(entry.getKey()) == null) {
                 entry.getValue().close("peer removed from config");
@@ -712,6 +716,46 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     void maybeRetrainDictionary() {
         dictionary.purgeExpired(System.currentTimeMillis());
         dictionary.maybeRetrain();
+    }
+
+    long scheduledDictionaryRetrainSec() {
+        return scheduledDictionaryRetrainSec;
+    }
+
+    private void rescheduleDictionaryRetrain(NetworkConfig previous, NetworkConfig next) {
+        if (!running.get()) {
+            return;
+        }
+        long nextSec = retrainIntervalSec(next);
+        if (retrainIntervalSec(previous) == nextSec) {
+            return;
+        }
+        ScheduledExecutorService executor = scheduler;
+        if (executor == null) {
+            return;
+        }
+        scheduleDictionaryRetrain(executor, nextSec);
+    }
+
+    private void scheduleDictionaryRetrain(ScheduledExecutorService executor, long retrainSec) {
+        cancelDictionaryRetrain();
+        dictionaryRetrainTask = executor.scheduleWithFixedDelay(this::maybeRetrainDictionary, retrainSec, retrainSec, TimeUnit.SECONDS);
+        scheduledDictionaryRetrainSec = retrainSec;
+    }
+
+    private void cancelDictionaryRetrain() {
+        ScheduledFuture<?> task = dictionaryRetrainTask;
+        dictionaryRetrainTask = null;
+        if (task != null) {
+            task.cancel(false);
+        }
+    }
+
+    private static long retrainIntervalSec(NetworkConfig networkConfig) {
+        if (networkConfig == null || networkConfig.transport == null) {
+            return 30L;
+        }
+        return Math.max(30L, networkConfig.transport.compressionRetrainIntervalSec);
     }
 
     void retrainNow() {

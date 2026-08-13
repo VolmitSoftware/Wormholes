@@ -22,7 +22,7 @@ public final class WormholesMessages {
     public static final TextKey COMMAND_WAND_RUNE_DESCRIPTION = text("command.help.wand.rune", "portal | wormhole | gateway");
     public static final TextKey COMMAND_WAND_COUNT_DESCRIPTION = text("command.help.wand.count", "How many runes (default 1)");
     public static final TextKey COMMAND_DOOR_DESCRIPTION = text("command.help.door", "Give a survival Dimensional Door item");
-    public static final TextKey COMMAND_DOOR_TYPE_DESCRIPTION = text("command.help.door.type", "pair | personal | public");
+    public static final TextKey COMMAND_DOOR_TYPE_DESCRIPTION = text("command.help.door.type", "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor");
     public static final TextKey COMMAND_RELOAD_DESCRIPTION = text("command.help.reload", "Reload Wormholes configuration and language files");
     public static final TextKey COMMAND_DEBUG_DESCRIPTION = text("command.help.debug", "Toggle verbose console logs and one-second telemetry");
     public static final TextKey COMMAND_STATS_DESCRIPTION = text("command.help.stats", "Print the live stats-snapshot file path, optionally force a refresh with now=true");

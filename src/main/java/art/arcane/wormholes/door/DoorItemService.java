@@ -33,7 +33,8 @@ import org.bukkit.plugin.Plugin;
  * Creates, identifies, crafts, and unpacks survival dimensional-door items.
  *
  * <p>This class deliberately is not a Bukkit listener. The owning manager must
- * call {@link #handleCraft(CraftItemEvent)} from its craft listener and invoke
+ * call {@link #handleCraft(CraftItemEvent)} from its craft listener,
+ * {@link #handleCrafterCraft(Recipe)} from its crafter listener, and invoke
  * {@link #unpackPairKit(ItemStack)} only while atomically consuming that kit.</p>
  */
 public final class DoorItemService
@@ -143,10 +144,10 @@ public final class DoorItemService
 	public ItemStack createDoor(DoorItemIdentity identity, Material material)
 	{
 		Objects.requireNonNull(identity, "identity");
-		if(!DoorSkin.isPlayerOperable(Objects.requireNonNull(material, "material"), identity.form()))
+		if(!DoorSkin.isSupportedSkin(Objects.requireNonNull(material, "material"), identity.form()))
 		{
 			throw new IllegalArgumentException(
-				"Dimensional-door skins must be player-operable " + identity.form() + " materials");
+				"Dimensional-door skins must be supported " + identity.form() + " materials");
 		}
 		boolean trapdoor = identity.isTrapdoor();
 		ItemStack item = switch(identity.kind())
@@ -180,7 +181,7 @@ public final class DoorItemService
 	public Optional<DoorItemIdentity> decodeDoor(ItemStack item)
 	{
 		return decodeDoorIdentity(item)
-			.filter(identity -> DoorSkin.isPlayerOperable(item.getType(), identity.form()));
+			.filter(identity -> DoorSkin.isSupportedSkin(item.getType(), identity.form()));
 	}
 
 	public Optional<DoorItemIdentity> decodeDoorIdentity(ItemStack item)
@@ -377,7 +378,7 @@ public final class DoorItemService
 			MessageArgs.empty());
 		return new ShapelessRecipe(doorSkinRecipeKey, template)
 			.addIngredient(new RecipeChoice.MaterialChoice(DoorSkin.doorMaterials()))
-			.addIngredient(new RecipeChoice.MaterialChoice(DoorSkin.playerOperableMaterials()));
+			.addIngredient(new RecipeChoice.MaterialChoice(DoorSkin.doorMaterials()));
 	}
 
 	public ShapelessRecipe trapdoorSkinRecipe()
@@ -451,6 +452,21 @@ public final class DoorItemService
 
 		event.setCurrentItem(mint(product.get()));
 		return CraftHookResult.IDENTITY_MINTED;
+	}
+
+	public CraftHookResult handleCrafterCraft(Recipe recipe)
+	{
+		Objects.requireNonNull(recipe, "recipe");
+		return crafterCraftResult(isDoorSkinRecipe(recipe) || productFor(recipe).isPresent());
+	}
+
+	static CraftHookResult crafterCraftResult(boolean doorRecipe)
+	{
+		if(doorRecipe)
+		{
+			return CraftHookResult.CRAFTER_BLOCKED;
+		}
+		return CraftHookResult.NOT_A_DOOR_RECIPE;
 	}
 
 	private CraftHookResult handleSkinCraft(CraftItemEvent event)
@@ -637,7 +653,8 @@ public final class DoorItemService
 		SHIFT_CRAFT_BLOCKED,
 		IDENTITY_MINTED,
 		INVALID_SKIN_RECIPE,
-		SKIN_CHANGED
+		SKIN_CHANGED,
+		CRAFTER_BLOCKED
 	}
 
 	public record PairKitContents(

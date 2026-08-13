@@ -50,6 +50,24 @@ final class DoorSkinRecipeTest
 	}
 
 	@Test
+	void aDoorIdentityReskinsOntoIronOrCopper()
+	{
+		DoorItemIdentity identity = DoorItemIdentity.publicDoor(UUID.randomUUID());
+
+		DoorSkinRecipe.Result iron = DoorSkinRecipe.resolve(List.of(
+			new DoorSkinRecipe.Ingredient(Material.PALE_OAK_DOOR, identity),
+			new DoorSkinRecipe.Ingredient(Material.IRON_DOOR, null))).orElseThrow();
+		DoorSkinRecipe.Result copper = DoorSkinRecipe.resolve(List.of(
+			new DoorSkinRecipe.Ingredient(Material.PALE_OAK_DOOR, identity),
+			new DoorSkinRecipe.Ingredient(Material.COPPER_DOOR, null))).orElseThrow();
+
+		assertEquals(identity, iron.identity());
+		assertEquals(Material.IRON_DOOR, iron.material());
+		assertEquals(identity, copper.identity());
+		assertEquals(Material.COPPER_DOOR, copper.material());
+	}
+
+	@Test
 	void poweredTargetDuplicateIdentitiesAndExtraItemsAreRejected()
 	{
 		DoorItemIdentity identity = DoorItemIdentity.newPersonal();

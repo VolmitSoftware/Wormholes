@@ -42,9 +42,9 @@ final class VanillaPortalEndPairing
 			Set<Block> endPortalBlocks = new HashSet<Block>();
 			int sumX = 0;
 			int sumZ = 0;
-			for(int dx = -4; dx <= 4; dx++)
+			for(int dx = -VanillaPortalIndex.END_SOURCE_SCAN_RADIUS; dx <= VanillaPortalIndex.END_SOURCE_SCAN_RADIUS; dx++)
 			{
-				for(int dz = -4; dz <= 4; dz++)
+				for(int dz = -VanillaPortalIndex.END_SOURCE_SCAN_RADIUS; dz <= VanillaPortalIndex.END_SOURCE_SCAN_RADIUS; dz++)
 				{
 					Block b = world.getBlockAt(frame.getBlockX() + dx, fy, frame.getBlockZ() + dz);
 					if(b.getType() == Material.END_PORTAL)

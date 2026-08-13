@@ -4,11 +4,122 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.util.Direction;
 
 public final class ConstructionManagerTest {
+    @Test
+    public void constructDelayMustNotBePositive() {
+        long delayTicks = ConstructionManager.constructRegionDelayTicks();
+        assertFalse(delayTicks > 0L);
+        assertEquals(0L, delayTicks);
+    }
+
+    @Test
+    public void anOwnedRegionRunsConstructImmediatelyWithoutAHop() {
+        AtomicInteger constructs = new AtomicInteger();
+        AtomicInteger hops = new AtomicInteger();
+        AtomicLong delay = new AtomicLong(-1L);
+        AtomicBoolean settledOpen = new AtomicBoolean(false);
+
+        boolean started = ConstructionManager.dispatchConstruct(
+                () -> true,
+                (task, delayTicks) -> {
+                    hops.incrementAndGet();
+                    delay.set(delayTicks);
+                    return true;
+                },
+                () -> {
+                    constructs.incrementAndGet();
+                    return true;
+                },
+                opened -> settledOpen.set(opened.booleanValue()));
+
+        assertTrue(started);
+        assertEquals(1, constructs.get());
+        assertEquals(0, hops.get());
+        assertEquals(-1L, delay.get());
+        assertTrue(settledOpen.get());
+    }
+
+    @Test
+    public void aRequiredRegionHopUsesZeroDelayAndDoesNotSettleUntilConstructRuns() {
+        AtomicBoolean reserved = new AtomicBoolean(true);
+        AtomicBoolean settled = new AtomicBoolean(false);
+        AtomicLong delay = new AtomicLong(-1L);
+        Runnable[] pending = new Runnable[1];
+
+        boolean started = ConstructionManager.dispatchConstruct(
+                () -> false,
+                (task, delayTicks) -> {
+                    delay.set(delayTicks);
+                    pending[0] = task;
+                    return true;
+                },
+                () -> true,
+                opened -> {
+                    settled.set(true);
+                    if(opened.booleanValue())
+                    {
+                        reserved.set(false);
+                    }
+                });
+
+        assertTrue(started);
+        assertFalse(delay.get() > 0L);
+        assertEquals(0L, delay.get());
+        assertTrue(reserved.get());
+        assertFalse(settled.get());
+
+        pending[0].run();
+
+        assertTrue(settled.get());
+        assertFalse(reserved.get());
+    }
+
+    @Test
+    public void aRejectedConstructHopLeavesReservationsUntilTheCallerRollsBack() {
+        AtomicBoolean reserved = new AtomicBoolean(true);
+        AtomicBoolean settled = new AtomicBoolean(false);
+
+        boolean started = ConstructionManager.dispatchConstruct(
+                () -> false,
+                (task, delayTicks) -> false,
+                () -> true,
+                opened -> {
+                    settled.set(true);
+                    reserved.set(!opened.booleanValue());
+                });
+
+        assertFalse(started);
+        assertFalse(settled.get());
+        assertTrue(reserved.get());
+    }
+
+    @Test
+    public void aFailedInlineConstructSettlesClosedWithoutAHop() {
+        AtomicInteger hops = new AtomicInteger();
+        AtomicBoolean settledOpen = new AtomicBoolean(true);
+
+        boolean started = ConstructionManager.dispatchConstruct(
+                () -> true,
+                (task, delayTicks) -> {
+                    hops.incrementAndGet();
+                    return true;
+                },
+                () -> false,
+                opened -> settledOpen.set(opened.booleanValue()));
+
+        assertTrue(started);
+        assertEquals(0, hops.get());
+        assertFalse(settledOpen.get());
+    }
+
     @Test
     public void coplanarAreaAcceptsPlanesLinesAndPoints() {
         assertTrue(ConstructionManager.isCoplanarPortalArea(0, 3, 4));

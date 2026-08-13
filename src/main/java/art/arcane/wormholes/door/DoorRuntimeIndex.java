@@ -12,7 +12,6 @@ import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.type.Door;
 import org.bukkit.block.data.type.TrapDoor;
 import org.bukkit.plugin.Plugin;
@@ -132,11 +131,6 @@ final class DoorRuntimeIndex implements AutoCloseable
 			invalidate(runtime);
 			return;
 		}
-		if(!convertLegacyIronDoor(endpoint, world))
-		{
-			invalidate(runtime);
-			return;
-		}
 		visuals.cleanChunk(world.getChunkAt(endpoint.position().x() >> 4, endpoint.position().z() >> 4));
 		Optional<VanillaDoorSnapshot> captured = capture(endpoint, world);
 		if(captured.isEmpty())
@@ -247,7 +241,7 @@ final class DoorRuntimeIndex implements AutoCloseable
 		DoorPosition position = endpoint.position();
 		DoorForm form = endpoint.identity().form();
 		Block lower = world.getBlockAt(position.x(), position.y(), position.z());
-		if(!DoorSkin.isPlayerOperable(lower.getType(), form))
+		if(!DoorSkin.isSupportedSkin(lower.getType(), form))
 		{
 			return Optional.empty();
 		}
@@ -399,11 +393,12 @@ final class DoorRuntimeIndex implements AutoCloseable
 		}
 		try
 		{
+			String sound = open
+				? DimensionalDoorSounds.openSound(material)
+				: DimensionalDoorSounds.closeSound(material);
 			world.playSound(
 				new Location(world, plane.blockX() + 0.5D, plane.blockY() + 1.0D, plane.blockZ() + 0.5D),
-				open
-					? DimensionalDoorSounds.openSound(material)
-					: DimensionalDoorSounds.closeSound(material),
+				sound,
 				SoundCategory.BLOCKS,
 				Settings.portalSoundVolume(1.0F),
 				1.0F);
@@ -516,69 +511,5 @@ final class DoorRuntimeIndex implements AutoCloseable
 			case PERSONAL, PUBLIC -> pocketWorldService.world().isPresent();
 			case RETURN -> true;
 		};
-	}
-
-	/** Trapdoors were introduced after the iron-door era, so they never carry the legacy skin. */
-	private boolean convertLegacyIronDoor(PlacedDoorEndpoint endpoint, World world)
-	{
-		if(endpoint.identity().kind() != DoorKind.PUBLIC
-			|| endpoint.identity().form() != DoorForm.DOOR)
-		{
-			return true;
-		}
-		DoorPosition position = endpoint.position();
-		Block lower = world.getBlockAt(position.x(), position.y(), position.z());
-		if(lower.getType() != Material.IRON_DOOR)
-		{
-			return true;
-		}
-		Block upper = lower.getRelative(BlockFace.UP);
-		if(upper.getType() != Material.IRON_DOOR
-			|| !(lower.getBlockData() instanceof Door)
-			|| !(upper.getBlockData() instanceof Door))
-		{
-			return true;
-		}
-
-		BlockData previousLower = lower.getBlockData().clone();
-		BlockData previousUpper = upper.getBlockData().clone();
-		try
-		{
-			Material material = DoorItemService.defaultMaterial(DoorKind.PUBLIC);
-			lower.setBlockData(retypeDoor(previousLower, material), false);
-			upper.setBlockData(retypeDoor(previousUpper, material), false);
-			plugin.getLogger().info("Converted legacy iron dimensional door "
-				+ endpoint.identity().itemId() + " to " + material + ".");
-			return true;
-		}
-		catch(RuntimeException exception)
-		{
-			try
-			{
-				lower.setBlockData(previousLower, false);
-				upper.setBlockData(previousUpper, false);
-			}
-			catch(RuntimeException restoreFailure)
-			{
-				exception.addSuppressed(restoreFailure);
-			}
-			plugin.getLogger().log(Level.SEVERE,
-				"Could not convert legacy iron dimensional door " + endpoint.identity().itemId(), exception);
-			return false;
-		}
-	}
-
-	private static Door retypeDoor(BlockData sourceData, Material material)
-	{
-		if(!(sourceData instanceof Door source) || !(material.createBlockData() instanceof Door target))
-		{
-			throw new IllegalArgumentException("Door material and block data are required");
-		}
-		target.setFacing(source.getFacing());
-		target.setHalf(source.getHalf());
-		target.setHinge(source.getHinge());
-		target.setOpen(source.isOpen());
-		target.setPowered(source.isPowered());
-		return target;
 	}
 }

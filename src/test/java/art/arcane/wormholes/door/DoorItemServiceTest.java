@@ -151,6 +151,26 @@ final class DoorItemServiceTest
 			"reskinning to the same material is not a craft");
 	}
 
+	@Test
+	void crafterCraftOfADoorProductIsCancelledAndDoesNotMint()
+	{
+		for(DoorCraftProduct product : DoorCraftProduct.values())
+		{
+			assertEquals(Optional.of(product), DoorCraftProduct.forRecipeName(product.recipeName()), product.name());
+		}
+
+		assertEquals(
+			DoorItemService.CraftHookResult.CRAFTER_BLOCKED,
+			DoorItemService.crafterCraftResult(true));
+		assertNotEquals(
+			DoorItemService.CraftHookResult.IDENTITY_MINTED,
+			DoorItemService.crafterCraftResult(true));
+		assertEquals(
+			DoorItemService.CraftHookResult.NOT_A_DOOR_RECIPE,
+			DoorItemService.crafterCraftResult(false));
+		assertEquals(Optional.empty(), DoorCraftProduct.forRecipeName("oak_door"));
+	}
+
 	private static Optional<DoorSkinRecipe.Result> resolve(
 		Material sourceMaterial,
 		DoorItemIdentity identity,

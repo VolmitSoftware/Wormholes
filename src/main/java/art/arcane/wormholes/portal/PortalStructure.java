@@ -320,8 +320,13 @@ public class PortalStructure implements IWritable
 		return captureZone;
 	}
 
-	private void rebuildCaptureZone()
+	public void rebuildCaptureZone()
 	{
+		if(getArea() == null)
+		{
+			captureZone = null;
+			return;
+		}
 		captureZone = new AxisAlignedBB(getArea().min().add(new Vector(-Settings.CAPTURE_ZONE_RADIUS, -Settings.CAPTURE_ZONE_RADIUS, -Settings.CAPTURE_ZONE_RADIUS)), getArea().max().add(new Vector(Settings.CAPTURE_ZONE_RADIUS, Settings.CAPTURE_ZONE_RADIUS, Settings.CAPTURE_ZONE_RADIUS)));
 	}
 

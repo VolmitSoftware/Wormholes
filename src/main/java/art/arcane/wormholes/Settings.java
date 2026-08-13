@@ -6,6 +6,10 @@ import art.arcane.wormholes.config.VisualQualityProfile;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
+import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.wormholes.portal.PortalStructure;
+
+import java.util.List;
 
 public final class Settings {
     public static volatile VisualQualityProfile VISUAL_QUALITY_PROFILE = VisualQualityProfile.AUTO;
@@ -96,8 +100,8 @@ public final class Settings {
         ARRIVAL_TRANSITION_MASK = main.arrivalTransitionMask;
         ARRIVAL_TRANSITION_MASK_TICKS = clampInt(main.arrivalTransitionMaskTicks, 0, 200);
         CHUNK_SEND_RATE_TUNER = main.chunkSendRateTuner;
-        CHUNK_SEND_RATE_TARGET = clampDouble(main.chunkSendRateTarget, 0.0D, 10000.0D);
-        CHUNK_LOAD_RATE_TARGET = clampDouble(main.chunkLoadRateTarget, 0.0D, 10000.0D);
+        CHUNK_SEND_RATE_TARGET = unlimitedOrClampedChunkRate(main.chunkSendRateTarget);
+        CHUNK_LOAD_RATE_TARGET = unlimitedOrClampedChunkRate(main.chunkLoadRateTarget);
         REPLACE_NETHER_AND_END_PORTALS = main.replaceNetherAndEndPortals;
         DIMENSIONAL_DOORS_ENABLED = main.dimensionalDoorsEnabled;
         DEBUG = main.verboseLogging;
@@ -133,6 +137,7 @@ public final class Settings {
         CAPTURE_ZONE_RADIUS = clampDouble(render.captureZoneRadius, 1.0D, 64.0D);
 
         applyVisualQualityProfile();
+        rebuildLocalPortalCaptureZones();
     }
 
     public static double portalPushback(double baseStrength) {
@@ -174,6 +179,33 @@ public final class Settings {
                 MAX_SPOOFED_ENTITIES = Math.max(MAX_SPOOFED_ENTITIES, 48);
             }
         }
+    }
+
+    private static void rebuildLocalPortalCaptureZones() {
+        PortalManager portals = Wormholes.portalManager;
+        if (portals == null) {
+            return;
+        }
+        List<ILocalPortal> locals = portals.getLocalPortals();
+        if (locals == null || locals.isEmpty()) {
+            return;
+        }
+        for (ILocalPortal portal : locals) {
+            if (portal == null) {
+                continue;
+            }
+            PortalStructure structure = portal.getStructure();
+            if (structure != null) {
+                structure.rebuildCaptureZone();
+            }
+        }
+    }
+
+    private static double unlimitedOrClampedChunkRate(double value) {
+        if (!Double.isFinite(value) || value <= 0.0D || value > 10000.0D) {
+            return 0.0D;
+        }
+        return clampDouble(value, 0.0D, 10000.0D);
     }
 
     private static int clampInt(int value, int min, int max) {

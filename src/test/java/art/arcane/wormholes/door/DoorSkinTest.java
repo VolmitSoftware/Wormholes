@@ -78,6 +78,17 @@ final class DoorSkinTest
 	}
 
 	@Test
+	void supportedDoorSkinsIncludeIronAndCopperDoors()
+	{
+		assertTrue(DoorSkin.isSupportedSkin(Material.IRON_DOOR));
+		assertTrue(DoorSkin.isSupportedSkin(Material.COPPER_DOOR));
+		assertTrue(DoorSkin.isSupportedSkin(Material.PALE_OAK_DOOR));
+		assertFalse(DoorSkin.isSupportedSkin(Material.STONE));
+		assertTrue(DoorSkin.isSupportedSkin(Material.IRON_DOOR, DoorForm.DOOR));
+		assertFalse(DoorSkin.isSupportedSkin(Material.IRON_TRAPDOOR, DoorForm.DOOR));
+	}
+
+	@Test
 	void trapdoorMaterialsAreDisjointFromDoorMaterials()
 	{
 		Set<Material> trapdoors = Set.copyOf(DoorSkin.trapdoorMaterials());

@@ -13,6 +13,7 @@ import org.bukkit.Location;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
@@ -94,6 +95,37 @@ public final class PortalStructureCenterTest {
         structure.setArea(cuboid(10, 10, 10, 10, 12, 10));
 
         assertEquals(firstAreaRevision + 1L, structure.getRevision());
+    }
+
+    @Test
+    public void rebuildCaptureZoneUsesTheLiveSettingsRadius() {
+        double previous = Settings.CAPTURE_ZONE_RADIUS;
+        try {
+            Settings.CAPTURE_ZONE_RADIUS = 8.0D;
+            PortalStructure structure = new PortalStructure();
+            structure.setArea(cuboid(0, 64, 0, 2, 66, 1));
+            AxisAlignedBB area = structure.getArea();
+            AxisAlignedBB initial = structure.getCaptureZone();
+
+            assertEquals(area.min().getX() - 8.0D, initial.min().getX(), EPSILON);
+            assertEquals(area.max().getX() + 8.0D, initial.max().getX(), EPSILON);
+
+            Settings.CAPTURE_ZONE_RADIUS = 16.0D;
+            AxisAlignedBB stale = structure.getCaptureZone();
+            assertEquals(initial.min().getX(), stale.min().getX(), EPSILON);
+            assertEquals(initial.max().getX(), stale.max().getX(), EPSILON);
+
+            structure.rebuildCaptureZone();
+            AxisAlignedBB rebuilt = structure.getCaptureZone();
+            assertEquals(area.min().getX() - 16.0D, rebuilt.min().getX(), EPSILON);
+            assertEquals(area.max().getX() + 16.0D, rebuilt.max().getX(), EPSILON);
+            assertEquals(area.min().getY() - 16.0D, rebuilt.min().getY(), EPSILON);
+            assertEquals(area.max().getY() + 16.0D, rebuilt.max().getY(), EPSILON);
+            assertEquals(area.min().getZ() - 16.0D, rebuilt.min().getZ(), EPSILON);
+            assertEquals(area.max().getZ() + 16.0D, rebuilt.max().getZ(), EPSILON);
+        } finally {
+            Settings.CAPTURE_ZONE_RADIUS = previous;
+        }
     }
 
     private static Cuboid cuboid(int x1, int y1, int z1, int x2, int y2, int z2) {

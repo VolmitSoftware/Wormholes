@@ -137,4 +137,28 @@ public final class BlockOpsRuneConstructionDispatchTest
 		assertEquals(0, rollbacks.get());
 		assertEquals(Long.valueOf(1L), WormholesTelemetry.failureBreakdown().get(BlockOpsRuneConstruction.RUNE_ROLLBACK_SCHEDULE_REJECTED));
 	}
+
+	@Test
+	public void reservationsStayUntilConstructOpens()
+	{
+		AtomicInteger cleared = new AtomicInteger();
+		AtomicInteger rolledBack = new AtomicInteger();
+
+		BlockOpsRuneConstruction.settleRuneConstruct(false, () -> cleared.incrementAndGet(), () -> rolledBack.incrementAndGet());
+
+		assertEquals(0, cleared.get());
+		assertEquals(1, rolledBack.get());
+	}
+
+	@Test
+	public void reservationsClearOnlyAfterConstructOpens()
+	{
+		AtomicInteger cleared = new AtomicInteger();
+		AtomicInteger rolledBack = new AtomicInteger();
+
+		BlockOpsRuneConstruction.settleRuneConstruct(true, () -> cleared.incrementAndGet(), () -> rolledBack.incrementAndGet());
+
+		assertEquals(1, cleared.get());
+		assertEquals(0, rolledBack.get());
+	}
 }

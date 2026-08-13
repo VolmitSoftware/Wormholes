@@ -1039,6 +1039,23 @@ class NetworkManagerTest {
     }
 
     @Test
+    void compressionRetrainIntervalReschedulesWithoutRebuildingTheManager() throws IOException {
+        NetworkConfig initial = config(freePort(), ALPHA_NAME);
+        initial.transport.compressionRetrainIntervalSec = 60;
+        NetworkManager manager = manager(initial, ALPHA_GAME_PORT, "retrain-hotload");
+        manager.start();
+        assertTrue(manager.isRunning());
+        assertEquals(60L, manager.scheduledDictionaryRetrainSec());
+
+        NetworkConfig reloaded = config(initial.listenPort, ALPHA_NAME);
+        reloaded.transport.compressionRetrainIntervalSec = 120;
+        manager.applyConfig(reloaded);
+
+        assertTrue(manager.isRunning());
+        assertEquals(120L, manager.scheduledDictionaryRetrainSec());
+    }
+
+    @Test
     void statusReportsUndialableRoutesAsWaiting() throws IOException {
         int portA = freePort();
         NetworkConfig alphaConfig = config(portA, ALPHA_NAME);

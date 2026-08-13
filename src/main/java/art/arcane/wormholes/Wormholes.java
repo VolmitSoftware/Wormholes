@@ -41,7 +41,6 @@ import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import art.arcane.wormholes.util.J;
 import art.arcane.wormholes.util.common.SplashScreen;
 import io.github.slimjar.app.builder.SpigotApplicationBuilder;
-import org.bukkit.ChatColor;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -52,10 +51,12 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -63,7 +64,6 @@ import java.util.logging.Logger;
 public final class Wormholes extends JavaPlugin implements ReloadAware {
     public static Wormholes INSTANCE;
     public static Wormholes instance;
-    public static String tag = ChatColor.DARK_GRAY + "[" + ChatColor.GOLD + "Wormholes" + ChatColor.DARK_GRAY + "] " + ChatColor.GRAY;
 
     public static volatile WormholesSettings settings;
     public static volatile BlockManager blockManager;
@@ -92,6 +92,9 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     public static volatile WormholesLocalization localization;
     public static volatile WormholesPlaceholders placeholders;
 
+    private static final String PAPER_ASYNC_CHAT_EVENT_CLASS = "io.papermc.paper.event.player.AsyncChatEvent";
+    private static final boolean PAPER_ASYNC_CHAT_AVAILABLE =
+        isPaperAsyncChatAvailable(Wormholes.class.getClassLoader());
     private static final ConcurrentHashMap<UUID, Consumer<String>> CHAT_INPUTS = new ConcurrentHashMap<>();
 
     private final AtomicBoolean alreadyDrained = new AtomicBoolean(false);
@@ -172,7 +175,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             getServer().getPluginManager().registerEvents(new art.arcane.wormholes.render.ProjectionChangeListener(projectionChangeTracker), this);
             VanillaPortalReplacer vanillaPortalReplacer = new VanillaPortalReplacer();
             getServer().getPluginManager().registerEvents(vanillaPortalReplacer, this);
-            getServer().getPluginManager().registerEvents(new ChatInputListener(), this);
+            registerChatInputListener();
             J.ar(() -> {
                 BukkitRtpRuntime activeRuntime = rtpRuntime;
                 if (activeRuntime != null) {
@@ -519,19 +522,50 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     public record ResetResult(int deletedPortals) {
     }
 
+    static boolean isPaperAsyncChatAvailable(ClassLoader loader) {
+        try {
+            Class.forName(PAPER_ASYNC_CHAT_EVENT_CLASS, false, loader);
+            return true;
+        } catch (ClassNotFoundException | LinkageError absent) {
+            return false;
+        }
+    }
+
+    private void registerChatInputListener() {
+        if (PAPER_ASYNC_CHAT_AVAILABLE) {
+            try {
+                Class<?> listenerType = Class.forName("art.arcane.wormholes.door.PaperAsyncChatListener");
+                Constructor<?> constructor = listenerType.getDeclaredConstructor(BiFunction.class);
+                constructor.setAccessible(true);
+                BiFunction<Player, String, Boolean> delivery = Wormholes::acceptChatInput;
+                Listener listener = (Listener) constructor.newInstance(delivery);
+                getServer().getPluginManager().registerEvents(listener, this);
+                return;
+            } catch (ReflectiveOperationException | LinkageError | ClassCastException ex) {
+                getLogger().log(Level.WARNING, "Could not register Paper signed-chat input listener", ex);
+            }
+        }
+        getServer().getPluginManager().registerEvents(new ChatInputListener(), this);
+    }
+
+    private static boolean acceptChatInput(Player player, String text) {
+        UUID id = player.getUniqueId();
+        Consumer<String> consumer = CHAT_INPUTS.remove(id);
+        if (consumer == null) {
+            return false;
+        }
+        if (!FoliaScheduler.runEntity(Wormholes.instance, player, () -> consumer.accept(text))) {
+            CHAT_INPUTS.putIfAbsent(id, consumer);
+            w("Could not deliver chat input from " + player.getName() + "; the prompt remains open for another attempt.");
+        }
+        return true;
+    }
+
     private static final class ChatInputListener implements Listener {
         @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
         public void onChat(AsyncPlayerChatEvent event) {
-            UUID id = event.getPlayer().getUniqueId();
-            Consumer<String> consumer = CHAT_INPUTS.remove(id);
-            if (consumer == null) {
-                return;
-            }
-            event.setCancelled(true);
-            String text = event.getMessage();
-            if (!FoliaScheduler.runEntity(Wormholes.instance, event.getPlayer(), () -> consumer.accept(text))) {
-                CHAT_INPUTS.putIfAbsent(id, consumer);
-                w("Could not deliver chat input from " + event.getPlayer().getName() + "; the prompt remains open for another attempt.");
+            if (acceptChatInput(event.getPlayer(), event.getMessage())) {
+                event.setCancelled(true);
             }
         }
     }

@@ -15,7 +15,7 @@ final class DoorSkinRecipe
 
 	static Optional<Result> resolve(List<Ingredient> ingredients)
 	{
-		return resolve(ingredients, DoorSkin::isPlayerOperableSkin);
+		return resolve(ingredients, DoorSkin::isSupportedSkin);
 	}
 
 	static Optional<Result> resolve(List<Ingredient> ingredients, Predicate<Material> supportedSkin)

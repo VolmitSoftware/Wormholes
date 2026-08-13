@@ -42,32 +42,28 @@ final class DoorSkin
 		return isTrapdoor(material) ? DoorForm.TRAPDOOR : null;
 	}
 
-	static boolean isPlayerOperable(Material material)
-	{
-		Objects.requireNonNull(material, "material");
-		return Tag.WOODEN_DOORS.isTagged(material);
-	}
-
-	/** Iron and copper trapdoors need redstone, so they can never carry an identity. */
 	static boolean isPlayerOperableTrapdoor(Material material)
 	{
 		Objects.requireNonNull(material, "material");
 		return Tag.WOODEN_TRAPDOORS.isTagged(material);
 	}
 
-	static boolean isPlayerOperable(Material material, DoorForm form)
+	static boolean isSupportedSkin(Material material)
 	{
-		Objects.requireNonNull(form, "form");
-		return switch(form)
-		{
-			case DOOR -> isPlayerOperable(material);
-			case TRAPDOOR -> isPlayerOperableTrapdoor(material);
-		};
+		return isSupportedSkin(material, formOf(material));
 	}
 
-	static boolean isPlayerOperableSkin(Material material)
+	static boolean isSupportedSkin(Material material, DoorForm form)
 	{
-		return isPlayerOperable(material) || isPlayerOperableTrapdoor(material);
+		if(form == null)
+		{
+			return false;
+		}
+		return switch(form)
+		{
+			case DOOR -> isDoor(material);
+			case TRAPDOOR -> isPlayerOperableTrapdoor(material);
+		};
 	}
 
 	static List<Material> doorMaterials()
@@ -78,11 +74,6 @@ final class DoorSkin
 	static List<Material> trapdoorMaterials()
 	{
 		return materials(DoorSkin::isTrapdoor);
-	}
-
-	static List<Material> playerOperableMaterials()
-	{
-		return materials(DoorSkin::isPlayerOperable);
 	}
 
 	static List<Material> playerOperableTrapdoorMaterials()

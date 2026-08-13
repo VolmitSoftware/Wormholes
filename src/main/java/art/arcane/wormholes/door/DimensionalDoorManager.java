@@ -334,13 +334,10 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
 	public void onCrafterCraft(CrafterCraftEvent event)
 	{
-		if(items().isDoorSkinRecipe(event.getRecipe()))
+		if(items().handleCrafterCraft(event.getRecipe()) == DoorItemService.CraftHookResult.CRAFTER_BLOCKED)
 		{
 			event.setCancelled(true);
-			return;
 		}
-		// the per-product mint switch moved into DoorItemService when trapdoor products were added
-		items().productFor(event.getRecipe()).ifPresent(product -> event.setResult(items().mint(product)));
 	}
 
 	@EventHandler(priority = EventPriority.HIGHEST)
@@ -382,7 +379,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	{
 		Optional<DoorItemIdentity> carriedIdentity = items().decodeDoorIdentity(event.getItemInHand());
 		if(carriedIdentity.isPresent()
-			&& !DoorSkin.isPlayerOperable(event.getItemInHand().getType(), carriedIdentity.get().form()))
+			&& !DoorSkin.isSupportedSkin(event.getItemInHand().getType(), carriedIdentity.get().form()))
 		{
 			event.setCancelled(true);
 			WormholesAudience.sendMessage(event.getPlayer(), Wormholes.text().component(WormholesMessages.DOOR_LEGACY_COMBINE));
@@ -493,7 +490,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			.getBlockAt(endpoint.position().x(), endpoint.position().y(), endpoint.position().z())
 			.getType();
 		DoorForm form = endpoint.identity().form();
-		Material droppedMaterial = DoorSkin.isPlayerOperable(liveMaterial, form)
+		Material droppedMaterial = DoorSkin.isSupportedSkin(liveMaterial, form)
 			? liveMaterial
 			: DoorItemService.defaultMaterial(endpoint.identity().kind(), form);
 		event.setDropItems(false);

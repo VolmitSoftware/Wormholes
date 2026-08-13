@@ -1,5 +1,11 @@
 package art.arcane.wormholes.service;
 
+import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.config.WormholesSettings;
+import art.arcane.wormholes.config.toml.MainConfig;
+import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.config.toml.ProjectionConfig;
+import art.arcane.wormholes.config.toml.RenderConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,6 +26,7 @@ class DebugTelemetryServiceTest {
     @AfterEach
     void clearTelemetry() {
         WormholesTelemetry.clear();
+        Settings.DEBUG = false;
     }
 
     @Test
@@ -132,6 +139,27 @@ class DebugTelemetryServiceTest {
         assertTrue(DebugTelemetryService.runSample(quietLogger(), () -> {
         }));
         assertEquals(0L, WormholesTelemetry.failures());
+    }
+
+    @Test
+    void settingsReloadClearsRuntimeOverrideAndAppliesFileVerboseLogging() {
+        DebugTelemetryService service = new DebugTelemetryService(null, quietLogger());
+        Settings.DEBUG = false;
+        assertTrue(service.toggle("tester"));
+        assertTrue(Settings.DEBUG);
+
+        MainConfig main = new MainConfig();
+        main.verboseLogging = false;
+        Settings.refresh(new WormholesSettings(main, new ProjectionConfig(), new RenderConfig(), new NetworkConfig()));
+        service.onSettingsReloaded();
+
+        assertFalse(Settings.DEBUG);
+
+        main.verboseLogging = true;
+        Settings.refresh(new WormholesSettings(main, new ProjectionConfig(), new RenderConfig(), new NetworkConfig()));
+        service.onSettingsReloaded();
+
+        assertTrue(Settings.DEBUG);
     }
 
     @Test

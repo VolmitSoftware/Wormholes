@@ -16,7 +16,6 @@ import org.bukkit.block.Block;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
-import org.bukkit.material.MaterialData;
 import org.bukkit.util.Vector;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
@@ -826,38 +825,6 @@ public class Cuboid implements Iterable<Block>, Cloneable, ConfigurationSerializ
 		}
 		return res;
 	}
-
-	/**
-	 * Set all the blocks within the Cuboid to the given block ID and data byte.
-	 *
-	 * @param blockId
-	 *            the block ID
-	 * @param data
-	 *            the block data
-	 * @deprecated use {@link #fill(MaterialData, MassBlockUpdate)}
-	 */
-	@Deprecated
-	public void fill(int blockId, byte data)
-	{
-		for(Block b : this)
-		{
-			if (blockId >= 0) { /* legacy id path removed */ }
-		}
-	}
-
-	/**
-	 * Set all the blocks within the Cuboid to the given MaterialData, using a
-	 * MassBlockUpdate object for fast updates.
-	 *
-	 * @param mat
-	 *            the MaterialData to set
-	 * @param mbu
-	 *            the MassBlockUpdate object
-	 */
-
-	/**
-	 * Reset the light level of all blocks within this Cuboid.
-	 */
 
 	/*
 	 * (non-Javadoc)

@@ -6,6 +6,7 @@ import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.CrafterCraftEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.PlayerInventory;
@@ -81,6 +82,17 @@ final class DimensionalDoorManagerInteractionTest
 
 		assertNotNull(handler);
 		assertFalse(handler.ignoreCancelled());
+	}
+
+	@Test
+	void crafterCraftCancelsIdentityProductsTheSameWayAsSkinRecipes() throws NoSuchMethodException
+	{
+		Method method = DimensionalDoorManager.class.getMethod("onCrafterCraft", CrafterCraftEvent.class);
+		EventHandler handler = method.getAnnotation(EventHandler.class);
+
+		assertNotNull(handler);
+		assertEquals(EventPriority.HIGHEST, handler.priority());
+		assertTrue(handler.ignoreCancelled());
 	}
 
 	@Test
