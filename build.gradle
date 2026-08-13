@@ -88,8 +88,12 @@ tasks.named('compileJava', JavaCompile).configure {
 }
 
 tasks.named('test').configure {
+    dependsOn(shadowJarTask)
     useJUnitPlatform()
     jvmArgs '--enable-native-access=ALL-UNNAMED'
+    doFirst {
+        systemProperty('wormholes.runtimeJar', shadowJarTask.get().archiveFile.get().asFile.absolutePath)
+    }
 }
 
 configurations {
