@@ -401,6 +401,11 @@ public final class DoorItemService
 		return doorSkinRecipeKey.equals(keyed.getKey()) || trapdoorSkinRecipeKey.equals(keyed.getKey());
 	}
 
+	public boolean isDoorRecipe(Recipe recipe)
+	{
+		return isDoorSkinRecipe(recipe) || productFor(recipe).isPresent();
+	}
+
 	public Optional<ItemStack> skinCraftResult(ItemStack[] matrix)
 	{
 		Objects.requireNonNull(matrix, "matrix");
@@ -457,7 +462,7 @@ public final class DoorItemService
 	public CraftHookResult handleCrafterCraft(Recipe recipe)
 	{
 		Objects.requireNonNull(recipe, "recipe");
-		return crafterCraftResult(isDoorSkinRecipe(recipe) || productFor(recipe).isPresent());
+		return crafterCraftResult(isDoorRecipe(recipe));
 	}
 
 	static CraftHookResult crafterCraftResult(boolean doorRecipe)

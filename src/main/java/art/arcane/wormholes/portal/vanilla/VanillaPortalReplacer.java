@@ -20,10 +20,13 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.world.PortalCreateEvent;
+import org.bukkit.entity.Player;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.portal.PortalTypeAccess;
 
 public final class VanillaPortalReplacer implements Listener
 {
@@ -41,6 +44,10 @@ public final class VanillaPortalReplacer implements Listener
 		}
 		if(event.getReason() != PortalCreateEvent.CreateReason.FIRE
 				&& event.getReason() != PortalCreateEvent.CreateReason.NETHER_PAIR)
+		{
+			return;
+		}
+		if(!(event.getEntity() instanceof Player player) || !PortalTypeAccess.allows(player, PortalType.PORTAL))
 		{
 			return;
 		}
@@ -122,6 +129,10 @@ public final class VanillaPortalReplacer implements Listener
 			return;
 		}
 		if(event.getItem() == null || event.getItem().getType() != Material.ENDER_EYE)
+		{
+			return;
+		}
+		if(!PortalTypeAccess.allows(event.getPlayer(), PortalType.PORTAL))
 		{
 			return;
 		}

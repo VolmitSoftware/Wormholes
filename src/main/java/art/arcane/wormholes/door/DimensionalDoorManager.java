@@ -314,6 +314,17 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
 	public void onCraft(CraftItemEvent event)
 	{
+		if(items().isDoorRecipe(event.getRecipe())
+			&& (!(event.getWhoClicked() instanceof Player player) || !DoorAccessPolicy.canCraft(player)))
+		{
+			event.setCancelled(true);
+			event.setCurrentItem(null);
+			if(event.getWhoClicked() instanceof Player player)
+			{
+				WormholesAudience.sendMessage(player, Wormholes.text().component(WormholesMessages.COMMAND_NO_PERMISSION));
+			}
+			return;
+		}
 		DoorItemService.CraftHookResult result = items().handleCraft(event);
 		if(result == DoorItemService.CraftHookResult.SHIFT_CRAFT_BLOCKED
 			&& event.getWhoClicked() instanceof Player player)
@@ -325,6 +336,12 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onPrepareCraft(PrepareItemCraftEvent event)
 	{
+		if(items().isDoorRecipe(event.getRecipe())
+			&& (!(event.getView().getPlayer() instanceof Player player) || !DoorAccessPolicy.canCraft(player)))
+		{
+			event.getInventory().setResult(null);
+			return;
+		}
 		if(items().isDoorSkinRecipe(event.getRecipe()))
 		{
 			event.getInventory().setResult(items().skinCraftResult(event.getInventory().getMatrix()).orElse(null));
@@ -394,6 +411,12 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		if(identity.kind() == DoorKind.RETURN)
 		{
 			event.setCancelled(true);
+			return;
+		}
+		if(!DoorAccessPolicy.canPlace(event.getPlayer()))
+		{
+			event.setCancelled(true);
+			WormholesAudience.sendMessage(event.getPlayer(), Wormholes.text().component(WormholesMessages.COMMAND_NO_PERMISSION));
 			return;
 		}
 		if(identity.kind() == DoorKind.PAIR && guard.state().findPair(identity.pairId()).isEmpty())

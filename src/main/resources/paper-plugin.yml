@@ -30,6 +30,8 @@ permissions:
       wormholes.admin: true
       wormholes.portals: true
       wormholes.gateway: true
+      wormholes.doors.craft: true
+      wormholes.doors.place: true
   wormholes.admin:
     description: Gives access to all Wormholes admin permissions.
     default: op
@@ -58,18 +60,24 @@ permissions:
   wormholes.doors.bypass:
     description: Bypass dimensional door access restrictions.
     default: op
+  wormholes.doors.craft:
+    description: Allows crafting and reskinning dimensional doors.
+    default: op
+  wormholes.doors.place:
+    description: Allows placing dimensional doors and trapdoors.
+    default: op
   wormholes.gateway:
     description: Allows creating and modifying gateway portals.
     default: op
   wormholes.portals:
     description: Allows creating and modifying non-gateway frame portal types.
-    default: true
+    default: op
     children:
       wormholes.portals.wormhole: true
       wormholes.portals.portal: true
   wormholes.portals.wormhole:
     description: Allows creating and modifying wormhole-type frame portals.
-    default: true
+    default: op
   wormholes.portals.portal:
     description: Allows creating and modifying portal-type and RTP frame portals.
-    default: true
+    default: op

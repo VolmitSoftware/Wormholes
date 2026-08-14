@@ -38,6 +38,11 @@ public final class PaperPluginMetadataTest {
         assertTrue(metadata.contains("required: false"));
         assertTrue(metadata.contains("join-classpath: true"));
         assertTrue(metadata.contains("wormholes.portals.wormhole:"));
+        assertTrue(metadata.contains("wormholes.doors.craft:"));
+        assertTrue(metadata.contains("wormholes.doors.place:"));
+        assertTrue(metadata.contains("wormholes.portals:\n    description: Allows creating and modifying non-gateway frame portal types.\n    default: op"));
+        assertTrue(metadata.contains("wormholes.portals.wormhole:\n    description: Allows creating and modifying wormhole-type frame portals.\n    default: op"));
+        assertTrue(metadata.contains("wormholes.portals.portal:\n    description: Allows creating and modifying portal-type and RTP frame portals.\n    default: op"));
         assertTrue(metadata.contains("wormholes.admin.projection:"));
         assertTrue(metadata.contains("wormholes.doors.bypass:"));
         assertFalse(metadata.contains("commands:"), "Paper commands must be registered through lifecycle events");
@@ -69,6 +74,9 @@ public final class PaperPluginMetadataTest {
             .getChildren()
             .containsKey("wormholes.admin.projection"));
         assertTrue(metadata.getPermissions().stream().anyMatch(permission -> permission.getName().equals("wormholes.portals.portal")));
+        assertTrue(metadata.getPermissions().stream().anyMatch(permission -> permission.getName().equals("wormholes.doors.craft")));
+        assertTrue(metadata.getPermissions().stream().anyMatch(permission -> permission.getName().equals("wormholes.doors.place")));
+        assertTrue(metadata.getPermissions().stream().allMatch(permission -> permission.getDefault() == PermissionDefault.OP));
         assertEquals(
             PermissionDefault.OP,
             metadata.getPermissions().stream()
@@ -84,6 +92,22 @@ public final class PaperPluginMetadataTest {
                 .orElseThrow()
                 .getChildren()
                 .get("wormholes.doors.bypass"));
+        assertEquals(
+            Boolean.TRUE,
+            metadata.getPermissions().stream()
+                .filter(permission -> permission.getName().equals("wormholes.*"))
+                .findFirst()
+                .orElseThrow()
+                .getChildren()
+                .get("wormholes.doors.craft"));
+        assertEquals(
+            Boolean.TRUE,
+            metadata.getPermissions().stream()
+                .filter(permission -> permission.getName().equals("wormholes.*"))
+                .findFirst()
+                .orElseThrow()
+                .getChildren()
+                .get("wormholes.doors.place"));
     }
 
     @Test
