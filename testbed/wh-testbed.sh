@@ -10,7 +10,7 @@
 # After `up`, the only remaining step is in-game (portals need rune blocks):
 #   1. join ALPHA (localhost:25566), /wormholes wand, build a GATEWAY portal
 #   2. open Pair & Destination, then Create Invite and copy the portal code
-#   3. use Use Invite on BETA (or /wh network import <code>), then build a GATEWAY on
+#   3. use Use Invite on BETA (or /wh server import <code>), then build a GATEWAY on
 #      BETA and link it to ALPHA's gateway
 #
 # Usage:
@@ -151,7 +151,7 @@ $(say "pair is up:")
 Cross-server GATEWAY link:
   1. Join ALPHA (localhost:${agp}). Run: /wormholes wand rune=gateway
      Build a GATEWAY portal, open Pair & Destination, click Create Invite, and copy the code.
-  2. On BETA use Use Invite or run: /wh network import <code>
+  2. On BETA use Use Invite or run: /wh server import <code>
      Then build a GATEWAY on BETA and link it to ALPHA. Check with /wh status.
 EOF
 }

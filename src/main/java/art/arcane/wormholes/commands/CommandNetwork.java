@@ -18,18 +18,10 @@ import java.util.Locale;
 
 @Director(name = "network", descriptionKey = "command.help.network", description = "Cross-server wormhole network")
 public class CommandNetwork {
-    @Director(name = "import", sync = true, descriptionKey = "command.help.network.import", description = "Import a portal code from another server (saves an internal route; link via a gateway's Link menu)")
+    @Director(name = "import", sync = true, descriptionKey = "command.help.network.import", description = "Same as /wh server import; accepts a server or portal code")
     public void importCode(@Param(name = "sender", contextual = true) CommandSender sender,
-                           @Param(name = "code", descriptionKey = "command.help.network.import.code", description = "Portal code from the other server's Export button") String code) {
-        if (!sender.hasPermission("wormholes.admin.network")) {
-            send(sender, WormholesMessages.COMMAND_NO_PERMISSION);
-            return;
-        }
-        if (Wormholes.importExportService == null) {
-            send(sender, WormholesMessages.NETWORK_NOT_INITIALIZED);
-            return;
-        }
-        Wormholes.importExportService.importCode(sender, null, code);
+                           @Param(name = "code", descriptionKey = "command.help.network.import.code", description = "Server or portal code from the other server's export") String code) {
+        CommandServer.importAndReport(sender, code);
     }
 
     @Director(name = "status", sync = true, descriptionKey = "command.help.network.status", description = "Show peer connection status")

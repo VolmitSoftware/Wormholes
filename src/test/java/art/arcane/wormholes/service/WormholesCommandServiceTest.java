@@ -49,13 +49,29 @@ class WormholesCommandServiceTest {
         assertNotNull(network);
         assertNotNull(findChild(network, "status"));
         assertNotNull(findChild(network, "doctor"));
-        assertNotNull(findChild(network, "import"));
         DirectorRuntimeNode admin = findChild(root, "admin");
         assertNotNull(admin);
         assertNotNull(findChild(admin, "freeze"));
         assertNotNull(findChild(admin, "flush"));
         assertNull(findChild(root, "rune"));
         assertNull(findChild(root, "reset"));
+    }
+
+    @Test
+    void serverImportIsCanonicalAndNetworkImportRemainsAnAlias() {
+        DirectorRuntimeEngine engine = DirectorEngineFactory.create(new CommandWormholes(null));
+        DirectorRuntimeNode root = engine.getRoot();
+        DirectorRuntimeNode server = findChild(root, "server");
+        DirectorRuntimeNode network = findChild(root, "network");
+
+        assertNotNull(server);
+        assertNotNull(network);
+        assertNotNull(findChild(server, "connect"));
+        assertNotNull(findChild(server, "export"));
+        assertNotNull(findChild(server, "import"));
+        assertNotNull(findChild(server, "list"));
+        assertNotNull(findChild(server, "remove"));
+        assertNotNull(findChild(network, "import"));
     }
 
     @Test

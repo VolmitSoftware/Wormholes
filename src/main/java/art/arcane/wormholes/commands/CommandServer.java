@@ -41,18 +41,10 @@ public class CommandServer {
         Wormholes.importExportService.exportServerToChat(sender);
     }
 
-    @Director(name = "import", sync = true, descriptionKey = "command.help.server.import", description = "Import a server or portal code exported by another server")
+    @Director(name = "import", sync = true, descriptionKey = "command.help.server.import", description = "Import a server (WHS1.) or portal (WHP5.) code exported by another server")
     public void importCode(@Param(name = "sender", contextual = true) CommandSender sender,
                            @Param(name = "code", descriptionKey = "command.help.server.import.code", description = "Code from the other server's export") String code) {
-        if (!sender.hasPermission("wormholes.admin.network")) {
-            send(sender, WormholesMessages.COMMAND_NO_PERMISSION);
-            return;
-        }
-        if (Wormholes.importExportService == null) {
-            send(sender, WormholesMessages.NETWORK_NOT_INITIALIZED);
-            return;
-        }
-        Wormholes.importExportService.importCode(sender, null, code);
+        importAndReport(sender, code);
     }
 
     @Director(name = "list", sync = true, descriptionKey = "command.help.server.list", description = "List linked servers and their connection state")
@@ -103,6 +95,18 @@ public class CommandServer {
             Wormholes.remotePortalRegistry.removePeer(resolved);
         }
         send(sender, WormholesMessages.SERVER_REMOVED, args("server", resolved));
+    }
+
+    public static void importAndReport(CommandSender sender, String code) {
+        if (!sender.hasPermission("wormholes.admin.network")) {
+            send(sender, WormholesMessages.COMMAND_NO_PERMISSION);
+            return;
+        }
+        if (Wormholes.importExportService == null) {
+            send(sender, WormholesMessages.NETWORK_NOT_INITIALIZED);
+            return;
+        }
+        Wormholes.importExportService.importCode(sender, null, code);
     }
 
     public static void connectAndReport(CommandSender sender, String requestedName) {
