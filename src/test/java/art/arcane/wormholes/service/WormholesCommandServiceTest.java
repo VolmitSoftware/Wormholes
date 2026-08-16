@@ -96,7 +96,7 @@ class WormholesCommandServiceTest {
             engine.tabComplete(new DirectorInvocation(sender, "wormholes", List.of("door", "type=pub")))
         );
         assertEquals(
-            List.of("type="),
+            List.of("type=unknown"),
             engine.tabComplete(new DirectorInvocation(sender, "wormholes", List.of("door", "type=unknown")))
         );
         assertThrows(
