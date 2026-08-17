@@ -57,7 +57,9 @@ public final class PaperPluginMetadataTest {
         }
 
         assertEquals("Wormholes", metadata.getName());
-        assertEquals("1.0.0-26.2", metadata.getVersion());
+        String projectVersion = System.getProperty("wormholes.projectVersion");
+        assertNotNull(projectVersion, "Gradle did not expose the project version");
+        assertEquals(projectVersion, metadata.getVersion());
         assertEquals(Wormholes.class.getName(), metadata.getMain());
         assertEquals("26.1", metadata.getAPIVersion());
         assertEquals(PluginLoadOrder.POSTWORLD, metadata.getLoad());

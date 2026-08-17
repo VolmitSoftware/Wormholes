@@ -173,6 +173,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             getServer().getPluginManager().registerEvents(traversableManager, this);
             getServer().getPluginManager().registerEvents(projectionManager, this);
             getServer().getPluginManager().registerEvents(new art.arcane.wormholes.render.ProjectionChangeListener(projectionChangeTracker), this);
+            getServer().getPluginManager().registerEvents(new art.arcane.wormholes.service.WormholesHudListener(), this);
             VanillaPortalReplacer vanillaPortalReplacer = new VanillaPortalReplacer();
             getServer().getPluginManager().registerEvents(vanillaPortalReplacer, this);
             registerChatInputListener();

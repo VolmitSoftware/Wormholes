@@ -64,8 +64,8 @@ final class LocalPortalEffects
 				spawnRejectDust(location);
 				if(location != null && location.getWorld() != null && isPortalSoundEnabled())
 				{
-					location.getWorld().playSound(location, Sound.BLOCK_ANVIL_LAND, Settings.portalSoundVolume(0.7f), 1.8f);
-					location.getWorld().playSound(location, Sound.BLOCK_GLASS_BREAK, Settings.portalSoundVolume(0.6f), 0.7f);
+					location.getWorld().playSound(location, Sound.BLOCK_ANVIL_LAND, Settings.portalSoundVolume(0.21f), 1.8f);
+					location.getWorld().playSound(location, Sound.BLOCK_GLASS_BREAK, Settings.portalSoundVolume(0.18f), 0.7f);
 				}
 				break;
 			case AMBIENT_CLOSED:

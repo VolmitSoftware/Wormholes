@@ -80,10 +80,10 @@ public final class EffectManagerPlanTest
 	{
 		EffectManager.OpeningSoundPlan plan = EffectManager.openingSoundPlan();
 
-		assertEquals(0.65f, plan.frameVolume());
-		assertEquals(0.75f, plan.portalImpactVolume());
-		assertEquals(0.65f, plan.beaconImpactVolume());
-		assertEquals(0.25f, plan.sonicBoomVolume());
+		assertEquals(0.2f, plan.frameVolume());
+		assertEquals(0.225f, plan.portalImpactVolume());
+		assertEquals(0.2f, plan.beaconImpactVolume());
+		assertEquals(0.075f, plan.sonicBoomVolume());
 		assertTrue(plan.frameVolume() < 1.0f);
 		assertTrue(plan.portalImpactVolume() < 1.0f);
 		assertTrue(plan.beaconImpactVolume() < 1.0f);

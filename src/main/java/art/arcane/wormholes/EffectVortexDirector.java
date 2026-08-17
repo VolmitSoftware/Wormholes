@@ -49,7 +49,7 @@ final class EffectVortexDirector
 		}
 		if(!Settings.ENABLE_PARTICLES)
 		{
-			world.playSound(center, Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.BLOCKS, Settings.portalSoundVolume(0.55f), 0.55f);
+			world.playSound(center, Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.BLOCKS, Settings.portalSoundVolume(0.165f), 0.55f);
 			return;
 		}
 
@@ -115,7 +115,7 @@ final class EffectVortexDirector
 		}
 
 		world.spawnParticle(Particle.PORTAL, center, 12, 0.65, 0.8, 0.65, 0.35);
-		world.playSound(center, Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.BLOCKS, Settings.portalSoundVolume(0.55f), 0.55f);
+		world.playSound(center, Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.BLOCKS, Settings.portalSoundVolume(0.165f), 0.55f);
 		world.playSound(center, Sound.BLOCK_END_PORTAL_SPAWN, SoundCategory.BLOCKS, EffectManager.openingSoundPlan().frameVolume(), 0.35f);
 
 		VortexKey markerKey = vortexKey(world, center);
