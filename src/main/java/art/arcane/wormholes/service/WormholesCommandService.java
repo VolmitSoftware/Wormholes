@@ -50,7 +50,6 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
             "wormholes.admin.projection",
             "wormholes.admin.reset"
     );
-    private static final int HELP_PAGE_SIZE = 8;
 
     private final Wormholes plugin;
     private final DirectorTheme theme;
@@ -302,13 +301,13 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
     }
 
     private boolean sendHelpIfRequested(CommandSender sender, String[] args) {
-        Optional<DirectorMiniMenu.DirectorHelpPage> page = DirectorMiniMenu.resolveHelp(getDirector(), Arrays.asList(normalizeHelpArgs(args)), HELP_PAGE_SIZE);
+        Optional<DirectorMiniMenu.DirectorHelpPage> page = DirectorMiniMenu.resolveHelp(getDirector(), Arrays.asList(normalizeHelpArgs(args)));
         if (page.isEmpty()) {
             return false;
         }
 
         DirectorMiniMenu.Theme helpTheme = DirectorMiniMenu.Theme.fromDirectorTheme(theme);
-        DirectorMiniMenu.deliver(sender, DirectorMiniMenu.render(page.get(), helpTheme, Wormholes.text().directorResolver()));
+        DirectorMiniMenu.deliver(sender, page.get(), helpTheme, Wormholes.text().directorResolver());
 
         return true;
     }
