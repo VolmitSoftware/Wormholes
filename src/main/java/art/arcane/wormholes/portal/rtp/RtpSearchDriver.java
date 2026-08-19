@@ -10,6 +10,9 @@ final class RtpSearchDriver
 	private static final long SEARCH_DEADLINE_MILLIS = 5_000L;
 	private static final long SEARCH_RETRY_MILLIS = 1_000L;
 	private static final long MAXIMUM_SEARCH_RETRY_MILLIS = 30_000L;
+	// Biome preference relaxes after these bounds so a portal never wedges in "searching" when the biome is absent.
+	private static final int BIOME_STRICT_ATTEMPTS = 24;
+	private static final int BIOME_STRICT_CAMPAIGN_FAILURES = 2;
 
 	private final RtpService service;
 	private final RtpPortalEntry entry;
@@ -124,10 +127,13 @@ final class RtpSearchDriver
 		}
 		int attempt = nextAttempt();
 		active.attemptsStarted++;
-		service.dependencies().searchExecutor().execute(() -> sampleAndLoad(active, attempt));
+		boolean enforceBiome = entry.registration.settings().getTargetBiomeKey() != null
+				&& active.attemptsStarted <= BIOME_STRICT_ATTEMPTS
+				&& consecutiveFailures < BIOME_STRICT_CAMPAIGN_FAILURES;
+		service.dependencies().searchExecutor().execute(() -> sampleAndLoad(active, attempt, enforceBiome));
 	}
 
-	private void sampleAndLoad(Campaign active, int attempt)
+	private void sampleAndLoad(Campaign active, int attempt, boolean enforceBiome)
 	{
 		RtpDestination destination;
 		try
@@ -145,7 +151,8 @@ final class RtpSearchDriver
 				entry.portalId(),
 				entry.generation,
 				entry.registration.settings(),
-				destination);
+				destination,
+				enforceBiome);
 		CompletionStage<RtpService.LoadedCandidate> stage;
 		try
 		{

@@ -29,6 +29,7 @@ import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.wormholes.chunk.ChunkLease;
+import art.arcane.wormholes.platform.WormholesPlatform;
 
 public final class BukkitRtpCandidateLoader implements AutoCloseable
 {
@@ -61,6 +62,27 @@ public final class BukkitRtpCandidateLoader implements AutoCloseable
 		{
 			return CompletableFuture.failedFuture(new IllegalStateException("RTP candidate is below the Iris fluid surface"));
 		}
+		String targetBiomeKey = requiredRequest.enforceTargetBiome()
+				? requiredRequest.settings().getTargetBiomeKey()
+				: null;
+		boolean surfaceMode = requiredRequest.settings().getVerticalMode() == RtpVerticalMode.SURFACE;
+		if(targetBiomeKey != null)
+		{
+			List<String> irisBiomeKeys = IrisBiomeProbe.shared().biomeKeysAt(
+					world,
+					requiredRequest.destination().blockX(),
+					requiredRequest.destination().blockZ(),
+					surfaceMode ? null : Integer.valueOf(requiredRequest.settings().getPreferredY()));
+			if(irisBiomeKeys != null)
+			{
+				if(!RtpBiomeMatcher.matches(targetBiomeKey, irisBiomeKeys))
+				{
+					return CompletableFuture.failedFuture(new IllegalStateException("RTP candidate is outside the target biome"));
+				}
+				targetBiomeKey = null;
+			}
+		}
+		String pendingBiomeKey = targetBiomeKey;
 		return retain(world, requiredRequest.destination(), envelope).thenCompose(retention ->
 		{
 			try
@@ -73,7 +95,19 @@ public final class BukkitRtpCandidateLoader implements AutoCloseable
 						throw propagate("RTP surface probe failed", failure);
 					}
 					return surfaceFeetY;
-				}).thenCompose(surfaceFeetY ->
+				}).thenCompose(surfaceFeetY -> biomeGate(
+						world,
+						requiredRequest.destination(),
+						surfaceMode ? surfaceFeetY.intValue() : requiredRequest.settings().getPreferredY(),
+						pendingBiomeKey).handle((ignored, failure) ->
+				{
+					if(failure != null)
+					{
+						retention.close();
+						throw propagate("RTP biome gate failed", failure);
+					}
+					return surfaceFeetY;
+				})).thenCompose(surfaceFeetY ->
 						probeSearch(requiredRequest, world, envelope, retention, surfaceFeetY.intValue()));
 			}
 			catch(RuntimeException | Error failure)
@@ -82,6 +116,43 @@ public final class BukkitRtpCandidateLoader implements AutoCloseable
 				throw failure;
 			}
 		});
+	}
+
+	private CompletionStage<Void> biomeGate(World world, RtpDestination destination, int feetY, String targetBiomeKey)
+	{
+		if(targetBiomeKey == null)
+		{
+			return CompletableFuture.completedFuture(null);
+		}
+		CompletableFuture<Void> result = new CompletableFuture<Void>();
+		int chunkX = Math.floorDiv(destination.blockX(), 16);
+		int chunkZ = Math.floorDiv(destination.blockZ(), 16);
+		boolean scheduled = FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ, () ->
+		{
+			try
+			{
+				int sampleY = Math.max(world.getMinHeight(), Math.min(world.getMaxHeight() - 1, feetY));
+				String biomeKey = WormholesPlatform.keyString(
+						world.getBiome(destination.blockX(), sampleY, destination.blockZ()).getKey());
+				if(RtpBiomeMatcher.matches(targetBiomeKey, List.of(biomeKey)))
+				{
+					result.complete(null);
+				}
+				else
+				{
+					result.completeExceptionally(new IllegalStateException("RTP candidate is outside the target biome"));
+				}
+			}
+			catch(RuntimeException exception)
+			{
+				result.completeExceptionally(exception);
+			}
+		});
+		if(!scheduled)
+		{
+			result.completeExceptionally(new IllegalStateException("Owning region rejected RTP biome query"));
+		}
+		return result;
 	}
 
 	public CompletionStage<RtpService.LoadedCandidate> exact(

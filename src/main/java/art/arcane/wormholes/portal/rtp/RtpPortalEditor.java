@@ -55,12 +55,15 @@ public final class RtpPortalEditor
 {
 	private static final int WORLDS_PER_PAGE = 8;
 	private static final int[] WORLD_POSITIONS = new int[] { -3, -1, 1, 3 };
+	private static final int BIOMES_PER_PAGE = 28;
+	private static final int BIOME_ROW_WIDTH = 7;
 
 	private final Host host;
 	private Page page;
 	private NumericField numericField;
 	private ManualAction confirmationAction;
 	private int worldPage;
+	private int biomePage;
 	private boolean configured;
 
 	public RtpPortalEditor(Host host)
@@ -88,6 +91,7 @@ public final class RtpPortalEditor
 			{
 				case OVERVIEW -> populateOverview(requiredWindow, requiredViewerId, snapshot);
 				case DESTINATION -> populateDestination(requiredWindow, requiredViewerId, snapshot);
+				case BIOME -> populateBiome(requiredWindow, requiredViewerId, snapshot);
 				case LANDING -> populateLanding(requiredWindow, requiredViewerId, snapshot);
 				case ROUTING -> populateRouting(requiredWindow, requiredViewerId, snapshot);
 				case EFFECTS -> populateEffects(requiredWindow, requiredViewerId, snapshot);
@@ -174,7 +178,64 @@ public final class RtpPortalEditor
 		window.setElement(-3, 5, actionElement("rtp-center-reset", WormholesMessages.RTP_RESET_CENTER,
 				MessageArgs.empty(), Material.BARRIER,
 				() -> mutate(snapshot, viewerId, new ResetCenterTargetMutation())));
+		String biomeValue = settings.targetBiomeKey() == null
+				? Wormholes.text().plain(WormholesMessages.RTP_BIOME_ANY_LABEL)
+				: settings.targetBiomeKey();
+		window.setElement(3, 5, actionElement("rtp-target-biome", WormholesMessages.RTP_BIOME_LINK,
+				WormholesLocalization.args(MessageArgument.untrusted("value", biomeValue)),
+				Material.OAK_SAPLING, () -> navigate(window, viewerId, Page.BIOME)));
 		window.setElement(0, 5, submenuBackElement(window, viewerId));
+	}
+
+	private void populateBiome(Window window, UUID viewerId, EditorSnapshot snapshot)
+	{
+		SettingsSnapshot settings = snapshot.settings();
+		window.setElement(0, 0, headerElement(WormholesMessages.RTP_BIOME_HEADER, Material.OAK_SAPLING));
+		boolean anySelected = settings.targetBiomeKey() == null;
+		window.setElement(-4, 1, choiceElement("rtp-biome-any",
+				anySelected ? WormholesMessages.RTP_BIOME_ANY_SELECTED : WormholesMessages.RTP_BIOME_ANY_AVAILABLE,
+				MessageArgs.empty(), Material.GLASS,
+				anySelected,
+				() -> mutate(snapshot, viewerId, new RtpPortalEditorModel.TargetBiomeMutation(null))));
+		List<RtpPortalEditorModel.BiomeOption> biomes = host.biomeOptions(viewerId);
+		if(biomes.isEmpty())
+		{
+			window.setElement(0, 2, infoElement("rtp-biome-empty", WormholesMessages.RTP_BIOME_EMPTY,
+					MessageArgs.empty(), Material.BARRIER, false));
+		}
+		int pageCount = Math.max(1, (biomes.size() + BIOMES_PER_PAGE - 1) / BIOMES_PER_PAGE);
+		biomePage = clamp(biomePage, 0, pageCount - 1);
+		int start = biomePage * BIOMES_PER_PAGE;
+		int end = Math.min(biomes.size(), start + BIOMES_PER_PAGE);
+		for(int index = start; index < end; index++)
+		{
+			RtpPortalEditorModel.BiomeOption biome = biomes.get(index);
+			int pageIndex = index - start;
+			int row = 1 + pageIndex / BIOME_ROW_WIDTH;
+			int position = pageIndex % BIOME_ROW_WIDTH - 3;
+			boolean selected = biome.key().equalsIgnoreCase(settings.targetBiomeKey());
+			window.setElement(position, row, choiceElement(
+					"rtp-biome-" + pageIndex,
+					selected ? WormholesMessages.RTP_BIOME_CURRENT : WormholesMessages.RTP_BIOME_AVAILABLE,
+					WormholesLocalization.args(
+							MessageArgument.untrusted("biome", biome.displayName()),
+							MessageArgument.untrusted("key", biome.key())),
+					Material.FERN,
+					selected,
+					() -> mutate(snapshot, viewerId, new RtpPortalEditorModel.TargetBiomeMutation(biome.key()))));
+		}
+		if(biomePage > 0)
+		{
+			window.setElement(-4, 5, actionElement("rtp-biome-previous", WormholesMessages.RTP_PREVIOUS_BIOMES,
+					MessageArgs.empty(), Material.ARROW, () -> changeBiomePage(window, viewerId, -1)));
+		}
+		if(biomePage + 1 < pageCount)
+		{
+			window.setElement(4, 5, actionElement("rtp-biome-next", WormholesMessages.RTP_NEXT_BIOMES,
+					MessageArgs.empty(), Material.ARROW, () -> changeBiomePage(window, viewerId, 1)));
+		}
+		window.setElement(0, 5, actionElement("rtp-biome-back", WormholesMessages.RTP_BACK_CATEGORY,
+				MessageArgs.empty(), Material.ARROW, () -> navigate(window, viewerId, Page.DESTINATION)));
 	}
 
 	private void populateLanding(Window window, UUID viewerId, EditorSnapshot snapshot)
@@ -501,6 +562,12 @@ public final class RtpPortalEditor
 		navigate(window, viewerId, Page.DESTINATION);
 	}
 
+	private void changeBiomePage(Window window, UUID viewerId, int delta)
+	{
+		biomePage += delta;
+		navigate(window, viewerId, Page.BIOME);
+	}
+
 	private void mutate(EditorSnapshot snapshot, UUID viewerId, Mutation mutation)
 	{
 		host.mutate(viewerId, snapshot.configurationRevision(), mutation);
@@ -754,6 +821,8 @@ public final class RtpPortalEditor
 	{
 		EditorSnapshot snapshot(UUID viewerId);
 
+		List<RtpPortalEditorModel.BiomeOption> biomeOptions(UUID viewerId);
+
 		void mutate(UUID viewerId, long expectedRevision, Mutation mutation);
 
 		void reset(UUID viewerId, long expectedRevision);
@@ -798,6 +867,7 @@ public final class RtpPortalEditor
 	{
 		OVERVIEW,
 		DESTINATION,
+		BIOME,
 		LANDING,
 		ROUTING,
 		EFFECTS,

@@ -116,6 +116,46 @@ public final class RtpServiceTest
 	}
 
 	@Test
+	public void targetBiomeEnforcementRelaxesLateInCampaignAndAfterFailedCampaigns()
+	{
+		TestHarness harness = new TestHarness(uniqueSampler());
+		UUID portalId = uuid("biome-portal");
+		RtpSettings biomeSettings = settings(RtpAllocationMode.SHARED, RtpRotationMode.STATIC)
+				.toBuilder()
+				.targetBiomeKey("minecraft:swamp")
+				.build();
+		harness.loader.failAll();
+		harness.register(portalId, biomeSettings);
+		harness.service.touchViewer(portalId, uuid("viewer")).join();
+		harness.executor.runAll();
+
+		List<Boolean> flags = harness.loader.enforceFlags();
+		assertEquals(32, flags.size());
+		for(int index = 0; index < 24; index++)
+		{
+			assertTrue(flags.get(index).booleanValue(), "attempt " + index + " should enforce the biome");
+		}
+		for(int index = 24; index < 32; index++)
+		{
+			assertFalse(flags.get(index).booleanValue(), "attempt " + index + " should be relaxed");
+		}
+
+		harness.advance(1_000L);
+		harness.executor.runAll();
+		assertEquals(64, flags.size());
+		assertTrue(flags.get(32).booleanValue());
+		assertFalse(flags.get(56).booleanValue());
+
+		harness.advance(2_000L);
+		harness.executor.runAll();
+		assertEquals(96, flags.size());
+		for(int index = 64; index < 96; index++)
+		{
+			assertFalse(flags.get(index).booleanValue(), "attempt " + index + " should be relaxed after two failed campaigns");
+		}
+	}
+
+	@Test
 	public void searchCampaignTimesOutAtFiveSecondsAndClosesLatePreparation()
 	{
 		TestHarness harness = new TestHarness(uniqueSampler());
@@ -1106,19 +1146,27 @@ public final class RtpServiceTest
 	{
 		private final Deque<PendingLoad> pending;
 		private final List<CountingRetention> retentions;
+		private final List<Boolean> enforceFlags;
 		private boolean holdNext;
+		private boolean failAll;
 		private int loadCount;
 
 		private ControlledLoader()
 		{
 			this.pending = new ArrayDeque<PendingLoad>();
 			this.retentions = new ArrayList<CountingRetention>();
+			this.enforceFlags = new ArrayList<Boolean>();
 		}
 
 		@Override
 		public CompletionStage<RtpService.LoadedCandidate> load(RtpService.SearchRequest request)
 		{
 			loadCount++;
+			enforceFlags.add(Boolean.valueOf(request.enforceTargetBiome()));
+			if(failAll)
+			{
+				return CompletableFuture.failedFuture(new IllegalStateException("forced load failure"));
+			}
 			CountingRetention retention = new CountingRetention();
 			retentions.add(retention);
 			RtpService.LoadedCandidate loaded = new RtpService.LoadedCandidate(validationRequest(request.destination()), retention);
@@ -1135,6 +1183,16 @@ public final class RtpServiceTest
 		private void holdNext()
 		{
 			holdNext = true;
+		}
+
+		private void failAll()
+		{
+			failAll = true;
+		}
+
+		private List<Boolean> enforceFlags()
+		{
+			return enforceFlags;
 		}
 
 		private CountingRetention completeNext()

@@ -568,13 +568,18 @@ public final class RtpService
 		}
 	}
 
-	public record SearchRequest(UUID portalId, long generation, RtpSettings settings, RtpDestination destination)
+	public record SearchRequest(UUID portalId, long generation, RtpSettings settings, RtpDestination destination, boolean enforceTargetBiome)
 	{
 		public SearchRequest
 		{
 			Objects.requireNonNull(portalId, "portalId");
 			Objects.requireNonNull(settings, "settings");
 			Objects.requireNonNull(destination, "destination");
+		}
+
+		public SearchRequest(UUID portalId, long generation, RtpSettings settings, RtpDestination destination)
+		{
+			this(portalId, generation, settings, destination, false);
 		}
 	}
 

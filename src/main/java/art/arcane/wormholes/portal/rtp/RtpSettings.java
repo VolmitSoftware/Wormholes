@@ -42,6 +42,7 @@ public final class RtpSettings
 	private final long privateReleaseMillis;
 	private final boolean rimEnabled;
 	private final boolean soundEnabled;
+	private final String targetBiomeKey;
 
 	private RtpSettings(Builder builder)
 	{
@@ -83,6 +84,7 @@ public final class RtpSettings
 		privateReleaseMillis = clamp(builder.privateReleaseMillis, MINIMUM_PRIVATE_RELEASE_MILLIS, MAXIMUM_PRIVATE_RELEASE_MILLIS);
 		rimEnabled = builder.rimEnabled;
 		soundEnabled = builder.soundEnabled;
+		targetBiomeKey = builder.targetBiomeKey;
 	}
 
 	public static RtpSettings defaults(World world)
@@ -174,6 +176,7 @@ public final class RtpSettings
 		builder.privateReleaseMillis(requiredJson.optLong("privateReleaseMillis", DEFAULT_PRIVATE_RELEASE_MILLIS));
 		builder.rimEnabled(requiredJson.optBoolean("rimEnabled", true));
 		builder.soundEnabled(requiredJson.optBoolean("soundEnabled", true));
+		builder.targetBiomeKey(requiredJson.optString("targetBiomeKey", null));
 		return builder.build();
 	}
 
@@ -203,6 +206,10 @@ public final class RtpSettings
 		json.put("privateReleaseMillis", privateReleaseMillis);
 		json.put("rimEnabled", rimEnabled);
 		json.put("soundEnabled", soundEnabled);
+		if(targetBiomeKey != null)
+		{
+			json.put("targetBiomeKey", targetBiomeKey);
+		}
 		return json;
 	}
 
@@ -306,6 +313,11 @@ public final class RtpSettings
 		return soundEnabled;
 	}
 
+	public String getTargetBiomeKey()
+	{
+		return targetBiomeKey;
+	}
+
 	public boolean hasSameRouteAs(RtpSettings other)
 	{
 		RtpSettings requiredOther = Objects.requireNonNull(other, "other");
@@ -324,7 +336,8 @@ public final class RtpSettings
 				&& Objects.equals(customCenterZ, requiredOther.customCenterZ)
 				&& verticalMode == requiredOther.verticalMode
 				&& allocationMode == requiredOther.allocationMode
-				&& rotationMode == requiredOther.rotationMode;
+				&& rotationMode == requiredOther.rotationMode
+				&& Objects.equals(targetBiomeKey, requiredOther.targetBiomeKey);
 	}
 
 	@Override
@@ -355,7 +368,8 @@ public final class RtpSettings
 				&& Objects.equals(customCenterZ, other.customCenterZ)
 				&& verticalMode == other.verticalMode
 				&& allocationMode == other.allocationMode
-				&& rotationMode == other.rotationMode;
+				&& rotationMode == other.rotationMode
+				&& Objects.equals(targetBiomeKey, other.targetBiomeKey);
 	}
 
 	@Override
@@ -365,7 +379,7 @@ public final class RtpSettings
 				Integer.valueOf(minimumRadius), Integer.valueOf(maximumRadius), verticalMode, Integer.valueOf(lowerY),
 				Integer.valueOf(upperY), Integer.valueOf(preferredY), allocationMode, rotationMode,
 				Long.valueOf(cycleDurationMillis), Long.valueOf(leaseIdleMillis), Long.valueOf(privateReleaseMillis),
-				Boolean.valueOf(rimEnabled), Boolean.valueOf(soundEnabled));
+				Boolean.valueOf(rimEnabled), Boolean.valueOf(soundEnabled), targetBiomeKey);
 	}
 
 	private static void validateCustomCenter(RtpCenterMode centerMode, Double customCenterX, Double customCenterZ)
@@ -447,6 +461,7 @@ public final class RtpSettings
 		private long privateReleaseMillis;
 		private boolean rimEnabled;
 		private boolean soundEnabled;
+		private String targetBiomeKey;
 
 		private Builder(World sourceWorld)
 		{
@@ -467,6 +482,7 @@ public final class RtpSettings
 			privateReleaseMillis = DEFAULT_PRIVATE_RELEASE_MILLIS;
 			rimEnabled = true;
 			soundEnabled = true;
+			targetBiomeKey = null;
 		}
 
 		private Builder(RtpSettings settings)
@@ -491,6 +507,7 @@ public final class RtpSettings
 			privateReleaseMillis = requiredSettings.privateReleaseMillis;
 			rimEnabled = requiredSettings.rimEnabled;
 			soundEnabled = requiredSettings.soundEnabled;
+			targetBiomeKey = requiredSettings.targetBiomeKey;
 		}
 
 		public Builder targetWorld(World world)
@@ -605,6 +622,12 @@ public final class RtpSettings
 		public Builder soundEnabled(boolean enabled)
 		{
 			soundEnabled = enabled;
+			return this;
+		}
+
+		public Builder targetBiomeKey(String biomeKey)
+		{
+			targetBiomeKey = RtpBiomeMatcher.normalize(biomeKey);
 			return this;
 		}
 

@@ -762,6 +762,20 @@ public final class WormholesMessages {
             "<gray>on server <white>{server}",
             "<gray>at {x}, {y}, {z} in {world} Facing {direction}",
             "<aqua>{state}");
+    public static final LinesKey PORTAL_MENU_DESTINATION_SORT = lines("portal.menu.destination.sort",
+            "<yellow><bold>Sort: <white>{mode}</bold>", "<gray>Change the destination ordering.", "<yellow>Left click");
+    public static final TextKey PORTAL_MENU_DESTINATION_SORT_SMART = text("portal.menu.destination.sort_smart", "Smart");
+    public static final TextKey PORTAL_MENU_DESTINATION_SORT_NAME = text("portal.menu.destination.sort_name", "Name");
+    public static final TextKey PORTAL_MENU_DESTINATION_SORT_WORLD = text("portal.menu.destination.sort_world", "World");
+    public static final TextKey PORTAL_MENU_DESTINATION_SORT_DISTANCE = text("portal.menu.destination.sort_distance", "Distance");
+    public static final LinesKey PORTAL_MENU_DESTINATION_PREVIOUS = lines("portal.menu.destination.previous_page",
+            "<yellow><bold>Previous Page</bold>", "<gray>Show the previous destinations.", "<yellow>Left click");
+    public static final LinesKey PORTAL_MENU_DESTINATION_NEXT = lines("portal.menu.destination.next_page",
+            "<yellow><bold>Next Page</bold>", "<gray>Show the next destinations.", "<yellow>Left click");
+    public static final LinesKey PORTAL_MENU_DESTINATION_PAGE = lines("portal.menu.destination.page",
+            "<aqua><bold>Page {page}/{pages}</bold>", "<gray>{count} destinations");
+    public static final LinesKey PORTAL_MENU_DESTINATION_EMPTY = lines("portal.menu.destination.empty",
+            "<gray>No destinations are available to link.");
     public static final TextKey PORTAL_PROMPT_INVITE = text("portal.prompt.invite", "<aqua>Paste the portal invite in chat (or '{cancel}'):");
     public static final TextKey PORTAL_PROMPT_BLOCK_STATE = text("portal.prompt.block_state", "<aqua>Enter a block state for this portal's network view edge, or '{cancel}':");
     public static final TextKey PORTAL_PROMPT_NAME = text("portal.prompt.name", "<aqua>Type the new portal name in chat (or '{cancel}'):");
@@ -908,6 +922,16 @@ public final class WormholesMessages {
     public static final LinesKey RTP_WORLD_AVAILABLE = lines("rtp.destination.world_available", "<aqua><bold>{world}</bold>", "<gray>Use this loaded world.", "<yellow>Left click to select");
     public static final LinesKey RTP_PREVIOUS_WORLDS = lines("rtp.destination.previous_worlds", "<yellow><bold>Previous Worlds</bold>", "<gray>Show the previous page.", "<yellow>Left click");
     public static final LinesKey RTP_NEXT_WORLDS = lines("rtp.destination.next_worlds", "<yellow><bold>Next Worlds</bold>", "<gray>Show the next page.", "<yellow>Left click");
+    public static final LinesKey RTP_BIOME_LINK = lines("rtp.destination.biome_link", "<yellow><bold>Target Biome <white>{value}</bold>", "<gray>Prefer landing in a chosen biome.", "<yellow>Left click");
+    public static final TextKey RTP_BIOME_ANY_LABEL = text("rtp.biome.any_label", "Any");
+    public static final LinesKey RTP_BIOME_HEADER = lines("rtp.biome.header", "<aqua><bold>Target Biome</bold>", "<gray>The search prefers this biome and falls back to any safe spot when it cannot be found nearby.");
+    public static final LinesKey RTP_BIOME_ANY_SELECTED = lines("rtp.biome.any_selected", "<green><bold>Any Biome</bold>", "<gray>No biome preference.", "<green>Selected");
+    public static final LinesKey RTP_BIOME_ANY_AVAILABLE = lines("rtp.biome.any_available", "<aqua><bold>Any Biome</bold>", "<gray>Clear the biome preference.", "<yellow>Left click to select");
+    public static final LinesKey RTP_BIOME_CURRENT = lines("rtp.biome.current", "<green><bold>{biome}</bold>", "<gray>{key}", "<green>Selected");
+    public static final LinesKey RTP_BIOME_AVAILABLE = lines("rtp.biome.available", "<aqua><bold>{biome}</bold>", "<gray>{key}", "<yellow>Left click to select");
+    public static final LinesKey RTP_BIOME_EMPTY = lines("rtp.biome.empty", "<gray>No biomes are available for the target world.");
+    public static final LinesKey RTP_PREVIOUS_BIOMES = lines("rtp.biome.previous", "<yellow><bold>Previous Biomes</bold>", "<gray>Show the previous page.", "<yellow>Left click");
+    public static final LinesKey RTP_NEXT_BIOMES = lines("rtp.biome.next", "<yellow><bold>Next Biomes</bold>", "<gray>Show the next page.", "<yellow>Left click");
     public static final LinesKey RTP_CENTER_PORTAL_SELECTED = lines("rtp.destination.center_portal_selected", "<green><bold>Portal-relative Center</bold>", "<gray>Center the annulus on this portal.", "<green>Selected");
     public static final LinesKey RTP_CENTER_PORTAL_AVAILABLE = lines("rtp.destination.center_portal_available", "<aqua><bold>Portal-relative Center</bold>", "<gray>Center the annulus on this portal.", "<yellow>Left click to select");
     public static final LinesKey RTP_CENTER_CUSTOM_SELECTED = lines("rtp.destination.center_custom_selected", "<green><bold>Custom Center</bold>", "<gray>Use editable X and Z coordinates.", "<green>Selected");

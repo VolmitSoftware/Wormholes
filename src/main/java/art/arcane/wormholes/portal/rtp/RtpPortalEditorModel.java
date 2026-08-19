@@ -77,14 +77,15 @@ public final class RtpPortalEditorModel
 			case ReservationTimeoutMutation change -> builder.privateReleaseMillis(change.durationMillis());
 			case RimMutation change -> builder.rimEnabled(change.enabled());
 			case SoundMutation change -> builder.soundEnabled(change.enabled());
+			case TargetBiomeMutation change -> builder.targetBiomeKey(change.biomeKey());
 		}
 		return builder.build();
 	}
 
 	public sealed interface Mutation permits AllocationMutation, CenterModeMutation, CustomCenterMutation,
 			CycleDurationMutation, LeaseIdleMutation, RadiiMutation, ReservationTimeoutMutation,
-			ResetCenterTargetMutation, RimMutation, RotationMutation, SoundMutation, TargetWorldMutation,
-			VerticalModeMutation, YMutation
+			ResetCenterTargetMutation, RimMutation, RotationMutation, SoundMutation, TargetBiomeMutation,
+			TargetWorldMutation, VerticalModeMutation, YMutation
 	{
 	}
 
@@ -164,7 +165,8 @@ public final class RtpPortalEditorModel
 			long leaseIdleMillis,
 			long reservationTimeoutMillis,
 			boolean rimEnabled,
-			boolean soundEnabled)
+			boolean soundEnabled,
+			String targetBiomeKey)
 	{
 		public SettingsSnapshot
 		{
@@ -222,7 +224,8 @@ public final class RtpPortalEditorModel
 					requiredSettings.getLeaseIdleMillis(),
 					requiredSettings.getPrivateReleaseMillis(),
 					requiredSettings.isRimEnabled(),
-					requiredSettings.isSoundEnabled());
+					requiredSettings.isSoundEnabled(),
+					requiredSettings.getTargetBiomeKey());
 		}
 	}
 
@@ -452,6 +455,20 @@ public final class RtpPortalEditorModel
 
 	public record SoundMutation(boolean enabled) implements Mutation
 	{
+	}
+
+	/** A null or blank biome key clears the target biome. */
+	public record TargetBiomeMutation(String biomeKey) implements Mutation
+	{
+	}
+
+	public record BiomeOption(String key, String displayName)
+	{
+		public BiomeOption
+		{
+			key = requireText(key, "key");
+			displayName = requireText(displayName, "displayName");
+		}
 	}
 
 	private static void validateCoordinatePair(Double x, Double z)

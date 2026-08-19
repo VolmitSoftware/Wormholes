@@ -1,6 +1,7 @@
 package art.arcane.wormholes.portal;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -13,6 +14,7 @@ import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.localization.WormholesMessages;
+import art.arcane.wormholes.portal.rtp.RtpBiomeDirectory;
 import art.arcane.wormholes.portal.rtp.RtpPortalEditor;
 import art.arcane.wormholes.portal.rtp.RtpPortalEditorModel;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
@@ -124,6 +126,17 @@ final class LocalPortalRtpEditor
 					worlds,
 					center.getX(),
 					center.getZ());
+		}
+
+		@Override
+		public List<RtpPortalEditorModel.BiomeOption> biomeOptions(UUID requestedViewerId)
+		{
+			RtpSettings settings = portal.getRtpSettings();
+			if(!viewerId.equals(requestedViewerId) || portal.getType() != PortalType.RTP || settings == null)
+			{
+				return List.of();
+			}
+			return RtpBiomeDirectory.optionsFor(portal.rtp().resolveRtpWorld(settings.getTargetWorldKey()));
 		}
 
 		@Override

@@ -91,6 +91,26 @@ public final class RtpSettingsTest
 	}
 
 	@Test
+	public void targetBiomeKeyNormalizesPersistsAndChangesRouteIdentity()
+	{
+		World source = world("overworld", -64, 320, 63);
+		RtpSettings anyBiome = RtpSettings.defaults(source);
+		RtpSettings swamp = anyBiome.toBuilder().targetBiomeKey(" Minecraft:Swamp ").build();
+		RtpSettings cleared = swamp.toBuilder().targetBiomeKey("   ").build();
+
+		assertNull(anyBiome.getTargetBiomeKey());
+		assertEquals("minecraft:swamp", swamp.getTargetBiomeKey());
+		assertNull(cleared.getTargetBiomeKey());
+		assertFalse(anyBiome.hasSameRouteAs(swamp));
+		assertFalse(anyBiome.toJson().has("targetBiomeKey"));
+		assertEquals("minecraft:swamp", swamp.toJson().getString("targetBiomeKey"));
+
+		RtpSettings restored = RtpSettings.fromJson(swamp.toJson(), key -> source);
+		assertEquals("minecraft:swamp", restored.getTargetBiomeKey());
+		assertEquals(swamp, restored);
+	}
+
+	@Test
 	public void builderRejectsInvalidSearchGeometryAndClampsBoundedValues()
 	{
 		World world = world("overworld", -64, 320, 63);

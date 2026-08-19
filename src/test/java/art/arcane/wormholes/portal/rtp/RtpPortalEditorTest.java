@@ -135,6 +135,34 @@ public final class RtpPortalEditorTest
 	}
 
 	@Test
+	public void biomePickerListsOptionsAndRoutesTargetBiomeMutations()
+	{
+		FakeHost host = new FakeHost(snapshot(settings(), status()));
+		host.biomeOptions = List.of(
+				new RtpPortalEditorModel.BiomeOption("minecraft:swamp", "Swamp"),
+				new RtpPortalEditorModel.BiomeOption("minecraft:desert", "Desert"));
+		Rendered rendered = render(host);
+		click(rendered.window(), "rtp-open-destination", ElementEvent.LEFT);
+
+		assertTrue(rendered.window().hasId("rtp-target-biome"));
+		click(rendered.window(), "rtp-target-biome", ElementEvent.LEFT);
+		assertTrue(rendered.window().hasId("rtp-biome-any"));
+		assertTrue(rendered.window().hasId("rtp-biome-0"));
+		assertTrue(rendered.window().hasId("rtp-biome-1"));
+		assertTrue(rendered.window().hasId("rtp-biome-back"));
+
+		click(rendered.window(), "rtp-biome-0", ElementEvent.LEFT);
+		assertEquals(new RtpPortalEditorModel.TargetBiomeMutation("minecraft:swamp"), host.lastMutation());
+
+		host.mutations.clear();
+		click(rendered.window(), "rtp-biome-any", ElementEvent.LEFT);
+		assertEquals(new RtpPortalEditorModel.TargetBiomeMutation(null), host.lastMutation());
+
+		click(rendered.window(), "rtp-biome-back", ElementEvent.LEFT);
+		assertTrue(rendered.window().hasId("rtp-target-biome"));
+	}
+
+	@Test
 	public void overviewResetsToDefaultsAndBackClosesImmediately()
 	{
 		FakeHost host = new FakeHost(snapshot(settings(), status()));
@@ -201,8 +229,10 @@ public final class RtpPortalEditorTest
 		settings = apply(settings, new RtpPortalEditorModel.ReservationTimeoutMutation(25_000L), source, resolver);
 		settings = apply(settings, new RtpPortalEditorModel.RimMutation(false), source, resolver);
 		settings = apply(settings, new RtpPortalEditorModel.SoundMutation(false), source, resolver);
+		settings = apply(settings, new RtpPortalEditorModel.TargetBiomeMutation(" Minecraft:Swamp "), source, resolver);
 
 		assertEquals("minecraft:the_nether", settings.getTargetWorldKey());
+		assertEquals("minecraft:swamp", settings.getTargetBiomeKey());
 		assertEquals(RtpCenterMode.CUSTOM, settings.getCenterMode());
 		assertEquals(96, settings.getMinimumRadius());
 		assertEquals(2048, settings.getMaximumRadius());
@@ -222,7 +252,7 @@ public final class RtpPortalEditorTest
 				source.sourceWorldKey(), source.targetWorldKey(), RtpCenterMode.CUSTOM, null, null,
 				source.minimumRadius(), source.maximumRadius(), source.verticalMode(), source.lowerY(), source.upperY(), source.preferredY(),
 				source.allocationMode(), source.rotationMode(), source.cycleDurationMillis(), source.leaseIdleMillis(),
-				source.reservationTimeoutMillis(), source.rimEnabled(), source.soundEnabled()));
+				source.reservationTimeoutMillis(), source.rimEnabled(), source.soundEnabled(), source.targetBiomeKey()));
 	}
 
 	private static RtpSettings apply(RtpSettings settings, Mutation mutation, World source, RtpSettings.WorldResolver resolver)
@@ -253,7 +283,7 @@ public final class RtpPortalEditorTest
 	{
 		return new SettingsSnapshot("minecraft:overworld", "minecraft:overworld", RtpCenterMode.PORTAL_RELATIVE,
 				null, null, 512, 4096, RtpVerticalMode.SURFACE, -63, 318, 64,
-				RtpAllocationMode.SHARED, RtpRotationMode.STATIC, 300_000L, 30_000L, 15_000L, true, true);
+				RtpAllocationMode.SHARED, RtpRotationMode.STATIC, 300_000L, 30_000L, 15_000L, true, true, null);
 	}
 
 	private static SettingsSnapshot copy(
@@ -266,7 +296,8 @@ public final class RtpPortalEditorTest
 		return new SettingsSnapshot(source.sourceWorldKey(), source.targetWorldKey(), source.centerMode(),
 				source.customCenterX(), source.customCenterZ(), source.minimumRadius(), source.maximumRadius(), source.verticalMode(),
 				source.lowerY(), source.upperY(), source.preferredY(), allocationMode, rotationMode,
-				source.cycleDurationMillis(), source.leaseIdleMillis(), source.reservationTimeoutMillis(), rimEnabled, soundEnabled);
+				source.cycleDurationMillis(), source.leaseIdleMillis(), source.reservationTimeoutMillis(), rimEnabled, soundEnabled,
+				source.targetBiomeKey());
 	}
 
 	private static StatusSnapshot status()
@@ -312,6 +343,7 @@ public final class RtpPortalEditorTest
 	{
 		private final EditorSnapshot snapshot;
 		private final List<CapturedMutation> mutations;
+		private List<RtpPortalEditorModel.BiomeOption> biomeOptions = List.of();
 		private ManualAction manualAction;
 		private long manualRevision;
 		private long resetRevision;
@@ -341,6 +373,13 @@ public final class RtpPortalEditorTest
 		public void mutate(UUID viewerId, long expectedRevision, Mutation mutation)
 		{
 			mutations.add(new CapturedMutation(viewerId, expectedRevision, mutation));
+		}
+
+		@Override
+		public List<RtpPortalEditorModel.BiomeOption> biomeOptions(UUID viewerId)
+		{
+			assertEquals(VIEWER_ID, viewerId);
+			return biomeOptions;
 		}
 
 		@Override
