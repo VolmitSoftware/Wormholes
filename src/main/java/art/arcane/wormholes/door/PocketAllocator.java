@@ -83,7 +83,13 @@ public final class PocketAllocator {
     }
 
     public synchronized PocketSpace getOrAllocate(PocketBinding binding) {
+        return getOrAllocate(binding, PocketShell.defaults());
+    }
+
+    /** Allocates with {@code shell} when the pocket is new; an existing pocket keeps its own. */
+    public synchronized PocketSpace getOrAllocate(PocketBinding binding, PocketShell shell) {
         Objects.requireNonNull(binding, "binding");
+        Objects.requireNonNull(shell, "shell");
         PocketSpace existing = byBinding.get(binding);
         if (existing != null) {
             return existing;
@@ -99,12 +105,38 @@ public final class PocketAllocator {
         }
         long followingSlot = Math.incrementExact(slot);
 
-        PocketSpace allocated = new PocketSpace(spaceId, binding, slot, centerX, centerY, centerZ);
+        PocketSpace allocated = new PocketSpace(spaceId, binding, slot, centerX, centerY, centerZ, shell);
         byBinding.put(binding, allocated);
         spaceIds.add(spaceId);
         occupiedSlots.add(slot);
         nextSlot = followingSlot;
         return allocated;
+    }
+
+    /**
+     * Replaces one allocation's shell in place.
+     *
+     * @return the stored space after the change
+     * @throws IllegalArgumentException when the pocket is unknown or the replacement moves it
+     */
+    public synchronized PocketSpace reshape(UUID spaceId, PocketShell shell) {
+        Objects.requireNonNull(spaceId, "spaceId");
+        Objects.requireNonNull(shell, "shell");
+        for (Map.Entry<PocketBinding, PocketSpace> entry : byBinding.entrySet()) {
+            PocketSpace stored = entry.getValue();
+            if (!stored.spaceId().equals(spaceId)) {
+                continue;
+            }
+            PocketSpace updated = stored.withShell(shell);
+            entry.setValue(updated);
+            return updated;
+        }
+        throw new IllegalArgumentException("unknown pocket space " + spaceId);
+    }
+
+    public synchronized Optional<PocketSpace> findById(UUID spaceId) {
+        Objects.requireNonNull(spaceId, "spaceId");
+        return byBinding.values().stream().filter(space -> space.spaceId().equals(spaceId)).findFirst();
     }
 
     public synchronized Optional<PocketSpace> find(PocketBinding binding) {

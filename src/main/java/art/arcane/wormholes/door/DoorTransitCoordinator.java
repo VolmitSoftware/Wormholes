@@ -2,6 +2,7 @@ package art.arcane.wormholes.door;
 
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.volmlib.util.localization.TextKey;
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
@@ -224,7 +225,7 @@ final class DoorTransitCoordinator
 		PocketSpace space;
 		try
 		{
-			space = guard.mutate(() -> guard.state().getOrAllocatePocket(destination.binding()));
+			space = guard.mutate(() -> guard.state().getOrAllocatePocket(destination.binding(), Settings.POCKET_SHELL));
 			pockets.index(space);
 		}
 		catch(IOException | RuntimeException ex)

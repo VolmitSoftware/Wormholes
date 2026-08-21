@@ -2,6 +2,7 @@ package art.arcane.wormholes.door;
 
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.platform.WormholesPlatform;
@@ -48,10 +49,12 @@ import org.bukkit.util.Vector;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 
@@ -84,6 +87,8 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	private final DoorTransitLedger ledger;
 	private final DoorTransitCoordinator transits;
 	private final PocketRescueService rescues;
+	private final PocketResizeService resizes;
+	private final DoorChunkLoader chunkLoader;
 	private final DoorBlockProtection protection;
 	private final DoorTransitFailures transitFailures;
 	private final DoorAccessMenu accessMenu;
@@ -104,7 +109,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		ledger = new DoorTransitLedger(plugin);
 		DoorChunkLoader.RegionDispatch regions =
 			(world, chunkX, chunkZ, task) -> FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ, task);
-		DoorChunkLoader chunkLoader = new DoorChunkLoader(
+		chunkLoader = new DoorChunkLoader(
 			plugin.getLogger(),
 			guard::closed,
 			(world, chunkX, chunkZ) -> WormholesPlatform.loadChunk(plugin, world, chunkX, chunkZ, true),
@@ -128,6 +133,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			pocketWorldService,
 			transitFailures);
 		rescues = new PocketRescueService(plugin, guard, ledger, chunkLoader, arrivals, tickets, travelers);
+		resizes = new PocketResizeService(plugin, pocketStructures);
 		protection = new DoorBlockProtection(guard, pockets);
 		accessMenu = new DoorAccessMenu(this);
 		accessFeedback = new DoorAccessFeedback(plugin);
@@ -163,8 +169,26 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		}
 		pocketWorldService.whenReady().thenAccept(world ->
 			FoliaScheduler.runGlobal(plugin, () -> runtimes.reconcileWorld(world)));
+		warnUnusablePocketMaterials();
 		plugin.getLogger().info("Dimensional Doors ready: " + state.endpoints().size()
 			+ " placed doors, " + state.spaces().size() + " pocket spaces.");
+	}
+
+	/** Config material names are only resolvable once the server's block registry exists. */
+	private void warnUnusablePocketMaterials()
+	{
+		PocketShell configured = Settings.POCKET_SHELL;
+		if(PocketMaterials.shellMaterial(configured.shellMaterial()).isEmpty())
+		{
+			plugin.getLogger().warning("pocketShellMaterial " + configured.shellMaterial()
+				+ " is not a usable pocket wall; new pockets use " + PocketShell.DEFAULT_SHELL_MATERIAL + ".");
+		}
+		if(PocketMaterials.returnDoorMaterial(configured.returnDoorMaterial()).isEmpty())
+		{
+			plugin.getLogger().warning("pocketReturnDoorMaterial " + configured.returnDoorMaterial()
+				+ " is not a hand-operable door; new pockets use "
+				+ PocketShell.DEFAULT_RETURN_DOOR_MATERIAL + ".");
+		}
 	}
 
 	private void registerLivingEntityMovement()
@@ -220,6 +244,127 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		if(!activeItems.registerRecipes())
 		{
 			plugin.getLogger().warning("One or more dimensional-door recipes could not be re-registered after a language reload.");
+		}
+	}
+
+	/** The pocket whose room contains {@code location}, if that is a pocket-world position at all. */
+	public Optional<PocketSpace> pocketAt(Location location)
+	{
+		Objects.requireNonNull(location, "location");
+		World world = location.getWorld();
+		if(world == null || !PocketWorldService.isPocketWorld(world))
+		{
+			return Optional.empty();
+		}
+		PocketSpace space = pockets.spaceAt(location.getBlockX(), location.getBlockZ());
+		if(space == null
+			|| !pocketStructures.layout(space).contains(
+				location.getBlockX(), location.getBlockY(), location.getBlockZ()))
+		{
+			return Optional.empty();
+		}
+		return Optional.of(space);
+	}
+
+	public List<PocketSpace> pockets()
+	{
+		return guard.state().spaces();
+	}
+
+	public PocketLayout layoutOf(PocketSpace space)
+	{
+		return pocketStructures.layout(Objects.requireNonNull(space, "space"));
+	}
+
+	/**
+	 * Rebuilds one pocket room at a new size and material set, keeping everything
+	 * already built inside it wherever the new walls still allow.
+	 *
+	 * <p>Runs asynchronously: the room's chunks are loaded, the work runs on the
+	 * owning region thread, and {@code callback} is invoked there exactly once.
+	 * A reshape that would destroy or displace anything is refused unless
+	 * {@code confirmed} is set.</p>
+	 */
+	public void resizePocket(
+		PocketSpace space,
+		PocketShell target,
+		boolean confirmed,
+		Consumer<PocketResizeOutcome> callback)
+	{
+		Objects.requireNonNull(space, "space");
+		Objects.requireNonNull(target, "target");
+		Objects.requireNonNull(callback, "callback");
+		if(space.shell().equals(target))
+		{
+			callback.accept(PocketResizeOutcome.unchanged(space, target));
+			return;
+		}
+		Optional<World> pocketWorld = pocketWorldService.world();
+		if(pocketWorld.isEmpty())
+		{
+			callback.accept(PocketResizeOutcome.of(
+				PocketResizeOutcome.Status.WORLD_UNAVAILABLE, space, target));
+			return;
+		}
+
+		World world = pocketWorld.get();
+		PocketSpace reshaped = space.withShell(target);
+		PocketLayout widest = pocketStructures.layout(
+			target.size() >= space.shell().size() ? reshaped : space);
+		PocketLayout resized = pocketStructures.layout(reshaped);
+		if(resized.minY() < world.getMinHeight() || resized.maxY() >= world.getMaxHeight())
+		{
+			callback.accept(PocketResizeOutcome.of(
+				PocketResizeOutcome.Status.DOES_NOT_FIT, space, target));
+			return;
+		}
+
+		chunkLoader.loadPocket(world, space, widest,
+			() -> applyResize(world, space, target, confirmed, callback),
+			() -> callback.accept(PocketResizeOutcome.of(
+				PocketResizeOutcome.Status.FAILED, space, target)));
+	}
+
+	private void applyResize(
+		World world,
+		PocketSpace space,
+		PocketShell target,
+		boolean confirmed,
+		Consumer<PocketResizeOutcome> callback)
+	{
+		try
+		{
+			PocketResizeService.Impact impact = resizes.assess(world, space, target);
+			if(!confirmed && !impact.isHarmless())
+			{
+				callback.accept(PocketResizeOutcome.needsConfirmation(space, target, impact));
+				return;
+			}
+
+			DoorItemIdentity returnIdentity = pocketStructures.layout(space).returnDoorIdentity();
+			PlacedDoorEndpoint previousReturn = guard.state()
+				.findEndpointByItem(returnIdentity.itemId()).orElse(null);
+			resizes.apply(world, space, target);
+			PocketSpace persisted = guard.mutate(() -> guard.state().reshapePocket(space.spaceId(), target));
+			pockets.reindex(space, persisted);
+
+			PlacedDoorEndpoint returnEndpoint = pocketStructures.returnEndpoint(world, persisted);
+			if(previousReturn == null)
+			{
+				guard.mutate(() -> guard.state().registerEndpoint(returnEndpoint));
+			}
+			else if(!previousReturn.equals(returnEndpoint))
+			{
+				guard.mutate(() -> guard.state().relocateEndpoint(previousReturn, returnEndpoint));
+				runtimes.remove(previousReturn);
+			}
+			runtimes.reconcile(runtimes.install(returnEndpoint));
+			callback.accept(PocketResizeOutcome.resized(persisted, target, impact));
+		}
+		catch(IOException | RuntimeException ex)
+		{
+			plugin.getLogger().log(Level.SEVERE, "Could not resize pocket " + space.spaceId(), ex);
+			callback.accept(PocketResizeOutcome.of(PocketResizeOutcome.Status.FAILED, space, target));
 		}
 	}
 

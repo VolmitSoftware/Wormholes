@@ -201,6 +201,14 @@ public final class DoorStateService {
 
     /** Resolves PERSONAL/PUBLIC identity and creates its permanent pocket if needed. */
     public synchronized PocketSpace getOrAllocatePocket(DoorItemIdentity identity, UUID travelerId) throws IOException {
+        return getOrAllocatePocket(identity, travelerId, PocketShell.defaults());
+    }
+
+    public synchronized PocketSpace getOrAllocatePocket(
+        DoorItemIdentity identity,
+        UUID travelerId,
+        PocketShell shell
+    ) throws IOException {
         DoorDestination destination = resolveDestination(
             Objects.requireNonNull(identity, "identity"),
             Objects.requireNonNull(travelerId, "travelerId")
@@ -208,24 +216,49 @@ public final class DoorStateService {
         if (!(destination instanceof PocketDoorDestination pocket)) {
             throw new IllegalArgumentException(identity.kind() + " does not resolve to a pocket");
         }
-        return getOrAllocatePocket(pocket.binding());
+        return getOrAllocatePocket(pocket.binding(), shell);
     }
 
     public synchronized PocketSpace getOrAllocatePocket(PocketBinding binding) throws IOException {
+        return getOrAllocatePocket(binding, PocketShell.defaults());
+    }
+
+    /** {@code shell} shapes the pocket only when this call is the one that creates it. */
+    public synchronized PocketSpace getOrAllocatePocket(PocketBinding binding, PocketShell shell) throws IOException {
         Objects.requireNonNull(binding, "binding");
+        Objects.requireNonNull(shell, "shell");
         Optional<PocketSpace> existing = allocator.find(binding);
         if (existing.isPresent()) {
             return existing.get();
         }
 
         PocketAllocator candidateAllocator = copyAllocator();
-        PocketSpace allocated = candidateAllocator.getOrAllocate(binding);
+        PocketSpace allocated = candidateAllocator.getOrAllocate(binding, shell);
         persistAndPublish(registry, candidateAllocator, pairsById, ticketsByPlayer, accessByItem);
         return allocated;
     }
 
+    /**
+     * Persists a new shell for an existing pocket. The caller is responsible for
+     * having already reshaped the world to match.
+     *
+     * @return the stored space after the change
+     */
+    public synchronized PocketSpace reshapePocket(UUID spaceId, PocketShell shell) throws IOException {
+        Objects.requireNonNull(spaceId, "spaceId");
+        Objects.requireNonNull(shell, "shell");
+        PocketAllocator candidateAllocator = copyAllocator();
+        PocketSpace updated = candidateAllocator.reshape(spaceId, shell);
+        persistAndPublish(registry, candidateAllocator, pairsById, ticketsByPlayer, accessByItem);
+        return updated;
+    }
+
     public synchronized Optional<PocketSpace> findPocket(PocketBinding binding) {
         return allocator.find(Objects.requireNonNull(binding, "binding"));
+    }
+
+    public synchronized Optional<PocketSpace> findPocketById(UUID spaceId) {
+        return allocator.findById(Objects.requireNonNull(spaceId, "spaceId"));
     }
 
     public synchronized Optional<ReturnTicket> getReturnTicket(UUID playerId) {

@@ -6,12 +6,13 @@ import java.util.UUID;
 
 /**
  * World-independent, deterministic layout of one protected pocket room.
+ *
+ * <p>The room is a cube anchored at its minimum corner. Its edge length comes
+ * from the pocket's own {@link PocketShell}, so resizing a pocket moves only the
+ * maximum walls, the ceiling, and the return door.</p>
  */
 public record PocketLayout(PocketSpace space) {
     public static final int CHUNK_SIZE = 16;
-    public static final int ROOM_CHUNKS = 2;
-    public static final int ROOM_SIZE = CHUNK_SIZE * ROOM_CHUNKS;
-    public static final int RETURN_DOOR_CENTER_OFFSET = ROOM_SIZE / 2 - 1;
     public static final float ENTRY_YAW = 0.0F;
     public static final float ENTRY_PITCH = 0.0F;
 
@@ -19,12 +20,17 @@ public record PocketLayout(PocketSpace space) {
         Objects.requireNonNull(space, "space");
     }
 
+    /** Edge length of the room in blocks, shell included. */
+    public int size() {
+        return space.shell().size();
+    }
+
     public int minX() {
         return alignedMinimum(Math.subtractExact(space.centerX(), PocketAllocator.CHUNK_CENTER_OFFSET));
     }
 
     public int maxX() {
-        return Math.addExact(minX(), ROOM_SIZE - 1);
+        return Math.addExact(minX(), size() - 1);
     }
 
     public int minZ() {
@@ -32,7 +38,7 @@ public record PocketLayout(PocketSpace space) {
     }
 
     public int maxZ() {
-        return Math.addExact(minZ(), ROOM_SIZE - 1);
+        return Math.addExact(minZ(), size() - 1);
     }
 
     public int minY() {
@@ -40,12 +46,17 @@ public record PocketLayout(PocketSpace space) {
     }
 
     public int maxY() {
-        return Math.addExact(minY(), ROOM_SIZE - 1);
+        return Math.addExact(minY(), size() - 1);
+    }
+
+    /** Distance from the minimum wall to the return door, centred on the maximum-Z wall. */
+    public int returnDoorCenterOffset() {
+        return size() / 2 - 1;
     }
 
     public PocketBlockPosition returnDoorLower() {
         return new PocketBlockPosition(
-            Math.addExact(minX(), RETURN_DOOR_CENTER_OFFSET),
+            Math.addExact(minX(), returnDoorCenterOffset()),
             Math.addExact(minY(), 1),
             maxZ()
         );
@@ -100,7 +111,42 @@ public record PocketLayout(PocketSpace space) {
         return isShellBlock(x, y, z);
     }
 
+    /**
+     * Visits every shell block exactly once without walking the room's interior.
+     *
+     * <p>A full-volume walk is cubic in the room edge; at the largest supported
+     * size that is millions of wasted iterations per provision and per entry
+     * check.</p>
+     */
+    public void forEachShellBlock(BlockVisitor visitor) {
+        Objects.requireNonNull(visitor, "visitor");
+        int minX = minX();
+        int maxX = maxX();
+        int minY = minY();
+        int maxY = maxY();
+        int minZ = minZ();
+        int maxZ = maxZ();
+        for (int y = minY; y <= maxY; y++) {
+            boolean cap = y == minY || y == maxY;
+            for (int x = minX; x <= maxX; x++) {
+                if (cap || x == minX || x == maxX) {
+                    for (int z = minZ; z <= maxZ; z++) {
+                        visitor.visit(x, y, z);
+                    }
+                    continue;
+                }
+                visitor.visit(x, y, minZ);
+                visitor.visit(x, y, maxZ);
+            }
+        }
+    }
+
     private static int alignedMinimum(int coordinate) {
         return Math.multiplyExact(Math.floorDiv(coordinate, CHUNK_SIZE), CHUNK_SIZE);
+    }
+
+    @FunctionalInterface
+    public interface BlockVisitor {
+        void visit(int x, int y, int z);
     }
 }

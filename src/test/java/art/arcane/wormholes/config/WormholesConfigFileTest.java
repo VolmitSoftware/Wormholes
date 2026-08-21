@@ -1,6 +1,7 @@
 package art.arcane.wormholes.config;
 
 import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.door.PocketShell;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
@@ -130,6 +131,45 @@ class WormholesConfigFileTest {
         Settings.refresh(enabled);
         assertTrue(enabled.getMain().dimensionalDoorsEnabled);
         assertTrue(Settings.DIMENSIONAL_DOORS_ENABLED);
+    }
+
+    @Test
+    void pocketShellSettingsRoundTripAndClampWithoutTouchingTheBlockRegistry() throws IOException {
+        Path config = tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME);
+        Files.createDirectories(config.getParent());
+        Files.writeString(config, """
+            schema = 2
+            [main]
+            pocket-room-size = 64
+            pocket-shell-material = "minecraft:obsidian"
+            pocket-return-door-material = "oak_door"
+            """, StandardCharsets.UTF_8);
+
+        WormholesSettings sized = WormholesSettings.loadAll(tempDir);
+        Settings.refresh(sized);
+
+        assertEquals(64, Settings.POCKET_SHELL.size());
+        assertEquals("OBSIDIAN", Settings.POCKET_SHELL.shellMaterial());
+        assertEquals("OAK_DOOR", Settings.POCKET_SHELL.returnDoorMaterial());
+
+        Files.writeString(config, """
+            schema = 2
+            [main]
+            pocket-room-size = 4096
+            """, StandardCharsets.UTF_8);
+        Settings.refresh(WormholesSettings.loadAll(tempDir));
+
+        assertEquals(PocketShell.MAX_SIZE, Settings.POCKET_SHELL.size());
+        assertEquals(PocketShell.DEFAULT_SHELL_MATERIAL, Settings.POCKET_SHELL.shellMaterial());
+
+        Files.writeString(config, """
+            schema = 2
+            [main]
+            pocket-shell-material = ""
+            """, StandardCharsets.UTF_8);
+        Settings.refresh(WormholesSettings.loadAll(tempDir));
+
+        assertEquals(PocketShell.defaults(), Settings.POCKET_SHELL);
     }
 
     @Test

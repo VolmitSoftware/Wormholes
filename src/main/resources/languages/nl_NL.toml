@@ -58,9 +58,8 @@ locale = "nl_NL"
 "director.runtime.error.execution_failed" = "Opdracht {command} kon niet worden uitgevoerd: {reason}"
 "director.runtime.usage" = "Gebruik: {usage}"
 "command.help.root" = "Hoofdcommando van Wormholes"
-"command.help.wand" = "Geef een portaalstaf of runen met rune=<type>"
-"command.help.wand.rune" = "portal | wormhole | gateway"
-"command.help.wand.count" = "Aantal runen (standaard 1)"
+"command.help.wand" = "Ontvang de portaalstaf en een wormgatrune"
+"command.help.wand.rune" = "Ook een wormgatrune geven (rune=false geeft alleen de staf)"
 "command.help.door" = "Geef een dimensiedeur die in survival kan worden gebruikt"
 "command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
 "command.help.reload" = "Herlaad de Wormholes-configuratie en taalbestanden"
@@ -92,7 +91,7 @@ locale = "nl_NL"
 "command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Je hebt geen toestemming om dat commando te gebruiken."
 "command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Alleen spelers kunnen items ontvangen."
 "command.error.usage" = "<gray>Gebruik: <white>/wormholes help"
-"command.wand.unknown_rune" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Onbekend runetype '<white>{rune}<red>'. Gebruik portal, wormhole of gateway."
+"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portaalstaf gegeven."
 "command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Dimensionele deuren zijn niet beschikbaar."
 "command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Onbekend deurtype. Gebruik pair, personal of public, pair_trapdoor, personal_trapdoor, public_trapdoor."
 "command.door.empty_type" = "Deurtype mag niet leeg zijn"
@@ -397,6 +396,25 @@ locale = "nl_NL"
 "portal.menu.destination.sort_distance" = "Afstand"
 "rtp.biome.any_label" = "Elk"
 
+"command.help.pocket" = "Zakdimensies bekijken en opnieuw vormgeven"
+"command.help.pocket.info" = "Toon de grootte, materialen en grenzen van de zak waarin je staat"
+"command.help.pocket.resize" = "Herbouw de zak waarin je staat met een nieuwe grootte of nieuw materiaal"
+"command.help.pocket.resize.size" = "Nieuwe kamerrand in blokken, of 0 om de huidige grootte te houden"
+"command.help.pocket.resize.material" = "Nieuw blok voor muren, vloer en plafond, of keep"
+"command.help.pocket.resize.door" = "Nieuw blok voor de uitgangsdeur, of keep"
+"command.help.pocket.resize.confirm" = "Vereist wanneer de wijziging iets zou vernietigen of verplaatsen"
+"command.help.pocket.resizeall" = "Herbouw elke bestaande zak met een nieuwe grootte of nieuw materiaal"
+"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Ga in een zakdimensie staan om dit uit te voeren."
+"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>De zakgrootte moet tussen {minimum} en {maximum} blokken liggen."
+"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} kan geen zakmuur zijn. Gebruik een vast blok dat niet valt."
+"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} kan geen uitgangsdeur zijn. Gebruik een deur die met de hand opengaat; ijzeren deuren worden geweigerd."
+"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Die zak heeft deze grootte en deze materialen al."
+"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Zak herbouwd op <white>{size}<green> blokken (was <white>{previous}<green>), muren <white>{material}<green>, uitgangsdeur <white>{door}."
+"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>De zak kon niet worden herbouwd. Controleer de console."
+"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>De zakdimensie is niet geladen."
+"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Een kamer van {size} blokken past niet in de bouwhoogte van de zakdimensie."
+"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray><white>{count}<gray> zakken worden herbouwd."
+"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Herbouwd <white>{resized}<green>, overgeslagen <white>{skipped}<green>, mislukt <white>{failed}."
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>Reiskosten</bold>","<gray>Vereis een exact voorwerp of Vault-valuta","<gray>wanneer een speler dit portaal gebruikt.","","<gray>Modus: <white>{mode}","<gray>Kosten: <white>{cost}","","<dark_gray>Klik om te configureren."]
 "portal.menu.cost.placard" = ["<gold><bold>Reiskosten</bold>","<gray>Spelers moeten betalen voordat dit portaal","<gray>ze laat reizen.","","<gray>Modus: <white>{mode}","<gray>Kosten: <white>{cost}"]
@@ -421,11 +439,10 @@ locale = "nl_NL"
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Portaalhulp: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Gebruik de portaalstaf op een portaal om bestemming, weergave, reizen en toegang in te stellen."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Je hebt een portaalstaf en 1 wormgatrune ontvangen.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Bouw TWEE vormen van wormgatrunen (een willekeurige verbonden vorm op één vlak oppervlak), verbind ze en blijf binnen {range} blokken om de projectie te zien.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Voer <white>/wormholes info<gray> uit voor alle stappen."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Opnamebestand: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Volg dit bestand om de live status van het netwerk en de weergaven te delen. Het wordt bij elk interval vervangen."]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>Een wormgat bouwen</bold>","<dark_gray>1. <gray>Haal een portaalstaf en portaalrunen bij de server of een beheerder.","<dark_gray>2. <gray>Plaats de runen in een verbonden vorm op één vlak oppervlak.","<gray>   Elke verbonden vorm werkt: rechthoeken, lijnen (3x1), losse blokken, L-vormen en kruisen.","<gray>   De runen moeten vlak op dezelfde as-uitgelijnde muur, vloer of plafond liggen.","<dark_gray>3. <gray>Houd de portaalstaf vast en <white>klik met links op een runeblok<gray> om het portaal te vormen.","<dark_gray>4. <gray>Bouw ergens anders een TWEEDE portaal (op elke afstand en in elke wereld).","<dark_gray>5. <gray>Klik met de staf op het open portaal om het hoofdmenu te openen.","<gray>   Kies <white>Bestemming<gray> en selecteer het andere portaal. Herhaal dit vanaf de andere kant.","<gray>   Oriëntatie en toegang staan in afzonderlijke, eenvoudige menu's.","<dark_gray>6. <gray>Blijf binnen {range} blokken van een portaal — de doelwereld wordt in het frame geprojecteerd en naar binnen lopen teleporteert je.","<gray>Beheerders kunnen voorwerpen maken met <white>/wormholes wand rune=\\<portal|wormhole|gateway> count=\\<n>"]
+"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>Een wormgat bouwen</bold>","<dark_gray>1. <gray>Haal een portaalstaf en portaalrunen bij de server of een beheerder.","<dark_gray>2. <gray>Plaats de runen in een verbonden vorm op één vlak oppervlak.","<gray>   Elke verbonden vorm werkt: rechthoeken, lijnen (3x1), losse blokken, L-vormen en kruisen.","<gray>   De runen moeten vlak op dezelfde as-uitgelijnde muur, vloer of plafond liggen.","<dark_gray>3. <gray>Houd de portaalstaf vast en <white>klik met links op een runeblok<gray> om het portaal te vormen.","<dark_gray>4. <gray>Bouw ergens anders een TWEEDE portaal (op elke afstand en in elke wereld).","<dark_gray>5. <gray>Klik met de staf op het open portaal om het hoofdmenu te openen.","<gray>   Kies <white>Bestemming<gray> en selecteer het andere portaal. Herhaal dit vanaf de andere kant.","<gray>   Oriëntatie en toegang staan in afzonderlijke, eenvoudige menu's.","<dark_gray>6. <gray>Blijf binnen {range} blokken van een portaal — de doelwereld wordt in het frame geprojecteerd en naar binnen lopen teleporteert je.","<gray>Beheerders kunnen voorwerpen maken met <white>/wormholes wand"]
 "item.portal_wand" = ["<gold><bold>Portaalstaf</bold>"]
 "item.portal_rune" = ["<gold><bold>Portaalrune</bold>"]
 "item.wormhole_rune" = ["<gold><bold>Wormgatrune</bold>"]
-"item.gateway_rune" = ["<red><bold>Gatewayrune</bold>"]
 "item.door.entangled_pair" = ["<gold>Verstrengeld Deurenpaar","<gray>Bevat twee automatisch verbonden wormgatdeuren.","<gray>Gebruik het om eindpunten A en B te scheiden."]
 "item.door.paired" = ["<gold>Wormgatdeur {endpoint}","<gray>Automatisch verbonden met eindpunt {other}.","<gray>Open de deur en stap fysiek over de drempel."]
 "item.door.personal" = ["<aqua>Persoonlijke Dimensiedeur","<gray>Elke reiziger betreedt een eigen blijvende dimensie.","<gray>Dezelfde reiziger bereikt altijd dezelfde plaats."]
@@ -566,10 +583,8 @@ locale = "nl_NL"
 "door.menu.access.open_state" = ["<aqua><bold>OpenState: <white>{state}","<gray>Het portaal volgt de fysieke toestand van dit blok.","<gray>Actieve toestand: <white>{state}<gray>.","","<dark_gray>Volgende: {next}. Klik om te wisselen."]
 "door.menu.access.entry" = ["<white>{name}","<gray>Status: <aqua>{state}","","<dark_gray>Linkerklik: toestaan. Rechterklik: blokkeren.","<dark_gray>Middelklik of Shift + linkerklik: verwijderen."]
 
-[plural."command.wand.granted_runes"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count} {rune}<green>-rune gegeven."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count} {rune}<green>-runen gegeven."
-
+"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Zak <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Grootte <white>{size}<gray> blokken, muren <white>{material}<gray>, uitgangsdeur <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Grenzen <white>{minimum}<gray> tot <white>{maximum}"]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Herbouwen op {size} blokken zou <white>{blocks}<red> geplaatste blokken vernietigen (<white>{containers}<red> met items) en <white>{entities}<red> entiteiten verplaatsen.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>De inhoud van kisten en alles buiten de nieuwe muren valt bij de ingang. De rest gaat verloren.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Voer hetzelfde commando uit met <white>confirm=true<gray> om door te gaan."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> portaal verwijderd en lokale portaalverbindingen opgeschoond."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> portalen verwijderd en lokale portaalverbindingen opgeschoond."

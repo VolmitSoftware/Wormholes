@@ -48,7 +48,8 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
             "wormholes.admin.items",
             "wormholes.admin.network",
             "wormholes.admin.projection",
-            "wormholes.admin.reset"
+            "wormholes.admin.reset",
+            "wormholes.admin.pocket"
     );
 
     private final Wormholes plugin;

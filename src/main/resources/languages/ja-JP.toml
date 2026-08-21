@@ -58,9 +58,8 @@ locale = "ja-JP"
 "director.runtime.error.execution_failed" = "コマンド {command} の実行に失敗しました: {reason}"
 "director.runtime.usage" = "使用法: {usage}"
 "command.help.root" = "Wormholes のルートコマンド"
-"command.help.wand" = "ポータルワンドを入手するか、rune=<type> を指定してルーンを入手します"
-"command.help.wand.rune" = "portal | wormhole | gateway"
-"command.help.wand.count" = "ルーンの個数(デフォルト 1)"
+"command.help.wand" = "ポータルワンドとワームホールルーンを入手する"
+"command.help.wand.rune" = "ワームホールルーンも渡す (rune=false ならワンドのみ)"
 "command.help.door" = "サバイバルで使用できるディメンションドアのアイテムを付与します"
 "command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
 "command.help.reload" = "Wormholes の設定ファイルと言語ファイルを再読み込みします"
@@ -92,7 +91,7 @@ locale = "ja-JP"
 "command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>このコマンドを使用する権限がありません。"
 "command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>アイテムを受け取れるのはプレイヤーだけです。"
 "command.error.usage" = "<gray>使用法: <white>/wormholes help"
-"command.wand.unknown_rune" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>不明なルーン種別 '<white>{rune}<red>' です。portal、wormhole、gateway のいずれかを使用してください。"
+"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>ポータルワンドを渡しました。"
 "command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ディメンションドアは現在使用できません。"
 "command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>不明なドア種別です。pair、personal、public、pair_trapdoor、personal_trapdoor、public_trapdoor のいずれかを使用してください。"
 "command.door.empty_type" = "ドアの種類は空にできません"
@@ -398,6 +397,25 @@ locale = "ja-JP"
 "portal.menu.destination.sort_distance" = "距離"
 "rtp.biome.any_label" = "任意"
 
+"command.help.pocket" = "ポケットディメンションの確認と作り直し"
+"command.help.pocket.info" = "今いるポケットのサイズ、素材、範囲を表示する"
+"command.help.pocket.resize" = "今いるポケットを新しいサイズや素材で作り直す"
+"command.help.pocket.resize.size" = "部屋の新しい一辺のブロック数。0 で現在のサイズを維持"
+"command.help.pocket.resize.material" = "壁、床、天井の新しいブロック。または keep"
+"command.help.pocket.resize.door" = "出口のドアの新しいブロック。または keep"
+"command.help.pocket.resize.confirm" = "変更で何かが壊れたり移動したりする場合に必要"
+"command.help.pocket.resizeall" = "既存のすべてのポケットを新しいサイズや素材で作り直す"
+"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>このコマンドはポケットディメンションの中で実行してください。"
+"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ポケットのサイズは {minimum} から {maximum} ブロックの間にしてください。"
+"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} はポケットの壁に使えません。落下しない不透過ブロックを指定してください。"
+"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} はポケットの出口ドアに使えません。手で開けられるドアを指定してください。鉄のドアは使えません。"
+"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>そのポケットはすでにこのサイズと素材です。"
+"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>ポケットを <white>{size}<green> ブロックで作り直しました (以前は <white>{previous}<green>)。壁 <white>{material}<green>、出口ドア <white>{door}。"
+"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ポケットを作り直せませんでした。コンソールを確認してください。"
+"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ポケットディメンションが読み込まれていません。"
+"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} ブロックの部屋はポケットディメンションの建築高度に収まりません。"
+"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray><white>{count}<gray> 個のポケットを作り直しています。"
+"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>作り直し <white>{resized}<green>、スキップ <white>{skipped}<green>、失敗 <white>{failed}。"
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>移動コスト</bold>","<gray>プレイヤーがこのポータルを使用するときに","<gray>正確なアイテムまたは Vault 通貨を要求します。","","<gray>モード: <white>{mode}","<gray>コスト: <white>{cost}","","<dark_gray>クリックして設定します。"]
 "portal.menu.cost.placard" = ["<gold><bold>移動コスト</bold>","<gray>プレイヤーは支払いを済ませるまで","<gray>このポータルで移動できません。","","<gray>モード: <white>{mode}","<gray>コスト: <white>{cost}"]
@@ -422,11 +440,10 @@ locale = "ja-JP"
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>ポータルのヘルプ: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>ポータルにポータルワンドを使うと、目的地、表示、移動、アクセス設定を開けます。"]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>ポータルワンドとワームホールルーン 1 個を付与しました。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>ワームホールルーンの形を 2 つ(同じ平面上の任意のつながった形)作ってリンクし、{range} ブロック以内に立つと投影が見えます。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>詳しい手順は <white>/wormholes info<gray> で確認できます。"]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>スナップショットファイル: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>このファイルを監視すると、ネットワークとビューの状態をリアルタイムで確認できます。ファイルは周期ごとに上書きされます。"]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>ワームホールの作り方</bold>","<dark_gray>1. <gray>サーバーまたは管理者からポータルワンドとポータルルーンを入手します。","<dark_gray>2. <gray>同じ平面上に、ルーンを任意のつながった形で配置します。","<gray>   長方形、直線 (3x1)、単一ブロック、L 字形、十字形など、つながった形なら使用できます。","<gray>   ルーンは、座標軸に沿った 1 枚の壁、床、または天井上に平らに配置してください。","<dark_gray>3. <gray>ポータルワンドを持ち、<white>任意のルーンブロックを左クリック<gray>してポータルを形成します。","<dark_gray>4. <gray>別の場所に 2 つ目のポータルを作ります(距離とワールドは問いません)。","<dark_gray>5. <gray>開いたポータルをワンドでクリックし、メインメニューを開きます。","<gray>   <white>目的地<gray>を選び、もう一方のポータルを指定します。反対側でも同じ操作を行います。","<gray>   向きとアクセス設定は、それぞれ専用の簡単なメニューにまとまっています。","<dark_gray>6. <gray>どちらかのポータルから {range} ブロック以内に立つと、目的地のワールドがフレーム内に投影され、入るとテレポートします。","<gray>管理者は <white>/wormholes wand rune=\\<portal|wormhole|gateway> count=\\<n> でアイテムを作成できます"]
+"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>ワームホールの作り方</bold>","<dark_gray>1. <gray>サーバーまたは管理者からポータルワンドとポータルルーンを入手します。","<dark_gray>2. <gray>同じ平面上に、ルーンを任意のつながった形で配置します。","<gray>   長方形、直線 (3x1)、単一ブロック、L 字形、十字形など、つながった形なら使用できます。","<gray>   ルーンは、座標軸に沿った 1 枚の壁、床、または天井上に平らに配置してください。","<dark_gray>3. <gray>ポータルワンドを持ち、<white>任意のルーンブロックを左クリック<gray>してポータルを形成します。","<dark_gray>4. <gray>別の場所に 2 つ目のポータルを作ります(距離とワールドは問いません)。","<dark_gray>5. <gray>開いたポータルをワンドでクリックし、メインメニューを開きます。","<gray>   <white>目的地<gray>を選び、もう一方のポータルを指定します。反対側でも同じ操作を行います。","<gray>   向きとアクセス設定は、それぞれ専用の簡単なメニューにまとまっています。","<dark_gray>6. <gray>どちらかのポータルから {range} ブロック以内に立つと、目的地のワールドがフレーム内に投影され、入るとテレポートします。","<gray>管理者は <white>/wormholes wand でアイテムを作成できます"]
 "item.portal_wand" = ["<gold><bold>ポータルワンド</bold>"]
 "item.portal_rune" = ["<gold><bold>ポータルルーン</bold>"]
 "item.wormhole_rune" = ["<gold><bold>ワームホールルーン</bold>"]
-"item.gateway_rune" = ["<red><bold>ゲートウェイルーン</bold>"]
 "item.door.entangled_pair" = ["<gold>量子もつれドアのペア","<gray>自動的にリンクされた 2 枚のワームホールドアです。","<gray>使用すると A 側と B 側のドアに分かれます。"]
 "item.door.paired" = ["<gold>ワームホールドア {endpoint}","<gray>{other} 側に自動リンクされます。","<gray>ドアを開き、実際に敷居を越えると移動します。"]
 "item.door.personal" = ["<aqua>個人用ディメンションドア","<gray>移動者ごとに固有の永続次元へ入ります。","<gray>同じ移動者は常に同じ場所へ到着します。"]
@@ -567,10 +584,8 @@ locale = "ja-JP"
 "door.menu.access.open_state" = ["<aqua><bold>OpenState: <white>{state}","<gray>ポータルはこのブロックの物理状態に従います。","<gray>有効な状態: <white>{state}<gray>。","","<dark_gray>次: {next}。クリックして切り替えます。"]
 "door.menu.access.entry" = ["<white>{name}","<gray>状態: <aqua>{state}","","<dark_gray>左クリック: 許可。右クリック: 拒否。","<dark_gray>中クリックまたは Shift + 左クリック: 削除。"]
 
-[plural."command.wand.granted_runes"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count} 個の {rune}<green> ルーンを付与しました。"
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count} 個の {rune}<green> ルーンを付与しました。"
-
+"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>ポケット <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>サイズ <white>{size}<gray> ブロック、壁 <white>{material}<gray>、出口ドア <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>範囲 <white>{minimum}<gray> から <white>{maximum}"]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} ブロックで作り直すと、設置済みブロック <white>{blocks}<red> 個 (うち中身入り <white>{containers}<red> 個) が壊れ、エンティティ <white>{entities}<red> 体が移動します。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>コンテナの中身と新しい壁の外に残ったものは入口にドロップされます。それ以外は失われます。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>続けるには同じコマンドに <white>confirm=true<gray> を付けて実行してください。"]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> 個のポータルを削除し、ローカルポータルリンクを消去しました。"
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> 個のポータルを削除し、ローカルポータルリンクを消去しました。"

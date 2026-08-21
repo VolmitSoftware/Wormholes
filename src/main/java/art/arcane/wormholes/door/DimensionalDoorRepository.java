@@ -28,6 +28,7 @@ public final class DimensionalDoorRepository {
     private static final int DOOR_MODE_ACCESS_SCHEMA = 3;
     private static final int PRE_TRAPDOOR_SCHEMA = 4;
     private static final int LEGACY_POLARITY_SCHEMA = 5;
+    private static final int PRE_POCKET_SHELL_SCHEMA = 6;
     private static final Pattern NEXT_POCKET_SLOT = Pattern.compile("\\\"nextPocketSlot\\\"\\s*:\\s*(\\d+)");
     private static final Pattern POCKET_SLOT = Pattern.compile("\\\"slot\\\"\\s*:\\s*(\\d+)");
 
@@ -192,7 +193,11 @@ public final class DimensionalDoorRepository {
                 .put("slot", space.slot())
                 .put("centerX", space.centerX())
                 .put("centerY", space.centerY())
-                .put("centerZ", space.centerZ()));
+                .put("centerZ", space.centerZ())
+                .put("shell", new JSONObject()
+                    .put("size", space.shell().size())
+                    .put("shellMaterial", space.shell().shellMaterial())
+                    .put("returnDoorMaterial", space.shell().returnDoorMaterial())));
         }
         root.put("spaces", spaces);
 
@@ -368,7 +373,8 @@ public final class DimensionalDoorRepository {
                 space.getLong("slot"),
                 space.getInt("centerX"),
                 space.getInt("centerY"),
-                space.getInt("centerZ")
+                space.getInt("centerZ"),
+                decodePocketShell(schema, space)
             ));
         }
 
@@ -396,6 +402,20 @@ public final class DimensionalDoorRepository {
             spaces,
             tickets,
             decodeAccessRecords(root.optJSONArray("access"), schema)
+        );
+    }
+
+    /** Every pocket written before shells were configurable is the original 32-block smooth-stone room. */
+    private static PocketShell decodePocketShell(int schema, JSONObject space) {
+        JSONObject shell = schema <= PRE_POCKET_SHELL_SCHEMA ? null : space.optJSONObject("shell");
+        if (shell == null) {
+            return PocketShell.defaults();
+        }
+        PocketShell defaults = PocketShell.defaults();
+        return new PocketShell(
+            shell.optInt("size", defaults.size()),
+            shell.optString("shellMaterial", defaults.shellMaterial()),
+            shell.optString("returnDoorMaterial", defaults.returnDoorMaterial())
         );
     }
 

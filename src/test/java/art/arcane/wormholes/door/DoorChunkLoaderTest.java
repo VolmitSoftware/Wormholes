@@ -209,7 +209,7 @@ final class DoorChunkLoaderTest
 
 	private static PocketSpace space()
 	{
-		return new PocketSpace(new UUID(0L, 1L), PocketBinding.personal(new UUID(0L, 2L)), 0L, 8, 128, 8);
+		return new PocketSpace(new UUID(0L, 1L), PocketBinding.personal(new UUID(0L, 2L)), 0L, 8, 128, 8, PocketShell.defaults());
 	}
 
 	private static Chunk chunk(int chunkX, int chunkZ)

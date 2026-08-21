@@ -2,6 +2,9 @@ package art.arcane.wormholes.door;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -152,9 +155,87 @@ class PocketLayoutTest {
         assertTrue(layout.isInteriorBlock(centerX + 4, 130, centerZ + 4));
     }
 
+
+    @Test
+    void resizingKeepsTheMinimumCornerAndMovesOnlyTheMaximumWalls() {
+        PocketSpace space = space(60, 8_200, 128, 16_392, PocketShell.defaults());
+        PocketLayout original = new PocketLayout(space);
+        PocketLayout grown = new PocketLayout(space.withShell(PocketShell.defaults().withSize(64)));
+        PocketLayout shrunk = new PocketLayout(space.withShell(PocketShell.defaults().withSize(16)));
+
+        for (PocketLayout layout : List.of(original, grown, shrunk)) {
+            assertEquals(8_192, layout.minX());
+            assertEquals(16_384, layout.minZ());
+            assertEquals(127, layout.minY());
+        }
+        assertEquals(8_192 + 63, grown.maxX());
+        assertEquals(127 + 63, grown.maxY());
+        assertEquals(16_384 + 63, grown.maxZ());
+        assertEquals(8_192 + 15, shrunk.maxX());
+        assertEquals(127 + 15, shrunk.maxY());
+        assertEquals(16_384 + 15, shrunk.maxZ());
+        assertEquals(64, grown.size());
+        assertEquals(16, shrunk.size());
+    }
+
+    @Test
+    void theReturnDoorStaysCentredAndGroundedAtEverySupportedSize() {
+        for (int size : List.of(PocketShell.MIN_SIZE, 16, 32, 48, PocketShell.MAX_SIZE)) {
+            PocketLayout layout = new PocketLayout(
+                space(70 + size, 8, 128, 8, PocketShell.defaults().withSize(size)));
+            PocketBlockPosition lower = layout.returnDoorLower();
+            PocketBlockPosition upper = layout.returnDoorUpper();
+
+            assertEquals(1, Math.abs(2 * lower.x() - (layout.minX() + layout.maxX())), "size " + size);
+            assertEquals(layout.maxZ(), lower.z(), "size " + size);
+            assertEquals(layout.minY() + 1, lower.y(), "size " + size);
+            assertTrue(layout.isShellBlock(lower.x(), lower.y(), lower.z()), "size " + size);
+            assertTrue(layout.isShellBlock(upper.x(), upper.y(), upper.z()), "size " + size);
+            assertTrue(layout.isShellBlock(
+                layout.returnDoorSupport().x(),
+                layout.returnDoorSupport().y(),
+                layout.returnDoorSupport().z()), "size " + size);
+            PocketEntryCoordinates entry = layout.entry();
+            assertTrue(layout.isInteriorBlock(
+                floor(entry.x()), floor(entry.y()), floor(entry.z())), "size " + size);
+        }
+    }
+
+    @Test
+    void shellWalkVisitsEveryShellBlockExactlyOnceAndNothingElse() {
+        for (int size : List.of(PocketShell.MIN_SIZE, 9, 32, 33)) {
+            PocketLayout layout = new PocketLayout(
+                space(90 + size, 8, 128, 8, PocketShell.defaults().withSize(size)));
+            Set<PocketBlockPosition> visited = new HashSet<>();
+            int[] visits = {0};
+            layout.forEachShellBlock((x, y, z) -> {
+                visits[0]++;
+                assertTrue(layout.isShellBlock(x, y, z), "size " + size + " visited a non-shell block");
+                visited.add(new PocketBlockPosition(x, y, z));
+            });
+
+            int expected = 0;
+            for (int x = layout.minX(); x <= layout.maxX(); x++) {
+                for (int y = layout.minY(); y <= layout.maxY(); y++) {
+                    for (int z = layout.minZ(); z <= layout.maxZ(); z++) {
+                        if (layout.isShellBlock(x, y, z)) {
+                            expected++;
+                        }
+                    }
+                }
+            }
+            assertEquals(expected, visits[0], "size " + size + " visited a block twice");
+            assertEquals(expected, visited.size(), "size " + size);
+        }
+    }
+
+    private static PocketSpace space(long spaceId, int centerX, int centerY, int centerZ, PocketShell shell) {
+        return new PocketSpace(
+            id(spaceId), PocketBinding.personal(id(spaceId + 1_000)), 0, centerX, centerY, centerZ, shell);
+    }
+
     private static PocketLayout layout(long spaceId, int centerX, int centerY, int centerZ) {
-        PocketBinding binding = PocketBinding.personal(id(spaceId + 1_000));
-        return new PocketLayout(new PocketSpace(id(spaceId), binding, 0, centerX, centerY, centerZ));
+        return new PocketLayout(space(spaceId, centerX, centerY, centerZ, PocketShell.defaults()));
     }
 
     private static int floor(double value) {

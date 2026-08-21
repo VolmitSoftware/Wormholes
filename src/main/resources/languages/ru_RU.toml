@@ -58,9 +58,8 @@ locale = "ru_RU"
 "director.runtime.error.execution_failed" = "Не удалось выполнить команду {command}: {reason}"
 "director.runtime.usage" = "Использование: {usage}"
 "command.help.root" = "Корневая команда Wormholes"
-"command.help.wand" = "Выдать себе жезл портала или руны с помощью rune=<type>"
-"command.help.wand.rune" = "portal | wormhole | gateway"
-"command.help.wand.count" = "Количество рун (по умолчанию 1)"
+"command.help.wand" = "Получить портальную палочку и руну червоточины"
+"command.help.wand.rune" = "Выдать также руну червоточины (rune=false выдаёт только палочку)"
 "command.help.door" = "Выдать предмет Двери измерений для режима выживания"
 "command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
 "command.help.reload" = "Перезагрузить файлы конфигурации и языка Wormholes"
@@ -92,7 +91,7 @@ locale = "ru_RU"
 "command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>У вас нет разрешения на использование этой команды."
 "command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Только игроки могут получать предметы."
 "command.error.usage" = "<gray>Использование: <white>/wormholes help"
-"command.wand.unknown_rune" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Неизвестный тип руны '<white>{rune}<red>'. Используйте portal, wormhole или gateway."
+"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Портальная палочка выдана."
 "command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Двери измерений недоступны."
 "command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Неизвестный тип двери. Используйте pair, personal или public, pair_trapdoor, personal_trapdoor, public_trapdoor."
 "command.door.empty_type" = "Тип двери не может быть пустым"
@@ -397,6 +396,25 @@ locale = "ru_RU"
 "portal.menu.destination.sort_distance" = "Расстояние"
 "rtp.biome.any_label" = "Любой"
 
+"command.help.pocket" = "Просмотр и перестройка карманных измерений"
+"command.help.pocket.info" = "Показать размер, материалы и границы кармана, в котором вы стоите"
+"command.help.pocket.resize" = "Перестроить карман, в котором вы стоите, с новым размером или материалом"
+"command.help.pocket.resize.size" = "Новое ребро комнаты в блоках или 0, чтобы оставить текущий размер"
+"command.help.pocket.resize.material" = "Новый блок стен, пола и потолка или keep"
+"command.help.pocket.resize.door" = "Новый блок выходной двери или keep"
+"command.help.pocket.resize.confirm" = "Требуется, если изменение что-то разрушит или переместит"
+"command.help.pocket.resizeall" = "Перестроить каждый существующий карман с новым размером или материалом"
+"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Встаньте внутри карманного измерения, чтобы выполнить это."
+"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Размер кармана должен быть от {minimum} до {maximum} блоков."
+"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} не подходит для стены кармана. Используйте твёрдый блок, который не падает."
+"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} не подходит для выходной двери. Используйте дверь, открывающуюся вручную; железные двери отклоняются."
+"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>У этого кармана уже такой размер и такие материалы."
+"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Карман перестроен до <white>{size}<green> блоков (было <white>{previous}<green>), стены <white>{material}<green>, выходная дверь <white>{door}."
+"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Не удалось перестроить карман. Проверьте консоль."
+"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Карманное измерение не загружено."
+"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Комната в {size} блоков не помещается в высоту строительства карманного измерения."
+"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Перестраивается <white>{count}<gray> карманов."
+"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Перестроено <white>{resized}<green>, пропущено <white>{skipped}<green>, с ошибкой <white>{failed}."
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>Стоимость перемещения</bold>","<gray>Требовать точный предмет или валюту Vault,","<gray>когда игрок использует этот портал.","","<gray>Режим: <white>{mode}","<gray>Стоимость: <white>{cost}","","<dark_gray>Нажмите, чтобы настроить."]
 "portal.menu.cost.placard" = ["<gold><bold>Стоимость перемещения</bold>","<gray>Игроки должны заплатить, прежде чем портал","<gray>позволит им переместиться.","","<gray>Режим: <white>{mode}","<gray>Стоимость: <white>{cost}"]
@@ -421,11 +439,10 @@ locale = "ru_RU"
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Справка по порталам: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Используйте жезл портала на портале, чтобы открыть настройки назначения, вида, перемещения и доступа."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Выданы жезл портала и 1 руна червоточины.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Создайте две фигуры из рун червоточины (любая связанная фигура на одной плоской поверхности), свяжите их и встаньте в пределах {range} блоков, чтобы увидеть проекцию.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Полная пошаговая инструкция доступна по команде <white>/wormholes info<gray>."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Файл снимка: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Следите за этим файлом для просмотра состояния сети и проекций в реальном времени. Файл перезаписывается каждый цикл."]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>Как построить червоточину</bold>","<dark_gray>1. <gray>Получите жезл портала и руны портала на сервере или у администратора.","<dark_gray>2. <gray>Разместите руны в виде любой связанной фигуры на одной плоскости.","<gray>   Подойдут прямоугольники, линии (3x1), одиночные блоки, Г-образные фигуры и кресты.","<gray>   Руны должны лежать на одной выровненной по осям стене, полу или потолке.","<dark_gray>3. <gray>Возьмите жезл портала и <white>нажмите левой кнопкой по любой руне<gray>, чтобы создать портал.","<dark_gray>4. <gray>Постройте второй портал в другом месте (на любом расстоянии и в любом мире).","<dark_gray>5. <gray>Нажмите жезлом на открытый портал, чтобы открыть главное меню.","<gray>   Выберите <white>Назначение<gray> и укажите другой портал. Повторите с другой стороны.","<gray>   Настройки ориентации и доступа находятся в отдельных простых меню.","<dark_gray>6. <gray>Встаньте в пределах {range} блоков от любого портала: мир назначения появится в рамке, а вход в неё телепортирует вас.","<gray>Администраторы могут создавать предметы командой <white>/wormholes wand rune=\\<portal|wormhole|gateway> count=\\<n>"]
+"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>Как построить червоточину</bold>","<dark_gray>1. <gray>Получите жезл портала и руны портала на сервере или у администратора.","<dark_gray>2. <gray>Разместите руны в виде любой связанной фигуры на одной плоскости.","<gray>   Подойдут прямоугольники, линии (3x1), одиночные блоки, Г-образные фигуры и кресты.","<gray>   Руны должны лежать на одной выровненной по осям стене, полу или потолке.","<dark_gray>3. <gray>Возьмите жезл портала и <white>нажмите левой кнопкой по любой руне<gray>, чтобы создать портал.","<dark_gray>4. <gray>Постройте второй портал в другом месте (на любом расстоянии и в любом мире).","<dark_gray>5. <gray>Нажмите жезлом на открытый портал, чтобы открыть главное меню.","<gray>   Выберите <white>Назначение<gray> и укажите другой портал. Повторите с другой стороны.","<gray>   Настройки ориентации и доступа находятся в отдельных простых меню.","<dark_gray>6. <gray>Встаньте в пределах {range} блоков от любого портала: мир назначения появится в рамке, а вход в неё телепортирует вас.","<gray>Администраторы могут создавать предметы командой <white>/wormholes wand"]
 "item.portal_wand" = ["<gold><bold>Жезл портала</bold>"]
 "item.portal_rune" = ["<gold><bold>Руна портала</bold>"]
 "item.wormhole_rune" = ["<gold><bold>Руна червоточины</bold>"]
-"item.gateway_rune" = ["<red><bold>Руна шлюза</bold>"]
 "item.door.entangled_pair" = ["<gold>Пара запутанных дверей","<gray>Две автоматически связанные двери червоточины.","<gray>Используйте, чтобы разделить их на стороны A и B."]
 "item.door.paired" = ["<gold>Дверь червоточины {endpoint}","<gray>Автоматически связана со стороной {other}.","<gray>Откройте дверь и физически пересеките порог."]
 "item.door.personal" = ["<aqua>Личная дверь измерения","<gray>Каждый путешественник входит в собственное постоянное измерение.","<gray>Один и тот же путешественник всегда прибывает в одно место."]
@@ -566,10 +583,8 @@ locale = "ru_RU"
 "door.menu.access.open_state" = ["<aqua><bold>OpenState: <white>{state}","<gray>Портал следует физическому состоянию этого блока.","<gray>Активное состояние: <white>{state}<gray>.","","<dark_gray>Далее: {next}. Нажмите, чтобы переключить."]
 "door.menu.access.entry" = ["<white>{name}","<gray>Состояние: <aqua>{state}","","<dark_gray>ЛКМ: белый список. ПКМ: чёрный список.","<dark_gray>СКМ или Shift + ЛКМ: удалить."]
 
-[plural."command.wand.granted_runes"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Выдана <white>{count} {rune}<green> руна."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Выдано <white>{count} {rune}<green> рун."
-
+"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Карман <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Размер <white>{size}<gray> блоков, стены <white>{material}<gray>, выходная дверь <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Границы <white>{minimum}<gray> до <white>{maximum}"]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Перестройка до {size} блоков уничтожит <white>{blocks}<red> установленных блоков (<white>{containers}<red> с предметами) и переместит <white>{entities}<red> сущностей.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Содержимое контейнеров и всё, что останется за новыми стенами, выпадет у входа. Остальное будет потеряно.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Запустите ту же команду с <white>confirm=true<gray>, чтобы продолжить."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Удалён <white>{count}<green> портал и очищены локальные связи порталов."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Удалено <white>{count}<green> порталов и очищены локальные связи порталов."

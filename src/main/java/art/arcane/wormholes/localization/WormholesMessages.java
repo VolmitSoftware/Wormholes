@@ -18,9 +18,8 @@ public final class WormholesMessages {
     private static final List<MessageKey> KEYS = new ArrayList<>();
 
     public static final TextKey COMMAND_ROOT_DESCRIPTION = text("command.help.root", "Wormholes command root");
-    public static final TextKey COMMAND_WAND_DESCRIPTION = text("command.help.wand", "Give yourself the portal wand, or runes with rune=<type>");
-    public static final TextKey COMMAND_WAND_RUNE_DESCRIPTION = text("command.help.wand.rune", "portal | wormhole | gateway");
-    public static final TextKey COMMAND_WAND_COUNT_DESCRIPTION = text("command.help.wand.count", "How many runes (default 1)");
+    public static final TextKey COMMAND_WAND_DESCRIPTION = text("command.help.wand", "Give yourself the portal wand and a wormhole rune");
+    public static final TextKey COMMAND_WAND_RUNE_DESCRIPTION = text("command.help.wand.rune", "Include a wormhole rune (rune=false gives only the wand)");
     public static final TextKey COMMAND_DOOR_DESCRIPTION = text("command.help.door", "Give a survival Dimensional Door item");
     public static final TextKey COMMAND_DOOR_TYPE_DESCRIPTION = text("command.help.door.type", "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor");
     public static final TextKey COMMAND_RELOAD_DESCRIPTION = text("command.help.reload", "Reload Wormholes configuration and language files");
@@ -28,6 +27,14 @@ public final class WormholesMessages {
     public static final TextKey COMMAND_STATS_DESCRIPTION = text("command.help.stats", "Print the live stats-snapshot file path, optionally force a refresh with now=true");
     public static final TextKey COMMAND_STATS_NOW_DESCRIPTION = text("command.help.stats.now", "Force-rebuild the snapshot synchronously");
     public static final TextKey COMMAND_INFO_DESCRIPTION = text("command.help.info", "Show portal building instructions");
+    public static final TextKey COMMAND_POCKET_DESCRIPTION = text("command.help.pocket", "Inspect and reshape pocket dimensions");
+    public static final TextKey COMMAND_POCKET_INFO_DESCRIPTION = text("command.help.pocket.info", "Show the size, materials, and bounds of the pocket you are standing in");
+    public static final TextKey COMMAND_POCKET_RESIZE_DESCRIPTION = text("command.help.pocket.resize", "Rebuild the pocket you are standing in at a new size or material");
+    public static final TextKey COMMAND_POCKET_RESIZE_SIZE_DESCRIPTION = text("command.help.pocket.resize.size", "New room edge in blocks, or 0 to keep the current size");
+    public static final TextKey COMMAND_POCKET_RESIZE_MATERIAL_DESCRIPTION = text("command.help.pocket.resize.material", "New wall, floor, and ceiling block, or keep");
+    public static final TextKey COMMAND_POCKET_RESIZE_DOOR_DESCRIPTION = text("command.help.pocket.resize.door", "New exit door block, or keep");
+    public static final TextKey COMMAND_POCKET_RESIZE_CONFIRM_DESCRIPTION = text("command.help.pocket.resize.confirm", "Required when the change would destroy or move anything");
+    public static final TextKey COMMAND_POCKET_RESIZE_ALL_DESCRIPTION = text("command.help.pocket.resizeall", "Rebuild every existing pocket at a new size or material");
     public static final TextKey COMMAND_ADMIN_DESCRIPTION = text("command.help.admin", "Destructive Wormholes maintenance commands");
     public static final TextKey COMMAND_DELETE_PORTALS_DESCRIPTION = text("command.help.admin.delete_portals", "Delete every local portal and saved portal link");
     public static final TextKey COMMAND_DELETE_EVERYTHING_DESCRIPTION = text("command.help.admin.delete_everything", "Reset Wormholes data, config, trust, identity, and network state");
@@ -56,11 +63,7 @@ public final class WormholesMessages {
     public static final LinesKey COMMAND_PUBLIC_HELP = lines("command.public_help",
             "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Portal help: <white>/wormholes info",
             "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Use the Portal Wand on a portal to open its destination, view, travel, and access controls.");
-    public static final TextKey COMMAND_UNKNOWN_RUNE = text("command.wand.unknown_rune", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Unknown rune type '<white>{rune}<red>'. Use portal, wormhole, or gateway.");
-    public static final PluralKey COMMAND_GRANTED_RUNES = plural("command.wand.granted_runes", "count", Map.of(
-            "one", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Granted <white>{count} {rune}<green> rune.",
-            "other", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Granted <white>{count} {rune}<green> runes."
-    ));
+    public static final TextKey COMMAND_GRANTED_WAND = text("command.wand.granted_wand", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portal Wand granted.");
     public static final LinesKey COMMAND_GRANTED_STARTER = lines("command.wand.granted_starter",
             "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portal Wand and 1 Wormhole Rune granted.",
             "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Build TWO wormhole-rune shapes (any connected shape on one flat surface), link them, and stand within {range} blocks to see the projection.",
@@ -69,6 +72,25 @@ public final class WormholesMessages {
     public static final TextKey COMMAND_UNKNOWN_DOOR = text("command.door.unknown_type", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Unknown door type. Use pair, personal, public, pair_trapdoor, personal_trapdoor, or public_trapdoor.");
     public static final TextKey COMMAND_EMPTY_DOOR = text("command.door.empty_type", "Door type cannot be empty");
     public static final TextKey COMMAND_GRANTED_DOOR = text("command.door.granted", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Granted a <white>{type}<green> dimensional door item.");
+    public static final TextKey COMMAND_POCKET_NOT_INSIDE = text("command.pocket.not_inside", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Stand inside a pocket dimension to run this.");
+    public static final LinesKey COMMAND_POCKET_INFO = lines("command.pocket.info",
+            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Pocket <white>{space}",
+            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Size <white>{size}<gray> blocks, walls <white>{material}<gray>, exit door <white>{door}",
+            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Bounds <white>{minimum}<gray> to <white>{maximum}");
+    public static final TextKey COMMAND_POCKET_INVALID_SIZE = text("command.pocket.invalid_size", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Pocket size must be between {minimum} and {maximum} blocks.");
+    public static final TextKey COMMAND_POCKET_INVALID_SHELL_MATERIAL = text("command.pocket.invalid_shell_material", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} cannot be a pocket wall. Use a solid block that does not fall.");
+    public static final TextKey COMMAND_POCKET_INVALID_DOOR_MATERIAL = text("command.pocket.invalid_door_material", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} cannot be a pocket exit door. Use a door that opens by hand; iron doors are rejected.");
+    public static final TextKey COMMAND_POCKET_UNCHANGED = text("command.pocket.unchanged", "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>That pocket already has this size and these materials.");
+    public static final LinesKey COMMAND_POCKET_CONFIRM_REQUIRED = lines("command.pocket.confirm_required",
+            "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Rebuilding at {size} blocks would destroy <white>{blocks}<red> placed blocks (<white>{containers}<red> holding items) and move <white>{entities}<red> entities.",
+            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Container contents and anything left outside the new walls are dropped at the entry. Everything else is lost.",
+            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Run the same command with <white>confirm=true<gray> to go ahead.");
+    public static final TextKey COMMAND_POCKET_RESIZED = text("command.pocket.resized", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Pocket rebuilt at <white>{size}<green> blocks (was <white>{previous}<green>), walls <white>{material}<green>, exit door <white>{door}.");
+    public static final TextKey COMMAND_POCKET_FAILED = text("command.pocket.failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>The pocket could not be rebuilt. Check the console.");
+    public static final TextKey COMMAND_POCKET_WORLD_UNAVAILABLE = text("command.pocket.world_unavailable", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>The pocket dimension is not loaded.");
+    public static final TextKey COMMAND_POCKET_DOES_NOT_FIT = text("command.pocket.does_not_fit", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>A {size} block room does not fit the pocket dimension build height.");
+    public static final TextKey COMMAND_POCKET_BULK_STARTED = text("command.pocket.bulk_started", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Rebuilding <white>{count}<gray> pockets.");
+    public static final TextKey COMMAND_POCKET_BULK_FINISHED = text("command.pocket.bulk_finished", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Rebuilt <white>{resized}<green>, skipped <white>{skipped}<green>, failed <white>{failed}.");
     public static final TextKey COMMAND_RELOADED = text("command.reload.applied", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes configuration and language files reloaded.");
     public static final TextKey COMMAND_RELOADED_LANGUAGE_RETAINED = text("command.reload.language_retained", "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Configuration reloaded, but the language file was rejected. The last valid language remains active; check the console.");
     public static final TextKey COMMAND_RELOAD_FAILED = text("command.reload.failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Configuration reload failed; the edit remains pending and will be retried. Check the console.");
@@ -89,7 +111,7 @@ public final class WormholesMessages {
             "<gray>   Choose <white>Destination<gray> and select the other portal. Repeat from the other side.",
             "<gray>   Orientation and access controls are grouped into their own simple menus.",
             "<dark_gray>6. <gray>Stand within {range} blocks of either portal (current global activation range) — the destination world will project through the frame and walking in teleports you.",
-            "<gray>Administrators can create supplies with <white>/wormholes wand rune=\\<portal|wormhole|gateway> count=\\<n>");
+            "<gray>Administrators can create supplies with <white>/wormholes wand");
     public static final PluralKey COMMAND_DELETED_PORTALS = plural("command.admin.deleted_portals", "count", Map.of(
             "one", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Deleted <white>{count}<green> portal and cleared local portal links.",
             "other", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Deleted <white>{count}<green> portals and cleared local portal links."
@@ -154,7 +176,6 @@ public final class WormholesMessages {
     public static final LinesKey ITEM_PORTAL_WAND = lines("item.portal_wand", "<gold><bold>Portal Wand</bold>");
     public static final LinesKey ITEM_PORTAL_RUNE = lines("item.portal_rune", "<gold><bold>Portal Rune</bold>");
     public static final LinesKey ITEM_WORMHOLE_RUNE = lines("item.wormhole_rune", "<gold><bold>Wormhole Rune</bold>");
-    public static final LinesKey ITEM_GATEWAY_RUNE = lines("item.gateway_rune", "<red><bold>Gateway Rune</bold>");
     public static final LinesKey ITEM_ENTANGLED_PAIR = lines("item.door.entangled_pair",
             "<gold>Entangled Door Pair",
             "<gray>Contains two automatically linked Wormhole Doors.",

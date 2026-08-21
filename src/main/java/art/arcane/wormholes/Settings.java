@@ -6,10 +6,12 @@ import art.arcane.wormholes.config.VisualQualityProfile;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
+import art.arcane.wormholes.door.PocketShell;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalStructure;
 
 import java.util.List;
+import java.util.logging.Logger;
 
 public final class Settings {
     public static volatile VisualQualityProfile VISUAL_QUALITY_PROFILE = VisualQualityProfile.AUTO;
@@ -63,6 +65,8 @@ public final class Settings {
     public static volatile double CHUNK_LOAD_RATE_TARGET = 1000.0D;
     public static volatile boolean REPLACE_NETHER_AND_END_PORTALS = true;
     public static volatile boolean DIMENSIONAL_DOORS_ENABLED = true;
+    /** Shape newly created pockets take. Existing pockets carry their own stored shell. */
+    public static volatile PocketShell POCKET_SHELL = PocketShell.defaults();
     public static volatile boolean DEBUG = false;
 
     private Settings() {
@@ -104,6 +108,7 @@ public final class Settings {
         CHUNK_LOAD_RATE_TARGET = unlimitedOrClampedChunkRate(main.chunkLoadRateTarget);
         REPLACE_NETHER_AND_END_PORTALS = main.replaceNetherAndEndPortals;
         DIMENSIONAL_DOORS_ENABLED = main.dimensionalDoorsEnabled;
+        POCKET_SHELL = pocketShell(main);
         DEBUG = main.verboseLogging;
 
         FRUSTUM_CULLING_RATIO = clampDouble(projection.frustumCullingRatio, 0.0D, 1.0D);
@@ -206,6 +211,23 @@ public final class Settings {
             return 0.0D;
         }
         return clampDouble(value, 0.0D, 10000.0D);
+    }
+
+    /**
+     * Reads the pocket shape for new pockets. Material names are carried through
+     * as written and resolved when a pocket is actually built, so reloading
+     * settings never touches the server's block registry.
+     */
+    private static PocketShell pocketShell(MainConfig main) {
+        PocketShell defaults = PocketShell.defaults();
+        int size = clampInt(main.pocketRoomSize, PocketShell.MIN_SIZE, PocketShell.MAX_SIZE);
+        try {
+            return new PocketShell(size, main.pocketShellMaterial, main.pocketReturnDoorMaterial);
+        } catch (IllegalArgumentException unusable) {
+            Logger.getLogger("Wormholes").warning(
+                "Pocket material settings are unusable (" + unusable.getMessage() + "); using the defaults.");
+            return defaults.withSize(size);
+        }
     }
 
     private static int clampInt(int value, int min, int max) {

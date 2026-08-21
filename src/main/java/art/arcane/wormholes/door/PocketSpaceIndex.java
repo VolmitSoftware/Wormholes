@@ -29,6 +29,21 @@ final class PocketSpaceIndex
 		}
 	}
 
+	void reindex(PocketSpace previous, PocketSpace updated)
+	{
+		Objects.requireNonNull(previous, "previous");
+		Objects.requireNonNull(updated, "updated");
+		PocketLayout layout = structures.layout(previous);
+		for(int chunkX = layout.minX() >> 4; chunkX <= layout.maxX() >> 4; chunkX++)
+		{
+			for(int chunkZ = layout.minZ() >> 4; chunkZ <= layout.maxZ() >> 4; chunkZ++)
+			{
+				spacesByChunk.remove(chunkKey(chunkX, chunkZ), previous);
+			}
+		}
+		index(updated);
+	}
+
 	PocketSpace spaceAt(int blockX, int blockZ)
 	{
 		return spacesByChunk.get(chunkKey(blockX >> 4, blockZ >> 4));

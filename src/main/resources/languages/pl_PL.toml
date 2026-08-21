@@ -42,9 +42,8 @@ locale = "pl_PL"
 "director.runtime.error.execution_failed" = "Nie udało się wykonać polecenia {command}: {reason}"
 "director.runtime.usage" = "Użycie: {usage}"
 "command.help.root" = "Główne polecenie Wormholes"
-"command.help.wand" = "Daj Różdżkę Portalu lub runy za pomocą rune=<type>"
-"command.help.wand.rune" = "portal | wormhole | gateway"
-"command.help.wand.count" = "Liczba run (domyślnie 1)"
+"command.help.wand" = "Otrzymaj rozdzke portalu i rune tunelu czasoprzestrzennego"
+"command.help.wand.rune" = "Dolacz rune tunelu czasoprzestrzennego (rune=false daje tylko rozdzke)"
 "command.help.door" = "Daj Drzwi Wymiarowe użyteczne w trybie przetrwania"
 "command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
 "command.help.reload" = "Przeładuj konfigurację i pliki językowe Wormholes"
@@ -76,7 +75,7 @@ locale = "pl_PL"
 "command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Nie masz uprawnień do użycia tego polecenia."
 "command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Tylko gracze mogą otrzymać przedmioty."
 "command.error.usage" = "<gray>Użycie: <white>/wormholes help"
-"command.wand.unknown_rune" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Nieznany typ runy '<white>{rune}<red>'. Użyj portal, wormhole lub gateway."
+"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Rozdzka portalu przyznana."
 "command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Drzwi Wymiarowe są niedostępne."
 "command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Nieznany typ drzwi. Użyj pair, personal lub public, pair_trapdoor, personal_trapdoor, public_trapdoor."
 "command.door.empty_type" = "Typ drzwi nie może być pusty"
@@ -397,6 +396,25 @@ locale = "pl_PL"
 "portal.menu.destination.sort_distance" = "Odległość"
 "rtp.biome.any_label" = "Dowolny"
 
+"command.help.pocket" = "Podglad i przebudowa wymiarow kieszonkowych"
+"command.help.pocket.info" = "Pokaz rozmiar, materialy i granice kieszeni, w ktorej stoisz"
+"command.help.pocket.resize" = "Przebuduj kieszen, w ktorej stoisz, na nowy rozmiar lub material"
+"command.help.pocket.resize.size" = "Nowa krawedz pokoju w blokach albo 0, aby zachowac obecny rozmiar"
+"command.help.pocket.resize.material" = "Nowy blok scian, podlogi i sufitu albo keep"
+"command.help.pocket.resize.door" = "Nowy blok drzwi wyjsciowych albo keep"
+"command.help.pocket.resize.confirm" = "Wymagane, gdy zmiana cos zniszczy lub przesunie"
+"command.help.pocket.resizeall" = "Przebuduj kazda istniejaca kieszen na nowy rozmiar lub material"
+"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Stan w wymiarze kieszonkowym, aby to wykonac."
+"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Rozmiar kieszeni musi miescic sie miedzy {minimum} a {maximum} blokami."
+"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} nie nadaje sie na sciane kieszeni. Uzyj litego bloku, ktory nie spada."
+"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} nie nadaje sie na drzwi wyjsciowe. Uzyj drzwi otwieranych recznie; zelazne drzwi sa odrzucane."
+"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Ta kieszen ma juz ten rozmiar i te materialy."
+"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Kieszen przebudowana na <white>{size}<green> blokow (bylo <white>{previous}<green>), sciany <white>{material}<green>, drzwi wyjsciowe <white>{door}."
+"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Nie udalo sie przebudowac kieszeni. Sprawdz konsole."
+"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Wymiar kieszonkowy nie jest zaladowany."
+"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Pokoj o rozmiarze {size} blokow nie miesci sie w wysokosci budowania wymiaru kieszonkowego."
+"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Przebudowa <white>{count}<gray> kieszeni."
+"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Przebudowano <white>{resized}<green>, pominieto <white>{skipped}<green>, nieudane <white>{failed}."
 [lines]
 "portal.menu.render_mode" = ["<aqua><bold>Tryb renderowania <white>{mode}</bold>","<gray>Jaką część docelowej objętości projektuje ten portal.","","<gray>Tryb: <white>{mode}","","<dark_gray>PanOptic renderuje całą docelową objętość.","<dark_gray>Venticular ukrywa geometrię za widocznymi nieprzezroczystymi powierzchniami.","","<dark_gray>Lewy: zmień tryb."]
 "portal.menu.ambient_particles" = ["<aqua><bold>Cząstki otoczenia</bold>","<gray>Dekoracyjny pył unoszący się wokół tego portalu.","","<gray>Styl: <white>{style} <dark_gray>({color})","","<dark_gray>Lewy: zmień styl.","<dark_gray>Prawy: wybierz kolor."]
@@ -410,11 +428,10 @@ locale = "pl_PL"
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Pomoc dotycząca portali: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Użyj Różdżki Portalu na portalu, aby ustawić cel, widok, podróż i dostęp."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Otrzymano Różdżkę Portalu i 1 Runę Tunelu Czasoprzestrzennego.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Zbuduj DWA kształty z run tunelu czasoprzestrzennego (dowolny połączony kształt na jednej płaskiej powierzchni), połącz je i stań w odległości {range} bloków, aby zobaczyć projekcję.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Wykonaj <white>/wormholes info<gray>, aby zobaczyć wszystkie kroki."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Plik migawki: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Obserwuj ten plik, aby udostępniać bieżący stan sieci i widoków. Jest zastępowany w każdym interwale."]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>Jak zbudować tunel czasoprzestrzenny</bold>","<dark_gray>1. <gray>Zdobądź Różdżkę Portalu i runy portalu od serwera lub administratora.","<dark_gray>2. <gray>Ułóż runy w dowolny połączony kształt na jednej płaskiej powierzchni.","<gray>   Działa każdy połączony kształt: prostokąt, linia (3x1), pojedynczy blok, litera L lub krzyż.","<gray>   Runy muszą leżeć płasko na tej samej ścianie, podłodze lub suficie wyrównanym do osi.","<dark_gray>3. <gray>Trzymaj Różdżkę Portalu i <white>kliknij lewym przyciskiem blok runy<gray>, aby utworzyć portal.","<dark_gray>4. <gray>Zbuduj DRUGI portal w innym miejscu (w dowolnej odległości i w dowolnym świecie).","<dark_gray>5. <gray>Kliknij otwarty portal różdżką, aby otworzyć menu główne.","<gray>   Wybierz <white>Cel<gray> i drugi portal. Powtórz po drugiej stronie.","<gray>   Orientacja i dostęp znajdują się w oddzielnych, prostych menu.","<dark_gray>6. <gray>Stań w odległości {range} bloków od jednego z portali — świat docelowy pojawi się w ramie, a wejście do niej cię teleportuje.","<gray>Administratorzy mogą tworzyć przedmioty poleceniem <white>/wormholes wand rune=\\<portal|wormhole|gateway> count=\\<n>"]
+"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>Jak zbudować tunel czasoprzestrzenny</bold>","<dark_gray>1. <gray>Zdobądź Różdżkę Portalu i runy portalu od serwera lub administratora.","<dark_gray>2. <gray>Ułóż runy w dowolny połączony kształt na jednej płaskiej powierzchni.","<gray>   Działa każdy połączony kształt: prostokąt, linia (3x1), pojedynczy blok, litera L lub krzyż.","<gray>   Runy muszą leżeć płasko na tej samej ścianie, podłodze lub suficie wyrównanym do osi.","<dark_gray>3. <gray>Trzymaj Różdżkę Portalu i <white>kliknij lewym przyciskiem blok runy<gray>, aby utworzyć portal.","<dark_gray>4. <gray>Zbuduj DRUGI portal w innym miejscu (w dowolnej odległości i w dowolnym świecie).","<dark_gray>5. <gray>Kliknij otwarty portal różdżką, aby otworzyć menu główne.","<gray>   Wybierz <white>Cel<gray> i drugi portal. Powtórz po drugiej stronie.","<gray>   Orientacja i dostęp znajdują się w oddzielnych, prostych menu.","<dark_gray>6. <gray>Stań w odległości {range} bloków od jednego z portali — świat docelowy pojawi się w ramie, a wejście do niej cię teleportuje.","<gray>Administratorzy mogą tworzyć przedmioty poleceniem <white>/wormholes wand"]
 "item.portal_wand" = ["<gold><bold>Różdżka Portalu</bold>"]
 "item.portal_rune" = ["<gold><bold>Runa Portalu</bold>"]
 "item.wormhole_rune" = ["<gold><bold>Runa Tunelu Czasoprzestrzennego</bold>"]
-"item.gateway_rune" = ["<red><bold>Runa Bramy</bold>"]
 "item.door.entangled_pair" = ["<gold>Splątana Para Drzwi","<gray>Zawiera dwoje automatycznie połączonych Drzwi Tunelu Czasoprzestrzennego.","<gray>Użyj, aby rozdzielić końce A i B."]
 "item.door.paired" = ["<gold>Drzwi Tunelu Czasoprzestrzennego {endpoint}","<gray>Automatycznie połączone z końcem {other}.","<gray>Otwórz drzwi i fizycznie przekrocz ich próg."]
 "item.door.personal" = ["<aqua>Osobiste Drzwi Wymiarowe","<gray>Każdy podróżny wchodzi do własnego trwałego wymiaru.","<gray>Ten sam podróżny zawsze trafia w to samo miejsce."]
@@ -566,10 +583,8 @@ locale = "pl_PL"
 "door.menu.access.open_state" = ["<aqua><bold>OpenState: <white>{state}","<gray>Portal podąża za fizycznym stanem tego bloku.","<gray>Stan aktywny: <white>{state}<gray>.","","<dark_gray>Następny: {next}. Kliknij, aby przełączyć."]
 "door.menu.access.entry" = ["<white>{name}","<gray>Status: <aqua>{state}","","<dark_gray>Lewy klik: dozwolony. Prawy klik: zablokowany.","<dark_gray>Środkowy klik lub Shift + lewy klik: usuń."]
 
-[plural."command.wand.granted_runes"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Przyznano <white>{count} {rune}<green> runę."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Przyznano <white>{count} {rune}<green> runy."
-
+"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Kieszen <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Rozmiar <white>{size}<gray> blokow, sciany <white>{material}<gray>, drzwi wyjsciowe <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Granice od <white>{minimum}<gray> do <white>{maximum}"]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Przebudowa na {size} blokow zniszczy <white>{blocks}<red> postawionych blokow (<white>{containers}<red> z przedmiotami) i przesunie <white>{entities}<red> bytow.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Zawartosc pojemnikow i wszystko poza nowymi scianami laduje przy wejsciu. Reszta przepada.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Uruchom to samo polecenie z <white>confirm=true<gray>, aby kontynuowac."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Usunięto <white>{count}<green> portal i wyczyszczono lokalne połączenia portali."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Usunięto <white>{count}<green> portali i wyczyszczono lokalne połączenia portali."

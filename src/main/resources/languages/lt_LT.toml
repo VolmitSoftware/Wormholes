@@ -42,9 +42,8 @@ locale = "lt_LT"
 "director.runtime.error.execution_failed" = "Nepavyko įvykdyti komandos {command}: {reason}"
 "director.runtime.usage" = "Naudojimas: {usage}"
 "command.help.root" = "Pagrindinė Wormholes komanda"
-"command.help.wand" = "Gauti portalo lazdelę arba runų su rune=<type>"
-"command.help.wand.rune" = "portal | wormhole | gateway"
-"command.help.wand.count" = "Runų skaičius (numatyta 1)"
+"command.help.wand" = "Gauti portalo lazdele ir kirmgrauzos runa"
+"command.help.wand.rune" = "Iteikti ir kirmgrauzos runa (rune=false duoda tik lazdele)"
 "command.help.door" = "Gauti išgyvenimo režime naudojamas dimensijų duris"
 "command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
 "command.help.reload" = "Iš naujo įkelti Wormholes nuostatas ir kalbos failus"
@@ -76,7 +75,7 @@ locale = "lt_LT"
 "command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Neturite leidimo naudoti šią komandą."
 "command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Tik žaidėjai gali gauti daiktus."
 "command.error.usage" = "<gray>Naudojimas: <white>/wormholes help"
-"command.wand.unknown_rune" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Nežinomas runos tipas '<white>{rune}<red>'. Naudokite portal, wormhole arba gateway."
+"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portalo lazdele iteikta."
 "command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Negalima naudoti matmeninių durų."
 "command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Nežinomas durų tipas. Naudokite pair, personal arba public, pair_trapdoor, personal_trapdoor, public_trapdoor."
 "command.door.empty_type" = "Durų tipas negali būti tuščias"
@@ -397,6 +396,25 @@ locale = "lt_LT"
 "portal.menu.destination.sort_distance" = "Atstumas"
 "rtp.biome.any_label" = "Bet koks"
 
+"command.help.pocket" = "Perziureti ir perstatyti kisenines dimensijas"
+"command.help.pocket.info" = "Parodyti kisenes, kurioje stovi, dydi, medziagas ir ribas"
+"command.help.pocket.resize" = "Perstatyti kisene, kurioje stovi, nauju dydziu arba medziaga"
+"command.help.pocket.resize.size" = "Nauja kambario briauna blokais arba 0, kad liktu dabartinis dydis"
+"command.help.pocket.resize.material" = "Naujas sienu, grindu ir lubu blokas arba keep"
+"command.help.pocket.resize.door" = "Naujas isejimo duru blokas arba keep"
+"command.help.pocket.resize.confirm" = "Butinas, kai pakeitimas ka nors sunaikintu arba perkeltu"
+"command.help.pocket.resizeall" = "Perstatyti kiekviena esama kisene nauju dydziu arba medziaga"
+"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Stovek kiseninej dimensijoje, kad tai paleistum."
+"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Kisenes dydis turi buti nuo {minimum} iki {maximum} bloku."
+"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} netinka kisenes sienai. Naudok kieta bloka, kuris nekrinta."
+"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} netinka kisenes isejimo durims. Naudok ranka atidaromas duris; gelezines durys atmetamos."
+"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Ta kisene jau yra sio dydzio ir is siu medziagu."
+"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Kisene perstatyta i <white>{size}<green> bloku (buvo <white>{previous}<green>), sienos <white>{material}<green>, isejimo durys <white>{door}."
+"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Kisenes perstatyti nepavyko. Patikrink konsole."
+"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Kiseniniu dimensiju pasaulis neikeltas."
+"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} bloku kambarys netelpa i kiseninio pasaulio statybos auksti."
+"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Perstatoma <white>{count}<gray> kiseniu."
+"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Perstatyta <white>{resized}<green>, praleista <white>{skipped}<green>, nepavyko <white>{failed}."
 [lines]
 "portal.menu.render_mode" = ["<aqua><bold>Atvaizdavimo režimas <white>{mode}</bold>","<gray>Kiek paskirties tūrio projektuoja šis portalas.","","<gray>Režimas: <white>{mode}","","<dark_gray>PanOptic atvaizduoja visą paskirties tūrį.","<dark_gray>Venticular paslepia geometriją už matomų nepermatomų paviršių.","","<dark_gray>Kairysis: keisti režimą."]
 "portal.menu.ambient_particles" = ["<aqua><bold>Aplinkos dalelės</bold>","<gray>Dekoratyvios dulkės, sklandančios aplink šį portalą.","","<gray>Stilius: <white>{style} <dark_gray>({color})","","<dark_gray>Kairys: keisti stilių.","<dark_gray>Dešinys: pasirinkti spalvą."]
@@ -410,11 +428,10 @@ locale = "lt_LT"
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Portalų pagalba: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Naudokite portalo lazdelę portale, kad keistumėte jo tikslą, vaizdą, keliavimą ir prieigą."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Gavote portalo lazdelę ir 1 kirmgraužos runą.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Sukurkite DVI kirmgraužos runų formas (bet kokią sujungtą formą ant vieno lygaus paviršiaus), susiekite jas ir stovėkite ne toliau kaip {range} blokų, kad matytumėte projekciją.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Visus veiksmus rasite įvykdę <white>/wormholes info<gray>."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Momentinės kopijos failas: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Stebėkite šį failą, kad bendrintumėte tiesioginę tinklo ir vaizdų būseną. Jis pakeičiamas kiekvienu intervalu."]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>Kaip pastatyti kirmgraužą</bold>","<dark_gray>1. <gray>Gaukite portalo lazdelę ir portalo runų iš serverio arba administratoriaus.","<dark_gray>2. <gray>Sudėkite runas į bet kokią sujungtą formą ant vieno lygaus paviršiaus.","<gray>   Tinka bet kokia sujungta forma: stačiakampis, linija (3x1), vienas blokas, L forma ar kryžius.","<gray>   Runos turi gulėti ant tos pačios su ašimis lygiagrečios sienos, grindų arba lubų.","<dark_gray>3. <gray>Laikykite portalo lazdelę ir <white>kairiuoju pelės mygtuku spustelėkite runos bloką<gray>, kad sukurtumėte portalą.","<dark_gray>4. <gray>Kitur pastatykite ANTRĄ portalą (bet kokiu atstumu ir bet kuriame pasaulyje).","<dark_gray>5. <gray>Spustelėkite atvertą portalą lazdele, kad atidarytumėte pagrindinį meniu.","<gray>   Pasirinkite <white>Tikslas<gray> ir kitą portalą. Pakartokite iš kitos pusės.","<gray>   Krypties ir prieigos valdikliai pateikiami atskiruose paprastuose meniu.","<dark_gray>6. <gray>Stovėkite ne toliau kaip {range} blokų nuo vieno portalo — tikslinis pasaulis bus projektuojamas rėme, o įžengę teleportuositės.","<gray>Administratoriai gali kurti daiktus su <white>/wormholes wand rune=\\<portal|wormhole|gateway> count=\\<n>"]
+"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>Kaip pastatyti kirmgraužą</bold>","<dark_gray>1. <gray>Gaukite portalo lazdelę ir portalo runų iš serverio arba administratoriaus.","<dark_gray>2. <gray>Sudėkite runas į bet kokią sujungtą formą ant vieno lygaus paviršiaus.","<gray>   Tinka bet kokia sujungta forma: stačiakampis, linija (3x1), vienas blokas, L forma ar kryžius.","<gray>   Runos turi gulėti ant tos pačios su ašimis lygiagrečios sienos, grindų arba lubų.","<dark_gray>3. <gray>Laikykite portalo lazdelę ir <white>kairiuoju pelės mygtuku spustelėkite runos bloką<gray>, kad sukurtumėte portalą.","<dark_gray>4. <gray>Kitur pastatykite ANTRĄ portalą (bet kokiu atstumu ir bet kuriame pasaulyje).","<dark_gray>5. <gray>Spustelėkite atvertą portalą lazdele, kad atidarytumėte pagrindinį meniu.","<gray>   Pasirinkite <white>Tikslas<gray> ir kitą portalą. Pakartokite iš kitos pusės.","<gray>   Krypties ir prieigos valdikliai pateikiami atskiruose paprastuose meniu.","<dark_gray>6. <gray>Stovėkite ne toliau kaip {range} blokų nuo vieno portalo — tikslinis pasaulis bus projektuojamas rėme, o įžengę teleportuositės.","<gray>Administratoriai gali kurti daiktus su <white>/wormholes wand"]
 "item.portal_wand" = ["<gold><bold>Portalo Lazdelė</bold>"]
 "item.portal_rune" = ["<gold><bold>Portalo Runa</bold>"]
 "item.wormhole_rune" = ["<gold><bold>Kirmgraužos Runa</bold>"]
-"item.gateway_rune" = ["<red><bold>Tinklo Vartų Runa</bold>"]
 "item.door.entangled_pair" = ["<gold>Susietų Durų Pora","<gray>Joje yra dvejos automatiškai susietos Kirmgraužos Durys.","<gray>Naudokite A ir B galams atskirti."]
 "item.door.paired" = ["<gold>Kirmgraužos Durys {endpoint}","<gray>Automatiškai susietos su galu {other}.","<gray>Atverkite duris ir fiziškai perženkite jų slenkstį."]
 "item.door.personal" = ["<aqua>Asmeninės Dimensijų Durys","<gray>Kiekvienas keliautojas patenka į savo nuolatinę dimensiją.","<gray>Tas pats keliautojas visada pasiekia tą pačią vietą."]
@@ -566,10 +583,8 @@ locale = "lt_LT"
 "door.menu.access.open_state" = ["<aqua><bold>OpenState: <white>{state}","<gray>Portalas seka šio bloko fizinę būseną.","<gray>Aktyvi būsena: <white>{state}<gray>.","","<dark_gray>Toliau: {next}. Spustelėkite, kad pakeistumėte."]
 "door.menu.access.entry" = ["<white>{name}","<gray>Būsena: <aqua>{state}","","<dark_gray>Kairysis spustelėjimas: leisti. Dešinysis: blokuoti.","<dark_gray>Vidurinis spustelėjimas arba Shift + kairysis: pašalinti."]
 
-[plural."command.wand.granted_runes"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Suteikta <white>{count} {rune}<green> runa."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Suteiktos <white>{count} {rune}<green> runos."
-
+"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Kisene <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Dydis <white>{size}<gray> bloku, sienos <white>{material}<gray>, isejimo durys <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Ribos nuo <white>{minimum}<gray> iki <white>{maximum}"]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Perstatymas i {size} bloku sunaikintu <white>{blocks}<red> padetu bloku (<white>{containers}<red> su daiktais) ir perkeltu <white>{entities}<red> esybiu.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Talpyklu turinys ir viskas, kas liks uz nauju sienu, ismetama prie ijejimo. Visa kita prarandama.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Paleisk ta pacia komanda su <white>confirm=true<gray>, kad testum."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Ištrintas <white>{count}<green> portalas ir išvalytos vietinės portalo jungtys."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Ištrinti <white>{count}<green> portalai ir išvalytos vietinės portalų jungtys."

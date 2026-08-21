@@ -42,9 +42,8 @@ locale = "fi_FI"
 "director.runtime.error.execution_failed" = "Komennon {command} suoritus epäonnistui: {reason}"
 "director.runtime.usage" = "Käyttö: {usage}"
 "command.help.root" = "Wormholes-pääkomento"
-"command.help.wand" = "Anna portaalisauva tai riimuja valinnalla rune=<type>"
-"command.help.wand.rune" = "portal | wormhole | gateway"
-"command.help.wand.count" = "Riimujen määrä (oletus 1)"
+"command.help.wand" = "Anna itsellesi portaalisauva ja madonreikaruuni"
+"command.help.wand.rune" = "Anna mukaan madonreikaruuni (rune=false antaa vain sauvan)"
 "command.help.door" = "Anna selviytymistilassa käytettävä ulottuvuusovi"
 "command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
 "command.help.reload" = "Lataa Wormholes-asetukset ja kielitiedostot uudelleen"
@@ -76,7 +75,7 @@ locale = "fi_FI"
 "command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Sinulla ei ole lupaa käyttää sitä käskyä."
 "command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Vain pelaajat voivat vastaanottaa esineitä."
 "command.error.usage" = "<gray>Käyttö: <white>/wormholes help"
-"command.wand.unknown_rune" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Tuntematon riimutyyppi '<white>{rune}<red>'. Käytä arvoa portal, wormhole tai gateway."
+"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portaalisauva annettu."
 "command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Ulottuvuusovet eivät ole käytettävissä."
 "command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Tuntematon ovityyppi. Käytä arvoa pair, personal tai public, pair_trapdoor, personal_trapdoor, public_trapdoor."
 "command.door.empty_type" = "Ovityyppi ei voi olla tyhjä"
@@ -397,6 +396,25 @@ locale = "fi_FI"
 "portal.menu.destination.sort_distance" = "Etäisyys"
 "rtp.biome.any_label" = "Mikä tahansa"
 
+"command.help.pocket" = "Tarkastele ja muokkaa taskuulottuvuuksia"
+"command.help.pocket.info" = "Nayta sen taskun koko, materiaalit ja rajat, jossa seisot"
+"command.help.pocket.resize" = "Rakenna tasku, jossa seisot, uudelleen uudella koolla tai materiaalilla"
+"command.help.pocket.resize.size" = "Huoneen uusi sarma lohkoina, tai 0 sailyttaa nykyisen koon"
+"command.help.pocket.resize.material" = "Uusi seinien, lattian ja katon lohko, tai keep"
+"command.help.pocket.resize.door" = "Uusi uloskaynnin ovilohko, tai keep"
+"command.help.pocket.resize.confirm" = "Vaaditaan, kun muutos tuhoaisi tai siirtaisi jotakin"
+"command.help.pocket.resizeall" = "Rakenna jokainen olemassa oleva tasku uudelleen uudella koolla tai materiaalilla"
+"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Seiso taskuulottuvuudessa suorittaaksesi taman."
+"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Taskun koon on oltava {minimum} ja {maximum} lohkon valilla."
+"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} ei kelpaa taskun seinaksi. Kayta kiinteaa lohkoa, joka ei putoa."
+"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} ei kelpaa taskun uloskayntioveksi. Kayta kasin avattavaa ovea; rautaovet hylataan."
+"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Taskulla on jo tama koko ja namä materiaalit."
+"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Tasku rakennettu uudelleen kokoon <white>{size}<green> lohkoa (aiemmin <white>{previous}<green>), seinat <white>{material}<green>, uloskayntiovi <white>{door}."
+"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Taskua ei voitu rakentaa uudelleen. Tarkista konsoli."
+"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Taskuulottuvuus ei ole ladattuna."
+"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} lohkon huone ei mahdu taskuulottuvuuden rakennuskorkeuteen."
+"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Rakennetaan <white>{count}<gray> taskua uudelleen."
+"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Rakennettu uudelleen <white>{resized}<green>, ohitettu <white>{skipped}<green>, epaonnistui <white>{failed}."
 [lines]
 "portal.menu.render_mode" = ["<aqua><bold>Renderöintitila <white>{mode}</bold>","<gray>Kuinka suuren osan kohdetilavuudesta tämä portaali projisoi.","","<gray>Tila: <white>{mode}","","<dark_gray>PanOptic renderöi koko kohdetilavuuden.","<dark_gray>Venticular piilottaa näkyvien läpinäkymättömien pintojen takana olevan geometrian.","","<dark_gray>Vasen: vaihda tilaa."]
 "portal.menu.ambient_particles" = ["<aqua><bold>Ympäristöhiukkaset</bold>","<gray>Koristeellista pölyä, joka leijuu tämän portaalin ympärillä.","","<gray>Tyyli: <white>{style} <dark_gray>({color})","","<dark_gray>Vasen: vaihda tyyliä.","<dark_gray>Oikea: valitse väri."]
@@ -410,11 +428,10 @@ locale = "fi_FI"
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Portaaliohje: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Käytä portaalisauvaa portaaliin avataksesi kohteen, näkymän, matkustamisen ja käyttöoikeuksien asetukset."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Sait portaalisauvan ja 1 madonreikäriimun.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Rakenna KAKSI madonreikäriimukuviota (mikä tahansa yhtenäinen kuvio yhdellä tasaisella pinnalla), linkitä ne ja pysy {range} lohkon sisällä nähdäksesi projektion.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Katso kaikki vaiheet komennolla <white>/wormholes info<gray>."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tilastotiedosto: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Seuraa tätä tiedostoa jakaaksesi verkon ja näkymien reaaliaikaisen tilan. Tiedosto korvataan jokaisella aikavälillä."]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>Madonreiän rakentaminen</bold>","<dark_gray>1. <gray>Hanki portaalisauva ja portaaliriimuja palvelimelta tai ylläpitäjältä.","<dark_gray>2. <gray>Aseta riimut yhtenäiseksi kuvioksi yhdelle tasaiselle pinnalle.","<gray>   Mikä tahansa yhtenäinen kuvio toimii: suorakulmio, viiva (3x1), yksittäinen lohko, L-kuvio tai risti.","<gray>   Riimujen on oltava tasaisesti samalla akselinsuuntaisella seinällä, lattialla tai katossa.","<dark_gray>3. <gray>Pidä portaalisauvaa ja <white>napsauta mitä tahansa riimulohkoa vasemmalla<gray> muodostaaksesi portaalin.","<dark_gray>4. <gray>Rakenna TOINEN portaali muualle (mille tahansa etäisyydelle, mihin tahansa maailmaan).","<dark_gray>5. <gray>Avaa päävalikko napsauttamalla avointa portaalia sauvalla.","<gray>   Valitse <white>Kohde<gray> ja sitten toinen portaali. Toista sama toiselta puolelta.","<gray>   Suuntaus ja käyttöoikeudet ovat omissa selkeissä valikoissaan.","<dark_gray>6. <gray>Pysy {range} lohkon sisällä jommastakummasta portaalista — kohdemaailma projisoituu kehykseen ja sisään astuminen teleporttaa sinut.","<gray>Ylläpitäjät voivat luoda tarvikkeita komennolla <white>/wormholes wand rune=\\<portal|wormhole|gateway> count=\\<n>"]
+"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>Madonreiän rakentaminen</bold>","<dark_gray>1. <gray>Hanki portaalisauva ja portaaliriimuja palvelimelta tai ylläpitäjältä.","<dark_gray>2. <gray>Aseta riimut yhtenäiseksi kuvioksi yhdelle tasaiselle pinnalle.","<gray>   Mikä tahansa yhtenäinen kuvio toimii: suorakulmio, viiva (3x1), yksittäinen lohko, L-kuvio tai risti.","<gray>   Riimujen on oltava tasaisesti samalla akselinsuuntaisella seinällä, lattialla tai katossa.","<dark_gray>3. <gray>Pidä portaalisauvaa ja <white>napsauta mitä tahansa riimulohkoa vasemmalla<gray> muodostaaksesi portaalin.","<dark_gray>4. <gray>Rakenna TOINEN portaali muualle (mille tahansa etäisyydelle, mihin tahansa maailmaan).","<dark_gray>5. <gray>Avaa päävalikko napsauttamalla avointa portaalia sauvalla.","<gray>   Valitse <white>Kohde<gray> ja sitten toinen portaali. Toista sama toiselta puolelta.","<gray>   Suuntaus ja käyttöoikeudet ovat omissa selkeissä valikoissaan.","<dark_gray>6. <gray>Pysy {range} lohkon sisällä jommastakummasta portaalista — kohdemaailma projisoituu kehykseen ja sisään astuminen teleporttaa sinut.","<gray>Ylläpitäjät voivat luoda tarvikkeita komennolla <white>/wormholes wand"]
 "item.portal_wand" = ["<gold><bold>Portaalisauva</bold>"]
 "item.portal_rune" = ["<gold><bold>Portaaliriimu</bold>"]
 "item.wormhole_rune" = ["<gold><bold>Madonreikäriimu</bold>"]
-"item.gateway_rune" = ["<red><bold>Yhdyskäytäväriimu</bold>"]
 "item.door.entangled_pair" = ["<gold>Kietoutunut ovipari","<gray>Sisältää kaksi automaattisesti linkitettyä madonreikäovea.","<gray>Erota päätepisteet A ja B käyttämällä tätä."]
 "item.door.paired" = ["<gold>Madonreikäovi {endpoint}","<gray>Linkitetty automaattisesti päätepisteeseen {other}.","<gray>Avaa ovi ja ylitä sen kynnys fyysisesti."]
 "item.door.personal" = ["<aqua>Henkilökohtainen ulottuvuusovi","<gray>Jokainen matkustaja siirtyy omaan pysyvään ulottuvuuteensa.","<gray>Sama matkustaja saapuu aina samaan paikkaan."]
@@ -566,10 +583,8 @@ locale = "fi_FI"
 "rtp.confirm.cancel" = ["<yellow><bold>Peruuta</bold>","<gray>Palaa muuttamatta suorituksenaikaista tilaa.","<yellow>Vasen napsautus"]
 "rtp.status.header" = ["<gold><bold>Satunnaisen kohteen tila</bold>","<gray>Tila: {state}"]
 
-[plural."command.wand.granted_runes"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Myönnettiin <white>{count} {rune}<green>-riimu."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Myönnettiin <white>{count} {rune}<green>-riimua."
-
+"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tasku <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Koko <white>{size}<gray> lohkoa, seinat <white>{material}<gray>, uloskayntiovi <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Rajat <white>{minimum}<gray> - <white>{maximum}"]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Uudelleenrakennus kokoon {size} tuhoaisi <white>{blocks}<red> asetettua lohkoa (<white>{containers}<red> sisaltaa tavaraa) ja siirtaisi <white>{entities}<red> olentoa.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Sailoiden sisalto ja kaikki uusien seinien ulkopuolelle jaava pudotetaan sisaankaynnille. Muu menetetaan.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Aja sama komento lisayksella <white>confirm=true<gray> jatkaaksesi."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Poistettiin <white>{count}<green> portaali ja puhdistettiin paikalliset portaalilinkit."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Poistettiin <white>{count}<green> portaalia ja puhdistettiin paikalliset portaalilinkit."

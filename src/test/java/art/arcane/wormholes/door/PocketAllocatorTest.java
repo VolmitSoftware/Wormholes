@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PocketAllocatorTest {
     @Test
@@ -88,9 +89,10 @@ class PocketAllocatorTest {
         PocketBinding binding = PocketBinding.personal(id(30));
         PocketSpace valid = new PocketSpace(
             PocketAllocator.spaceIdFor(binding), binding, 0,
-            PocketAllocator.CHUNK_CENTER_OFFSET, PocketAllocator.DEFAULT_CENTER_Y, PocketAllocator.CHUNK_CENTER_OFFSET
+            PocketAllocator.CHUNK_CENTER_OFFSET, PocketAllocator.DEFAULT_CENTER_Y, PocketAllocator.CHUNK_CENTER_OFFSET,
+            PocketShell.defaults()
         );
-        PocketSpace wrongCoordinates = new PocketSpace(id(31), PocketBinding.publicDoor(id(32)), 1, 1, 128, 0);
+        PocketSpace wrongCoordinates = new PocketSpace(id(31), PocketBinding.publicDoor(id(32)), 1, 1, 128, 0, PocketShell.defaults());
 
         assertThrows(IllegalArgumentException.class,
             () -> new PocketAllocator(8_192, 128, 0, List.of(valid)));
@@ -106,7 +108,8 @@ class PocketAllocatorTest {
     void restoresLegacySchemaOneCoordinatesWithoutMovingExistingPocket() {
         PocketBinding binding = PocketBinding.personal(id(35));
         PocketSpace legacy = new PocketSpace(
-            PocketAllocator.spaceIdFor(binding), binding, 0, 0, PocketAllocator.DEFAULT_CENTER_Y, 0
+            PocketAllocator.spaceIdFor(binding), binding, 0, 0, PocketAllocator.DEFAULT_CENTER_Y, 0,
+            PocketShell.defaults()
         );
 
         PocketAllocator restored = new PocketAllocator(8_192, 128, 1, List.of(legacy));
@@ -125,6 +128,38 @@ class PocketAllocatorTest {
 
         assertThrows(IllegalStateException.class,
             () -> allocator.getOrAllocate(PocketBinding.personal(id(60))));
+    }
+
+    @Test
+    void newPocketsTakeTheSuppliedShellAndExistingOnesKeepTheirOwn() {
+        PocketAllocator allocator = new PocketAllocator();
+        PocketShell large = new PocketShell(64, "OBSIDIAN", "OAK_DOOR");
+        PocketBinding binding = PocketBinding.personal(id(70));
+
+        PocketSpace created = allocator.getOrAllocate(binding, large);
+        PocketSpace repeated = allocator.getOrAllocate(binding, PocketShell.defaults());
+
+        assertEquals(large, created.shell());
+        assertEquals(created, repeated);
+        assertEquals(PocketShell.defaults(), allocator.getOrAllocate(PocketBinding.personal(id(71))).shell());
+    }
+
+    @Test
+    void reshapeReplacesTheStoredShellWithoutMovingThePocket() {
+        PocketAllocator allocator = new PocketAllocator();
+        PocketBinding binding = PocketBinding.personal(id(72));
+        PocketSpace original = allocator.getOrAllocate(binding);
+        PocketShell target = new PocketShell(96, "DEEPSLATE_BRICKS", "WARPED_DOOR");
+
+        PocketSpace reshaped = allocator.reshape(original.spaceId(), target);
+
+        assertEquals(target, reshaped.shell());
+        assertEquals(original.withShell(target), reshaped);
+        assertEquals(reshaped, allocator.find(binding).orElseThrow());
+        assertEquals(reshaped, allocator.findById(original.spaceId()).orElseThrow());
+        assertEquals(List.of(reshaped), allocator.spaces());
+        assertThrows(IllegalArgumentException.class,
+            () -> allocator.reshape(id(73), PocketShell.defaults()));
     }
 
     private static UUID id(long value) {

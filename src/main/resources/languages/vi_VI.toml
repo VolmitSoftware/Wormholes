@@ -58,9 +58,8 @@ locale = "vi_VI"
 "director.runtime.error.execution_failed" = "Không thể thực thi lệnh {command}: {reason}"
 "director.runtime.usage" = "Sử dụng: {usage}"
 "command.help.root" = "Lệnh gốc của Wormholes"
-"command.help.wand" = "Nhận gậy cổng dịch chuyển hoặc rune bằng rune=<type>"
-"command.help.wand.rune" = "portal | wormhole | gateway"
-"command.help.wand.count" = "Số lượng rune (mặc định 1)"
+"command.help.wand" = "Nhan gay portal va mot rune wormhole"
+"command.help.wand.rune" = "Kem theo mot rune wormhole (rune=false chi dua gay)"
 "command.help.door" = "Nhận một vật phẩm Cửa Không Gian dùng trong sinh tồn"
 "command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
 "command.help.reload" = "Tải lại cấu hình và tệp ngôn ngữ của Wormholes"
@@ -92,7 +91,7 @@ locale = "vi_VI"
 "command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Anh không được phép sử dụng lệnh đó."
 "command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Chỉ người chơi mới có thể nhận vật phẩm."
 "command.error.usage" = "<gray>Sử dụng: <white>/wormholes help"
-"command.wand.unknown_rune" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Loại rune không xác định '<white>{rune}<red>'. Hãy dùng portal, wormhole hoặc gateway."
+"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Da trao gay portal."
 "command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Cửa Không Gian không khả dụng."
 "command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Loại cửa không xác định. Hãy dùng pair, personal hoặc public, pair_trapdoor, personal_trapdoor, public_trapdoor."
 "command.door.empty_type" = "Loại cửa không được để trống"
@@ -397,6 +396,25 @@ locale = "vi_VI"
 "portal.menu.destination.sort_distance" = "Khoảng cách"
 "rtp.biome.any_label" = "Bất kỳ"
 
+"command.help.pocket" = "Xem va dinh hinh lai cac chieu khong gian tui"
+"command.help.pocket.info" = "Hien kich thuoc, vat lieu va gioi han cua tui ban dang dung"
+"command.help.pocket.resize" = "Xay lai tui ban dang dung voi kich thuoc hoac vat lieu moi"
+"command.help.pocket.resize.size" = "Canh phong moi tinh bang khoi, hoac 0 de giu kich thuoc hien tai"
+"command.help.pocket.resize.material" = "Khoi moi cho tuong, san va tran, hoac keep"
+"command.help.pocket.resize.door" = "Khoi moi cho cua thoat, hoac keep"
+"command.help.pocket.resize.confirm" = "Bat buoc khi thay doi se pha huy hoac di chuyen thu gi do"
+"command.help.pocket.resizeall" = "Xay lai moi tui hien co voi kich thuoc hoac vat lieu moi"
+"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Hay dung ben trong mot chieu khong gian tui de chay lenh nay."
+"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Kich thuoc tui phai tu {minimum} den {maximum} khoi."
+"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} khong dung lam tuong tui. Hay dung khoi dac khong roi."
+"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} khong dung lam cua thoat cua tui. Hay dung cua mo bang tay; cua sat bi tu choi."
+"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Tui do da co kich thuoc va vat lieu nay."
+"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Da xay lai tui o <white>{size}<green> khoi (truoc do <white>{previous}<green>), tuong <white>{material}<green>, cua thoat <white>{door}."
+"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Khong the xay lai tui. Hay kiem tra console."
+"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Chieu khong gian tui chua duoc tai."
+"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Phong {size} khoi khong vua chieu cao xay dung cua chieu khong gian tui."
+"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Dang xay lai <white>{count}<gray> tui."
+"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Da xay lai <white>{resized}<green>, bo qua <white>{skipped}<green>, that bai <white>{failed}."
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>Chi phí di chuyển</bold>","<gray>Yêu cầu đúng vật phẩm hoặc tiền Vault","<gray>khi người chơi sử dụng cổng này.","","<gray>Chế độ: <white>{mode}","<gray>Chi phí: <white>{cost}","","<dark_gray>Nhấp để cấu hình."]
 "portal.menu.cost.placard" = ["<gold><bold>Chi phí di chuyển</bold>","<gray>Người chơi phải trả phí trước khi","<gray>cổng này cho phép họ di chuyển.","","<gray>Chế độ: <white>{mode}","<gray>Chi phí: <white>{cost}"]
@@ -421,11 +439,10 @@ locale = "vi_VI"
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Trợ giúp cổng dịch chuyển: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Dùng gậy cổng dịch chuyển lên cổng để mở các tùy chọn điểm đến, khung nhìn, di chuyển và truy cập."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Đã cấp gậy cổng dịch chuyển và 1 rune lỗ sâu.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tạo hai hình rune lỗ sâu (bất kỳ hình nối liền nào trên cùng bề mặt phẳng), liên kết chúng và đứng trong phạm vi {range} khối để xem hình chiếu.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Chạy <white>/wormholes info<gray> để xem hướng dẫn đầy đủ từng bước."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tệp ảnh chụp: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Theo dõi cuối tệp này để chia sẻ trạng thái mạng và khung nhìn trực tiếp. Tệp được ghi đè tại chỗ theo từng khoảng thời gian."]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>Cách xây lỗ sâu</bold>","<dark_gray>1. <gray>Nhận gậy cổng dịch chuyển và rune cổng từ máy chủ hoặc quản trị viên.","<dark_gray>2. <gray>Đặt rune thành một hình nối liền trên cùng bề mặt phẳng.","<gray>   Mọi hình nối liền đều dùng được: hình chữ nhật, đường thẳng (3x1), một khối, hình chữ L và hình chữ thập.","<gray>   Rune phải nằm phẳng trên cùng một mặt tường, sàn hoặc trần thẳng theo trục tọa độ.","<dark_gray>3. <gray>Cầm gậy cổng dịch chuyển và <white>nhấp trái vào rune bất kỳ<gray> để tạo cổng.","<dark_gray>4. <gray>Xây cổng thứ hai ở nơi khác (không giới hạn khoảng cách hoặc thế giới).","<dark_gray>5. <gray>Dùng gậy nhấp vào cổng đang mở để mở trình đơn chính.","<gray>   Chọn <white>Điểm đến<gray> rồi chọn cổng còn lại. Lặp lại ở phía bên kia.","<gray>   Hướng và quyền truy cập nằm trong các trình đơn riêng, đơn giản.","<dark_gray>6. <gray>Đứng trong phạm vi {range} khối của một trong hai cổng; thế giới đích sẽ chiếu qua khung và bạn sẽ dịch chuyển khi bước vào.","<gray>Quản trị viên có thể tạo vật phẩm bằng <white>/wormholes wand rune=\\<portal|wormhole|gateway> count=\\<n>"]
+"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>Cách xây lỗ sâu</bold>","<dark_gray>1. <gray>Nhận gậy cổng dịch chuyển và rune cổng từ máy chủ hoặc quản trị viên.","<dark_gray>2. <gray>Đặt rune thành một hình nối liền trên cùng bề mặt phẳng.","<gray>   Mọi hình nối liền đều dùng được: hình chữ nhật, đường thẳng (3x1), một khối, hình chữ L và hình chữ thập.","<gray>   Rune phải nằm phẳng trên cùng một mặt tường, sàn hoặc trần thẳng theo trục tọa độ.","<dark_gray>3. <gray>Cầm gậy cổng dịch chuyển và <white>nhấp trái vào rune bất kỳ<gray> để tạo cổng.","<dark_gray>4. <gray>Xây cổng thứ hai ở nơi khác (không giới hạn khoảng cách hoặc thế giới).","<dark_gray>5. <gray>Dùng gậy nhấp vào cổng đang mở để mở trình đơn chính.","<gray>   Chọn <white>Điểm đến<gray> rồi chọn cổng còn lại. Lặp lại ở phía bên kia.","<gray>   Hướng và quyền truy cập nằm trong các trình đơn riêng, đơn giản.","<dark_gray>6. <gray>Đứng trong phạm vi {range} khối của một trong hai cổng; thế giới đích sẽ chiếu qua khung và bạn sẽ dịch chuyển khi bước vào.","<gray>Quản trị viên có thể tạo vật phẩm bằng <white>/wormholes wand"]
 "item.portal_wand" = ["<gold><bold>Gậy cổng dịch chuyển</bold>"]
 "item.portal_rune" = ["<gold><bold>Rune cổng</bold>"]
 "item.wormhole_rune" = ["<gold><bold>Rune lỗ sâu</bold>"]
-"item.gateway_rune" = ["<red><bold>Rune cổng liên máy chủ</bold>"]
 "item.door.entangled_pair" = ["<gold>Cặp cửa liên kết","<gray>Chứa hai Cửa Lỗ Sâu tự động liên kết.","<gray>Dùng để mở gói đầu cuối A và B."]
 "item.door.paired" = ["<gold>Cửa lỗ sâu {endpoint}","<gray>Tự động liên kết với điểm cuối {other}.","<gray>Mở cửa và vượt qua ngưỡng của nó."]
 "item.door.personal" = ["<aqua>Cửa Không Gian Cá Nhân","<gray>Mỗi người đi vào chiều không gian riêng được lưu lâu dài.","<gray>Cùng một người luôn đến cùng một nơi."]
@@ -566,10 +583,8 @@ locale = "vi_VI"
 "door.menu.access.open_state" = ["<aqua><bold>OpenState: <white>{state}","<gray>Cổng tuân theo trạng thái vật lý của khối này.","<gray>Trạng thái hoạt động: <white>{state}<gray>.","","<dark_gray>Tiếp theo: {next}. Nhấp để chuyển."]
 "door.menu.access.entry" = ["<white>{name}","<gray>Trạng thái: <aqua>{state}","","<dark_gray>Nhấp trái: cho phép. Nhấp phải: chặn.","<dark_gray>Nhấp giữa hoặc Shift + nhấp trái: xóa."]
 
-[plural."command.wand.granted_runes"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Đã cấp <white>{count} {rune}<green> rune."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Đã cấp <white>{count} {rune}<green> rune."
-
+"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tui <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Kich thuoc <white>{size}<gray> khoi, tuong <white>{material}<gray>, cua thoat <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Gioi han <white>{minimum}<gray> den <white>{maximum}"]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Xay lai o {size} khoi se pha huy <white>{blocks}<red> khoi da dat (<white>{containers}<red> co chua vat pham) va di chuyen <white>{entities}<red> thuc the.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Vat pham trong ruong va moi thu con lai ngoai tuong moi se roi tai loi vao. Phan con lai bi mat.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Chay lai cung lenh voi <white>confirm=true<gray> de tiep tuc."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Đã xóa <white>{count}<green> cổng dịch chuyển và dọn các liên kết cổng cục bộ."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Đã xóa <white>{count}<green> cổng dịch chuyển và dọn các liên kết cổng cục bộ."

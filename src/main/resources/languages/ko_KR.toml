@@ -58,9 +58,8 @@ locale = "ko_KR"
 "director.runtime.error.execution_failed" = "명령어 {command} 실행에 실패했습니다: {reason}"
 "director.runtime.usage" = "사용법: {usage}"
 "command.help.root" = "Wormholes 명령어 루트"
-"command.help.wand" = "포털 지팡이를 받거나 rune=<type>을 지정해 룬을 받습니다"
-"command.help.wand.rune" = "portal | wormhole | gateway"
-"command.help.wand.count" = "룬 개수(기본값 1)"
+"command.help.wand" = "포털 완드와 웜홀 룬 받기"
+"command.help.wand.rune" = "웜홀 룬도 함께 지급 (rune=false 이면 완드만)"
 "command.help.door" = "생존 모드에서 사용할 수 있는 차원문 아이템을 지급합니다"
 "command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
 "command.help.reload" = "Wormholes 설정 및 언어 파일을 다시 불러옵니다"
@@ -92,7 +91,7 @@ locale = "ko_KR"
 "command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>이 명령을 사용할 권한이 없습니다."
 "command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>아이템은 플레이어만 받을 수 있습니다."
 "command.error.usage" = "<gray>사용법: <white>/wormholes help"
-"command.wand.unknown_rune" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>알 수 없는 룬 유형 '<white>{rune}<red>'입니다. portal, wormhole 또는 gateway 값을 사용하세요."
+"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>포털 완드를 지급했습니다."
 "command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>차원 문은 사용할 수 없습니다."
 "command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>알 수 없는 문 유형입니다. pair, personal 또는 public, pair_trapdoor, personal_trapdoor, public_trapdoor 값을 사용하세요."
 "command.door.empty_type" = "문 타입은 비어서는 안 됩니다"
@@ -398,6 +397,25 @@ locale = "ko_KR"
 "portal.menu.destination.sort_distance" = "거리"
 "rtp.biome.any_label" = "모두"
 
+"command.help.pocket" = "포켓 차원 확인 및 재구성"
+"command.help.pocket.info" = "현재 서 있는 포켓의 크기, 재료, 범위를 표시"
+"command.help.pocket.resize" = "현재 서 있는 포켓을 새 크기나 재료로 다시 만들기"
+"command.help.pocket.resize.size" = "새 방 한 변의 블록 수, 또는 0으로 현재 크기 유지"
+"command.help.pocket.resize.material" = "벽, 바닥, 천장에 쓸 새 블록 또는 keep"
+"command.help.pocket.resize.door" = "출구 문에 쓸 새 블록 또는 keep"
+"command.help.pocket.resize.confirm" = "변경으로 무언가가 파괴되거나 이동할 때 필요"
+"command.help.pocket.resizeall" = "기존의 모든 포켓을 새 크기나 재료로 다시 만들기"
+"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>포켓 차원 안에서 실행하세요."
+"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>포켓 크기는 {minimum}에서 {maximum} 블록 사이여야 합니다."
+"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material}은(는) 포켓 벽으로 쓸 수 없습니다. 떨어지지 않는 단단한 블록을 사용하세요."
+"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material}은(는) 포켓 출구 문으로 쓸 수 없습니다. 손으로 여는 문을 사용하세요. 철문은 거부됩니다."
+"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>그 포켓은 이미 이 크기와 재료입니다."
+"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>포켓을 <white>{size}<green> 블록으로 다시 만들었습니다 (이전 <white>{previous}<green>). 벽 <white>{material}<green>, 출구 문 <white>{door}."
+"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>포켓을 다시 만들지 못했습니다. 콘솔을 확인하세요."
+"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>포켓 차원이 로드되지 않았습니다."
+"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} 블록 크기의 방은 포켓 차원의 건축 높이에 맞지 않습니다."
+"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>포켓 <white>{count}<gray>개를 다시 만드는 중입니다."
+"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>재구성 <white>{resized}<green>, 건너뜀 <white>{skipped}<green>, 실패 <white>{failed}."
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>이동 비용</bold>","<gray>플레이어가 이 포털을 사용할 때","<gray>정확한 아이템 또는 Vault 화폐를 요구합니다.","","<gray>모드: <white>{mode}","<gray>비용: <white>{cost}","","<dark_gray>클릭하여 설정합니다."]
 "portal.menu.cost.placard" = ["<gold><bold>이동 비용</bold>","<gray>플레이어는 비용을 지불해야","<gray>이 포털로 이동할 수 있습니다.","","<gray>모드: <white>{mode}","<gray>비용: <white>{cost}"]
@@ -422,11 +440,10 @@ locale = "ko_KR"
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>포털 도움말: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>포털에 포털 지팡이를 사용하면 목적지, 보기, 이동 및 접근 설정을 열 수 있습니다."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>포털 지팡이와 웜홀 룬 1개를 지급했습니다.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>웜홀 룬 모양 2개(한 평면에 연결된 어떤 모양이든 가능)를 만들어 연결한 뒤, {range}블록 안에 서면 투영을 볼 수 있습니다.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>전체 단계별 안내는 <white>/wormholes info<gray>에서 확인하세요."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>스냅샷 파일: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>이 파일을 모니터링하면 실시간 네트워크 및 보기 상태를 확인할 수 있습니다. 파일은 주기마다 덮어씁니다."]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>웜홀 만드는 방법</bold>","<dark_gray>1. <gray>서버 또는 관리자에게서 포털 지팡이와 포털 룬을 받습니다.","<dark_gray>2. <gray>한 평면에 룬을 서로 연결된 모양으로 배치합니다.","<gray>   직사각형, 직선 (3x1), 단일 블록, L자, 십자 등 연결된 모양이면 됩니다.","<gray>   룬은 좌표축에 맞는 하나의 벽, 바닥 또는 천장에 평평하게 놓여야 합니다.","<dark_gray>3. <gray>포털 지팡이를 들고 <white>아무 룬 블록이나 왼쪽 클릭<gray>하여 포털을 만듭니다.","<dark_gray>4. <gray>다른 위치에 두 번째 포털을 만듭니다(거리와 월드는 무관합니다).","<dark_gray>5. <gray>지팡이로 열린 포털을 클릭해 주 메뉴를 엽니다.","<gray>   <white>목적지<gray>를 선택하고 다른 포털을 지정합니다. 반대쪽에서도 반복합니다.","<gray>   방향과 접근 설정은 각각 별도의 간단한 메뉴에 있습니다.","<dark_gray>6. <gray>두 포털 중 하나에서 {range}블록 안에 서면 목적지 월드가 프레임에 투영되며, 안으로 걸어가면 순간이동합니다.","<gray>관리자는 <white>/wormholes wand rune=\\<portal|wormhole|gateway> count=\\<n> 명령으로 아이템을 만들 수 있습니다"]
+"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>웜홀 만드는 방법</bold>","<dark_gray>1. <gray>서버 또는 관리자에게서 포털 지팡이와 포털 룬을 받습니다.","<dark_gray>2. <gray>한 평면에 룬을 서로 연결된 모양으로 배치합니다.","<gray>   직사각형, 직선 (3x1), 단일 블록, L자, 십자 등 연결된 모양이면 됩니다.","<gray>   룬은 좌표축에 맞는 하나의 벽, 바닥 또는 천장에 평평하게 놓여야 합니다.","<dark_gray>3. <gray>포털 지팡이를 들고 <white>아무 룬 블록이나 왼쪽 클릭<gray>하여 포털을 만듭니다.","<dark_gray>4. <gray>다른 위치에 두 번째 포털을 만듭니다(거리와 월드는 무관합니다).","<dark_gray>5. <gray>지팡이로 열린 포털을 클릭해 주 메뉴를 엽니다.","<gray>   <white>목적지<gray>를 선택하고 다른 포털을 지정합니다. 반대쪽에서도 반복합니다.","<gray>   방향과 접근 설정은 각각 별도의 간단한 메뉴에 있습니다.","<dark_gray>6. <gray>두 포털 중 하나에서 {range}블록 안에 서면 목적지 월드가 프레임에 투영되며, 안으로 걸어가면 순간이동합니다.","<gray>관리자는 <white>/wormholes wand 명령으로 아이템을 만들 수 있습니다"]
 "item.portal_wand" = ["<gold><bold>포털 지팡이</bold>"]
 "item.portal_rune" = ["<gold><bold>포털 룬</bold>"]
 "item.wormhole_rune" = ["<gold><bold>웜홀 룬</bold>"]
-"item.gateway_rune" = ["<red><bold>게이트웨이 룬</bold>"]
 "item.door.entangled_pair" = ["<gold>얽힌 문 한 쌍","<gray>자동으로 연결된 웜홀 문 두 개입니다.","<gray>사용하면 A 문과 B 문으로 나뉩니다."]
 "item.door.paired" = ["<gold>웜홀 문 {endpoint}","<gray>{other} 쪽과 자동으로 연결됩니다.","<gray>문을 열고 문턱을 직접 넘으면 이동합니다."]
 "item.door.personal" = ["<aqua>개인 차원문","<gray>여행자마다 자신만의 영구 차원으로 들어갑니다.","<gray>같은 여행자는 항상 같은 장소에 도착합니다."]
@@ -567,10 +584,8 @@ locale = "ko_KR"
 "door.menu.access.open_state" = ["<aqua><bold>OpenState: <white>{state}","<gray>포털은 이 블록의 물리적 상태를 따릅니다.","<gray>활성 상태: <white>{state}<gray>.","","<dark_gray>다음: {next}. 클릭하여 전환합니다."]
 "door.menu.access.entry" = ["<white>{name}","<gray>상태: <aqua>{state}","","<dark_gray>좌클릭: 허용. 우클릭: 차단.","<dark_gray>휠 클릭 또는 Shift + 좌클릭: 제거."]
 
-[plural."command.wand.granted_runes"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count} {rune}<green> 룬을 지급했습니다."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count} {rune}<green> 룬을 지급했습니다."
-
+"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>포켓 <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>크기 <white>{size}<gray> 블록, 벽 <white>{material}<gray>, 출구 문 <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>범위 <white>{minimum}<gray> ~ <white>{maximum}"]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} 블록으로 다시 만들면 설치된 블록 <white>{blocks}<red>개(내용물이 있는 것 <white>{containers}<red>개)가 파괴되고 엔티티 <white>{entities}<red>개가 이동합니다.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>보관함 내용물과 새 벽 바깥에 남은 것은 입구에 떨어뜨립니다. 나머지는 사라집니다.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>계속하려면 같은 명령을 <white>confirm=true<gray>와 함께 실행하세요."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>포털 <white>{count}<green>개를 삭제하고 로컬 포털 연결을 지웠습니다."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>포털 <white>{count}<green>개를 삭제하고 로컬 포털 연결을 지웠습니다."

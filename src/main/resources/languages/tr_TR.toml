@@ -58,9 +58,8 @@ locale = "tr_TR"
 "director.runtime.error.execution_failed" = "{command} komutu çalıştırılamadı: {reason}"
 "director.runtime.usage" = "Kullanım: {usage}"
 "command.help.root" = "Wormholes komut kökü"
-"command.help.wand" = "Portal asasını veya rune=<type> ile rünleri ver"
-"command.help.wand.rune" = "portal | wormhole | gateway"
-"command.help.wand.count" = "Rün sayısı (varsayılan 1)"
+"command.help.wand" = "Portal asasi ve bir solucan deligi runu al"
+"command.help.wand.rune" = "Solucan deligi runu da ver (rune=false yalnizca asayi verir)"
 "command.help.door" = "Hayatta kalma modunda kullanılabilen bir boyut kapısı öğesi ver"
 "command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
 "command.help.reload" = "Wormholes yapılandırma ve dil dosyalarını yeniden yükle"
@@ -92,7 +91,7 @@ locale = "tr_TR"
 "command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Bu komutu kullanma izniniz yok."
 "command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Sadece oyuncular eşyalar alabilir."
 "command.error.usage" = "<gray>Kullanım: <white>/wormholes help"
-"command.wand.unknown_rune" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Bilinmeyen rün türü '<white>{rune}<red>'. portal, wormhole veya gateway değerini kullanın."
+"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portal asasi verildi."
 "command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Boyut kapıları kullanılamıyor."
 "command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Bilinmeyen kapı türü. pair, personal veya public, pair_trapdoor, personal_trapdoor, public_trapdoor değerini kullanın."
 "command.door.empty_type" = "Kapı tipi boş olamaz"
@@ -397,6 +396,25 @@ locale = "tr_TR"
 "portal.menu.destination.sort_distance" = "Mesafe"
 "rtp.biome.any_label" = "Herhangi"
 
+"command.help.pocket" = "Cep boyutlarini incele ve yeniden sekillendir"
+"command.help.pocket.info" = "Icinde durdugun cebin boyutunu, malzemelerini ve sinirlarini goster"
+"command.help.pocket.resize" = "Icinde durdugun cebi yeni bir boyut veya malzemeyle yeniden insa et"
+"command.help.pocket.resize.size" = "Yeni oda kenari (blok) veya mevcut boyutu korumak icin 0"
+"command.help.pocket.resize.material" = "Duvar, zemin ve tavan icin yeni blok veya keep"
+"command.help.pocket.resize.door" = "Cikis kapisi icin yeni blok veya keep"
+"command.help.pocket.resize.confirm" = "Degisiklik bir seyi yok edecek veya tasiyacaksa gereklidir"
+"command.help.pocket.resizeall" = "Mevcut her cebi yeni bir boyut veya malzemeyle yeniden insa et"
+"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Bunu calistirmak icin bir cep boyutunun icinde dur."
+"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Cep boyutu {minimum} ile {maximum} blok arasinda olmali."
+"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} cep duvari olamaz. Dusmeyen kati bir blok kullan."
+"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} cep cikis kapisi olamaz. Elle acilan bir kapi kullan; demir kapilar reddedilir."
+"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>O cep zaten bu boyutta ve bu malzemelerde."
+"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Cep <white>{size}<green> blok olarak yeniden insa edildi (onceki <white>{previous}<green>), duvarlar <white>{material}<green>, cikis kapisi <white>{door}."
+"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Cep yeniden insa edilemedi. Konsolu kontrol et."
+"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Cep boyutu yuklu degil."
+"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} bloklu bir oda cep boyutunun insa yuksekligine sigmiyor."
+"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray><white>{count}<gray> cep yeniden insa ediliyor."
+"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Yeniden insa edilen <white>{resized}<green>, atlanan <white>{skipped}<green>, basarisiz <white>{failed}."
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>Seyahat Maliyeti</bold>","<gray>Bir oyuncu bu portalı kullandığında","<gray>tam bir eşya veya Vault parası isteyin.","","<gray>Mod: <white>{mode}","<gray>Maliyet: <white>{cost}","","<dark_gray>Yapılandırmak için tıklayın."]
 "portal.menu.cost.placard" = ["<gold><bold>Seyahat Maliyeti</bold>","<gray>Bu portal seyahate izin vermeden önce","<gray>oyuncular ödeme yapmalıdır.","","<gray>Mod: <white>{mode}","<gray>Maliyet: <white>{cost}"]
@@ -421,11 +439,10 @@ locale = "tr_TR"
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Portal yardımı: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Hedef, görünüm, seyahat ve erişim ayarlarını açmak için portal asasını portalda kullanın."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portal asası ve 1 solucan deliği rünü verildi.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>İki solucan deliği rünü şekli oluşturun (tek düz yüzeyde bağlantılı herhangi bir şekil), bunları bağlayın ve projeksiyonu görmek için {range} blok içinde durun.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tüm adımları görmek için <white>/wormholes info<gray> komutunu çalıştırın."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Anlık görüntü dosyası: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Canlı ağ ve görünüm durumunu izlemek için bu dosyayı takip edin. Dosya her döngüde yerinde yeniden yazılır."]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>Solucan deliği nasıl yapılır</bold>","<dark_gray>1. <gray>Sunucudan veya bir yöneticiden portal asası ve portal rünleri alın.","<dark_gray>2. <gray>Rünleri aynı düz yüzeyde bağlantılı herhangi bir şekle yerleştirin.","<gray>   Dikdörtgen, çizgi (3x1), tek blok, L şekli ve haç gibi tüm bağlantılı şekiller çalışır.","<gray>   Rünler eksenlere hizalı tek bir duvar, zemin veya tavanda düz durmalıdır.","<dark_gray>3. <gray>Portal asasını tutup <white>herhangi bir rün bloğuna sol tıklayarak<gray> portalı oluşturun.","<dark_gray>4. <gray>Başka bir yerde ikinci bir portal oluşturun (mesafe ve dünya fark etmez).","<dark_gray>5. <gray>Ana menüyü açmak için açık portala asayla tıklayın.","<gray>   <white>Hedef<gray> seçeneğini açıp diğer portalı seçin. Öteki tarafta da tekrarlayın.","<gray>   Yön ve erişim ayarları ayrı, basit menülerde gruplanmıştır.","<dark_gray>6. <gray>Portallardan birinin {range} blok yakınında durun; hedef dünya çerçevede görünür ve içeri yürüdüğünüzde ışınlanırsınız.","<gray>Yöneticiler <white>/wormholes wand rune=\\<portal|wormhole|gateway> count=\\<n> komutuyla malzeme oluşturabilir"]
+"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>Solucan deliği nasıl yapılır</bold>","<dark_gray>1. <gray>Sunucudan veya bir yöneticiden portal asası ve portal rünleri alın.","<dark_gray>2. <gray>Rünleri aynı düz yüzeyde bağlantılı herhangi bir şekle yerleştirin.","<gray>   Dikdörtgen, çizgi (3x1), tek blok, L şekli ve haç gibi tüm bağlantılı şekiller çalışır.","<gray>   Rünler eksenlere hizalı tek bir duvar, zemin veya tavanda düz durmalıdır.","<dark_gray>3. <gray>Portal asasını tutup <white>herhangi bir rün bloğuna sol tıklayarak<gray> portalı oluşturun.","<dark_gray>4. <gray>Başka bir yerde ikinci bir portal oluşturun (mesafe ve dünya fark etmez).","<dark_gray>5. <gray>Ana menüyü açmak için açık portala asayla tıklayın.","<gray>   <white>Hedef<gray> seçeneğini açıp diğer portalı seçin. Öteki tarafta da tekrarlayın.","<gray>   Yön ve erişim ayarları ayrı, basit menülerde gruplanmıştır.","<dark_gray>6. <gray>Portallardan birinin {range} blok yakınında durun; hedef dünya çerçevede görünür ve içeri yürüdüğünüzde ışınlanırsınız.","<gray>Yöneticiler <white>/wormholes wand komutuyla malzeme oluşturabilir"]
 "item.portal_wand" = ["<gold><bold>Portal Asası</bold>"]
 "item.portal_rune" = ["<gold><bold>Portal Rünü</bold>"]
 "item.wormhole_rune" = ["<gold><bold>Solucan Deliği Rünü</bold>"]
-"item.gateway_rune" = ["<red><bold>Geçit Rünü</bold>"]
 "item.door.entangled_pair" = ["<gold>Dolaşık Kapı Çifti","<gray>Otomatik olarak bağlı iki solucan deliği kapısı içerir.","<gray>A ve B uçlarını ayırmak için kullanın."]
 "item.door.paired" = ["<gold>Solucan Deliği Kapısı {endpoint}","<gray>{other} ucuna otomatik olarak bağlanır.","<gray>Kapıyı açıp fiziksel olarak eşiğinden geçin."]
 "item.door.personal" = ["<aqua>Kişisel Boyut Kapısı","<gray>Her yolcu kendi kalıcı boyutuna girer.","<gray>Aynı yolcu her zaman aynı yere ulaşır."]
@@ -566,10 +583,8 @@ locale = "tr_TR"
 "door.menu.access.open_state" = ["<aqua><bold>OpenState: <white>{state}","<gray>Portal bu bloğun fiziksel durumunu izler.","<gray>Etkin durum: <white>{state}<gray>.","","<dark_gray>Sonraki: {next}. Değiştirmek için tıklayın."]
 "door.menu.access.entry" = ["<white>{name}","<gray>Durum: <aqua>{state}","","<dark_gray>Sol tık: izin ver. Sağ tık: engelle.","<dark_gray>Orta tık veya Shift + sol tık: kaldır."]
 
-[plural."command.wand.granted_runes"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count} {rune}<green> rünü verildi."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count} {rune}<green> rünü verildi."
-
+"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Cep <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Boyut <white>{size}<gray> blok, duvarlar <white>{material}<gray>, cikis kapisi <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Sinirlar <white>{minimum}<gray> ile <white>{maximum}"]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} blok olarak yeniden insa etmek <white>{blocks}<red> yerlestirilmis blogu (<white>{containers}<red> tanesi esya dolu) yok eder ve <white>{entities}<red> varligi tasir.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Sandik icerikleri ve yeni duvarlarin disinda kalan her sey girise birakilir. Geri kalani kaybolur.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Devam etmek icin ayni komutu <white>confirm=true<gray> ile calistir."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> portal silindi ve yerel portal bağlantıları temizlendi."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> portal silindi ve yerel portal bağlantıları temizlendi."

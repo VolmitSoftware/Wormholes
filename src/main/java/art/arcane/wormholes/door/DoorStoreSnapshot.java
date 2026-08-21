@@ -20,7 +20,7 @@ public record DoorStoreSnapshot(
     List<ReturnTicket> returnTickets,
     List<DoorAccessRecord> accessRecords
 ) {
-    public static final int CURRENT_SCHEMA = 6;
+    public static final int CURRENT_SCHEMA = 7;
 
     public DoorStoreSnapshot {
         if (schema != CURRENT_SCHEMA) {

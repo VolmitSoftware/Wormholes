@@ -58,9 +58,8 @@ locale = "zh_CN"
 "director.runtime.error.execution_failed" = "执行命令 {command} 失败：{reason}"
 "director.runtime.usage" = "用法：{usage}"
 "command.help.root" = "Wormholes 命令根节点"
-"command.help.wand" = "给予自己一根传送门法杖，或使用 rune=<type> 给予符文"
-"command.help.wand.rune" = "portal | wormhole | gateway"
-"command.help.wand.count" = "符文数量(默认 1)"
+"command.help.wand" = "获得传送门法杖和一个虫洞符文"
+"command.help.wand.rune" = "同时给予虫洞符文（rune=false 只给法杖）"
 "command.help.door" = "给予一个生存模式可用的维度门物品"
 "command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
 "command.help.reload" = "重新加载 Wormholes 配置和语言文件"
@@ -92,7 +91,7 @@ locale = "zh_CN"
 "command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>你没有权限使用该命令。"
 "command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>只有玩家可以接收物品。"
 "command.error.usage" = "<gray>用法：<white>/wormholes help"
-"command.wand.unknown_rune" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>未知的符文类型 '<white>{rune}<red>'。请使用 portal、wormhole 或 gateway。"
+"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已给予传送门法杖。"
 "command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>维度门当前不可用。"
 "command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>未知的门类型。请使用 pair、personal 或 public, pair_trapdoor, personal_trapdoor, public_trapdoor。"
 "command.door.empty_type" = "门类型不能为空"
@@ -397,6 +396,25 @@ locale = "zh_CN"
 "portal.menu.destination.sort_distance" = "距离"
 "rtp.biome.any_label" = "任意"
 
+"command.help.pocket" = "查看和重塑口袋维度"
+"command.help.pocket.info" = "显示你所在口袋的大小、材料和边界"
+"command.help.pocket.resize" = "以新的大小或材料重建你所在的口袋"
+"command.help.pocket.resize.size" = "房间新的边长（方块数），填 0 保持当前大小"
+"command.help.pocket.resize.material" = "墙壁、地板和天花板的新方块，或填 keep"
+"command.help.pocket.resize.door" = "出口门的新方块，或填 keep"
+"command.help.pocket.resize.confirm" = "当改动会破坏或移动任何东西时必须填写"
+"command.help.pocket.resizeall" = "以新的大小或材料重建所有现有口袋"
+"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>请站在口袋维度内再执行此命令。"
+"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>口袋大小必须在 {minimum} 到 {maximum} 个方块之间。"
+"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} 不能作为口袋墙壁。请使用不会掉落的固体方块。"
+"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} 不能作为口袋出口门。请使用可以手动打开的门；铁门会被拒绝。"
+"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>该口袋已经是这个大小和这些材料。"
+"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>口袋已重建为 <white>{size}<green> 个方块（原为 <white>{previous}<green>），墙壁 <white>{material}<green>，出口门 <white>{door}。"
+"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>无法重建该口袋。请查看控制台。"
+"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>口袋维度尚未加载。"
+"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} 个方块的房间超出了口袋维度的建筑高度。"
+"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>正在重建 <white>{count}<gray> 个口袋。"
+"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已重建 <white>{resized}<green>，跳过 <white>{skipped}<green>，失败 <white>{failed}。"
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>通行费用</bold>","<gray>要求玩家使用此传送门时","<gray>支付指定物品或 Vault 货币。","","<gray>模式：<white>{mode}","<gray>费用：<white>{cost}","","<dark_gray>点击进行配置。"]
 "portal.menu.cost.placard" = ["<gold><bold>通行费用</bold>","<gray>玩家必须先付费","<gray>才能通过此传送门。","","<gray>模式：<white>{mode}","<gray>费用：<white>{cost}"]
@@ -421,11 +439,10 @@ locale = "zh_CN"
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>传送门帮助：<white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>对传送门使用传送门法杖，可打开目的地、视图、通行和访问控制。"]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>已给予传送门法杖和 1 枚虫洞符文。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>搭建两个虫洞符文形状(同一平面上的任意相连形状)，将它们链接，并站在 {range} 个方块内查看投影。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>运行 <white>/wormholes info<gray> 查看完整分步说明。"]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>快照文件：<white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>持续查看此文件可共享实时网络与视图状态。每个周期都会原地覆盖该文件。"]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>如何建造虫洞</bold>","<dark_gray>1. <gray>从服务器或管理员处获得传送门法杖和传送门符文。","<dark_gray>2. <gray>在同一平面上将符文摆成任意相连形状。","<gray>   任意相连形状都可以：矩形、直线 (3x1)、单个方块、L 形和十字形。","<gray>   符文必须平整地位于同一面与坐标轴对齐的墙、地板或天花板上。","<dark_gray>3. <gray>手持传送门法杖，<white>左键点击任意符文方块<gray>以构建传送门。","<dark_gray>4. <gray>在其他位置建造第二个传送门(距离和世界不限)。","<dark_gray>5. <gray>手持法杖点击已开启的传送门，打开主菜单。","<gray>   选择<white>目的地<gray>并选中另一个传送门，然后在另一端重复此操作。","<gray>   方向和访问控制分别位于各自的简洁菜单中。","<dark_gray>6. <gray>站在任一传送门 {range} 个方块内，目的地世界会投影在框架中；走入框架即可传送。","<gray>管理员可使用 <white>/wormholes wand rune=\\<portal|wormhole|gateway> count=\\<n> 创建物品"]
+"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>如何建造虫洞</bold>","<dark_gray>1. <gray>从服务器或管理员处获得传送门法杖和传送门符文。","<dark_gray>2. <gray>在同一平面上将符文摆成任意相连形状。","<gray>   任意相连形状都可以：矩形、直线 (3x1)、单个方块、L 形和十字形。","<gray>   符文必须平整地位于同一面与坐标轴对齐的墙、地板或天花板上。","<dark_gray>3. <gray>手持传送门法杖，<white>左键点击任意符文方块<gray>以构建传送门。","<dark_gray>4. <gray>在其他位置建造第二个传送门(距离和世界不限)。","<dark_gray>5. <gray>手持法杖点击已开启的传送门，打开主菜单。","<gray>   选择<white>目的地<gray>并选中另一个传送门，然后在另一端重复此操作。","<gray>   方向和访问控制分别位于各自的简洁菜单中。","<dark_gray>6. <gray>站在任一传送门 {range} 个方块内，目的地世界会投影在框架中；走入框架即可传送。","<gray>管理员可使用 <white>/wormholes wand 创建物品"]
 "item.portal_wand" = ["<gold><bold>传送门法杖</bold>"]
 "item.portal_rune" = ["<gold><bold>传送门符文</bold>"]
 "item.wormhole_rune" = ["<gold><bold>虫洞符文</bold>"]
-"item.gateway_rune" = ["<red><bold>网关符文</bold>"]
 "item.door.entangled_pair" = ["<gold>纠缠门组","<gray>包含两扇自动链接的虫洞门。","<gray>使用后可拆分出 A 端和 B 端。"]
 "item.door.paired" = ["<gold>虫洞门 {endpoint}","<gray>自动链接到 {other} 端。","<gray>打开门并亲自跨过门槛即可通行。"]
 "item.door.personal" = ["<aqua>个人维度门","<gray>每位旅行者都会进入自己的持久维度。","<gray>同一位旅行者始终会抵达同一地点。"]
@@ -566,10 +583,8 @@ locale = "zh_CN"
 "door.menu.access.open_state" = ["<aqua><bold>OpenState：<white>{state}","<gray>传送门会跟随此方块的物理状态。","<gray>激活状态：<white>{state}<gray>。","","<dark_gray>下一状态：{next}。点击切换。"]
 "door.menu.access.entry" = ["<white>{name}","<gray>状态：<aqua>{state}","","<dark_gray>左键：白名单。右键：黑名单。","<dark_gray>中键或 Shift + 左键：移除。"]
 
-[plural."command.wand.granted_runes"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已给予 <white>{count} {rune}<green> 符文。"
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已给予 <white>{count} {rune}<green> 符文。"
-
+"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>口袋 <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>大小 <white>{size}<gray> 个方块，墙壁 <white>{material}<gray>，出口门 <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>边界 <white>{minimum}<gray> 到 <white>{maximum}"]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>重建为 {size} 个方块会摧毁 <white>{blocks}<red> 个已放置的方块（其中 <white>{containers}<red> 个装有物品），并移动 <white>{entities}<red> 个实体。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>容器内的物品以及留在新墙外的东西会掉落在入口处，其余的将永久丢失。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>加上 <white>confirm=true<gray> 重新执行同一命令以继续。"]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已删除 <white>{count}<green> 个传送门，并清除本地传送门链接。"
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已删除 <white>{count}<green> 个传送门，并清除本地传送门链接。"

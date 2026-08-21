@@ -26,11 +26,9 @@ final class BlockOpsRuneCatalog
 	private final List<ItemStack> acceptedWandTemplates = new CopyOnWriteArrayList<ItemStack>();
 	private final List<ItemStack> acceptedPortalRuneTemplates = new CopyOnWriteArrayList<ItemStack>();
 	private final List<ItemStack> acceptedWormholeRuneTemplates = new CopyOnWriteArrayList<ItemStack>();
-	private final List<ItemStack> acceptedGatewayRuneTemplates = new CopyOnWriteArrayList<ItemStack>();
 	private volatile ItemStack wandTemplate;
 	private volatile ItemStack portalRuneTemplate;
 	private volatile ItemStack wormholeRuneTemplate;
-	private volatile ItemStack gatewayRuneTemplate;
 
 	BlockOpsRuneCatalog()
 	{
@@ -38,7 +36,6 @@ final class BlockOpsRuneCatalog
 		wandTemplate = buildTemplate(Material.BLAZE_ROD, WormholesMessages.ITEM_PORTAL_WAND, english);
 		portalRuneTemplate = buildTemplate(Material.PRISMARINE, WormholesMessages.ITEM_PORTAL_RUNE, english);
 		wormholeRuneTemplate = buildTemplate(Material.DARK_PRISMARINE, WormholesMessages.ITEM_WORMHOLE_RUNE, english);
-		gatewayRuneTemplate = buildTemplate(Material.BLACK_STAINED_GLASS, WormholesMessages.ITEM_GATEWAY_RUNE, english);
 		refreshLocalizedTemplates();
 		registerRecipes();
 	}
@@ -65,16 +62,13 @@ final class BlockOpsRuneCatalog
 		rememberTemplate(acceptedWandTemplates, wandTemplate);
 		rememberTemplate(acceptedPortalRuneTemplates, portalRuneTemplate);
 		rememberTemplate(acceptedWormholeRuneTemplates, wormholeRuneTemplate);
-		rememberTemplate(acceptedGatewayRuneTemplates, gatewayRuneTemplate);
 		WormholesLocalization localization = Wormholes.text();
 		wandTemplate = buildTemplate(Material.BLAZE_ROD, WormholesMessages.ITEM_PORTAL_WAND, localization);
 		portalRuneTemplate = buildTemplate(Material.PRISMARINE, WormholesMessages.ITEM_PORTAL_RUNE, localization);
 		wormholeRuneTemplate = buildTemplate(Material.DARK_PRISMARINE, WormholesMessages.ITEM_WORMHOLE_RUNE, localization);
-		gatewayRuneTemplate = buildTemplate(Material.BLACK_STAINED_GLASS, WormholesMessages.ITEM_GATEWAY_RUNE, localization);
 		rememberTemplate(acceptedWandTemplates, wandTemplate);
 		rememberTemplate(acceptedPortalRuneTemplates, portalRuneTemplate);
 		rememberTemplate(acceptedWormholeRuneTemplates, wormholeRuneTemplate);
-		rememberTemplate(acceptedGatewayRuneTemplates, gatewayRuneTemplate);
 	}
 
 	private static void rememberTemplate(List<ItemStack> acceptedTemplates, ItemStack template)
@@ -116,11 +110,6 @@ final class BlockOpsRuneCatalog
 		if(matchesAnyTemplate(inHand, acceptedWormholeRuneTemplates))
 		{
 			return PortalType.WORMHOLE;
-		}
-
-		if(matchesAnyTemplate(inHand, acceptedGatewayRuneTemplates))
-		{
-			return PortalType.GATEWAY;
 		}
 
 		return null;
@@ -195,8 +184,7 @@ final class BlockOpsRuneCatalog
 	boolean isPortalRune(ItemStack item)
 	{
 		return matchesAnyTemplate(item, acceptedPortalRuneTemplates)
-				|| matchesAnyTemplate(item, acceptedWormholeRuneTemplates)
-				|| matchesAnyTemplate(item, acceptedGatewayRuneTemplates);
+				|| matchesAnyTemplate(item, acceptedWormholeRuneTemplates);
 	}
 
 	ItemStack getWand()
@@ -220,20 +208,13 @@ final class BlockOpsRuneCatalog
 		return is;
 	}
 
-	ItemStack getGatewayRune(int c)
-	{
-		ItemStack is = gatewayRuneTemplate.clone();
-		is.setAmount(c);
-
-		return is;
-	}
-
 	ItemStack get(PortalType t, int stack)
 	{
 		switch(t)
 		{
+			// Gateway portals are switched on in the portal menu; they have no rune.
 			case GATEWAY:
-				return getGatewayRune(stack);
+				return null;
 			case PORTAL:
 				return getPortalRune(stack);
 			case WORMHOLE:

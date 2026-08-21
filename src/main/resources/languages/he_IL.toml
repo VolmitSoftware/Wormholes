@@ -58,9 +58,8 @@ locale = "he_IL"
 "director.runtime.error.execution_failed" = "הפעלת הפקודה {command} נכשלה: {reason}"
 "director.runtime.usage" = "שימוש: {usage}"
 "command.help.root" = "פקודת השורש של Wormholes"
-"command.help.wand" = "קבלת מטה פורטל, או רונות באמצעות rune=<type>"
-"command.help.wand.rune" = "portal | wormhole | gateway"
-"command.help.wand.count" = "מספר הרונות (ברירת מחדל 1)"
+"command.help.wand" = "קבלת שרביט הפורטל ורונת חור תולעת אחת"
+"command.help.wand.rune" = "לכלול רונת חור תולעת (rune=false נותן רק את השרביט)"
 "command.help.door" = "קבלת פריט דלת ממדית למצב הישרדות"
 "command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
 "command.help.reload" = "טעינה מחדש של קובצי התצורה והשפה של Wormholes"
@@ -92,7 +91,7 @@ locale = "he_IL"
 "command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>אין לכם הרשאה להשתמש בפקודה הזאת."
 "command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>רק שחקנים יכולים לקבל פריטים."
 "command.error.usage" = "<gray>שימוש: <white>/wormholes help"
-"command.wand.unknown_rune" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>סוג רונה לא מוכר '<white>{rune}<red>'. יש להשתמש בערך portal, wormhole או gateway."
+"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>שרביט הפורטל ניתן."
 "command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>דלתות ממדיות אינן זמינות."
 "command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>סוג דלת לא מוכר. יש להשתמש בערך pair, personal או public, pair_trapdoor, personal_trapdoor, public_trapdoor."
 "command.door.empty_type" = "סוג הדלת לא יכול להיות ריק"
@@ -398,6 +397,25 @@ locale = "he_IL"
 "portal.menu.destination.sort_distance" = "מרחק"
 "rtp.biome.any_label" = "הכול"
 
+"command.help.pocket" = "בדיקה ועיצוב מחדש של ממדי כיס"
+"command.help.pocket.info" = "הצגת הגודל, החומרים והגבולות של הכיס שאתה עומד בו"
+"command.help.pocket.resize" = "בנייה מחדש של הכיס שאתה עומד בו בגודל או בחומר אחר"
+"command.help.pocket.resize.size" = "אורך צלע החדר החדש בבלוקים, או 0 כדי לשמור על הגודל הנוכחי"
+"command.help.pocket.resize.material" = "בלוק חדש לקירות, לרצפה ולתקרה, או keep"
+"command.help.pocket.resize.door" = "בלוק חדש לדלת היציאה, או keep"
+"command.help.pocket.resize.confirm" = "נדרש כאשר השינוי היה הורס או מזיז משהו"
+"command.help.pocket.resizeall" = "בנייה מחדש של כל הכיסים הקיימים בגודל או בחומר אחר"
+"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>עמוד בתוך ממד כיס כדי להריץ את זה."
+"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>גודל הכיס חייב להיות בין {minimum} ל-{maximum} בלוקים."
+"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} אינו מתאים לקיר כיס. השתמש בבלוק מוצק שאינו נופל."
+"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} אינו מתאים לדלת יציאה. השתמש בדלת שנפתחת ביד; דלתות ברזל נדחות."
+"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>לכיס הזה כבר יש הגודל והחומרים האלה."
+"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>הכיס נבנה מחדש ל-<white>{size}<green> בלוקים (קודם <white>{previous}<green>), קירות <white>{material}<green>, דלת יציאה <white>{door}."
+"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>לא ניתן היה לבנות מחדש את הכיס. בדוק את הקונסולה."
+"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ממד הכיס אינו טעון."
+"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>חדר בגודל {size} בלוקים אינו נכנס לגובה הבנייה של ממד הכיס."
+"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>בונה מחדש <white>{count}<gray> כיסים."
+"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>נבנו מחדש <white>{resized}<green>, דולגו <white>{skipped}<green>, נכשלו <white>{failed}."
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>עלות מעבר</bold>","<gray>דרשו פריט מדויק או מטבע Vault","<gray>כאשר שחקן משתמש בפורטל הזה.","","<gray>מצב: <white>{mode}","<gray>עלות: <white>{cost}","","<dark_gray>לחצו כדי להגדיר."]
 "portal.menu.cost.placard" = ["<gold><bold>עלות מעבר</bold>","<gray>שחקנים חייבים לשלם לפני שהפורטל","<gray>יאפשר להם לעבור.","","<gray>מצב: <white>{mode}","<gray>עלות: <white>{cost}"]
@@ -422,11 +440,10 @@ locale = "he_IL"
 "command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>עזרה לפורטל: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>השתמשו במטה הפורטל על פורטל כדי לפתוח את הגדרות היעד, התצוגה, המעבר והגישה שלו."]
 "command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>הוענקו מטה פורטל ו-1 רונת חור תולעת.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>בנו שתי צורות של רונות חור תולעת (כל צורה מחוברת על משטח שטוח אחד), קשרו ביניהן ועמדו בטווח של {range} בלוקים כדי לראות את ההקרנה.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>הריצו <white>/wormholes info<gray> לקבלת הוראות מלאות שלב אחר שלב."]
 "command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>קובץ תמונת מצב: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>עקבו אחר סוף הקובץ כדי לשתף מצב רשת ותצוגה בזמן אמת. הקובץ נכתב מחדש בכל מרווח זמן."]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>כיצד לבנות חור תולעת</bold>","<dark_gray>1. <gray>קבלו מטה פורטל ורונות פורטל מהשרת או ממנהל.","<dark_gray>2. <gray>הניחו את הרונות בצורה מחוברת כלשהי על משטח שטוח אחד.","<gray>   כל צורה מחוברת מתאימה: מלבנים, קווים (3x1), בלוק יחיד, צורת L וצלבים.","<gray>   הרונות חייבות להיות שטוחות על קיר, רצפה או תקרה אחת המיושרים לציר.","<dark_gray>3. <gray>החזיקו את מטה הפורטל ו<white>לחצו שמאל על בלוק רונה כלשהו<gray> כדי ליצור את הפורטל.","<dark_gray>4. <gray>בנו פורטל שני במקום אחר (בכל מרחק ובכל עולם).","<dark_gray>5. <gray>לחצו על הפורטל הפתוח עם המטה כדי לפתוח את התפריט הראשי.","<gray>   בחרו <white>יעד<gray> ובחרו את הפורטל האחר. חזרו על הפעולה מהצד השני.","<gray>   הגדרות הכיוון והגישה נמצאות בתפריטים פשוטים ונפרדים.","<dark_gray>6. <gray>עמדו בטווח של {range} בלוקים מאחד הפורטלים; עולם היעד יוקרן דרך המסגרת וכניסה אליה תטלפרט אתכם.","<gray>מנהלים יכולים ליצור פריטים בעזרת <white>/wormholes wand rune=\\<portal|wormhole|gateway> count=\\<n>"]
+"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>כיצד לבנות חור תולעת</bold>","<dark_gray>1. <gray>קבלו מטה פורטל ורונות פורטל מהשרת או ממנהל.","<dark_gray>2. <gray>הניחו את הרונות בצורה מחוברת כלשהי על משטח שטוח אחד.","<gray>   כל צורה מחוברת מתאימה: מלבנים, קווים (3x1), בלוק יחיד, צורת L וצלבים.","<gray>   הרונות חייבות להיות שטוחות על קיר, רצפה או תקרה אחת המיושרים לציר.","<dark_gray>3. <gray>החזיקו את מטה הפורטל ו<white>לחצו שמאל על בלוק רונה כלשהו<gray> כדי ליצור את הפורטל.","<dark_gray>4. <gray>בנו פורטל שני במקום אחר (בכל מרחק ובכל עולם).","<dark_gray>5. <gray>לחצו על הפורטל הפתוח עם המטה כדי לפתוח את התפריט הראשי.","<gray>   בחרו <white>יעד<gray> ובחרו את הפורטל האחר. חזרו על הפעולה מהצד השני.","<gray>   הגדרות הכיוון והגישה נמצאות בתפריטים פשוטים ונפרדים.","<dark_gray>6. <gray>עמדו בטווח של {range} בלוקים מאחד הפורטלים; עולם היעד יוקרן דרך המסגרת וכניסה אליה תטלפרט אתכם.","<gray>מנהלים יכולים ליצור פריטים בעזרת <white>/wormholes wand"]
 "item.portal_wand" = ["<gold><bold>מטה פורטל</bold>"]
 "item.portal_rune" = ["<gold><bold>רונת פורטל</bold>"]
 "item.wormhole_rune" = ["<gold><bold>רונת חור תולעת</bold>"]
-"item.gateway_rune" = ["<red><bold>רונת שער</bold>"]
 "item.door.entangled_pair" = ["<gold>זוג דלתות שזורות","<gray>מכיל שתי דלתות חור תולעת המקושרות אוטומטית.","<gray>השתמשו בו כדי לפרוק את נקודות הקצה A ו-B."]
 "item.door.paired" = ["<gold>דלת חור תולעת {endpoint}","<gray>מקושרת אוטומטית לנקודת הקצה {other}.","<gray>פתחו את הדלת וחצו פיזית את המפתן."]
 "item.door.personal" = ["<aqua>דלת ממד אישי","<gray>כל נוסע נכנס לממד הקבוע האישי שלו.","<gray>אותו נוסע תמיד מגיע לאותו מקום."]
@@ -567,10 +584,8 @@ locale = "he_IL"
 "rtp.confirm.cancel" = ["<yellow><bold>ביטול</bold>","<gray>חזרה בלי לשנות את מצב המערכת.","<yellow>לחיצה שמאלית"]
 "rtp.status.header" = ["<gold><bold>מצב היעד האקראי</bold>","<gray>מצב: {state}"]
 
-[plural."command.wand.granted_runes"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>הוענקה <white>{count} {rune}<green> רונה."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>הוענקו <white>{count} {rune}<green> רונות."
-
+"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>כיס <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>גודל <white>{size}<gray> בלוקים, קירות <white>{material}<gray>, דלת יציאה <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>גבולות <white>{minimum}<gray> עד <white>{maximum}"]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>בנייה מחדש ל-{size} בלוקים תהרוס <white>{blocks}<red> בלוקים שהונחו (<white>{containers}<red> ובהם פריטים) ותזיז <white>{entities}<red> ישויות.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>תכולת המכלים וכל מה שנשאר מחוץ לקירות החדשים מושלכים בכניסה. כל השאר אובד.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>הרץ את אותה הפקודה עם <white>confirm=true<gray> כדי להמשיך."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>נמחק <white>{count}<green> פורטל וקישורי הפורטלים המקומיים נוקו."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>נמחקו <white>{count}<green> פורטלים וקישורי הפורטלים המקומיים נוקו."

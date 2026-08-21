@@ -178,8 +178,9 @@ public class BlockManager implements Listener
 							case WORMHOLE:
 								drop = getWormholeRune(1);
 								break;
+							// Gateway rune blocks predate the menu-only gateway type.
 							case GATEWAY:
-								drop = getGatewayRune(1);
+								drop = getWormholeRune(1);
 								break;
 							case RTP:
 								break;
@@ -276,11 +277,6 @@ public class BlockManager implements Listener
 	public ItemStack getWormholeRune(int c)
 	{
 		return catalog.getWormholeRune(c);
-	}
-
-	public ItemStack getGatewayRune(int c)
-	{
-		return catalog.getGatewayRune(c);
 	}
 
 	public void refund(Set<Block> blocks, PortalType type)

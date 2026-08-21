@@ -284,7 +284,8 @@ class DoorStateServiceTest {
             0,
             PocketAllocator.CHUNK_CENTER_OFFSET,
             PocketAllocator.DEFAULT_CENTER_Y,
-            PocketAllocator.CHUNK_CENTER_OFFSET
+            PocketAllocator.CHUNK_CENTER_OFFSET,
+            PocketShell.defaults()
         );
         DoorStoreSnapshot stateWithRetiredGap = new DoorStoreSnapshot(
             DoorStoreSnapshot.CURRENT_SCHEMA, 4, List.of(), List.of(), List.of(existing), List.of(), List.of()
@@ -436,6 +437,42 @@ class DoorStateServiceTest {
         assertThrows(NullPointerException.class,
             () -> service.setEndpointOpenState(placement.position(), null));
         assertEquals(DoorOpenState.OPEN, service.findEndpoint(placement.position()).orElseThrow().openState());
+    }
+
+    @Test
+    void reshapingAPocketPersistsItsNewSizeAndMaterialsAcrossRestart() throws Exception {
+        DimensionalDoorRepository repository = repository();
+        DoorStateService service = DoorStateService.load(repository);
+        PocketBinding binding = PocketBinding.personal(id(80));
+        PocketShell large = new PocketShell(64, "OBSIDIAN", "OAK_DOOR");
+        PocketSpace original = service.getOrAllocatePocket(binding);
+
+        assertEquals(PocketShell.defaults(), original.shell());
+
+        PocketSpace reshaped = service.reshapePocket(original.spaceId(), large);
+
+        assertEquals(large, reshaped.shell());
+        assertEquals(original.withShell(large), reshaped);
+        assertEquals(reshaped, service.findPocket(binding).orElseThrow());
+        assertEquals(reshaped, service.findPocketById(original.spaceId()).orElseThrow());
+
+        DoorStateService restarted = DoorStateService.load(new DimensionalDoorRepository(repository.stateFile()));
+        assertEquals(reshaped, restarted.findPocket(binding).orElseThrow());
+        assertEquals(64, new PocketLayout(restarted.findPocket(binding).orElseThrow()).size());
+        assertThrows(IllegalArgumentException.class, () -> restarted.reshapePocket(id(81), large));
+    }
+
+    @Test
+    void aNewPocketTakesTheRequestedShellAndAnExistingOneIgnoresIt() throws Exception {
+        DoorStateService service = DoorStateService.load(repository());
+        PocketShell large = new PocketShell(48, "STONE_BRICKS", "BIRCH_DOOR");
+        PocketBinding binding = PocketBinding.publicDoor(id(82));
+
+        PocketSpace created = service.getOrAllocatePocket(binding, large);
+        PocketSpace repeated = service.getOrAllocatePocket(binding, PocketShell.defaults());
+
+        assertEquals(large, created.shell());
+        assertEquals(created, repeated);
     }
 
     private DimensionalDoorRepository repository() {

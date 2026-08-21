@@ -16,7 +16,8 @@ class PocketEscapePolicyTest
 		0L,
 		8,
 		128,
-		8));
+		8,
+		PocketShell.defaults()));
 
 	@Test
 	void everyInteriorBlockIsSafe()

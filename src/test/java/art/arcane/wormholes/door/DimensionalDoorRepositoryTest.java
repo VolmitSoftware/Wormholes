@@ -155,7 +155,7 @@ class DimensionalDoorRepositoryTest {
 
         repository.save(migrated);
         String canonical = Files.readString(stateFile);
-        assertTrue(canonical.contains("\"schema\": 6"));
+        assertTrue(canonical.contains("\"schema\": 7"));
         assertTrue(canonical.contains("\"kind\": \"PAIR\""));
         assertTrue(canonical.contains("\"kind\": \"PUBLIC\""));
         assertFalse(canonical.contains("\"kind\": \"PAIRED\""));
@@ -238,7 +238,7 @@ class DimensionalDoorRepositoryTest {
             migrated.accessRecords());
 
         String upgraded = Files.readString(stateFile);
-        assertTrue(upgraded.contains("\"schema\": 6"));
+        assertTrue(upgraded.contains("\"schema\": 7"));
         assertFalse(upgraded.contains("\"mode\""));
         assertEquals(migrated, new DimensionalDoorRepository(stateFile).load());
     }
@@ -334,7 +334,7 @@ class DimensionalDoorRepositoryTest {
         assertEquals(DoorOpenState.OPEN, migrated.endpoints().get(0).openState());
 
         String upgraded = Files.readString(stateFile);
-        assertTrue(upgraded.contains("\"schema\": 6"));
+        assertTrue(upgraded.contains("\"schema\": 7"));
         assertTrue(upgraded.contains("\"form\": \"DOOR\""));
         assertTrue(upgraded.contains("\"openState\": \"OPEN\""));
 
@@ -354,7 +354,7 @@ class DimensionalDoorRepositoryTest {
 
         assertEquals(DoorOpenState.CLOSED, migrated.endpoints().get(0).openState());
         String upgraded = Files.readString(stateFile);
-        assertTrue(upgraded.contains("\"schema\": 6"));
+        assertTrue(upgraded.contains("\"schema\": 7"));
         assertTrue(upgraded.contains("\"openState\": \"CLOSED\""));
         assertFalse(upgraded.contains("activeWhenOpen"));
     }
@@ -587,7 +587,7 @@ class DimensionalDoorRepositoryTest {
         ));
 
         PocketBinding binding = PocketBinding.personal(id(45));
-        PocketSpace space = new PocketSpace(id(46), binding, 0, 0, 128, 0);
+        PocketSpace space = new PocketSpace(id(46), binding, 0, 0, 128, 0, PocketShell.defaults());
         assertThrows(IllegalArgumentException.class, () -> new DoorStoreSnapshot(
             1, 0, List.of(), List.of(), List.of(space), List.of(), List.of()
         ));
@@ -613,6 +613,67 @@ class DimensionalDoorRepositoryTest {
             () -> snapshot.accessRecords().add(DoorAccessRecord.unrestricted(id(59), id(60))));
         assertThrows(IllegalArgumentException.class,
             () -> new ReturnTicket(id(54), id(55), id(56), "minecraft:overworld", Double.NaN, 0, 0, 0, 0));
+    }
+
+    @Test
+    void pocketsWrittenBeforeConfigurableShellsLoadAsTheOriginalRoom() throws Exception {
+        Path stateFile = temporaryDirectory.resolve("pre-shell-state.json");
+        UUID doorItemId = id(200);
+        UUID spaceId = id(201);
+        Files.writeString(stateFile, """
+            {
+              "schema": 6,
+              "nextPocketSlot": 1,
+              "pairs": [],
+              "endpoints": [],
+              "spaces": [{
+                "spaceId": "%s",
+                "bindingKind": "IRON",
+                "bindingId": "%s",
+                "slot": 0,
+                "centerX": 8,
+                "centerY": 128,
+                "centerZ": 8
+              }],
+              "returnTickets": [],
+              "access": []
+            }
+            """.formatted(spaceId, doorItemId));
+
+        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile);
+        DoorStoreSnapshot migrated = repository.load();
+
+        assertEquals(PocketShell.defaults(), migrated.spaces().get(0).shell());
+        assertEquals(32, new PocketLayout(migrated.spaces().get(0)).size());
+
+        repository.save(migrated);
+        String canonical = Files.readString(stateFile);
+        assertTrue(canonical.contains("\"schema\": 7"));
+        assertTrue(canonical.contains("\"shellMaterial\": \"SMOOTH_STONE\""));
+    }
+
+    @Test
+    void aResizedPocketRoundTripsItsSizeAndMaterials() throws Exception {
+        PocketBinding binding = PocketBinding.personal(id(210));
+        PocketShell shell = new PocketShell(96, "DEEPSLATE_BRICKS", "WARPED_DOOR");
+        PocketSpace space = new PocketSpace(
+            PocketAllocator.spaceIdFor(binding),
+            binding,
+            0,
+            PocketAllocator.CHUNK_CENTER_OFFSET,
+            PocketAllocator.DEFAULT_CENTER_Y,
+            PocketAllocator.CHUNK_CENTER_OFFSET,
+            shell
+        );
+        Path stateFile = temporaryDirectory.resolve("resized-state.json");
+        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile);
+        repository.save(new DoorStoreSnapshot(
+            DoorStoreSnapshot.CURRENT_SCHEMA, 1, List.of(), List.of(), List.of(space), List.of(), List.of()));
+
+        DoorStoreSnapshot reloaded = new DimensionalDoorRepository(stateFile).load();
+
+        assertEquals(shell, reloaded.spaces().get(0).shell());
+        assertEquals(space, reloaded.spaces().get(0));
     }
 
     private static ReturnTicket ticket(UUID playerId, UUID sourceEndpointId) {

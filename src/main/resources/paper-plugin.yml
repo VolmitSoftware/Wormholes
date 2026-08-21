@@ -41,6 +41,7 @@ permissions:
       wormholes.admin.network: true
       wormholes.admin.projection: true
       wormholes.admin.reset: true
+      wormholes.admin.pocket: true
       wormholes.doors.bypass: true
   wormholes.admin.reload:
     description: Allows reloading Wormholes configuration.
@@ -56,6 +57,9 @@ permissions:
     default: op
   wormholes.admin.reset:
     description: Allows deleting portals and resetting Wormholes data.
+    default: op
+  wormholes.admin.pocket:
+    description: Allows inspecting and reshaping pocket dimensions.
     default: op
   wormholes.doors.bypass:
     description: Bypass dimensional door access restrictions.

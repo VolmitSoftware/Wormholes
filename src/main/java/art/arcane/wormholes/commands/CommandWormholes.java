@@ -26,8 +26,8 @@ import org.bukkit.inventory.ItemStack;
 
 import java.math.BigDecimal;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Locale;
+import java.util.List;
 
 @Director(name = "wormholes", aliases = {"wh", "wormhole"}, descriptionKey = "command.help.root", description = "Wormholes command root")
 public class CommandWormholes {
@@ -38,15 +38,15 @@ public class CommandWormholes {
     private CommandAdmin admin = new CommandAdmin();
     private CommandNetwork network = new CommandNetwork();
     private CommandServer server = new CommandServer();
+    private CommandPocket pocket = new CommandPocket();
 
     public CommandWormholes(Wormholes plugin) {
         this.plugin = plugin;
     }
 
-    @Director(name = "wand", sync = true, descriptionKey = "command.help.wand", description = "Give yourself the portal wand, or runes with rune=<type>")
+    @Director(name = "wand", sync = true, descriptionKey = "command.help.wand", description = "Give yourself the portal wand and a wormhole rune")
     public void wand(@Param(name = "sender", contextual = true) CommandSender sender,
-                     @Param(name = "rune", descriptionKey = "command.help.wand.rune", description = "portal | wormhole | gateway", defaultValue = "none") String rune,
-                     @Param(name = "count", descriptionKey = "command.help.wand.count", description = "How many runes (default 1)", defaultValue = "1") int count) {
+                     @Param(name = "rune", descriptionKey = "command.help.wand.rune", description = "Include a wormhole rune (rune=false gives only the wand)", defaultValue = "true") boolean rune) {
         if (!sender.hasPermission("wormholes.admin.items")) {
             send(sender, WormholesMessages.COMMAND_NO_PERMISSION);
             return;
@@ -56,30 +56,13 @@ public class CommandWormholes {
             return;
         }
 
-        String runeType = rune == null ? "none" : rune.toLowerCase(Locale.ROOT);
-        if (!runeType.equals("none")) {
-            int safeCount = Math.max(1, Math.min(count, 64));
-            ItemStack runes = switch (runeType) {
-                case "portal" -> Wormholes.blockManager.getPortalRune(safeCount);
-                case "wormhole" -> Wormholes.blockManager.getWormholeRune(safeCount);
-                case "gateway" -> Wormholes.blockManager.getGatewayRune(safeCount);
-                default -> null;
-            };
-            if (runes == null) {
-                send(sender, WormholesMessages.COMMAND_UNKNOWN_RUNE, args("rune", runeType));
-                return;
-            }
-            player.getInventory().addItem(runes);
-            WormholesAudience.sendMessage(player, Wormholes.text().component(
-                    WormholesMessages.COMMAND_GRANTED_RUNES,
-                    args("count", Integer.valueOf(safeCount), "rune", runeType)
-            ));
+        ItemStack wand = Wormholes.blockManager.getWand();
+        if (!rune) {
+            player.getInventory().addItem(wand);
+            send(sender, WormholesMessages.COMMAND_GRANTED_WAND);
             return;
         }
-
-        ItemStack wand = Wormholes.blockManager.getWand();
-        ItemStack wormholeRune = Wormholes.blockManager.getWormholeRune(1);
-        player.getInventory().addItem(wand, wormholeRune);
+        player.getInventory().addItem(wand, Wormholes.blockManager.getWormholeRune(1));
         sendLines(player, WormholesMessages.COMMAND_GRANTED_STARTER, args("range", projectionRange()));
     }
 

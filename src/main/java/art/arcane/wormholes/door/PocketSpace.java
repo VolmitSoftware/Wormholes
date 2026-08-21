@@ -10,13 +10,22 @@ public record PocketSpace(
     long slot,
     int centerX,
     int centerY,
-    int centerZ
+    int centerZ,
+    PocketShell shell
 ) {
     public PocketSpace {
         Objects.requireNonNull(spaceId, "spaceId");
         Objects.requireNonNull(binding, "binding");
+        Objects.requireNonNull(shell, "shell");
         if (slot < 0) {
             throw new IllegalArgumentException("slot cannot be negative");
         }
+    }
+
+    public PocketSpace withShell(PocketShell updated) {
+        Objects.requireNonNull(updated, "updated");
+        return updated.equals(shell)
+            ? this
+            : new PocketSpace(spaceId, binding, slot, centerX, centerY, centerZ, updated);
     }
 }

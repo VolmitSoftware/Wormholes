@@ -3,6 +3,7 @@ package art.arcane.wormholes.door;
 import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.MessageArgument;
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
@@ -601,7 +602,7 @@ public final class DoorItemService
 			case PAIR -> PAIR_DOOR_MATERIAL;
 			case PERSONAL -> PERSONAL_DOOR_MATERIAL;
 			case PUBLIC -> PUBLIC_DOOR_MATERIAL;
-			case RETURN -> PocketStructureService.RETURN_DOOR_MATERIAL;
+			case RETURN -> PocketMaterials.returnDoorMaterialOrDefault(Settings.POCKET_SHELL.returnDoorMaterial());
 		};
 	}
 
