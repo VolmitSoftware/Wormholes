@@ -9,8 +9,10 @@ import art.arcane.wormholes.util.project.config.TomlCodec;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 
 public final class WormholesSettings {
     public static final String CONFIG_FILE_NAME = "wormholes.toml";
@@ -58,19 +60,32 @@ public final class WormholesSettings {
         }
     }
 
+    public static WormholesSettings loadSnapshot(byte[] content) {
+        byte[] requiredContent = Objects.requireNonNull(content, "Configuration snapshot cannot be null");
+        String source = new String(requiredContent, StandardCharsets.UTF_8);
+        if (!hasSchemaMarker(source)) {
+            throw new IllegalArgumentException("Unsupported schema-less Wormholes config snapshot; schema = "
+                + WormholesConfigFile.CURRENT_SCHEMA + " is required.");
+        }
+        TomlCodec.LoadResult<WormholesConfigFile> result = TomlCodec.readContent(source, WormholesConfigFile.class);
+        if (!result.isSuccess()) {
+            throw new IllegalStateException("Failed to parse Wormholes configuration snapshot; keeping the previous live settings.", result.error());
+        }
+        WormholesConfigFile file = result.value();
+        VisualQualityProfile profile = validateAndNormalize(file);
+        return fromFile(file, profile);
+    }
+
     public void save(Path dataFolder) {
         synchronized (IO_LOCK) {
             Path configDir = dataFolder.resolve("config");
             createDirectories(configDir);
-            WormholesConfigFile file = new WormholesConfigFile();
-            file.schema = WormholesConfigFile.CURRENT_SCHEMA;
-            file.quality = visualQualityProfile.configValue();
-            file.main = main;
-            file.network = network;
-            file.projection = projection;
-            file.render = render;
-            TomlCodec.writeCanonical(configDir.resolve(CONFIG_FILE_NAME).toFile(), file);
+            TomlCodec.writeCanonical(configDir.resolve(CONFIG_FILE_NAME).toFile(), toFile());
         }
+    }
+
+    public byte[] canonicalSnapshot() {
+        return TomlCodec.canonicalContent(toFile()).getBytes(StandardCharsets.UTF_8);
     }
 
     public MainConfig getMain() {
@@ -121,22 +136,37 @@ public final class WormholesSettings {
         return new WormholesSettings(main, projection, render, network, profile);
     }
 
+    private WormholesConfigFile toFile() {
+        WormholesConfigFile file = new WormholesConfigFile();
+        file.schema = WormholesConfigFile.CURRENT_SCHEMA;
+        file.quality = visualQualityProfile.configValue();
+        file.main = main;
+        file.network = network;
+        file.projection = projection;
+        file.render = render;
+        return file;
+    }
+
     private static boolean hasSchemaMarker(Path file) {
         try {
-            for (String line : Files.readAllLines(file)) {
-                String trimmed = line.trim();
-                if (trimmed.startsWith("[")) {
-                    return false;
-                }
-                int separator = trimmed.indexOf('=');
-                if (!trimmed.startsWith("#") && separator > 0 && trimmed.substring(0, separator).trim().equals("schema")) {
-                    return true;
-                }
-            }
-            return false;
+            return hasSchemaMarker(Files.readString(file, StandardCharsets.UTF_8));
         } catch (IOException e) {
             throw new IllegalStateException("Failed to inspect configuration schema in " + file, e);
         }
+    }
+
+    private static boolean hasSchemaMarker(String content) {
+        for (String line : content.split("\\R")) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("[")) {
+                return false;
+            }
+            int separator = trimmed.indexOf('=');
+            if (!trimmed.startsWith("#") && separator > 0 && trimmed.substring(0, separator).trim().equals("schema")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void createDirectories(Path directory) {

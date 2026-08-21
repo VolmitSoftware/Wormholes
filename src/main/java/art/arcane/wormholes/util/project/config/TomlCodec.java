@@ -51,12 +51,43 @@ public final class TomlCodec {
         return new LoadResult<>(attempt.value(), attempt.error());
     }
 
+    public static <T> LoadResult<T> readContent(String content, Class<T> type) {
+        if (content == null || content.isBlank()) {
+            return new LoadResult<>(null, new IOException("Configuration content is empty"));
+        }
+        try {
+            T defaults = newInstance(type);
+            Toml toml = new Toml().read(content);
+            T fresh = newInstance(type);
+            T applied = applyToml(toml, fresh, type);
+            copySectionRefs(applied, defaults);
+            return new LoadResult<>(applied, null);
+        } catch (Exception failure) {
+            return new LoadResult<>(null, failure);
+        }
+    }
+
     public static void writeCanonical(File tomlFile, Object instance) {
         File parent = tomlFile.getParentFile();
         if (parent != null) {
             parent.mkdirs();
         }
 
+        String next = canonicalContent(instance);
+        try {
+            if (tomlFile.isFile()) {
+                String existing = Files.readString(tomlFile.toPath(), StandardCharsets.UTF_8);
+                if (existing.equals(next)) {
+                    return;
+                }
+            }
+            atomicWrite(tomlFile.toPath(), next);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to write " + tomlFile, e);
+        }
+    }
+
+    public static String canonicalContent(Object instance) {
         StringBuilder out = new StringBuilder(2048);
         Class<?> type = instance.getClass();
         ConfigDoc classDoc = type.getAnnotation(ConfigDoc.class);
@@ -72,19 +103,7 @@ public final class TomlCodec {
         } catch (IllegalAccessException e) {
             throw new IllegalStateException("Cannot read config field", e);
         }
-
-        String next = out.toString();
-        try {
-            if (tomlFile.isFile()) {
-                String existing = Files.readString(tomlFile.toPath(), StandardCharsets.UTF_8);
-                if (existing.equals(next)) {
-                    return;
-                }
-            }
-            atomicWrite(tomlFile.toPath(), next);
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to write " + tomlFile, e);
-        }
+        return out.toString();
     }
 
     private static void writeObjectContents(StringBuilder out, Object instance, String sectionPath) throws IllegalAccessException {

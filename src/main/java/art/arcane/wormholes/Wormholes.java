@@ -136,7 +136,9 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         preloadPersistenceClasses();
 
         try {
-            settings = WormholesSettings.loadAll(getDataFolder().toPath());
+            WormholesSettings loadedSettings = WormholesSettings.loadAll(getDataFolder().toPath());
+            byte[] appliedSettingsSnapshot = loadedSettings.canonicalSnapshot();
+            settings = loadedSettings;
             Settings.refresh(settings);
             vaultEconomy = new VaultEconomy(this);
             localization = new WormholesLocalization();
@@ -207,7 +209,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
                 Settings.TRAVERSAL_API_PROVIDER_FAULT_LIMIT,
                 Settings.TRAVERSAL_API_SLOW_PROVIDER_MILLIS));
 
-            reloads.startHotloadManager();
+            reloads.startHotloadManager(appliedSettingsSnapshot);
 
             diagnostics.start();
             network.startCaptureRuntime();
@@ -263,6 +265,11 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     }
 
     private void tearDownBeforeDrain() {
+        try {
+            reloads.stopHotloadManagerDuringDrain();
+        } catch (Throwable ex) {
+            getLogger().log(Level.WARNING, "Error during HotloadManager stop", ex);
+        }
         unregisterIntegrationService();
         unregisterPlaceholders();
         TraversalCostGateway gateway = traversalCostGateway;
@@ -608,12 +615,6 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         }
 
         shutdownRtpBeforeSchedulers();
-
-        try {
-            reloads.stopHotloadManagerDuringDrain();
-        } catch (Throwable ex) {
-            getLogger().log(Level.WARNING, "Error during HotloadManager stop", ex);
-        }
 
         try {
             HandlerList.unregisterAll(this);

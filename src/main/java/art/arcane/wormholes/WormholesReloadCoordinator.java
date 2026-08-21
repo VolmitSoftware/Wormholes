@@ -21,7 +21,9 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 
 final class WormholesReloadCoordinator {
@@ -30,7 +32,9 @@ final class WormholesReloadCoordinator {
     private final WormholesNetworkRuntime network;
     private final WormholesDiagnosticsRuntime diagnostics;
     private final Object reloadLock;
-    private HotloadManager hotloadManager;
+    private final Object hotloadLock;
+    private final AtomicLong hotloadGeneration;
+    private volatile HotloadManager hotloadManager;
 
     WormholesReloadCoordinator(
         Wormholes plugin,
@@ -43,14 +47,42 @@ final class WormholesReloadCoordinator {
         this.network = Objects.requireNonNull(network);
         this.diagnostics = Objects.requireNonNull(diagnostics);
         reloadLock = new Object();
+        hotloadLock = new Object();
+        hotloadGeneration = new AtomicLong();
     }
 
-    void startHotloadManager() {
-        hotloadManager = new HotloadManager(plugin.getDataFolder().toPath(), plugin.getLogger(), this::onConfigHotReload);
-        hotloadManager.start();
+    void startHotloadManager(byte[] appliedSnapshot) {
+        byte[] requiredSnapshot = Objects.requireNonNull(appliedSnapshot, "Applied configuration snapshot cannot be null");
+        synchronized (hotloadLock) {
+            stopHotloadManagerLocked();
+            startHotloadManagerLocked(requiredSnapshot);
+        }
+    }
+
+    private void startHotloadManagerLocked(byte[] appliedSnapshot) {
+        HotloadManager created = createHotloadManagerLocked();
+        created.startWithAppliedSnapshot(appliedSnapshot);
+    }
+
+    private HotloadManager createHotloadManagerLocked() {
+        long generation = hotloadGeneration.incrementAndGet();
+        HotloadManager created = new HotloadManager(
+            plugin.getDataFolder().toPath(),
+            plugin.getLogger(),
+            (settings, completion) -> onConfigHotReload(generation, settings, completion)
+        );
+        hotloadManager = created;
+        return created;
     }
 
     private void stopHotloadManager() {
+        synchronized (hotloadLock) {
+            stopHotloadManagerLocked();
+        }
+    }
+
+    private void stopHotloadManagerLocked() {
+        hotloadGeneration.incrementAndGet();
         HotloadManager activeHotload = hotloadManager;
         hotloadManager = null;
         if (activeHotload != null) {
@@ -59,29 +91,80 @@ final class WormholesReloadCoordinator {
     }
 
     void stopHotloadManagerDuringDrain() {
-        if (hotloadManager != null) {
-            hotloadManager.stop();
-            hotloadManager = null;
-        }
+        stopHotloadManager();
     }
 
     CompletableFuture<LocalizationReloadResult> reloadAll() {
-        WormholesSettings reloaded = WormholesSettings.loadAll(plugin.getDataFolder().toPath());
-        PreparedLocalization localization = prepareLocalization(reloaded);
+        long pausedGeneration = pauseHotloadForManualReload();
+        WormholesSettings reloaded;
+        PreparedLocalization localization;
+        try {
+            reloaded = WormholesSettings.loadAll(plugin.getDataFolder().toPath());
+            localization = prepareLocalization(reloaded);
+        } catch (RuntimeException | Error failure) {
+            resumePendingHotloadAfterManualReload(pausedGeneration);
+            throw failure;
+        }
+        byte[] appliedSnapshot = reloaded.canonicalSnapshot();
         CompletableFuture<LocalizationReloadResult> result = new CompletableFuture<LocalizationReloadResult>();
-        boolean scheduled = scheduleReload(reloaded, localization, (applied, failure) -> {
-            if (applied) {
-                result.complete(localization.result());
-            } else {
-                result.completeExceptionally(failure);
-            }
-        });
+        boolean scheduled = scheduleReload(new ReloadRequest(
+            reloaded,
+            localization,
+            (applied, failure) -> {
+                try {
+                    if (applied) {
+                        result.complete(localization.result());
+                    } else {
+                        Throwable rejection = failure == null
+                            ? new IllegalStateException("The Wormholes configuration reload was rejected")
+                            : failure;
+                        result.completeExceptionally(rejection);
+                    }
+                } finally {
+                    if (applied) {
+                        resumeAppliedHotloadAfterManualReload(pausedGeneration, appliedSnapshot);
+                    } else {
+                        resumePendingHotloadAfterManualReload(pausedGeneration);
+                    }
+                }
+            },
+            0L,
+            false
+        ));
         if (!scheduled) {
             result.completeExceptionally(new IllegalStateException(
                 "The global scheduler refused the Wormholes configuration reload"
             ));
+            resumePendingHotloadAfterManualReload(pausedGeneration);
         }
         return result;
+    }
+
+    private long pauseHotloadForManualReload() {
+        synchronized (hotloadLock) {
+            stopHotloadManagerLocked();
+            return hotloadGeneration.get();
+        }
+    }
+
+    private void resumeAppliedHotloadAfterManualReload(long pausedGeneration, byte[] appliedSnapshot) {
+        synchronized (hotloadLock) {
+            if (hotloadGeneration.get() != pausedGeneration || !plugin.isEnabled()) {
+                return;
+            }
+            HotloadManager created = createHotloadManagerLocked();
+            created.startWithAppliedSnapshot(appliedSnapshot);
+        }
+    }
+
+    private void resumePendingHotloadAfterManualReload(long pausedGeneration) {
+        synchronized (hotloadLock) {
+            if (hotloadGeneration.get() != pausedGeneration || !plugin.isEnabled()) {
+                return;
+            }
+            HotloadManager created = createHotloadManagerLocked();
+            created.startWithPendingSnapshot();
+        }
     }
 
     Wormholes.ResetResult resetEverythingNow() throws IOException {
@@ -121,6 +204,7 @@ final class WormholesReloadCoordinator {
             List.of()
         ));
         WormholesSettings defaults = WormholesSettings.loadAll(dataFolder);
+        byte[] appliedSnapshot = defaults.canonicalSnapshot();
         Wormholes.settings = defaults;
         Settings.refresh(defaults);
         reloadLocalization(defaults);
@@ -135,7 +219,7 @@ final class WormholesReloadCoordinator {
         if (activeService != null) {
             activeService.invalidateCache();
         }
-        startHotloadManager();
+        startHotloadManager(appliedSnapshot);
         return new Wormholes.ResetResult(deletedPortals);
     }
 
@@ -153,40 +237,47 @@ final class WormholesReloadCoordinator {
     }
 
     private boolean onConfigHotReload(
+        long generation,
         WormholesSettings reloaded,
         HotloadManager.ReloadCompletion completion
     ) {
+        if (hotloadGeneration.get() != generation) {
+            return false;
+        }
         PreparedLocalization localization = prepareLocalization(reloaded);
-        return scheduleReload(reloaded, localization, completion);
+        return scheduleReload(new ReloadRequest(reloaded, localization, completion, generation, true));
     }
 
-    private boolean scheduleReload(
-        WormholesSettings reloaded,
-        PreparedLocalization localization,
-        HotloadManager.ReloadCompletion completion
-    ) {
-        if (reloaded == null) {
+    private boolean scheduleReload(ReloadRequest request) {
+        if (request.settings() == null) {
             throw new IllegalArgumentException("Reloaded settings cannot be null");
         }
         synchronized (reloadLock) {
             return FoliaScheduler.runGlobal(
                 plugin,
                 () -> {
+                    if (request.automatic() && hotloadGeneration.get() != request.generation()) {
+                        request.completion().complete(
+                            false,
+                            new CancellationException("Wormholes stopped before the queued hotload could apply")
+                        );
+                        return;
+                    }
                     try {
-                        applyReloadedState(reloaded, localization);
+                        applyReloadedState(request.settings(), request.localization());
                     } catch (Throwable failure) {
                         plugin.getLogger().log(
                             Level.WARNING,
                             "Could not apply the prepared Wormholes configuration; the edit remains pending.",
                             failure
                         );
-                        completion.complete(false, failure);
+                        request.completion().complete(false, failure);
                         if (failure instanceof Error error) {
                             throw error;
                         }
                         return;
                     }
-                    completion.complete(true, null);
+                    request.completion().complete(true, null);
                 },
                 1L
             );
@@ -206,43 +297,23 @@ final class WormholesReloadCoordinator {
     private void applyReloadedManagers(WormholesSettings reloaded) {
         BlockManager activeBlockManager = Wormholes.blockManager;
         if (activeBlockManager != null) {
-            try {
-                activeBlockManager.onLanguageReload();
-            } catch (Throwable ex) {
-                plugin.getLogger().log(Level.WARNING, "BlockManager rejected language reload notification", ex);
-            }
+            activeBlockManager.onLanguageReload();
         }
         doors.applySetting(reloaded);
         DimensionalDoorManager activeDoorManager = Wormholes.dimensionalDoorManager;
         if (activeDoorManager != null) {
-            try {
-                activeDoorManager.onLanguageReload();
-            } catch (Throwable ex) {
-                plugin.getLogger().log(Level.WARNING, "DimensionalDoorManager rejected language reload notification", ex);
-            }
+            activeDoorManager.onLanguageReload();
         }
         ProjectionManager activeProjection = Wormholes.projectionManager;
         if (activeProjection != null) {
-            try {
-                activeProjection.onSettingsReloaded();
-            } catch (Throwable ex) {
-                plugin.getLogger().log(Level.WARNING, "ProjectionManager rejected hot-reload notification", ex);
-            }
+            activeProjection.onSettingsReloaded();
         }
         if (Wormholes.viewServer != null) {
-            try {
-                Wormholes.viewServer.onProjectionSettingsReloaded();
-            } catch (Throwable ex) {
-                plugin.getLogger().log(Level.WARNING, "ViewServer rejected projection hot-reload notification", ex);
-            }
+            Wormholes.viewServer.onProjectionSettingsReloaded();
         }
         WormholesCommandService activeService = plugin.commandService();
         if (activeService != null) {
-            try {
-                activeService.invalidateCache();
-            } catch (Throwable ex) {
-                plugin.getLogger().log(Level.WARNING, "CommandService cache invalidation failed", ex);
-            }
+            activeService.invalidateCache();
         }
         NetworkManager activeNetwork = Wormholes.networkManager;
         if (activeNetwork != null) {
@@ -346,6 +417,15 @@ final class WormholesReloadCoordinator {
     private record PreparedLocalization(
         WormholesLocalization localization,
         LocalizationReloadResult result
+    ) {
+    }
+
+    private record ReloadRequest(
+        WormholesSettings settings,
+        PreparedLocalization localization,
+        HotloadManager.ReloadCompletion completion,
+        long generation,
+        boolean automatic
     ) {
     }
 }

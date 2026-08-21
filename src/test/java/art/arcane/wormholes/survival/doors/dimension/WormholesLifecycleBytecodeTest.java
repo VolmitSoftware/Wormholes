@@ -142,6 +142,21 @@ public final class WormholesLifecycleBytecodeTest {
     }
 
     @Test
+    void hotloadAdmissionClosesBeforeManagerTeardownBegins() throws IOException {
+        ClassModel wormholes = parse(WORMHOLES);
+        List<String> calls = new ArrayList<String>(invokedMethods(wormholes, "tearDownBeforeDrain"));
+        int stopHotload = calls.indexOf(
+            "art/arcane/wormholes/WormholesReloadCoordinator.stopHotloadManagerDuringDrain"
+        );
+        int stopDoors = calls.indexOf("art/arcane/wormholes/WormholesDoorLifecycle.shutdownManagerBeforeSchedulers");
+        int stopProjection = calls.indexOf(WORMHOLES + ".shutdownProjectionBeforeSchedulers");
+
+        assertTrue(stopHotload >= 0, "tearDownBeforeDrain() must stop hotloading");
+        assertTrue(stopDoors > stopHotload, "Hotload callbacks must be rejected before door teardown begins");
+        assertTrue(stopProjection > stopHotload, "Hotload callbacks must be rejected before projection teardown begins");
+    }
+
+    @Test
     void enableResetsTheDrainLatchSoAReEnteredEnableCanStillDrain() throws IOException {
         ClassModel wormholes = parse(WORMHOLES);
         assertTrue(invokedMethods(wormholes, "onEnable").contains(WORMHOLES + ".resetForEnable"),
