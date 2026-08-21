@@ -37,6 +37,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.vehicle.VehicleMoveEvent;
@@ -152,6 +153,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		{
 			plugin.getLogger().warning("One or more dimensional-door recipes could not be registered.");
 		}
+		syncRecipeBooks();
 		plugin.getServer().getPluginManager().registerEvents(this, plugin);
 		plugin.getServer().getPluginManager().registerEvents(protection, plugin);
 		registerLivingEntityMovement();
@@ -244,6 +246,45 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		if(!activeItems.registerRecipes())
 		{
 			plugin.getLogger().warning("One or more dimensional-door recipes could not be re-registered after a language reload.");
+		}
+		syncRecipeBooks();
+	}
+
+	/**
+	 * A Bukkit recipe arrives locked, so the recipe book is told about every
+	 * enabled door recipe on join and again whenever the recipe set changes.
+	 */
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+	public void onJoin(PlayerJoinEvent event)
+	{
+		syncRecipeBook(event.getPlayer());
+	}
+
+	public void syncRecipeBooks()
+	{
+		for(Player player : plugin.getServer().getOnlinePlayers())
+		{
+			syncRecipeBook(player);
+		}
+	}
+
+	private void syncRecipeBook(Player player)
+	{
+		DoorItemService activeItems = items;
+		if(activeItems == null || guard.closed())
+		{
+			return;
+		}
+		DoorRecipeBook.Plan plan = DoorRecipeBook.plan(
+			activeItems.registeredRecipeKeys(), DoorAccessPolicy.canCraft(player));
+		if(plan.isEmpty())
+		{
+			return;
+		}
+		if(!FoliaScheduler.runEntity(plugin, player,
+			() -> DoorRecipeBook.synchronize(player, plan, key -> plugin.getServer().getRecipe(key) != null)))
+		{
+			plugin.getLogger().fine("Could not deliver the dimensional-door recipe book to " + player.getUniqueId());
 		}
 	}
 

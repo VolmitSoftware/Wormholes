@@ -13,10 +13,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.logging.Level;
 
 import org.bukkit.Keyed;
 import org.bukkit.Material;
@@ -49,6 +51,7 @@ public final class DoorItemService
 	public static final Material PUBLIC_TRAPDOOR_MATERIAL = Material.PALE_OAK_TRAPDOOR;
 
 	private final List<ItemStack> wormholeRunes;
+	private final List<NamespacedKey> registeredRecipeKeys;
 	private final DoorItemPdcCodec codec;
 	private final EnumMap<DoorCraftProduct, NamespacedKey> productRecipeKeys;
 	private final NamespacedKey doorSkinRecipeKey;
@@ -64,6 +67,7 @@ public final class DoorItemService
 		}
 
 		wormholeRunes = new CopyOnWriteArrayList<ItemStack>();
+		registeredRecipeKeys = new CopyOnWriteArrayList<NamespacedKey>();
 		acceptWormholeRune(exactWormholeRune);
 		codec = new DoorItemPdcCodec(WormholesPlatform.pluginNamespace(plugin));
 		productRecipeKeys = new EnumMap<>(DoorCraftProduct.class);
@@ -249,19 +253,111 @@ public final class DoorItemService
 			derivedId(kitId, "endpoint-b"));
 	}
 
+	/**
+	 * Registers exactly the recipes the operator has enabled, on the grids they
+	 * configured.
+	 *
+	 * @return true when every enabled recipe registered
+	 */
 	public boolean registerRecipes()
 	{
+		return registerRecipes(Settings.DOOR_RECIPES);
+	}
+
+	public boolean registerRecipes(DoorRecipeSettings recipes)
+	{
+		Objects.requireNonNull(recipes, "recipes");
 		unregisterRecipes();
-		boolean pairAdded = WormholesPlatform.addRecipe(pairKitRecipe(), false);
-		boolean personalAdded = WormholesPlatform.addRecipe(personalDoorRecipe(), false);
-		boolean publicAdded = WormholesPlatform.addRecipe(publicDoorRecipe(), true);
-		boolean skinAdded = WormholesPlatform.addRecipe(doorSkinRecipe(), false);
-		boolean trapdoorPairAdded = WormholesPlatform.addRecipe(trapdoorPairKitRecipe(), false);
-		boolean personalTrapdoorAdded = WormholesPlatform.addRecipe(personalTrapdoorRecipe(), false);
-		boolean publicTrapdoorAdded = WormholesPlatform.addRecipe(publicTrapdoorRecipe(), true);
-		boolean trapdoorSkinAdded = WormholesPlatform.addRecipe(trapdoorSkinRecipe(), false);
-		return pairAdded && personalAdded && publicAdded && skinAdded
-			&& trapdoorPairAdded && personalTrapdoorAdded && publicTrapdoorAdded && trapdoorSkinAdded;
+		boolean registered = true;
+		registeredRecipeKeys.clear();
+
+		for(DoorCraftProduct product : DoorCraftProduct.values())
+		{
+			DoorRecipeSpec spec = recipes.spec(product).orElse(null);
+			if(spec == null)
+			{
+				continue;
+			}
+			ShapedRecipe recipe = productRecipe(product, spec);
+			if(recipe == null)
+			{
+				registered = false;
+				continue;
+			}
+			// Public products reset the recipe list so the client picks up the change.
+			boolean added = WormholesPlatform.addRecipe(recipe, product.kind() == DoorKind.PUBLIC);
+			registered &= added;
+			if(added)
+			{
+				registeredRecipeKeys.add(recipeKey(product));
+			}
+		}
+
+		if(recipes.doorSkinEnabled())
+		{
+			boolean added = WormholesPlatform.addRecipe(doorSkinRecipe(), false);
+			registered &= added;
+			if(added)
+			{
+				registeredRecipeKeys.add(doorSkinRecipeKey);
+			}
+		}
+		if(recipes.trapdoorSkinEnabled())
+		{
+			boolean added = WormholesPlatform.addRecipe(trapdoorSkinRecipe(), true);
+			registered &= added;
+			if(added)
+			{
+				registeredRecipeKeys.add(trapdoorSkinRecipeKey);
+			}
+		}
+		return registered;
+	}
+
+	/** Every recipe key currently on the server, for the recipe book to unlock. */
+	public List<NamespacedKey> registeredRecipeKeys()
+	{
+		return List.copyOf(registeredRecipeKeys);
+	}
+
+	/**
+	 * Builds one product recipe, falling back to the shipped grid when the
+	 * configured one names something this server does not have.
+	 */
+	private ShapedRecipe productRecipe(DoorCraftProduct product, DoorRecipeSpec spec)
+	{
+		try
+		{
+			return shapedRecipe(product, spec);
+		}
+		catch(IllegalArgumentException rejected)
+		{
+			Wormholes.instance.getLogger().warning("Recipe " + product.recipeName() + " is unusable ("
+				+ rejected.getMessage() + "); using the shipped recipe instead.");
+		}
+		try
+		{
+			return shapedRecipe(product, product.defaultSpec());
+		}
+		catch(IllegalArgumentException broken)
+		{
+			Wormholes.instance.getLogger().log(Level.SEVERE,
+				"Shipped recipe " + product.recipeName() + " could not be built", broken);
+			return null;
+		}
+	}
+
+	private ShapedRecipe shapedRecipe(DoorCraftProduct product, DoorRecipeSpec spec)
+	{
+		ShapedRecipe recipe = new ShapedRecipe(recipeKey(product), craftTemplate(product))
+			.shape(spec.shape().toShapeRows());
+		for(Map.Entry<Character, String> ingredient : spec.ingredients().entrySet())
+		{
+			recipe.setIngredient(
+				ingredient.getKey().charValue(),
+				DoorRecipeIngredients.resolve(ingredient.getValue(), wormholeRunes));
+		}
+		return recipe;
 	}
 
 	public void acceptWormholeRune(ItemStack exactWormholeRune)
@@ -285,90 +381,13 @@ public final class DoorItemService
 
 	public void unregisterRecipes()
 	{
-		WormholesPlatform.removeRecipe(recipeKey(DoorCraftProduct.PAIR_KIT), false);
-		WormholesPlatform.removeRecipe(recipeKey(DoorCraftProduct.PERSONAL_DOOR), false);
-		WormholesPlatform.removeRecipe(recipeKey(DoorCraftProduct.PUBLIC_DOOR), true);
+		registeredRecipeKeys.clear();
+		for(DoorCraftProduct product : DoorCraftProduct.values())
+		{
+			WormholesPlatform.removeRecipe(recipeKey(product), false);
+		}
 		WormholesPlatform.removeRecipe(doorSkinRecipeKey, false);
-		WormholesPlatform.removeRecipe(recipeKey(DoorCraftProduct.TRAPDOOR_PAIR_KIT), false);
-		WormholesPlatform.removeRecipe(recipeKey(DoorCraftProduct.PERSONAL_TRAPDOOR), false);
-		WormholesPlatform.removeRecipe(recipeKey(DoorCraftProduct.PUBLIC_TRAPDOOR), true);
-		WormholesPlatform.removeRecipe(trapdoorSkinRecipeKey, false);
-	}
-
-	public ShapedRecipe pairKitRecipe()
-	{
-		return new ShapedRecipe(recipeKey(DoorCraftProduct.PAIR_KIT), craftTemplate(DoorCraftProduct.PAIR_KIT))
-			.shape("EDE", "ORO", " D ")
-			.setIngredient('E', Material.ENDER_EYE)
-			.setIngredient('D', creationDoorIngredient())
-			.setIngredient('O', Material.OBSIDIAN)
-			.setIngredient('R', wormholeRuneChoice());
-	}
-
-	public ShapedRecipe personalDoorRecipe()
-	{
-		return new ShapedRecipe(recipeKey(DoorCraftProduct.PERSONAL_DOOR), craftTemplate(DoorCraftProduct.PERSONAL_DOOR))
-			.shape(" R ", "CDE")
-			.setIngredient('R', wormholeRuneChoice())
-			.setIngredient('C', Material.RECOVERY_COMPASS)
-			.setIngredient('D', creationDoorIngredient())
-			.setIngredient('E', Material.ENDER_CHEST);
-	}
-
-	public ShapedRecipe publicDoorRecipe()
-	{
-		return new ShapedRecipe(recipeKey(DoorCraftProduct.PUBLIC_DOOR), craftTemplate(DoorCraftProduct.PUBLIC_DOOR))
-			.shape("RDR", " E ", " L ")
-			.setIngredient('R', wormholeRuneChoice())
-			.setIngredient('D', creationDoorIngredient())
-			.setIngredient('E', Material.ENDER_CHEST)
-			.setIngredient('L', Material.LODESTONE);
-	}
-
-	public ShapedRecipe trapdoorPairKitRecipe()
-	{
-		return new ShapedRecipe(recipeKey(DoorCraftProduct.TRAPDOOR_PAIR_KIT), craftTemplate(DoorCraftProduct.TRAPDOOR_PAIR_KIT))
-			.shape("EDE", "ORO", " D ")
-			.setIngredient('E', Material.ENDER_EYE)
-			.setIngredient('D', creationTrapdoorIngredient())
-			.setIngredient('O', Material.OBSIDIAN)
-			.setIngredient('R', wormholeRuneChoice());
-	}
-
-	public ShapedRecipe personalTrapdoorRecipe()
-	{
-		return new ShapedRecipe(recipeKey(DoorCraftProduct.PERSONAL_TRAPDOOR), craftTemplate(DoorCraftProduct.PERSONAL_TRAPDOOR))
-			.shape(" R ", "CDE")
-			.setIngredient('R', wormholeRuneChoice())
-			.setIngredient('C', Material.RECOVERY_COMPASS)
-			.setIngredient('D', creationTrapdoorIngredient())
-			.setIngredient('E', Material.ENDER_CHEST);
-	}
-
-	public ShapedRecipe publicTrapdoorRecipe()
-	{
-		return new ShapedRecipe(recipeKey(DoorCraftProduct.PUBLIC_TRAPDOOR), craftTemplate(DoorCraftProduct.PUBLIC_TRAPDOOR))
-			.shape("RDR", " E ", " L ")
-			.setIngredient('R', wormholeRuneChoice())
-			.setIngredient('D', creationTrapdoorIngredient())
-			.setIngredient('E', Material.ENDER_CHEST)
-			.setIngredient('L', Material.LODESTONE);
-	}
-
-	private static RecipeChoice.MaterialChoice creationDoorIngredient()
-	{
-		return new RecipeChoice.MaterialChoice(DoorSkin.doorMaterials());
-	}
-
-	/** Only hand-openable trapdoors can become dimensional trapdoors. */
-	private static RecipeChoice.MaterialChoice creationTrapdoorIngredient()
-	{
-		return new RecipeChoice.MaterialChoice(DoorSkin.playerOperableTrapdoorMaterials());
-	}
-
-	private RecipeChoice.ExactChoice wormholeRuneChoice()
-	{
-		return new RecipeChoice.ExactChoice(List.copyOf(wormholeRunes));
+		WormholesPlatform.removeRecipe(trapdoorSkinRecipeKey, true);
 	}
 
 	public ShapelessRecipe doorSkinRecipe()

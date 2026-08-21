@@ -3,6 +3,7 @@ package art.arcane.wormholes.config;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
+import art.arcane.wormholes.config.toml.RecipesConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.config.toml.WormholesConfigFile;
 import art.arcane.wormholes.util.project.config.TomlCodec;
@@ -23,17 +24,19 @@ public final class WormholesSettings {
     private final ProjectionConfig projection;
     private final RenderConfig render;
     private final NetworkConfig network;
+    private final RecipesConfig recipes;
     private final VisualQualityProfile visualQualityProfile;
 
     public WormholesSettings(MainConfig main, ProjectionConfig projection, RenderConfig render, NetworkConfig network) {
-        this(main, projection, render, network, VisualQualityProfile.AUTO);
+        this(main, projection, render, network, new RecipesConfig(), VisualQualityProfile.AUTO);
     }
 
-    private WormholesSettings(MainConfig main, ProjectionConfig projection, RenderConfig render, NetworkConfig network, VisualQualityProfile visualQualityProfile) {
+    private WormholesSettings(MainConfig main, ProjectionConfig projection, RenderConfig render, NetworkConfig network, RecipesConfig recipes, VisualQualityProfile visualQualityProfile) {
         this.main = main;
         this.projection = projection;
         this.render = render;
         this.network = network;
+        this.recipes = recipes;
         this.visualQualityProfile = visualQualityProfile;
     }
 
@@ -104,6 +107,10 @@ public final class WormholesSettings {
         return network;
     }
 
+    public RecipesConfig getRecipes() {
+        return recipes;
+    }
+
     public VisualQualityProfile getVisualQualityProfile() {
         return visualQualityProfile;
     }
@@ -133,7 +140,8 @@ public final class WormholesSettings {
         ProjectionConfig projection = file.projection == null ? new ProjectionConfig() : file.projection;
         RenderConfig render = file.render == null ? new RenderConfig() : file.render;
         NetworkConfig network = file.network == null ? new NetworkConfig() : file.network;
-        return new WormholesSettings(main, projection, render, network, profile);
+        RecipesConfig recipes = file.recipes == null ? new RecipesConfig() : file.recipes;
+        return new WormholesSettings(main, projection, render, network, recipes, profile);
     }
 
     private WormholesConfigFile toFile() {
@@ -143,6 +151,7 @@ public final class WormholesSettings {
         file.main = main;
         file.network = network;
         file.projection = projection;
+        file.recipes = recipes;
         file.render = render;
         return file;
     }

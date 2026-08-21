@@ -5,11 +5,17 @@ import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.VisualQualityProfile;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
+import art.arcane.wormholes.config.toml.RecipeConfig;
+import art.arcane.wormholes.config.toml.RecipesConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
+import art.arcane.wormholes.door.DoorCraftProduct;
+import art.arcane.wormholes.door.DoorRecipeSettings;
+import art.arcane.wormholes.door.DoorRecipeSpec;
 import art.arcane.wormholes.door.PocketShell;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalStructure;
 
+import java.util.EnumMap;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -67,6 +73,8 @@ public final class Settings {
     public static volatile boolean DIMENSIONAL_DOORS_ENABLED = true;
     /** Shape newly created pockets take. Existing pockets carry their own stored shell. */
     public static volatile PocketShell POCKET_SHELL = PocketShell.defaults();
+    /** Which door products can be crafted, and on what grid. */
+    public static volatile DoorRecipeSettings DOOR_RECIPES = DoorRecipeSettings.defaults();
     public static volatile boolean DEBUG = false;
 
     private Settings() {
@@ -109,6 +117,7 @@ public final class Settings {
         REPLACE_NETHER_AND_END_PORTALS = main.replaceNetherAndEndPortals;
         DIMENSIONAL_DOORS_ENABLED = main.dimensionalDoorsEnabled;
         POCKET_SHELL = pocketShell(main);
+        DOOR_RECIPES = doorRecipes(src.getRecipes());
         DEBUG = main.verboseLogging;
 
         FRUSTUM_CULLING_RATIO = clampDouble(projection.frustumCullingRatio, 0.0D, 1.0D);
@@ -218,6 +227,37 @@ public final class Settings {
      * as written and resolved when a pocket is actually built, so reloading
      * settings never touches the server's block registry.
      */
+    /**
+     * Parses the configured recipes without resolving any material, so reloading
+     * settings never touches the server's block registry. A recipe that does not
+     * parse falls back to its shipped shape rather than vanishing.
+     */
+    private static DoorRecipeSettings doorRecipes(RecipesConfig configured) {
+        RecipesConfig recipes = configured == null ? new RecipesConfig() : configured;
+        EnumMap<DoorCraftProduct, DoorRecipeSpec> products = new EnumMap<>(DoorCraftProduct.class);
+        for (DoorCraftProduct product : DoorCraftProduct.values()) {
+            RecipeConfig recipe = recipes.forProduct(product);
+            if (recipe == null || !recipe.enabled) {
+                continue;
+            }
+            products.put(product, doorRecipeSpec(product, recipe));
+        }
+        return new DoorRecipeSettings(
+            products,
+            recipes.doorSkin == null || recipes.doorSkin.enabled,
+            recipes.trapdoorSkin == null || recipes.trapdoorSkin.enabled);
+    }
+
+    private static DoorRecipeSpec doorRecipeSpec(DoorCraftProduct product, RecipeConfig recipe) {
+        try {
+            return DoorRecipeSpec.parse(recipe.shape, recipe.ingredients);
+        } catch (IllegalArgumentException | NullPointerException rejected) {
+            Logger.getLogger("Wormholes").warning("Recipe " + product.recipeName() + " is unusable ("
+                + rejected.getMessage() + "); using the shipped recipe instead.");
+            return product.defaultSpec();
+        }
+    }
+
     private static PocketShell pocketShell(MainConfig main) {
         PocketShell defaults = PocketShell.defaults();
         int size = clampInt(main.pocketRoomSize, PocketShell.MIN_SIZE, PocketShell.MAX_SIZE);

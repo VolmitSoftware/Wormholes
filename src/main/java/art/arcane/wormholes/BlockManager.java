@@ -15,7 +15,9 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.inventory.ItemStack;
 
@@ -23,6 +25,7 @@ import art.arcane.volmlib.util.localization.MessageArgument;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
+import art.arcane.wormholes.door.DoorRecipeBook;
 import art.arcane.wormholes.portal.PortalBlock;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.PortalTypeAccess;
@@ -51,6 +54,40 @@ public class BlockManager implements Listener
 	public void onLanguageReload()
 	{
 		catalog.onLanguageReload();
+		syncRecipeBooks();
+	}
+
+	/**
+	 * The wand and rune recipes reach the client locked like any Bukkit recipe,
+	 * so the recipe book has to be told about them explicitly. They carry no
+	 * permission, so every player gets them.
+	 */
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+	public void onJoin(PlayerJoinEvent e)
+	{
+		syncRecipeBook(e.getPlayer());
+	}
+
+	public void syncRecipeBooks()
+	{
+		for(Player player : Wormholes.instance.getServer().getOnlinePlayers())
+		{
+			syncRecipeBook(player);
+		}
+	}
+
+	private void syncRecipeBook(Player player)
+	{
+		DoorRecipeBook.Plan plan = DoorRecipeBook.plan(catalog.recipeKeys(), true);
+		if(plan.isEmpty())
+		{
+			return;
+		}
+		if(!FoliaScheduler.runEntity(Wormholes.instance, player, () -> DoorRecipeBook.synchronize(
+			player, plan, key -> Wormholes.instance.getServer().getRecipe(key) != null)))
+		{
+			Wormholes.instance.getLogger().fine("Could not deliver the rune recipe book to " + player.getUniqueId());
+		}
 	}
 
 	public void destroyAll()

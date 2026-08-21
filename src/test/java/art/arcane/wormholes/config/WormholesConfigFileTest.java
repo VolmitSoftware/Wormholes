@@ -1,6 +1,8 @@
 package art.arcane.wormholes.config;
 
 import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.door.DoorCraftProduct;
+import art.arcane.wormholes.door.DoorRecipeSettings;
 import art.arcane.wormholes.door.PocketShell;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.NetworkConfig;
@@ -170,6 +172,80 @@ class WormholesConfigFileTest {
         Settings.refresh(WormholesSettings.loadAll(tempDir));
 
         assertEquals(PocketShell.defaults(), Settings.POCKET_SHELL);
+    }
+
+    @Test
+    void doorRecipesToggleAndReshapeFromConfigWithoutTouchingTheBlockRegistry() throws IOException {
+        Path config = tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME);
+        Files.createDirectories(config.getParent());
+        Files.writeString(config, """
+            schema = 2
+            [recipes.pair-kit]
+            shape = "RR|DD"
+            ingredients = "R=#wormhole-rune, D=#doors"
+            [recipes.public-door]
+            enabled = false
+            [recipes.trapdoor-skin]
+            enabled = false
+            """, StandardCharsets.UTF_8);
+
+        Settings.refresh(WormholesSettings.loadAll(tempDir));
+        DoorRecipeSettings recipes = Settings.DOOR_RECIPES;
+
+        assertEquals("RR|DD", recipes.spec(DoorCraftProduct.PAIR_KIT).orElseThrow().shape().toString());
+        assertFalse(recipes.isCraftable(DoorCraftProduct.PUBLIC_DOOR));
+        assertTrue(recipes.isCraftable(DoorCraftProduct.PERSONAL_DOOR));
+        assertTrue(recipes.doorSkinEnabled());
+        assertFalse(recipes.trapdoorSkinEnabled());
+
+        Settings.refresh(WormholesSettings.loadAll(tempDir.resolve("defaults")));
+    }
+
+    @Test
+    void theShippedRecipeSectionSurvivesACanonicalWriteIncludingItsTrailingSpaces() throws IOException {
+        WormholesSettings.loadAll(tempDir);
+        String emitted = Files.readString(
+            tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME), StandardCharsets.UTF_8);
+
+        assertTrue(emitted.contains("[recipes.pair-kit]"), emitted);
+        assertTrue(emitted.contains("[recipes.trapdoor-skin]"), emitted);
+        // A shape's trailing space is a real slot; losing it through the writer
+        // would silently narrow the grid.
+        assertTrue(emitted.contains("shape = \"" + DoorCraftProduct.PAIR_KIT.defaultShape() + "\""), emitted);
+
+        Settings.refresh(WormholesSettings.loadAll(tempDir));
+        for (DoorCraftProduct product : DoorCraftProduct.values()) {
+            assertEquals(product.defaultSpec(), Settings.DOOR_RECIPES.spec(product).orElseThrow(), product.name());
+        }
+
+        Settings.refresh(WormholesSettings.loadAll(tempDir.resolve("defaults")));
+    }
+
+    @Test
+    void anUnusableRecipeFallsBackToTheShippedOneInsteadOfDisappearing() throws IOException {
+        Path config = tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME);
+        Files.createDirectories(config.getParent());
+        Files.writeString(config, """
+            schema = 2
+            [recipes.personal-door]
+            shape = "TOOWIDE"
+            ingredients = "T=STONE"
+            [recipes.public-door]
+            shape = "AB"
+            ingredients = "A=STONE"
+            """, StandardCharsets.UTF_8);
+
+        Settings.refresh(WormholesSettings.loadAll(tempDir));
+        DoorRecipeSettings recipes = Settings.DOOR_RECIPES;
+
+        assertEquals(DoorCraftProduct.PERSONAL_DOOR.defaultSpec(),
+            recipes.spec(DoorCraftProduct.PERSONAL_DOOR).orElseThrow(),
+            "an over-wide grid falls back rather than removing the recipe");
+        assertEquals(DoorCraftProduct.PUBLIC_DOOR.defaultSpec(),
+            recipes.spec(DoorCraftProduct.PUBLIC_DOOR).orElseThrow(),
+            "a slot with no ingredient falls back rather than removing the recipe");
+
+        Settings.refresh(WormholesSettings.loadAll(tempDir.resolve("defaults")));
     }
 
     @Test

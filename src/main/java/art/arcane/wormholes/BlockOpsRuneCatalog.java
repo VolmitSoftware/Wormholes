@@ -1,5 +1,6 @@
 package art.arcane.wormholes;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
@@ -21,7 +22,9 @@ import art.arcane.wormholes.portal.PortalType;
 
 final class BlockOpsRuneCatalog
 {
-	private static final List<String> RECIPE_NAMES = List.of("portal_wand", "portal_rune", "wormhole_rune");
+	private static final List<String> RECIPE_NAMES = List.of("portal_wand");
+	/** Retired rune recipes, still unregistered so an upgraded server drops them. */
+	private static final List<String> RETIRED_RECIPE_NAMES = List.of("portal_rune", "wormhole_rune");
 
 	private final List<ItemStack> acceptedWandTemplates = new CopyOnWriteArrayList<ItemStack>();
 	private final List<ItemStack> acceptedPortalRuneTemplates = new CopyOnWriteArrayList<ItemStack>();
@@ -124,16 +127,6 @@ final class BlockOpsRuneCatalog
 				.shape("d d", " r ", " d ")
 				.setIngredient('d', Material.GLOWSTONE_DUST)
 				.setIngredient('r', Material.BLAZE_ROD));
-		registerRecipe(new ShapedRecipe(new NamespacedKey(Wormholes.instance, "portal_rune"), getPortalRune(4))
-				.shape("pbp", "bdb", "pbp")
-				.setIngredient('d', Material.BLAZE_POWDER)
-				.setIngredient('b', Material.PRISMARINE_CRYSTALS)
-				.setIngredient('p', Material.ENDER_PEARL));
-		registerRecipe(new ShapedRecipe(new NamespacedKey(Wormholes.instance, "wormhole_rune"), getWormholeRune(4))
-				.shape("pbp", "bdb", "pbp")
-				.setIngredient('d', Material.NETHER_STAR)
-				.setIngredient('b', Material.PRISMARINE_SHARD)
-				.setIngredient('p', Material.ENDER_EYE));
 		//@done
 	}
 
@@ -159,9 +152,28 @@ final class BlockOpsRuneCatalog
 		}
 	}
 
+	private static List<String> recipeNamesToRemove()
+	{
+		List<String> names = new ArrayList<>(RECIPE_NAMES.size() + RETIRED_RECIPE_NAMES.size());
+		names.addAll(RECIPE_NAMES);
+		names.addAll(RETIRED_RECIPE_NAMES);
+		return names;
+	}
+
+	/** Wand recipe keys, for unlocking them in the recipe book. Runes are not craftable. */
+	List<NamespacedKey> recipeKeys()
+	{
+		List<NamespacedKey> keys = new ArrayList<>(RECIPE_NAMES.size());
+		for(String recipeName : RECIPE_NAMES)
+		{
+			keys.add(new NamespacedKey(Wormholes.instance, recipeName));
+		}
+		return List.copyOf(keys);
+	}
+
 	void unregisterAllRecipes()
 	{
-		for(String recipeName : RECIPE_NAMES)
+		for(String recipeName : recipeNamesToRemove())
 		{
 			NamespacedKey recipeKey = new NamespacedKey(Wormholes.instance, recipeName);
 			if(WormholesPlatform.removeRecipe(recipeKey, false))

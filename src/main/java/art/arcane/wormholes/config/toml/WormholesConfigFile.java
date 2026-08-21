@@ -18,5 +18,6 @@ public class WormholesConfigFile {
     public MainConfig main = new MainConfig();
     public NetworkConfig network = new NetworkConfig();
     public ProjectionConfig projection = new ProjectionConfig();
+    public RecipesConfig recipes = new RecipesConfig();
     public RenderConfig render = new RenderConfig();
 }
