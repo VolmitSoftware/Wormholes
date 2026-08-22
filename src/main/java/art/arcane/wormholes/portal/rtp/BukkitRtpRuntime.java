@@ -36,6 +36,8 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 	private final RtpAttendanceRegistry attendance;
 	private final RtpTraversalPipeline traversals;
 	private final Map<UUID, PortalRegistration> registrations;
+	private final Map<UUID, PortalRegistration> appliedRegistrations;
+	private final Map<UUID, PortalRegistration> pendingRegistrations;
 	private final AtomicBoolean closed;
 
 	public BukkitRtpRuntime(RtpService service, Environment environment, long attendanceIdleMillis)
@@ -50,6 +52,8 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 		attendance = new RtpAttendanceRegistry(service, failures, attendanceIdleMillis);
 		traversals = new RtpTraversalPipeline(service, environment, failures);
 		registrations = new ConcurrentHashMap<UUID, PortalRegistration>();
+		appliedRegistrations = new ConcurrentHashMap<UUID, PortalRegistration>();
+		pendingRegistrations = new ConcurrentHashMap<UUID, PortalRegistration>();
 		closed = new AtomicBoolean(false);
 	}
 
@@ -66,25 +70,21 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 		PortalRegistration previous = registrations.put(requiredPortal.getId(), replacement);
 		if(previous != null && replacement.hasSameRouteAs(previous))
 		{
+			reconcileRegistration(requiredPortal.getId());
 			return;
 		}
 		if(previous != null)
 		{
 			traversals.cancelPortal(requiredPortal.getId());
 		}
-		service.register(replacement.registration()).whenComplete((snapshot, failure) ->
-		{
-			if(failure != null)
-			{
-				failures.report("register:" + requiredPortal.getId(), failure);
-			}
-		});
+		reconcileRegistration(requiredPortal.getId());
 	}
 
 	public void unregister(UUID portalId)
 	{
 		UUID requiredPortalId = Objects.requireNonNull(portalId, "portalId");
 		PortalRegistration removed = registrations.remove(requiredPortalId);
+		appliedRegistrations.remove(requiredPortalId);
 		attendance.forgetPortal(requiredPortalId);
 		traversals.cancelPortal(requiredPortalId);
 		if(removed == null && service.snapshot(requiredPortalId).isEmpty())
@@ -134,7 +134,12 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 		{
 			return false;
 		}
-		Optional<RtpService.Snapshot> snapshot = service.snapshot(Objects.requireNonNull(portalId, "portalId"));
+		UUID requiredPortalId = Objects.requireNonNull(portalId, "portalId");
+		if(!hasAppliedRegistration(requiredPortalId))
+		{
+			return false;
+		}
+		Optional<RtpService.Snapshot> snapshot = service.snapshot(requiredPortalId);
 		return snapshot.isPresent()
 				&& !snapshot.get().viewers().isEmpty()
 				&& (snapshot.get().runtime().ready()
@@ -289,6 +294,7 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 		List<UUID> portalIds = List.copyOf(registrations.keySet());
 		attendance.clear();
 		registrations.clear();
+		appliedRegistrations.clear();
 		traversals.cancelAll();
 		for(UUID portalId : portalIds)
 		{
@@ -306,7 +312,8 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 
 	private ProjectionManager.RtpProjectionResult projectionResult(ILocalPortal portal, UUID viewerId, boolean attended)
 	{
-		Optional<RtpService.Snapshot> optionalSnapshot = service.snapshot(portal.getId());
+		Optional<RtpService.Snapshot> optionalSnapshot = hasAppliedRegistration(portal.getId())
+				? service.snapshot(portal.getId()) : Optional.empty();
 		if(optionalSnapshot.isEmpty())
 		{
 			return new ProjectionManager.RtpProjectionResult(
@@ -360,6 +367,67 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 				registration,
 				sourceWorld.getUID(),
 				targetWorld == null ? null : targetWorld.getUID());
+	}
+
+	private void reconcileRegistration(UUID portalId)
+	{
+		if(closed.get())
+		{
+			return;
+		}
+		PortalRegistration desired = registrations.get(portalId);
+		if(desired == null || desired.hasSameRouteAs(appliedRegistrations.get(portalId)))
+		{
+			return;
+		}
+		if(pendingRegistrations.putIfAbsent(portalId, desired) != null)
+		{
+			return;
+		}
+		CompletableFuture<RtpService.Snapshot> registration;
+		try
+		{
+			registration = service.register(desired.registration());
+		}
+		catch(RuntimeException exception)
+		{
+			pendingRegistrations.remove(portalId, desired);
+			failures.report("register:" + portalId, exception);
+			return;
+		}
+		registration.whenComplete((snapshot, failure) -> finishRegistration(portalId, desired, failure));
+	}
+
+	private void finishRegistration(UUID portalId, PortalRegistration completed, Throwable failure)
+	{
+		pendingRegistrations.remove(portalId, completed);
+		PortalRegistration desired = registrations.get(portalId);
+		if(failure != null)
+		{
+			failures.report("register:" + portalId, failure);
+			if(desired != null && !desired.hasSameRouteAs(completed))
+			{
+				reconcileRegistration(portalId);
+			}
+			return;
+		}
+		appliedRegistrations.put(portalId, completed);
+		if(desired == null || closed.get())
+		{
+			appliedRegistrations.remove(portalId, completed);
+			service.unregister(portalId);
+			return;
+		}
+		if(!desired.hasSameRouteAs(completed))
+		{
+			reconcileRegistration(portalId);
+		}
+	}
+
+	private boolean hasAppliedRegistration(UUID portalId)
+	{
+		PortalRegistration desired = registrations.get(portalId);
+		return desired != null && desired.hasSameRouteAs(appliedRegistrations.get(portalId));
 	}
 
 	public static boolean physicallyTraversable(Entity entity)
@@ -437,7 +505,8 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 
 		private boolean hasSameRouteAs(PortalRegistration other)
 		{
-			return registration.portalId().equals(other.registration.portalId())
+			return other != null
+					&& registration.portalId().equals(other.registration.portalId())
 					&& Double.compare(registration.centerX(), other.registration.centerX()) == 0
 					&& Double.compare(registration.centerZ(), other.registration.centerZ()) == 0
 					&& registration.seed() == other.registration.seed()

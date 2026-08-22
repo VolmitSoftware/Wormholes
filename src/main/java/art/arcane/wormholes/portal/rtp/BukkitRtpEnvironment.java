@@ -71,7 +71,7 @@ public final class BukkitRtpEnvironment implements BukkitRtpRuntime.Environment
 				this::executeSearch,
 				this::nowMillis,
 				this::sample,
-				candidateLoader::search,
+				candidateLoader,
 				safetyValidator::validate,
 				this::checkAccess,
 				this::projection,

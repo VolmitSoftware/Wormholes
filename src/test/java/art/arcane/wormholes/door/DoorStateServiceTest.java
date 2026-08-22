@@ -266,12 +266,16 @@ class DoorStateServiceTest {
         assertSame(publicPocket, service.getOrAllocatePocket(publicDoor, id(55)));
         assertEquals(0, personal.slot());
         assertEquals(1, publicPocket.slot());
+        assertEquals(16, personal.shell().size());
+        assertEquals(16, publicPocket.shell().size());
         assertThrows(IllegalArgumentException.class,
             () -> service.getOrAllocatePocket(pair(56).endpoint(PairEndpoint.A), traveler));
 
         DoorStateService restarted = DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile()));
         assertEquals(personal, restarted.getOrAllocatePocket(personalA, traveler));
         assertEquals(publicPocket, restarted.getOrAllocatePocket(publicDoor, id(57)));
+        assertEquals(16, restarted.getOrAllocatePocket(personalA, traveler).shell().size());
+        assertEquals(16, restarted.getOrAllocatePocket(publicDoor, id(57)).shell().size());
         assertEquals(2, restarted.snapshot().nextPocketSlot());
     }
 

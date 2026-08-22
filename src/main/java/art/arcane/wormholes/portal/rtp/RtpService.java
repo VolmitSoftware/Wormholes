@@ -726,6 +726,10 @@ public final class RtpService
 	public interface CandidateLoader
 	{
 		CompletionStage<LoadedCandidate> load(SearchRequest request);
+
+		default void cancel(SearchRequest request)
+		{
+		}
 	}
 
 	@FunctionalInterface

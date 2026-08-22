@@ -29,6 +29,7 @@ public final class DimensionalDoorRepository {
     private static final int PRE_TRAPDOOR_SCHEMA = 4;
     private static final int LEGACY_POLARITY_SCHEMA = 5;
     private static final int PRE_POCKET_SHELL_SCHEMA = 6;
+    private static final int LEGACY_POCKET_SIZE = 32;
     private static final Pattern NEXT_POCKET_SLOT = Pattern.compile("\\\"nextPocketSlot\\\"\\s*:\\s*(\\d+)");
     private static final Pattern POCKET_SLOT = Pattern.compile("\\\"slot\\\"\\s*:\\s*(\\d+)");
 
@@ -407,7 +408,14 @@ public final class DimensionalDoorRepository {
 
     /** Every pocket written before shells were configurable is the original 32-block smooth-stone room. */
     private static PocketShell decodePocketShell(int schema, JSONObject space) {
-        JSONObject shell = schema <= PRE_POCKET_SHELL_SCHEMA ? null : space.optJSONObject("shell");
+        if (schema <= PRE_POCKET_SHELL_SCHEMA) {
+            return new PocketShell(
+                LEGACY_POCKET_SIZE,
+                PocketShell.DEFAULT_SHELL_MATERIAL,
+                PocketShell.DEFAULT_RETURN_DOOR_MATERIAL
+            );
+        }
+        JSONObject shell = space.optJSONObject("shell");
         if (shell == null) {
             return PocketShell.defaults();
         }

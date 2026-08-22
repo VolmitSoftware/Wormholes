@@ -7,7 +7,7 @@ import java.util.concurrent.CompletionStage;
 final class RtpSearchDriver
 {
 	private static final int MAXIMUM_SEARCH_ATTEMPTS = 32;
-	private static final long SEARCH_DEADLINE_MILLIS = 5_000L;
+	private static final long SEARCH_DEADLINE_MILLIS = 30_000L;
 	private static final long SEARCH_RETRY_MILLIS = 1_000L;
 	private static final long MAXIMUM_SEARCH_RETRY_MILLIS = 30_000L;
 	// Biome preference relaxes after these bounds so a portal never wedges in "searching" when the biome is absent.
@@ -16,7 +16,7 @@ final class RtpSearchDriver
 
 	private final RtpService service;
 	private final RtpPortalEntry entry;
-	private Campaign campaign;
+	private volatile Campaign campaign;
 	private long nextAllowedAtMillis;
 	private long wakeScheduledAtMillis;
 	private int consecutiveFailures;
@@ -81,6 +81,7 @@ final class RtpSearchDriver
 		entry.runtime.failSearch(cancelled.ticket, service.dependencies().timeSource().nowMillis());
 		campaign = null;
 		nextAllowedAtMillis = 0L;
+		cancelLoad(cancelled);
 	}
 
 	private void scheduleWake()
@@ -135,6 +136,10 @@ final class RtpSearchDriver
 
 	private void sampleAndLoad(Campaign active, int attempt, boolean enforceBiome)
 	{
+		if(!isCurrent(active))
+		{
+			return;
+		}
 		RtpDestination destination;
 		try
 		{
@@ -147,12 +152,17 @@ final class RtpSearchDriver
 			service.dispatch(entry, () -> resume(active));
 			return;
 		}
+		if(!isCurrent(active))
+		{
+			return;
+		}
 		RtpService.SearchRequest request = new RtpService.SearchRequest(
 				entry.portalId(),
 				entry.generation,
 				entry.registration.settings(),
 				destination,
 				enforceBiome);
+		active.activeRequest = request;
 		CompletionStage<RtpService.LoadedCandidate> stage;
 		try
 		{
@@ -160,17 +170,26 @@ final class RtpSearchDriver
 		}
 		catch(RuntimeException exception)
 		{
+			active.activeRequest = null;
 			service.dispatch(entry, () -> resume(active));
 			return;
 		}
 		stage.whenComplete((loaded, failure) -> service.dispatchClosing(
 				entry,
 				() -> RtpManagedRetention.closeLoaded(loaded),
-				() -> finishLoad(active, loaded, failure)));
+				() -> finishLoad(active, request, loaded, failure)));
 	}
 
-	private void finishLoad(Campaign active, RtpService.LoadedCandidate loaded, Throwable failure)
+	private void finishLoad(
+			Campaign active,
+			RtpService.SearchRequest request,
+			RtpService.LoadedCandidate loaded,
+			Throwable failure)
 	{
+		if(active.activeRequest == request)
+		{
+			active.activeRequest = null;
+		}
 		if(!isCurrent(active))
 		{
 			RtpManagedRetention.closeLoaded(loaded);
@@ -296,6 +315,7 @@ final class RtpSearchDriver
 		}
 		entry.runtime.failSearch(active.ticket, service.dependencies().timeSource().nowMillis());
 		campaign = null;
+		cancelLoad(active);
 		consecutiveFailures = Math.min(consecutiveFailures + 1, 16);
 		long retryMillis = Math.min(SEARCH_RETRY_MILLIS << consecutiveFailures - 1, MAXIMUM_SEARCH_RETRY_MILLIS);
 		nextAllowedAtMillis = deadline(service.dependencies().timeSource().nowMillis(), retryMillis);
@@ -308,6 +328,17 @@ final class RtpSearchDriver
 		return service.isCurrent(entry)
 				&& candidate.generation == entry.generation
 				&& campaign == candidate;
+	}
+
+	private void cancelLoad(Campaign active)
+	{
+		RtpService.SearchRequest request = active.activeRequest;
+		if(request == null)
+		{
+			return;
+		}
+		active.activeRequest = null;
+		service.dependencies().candidateLoader().cancel(request);
 	}
 
 	private int nextAttempt()
@@ -328,6 +359,7 @@ final class RtpSearchDriver
 		private final long deadlineMillis;
 		private RtpPortalRuntime.SearchTicket ticket;
 		private RtpManagedRetention activeRetention;
+		private volatile RtpService.SearchRequest activeRequest;
 		private int attemptsStarted;
 
 		private Campaign(long generation, RtpPortalRuntime.SearchTicket ticket, long deadlineMillis)

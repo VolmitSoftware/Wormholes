@@ -20,7 +20,7 @@ public class MainConfig {
     @ConfigDescription("Enable the complete Dimensional Doors survival feature set.")
     public boolean dimensionalDoorsEnabled = true;
     @ConfigDescription("Edge length in blocks of a newly created pocket room, walls included, between 8 and 128. Existing pockets keep the size they were built at; change those with /wormholes pocket resize.")
-    public int pocketRoomSize = 32;
+    public int pocketRoomSize = 16;
     @ConfigDescription("Block a newly created pocket room's walls, floor, and ceiling are built from. Must be a solid, non-falling block. Existing pockets keep their own material.")
     public String pocketShellMaterial = "SMOOTH_STONE";
     @ConfigDescription("Door a newly created pocket room's exit is built from. Must be a hand-operable door, so iron doors are rejected. Existing pockets keep their own door.")

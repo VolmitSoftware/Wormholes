@@ -10,10 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PocketShellTest {
     @Test
-    void defaultsMatchTheOriginalHardCodedRoomSoUntouchedPocketsNeverMove() {
+    void defaultsUseSixteenBlocksOnEveryAxis() {
         PocketShell defaults = PocketShell.defaults();
 
-        assertEquals(32, defaults.size());
+        assertEquals(16, defaults.size());
         assertEquals("SMOOTH_STONE", defaults.shellMaterial());
         assertEquals("CRIMSON_DOOR", defaults.returnDoorMaterial());
         assertSame(defaults, PocketShell.defaults());

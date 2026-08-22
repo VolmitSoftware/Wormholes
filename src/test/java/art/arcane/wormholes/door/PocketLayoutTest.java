@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PocketLayoutTest {
     @Test
-    void roomIsExactlyThirtyTwoBlocksOnEveryAxisAndTwoChunksWide() {
+    void defaultRoomIsSixteenBlocksOnEveryAxisAndOneChunkWide() {
         PocketLayout positive = layout(1, 8_200, 128, 16_392);
         PocketLayout negative = layout(2, -8_184, 128, -16_376);
 
@@ -26,7 +26,8 @@ class PocketLayoutTest {
     @Test
     void currentAndLegacyStarterCoresRemainInsideTheBuildableInterior() {
         PocketLayout current = layout(4, 8, 128, 8);
-        PocketLayout legacy = layout(5, 0, 128, 0);
+        PocketLayout legacy = new PocketLayout(
+            space(5, 0, 128, 0, PocketShell.defaults().withSize(32)));
 
         assertEquals(0, current.minX());
         assertEquals(0, current.minZ());
@@ -59,9 +60,9 @@ class PocketLayoutTest {
             }
         }
 
-        assertEquals(32_768, contained);
-        assertEquals(5_768, shell);
-        assertEquals(27_000, interior);
+        assertEquals(4_096, contained);
+        assertEquals(1_352, shell);
+        assertEquals(2_744, interior);
         assertTrue(layout.isShellBlock(layout.minX(), layout.minY(), layout.minZ()));
         assertTrue(layout.isShellBlock(layout.maxX(), layout.maxY(), layout.maxZ()));
         assertTrue(layout.isInteriorBlock(layout.minX() + 1, layout.minY() + 1, layout.minZ() + 1));
@@ -119,7 +120,8 @@ class PocketLayoutTest {
 
     @Test
     void coordinateOverflowIsRejectedInsteadOfWrapping() {
-        PocketLayout horizontalEdge = layout(40, Integer.MAX_VALUE, 128, 0);
+        PocketLayout horizontalEdge = new PocketLayout(
+            space(40, Integer.MAX_VALUE, 128, 0, PocketShell.defaults().withSize(32)));
         PocketLayout verticalEdge = layout(41, 0, Integer.MAX_VALUE, 0);
 
         assertThrows(ArithmeticException.class, horizontalEdge::maxX);
@@ -136,16 +138,16 @@ class PocketLayoutTest {
 
     private static void assertRoomBounds(PocketLayout layout, int expectedMinX, int expectedMinZ, int expectedMinY) {
         assertEquals(expectedMinX, layout.minX());
-        assertEquals(expectedMinX + 31, layout.maxX());
+        assertEquals(expectedMinX + 15, layout.maxX());
         assertEquals(expectedMinZ, layout.minZ());
-        assertEquals(expectedMinZ + 31, layout.maxZ());
+        assertEquals(expectedMinZ + 15, layout.maxZ());
         assertEquals(expectedMinY, layout.minY());
-        assertEquals(expectedMinY + 31, layout.maxY());
-        assertEquals(32, layout.maxX() - layout.minX() + 1);
-        assertEquals(32, layout.maxY() - layout.minY() + 1);
-        assertEquals(32, layout.maxZ() - layout.minZ() + 1);
-        assertEquals(1, (layout.maxX() >> 4) - (layout.minX() >> 4));
-        assertEquals(1, (layout.maxZ() >> 4) - (layout.minZ() >> 4));
+        assertEquals(expectedMinY + 15, layout.maxY());
+        assertEquals(16, layout.maxX() - layout.minX() + 1);
+        assertEquals(16, layout.maxY() - layout.minY() + 1);
+        assertEquals(16, layout.maxZ() - layout.minZ() + 1);
+        assertEquals(0, (layout.maxX() >> 4) - (layout.minX() >> 4));
+        assertEquals(0, (layout.maxZ() >> 4) - (layout.minZ() >> 4));
     }
 
     private static void assertLegacyCoreInside(PocketLayout layout, int centerX, int centerZ) {
@@ -158,7 +160,7 @@ class PocketLayoutTest {
 
     @Test
     void resizingKeepsTheMinimumCornerAndMovesOnlyTheMaximumWalls() {
-        PocketSpace space = space(60, 8_200, 128, 16_392, PocketShell.defaults());
+        PocketSpace space = space(60, 8_200, 128, 16_392, PocketShell.defaults().withSize(32));
         PocketLayout original = new PocketLayout(space);
         PocketLayout grown = new PocketLayout(space.withShell(PocketShell.defaults().withSize(64)));
         PocketLayout shrunk = new PocketLayout(space.withShell(PocketShell.defaults().withSize(16)));

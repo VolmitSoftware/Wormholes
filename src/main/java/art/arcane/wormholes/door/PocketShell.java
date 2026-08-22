@@ -12,8 +12,8 @@ import java.util.Objects;
  * resolves and validates them.</p>
  */
 public record PocketShell(int size, String shellMaterial, String returnDoorMaterial) {
-    /** The original hard-coded room edge, kept as the default so untouched pockets never move. */
-    public static final int DEFAULT_SIZE = 32;
+    /** Sixteen blocks on every axis, including the shell, for one horizontal chunk. */
+    public static final int DEFAULT_SIZE = 16;
     /** Below this the return door and its clearance no longer fit inside the shell. */
     public static final int MIN_SIZE = 8;
     /**

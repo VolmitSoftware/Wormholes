@@ -58,8 +58,8 @@ class PocketEscapePolicyTest
 	@Test
 	void verticalBreachesAreImmediateEscapes()
 	{
-		int centerX = LAYOUT.minX() + 16;
-		int centerZ = LAYOUT.minZ() + 16;
+		int centerX = LAYOUT.minX() + LAYOUT.size() / 2;
+		int centerZ = LAYOUT.minZ() + LAYOUT.size() / 2;
 		assertTrue(PocketEscapePolicy.isEscaped(LAYOUT, centerX, LAYOUT.maxY() + 1, centerZ));
 		assertTrue(PocketEscapePolicy.isEscaped(LAYOUT, centerX, LAYOUT.minY() - 1, centerZ));
 		assertFalse(PocketEscapePolicy.isEscaped(LAYOUT, centerX, LAYOUT.maxY(), centerZ));

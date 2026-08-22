@@ -73,6 +73,13 @@ final class RtpDestinationCache
 				obsolete.add(destination);
 			}
 		}
+		for(RtpDestination destination : attempts.keySet())
+		{
+			if(!retained.contains(destination) && !obsolete.contains(destination))
+			{
+				obsolete.add(destination);
+			}
+		}
 		for(RtpDestination destination : obsolete)
 		{
 			release(destination);
@@ -81,6 +88,11 @@ final class RtpDestinationCache
 
 	void release(RtpDestination destination)
 	{
+		Preparation preparation = attempts.remove(destination);
+		if(preparation != null)
+		{
+			cancel(preparation);
+		}
 		RtpManagedRetention retention = retentions.remove(destination);
 		if(retention != null)
 		{
@@ -97,10 +109,7 @@ final class RtpDestinationCache
 		retentions.clear();
 		for(Preparation preparation : attempts.values())
 		{
-			if(preparation.retention != null)
-			{
-				preparation.retention.close();
-			}
+			cancel(preparation);
 		}
 		attempts.clear();
 	}
@@ -118,22 +127,28 @@ final class RtpDestinationCache
 		{
 			return;
 		}
-		Preparation preparation = new Preparation(entry.generation, destination);
-		attempts.put(destination, preparation);
 		RtpService.SearchRequest request = new RtpService.SearchRequest(
 				entry.portalId(),
 				entry.generation,
 				entry.registration.settings(),
 				destination);
-		service.dependencies().searchExecutor().execute(() -> load(preparation, request));
+		Preparation preparation = new Preparation(entry.generation, destination, request);
+		attempts.put(destination, preparation);
+		service.dependencies().searchExecutor().execute(() -> load(preparation));
 	}
 
-	private void load(Preparation preparation, RtpService.SearchRequest request)
+	private void load(Preparation preparation)
 	{
+		if(!isCurrent(preparation))
+		{
+			return;
+		}
 		CompletionStage<RtpService.LoadedCandidate> stage;
 		try
 		{
-			stage = Objects.requireNonNull(service.dependencies().candidateLoader().load(request), "candidate loader stage");
+			stage = Objects.requireNonNull(
+					service.dependencies().candidateLoader().load(preparation.request),
+					"candidate loader stage");
 		}
 		catch(RuntimeException exception)
 		{
@@ -228,16 +243,30 @@ final class RtpDestinationCache
 				&& attempts.get(preparation.destination) == preparation;
 	}
 
+	private void cancel(Preparation preparation)
+	{
+		service.dependencies().candidateLoader().cancel(preparation.request);
+		if(preparation.retention != null)
+		{
+			preparation.retention.close();
+		}
+	}
+
 	private static final class Preparation
 	{
 		private final long generation;
 		private final RtpDestination destination;
+		private final RtpService.SearchRequest request;
 		private RtpManagedRetention retention;
 
-		private Preparation(long generation, RtpDestination destination)
+		private Preparation(
+				long generation,
+				RtpDestination destination,
+				RtpService.SearchRequest request)
 		{
 			this.generation = generation;
 			this.destination = destination;
+			this.request = request;
 		}
 	}
 }

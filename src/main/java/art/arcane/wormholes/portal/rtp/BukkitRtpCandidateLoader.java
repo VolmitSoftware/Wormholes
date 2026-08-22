@@ -4,13 +4,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntPredicate;
 
 import org.bukkit.HeightMap;
@@ -31,11 +34,12 @@ import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.wormholes.chunk.ChunkLease;
 import art.arcane.wormholes.platform.WormholesPlatform;
 
-public final class BukkitRtpCandidateLoader implements AutoCloseable
+public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoader, AutoCloseable
 {
 	private final Plugin plugin;
 	private final RtpSafetyValidator validator;
 	private final Set<CompositeRetention> activeRetentions;
+	private final ConcurrentMap<RtpService.SearchRequest, PendingSearch> pendingSearches;
 	private final AtomicBoolean closed;
 
 	public BukkitRtpCandidateLoader(Plugin plugin)
@@ -43,17 +47,56 @@ public final class BukkitRtpCandidateLoader implements AutoCloseable
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
 		validator = new RtpSafetyValidator();
 		activeRetentions = ConcurrentHashMap.newKeySet();
+		pendingSearches = new ConcurrentHashMap<RtpService.SearchRequest, PendingSearch>();
 		closed = new AtomicBoolean(false);
 	}
 
-	public CompletionStage<RtpService.LoadedCandidate> search(RtpService.SearchRequest request)
+	@Override
+	public CompletionStage<RtpService.LoadedCandidate> load(RtpService.SearchRequest request)
 	{
 		RtpService.SearchRequest requiredRequest = Objects.requireNonNull(request, "request");
+		PendingSearch pending = new PendingSearch();
+		if(pendingSearches.putIfAbsent(requiredRequest, pending) != null)
+		{
+			return CompletableFuture.failedFuture(new IllegalStateException("RTP candidate load is already active"));
+		}
+		CompletionStage<RtpService.LoadedCandidate> stage;
+		try
+		{
+			stage = search(requiredRequest, pending);
+		}
+		catch(RuntimeException exception)
+		{
+			completeSearch(requiredRequest, pending, null, exception);
+			return pending.result();
+		}
+		stage.whenComplete((loaded, failure) -> completeSearch(requiredRequest, pending, loaded, failure));
+		return pending.result();
+	}
+
+	@Override
+	public void cancel(RtpService.SearchRequest request)
+	{
+		PendingSearch pending = pendingSearches.remove(Objects.requireNonNull(request, "request"));
+		if(pending != null)
+		{
+			pending.cancel();
+		}
+	}
+
+	private CompletionStage<RtpService.LoadedCandidate> search(
+			RtpService.SearchRequest requiredRequest,
+			PendingSearch pending)
+	{
 		RtpValidationRequest.EntityEnvelope envelope = RtpValidationRequest.EntityEnvelope.baseline();
 		World world = resolveWorld(requiredRequest.destination().worldKey());
 		if(world == null)
 		{
 			return CompletableFuture.failedFuture(new IllegalStateException("RTP target world is unavailable"));
+		}
+		if(closed.get())
+		{
+			return CompletableFuture.failedFuture(new IllegalStateException("RTP candidate loader is closed"));
 		}
 		if(Boolean.TRUE.equals(IrisTerrainProbe.shared().isUnderwater(
 				world,
@@ -83,7 +126,12 @@ public final class BukkitRtpCandidateLoader implements AutoCloseable
 			}
 		}
 		String pendingBiomeKey = targetBiomeKey;
-		return retain(world, requiredRequest.destination(), envelope).thenCompose(retention ->
+		PendingRetention pendingRetention = retain(world, requiredRequest.destination(), envelope);
+		if(!pending.attach(pendingRetention.retention()))
+		{
+			return CompletableFuture.failedFuture(new IllegalStateException("RTP candidate load was cancelled"));
+		}
+		return pendingRetention.ready().thenCompose(retention ->
 		{
 			try
 			{
@@ -116,6 +164,26 @@ public final class BukkitRtpCandidateLoader implements AutoCloseable
 				throw failure;
 			}
 		});
+	}
+
+	private void completeSearch(
+			RtpService.SearchRequest request,
+			PendingSearch pending,
+			RtpService.LoadedCandidate loaded,
+			Throwable failure)
+	{
+		if(!pendingSearches.remove(request, pending))
+		{
+			RtpManagedRetention.closeLoaded(loaded);
+			return;
+		}
+		if(failure != null || loaded == null)
+		{
+			pending.fail(failure == null
+					? new IllegalStateException("RTP candidate load returned no result") : failure);
+			return;
+		}
+		pending.complete(loaded);
 	}
 
 	private CompletionStage<Void> biomeGate(World world, RtpDestination destination, int feetY, String targetBiomeKey)
@@ -166,7 +234,12 @@ public final class BukkitRtpCandidateLoader implements AutoCloseable
 		{
 			return CompletableFuture.failedFuture(new IllegalStateException("RTP target world is unavailable"));
 		}
-		return retain(world, requiredRequest.destination(), requiredEnvelope).thenCompose(retention ->
+		if(closed.get())
+		{
+			return CompletableFuture.failedFuture(new IllegalStateException("RTP candidate loader is closed"));
+		}
+		PendingRetention pendingRetention = retain(world, requiredRequest.destination(), requiredEnvelope);
+		return pendingRetention.ready().thenCompose(retention ->
 		{
 			try
 			{
@@ -207,6 +280,13 @@ public final class BukkitRtpCandidateLoader implements AutoCloseable
 		if(!closed.compareAndSet(false, true))
 		{
 			return;
+		}
+		for(Map.Entry<RtpService.SearchRequest, PendingSearch> entry : List.copyOf(pendingSearches.entrySet()))
+		{
+			if(pendingSearches.remove(entry.getKey(), entry.getValue()))
+			{
+				entry.getValue().cancel();
+			}
 		}
 		for(CompositeRetention retention : List.copyOf(activeRetentions))
 		{
@@ -284,14 +364,14 @@ public final class BukkitRtpCandidateLoader implements AutoCloseable
 		});
 	}
 
-	private CompletionStage<CompositeRetention> retain(
+	private PendingRetention retain(
 			World world,
 			RtpDestination destination,
 			RtpValidationRequest.EntityEnvelope envelope)
 	{
 		if(closed.get())
 		{
-			return CompletableFuture.failedFuture(new IllegalStateException("RTP candidate loader is closed"));
+			throw new IllegalStateException("RTP candidate loader is closed");
 		}
 		Set<ChunkCoordinate> chunks = touchedChunks(destination, envelope);
 		List<ChunkLease> leases = new ArrayList<ChunkLease>(chunks.size());
@@ -306,7 +386,7 @@ public final class BukkitRtpCandidateLoader implements AutoCloseable
 		{
 			readiness[index] = leases.get(index).ready();
 		}
-		return CompletableFuture.allOf(readiness).thenCompose(ignored ->
+		CompletionStage<CompositeRetention> ready = CompletableFuture.allOf(readiness).thenCompose(ignored ->
 		{
 			for(ChunkLease lease : leases)
 			{
@@ -318,6 +398,7 @@ public final class BukkitRtpCandidateLoader implements AutoCloseable
 			}
 			return CompletableFuture.completedFuture(retention);
 		});
+		return new PendingRetention(retention, ready);
 	}
 
 	private CompletionStage<Integer> surfaceFeetY(World world, RtpDestination destination)
@@ -641,6 +722,89 @@ public final class BukkitRtpCandidateLoader implements AutoCloseable
 			int minimumZ,
 			int maximumZ)
 	{
+	}
+
+	private record PendingRetention(
+			CompositeRetention retention,
+			CompletionStage<CompositeRetention> ready)
+	{
+		private PendingRetention
+		{
+			Objects.requireNonNull(retention, "retention");
+			Objects.requireNonNull(ready, "ready");
+		}
+	}
+
+	private static final class PendingSearch
+	{
+		private final CompletableFuture<RtpService.LoadedCandidate> result;
+		private final AtomicBoolean cancelled;
+		private final AtomicReference<RtpService.Retention> retention;
+
+		private PendingSearch()
+		{
+			result = new CompletableFuture<RtpService.LoadedCandidate>();
+			cancelled = new AtomicBoolean(false);
+			retention = new AtomicReference<RtpService.Retention>();
+		}
+
+		private CompletableFuture<RtpService.LoadedCandidate> result()
+		{
+			return result;
+		}
+
+		private boolean attach(RtpService.Retention attached)
+		{
+			RtpService.Retention requiredRetention = Objects.requireNonNull(attached, "attached");
+			if(cancelled.get())
+			{
+				requiredRetention.close();
+				return false;
+			}
+			if(!retention.compareAndSet(null, requiredRetention))
+			{
+				requiredRetention.close();
+				throw new IllegalStateException("RTP candidate load already owns retention");
+			}
+			if(cancelled.get() && retention.compareAndSet(requiredRetention, null))
+			{
+				requiredRetention.close();
+				return false;
+			}
+			return true;
+		}
+
+		private void complete(RtpService.LoadedCandidate loaded)
+		{
+			RtpService.LoadedCandidate requiredLoaded = Objects.requireNonNull(loaded, "loaded");
+			retention.compareAndSet(requiredLoaded.retention(), null);
+			if(!result.complete(requiredLoaded))
+			{
+				RtpManagedRetention.closeLoaded(requiredLoaded);
+			}
+		}
+
+		private void fail(Throwable failure)
+		{
+			closeRetention();
+			result.completeExceptionally(Objects.requireNonNull(failure, "failure"));
+		}
+
+		private void cancel()
+		{
+			cancelled.set(true);
+			closeRetention();
+			result.completeExceptionally(new IllegalStateException("RTP candidate load was cancelled"));
+		}
+
+		private void closeRetention()
+		{
+			RtpService.Retention active = retention.getAndSet(null);
+			if(active != null)
+			{
+				active.close();
+			}
+		}
 	}
 
 	private final class CompositeRetention implements RtpService.Retention

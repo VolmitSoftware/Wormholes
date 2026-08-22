@@ -156,7 +156,7 @@ public final class RtpServiceTest
 	}
 
 	@Test
-	public void searchCampaignTimesOutAtFiveSecondsAndClosesLatePreparation()
+	public void slowCandidateLoadGetsThirtySecondsBeforeTimeoutAndIsCancelledImmediately()
 	{
 		TestHarness harness = new TestHarness(uniqueSampler());
 		UUID portalId = uuid("timeout-portal");
@@ -167,19 +167,20 @@ public final class RtpServiceTest
 		assertEquals(1, harness.loader.pendingCount());
 		assertTrue(harness.service.snapshot(portalId).orElseThrow().runtime().searchInFlight());
 
-		harness.advance(4_999L);
+		CountingRetention pendingRetention = harness.loader.lastRetention();
+		harness.advance(29_999L);
 		assertTrue(harness.service.snapshot(portalId).orElseThrow().runtime().searchInFlight());
 		harness.advance(1L);
 
 		assertFalse(harness.service.snapshot(portalId).orElseThrow().runtime().searchInFlight());
-		CountingRetention lateRetention = harness.loader.completeNext();
-		harness.executor.runAll();
-		assertEquals(1, lateRetention.closeCount());
+		assertEquals(0, harness.loader.pendingCount());
+		assertEquals(1, harness.loader.cancelCount());
+		assertEquals(1, pendingRetention.closeCount());
 		assertEquals(0, harness.service.snapshot(portalId).orElseThrow().runtime().candidateCount());
 	}
 
 	@Test
-	public void searchCompletionAtDeadlineIsRejectedBeforeTimerDelivery()
+	public void searchCompletionAtThirtySecondBoundaryIsRejectedBeforeTimerDelivery()
 	{
 		TestHarness harness = new TestHarness(uniqueSampler());
 		UUID portalId = uuid("deadline-boundary-portal");
@@ -188,13 +189,32 @@ public final class RtpServiceTest
 		harness.service.touchViewer(portalId, uuid("viewer")).join();
 		harness.executor.runNext();
 
-		harness.clock.advance(5_000L);
+		harness.clock.advance(30_000L);
 		CountingRetention lateRetention = harness.loader.completeNext();
 		harness.executor.runAll();
 
 		assertEquals(1, lateRetention.closeCount());
 		assertEquals(0, harness.service.snapshot(portalId).orElseThrow().runtime().candidateCount());
 		assertFalse(harness.service.snapshot(portalId).orElseThrow().runtime().searchInFlight());
+	}
+
+	@Test
+	public void irisScaleColdLoadCanCompleteAfterFiveSecondsWithoutBeingDiscarded()
+	{
+		TestHarness harness = new TestHarness(uniqueSampler());
+		UUID portalId = uuid("slow-success-portal");
+		harness.loader.holdNext();
+		harness.register(portalId, settings(RtpAllocationMode.SHARED, RtpRotationMode.STATIC));
+		harness.service.touchViewer(portalId, uuid("viewer")).join();
+		harness.executor.runNext();
+
+		harness.advance(20_000L);
+		assertTrue(harness.service.snapshot(portalId).orElseThrow().runtime().searchInFlight());
+		harness.loader.completeNext();
+		harness.executor.runAll();
+
+		assertTrue(harness.service.snapshot(portalId).orElseThrow().runtime().ready());
+		assertEquals(0, harness.loader.cancelCount());
 	}
 
 	@Test
@@ -284,7 +304,7 @@ public final class RtpServiceTest
 	}
 
 	@Test
-	public void manualRerollCommitsPairAndSettingsChangeRejectsLateGeneration()
+	public void manualRerollCommitsPairAndSettingsChangeCancelsStaleGeneration()
 	{
 		TestHarness harness = new TestHarness(uniqueSampler());
 		UUID portalId = uuid("reroll-portal");
@@ -321,14 +341,15 @@ public final class RtpServiceTest
 				.allocationMode(RtpAllocationMode.SHARED)
 				.rotationMode(RtpRotationMode.STATIC)
 				.build();
+		CountingRetention staleRetention = harness.loader.lastRetention();
 		harness.service.updateSettings(portalId, secondChange).join();
-		CountingRetention staleRetention = harness.loader.completeNext();
 		harness.executor.runAll();
 
 		RtpService.Snapshot finalSnapshot = harness.service.snapshot(portalId).orElseThrow();
 		assertTrue(finalSnapshot.generation() > updatedGeneration);
 		assertTrue(finalSnapshot.runtime().ready());
 		assertEquals(1, staleRetention.closeCount());
+		assertEquals(1, harness.loader.cancelCount());
 		assertEquals(finalSnapshot.generation(), finalSnapshot.runtime().active().generation());
 	}
 
@@ -1150,6 +1171,7 @@ public final class RtpServiceTest
 		private boolean holdNext;
 		private boolean failAll;
 		private int loadCount;
+		private int cancelCount;
 
 		private ControlledLoader()
 		{
@@ -1176,8 +1198,24 @@ public final class RtpServiceTest
 			}
 			holdNext = false;
 			CompletableFuture<RtpService.LoadedCandidate> future = new CompletableFuture<RtpService.LoadedCandidate>();
-			pending.addLast(new PendingLoad(future, loaded, retention));
+			pending.addLast(new PendingLoad(request, future, loaded, retention));
 			return future;
+		}
+
+		@Override
+		public void cancel(RtpService.SearchRequest request)
+		{
+			for(PendingLoad load : List.copyOf(pending))
+			{
+				if(!load.request().equals(request) || !pending.remove(load))
+				{
+					continue;
+				}
+				cancelCount++;
+				load.retention().close();
+				load.future().completeExceptionally(new IllegalStateException("forced cancellation"));
+				return;
+			}
 		}
 
 		private void holdNext()
@@ -1212,6 +1250,16 @@ public final class RtpServiceTest
 			return loadCount;
 		}
 
+		private int cancelCount()
+		{
+			return cancelCount;
+		}
+
+		private CountingRetention lastRetention()
+		{
+			return retentions.get(retentions.size() - 1);
+		}
+
 		private int openRetentions()
 		{
 			int open = 0;
@@ -1227,6 +1275,7 @@ public final class RtpServiceTest
 	}
 
 	private record PendingLoad(
+			RtpService.SearchRequest request,
 			CompletableFuture<RtpService.LoadedCandidate> future,
 			RtpService.LoadedCandidate loaded,
 			CountingRetention retention)

@@ -38,6 +38,7 @@ class WormholesConfigFileTest {
 
         assertEquals(VisualQualityProfile.AUTO, settings.getVisualQualityProfile());
         assertTrue(settings.getMain().dimensionalDoorsEnabled);
+        assertEquals(16, settings.getMain().pocketRoomSize);
         assertEquals(1, settings.getProjection().initialResendPasses);
         assertFalse(settings.getNetwork().replication.captureBlockEntityEnabled);
         List<String> emitted = emittedSettings(file);
@@ -52,8 +53,12 @@ class WormholesConfigFileTest {
         assertTrue(emitted.contains("[projection]"));
         assertTrue(emitted.contains("[render]"));
         assertTrue(emitted.contains("aperture-padding-blocks = 0.75"));
+        assertTrue(emitted.contains("pocket-room-size = 16"));
         assertTrue(emitted.contains("initial-resend-passes = 1"));
         assertTrue(emitted.contains("capture-block-entity-enabled = false"));
+
+        Settings.refresh(settings);
+        assertEquals(16, Settings.POCKET_SHELL.size());
 
         String content = String.join("\n", emitted);
         assertEveryKeyEmitted(content, WormholesConfigFile.class);

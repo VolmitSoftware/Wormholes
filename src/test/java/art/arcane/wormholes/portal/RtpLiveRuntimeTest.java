@@ -74,6 +74,57 @@ public final class RtpLiveRuntimeTest
 	}
 
 	@Test
+	public void failedRouteRegistrationIsRetriedInsteadOfLeavingDisplayedSettingsStale()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.runtime.synchronize(harness.portal);
+		RtpService.Snapshot original = harness.service.snapshot(harness.portal.getId()).orElseThrow();
+		harness.environment.dispatcher.rejectNextExecute();
+		harness.portal.setRtpSettings(RtpSettings.builder(harness.world).radii(512, 4096).build());
+
+		assertEquals(original.settings(), harness.service.snapshot(harness.portal.getId()).orElseThrow().settings());
+		assertFalse(harness.runtime.isReady(harness.portal.getId()));
+		harness.runtime.synchronize(harness.portal);
+
+		RtpService.Snapshot recovered = harness.service.snapshot(harness.portal.getId()).orElseThrow();
+		assertEquals(512, recovered.settings().getMinimumRadius());
+		assertEquals(4096, recovered.settings().getMaximumRadius());
+	}
+
+	@Test
+	public void overlappingRouteUpdatesApplyOnlyTheLatestDesiredSettings()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.runtime.synchronize(harness.portal);
+		harness.environment.dispatcher.deferNextExecute();
+		harness.portal.setRtpSettings(RtpSettings.builder(harness.world).radii(128, 1024).build());
+		harness.runtime.synchronize(harness.portal);
+		harness.portal.setRtpSettings(RtpSettings.builder(harness.world).radii(512, 4096).build());
+		harness.runtime.synchronize(harness.portal);
+
+		harness.environment.dispatcher.runDeferred();
+
+		RtpService.Snapshot snapshot = harness.service.snapshot(harness.portal.getId()).orElseThrow();
+		assertEquals(512, snapshot.settings().getMinimumRadius());
+		assertEquals(4096, snapshot.settings().getMaximumRadius());
+	}
+
+	@Test
+	public void deferredRouteRegistrationCannotResurrectAnUnregisteredPortal()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.runtime.synchronize(harness.portal);
+		harness.environment.dispatcher.deferNextExecute();
+		harness.portal.setRtpSettings(RtpSettings.builder(harness.world).radii(512, 4096).build());
+		harness.runtime.synchronize(harness.portal);
+
+		harness.runtime.unregister(harness.portal.getId());
+		harness.environment.dispatcher.runDeferred();
+
+		assertTrue(harness.service.snapshot(harness.portal.getId()).isEmpty());
+	}
+
+	@Test
 	public void projectionAttendanceOpensRtpWithoutTunnelAndIdleSweepClosesIt()
 	{
 		Harness harness = new Harness(RtpRotationMode.STATIC);
@@ -660,10 +711,24 @@ public final class RtpLiveRuntimeTest
 	private static final class RecordingSourceDispatcher implements RtpService.SourceDispatcher
 	{
 		private final List<Runnable> scheduled = new java.util.ArrayList<Runnable>();
+		private final List<Runnable> deferred = new java.util.ArrayList<Runnable>();
+		private boolean rejectNextExecute;
+		private boolean deferNextExecute;
 
 		@Override
 		public void execute(UUID portalId, Runnable command)
 		{
+			if(rejectNextExecute)
+			{
+				rejectNextExecute = false;
+				throw new IllegalStateException("forced registration rejection");
+			}
+			if(deferNextExecute)
+			{
+				deferNextExecute = false;
+				deferred.add(command);
+				return;
+			}
 			command.run();
 		}
 
@@ -676,6 +741,25 @@ public final class RtpLiveRuntimeTest
 		private int size()
 		{
 			return scheduled.size();
+		}
+
+		private void rejectNextExecute()
+		{
+			rejectNextExecute = true;
+		}
+
+		private void deferNextExecute()
+		{
+			deferNextExecute = true;
+		}
+
+		private void runDeferred()
+		{
+			for(Runnable command : List.copyOf(deferred))
+			{
+				deferred.remove(command);
+				command.run();
+			}
 		}
 
 		private void runFrom(int index)

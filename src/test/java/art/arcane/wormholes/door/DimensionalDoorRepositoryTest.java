@@ -643,12 +643,16 @@ class DimensionalDoorRepositoryTest {
         DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile);
         DoorStoreSnapshot migrated = repository.load();
 
-        assertEquals(PocketShell.defaults(), migrated.spaces().get(0).shell());
+        PocketShell migratedShell = migrated.spaces().get(0).shell();
+        assertEquals(32, migratedShell.size());
+        assertEquals(PocketShell.DEFAULT_SHELL_MATERIAL, migratedShell.shellMaterial());
+        assertEquals(PocketShell.DEFAULT_RETURN_DOOR_MATERIAL, migratedShell.returnDoorMaterial());
         assertEquals(32, new PocketLayout(migrated.spaces().get(0)).size());
 
         repository.save(migrated);
         String canonical = Files.readString(stateFile);
         assertTrue(canonical.contains("\"schema\": 7"));
+        assertTrue(canonical.contains("\"size\": 32"));
         assertTrue(canonical.contains("\"shellMaterial\": \"SMOOTH_STONE\""));
     }
 
