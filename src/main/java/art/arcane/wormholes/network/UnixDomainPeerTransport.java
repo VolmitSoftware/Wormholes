@@ -164,10 +164,7 @@ public final class UnixDomainPeerTransport implements PeerTransport {
         }
         if (socketPath != null) {
             try {
-                Object currentFileKey = Files.exists(socketPath, LinkOption.NOFOLLOW_LINKS)
-                    ? socketFileIdentity(socketPath)
-                    : null;
-                if (socketFileKey != null && Objects.equals(socketFileKey, currentFileKey)) {
+                if (Files.exists(socketPath, LinkOption.NOFOLLOW_LINKS) && ownsSocketFile()) {
                     Files.deleteIfExists(socketPath);
                 }
             } catch (IOException e) {
@@ -178,6 +175,33 @@ public final class UnixDomainPeerTransport implements PeerTransport {
         }
         if (firstError != null) {
             throw firstError;
+        }
+    }
+
+    /**
+     * Reports whether the file still sitting at the socket path is the one this transport bound,
+     * so a close only removes its own socket and never a replacement a later owner put there.
+     *
+     * <p>A file key or inode settles it outright, but Windows exposes neither, and every readable
+     * stand-in there is unusable: a re-created file inherits the original creation time through
+     * file-system tunneling, two binds in quick succession share a modification time, and a bound
+     * socket file cannot be opened to stamp an identity of our own onto it. The server channel is
+     * already closed by the time this runs, so liveness answers the question instead -- anything
+     * still accepting connections on that path must belong to a later owner.
+     */
+    private boolean ownsSocketFile() throws IOException {
+        if (socketFileKey != null) {
+            return Objects.equals(socketFileKey, socketFileIdentity(socketPath));
+        }
+        return !socketIsLive(socketPath, socketAddress);
+    }
+
+    private static boolean socketIsLive(Path socketPath, UnixDomainSocketAddress address) {
+        try (SocketChannel probe = SocketChannel.open(StandardProtocolFamily.UNIX)) {
+            connect(probe, address, LIVE_SOCKET_PROBE_TIMEOUT_MILLIS);
+            return true;
+        } catch (IOException nothingAcceptingThere) {
+            return false;
         }
     }
 

@@ -35,6 +35,17 @@ tasks.register('buildPsychoLT', Copy) {
     rename { String ignored -> 'Wormholes.jar' }
 }
 
+tasks.register('buildSwiftSwamp', Copy) {
+    group = 'development'
+    description = 'Builds and deploys Wormholes to the local BUILDS output directory.'
+    outputs.upToDateWhen { false }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    dependsOn(tasks.named('check'), shadowJarTask)
+    from(shadowJarTask.flatMap { it.archiveFile })
+    into(file('C://VolmitSoftware/BUILDS'))
+    rename { String ignored -> 'Wormholes.jar' }
+}
+
 tasks.named('jar').configure {
     enabled = false
 }
@@ -152,6 +163,7 @@ slimJar {
 }
 
 repositories {
+    mavenLocal()
     mavenCentral()
     maven {
         url = uri('https://repo.papermc.io/repository/maven-public/')
