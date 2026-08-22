@@ -31,6 +31,7 @@ public final class HotloadManager {
     private static final long RETRY_MAX_MS = 30_000L;
     private static final long APPLICATION_TIMEOUT_MS = 10_000L;
     private static final long WATCH_RETRY_MS = 1_000L;
+    private static final long CONTENT_RECONCILIATION_MS = 2_500L;
     private static final int MAX_CONFIG_BYTES = 8 * 1024 * 1024;
 
     private final Path configDir;
@@ -38,6 +39,7 @@ public final class HotloadManager {
     private final Logger logger;
     private final ReloadCallback reloadCallback;
     private final Timing timing;
+    private final boolean filesystemEventsEnabled;
     private final AtomicBoolean running;
     private final Object watchLock;
     private FileSignature lastApplied;
@@ -50,7 +52,8 @@ public final class HotloadManager {
     private long lastCompletionNanos;
     private long applicationStartedNanos;
     private long watchRetryAfterNanos;
-    private long lastReconciliationNanos;
+    private long lastSnapshotReadNanos;
+    private long snapshotReadAttempts;
     private int deferredRetryCount;
     private boolean applicationTimeoutLogged;
     private String lastReadFailure;
@@ -59,7 +62,7 @@ public final class HotloadManager {
     private volatile WatchService watchService;
 
     public HotloadManager(Path dataFolder, Logger logger, ReloadCallback reloadCallback) {
-        this(new Options(dataFolder, logger, reloadCallback, Timing.production()));
+        this(new Options(dataFolder, logger, reloadCallback, Timing.production(), true));
     }
 
     HotloadManager(Options options) {
@@ -70,6 +73,7 @@ public final class HotloadManager {
         logger = Objects.requireNonNull(required.logger());
         reloadCallback = Objects.requireNonNull(required.reloadCallback());
         timing = Objects.requireNonNull(required.timing());
+        filesystemEventsEnabled = required.filesystemEventsEnabled();
         running = new AtomicBoolean(false);
         watchLock = new Object();
     }
@@ -106,7 +110,8 @@ public final class HotloadManager {
             activeAttempt = 0L;
             retryAfterNanos = 0L;
             lastCompletionNanos = 0L;
-            lastReconciliationNanos = 0L;
+            lastSnapshotReadNanos = System.nanoTime();
+            snapshotReadAttempts = 0L;
             deferredRetryCount = 0;
             applicationTimeoutLogged = false;
         }
@@ -167,13 +172,14 @@ public final class HotloadManager {
                 } else {
                     configEvent = pollWatchService(activeWatchService);
                 }
-                long nowNanos = waitForReconciliationWindow(configEvent);
-                if (running.get()
-                    && (configEvent
-                        || nowNanos - lastReconciliationNanos >= toNanos(timing.pollIntervalMs()))) {
-                    lastReconciliationNanos = nowNanos;
-                    reconcileAndDispatch(nowNanos);
+                long nowNanos = settleEventBurst(configEvent);
+                if (!running.get()) {
+                    continue;
                 }
+                if (shouldReadSnapshot(configEvent, nowNanos)) {
+                    capturePendingSnapshot(nowNanos);
+                }
+                dispatchReadySnapshot(nowNanos);
             }
         } catch (Throwable failure) {
             if (running.get()) {
@@ -186,6 +192,9 @@ public final class HotloadManager {
     }
 
     private WatchService ensureWatchService(long nowNanos) {
+        if (!filesystemEventsEnabled) {
+            return null;
+        }
         WatchService current = watchService;
         if (current != null) {
             return current;
@@ -293,27 +302,40 @@ public final class HotloadManager {
         Thread.sleep(timing.pollIntervalMs());
     }
 
-    private long waitForReconciliationWindow(boolean configEvent) throws InterruptedException {
-        long nowNanos = System.nanoTime();
-        long intervalMs = configEvent ? Math.min(50L, timing.pollIntervalMs()) : timing.pollIntervalMs();
-        long remainingNanos = toNanos(intervalMs) - (nowNanos - lastReconciliationNanos);
-        if (remainingNanos > 0L) {
-            TimeUnit.NANOSECONDS.sleep(remainingNanos);
-            return System.nanoTime();
+    private long settleEventBurst(boolean configEvent) throws InterruptedException {
+        if (configEvent) {
+            Thread.sleep(Math.min(50L, timing.pollIntervalMs()));
         }
-        return nowNanos;
+        return System.nanoTime();
     }
 
-    private synchronized void reconcileAndDispatch(long nowNanos) {
+    private synchronized boolean shouldReadSnapshot(boolean configEvent, long nowNanos) {
+        if (configEvent) {
+            return true;
+        }
+        PendingChange candidate = pending;
+        if (candidate != null
+            && !candidate.stable()
+            && nowNanos - candidate.firstSeenNanos() >= toNanos(timing.stabilityWindowMs())) {
+            return true;
+        }
+        return nowNanos - lastSnapshotReadNanos >= toNanos(timing.contentReconciliationMs());
+    }
+
+    private synchronized void capturePendingSnapshot(long nowNanos) {
         FileSnapshot current = readSnapshot();
+        lastSnapshotReadNanos = nowNanos;
         reconcilePending(current, nowNanos);
+    }
+
+    private synchronized void dispatchReadySnapshot(long nowNanos) {
         if (activeSnapshot != null) {
             reportApplicationTimeout(nowNanos);
             return;
         }
         PendingChange ready = pending;
         if (ready == null
-            || nowNanos - ready.firstSeenNanos() < toNanos(timing.stabilityWindowMs())
+            || !ready.stable()
             || nowNanos < retryAfterNanos
             || !cooldownElapsed(nowNanos)) {
             return;
@@ -334,8 +356,13 @@ public final class HotloadManager {
             return;
         }
         if (pending == null || !signature.equals(pending.snapshot().signature())) {
-            pending = new PendingChange(current, nowNanos);
+            pending = new PendingChange(current, nowNanos, false);
             resetDeferredRetry();
+            return;
+        }
+        if (!pending.stable()
+            && nowNanos - pending.firstSeenNanos() >= toNanos(timing.stabilityWindowMs())) {
+            pending = new PendingChange(pending.snapshot(), pending.firstSeenNanos(), true);
         }
     }
 
@@ -429,7 +456,11 @@ public final class HotloadManager {
 
     private void queueRetry(FileSnapshot deferred, long nowNanos) {
         if (pending == null) {
-            pending = new PendingChange(deferred, nowNanos - toNanos(timing.stabilityWindowMs()));
+            pending = new PendingChange(
+                deferred,
+                nowNanos - toNanos(timing.stabilityWindowMs()),
+                true
+            );
         }
     }
 
@@ -470,6 +501,7 @@ public final class HotloadManager {
     }
 
     private FileSnapshot readSnapshot() {
+        snapshotReadAttempts++;
         try {
             if (!Files.isRegularFile(configFile)) {
                 lastReadFailure = null;
@@ -541,6 +573,10 @@ public final class HotloadManager {
         return TimeUnit.MILLISECONDS.toNanos(milliseconds);
     }
 
+    synchronized long snapshotReadAttempts() {
+        return snapshotReadAttempts;
+    }
+
     @FunctionalInterface
     public interface ReloadCallback {
         boolean schedule(WormholesSettings settings, ReloadCompletion completion);
@@ -551,7 +587,13 @@ public final class HotloadManager {
         void complete(boolean applied, Throwable failure);
     }
 
-    record Options(Path dataFolder, Logger logger, ReloadCallback reloadCallback, Timing timing) {
+    record Options(
+        Path dataFolder,
+        Logger logger,
+        ReloadCallback reloadCallback,
+        Timing timing,
+        boolean filesystemEventsEnabled
+    ) {
     }
 
     record Timing(
@@ -562,7 +604,8 @@ public final class HotloadManager {
         long retryBaseMs,
         long retryMaxMs,
         long applicationTimeoutMs,
-        long watchRetryMs
+        long watchRetryMs,
+        long contentReconciliationMs
     ) {
         Timing {
             if (pollIntervalMs <= 0L
@@ -572,7 +615,8 @@ public final class HotloadManager {
                 || retryBaseMs <= 0L
                 || retryMaxMs < retryBaseMs
                 || applicationTimeoutMs <= 0L
-                || watchRetryMs <= 0L) {
+                || watchRetryMs <= 0L
+                || contentReconciliationMs <= 0L) {
                 throw new IllegalArgumentException("Hotload timing values are invalid");
             }
         }
@@ -586,7 +630,8 @@ public final class HotloadManager {
                 RETRY_BASE_MS,
                 RETRY_MAX_MS,
                 APPLICATION_TIMEOUT_MS,
-                WATCH_RETRY_MS
+                WATCH_RETRY_MS,
+                CONTENT_RECONCILIATION_MS
             );
         }
     }
@@ -612,6 +657,6 @@ public final class HotloadManager {
         }
     }
 
-    private record PendingChange(FileSnapshot snapshot, long firstSeenNanos) {
+    private record PendingChange(FileSnapshot snapshot, long firstSeenNanos, boolean stable) {
     }
 }

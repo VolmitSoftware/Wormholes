@@ -266,7 +266,73 @@ class HotloadManagerTest {
         }
     }
 
+    @Test
+    void idleEventPollingDefersFullSnapshotReadsUntilReconciliation() throws Exception {
+        String initial = config(VisualQualityProfile.CINEMATIC);
+        Files.createDirectories(configFile().getParent());
+        Files.writeString(configFile(), initial, StandardCharsets.UTF_8);
+        HotloadManager manager = manager("HotloadManagerIdleReadTest", (settings, completion) -> {
+            completion.complete(true, null);
+            return true;
+        });
+
+        manager.startWithAppliedSnapshot(initial.getBytes(StandardCharsets.UTF_8));
+        try {
+            Thread.sleep(250L);
+            assertEquals(0L, manager.snapshotReadAttempts());
+
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2L);
+            while (manager.snapshotReadAttempts() == 0L && System.nanoTime() < deadline) {
+                Thread.sleep(20L);
+            }
+            assertTrue(manager.snapshotReadAttempts() >= 1L);
+        } finally {
+            manager.stop();
+        }
+    }
+
+    @Test
+    void periodicReconciliationFindsSameMetadataChangeWithoutFilesystemEvents() throws Exception {
+        String initial = config(VisualQualityProfile.CINEMATIC);
+        String replacement = "schema = 2\nquality = \"balanced\" \n";
+        assertEquals(initial.length(), replacement.length());
+        Files.createDirectories(configFile().getParent());
+        Files.writeString(configFile(), initial, StandardCharsets.UTF_8);
+        FileTime originalModified = Files.getLastModifiedTime(configFile());
+        CountDownLatch applied = new CountDownLatch(1);
+        AtomicReference<VisualQualityProfile> profile = new AtomicReference<>();
+        HotloadManager manager = manager(
+            "HotloadManagerReconciliationFallbackTest",
+            (settings, completion) -> {
+                profile.set(settings.getVisualQualityProfile());
+                completion.complete(true, null);
+                applied.countDown();
+                return true;
+            },
+            false,
+            100L
+        );
+
+        manager.startWithAppliedSnapshot(initial.getBytes(StandardCharsets.UTF_8));
+        try {
+            Files.writeString(configFile(), replacement, StandardCharsets.UTF_8);
+            Files.setLastModifiedTime(configFile(), originalModified);
+
+            assertTrue(applied.await(2L, TimeUnit.SECONDS));
+            assertEquals(VisualQualityProfile.BALANCED, profile.get());
+        } finally {
+            manager.stop();
+        }
+    }
+
     private HotloadManager manager(String loggerName, HotloadManager.ReloadCallback callback) {
+        return manager(loggerName, callback, true, 500L);
+    }
+
+    private HotloadManager manager(String loggerName,
+                                   HotloadManager.ReloadCallback callback,
+                                   boolean filesystemEventsEnabled,
+                                   long contentReconciliationMs) {
         HotloadManager.Timing timing = new HotloadManager.Timing(
             20L,
             60L,
@@ -275,13 +341,15 @@ class HotloadManagerTest {
             50L,
             200L,
             1_000L,
-            50L
+            50L,
+            contentReconciliationMs
         );
         HotloadManager.Options options = new HotloadManager.Options(
             tempDir,
             Logger.getLogger(loggerName),
             callback,
-            timing
+            timing,
+            filesystemEventsEnabled
         );
         return new HotloadManager(options);
     }
