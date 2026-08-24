@@ -8,6 +8,7 @@ import art.arcane.volmlib.util.director.runtime.DirectorRuntimeNode;
 import art.arcane.volmlib.util.director.runtime.DirectorSender;
 import art.arcane.wormholes.commands.CommandWormholes;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -182,6 +183,12 @@ class WormholesCommandServiceTest {
 							messages.add(PlainTextComponentSerializer.plainText().serialize(component));
 						}
 					}
+					return null;
+				}
+				if(method.getName().equals("sendRichMessage") && args != null && args.length > 0)
+				{
+					Component component = MiniMessage.miniMessage().deserialize(String.valueOf(args[0]));
+					messages.add(PlainTextComponentSerializer.plainText().serialize(component));
 					return null;
 				}
 				Class<?> returnType = method.getReturnType();

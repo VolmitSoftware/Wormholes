@@ -6,9 +6,9 @@ import art.arcane.volmlib.util.hud.HudSegment;
 import art.arcane.volmlib.util.hud.HudSlot;
 import art.arcane.volmlib.util.hud.HudTitleClaim;
 import art.arcane.volmlib.util.hud.HudTitleService;
+import art.arcane.volmlib.util.plugin.ComponentText;
 import art.arcane.wormholes.Wormholes;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.title.Title;
 import org.bukkit.entity.Player;
 
@@ -124,7 +124,12 @@ public final class WormholesHud {
         if (activeBar == null || player == null || message == null) {
             return;
         }
-        activeBar.publish(player, new HudSegment(purpose, priority, ttlMillis, slots, LegacyComponentSerializer.legacySection().serialize(message)));
+        activeBar.publish(player, new HudSegment(
+                purpose,
+                priority,
+                ttlMillis,
+                slots,
+                ComponentText.component(message).legacy()));
     }
 
     private static ThrottledClaim claimFor(ConcurrentHashMap<UUID, ThrottledClaim> cache, HudTitleService activeTitles, Player player, String purpose, int priority) {

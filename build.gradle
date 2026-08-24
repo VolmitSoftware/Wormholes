@@ -224,9 +224,6 @@ dependencies {
     slim(libs.adventureSerializerJson)
     slim(libs.adventureSerializerLegacy)
     slim(libs.adventureSerializerPlain)
-    slim(libs.adventurePlatformBukkit) {
-        exclude group: 'net.md-5', module: 'bungeecord-chat'
-    }
 }
 
 java {

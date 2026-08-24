@@ -1,6 +1,9 @@
 package art.arcane.wormholes.service;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.command.CommandSender;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +14,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class WormholesAudienceTest {
@@ -47,12 +52,39 @@ class WormholesAudienceTest {
         assertEquals(1, delivered.size());
     }
 
+    @Test
+    void richDeliveryPreservesRgbAndClickMetadata() {
+        List<String> delivered = new ArrayList<>();
+        CommandSender sender = recordingSender(delivered);
+        Component message = Component.text("open")
+                .color(TextColor.color(0x12ABEF))
+                .clickEvent(ClickEvent.runCommand("/wormholes help"));
+
+        WormholesAudience.sendMessage(sender, message);
+
+        Component decoded = MiniMessage.miniMessage().deserialize(delivered.getFirst());
+        assertEquals(TextColor.color(0x12ABEF), decoded.color());
+        assertNotNull(decoded.clickEvent());
+        assertEquals(ClickEvent.runCommand("/wormholes help"), decoded.clickEvent());
+    }
+
+    @Test
+    void nonPlayerFallbackReceivesPlainTextWithoutSectionSymbols() {
+        List<String> delivered = new ArrayList<>();
+        CommandSender sender = plainFallbackSender(delivered);
+
+        WormholesAudience.sendMessage(sender, Component.text("notice", TextColor.color(0x12ABEF)));
+
+        assertEquals(List.of("notice"), delivered);
+        assertFalse(delivered.getFirst().contains("\u00a7"));
+    }
+
     private static CommandSender throwingSender() {
         return (CommandSender) Proxy.newProxyInstance(
             WormholesAudienceTest.class.getClassLoader(),
             new Class<?>[]{CommandSender.class},
             (proxy, method, args) -> {
-                if (method.getName().equals("sendMessage")) {
+                if (method.getName().equals("sendMessage") || method.getName().equals("sendRichMessage")) {
                     throw new IllegalStateException("sender is gone");
                 }
                 return defaultValue(method.getReturnType());
@@ -64,6 +96,23 @@ class WormholesAudienceTest {
             WormholesAudienceTest.class.getClassLoader(),
             new Class<?>[]{CommandSender.class},
             (proxy, method, args) -> {
+                if ((method.getName().equals("sendMessage") || method.getName().equals("sendRichMessage"))
+                        && args != null && args.length > 0) {
+                    delivered.add(String.valueOf(args[0]));
+                    return null;
+                }
+                return defaultValue(method.getReturnType());
+            });
+    }
+
+    private static CommandSender plainFallbackSender(List<String> delivered) {
+        return (CommandSender) Proxy.newProxyInstance(
+            WormholesAudienceTest.class.getClassLoader(),
+            new Class<?>[]{CommandSender.class},
+            (proxy, method, args) -> {
+                if (method.getName().equals("sendRichMessage")) {
+                    throw new UnsupportedOperationException("rich delivery unavailable");
+                }
                 if (method.getName().equals("sendMessage") && args != null && args.length > 0) {
                     delivered.add(String.valueOf(args[0]));
                     return null;

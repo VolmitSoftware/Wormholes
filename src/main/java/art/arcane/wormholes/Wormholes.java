@@ -153,7 +153,6 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             ChunkSendRateTuner.install(this);
 
             packetEvents().init();
-            WormholesAudience.start(this);
             WormholesHud.start(this);
 
             blockManager = new BlockManager();
@@ -732,8 +731,6 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         diagnostics.shutdownMetrics();
 
         WormholesHud.stop();
-        WormholesAudience.stop(getLogger());
-
         clearStaticServices();
     }
 

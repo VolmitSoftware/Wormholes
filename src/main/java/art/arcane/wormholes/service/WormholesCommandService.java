@@ -15,6 +15,7 @@ import art.arcane.volmlib.util.director.runtime.DirectorSender;
 import art.arcane.volmlib.util.director.theme.DirectorProduct;
 import art.arcane.volmlib.util.director.theme.DirectorTheme;
 import art.arcane.volmlib.util.director.theme.DirectorThemes;
+import art.arcane.volmlib.util.plugin.ComponentMessenger;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.commands.CommandServer;
 import art.arcane.wormholes.commands.CommandWormholes;
@@ -386,7 +387,7 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
         @Override
         public void sendMessage(String message) {
             if (message != null && !message.trim().isEmpty()) {
-                sender.sendMessage(message);
+                ComponentMessenger.sendLiteral(sender, message);
             }
         }
     }

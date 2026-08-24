@@ -1,6 +1,7 @@
 package art.arcane.wormholes.util.common;
 
 import art.arcane.volmlib.util.plugin.SplashScreenSupport;
+import art.arcane.volmlib.util.plugin.ComponentMessenger;
 import art.arcane.wormholes.Wormholes;
 import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Bukkit;
@@ -31,7 +32,7 @@ public final class SplashScreen {
                 + accent + "╚" + dark + "███" + accent + "╔" + dark + "███" + accent + "╔╝╚" + dark + "██████" + accent + "╔╝" + dark + "██" + accent + "║  " + dark + "██" + accent + "║" + dark + "██" + accent + "║ ╚═╝ " + dark + "██" + accent + "║" + dark + "██" + accent + "║  " + dark + "██" + accent + "║╚" + dark + "██████" + accent + "╔╝" + dark + "███████" + accent + "╗" + dark + "███████" + accent + "╗" + dark + "███████" + accent + "║" + meta + "   Server: " + accent + serverVersion + meta + " | MC Support: " + accent + SUPPORTED_MC_VERSION + "\n"
                 + accent + " ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚══════╝╚══════╝" + meta + "   Java: " + accent + SplashScreenSupport.javaMajorVersion() + meta + " | Date: " + accent + startupDate + "\n";
 
-        Bukkit.getConsoleSender().sendMessage(splash);
+        ComponentMessenger.sendSection(Bukkit.getConsoleSender(), splash);
         if (!success && errorMessage != null && !errorMessage.isBlank()) {
             plugin.getLogger().warning("Startup error: " + errorMessage);
         }

@@ -2,6 +2,7 @@ package art.arcane.wormholes.door;
 
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.World;
@@ -337,6 +338,11 @@ final class DoorTransitCoordinatorEntryTest
 				{
 					case "getUniqueId" -> TRAVELER_ID;
 					case "getName" -> "traveler";
+					case "sendRichMessage" ->
+					{
+						messages.add(MiniMessage.miniMessage().deserialize(String.valueOf(arguments[0])));
+						yield null;
+					}
 					case "sendMessage" ->
 					{
 						if(arguments != null && arguments.length == 1 && arguments[0] instanceof Component component)
