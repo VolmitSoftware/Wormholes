@@ -255,6 +255,23 @@ public final class RtpPortalEditorTest
 				source.reservationTimeoutMillis(), source.rimEnabled(), source.soundEnabled(), source.targetBiomeKey()));
 	}
 
+	@Test
+	public void settingsSnapshotAcceptsRuntimeCoordinateAndRadiusBoundaries()
+	{
+		World source = world("overworld", -64, 320, 63);
+		RtpSettings settings = RtpSettings.builder(source)
+				.centerMode(RtpCenterMode.CUSTOM)
+				.customCenter(RtpSettings.MINIMUM_COORDINATE, RtpSettings.MAXIMUM_COORDINATE)
+				.radii(RtpSettings.MAXIMUM_RADIUS - 1, RtpSettings.MAXIMUM_RADIUS)
+				.build();
+
+		SettingsSnapshot snapshot = SettingsSnapshot.from(settings);
+
+		assertEquals(RtpSettings.MINIMUM_COORDINATE, snapshot.customCenterX().doubleValue());
+		assertEquals(RtpSettings.MAXIMUM_COORDINATE, snapshot.customCenterZ().doubleValue());
+		assertEquals(RtpSettings.MAXIMUM_RADIUS, snapshot.maximumRadius());
+	}
+
 	private static RtpSettings apply(RtpSettings settings, Mutation mutation, World source, RtpSettings.WorldResolver resolver)
 	{
 		return RtpPortalEditorModel.applyMutation(settings, mutation, source, resolver);

@@ -129,6 +129,9 @@ final class WormholesNetworkRuntime {
         traversalMaintenanceSchedule = null;
         unregisterStatusBridgeListener();
         stopCaptureRuntime();
+        if (Wormholes.portalSyncService != null) {
+            Wormholes.portalSyncService.shutdown();
+        }
         if (Wormholes.viewServer != null) {
             try {
                 Wormholes.viewServer.shutdown();
@@ -138,6 +141,11 @@ final class WormholesNetworkRuntime {
             HandlerList.unregisterAll(Wormholes.viewServer);
         }
         if (Wormholes.traversalService != null) {
+            try {
+                Wormholes.traversalService.shutdown();
+            } catch (Throwable ex) {
+                plugin.getLogger().log(Level.WARNING, "Error during TraversalService reset", ex);
+            }
             HandlerList.unregisterAll(Wormholes.traversalService);
         }
         if (Wormholes.networkManager != null) {
@@ -159,6 +167,16 @@ final class WormholesNetworkRuntime {
 
     void drain() {
         traversalMaintenanceSchedule = null;
+        if (Wormholes.portalSyncService != null) {
+            Wormholes.portalSyncService.shutdown();
+        }
+        try {
+            if (Wormholes.traversalService != null) {
+                Wormholes.traversalService.shutdown();
+            }
+        } catch (Throwable ex) {
+            plugin.getLogger().log(Level.WARNING, "Error during TraversalService shutdown", ex);
+        }
         try {
             if (Wormholes.viewServer != null) {
                 Wormholes.viewServer.shutdown();
@@ -183,9 +201,26 @@ final class WormholesNetworkRuntime {
     }
 
     private void runPortalSyncTask(Runnable runnable) {
-        if (!FoliaScheduler.runGlobal(plugin, runnable)) {
-            plugin.getLogger().warning("Portal sync work was rejected by the global scheduler and did not run.");
+        if (!plugin.isEnabled()) {
+            return;
         }
+        if (FoliaScheduler.runGlobal(plugin, runnable)) {
+            return;
+        }
+        plugin.getLogger().warning("Portal sync work was rejected by the global scheduler; retrying in one second.");
+        WormholesTelemetry.countFailure("PORTAL_SYNC_GLOBAL_SCHEDULE_REJECTED");
+        queuePortalSyncRetry(runnable);
+    }
+
+    private void queuePortalSyncRetry(Runnable runnable) {
+        CompletableFuture.delayedExecutor(1L, TimeUnit.SECONDS).execute(() -> {
+            if (!plugin.isEnabled()) {
+                return;
+            }
+            if (!FoliaScheduler.runGlobal(plugin, runnable)) {
+                queuePortalSyncRetry(runnable);
+            }
+        });
     }
 
     static RemoteViewCache createRemoteViewCache(NetworkConfig networkConfig) {

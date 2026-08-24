@@ -28,6 +28,14 @@ public record PocketResizeOutcome(
         return new PocketResizeOutcome(Status.NEEDS_CONFIRMATION, space, target, impact);
     }
 
+    public static PocketResizeOutcome nonEmptyContainers(
+        PocketSpace space,
+        PocketShell target,
+        PocketResizeService.Impact impact
+    ) {
+        return new PocketResizeOutcome(Status.NON_EMPTY_CONTAINERS, space, target, impact);
+    }
+
     public static PocketResizeOutcome unchanged(PocketSpace space, PocketShell target) {
         return new PocketResizeOutcome(Status.UNCHANGED, space, target, PocketResizeService.Impact.none());
     }
@@ -45,6 +53,7 @@ public record PocketResizeOutcome(
         RESIZED,
         /** The reshape would destroy or displace something and was not confirmed. */
         NEEDS_CONFIRMATION,
+        NON_EMPTY_CONTAINERS,
         /** The pocket already has exactly this shell. */
         UNCHANGED,
         /** The pocket dimension is not loaded. */

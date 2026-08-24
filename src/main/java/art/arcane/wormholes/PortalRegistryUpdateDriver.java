@@ -3,6 +3,7 @@ package art.arcane.wormholes;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -53,11 +54,25 @@ final class PortalRegistryUpdateDriver
 
 		if(foliaRuntime)
 		{
-			for(ILocalPortal i : snapshot)
+			for(PortalChunkBatch batch : collectFoliaBatches(snapshot, driverTick))
 			{
-				if(PortalUpdateGate.isDue(i.isOpen(), i.isAmbientAttended(), driverTick, PortalUpdateGate.staggerOffset(i.getId())))
+				boolean scheduled = FoliaScheduler.runRegion(Wormholes.instance, batch.anchor(), () ->
 				{
-					updateLocalPortal(i);
+					for(ILocalPortal portal : batch.portals())
+					{
+						try
+						{
+							runPortalUpdate(portal);
+						}
+						catch(Throwable error)
+						{
+							error.printStackTrace();
+						}
+					}
+				});
+				if(!scheduled)
+				{
+					reportRefusedUpdate(batch.portals().size());
 				}
 			}
 			return;
@@ -110,18 +125,32 @@ final class PortalRegistryUpdateDriver
 		}
 	}
 
-	private void updateLocalPortal(ILocalPortal portal)
+	static List<PortalChunkBatch> collectFoliaBatches(List<ILocalPortal> snapshot, long tick)
 	{
-		Location center = portal.getCenter();
-		if(center == null || center.getWorld() == null)
+		Map<PortalOwnerChunk, PortalChunkBatch> byOwnerChunk = new LinkedHashMap<PortalOwnerChunk, PortalChunkBatch>();
+		for(ILocalPortal portal : snapshot)
 		{
-			return;
+			if(!PortalUpdateGate.isDue(portal.isOpen(), portal.isAmbientAttended(), tick,
+				PortalUpdateGate.staggerOffset(portal.getId())))
+			{
+				continue;
+			}
+			Location center = portal.getCenter();
+			if(center == null || center.getWorld() == null)
+			{
+				continue;
+			}
+			PortalOwnerChunk ownerChunk = new PortalOwnerChunk(
+				center.getWorld().getUID(), center.getBlockX() >> 4, center.getBlockZ() >> 4);
+			PortalChunkBatch batch = byOwnerChunk.get(ownerChunk);
+			if(batch == null)
+			{
+				batch = new PortalChunkBatch(center, new ArrayList<ILocalPortal>());
+				byOwnerChunk.put(ownerChunk, batch);
+			}
+			batch.portals().add(portal);
 		}
-
-		if(!FoliaScheduler.runRegion(Wormholes.instance, center, () -> runPortalUpdate(portal)))
-		{
-			reportRefusedUpdate(1);
-		}
+		return new ArrayList<PortalChunkBatch>(byOwnerChunk.values());
 	}
 
 	private void reportRefusedUpdate(int portalCount)
@@ -243,6 +272,14 @@ final class PortalRegistryUpdateDriver
 	}
 
 	private record WorldBatch(Location anchor, List<ILocalPortal> portals)
+	{
+	}
+
+	private record PortalOwnerChunk(UUID worldId, int chunkX, int chunkZ)
+	{
+	}
+
+	record PortalChunkBatch(Location anchor, List<ILocalPortal> portals)
 	{
 	}
 }

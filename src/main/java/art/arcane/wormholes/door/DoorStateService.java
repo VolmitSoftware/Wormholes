@@ -244,9 +244,19 @@ public final class DoorStateService {
      *
      * @return the stored space after the change
      */
-    public synchronized PocketSpace reshapePocket(UUID spaceId, PocketShell shell) throws IOException {
+    public synchronized PocketSpace reshapePocket(
+        UUID spaceId,
+        PocketShell expected,
+        PocketShell shell
+    ) throws IOException {
         Objects.requireNonNull(spaceId, "spaceId");
+        Objects.requireNonNull(expected, "expected");
         Objects.requireNonNull(shell, "shell");
+        PocketSpace current = allocator.findById(spaceId)
+            .orElseThrow(() -> new IllegalArgumentException("unknown pocket space " + spaceId));
+        if (!current.shell().equals(expected)) {
+            throw new IllegalStateException("pocket shell changed before reshape persistence");
+        }
         PocketAllocator candidateAllocator = copyAllocator();
         PocketSpace updated = candidateAllocator.reshape(spaceId, shell);
         persistAndPublish(registry, candidateAllocator, pairsById, ticketsByPlayer, accessByItem);

@@ -26,7 +26,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public final class WormholesLifecycleBytecodeTest {
     private static final String WORMHOLES = "art/arcane/wormholes/Wormholes";
+    private static final String WORMHOLES_NETWORK_RUNTIME = "art/arcane/wormholes/WormholesNetworkRuntime";
     private static final String FOLIA_SCHEDULER = "art/arcane/volmlib/util/scheduling/FoliaScheduler";
+    private static final String CHUNK_PRE_SEND_PROVIDER =
+        "art/arcane/wormholes/chunk/presend/BukkitChunkPreSendProvider";
 
     private static final List<String> REVERSE_CONSTRUCTION_ORDER = List.of(
         "placeholders",
@@ -154,6 +157,78 @@ public final class WormholesLifecycleBytecodeTest {
         assertTrue(stopHotload >= 0, "tearDownBeforeDrain() must stop hotloading");
         assertTrue(stopDoors > stopHotload, "Hotload callbacks must be rejected before door teardown begins");
         assertTrue(stopProjection > stopHotload, "Hotload callbacks must be rejected before projection teardown begins");
+    }
+
+    @Test
+    void pendingCrossServerTravelersAreRestoredBeforePluginSchedulersAreCancelled() throws IOException {
+        ClassModel wormholes = parse(WORMHOLES);
+        List<String> calls = new ArrayList<String>(invokedMethods(wormholes, "tearDownBeforeDrain"));
+        int shutdownTraversal = calls.indexOf(WORMHOLES + ".shutdownTraversalBeforeSchedulers");
+        int cancelRuntime = calls.indexOf("art/arcane/volmlib/util/scheduling/SchedulerRuntime.cancelPluginTasks");
+        int cancelFolia = calls.indexOf(FOLIA_SCHEDULER + ".cancelTasks");
+
+        assertTrue(shutdownTraversal >= 0, "tearDownBeforeDrain() must drain pending cross-server traversal state");
+        assertTrue(cancelRuntime > shutdownTraversal,
+            "Traversal rollback must finish before SchedulerRuntime cancels entity-owned restore tasks");
+        assertTrue(cancelFolia > shutdownTraversal,
+            "Traversal rollback must finish before the Folia scheduler cancels entity-owned restore tasks");
+    }
+
+    @Test
+    void traversalCostGatewayDrainsAfterTraversalProducersAndBeforeSchedulerCancellation() throws IOException {
+        ClassModel wormholes = parse(WORMHOLES);
+        List<String> calls = new ArrayList<String>(invokedMethods(wormholes, "tearDownBeforeDrain"));
+        int stopDoors = calls.indexOf("art/arcane/wormholes/WormholesDoorLifecycle.shutdownManagerBeforeSchedulers");
+        int stopRtp = calls.indexOf(WORMHOLES + ".shutdownRtpBeforeSchedulers");
+        int stopTraversal = calls.indexOf(WORMHOLES + ".shutdownTraversalBeforeSchedulers");
+        int stopPortals = calls.indexOf(WORMHOLES + ".shutdownPortalManagerBeforeCostGateway");
+        int stopCosts = calls.indexOf(
+            "art/arcane/wormholes/api/traversal/internal/TraversalCostGateway.shutdown");
+        int stopRegionTasks = calls.indexOf(
+            "art/arcane/wormholes/platform/BukkitRegionTaskProvider.shutdown");
+        int cancelRuntime = calls.indexOf("art/arcane/volmlib/util/scheduling/SchedulerRuntime.cancelPluginTasks");
+        int cancelFolia = calls.indexOf(FOLIA_SCHEDULER + ".cancelTasks");
+
+        assertTrue(stopCosts > stopDoors, "Door settlement must finish before traversal cost shutdown");
+        assertTrue(stopCosts > stopRtp, "RTP settlement must finish before traversal cost shutdown");
+        assertTrue(stopCosts > stopTraversal, "Cross-server settlement must finish before traversal cost shutdown");
+        assertTrue(stopCosts > stopPortals, "Local portal producers must stop before traversal cost shutdown");
+        assertTrue(stopRegionTasks > stopCosts,
+            "Accepted regional rollback tasks must remain available through traversal cost shutdown");
+        assertTrue(cancelRuntime > stopRegionTasks,
+            "Regional task retirement must finish before SchedulerRuntime cancellation");
+        assertTrue(cancelFolia > stopRegionTasks,
+            "Regional task retirement must finish before Folia cancellation");
+        assertTrue(cancelRuntime > stopCosts,
+            "Entity-owned cost settlement must drain before SchedulerRuntime cancellation");
+        assertTrue(cancelFolia > stopCosts, "Entity-owned cost settlement must drain before Folia cancellation");
+    }
+
+    @Test
+    void chunkPreSendIsInstalledForTheEnableLifetimeAndStoppedBeforeSchedulerCancellation() throws IOException {
+        ClassModel wormholes = parse(WORMHOLES);
+        assertTrue(invokedMethods(wormholes, "onEnable").contains(CHUNK_PRE_SEND_PROVIDER + ".install"),
+            "onEnable() must install the Bukkit chunk pre-send service");
+        List<String> drain = new ArrayList<String>(invokedMethods(wormholes, "tearDownBeforeDrain"));
+        int shutdown = drain.indexOf(WORMHOLES + ".shutdownChunkPreSendBeforeSchedulers");
+        int cancelRuntime = drain.indexOf("art/arcane/volmlib/util/scheduling/SchedulerRuntime.cancelPluginTasks");
+
+        assertTrue(shutdown >= 0, "tearDownBeforeDrain() must release the chunk pre-send service");
+        assertTrue(cancelRuntime > shutdown, "Chunk pre-send must stop before plugin schedulers are cancelled");
+        assertTrue(invokedMethods(wormholes, "shutdownChunkPreSendBeforeSchedulers")
+            .contains(CHUNK_PRE_SEND_PROVIDER + ".shutdown"),
+            "Chunk pre-send shutdown must release the installed provider");
+    }
+
+    @Test
+    void networkResetAndDrainCannotDiscardPendingCrossServerTravelers() throws IOException {
+        ClassModel runtime = parse(WORMHOLES_NETWORK_RUNTIME);
+        String shutdown = "art/arcane/wormholes/network/TraversalService.shutdown";
+
+        assertTrue(invokedMethods(runtime, "reset").contains(shutdown),
+            "Network reset must restore pending travelers before replacing TraversalService");
+        assertTrue(invokedMethods(runtime, "drain").contains(shutdown),
+            "Network drain must restore pending travelers even when called outside the main teardown path");
     }
 
     @Test

@@ -101,7 +101,13 @@ public final class RtpFailureThrottleTest
 		}
 
 		@Override
-		public boolean scheduleEntity(Entity entity, Runnable command, Runnable retired)
+		public boolean scheduleEntity(Entity entity, Runnable command, Runnable retired, long delayTicks)
+		{
+			return false;
+		}
+
+		@Override
+		public boolean scheduleRegion(World world, int chunkX, int chunkZ, Runnable command, Runnable retired)
 		{
 			return false;
 		}

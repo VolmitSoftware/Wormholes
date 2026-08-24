@@ -1,11 +1,17 @@
 package art.arcane.wormholes;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
@@ -24,6 +30,7 @@ import art.arcane.wormholes.util.M;
 
 final class BlockOpsRuneIndex
 {
+	private static final int MAX_ANIMATION_TASKS_PER_PASS = 64;
 	private static final int[][] ADJACENT_OFFSETS = new int[][] {
 			{ 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 0, -1, 0 }, { 0, 0, 1 }, { 0, 0, -1 }
 	};
@@ -31,11 +38,13 @@ final class BlockOpsRuneIndex
 	private final Object runeMutationLock = new Object();
 	private final Set<RuneCell> reservedRuneCells = ConcurrentHashMap.newKeySet();
 	private final AtomicBoolean animationFailureReported = new AtomicBoolean(false);
+	private final RuneAnimationBudget animationBudget = new RuneAnimationBudget(MAX_ANIMATION_TASKS_PER_PASS);
 
 	void destroyAll()
 	{
 		Wormholes.v("Releasing tracked portal blocks (" + blocks.size() + " chunks)");
 		blocks.clear();
+		animationBudget.clear();
 	}
 
 	boolean tracksChunk(GChunk c)
@@ -70,13 +79,54 @@ final class BlockOpsRuneIndex
 
 	void updatePlacedBlocks()
 	{
-		for(Player i : Bukkit.getOnlinePlayers())
+		updatePlacedBlocks(Bukkit::getOnlinePlayers);
+	}
+
+	void updatePlacedBlocks(Supplier<? extends Collection<? extends Player>> onlinePlayersSupplier)
+	{
+		if(blocks.isEmpty())
 		{
-			if(!FoliaScheduler.runEntity(Wormholes.instance, i, () -> animatePlacedBlocksFor(i)))
+			return;
+		}
+		Map<UUID, Player> onlinePlayers = new HashMap<UUID, Player>();
+		List<UUID> onlinePlayerIds = new ArrayList<UUID>();
+		for(Player player : onlinePlayersSupplier.get())
+		{
+			UUID playerId = player.getUniqueId();
+			onlinePlayers.put(playerId, player);
+			onlinePlayerIds.add(playerId);
+		}
+		for(RuneAnimationBudget.Admission admission : animationBudget.acquire(onlinePlayerIds))
+		{
+			Player player = onlinePlayers.get(admission.playerId());
+			if(player == null)
 			{
-				Wormholes.v("Skipped the portal rune animation sweep for " + i.getName() + "; the entity scheduler rejected it");
+				animationBudget.reject(admission);
+				continue;
+			}
+			Runnable retired = () -> animationBudget.reject(admission);
+			boolean scheduled = FoliaScheduler.runEntity(Wormholes.instance, player, () ->
+			{
+				try
+				{
+					animatePlacedBlocksFor(player);
+				}
+				finally
+				{
+					animationBudget.complete(admission);
+				}
+			}, 0L, retired);
+			if(!scheduled)
+			{
+				animationBudget.reject(admission);
+				Wormholes.v("Skipped the portal rune animation sweep for " + admission.playerId() + "; the entity scheduler rejected it");
 			}
 		}
+	}
+
+	void removePlayer(UUID playerId)
+	{
+		animationBudget.remove(playerId);
 	}
 
 	private void animatePlacedBlocksFor(Player i)

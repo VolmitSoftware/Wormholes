@@ -52,6 +52,10 @@ final class EntityRenderSpoofRegistry {
         return spoofed.containsKey(sourceId);
     }
 
+    Set<UUID> sourceIds() {
+        return Set.copyOf(spoofed.keySet());
+    }
+
     EntityRenderSpoofedEntity get(UUID sourceId) {
         return spoofed.get(sourceId);
     }

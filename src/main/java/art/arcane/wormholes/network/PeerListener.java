@@ -33,9 +33,10 @@ final class PeerListener {
     }
 
     void bind(NetworkConfig active) {
+        int fallbackUpperPort = fallbackUpperPort(active.listenPort);
         tcpTransport = bindWithFallback(active.listenPort);
         if (tcpTransport == null) {
-            logger.warning("net: could not bind any raw Wormholes port in " + active.listenPort + ".." + (active.listenPort + LISTEN_PORT_FALLBACK_RANGE) + "; running sideband-only over the MC game port " + network.gamePort());
+            logger.warning("net: could not bind any raw Wormholes port in " + active.listenPort + ".." + fallbackUpperPort + "; running sideband-only over the MC game port " + network.gamePort());
             boundListenPort = 0;
         }
 
@@ -85,8 +86,18 @@ final class PeerListener {
         boundListenPort = 0;
     }
 
+    static int fallbackUpperPort(int preferredPort) {
+        if (preferredPort < NetworkConfig.MIN_LISTEN_PORT || preferredPort > NetworkConfig.MAX_LISTEN_PORT) {
+            return preferredPort;
+        }
+        return (int) Math.min(NetworkConfig.MAX_LISTEN_PORT, (long) preferredPort + LISTEN_PORT_FALLBACK_RANGE);
+    }
+
     private TcpPeerTransport bindWithFallback(int preferredPort) {
-        int upper = preferredPort + LISTEN_PORT_FALLBACK_RANGE;
+        if (preferredPort < NetworkConfig.MIN_LISTEN_PORT || preferredPort > NetworkConfig.MAX_LISTEN_PORT) {
+            return null;
+        }
+        int upper = fallbackUpperPort(preferredPort);
         java.net.BindException firstFailure = null;
         for (int port = preferredPort; port <= upper; port++) {
             try {

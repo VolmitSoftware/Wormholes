@@ -57,6 +57,8 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     private final NetworkIdentity identity;
     final MinecraftStatusBridge statusBridge;
     private final AtomicBoolean running = new AtomicBoolean(false);
+    private final Object lifecycleGate = new Object();
+    private final ThreadLocal<Integer> lifecycleAdmissionDepth = ThreadLocal.withInitial(() -> 0);
     private final PeerLinkRegistry links = new PeerLinkRegistry();
     private final PeerDirectory directory;
     private final PeerTrustGate trust;
@@ -88,12 +90,18 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     private volatile long scheduledDictionaryRetrainSec;
     private volatile ExecutorService statusPollExecutor;
     private volatile int connectedPeers;
+    private volatile long lifecycleGeneration;
+    private int lifecycleAdmissions;
+    private boolean lifecycleCleanupPending;
+    private boolean lifecycleCleanupRunning;
+    private Thread lifecycleCleanupThread;
 
     public NetworkManager(Logger logger, NetworkConfig config, String mcVersion, String pluginVersion, int gamePort) {
         this(logger, config, mcVersion, pluginVersion, gamePort, Path.of("plugins", "Wormholes"));
     }
 
     public NetworkManager(Logger logger, NetworkConfig config, String mcVersion, String pluginVersion, int gamePort, Path dataDirectory) {
+        config.normalizeRuntimeBounds();
         this.logger = logger;
         this.config = config;
         this.gamePort = gamePort;
@@ -281,81 +289,102 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     }
 
     public void start() {
-        NetworkConfig active = config;
-        if (!active.enabled) {
-            return;
-        }
-        if (!running.compareAndSet(false, true)) {
-            return;
-        }
+        boolean interrupted = false;
+        synchronized (lifecycleGate) {
+            if (lifecycleCleanupRunning && lifecycleCleanupThread == Thread.currentThread()) {
+                return;
+            }
+            if (lifecycleAdmissionDepth.get() > 0 && (lifecycleCleanupPending || lifecycleCleanupRunning)) {
+                return;
+            }
+            while (lifecycleCleanupPending || lifecycleCleanupRunning) {
+                try {
+                    lifecycleGate.wait();
+                } catch (InterruptedException waitInterrupted) {
+                    interrupted = true;
+                }
+            }
+            NetworkConfig active = config;
+            if (!active.enabled) {
+                restoreInterrupt(interrupted);
+                return;
+            }
+            if (!running.compareAndSet(false, true)) {
+                restoreInterrupt(interrupted);
+                return;
+            }
+            lifecycleGeneration++;
 
-        if (active.listenEnabled) {
-            listener.bind(active);
+            if (active.listenEnabled) {
+                listener.bind(active);
+            }
+
+            statusPollExecutor = Executors.newVirtualThreadPerTaskExecutor();
+            ScheduledExecutorService executor = Executors.newScheduledThreadPool(3, runnable -> {
+                Thread thread = new Thread(runnable, "Wormholes-Net-Timer");
+                thread.setDaemon(true);
+                return thread;
+            });
+            executor.scheduleWithFixedDelay(dialer::scan, 250L, PeerDialer.SCAN_INTERVAL_MS, TimeUnit.MILLISECONDS);
+            executor.scheduleWithFixedDelay(this::pollStatusBridges, 300L, STATUS_BRIDGE_FAST_INTERVAL_MS, TimeUnit.MILLISECONDS);
+            executor.scheduleWithFixedDelay(this::keepalive, KEEPALIVE_INTERVAL_MS, KEEPALIVE_INTERVAL_MS, TimeUnit.MILLISECONDS);
+            scheduler = executor;
+            scheduleDictionaryRetrain(executor, retrainIntervalSec(active));
+
+            dictionary.loadPersisted(active);
+            hashProbeScheduler.start();
+            identity.resolvePublicHostAsync();
+
+            int peerCount = directory.known().size();
+            if (active.listenEnabled && listener.isRawListening()) {
+                logger.info("net: " + getLocalName() + " listening on " + getListenAddress() + " (" + peerCount + " peer" + (peerCount == 1 ? "" : "s") + ")");
+            } else if (active.listenEnabled) {
+                logger.info("net: " + getLocalName() + " running sideband-only over game port " + gamePort + " (" + peerCount + " peer" + (peerCount == 1 ? "" : "s") + ")");
+            } else {
+                logger.info("net: " + getLocalName() + " running outbound-only (" + peerCount + " peer" + (peerCount == 1 ? "" : "s") + ")");
+            }
         }
-
-        statusPollExecutor = Executors.newVirtualThreadPerTaskExecutor();
-        ScheduledExecutorService executor = Executors.newScheduledThreadPool(3, runnable -> {
-            Thread thread = new Thread(runnable, "Wormholes-Net-Timer");
-            thread.setDaemon(true);
-            return thread;
-        });
-        executor.scheduleWithFixedDelay(dialer::scan, 250L, PeerDialer.SCAN_INTERVAL_MS, TimeUnit.MILLISECONDS);
-        executor.scheduleWithFixedDelay(this::pollStatusBridges, 300L, STATUS_BRIDGE_FAST_INTERVAL_MS, TimeUnit.MILLISECONDS);
-        executor.scheduleWithFixedDelay(this::keepalive, KEEPALIVE_INTERVAL_MS, KEEPALIVE_INTERVAL_MS, TimeUnit.MILLISECONDS);
-        scheduler = executor;
-        scheduleDictionaryRetrain(executor, retrainIntervalSec(active));
-
-        dictionary.loadPersisted(active);
-        hashProbeScheduler.start();
-        identity.resolvePublicHostAsync();
-
-        int peerCount = directory.known().size();
-        if (active.listenEnabled && listener.isRawListening()) {
-            logger.info("net: " + getLocalName() + " listening on " + getListenAddress() + " (" + peerCount + " peer" + (peerCount == 1 ? "" : "s") + ")");
-        } else if (active.listenEnabled) {
-            logger.info("net: " + getLocalName() + " running sideband-only over game port " + gamePort + " (" + peerCount + " peer" + (peerCount == 1 ? "" : "s") + ")");
-        } else {
-            logger.info("net: " + getLocalName() + " running outbound-only (" + peerCount + " peer" + (peerCount == 1 ? "" : "s") + ")");
-        }
+        restoreInterrupt(interrupted);
     }
 
     public void stop() {
-        if (!running.compareAndSet(true, false)) {
+        boolean cleanup = false;
+        boolean interrupted = false;
+        synchronized (lifecycleGate) {
+            if (running.compareAndSet(true, false)) {
+                lifecycleGeneration++;
+                lifecycleCleanupPending = true;
+            }
+            if (lifecycleAdmissionDepth.get() > 0) {
+                return;
+            }
+            if (lifecycleCleanupRunning && lifecycleCleanupThread == Thread.currentThread()) {
+                return;
+            }
+            while (lifecycleAdmissions > 0 || lifecycleCleanupRunning) {
+                try {
+                    lifecycleGate.wait();
+                } catch (InterruptedException waitInterrupted) {
+                    interrupted = true;
+                }
+            }
+            if (lifecycleCleanupPending) {
+                lifecycleCleanupPending = false;
+                lifecycleCleanupRunning = true;
+                lifecycleCleanupThread = Thread.currentThread();
+                cleanup = true;
+            }
+        }
+        if (cleanup) {
+            completeLifecycleStop();
+        } else {
             identity.shutdown();
-            return;
         }
-        identity.shutdown();
-        hashProbeScheduler.stop();
-        cancelDictionaryRetrain();
-        ScheduledExecutorService executor = scheduler;
-        scheduler = null;
-        if (executor != null) {
-            executor.shutdownNow();
-        }
-        ExecutorService pollExecutor = statusPollExecutor;
-        statusPollExecutor = null;
-        if (pollExecutor != null) {
-            pollExecutor.shutdownNow();
-        }
-        listener.closeTransports();
-        links.closeAll("shutdown");
-        refreshConnectedPeers();
-        presence.clear();
-        nextStatusAttempt.clear();
-        sideband.clear();
-        pendingStatusRequests.clear();
-        pendingStatusResponses.clear();
-        statusResponseAckNonces.clear();
-        statusRequestNonces.clear();
-        statusResponseNonces.clear();
-        statusPeerGates.clear();
-        fragmenter.clear();
-        statusPollInFlight.clear();
-        dictionary.clearInboundTransfers();
-        listener.clearBindings();
+        restoreInterrupt(interrupted);
     }
 
     public void applyConfig(NetworkConfig next) {
+        next.normalizeRuntimeBounds();
         NetworkConfig previous = config;
         config = next;
         dictionary.applyConfig(next);
@@ -389,6 +418,92 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
 
     public boolean isRunning() {
         return running.get();
+    }
+
+    private LifecycleAdmission beginLifecycleAdmission() {
+        synchronized (lifecycleGate) {
+            if (!running.get() || lifecycleCleanupPending || lifecycleCleanupRunning) {
+                return null;
+            }
+            lifecycleAdmissions++;
+            lifecycleAdmissionDepth.set(lifecycleAdmissionDepth.get() + 1);
+            return new LifecycleAdmission(lifecycleGeneration);
+        }
+    }
+
+    private void endLifecycleAdmission() {
+        boolean cleanup = false;
+        synchronized (lifecycleGate) {
+            int depth = lifecycleAdmissionDepth.get();
+            if (depth <= 1) {
+                lifecycleAdmissionDepth.remove();
+            } else {
+                lifecycleAdmissionDepth.set(depth - 1);
+            }
+            lifecycleAdmissions--;
+            if (lifecycleAdmissions == 0) {
+                if (lifecycleCleanupPending && !lifecycleCleanupRunning) {
+                    lifecycleCleanupPending = false;
+                    lifecycleCleanupRunning = true;
+                    lifecycleCleanupThread = Thread.currentThread();
+                    cleanup = true;
+                }
+                lifecycleGate.notifyAll();
+            }
+        }
+        if (cleanup) {
+            completeLifecycleStop();
+        }
+    }
+
+    private boolean isLifecycleActive(LifecycleAdmission admission) {
+        return running.get() && admission.generation() == lifecycleGeneration;
+    }
+
+    private void completeLifecycleStop() {
+        try {
+            identity.shutdown();
+            hashProbeScheduler.stop();
+            cancelDictionaryRetrain();
+            ScheduledExecutorService executor = scheduler;
+            scheduler = null;
+            if (executor != null) {
+                executor.shutdownNow();
+            }
+            ExecutorService pollExecutor = statusPollExecutor;
+            statusPollExecutor = null;
+            if (pollExecutor != null) {
+                pollExecutor.shutdownNow();
+            }
+            listener.closeTransports();
+            links.closeAll("shutdown");
+            refreshConnectedPeers();
+            presence.clear();
+            nextStatusAttempt.clear();
+            sideband.clear();
+            pendingStatusRequests.clear();
+            pendingStatusResponses.clear();
+            statusResponseAckNonces.clear();
+            statusRequestNonces.clear();
+            statusResponseNonces.clear();
+            statusPeerGates.clear();
+            fragmenter.clear();
+            statusPollInFlight.clear();
+            dictionary.clearInboundTransfers();
+            listener.clearBindings();
+        } finally {
+            synchronized (lifecycleGate) {
+                lifecycleCleanupRunning = false;
+                lifecycleCleanupThread = null;
+                lifecycleGate.notifyAll();
+            }
+        }
+    }
+
+    private static void restoreInterrupt(boolean interrupted) {
+        if (interrupted) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     public boolean isPeerReady(String name) {
@@ -534,54 +649,68 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     }
 
     public MinecraftStatusBridge.StatusPacket handleStatusBridgeRequest(MinecraftStatusBridge.StatusPacket request) {
-        String sourceServer = request.sourceServer();
-        if (isRawPeerReady(sourceServer) || !acceptStatusBridgePacket(request, null)) {
+        LifecycleAdmission admission = beginLifecycleAdmission();
+        if (admission == null) {
             return null;
         }
-        synchronized (statusPeerGate(sourceServer)) {
-            if (isRawPeerReady(sourceServer)) {
+        try {
+            String sourceServer = request.sourceServer();
+            if (isRawPeerReady(sourceServer) || !acceptStatusBridgePacket(request, null, admission)) {
                 return null;
             }
-            markStatusBridgeReady(sourceServer, -1L);
-            long now = System.currentTimeMillis();
-            PendingStatusResponse pendingResponse = pendingStatusResponses.get(sourceServer);
-            if (pendingResponse != null && request.ackNonce() == pendingResponse.packet().nonce()) {
-                if (pendingStatusResponses.remove(sourceServer, pendingResponse)) {
-                    pendingResponse.batch().commit();
-                }
-                pendingResponse = null;
-            } else if (pendingResponse != null && pendingResponse.createdAtMillis() + STATUS_RESPONSE_ACK_TTL_MS < now) {
-                if (pendingStatusResponses.remove(sourceServer, pendingResponse)) {
-                    pendingResponse.batch().requeue();
-                }
-                pendingResponse = null;
-            }
-            if (pendingResponse != null) {
-                return pendingResponse.packet();
-            }
-
-            NonceWindow requestNonces = statusRequestNonces.computeIfAbsent(sourceServer,
-                ignored -> new NonceWindow(STATUS_NONCE_WINDOW_CAPACITY));
-            if (!requestNonces.contains(request.nonce())) {
-                if (!receiveStatusBridgeMessages(sourceServer, request.messages())) {
+            synchronized (statusPeerGate(sourceServer)) {
+                if (isRawPeerReady(sourceServer)) {
                     return null;
                 }
-                requestNonces.add(request.nonce());
-            }
-
-            SidebandOutbox.DrainBatch batch = sideband.drain(sourceServer, STATUS_BRIDGE_FRAME_BUDGET_BYTES);
-            try {
-                MinecraftStatusBridge.StatusPacket response = createStatusBridgePacket(sourceServer, batch.messages(), request.nonce());
-                if (batch.messages().isEmpty()) {
-                    batch.commit();
-                } else {
-                    pendingStatusResponses.put(sourceServer, new PendingStatusResponse(response, batch, now));
+                if (!markStatusBridgeReady(sourceServer, -1L, admission)) {
+                    return null;
                 }
-                return response;
-            } catch (RuntimeException e) {
-                batch.requeue();
-                throw e;
+                long now = System.currentTimeMillis();
+                PendingStatusResponse pendingResponse = pendingStatusResponses.get(sourceServer);
+                if (pendingResponse != null && request.ackNonce() == pendingResponse.packet().nonce()) {
+                    if (pendingStatusResponses.remove(sourceServer, pendingResponse)) {
+                        pendingResponse.batch().commit();
+                    }
+                    pendingResponse = null;
+                } else if (pendingResponse != null && pendingResponse.createdAtMillis() + STATUS_RESPONSE_ACK_TTL_MS < now) {
+                    if (pendingStatusResponses.remove(sourceServer, pendingResponse)) {
+                        pendingResponse.batch().requeue();
+                    }
+                    pendingResponse = null;
+                }
+                if (pendingResponse != null) {
+                    return pendingResponse.packet();
+                }
+
+                NonceWindow requestNonces = statusRequestNonces.computeIfAbsent(sourceServer,
+                    ignored -> new NonceWindow(STATUS_NONCE_WINDOW_CAPACITY));
+                if (!requestNonces.contains(request.nonce())) {
+                    if (!receiveStatusBridgeMessages(sourceServer, request.messages(), admission)) {
+                        return null;
+                    }
+                    requestNonces.add(request.nonce());
+                }
+
+                SidebandOutbox.DrainBatch batch = sideband.drain(sourceServer, STATUS_BRIDGE_FRAME_BUDGET_BYTES);
+                try {
+                    if (!isLifecycleActive(admission)) {
+                        batch.requeue();
+                        return null;
+                    }
+                    MinecraftStatusBridge.StatusPacket response = createStatusBridgePacket(sourceServer, batch.messages(), request.nonce());
+                    if (batch.messages().isEmpty()) {
+                        batch.commit();
+                    } else {
+                        pendingStatusResponses.put(sourceServer, new PendingStatusResponse(response, batch, now));
+                    }
+                    return response;
+                } catch (RuntimeException e) {
+                    batch.requeue();
+                    throw e;
+                }
             }
+        } finally {
+            endLifecycleAdmission();
         }
     }
 
@@ -596,28 +725,44 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     boolean handleStatusBridgeResponse(String expectedPeerName,
                                        MinecraftStatusBridge.StatusPacket response,
                                        long rttMillis, String reachableGameHost) {
-        if (response == null || isRawPeerReady(expectedPeerName) || !acceptStatusBridgePacket(response, expectedPeerName)) {
+        if (response == null) {
             return false;
         }
-        String sourceServer = response.sourceServer();
-        if (reachableGameHost != null && !reachableGameHost.isBlank()) {
-            presence.rememberReachableGameHost(sourceServer, reachableGameHost);
+        LifecycleAdmission admission = beginLifecycleAdmission();
+        if (admission == null) {
+            return false;
         }
-        synchronized (statusPeerGate(sourceServer)) {
-            if (isRawPeerReady(sourceServer)) {
+        try {
+            if (isRawPeerReady(expectedPeerName) || !acceptStatusBridgePacket(response, expectedPeerName, admission)) {
                 return false;
             }
-            markStatusBridgeReady(sourceServer, rttMillis);
-            NonceWindow responseNonces = statusResponseNonces.computeIfAbsent(sourceServer,
-                ignored -> new NonceWindow(STATUS_NONCE_WINDOW_CAPACITY));
-            if (!responseNonces.contains(response.nonce())) {
-                if (!receiveStatusBridgeMessages(sourceServer, response.messages())) {
+            String sourceServer = response.sourceServer();
+            if (reachableGameHost != null && !reachableGameHost.isBlank()) {
+                presence.rememberReachableGameHost(sourceServer, reachableGameHost);
+            }
+            synchronized (statusPeerGate(sourceServer)) {
+                if (isRawPeerReady(sourceServer)) {
                     return false;
                 }
-                responseNonces.add(response.nonce());
+                if (!markStatusBridgeReady(sourceServer, rttMillis, admission)) {
+                    return false;
+                }
+                NonceWindow responseNonces = statusResponseNonces.computeIfAbsent(sourceServer,
+                    ignored -> new NonceWindow(STATUS_NONCE_WINDOW_CAPACITY));
+                if (!responseNonces.contains(response.nonce())) {
+                    if (!receiveStatusBridgeMessages(sourceServer, response.messages(), admission)) {
+                        return false;
+                    }
+                    responseNonces.add(response.nonce());
+                }
+                if (!isLifecycleActive(admission)) {
+                    return false;
+                }
+                statusResponseAckNonces.put(sourceServer, response.nonce());
+                return true;
             }
-            statusResponseAckNonces.put(sourceServer, response.nonce());
-            return true;
+        } finally {
+            endLifecycleAdmission();
         }
     }
 
@@ -628,8 +773,9 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     private MinecraftStatusBridge.StatusPacket createStatusBridgePacket(String targetServer,
                                                                          List<MinecraftStatusBridge.EncodedMessage> messages,
                                                                          long ackNonce) {
-        return MinecraftStatusBridge.create(identity.localName(), targetServer, identity.mcVersion(), identity.pluginVersion(),
-            identity.advertiseHost(), gamePort, identity.publicKeyBytes(), identity.privateKey(), ackNonce, messages);
+        return MinecraftStatusBridge.create(identity.localName(), targetServer, WireCodec.PROTOCOL_VERSION,
+            identity.mcVersion(), identity.pluginVersion(), identity.advertiseHost(), gamePort,
+            identity.publicKeyBytes(), identity.privateKey(), ackNonce, messages);
     }
 
     @Override
@@ -640,8 +786,9 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         return trust.approveConnection(peerName, publicKey);
     }
 
-    private boolean acceptStatusBridgePacket(MinecraftStatusBridge.StatusPacket packet, String expectedSource) {
-        if (!running.get() || !config.enabled) {
+    private boolean acceptStatusBridgePacket(MinecraftStatusBridge.StatusPacket packet, String expectedSource,
+                                             LifecycleAdmission admission) {
+        if (!isLifecycleActive(admission) || !config.enabled) {
             return false;
         }
         String sourceServer = packet.sourceServer();
@@ -659,6 +806,14 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
             logger.warning("net: rejecting status sideband from " + sourceServer + " because authentication failed");
             return false;
         }
+        String incompatibility = statusBridgeIncompatibility(packet);
+        if (incompatibility != null) {
+            dialer.setLastError(sourceServer, "game-port status sideband rejected: " + incompatibility);
+            if (statusPollFailing.add(sourceServer)) {
+                logger.warning("net: rejecting status sideband from " + sourceServer + " because " + incompatibility);
+            }
+            return false;
+        }
         if (!trust.approveSideband(sourceServer, packet.publicKey())) {
             return false;
         }
@@ -666,34 +821,82 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         return true;
     }
 
+    private String statusBridgeIncompatibility(MinecraftStatusBridge.StatusPacket packet) {
+        if (packet.protocolVersion() != WireCodec.PROTOCOL_VERSION) {
+            return "wire protocol mismatch: peer " + packet.protocolVersion() + ", local " + WireCodec.PROTOCOL_VERSION;
+        }
+        if (!identity.mcVersion().equals(packet.mcVersion())) {
+            return "Minecraft version mismatch: peer " + packet.mcVersion() + ", local " + identity.mcVersion();
+        }
+        if (!identity.pluginVersion().equals(packet.pluginVersion())) {
+            return "Wormholes version mismatch: peer " + packet.pluginVersion() + ", local " + identity.pluginVersion();
+        }
+        return null;
+    }
+
     @Override
     public void onReady(PeerConnection connection) {
         links.removePending(connection);
-        String name = connection.getPeerName();
-        boolean sidebandWasReady = isStatusPeerReady(name);
-        dialer.resetDialState(name);
-        directory.learnFromConnection(connection);
-
-        if (!links.promote(name, connection, this::initiatorName)) {
-            refreshConnectedPeers();
+        LifecycleAdmission admission = beginLifecycleAdmission();
+        if (admission == null) {
+            connection.close("network stopped during handshake completion");
             return;
         }
+        try {
+            if (!isLifecycleActive(admission) || connection.getState() != PeerConnection.State.READY) {
+                connection.close("network stopped during handshake completion");
+                return;
+            }
+            String name = connection.getPeerName();
+            boolean sidebandWasReady = isStatusPeerReady(name);
+            dialer.resetDialState(name);
+            directory.learnFromConnection(connection);
+            if (!isLifecycleActive(admission)) {
+                connection.close("network stopped during handshake completion");
+                return;
+            }
 
-        refreshConnectedPeers();
+            if (!links.promote(name, connection, this::initiatorName)) {
+                refreshConnectedPeers();
+                return;
+            }
+            if (!isLifecycleActive(admission) || connection.getState() != PeerConnection.State.READY) {
+                links.removeReady(name, connection);
+                connection.close("network stopped during handshake completion");
+                refreshConnectedPeers();
+                return;
+            }
 
-        synchronized (statusPeerGate(name)) {
-            clearStatusSidebandLocked(name);
-        }
+            refreshConnectedPeers();
 
-        logger.info("net: peer " + name + " connected (" + (connection.isDialer() ? "dialed" : "accepted") + " " + connection.describeRemote() + ")");
-        BiConsumer<String, Boolean> sink = peerStateSink;
-        if (sidebandWasReady && sink != null) {
-            sink.accept(name, false);
-        }
-        dictionary.onPeerReady(connection);
-        relay.sendRelayedDirectoriesTo(name);
-        if (sink != null) {
-            sink.accept(name, true);
+            synchronized (statusPeerGate(name)) {
+                clearStatusSidebandLocked(name);
+            }
+            if (!isLifecycleActive(admission)) {
+                links.removeReady(name, connection);
+                connection.close("network stopped during handshake completion");
+                refreshConnectedPeers();
+                return;
+            }
+
+            logger.info("net: peer " + name + " connected (" + (connection.isDialer() ? "dialed" : "accepted") + " " + connection.describeRemote() + ")");
+            BiConsumer<String, Boolean> sink = peerStateSink;
+            if (sidebandWasReady && sink != null) {
+                sink.accept(name, false);
+                if (!isLifecycleActive(admission)) {
+                    return;
+                }
+            }
+            dictionary.onPeerReady(connection);
+            if (!isLifecycleActive(admission)) {
+                return;
+            }
+            relay.sendRelayedDirectoriesTo(name);
+            if (sink != null && isLifecycleActive(admission)) {
+                sink.accept(name, true);
+            }
+        } finally {
+            endLifecycleAdmission();
         }
     }
 
@@ -762,9 +965,11 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         dictionary.retrainNow();
     }
 
-    private boolean receiveStatusBridgeMessages(String peerName, List<WireMessage> messages) {
+    private boolean receiveStatusBridgeMessages(String peerName, List<WireMessage> messages,
+                                                LifecycleAdmission admission) {
         for (WireMessage message : messages) {
-            if (!receiveStatusBridgeMessage(peerName, message)) {
+            if (!isLifecycleActive(admission) || !receiveStatusBridgeMessage(peerName, message)
+                || !isLifecycleActive(admission)) {
                 return false;
             }
         }
@@ -797,7 +1002,10 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         return accepted;
     }
 
-    private void markStatusBridgeReady(String peerName, long rttMillis) {
+    private boolean markStatusBridgeReady(String peerName, long rttMillis, LifecycleAdmission admission) {
+        if (!isLifecycleActive(admission)) {
+            return false;
+        }
         boolean wasReady = isPeerReady(peerName);
         long now = System.currentTimeMillis();
         presence.mark(peerName, now, rttMillis);
@@ -805,11 +1013,15 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         if (!wasReady) {
             logger.info("net: peer " + peerName + " connected (game-port status sideband)");
             relay.sendRelayedDirectoriesTo(peerName);
+            if (!isLifecycleActive(admission)) {
+                return false;
+            }
             BiConsumer<String, Boolean> sink = peerStateSink;
             if (sink != null) {
                 sink.accept(peerName, true);
             }
         }
+        return isLifecycleActive(admission);
     }
 
     void deliverMessage(String peerName, WireMessage message) {
@@ -844,16 +1056,44 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         }
     }
 
-    void acceptInbound(PeerTransport.PeerChannel channel) {
+    boolean acceptInbound(PeerTransport.PeerChannel channel) {
+        if (!running.get()) {
+            closeRejectedChannel(channel);
+            return false;
+        }
         PeerConnection connection = new PeerConnection(channel, false, identity.snapshot(), null, null, this, this);
-        links.addPending(connection);
+        if (!links.tryAddInboundPending(connection)) {
+            closeRejectedChannel(channel);
+            return false;
+        }
+        if (!running.get()) {
+            connection.close("network stopped during connection admission");
+            return false;
+        }
         connection.start();
+        return true;
     }
 
     void startDialedConnection(PeerTransport.PeerChannel channel, String peerName) {
+        if (!running.get()) {
+            closeRejectedChannel(channel);
+            return;
+        }
         PeerConnection connection = new PeerConnection(channel, true, identity.snapshot(), peerName, trust.key(peerName), this, this);
         links.addPending(connection);
+        if (!running.get()) {
+            connection.close("network stopped during connection admission");
+            return;
+        }
         connection.start();
+    }
+
+    private void closeRejectedChannel(PeerTransport.PeerChannel channel) {
+        try {
+            channel.close();
+        } catch (IOException e) {
+            logger.log(Level.FINE, "net: failed to close rejected connection from " + channel.describeRemote(), e);
+        }
     }
 
     private void pollStatusBridges() {
@@ -1128,6 +1368,9 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
 
     private static String blank(String value) {
         return value == null ? "" : value;
+    }
+
+    private record LifecycleAdmission(long generation) {
     }
 
     record PendingStatusRequest(MinecraftStatusBridge.StatusPacket packet,

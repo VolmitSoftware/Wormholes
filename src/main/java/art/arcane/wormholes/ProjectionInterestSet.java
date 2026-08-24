@@ -2,6 +2,7 @@ package art.arcane.wormholes;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -24,6 +25,7 @@ final class ProjectionInterestSet {
     private final Map<UUID, Map<UUID, PortalProjector>> projectors;
     private final Map<UUID, Map<UUID, Long>> interestGraceUntil;
     private final Map<UUID, Integer> observerPortalCursors;
+    private final ProjectedEntityInterestIndex<PortalProjector> projectedEntityInterests;
 
     ProjectionInterestSet(ProjectionClaimArbiter claimArbiter,
                           ProjectionWorldViewProvider viewProvider,
@@ -36,6 +38,7 @@ final class ProjectionInterestSet {
         this.projectors = new ConcurrentHashMap<UUID, Map<UUID, PortalProjector>>();
         this.interestGraceUntil = new ConcurrentHashMap<UUID, Map<UUID, Long>>();
         this.observerPortalCursors = new ConcurrentHashMap<UUID, Integer>();
+        this.projectedEntityInterests = new ProjectedEntityInterestIndex<PortalProjector>();
     }
 
     boolean isEmpty() {
@@ -60,6 +63,7 @@ final class ProjectionInterestSet {
             }
             projector = new PortalProjector(portal, observer, claimArbiter, viewProvider, alive);
             portalProjectors.put(activeObserverId, projector);
+            projectedEntityInterests.activate(projector);
             Wormholes.v("[ProjectionManager] new projector portal=" + portal.getName()
                     + " observer=" + observer.getName()
                     + " portalCenter=" + ProjectionManager.formatLoc(portal.getCenter())
@@ -90,6 +94,7 @@ final class ProjectionInterestSet {
             if (projector == null) {
                 continue;
             }
+            projectedEntityInterests.deactivate(projector);
             projector.close();
             if (entry.getValue().isEmpty()) {
                 projectors.remove(entry.getKey(), entry.getValue());
@@ -111,6 +116,7 @@ final class ProjectionInterestSet {
             }
             interestGraceUntil.remove(entry.getKey());
             for (PortalProjector projector : entry.getValue().values()) {
+                projectedEntityInterests.deactivate(projector);
                 closeQueue.close(projector);
             }
         }
@@ -123,6 +129,7 @@ final class ProjectionInterestSet {
             return;
         }
         for (PortalProjector projector : portalProjectors.values()) {
+            projectedEntityInterests.deactivate(projector);
             closeQueue.close(projector);
         }
     }
@@ -136,6 +143,7 @@ final class ProjectionInterestSet {
         if (projector == null) {
             return;
         }
+        projectedEntityInterests.deactivate(projector);
         closeQueue.close(projector);
     }
 
@@ -145,6 +153,7 @@ final class ProjectionInterestSet {
             if (projector == null) {
                 continue;
             }
+            projectedEntityInterests.deactivate(projector);
             closeQueue.close(projector);
         }
     }
@@ -153,9 +162,51 @@ final class ProjectionInterestSet {
         for (Map<UUID, PortalProjector> portalProjectors : projectors.values()) {
             PortalProjector projector = portalProjectors.remove(observerId);
             if (projector != null) {
+                projectedEntityInterests.deactivate(projector);
                 projector.discard();
             }
         }
+    }
+
+    void refreshProjectedEntities(PortalProjector projector) {
+        if (projector == null || projector.getObserver() == null) {
+            projectedEntityInterests.deactivate(projector);
+            return;
+        }
+        Map<UUID, PortalProjector> portalProjectors = projectors.get(projector.getPortal().getId());
+        UUID observerId = projector.getObserver().getUniqueId();
+        if (projector.isClosed() || portalProjectors == null || portalProjectors.get(observerId) != projector) {
+            projectedEntityInterests.deactivate(projector);
+            return;
+        }
+        projectedEntityInterests.replace(projector, projector.getProjectedEntityIds());
+    }
+
+    List<Player> projectedEntityObservers(UUID entityId) {
+        Map<UUID, Player> observers = new LinkedHashMap<UUID, Player>();
+        for (PortalProjector projector : projectedEntityInterests.targets(entityId)) {
+            Player observer = projector.getObserver();
+            if (observer == null || projector.isClosed()) {
+                continue;
+            }
+            observers.putIfAbsent(observer.getUniqueId(), observer);
+        }
+        return new ArrayList<Player>(observers.values());
+    }
+
+    List<PortalProjector> projectedEntityProjectors(UUID entityId, UUID observerId) {
+        if (entityId == null || observerId == null) {
+            return List.of();
+        }
+        List<PortalProjector> interested = new ArrayList<PortalProjector>();
+        for (PortalProjector projector : projectedEntityInterests.targets(entityId)) {
+            Player observer = projector.getObserver();
+            if (observer == null || projector.isClosed() || !observerId.equals(observer.getUniqueId())) {
+                continue;
+            }
+            interested.add(projector);
+        }
+        return interested;
     }
 
     void forgetObserver(UUID observerId) {
@@ -266,6 +317,7 @@ final class ProjectionInterestSet {
     }
 
     void clear() {
+        projectedEntityInterests.close();
         projectors.clear();
         interestGraceUntil.clear();
         observerPortalCursors.clear();

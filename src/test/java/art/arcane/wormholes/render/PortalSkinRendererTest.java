@@ -3,13 +3,20 @@ package art.arcane.wormholes.render;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Proxy;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
@@ -138,6 +145,121 @@ public final class PortalSkinRendererTest
         }
     }
 
+    @Test
+    public void rejectedOwnerTaskClearsItsLeaseExactlyOnce()
+    {
+        Set<UUID> inFlight = ConcurrentHashMap.newKeySet();
+        UUID observerId = UUID.randomUUID();
+        AtomicInteger tasks = new AtomicInteger();
+        AtomicInteger terminals = new AtomicInteger();
+
+        boolean scheduled = PortalSkinRenderer.dispatchObserverTask(inFlight, observerId, player(observerId),
+            tasks::incrementAndGet, (observer, task, retired) -> {
+                retired.run();
+                return false;
+            }, terminals::incrementAndGet);
+
+        assertFalse(scheduled);
+        assertTrue(inFlight.isEmpty());
+        assertEquals(0, tasks.get());
+        assertEquals(1, terminals.get());
+    }
+
+    @Test
+    public void retiredOwnerTaskClearsItsLeaseAndCanBeAdmittedAgain()
+    {
+        Set<UUID> inFlight = ConcurrentHashMap.newKeySet();
+        UUID observerId = UUID.randomUUID();
+        AtomicInteger terminals = new AtomicInteger();
+        List<Runnable> retirements = new ArrayList<Runnable>();
+
+        boolean scheduled = PortalSkinRenderer.dispatchObserverTask(inFlight, observerId, player(observerId),
+            () -> { }, (observer, task, retired) -> {
+                retirements.add(retired);
+                return true;
+            }, terminals::incrementAndGet);
+
+        assertTrue(scheduled);
+        assertTrue(inFlight.contains(observerId));
+        retirements.get(0).run();
+        retirements.get(0).run();
+        assertTrue(inFlight.isEmpty());
+        assertEquals(1, terminals.get());
+        assertTrue(inFlight.add(observerId));
+    }
+
+    @Test
+    public void existingOwnerLeaseSkipsWithoutConsumingItsTerminal()
+    {
+        Set<UUID> inFlight = ConcurrentHashMap.newKeySet();
+        UUID observerId = UUID.randomUUID();
+        AtomicInteger terminals = new AtomicInteger();
+        inFlight.add(observerId);
+
+        boolean scheduled = PortalSkinRenderer.dispatchObserverTask(inFlight, observerId, player(observerId),
+            () -> { }, (observer, task, retired) -> {
+                throw new AssertionError("an in-flight observer must not be scheduled twice");
+            }, terminals::incrementAndGet);
+
+        assertFalse(scheduled);
+        assertTrue(inFlight.contains(observerId));
+        assertEquals(0, terminals.get());
+    }
+
+    @Test
+    public void completedOwnerTaskClearsItsLeaseExactlyOnce()
+    {
+        Set<UUID> inFlight = ConcurrentHashMap.newKeySet();
+        UUID observerId = UUID.randomUUID();
+        AtomicInteger tasks = new AtomicInteger();
+        AtomicInteger terminals = new AtomicInteger();
+
+        boolean scheduled = PortalSkinRenderer.dispatchObserverTask(inFlight, observerId, player(observerId),
+            tasks::incrementAndGet, (observer, task, retired) -> {
+                task.run();
+                retired.run();
+                return true;
+            }, terminals::incrementAndGet);
+
+        assertTrue(scheduled);
+        assertTrue(inFlight.isEmpty());
+        assertEquals(1, tasks.get());
+        assertEquals(1, terminals.get());
+    }
+
+    @Test
+    public void shutdownClosesAdmissionWhileAHeldReconciliationRemainsTracked()
+    {
+        PortalSkinRenderer.ReconciliationGate gate = new PortalSkinRenderer.ReconciliationGate();
+
+        assertTrue(gate.enter());
+        assertEquals(1, gate.active());
+        assertTrue(gate.close());
+        assertFalse(gate.enter());
+        assertEquals(1, gate.active());
+
+        gate.exit();
+
+        assertEquals(0, gate.active());
+        assertFalse(gate.close());
+    }
+
+    @Test
+    public void exceptionalOwnerSchedulerClearsItsLeaseExactlyOnce()
+    {
+        Set<UUID> inFlight = ConcurrentHashMap.newKeySet();
+        UUID observerId = UUID.randomUUID();
+        AtomicInteger terminals = new AtomicInteger();
+
+        assertThrows(IllegalStateException.class, () -> PortalSkinRenderer.dispatchObserverTask(inFlight,
+            observerId, player(observerId), () -> { }, (observer, task, retired) -> {
+                throw new IllegalStateException("scheduler failed");
+            }, terminals::incrementAndGet));
+
+        assertTrue(inFlight.isEmpty());
+        assertEquals(1, terminals.get());
+    }
+
     private static ILocalPortal portal(int x1, int x2, int y1, int y2, int z1, int z2)
     {
         Map<String, Object> values = new HashMap<String, Object>();
@@ -161,6 +283,19 @@ public final class PortalSkinRendererTest
                 case "toString" -> "PortalSkinRendererTestPortal";
                 case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
                 case "equals" -> Boolean.valueOf(proxy == arguments[0]);
+                default -> throw new UnsupportedOperationException(method.getName());
+            });
+    }
+
+    private static Player player(UUID observerId)
+    {
+        return (Player) Proxy.newProxyInstance(Player.class.getClassLoader(), new Class<?>[] {Player.class},
+            (proxy, method, arguments) -> switch(method.getName())
+            {
+                case "getUniqueId" -> observerId;
+                case "hashCode" -> Integer.valueOf(observerId.hashCode());
+                case "equals" -> Boolean.valueOf(proxy == arguments[0]);
+                case "toString" -> "observer(" + observerId + ")";
                 default -> throw new UnsupportedOperationException(method.getName());
             });
     }

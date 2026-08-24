@@ -33,14 +33,76 @@ public final class ChunkPreSendService<W, P> {
         if (!active.enabled()) {
             return reject(ChunkPreSendOutcome.SKIPPED_DISABLED, target);
         }
+        if (!platform.supported()) {
+            return reject(ChunkPreSendOutcome.SKIPPED_UNSUPPORTED_PLATFORM, target);
+        }
+        if (!platform.online(target)) {
+            return reject(ChunkPreSendOutcome.SKIPPED_PLAYER_OFFLINE, target);
+        }
+        W sourceWorld = platform.world(target);
+        if (sourceWorld == null) {
+            return reject(ChunkPreSendOutcome.SKIPPED_PLAYER_OFFLINE, target);
+        }
+        ChunkPreSendOrigin<W, P> origin = new ChunkPreSendOrigin<W, P>(
+            target,
+            true,
+            true,
+            sourceWorld,
+            platform.chunkX(target),
+            platform.chunkZ(target),
+            platform.clientViewDistance(target)
+        );
+        return preSend(origin, destinationWorld, destinationBlockX, destinationBlockZ, active);
+    }
+
+    public ChunkPreSendOrigin<W, P> capture(P player) {
+        P target = Objects.requireNonNull(player, "player");
+        if (!current().usable()) {
+            return null;
+        }
         boolean supported = platform.supported();
         boolean online = supported && platform.online(target);
         W sourceWorld = online ? platform.world(target) : null;
         boolean playerUsable = online && sourceWorld != null;
+        if (!playerUsable) {
+            return null;
+        }
+        return new ChunkPreSendOrigin<W, P>(
+            target,
+            supported,
+            playerUsable,
+            sourceWorld,
+            platform.chunkX(target),
+            platform.chunkZ(target),
+            platform.clientViewDistance(target)
+        );
+    }
+
+    public ChunkPreSendTicket<W, P> preSend(
+        ChunkPreSendOrigin<W, P> origin,
+        W destinationWorld,
+        int destinationBlockX,
+        int destinationBlockZ
+    ) {
+        ChunkPreSendOrigin<W, P> source = Objects.requireNonNull(origin, "origin");
+        return preSend(source, destinationWorld, destinationBlockX, destinationBlockZ, current());
+    }
+
+    private ChunkPreSendTicket<W, P> preSend(
+        ChunkPreSendOrigin<W, P> origin,
+        W destinationWorld,
+        int destinationBlockX,
+        int destinationBlockZ,
+        ChunkPreSendOptions active
+    ) {
+        P target = origin.player();
+        boolean supported = origin.platformSupported();
+        boolean playerUsable = origin.playerUsable();
+        W sourceWorld = origin.sourceWorld();
         boolean destinationLocal = destinationWorld != null;
         int destinationCenterX = destinationBlockX >> 4;
         int destinationCenterZ = destinationBlockZ >> 4;
-        int clientViewDistance = playerUsable ? platform.clientViewDistance(target) : 0;
+        int clientViewDistance = origin.clientViewDistance();
         boolean inspectable = playerUsable && destinationLocal && active.usable();
         int burstRadius = inspectable
             ? ChunkPreSendPlanner.effectiveRadius(active.radiusChunks(), clientViewDistance)
@@ -61,8 +123,8 @@ public final class ChunkPreSendService<W, P> {
             destinationLoaded,
             destinationRegionOwned,
             destinationLocal && Objects.equals(destinationWorld, sourceWorld),
-            playerUsable ? platform.chunkX(target) : 0,
-            playerUsable ? platform.chunkZ(target) : 0,
+            origin.sourceChunkX(),
+            origin.sourceChunkZ(),
             destinationCenterX,
             destinationCenterZ,
             clientViewDistance,

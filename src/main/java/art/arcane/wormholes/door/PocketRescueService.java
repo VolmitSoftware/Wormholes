@@ -243,7 +243,9 @@ final class PocketRescueService
 		};
 		if(!travelers.scheduleWithRetirement(player, delivery, () -> ledger.releaseRescue(player)))
 		{
-			delivery.run();
+			ledger.releaseRescue(player);
+			plugin.getLogger().warning(
+				"Could not deliver a dimensional-door rescue failure to " + player.getUniqueId());
 		}
 	}
 }

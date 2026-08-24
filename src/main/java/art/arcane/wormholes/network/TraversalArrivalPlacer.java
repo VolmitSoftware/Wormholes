@@ -17,6 +17,11 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import java.util.logging.Level;
 
 final class TraversalArrivalPlacer {
+    @FunctionalInterface
+    interface Lifecycle {
+        boolean run(Runnable task);
+    }
+
     private record ArrivalPlacement(Player player, PlayerHandoffAdmission.Reservation reservation, String via, int attempt) {
         ArrivalPlacement retry(PlayerHandoffAdmission.Reservation nextReservation) {
             return new ArrivalPlacement(player, nextReservation, via, attempt + 1);
@@ -33,14 +38,24 @@ final class TraversalArrivalPlacer {
     private final TraversalFailureLedger failures;
     private final TraversalNotices notices;
     private final TraversalEntityScheduler scheduler;
+    private final Lifecycle lifecycle;
 
     TraversalArrivalPlacer(NetworkManager network, PlayerHandoffAdmission admissions, TraversalFailureLedger failures,
                            TraversalNotices notices, TraversalEntityScheduler scheduler) {
+        this(network, admissions, failures, notices, scheduler, task -> {
+            task.run();
+            return true;
+        });
+    }
+
+    TraversalArrivalPlacer(NetworkManager network, PlayerHandoffAdmission admissions, TraversalFailureLedger failures,
+                           TraversalNotices notices, TraversalEntityScheduler scheduler, Lifecycle lifecycle) {
         this.network = network;
         this.admissions = admissions;
         this.failures = failures;
         this.notices = notices;
         this.scheduler = scheduler;
+        this.lifecycle = lifecycle;
     }
 
     void placeOnJoin(Player player) {
@@ -54,14 +69,23 @@ final class TraversalArrivalPlacer {
 
     void place(Player player, PlayerHandoffAdmission.Reservation arrival, String via) {
         ArrivalPlacement placement = new ArrivalPlacement(player, arrival, via, 0);
+        if (!lifecycle.run(() -> scheduleArrivalPlacement(placement))) {
+            abandonArrivalPlacement(placement);
+        }
+    }
+
+    private void scheduleArrivalPlacement(ArrivalPlacement placement) {
+        Player player = placement.player();
+        PlayerHandoffAdmission.Reservation arrival = placement.reservation();
         Runnable retired = () -> {
             admissions.releaseArrival(arrival, System.currentTimeMillis());
-            failures.record(Failure.ARRIVAL_PLAYER_RETIRED, player.getUniqueId(), via + ": traveler retired before portal placement");
+            failures.record(Failure.ARRIVAL_PLAYER_RETIRED, player.getUniqueId(),
+                placement.via() + ": traveler retired before portal placement");
         };
         if (!scheduler.schedule(player, () -> beginArrivalPlacement(placement), retired,
             TraversalEntityScheduler.OFF_EVENT_STACK_DELAY_TICKS)) {
             admissions.releaseArrival(arrival, System.currentTimeMillis());
-            failures.record(Failure.ARRIVAL_SCHEDULE_REJECTED, player.getUniqueId(), via + ": player scheduler rejected portal placement");
+            failures.record(Failure.ARRIVAL_SCHEDULE_REJECTED, player.getUniqueId(), placement.via() + ": player scheduler rejected portal placement");
             notices.arrivalUnplaced(player);
         }
     }
@@ -85,6 +109,12 @@ final class TraversalArrivalPlacer {
     }
 
     private void beginArrivalPlacement(ArrivalPlacement placement) {
+        if (!lifecycle.run(() -> beginActiveArrivalPlacement(placement))) {
+            abandonArrivalPlacement(placement);
+        }
+    }
+
+    private void beginActiveArrivalPlacement(ArrivalPlacement placement) {
         Player player = placement.player();
         PlayerHandoffAdmission.Request request = placement.reservation().request();
         ILocalPortal exit = Wormholes.portalManager == null ? null : Wormholes.portalManager.getLocalPortal(request.exitPortalId());
@@ -169,6 +199,12 @@ final class TraversalArrivalPlacer {
     }
 
     private void finishArrivalTeleport(ArrivalTeleport teleport, boolean success, Throwable error) {
+        if (!lifecycle.run(() -> finishActiveArrivalTeleport(teleport, success, error))) {
+            abandonArrivalPlacement(teleport.placement());
+        }
+    }
+
+    private void finishActiveArrivalTeleport(ArrivalTeleport teleport, boolean success, Throwable error) {
         ArrivalPlacement placement = teleport.placement();
         if (!success || error != null) {
             retryArrivalPlacement(placement, "portal teleport did not complete", error);
@@ -176,6 +212,11 @@ final class TraversalArrivalPlacer {
         }
         admissions.completeArrival(placement.reservation(), System.currentTimeMillis());
         teleport.exit().completeRemoteArrival(placement.player(), teleport.traversive());
+    }
+
+    private void abandonArrivalPlacement(ArrivalPlacement placement) {
+        admissions.releaseArrival(placement.reservation(), System.currentTimeMillis());
+        LocalPortal.clearReentryLatch(placement.player().getUniqueId());
     }
 
     private void retryArrivalPlacement(ArrivalPlacement placement, String reason, Throwable error) {

@@ -46,6 +46,10 @@ final class PlayerHandoffRateLimiter {
         return current.longValue() - nowMillis;
     }
 
+    synchronized void clear() {
+        limitedUntil.clear();
+    }
+
     private void prune(long nowMillis) {
         if (limitedUntil.size() < 512) {
             return;

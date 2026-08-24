@@ -29,6 +29,7 @@ import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
+import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.network.view.ViewServer;
 import art.arcane.wormholes.util.Direction;
 import art.arcane.wormholes.util.J;
@@ -77,6 +78,7 @@ public class PortalManager implements Listener
 	@EventHandler
 	public void on(WorldLoadEvent e)
 	{
+		BukkitRegionTaskProvider.worldLoaded(e.getWorld().getUID());
 		loadPendingPortals();
 		BukkitRtpRuntime runtime = Wormholes.rtpRuntime;
 		if(runtime != null)
@@ -94,6 +96,7 @@ public class PortalManager implements Listener
 	@EventHandler
 	public void on(WorldUnloadEvent e)
 	{
+		BukkitRegionTaskProvider.worldUnloaded(e.getWorld().getUID());
 		BukkitRtpRuntime runtime = Wormholes.rtpRuntime;
 		if(runtime != null)
 		{
@@ -112,9 +115,10 @@ public class PortalManager implements Listener
 	{
 		attendance.record(e.getPlayer(), e.getTo());
 		BukkitRtpRuntime runtime = Wormholes.rtpRuntime;
-		if(runtime != null && e.getTo() != null)
+		Location destination = e.getTo();
+		if(runtime != null && destination != null && positionChanged(e.getFrom(), destination))
 		{
-			runtime.viewerMoved(e.getPlayer(), e.getTo());
+			runtime.viewerMoved(e.getPlayer(), destination);
 		}
 	}
 
@@ -138,6 +142,14 @@ public class PortalManager implements Listener
 		{
 			runtime.leaveViewer(e.getPlayer().getUniqueId());
 		}
+	}
+
+	static boolean positionChanged(Location from, Location to)
+	{
+		return from.getWorld() != to.getWorld()
+				|| from.getX() != to.getX()
+				|| from.getY() != to.getY()
+				|| from.getZ() != to.getZ();
 	}
 
 	private void loadExistingPortals()

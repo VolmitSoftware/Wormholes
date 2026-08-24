@@ -128,9 +128,18 @@ public final class RtpService
 	public CompletableFuture<Boolean> completeTraversal(TraversalPreparation preparation, boolean succeeded)
 	{
 		TraversalPreparation requiredPreparation = Objects.requireNonNull(preparation, "preparation");
-		return onSource(requiredPreparation.portalId(), () -> succeeded
-				? requiredPreparation.request().markSucceeded(requiredPreparation.generation())
-				: requiredPreparation.request().markFailed(requiredPreparation.generation()));
+		return onSource(requiredPreparation.portalId(), () ->
+		{
+			if(succeeded)
+			{
+				return requiredPreparation.request().markSucceeded(requiredPreparation.generation());
+			}
+			if(requiredPreparation.request().markFailed(requiredPreparation.generation()))
+			{
+				return true;
+			}
+			return requiredPreparation.request().cancel(requiredPreparation.generation());
+		});
 	}
 
 	public Optional<Snapshot> snapshot(UUID portalId)

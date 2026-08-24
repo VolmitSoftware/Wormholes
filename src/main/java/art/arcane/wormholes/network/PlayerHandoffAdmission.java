@@ -279,6 +279,13 @@ final class PlayerHandoffAdmission {
         });
     }
 
+    synchronized void clear() {
+        entriesByTransfer.clear();
+        cancelledByTransfer.clear();
+        transferByPlayer.clear();
+        rateLimiter.clear();
+    }
+
     private void cacheDenied(Request request, String reason, long nowMillis, long rateLimitMillis) {
         long expiresAtMillis = nowMillis + Math.max(1L, rateLimitMillis);
         entriesByTransfer.put(request.transferId(), new Entry(request, null, reason, expiresAtMillis, ArrivalState.CONSUMED));

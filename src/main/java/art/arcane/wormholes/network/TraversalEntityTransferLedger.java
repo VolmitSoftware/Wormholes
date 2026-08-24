@@ -75,4 +75,8 @@ final class TraversalEntityTransferLedger {
         entries.entrySet().removeIf(entry -> entry.getValue().status() == TransferStatus.APPLIED
             && entry.getValue().updatedAtMillis() + ttlMillis < nowMillis);
     }
+
+    void clear() {
+        entries.clear();
+    }
 }

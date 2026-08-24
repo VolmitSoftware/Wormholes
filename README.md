@@ -15,10 +15,15 @@ Authoritative reference: the central [VolmitSoftware/docs](https://github.com/Vo
 ## Install
 
 1. Java 25 on Paper, Purpur, or Folia **26.1.2–26.2** (`folia-supported: true`). Spigot 26.2 is a compile and runtime fallback.
-2. Drop the shaded jar from `./gradlew shadowJar` into `plugins/`.
-3. Optional soft depends: PlaceholderAPI, Vault, Iris.
-4. First boot writes `plugins/Wormholes/config/wormholes.toml` (schema 2).
-5. `zstd-jni` 1.5.7-11 is loaded by SlimJar and by `plugin.yml` `libraries` (not shaded). JVM tip: `--enable-native-access=ALL-UNNAMED` for native access without warnings.
+2. Drop runtime `Wormholes-<version>.jar` from `./gradlew shadowJar` into
+   `plugins/`.
+3. First start needs access to the configured dependency repositories unless the
+   SlimJar cache is already warm. SlimJar resolves and caches PacketEvents,
+   bStats, TOML4J, Kyori, and zstd-jni.
+4. Optional soft depends: PlaceholderAPI, Vault, Iris.
+5. First boot writes `plugins/Wormholes/config/wormholes.toml` (schema 2).
+6. `zstd-jni` 1.5.7-11 is also declared in `plugin.yml` `libraries`. JVM tip:
+   `--enable-native-access=ALL-UNNAMED` enables native access without warnings.
 
 Commands: `/wormholes` (aliases `/wh`, `/wormhole`). See [09 - Commands & Permissions](https://github.com/VolmitSoftware/docs/blob/master/wormholes/09-commands-permissions.md).
 

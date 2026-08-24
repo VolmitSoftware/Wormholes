@@ -6,14 +6,18 @@ import art.arcane.wormholes.portal.ILocalPortal;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 final class ViewSessionRegistry {
     private final NetworkManager network;
     private final Map<UUID, ViewSession> sessions = new ConcurrentHashMap<>();
     private final AtomicBoolean active = new AtomicBoolean(true);
+    private volatile Consumer<ViewSession> retirementListener = session -> {
+    };
 
     ViewSessionRegistry(NetworkManager network) {
         this.network = network;
@@ -35,6 +39,10 @@ final class ViewSessionRegistry {
         active.set(false);
     }
 
+    void setRetirementListener(Consumer<ViewSession> listener) {
+        retirementListener = Objects.requireNonNull(listener, "listener");
+    }
+
     ViewSession get(UUID portalId) {
         return sessions.get(portalId);
     }
@@ -52,15 +60,26 @@ final class ViewSessionRegistry {
     }
 
     void clear() {
-        sessions.clear();
+        for (Map.Entry<UUID, ViewSession> entry : sessions.entrySet()) {
+            if (sessions.remove(entry.getKey(), entry.getValue())) {
+                retirementListener.accept(entry.getValue());
+            }
+        }
     }
 
     boolean remove(UUID portalId, ViewSession session) {
-        return sessions.remove(portalId, session);
+        if (!sessions.remove(portalId, session)) {
+            return false;
+        }
+        retirementListener.accept(session);
+        return true;
     }
 
     void remove(UUID portalId) {
-        sessions.remove(portalId);
+        ViewSession removed = sessions.remove(portalId);
+        if (removed != null) {
+            retirementListener.accept(removed);
+        }
     }
 
     ViewSession openSession(ILocalPortal portal) {

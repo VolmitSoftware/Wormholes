@@ -409,6 +409,7 @@ locale = "vi_VI"
 "command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} khong dung lam tuong tui. Hay dung khoi dac khong roi."
 "command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} khong dung lam cua thoat cua tui. Hay dung cua mo bang tay; cua sat bi tu choi."
 "command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Tui do da co kich thuoc va vat lieu nay."
+"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Da dung thay doi kich thuoc tui: <white>{containers}<red> kho chua con vat pham se bi pha huy. Hay lam rong truoc khi thu lai; <white>confirm=true<red> khong the bo qua kiem tra an toan nay."
 "command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Da xay lai tui o <white>{size}<green> khoi (truoc do <white>{previous}<green>), tuong <white>{material}<green>, cua thoat <white>{door}."
 "command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Khong the xay lai tui. Hay kiem tra console."
 "command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Chieu khong gian tui chua duoc tai."
@@ -584,7 +585,7 @@ locale = "vi_VI"
 "door.menu.access.entry" = ["<white>{name}","<gray>Trạng thái: <aqua>{state}","","<dark_gray>Nhấp trái: cho phép. Nhấp phải: chặn.","<dark_gray>Nhấp giữa hoặc Shift + nhấp trái: xóa."]
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tui <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Kich thuoc <white>{size}<gray> khoi, tuong <white>{material}<gray>, cua thoat <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Gioi han <white>{minimum}<gray> den <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Xay lai o {size} khoi se pha huy <white>{blocks}<red> khoi da dat (<white>{containers}<red> co chua vat pham) va di chuyen <white>{entities}<red> thuc the.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Vat pham trong ruong va moi thu con lai ngoai tuong moi se roi tai loi vao. Phan con lai bi mat.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Chay lai cung lenh voi <white>confirm=true<gray> de tiep tuc."]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Xay lai o {size} khoi se pha huy <white>{blocks}<red> khoi da dat va di chuyen <white>{entities}<red> thuc the.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Cac khoi ngoai tuong moi bi pha huy; thuc the bi di chuyen duoc dua den loi vao.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Chay lai cung lenh voi <white>confirm=true<gray> de tiep tuc."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Đã xóa <white>{count}<green> cổng dịch chuyển và dọn các liên kết cổng cục bộ."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Đã xóa <white>{count}<green> cổng dịch chuyển và dọn các liên kết cổng cục bộ."

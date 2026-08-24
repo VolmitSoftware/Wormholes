@@ -2,6 +2,10 @@ package art.arcane.wormholes.door;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 final class DoorStateGuard
@@ -9,6 +13,7 @@ final class DoorStateGuard
 	private final AtomicBoolean started;
 	private final AtomicBoolean closed;
 	private final AtomicBoolean acceptingEntries;
+	private final Set<UUID> quarantinedPockets;
 	private final Object lifecycleLock;
 
 	private volatile DoorStateService state;
@@ -18,6 +23,7 @@ final class DoorStateGuard
 		started = new AtomicBoolean();
 		closed = new AtomicBoolean();
 		acceptingEntries = new AtomicBoolean(true);
+		quarantinedPockets = ConcurrentHashMap.newKeySet();
 		lifecycleLock = new Object();
 	}
 
@@ -51,6 +57,21 @@ final class DoorStateGuard
 	boolean acceptingEntries()
 	{
 		return acceptingEntries.get();
+	}
+
+	void quarantinePocket(UUID spaceId)
+	{
+		quarantinedPockets.add(Objects.requireNonNull(spaceId, "spaceId"));
+	}
+
+	void restorePocket(UUID spaceId)
+	{
+		quarantinedPockets.remove(Objects.requireNonNull(spaceId, "spaceId"));
+	}
+
+	boolean pocketQuarantined(UUID spaceId)
+	{
+		return quarantinedPockets.contains(Objects.requireNonNull(spaceId, "spaceId"));
 	}
 
 	boolean beginDrain()

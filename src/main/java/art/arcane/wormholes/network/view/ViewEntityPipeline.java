@@ -50,6 +50,9 @@ final class ViewEntityPipeline {
     private final ViewSessionRegistry registry;
     private final ViewTimeDelivery timeDelivery;
     private final ViewEntityPublisher publisher;
+    private final ViewEntityCaptureBudget<ViewSession> captureBudget;
+    private final ViewEntityInterestIndex<ViewSession> entityInterests;
+    private final Map<ViewServer.EntityCaptureToken, ViewEntityCaptureBudget.Admission<ViewSession>> captureAdmissions;
     private volatile EntityRateScheduler entityRateScheduler;
     private volatile EntityRateScheduler.Bands lastBands;
     private volatile long tickCounter;
@@ -58,6 +61,12 @@ final class ViewEntityPipeline {
         this.registry = registry;
         this.timeDelivery = timeDelivery;
         this.publisher = publisher;
+        this.captureBudget = new ViewEntityCaptureBudget<ViewSession>(
+            ViewServer.MAX_ENTITY_CAPTURE_ADMISSIONS_PER_TICK,
+            ViewServer.MAX_ENTITY_CAPTURES_IN_FLIGHT);
+        this.entityInterests = new ViewEntityInterestIndex<ViewSession>();
+        this.captureAdmissions = new ConcurrentHashMap<ViewServer.EntityCaptureToken, ViewEntityCaptureBudget.Admission<ViewSession>>();
+        registry.setRetirementListener(this::retireSession);
     }
 
     EntityRateScheduler scheduler() {
@@ -82,19 +91,54 @@ final class ViewEntityPipeline {
         }
     }
 
-    void beginCapture(ViewSession session) {
+    void requestCapture(ViewSession session) {
+        if (registry.isSessionCurrent(session)) {
+            entityInterests.activate(session);
+            if (!registry.isSessionCurrent(session)) {
+                entityInterests.retire(session);
+                return;
+            }
+            captureBudget.request(session);
+        }
+    }
+
+    void dispatchCaptures() {
+        for (ViewEntityCaptureBudget.Admission<ViewSession> admission : captureBudget.acquire()) {
+            beginCapture(admission);
+        }
+    }
+
+    void shutdown() {
+        captureBudget.close();
+        entityInterests.close();
+    }
+
+    private void beginCapture(ViewEntityCaptureBudget.Admission<ViewSession> admission) {
+        ViewSession session = admission.key();
         if (!session.entityCaptureRunning.compareAndSet(false, true)) {
+            captureBudget.reject(admission);
             return;
         }
         ViewServer.EntityCaptureToken token = new ViewServer.EntityCaptureToken(
             session.entityCaptureGeneration.incrementAndGet(),
             System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(ViewServer.ENTITY_CAPTURE_DEADLINE_MILLIS));
+        captureAdmissions.put(token, admission);
         session.activeEntityCapture = token;
-        boolean scheduled = FoliaScheduler.runRegion(Wormholes.instance, session.world, session.centerChunkX, session.centerChunkZ,
-            () -> captureEntities(session, token));
+        if (!registry.isEntityCaptureActive(session, token)) {
+            retireCapture(session, token);
+            return;
+        }
+        boolean scheduled;
+        try {
+            scheduled = FoliaScheduler.runRegion(Wormholes.instance, session.world, session.centerChunkX, session.centerChunkZ,
+                () -> captureEntities(session, token));
+        } catch (Throwable error) {
+            completeEntityCaptureFailure(session, token, error, true);
+            return;
+        }
         if (!scheduled) {
             completeEntityCaptureFailure(session, token,
-                new IllegalStateException("Entity capture center region rejected scheduling"));
+                new CaptureSchedulingRejectedException("Entity capture center region rejected scheduling"), true);
         }
     }
 
@@ -102,16 +146,19 @@ final class ViewEntityPipeline {
         if (registry.isEmpty()) {
             return;
         }
-        for (ViewSession session : registry.sessions()) {
-            if (session.lastCapturedSnapshots.containsKey(entityId) && !session.peers.isEmpty()) {
+        for (ViewSession session : entityInterests.sessions(entityId)) {
+            if (registry.isSessionCurrent(session) && !session.peers.isEmpty()) {
                 WireMessage.ViewEntityAnimation message = new WireMessage.ViewEntityAnimation(session.portalId, entityId, hurt, animationOrdinal, yaw);
                 registry.network().sendToPeers(session.peers, message);
+            } else if (!registry.isSessionCurrent(session)) {
+                entityInterests.retire(session);
             }
         }
     }
 
     private void captureEntities(ViewSession session, ViewServer.EntityCaptureToken token) {
         if (!registry.isEntityCaptureActive(session, token)) {
+            retireCapture(session, token);
             return;
         }
         EntityCaptureContext context = new EntityCaptureContext(token);
@@ -138,6 +185,7 @@ final class ViewEntityPipeline {
                 Map<UUID, EntityVisual> captured = new HashMap<>();
                 for (Entity entity : admission.selectedEntities()) {
                     if (!registry.isEntityCaptureActive(session, token)) {
+                        retireCapture(session, token);
                         return;
                     }
                     if (entity.isDead() || !entity.isValid() || EffectManager.isPortalEffectEntity(entity)) {
@@ -152,6 +200,10 @@ final class ViewEntityPipeline {
             ViewServer.EntityAdmission<Entity> admission = new ViewServer.EntityAdmission<>(ViewServer.MAX_CAPTURED_ENTITIES);
             List<CompletableFuture<Void>> partitions = new ArrayList<>(session.columns.size());
             for (long[] column : session.columns) {
+                if (!registry.isEntityCaptureActive(session, token)) {
+                    retireCapture(session, token);
+                    return;
+                }
                 int chunkX = (int) column[0];
                 int chunkZ = (int) column[1];
                 BoundingBox partitionBounds = ViewServer.captureBoundsForChunk(session.bounds, chunkX, chunkZ);
@@ -162,6 +214,10 @@ final class ViewEntityPipeline {
                 partitions.add(partition);
                 boolean scheduled = FoliaScheduler.runRegion(Wormholes.instance, session.world, chunkX, chunkZ, () -> {
                     try {
+                        if (!registry.isEntityCaptureActive(session, token)) {
+                            partition.complete(null);
+                            return;
+                        }
                         for (Entity entity : session.world.getNearbyEntities(partitionBounds)) {
                             if (!FoliaScheduler.isOwnedByCurrentRegion(entity)
                                 || entity.isDead()
@@ -178,24 +234,26 @@ final class ViewEntityPipeline {
                     }
                 });
                 if (!scheduled) {
-                    partition.completeExceptionally(new IllegalStateException("Entity capture partition rejected scheduling for " + chunkX + "," + chunkZ));
+                    partition.completeExceptionally(new CaptureSchedulingRejectedException(
+                        "Entity capture partition rejected scheduling for " + chunkX + "," + chunkZ));
                 }
             }
             CompletableFuture.allOf(partitions.toArray(CompletableFuture[]::new)).whenComplete((ignored, error) -> {
                 if (error != null) {
-                    completeEntityCaptureFailure(session, token, error);
+                    completeEntityCaptureFailure(session, token, error, isSchedulingRejection(error));
                 } else {
                     captureAdmittedEntities(session, context, admission.selectedEntities(), entityTick, scheduler, deltaEnabled);
                 }
             });
         } catch (Throwable e) {
-            completeEntityCaptureFailure(session, token, e);
+            completeEntityCaptureFailure(session, token, e, false);
         }
     }
 
     private void captureAdmittedEntities(ViewSession session, EntityCaptureContext context, List<Entity> entities, long entityTick,
                                          EntityRateScheduler scheduler, boolean deltaEnabled) {
         if (!registry.isEntityCaptureActive(session, context.token)) {
+            retireCapture(session, context.token);
             return;
         }
         Map<UUID, EntityVisual> captured = new ConcurrentHashMap<>();
@@ -232,7 +290,7 @@ final class ViewEntityPipeline {
         }
         CompletableFuture.allOf(captures.toArray(CompletableFuture[]::new)).whenComplete((ignored, error) -> {
             if (error != null) {
-                completeEntityCaptureFailure(session, context.token, error);
+                completeEntityCaptureFailure(session, context.token, error, isSchedulingRejection(error));
                 return;
             }
             completeEntityCaptureSuccess(session, context, entityTick, scheduler, deltaEnabled, captured);
@@ -244,32 +302,49 @@ final class ViewEntityPipeline {
                                               Map<UUID, EntityVisual> captured) {
         ViewServer.EntityCaptureToken token = context.token;
         if (!registry.isEntityCaptureActive(session, token)) {
+            retireCapture(session, token);
             return;
         }
         if (!token.tryCompleteBeforeDeadline()) {
-            completeEntityCaptureFailure(session, token, entityCaptureTimeout(token));
+            completeEntityCaptureFailure(session, token, entityCaptureTimeout(token), false);
             return;
         }
         try {
+            if (!registry.isSessionCurrent(session)) {
+                return;
+            }
             session.sentProfiles.addAll(context.profileUpdates);
             session.blobCaptureStates.putAll(context.blobStateUpdates);
             for (EntityVisual visual : captured.values()) {
                 session.lastCapturedSnapshots.put(visual.id(), visual);
             }
+            entityInterests.replace(session, captured.keySet());
             publisher.publish(session, entityTick, scheduler, deltaEnabled, captured);
         } finally {
-            finishEntityCapture(session, token);
+            finishEntityCapture(session, token, false);
         }
     }
 
     private void completeEntityCaptureFailure(ViewSession session, ViewServer.EntityCaptureToken token, Throwable error) {
-        if (!registry.isEntityCaptureActive(session, token) || !token.tryComplete()) {
+        completeEntityCaptureFailure(session, token, error, false);
+    }
+
+    private void completeEntityCaptureFailure(ViewSession session, ViewServer.EntityCaptureToken token,
+                                              Throwable error, boolean retry) {
+        if (!registry.isEntityCaptureActive(session, token)) {
+            retireCapture(session, token);
+            return;
+        }
+        if (!token.tryComplete()) {
             return;
         }
         try {
-            publisher.publishEmptyPresence(session, error);
+            if (registry.isSessionCurrent(session)) {
+                entityInterests.replace(session, Set.of());
+                publisher.publishEmptyPresence(session, error);
+            }
         } finally {
-            finishEntityCapture(session, token);
+            finishEntityCapture(session, token, retry);
         }
     }
 
@@ -278,11 +353,44 @@ final class ViewEntityPipeline {
             "Entity capture generation " + token.generation() + " exceeded " + ViewServer.ENTITY_CAPTURE_DEADLINE_MILLIS + "ms");
     }
 
-    private void finishEntityCapture(ViewSession session, ViewServer.EntityCaptureToken token) {
+    private void finishEntityCapture(ViewSession session, ViewServer.EntityCaptureToken token, boolean retry) {
+        ViewEntityCaptureBudget.Admission<ViewSession> admission = captureAdmissions.remove(token);
+        if (retry) {
+            captureBudget.reject(admission);
+        } else {
+            captureBudget.complete(admission);
+        }
         if (session.activeEntityCapture == token) {
             session.activeEntityCapture = null;
             session.entityCaptureRunning.set(false);
         }
+    }
+
+    private void retireSession(ViewSession session) {
+        entityInterests.retire(session);
+        captureBudget.retire(session);
+        ViewServer.EntityCaptureToken token = session.activeEntityCapture;
+        if (token != null) {
+            retireCapture(session, token);
+        }
+    }
+
+    private void retireCapture(ViewSession session, ViewServer.EntityCaptureToken token) {
+        if (token.tryComplete()) {
+            finishEntityCapture(session, token, false);
+        }
+    }
+
+    private static boolean isSchedulingRejection(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            if (current instanceof CaptureSchedulingRejectedException) {
+                return true;
+            }
+            Throwable cause = current.getCause();
+            current = cause == current ? null : cause;
+        }
+        return false;
     }
 
     private static ViewServer.EntityRank entityRank(ViewSession session, Entity entity) {
@@ -457,5 +565,11 @@ final class ViewEntityPipeline {
         } catch (Throwable ignored) {
         }
         return new String[]{"", ""};
+    }
+
+    private static final class CaptureSchedulingRejectedException extends IllegalStateException {
+        private CaptureSchedulingRejectedException(String message) {
+            super(message);
+        }
     }
 }

@@ -13,6 +13,7 @@ import art.arcane.wormholes.network.replication.ChunkResyncRequest;
 import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
+import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 
@@ -29,6 +30,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -38,6 +41,8 @@ public final class ViewServer implements Listener {
 
     static final long DIRTY_DRAIN_INTERVAL_TICKS = 2L;
     static final int MAX_BULK_SNAPSHOTS_PER_TICK = 8;
+    static final int MAX_ENTITY_CAPTURE_ADMISSIONS_PER_TICK = 8;
+    static final int MAX_ENTITY_CAPTURES_IN_FLIGHT = 8;
     static final int MAX_CAPTURED_ENTITIES = 64;
     static final long ENTITY_CAPTURE_DEADLINE_MILLIS = 10_000L;
     static final int SIDEBAND_MAX_ENTITIES = 24;
@@ -57,8 +62,8 @@ public final class ViewServer implements Listener {
     private final ViewEntityPublisher entityPublisher;
     private final ViewEntityPipeline entityPipeline;
     private final ViewSubscriptions subscriptions;
+    private final ViewTaskLoop taskLoop;
     private volatile int captureApertureGuard;
-    private final AtomicBoolean taskRunning = new AtomicBoolean(false);
 
     record BlobCaptureState(long lastCaptureTick, Pose pose, boolean onFire, int stateSignature) {
     }
@@ -244,6 +249,17 @@ public final class ViewServer implements Listener {
         this.entityPublisher = new ViewEntityPublisher(registry);
         this.entityPipeline = new ViewEntityPipeline(registry, timeDelivery, entityPublisher);
         this.subscriptions = new ViewSubscriptions(registry, tickets, timeDelivery, bulkPipeline, this::startTask);
+        this.taskLoop = new ViewTaskLoop(
+            DIRTY_DRAIN_INTERVAL_TICKS,
+            () -> registry.isActive() && !registry.isEmpty(),
+            this::tick,
+            (task, delayTicks) -> FoliaScheduler.runAsync(Wormholes.instance, task, delayTicks),
+            task -> CompletableFuture.delayedExecutor(1L, TimeUnit.SECONDS).execute(task),
+            () -> {
+                Wormholes.w("[view] asynchronous view maintenance was rejected by the scheduler; retrying in one second");
+                WormholesTelemetry.countFailure("VIEW_MAINTENANCE_SCHEDULE_REJECTED");
+            }
+        );
         this.captureApertureGuard = currentCaptureApertureGuard();
         network.getReplicationManager().setBulkRetryListener(bulkPipeline::retryCanonicalBulk);
     }
@@ -331,7 +347,9 @@ public final class ViewServer implements Listener {
     }
 
     public void shutdown() {
+        taskLoop.stop();
         subscriptions.shutdown();
+        entityPipeline.shutdown();
     }
 
     public void syncGatewayTickets() {
@@ -418,21 +436,7 @@ public final class ViewServer implements Listener {
     }
 
     private void startTask() {
-        if (!taskRunning.compareAndSet(false, true)) {
-            return;
-        }
-        scheduleTick();
-    }
-
-    private void scheduleTick() {
-        FoliaScheduler.runAsync(Wormholes.instance, () -> {
-            tick();
-            if (registry.isEmpty()) {
-                taskRunning.set(false);
-                return;
-            }
-            scheduleTick();
-        }, DIRTY_DRAIN_INTERVAL_TICKS);
+        taskLoop.start();
     }
 
     private void tick() {
@@ -452,8 +456,9 @@ public final class ViewServer implements Listener {
             timeDelivery.retryPending(session);
             entityPipeline.expireCaptureIfNeeded(session);
             if (entityPipeline.isIntervalDue(portal.getNetworkViewEntityIntervalTicks())) {
-                entityPipeline.beginCapture(session);
+                entityPipeline.requestCapture(session);
             }
         }
+        entityPipeline.dispatchCaptures();
     }
 }

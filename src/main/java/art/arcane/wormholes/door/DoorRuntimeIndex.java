@@ -191,6 +191,7 @@ final class DoorRuntimeIndex implements AutoCloseable
 
 	void reconcileLoadedChunk(Chunk chunk)
 	{
+		sweep.chunkLoaded(chunk.getWorld(), chunk.getX(), chunk.getZ());
 		visuals.cleanChunk(chunk);
 		for(DoorSpatialIndex.Entry<RuntimeDoor> entry : spatialIndex.nearby(
 			chunk.getWorld().getUID(), chunk.getX() << 4, chunk.getZ() << 4, 0))

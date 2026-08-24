@@ -10,7 +10,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -37,6 +39,8 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
+import art.arcane.wormholes.PortalCandidateSnapshot;
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalStructure;
@@ -51,50 +55,62 @@ public final class PortalSkinRenderer {
     static final double SURFACE_THICKNESS_BLOCKS = 1.0D;
     private static final int FULL_BRIGHT = (15 << 4) | (15 << 20);
     private static final float VIEW_RANGE = 64.0F;
+    private static final long SHUTDOWN_WAIT_MILLIS = 2_000L;
     private static final AtomicInteger NEXT_SKIN_ID = new AtomicInteger(1_800_000_000);
+    private static final ObserverScheduler ENTITY_SCHEDULER = PortalSkinRenderer::scheduleObserverTask;
 
     private final ProjectionClaimArbiter claimArbiter;
     private final Map<UUID, Map<UUID, PortalSkinState>> instances;
-    private final Set<UUID> reconcilingObservers;
+    private final Set<UUID> teardownInFlight;
+    private final Set<UUID> teardownFailuresReported;
     private final Map<String, BlockData> blockDataCache;
     private final Map<BlockData, Integer> globalIdCache;
+    private final ObserverScheduler observerScheduler;
+    private final ReconciliationGate reconciliationGate;
 
     public PortalSkinRenderer(ProjectionClaimArbiter claimArbiter) {
+        this(claimArbiter, ENTITY_SCHEDULER);
+    }
+
+    PortalSkinRenderer(ProjectionClaimArbiter claimArbiter, ObserverScheduler observerScheduler) {
         this.claimArbiter = claimArbiter;
         this.instances = new ConcurrentHashMap<UUID, Map<UUID, PortalSkinState>>();
-        this.reconcilingObservers = ConcurrentHashMap.newKeySet();
+        this.teardownInFlight = ConcurrentHashMap.newKeySet();
+        this.teardownFailuresReported = ConcurrentHashMap.newKeySet();
         this.blockDataCache = new ConcurrentHashMap<String, BlockData>();
         this.globalIdCache = new ConcurrentHashMap<BlockData, Integer>();
+        this.observerScheduler = observerScheduler;
+        this.reconciliationGate = new ReconciliationGate();
     }
 
     public boolean isActive() {
         return !instances.isEmpty();
     }
 
-    public void tick(List<ILocalPortal> skinnedPortals, List<Player> onlinePlayers) {
-        if (skinnedPortals.isEmpty() && instances.isEmpty()) {
+    public Set<UUID> observerIds() {
+        return new HashSet<UUID>(instances.keySet());
+    }
+
+    public PortalCandidateSnapshot capture(List<ILocalPortal> skinnedPortals) {
+        return PortalCandidateSnapshot.capturePortalWorld(skinnedPortals);
+    }
+
+    public void reconcile(Player observer, PortalCandidateSnapshot candidates) {
+        if (observer == null) {
             return;
         }
-        Map<UUID, ILocalPortal> skinnedById = new HashMap<UUID, ILocalPortal>(skinnedPortals.size() * 2);
-        for (ILocalPortal portal : skinnedPortals) {
-            if (portal.getId() != null) {
-                skinnedById.put(portal.getId(), portal);
-            }
+        if (!reconciliationGate.enter()) {
+            return;
         }
-        for (Player observer : onlinePlayers) {
-            UUID observerId = observer.getUniqueId();
-            if (!reconcilingObservers.add(observerId)) {
-                continue;
-            }
-            boolean scheduled = FoliaScheduler.runEntity(Wormholes.instance, observer, () -> {
-                try {
-                    reconcileObserver(observer, skinnedById);
-                } finally {
-                    reconcilingObservers.remove(observerId);
+        try {
+            reconcileObserver(observer, candidates);
+        } finally {
+            try {
+                if (reconciliationGate.isClosed()) {
+                    attemptTeardownObserver(observer);
                 }
-            });
-            if (!scheduled) {
-                reconcilingObservers.remove(observerId);
+            } finally {
+                reconciliationGate.exit();
             }
         }
     }
@@ -104,11 +120,162 @@ public final class PortalSkinRenderer {
     }
 
     public void shutdown() {
-        instances.clear();
-        reconcilingObservers.clear();
+        if (!reconciliationGate.close()) {
+            return;
+        }
+        long deadlineNanos = System.nanoTime() + (SHUTDOWN_WAIT_MILLIS * 1_000_000L);
+        awaitReconciliationQuiescence(deadlineNanos);
+        Map<UUID, Player> onlineById = new HashMap<UUID, Player>();
+        for (Player player : new ArrayList<Player>(Wormholes.instance.getServer().getOnlinePlayers())) {
+            onlineById.put(player.getUniqueId(), player);
+        }
+        for (UUID observerId : new ArrayList<UUID>(instances.keySet())) {
+            if (!onlineById.containsKey(observerId)) {
+                instances.remove(observerId);
+            }
+        }
+        long remainingNanos = Math.max(0L, deadlineNanos - System.nanoTime());
+        drainOwnerTeardown(onlineById, Math.max(1, Settings.PROJECTION_MAX_NEW_OBSERVER_SCANS_PER_TICK),
+            remainingNanos / 1_000_000L);
+        blockDataCache.clear();
+        globalIdCache.clear();
     }
 
-    private void reconcileObserver(Player observer, Map<UUID, ILocalPortal> skinnedById) {
+    private void awaitReconciliationQuiescence(long deadlineNanos) {
+        while (reconciliationGate.active() > 0 && System.nanoTime() < deadlineNanos) {
+            try {
+                Thread.sleep(1L);
+            } catch (InterruptedException error) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+
+    private void drainOwnerTeardown(Map<UUID, Player> onlineById, int maxInFlight, long waitMillis) {
+        Object completionSignal = new Object();
+        long deadlineNanos = System.nanoTime() + (Math.max(0L, waitMillis) * 1_000_000L);
+        while (!instances.isEmpty()) {
+            int available = Math.max(0, maxInFlight - teardownInFlight.size());
+            for (UUID observerId : new ArrayList<UUID>(instances.keySet())) {
+                if (available <= 0) {
+                    break;
+                }
+                Player observer = onlineById.get(observerId);
+                if (observer == null || !observer.isOnline()) {
+                    instances.remove(observerId);
+                    continue;
+                }
+                try {
+                    boolean scheduled = dispatchObserverTask(teardownInFlight, observerId, observer,
+                        () -> attemptTeardownObserver(observer), observerScheduler, () -> signal(completionSignal));
+                    if (scheduled) {
+                        available--;
+                    }
+                } catch (RuntimeException error) {
+                    reportTeardownFailure(observerId, "schedule", error);
+                }
+            }
+            if (instances.isEmpty() || System.nanoTime() >= deadlineNanos) {
+                break;
+            }
+            long remainingNanos = deadlineNanos - System.nanoTime();
+            long waitSliceMillis = Math.max(1L, Math.min(10L, remainingNanos / 1_000_000L));
+            synchronized (completionSignal) {
+                try {
+                    completionSignal.wait(waitSliceMillis);
+                } catch (InterruptedException error) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+        if (!instances.isEmpty()) {
+            Wormholes.instance.getLogger().warning("Portal skin shutdown retained " + instances.size()
+                + " observer teardown states because their entity schedulers did not complete before the deadline.");
+        }
+    }
+
+    private void teardownObserver(Player observer) {
+        UUID observerId = observer.getUniqueId();
+        Map<UUID, PortalSkinState> current = instances.get(observerId);
+        if (current == null) {
+            return;
+        }
+        World world = observer.getWorld();
+        for (PortalSkinState state : current.values()) {
+            teardown(observer, state, world);
+        }
+        instances.remove(observerId, current);
+    }
+
+    private void attemptTeardownObserver(Player observer) {
+        try {
+            teardownObserver(observer);
+        } catch (RuntimeException error) {
+            reportTeardownFailure(observer.getUniqueId(), "complete", error);
+        }
+    }
+
+    private void reportTeardownFailure(UUID observerId, String operation, RuntimeException error) {
+        if (!teardownFailuresReported.add(observerId)) {
+            return;
+        }
+        Wormholes.instance.getLogger().log(Level.WARNING,
+            "Unable to " + operation + " portal skin teardown for " + observerId, error);
+    }
+
+    static boolean dispatchObserverTask(Set<UUID> inFlight,
+                                        UUID observerId,
+                                        Player observer,
+                                        Runnable task,
+                                        ObserverScheduler scheduler,
+                                        Runnable terminal) {
+        if (!inFlight.add(observerId)) {
+            return false;
+        }
+        AtomicBoolean completed = new AtomicBoolean();
+        Runnable complete = () -> {
+            if (!completed.compareAndSet(false, true)) {
+                return;
+            }
+            inFlight.remove(observerId);
+            terminal.run();
+        };
+        boolean scheduled;
+        try {
+            scheduled = scheduler.schedule(observer, () -> {
+                try {
+                    task.run();
+                } finally {
+                    complete.run();
+                }
+            }, complete);
+        } catch (RuntimeException error) {
+            complete.run();
+            throw error;
+        }
+        if (!scheduled) {
+            complete.run();
+        }
+        return scheduled;
+    }
+
+    private static void signal(Object completionSignal) {
+        synchronized (completionSignal) {
+            completionSignal.notifyAll();
+        }
+    }
+
+    private static boolean scheduleObserverTask(Player observer, Runnable task, Runnable retired) {
+        if (FoliaScheduler.isOwnedByCurrentRegion(observer)) {
+            task.run();
+            return true;
+        }
+        return FoliaScheduler.runEntity(Wormholes.instance, observer, task, 0L, retired);
+    }
+
+    private void reconcileObserver(Player observer, PortalCandidateSnapshot candidates) {
         if (observer == null || !observer.isOnline()) {
             return;
         }
@@ -125,7 +292,11 @@ public final class PortalSkinRenderer {
         }
 
         Set<UUID> eligible = new HashSet<UUID>();
-        for (ILocalPortal portal : skinnedById.values()) {
+        for (ILocalPortal portal : candidates.candidates(world, location)) {
+            UUID portalId = portal.getId();
+            if (portalId == null) {
+                continue;
+            }
             World portalWorld = portal.getWorld();
             if (portalWorld == null || !world.getUID().equals(portalWorld.getUID())) {
                 continue;
@@ -139,13 +310,12 @@ public final class PortalSkinRenderer {
             if (mode == SkinRenderMode.NONE) {
                 continue;
             }
-            UUID portalId = portal.getId();
             eligible.add(portalId);
             String key = stateKey(portal);
             PortalSkinState existing = current == null ? null : current.get(portalId);
             if (existing != null && existing.stateKey().equals(key)) {
                 if (existing.mode() == SkinRenderMode.FLUID_CLAIMS) {
-                    submitFluidClaims(observer, portal, world, skin, existing.claimOwnerId());
+                    submitFluidClaims(observer, portal, world, existing.claimOwnerId(), existing.fluidClaims());
                 }
                 continue;
             }
@@ -199,23 +369,23 @@ public final class PortalSkinRenderer {
 
     private PortalSkinState spawnFluid(Player observer, ILocalPortal portal, BlockData data, World world, String stateKey) {
         UUID claimOwnerId = fluidClaimOwnerId(portal.getId());
-        if (!submitFluidClaims(observer, portal, world, portal.getSurfaceSkin(), claimOwnerId)) {
+        KList<Vector> cells = portal.getStructure().getBlockPositions();
+        if (cells.isEmpty()) {
             return null;
         }
-        return new PortalSkinState(SkinRenderMode.FLUID_CLAIMS, stateKey, null, portal, claimOwnerId);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = fluidClaims(cells, data);
+        if (!submitFluidClaims(observer, portal, world, claimOwnerId, claims)) {
+            return null;
+        }
+        return new PortalSkinState(SkinRenderMode.FLUID_CLAIMS, stateKey, null, portal, claimOwnerId, claims);
     }
 
-    private boolean submitFluidClaims(Player observer, ILocalPortal portal, World world, String skin, UUID claimOwnerId) {
-        BlockData data = blockDataFor(skin);
-        if (data == null) {
+    private boolean submitFluidClaims(Player observer, ILocalPortal portal, World world, UUID claimOwnerId,
+                                      Long2ObjectOpenHashMap<ProjectedBlockClaim> claims) {
+        if (claims == null || claims.isEmpty()) {
             return false;
         }
-        PortalStructure structure = portal.getStructure();
-        KList<Vector> cells = structure.getBlockPositions();
-        if (cells.isEmpty()) {
-            return false;
-        }
-        claimArbiter.submit(observer, claimOwnerId, world, fluidClaims(cells, data), priorityDistance(observer, portal), false);
+        claimArbiter.submit(observer, claimOwnerId, world, claims, priorityDistance(observer, portal), false);
         return true;
     }
 
@@ -244,7 +414,7 @@ public final class PortalSkinRenderer {
             ids[i] = id;
             sendDisplay(observer, id, panes.get(i), globalId);
         }
-        return new PortalSkinState(SkinRenderMode.DISPLAY, stateKey, ids, portal, null);
+        return new PortalSkinState(SkinRenderMode.DISPLAY, stateKey, ids, portal, null, null);
     }
 
     static List<SkinTransform> buildPanes(ILocalPortal portal) {
@@ -418,6 +588,45 @@ public final class PortalSkinRenderer {
     }
 
     private record PortalSkinState(SkinRenderMode mode, String stateKey, int[] displayIds,
-                                   ILocalPortal portal, UUID claimOwnerId) {
+                                   ILocalPortal portal, UUID claimOwnerId,
+                                   Long2ObjectOpenHashMap<ProjectedBlockClaim> fluidClaims) {
+    }
+
+    @FunctionalInterface
+    interface ObserverScheduler {
+        boolean schedule(Player observer, Runnable task, Runnable retired);
+    }
+
+    static final class ReconciliationGate {
+        private final AtomicBoolean closed = new AtomicBoolean();
+        private final AtomicInteger active = new AtomicInteger();
+
+        boolean enter() {
+            if (closed.get()) {
+                return false;
+            }
+            active.incrementAndGet();
+            if (!closed.get()) {
+                return true;
+            }
+            active.decrementAndGet();
+            return false;
+        }
+
+        void exit() {
+            active.decrementAndGet();
+        }
+
+        boolean close() {
+            return closed.compareAndSet(false, true);
+        }
+
+        boolean isClosed() {
+            return closed.get();
+        }
+
+        int active() {
+            return active.get();
+        }
     }
 }

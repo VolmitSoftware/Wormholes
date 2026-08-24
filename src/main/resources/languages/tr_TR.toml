@@ -409,6 +409,7 @@ locale = "tr_TR"
 "command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} cep duvari olamaz. Dusmeyen kati bir blok kullan."
 "command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} cep cikis kapisi olamaz. Elle acilan bir kapi kullan; demir kapilar reddedilir."
 "command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>O cep zaten bu boyutta ve bu malzemelerde."
+"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Cep boyutlandirma durduruldu: <white>{containers}<red> dolu saklama blogu yok edilecekti. Yeniden denemeden once bosalt; <white>confirm=true<red> bu guvenlik kontrolunu atlayamaz."
 "command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Cep <white>{size}<green> blok olarak yeniden insa edildi (onceki <white>{previous}<green>), duvarlar <white>{material}<green>, cikis kapisi <white>{door}."
 "command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Cep yeniden insa edilemedi. Konsolu kontrol et."
 "command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Cep boyutu yuklu degil."
@@ -584,7 +585,7 @@ locale = "tr_TR"
 "door.menu.access.entry" = ["<white>{name}","<gray>Durum: <aqua>{state}","","<dark_gray>Sol tık: izin ver. Sağ tık: engelle.","<dark_gray>Orta tık veya Shift + sol tık: kaldır."]
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Cep <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Boyut <white>{size}<gray> blok, duvarlar <white>{material}<gray>, cikis kapisi <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Sinirlar <white>{minimum}<gray> ile <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} blok olarak yeniden insa etmek <white>{blocks}<red> yerlestirilmis blogu (<white>{containers}<red> tanesi esya dolu) yok eder ve <white>{entities}<red> varligi tasir.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Sandik icerikleri ve yeni duvarlarin disinda kalan her sey girise birakilir. Geri kalani kaybolur.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Devam etmek icin ayni komutu <white>confirm=true<gray> ile calistir."]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} blok olarak yeniden insa etmek <white>{blocks}<red> yerlestirilmis blogu yok eder ve <white>{entities}<red> varligi tasir.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Yeni duvarlarin disindaki bloklar yok edilir; tasinan varliklar girise goturulur.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Devam etmek icin ayni komutu <white>confirm=true<gray> ile calistir."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> portal silindi ve yerel portal bağlantıları temizlendi."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> portal silindi ve yerel portal bağlantıları temizlendi."

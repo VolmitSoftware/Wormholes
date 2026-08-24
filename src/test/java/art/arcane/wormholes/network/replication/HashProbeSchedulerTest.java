@@ -19,6 +19,26 @@ class HashProbeSchedulerTest {
     private static final String PEER = "peer-h";
 
     @Test
+    void liveConfigureReschedulesIntervalAndClampsProbeSize(@TempDir Path dir) {
+        TestNetworkSink sink = new TestNetworkSink(dir);
+        HashProbeScheduler scheduler = new HashProbeScheduler(sink, sink.getReplicationManager());
+        scheduler.configure(3600L, 0);
+        assertEquals(1, scheduler.configuredChunksPerProbe());
+
+        scheduler.start();
+        try {
+            assertEquals(3600L, scheduler.scheduledIntervalSec());
+
+            scheduler.configure(1800L, Integer.MAX_VALUE);
+
+            assertEquals(1800L, scheduler.scheduledIntervalSec());
+            assertEquals(ChunkHashProbe.MAX_ENTRIES, scheduler.configuredChunksPerProbe());
+        } finally {
+            scheduler.stop();
+        }
+    }
+
+    @Test
     void probeEntriesCarryRealHashes(@TempDir Path dir) {
         TestNetworkSink sink = new TestNetworkSink(dir);
         sink.registerFakePeer(PEER);

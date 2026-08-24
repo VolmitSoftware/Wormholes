@@ -3,12 +3,17 @@ package art.arcane.wormholes.network;
 import art.arcane.volmlib.util.localization.MessageArgument;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.api.traversal.TraversalContext;
+import art.arcane.wormholes.api.traversal.TraversalDestination;
+import art.arcane.wormholes.api.traversal.TraversalRefundReason;
+import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.network.TraversalFailureLedger.Failure;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.PortalTravelCost;
 import art.arcane.wormholes.portal.Traversive;
@@ -19,6 +24,7 @@ import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.wormholes.service.WormholesTelemetry;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
@@ -32,11 +38,21 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.world.EntitiesLoadEvent;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 
 public final class TraversalService implements Listener {
@@ -45,17 +61,28 @@ public final class TraversalService implements Listener {
 
     private record PendingHandoff(Player player, UUID playerId, String peerName, UUID sourcePortalId,
                                   Traversive traversive, PlayerTransfer.Method transferMethod,
-                                  PortalTravelCost travelCost) {
+                                  PortalTravelCost travelCost, TraversalContext traversalContext) {
     }
 
     private record PendingEntityTransfer(Entity entity, String peerName, UUID sourcePortalId, Traversive traversive,
                                          TraversalEntityTransit.TransitState transitState, long deadlineMillis) {
     }
 
+    private record LoadedChunk(UUID worldId, int chunkX, int chunkZ) {
+    }
+
+    private record ShutdownRestore(UUID entityId, CompletableFuture<Boolean> completion) {
+    }
+
+    private record HandoffTimeout(String peerName, long rateLimitMillis, Failure failure, String detail, String notice) {
+    }
+
     private static final long ARRIVAL_TTL_MILLIS = 60_000L;
+    private static final long SHUTDOWN_RESTORE_TIMEOUT_MILLIS = 2_000L;
 
     private final NetworkManager network;
     private final Map<UUID, PendingHandoff> pendingHandoffs = new ConcurrentHashMap<>();
+    private final Set<UUID> acknowledgedHandoffs = ConcurrentHashMap.newKeySet();
     private final PlayerHandoffAdmission inboundAdmissions = new PlayerHandoffAdmission();
     private final PlayerHandoffRateLimiter outboundRateLimiter = new PlayerHandoffRateLimiter();
     private final Map<UUID, PendingEntityTransfer> pendingEntityTransfers = new ConcurrentHashMap<>();
@@ -65,8 +92,13 @@ public final class TraversalService implements Listener {
     private final AtomicLong completedTransfers = new AtomicLong();
     private final TraversalFailureLedger failures = new TraversalFailureLedger();
     private final TraversalNotices notices = new TraversalNotices();
+    private final TraversalEntityScheduler entityScheduler;
     private final TraversalEntityTransit entityTransit;
     private final TraversalArrivalPlacer arrivals;
+    private final AtomicBoolean shutdownStarted = new AtomicBoolean();
+    private final ReentrantReadWriteLock lifecycleLock = new ReentrantReadWriteLock(true);
+    private final Lock lifecycleReadLock = lifecycleLock.readLock();
+    private final Lock lifecycleWriteLock = lifecycleLock.writeLock();
 
     public TraversalService(NetworkManager network) {
         this(network, TraversalEntityScheduler.BUKKIT);
@@ -74,8 +106,15 @@ public final class TraversalService implements Listener {
 
     TraversalService(NetworkManager network, TraversalEntityScheduler entityScheduler) {
         this.network = network;
-        this.entityTransit = new TraversalEntityTransit(this::hasLiveTransfer, failures, entityScheduler);
-        this.arrivals = new TraversalArrivalPlacer(network, inboundAdmissions, failures, notices, entityScheduler);
+        this.entityScheduler = Objects.requireNonNull(entityScheduler, "entityScheduler");
+        this.entityTransit = new TraversalEntityTransit(this::hasLiveTransfer, failures, this.entityScheduler);
+        this.arrivals = new TraversalArrivalPlacer(
+            network,
+            inboundAdmissions,
+            failures,
+            notices,
+            this.entityScheduler,
+            this::runArrivalLifecycleTask);
     }
 
     public Stats statsSnapshot() {
@@ -84,6 +123,9 @@ public final class TraversalService implements Listener {
     }
 
     public void runRecoveryMaintenance() {
+        if (shutdownStarted.get()) {
+            return;
+        }
         entityTransit.drainQueuedTransitRestores();
         prunePendingEntityTransfers();
         retryAcceptedEntityTransferAcks();
@@ -93,9 +135,93 @@ public final class TraversalService implements Listener {
         return failures.breakdown();
     }
 
+    public void shutdown() {
+        if (!shutdownStarted.compareAndSet(false, true)) {
+            return;
+        }
+
+        List<ShutdownRestore> restores;
+        lifecycleWriteLock.lock();
+        try {
+            for (Map.Entry<UUID, PendingHandoff> entry : pendingHandoffs.entrySet()) {
+                PendingHandoff handoff = entry.getValue();
+                if (!pendingHandoffs.remove(entry.getKey(), handoff)) {
+                    continue;
+                }
+                acknowledgedHandoffs.remove(entry.getKey());
+                if (network != null) {
+                    network.send(handoff.peerName(), new WireMessage.HandoffCancel(entry.getKey(), handoff.playerId()));
+                }
+                transferLocks.unlock(handoff.playerId());
+                LocalPortal.clearTeleportInFlight(handoff.playerId());
+                rejectSource(handoff.player(), handoff);
+            }
+
+            restores = new ArrayList<>(pendingEntityTransfers.size());
+            for (Map.Entry<UUID, PendingEntityTransfer> entry : pendingEntityTransfers.entrySet()) {
+                PendingEntityTransfer pending = entry.getValue();
+                if (!pendingEntityTransfers.remove(entry.getKey(), pending)) {
+                    continue;
+                }
+                UUID entityId = pending.entity().getUniqueId();
+                transferLocks.unlock(entityId);
+                CompletableFuture<Boolean> completion = entityTransit.restoreRejectedForShutdown(
+                    pending.entity(), pending.transitState(), pending.sourcePortalId(), pending.traversive());
+                restores.add(new ShutdownRestore(entityId, completion));
+            }
+            acknowledgedHandoffs.clear();
+            inboundAdmissions.clear();
+            appliedEntityTransfers.clear();
+            acceptedEntityAckRetries.clear();
+            transferLocks.clear();
+        } finally {
+            lifecycleWriteLock.unlock();
+        }
+        awaitShutdownRestores(restores);
+    }
+
+    private void awaitShutdownRestores(List<ShutdownRestore> restores) {
+        if (restores.isEmpty()) {
+            return;
+        }
+        CompletableFuture<?>[] completions = new CompletableFuture<?>[restores.size()];
+        for (int index = 0; index < restores.size(); index++) {
+            completions[index] = restores.get(index).completion();
+        }
+        try {
+            CompletableFuture.allOf(completions).get(SHUTDOWN_RESTORE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException | TimeoutException exception) {
+            for (ShutdownRestore restore : restores) {
+                if (!restore.completion().isDone()) {
+                    failures.recordUnrecovered(Failure.ENTITY_TRANSIT_RESTORE_SCHEDULE_REJECTED, restore.entityId(),
+                        "shutdown timed out waiting for the owning entity scheduler; the persistent transit stamp remains for startup recovery");
+                }
+            }
+        }
+    }
+
+    private boolean runArrivalLifecycleTask(Runnable task) {
+        lifecycleReadLock.lock();
+        try {
+            if (shutdownStarted.get()) {
+                return false;
+            }
+            task.run();
+            return true;
+        } finally {
+            lifecycleReadLock.unlock();
+        }
+    }
+
     static boolean scheduleOnEntity(Entity entity, Runnable task, Runnable retired, long delayTicks) {
         return Wormholes.instance != null
             && WormholesPlatform.scheduleEntity(Wormholes.instance, entity, task, retired, delayTicks);
+    }
+
+    private boolean scheduleEntity(Entity entity, Runnable task, Runnable retired, long delayTicks) {
+        return entityScheduler.schedule(entity, task, retired, delayTicks);
     }
 
     public void beginPlayerHandoff(Player player, UniversalTunnel tunnel, Traversive traversive) {
@@ -103,6 +229,10 @@ public final class TraversalService implements Listener {
     }
 
     public void beginPlayerHandoff(Player player, UniversalTunnel tunnel, Traversive traversive, LocalPortal sourcePortal) {
+        if (shutdownStarted.get()) {
+            rejectSource(player, sourcePortal, traversive);
+            return;
+        }
         String peerName = tunnel.getServerName();
         NetworkConfig config = Wormholes.settings.getNetwork();
         UUID playerId = player.getUniqueId();
@@ -147,89 +277,130 @@ public final class TraversalService implements Listener {
         UUID transferId = UUID.randomUUID();
         long deadline = now + config.handoffTimeoutMs;
         transferLocks.lock(playerId, deadline);
-        pendingHandoffs.put(transferId, new PendingHandoff(
+        PendingHandoff pendingHandoff = new PendingHandoff(
             player,
             playerId,
             peerName,
             sourcePortalId(sourcePortal),
             traversive,
             transferMethod,
-            travelCost
-        ));
-        boolean directTransfer = transferMethod == PlayerTransfer.Method.DIRECT;
-        Wormholes.i("[handoff] begin " + player.getName() + " -> peer=" + peerName + " destPortal=" + tunnel.getDestinationPortalId() + " transferId=" + transferId + " method=" + transferMethod + " transactional=true");
-        boolean queued = network.send(peerName, new WireMessage.HandoffRequest(
-            transferId,
-            playerId,
-            player.getName(),
-            tunnel.getDestinationPortalId(),
-            directTransfer,
-            WireTraversive.fromTraversive(traversive)
-        ));
-        if (!queued) {
-            pendingHandoffs.remove(transferId);
-            transferLocks.unlock(playerId);
-            outboundRateLimiter.penalize(playerId, System.currentTimeMillis(), rateLimitMillis);
-            failures.record(Failure.HANDOFF_QUEUE_REJECTED, playerId, peerName + " could not queue the handoff request");
-            rejectSource(player, sourcePortal, traversive);
-            notices.unreachable(player, peerName + " could not queue the handoff request");
-            return;
+            travelCost,
+            traversalContext(player, tunnel, traversive, sourcePortal)
+        );
+        lifecycleReadLock.lock();
+        try {
+            if (shutdownStarted.get()) {
+                transferLocks.unlock(playerId);
+                rejectSource(player, sourcePortal, traversive);
+                return;
+            }
+            pendingHandoffs.put(transferId, pendingHandoff);
+            boolean directTransfer = transferMethod == PlayerTransfer.Method.DIRECT;
+            Wormholes.i("[handoff] begin " + player.getName() + " -> peer=" + peerName + " destPortal=" + tunnel.getDestinationPortalId() + " transferId=" + transferId + " method=" + transferMethod + " transactional=true");
+            boolean queued = network.send(peerName, new WireMessage.HandoffRequest(
+                transferId,
+                playerId,
+                player.getName(),
+                tunnel.getDestinationPortalId(),
+                directTransfer,
+                WireTraversive.fromTraversive(traversive)
+            ));
+            if (!queued) {
+                if (!pendingHandoffs.remove(transferId, pendingHandoff)) {
+                    return;
+                }
+                acknowledgedHandoffs.remove(transferId);
+                transferLocks.unlock(playerId);
+                outboundRateLimiter.penalize(playerId, System.currentTimeMillis(), rateLimitMillis);
+                failures.record(Failure.HANDOFF_QUEUE_REJECTED, playerId, peerName + " could not queue the handoff request");
+                rejectSource(player, sourcePortal, traversive);
+                notices.unreachable(player, peerName + " could not queue the handoff request");
+                return;
+            }
+            long timeoutTicks = Math.max(1L, config.handoffTimeoutMs / 50L);
+            Runnable handoffTimeoutBody = () -> terminateTimedOutHandoff(
+                transferId,
+                new HandoffTimeout(
+                    peerName,
+                    rateLimitMillis,
+                    Failure.HANDOFF_TIMED_OUT,
+                    peerName + " did not ack within " + config.handoffTimeoutMs + "ms",
+                    peerName + " did not ack within " + config.handoffTimeoutMs + "ms"));
+            Runnable handoffTimeoutRetired = () -> terminateTimedOutHandoff(
+                transferId,
+                new HandoffTimeout(
+                    peerName,
+                    rateLimitMillis,
+                    Failure.HANDOFF_TIMEOUT_RETIRED,
+                    "traveler retired before the " + peerName + " handoff timeout could run",
+                    peerName + " handoff was abandoned when you left the source server"));
+            boolean timeoutScheduled = scheduleEntity(player, handoffTimeoutBody, handoffTimeoutRetired, timeoutTicks);
+            if (!timeoutScheduled) {
+                PendingHandoff rejected = pendingHandoffs.remove(transferId);
+                if (rejected != null) {
+                    acknowledgedHandoffs.remove(transferId);
+                    network.send(peerName, new WireMessage.HandoffCancel(transferId, rejected.playerId()));
+                    transferLocks.unlock(rejected.playerId());
+                    outboundRateLimiter.penalize(rejected.playerId(), System.currentTimeMillis(), rateLimitMillis);
+                    failures.record(Failure.HANDOFF_TIMEOUT_SCHEDULE_REJECTED, rejected.playerId(), "source scheduler rejected the handoff timeout");
+                    rejectSource(player, rejected);
+                    notices.unreachable(player, "source scheduler rejected the handoff timeout");
+                }
+                return;
+            }
+            if (sourcePortal != null) {
+                sourcePortal.startPlayerDepartureHold(player, traversive);
+            }
+        } finally {
+            lifecycleReadLock.unlock();
         }
-        long timeoutTicks = Math.max(1L, config.handoffTimeoutMs / 50L);
-        Runnable handoffTimeoutBody = () -> {
+    }
+
+    private void terminateTimedOutHandoff(UUID transferId, HandoffTimeout timeout) {
+        lifecycleReadLock.lock();
+        try {
+            if (shutdownStarted.get()) {
+                return;
+            }
             PendingHandoff expired = pendingHandoffs.remove(transferId);
-            if (expired != null) {
-                network.send(peerName, new WireMessage.HandoffCancel(transferId, expired.playerId()));
-                transferLocks.unlock(expired.playerId());
-                outboundRateLimiter.penalize(expired.playerId(), System.currentTimeMillis(), rateLimitMillis);
-                failures.record(Failure.HANDOFF_TIMED_OUT, expired.playerId(), peerName + " did not ack within " + config.handoffTimeoutMs + "ms");
-                rejectSource(player, expired);
-                notices.unreachable(player, peerName + " did not ack within " + config.handoffTimeoutMs + "ms");
+            if (expired == null) {
+                return;
             }
-        };
-        Runnable handoffTimeoutRetired = () -> {
-            PendingHandoff expired = pendingHandoffs.remove(transferId);
-            if (expired != null) {
-                network.send(peerName, new WireMessage.HandoffCancel(transferId, expired.playerId()));
-                transferLocks.unlock(expired.playerId());
-                outboundRateLimiter.penalize(expired.playerId(), System.currentTimeMillis(), rateLimitMillis);
-                failures.record(Failure.HANDOFF_TIMEOUT_RETIRED, expired.playerId(), "traveler retired before the " + peerName + " handoff timeout could run");
-                rejectSource(player, expired);
-                notices.unreachable(player, peerName + " handoff was abandoned when you left the source server");
-            }
-        };
-        boolean timeoutScheduled = scheduleOnEntity(player, handoffTimeoutBody, handoffTimeoutRetired, timeoutTicks);
-        if (!timeoutScheduled) {
-            PendingHandoff rejected = pendingHandoffs.remove(transferId);
-            if (rejected != null) {
-                network.send(peerName, new WireMessage.HandoffCancel(transferId, rejected.playerId()));
-                transferLocks.unlock(rejected.playerId());
-                outboundRateLimiter.penalize(rejected.playerId(), System.currentTimeMillis(), rateLimitMillis);
-                failures.record(Failure.HANDOFF_TIMEOUT_SCHEDULE_REJECTED, rejected.playerId(), "source scheduler rejected the handoff timeout");
-                rejectSource(player, rejected);
-                notices.unreachable(player, "source scheduler rejected the handoff timeout");
-            }
-            return;
-        }
-        if (sourcePortal != null) {
-            sourcePortal.startPlayerDepartureHold(player, traversive);
+            acknowledgedHandoffs.remove(transferId);
+            network.send(timeout.peerName(), new WireMessage.HandoffCancel(transferId, expired.playerId()));
+            transferLocks.unlock(expired.playerId());
+            outboundRateLimiter.penalize(expired.playerId(), System.currentTimeMillis(), timeout.rateLimitMillis());
+            failures.record(timeout.failure(), expired.playerId(), timeout.detail());
+            rejectSource(expired.player(), expired);
+            notices.unreachable(expired.player(), timeout.notice());
+        } finally {
+            lifecycleReadLock.unlock();
         }
     }
 
     public void cancelPendingHandoff(UUID playerId) {
-        for (Map.Entry<UUID, PendingHandoff> entry : pendingHandoffs.entrySet()) {
-            PendingHandoff handoff = entry.getValue();
-            if (!handoff.playerId().equals(playerId)) {
-                continue;
+        lifecycleReadLock.lock();
+        try {
+            if (shutdownStarted.get()) {
+                return;
             }
-            if (!pendingHandoffs.remove(entry.getKey(), handoff)) {
-                continue;
+            for (Map.Entry<UUID, PendingHandoff> entry : pendingHandoffs.entrySet()) {
+                PendingHandoff handoff = entry.getValue();
+                if (!handoff.playerId().equals(playerId)) {
+                    continue;
+                }
+                if (!pendingHandoffs.remove(entry.getKey(), handoff)) {
+                    continue;
+                }
+                acknowledgedHandoffs.remove(entry.getKey());
+                network.send(handoff.peerName(), new WireMessage.HandoffCancel(entry.getKey(), handoff.playerId()));
+                transferLocks.unlock(handoff.playerId());
+                LocalPortal.clearTeleportInFlight(handoff.playerId());
+                failures.record(Failure.HANDOFF_RETREATED, handoff.playerId(), "traveler retreated from the source portal before " + handoff.peerName() + " acked");
+                return;
             }
-            network.send(handoff.peerName(), new WireMessage.HandoffCancel(entry.getKey(), handoff.playerId()));
-            transferLocks.unlock(handoff.playerId());
-            LocalPortal.clearTeleportInFlight(handoff.playerId());
-            failures.record(Failure.HANDOFF_RETREATED, handoff.playerId(), "traveler retreated from the source portal before " + handoff.peerName() + " acked");
-            return;
+        } finally {
+            lifecycleReadLock.unlock();
         }
     }
 
@@ -238,6 +409,10 @@ public final class TraversalService implements Listener {
     }
 
     public void beginEntityTransfer(Entity entity, UniversalTunnel tunnel, Traversive traversive, LocalPortal sourcePortal) {
+        if (shutdownStarted.get()) {
+            rejectSource(entity, sourcePortal, traversive);
+            return;
+        }
         String peerName = tunnel.getServerName();
         if (network.getPeer(peerName) == null || !network.isPeerReady(peerName)) {
             failures.record(Failure.ENTITY_PEER_UNAVAILABLE, entity.getUniqueId(), peerName + " is not configured or not connected");
@@ -279,43 +454,77 @@ public final class TraversalService implements Listener {
             TraversalEntityTransit.TransitState.capture(entity),
             deadline
         );
-        pendingEntityTransfers.put(transferId, pending);
-        boolean sent = network.send(peerName, new WireMessage.EntityTransfer(transferId, tunnel.getDestinationPortalId(), data, WireTraversive.fromTraversive(traversive)));
-        if (!sent) {
-            if (pendingEntityTransfers.remove(transferId, pending)) {
+        lifecycleReadLock.lock();
+        try {
+            if (shutdownStarted.get()) {
                 transferLocks.unlock(entity.getUniqueId());
-                failures.record(Failure.ENTITY_SEND_REJECTED, entity.getUniqueId(), peerName + " could not queue the entity transfer");
                 restoreRejectedEntityTransfer(pending);
+                return;
             }
-            return;
-        }
-        entityTransit.markInTransit(entity, () -> pendingEntityTransfers.containsKey(transferId));
-        long timeoutTicks = Math.max(1L, config.handoffTimeoutMs / 50L);
-        Runnable transferTimeoutBody = () -> {
-            PendingEntityTransfer expired = pendingEntityTransfers.remove(transferId);
-            if (expired != null) {
+            pendingEntityTransfers.put(transferId, pending);
+            boolean sent = network.send(peerName, new WireMessage.EntityTransfer(
+                transferId,
+                tunnel.getDestinationPortalId(),
+                data,
+                WireTraversive.fromTraversive(traversive)));
+            if (!sent) {
+                if (pendingEntityTransfers.remove(transferId, pending)) {
+                    transferLocks.unlock(entity.getUniqueId());
+                    failures.record(Failure.ENTITY_SEND_REJECTED, entity.getUniqueId(), peerName + " could not queue the entity transfer");
+                    restoreRejectedEntityTransfer(pending);
+                }
+                return;
+            }
+            entityTransit.markInTransit(entity, () -> pendingEntityTransfers.containsKey(transferId));
+            long timeoutTicks = Math.max(1L, config.handoffTimeoutMs / 50L);
+            Runnable transferTimeoutBody = () -> terminateTimedOutEntityTransfer(
+                transferId,
+                Failure.ENTITY_TIMED_OUT,
+                peerName + " did not ack the entity transfer in time",
+                true);
+            Runnable transferTimeoutRetired = () -> terminateTimedOutEntityTransfer(
+                transferId,
+                Failure.ENTITY_TIMEOUT_RETIRED,
+                "entity retired before the " + peerName + " transfer timeout could run",
+                false);
+            boolean timeoutScheduled = scheduleEntity(entity, transferTimeoutBody, transferTimeoutRetired, timeoutTicks);
+            if (!timeoutScheduled && pendingEntityTransfers.remove(transferId, pending)) {
                 transferLocks.unlock(entity.getUniqueId());
-                failures.record(Failure.ENTITY_TIMED_OUT, entity.getUniqueId(), peerName + " did not ack the entity transfer in time");
-                restoreRejectedEntityTransfer(expired);
-                recordEntityTransferTombstone(transferId, expired.entity(), expired.peerName(), System.currentTimeMillis());
+                failures.record(Failure.ENTITY_TIMEOUT_SCHEDULE_REJECTED, entity.getUniqueId(), "source scheduler rejected the entity transfer timeout");
+                restoreRejectedEntityTransfer(pending);
+                recordEntityTransferTombstone(transferId, pending.entity(), pending.peerName(), System.currentTimeMillis());
             }
-        };
-        Runnable transferTimeoutRetired = () -> {
-            PendingEntityTransfer expired = pendingEntityTransfers.remove(transferId);
-            if (expired != null) {
-                transferLocks.unlock(entity.getUniqueId());
-                failures.record(Failure.ENTITY_TIMEOUT_RETIRED, entity.getUniqueId(), "entity retired before the " + peerName + " transfer timeout could run");
-                restoreRejectedEntityTransfer(expired);
-            }
-        };
-        boolean timeoutScheduled = scheduleOnEntity(entity, transferTimeoutBody, transferTimeoutRetired, timeoutTicks);
-        if (!timeoutScheduled && pendingEntityTransfers.remove(transferId, pending)) {
-            transferLocks.unlock(entity.getUniqueId());
-            failures.record(Failure.ENTITY_TIMEOUT_SCHEDULE_REJECTED, entity.getUniqueId(), "source scheduler rejected the entity transfer timeout");
-            restoreRejectedEntityTransfer(pending);
-            recordEntityTransferTombstone(transferId, pending.entity(), pending.peerName(), System.currentTimeMillis());
+            prunePendingEntityTransfers();
+        } finally {
+            lifecycleReadLock.unlock();
         }
-        prunePendingEntityTransfers();
+    }
+
+    private void terminateTimedOutEntityTransfer(
+        UUID transferId,
+        Failure failure,
+        String detail,
+        boolean tombstone
+    ) {
+        lifecycleReadLock.lock();
+        try {
+            if (shutdownStarted.get()) {
+                return;
+            }
+            PendingEntityTransfer expired = pendingEntityTransfers.remove(transferId);
+            if (expired == null) {
+                return;
+            }
+            transferLocks.unlock(expired.entity().getUniqueId());
+            failures.record(failure, expired.entity().getUniqueId(), detail);
+            restoreRejectedEntityTransfer(expired);
+            if (tombstone) {
+                recordEntityTransferTombstone(
+                    transferId, expired.entity(), expired.peerName(), System.currentTimeMillis());
+            }
+        } finally {
+            lifecycleReadLock.unlock();
+        }
     }
 
     private void restoreRejectedEntityTransfer(PendingEntityTransfer pending) {
@@ -330,14 +539,36 @@ public final class TraversalService implements Listener {
     }
 
     public void onHandoffRequest(String peerName, WireMessage.HandoffRequest request) {
-        boolean scheduled = FoliaScheduler.runGlobal(Wormholes.instance, () -> evaluateHandoffRequest(peerName, request));
-        if (!scheduled) {
-            long retryAfterMillis = TraversalAdmissionPolicy.handoffRateLimitMillis();
-            network.send(peerName, new WireMessage.HandoffDeny(request.transferId(), "destination scheduler unavailable", retryAfterMillis));
+        lifecycleReadLock.lock();
+        try {
+            if (shutdownStarted.get()) {
+                denyInboundHandoff(peerName, request, "destination shutting down");
+                return;
+            }
+            boolean scheduled = FoliaScheduler.runGlobal(Wormholes.instance,
+                () -> evaluateHandoffRequest(peerName, request));
+            if (!scheduled) {
+                denyInboundHandoff(peerName, request, "destination scheduler unavailable");
+            }
+        } finally {
+            lifecycleReadLock.unlock();
         }
     }
 
     private void evaluateHandoffRequest(String peerName, WireMessage.HandoffRequest wireRequest) {
+        lifecycleReadLock.lock();
+        try {
+            if (shutdownStarted.get()) {
+                denyInboundHandoff(peerName, wireRequest, "destination shutting down");
+                return;
+            }
+            evaluateActiveHandoffRequest(peerName, wireRequest);
+        } finally {
+            lifecycleReadLock.unlock();
+        }
+    }
+
+    private void evaluateActiveHandoffRequest(String peerName, WireMessage.HandoffRequest wireRequest) {
         long now = System.currentTimeMillis();
         long rateLimitMillis = TraversalAdmissionPolicy.handoffRateLimitMillis();
         PlayerHandoffAdmission.Request request = new PlayerHandoffAdmission.Request(
@@ -410,6 +641,14 @@ public final class TraversalService implements Listener {
         Wormholes.i("[handoff] request RX from peer=" + peerName + " player=" + wireRequest.playerName() + " exitPortal=" + exit.getId() + " — destination admitted, acking");
     }
 
+    private void denyInboundHandoff(String peerName, WireMessage.HandoffRequest request, String reason) {
+        if (network == null) {
+            return;
+        }
+        network.send(peerName, new WireMessage.HandoffDeny(
+            request.transferId(), reason, TraversalAdmissionPolicy.handoffRateLimitMillis()));
+    }
+
     private String destinationDenialReason(WireMessage.HandoffRequest request, ILocalPortal exit, long nowMillis) {
         if (exit == null) {
             return "unknown portal";
@@ -448,126 +687,246 @@ public final class TraversalService implements Listener {
     }
 
     public void onHandoffAck(String peerName, WireMessage.HandoffAck ack) {
-        PendingHandoff handoff = pendingHandoffs.get(ack.transferId());
-        if (handoff == null || !handoff.peerName().equals(peerName)
-            || !pendingHandoffs.remove(ack.transferId(), handoff)) {
-            return;
+        PendingHandoff handoff;
+        lifecycleReadLock.lock();
+        try {
+            if (shutdownStarted.get()) {
+                return;
+            }
+            handoff = pendingHandoffs.get(ack.transferId());
+            if (handoff == null || !handoff.peerName().equals(peerName)
+                || !acknowledgedHandoffs.add(ack.transferId())) {
+                return;
+            }
+        } finally {
+            lifecycleReadLock.unlock();
         }
+        AtomicBoolean dispatchClaimed = new AtomicBoolean();
         Player player = handoff.player();
         NetworkConfig.PeerEntry peer = network.getPeer(peerName);
         if (peer == null) {
-            network.send(peerName, new WireMessage.HandoffCancel(ack.transferId(), handoff.playerId()));
-            transferLocks.unlock(handoff.playerId());
-            outboundRateLimiter.penalize(handoff.playerId(), System.currentTimeMillis(), TraversalAdmissionPolicy.handoffRateLimitMillis());
-            failures.record(Failure.HANDOFF_PEER_LOST, handoff.playerId(), "peer '" + peerName + "' disappeared between handoff and ack");
-            rejectSource(player, handoff);
-            notices.unreachable(player, "peer '" + peerName + "' disappeared between handoff and ack");
+            rejectAcknowledgedHandoffSchedule(
+                peerName,
+                ack.transferId(),
+                handoff,
+                dispatchClaimed,
+                Failure.HANDOFF_PEER_LOST,
+                "peer '" + peerName + "' disappeared between handoff and ack",
+                "peer '" + peerName + "' disappeared between handoff and ack");
             return;
         }
-        boolean scheduled = FoliaScheduler.runEntity(Wormholes.instance, player, () -> {
-            if (!player.isOnline()) {
-                network.send(peerName, new WireMessage.HandoffCancel(ack.transferId(), handoff.playerId()));
-                transferLocks.unlock(handoff.playerId());
-                outboundRateLimiter.penalize(handoff.playerId(), System.currentTimeMillis(), TraversalAdmissionPolicy.handoffRateLimitMillis());
-                failures.record(Failure.HANDOFF_PLAYER_OFFLINE, handoff.playerId(), "traveler left the source server before the transfer to " + peerName + " was dispatched");
-                rejectSource(player, handoff);
-                return;
-            }
-            ILocalPortal source = sourcePortal(handoff.sourcePortalId());
-            if (handoff.sourcePortalId() != null && (source == null || !source.canCompleteDeparture(player, handoff.traversive()))) {
-                network.send(peerName, new WireMessage.HandoffCancel(ack.transferId(), handoff.playerId()));
-                transferLocks.unlock(handoff.playerId());
-                LocalPortal.clearTeleportInFlight(handoff.playerId());
-                long retryAfterMillis = TraversalAdmissionPolicy.handoffRateLimitMillis();
-                outboundRateLimiter.penalize(handoff.playerId(), System.currentTimeMillis(), retryAfterMillis);
-                failures.record(Failure.HANDOFF_DEPARTURE_INTERRUPTED, handoff.playerId(), source == null
-                    ? "source portal is no longer available"
-                    : "traveler moved away from the source portal");
-                notices.transferInterrupted(player, source == null
-                    ? WormholesMessages.PORTAL_TRANSFER_SOURCE_UNAVAILABLE
-                    : WormholesMessages.PORTAL_TRANSFER_INTERRUPTED);
-                return;
-            }
-            PortalTravelCost.ReserveResult costResult = handoff.travelCost() == null
-                ? null : handoff.travelCost().reserve(player);
-            PortalTravelCost.Reservation costReservation = costResult == null ? null : costResult.reservation();
-            if (costResult != null && !costResult.successful()) {
-                network.send(peerName, new WireMessage.HandoffCancel(ack.transferId(), handoff.playerId()));
-                transferLocks.unlock(handoff.playerId());
-                outboundRateLimiter.penalize(handoff.playerId(), System.currentTimeMillis(), TraversalAdmissionPolicy.handoffRateLimitMillis());
-                rejectSource(player, handoff);
-                notifyCostFailure(player, handoff.travelCost(), costResult.status());
-                return;
-            }
-            if (source != null) {
-                source.confirmDeparture(player, handoff.traversive());
-            }
-            String privateEndpoint = network.privatePlayerEndpoint(peerName);
-            boolean transferred;
+        Runnable dispatch = () -> {
+            lifecycleReadLock.lock();
             try {
-                transferred = PlayerTransfer.send(player, peer, handoff.transferMethod(), privateEndpoint);
-            } catch (RuntimeException exception) {
-                transferred = false;
-                Wormholes.instance.getLogger().log(Level.WARNING,
-                    "Failed to dispatch player " + player.getName() + " to " + peerName, exception);
-            }
-            if (!transferred) {
-                if (costReservation != null) {
-                    costReservation.refund();
+                if (!dispatchClaimed.compareAndSet(false, true)) {
+                    return;
                 }
-                network.send(peerName, new WireMessage.HandoffCancel(ack.transferId(), handoff.playerId()));
-                transferLocks.unlock(handoff.playerId());
-                outboundRateLimiter.penalize(handoff.playerId(), System.currentTimeMillis(), TraversalAdmissionPolicy.handoffRateLimitMillis());
-                failures.record(Failure.HANDOFF_TRANSFER_REJECTED, handoff.playerId(), "transfer method '" + handoff.transferMethod() + "' was rejected by Bukkit");
-                rejectSource(player, handoff);
-                notices.unreachable(player, "transfer method '" + handoff.transferMethod() + "' was rejected by Bukkit");
-                return;
+                acknowledgedHandoffs.remove(ack.transferId());
+                if (shutdownStarted.get() || !pendingHandoffs.remove(ack.transferId(), handoff)) {
+                    return;
+                }
+                dispatchAcknowledgedHandoff(peerName, ack.transferId(), handoff, peer);
+            } finally {
+                lifecycleReadLock.unlock();
             }
-            if (costReservation != null) {
-                costReservation.commit();
-            }
-            completedTransfers.incrementAndGet();
-            Wormholes.i("[handoff] ack RX from peer=" + peerName + " — transfer of " + player.getName() + " dispatched via " + handoff.transferMethod());
-            transferLocks.lock(handoff.playerId(), System.currentTimeMillis() + ARRIVAL_TTL_MILLIS);
-        });
+        };
+        Runnable retired = () -> rejectAcknowledgedHandoffSchedule(
+            peerName,
+            ack.transferId(),
+            handoff,
+            dispatchClaimed,
+            Failure.HANDOFF_DISPATCH_RETIRED,
+            "traveler retired before the acknowledged transfer could run",
+            "source traveler retired before the transfer");
+        boolean scheduled = entityScheduler.schedule(player, dispatch, retired, 0L);
         if (!scheduled) {
-            network.send(peerName, new WireMessage.HandoffCancel(ack.transferId(), handoff.playerId()));
+            rejectAcknowledgedHandoffSchedule(
+                peerName,
+                ack.transferId(),
+                handoff,
+                dispatchClaimed,
+                Failure.HANDOFF_DISPATCH_SCHEDULE_REJECTED,
+                "source scheduler rejected the transfer to " + peerName,
+                "source scheduler rejected the transfer");
+        }
+    }
+
+    private void dispatchAcknowledgedHandoff(
+        String peerName,
+        UUID transferId,
+        PendingHandoff handoff,
+        NetworkConfig.PeerEntry peer
+    ) {
+        Player player = handoff.player();
+        if (!player.isOnline()) {
+            network.send(peerName, new WireMessage.HandoffCancel(transferId, handoff.playerId()));
             transferLocks.unlock(handoff.playerId());
             outboundRateLimiter.penalize(handoff.playerId(), System.currentTimeMillis(), TraversalAdmissionPolicy.handoffRateLimitMillis());
-            failures.record(Failure.HANDOFF_DISPATCH_SCHEDULE_REJECTED, handoff.playerId(), "source scheduler rejected the transfer to " + peerName);
+            failures.record(Failure.HANDOFF_PLAYER_OFFLINE, handoff.playerId(), "traveler left the source server before the transfer to " + peerName + " was dispatched");
             rejectSource(player, handoff);
-            notices.unreachable(player, "source scheduler rejected the transfer");
+            return;
+        }
+        ILocalPortal source = sourcePortal(handoff.sourcePortalId());
+        if (handoff.sourcePortalId() != null && (source == null || !source.canCompleteDeparture(player, handoff.traversive()))) {
+            network.send(peerName, new WireMessage.HandoffCancel(transferId, handoff.playerId()));
+            transferLocks.unlock(handoff.playerId());
+            LocalPortal.clearTeleportInFlight(handoff.playerId());
+            long retryAfterMillis = TraversalAdmissionPolicy.handoffRateLimitMillis();
+            outboundRateLimiter.penalize(handoff.playerId(), System.currentTimeMillis(), retryAfterMillis);
+            failures.record(Failure.HANDOFF_DEPARTURE_INTERRUPTED, handoff.playerId(), source == null
+                ? "source portal is no longer available"
+                : "traveler moved away from the source portal");
+            notices.transferInterrupted(player, source == null
+                ? WormholesMessages.PORTAL_TRANSFER_SOURCE_UNAVAILABLE
+                : WormholesMessages.PORTAL_TRANSFER_INTERRUPTED);
+            return;
+        }
+        TraversalCostGateway.Admission traversalAdmission = openTraversalCost(handoff.traversalContext());
+        if (traversalAdmission != null && !traversalAdmission.allowed()) {
+            network.send(peerName, new WireMessage.HandoffCancel(transferId, handoff.playerId()));
+            transferLocks.unlock(handoff.playerId());
+            long retryAfterMillis = TraversalAdmissionPolicy.handoffRateLimitMillis();
+            outboundRateLimiter.penalize(handoff.playerId(), System.currentTimeMillis(), retryAfterMillis);
+            rejectSource(player, handoff);
+            String reason = traversalAdmission.decision().reason().isBlank()
+                ? "traversal denied by a server integration"
+                : traversalAdmission.decision().reason();
+            notices.denied(player, reason, retryAfterMillis);
+            return;
+        }
+        PortalTravelCost.ReserveResult costResult = handoff.travelCost() == null
+            ? null : handoff.travelCost().reserve(player);
+        PortalTravelCost.Reservation costReservation = costResult == null ? null : costResult.reservation();
+        if (costResult != null && !costResult.successful()) {
+            refundTraversalCost(traversalAdmission, TraversalRefundReason.CHARGE_ROLLBACK);
+            network.send(peerName, new WireMessage.HandoffCancel(transferId, handoff.playerId()));
+            transferLocks.unlock(handoff.playerId());
+            outboundRateLimiter.penalize(handoff.playerId(), System.currentTimeMillis(), TraversalAdmissionPolicy.handoffRateLimitMillis());
+            rejectSource(player, handoff);
+            notifyCostFailure(player, handoff.travelCost(), costResult.status());
+            return;
+        }
+        if (source != null) {
+            source.confirmDeparture(player, handoff.traversive());
+        }
+        String privateEndpoint = network.privatePlayerEndpoint(peerName);
+        boolean transferred;
+        try {
+            transferred = PlayerTransfer.send(player, peer, handoff.transferMethod(), privateEndpoint);
+        } catch (RuntimeException exception) {
+            transferred = false;
+            Wormholes.instance.getLogger().log(Level.WARNING,
+                "Failed to dispatch player " + player.getName() + " to " + peerName, exception);
+        }
+        if (!transferred) {
+            if (costReservation != null) {
+                costReservation.refund();
+            }
+            refundTraversalCost(traversalAdmission, TraversalRefundReason.TELEPORT_FAILED);
+            network.send(peerName, new WireMessage.HandoffCancel(transferId, handoff.playerId()));
+            transferLocks.unlock(handoff.playerId());
+            outboundRateLimiter.penalize(handoff.playerId(), System.currentTimeMillis(), TraversalAdmissionPolicy.handoffRateLimitMillis());
+            failures.record(Failure.HANDOFF_TRANSFER_REJECTED, handoff.playerId(), "transfer method '" + handoff.transferMethod() + "' was rejected by Bukkit");
+            rejectSource(player, handoff);
+            notices.unreachable(player, "transfer method '" + handoff.transferMethod() + "' was rejected by Bukkit");
+            return;
+        }
+        if (costReservation != null) {
+            costReservation.commit();
+        }
+        commitTraversalCost(traversalAdmission);
+        completedTransfers.incrementAndGet();
+        Wormholes.i("[handoff] ack RX from peer=" + peerName + " — transfer of " + player.getName() + " dispatched via " + handoff.transferMethod());
+        transferLocks.lock(handoff.playerId(), System.currentTimeMillis() + ARRIVAL_TTL_MILLIS);
+    }
+
+    private void rejectAcknowledgedHandoffSchedule(
+        String peerName,
+        UUID transferId,
+        PendingHandoff handoff,
+        AtomicBoolean dispatchClaimed,
+        Failure failure,
+        String detail,
+        String notice) {
+        lifecycleReadLock.lock();
+        try {
+            if (!dispatchClaimed.compareAndSet(false, true)) {
+                return;
+            }
+            acknowledgedHandoffs.remove(transferId);
+            if (!pendingHandoffs.remove(transferId, handoff)) {
+                return;
+            }
+            network.send(peerName, new WireMessage.HandoffCancel(transferId, handoff.playerId()));
+            transferLocks.unlock(handoff.playerId());
+            outboundRateLimiter.penalize(
+                handoff.playerId(), System.currentTimeMillis(), TraversalAdmissionPolicy.handoffRateLimitMillis());
+            failures.record(failure, handoff.playerId(), detail);
+            rejectSource(handoff.player(), handoff);
+            notices.unreachable(handoff.player(), notice);
+        } finally {
+            lifecycleReadLock.unlock();
         }
     }
 
     public void onHandoffDeny(String peerName, WireMessage.HandoffDeny deny) {
-        PendingHandoff handoff = pendingHandoffs.get(deny.transferId());
-        if (handoff == null || !handoff.peerName().equals(peerName)
-            || !pendingHandoffs.remove(deny.transferId(), handoff)) {
-            return;
+        lifecycleReadLock.lock();
+        try {
+            if (shutdownStarted.get()) {
+                return;
+            }
+            PendingHandoff handoff = pendingHandoffs.get(deny.transferId());
+            if (handoff == null || !handoff.peerName().equals(peerName)
+                || !pendingHandoffs.remove(deny.transferId(), handoff)) {
+                return;
+            }
+            acknowledgedHandoffs.remove(deny.transferId());
+            transferLocks.unlock(handoff.playerId());
+            long retryAfterMillis = Math.max(TraversalAdmissionPolicy.handoffRateLimitMillis(), deny.retryAfterMillis());
+            outboundRateLimiter.penalize(handoff.playerId(), System.currentTimeMillis(), retryAfterMillis);
+            Player player = handoff.player();
+            String reason = deny.reason() == null || deny.reason().isBlank() ? "destination denied" : deny.reason();
+            failures.record(Failure.HANDOFF_DENIED, handoff.playerId(), peerName + " denied the handoff: " + reason);
+            rejectSource(player, handoff);
+            notices.denied(player, reason, retryAfterMillis);
+        } finally {
+            lifecycleReadLock.unlock();
         }
-        transferLocks.unlock(handoff.playerId());
-        long retryAfterMillis = Math.max(TraversalAdmissionPolicy.handoffRateLimitMillis(), deny.retryAfterMillis());
-        outboundRateLimiter.penalize(handoff.playerId(), System.currentTimeMillis(), retryAfterMillis);
-        Player player = handoff.player();
-        String reason = deny.reason() == null || deny.reason().isBlank() ? "destination denied" : deny.reason();
-        failures.record(Failure.HANDOFF_DENIED, handoff.playerId(), peerName + " denied the handoff: " + reason);
-        rejectSource(player, handoff);
-        notices.denied(player, reason, retryAfterMillis);
     }
 
     public void onHandoffCancel(String peerName, WireMessage.HandoffCancel cancel) {
-        inboundAdmissions.cancel(new PlayerHandoffAdmission.Cancellation(
-            peerName,
-            cancel.transferId(),
-            cancel.playerId(),
-            System.currentTimeMillis(),
-            TraversalAdmissionPolicy.handoffRateLimitMillis(),
-            ARRIVAL_TTL_MILLIS
-        ));
+        lifecycleReadLock.lock();
+        try {
+            if (shutdownStarted.get()) {
+                return;
+            }
+            inboundAdmissions.cancel(new PlayerHandoffAdmission.Cancellation(
+                peerName,
+                cancel.transferId(),
+                cancel.playerId(),
+                System.currentTimeMillis(),
+                TraversalAdmissionPolicy.handoffRateLimitMillis(),
+                ARRIVAL_TTL_MILLIS
+            ));
+        } finally {
+            lifecycleReadLock.unlock();
+        }
     }
 
     public void onEntityTransfer(String peerName, WireMessage.EntityTransfer transfer) {
+        lifecycleReadLock.lock();
+        try {
+            if (shutdownStarted.get()) {
+                sendEntityTransferAck(peerName, transfer.transferId(), false);
+                return;
+            }
+            receiveActiveEntityTransfer(peerName, transfer);
+        } finally {
+            lifecycleReadLock.unlock();
+        }
+    }
+
+    private void receiveActiveEntityTransfer(String peerName, WireMessage.EntityTransfer transfer) {
         long now = System.currentTimeMillis();
         TraversalEntityTransferLedger.Claim claim = appliedEntityTransfers.claim(transfer.transferId(), now);
         if (claim.status() == TraversalEntityTransferLedger.ClaimStatus.APPLIED) {
@@ -608,6 +967,22 @@ public final class TraversalService implements Listener {
 
     private void applyInboundEntityTransfer(String peerName, WireMessage.EntityTransfer transfer, ILocalPortal exit,
                                             Traversive traversive, Location target, TraversalEntityTransferLedger.Claim claim) {
+        lifecycleReadLock.lock();
+        try {
+            if (shutdownStarted.get()) {
+                appliedEntityTransfers.release(transfer.transferId(), claim);
+                sendEntityTransferAck(peerName, transfer.transferId(), false);
+                return;
+            }
+            applyActiveInboundEntityTransfer(peerName, transfer, exit, traversive, target, claim);
+        } finally {
+            lifecycleReadLock.unlock();
+        }
+    }
+
+    private void applyActiveInboundEntityTransfer(String peerName, WireMessage.EntityTransfer transfer,
+                                                  ILocalPortal exit, Traversive traversive, Location target,
+                                                  TraversalEntityTransferLedger.Claim claim) {
         Entity created = null;
         boolean accepted = false;
         try {
@@ -643,20 +1018,29 @@ public final class TraversalService implements Listener {
     }
 
     public void onEntityTransferAck(String peerName, WireMessage.EntityTransferAck ack) {
-        PendingEntityTransfer pending = pendingEntityTransfers.get(ack.transferId());
-        if (pending != null && pending.peerName().equals(peerName) && pendingEntityTransfers.remove(ack.transferId(), pending)) {
-            transferLocks.unlock(pending.entity().getUniqueId());
-            LocalPortal.clearTeleportInFlight(pending.entity().getUniqueId());
-            if (!ack.accepted()) {
-                failures.record(Failure.ENTITY_ACK_DENIED, pending.entity().getUniqueId(), peerName + " refused the entity transfer");
-                restoreRejectedEntityTransfer(pending);
+        lifecycleReadLock.lock();
+        try {
+            if (shutdownStarted.get()) {
                 return;
             }
-            completedTransfers.incrementAndGet();
-            removeSourceEntity(pending.entity());
-            return;
+            PendingEntityTransfer pending = pendingEntityTransfers.get(ack.transferId());
+            if (pending != null && pending.peerName().equals(peerName)
+                && pendingEntityTransfers.remove(ack.transferId(), pending)) {
+                transferLocks.unlock(pending.entity().getUniqueId());
+                LocalPortal.clearTeleportInFlight(pending.entity().getUniqueId());
+                if (!ack.accepted()) {
+                    failures.record(Failure.ENTITY_ACK_DENIED, pending.entity().getUniqueId(), peerName + " refused the entity transfer");
+                    restoreRejectedEntityTransfer(pending);
+                    return;
+                }
+                completedTransfers.incrementAndGet();
+                removeSourceEntity(pending.entity());
+                return;
+            }
+            resolveLateEntityTransferAck(peerName, ack);
+        } finally {
+            lifecycleReadLock.unlock();
         }
-        resolveLateEntityTransferAck(peerName, ack);
     }
 
     private void resolveLateEntityTransferAck(String peerName, WireMessage.EntityTransferAck ack) {
@@ -686,7 +1070,7 @@ public final class TraversalService implements Listener {
             }
         };
         Runnable removalRetired = () -> queueSourceRemoval(entityId);
-        if (!scheduleOnEntity(entity, removalBody, removalRetired, 0L)) {
+        if (!scheduleEntity(entity, removalBody, removalRetired, 0L)) {
             queueSourceRemoval(entityId);
         }
     }
@@ -697,6 +1081,9 @@ public final class TraversalService implements Listener {
 
     @EventHandler
     public void on(EntitiesLoadEvent event) {
+        if (shutdownStarted.get()) {
+            return;
+        }
         for (Entity entity : event.getEntities()) {
             reconcileLoadedEntity(entity);
         }
@@ -710,6 +1097,7 @@ public final class TraversalService implements Listener {
             return;
         }
         if (FoliaScheduler.isFoliaThreading(plugin.getServer())) {
+            sweepPlayerOwnedChunks(plugin);
             return;
         }
         boolean scheduled = FoliaScheduler.runGlobal(plugin, () -> {
@@ -725,7 +1113,30 @@ public final class TraversalService implements Listener {
         }
     }
 
+    private void sweepPlayerOwnedChunks(Wormholes plugin) {
+        Set<LoadedChunk> claimedChunks = ConcurrentHashMap.newKeySet();
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            boolean scheduled = FoliaScheduler.runEntity(plugin, player, () -> {
+                Chunk chunk = player.getLocation().getChunk();
+                LoadedChunk key = new LoadedChunk(chunk.getWorld().getUID(), chunk.getX(), chunk.getZ());
+                if (!claimedChunks.add(key)) {
+                    return;
+                }
+                for (Entity entity : chunk.getEntities()) {
+                    reconcileLoadedEntity(entity);
+                }
+            });
+            if (!scheduled) {
+                failures.recordUnrecovered(Failure.ENTITY_TRANSIT_SWEEP_SCHEDULE_REJECTED, player.getUniqueId(),
+                    "entity scheduler refused the Folia startup recovery scan for the player's current chunk");
+            }
+        }
+    }
+
     void reconcileLoadedEntity(Entity entity) {
+        if (shutdownStarted.get()) {
+            return;
+        }
         entityTransit.reconcileLoadedEntity(entity);
     }
 
@@ -741,14 +1152,62 @@ public final class TraversalService implements Listener {
 
     @EventHandler
     public void on(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-        LocalPortal.latchReentryIfInsidePortal(player);
-        transferLocks.unlock(player.getUniqueId());
-        arrivals.placeOnJoin(player);
+        lifecycleReadLock.lock();
+        try {
+            if (shutdownStarted.get()) {
+                return;
+            }
+            Player player = event.getPlayer();
+            LocalPortal.latchReentryIfInsidePortal(player);
+            transferLocks.unlock(player.getUniqueId());
+            arrivals.placeOnJoin(player);
+        } finally {
+            lifecycleReadLock.unlock();
+        }
     }
 
     private static UUID sourcePortalId(ILocalPortal portal) {
         return portal == null ? null : portal.getId();
+    }
+
+    static TraversalContext traversalContext(
+        Player player,
+        UniversalTunnel tunnel,
+        Traversive traversive,
+        LocalPortal sourcePortal) {
+        if (sourcePortal == null || sourcePortal.getStructure() == null
+            || sourcePortal.getStructure().getWorld() == null) {
+            return null;
+        }
+        IPortal destination = tunnel.getDestination();
+        UUID destinationId = destination == null ? tunnel.getDestinationPortalId() : destination.getId();
+        String destinationName = destination == null ? "" : destination.getName();
+        Location origin = traversive.getInPoint().toLocation(sourcePortal.getStructure().getWorld());
+        return TraversalContext.crossServer(
+            player,
+            sourcePortal.getId(),
+            sourcePortal.getName(),
+            origin,
+            TraversalDestination.remotePortal(tunnel.getServerName(), destinationId, destinationName));
+    }
+
+    private static TraversalCostGateway.Admission openTraversalCost(TraversalContext context) {
+        TraversalCostGateway gateway = Wormholes.traversalCostGateway;
+        return gateway == null || context == null ? null : gateway.open(context);
+    }
+
+    private static void commitTraversalCost(TraversalCostGateway.Admission admission) {
+        if (admission != null) {
+            admission.commit();
+        }
+    }
+
+    private static void refundTraversalCost(
+        TraversalCostGateway.Admission admission,
+        TraversalRefundReason reason) {
+        if (admission != null) {
+            admission.refund(reason);
+        }
     }
 
     private void rejectSource(Player player, PendingHandoff handoff) {
@@ -812,18 +1271,26 @@ public final class TraversalService implements Listener {
     }
 
     private void prunePendingEntityTransfers() {
-        long now = System.currentTimeMillis();
-        for (Map.Entry<UUID, PendingEntityTransfer> entry : pendingEntityTransfers.entrySet()) {
-            PendingEntityTransfer pending = entry.getValue();
-            if (pending.deadlineMillis() >= now) {
-                continue;
+        lifecycleReadLock.lock();
+        try {
+            if (shutdownStarted.get()) {
+                return;
             }
-            if (pendingEntityTransfers.remove(entry.getKey(), pending)) {
-                transferLocks.unlock(pending.entity().getUniqueId());
-                failures.record(Failure.ENTITY_DEADLINE_EXPIRED, pending.entity().getUniqueId(), pending.peerName() + " missed the entity transfer deadline");
-                restoreRejectedEntityTransfer(pending, TraversalEntityScheduler.OFF_EVENT_STACK_DELAY_TICKS);
-                recordEntityTransferTombstone(entry.getKey(), pending.entity(), pending.peerName(), now);
+            long now = System.currentTimeMillis();
+            for (Map.Entry<UUID, PendingEntityTransfer> entry : pendingEntityTransfers.entrySet()) {
+                PendingEntityTransfer pending = entry.getValue();
+                if (pending.deadlineMillis() >= now) {
+                    continue;
+                }
+                if (pendingEntityTransfers.remove(entry.getKey(), pending)) {
+                    transferLocks.unlock(pending.entity().getUniqueId());
+                    failures.record(Failure.ENTITY_DEADLINE_EXPIRED, pending.entity().getUniqueId(), pending.peerName() + " missed the entity transfer deadline");
+                    restoreRejectedEntityTransfer(pending, TraversalEntityScheduler.OFF_EVENT_STACK_DELAY_TICKS);
+                    recordEntityTransferTombstone(entry.getKey(), pending.entity(), pending.peerName(), now);
+                }
             }
+        } finally {
+            lifecycleReadLock.unlock();
         }
     }
 

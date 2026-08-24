@@ -476,7 +476,9 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 
 		CompletionStage<RtpAccessResult> canUse(Player player, RtpDestination destination);
 
-		boolean scheduleEntity(Entity entity, Runnable command, Runnable retired);
+		boolean scheduleEntity(Entity entity, Runnable command, Runnable retired, long delayTicks);
+
+		boolean scheduleRegion(World world, int chunkX, int chunkZ, Runnable command, Runnable retired);
 
 		CompletionStage<Boolean> teleport(Entity entity, Location target);
 

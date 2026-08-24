@@ -8,15 +8,43 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 final class PeerLinkRegistry {
+    static final int MAX_PENDING_INBOUND_HANDSHAKES = 128;
+
     private final Map<String, PeerConnection> readyPeers = new ConcurrentHashMap<>();
     private final Set<PeerConnection> pending = ConcurrentHashMap.newKeySet();
+    private final Set<PeerConnection> pendingInbound = ConcurrentHashMap.newKeySet();
+    private final Object pendingInboundGate = new Object();
 
     void addPending(PeerConnection connection) {
         pending.add(connection);
     }
 
+    boolean tryAddInboundPending(PeerConnection connection) {
+        synchronized (pendingInboundGate) {
+            if (pendingInbound.size() >= MAX_PENDING_INBOUND_HANDSHAKES || !pending.add(connection)) {
+                return false;
+            }
+            if (pendingInbound.add(connection)) {
+                return true;
+            }
+            pending.remove(connection);
+            return false;
+        }
+    }
+
     void removePending(PeerConnection connection) {
         pending.remove(connection);
+        synchronized (pendingInboundGate) {
+            pendingInbound.remove(connection);
+        }
+    }
+
+    int pendingCount() {
+        return pending.size();
+    }
+
+    int pendingInboundCount() {
+        return pendingInbound.size();
     }
 
     boolean hasPendingDial(String peerName) {
@@ -87,13 +115,15 @@ final class PeerLinkRegistry {
     }
 
     void closeAll(String reason) {
-        for (PeerConnection connection : pending) {
+        Set<PeerConnection> connections = new HashSet<>(pending);
+        connections.addAll(readyPeers.values());
+        for (PeerConnection connection : connections) {
             connection.close(reason);
         }
-        for (PeerConnection connection : readyPeers.values()) {
-            connection.close(reason);
+        synchronized (pendingInboundGate) {
+            pending.clear();
+            pendingInbound.clear();
         }
-        pending.clear();
         readyPeers.clear();
     }
 }

@@ -35,7 +35,8 @@ public final class WormholesSettings {
         this.main = main;
         this.projection = projection;
         this.render = render;
-        this.network = network;
+        this.network = network == null ? new NetworkConfig() : network;
+        this.network.normalizeRuntimeBounds();
         this.recipes = recipes;
         this.visualQualityProfile = visualQualityProfile;
     }
@@ -132,6 +133,10 @@ public final class WormholesSettings {
         }
         VisualQualityProfile profile = VisualQualityProfile.parse(file.quality);
         file.quality = profile.configValue();
+        if (file.network == null) {
+            file.network = new NetworkConfig();
+        }
+        file.network.normalizeRuntimeBounds();
         return profile;
     }
 

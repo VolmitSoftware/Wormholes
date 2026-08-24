@@ -409,6 +409,7 @@ locale = "es_ES"
 "command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} no sirve como pared de bolsillo. Usa un bloque solido que no caiga."
 "command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} no sirve como puerta de salida. Usa una puerta que se abra a mano; las puertas de hierro se rechazan."
 "command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Ese bolsillo ya tiene este tamano y estos materiales."
+"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>El cambio de tamano se detuvo: se destruirian <white>{containers}<red> contenedores con objetos. Vacialos antes de volver a intentarlo; <white>confirm=true<red> no puede omitir esta proteccion."
 "command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Bolsillo reconstruido a <white>{size}<green> bloques (antes <white>{previous}<green>), paredes <white>{material}<green>, puerta de salida <white>{door}."
 "command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No se pudo reconstruir el bolsillo. Revisa la consola."
 "command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>La dimension de bolsillo no esta cargada."
@@ -584,7 +585,7 @@ locale = "es_ES"
 "rtp.status.header" = ["<gold><bold>Estado del destino aleatorio</bold>","<gray>Estado: {state}"]
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Bolsillo <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tamano <white>{size}<gray> bloques, paredes <white>{material}<gray>, puerta de salida <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Limites <white>{minimum}<gray> a <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Reconstruir a {size} bloques destruiria <white>{blocks}<red> bloques colocados (<white>{containers}<red> con objetos) y moveria <white>{entities}<red> entidades.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>El contenido de los contenedores y todo lo que quede fuera de las nuevas paredes se suelta en la entrada. El resto se pierde.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Ejecuta el mismo comando con <white>confirm=true<gray> para continuar."]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Reconstruir a {size} bloques destruiria <white>{blocks}<red> bloques colocados y moveria <white>{entities}<red> entidades.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Los bloques fuera de las nuevas paredes se destruyen; las entidades desplazadas se mueven a la entrada.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Ejecuta el mismo comando con <white>confirm=true<gray> para continuar."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Se eliminó <white>{count}<green> portal y se limpiaron los enlaces locales."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Se eliminaron <white>{count}<green> portales y se limpiaron los enlaces locales."

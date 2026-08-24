@@ -409,6 +409,7 @@ locale = "ru_RU"
 "command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} не подходит для стены кармана. Используйте твёрдый блок, который не падает."
 "command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} не подходит для выходной двери. Используйте дверь, открывающуюся вручную; железные двери отклоняются."
 "command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>У этого кармана уже такой размер и такие материалы."
+"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Изменение размера остановлено: будут уничтожены непустые контейнеры — <white>{containers}<red>. Освободите их перед повторной попыткой; <white>confirm=true<red> не отключает эту проверку безопасности."
 "command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Карман перестроен до <white>{size}<green> блоков (было <white>{previous}<green>), стены <white>{material}<green>, выходная дверь <white>{door}."
 "command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Не удалось перестроить карман. Проверьте консоль."
 "command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Карманное измерение не загружено."
@@ -584,7 +585,7 @@ locale = "ru_RU"
 "door.menu.access.entry" = ["<white>{name}","<gray>Состояние: <aqua>{state}","","<dark_gray>ЛКМ: белый список. ПКМ: чёрный список.","<dark_gray>СКМ или Shift + ЛКМ: удалить."]
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Карман <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Размер <white>{size}<gray> блоков, стены <white>{material}<gray>, выходная дверь <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Границы <white>{minimum}<gray> до <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Перестройка до {size} блоков уничтожит <white>{blocks}<red> установленных блоков (<white>{containers}<red> с предметами) и переместит <white>{entities}<red> сущностей.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Содержимое контейнеров и всё, что останется за новыми стенами, выпадет у входа. Остальное будет потеряно.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Запустите ту же команду с <white>confirm=true<gray>, чтобы продолжить."]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Перестройка до {size} блоков уничтожит <white>{blocks}<red> установленных блоков и переместит <white>{entities}<red> сущностей.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Блоки за новыми стенами уничтожаются; перемещаемые сущности переносятся ко входу.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Запустите ту же команду с <white>confirm=true<gray>, чтобы продолжить."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Удалён <white>{count}<green> портал и очищены локальные связи порталов."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Удалено <white>{count}<green> порталов и очищены локальные связи порталов."

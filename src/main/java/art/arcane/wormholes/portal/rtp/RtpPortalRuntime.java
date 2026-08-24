@@ -256,7 +256,7 @@ public final class RtpPortalRuntime
 		{
 			return Optional.of(existing.destination());
 		}
-		if (!interestedPlayers.contains(playerId) || hasPlayerClaim(playerId) || freeDestinations.size() <= REQUIRED_FREE_SPARES)
+		if (!interestedPlayers.contains(playerId) || hasPlayerClaim(playerId) || freeDestinations.isEmpty())
 		{
 			return Optional.empty();
 		}
@@ -659,7 +659,7 @@ public final class RtpPortalRuntime
 
 	private boolean sharedReady()
 	{
-		if (active == null || standby == null || rerolling || timedRotationPending)
+		if (active == null || rerolling || timedRotationPending)
 		{
 			return false;
 		}

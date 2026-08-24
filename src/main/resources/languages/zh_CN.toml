@@ -409,6 +409,7 @@ locale = "zh_CN"
 "command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} 不能作为口袋墙壁。请使用不会掉落的固体方块。"
 "command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} 不能作为口袋出口门。请使用可以手动打开的门；铁门会被拒绝。"
 "command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>该口袋已经是这个大小和这些材料。"
+"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>口袋尺寸调整已停止：<white>{containers}<red> 个非空容器会被摧毁。请清空后重试；<white>confirm=true<red> 无法绕过此安全检查。"
 "command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>口袋已重建为 <white>{size}<green> 个方块（原为 <white>{previous}<green>），墙壁 <white>{material}<green>，出口门 <white>{door}。"
 "command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>无法重建该口袋。请查看控制台。"
 "command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>口袋维度尚未加载。"
@@ -584,7 +585,7 @@ locale = "zh_CN"
 "door.menu.access.entry" = ["<white>{name}","<gray>状态：<aqua>{state}","","<dark_gray>左键：白名单。右键：黑名单。","<dark_gray>中键或 Shift + 左键：移除。"]
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>口袋 <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>大小 <white>{size}<gray> 个方块，墙壁 <white>{material}<gray>，出口门 <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>边界 <white>{minimum}<gray> 到 <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>重建为 {size} 个方块会摧毁 <white>{blocks}<red> 个已放置的方块（其中 <white>{containers}<red> 个装有物品），并移动 <white>{entities}<red> 个实体。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>容器内的物品以及留在新墙外的东西会掉落在入口处，其余的将永久丢失。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>加上 <white>confirm=true<gray> 重新执行同一命令以继续。"]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>重建为 {size} 个方块会摧毁 <white>{blocks}<red> 个已放置的方块，并移动 <white>{entities}<red> 个实体。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>新墙外的方块会被摧毁；需要移动的实体会被送到入口。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>加上 <white>confirm=true<gray> 重新执行同一命令以继续。"]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已删除 <white>{count}<green> 个传送门，并清除本地传送门链接。"
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已删除 <white>{count}<green> 个传送门，并清除本地传送门链接。"

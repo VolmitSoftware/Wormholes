@@ -112,7 +112,8 @@ class ProjectionManagerFailureTelemetryTest {
 
         assertFalse(ProjectionManager.dispatchProjectedEntityUpdate(observer(UUID.randomUUID(), true), entityId,
             "animation", () -> fail("the update must not run when scheduling is refused"),
-            (observer, update) -> false));
+            () -> {
+            }, (observer, update, retired) -> false));
 
         assertEquals(reasonBefore + 1L, failureCount(ENTITY_UPDATE_DROPPED),
             "a refused projected entity update is a terminal failure and must show up in the failure breakdown");
@@ -128,7 +129,8 @@ class ProjectionManagerFailureTelemetryTest {
 
         assertTrue(ProjectionManager.dispatchProjectedEntityUpdate(observer(UUID.randomUUID(), true), entityId,
             "hurt", () -> updatesRun.incrementAndGet(),
-            (observer, update) -> {
+            () -> {
+            }, (observer, update, retired) -> {
                 update.run();
                 return true;
             }));

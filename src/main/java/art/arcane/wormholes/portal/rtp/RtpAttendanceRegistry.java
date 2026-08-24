@@ -1,7 +1,7 @@
 package art.arcane.wormholes.portal.rtp;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -18,21 +18,21 @@ final class RtpAttendanceRegistry
 	private final RtpService service;
 	private final RtpFailureThrottle failures;
 	private final long idleMillis;
-	private final Map<Key, Presence> presences;
+	private final Map<UUID, Map<UUID, Presence>> presencesByViewer;
 
 	RtpAttendanceRegistry(RtpService service, RtpFailureThrottle failures, long idleMillis)
 	{
 		this.service = service;
 		this.failures = failures;
 		this.idleMillis = idleMillis;
-		this.presences = new ConcurrentHashMap<Key, Presence>();
+		presencesByViewer = new ConcurrentHashMap<UUID, Map<UUID, Presence>>();
 	}
 
 	void touch(LocalPortal portal, UUID viewerId, long touchedAtMillis)
 	{
 		AxisAlignedBB view = Objects.requireNonNull(portal.getView(), "portal view");
 		World world = Objects.requireNonNull(portal.getStructure().getWorld(), "portal source world");
-		presences.put(new Key(portal.getId(), viewerId), new Presence(
+		Presence presence = new Presence(
 				world.getUID(),
 				view.getXa(),
 				view.getXb(),
@@ -40,107 +40,109 @@ final class RtpAttendanceRegistry
 				view.getYb(),
 				view.getZa(),
 				view.getZb(),
-				touchedAtMillis));
-		service.touchViewer(portal.getId(), viewerId).whenComplete((changed, failure) ->
+				touchedAtMillis);
+		UUID portalId = portal.getId();
+		presencesByViewer.compute(viewerId, (ignored, current) ->
 		{
-			if(failure != null)
+			Map<UUID, Presence> viewerPresences = current;
+			if(viewerPresences == null)
 			{
-				failures.report("attendance-touch:" + portal.getId(), failure);
+				viewerPresences = new HashMap<UUID, Presence>();
 			}
+			viewerPresences.put(portalId, presence);
+			touch(portalId, viewerId);
+			return viewerPresences;
 		});
 	}
 
 	void departViewer(UUID viewerId)
 	{
-		List<Key> departures = new ArrayList<Key>();
-		for(Key key : presences.keySet())
+		presencesByViewer.computeIfPresent(viewerId, (ignored, viewerPresences) ->
 		{
-			if(key.viewerId().equals(viewerId))
+			for(UUID portalId : viewerPresences.keySet())
 			{
-				departures.add(key);
+				leave(portalId, viewerId);
 			}
-		}
-		depart(departures);
+			return null;
+		});
 	}
 
 	void departOutside(UUID viewerId, Location destination)
 	{
-		List<Key> departures = new ArrayList<Key>();
-		for(Map.Entry<Key, Presence> entry : presences.entrySet())
+		presencesByViewer.computeIfPresent(viewerId, (ignored, viewerPresences) ->
 		{
-			if(entry.getKey().viewerId().equals(viewerId) && !entry.getValue().contains(destination))
+			Iterator<Map.Entry<UUID, Presence>> iterator = viewerPresences.entrySet().iterator();
+			while(iterator.hasNext())
 			{
-				departures.add(entry.getKey());
+				Map.Entry<UUID, Presence> entry = iterator.next();
+				if(!entry.getValue().contains(destination))
+				{
+					leave(entry.getKey(), viewerId);
+					iterator.remove();
+				}
 			}
-		}
-		depart(departures);
+			return viewerPresences.isEmpty() ? null : viewerPresences;
+		});
 	}
 
 	void sweep(long nowMillis)
 	{
-		List<Key> departures = new ArrayList<Key>();
-		for(Map.Entry<Key, Presence> entry : presences.entrySet())
+		for(UUID viewerId : presencesByViewer.keySet())
 		{
-			if(nowMillis - entry.getValue().touchedAtMillis() >= idleMillis)
+			presencesByViewer.computeIfPresent(viewerId, (ignored, viewerPresences) ->
 			{
-				departures.add(entry.getKey());
-			}
+				Iterator<Map.Entry<UUID, Presence>> iterator = viewerPresences.entrySet().iterator();
+				while(iterator.hasNext())
+				{
+					Map.Entry<UUID, Presence> entry = iterator.next();
+					if(nowMillis - entry.getValue().touchedAtMillis() >= idleMillis)
+					{
+						leave(entry.getKey(), viewerId);
+						iterator.remove();
+					}
+				}
+				return viewerPresences.isEmpty() ? null : viewerPresences;
+			});
 		}
-		depart(departures);
 	}
 
 	void forgetPortal(UUID portalId)
 	{
-		List<Key> removals = new ArrayList<Key>();
-		for(Key key : presences.keySet())
+		for(UUID viewerId : presencesByViewer.keySet())
 		{
-			if(key.portalId().equals(portalId))
+			presencesByViewer.computeIfPresent(viewerId, (ignored, viewerPresences) ->
 			{
-				removals.add(key);
-			}
-		}
-		for(Key key : removals)
-		{
-			presences.remove(key);
+				viewerPresences.remove(portalId);
+				return viewerPresences.isEmpty() ? null : viewerPresences;
+			});
 		}
 	}
 
 	void clear()
 	{
-		presences.clear();
+		presencesByViewer.clear();
 	}
 
-	private void depart(List<Key> departures)
+	private void touch(UUID portalId, UUID viewerId)
 	{
-		for(Key key : departures)
-		{
-			leave(key);
-		}
-	}
-
-	private void leave(Key key)
-	{
-		Presence removed = presences.remove(key);
-		if(removed == null)
-		{
-			return;
-		}
-		service.leaveViewer(key.portalId(), key.viewerId()).whenComplete((changed, failure) ->
+		service.touchViewer(portalId, viewerId).whenComplete((changed, failure) ->
 		{
 			if(failure != null)
 			{
-				failures.report("attendance-leave:" + key.portalId(), failure);
+				failures.report("attendance-touch:" + portalId, failure);
 			}
 		});
 	}
 
-	private record Key(UUID portalId, UUID viewerId)
+	private void leave(UUID portalId, UUID viewerId)
 	{
-		private Key
+		service.leaveViewer(portalId, viewerId).whenComplete((changed, failure) ->
 		{
-			Objects.requireNonNull(portalId, "portalId");
-			Objects.requireNonNull(viewerId, "viewerId");
-		}
+			if(failure != null)
+			{
+				failures.report("attendance-leave:" + portalId, failure);
+			}
+		});
 	}
 
 	private record Presence(

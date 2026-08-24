@@ -140,7 +140,7 @@ public class CommandPocket {
             manager.resizePocket(space, shell, confirm, outcome -> {
                 switch (outcome.status()) {
                     case RESIZED -> resized.incrementAndGet();
-                    case UNCHANGED, NEEDS_CONFIRMATION -> skipped.incrementAndGet();
+                    case UNCHANGED, NEEDS_CONFIRMATION, NON_EMPTY_CONTAINERS -> skipped.incrementAndGet();
                     default -> failed.incrementAndGet();
                 }
                 if (pending.decrementAndGet() == 0) {
@@ -199,9 +199,11 @@ public class CommandPocket {
                     WormholesLocalization.args(
                             MessageArgument.untrusted("size", Integer.valueOf(target.size())),
                             MessageArgument.untrusted("blocks", Long.valueOf(outcome.impact().blocks())),
-                            MessageArgument.untrusted("containers", Long.valueOf(outcome.impact().containers())),
                             MessageArgument.untrusted("entities", Long.valueOf(outcome.impact().entities()))
                     ));
+            case NON_EMPTY_CONTAINERS -> send(sender, WormholesMessages.COMMAND_POCKET_CONTAINERS_NOT_EMPTY,
+                    WormholesLocalization.args(
+                            MessageArgument.untrusted("containers", Long.valueOf(outcome.impact().containers()))));
             case UNCHANGED -> send(sender, WormholesMessages.COMMAND_POCKET_UNCHANGED);
             case WORLD_UNAVAILABLE -> send(sender, WormholesMessages.COMMAND_POCKET_WORLD_UNAVAILABLE);
             case DOES_NOT_FIT -> send(sender, WormholesMessages.COMMAND_POCKET_DOES_NOT_FIT,

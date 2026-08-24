@@ -34,7 +34,7 @@ public final class RtpPortalRuntimeTest
 	}
 
 	@Test
-	public void sharedRuntimeRequiresActiveAndStandbyAndCoalescesSearchAdmission() throws Exception
+	public void sharedRuntimeBecomesUsableWithActiveWhileStandbySearchContinues() throws Exception
 	{
 		RtpPortalRuntime runtime = RtpPortalRuntime.shared(4L, RtpRotationMode.STATIC, 1_000L);
 		ExecutorService executor = Executors.newFixedThreadPool(8);
@@ -64,7 +64,7 @@ public final class RtpPortalRuntimeTest
 
 		RtpDestination active = destination("active");
 		assertEquals(RtpPortalRuntime.SearchCompletion.ADDED, runtime.completeSearch(activeTicket, active, 100L));
-		assertFalse(runtime.snapshot().ready());
+		assertTrue(runtime.snapshot().ready());
 		RtpPortalRuntime.SearchTicket standbyTicket = runtime.beginSearch().orElseThrow();
 		assertEquals(RtpPortalRuntime.SearchPurpose.SHARED_STANDBY, standbyTicket.purpose());
 		RtpDestination standby = destination("standby");
@@ -114,7 +114,7 @@ public final class RtpPortalRuntimeTest
 		RtpRuntimeSnapshot promotedSnapshot = successful.snapshot();
 		assertSame(promoted, promotedSnapshot.active());
 		assertNull(promotedSnapshot.standby());
-		assertFalse(promotedSnapshot.ready());
+		assertTrue(promotedSnapshot.ready());
 		assertTrue(promotedSnapshot.routeRevision() > oldRevision);
 
 		RtpPortalRuntime failed = RtpPortalRuntime.shared(13L, RtpRotationMode.ON_TRAVERSAL, 1_000L);
@@ -228,7 +228,7 @@ public final class RtpPortalRuntimeTest
 		RtpPortalRuntime.SearchTicket standbyTicket = runtime.beginSearch().orElseThrow();
 
 		assertEquals(RtpPortalRuntime.SearchCompletion.DUPLICATE, runtime.completeSearch(standbyTicket, duplicateColumn, 0L));
-		assertFalse(runtime.snapshot().ready());
+		assertTrue(runtime.snapshot().ready());
 		assertEquals(1, runtime.snapshot().candidateCount());
 	}
 
@@ -251,16 +251,16 @@ public final class RtpPortalRuntimeTest
 			assertEquals(RtpPortalRuntime.SearchCompletion.ADDED, runtime.completeSearch(ticket, destination("candidate-" + index), 0L));
 		}
 		assertTrue(runtime.beginSearch().isEmpty());
-		for (int index = 0; index < 14; index++)
+		for (int index = 0; index < 16; index++)
 		{
 			assertTrue(runtime.reservePlayer(players.get(index)).isPresent());
 		}
-		assertTrue(runtime.reservePlayer(players.get(14)).isEmpty());
+		assertTrue(runtime.reservePlayer(players.get(16)).isEmpty());
 		RtpRuntimeSnapshot snapshot = runtime.snapshot();
 		assertEquals(16, snapshot.candidateCount());
-		assertEquals(14, snapshot.reservedPlayers());
-		assertEquals(2, snapshot.freeCandidates());
-		assertEquals(2, snapshot.freeEntries().size());
+		assertEquals(16, snapshot.reservedPlayers());
+		assertEquals(0, snapshot.freeCandidates());
+		assertEquals(0, snapshot.freeEntries().size());
 		assertThrows(UnsupportedOperationException.class, () -> snapshot.freeEntries().clear());
 	}
 
@@ -435,7 +435,7 @@ public final class RtpPortalRuntimeTest
 		assertTrue(runtime.invalidateDestination(standby));
 		RtpRuntimeSnapshot snapshot = runtime.snapshot();
 		assertNull(snapshot.standby());
-		assertFalse(snapshot.ready());
+		assertTrue(snapshot.ready());
 		assertEquals(1, snapshot.candidateCount());
 
 		RtpPortalRuntime.SearchTicket replacement = runtime.beginSearch().orElseThrow();

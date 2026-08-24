@@ -35,7 +35,7 @@ public class MainConfig {
     public double portalSoundVolumeMultiplier = 1.0;
     @ConfigDescription("Allow other plugins to price or veto a portal traversal through the Wormholes traversal API. When false, no cost provider is called and neither traversal event fires.")
     public boolean traversalApiEnabled = true;
-    @ConfigDescription("What to do when a third-party traversal cost provider throws or misbehaves: allow (treat it as a refusal to charge and let the traversal through free) or deny (close the portal).")
+    @ConfigDescription("What to do when a third-party traversal cost provider throws or misbehaves: allow (treat it as a refusal to charge and let this traversal through free) or deny (reject this traversal attempt).")
     public String traversalApiProviderFailurePolicy = "allow";
     @ConfigDescription("Failures before a misbehaving traversal cost provider is disabled for this session. 0 disables quarantine.")
     public int traversalApiProviderFaultLimit = 5;

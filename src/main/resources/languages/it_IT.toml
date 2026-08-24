@@ -410,6 +410,7 @@ locale = "it_IT"
 "command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} non va bene come parete della tasca. Usa un blocco solido che non cade."
 "command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} non va bene come porta di uscita. Usa una porta apribile a mano; le porte di ferro sono rifiutate."
 "command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Quella tasca ha gia questa dimensione e questi materiali."
+"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Ridimensionamento interrotto: verrebbero distrutti <white>{containers}<red> contenitori non vuoti. Svuotali prima di riprovare; <white>confirm=true<red> non puo ignorare questo controllo di sicurezza."
 "command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Tasca ricostruita a <white>{size}<green> blocchi (prima <white>{previous}<green>), pareti <white>{material}<green>, porta di uscita <white>{door}."
 "command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Non e stato possibile ricostruire la tasca. Controlla la console."
 "command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>La dimensione tascabile non e caricata."
@@ -585,7 +586,7 @@ locale = "it_IT"
 "door.menu.access.entry" = ["<white>{name}","<gray>Stato: <aqua>{state}","","<dark_gray>Clic sinistro: consenti. Clic destro: blocca.","<dark_gray>Clic centrale o Maiusc + clic sinistro: rimuovi."]
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tasca <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Dimensione <white>{size}<gray> blocchi, pareti <white>{material}<gray>, porta di uscita <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Limiti da <white>{minimum}<gray> a <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Ricostruire a {size} blocchi distruggerebbe <white>{blocks}<red> blocchi piazzati (<white>{containers}<red> con oggetti) e sposterebbe <white>{entities}<red> entita.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Il contenuto dei contenitori e tutto cio che resta fuori dalle nuove pareti viene lasciato cadere all'ingresso. Il resto va perso.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Esegui lo stesso comando con <white>confirm=true<gray> per procedere."]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Ricostruire a {size} blocchi distruggerebbe <white>{blocks}<red> blocchi piazzati e sposterebbe <white>{entities}<red> entita.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>I blocchi fuori dalle nuove pareti vengono distrutti; le entita spostate vengono portate all'ingresso.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Esegui lo stesso comando con <white>confirm=true<gray> per procedere."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Eliminato <white>{count}<green> portale e ripuliti i collegamenti locali."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Eliminati <white>{count}<green> portali e ripuliti i collegamenti locali."

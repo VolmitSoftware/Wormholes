@@ -20,9 +20,13 @@ final class ProjectionBudgetLedger {
     private final AtomicInteger lastScheduledProjectors = new AtomicInteger();
     private final AtomicInteger lastDeferredProjectors = new AtomicInteger();
     private long lastDiagnostic;
+    private int priorityObserverCursor;
+    private int discoveryObserverCursor;
 
     ProjectionBudgetLedger() {
         this.lastDiagnostic = 0L;
+        this.priorityObserverCursor = 0;
+        this.discoveryObserverCursor = 0;
     }
 
     void beginFrame() {
@@ -59,37 +63,98 @@ final class ProjectionBudgetLedger {
         return 0;
     }
 
-    List<Player> selectObserverCandidates(List<Player> onlinePlayers, ProjectionInterestSet interestSet,
-                                          long frameTick, int maxNewScans) {
-        if (onlinePlayers.isEmpty()) {
+    List<Player> selectObserverCandidates(List<Player> onlinePlayers,
+                                          Set<UUID> priorityObserverIds,
+                                          Set<UUID> unavailableObserverIds,
+                                          long frameTick,
+                                          int maxAdmissions,
+                                          boolean discoveryEnabled) {
+        if (onlinePlayers.isEmpty() || maxAdmissions <= 0) {
             lastObserverCandidates.set(0);
+            lastNewObserverScans.set(0);
             return List.of();
         }
-        Set<UUID> trackedObserverIds = interestSet.observerIds();
-
-        int discoveryLimit = Math.min(Math.max(0, maxNewScans), onlinePlayers.size());
-        List<Player> candidates = new ArrayList<Player>(Math.min(onlinePlayers.size(), trackedObserverIds.size() + discoveryLimit));
-        Set<UUID> included = new HashSet<UUID>(trackedObserverIds.size() + discoveryLimit);
+        Set<UUID> priorities = priorityObserverIds == null ? Set.of() : priorityObserverIds;
+        Set<UUID> unavailable = unavailableObserverIds == null ? Set.of() : unavailableObserverIds;
+        List<Player> priority = new ArrayList<Player>();
+        List<Player> discovery = new ArrayList<Player>();
+        Set<UUID> included = new HashSet<UUID>(onlinePlayers.size());
         for (Player player : onlinePlayers) {
             UUID playerId = player.getUniqueId();
-            if (trackedObserverIds.contains(playerId) && included.add(playerId)) {
-                candidates.add(player);
-            }
-        }
-
-        int start = ProjectionManager.observerDiscoveryStart(onlinePlayers.size(), discoveryLimit, frameTick);
-        int discovered = 0;
-        for (int offset = 0; offset < onlinePlayers.size() && discovered < discoveryLimit; offset++) {
-            Player player = onlinePlayers.get((start + offset) % onlinePlayers.size());
-            if (!included.add(player.getUniqueId())) {
+            if (unavailable.contains(playerId) || !included.add(playerId)) {
                 continue;
             }
-            candidates.add(player);
-            discovered++;
+            if (priorities.contains(playerId)) {
+                priority.add(player);
+            } else if (discoveryEnabled) {
+                discovery.add(player);
+            }
         }
-        lastNewObserverScans.set(discovered);
+        int capacity = Math.min(maxAdmissions, priority.size() + discovery.size());
+        if (capacity <= 0) {
+            lastObserverCandidates.set(0);
+            lastNewObserverScans.set(0);
+            return List.of();
+        }
+
+        int priorityTarget = priorityAdmissionTarget(capacity, !priority.isEmpty(), !discovery.isEmpty(), frameTick);
+        int discoveryTarget = capacity - priorityTarget;
+        List<Player> candidates = new ArrayList<Player>(capacity);
+        int selectedPriority = appendRoundRobin(priority, priorityTarget, priorityObserverCursor, candidates);
+        priorityObserverCursor = nextCursor(priorityObserverCursor, selectedPriority, priority.size());
+        int selectedDiscovery = appendRoundRobin(discovery, discoveryTarget, discoveryObserverCursor, candidates);
+        discoveryObserverCursor = nextCursor(discoveryObserverCursor, selectedDiscovery, discovery.size());
+
+        int remaining = capacity - candidates.size();
+        if (remaining > 0) {
+            int extraPriority = appendRoundRobin(priority, Math.min(remaining, priority.size() - selectedPriority),
+                priorityObserverCursor, candidates);
+            priorityObserverCursor = nextCursor(priorityObserverCursor, extraPriority, priority.size());
+            selectedPriority += extraPriority;
+            remaining -= extraPriority;
+        }
+        if (remaining > 0) {
+            int extraDiscovery = appendRoundRobin(discovery,
+                Math.min(remaining, discovery.size() - selectedDiscovery), discoveryObserverCursor, candidates);
+            discoveryObserverCursor = nextCursor(discoveryObserverCursor, extraDiscovery, discovery.size());
+            selectedDiscovery += extraDiscovery;
+        }
+
+        lastNewObserverScans.set(selectedDiscovery);
         lastObserverCandidates.set(candidates.size());
         return candidates;
+    }
+
+    static int priorityAdmissionTarget(int capacity, boolean hasPriority, boolean hasDiscovery, long frameTick) {
+        if (capacity <= 0 || !hasPriority) {
+            return 0;
+        }
+        if (!hasDiscovery) {
+            return capacity;
+        }
+        if (capacity == 1) {
+            return Math.floorMod(frameTick - 1L, 4L) == 3L ? 0 : 1;
+        }
+        return capacity - Math.max(1, capacity / 4);
+    }
+
+    private static <T> int appendRoundRobin(List<T> source, int requested, int cursor, List<T> destination) {
+        int selected = Math.min(Math.max(0, requested), source.size());
+        if (selected <= 0) {
+            return 0;
+        }
+        int start = Math.floorMod(cursor, source.size());
+        for (int offset = 0; offset < selected; offset++) {
+            destination.add(source.get((start + offset) % source.size()));
+        }
+        return selected;
+    }
+
+    private static int nextCursor(int cursor, int selected, int size) {
+        if (size <= 0 || selected <= 0) {
+            return cursor;
+        }
+        return (Math.floorMod(cursor, size) + selected) % size;
     }
 
     void emitDiagnostics(long tickCount, List<ILocalPortal> active, ProjectionInterestSet interestSet) {

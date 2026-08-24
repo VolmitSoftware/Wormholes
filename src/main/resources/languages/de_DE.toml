@@ -409,6 +409,7 @@ locale = "de_DE"
 "command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} eignet sich nicht als Taschenwand. Nimm einen festen Block, der nicht faellt."
 "command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} eignet sich nicht als Ausgangstuer. Nimm eine von Hand bedienbare Tuer; Eisentueren werden abgelehnt."
 "command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Diese Tasche hat bereits diese Groesse und diese Materialien."
+"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Die Taschengroesse wurde nicht geaendert: <white>{containers}<red> nicht leere Behaelter wuerden zerstoert. Leere sie vor dem naechsten Versuch; <white>confirm=true<red> kann diese Sicherheitspruefung nicht umgehen."
 "command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Tasche mit <white>{size}<green> Bloecken neu gebaut (vorher <white>{previous}<green>), Waende <white>{material}<green>, Ausgangstuer <white>{door}."
 "command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Die Tasche konnte nicht neu gebaut werden. Sieh in der Konsole nach."
 "command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Die Taschendimension ist nicht geladen."
@@ -584,7 +585,7 @@ locale = "de_DE"
 "rtp.status.header" = ["<gold><bold>Status des Zufallsziels</bold>","<gray>Status: {state}"]
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tasche <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Groesse <white>{size}<gray> Bloecke, Waende <white>{material}<gray>, Ausgangstuer <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Grenzen <white>{minimum}<gray> bis <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Ein Neubau mit {size} Bloecken wuerde <white>{blocks}<red> platzierte Bloecke zerstoeren (<white>{containers}<red> mit Inhalt) und <white>{entities}<red> Entitaeten verschieben.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Behaelterinhalte und alles ausserhalb der neuen Waende landen am Eingang. Alles andere geht verloren.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Fuehre denselben Befehl mit <white>confirm=true<gray> aus, um fortzufahren."]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Ein Neubau mit {size} Bloecken wuerde <white>{blocks}<red> platzierte Bloecke zerstoeren und <white>{entities}<red> Entitaeten verschieben.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Bloecke ausserhalb der neuen Waende werden zerstoert; verschobene Entitaeten werden zum Eingang gebracht.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Fuehre denselben Befehl mit <white>confirm=true<gray> aus, um fortzufahren."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> Portal gelöscht und lokale Portalverknüpfungen bereinigt."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> Portale gelöscht und lokale Portalverknüpfungen bereinigt."

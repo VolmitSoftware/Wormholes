@@ -46,7 +46,7 @@ final class ProjectionInterestFrame {
     }
 
     void project(Player observer,
-                 List<ILocalPortal> active,
+                 PortalCandidateSnapshot active,
                  AtomicInteger remainingProjectors,
                  int reservedBudget,
                  boolean updateBlocks,
@@ -64,7 +64,7 @@ final class ProjectionInterestFrame {
         List<ILocalPortal> interested = new ArrayList<ILocalPortal>();
         Map<UUID, PortalProjector.RtpProjectionTarget> rtpTargets = null;
         ProjectionManager.RtpProjectionProvider provider = rtpProjectionProvider.get();
-        for (ILocalPortal portal : active) {
+        for (ILocalPortal portal : active.candidates(observerWorld, observerLocation)) {
             Location center = portal.getCenter();
             if (center == null || center.getWorld() == null) {
                 continue;
@@ -163,6 +163,8 @@ final class ProjectionInterestFrame {
                 } catch (Throwable ex) {
                     Wormholes.instance.getLogger().log(Level.WARNING,
                             "[ProjectionManager] projection error portal=" + portal.getName() + " observer=" + observer.getName(), ex);
+                } finally {
+                    interestSet.refreshProjectedEntities(projector);
                 }
             }
         } finally {

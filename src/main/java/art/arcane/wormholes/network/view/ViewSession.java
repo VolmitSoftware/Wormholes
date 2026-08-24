@@ -37,6 +37,7 @@ final class ViewSession {
     final Map<String, Long> sidebandEntityNextTick = new ConcurrentHashMap<>();
     final Map<String, Boolean> lastPeerSideband = new ConcurrentHashMap<>();
     final Map<String, ViewServer.TimeDeliveryState> timeDeliveryStates = new ConcurrentHashMap<>();
+    final Map<String, InitialSubscriptionProgress> initialSubscriptionProgress = new ConcurrentHashMap<>();
     final Map<UUID, EntityVisual> lastCapturedSnapshots = new ConcurrentHashMap<>();
     final Map<UUID, ViewServer.BlobCaptureState> blobCaptureStates = new ConcurrentHashMap<>();
     final AtomicBoolean entityCaptureRunning = new AtomicBoolean(false);

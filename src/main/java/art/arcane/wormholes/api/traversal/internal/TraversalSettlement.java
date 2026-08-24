@@ -3,6 +3,7 @@ package art.arcane.wormholes.api.traversal.internal;
 public enum TraversalSettlement {
     COMMITTED(true),
     REFUNDED(true),
+    PENDING(false),
     NOT_OPEN(false),
     DISABLED(false);
 

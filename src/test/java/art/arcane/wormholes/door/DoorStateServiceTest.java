@@ -453,7 +453,7 @@ class DoorStateServiceTest {
 
         assertEquals(PocketShell.defaults(), original.shell());
 
-        PocketSpace reshaped = service.reshapePocket(original.spaceId(), large);
+        PocketSpace reshaped = service.reshapePocket(original.spaceId(), original.shell(), large);
 
         assertEquals(large, reshaped.shell());
         assertEquals(original.withShell(large), reshaped);
@@ -463,7 +463,11 @@ class DoorStateServiceTest {
         DoorStateService restarted = DoorStateService.load(new DimensionalDoorRepository(repository.stateFile()));
         assertEquals(reshaped, restarted.findPocket(binding).orElseThrow());
         assertEquals(64, new PocketLayout(restarted.findPocket(binding).orElseThrow()).size());
-        assertThrows(IllegalArgumentException.class, () -> restarted.reshapePocket(id(81), large));
+        assertThrows(IllegalStateException.class,
+            () -> restarted.reshapePocket(original.spaceId(), PocketShell.defaults(), PocketShell.defaults()));
+        assertEquals(large, restarted.findPocketById(original.spaceId()).orElseThrow().shell());
+        assertThrows(IllegalArgumentException.class,
+            () -> restarted.reshapePocket(id(81), PocketShell.defaults(), large));
     }
 
     @Test

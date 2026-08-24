@@ -409,6 +409,7 @@ locale = "nl_NL"
 "command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} kan geen zakmuur zijn. Gebruik een vast blok dat niet valt."
 "command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} kan geen uitgangsdeur zijn. Gebruik een deur die met de hand opengaat; ijzeren deuren worden geweigerd."
 "command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Die zak heeft deze grootte en deze materialen al."
+"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Het wijzigen van de zak is gestopt: <white>{containers}<red> niet-lege opslagblokken zouden worden vernietigd. Maak ze leeg en probeer opnieuw; <white>confirm=true<red> kan deze veiligheidscontrole niet omzeilen."
 "command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Zak herbouwd op <white>{size}<green> blokken (was <white>{previous}<green>), muren <white>{material}<green>, uitgangsdeur <white>{door}."
 "command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>De zak kon niet worden herbouwd. Controleer de console."
 "command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>De zakdimensie is niet geladen."
@@ -584,7 +585,7 @@ locale = "nl_NL"
 "door.menu.access.entry" = ["<white>{name}","<gray>Status: <aqua>{state}","","<dark_gray>Linkerklik: toestaan. Rechterklik: blokkeren.","<dark_gray>Middelklik of Shift + linkerklik: verwijderen."]
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Zak <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Grootte <white>{size}<gray> blokken, muren <white>{material}<gray>, uitgangsdeur <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Grenzen <white>{minimum}<gray> tot <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Herbouwen op {size} blokken zou <white>{blocks}<red> geplaatste blokken vernietigen (<white>{containers}<red> met items) en <white>{entities}<red> entiteiten verplaatsen.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>De inhoud van kisten en alles buiten de nieuwe muren valt bij de ingang. De rest gaat verloren.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Voer hetzelfde commando uit met <white>confirm=true<gray> om door te gaan."]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Herbouwen op {size} blokken zou <white>{blocks}<red> geplaatste blokken vernietigen en <white>{entities}<red> entiteiten verplaatsen.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Blokken buiten de nieuwe muren worden vernietigd; verplaatste entiteiten gaan naar de ingang.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Voer hetzelfde commando uit met <white>confirm=true<gray> om door te gaan."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> portaal verwijderd en lokale portaalverbindingen opgeschoond."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> portalen verwijderd en lokale portaalverbindingen opgeschoond."

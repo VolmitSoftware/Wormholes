@@ -16,6 +16,7 @@ import org.bukkit.util.Vector;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
@@ -89,11 +90,11 @@ final class TraversalEntityTransit {
             if (!entity.isValid()) {
                 return;
             }
-            entity.getPersistentDataContainer().remove(TRANSIT_STAMP_KEY);
             entity.setInvulnerable(state.invulnerable());
             entity.setSilent(state.silent());
             entity.setGravity(state.gravity());
             entity.setVelocity(state.velocity().clone());
+            entity.getPersistentDataContainer().remove(TRANSIT_STAMP_KEY);
             ILocalPortal source = Wormholes.portalManager == null || sourcePortalId == null
                 ? null
                 : Wormholes.portalManager.getLocalPortal(sourcePortalId);
@@ -106,6 +107,59 @@ final class TraversalEntityTransit {
             failures.recordUnrecovered(Failure.ENTITY_TRANSIT_RESTORE_SCHEDULE_REJECTED, entityId,
                 "entity scheduler refused the transit rollback; queued for the next entity reconcile");
         }
+    }
+
+    CompletableFuture<Boolean> restoreRejectedForShutdown(
+        Entity entity,
+        TransitState state,
+        UUID sourcePortalId,
+        Traversive traversive
+    ) {
+        CompletableFuture<Boolean> completion = new CompletableFuture<>();
+        if (entity == null) {
+            completion.complete(Boolean.FALSE);
+            return completion;
+        }
+        UUID entityId = entity.getUniqueId();
+        LocalPortal.clearTeleportInFlight(entityId);
+        PendingRestore pending = new PendingRestore(entity, state, sourcePortalId, traversive);
+        Runnable restore = () -> {
+            pendingTransitRestores.remove(entityId, pending);
+            if (!entity.isValid()) {
+                completion.complete(Boolean.FALSE);
+                return;
+            }
+            try {
+                entity.setInvulnerable(state.invulnerable());
+                entity.setSilent(state.silent());
+                entity.setGravity(state.gravity());
+                entity.setVelocity(state.velocity().clone());
+                entity.getPersistentDataContainer().remove(TRANSIT_STAMP_KEY);
+                ILocalPortal source = Wormholes.portalManager == null || sourcePortalId == null
+                    ? null
+                    : Wormholes.portalManager.getLocalPortal(sourcePortalId);
+                if (source != null) {
+                    source.rejectDeparture(entity, traversive);
+                }
+                completion.complete(Boolean.TRUE);
+            } catch (Throwable error) {
+                pendingTransitRestores.put(entityId, pending);
+                completion.complete(Boolean.FALSE);
+                throw error;
+            }
+        };
+        Runnable retired = () -> {
+            pendingTransitRestores.put(entityId, pending);
+            completion.complete(Boolean.FALSE);
+        };
+        boolean scheduled = scheduler.schedule(entity, restore, retired, 0L);
+        if (!scheduled) {
+            pendingTransitRestores.put(entityId, pending);
+            completion.complete(Boolean.FALSE);
+            failures.recordUnrecovered(Failure.ENTITY_TRANSIT_RESTORE_SCHEDULE_REJECTED, entityId,
+                "entity scheduler refused the shutdown transit rollback; the persistent transit stamp remains for startup recovery");
+        }
+        return completion;
     }
 
     void drainQueuedTransitRestores() {

@@ -47,7 +47,7 @@ permissions:
     description: Allows reloading Wormholes configuration.
     default: op
   wormholes.admin.items:
-    description: Allows spawning in Wormholes items (wand, runes).
+    description: Allows spawning Wormholes items (Portal Wand, Wormhole Rune, and Dimensional Door items).
     default: op
   wormholes.admin.network:
     description: Allows managing Wormholes network links.

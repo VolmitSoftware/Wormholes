@@ -23,6 +23,12 @@ class ChunkReplicationManagerTest {
     private static final String PEER = "peer-a";
 
     @Test
+    void replicationConfigRejectsNonPositiveQueueCapacity() {
+        assertEquals(1L, new ChunkReplicationManager.ReplicationConfig(0L).maxQueuedDiffsPerPeer());
+        assertEquals(1L, new ChunkReplicationManager.ReplicationConfig(Long.MIN_VALUE).maxQueuedDiffsPerPeer());
+    }
+
+    @Test
     void subscribeThenSendBulkRecordsBulkSent(@TempDir Path dir) {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager manager = sink.getReplicationManager();

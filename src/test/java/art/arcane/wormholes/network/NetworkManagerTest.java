@@ -14,6 +14,8 @@ import java.net.StandardProtocolFamily;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -134,9 +136,36 @@ class NetworkManagerTest {
     }
 
     private NetworkManager manager(NetworkConfig config, int gamePort, String identityName, String mcVersion) {
-        NetworkManager manager = new NetworkManager(LOGGER, config, mcVersion, "test", gamePort, tempDir.resolve(identityName));
+        return manager(config, gamePort, identityName, mcVersion, "test");
+    }
+
+    private NetworkManager manager(NetworkConfig config, int gamePort, String identityName, String mcVersion,
+                                   String pluginVersion) {
+        NetworkManager manager = new NetworkManager(LOGGER, config, mcVersion, pluginVersion, gamePort,
+            tempDir.resolve(identityName));
         managers.add(manager);
         return manager;
+    }
+
+    private static MinecraftStatusBridge.StatusPacket statusPacket(String sourceServer, String targetServer,
+                                                                    int protocolVersion, String mcVersion,
+                                                                    String pluginVersion) throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("Ed25519");
+        KeyPair keyPair = generator.generateKeyPair();
+        return MinecraftStatusBridge.create(sourceServer, targetServer, protocolVersion, mcVersion, pluginVersion,
+            "127.0.0.1", 25565, keyPair.getPublic().getEncoded(), keyPair.getPrivate(), 0L, List.of());
+    }
+
+    private static void assertStatusPacketRejected(NetworkManager manager, String sourceServer,
+                                                   MinecraftStatusBridge.StatusPacket packet) {
+        assertNull(manager.handleStatusBridgeRequest(packet));
+        assertFalse(manager.isPeerReady(sourceServer));
+    }
+
+    private static void assertStatusResponseRejected(NetworkManager manager, String sourceServer,
+                                                     MinecraftStatusBridge.StatusPacket packet) {
+        assertFalse(manager.handleStatusBridgeResponse(sourceServer, packet, 1L));
+        assertFalse(manager.isPeerReady(sourceServer));
     }
 
     private static PortalInfo portalInfo(UUID id, boolean open) {
@@ -231,6 +260,29 @@ class NetworkManagerTest {
         } finally {
             peerLog.removeHandler(capture);
         }
+    }
+
+    @Test
+    void statusSidebandRejectsIncompatiblePeersBeforeReadinessOrDiscovery() throws Exception {
+        NetworkManager beta = manager(config(freePort(), BETA_NAME), BETA_GAME_PORT, "status-admission-beta",
+            "26.2", "test");
+        beta.start();
+
+        assertStatusPacketRejected(beta, "wire-mismatch",
+            statusPacket("wire-mismatch", BETA_NAME, WireCodec.PROTOCOL_VERSION + 1, "26.2", "test"));
+        assertStatusPacketRejected(beta, "mc-mismatch",
+            statusPacket("mc-mismatch", BETA_NAME, WireCodec.PROTOCOL_VERSION, "26.1.2", "test"));
+        assertStatusPacketRejected(beta, "plugin-mismatch",
+            statusPacket("plugin-mismatch", BETA_NAME, WireCodec.PROTOCOL_VERSION, "26.2", "other"));
+
+        assertStatusResponseRejected(beta, "response-wire-mismatch",
+            statusPacket("response-wire-mismatch", BETA_NAME, WireCodec.PROTOCOL_VERSION + 1, "26.2", "test"));
+        assertStatusResponseRejected(beta, "response-mc-mismatch",
+            statusPacket("response-mc-mismatch", BETA_NAME, WireCodec.PROTOCOL_VERSION, "26.1.2", "test"));
+        assertStatusResponseRejected(beta, "response-plugin-mismatch",
+            statusPacket("response-plugin-mismatch", BETA_NAME, WireCodec.PROTOCOL_VERSION, "26.2", "other"));
+
+        assertEquals(0, beta.knownPeerCount());
     }
 
     @Test

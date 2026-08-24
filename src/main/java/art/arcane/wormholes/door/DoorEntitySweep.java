@@ -2,6 +2,7 @@ package art.arcane.wormholes.door;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -14,13 +15,20 @@ import org.bukkit.entity.Vehicle;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Vector;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Per-tick candidate feed for travelers that never fire a movement event.
@@ -43,27 +51,96 @@ final class DoorEntitySweep implements AutoCloseable
 	/** The aperture spans two blocks around its centre, plus headroom for steep shots. */
 	private static final double VERTICAL_REACH = 3.0D;
 	private static final long SWEEP_PERIOD_TICKS = 1L;
+	private static final long RETRY_DELAY_TICKS = 1L;
 
 	interface MovementSink
 	{
 		void accept(Entity traveler, Location from, Location to);
 	}
 
-	private final Plugin plugin;
+	@FunctionalInterface
+	interface RegionDispatch
+	{
+		boolean run(
+			World world,
+			int chunkX,
+			int chunkZ,
+			Runnable task,
+			Runnable retired,
+			long delayTicks);
+	}
+
+	@FunctionalInterface
+	interface RetryDispatch
+	{
+		boolean run(Runnable task, long delayTicks);
+	}
+
+	interface ChunkAccess
+	{
+		boolean loaded(World world, int chunkX, int chunkZ);
+
+		boolean owned(World world, int chunkX, int chunkZ);
+
+		Entity[] entities(World world, int chunkX, int chunkZ);
+	}
+
+	@FunctionalInterface
+	interface ClipWarning
+	{
+		void accept(DoorwayPlane plane);
+	}
+
+	record Dependencies(
+		Logger logger,
+		BooleanSupplier closed,
+		RegionDispatch regions,
+		RetryDispatch retries,
+		ChunkAccess chunks,
+		ClipWarning clipWarning)
+	{
+		Dependencies
+		{
+			Objects.requireNonNull(logger, "logger");
+			Objects.requireNonNull(closed, "closed");
+			Objects.requireNonNull(regions, "regions");
+			Objects.requireNonNull(retries, "retries");
+			Objects.requireNonNull(chunks, "chunks");
+			Objects.requireNonNull(clipWarning, "clipWarning");
+		}
+	}
+
+	private final Logger logger;
 	private final BooleanSupplier closed;
-	private final ConcurrentHashMap<UUID, Long> active;
-	private final AtomicLong sequence;
+	private final RegionDispatch regions;
+	private final RetryDispatch retries;
+	private final ChunkAccess chunkAccess;
+	private final ClipWarning clipWarning;
+	private final ConcurrentHashMap<UUID, ActiveDoor> active;
+	private final ConcurrentHashMap<ChunkKey, ChunkSweep> shared;
 	private final AtomicBoolean warnedClip;
+	private final Object lifecycleLock;
 
 	private volatile MovementSink sink;
 
 	DoorEntitySweep(Plugin plugin, BooleanSupplier closed)
 	{
-		this.plugin = Objects.requireNonNull(plugin, "plugin");
-		this.closed = Objects.requireNonNull(closed, "closed");
+		this(productionDependencies(plugin, closed));
+	}
+
+	DoorEntitySweep(Dependencies dependencies)
+	{
+		Dependencies required = Objects.requireNonNull(dependencies, "dependencies");
+		logger = required.logger();
+		closed = required.closed();
+		regions = required.regions();
+		retries = required.retries();
+		chunkAccess = required.chunks();
+		clipWarning = required.clipWarning();
 		active = new ConcurrentHashMap<>();
-		sequence = new AtomicLong();
+		shared = new ConcurrentHashMap<>();
 		warnedClip = new AtomicBoolean();
+		lifecycleLock = new Object();
 	}
 
 	void attach(MovementSink movementSink)
@@ -76,10 +153,26 @@ final class DoorEntitySweep implements AutoCloseable
 		return active.size();
 	}
 
-	/**
-	 * Starts or stops the sweep for one door from a freshly observed portal-active
-	 * state, which can be the shut surface rather than the open aperture.
-	 */
+	int activeChunkSweeps()
+	{
+		return shared.size();
+	}
+
+	void chunkLoaded(World world, int chunkX, int chunkZ)
+	{
+		if(world == null || sink == null || closed.getAsBoolean())
+		{
+			return;
+		}
+		ChunkSweep chunkSweep = shared.get(new ChunkKey(world.getUID(), chunkX, chunkZ));
+		if(chunkSweep == null || chunkSweep.world() != world)
+		{
+			return;
+		}
+		chunkSweep.state().compareAndSet(SweepState.PAUSED, SweepState.IDLE);
+		schedule(chunkSweep);
+	}
+
 	void observe(PlacedDoorEndpoint endpoint, RuntimeDoor runtime, World world, boolean active)
 	{
 		if(active)
@@ -94,154 +187,267 @@ final class DoorEntitySweep implements AutoCloseable
 
 	void stop(UUID doorId)
 	{
-		if(active.remove(Objects.requireNonNull(doorId, "doorId")) != null)
+		UUID requiredDoorId = Objects.requireNonNull(doorId, "doorId");
+		ActiveDoor removed;
+		synchronized(lifecycleLock)
 		{
-			Wormholes.v("[door] SWEEP stop door=" + doorId + " active=" + active.size());
+			removed = active.remove(requiredDoorId);
+			if(removed != null)
+			{
+				unlink(removed);
+			}
+		}
+		if(removed != null)
+		{
+			Wormholes.v("[door] SWEEP stop door=" + requiredDoorId + " active=" + active.size());
 		}
 	}
 
 	@Override
 	public void close()
 	{
-		active.clear();
+		synchronized(lifecycleLock)
+		{
+			active.clear();
+			shared.clear();
+			sink = null;
+		}
 	}
 
 	private void start(PlacedDoorEndpoint endpoint, RuntimeDoor runtime, World world)
 	{
-		if(sink == null || world == null || closed.getAsBoolean() || runtime.plane() == null)
+		if(endpoint == null || runtime == null || world == null || sink == null || closed.getAsBoolean())
 		{
 			return;
 		}
+		DoorwayPlane plane = runtime.plane();
+		if(plane == null)
+		{
+			return;
+		}
+
 		UUID doorId = endpoint.identity().itemId();
-		if(active.containsKey(doorId))
+		ActiveDoor registration;
+		boolean started;
+		List<ChunkSweep> idle = new ArrayList<>(4);
+		synchronized(lifecycleLock)
 		{
-			return;
-		}
-		long token = sequence.incrementAndGet();
-		if(active.putIfAbsent(doorId, Long.valueOf(token)) != null)
-		{
-			return;
-		}
-		int chunkX = endpoint.position().x() >> 4;
-		int chunkZ = endpoint.position().z() >> 4;
-		Runnable[] holder = new Runnable[1];
-		holder[0] = () ->
-		{
-			if(!shouldContinue(doorId, token, runtime, world, chunkX, chunkZ))
+			if(sink == null || closed.getAsBoolean())
 			{
-				active.remove(doorId, Long.valueOf(token));
 				return;
 			}
-			sweepOnce(runtime, world);
-			if(!FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ, holder[0], SWEEP_PERIOD_TICKS))
+			ActiveDoor current = active.get(doorId);
+			if(current != null && current.matches(runtime, world, plane))
 			{
-				active.remove(doorId, Long.valueOf(token));
+				registration = current;
+				started = false;
 			}
-		};
-		if(!FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ, holder[0], SWEEP_PERIOD_TICKS))
-		{
-			active.remove(doorId, Long.valueOf(token));
-			return;
-		}
-		Wormholes.v("[door] SWEEP start door=" + doorId + " active=" + active.size());
-	}
-
-	private boolean shouldContinue(UUID doorId, long token, RuntimeDoor runtime, World world, int chunkX, int chunkZ)
-	{
-		Long current = active.get(doorId);
-		return sink != null
-			&& !closed.getAsBoolean()
-			&& current != null
-			&& current.longValue() == token
-			&& shouldSweep(runtime.plane(), runtime.cycle(), world.isChunkLoaded(chunkX, chunkZ));
-	}
-
-	/**
-	 * Whether a sweep is still worth running.
-	 *
-	 * <p>An unloaded chunk holds no entities to feed and fires no block event, so
-	 * nothing there would ever observe the door shut again: a sweep left running on
-	 * one spins for the rest of the session.</p>
-	 */
-	static boolean shouldSweep(DoorwayPlane plane, DoorOpenCycle cycle, boolean chunkLoaded)
-	{
-		return plane != null && cycle != null && chunkLoaded && cycle.portalActive();
-	}
-
-	/**
-	 * Sweeps chunk by chunk rather than through one wide box.
-	 *
-	 * <p>A 4.5-block reach around a door near a chunk border spills into its
-	 * neighbours, which on Folia may belong to another region. One box query over
-	 * all of them is refused outright, silently discarding every tick for as long
-	 * as the door stands open; per-chunk queries keep the owned chunks working and
-	 * clip only what is genuinely out of reach.</p>
-	 */
-	private void sweepOnce(RuntimeDoor runtime, World world)
-	{
-		DoorwayPlane plane = runtime.plane();
-		MovementSink movementSink = sink;
-		if(plane == null || movementSink == null)
-		{
-			return;
-		}
-		DoorVec3 center = plane.center();
-		ChunkSpan span = span(center);
-		boolean clipped = false;
-		for(int chunkX = span.minChunkX(); chunkX <= span.maxChunkX(); chunkX++)
-		{
-			for(int chunkZ = span.minChunkZ(); chunkZ <= span.maxChunkZ(); chunkZ++)
+			else
 			{
-				clipped |= !sweepChunk(movementSink, world, center, chunkX, chunkZ);
-			}
-		}
-		if(clipped)
-		{
-			warnClip(plane);
-		}
-	}
-
-	/** Returns false when this chunk could not be read from the door's own region. */
-	private boolean sweepChunk(MovementSink movementSink, World world, DoorVec3 center, int chunkX, int chunkZ)
-	{
-		try
-		{
-			if(!world.isChunkLoaded(chunkX, chunkZ))
-			{
-				return true;
-			}
-			if(!WormholesPlatform.isOwnedByCurrentRegion(world, chunkX, chunkZ))
-			{
-				return false;
-			}
-			for(Entity candidate : world.getChunkAt(chunkX, chunkZ).getEntities())
-			{
-				if(isSweepable(candidate))
+				if(current != null)
 				{
-					feed(movementSink, center, candidate);
+					active.remove(doorId, current);
+					unlink(current);
+				}
+				registration = ActiveDoor.create(doorId, runtime, world, plane);
+				active.put(doorId, registration);
+				started = true;
+			}
+			for(ChunkKey key : registration.targets())
+			{
+				ChunkSweep chunkSweep = shared.get(key);
+				if(chunkSweep == null)
+				{
+					chunkSweep = new ChunkSweep(key, world);
+					shared.put(key, chunkSweep);
+				}
+				chunkSweep.doors().put(doorId, registration);
+				if(chunkSweep.state().get() == SweepState.IDLE)
+				{
+					idle.add(chunkSweep);
 				}
 			}
-			return true;
+		}
+
+		for(ChunkSweep chunkSweep : idle)
+		{
+			schedule(chunkSweep);
+		}
+		if(started && active.get(doorId) == registration)
+		{
+			Wormholes.v("[door] SWEEP start door=" + doorId + " active=" + active.size());
+		}
+	}
+
+	private void schedule(ChunkSweep chunkSweep)
+	{
+		if(!current(chunkSweep)
+			|| !chunkSweep.state().compareAndSet(SweepState.IDLE, SweepState.SCHEDULED))
+		{
+			return;
+		}
+		AtomicBoolean pending = new AtomicBoolean(true);
+		Runnable task = () ->
+		{
+			if(pending.compareAndSet(true, false)
+				&& chunkSweep.state().compareAndSet(SweepState.SCHEDULED, SweepState.IDLE))
+			{
+				run(chunkSweep);
+			}
+		};
+		Runnable retired = () ->
+		{
+			if(pending.compareAndSet(true, false)
+				&& chunkSweep.state().compareAndSet(SweepState.SCHEDULED, SweepState.IDLE))
+			{
+				retry(chunkSweep);
+			}
+		};
+		boolean accepted;
+		try
+		{
+			accepted = regions.run(
+				chunkSweep.world(),
+				chunkSweep.key().chunkX(),
+				chunkSweep.key().chunkZ(),
+				task,
+				retired,
+				SWEEP_PERIOD_TICKS);
 		}
 		catch(Throwable ex)
 		{
-			plugin.getLogger().log(Level.FINE, "Could not sweep a dimensional-door chunk for objects", ex);
-			// an exception is not a region-boundary clip; do not misdirect the clip warning
+			logger.log(Level.WARNING, "Could not schedule a dimensional-door object sweep", ex);
+			accepted = false;
+		}
+		if(!accepted)
+		{
+			retired.run();
+		}
+	}
+
+	private void run(ChunkSweep chunkSweep)
+	{
+		if(!current(chunkSweep))
+		{
+			return;
+		}
+		boolean repeat = true;
+		try
+		{
+			repeat = sweepChunk(chunkSweep);
+		}
+		catch(Throwable ex)
+		{
+			logger.log(Level.FINE, "Could not sweep a dimensional-door chunk for objects", ex);
+		}
+		if(!current(chunkSweep))
+		{
+			return;
+		}
+		if(!repeat)
+		{
+			chunkSweep.state().compareAndSet(SweepState.IDLE, SweepState.PAUSED);
+			return;
+		}
+		if(current(chunkSweep))
+		{
+			schedule(chunkSweep);
+		}
+	}
+
+	private boolean sweepChunk(ChunkSweep chunkSweep)
+	{
+		MovementSink movementSink = sink;
+		if(movementSink == null || closed.getAsBoolean())
+		{
 			return true;
 		}
-	}
-
-	private void warnClip(DoorwayPlane plane)
-	{
-		if(warnedClip.compareAndSet(false, true))
+		World world = chunkSweep.world();
+		ChunkKey key = chunkSweep.key();
+		if(!chunkAccess.loaded(world, key.chunkX(), key.chunkZ()))
 		{
-			Wormholes.w("[door] SWEEP clipped at a region boundary near "
-				+ plane.blockX() + "," + plane.blockY() + "," + plane.blockZ()
-				+ "; objects approaching from the far side are not swept");
+			return false;
 		}
+		DoorwayPlane representative = representativePlane(chunkSweep);
+		if(!chunkAccess.owned(world, key.chunkX(), key.chunkZ()))
+		{
+			warnClip(representative);
+			return true;
+		}
+
+		Routes routes = routes(chunkSweep);
+		warnClip(routes.clipped());
+		if(routes.centers().isEmpty())
+		{
+			return true;
+		}
+		for(Entity candidate : chunkAccess.entities(world, key.chunkX(), key.chunkZ()))
+		{
+			if(isSweepable(candidate))
+			{
+				feed(movementSink, routes.centers(), candidate);
+			}
+		}
+		return true;
 	}
 
-	private void feed(MovementSink movementSink, DoorVec3 center, Entity candidate)
+	private Routes routes(ChunkSweep chunkSweep)
+	{
+		List<DoorVec3> centers = new ArrayList<>(chunkSweep.doors().size());
+		Map<ChunkKey, Boolean> ownership = new HashMap<>();
+		ownership.put(chunkSweep.key(), Boolean.TRUE);
+		DoorwayPlane clipped = null;
+		for(ActiveDoor door : chunkSweep.doors().values())
+		{
+			if(active.get(door.doorId()) != door)
+			{
+				continue;
+			}
+			DoorwayPlane currentPlane = door.runtime().plane();
+			if(!shouldSweep(currentPlane, door.runtime().cycle(), true))
+			{
+				retire(door);
+				continue;
+			}
+			Boolean ownsOrigin = ownership.get(door.origin());
+			if(ownsOrigin == null)
+			{
+				ownsOrigin = Boolean.valueOf(chunkAccess.owned(
+					door.world(), door.origin().chunkX(), door.origin().chunkZ()));
+				ownership.put(door.origin(), ownsOrigin);
+			}
+			if(!ownsOrigin.booleanValue())
+			{
+				if(clipped == null)
+				{
+					clipped = currentPlane;
+				}
+				continue;
+			}
+			DoorVec3 center = currentPlane.equals(door.plane())
+				? door.center()
+				: currentPlane.center();
+			if(contains(span(center), chunkSweep.key()))
+			{
+				centers.add(center);
+			}
+		}
+		return new Routes(centers, clipped);
+	}
+
+	private DoorwayPlane representativePlane(ChunkSweep chunkSweep)
+	{
+		for(ActiveDoor door : chunkSweep.doors().values())
+		{
+			if(active.get(door.doorId()) == door)
+			{
+				return door.runtime().plane();
+			}
+		}
+		return null;
+	}
+
+	private void feed(MovementSink movementSink, List<DoorVec3> centers, Entity candidate)
 	{
 		try
 		{
@@ -250,7 +456,7 @@ final class DoorEntitySweep implements AutoCloseable
 				return;
 			}
 			Location to = candidate.getLocation();
-			if(to.getWorld() == null || !withinReach(center, to.getX(), to.getY(), to.getZ()))
+			if(to.getWorld() == null || !withinReach(centers, to.getX(), to.getY(), to.getZ()))
 			{
 				return;
 			}
@@ -260,11 +466,89 @@ final class DoorEntitySweep implements AutoCloseable
 		}
 		catch(Throwable ex)
 		{
-			plugin.getLogger().log(Level.FINE, "Could not evaluate a swept dimensional-door object", ex);
+			logger.log(Level.FINE, "Could not evaluate a swept dimensional-door object", ex);
 		}
 	}
 
-	/** The chunk rectangle the reach box covers, so every query is aimed at a known chunk. */
+	private boolean current(ChunkSweep chunkSweep)
+	{
+		return sink != null
+			&& !closed.getAsBoolean()
+			&& shared.get(chunkSweep.key()) == chunkSweep
+			&& !chunkSweep.doors().isEmpty();
+	}
+
+	private void retry(ChunkSweep chunkSweep)
+	{
+		if(!current(chunkSweep)
+			|| !chunkSweep.state().compareAndSet(SweepState.IDLE, SweepState.RETRY_SCHEDULED))
+		{
+			return;
+		}
+		Runnable retry = () ->
+		{
+			if(chunkSweep.state().compareAndSet(SweepState.RETRY_SCHEDULED, SweepState.IDLE))
+			{
+				schedule(chunkSweep);
+			}
+		};
+		boolean accepted;
+		try
+		{
+			accepted = retries.run(retry, RETRY_DELAY_TICKS);
+		}
+		catch(Throwable ex)
+		{
+			logger.log(Level.WARNING, "Could not schedule a dimensional-door sweep retry", ex);
+			accepted = false;
+		}
+		if(!accepted)
+		{
+			chunkSweep.state().compareAndSet(SweepState.RETRY_SCHEDULED, SweepState.IDLE);
+		}
+	}
+
+	private void retire(ActiveDoor door)
+	{
+		synchronized(lifecycleLock)
+		{
+			if(active.remove(door.doorId(), door))
+			{
+				unlink(door);
+			}
+		}
+	}
+
+	private void unlink(ActiveDoor door)
+	{
+		for(ChunkKey key : door.targets())
+		{
+			ChunkSweep chunkSweep = shared.get(key);
+			if(chunkSweep == null)
+			{
+				continue;
+			}
+			chunkSweep.doors().remove(door.doorId(), door);
+			if(chunkSweep.doors().isEmpty())
+			{
+				shared.remove(key, chunkSweep);
+			}
+		}
+	}
+
+	private void warnClip(DoorwayPlane plane)
+	{
+		if(plane != null && warnedClip.compareAndSet(false, true))
+		{
+			clipWarning.accept(plane);
+		}
+	}
+
+	static boolean shouldSweep(DoorwayPlane plane, DoorOpenCycle cycle, boolean chunkLoaded)
+	{
+		return plane != null && cycle != null && chunkLoaded && cycle.portalActive();
+	}
+
 	static ChunkSpan span(DoorVec3 center)
 	{
 		return new ChunkSpan(
@@ -274,21 +558,11 @@ final class DoorEntitySweep implements AutoCloseable
 			chunkOf(center.z() + HORIZONTAL_REACH));
 	}
 
-	/** A chunk holds far more than the reach box, so each candidate is boxed again. */
 	static boolean withinReach(DoorVec3 center, double x, double y, double z)
 	{
 		return Math.abs(x - center.x()) <= HORIZONTAL_REACH
 			&& Math.abs(y - center.y()) <= VERTICAL_REACH
 			&& Math.abs(z - center.z()) <= HORIZONTAL_REACH;
-	}
-
-	private static int chunkOf(double blockCoordinate)
-	{
-		return Math.floorDiv((int) Math.floor(blockCoordinate), 16);
-	}
-
-	record ChunkSpan(int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ)
-	{
 	}
 
 	static boolean isSweepable(Entity candidate)
@@ -300,5 +574,183 @@ final class DoorEntitySweep implements AutoCloseable
 		return candidate instanceof Projectile
 			|| candidate instanceof Item
 			|| candidate instanceof ExperienceOrb;
+	}
+
+	private static Dependencies productionDependencies(Plugin plugin, BooleanSupplier closed)
+	{
+		Plugin activePlugin = Objects.requireNonNull(plugin, "plugin");
+		BooleanSupplier closedState = Objects.requireNonNull(closed, "closed");
+		return new Dependencies(
+			activePlugin.getLogger(),
+			closedState,
+			(world, chunkX, chunkZ, task, retired, delayTicks) -> BukkitRegionTaskProvider.run(
+				world, chunkX, chunkZ, task, retired, delayTicks),
+			(task, delayTicks) -> scheduleRetry(activePlugin, task, delayTicks),
+			new BukkitChunkAccess(),
+			DoorEntitySweep::logClip);
+	}
+
+	private static boolean scheduleRetry(Plugin plugin, Runnable task, long delayTicks)
+	{
+		if(FoliaScheduler.runGlobal(plugin, task, delayTicks))
+		{
+			return true;
+		}
+		CompletableFuture.delayedExecutor(
+			Math.max(1L, delayTicks) * 50L,
+			TimeUnit.MILLISECONDS).execute(task);
+		return true;
+	}
+
+	private static void logClip(DoorwayPlane plane)
+	{
+		Wormholes.w("[door] SWEEP clipped at a region boundary near "
+			+ plane.blockX() + "," + plane.blockY() + "," + plane.blockZ()
+			+ "; objects approaching from the far side are not swept");
+	}
+
+	private static boolean withinReach(List<DoorVec3> centers, double x, double y, double z)
+	{
+		for(DoorVec3 center : centers)
+		{
+			if(withinReach(center, x, y, z))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static boolean contains(ChunkSpan span, ChunkKey key)
+	{
+		return key.chunkX() >= span.minChunkX()
+			&& key.chunkX() <= span.maxChunkX()
+			&& key.chunkZ() >= span.minChunkZ()
+			&& key.chunkZ() <= span.maxChunkZ();
+	}
+
+	private static int chunkOf(double blockCoordinate)
+	{
+		return Math.floorDiv((int) Math.floor(blockCoordinate), 16);
+	}
+
+	record ChunkSpan(int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ)
+	{
+	}
+
+	private record ChunkKey(UUID worldId, int chunkX, int chunkZ)
+	{
+		private ChunkKey
+		{
+			Objects.requireNonNull(worldId, "worldId");
+		}
+	}
+
+	private record ActiveDoor(
+		UUID doorId,
+		RuntimeDoor runtime,
+		World world,
+		DoorwayPlane plane,
+		DoorVec3 center,
+		ChunkKey origin,
+		List<ChunkKey> targets)
+	{
+		private ActiveDoor
+		{
+			Objects.requireNonNull(doorId, "doorId");
+			Objects.requireNonNull(runtime, "runtime");
+			Objects.requireNonNull(world, "world");
+			Objects.requireNonNull(plane, "plane");
+			Objects.requireNonNull(center, "center");
+			Objects.requireNonNull(origin, "origin");
+			targets = List.copyOf(targets);
+		}
+
+		private static ActiveDoor create(UUID doorId, RuntimeDoor runtime, World world, DoorwayPlane plane)
+		{
+			DoorVec3 center = plane.center();
+			ChunkSpan span = span(center);
+			UUID worldId = world.getUID();
+			List<ChunkKey> targets = new ArrayList<>(
+				(span.maxChunkX() - span.minChunkX() + 1) * (span.maxChunkZ() - span.minChunkZ() + 1));
+			for(int chunkX = span.minChunkX(); chunkX <= span.maxChunkX(); chunkX++)
+			{
+				for(int chunkZ = span.minChunkZ(); chunkZ <= span.maxChunkZ(); chunkZ++)
+				{
+					targets.add(new ChunkKey(worldId, chunkX, chunkZ));
+				}
+			}
+			PlacedDoorEndpoint endpoint = runtime.endpoint();
+			return new ActiveDoor(
+				doorId,
+				runtime,
+				world,
+				plane,
+				center,
+				new ChunkKey(worldId, endpoint.position().x() >> 4, endpoint.position().z() >> 4),
+				targets);
+		}
+
+		private boolean matches(RuntimeDoor candidateRuntime, World candidateWorld, DoorwayPlane candidatePlane)
+		{
+			return runtime == candidateRuntime && world == candidateWorld && plane.equals(candidatePlane);
+		}
+	}
+
+	private record ChunkSweep(
+		ChunkKey key,
+		World world,
+		ConcurrentHashMap<UUID, ActiveDoor> doors,
+		AtomicReference<SweepState> state)
+	{
+		private ChunkSweep(ChunkKey key, World world)
+		{
+			this(key, world, new ConcurrentHashMap<>(), new AtomicReference<>(SweepState.IDLE));
+		}
+
+		private ChunkSweep
+		{
+			Objects.requireNonNull(key, "key");
+			Objects.requireNonNull(world, "world");
+			Objects.requireNonNull(doors, "doors");
+			Objects.requireNonNull(state, "state");
+		}
+	}
+
+	private record Routes(List<DoorVec3> centers, DoorwayPlane clipped)
+	{
+		private Routes
+		{
+			Objects.requireNonNull(centers, "centers");
+		}
+	}
+
+	private enum SweepState
+	{
+		IDLE,
+		SCHEDULED,
+		PAUSED,
+		RETRY_SCHEDULED
+	}
+
+	private static final class BukkitChunkAccess implements ChunkAccess
+	{
+		@Override
+		public boolean loaded(World world, int chunkX, int chunkZ)
+		{
+			return world.isChunkLoaded(chunkX, chunkZ);
+		}
+
+		@Override
+		public boolean owned(World world, int chunkX, int chunkZ)
+		{
+			return WormholesPlatform.isOwnedByCurrentRegion(world, chunkX, chunkZ);
+		}
+
+		@Override
+		public Entity[] entities(World world, int chunkX, int chunkZ)
+		{
+			return world.getChunkAt(chunkX, chunkZ).getEntities();
+		}
 	}
 }

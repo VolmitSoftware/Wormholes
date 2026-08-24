@@ -65,6 +65,10 @@ final class EntityTransferAckRetryQueue {
         ));
     }
 
+    synchronized void clear() {
+        pending.clear();
+    }
+
     private void prune(long nowMillis) {
         pending.values().removeIf(retry -> retry.expiresAtMillis() <= nowMillis);
     }

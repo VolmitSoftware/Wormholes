@@ -81,9 +81,10 @@ public final class WormholesMessages {
     public static final TextKey COMMAND_POCKET_INVALID_SHELL_MATERIAL = text("command.pocket.invalid_shell_material", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} cannot be a pocket wall. Use a solid block that does not fall.");
     public static final TextKey COMMAND_POCKET_INVALID_DOOR_MATERIAL = text("command.pocket.invalid_door_material", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} cannot be a pocket exit door. Use a door that opens by hand; iron doors are rejected.");
     public static final TextKey COMMAND_POCKET_UNCHANGED = text("command.pocket.unchanged", "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>That pocket already has this size and these materials.");
+    public static final TextKey COMMAND_POCKET_CONTAINERS_NOT_EMPTY = text("command.pocket.containers_not_empty", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Pocket resize stopped: <white>{containers}<red> non-empty containers would be destroyed. Empty them before retrying; <white>confirm=true<red> cannot override this safety check.");
     public static final LinesKey COMMAND_POCKET_CONFIRM_REQUIRED = lines("command.pocket.confirm_required",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Rebuilding at {size} blocks would destroy <white>{blocks}<red> placed blocks (<white>{containers}<red> holding items) and move <white>{entities}<red> entities.",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Container contents and anything left outside the new walls are dropped at the entry. Everything else is lost.",
+            "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Rebuilding at {size} blocks would destroy <white>{blocks}<red> placed blocks and move <white>{entities}<red> entities.",
+            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Blocks outside the new walls are destroyed; displaced entities are moved to the entry.",
             "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Run the same command with <white>confirm=true<gray> to go ahead.");
     public static final TextKey COMMAND_POCKET_RESIZED = text("command.pocket.resized", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Pocket rebuilt at <white>{size}<green> blocks (was <white>{previous}<green>), walls <white>{material}<green>, exit door <white>{door}.");
     public static final TextKey COMMAND_POCKET_FAILED = text("command.pocket.failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>The pocket could not be rebuilt. Check the console.");
@@ -101,7 +102,7 @@ public final class WormholesMessages {
             "<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Tail this file to share live network/view state. The file is overwritten in place each interval.");
     public static final LinesKey COMMAND_INFO = lines("command.info",
             "<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>How to build a Wormhole</bold>",
-            "<dark_gray>1. <gray>Get a Portal Wand and portal runes from your server or an administrator.",
+            "<dark_gray>1. <gray>Get a Portal Wand and Wormhole Runes from your server or an administrator.",
             "<dark_gray>2. <gray>Place the runes in any connected shape on one flat surface.",
             "<gray>   Any connected shape works: rectangles, lines (3x1), single blocks, L-shapes, crosses.",
             "<gray>   The runes must sit flat on one axis-aligned wall, floor, or ceiling.",

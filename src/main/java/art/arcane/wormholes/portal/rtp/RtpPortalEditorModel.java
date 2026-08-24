@@ -11,9 +11,9 @@ import art.arcane.volmlib.util.bukkit.WorldIdentity;
 
 public final class RtpPortalEditorModel
 {
-	static final double MINIMUM_COORDINATE = -30_000_000.0D;
-	static final double MAXIMUM_COORDINATE = 30_000_000.0D;
-	static final int MAXIMUM_RADIUS = 30_000_000;
+	static final double MINIMUM_COORDINATE = RtpSettings.MINIMUM_COORDINATE;
+	static final double MAXIMUM_COORDINATE = RtpSettings.MAXIMUM_COORDINATE;
+	static final int MAXIMUM_RADIUS = RtpSettings.MAXIMUM_RADIUS;
 	static final long MINIMUM_CYCLE_MILLIS = 15_000L;
 	static final long MAXIMUM_CYCLE_MILLIS = 86_400_000L;
 	static final long MINIMUM_LEASE_MILLIS = 5_000L;

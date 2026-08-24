@@ -2,7 +2,6 @@ package art.arcane.wormholes.portal;
 
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.bukkit.Material;
 import org.bukkit.configuration.InvalidConfigurationException;
@@ -11,8 +10,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 
-import art.arcane.volmlib.util.scheduling.FoliaScheduler;
-import art.arcane.wormholes.Wormholes;
 import art.arcane.volmlib.util.json.JSONObject;
 
 public final class VanillaTravelCost implements PortalTravelCost
@@ -22,12 +19,23 @@ public final class VanillaTravelCost implements PortalTravelCost
 	private final ItemStack template;
 	private final String serializedTemplate;
 	private final int quantity;
+	private final OwnerRefundSettlement.Executor refundExecutor;
 
 	private VanillaTravelCost(ItemStack template, String serializedTemplate, int quantity)
+	{
+		this(template, serializedTemplate, quantity, OwnerRefundSettlement.BukkitExecutor.INSTANCE);
+	}
+
+	VanillaTravelCost(
+		ItemStack template,
+		String serializedTemplate,
+		int quantity,
+		OwnerRefundSettlement.Executor refundExecutor)
 	{
 		this.template = normalizeTemplate(template);
 		this.serializedTemplate = serializedTemplate;
 		this.quantity = clampQuantity(quantity);
+		this.refundExecutor = refundExecutor;
 	}
 
 	public static VanillaTravelCost of(ItemStack heldItem, int quantity)
@@ -163,7 +171,7 @@ public final class VanillaTravelCost implements PortalTravelCost
 			}
 			remaining -= removed;
 		}
-		return ReserveResult.reserved(new Reservation(player, template, quantity));
+		return ReserveResult.reserved(new Reservation(player, template, quantity, refundExecutor));
 	}
 
 	private static ItemStack normalizeTemplate(ItemStack item)
@@ -216,54 +224,54 @@ public final class VanillaTravelCost implements PortalTravelCost
 		}
 	}
 
-	private static final class Reservation implements PortalTravelCost.Reservation
+	static final class Reservation implements PortalTravelCost.Reservation
 	{
-		private final Player player;
 		private final ItemStack template;
 		private final int quantity;
-		private final AtomicBoolean settled;
+		private final OwnerRefundSettlement settlement;
 
-		private Reservation(Player player, ItemStack template, int quantity)
+		Reservation(
+			Player player,
+			ItemStack template,
+			int quantity,
+			OwnerRefundSettlement.Executor refundExecutor)
 		{
-			this.player = player;
 			this.template = template.clone();
 			this.quantity = quantity;
-			settled = new AtomicBoolean(false);
+			settlement = new OwnerRefundSettlement(
+				player,
+				refundExecutor,
+				ownedPlayer ->
+				{
+					restore(ownedPlayer);
+					return true;
+				},
+				"vanilla portal travel cost");
 		}
 
 		@Override
 		public void commit()
 		{
-			settled.compareAndSet(false, true);
+			settlement.commit();
 		}
 
 		@Override
 		public void refund()
 		{
-			if(!settled.compareAndSet(false, true))
-			{
-				return;
-			}
-			if(FoliaScheduler.isOwnedByCurrentRegion(player))
-			{
-				restore();
-				return;
-			}
-			Wormholes plugin = Wormholes.instance;
-			if(plugin == null)
-			{
-				Wormholes.w("Could not refund a vanilla travel cost for " + player.getName() + " because Wormholes is not active");
-				return;
-			}
-			boolean scheduled = FoliaScheduler.runEntity(plugin, player, this::restore, 0L,
-					() -> Wormholes.w("Could not refund a vanilla travel cost because " + player.getName() + " left the server"));
-			if(!scheduled)
-			{
-				Wormholes.w("Could not schedule a vanilla travel cost refund for " + player.getName());
-			}
+			settlement.refund();
 		}
 
-		private void restore()
+		boolean refundPending()
+		{
+			return settlement.refundPending();
+		}
+
+		boolean refunded()
+		{
+			return settlement.refunded();
+		}
+
+		private void restore(Player ownedPlayer)
 		{
 			int remaining = quantity;
 			while(remaining > 0)
@@ -271,10 +279,10 @@ public final class VanillaTravelCost implements PortalTravelCost
 				ItemStack stack = template.clone();
 				int restored = Math.min(remaining, stack.getMaxStackSize());
 				stack.setAmount(restored);
-				Map<Integer, ItemStack> overflow = player.getInventory().addItem(stack);
+				Map<Integer, ItemStack> overflow = ownedPlayer.getInventory().addItem(stack);
 				for(ItemStack dropped : overflow.values())
 				{
-					player.getWorld().dropItemNaturally(player.getLocation(), dropped);
+					ownedPlayer.getWorld().dropItemNaturally(ownedPlayer.getLocation(), dropped);
 				}
 				remaining -= restored;
 			}

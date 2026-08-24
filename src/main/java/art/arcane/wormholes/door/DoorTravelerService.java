@@ -107,7 +107,8 @@ final class DoorTravelerService
 			WormholesLocalization.args(MessageArgument.untrusted("message", Wormholes.text().plain(key)))));
 		if(!FoliaScheduler.runEntity(plugin, player, delivery))
 		{
-			delivery.run();
+			plugin.getLogger().warning(
+				"Could not deliver a dimensional-door message to " + player.getUniqueId());
 		}
 	}
 }

@@ -410,6 +410,7 @@ locale = "he_IL"
 "command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} אינו מתאים לקיר כיס. השתמש בבלוק מוצק שאינו נופל."
 "command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} אינו מתאים לדלת יציאה. השתמש בדלת שנפתחת ביד; דלתות ברזל נדחות."
 "command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>לכיס הזה כבר יש הגודל והחומרים האלה."
+"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>שינוי גודל הכיס נעצר: <white>{containers}<red> מכלים שאינם ריקים היו נהרסים. יש לרוקן אותם לפני ניסיון נוסף; <white>confirm=true<red> אינו יכול לעקוף בדיקת בטיחות זו."
 "command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>הכיס נבנה מחדש ל-<white>{size}<green> בלוקים (קודם <white>{previous}<green>), קירות <white>{material}<green>, דלת יציאה <white>{door}."
 "command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>לא ניתן היה לבנות מחדש את הכיס. בדוק את הקונסולה."
 "command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ממד הכיס אינו טעון."
@@ -585,7 +586,7 @@ locale = "he_IL"
 "rtp.status.header" = ["<gold><bold>מצב היעד האקראי</bold>","<gray>מצב: {state}"]
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>כיס <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>גודל <white>{size}<gray> בלוקים, קירות <white>{material}<gray>, דלת יציאה <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>גבולות <white>{minimum}<gray> עד <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>בנייה מחדש ל-{size} בלוקים תהרוס <white>{blocks}<red> בלוקים שהונחו (<white>{containers}<red> ובהם פריטים) ותזיז <white>{entities}<red> ישויות.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>תכולת המכלים וכל מה שנשאר מחוץ לקירות החדשים מושלכים בכניסה. כל השאר אובד.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>הרץ את אותה הפקודה עם <white>confirm=true<gray> כדי להמשיך."]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>בנייה מחדש ל-{size} בלוקים תהרוס <white>{blocks}<red> בלוקים שהונחו ותזיז <white>{entities}<red> ישויות.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>בלוקים מחוץ לקירות החדשים נהרסים; ישויות שמוזזות מועברות לכניסה.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>הרץ את אותה הפקודה עם <white>confirm=true<gray> כדי להמשיך."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>נמחק <white>{count}<green> פורטל וקישורי הפורטלים המקומיים נוקו."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>נמחקו <white>{count}<green> פורטלים וקישורי הפורטלים המקומיים נוקו."

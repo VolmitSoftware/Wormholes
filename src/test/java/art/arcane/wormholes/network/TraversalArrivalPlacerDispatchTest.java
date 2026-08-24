@@ -13,6 +13,7 @@ import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -36,6 +37,38 @@ class TraversalArrivalPlacerDispatchTest {
 
         assertEquals(List.of(Long.valueOf(1L)), delays,
             "the arrival teleport must never run inline on the PlayerJoinEvent stack");
+    }
+
+    @Test
+    void queuedArrivalDoesNothingAfterItsLifecycleCloses() {
+        List<Runnable> tasks = new ArrayList<Runnable>();
+        AtomicBoolean active = new AtomicBoolean(true);
+        TraversalFailureLedger failures = new TraversalFailureLedger();
+        TraversalArrivalPlacer placer = new TraversalArrivalPlacer(
+            null,
+            new PlayerHandoffAdmission(),
+            failures,
+            new TraversalNotices(),
+            (entity, task, retired, delayTicks) -> {
+                tasks.add(task);
+                return true;
+            },
+            task -> {
+                if (!active.get()) {
+                    return false;
+                }
+                task.run();
+                return true;
+            }
+        );
+        UUID playerId = UUID.randomUUID();
+
+        placer.place(player(playerId), reservation(playerId), "join");
+        active.set(false);
+        tasks.removeFirst().run();
+
+        assertEquals(0L, failures.failed());
+        assertEquals(0, tasks.size());
     }
 
     private static PlayerHandoffAdmission.Reservation reservation(UUID playerId) {

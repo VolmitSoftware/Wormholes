@@ -16,13 +16,6 @@ class DoorPortalAnimationTest
 		{BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST};
 
 	@Test
-	void unattendedPortalsPollAtTheAttendanceCadence()
-	{
-		assertEquals(DoorPortalAnimation.ATTENDANCE_PERIOD_TICKS, DoorPortalAnimation.nextDelay(false));
-		assertEquals(DoorPortalAnimation.FRAME_PERIOD_TICKS, DoorPortalAnimation.nextDelay(true));
-	}
-
-	@Test
 	void frameNeverTouchesTheNormalAxis()
 	{
 		for(BlockFace facing : CARDINALS)

@@ -37,6 +37,7 @@ import java.util.UUID;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -240,6 +241,78 @@ class TraversalRecoveryPathsTest {
 
         service.runRecoveryMaintenance();
         assertEquals(2, delays.size(), "a drained rollback must not be retried forever");
+    }
+
+    @Test
+    void shutdownRestoresAndForgetsEveryPendingSourceEntityBeforeSchedulersAreCancelled() throws Exception {
+        int[] scheduled = new int[1];
+        TraversalService service = new TraversalService(null, (entity, task, retired, delayTicks) -> {
+            scheduled[0]++;
+            task.run();
+            return true;
+        });
+        FakeEntityState firstState = transitStampedEntityState();
+        FakeEntityState secondState = transitStampedEntityState();
+        seedPendingEntityTransfer(service, UUID.randomUUID(), fakeEntity(firstState), Long.MAX_VALUE);
+        seedPendingEntityTransfer(service, UUID.randomUUID(), fakeEntity(secondState), Long.MAX_VALUE);
+
+        service.shutdown();
+        service.shutdown();
+
+        assertEquals(0, service.statsSnapshot().inFlight());
+        assertEquals(2, scheduled[0], "shutdown must restore each pending entity exactly once");
+        assertRestored(firstState);
+        assertRestored(secondState);
+    }
+
+    @Test
+    void shutdownKeepsThePersistentStampWhenTheEntitySchedulerRejectsRecovery() throws Exception {
+        TraversalService service = new TraversalService(null, (entity, task, retired, delayTicks) -> false);
+        FakeEntityState state = transitStampedEntityState();
+        seedPendingEntityTransfer(service, UUID.randomUUID(), fakeEntity(state), Long.MAX_VALUE);
+
+        service.shutdown();
+
+        assertEquals(0, service.statsSnapshot().inFlight());
+        assertNotNull(state.pdc.get(TraversalEntityTransit.TRANSIT_STAMP_KEY));
+        assertEquals(Long.valueOf(1L),
+            service.failureBreakdown().get(Failure.ENTITY_TRANSIT_RESTORE_SCHEDULE_REJECTED.name()));
+    }
+
+    @Test
+    void acceptedEntityAckQueuedBehindShutdownCannotDeleteTheRestoredSource() throws Exception {
+        TraversalService service = new TraversalService(null, (entity, task, retired, delayTicks) -> {
+            task.run();
+            return true;
+        });
+        FakeEntityState state = transitStampedEntityState();
+        Entity entity = fakeEntity(state);
+        UUID transferId = UUID.randomUUID();
+        seedPendingEntityTransfer(service, transferId, entity, Long.MAX_VALUE);
+
+        service.shutdown();
+        service.onEntityTransferAck(PEER, new WireMessage.EntityTransferAck(transferId, true));
+
+        assertRestored(state);
+        assertFalse(state.removed);
+        assertEquals(0L, service.statsSnapshot().completed());
+    }
+
+    private static FakeEntityState transitStampedEntityState() {
+        FakeEntityState state = new FakeEntityState(UUID.randomUUID());
+        state.pdc.put(TraversalEntityTransit.TRANSIT_STAMP_KEY,
+            Byte.valueOf(TraversalEntityTransit.encodeTransitStamp(false, false, true)));
+        state.invulnerable = Boolean.TRUE;
+        state.silent = Boolean.TRUE;
+        state.gravity = Boolean.FALSE;
+        return state;
+    }
+
+    private static void assertRestored(FakeEntityState state) {
+        assertNull(state.pdc.get(TraversalEntityTransit.TRANSIT_STAMP_KEY));
+        assertEquals(Boolean.FALSE, state.invulnerable);
+        assertEquals(Boolean.FALSE, state.silent);
+        assertEquals(Boolean.TRUE, state.gravity);
     }
 
     private static TraversalEntityScheduler recordingScheduler(List<Long> delays, boolean accept) {

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.chunk.presend;
 
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -43,6 +44,20 @@ public final class BukkitChunkPreSendProvider {
 
     public static boolean installed() {
         return SERVICE.get() != null;
+    }
+
+    public static BukkitChunkPreSendTransaction preSend(Player player, Location destination) {
+        BukkitChunkPreSendCapture capture = capture(player);
+        return capture == null ? null : capture.preSend(destination);
+    }
+
+    public static BukkitChunkPreSendCapture capture(Player player) {
+        ChunkPreSendService<World, Player> service = SERVICE.get();
+        if (service == null) {
+            return null;
+        }
+        ChunkPreSendOrigin<World, Player> origin = service.capture(Objects.requireNonNull(player, "player"));
+        return origin == null ? null : new BukkitChunkPreSendCapture(service, origin);
     }
 
     public static void shutdown() {

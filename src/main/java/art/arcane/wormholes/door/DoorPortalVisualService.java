@@ -32,9 +32,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
 
 /** Owns the bright portal plane shown inside an open dimensional door. */
 final class DoorPortalVisualService implements AutoCloseable
@@ -50,6 +53,11 @@ final class DoorPortalVisualService implements AutoCloseable
 		(float) DoorwayPlane.TRAPDOOR_PLATE_THICKNESS + 0.02F;
 	private static final float PORTAL_OVERLAY_THICKNESS = 0.15F;
 	private static final int SPARKLE_PERIOD_TICKS = 16;
+	static final int MAX_ANIMATION_TASKS_PER_PASS = 64;
+	static final int MAX_ANIMATION_TASKS_IN_FLIGHT = 64;
+	private static final int ATTENDANCE_PERIOD_PASSES =
+		DoorPortalAnimation.ATTENDANCE_PERIOD_TICKS / DoorPortalAnimation.FRAME_PERIOD_TICKS;
+	private static final long LOOP_RETRY_SECONDS = 1L;
 	private static final double AMBIENT_SOUND_CHANCE = 0.008D;
 	private static final Particle.DustTransition SURFACE_DUST =
 		new Particle.DustTransition(Color.fromRGB(185, 105, 255), Color.fromRGB(20, 5, 35), 0.7F);
@@ -58,8 +66,12 @@ final class DoorPortalVisualService implements AutoCloseable
 	private final NamespacedKey markerKey;
 	private final ViewerLookup viewerLookup;
 	private final ConcurrentHashMap<UUID, Visual> visuals;
+	private final ConcurrentHashMap<UUID, AnimationTarget> animationTargets;
+	private final DoorVisualAnimationBudget<AnimationTarget> animationBudget;
 	private final Set<ChunkMarker> cleanedChunks;
 	private final AtomicBoolean closed;
+	private final AtomicBoolean animationLoopRunning;
+	private final AtomicBoolean animationLoopRetryScheduled;
 
 	DoorPortalVisualService(Plugin plugin)
 	{
@@ -72,8 +84,16 @@ final class DoorPortalVisualService implements AutoCloseable
 		markerKey = new NamespacedKey(plugin, "dimensional_door_visual");
 		this.viewerLookup = Objects.requireNonNull(viewerLookup, "viewerLookup");
 		visuals = new ConcurrentHashMap<>();
+		animationTargets = new ConcurrentHashMap<UUID, AnimationTarget>();
+		animationBudget = new DoorVisualAnimationBudget<AnimationTarget>(new DoorVisualAnimationBudget.Policy(
+			MAX_ANIMATION_TASKS_PER_PASS,
+			MAX_ANIMATION_TASKS_IN_FLIGHT,
+			ATTENDANCE_PERIOD_PASSES,
+			DoorPortalAnimation.FRAME_PERIOD_TICKS));
 		cleanedChunks = ConcurrentHashMap.newKeySet();
 		closed = new AtomicBoolean();
+		animationLoopRunning = new AtomicBoolean();
+		animationLoopRetryScheduled = new AtomicBoolean();
 	}
 
 	void show(PlacedDoorEndpoint endpoint, VanillaDoorSnapshot snapshot)
@@ -92,6 +112,7 @@ final class DoorPortalVisualService implements AutoCloseable
 		}
 		if(current != null && visuals.remove(doorId, current))
 		{
+			retireAnimation(doorId, current);
 			current.remove();
 		}
 
@@ -140,15 +161,17 @@ final class DoorPortalVisualService implements AutoCloseable
 		Visual raced = visuals.put(doorId, replacement);
 		if(raced != null && raced != replacement)
 		{
+			retireAnimation(doorId, raced);
 			raced.remove();
 		}
 		if(closed.get())
 		{
 			visuals.remove(doorId, replacement);
+			retireAnimation(doorId, replacement);
 			replacement.remove();
 			return;
 		}
-		startAnimator(doorId, replacement, world, anchor, panelFace, overlayGeometry);
+		registerAnimation(doorId, replacement, world, anchor, panelFace, overlayGeometry);
 	}
 
 	/** The surface normal of the visible panel: flat and upward for a trapdoor. */
@@ -158,7 +181,7 @@ final class DoorPortalVisualService implements AutoCloseable
 		return plane.horizontal() ? BlockFace.UP : plane.facing();
 	}
 
-	private void startAnimator(
+	private void registerAnimation(
 		UUID doorId,
 		Visual visual,
 		World world,
@@ -166,31 +189,233 @@ final class DoorPortalVisualService implements AutoCloseable
 		BlockFace facing,
 		PortalPlaneGeometry overlayGeometry)
 	{
-		int chunkX = anchor.getBlockX() >> 4;
-		int chunkZ = anchor.getBlockZ() >> 4;
-		int[] tick = new int[] {0};
-		boolean[] attended = new boolean[] {false};
-		Runnable[] holder = new Runnable[1];
-		holder[0] = () ->
+		AnimationTarget target = new AnimationTarget(
+			doorId,
+			visual,
+			world,
+			anchor,
+			facing,
+			overlayGeometry);
+		AnimationTarget replaced = animationTargets.put(doorId, target);
+		if(replaced != null)
 		{
-			if(!shouldContinueAnimating(doorId, visual))
+			animationBudget.retire(replaced);
+		}
+		animationBudget.register(target);
+		if(closed.get() || visuals.get(doorId) != visual)
+		{
+			retireAnimation(target);
+			return;
+		}
+		startAnimationLoop();
+	}
+
+	private void startAnimationLoop()
+	{
+		if(closed.get() || !animationLoopRunning.compareAndSet(false, true))
+		{
+			return;
+		}
+		scheduleAnimationPass(DoorPortalAnimation.FRAME_PERIOD_TICKS);
+	}
+
+	private void scheduleAnimationPass(long delayTicks)
+	{
+		if(closed.get() || !animationLoopRunning.get())
+		{
+			animationLoopRunning.set(false);
+			return;
+		}
+		boolean scheduled;
+		try
+		{
+			scheduled = FoliaScheduler.runAsync(plugin, this::runAnimationPass, delayTicks);
+		}
+		catch(Throwable failure)
+		{
+			plugin.getLogger().log(Level.WARNING, "Could not schedule dimensional-door visual maintenance", failure);
+			scheduled = false;
+		}
+		if(scheduled)
+		{
+			return;
+		}
+		if(!canRetryAnimationLoop() || !animationLoopRetryScheduled.compareAndSet(false, true))
+		{
+			animationLoopRunning.set(false);
+			return;
+		}
+		CompletableFuture.delayedExecutor(LOOP_RETRY_SECONDS, TimeUnit.SECONDS).execute(() ->
+		{
+			animationLoopRetryScheduled.set(false);
+			if(!closed.get() && animationLoopRunning.get())
+			{
+				scheduleAnimationPass(DoorPortalAnimation.FRAME_PERIOD_TICKS);
+			}
+		});
+	}
+
+	private boolean canRetryAnimationLoop()
+	{
+		return !closed.get() && plugin.isEnabled();
+	}
+
+	private void runAnimationPass()
+	{
+		if(closed.get())
+		{
+			animationLoopRunning.set(false);
+			return;
+		}
+		try
+		{
+			for(DoorVisualAnimationBudget.AttendanceCheck<AnimationTarget> check : animationBudget.advanceAttendanceChecks())
+			{
+				AnimationTarget target = check.key();
+				if(!isAnimationCurrent(target))
+				{
+					retireAnimation(target);
+					continue;
+				}
+				animationBudget.reportAttendance(check, hasNearbyViewer(target));
+			}
+			for(DoorVisualAnimationBudget.Admission<AnimationTarget> admission : animationBudget.acquire())
+			{
+				dispatchAnimation(admission);
+			}
+		}
+		catch(Throwable failure)
+		{
+			plugin.getLogger().log(Level.WARNING, "Dimensional-door visual maintenance failed", failure);
+		}
+		finishAnimationPass();
+	}
+
+	private void finishAnimationPass()
+	{
+		if(closed.get())
+		{
+			animationLoopRunning.set(false);
+			return;
+		}
+		if(animationTargets.isEmpty())
+		{
+			animationLoopRunning.set(false);
+			if(!animationTargets.isEmpty())
+			{
+				startAnimationLoop();
+			}
+			return;
+		}
+		scheduleAnimationPass(DoorPortalAnimation.FRAME_PERIOD_TICKS);
+	}
+
+	private void dispatchAnimation(DoorVisualAnimationBudget.Admission<AnimationTarget> admission)
+	{
+		AnimationTarget target = admission.key();
+		if(!isAnimationCurrent(target))
+		{
+			retireAnimation(target);
+			animationBudget.complete(admission);
+			return;
+		}
+		Runnable task = () -> runAnimation(target, admission);
+		Runnable retired = () -> retryAnimation(target, admission);
+		boolean scheduled;
+		try
+		{
+			scheduled = WormholesPlatform.scheduleEntity(plugin, target.visual.overlay(), task, retired, 0L);
+		}
+		catch(Throwable failure)
+		{
+			animationBudget.reject(admission);
+			plugin.getLogger().log(Level.WARNING, "Could not schedule dimensional-door visual owner task", failure);
+			return;
+		}
+		if(!scheduled)
+		{
+			animationBudget.reject(admission);
+		}
+	}
+
+	private void runAnimation(
+		AnimationTarget target,
+		DoorVisualAnimationBudget.Admission<AnimationTarget> admission)
+	{
+		try
+		{
+			if(!animationBudget.isActive(admission))
 			{
 				return;
 			}
-			int t = tick[0];
-			if(t % DoorPortalAnimation.ATTENDANCE_PERIOD_TICKS == 0)
+			if(!isAnimationCurrent(target) || !shouldContinueAnimating(target.doorId, target.visual))
 			{
-				attended[0] = hasNearbyViewer(world, anchor);
+				retireAnimation(target);
+				return;
 			}
-			if(attended[0])
-			{
-				animateFrame(visual, world, anchor, facing, overlayGeometry, t);
-			}
-			int delay = DoorPortalAnimation.nextDelay(attended[0]);
-			tick[0] = t + delay;
-			FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ, holder[0], delay);
-		};
-		FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ, holder[0], DoorPortalAnimation.FRAME_PERIOD_TICKS);
+			animateFrame(
+				target.visual,
+				target.world,
+				target.anchor,
+				target.facing,
+				target.overlayGeometry,
+				admission.animationTick());
+		}
+		catch(RuntimeException | Error failure)
+		{
+			retireAnimation(target);
+			throw failure;
+		}
+		finally
+		{
+			animationBudget.complete(admission);
+		}
+	}
+
+	private void retryAnimation(
+		AnimationTarget target,
+		DoorVisualAnimationBudget.Admission<AnimationTarget> admission)
+	{
+		if(closed.get() || !isAnimationCurrent(target))
+		{
+			retireAnimation(target);
+			animationBudget.complete(admission);
+			return;
+		}
+		animationBudget.reject(admission);
+	}
+
+	private boolean isAnimationCurrent(AnimationTarget target)
+	{
+		return !closed.get()
+			&& animationTargets.get(target.doorId) == target
+			&& visuals.get(target.doorId) == target.visual
+			&& target.visual.isValid();
+	}
+
+	private boolean hasNearbyViewer(AnimationTarget target)
+	{
+		return viewerLookup.hasPlayerWithin(
+			target.visual.position().worldId(),
+			target.anchor.getX(),
+			target.anchor.getY(),
+			target.anchor.getZ(),
+			DoorPortalAnimation.ATTENDANCE_RANGE_SQUARED);
+	}
+
+	private void retireAnimation(UUID doorId, Visual visual)
+	{
+		AnimationTarget target = animationTargets.get(doorId);
+		if(target != null && target.visual == visual)
+		{
+			retireAnimation(target);
+		}
+	}
+
+	private void retireAnimation(AnimationTarget target)
+	{
+		animationTargets.remove(target.doorId, target);
+		animationBudget.retire(target);
 	}
 
 	boolean shouldContinueAnimating(UUID doorId, Visual visual)
@@ -333,6 +558,7 @@ final class DoorPortalVisualService implements AutoCloseable
 		Visual visual = visuals.remove(Objects.requireNonNull(doorId, "doorId"));
 		if(visual != null)
 		{
+			retireAnimation(doorId, visual);
 			visual.remove();
 		}
 	}
@@ -386,6 +612,7 @@ final class DoorPortalVisualService implements AutoCloseable
 				&& Math.floorDiv(position.z(), 16) == chunkZ
 				&& visuals.remove(entry.getKey(), entry.getValue()))
 			{
+				retireAnimation(entry.getKey(), entry.getValue());
 				entry.getValue().remove();
 			}
 		}
@@ -398,6 +625,10 @@ final class DoorPortalVisualService implements AutoCloseable
 		{
 			return;
 		}
+		animationLoopRunning.set(false);
+		animationLoopRetryScheduled.set(false);
+		animationBudget.close();
+		animationTargets.clear();
 		for(Map.Entry<UUID, Visual> entry : Map.copyOf(visuals).entrySet())
 		{
 			Visual visual = entry.getValue();
@@ -638,6 +869,32 @@ final class DoorPortalVisualService implements AutoCloseable
 		{
 			DoorPortalVisualService.remove(backing);
 			DoorPortalVisualService.remove(overlay);
+		}
+	}
+
+	private static final class AnimationTarget
+	{
+		private final UUID doorId;
+		private final Visual visual;
+		private final World world;
+		private final Location anchor;
+		private final BlockFace facing;
+		private final PortalPlaneGeometry overlayGeometry;
+
+		private AnimationTarget(
+			UUID doorId,
+			Visual visual,
+			World world,
+			Location anchor,
+			BlockFace facing,
+			PortalPlaneGeometry overlayGeometry)
+		{
+			this.doorId = Objects.requireNonNull(doorId, "doorId");
+			this.visual = Objects.requireNonNull(visual, "visual");
+			this.world = Objects.requireNonNull(world, "world");
+			this.anchor = Objects.requireNonNull(anchor, "anchor");
+			this.facing = Objects.requireNonNull(facing, "facing");
+			this.overlayGeometry = Objects.requireNonNull(overlayGeometry, "overlayGeometry");
 		}
 	}
 

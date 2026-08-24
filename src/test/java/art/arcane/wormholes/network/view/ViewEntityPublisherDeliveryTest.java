@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.junit.jupiter.api.Test;
 
@@ -35,7 +37,27 @@ final class ViewEntityPublisherDeliveryTest {
         assertSame(delta, batches.get(1).get(0));
     }
 
+    @Test
+    void rejectedProfileBatchIsEligibleForRecapture() {
+        UUID texturedId = new UUID(0L, 3L);
+        UUID plainId = new UUID(0L, 4L);
+        Set<UUID> sentProfiles = ConcurrentHashMap.newKeySet();
+        sentProfiles.add(texturedId);
+        sentProfiles.add(plainId);
+
+        ViewEntityPublisher.retryProfilesAfterRejectedBatch(
+            sentProfiles,
+            List.of(visual(texturedId, "texture"), visual(plainId)));
+
+        assertFalse(sentProfiles.contains(texturedId));
+        assertTrue(sentProfiles.contains(plainId));
+    }
+
     private static EntityVisual visual(UUID id) {
+        return visual(id, "");
+    }
+
+    private static EntityVisual visual(UUID id, String textureValue) {
         return EntityVisual.full(
             id,
             "minecraft:item_frame",
@@ -45,7 +67,7 @@ final class ViewEntityPublisherDeliveryTest {
             0.0F, 0.0F,
             0.0D, 0.0D, 0.0D,
             false,
-            "", "", "",
+            "", textureValue, "",
             null, null,
             PacketBlobs.EMPTY, PacketBlobs.EMPTY, PacketBlobs.EMPTY,
             0);

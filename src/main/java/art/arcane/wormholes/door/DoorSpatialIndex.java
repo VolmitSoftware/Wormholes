@@ -68,19 +68,25 @@ public final class DoorSpatialIndex<T>
 
 		int centerChunkX = Math.floorDiv(blockX, 16);
 		int centerChunkZ = Math.floorDiv(blockZ, 16);
-		List<Entry<T>> found = new ArrayList<>();
+		ChunkLookup lookup = new ChunkLookup(worldId, centerChunkX, centerChunkZ);
+		List<Entry<T>> found = null;
 		for(int chunkX = centerChunkX - chunkRadius; chunkX <= centerChunkX + chunkRadius; chunkX++)
 		{
 			for(int chunkZ = centerChunkZ - chunkRadius; chunkZ <= centerChunkZ + chunkRadius; chunkZ++)
 			{
-				ConcurrentHashMap<UUID, Entry<T>> bucket = byChunk.get(new ChunkKey(worldId, chunkX, chunkZ));
+				lookup.move(chunkX, chunkZ);
+				ConcurrentHashMap<UUID, Entry<T>> bucket = byChunk.get(lookup);
 				if(bucket != null)
 				{
+					if(found == null)
+					{
+						found = new ArrayList<>();
+					}
 					found.addAll(bucket.values());
 				}
 			}
 		}
-		return List.copyOf(found);
+		return found == null ? List.of() : found;
 	}
 
 	public int size()
@@ -144,6 +150,54 @@ public final class DoorSpatialIndex<T>
 				worldId,
 				Math.floorDiv(blockX, 16),
 				Math.floorDiv(blockZ, 16));
+		}
+
+		@Override
+		public int hashCode()
+		{
+			return chunkHash(worldId, chunkX, chunkZ);
+		}
+	}
+
+	private static int chunkHash(UUID worldId, int chunkX, int chunkZ)
+	{
+		int result = worldId.hashCode();
+		result = 31 * result + chunkX;
+		return 31 * result + chunkZ;
+	}
+
+	private static final class ChunkLookup
+	{
+		private final UUID worldId;
+		private int chunkX;
+		private int chunkZ;
+
+		private ChunkLookup(UUID worldId, int chunkX, int chunkZ)
+		{
+			this.worldId = worldId;
+			this.chunkX = chunkX;
+			this.chunkZ = chunkZ;
+		}
+
+		private void move(int chunkX, int chunkZ)
+		{
+			this.chunkX = chunkX;
+			this.chunkZ = chunkZ;
+		}
+
+		@Override
+		public boolean equals(Object value)
+		{
+			return value instanceof ChunkKey key
+				&& worldId.equals(key.worldId())
+				&& chunkX == key.chunkX()
+				&& chunkZ == key.chunkZ();
+		}
+
+		@Override
+		public int hashCode()
+		{
+			return chunkHash(worldId, chunkX, chunkZ);
 		}
 	}
 }

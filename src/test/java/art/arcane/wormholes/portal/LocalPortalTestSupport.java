@@ -67,7 +67,13 @@ final class LocalPortalTestSupport
 		return new LocalPortalRuntime()
 		{
 			@Override
-			public boolean dispatch(Entity entity, Runnable task, long delayTicks)
+			public boolean dispatch(Entity entity, Runnable task, Runnable retired, long delayTicks)
+			{
+				return false;
+			}
+
+			@Override
+			public boolean dispatchRegion(World world, int chunkX, int chunkZ, Runnable task, long delayTicks)
 			{
 				return false;
 			}
@@ -85,7 +91,14 @@ final class LocalPortalTestSupport
 		return new LocalPortalRuntime()
 		{
 			@Override
-			public boolean dispatch(Entity entity, Runnable task, long delayTicks)
+			public boolean dispatch(Entity entity, Runnable task, Runnable retired, long delayTicks)
+			{
+				task.run();
+				return true;
+			}
+
+			@Override
+			public boolean dispatchRegion(World world, int chunkX, int chunkZ, Runnable task, long delayTicks)
 			{
 				task.run();
 				return true;
@@ -106,7 +119,13 @@ final class LocalPortalTestSupport
 		return new LocalPortalRuntime()
 		{
 			@Override
-			public boolean dispatch(Entity entity, Runnable task, long delayTicks)
+			public boolean dispatch(Entity entity, Runnable task, Runnable retired, long delayTicks)
+			{
+				return false;
+			}
+
+			@Override
+			public boolean dispatchRegion(World world, int chunkX, int chunkZ, Runnable task, long delayTicks)
 			{
 				return false;
 			}
@@ -125,12 +144,19 @@ final class LocalPortalTestSupport
 		return new LocalPortalRuntime()
 		{
 			@Override
-			public boolean dispatch(Entity entity, Runnable task, long delayTicks)
+			public boolean dispatch(Entity entity, Runnable task, Runnable retired, long delayTicks)
 			{
 				if(dispatches[0]++ > 0)
 				{
 					return false;
 				}
+				task.run();
+				return true;
+			}
+
+			@Override
+			public boolean dispatchRegion(World world, int chunkX, int chunkZ, Runnable task, long delayTicks)
+			{
 				task.run();
 				return true;
 			}
@@ -148,7 +174,14 @@ final class LocalPortalTestSupport
 		return new LocalPortalRuntime()
 		{
 			@Override
-			public boolean dispatch(Entity entity, Runnable task, long delayTicks)
+			public boolean dispatch(Entity entity, Runnable task, Runnable retired, long delayTicks)
+			{
+				pending.add(task);
+				return true;
+			}
+
+			@Override
+			public boolean dispatchRegion(World world, int chunkX, int chunkZ, Runnable task, long delayTicks)
 			{
 				pending.add(task);
 				return true;

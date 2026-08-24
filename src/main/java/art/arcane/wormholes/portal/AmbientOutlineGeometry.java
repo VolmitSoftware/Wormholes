@@ -17,7 +17,7 @@ public final class AmbientOutlineGeometry
 	private Axis cachedAxis;
 	private List<double[]> cachedPoints;
 
-	public List<double[]> points(long revision, Axis normalAxis, List<Vector> blockPositions)
+	public List<double[]> points(long revision, Axis normalAxis, PortalStructure structure)
 	{
 		List<double[]> current = cachedPoints;
 		if(current != null && cachedRevision == revision && cachedAxis == normalAxis)
@@ -25,7 +25,7 @@ public final class AmbientOutlineGeometry
 			return current;
 		}
 
-		List<double[]> built = build(blockPositions, normalAxis);
+		List<double[]> built = build(structure.getBlockPositions(), normalAxis);
 		cachedPoints = built;
 		cachedRevision = revision;
 		cachedAxis = normalAxis;

@@ -19,6 +19,10 @@ import java.util.function.BooleanSupplier;
 
 public final class ChunkReplicationManager implements BlockChangeFeed {
     public record ReplicationConfig(long maxQueuedDiffsPerPeer) {
+        public ReplicationConfig {
+            maxQueuedDiffsPerPeer = Math.max(1L, maxQueuedDiffsPerPeer);
+        }
+
         public static ReplicationConfig defaults() {
             return new ReplicationConfig(4096L);
         }

@@ -72,9 +72,6 @@ final class TraversalNotices {
         if (FoliaScheduler.runEntity(Wormholes.instance, player, delivery)) {
             return;
         }
-        if (FoliaScheduler.runGlobal(Wormholes.instance, delivery)) {
-            return;
-        }
         Wormholes.w("[traversal] no scheduler accepted the traveler notice for " + player.getUniqueId());
     }
 

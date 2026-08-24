@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -463,7 +464,7 @@ public final class TomlCodec {
             Files.writeString(tmp, content, StandardCharsets.UTF_8);
             try {
                 Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            } catch (UnsupportedOperationException e) {
+            } catch (AtomicMoveNotSupportedException | UnsupportedOperationException e) {
                 Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
             }
         } finally {

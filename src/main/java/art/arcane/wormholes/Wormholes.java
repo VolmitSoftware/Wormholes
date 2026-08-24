@@ -13,6 +13,7 @@ import art.arcane.wormholes.chunk.BukkitChunkLeasePlatform;
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
 import art.arcane.wormholes.chunk.ChunkSendRateTuner;
+import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.door.DimensionalDoorManager;
 import art.arcane.wormholes.localization.WormholesLocalization;
@@ -26,6 +27,7 @@ import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.network.view.ViewServer;
 import art.arcane.wormholes.network.view.ViewSubscriptionManager;
 import art.arcane.wormholes.papi.WormholesPlaceholders;
+import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.portal.ArrivalWarmer;
 import art.arcane.wormholes.portal.VanillaTravelCostCapture;
 import art.arcane.wormholes.portal.rtp.BukkitRtpEnvironment;
@@ -144,7 +146,9 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             localization = new WormholesLocalization();
             reloads.reloadLocalization(settings);
             this.schedulerRuntime = installSchedulerBridge();
+            BukkitRegionTaskProvider.install(this);
             installChunkLeaseRegistry();
+            BukkitChunkPreSendProvider.install(this);
             ChunkSendRateTuner.install(this);
 
             packetEvents().init();
@@ -272,17 +276,22 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         }
         unregisterIntegrationService();
         unregisterPlaceholders();
+        shutdownPortalSyncBeforeRegionTasks();
+        doors.shutdownManagerBeforeSchedulers();
+        doors.shutdownPocketWorldService();
+        shutdownRtpBeforeSchedulers();
+        shutdownTraversalBeforeSchedulers();
+        shutdownPortalManagerBeforeCostGateway();
         TraversalCostGateway gateway = traversalCostGateway;
         if (gateway != null) {
             gateway.shutdown();
             traversalCostGateway = null;
         }
-        doors.shutdownManagerBeforeSchedulers();
-        doors.shutdownPocketWorldService();
-        shutdownRtpBeforeSchedulers();
+        BukkitRegionTaskProvider.shutdown();
         shutdownProjectionBeforeSchedulers();
         shutdownViewServerBeforeSchedulers();
         shutdownArrivalWarmerBeforeSchedulers();
+        shutdownChunkPreSendBeforeSchedulers();
         shutdownChunkLeasesBeforeSchedulers();
         shutdownEffectsBeforeSchedulers();
         if (schedulerRuntime != null) {
@@ -290,6 +299,38 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         }
         FoliaScheduler.cancelTasks(this);
         drain();
+    }
+
+    private void shutdownPortalSyncBeforeRegionTasks() {
+        PortalSyncService activePortalSync = portalSyncService;
+        if (activePortalSync != null) {
+            activePortalSync.shutdown();
+        }
+    }
+
+    private void shutdownTraversalBeforeSchedulers() {
+        TraversalService activeTraversal = traversalService;
+        if (activeTraversal == null) {
+            return;
+        }
+        try {
+            activeTraversal.shutdown();
+        } catch (Throwable ex) {
+            getLogger().log(Level.WARNING, "Error during TraversalService pre-scheduler shutdown", ex);
+        }
+    }
+
+    private void shutdownPortalManagerBeforeCostGateway() {
+        PortalManager activePortalManager = portalManager;
+        portalManager = null;
+        if (activePortalManager == null) {
+            return;
+        }
+        try {
+            activePortalManager.shutDown();
+        } catch (Throwable ex) {
+            getLogger().log(Level.WARNING, "Error during PortalManager pre-cost-gateway shutdown", ex);
+        }
     }
 
     private void shutdownRtpBeforeSchedulers() {
@@ -342,6 +383,14 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             BukkitChunkLeaseProvider.shutdown();
         } catch (Throwable ex) {
             getLogger().log(Level.WARNING, "Error during chunk lease registry shutdown", ex);
+        }
+    }
+
+    private void shutdownChunkPreSendBeforeSchedulers() {
+        try {
+            BukkitChunkPreSendProvider.shutdown();
+        } catch (Throwable ex) {
+            getLogger().log(Level.WARNING, "Error during chunk pre-send shutdown", ex);
         }
     }
 

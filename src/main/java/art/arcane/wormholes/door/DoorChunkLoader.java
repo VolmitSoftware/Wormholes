@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -111,17 +112,30 @@ final class DoorChunkLoader
 
 	private void dispatchGuarded(World world, int chunkX, int chunkZ, Runnable success, Runnable failure)
 	{
-		if(!dispatch.run(world, chunkX, chunkZ, () ->
+		AtomicBoolean pending = new AtomicBoolean(true);
+		Runnable completion = () ->
 		{
+			if(!pending.compareAndSet(true, false))
+			{
+				return;
+			}
 			if(closed.getAsBoolean())
 			{
 				failure.run();
 				return;
 			}
 			success.run();
-		}))
+		};
+		Runnable retired = () ->
 		{
-			failure.run();
+			if(pending.compareAndSet(true, false))
+			{
+				failure.run();
+			}
+		};
+		if(!dispatch.run(world, chunkX, chunkZ, completion, retired))
+		{
+			retired.run();
 		}
 	}
 
@@ -135,5 +149,20 @@ final class DoorChunkLoader
 	interface RegionDispatch
 	{
 		boolean run(World world, int chunkX, int chunkZ, Runnable task);
+
+		default boolean run(
+			World world,
+			int chunkX,
+			int chunkZ,
+			Runnable task,
+			Runnable retired)
+		{
+			boolean scheduled = run(world, chunkX, chunkZ, task);
+			if(!scheduled)
+			{
+				retired.run();
+			}
+			return scheduled;
+		}
 	}
 }

@@ -3,12 +3,21 @@ package art.arcane.wormholes.door;
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.api.traversal.TraversalContext;
+import art.arcane.wormholes.api.traversal.TraversalDestination;
+import art.arcane.wormholes.api.traversal.TraversalRefundReason;
+import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
+import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendCapture;
+import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
+import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendTransaction;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.Plugin;
 
@@ -17,10 +26,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 
 final class DoorTransitCoordinator
 {
+	private static final int TERMINAL_SETTLEMENT_ATTEMPTS = 4;
+
 	private final Plugin plugin;
 	private final DoorStateGuard guard;
 	private final DoorTransitLedger ledger;
@@ -90,15 +102,30 @@ final class DoorTransitCoordinator
 		}
 		PlacedDoorEndpoint endpoint = runtime.endpoint();
 		World sourceWorld = requiredAttempt.sourceWorld();
-		if(!regions.run(sourceWorld,
-			endpoint.position().x() >> 4, endpoint.position().z() >> 4,
-			() -> claim(requiredAttempt, requiredCredentials)))
+		AtomicBoolean entryPending = new AtomicBoolean(true);
+		Runnable retired = () ->
 		{
-			abortEntry(
-				traveler,
-				travelerId,
-				WormholesMessages.DOOR_SOURCE_REGION_UNAVAILABLE,
-				DoorTransitFailures.Failure.ENTRY_REGION_UNAVAILABLE);
+			if(entryPending.compareAndSet(true, false))
+			{
+				retireEntry(traveler, travelerId);
+			}
+		};
+		boolean scheduled = regions.run(
+			sourceWorld,
+			endpoint.position().x() >> 4,
+			endpoint.position().z() >> 4,
+			() ->
+			{
+				if(entryPending.compareAndSet(true, false))
+				{
+					claim(requiredAttempt, requiredCredentials);
+				}
+			},
+			retired);
+		if(!scheduled)
+		{
+			retired.run();
+			travelers.message(traveler, WormholesMessages.DOOR_SOURCE_REGION_UNAVAILABLE);
 		}
 	}
 
@@ -232,6 +259,11 @@ final class DoorTransitCoordinator
 		{
 			plugin.getLogger().log(Level.SEVERE, "Could not allocate dimensional pocket", ex);
 			abortTransit(traveler, source, WormholesMessages.DOOR_POCKET_ALLOCATION_FAILED, ticketless);
+			return;
+		}
+		if(guard.pocketQuarantined(space.spaceId()))
+		{
+			abortTransit(traveler, source, WormholesMessages.DOOR_POCKET_NOT_READY, ticketless);
 			return;
 		}
 		// An object has no identity to come back as, so it is never issued a return
@@ -439,26 +471,78 @@ final class DoorTransitCoordinator
 			abortTransit(traveler, source, WormholesMessages.DOOR_TRANSIT_SHUTDOWN, context);
 			return;
 		}
+		AtomicBoolean pending = new AtomicBoolean(true);
+		Runnable retired = () ->
+		{
+			if(pending.compareAndSet(true, false))
+			{
+				retireScheduledTransit(traveler, source, context);
+			}
+		};
+		boolean scheduled = travelers.scheduleWithRetirement(
+			traveler,
+			() ->
+			{
+				if(pending.compareAndSet(true, false))
+				{
+					admitAndClose(traveler, source, target, context);
+				}
+			},
+			retired);
+		if(!scheduled && pending.compareAndSet(true, false))
+		{
+			rejectScheduledTransit(traveler, source, context);
+		}
+	}
+
+	private void admitAndClose(Entity traveler, RuntimeDoor source, Location target, TransitContext context)
+	{
 		PlacedDoorEndpoint endpoint = source.endpoint();
 		World sourceWorld = runtimes.world(endpoint.position());
-		if(sourceWorld == null || !regions.run(sourceWorld,
-			endpoint.position().x() >> 4, endpoint.position().z() >> 4, () ->
+		if(sourceWorld == null)
+		{
+			abortTransit(traveler, source, WormholesMessages.DOOR_SOURCE_REGION_UNAVAILABLE, context);
+			return;
+		}
+		TransitContext admitted = openTraversalCost(traveler, endpoint, sourceWorld, target, context);
+		if(admitted.traversalAdmission() != null && !admitted.traversalAdmission().allowed())
+		{
+			abortTransit(traveler, source, WormholesMessages.DOOR_ACCESS_TRANSIT_DENIED, admitted);
+			return;
+		}
+		AtomicBoolean regionPending = new AtomicBoolean(true);
+		Runnable regionRetired = () ->
+		{
+			if(regionPending.compareAndSet(true, false))
 			{
+				retireScheduledTransit(traveler, source, admitted);
+			}
+		};
+		boolean regionScheduled = regions.run(
+			sourceWorld,
+			endpoint.position().x() >> 4,
+			endpoint.position().z() >> 4,
+			() ->
+			{
+				if(!regionPending.compareAndSet(true, false))
+				{
+					return;
+				}
 				if(guard.closed())
 				{
-					abortTransit(traveler, source, WormholesMessages.DOOR_TRANSIT_SHUTDOWN, context);
+					abortTransit(traveler, source, WormholesMessages.DOOR_TRANSIT_SHUTDOWN, admitted);
 					return;
 				}
 				Optional<VanillaDoorSnapshot> fresh = runtimes.capture(endpoint, sourceWorld);
 				if(fresh.isEmpty() || !fresh.get().portalLive())
 				{
-					failTransit(traveler, source, WormholesMessages.DOOR_CLOSED_DURING_TRANSIT, context);
+					failTransit(traveler, source, WormholesMessages.DOOR_CLOSED_DURING_TRANSIT, admitted);
 					return;
 				}
 				// An object leaves the source door standing open so the rest of the
 				// volley can follow it through the same swing, and a contact pad is
 				// never swung shut at all - closing it would open the hole underneath.
-				if(context.transit().claimsOpenCycle())
+				if(admitted.transit().claimsOpenCycle())
 				{
 					try
 					{
@@ -468,22 +552,63 @@ final class DoorTransitCoordinator
 					catch(Throwable ex)
 					{
 						plugin.getLogger().log(Level.WARNING, "Could not close the source dimensional door", ex);
-						failTransit(traveler, source, WormholesMessages.DOOR_SOURCE_CLOSE_FAILED, context);
+						failTransit(traveler, source, WormholesMessages.DOOR_SOURCE_CLOSE_FAILED, admitted);
 						return;
 					}
 					runtimes.hideTransitVisual(endpoint.identity().itemId());
 				}
-				if(!travelers.scheduleWithRetirement(
-					traveler,
-					() -> teleport(traveler, source, target, context),
-					() -> retireScheduledTransit(traveler, source, context)))
+				AtomicBoolean travelerPending = new AtomicBoolean(true);
+				Runnable travelerRetired = () ->
 				{
-					rejectScheduledTransit(traveler, source, context);
+					if(travelerPending.compareAndSet(true, false))
+					{
+						retireScheduledTransit(traveler, source, admitted);
+					}
+				};
+				boolean travelerScheduled = travelers.scheduleWithRetirement(
+					traveler,
+					() ->
+					{
+						if(travelerPending.compareAndSet(true, false))
+						{
+							teleport(traveler, source, target, admitted);
+						}
+					},
+					travelerRetired);
+				if(!travelerScheduled && travelerPending.compareAndSet(true, false))
+				{
+					rejectScheduledTransit(traveler, source, admitted);
 				}
-		}))
+			},
+			regionRetired);
+		if(!regionScheduled && regionPending.compareAndSet(true, false))
 		{
-			abortTransit(traveler, source, WormholesMessages.DOOR_SOURCE_REGION_UNAVAILABLE, context);
+			abortTransit(traveler, source, WormholesMessages.DOOR_SOURCE_REGION_UNAVAILABLE, admitted);
 		}
+	}
+
+	private TransitContext openTraversalCost(
+		Entity traveler,
+		PlacedDoorEndpoint endpoint,
+		World sourceWorld,
+		Location target,
+		TransitContext context)
+	{
+		TraversalCostGateway gateway = Wormholes.traversalCostGateway;
+		if(gateway == null || !(traveler instanceof Player player))
+		{
+			return context;
+		}
+		DoorVec3 crossing = context.transit().crossing().point();
+		Location origin = new Location(sourceWorld, crossing.x(), crossing.y(), crossing.z());
+		TraversalDestination destination = TraversalDestination.portal(null, "", target);
+		TraversalCostGateway.Admission admission = gateway.open(TraversalContext.dimensionalDoor(
+			player,
+			endpoint.identity().itemId(),
+			"",
+			origin,
+			destination));
+		return context.withTraversalAdmission(admission);
 	}
 
 	private void teleport(Entity traveler, RuntimeDoor source, Location target, TransitContext context)
@@ -494,6 +619,139 @@ final class DoorTransitCoordinator
 				traveler, source, false, context, DoorTransitFailures.Failure.TRANSIT_SHUTDOWN);
 			return;
 		}
+		BukkitChunkPreSendCapture capture = captureChunkPreSend(traveler);
+		World destinationWorld = target.getWorld();
+		if(capture != null && destinationWorld != null)
+		{
+			AtomicBoolean destinationPending = new AtomicBoolean(true);
+			Runnable retired = () -> recoverRetiredDestinationDispatch(
+				traveler, source, context, destinationPending);
+			boolean scheduled = regions.run(
+				destinationWorld,
+				target.getBlockX() >> 4,
+				target.getBlockZ() >> 4,
+				() ->
+				{
+					if(destinationPending.compareAndSet(true, false))
+					{
+						TransitContext prepared = prepareChunkPreSend(capture, target, context);
+						dispatchPreparedTeleport(traveler, source, target, prepared);
+					}
+				},
+				retired);
+			if(scheduled)
+			{
+				return;
+			}
+			retired.run();
+			return;
+		}
+		teleportPrepared(traveler, source, target, context);
+	}
+
+	private void dispatchPreparedTeleport(
+		Entity traveler,
+		RuntimeDoor source,
+		Location target,
+		TransitContext prepared)
+	{
+		AtomicBoolean travelerPending = new AtomicBoolean(true);
+		AtomicBoolean recoveryStarted = new AtomicBoolean(false);
+		Runnable retired = () ->
+		{
+			if(travelerPending.get() && recoveryStarted.compareAndSet(false, true))
+			{
+				recoverRetiredDestinationDispatch(traveler, source, prepared, travelerPending);
+			}
+		};
+		boolean scheduled = travelers.scheduleWithRetirement(
+			traveler,
+			() ->
+			{
+				if(travelerPending.compareAndSet(true, false))
+				{
+					teleportPrepared(traveler, source, target, prepared);
+				}
+			},
+			retired);
+		if(!scheduled)
+		{
+			retired.run();
+		}
+	}
+
+	private void recoverRetiredDestinationDispatch(
+		Entity traveler,
+		RuntimeDoor source,
+		TransitContext context,
+		AtomicBoolean destinationPending)
+	{
+		AtomicBoolean sourceFallbackStarted = new AtomicBoolean(false);
+		Runnable sourceFallback = () ->
+		{
+			if(destinationPending.get() && sourceFallbackStarted.compareAndSet(false, true))
+			{
+				recoverRetiredDestinationOnSource(traveler, source, context, destinationPending);
+			}
+		};
+		boolean entityScheduled = travelers.scheduleWithRetirement(
+			traveler,
+			() ->
+			{
+				if(destinationPending.compareAndSet(true, false))
+				{
+					retireScheduledTransit(traveler, source, context);
+				}
+			},
+			sourceFallback);
+		if(!entityScheduled)
+		{
+			sourceFallback.run();
+		}
+	}
+
+	private void recoverRetiredDestinationOnSource(
+		Entity traveler,
+		RuntimeDoor source,
+		TransitContext context,
+		AtomicBoolean destinationPending)
+	{
+		PlacedDoorEndpoint endpoint = source.endpoint();
+		World sourceWorld = runtimes.world(endpoint.position());
+		Runnable sourceRecovery = () ->
+		{
+			if(destinationPending.compareAndSet(true, false))
+			{
+				releaseRetiredSourceState(traveler, source, context);
+			}
+		};
+		Runnable sourceRetired = () ->
+		{
+			if(destinationPending.compareAndSet(true, false))
+			{
+				releaseRetiredSourceState(traveler, source, context);
+			}
+		};
+		boolean regionScheduled = sourceWorld != null && regions.run(
+			sourceWorld,
+			endpoint.position().x() >> 4,
+			endpoint.position().z() >> 4,
+			sourceRecovery,
+			sourceRetired);
+		if(!regionScheduled)
+		{
+			sourceRetired.run();
+		}
+	}
+
+	private void teleportPrepared(Entity traveler, RuntimeDoor source, Location target, TransitContext prepared)
+	{
+		if(guard.closed())
+		{
+			finishClosedTransit(
+				traveler, source, false, prepared, DoorTransitFailures.Failure.TRANSIT_SHUTDOWN);
+			return;
+		}
 		CompletableFuture<Boolean> teleportFuture;
 		try
 		{
@@ -502,58 +760,162 @@ final class DoorTransitCoordinator
 		catch(Throwable ex)
 		{
 			plugin.getLogger().log(Level.WARNING, "Could not initiate dimensional-door teleport", ex);
-			failTransit(traveler, source, WormholesMessages.DOOR_TRANSIT_START_FAILED, context);
+			rollbackChunkPreSend(prepared);
+			failTransit(traveler, source, WormholesMessages.DOOR_TRANSIT_START_FAILED, prepared);
 			return;
 		}
-		DoorVec3 arrivalVelocity = arrivalVelocity(context, target);
+		DoorVec3 arrivalVelocity = arrivalVelocity(prepared, target);
 		teleportFuture.whenComplete((success, error) ->
 		{
 			boolean moved = error == null && Boolean.TRUE.equals(success);
-			if(guard.closed())
+			AtomicBoolean completionPending = new AtomicBoolean(true);
+			Runnable retired = () ->
 			{
-				finishClosedTransit(
-					traveler, source, moved, context, DoorTransitFailures.Failure.TRANSIT_SHUTDOWN);
-				return;
-			}
-			Runnable retired = () -> retireCompletedTransit(traveler, source, moved, context);
+				if(completionPending.compareAndSet(true, false))
+				{
+					retireCompletedTransit(traveler, source, moved, prepared);
+				}
+			};
 			boolean scheduled = travelers.scheduleWithRetirement(traveler, () ->
 			{
+				if(!completionPending.compareAndSet(true, false))
+				{
+					return;
+				}
 				if(guard.closed())
 				{
 					finishClosedTransit(
-						traveler, source, moved, context, DoorTransitFailures.Failure.TRANSIT_SHUTDOWN);
+						traveler, source, moved, prepared, DoorTransitFailures.Failure.TRANSIT_SHUTDOWN);
 					return;
 				}
 				if(moved)
 				{
-					ledger.startCooldown(context.travelerId(), traveler);
+					commitChunkPreSend(prepared);
+					settleTraversalCost(traveler, prepared, true, TraversalRefundReason.TELEPORT_FAILED);
+					ledger.startCooldown(prepared.travelerId(), traveler);
 					travelers.settle(traveler, arrivalVelocity);
 				}
-				completeCycle(source, context, moved, false);
-				ledger.release(context.travelerId(), traveler);
-				if(moved && context.action() == TicketAction.REMOVE_ON_SUCCESS)
+				completeCycle(source, prepared, moved, false);
+				ledger.release(prepared.travelerId(), traveler);
+				if(moved && prepared.action() == TicketAction.REMOVE_ON_SUCCESS)
 				{
-					tickets.removeQuietly(context.travelerId(), context.expected());
+					tickets.removeQuietly(prepared.travelerId(), prepared.expected());
 				}
-				else if(!moved && context.action() == TicketAction.KEEP_ON_SUCCESS)
+				else if(!moved && prepared.action() == TicketAction.KEEP_ON_SUCCESS)
 				{
-					tickets.removeQuietly(context.travelerId(), context.expected());
+					tickets.removeQuietly(prepared.travelerId(), prepared.expected());
 				}
 				if(!moved)
 				{
+					rollbackChunkPreSend(prepared);
+					settleTraversalCost(traveler, prepared, false, TraversalRefundReason.TELEPORT_FAILED);
 					travelers.message(traveler, WormholesMessages.DOOR_TRANSIT_CANCELLED);
 				}
 			}, retired);
-			if(!scheduled)
+			if(!scheduled && completionPending.compareAndSet(true, false))
 			{
-				finishClosedTransit(
-					traveler,
-					source,
-					moved,
-					context,
-					DoorTransitFailures.Failure.TRANSIT_SCHEDULE_REJECTED);
+				failures.record(
+					DoorTransitFailures.Failure.TRANSIT_SCHEDULE_REJECTED,
+					prepared.travelerId(),
+					WormholesMessages.DOOR_TRANSIT_SHUTDOWN.id());
+				finishRetiredTransit(traveler, source, moved, prepared);
 			}
 		});
+	}
+
+	private BukkitChunkPreSendCapture captureChunkPreSend(Entity traveler)
+	{
+		if(!(traveler instanceof Player player))
+		{
+			return null;
+		}
+		try
+		{
+			return BukkitChunkPreSendProvider.capture(player);
+		}
+		catch(RuntimeException exception)
+		{
+			plugin.getLogger().log(Level.WARNING,
+				"Could not pre-send dimensional-door destination chunks for " + traveler.getUniqueId(), exception);
+			return null;
+		}
+	}
+
+	private TransitContext prepareChunkPreSend(
+		BukkitChunkPreSendCapture capture,
+		Location target,
+		TransitContext context)
+	{
+		try
+		{
+			return context.withChunkPreSend(capture.preSend(target));
+		}
+		catch(RuntimeException exception)
+		{
+			plugin.getLogger().log(Level.WARNING,
+				"Could not pre-send dimensional-door destination chunks for " + context.travelerId(), exception);
+			return context;
+		}
+	}
+
+	private void rollbackChunkPreSend(TransitContext context)
+	{
+		BukkitChunkPreSendTransaction transaction = context.chunkPreSendTransaction();
+		if(transaction == null)
+		{
+			return;
+		}
+		AtomicBoolean pending = new AtomicBoolean(true);
+		Runnable rollback = () ->
+		{
+			if(pending.compareAndSet(true, false))
+			{
+				rollbackChunkPreSendNow(context, transaction);
+			}
+		};
+		Runnable retired = () ->
+		{
+			if(pending.compareAndSet(true, false))
+			{
+				transaction.commit();
+				plugin.getLogger().warning("Discarded dimensional-door chunk pre-send rollback after both source schedulers retired for "
+					+ context.travelerId());
+			}
+		};
+		boolean regionScheduled = regions.run(
+			transaction.sourceWorld(),
+			transaction.sourceChunkX(),
+			transaction.sourceChunkZ(),
+			rollback,
+			retired);
+		if(!regionScheduled)
+		{
+			retired.run();
+		}
+	}
+
+	private static void commitChunkPreSend(TransitContext context)
+	{
+		BukkitChunkPreSendTransaction transaction = context.chunkPreSendTransaction();
+		if(transaction != null)
+		{
+			transaction.commit();
+		}
+	}
+
+	private void rollbackChunkPreSendNow(
+		TransitContext context,
+		BukkitChunkPreSendTransaction transaction)
+	{
+		try
+		{
+			transaction.rollback();
+		}
+		catch(RuntimeException exception)
+		{
+			plugin.getLogger().log(Level.WARNING,
+				"Could not roll back dimensional-door chunk pre-send for " + context.travelerId(), exception);
+		}
 	}
 
 	private void retireScheduledTransit(Entity traveler, RuntimeDoor source, TransitContext context)
@@ -562,6 +924,7 @@ final class DoorTransitCoordinator
 			DoorTransitFailures.Failure.TRANSIT_RETIRED,
 			context.travelerId(),
 			WormholesMessages.DOOR_TRANSIT_CANCELLED.id());
+		rollbackChunkPreSend(context);
 		releaseScheduledTransit(traveler, source, context);
 	}
 
@@ -577,6 +940,23 @@ final class DoorTransitCoordinator
 
 	private void releaseScheduledTransit(Entity traveler, RuntimeDoor source, TransitContext context)
 	{
+		settleTraversalCost(traveler, context, false, TraversalRefundReason.DESTINATION_UNAVAILABLE);
+		completeCycle(source, context, false, false);
+		ledger.release(context.travelerId(), traveler);
+		if(context.action() == TicketAction.KEEP_ON_SUCCESS)
+		{
+			tickets.removeAfterRetirement(context.travelerId(), context.expected());
+		}
+	}
+
+	private void releaseRetiredSourceState(Entity traveler, RuntimeDoor source, TransitContext context)
+	{
+		failures.record(
+			DoorTransitFailures.Failure.TRANSIT_RETIRED,
+			context.travelerId(),
+			WormholesMessages.DOOR_TRANSIT_CANCELLED.id());
+		rollbackChunkPreSend(context);
+		settleTraversalCost(traveler, context, false, TraversalRefundReason.DESTINATION_UNAVAILABLE);
 		completeCycle(source, context, false, false);
 		ledger.release(context.travelerId(), traveler);
 		if(context.action() == TicketAction.KEEP_ON_SUCCESS)
@@ -615,12 +995,32 @@ final class DoorTransitCoordinator
 		refuseEntry(traveler, travelerId, reason, failure);
 	}
 
+	private void retireEntry(Entity traveler, UUID travelerId)
+	{
+		ledger.release(travelerId, traveler);
+		failures.record(
+			DoorTransitFailures.Failure.ENTRY_REGION_UNAVAILABLE,
+			travelerId,
+			WormholesMessages.DOOR_SOURCE_REGION_UNAVAILABLE.id());
+	}
+
 	private void finishRetiredTransit(
 		Entity traveler,
 		RuntimeDoor source,
 		boolean moved,
 		TransitContext context)
 	{
+		if(!moved)
+		{
+			rollbackChunkPreSend(context);
+		}
+		else
+		{
+			commitChunkPreSend(context);
+		}
+		settleTraversalCost(traveler, context, moved, moved
+			? TraversalRefundReason.TRAVERSAL_ABORTED
+			: TraversalRefundReason.TRAVELER_LEFT);
 		completeCycle(source, context, moved, false);
 		ledger.release(context.travelerId(), traveler);
 		if((moved && context.action() == TicketAction.REMOVE_ON_SUCCESS)
@@ -682,6 +1082,7 @@ final class DoorTransitCoordinator
 		TextKey reason,
 		TransitContext context)
 	{
+		settleTraversalCost(traveler, context, false, TraversalRefundReason.DESTINATION_UNAVAILABLE);
 		failures.record(
 			open ? DoorTransitFailures.Failure.TRANSIT_ABORTED : DoorTransitFailures.Failure.TRANSIT_FAILED,
 			context.travelerId(),
@@ -693,6 +1094,67 @@ final class DoorTransitCoordinator
 			tickets.removeQuietly(context.travelerId(), context.expected());
 		}
 		travelers.message(traveler, reason);
+	}
+
+	private void settleTraversalCost(
+		Entity traveler,
+		TransitContext context,
+		boolean succeeded,
+		TraversalRefundReason failureReason)
+	{
+		TraversalCostGateway.Admission admission = context.traversalAdmission();
+		if(admission == null)
+		{
+			return;
+		}
+		if(!succeeded)
+		{
+			admission.refund(failureReason);
+			return;
+		}
+		if(WormholesPlatform.isOwnedByCurrentRegion(traveler))
+		{
+			admission.commit();
+			return;
+		}
+		retrySuccessfulTraversalCost(traveler, admission, TERMINAL_SETTLEMENT_ATTEMPTS);
+	}
+
+	private void retrySuccessfulTraversalCost(
+		Entity traveler,
+		TraversalCostGateway.Admission admission,
+		int attemptsRemaining)
+	{
+		AtomicBoolean attemptFinished = new AtomicBoolean(false);
+		Runnable settlement = () ->
+		{
+			if(attemptFinished.compareAndSet(false, true))
+			{
+				admission.commit();
+			}
+		};
+		Runnable retired = () ->
+		{
+			if(!attemptFinished.compareAndSet(false, true))
+			{
+				return;
+			}
+			if(attemptsRemaining > 1)
+			{
+				retrySuccessfulTraversalCost(traveler, admission, attemptsRemaining - 1);
+				return;
+			}
+			if(admission.deferCommit())
+			{
+				plugin.getLogger().warning(
+					"Deferred successful dimensional-door traversal-cost provider work after traveler terminal work repeatedly retired for "
+						+ traveler.getUniqueId());
+			}
+		};
+		if(!travelers.scheduleWithRetirement(traveler, settlement, retired))
+		{
+			retired.run();
+		}
 	}
 
 	/**
@@ -753,7 +1215,9 @@ final class DoorTransitCoordinator
 		DoorTransit transit,
 		TicketAction action,
 		ReturnTicket expected,
-		DoorwayPlane destinationPlane)
+		DoorwayPlane destinationPlane,
+		TraversalCostGateway.Admission traversalAdmission,
+		BukkitChunkPreSendTransaction chunkPreSendTransaction)
 	{
 		private TransitContext
 		{
@@ -769,12 +1233,25 @@ final class DoorTransitCoordinator
 		/** A pocket arrival has no far plane, so the destination stays null there. */
 		private TransitContext at(DoorwayPlane plane)
 		{
-			return new TransitContext(travelerId, transit, action, expected, plane);
+			return new TransitContext(
+				travelerId, transit, action, expected, plane, traversalAdmission, chunkPreSendTransaction);
+		}
+
+		private TransitContext withTraversalAdmission(TraversalCostGateway.Admission admission)
+		{
+			return new TransitContext(
+				travelerId, transit, action, expected, destinationPlane, admission, chunkPreSendTransaction);
+		}
+
+		private TransitContext withChunkPreSend(BukkitChunkPreSendTransaction transaction)
+		{
+			return new TransitContext(
+				travelerId, transit, action, expected, destinationPlane, traversalAdmission, transaction);
 		}
 
 		private static TransitContext none(UUID travelerId, DoorTransit transit)
 		{
-			return new TransitContext(travelerId, transit, TicketAction.NONE, null, null);
+			return new TransitContext(travelerId, transit, TicketAction.NONE, null, null, null, null);
 		}
 
 		private static TransitContext keep(
@@ -783,7 +1260,7 @@ final class DoorTransitCoordinator
 			ReturnTicket ticket)
 		{
 			return new TransitContext(
-				travelerId, transit, TicketAction.KEEP_ON_SUCCESS, ticket, null);
+				travelerId, transit, TicketAction.KEEP_ON_SUCCESS, ticket, null, null, null);
 		}
 
 		private static TransitContext remove(
@@ -792,7 +1269,7 @@ final class DoorTransitCoordinator
 			ReturnTicket ticket)
 		{
 			return new TransitContext(
-				travelerId, transit, TicketAction.REMOVE_ON_SUCCESS, ticket, null);
+				travelerId, transit, TicketAction.REMOVE_ON_SUCCESS, ticket, null, null, null);
 		}
 	}
 }

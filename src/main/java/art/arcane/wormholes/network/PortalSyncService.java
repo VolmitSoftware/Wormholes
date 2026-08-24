@@ -15,15 +15,23 @@ import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.portal.UniversalTunnel;
+import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
+import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.util.AxisAlignedBB;
+
+import org.bukkit.Location;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public final class PortalSyncService {
     public static final String KEY_PROJECTION_MODE = "projectionMode";
@@ -50,15 +58,47 @@ public final class PortalSyncService {
     static final String KEY_REMOTE_CACHE_ONLY = "remoteCacheOnly";
 
     private static final ThreadLocal<Boolean> APPLYING_REMOTE = ThreadLocal.withInitial(() -> Boolean.FALSE);
+    private static final long MILLIS_PER_TICK = 50L;
 
     private final NetworkManager network;
     private final Supplier<List<ILocalPortal>> portalSource;
     private final Consumer<Runnable> globalDispatcher;
+    private final PortalSettingsApplyQueue localSettingsQueue;
 
     public PortalSyncService(NetworkManager network, Supplier<List<ILocalPortal>> portalSource, Consumer<Runnable> globalDispatcher) {
+        this(network, portalSource, globalDispatcher, new PortalSettingsApplyQueue(
+            (portal, task, retired) -> dispatchPortalRegion(portal, task, retired),
+            (task, delayTicks) -> dispatchRetry(globalDispatcher, task, delayTicks),
+            PortalSyncService::reportApplyFailure
+        ));
+    }
+
+    private static void dispatchRetry(Consumer<Runnable> globalDispatcher, Runnable task, long delayTicks) {
+        long delayMillis = Math.multiplyExact(Math.max(1L, delayTicks), MILLIS_PER_TICK);
+        CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS)
+            .execute(() -> globalDispatcher.accept(task));
+    }
+
+    private static boolean dispatchPortalRegion(LocalPortal portal, Runnable task, Runnable retired) {
+        Location center = portal.getCenter();
+        if (center == null || center.getWorld() == null) {
+            return false;
+        }
+        return BukkitRegionTaskProvider.run(
+            center.getWorld(),
+            center.getBlockX() >> 4,
+            center.getBlockZ() >> 4,
+            task,
+            retired,
+            0L);
+    }
+
+    PortalSyncService(NetworkManager network, Supplier<List<ILocalPortal>> portalSource,
+                      Consumer<Runnable> globalDispatcher, PortalSettingsApplyQueue localSettingsQueue) {
         this.network = network;
         this.portalSource = portalSource;
         this.globalDispatcher = globalDispatcher;
+        this.localSettingsQueue = localSettingsQueue;
     }
 
     public void onPeerStateChanged(String peerName, boolean ready) {
@@ -66,6 +106,10 @@ public final class PortalSyncService {
             return;
         }
         globalDispatcher.accept(() -> sendDirectory(peerName));
+    }
+
+    public void shutdown() {
+        localSettingsQueue.shutdown();
     }
 
     public void sendDirectory(String peerName) {
@@ -250,8 +294,7 @@ public final class PortalSyncService {
         }
         LocalPortal target = findLinkedLocal(peerName, portalId);
         if (target != null) {
-            applyToLocal(target, settings);
-            target.refreshOpenMenus();
+            localSettingsQueue.enqueue(target, settings);
         }
     }
 
@@ -263,11 +306,11 @@ public final class PortalSyncService {
         return new WireMessage.PortalSettingsUpdate(local.getId(), settings);
     }
 
-    private static LocalPortal findLinkedLocal(String peerName, UUID senderPortalId) {
-        if (peerName == null || senderPortalId == null || Wormholes.portalManager == null) {
+    private LocalPortal findLinkedLocal(String peerName, UUID senderPortalId) {
+        if (peerName == null || senderPortalId == null || portalSource == null) {
             return null;
         }
-        for (ILocalPortal portal : Wormholes.portalManager.getLocalPortals()) {
+        for (ILocalPortal portal : portalSource.get()) {
             if (!(portal instanceof LocalPortal localPortal)) {
                 continue;
             }
@@ -280,6 +323,19 @@ public final class PortalSyncService {
             }
         }
         return null;
+    }
+
+    private static void reportApplyFailure(String reason, LocalPortal portal, Throwable failure) {
+        WormholesTelemetry.countFailure(reason);
+        UUID portalId = portal == null ? null : portal.getId();
+        String message = "Inbound portal settings failed for portal " + portalId + ": " + reason;
+        Wormholes active = Wormholes.instance;
+        Logger logger = active == null ? Logger.getLogger("Wormholes") : active.getLogger();
+        if (failure == null) {
+            logger.warning(message);
+            return;
+        }
+        logger.log(Level.WARNING, message, failure);
     }
 
     static Map<String, String> collectLocalPairSettings(LocalPortal portal) {

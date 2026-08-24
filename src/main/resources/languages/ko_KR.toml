@@ -410,6 +410,7 @@ locale = "ko_KR"
 "command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material}은(는) 포켓 벽으로 쓸 수 없습니다. 떨어지지 않는 단단한 블록을 사용하세요."
 "command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material}은(는) 포켓 출구 문으로 쓸 수 없습니다. 손으로 여는 문을 사용하세요. 철문은 거부됩니다."
 "command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>그 포켓은 이미 이 크기와 재료입니다."
+"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>포켓 크기 변경이 중단되었습니다. 내용물이 있는 보관함 <white>{containers}<red>개가 파괴됩니다. 비운 뒤 다시 시도하세요. <white>confirm=true<red>로도 이 안전 검사를 건너뛸 수 없습니다."
 "command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>포켓을 <white>{size}<green> 블록으로 다시 만들었습니다 (이전 <white>{previous}<green>). 벽 <white>{material}<green>, 출구 문 <white>{door}."
 "command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>포켓을 다시 만들지 못했습니다. 콘솔을 확인하세요."
 "command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>포켓 차원이 로드되지 않았습니다."
@@ -585,7 +586,7 @@ locale = "ko_KR"
 "door.menu.access.entry" = ["<white>{name}","<gray>상태: <aqua>{state}","","<dark_gray>좌클릭: 허용. 우클릭: 차단.","<dark_gray>휠 클릭 또는 Shift + 좌클릭: 제거."]
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>포켓 <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>크기 <white>{size}<gray> 블록, 벽 <white>{material}<gray>, 출구 문 <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>범위 <white>{minimum}<gray> ~ <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} 블록으로 다시 만들면 설치된 블록 <white>{blocks}<red>개(내용물이 있는 것 <white>{containers}<red>개)가 파괴되고 엔티티 <white>{entities}<red>개가 이동합니다.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>보관함 내용물과 새 벽 바깥에 남은 것은 입구에 떨어뜨립니다. 나머지는 사라집니다.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>계속하려면 같은 명령을 <white>confirm=true<gray>와 함께 실행하세요."]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} 블록으로 다시 만들면 설치된 블록 <white>{blocks}<red>개가 파괴되고 엔티티 <white>{entities}<red>개가 이동합니다.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>새 벽 바깥의 블록은 파괴되고 이동 대상 엔티티는 입구로 옮겨집니다.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>계속하려면 같은 명령을 <white>confirm=true<gray>와 함께 실행하세요."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>포털 <white>{count}<green>개를 삭제하고 로컬 포털 연결을 지웠습니다."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>포털 <white>{count}<green>개를 삭제하고 로컬 포털 연결을 지웠습니다."

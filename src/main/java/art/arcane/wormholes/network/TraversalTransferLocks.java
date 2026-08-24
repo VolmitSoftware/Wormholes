@@ -39,4 +39,8 @@ final class TraversalTransferLocks {
         }
         locks.values().removeIf(until -> until.longValue() <= now);
     }
+
+    void clear() {
+        locks.clear();
+    }
 }

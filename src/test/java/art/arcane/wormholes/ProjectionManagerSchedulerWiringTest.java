@@ -116,11 +116,39 @@ class ProjectionManagerSchedulerWiringTest {
                     + "counted instead of dying in a private field");
             assertFalse(invoked.contains(FOLIA_SCHEDULER + ".runEntity"),
                 broadcaster + "() must not schedule around the counted seam");
+            assertTrue(invoked.contains("art/arcane/wormholes/ProjectionInterestSet.projectedEntityObservers"),
+                broadcaster + "() must route through the reverse entity-interest index");
+            assertFalse(invoked.contains("art/arcane/wormholes/ProjectionInterestSet.snapshot"),
+                broadcaster + "() must not scan every projector for one source entity event");
         }
 
         assertTrue(invokedMethods(manager, "dispatchProjectedEntityUpdate")
                 .contains("art/arcane/wormholes/service/WormholesTelemetry.countFailure"),
             "a dropped projected entity update is a terminal failure and must increment the plugin-wide counter");
+    }
+
+    @Test
+    void theRealProjectedEntitySchedulerHandsFoliaANonNullRetirementCallback() throws IOException {
+        ClassModel manager = parse(PROJECTION_MANAGER);
+        List<Instruction> scheduler = body(manager, lambdaBehind(manager, "ENTITY_UPDATE_SCHEDULER"));
+        int retirementAwareCalls = 0;
+
+        for (int index = 0; index < scheduler.size(); index++) {
+            if (!(scheduler.get(index) instanceof InvokeInstruction invoke)) {
+                continue;
+            }
+            assertEquals(FOLIA_SCHEDULER, invoke.owner().asInternalName());
+            assertEquals("runEntity", invoke.name().stringValue());
+            assertEquals(RUN_ENTITY_WITH_RETIREMENT, invoke.type().stringValue());
+            assertTrue(index > 0 && scheduler.get(index - 1) instanceof LoadInstruction load
+                    && load.typeKind() == TypeKind.REFERENCE
+                    && load.slot() == 2,
+                "projected entity batches must pass their retirement callback so a retired observer cannot keep "
+                    + "a permanently scheduled batch");
+            retirementAwareCalls++;
+        }
+
+        assertEquals(1, retirementAwareCalls);
     }
 
     @Test

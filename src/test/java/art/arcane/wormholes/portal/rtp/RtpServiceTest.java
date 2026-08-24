@@ -65,6 +65,74 @@ public final class RtpServiceTest
 	}
 
 	@Test
+	public void sharedPortalPublishesFirstSafeCandidateWhileStandbyWarms()
+	{
+		TestHarness harness = new TestHarness(uniqueSampler());
+		UUID portalId = uuid("first-shared-candidate-portal");
+		UUID viewerId = uuid("first-shared-candidate-viewer");
+		harness.register(portalId, settings(RtpAllocationMode.SHARED, RtpRotationMode.ON_TRAVERSAL));
+		harness.service.touchViewer(portalId, viewerId).join();
+
+		harness.executor.runNext();
+		harness.executor.runNext();
+
+		RtpService.Snapshot firstCandidate = harness.service.snapshot(portalId).orElseThrow();
+		assertTrue(firstCandidate.runtime().ready());
+		assertEquals(1, firstCandidate.runtime().candidateCount());
+		assertNotNull(firstCandidate.runtime().active());
+		assertEquals(null, firstCandidate.runtime().standby());
+		assertTrue(firstCandidate.runtime().searchInFlight());
+		assertEquals(RtpProjectionView.State.READY, firstCandidate.views().get(viewerId).state());
+		assertEquals(1, harness.loader.loadCount());
+		RtpService.TraversalPreparation preparation = harness.service.claimTraversal(
+				portalId,
+				RtpService.TraversalActor.player(uuid("first-shared-candidate-claim"), viewerId)).join().orElseThrow();
+		assertTrue(harness.service.completeTraversal(preparation, false).join());
+		harness.loader.holdNext();
+		harness.executor.runNext();
+		assertEquals(1, harness.loader.pendingCount());
+		harness.advance(29_999L);
+		assertEquals(RtpProjectionView.State.READY, harness.service.projectionView(portalId, viewerId).state());
+		harness.loader.completeNext();
+
+		harness.executor.runAll();
+		assertEquals(2, harness.service.snapshot(portalId).orElseThrow().runtime().candidateCount());
+	}
+
+	@Test
+	public void perPlayerPortalReservesFirstSafeCandidateWhileSparesWarm()
+	{
+		TestHarness harness = new TestHarness(uniqueSampler());
+		UUID portalId = uuid("first-private-candidate-portal");
+		UUID viewerId = uuid("first-private-candidate-viewer");
+		harness.register(portalId, settings(RtpAllocationMode.PER_PLAYER, RtpRotationMode.STATIC));
+		harness.service.touchViewer(portalId, viewerId).join();
+
+		harness.executor.runNext();
+		harness.executor.runNext();
+
+		RtpService.Snapshot firstCandidate = harness.service.snapshot(portalId).orElseThrow();
+		assertTrue(firstCandidate.runtime().ready());
+		assertEquals(1, firstCandidate.runtime().candidateCount());
+		assertEquals(1, firstCandidate.runtime().reservedPlayers());
+		assertEquals(0, firstCandidate.runtime().freeCandidates());
+		assertTrue(firstCandidate.runtime().searchInFlight());
+		assertEquals(RtpProjectionView.State.READY, firstCandidate.views().get(viewerId).state());
+		assertEquals(1, harness.loader.loadCount());
+		harness.loader.holdNext();
+		harness.executor.runNext();
+		assertEquals(1, harness.loader.pendingCount());
+		harness.advance(29_999L);
+		assertEquals(RtpProjectionView.State.READY, harness.service.projectionView(portalId, viewerId).state());
+		harness.loader.completeNext();
+
+		harness.executor.runAll();
+		RtpRuntimeSnapshot replenished = harness.service.snapshot(portalId).orElseThrow().runtime();
+		assertEquals(3, replenished.candidateCount());
+		assertEquals(2, replenished.freeCandidates());
+	}
+
+	@Test
 	public void repeatedReadyAttendanceTouchesDoNotRepeatAccessChecks()
 	{
 		TestHarness harness = new TestHarness(uniqueSampler());
@@ -108,7 +176,7 @@ public final class RtpServiceTest
 		exhaustedHarness.executor.runAll();
 
 		RtpRuntimeSnapshot exhausted = exhaustedHarness.service.snapshot(exhaustedPortal).orElseThrow().runtime();
-		assertFalse(exhausted.ready());
+		assertTrue(exhausted.ready());
 		assertNotNull(exhausted.active());
 		assertEquals(null, exhausted.standby());
 		assertFalse(exhausted.searchInFlight());
@@ -437,7 +505,45 @@ public final class RtpServiceTest
 	}
 
 	@Test
-	public void onTraversalKeepsThePreviousProjectionReadyUntilTheReplacementPairIsReady()
+	public void failedTraversalImmediatelyReleasesPreparingAndDispatchedClaimsOnSource()
+	{
+		TestHarness harness = new TestHarness(uniqueSampler());
+		UUID portalId = uuid("early-failure-portal");
+		UUID viewerId = uuid("early-failure-viewer");
+		harness.register(portalId, settings(RtpAllocationMode.SHARED, RtpRotationMode.ON_TRAVERSAL));
+		harness.service.touchViewer(portalId, viewerId).join();
+		harness.executor.runAll();
+
+		RtpService.TraversalPreparation preparing = harness.service.claimTraversal(
+				portalId,
+				RtpService.TraversalActor.player(uuid("early-preparing-claim"), viewerId)).join().orElseThrow();
+		assertEquals(RtpTraversalRequest.State.PREPARING, preparing.request().state());
+		assertEquals(1, harness.service.snapshot(portalId).orElseThrow().runtime().sharedClaims());
+
+		harness.dispatcher.deferExecute();
+		CompletableFuture<Boolean> preparingCompletion = harness.service.completeTraversal(preparing, false);
+		assertFalse(preparingCompletion.isDone());
+		assertEquals(RtpTraversalRequest.State.PREPARING, preparing.request().state());
+		harness.dispatcher.runDeferred();
+
+		assertTrue(preparingCompletion.join());
+		assertEquals(RtpTraversalRequest.State.CANCELLED, preparing.request().state());
+		assertEquals(0, harness.service.snapshot(portalId).orElseThrow().runtime().sharedClaims());
+
+		RtpService.TraversalPreparation dispatched = harness.service.claimTraversal(
+				portalId,
+				RtpService.TraversalActor.player(uuid("early-dispatched-claim"), viewerId)).join().orElseThrow();
+		assertTrue(harness.service.markTraversalDispatched(dispatched).join());
+		assertEquals(RtpTraversalRequest.State.DISPATCHED, dispatched.request().state());
+		assertTrue(harness.service.completeTraversal(dispatched, false).join());
+
+		assertEquals(RtpTraversalRequest.State.FAILED, dispatched.request().state());
+		assertEquals(0, harness.service.snapshot(portalId).orElseThrow().runtime().sharedClaims());
+		assertTrue(harness.service.snapshot(portalId).orElseThrow().runtime().ready());
+	}
+
+	@Test
+	public void onTraversalPublishesPromotedDestinationWhileReplacementWarms()
 	{
 		TestHarness harness = new TestHarness(uniqueSampler());
 		UUID portalId = uuid("seamless-traversal-portal");
@@ -454,9 +560,10 @@ public final class RtpServiceTest
 		assertTrue(harness.service.markTraversalDispatched(preparation).join());
 		assertTrue(harness.service.completeTraversal(preparation, true).join());
 
-		assertFalse(harness.service.snapshot(portalId).orElseThrow().runtime().ready());
-		assertEquals(before, harness.service.projectionView(portalId, viewerId));
-		assertEquals(2, harness.loader.openRetentions());
+		assertTrue(harness.service.snapshot(portalId).orElseThrow().runtime().ready());
+		RtpProjectionView promoted = harness.service.projectionView(portalId, viewerId);
+		assertNotEquals(before.readyFor(viewerId).orElseThrow(), promoted.readyFor(viewerId).orElseThrow());
+		assertEquals(1, harness.loader.openRetentions());
 
 		harness.executor.runAll();
 		RtpProjectionView after = harness.service.projectionView(portalId, viewerId);

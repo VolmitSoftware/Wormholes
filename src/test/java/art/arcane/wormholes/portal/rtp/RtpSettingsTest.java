@@ -117,8 +117,12 @@ public final class RtpSettingsTest
 
 		assertThrows(IllegalArgumentException.class, () -> RtpSettings.builder(world).radii(-1, 100).build());
 		assertThrows(IllegalArgumentException.class, () -> RtpSettings.builder(world).radii(100, 100).build());
+		assertThrows(IllegalArgumentException.class,
+				() -> RtpSettings.builder(world).radii(100, RtpSettings.MAXIMUM_RADIUS + 1).build());
 		assertThrows(IllegalArgumentException.class, () -> RtpSettings.builder(world).centerMode(RtpCenterMode.CUSTOM).build());
 		assertThrows(IllegalArgumentException.class, () -> RtpSettings.builder(world).customCenter(Double.NaN, 4.0D).build());
+		assertThrows(IllegalArgumentException.class,
+				() -> RtpSettings.builder(world).customCenter(RtpSettings.MAXIMUM_COORDINATE + 1.0D, 4.0D).build());
 
 		RtpSettings settings = RtpSettings.builder(world)
 				.yBounds(-500, 500)
@@ -134,6 +138,22 @@ public final class RtpSettingsTest
 		assertEquals(15_000L, settings.getCycleDurationMillis());
 		assertEquals(600_000L, settings.getLeaseIdleMillis());
 		assertEquals(5_000L, settings.getPrivateReleaseMillis());
+	}
+
+	@Test
+	public void builderAcceptsExactCoordinateAndRadiusBoundaries()
+	{
+		World world = world("overworld", -64, 320, 63);
+		RtpSettings settings = RtpSettings.builder(world)
+				.centerMode(RtpCenterMode.CUSTOM)
+				.customCenter(RtpSettings.MINIMUM_COORDINATE, RtpSettings.MAXIMUM_COORDINATE)
+				.radii(RtpSettings.MAXIMUM_RADIUS - 1, RtpSettings.MAXIMUM_RADIUS)
+				.build();
+
+		assertEquals(RtpSettings.MINIMUM_COORDINATE, settings.getCustomCenterX().doubleValue());
+		assertEquals(RtpSettings.MAXIMUM_COORDINATE, settings.getCustomCenterZ().doubleValue());
+		assertEquals(RtpSettings.MAXIMUM_RADIUS - 1, settings.getMinimumRadius());
+		assertEquals(RtpSettings.MAXIMUM_RADIUS, settings.getMaximumRadius());
 	}
 
 	@Test
@@ -198,6 +218,54 @@ public final class RtpSettingsTest
 		assertEquals(15_000L, settings.getCycleDurationMillis());
 		assertEquals(5_000L, settings.getLeaseIdleMillis());
 		assertEquals(300_000L, settings.getPrivateReleaseMillis());
+	}
+
+	@Test
+	public void storedJsonOutsideMinecraftBoundsNormalizesToApprovedDefaults()
+	{
+		World source = world("overworld", -64, 320, 63);
+		JSONObject json = RtpSettings.defaults(source).toJson();
+		json.put("centerMode", "CUSTOM");
+		json.put("customCenterX", RtpSettings.MINIMUM_COORDINATE - 1.0D);
+		json.put("customCenterZ", 0.0D);
+		json.put("minimumRadius", 100);
+		json.put("maximumRadius", RtpSettings.MAXIMUM_RADIUS + 1);
+
+		RtpSettings settings = RtpSettings.fromJson(json, key -> source);
+
+		assertEquals(RtpCenterMode.PORTAL_RELATIVE, settings.getCenterMode());
+		assertNull(settings.getCustomCenterX());
+		assertNull(settings.getCustomCenterZ());
+		assertEquals(512, settings.getMinimumRadius());
+		assertEquals(4096, settings.getMaximumRadius());
+	}
+
+	@Test
+	public void storedJsonRadiusOverflowCannotWrapIntoTheAcceptedRange()
+	{
+		World source = world("overworld", -64, 320, 63);
+		JSONObject json = RtpSettings.defaults(source).toJson();
+		json.put("minimumRadius", 4_294_967_396L);
+		json.put("maximumRadius", 4_294_968_196L);
+
+		RtpSettings settings = RtpSettings.fromJson(json, key -> source);
+
+		assertEquals(512, settings.getMinimumRadius());
+		assertEquals(4096, settings.getMaximumRadius());
+	}
+
+	@Test
+	public void storedJsonFractionalRadiusCannotTruncateIntoTheAcceptedRange()
+	{
+		World source = world("overworld", -64, 320, 63);
+		JSONObject json = RtpSettings.defaults(source).toJson();
+		json.put("minimumRadius", 100.5D);
+		json.put("maximumRadius", 900.5D);
+
+		RtpSettings settings = RtpSettings.fromJson(json, key -> source);
+
+		assertEquals(512, settings.getMinimumRadius());
+		assertEquals(4096, settings.getMaximumRadius());
 	}
 
 	@Test

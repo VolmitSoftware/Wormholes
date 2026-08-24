@@ -12,16 +12,20 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.logging.Logger;
 
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.AfterEach;
@@ -29,6 +33,19 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.ProjectionManager;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.api.traversal.TraversalContext;
+import art.arcane.wormholes.api.traversal.TraversalCostProvider;
+import art.arcane.wormholes.api.traversal.TraversalKind;
+import art.arcane.wormholes.api.traversal.TraversalQuote;
+import art.arcane.wormholes.api.traversal.TraversalReceipt;
+import art.arcane.wormholes.api.traversal.TraversalRefundReason;
+import art.arcane.wormholes.api.traversal.TraversalReservation;
+import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
+import art.arcane.wormholes.api.traversal.internal.TraversalCostPolicy;
+import art.arcane.wormholes.api.traversal.internal.TraversalCostRegistration;
+import art.arcane.wormholes.api.traversal.internal.TraversalEventSink;
+import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
+import art.arcane.wormholes.chunk.presend.RecordingBukkitChunkPreSend;
 import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
 import art.arcane.wormholes.portal.rtp.RtpAccessResult;
 import art.arcane.wormholes.portal.rtp.RtpAllocationMode;
@@ -47,11 +64,18 @@ public final class RtpLiveRuntimeTest
 	@AfterEach
 	public void clearRuntime()
 	{
+		BukkitChunkPreSendProvider.shutdown();
 		BukkitRtpRuntime runtime = Wormholes.rtpRuntime;
 		Wormholes.rtpRuntime = null;
 		if(runtime != null)
 		{
 			runtime.close();
+		}
+		TraversalCostGateway gateway = Wormholes.traversalCostGateway;
+		Wormholes.traversalCostGateway = null;
+		if(gateway != null)
+		{
+			gateway.shutdown();
 		}
 	}
 
@@ -146,6 +170,21 @@ public final class RtpLiveRuntimeTest
 	}
 
 	@Test
+	public void viewerMovementOnlyReleasesThatViewersAttendance()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		MutableEntity secondViewer = MutableEntity.player(harness.world, harness.sourceLocation(), false);
+		harness.runtime.synchronize(harness.portal);
+		harness.runtime.touch(harness.portal, harness.viewer.player());
+		harness.runtime.touch(harness.portal, secondViewer.player());
+
+		harness.runtime.viewerMoved(harness.viewer.player(), new Location(harness.world, 100.0D, 80.0D, 100.0D));
+
+		RtpService.Snapshot snapshot = harness.service.snapshot(harness.portal.getId()).orElseThrow();
+		assertEquals(Set.of(secondViewer.id), snapshot.viewers());
+	}
+
+	@Test
 	public void perPlayerProjectionReportsItsTimedRuntimeMode()
 	{
 		Harness harness = new Harness(RtpRotationMode.ON_TRAVERSAL);
@@ -237,6 +276,202 @@ public final class RtpLiveRuntimeTest
 		assertNotEquals(activeBefore, activeAfter);
 		assertTrue(LocalPortal.isTeleportCoolingDown(traveler.id, harness.environment.nowMillis));
 		assertTrue(LocalPortal.isReentryLatched(traveler.id));
+	}
+
+	@Test
+	public void randomTeleportTraversalApiCommitsAfterArrival()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.player(harness.world, harness.sourceLocation(), false);
+		RecordingTraversalCost cost = new RecordingTraversalCost(TraversalQuote.payable("5 mana"));
+		Wormholes.traversalCostGateway = traversalGateway(cost);
+
+		assertTrue(harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+
+		assertEquals(TraversalKind.RANDOM_TELEPORT, cost.contexts.getFirst().kind());
+		assertTrue(cost.contexts.getFirst().destination().isEmpty());
+		assertEquals(1, cost.reserves.get());
+		assertEquals(1, cost.commits.get());
+		assertTrue(cost.refunds.isEmpty());
+	}
+
+	@Test
+	public void successfulArrivalFinalizesOnlyOnTheTravelerOwner()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.entity(harness.world, harness.sourceLocation());
+
+		assertTrue(harness.runtime.traverse(
+			harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+
+		assertEquals(List.of("traveler"), harness.environment.successOwners);
+	}
+
+	@Test
+	public void retiredSuccessfulTeleportCommitsAndConsumesTheRoute()
+	{
+		Harness harness = new Harness(RtpRotationMode.ON_TRAVERSAL);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.player(harness.world, harness.sourceLocation(), false);
+		RecordingTraversalCost cost = new RecordingTraversalCost(TraversalQuote.payable("5 mana"));
+		Wormholes.traversalCostGateway = traversalGateway(cost);
+		RtpDestination activeBefore = harness.service.snapshot(harness.portal.getId()).orElseThrow().runtime().active();
+		harness.environment.retireEntityAfterTeleport = true;
+
+		assertTrue(harness.runtime.traverse(
+			harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+
+		RtpDestination activeAfter = harness.service.snapshot(harness.portal.getId()).orElseThrow().runtime().active();
+		assertEquals(1, harness.environment.teleports.get());
+		assertEquals(0, harness.environment.successes.get());
+		assertEquals(1, cost.commits.get());
+		assertTrue(cost.refunds.isEmpty());
+		assertNotEquals(activeBefore, activeAfter);
+		assertTrue(LocalPortal.isTeleportCoolingDown(traveler.id, harness.environment.nowMillis));
+		assertTrue(LocalPortal.isReentryLatched(traveler.id));
+	}
+
+	@Test
+	public void randomTeleportTraversalApiDenialPreventsTeleport()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.player(harness.world, harness.sourceLocation(), false);
+		RecordingTraversalCost cost = new RecordingTraversalCost(TraversalQuote.denied("closed by integration"));
+		Wormholes.traversalCostGateway = traversalGateway(cost);
+
+		assertTrue(harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+
+		assertEquals(1, cost.contexts.size());
+		assertEquals(0, cost.reserves.get());
+		assertEquals(0, cost.commits.get());
+		assertEquals(0, harness.environment.teleports.get());
+	}
+
+	@Test
+	public void randomTeleportTraversalApiRefundsFailedTeleport()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.player(harness.world, harness.sourceLocation(), false);
+		harness.environment.failureMode = FailureMode.TELEPORT;
+		RecordingTraversalCost cost = new RecordingTraversalCost(TraversalQuote.payable("5 mana"));
+		Wormholes.traversalCostGateway = traversalGateway(cost);
+
+		assertTrue(harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+
+		assertEquals(0, cost.commits.get());
+		assertEquals(List.of(TraversalRefundReason.TELEPORT_FAILED), cost.refunds);
+	}
+
+	@Test
+	public void retiredRefundDispatchPreservesTheTypedApiOutcomeOnce()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.player(harness.world, harness.sourceLocation(), false);
+		harness.environment.failureMode = FailureMode.TELEPORT;
+		harness.environment.retireEntityAfterTeleport = true;
+		RecordingTraversalCost cost = new RecordingTraversalCost(TraversalQuote.payable("5 mana"));
+		TraversalCostGateway gateway = traversalGateway(cost);
+		Wormholes.traversalCostGateway = gateway;
+
+		assertTrue(harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+
+		assertEquals(0, cost.commits.get());
+		assertEquals(List.of(TraversalRefundReason.TELEPORT_FAILED), cost.refunds);
+		assertFalse(gateway.isOpen(cost.contexts.getFirst().traversalId()));
+	}
+
+	@Test
+	public void successfulRandomTeleportKeepsTheDestinationChunkPreSend()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.player(harness.world, harness.sourceLocation(), false);
+
+		try(RecordingBukkitChunkPreSend recording = RecordingBukkitChunkPreSend.install(
+			() -> harness.environment.owner))
+		{
+			assertTrue(harness.runtime.traverse(
+				harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+
+			assertEquals(1, recording.announcements());
+			assertEquals(1, recording.chunks());
+			assertEquals(List.of("destination"), recording.announcementOwners());
+			assertEquals(List.of("destination"), recording.chunkOwners());
+			assertEquals(List.of("traveler"), harness.environment.teleportOwners);
+		}
+	}
+
+	@Test
+	public void failedRandomTeleportRollsBackTheDestinationChunkPreSendOnce()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.player(harness.world, harness.sourceLocation(), false);
+		harness.environment.failureMode = FailureMode.TELEPORT;
+
+		try(RecordingBukkitChunkPreSend recording = RecordingBukkitChunkPreSend.install(
+			() -> harness.environment.owner))
+		{
+			assertTrue(harness.runtime.traverse(
+				harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+
+			assertEquals(2, recording.announcements());
+			assertEquals(2, recording.chunks());
+			assertEquals(List.of("destination", "source"), recording.announcementOwners());
+			assertEquals(List.of("destination", "source"), recording.chunkOwners());
+			assertEquals(List.of("traveler"), harness.environment.teleportOwners);
+		}
+	}
+
+	@Test
+	public void retiredDestinationRegionRefundsBeforeChunkDelivery()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.player(harness.world, harness.sourceLocation(), false);
+		RecordingTraversalCost cost = new RecordingTraversalCost(TraversalQuote.payable("5 mana"));
+		Wormholes.traversalCostGateway = traversalGateway(cost);
+		harness.environment.retireNextRegion = true;
+
+		try(RecordingBukkitChunkPreSend recording = RecordingBukkitChunkPreSend.install(
+			() -> harness.environment.owner))
+		{
+			assertTrue(harness.runtime.traverse(
+				harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+
+			assertEquals(0, harness.environment.teleports.get());
+			assertEquals(0, recording.announcements());
+			assertEquals(List.of(TraversalRefundReason.DESTINATION_UNAVAILABLE), cost.refunds);
+		}
+	}
+
+	@Test
+	public void retiredTravelerTeleportDispatchRollsBackTheDestinationChunkPreSend()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.player(harness.world, harness.sourceLocation(), false);
+		RecordingTraversalCost cost = new RecordingTraversalCost(TraversalQuote.payable("5 mana"));
+		Wormholes.traversalCostGateway = traversalGateway(cost);
+		harness.environment.retireNextEntityFromDestination = true;
+
+		try(RecordingBukkitChunkPreSend recording = RecordingBukkitChunkPreSend.install(
+			() -> harness.environment.owner))
+		{
+			assertTrue(harness.runtime.traverse(
+				harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+
+			assertEquals(0, harness.environment.teleports.get());
+			assertEquals(List.of("destination", "source"), recording.announcementOwners());
+			assertEquals(List.of(TraversalRefundReason.DESTINATION_UNAVAILABLE), cost.refunds);
+			assertTrue(harness.portal.beginRtpTraversal(traveler.entity(), harness.environment.nowMillis));
+			harness.portal.cancelRtpTraversal(traveler.entity());
+		}
 	}
 
 	@Test
@@ -357,8 +592,10 @@ public final class RtpLiveRuntimeTest
 		assertTrue(harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
 		harness.environment.runNextEntityCommand();
 		harness.environment.runNextEntityCommand();
+		harness.environment.runNextEntityCommand();
 		assertEquals(1, harness.environment.teleports.get());
 		traveler.location = traveler.location.clone().add(0.75D, 0.0D, 0.0D);
+		harness.environment.runNextEntityCommand();
 		harness.environment.runNextEntityCommand();
 
 		assertEquals(1, harness.environment.successes.get());
@@ -399,8 +636,10 @@ public final class RtpLiveRuntimeTest
 		harness.environment.runNextEntityCommand();
 		int scheduledBeforeDispatch = harness.environment.dispatcher.size();
 		harness.environment.runNextEntityCommand();
+		harness.environment.runNextEntityCommand();
 		assertEquals(1, harness.environment.teleports.get());
 		harness.environment.dispatcher.runFrom(scheduledBeforeDispatch);
+		harness.environment.runNextEntityCommand();
 		harness.environment.runNextEntityCommand();
 
 		assertEquals(1, harness.environment.successes.get());
@@ -708,12 +947,80 @@ public final class RtpLiveRuntimeTest
 		return new RtpService(dependencies);
 	}
 
+	private static TraversalCostGateway traversalGateway(RecordingTraversalCost cost)
+	{
+		TraversalCostRegistration registration = TraversalCostRegistration.of(
+				cost, "rtp-test", "RtpLiveRuntimeTest", ServicePriority.Normal);
+		return new TraversalCostGateway(
+				() -> List.of(registration),
+				TraversalCostPolicy::defaults,
+				TraversalEventSink.NONE,
+				Logger.getLogger("RtpLiveRuntimeTest"),
+				System::currentTimeMillis);
+	}
+
+	private static final class RecordingTraversalCost implements TraversalCostProvider
+	{
+		private final TraversalQuote quote;
+		private final List<TraversalContext> contexts;
+		private final AtomicInteger reserves;
+		private final AtomicInteger commits;
+		private final List<TraversalRefundReason> refunds;
+
+		private RecordingTraversalCost(TraversalQuote quote)
+		{
+			this.quote = quote;
+			contexts = new java.util.ArrayList<TraversalContext>();
+			reserves = new AtomicInteger();
+			commits = new AtomicInteger();
+			refunds = new java.util.ArrayList<TraversalRefundReason>();
+		}
+
+		@Override
+		public String providerId()
+		{
+			return "rtp-test";
+		}
+
+		@Override
+		public TraversalQuote quote(TraversalContext context)
+		{
+			contexts.add(context);
+			return quote;
+		}
+
+		@Override
+		public TraversalReservation reserve(TraversalContext context, TraversalQuote quoted)
+		{
+			reserves.incrementAndGet();
+			return TraversalReservation.reserved(TraversalReceipt.of("rtp-test"));
+		}
+
+		@Override
+		public void commit(TraversalReceipt receipt)
+		{
+			commits.incrementAndGet();
+		}
+
+		@Override
+		public void refund(TraversalReceipt receipt, TraversalRefundReason reason)
+		{
+			refunds.add(reason);
+		}
+	}
+
 	private static final class RecordingSourceDispatcher implements RtpService.SourceDispatcher
 	{
 		private final List<Runnable> scheduled = new java.util.ArrayList<Runnable>();
 		private final List<Runnable> deferred = new java.util.ArrayList<Runnable>();
+		private final Consumer<Runnable> executor;
 		private boolean rejectNextExecute;
 		private boolean deferNextExecute;
+
+		private RecordingSourceDispatcher(Consumer<Runnable> executor)
+		{
+			this.executor = executor;
+		}
 
 		@Override
 		public void execute(UUID portalId, Runnable command)
@@ -729,7 +1036,7 @@ public final class RtpLiveRuntimeTest
 				deferred.add(command);
 				return;
 			}
-			command.run();
+			executor.accept(command);
 		}
 
 		@Override
@@ -758,7 +1065,7 @@ public final class RtpLiveRuntimeTest
 			for(Runnable command : List.copyOf(deferred))
 			{
 				deferred.remove(command);
-				command.run();
+				executor.accept(command);
 			}
 		}
 
@@ -768,7 +1075,7 @@ public final class RtpLiveRuntimeTest
 			for(Runnable command : due)
 			{
 				scheduled.remove(command);
-				command.run();
+				executor.accept(command);
 			}
 		}
 	}
@@ -880,31 +1187,42 @@ public final class RtpLiveRuntimeTest
 		private final AtomicInteger closes;
 		private final AtomicInteger retentionCloses;
 		private final AtomicInteger entitySchedules;
+		private final AtomicInteger regionSchedules;
 		private final java.util.Deque<Runnable> heldEntityCommands;
 		private final List<String> reportedFailures;
+		private final List<String> teleportOwners;
+		private final List<String> successOwners;
 		private long nowMillis;
 		private FailureMode failureMode;
 		private boolean deferTraversalLoad;
 		private boolean holdEntitySchedules;
 		private boolean rejectEntitySchedules;
+		private boolean retireNextEntityFromDestination;
+		private boolean retireEntityAfterTeleport;
+		private boolean retireNextRegion;
 		private boolean holdNextAccess;
 		private CompletableFuture<RtpService.LoadedCandidate> deferredLoad;
 		private CompletableFuture<RtpAccessResult> heldAccess;
+		private String owner;
 
 		private FakeEnvironment(World world)
 		{
 			this.world = world;
-			dispatcher = new RecordingSourceDispatcher();
+			dispatcher = new RecordingSourceDispatcher(command -> runOwned("source", command));
 			teleports = new AtomicInteger();
 			successes = new AtomicInteger();
 			worldUnloads = new AtomicInteger();
 			closes = new AtomicInteger();
 			retentionCloses = new AtomicInteger();
 			entitySchedules = new AtomicInteger();
+			regionSchedules = new AtomicInteger();
 			heldEntityCommands = new java.util.ArrayDeque<Runnable>();
 			reportedFailures = new java.util.ArrayList<String>();
+			teleportOwners = new java.util.ArrayList<String>();
+			successOwners = new java.util.ArrayList<String>();
 			nowMillis = 0L;
 			failureMode = FailureMode.NONE;
+			owner = "source";
 		}
 
 		private CompletionStage<RtpAccessResult> checkAccess(
@@ -930,7 +1248,7 @@ public final class RtpLiveRuntimeTest
 
 		private void runNextEntityCommand()
 		{
-			heldEntityCommands.removeFirst().run();
+			runOwned("traveler", heldEntityCommands.removeFirst());
 		}
 
 		@Override
@@ -991,9 +1309,20 @@ public final class RtpLiveRuntimeTest
 		}
 
 		@Override
-		public boolean scheduleEntity(Entity entity, Runnable command, Runnable retired)
+		public boolean scheduleEntity(Entity entity, Runnable command, Runnable retired, long delayTicks)
 		{
 			entitySchedules.incrementAndGet();
+			if(retireNextEntityFromDestination && "destination".equals(owner))
+			{
+				retireNextEntityFromDestination = false;
+				retired.run();
+				return false;
+			}
+			if(retireEntityAfterTeleport && teleports.get() > 0)
+			{
+				retired.run();
+				return false;
+			}
 			if(rejectEntitySchedules)
 			{
 				return false;
@@ -1003,13 +1332,36 @@ public final class RtpLiveRuntimeTest
 				heldEntityCommands.addLast(command);
 				return true;
 			}
-			command.run();
+			runOwned("traveler", command);
+			return true;
+		}
+
+		@Override
+		public boolean scheduleRegion(World world, int chunkX, int chunkZ, Runnable command, Runnable retired)
+		{
+			if(retireNextRegion)
+			{
+				retireNextRegion = false;
+				retired.run();
+				return true;
+			}
+			String previous = owner;
+			owner = regionSchedules.incrementAndGet() == 1 ? "destination" : "source";
+			try
+			{
+				command.run();
+			}
+			finally
+			{
+				owner = previous;
+			}
 			return true;
 		}
 
 		@Override
 		public CompletionStage<Boolean> teleport(Entity entity, Location target)
 		{
+			teleportOwners.add(owner);
 			teleports.incrementAndGet();
 			if(failureMode == FailureMode.TELEPORT)
 			{
@@ -1025,6 +1377,7 @@ public final class RtpLiveRuntimeTest
 		@Override
 		public void completeSuccess(LocalPortal portal, Entity entity, Traversive traversive, PortalFrame targetFrame, Location target)
 		{
+			successOwners.add(owner);
 			successes.incrementAndGet();
 			portal.completeRtpTraversal(entity, traversive, targetFrame, target);
 		}
@@ -1056,6 +1409,20 @@ public final class RtpLiveRuntimeTest
 		{
 			RtpDestination destination = new RtpDestination("minecraft:runtime", 100, 70, 100, 1L, 0);
 			deferredLoad.complete(new RtpService.LoadedCandidate(validationRequest(destination), () -> retentionCloses.incrementAndGet()));
+		}
+
+		private void runOwned(String nextOwner, Runnable command)
+		{
+			String previous = owner;
+			owner = nextOwner;
+			try
+			{
+				command.run();
+			}
+			finally
+			{
+				owner = previous;
+			}
 		}
 	}
 

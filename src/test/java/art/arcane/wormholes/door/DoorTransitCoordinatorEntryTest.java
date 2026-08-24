@@ -2,6 +2,7 @@ package art.arcane.wormholes.door;
 
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
@@ -12,6 +13,7 @@ import org.bukkit.entity.Projectile;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,11 +39,46 @@ final class DoorTransitCoordinatorEntryTest
 	{
 		Harness harness = new Harness((world, chunkX, chunkZ, task) -> false);
 
-		harness.walkThroughDoor();
+		harness.onEntityOwner(harness::walkThroughDoor);
 
 		assertFalse(harness.ledger.isTraveling(TRAVELER_ID));
 		assertEquals(1, harness.messages.size());
 		assertEquals(1L, harness.failures.failed());
+		assertEquals(
+			Map.of(DoorTransitFailures.Failure.ENTRY_REGION_UNAVAILABLE.name(), Long.valueOf(1L)),
+			harness.failures.breakdown());
+	}
+
+	@Test
+	void retiredEntryRegionReleasesTheClaimExactlyOnce()
+	{
+		DoorChunkLoader.RegionDispatch regions = new DoorChunkLoader.RegionDispatch()
+		{
+			@Override
+			public boolean run(World world, int chunkX, int chunkZ, Runnable task)
+			{
+				return true;
+			}
+
+			@Override
+			public boolean run(
+				World world,
+				int chunkX,
+				int chunkZ,
+				Runnable task,
+				Runnable retired)
+			{
+				retired.run();
+				retired.run();
+				return true;
+			}
+		};
+		Harness harness = new Harness(regions);
+
+		harness.walkThroughDoor();
+
+		assertFalse(harness.ledger.isTraveling(TRAVELER_ID));
+		assertEquals(0, harness.messages.size());
 		assertEquals(
 			Map.of(DoorTransitFailures.Failure.ENTRY_REGION_UNAVAILABLE.name(), Long.valueOf(1L)),
 			harness.failures.breakdown());
@@ -53,10 +90,13 @@ final class DoorTransitCoordinatorEntryTest
 		List<Runnable> dispatched = new ArrayList<>();
 		Harness harness = new Harness((world, chunkX, chunkZ, task) -> dispatched.add(task));
 
-		harness.walkThroughDoor();
-		assertTrue(harness.ledger.isTraveling(TRAVELER_ID));
-		harness.guard.markClosed();
-		dispatched.getFirst().run();
+		harness.onEntityOwner(() ->
+		{
+			harness.walkThroughDoor();
+			assertTrue(harness.ledger.isTraveling(TRAVELER_ID));
+			harness.guard.markClosed();
+			dispatched.getFirst().run();
+		});
 
 		assertFalse(harness.ledger.isTraveling(TRAVELER_ID));
 		assertEquals(1, harness.messages.size());
@@ -71,9 +111,12 @@ final class DoorTransitCoordinatorEntryTest
 		List<Runnable> dispatched = new ArrayList<>();
 		Harness harness = new Harness((world, chunkX, chunkZ, task) -> dispatched.add(task));
 
-		harness.walkThroughDoor();
-		harness.guard.beginDrain();
-		dispatched.getFirst().run();
+		harness.onEntityOwner(() ->
+		{
+			harness.walkThroughDoor();
+			harness.guard.beginDrain();
+			dispatched.getFirst().run();
+		});
 
 		assertFalse(harness.ledger.isTraveling(TRAVELER_ID));
 		assertEquals(1, harness.messages.size());
@@ -89,7 +132,7 @@ final class DoorTransitCoordinatorEntryTest
 		harness.ledger.claim(harness.traveler);
 		harness.guard.markClosed();
 
-		harness.walkThroughDoor();
+		harness.onEntityOwner(harness::walkThroughDoor);
 
 		assertTrue(harness.ledger.isTraveling(TRAVELER_ID));
 		assertEquals(1, harness.messages.size());
@@ -140,8 +183,11 @@ final class DoorTransitCoordinatorEntryTest
 		assertTrue(harness.ledger.isTraveling(travelerId));
 		assertFalse(unavailable.get());
 
-		harness.guard.markClosed();
-		dispatched.getFirst().run();
+		harness.onEntityOwner(() ->
+		{
+			harness.guard.markClosed();
+			dispatched.getFirst().run();
+		});
 
 		assertFalse(harness.ledger.isTraveling(travelerId));
 	}
@@ -155,13 +201,15 @@ final class DoorTransitCoordinatorEntryTest
 		private final List<Component> messages;
 		private final Player traveler;
 		private final World world;
+		private final Server server;
 
 		private Harness(DoorChunkLoader.RegionDispatch regions)
 		{
 			messages = new ArrayList<>();
 			world = world();
+			server = server(world);
 			traveler = traveler(messages);
-			Plugin plugin = plugin(server(world));
+			Plugin plugin = plugin(server);
 			Logger logger = Logger.getLogger(DoorTransitCoordinatorEntryTest.class.getName());
 			logger.setLevel(Level.OFF);
 			guard = new DoorStateGuard();
@@ -193,6 +241,32 @@ final class DoorTransitCoordinatorEntryTest
 			coordinator.begin(
 				attempt(traveler, TRAVELER_ID, 0),
 				DoorAccessCredentials.ungated());
+		}
+
+		private void onEntityOwner(Runnable action)
+		{
+			synchronized(Bukkit.class)
+			{
+				try
+				{
+					Field serverField = Bukkit.class.getDeclaredField("server");
+					serverField.setAccessible(true);
+					Object previous = serverField.get(null);
+					serverField.set(null, server);
+					try
+					{
+						action.run();
+					}
+					finally
+					{
+						serverField.set(null, previous);
+					}
+				}
+				catch(ReflectiveOperationException ex)
+				{
+					throw new AssertionError(ex);
+				}
+			}
 		}
 
 		private DoorTransitAttempt attempt(Entity activeTraveler, UUID travelerId, int blockX)
@@ -334,6 +408,7 @@ final class DoorTransitCoordinatorEntryTest
 				(proxy, method, arguments) -> switch(method.getName())
 				{
 					case "getWorld" -> world;
+					case "isOwnedByCurrentRegion", "isPrimaryThread" -> Boolean.TRUE;
 					case "toString" -> "server";
 					case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
 					case "equals" -> Boolean.valueOf(proxy == arguments[0]);
@@ -353,7 +428,7 @@ final class DoorTransitCoordinatorEntryTest
 					case "getName", "namespace" -> "wormholes";
 					case "getServer" -> server;
 					case "getLogger" -> logger;
-					case "isEnabled" -> Boolean.FALSE;
+					case "isEnabled" -> Boolean.TRUE;
 					case "toString" -> "plugin";
 					case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
 					case "equals" -> Boolean.valueOf(proxy == arguments[0]);

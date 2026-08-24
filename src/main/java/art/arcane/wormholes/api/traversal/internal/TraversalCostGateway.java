@@ -1,5 +1,6 @@
 package art.arcane.wormholes.api.traversal.internal;
 
+import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.api.traversal.TraversalContext;
 import art.arcane.wormholes.api.traversal.TraversalDecision;
 import art.arcane.wormholes.api.traversal.TraversalOutcome;
@@ -12,6 +13,7 @@ import art.arcane.wormholes.api.traversal.WormholesPortalTraverseEvent;
 import art.arcane.wormholes.api.traversal.WormholesPortalTraversedEvent;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
@@ -22,10 +24,15 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -38,35 +45,74 @@ public final class TraversalCostGateway {
     public static final String FAILURE_REFUND_FAILED = "TRAVERSAL_COST_REFUND_FAILED";
     public static final String FAILURE_TICKET_EXPIRED = "TRAVERSAL_COST_TICKET_EXPIRED";
     public static final String FAILURE_REENTRANT = "TRAVERSAL_COST_REENTRANT";
+    public static final String FAILURE_OWNER_REQUIRED = "TRAVERSAL_COST_OWNER_REQUIRED";
+    public static final String FAILURE_SETTLEMENT_UNRESOLVED = "TRAVERSAL_COST_SETTLEMENT_UNRESOLVED";
 
+    private static final int MAX_SETTLEMENT_RETRIES = 4;
+    private static final long SHUTDOWN_PRODUCER_GRACE_MILLIS = 500L;
+    private static final long SHUTDOWN_DRAIN_MILLIS = 2_000L;
     private static final long SWEEP_INTERVAL_MILLIS = 1_000L;
     private static final long SLOW_WARN_INTERVAL_MILLIS = 60_000L;
+    private static final int TICKET_IDLE = 0;
+    private static final int TICKET_DISPATCHED = 1;
+    private static final int TICKET_SETTLING = 2;
+    private static final int TICKET_COMPLETE = 3;
+    private static final int TICKET_ABANDONED = 4;
+    private static final TravelerExecutor DIRECT_EXECUTOR = new TravelerExecutor() {
+        @Override
+        public boolean isOwned(Player traveler) {
+            return true;
+        }
+
+        @Override
+        public boolean dispatch(Player traveler, Runnable task, Runnable retired) {
+            task.run();
+            return true;
+        }
+
+        @Override
+        public boolean retry(Runnable task, long delayTicks) {
+            task.run();
+            return true;
+        }
+    };
 
     private final Supplier<List<TraversalCostRegistration>> registrations;
     private final Supplier<TraversalCostPolicy> policy;
     private final TraversalEventSink events;
     private final Logger logger;
     private final LongSupplier clock;
+    private final TravelerExecutor travelerExecutor;
+    private final Object lifecycleMonitor = new Object();
 
     private final ConcurrentMap<UUID, Ticket> tickets = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, UUID> openTraversals = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, AtomicInteger> faults = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, AtomicLong> slowWarnedAt = new ConcurrentHashMap<>();
     private final Set<String> quarantined = ConcurrentHashMap.newKeySet();
+    private final AtomicBoolean closing = new AtomicBoolean();
     private final AtomicLong lastSweep = new AtomicLong();
     private final ThreadLocal<Boolean> inPipeline = new ThreadLocal<>();
 
     private volatile Listener serviceListener;
     private volatile CleanedRegistrations cleaned;
+    private int activeEvaluations;
 
     public TraversalCostGateway(Supplier<List<TraversalCostRegistration>> registrations,
                                 Supplier<TraversalCostPolicy> policy, TraversalEventSink events, Logger logger,
                                 LongSupplier clock) {
+        this(registrations, policy, events, logger, clock, DIRECT_EXECUTOR);
+    }
+
+    TraversalCostGateway(Supplier<List<TraversalCostRegistration>> registrations,
+                         Supplier<TraversalCostPolicy> policy, TraversalEventSink events, Logger logger,
+                         LongSupplier clock, TravelerExecutor travelerExecutor) {
         this.registrations = Objects.requireNonNull(registrations, "registrations");
         this.policy = Objects.requireNonNull(policy, "policy");
         this.events = Objects.requireNonNull(events, "events");
         this.logger = Objects.requireNonNull(logger, "logger");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.travelerExecutor = Objects.requireNonNull(travelerExecutor, "travelerExecutor");
     }
 
     public static TraversalCostGateway bukkit(Plugin plugin, Supplier<TraversalCostPolicy> policy) {
@@ -75,8 +121,9 @@ public final class TraversalCostGateway {
         Logger pluginLogger = plugin.getLogger();
         BukkitTraversalCostProviderSource source = new BukkitTraversalCostProviderSource(pluginLogger);
         TraversalCostGateway gateway = new TraversalCostGateway(source, policy,
-            new BukkitTraversalEventSink(plugin, pluginLogger), pluginLogger, System::currentTimeMillis);
-        TraversalCostServiceListener listener = new TraversalCostServiceListener(source);
+            new BukkitTraversalEventSink(plugin, pluginLogger), pluginLogger, System::currentTimeMillis,
+            new BukkitTravelerExecutor(plugin));
+        TraversalCostServiceListener listener = new TraversalCostServiceListener(source, gateway);
         gateway.serviceListener = listener;
         Bukkit.getPluginManager().registerEvents(listener, plugin);
         return gateway;
@@ -84,10 +131,96 @@ public final class TraversalCostGateway {
 
     public TraversalDecision evaluate(TraversalContext context) {
         Objects.requireNonNull(context, "context");
+        sweepIfDue();
         TraversalCostPolicy active = activePolicy();
 
         if (!active.enabled()) {
             return new TraversalDecision(context.traversalId(), TraversalOutcome.DISABLED, "", "");
+        }
+
+        if (!beginEvaluation()) {
+            return providerFailed(context.traversalId(), "");
+        }
+
+        try {
+            return evaluateOwned(context, active);
+        } finally {
+            endEvaluation();
+        }
+    }
+
+    public Admission open(TraversalContext context) {
+        return new Admission(this, evaluate(context));
+    }
+
+    public TraversalSettlement commit(UUID traversalId) {
+        return requestSettlement(traversalId, SettlementRequest.committed());
+    }
+
+    public TraversalSettlement refund(UUID traversalId, TraversalRefundReason reason) {
+        TraversalRefundReason normalized = reason == null ? TraversalRefundReason.TRAVERSAL_ABORTED : reason;
+        return requestSettlement(traversalId, SettlementRequest.refunded(normalized));
+    }
+
+    public boolean isOpen(UUID traversalId) {
+        return traversalId != null && tickets.containsKey(traversalId);
+    }
+
+    public int sweep() {
+        if (tickets.isEmpty()) {
+            return 0;
+        }
+
+        long now = clock.getAsLong();
+        int expired = 0;
+
+        for (Ticket ticket : tickets.values()) {
+            SettlementRequest pending = ticket.request.get();
+            if (now - ticket.openedAt() < TICKET_TTL_MILLIS) {
+                if (pending != null) {
+                    dispatch(ticket);
+                }
+                continue;
+            }
+
+            if (ticket.expired.compareAndSet(false, true)) {
+                ticket.retryAttempts.set(0);
+                WormholesTelemetry.countFailure(FAILURE_TICKET_EXPIRED);
+                logger.warning("Traversal cost ticket " + ticket.traversalId()
+                    + " remained unsettled after " + (now - ticket.openedAt())
+                    + "ms; retrying its terminal outcome on the traveler entity owner");
+                expired++;
+            }
+
+            ticket.request.compareAndSet(null, SettlementRequest.refunded(TraversalRefundReason.EXPIRED));
+            dispatch(ticket);
+        }
+
+        return expired;
+    }
+
+    public void shutdown() {
+        synchronized (lifecycleMonitor) {
+            closing.set(true);
+        }
+        Listener listener = serviceListener;
+
+        awaitActiveEvaluations();
+        awaitProducerOutcomes();
+        drainShutdownTickets();
+
+        if (listener != null) {
+            HandlerList.unregisterAll(listener);
+            serviceListener = null;
+        }
+    }
+
+    private TraversalDecision evaluateOwned(TraversalContext context, TraversalCostPolicy active) {
+        if (!travelerExecutor.isOwned(context.traveler())) {
+            WormholesTelemetry.countFailure(FAILURE_OWNER_REQUIRED);
+            logger.warning("Refused Wormholes traversal evaluation " + context.traversalId()
+                + " outside the traveler entity owner");
+            return providerFailed(context.traversalId(), "");
         }
 
         if (Boolean.TRUE.equals(inPipeline.get())) {
@@ -105,90 +238,99 @@ public final class TraversalCostGateway {
         }
     }
 
-    public TraversalSettlement commit(UUID traversalId) {
-        Ticket ticket = claim(traversalId);
-
-        if (ticket == null) {
-            return unsettled();
+    private boolean beginEvaluation() {
+        synchronized (lifecycleMonitor) {
+            if (closing.get()) {
+                return false;
+            }
+            activeEvaluations++;
+            return true;
         }
-
-        TraversalCostPolicy active = activePolicy();
-        List<String> chargedIds = new ArrayList<>(ticket.charges().size());
-
-        for (ChargedEntry entry : ticket.charges()) {
-            guardedCommit(entry, active);
-            chargedIds.add(entry.registration().providerId());
-        }
-
-        events.fireOnEntity(ticket.context().traveler(),
-            new WormholesPortalTraversedEvent(ticket.context(), ticket.outcome(), chargedIds));
-        return TraversalSettlement.COMMITTED;
     }
 
-    public TraversalSettlement refund(UUID traversalId, TraversalRefundReason reason) {
-        Ticket ticket = claim(traversalId);
-
-        if (ticket == null) {
-            return unsettled();
+    private void endEvaluation() {
+        synchronized (lifecycleMonitor) {
+            activeEvaluations--;
+            lifecycleMonitor.notifyAll();
         }
-
-        refundAll(ticket, reason == null ? TraversalRefundReason.TRAVERSAL_ABORTED : reason);
-        return TraversalSettlement.REFUNDED;
     }
 
-    public boolean isOpen(UUID traversalId) {
-        return traversalId != null && tickets.containsKey(traversalId);
-    }
-
-    public int sweep() {
-        if (tickets.isEmpty()) {
-            return 0;
+    private void awaitActiveEvaluations() {
+        if (Boolean.TRUE.equals(inPipeline.get())) {
+            return;
         }
 
-        long now = clock.getAsLong();
-        int expired = 0;
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(SHUTDOWN_DRAIN_MILLIS);
+        int remainingEvaluations;
+        synchronized (lifecycleMonitor) {
+            while (activeEvaluations > 0) {
+                long remaining = deadline - System.nanoTime();
+                if (remaining <= 0L) {
+                    break;
+                }
+                try {
+                    TimeUnit.NANOSECONDS.timedWait(lifecycleMonitor, remaining);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+            if (activeEvaluations == 0) {
+                return;
+            }
+            remainingEvaluations = activeEvaluations;
+        }
 
+        WormholesTelemetry.countFailure(FAILURE_SETTLEMENT_UNRESOLVED);
+        logger.severe("Traversal cost shutdown timed out waiting for " + remainingEvaluations
+            + " active traveler-owned evaluations");
+    }
+
+    private void awaitProducerOutcomes() {
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(SHUTDOWN_PRODUCER_GRACE_MILLIS);
+
+        while (hasUnrequestedTickets()) {
+            for (Ticket ticket : tickets.values()) {
+                if (ticket.request.get() != null) {
+                    dispatch(ticket);
+                }
+            }
+
+            long remaining = deadline - System.nanoTime();
+            if (remaining <= 0L) {
+                return;
+            }
+
+            synchronized (lifecycleMonitor) {
+                if (!hasUnrequestedTickets()) {
+                    continue;
+                }
+                try {
+                    TimeUnit.NANOSECONDS.timedWait(lifecycleMonitor, remaining);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+        }
+    }
+
+    private boolean hasUnrequestedTickets() {
         for (Ticket ticket : tickets.values()) {
-            if (now - ticket.openedAt() < TICKET_TTL_MILLIS) {
-                continue;
+            if (ticket.request.get() == null) {
+                return true;
             }
-
-            if (!tickets.remove(ticket.traversalId(), ticket)) {
-                continue;
-            }
-
-            openTraversals.remove(ticket.travelerId(), ticket.traversalId());
-            WormholesTelemetry.countFailure(FAILURE_TICKET_EXPIRED);
-            logger.warning("Traversal cost ticket " + ticket.traversalId() + " was never committed or refunded; "
-                + "reclaiming it after " + (now - ticket.openedAt()) + "ms");
-            refundAll(ticket, TraversalRefundReason.EXPIRED);
-            expired++;
         }
-
-        return expired;
+        return false;
     }
 
-    public void shutdown() {
-        Listener listener = serviceListener;
-
-        if (listener != null) {
-            HandlerList.unregisterAll(listener);
-            serviceListener = null;
-        }
-
-        for (Ticket ticket : tickets.values()) {
-            if (!tickets.remove(ticket.traversalId(), ticket)) {
-                continue;
-            }
-
-            openTraversals.remove(ticket.travelerId(), ticket.traversalId());
-            refundAll(ticket, TraversalRefundReason.SERVER_SHUTDOWN);
+    private void signalLifecycleChange() {
+        synchronized (lifecycleMonitor) {
+            lifecycleMonitor.notifyAll();
         }
     }
 
     private TraversalDecision evaluateInternal(TraversalContext context, TraversalCostPolicy active) {
-        sweepIfDue();
-
         UUID traversalId = context.traversalId();
         UUID travelerId = context.travelerId();
 
@@ -282,8 +424,19 @@ public final class TraversalCostGateway {
                 ? TraversalOutcome.ALLOWED_PROVIDER_FAILED
                 : charged.isEmpty() ? TraversalOutcome.ALLOWED_FREE : TraversalOutcome.ALLOWED_CHARGED;
 
-            tickets.put(traversalId,
-                new Ticket(traversalId, travelerId, context, outcome, List.copyOf(charged), clock.getAsLong()));
+            Ticket ticket = new Ticket(
+                traversalId, travelerId, context, outcome, List.copyOf(charged), clock.getAsLong());
+            boolean closingNow;
+            synchronized (lifecycleMonitor) {
+                closingNow = closing.get();
+                if (!closingNow) {
+                    tickets.put(traversalId, ticket);
+                }
+            }
+            if (closingNow) {
+                rollback(charged, TraversalRefundReason.SERVER_SHUTDOWN, active);
+                return providerFailed(traversalId, "");
+            }
             opened = true;
             return new TraversalDecision(traversalId, outcome, "", faulted ? faultProviderId : "");
         } finally {
@@ -301,19 +454,275 @@ public final class TraversalCostGateway {
         return new TraversalDecision(traversalId, TraversalOutcome.DENIED_PROVIDER_FAILED, "", providerId);
     }
 
-    private Ticket claim(UUID traversalId) {
+    private TraversalSettlement requestSettlement(UUID traversalId, SettlementRequest request) {
         if (traversalId == null) {
-            return null;
+            return unsettled();
         }
 
-        Ticket ticket = tickets.remove(traversalId);
+        Ticket ticket = tickets.get(traversalId);
 
+        if (ticket == null || !ticket.request.compareAndSet(null, request)) {
+            return unsettled();
+        }
+
+        signalLifecycleChange();
+        dispatch(ticket);
+        if (!ticket.providerSettled.get()) {
+            return TraversalSettlement.PENDING;
+        }
+        return request.commit() ? TraversalSettlement.COMMITTED : TraversalSettlement.REFUNDED;
+    }
+
+    private boolean deferCommit(UUID traversalId) {
+        if (traversalId == null) {
+            return false;
+        }
+
+        Ticket ticket = tickets.get(traversalId);
+        if (ticket == null || !ticket.request.compareAndSet(null, SettlementRequest.committed())) {
+            return false;
+        }
+
+        signalLifecycleChange();
+        dispatch(ticket);
+        return true;
+    }
+
+    void travelerJoined(Player traveler) {
+        Ticket ticket = ticketFor(traveler);
         if (ticket == null) {
+            return;
+        }
+
+        ticket.traveler.set(traveler);
+        ticket.retryAttempts.set(0);
+        if (ticket.request.get() != null) {
+            settleFromOwnedEvent(ticket);
+        }
+    }
+
+    void travelerQuit(Player traveler) {
+        Ticket ticket = ticketFor(traveler);
+        if (ticket == null) {
+            return;
+        }
+
+        ticket.traveler.set(traveler);
+        if (ticket.request.compareAndSet(null, SettlementRequest.refunded(TraversalRefundReason.TRAVELER_LEFT))) {
+            signalLifecycleChange();
+        }
+        settleFromOwnedEvent(ticket);
+    }
+
+    private Ticket ticketFor(Player traveler) {
+        if (traveler == null) {
             return null;
         }
 
-        openTraversals.remove(ticket.travelerId(), traversalId);
-        return ticket;
+        UUID travelerId = traveler.getUniqueId();
+        UUID traversalId = openTraversals.get(travelerId);
+        return traversalId == null ? null : tickets.get(traversalId);
+    }
+
+    private void settleFromOwnedEvent(Ticket ticket) {
+        Player traveler = ticket.traveler.get();
+        if (!travelerExecutor.isOwned(traveler)) {
+            dispatch(ticket);
+            return;
+        }
+
+        int state = ticket.state.get();
+        while (state == TICKET_IDLE || state == TICKET_DISPATCHED) {
+            if (ticket.state.compareAndSet(state, TICKET_SETTLING)) {
+                completeSettlement(ticket, traveler);
+                return;
+            }
+            state = ticket.state.get();
+        }
+    }
+
+    private boolean dispatch(Ticket ticket) {
+        if (ticket.request.get() == null || tickets.get(ticket.traversalId()) != ticket) {
+            return false;
+        }
+
+        Player traveler = ticket.traveler.get();
+        if (travelerExecutor.isOwned(traveler)) {
+            if (!ticket.state.compareAndSet(TICKET_IDLE, TICKET_SETTLING)) {
+                return false;
+            }
+            completeSettlement(ticket, traveler);
+            return true;
+        }
+
+        if (!ticket.state.compareAndSet(TICKET_IDLE, TICKET_DISPATCHED)) {
+            return false;
+        }
+
+        boolean accepted = travelerExecutor.dispatch(
+            traveler,
+            () -> completeDispatchedSettlement(ticket),
+            () -> settlementRetired(ticket));
+        if (!accepted) {
+            settlementRetired(ticket);
+        }
+        return accepted;
+    }
+
+    private void completeDispatchedSettlement(Ticket ticket) {
+        Player traveler = ticket.traveler.get();
+        if (!travelerExecutor.isOwned(traveler)) {
+            settlementRetired(ticket);
+            WormholesTelemetry.countFailure(FAILURE_OWNER_REQUIRED);
+            logger.warning("Traveler settlement for " + ticket.traversalId()
+                + " was dispatched outside the entity owner and will be retried");
+            return;
+        }
+
+        if (!ticket.state.compareAndSet(TICKET_DISPATCHED, TICKET_SETTLING)) {
+            return;
+        }
+        completeSettlement(ticket, traveler);
+    }
+
+    private void completeSettlement(Ticket ticket, Player traveler) {
+        SettlementRequest request = ticket.request.get();
+        if (request == null) {
+            releaseSettlement(ticket);
+            return;
+        }
+
+        try {
+            if (request.commit()) {
+                commitAll(ticket, traveler);
+            } else {
+                refundAll(ticket, request.refundReason());
+            }
+            ticket.providerSettled.set(true);
+        } finally {
+            ticket.state.set(TICKET_COMPLETE);
+            tickets.remove(ticket.traversalId(), ticket);
+            openTraversals.remove(ticket.travelerId(), ticket.traversalId());
+            ticket.completion.complete(null);
+        }
+    }
+
+    private void commitAll(Ticket ticket, Player traveler) {
+        TraversalCostPolicy active = activePolicy();
+        List<String> chargedIds = new ArrayList<>(ticket.charges().size());
+
+        for (ChargedEntry entry : ticket.charges()) {
+            guardedCommit(entry, active);
+            chargedIds.add(entry.registration().providerId());
+        }
+
+        try {
+            events.fireOnEntity(traveler,
+                new WormholesPortalTraversedEvent(ticket.context(), ticket.outcome(), chargedIds));
+        } catch (Throwable error) {
+            logger.log(Level.WARNING, "Failed to dispatch traversal completion event for " + ticket.traversalId(),
+                error);
+        }
+    }
+
+    private void releaseSettlement(Ticket ticket) {
+        ticket.state.compareAndSet(TICKET_SETTLING, TICKET_IDLE);
+    }
+
+    private void settlementRetired(Ticket ticket) {
+        if (!ticket.state.compareAndSet(TICKET_DISPATCHED, TICKET_IDLE)) {
+            return;
+        }
+        scheduleRetry(ticket);
+    }
+
+    private void scheduleRetry(Ticket ticket) {
+        if (closing.get() || ticket.state.get() != TICKET_IDLE || !ticket.retryQueued.compareAndSet(false, true)) {
+            return;
+        }
+
+        int attempt = ticket.retryAttempts.getAndIncrement();
+        if (attempt >= MAX_SETTLEMENT_RETRIES) {
+            ticket.retryQueued.set(false);
+            return;
+        }
+
+        long delayTicks = 1L << attempt;
+        boolean accepted = travelerExecutor.retry(() -> {
+            ticket.retryQueued.set(false);
+            dispatch(ticket);
+        }, delayTicks);
+        if (!accepted) {
+            ticket.retryQueued.set(false);
+        }
+    }
+
+    private void drainShutdownTickets() {
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(SHUTDOWN_DRAIN_MILLIS);
+
+        while (!tickets.isEmpty()) {
+            List<CompletableFuture<Void>> active = new ArrayList<>(tickets.size());
+
+            for (Ticket ticket : tickets.values()) {
+                ticket.request.compareAndSet(null, SettlementRequest.refunded(TraversalRefundReason.SERVER_SHUTDOWN));
+                dispatch(ticket);
+                int state = ticket.state.get();
+                if (state == TICKET_DISPATCHED || state == TICKET_SETTLING) {
+                    active.add(ticket.completion);
+                }
+            }
+
+            if (tickets.isEmpty()) {
+                return;
+            }
+            if (active.isEmpty()) {
+                break;
+            }
+
+            long remainingNanos = deadline - System.nanoTime();
+            if (remainingNanos <= 0L) {
+                break;
+            }
+
+            try {
+                CompletableFuture.allOf(active.toArray(CompletableFuture[]::new))
+                    .get(remainingNanos, TimeUnit.NANOSECONDS);
+            } catch (TimeoutException timeout) {
+                break;
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                break;
+            } catch (Exception error) {
+                logger.log(Level.WARNING, "Error while draining traversal cost settlements", error);
+                break;
+            }
+        }
+
+        for (Ticket ticket : List.copyOf(tickets.values())) {
+            abandon(ticket);
+        }
+    }
+
+    private void abandon(Ticket ticket) {
+        int state = ticket.state.get();
+        while (state != TICKET_COMPLETE && state != TICKET_ABANDONED) {
+            if (state == TICKET_SETTLING) {
+                WormholesTelemetry.countFailure(FAILURE_SETTLEMENT_UNRESOLVED);
+                logger.severe("Traversal cost ticket " + ticket.traversalId()
+                    + " was still settling on its traveler entity owner when the shutdown wait expired");
+                return;
+            }
+            if (ticket.state.compareAndSet(state, TICKET_ABANDONED)) {
+                tickets.remove(ticket.traversalId(), ticket);
+                openTraversals.remove(ticket.travelerId(), ticket.traversalId());
+                ticket.completion.complete(null);
+                WormholesTelemetry.countFailure(FAILURE_SETTLEMENT_UNRESOLVED);
+                logger.severe("Could not settle traversal cost ticket " + ticket.traversalId()
+                    + " on the traveler entity owner before shutdown; provider receipts remain unresolved");
+                return;
+            }
+            state = ticket.state.get();
+        }
     }
 
     private List<TraversalCostRegistration> usable(List<TraversalCostRegistration> raw) {
@@ -498,7 +907,7 @@ public final class TraversalCostGateway {
 
         logger.warning("Traversal cost provider '" + registration.providerId() + "' from plugin '"
             + registration.pluginName() + "' spent " + elapsedMillis + "ms in " + phase
-            + "; provider calls run on the portal region thread and must not block");
+            + "; provider calls run on an owned traversal thread and must not block");
     }
 
     private void sweepIfDue() {
@@ -531,7 +940,144 @@ public final class TraversalCostGateway {
     private record ChargedEntry(TraversalCostRegistration registration, TraversalReceipt receipt) {
     }
 
-    private record Ticket(UUID traversalId, UUID travelerId, TraversalContext context, TraversalOutcome outcome,
-                          List<ChargedEntry> charges, long openedAt) {
+    private record SettlementRequest(boolean commit, TraversalRefundReason refundReason) {
+        private static SettlementRequest committed() {
+            return new SettlementRequest(true, null);
+        }
+
+        private static SettlementRequest refunded(TraversalRefundReason reason) {
+            return new SettlementRequest(false, Objects.requireNonNull(reason, "reason"));
+        }
+    }
+
+    private static final class Ticket {
+        private final UUID traversalId;
+        private final UUID travelerId;
+        private final TraversalContext context;
+        private final TraversalOutcome outcome;
+        private final List<ChargedEntry> charges;
+        private final long openedAt;
+        private final AtomicReference<Player> traveler;
+        private final AtomicReference<SettlementRequest> request;
+        private final AtomicInteger state;
+        private final AtomicInteger retryAttempts;
+        private final AtomicBoolean retryQueued;
+        private final AtomicBoolean expired;
+        private final AtomicBoolean providerSettled;
+        private final CompletableFuture<Void> completion;
+
+        private Ticket(UUID traversalId, UUID travelerId, TraversalContext context, TraversalOutcome outcome,
+                       List<ChargedEntry> charges, long openedAt) {
+            this.traversalId = traversalId;
+            this.travelerId = travelerId;
+            this.context = context;
+            this.outcome = outcome;
+            this.charges = charges;
+            this.openedAt = openedAt;
+            this.traveler = new AtomicReference<>(context.traveler());
+            this.request = new AtomicReference<>();
+            this.state = new AtomicInteger(TICKET_IDLE);
+            this.retryAttempts = new AtomicInteger();
+            this.retryQueued = new AtomicBoolean();
+            this.expired = new AtomicBoolean();
+            this.providerSettled = new AtomicBoolean();
+            this.completion = new CompletableFuture<>();
+        }
+
+        private UUID traversalId() {
+            return traversalId;
+        }
+
+        private UUID travelerId() {
+            return travelerId;
+        }
+
+        private TraversalContext context() {
+            return context;
+        }
+
+        private TraversalOutcome outcome() {
+            return outcome;
+        }
+
+        private List<ChargedEntry> charges() {
+            return charges;
+        }
+
+        private long openedAt() {
+            return openedAt;
+        }
+    }
+
+    interface TravelerExecutor {
+        boolean isOwned(Player traveler);
+
+        boolean dispatch(Player traveler, Runnable task, Runnable retired);
+
+        boolean retry(Runnable task, long delayTicks);
+    }
+
+    private static final class BukkitTravelerExecutor implements TravelerExecutor {
+        private final Plugin plugin;
+
+        private BukkitTravelerExecutor(Plugin plugin) {
+            this.plugin = plugin;
+        }
+
+        @Override
+        public boolean isOwned(Player traveler) {
+            return FoliaScheduler.isOwnedByCurrentRegion(traveler);
+        }
+
+        @Override
+        public boolean dispatch(Player traveler, Runnable task, Runnable retired) {
+            return FoliaScheduler.runEntity(plugin, traveler, task, 0L, retired);
+        }
+
+        @Override
+        public boolean retry(Runnable task, long delayTicks) {
+            return FoliaScheduler.runGlobal(plugin, task, delayTicks);
+        }
+    }
+
+    public static final class Admission {
+        private final TraversalCostGateway gateway;
+        private final TraversalDecision decision;
+        private final AtomicInteger settled;
+
+        private Admission(TraversalCostGateway gateway, TraversalDecision decision) {
+            this.gateway = gateway;
+            this.decision = decision;
+            this.settled = new AtomicInteger();
+        }
+
+        public TraversalDecision decision() {
+            return decision;
+        }
+
+        public boolean allowed() {
+            return decision.allowed();
+        }
+
+        public TraversalSettlement commit() {
+            if (!allowed() || !settled.compareAndSet(0, 1)) {
+                return TraversalSettlement.NOT_OPEN;
+            }
+            return gateway.commit(decision.traversalId());
+        }
+
+        public boolean deferCommit() {
+            if (!allowed() || !settled.compareAndSet(0, 1)) {
+                return false;
+            }
+            return gateway.deferCommit(decision.traversalId());
+        }
+
+        public TraversalSettlement refund(TraversalRefundReason reason) {
+            if (!allowed() || !settled.compareAndSet(0, 1)) {
+                return TraversalSettlement.NOT_OPEN;
+            }
+            return gateway.refund(decision.traversalId(), reason);
+        }
     }
 }

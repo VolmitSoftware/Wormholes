@@ -58,6 +58,7 @@ public final class PeerConnection {
     private final WireCodec.PayloadSampler sampler;
     private final RawOutbox writeQueue = new RawOutbox(WRITE_QUEUE_CAPACITY, WRITE_CONTROL_RESERVE);
     private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final AtomicBoolean started = new AtomicBoolean(false);
     private final AtomicReference<State> state = new AtomicReference<>(State.HANDSHAKING);
     private final AtomicLong lastInboundMillis = new AtomicLong(System.currentTimeMillis());
     private final AtomicLong rttMillis = new AtomicLong(-1L);
@@ -89,15 +90,20 @@ public final class PeerConnection {
     }
 
     public void start() {
-        Thread writer = new Thread(this::runWriter, "Wormholes-Net-Writer-" + describeRemote());
-        writer.setDaemon(true);
-        writerThread = writer;
-        writer.start();
-
-        Thread reader = new Thread(this::runReader, "Wormholes-Net-Reader-" + describeRemote());
-        reader.setDaemon(true);
-        readerThread = reader;
-        reader.start();
+        if (!started.compareAndSet(false, true)) {
+            throw new IllegalStateException("Peer connection has already started");
+        }
+        try {
+            Thread writer = Thread.ofVirtual().name("Wormholes-Net-Writer-" + describeRemote()).unstarted(this::runWriter);
+            Thread reader = Thread.ofVirtual().name("Wormholes-Net-Reader-" + describeRemote()).unstarted(this::runReader);
+            writerThread = writer;
+            readerThread = reader;
+            writer.start();
+            reader.start();
+        } catch (RuntimeException | Error e) {
+            close("connection worker startup failed");
+            LOG.log(Level.SEVERE, "net: failed to start connection workers for " + describeRemote(), e);
+        }
     }
 
     public boolean send(WireMessage message) {
@@ -237,7 +243,12 @@ public final class PeerConnection {
             }
 
             channel.setReadTimeout(READ_TIMEOUT_MS);
-            state.set(State.READY);
+            if (!state.compareAndSet(State.HANDSHAKING, State.READY)) {
+                return;
+            }
+            if (closed.get()) {
+                return;
+            }
             lastInboundMillis.set(System.currentTimeMillis());
             listener.onReady(this);
 

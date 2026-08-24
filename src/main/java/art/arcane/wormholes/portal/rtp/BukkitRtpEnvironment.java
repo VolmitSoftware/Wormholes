@@ -30,6 +30,7 @@ import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.PortalFrame;
@@ -130,9 +131,15 @@ public final class BukkitRtpEnvironment implements BukkitRtpRuntime.Environment
 	}
 
 	@Override
-	public boolean scheduleEntity(Entity entity, Runnable command, Runnable retired)
+	public boolean scheduleEntity(Entity entity, Runnable command, Runnable retired, long delayTicks)
 	{
-		return WormholesPlatform.scheduleEntity(plugin, entity, command, retired, 0L);
+		return WormholesPlatform.scheduleEntity(plugin, entity, command, retired, delayTicks);
+	}
+
+	@Override
+	public boolean scheduleRegion(World world, int chunkX, int chunkZ, Runnable command, Runnable retired)
+	{
+		return BukkitRegionTaskProvider.run(world, chunkX, chunkZ, command, retired, 0L);
 	}
 
 	@Override

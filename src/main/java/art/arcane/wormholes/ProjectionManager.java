@@ -3,6 +3,7 @@ package art.arcane.wormholes;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -14,6 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
+import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -57,12 +59,13 @@ public class ProjectionManager implements Listener {
     private static final String OBSERVER_FRAME_DROPPED = "PROJECTION_OBSERVER_FRAME_DROPPED";
     private static final String ENTITY_UPDATE_DROPPED = "PROJECTION_ENTITY_UPDATE_DROPPED";
     private static final int TICK_INTERVAL_TICKS = 1;
+    private static final long OBSERVER_FRAME_SHUTDOWN_WAIT_MILLIS = 2_000L;
     private static final AtomicLong DROPPED_OBSERVER_FRAMES = new AtomicLong();
     private static final AtomicLong DROPPED_ENTITY_UPDATES = new AtomicLong();
     private static final ObserverFrameScheduler ENTITY_FRAME_SCHEDULER = (observer, frame, retired) ->
         FoliaScheduler.runEntity(Wormholes.instance, observer, frame, 0L, retired);
-    private static final EntityUpdateScheduler ENTITY_UPDATE_SCHEDULER = (observer, update) ->
-        FoliaScheduler.runEntity(Wormholes.instance, observer, update);
+    private static final EntityUpdateScheduler ENTITY_UPDATE_SCHEDULER = (observer, update, retired) ->
+        FoliaScheduler.runEntity(Wormholes.instance, observer, update, 0L, retired);
     private final ProjectionClaimArbiter claimArbiter;
     private final ProjectionClientChunkTracker clientChunkTracker;
     private final ProjectionWorldViewProvider viewProvider;
@@ -72,6 +75,7 @@ public class ProjectionManager implements Listener {
     private final ProjectionInterestSet interestSet;
     private final ProjectionBudgetLedger budgetLedger;
     private final ProjectionInterestFrame observerFrame;
+    private final ProjectedEntityUpdateBatcher projectedEntityUpdates;
     private final Set<UUID> observerTasksInFlight;
     private final AtomicBoolean shutdownFinalized;
     private final AtomicBoolean shutdownStarted;
@@ -96,6 +100,7 @@ public class ProjectionManager implements Listener {
         this.budgetLedger = new ProjectionBudgetLedger();
         this.observerFrame = new ProjectionInterestFrame(interestSet, budgetLedger, claimArbiter, rtpRimRenderer,
             () -> rtpProjectionProvider, alive);
+        this.projectedEntityUpdates = new ProjectedEntityUpdateBatcher();
         this.observerTasksInFlight = ConcurrentHashMap.newKeySet();
         this.shutdownFinalized = new AtomicBoolean();
         this.shutdownStarted = new AtomicBoolean();
@@ -182,16 +187,16 @@ public class ProjectionManager implements Listener {
             return;
         }
 
+        List<Player> onlinePlayers = new ArrayList<Player>(Wormholes.instance.getServer().getOnlinePlayers());
         List<ILocalPortal> skinnedPortals = collectSkinnedPortals();
-        if (!skinnedPortals.isEmpty() || skinRenderer.isActive()) {
-            skinRenderer.tick(skinnedPortals, new ArrayList<Player>(Wormholes.instance.getServer().getOnlinePlayers()));
-        }
-
+        boolean skinWork = !skinnedPortals.isEmpty() || skinRenderer.isActive();
+        PortalCandidateSnapshot skinSnapshot = skinRenderer.capture(skinnedPortals);
         budgetLedger.beginFrame();
         List<ILocalPortal> active = collectActiveProjectors();
+        PortalCandidateSnapshot activeSnapshot = PortalCandidateSnapshot.captureProjection(active);
         interestSet.retainPortals(active);
         long frameTick = tickCount;
-        if (active.isEmpty() && interestSet.isEmpty() && closeQueue.isEmpty() && claimArbiter.isIdle()) {
+        if (!skinWork && active.isEmpty() && interestSet.isEmpty() && closeQueue.isEmpty() && claimArbiter.isIdle()) {
             interestSet.pruneGrace(frameTick);
             WormholesTelemetry.setProjectionGauges(0, observerTasksInFlight.size(), countSpoofedEntities());
             budgetLedger.emitDiagnostics(tickCount, active, interestSet);
@@ -199,9 +204,11 @@ public class ProjectionManager implements Listener {
         }
         boolean updateBlocks = shouldUpdateBlocks();
         boolean updateEntities = shouldUpdateEntities();
-        List<Player> onlinePlayers = new ArrayList<Player>(Wormholes.instance.getServer().getOnlinePlayers());
-        List<Player> observerCandidates = budgetLedger.selectObserverCandidates(onlinePlayers, interestSet, frameTick,
-            Settings.PROJECTION_MAX_NEW_OBSERVER_SCANS_PER_TICK);
+        Set<UUID> priorityObservers = interestSet.observerIds();
+        priorityObservers.addAll(skinRenderer.observerIds());
+        boolean discoveryEnabled = !active.isEmpty() || !skinnedPortals.isEmpty();
+        List<Player> observerCandidates = budgetLedger.selectObserverCandidates(onlinePlayers, priorityObservers,
+            observerTasksInFlight, frameTick, Settings.PROJECTION_MAX_NEW_OBSERVER_SCANS_PER_TICK, discoveryEnabled);
         int totalBudget = updateBlocks ? Math.max(0, Settings.PROJECTION_MAX_PROJECTORS_PER_TICK) : 0;
         int perObserverBudget = Math.max(0, Settings.PROJECTION_MAX_PORTALS_PER_OBSERVER_TICK);
         int[] reservedBudgets = fairBudgetAllocations(observerCandidates.size(), totalBudget, perObserverBudget, frameTick);
@@ -222,7 +229,10 @@ public class ProjectionManager implements Listener {
                         remainingProjectors.addAndGet(reservedBudget);
                         return;
                     }
-                    observerFrame.project(observer, active, remainingProjectors, reservedBudget,
+                    if (skinWork) {
+                        skinRenderer.reconcile(observer, skinSnapshot);
+                    }
+                    observerFrame.project(observer, activeSnapshot, remainingProjectors, reservedBudget,
                         updateBlocks, updateEntities, frameTick);
                 } finally {
                     observerTasksInFlight.remove(observerId);
@@ -271,8 +281,9 @@ public class ProjectionManager implements Listener {
                                                  UUID entityId,
                                                  String kind,
                                                  Runnable update,
+                                                 Runnable retired,
                                                  EntityUpdateScheduler scheduler) {
-        if (scheduler.schedule(observer, update)) {
+        if (scheduler.schedule(observer, update, retired)) {
             return true;
         }
         Wormholes.v("[ProjectionManager] dropped projected " + kind
@@ -318,14 +329,6 @@ public class ProjectionManager implements Listener {
             }
         }
         return skinned;
-    }
-
-    static int observerDiscoveryStart(int observerCount, int maxNewScans, long frameTick) {
-        if (observerCount <= 0 || maxNewScans <= 0) {
-            return 0;
-        }
-        long batch = Math.max(0L, frameTick - 1L);
-        return (int) Math.floorMod(batch * Math.min(observerCount, maxNewScans), observerCount);
     }
 
     static int[] fairBudgetAllocations(int observerCount, int totalBudget, int perObserverBudget, long frameTick) {
@@ -501,6 +504,7 @@ public class ProjectionManager implements Listener {
         UUID id = player.getUniqueId();
         interestSet.closeObserver(id);
         interestSet.forgetObserver(id);
+        projectedEntityUpdates.discard(id);
     }
 
     private void discardObserverProjectors(Player player) {
@@ -509,6 +513,7 @@ public class ProjectionManager implements Listener {
         claimArbiter.discardObserver(id);
         clientChunkTracker.forget(id);
         interestSet.forgetObserver(id);
+        projectedEntityUpdates.discard(id);
     }
 
     public void reprimeArrival(Player player) {
@@ -556,11 +561,13 @@ public class ProjectionManager implements Listener {
             return;
         }
         closed = true;
-        skinRenderer.shutdown();
+        projectedEntityUpdates.close();
         if (taskId >= 0) {
             J.csr(taskId);
             taskId = -1;
         }
+        awaitObserverFrames();
+        skinRenderer.shutdown();
         Set<PortalProjector> closingSet = new HashSet<PortalProjector>(interestSet.snapshot());
         closingSet.addAll(closeQueue.pending());
         List<PortalProjector> closing = new ArrayList<PortalProjector>(closingSet);
@@ -579,7 +586,6 @@ public class ProjectionManager implements Listener {
             }
         }
         interestSet.clear();
-        observerTasksInFlight.clear();
         try {
             completion.await(2L, TimeUnit.SECONDS);
         } catch (InterruptedException ex) {
@@ -587,6 +593,18 @@ public class ProjectionManager implements Listener {
         } finally {
             closeQueue.forceDiscardAll();
             finalizeShutdown();
+        }
+    }
+
+    private void awaitObserverFrames() {
+        long deadlineNanos = System.nanoTime() + (OBSERVER_FRAME_SHUTDOWN_WAIT_MILLIS * 1_000_000L);
+        while (!observerTasksInFlight.isEmpty() && System.nanoTime() < deadlineNanos) {
+            try {
+                Thread.sleep(1L);
+            } catch (InterruptedException error) {
+                Thread.currentThread().interrupt();
+                return;
+            }
         }
     }
 
@@ -617,19 +635,22 @@ public class ProjectionManager implements Listener {
     }
 
     public void dispatchProjectedEntityAnimation(UUID entityId, EntityAnimationType type) {
-        if (entityId == null || type == null) {
+        if (closed || entityId == null || type == null) {
             return;
         }
-        for (PortalProjector projector : interestSet.snapshot()) {
-            Player observer = projector.getObserver();
-            if (observer == null) {
+        for (Player observer : interestSet.projectedEntityObservers(entityId)) {
+            UUID observerId = observer.getUniqueId();
+            ProjectedEntityUpdateBatcher.ScheduleLease lease =
+                projectedEntityUpdates.offerAnimation(observerId, entityId, type);
+            if (lease == null) {
                 continue;
             }
-            dispatchProjectedEntityUpdate(observer, entityId, "animation", () -> {
-                if (observer.isOnline() && !projector.isClosed() && projector.hasProjectedEntity(entityId)) {
-                    projector.sendProjectedEntityAnimation(entityId, type);
-                }
-            }, ENTITY_UPDATE_SCHEDULER);
+            boolean scheduled = dispatchProjectedEntityUpdate(observer, entityId, "animation",
+                () -> drainProjectedEntityUpdates(observer, lease),
+                () -> projectedEntityUpdates.discard(lease), ENTITY_UPDATE_SCHEDULER);
+            if (!scheduled) {
+                projectedEntityUpdates.reject(lease);
+            }
         }
     }
 
@@ -645,19 +666,68 @@ public class ProjectionManager implements Listener {
     }
 
     public void dispatchProjectedEntityHurt(UUID entityId, float yaw) {
-        if (entityId == null) {
+        if (closed || entityId == null) {
             return;
         }
-        for (PortalProjector projector : interestSet.snapshot()) {
-            Player observer = projector.getObserver();
-            if (observer == null) {
+        for (Player observer : interestSet.projectedEntityObservers(entityId)) {
+            UUID observerId = observer.getUniqueId();
+            ProjectedEntityUpdateBatcher.ScheduleLease lease =
+                projectedEntityUpdates.offerHurt(observerId, entityId, yaw);
+            if (lease == null) {
                 continue;
             }
-            dispatchProjectedEntityUpdate(observer, entityId, "hurt", () -> {
-                if (observer.isOnline() && !projector.isClosed() && projector.hasProjectedEntity(entityId)) {
-                    projector.sendProjectedEntityHurt(entityId, yaw);
+            boolean scheduled = dispatchProjectedEntityUpdate(observer, entityId, "hurt",
+                () -> drainProjectedEntityUpdates(observer, lease),
+                () -> projectedEntityUpdates.discard(lease), ENTITY_UPDATE_SCHEDULER);
+            if (!scheduled) {
+                projectedEntityUpdates.reject(lease);
+            }
+        }
+    }
+
+    private void drainProjectedEntityUpdates(Player observer, ProjectedEntityUpdateBatcher.ScheduleLease lease) {
+        UUID observerId = observer.getUniqueId();
+        ProjectedEntityUpdateBatcher.Batch batch = projectedEntityUpdates.drain(lease);
+        try {
+            if (!closed && observer.isOnline()) {
+                for (Map.Entry<UUID, List<ProjectedEntityUpdateBatcher.Action>> entry : batch.updates().entrySet()) {
+                    deliverProjectedEntityUpdates(observerId, entry.getKey(), entry.getValue());
                 }
-            }, ENTITY_UPDATE_SCHEDULER);
+            }
+        } finally {
+            ProjectedEntityUpdateBatcher.Completion completion = projectedEntityUpdates.complete(lease);
+            if (completion.reschedule() && (closed || !observer.isOnline())) {
+                projectedEntityUpdates.discard(lease);
+            } else if (completion.reschedule()) {
+                boolean scheduled = dispatchProjectedEntityUpdate(observer, completion.representativeEntityId(), "batch",
+                    () -> drainProjectedEntityUpdates(observer, lease),
+                    () -> projectedEntityUpdates.discard(lease), ENTITY_UPDATE_SCHEDULER);
+                if (!scheduled) {
+                    projectedEntityUpdates.reject(lease);
+                }
+            }
+        }
+    }
+
+    private void deliverProjectedEntityUpdates(UUID observerId,
+                                               UUID entityId,
+                                               List<ProjectedEntityUpdateBatcher.Action> actions) {
+        for (PortalProjector projector : interestSet.projectedEntityProjectors(entityId, observerId)) {
+            if (projector.isClosed() || !projector.hasProjectedEntity(entityId)) {
+                continue;
+            }
+            try {
+                for (ProjectedEntityUpdateBatcher.Action action : actions) {
+                    switch (action.kind()) {
+                        case ANIMATION -> projector.sendProjectedEntityAnimation(entityId, action.animationType());
+                        case HURT -> projector.sendProjectedEntityHurt(entityId, action.yaw());
+                    }
+                }
+            } catch (RuntimeException error) {
+                Wormholes.instance.getLogger().log(Level.WARNING,
+                    "[ProjectionManager] projected entity update failed portal=" + projector.getPortal().getName()
+                        + " observer=" + observerId + " entity=" + entityId, error);
+            }
         }
     }
 
@@ -695,7 +765,7 @@ public class ProjectionManager implements Listener {
 
     @FunctionalInterface
     interface EntityUpdateScheduler {
-        boolean schedule(Player observer, Runnable update);
+        boolean schedule(Player observer, Runnable update, Runnable retired);
     }
 
     public interface RtpProjectionProvider {

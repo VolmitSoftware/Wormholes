@@ -5,6 +5,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
@@ -414,6 +415,10 @@ public final class ProjectedEntityRenderer {
 
     public boolean hasProjectedEntity(UUID sourceId) {
         return registry.contains(sourceId);
+    }
+
+    public Set<UUID> getProjectedEntityIds() {
+        return registry.sourceIds();
     }
 
     public void sendAnimation(Player observer, UUID sourceId, EntityAnimationType type) {

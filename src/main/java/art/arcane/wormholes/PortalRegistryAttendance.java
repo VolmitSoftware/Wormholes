@@ -12,12 +12,10 @@ import art.arcane.wormholes.papi.PortalProximityIndex;
 import art.arcane.wormholes.papi.WormholesPlaceholderPublisher;
 import art.arcane.wormholes.papi.WormholesPlaceholders;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.util.AxisAlignedBB;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
 final class PortalRegistryAttendance
 {
-	private static final double BASE_RANGE = 64.0D;
 	private static final int CELL_SIZE = 64;
 	private static final long PLACEHOLDER_PUBLISH_INTERVAL = 4L;
 
@@ -155,7 +153,8 @@ final class PortalRegistryAttendance
 	{
 		refreshCount++;
 		WormholesPlaceholders placeholders = Wormholes.placeholders;
-		PortalProximityIndex index = placeholders != null && (refreshCount % PLACEHOLDER_PUBLISH_INTERVAL) == 0L ? new PortalProximityIndex() : null;
+		boolean publishPlaceholders = placeholders != null && (refreshCount % PLACEHOLDER_PUBLISH_INTERVAL) == 0L;
+		PortalProximityIndex index = publishPlaceholders ? new PortalProximityIndex() : null;
 		if(playerPositions.isEmpty())
 		{
 			for(ILocalPortal portal : snapshot)
@@ -169,9 +168,8 @@ final class PortalRegistryAttendance
 			return;
 		}
 
-		for(int portalIndex = 0; portalIndex < snapshot.size(); portalIndex++)
+		for(ILocalPortal portal : snapshot)
 		{
-			ILocalPortal portal = snapshot.get(portalIndex);
 			Location center = portal.getCenter();
 			if(center == null || center.getWorld() == null)
 			{
@@ -179,15 +177,9 @@ final class PortalRegistryAttendance
 				continue;
 			}
 
-			AxisAlignedBB area = portal.getArea();
-			double threshold = BASE_RANGE;
-			if(area != null)
-			{
-				threshold += 0.5D * Math.sqrt((area.sizeX() * area.sizeX()) + (area.sizeY() * area.sizeY()) + (area.sizeZ() * area.sizeZ()));
-			}
+			double threshold = PortalAttendanceIndex.threshold(portal);
 			double thresholdSquared = threshold * threshold;
 			UUID worldId = center.getWorld().getUID();
-			PortalQuery query = new PortalQuery(index, worldId, center, thresholdSquared, portalIndex);
 			boolean attended = false;
 			int minimumCellX = cellCoordinate(center.getX() - threshold);
 			int maximumCellX = cellCoordinate(center.getX() + threshold);
@@ -201,20 +193,16 @@ final class PortalRegistryAttendance
 				for(UUID playerId : worldCells.players.keySet())
 				{
 					PlayerPosition position = playerPositions.get(playerId);
-					if(position == null || !offerIfWithin(query, playerId, position))
+					if(!isWithin(worldId, center.getX(), center.getY(), center.getZ(), thresholdSquared, position))
 					{
 						continue;
 					}
 					attended = true;
-					if(index == null)
-					{
-						break;
-					}
+					break;
 				}
 			}
 			else if(worldCells != null)
 			{
-				cellScan:
 				for(int cellX = minimumCellX; cellX <= maximumCellX; cellX++)
 				{
 					for(int cellZ = minimumCellZ; cellZ <= maximumCellZ; cellZ++)
@@ -233,16 +221,21 @@ final class PortalRegistryAttendance
 						{
 							PlayerPosition position = playerPositions.get(playerId);
 							if(position == null || !worldId.equals(position.worldId()) || cellKey(position) != cell
-								|| !offerIfWithin(query, playerId, position))
+								|| !isWithin(worldId, center.getX(), center.getY(), center.getZ(), thresholdSquared, position))
 							{
 								continue;
 							}
 							attended = true;
-							if(index == null)
-							{
-								break cellScan;
-							}
+							break;
 						}
+						if(attended)
+						{
+							break;
+						}
+					}
+					if(attended)
+					{
+						break;
 					}
 				}
 			}
@@ -251,33 +244,14 @@ final class PortalRegistryAttendance
 
 		if(index != null)
 		{
+			PortalAttendanceIndex portalIndex = PortalAttendanceIndex.capture(snapshot);
+			for(Map.Entry<UUID, PlayerPosition> player : playerPositions.entrySet())
+			{
+				PlayerPosition position = player.getValue();
+				portalIndex.offerNearest(index, player.getKey(), position.worldId(), position.x(), position.y(), position.z(), position.yaw(), position.pitch());
+			}
 			WormholesPlaceholderPublisher.publish(placeholders, snapshot, index, playerPositions.keySet(), System.currentTimeMillis());
 		}
-	}
-
-	private static boolean offerIfWithin(
-		PortalQuery query,
-		UUID playerId,
-		PlayerPosition position
-	)
-	{
-		if(!query.worldId().equals(position.worldId()))
-		{
-			return false;
-		}
-		double dx = query.center().getX() - position.x();
-		double dy = query.center().getY() - position.y();
-		double dz = query.center().getZ() - position.z();
-		double distanceSquared = (dx * dx) + (dy * dy) + (dz * dz);
-		if(distanceSquared > query.thresholdSquared())
-		{
-			return false;
-		}
-		if(query.index() != null)
-		{
-			query.index().offer(playerId, query.portalIndex(), distanceSquared, PortalProximityIndex.facingCosine(position.yaw(), position.pitch(), dx, dy, dz, distanceSquared));
-		}
-		return true;
 	}
 
 	private static boolean isWithin(
@@ -343,16 +317,6 @@ final class PortalRegistryAttendance
 	private static long cellKey(int x, int z)
 	{
 		return ((long) x << 32) ^ (z & 0xFFFFFFFFL);
-	}
-
-	private record PortalQuery(
-		PortalProximityIndex index,
-		UUID worldId,
-		Location center,
-		double thresholdSquared,
-		int portalIndex
-	)
-	{
 	}
 
 	private record PlayerPosition(UUID worldId, double x, double y, double z, float yaw, float pitch)

@@ -49,6 +49,12 @@ class NetworkManagerListenPortFallbackTest {
     }
 
     @Test
+    void fallbackWindowStopsAtMaximumTcpPort() {
+        assertEquals(65_535, PeerListener.fallbackUpperPort(65_530));
+        assertEquals(65_535, PeerListener.fallbackUpperPort(65_535));
+    }
+
+    @Test
     void listenPortAutoFallsBackOverRange() throws IOException {
         int basePort = freeBasePort();
 

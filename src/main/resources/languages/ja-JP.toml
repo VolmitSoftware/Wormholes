@@ -410,6 +410,7 @@ locale = "ja-JP"
 "command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} はポケットの壁に使えません。落下しない不透過ブロックを指定してください。"
 "command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} はポケットの出口ドアに使えません。手で開けられるドアを指定してください。鉄のドアは使えません。"
 "command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>そのポケットはすでにこのサイズと素材です。"
+"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ポケットのサイズ変更を中止しました。中身のあるコンテナ <white>{containers}<red> 個が破壊されます。空にしてから再試行してください。<white>confirm=true<red> でもこの安全確認は無効にできません。"
 "command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>ポケットを <white>{size}<green> ブロックで作り直しました (以前は <white>{previous}<green>)。壁 <white>{material}<green>、出口ドア <white>{door}。"
 "command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ポケットを作り直せませんでした。コンソールを確認してください。"
 "command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ポケットディメンションが読み込まれていません。"
@@ -585,7 +586,7 @@ locale = "ja-JP"
 "door.menu.access.entry" = ["<white>{name}","<gray>状態: <aqua>{state}","","<dark_gray>左クリック: 許可。右クリック: 拒否。","<dark_gray>中クリックまたは Shift + 左クリック: 削除。"]
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>ポケット <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>サイズ <white>{size}<gray> ブロック、壁 <white>{material}<gray>、出口ドア <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>範囲 <white>{minimum}<gray> から <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} ブロックで作り直すと、設置済みブロック <white>{blocks}<red> 個 (うち中身入り <white>{containers}<red> 個) が壊れ、エンティティ <white>{entities}<red> 体が移動します。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>コンテナの中身と新しい壁の外に残ったものは入口にドロップされます。それ以外は失われます。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>続けるには同じコマンドに <white>confirm=true<gray> を付けて実行してください。"]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} ブロックで作り直すと、設置済みブロック <white>{blocks}<red> 個が壊れ、エンティティ <white>{entities}<red> 体が移動します。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>新しい壁の外側のブロックは破壊され、移動対象のエンティティは入口へ移されます。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>続けるには同じコマンドに <white>confirm=true<gray> を付けて実行してください。"]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> 個のポータルを削除し、ローカルポータルリンクを消去しました。"
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> 個のポータルを削除し、ローカルポータルリンクを消去しました。"

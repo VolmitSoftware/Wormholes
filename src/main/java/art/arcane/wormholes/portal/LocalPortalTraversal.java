@@ -1,6 +1,9 @@
 package art.arcane.wormholes.portal;
 
+import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 
 import org.bukkit.Location;
@@ -13,6 +16,13 @@ import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.api.traversal.TraversalContext;
+import art.arcane.wormholes.api.traversal.TraversalDestination;
+import art.arcane.wormholes.api.traversal.TraversalRefundReason;
+import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
+import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendCapture;
+import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
+import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendTransaction;
 import art.arcane.wormholes.geometry.Raycast;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.LocalPortalTransitRegistry.ReentryLatch;
@@ -27,6 +37,8 @@ final class LocalPortalTraversal
 {
 	private static final double REENTRY_EXIT_MARGIN = 2.0D;
 	private static final double DEPARTURE_COMMITMENT_RADIUS_SQUARED = 256.0D;
+	private static final int RETIRED_SETTLEMENT_ATTEMPTS = 4;
+	private static final long RETIRED_SETTLEMENT_RETRY_TICKS = 1L;
 
 	private final LocalPortal portal;
 	private final LocalPortalRuntime runtime;
@@ -215,6 +227,13 @@ final class LocalPortalTraversal
 
 			PortalTravelCost cost = travelCost(i);
 			boolean crossServerHandoff = activeTunnel instanceof UniversalTunnel && Wormholes.traversalService != null;
+			TraversalCostGateway.Admission traversalAdmission = crossServerHandoff
+					? null : evaluateLocalTraversalCost(i, activeTunnel, traversive);
+			if(traversalAdmission != null && !traversalAdmission.allowed())
+			{
+				rejectTraversal(i, traversive);
+				continue;
+			}
 			PortalTravelCost.Reservation reservation = null;
 			if(cost != null)
 			{
@@ -232,6 +251,7 @@ final class LocalPortalTraversal
 					PortalTravelCost.ReserveResult result = cost.reserve((Player) i);
 					if(!result.successful())
 					{
+						refund(i, traversalAdmission, TraversalRefundReason.CHARGE_ROLLBACK);
 						rejectCostTraversal(i, traversive, cost, result.status());
 						continue;
 					}
@@ -248,7 +268,7 @@ final class LocalPortalTraversal
 			{
 				LocalPortalTransitRegistry.markTeleportInFlight(entityId, now);
 			}
-			pushTraversive(traversive, activeTunnel, reservation);
+			pushTraversive(traversive, activeTunnel, reservation, traversalAdmission);
 		}
 	}
 
@@ -336,7 +356,8 @@ final class LocalPortalTraversal
 	private void pushTraversive(
 			Traversive traversive,
 			ITunnel activeTunnel,
-			PortalTravelCost.Reservation reservation)
+			PortalTravelCost.Reservation reservation,
+			TraversalCostGateway.Admission traversalAdmission)
 	{
 		if(activeTunnel instanceof UniversalTunnel universal && Wormholes.traversalService != null && traversive.getObject() instanceof Entity entity)
 		{
@@ -352,6 +373,7 @@ final class LocalPortalTraversal
 		if(traversive.getObject() instanceof Entity undeliverable && !canDeliverThrough(activeTunnel))
 		{
 			refund(reservation);
+			refund(undeliverable, traversalAdmission, TraversalRefundReason.DESTINATION_UNAVAILABLE);
 			rejectUndeliverableTraversal(undeliverable, traversive);
 			return;
 		}
@@ -359,12 +381,13 @@ final class LocalPortalTraversal
 		IPortal destination = activeTunnel.getDestination();
 		if(destination instanceof LocalPortal localDestination)
 		{
-			localDestination.receive(traversive, reservation);
+			localDestination.receive(traversive, reservation, traversalAdmission);
 			return;
 		}
 		refund(reservation);
 		if(traversive.getObject() instanceof Entity undeliverable)
 		{
+			refund(undeliverable, traversalAdmission, TraversalRefundReason.DESTINATION_UNAVAILABLE);
 			rejectUndeliverableTraversal(undeliverable, traversive);
 		}
 	}
@@ -377,6 +400,25 @@ final class LocalPortalTraversal
 		}
 
 		return activeTunnel.isValid();
+	}
+
+	TraversalCostGateway.Admission evaluateLocalTraversalCost(
+			Entity entity,
+			ITunnel activeTunnel,
+			Traversive traversive)
+	{
+		TraversalCostGateway gateway = Wormholes.traversalCostGateway;
+		IPortal destination = activeTunnel == null ? null : activeTunnel.getDestination();
+		if(gateway == null || !(entity instanceof Player player) || !(destination instanceof ILocalPortal localDestination))
+		{
+			return null;
+		}
+		World sourceWorld = portal.getStructure().getWorld();
+		Location origin = traversive.getInPoint().toLocation(sourceWorld);
+		TraversalDestination traversalDestination = TraversalDestination.portal(
+				destination.getId(), destination.getName(), localDestination.computeExitTarget(traversive));
+		return gateway.open(TraversalContext.local(
+				player, portal.getId(), portal.getName(), origin, traversalDestination));
 	}
 
 	private void rejectUndeliverableTraversal(Entity entity, Traversive traversive)
@@ -491,10 +533,18 @@ final class LocalPortalTraversal
 
 	void receive(Traversive t)
 	{
-		receive(t, null);
+		receive(t, null, null);
 	}
 
 	void receive(Traversive t, PortalTravelCost.Reservation reservation)
+	{
+		receive(t, reservation, null);
+	}
+
+	void receive(
+			Traversive t,
+			PortalTravelCost.Reservation reservation,
+			TraversalCostGateway.Admission traversalAdmission)
 	{
 		if(t.getType().equals(TraversableType.PLAYER) || t.getType().equals(TraversableType.ENTITY))
 		{
@@ -502,6 +552,7 @@ final class LocalPortalTraversal
 			if(!portal.canArrive(p))
 			{
 				refund(reservation);
+				refund(p, traversalAdmission, TraversalRefundReason.DESTINATION_REJECTED);
 				rejectTraversal(p, t);
 				return;
 			}
@@ -519,6 +570,7 @@ final class LocalPortalTraversal
 			if(!LocalPortalTransitRegistry.markTeleportInFlight(entityId, System.currentTimeMillis()))
 			{
 				refund(reservation);
+				refund(p, traversalAdmission, TraversalRefundReason.RATE_LIMITED);
 				rejectUndeliverableTraversal(p, t);
 				return;
 			}
@@ -530,41 +582,412 @@ final class LocalPortalTraversal
 				warmer.warmAround(target.getWorld(), target.getBlockX(), target.getBlockZ(), warmRadius, Settings.ARRIVAL_WARM_HOLD_MILLIS);
 			}
 
-			runtime.teleport(p, target).whenComplete((success, error) ->
+			BukkitChunkPreSendCapture capture = capturePreSend(p);
+			if(capture != null && target.getWorld() != null)
 			{
-				if(error != null || !Boolean.TRUE.equals(success))
+				AtomicBoolean destinationPending = new AtomicBoolean(true);
+				World targetWorld = target.getWorld();
+				Runnable retired = () ->
 				{
-					LocalPortalTransitRegistry.clearTeleportInFlight(entityId);
-					logTeleportFailure(p, "deliver", error);
-					if(!runtime.dispatch(p, () ->
+					if(destinationPending.compareAndSet(true, false))
 					{
-						refund(reservation);
-						rejectUndeliverableTraversal(p, t);
-					}, 0L))
-					{
-						refund(reservation);
-						Wormholes.w("Entity scheduler rejected the arrival bounce for " + p.getName() + " at portal " + portal.getId());
+						scheduleSourceRecovery(p, capture, () -> recoverFailedTeleportNow(
+							p, t, reservation, traversalAdmission, entityId, null,
+							new IllegalStateException("Destination region retired portal teleport work"),
+							TraversalRefundReason.DESTINATION_UNAVAILABLE),
+							() -> recoverSourceRegion(entityId, reservation, traversalAdmission, null,
+								TraversalRefundReason.DESTINATION_UNAVAILABLE),
+							() -> deferSourceRecovery(entityId, reservation, traversalAdmission, null,
+								TraversalRefundReason.DESTINATION_UNAVAILABLE));
 					}
+				};
+				boolean scheduled = runtime.dispatchRegion(
+					targetWorld,
+					target.getBlockX() >> 4,
+					target.getBlockZ() >> 4,
+					() ->
+					{
+						if(destinationPending.compareAndSet(true, false))
+						{
+							dispatchPreparedTeleport(p, target, t, reservation, traversalAdmission, entityId,
+								outVelocity, exit, reloadExpected, capture, preSend(capture, p, target));
+						}
+					},
+					retired,
+					0L);
+				if(scheduled)
+				{
 					return;
 				}
-				if(!runtime.dispatch(p, () ->
-				{
-					commit(reservation);
-					settleArrival(p, entityId, outVelocity, exit, reloadExpected);
-				}, 0L))
-				{
-					commit(reservation);
-					Wormholes.w("Entity scheduler rejected the arrival settle for " + p.getName() + " at portal " + portal.getId()
-							+ "; the arrival was recorded without its landing effects");
-					WormholesTelemetry.countTraversal();
-					LocalPortalTransitRegistry.markTeleportCooldown(entityId, System.currentTimeMillis());
-					LocalPortalTransitRegistry.latchReentry(entityId, portal.getId());
-					LocalPortalTransitRegistry.clearTeleportInFlight(entityId);
-				}
-			});
+				retired.run();
+				return;
+			}
+			beginTeleport(p, target, t, reservation, traversalAdmission, entityId,
+				outVelocity, exit, reloadExpected, null, null);
 			return;
 		}
 		refund(reservation);
+		if(t.getObject() instanceof Entity entity)
+		{
+			refund(entity, traversalAdmission, TraversalRefundReason.DESTINATION_UNAVAILABLE);
+		}
+	}
+
+	private void dispatchPreparedTeleport(
+		Entity entity,
+		Location target,
+		Traversive traversive,
+		PortalTravelCost.Reservation reservation,
+		TraversalCostGateway.Admission traversalAdmission,
+		UUID entityId,
+		Vector outVelocity,
+		Location exit,
+		boolean reloadExpected,
+		BukkitChunkPreSendCapture capture,
+		BukkitChunkPreSendTransaction preSend)
+	{
+		AtomicBoolean travelerPending = new AtomicBoolean(true);
+		Runnable retired = () ->
+		{
+			if(travelerPending.compareAndSet(true, false))
+			{
+					recoverFailedTeleport(entity, traversive, reservation, traversalAdmission,
+						entityId, capture, preSend,
+						new IllegalStateException("Traveler owner retired portal teleport work"),
+						TraversalRefundReason.DESTINATION_UNAVAILABLE);
+			}
+		};
+		boolean scheduled = runtime.dispatch(entity, () ->
+		{
+			if(travelerPending.compareAndSet(true, false))
+			{
+				beginTeleport(entity, target, traversive, reservation, traversalAdmission, entityId,
+					outVelocity, exit, reloadExpected, capture, preSend);
+			}
+		}, retired, 0L);
+		if(!scheduled)
+		{
+			retired.run();
+		}
+	}
+
+	private void beginTeleport(
+		Entity entity,
+		Location target,
+		Traversive traversive,
+		PortalTravelCost.Reservation reservation,
+		TraversalCostGateway.Admission traversalAdmission,
+		UUID entityId,
+		Vector outVelocity,
+		Location exit,
+		boolean reloadExpected,
+		BukkitChunkPreSendCapture capture,
+		BukkitChunkPreSendTransaction preSend)
+	{
+		CompletionStage<Boolean> teleportStage;
+		try
+		{
+			teleportStage = Objects.requireNonNull(runtime.teleport(entity, target), "teleport stage");
+		}
+		catch(RuntimeException exception)
+		{
+				recoverFailedTeleport(entity, traversive, reservation, traversalAdmission,
+					entityId, capture, preSend, exception, TraversalRefundReason.TELEPORT_FAILED);
+			return;
+		}
+		teleportStage.whenComplete((success, error) ->
+			{
+				if(error != null || !Boolean.TRUE.equals(success))
+				{
+					recoverFailedTeleport(entity, traversive, reservation, traversalAdmission,
+						entityId, capture, preSend, error, TraversalRefundReason.TELEPORT_FAILED);
+					return;
+				}
+				AtomicBoolean terminal = new AtomicBoolean(false);
+				Runnable arrival = () ->
+				{
+					if(!terminal.compareAndSet(false, true))
+					{
+						return;
+					}
+					commitPreSend(preSend);
+					commit(reservation);
+					commit(traversalAdmission);
+					settleArrival(entity, entityId, outVelocity, exit, reloadExpected);
+				};
+				AtomicBoolean retirementStarted = new AtomicBoolean(false);
+				Runnable retired = () ->
+				{
+					if(retirementStarted.compareAndSet(false, true))
+					{
+						retryRetiredSuccessfulTeleport(entity, entityId, reservation, traversalAdmission,
+							preSend, terminal, RETIRED_SETTLEMENT_ATTEMPTS);
+					}
+				};
+				if(!runtime.dispatch(entity, arrival, retired, 0L))
+				{
+					retired.run();
+				}
+			});
+	}
+
+	private void recoverFailedTeleport(
+		Entity entity,
+		Traversive traversive,
+		PortalTravelCost.Reservation reservation,
+		TraversalCostGateway.Admission traversalAdmission,
+		UUID entityId,
+		BukkitChunkPreSendCapture capture,
+		BukkitChunkPreSendTransaction preSend,
+		Throwable error,
+		TraversalRefundReason refundReason)
+	{
+		scheduleSourceRecovery(entity, capture, () -> recoverFailedTeleportNow(
+			entity, traversive, reservation, traversalAdmission, entityId, preSend, error, refundReason),
+			() -> recoverSourceRegion(entityId, reservation, traversalAdmission, preSend, refundReason),
+			() -> deferSourceRecovery(entityId, reservation, traversalAdmission, preSend, refundReason));
+	}
+
+	private void scheduleSourceRecovery(
+		Entity entity,
+		BukkitChunkPreSendCapture capture,
+		Runnable recovery,
+		Runnable sourceRecovery,
+		Runnable deferredRecovery)
+	{
+		AtomicBoolean recovered = new AtomicBoolean(false);
+		Runnable entityRecovery = () ->
+		{
+			if(recovered.compareAndSet(false, true))
+			{
+				recovery.run();
+			}
+		};
+		AtomicBoolean sourceFallbackStarted = new AtomicBoolean(false);
+		Runnable sourceFallback = () ->
+		{
+			if(recovered.get() || !sourceFallbackStarted.compareAndSet(false, true))
+			{
+				return;
+			}
+			Runnable exactSourceRecovery = () ->
+			{
+				if(recovered.compareAndSet(false, true))
+				{
+					sourceRecovery.run();
+				}
+			};
+			Runnable sourceRetired = () ->
+			{
+				if(recovered.compareAndSet(false, true))
+				{
+					deferredRecovery.run();
+					Wormholes.w("Deferred portal recovery because both traveler and source-region terminal work retired for "
+						+ entity.getUniqueId());
+				}
+			};
+			boolean regionScheduled = capture != null && capture.sourceWorld() != null
+				&& runtime.dispatchRegion(
+					capture.sourceWorld(),
+					capture.sourceChunkX(),
+					capture.sourceChunkZ(),
+					exactSourceRecovery,
+					sourceRetired,
+					0L);
+			if(!regionScheduled)
+			{
+				sourceRetired.run();
+			}
+		};
+		boolean entityScheduled = runtime.dispatch(entity, entityRecovery, sourceFallback, 0L);
+		if(!entityScheduled)
+		{
+			sourceFallback.run();
+		}
+	}
+
+	private void recoverSourceRegion(
+		UUID entityId,
+		PortalTravelCost.Reservation reservation,
+		TraversalCostGateway.Admission traversalAdmission,
+		BukkitChunkPreSendTransaction preSend,
+		TraversalRefundReason refundReason)
+	{
+		LocalPortalTransitRegistry.clearTeleportInFlight(entityId);
+		rollbackPreSend(preSend);
+		refund(reservation);
+		refund(traversalAdmission, refundReason);
+	}
+
+	private void deferSourceRecovery(
+		UUID entityId,
+		PortalTravelCost.Reservation reservation,
+		TraversalCostGateway.Admission traversalAdmission,
+		BukkitChunkPreSendTransaction preSend,
+		TraversalRefundReason refundReason)
+	{
+		LocalPortalTransitRegistry.clearTeleportInFlight(entityId);
+		commitPreSend(preSend);
+		refund(reservation);
+		refund(traversalAdmission, refundReason);
+	}
+
+	private void recoverFailedTeleportNow(
+		Entity entity,
+		Traversive traversive,
+		PortalTravelCost.Reservation reservation,
+		TraversalCostGateway.Admission traversalAdmission,
+		UUID entityId,
+		BukkitChunkPreSendTransaction preSend,
+		Throwable error,
+		TraversalRefundReason refundReason)
+	{
+		LocalPortalTransitRegistry.clearTeleportInFlight(entityId);
+		logTeleportFailure(entity, "deliver", error);
+		rollbackPreSend(preSend);
+		refund(reservation);
+		refund(traversalAdmission, refundReason);
+		rejectUndeliverableTraversal(entity, traversive);
+	}
+
+	private void retryRetiredSuccessfulTeleport(
+		Entity entity,
+		UUID entityId,
+		PortalTravelCost.Reservation reservation,
+		TraversalCostGateway.Admission traversalAdmission,
+		BukkitChunkPreSendTransaction preSend,
+		AtomicBoolean terminal,
+		int attemptsRemaining)
+	{
+		if(terminal.get())
+		{
+			return;
+		}
+		AtomicBoolean attemptFinished = new AtomicBoolean(false);
+		Runnable settlement = () ->
+		{
+			if(!attemptFinished.compareAndSet(false, true) || !terminal.compareAndSet(false, true))
+			{
+				return;
+			}
+			retireSuccessfulTeleport(entityId, reservation, traversalAdmission, preSend);
+		};
+		Runnable retired = () ->
+		{
+			if(!attemptFinished.compareAndSet(false, true))
+			{
+				return;
+			}
+			if(attemptsRemaining > 1)
+			{
+				retryRetiredSuccessfulTeleport(entity, entityId, reservation, traversalAdmission,
+					preSend, terminal, attemptsRemaining - 1);
+				return;
+			}
+			if(terminal.compareAndSet(false, true))
+			{
+				commitPreSend(preSend);
+				commit(reservation);
+				retireSuccessfulTeleportState(entityId);
+				if(traversalAdmission != null && !traversalAdmission.deferCommit())
+				{
+					Wormholes.w("Could not defer the successful portal traversal-cost commit for " + entityId);
+				}
+			}
+		};
+		boolean scheduled = runtime.dispatch(entity, settlement, retired, RETIRED_SETTLEMENT_RETRY_TICKS);
+		if(!scheduled)
+		{
+			retired.run();
+		}
+	}
+
+	private void retireSuccessfulTeleport(
+		UUID entityId,
+		PortalTravelCost.Reservation reservation,
+		TraversalCostGateway.Admission traversalAdmission,
+		BukkitChunkPreSendTransaction preSend)
+	{
+		commitPreSend(preSend);
+		commit(reservation);
+		commit(traversalAdmission);
+		retireSuccessfulTeleportState(entityId);
+	}
+
+	private void retireSuccessfulTeleportState(UUID entityId)
+	{
+		WormholesTelemetry.countTraversal();
+		LocalPortalTransitRegistry.markTeleportCooldown(entityId, System.currentTimeMillis());
+		LocalPortalTransitRegistry.latchReentry(entityId, portal.getId());
+		LocalPortalTransitRegistry.clearTeleportInFlight(entityId);
+	}
+
+	private BukkitChunkPreSendCapture capturePreSend(Entity entity)
+	{
+		if(!(entity instanceof Player player))
+		{
+			return null;
+		}
+		try
+		{
+			return BukkitChunkPreSendProvider.capture(player);
+		}
+		catch(RuntimeException exception)
+		{
+			logPreSendFailure(player, "prepare destination chunks", exception);
+			return null;
+		}
+	}
+
+	private BukkitChunkPreSendTransaction preSend(
+		BukkitChunkPreSendCapture capture,
+		Entity entity,
+		Location target)
+	{
+		try
+		{
+			return capture.preSend(target);
+		}
+		catch(RuntimeException exception)
+		{
+			logPreSendFailure((Player) entity, "prepare destination chunks", exception);
+			return null;
+		}
+	}
+
+	private void rollbackPreSend(BukkitChunkPreSendTransaction transaction)
+	{
+		if(transaction == null)
+		{
+			return;
+		}
+		try
+		{
+			transaction.rollback();
+		}
+		catch(RuntimeException exception)
+		{
+			logPreSendFailure(null, "restore source chunks", exception);
+		}
+	}
+
+	private static void commitPreSend(BukkitChunkPreSendTransaction transaction)
+	{
+		if(transaction != null)
+		{
+			transaction.commit();
+		}
+	}
+
+	private void logPreSendFailure(Player player, String action, RuntimeException exception)
+	{
+		if(Wormholes.instance == null)
+		{
+			return;
+		}
+		String traveler = player == null ? "traveler" : player.getName();
+		Wormholes.instance.getLogger().log(Level.WARNING,
+				"Portal " + portal.getId() + " could not " + action + " for " + traveler, exception);
 	}
 
 	private PortalTravelCost travelCost(Entity entity)
@@ -585,6 +1008,47 @@ final class LocalPortalTraversal
 		if(reservation != null)
 		{
 			reservation.refund();
+		}
+	}
+
+	private static void commit(TraversalCostGateway.Admission admission)
+	{
+		if(admission != null)
+		{
+			admission.commit();
+		}
+	}
+
+	private void refund(Entity entity, TraversalCostGateway.Admission admission, TraversalRefundReason reason)
+	{
+		settle(entity, admission, admission == null ? null : () -> admission.refund(reason));
+	}
+
+	private static void refund(TraversalCostGateway.Admission admission, TraversalRefundReason reason)
+	{
+		if(admission != null)
+		{
+			admission.refund(reason);
+		}
+	}
+
+	private void settle(Entity entity, TraversalCostGateway.Admission admission, Runnable settlement)
+	{
+		if(admission == null || settlement == null)
+		{
+			return;
+		}
+		if(FoliaScheduler.isOwnedByCurrentRegion(entity))
+		{
+			settlement.run();
+			return;
+		}
+		if(!runtime.dispatch(entity, settlement, () ->
+			Wormholes.w("Deferred portal traversal-cost settlement to ticket expiry because terminal work retired for "
+				+ entity.getUniqueId()), 0L))
+		{
+			Wormholes.w("Deferred portal traversal-cost settlement to ticket expiry because the entity scheduler rejected terminal work for "
+					+ entity.getUniqueId());
 		}
 	}
 
@@ -707,7 +1171,8 @@ final class LocalPortalTraversal
 			{
 				logTeleportFailure(entity, "return", error);
 			}
-			if(!runtime.dispatch(entity, () -> finishRejectedDeparture(entity, t), 0L))
+			if(!runtime.dispatch(entity, () -> finishRejectedDeparture(entity, t), () ->
+				Wormholes.w("Rejected portal departure retired for " + entity.getUniqueId()), 0L))
 			{
 				Wormholes.w("Entity scheduler rejected departure bounce for " + entity.getName() + " at portal " + portal.getId());
 			}
@@ -773,7 +1238,8 @@ final class LocalPortalTraversal
 				{
 					logTeleportFailure(player, "bounce", error);
 				}
-				if(!runtime.dispatch(player, () -> finishRejectedRemoteArrival(entity, t, target), 0L))
+				if(!runtime.dispatch(player, () -> finishRejectedRemoteArrival(entity, t, target), () ->
+					Wormholes.w("Rejected remote portal arrival retired for " + entity.getUniqueId()), 0L))
 				{
 					Wormholes.w("Entity scheduler rejected the remote arrival bounce for " + player.getName() + " at portal " + portal.getId());
 				}

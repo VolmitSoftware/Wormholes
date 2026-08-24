@@ -96,7 +96,7 @@ final class RtpViewDirectory
 			entry.pruneSharedRetentions(runtimeSnapshot);
 			return;
 		}
-		if(!ready(runtimeSnapshot, destination))
+		if(!ready(destination))
 		{
 			setWarmingUnlessReady(viewerId, identity, routeRevision);
 			return;
@@ -127,14 +127,9 @@ final class RtpViewDirectory
 		return entry.runtime.reservationFor(viewerId).orElse(null);
 	}
 
-	private boolean ready(RtpRuntimeSnapshot snapshot, RtpDestination destination)
+	private boolean ready(RtpDestination destination)
 	{
-		if(!entry.destinations.isRetained(destination))
-		{
-			return false;
-		}
-		return snapshot.allocationMode() != RtpAllocationMode.SHARED
-				|| snapshot.standby() != null && entry.destinations.isRetained(snapshot.standby());
+		return entry.destinations.isRetained(destination);
 	}
 
 	private long routeRevision(RtpRuntimeSnapshot snapshot, RtpDestination destination)
@@ -178,7 +173,7 @@ final class RtpViewDirectory
 		RtpDestination currentDestination = destinationFor(viewerId, runtimeSnapshot);
 		if(currentDestination == null
 				|| !attempt.identity.destination().equals(currentDestination)
-				|| !ready(runtimeSnapshot, currentDestination))
+				|| !ready(currentDestination))
 		{
 			setWarmingUnlessReady(viewerId, null, 0L);
 			service.publish(entry);

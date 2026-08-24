@@ -141,7 +141,7 @@ final class NetworkStatusReporter {
         int gamePort = network.gamePort();
         if (active.listenEnabled) {
             if (bound <= 0) {
-                messages.add("Raw Wormholes listener is unbound; running sideband-only over the MC game port " + gamePort + ". Open any port in " + active.listenPort + ".." + (active.listenPort + PeerListener.LISTEN_PORT_FALLBACK_RANGE) + " to enable high-throughput projection streaming.");
+                messages.add("Raw Wormholes listener is unbound; running sideband-only over the MC game port " + gamePort + ". Open any port in " + active.listenPort + ".." + PeerListener.fallbackUpperPort(active.listenPort) + " to enable high-throughput projection streaming.");
             } else if (bound == gamePort) {
                 messages.add("Wormholes listen-port resolved to the Minecraft game port " + gamePort + "; the raw listener cannot bind the existing game socket. Peers use the signed status sideband instead.");
             } else {

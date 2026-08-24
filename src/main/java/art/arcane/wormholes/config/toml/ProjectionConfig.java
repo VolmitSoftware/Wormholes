@@ -25,6 +25,10 @@ public class ProjectionConfig {
     public double sideGraceDot = 0.12;
     public int maxProjectorsPerTick = 24;
     public int maxPortalsPerObserverTick = 4;
+    @ConfigDescription({
+        "Maximum player-owner reconciliation frames admitted per tick across normal projection and surface skins.",
+        "Existing observer state has priority while a rotating share remains available for discovery."
+    })
     public int maxNewObserverScansPerTick = 64;
     public int interestGraceTicks = 5;
     @ConfigDescription({

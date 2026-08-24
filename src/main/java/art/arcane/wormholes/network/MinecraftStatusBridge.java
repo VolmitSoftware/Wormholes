@@ -36,7 +36,7 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
 
     private static final String HOST_PREFIX = "whs.";
     private static final String JSON_FIELD = "wormholes";
-    private static final int FORMAT_VERSION = 5;
+    private static final int FORMAT_VERSION = 6;
     private static final int CONNECT_TIMEOUT_MS = 4000;
     private static final int READ_TIMEOUT_MS = 5000;
     private static final int MAX_HOST_LENGTH = 32000;
@@ -173,7 +173,8 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
         }
     }
 
-    public static StatusPacket create(String sourceServer, String targetServer, String mcVersion, String pluginVersion,
+    public static StatusPacket create(String sourceServer, String targetServer, int protocolVersion,
+                                      String mcVersion, String pluginVersion,
                                       String replyHost, int replyPort, byte[] publicKey, PrivateKey privateKey,
                                       long ackNonce, List<EncodedMessage> messages) {
         List<WireMessage> wireMessages = new ArrayList<>(messages.size());
@@ -182,8 +183,9 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
             wireMessages.add(message.message());
             frames.add(message.frame());
         }
-        StatusPacket unsigned = new StatusPacket(sourceServer, targetServer, mcVersion, pluginVersion, replyHost,
-            replyPort, publicKey, nextNonce(), ackNonce, List.copyOf(wireMessages), List.copyOf(frames), null);
+        StatusPacket unsigned = new StatusPacket(sourceServer, targetServer, protocolVersion, mcVersion,
+            pluginVersion, replyHost, replyPort, publicKey, nextNonce(), ackNonce, List.copyOf(wireMessages),
+            List.copyOf(frames), null);
         byte[] payload = unsigned.unsignedBytes();
         return unsigned.withSignature(Handshake.sign(privateKey, payload));
     }
@@ -298,6 +300,7 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
     public static final class StatusPacket {
         private final String sourceServer;
         private final String targetServer;
+        private final int protocolVersion;
         private final String mcVersion;
         private final String pluginVersion;
         private final String replyHost;
@@ -310,11 +313,12 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
         private final byte[] signature;
         private volatile byte[] unsignedBytesCache;
 
-        private StatusPacket(String sourceServer, String targetServer, String mcVersion, String pluginVersion,
-                             String replyHost, int replyPort, byte[] publicKey, long nonce, long ackNonce,
-                             List<WireMessage> messages, List<byte[]> encodedFrames, byte[] signature) {
+        private StatusPacket(String sourceServer, String targetServer, int protocolVersion, String mcVersion,
+                             String pluginVersion, String replyHost, int replyPort, byte[] publicKey, long nonce,
+                             long ackNonce, List<WireMessage> messages, List<byte[]> encodedFrames, byte[] signature) {
             this.sourceServer = sourceServer;
             this.targetServer = targetServer;
+            this.protocolVersion = protocolVersion;
             this.mcVersion = mcVersion;
             this.pluginVersion = pluginVersion;
             this.replyHost = replyHost;
@@ -333,6 +337,10 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
 
         public String targetServer() {
             return targetServer;
+        }
+
+        public int protocolVersion() {
+            return protocolVersion;
         }
 
         public String mcVersion() {
@@ -387,8 +395,9 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
         }
 
         private StatusPacket withSignature(byte[] nextSignature) {
-            StatusPacket signed = new StatusPacket(sourceServer, targetServer, mcVersion, pluginVersion, replyHost,
-                replyPort, publicKey, nonce, ackNonce, messages, encodedFrames, nextSignature);
+            StatusPacket signed = new StatusPacket(sourceServer, targetServer, protocolVersion, mcVersion,
+                pluginVersion, replyHost, replyPort, publicKey, nonce, ackNonce, messages, encodedFrames,
+                nextSignature);
             signed.unsignedBytesCache = unsignedBytesCache;
             return signed;
         }
@@ -407,6 +416,7 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
                 ByteArrayOutputStream buffer = new ByteArrayOutputStream(512);
                 DataOutputStream out = new DataOutputStream(buffer);
                 out.writeInt(FORMAT_VERSION);
+                out.writeInt(protocolVersion);
                 writeUtf(out, sourceServer, MAX_SERVER_NAME_CHARS, "source server");
                 writeUtf(out, targetServer, MAX_SERVER_NAME_CHARS, "target server");
                 writeUtf(out, mcVersion, MAX_VERSION_CHARS, "Minecraft version");
@@ -455,6 +465,7 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
             if (version != FORMAT_VERSION) {
                 throw new IOException("unsupported status bridge packet version: " + version);
             }
+            int protocolVersion = in.readInt();
             String sourceServer = readUtf(in, MAX_SERVER_NAME_CHARS, "source server");
             String targetServer = readUtf(in, MAX_SERVER_NAME_CHARS, "target server");
             String mcVersion = readUtf(in, MAX_VERSION_CHARS, "Minecraft version");
@@ -480,8 +491,8 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
             if (in.available() != 0) {
                 throw new IOException("status bridge payload has trailing bytes");
             }
-            StatusPacket packet = new StatusPacket(sourceServer, targetServer, mcVersion, pluginVersion, replyHost,
-                replyPort, publicKey, nonce, ackNonce, messages, null, signature);
+            StatusPacket packet = new StatusPacket(sourceServer, targetServer, protocolVersion, mcVersion,
+                pluginVersion, replyHost, replyPort, publicKey, nonce, ackNonce, messages, null, signature);
             packet.unsignedBytesCache = unsigned;
             return packet;
         }

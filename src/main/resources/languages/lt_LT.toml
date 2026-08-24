@@ -409,6 +409,7 @@ locale = "lt_LT"
 "command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} netinka kisenes sienai. Naudok kieta bloka, kuris nekrinta."
 "command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} netinka kisenes isejimo durims. Naudok ranka atidaromas duris; gelezines durys atmetamos."
 "command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Ta kisene jau yra sio dydzio ir is siu medziagu."
+"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Kisenes dydzio keitimas sustabdytas: butu sunaikinta <white>{containers}<red> netusciu talpyklu. Istustink jas pries bandydamas dar karta; <white>confirm=true<red> negali apeiti sios saugos patikros."
 "command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Kisene perstatyta i <white>{size}<green> bloku (buvo <white>{previous}<green>), sienos <white>{material}<green>, isejimo durys <white>{door}."
 "command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Kisenes perstatyti nepavyko. Patikrink konsole."
 "command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Kiseniniu dimensiju pasaulis neikeltas."
@@ -584,7 +585,7 @@ locale = "lt_LT"
 "door.menu.access.entry" = ["<white>{name}","<gray>Būsena: <aqua>{state}","","<dark_gray>Kairysis spustelėjimas: leisti. Dešinysis: blokuoti.","<dark_gray>Vidurinis spustelėjimas arba Shift + kairysis: pašalinti."]
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Kisene <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Dydis <white>{size}<gray> bloku, sienos <white>{material}<gray>, isejimo durys <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Ribos nuo <white>{minimum}<gray> iki <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Perstatymas i {size} bloku sunaikintu <white>{blocks}<red> padetu bloku (<white>{containers}<red> su daiktais) ir perkeltu <white>{entities}<red> esybiu.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Talpyklu turinys ir viskas, kas liks uz nauju sienu, ismetama prie ijejimo. Visa kita prarandama.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Paleisk ta pacia komanda su <white>confirm=true<gray>, kad testum."]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Perstatymas i {size} bloku sunaikintu <white>{blocks}<red> padetu bloku ir perkeltu <white>{entities}<red> esybiu.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Blokai uz nauju sienu sunaikinami; perkeliamos esybes nugabenamos prie iejimo.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Paleisk ta pacia komanda su <white>confirm=true<gray>, kad testum."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Ištrintas <white>{count}<green> portalas ir išvalytos vietinės portalo jungtys."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Ištrinti <white>{count}<green> portalai ir išvalytos vietinės portalų jungtys."

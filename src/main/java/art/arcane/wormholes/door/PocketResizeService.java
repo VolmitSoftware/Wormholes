@@ -10,7 +10,6 @@ import org.bukkit.block.BlockState;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
@@ -20,6 +19,8 @@ import org.bukkit.util.Vector;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Reshapes an existing pocket room in place on the owning region thread.
@@ -45,6 +46,7 @@ public final class PocketResizeService {
         Objects.requireNonNull(target, "target");
         PocketLayout previous = structures.layout(space);
         PocketLayout updated = structures.layout(space.withShell(target));
+        requireOwnershipOfBoth(world, previous, updated);
         Material previousShell = structures.shellMaterial(space);
 
         long[] counts = {0L, 0L};
@@ -71,16 +73,7 @@ public final class PocketResizeService {
         return new Impact(counts[0], counts[1], entities, players);
     }
 
-    /**
-     * Rebuilds the room at its new size and materials.
-     *
-     * <p>Container contents from destroyed blocks are dropped at the entry rather
-     * than deleted, and anything left standing outside the new walls is moved to
-     * the entry.</p>
-     *
-     * @return the space as it should now be persisted
-     */
-    public PocketSpace apply(World world, PocketSpace space, PocketShell target) {
+    public CompletableFuture<Void> apply(World world, PocketSpace space, PocketShell target) {
         Objects.requireNonNull(world, "world");
         Objects.requireNonNull(space, "space");
         Objects.requireNonNull(target, "target");
@@ -94,15 +87,14 @@ public final class PocketResizeService {
         Material shell = structures.shellMaterial(reshaped);
         Material door = structures.returnDoorMaterial(reshaped);
 
+        requireNoStoredItems(world, previous, updated, previousShell);
         clearReturnDoor(world, previous);
         List<Entity> displaced = displacedEntities(world, previous, updated);
-        List<ItemStack> salvaged = new ArrayList<>();
         forEachDisplacedBlock(previous, updated, (x, y, z) -> {
             Block block = world.getBlockAt(x, y, z);
             if (block.getType().isAir()) {
                 return;
             }
-            salvage(block, salvaged);
             block.setType(Material.AIR, false);
         });
 
@@ -111,31 +103,98 @@ public final class PocketResizeService {
         PocketStructureService.repairReturnDoor(world, updated, shell, door);
 
         Location entry = structures.entryLocation(world, reshaped);
-        for (ItemStack stack : salvaged) {
-            world.dropItemNaturally(entry, stack);
-        }
+        List<CompletableFuture<Void>> teleports = new ArrayList<>(displaced.size());
         for (Entity entity : displaced) {
-            WormholesPlatform.teleport(plugin, entity, entry, PlayerTeleportEvent.TeleportCause.PLUGIN);
+            UUID entityId = entity.getUniqueId();
+            CompletableFuture<Void> teleport = WormholesPlatform.teleport(
+                plugin, entity, entry, PlayerTeleportEvent.TeleportCause.PLUGIN).thenApply(success -> {
+                    if (!Boolean.TRUE.equals(success)) {
+                        throw new IllegalStateException(
+                            "could not move displaced entity " + entityId + " into the resized pocket");
+                    }
+                    return null;
+                });
+            teleports.add(teleport);
         }
-        return reshaped;
+        return CompletableFuture.allOf(teleports.toArray(CompletableFuture[]::new));
+    }
+
+    void requireOwnership(World world, PocketSpace space, PocketShell target) {
+        Objects.requireNonNull(world, "world");
+        Objects.requireNonNull(space, "space");
+        Objects.requireNonNull(target, "target");
+        requireOwnershipOfBoth(
+            world,
+            structures.layout(space),
+            structures.layout(space.withShell(target))
+        );
     }
 
     /**
      * Blocks the reshape destroys: everything left outside the new room, plus the
      * interior blocks the new walls are laid through.
      */
-    private static void forEachDisplacedBlock(
+    static void forEachDisplacedBlock(
         PocketLayout previous,
         PocketLayout updated,
         PocketLayout.BlockVisitor visitor
     ) {
-        for (int x = previous.minX(); x <= previous.maxX(); x++) {
-            for (int y = previous.minY(); y <= previous.maxY(); y++) {
-                for (int z = previous.minZ(); z <= previous.maxZ(); z++) {
-                    boolean outside = !updated.contains(x, y, z);
-                    if (!outside && !(updated.isShellBlock(x, y, z) && previous.isInteriorBlock(x, y, z))) {
-                        continue;
-                    }
+        if (updated.size() >= previous.size()) {
+            return;
+        }
+        visitBox(
+            updated.maxX() + 1, previous.maxX(),
+            previous.minY(), previous.maxY(),
+            previous.minZ(), previous.maxZ(),
+            visitor
+        );
+        visitBox(
+            previous.minX(), updated.maxX(),
+            updated.maxY() + 1, previous.maxY(),
+            previous.minZ(), previous.maxZ(),
+            visitor
+        );
+        visitBox(
+            previous.minX(), updated.maxX(),
+            previous.minY(), updated.maxY(),
+            updated.maxZ() + 1, previous.maxZ(),
+            visitor
+        );
+        visitBox(
+            updated.maxX(), updated.maxX(),
+            updated.minY() + 1, updated.maxY(),
+            updated.minZ() + 1, updated.maxZ(),
+            visitor
+        );
+        visitBox(
+            updated.minX() + 1, updated.maxX() - 1,
+            updated.maxY(), updated.maxY(),
+            updated.minZ() + 1, updated.maxZ(),
+            visitor
+        );
+        visitBox(
+            updated.minX() + 1, updated.maxX() - 1,
+            updated.minY() + 1, updated.maxY() - 1,
+            updated.maxZ(), updated.maxZ(),
+            visitor
+        );
+    }
+
+    private static void visitBox(
+        int minX,
+        int maxX,
+        int minY,
+        int maxY,
+        int minZ,
+        int maxZ,
+        PocketLayout.BlockVisitor visitor
+    ) {
+        if (minX > maxX || minY > maxY || minZ > maxZ) {
+            return;
+        }
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
                     visitor.visit(x, y, z);
                 }
             }
@@ -199,18 +258,20 @@ public final class PocketResizeService {
         return false;
     }
 
-    private static void salvage(Block block, List<ItemStack> salvaged) {
-        BlockState state = WormholesPlatform.blockState(block, false);
-        if (!(state instanceof InventoryHolder holder)) {
-            return;
-        }
-        Inventory inventory = holder.getInventory();
-        for (ItemStack stack : inventory.getContents()) {
-            if (stack != null && !stack.getType().isAir()) {
-                salvaged.add(stack.clone());
+    private static void requireNoStoredItems(
+        World world,
+        PocketLayout previous,
+        PocketLayout updated,
+        Material previousShell
+    ) {
+        forEachDisplacedBlock(previous, updated, (x, y, z) -> {
+            Block block = world.getBlockAt(x, y, z);
+            Material type = block.getType();
+            if (!type.isAir() && type != previousShell && hasStoredItems(block)) {
+                throw new IllegalStateException(
+                    "pocket resize cannot destroy a non-empty container at " + x + "," + y + "," + z);
             }
-        }
-        inventory.clear();
+        });
     }
 
     private static void requireOwnershipOfBoth(World world, PocketLayout previous, PocketLayout updated) {
@@ -219,7 +280,8 @@ public final class PocketResizeService {
         int maxChunkX = Math.max(previous.maxX(), updated.maxX()) >> 4;
         int maxChunkZ = Math.max(previous.maxZ(), updated.maxZ()) >> 4;
         if (!WormholesPlatform.isOwnedByCurrentRegion(world, minChunkX, minChunkZ, maxChunkX, maxChunkZ)) {
-            throw new IllegalStateException("pocket reshaping must run on the owning region thread");
+            throw new IllegalStateException(
+                "pocket reshaping is unsupported unless one current region owns both room shells");
         }
     }
 

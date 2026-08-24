@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render;
 
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
 import java.util.logging.Level;
@@ -150,6 +151,10 @@ public final class PortalProjector {
 
     public boolean hasProjectedEntity(UUID entityId) {
         return entityRenderer.hasProjectedEntity(entityId);
+    }
+
+    public Set<UUID> getProjectedEntityIds() {
+        return entityRenderer.getProjectedEntityIds();
     }
 
     public void sendProjectedEntityAnimation(UUID entityId, EntityAnimationType type) {

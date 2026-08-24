@@ -1,5 +1,7 @@
 package art.arcane.wormholes;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -61,7 +63,9 @@ public class EffectManager implements Listener
 {
 	private static final int LOOKING_SCAN_INTERVAL_TICKS = 3;
 	private static final int TOOL_HOLDER_FALLBACK_INTERVAL_TICKS = 40;
+	private static final int MAX_TOOL_HOLDER_VALIDATIONS_PER_SCAN = 64;
 	private static final int SYNC_SWEEP_INTERVAL_TICKS = 15;
+	private static final double TOOL_PREVIEW_RANGE = 32.0D;
 	private static final double VORTEX_MATCH_RADIUS_SQUARED = 16.0D;
 	private final Map<UUID, Boolean> portalSyncActive = new ConcurrentHashMap<>();
 	private final EffectDisplayRegistry displays = new EffectDisplayRegistry();
@@ -95,18 +99,47 @@ public class EffectManager implements Listener
 				{
 					return;
 				}
+				Map<UUID, Player> onlinePlayers = new HashMap<UUID, Player>();
+				List<UUID> onlinePlayerIds = new ArrayList<UUID>();
 				for(Player player : Bukkit.getOnlinePlayers())
 				{
 					UUID playerId = player.getUniqueId();
-					if(!portalToolHolders.acquireValidation(playerId, currentTick))
+					onlinePlayers.put(playerId, player);
+					onlinePlayerIds.add(playerId);
+				}
+				List<PortalToolHolderPolicy.Admission> admissions = portalToolHolders.acquireValidations(
+					onlinePlayerIds, currentTick, MAX_TOOL_HOLDER_VALIDATIONS_PER_SCAN);
+				if(admissions.isEmpty())
+				{
+					return;
+				}
+				PortalCandidateSnapshot candidates;
+				try
+				{
+					candidates = PortalCandidateSnapshot.capturePortalWorld(portals, TOOL_PREVIEW_RANGE);
+				}
+				catch(RuntimeException | Error failure)
+				{
+					for(PortalToolHolderPolicy.Admission admission : admissions)
 					{
+						portalToolHolders.rejectValidation(admission);
+					}
+					throw failure;
+				}
+				for(PortalToolHolderPolicy.Admission admission : admissions)
+				{
+					Player player = onlinePlayers.get(admission.playerId());
+					if(player == null)
+					{
+						portalToolHolders.rejectValidation(admission);
 						continue;
 					}
 					boolean scheduled = FoliaScheduler.runEntity(Wormholes.instance, player,
-						() -> validatePortalToolHolder(player, portals, currentTick));
+						() -> validatePortalToolHolder(player, candidates, currentTick, admission), 0L,
+						() -> portalToolHolders.rejectValidation(admission));
 					if(!scheduled)
 					{
-						portalToolHolders.rejectValidation(playerId);
+						portalToolHolders.rejectValidation(admission);
 					}
 				}
 			}
@@ -331,7 +364,8 @@ public class EffectManager implements Listener
 		world.playSound(center, Sound.BLOCK_BEACON_ACTIVATE, SoundCategory.BLOCKS, Settings.portalSoundVolume(0.165f), 1.5f);
 	}
 
-	private void validatePortalToolHolder(Player player, List<ILocalPortal> portals, long currentTick)
+	private void validatePortalToolHolder(Player player, PortalCandidateSnapshot candidates, long currentTick,
+		PortalToolHolderPolicy.Admission admission)
 	{
 		UUID playerId = player.getUniqueId();
 		boolean completed = false;
@@ -347,19 +381,21 @@ public class EffectManager implements Listener
 			ItemStack offHandItem = player.getInventory().getItemInOffHand();
 			boolean holdingPortalTool = Wormholes.blockManager.isPortalTool(mainHandItem)
 				|| Wormholes.blockManager.isPortalTool(offHandItem);
-			portalToolHolders.completeValidation(playerId, holdingPortalTool, currentTick);
+			portalToolHolders.completeValidation(admission, holdingPortalTool, currentTick);
 			completed = true;
 			if(!holdingPortalTool)
 			{
 				return;
 			}
-			scanLookingPortalsForHolder(player, portals);
+			Location playerLocation = player.getLocation();
+			List<ILocalPortal> nearbyPortals = candidates.candidates(playerLocation.getWorld(), playerLocation);
+			scanLookingPortalsForHolder(player, nearbyPortals);
 		}
 		finally
 		{
 			if(!completed)
 			{
-				portalToolHolders.rejectValidation(playerId);
+				portalToolHolders.rejectValidation(admission);
 			}
 		}
 	}

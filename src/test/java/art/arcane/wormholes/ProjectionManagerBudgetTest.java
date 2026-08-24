@@ -60,29 +60,6 @@ class ProjectionManagerBudgetTest {
     }
 
     @Test
-    void rotatesObserverDiscoveryInBoundedBatches() {
-        assertArrayEquals(new int[] {0, 64, 128, 192}, new int[] {
-            ProjectionManager.observerDiscoveryStart(1_000, 64, 1L),
-            ProjectionManager.observerDiscoveryStart(1_000, 64, 2L),
-            ProjectionManager.observerDiscoveryStart(1_000, 64, 3L),
-            ProjectionManager.observerDiscoveryStart(1_000, 64, 4L)
-        });
-        assertArrayEquals(new int[] {960, 24}, new int[] {
-            ProjectionManager.observerDiscoveryStart(1_000, 64, 16L),
-            ProjectionManager.observerDiscoveryStart(1_000, 64, 17L)
-        });
-    }
-
-    @Test
-    void observerDiscoveryHandlesEmptyAndOversizedBatches() {
-        assertArrayEquals(new int[] {0, 0, 0}, new int[] {
-            ProjectionManager.observerDiscoveryStart(0, 64, 1L),
-            ProjectionManager.observerDiscoveryStart(1_000, 0, 1L),
-            ProjectionManager.observerDiscoveryStart(32, 64, 2L)
-        });
-    }
-
-    @Test
     void retiredObserverFrameReleasesTheLeaseSoTheObserverIsNotStarved() {
         Set<UUID> inFlight = ConcurrentHashMap.newKeySet();
         UUID observerId = UUID.randomUUID();

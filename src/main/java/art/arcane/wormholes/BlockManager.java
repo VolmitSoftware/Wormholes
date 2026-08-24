@@ -18,6 +18,7 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.inventory.ItemStack;
 
@@ -66,6 +67,12 @@ public class BlockManager implements Listener
 	public void onJoin(PlayerJoinEvent e)
 	{
 		syncRecipeBook(e.getPlayer());
+	}
+
+	@EventHandler
+	public void onQuit(PlayerQuitEvent e)
+	{
+		index.removePlayer(e.getPlayer().getUniqueId());
 	}
 
 	public void syncRecipeBooks()

@@ -17,6 +17,7 @@ import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.volmlib.util.inventorygui.Window;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
+import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
 import art.arcane.wormholes.util.F;
 import art.arcane.volmlib.util.json.JSONObject;
 
@@ -281,6 +282,14 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener
 	void receive(Traversive t, PortalTravelCost.Reservation reservation)
 	{
 		traversal.receive(t, reservation);
+	}
+
+	void receive(
+			Traversive t,
+			PortalTravelCost.Reservation reservation,
+			TraversalCostGateway.Admission traversalAdmission)
+	{
+		traversal.receive(t, reservation, traversalAdmission);
 	}
 
 	@Override

@@ -32,11 +32,6 @@ final class DoorPortalAnimation
 	{
 	}
 
-	static int nextDelay(boolean attended)
-	{
-		return attended ? FRAME_PERIOD_TICKS : ATTENDANCE_PERIOD_TICKS;
-	}
-
 	static PortalPlaneGeometry frame(PortalPlaneGeometry base, BlockFace facing, int tick)
 	{
 		Objects.requireNonNull(base, "base");

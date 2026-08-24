@@ -3,8 +3,10 @@ package art.arcane.wormholes.portal;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
+import java.util.function.BiPredicate;
+import java.util.function.Function;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
@@ -13,6 +15,7 @@ import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.wormholes.service.WormholesAudience;
 import art.arcane.wormholes.service.WormholesHud;
+import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.data.MaterialBlock;
 import art.arcane.volmlib.util.inventorygui.Element;
@@ -27,6 +30,16 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 
 final class LocalPortalMenus
 {
+	@FunctionalInterface
+	interface MenuRefreshDispatcher
+	{
+		boolean dispatch(Player viewer, Runnable task, Runnable retired);
+	}
+
+	private static final String MENU_REFRESH_SCHEDULE_REJECTED = "PORTAL_MENU_REFRESH_SCHEDULE_REJECTED";
+	private static final MenuRefreshDispatcher MENU_REFRESH_DISPATCHER = (viewer, task, retired) ->
+			FoliaScheduler.runEntity(Wormholes.instance, viewer, task, 0L, retired);
+
 	private final LocalPortal portal;
 	private final LocalPortalText text;
 	private final LocalPortalSettingsMenu settingsMenu;
@@ -185,26 +198,51 @@ final class LocalPortalMenus
 		{
 			return;
 		}
-		for(Map.Entry<UUID, UIWindow> entry : openMenus.entrySet())
+		int rejected = dispatchMenuRefreshes(
+				openMenus,
+				UIWindow::getViewer,
+				MENU_REFRESH_DISPATCHER,
+				(window, viewer) -> viewer.isOnline() && window.isVisible(),
+				this::rebuildPortalMenuElements);
+		if(rejected <= 0)
+		{
+			return;
+		}
+		WormholesTelemetry.countFailure(MENU_REFRESH_SCHEDULE_REJECTED);
+		Wormholes.w("Portal " + portal.getId() + " could not refresh " + rejected
+				+ " open menu(s) because their viewer schedulers rejected the work.");
+	}
+
+	static <W> int dispatchMenuRefreshes(Map<UUID, W> openMenus, Function<W, Player> viewerResolver,
+			MenuRefreshDispatcher dispatcher, BiPredicate<W, Player> active,
+			BiConsumer<W, Player> refresher)
+	{
+		int rejected = 0;
+		for(Map.Entry<UUID, W> entry : openMenus.entrySet())
 		{
 			UUID viewerId = entry.getKey();
-			UIWindow window = entry.getValue();
-			Player viewer = Bukkit.getPlayer(viewerId);
-			if(viewer == null || !viewer.isOnline() || !window.isVisible())
+			W window = entry.getValue();
+			Player viewer = viewerResolver.apply(window);
+			if(viewer == null)
 			{
-				openMenus.remove(viewerId);
+				openMenus.remove(viewerId, window);
 				continue;
 			}
-			FoliaScheduler.runEntity(Wormholes.instance, viewer, () ->
+			boolean scheduled = dispatcher.dispatch(viewer, () ->
 			{
-				if(!window.isVisible())
+				if(!active.test(window, viewer))
 				{
 					openMenus.remove(viewerId, window);
 					return;
 				}
-				rebuildPortalMenuElements(window, viewer);
-			});
+				refresher.accept(window, viewer);
+			}, () -> openMenus.remove(viewerId, window));
+			if(!scheduled)
+			{
+				rejected++;
+			}
 		}
+		return rejected;
 	}
 
 	void uiChangeName(Player p)

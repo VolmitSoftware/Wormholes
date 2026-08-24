@@ -21,8 +21,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Queue;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
@@ -94,6 +97,70 @@ class TraversalCostGatewayTest {
         assertEquals(1, shop.quoteCalls.get());
         assertEquals(1, shop.reserveCalls.get());
         assertTrue(shop.refunds.isEmpty());
+    }
+
+    @Test
+    void admissionSettlesAnAllowedTraversalExactlyOnce() {
+        TestProvider shop = new TestProvider("shop").charging("3 Mana");
+        registrations.set(List.of(registration(shop, "ManaPlugin")));
+        TraversalCostGateway.Admission admission = gateway.open(localContext(player(UUID.randomUUID())));
+
+        assertTrue(admission.allowed());
+        assertEquals(TraversalSettlement.REFUNDED, admission.refund(TraversalRefundReason.TELEPORT_FAILED));
+        assertEquals(TraversalSettlement.NOT_OPEN, admission.commit());
+        assertEquals(List.of(TraversalRefundReason.TELEPORT_FAILED), shop.refunds);
+        assertEquals(0, shop.commitCalls.get());
+    }
+
+    @Test
+    void evaluationOutsideTheTravelerOwnerNeverCallsProvidersOrEvents() {
+        ControlledTravelerExecutor executor = new ControlledTravelerExecutor();
+        executor.owned.set(false);
+        gateway = gateway(executor);
+        TestProvider shop = new TestProvider("shop").charging("3 Mana");
+        registrations.set(List.of(registration(shop, "ManaPlugin")));
+
+        TraversalDecision decision = gateway.evaluate(localContext(player(UUID.randomUUID())));
+
+        assertEquals(TraversalOutcome.DENIED_PROVIDER_FAILED, decision.outcome());
+        assertEquals(0, shop.quoteCalls.get());
+        assertTrue(sink.immediate.isEmpty());
+        assertTrue(log.messages().stream().anyMatch(message -> message.contains("outside the traveler entity owner")));
+    }
+
+    @Test
+    void offOwnerCommitIsPendingUntilTheTravelerExecutorRunsIt() {
+        ControlledTravelerExecutor executor = new ControlledTravelerExecutor();
+        gateway = gateway(executor);
+        TestProvider shop = new TestProvider("shop");
+        shop.onQuote = context -> {
+            assertTrue(executor.owned.get());
+            return TraversalQuote.payable("3 Mana");
+        };
+        shop.onReserve = (context, quote) -> {
+            assertTrue(executor.owned.get());
+            return TraversalReservation.reserved(TraversalReceipt.of("shop"));
+        };
+        shop.onCommit = receipt -> assertTrue(executor.owned.get());
+        sink.onImmediate = event -> assertTrue(executor.owned.get());
+        registrations.set(List.of(registration(shop, "ManaPlugin")));
+        TraversalContext context = localContext(player(UUID.randomUUID()));
+        gateway.evaluate(context);
+
+        executor.owned.set(false);
+
+        assertEquals(TraversalSettlement.PENDING, gateway.commit(context.traversalId()));
+        assertFalse(TraversalSettlement.PENDING.settled());
+        assertEquals(0, shop.commitCalls.get());
+        assertTrue(sink.entity.isEmpty());
+        assertTrue(gateway.isOpen(context.traversalId()));
+
+        executor.runNextEntity();
+
+        assertEquals(1, shop.commitCalls.get());
+        assertEquals(1, sink.entity.size());
+        assertFalse(gateway.isOpen(context.traversalId()));
+        assertEquals(TraversalSettlement.NOT_OPEN, gateway.commit(context.traversalId()));
     }
 
     @Test
@@ -321,6 +388,22 @@ class TraversalCostGatewayTest {
     }
 
     @Test
+    void aDisabledEvaluationStillSweepsAndOwnerRefundsAnOlderTicket() {
+        TestProvider shop = new TestProvider("shop").charging("3 Mana");
+        registrations.set(List.of(registration(shop, "ManaPlugin")));
+        TraversalContext old = localContext(player(UUID.randomUUID()));
+        gateway.evaluate(old);
+        clock.addAndGet(TraversalCostGateway.TICKET_TTL_MILLIS);
+        policy.set(TraversalCostPolicy.of(false, "allow", 5, 5L));
+
+        TraversalDecision disabled = gateway.evaluate(localContext(player(UUID.randomUUID())));
+
+        assertEquals(TraversalOutcome.DISABLED, disabled.outcome());
+        assertEquals(List.of(TraversalRefundReason.EXPIRED), shop.refunds);
+        assertFalse(gateway.isOpen(old.traversalId()));
+    }
+
+    @Test
     void aCancelledTraverseEventDeniesBeforeAnyProviderIsAsked() {
         sink.onImmediate = event -> {
             if (event instanceof WormholesPortalTraverseEvent traverse) {
@@ -374,6 +457,98 @@ class TraversalCostGatewayTest {
 
         assertEquals(1, gateway.sweep());
         assertEquals(List.of(TraversalRefundReason.EXPIRED), shop.refunds);
+        assertFalse(gateway.isOpen(context.traversalId()));
+    }
+
+    @Test
+    void expiryDispatchesRefundToTheTravelerOwnerInsteadOfTheSweeper() {
+        ControlledTravelerExecutor executor = new ControlledTravelerExecutor();
+        gateway = gateway(executor);
+        TestProvider shop = new TestProvider("shop").charging("3 Mana");
+        shop.onRefund = (receipt, reason) -> assertTrue(executor.owned.get());
+        registrations.set(List.of(registration(shop, "ManaPlugin")));
+        TraversalContext context = localContext(player(UUID.randomUUID()));
+        gateway.evaluate(context);
+        clock.addAndGet(TraversalCostGateway.TICKET_TTL_MILLIS);
+        executor.owned.set(false);
+
+        assertEquals(1, gateway.sweep());
+        assertTrue(shop.refunds.isEmpty());
+        assertTrue(gateway.isOpen(context.traversalId()));
+
+        executor.runNextEntity();
+
+        assertEquals(List.of(TraversalRefundReason.EXPIRED), shop.refunds);
+        assertFalse(gateway.isOpen(context.traversalId()));
+    }
+
+    @Test
+    void deferredSuccessfulCommitSurvivesExpiryAndWinsQuitExactlyOnce() {
+        ControlledTravelerExecutor executor = new ControlledTravelerExecutor();
+        gateway = gateway(executor);
+        TestProvider shop = new TestProvider("shop").charging("3 Mana");
+        shop.onCommit = receipt -> assertTrue(executor.owned.get());
+        registrations.set(List.of(registration(shop, "ManaPlugin")));
+        Player traveler = player(UUID.randomUUID());
+        TraversalCostGateway.Admission admission = gateway.open(localContext(traveler));
+        executor.owned.set(false);
+        executor.rejectEntity = true;
+
+        assertTrue(admission.deferCommit());
+        assertEquals(0, shop.commitCalls.get());
+        assertEquals(1, executor.retryTasks.size());
+        clock.addAndGet(TraversalCostGateway.TICKET_TTL_MILLIS);
+        assertEquals(1, gateway.sweep());
+        assertTrue(shop.refunds.isEmpty());
+
+        executor.owned.set(true);
+        gateway.travelerQuit(traveler);
+        executor.runNextRetry();
+
+        assertEquals(1, shop.commitCalls.get());
+        assertTrue(shop.refunds.isEmpty());
+        assertFalse(gateway.isOpen(admission.decision().traversalId()));
+        assertFalse(admission.deferCommit());
+        assertEquals(TraversalSettlement.NOT_OPEN, admission.refund(TraversalRefundReason.TRAVELER_LEFT));
+    }
+
+    @Test
+    void quitStealsAnAcceptedQueuedCommitWithoutDoubleSettlement() {
+        ControlledTravelerExecutor executor = new ControlledTravelerExecutor();
+        gateway = gateway(executor);
+        TestProvider shop = new TestProvider("shop").charging("3 Mana");
+        registrations.set(List.of(registration(shop, "ManaPlugin")));
+        Player traveler = player(UUID.randomUUID());
+        TraversalContext context = localContext(traveler);
+        gateway.evaluate(context);
+        executor.owned.set(false);
+
+        assertEquals(TraversalSettlement.PENDING, gateway.commit(context.traversalId()));
+        assertEquals(1, executor.entityTasks.size());
+
+        executor.owned.set(true);
+        gateway.travelerQuit(traveler);
+        executor.runNextEntity();
+
+        assertEquals(1, shop.commitCalls.get());
+        assertTrue(shop.refunds.isEmpty());
+        assertEquals(1, sink.entity.size());
+    }
+
+    @Test
+    void quitRefundsAnOtherwiseUnsettledTicketOnTheTravelerOwner() {
+        ControlledTravelerExecutor executor = new ControlledTravelerExecutor();
+        gateway = gateway(executor);
+        TestProvider shop = new TestProvider("shop").charging("3 Mana");
+        shop.onRefund = (receipt, reason) -> assertTrue(executor.owned.get());
+        registrations.set(List.of(registration(shop, "ManaPlugin")));
+        Player traveler = player(UUID.randomUUID());
+        TraversalContext context = localContext(traveler);
+        gateway.evaluate(context);
+
+        gateway.travelerQuit(traveler);
+
+        assertEquals(List.of(TraversalRefundReason.TRAVELER_LEFT), shop.refunds);
         assertFalse(gateway.isOpen(context.traversalId()));
     }
 
@@ -556,6 +731,74 @@ class TraversalCostGatewayTest {
     }
 
     @Test
+    void shutdownHonorsDeferredSuccessAndRefundsOnlyTicketsWithoutAnOutcome() {
+        ControlledTravelerExecutor executor = new ControlledTravelerExecutor();
+        gateway = gateway(executor);
+        TestProvider shop = new TestProvider("shop").charging("3 Mana");
+        shop.onCommit = receipt -> assertTrue(executor.owned.get());
+        shop.onRefund = (receipt, reason) -> assertTrue(executor.owned.get());
+        registrations.set(List.of(registration(shop, "ManaPlugin")));
+        TraversalCostGateway.Admission successful = gateway.open(localContext(player(UUID.randomUUID())));
+        TraversalContext unfinished = localContext(player(UUID.randomUUID()));
+        gateway.evaluate(unfinished);
+        executor.owned.set(false);
+        executor.rejectEntity = true;
+        assertTrue(successful.deferCommit());
+        executor.rejectEntity = false;
+        executor.runEntityImmediately = true;
+
+        gateway.shutdown();
+
+        assertEquals(1, shop.commitCalls.get());
+        assertEquals(List.of(TraversalRefundReason.SERVER_SHUTDOWN), shop.refunds);
+        assertFalse(gateway.isOpen(successful.decision().traversalId()));
+        assertFalse(gateway.isOpen(unfinished.traversalId()));
+    }
+
+    @Test
+    void shutdownGraceLetsALateSuccessfulCallbackCommitBeforeFallbackRefund() throws Exception {
+        ControlledTravelerExecutor executor = new ControlledTravelerExecutor();
+        gateway = gateway(executor);
+        TestProvider shop = new TestProvider("shop").charging("3 Mana");
+        shop.onCommit = receipt -> assertTrue(executor.owned.get());
+        registrations.set(List.of(registration(shop, "ManaPlugin")));
+        TraversalCostGateway.Admission admission = gateway.open(localContext(player(UUID.randomUUID())));
+        executor.owned.set(false);
+        Thread shutdown = new Thread(gateway::shutdown, "traversal-cost-shutdown-test");
+
+        shutdown.start();
+        awaitClosing(gateway);
+        assertTrue(admission.deferCommit());
+        executor.runNextEntity();
+        shutdown.join(3_000L);
+
+        assertFalse(shutdown.isAlive());
+        assertEquals(1, shop.commitCalls.get());
+        assertTrue(shop.refunds.isEmpty());
+        assertFalse(gateway.isOpen(admission.decision().traversalId()));
+    }
+
+    @Test
+    void shutdownLogsAndAbandonsAReceiptWhenTheOwnerSchedulerCannotAcceptIt() {
+        ControlledTravelerExecutor executor = new ControlledTravelerExecutor();
+        gateway = gateway(executor);
+        TestProvider shop = new TestProvider("shop").charging("3 Mana");
+        registrations.set(List.of(registration(shop, "ManaPlugin")));
+        TraversalContext context = localContext(player(UUID.randomUUID()));
+        gateway.evaluate(context);
+        executor.owned.set(false);
+        executor.rejectEntity = true;
+
+        gateway.shutdown();
+
+        assertEquals(0, shop.commitCalls.get());
+        assertTrue(shop.refunds.isEmpty());
+        assertFalse(gateway.isOpen(context.traversalId()));
+        assertTrue(log.messagesAt(Level.SEVERE).stream()
+            .anyMatch(message -> message.contains("provider receipts remain unresolved")));
+    }
+
+    @Test
     void aProviderCanPriceARandomTeleportDifferentlyFromALocalHop() {
         TestProvider pricer = new TestProvider("pricer");
         pricer.onQuote = context -> context.kind() == TraversalKind.RANDOM_TELEPORT
@@ -599,6 +842,85 @@ class TraversalCostGatewayTest {
         WormholesPortalTraverseEvent traverse = assertInstanceOf(WormholesPortalTraverseEvent.class, event);
         assertEquals(context.traversalId(), traverse.getContext().traversalId());
         assertEquals(TraversalKind.LOCAL, traverse.getContext().kind());
+    }
+
+    private TraversalCostGateway gateway(TraversalCostGateway.TravelerExecutor executor) {
+        return new TraversalCostGateway(
+            registrations::get,
+            policy::get,
+            sink,
+            log.logger(),
+            clock::get,
+            executor);
+    }
+
+    private static void awaitClosing(TraversalCostGateway gateway) throws Exception {
+        java.lang.reflect.Field field = TraversalCostGateway.class.getDeclaredField("closing");
+        field.setAccessible(true);
+        AtomicBoolean closing = (AtomicBoolean) field.get(gateway);
+        long deadline = System.nanoTime() + 1_000_000_000L;
+        while (!closing.get() && System.nanoTime() < deadline) {
+            Thread.onSpinWait();
+        }
+        assertTrue(closing.get());
+    }
+
+    private static final class ControlledTravelerExecutor implements TraversalCostGateway.TravelerExecutor {
+        private final AtomicBoolean owned = new AtomicBoolean(true);
+        private final Queue<Runnable> entityTasks = new ConcurrentLinkedQueue<>();
+        private final Queue<Runnable> retryTasks = new ConcurrentLinkedQueue<>();
+
+        private boolean rejectEntity;
+        private boolean runEntityImmediately;
+
+        @Override
+        public boolean isOwned(Player traveler) {
+            return owned.get();
+        }
+
+        @Override
+        public boolean dispatch(Player traveler, Runnable task, Runnable retired) {
+            if (rejectEntity) {
+                retired.run();
+                return false;
+            }
+            if (runEntityImmediately) {
+                runOwned(task);
+                return true;
+            }
+            entityTasks.add(task);
+            return true;
+        }
+
+        @Override
+        public boolean retry(Runnable task, long delayTicks) {
+            retryTasks.add(task);
+            return true;
+        }
+
+        private void runNextEntity() {
+            Runnable task = entityTasks.remove();
+            runOwned(task);
+        }
+
+        private void runNextRetry() {
+            Runnable task = retryTasks.remove();
+            boolean previous = owned.getAndSet(false);
+            try {
+                task.run();
+            } finally {
+                owned.set(previous);
+            }
+        }
+
+        private void runOwned(Runnable task) {
+            boolean previous = owned.getAndSet(true);
+            try {
+                task.run();
+            } finally {
+                owned.set(previous);
+            }
+        }
     }
 
     private static final class HostileReceipt implements TraversalReceipt {

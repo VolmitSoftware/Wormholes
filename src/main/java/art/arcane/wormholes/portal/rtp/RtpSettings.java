@@ -1,5 +1,6 @@
 package art.arcane.wormholes.portal.rtp;
 
+import java.math.BigDecimal;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -10,6 +11,9 @@ import art.arcane.volmlib.util.json.JSONObject;
 
 public final class RtpSettings
 {
+	static final double MINIMUM_COORDINATE = -30_000_000.0D;
+	static final double MAXIMUM_COORDINATE = 30_000_000.0D;
+	static final int MAXIMUM_RADIUS = 30_000_000;
 	private static final int DEFAULT_MINIMUM_RADIUS = 512;
 	private static final int DEFAULT_MAXIMUM_RADIUS = 4096;
 	private static final long DEFAULT_CYCLE_DURATION_MILLIS = 300_000L;
@@ -61,6 +65,10 @@ public final class RtpSettings
 		if(builder.maximumRadius <= builder.minimumRadius)
 		{
 			throw new IllegalArgumentException("maximum radius must be greater than minimum radius");
+		}
+		if(builder.maximumRadius > MAXIMUM_RADIUS)
+		{
+			throw new IllegalArgumentException("maximum radius exceeds the Minecraft coordinate range");
 		}
 		minimumRadius = builder.minimumRadius;
 		maximumRadius = builder.maximumRadius;
@@ -130,8 +138,8 @@ public final class RtpSettings
 		}
 
 		RtpCenterMode centerMode = parseEnum(RtpCenterMode.class, requiredJson.optString("centerMode", ""), RtpCenterMode.PORTAL_RELATIVE);
-		Double customCenterX = readFiniteDouble(requiredJson, "customCenterX");
-		Double customCenterZ = readFiniteDouble(requiredJson, "customCenterZ");
+		Double customCenterX = readBoundedCoordinate(requiredJson, "customCenterX");
+		Double customCenterZ = readBoundedCoordinate(requiredJson, "customCenterZ");
 		if((customCenterX == null) != (customCenterZ == null) || centerMode == RtpCenterMode.CUSTOM && customCenterX == null)
 		{
 			centerMode = RtpCenterMode.PORTAL_RELATIVE;
@@ -144,12 +152,22 @@ public final class RtpSettings
 			builder.customCenter(customCenterX.doubleValue(), customCenterZ.doubleValue());
 		}
 
-		int minimumRadius = requiredJson.optInt("minimumRadius", DEFAULT_MINIMUM_RADIUS);
-		int maximumRadius = requiredJson.optInt("maximumRadius", DEFAULT_MAXIMUM_RADIUS);
-		if(minimumRadius < 0 || maximumRadius <= minimumRadius)
+		Integer storedMinimumRadius = readStoredInteger(requiredJson, "minimumRadius", DEFAULT_MINIMUM_RADIUS);
+		Integer storedMaximumRadius = readStoredInteger(requiredJson, "maximumRadius", DEFAULT_MAXIMUM_RADIUS);
+		int minimumRadius;
+		int maximumRadius;
+		if(storedMinimumRadius == null || storedMaximumRadius == null
+				|| storedMinimumRadius.intValue() < 0
+				|| storedMaximumRadius.intValue() <= storedMinimumRadius.intValue()
+				|| storedMaximumRadius.intValue() > MAXIMUM_RADIUS)
 		{
 			minimumRadius = DEFAULT_MINIMUM_RADIUS;
 			maximumRadius = DEFAULT_MAXIMUM_RADIUS;
+		}
+		else
+		{
+			minimumRadius = storedMinimumRadius.intValue();
+			maximumRadius = storedMaximumRadius.intValue();
 		}
 		builder.radii(minimumRadius, maximumRadius);
 		builder.verticalMode(parseEnum(RtpVerticalMode.class, requiredJson.optString("verticalMode", ""), RtpVerticalMode.SURFACE));
@@ -388,9 +406,10 @@ public final class RtpSettings
 		{
 			throw new IllegalArgumentException("custom center X and Z must both be present or absent");
 		}
-		if(customCenterX != null && (!Double.isFinite(customCenterX.doubleValue()) || !Double.isFinite(customCenterZ.doubleValue())))
+		if(customCenterX != null && (!isBoundedCoordinate(customCenterX.doubleValue())
+				|| !isBoundedCoordinate(customCenterZ.doubleValue())))
 		{
-			throw new IllegalArgumentException("custom center coordinates must be finite");
+			throw new IllegalArgumentException("custom center coordinates are outside the Minecraft coordinate range");
 		}
 		if(centerMode == RtpCenterMode.CUSTOM && customCenterX == null)
 		{
@@ -398,14 +417,40 @@ public final class RtpSettings
 		}
 	}
 
-	private static Double readFiniteDouble(JSONObject json, String key)
+	private static Double readBoundedCoordinate(JSONObject json, String key)
 	{
 		if(!json.has(key))
 		{
 			return null;
 		}
 		double value = json.optDouble(key, Double.NaN);
-		return Double.isFinite(value) ? Double.valueOf(value) : null;
+		return isBoundedCoordinate(value) ? Double.valueOf(value) : null;
+	}
+
+	private static boolean isBoundedCoordinate(double value)
+	{
+		return Double.isFinite(value) && value >= MINIMUM_COORDINATE && value <= MAXIMUM_COORDINATE;
+	}
+
+	private static Integer readStoredInteger(JSONObject json, String key, int defaultValue)
+	{
+		if(!json.has(key))
+		{
+			return Integer.valueOf(defaultValue);
+		}
+		Object value = json.opt(key);
+		if(value == null)
+		{
+			return null;
+		}
+		try
+		{
+			return Integer.valueOf(new BigDecimal(value.toString()).intValueExact());
+		}
+		catch(NumberFormatException | ArithmeticException exception)
+		{
+			return null;
+		}
 	}
 
 	private static <E extends Enum<E>> E parseEnum(Class<E> type, String value, E fallback)

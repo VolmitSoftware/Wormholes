@@ -409,6 +409,7 @@ locale = "pl_PL"
 "command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} nie nadaje sie na sciane kieszeni. Uzyj litego bloku, ktory nie spada."
 "command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} nie nadaje sie na drzwi wyjsciowe. Uzyj drzwi otwieranych recznie; zelazne drzwi sa odrzucane."
 "command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Ta kieszen ma juz ten rozmiar i te materialy."
+"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Zmiana rozmiaru kieszeni zostala zatrzymana: <white>{containers}<red> niepustych pojemnikow zostaloby zniszczonych. Oproznij je przed ponowna proba; <white>confirm=true<red> nie ominie tego zabezpieczenia."
 "command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Kieszen przebudowana na <white>{size}<green> blokow (bylo <white>{previous}<green>), sciany <white>{material}<green>, drzwi wyjsciowe <white>{door}."
 "command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Nie udalo sie przebudowac kieszeni. Sprawdz konsole."
 "command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Wymiar kieszonkowy nie jest zaladowany."
@@ -584,7 +585,7 @@ locale = "pl_PL"
 "door.menu.access.entry" = ["<white>{name}","<gray>Status: <aqua>{state}","","<dark_gray>Lewy klik: dozwolony. Prawy klik: zablokowany.","<dark_gray>Środkowy klik lub Shift + lewy klik: usuń."]
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Kieszen <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Rozmiar <white>{size}<gray> blokow, sciany <white>{material}<gray>, drzwi wyjsciowe <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Granice od <white>{minimum}<gray> do <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Przebudowa na {size} blokow zniszczy <white>{blocks}<red> postawionych blokow (<white>{containers}<red> z przedmiotami) i przesunie <white>{entities}<red> bytow.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Zawartosc pojemnikow i wszystko poza nowymi scianami laduje przy wejsciu. Reszta przepada.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Uruchom to samo polecenie z <white>confirm=true<gray>, aby kontynuowac."]
+"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Przebudowa na {size} blokow zniszczy <white>{blocks}<red> postawionych blokow i przesunie <white>{entities}<red> bytow.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Bloki poza nowymi scianami sa niszczone; przenoszone byty trafiaja do wejscia.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Uruchom to samo polecenie z <white>confirm=true<gray>, aby kontynuowac."]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Usunięto <white>{count}<green> portal i wyczyszczono lokalne połączenia portali."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Usunięto <white>{count}<green> portali i wyczyszczono lokalne połączenia portali."

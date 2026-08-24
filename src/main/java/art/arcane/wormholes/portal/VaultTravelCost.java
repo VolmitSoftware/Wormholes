@@ -2,6 +2,7 @@ package art.arcane.wormholes.portal;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Objects;
 
 import org.bukkit.entity.Player;
 
@@ -15,10 +16,17 @@ public final class VaultTravelCost implements PortalTravelCost
 	private static final int MAX_SCALE = 8;
 
 	private final BigDecimal amount;
+	private final OwnerRefundSettlement.Executor refundExecutor;
 
 	private VaultTravelCost(BigDecimal amount)
 	{
+		this(amount, OwnerRefundSettlement.BukkitExecutor.INSTANCE);
+	}
+
+	VaultTravelCost(BigDecimal amount, OwnerRefundSettlement.Executor refundExecutor)
+	{
 		this.amount = normalize(amount);
+		this.refundExecutor = refundExecutor;
 	}
 
 	public static VaultTravelCost of(String amount)
@@ -92,7 +100,12 @@ public final class VaultTravelCost implements PortalTravelCost
 				"Wormholes portal travel for " + player.getUniqueId());
 		if(result.successful())
 		{
-			return ReserveResult.reserved(new Reservation(result.charge()));
+			VaultEconomy.Charge charge = result.charge();
+			return ReserveResult.reserved(new Reservation(
+				player,
+				charge::commit,
+				ownedPlayer -> charge.refund(),
+				refundExecutor));
 		}
 		return switch(result.status())
 		{
@@ -129,25 +142,48 @@ public final class VaultTravelCost implements PortalTravelCost
 		return normalized;
 	}
 
-	private static final class Reservation implements PortalTravelCost.Reservation
+	static final class Reservation implements PortalTravelCost.Reservation
 	{
-		private final VaultEconomy.Charge charge;
+		private final Runnable commitAction;
+		private final OwnerRefundSettlement settlement;
 
-		private Reservation(VaultEconomy.Charge charge)
+		Reservation(
+			Player player,
+			Runnable commitAction,
+			OwnerRefundSettlement.RefundAction refundAction,
+			OwnerRefundSettlement.Executor refundExecutor)
 		{
-			this.charge = charge;
+			this.commitAction = Objects.requireNonNull(commitAction, "commitAction");
+			settlement = new OwnerRefundSettlement(
+				player,
+				refundExecutor,
+				refundAction,
+				"Vault portal travel cost");
 		}
 
 		@Override
 		public void commit()
 		{
-			charge.commit();
+			if(settlement.commit())
+			{
+				commitAction.run();
+			}
 		}
 
 		@Override
 		public void refund()
 		{
-			charge.refund();
+			settlement.refund();
+		}
+
+		boolean refundPending()
+		{
+			return settlement.refundPending();
+		}
+
+		boolean refunded()
+		{
+			return settlement.refunded();
 		}
 	}
 }

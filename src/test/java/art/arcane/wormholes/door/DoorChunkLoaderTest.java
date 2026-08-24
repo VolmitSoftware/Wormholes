@@ -85,6 +85,42 @@ final class DoorChunkLoaderTest
 	}
 
 	@Test
+	void acceptedRegionTaskRetirementReportsFailureExactlyOnce()
+	{
+		Outcome outcome = new Outcome();
+		DoorChunkLoader.RegionDispatch dispatch = new DoorChunkLoader.RegionDispatch()
+		{
+			@Override
+			public boolean run(World world, int chunkX, int chunkZ, Runnable task)
+			{
+				return true;
+			}
+
+			@Override
+			public boolean run(
+				World world,
+				int chunkX,
+				int chunkZ,
+				Runnable task,
+				Runnable retired)
+			{
+				retired.run();
+				retired.run();
+				return true;
+			}
+		};
+		DoorChunkLoader loader = loader(
+			new AtomicBoolean(false),
+			(world, chunkX, chunkZ) -> completed(chunkX, chunkZ),
+			dispatch);
+
+		loader.loadChunk(WORLD, 0, 0, outcome.success, outcome.failure);
+
+		assertEquals(0, outcome.successes.get());
+		assertEquals(1, outcome.failures.get());
+	}
+
+	@Test
 	void failedChunkRequestReportsFailure()
 	{
 		Outcome outcome = new Outcome();

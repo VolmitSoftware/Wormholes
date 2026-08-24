@@ -12,6 +12,7 @@ import java.util.List;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
+import art.arcane.volmlib.util.collection.KList;
 import art.arcane.wormholes.util.Axis;
 
 public final class AmbientOutlineGeometryTest
@@ -78,21 +79,41 @@ public final class AmbientOutlineGeometryTest
 	public void cacheReusesResultForSameRevisionAndAxisAndRebuildsOnChange()
 	{
 		AmbientOutlineGeometry geometry = new AmbientOutlineGeometry();
-		List<Vector> positions = List.of(new Vector(0, 0, 0), new Vector(1, 0, 0));
+		CountingPortalStructure structure = new CountingPortalStructure(List.of(new Vector(0, 0, 0), new Vector(1, 0, 0)));
 
-		List<double[]> first = geometry.points(7L, Axis.Z, positions);
-		List<double[]> repeated = geometry.points(7L, Axis.Z, positions);
+		List<double[]> first = geometry.points(7L, Axis.Z, structure);
+		List<double[]> repeated = geometry.points(7L, Axis.Z, structure);
 		assertSame(first, repeated);
+		assertEquals(1, structure.reads);
 
-		List<double[]> reoriented = geometry.points(7L, Axis.Y, positions);
+		List<double[]> reoriented = geometry.points(7L, Axis.Y, structure);
 		assertNotSame(first, reoriented);
 
-		List<double[]> revised = geometry.points(8L, Axis.Y, positions);
+		List<double[]> revised = geometry.points(8L, Axis.Y, structure);
 		assertNotSame(reoriented, revised);
 
-		List<double[]> revisedRepeated = geometry.points(8L, Axis.Y, positions);
+		List<double[]> revisedRepeated = geometry.points(8L, Axis.Y, structure);
 		assertSame(revised, revisedRepeated);
+		assertEquals(3, structure.reads);
 
 		assertFalse(revised.isEmpty());
+	}
+
+	private static final class CountingPortalStructure extends PortalStructure
+	{
+		private final List<Vector> positions;
+		private int reads;
+
+		private CountingPortalStructure(List<Vector> positions)
+		{
+			this.positions = positions;
+		}
+
+		@Override
+		public KList<Vector> getBlockPositions()
+		{
+			reads++;
+			return new KList<Vector>(positions);
+		}
 	}
 }

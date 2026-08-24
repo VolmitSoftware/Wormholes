@@ -132,6 +132,7 @@ final class ViewEntityPublisher {
                     sendCount.addAndGet(batch.size());
                     continue;
                 }
+                retryProfilesAfterRejectedBatch(session.sentProfiles, batch);
                 for (EntityVisual failedVisual : batch) {
                     EntitySendState failedState = peerStates.get(failedVisual.id());
                     if (failedState != null) {
@@ -212,6 +213,14 @@ final class ViewEntityPublisher {
             return List.of(reliable);
         }
         return List.of(reliable, bestEffort);
+    }
+
+    static void retryProfilesAfterRejectedBatch(Set<UUID> sentProfiles, List<EntityVisual> rejected) {
+        for (EntityVisual visual : rejected) {
+            if (visual.hasTextures()) {
+                sentProfiles.remove(visual.id());
+            }
+        }
     }
 
     private static Set<UUID> nearestEntityIds(ViewSession session, List<EntityVisual> visuals, int max) {
