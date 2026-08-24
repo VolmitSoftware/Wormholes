@@ -72,7 +72,7 @@ final class VanillaPortalEndPairing
 			{
 				return;
 			}
-			Wormholes.w("[vanilla-portal] end portal formed @ " + ccx + "," + fy + "," + ccz + "; resolving one-way arrival");
+			Wormholes.v(() -> "[vanilla-portal] end portal formed @ " + ccx + "," + fy + "," + ccz + "; resolving one-way arrival");
 			World end = WorldPairing.pairedEnd(world);
 			if(end == null)
 			{
@@ -86,7 +86,7 @@ final class VanillaPortalEndPairing
 				if(PortalFactory.linkOneWay(sourcePortal, existing))
 				{
 					VanillaPortalCleanup.clearCells(endPortalBlocks, Material.END_PORTAL);
-					Wormholes.w("[vanilla-portal] reused existing End arrival, linked one way");
+					Wormholes.v(() -> "[vanilla-portal] reused existing End arrival, linked one way");
 					return;
 				}
 			}
@@ -131,7 +131,7 @@ final class VanillaPortalEndPairing
 						if(counterpart != null && PortalFactory.linkOneWay(sourcePortal, counterpart))
 						{
 							VanillaPortalCleanup.clearCells(endPortalBlocks, Material.END_PORTAL);
-							Wormholes.w("[vanilla-portal] End arrival placed " + VanillaPortalEndSites.COUNTERPART_RISE + " blocks above safe ground at " + target.x() + "," + target.z() + " + linked one way");
+							Wormholes.v(() -> "[vanilla-portal] End arrival placed " + VanillaPortalEndSites.COUNTERPART_RISE + " blocks above safe ground at " + target.x() + "," + target.z() + " + linked one way");
 						}
 						else
 						{

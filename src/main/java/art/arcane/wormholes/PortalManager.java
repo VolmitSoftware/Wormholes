@@ -312,8 +312,7 @@ public class PortalManager implements Listener
 		}
 		catch(Throwable e)
 		{
-			Wormholes.f("Failed to load portal file " + k.getName());
-			e.printStackTrace();
+			Wormholes.log().log(Level.SEVERE, "Failed to load portal file " + k.getName(), e);
 			return PortalLoadResult.FAILED;
 		}
 	}
@@ -355,7 +354,7 @@ public class PortalManager implements Listener
 
 			catch(IOException e)
 			{
-				e.printStackTrace();
+				Wormholes.log().log(Level.WARNING, "Could not save portal " + i.getId(), e);
 			}
 		}
 	}

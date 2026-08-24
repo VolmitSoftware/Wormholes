@@ -47,7 +47,7 @@ class HotloadManagerTest {
 
         manager.start();
         try {
-            Files.writeString(config, "schema = 2\nquality = \"unterminated\n", StandardCharsets.UTF_8);
+            Files.writeString(config, "schema = 3\nquality = \"unterminated\n", StandardCharsets.UTF_8);
             assertFalse(corrected.await(300L, TimeUnit.MILLISECONDS));
             assertSame(initial, live.get());
             assertEquals(0, callbacks.get());
@@ -154,7 +154,7 @@ class HotloadManagerTest {
     @Test
     void sameMetadataAtomicReplacementIsDetectedWithoutCanonicalRewrite() throws Exception {
         String initial = config(VisualQualityProfile.CINEMATIC);
-        String replacement = "schema = 2\nquality = \"balanced\" \n";
+        String replacement = "schema = 3\nquality = \"balanced\" \n";
         assertEquals(initial.length(), replacement.length());
         Files.createDirectories(configFile().getParent());
         Files.writeString(configFile(), initial, StandardCharsets.UTF_8);
@@ -294,7 +294,7 @@ class HotloadManagerTest {
     @Test
     void periodicReconciliationFindsSameMetadataChangeWithoutFilesystemEvents() throws Exception {
         String initial = config(VisualQualityProfile.CINEMATIC);
-        String replacement = "schema = 2\nquality = \"balanced\" \n";
+        String replacement = "schema = 3\nquality = \"balanced\" \n";
         assertEquals(initial.length(), replacement.length());
         Files.createDirectories(configFile().getParent());
         Files.writeString(configFile(), initial, StandardCharsets.UTF_8);
@@ -355,10 +355,10 @@ class HotloadManagerTest {
     }
 
     private Path configFile() {
-        return tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME);
+        return tempDir.resolve(WormholesSettings.CONFIG_FILE_NAME);
     }
 
     private String config(VisualQualityProfile profile) {
-        return "schema = 2\nquality = \"" + profile.configValue() + "\"\n";
+        return "schema = 3\nquality = \"" + profile.configValue() + "\"\n";
     }
 }

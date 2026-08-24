@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 
 import java.util.Collections;
@@ -10,6 +11,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 final class TraversalFailureLedger {
+    private static final long OPERATOR_WARNING_INTERVAL_MILLIS = 60_000L;
+
     enum Failure {
         HANDOFF_RATE_LIMITED,
         HANDOFF_PEER_UNKNOWN,
@@ -56,12 +59,18 @@ final class TraversalFailureLedger {
 
     private final AtomicLong failedTransfers = new AtomicLong();
     private final Map<Failure, AtomicLong> failureCounters = new ConcurrentHashMap<>();
+    private final Map<Failure, WarningState> operatorWarnings = new ConcurrentHashMap<>();
 
     void record(Failure failure, UUID subjectId, String detail) {
         failedTransfers.incrementAndGet();
         failureCounters.computeIfAbsent(failure, ignored -> new AtomicLong()).incrementAndGet();
-        Wormholes.w("[traversal] FAILED " + failure.name() + " subject=" + subjectId
-            + (detail == null || detail.isBlank() ? "" : " reason=" + detail));
+        if (debugOnly(failure)) {
+            if (Settings.DEBUG) {
+                Wormholes.v(formatFailure(failure, subjectId, detail));
+            }
+            return;
+        }
+        reportOperatorFailure(failure, subjectId, detail, System.currentTimeMillis());
     }
 
     void recordUnrecovered(Failure failure, UUID subjectId, String detail) {
@@ -83,5 +92,59 @@ final class TraversalFailureLedger {
             }
         }
         return Collections.unmodifiableMap(snapshot);
+    }
+
+    static boolean debugOnly(Failure failure) {
+        return switch (failure) {
+            case HANDOFF_RATE_LIMITED,
+                 HANDOFF_PEER_OFFLINE,
+                 HANDOFF_TRANSFER_LOCKED,
+                 HANDOFF_TIMEOUT_RETIRED,
+                 HANDOFF_RETREATED,
+                 HANDOFF_PLAYER_OFFLINE,
+                 HANDOFF_DEPARTURE_INTERRUPTED,
+                 HANDOFF_DENIED,
+                 ENTITY_PEER_UNAVAILABLE,
+                 ENTITY_TRANSFER_LOCKED,
+                 ENTITY_TIMEOUT_RETIRED,
+                 ENTITY_ACK_DENIED,
+                 ENTITY_ARRIVAL_DENIED,
+                 ARRIVAL_PLAYER_RETIRED,
+                 ARRIVAL_DENIED_RETURNED -> true;
+            default -> false;
+        };
+    }
+
+    private void reportOperatorFailure(Failure failure, UUID subjectId, String detail, long nowMillis) {
+        WarningState state = operatorWarnings.computeIfAbsent(failure, ignored -> new WarningState());
+        if (!state.reserve(nowMillis)) {
+            return;
+        }
+        long suppressed = state.suppressed.getAndSet(0L);
+        Wormholes.w(formatFailure(failure, subjectId, detail)
+            + (suppressed == 0L ? "" : " (" + suppressed + " similar warning(s) suppressed)"));
+    }
+
+    private static String formatFailure(Failure failure, UUID subjectId, String detail) {
+        return "[traversal] FAILED " + failure.name() + " subject=" + subjectId
+            + (detail == null || detail.isBlank() ? "" : " reason=" + detail);
+    }
+
+    private static final class WarningState {
+        private final AtomicLong nextReportMillis = new AtomicLong();
+        private final AtomicLong suppressed = new AtomicLong();
+
+        private boolean reserve(long nowMillis) {
+            while (true) {
+                long nextReport = nextReportMillis.get();
+                if (nowMillis < nextReport) {
+                    suppressed.incrementAndGet();
+                    return false;
+                }
+                if (nextReportMillis.compareAndSet(nextReport, nowMillis + OPERATOR_WARNING_INTERVAL_MILLIS)) {
+                    return true;
+                }
+            }
+        }
     }
 }

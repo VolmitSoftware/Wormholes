@@ -176,7 +176,7 @@ class WormholesLocalizationTest {
     @Test
     void malformedSchemaAndUnknownKeysAreRejected() throws IOException {
         writeLocale("es_ES", """
-            schema = 2
+            schema = 3
             locale = "es_ES"
 
             [text]

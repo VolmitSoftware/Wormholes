@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -73,5 +74,20 @@ class TraversalFailureLedgerTest {
         ledger.record(Failure.HANDOFF_DENIED, UUID.randomUUID(), "nope again");
         assertEquals(Long.valueOf(1L), snapshot.get(Failure.HANDOFF_DENIED.name()));
         assertEquals(Long.valueOf(2L), ledger.breakdown().get(Failure.HANDOFF_DENIED.name()));
+    }
+
+    @Test
+    void expectedGameplayOutcomesAreDebugOnly() {
+        assertTrue(TraversalFailureLedger.debugOnly(Failure.HANDOFF_RATE_LIMITED));
+        assertTrue(TraversalFailureLedger.debugOnly(Failure.HANDOFF_PEER_OFFLINE));
+        assertTrue(TraversalFailureLedger.debugOnly(Failure.HANDOFF_DENIED));
+        assertTrue(TraversalFailureLedger.debugOnly(Failure.ARRIVAL_DENIED_RETURNED));
+    }
+
+    @Test
+    void infrastructureFailuresRemainOperatorVisible() {
+        assertFalse(TraversalFailureLedger.debugOnly(Failure.HANDOFF_QUEUE_REJECTED));
+        assertFalse(TraversalFailureLedger.debugOnly(Failure.ENTITY_TIMED_OUT));
+        assertFalse(TraversalFailureLedger.debugOnly(Failure.ARRIVAL_DENIED_STRANDED));
     }
 }

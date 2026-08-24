@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 final class InitialBulkWorkPump {
     private static final Consumer<WorkHandle> NOOP_ASSOCIATION = ignored -> {
@@ -187,7 +189,8 @@ final class InitialBulkWorkPump {
             failureSink.accept(failure);
         } catch (Throwable sinkFailure) {
             failure.addSuppressed(sinkFailure);
-            failure.printStackTrace();
+            Logger.getLogger("Wormholes").log(Level.SEVERE,
+                "[Wormholes] Initial gateway view failure reporting also failed", failure);
         }
     }
 

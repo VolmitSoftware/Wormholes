@@ -40,7 +40,7 @@ final class VanillaPortalNetherPairing
 		{
 			if(index.coversCells(cells))
 			{
-				Wormholes.w("[vanilla-portal] skipped: cells already covered by an existing Wormholes portal");
+				Wormholes.v(() -> "[vanilla-portal] skipped: cells already covered by an existing Wormholes portal");
 				return;
 			}
 			Direction normal = deriveNormal(cells);
@@ -66,7 +66,7 @@ final class VanillaPortalNetherPairing
 			int tcz = WorldPairing.scaleHorizontal(sourceWorld, target, center.getBlockZ());
 			int tcy = clampY(target, center.getBlockY());
 			int reuseRadius = target.getEnvironment() == World.Environment.NETHER ? 16 : 128;
-			Wormholes.w("[vanilla-portal] source built (" + interiorWidth + "x" + interiorHeight + "); target=" + target.getName() + " @ " + tcx + "," + tcy + "," + tcz);
+			Wormholes.v(() -> "[vanilla-portal] source built (" + interiorWidth + "x" + interiorHeight + "); target=" + target.getName() + " @ " + tcx + "," + tcy + "," + tcz);
 
 			if(!targetPlan.sharedFallback())
 			{
@@ -74,7 +74,7 @@ final class VanillaPortalNetherPairing
 				if(existing != null && PortalFactory.linkBidirectional(sourcePortal, existing))
 				{
 					VanillaPortalCleanup.clearCells(cells, Material.NETHER_PORTAL);
-					Wormholes.w("[vanilla-portal] reused existing counterpart, linked both ways");
+					Wormholes.v(() -> "[vanilla-portal] reused existing counterpart, linked both ways");
 					return;
 				}
 			}
@@ -136,7 +136,7 @@ final class VanillaPortalNetherPairing
 		{
 			VanillaPortalCleanup.clearCells(physicalPortal, Material.NETHER_PORTAL);
 			VanillaPortalCleanup.clearCells(sourceCells, Material.NETHER_PORTAL);
-			Wormholes.w("[vanilla-portal] reused physical vanilla counterpart, linked both ways");
+			Wormholes.v(() -> "[vanilla-portal] reused physical vanilla counterpart, linked both ways");
 			return true;
 		}
 		VanillaPortalCleanup.destroyIfUnlinked(counterpart);
@@ -174,7 +174,7 @@ final class VanillaPortalNetherPairing
 					if(PortalFactory.linkBidirectional(sourcePortal, counterpart))
 					{
 						VanillaPortalCleanup.clearCells(sourceCells, Material.NETHER_PORTAL);
-						Wormholes.w("[vanilla-portal] counterpart frame built + linked both ways at " + buildTarget.x() + "," + buildTarget.z());
+						Wormholes.v(() -> "[vanilla-portal] counterpart frame built + linked both ways at " + buildTarget.x() + "," + buildTarget.z());
 					}
 					else
 					{

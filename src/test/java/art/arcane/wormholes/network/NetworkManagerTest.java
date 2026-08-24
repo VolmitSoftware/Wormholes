@@ -221,7 +221,7 @@ class NetworkManagerTest {
 
     @Test
     void mismatchedMinecraftVersionsRejectTheLink() throws IOException {
-        Logger peerLog = Logger.getLogger(PeerConnection.class.getName());
+        Logger peerLog = Logger.getLogger("Wormholes");
         List<String> warnings = Collections.synchronizedList(new ArrayList<String>());
         Handler capture = new Handler() {
             @Override

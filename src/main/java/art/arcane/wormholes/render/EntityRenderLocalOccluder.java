@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -120,8 +121,9 @@ final class EntityRenderLocalOccluder {
             return;
         }
         localHideOwnershipWarningSent = true;
-        Wormholes.w("[spoof] Local entity occlusion crossed an unowned Folia region; this projection will keep rendering without local occlusion.");
-        error.printStackTrace();
+        Wormholes.instance.getLogger().log(Level.WARNING,
+            "[spoof] Local entity occlusion crossed an unowned Folia region; this projection will keep rendering without local occlusion.",
+            error);
     }
 
     private boolean shouldHideLocalEntity(UUID observerId,

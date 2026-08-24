@@ -24,7 +24,7 @@ class ChunkSendRateSettingsTest {
         Settings.refresh(settings);
 
         String content = Files.readString(
-            tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME), StandardCharsets.UTF_8);
+            tempDir.resolve(WormholesSettings.CONFIG_FILE_NAME), StandardCharsets.UTF_8);
 
         assertTrue(content.contains("chunk-send-rate-tuner = true"), content);
         assertTrue(content.contains("chunk-send-rate-target = 1000.0"), content);
@@ -36,7 +36,7 @@ class ChunkSendRateSettingsTest {
 
     @Test
     void operatorValuesReachTheLiveSettings() throws IOException {
-        write("schema = 2\n[main]\nchunk-send-rate-tuner = false\nchunk-send-rate-target = 250.0\nchunk-load-rate-target = 300.0\n");
+        write("schema = 3\n[main]\nchunk-send-rate-tuner = false\nchunk-send-rate-target = 250.0\nchunk-load-rate-target = 300.0\n");
 
         Settings.refresh(WormholesSettings.loadAll(tempDir));
 
@@ -47,7 +47,7 @@ class ChunkSendRateSettingsTest {
 
     @Test
     void negativeAndAboveCapTargetsBecomeUnlimited() throws IOException {
-        write("schema = 2\n[main]\nchunk-send-rate-target = -1.0\nchunk-load-rate-target = 99999.0\n");
+        write("schema = 3\n[main]\nchunk-send-rate-target = -1.0\nchunk-load-rate-target = 99999.0\n");
 
         Settings.refresh(WormholesSettings.loadAll(tempDir));
 
@@ -59,7 +59,7 @@ class ChunkSendRateSettingsTest {
 
     @Test
     void exactCapStaysFiniteAndZeroStaysUnlimited() throws IOException {
-        write("schema = 2\n[main]\nchunk-send-rate-target = 10000.0\nchunk-load-rate-target = 0.0\n");
+        write("schema = 3\n[main]\nchunk-send-rate-target = 10000.0\nchunk-load-rate-target = 0.0\n");
 
         Settings.refresh(WormholesSettings.loadAll(tempDir));
 
@@ -70,7 +70,7 @@ class ChunkSendRateSettingsTest {
     }
 
     private void write(String toml) throws IOException {
-        Path config = tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME);
+        Path config = tempDir.resolve(WormholesSettings.CONFIG_FILE_NAME);
         Files.createDirectories(config.getParent());
         Files.writeString(config, toml, StandardCharsets.UTF_8);
     }

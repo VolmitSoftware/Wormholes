@@ -21,7 +21,7 @@ Authoritative reference: the central [VolmitSoftware/docs](https://github.com/Vo
    SlimJar cache is already warm. SlimJar resolves and caches PacketEvents,
    bStats, TOML4J, Kyori, and zstd-jni.
 4. Optional soft depends: PlaceholderAPI, Vault, Iris.
-5. First boot writes `plugins/Wormholes/config/wormholes.toml` (schema 2).
+5. First boot writes `plugins/Wormholes/wormholes.toml` (schema 3).
 6. `zstd-jni` 1.5.7-11 is also declared in `plugin.yml` `libraries`. JVM tip:
    `--enable-native-access=ALL-UNNAMED` enables native access without warnings.
 

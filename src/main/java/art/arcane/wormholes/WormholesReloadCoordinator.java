@@ -188,7 +188,7 @@ final class WormholesReloadCoordinator {
         int deletedPortals = plugin.deleteAllPortalsNow();
         network.reset();
         Wormholes.clearChatInputs();
-        deletePathTree(dataFolder.resolve("config"));
+        Files.deleteIfExists(dataFolder.resolve(WormholesSettings.CONFIG_FILE_NAME));
         deletePathTree(dataFolder.resolve("identity"));
         deletePathTree(dataFolder.resolve("routes"));
         deletePathTree(dataFolder.resolve("trust"));
@@ -333,8 +333,8 @@ final class WormholesReloadCoordinator {
         WormholesLocalization preparedLocalization = new WormholesLocalization();
         LocalizationReloadResult preparedResult = preparedLocalization.reload(
             plugin.getDataFolder().toPath(),
-            reloaded.getMain().language,
-            reloaded.getMain().languageFallbacks
+            reloaded.getLanguage(),
+            reloaded.getLanguageFallbacks()
         );
         if (!preparedResult.applied()) {
             plugin.getLogger().log(
@@ -374,8 +374,8 @@ final class WormholesReloadCoordinator {
         }
         LocalizationReloadResult result = activeLocalization.reload(
             plugin.getDataFolder().toPath(),
-            reloaded.getMain().language,
-            reloaded.getMain().languageFallbacks
+            reloaded.getLanguage(),
+            reloaded.getLanguageFallbacks()
         );
         if (!result.applied()) {
             plugin.getLogger().log(

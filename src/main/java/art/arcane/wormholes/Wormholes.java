@@ -60,6 +60,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -523,6 +524,13 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             return;
         }
         instance.getLogger().info(message);
+    }
+
+    public static void v(Supplier<String> message) {
+        if (instance == null || !Settings.DEBUG) {
+            return;
+        }
+        instance.getLogger().info(message.get());
     }
 
     public static void i(String message) {

@@ -34,7 +34,7 @@ class WormholesConfigFileTest {
     @Test
     void freshInstallEmitsEveryConfigKey() throws IOException {
         WormholesSettings settings = WormholesSettings.loadAll(tempDir);
-        Path file = tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME);
+        Path file = tempDir.resolve(WormholesSettings.CONFIG_FILE_NAME);
 
         assertEquals(VisualQualityProfile.AUTO, settings.getVisualQualityProfile());
         assertTrue(settings.getMain().dimensionalDoorsEnabled);
@@ -42,8 +42,11 @@ class WormholesConfigFileTest {
         assertEquals(1, settings.getProjection().initialResendPasses);
         assertFalse(settings.getNetwork().replication.captureBlockEntityEnabled);
         List<String> emitted = emittedSettings(file);
-        assertEquals("schema = 2", emitted.get(0));
-        assertEquals("quality = \"auto\"", emitted.get(1));
+        assertEquals("language = \"en_US\"", emitted.get(0));
+        assertEquals("metrics = true", emitted.get(1));
+        assertEquals("language-fallbacks = \"\"", emitted.get(2));
+        assertEquals("schema = 3", emitted.get(3));
+        assertEquals("quality = \"auto\"", emitted.get(4));
         assertTrue(emitted.contains("[main]"));
         assertTrue(emitted.contains("[network]"));
         assertTrue(emitted.contains("[network.transport]"));
@@ -102,15 +105,16 @@ class WormholesConfigFileTest {
 
     @Test
     void existingConfigGainsNewlyVisibleKeysOnLoadWithoutLosingValues() throws IOException {
-        Path config = tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME);
+        Path config = tempDir.resolve(WormholesSettings.CONFIG_FILE_NAME);
         Files.createDirectories(config.getParent());
         Files.writeString(config,
-            "schema = 2\n[main]\nlanguage = \"de_DE\"\n[projection]\nrange = 72.0\nblackout-shell-thickness-blocks = 2\n",
+            "language = \"de_DE\"\nmetrics = false\nschema = 3\n[projection]\nrange = 72.0\nblackout-shell-thickness-blocks = 2\n",
             StandardCharsets.UTF_8);
 
         WormholesSettings settings = WormholesSettings.loadAll(tempDir);
 
-        assertEquals("de_DE", settings.getMain().language);
+        assertEquals("de_DE", settings.getLanguage());
+        assertFalse(settings.isMetrics());
         assertEquals(72.0D, settings.getProjection().range);
         List<String> emitted = emittedSettings(config);
         assertTrue(emitted.contains("language = \"de_DE\""));
@@ -124,16 +128,16 @@ class WormholesConfigFileTest {
 
     @Test
     void dimensionalDoorToggleRoundTripsAndRefreshesLiveSettings() throws IOException {
-        Path config = tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME);
+        Path config = tempDir.resolve(WormholesSettings.CONFIG_FILE_NAME);
         Files.createDirectories(config.getParent());
-        Files.writeString(config, "schema = 2\n[main]\ndimensional-doors-enabled = false\n", StandardCharsets.UTF_8);
+        Files.writeString(config, "schema = 3\n[main]\ndimensional-doors-enabled = false\n", StandardCharsets.UTF_8);
 
         WormholesSettings disabled = WormholesSettings.loadAll(tempDir);
         Settings.refresh(disabled);
         assertFalse(disabled.getMain().dimensionalDoorsEnabled);
         assertFalse(Settings.DIMENSIONAL_DOORS_ENABLED);
 
-        Files.writeString(config, "schema = 2\n[main]\ndimensional-doors-enabled = true\n", StandardCharsets.UTF_8);
+        Files.writeString(config, "schema = 3\n[main]\ndimensional-doors-enabled = true\n", StandardCharsets.UTF_8);
         WormholesSettings enabled = WormholesSettings.loadAll(tempDir);
         Settings.refresh(enabled);
         assertTrue(enabled.getMain().dimensionalDoorsEnabled);
@@ -142,10 +146,10 @@ class WormholesConfigFileTest {
 
     @Test
     void pocketShellSettingsRoundTripAndClampWithoutTouchingTheBlockRegistry() throws IOException {
-        Path config = tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME);
+        Path config = tempDir.resolve(WormholesSettings.CONFIG_FILE_NAME);
         Files.createDirectories(config.getParent());
         Files.writeString(config, """
-            schema = 2
+            schema = 3
             [main]
             pocket-room-size = 64
             pocket-shell-material = "minecraft:obsidian"
@@ -160,7 +164,7 @@ class WormholesConfigFileTest {
         assertEquals("OAK_DOOR", Settings.POCKET_SHELL.returnDoorMaterial());
 
         Files.writeString(config, """
-            schema = 2
+            schema = 3
             [main]
             pocket-room-size = 4096
             """, StandardCharsets.UTF_8);
@@ -170,7 +174,7 @@ class WormholesConfigFileTest {
         assertEquals(PocketShell.DEFAULT_SHELL_MATERIAL, Settings.POCKET_SHELL.shellMaterial());
 
         Files.writeString(config, """
-            schema = 2
+            schema = 3
             [main]
             pocket-shell-material = ""
             """, StandardCharsets.UTF_8);
@@ -181,10 +185,10 @@ class WormholesConfigFileTest {
 
     @Test
     void doorRecipesToggleAndReshapeFromConfigWithoutTouchingTheBlockRegistry() throws IOException {
-        Path config = tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME);
+        Path config = tempDir.resolve(WormholesSettings.CONFIG_FILE_NAME);
         Files.createDirectories(config.getParent());
         Files.writeString(config, """
-            schema = 2
+            schema = 3
             [recipes.pair-kit]
             shape = "RR|DD"
             ingredients = "R=#wormhole-rune, D=#doors"
@@ -210,7 +214,7 @@ class WormholesConfigFileTest {
     void theShippedRecipeSectionSurvivesACanonicalWriteIncludingItsTrailingSpaces() throws IOException {
         WormholesSettings.loadAll(tempDir);
         String emitted = Files.readString(
-            tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME), StandardCharsets.UTF_8);
+            tempDir.resolve(WormholesSettings.CONFIG_FILE_NAME), StandardCharsets.UTF_8);
 
         assertTrue(emitted.contains("[recipes.pair-kit]"), emitted);
         assertTrue(emitted.contains("[recipes.trapdoor-skin]"), emitted);
@@ -228,10 +232,10 @@ class WormholesConfigFileTest {
 
     @Test
     void anUnusableRecipeFallsBackToTheShippedOneInsteadOfDisappearing() throws IOException {
-        Path config = tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME);
+        Path config = tempDir.resolve(WormholesSettings.CONFIG_FILE_NAME);
         Files.createDirectories(config.getParent());
         Files.writeString(config, """
-            schema = 2
+            schema = 3
             [recipes.personal-door]
             shape = "TOOWIDE"
             ingredients = "T=STONE"
@@ -268,7 +272,7 @@ class WormholesConfigFileTest {
 
     @Test
     void schemaLessConsolidatedFileIsRejectedWithoutBeingRewritten() throws IOException {
-        Path configDir = tempDir.resolve("config");
+        Path configDir = tempDir;
         Files.createDirectories(configDir);
         Path file = configDir.resolve(WormholesSettings.CONFIG_FILE_NAME);
         Files.writeString(file, """
@@ -299,7 +303,7 @@ class WormholesConfigFileTest {
 
     @Test
     void separateLegacyFilesAreIgnoredAndLeftUntouched() throws IOException {
-        Path configDir = tempDir.resolve("config");
+        Path configDir = tempDir;
         Files.createDirectories(configDir);
 
         NetworkConfig network = new NetworkConfig();
@@ -318,28 +322,28 @@ class WormholesConfigFileTest {
 
     @Test
     void allQualityProfilesAreAcceptedAndAutoKeepsCurrentFidelity() throws IOException {
-        Path config = tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME);
+        Path config = tempDir.resolve(WormholesSettings.CONFIG_FILE_NAME);
         for (VisualQualityProfile profile : VisualQualityProfile.values()) {
             Files.createDirectories(config.getParent());
-            Files.writeString(config, "schema = 2\nquality = \"" + profile.configValue() + "\"\n", StandardCharsets.UTF_8);
+            Files.writeString(config, "schema = 3\nquality = \"" + profile.configValue() + "\"\n", StandardCharsets.UTF_8);
             WormholesSettings settings = WormholesSettings.loadAll(tempDir);
             assertEquals(profile, settings.getVisualQualityProfile());
         }
 
-        Files.writeString(config, "schema = 2\nquality = \"performance\"\n", StandardCharsets.UTF_8);
+        Files.writeString(config, "schema = 3\nquality = \"performance\"\n", StandardCharsets.UTF_8);
         WormholesSettings performance = WormholesSettings.loadAll(tempDir);
         Settings.refresh(performance);
         assertFalse(Settings.LIGHTING_FIDELITY);
         assertFalse(Settings.ENTITY_SPOOFING);
         assertEquals(32.0D, Settings.PROJECTION_RANGE);
 
-        Files.writeString(config, "schema = 2\nquality = \"balanced\"\n", StandardCharsets.UTF_8);
+        Files.writeString(config, "schema = 3\nquality = \"balanced\"\n", StandardCharsets.UTF_8);
         WormholesSettings balanced = WormholesSettings.loadAll(tempDir);
         Settings.refresh(balanced);
         assertEquals(2, Settings.ENTITY_UPDATE_INTERVAL_TICKS);
         assertEquals(16, Settings.MAX_SPOOFED_ENTITIES);
 
-        Files.writeString(config, "schema = 2\nquality = \"cinematic\"\n", StandardCharsets.UTF_8);
+        Files.writeString(config, "schema = 3\nquality = \"cinematic\"\n", StandardCharsets.UTF_8);
         WormholesSettings cinematic = WormholesSettings.loadAll(tempDir);
         Settings.refresh(cinematic);
         assertEquals(64.0D, Settings.PROJECTION_RANGE);
@@ -347,7 +351,7 @@ class WormholesConfigFileTest {
         assertEquals(48, Settings.MAX_SPOOFED_ENTITIES);
         assertEquals(2, Settings.LIGHTING_REFRESH_INTERVAL_TICKS);
 
-        Files.writeString(config, "schema = 2\nquality = \"auto\"\n", StandardCharsets.UTF_8);
+        Files.writeString(config, "schema = 3\nquality = \"auto\"\n", StandardCharsets.UTF_8);
         WormholesSettings automatic = WormholesSettings.loadAll(tempDir);
         Settings.refresh(automatic);
         assertFalse(Settings.LIGHTING_FIDELITY);
@@ -358,9 +362,9 @@ class WormholesConfigFileTest {
 
     @Test
     void malformedExistingConfigIsRejectedWithoutBeingRewritten() throws IOException {
-        Path config = tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME);
+        Path config = tempDir.resolve(WormholesSettings.CONFIG_FILE_NAME);
         Files.createDirectories(config.getParent());
-        String malformed = "schema = 2\nquality = \"unterminated\n";
+        String malformed = "schema = 3\nquality = \"unterminated\n";
         Files.writeString(config, malformed, StandardCharsets.UTF_8);
 
         assertThrows(IllegalStateException.class, () -> WormholesSettings.loadAll(tempDir));
@@ -369,15 +373,18 @@ class WormholesConfigFileTest {
 
     @Test
     void unknownQualityAndUnsupportedSchemasAreRejected() throws IOException {
-        Path config = tempDir.resolve("config").resolve(WormholesSettings.CONFIG_FILE_NAME);
+        Path config = tempDir.resolve(WormholesSettings.CONFIG_FILE_NAME);
         Files.createDirectories(config.getParent());
-        Files.writeString(config, "schema = 2\nquality = \"ultra\"\n", StandardCharsets.UTF_8);
+        Files.writeString(config, "schema = 3\nquality = \"ultra\"\n", StandardCharsets.UTF_8);
         assertThrows(IllegalArgumentException.class, () -> WormholesSettings.loadAll(tempDir));
 
         Files.writeString(config, "schema = 99\nquality = \"auto\"\n", StandardCharsets.UTF_8);
         assertThrows(IllegalArgumentException.class, () -> WormholesSettings.loadAll(tempDir));
 
         Files.writeString(config, "schema = 1\nquality = \"auto\"\n", StandardCharsets.UTF_8);
+        assertThrows(IllegalArgumentException.class, () -> WormholesSettings.loadAll(tempDir));
+
+        Files.writeString(config, "schema = 2\nquality = \"auto\"\n", StandardCharsets.UTF_8);
         assertThrows(IllegalArgumentException.class, () -> WormholesSettings.loadAll(tempDir));
     }
 

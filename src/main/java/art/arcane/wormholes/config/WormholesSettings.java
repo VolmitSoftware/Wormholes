@@ -20,6 +20,9 @@ public final class WormholesSettings {
 
     private static final Object IO_LOCK = new Object();
 
+    private final String language;
+    private final boolean metrics;
+    private final String languageFallbacks;
     private final MainConfig main;
     private final ProjectionConfig projection;
     private final RenderConfig render;
@@ -28,10 +31,13 @@ public final class WormholesSettings {
     private final VisualQualityProfile visualQualityProfile;
 
     public WormholesSettings(MainConfig main, ProjectionConfig projection, RenderConfig render, NetworkConfig network) {
-        this(main, projection, render, network, new RecipesConfig(), VisualQualityProfile.AUTO);
+        this("en_US", true, "", main, projection, render, network, new RecipesConfig(), VisualQualityProfile.AUTO);
     }
 
-    private WormholesSettings(MainConfig main, ProjectionConfig projection, RenderConfig render, NetworkConfig network, RecipesConfig recipes, VisualQualityProfile visualQualityProfile) {
+    private WormholesSettings(String language, boolean metrics, String languageFallbacks, MainConfig main, ProjectionConfig projection, RenderConfig render, NetworkConfig network, RecipesConfig recipes, VisualQualityProfile visualQualityProfile) {
+        this.language = language;
+        this.metrics = metrics;
+        this.languageFallbacks = languageFallbacks;
         this.main = main;
         this.projection = projection;
         this.render = render;
@@ -43,7 +49,7 @@ public final class WormholesSettings {
 
     public static WormholesSettings loadAll(Path dataFolder) {
         synchronized (IO_LOCK) {
-            Path configDir = dataFolder.resolve("config");
+            Path configDir = dataFolder;
             createDirectories(configDir);
             Path consolidated = configDir.resolve(CONFIG_FILE_NAME);
             WormholesConfigFile file;
@@ -82,7 +88,7 @@ public final class WormholesSettings {
 
     public void save(Path dataFolder) {
         synchronized (IO_LOCK) {
-            Path configDir = dataFolder.resolve("config");
+            Path configDir = dataFolder;
             createDirectories(configDir);
             TomlCodec.writeCanonical(configDir.resolve(CONFIG_FILE_NAME).toFile(), toFile());
         }
@@ -94,6 +100,18 @@ public final class WormholesSettings {
 
     public MainConfig getMain() {
         return main;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public boolean isMetrics() {
+        return metrics;
+    }
+
+    public String getLanguageFallbacks() {
+        return languageFallbacks;
     }
 
     public ProjectionConfig getProjection() {
@@ -132,6 +150,14 @@ public final class WormholesSettings {
             throw new IllegalArgumentException("Unsupported Wormholes config schema " + file.schema + "; expected " + WormholesConfigFile.CURRENT_SCHEMA + ".");
         }
         VisualQualityProfile profile = VisualQualityProfile.parse(file.quality);
+        if (file.language == null || file.language.isBlank()) {
+            throw new IllegalArgumentException("Wormholes language must be a non-empty locale name.");
+        }
+        if (file.languageFallbacks == null) {
+            throw new IllegalArgumentException("Wormholes language-fallbacks must be a string.");
+        }
+        file.language = file.language.trim();
+        file.languageFallbacks = file.languageFallbacks.trim();
         file.quality = profile.configValue();
         if (file.network == null) {
             file.network = new NetworkConfig();
@@ -146,11 +172,14 @@ public final class WormholesSettings {
         RenderConfig render = file.render == null ? new RenderConfig() : file.render;
         NetworkConfig network = file.network == null ? new NetworkConfig() : file.network;
         RecipesConfig recipes = file.recipes == null ? new RecipesConfig() : file.recipes;
-        return new WormholesSettings(main, projection, render, network, recipes, profile);
+        return new WormholesSettings(file.language, file.metrics, file.languageFallbacks, main, projection, render, network, recipes, profile);
     }
 
     private WormholesConfigFile toFile() {
         WormholesConfigFile file = new WormholesConfigFile();
+        file.language = language;
+        file.metrics = metrics;
+        file.languageFallbacks = languageFallbacks;
         file.schema = WormholesConfigFile.CURRENT_SCHEMA;
         file.quality = visualQualityProfile.configValue();
         file.main = main;

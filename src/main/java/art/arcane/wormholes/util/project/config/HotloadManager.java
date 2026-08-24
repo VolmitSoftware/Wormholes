@@ -68,7 +68,7 @@ public final class HotloadManager {
     HotloadManager(Options options) {
         Options required = Objects.requireNonNull(options);
         Path dataFolder = Objects.requireNonNull(required.dataFolder()).toAbsolutePath().normalize();
-        configDir = dataFolder.resolve("config");
+        configDir = dataFolder;
         configFile = configDir.resolve(WormholesSettings.CONFIG_FILE_NAME);
         logger = Objects.requireNonNull(required.logger());
         reloadCallback = Objects.requireNonNull(required.reloadCallback());

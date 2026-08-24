@@ -42,7 +42,8 @@ public final class PeerConnection {
         void onDictionaryNegotiated(PeerConnection connection, int dictVersion);
     }
 
-    private static final Logger LOG = Logger.getLogger(PeerConnection.class.getName());
+    private static final Logger LOG = Logger.getLogger("Wormholes");
+    private static final long ENCODE_FAILURE_REPORT_INTERVAL_MILLIS = 60_000L;
     private static final int HANDSHAKE_TIMEOUT_MS = 10_000;
     private static final int READ_TIMEOUT_MS = 30_000;
     private static final int WRITE_QUEUE_CAPACITY = 1024;
@@ -62,6 +63,8 @@ public final class PeerConnection {
     private final AtomicReference<State> state = new AtomicReference<>(State.HANDSHAKING);
     private final AtomicLong lastInboundMillis = new AtomicLong(System.currentTimeMillis());
     private final AtomicLong rttMillis = new AtomicLong(-1L);
+    private final AtomicLong encodeFailures = new AtomicLong();
+    private final AtomicLong nextEncodeFailureReportMillis = new AtomicLong();
 
     private volatile String peerName;
     private volatile String expectedPeerName;
@@ -424,7 +427,7 @@ public final class PeerConnection {
                 try {
                     bytes = frame.encodedFrame(compression, negotiatedDictVersion, sampler);
                 } catch (IOException e) {
-                    LOG.warning("net: dropped " + frame.message().type() + " to " + describeRemote() + ": " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
+                    reportEncodeFailure(frame, e);
                     continue;
                 }
                 out.write(bytes);
@@ -437,6 +440,22 @@ public final class PeerConnection {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    private void reportEncodeFailure(OutboundFrame frame, IOException error) {
+        encodeFailures.incrementAndGet();
+        long nowMillis = System.currentTimeMillis();
+        long nextReportMillis = nextEncodeFailureReportMillis.get();
+        if (nowMillis < nextReportMillis
+            || !nextEncodeFailureReportMillis.compareAndSet(nextReportMillis,
+                nowMillis + ENCODE_FAILURE_REPORT_INTERVAL_MILLIS)) {
+            return;
+        }
+        long failures = encodeFailures.getAndSet(0L);
+        LOG.log(Level.WARNING,
+            "net: dropped " + frame.message().type() + " to " + describeRemote() + "; " + failures
+                + " encode failure(s) occurred since the previous report; repeated failures are throttled",
+            error);
     }
 
     private static final class HandshakeException extends Exception {

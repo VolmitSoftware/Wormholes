@@ -23,6 +23,7 @@ final class PortalRegistryUpdateDriver
 {
 	private static final int ATTENDANCE_REFRESH_INTERVAL_TICKS = 5;
 	private static final long REFUSAL_REPORT_INTERVAL = 1200L;
+	private static final long FAILURE_REPORT_INTERVAL_TICKS = 1200L;
 	private static final long SAVE_RETRY_BASE_TICKS = 20L;
 	private static final long SAVE_RETRY_MAX_TICKS = 600L;
 
@@ -32,6 +33,10 @@ final class PortalRegistryUpdateDriver
 	private final Map<UUID, Integer> saveFailureCounts = new ConcurrentHashMap<UUID, Integer>();
 	private final AtomicLong refusedSaveCount = new AtomicLong();
 	private final AtomicLong nextRefusedSaveReportTick = new AtomicLong();
+	private final AtomicLong updateFailureCount = new AtomicLong();
+	private final AtomicLong nextUpdateFailureReportTick = new AtomicLong();
+	private final AtomicLong saveFailureCount = new AtomicLong();
+	private final AtomicLong nextSaveFailureReportTick = new AtomicLong();
 	private volatile long driverTick;
 	private long refusedUpdates;
 
@@ -66,7 +71,7 @@ final class PortalRegistryUpdateDriver
 						}
 						catch(Throwable error)
 						{
-							error.printStackTrace();
+							reportUpdateFailure(portal.getId(), error);
 						}
 					}
 				});
@@ -114,7 +119,7 @@ final class PortalRegistryUpdateDriver
 					}
 					catch(Throwable e)
 					{
-						e.printStackTrace();
+						reportUpdateFailure(portal.getId(), e);
 					}
 				}
 			});
@@ -170,7 +175,7 @@ final class PortalRegistryUpdateDriver
 		}
 		catch(Throwable e)
 		{
-			e.printStackTrace();
+			reportUpdateFailure(portal.getId(), e);
 		}
 
 		if(portal.needsSaving())
@@ -247,11 +252,7 @@ final class PortalRegistryUpdateDriver
 		saveRetryAfterTick.put(portalId, driverTick + retryDelay);
 		if(error != null)
 		{
-			Wormholes.instance.getLogger().log(
-				Level.WARNING,
-				"Could not persist portal " + portalId + "; retrying after " + retryDelay + " ticks",
-				error
-			);
+			reportSaveFailure(portalId, retryDelay, error);
 			return;
 		}
 		long refused = refusedSaveCount.incrementAndGet();
@@ -263,6 +264,43 @@ final class PortalRegistryUpdateDriver
 				+ " portal save(s); dirty portals remain queued with bounded retry backoff");
 			refusedSaveCount.set(0L);
 		}
+	}
+
+	private void reportUpdateFailure(UUID portalId, Throwable error)
+	{
+		updateFailureCount.incrementAndGet();
+		long tick = driverTick;
+		long nextReport = nextUpdateFailureReportTick.get();
+		if(tick < nextReport || !nextUpdateFailureReportTick.compareAndSet(nextReport, tick + FAILURE_REPORT_INTERVAL_TICKS))
+		{
+			return;
+		}
+		long failures = updateFailureCount.getAndSet(0L);
+		Wormholes.log().log(
+			Level.WARNING,
+			"Portal update failed for " + portalId + "; " + failures
+				+ " update failure(s) occurred since the previous report; repeated failures are throttled",
+			error
+		);
+	}
+
+	private void reportSaveFailure(UUID portalId, long retryDelay, Throwable error)
+	{
+		saveFailureCount.incrementAndGet();
+		long tick = driverTick;
+		long nextReport = nextSaveFailureReportTick.get();
+		if(tick < nextReport || !nextSaveFailureReportTick.compareAndSet(nextReport, tick + FAILURE_REPORT_INTERVAL_TICKS))
+		{
+			return;
+		}
+		long failures = saveFailureCount.getAndSet(0L);
+		Wormholes.log().log(
+			Level.WARNING,
+			"Could not persist portal " + portalId + "; " + failures
+				+ " save failure(s) occurred since the previous report; retrying with up to " + retryDelay
+				+ " ticks of backoff and throttling repeated diagnostics",
+			error
+		);
 	}
 
 	private void clearSaveFailure(UUID portalId)

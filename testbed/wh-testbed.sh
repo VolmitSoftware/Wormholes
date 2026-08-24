@@ -61,7 +61,7 @@ write_network_toml() { # configdir servername listenport
   local listen_enabled="false"; [ "${WH_SIDEBAND:-true}" = "false" ] && listen_enabled="true"
   mkdir -p "$dir"
   cat > "${dir}/wormholes.toml" <<EOF
-schema = 2
+schema = 3
 quality = "auto"
 
 [network]

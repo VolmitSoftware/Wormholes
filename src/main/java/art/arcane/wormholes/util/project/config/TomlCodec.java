@@ -18,7 +18,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public final class TomlCodec {
-    private static final Logger LOGGER = Logger.getLogger("Wormholes-TomlCodec");
+    private static final Logger LOGGER = Logger.getLogger("Wormholes");
     private static final int PARSE_RETRY_ATTEMPTS = 4;
     private static final long PARSE_RETRY_BACKOFF_MS = 60L;
 

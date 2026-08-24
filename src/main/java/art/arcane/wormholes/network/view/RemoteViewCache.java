@@ -333,7 +333,7 @@ public final class RemoteViewCache {
         }
         if (matched) {
             if (publishedPeers.add(peerName)) {
-                art.arcane.wormholes.Wormholes.i("[view] first remote chunk slice published to projector for peer " + peerName + " (block data is flowing)");
+                art.arcane.wormholes.Wormholes.v(() -> "[view] first remote chunk slice published to projector for peer " + peerName + " (block data is flowing)");
             }
         } else if (noViewPeers.add(peerName)) {
             art.arcane.wormholes.Wormholes.w("[view] received remote chunk slices for peer " + peerName + " but no projector view is subscribed to it (peer-name mismatch or no active subscription)");

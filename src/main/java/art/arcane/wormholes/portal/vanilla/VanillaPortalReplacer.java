@@ -68,7 +68,7 @@ public final class VanillaPortalReplacer implements Listener
 		World source = world;
 		Block anchor = cells.iterator().next();
 		VanillaPortalIndex.PendingCoverage pending = index.registerPending(cells);
-		Wormholes.w("[vanilla-portal] " + event.getReason() + " create: " + cells.size() + " nether cells in " + world.getName() + " @ " + anchor.getX() + "," + anchor.getY() + "," + anchor.getZ());
+		Wormholes.v(() -> "[vanilla-portal] " + event.getReason() + " create: " + cells.size() + " nether cells in " + source.getName() + " @ " + anchor.getX() + "," + anchor.getY() + "," + anchor.getZ());
 		if(!FoliaScheduler.runRegion(Wormholes.instance, anchor.getLocation(), () ->
 		{
 			try

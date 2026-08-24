@@ -36,7 +36,8 @@ final class WormholesDiagnosticsRuntime {
     }
 
     void start() {
-        if (BSTATS_PLUGIN_ID > 0) {
+        WormholesSettings activeSettings = Wormholes.settings;
+        if (BSTATS_PLUGIN_ID > 0 && activeSettings != null && activeSettings.isMetrics()) {
             MetricsRuntime runtime = MetricsRuntime.start(plugin, BSTATS_PLUGIN_ID);
             registerMetricsCharts(runtime);
             this.metricsRuntime = runtime;

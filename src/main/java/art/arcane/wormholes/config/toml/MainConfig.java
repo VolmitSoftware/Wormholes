@@ -7,10 +7,6 @@ import art.arcane.wormholes.util.project.config.ConfigDoc;
     "Gameplay settings. Changes hot-reload."
 })
 public class MainConfig {
-    @ConfigDescription("Bundled locale to use. An optional plugins/Wormholes/languages/<locale>.toml file overrides individual bundled messages.")
-    public String language = "en_US";
-    @ConfigDescription("Comma-separated bundled or custom fallback locales in priority order. Built-in English is always the final fallback.")
-    public String languageFallbacks = "";
     @ConfigDescription("Compatibility override for portal particles. Prefer the top-level quality profile.")
     public boolean enableParticles = true;
 

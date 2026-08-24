@@ -1107,7 +1107,7 @@ final class LocalPortalTraversal
 		LocalPortalTransitRegistry.markTeleportCooldown(entity.getUniqueId(), System.currentTimeMillis());
 		LocalPortalTransitRegistry.latchReentry(entity.getUniqueId(), portal.getId());
 		WormholesTelemetry.countTraversal();
-		Wormholes.v("[arrival] completeRemoteArrival " + entity.getName() + " settled near portal " + portal.getId() + ", latched + cooldown set");
+		Wormholes.v(() -> "[arrival] completeRemoteArrival " + entity.getName() + " settled near portal " + portal.getId() + ", latched + cooldown set");
 		portal.playEffect(PortalEffect.PUSH, entity.getLocation());
 		if(entity instanceof Player && Wormholes.projectionManager != null)
 		{

@@ -10,14 +10,30 @@ import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Proxy;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TraversalArrivalPlacerDispatchTest {
+    @Test
+    void ordinaryJoinWithoutPendingArrivalHasNoJoinDiagnostic() throws Exception {
+        String source = Files.readString(Path.of(
+            "src/main/java/art/arcane/wormholes/network/TraversalArrivalPlacer.java"));
+        int join = source.indexOf("void placeOnJoin(Player player)");
+        int placement = source.indexOf("void place(Player player", join);
+        String joinSource = source.substring(join, placement);
+
+        assertTrue(joinSource.contains("if (arrival == null)"));
+        assertFalse(joinSource.contains("Wormholes."));
+    }
+
     @Test
     void arrivalPlacementIsPushedOffTheJoinEventStackBeforeItTeleports() {
         List<Long> delays = new ArrayList<>();

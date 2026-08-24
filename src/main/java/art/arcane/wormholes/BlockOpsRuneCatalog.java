@@ -140,7 +140,7 @@ final class BlockOpsRuneCatalog
 		{
 			if(WormholesPlatform.addRecipe(r, false))
 			{
-				Wormholes.instance.getLogger().info("Registered Recipe: " + keyed.getKey());
+				Wormholes.v(() -> "Registered recipe: " + keyed.getKey());
 				return;
 			}
 			Wormholes.instance.getLogger().warning("Recipe could not be registered: " + keyed.getKey());
@@ -178,7 +178,7 @@ final class BlockOpsRuneCatalog
 			NamespacedKey recipeKey = new NamespacedKey(Wormholes.instance, recipeName);
 			if(WormholesPlatform.removeRecipe(recipeKey, false))
 			{
-				Wormholes.instance.getLogger().info("Unregistering Recipe: " + recipeKey);
+				Wormholes.v(() -> "Unregistered recipe: " + recipeKey);
 			}
 		}
 	}

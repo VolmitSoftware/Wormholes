@@ -14,6 +14,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 final class ViewSubscriptions {
     private static final long INITIAL_RETRY_DELAY_SECONDS = 1L;
@@ -241,7 +242,8 @@ final class ViewSubscriptions {
 
     private static void reportInitialBulkPumpFailure(Throwable failure) {
         if (Wormholes.instance == null) {
-            failure.printStackTrace();
+            Logger.getLogger("Wormholes").log(Level.SEVERE,
+                "[Wormholes] Could not retire rejected initial gateway view work", failure);
             return;
         }
         Wormholes.instance.getLogger().log(Level.SEVERE,

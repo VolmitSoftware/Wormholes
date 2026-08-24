@@ -61,7 +61,6 @@ final class TraversalArrivalPlacer {
     void placeOnJoin(Player player) {
         PlayerHandoffAdmission.Reservation arrival = admissions.claimArrival(player.getUniqueId(), System.currentTimeMillis());
         if (arrival == null) {
-            Wormholes.i("[arrival] join " + player.getName() + " at " + locStr(player.getLocation()) + " — NO pending cross-server arrival; not managed, relying on join-latch");
             return;
         }
         place(player, arrival, "join");
@@ -133,7 +132,7 @@ final class TraversalArrivalPlacer {
         LocalPortal.latchReentry(player.getUniqueId(), exit.getId());
         if (!exit.isOpen() || !exit.canArrive(player)) {
             admissions.completeArrival(placement.reservation(), System.currentTimeMillis());
-            Wormholes.i("[arrival] " + placement.via() + " " + player.getName() + " DENIED at exitPortal=" + exit.getId() + " (closed/incoming disabled/permission)");
+            Wormholes.v(() -> "[arrival] " + placement.via() + " " + player.getName() + " DENIED at exitPortal=" + exit.getId() + " (closed/incoming disabled/permission)");
             recoverDeniedArrival(placement, exit, traversive);
             return;
         }
@@ -145,7 +144,7 @@ final class TraversalArrivalPlacer {
             retryArrivalPlacement(placement, "exit target could not be computed", error);
             return;
         }
-        Wormholes.i("[arrival] " + placement.via() + " " + player.getName() + " spawnLoc=" + locStr(player.getLocation()) + " exitPortal=" + exit.getId() + " -> teleport target=" + locStr(target) + " (latched to exit)");
+        Wormholes.v(() -> "[arrival] " + placement.via() + " " + player.getName() + " spawnLoc=" + locStr(player.getLocation()) + " exitPortal=" + exit.getId() + " -> teleport target=" + locStr(target) + " (latched to exit)");
         ArrivalTeleport teleport = new ArrivalTeleport(placement, exit, traversive);
         WormholesPlatform.teleport(Wormholes.instance, player, target, PlayerTeleportEvent.TeleportCause.PLUGIN).whenComplete((success, error) -> {
             boolean scheduled = FoliaScheduler.runEntity(

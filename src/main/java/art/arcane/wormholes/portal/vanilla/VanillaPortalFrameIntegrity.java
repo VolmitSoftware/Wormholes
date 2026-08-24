@@ -144,7 +144,7 @@ final class VanillaPortalFrameIntegrity
 			return;
 		}
 		portal.destroy();
-		Wormholes.w("[vanilla-portal] frame broken -> portal pair destroyed");
+		Wormholes.v(() -> "[vanilla-portal] frame broken -> portal pair destroyed");
 	}
 
 	private static void validateFrameChunk(FrameChunk chunk, List<FrameCheck> checks)

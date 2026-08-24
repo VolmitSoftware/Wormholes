@@ -135,7 +135,7 @@ public final class WormholesMessages {
     public static final TextKey COMMAND_PROJECTION_SCHEDULE_FAILED = text("command.admin.projection_schedule_failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Could not schedule the projection update.");
 
     public static final TextKey NETWORK_NOT_INITIALIZED = text("network.not_initialized", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Networking is not initialized.");
-    public static final TextKey NETWORK_DISABLED = text("network.status.disabled", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Networking is <red>disabled<gray> (plugins/Wormholes/config/wormholes.toml).");
+    public static final TextKey NETWORK_DISABLED = text("network.status.disabled", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Networking is <red>disabled<gray> (plugins/Wormholes/wormholes.toml).");
     public static final TextKey NETWORK_NOT_RUNNING = text("network.status.not_running", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Networking is enabled but not running. Check the identity store and network port.");
     public static final TextKey NETWORK_LISTENING = text("network.status.listening", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>This server: <white>{server}<gray> listening on <white>{address}");
     public static final TextKey NETWORK_OUTBOUND_ONLY = text("network.status.outbound_only", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>This server: <white>{server}<gray> outbound-only Boat mode");

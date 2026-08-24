@@ -296,7 +296,7 @@ public final class TraversalService implements Listener {
             }
             pendingHandoffs.put(transferId, pendingHandoff);
             boolean directTransfer = transferMethod == PlayerTransfer.Method.DIRECT;
-            Wormholes.i("[handoff] begin " + player.getName() + " -> peer=" + peerName + " destPortal=" + tunnel.getDestinationPortalId() + " transferId=" + transferId + " method=" + transferMethod + " transactional=true");
+            Wormholes.v(() -> "[handoff] begin " + player.getName() + " -> peer=" + peerName + " destPortal=" + tunnel.getDestinationPortalId() + " transferId=" + transferId + " method=" + transferMethod + " transactional=true");
             boolean queued = network.send(peerName, new WireMessage.HandoffRequest(
                 transferId,
                 playerId,
@@ -595,7 +595,7 @@ public final class TraversalService implements Listener {
                 decision.reason(),
                 decision.retryAfterMillis()
             ));
-            Wormholes.i("[handoff] request DENIED peer=" + peerName + " player=" + wireRequest.playerName() + " transferId=" + wireRequest.transferId() + " reason=" + decision.reason() + " retryAfterMs=" + decision.retryAfterMillis());
+            Wormholes.v(() -> "[handoff] request DENIED peer=" + peerName + " player=" + wireRequest.playerName() + " transferId=" + wireRequest.transferId() + " reason=" + decision.reason() + " retryAfterMs=" + decision.retryAfterMillis());
             return;
         }
 
@@ -625,7 +625,7 @@ public final class TraversalService implements Listener {
         }
 
         if (!decision.fresh()) {
-            Wormholes.i("[handoff] request REPLAY peer=" + peerName + " player=" + wireRequest.playerName() + " transferId=" + wireRequest.transferId() + " — replayed admission ACK");
+            Wormholes.v(() -> "[handoff] request REPLAY peer=" + peerName + " player=" + wireRequest.playerName() + " transferId=" + wireRequest.transferId() + " — replayed admission ACK");
             return;
         }
 
@@ -634,11 +634,11 @@ public final class TraversalService implements Listener {
             ? null
             : inboundAdmissions.claimArrival(wireRequest.playerId(), System.currentTimeMillis());
         if (arrival != null) {
-            Wormholes.i("[handoff] request RX from peer=" + peerName + " player=" + wireRequest.playerName() + " — player already arrived; placing now at exitPortal=" + exit.getId());
+            Wormholes.v(() -> "[handoff] request RX from peer=" + peerName + " player=" + wireRequest.playerName() + " — player already arrived; placing now at exitPortal=" + exit.getId());
             arrivals.place(already, arrival, "late-request");
             return;
         }
-        Wormholes.i("[handoff] request RX from peer=" + peerName + " player=" + wireRequest.playerName() + " exitPortal=" + exit.getId() + " — destination admitted, acking");
+        Wormholes.v(() -> "[handoff] request RX from peer=" + peerName + " player=" + wireRequest.playerName() + " exitPortal=" + exit.getId() + " — destination admitted, acking");
     }
 
     private void denyInboundHandoff(String peerName, WireMessage.HandoffRequest request, String reason) {
@@ -836,7 +836,7 @@ public final class TraversalService implements Listener {
         }
         commitTraversalCost(traversalAdmission);
         completedTransfers.incrementAndGet();
-        Wormholes.i("[handoff] ack RX from peer=" + peerName + " — transfer of " + player.getName() + " dispatched via " + handoff.transferMethod());
+        Wormholes.v(() -> "[handoff] ack RX from peer=" + peerName + " — transfer of " + player.getName() + " dispatched via " + handoff.transferMethod());
         transferLocks.lock(handoff.playerId(), System.currentTimeMillis() + ARRIVAL_TTL_MILLIS);
     }
 

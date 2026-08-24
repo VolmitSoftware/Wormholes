@@ -28,7 +28,7 @@ public final class WireCompression {
     public static final int MAX_LEVEL = 22;
     public static final int MAX_POOL_SIZE = 16;
 
-    private static final Logger LOG = Logger.getLogger(WireCompression.class.getName());
+    private static final Logger LOG = Logger.getLogger("Wormholes");
     private static final Object ZSTD_PROBE_LOCK = new Object();
     private static final int MAX_RETIRED_DICTIONARIES = 2;
     private static final int SCRATCH_RETAIN_LIMIT_BYTES = 1024 * 1024;

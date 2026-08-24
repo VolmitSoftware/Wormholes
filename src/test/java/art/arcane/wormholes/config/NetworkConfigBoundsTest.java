@@ -39,7 +39,7 @@ class NetworkConfigBoundsTest {
     @Test
     void settingsSnapshotNormalizesMissingAndLowNetworkBounds() {
         String source = """
-            schema = 2
+            schema = 3
 
             [network]
             listen-port = -1
