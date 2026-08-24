@@ -1,10 +1,11 @@
 package art.arcane.wormholes.util.common;
 
+import art.arcane.volmlib.util.plugin.ComponentLog;
 import art.arcane.volmlib.util.plugin.SplashScreenSupport;
-import art.arcane.volmlib.util.plugin.ComponentMessenger;
 import art.arcane.wormholes.Wormholes;
 import net.md_5.bungee.api.ChatColor;
-import org.bukkit.Bukkit;
+
+import java.util.logging.Level;
 
 public final class SplashScreen {
     private static final String SUPPORTED_MC_VERSION = "26.1.2 - 26.2";
@@ -32,7 +33,7 @@ public final class SplashScreen {
                 + accent + "╚" + dark + "███" + accent + "╔" + dark + "███" + accent + "╔╝╚" + dark + "██████" + accent + "╔╝" + dark + "██" + accent + "║  " + dark + "██" + accent + "║" + dark + "██" + accent + "║ ╚═╝ " + dark + "██" + accent + "║" + dark + "██" + accent + "║  " + dark + "██" + accent + "║╚" + dark + "██████" + accent + "╔╝" + dark + "███████" + accent + "╗" + dark + "███████" + accent + "╗" + dark + "███████" + accent + "║" + meta + "   Server: " + accent + serverVersion + meta + " | MC Support: " + accent + SUPPORTED_MC_VERSION + "\n"
                 + accent + " ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚══════╝╚══════╝" + meta + "   Java: " + accent + SplashScreenSupport.javaMajorVersion() + meta + " | Date: " + accent + startupDate + "\n";
 
-        ComponentMessenger.sendSection(Bukkit.getConsoleSender(), splash);
+        ComponentLog.logLegacy(plugin, plugin.getLogger(), "[Wormholes] ", Level.INFO, splash, null);
         if (!success && errorMessage != null && !errorMessage.isBlank()) {
             plugin.getLogger().warning("Startup error: " + errorMessage);
         }
