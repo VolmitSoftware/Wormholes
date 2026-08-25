@@ -9,6 +9,7 @@ import java.util.logging.Level;
 
 public final class SplashScreen {
     private static final String SUPPORTED_MC_VERSION = "26.1.2 - 26.2";
+    private static final String LOG_DISCRIMINATOR = ComponentLog.discriminator("Wormholes", "&#d4af37");
 
     private SplashScreen() {
     }
@@ -33,7 +34,7 @@ public final class SplashScreen {
                 + accent + "╚" + dark + "███" + accent + "╔" + dark + "███" + accent + "╔╝╚" + dark + "██████" + accent + "╔╝" + dark + "██" + accent + "║  " + dark + "██" + accent + "║" + dark + "██" + accent + "║ ╚═╝ " + dark + "██" + accent + "║" + dark + "██" + accent + "║  " + dark + "██" + accent + "║╚" + dark + "██████" + accent + "╔╝" + dark + "███████" + accent + "╗" + dark + "███████" + accent + "╗" + dark + "███████" + accent + "║" + meta + "   Server: " + accent + serverVersion + meta + " | MC Support: " + accent + SUPPORTED_MC_VERSION + "\n"
                 + accent + " ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚══════╝╚══════╝" + meta + "   Java: " + accent + SplashScreenSupport.javaMajorVersion() + meta + " | Date: " + accent + startupDate + "\n";
 
-        ComponentLog.logLegacy(plugin, plugin.getLogger(), "[Wormholes] ", Level.INFO, splash, null);
+        ComponentLog.logLegacy(plugin, plugin.getLogger(), LOG_DISCRIMINATOR, Level.INFO, splash, null);
         if (!success && errorMessage != null && !errorMessage.isBlank()) {
             plugin.getLogger().warning("Startup error: " + errorMessage);
         }
