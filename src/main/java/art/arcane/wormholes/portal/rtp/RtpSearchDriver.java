@@ -13,6 +13,7 @@ final class RtpSearchDriver
 	// Biome preference relaxes after these bounds so a portal never wedges in "searching" when the biome is absent.
 	private static final int BIOME_STRICT_ATTEMPTS = 24;
 	private static final int BIOME_STRICT_CAMPAIGN_FAILURES = 2;
+	private static final long BIOME_STRICT_MILLIS = 10_000L;
 
 	private final RtpService service;
 	private final RtpPortalEntry entry;
@@ -56,7 +57,11 @@ final class RtpSearchDriver
 		{
 			return;
 		}
-		Campaign started = new Campaign(entry.generation, ticket.get(), deadline(nowMillis, SEARCH_DEADLINE_MILLIS));
+		Campaign started = new Campaign(
+				entry.generation,
+				ticket.get(),
+				deadline(nowMillis, SEARCH_DEADLINE_MILLIS),
+				deadline(nowMillis, BIOME_STRICT_MILLIS));
 		campaign = started;
 		entry.markChanged();
 		service.dependencies().sourceDispatcher().schedule(
@@ -128,9 +133,12 @@ final class RtpSearchDriver
 		}
 		int attempt = nextAttempt();
 		active.attemptsStarted++;
-		boolean enforceBiome = entry.registration.settings().getTargetBiomeKey() != null
-				&& active.attemptsStarted <= BIOME_STRICT_ATTEMPTS
-				&& consecutiveFailures < BIOME_STRICT_CAMPAIGN_FAILURES;
+		boolean enforceBiome = enforceTargetBiome(
+				entry.registration.settings().getTargetBiomeKey(),
+				active.attemptsStarted,
+				consecutiveFailures,
+				nowMillis,
+				active.biomeStrictDeadlineMillis);
 		service.dependencies().searchExecutor().execute(() -> sampleAndLoad(active, attempt, enforceBiome));
 	}
 
@@ -353,20 +361,39 @@ final class RtpSearchDriver
 		return durationMillis > Long.MAX_VALUE - nowMillis ? Long.MAX_VALUE : nowMillis + durationMillis;
 	}
 
+	static boolean enforceTargetBiome(
+			String targetBiomeKey,
+			int attemptsStarted,
+			int consecutiveFailures,
+			long nowMillis,
+			long strictDeadlineMillis)
+	{
+		return targetBiomeKey != null
+				&& attemptsStarted <= BIOME_STRICT_ATTEMPTS
+				&& consecutiveFailures < BIOME_STRICT_CAMPAIGN_FAILURES
+				&& nowMillis < strictDeadlineMillis;
+	}
+
 	private static final class Campaign
 	{
 		private final long generation;
 		private final long deadlineMillis;
+		private final long biomeStrictDeadlineMillis;
 		private RtpPortalRuntime.SearchTicket ticket;
 		private RtpManagedRetention activeRetention;
 		private volatile RtpService.SearchRequest activeRequest;
 		private int attemptsStarted;
 
-		private Campaign(long generation, RtpPortalRuntime.SearchTicket ticket, long deadlineMillis)
+		private Campaign(
+				long generation,
+				RtpPortalRuntime.SearchTicket ticket,
+				long deadlineMillis,
+				long biomeStrictDeadlineMillis)
 		{
 			this.generation = generation;
 			this.ticket = ticket;
 			this.deadlineMillis = deadlineMillis;
+			this.biomeStrictDeadlineMillis = biomeStrictDeadlineMillis;
 		}
 	}
 }

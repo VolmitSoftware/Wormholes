@@ -224,6 +224,28 @@ public final class RtpServiceTest
 	}
 
 	@Test
+	public void targetBiomeEnforcementRelaxesAfterTenSecondsOfColdLoading()
+	{
+		TestHarness harness = new TestHarness(uniqueSampler());
+		UUID portalId = uuid("slow-biome-portal");
+		RtpSettings biomeSettings = settings(RtpAllocationMode.SHARED, RtpRotationMode.STATIC)
+				.toBuilder()
+				.targetBiomeKey("minecraft:swamp")
+				.build();
+		harness.loader.holdNext();
+		harness.register(portalId, biomeSettings);
+		harness.service.touchViewer(portalId, uuid("viewer")).join();
+		harness.executor.runNext();
+
+		assertEquals(List.of(Boolean.TRUE), harness.loader.enforceFlags());
+		harness.clock.advance(10_000L);
+		harness.loader.failNext();
+		harness.executor.runNext();
+
+		assertEquals(List.of(Boolean.TRUE, Boolean.FALSE), harness.loader.enforceFlags());
+	}
+
+	@Test
 	public void slowCandidateLoadGetsThirtySecondsBeforeTimeoutAndIsCancelledImmediately()
 	{
 		TestHarness harness = new TestHarness(uniqueSampler());
@@ -1345,6 +1367,13 @@ public final class RtpServiceTest
 			PendingLoad load = pending.removeFirst();
 			load.future().complete(load.loaded());
 			return load.retention();
+		}
+
+		private void failNext()
+		{
+			PendingLoad load = pending.removeFirst();
+			load.retention().close();
+			load.future().completeExceptionally(new IllegalStateException("forced load failure"));
 		}
 
 		private int pendingCount()

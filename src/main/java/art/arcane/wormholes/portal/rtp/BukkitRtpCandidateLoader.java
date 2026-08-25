@@ -135,27 +135,20 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 		{
 			try
 			{
-				return surfaceFeetY(world, requiredRequest.destination()).handle((surfaceFeetY, failure) ->
+				return prepareColumn(
+						world,
+						requiredRequest.destination(),
+						surfaceMode,
+						requiredRequest.settings().getPreferredY(),
+						pendingBiomeKey).handle((surfaceFeetY, failure) ->
 				{
 					if(failure != null || surfaceFeetY == null)
 					{
 						retention.close();
-						throw propagate("RTP surface probe failed", failure);
+						throw propagate("RTP destination column probe failed", failure);
 					}
 					return surfaceFeetY;
-				}).thenCompose(surfaceFeetY -> biomeGate(
-						world,
-						requiredRequest.destination(),
-						surfaceMode ? surfaceFeetY.intValue() : requiredRequest.settings().getPreferredY(),
-						pendingBiomeKey).handle((ignored, failure) ->
-				{
-					if(failure != null)
-					{
-						retention.close();
-						throw propagate("RTP biome gate failed", failure);
-					}
-					return surfaceFeetY;
-				})).thenCompose(surfaceFeetY ->
+				}).thenCompose(surfaceFeetY ->
 						probeSearch(requiredRequest, world, envelope, retention, surfaceFeetY.intValue()));
 			}
 			catch(RuntimeException | Error failure)
@@ -186,25 +179,36 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 		pending.complete(loaded);
 	}
 
-	private CompletionStage<Void> biomeGate(World world, RtpDestination destination, int feetY, String targetBiomeKey)
+	private CompletionStage<Integer> prepareColumn(
+			World world,
+			RtpDestination destination,
+			boolean surfaceMode,
+			int preferredY,
+			String targetBiomeKey)
 	{
-		if(targetBiomeKey == null)
+		if(!surfaceMode && targetBiomeKey == null)
 		{
-			return CompletableFuture.completedFuture(null);
+			return CompletableFuture.completedFuture(Integer.valueOf(preferredY));
 		}
-		CompletableFuture<Void> result = new CompletableFuture<Void>();
+		CompletableFuture<Integer> result = new CompletableFuture<Integer>();
 		int chunkX = Math.floorDiv(destination.blockX(), 16);
 		int chunkZ = Math.floorDiv(destination.blockZ(), 16);
 		boolean scheduled = FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ, () ->
 		{
 			try
 			{
+				int feetY = surfaceMode ? resolveSurfaceFeetY(world, destination) : preferredY;
+				if(targetBiomeKey == null)
+				{
+					result.complete(Integer.valueOf(feetY));
+					return;
+				}
 				int sampleY = Math.max(world.getMinHeight(), Math.min(world.getMaxHeight() - 1, feetY));
 				String biomeKey = WormholesPlatform.keyString(
 						world.getBiome(destination.blockX(), sampleY, destination.blockZ()).getKey());
 				if(RtpBiomeMatcher.matches(targetBiomeKey, List.of(biomeKey)))
 				{
-					result.complete(null);
+					result.complete(Integer.valueOf(feetY));
 				}
 				else
 				{
@@ -218,7 +222,7 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 		});
 		if(!scheduled)
 		{
-			result.completeExceptionally(new IllegalStateException("Owning region rejected RTP biome query"));
+			result.completeExceptionally(new IllegalStateException("Owning region rejected RTP destination column query"));
 		}
 		return result;
 	}
@@ -399,29 +403,6 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 			return CompletableFuture.completedFuture(retention);
 		});
 		return new PendingRetention(retention, ready);
-	}
-
-	private CompletionStage<Integer> surfaceFeetY(World world, RtpDestination destination)
-	{
-		CompletableFuture<Integer> result = new CompletableFuture<Integer>();
-		int chunkX = Math.floorDiv(destination.blockX(), 16);
-		int chunkZ = Math.floorDiv(destination.blockZ(), 16);
-		boolean scheduled = FoliaScheduler.runRegion(plugin, world, chunkX, chunkZ, () ->
-		{
-			try
-			{
-				result.complete(Integer.valueOf(resolveSurfaceFeetY(world, destination)));
-			}
-			catch(RuntimeException exception)
-			{
-				result.completeExceptionally(exception);
-			}
-		});
-		if(!scheduled)
-		{
-			result.completeExceptionally(new IllegalStateException("Owning region rejected RTP surface query"));
-		}
-		return result;
 	}
 
 	private int resolveSurfaceFeetY(World world, RtpDestination destination)

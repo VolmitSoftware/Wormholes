@@ -292,7 +292,6 @@ class NetworkManagerTest {
         NetworkManager alpha = manager(config(portA, ALPHA_NAME), ALPHA_GAME_PORT, "handler-alpha");
         NetworkManager beta = manager(config(portB, BETA_NAME), BETA_GAME_PORT, "handler-beta");
         alpha.savePeer(route(BETA_NAME, portB));
-        beta.savePeer(route(ALPHA_NAME, portA));
         alpha.start();
         beta.start();
         awaitTrue("beta sees alpha READY", () -> beta.isPeerReady(ALPHA_NAME), 10_000L);
