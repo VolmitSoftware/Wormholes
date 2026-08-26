@@ -13,7 +13,9 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.UUID;
@@ -972,22 +974,37 @@ public final class RtpServiceTest
 
 	private static RtpValidationRequest validationRequest(RtpDestination destination)
 	{
-		int chunkX = Math.floorDiv(destination.blockX(), 16);
-		int chunkZ = Math.floorDiv(destination.blockZ(), 16);
-		List<RtpValidationRequest.BlockSnapshot> blocks = List.of(
-				RtpValidationRequest.BlockSnapshot.solid(destination.blockX(), destination.feetY() - 1, destination.blockZ(), "minecraft:stone"),
-				RtpValidationRequest.BlockSnapshot.air(destination.blockX(), destination.feetY(), destination.blockZ()),
-				RtpValidationRequest.BlockSnapshot.air(destination.blockX(), destination.feetY() + 1, destination.blockZ()));
-		RtpValidationRequest.RegionSnapshot region = new RtpValidationRequest.RegionSnapshot(
-				"region-" + chunkX + "-" + chunkZ,
-				chunkX,
-				chunkZ,
-				blocks);
+		Map<Chunk, List<RtpValidationRequest.BlockSnapshot>> blocksByChunk = new LinkedHashMap<Chunk, List<RtpValidationRequest.BlockSnapshot>>();
+		for(int x = destination.blockX() - 1; x <= destination.blockX() + 1; x++)
+		{
+			for(int z = destination.blockZ() - 1; z <= destination.blockZ() + 1; z++)
+			{
+				Chunk chunk = new Chunk(Math.floorDiv(x, 16), Math.floorDiv(z, 16));
+				List<RtpValidationRequest.BlockSnapshot> blocks = blocksByChunk.computeIfAbsent(
+						chunk, ignored -> new ArrayList<RtpValidationRequest.BlockSnapshot>());
+				blocks.add(x == destination.blockX() && z == destination.blockZ()
+						? RtpValidationRequest.BlockSnapshot.solid(x, destination.feetY() - 1, z, "minecraft:stone")
+						: RtpValidationRequest.BlockSnapshot.air(x, destination.feetY() - 1, z));
+				blocks.add(RtpValidationRequest.BlockSnapshot.air(x, destination.feetY(), z));
+				blocks.add(RtpValidationRequest.BlockSnapshot.air(x, destination.feetY() + 1, z));
+			}
+		}
+		List<RtpValidationRequest.RegionSnapshot> regions = new ArrayList<RtpValidationRequest.RegionSnapshot>(blocksByChunk.size());
+		for(Map.Entry<Chunk, List<RtpValidationRequest.BlockSnapshot>> entry : blocksByChunk.entrySet())
+		{
+			Chunk chunk = entry.getKey();
+			regions.add(new RtpValidationRequest.RegionSnapshot(
+					"region-" + chunk.x() + "-" + chunk.z(), chunk.x(), chunk.z(), entry.getValue()));
+		}
 		return RtpValidationRequest.builder(destination)
 				.worldBounds(-64, 320)
 				.worldBorder(new RtpValidationRequest.WorldBorder(-30_000_000.0D, -30_000_000.0D, 30_000_000.0D, 30_000_000.0D))
-				.regionSnapshots(List.of(region))
+				.regionSnapshots(regions)
 				.build();
+	}
+
+	private record Chunk(int x, int z)
+	{
 	}
 
 	private static final class TestHarness

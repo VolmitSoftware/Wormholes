@@ -13,6 +13,7 @@ import java.util.concurrent.CompletableFuture;
 public final class RtpSafetyValidator
 {
 	public static final double EPSILON = 0.000001D;
+	static final double HORIZONTAL_CLEARANCE_BLOCKS = 1.0D;
 
 	private static final double MAXIMUM_ENVELOPE_SIZE = 8.0D;
 	private static final int MAXIMUM_CHUNKS = 4;
@@ -58,24 +59,25 @@ public final class RtpSafetyValidator
 		}
 
 		ValidationEnvelope envelope = ValidationEnvelope.translate(destination, entityEnvelope);
+		ValidationEnvelope clearanceEnvelope = envelope.expandHorizontal(HORIZONTAL_CLEARANCE_BLOCKS);
 		if(destination.feetY() - 1 < request.worldMinimumY()
-				|| envelope.minimumY() < request.worldMinimumY()
-				|| envelope.maximumY() + EPSILON > request.worldMaximumY())
+				|| clearanceEnvelope.minimumY() < request.worldMinimumY()
+				|| clearanceEnvelope.maximumY() + EPSILON > request.worldMaximumY())
 		{
 			return rejected(request, RtpSafetyResult.Code.WORLD_HEIGHT);
 		}
 
 		RtpValidationRequest.WorldBorder border = request.worldBorder();
-		if(envelope.minimumX() - EPSILON < border.minimumX()
-				|| envelope.maximumX() + EPSILON > border.maximumX()
-				|| envelope.minimumZ() - EPSILON < border.minimumZ()
-				|| envelope.maximumZ() + EPSILON > border.maximumZ())
+		if(clearanceEnvelope.minimumX() - EPSILON < border.minimumX()
+				|| clearanceEnvelope.maximumX() + EPSILON > border.maximumX()
+				|| clearanceEnvelope.minimumZ() - EPSILON < border.minimumZ()
+				|| clearanceEnvelope.maximumZ() + EPSILON > border.maximumZ())
 		{
 			return rejected(request, RtpSafetyResult.Code.WORLD_BORDER);
 		}
 
 		if(request.dimension() == RtpValidationRequest.Dimension.NETHER
-				&& envelope.maximumY() + EPSILON >= request.netherLogicalCeiling() - NETHER_ROOF_BAND_DEPTH)
+				&& clearanceEnvelope.maximumY() + EPSILON >= request.netherLogicalCeiling() - NETHER_ROOF_BAND_DEPTH)
 		{
 			return rejected(request, RtpSafetyResult.Code.NETHER_ROOF);
 		}
@@ -86,7 +88,7 @@ public final class RtpSafetyValidator
 			return rejected(request, snapshotIndexResult.failure());
 		}
 
-		Set<ChunkPosition> touchedChunks = touchedChunks(envelope);
+		Set<ChunkPosition> touchedChunks = touchedChunks(clearanceEnvelope);
 		if(touchedChunks.size() > MAXIMUM_CHUNKS)
 		{
 			return rejected(request, RtpSafetyResult.Code.TOO_MANY_CHUNKS);
@@ -98,10 +100,10 @@ public final class RtpSafetyValidator
 
 		Map<BlockPosition, RtpValidationRequest.BlockSnapshot> blocks = snapshotIndexResult.blocks();
 		List<SupportRectangle> supportRectangles = new ArrayList<SupportRectangle>();
-		int minimumX = floorToInt(envelope.minimumX() - EPSILON);
-		int maximumX = floorToInt(envelope.maximumX() + EPSILON);
-		int minimumZ = floorToInt(envelope.minimumZ() - EPSILON);
-		int maximumZ = floorToInt(envelope.maximumZ() + EPSILON);
+		int minimumX = floorToInt(clearanceEnvelope.minimumX() - EPSILON);
+		int maximumX = floorToInt(clearanceEnvelope.maximumX() + EPSILON);
+		int minimumZ = floorToInt(clearanceEnvelope.minimumZ() - EPSILON);
+		int maximumZ = floorToInt(clearanceEnvelope.maximumZ() + EPSILON);
 		int minimumBodyY = floorToInt(destination.feetY() + EPSILON);
 		int maximumBodyY = floorToInt(envelope.maximumY() + EPSILON);
 
@@ -111,21 +113,24 @@ public final class RtpSafetyValidator
 			for(long zValue = minimumZ; zValue <= maximumZ; zValue++)
 			{
 				int z = (int) zValue;
-				RtpValidationRequest.BlockSnapshot support = blocks.get(new BlockPosition(x, destination.feetY() - 1, z));
-				if(support == null)
+				if(intersectsHorizontalBlock(x, z, envelope))
 				{
-					return rejected(request, RtpSafetyResult.Code.MISSING_SNAPSHOT);
+					RtpValidationRequest.BlockSnapshot support = blocks.get(new BlockPosition(x, destination.feetY() - 1, z));
+					if(support == null)
+					{
+						return rejected(request, RtpSafetyResult.Code.MISSING_SNAPSHOT);
+					}
+					RtpSafetyResult.Code supportFailure = blockFailure(request, support);
+					if(supportFailure != null)
+					{
+						return rejected(request, supportFailure);
+					}
+					if(request.surfaceMode() && support.treePart())
+					{
+						return rejected(request, RtpSafetyResult.Code.HAZARD);
+					}
+					collectSupportRectangles(support, destination.feetY(), envelope, supportRectangles);
 				}
-				RtpSafetyResult.Code supportFailure = blockFailure(request, support);
-				if(supportFailure != null)
-				{
-					return rejected(request, supportFailure);
-				}
-				if(request.surfaceMode() && support.treePart())
-				{
-					return rejected(request, RtpSafetyResult.Code.HAZARD);
-				}
-				collectSupportRectangles(support, destination.feetY(), envelope, supportRectangles);
 
 				for(int y = minimumBodyY; y <= maximumBodyY; y++)
 				{
@@ -143,7 +148,7 @@ public final class RtpSafetyValidator
 					{
 						return rejected(request, RtpSafetyResult.Code.HAZARD);
 					}
-					if(intersectsBody(body, envelope))
+					if(intersectsBody(body, clearanceEnvelope))
 					{
 						return rejected(request, RtpSafetyResult.Code.BODY_COLLISION);
 					}
@@ -290,6 +295,14 @@ public final class RtpSafetyValidator
 		return false;
 	}
 
+	private boolean intersectsHorizontalBlock(int x, int z, ValidationEnvelope envelope)
+	{
+		return x + 1.0D > envelope.minimumX() - EPSILON
+				&& x < envelope.maximumX() + EPSILON
+				&& z + 1.0D > envelope.minimumZ() - EPSILON
+				&& z < envelope.maximumZ() + EPSILON;
+	}
+
 	private boolean coversSupport(ValidationEnvelope envelope, List<SupportRectangle> rectangles)
 	{
 		if(rectangles.isEmpty())
@@ -386,6 +399,17 @@ public final class RtpSafetyValidator
 					anchorY + source.maximumYOffset(),
 					anchorZ + source.minimumZOffset(),
 					anchorZ + source.maximumZOffset());
+		}
+
+		private ValidationEnvelope expandHorizontal(double padding)
+		{
+			return new ValidationEnvelope(
+					minimumX - padding,
+					maximumX + padding,
+					minimumY,
+					maximumY,
+					minimumZ - padding,
+					maximumZ + padding);
 		}
 	}
 

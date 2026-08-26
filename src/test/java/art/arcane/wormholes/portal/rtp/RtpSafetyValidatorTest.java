@@ -109,6 +109,27 @@ public final class RtpSafetyValidatorTest
 		assertEquals(RtpSafetyResult.Code.BODY_COLLISION, headResult.code());
 	}
 
+	@Test
+	public void horizontalClearanceRejectsAdjacentWallsAtBodyAndHeadHeight()
+	{
+		List<RtpValidationRequest.RegionSnapshot> safe = safeSnapshots(DESTINATION, BASELINE);
+		RtpSafetyResult openResult = VALIDATOR.validate(request(DESTINATION, BASELINE, safe)).join();
+		assertEquals(RtpSafetyResult.Code.SAFE, openResult.code());
+
+		int[][] offsets = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+		for(int[] offset : offsets)
+		{
+			for(int y = DESTINATION.feetY(); y <= DESTINATION.feetY() + 1; y++)
+			{
+				RtpValidationRequest.BlockSnapshot wall = RtpValidationRequest.BlockSnapshot.solid(
+						DESTINATION.blockX() + offset[0], y, DESTINATION.blockZ() + offset[1], "minecraft:stone");
+				RtpSafetyResult wallResult = VALIDATOR.validate(request(
+						DESTINATION, BASELINE, replaceBlock(safe, wall))).join();
+				assertEquals(RtpSafetyResult.Code.BODY_COLLISION, wallResult.code(), wall.toString());
+			}
+		}
+	}
+
 	@ParameterizedTest
 	@ValueSource(strings = {
 			"minecraft:water",
@@ -211,7 +232,7 @@ public final class RtpSafetyValidatorTest
 	@Test
 	public void exactEpsilonControlsFullWorldBorderContainment()
 	{
-		double exactMaximum = 0.8D + RtpSafetyValidator.EPSILON;
+		double exactMaximum = 0.8D + RtpSafetyValidator.HORIZONTAL_CLEARANCE_BLOCKS + RtpSafetyValidator.EPSILON;
 		RtpValidationRequest.WorldBorder exact = new RtpValidationRequest.WorldBorder(-1.0D, -1.0D, exactMaximum, exactMaximum);
 		RtpValidationRequest.WorldBorder narrow = new RtpValidationRequest.WorldBorder(-1.0D, -1.0D,
 				exactMaximum - RtpSafetyValidator.EPSILON / 2.0D, exactMaximum);
@@ -343,10 +364,9 @@ public final class RtpSafetyValidatorTest
 	public void moreThanFourRegionOwnersAreRejected()
 	{
 		List<RtpValidationRequest.RegionSnapshot> snapshots = new ArrayList<RtpValidationRequest.RegionSnapshot>(safeSnapshots(DESTINATION, BASELINE));
-		snapshots.add(new RtpValidationRequest.RegionSnapshot("region:1", 1, 0, List.of()));
-		snapshots.add(new RtpValidationRequest.RegionSnapshot("region:2", 2, 0, List.of()));
-		snapshots.add(new RtpValidationRequest.RegionSnapshot("region:3", 3, 0, List.of()));
-		snapshots.add(new RtpValidationRequest.RegionSnapshot("region:4", 3, 0, List.of()));
+		RtpValidationRequest.RegionSnapshot duplicate = snapshots.getFirst();
+		snapshots.add(new RtpValidationRequest.RegionSnapshot(
+				"region:duplicate", duplicate.chunkX(), duplicate.chunkZ(), List.of()));
 
 		RtpSafetyResult result = VALIDATOR.validate(request(DESTINATION, BASELINE, snapshots)).join();
 
@@ -401,10 +421,18 @@ public final class RtpSafetyValidatorTest
 		double width = envelope.maximumXOffset() - envelope.minimumXOffset();
 		double depth = envelope.maximumZOffset() - envelope.minimumZOffset();
 		double height = envelope.maximumYOffset() - envelope.minimumYOffset();
-		int minimumX = floor(centerX - width / 2.0D - RtpSafetyValidator.EPSILON);
-		int maximumX = floor(centerX + width / 2.0D + RtpSafetyValidator.EPSILON);
-		int minimumZ = floor(centerZ - depth / 2.0D - RtpSafetyValidator.EPSILON);
-		int maximumZ = floor(centerZ + depth / 2.0D + RtpSafetyValidator.EPSILON);
+		int minimumSupportX = floor(centerX - width / 2.0D - RtpSafetyValidator.EPSILON);
+		int maximumSupportX = floor(centerX + width / 2.0D + RtpSafetyValidator.EPSILON);
+		int minimumSupportZ = floor(centerZ - depth / 2.0D - RtpSafetyValidator.EPSILON);
+		int maximumSupportZ = floor(centerZ + depth / 2.0D + RtpSafetyValidator.EPSILON);
+		int minimumX = floor(centerX - width / 2.0D - RtpSafetyValidator.HORIZONTAL_CLEARANCE_BLOCKS
+				- RtpSafetyValidator.EPSILON);
+		int maximumX = floor(centerX + width / 2.0D + RtpSafetyValidator.HORIZONTAL_CLEARANCE_BLOCKS
+				+ RtpSafetyValidator.EPSILON);
+		int minimumZ = floor(centerZ - depth / 2.0D - RtpSafetyValidator.HORIZONTAL_CLEARANCE_BLOCKS
+				- RtpSafetyValidator.EPSILON);
+		int maximumZ = floor(centerZ + depth / 2.0D + RtpSafetyValidator.HORIZONTAL_CLEARANCE_BLOCKS
+				+ RtpSafetyValidator.EPSILON);
 		int maximumBodyY = floor(destination.feetY() + height + RtpSafetyValidator.EPSILON);
 		Map<Chunk, List<RtpValidationRequest.BlockSnapshot>> blocksByChunk = new LinkedHashMap<Chunk, List<RtpValidationRequest.BlockSnapshot>>();
 
@@ -412,7 +440,11 @@ public final class RtpSafetyValidatorTest
 		{
 			for(int z = minimumZ; z <= maximumZ; z++)
 			{
-				add(blocksByChunk, RtpValidationRequest.BlockSnapshot.solid(x, destination.feetY() - 1, z, "minecraft:stone"));
+				boolean supportsTraveler = x >= minimumSupportX && x <= maximumSupportX
+						&& z >= minimumSupportZ && z <= maximumSupportZ;
+				add(blocksByChunk, supportsTraveler
+						? RtpValidationRequest.BlockSnapshot.solid(x, destination.feetY() - 1, z, "minecraft:stone")
+						: RtpValidationRequest.BlockSnapshot.air(x, destination.feetY() - 1, z));
 				for(int y = destination.feetY(); y <= maximumBodyY; y++)
 				{
 					add(blocksByChunk, RtpValidationRequest.BlockSnapshot.air(x, y, z));

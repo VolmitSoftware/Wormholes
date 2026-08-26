@@ -654,11 +654,11 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 		double anchorX = centerX - (envelope.minimumXOffset() + envelope.maximumXOffset()) / 2.0D;
 		double anchorY = destination.feetY() - envelope.minimumYOffset();
 		double anchorZ = centerZ - (envelope.minimumZOffset() + envelope.maximumZOffset()) / 2.0D;
-		double minimumX = anchorX + envelope.minimumXOffset();
-		double maximumX = anchorX + envelope.maximumXOffset();
+		double minimumX = anchorX + envelope.minimumXOffset() - RtpSafetyValidator.HORIZONTAL_CLEARANCE_BLOCKS;
+		double maximumX = anchorX + envelope.maximumXOffset() + RtpSafetyValidator.HORIZONTAL_CLEARANCE_BLOCKS;
 		double maximumY = anchorY + envelope.maximumYOffset();
-		double minimumZ = anchorZ + envelope.minimumZOffset();
-		double maximumZ = anchorZ + envelope.maximumZOffset();
+		double minimumZ = anchorZ + envelope.minimumZOffset() - RtpSafetyValidator.HORIZONTAL_CLEARANCE_BLOCKS;
+		double maximumZ = anchorZ + envelope.maximumZOffset() + RtpSafetyValidator.HORIZONTAL_CLEARANCE_BLOCKS;
 		return new BlockRange(
 				floor(minimumX - RtpSafetyValidator.EPSILON),
 				floor(maximumX + RtpSafetyValidator.EPSILON),
