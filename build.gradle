@@ -181,6 +181,9 @@ repositories {
         url = uri('https://repo.codemc.io/repository/maven-snapshots/')
     }
     maven {
+        url = uri('https://maven.citizensnpcs.co/repo')
+    }
+    maven {
         url = uri('https://jitpack.io')
         if (jitpackAuthToken != null) {
             credentials {
@@ -196,11 +199,13 @@ dependencies {
     compileOnly('com.github.luben:zstd-jni:1.5.7-11')
     compileOnly('me.clip:placeholderapi:2.11.6') { transitive = false }
     compileOnly('com.github.MilkBowl:VaultAPI:1.7') { transitive = false }
+    compileOnly('net.citizensnpcs:citizensapi:2.0.43-SNAPSHOT') { transitive = false }
     compileOnly(libs.paper)
     compileOnly(libs.fastutil)
     spigotCompatibility("org.spigotmc:spigot-api:${spigotApiVersion}")
     testImplementation('me.clip:placeholderapi:2.11.6') { transitive = false }
     testImplementation('com.github.MilkBowl:VaultAPI:1.7') { transitive = false }
+    testImplementation('net.citizensnpcs:citizensapi:2.0.43-SNAPSHOT') { transitive = false }
     testImplementation(libs.paper)
     testImplementation(libs.fastutil)
     testImplementation('com.github.luben:zstd-jni:1.5.7-11')

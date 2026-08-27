@@ -110,6 +110,19 @@ public final class DimensionalPortalPairStateTest
 	}
 
 	@Test
+	public void endSourceAlwaysKeepsItsProjectionVisible()
+	{
+		LocalPortal source = portal();
+		source.setProjectionMode(ProjectionMode.OFF);
+
+		source.setDimensionalPortalKind(DimensionalPortalKind.END_SOURCE);
+
+		assertEquals(ProjectionMode.ON, source.getProjectionMode());
+		source.setProjectionMode(ProjectionMode.OFF);
+		assertEquals(ProjectionMode.ON, source.getProjectionMode());
+	}
+
+	@Test
 	public void endArrivalRejectsOutboundAndRelinkingMutations()
 	{
 		World world = world();

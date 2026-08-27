@@ -22,6 +22,10 @@ dependencies:
       load: BEFORE
       required: false
       join-classpath: true
+    Citizens:
+      load: BEFORE
+      required: false
+      join-classpath: true
 permissions:
   wormholes.*:
     description: Gives access to all Wormholes permissions.

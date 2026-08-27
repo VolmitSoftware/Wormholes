@@ -443,6 +443,11 @@ final class LocalPortalLinking
 		}
 		if(dimensionalPortalKind == DimensionalPortalKind.END_SOURCE)
 		{
+			if(settings.getProjectionMode() != ProjectionMode.ON)
+			{
+				settings.assignProjectionMode(ProjectionMode.ON);
+				changed = true;
+			}
 			if(!settings.isOutgoingTraversalsEnabled())
 			{
 				settings.assignOutgoingTraversalsEnabled(true);

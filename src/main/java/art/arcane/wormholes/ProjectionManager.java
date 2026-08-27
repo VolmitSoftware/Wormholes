@@ -45,10 +45,11 @@ import art.arcane.wormholes.portal.rtp.RtpProjectionView;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
 import art.arcane.wormholes.portal.rtp.RtpRotationMode;
 import art.arcane.wormholes.network.view.ViewServer;
+import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
+import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.PortalSkinRenderer;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
 import art.arcane.wormholes.render.ProjectionClientChunkTracker;
-import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.render.view.RegionSnapshotWorldViewProvider;
 import art.arcane.wormholes.service.WormholesTelemetry;
@@ -67,6 +68,7 @@ public class ProjectionManager implements Listener {
     private static final EntityUpdateScheduler ENTITY_UPDATE_SCHEDULER = (observer, update, retired) ->
         FoliaScheduler.runEntity(Wormholes.instance, observer, update, 0L, retired);
     private final ProjectionClaimArbiter claimArbiter;
+    private final EntityRenderLocalOcclusionArbiter localEntityOcclusion;
     private final ProjectionClientChunkTracker clientChunkTracker;
     private final ProjectionWorldViewProvider viewProvider;
     private final RtpRimRenderer rtpRimRenderer;
@@ -92,13 +94,15 @@ public class ProjectionManager implements Listener {
             : ProjectionWorldViewProvider.live();
         this.clientChunkTracker = clientChunkTracker;
         this.claimArbiter = new ProjectionClaimArbiter(viewProvider, clientChunkTracker);
+        this.localEntityOcclusion = new EntityRenderLocalOcclusionArbiter();
         this.rtpRimRenderer = new RtpRimRenderer();
         this.skinRenderer = new PortalSkinRenderer(claimArbiter);
         BooleanSupplier alive = () -> !closed;
         this.closeQueue = new ProjectionInterestCloseQueue(alive);
-        this.interestSet = new ProjectionInterestSet(claimArbiter, viewProvider, closeQueue, alive);
+        this.interestSet = new ProjectionInterestSet(claimArbiter, localEntityOcclusion, viewProvider, closeQueue, alive);
         this.budgetLedger = new ProjectionBudgetLedger();
-        this.observerFrame = new ProjectionInterestFrame(interestSet, budgetLedger, claimArbiter, rtpRimRenderer,
+        this.observerFrame = new ProjectionInterestFrame(interestSet, budgetLedger, claimArbiter,
+            localEntityOcclusion, skinRenderer, rtpRimRenderer,
             () -> rtpProjectionProvider, alive);
         this.projectedEntityUpdates = new ProjectedEntityUpdateBatcher();
         this.observerTasksInFlight = ConcurrentHashMap.newKeySet();
@@ -229,11 +233,8 @@ public class ProjectionManager implements Listener {
                         remainingProjectors.addAndGet(reservedBudget);
                         return;
                     }
-                    if (skinWork) {
-                        skinRenderer.reconcile(observer, skinSnapshot);
-                    }
                     observerFrame.project(observer, activeSnapshot, remainingProjectors, reservedBudget,
-                        updateBlocks, updateEntities, frameTick);
+                        updateBlocks, updateEntities, frameTick, skinWork, skinSnapshot);
                 } finally {
                     observerTasksInFlight.remove(observerId);
                 }
@@ -510,6 +511,7 @@ public class ProjectionManager implements Listener {
     private void discardObserverProjectors(Player player) {
         UUID id = player.getUniqueId();
         interestSet.discardObserver(id);
+        localEntityOcclusion.discardObserver(id);
         claimArbiter.discardObserver(id);
         clientChunkTracker.forget(id);
         interestSet.forgetObserver(id);
@@ -550,6 +552,10 @@ public class ProjectionManager implements Listener {
             }
         }
         return flushed;
+    }
+
+    public boolean isLocalEntityOccluded(UUID observerId, UUID entityId) {
+        return localEntityOcclusion.isClaimed(observerId, entityId);
     }
 
     public void removeProjector(ILocalPortal portal, Player player) {
@@ -755,6 +761,7 @@ public class ProjectionManager implements Listener {
             return;
         }
         claimArbiter.clear();
+        localEntityOcclusion.clear();
         viewProvider.close();
     }
 

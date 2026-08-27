@@ -180,6 +180,9 @@ public final class PortalSyncService {
     }
 
     private void applyToLinkedLocals(LocalPortal source) {
+        if (source.getDimensionalPortalKind().isReceiverOnly()) {
+            return;
+        }
         List<LocalPortal> counterparts = linkedLocalCounterparts(source);
         for (LocalPortal counterpart : counterparts) {
             Map<String, String> payload = collectLocalPairSettings(source);

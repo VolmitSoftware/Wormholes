@@ -33,6 +33,7 @@ import art.arcane.wormholes.portal.VanillaTravelCostCapture;
 import art.arcane.wormholes.portal.rtp.BukkitRtpEnvironment;
 import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
 import art.arcane.wormholes.portal.vanilla.VanillaPortalReplacer;
+import art.arcane.wormholes.render.CitizensLocalEntityOcclusionListener;
 import art.arcane.wormholes.service.PacketEventsRuntime;
 import art.arcane.wormholes.service.StatsSnapshotWriter;
 import art.arcane.wormholes.service.WormholesAudience;
@@ -178,6 +179,10 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             getServer().getPluginManager().registerEvents(portalManager, this);
             getServer().getPluginManager().registerEvents(traversableManager, this);
             getServer().getPluginManager().registerEvents(projectionManager, this);
+            if (getServer().getPluginManager().isPluginEnabled("Citizens")) {
+                getServer().getPluginManager().registerEvents(
+                    new CitizensLocalEntityOcclusionListener(projectionManager), this);
+            }
             getServer().getPluginManager().registerEvents(new art.arcane.wormholes.render.ProjectionChangeListener(projectionChangeTracker), this);
             getServer().getPluginManager().registerEvents(new art.arcane.wormholes.service.WormholesHudListener(), this);
             VanillaPortalReplacer vanillaPortalReplacer = new VanillaPortalReplacer();

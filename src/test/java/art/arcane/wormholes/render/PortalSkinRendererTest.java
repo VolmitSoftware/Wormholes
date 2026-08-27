@@ -2,7 +2,10 @@ package art.arcane.wormholes.render;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -19,6 +22,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
+
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalFrame;
@@ -142,6 +149,112 @@ public final class PortalSkinRendererTest
         {
             assertEquals(1.0D, pane.scaleX(), EPSILON);
             assertNormalSlabCenteredOnPlane(pane.anchorX(), pane.translationX(), pane.scaleX(), 0.0D, 1.0D);
+        }
+    }
+
+    @Test
+    public void displayPanesUseOneOrderedFlushPerPortal()
+    {
+        ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.installWithBatchUser();
+        try
+        {
+            Player observer = ProjectedEntityPacketRecorder.player(true);
+            PortalSkinRenderer renderer = new PortalSkinRenderer(null, (player, task, retired) -> false);
+            List<SkinTransform> panes = List.of(transform(0.0D), transform(1.0D));
+
+            int[] ids = renderer.sendDisplayBatch(observer, panes, 41);
+
+            assertNotNull(ids);
+            assertEquals(2, ids.length);
+            assertEquals(1, recorder.batchLookups());
+            assertEquals(1, recorder.batchFlushes());
+            assertEquals(4, recorder.packetsAtLastFlush());
+            assertInstanceOf(WrapperPlayServerSpawnEntity.class, recorder.sent().get(0));
+            assertInstanceOf(WrapperPlayServerEntityMetadata.class, recorder.sent().get(1));
+            assertInstanceOf(WrapperPlayServerSpawnEntity.class, recorder.sent().get(2));
+            assertInstanceOf(WrapperPlayServerEntityMetadata.class, recorder.sent().get(3));
+        }
+        finally
+        {
+            recorder.uninstall();
+        }
+    }
+
+    @Test
+    public void missingBatchUserPreservesDirectPacketDelivery()
+    {
+        ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.install();
+        try
+        {
+            Player observer = ProjectedEntityPacketRecorder.player(true);
+            PortalSkinRenderer renderer = new PortalSkinRenderer(null, (player, task, retired) -> false);
+
+            int[] ids = renderer.sendDisplayBatch(observer, List.of(transform(0.0D)), 41);
+
+            assertNotNull(ids);
+            assertEquals(1, ids.length);
+            assertEquals(1, recorder.batchLookups());
+            assertEquals(0, recorder.batchFlushes());
+            assertEquals(2, recorder.sent().size());
+        }
+        finally
+        {
+            recorder.uninstall();
+        }
+    }
+
+    @Test
+    public void partialSpawnCleanupRetainsOnlyAllocatedIdsForRetry()
+    {
+        ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.installWithBatchUser();
+        try
+        {
+            Player observer = ProjectedEntityPacketRecorder.player(true);
+            UUID observerId = observer.getUniqueId();
+            PortalSkinRenderer renderer = new PortalSkinRenderer(null, (player, task, retired) -> false);
+            recorder.failNextSends(2);
+
+            assertNull(renderer.sendDisplayBatch(observer, List.of(transform(0.0D), transform(1.0D)), 41));
+            assertEquals(1, renderer.uncertainDisplayCount(observerId));
+
+            assertNotNull(renderer.sendDisplayBatch(observer, List.of(transform(2.0D)), 41));
+            assertEquals(0, renderer.uncertainDisplayCount(observerId));
+            List<WrapperPlayServerDestroyEntities> destroys =
+                recorder.sentOfType(WrapperPlayServerDestroyEntities.class);
+            assertEquals(1, destroys.size());
+            assertEquals(1, destroys.get(0).getEntityIds().length);
+            assertNotEquals(0, destroys.get(0).getEntityIds()[0]);
+        }
+        finally
+        {
+            recorder.uninstall();
+        }
+    }
+
+    @Test
+    public void failedBatchFlushDestroysEveryAllocatedPane()
+    {
+        ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.installWithBatchUser();
+        try
+        {
+            Player observer = ProjectedEntityPacketRecorder.player(true);
+            PortalSkinRenderer renderer = new PortalSkinRenderer(null, (player, task, retired) -> false);
+            recorder.failNextFlush();
+
+            assertNull(renderer.sendDisplayBatch(observer, List.of(transform(0.0D), transform(1.0D)), 41));
+
+            List<WrapperPlayServerSpawnEntity> spawns =
+                recorder.sentOfType(WrapperPlayServerSpawnEntity.class);
+            List<WrapperPlayServerDestroyEntities> destroys =
+                recorder.sentOfType(WrapperPlayServerDestroyEntities.class);
+            assertEquals(2, spawns.size());
+            assertEquals(1, destroys.size());
+            assertEquals(spawns.get(0).getEntityId(), destroys.get(0).getEntityIds()[0]);
+            assertEquals(spawns.get(1).getEntityId(), destroys.get(0).getEntityIds()[1]);
+        }
+        finally
+        {
+            recorder.uninstall();
         }
     }
 
@@ -298,6 +411,12 @@ public final class PortalSkinRendererTest
                 case "toString" -> "observer(" + observerId + ")";
                 default -> throw new UnsupportedOperationException(method.getName());
             });
+    }
+
+    private static SkinTransform transform(double x)
+    {
+        return new SkinTransform(x, 64.0D, 0.0D, 0.0D, 0.0D, -0.5D,
+            1.0D, 1.0D, 1.0D);
     }
 
     private static void assertNormalSlabCenteredOnPlane(double anchor, double translation, double scale, double planeCoordinate, double thickness)

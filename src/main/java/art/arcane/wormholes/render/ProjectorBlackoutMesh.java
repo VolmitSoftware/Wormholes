@@ -153,8 +153,8 @@ final class ProjectorBlackoutMesh {
     record Panel(int axis, int sign, int plane, int u, int v, int uSize, int vSize) {
         Transform transform() {
             double minNormal = sign > 0
-                ? plane + PANEL_INSET
-                : plane - PANEL_THICKNESS - PANEL_INSET;
+                ? plane - PANEL_THICKNESS - PANEL_INSET
+                : plane + PANEL_INSET;
             if (axis == 0) {
                 return new Transform(minNormal, u, v, PANEL_THICKNESS, uSize, vSize);
             }

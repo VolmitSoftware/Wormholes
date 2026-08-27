@@ -13,12 +13,14 @@ import java.util.function.BooleanSupplier;
 import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 
 final class ProjectionInterestSet {
     private final ProjectionClaimArbiter claimArbiter;
+    private final EntityRenderLocalOcclusionArbiter localEntityOcclusion;
     private final ProjectionWorldViewProvider viewProvider;
     private final ProjectionInterestCloseQueue closeQueue;
     private final BooleanSupplier alive;
@@ -28,10 +30,12 @@ final class ProjectionInterestSet {
     private final ProjectedEntityInterestIndex<PortalProjector> projectedEntityInterests;
 
     ProjectionInterestSet(ProjectionClaimArbiter claimArbiter,
+                          EntityRenderLocalOcclusionArbiter localEntityOcclusion,
                           ProjectionWorldViewProvider viewProvider,
                           ProjectionInterestCloseQueue closeQueue,
                           BooleanSupplier alive) {
         this.claimArbiter = claimArbiter;
+        this.localEntityOcclusion = localEntityOcclusion;
         this.viewProvider = viewProvider;
         this.closeQueue = closeQueue;
         this.alive = alive;
@@ -61,7 +65,8 @@ final class ProjectionInterestSet {
             if (!alive.getAsBoolean()) {
                 return null;
             }
-            projector = new PortalProjector(portal, observer, claimArbiter, viewProvider, alive);
+            projector = new PortalProjector(portal, observer, claimArbiter, viewProvider, alive,
+                localEntityOcclusion);
             portalProjectors.put(activeObserverId, projector);
             projectedEntityInterests.activate(projector);
             Wormholes.v("[ProjectionManager] new projector portal=" + portal.getName()

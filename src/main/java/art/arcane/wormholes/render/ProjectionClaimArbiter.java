@@ -198,6 +198,14 @@ public final class ProjectionClaimArbiter {
                 return ClaimUpdateResult.empty();
             }
             ProjectionClaimSet.ProjectionClaimSetResult setResult = state.claimSet.releasePortal(claimOwnerId);
+            ObserverFrame frame = state.frame;
+            if (frame != null) {
+                if (allowLightingUpdate) {
+                    frame.allowLightingUpdate = true;
+                }
+                frame.result.merge(setResult);
+                return new ClaimUpdateResult(0, setResult.getConflicts(), setResult.getWinnerChanges(), setResult.getReverts());
+            }
             ClaimUpdateResult result = applyResult(observer, localWorld, state, setResult, allowLightingUpdate, false);
             removeObserverIfEmpty(observerId, state);
             return result;
@@ -276,6 +284,11 @@ public final class ProjectionClaimArbiter {
             }
             reconcileClientChunks(observer, state);
             if (state.pendingRevertKeys.isEmpty() && state.pendingSendKeys.isEmpty() && !hasLightingWork(state)) {
+                return ClaimUpdateResult.empty();
+            }
+            ObserverFrame frame = state.frame;
+            if (frame != null) {
+                frame.allowLightingUpdate = true;
                 return ClaimUpdateResult.empty();
             }
             ClaimUpdateResult result = applyResult(observer, localWorld, state,

@@ -80,6 +80,82 @@ public final class ProjectionClaimArbiterConcurrencyTest {
     }
 
     @Test
+    public void framedReleaseDefersItsRevertUntilTheSharedFlush() throws Exception {
+        World world = world();
+        AtomicReference<World> playerWorld = new AtomicReference<World>(world);
+        AtomicBoolean online = new AtomicBoolean(true);
+        List<Location> sentLocations = new ArrayList<Location>();
+        Player observer = player(UUID.fromString("00000000-0000-0000-0000-000000000016"),
+            playerWorld, online, sentLocations);
+        ProjectionClaimArbiter arbiter = arbiter();
+        ILocalPortal portal = portal(UUID.fromString("00000000-0000-0000-0000-000000000027"));
+
+        assertEquals(1, arbiter.submit(observer, portal, world, singleClaim(blockData("a")), 2.0D, false)
+            .getBlockChanges());
+        sentLocations.clear();
+
+        arbiter.beginFrame(observer, world, false);
+        ProjectionClaimArbiter.ClaimUpdateResult release = arbiter.release(observer, portal, world, false);
+
+        assertEquals(0, release.getBlockChanges());
+        assertEquals(1, release.getReverts());
+        assertTrue(sentLocations.isEmpty());
+
+        ProjectionClaimArbiter.ClaimUpdateResult flush = arbiter.flushFrame(observer);
+
+        assertEquals(1, flush.getBlockChanges());
+        assertEquals(1, sentLocations.size());
+        assertTrue(arbiter.isIdle());
+    }
+
+    @Test
+    public void framedChunkRetryDefersItsResendUntilTheSharedFlush() {
+        World world = world(UUID.fromString("00000000-0000-0000-0000-0000000000c4"));
+        AtomicReference<World> playerWorld = new AtomicReference<World>(world);
+        AtomicBoolean online = new AtomicBoolean(true);
+        AtomicLong revision = new AtomicLong(1L);
+        AtomicLong chunkRevision = new AtomicLong(1L);
+        List<Location> sentLocations = new ArrayList<Location>();
+        Player observer = player(UUID.fromString("00000000-0000-0000-0000-000000000056"),
+            playerWorld, online, sentLocations);
+        ProjectionChunkVisibility visibility = new ProjectionChunkVisibility() {
+            @Override
+            public boolean isChunkSent(Player player, int chunkX, int chunkZ) {
+                return true;
+            }
+
+            @Override
+            public long revision(Player player) {
+                return revision.get();
+            }
+
+            @Override
+            public long chunkRevision(Player player, int chunkX, int chunkZ) {
+                return chunkRevision.get();
+            }
+        };
+        ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
+            ProjectionClaimArbiterConcurrencyTest::availableView,
+            visibility
+        );
+        ILocalPortal portal = portal(UUID.fromString("00000000-0000-0000-0000-000000000068"));
+        long cell = packKey(1, 64, 1);
+
+        assertEquals(1, arbiter.submit(observer, portal, world, singleClaim(cell, blockData("a")), 2.0D, false)
+            .getBlockChanges());
+        sentLocations.clear();
+        chunkRevision.incrementAndGet();
+        revision.incrementAndGet();
+
+        arbiter.beginFrame(observer, world, false);
+        assertEquals(0, arbiter.retryPending(observer, world).getBlockChanges());
+        assertTrue(sentLocations.isEmpty());
+
+        assertEquals(1, arbiter.flushFrame(observer).getBlockChanges());
+        assertEquals(1, sentLocations.size());
+    }
+
+    @Test
     public void discardObserverAfterSubmitEmptiesSubsequentCalls() throws Exception {
         ProjectionClaimArbiter arbiter = arbiter();
         UUID observerId = UUID.fromString("00000000-0000-0000-0000-000000000012");

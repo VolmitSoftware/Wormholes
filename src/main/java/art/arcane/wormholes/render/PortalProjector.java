@@ -45,7 +45,7 @@ public final class PortalProjector {
     private final ProjectorResampleSchedule schedule;
     private final ProjectorCellScan cellScan;
     private final ProjectorFrustumFailures frustumFailures;
-    private final ProjectedEntityRenderer entityRenderer = new ProjectedEntityRenderer();
+    private final ProjectedEntityRenderer entityRenderer;
     private final ProjectorBlackoutDisplayRenderer blackoutDisplayRenderer =
         new ProjectorBlackoutDisplayRenderer();
 
@@ -73,6 +73,15 @@ public final class PortalProjector {
 
     public PortalProjector(ILocalPortal portal, Player observer, ProjectionClaimArbiter claimArbiter,
                            ProjectionWorldViewProvider viewProvider, BooleanSupplier activeGuard) {
+        this(portal, observer, claimArbiter, viewProvider, activeGuard, new EntityRenderLocalOcclusionArbiter());
+    }
+
+    public PortalProjector(ILocalPortal portal,
+                           Player observer,
+                           ProjectionClaimArbiter claimArbiter,
+                           ProjectionWorldViewProvider viewProvider,
+                           BooleanSupplier activeGuard,
+                           EntityRenderLocalOcclusionArbiter localEntityOcclusion) {
         this.portal = portal;
         this.observer = observer;
         this.observerId = observer.getUniqueId();
@@ -81,6 +90,7 @@ public final class PortalProjector {
         this.claimArbiter = claimArbiter;
         this.viewProvider = viewProvider;
         this.activeGuard = activeGuard;
+        this.entityRenderer = new ProjectedEntityRenderer(localEntityOcclusion, portal.getId());
         this.destination = new ProjectorDestination(portal, viewProvider);
         this.sampleMemo = new ProjectorSampleMemo();
         this.sampler = new ProjectorSampler(sampleMemo, new ProjectorRecursivePortals(), destination::liveView);

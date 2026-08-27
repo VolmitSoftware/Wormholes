@@ -13,6 +13,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
 
 final class ProjectionInterestSetTest {
     private static final ILocalPortal NEAREST = portal("nearest");
@@ -77,7 +78,7 @@ final class ProjectionInterestSetTest {
     }
 
     private static ProjectionInterestSet newSet() {
-        return new ProjectionInterestSet(null, null, null, () -> true);
+        return new ProjectionInterestSet(null, new EntityRenderLocalOcclusionArbiter(), null, null, () -> true);
     }
 
     private static ILocalPortal only(List<ILocalPortal> slice) {

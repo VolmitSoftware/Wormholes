@@ -5,6 +5,7 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.BlackoutColor;
+import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.MirrorRotation;
 import art.arcane.wormholes.portal.PortalPermissionMode;
@@ -13,10 +14,14 @@ import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.portal.RemotePortal;
+import art.arcane.wormholes.portal.vanilla.PortalFactory;
 import art.arcane.wormholes.util.Cuboid;
+import org.bukkit.NamespacedKey;
+import org.bukkit.World;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.lang.reflect.Proxy;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -92,6 +97,24 @@ class PortalSettingsSyncTest {
     }
 
     @Test
+    void endArrivalNeverOverwritesItsVisibleSourceSettings() {
+        World world = world();
+        LocalPortal source = localPortal(world);
+        LocalPortal arrival = localPortal(world);
+        source.setDimensionalPortalKind(DimensionalPortalKind.END_SOURCE);
+        arrival.setDimensionalPortalKind(DimensionalPortalKind.END_ARRIVAL);
+        assertTrue(PortalFactory.linkOneWay(source, arrival));
+        source.setAmbientColor(0x123456);
+
+        PortalSyncService sync = new PortalSyncService(null, () -> List.of(source, arrival), Runnable::run);
+        sync.syncLinkedLocals(arrival);
+
+        assertEquals(ProjectionMode.ON, source.getProjectionMode());
+        assertEquals(0x123456, source.getAmbientColor());
+        assertEquals(ProjectionMode.OFF, arrival.getProjectionMode());
+    }
+
+    @Test
     void mirrorToggleBroadcastsRemoteCacheWhenSettingsSyncIsDisabled(@TempDir Path tempDir) {
         PortalSyncService previousSync = Wormholes.portalSyncService;
         LocalPortal portal = localPortal();
@@ -147,6 +170,24 @@ class PortalSettingsSyncTest {
         PortalStructure structure = new PortalStructure();
         structure.setArea(new Cuboid(values));
         return new LocalPortal(UUID.randomUUID(), PortalType.GATEWAY, structure);
+    }
+
+    private static LocalPortal localPortal(World world) {
+        LocalPortal portal = localPortal();
+        portal.getStructure().setWorld(world);
+        return portal;
+    }
+
+    private static World world() {
+        return (World) Proxy.newProxyInstance(World.class.getClassLoader(), new Class<?>[] { World.class },
+            (proxy, method, arguments) -> switch (method.getName()) {
+                case "getName" -> "world";
+                case "getKey" -> NamespacedKey.minecraft("overworld");
+                case "toString" -> "PortalSettingsSyncTestWorld";
+                case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
+                case "equals" -> Boolean.valueOf(proxy == arguments[0]);
+                default -> throw new UnsupportedOperationException(method.getName());
+            });
     }
 
     @Test

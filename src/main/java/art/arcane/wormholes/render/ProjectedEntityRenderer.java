@@ -90,11 +90,37 @@ public final class ProjectedEntityRenderer {
     }
 
     ProjectedEntityRenderer(EntityRenderPacketChannel channel, EntityRenderPlayerIdentity identity, EntityRenderSpoofRegistry registry) {
+        this(channel, identity, registry, new EntityRenderLocalOcclusionArbiter(), UUID.randomUUID());
+    }
+
+    ProjectedEntityRenderer(EntityRenderLocalOcclusionArbiter localOcclusion, UUID localOcclusionOwnerId) {
+        this(new EntityRenderPacketChannel(), localOcclusion, localOcclusionOwnerId);
+    }
+
+    private ProjectedEntityRenderer(EntityRenderPacketChannel channel,
+                                    EntityRenderLocalOcclusionArbiter localOcclusion,
+                                    UUID localOcclusionOwnerId) {
+        this(channel, new EntityRenderPlayerIdentity(channel), localOcclusion, localOcclusionOwnerId);
+    }
+
+    private ProjectedEntityRenderer(EntityRenderPacketChannel channel,
+                                    EntityRenderPlayerIdentity identity,
+                                    EntityRenderLocalOcclusionArbiter localOcclusion,
+                                    UUID localOcclusionOwnerId) {
+        this(channel, identity, new EntityRenderSpoofRegistry(channel, identity), localOcclusion,
+            localOcclusionOwnerId);
+    }
+
+    private ProjectedEntityRenderer(EntityRenderPacketChannel channel,
+                                    EntityRenderPlayerIdentity identity,
+                                    EntityRenderSpoofRegistry registry,
+                                    EntityRenderLocalOcclusionArbiter localOcclusion,
+                                    UUID localOcclusionOwnerId) {
         this.channel = channel;
         this.identity = identity;
         this.registry = registry;
         this.metadataBridge = new EntityRenderMetadataBridge(channel);
-        this.occluder = new EntityRenderLocalOccluder();
+        this.occluder = new EntityRenderLocalOccluder(localOcclusion, localOcclusionOwnerId);
         this.visualProjector = new EntityRenderVisualProjector(channel, registry, identity, this.metadataBridge);
         this.entityTypeCache = new HashMap<NamespacedKey, EntityType>(32);
         this.scratchVisiblePoint = new double[3];
@@ -135,7 +161,6 @@ public final class ProjectedEntityRenderer {
         try {
             double range = Math.min(Settings.ENTITY_SPOOF_RANGE, projectionDepth);
             registry.clearVisible();
-            occluder.clearVisibleHides();
             occluder.hideLocalEntities(observer, localPortal, frustum, range, projectionDepth);
             boolean upsideDown = remotePortal == localPortal
                 ? PortalCoordMap.mirrorTransformFlipsWorldUp(localPortal.getFrame(), mirrorRotationQuarterTurns)
@@ -158,7 +183,6 @@ public final class ProjectedEntityRenderer {
             }
 
             registry.destroyHidden(observer);
-            occluder.restoreLocalEntities(observer);
         } catch (RuntimeException error) {
             batchFailure = error;
             throw error;
@@ -191,7 +215,6 @@ public final class ProjectedEntityRenderer {
         try {
             double range = Math.min(Settings.ENTITY_SPOOF_RANGE, projectionDepth);
             registry.clearVisible();
-            occluder.clearVisibleHides();
             occluder.hideLocalEntities(observer, localPortal, frustum, range, projectionDepth);
             boolean upsideDown = PortalCoordMap.transformFlipsWorldUp(remoteViewFrame, localViewFrame);
             int count = 0;
@@ -210,7 +233,6 @@ public final class ProjectedEntityRenderer {
 
             registry.destroyHidden(observer);
             registry.applyRelationships(observer, visuals);
-            occluder.restoreLocalEntities(observer);
         } catch (RuntimeException error) {
             batchFailure = error;
             throw error;
@@ -246,7 +268,6 @@ public final class ProjectedEntityRenderer {
         try {
             double range = Math.min(Settings.ENTITY_SPOOF_RANGE, projectionDepth);
             registry.clearVisible();
-            occluder.clearVisibleHides();
             occluder.hideLocalEntities(observer, localPortal, frustum, range, projectionDepth);
             boolean upsideDown = mirror
                 ? PortalCoordMap.mirrorTransformFlipsWorldUp(localPortal.getFrame(), mirrorRotationQuarterTurns)
@@ -267,7 +288,6 @@ public final class ProjectedEntityRenderer {
             }
             registry.destroyHidden(observer);
             registry.applyRelationships(observer, visuals);
-            occluder.restoreLocalEntities(observer);
         } catch (RuntimeException error) {
             batchFailure = error;
             throw error;
@@ -285,9 +305,9 @@ public final class ProjectedEntityRenderer {
     }
 
     private void teardown(Player observer) {
-        occluder.requestRestoreAll();
         if (observer == null || !observer.isOnline()) {
             dropRenderState(observer);
+            occluder.release(observer);
             return;
         }
         try {
@@ -297,7 +317,7 @@ public final class ProjectedEntityRenderer {
             reportTeardownFailure(observer, error);
             scheduleTeardownRetry(observer);
         } finally {
-            occluder.restoreAllLocalEntities(observer);
+            occluder.release(observer);
         }
     }
 
@@ -360,9 +380,7 @@ public final class ProjectedEntityRenderer {
     }
 
     private void dropRenderState(Player observer) {
-        occluder.restoreAllLocalEntities(observer);
         registry.clear();
-        occluder.clearVisibleHides();
         identity.forgetVanillaNameTeam();
         recoveryPending = false;
         publishedSpoofedCount = 0;
@@ -370,8 +388,7 @@ public final class ProjectedEntityRenderer {
 
     private void markRecoveryPending(Player observer) {
         recoveryPending = true;
-        occluder.requestRestoreAll();
-        occluder.restoreAllLocalEntities(observer);
+        occluder.release(observer);
         publishedSpoofedCount = registry.size();
         scheduleTeardownRetry(observer);
     }

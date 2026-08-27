@@ -2,13 +2,10 @@ package art.arcane.wormholes.render;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -16,39 +13,27 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
-import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalFrame;
 
 final class EntityRenderLocalOccluder {
-    private final Map<UUID, Entity> hiddenLocalEntities;
-    private final Set<UUID> visibleLocalHides;
+    private final EntityRenderLocalOcclusionArbiter arbiter;
+    private final UUID ownerId;
     private final double[] scratchEntityPosition;
-    private final AtomicBoolean localRestoreRetryScheduled;
     private boolean localHideOwnershipWarningSent;
-    private volatile boolean restoreAllRequested;
 
-    EntityRenderLocalOccluder() {
-        this.hiddenLocalEntities = new HashMap<UUID, Entity>(16);
-        this.visibleLocalHides = new HashSet<UUID>(16);
+    EntityRenderLocalOccluder(EntityRenderLocalOcclusionArbiter arbiter, UUID ownerId) {
+        this.arbiter = arbiter;
+        this.ownerId = ownerId;
         this.scratchEntityPosition = new double[5];
-        this.localRestoreRetryScheduled = new AtomicBoolean(false);
         this.localHideOwnershipWarningSent = false;
-        this.restoreAllRequested = false;
     }
 
-    void clearVisibleHides() {
-        visibleLocalHides.clear();
-    }
-
-    void requestRestoreAll() {
-        restoreAllRequested = true;
-    }
-
-    void hideLocalEntities(Player observer, ILocalPortal localPortal, Frustum4D frustum, double range, double projectionDepth) {
-        if (Wormholes.instance == null || observer == null || !observer.isOnline()) {
+    void hideLocalEntities(Player observer, ILocalPortal localPortal, Frustum4D frustum, double range,
+                           double projectionDepth) {
+        if (Wormholes.instance == null || observer == null || !observer.isOnline() || localPortal == null) {
             return;
         }
         Location localCenter = localPortal.getCenter();
@@ -74,28 +59,27 @@ final class EntityRenderLocalOccluder {
         try {
             candidates = EntityRenderCaches.nearbyLocalEntities(localPortal, localCenter, ownedRange);
         } catch (IllegalStateException error) {
-            reportLocalHideOwnershipFailure(error);
+            reportOwnershipFailure(error);
             return;
         }
-        restoreAllRequested = false;
+        Map<UUID, Entity> desired = new HashMap<UUID, Entity>(Math.max(4, candidates.size()));
         UUID observerId = observer.getUniqueId();
-        for (Entity entity : candidates) {
-            try {
-                if (!shouldHideLocalEntity(observerId, entity, origin, frame, frustum, eyeFrontSide, clearance, maxDepth)) {
-                    continue;
+        try {
+            for (Entity entity : candidates) {
+                if (shouldHideLocalEntity(observerId, entity, origin, frame, frustum,
+                    eyeFrontSide, clearance, maxDepth)) {
+                    desired.put(entity.getUniqueId(), entity);
                 }
-                UUID entityId = entity.getUniqueId();
-                visibleLocalHides.add(entityId);
-                if (hiddenLocalEntities.containsKey(entityId)) {
-                    hiddenLocalEntities.put(entityId, entity);
-                    continue;
-                }
-                observer.hideEntity(Wormholes.instance, entity);
-                hiddenLocalEntities.put(entityId, entity);
-            } catch (IllegalStateException error) {
-                reportLocalHideOwnershipFailure(error);
             }
+        } catch (IllegalStateException error) {
+            reportOwnershipFailure(error);
+            return;
         }
+        arbiter.replace(observer, ownerId, desired);
+    }
+
+    void release(Player observer) {
+        arbiter.release(observer, ownerId);
     }
 
     private static double largestOwnedLocalEntityRange(World world, Location center, double requestedRange) {
@@ -114,16 +98,6 @@ final class EntityRenderLocalOccluder {
             radius = Math.max(1, radius / 2);
         }
         return 0.0D;
-    }
-
-    private void reportLocalHideOwnershipFailure(IllegalStateException error) {
-        if (localHideOwnershipWarningSent) {
-            return;
-        }
-        localHideOwnershipWarningSent = true;
-        Wormholes.instance.getLogger().log(Level.WARNING,
-            "[spoof] Local entity occlusion crossed an unowned Folia region; this projection will keep rendering without local occlusion.",
-            error);
     }
 
     private boolean shouldHideLocalEntity(UUID observerId,
@@ -155,81 +129,19 @@ final class EntityRenderLocalOccluder {
         return frustum.containsPrimitive(entityX, centerY, entityZ);
     }
 
-    void restoreLocalEntities(Player observer) {
-        if (hiddenLocalEntities.isEmpty() || observer == null || !observer.isOnline() || Wormholes.instance == null) {
-            return;
-        }
-        Iterator<Map.Entry<UUID, Entity>> iterator = hiddenLocalEntities.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<UUID, Entity> entry = iterator.next();
-            if (visibleLocalHides.contains(entry.getKey())) {
-                continue;
-            }
-            Entity entity = entry.getValue();
-            try {
-                if (entity != null && entity.isValid() && !entity.isDead()) {
-                    observer.showEntity(Wormholes.instance, entity);
-                }
-            } catch (IllegalStateException error) {
-                reportLocalHideOwnershipFailure(error);
-                continue;
-            }
-            iterator.remove();
-        }
-    }
-
-    void restoreAllLocalEntities(Player observer) {
-        if (hiddenLocalEntities.isEmpty()) {
-            return;
-        }
-        if (observer == null || !observer.isOnline()) {
-            hiddenLocalEntities.clear();
-            return;
-        }
-        if (Wormholes.instance == null || !FoliaScheduler.isOwnedByCurrentRegion(observer)) {
-            scheduleLocalEntityRestore(observer);
-            return;
-        }
-        if (!showAllLocalEntities(observer)) {
-            scheduleLocalEntityRestore(observer);
-        }
-    }
-
-    private boolean showAllLocalEntities(Player observer) {
-        return ProjectedEntityRenderer.removeCompletedRestores(hiddenLocalEntities, entity -> tryShowLocalEntity(observer, entity));
-    }
-
-    private boolean tryShowLocalEntity(Player observer, Entity entity) {
-        try {
-            if (entity != null && entity.isValid() && !entity.isDead()) {
-                observer.showEntity(Wormholes.instance, entity);
-            }
-            return true;
-        } catch (IllegalStateException error) {
-            reportLocalHideOwnershipFailure(error);
-            return false;
-        }
-    }
-
-    private void scheduleLocalEntityRestore(Player observer) {
-        if (hiddenLocalEntities.isEmpty() || observer == null || !observer.isOnline()
-            || Wormholes.instance == null || !localRestoreRetryScheduled.compareAndSet(false, true)) {
-            return;
-        }
-        boolean scheduled = FoliaScheduler.runEntity(Wormholes.instance, observer, () -> {
-            localRestoreRetryScheduled.set(false);
-            if (restoreAllRequested) {
-                restoreAllLocalEntities(observer);
-            } else {
-                restoreLocalEntities(observer);
-            }
-        }, 1L);
-        if (!scheduled) {
-            localRestoreRetryScheduled.set(false);
-        }
-    }
-
     private static double dot(double x, double y, double z, PortalFrame frame) {
         return (x * frame.getNormal().x()) + (y * frame.getNormal().y()) + (z * frame.getNormal().z());
+    }
+
+    private void reportOwnershipFailure(IllegalStateException error) {
+        if (localHideOwnershipWarningSent) {
+            return;
+        }
+        localHideOwnershipWarningSent = true;
+        Wormholes plugin = Wormholes.instance;
+        Logger logger = plugin == null ? Logger.getLogger("Wormholes") : plugin.getLogger();
+        logger.log(Level.WARNING,
+            "[spoof] Local entity discovery crossed an unowned Folia region; this projection will retain its prior visibility state.",
+            error);
     }
 }

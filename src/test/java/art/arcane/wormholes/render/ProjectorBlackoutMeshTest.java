@@ -70,24 +70,24 @@ public final class ProjectorBlackoutMeshTest {
     }
 
     @Test
-    public void oneLayerVolumeReceivesOnlyAnOutsideFarCap() {
+    public void oneLayerVolumeReceivesOnlyAnInsetFarCap() {
         LongOpenHashSet geometry = box(0, 2, 0, 2, 0, 0);
         ProjectorBlackoutMesh.Result result = build(geometry, Direction.S);
 
         assertEquals(expectedFarCap(geometry, Direction.S), expandedFaces(result.panels()));
         assertEquals(9, expandedFaces(result.panels()).size());
-        assertOutsideGeometry(result.panels(), Direction.S, 0);
+        assertInsideFarSlice(result.panels(), Direction.S, 0);
     }
 
     @Test
-    public void panelsArePlacedWhollyBeyondTheFarSliceForEveryNormal() {
+    public void panelsArePlacedWhollyInsideTheFarSliceForEveryNormal() {
         LongOpenHashSet geometry = box(-2, 3, 4, 8, -7, -1);
 
         for (Direction normal : Direction.values()) {
             int farCoordinate = farCoordinate(geometry, normal);
             ProjectorBlackoutMesh.Result result = build(geometry, normal);
 
-            assertOutsideGeometry(result.panels(), normal, farCoordinate);
+            assertInsideFarSlice(result.panels(), normal, farCoordinate);
         }
     }
 
@@ -195,9 +195,9 @@ public final class ProjectorBlackoutMeshTest {
         return faces;
     }
 
-    private static void assertOutsideGeometry(List<ProjectorBlackoutMesh.Panel> panels,
-                                              Direction normal,
-                                              int farCoordinate) {
+    private static void assertInsideFarSlice(List<ProjectorBlackoutMesh.Panel> panels,
+                                             Direction normal,
+                                             int farCoordinate) {
         int normalSign = sign(normal);
         for (ProjectorBlackoutMesh.Panel panel : panels) {
             ProjectorBlackoutMesh.Transform transform = panel.transform();
@@ -207,9 +207,12 @@ public final class ProjectorBlackoutMeshTest {
                 : panel.axis() == 1 ? transform.scaleY() : transform.scaleZ();
             assertEquals(ProjectorBlackoutMesh.PANEL_THICKNESS, size);
             if (normalSign > 0) {
-                assertTrue(minimum + size < farCoordinate, normal.name());
+                assertEquals(farCoordinate + ProjectorBlackoutMesh.PANEL_INSET, minimum, normal.name());
+                assertTrue(minimum + size < farCoordinate + 1.0D, normal.name());
             } else {
-                assertTrue(minimum > farCoordinate + 1.0D, normal.name());
+                assertEquals(farCoordinate + 1.0D - ProjectorBlackoutMesh.PANEL_THICKNESS
+                    - ProjectorBlackoutMesh.PANEL_INSET, minimum, normal.name());
+                assertTrue(minimum > farCoordinate, normal.name());
             }
         }
     }

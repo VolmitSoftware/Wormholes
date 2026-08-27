@@ -289,6 +289,29 @@ public final class ProjectorViewOcclusionTest {
     }
 
     @Test
+    public void emptyCubeSkipNeverStepsPastABoundaryBlocker() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet positiveBlockers = new LongOpenHashSet();
+        positiveBlockers.add(ProjectionCellKey.pack(48, 0, 0));
+        ProjectorViewOcclusion positive = occlusion();
+        positive.beginPass(0.5D, 0.5D, 0.5D, Direction.W, positiveBlockers);
+
+        LongOpenHashSet negativeBlockers = new LongOpenHashSet();
+        negativeBlockers.add(ProjectionCellKey.pack(-48, 0, 0));
+        ProjectorViewOcclusion negative = occlusion();
+        negative.beginPass(0.5D, 0.5D, 0.5D, Direction.E, negativeBlockers);
+
+        for (int targetX = 49; targetX <= 256; targetX++) {
+            assertFalse(positive.visible(view, targetX, 0, 0, 0.5D, 0.5D, 0.5D),
+                "positive empty-volume skips must stop before the blocker for target x=" + targetX);
+            assertFalse(negative.visible(view, -targetX, 0, 0, 0.5D, 0.5D, 0.5D),
+                "negative empty-volume skips must stop before the blocker for target x=" + -targetX);
+        }
+        assertFalse(positive.budgetExhausted());
+        assertFalse(negative.budgetExhausted());
+    }
+
+    @Test
     public void stationaryEyeReusesExactHiddenBlockerProofAcrossPasses() {
         FakeWorldView view = new FakeWorldView();
         LongOpenHashSet blockers = new LongOpenHashSet();

@@ -35,6 +35,7 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
     private int batchLookups;
     private int batchFlushes;
     private int packetsAtLastFlush;
+    private int failedFlushesRemaining;
     private int failedSendsRemaining;
 
     private final PlayerManager playerManager = new PlayerManager() {
@@ -144,6 +145,10 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
         failedSendsRemaining += Math.max(0, count);
     }
 
+    void failNextFlush() {
+        failedFlushesRemaining++;
+    }
+
     <T extends PacketWrapper<?>> List<T> sentOfType(Class<T> type) {
         List<T> matches = new ArrayList<T>();
         for (PacketWrapper<?> wrapper : sent) {
@@ -177,6 +182,10 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
         @Override
         public void flushPackets() {
             batchFlushes++;
+            if (failedFlushesRemaining > 0) {
+                failedFlushesRemaining--;
+                throw new IllegalStateException("injected packet flush failure");
+            }
             packetsAtLastFlush = sent.size();
         }
     }

@@ -312,6 +312,8 @@ public final class ProjectorCellScanLightingRetentionTest {
                 + " region=" + frustum.getRegion());
             for (long key : geometry) {
                 assertEquals(expectedCoordinate, coordinate(key, normal), normal.name());
+                ProjectedBlockClaim claim = scan.claims().get(key);
+                assertTrue(claim != null && claim.getData().getMaterial() == Material.AIR, normal.name());
             }
             int expectedAxis = normal.x() != 0 ? 0 : normal.y() != 0 ? 1 : 2;
             assertTrue(scan.blackoutMesh().panels().stream()

@@ -366,6 +366,9 @@ final class ProjectorViewOcclusion {
                     if (tExit > 1.0D) {
                         return RayResult.CLEAR;
                     }
+                    tMaxX = initialBoundaryT(startX, deltaX, x, stepX);
+                    tMaxY = initialBoundaryT(startY, deltaY, y, stepY);
+                    tMaxZ = initialBoundaryT(startZ, deltaZ, z, stepZ);
                     int xCrossings = boundariesBefore(tMaxX, tDeltaX, tExit);
                     int yCrossings = boundariesBefore(tMaxY, tDeltaY, tExit);
                     int zCrossings = boundariesBefore(tMaxZ, tDeltaZ, tExit);
@@ -373,13 +376,13 @@ final class ProjectorViewOcclusion {
                     y += stepY * yCrossings;
                     z += stepZ * zCrossings;
                     if (xCrossings > 0) {
-                        tMaxX += tDeltaX * xCrossings;
+                        tMaxX = initialBoundaryT(startX, deltaX, x, stepX);
                     }
                     if (yCrossings > 0) {
-                        tMaxY += tDeltaY * yCrossings;
+                        tMaxY = initialBoundaryT(startY, deltaY, y, stepY);
                     }
                     if (zCrossings > 0) {
-                        tMaxZ += tDeltaZ * zCrossings;
+                        tMaxZ = initialBoundaryT(startZ, deltaZ, z, stepZ);
                     }
                     remaining = Math.abs(targetX - x) + Math.abs(targetY - y) + Math.abs(targetZ - z) + 3;
                 }
@@ -656,11 +659,12 @@ final class ProjectorViewOcclusion {
         if (!Double.isFinite(first) || !Double.isFinite(interval) || interval <= 0.0D || first >= limit) {
             return 0;
         }
-        double last = Math.nextDown(limit);
-        if (first > last) {
+        double exactCrossings = (limit - first) / interval;
+        if (exactCrossings <= 0.0D) {
             return 0;
         }
-        return (int) Math.floor((last - first) / interval) + 1;
+        double roundingMargin = Math.ulp(exactCrossings) * 4.0D;
+        return Math.max(0, (int) Math.ceil(exactCrossings - roundingMargin));
     }
 
     private boolean rayBlocked(ProjectionWorldView view, int x, int y, int z) {

@@ -19,7 +19,9 @@ import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
+import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
 import art.arcane.wormholes.render.PortalProjector;
+import art.arcane.wormholes.render.PortalSkinRenderer;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
 import art.arcane.wormholes.util.AxisAlignedBB;
 
@@ -27,6 +29,8 @@ final class ProjectionInterestFrame {
     private final ProjectionInterestSet interestSet;
     private final ProjectionBudgetLedger ledger;
     private final ProjectionClaimArbiter claimArbiter;
+    private final EntityRenderLocalOcclusionArbiter localEntityOcclusion;
+    private final PortalSkinRenderer skinRenderer;
     private final RtpRimRenderer rtpRimRenderer;
     private final Supplier<ProjectionManager.RtpProjectionProvider> rtpProjectionProvider;
     private final BooleanSupplier alive;
@@ -34,12 +38,16 @@ final class ProjectionInterestFrame {
     ProjectionInterestFrame(ProjectionInterestSet interestSet,
                             ProjectionBudgetLedger ledger,
                             ProjectionClaimArbiter claimArbiter,
+                            EntityRenderLocalOcclusionArbiter localEntityOcclusion,
+                            PortalSkinRenderer skinRenderer,
                             RtpRimRenderer rtpRimRenderer,
                             Supplier<ProjectionManager.RtpProjectionProvider> rtpProjectionProvider,
                             BooleanSupplier alive) {
         this.interestSet = interestSet;
         this.ledger = ledger;
         this.claimArbiter = claimArbiter;
+        this.localEntityOcclusion = localEntityOcclusion;
+        this.skinRenderer = skinRenderer;
         this.rtpRimRenderer = rtpRimRenderer;
         this.rtpProjectionProvider = rtpProjectionProvider;
         this.alive = alive;
@@ -51,11 +59,45 @@ final class ProjectionInterestFrame {
                  int reservedBudget,
                  boolean updateBlocks,
                  boolean updateEntities,
-                 long frameTick) {
+                 long frameTick,
+                 boolean skinWork,
+                 PortalCandidateSnapshot skinSnapshot) {
         if (!observer.isOnline()) {
             remainingProjectors.addAndGet(reservedBudget);
             return;
         }
+        List<PortalProjector> projected = new ArrayList<PortalProjector>();
+        claimArbiter.beginFrame(observer, observer.getWorld(), false);
+        localEntityOcclusion.beginFrame(observer);
+        try {
+            if (skinWork) {
+                skinRenderer.reconcile(observer, skinSnapshot);
+            }
+            projectWithinFrame(observer, active, remainingProjectors, reservedBudget,
+                updateBlocks, updateEntities, frameTick, projected);
+        } finally {
+            try {
+                localEntityOcclusion.flushFrame(observer);
+            } finally {
+                try {
+                    claimArbiter.flushFrame(observer);
+                } finally {
+                    for (PortalProjector projector : projected) {
+                        projector.finishBlackoutDisplayFrame();
+                    }
+                }
+            }
+        }
+    }
+
+    private void projectWithinFrame(Player observer,
+                                    PortalCandidateSnapshot active,
+                                    AtomicInteger remainingProjectors,
+                                    int reservedBudget,
+                                    boolean updateBlocks,
+                                    boolean updateEntities,
+                                    long frameTick,
+                                    List<PortalProjector> projected) {
         UUID observerId = observer.getUniqueId();
         World observerWorld = observer.getWorld();
         Location observerLocation = observer.getLocation();
@@ -134,46 +176,36 @@ final class ProjectionInterestFrame {
             ledger.recordScheduled(scheduledPortals.size());
             ledger.recordDeferred(deferred);
         }
-        projectActiveObserver(observer, scheduledPortals, resolvedRtpTargets, observerUpdatesBlocks, updateEntities);
+        projectActiveObserver(observer, scheduledPortals, resolvedRtpTargets, observerUpdatesBlocks, updateEntities,
+            projected);
     }
 
     private void projectActiveObserver(Player observer, List<ILocalPortal> scheduledPortals,
                                        Map<UUID, PortalProjector.RtpProjectionTarget> rtpTargets,
-                                       boolean updateBlocks, boolean updateEntities) {
+                                       boolean updateBlocks, boolean updateEntities,
+                                       List<PortalProjector> projected) {
         if (!alive.getAsBoolean() || observer == null || !observer.isOnline()) {
             return;
         }
-        List<PortalProjector> projected = new ArrayList<PortalProjector>(scheduledPortals.size());
-        claimArbiter.beginFrame(observer, observer.getWorld(), false);
-        try {
-            for (ILocalPortal portal : scheduledPortals) {
-                PortalProjector.RtpProjectionTarget rtpTarget = rtpTargets.get(portal.getId());
-                if (!isPortalStillProjectable(portal, rtpTarget != null)) {
-                    continue;
-                }
-                PortalProjector projector = interestSet.obtain(portal, observer);
-                if (projector == null) {
-                    continue;
-                }
-
-                projector.setRtpProjectionTarget(rtpTarget);
-                try {
-                    projector.project(updateBlocks, updateEntities);
-                    projected.add(projector);
-                } catch (Throwable ex) {
-                    Wormholes.instance.getLogger().log(Level.WARNING,
-                            "[ProjectionManager] projection error portal=" + portal.getName() + " observer=" + observer.getName(), ex);
-                } finally {
-                    interestSet.refreshProjectedEntities(projector);
-                }
+        for (ILocalPortal portal : scheduledPortals) {
+            PortalProjector.RtpProjectionTarget rtpTarget = rtpTargets.get(portal.getId());
+            if (!isPortalStillProjectable(portal, rtpTarget != null)) {
+                continue;
             }
-        } finally {
+            PortalProjector projector = interestSet.obtain(portal, observer);
+            if (projector == null) {
+                continue;
+            }
+
+            projector.setRtpProjectionTarget(rtpTarget);
             try {
-                claimArbiter.flushFrame(observer);
+                projector.project(updateBlocks, updateEntities);
+                projected.add(projector);
+            } catch (Throwable ex) {
+                Wormholes.instance.getLogger().log(Level.WARNING,
+                        "[ProjectionManager] projection error portal=" + portal.getName() + " observer=" + observer.getName(), ex);
             } finally {
-                for (PortalProjector projector : projected) {
-                    projector.finishBlackoutDisplayFrame();
-                }
+                interestSet.refreshProjectedEntities(projector);
             }
         }
     }

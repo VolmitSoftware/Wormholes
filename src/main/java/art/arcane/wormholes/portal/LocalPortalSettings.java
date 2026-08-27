@@ -173,7 +173,12 @@ final class LocalPortalSettings
 	void setProjectionMode(ProjectionMode mode)
 	{
 		ProjectionMode normalized = mode == null ? ProjectionMode.ON : mode;
-		if(portal.getDimensionalPortalKind().isReceiverOnly())
+		DimensionalPortalKind kind = portal.getDimensionalPortalKind();
+		if(kind == DimensionalPortalKind.END_SOURCE)
+		{
+			normalized = ProjectionMode.ON;
+		}
+		else if(kind.isReceiverOnly())
 		{
 			normalized = ProjectionMode.OFF;
 		}
