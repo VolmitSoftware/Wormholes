@@ -10,14 +10,17 @@ import art.arcane.wormholes.service.WormholesTelemetry;
 
 class EntityRenderPacketChannel {
     private User batchUser;
+    private boolean batchDirty;
 
     EntityRenderPacketChannel() {
         this.batchUser = null;
+        this.batchDirty = false;
     }
 
     void send(Player observer, PacketWrapper<?> packet) {
         WormholesTelemetry.countPacket();
         if (batchUser != null) {
+            batchDirty = true;
             batchUser.writePacket(packet);
             return;
         }
@@ -26,12 +29,15 @@ class EntityRenderPacketChannel {
 
     void begin(Player observer) {
         batchUser = observer == null ? null : PacketEvents.getAPI().getPlayerManager().getUser(observer);
+        batchDirty = false;
     }
 
     void end() {
         User user = batchUser;
+        boolean dirty = batchDirty;
         batchUser = null;
-        if (user != null) {
+        batchDirty = false;
+        if (user != null && dirty) {
             user.flushPackets();
         }
     }
