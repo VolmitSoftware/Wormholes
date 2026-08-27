@@ -85,6 +85,10 @@ public final class ProjectionClaimArbiter {
                 if (state.retired) {
                     continue;
                 }
+                if (state.frame != null) {
+                    state.frame.allowLightingUpdate |= allowLightingUpdate;
+                    return;
+                }
                 state.frame = new ObserverFrame(observer, localWorld, allowLightingUpdate);
                 return;
             }
@@ -115,8 +119,9 @@ public final class ProjectionClaimArbiter {
                 observers.remove(observerId, state);
                 return ClaimUpdateResult.empty();
             }
+            ProjectionClaimSet.ProjectionClaimSetResult setResult = state.claimSet.resolveStaged(frame.affectedKeys);
             ClaimUpdateResult result = applyResult(
-                frame.observer, frame.localWorld, state, frame.result, frame.allowLightingUpdate, false);
+                frame.observer, frame.localWorld, state, setResult, frame.allowLightingUpdate, false);
             removeObserverIfEmpty(observerId, state);
             return result;
         }
@@ -153,16 +158,14 @@ public final class ProjectionClaimArbiter {
                     continue;
                 }
                 String tieKey = claimOwnerId.toString();
-                ProjectionClaimSet.ProjectionClaimSetResult setResult = state.claimSet.replacePortalClaims(
-                    claimOwnerId, tieKey, priorityDistance, claims);
                 ObserverFrame frame = state.frame;
                 if (frame != null) {
-                    if (allowLightingUpdate) {
-                        frame.allowLightingUpdate = true;
-                    }
-                    frame.result.merge(setResult);
-                    return new ClaimUpdateResult(0, setResult.getConflicts(), setResult.getWinnerChanges(), setResult.getReverts());
+                    state.claimSet.stagePortalClaims(claimOwnerId, tieKey, priorityDistance, claims, frame.affectedKeys);
+                    frame.allowLightingUpdate |= allowLightingUpdate;
+                    return ClaimUpdateResult.empty();
                 }
+                ProjectionClaimSet.ProjectionClaimSetResult setResult = state.claimSet.replacePortalClaims(
+                    claimOwnerId, tieKey, priorityDistance, claims);
                 return applyResult(observer, localWorld, state, setResult, allowLightingUpdate, false);
             }
         }
@@ -197,15 +200,13 @@ public final class ProjectionClaimArbiter {
                 observers.remove(observerId, state);
                 return ClaimUpdateResult.empty();
             }
-            ProjectionClaimSet.ProjectionClaimSetResult setResult = state.claimSet.releasePortal(claimOwnerId);
             ObserverFrame frame = state.frame;
             if (frame != null) {
-                if (allowLightingUpdate) {
-                    frame.allowLightingUpdate = true;
-                }
-                frame.result.merge(setResult);
-                return new ClaimUpdateResult(0, setResult.getConflicts(), setResult.getWinnerChanges(), setResult.getReverts());
+                state.claimSet.stagePortalRelease(claimOwnerId, frame.affectedKeys);
+                frame.allowLightingUpdate |= allowLightingUpdate;
+                return ClaimUpdateResult.empty();
             }
+            ProjectionClaimSet.ProjectionClaimSetResult setResult = state.claimSet.releasePortal(claimOwnerId);
             ClaimUpdateResult result = applyResult(observer, localWorld, state, setResult, allowLightingUpdate, false);
             removeObserverIfEmpty(observerId, state);
             return result;
@@ -835,14 +836,14 @@ public final class ProjectionClaimArbiter {
     private static final class ObserverFrame {
         private final Player observer;
         private final World localWorld;
-        private final ProjectionClaimSet.ProjectionClaimSetResult result;
+        private final LongOpenHashSet affectedKeys;
         private boolean allowLightingUpdate;
 
         private ObserverFrame(Player observer, World localWorld, boolean allowLightingUpdate) {
             this.observer = observer;
             this.localWorld = localWorld;
             this.allowLightingUpdate = allowLightingUpdate;
-            this.result = new ProjectionClaimSet.ProjectionClaimSetResult();
+            this.affectedKeys = new LongOpenHashSet(256);
         }
     }
 

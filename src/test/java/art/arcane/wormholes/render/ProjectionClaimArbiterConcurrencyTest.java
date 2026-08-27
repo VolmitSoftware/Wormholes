@@ -2,6 +2,7 @@ package art.arcane.wormholes.render;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -66,7 +67,7 @@ public final class ProjectionClaimArbiterConcurrencyTest {
         assertFalse(arbiter.isIdle());
         ProjectionClaimArbiter.ClaimUpdateResult submitResult = arbiter.submit(observer, portalA, world, singleClaim(blockData("a")), 2.0D, false);
         assertEquals(0, submitResult.getBlockChanges());
-        assertEquals(1, submitResult.getWinnerChanges());
+        assertEquals(0, submitResult.getWinnerChanges());
         assertEquals(0, submitResult.getConflicts());
 
         ProjectionClaimArbiter.ClaimUpdateResult flushResult = arbiter.flushFrame(observer);
@@ -98,7 +99,7 @@ public final class ProjectionClaimArbiterConcurrencyTest {
         ProjectionClaimArbiter.ClaimUpdateResult release = arbiter.release(observer, portal, world, false);
 
         assertEquals(0, release.getBlockChanges());
-        assertEquals(1, release.getReverts());
+        assertEquals(0, release.getReverts());
         assertTrue(sentLocations.isEmpty());
 
         ProjectionClaimArbiter.ClaimUpdateResult flush = arbiter.flushFrame(observer);
@@ -106,6 +107,75 @@ public final class ProjectionClaimArbiterConcurrencyTest {
         assertEquals(1, flush.getBlockChanges());
         assertEquals(1, sentLocations.size());
         assertTrue(arbiter.isIdle());
+    }
+
+    @Test
+    public void framedChangesResolveOnlyTheFinalVisibleWinner() {
+        World world = world();
+        AtomicReference<World> playerWorld = new AtomicReference<World>(world);
+        AtomicBoolean online = new AtomicBoolean(true);
+        List<Location> sentLocations = new ArrayList<Location>();
+        Player observer = player(UUID.fromString("00000000-0000-0000-0000-000000000017"),
+            playerWorld, online, sentLocations);
+        ProjectionClaimArbiter arbiter = arbiter();
+        ILocalPortal portal = portal(UUID.fromString("00000000-0000-0000-0000-000000000028"));
+        BlockData stableData = blockData("stable");
+
+        assertEquals(1, arbiter.submit(observer, portal, world, singleClaim(stableData), 2.0D, false)
+            .getBlockChanges());
+        sentLocations.clear();
+
+        arbiter.beginFrame(observer, world, false);
+        arbiter.submit(observer, portal, world, singleClaim(blockData("transient")), 2.0D, false);
+        arbiter.submit(observer, portal, world, singleClaim(stableData), 2.0D, false);
+        ProjectionClaimArbiter.ClaimUpdateResult flush = arbiter.flushFrame(observer);
+
+        assertEquals(0, flush.getBlockChanges());
+        assertEquals(0, flush.getWinnerChanges());
+        assertEquals(0, flush.getReverts());
+        assertTrue(sentLocations.isEmpty());
+    }
+
+    @Test
+    public void nestedBeginFramePreservesAlreadyStagedClaims() {
+        ProjectionClaimArbiter arbiter = arbiter();
+        Player observer = player(UUID.fromString("00000000-0000-0000-0000-000000000018"));
+        World world = world();
+        ILocalPortal portal = portal(UUID.fromString("00000000-0000-0000-0000-000000000029"));
+
+        arbiter.beginFrame(observer, world, false);
+        arbiter.submit(observer, portal, world, singleClaim(blockData("a")), 2.0D, false);
+        arbiter.beginFrame(observer, world, true);
+        ProjectionClaimArbiter.ClaimUpdateResult flush = arbiter.flushFrame(observer);
+
+        assertEquals(1, flush.getBlockChanges());
+        assertEquals(1, flush.getWinnerChanges());
+        assertFalse(arbiter.isIdle());
+    }
+
+    @Test
+    public void framedOverlappingPortalsSendOnlyTheFinalWinner() throws Exception {
+        ProjectionClaimArbiter arbiter = arbiter();
+        UUID observerId = UUID.fromString("00000000-0000-0000-0000-000000000019");
+        Player observer = player(observerId);
+        World world = world();
+        BlockData expectedWinner = blockData("nearest");
+
+        arbiter.beginFrame(observer, world, false);
+        arbiter.submit(observer, UUID.fromString("00000000-0000-0000-0000-00000000002a"), world,
+            singleClaim(blockData("farthest")), 8.0D, false);
+        arbiter.submit(observer, UUID.fromString("00000000-0000-0000-0000-00000000002b"), world,
+            singleClaim(blockData("far")), 6.0D, false);
+        arbiter.submit(observer, UUID.fromString("00000000-0000-0000-0000-00000000002c"), world,
+            singleClaim(blockData("near")), 4.0D, false);
+        arbiter.submit(observer, UUID.fromString("00000000-0000-0000-0000-00000000002d"), world,
+            singleClaim(expectedWinner), 2.0D, false);
+        ProjectionClaimArbiter.ClaimUpdateResult flush = arbiter.flushFrame(observer);
+
+        assertEquals(1, flush.getBlockChanges());
+        assertEquals(1, flush.getWinnerChanges());
+        assertEquals(1, flush.getConflicts());
+        assertSame(expectedWinner, sentBlocks(observersMap(arbiter).get(observerId)).get(CELL_KEY));
     }
 
     @Test
