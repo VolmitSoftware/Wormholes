@@ -1,6 +1,9 @@
 package art.arcane.wormholes.render;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
@@ -10,6 +13,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Arrays;
 import java.util.List;
 
 import org.bukkit.Material;
@@ -20,12 +24,84 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMu
 
 public final class ProjectionBlockSectionBatchTest {
     @Test
+    public void denseSectionOrdersEncodedBlocksAscendingWithoutChangingMembership() {
+        WrapperPlayServerMultiBlockChange.EncodedBlock[] blocks = encodedBlocks(
+            ProjectionClaimArbiter.DENSE_SECTION_SORT_THRESHOLD);
+        long[] expected = encodedValues(blocks);
+        Arrays.sort(expected);
+
+        WrapperPlayServerMultiBlockChange.EncodedBlock[] ordered =
+            ProjectionClaimArbiter.orderDenseSectionBlocks(blocks);
+
+        assertArrayEquals(expected, encodedValues(ordered));
+    }
+
+    @Test
+    public void sparseSectionPreservesOriginalArrayAndOrder() {
+        WrapperPlayServerMultiBlockChange.EncodedBlock[] blocks = encodedBlocks(
+            ProjectionClaimArbiter.DENSE_SECTION_SORT_THRESHOLD - 1);
+        long[] expected = encodedValues(blocks);
+
+        WrapperPlayServerMultiBlockChange.EncodedBlock[] ordered =
+            ProjectionClaimArbiter.orderDenseSectionBlocks(blocks);
+
+        assertSame(blocks, ordered);
+        assertArrayEquals(expected, encodedValues(ordered));
+    }
+
+    @Test
+    public void sectionPacketsUseOneUserLookupAndOneFlush() {
+        Long2ObjectOpenHashMap<BlockData> changes = changesAcrossThreeSections();
+        ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.installWithBatchUser();
+        try {
+            ProjectionClaimArbiter.sendBlockChanges(
+                ProjectedEntityPacketRecorder.player(true), null, changes, uniformIds(changes, 42));
+
+            assertEquals(1, recorder.batchLookups());
+            assertEquals(1, recorder.batchFlushes());
+            assertEquals(3, recorder.packetsAtLastFlush());
+            assertEquals(3, recorder.sentOfType(WrapperPlayServerMultiBlockChange.class).size());
+        } finally {
+            recorder.uninstall();
+        }
+    }
+
+    @Test
+    public void sectionPacketsUsePlayerManagerWhenBatchUserIsUnavailable() {
+        Long2ObjectOpenHashMap<BlockData> changes = changesAcrossThreeSections();
+        ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.install();
+        try {
+            ProjectionClaimArbiter.sendBlockChanges(
+                ProjectedEntityPacketRecorder.player(true), null, changes, uniformIds(changes, 42));
+
+            assertEquals(1, recorder.batchLookups());
+            assertEquals(0, recorder.batchFlushes());
+            assertEquals(3, recorder.sentOfType(WrapperPlayServerMultiBlockChange.class).size());
+        } finally {
+            recorder.uninstall();
+        }
+    }
+
+    @Test
+    public void sectionWriteFailureStillFlushesAndPropagates() {
+        Long2ObjectOpenHashMap<BlockData> changes = changesAcrossThreeSections();
+        ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.installWithBatchUser();
+        try {
+            recorder.failNextSend();
+
+            assertThrows(IllegalStateException.class, () -> ProjectionClaimArbiter.sendBlockChanges(
+                ProjectedEntityPacketRecorder.player(true), null, changes, uniformIds(changes, 42)));
+            assertEquals(1, recorder.batchLookups());
+            assertEquals(1, recorder.batchFlushes());
+            assertEquals(0, recorder.packetsAtLastFlush());
+        } finally {
+            recorder.uninstall();
+        }
+    }
+
+    @Test
     public void blocksSpanningThreeSectionsGroupIntoThreeSectionKeys() {
-        Long2ObjectOpenHashMap<BlockData> changes = new Long2ObjectOpenHashMap<BlockData>(4);
-        changes.put(packKey(1, 65, 2), blockData(Material.STONE));
-        changes.put(packKey(2, 66, 3), blockData(Material.STONE));
-        changes.put(packKey(18, 65, 2), blockData(Material.STONE));
-        changes.put(packKey(1, 82, 2), blockData(Material.STONE));
+        Long2ObjectOpenHashMap<BlockData> changes = changesAcrossThreeSections();
         Long2ObjectOpenHashMap<List<WrapperPlayServerMultiBlockChange.EncodedBlock>> sections =
             new Long2ObjectOpenHashMap<List<WrapperPlayServerMultiBlockChange.EncodedBlock>>(4);
         Long2ObjectOpenHashMap<BlockData> fallback = new Long2ObjectOpenHashMap<BlockData>(4);
@@ -155,6 +231,37 @@ public final class ProjectionBlockSectionBatchTest {
             ids.put(key, id);
         }
         return ids;
+    }
+
+    private static Long2ObjectOpenHashMap<BlockData> changesAcrossThreeSections() {
+        Long2ObjectOpenHashMap<BlockData> changes = new Long2ObjectOpenHashMap<BlockData>(4);
+        changes.put(packKey(1, 65, 2), blockData(Material.STONE));
+        changes.put(packKey(2, 66, 3), blockData(Material.STONE));
+        changes.put(packKey(18, 65, 2), blockData(Material.STONE));
+        changes.put(packKey(1, 82, 2), blockData(Material.STONE));
+        return changes;
+    }
+
+    private static WrapperPlayServerMultiBlockChange.EncodedBlock[] encodedBlocks(int size) {
+        WrapperPlayServerMultiBlockChange.EncodedBlock[] blocks =
+            new WrapperPlayServerMultiBlockChange.EncodedBlock[size];
+        for (int i = 0; i < size; i++) {
+            int position = (i * 31) & 4095;
+            int x = position >>> 8;
+            int z = position >>> 4 & 15;
+            int y = position & 15;
+            int blockId = 5 + (i % 7) * 1024;
+            blocks[size - i - 1] = new WrapperPlayServerMultiBlockChange.EncodedBlock(blockId, x, y, z);
+        }
+        return blocks;
+    }
+
+    private static long[] encodedValues(WrapperPlayServerMultiBlockChange.EncodedBlock[] blocks) {
+        long[] values = new long[blocks.length];
+        for (int i = 0; i < blocks.length; i++) {
+            values[i] = blocks[i].toLong();
+        }
+        return values;
     }
 
     private static long packKey(int x, int y, int z) {

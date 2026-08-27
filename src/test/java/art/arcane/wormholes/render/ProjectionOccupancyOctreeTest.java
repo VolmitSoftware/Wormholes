@@ -14,8 +14,8 @@ final class ProjectionOccupancyOctreeTest {
         octree.rebuild(new LongOpenHashSet());
 
         assertTrue(octree.isEmpty());
-        assertEquals(ProjectionOccupancyOctree.LARGE_LOG, octree.largestEmptyLog(0, 0, 0));
-        assertEquals(ProjectionOccupancyOctree.LARGE_LOG, octree.largestEmptyLog(40, -3, 12));
+        assertEquals(ProjectionOccupancyOctree.MAX_SKIP_LOG, octree.largestEmptyLog(0, 0, 0));
+        assertEquals(ProjectionOccupancyOctree.MAX_SKIP_LOG, octree.largestEmptyLog(40, -3, 12));
     }
 
     @Test
@@ -27,8 +27,10 @@ final class ProjectionOccupancyOctreeTest {
 
         assertEquals(0, octree.largestEmptyLog(0, 0, 0));
         assertEquals(0, octree.largestEmptyLog(7, 0, 0));
-        assertEquals(ProjectionOccupancyOctree.SMALL_LOG, octree.largestEmptyLog(8, 0, 0));
-        assertEquals(ProjectionOccupancyOctree.LARGE_LOG, octree.largestEmptyLog(16, 0, 0));
+        assertEquals(ProjectionOccupancyOctree.MIN_SKIP_LOG, octree.largestEmptyLog(8, 0, 0));
+        assertEquals(4, octree.largestEmptyLog(16, 0, 0));
+        assertEquals(5, octree.largestEmptyLog(32, 0, 0));
+        assertEquals(ProjectionOccupancyOctree.MAX_SKIP_LOG, octree.largestEmptyLog(64, 0, 0));
     }
 
     @Test

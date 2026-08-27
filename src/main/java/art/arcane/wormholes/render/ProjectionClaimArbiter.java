@@ -12,6 +12,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -25,6 +26,7 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
 import com.github.retrooper.packetevents.PacketEvents;
+import com.github.retrooper.packetevents.protocol.player.User;
 import com.github.retrooper.packetevents.util.Vector3i;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMultiBlockChange;
 
@@ -40,6 +42,10 @@ import art.arcane.wormholes.service.WormholesTelemetry;
 
 public final class ProjectionClaimArbiter {
     static final String BLOCK_MAPPING_FAILURE_REASON = "RENDER_CLAIM_BLOCK_MAPPING_FAILED";
+    static final int DENSE_SECTION_SORT_THRESHOLD = 128;
+    private static final int RADIX_BUCKET_BITS = 8;
+    private static final int RADIX_BUCKET_COUNT = 1 << RADIX_BUCKET_BITS;
+    private static final int RADIX_BUCKET_MASK = RADIX_BUCKET_COUNT - 1;
 
     private final ConcurrentHashMap<UUID, ObserverClaims> observers;
     private final ConcurrentHashMap<BlockData, Integer> blockGlobalIds;
@@ -518,10 +524,10 @@ public final class ProjectionClaimArbiter {
         state.lighting.discardUnsentChunks(observer);
     }
 
-    private void sendBlockChanges(Player observer,
-                                  World localWorld,
-                                  Long2ObjectMap<BlockData> blockChanges,
-                                  Long2IntMap blockChangeIds) {
+    static void sendBlockChanges(Player observer,
+                                 World localWorld,
+                                 Long2ObjectMap<BlockData> blockChanges,
+                                 Long2IntMap blockChangeIds) {
         if (blockChanges.size() == 1) {
             ObjectIterator<Long2ObjectMap.Entry<BlockData>> singleIterator = Long2ObjectMaps.fastIterator(blockChanges);
             while (singleIterator.hasNext()) {
@@ -537,24 +543,93 @@ public final class ProjectionClaimArbiter {
             new Long2ObjectOpenHashMap<List<WrapperPlayServerMultiBlockChange.EncodedBlock>>(8);
         Long2ObjectOpenHashMap<BlockData> fallback = new Long2ObjectOpenHashMap<BlockData>(4);
         groupBySection(blockChanges, blockChangeIds, sections, fallback);
-        for (Long2ObjectMap.Entry<List<WrapperPlayServerMultiBlockChange.EncodedBlock>> entry : sections.long2ObjectEntrySet()) {
-            long sectionKey = entry.getLongKey();
-            List<WrapperPlayServerMultiBlockChange.EncodedBlock> entries = entry.getValue();
-            WrapperPlayServerMultiBlockChange.EncodedBlock[] blocks =
-                entries.toArray(new WrapperPlayServerMultiBlockChange.EncodedBlock[entries.size()]);
-            Vector3i sectionPos = new Vector3i(unpackSectionX(sectionKey), unpackSectionY(sectionKey), unpackSectionZ(sectionKey));
-            WrapperPlayServerMultiBlockChange wrapper = new WrapperPlayServerMultiBlockChange(sectionPos, null, blocks);
-            PacketEvents.getAPI().getPlayerManager().sendPacket(observer, wrapper);
-            WormholesTelemetry.countPacket();
-            for (int i = 0; i < blocks.length; i++) {
-                WormholesTelemetry.countBlockChange();
+        User batchUser = sections.isEmpty() ? null : PacketEvents.getAPI().getPlayerManager().getUser(observer);
+        RuntimeException batchFailure = null;
+        try {
+            for (Long2ObjectMap.Entry<List<WrapperPlayServerMultiBlockChange.EncodedBlock>> entry : sections.long2ObjectEntrySet()) {
+                long sectionKey = entry.getLongKey();
+                List<WrapperPlayServerMultiBlockChange.EncodedBlock> entries = entry.getValue();
+                WrapperPlayServerMultiBlockChange.EncodedBlock[] blocks = orderDenseSectionBlocks(
+                    entries.toArray(new WrapperPlayServerMultiBlockChange.EncodedBlock[entries.size()]));
+                Vector3i sectionPos = new Vector3i(unpackSectionX(sectionKey), unpackSectionY(sectionKey), unpackSectionZ(sectionKey));
+                WrapperPlayServerMultiBlockChange wrapper = new WrapperPlayServerMultiBlockChange(sectionPos, null, blocks);
+                if (batchUser == null) {
+                    PacketEvents.getAPI().getPlayerManager().sendPacket(observer, wrapper);
+                } else {
+                    batchUser.writePacket(wrapper);
+                }
+                WormholesTelemetry.countPacket();
+                for (int i = 0; i < blocks.length; i++) {
+                    WormholesTelemetry.countBlockChange();
+                }
             }
+        } catch (RuntimeException error) {
+            batchFailure = error;
+            throw error;
+        } finally {
+            flushSectionPackets(batchUser, batchFailure);
         }
         for (Long2ObjectMap.Entry<BlockData> change : fallback.long2ObjectEntrySet()) {
             long key = change.getLongKey();
             observer.sendBlockChange(new Location(localWorld, ProjectionCellKey.unpackX(key), ProjectionCellKey.unpackY(key), ProjectionCellKey.unpackZ(key)), change.getValue());
             WormholesTelemetry.countBlockChange();
             WormholesTelemetry.countPacket();
+        }
+    }
+
+    static WrapperPlayServerMultiBlockChange.EncodedBlock[] orderDenseSectionBlocks(
+        WrapperPlayServerMultiBlockChange.EncodedBlock[] blocks) {
+        if (blocks.length < DENSE_SECTION_SORT_THRESHOLD) {
+            return blocks;
+        }
+        long encodedMask = 0L;
+        for (WrapperPlayServerMultiBlockChange.EncodedBlock block : blocks) {
+            encodedMask |= block.toLong();
+        }
+        if (encodedMask == 0L) {
+            return blocks;
+        }
+        WrapperPlayServerMultiBlockChange.EncodedBlock[] source = blocks;
+        WrapperPlayServerMultiBlockChange.EncodedBlock[] target =
+            new WrapperPlayServerMultiBlockChange.EncodedBlock[blocks.length];
+        int[] bucketOffsets = new int[RADIX_BUCKET_COUNT];
+        int encodedBits = Long.SIZE - Long.numberOfLeadingZeros(encodedMask);
+        for (int shift = 0; shift < encodedBits; shift += RADIX_BUCKET_BITS) {
+            for (WrapperPlayServerMultiBlockChange.EncodedBlock block : source) {
+                bucketOffsets[(int) (block.toLong() >>> shift) & RADIX_BUCKET_MASK]++;
+            }
+            int nextOffset = 0;
+            for (int bucket = 0; bucket < RADIX_BUCKET_COUNT; bucket++) {
+                int bucketSize = bucketOffsets[bucket];
+                bucketOffsets[bucket] = nextOffset;
+                nextOffset += bucketSize;
+            }
+            for (WrapperPlayServerMultiBlockChange.EncodedBlock block : source) {
+                int bucket = (int) (block.toLong() >>> shift) & RADIX_BUCKET_MASK;
+                target[bucketOffsets[bucket]++] = block;
+            }
+            WrapperPlayServerMultiBlockChange.EncodedBlock[] previousSource = source;
+            source = target;
+            target = previousSource;
+            if (shift + RADIX_BUCKET_BITS < encodedBits) {
+                Arrays.fill(bucketOffsets, 0);
+            }
+        }
+        return source;
+    }
+
+    private static void flushSectionPackets(User batchUser, RuntimeException batchFailure) {
+        if (batchUser == null) {
+            return;
+        }
+        try {
+            batchUser.flushPackets();
+        } catch (RuntimeException flushFailure) {
+            if (batchFailure != null) {
+                batchFailure.addSuppressed(flushFailure);
+                return;
+            }
+            throw flushFailure;
         }
     }
 

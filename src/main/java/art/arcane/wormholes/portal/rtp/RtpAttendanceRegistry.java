@@ -32,15 +32,6 @@ final class RtpAttendanceRegistry
 	{
 		AxisAlignedBB view = Objects.requireNonNull(portal.getView(), "portal view");
 		World world = Objects.requireNonNull(portal.getStructure().getWorld(), "portal source world");
-		Presence presence = new Presence(
-				world.getUID(),
-				view.getXa(),
-				view.getXb(),
-				view.getYa(),
-				view.getYb(),
-				view.getZa(),
-				view.getZb(),
-				touchedAtMillis);
 		UUID portalId = portal.getId();
 		presencesByViewer.compute(viewerId, (ignored, current) ->
 		{
@@ -49,8 +40,27 @@ final class RtpAttendanceRegistry
 			{
 				viewerPresences = new HashMap<UUID, Presence>();
 			}
-			viewerPresences.put(portalId, presence);
-			touch(portalId, viewerId);
+			Presence presence = viewerPresences.get(portalId);
+			if(presence == null)
+			{
+				presence = new Presence();
+				viewerPresences.put(portalId, presence);
+				presence.update(world.getUID(), view, touchedAtMillis);
+				presence.beginServiceTouch();
+				touchService(portalId, viewerId, presence);
+			}
+			else
+			{
+				presence.update(world.getUID(), view, touchedAtMillis);
+				RtpProjectionView.State state = service.projectionView(portalId, viewerId).state();
+				if((state == RtpProjectionView.State.NONE
+						|| state == RtpProjectionView.State.DENIED
+						|| state == RtpProjectionView.State.FAILED)
+						&& presence.beginServiceTouch())
+				{
+					touchService(portalId, viewerId, presence);
+				}
+			}
 			return viewerPresences;
 		});
 	}
@@ -123,10 +133,11 @@ final class RtpAttendanceRegistry
 		presencesByViewer.clear();
 	}
 
-	private void touch(UUID portalId, UUID viewerId)
+	private void touchService(UUID portalId, UUID viewerId, Presence presence)
 	{
 		service.touchViewer(portalId, viewerId).whenComplete((changed, failure) ->
 		{
+			presence.finishServiceTouch();
 			if(failure != null)
 			{
 				failures.report("attendance-touch:" + portalId, failure);
@@ -145,16 +156,50 @@ final class RtpAttendanceRegistry
 		});
 	}
 
-	private record Presence(
-			UUID worldId,
-			double minimumX,
-			double maximumX,
-			double minimumY,
-			double maximumY,
-			double minimumZ,
-			double maximumZ,
-			long touchedAtMillis)
+	private static final class Presence
 	{
+		private UUID worldId;
+		private double minimumX;
+		private double maximumX;
+		private double minimumY;
+		private double maximumY;
+		private double minimumZ;
+		private double maximumZ;
+		private long touchedAtMillis;
+		private boolean serviceTouchPending;
+
+		private void update(UUID worldId, AxisAlignedBB view, long touchedAtMillis)
+		{
+			this.worldId = worldId;
+			this.minimumX = view.getXa();
+			this.maximumX = view.getXb();
+			this.minimumY = view.getYa();
+			this.maximumY = view.getYb();
+			this.minimumZ = view.getZa();
+			this.maximumZ = view.getZb();
+			this.touchedAtMillis = touchedAtMillis;
+		}
+
+		private long touchedAtMillis()
+		{
+			return touchedAtMillis;
+		}
+
+		private synchronized boolean beginServiceTouch()
+		{
+			if(serviceTouchPending)
+			{
+				return false;
+			}
+			serviceTouchPending = true;
+			return true;
+		}
+
+		private synchronized void finishServiceTouch()
+		{
+			serviceTouchPending = false;
+		}
+
 		private boolean contains(Location location)
 		{
 			return location.getWorld() != null

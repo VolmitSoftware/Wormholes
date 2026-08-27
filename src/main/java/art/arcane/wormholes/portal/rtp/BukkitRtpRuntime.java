@@ -66,14 +66,15 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 			return;
 		}
 		PortalRegistration replacement = registration(requiredPortal);
-		environment.sourceRegistered(requiredPortal.getId(), requiredPortal.getCenter());
-		PortalRegistration previous = registrations.put(requiredPortal.getId(), replacement);
-		if(previous != null && replacement.hasSameRouteAs(previous))
+		PortalRegistration previous = registrations.get(requiredPortal.getId());
+		if(previous != null && replacement.hasSameRouteAs(previous) && replacement.hasSameSourceAnchorAs(previous))
 		{
 			reconcileRegistration(requiredPortal.getId());
 			return;
 		}
-		if(previous != null)
+		environment.sourceRegistered(requiredPortal.getId(), requiredPortal.getCenter());
+		registrations.put(requiredPortal.getId(), replacement);
+		if(previous != null && !replacement.hasSameRouteAs(previous))
 		{
 			traversals.cancelPortal(requiredPortal.getId());
 		}
@@ -366,7 +367,10 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 		return new PortalRegistration(
 				registration,
 				sourceWorld.getUID(),
-				targetWorld == null ? null : targetWorld.getUID());
+				targetWorld == null ? null : targetWorld.getUID(),
+				center.getX(),
+				center.getY(),
+				center.getZ());
 	}
 
 	private void reconcileRegistration(UUID portalId)
@@ -497,7 +501,10 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 	private record PortalRegistration(
 			RtpService.Registration registration,
 			UUID sourceWorldId,
-			UUID targetWorldId)
+			UUID targetWorldId,
+			double sourceX,
+			double sourceY,
+			double sourceZ)
 	{
 		private PortalRegistration
 		{
@@ -515,6 +522,14 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 					&& registration.settings().hasSameRouteAs(other.registration.settings())
 					&& sourceWorldId.equals(other.sourceWorldId)
 					&& Objects.equals(targetWorldId, other.targetWorldId);
+		}
+
+		private boolean hasSameSourceAnchorAs(PortalRegistration other)
+		{
+			return other != null
+					&& Double.compare(sourceX, other.sourceX) == 0
+					&& Double.compare(sourceY, other.sourceY) == 0
+					&& Double.compare(sourceZ, other.sourceZ) == 0;
 		}
 	}
 }

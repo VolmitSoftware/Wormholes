@@ -61,8 +61,13 @@ final class ProjectorSampleMemo {
         this.hasLocalRegionRect = false;
     }
 
-    static int budgetFor(int lastRenderedCells) {
-        return Math.max(MIN_BUDGET, lastRenderedCells * BUDGET_FACTOR);
+    static int budgetFor(int lastRenderedCells, long fittedCandidateWork) {
+        long renderedBudget = (long) Math.max(0, lastRenderedCells) * BUDGET_FACTOR;
+        long candidateWork = Math.max(0L, fittedCandidateWork);
+        long candidateBudget = candidateWork >= Integer.MAX_VALUE
+            ? Integer.MAX_VALUE : Math.min(Integer.MAX_VALUE, candidateWork + (candidateWork / 2L));
+        return (int) Math.min(Integer.MAX_VALUE,
+            Math.max(MIN_BUDGET, Math.max(renderedBudget, candidateBudget)));
     }
 
     ProjectorSample cachedSample(ProjectionWorldView view, int x, int y, int z) {

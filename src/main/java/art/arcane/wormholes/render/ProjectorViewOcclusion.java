@@ -1,6 +1,8 @@
 package art.arcane.wormholes.render;
 
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 
 import org.bukkit.block.data.BlockData;
@@ -16,6 +18,7 @@ final class ProjectorViewOcclusion {
     }
 
     static final int MAX_OPACITY_CACHE_CELLS = 4_096;
+    static final int MAX_HIDDEN_PROOF_CELLS = 32_768;
     static final int MAX_VOXEL_STEPS_PER_PASS = 500_000;
 
     private static final byte OPEN = 0;
@@ -26,8 +29,13 @@ final class ProjectorViewOcclusion {
     private static final double TIE_EPSILON = 1.0E-10D;
 
     private final Long2ByteOpenHashMap opacity;
+    private final Long2LongOpenHashMap hiddenBlockerProofs;
+    private final LongOpenHashSet currentEyeHiddenProofs;
     private final BlockOcclusion blockOcclusion;
     private int voxelSteps;
+    private int hiddenProofHits;
+    private int hiddenProofRevalidations;
+    private int hiddenProofInvalidations;
     private int blockerX;
     private int blockerY;
     private int blockerZ;
@@ -42,6 +50,18 @@ final class ProjectorViewOcclusion {
     private double portalNormalX;
     private double portalNormalY;
     private double portalNormalZ;
+    private ProjectionWorldView proofView;
+    private long proofRevision;
+    private double proofEyeX;
+    private double proofEyeY;
+    private double proofEyeZ;
+    private double proofPortalOriginX;
+    private double proofPortalOriginY;
+    private double proofPortalOriginZ;
+    private double proofPortalNormalX;
+    private double proofPortalNormalY;
+    private double proofPortalNormalZ;
+    private boolean proofContextInitialized;
     private LongSet eligibleBlockers;
     private final ProjectionOccupancyOctree eligibleOctree;
     private final double[] scratchRayStart;
@@ -53,6 +73,8 @@ final class ProjectorViewOcclusion {
     ProjectorViewOcclusion(BlockOcclusion blockOcclusion) {
         opacity = new Long2ByteOpenHashMap(256);
         opacity.defaultReturnValue((byte) -1);
+        hiddenBlockerProofs = new Long2LongOpenHashMap(256);
+        currentEyeHiddenProofs = new LongOpenHashSet(256);
         this.blockOcclusion = blockOcclusion;
         this.eligibleOctree = new ProjectionOccupancyOctree();
         this.scratchRayStart = new double[3];
@@ -72,6 +94,9 @@ final class ProjectorViewOcclusion {
                    LongSet eligibleBlockers) {
         opacity.clear();
         voxelSteps = 0;
+        hiddenProofHits = 0;
+        hiddenProofRevalidations = 0;
+        hiddenProofInvalidations = 0;
         blockerX = 0;
         blockerY = 0;
         blockerZ = 0;
@@ -97,10 +122,22 @@ final class ProjectorViewOcclusion {
                     double eyeX,
                     double eyeY,
                     double eyeZ) {
-        if (budgetExhausted) {
+        if (!stableRevision(view)) {
             return true;
         }
-        if (!stableRevision(view)) {
+        prepareHiddenProofContext(view, eyeX, eyeY, eyeZ);
+        if (eligibleBlockers != null && eligibleOctree.isEmpty()) {
+            return true;
+        }
+        long targetKey = ProjectionCellKey.pack(targetX, targetY, targetZ);
+        if (hasReusableHiddenProof(targetKey, targetX, targetY, targetZ, eyeX, eyeY, eyeZ)) {
+            if (!stableRevision(view)) {
+                return true;
+            }
+            hiddenProofHits++;
+            return false;
+        }
+        if (budgetExhausted) {
             return true;
         }
         RayResult center = traceClippedRay(view, eyeX, eyeY, eyeZ,
@@ -110,7 +147,11 @@ final class ProjectorViewOcclusion {
         }
         if (blockerShadowsEntireTarget(eyeX, eyeY, eyeZ, targetX, targetY, targetZ,
             blockerX, blockerY, blockerZ)) {
-            return !stableRevision(view);
+            if (!stableRevision(view)) {
+                return true;
+            }
+            rememberHiddenProof(targetKey, blockerX, blockerY, blockerZ);
+            return false;
         }
         boolean hidden = opaquePlaneShadowsTarget(view, eyeX, eyeY, eyeZ, targetX, targetY, targetZ,
             blockerX, blockerY, blockerZ);
@@ -125,12 +166,114 @@ final class ProjectorViewOcclusion {
         return opacity.size();
     }
 
+    int hiddenProofHits() {
+        return hiddenProofHits;
+    }
+
+    int hiddenProofRevalidations() {
+        return hiddenProofRevalidations;
+    }
+
+    int hiddenProofInvalidations() {
+        return hiddenProofInvalidations;
+    }
+
     boolean budgetExhausted() {
         return budgetExhausted;
     }
 
     boolean isOccluding(BlockData data) {
         return blockOcclusion.occluding(data);
+    }
+
+    private void prepareHiddenProofContext(ProjectionWorldView view, double eyeX, double eyeY, double eyeZ) {
+        if (proofContextInitialized
+            && proofView == view
+            && proofRevision == viewRevision
+            && sameDouble(proofPortalOriginX, portalOriginX)
+            && sameDouble(proofPortalOriginY, portalOriginY)
+            && sameDouble(proofPortalOriginZ, portalOriginZ)
+            && sameDouble(proofPortalNormalX, portalNormalX)
+            && sameDouble(proofPortalNormalY, portalNormalY)
+            && sameDouble(proofPortalNormalZ, portalNormalZ)) {
+            updateProofValidationEye(eyeX, eyeY, eyeZ);
+            return;
+        }
+        hiddenBlockerProofs.clear();
+        currentEyeHiddenProofs.clear();
+        proofView = view;
+        proofRevision = viewRevision;
+        proofEyeX = eyeX;
+        proofEyeY = eyeY;
+        proofEyeZ = eyeZ;
+        proofPortalOriginX = portalOriginX;
+        proofPortalOriginY = portalOriginY;
+        proofPortalOriginZ = portalOriginZ;
+        proofPortalNormalX = portalNormalX;
+        proofPortalNormalY = portalNormalY;
+        proofPortalNormalZ = portalNormalZ;
+        proofContextInitialized = true;
+    }
+
+    private void updateProofValidationEye(double eyeX, double eyeY, double eyeZ) {
+        if (sameDouble(proofEyeX, eyeX)
+            && sameDouble(proofEyeY, eyeY)
+            && sameDouble(proofEyeZ, eyeZ)) {
+            return;
+        }
+        proofEyeX = eyeX;
+        proofEyeY = eyeY;
+        proofEyeZ = eyeZ;
+        currentEyeHiddenProofs.clear();
+    }
+
+    private boolean hasReusableHiddenProof(long targetKey,
+                                           int targetX,
+                                           int targetY,
+                                           int targetZ,
+                                           double eyeX,
+                                           double eyeY,
+                                           double eyeZ) {
+        if (eligibleBlockers == null || !hiddenBlockerProofs.containsKey(targetKey)) {
+            return false;
+        }
+        long blockerKey = hiddenBlockerProofs.get(targetKey);
+        if (!eligibleBlockers.contains(blockerKey)) {
+            return false;
+        }
+        if (currentEyeHiddenProofs.contains(targetKey)) {
+            return true;
+        }
+        int blockX = ProjectionCellKey.unpackX(blockerKey);
+        int blockY = ProjectionCellKey.unpackY(blockerKey);
+        int blockZ = ProjectionCellKey.unpackZ(blockerKey);
+        if (!blockerShadowsEntireTarget(eyeX, eyeY, eyeZ, targetX, targetY, targetZ,
+            blockX, blockY, blockZ)) {
+            hiddenBlockerProofs.remove(targetKey);
+            currentEyeHiddenProofs.remove(targetKey);
+            hiddenProofInvalidations++;
+            return false;
+        }
+        currentEyeHiddenProofs.add(targetKey);
+        hiddenProofRevalidations++;
+        return true;
+    }
+
+    private void rememberHiddenProof(long targetKey, int x, int y, int z) {
+        if (eligibleBlockers == null
+            || (hiddenBlockerProofs.size() >= MAX_HIDDEN_PROOF_CELLS
+                && !hiddenBlockerProofs.containsKey(targetKey))) {
+            return;
+        }
+        long blockerKey = ProjectionCellKey.pack(x, y, z);
+        if (eligibleBlockers.contains(blockerKey)) {
+            hiddenBlockerProofs.put(targetKey, blockerKey);
+            currentEyeHiddenProofs.add(targetKey);
+        }
+    }
+
+    private static boolean sameDouble(double first, double second) {
+        return Double.doubleToLongBits(first) == Double.doubleToLongBits(second);
     }
 
     private RayResult traceClippedRay(ProjectionWorldView view,
@@ -220,33 +363,25 @@ final class ProjectorViewOcclusion {
                 if (emptyLog > 0) {
                     double tExit = ProjectionOccupancyOctree.cubeExitT(
                         x, y, z, emptyLog, startX, startY, startZ, deltaX, deltaY, deltaZ, stepX, stepY, stepZ);
-                    while (remaining > 0) {
-                        double skipT = Math.min(tMaxX, Math.min(tMaxY, tMaxZ));
-                        if (skipT >= tExit || skipT > 1.0D) {
-                            break;
-                        }
-                        if (voxelSteps >= MAX_VOXEL_STEPS_PER_PASS) {
-                            budgetExhausted = true;
-                            return RayResult.BUDGET_EXHAUSTED;
-                        }
-                        voxelSteps++;
-                        remaining--;
-                        if (tMaxX - skipT <= TIE_EPSILON) {
-                            x += stepX;
-                            tMaxX += tDeltaX;
-                        }
-                        if (tMaxY - skipT <= TIE_EPSILON) {
-                            y += stepY;
-                            tMaxY += tDeltaY;
-                        }
-                        if (tMaxZ - skipT <= TIE_EPSILON) {
-                            z += stepZ;
-                            tMaxZ += tDeltaZ;
-                        }
-                        if (x == targetX && y == targetY && z == targetZ) {
-                            return RayResult.CLEAR;
-                        }
+                    if (tExit > 1.0D) {
+                        return RayResult.CLEAR;
                     }
+                    int xCrossings = boundariesBefore(tMaxX, tDeltaX, tExit);
+                    int yCrossings = boundariesBefore(tMaxY, tDeltaY, tExit);
+                    int zCrossings = boundariesBefore(tMaxZ, tDeltaZ, tExit);
+                    x += stepX * xCrossings;
+                    y += stepY * yCrossings;
+                    z += stepZ * zCrossings;
+                    if (xCrossings > 0) {
+                        tMaxX += tDeltaX * xCrossings;
+                    }
+                    if (yCrossings > 0) {
+                        tMaxY += tDeltaY * yCrossings;
+                    }
+                    if (zCrossings > 0) {
+                        tMaxZ += tDeltaZ * zCrossings;
+                    }
+                    remaining = Math.abs(targetX - x) + Math.abs(targetY - y) + Math.abs(targetZ - z) + 3;
                 }
             }
         }
@@ -515,6 +650,17 @@ final class ProjectorViewOcclusion {
 
     private static int floor(double value) {
         return (int) Math.floor(value);
+    }
+
+    private static int boundariesBefore(double first, double interval, double limit) {
+        if (!Double.isFinite(first) || !Double.isFinite(interval) || interval <= 0.0D || first >= limit) {
+            return 0;
+        }
+        double last = Math.nextDown(limit);
+        if (first > last) {
+            return 0;
+        }
+        return (int) Math.floor((last - first) / interval) + 1;
     }
 
     private boolean rayBlocked(ProjectionWorldView view, int x, int y, int z) {

@@ -151,6 +151,18 @@ final class ProjectorCellScan {
         return viewOcclusion.budgetExhausted();
     }
 
+    int occlusionProofHits() {
+        return viewOcclusion.hiddenProofHits();
+    }
+
+    int occlusionProofRevalidations() {
+        return viewOcclusion.hiddenProofRevalidations();
+    }
+
+    int occlusionProofInvalidations() {
+        return viewOcclusion.hiddenProofInvalidations();
+    }
+
     int maskedCells() {
         return maskedCells;
     }

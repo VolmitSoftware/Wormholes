@@ -49,6 +49,7 @@ import art.arcane.wormholes.chunk.presend.RecordingBukkitChunkPreSend;
 import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
 import art.arcane.wormholes.portal.rtp.RtpAccessResult;
 import art.arcane.wormholes.portal.rtp.RtpAllocationMode;
+import art.arcane.wormholes.portal.rtp.RtpCenterMode;
 import art.arcane.wormholes.portal.rtp.RtpDestination;
 import art.arcane.wormholes.portal.rtp.RtpProjectionView;
 import art.arcane.wormholes.portal.rtp.RtpRotationMode;
@@ -95,6 +96,37 @@ public final class RtpLiveRuntimeTest
 
 		assertNotEquals(originalGeneration, updatedGeneration);
 		assertTrue(harness.service.snapshot(portal.getId()).isEmpty());
+	}
+
+	@Test
+	public void unchangedSynchronizationSkipsRedundantSourceRegistration()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+
+		harness.runtime.synchronize(harness.portal);
+		harness.runtime.synchronize(harness.portal);
+
+		assertEquals(1, harness.environment.sourceRegistrations.get());
+	}
+
+	@Test
+	public void movedSourceAnchorRefreshesWithoutReplacingTheRoute()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.portal.setRtpSettings(harness.portal.getRtpSettings().toBuilder()
+				.centerMode(RtpCenterMode.CUSTOM)
+				.customCenter(0.5D, 1.0D)
+				.build());
+		harness.runtime.synchronize(harness.portal);
+		long originalGeneration = harness.service.snapshot(harness.portal.getId()).orElseThrow().generation();
+		harness.portal.getStructure().setArea(new Cuboid(
+				new Location(harness.world, 8.0D, 64.0D, 0.0D),
+				new Location(harness.world, 8.0D, 66.0D, 2.0D)));
+
+		harness.runtime.synchronize(harness.portal);
+
+		assertEquals(2, harness.environment.sourceRegistrations.get());
+		assertEquals(originalGeneration, harness.service.snapshot(harness.portal.getId()).orElseThrow().generation());
 	}
 
 	@Test
@@ -167,6 +199,41 @@ public final class RtpLiveRuntimeTest
 
 		assertFalse(harness.runtime.isReady(harness.portal.getId()));
 		assertFalse(harness.portal.isOpen());
+	}
+
+	@Test
+	public void readyAttendanceRefreshesDeadlineWithoutRedispatchingServiceWork()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.runtime.synchronize(harness.portal);
+		harness.runtime.touch(harness.portal, harness.viewer.player());
+		int executionsAfterInitialTouch = harness.environment.dispatcher.executionCount();
+
+		for(int tick = 1; tick <= 20; tick++)
+		{
+			harness.environment.nowMillis = tick * 50L;
+			harness.runtime.touch(harness.portal, harness.viewer.player());
+		}
+		harness.environment.nowMillis = 1_999L;
+		harness.runtime.sweepAttendance();
+
+		assertEquals(executionsAfterInitialTouch, harness.environment.dispatcher.executionCount());
+		assertTrue(harness.runtime.isReady(harness.portal.getId()));
+	}
+
+	@Test
+	public void failedInitialAttendanceDispatchRetriesOnTheNextTouch()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.runtime.synchronize(harness.portal);
+		harness.environment.dispatcher.rejectNextExecute();
+
+		harness.runtime.touch(harness.portal, harness.viewer.player());
+		assertFalse(harness.runtime.isReady(harness.portal.getId()));
+
+		harness.runtime.touch(harness.portal, harness.viewer.player());
+
+		assertTrue(harness.runtime.isReady(harness.portal.getId()));
 	}
 
 	@Test
@@ -1014,6 +1081,7 @@ public final class RtpLiveRuntimeTest
 		private final List<Runnable> scheduled = new java.util.ArrayList<Runnable>();
 		private final List<Runnable> deferred = new java.util.ArrayList<Runnable>();
 		private final Consumer<Runnable> executor;
+		private int executions;
 		private boolean rejectNextExecute;
 		private boolean deferNextExecute;
 
@@ -1025,6 +1093,7 @@ public final class RtpLiveRuntimeTest
 		@Override
 		public void execute(UUID portalId, Runnable command)
 		{
+			executions++;
 			if(rejectNextExecute)
 			{
 				rejectNextExecute = false;
@@ -1048,6 +1117,11 @@ public final class RtpLiveRuntimeTest
 		private int size()
 		{
 			return scheduled.size();
+		}
+
+		private int executionCount()
+		{
+			return executions;
 		}
 
 		private void rejectNextExecute()
@@ -1186,6 +1260,7 @@ public final class RtpLiveRuntimeTest
 		private final AtomicInteger worldUnloads;
 		private final AtomicInteger closes;
 		private final AtomicInteger retentionCloses;
+		private final AtomicInteger sourceRegistrations;
 		private final AtomicInteger entitySchedules;
 		private final AtomicInteger regionSchedules;
 		private final java.util.Deque<Runnable> heldEntityCommands;
@@ -1214,6 +1289,7 @@ public final class RtpLiveRuntimeTest
 			worldUnloads = new AtomicInteger();
 			closes = new AtomicInteger();
 			retentionCloses = new AtomicInteger();
+			sourceRegistrations = new AtomicInteger();
 			entitySchedules = new AtomicInteger();
 			regionSchedules = new AtomicInteger();
 			heldEntityCommands = new java.util.ArrayDeque<Runnable>();
@@ -1260,6 +1336,7 @@ public final class RtpLiveRuntimeTest
 		@Override
 		public void sourceRegistered(UUID portalId, Location anchor)
 		{
+			sourceRegistrations.incrementAndGet();
 		}
 
 		@Override

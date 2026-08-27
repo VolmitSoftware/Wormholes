@@ -261,6 +261,169 @@ public final class ProjectorViewOcclusionTest {
     }
 
     @Test
+    public void eligibleBlockerOctreeSkipsEmptyCubeInteriorsInConstantWork() {
+        FakeWorldView view = new FakeWorldView();
+        ProjectorViewOcclusion occlusion = occlusion();
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, new LongOpenHashSet());
+
+        assertTrue(occlusion.visible(view, 300, 0, 0, 0.5D, 0.5D, 0.5D));
+        assertTrue(occlusion.voxelSteps() <= 20,
+            "empty occupancy cubes should be traversed once instead of once per voxel");
+        assertFalse(occlusion.budgetExhausted());
+    }
+
+    @Test
+    public void eligibleBlockerOctreeStillFindsSparseBlockersAcrossCubeBoundaries() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        for (int y = -8; y <= 8; y++) {
+            for (int z = -8; z <= 8; z++) {
+                blockers.add(ProjectionCellKey.pack(34, y, z));
+            }
+        }
+        ProjectorViewOcclusion occlusion = occlusion();
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+
+        assertFalse(occlusion.visible(view, 40, 0, 0, 0.5D, 0.5D, 0.5D));
+        assertTrue(occlusion.voxelSteps() < 20);
+    }
+
+    @Test
+    public void stationaryEyeReusesExactHiddenBlockerProofAcrossPasses() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(2, 0, 0));
+        ProjectorViewOcclusion occlusion = occlusion();
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+
+        assertFalse(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+        assertTrue(occlusion.voxelSteps() > 0);
+
+        LongOpenHashSet expandedBlockers = new LongOpenHashSet(blockers);
+        expandedBlockers.add(ProjectionCellKey.pack(20, 3, 4));
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, expandedBlockers);
+
+        assertFalse(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+        assertEquals(1, occlusion.hiddenProofHits());
+        assertEquals(0, occlusion.voxelSteps());
+    }
+
+    @Test
+    public void cachedBlockerProofCannotHideWhenItsBlockerLeavesTheEligibleSet() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(2, 0, 0));
+        ProjectorViewOcclusion occlusion = occlusion();
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        assertFalse(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, new LongOpenHashSet());
+
+        assertTrue(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+        assertEquals(0, occlusion.hiddenProofHits());
+    }
+
+    @Test
+    public void eyeMovementRevalidatesCachedHiddenProofsWithoutVoxelTraversal() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(2, 0, 0));
+        ProjectorViewOcclusion occlusion = occlusion();
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        assertFalse(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        assertFalse(occlusion.visible(view, 5, 0, 0, 0.6D, 0.5D, 0.5D));
+
+        assertEquals(1, occlusion.hiddenProofHits());
+        assertEquals(1, occlusion.hiddenProofRevalidations());
+        assertEquals(0, occlusion.hiddenProofInvalidations());
+        assertEquals(0, occlusion.voxelSteps());
+    }
+
+    @Test
+    public void movedEyeFallsBackWhenCachedBlockerNoLongerCoversTheTarget() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(2, 0, 0));
+        ProjectorViewOcclusion occlusion = occlusion();
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        assertFalse(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        assertTrue(occlusion.visible(view, 5, 0, 0, 0.5D, 4.5D, 0.5D));
+
+        assertEquals(0, occlusion.hiddenProofHits());
+        assertEquals(0, occlusion.hiddenProofRevalidations());
+        assertEquals(1, occlusion.hiddenProofInvalidations());
+        assertTrue(occlusion.voxelSteps() > 0);
+    }
+
+    @Test
+    public void exactHiddenProofsRemainUsableAfterTheTraversalBudgetIsExhausted() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(2, 0, 0));
+        ProjectorViewOcclusion occlusion = occlusion();
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        assertFalse(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+
+        for (int i = 0; i < 100_000 && !occlusion.budgetExhausted(); i++) {
+            assertTrue(occlusion.visible(view, 300, 300, i & 3, 0.5D, 0.5D, 0.5D));
+        }
+
+        assertTrue(occlusion.budgetExhausted());
+        assertFalse(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+        assertEquals(1, occlusion.hiddenProofHits());
+    }
+
+    @Test
+    public void cachedProofFailsOpenWhenTheViewRevisionChangesDuringReuse() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(2, 0, 0));
+        ProjectorViewOcclusion occlusion = occlusion();
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        assertFalse(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+
+        view.changeRevisionOnRead(view.revisionReads() + 2);
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+
+        assertTrue(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+        assertEquals(0, occlusion.hiddenProofHits());
+    }
+
+    @Test
+    public void eligibleBlockerOctreeMatchesDenseTraversalAcrossObliqueTargets() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        fillPlane(view, 18, -6, 6, -6, 6, Material.STONE);
+        for (int y = -6; y <= 6; y++) {
+            for (int z = -6; z <= 6; z++) {
+                blockers.add(ProjectionCellKey.pack(18, y, z));
+            }
+        }
+        ProjectorViewOcclusion dense = occlusion();
+        ProjectorViewOcclusion sparse = occlusion();
+        dense.beginPass(0.5D, 0.5D, 0.5D, Direction.W);
+        sparse.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+
+        for (int targetX = 19; targetX <= 40; targetX += 3) {
+            for (int targetY = -5; targetY <= 5; targetY += 2) {
+                for (int targetZ = -5; targetZ <= 5; targetZ += 2) {
+                    assertEquals(
+                        dense.visible(view, targetX, targetY, targetZ, 0.5D, 0.5D, 0.5D),
+                        sparse.visible(view, targetX, targetY, targetZ, 0.5D, 0.5D, 0.5D),
+                        targetX + ":" + targetY + ":" + targetZ);
+                }
+            }
+        }
+        assertFalse(dense.budgetExhausted());
+        assertFalse(sparse.budgetExhausted());
+        assertTrue(sparse.voxelSteps() < dense.voxelSteps());
+    }
+
+    @Test
     public void unavailableSnapshotCellFailsOpenAndRequestsCapture() {
         FakeWorldView view = new FakeWorldView();
         view.unknown(2, 1, 1);
@@ -388,6 +551,8 @@ public final class ProjectorViewOcclusionTest {
         private final BlockData air = blockData(Material.AIR);
         private int fillXPlane = Integer.MIN_VALUE;
         private long revision;
+        private int revisionReads;
+        private int revisionChangeRead = Integer.MAX_VALUE;
 
         private void put(int x, int y, int z, Material material) {
             blocks.put(key(x, y, z), blockData(material));
@@ -442,6 +607,10 @@ public final class ProjectorViewOcclusionTest {
 
         @Override
         public long getRevision() {
+            revisionReads++;
+            if (revisionReads == revisionChangeRead) {
+                revision++;
+            }
             return revision;
         }
 
@@ -456,6 +625,14 @@ public final class ProjectorViewOcclusionTest {
 
         private boolean wasRequested(int x, int z) {
             return requested.containsKey(x + ":" + z);
+        }
+
+        private int revisionReads() {
+            return revisionReads;
+        }
+
+        private void changeRevisionOnRead(int read) {
+            revisionChangeRead = read;
         }
 
         private static String key(int x, int y, int z) {

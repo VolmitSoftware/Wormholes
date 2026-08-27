@@ -19,8 +19,10 @@ import com.github.retrooper.packetevents.netty.NettyManager;
 import com.github.retrooper.packetevents.netty.buffer.ByteBufAllocationOperator;
 import com.github.retrooper.packetevents.netty.buffer.ByteBufOperator;
 import com.github.retrooper.packetevents.netty.channel.ChannelOperator;
+import com.github.retrooper.packetevents.protocol.ConnectionState;
 import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 import com.github.retrooper.packetevents.protocol.player.User;
+import com.github.retrooper.packetevents.protocol.player.UserProfile;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import io.github.retrooper.packetevents.impl.netty.buffer.ByteBufAllocationOperatorImpl;
 import io.github.retrooper.packetevents.impl.netty.buffer.ByteBufOperatorImpl;
@@ -28,7 +30,11 @@ import io.github.retrooper.packetevents.impl.netty.buffer.ByteBufOperatorImpl;
 final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
     private final List<PacketWrapper<?>> sent = new ArrayList<PacketWrapper<?>>();
     private final PacketEventsAPI<?> previous;
+    private final boolean recordBatchWrites;
+    private User batchUser;
     private int batchLookups;
+    private int batchFlushes;
+    private int packetsAtLastFlush;
     private int failedSendsRemaining;
 
     private final PlayerManager playerManager = new PlayerManager() {
@@ -50,7 +56,10 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
         @Override
         public User getUser(Object player) {
             batchLookups++;
-            return null;
+            if (batchUser == null && recordBatchWrites) {
+                batchUser = new RecordingUser();
+            }
+            return batchUser;
         }
 
         @Override
@@ -87,13 +96,22 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
         }
     };
 
-    private ProjectedEntityPacketRecorder(PacketEventsAPI<?> previous) {
+    private ProjectedEntityPacketRecorder(PacketEventsAPI<?> previous, boolean recordBatchWrites) {
         this.previous = previous;
+        this.recordBatchWrites = recordBatchWrites;
+        this.batchUser = null;
     }
 
     static ProjectedEntityPacketRecorder install() {
         PacketEventsAPI<?> previous = PacketEvents.getAPI();
-        ProjectedEntityPacketRecorder recorder = new ProjectedEntityPacketRecorder(previous);
+        ProjectedEntityPacketRecorder recorder = new ProjectedEntityPacketRecorder(previous, false);
+        PacketEvents.setAPI(recorder);
+        return recorder;
+    }
+
+    static ProjectedEntityPacketRecorder installWithBatchUser() {
+        PacketEventsAPI<?> previous = PacketEvents.getAPI();
+        ProjectedEntityPacketRecorder recorder = new ProjectedEntityPacketRecorder(previous, true);
         PacketEvents.setAPI(recorder);
         return recorder;
     }
@@ -108,6 +126,14 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
 
     int batchLookups() {
         return batchLookups;
+    }
+
+    int batchFlushes() {
+        return batchFlushes;
+    }
+
+    int packetsAtLastFlush() {
+        return packetsAtLastFlush;
     }
 
     void failNextSend() {
@@ -134,6 +160,25 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
         }
         failedSendsRemaining--;
         throw new IllegalStateException("injected packet send failure");
+    }
+
+    private final class RecordingUser extends User {
+        private RecordingUser() {
+            super(null, ConnectionState.PLAY, ClientVersion.UNKNOWN,
+                new UserProfile(UUID.randomUUID(), "Observer"));
+        }
+
+        @Override
+        public void writePacket(PacketWrapper<?> wrapper) {
+            failSendIfRequested();
+            sent.add(wrapper);
+        }
+
+        @Override
+        public void flushPackets() {
+            batchFlushes++;
+            packetsAtLastFlush = sent.size();
+        }
     }
 
     static Player player(boolean online) {

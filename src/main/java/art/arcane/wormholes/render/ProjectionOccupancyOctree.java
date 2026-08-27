@@ -5,22 +5,26 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 
 final class ProjectionOccupancyOctree {
-    static final int SMALL_LOG = 3;
-    static final int LARGE_LOG = 4;
+    static final int MIN_SKIP_LOG = 3;
+    static final int MAX_SKIP_LOG = 6;
+    private static final int LEVEL_COUNT = MAX_SKIP_LOG - MIN_SKIP_LOG + 1;
 
-    private final LongOpenHashSet occupiedSmall;
-    private final LongOpenHashSet occupiedLarge;
+    private final LongOpenHashSet[] occupiedByLog;
     private boolean empty;
 
     ProjectionOccupancyOctree() {
-        occupiedSmall = new LongOpenHashSet(64);
-        occupiedLarge = new LongOpenHashSet(16);
+        occupiedByLog = new LongOpenHashSet[LEVEL_COUNT];
+        occupiedByLog[0] = new LongOpenHashSet(256);
+        occupiedByLog[1] = new LongOpenHashSet(64);
+        occupiedByLog[2] = new LongOpenHashSet(16);
+        occupiedByLog[3] = new LongOpenHashSet(8);
         empty = true;
     }
 
     void rebuild(LongSet cells) {
-        occupiedSmall.clear();
-        occupiedLarge.clear();
+        for (LongOpenHashSet occupied : occupiedByLog) {
+            occupied.clear();
+        }
         empty = cells == null || cells.isEmpty();
         if (empty) {
             return;
@@ -31,8 +35,14 @@ final class ProjectionOccupancyOctree {
             int x = ProjectionCellKey.unpackX(key);
             int y = ProjectionCellKey.unpackY(key);
             int z = ProjectionCellKey.unpackZ(key);
-            occupiedSmall.add(cubeKey(x, y, z, SMALL_LOG));
-            occupiedLarge.add(cubeKey(x, y, z, LARGE_LOG));
+            occupiedByLog[0].add(cubeKey(x, y, z, MIN_SKIP_LOG));
+        }
+        for (int level = 1; level < LEVEL_COUNT; level++) {
+            LongIterator childIterator = occupiedByLog[level - 1].iterator();
+            LongOpenHashSet parent = occupiedByLog[level];
+            while (childIterator.hasNext()) {
+                parent.add(parentKey(childIterator.nextLong()));
+            }
         }
     }
 
@@ -42,15 +52,14 @@ final class ProjectionOccupancyOctree {
 
     int largestEmptyLog(int x, int y, int z) {
         if (empty) {
-            return LARGE_LOG;
+            return MAX_SKIP_LOG;
         }
-        if (occupiedLarge.contains(cubeKey(x, y, z, LARGE_LOG))) {
-            if (occupiedSmall.contains(cubeKey(x, y, z, SMALL_LOG))) {
-                return 0;
+        for (int logSize = MAX_SKIP_LOG; logSize >= MIN_SKIP_LOG; logSize--) {
+            if (!occupiedByLog[logSize - MIN_SKIP_LOG].contains(cubeKey(x, y, z, logSize))) {
+                return logSize;
             }
-            return SMALL_LOG;
         }
-        return LARGE_LOG;
+        return 0;
     }
 
     static double cubeExitT(int x,
@@ -79,6 +88,13 @@ final class ProjectionOccupancyOctree {
 
     static long cubeKey(int x, int y, int z, int logSize) {
         return ProjectionCellKey.pack(x >> logSize, y >> logSize, z >> logSize);
+    }
+
+    private static long parentKey(long childKey) {
+        return ProjectionCellKey.pack(
+            ProjectionCellKey.unpackX(childKey) >> 1,
+            ProjectionCellKey.unpackY(childKey) >> 1,
+            ProjectionCellKey.unpackZ(childKey) >> 1);
     }
 
     private static double planeT(int min, int size, double start, double delta, int step) {

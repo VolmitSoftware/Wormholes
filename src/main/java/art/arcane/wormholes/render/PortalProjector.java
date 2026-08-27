@@ -183,6 +183,9 @@ public final class PortalProjector {
             + " frustumReject=" + cellScan.frustumRejected()
             + " occlusionReject=" + cellScan.occlusionRejected()
             + " occlusionSteps=" + cellScan.occlusionVoxelSteps()
+            + " occlusionProofHits=" + cellScan.occlusionProofHits()
+            + " occlusionProofRevalidations=" + cellScan.occlusionProofRevalidations()
+            + " occlusionProofInvalidations=" + cellScan.occlusionProofInvalidations()
             + " occlusionBudgetExhausted=" + cellScan.occlusionBudgetExhausted()
             + " remoteSamples=" + sampler.remoteSampleCount()
             + " reuseSkips=" + lastReuseSkips
@@ -288,9 +291,7 @@ public final class PortalProjector {
             blackout.disable();
         }
         boolean buriedCellCulling = renderMode.usesBuriedCellCulling();
-        if (sampler.setBuriedCellCullingPass(buriedCellCulling)) {
-            sampleMemo.clearDestinationSamples();
-        }
+        boolean buriedCellCullingChanged = sampler.setBuriedCellCullingPass(buriedCellCulling);
 
         if (!firstProjectionDone) {
             Wormholes.v("[Projector] portal=" + portal.getName() + " observer=" + observer.getName()
@@ -302,24 +303,26 @@ public final class PortalProjector {
                 + " aperturePadding=" + Settings.PROJECTION_APERTURE_PADDING_BLOCKS);
         }
 
-        boolean forceStableCellResample = schedule.consumeForcedResample(stableResample);
-        if (renderModeChanged || viewCameraMoved) {
-            forceStableCellResample = true;
-        }
+        boolean scheduledContentResample = schedule.consumeForcedResample(stableResample);
+        boolean forceStableCellResample = shouldForceCellResample(
+            scheduledContentResample, renderModeChanged, viewCameraMoved);
 
         long destinationRevision = destination.destView.getRevision();
-        boolean destinationSamplesStale = forceStableCellResample
-            || sampler.recursiveSamplesCached()
+        boolean destinationSamplesStale = shouldInvalidateDestinationContentSamples(
+            scheduledContentResample, renderModeChanged, buriedCellCullingChanged,
+            sampler.recursiveSamplesCached())
             || sampleMemo.destinationStale(destinationRevision, destWorld != null,
                 sinceVersion -> schedule.destinationDirty(destWorld, destinationOriginX, destinationOriginZ, sinceVersion))
-            || sampleMemo.destinationOverBudget(sampleMemoBudget());
+            || sampleMemo.destinationOverBudget(sampleMemoBudget(viewFrustum.fittedCandidateWork()));
         if (destinationSamplesStale) {
             sampler.clearRecursivePortals();
             sampleMemo.clearDestinationSamples();
             sampleMemo.refreshDestination(destinationRevision);
         }
         sampler.resetRecursiveSamplesCached();
-        sampleMemo.refreshLocal(forceStableCellResample, localDirty, destination.localView.getRevision(), sampleMemoBudget());
+        boolean localContentResample = scheduledContentResample || renderModeChanged;
+        sampleMemo.refreshLocal(localContentResample, localDirty, destination.localView.getRevision(),
+            sampleMemoBudget(viewFrustum.fittedCandidateWork()));
         sampleMemo.expandLocalRegionRect(next.getRegion());
         sampleMemo.markLocalScanned();
 
@@ -480,8 +483,8 @@ public final class PortalProjector {
         initialFullSendPassesRemaining = Math.max(initialFullSendPassesRemaining, Math.max(1, Settings.PROJECTION_INITIAL_RESEND_PASSES));
     }
 
-    private int sampleMemoBudget() {
-        return ProjectorSampleMemo.budgetFor(lastRenderedCells);
+    private int sampleMemoBudget(long fittedCandidateWork) {
+        return ProjectorSampleMemo.budgetFor(lastRenderedCells, fittedCandidateWork);
     }
 
     void noteClaimWorld(World world) {
@@ -619,6 +622,19 @@ public final class PortalProjector {
         double dy = eyeY - lastEyeY;
         double dz = eyeZ - lastEyeZ;
         return (dx * dx) + (dy * dy) + (dz * dz) >= REUSE_EYE_EPSILON_SQUARED;
+    }
+
+    static boolean shouldForceCellResample(boolean scheduledContentResample,
+                                           boolean renderModeChanged,
+                                           boolean viewCameraMoved) {
+        return scheduledContentResample || renderModeChanged || viewCameraMoved;
+    }
+
+    static boolean shouldInvalidateDestinationContentSamples(boolean scheduledContentResample,
+                                                              boolean renderModeChanged,
+                                                              boolean buriedCellCullingChanged,
+                                                              boolean recursiveSamplesCached) {
+        return scheduledContentResample || renderModeChanged || buriedCellCullingChanged || recursiveSamplesCached;
     }
 
     private void rememberCamera(Location eye) {
