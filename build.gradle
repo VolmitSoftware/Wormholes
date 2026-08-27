@@ -23,6 +23,7 @@ String jitpackAuthToken = authTokenProperty ?: providers.gradleProperty('jitpack
 
 def shadowJarTask = tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar)
 tasks.named('slimJar').get()
+File pluginOutDirectory = layout.projectDirectory.dir('../PluginOuts').asFile
 
 tasks.register('buildPsychoLT', Copy) {
     group = 'development'
@@ -33,6 +34,12 @@ tasks.register('buildPsychoLT', Copy) {
     from(shadowJarTask.flatMap { it.archiveFile })
     into(layout.projectDirectory.dir('../../[Minecraft Server]/consumers/plugin-consumers/dropins/plugins'))
     rename { String ignored -> 'Wormholes.jar' }
+    doLast {
+        project.copy {
+            from(shadowJarTask.get().archiveFile.get().asFile)
+            into(pluginOutDirectory)
+        }
+    }
 }
 
 tasks.register('buildSwiftSwamp', Copy) {
