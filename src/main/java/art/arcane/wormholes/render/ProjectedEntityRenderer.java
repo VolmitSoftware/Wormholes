@@ -310,6 +310,10 @@ public final class ProjectedEntityRenderer {
             occluder.release(observer);
             return;
         }
+        if (!recoveryPending && registry.size() == 0 && !identity.hasVanillaNameTeam()) {
+            occluder.release(observer);
+            return;
+        }
         try {
             sendTeardown(observer);
             dropRenderState(observer);

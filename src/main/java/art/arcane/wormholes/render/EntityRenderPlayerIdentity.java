@@ -166,6 +166,10 @@ final class EntityRenderPlayerIdentity {
         vanillaNameTeamSent = false;
     }
 
+    boolean hasVanillaNameTeam() {
+        return vanillaNameTeamSent;
+    }
+
     private void hideVanillaNametag(Player observer, String name) {
         if (name == null || name.isEmpty()) {
             return;

@@ -18,6 +18,7 @@ import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetPassengers;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTeams;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.network.view.EntityVisual;
@@ -28,6 +29,52 @@ import art.arcane.wormholes.render.view.ProjectionEntityView;
 import art.arcane.wormholes.util.Direction;
 
 public final class ProjectedEntityRendererTeardownTest {
+    @Test
+    public void emptyOnlineTeardownDoesNotOpenOrFlushPacketBatch() {
+        ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.installWithBatchUser();
+        try {
+            EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
+            EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
+            EntityRenderSpoofRegistry registry = new EntityRenderSpoofRegistry(channel, identity);
+            ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
+
+            renderer.close(ProjectedEntityPacketRecorder.player(true));
+
+            assertTrue(recorder.sent().isEmpty());
+            assertEquals(0, recorder.batchLookups());
+            assertEquals(0, recorder.batchFlushes());
+            assertEquals(0, renderer.getSpoofedCount());
+        } finally {
+            recorder.uninstall();
+        }
+    }
+
+    @Test
+    public void identityOnlyTeardownStillRemovesItsClientNameTeam() {
+        ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.installWithBatchUser();
+        try {
+            Player observer = ProjectedEntityPacketRecorder.player(true);
+            EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
+            EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
+            EntityRenderSpoofRegistry registry = new EntityRenderSpoofRegistry(channel, identity);
+            ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
+            channel.begin(observer);
+            identity.sendRemotePlayerInfo(observer, null,
+                EntityRenderSpoofedEntity.create(true, false, true), false);
+            channel.end();
+
+            renderer.close(observer);
+
+            assertEquals(2, recorder.batchLookups());
+            assertEquals(2, recorder.batchFlushes());
+            List<WrapperPlayServerTeams> teams = recorder.sentOfType(WrapperPlayServerTeams.class);
+            assertEquals(3, teams.size());
+            assertEquals(WrapperPlayServerTeams.TeamMode.REMOVE, teams.get(2).getTeamMode());
+        } finally {
+            recorder.uninstall();
+        }
+    }
+
     @Test
     public void discardDestroysSpoofedEntitiesWhileTheObserverCanStillReceiveThem() {
         ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.install();
