@@ -347,6 +347,28 @@ public final class ProjectorViewOcclusionTest {
     }
 
     @Test
+    public void staleBlockerProofIsDiscardedWhenItsBlockerLeavesTheEligibleSet() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(2, 0, 0));
+        ProjectorViewOcclusion occlusion = occlusion();
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        assertFalse(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+
+        LongOpenHashSet irrelevantBlockers = new LongOpenHashSet();
+        irrelevantBlockers.add(ProjectionCellKey.pack(8, 0, 0));
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, irrelevantBlockers);
+        assertTrue(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+        assertEquals(0, occlusion.hiddenProofHits());
+        assertEquals(1, occlusion.hiddenProofInvalidations());
+
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        assertFalse(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+        assertTrue(occlusion.voxelSteps() > 0);
+        assertEquals(0, occlusion.hiddenProofHits());
+    }
+
+    @Test
     public void eyeMovementRevalidatesCachedHiddenProofsWithoutVoxelTraversal() {
         FakeWorldView view = new FakeWorldView();
         LongOpenHashSet blockers = new LongOpenHashSet();

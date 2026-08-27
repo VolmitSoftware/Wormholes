@@ -239,6 +239,9 @@ final class ProjectorViewOcclusion {
         }
         long blockerKey = hiddenBlockerProofs.get(targetKey);
         if (!eligibleBlockers.contains(blockerKey)) {
+            hiddenBlockerProofs.remove(targetKey);
+            currentEyeHiddenProofs.remove(targetKey);
+            hiddenProofInvalidations++;
             return false;
         }
         if (currentEyeHiddenProofs.contains(targetKey)) {
