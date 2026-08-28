@@ -103,9 +103,7 @@ final class ProjectionInterestFrame {
         Location observerLocation = observer.getLocation();
         Location eye = observer.getEyeLocation();
         claimArbiter.retryPending(observer, observerWorld);
-        List<ILocalPortal> interested = new ArrayList<ILocalPortal>();
-        Map<UUID, PortalProjector.RtpProjectionTarget> rtpTargets = null;
-        ProjectionManager.RtpProjectionProvider provider = rtpProjectionProvider.get();
+        List<ILocalPortal> candidates = new ArrayList<ILocalPortal>();
         for (ILocalPortal portal : active.candidates(observerWorld, observerLocation)) {
             Location center = portal.getCenter();
             if (center == null || center.getWorld() == null) {
@@ -118,6 +116,18 @@ final class ProjectionInterestFrame {
             if (view == null || !view.contains(observerLocation)) {
                 continue;
             }
+            candidates.add(portal);
+        }
+        candidates.sort(Comparator.comparingDouble(portal -> distanceSquared(eye, portal)));
+
+        List<ILocalPortal> interested = new ArrayList<ILocalPortal>(candidates.size());
+        Map<UUID, PortalProjector.RtpProjectionTarget> rtpTargets = null;
+        ProjectionManager.RtpProjectionProvider provider = rtpProjectionProvider.get();
+        for (ILocalPortal portal : candidates) {
+            if (ProjectionPortalOcclusion.isFullyOccluded(eye, interested, portal)) {
+                continue;
+            }
+            Location center = portal.getCenter();
             ProjectionManager.ProjectionResolution resolution =
                 ProjectionManager.resolveProjection(provider, portal, observer, rtpRimRenderer);
             if (!resolution.projectable()) {
@@ -143,7 +153,6 @@ final class ProjectionInterestFrame {
             ledger.recordInterested();
         }
         Map<UUID, PortalProjector.RtpProjectionTarget> resolvedRtpTargets = rtpTargets == null ? Map.of() : rtpTargets;
-        interested.sort(Comparator.comparingDouble(portal -> distanceSquared(eye, portal)));
         Set<UUID> interestedIds = new HashSet<UUID>(interested.size());
         for (ILocalPortal portal : interested) {
             interestedIds.add(portal.getId());
