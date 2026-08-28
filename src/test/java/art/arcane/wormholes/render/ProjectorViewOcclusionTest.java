@@ -486,6 +486,23 @@ public final class ProjectorViewOcclusionTest {
     }
 
     @Test
+    public void angularRevealMarginKeepsNearEdgeGeometryReadyBeforeItBleedsIn() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(2, 0, 0));
+        ProjectorViewOcclusion exact = occlusion();
+        exact.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+
+        assertFalse(exact.visible(view, 5, 0, 0, 0.5D, 0.95D, 0.5D));
+
+        ProjectorViewOcclusion guarded = occlusion();
+        guarded.setRevealMarginDegrees(2.0D);
+        guarded.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+
+        assertTrue(guarded.visible(view, 5, 0, 0, 0.5D, 0.95D, 0.5D));
+    }
+
+    @Test
     public void exactHiddenProofsRemainUsableAfterTheTraversalBudgetIsExhausted() {
         FakeWorldView view = new FakeWorldView();
         LongOpenHashSet blockers = new LongOpenHashSet();

@@ -20,6 +20,7 @@ import com.github.retrooper.packetevents.util.Vector3f;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 
 public final class ProjectorBlackoutDisplayRendererTest {
@@ -92,6 +93,34 @@ public final class ProjectorBlackoutDisplayRendererTest {
             renderer.close(observer);
             assertEquals(0, renderer.getPaneCount());
             assertEquals(1, recorder.sentOfType(WrapperPlayServerDestroyEntities.class).size());
+        } finally {
+            recorder.uninstall();
+        }
+    }
+
+    @Test
+    public void movingFarSliceRepositionsStablePanelsWithoutRespawnOrDestroy() {
+        ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.install();
+        try {
+            Player observer = ProjectedEntityPacketRecorder.player(true);
+            ProjectorBlackoutDisplayRenderer renderer =
+                new ProjectorBlackoutDisplayRenderer(new EntityRenderPacketChannel());
+            ProjectorBlackoutMesh.Panel first = new ProjectorBlackoutMesh.Panel(2, -1, 12, 3, 4, 5, 6);
+            ProjectorBlackoutMesh.Panel moved = new ProjectorBlackoutMesh.Panel(2, -1, 13, 3, 4, 5, 6);
+
+            assertTrue(renderer.prepare(observer, List.of(first), 7, 32.0D));
+            renderer.finish(observer);
+            int entityId = recorder.sentOfType(WrapperPlayServerSpawnEntity.class).get(0).getEntityId();
+
+            assertTrue(renderer.prepare(observer, List.of(moved), 7, 32.0D));
+            renderer.finish(observer);
+
+            assertEquals(1, recorder.sentOfType(WrapperPlayServerSpawnEntity.class).size());
+            assertEquals(1, recorder.sentOfType(WrapperPlayServerEntityTeleport.class).size());
+            assertEquals(entityId,
+                recorder.sentOfType(WrapperPlayServerEntityTeleport.class).get(0).getEntityId());
+            assertTrue(recorder.sentOfType(WrapperPlayServerDestroyEntities.class).isEmpty());
+            assertEquals(1, renderer.getPaneCount());
         } finally {
             recorder.uninstall();
         }

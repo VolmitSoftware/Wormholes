@@ -3,6 +3,8 @@ package art.arcane.wormholes.render;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 import it.unimi.dsi.fastutil.longs.LongIterator;
@@ -66,6 +68,52 @@ final class ProjectorBlackoutMesh {
             return new Result(List.of(), true);
         }
         return new Result(List.copyOf(panels), false);
+    }
+
+    static Result build(ProjectorBlackoutBoundary boundary) {
+        if (boundary.isEmpty()) {
+            return EMPTY;
+        }
+        List<Panel> panels = new ArrayList<Panel>(MAX_PANELS);
+        for (int axis = 0; axis < 3; axis++) {
+            meshFaces(axis, -1, boundary.cells(axis, -1), panels);
+            meshFaces(axis, 1, boundary.cells(axis, 1), panels);
+            if (panels.size() > MAX_PANELS) {
+                return new Result(List.of(), true);
+            }
+        }
+        return new Result(List.copyOf(panels), false);
+    }
+
+    private static void meshFaces(int axis,
+                                  int sign,
+                                  LongSet faceCells,
+                                  List<Panel> panels) {
+        if (faceCells.isEmpty()) {
+            return;
+        }
+        int uAxis = firstPlaneAxis(axis);
+        int vAxis = secondPlaneAxis(axis);
+        Map<Integer, TreeSet<Cell2>> planes = new TreeMap<Integer, TreeSet<Cell2>>();
+        LongIterator iterator = faceCells.iterator();
+        while (iterator.hasNext()) {
+            long key = iterator.nextLong();
+            int x = ProjectionCellKey.unpackX(key);
+            int y = ProjectionCellKey.unpackY(key);
+            int z = ProjectionCellKey.unpackZ(key);
+            int cellCoordinate = coordinate(x, y, z, axis);
+            int plane = cellCoordinate + (sign > 0 ? 1 : 0);
+            TreeSet<Cell2> cells = planes.computeIfAbsent(plane, ignored -> new TreeSet<Cell2>(CELL_ORDER));
+            cells.add(new Cell2(
+                coordinate(x, y, z, uAxis),
+                coordinate(x, y, z, vAxis)));
+        }
+        for (Map.Entry<Integer, TreeSet<Cell2>> entry : planes.entrySet()) {
+            meshPlane(axis, sign, entry.getKey().intValue(), entry.getValue(), panels);
+            if (panels.size() > MAX_PANELS) {
+                return;
+            }
+        }
     }
 
     private static void meshPlane(int axis,

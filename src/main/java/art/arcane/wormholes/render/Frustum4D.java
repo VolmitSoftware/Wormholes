@@ -151,6 +151,27 @@ public final class Frustum4D {
         return false;
     }
 
+    boolean containsBox(double minX,
+                        double minY,
+                        double minZ,
+                        double maxX,
+                        double maxY,
+                        double maxZ) {
+        if (minX < regionXa || maxX > regionXb
+            || minY < regionYa || maxY > regionYb
+            || minZ < regionZa || maxZ > regionZb) {
+            return false;
+        }
+        return containsPrimitive(minX, minY, minZ)
+            && containsPrimitive(minX, minY, maxZ)
+            && containsPrimitive(minX, maxY, minZ)
+            && containsPrimitive(minX, maxY, maxZ)
+            && containsPrimitive(maxX, minY, minZ)
+            && containsPrimitive(maxX, minY, maxZ)
+            && containsPrimitive(maxX, maxY, minZ)
+            && containsPrimitive(maxX, maxY, maxZ);
+    }
+
     public AxisAlignedBB getRegion() {
         return region;
     }

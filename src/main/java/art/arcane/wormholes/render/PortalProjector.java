@@ -443,6 +443,7 @@ public final class PortalProjector {
         boolean eyeFrontSide = (eyeRelX * facingX + eyeRelY * facingY + eyeRelZ * facingZ) >= 0.0D;
         PortalFrame projectionLocalFrame = viewFrame(localFrame, eyeFrontSide);
         PortalFrame projectionRemoteFrame = viewFrame(remoteFrame, eyeFrontSide);
+        cellScan.updateEntityOcclusionEye(eye, destination, projectionLocalFrame, projectionRemoteFrame);
         updateProjectedEntities(frustum, depthBlocks, true, projectionLocalFrame, projectionRemoteFrame);
         lastProjectNanos = System.nanoTime() - startNanos;
         WormholesTelemetry.addRenderNanos(lastProjectNanos);
@@ -464,12 +465,12 @@ public final class PortalProjector {
         if (viewProvider.usesRegionSnapshots() && destView instanceof ProjectionEntityView entityView) {
             entityRenderer.applySnapshot(observer, portal, destAnchor, mirrorMode, mirrorRotationQuarterTurns,
                 entityView, frustum, depthBlocks,
-                projectionLocalFrame, projectionRemoteFrame);
+                projectionLocalFrame, projectionRemoteFrame, cellScan.entityOcclusion());
             return;
         }
         if (destination.dest != null) {
             entityRenderer.apply(observer, portal, destination.dest, frustum, depthBlocks, projectionLocalFrame,
-                projectionRemoteFrame, mirrorRotationQuarterTurns);
+                projectionRemoteFrame, mirrorRotationQuarterTurns, cellScan.entityOcclusion());
             return;
         }
         if (destView instanceof RemoteWorldView remoteWorldView) {
@@ -477,7 +478,8 @@ public final class PortalProjector {
             double remoteOriginY = destAnchor.getOrigin().getY();
             double remoteOriginZ = destAnchor.getOrigin().getZ();
             entityRenderer.applyRemote(observer, portal, remoteOriginX, remoteOriginY, remoteOriginZ,
-                remoteWorldView, frustum, depthBlocks, projectionLocalFrame, projectionRemoteFrame);
+                remoteWorldView, frustum, depthBlocks, projectionLocalFrame, projectionRemoteFrame,
+                cellScan.entityOcclusion());
         }
     }
 

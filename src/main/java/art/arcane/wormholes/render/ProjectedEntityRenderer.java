@@ -143,7 +143,8 @@ public final class ProjectedEntityRenderer {
                       double projectionDepth,
                       PortalFrame localViewFrame,
                       PortalFrame remoteViewFrame,
-                      int mirrorRotationQuarterTurns) {
+                      int mirrorRotationQuarterTurns,
+                      ProjectedEntityOcclusion entityOcclusion) {
         if (!Settings.ENTITY_SPOOFING || Settings.MAX_SPOOFED_ENTITIES <= 0) {
             close(observer);
             return;
@@ -161,7 +162,8 @@ public final class ProjectedEntityRenderer {
         try {
             double range = Math.min(Settings.ENTITY_SPOOF_RANGE, projectionDepth);
             registry.clearVisible();
-            occluder.hideLocalEntities(observer, localPortal, frustum, range, projectionDepth);
+            entityOcclusion.startBatch();
+            occluder.hideLocalEntities(observer, localPortal, frustum, projectionDepth);
             boolean upsideDown = remotePortal == localPortal
                 ? PortalCoordMap.mirrorTransformFlipsWorldUp(localPortal.getFrame(), mirrorRotationQuarterTurns)
                 : PortalCoordMap.transformFlipsWorldUp(remoteViewFrame, localViewFrame);
@@ -172,6 +174,9 @@ public final class ProjectedEntityRenderer {
                     break;
                 }
                 if (!canSpoof(entity)) {
+                    continue;
+                }
+                if (entityOcclusion.fullyHidden(entity.getBoundingBox())) {
                     continue;
                 }
                 if (!projectEntity(observer, localPortal, remotePortal, localViewFrame, remoteViewFrame, frustum,
@@ -200,7 +205,8 @@ public final class ProjectedEntityRenderer {
                             Frustum4D frustum,
                             double projectionDepth,
                             PortalFrame localViewFrame,
-                            PortalFrame remoteViewFrame) {
+                            PortalFrame remoteViewFrame,
+                            ProjectedEntityOcclusion entityOcclusion) {
         if (!Settings.ENTITY_SPOOFING || Settings.MAX_SPOOFED_ENTITIES <= 0) {
             close(observer);
             return;
@@ -215,7 +221,8 @@ public final class ProjectedEntityRenderer {
         try {
             double range = Math.min(Settings.ENTITY_SPOOF_RANGE, projectionDepth);
             registry.clearVisible();
-            occluder.hideLocalEntities(observer, localPortal, frustum, range, projectionDepth);
+            entityOcclusion.startBatch();
+            occluder.hideLocalEntities(observer, localPortal, frustum, projectionDepth);
             boolean upsideDown = PortalCoordMap.transformFlipsWorldUp(remoteViewFrame, localViewFrame);
             int count = 0;
 
@@ -223,6 +230,9 @@ public final class ProjectedEntityRenderer {
             for (EntityVisual visual : visuals) {
                 if (count >= Settings.MAX_SPOOFED_ENTITIES) {
                     break;
+                }
+                if (entityOcclusion.fullyHidden(visual)) {
+                    continue;
                 }
                 if (!visualProjector.projectRemoteVisual(observer, localPortal, remoteOriginX, remoteOriginY, remoteOriginZ, localViewFrame, remoteViewFrame, frustum, remoteView, visual, upsideDown)) {
                     continue;
@@ -250,7 +260,8 @@ public final class ProjectedEntityRenderer {
                               Frustum4D frustum,
                               double projectionDepth,
                               PortalFrame localViewFrame,
-                              PortalFrame remoteViewFrame) {
+                              PortalFrame remoteViewFrame,
+                              ProjectedEntityOcclusion entityOcclusion) {
         if (!Settings.ENTITY_SPOOFING || Settings.MAX_SPOOFED_ENTITIES <= 0) {
             close(observer);
             return;
@@ -268,7 +279,8 @@ public final class ProjectedEntityRenderer {
         try {
             double range = Math.min(Settings.ENTITY_SPOOF_RANGE, projectionDepth);
             registry.clearVisible();
-            occluder.hideLocalEntities(observer, localPortal, frustum, range, projectionDepth);
+            entityOcclusion.startBatch();
+            occluder.hideLocalEntities(observer, localPortal, frustum, projectionDepth);
             boolean upsideDown = mirror
                 ? PortalCoordMap.mirrorTransformFlipsWorldUp(localPortal.getFrame(), mirrorRotationQuarterTurns)
                 : PortalCoordMap.transformFlipsWorldUp(remoteViewFrame, localViewFrame);
@@ -277,6 +289,9 @@ public final class ProjectedEntityRenderer {
             for (EntityVisual visual : visuals) {
                 if (count >= Settings.MAX_SPOOFED_ENTITIES) {
                     break;
+                }
+                if (entityOcclusion.fullyHidden(visual)) {
+                    continue;
                 }
                 if (!visualProjector.projectSnapshotVisual(observer, localPortal, remoteOriginX, remoteOriginY, remoteOriginZ,
                     localViewFrame, remoteViewFrame, frustum, entityView, visual, upsideDown, mirror,

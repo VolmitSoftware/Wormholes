@@ -2,10 +2,13 @@ package art.arcane.wormholes.render;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -24,6 +27,7 @@ import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.util.Vector3f;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
@@ -106,13 +110,24 @@ final class ProjectorBlackoutDisplayRenderer {
         }
         Map<ProjectorBlackoutMesh.Panel, DisplayState> target =
             new LinkedHashMap<ProjectorBlackoutMesh.Panel, DisplayState>(Math.max(4, panels.size() * 2));
+        Map<ProjectorBlackoutMesh.Panel, DisplayState> reusable =
+            new LinkedHashMap<ProjectorBlackoutMesh.Panel, DisplayState>(active);
+        for (ProjectorBlackoutMesh.Panel panel : panels) {
+            reusable.remove(panel);
+        }
         List<DisplayState> newStates = new ArrayList<DisplayState>();
+        List<DisplayState> relocatedStates = new ArrayList<DisplayState>();
         float viewRange = viewRange(observer, panels, projectionDepth);
         boolean prepared;
         try {
             channel.begin(observer);
             for (ProjectorBlackoutMesh.Panel panel : panels) {
                 DisplayState existing = active.get(panel);
+                boolean relocated = false;
+                if (existing == null) {
+                    existing = takeReusable(reusable);
+                    relocated = existing != null;
+                }
                 DisplayState targetState = existing == null
                     ? new DisplayState(NEXT_DISPLAY_ID.getAndIncrement(), UUID.randomUUID(), globalId, viewRange)
                     : new DisplayState(existing.entityId(), existing.entityUuid(), globalId, viewRange);
@@ -120,6 +135,13 @@ final class ProjectorBlackoutDisplayRenderer {
                 if (existing == null) {
                     newStates.add(targetState);
                     sendSpawn(observer, panel, targetState);
+                    continue;
+                }
+                if (relocated) {
+                    relocatedStates.add(targetState);
+                    sendRelocation(observer, panel, targetState);
+                    sendMetadata(observer, panel, targetState);
+                    metadataUpdates++;
                     continue;
                 }
                 if (existing.globalId() != globalId || Float.compare(existing.viewRange(), viewRange) != 0) {
@@ -131,13 +153,13 @@ final class ProjectorBlackoutDisplayRenderer {
             failureLogged = false;
             prepared = true;
         } catch (RuntimeException ex) {
-            markUncertain(newStates);
+            abandonChangedStates(newStates, relocatedStates);
             pending = null;
             noteFailure("prepare", ex);
             prepared = false;
         }
         if (!finishBatch("prepare-flush")) {
-            markUncertain(newStates);
+            abandonChangedStates(newStates, relocatedStates);
             pending = null;
             return false;
         }
@@ -157,8 +179,12 @@ final class ProjectorBlackoutDisplayRenderer {
         }
         pending = null;
         List<DisplayState> staleActive = new ArrayList<DisplayState>();
+        Set<Integer> targetIds = new HashSet<Integer>(target.size() * 2);
+        for (DisplayState state : target.values()) {
+            targetIds.add(Integer.valueOf(state.entityId()));
+        }
         for (Map.Entry<ProjectorBlackoutMesh.Panel, DisplayState> entry : active.entrySet()) {
-            if (!target.containsKey(entry.getKey())) {
+            if (!targetIds.contains(Integer.valueOf(entry.getValue().entityId()))) {
                 staleActive.add(entry.getValue());
             }
         }
@@ -268,6 +294,13 @@ final class ProjectorBlackoutDisplayRenderer {
     private void sendMetadata(Player observer, ProjectorBlackoutMesh.Panel panel, DisplayState state) {
         channel.send(observer, new WrapperPlayServerEntityMetadata(
             state.entityId(), displayMetadata(panel.transform(), state.globalId(), state.viewRange())));
+    }
+
+    private void sendRelocation(Player observer, ProjectorBlackoutMesh.Panel panel, DisplayState state) {
+        ProjectorBlackoutMesh.Transform transform = panel.transform();
+        channel.send(observer, new WrapperPlayServerEntityTeleport(
+            state.entityId(), new Vector3d(transform.x(), transform.y(), transform.z()),
+            0.0F, 0.0F, false));
     }
 
     private void sendDestroy(Player observer, Iterable<DisplayState> states) {
@@ -394,6 +427,29 @@ final class ProjectorBlackoutDisplayRenderer {
         for (DisplayState state : states) {
             uncertain.put(Integer.valueOf(state.entityId()), state);
         }
+    }
+
+    private void abandonChangedStates(List<DisplayState> newStates, List<DisplayState> relocatedStates) {
+        markUncertain(newStates);
+        markUncertain(relocatedStates);
+        if (relocatedStates.isEmpty()) {
+            return;
+        }
+        Set<Integer> relocatedIds = new HashSet<Integer>(relocatedStates.size() * 2);
+        for (DisplayState state : relocatedStates) {
+            relocatedIds.add(Integer.valueOf(state.entityId()));
+        }
+        active.entrySet().removeIf(entry -> relocatedIds.contains(Integer.valueOf(entry.getValue().entityId())));
+    }
+
+    private static DisplayState takeReusable(Map<ProjectorBlackoutMesh.Panel, DisplayState> reusable) {
+        Iterator<Map.Entry<ProjectorBlackoutMesh.Panel, DisplayState>> iterator = reusable.entrySet().iterator();
+        if (!iterator.hasNext()) {
+            return null;
+        }
+        Map.Entry<ProjectorBlackoutMesh.Panel, DisplayState> entry = iterator.next();
+        iterator.remove();
+        return entry.getValue();
     }
 
     private boolean cleanupUncertain(Player observer) {

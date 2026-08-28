@@ -31,6 +31,33 @@ public final class ProjectorBlackoutMeshTest {
     }
 
     @Test
+    public void boundaryMeshClosesFarCeilingFloorAndSideFacesWithoutANearCap() {
+        ProjectorBlackoutBoundary boundary = new ProjectorBlackoutBoundary();
+        Set<UnitFace> expected = new HashSet<UnitFace>();
+        for (int x = 0; x <= 2; x++) {
+            for (int y = 0; y <= 2; y++) {
+                addFace(boundary, expected, x, y, 0, 2, -1);
+            }
+        }
+        for (int z = 0; z <= 3; z++) {
+            for (int y = 0; y <= 2; y++) {
+                addFace(boundary, expected, 0, y, z, 0, -1);
+                addFace(boundary, expected, 2, y, z, 0, 1);
+            }
+            for (int x = 0; x <= 2; x++) {
+                addFace(boundary, expected, x, 0, z, 1, -1);
+                addFace(boundary, expected, x, 2, z, 1, 1);
+            }
+        }
+
+        ProjectorBlackoutMesh.Result result = ProjectorBlackoutMesh.build(boundary);
+
+        assertFalse(result.fallback());
+        assertEquals(expected, expandedFaces(result.panels()));
+        assertTrue(result.panels().stream().noneMatch(panel -> panel.axis() == 2 && panel.sign() > 0));
+    }
+
+    @Test
     public void everyPortalNormalUsesOnlyItsOutwardFarFace() {
         LongOpenHashSet geometry = box(-3, 5, 20, 25, 7, 13);
 
@@ -170,6 +197,20 @@ public final class ProjectorBlackoutMeshTest {
             normalMax = Math.max(normalMax, coordinate);
         }
         return ProjectorBlackoutMesh.build(geometry, normal, normalMin, normalMax);
+    }
+
+    private static void addFace(ProjectorBlackoutBoundary boundary,
+                                Set<UnitFace> expected,
+                                int x,
+                                int y,
+                                int z,
+                                int axis,
+                                int sign) {
+        boundary.add(ProjectionCellKey.pack(x, y, z), ProjectorBlackoutBoundary.faceMask(axis, sign));
+        int plane = coordinate(ProjectionCellKey.pack(x, y, z), axis) + (sign > 0 ? 1 : 0);
+        int u = axis == 0 ? y : x;
+        int v = axis == 2 ? y : z;
+        expected.add(new UnitFace(axis, sign, plane, u, v));
     }
 
     private static Set<UnitFace> expectedFarCap(LongOpenHashSet geometry, Direction normal) {

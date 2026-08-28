@@ -11,6 +11,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.Wormholes;
@@ -19,6 +20,9 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalFrame;
 
 final class EntityRenderLocalOccluder {
+    private static final double LABEL_HORIZONTAL_MARGIN = 0.5D;
+    private static final double LABEL_VERTICAL_MARGIN = 0.75D;
+
     private final EntityRenderLocalOcclusionArbiter arbiter;
     private final UUID ownerId;
     private final double[] scratchEntityPosition;
@@ -31,7 +35,7 @@ final class EntityRenderLocalOccluder {
         this.localHideOwnershipWarningSent = false;
     }
 
-    void hideLocalEntities(Player observer, ILocalPortal localPortal, Frustum4D frustum, double range,
+    void hideLocalEntities(Player observer, ILocalPortal localPortal, Frustum4D frustum,
                            double projectionDepth) {
         if (Wormholes.instance == null || observer == null || !observer.isOnline() || localPortal == null) {
             return;
@@ -51,7 +55,7 @@ final class EntityRenderLocalOccluder {
         boolean eyeFrontSide = eyeDot >= 0.0D;
         double clearance = PortalProjector.portalPlaneClearance(localPortal.getStructure().getArea(), frame);
         double maxDepth = projectionDepth + clearance;
-        double ownedRange = largestOwnedLocalEntityRange(localWorld, localCenter, range);
+        double ownedRange = largestOwnedLocalEntityRange(localWorld, localCenter, maxDepth);
         if (ownedRange <= 0.0D) {
             return;
         }
@@ -114,19 +118,43 @@ final class EntityRenderLocalOccluder {
         if (entity.getUniqueId().equals(observerId)) {
             return false;
         }
-        WormholesPlatform.entityPosition(entity, scratchEntityPosition);
-        double entityX = scratchEntityPosition[0];
-        double entityZ = scratchEntityPosition[2];
-        double centerY = scratchEntityPosition[1] + (entity.getHeight() * 0.5D);
-        double signedDistance = dot(entityX - origin.getX(), centerY - origin.getY(), entityZ - origin.getZ(), frame);
-        if (Math.abs(signedDistance) <= clearance || Math.abs(signedDistance) > maxDepth) {
+        BoundingBox box = entity.getBoundingBox();
+        return envelopeFullyProjected(
+            box.getMinX() - LABEL_HORIZONTAL_MARGIN,
+            box.getMinY(),
+            box.getMinZ() - LABEL_HORIZONTAL_MARGIN,
+            box.getMaxX() + LABEL_HORIZONTAL_MARGIN,
+            box.getMaxY() + LABEL_VERTICAL_MARGIN,
+            box.getMaxZ() + LABEL_HORIZONTAL_MARGIN,
+            origin, frame, frustum, eyeFrontSide, clearance, maxDepth);
+    }
+
+    static boolean envelopeFullyProjected(double minX,
+                                          double minY,
+                                          double minZ,
+                                          double maxX,
+                                          double maxY,
+                                          double maxZ,
+                                          Vector origin,
+                                          PortalFrame frame,
+                                          Frustum4D frustum,
+                                          boolean eyeFrontSide,
+                                          double clearance,
+                                          double maxDepth) {
+        double firstSignedDistance = dot(
+            minX - origin.getX(), minY - origin.getY(), minZ - origin.getZ(), frame);
+        double secondSignedDistance = dot(
+            maxX - origin.getX(), maxY - origin.getY(), maxZ - origin.getZ(), frame);
+        double minSignedDistance = Math.min(firstSignedDistance, secondSignedDistance);
+        double maxSignedDistance = Math.max(firstSignedDistance, secondSignedDistance);
+        if (eyeFrontSide) {
+            if (maxSignedDistance >= -clearance || minSignedDistance < -maxDepth) {
+                return false;
+            }
+        } else if (minSignedDistance <= clearance || maxSignedDistance > maxDepth) {
             return false;
         }
-        boolean entityFrontSide = signedDistance >= 0.0D;
-        if (entityFrontSide == eyeFrontSide) {
-            return false;
-        }
-        return frustum.containsPrimitive(entityX, centerY, entityZ);
+        return frustum.containsBox(minX, minY, minZ, maxX, maxY, maxZ);
     }
 
     private static double dot(double x, double y, double z, PortalFrame frame) {

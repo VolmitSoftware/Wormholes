@@ -16,6 +16,12 @@ public class ProjectionConfig {
     })
     public double aperturePaddingBlocks = 0.75;
     public double frustumCullingRatio = 0.2;
+    @ConfigDescription({
+        "Angular guard band around Venticular occlusion silhouettes, in degrees.",
+        "Higher values reveal hidden blocks earlier while the observer moves, reducing edge bleed at the cost of sending more geometry.",
+        "Set to 0 for exact geometric culling without movement compensation."
+    })
+    public double occlusionRevealMarginDegrees = 1.0;
     public int depthBlocks = 64;
     public int recursivePortalDepth = 3;
     public int stableCellResampleIntervalTicks = 4;

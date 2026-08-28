@@ -56,6 +56,7 @@ class WormholesConfigFileTest {
         assertTrue(emitted.contains("[projection]"));
         assertTrue(emitted.contains("[render]"));
         assertTrue(emitted.contains("aperture-padding-blocks = 0.75"));
+        assertTrue(emitted.contains("occlusion-reveal-margin-degrees = 1.0"));
         assertTrue(emitted.contains("pocket-room-size = 16"));
         assertTrue(emitted.contains("initial-resend-passes = 1"));
         assertTrue(emitted.contains("capture-block-entity-enabled = false"));
@@ -78,6 +79,7 @@ class WormholesConfigFileTest {
         created.network.replication.captureBlockEntityEnabled = true;
         created.main.enableParticles = false;
         created.projection.range = 72.0D;
+        created.projection.occlusionRevealMarginDegrees = 2.5D;
         created.projection.initialResendPasses = 3;
         created.render.entitySpoofing = false;
         TomlCodec.writeCanonical(file, created);
@@ -89,6 +91,7 @@ class WormholesConfigFileTest {
         assertTrue(written.contains("compression-enabled = true"));
         assertTrue(written.contains("capture-block-entity-enabled = true"));
         assertTrue(written.contains("[projection]"));
+        assertTrue(written.contains("occlusion-reveal-margin-degrees = 2.5"));
         assertTrue(written.contains("initial-resend-passes = 3"));
 
         TomlCodec.LoadResult<WormholesConfigFile> result = TomlCodec.readExisting(file, WormholesConfigFile.class);
@@ -99,6 +102,7 @@ class WormholesConfigFileTest {
         assertTrue(result.value().network.replication.captureBlockEntityEnabled);
         assertFalse(result.value().main.enableParticles);
         assertEquals(72.0D, result.value().projection.range);
+        assertEquals(2.5D, result.value().projection.occlusionRevealMarginDegrees);
         assertEquals(3, result.value().projection.initialResendPasses);
         assertFalse(result.value().render.entitySpoofing);
     }

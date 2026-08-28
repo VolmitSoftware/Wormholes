@@ -172,7 +172,7 @@ public final class ProjectedEntityRendererTeardownTest {
             Player observer = ProjectedEntityPacketRecorder.player(true);
 
             renderer.applySnapshot(observer, null, portalAt(0.0D, 64.0D, 0.0D), false, 0, emptyEntityView(),
-                null, 32.0D, frame, frame);
+                null, 32.0D, frame, frame, new ProjectedEntityOcclusion());
 
             assertTrue(recorder.sentOfType(WrapperPlayServerSetPassengers.class).isEmpty());
             assertEquals(1, recorder.sentOfType(WrapperPlayServerDestroyEntities.class).size());

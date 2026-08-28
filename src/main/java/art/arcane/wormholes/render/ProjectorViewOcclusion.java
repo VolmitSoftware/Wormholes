@@ -63,13 +63,19 @@ final class ProjectorViewOcclusion {
     private double proofPortalNormalX;
     private double proofPortalNormalY;
     private double proofPortalNormalZ;
+    private double proofRevealMarginTangent;
     private boolean proofContextInitialized;
+    private double revealMarginTangent;
     private LongSet eligibleBlockers;
     private final ProjectionOccupancyOctree eligibleOctree;
     private final double[] scratchRayStart;
 
     ProjectorViewOcclusion() {
         this(OccludedMarker::isOccluding, MAX_VOXEL_STEPS_PER_PASS);
+    }
+
+    ProjectorViewOcclusion(int maxVoxelStepsPerPass) {
+        this(OccludedMarker::isOccluding, maxVoxelStepsPerPass);
     }
 
     ProjectorViewOcclusion(BlockOcclusion blockOcclusion) {
@@ -99,6 +105,18 @@ final class ProjectorViewOcclusion {
                    double portalOriginZ,
                    Direction portalNormal,
                    LongSet eligibleBlockers) {
+        restartTraceBudget();
+        this.portalOriginX = portalOriginX;
+        this.portalOriginY = portalOriginY;
+        this.portalOriginZ = portalOriginZ;
+        this.portalNormalX = portalNormal.x();
+        this.portalNormalY = portalNormal.y();
+        this.portalNormalZ = portalNormal.z();
+        this.eligibleBlockers = eligibleBlockers;
+        eligibleOctree.rebuild(eligibleBlockers);
+    }
+
+    void restartTraceBudget() {
         opacity.clear();
         voxelSteps = 0;
         hiddenProofHits = 0;
@@ -113,14 +131,11 @@ final class ProjectorViewOcclusion {
         revisionView = null;
         viewRevision = 0L;
         revisionChanged = false;
-        this.portalOriginX = portalOriginX;
-        this.portalOriginY = portalOriginY;
-        this.portalOriginZ = portalOriginZ;
-        this.portalNormalX = portalNormal.x();
-        this.portalNormalY = portalNormal.y();
-        this.portalNormalZ = portalNormal.z();
-        this.eligibleBlockers = eligibleBlockers;
-        eligibleOctree.rebuild(eligibleBlockers);
+    }
+
+    void setRevealMarginDegrees(double degrees) {
+        double clampedDegrees = Math.max(0.0D, Math.min(15.0D, degrees));
+        revealMarginTangent = Math.tan(Math.toRadians(clampedDegrees));
     }
 
     boolean visible(ProjectionWorldView view,
@@ -155,7 +170,8 @@ final class ProjectorViewOcclusion {
             hiddenProofHits++;
             return Visibility.HIDDEN;
         }
-        if (eligibleBlockers != null
+        if (revealMarginTangent <= TIE_EPSILON
+            && eligibleBlockers != null
             && adjacentOccludersHideTarget(targetX, targetY, targetZ, eyeX, eyeY, eyeZ)) {
             adjacentOcclusionHits++;
             return Visibility.HIDDEN;
@@ -231,7 +247,8 @@ final class ProjectorViewOcclusion {
             && sameDouble(proofPortalOriginZ, portalOriginZ)
             && sameDouble(proofPortalNormalX, portalNormalX)
             && sameDouble(proofPortalNormalY, portalNormalY)
-            && sameDouble(proofPortalNormalZ, portalNormalZ)) {
+            && sameDouble(proofPortalNormalZ, portalNormalZ)
+            && sameDouble(proofRevealMarginTangent, revealMarginTangent)) {
             updateProofValidationEye(eyeX, eyeY, eyeZ);
             return;
         }
@@ -248,6 +265,7 @@ final class ProjectorViewOcclusion {
         proofPortalNormalX = portalNormalX;
         proofPortalNormalY = portalNormalY;
         proofPortalNormalZ = portalNormalZ;
+        proofRevealMarginTangent = revealMarginTangent;
         proofContextInitialized = true;
     }
 
@@ -612,13 +630,14 @@ final class ProjectorViewOcclusion {
         double maxFirst = Double.NEGATIVE_INFINITY;
         double minSecond = Double.POSITIVE_INFINITY;
         double maxSecond = Double.NEGATIVE_INFINITY;
+        double revealMargin = targetRevealMargin(eyeX, eyeY, eyeZ, targetX, targetY, targetZ);
 
         for (int xOffset = 0; xOffset <= 1; xOffset++) {
             for (int yOffset = 0; yOffset <= 1; yOffset++) {
                 for (int zOffset = 0; zOffset <= 1; zOffset++) {
-                    double endX = targetX + xOffset;
-                    double endY = targetY + yOffset;
-                    double endZ = targetZ + zOffset;
+                    double endX = targetX + targetBound(xOffset, revealMargin);
+                    double endY = targetY + targetBound(yOffset, revealMargin);
+                    double endZ = targetZ + targetBound(zOffset, revealMargin);
                     double axisDelta = coordinate(axis, endX, endY, endZ) - eyeAxis;
                     if (sign(axisDelta) != direction) {
                         return false;
@@ -667,23 +686,46 @@ final class ProjectorViewOcclusion {
         return true;
     }
 
-    private static boolean blockerShadowsEntireTarget(double eyeX,
-                                                      double eyeY,
-                                                      double eyeZ,
-                                                      int targetX,
-                                                      int targetY,
-                                                      int targetZ,
-                                                      int blockX,
-                                                      int blockY,
-                                                      int blockZ) {
-        return segmentIntersectsBlock(eyeX, eyeY, eyeZ, targetX + MIN_TARGET_BOUND, targetY + MIN_TARGET_BOUND, targetZ + MIN_TARGET_BOUND, blockX, blockY, blockZ)
-            && segmentIntersectsBlock(eyeX, eyeY, eyeZ, targetX + MIN_TARGET_BOUND, targetY + MIN_TARGET_BOUND, targetZ + MAX_TARGET_BOUND, blockX, blockY, blockZ)
-            && segmentIntersectsBlock(eyeX, eyeY, eyeZ, targetX + MIN_TARGET_BOUND, targetY + MAX_TARGET_BOUND, targetZ + MIN_TARGET_BOUND, blockX, blockY, blockZ)
-            && segmentIntersectsBlock(eyeX, eyeY, eyeZ, targetX + MIN_TARGET_BOUND, targetY + MAX_TARGET_BOUND, targetZ + MAX_TARGET_BOUND, blockX, blockY, blockZ)
-            && segmentIntersectsBlock(eyeX, eyeY, eyeZ, targetX + MAX_TARGET_BOUND, targetY + MIN_TARGET_BOUND, targetZ + MIN_TARGET_BOUND, blockX, blockY, blockZ)
-            && segmentIntersectsBlock(eyeX, eyeY, eyeZ, targetX + MAX_TARGET_BOUND, targetY + MIN_TARGET_BOUND, targetZ + MAX_TARGET_BOUND, blockX, blockY, blockZ)
-            && segmentIntersectsBlock(eyeX, eyeY, eyeZ, targetX + MAX_TARGET_BOUND, targetY + MAX_TARGET_BOUND, targetZ + MIN_TARGET_BOUND, blockX, blockY, blockZ)
-            && segmentIntersectsBlock(eyeX, eyeY, eyeZ, targetX + MAX_TARGET_BOUND, targetY + MAX_TARGET_BOUND, targetZ + MAX_TARGET_BOUND, blockX, blockY, blockZ);
+    private boolean blockerShadowsEntireTarget(double eyeX,
+                                               double eyeY,
+                                               double eyeZ,
+                                               int targetX,
+                                               int targetY,
+                                               int targetZ,
+                                               int blockX,
+                                               int blockY,
+                                               int blockZ) {
+        double revealMargin = targetRevealMargin(eyeX, eyeY, eyeZ, targetX, targetY, targetZ);
+        double minimum = MIN_TARGET_BOUND - revealMargin;
+        double maximum = MAX_TARGET_BOUND + revealMargin;
+        return segmentIntersectsBlock(eyeX, eyeY, eyeZ, targetX + minimum, targetY + minimum, targetZ + minimum, blockX, blockY, blockZ)
+            && segmentIntersectsBlock(eyeX, eyeY, eyeZ, targetX + minimum, targetY + minimum, targetZ + maximum, blockX, blockY, blockZ)
+            && segmentIntersectsBlock(eyeX, eyeY, eyeZ, targetX + minimum, targetY + maximum, targetZ + minimum, blockX, blockY, blockZ)
+            && segmentIntersectsBlock(eyeX, eyeY, eyeZ, targetX + minimum, targetY + maximum, targetZ + maximum, blockX, blockY, blockZ)
+            && segmentIntersectsBlock(eyeX, eyeY, eyeZ, targetX + maximum, targetY + minimum, targetZ + minimum, blockX, blockY, blockZ)
+            && segmentIntersectsBlock(eyeX, eyeY, eyeZ, targetX + maximum, targetY + minimum, targetZ + maximum, blockX, blockY, blockZ)
+            && segmentIntersectsBlock(eyeX, eyeY, eyeZ, targetX + maximum, targetY + maximum, targetZ + minimum, blockX, blockY, blockZ)
+            && segmentIntersectsBlock(eyeX, eyeY, eyeZ, targetX + maximum, targetY + maximum, targetZ + maximum, blockX, blockY, blockZ);
+    }
+
+    private double targetRevealMargin(double eyeX,
+                                      double eyeY,
+                                      double eyeZ,
+                                      int targetX,
+                                      int targetY,
+                                      int targetZ) {
+        if (revealMarginTangent <= TIE_EPSILON) {
+            return 0.0D;
+        }
+        double deltaX = targetX + 0.5D - eyeX;
+        double deltaY = targetY + 0.5D - eyeY;
+        double deltaZ = targetZ + 0.5D - eyeZ;
+        return Math.sqrt((deltaX * deltaX) + (deltaY * deltaY) + (deltaZ * deltaZ))
+            * revealMarginTangent;
+    }
+
+    private static double targetBound(int offset, double revealMargin) {
+        return offset == 0 ? MIN_TARGET_BOUND - revealMargin : MAX_TARGET_BOUND + revealMargin;
     }
 
     private static boolean segmentIntersectsBlock(double startX,
