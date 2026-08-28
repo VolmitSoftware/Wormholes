@@ -173,6 +173,41 @@ public final class ProjectorViewOcclusionTest {
     }
 
     @Test
+    public void rearSurfaceWithOnlyAnAwayFacingOpeningUsesNoRayBudget() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(3, 0, 0));
+        blockers.add(ProjectionCellKey.pack(4, 0, 0));
+        ProjectorViewOcclusion occlusion = occlusion();
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+
+        assertFalse(occlusion.visible(view, 4, 0, 0, 0.5D, 0.5D, 0.5D));
+        assertEquals(1, occlusion.adjacentOcclusionHits());
+        assertEquals(0, occlusion.voxelSteps());
+    }
+
+    @Test
+    public void everyEyeFacingSideNeedsAnAcceptedOpaqueNeighbor() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet incomplete = new LongOpenHashSet();
+        incomplete.add(ProjectionCellKey.pack(3, 0, 0));
+        incomplete.add(ProjectionCellKey.pack(4, 0, 0));
+        ProjectorViewOcclusion occlusion = occlusion();
+        occlusion.beginPass(0.5D, 3.5D, 0.5D, Direction.W, incomplete);
+
+        assertTrue(occlusion.visible(view, 4, 0, 0, 0.5D, 3.5D, 0.5D));
+        assertEquals(0, occlusion.adjacentOcclusionHits());
+
+        LongOpenHashSet complete = new LongOpenHashSet(incomplete);
+        complete.add(ProjectionCellKey.pack(4, 1, 0));
+        occlusion.beginPass(0.5D, 3.5D, 0.5D, Direction.W, complete);
+
+        assertFalse(occlusion.visible(view, 4, 0, 0, 0.5D, 3.5D, 0.5D));
+        assertEquals(1, occlusion.adjacentOcclusionHits());
+        assertEquals(0, occlusion.voxelSteps());
+    }
+
+    @Test
     public void aGrazingCaveWallFaceIsNotEclipsed() {
         FakeWorldView view = new FakeWorldView();
         view.put(2, 1, 1, Material.STONE);
@@ -286,6 +321,52 @@ public final class ProjectorViewOcclusionTest {
 
         assertFalse(occlusion.visible(view, 40, 0, 0, 0.5D, 0.5D, 0.5D));
         assertTrue(occlusion.voxelSteps() < 20);
+    }
+
+    @Test
+    public void sparseEmptyHierarchyCubesAvoidExactMembershipProbes() {
+        FakeWorldView view = new FakeWorldView();
+        CountingLongOpenHashSet blockers = new CountingLongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(34, 20, 20));
+        ProjectorViewOcclusion occlusion = occlusion();
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        blockers.resetContainsCalls();
+
+        assertTrue(occlusion.visible(view, 40, 0, 0, 0.5D, 0.5D, 0.5D));
+        assertEquals(0, blockers.containsCalls());
+        assertFalse(occlusion.budgetExhausted());
+    }
+
+    @Test
+    public void occupiedLeafFallsBackToExactMembership() {
+        FakeWorldView view = new FakeWorldView();
+        CountingLongOpenHashSet blockers = new CountingLongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(2, 0, 0));
+        ProjectorViewOcclusion occlusion = occlusion();
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        blockers.resetContainsCalls();
+
+        assertFalse(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+        assertTrue(blockers.containsCalls() > 0);
+        assertFalse(occlusion.budgetExhausted());
+    }
+
+    @Test
+    public void hierarchyFirstTraversalMatchesDenseSamplingForNegativeTieRay() {
+        FakeWorldView view = new FakeWorldView();
+        view.put(-2, -2, 0, Material.STONE);
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(-2, -2, 0));
+        ProjectorViewOcclusion dense = occlusion();
+        ProjectorViewOcclusion sparse = occlusion();
+        dense.beginPass(0.5D, 0.5D, 0.5D, Direction.E);
+        sparse.beginPass(0.5D, 0.5D, 0.5D, Direction.E, blockers);
+
+        boolean denseVisible = dense.visible(view, -5, -5, 0, 0.5D, 0.5D, 0.5D);
+        boolean sparseVisible = sparse.visible(view, -5, -5, 0, 0.5D, 0.5D, 0.5D);
+
+        assertEquals(denseVisible, sparseVisible);
+        assertFalse(sparse.budgetExhausted());
     }
 
     @Test
@@ -420,6 +501,24 @@ public final class ProjectorViewOcclusionTest {
         assertTrue(occlusion.budgetExhausted());
         assertFalse(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
         assertEquals(1, occlusion.hiddenProofHits());
+    }
+
+    @Test
+    public void adjacentRearSurfaceCullingContinuesAfterTheRayBudgetIsExhausted() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(4, 0, 0));
+        blockers.add(ProjectionCellKey.pack(5, 0, 0));
+        ProjectorViewOcclusion occlusion = occlusion();
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+
+        for (int index = 0; index < 100_000 && !occlusion.budgetExhausted(); index++) {
+            assertTrue(occlusion.visible(view, 300, 300, index & 3, 0.5D, 0.5D, 0.5D));
+        }
+        assertTrue(occlusion.budgetExhausted());
+
+        assertFalse(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+        assertEquals(1, occlusion.adjacentOcclusionHits());
     }
 
     @Test
@@ -559,6 +658,27 @@ public final class ProjectorViewOcclusionTest {
         assertEquals(ProjectorViewOcclusion.MAX_VOXEL_STEPS_PER_PASS, occlusion.voxelSteps());
     }
 
+    @Test
+    public void exhaustedTargetsRemainVisibleButReportThatTheyNeedAnotherPass() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(2, 0, 0));
+        ProjectorViewOcclusion limited = new ProjectorViewOcclusion(
+            data -> data != null && data.getMaterial() == Material.STONE, 1);
+        limited.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+
+        assertEquals(ProjectorViewOcclusion.Visibility.UNRESOLVED,
+            limited.visibility(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+        assertTrue(limited.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+
+        ProjectorViewOcclusion complete = new ProjectorViewOcclusion(
+            data -> data != null && data.getMaterial() == Material.STONE, 8);
+        complete.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+
+        assertEquals(ProjectorViewOcclusion.Visibility.HIDDEN,
+            complete.visibility(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+    }
+
     private static void fillPlane(FakeWorldView view, int x, int minY, int maxY, int minZ, int maxZ, Material material) {
         for (int y = minY; y <= maxY; y++) {
             for (int z = minZ; z <= maxZ; z++) {
@@ -586,6 +706,24 @@ public final class ProjectorViewOcclusionTest {
                 case "clone" -> proxy;
                 default -> null;
             });
+    }
+
+    private static final class CountingLongOpenHashSet extends LongOpenHashSet {
+        private int containsCalls;
+
+        @Override
+        public boolean contains(long key) {
+            containsCalls++;
+            return super.contains(key);
+        }
+
+        private int containsCalls() {
+            return containsCalls;
+        }
+
+        private void resetContainsCalls() {
+            containsCalls = 0;
+        }
     }
 
     private static final class FakeWorldView implements ProjectionWorldView {

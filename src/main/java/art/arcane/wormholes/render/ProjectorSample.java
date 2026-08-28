@@ -49,17 +49,17 @@ final class ProjectorSample {
                          BlockData projectedData,
                          boolean maskAir,
                          ProjectedBlockClaim.LightingPolicy lightingPolicy) {
-        if (claim == null
-            || claim.isMaskAir() != maskAir
+        if (claim == null || claim.getLightRemoteKey() != remoteKey) {
+            return false;
+        }
+        if (claim.isMaskAir() != maskAir
             || claim.getLightingPolicy() != lightingPolicy
             || !claim.getData().equals(projectedData)) {
             return false;
         }
-        if (claim.getLightRemoteKey() != remoteKey) {
-            return false;
-        }
         ProjectionWorldView previousLightView = claim.getLightView();
-        return previousLightView == null ? lightView == null : previousLightView.equals(lightView);
+        return previousLightView == lightView
+            || (previousLightView != null && previousLightView.equals(lightView));
     }
 
     private ProjectedBlockClaim.LightingPolicy defaultLightingPolicy() {

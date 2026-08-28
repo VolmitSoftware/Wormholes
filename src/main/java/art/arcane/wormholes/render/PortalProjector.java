@@ -196,6 +196,8 @@ public final class PortalProjector {
             + " occlusionProofHits=" + cellScan.occlusionProofHits()
             + " occlusionProofRevalidations=" + cellScan.occlusionProofRevalidations()
             + " occlusionProofInvalidations=" + cellScan.occlusionProofInvalidations()
+            + " adjacentOcclusionHits=" + cellScan.adjacentOcclusionHits()
+            + " unresolvedOcclusion=" + cellScan.unresolvedOcclusionCells()
             + " occlusionBudgetExhausted=" + cellScan.occlusionBudgetExhausted()
             + " remoteSamples=" + sampler.remoteSampleCount()
             + " reuseSkips=" + lastReuseSkips
@@ -562,6 +564,9 @@ public final class PortalProjector {
 
     private boolean canReuseProjection(Location eye, boolean stableResample, boolean localDirty) {
         if (reuseInvalidated) {
+            return false;
+        }
+        if (cellScan.hasUnresolvedOcclusion()) {
             return false;
         }
         boolean lightingBlocked = claimArbiter.hasPendingLighting(observer) && schedule.lightingUpdatePass(firstProjectionDone);

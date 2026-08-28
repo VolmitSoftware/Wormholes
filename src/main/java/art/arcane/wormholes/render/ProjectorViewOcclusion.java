@@ -32,10 +32,12 @@ final class ProjectorViewOcclusion {
     private final Long2LongOpenHashMap hiddenBlockerProofs;
     private final LongOpenHashSet currentEyeHiddenProofs;
     private final BlockOcclusion blockOcclusion;
+    private final int maxVoxelStepsPerPass;
     private int voxelSteps;
     private int hiddenProofHits;
     private int hiddenProofRevalidations;
     private int hiddenProofInvalidations;
+    private int adjacentOcclusionHits;
     private int blockerX;
     private int blockerY;
     private int blockerZ;
@@ -67,15 +69,20 @@ final class ProjectorViewOcclusion {
     private final double[] scratchRayStart;
 
     ProjectorViewOcclusion() {
-        this(OccludedMarker::isOccluding);
+        this(OccludedMarker::isOccluding, MAX_VOXEL_STEPS_PER_PASS);
     }
 
     ProjectorViewOcclusion(BlockOcclusion blockOcclusion) {
+        this(blockOcclusion, MAX_VOXEL_STEPS_PER_PASS);
+    }
+
+    ProjectorViewOcclusion(BlockOcclusion blockOcclusion, int maxVoxelStepsPerPass) {
         opacity = new Long2ByteOpenHashMap(256);
         opacity.defaultReturnValue((byte) -1);
         hiddenBlockerProofs = new Long2LongOpenHashMap(256);
         currentEyeHiddenProofs = new LongOpenHashSet(256);
         this.blockOcclusion = blockOcclusion;
+        this.maxVoxelStepsPerPass = Math.max(1, maxVoxelStepsPerPass);
         this.eligibleOctree = new ProjectionOccupancyOctree();
         this.scratchRayStart = new double[3];
     }
@@ -97,6 +104,7 @@ final class ProjectorViewOcclusion {
         hiddenProofHits = 0;
         hiddenProofRevalidations = 0;
         hiddenProofInvalidations = 0;
+        adjacentOcclusionHits = 0;
         blockerX = 0;
         blockerY = 0;
         blockerZ = 0;
@@ -122,40 +130,64 @@ final class ProjectorViewOcclusion {
                     double eyeX,
                     double eyeY,
                     double eyeZ) {
+        return visibility(view, targetX, targetY, targetZ, eyeX, eyeY, eyeZ) != Visibility.HIDDEN;
+    }
+
+    Visibility visibility(ProjectionWorldView view,
+                          int targetX,
+                          int targetY,
+                          int targetZ,
+                          double eyeX,
+                          double eyeY,
+                          double eyeZ) {
         if (!stableRevision(view)) {
-            return true;
+            return Visibility.UNRESOLVED;
         }
         prepareHiddenProofContext(view, eyeX, eyeY, eyeZ);
         if (eligibleBlockers != null && eligibleOctree.isEmpty()) {
-            return true;
+            return Visibility.VISIBLE;
         }
         long targetKey = ProjectionCellKey.pack(targetX, targetY, targetZ);
         if (hasReusableHiddenProof(targetKey, targetX, targetY, targetZ, eyeX, eyeY, eyeZ)) {
             if (!stableRevision(view)) {
-                return true;
+                return Visibility.UNRESOLVED;
             }
             hiddenProofHits++;
-            return false;
+            return Visibility.HIDDEN;
+        }
+        if (eligibleBlockers != null
+            && adjacentOccludersHideTarget(targetX, targetY, targetZ, eyeX, eyeY, eyeZ)) {
+            adjacentOcclusionHits++;
+            return Visibility.HIDDEN;
         }
         if (budgetExhausted) {
-            return true;
+            return Visibility.UNRESOLVED;
         }
         RayResult center = traceClippedRay(view, eyeX, eyeY, eyeZ,
             targetX + 0.5D, targetY + 0.5D, targetZ + 0.5D, targetX, targetY, targetZ);
-        if (center == RayResult.CLEAR || center == RayResult.BUDGET_EXHAUSTED) {
-            return true;
+        if (center == RayResult.CLEAR) {
+            return Visibility.VISIBLE;
+        }
+        if (center == RayResult.BUDGET_EXHAUSTED) {
+            return Visibility.UNRESOLVED;
         }
         if (blockerShadowsEntireTarget(eyeX, eyeY, eyeZ, targetX, targetY, targetZ,
             blockerX, blockerY, blockerZ)) {
             if (!stableRevision(view)) {
-                return true;
+                return Visibility.UNRESOLVED;
             }
             rememberHiddenProof(targetKey, blockerX, blockerY, blockerZ);
-            return false;
+            return Visibility.HIDDEN;
         }
         boolean hidden = opaquePlaneShadowsTarget(view, eyeX, eyeY, eyeZ, targetX, targetY, targetZ,
             blockerX, blockerY, blockerZ);
-        return !hidden || !stableRevision(view);
+        if (!stableRevision(view)) {
+            return Visibility.UNRESOLVED;
+        }
+        if (hidden) {
+            return Visibility.HIDDEN;
+        }
+        return budgetExhausted ? Visibility.UNRESOLVED : Visibility.VISIBLE;
     }
 
     int voxelSteps() {
@@ -176,6 +208,10 @@ final class ProjectorViewOcclusion {
 
     int hiddenProofInvalidations() {
         return hiddenProofInvalidations;
+    }
+
+    int adjacentOcclusionHits() {
+        return adjacentOcclusionHits;
     }
 
     boolean budgetExhausted() {
@@ -275,6 +311,54 @@ final class ProjectorViewOcclusion {
         }
     }
 
+    private boolean adjacentOccludersHideTarget(int targetX,
+                                                int targetY,
+                                                int targetZ,
+                                                double eyeX,
+                                                double eyeY,
+                                                double eyeZ) {
+        boolean facingNeighbor = false;
+        if (eyeX < targetX - TIE_EPSILON) {
+            facingNeighbor = true;
+            if (!hasEligibleBlocker(targetX - 1, targetY, targetZ)) {
+                return false;
+            }
+        } else if (eyeX > targetX + 1.0D + TIE_EPSILON) {
+            facingNeighbor = true;
+            if (!hasEligibleBlocker(targetX + 1, targetY, targetZ)) {
+                return false;
+            }
+        }
+        if (eyeY < targetY - TIE_EPSILON) {
+            facingNeighbor = true;
+            if (!hasEligibleBlocker(targetX, targetY - 1, targetZ)) {
+                return false;
+            }
+        } else if (eyeY > targetY + 1.0D + TIE_EPSILON) {
+            facingNeighbor = true;
+            if (!hasEligibleBlocker(targetX, targetY + 1, targetZ)) {
+                return false;
+            }
+        }
+        if (eyeZ < targetZ - TIE_EPSILON) {
+            facingNeighbor = true;
+            if (!hasEligibleBlocker(targetX, targetY, targetZ - 1)) {
+                return false;
+            }
+        } else if (eyeZ > targetZ + 1.0D + TIE_EPSILON) {
+            facingNeighbor = true;
+            if (!hasEligibleBlocker(targetX, targetY, targetZ + 1)) {
+                return false;
+            }
+        }
+        return facingNeighbor;
+    }
+
+    private boolean hasEligibleBlocker(int x, int y, int z) {
+        return eligibleOctree.largestEmptyLog(x, y, z) == 0
+            && eligibleBlockers.contains(ProjectionCellKey.pack(x, y, z));
+    }
+
     private static boolean sameDouble(double first, double second) {
         return Double.doubleToLongBits(first) == Double.doubleToLongBits(second);
     }
@@ -326,7 +410,7 @@ final class ProjectorViewOcclusion {
         int remaining = Math.abs(targetX - x) + Math.abs(targetY - y) + Math.abs(targetZ - z) + 3;
 
         while (remaining-- > 0) {
-            if (voxelSteps >= MAX_VOXEL_STEPS_PER_PASS) {
+            if (voxelSteps >= maxVoxelStepsPerPass) {
                 budgetExhausted = true;
                 return RayResult.BUDGET_EXHAUSTED;
             }
@@ -353,13 +437,6 @@ final class ProjectorViewOcclusion {
             }
             if (x == targetX && y == targetY && z == targetZ) {
                 return RayResult.CLEAR;
-            }
-            if (rayBlocked(view, x, y, z)) {
-                blockerX = x;
-                blockerY = y;
-                blockerZ = z;
-                blockerEntryAxes = entryAxes;
-                return RayResult.BLOCKED;
             }
             if (eligibleBlockers != null) {
                 int emptyLog = eligibleOctree.largestEmptyLog(x, y, z);
@@ -388,7 +465,19 @@ final class ProjectorViewOcclusion {
                         tMaxZ = initialBoundaryT(startZ, deltaZ, z, stepZ);
                     }
                     remaining = Math.abs(targetX - x) + Math.abs(targetY - y) + Math.abs(targetZ - z) + 3;
+                } else if (eligibleBlockers.contains(ProjectionCellKey.pack(x, y, z))) {
+                    blockerX = x;
+                    blockerY = y;
+                    blockerZ = z;
+                    blockerEntryAxes = entryAxes;
+                    return RayResult.BLOCKED;
                 }
+            } else if (rayBlocked(view, x, y, z)) {
+                blockerX = x;
+                blockerY = y;
+                blockerZ = z;
+                blockerEntryAxes = entryAxes;
+                return RayResult.BLOCKED;
             }
         }
         return RayResult.CLEAR;
@@ -562,7 +651,7 @@ final class ProjectorViewOcclusion {
 
         for (int first = minFirstCell; first <= maxFirstCell; first++) {
             for (int second = minSecondCell; second <= maxSecondCell; second++) {
-                if (voxelSteps >= MAX_VOXEL_STEPS_PER_PASS) {
+                if (voxelSteps >= maxVoxelStepsPerPass) {
                     budgetExhausted = true;
                     return false;
                 }
@@ -726,5 +815,11 @@ final class ProjectorViewOcclusion {
         CLEAR,
         BLOCKED,
         BUDGET_EXHAUSTED
+    }
+
+    enum Visibility {
+        VISIBLE,
+        HIDDEN,
+        UNRESOLVED
     }
 }

@@ -124,32 +124,35 @@ final class ProjectorSampleMemo {
             lastOcclusionMap = memo;
         }
         memo.put(ProjectionCellKey.pack(x, y, z), (byte) 1);
-        if (!surroundedInView(view, memo, x, y, z)) {
+        if (!occludingMemoized(view, memo, x + 1, y, z)
+            || !occludingMemoized(view, memo, x - 1, y, z)
+            || !occludingMemoized(view, memo, x, y + 1, z)
+            || !occludingMemoized(view, memo, x, y - 1, z)
+            || !occludingMemoized(view, memo, x, y, z + 1)
+            || !occludingMemoized(view, memo, x, y, z - 1)) {
             return 0;
         }
-        if (!surroundedInView(view, memo, x + 1, y, z)
-            || !surroundedInView(view, memo, x - 1, y, z)
-            || !surroundedInView(view, memo, x, y + 1, z)
-            || !surroundedInView(view, memo, x, y - 1, z)
-            || !surroundedInView(view, memo, x, y, z + 1)
-            || !surroundedInView(view, memo, x, y, z - 1)) {
+        if (!occludingMemoized(view, memo, x + 2, y, z)
+            || !occludingMemoized(view, memo, x + 1, y + 1, z)
+            || !occludingMemoized(view, memo, x + 1, y - 1, z)
+            || !occludingMemoized(view, memo, x + 1, y, z + 1)
+            || !occludingMemoized(view, memo, x + 1, y, z - 1)
+            || !occludingMemoized(view, memo, x - 2, y, z)
+            || !occludingMemoized(view, memo, x - 1, y + 1, z)
+            || !occludingMemoized(view, memo, x - 1, y - 1, z)
+            || !occludingMemoized(view, memo, x - 1, y, z + 1)
+            || !occludingMemoized(view, memo, x - 1, y, z - 1)
+            || !occludingMemoized(view, memo, x, y + 2, z)
+            || !occludingMemoized(view, memo, x, y + 1, z + 1)
+            || !occludingMemoized(view, memo, x, y + 1, z - 1)
+            || !occludingMemoized(view, memo, x, y - 2, z)
+            || !occludingMemoized(view, memo, x, y - 1, z + 1)
+            || !occludingMemoized(view, memo, x, y - 1, z - 1)
+            || !occludingMemoized(view, memo, x, y, z + 2)
+            || !occludingMemoized(view, memo, x, y, z - 2)) {
             return 1;
         }
         return 2;
-    }
-
-    private boolean surroundedInView(ProjectionWorldView view,
-                                     Long2ByteOpenHashMap memo,
-                                     int x,
-                                     int y,
-                                     int z) {
-        return occludingMemoized(view, memo, x, y, z)
-            && occludingMemoized(view, memo, x + 1, y, z)
-            && occludingMemoized(view, memo, x - 1, y, z)
-            && occludingMemoized(view, memo, x, y + 1, z)
-            && occludingMemoized(view, memo, x, y - 1, z)
-            && occludingMemoized(view, memo, x, y, z + 1)
-            && occludingMemoized(view, memo, x, y, z - 1);
     }
 
     private boolean occludingMemoized(ProjectionWorldView view, Long2ByteOpenHashMap memo, int x, int y, int z) {
