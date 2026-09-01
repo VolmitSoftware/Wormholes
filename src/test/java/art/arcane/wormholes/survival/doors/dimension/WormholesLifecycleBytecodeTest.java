@@ -205,6 +205,33 @@ public final class WormholesLifecycleBytecodeTest {
     }
 
     @Test
+    void portalManagerRemainsPublishedUntilItsShutdownSaveCompletes() throws IOException {
+        ClassModel wormholes = parse(WORMHOLES);
+        List<Instruction> body = body(wormholes, "shutdownPortalManagerBeforeCostGateway");
+        int shutdown = -1;
+        int clear = -1;
+
+        for (int index = 0; index < body.size(); index++) {
+            Instruction instruction = body.get(index);
+            if (instruction instanceof InvokeInstruction invoke
+                && "art/arcane/wormholes/PortalManager".equals(invoke.owner().asInternalName())
+                && "shutDown".equals(invoke.name().stringValue())) {
+                shutdown = index;
+            }
+            if (clear < 0 && instruction instanceof FieldInstruction field
+                && field.opcode() == Opcode.PUTSTATIC
+                && WORMHOLES.equals(field.owner().asInternalName())
+                && "portalManager".equals(field.name().stringValue())) {
+                clear = index;
+            }
+        }
+
+        assertTrue(shutdown >= 0, "PortalManager shutdown must run during pre-cost-gateway teardown");
+        assertTrue(clear > shutdown,
+            "Wormholes.portalManager must remain available while LocalPortalPersistence resolves shutdown save files");
+    }
+
+    @Test
     void chunkPreSendIsInstalledForTheEnableLifetimeAndStoppedBeforeSchedulerCancellation() throws IOException {
         ClassModel wormholes = parse(WORMHOLES);
         assertTrue(invokedMethods(wormholes, "onEnable").contains(CHUNK_PRE_SEND_PROVIDER + ".install"),

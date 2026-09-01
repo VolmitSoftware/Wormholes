@@ -659,9 +659,6 @@ public final class TraversalService implements Listener {
         if (exit.getStructure() == null || exit.getStructure().getWorld() == null) {
             return "portal world unavailable";
         }
-        if (!TraversalAdmissionPolicy.acceptsInbound(exit)) {
-            return "portal receive disabled";
-        }
 
         Server server = Wormholes.instance.getServer();
         NetworkConfig networkConfig = Wormholes.settings.getNetwork();
@@ -671,6 +668,9 @@ public final class TraversalService implements Listener {
         }
         OfflinePlayer profile = server.getOfflinePlayer(request.playerId());
         boolean operator = profile.isOp();
+        if (!TraversalAdmissionPolicy.acceptsInbound(exit, operator)) {
+            return "portal receive disabled";
+        }
         int maxPlayers = server.getMaxPlayers();
         int admittedPlayers = server.getOnlinePlayers().size() + inboundAdmissions.activeReservations(nowMillis);
         boolean transferSupported = networkConfig.autoAcceptTransfers || WormholesPlatform.isAcceptingTransfers(server);

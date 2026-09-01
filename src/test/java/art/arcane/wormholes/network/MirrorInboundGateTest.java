@@ -48,8 +48,8 @@ public final class MirrorInboundGateTest {
 	public void remotePreflightUsesMirroredPermissionPolicyBeforeOptimisticTransfer() {
 		RemotePortal remote = remotePortal(true);
 		remote.setName("Beta Gate");
-		Player allowed = player(true);
-		Player denied = player(false);
+		Player allowed = player(false, true);
+		Player denied = player(false, false);
 
 		remote.setMirroredPermissionMode(PortalPermissionMode.WHITELIST);
 		assertTrue(remote.acceptsInboundTraversal(allowed));
@@ -58,6 +58,22 @@ public final class MirrorInboundGateTest {
 		remote.setMirroredPermissionMode(PortalPermissionMode.BLACKLIST);
 		assertFalse(remote.acceptsInboundTraversal(allowed));
 		assertTrue(remote.acceptsInboundTraversal(denied));
+	}
+
+	@Test
+	public void operatorsBypassRemoteIncomingDirectionButNotPortalState() {
+		Player operator = player(true, false);
+		RemotePortal remote = remotePortal(true);
+		remote.setMirroredIncomingTraversalsEnabled(false);
+
+		assertTrue(remote.acceptsInboundTraversal(operator));
+		assertTrue(TraversalAdmissionPolicy.acceptsInbound(portal(false, false), true));
+		assertFalse(TraversalAdmissionPolicy.acceptsInbound(portal(false, false), false));
+
+		remote.setMirroredMirrorMode(true);
+		assertFalse(remote.acceptsInboundTraversal(operator));
+		assertFalse(TraversalAdmissionPolicy.acceptsInbound(portal(true, false), true));
+		assertFalse(remotePortal(false).acceptsInboundTraversal(operator));
 	}
 
     private static ILocalPortal portal(boolean mirror, boolean incoming) {
@@ -85,9 +101,9 @@ public final class MirrorInboundGateTest {
         );
     }
 
-	private static Player player(boolean hasPermission) {
+	private static Player player(boolean operator, boolean hasPermission) {
 		return (Player) Proxy.newProxyInstance(Player.class.getClassLoader(), new Class<?>[] { Player.class }, (proxy, method, args) -> switch(method.getName()) {
-			case "isOp" -> Boolean.FALSE;
+			case "isOp" -> Boolean.valueOf(operator);
 			case "hasPermission" -> Boolean.valueOf(hasPermission);
 			case "toString" -> "MirrorInboundGatePlayer";
 			case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));

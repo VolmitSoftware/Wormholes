@@ -1,6 +1,7 @@
 package art.arcane.wormholes.portal;
 
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.Wormholes;
@@ -71,13 +72,29 @@ final class LocalPortalGate
 	boolean canDepart(Entity entity)
 	{
 		LocalPortalSettings settings = portal.settings();
-		return !settings.isMirrorMode() && settings.isOutgoingTraversalsEnabled() && settings.allowsPortalPermission(entity);
+		if(settings.isMirrorMode())
+		{
+			return false;
+		}
+		if(entity instanceof Player player && player.isOp())
+		{
+			return true;
+		}
+		return settings.isOutgoingTraversalsEnabled() && settings.allowsPortalPermission(entity);
 	}
 
 	boolean canArrive(Entity entity)
 	{
 		LocalPortalSettings settings = portal.settings();
-		return !settings.isMirrorMode() && settings.isIncomingTraversalsEnabled() && settings.allowsPortalPermission(entity);
+		if(settings.isMirrorMode())
+		{
+			return false;
+		}
+		if(entity instanceof Player player && player.isOp())
+		{
+			return true;
+		}
+		return settings.isIncomingTraversalsEnabled() && settings.allowsPortalPermission(entity);
 	}
 
 	void setDirection(Direction d)

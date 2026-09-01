@@ -4,10 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.util.Cuboid;
@@ -15,6 +17,25 @@ import art.arcane.wormholes.util.Direction;
 import art.arcane.volmlib.util.json.JSONObject;
 
 public final class MirrorPortalStateTest {
+    @Test
+    public void operatorsBypassTravelDirectionButNotMirrorMode() {
+        LocalPortal portal = portal(PortalType.PORTAL);
+        Player operator = operator();
+
+        portal.setOutgoingTraversalsEnabled(false);
+        portal.setIncomingTraversalsEnabled(false);
+
+        assertTrue(portal.canDepart(operator));
+        assertTrue(portal.canArrive(operator));
+        assertFalse(portal.canDepart(null));
+        assertFalse(portal.canArrive(null));
+
+        portal.setMirrorMode(true);
+
+        assertFalse(portal.canDepart(operator));
+        assertFalse(portal.canArrive(operator));
+    }
+
     @Test
     public void mirrorAndProjectionToggleRemainIndependent() {
         LocalPortal portal = portal(PortalType.WORMHOLE);
@@ -170,5 +191,17 @@ public final class MirrorPortalStateTest {
         map.put("y2", Integer.valueOf(66));
         map.put("z2", Integer.valueOf(2));
         return new Cuboid(map);
+    }
+
+    private static Player operator() {
+        return (Player) Proxy.newProxyInstance(Player.class.getClassLoader(), new Class<?>[] { Player.class },
+            (proxy, method, arguments) -> switch(method.getName()) {
+                case "isOp" -> Boolean.TRUE;
+                case "hasPermission" -> Boolean.FALSE;
+                case "toString" -> "OperatorPlayer";
+                case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
+                case "equals" -> Boolean.valueOf(proxy == arguments[0]);
+                default -> throw new UnsupportedOperationException(method.getName());
+            });
     }
 }

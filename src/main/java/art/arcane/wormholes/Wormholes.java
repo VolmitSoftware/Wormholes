@@ -327,7 +327,6 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
 
     private void shutdownPortalManagerBeforeCostGateway() {
         PortalManager activePortalManager = portalManager;
-        portalManager = null;
         if (activePortalManager == null) {
             return;
         }
@@ -335,6 +334,10 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             activePortalManager.shutDown();
         } catch (Throwable ex) {
             getLogger().log(Level.WARNING, "Error during PortalManager pre-cost-gateway shutdown", ex);
+        } finally {
+            if (portalManager == activePortalManager) {
+                portalManager = null;
+            }
         }
     }
 

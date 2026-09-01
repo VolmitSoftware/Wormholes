@@ -93,9 +93,13 @@ final class TraversalAdmissionPolicy {
     }
 
     static boolean acceptsInbound(ILocalPortal portal) {
+        return acceptsInbound(portal, false);
+    }
+
+    static boolean acceptsInbound(ILocalPortal portal, boolean operator) {
         return portal != null
             && !portal.isMirrorMode()
-            && portal.isIncomingTraversalsEnabled();
+            && (operator || portal.isIncomingTraversalsEnabled());
     }
 
     static boolean isEntityTypeDenied(EntitySnapshot snapshot) {

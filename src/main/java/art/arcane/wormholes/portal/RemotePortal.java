@@ -148,10 +148,16 @@ public class RemotePortal extends Portal implements IRemotePortal {
     }
 
     public boolean acceptsInboundTraversal(Entity entity) {
-        if (!open || mirroredMirrorMode || !mirroredIncomingTraversalsEnabled) {
+        if (!open || mirroredMirrorMode) {
             return false;
         }
-        if (!(entity instanceof Player player) || player.isOp()) {
+        if (entity instanceof Player operator && operator.isOp()) {
+            return true;
+        }
+        if (!mirroredIncomingTraversalsEnabled) {
+            return false;
+        }
+        if (!(entity instanceof Player player)) {
             return true;
         }
         String node = "wormholes.portal." + LocalPortalSettings.sanitizePermissionName(getName());
