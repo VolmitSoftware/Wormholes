@@ -36,6 +36,7 @@ public final class RtpSettings
 	private final int minimumRadius;
 	private final int maximumRadius;
 	private final RtpVerticalMode verticalMode;
+	private final RtpSafetyMode safetyMode;
 	private final int lowerY;
 	private final int upperY;
 	private final int preferredY;
@@ -73,6 +74,7 @@ public final class RtpSettings
 		minimumRadius = builder.minimumRadius;
 		maximumRadius = builder.maximumRadius;
 		verticalMode = Objects.requireNonNull(builder.verticalMode, "verticalMode");
+		safetyMode = Objects.requireNonNull(builder.safetyMode, "safetyMode");
 		World boundsWorld = targetWorld == null ? sourceWorld : targetWorld;
 		int minimumFeetY = boundsWorld.getMinHeight() + 1;
 		int maximumFeetY = boundsWorld.getMaxHeight() - 2;
@@ -171,6 +173,7 @@ public final class RtpSettings
 		}
 		builder.radii(minimumRadius, maximumRadius);
 		builder.verticalMode(parseEnum(RtpVerticalMode.class, requiredJson.optString("verticalMode", ""), RtpVerticalMode.SURFACE));
+		builder.safetyMode(parseEnum(RtpSafetyMode.class, requiredJson.optString("safetyMode", ""), RtpSafetyMode.SAFE));
 
 		World boundsWorld = builder.targetWorld == null ? sourceWorld : builder.targetWorld;
 		int defaultLowerY = boundsWorld.getMinHeight() + 1;
@@ -214,6 +217,7 @@ public final class RtpSettings
 		json.put("minimumRadius", minimumRadius);
 		json.put("maximumRadius", maximumRadius);
 		json.put("verticalMode", verticalMode.name());
+		json.put("safetyMode", safetyMode.name());
 		json.put("lowerY", lowerY);
 		json.put("upperY", upperY);
 		json.put("preferredY", preferredY);
@@ -279,6 +283,11 @@ public final class RtpSettings
 	public RtpVerticalMode getVerticalMode()
 	{
 		return verticalMode;
+	}
+
+	public RtpSafetyMode getSafetyMode()
+	{
+		return safetyMode;
 	}
 
 	public int getLowerY()
@@ -353,6 +362,7 @@ public final class RtpSettings
 				&& Objects.equals(customCenterX, requiredOther.customCenterX)
 				&& Objects.equals(customCenterZ, requiredOther.customCenterZ)
 				&& verticalMode == requiredOther.verticalMode
+				&& safetyMode == requiredOther.safetyMode
 				&& allocationMode == requiredOther.allocationMode
 				&& rotationMode == requiredOther.rotationMode
 				&& Objects.equals(targetBiomeKey, requiredOther.targetBiomeKey);
@@ -385,6 +395,7 @@ public final class RtpSettings
 				&& Objects.equals(customCenterX, other.customCenterX)
 				&& Objects.equals(customCenterZ, other.customCenterZ)
 				&& verticalMode == other.verticalMode
+				&& safetyMode == other.safetyMode
 				&& allocationMode == other.allocationMode
 				&& rotationMode == other.rotationMode
 				&& Objects.equals(targetBiomeKey, other.targetBiomeKey);
@@ -394,7 +405,7 @@ public final class RtpSettings
 	public int hashCode()
 	{
 		return Objects.hash(sourceWorldKey, targetWorldOverrideKey, centerMode, customCenterX, customCenterZ,
-				Integer.valueOf(minimumRadius), Integer.valueOf(maximumRadius), verticalMode, Integer.valueOf(lowerY),
+				Integer.valueOf(minimumRadius), Integer.valueOf(maximumRadius), verticalMode, safetyMode, Integer.valueOf(lowerY),
 				Integer.valueOf(upperY), Integer.valueOf(preferredY), allocationMode, rotationMode,
 				Long.valueOf(cycleDurationMillis), Long.valueOf(leaseIdleMillis), Long.valueOf(privateReleaseMillis),
 				Boolean.valueOf(rimEnabled), Boolean.valueOf(soundEnabled), targetBiomeKey);
@@ -496,6 +507,7 @@ public final class RtpSettings
 		private int minimumRadius;
 		private int maximumRadius;
 		private RtpVerticalMode verticalMode;
+		private RtpSafetyMode safetyMode;
 		private int lowerY;
 		private int upperY;
 		private int preferredY;
@@ -519,6 +531,7 @@ public final class RtpSettings
 			minimumRadius = DEFAULT_MINIMUM_RADIUS;
 			maximumRadius = DEFAULT_MAXIMUM_RADIUS;
 			verticalMode = RtpVerticalMode.SURFACE;
+			safetyMode = RtpSafetyMode.SAFE;
 			applyWorldDefaults(sourceWorld);
 			allocationMode = RtpAllocationMode.SHARED;
 			rotationMode = RtpRotationMode.ON_TRAVERSAL;
@@ -542,6 +555,7 @@ public final class RtpSettings
 			minimumRadius = requiredSettings.minimumRadius;
 			maximumRadius = requiredSettings.maximumRadius;
 			verticalMode = requiredSettings.verticalMode;
+			safetyMode = requiredSettings.safetyMode;
 			lowerY = requiredSettings.lowerY;
 			upperY = requiredSettings.upperY;
 			preferredY = requiredSettings.preferredY;
@@ -612,6 +626,12 @@ public final class RtpSettings
 		public Builder verticalMode(RtpVerticalMode mode)
 		{
 			verticalMode = Objects.requireNonNull(mode, "mode");
+			return this;
+		}
+
+		public Builder safetyMode(RtpSafetyMode mode)
+		{
+			safetyMode = Objects.requireNonNull(mode, "mode");
 			return this;
 		}
 

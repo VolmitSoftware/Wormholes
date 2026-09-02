@@ -77,8 +77,9 @@ final class LocalPortalSettingsMenu
 			window.setElement(0, 3, networkViewFallbackElement(p, window));
 			window.setElement(2, 3, menus.cosmetics().surfaceSkinElement(window, p));
 			window.setElement(4, 3, activationRangeElement(window, p));
-			window.setElement(-1, 4, renderModeElement(window, p));
-			window.setElement(1, 4, costOpenerElement(window, p));
+			window.setElement(-2, 4, renderModeElement(window, p));
+			window.setElement(0, 4, publicLookLabelElement(window, p));
+			window.setElement(2, 4, costOpenerElement(window, p));
 		}
 		else
 		{
@@ -87,7 +88,8 @@ final class LocalPortalSettingsMenu
 			window.setElement(0, 2, renderModeElement(window, p));
 			window.setElement(2, 2, menus.cosmetics().ambientParticlesElement(window, p));
 			window.setElement(4, 2, menus.cosmetics().surfaceSkinElement(window, p));
-			window.setElement(0, 3, costOpenerElement(window, p));
+			window.setElement(-1, 3, publicLookLabelElement(window, p));
+			window.setElement(1, 3, costOpenerElement(window, p));
 		}
 
 		window.setElement(0, custom ? 5 : 4, menus.backToPortalMenuElement(window, p));
@@ -466,6 +468,34 @@ final class LocalPortalSettingsMenu
 			menus.costs().open(viewer);
 		});
 		return element;
+	}
+
+	private Element publicLookLabelElement(Window window, Player viewer)
+	{
+		UIElement element = new UIElement("public-look-label");
+		element.onLeftClick((event) ->
+		{
+			portal.setPublicLookLabel(!portal.isPublicLookLabel());
+			applyPublicLookLabelElement(element);
+			window.updateInventory();
+			menus.text().notifySetting(viewer, WormholesMessages.PORTAL_NETWORK_VALUE_CHANGED,
+					LocalPortalText.arguments(
+							"label", LocalPortalText.localized(WormholesMessages.PORTAL_LABEL_PUBLIC_LOOK_LABEL),
+							"value", LocalPortalText.localized(
+									portal.isPublicLookLabel() ? WormholesMessages.LABEL_ON : WormholesMessages.LABEL_OFF)));
+		});
+		applyPublicLookLabelElement(element);
+		return element;
+	}
+
+	private void applyPublicLookLabelElement(Element element)
+	{
+		boolean enabled = portal.isPublicLookLabel();
+		Wormholes.text().apply(element, WormholesMessages.PORTAL_MENU_PUBLIC_LOOK_LABEL,
+				LocalPortalText.arguments("state", LocalPortalText.localized(
+						enabled ? WormholesMessages.LABEL_ON : WormholesMessages.LABEL_OFF)));
+		element.setMaterial(new MaterialBlock(Material.NAME_TAG));
+		element.setEnchanted(enabled);
 	}
 
 	private void applyRenderModeElement(Element element)

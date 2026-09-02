@@ -416,6 +416,7 @@ locale = "zh_TW"
 "command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} 個方塊的房間超出口袋維度的建築高度。"
 "command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>正在重建 <white>{count}<gray> 個口袋。"
 "command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已重建 <white>{resized}<green>，略過 <white>{skipped}<green>，失敗 <white>{failed}。"
+"portal.label.public_look_label" = "Public Look Label"
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>通行費用</bold>","<gray>要求玩家使用此傳送門時","<gray>支付指定物品或 Vault 貨幣。","","<gray>模式：<white>{mode}","<gray>費用：<white>{cost}","","<dark_gray>點擊進行設定。"]
 "portal.menu.cost.placard" = ["<gold><bold>通行費用</bold>","<gray>玩家必須先付費","<gray>才能通過此傳送門。","","<gray>模式：<white>{mode}","<gray>費用：<white>{cost}"]
@@ -542,12 +543,12 @@ locale = "zh_TW"
 "rtp.destination.center_custom_available" = ["<aqua><bold>自定義中心</bold>","<gray>使用可編輯的 X 和 Z 座標。","<yellow>左鍵點擊以選擇"]
 "rtp.numeric.link" = ["<yellow><bold>{label} <white>{value}</bold>","<gray>開啟清晰的減少和增加控制。","<yellow>左鍵點擊"]
 "rtp.destination.reset_center" = ["<yellow><bold>重置中心 / 目標世界</bold>","<gray>使用來源世界和傳送門中心。","<yellow>左鍵點擊"]
-"rtp.landing.header" = ["<aqua><bold>落點規則</bold>","<gray>地表模式只使用乾燥且不在樹上的地形表面。"]
-"rtp.landing.surface_selected" = ["<green><bold>地表</bold>","<gray>不使用水面、樹頂或地下備用點。","<green>已選擇"]
-"rtp.landing.surface_available" = ["<aqua><bold>地表</bold>","<gray>不使用水面、樹頂或地下備用點。","<yellow>左鍵點擊以選擇"]
-"rtp.landing.preferred_selected" = ["<green><bold>首選高度</bold>","<gray>從首選 Y 值向上下搜尋。","<green>已選擇"]
-"rtp.landing.preferred_available" = ["<aqua><bold>首選高度</bold>","<gray>從首選 Y 值向上下搜尋。","<yellow>左鍵點擊以選擇"]
-"rtp.landing.safe_policy" = ["<aqua><bold>安全落點策略</bold>","<gray>拒絕水、水浸方塊、危險物、樹木、碰撞和沒有支撐的落點。"]
+"rtp.landing.header" = ["<aqua><bold>落點規則</bold>","<gray>Choose surface or preferred-height behavior and its safety mode."]
+"rtp.landing.surface_selected" = ["<green><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<green>Selected"]
+"rtp.landing.surface_available" = ["<aqua><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<yellow>Left click to select"]
+"rtp.landing.preferred_selected" = ["<green><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<green>Selected"]
+"rtp.landing.preferred_available" = ["<aqua><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<yellow>Left click to select"]
+"rtp.landing.safe_policy" = ["<aqua><bold>Landing Safety: <white>{mode}</bold>","<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.","<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.","<yellow>Left click to toggle"]
 "rtp.routing.header" = ["<aqua><bold>輪換 & 目的地池</bold>","<gray>直接選擇模式，然後一次套用整批更改。"]
 "rtp.routing.shared_selected" = ["<green><bold>共享目的地</bold>","<gray>所有人看到並使用相同路線。","<green>已選擇"]
 "rtp.routing.shared_available" = ["<aqua><bold>共享目的地</bold>","<gray>所有人看到並使用相同路線。","<yellow>左鍵點擊以選擇"]
@@ -586,6 +587,7 @@ locale = "zh_TW"
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>口袋 <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>大小 <white>{size}<gray> 個方塊，牆壁 <white>{material}<gray>，出口門 <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>邊界 <white>{minimum}<gray> 到 <white>{maximum}"]
 "command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>重建為 {size} 個方塊會摧毀 <white>{blocks}<red> 個已放置的方塊，並移動 <white>{entities}<red> 個實體。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>新牆外的方塊會被摧毀；需要移動的實體會被送到入口。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>加上 <white>confirm=true<gray> 重新執行同一指令以繼續。"]
+"portal.menu.public_look_label" = ["<aqua><bold>Public Look Label: <white>{state}</bold>","<gray>Show this portal's name when nearby players look at it.","<gray>When Off, the route label remains portal-tool only.","","<yellow>Left click to toggle"]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已刪除 <white>{count}<green> 個傳送門，並清除本地傳送門連結。"
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已刪除 <white>{count}<green> 個傳送門，並清除本地傳送門連結。"

@@ -82,6 +82,10 @@ final class LocalPortalPrompts
 				sendShortTitle(p, portal.getRouter(false));
 			}
 		}
+		else if(portal.isPublicLookLabel())
+		{
+			sendShortTitle(p, ChatColor.GOLD + "" + ChatColor.BOLD + portal.getName());
+		}
 	}
 
 	boolean isLookingAt(Player p)

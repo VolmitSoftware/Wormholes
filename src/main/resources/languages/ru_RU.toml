@@ -416,6 +416,7 @@ locale = "ru_RU"
 "command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Комната в {size} блоков не помещается в высоту строительства карманного измерения."
 "command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Перестраивается <white>{count}<gray> карманов."
 "command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Перестроено <white>{resized}<green>, пропущено <white>{skipped}<green>, с ошибкой <white>{failed}."
+"portal.label.public_look_label" = "Public Look Label"
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>Стоимость перемещения</bold>","<gray>Требовать точный предмет или валюту Vault,","<gray>когда игрок использует этот портал.","","<gray>Режим: <white>{mode}","<gray>Стоимость: <white>{cost}","","<dark_gray>Нажмите, чтобы настроить."]
 "portal.menu.cost.placard" = ["<gold><bold>Стоимость перемещения</bold>","<gray>Игроки должны заплатить, прежде чем портал","<gray>позволит им переместиться.","","<gray>Режим: <white>{mode}","<gray>Стоимость: <white>{cost}"]
@@ -542,12 +543,12 @@ locale = "ru_RU"
 "rtp.destination.center_custom_available" = ["<aqua><bold>Пользовательский центр</bold>","<gray>Использовать изменяемые координаты X и Z.","<yellow>Левый клик для выбора"]
 "rtp.numeric.link" = ["<yellow><bold>{label} <white>{value}</bold>","<gray>Открыть точные кнопки уменьшения и увеличения.","<yellow>Левый клик"]
 "rtp.destination.reset_center" = ["<yellow><bold>Сбросить центр / цель</bold>","<gray>Использовать исходный мир и центр портала.","<yellow>Левый клик"]
-"rtp.landing.header" = ["<aqua><bold>Правила высадки</bold>","<gray>В режиме поверхности используется одна сухая, не деревянная терражная поверхность."]
-"rtp.landing.surface_selected" = ["<green><bold>Поверхность</bold>","<gray>Без воды, верхушек деревьев и падений под землю.","<green>Выбрано"]
-"rtp.landing.surface_available" = ["<aqua><bold>Поверхность</bold>","<gray>Без воды, верхушек деревьев и падений под землю.","<yellow>Левый клик для выбора"]
-"rtp.landing.preferred_selected" = ["<green><bold>Предпочтительная высота</bold>","<gray>Поиск в сторону от предпочтительного значения Y.","<green>Выбранные"]
-"rtp.landing.preferred_available" = ["<aqua><bold>Предпочтительная высота</bold>","<gray>Поиск в сторону от предпочтительного значения Y.","<yellow>Левый клик для отбора"]
-"rtp.landing.safe_policy" = ["<aqua><bold>Политика безопасной посадки</bold>","<gray>Вода, затопленные блоки, опасности, деревья, столкновения и неподдерживаемые посадки отвергаются."]
+"rtp.landing.header" = ["<aqua><bold>Правила высадки</bold>","<gray>Choose surface or preferred-height behavior and its safety mode."]
+"rtp.landing.surface_selected" = ["<green><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<green>Selected"]
+"rtp.landing.surface_available" = ["<aqua><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<yellow>Left click to select"]
+"rtp.landing.preferred_selected" = ["<green><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<green>Selected"]
+"rtp.landing.preferred_available" = ["<aqua><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<yellow>Left click to select"]
+"rtp.landing.safe_policy" = ["<aqua><bold>Landing Safety: <white>{mode}</bold>","<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.","<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.","<yellow>Left click to toggle"]
 "rtp.routing.header" = ["<aqua><bold>Ротация & пул назначений</bold>","<gray>Выберите режимы напрямую, затем примените весь набор один раз."]
 "rtp.routing.shared_selected" = ["<green><bold>Общее назначение</bold>","<gray>Все видят и используют один маршрут.","<green>Выбрано"]
 "rtp.routing.shared_available" = ["<aqua><bold>Общее назначение</bold>","<gray>Все видят и используют один маршрут.","<yellow>Левый клик для выбора"]
@@ -586,6 +587,7 @@ locale = "ru_RU"
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Карман <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Размер <white>{size}<gray> блоков, стены <white>{material}<gray>, выходная дверь <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Границы <white>{minimum}<gray> до <white>{maximum}"]
 "command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Перестройка до {size} блоков уничтожит <white>{blocks}<red> установленных блоков и переместит <white>{entities}<red> сущностей.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Блоки за новыми стенами уничтожаются; перемещаемые сущности переносятся ко входу.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Запустите ту же команду с <white>confirm=true<gray>, чтобы продолжить."]
+"portal.menu.public_look_label" = ["<aqua><bold>Public Look Label: <white>{state}</bold>","<gray>Show this portal's name when nearby players look at it.","<gray>When Off, the route label remains portal-tool only.","","<yellow>Left click to toggle"]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Удалён <white>{count}<green> портал и очищены локальные связи порталов."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Удалено <white>{count}<green> порталов и очищены локальные связи порталов."

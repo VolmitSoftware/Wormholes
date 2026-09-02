@@ -813,6 +813,17 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener
 		settings.setSurfaceSkin(skin);
 	}
 
+	@Override
+	public boolean isPublicLookLabel()
+	{
+		return settings.isPublicLookLabel();
+	}
+
+	public void setPublicLookLabel(boolean enabled)
+	{
+		settings.setPublicLookLabel(enabled);
+	}
+
 	public boolean isSettingsSyncEnabled()
 	{
 		return settings.isSettingsSyncEnabled();

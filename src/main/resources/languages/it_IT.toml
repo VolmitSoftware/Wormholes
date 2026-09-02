@@ -417,6 +417,7 @@ locale = "it_IT"
 "command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Una stanza di {size} blocchi non rientra nell'altezza di costruzione della dimensione tascabile."
 "command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Ricostruzione di <white>{count}<gray> tasche."
 "command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Ricostruite <white>{resized}<green>, saltate <white>{skipped}<green>, fallite <white>{failed}."
+"portal.label.public_look_label" = "Public Look Label"
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>Costo di viaggio</bold>","<gray>Richiedi un oggetto esatto o valuta Vault","<gray>quando un giocatore usa questo portale.","","<gray>Modalità: <white>{mode}","<gray>Costo: <white>{cost}","","<dark_gray>Fai clic per configurare."]
 "portal.menu.cost.placard" = ["<gold><bold>Costo di viaggio</bold>","<gray>I giocatori devono pagare prima che questo portale","<gray>permetta loro di viaggiare.","","<gray>Modalità: <white>{mode}","<gray>Costo: <white>{cost}"]
@@ -543,12 +544,12 @@ locale = "it_IT"
 "rtp.destination.center_custom_available" = ["<aqua><bold>Centro personalizzato</bold>","<gray>Usa coordinate X e Z modificabili.","<yellow>Clic sinistro per selezionare"]
 "rtp.numeric.link" = ["<yellow><bold>{label} <white>{value}</bold>", "<gray>Apri i controlli di diminuzione/aumento chiari.", "<yellow>Clicca sinistra"]
 "rtp.destination.reset_center" = ["<yellow><bold>Ripristina centro / destinazione</bold>","<gray>Usa il mondo di origine e il centro del portale.","<yellow>Clic sinistro"]
-"rtp.landing.header" = ["<aqua><bold>Regole di atterraggio</bold>","<gray>Niente acqua, cime degli alberi o ripiego sotterraneo."]
-"rtp.landing.surface_selected" = ["<green><bold>Superficie</bold>","<gray>Niente acqua, cime degli alberi o ripiego sotterraneo.","<green>Selezionato"]
-"rtp.landing.surface_available" = ["<aqua><bold>Superficie</bold>","<gray>Niente acqua, cime degli alberi o ripiego sotterraneo.","<yellow>Clic sinistro per selezionare"]
-"rtp.landing.preferred_selected" = ["<green><bold>Altezza preferita</bold>","<gray>Cerca verso l'esterno da un valore Y preferito.","<green>Selezionato"]
-"rtp.landing.preferred_available" = ["<aqua><bold>Altezza preferita</bold>","<gray>Cerca verso l'esterno da un valore Y preferito.","<yellow>Clic sinistro per selezionare"]
-"rtp.landing.safe_policy" = ["<aqua><bold>Politica di atterraggio sicuro</bold>", "<gray>L'acqua, i blocchi bagnati d'acqua e le pericoli, gli alberi, le collisioni ed il disembarco non sostenuto vengono respinti."]
+"rtp.landing.header" = ["<aqua><bold>Regole di atterraggio</bold>","<gray>Choose surface or preferred-height behavior and its safety mode."]
+"rtp.landing.surface_selected" = ["<green><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<green>Selected"]
+"rtp.landing.surface_available" = ["<aqua><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<yellow>Left click to select"]
+"rtp.landing.preferred_selected" = ["<green><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<green>Selected"]
+"rtp.landing.preferred_available" = ["<aqua><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<yellow>Left click to select"]
+"rtp.landing.safe_policy" = ["<aqua><bold>Landing Safety: <white>{mode}</bold>","<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.","<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.","<yellow>Left click to toggle"]
 "rtp.routing.header" = ["<aqua><bold>Rotazione & Gruppo di destinazioni</bold>","<gray>Scegli direttamente le modalità, quindi applica tutte le modifiche insieme."]
 "rtp.routing.shared_selected" = ["<green><bold>Destinazione condivisa</bold>","<gray>Tutti vedono e usano lo stesso percorso.","<green>Selezionato"]
 "rtp.routing.shared_available" = ["<aqua><bold>Destinazione condivisa</bold>","<gray>Tutti vedono e usano lo stesso percorso.","<yellow>Clic sinistro per selezionare"]
@@ -587,6 +588,7 @@ locale = "it_IT"
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tasca <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Dimensione <white>{size}<gray> blocchi, pareti <white>{material}<gray>, porta di uscita <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Limiti da <white>{minimum}<gray> a <white>{maximum}"]
 "command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Ricostruire a {size} blocchi distruggerebbe <white>{blocks}<red> blocchi piazzati e sposterebbe <white>{entities}<red> entita.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>I blocchi fuori dalle nuove pareti vengono distrutti; le entita spostate vengono portate all'ingresso.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Esegui lo stesso comando con <white>confirm=true<gray> per procedere."]
+"portal.menu.public_look_label" = ["<aqua><bold>Public Look Label: <white>{state}</bold>","<gray>Show this portal's name when nearby players look at it.","<gray>When Off, the route label remains portal-tool only.","","<yellow>Left click to toggle"]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Eliminato <white>{count}<green> portale e ripuliti i collegamenti locali."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Eliminati <white>{count}<green> portali e ripuliti i collegamenti locali."

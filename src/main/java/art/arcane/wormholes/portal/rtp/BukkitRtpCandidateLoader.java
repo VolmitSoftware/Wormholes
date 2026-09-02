@@ -98,7 +98,8 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 		{
 			return CompletableFuture.failedFuture(new IllegalStateException("RTP candidate loader is closed"));
 		}
-		if(Boolean.TRUE.equals(IrisTerrainProbe.shared().isUnderwater(
+		if(requiredRequest.settings().getSafetyMode() == RtpSafetyMode.SAFE
+				&& Boolean.TRUE.equals(IrisTerrainProbe.shared().isUnderwater(
 				world,
 				requiredRequest.destination().blockX(),
 				requiredRequest.destination().blockZ())))
@@ -139,6 +140,7 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 						world,
 						requiredRequest.destination(),
 						surfaceMode,
+						requiredRequest.settings().getSafetyMode(),
 						requiredRequest.settings().getPreferredY(),
 						pendingBiomeKey).handle((surfaceFeetY, failure) ->
 				{
@@ -183,6 +185,7 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 			World world,
 			RtpDestination destination,
 			boolean surfaceMode,
+			RtpSafetyMode safetyMode,
 			int preferredY,
 			String targetBiomeKey)
 	{
@@ -197,7 +200,7 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 		{
 			try
 			{
-				int feetY = surfaceMode ? resolveSurfaceFeetY(world, destination) : preferredY;
+				int feetY = surfaceMode ? resolveSurfaceFeetY(world, destination, safetyMode) : preferredY;
 				if(targetBiomeKey == null)
 				{
 					result.complete(Integer.valueOf(feetY));
@@ -248,7 +251,8 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 			try
 			{
 				return capture(world, requiredRequest.destination(), requiredEnvelope,
-						requiredRequest.settings().getVerticalMode() == RtpVerticalMode.SURFACE).handle((validationRequest, failure) ->
+						requiredRequest.settings().getVerticalMode() == RtpVerticalMode.SURFACE,
+						requiredRequest.settings().getSafetyMode()).handle((validationRequest, failure) ->
 				{
 					if(failure != null || validationRequest == null)
 					{
@@ -329,7 +333,7 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 		if(closed.get() || index >= probes.size())
 		{
 			retention.close();
-			result.completeExceptionally(new IllegalStateException("RTP search found no safe vertical destination"));
+			result.completeExceptionally(new IllegalStateException("RTP search found no vertical destination"));
 			return;
 		}
 		RtpDestination sampled = request.destination();
@@ -340,7 +344,9 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 				sampled.blockZ(),
 				sampled.generation(),
 				sampled.attempt());
-		capture(world, candidate, envelope, request.settings().getVerticalMode() == RtpVerticalMode.SURFACE)
+		capture(world, candidate, envelope,
+				request.settings().getVerticalMode() == RtpVerticalMode.SURFACE,
+				request.settings().getSafetyMode())
 				.whenComplete((validationRequest, failure) ->
 		{
 			if(failure != null || validationRequest == null)
@@ -405,14 +411,14 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 		return new PendingRetention(retention, ready);
 	}
 
-	private int resolveSurfaceFeetY(World world, RtpDestination destination)
+	private int resolveSurfaceFeetY(World world, RtpDestination destination, RtpSafetyMode safetyMode)
 	{
 		if(world.getEnvironment() != World.Environment.NETHER)
 		{
 			return world.getHighestBlockAt(
 					destination.blockX(),
 					destination.blockZ(),
-					HeightMap.MOTION_BLOCKING_NO_LEAVES).getY() + 1;
+					surfaceHeightMap(safetyMode)).getY() + 1;
 		}
 		int logicalCeiling = Math.min(world.getMaxHeight(), 128);
 		int highestFeetY = logicalCeiling - RtpSafetyValidator.NETHER_ROOF_BAND_DEPTH - 2;
@@ -425,6 +431,13 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 			throw new IllegalStateException("RTP nether column has no sheltered surface");
 		}
 		return feetY.intValue();
+	}
+
+	static HeightMap surfaceHeightMap(RtpSafetyMode safetyMode)
+	{
+		return safetyMode == RtpSafetyMode.SAFE
+				? HeightMap.MOTION_BLOCKING_NO_LEAVES
+				: HeightMap.MOTION_BLOCKING;
 	}
 
 	static Integer descendingSurfaceFeetY(int highestFeetY, int lowestFeetY, IntPredicate support, IntPredicate open)
@@ -453,7 +466,8 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 			World world,
 			RtpDestination destination,
 			RtpValidationRequest.EntityEnvelope envelope,
-			boolean surfaceMode)
+			boolean surfaceMode,
+			RtpSafetyMode safetyMode)
 	{
 		Set<ChunkCoordinate> chunks = touchedChunks(destination, envelope);
 		List<CompletableFuture<RtpValidationRequest.RegionSnapshot>> snapshots = new ArrayList<CompletableFuture<RtpValidationRequest.RegionSnapshot>>(chunks.size());
@@ -485,7 +499,7 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 			{
 				completed.add(snapshot.join());
 			}
-			return validationRequest(world, destination, envelope, surfaceMode, completed);
+			return validationRequest(world, destination, envelope, surfaceMode, safetyMode, completed);
 		});
 	}
 
@@ -591,6 +605,7 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 			RtpDestination destination,
 			RtpValidationRequest.EntityEnvelope envelope,
 			boolean surfaceMode,
+			RtpSafetyMode safetyMode,
 			List<RtpValidationRequest.RegionSnapshot> snapshots)
 	{
 		org.bukkit.WorldBorder border = world.getWorldBorder();
@@ -616,6 +631,7 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 						: world.getMaxHeight())
 				.entityEnvelope(envelope)
 				.surfaceMode(surfaceMode)
+				.safetyMode(safetyMode)
 				.configuredHazards(Set.of())
 				.regionSnapshots(snapshots)
 				.build();

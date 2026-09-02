@@ -417,6 +417,7 @@ locale = "he_IL"
 "command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>חדר בגודל {size} בלוקים אינו נכנס לגובה הבנייה של ממד הכיס."
 "command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>בונה מחדש <white>{count}<gray> כיסים."
 "command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>נבנו מחדש <white>{resized}<green>, דולגו <white>{skipped}<green>, נכשלו <white>{failed}."
+"portal.label.public_look_label" = "Public Look Label"
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>עלות מעבר</bold>","<gray>דרשו פריט מדויק או מטבע Vault","<gray>כאשר שחקן משתמש בפורטל הזה.","","<gray>מצב: <white>{mode}","<gray>עלות: <white>{cost}","","<dark_gray>לחצו כדי להגדיר."]
 "portal.menu.cost.placard" = ["<gold><bold>עלות מעבר</bold>","<gray>שחקנים חייבים לשלם לפני שהפורטל","<gray>יאפשר להם לעבור.","","<gray>מצב: <white>{mode}","<gray>עלות: <white>{cost}"]
@@ -547,12 +548,12 @@ locale = "he_IL"
 "rtp.destination.center_custom_available" = ["<aqua><bold>מרכז מותאם אישית</bold>","<gray>שימוש בקואורדינטות X ו-Z הניתנות לעריכה.","<yellow>לחיצה שמאלית לבחירה"]
 "rtp.numeric.link" = ["<yellow><bold>{label} <white>{value}</bold>","<gray>פתיחת בקרות ברורות להפחתה ולהגדלה.","<yellow>לחיצה שמאלית"]
 "rtp.destination.reset_center" = ["<yellow><bold>איפוס מרכז / יעד</bold>","<gray>שימוש בעולם המקור ובמרכז הפורטל.","<yellow>לחיצה שמאלית"]
-"rtp.landing.header" = ["<aqua><bold>כללי נחיתה</bold>","<gray>מצב פני השטח משתמש בקרקע יבשה וללא עצים."]
-"rtp.landing.surface_selected" = ["<green><bold>פני השטח</bold>","<gray>ללא נחיתה במים, על צמרות עצים או מתחת לאדמה.","<green>נבחר"]
-"rtp.landing.surface_available" = ["<aqua><bold>פני השטח</bold>","<gray>ללא נחיתה במים, על צמרות עצים או מתחת לאדמה.","<yellow>לחיצה שמאלית לבחירה"]
-"rtp.landing.preferred_selected" = ["<green><bold>גובה מועדף</bold>","<gray>חיפוש כלפי חוץ מערך Y מועדף.","<green>נבחר"]
-"rtp.landing.preferred_available" = ["<aqua><bold>גובה מועדף</bold>","<gray>חיפוש כלפי חוץ מערך Y מועדף.","<yellow>לחיצה שמאלית לבחירה"]
-"rtp.landing.safe_policy" = ["<aqua><bold>מדיניות נחיתה בטוחה</bold>","<gray>מים, בלוקים ספוגי מים, סכנות, עצים, התנגשויות ונחיתה ללא תמיכה נדחים."]
+"rtp.landing.header" = ["<aqua><bold>כללי נחיתה</bold>","<gray>Choose surface or preferred-height behavior and its safety mode."]
+"rtp.landing.surface_selected" = ["<green><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<green>Selected"]
+"rtp.landing.surface_available" = ["<aqua><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<yellow>Left click to select"]
+"rtp.landing.preferred_selected" = ["<green><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<green>Selected"]
+"rtp.landing.preferred_available" = ["<aqua><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<yellow>Left click to select"]
+"rtp.landing.safe_policy" = ["<aqua><bold>Landing Safety: <white>{mode}</bold>","<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.","<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.","<yellow>Left click to toggle"]
 "rtp.routing.header" = ["<aqua><bold>החלפה & מאגר יעדים</bold>","<gray>בחרו מצבים ישירות ואז החילו את כל השינויים פעם אחת."]
 "rtp.routing.shared_selected" = ["<green><bold>יעד משותף</bold>","<gray>כולם רואים ומשתמשים באותו נתיב.","<green>נבחר"]
 "rtp.routing.shared_available" = ["<aqua><bold>יעד משותף</bold>","<gray>כולם רואים ומשתמשים באותו נתיב.","<yellow>לחיצה שמאלית לבחירה"]
@@ -587,6 +588,7 @@ locale = "he_IL"
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>כיס <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>גודל <white>{size}<gray> בלוקים, קירות <white>{material}<gray>, דלת יציאה <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>גבולות <white>{minimum}<gray> עד <white>{maximum}"]
 "command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>בנייה מחדש ל-{size} בלוקים תהרוס <white>{blocks}<red> בלוקים שהונחו ותזיז <white>{entities}<red> ישויות.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>בלוקים מחוץ לקירות החדשים נהרסים; ישויות שמוזזות מועברות לכניסה.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>הרץ את אותה הפקודה עם <white>confirm=true<gray> כדי להמשיך."]
+"portal.menu.public_look_label" = ["<aqua><bold>Public Look Label: <white>{state}</bold>","<gray>Show this portal's name when nearby players look at it.","<gray>When Off, the route label remains portal-tool only.","","<yellow>Left click to toggle"]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>נמחק <white>{count}<green> פורטל וקישורי הפורטלים המקומיים נוקו."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>נמחקו <white>{count}<green> פורטלים וקישורי הפורטלים המקומיים נוקו."

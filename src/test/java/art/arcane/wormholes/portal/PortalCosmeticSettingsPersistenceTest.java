@@ -33,6 +33,7 @@ public final class PortalCosmeticSettingsPersistenceTest
 		portal.setAmbientColor(0x123456);
 		portal.setSurfaceSkin("minecraft:glass");
 		portal.setRenderMode(ProjectionRenderMode.VENTICULAR);
+		portal.setPublicLookLabel(true);
 
 		JSONObject json = portal.toJSON();
 
@@ -41,6 +42,7 @@ public final class PortalCosmeticSettingsPersistenceTest
 		assertEquals("minecraft:glass", json.getString("surfaceSkin"));
 		assertFalse(json.has("surfaceThickness"));
 		assertEquals("VENTICULAR", json.getString("renderMode"));
+		assertTrue(json.getBoolean("publicLookLabel"));
 
 		LocalPortal reloaded = loadPortal(json, world);
 		assertEquals(AmbientParticleStyle.OUTLINE, reloaded.getAmbientStyle());
@@ -48,6 +50,7 @@ public final class PortalCosmeticSettingsPersistenceTest
 		assertEquals("minecraft:glass", reloaded.getSurfaceSkin());
 		assertTrue(reloaded.hasSurfaceSkin());
 		assertEquals(ProjectionRenderMode.VENTICULAR, reloaded.getRenderMode());
+		assertTrue(reloaded.isPublicLookLabel());
 	}
 
 	@Test
@@ -75,6 +78,7 @@ public final class PortalCosmeticSettingsPersistenceTest
 		json.remove("ambientColor");
 		json.remove("surfaceSkin");
 		json.remove("renderMode");
+		json.remove("publicLookLabel");
 
 		LocalPortal reloaded = loadPortal(json, world);
 
@@ -83,6 +87,7 @@ public final class PortalCosmeticSettingsPersistenceTest
 		assertEquals("", reloaded.getSurfaceSkin());
 		assertFalse(reloaded.hasSurfaceSkin());
 		assertEquals(ProjectionRenderMode.VENTICULAR, reloaded.getRenderMode());
+		assertFalse(reloaded.isPublicLookLabel());
 	}
 
 	@Test

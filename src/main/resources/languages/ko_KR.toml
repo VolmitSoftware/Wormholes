@@ -417,6 +417,7 @@ locale = "ko_KR"
 "command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} 블록 크기의 방은 포켓 차원의 건축 높이에 맞지 않습니다."
 "command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>포켓 <white>{count}<gray>개를 다시 만드는 중입니다."
 "command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>재구성 <white>{resized}<green>, 건너뜀 <white>{skipped}<green>, 실패 <white>{failed}."
+"portal.label.public_look_label" = "Public Look Label"
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>이동 비용</bold>","<gray>플레이어가 이 포털을 사용할 때","<gray>정확한 아이템 또는 Vault 화폐를 요구합니다.","","<gray>모드: <white>{mode}","<gray>비용: <white>{cost}","","<dark_gray>클릭하여 설정합니다."]
 "portal.menu.cost.placard" = ["<gold><bold>이동 비용</bold>","<gray>플레이어는 비용을 지불해야","<gray>이 포털로 이동할 수 있습니다.","","<gray>모드: <white>{mode}","<gray>비용: <white>{cost}"]
@@ -543,12 +544,12 @@ locale = "ko_KR"
 "rtp.destination.center_custom_available" = ["<aqua><bold>사용자 정의 센터</bold>","<gray>편집 가능한 X 및 Z 좌표를 사용하십시오.","<yellow>선택하려면 왼쪽 클릭하세요"]
 "rtp.numeric.link" = ["<yellow><bold>{label} <white>{value}</bold>","<gray>값을 명확히 줄이거나 늘리는 화면을 엽니다.","<yellow>왼쪽 클릭"]
 "rtp.destination.reset_center" = ["<yellow><bold>중심 / 대상 초기화</bold>","<gray>출발 월드와 포털 중심을 사용합니다.","<yellow>왼쪽 클릭"]
-"rtp.landing.header" = ["<aqua><bold>착륙 규칙</bold>","<gray>표면 모드는 건조하고 나무가 아닌 지형 표면을 사용합니다."]
-"rtp.landing.surface_selected" = ["<green><bold>지표면</bold>","<gray>물, 나무 위 또는 지하로 떨어지는 지점은 사용하지 않습니다.","<green>선택됨"]
-"rtp.landing.surface_available" = ["<aqua><bold>지표면</bold>","<gray>물, 나무 위 또는 지하로 떨어지는 지점은 사용하지 않습니다.","<yellow>왼쪽 클릭하여 선택"]
-"rtp.landing.preferred_selected" = ["<green><bold>선호 높이</bold>","<gray>지정한 Y 값을 중심으로 위아래를 검색합니다.","<green>선택됨"]
-"rtp.landing.preferred_available" = ["<aqua><bold>선호 높이</bold>","<gray>지정한 Y 값을 중심으로 위아래를 검색합니다.","<yellow>왼쪽 클릭하여 선택"]
-"rtp.landing.safe_policy" = ["<aqua><bold>안전 착륙 정책</bold>","<gray>물, 물이 밀려 있는 블록, 위험성, 나무, 충돌 및 지원되지 않은 착륙이 거부됩니다."]
+"rtp.landing.header" = ["<aqua><bold>착륙 규칙</bold>","<gray>Choose surface or preferred-height behavior and its safety mode."]
+"rtp.landing.surface_selected" = ["<green><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<green>Selected"]
+"rtp.landing.surface_available" = ["<aqua><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<yellow>Left click to select"]
+"rtp.landing.preferred_selected" = ["<green><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<green>Selected"]
+"rtp.landing.preferred_available" = ["<aqua><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<yellow>Left click to select"]
+"rtp.landing.safe_policy" = ["<aqua><bold>Landing Safety: <white>{mode}</bold>","<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.","<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.","<yellow>Left click to toggle"]
 "rtp.routing.header" = ["<aqua><bold>순환 & 목적지 풀</bold>","<gray>모드를 직접 선택한 뒤 전체를 한 번에 적용합니다."]
 "rtp.routing.shared_selected" = ["<green><bold>공유 목적지</bold>","<gray>모든 플레이어가 같은 경로를 보고 사용합니다.","<green>선택됨"]
 "rtp.routing.shared_available" = ["<aqua><bold>공유 목적지</bold>","<gray>모든 플레이어가 같은 경로를 보고 사용합니다.","<yellow>왼쪽 클릭하여 선택"]
@@ -587,6 +588,7 @@ locale = "ko_KR"
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>포켓 <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>크기 <white>{size}<gray> 블록, 벽 <white>{material}<gray>, 출구 문 <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>범위 <white>{minimum}<gray> ~ <white>{maximum}"]
 "command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} 블록으로 다시 만들면 설치된 블록 <white>{blocks}<red>개가 파괴되고 엔티티 <white>{entities}<red>개가 이동합니다.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>새 벽 바깥의 블록은 파괴되고 이동 대상 엔티티는 입구로 옮겨집니다.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>계속하려면 같은 명령을 <white>confirm=true<gray>와 함께 실행하세요."]
+"portal.menu.public_look_label" = ["<aqua><bold>Public Look Label: <white>{state}</bold>","<gray>Show this portal's name when nearby players look at it.","<gray>When Off, the route label remains portal-tool only.","","<yellow>Left click to toggle"]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>포털 <white>{count}<green>개를 삭제하고 로컬 포털 연결을 지웠습니다."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>포털 <white>{count}<green>개를 삭제하고 로컬 포털 연결을 지웠습니다."

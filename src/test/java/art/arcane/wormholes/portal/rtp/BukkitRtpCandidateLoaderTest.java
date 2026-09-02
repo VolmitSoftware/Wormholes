@@ -5,10 +5,20 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.function.IntPredicate;
 
+import org.bukkit.HeightMap;
 import org.junit.jupiter.api.Test;
 
 public final class BukkitRtpCandidateLoaderTest
 {
+	@Test
+	public void unsafeSurfaceIncludesFluidsAndTreeCanopies()
+	{
+		assertEquals(HeightMap.MOTION_BLOCKING_NO_LEAVES,
+				BukkitRtpCandidateLoader.surfaceHeightMap(RtpSafetyMode.SAFE));
+		assertEquals(HeightMap.MOTION_BLOCKING,
+				BukkitRtpCandidateLoader.surfaceHeightMap(RtpSafetyMode.UNSAFE));
+	}
+
 	@Test
 	public void netherColumnResolvesShelteredGroundBelowRoof()
 	{

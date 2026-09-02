@@ -42,6 +42,7 @@ import art.arcane.wormholes.portal.rtp.RtpPortalEditorModel.ReservationTimeoutMu
 import art.arcane.wormholes.portal.rtp.RtpPortalEditorModel.ResetCenterTargetMutation;
 import art.arcane.wormholes.portal.rtp.RtpPortalEditorModel.RimMutation;
 import art.arcane.wormholes.portal.rtp.RtpPortalEditorModel.RotationMutation;
+import art.arcane.wormholes.portal.rtp.RtpPortalEditorModel.SafetyModeMutation;
 import art.arcane.wormholes.portal.rtp.RtpPortalEditorModel.SettingsSnapshot;
 import art.arcane.wormholes.portal.rtp.RtpPortalEditorModel.SoundMutation;
 import art.arcane.wormholes.portal.rtp.RtpPortalEditorModel.StatusSnapshot;
@@ -254,8 +255,13 @@ public final class RtpPortalEditor
 				MessageArgs.empty(), Material.AMETHYST_SHARD,
 				preferred,
 				() -> mutate(snapshot, viewerId, new VerticalModeMutation(RtpVerticalMode.PREFERRED_AVERAGE))));
-		window.setElement(0, 2, infoElement("rtp-surface-policy", WormholesMessages.RTP_SAFE_LANDING,
-				MessageArgs.empty(), Material.SHIELD, false));
+		boolean safeLanding = settings.safetyMode() == RtpSafetyMode.SAFE;
+		window.setElement(0, 2, choiceElement("rtp-surface-policy", WormholesMessages.RTP_SAFE_LANDING,
+				WormholesLocalization.args(MessageArgument.untrusted("mode", settings.safetyMode().name())),
+				safeLanding ? Material.SHIELD : Material.LAVA_BUCKET,
+				safeLanding,
+				() -> mutate(snapshot, viewerId, new SafetyModeMutation(
+						safeLanding ? RtpSafetyMode.UNSAFE : RtpSafetyMode.SAFE))));
 		window.setElement(-2, 3, numericLink(window, viewerId, "rtp-lower-y", WormholesMessages.RTP_LABEL_LOWER_Y,
 				Integer.toString(settings.lowerY()), Material.LADDER, NumericField.LOWER_Y));
 		window.setElement(0, 3, numericLink(window, viewerId, "rtp-upper-y", WormholesMessages.RTP_LABEL_UPPER_Y,

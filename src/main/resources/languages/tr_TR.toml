@@ -416,6 +416,7 @@ locale = "tr_TR"
 "command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} bloklu bir oda cep boyutunun insa yuksekligine sigmiyor."
 "command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray><white>{count}<gray> cep yeniden insa ediliyor."
 "command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Yeniden insa edilen <white>{resized}<green>, atlanan <white>{skipped}<green>, basarisiz <white>{failed}."
+"portal.label.public_look_label" = "Public Look Label"
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>Seyahat Maliyeti</bold>","<gray>Bir oyuncu bu portalı kullandığında","<gray>tam bir eşya veya Vault parası isteyin.","","<gray>Mod: <white>{mode}","<gray>Maliyet: <white>{cost}","","<dark_gray>Yapılandırmak için tıklayın."]
 "portal.menu.cost.placard" = ["<gold><bold>Seyahat Maliyeti</bold>","<gray>Bu portal seyahate izin vermeden önce","<gray>oyuncular ödeme yapmalıdır.","","<gray>Mod: <white>{mode}","<gray>Maliyet: <white>{cost}"]
@@ -542,12 +543,12 @@ locale = "tr_TR"
 "rtp.destination.center_custom_available" = ["<aqua><bold>Özel Merkez</bold>","<gray>Düzenlenebilir X ve Z koordinatlarını kullanın.","<yellow>Seçmek için sol tıklayın"]
 "rtp.numeric.link" = ["<yellow><bold>{label} <white>{value}</bold>","<gray>Açık azaltma/artırma denetimlerini gösterir.","<yellow>Sol tıklayın"]
 "rtp.destination.reset_center" = ["<yellow><bold>Merkezi / Hedefi Sıfırla</bold>","<gray>Kaynak dünyayı ve portal merkezini kullanın.","<yellow>Sol tıklayın"]
-"rtp.landing.header" = ["<aqua><bold>İniş Kuralları</bold>","<gray>Yüzey modunda kuru, ağaç dışı bir alan yüzeyi kullanılır."]
-"rtp.landing.surface_selected" = ["<green><bold>Yüzey</bold>","<gray>Suya, ağaç tepelerine veya yeraltına iniş yapılmaz.","<green>Seçili"]
-"rtp.landing.surface_available" = ["<aqua><bold>Yüzey</bold>","<gray>Suya, ağaç tepelerine veya yeraltına iniş yapılmaz.","<yellow>Seçmek için sol tıklayın"]
-"rtp.landing.preferred_selected" = ["<green><bold>Tercih Edilen Yükseklik</bold>","<gray>Seçilen Y değerinden dışarı doğru arayın.","<green>Seçili"]
-"rtp.landing.preferred_available" = ["<aqua><bold>Tercih Edilen Yükseklik</bold>","<gray>Seçilen Y değerinden dışarı doğru arayın.","<yellow>Seçmek için sol tıklayın"]
-"rtp.landing.safe_policy" = ["<aqua><bold>Güvenli İniş Politikası</bold>","<gray>Su, su dolu bloklar, tehlikeler, ağaçlar, çarpışmalar ve desteksiz inişler reddedilir."]
+"rtp.landing.header" = ["<aqua><bold>İniş Kuralları</bold>","<gray>Choose surface or preferred-height behavior and its safety mode."]
+"rtp.landing.surface_selected" = ["<green><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<green>Selected"]
+"rtp.landing.surface_available" = ["<aqua><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<yellow>Left click to select"]
+"rtp.landing.preferred_selected" = ["<green><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<green>Selected"]
+"rtp.landing.preferred_available" = ["<aqua><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<yellow>Left click to select"]
+"rtp.landing.safe_policy" = ["<aqua><bold>Landing Safety: <white>{mode}</bold>","<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.","<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.","<yellow>Left click to toggle"]
 "rtp.routing.header" = ["<aqua><bold>Yenileme & Hedef Havuzu</bold>","<gray>Modları doğrudan seçin, ardından tüm değişiklikleri bir kerede uygulayın."]
 "rtp.routing.shared_selected" = ["<green><bold>Ortak Hedef</bold>","<gray>Herkes aynı rotayı görür ve kullanır.","<green>Seçili"]
 "rtp.routing.shared_available" = ["<aqua><bold>Ortak Hedef</bold>","<gray>Herkes aynı rotayı görür ve kullanır.","<yellow>Seçmek için sol tıklayın"]
@@ -586,6 +587,7 @@ locale = "tr_TR"
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Cep <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Boyut <white>{size}<gray> blok, duvarlar <white>{material}<gray>, cikis kapisi <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Sinirlar <white>{minimum}<gray> ile <white>{maximum}"]
 "command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} blok olarak yeniden insa etmek <white>{blocks}<red> yerlestirilmis blogu yok eder ve <white>{entities}<red> varligi tasir.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Yeni duvarlarin disindaki bloklar yok edilir; tasinan varliklar girise goturulur.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Devam etmek icin ayni komutu <white>confirm=true<gray> ile calistir."]
+"portal.menu.public_look_label" = ["<aqua><bold>Public Look Label: <white>{state}</bold>","<gray>Show this portal's name when nearby players look at it.","<gray>When Off, the route label remains portal-tool only.","","<yellow>Left click to toggle"]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> portal silindi ve yerel portal bağlantıları temizlendi."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> portal silindi ve yerel portal bağlantıları temizlendi."

@@ -416,6 +416,7 @@ locale = "vi_VI"
 "command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Phong {size} khoi khong vua chieu cao xay dung cua chieu khong gian tui."
 "command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Dang xay lai <white>{count}<gray> tui."
 "command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Da xay lai <white>{resized}<green>, bo qua <white>{skipped}<green>, that bai <white>{failed}."
+"portal.label.public_look_label" = "Public Look Label"
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>Chi phí di chuyển</bold>","<gray>Yêu cầu đúng vật phẩm hoặc tiền Vault","<gray>khi người chơi sử dụng cổng này.","","<gray>Chế độ: <white>{mode}","<gray>Chi phí: <white>{cost}","","<dark_gray>Nhấp để cấu hình."]
 "portal.menu.cost.placard" = ["<gold><bold>Chi phí di chuyển</bold>","<gray>Người chơi phải trả phí trước khi","<gray>cổng này cho phép họ di chuyển.","","<gray>Chế độ: <white>{mode}","<gray>Chi phí: <white>{cost}"]
@@ -542,12 +543,12 @@ locale = "vi_VI"
 "rtp.destination.center_custom_available" = ["<aqua><bold>Tâm tùy chỉnh</bold>","<gray>Dùng tọa độ X và Z có thể chỉnh sửa.","<yellow>Nhấp trái để chọn"]
 "rtp.numeric.link" = ["<yellow><bold>{label} <white>{value}</bold>","<gray>Mở các nút giảm/tăng riêng.","<yellow>Nhấp trái"]
 "rtp.destination.reset_center" = ["<yellow><bold>Đặt lại tâm / điểm đến</bold>","<gray>Dùng thế giới nguồn và tâm cổng.","<yellow>Nhấp trái"]
-"rtp.landing.header" = ["<aqua><bold>Quy tắc hạ cánh</bold>","<gray>Chế độ bề mặt dùng địa hình khô, không có cây."]
-"rtp.landing.surface_selected" = ["<green><bold>Bề mặt</bold>","<gray>Không đáp xuống nước, ngọn cây hoặc dưới lòng đất.","<green>Đã chọn"]
-"rtp.landing.surface_available" = ["<aqua><bold>Bề mặt</bold>","<gray>Không đáp xuống nước, ngọn cây hoặc dưới lòng đất.","<yellow>Nhấp trái để chọn"]
-"rtp.landing.preferred_selected" = ["<green><bold>Độ cao ưa thích</bold>","<gray>Tìm kiếm bên ngoài từ giá trị Y ưa thích.","<green>Được chọn"]
-"rtp.landing.preferred_available" = ["<aqua><bold>Độ cao ưa thích</bold>","<gray>Tìm kiếm bên ngoài từ giá trị Y ưa thích.","<yellow>Nhấp chuột trái để chọn"]
-"rtp.landing.safe_policy" = ["<aqua><bold>Chính sách hạ cánh an toàn</bold>","<gray>Từ chối nước, khối ngập nước, nguy hiểm, cây, va chạm và vị trí không có khối đỡ."]
+"rtp.landing.header" = ["<aqua><bold>Quy tắc hạ cánh</bold>","<gray>Choose surface or preferred-height behavior and its safety mode."]
+"rtp.landing.surface_selected" = ["<green><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<green>Selected"]
+"rtp.landing.surface_available" = ["<aqua><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<yellow>Left click to select"]
+"rtp.landing.preferred_selected" = ["<green><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<green>Selected"]
+"rtp.landing.preferred_available" = ["<aqua><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<yellow>Left click to select"]
+"rtp.landing.safe_policy" = ["<aqua><bold>Landing Safety: <white>{mode}</bold>","<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.","<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.","<yellow>Left click to toggle"]
 "rtp.routing.header" = ["<aqua><bold>Xoay vòng & Nhóm điểm đến</bold>","<gray>Chọn trực tiếp chế độ rồi áp dụng toàn bộ một lần."]
 "rtp.routing.shared_selected" = ["<green><bold>Điểm đến dùng chung</bold>","<gray>Mọi người đều thấy và dùng cùng một tuyến.","<green>Đã chọn"]
 "rtp.routing.shared_available" = ["<aqua><bold>Điểm đến dùng chung</bold>","<gray>Mọi người đều thấy và dùng cùng một tuyến.","<yellow>Nhấp trái để chọn"]
@@ -586,6 +587,7 @@ locale = "vi_VI"
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tui <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Kich thuoc <white>{size}<gray> khoi, tuong <white>{material}<gray>, cua thoat <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Gioi han <white>{minimum}<gray> den <white>{maximum}"]
 "command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Xay lai o {size} khoi se pha huy <white>{blocks}<red> khoi da dat va di chuyen <white>{entities}<red> thuc the.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Cac khoi ngoai tuong moi bi pha huy; thuc the bi di chuyen duoc dua den loi vao.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Chay lai cung lenh voi <white>confirm=true<gray> de tiep tuc."]
+"portal.menu.public_look_label" = ["<aqua><bold>Public Look Label: <white>{state}</bold>","<gray>Show this portal's name when nearby players look at it.","<gray>When Off, the route label remains portal-tool only.","","<yellow>Left click to toggle"]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Đã xóa <white>{count}<green> cổng dịch chuyển và dọn các liên kết cổng cục bộ."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Đã xóa <white>{count}<green> cổng dịch chuyển và dọn các liên kết cổng cục bộ."

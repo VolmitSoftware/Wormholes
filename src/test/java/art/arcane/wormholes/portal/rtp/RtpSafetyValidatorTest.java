@@ -178,6 +178,47 @@ public final class RtpSafetyValidatorTest
 	}
 
 	@Test
+	public void unsafeModeAcceptsLiquidCollisionAndUnsupportedTerrain()
+	{
+		RtpValidationRequest.BlockSnapshot unsupported = RtpValidationRequest.BlockSnapshot.air(0, 63, 0);
+		RtpValidationRequest.BlockSnapshot waterloggedCollision = RtpValidationRequest.BlockSnapshot.of(
+				0,
+				64,
+				0,
+				"minecraft:oak_stairs",
+				true,
+				false,
+				true,
+				List.of(RtpValidationRequest.CollisionBox.fullBlock()));
+		List<RtpValidationRequest.RegionSnapshot> snapshots = replaceBlock(
+				replaceBlock(safeSnapshots(DESTINATION, BASELINE), unsupported),
+				waterloggedCollision);
+		RtpValidationRequest request = requestBuilder(DESTINATION, BASELINE, snapshots)
+				.surfaceMode(true)
+				.safetyMode(RtpSafetyMode.UNSAFE)
+				.build();
+
+		RtpSafetyResult result = VALIDATOR.validate(request).join();
+
+		assertEquals(RtpSafetyResult.Code.SAFE, result.code());
+	}
+
+	@Test
+	public void unsafeModeStillRejectsWorldAndSnapshotInvariantFailures()
+	{
+		RtpValidationRequest outsideWorld = requestBuilder(DESTINATION, BASELINE, safeSnapshots(DESTINATION, BASELINE))
+				.worldBounds(0, 65)
+				.safetyMode(RtpSafetyMode.UNSAFE)
+				.build();
+		RtpValidationRequest missingSnapshot = requestBuilder(DESTINATION, BASELINE, List.of())
+				.safetyMode(RtpSafetyMode.UNSAFE)
+				.build();
+
+		assertEquals(RtpSafetyResult.Code.WORLD_HEIGHT, VALIDATOR.validate(outsideWorld).join().code());
+		assertEquals(RtpSafetyResult.Code.MISSING_SNAPSHOT, VALIDATOR.validate(missingSnapshot).join().code());
+	}
+
+	@Test
 	public void surfaceModeRejectsTreeSupportButAllowsClearGroundBeneathACanopy()
 	{
 		RtpValidationRequest.BlockSnapshot treeSupport = RtpValidationRequest.BlockSnapshot.of(

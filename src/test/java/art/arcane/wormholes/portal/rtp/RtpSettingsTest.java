@@ -48,6 +48,7 @@ public final class RtpSettingsTest
 		assertEquals(512, settings.getMinimumRadius());
 		assertEquals(4096, settings.getMaximumRadius());
 		assertEquals(RtpVerticalMode.SURFACE, settings.getVerticalMode());
+		assertEquals(RtpSafetyMode.SAFE, settings.getSafetyMode());
 		assertEquals(-63, settings.getLowerY());
 		assertEquals(318, settings.getUpperY());
 		assertEquals(64, settings.getPreferredY());
@@ -58,6 +59,7 @@ public final class RtpSettingsTest
 		assertEquals(15_000L, settings.getPrivateReleaseMillis());
 		assertTrue(settings.isRimEnabled());
 		assertTrue(settings.isSoundEnabled());
+		assertEquals("SAFE", settings.toJson().getString("safetyMode"));
 		assertFalse(settings.toJson().has("targetWorldKey"));
 	}
 
@@ -84,10 +86,12 @@ public final class RtpSettingsTest
 				.soundEnabled(false)
 				.build();
 		RtpSettings routingChange = original.toBuilder().radii(128, 1024).build();
+		RtpSettings safetyChange = original.toBuilder().safetyMode(RtpSafetyMode.UNSAFE).build();
 
 		assertFalse(original.equals(presentationOnly));
 		assertTrue(original.hasSameRouteAs(presentationOnly));
 		assertFalse(original.hasSameRouteAs(routingChange));
+		assertFalse(original.hasSameRouteAs(safetyChange));
 	}
 
 	@Test
@@ -167,6 +171,7 @@ public final class RtpSettingsTest
 				.customCenter(12.25D, -42.75D)
 				.radii(100, 900)
 				.verticalMode(RtpVerticalMode.PREFERRED_AVERAGE)
+				.safetyMode(RtpSafetyMode.UNSAFE)
 				.yBounds(5, 200)
 				.preferredY(90)
 				.allocationMode(RtpAllocationMode.PER_PLAYER)
@@ -201,6 +206,7 @@ public final class RtpSettingsTest
 		json.put("minimumRadius", -10);
 		json.put("maximumRadius", -1);
 		json.put("verticalMode", "invalid");
+		json.put("safetyMode", "invalid");
 		json.put("allocationMode", "invalid");
 		json.put("rotationMode", "invalid");
 		json.put("cycleDurationMillis", 1L);
@@ -213,6 +219,7 @@ public final class RtpSettingsTest
 		assertEquals(512, settings.getMinimumRadius());
 		assertEquals(4096, settings.getMaximumRadius());
 		assertEquals(RtpVerticalMode.SURFACE, settings.getVerticalMode());
+		assertEquals(RtpSafetyMode.SAFE, settings.getSafetyMode());
 		assertEquals(RtpAllocationMode.SHARED, settings.getAllocationMode());
 		assertEquals(RtpRotationMode.ON_TRAVERSAL, settings.getRotationMode());
 		assertEquals(15_000L, settings.getCycleDurationMillis());

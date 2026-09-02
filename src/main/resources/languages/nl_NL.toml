@@ -416,6 +416,7 @@ locale = "nl_NL"
 "command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Een kamer van {size} blokken past niet in de bouwhoogte van de zakdimensie."
 "command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray><white>{count}<gray> zakken worden herbouwd."
 "command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Herbouwd <white>{resized}<green>, overgeslagen <white>{skipped}<green>, mislukt <white>{failed}."
+"portal.label.public_look_label" = "Public Look Label"
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>Reiskosten</bold>","<gray>Vereis een exact voorwerp of Vault-valuta","<gray>wanneer een speler dit portaal gebruikt.","","<gray>Modus: <white>{mode}","<gray>Kosten: <white>{cost}","","<dark_gray>Klik om te configureren."]
 "portal.menu.cost.placard" = ["<gold><bold>Reiskosten</bold>","<gray>Spelers moeten betalen voordat dit portaal","<gray>ze laat reizen.","","<gray>Modus: <white>{mode}","<gray>Kosten: <white>{cost}"]
@@ -542,12 +543,12 @@ locale = "nl_NL"
 "rtp.destination.center_custom_available" = ["<aqua><bold>Aangepast centrum</bold>","<gray>Gebruikt bewerkbare X- en Z-coördinaten.","<yellow>Linksklik om te selecteren"]
 "rtp.numeric.link" = ["<yellow><bold>{label} <white>{value}</bold>", "<gray>Open duidelijke decrease/increasie-controles.", "<yellow>Links klikken"]
 "rtp.destination.reset_center" = ["<yellow><bold>Centrum / bestemming herstellen</bold>","<gray>Gebruik de bronwereld en het portaalcentrum.","<yellow>Linksklik"]
-"rtp.landing.header" = ["<aqua><bold>Landingsregels</bold>","<gray>Geen water, boomtoppen of ondergrondse uitwijking."]
-"rtp.landing.surface_selected" = ["<green><bold>Oppervlak</bold>","<gray>Geen water, boomtoppen of ondergrondse uitwijking.","<green>Geselecteerd"]
-"rtp.landing.surface_available" = ["<aqua><bold>Oppervlak</bold>","<gray>Geen water, boomtoppen of ondergrondse uitwijking.","<yellow>Linksklik om te selecteren"]
-"rtp.landing.preferred_selected" = ["<green><bold>Voorkeurshoogte</bold>","<gray>Zoekt naar buiten vanaf een gewenste Y-waarde.","<green>Geselecteerd"]
-"rtp.landing.preferred_available" = ["<aqua><bold>Voorkeurshoogte</bold>","<gray>Zoekt naar buiten vanaf een gewenste Y-waarde.","<yellow>Linksklik om te selecteren"]
-"rtp.landing.safe_policy" = ["<aqua><bold>Veilig landingsbeleid</bold>", "<gray>Water, waterlogged blocks, gevaren, bomen, botsing en ongesupporteerde landingen worden afgewezen."]
+"rtp.landing.header" = ["<aqua><bold>Landingsregels</bold>","<gray>Choose surface or preferred-height behavior and its safety mode."]
+"rtp.landing.surface_selected" = ["<green><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<green>Selected"]
+"rtp.landing.surface_available" = ["<aqua><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<yellow>Left click to select"]
+"rtp.landing.preferred_selected" = ["<green><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<green>Selected"]
+"rtp.landing.preferred_available" = ["<aqua><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<yellow>Left click to select"]
+"rtp.landing.safe_policy" = ["<aqua><bold>Landing Safety: <white>{mode}</bold>","<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.","<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.","<yellow>Left click to toggle"]
 "rtp.routing.header" = ["<aqua><bold>Rotatie & Bestemmingspool</bold>","<gray>Kies de modi rechtstreeks en pas daarna alle wijzigingen samen toe."]
 "rtp.routing.shared_selected" = ["<green><bold>Gedeelde bestemming</bold>","<gray>Iedereen ziet en gebruikt dezelfde route.","<green>Geselecteerd"]
 "rtp.routing.shared_available" = ["<aqua><bold>Gedeelde bestemming</bold>","<gray>Iedereen ziet en gebruikt dezelfde route.","<yellow>Linksklik om te selecteren"]
@@ -586,6 +587,7 @@ locale = "nl_NL"
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Zak <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Grootte <white>{size}<gray> blokken, muren <white>{material}<gray>, uitgangsdeur <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Grenzen <white>{minimum}<gray> tot <white>{maximum}"]
 "command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Herbouwen op {size} blokken zou <white>{blocks}<red> geplaatste blokken vernietigen en <white>{entities}<red> entiteiten verplaatsen.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Blokken buiten de nieuwe muren worden vernietigd; verplaatste entiteiten gaan naar de ingang.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Voer hetzelfde commando uit met <white>confirm=true<gray> om door te gaan."]
+"portal.menu.public_look_label" = ["<aqua><bold>Public Look Label: <white>{state}</bold>","<gray>Show this portal's name when nearby players look at it.","<gray>When Off, the route label remains portal-tool only.","","<yellow>Left click to toggle"]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> portaal verwijderd en lokale portaalverbindingen opgeschoond."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> portalen verwijderd en lokale portaalverbindingen opgeschoond."

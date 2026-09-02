@@ -417,6 +417,7 @@ locale = "ja-JP"
 "command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} ブロックの部屋はポケットディメンションの建築高度に収まりません。"
 "command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray><white>{count}<gray> 個のポケットを作り直しています。"
 "command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>作り直し <white>{resized}<green>、スキップ <white>{skipped}<green>、失敗 <white>{failed}。"
+"portal.label.public_look_label" = "Public Look Label"
 [lines]
 "portal.menu.cost.opener" = ["<gold><bold>移動コスト</bold>","<gray>プレイヤーがこのポータルを使用するときに","<gray>正確なアイテムまたは Vault 通貨を要求します。","","<gray>モード: <white>{mode}","<gray>コスト: <white>{cost}","","<dark_gray>クリックして設定します。"]
 "portal.menu.cost.placard" = ["<gold><bold>移動コスト</bold>","<gray>プレイヤーは支払いを済ませるまで","<gray>このポータルで移動できません。","","<gray>モード: <white>{mode}","<gray>コスト: <white>{cost}"]
@@ -543,12 +544,12 @@ locale = "ja-JP"
 "rtp.destination.center_custom_available" = ["<aqua><bold>カスタムセンター</bold>","<gray>編集可能な X 座標と Z 座標を使用します。","<yellow>左クリックで選択します"]
 "rtp.numeric.link" = ["<yellow><bold>{label} <white>{value}</bold>","<gray>値を増減する専用画面を開きます。","<yellow>左クリック"]
 "rtp.destination.reset_center" = ["<yellow><bold>中心 / 対象をリセット</bold>","<gray>出発元のワールドとポータルの中心を使用します。","<yellow>左クリック"]
-"rtp.landing.header" = ["<aqua><bold>着地点のルール</bold>","<gray>地表モードでは乾いた、木ではない地形を使用します。"]
-"rtp.landing.surface_selected" = ["<green><bold>地表</bold>","<gray>水上、木の上、地下への落下地点は使用しません。","<green>選択中"]
-"rtp.landing.surface_available" = ["<aqua><bold>地表</bold>","<gray>水上、木の上、地下への落下地点は使用しません。","<yellow>左クリックで選択"]
-"rtp.landing.preferred_selected" = ["<green><bold>優先された高度</bold>","<gray>指定した Y 値を中心に上下方向へ検索します。","<green>選択した"]
-"rtp.landing.preferred_available" = ["<aqua><bold>優先された高度</bold>","<gray>指定した Y 値を中心に上下方向へ検索します。","<yellow>左クリックで選択します"]
-"rtp.landing.safe_policy" = ["<aqua><bold>安全な着地ポリシー</bold>","<gray>水、水没ブロック、危険物、木、衝突、足場のない着地点は除外されます。"]
+"rtp.landing.header" = ["<aqua><bold>着地点のルール</bold>","<gray>Choose surface or preferred-height behavior and its safety mode."]
+"rtp.landing.surface_selected" = ["<green><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<green>Selected"]
+"rtp.landing.surface_available" = ["<aqua><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<yellow>Left click to select"]
+"rtp.landing.preferred_selected" = ["<green><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<green>Selected"]
+"rtp.landing.preferred_available" = ["<aqua><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<yellow>Left click to select"]
+"rtp.landing.safe_policy" = ["<aqua><bold>Landing Safety: <white>{mode}</bold>","<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.","<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.","<yellow>Left click to toggle"]
 "rtp.routing.header" = ["<aqua><bold>ローテーション & 目的地プール</bold>","<gray>モードを直接選び、最後に一括適用します。"]
 "rtp.routing.shared_selected" = ["<green><bold>共有目的地</bold>","<gray>全員が同じルートを見て使用します。","<green>選択中"]
 "rtp.routing.shared_available" = ["<aqua><bold>共有目的地</bold>","<gray>全員が同じルートを見て使用します。","<yellow>左クリックで選択"]
@@ -587,6 +588,7 @@ locale = "ja-JP"
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>ポケット <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>サイズ <white>{size}<gray> ブロック、壁 <white>{material}<gray>、出口ドア <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>範囲 <white>{minimum}<gray> から <white>{maximum}"]
 "command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} ブロックで作り直すと、設置済みブロック <white>{blocks}<red> 個が壊れ、エンティティ <white>{entities}<red> 体が移動します。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>新しい壁の外側のブロックは破壊され、移動対象のエンティティは入口へ移されます。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>続けるには同じコマンドに <white>confirm=true<gray> を付けて実行してください。"]
+"portal.menu.public_look_label" = ["<aqua><bold>Public Look Label: <white>{state}</bold>","<gray>Show this portal's name when nearby players look at it.","<gray>When Off, the route label remains portal-tool only.","","<yellow>Left click to toggle"]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> 個のポータルを削除し、ローカルポータルリンクを消去しました。"
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> 個のポータルを削除し、ローカルポータルリンクを消去しました。"

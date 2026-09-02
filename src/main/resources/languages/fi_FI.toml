@@ -416,6 +416,7 @@ locale = "fi_FI"
 "command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} lohkon huone ei mahdu taskuulottuvuuden rakennuskorkeuteen."
 "command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Rakennetaan <white>{count}<gray> taskua uudelleen."
 "command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Rakennettu uudelleen <white>{resized}<green>, ohitettu <white>{skipped}<green>, epaonnistui <white>{failed}."
+"portal.label.public_look_label" = "Public Look Label"
 [lines]
 "portal.menu.render_mode" = ["<aqua><bold>Renderöintitila <white>{mode}</bold>","<gray>Kuinka suuren osan kohdetilavuudesta tämä portaali projisoi.","","<gray>Tila: <white>{mode}","","<dark_gray>PanOptic renderöi koko kohdetilavuuden.","<dark_gray>Venticular piilottaa näkyvien läpinäkymättömien pintojen takana olevan geometrian.","","<dark_gray>Vasen: vaihda tilaa."]
 "portal.menu.ambient_particles" = ["<aqua><bold>Ympäristöhiukkaset</bold>","<gray>Koristeellista pölyä, joka leijuu tämän portaalin ympärillä.","","<gray>Tyyli: <white>{style} <dark_gray>({color})","","<dark_gray>Vasen: vaihda tyyliä.","<dark_gray>Oikea: valitse väri."]
@@ -546,12 +547,12 @@ locale = "fi_FI"
 "rtp.destination.center_custom_available" = ["<aqua><bold>Mukautettu keskipiste</bold>","<gray>Käytä muokattavia X- ja Z-koordinaatteja.","<yellow>Valitse vasemmalla napsautuksella"]
 "rtp.numeric.link" = ["<yellow><bold>{label} <white>{value}</bold>","<gray>Avaa selkeät pienennys- ja suurennussäätimet.","<yellow>Vasen napsautus"]
 "rtp.destination.reset_center" = ["<yellow><bold>Palauta keskus / kohde</bold>","<gray>Käytä lähtömaailmaa ja portaalin keskustaa.","<yellow>Vasen napsautus"]
-"rtp.landing.header" = ["<aqua><bold>Laskeutumissäännöt</bold>","<gray>Ei vettä, puiden latvoja tai maanalaista varakohdetta."]
-"rtp.landing.surface_selected" = ["<green><bold>Pinta</bold>","<gray>Ei vettä, puiden latvoja tai maanalaista varakohdetta.","<green>Valittu"]
-"rtp.landing.surface_available" = ["<aqua><bold>Pinta</bold>","<gray>Ei vettä, puiden latvoja tai maanalaista varakohdetta.","<yellow>Valitse vasemmalla napsautuksella"]
-"rtp.landing.preferred_selected" = ["<green><bold>Ensisijainen korkeus</bold>","<gray>Etsi ulospäin ensisijaisesta Y-arvosta.","<green>Valittu"]
-"rtp.landing.preferred_available" = ["<aqua><bold>Ensisijainen korkeus</bold>","<gray>Etsi ulospäin ensisijaisesta Y-arvosta.","<yellow>Valitse vasemmalla napsautuksella"]
-"rtp.landing.safe_policy" = ["<aqua><bold>Turvallisen laskeutumisen käytäntö</bold>","<gray>Vesi, vettyneet lohkot, vaarat, puut, törmäykset ja tukemattomat laskeutumiset hylätään."]
+"rtp.landing.header" = ["<aqua><bold>Laskeutumissäännöt</bold>","<gray>Choose surface or preferred-height behavior and its safety mode."]
+"rtp.landing.surface_selected" = ["<green><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<green>Selected"]
+"rtp.landing.surface_available" = ["<aqua><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<yellow>Left click to select"]
+"rtp.landing.preferred_selected" = ["<green><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<green>Selected"]
+"rtp.landing.preferred_available" = ["<aqua><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<yellow>Left click to select"]
+"rtp.landing.safe_policy" = ["<aqua><bold>Landing Safety: <white>{mode}</bold>","<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.","<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.","<yellow>Left click to toggle"]
 "rtp.routing.header" = ["<aqua><bold>Vaihto & Kohdevaranto</bold>","<gray>Valitse tilat suoraan ja ota sitten kaikki muutokset käyttöön yhdessä."]
 "rtp.routing.shared_selected" = ["<green><bold>Yhteinen kohde</bold>","<gray>Kaikki näkevät ja käyttävät samaa reittiä.","<green>Valittu"]
 "rtp.routing.shared_available" = ["<aqua><bold>Yhteinen kohde</bold>","<gray>Kaikki näkevät ja käyttävät samaa reittiä.","<yellow>Valitse vasemmalla napsautuksella"]
@@ -586,6 +587,7 @@ locale = "fi_FI"
 
 "command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tasku <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Koko <white>{size}<gray> lohkoa, seinat <white>{material}<gray>, uloskayntiovi <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Rajat <white>{minimum}<gray> - <white>{maximum}"]
 "command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Uudelleenrakennus kokoon {size} tuhoaisi <white>{blocks}<red> asetettua lohkoa ja siirtaisi <white>{entities}<red> olentoa.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Uusien seinien ulkopuoliset lohkot tuhotaan; siirtyvat olennot viedaan sisaankaynnille.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Aja sama komento lisayksella <white>confirm=true<gray> jatkaaksesi."]
+"portal.menu.public_look_label" = ["<aqua><bold>Public Look Label: <white>{state}</bold>","<gray>Show this portal's name when nearby players look at it.","<gray>When Off, the route label remains portal-tool only.","","<yellow>Left click to toggle"]
 [plural."command.admin.deleted_portals"]
 one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Poistettiin <white>{count}<green> portaali ja puhdistettiin paikalliset portaalilinkit."
 other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Poistettiin <white>{count}<green> portaalia ja puhdistettiin paikalliset portaalilinkit."

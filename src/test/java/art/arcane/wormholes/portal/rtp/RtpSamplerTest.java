@@ -112,6 +112,22 @@ public final class RtpSamplerTest
 		assertEquals(List.of(15, 14, 13, 12, 11, 10), clampedProbes);
 	}
 
+	@Test
+	public void unsafePreferredHeightUsesOnlyTheLiteralPreferredY()
+	{
+		World world = world("overworld", -64, 320, 63);
+		RtpSettings settings = RtpSettings.builder(world)
+				.radii(32, 64)
+				.verticalMode(RtpVerticalMode.PREFERRED_AVERAGE)
+				.safetyMode(RtpSafetyMode.UNSAFE)
+				.yBounds(10, 15)
+				.preferredY(12)
+				.build();
+		RtpSampler sampler = new RtpSampler(0.0D, 0.0D, 1L);
+
+		assertEquals(List.of(12), sampler.feetYProbeOrder(settings, 14));
+	}
+
 	private static RtpSettings settings(int minimumRadius, int maximumRadius, RtpVerticalMode verticalMode,
 			int lowerY, int upperY, int preferredY)
 	{

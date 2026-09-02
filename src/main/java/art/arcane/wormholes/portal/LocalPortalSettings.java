@@ -29,6 +29,7 @@ final class LocalPortalSettings
 	private static final AmbientParticleStyle DEFAULT_AMBIENT_STYLE = AmbientParticleStyle.SPARKS;
 	private static final int DEFAULT_AMBIENT_COLOR = 0xB969FF;
 	private static final String DEFAULT_SURFACE_SKIN = "";
+	private static final boolean DEFAULT_PUBLIC_LOOK_LABEL = false;
 
 	private final LocalPortal portal;
 	private ProjectionMode projectionMode;
@@ -51,6 +52,7 @@ final class LocalPortalSettings
 	private AmbientParticleStyle ambientStyle;
 	private int ambientColor;
 	private String surfaceSkin;
+	private boolean publicLookLabel;
 	private PortalTravelCost travelCost;
 	private boolean settingsSyncEnabled;
 
@@ -76,6 +78,7 @@ final class LocalPortalSettings
 		ambientStyle = DEFAULT_AMBIENT_STYLE;
 		ambientColor = DEFAULT_AMBIENT_COLOR;
 		surfaceSkin = DEFAULT_SURFACE_SKIN;
+		publicLookLabel = DEFAULT_PUBLIC_LOOK_LABEL;
 		travelCost = null;
 		settingsSyncEnabled = true;
 	}
@@ -98,6 +101,7 @@ final class LocalPortalSettings
 		j.put("ambientStyle", ambientStyle.name());
 		j.put("ambientColor", ambientColor);
 		j.put("surfaceSkin", surfaceSkin);
+		j.put("publicLookLabel", publicLookLabel);
 		if(travelCost != null)
 		{
 			j.put("travelCost", travelCost.toJson());
@@ -128,6 +132,7 @@ final class LocalPortalSettings
 		ambientStyle = AmbientParticleStyle.fromName(j.optString("ambientStyle", ""), DEFAULT_AMBIENT_STYLE);
 		ambientColor = normalizeAmbientColor(j.optInt("ambientColor", DEFAULT_AMBIENT_COLOR));
 		surfaceSkin = PortalSurfaceSkins.normalizeSkin(j.optString("surfaceSkin", DEFAULT_SURFACE_SKIN));
+		publicLookLabel = j.optBoolean("publicLookLabel", DEFAULT_PUBLIC_LOOK_LABEL);
 		boolean malformedTravelCost = j.has("travelCost")
 				&& !j.isNull("travelCost")
 				&& j.optJSONObject("travelCost") == null;
@@ -694,6 +699,22 @@ final class LocalPortalSettings
 		}
 		surfaceSkin = normalized;
 		renderSettingsChanged();
+	}
+
+	boolean isPublicLookLabel()
+	{
+		return publicLookLabel;
+	}
+
+	void setPublicLookLabel(boolean enabled)
+	{
+		if(publicLookLabel == enabled)
+		{
+			return;
+		}
+		publicLookLabel = enabled;
+		portal.save();
+		refreshOpenMenusUnlessApplyingRemote();
 	}
 
 	boolean isSettingsSyncEnabled()

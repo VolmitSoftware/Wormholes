@@ -67,6 +67,7 @@ public final class RtpPortalEditorModel
 			case CustomCenterMutation change -> builder.customCenter(change.x(), change.z());
 			case RadiiMutation change -> builder.radii(change.minimumRadius(), change.maximumRadius());
 			case VerticalModeMutation change -> builder.verticalMode(change.mode());
+			case SafetyModeMutation change -> builder.safetyMode(change.mode());
 			case YMutation change -> builder
 					.yBounds(change.lowerY(), change.upperY())
 					.preferredY(change.preferredY());
@@ -84,7 +85,7 @@ public final class RtpPortalEditorModel
 
 	public sealed interface Mutation permits AllocationMutation, CenterModeMutation, CustomCenterMutation,
 			CycleDurationMutation, LeaseIdleMutation, RadiiMutation, ReservationTimeoutMutation,
-			ResetCenterTargetMutation, RimMutation, RotationMutation, SoundMutation, TargetBiomeMutation,
+			ResetCenterTargetMutation, RimMutation, RotationMutation, SafetyModeMutation, SoundMutation, TargetBiomeMutation,
 			TargetWorldMutation, VerticalModeMutation, YMutation
 	{
 	}
@@ -156,6 +157,7 @@ public final class RtpPortalEditorModel
 			int minimumRadius,
 			int maximumRadius,
 			RtpVerticalMode verticalMode,
+			RtpSafetyMode safetyMode,
 			int lowerY,
 			int upperY,
 			int preferredY,
@@ -183,6 +185,7 @@ public final class RtpPortalEditorModel
 				throw new IllegalArgumentException("radius bounds are invalid");
 			}
 			Objects.requireNonNull(verticalMode, "verticalMode");
+			Objects.requireNonNull(safetyMode, "safetyMode");
 			if(lowerY > preferredY || preferredY > upperY)
 			{
 				throw new IllegalArgumentException("Y bounds must contain preferred Y");
@@ -215,6 +218,7 @@ public final class RtpPortalEditorModel
 					requiredSettings.getMinimumRadius(),
 					requiredSettings.getMaximumRadius(),
 					requiredSettings.getVerticalMode(),
+					requiredSettings.getSafetyMode(),
 					requiredSettings.getLowerY(),
 					requiredSettings.getUpperY(),
 					requiredSettings.getPreferredY(),
@@ -384,6 +388,14 @@ public final class RtpPortalEditorModel
 	public record VerticalModeMutation(RtpVerticalMode mode) implements Mutation
 	{
 		public VerticalModeMutation
+		{
+			Objects.requireNonNull(mode, "mode");
+		}
+	}
+
+	public record SafetyModeMutation(RtpSafetyMode mode) implements Mutation
+	{
+		public SafetyModeMutation
 		{
 			Objects.requireNonNull(mode, "mode");
 		}

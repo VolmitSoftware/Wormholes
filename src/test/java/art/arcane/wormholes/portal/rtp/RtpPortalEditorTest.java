@@ -90,6 +90,12 @@ public final class RtpPortalEditorTest
 		assertEquals(RtpCenterMode.CUSTOM, custom.mode());
 		assertEquals(18.75D, custom.customX().doubleValue());
 		assertEquals(-42.5D, custom.customZ().doubleValue());
+
+		host.mutations.clear();
+		click(rendered.window(), "rtp-submenu-back", ElementEvent.LEFT);
+		click(rendered.window(), "rtp-open-landing", ElementEvent.LEFT);
+		click(rendered.window(), "rtp-surface-policy", ElementEvent.LEFT);
+		assertEquals(new RtpPortalEditorModel.SafetyModeMutation(RtpSafetyMode.UNSAFE), host.lastMutation());
 	}
 
 	@Test
@@ -202,6 +208,7 @@ public final class RtpPortalEditorTest
 
 		assertTrue(defaults.rimEnabled());
 		assertTrue(defaults.soundEnabled());
+		assertEquals(RtpSafetyMode.SAFE, defaults.safetyMode());
 		RtpSettings muted = RtpPortalEditorModel.applyMutation(
 				RtpSettings.defaults(source),
 				new RtpPortalEditorModel.SoundMutation(false),
@@ -222,6 +229,7 @@ public final class RtpPortalEditorTest
 		settings = apply(settings, new RtpPortalEditorModel.CenterModeMutation(RtpCenterMode.CUSTOM, 12.5D, -7.25D), source, resolver);
 		settings = apply(settings, new RtpPortalEditorModel.RadiiMutation(96, 2048), source, resolver);
 		settings = apply(settings, new RtpPortalEditorModel.VerticalModeMutation(RtpVerticalMode.PREFERRED_AVERAGE), source, resolver);
+		settings = apply(settings, new RtpPortalEditorModel.SafetyModeMutation(RtpSafetyMode.UNSAFE), source, resolver);
 		settings = apply(settings, new RtpPortalEditorModel.YMutation(5, 200, 88), source, resolver);
 		settings = apply(settings, new RtpPortalEditorModel.AllocationMutation(RtpAllocationMode.PER_PLAYER), source, resolver);
 		settings = apply(settings, new RtpPortalEditorModel.CycleDurationMutation(600_000L), source, resolver);
@@ -236,6 +244,7 @@ public final class RtpPortalEditorTest
 		assertEquals(RtpCenterMode.CUSTOM, settings.getCenterMode());
 		assertEquals(96, settings.getMinimumRadius());
 		assertEquals(2048, settings.getMaximumRadius());
+		assertEquals(RtpSafetyMode.UNSAFE, settings.getSafetyMode());
 		assertEquals(RtpAllocationMode.PER_PLAYER, settings.getAllocationMode());
 		assertEquals(600_000L, settings.getCycleDurationMillis());
 		assertEquals(45_000L, settings.getLeaseIdleMillis());
@@ -250,7 +259,8 @@ public final class RtpPortalEditorTest
 		SettingsSnapshot source = settings();
 		assertThrows(IllegalArgumentException.class, () -> new SettingsSnapshot(
 				source.sourceWorldKey(), source.targetWorldKey(), RtpCenterMode.CUSTOM, null, null,
-				source.minimumRadius(), source.maximumRadius(), source.verticalMode(), source.lowerY(), source.upperY(), source.preferredY(),
+				source.minimumRadius(), source.maximumRadius(), source.verticalMode(), source.safetyMode(),
+				source.lowerY(), source.upperY(), source.preferredY(),
 				source.allocationMode(), source.rotationMode(), source.cycleDurationMillis(), source.leaseIdleMillis(),
 				source.reservationTimeoutMillis(), source.rimEnabled(), source.soundEnabled(), source.targetBiomeKey()));
 	}
@@ -299,7 +309,7 @@ public final class RtpPortalEditorTest
 	private static SettingsSnapshot settings()
 	{
 		return new SettingsSnapshot("minecraft:overworld", "minecraft:overworld", RtpCenterMode.PORTAL_RELATIVE,
-				null, null, 512, 4096, RtpVerticalMode.SURFACE, -63, 318, 64,
+				null, null, 512, 4096, RtpVerticalMode.SURFACE, RtpSafetyMode.SAFE, -63, 318, 64,
 				RtpAllocationMode.SHARED, RtpRotationMode.STATIC, 300_000L, 30_000L, 15_000L, true, true, null);
 	}
 
@@ -312,7 +322,7 @@ public final class RtpPortalEditorTest
 	{
 		return new SettingsSnapshot(source.sourceWorldKey(), source.targetWorldKey(), source.centerMode(),
 				source.customCenterX(), source.customCenterZ(), source.minimumRadius(), source.maximumRadius(), source.verticalMode(),
-				source.lowerY(), source.upperY(), source.preferredY(), allocationMode, rotationMode,
+				source.safetyMode(), source.lowerY(), source.upperY(), source.preferredY(), allocationMode, rotationMode,
 				source.cycleDurationMillis(), source.leaseIdleMillis(), source.reservationTimeoutMillis(), rimEnabled, soundEnabled,
 				source.targetBiomeKey());
 	}

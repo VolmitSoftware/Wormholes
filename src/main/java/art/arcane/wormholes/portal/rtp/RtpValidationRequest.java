@@ -17,6 +17,7 @@ public final class RtpValidationRequest
 	private final int netherLogicalCeiling;
 	private final EntityEnvelope entityEnvelope;
 	private final boolean surfaceMode;
+	private final RtpSafetyMode safetyMode;
 	private final Set<String> configuredHazards;
 	private final List<RegionSnapshot> regionSnapshots;
 
@@ -39,6 +40,7 @@ public final class RtpValidationRequest
 		netherLogicalCeiling = builder.netherLogicalCeiling;
 		entityEnvelope = Objects.requireNonNull(builder.entityEnvelope, "entityEnvelope");
 		surfaceMode = builder.surfaceMode;
+		safetyMode = Objects.requireNonNull(builder.safetyMode, "safetyMode");
 		configuredHazards = normalizeHazards(builder.configuredHazards);
 		regionSnapshots = List.copyOf(builder.regionSnapshots);
 	}
@@ -91,6 +93,11 @@ public final class RtpValidationRequest
 	public boolean surfaceMode()
 	{
 		return surfaceMode;
+	}
+
+	public RtpSafetyMode safetyMode()
+	{
+		return safetyMode;
 	}
 
 	public Set<String> configuredHazards()
@@ -267,6 +274,7 @@ public final class RtpValidationRequest
 		private int netherLogicalCeiling;
 		private EntityEnvelope entityEnvelope;
 		private boolean surfaceMode;
+		private RtpSafetyMode safetyMode;
 		private Set<String> configuredHazards;
 		private List<RegionSnapshot> regionSnapshots;
 
@@ -281,6 +289,7 @@ public final class RtpValidationRequest
 			netherLogicalCeiling = Integer.MAX_VALUE;
 			entityEnvelope = EntityEnvelope.baseline();
 			surfaceMode = false;
+			safetyMode = RtpSafetyMode.SAFE;
 			configuredHazards = Set.of();
 			regionSnapshots = List.of();
 		}
@@ -325,6 +334,12 @@ public final class RtpValidationRequest
 		public Builder surfaceMode(boolean enabled)
 		{
 			surfaceMode = enabled;
+			return this;
+		}
+
+		public Builder safetyMode(RtpSafetyMode mode)
+		{
+			safetyMode = Objects.requireNonNull(mode, "mode");
 			return this;
 		}
 

@@ -62,7 +62,9 @@ public final class RtpSampler
 		return switch(requiredSettings.getVerticalMode())
 		{
 			case SURFACE -> surfaceProbeOrder(requiredSettings, surfaceFeetYHint);
-			case PREFERRED_AVERAGE -> preferredProbeOrder(requiredSettings);
+			case PREFERRED_AVERAGE -> requiredSettings.getSafetyMode() == RtpSafetyMode.UNSAFE
+					? List.of(Integer.valueOf(requiredSettings.getPreferredY()))
+					: preferredProbeOrder(requiredSettings);
 		};
 	}
 

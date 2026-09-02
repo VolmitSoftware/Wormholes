@@ -201,6 +201,8 @@ public interface ILocalPortal extends IPortal, Listener
 
 	public void setSurfaceSkin(String skin);
 
+	public boolean isPublicLookLabel();
+
 	public default boolean hasSurfaceSkin()
 	{
 		return !getSurfaceSkin().isEmpty();

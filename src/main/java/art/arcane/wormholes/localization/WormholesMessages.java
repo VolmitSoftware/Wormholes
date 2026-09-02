@@ -595,6 +595,12 @@ public final class WormholesMessages {
             "",
             "<gray>Larger depth / shorter ticks =",
             "<gray>richer view, more bandwidth.");
+    public static final LinesKey PORTAL_MENU_PUBLIC_LOOK_LABEL = lines("portal.menu.public_look_label",
+            "<aqua><bold>Public Look Label: <white>{state}</bold>",
+            "<gray>Show this portal's name when nearby players look at it.",
+            "<gray>When Off, the route label remains portal-tool only.",
+            "",
+            "<yellow>Left click to toggle");
     public static final LinesKey PORTAL_MENU_COST_OPENER = lines("portal.menu.cost.opener",
             "<gold><bold>Travel Cost</bold>",
             "<gray>Require an exact item or Vault currency",
@@ -896,6 +902,7 @@ public final class WormholesMessages {
     public static final TextKey PORTAL_NETWORK_LABEL_BLACKOUT_COLOR = text("portal.network.label.blackout_color", "Blackout Color");
     public static final TextKey PORTAL_NETWORK_LABEL_ACTIVATION_RANGE = text("portal.network.label.activation_range", "Activation Range");
     public static final TextKey PORTAL_NETWORK_LABEL_RENDER_MODE = text("portal.network.label.render_mode", "Render Mode");
+    public static final TextKey PORTAL_LABEL_PUBLIC_LOOK_LABEL = text("portal.label.public_look_label", "Public Look Label");
     public static final TextKey PORTAL_LABEL_ACTIVATION_GLOBAL = text("portal.label.activation_global", "Global ({range})");
     public static final TextKey PORTAL_NETWORK_LABEL_AMBIENT_STYLE = text("portal.network.label.ambient_style", "Ambient Particles");
     public static final TextKey PORTAL_NETWORK_LABEL_AMBIENT_COLOR = text("portal.network.label.ambient_color", "Ambient Color");
@@ -960,12 +967,12 @@ public final class WormholesMessages {
     public static final LinesKey RTP_CENTER_CUSTOM_AVAILABLE = lines("rtp.destination.center_custom_available", "<aqua><bold>Custom Center</bold>", "<gray>Use editable X and Z coordinates.", "<yellow>Left click to select");
     public static final LinesKey RTP_NUMERIC_LINK = lines("rtp.numeric.link", "<yellow><bold>{label} <white>{value}</bold>", "<gray>Open clear decrease/increase controls.", "<yellow>Left click");
     public static final LinesKey RTP_RESET_CENTER = lines("rtp.destination.reset_center", "<yellow><bold>Reset Center / Target</bold>", "<gray>Use the source world and portal center.", "<yellow>Left click");
-    public static final LinesKey RTP_LANDING_HEADER = lines("rtp.landing.header", "<aqua><bold>Landing Rules</bold>", "<gray>Surface mode uses one dry, non-tree terrain surface.");
-    public static final LinesKey RTP_SURFACE_SELECTED = lines("rtp.landing.surface_selected", "<green><bold>Surface</bold>", "<gray>No water, tree tops, or underground fallback.", "<green>Selected");
-    public static final LinesKey RTP_SURFACE_AVAILABLE = lines("rtp.landing.surface_available", "<aqua><bold>Surface</bold>", "<gray>No water, tree tops, or underground fallback.", "<yellow>Left click to select");
-    public static final LinesKey RTP_PREFERRED_SELECTED = lines("rtp.landing.preferred_selected", "<green><bold>Preferred Height</bold>", "<gray>Search outward from a preferred Y value.", "<green>Selected");
-    public static final LinesKey RTP_PREFERRED_AVAILABLE = lines("rtp.landing.preferred_available", "<aqua><bold>Preferred Height</bold>", "<gray>Search outward from a preferred Y value.", "<yellow>Left click to select");
-    public static final LinesKey RTP_SAFE_LANDING = lines("rtp.landing.safe_policy", "<aqua><bold>Safe Landing Policy</bold>", "<gray>Water, waterlogged blocks, hazards, trees, collisions, and unsupported landings are rejected.");
+    public static final LinesKey RTP_LANDING_HEADER = lines("rtp.landing.header", "<aqua><bold>Landing Rules</bold>", "<gray>Choose surface or preferred-height behavior and its safety mode.");
+    public static final LinesKey RTP_SURFACE_SELECTED = lines("rtp.landing.surface_selected", "<green><bold>Surface</bold>", "<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.", "<green>Selected");
+    public static final LinesKey RTP_SURFACE_AVAILABLE = lines("rtp.landing.surface_available", "<aqua><bold>Surface</bold>", "<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.", "<yellow>Left click to select");
+    public static final LinesKey RTP_PREFERRED_SELECTED = lines("rtp.landing.preferred_selected", "<green><bold>Preferred / Exact Height</bold>", "<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.", "<green>Selected");
+    public static final LinesKey RTP_PREFERRED_AVAILABLE = lines("rtp.landing.preferred_available", "<aqua><bold>Preferred / Exact Height</bold>", "<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.", "<yellow>Left click to select");
+    public static final LinesKey RTP_SAFE_LANDING = lines("rtp.landing.safe_policy", "<aqua><bold>Landing Safety: <white>{mode}</bold>", "<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.", "<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.", "<yellow>Left click to toggle");
     public static final LinesKey RTP_ROUTING_HEADER = lines("rtp.routing.header", "<aqua><bold>Rotation & Pool</bold>", "<gray>Choose modes directly, then apply the batch once.");
     public static final LinesKey RTP_SHARED_SELECTED = lines("rtp.routing.shared_selected", "<green><bold>Shared Destination</bold>", "<gray>Everyone sees and uses the same route.", "<green>Selected");
     public static final LinesKey RTP_SHARED_AVAILABLE = lines("rtp.routing.shared_available", "<aqua><bold>Shared Destination</bold>", "<gray>Everyone sees and uses the same route.", "<yellow>Left click to select");

@@ -380,16 +380,21 @@ public class EffectManager implements Listener
 			ItemStack mainHandItem = player.getInventory().getItemInMainHand();
 			ItemStack offHandItem = player.getInventory().getItemInOffHand();
 			boolean holdingPortalTool = Wormholes.blockManager.isPortalTool(mainHandItem)
-				|| Wormholes.blockManager.isPortalTool(offHandItem);
-			portalToolHolders.completeValidation(admission, holdingPortalTool, currentTick);
+					|| Wormholes.blockManager.isPortalTool(offHandItem);
+			Location playerLocation = player.getLocation();
+			List<ILocalPortal> nearbyPortals = candidates.candidates(playerLocation.getWorld(), playerLocation);
+			boolean publicLookViewer = hasPublicLookLabel(nearbyPortals);
+			portalToolHolders.completeValidation(admission, holdingPortalTool || publicLookViewer, currentTick);
 			completed = true;
-			if(!holdingPortalTool)
+			if(!holdingPortalTool && !publicLookViewer)
 			{
 				return;
 			}
-			Location playerLocation = player.getLocation();
-			List<ILocalPortal> nearbyPortals = candidates.candidates(playerLocation.getWorld(), playerLocation);
-			scanLookingPortalsForHolder(player, nearbyPortals);
+			if(holdingPortalTool)
+			{
+				portalToolPreviewRenderer.render(player, nearbyPortals);
+			}
+			scanLookingPortals(player, nearbyPortals, holdingPortalTool);
 		}
 		finally
 		{
@@ -408,11 +413,14 @@ public class EffectManager implements Listener
 		}
 	}
 
-	private void scanLookingPortalsForHolder(Player player, List<ILocalPortal> portals)
+	private void scanLookingPortals(Player player, List<ILocalPortal> portals, boolean holdingPortalTool)
 	{
-		portalToolPreviewRenderer.render(player, portals);
 		for(ILocalPortal portal : portals)
 		{
+			if(!holdingPortalTool && !portal.isPublicLookLabel())
+			{
+				continue;
+			}
 			if(portal.isLookingAt(player))
 			{
 				Location portalCenter = portal.getCenter();
@@ -421,9 +429,22 @@ public class EffectManager implements Listener
 					continue;
 				}
 
-				FoliaScheduler.runRegion(Wormholes.instance, portalCenter, () -> portal.onLooking(player, true));
+				FoliaScheduler.runRegion(Wormholes.instance, portalCenter,
+						() -> portal.onLooking(player, holdingPortalTool));
 			}
 		}
+	}
+
+	static boolean hasPublicLookLabel(List<ILocalPortal> portals)
+	{
+		for(ILocalPortal portal : portals)
+		{
+			if(portal.isPublicLookLabel())
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@EventHandler

@@ -97,6 +97,10 @@ public final class RtpSafetyValidator
 		{
 			return rejected(request, RtpSafetyResult.Code.MISSING_SNAPSHOT);
 		}
+		if(request.safetyMode() == RtpSafetyMode.UNSAFE)
+		{
+			return RtpSafetyResult.safe(destination);
+		}
 
 		Map<BlockPosition, RtpValidationRequest.BlockSnapshot> blocks = snapshotIndexResult.blocks();
 		List<SupportRectangle> supportRectangles = new ArrayList<SupportRectangle>();
