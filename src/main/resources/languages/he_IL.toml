@@ -2,6 +2,9 @@ schema = 1
 locale = "he_IL"
 
 [text]
+"command.help.debugdump" = "יצירת דוח אבחון והעלאתו לפי בחירה"
+"command.help.debugdump_upload" = "העלאת הדוח אל mclo.gs"
+"command.help.language" = "בחירת השפה שלך או שפת ברירת המחדל של השרת"
 "portal.travel.cost_insufficient" = "<red>נדרש {quantity}x {item} כדי להשתמש בפורטל הזה."
 "portal.travel.cost_vault_insufficient" = "<red>נדרש {amount} כדי להשתמש בפורטל הזה."
 "portal.travel.cost_vault_unavailable" = "<red>עלות הכלכלה של הפורטל הזה אינה זמינה."

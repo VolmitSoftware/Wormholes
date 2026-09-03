@@ -9,13 +9,13 @@ import art.arcane.wormholes.util.project.config.ConfigDoc;
 public class WormholesConfigFile {
     public static final int CURRENT_SCHEMA = 3;
 
-    @ConfigDescription("Bundled locale to use. An optional plugins/Wormholes/languages/<locale>.toml file overrides individual bundled messages.")
+    @ConfigDescription("Default language for players without an override. Missing official translations download into plugins/Wormholes/languages/<locale>.toml when selected.")
     public String language = "en_US";
 
     @ConfigDescription("Send anonymous usage metrics to bStats. Requires a restart.")
     public boolean metrics = true;
 
-    @ConfigDescription("Comma-separated bundled or custom fallback locales in priority order. Built-in English is always the final fallback.")
+    @ConfigDescription("Comma-separated official or custom fallback locales in priority order. Built-in English is always the final fallback.")
     public String languageFallbacks = "";
 
     @ConfigDescription("Configuration format.")

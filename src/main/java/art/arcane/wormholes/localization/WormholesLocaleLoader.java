@@ -1,13 +1,25 @@
 package art.arcane.wormholes.localization;
 
+import art.arcane.volmlib.util.config.TomlCodec;
 import art.arcane.volmlib.util.localization.LocaleOverlay;
+import art.arcane.volmlib.util.localization.LanguageFileEditor;
+import art.arcane.volmlib.util.localization.PluginLanguageEditor;
+import art.arcane.volmlib.util.localization.MessageKey;
+import art.arcane.volmlib.util.localization.TextValue;
+import art.arcane.volmlib.util.localization.LinesValue;
+import art.arcane.volmlib.util.localization.PluralValue;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import art.arcane.volmlib.util.localization.LocalizationCandidate;
+import art.arcane.volmlib.util.localization.LocalizationSnapshot;
 import art.arcane.volmlib.util.localization.PluralSelector;
+import art.arcane.volmlib.util.localization.RemoteLanguageCatalog;
 import art.arcane.volmlib.util.localization.VolmitLocales;
 import com.moandjiezana.toml.Toml;
 
 import java.io.IOException;
-import java.io.InputStream;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -32,26 +44,107 @@ final class WormholesLocaleLoader {
         List<String> requestedLocales = requestedLocales(locale, fallbackLocales);
         List<LocaleOverlay> overlays = new ArrayList<>(requestedLocales.size() * 2);
         for (String requestedLocale : requestedLocales) {
+            Path override = overrideFile(dataFolder, requestedLocale);
+            if (Files.exists(override)) {
+                requireLanguageFile(override);
+                overlays.add(loadFileOverlay(override, requestedLocale));
+            }
             if (requestedLocale.equalsIgnoreCase(WormholesMessages.ENGLISH_LOCALE)) {
                 continue;
             }
 
-            boolean loaded = false;
             Path file = languageFile(languageFolder, requestedLocale);
-            if (Files.isRegularFile(file)) {
-                overlays.add(loadFileOverlay(file, requestedLocale));
-                loaded = true;
+            if (!Files.isRegularFile(file) && VolmitLocales.isBundled(requestedLocale)) {
+                installLanguage(dataFolder, file, requestedLocale);
             }
-            LocaleOverlay bundled = loadBundledOverlay(requestedLocale);
-            if (bundled != null) {
-                overlays.add(bundled);
-                loaded = true;
+            if (!Files.isRegularFile(file)) {
+                throw new IOException("Language file does not exist: " + requestedLocale);
             }
-            if (!loaded) {
-                throw new IOException("Language file does not exist and no bundled language is available: " + requestedLocale);
-            }
+            overlays.add(loadFileOverlay(file, requestedLocale));
         }
         return new LocalizationCandidate(WormholesMessages.catalog(), overlays, PluralSelector.oneOther());
+    }
+
+    static LocalizationSnapshot edit(Path dataFolder, PluginLanguageEditor.Edit edit, String fallbacks) throws IOException {
+        LocalizationCandidate current = load(dataFolder, edit.locale(), fallbacks);
+        Path path = overrideFile(dataFolder, edit.locale());
+        List<LocaleOverlay> base = new ArrayList<>(current.overlays().size());
+        for (LocaleOverlay overlay : current.overlays()) {
+            if (!overlay.source().equals(path.toString())) {
+                base.add(overlay);
+            }
+        }
+        return LanguageFileEditor.update(path, raw -> {
+            JsonObject document;
+            if (raw.isBlank()) {
+                document = new JsonObject();
+                document.addProperty("schema", SCHEMA);
+                document.addProperty("locale", edit.locale());
+            } else {
+                JsonElement parsed = TomlCodec.toJsonElement(raw);
+                if (!parsed.isJsonObject()) {
+                    throw new IOException("Language override must be a TOML table: " + path);
+                }
+                document = parsed.getAsJsonObject();
+            }
+            LocalizationSnapshot before = editedSnapshot(document, path, edit.locale(), base);
+            MessageKey key = WormholesMessages.catalog().key(edit.key());
+            if (key == null || !before.value(key).equals(edit.expected())) {
+                throw new IOException("Language message changed while it was being edited: " + edit.key());
+            }
+            if (edit.value() instanceof TextValue text) {
+                table(document, "text").addProperty(edit.key(), text.template());
+            } else if (edit.value() instanceof LinesValue lines) {
+                JsonArray values = new JsonArray();
+                for (String line : lines.lines()) {
+                    values.add(line);
+                }
+                table(document, "lines").add(edit.key(), values);
+            } else if (edit.value() instanceof PluralValue plural) {
+                JsonObject forms = new JsonObject();
+                for (Map.Entry<String, String> form : plural.forms().entrySet()) {
+                    forms.addProperty(form.getKey(), form.getValue());
+                }
+                table(document, "plural").add(edit.key(), forms);
+            }
+            String content = TomlCodec.toToml(document);
+            if (!TomlCodec.toJsonElement(content).equals(document)) {
+                throw new IOException("Language overrides could not be serialized without changing their values");
+            }
+            return new LanguageFileEditor.Prepared<>(content, editedSnapshot(document, path, edit.locale(), base));
+        });
+    }
+
+    private static JsonObject table(JsonObject root, String key) throws IOException {
+        JsonElement existing = root.get(key);
+        if (existing == null) {
+            JsonObject table = new JsonObject();
+            root.add(key, table);
+            return table;
+        }
+        if (!existing.isJsonObject()) {
+            throw new IOException("Language section must be a table: " + key);
+        }
+        return existing.getAsJsonObject();
+    }
+
+    private static LocalizationSnapshot editedSnapshot(JsonObject document, Path path, String locale,
+                                                       List<LocaleOverlay> base) {
+        List<LocaleOverlay> overlays = new ArrayList<>(base.size() + 1);
+        overlays.add(loadOverlay(new Toml().read(TomlCodec.toToml(document)), path.toString(), locale));
+        overlays.addAll(base);
+        return LocalizationSnapshot.create(new LocalizationCandidate(
+                WormholesMessages.catalog(), overlays, PluralSelector.oneOther()));
+    }
+
+    private static Path overrideFile(Path dataFolder, String locale) {
+        return languageFile(dataFolder.resolve("languages/overrides"), requireLocale(locale));
+    }
+
+    private static void requireLanguageFile(Path path) throws IOException {
+        if (!Files.isRegularFile(path) || Files.size(path) > 2L * 1024L * 1024L) {
+            throw new IOException("Language override is not a regular file within the size limit: " + path);
+        }
     }
 
     private static List<String> requestedLocales(String locale, String fallbackLocales) {
@@ -85,24 +178,22 @@ final class WormholesLocaleLoader {
         return loadOverlay(toml, file.toString(), locale);
     }
 
-    private static LocaleOverlay loadBundledOverlay(String locale) throws IOException {
-        String resourcePath = "/languages/" + locale + ".toml";
-        InputStream input = WormholesLocaleLoader.class.getResourceAsStream(resourcePath);
-        if (input == null) {
-            if (VolmitLocales.isBundled(locale)) {
-                throw new IOException("Missing bundled language resource: " + resourcePath);
-            }
-            return null;
-        }
-
-        try (InputStream stream = input) {
-            Toml toml;
-            try {
-                toml = new Toml().read(stream);
-            } catch (RuntimeException exception) {
-                throw new IOException("Could not parse bundled language resource: " + resourcePath, exception);
-            }
-            return loadOverlay(toml, resourcePath, locale);
+    private static void installLanguage(Path dataFolder, Path destination, String locale) throws IOException {
+        try (RemoteLanguageCatalog remote = RemoteLanguageCatalog.load(new RemoteLanguageCatalog.Options(
+                "Wormholes",
+                URI.create("https://raw.githubusercontent.com/VolmitSoftware/WormholesPlugin/"),
+                "src/main/resources/languages",
+                ".toml",
+                "wormholes-language-source.properties",
+                dataFolder.resolve(".language-cache"),
+                WormholesLocaleLoader.class.getClassLoader()))) {
+            remote.readOrInstall(locale, destination, (selected, content) -> {
+                LocaleOverlay overlay = loadOverlay(new Toml().read(content), destination.toString(), selected);
+                LocalizationSnapshot.create(new LocalizationCandidate(
+                        WormholesMessages.catalog(), List.of(overlay), PluralSelector.oneOther()));
+            });
+        } catch (Exception exception) {
+            throw new IOException("Could not install Wormholes language " + locale, exception);
         }
     }
 

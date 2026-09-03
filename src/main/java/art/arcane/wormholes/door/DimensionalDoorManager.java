@@ -774,7 +774,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			event.setCurrentItem(null);
 			if(event.getWhoClicked() instanceof Player player)
 			{
-				WormholesAudience.sendMessage(player, Wormholes.text().component(WormholesMessages.COMMAND_NO_PERMISSION));
+				WormholesAudience.sendMessage(player, Wormholes.text().component(player, WormholesMessages.COMMAND_NO_PERMISSION));
 			}
 			return;
 		}
@@ -782,7 +782,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		if(result == DoorItemService.CraftHookResult.SHIFT_CRAFT_BLOCKED
 			&& event.getWhoClicked() instanceof Player player)
 		{
-			WormholesAudience.sendMessage(player, Wormholes.text().component(WormholesMessages.DOOR_CRAFT_ONE));
+			WormholesAudience.sendMessage(player, Wormholes.text().component(player, WormholesMessages.DOOR_CRAFT_ONE));
 		}
 	}
 

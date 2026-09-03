@@ -160,7 +160,7 @@ final class PocketRescueService
 		if(guard.closed())
 		{
 			ledger.releaseRescue(player);
-			WormholesAudience.sendMessage(player, Wormholes.text().component(WormholesMessages.DOOR_RESCUE_CANCELLED));
+			WormholesAudience.sendMessage(player, Wormholes.text().component(player, WormholesMessages.DOOR_RESCUE_CANCELLED));
 			return;
 		}
 		if(!PocketWorldService.isPocketWorld(player.getWorld()))
@@ -207,7 +207,7 @@ final class PocketRescueService
 				ledger.releaseRescue(player);
 				if(!moved)
 				{
-					WormholesAudience.sendMessage(player, Wormholes.text().component(WormholesMessages.DOOR_RESCUE_CANCELLED));
+					WormholesAudience.sendMessage(player, Wormholes.text().component(player, WormholesMessages.DOOR_RESCUE_CANCELLED));
 				}
 			}, retired);
 			if(!scheduled)
@@ -235,7 +235,7 @@ final class PocketRescueService
 		Runnable delivery = () ->
 		{
 			ledger.releaseRescue(player);
-			WormholesAudience.sendMessage(player, Wormholes.text().component(
+			WormholesAudience.sendMessage(player, Wormholes.text().component(player,
 				WormholesMessages.DOOR_RESCUE_FAILED,
 				WormholesLocalization.args(
 					MessageArgument.untrusted("route", Wormholes.text().plain(routeFailure)),

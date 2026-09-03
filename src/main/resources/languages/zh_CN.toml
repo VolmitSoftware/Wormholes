@@ -2,6 +2,9 @@ schema = 1
 locale = "zh_CN"
 
 [text]
+"command.help.debugdump" = "创建诊断报告并选择是否上传"
+"command.help.debugdump_upload" = "将报告上传到 mclo.gs"
+"command.help.language" = "选择你的语言或服务器默认语言"
 "portal.travel.cost_insufficient" = "<red>需要 {quantity} 个 {item} 才能使用此传送门。"
 "portal.travel.cost_vault_insufficient" = "<red>需要 {amount} 才能使用此传送门。"
 "portal.travel.cost_vault_unavailable" = "<red>此传送门的经济费用不可用。"

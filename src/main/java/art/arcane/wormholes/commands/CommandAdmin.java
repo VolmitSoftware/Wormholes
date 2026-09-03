@@ -26,7 +26,7 @@ public class CommandAdmin {
         if (!FoliaScheduler.runGlobal(Wormholes.instance, () -> {
             try {
                 int deleted = Wormholes.instance.deleteAllPortalsNow();
-                WormholesAudience.sendMessage(sender, Wormholes.text().component(
+                WormholesAudience.sendMessage(sender, Wormholes.text().component(sender,
                         WormholesMessages.COMMAND_DELETED_PORTALS,
                         countArgs(deleted)
                 ));
@@ -48,7 +48,7 @@ public class CommandAdmin {
         if (!FoliaScheduler.runGlobal(Wormholes.instance, () -> {
             try {
                 Wormholes.ResetResult result = Wormholes.instance.resetEverythingNow();
-                WormholesAudience.sendMessage(sender, Wormholes.text().component(
+                WormholesAudience.sendMessage(sender, Wormholes.text().component(sender,
                         WormholesMessages.COMMAND_RESET_EVERYTHING,
                         countArgs(result.deletedPortals())
                 ));
@@ -82,7 +82,7 @@ public class CommandAdmin {
                     return;
                 }
                 projectionManager.freezeProjections(normalized * 1000L);
-                WormholesAudience.sendMessage(sender, Wormholes.text().component(
+                WormholesAudience.sendMessage(sender, Wormholes.text().component(sender,
                         WormholesMessages.COMMAND_PROJECTION_FROZEN,
                         secondsArgs(normalized)
                 ));
@@ -109,7 +109,7 @@ public class CommandAdmin {
                     return;
                 }
                 int flushed = projectionManager.flushProjections();
-                WormholesAudience.sendMessage(sender, Wormholes.text().component(
+                WormholesAudience.sendMessage(sender, Wormholes.text().component(sender,
                         WormholesMessages.COMMAND_PROJECTION_FLUSHED,
                         countArgs(flushed)
                 ));
@@ -138,6 +138,6 @@ public class CommandAdmin {
     }
 
     private static void send(CommandSender sender, TextKey key) {
-        WormholesAudience.sendMessage(sender, Wormholes.text().component(key));
+        WormholesAudience.sendMessage(sender, Wormholes.text().component(sender, key));
     }
 }

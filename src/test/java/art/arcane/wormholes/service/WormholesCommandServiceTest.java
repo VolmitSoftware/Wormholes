@@ -12,6 +12,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Proxy;
@@ -46,6 +47,7 @@ class WormholesCommandServiceTest {
         assertNotNull(findChild(root, "reload"));
         assertNotNull(findChild(root, "info"));
         assertNotNull(findChild(root, "debug"));
+        assertNotNull(findChild(root, "debugdump"));
         DirectorRuntimeNode network = findChild(root, "network");
         assertNotNull(network);
         assertNotNull(findChild(network, "status"));
@@ -107,12 +109,41 @@ class WormholesCommandServiceTest {
     }
 
 	@Test
-	void publicTabCompletionOnlyOffersHelpAndInfo()
+	void publicTabCompletionOffersHelpInfoAndLanguage()
 	{
-		assertEquals(List.of("help", "info"), WormholesCommandService.publicTabCompletions(new String[] {""}));
-		assertEquals(List.of("info"), WormholesCommandService.publicTabCompletions(new String[] {"i"}));
-		assertEquals(List.of(), WormholesCommandService.publicTabCompletions(new String[] {"network", ""}));
+		CommandSender sender = permissionSender(Player.class, Set.of("volmit.language.self", "wormholes.language.self"));
+		assertEquals(List.of("help", "info", "language"), WormholesCommandService.publicTabCompletions(sender, new String[] {""}));
+		assertEquals(List.of("info"), WormholesCommandService.publicTabCompletions(sender, new String[] {"i"}));
+		assertEquals(List.of("language"), WormholesCommandService.publicTabCompletions(sender, new String[] {"lang"}));
+		assertEquals(List.of(), WormholesCommandService.publicTabCompletions(sender, new String[] {"network", ""}));
 	}
+
+    @Test
+    void publicLanguageCompletionRequiresBothSelfPermissions() {
+        CommandSender globalOnly = permissionSender(Player.class, Set.of("volmit.language.self"));
+        CommandSender pluginOnly = permissionSender(Player.class, Set.of("wormholes.language.self"));
+        CommandSender console = permissionSender(Set.of("volmit.language.self", "wormholes.language.self"));
+
+        assertEquals(List.of("help", "info"), WormholesCommandService.publicTabCompletions(globalOnly, new String[]{""}));
+        assertEquals(List.of(), WormholesCommandService.publicTabCompletions(pluginOnly, new String[]{"lang"}));
+        assertEquals(List.of(), WormholesCommandService.publicTabCompletions(console, new String[]{"lang"}));
+    }
+
+    @Test
+    void globalLanguageAdministratorKeepsServerLanguageCompletion() {
+        CommandSender sender = permissionSender(Set.of("volmit.language.admin"));
+
+        assertEquals(List.of("language"), WormholesCommandService.publicTabCompletions(sender, new String[]{"lang"}));
+    }
+
+    @Test
+    void diagnosticCompletionUsesItsDedicatedPermissionWithoutAdminAccess() {
+        CommandSender sender = permissionSender(Set.of("wormholes.debugdump"));
+
+        assertEquals(List.of("debugdump"), WormholesCommandService.publicTabCompletions(sender, new String[]{"debug"}));
+        assertEquals(List.of("help", "info", "debugdump"), WormholesCommandService.publicTabCompletions(sender, new String[]{""}));
+        assertEquals(List.of(), WormholesCommandService.publicTabCompletions(permissionSender(Set.of()), new String[]{"debug"}));
+    }
 
 	@Test
 	void publicExecutionOnlyAllowsHelpAndInfo()
@@ -206,9 +237,14 @@ class WormholesCommandServiceTest {
 
 	private static CommandSender permissionSender(Set<String> permissions)
 	{
+		return permissionSender(CommandSender.class, permissions);
+	}
+
+	private static CommandSender permissionSender(Class<? extends CommandSender> senderType, Set<String> permissions)
+	{
 		return (CommandSender) Proxy.newProxyInstance(
 				WormholesCommandServiceTest.class.getClassLoader(),
-				new Class<?>[] {CommandSender.class},
+				new Class<?>[] {senderType},
 				(proxy, method, arguments) -> switch(method.getName())
 				{
 					case "hasPermission" -> permissions.contains(String.valueOf(arguments[0]));

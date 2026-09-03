@@ -2,6 +2,9 @@ schema = 1
 locale = "lt_LT"
 
 [text]
+"command.help.debugdump" = "Sukurti diagnostikos ataskaitą ir pasirinktinai ją įkelti"
+"command.help.debugdump_upload" = "Įkelti ataskaitą į mclo.gs"
+"command.help.language" = "Pasirinkite savo arba numatytąją serverio kalbą"
 "portal.network.label.render_mode" = "Atvaizdavimo režimas"
 "portal.travel.transfer_holding" = "<gold>Jungiamasi prie paskirties serverio..."
 "portal.travel.transfer_interrupted" = "<red>Portalo perkėlimas nutrauktas: pasitraukėte nuo portalo."

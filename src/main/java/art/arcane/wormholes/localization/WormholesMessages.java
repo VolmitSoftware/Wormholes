@@ -17,6 +17,9 @@ public final class WormholesMessages {
 
     private static final List<MessageKey> KEYS = new ArrayList<>();
 
+    public static final TextKey DEBUG_DUMP_DESCRIPTION = text("command.help.debugdump", "Create and optionally upload a diagnostic report");
+    public static final TextKey DEBUG_DUMP_UPLOAD = text("command.help.debugdump_upload", "Upload the report to mclo.gs");
+    public static final TextKey HELP_LANGUAGE = text("command.help.language", "Choose your language or the server default");
     public static final TextKey COMMAND_ROOT_DESCRIPTION = text("command.help.root", "Wormholes command root");
     public static final TextKey COMMAND_WAND_DESCRIPTION = text("command.help.wand", "Give yourself the portal wand and a wormhole rune");
     public static final TextKey COMMAND_WAND_RUNE_DESCRIPTION = text("command.help.wand.rune", "Include a wormhole rune (rune=false gives only the wand)");

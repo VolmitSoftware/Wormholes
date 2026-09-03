@@ -2,6 +2,9 @@ schema = 1
 locale = "tr_TR"
 
 [text]
+"command.help.debugdump" = "Tanılama raporu oluştur ve isteğe bağlı olarak yükle"
+"command.help.debugdump_upload" = "Raporu mclo.gs üzerine yükle"
+"command.help.language" = "Kendi dilinizi veya sunucunun varsayılan dilini seçin"
 "portal.travel.cost_insufficient" = "<red>Bu portalı kullanmak için {quantity}x {item} gerekiyor."
 "portal.travel.cost_vault_insufficient" = "<red>Bu portalı kullanmak için {amount} gerekiyor."
 "portal.travel.cost_vault_unavailable" = "<red>Bu portalın ekonomi maliyeti şu anda kullanılamıyor."

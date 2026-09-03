@@ -2,6 +2,7 @@ package art.arcane.wormholes.service;
 
 import art.arcane.volmlib.util.director.DirectorEngineOptions;
 import art.arcane.volmlib.util.director.compat.BukkitDirectorContext;
+import art.arcane.volmlib.util.localization.LanguageAudience;
 import art.arcane.volmlib.util.director.compat.DirectorEngineFactory;
 import art.arcane.volmlib.util.director.context.DirectorContextRegistry;
 import art.arcane.volmlib.util.director.help.DirectorMiniMenu;
@@ -118,11 +119,21 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
     }
 
     boolean executeCommand(CommandSender sender, String label, String[] args) {
-        if (!hasAdminCommandAccess(sender)) {
+        if (args.length > 0 && "language".equalsIgnoreCase(args[0])) {
+            plugin.getLanguageSwitcher().command(sender, Arrays.copyOfRange(args, 1, args.length));
+            return true;
+        }
+        return LanguageAudience.call(sender instanceof Player player ? player.getUniqueId() : null,
+                () -> executeOwned(sender, label, args));
+    }
+
+    private boolean executeOwned(CommandSender sender, String label, String[] args) {
+        if (!(args.length > 0 && args[0].equalsIgnoreCase("debugdump"))
+            && !hasAdminCommandAccess(sender)) {
             if (sendPublicCommandIfRequested(sender, args)) {
                 playInfoChime(sender);
             } else {
-                WormholesAudience.sendMessage(sender, Wormholes.text().component(WormholesMessages.COMMAND_NO_PERMISSION_USE));
+                WormholesAudience.sendMessage(sender, Wormholes.text().component(sender, WormholesMessages.COMMAND_NO_PERMISSION_USE));
                 playFailureChime(sender);
             }
             return true;
@@ -145,7 +156,7 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
             return true;
         }
 
-        WormholesAudience.sendMessage(sender, Wormholes.text().component(WormholesMessages.COMMAND_USAGE_HELP));
+        WormholesAudience.sendMessage(sender, Wormholes.text().component(sender, WormholesMessages.COMMAND_USAGE_HELP));
         playFailureChime(sender);
         return true;
     }
@@ -165,8 +176,14 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
     }
 
     List<String> tabComplete(CommandSender sender, String alias, String[] args) {
+        if (args != null && args.length > 1 && "debugdump".equalsIgnoreCase(args[0])) {
+            return sender.hasPermission("wormholes.debugdump") ? runDirectorTab(sender, alias, args) : List.of();
+        }
+        if (args != null && args.length > 1 && "language".equalsIgnoreCase(args[0])) {
+            return plugin.getLanguageSwitcher().complete(sender, Arrays.copyOfRange(args, 1, args.length));
+        }
         if (!hasAdminCommandAccess(sender)) {
-            return publicTabCompletions(args);
+            return publicTabCompletions(sender, args);
         }
         List<String> completions = runDirectorTab(sender, alias, args);
         if (args != null && args.length == 2 && "server".equalsIgnoreCase(args[0])) {
@@ -215,12 +232,24 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
 		return args != null && args.length == 1 && "info".equalsIgnoreCase(args[0]);
 	}
 
-	static List<String> publicTabCompletions(String[] args) {
+	static List<String> publicTabCompletions(CommandSender sender, String[] args) {
 		if(args == null || args.length != 1) {
 			return List.of();
 		}
 		String prefix = args[0] == null ? "" : args[0].toLowerCase(Locale.ROOT);
-		return List.of("help", "info").stream().filter(value -> value.startsWith(prefix)).toList();
+		boolean languageAllowed = sender.hasPermission("volmit.language.admin")
+                || sender instanceof Player && sender.hasPermission("volmit.language.self")
+                && sender.hasPermission("wormholes.language.self");
+        List<String> commands = new ArrayList<>(4);
+        commands.add("help");
+        commands.add("info");
+        if (languageAllowed) {
+            commands.add("language");
+        }
+        if (sender.hasPermission("wormholes.debugdump")) {
+            commands.add("debugdump");
+        }
+        return commands.stream().filter(value -> value.startsWith(prefix)).toList();
 	}
 
     static boolean hasAdminCommandAccess(CommandSender sender) {

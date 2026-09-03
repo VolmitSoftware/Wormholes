@@ -323,7 +323,7 @@ final class LocalPortalSettingsMenu
 		{
 			window.close();
 			p.closeInventory();
-			WormholesAudience.sendMessage(p, Wormholes.text().component(
+			WormholesAudience.sendMessage(p, Wormholes.text().component(p,
 					WormholesMessages.PORTAL_PROMPT_BLOCK_STATE,
 					LocalPortalText.arguments("cancel", LocalPortalText.localized(WormholesMessages.PORTAL_INPUT_CANCEL))));
 			Wormholes.awaitChatInput(p, (input) ->

@@ -2,6 +2,9 @@ schema = 1
 locale = "fi_FI"
 
 [text]
+"command.help.debugdump" = "Luo diagnostiikkaraportti ja lähetä se halutessasi"
+"command.help.debugdump_upload" = "Lähetä raportti mclo.gs-palveluun"
+"command.help.language" = "Valitse oma kielesi tai palvelimen oletuskieli"
 "portal.network.label.render_mode" = "Renderöintitila"
 "portal.travel.transfer_holding" = "<gold>Yhdistetään kohdepalvelimeen..."
 "portal.travel.transfer_interrupted" = "<red>Portaalisiirto keskeytyi: siirryit pois portaalista."

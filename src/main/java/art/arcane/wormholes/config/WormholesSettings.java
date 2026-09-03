@@ -102,6 +102,11 @@ public final class WormholesSettings {
         return main;
     }
 
+    public WormholesSettings withLanguage(String locale) {
+        return new WormholesSettings(locale, metrics, languageFallbacks, main, projection, render, network,
+                recipes, visualQualityProfile);
+    }
+
     public String getLanguage() {
         return language;
     }

@@ -169,14 +169,14 @@ final class LocalPortalCostMenu
 		window.close();
 		viewer.closeInventory();
 		capture.begin(viewer, portal, this::open);
-		WormholesAudience.sendMessage(viewer, Wormholes.text().component(WormholesMessages.PORTAL_PROMPT_COST_ITEM));
+		WormholesAudience.sendMessage(viewer, Wormholes.text().component(viewer, WormholesMessages.PORTAL_PROMPT_COST_ITEM));
 	}
 
 	private void beginVaultAmountInput(Window window, Player viewer)
 	{
 		window.close();
 		viewer.closeInventory();
-		WormholesAudience.sendMessage(viewer, Wormholes.text().component(
+		WormholesAudience.sendMessage(viewer, Wormholes.text().component(viewer,
 				WormholesMessages.PORTAL_PROMPT_COST_VAULT,
 				LocalPortalText.arguments("cancel", LocalPortalText.localized(WormholesMessages.PORTAL_INPUT_CANCEL))));
 		Wormholes.awaitChatInput(viewer, (input) -> applyVaultAmount(viewer, input));

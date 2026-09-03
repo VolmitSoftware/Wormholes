@@ -79,7 +79,16 @@ public final class PaperPluginMetadataTest {
         assertTrue(metadata.getPermissions().stream().anyMatch(permission -> permission.getName().equals("wormholes.portals.portal")));
         assertTrue(metadata.getPermissions().stream().anyMatch(permission -> permission.getName().equals("wormholes.doors.craft")));
         assertTrue(metadata.getPermissions().stream().anyMatch(permission -> permission.getName().equals("wormholes.doors.place")));
-        assertTrue(metadata.getPermissions().stream().allMatch(permission -> permission.getDefault() == PermissionDefault.OP));
+        assertTrue(metadata.getPermissions().stream()
+            .filter(permission -> !permission.getName().equals("wormholes.language.self"))
+            .allMatch(permission -> permission.getDefault() == PermissionDefault.OP));
+        assertEquals(
+            PermissionDefault.TRUE,
+            metadata.getPermissions().stream()
+                .filter(permission -> permission.getName().equals("wormholes.language.self"))
+                .findFirst()
+                .orElseThrow()
+                .getDefault());
         assertEquals(
             PermissionDefault.OP,
             metadata.getPermissions().stream()

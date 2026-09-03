@@ -2,6 +2,9 @@ schema = 1
 locale = "ru_RU"
 
 [text]
+"command.help.debugdump" = "Создать диагностический отчёт и при желании загрузить его"
+"command.help.debugdump_upload" = "Загрузить отчёт на mclo.gs"
+"command.help.language" = "Выберите свой язык или язык сервера по умолчанию"
 "portal.travel.cost_insufficient" = "<red>Для использования этого портала нужно {quantity}x {item}."
 "portal.travel.cost_vault_insufficient" = "<red>Для использования этого портала нужно {amount}."
 "portal.travel.cost_vault_unavailable" = "<red>Экономическая стоимость этого портала недоступна."

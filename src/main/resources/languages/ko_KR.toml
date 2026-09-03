@@ -2,6 +2,9 @@ schema = 1
 locale = "ko_KR"
 
 [text]
+"command.help.debugdump" = "진단 보고서를 생성하고 선택적으로 업로드"
+"command.help.debugdump_upload" = "보고서를 mclo.gs에 업로드"
+"command.help.language" = "개인 언어 또는 서버 기본 언어 선택"
 "portal.travel.cost_insufficient" = "<red>이 포털을 사용하려면 {item} {quantity}개가 필요합니다."
 "portal.travel.cost_vault_insufficient" = "<red>이 포털을 사용하려면 {amount}이(가) 필요합니다."
 "portal.travel.cost_vault_unavailable" = "<red>이 포털의 경제 비용을 사용할 수 없습니다."

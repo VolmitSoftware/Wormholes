@@ -2,6 +2,9 @@ schema = 1
 locale = "vi_VI"
 
 [text]
+"command.help.debugdump" = "Tạo báo cáo chẩn đoán và tải lên nếu muốn"
+"command.help.debugdump_upload" = "Tải báo cáo lên mclo.gs"
+"command.help.language" = "Chọn ngôn ngữ của bạn hoặc ngôn ngữ mặc định của máy chủ"
 "portal.travel.cost_insufficient" = "<red>Bạn cần {quantity}x {item} để sử dụng cổng này."
 "portal.travel.cost_vault_insufficient" = "<red>Bạn cần {amount} để sử dụng cổng này."
 "portal.travel.cost_vault_unavailable" = "<red>Chi phí kinh tế của cổng này hiện không khả dụng."

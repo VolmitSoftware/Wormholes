@@ -2,6 +2,9 @@ schema = 1
 locale = "ja-JP"
 
 [text]
+"command.help.debugdump" = "診断レポートを作成し、必要に応じてアップロードする"
+"command.help.debugdump_upload" = "レポートを mclo.gs にアップロードする"
+"command.help.language" = "自分の言語またはサーバーの既定言語を選択"
 "portal.travel.cost_insufficient" = "<red>このポータルを使用するには {quantity}x {item} が必要です。"
 "portal.travel.cost_vault_insufficient" = "<red>このポータルを使用するには {amount} が必要です。"
 "portal.travel.cost_vault_unavailable" = "<red>このポータルの経済コストは利用できません。"

@@ -261,11 +261,11 @@ public class CommandPocket {
     }
 
     private static void send(CommandSender sender, TextKey key, MessageArgs arguments) {
-        WormholesAudience.sendMessage(sender, Wormholes.text().component(key, arguments));
+        WormholesAudience.sendMessage(sender, Wormholes.text().component(sender, key, arguments));
     }
 
     private static void sendLines(CommandSender sender, LinesKey key, MessageArgs arguments) {
-        for (Component line : Wormholes.text().components(key, arguments)) {
+        for (Component line : Wormholes.text().components(sender, key, arguments)) {
             WormholesAudience.sendMessage(sender, line);
         }
     }

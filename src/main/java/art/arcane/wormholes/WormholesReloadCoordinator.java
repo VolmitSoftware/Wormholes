@@ -287,6 +287,9 @@ final class WormholesReloadCoordinator {
     private void applyReloadedState(WormholesSettings reloaded, PreparedLocalization localization) {
         if (localization.result().applied()) {
             Wormholes.localization = localization.localization();
+            if (plugin.getLanguageService() != null) {
+                plugin.getLanguageService().invalidate();
+            }
         }
         Wormholes.settings = reloaded;
         Settings.refresh(reloaded);
@@ -328,8 +331,8 @@ final class WormholesReloadCoordinator {
     private PreparedLocalization prepareLocalization(WormholesSettings reloaded) {
         WormholesLocalization activeLocalization = Wormholes.localization;
         LocalizationSnapshot previous = activeLocalization == null
-            ? WormholesLocalization.english().snapshot()
-            : activeLocalization.snapshot();
+            ? WormholesLocalization.english().defaultSnapshot()
+            : activeLocalization.defaultSnapshot();
         WormholesLocalization preparedLocalization = new WormholesLocalization();
         LocalizationReloadResult preparedResult = preparedLocalization.reload(
             plugin.getDataFolder().toPath(),
@@ -351,7 +354,7 @@ final class WormholesReloadCoordinator {
             );
             return new PreparedLocalization(null, retained);
         }
-        LocalizationSnapshot current = preparedLocalization.snapshot();
+        LocalizationSnapshot current = preparedLocalization.defaultSnapshot();
         if (!current.validation().warnings().isEmpty()) {
             plugin.getLogger().info("Language reload applied with " + current.validation().warnings().size()
                 + " missing translation key(s) falling through to a lower-priority locale or built-in English.");

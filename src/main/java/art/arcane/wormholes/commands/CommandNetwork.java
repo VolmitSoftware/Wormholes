@@ -128,6 +128,6 @@ public class CommandNetwork {
     }
 
     private static void send(CommandSender sender, TextKey key, MessageArgs arguments) {
-        WormholesAudience.sendMessage(sender, Wormholes.text().component(key, arguments));
+        WormholesAudience.sendMessage(sender, Wormholes.text().component(sender, key, arguments));
     }
 }

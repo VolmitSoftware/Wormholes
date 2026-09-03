@@ -2,6 +2,9 @@ schema = 1
 locale = "pt_PT"
 
 [text]
+"command.help.debugdump" = "Criar um relatório de diagnóstico e carregá-lo opcionalmente"
+"command.help.debugdump_upload" = "Carregar o relatório para mclo.gs"
+"command.help.language" = "Escolhe o teu idioma ou o idioma predefinido do servidor"
 "portal.network.label.render_mode" = "Modo de renderização"
 "portal.travel.transfer_holding" = "<gold>A ligar ao servidor de destino..."
 "portal.travel.transfer_interrupted" = "<red>Transferência de portal interrompida: afastou-se do portal."

@@ -1,9 +1,17 @@
 package art.arcane.wormholes;
 
+import art.arcane.volmlib.util.diagnostics.BukkitDebugDump;
 import art.arcane.volmlib.integration.ReloadAware;
 import art.arcane.volmlib.integration.VaultEconomy;
 import art.arcane.volmlib.util.bukkit.papi.PlaceholderRegistration;
+import art.arcane.volmlib.util.director.help.DirectorMiniMenu;
+import art.arcane.volmlib.util.director.theme.DirectorProduct;
+import art.arcane.volmlib.util.director.theme.DirectorThemes;
 import art.arcane.volmlib.util.localization.LocalizationReloadResult;
+import art.arcane.volmlib.util.localization.LocalizationSnapshot;
+import art.arcane.volmlib.util.localization.PluginLanguageService;
+import art.arcane.volmlib.util.localization.BukkitLanguageSwitcher;
+import art.arcane.volmlib.util.localization.VolmitLocales;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.volmlib.util.scheduling.SchedulerBridge;
 import art.arcane.volmlib.util.scheduling.SchedulerRuntime;
@@ -94,6 +102,9 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     public static volatile PocketWorldService pocketWorldService;
     public static volatile DimensionalDoorManager dimensionalDoorManager;
     public static volatile WormholesLocalization localization;
+    private PluginLanguageService languageService;
+    private BukkitLanguageSwitcher languageSwitcher;
+    private BukkitDebugDump debugDump;
     public static volatile WormholesPlaceholders placeholders;
 
     private static final String PAPER_ASYNC_CHAT_EVENT_CLASS = "io.papermc.paper.event.player.AsyncChatEvent";
@@ -147,6 +158,8 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             vaultEconomy = new VaultEconomy(this);
             localization = new WormholesLocalization();
             reloads.reloadLocalization(settings);
+            enableLanguageSwitcher();
+            debugDump = BukkitDebugDump.create(this);
             this.schedulerRuntime = installSchedulerBridge();
             BukkitRegionTaskProvider.install(this);
             installChunkLeaseRegistry();
@@ -264,6 +277,17 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
 
     @Override
     public void onDisable() {
+        if (debugDump != null) {
+            debugDump.close();
+            debugDump = null;
+        }
+        if (languageSwitcher != null) {
+            languageSwitcher.close();
+        }
+        if (languageService != null) {
+            languageService.close();
+            languageService = null;
+        }
         tearDownBeforeDrain();
     }
 
@@ -480,6 +504,54 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
 
     public WormholesSettings getSettings() {
         return settings;
+    }
+
+    public PluginLanguageService getLanguageService() {
+        return languageService;
+    }
+
+    public BukkitDebugDump debugDump() {
+        return debugDump;
+    }
+
+    public BukkitLanguageSwitcher getLanguageSwitcher() {
+        return languageSwitcher;
+    }
+
+    private void enableLanguageSwitcher() {
+        languageService = new PluginLanguageService(new PluginLanguageService.Options(
+                getDataFolder().toPath().resolve("language-preferences.properties"),
+                VolmitLocales::all,
+                () -> settings.getLanguage(),
+                () -> localization.defaultSnapshot(),
+                locale -> localization.loadSnapshot(getDataFolder().toPath(), locale,
+                        VolmitLocales.ENGLISH.equals(locale) ? "" : settings.getLanguageFallbacks()),
+                this::selectLanguage,
+                getLogger()));
+        languageSwitcher = BukkitLanguageSwitcher.register(this, languageService,
+                new BukkitLanguageSwitcher.Options("wormholes", "wormholes.admin",
+                        DirectorMiniMenu.Theme.fromDirectorTheme(DirectorThemes.forProduct(DirectorProduct.WORMHOLES)),
+                        localization.directorResolver(),
+                        localization.editorOptions(getDataFolder().toPath(), () -> settings.getLanguageFallbacks())));
+    }
+
+    private synchronized void selectLanguage(String locale, LocalizationSnapshot snapshot) {
+        WormholesSettings updated = settings.withLanguage(locale);
+        updated.save(getDataFolder().toPath());
+        settings = updated;
+        localization.install(snapshot);
+        if (!FoliaScheduler.runGlobal(this, this::refreshLanguageItems)) {
+            throw new IllegalStateException("Could not schedule Wormholes recipe language refresh");
+        }
+    }
+
+    private void refreshLanguageItems() {
+        if (blockManager != null) {
+            blockManager.onLanguageReload();
+        }
+        if (dimensionalDoorManager != null) {
+            dimensionalDoorManager.onLanguageReload();
+        }
     }
 
     public static WormholesLocalization text() {

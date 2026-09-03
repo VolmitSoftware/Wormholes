@@ -1,6 +1,13 @@
 package art.arcane.wormholes.localization;
 
 import art.arcane.volmlib.util.director.DirectorTextResolver;
+import art.arcane.volmlib.util.localization.PluginLanguageService;
+import art.arcane.volmlib.util.localization.PluginLanguageEditor;
+import art.arcane.volmlib.util.localization.VolmitLocales;
+import art.arcane.volmlib.util.localization.LanguageAudience;
+import art.arcane.wormholes.Wormholes;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import art.arcane.volmlib.util.inventorygui.Element;
 import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.volmlib.util.localization.LocalizationCandidate;
@@ -22,8 +29,10 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 import java.nio.file.Path;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 public final class WormholesLocalization {
     private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
@@ -32,6 +41,7 @@ public final class WormholesLocalization {
     private static final WormholesLocalization ENGLISH = new WormholesLocalization();
 
     private final LocalizationManager manager;
+    private String activeLocale = VolmitLocales.ENGLISH;
 
     public WormholesLocalization() {
         manager = new LocalizationManager(LocalizationCandidate.english(
@@ -52,12 +62,70 @@ public final class WormholesLocalization {
         return builder.build();
     }
 
-    public LocalizationReloadResult reload(Path dataFolder, String locale, String fallbackLocales) {
-        return manager.reload(() -> WormholesLocaleLoader.load(dataFolder, locale, fallbackLocales));
+    public synchronized LocalizationReloadResult reload(Path dataFolder, String locale, String fallbackLocales) {
+        LocalizationReloadResult result = manager.reload(() -> WormholesLocaleLoader.load(dataFolder, locale, fallbackLocales));
+        if (result.applied()) {
+            activeLocale = locale;
+        }
+        return result;
+    }
+
+    public LocalizationSnapshot defaultSnapshot() {
+        return manager.snapshot();
+    }
+
+    public synchronized void install(LocalizationSnapshot snapshot) {
+        manager.install(snapshot);
+        activeLocale = snapshot.overlays().isEmpty() ? VolmitLocales.ENGLISH : snapshot.overlays().getFirst().locale();
+    }
+
+    public LocalizationSnapshot loadSnapshot(Path dataFolder, String locale, String fallbackLocales) throws IOException {
+        return LocalizationSnapshot.create(WormholesLocaleLoader.load(dataFolder, locale, fallbackLocales));
+    }
+
+    public PluginLanguageEditor.Options editorOptions(Path dataFolder, Supplier<String> fallbackLocales) {
+        return new PluginLanguageEditor.Options(
+                locale -> loadSnapshot(dataFolder, locale, editorFallbacks(locale, fallbackLocales)),
+                edit -> saveEditor(dataFolder, edit, editorFallbacks(edit.locale(), fallbackLocales)));
+    }
+
+    private synchronized LocalizationSnapshot saveEditor(Path dataFolder, PluginLanguageEditor.Edit edit,
+                                                         String fallbackLocales) throws IOException {
+        LocalizationSnapshot prepared = WormholesLocaleLoader.edit(dataFolder, edit, fallbackLocales);
+        if (activeLocale.equals(edit.locale())) {
+            manager.install(prepared);
+        }
+        return prepared;
+    }
+
+    private String editorFallbacks(String locale, Supplier<String> fallbackLocales) {
+        return VolmitLocales.ENGLISH.equals(locale) ? "" : fallbackLocales.get();
     }
 
     public LocalizationSnapshot snapshot() {
-        return manager.snapshot();
+        if (this != Wormholes.localization) {
+            return manager.snapshot();
+        }
+        Wormholes plugin = Wormholes.instance;
+        PluginLanguageService service = plugin == null ? null : plugin.getLanguageService();
+        if (service == null) {
+            return manager.snapshot();
+        }
+        return service.snapshot();
+    }
+
+    public Component component(CommandSender sender, TextKey key) {
+        return component(sender, key, MessageArgs.empty());
+    }
+
+    public Component component(CommandSender sender, TextKey key, MessageArgs arguments) {
+        return LanguageAudience.call(sender instanceof Player player ? player.getUniqueId() : null,
+                () -> component(key, arguments));
+    }
+
+    public Component component(CommandSender sender, PluralKey key, MessageArgs arguments) {
+        return LanguageAudience.call(sender instanceof Player player ? player.getUniqueId() : null,
+                () -> component(key, arguments));
     }
 
     public Component component(TextKey key) {
@@ -65,11 +133,11 @@ public final class WormholesLocalization {
     }
 
     public Component component(TextKey key, MessageArgs arguments) {
-        return deserialize(manager.snapshot().resolve(key, arguments));
+        return deserialize(snapshot().resolve(key, arguments));
     }
 
     public Component component(PluralKey key, MessageArgs arguments) {
-        return deserialize(manager.snapshot().resolve(key, arguments));
+        return deserialize(snapshot().resolve(key, arguments));
     }
 
     public String legacy(TextKey key) {
@@ -100,8 +168,13 @@ public final class WormholesLocalization {
         return components(key, MessageArgs.empty());
     }
 
+    public List<Component> components(CommandSender sender, LinesKey key, MessageArgs arguments) {
+        return LanguageAudience.call(sender instanceof Player player ? player.getUniqueId() : null,
+                () -> components(key, arguments));
+    }
+
     public List<Component> components(LinesKey key, MessageArgs arguments) {
-        ResolvedLines resolved = manager.snapshot().resolve(key, arguments);
+        ResolvedLines resolved = snapshot().resolve(key, arguments);
         List<Component> components = new ArrayList<>(resolved.lines().size());
         for (String line : resolved.lines()) {
             components.add(MINI_MESSAGE.deserialize(substitute(line, resolved.arguments())));
@@ -110,7 +183,7 @@ public final class WormholesLocalization {
     }
 
     public List<String> miniMessageLines(LinesKey key) {
-        ResolvedLines resolved = manager.snapshot().resolve(key, MessageArgs.empty());
+        ResolvedLines resolved = snapshot().resolve(key, MessageArgs.empty());
         List<String> lines = new ArrayList<>(resolved.lines().size());
         for (String line : resolved.lines()) {
             lines.add(substitute(line, resolved.arguments()));
@@ -149,7 +222,7 @@ public final class WormholesLocalization {
     }
 
     public String directorText(TextKey key, MessageArgs arguments) {
-        MessageKey definition = manager.snapshot().catalog().key(key.id());
+        MessageKey definition = snapshot().catalog().key(key.id());
         if (!(definition instanceof TextKey textKey)) {
             return DirectorTextResolver.ENGLISH.resolve(key, arguments);
         }

@@ -2,6 +2,9 @@ schema = 1
 locale = "it_IT"
 
 [text]
+"command.help.debugdump" = "Crea un rapporto diagnostico e caricalo facoltativamente"
+"command.help.debugdump_upload" = "Carica il rapporto su mclo.gs"
+"command.help.language" = "Scegli la tua lingua o quella predefinita del server"
 "portal.travel.cost_insufficient" = "<red>Ti servono {quantity}x {item} per usare questo portale."
 "portal.travel.cost_vault_insufficient" = "<red>Ti serve {amount} per usare questo portale."
 "portal.travel.cost_vault_unavailable" = "<red>Il costo economico di questo portale non è disponibile."

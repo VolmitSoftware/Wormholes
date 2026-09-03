@@ -29,12 +29,12 @@ public final class ImportExportService {
     }
 
     public void exportToChat(Player player, ILocalPortal portal) {
-        WormholesAudience.sendMessage(player, Wormholes.text().component(WormholesMessages.NETWORK_BUILDING_CODE));
+        WormholesAudience.sendMessage(player, Wormholes.text().component(player, WormholesMessages.NETWORK_BUILDING_CODE));
         FoliaScheduler.runAsync(Wormholes.instance, () -> exportNow(player, portal));
     }
 
     public void exportServerToChat(CommandSender sender) {
-        WormholesAudience.sendMessage(sender, Wormholes.text().component(WormholesMessages.NETWORK_BUILDING_CODE));
+        WormholesAudience.sendMessage(sender, Wormholes.text().component(sender, WormholesMessages.NETWORK_BUILDING_CODE));
         FoliaScheduler.runAsync(Wormholes.instance, () -> exportServerNow(sender));
     }
 
@@ -75,11 +75,11 @@ public final class ImportExportService {
             .clickEvent(ClickEvent.copyToClipboard(encoded))
             .hoverEvent(HoverEvent.showText(Wormholes.text().component(WormholesMessages.NETWORK_COPY_CODE_HOVER)));
         WormholesAudience.sendMessage(player, message);
-        WormholesAudience.sendMessage(player, Wormholes.text().component(
+        WormholesAudience.sendMessage(player, Wormholes.text().component(player,
                 WormholesMessages.NETWORK_CODE_FINGERPRINT,
                 WormholesLocalization.args(MessageArgument.untrusted("fingerprint", network.getPublicKeyFingerprint()))));
         if (encoded.length() > CHAT_SAFE_CODE_LENGTH) {
-            WormholesAudience.sendMessage(player, Wormholes.text().component(WormholesMessages.NETWORK_CODE_TOO_LONG));
+            WormholesAudience.sendMessage(player, Wormholes.text().component(player, WormholesMessages.NETWORK_CODE_TOO_LONG));
         }
     }
 
@@ -112,15 +112,15 @@ public final class ImportExportService {
                 .hoverEvent(HoverEvent.showText(Wormholes.text().component(WormholesMessages.SERVER_COPY_CODE_HOVER)));
             WormholesAudience.sendMessage(sender, message);
         } else {
-            WormholesAudience.sendMessage(sender, Wormholes.text().component(
+            WormholesAudience.sendMessage(sender, Wormholes.text().component(sender,
                     WormholesMessages.SERVER_CODE_RAW,
                     WormholesLocalization.args(MessageArgument.untrusted("code", encoded))));
         }
-        WormholesAudience.sendMessage(sender, Wormholes.text().component(
+        WormholesAudience.sendMessage(sender, Wormholes.text().component(sender,
                 WormholesMessages.NETWORK_CODE_FINGERPRINT,
                 WormholesLocalization.args(MessageArgument.untrusted("fingerprint", network.getPublicKeyFingerprint()))));
         if (encoded.length() > CHAT_SAFE_CODE_LENGTH) {
-            WormholesAudience.sendMessage(sender, Wormholes.text().component(WormholesMessages.NETWORK_CODE_TOO_LONG));
+            WormholesAudience.sendMessage(sender, Wormholes.text().component(sender, WormholesMessages.NETWORK_CODE_TOO_LONG));
         }
     }
 
@@ -132,7 +132,7 @@ public final class ImportExportService {
         }
         PortalCode code = PortalCode.decode(raw);
         if (code == null) {
-            WormholesAudience.sendMessage(sender, Wormholes.text().component(
+            WormholesAudience.sendMessage(sender, Wormholes.text().component(sender,
                     WormholesMessages.NETWORK_CODE_INVALID,
                     WormholesLocalization.args(MessageArgument.untrusted("prefix", PortalCode.PREFIX + " or " + ServerCode.PREFIX))));
             return;
@@ -141,9 +141,9 @@ public final class ImportExportService {
         if (code.serverName().equals(network.getLocalName())) {
             boolean ownPortal = Wormholes.portalManager != null && Wormholes.portalManager.getLocalPortal(code.portalId()) != null;
             if (ownPortal) {
-                WormholesAudience.sendMessage(sender, Wormholes.text().component(WormholesMessages.NETWORK_CODE_SAME_SERVER));
+                WormholesAudience.sendMessage(sender, Wormholes.text().component(sender, WormholesMessages.NETWORK_CODE_SAME_SERVER));
             } else {
-                WormholesAudience.sendMessage(sender, Wormholes.text().component(
+                WormholesAudience.sendMessage(sender, Wormholes.text().component(sender,
                         WormholesMessages.NETWORK_CODE_SAME_IDENTITY,
                         WormholesLocalization.args(MessageArgument.untrusted("server", code.serverName()))));
             }
@@ -156,26 +156,26 @@ public final class ImportExportService {
 
         if (portal != null) {
             FoliaScheduler.runRegion(Wormholes.instance, portal.getCenter(), () -> portal.linkRemote(code.serverName(), code.portalId()));
-            WormholesAudience.sendMessage(sender, Wormholes.text().component(
+            WormholesAudience.sendMessage(sender, Wormholes.text().component(sender,
                     WormholesMessages.NETWORK_LINKED,
                     WormholesLocalization.args(
                             MessageArgument.untrusted("portal", portal.getName()),
                             MessageArgument.untrusted("destination", code.portalName()),
                             MessageArgument.untrusted("server", code.serverName()))));
         } else {
-            WormholesAudience.sendMessage(sender, Wormholes.text().component(
+            WormholesAudience.sendMessage(sender, Wormholes.text().component(sender,
                     WormholesMessages.NETWORK_ROUTE_SAVED,
                     WormholesLocalization.args(
                             MessageArgument.untrusted("server", code.serverName()),
                             MessageArgument.untrusted("fingerprint", Handshake.fingerprint(Handshake.decodePublicKeyText(code.publicKey()))),
                             MessageArgument.untrusted("portal", code.portalName()))));
         }
-        WormholesAudience.sendMessage(sender, Wormholes.text().component(WormholesMessages.NETWORK_CHECK_STATUS));
+        WormholesAudience.sendMessage(sender, Wormholes.text().component(sender, WormholesMessages.NETWORK_CHECK_STATUS));
     }
 
     private void importServerNow(CommandSender sender, ServerCode code) {
         if (code.serverName().equals(network.getLocalName())) {
-            WormholesAudience.sendMessage(sender, Wormholes.text().component(
+            WormholesAudience.sendMessage(sender, Wormholes.text().component(sender,
                     WormholesMessages.NETWORK_CODE_SAME_IDENTITY,
                     WormholesLocalization.args(MessageArgument.untrusted("server", code.serverName()))));
             return;
@@ -185,12 +185,12 @@ public final class ImportExportService {
         saveRoute(code.serverName(), code.advertiseHost(), code.fallbackHosts(), code.wormholePort(), code.gamePort());
         enableAndStart();
 
-        WormholesAudience.sendMessage(sender, Wormholes.text().component(
+        WormholesAudience.sendMessage(sender, Wormholes.text().component(sender,
                 WormholesMessages.SERVER_SAVED,
                 WormholesLocalization.args(
                         MessageArgument.untrusted("server", code.serverName()),
                         MessageArgument.untrusted("fingerprint", Handshake.fingerprint(Handshake.decodePublicKeyText(code.publicKey()))))));
-        WormholesAudience.sendMessage(sender, Wormholes.text().component(WormholesMessages.NETWORK_CHECK_STATUS));
+        WormholesAudience.sendMessage(sender, Wormholes.text().component(sender, WormholesMessages.NETWORK_CHECK_STATUS));
     }
 
     private void saveRoute(String serverName, String advertiseHost, List<String> fallbackHosts, int wormholePort, int gamePort) {
@@ -220,7 +220,7 @@ public final class ImportExportService {
             return config.advertiseHostOverride;
         }
         String resolved = network.getAdvertiseHost();
-        WormholesAudience.sendMessage(sender, Wormholes.text().component(
+        WormholesAudience.sendMessage(sender, Wormholes.text().component(sender,
                 WormholesMessages.NETWORK_USING_ADDRESS,
                 WormholesLocalization.args(MessageArgument.untrusted("address", resolved))));
         return resolved;

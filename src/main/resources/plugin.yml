@@ -15,10 +15,18 @@ commands:
     aliases: [ wh, wormhole ]
     usage: /<command> help
 permissions:
+  wormholes.debugdump:
+    description: Allows creating and optionally uploading diagnostic reports.
+    default: op
+  wormholes.language.self:
+    description: Allows choosing your own language for this plugin.
+    default: true
   wormholes.*:
     description: Gives access to all Wormholes permissions.
     default: op
     children:
+      wormholes.debugdump: true
+      wormholes.language.self: true
       wormholes.admin: true
       wormholes.portals: true
       wormholes.gateway: true

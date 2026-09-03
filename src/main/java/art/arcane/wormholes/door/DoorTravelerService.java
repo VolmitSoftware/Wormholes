@@ -102,7 +102,7 @@ final class DoorTravelerService
 		{
 			return;
 		}
-		Runnable delivery = () -> WormholesAudience.sendMessage(player, Wormholes.text().component(
+		Runnable delivery = () -> WormholesAudience.sendMessage(player, Wormholes.text().component(player,
 			WormholesMessages.DOOR_TRANSIT_MESSAGE,
 			WormholesLocalization.args(MessageArgument.untrusted("message", Wormholes.text().plain(key)))));
 		if(!FoliaScheduler.runEntity(plugin, player, delivery))

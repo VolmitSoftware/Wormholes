@@ -441,7 +441,7 @@ final class DoorAccessMenu {
      * the same tick, and Minecraft does not draw the action bar behind a container screen.
      */
     private static void notice(Player viewer, TextKey message, MessageArgs messageArguments) {
-        WormholesAudience.sendMessage(viewer, Wormholes.text().component(message, messageArguments));
+        WormholesAudience.sendMessage(viewer, Wormholes.text().component(viewer, message, messageArguments));
     }
 
     private static UIElement localizedElement(String id, LinesKey key, MessageArgs messageArguments, Material material) {

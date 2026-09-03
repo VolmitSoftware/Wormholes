@@ -2,6 +2,9 @@ schema = 1
 locale = "nl_NL"
 
 [text]
+"command.help.debugdump" = "Maak een diagnostisch rapport en upload het desgewenst"
+"command.help.debugdump_upload" = "Upload het rapport naar mclo.gs"
+"command.help.language" = "Kies je taal of de standaardtaal van de server"
 "portal.travel.cost_insufficient" = "<red>Je hebt {quantity}x {item} nodig om dit portaal te gebruiken."
 "portal.travel.cost_vault_insufficient" = "<red>Je hebt {amount} nodig om dit portaal te gebruiken."
 "portal.travel.cost_vault_unavailable" = "<red>De economiekosten van dit portaal zijn niet beschikbaar."

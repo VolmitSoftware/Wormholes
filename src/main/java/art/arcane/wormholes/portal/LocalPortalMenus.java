@@ -248,7 +248,7 @@ final class LocalPortalMenus
 	void uiChangeName(Player p)
 	{
 		p.closeInventory();
-		WormholesAudience.sendMessage(p, Wormholes.text().component(
+		WormholesAudience.sendMessage(p, Wormholes.text().component(p,
 				WormholesMessages.PORTAL_PROMPT_NAME,
 				LocalPortalText.arguments("cancel", LocalPortalText.localized(WormholesMessages.PORTAL_INPUT_CANCEL))));
 		Wormholes.awaitChatInput(p, (input) -> {
@@ -463,7 +463,7 @@ final class LocalPortalMenus
 				{
 					window.close();
 					viewer.closeInventory();
-					WormholesAudience.sendMessage(viewer, Wormholes.text().component(
+					WormholesAudience.sendMessage(viewer, Wormholes.text().component(viewer,
 							WormholesMessages.PORTAL_PROMPT_INVITE,
 							LocalPortalText.arguments("cancel", LocalPortalText.localized(WormholesMessages.PORTAL_INPUT_CANCEL))));
 					Wormholes.awaitChatInput(viewer, (input) ->

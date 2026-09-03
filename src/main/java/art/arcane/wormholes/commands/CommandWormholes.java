@@ -44,6 +44,19 @@ public class CommandWormholes {
         this.plugin = plugin;
     }
 
+    @Director(name = "debugdump", sync = true, description = "Create and optionally upload a diagnostic report", descriptionKey = "command.help.debugdump")
+    public void debugdump(
+        @Param(name = "upload", defaultValue = "true", description = "Upload the report to mclo.gs", descriptionKey = "command.help.debugdump_upload") boolean upload,
+        @Param(name = "sender", contextual = true) CommandSender sender
+    ) {
+        plugin.debugDump().request(sender, upload);
+    }
+
+    @Director(name = "language", sync = true, descriptionKey = "command.help.language", description = "Choose your language or the server default")
+    public void language(@Param(name = "sender", contextual = true) CommandSender sender) {
+        plugin.getLanguageSwitcher().open(sender);
+    }
+
     @Director(name = "wand", sync = true, descriptionKey = "command.help.wand", description = "Give yourself the portal wand and a wormhole rune")
     public void wand(@Param(name = "sender", contextual = true) CommandSender sender,
                      @Param(name = "rune", descriptionKey = "command.help.wand.rune", description = "Include a wormhole rune (rune=false gives only the wand)", defaultValue = "true") boolean rune) {
@@ -165,11 +178,11 @@ public class CommandWormholes {
     }
 
     private static void send(CommandSender sender, TextKey key, MessageArgs arguments) {
-        WormholesAudience.sendMessage(sender, Wormholes.text().component(key, arguments));
+        WormholesAudience.sendMessage(sender, Wormholes.text().component(sender, key, arguments));
     }
 
     private static void sendLines(CommandSender sender, LinesKey key, MessageArgs arguments) {
-        for (Component line : Wormholes.text().components(key, arguments)) {
+        for (Component line : Wormholes.text().components(sender, key, arguments)) {
             WormholesAudience.sendMessage(sender, line);
         }
     }
