@@ -294,7 +294,8 @@ class NetworkManagerTest {
         alpha.savePeer(route(BETA_NAME, portB));
         alpha.start();
         beta.start();
-        awaitTrue("beta sees alpha READY", () -> beta.isPeerReady(ALPHA_NAME), 10_000L);
+        awaitTrue("alpha raw-connected to beta", () -> alpha.isRawPeerReady(BETA_NAME), 10_000L);
+        awaitTrue("beta raw-connected to alpha", () -> beta.isRawPeerReady(ALPHA_NAME), 10_000L);
 
         PeerConnection connection = beta.links().ready(ALPHA_NAME);
         assertNotNull(connection);
