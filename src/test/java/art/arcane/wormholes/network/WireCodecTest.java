@@ -24,7 +24,7 @@ class WireCodecTest {
     void helloRoundTripPreservesAllFields() throws Exception {
         byte[] nonce = Handshake.newNonce();
         byte[] publicKey = publicKey();
-        WireMessage.Hello hello = new WireMessage.Hello(WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "alpha", "10.0.0.5", 8901, 25565, nonce, publicKey, false, CompressionDictionary.ZERO_HASH, 0);
+        WireMessage.Hello hello = new WireMessage.Hello(WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "alpha", "10.0.0.5", 8901, new GameEndpoint("10.0.0.5", 25565), null, nonce, publicKey, false, CompressionDictionary.ZERO_HASH, 0);
         WireMessage.Hello decoded = assertInstanceOf(WireMessage.Hello.class, roundTrip(hello));
         assertEquals(WireCodec.PROTOCOL_VERSION, decoded.protocolVersion());
         assertEquals("26.2", decoded.mcVersion());
@@ -42,12 +42,12 @@ class WireCodecTest {
         byte[] nonce = Handshake.newNonce();
         byte[] publicKey = publicKey();
         byte[] signature = new byte[] {1, 2, 3, 4};
-        WireMessage.Challenge challenge = new WireMessage.Challenge("beta", "10.0.0.2", 8901, 25565, nonce, publicKey, signature, true, CompressionDictionary.ZERO_HASH, 0);
+        WireMessage.Challenge challenge = new WireMessage.Challenge("beta", "10.0.0.2", 8901, new GameEndpoint("10.0.0.2", 25565), null, nonce, publicKey, signature, true, CompressionDictionary.ZERO_HASH, 0);
         WireMessage.Challenge decoded = assertInstanceOf(WireMessage.Challenge.class, roundTrip(challenge));
         assertEquals("beta", decoded.serverName());
         assertEquals("10.0.0.2", decoded.advertiseHost());
         assertEquals(8901, decoded.wormholePort());
-        assertEquals(25565, decoded.gamePort());
+        assertEquals(25565, decoded.gameEndpoint().port());
         assertArrayEquals(nonce, decoded.nonce());
         assertArrayEquals(publicKey, decoded.publicKey());
         assertArrayEquals(signature, decoded.signature());
@@ -74,7 +74,7 @@ class WireCodecTest {
     @Test
     void largePayloadIsCompressedAndRoundTrips() throws Exception {
         String bigVersion = "x".repeat(50_000);
-        WireMessage.Hello hello = new WireMessage.Hello(WireCodec.PROTOCOL_VERSION, "26.2", bigVersion, "alpha", "10.0.0.5", 8901, 25565, Handshake.newNonce(), publicKey(), true, CompressionDictionary.ZERO_HASH, 0);
+        WireMessage.Hello hello = new WireMessage.Hello(WireCodec.PROTOCOL_VERSION, "26.2", bigVersion, "alpha", "10.0.0.5", 8901, new GameEndpoint("10.0.0.5", 25565), null, Handshake.newNonce(), publicKey(), true, CompressionDictionary.ZERO_HASH, 0);
         WireCompression compression = new WireCompression(WireCompression.DEFAULT_LEVEL);
         try {
             byte[] frame = WireCodec.encodeFrame(hello, compression, 0);

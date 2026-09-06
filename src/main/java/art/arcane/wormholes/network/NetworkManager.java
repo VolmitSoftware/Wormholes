@@ -5,6 +5,7 @@ import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.replication.HashProbeScheduler;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.file.Path;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -28,6 +30,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class NetworkManager implements PeerConnection.Listener, PeerConnection.CompressionProvider {
+    public static final long PLAYER_ENDPOINT_TIMEOUT_MILLIS = 7_000L;
     public record PeerStatus(String name, String address, String state, boolean dialer, long rttMillis, long lastInboundAgeMillis, String lastError) {
     }
 
@@ -83,6 +86,8 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     private final HashProbeScheduler hashProbeScheduler;
 
     private volatile NetworkConfig config;
+    private volatile String gameBindHost = "";
+    private volatile ClientEndpointRoutes clientEndpointRoutes;
     private volatile BiConsumer<String, WireMessage> messageSink;
     private volatile BiConsumer<String, Boolean> peerStateSink;
     private volatile ScheduledExecutorService scheduler;
@@ -104,6 +109,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         config.normalizeRuntimeBounds();
         this.logger = logger;
         this.config = config;
+        this.clientEndpointRoutes = new ClientEndpointRoutes(config.clientRoutes);
         this.gamePort = gamePort;
         this.dictionary = new DictionaryExchange(this, logger, dataDirectory, config);
         this.fragmenter = new SidebandFragmenter(this, logger);
@@ -134,6 +140,22 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
 
     int gamePort() {
         return gamePort;
+    }
+
+    String gameBindHost() {
+        return gameBindHost;
+    }
+
+    public void setGameBindHost(String host) {
+        synchronized (lifecycleGate) {
+            if (running.get()) {
+                throw new IllegalStateException("Game bind host must be set before the network starts");
+            }
+            String bindHost = host == null ? "" : host.trim();
+            InetAddress address = GameEndpoint.literal(bindHost);
+            gameBindHost = bindHost.isEmpty() || (address != null && address.isAnyLocalAddress())
+                ? "" : new GameEndpoint(bindHost, gamePort).host();
+        }
     }
 
     PeerLinkRegistry links() {
@@ -385,8 +407,10 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
 
     public void applyConfig(NetworkConfig next) {
         next.normalizeRuntimeBounds();
+        ClientEndpointRoutes nextRoutes = new ClientEndpointRoutes(next.clientRoutes);
         NetworkConfig previous = config;
         config = next;
+        clientEndpointRoutes = nextRoutes;
         dictionary.applyConfig(next);
         if (next.replication != null) {
             replicationManager.applyConfig(new ChunkReplicationManager.ReplicationConfig(next.replication.maxQueuedDiffsPerPeer));
@@ -397,6 +421,10 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
             || previous.listenEnabled != next.listenEnabled
             || previous.listenPort != next.listenPort
             || overrideChanged
+            || !blank(previous.gameHostOverride).equals(blank(next.gameHostOverride))
+            || previous.gamePortOverride != next.gamePortOverride
+            || !blank(previous.privateGameHostOverride).equals(blank(next.privateGameHostOverride))
+            || previous.privateGamePortOverride != next.privateGamePortOverride
             || !blank(previous.serverName).equals(blank(next.serverName))
             || previous.transport.udsEnabled != next.transport.udsEnabled
             || !blank(previous.transport.udsDir).equals(blank(next.transport.udsDir));
@@ -514,7 +542,28 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         return !isRawPeerReady(name) && isStatusPeerReady(name);
     }
 
-    String privatePlayerEndpoint(String name) {
+    GameEndpoint gameEndpoint() {
+        return identity.gameEndpoint();
+    }
+
+    GameEndpoint localPrivateGameEndpoint() {
+        return identity.privateGameEndpoint();
+    }
+
+    public GameEndpoint playerEndpoint(String name, InetSocketAddress clientAddress) {
+        GameEndpoint configured = clientEndpointRoutes.resolve(name, clientAddress);
+        if (configured != null) {
+            return configured;
+        }
+        NetworkConfig.PeerEntry peer = directory.find(name);
+        return peer == null ? null : PeerEndpointResolver.playerTransferEndpoint(peer, clientAddress, privatePlayerEndpoint(name));
+    }
+
+    GameEndpoint reachableGameEndpoint(String name) {
+        return presence.reachableGameEndpoint(name);
+    }
+
+    GameEndpoint privatePlayerEndpoint(String name) {
         NetworkConfig.PeerEntry peer = directory.find(name);
         if (peer == null) {
             return null;
@@ -529,15 +578,77 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
                 rawPeerAddress = inetAddress;
             }
         }
-        String statusGameHost = !isRawPeerReady(name) && isStatusPeerReady(name)
-            ? presence.reachableGameHost(name)
+        GameEndpoint statusGameEndpoint = !isRawPeerReady(name) && isStatusPeerReady(name)
+            ? presence.reachableGameEndpoint(name)
             : null;
-        return PeerEndpointResolver.privateGameHost(
+        return PeerEndpointResolver.privateGameEndpoint(
             peer,
-            statusGameHost,
+            statusGameEndpoint,
             rawPeerAddress,
             loopbackTransport
         );
+    }
+
+    public CompletableFuture<EndpointValidation> validatePlayerEndpoint(String peerName, GameEndpoint endpoint) {
+        ExecutorService executor = statusPollExecutor;
+        if (endpoint == null || executor == null || !isRunning()) {
+            return CompletableFuture.completedFuture(new EndpointValidation(EndpointValidation.State.FAILED,
+                "destination game endpoint is unavailable"));
+        }
+        try {
+            return CompletableFuture.supplyAsync(() -> validatePlayerEndpointNow(peerName, endpoint), executor)
+                .completeOnTimeout(new EndpointValidation(EndpointValidation.State.FAILED, "game endpoint probe timed out"),
+                    PLAYER_ENDPOINT_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+        } catch (RejectedExecutionException error) {
+            return CompletableFuture.completedFuture(new EndpointValidation(EndpointValidation.State.FAILED,
+                "network is stopping"));
+        }
+    }
+
+    private EndpointValidation validatePlayerEndpointNow(String peerName, GameEndpoint endpoint) {
+        try {
+            if (!probeEndpoint(peerName, endpoint)) {
+                return new EndpointValidation(EndpointValidation.State.FAILED,
+                    endpoint.display() + " did not authenticate as " + peerName);
+            }
+            return new EndpointValidation(EndpointValidation.State.VERIFIED, endpoint.display());
+        } catch (MinecraftStatusBridge.RequestUndeliveredException unreachable) {
+            GameEndpoint privateEndpoint = privatePlayerEndpoint(peerName);
+            if (privateEndpoint != null && !privateEndpoint.equals(endpoint)
+                && !PeerEndpointResolver.isLocalAddress(GameEndpoint.literal(endpoint.host()))) {
+                try {
+                    if (probeEndpoint(peerName, privateEndpoint)) {
+                        String detail = "destination verified at " + privateEndpoint.display()
+                            + "; client route " + endpoint.display() + " cannot be reached from this server";
+                        logger.info("net: " + peerName + " " + detail);
+                        return new EndpointValidation(EndpointValidation.State.DESTINATION_VERIFIED, detail);
+                    }
+                } catch (IOException fallbackFailure) {
+                    return new EndpointValidation(EndpointValidation.State.FAILED,
+                        "game endpoints could not be verified: " + endpoint.display() + ", " + privateEndpoint.display());
+                }
+            }
+            return new EndpointValidation(EndpointValidation.State.FAILED,
+                "game endpoint is unreachable from this server: " + endpoint.display());
+        } catch (IOException | RuntimeException failure) {
+            return new EndpointValidation(EndpointValidation.State.FAILED,
+                "game endpoint probe failed for " + endpoint.display() + ": " + failure.getMessage());
+        }
+    }
+
+    private boolean probeEndpoint(String peerName, GameEndpoint endpoint) throws IOException {
+        MinecraftStatusBridge.StatusPacket request = MinecraftStatusBridge.createEndpointProbe(identity.snapshot(), peerName, 0L);
+        MinecraftStatusBridge.StatusPacket response = statusBridge.pollEndpoint(endpoint, request);
+        return response != null && response.ackNonce() == request.nonce()
+            && authenticatedEndpointProbe(response, peerName);
+    }
+
+    private boolean authenticatedEndpointProbe(MinecraftStatusBridge.StatusPacket packet, String expectedPeer) {
+        byte[] expectedKey = trust.key(expectedPeer);
+        return isRunning() && config.enabled && packet.endpointProbe() && packet.messages().isEmpty()
+            && expectedKey != null && expectedPeer.equals(packet.sourceServer())
+            && getLocalName().equals(packet.targetServer()) && statusBridgeIncompatibility(packet) == null
+            && Handshake.sameKey(expectedKey, packet.publicKey()) && packet.verify();
     }
 
     boolean isRawPeerReady(String name) {
@@ -655,6 +766,10 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         }
         try {
             String sourceServer = request.sourceServer();
+            if (request.endpointProbe()) {
+                return authenticatedEndpointProbe(request, sourceServer) && request.ackNonce() == 0L
+                    ? MinecraftStatusBridge.createEndpointProbe(identity.snapshot(), sourceServer, request.nonce()) : null;
+            }
             if (isRawPeerReady(sourceServer) || !acceptStatusBridgePacket(request, null, admission)) {
                 return null;
             }
@@ -724,7 +839,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
 
     boolean handleStatusBridgeResponse(String expectedPeerName,
                                        MinecraftStatusBridge.StatusPacket response,
-                                       long rttMillis, String reachableGameHost) {
+                                       long rttMillis, GameEndpoint reachableGameEndpoint) {
         if (response == null) {
             return false;
         }
@@ -737,8 +852,8 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
                 return false;
             }
             String sourceServer = response.sourceServer();
-            if (reachableGameHost != null && !reachableGameHost.isBlank()) {
-                presence.rememberReachableGameHost(sourceServer, reachableGameHost);
+            if (reachableGameEndpoint != null) {
+                presence.rememberReachableGameEndpoint(sourceServer, reachableGameEndpoint);
             }
             synchronized (statusPeerGate(sourceServer)) {
                 if (isRawPeerReady(sourceServer)) {
@@ -773,9 +888,10 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     private MinecraftStatusBridge.StatusPacket createStatusBridgePacket(String targetServer,
                                                                          List<MinecraftStatusBridge.EncodedMessage> messages,
                                                                          long ackNonce) {
-        return MinecraftStatusBridge.create(identity.localName(), targetServer, WireCodec.PROTOCOL_VERSION,
-            identity.mcVersion(), identity.pluginVersion(), identity.advertiseHost(), gamePort,
-            identity.publicKeyBytes(), identity.privateKey(), ackNonce, messages);
+        LocalIdentity local = identity.snapshot();
+        return MinecraftStatusBridge.create(local.serverName(), targetServer, WireCodec.PROTOCOL_VERSION,
+            local.mcVersion(), local.pluginVersion(), local.gameEndpoint().host(), local.gameEndpoint().port(),
+            local.privateGameEndpoint(), local.advertiseHost(), local.wormholePort(), local.publicKey(), local.privateKey(), ackNonce, messages);
     }
 
     @Override
@@ -788,7 +904,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
 
     private boolean acceptStatusBridgePacket(MinecraftStatusBridge.StatusPacket packet, String expectedSource,
                                              LifecycleAdmission admission) {
-        if (!isLifecycleActive(admission) || !config.enabled) {
+        if (!isLifecycleActive(admission) || !config.enabled || packet.endpointProbe()) {
             return false;
         }
         String sourceServer = packet.sourceServer();
@@ -1196,7 +1312,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
                 peer.name,
                 response,
                 System.currentTimeMillis() - started,
-                poll.host()
+                poll.endpoint()
             )) {
                 throw new IOException("status sideband response was rejected");
             }
@@ -1256,7 +1372,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
             }
             if (!messages.isEmpty() && statusPollFailing.add(peer.name)) {
                 logger.warning("net: status sideband data poll to " + peer.name + " failed (" + failure + "); request carried "
-                    + messages.size() + " message(s) ~" + drainedFrameBytes(messages) + " frame bytes. Large projection/entity payloads can exceed the game-port status limit -- open the raw Wormholes port " + getBoundListenPort() + " on both servers for reliable high-throughput streaming.");
+                    + messages.size() + " message(s) ~" + drainedFrameBytes(messages) + " frame bytes. Check the destination game endpoint and /wh network status on each server for its actual raw listener port.");
             }
             return false;
         }

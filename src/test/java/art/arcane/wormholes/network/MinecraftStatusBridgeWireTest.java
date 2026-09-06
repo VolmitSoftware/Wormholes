@@ -20,6 +20,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.TimeUnit;
+import java.util.function.UnaryOperator;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -156,7 +158,7 @@ class MinecraftStatusBridgeWireTest {
         AtomicReference<Throwable> serverFailure = new AtomicReference<>();
         try (ServerSocket serverSocket = new ServerSocket()) {
             serverSocket.bind(new InetSocketAddress("127.0.0.1", 0));
-            Thread server = new Thread(() -> serveStatusBridgeOnce(serverSocket, beta, serverFailure), "wire-test-status-server");
+            Thread server = new Thread(() -> serveStatusBridgeOnce(serverSocket, beta, serverFailure, beta::handleStatusBridgeRequest), "wire-test-status-server");
             server.setDaemon(true);
             server.start();
 
@@ -164,7 +166,8 @@ class MinecraftStatusBridgeWireTest {
             peerEntry.name = BETA_NAME;
             peerEntry.host = "127.0.0.2";
             peerEntry.port = 0;
-            peerEntry.fallbackHosts = "127.0.0.1";
+            peerEntry.privateHost = "127.0.0.1";
+            peerEntry.privatePort = serverSocket.getLocalPort();
             peerEntry.publicHost = "127.0.0.2";
             peerEntry.publicPort = serverSocket.getLocalPort();
             alpha.savePeer(peerEntry);
@@ -178,26 +181,107 @@ class MinecraftStatusBridgeWireTest {
             assertTrue(response != null);
             assertTrue(response.verify());
             assertEquals(BETA_NAME, response.sourceServer());
-            assertEquals("127.0.0.1", poll.host());
+            assertEquals(new GameEndpoint("127.0.0.1", serverSocket.getLocalPort()), poll.endpoint());
             alpha.start();
-            assertTrue(alpha.handleStatusBridgeResponse(BETA_NAME, response, 1L, poll.host()));
-            assertEquals("127.0.0.1", alpha.privatePlayerEndpoint(BETA_NAME));
+            assertTrue(alpha.handleStatusBridgeResponse(BETA_NAME, response, 1L, poll.endpoint()));
+            assertEquals(poll.endpoint(), alpha.privatePlayerEndpoint(BETA_NAME));
             assertTrue(beta.isPeerReady(ALPHA_NAME));
         }
     }
 
     @Test
-    void gamePortHostsPreferPublicAndDeduplicateFallbacks() {
+    void gameEndpointsKeepPrivateAndPublicPortsSeparate() {
         NetworkConfig.PeerEntry peer = new NetworkConfig.PeerEntry();
         peer.publicHost = "play.example.test";
         peer.host = "play.example.test";
-        peer.fallbackHosts = "192.168.1.42, play.example.test, 127.0.0.1";
+        peer.fallbackHosts = "10.0.0.5";
+        peer.publicPort = 25577;
+        peer.privateHost = "192.168.1.42";
+        peer.privatePort = 25565;
 
-        assertEquals(List.of("play.example.test", "192.168.1.42", "127.0.0.1"),
-            MinecraftStatusBridge.gamePortHosts(peer));
+        assertEquals(List.of(new GameEndpoint("play.example.test", 25577), new GameEndpoint("192.168.1.42", 25565)),
+            PeerEndpointResolver.gameEndpoints(peer));
     }
 
-    private static void serveStatusBridgeOnce(ServerSocket serverSocket, NetworkManager beta, AtomicReference<Throwable> failure) {
+    @Test
+    void endpointProbeAuthenticatesExactGameSocketWithoutPromotingSideband() throws Exception {
+        NetworkConfig alphaConfig = config(freePort(), ALPHA_NAME);
+        NetworkConfig betaConfig = config(freePort(), BETA_NAME);
+        alphaConfig.listenEnabled = false;
+        betaConfig.listenEnabled = false;
+        NetworkManager alpha = manager(alphaConfig, freePort(), "probe-alpha");
+        NetworkManager beta = manager(betaConfig, freePort(), "probe-beta");
+        alpha.trustPeer(BETA_NAME, beta.getPublicKey());
+        beta.trustPeer(ALPHA_NAME, alpha.getPublicKey());
+        alpha.start();
+        beta.start();
+        AtomicReference<Throwable> serverFailure = new AtomicReference<>();
+        try (ServerSocket socket = new ServerSocket()) {
+            socket.bind(new InetSocketAddress("127.0.0.1", 0));
+            Thread server = Thread.ofVirtual().start(() -> serveStatusBridgeOnce(socket, beta, serverFailure,
+                beta::handleStatusBridgeRequest));
+            GameEndpoint endpoint = new GameEndpoint("127.0.0.1", socket.getLocalPort());
+            EndpointValidation result = alpha.validatePlayerEndpoint(BETA_NAME, endpoint).get(8L, TimeUnit.SECONDS);
+            server.join(2000L);
+            assertEquals(EndpointValidation.State.VERIFIED, result.state());
+            assertNull(serverFailure.get());
+            assertFalse(alpha.isPeerReady(BETA_NAME));
+            assertFalse(beta.isPeerReady(ALPHA_NAME));
+            assertEquals(0, alpha.knownPeerCount());
+            assertEquals(0, beta.knownPeerCount());
+        }
+    }
+
+    @Test
+    void endpointProbeRejectsAValidSignedResponseWithTheWrongNonce() throws Exception {
+        NetworkConfig alphaConfig = config(freePort(), ALPHA_NAME);
+        NetworkConfig betaConfig = config(freePort(), BETA_NAME);
+        alphaConfig.listenEnabled = false;
+        betaConfig.listenEnabled = false;
+        NetworkManager alpha = manager(alphaConfig, freePort(), "nonce-alpha");
+        NetworkManager beta = manager(betaConfig, freePort(), "nonce-beta");
+        alpha.trustPeer(BETA_NAME, beta.getPublicKey());
+        beta.trustPeer(ALPHA_NAME, alpha.getPublicKey());
+        alpha.start();
+        beta.start();
+        LocalIdentity identity = identity(beta);
+        AtomicReference<Throwable> serverFailure = new AtomicReference<>();
+        try (ServerSocket socket = new ServerSocket()) {
+            socket.bind(new InetSocketAddress("127.0.0.1", 0));
+            Thread server = Thread.ofVirtual().start(() -> serveStatusBridgeOnce(socket, beta, serverFailure,
+                request -> MinecraftStatusBridge.createEndpointProbe(identity, ALPHA_NAME, request.nonce() + 1L)));
+            EndpointValidation result = alpha.validatePlayerEndpoint(BETA_NAME,
+                new GameEndpoint("127.0.0.1", socket.getLocalPort())).get(8L, TimeUnit.SECONDS);
+            server.join(2000L);
+            assertEquals(EndpointValidation.State.FAILED, result.state());
+            assertNull(serverFailure.get());
+        }
+    }
+
+    @Test
+    void unknownEndpointProbeDoesNotTrustOrDiscoverItsSender() throws Exception {
+        NetworkConfig alphaConfig = config(freePort(), ALPHA_NAME);
+        NetworkConfig betaConfig = config(freePort(), BETA_NAME);
+        alphaConfig.listenEnabled = false;
+        betaConfig.listenEnabled = false;
+        NetworkManager alpha = manager(alphaConfig, freePort(), "unknown-alpha");
+        NetworkManager beta = manager(betaConfig, freePort(), "unknown-beta");
+        alpha.start();
+        beta.start();
+        MinecraftStatusBridge.StatusPacket request = MinecraftStatusBridge.createEndpointProbe(identity(alpha), BETA_NAME, 0L);
+        assertNull(beta.handleStatusBridgeRequest(request));
+        assertEquals(0, beta.knownPeerCount());
+        assertNull(PeerTrustStore.loadOrCreate(tempDir.resolve("unknown-beta")).get(ALPHA_NAME));
+    }
+
+    private static LocalIdentity identity(NetworkManager network) {
+        return new LocalIdentity(network.getLocalName(), "26.2", "test", network.getAdvertiseHost(),
+            network.getBoundListenPort(), network.gameEndpoint(), network.localPrivateGameEndpoint(),
+            Handshake.decodePublicKeyText(network.getPublicKey()), network.identityPrivateKey());
+    }
+
+    private static void serveStatusBridgeOnce(ServerSocket serverSocket, NetworkManager beta, AtomicReference<Throwable> failure,
+                                               UnaryOperator<MinecraftStatusBridge.StatusPacket> respond) {
         try (Socket socket = serverSocket.accept()) {
             InputStream input = socket.getInputStream();
             OutputStream output = socket.getOutputStream();
@@ -223,7 +307,7 @@ class MinecraftStatusBridgeWireTest {
                 throw new EOFException("truncated status request packet");
             }
             MinecraftStatusBridge.StatusPacket request = MinecraftStatusBridge.StatusPacket.decode(address.substring(HOST_PREFIX.length()), beta.compression());
-            MinecraftStatusBridge.StatusPacket response = beta.handleStatusBridgeRequest(request);
+            MinecraftStatusBridge.StatusPacket response = respond.apply(request);
             if (response == null) {
                 throw new IOException("beta rejected the status bridge request");
             }

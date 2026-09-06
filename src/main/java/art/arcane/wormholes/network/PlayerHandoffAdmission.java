@@ -34,8 +34,9 @@ final class PlayerHandoffAdmission {
             Objects.requireNonNull(playerId);
             Objects.requireNonNull(playerName);
             Objects.requireNonNull(peerName);
-            Objects.requireNonNull(exitPortalId);
-            Objects.requireNonNull(traversive);
+            if (exitPortalId != null) {
+                Objects.requireNonNull(traversive);
+            }
         }
     }
 
@@ -199,6 +200,13 @@ final class PlayerHandoffAdmission {
         entriesByTransfer.put(request.transferId(), entry.consume());
         transferByPlayer.remove(request.playerId(), request.transferId());
         return true;
+    }
+
+    synchronized boolean isArrivalClaimActive(Reservation reservation, long nowMillis) {
+        prune(nowMillis);
+        Entry entry = entriesByTransfer.get(reservation.request().transferId());
+        return entry != null && entry.arrivalState() == ArrivalState.PLACING
+            && reservation.equals(entry.reservation());
     }
 
     synchronized boolean releaseArrival(Reservation reservation, long nowMillis) {

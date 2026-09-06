@@ -1,6 +1,5 @@
 package art.arcane.wormholes.network;
 
-import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.network.TraversalFailureLedger.Failure;
@@ -15,6 +14,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
 import java.util.logging.Level;
+import java.util.concurrent.CompletableFuture;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 final class TraversalArrivalPlacer {
     @FunctionalInterface
@@ -39,26 +42,32 @@ final class TraversalArrivalPlacer {
     private final TraversalNotices notices;
     private final TraversalEntityScheduler scheduler;
     private final Lifecycle lifecycle;
+    private final Map<UUID, ArrivalPlacement> placements = new HashMap<>();
 
-    TraversalArrivalPlacer(NetworkManager network, PlayerHandoffAdmission admissions, TraversalFailureLedger failures,
-                           TraversalNotices notices, TraversalEntityScheduler scheduler) {
-        this(network, admissions, failures, notices, scheduler, task -> {
-            task.run();
-            return true;
-        });
+    @FunctionalInterface
+    interface Completion {
+        void finish(PlayerHandoffAdmission.Reservation reservation, boolean arrived, String detail);
     }
 
-    TraversalArrivalPlacer(NetworkManager network, PlayerHandoffAdmission admissions, TraversalFailureLedger failures,
-                           TraversalNotices notices, TraversalEntityScheduler scheduler, Lifecycle lifecycle) {
-        this.network = network;
-        this.admissions = admissions;
-        this.failures = failures;
-        this.notices = notices;
-        this.scheduler = scheduler;
-        this.lifecycle = lifecycle;
+    record Services(NetworkManager network, PlayerHandoffAdmission admissions, TraversalFailureLedger failures,
+                    TraversalNotices notices, TraversalEntityScheduler scheduler, Lifecycle lifecycle,
+                    Completion completion) {
     }
 
-    void placeOnJoin(Player player) {
+    private final Completion completion;
+
+    TraversalArrivalPlacer(Services services) {
+        this.network = services.network();
+        this.admissions = services.admissions();
+        this.failures = services.failures();
+        this.notices = services.notices();
+        this.scheduler = services.scheduler();
+        this.lifecycle = services.lifecycle();
+        this.completion = services.completion();
+    }
+
+    synchronized void placeOnJoin(Player player) {
+        retirePreviousSession(player);
         PlayerHandoffAdmission.Reservation arrival = admissions.claimArrival(player.getUniqueId(), System.currentTimeMillis());
         if (arrival == null) {
             return;
@@ -68,43 +77,80 @@ final class TraversalArrivalPlacer {
 
     void place(Player player, PlayerHandoffAdmission.Reservation arrival, String via) {
         ArrivalPlacement placement = new ArrivalPlacement(player, arrival, via, 0);
+        if (!registerPlacement(placement)) {
+            return;
+        }
         if (!lifecycle.run(() -> scheduleArrivalPlacement(placement))) {
             abandonArrivalPlacement(placement);
         }
     }
 
+    synchronized void playerQuit(Player player) {
+        ArrivalPlacement placement = placements.get(player.getUniqueId());
+        if (placement != null && placement.player() == player) {
+            abandonArrivalPlacement(placement);
+        }
+    }
+
+    private synchronized void retirePreviousSession(Player player) {
+        ArrivalPlacement placement = placements.get(player.getUniqueId());
+        if (placement != null && placement.player() != player) {
+            abandonArrivalPlacement(placement);
+        }
+    }
+
+    private synchronized boolean registerPlacement(ArrivalPlacement placement) {
+        if (!admissions.isArrivalClaimActive(placement.reservation(), System.currentTimeMillis())) {
+            return false;
+        }
+        placements.put(placement.player().getUniqueId(), placement);
+        return true;
+    }
+
+    private synchronized boolean ownsPlacement(ArrivalPlacement placement) {
+        return placements.get(placement.player().getUniqueId()) == placement;
+    }
+
     private void scheduleArrivalPlacement(ArrivalPlacement placement) {
         Player player = placement.player();
-        PlayerHandoffAdmission.Reservation arrival = placement.reservation();
         Runnable retired = () -> {
-            admissions.releaseArrival(arrival, System.currentTimeMillis());
+            if (!abandonArrivalPlacement(placement)) {
+                return;
+            }
             failures.record(Failure.ARRIVAL_PLAYER_RETIRED, player.getUniqueId(),
                 placement.via() + ": traveler retired before portal placement");
         };
         if (!scheduler.schedule(player, () -> beginArrivalPlacement(placement), retired,
-            TraversalEntityScheduler.OFF_EVENT_STACK_DELAY_TICKS)) {
-            admissions.releaseArrival(arrival, System.currentTimeMillis());
+            TraversalEntityScheduler.OFF_EVENT_STACK_DELAY_TICKS) && abandonArrivalPlacement(placement)) {
             failures.record(Failure.ARRIVAL_SCHEDULE_REJECTED, player.getUniqueId(), placement.via() + ": player scheduler rejected portal placement");
             notices.arrivalUnplaced(player);
         }
     }
 
-    void warmArrivalChunk(ILocalPortal exit, Traversive traversive) {
+    CompletableFuture<Void> warmArrivalChunk(ILocalPortal exit, Traversive traversive) {
         if (exit == null || traversive == null || exit.getStructure() == null || exit.getStructure().getWorld() == null) {
-            return;
+            return CompletableFuture.failedFuture(new IllegalStateException("Destination portal world is unavailable"));
         }
         Location target = exit.computeExitTarget(traversive);
         World world = target.getWorld();
         if (world == null) {
-            return;
+            return CompletableFuture.failedFuture(new IllegalStateException("Destination arrival world is unavailable"));
         }
         int centerX = target.getBlockX() >> 4;
         int centerZ = target.getBlockZ() >> 4;
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dz = -2; dz <= 2; dz++) {
-                WormholesPlatform.loadChunk(Wormholes.instance, world, centerX + dx, centerZ + dz);
+        CompletableFuture<?>[] chunks = new CompletableFuture<?>[9];
+        int index = 0;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                chunks[index++] = WormholesPlatform.loadChunk(Wormholes.instance, world, centerX + dx, centerZ + dz)
+                    .thenAccept(chunk -> {
+                        if (chunk == null) {
+                            throw new IllegalStateException("Destination arrival chunk did not load");
+                        }
+                    });
             }
         }
+        return CompletableFuture.allOf(chunks);
     }
 
     private void beginArrivalPlacement(ArrivalPlacement placement) {
@@ -113,9 +159,22 @@ final class TraversalArrivalPlacer {
         }
     }
 
-    private void beginActiveArrivalPlacement(ArrivalPlacement placement) {
+    private synchronized void beginActiveArrivalPlacement(ArrivalPlacement placement) {
         Player player = placement.player();
+        if (!ownsPlacement(placement)) {
+            return;
+        }
+        if (!admissions.isArrivalClaimActive(placement.reservation(), System.currentTimeMillis())) {
+            if (abandonArrivalPlacement(placement)) {
+                completion.finish(placement.reservation(), false, "arrival reservation is no longer active");
+            }
+            return;
+        }
         PlayerHandoffAdmission.Request request = placement.reservation().request();
+        if (request.exitPortalId() == null) {
+            finishAdmission(placement, true, "server join completed");
+            return;
+        }
         ILocalPortal exit = Wormholes.portalManager == null ? null : Wormholes.portalManager.getLocalPortal(request.exitPortalId());
         if (exit == null || exit.getStructure() == null || exit.getStructure().getWorld() == null) {
             retryArrivalPlacement(placement, "portal or world is unavailable", null);
@@ -131,9 +190,10 @@ final class TraversalArrivalPlacer {
         }
         LocalPortal.latchReentry(player.getUniqueId(), exit.getId());
         if (!exit.isOpen() || !exit.canArrive(player)) {
-            admissions.completeArrival(placement.reservation(), System.currentTimeMillis());
-            Wormholes.v(() -> "[arrival] " + placement.via() + " " + player.getName() + " DENIED at exitPortal=" + exit.getId() + " (closed/incoming disabled/permission)");
-            recoverDeniedArrival(placement, exit, traversive);
+            if (finishAdmission(placement, false, "destination portal refused arrival")) {
+                Wormholes.v(() -> "[arrival] " + placement.via() + " " + player.getName() + " DENIED at exitPortal=" + exit.getId() + " (closed/incoming disabled/permission)");
+                recoverDeniedArrival(placement, exit, traversive);
+            }
             return;
         }
 
@@ -147,19 +207,22 @@ final class TraversalArrivalPlacer {
         Wormholes.v(() -> "[arrival] " + placement.via() + " " + player.getName() + " spawnLoc=" + locStr(player.getLocation()) + " exitPortal=" + exit.getId() + " -> teleport target=" + locStr(target) + " (latched to exit)");
         ArrivalTeleport teleport = new ArrivalTeleport(placement, exit, traversive);
         WormholesPlatform.teleport(Wormholes.instance, player, target, PlayerTeleportEvent.TeleportCause.PLUGIN).whenComplete((success, error) -> {
-            boolean scheduled = FoliaScheduler.runEntity(
-                Wormholes.instance,
+            if (!ownsPlacement(placement)) {
+                return;
+            }
+            boolean scheduled = scheduler.schedule(
                 player,
                 () -> finishArrivalTeleport(teleport, Boolean.TRUE.equals(success), error),
-                0L,
                 () -> {
-                    admissions.releaseArrival(placement.reservation(), System.currentTimeMillis());
+                    if (!abandonArrivalPlacement(placement)) {
+                        return;
+                    }
                     failures.record(Failure.ARRIVAL_PLAYER_RETIRED, player.getUniqueId(),
                         placement.via() + ": traveler retired before the arrival teleport completed");
-                }
+                },
+                0L
             );
-            if (!scheduled) {
-                admissions.releaseArrival(placement.reservation(), System.currentTimeMillis());
+            if (!scheduled && abandonArrivalPlacement(placement)) {
                 failures.record(Failure.ARRIVAL_COMPLETION_SCHEDULE_REJECTED, player.getUniqueId(),
                     placement.via() + ": player scheduler rejected the arrival teleport completion");
                 notices.arrivalUnplaced(player);
@@ -172,7 +235,7 @@ final class TraversalArrivalPlacer {
         String sourcePeer = placement.reservation().request().peerName();
         if (returnDeniedArrival(player, sourcePeer)) {
             failures.record(Failure.ARRIVAL_DENIED_RETURNED, player.getUniqueId(),
-                "exit portal " + exit.getId() + " refused the arrival; traveler returned to " + sourcePeer);
+                "exit portal " + exit.getId() + " refused the arrival; return admission requested from " + sourcePeer);
             return;
         }
         failures.record(Failure.ARRIVAL_DENIED_STRANDED, player.getUniqueId(),
@@ -185,14 +248,17 @@ final class TraversalArrivalPlacer {
         NetworkConfig.PeerEntry peer = network == null ? null : network.getPeer(sourcePeer);
         boolean peerReady = peer != null && network.isPeerReady(sourcePeer);
         NetworkConfig config = Wormholes.settings == null ? null : Wormholes.settings.getNetwork();
-        if (config == null || !TraversalAdmissionPolicy.canReturnToSource(peer, peerReady, config.transferMode)) {
+        if (config == null) {
+            return false;
+        }
+        String transferMode = config.effectiveTransferMode(sourcePeer, config.transferMode);
+        if (!TraversalAdmissionPolicy.canReturnToSource(peer, peerReady, transferMode)) {
+            return false;
+        }
+        if (ServerConnectService.connect(network, player, sourcePeer, transferMode) != ServerConnectService.Result.QUEUED) {
             return false;
         }
         notices.arrivalReturned(player, sourcePeer);
-        PlayerTransfer.Method method = PlayerTransfer.resolveMethod(peer, config.transferMode);
-        if (!PlayerTransfer.send(player, peer, method, network.privatePlayerEndpoint(sourcePeer))) {
-            return false;
-        }
         LocalPortal.clearReentryLatch(player.getUniqueId());
         return true;
     }
@@ -203,22 +269,52 @@ final class TraversalArrivalPlacer {
         }
     }
 
-    private void finishActiveArrivalTeleport(ArrivalTeleport teleport, boolean success, Throwable error) {
+    private synchronized void finishActiveArrivalTeleport(ArrivalTeleport teleport, boolean success, Throwable error) {
         ArrivalPlacement placement = teleport.placement();
+        if (!ownsPlacement(placement)) {
+            return;
+        }
         if (!success || error != null) {
             retryArrivalPlacement(placement, "portal teleport did not complete", error);
             return;
         }
-        admissions.completeArrival(placement.reservation(), System.currentTimeMillis());
-        teleport.exit().completeRemoteArrival(placement.player(), teleport.traversive());
+        if (!teleport.exit().isOpen() || !teleport.exit().canArrive(placement.player())) {
+            if (finishAdmission(placement, false, "destination portal refused arrival after teleport")) {
+                recoverDeniedArrival(placement, teleport.exit(), teleport.traversive());
+            }
+            return;
+        }
+        if (!consumeArrivalPlacement(placement)) {
+            if (abandonArrivalPlacement(placement)) {
+                completion.finish(placement.reservation(), false, "arrival reservation expired during placement");
+            }
+            return;
+        }
+        try {
+            teleport.exit().completeRemoteArrival(placement.player(), teleport.traversive());
+            completion.finish(placement.reservation(), true, "portal arrival completed");
+        } catch (RuntimeException failure) {
+            LocalPortal.clearReentryLatch(placement.player().getUniqueId());
+            Wormholes.instance.getLogger().log(Level.WARNING,
+                "Failed to complete portal arrival for " + placement.player().getName(), failure);
+            completion.finish(placement.reservation(), false, "portal arrival completion failed");
+        }
     }
 
-    private void abandonArrivalPlacement(ArrivalPlacement placement) {
+    private synchronized boolean abandonArrivalPlacement(ArrivalPlacement placement) {
+        if (!ownsPlacement(placement)) {
+            return false;
+        }
+        placements.remove(placement.player().getUniqueId());
         admissions.releaseArrival(placement.reservation(), System.currentTimeMillis());
         LocalPortal.clearReentryLatch(placement.player().getUniqueId());
+        return true;
     }
 
-    private void retryArrivalPlacement(ArrivalPlacement placement, String reason, Throwable error) {
+    private synchronized void retryArrivalPlacement(ArrivalPlacement placement, String reason, Throwable error) {
+        if (!ownsPlacement(placement)) {
+            return;
+        }
         Player player = placement.player();
         LocalPortal.clearReentryLatch(player.getUniqueId());
         if (error == null) {
@@ -227,7 +323,7 @@ final class TraversalArrivalPlacer {
             Wormholes.instance.getLogger().log(Level.WARNING, "[arrival] " + placement.via() + " " + player.getName() + " — " + reason + " (attempt " + (placement.attempt() + 1) + ")", error);
         }
         if (placement.attempt() + 1 >= MAX_ARRIVAL_PLACEMENT_ATTEMPTS) {
-            admissions.completeArrival(placement.reservation(), System.currentTimeMillis());
+            finishAdmission(placement, false, reason);
             failures.record(Failure.ARRIVAL_EXHAUSTED, player.getUniqueId(), placement.via() + ": " + reason);
             notices.arrivalUnplaced(player);
             return;
@@ -235,24 +331,55 @@ final class TraversalArrivalPlacer {
         admissions.releaseArrival(placement.reservation(), System.currentTimeMillis());
         long delayTicks = Math.min(20L, 2L << placement.attempt());
         Runnable retryBody = () -> {
-            PlayerHandoffAdmission.Reservation next = admissions.claimArrival(player.getUniqueId(), System.currentTimeMillis());
-            if (next == null) {
-                return;
+            ArrivalPlacement retry = claimRetry(placement);
+            if (retry != null) {
+                beginArrivalPlacement(retry);
             }
-            if (!next.request().transferId().equals(placement.reservation().request().transferId())) {
-                admissions.releaseArrival(next, System.currentTimeMillis());
-                return;
-            }
-            beginArrivalPlacement(placement.retry(next));
         };
         Runnable retryRetired = () -> {
-            admissions.releaseArrival(placement.reservation(), System.currentTimeMillis());
-            failures.record(Failure.ARRIVAL_PLAYER_RETIRED, player.getUniqueId(), placement.via() + ": traveler retired before the placement retry");
+            if (abandonArrivalPlacement(placement)) {
+                failures.record(Failure.ARRIVAL_PLAYER_RETIRED, player.getUniqueId(), placement.via() + ": traveler retired before the placement retry");
+            }
         };
-        if (!TraversalService.scheduleOnEntity(player, retryBody, retryRetired, delayTicks)) {
+        if (!scheduler.schedule(player, retryBody, retryRetired, delayTicks) && abandonArrivalPlacement(placement)) {
             failures.record(Failure.ARRIVAL_RETRY_SCHEDULE_REJECTED, player.getUniqueId(), placement.via() + ": player scheduler rejected the placement retry");
             notices.arrivalUnplaced(player);
         }
+    }
+
+    private synchronized ArrivalPlacement claimRetry(ArrivalPlacement placement) {
+        if (!ownsPlacement(placement)) {
+            return null;
+        }
+        PlayerHandoffAdmission.Reservation next = admissions.claimArrival(placement.player().getUniqueId(), System.currentTimeMillis());
+        if (next == null) {
+            abandonArrivalPlacement(placement);
+            return null;
+        }
+        if (!next.request().transferId().equals(placement.reservation().request().transferId())) {
+            admissions.releaseArrival(next, System.currentTimeMillis());
+            abandonArrivalPlacement(placement);
+            return null;
+        }
+        ArrivalPlacement retry = placement.retry(next);
+        placements.put(placement.player().getUniqueId(), retry);
+        return retry;
+    }
+
+    private synchronized boolean consumeArrivalPlacement(ArrivalPlacement placement) {
+        if (!ownsPlacement(placement) || !admissions.completeArrival(placement.reservation(), System.currentTimeMillis())) {
+            return false;
+        }
+        placements.remove(placement.player().getUniqueId());
+        return true;
+    }
+
+    private boolean finishAdmission(ArrivalPlacement placement, boolean arrived, String detail) {
+        if (consumeArrivalPlacement(placement)) {
+            completion.finish(placement.reservation(), arrived, detail);
+            return true;
+        }
+        return false;
     }
 
     static String locStr(Location loc) {

@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 class PeerHandshakeAdmissionTest {
     private static final Logger LOGGER = Logger.getLogger("PeerHandshakeAdmissionTest");
     private static final LocalIdentity IDENTITY = new LocalIdentity(
-        "local", "26.2", "test", "127.0.0.1", 8901, 25565, new byte[0], null
+        "local", "26.2", "test", "127.0.0.1", 8901, new GameEndpoint("127.0.0.1", 25565), null, new byte[0], null
     );
 
     @TempDir

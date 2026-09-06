@@ -29,7 +29,7 @@ class OutboundFrameTest {
         byte[] nonce = new byte[Handshake.NONCE_LENGTH];
         byte[] publicKey = new byte[64];
         return new WireMessage.Hello(WireCodec.PROTOCOL_VERSION, "26.2", new String(chars), "alpha", "10.0.0.1",
-            8901, 25565, nonce, publicKey, true, CompressionDictionary.ZERO_HASH, 0);
+            8901, new GameEndpoint("10.0.0.1", 25565), null, nonce, publicKey, true, CompressionDictionary.ZERO_HASH, 0);
     }
 
     private static CompressionDictionary trainDictionary() {

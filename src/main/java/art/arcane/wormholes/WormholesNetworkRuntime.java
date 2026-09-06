@@ -65,6 +65,7 @@ final class WormholesNetworkRuntime {
     private void construct(WormholesSettings activeSettings) {
         Wormholes.remotePortalRegistry = new RemotePortalRegistry();
         Wormholes.networkManager = new NetworkManager(plugin.getLogger(), activeSettings.getNetwork(), WormholesPlatform.minecraftVersion(), WormholesPlatform.pluginVersion(plugin), Bukkit.getPort(), plugin.getDataFolder().toPath());
+        Wormholes.networkManager.setGameBindHost(Bukkit.getIp());
         Wormholes.importExportService = new ImportExportService(Wormholes.networkManager);
         Wormholes.portalSyncService = new PortalSyncService(
             Wormholes.networkManager,

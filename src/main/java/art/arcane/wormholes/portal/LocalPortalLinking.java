@@ -177,6 +177,7 @@ final class LocalPortalLinking
 			throw new RuntimeException("Unable to determine identity of new destination!");
 		}
 
+		portal.gate().invalidateProjection();
 		portal.settings().syncLinkedLocalsIfEnabled();
 		return true;
 	}
@@ -193,6 +194,7 @@ final class LocalPortalLinking
 		}
 		detachDimensionalPairIdentity();
 		tunnel = new UniversalTunnel(serverName, portalId);
+		portal.gate().invalidateProjection();
 		portal.save();
 		return true;
 	}
@@ -303,6 +305,7 @@ final class LocalPortalLinking
 		}
 		detachDimensionalPairIdentity();
 		tunnel = null;
+		portal.gate().invalidateProjection();
 		portal.save();
 	}
 

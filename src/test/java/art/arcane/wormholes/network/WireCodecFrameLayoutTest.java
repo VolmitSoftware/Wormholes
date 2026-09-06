@@ -23,7 +23,7 @@ class WireCodecFrameLayoutTest {
             chars[i] = (char) ('a' + (i % 8));
         }
         return new WireMessage.Hello(WireCodec.PROTOCOL_VERSION, "26.2", new String(chars), "alpha", "10.0.0.1",
-            8901, 25565, new byte[Handshake.NONCE_LENGTH], new byte[64], true, CompressionDictionary.ZERO_HASH, 0);
+            8901, new GameEndpoint("10.0.0.1", 25565), null, new byte[Handshake.NONCE_LENGTH], new byte[64], true, CompressionDictionary.ZERO_HASH, 0);
     }
 
     private static WireMessage.EntityTransfer incompressibleTransfer(int snapshotSize, long seed) {

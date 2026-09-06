@@ -15,7 +15,7 @@ import art.arcane.wormholes.portal.ProjectionRenderMode;
 
 public final class ReplicationStreamKeyRenderModeTest {
     @Test
-    public void venticularRoundTripsAcrossProtocolEighteen() throws Exception {
+    public void venticularRoundTripsAcrossCurrentProtocol() throws Exception {
         ReplicationStreamKey expected = new ReplicationStreamKey(
             UUID.fromString("02bea2f7-d38a-4c91-9b63-d7ff73138abd"),
             UUID.fromString("bdd02033-e8e6-4c4f-9343-8004815eb642"),
@@ -27,7 +27,7 @@ public final class ReplicationStreamKeyRenderModeTest {
         ReplicationStreamKey decoded = ReplicationStreamKey.read(
             new DataInputStream(new ByteArrayInputStream(bytes.toByteArray())));
 
-        assertEquals(19, WireCodec.PROTOCOL_VERSION);
+        assertEquals(20, WireCodec.PROTOCOL_VERSION);
         assertEquals(expected, decoded);
     }
 }

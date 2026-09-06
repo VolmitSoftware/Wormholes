@@ -52,9 +52,11 @@ final class PeerDialer {
         nextDialAttempt.remove(peerName);
         dialFailures.remove(peerName);
         lastDialError.remove(peerName);
+        dialCandidateIndex.remove(peerName);
     }
 
     void registerFailure(String peerName) {
+        dialCandidateIndex.compute(peerName, (ignored, index) -> index == null ? 1 : index == Integer.MAX_VALUE ? 0 : index + 1);
         int failures = dialFailures.merge(peerName, 1, Integer::sum);
         long backoff = Math.min(BACKOFF_MAX_MS, BACKOFF_BASE_MS << Math.min(10, failures - 1));
         nextDialAttempt.put(peerName, System.currentTimeMillis() + backoff);
@@ -100,7 +102,6 @@ final class PeerDialer {
             network.startDialedConnection(channel, peer.name);
         } catch (IOException e) {
             lastDialError.put(peer.name, host + ":" + peer.port + " - " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
-            dialCandidateIndex.put(peer.name, index + 1);
             registerFailure(peer.name);
         }
     }

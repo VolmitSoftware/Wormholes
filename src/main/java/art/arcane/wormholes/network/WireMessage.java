@@ -25,7 +25,7 @@ public sealed interface WireMessage {
 
     void write(DataOutputStream out) throws IOException;
 
-    record Hello(int protocolVersion, String mcVersion, String pluginVersion, String serverName, String advertiseHost, int wormholePort, int gamePort, byte[] nonce, byte[] publicKey, boolean compressionSupported, byte[] currentDictHash, int currentDictVersion) implements WireMessage {
+    record Hello(int protocolVersion, String mcVersion, String pluginVersion, String serverName, String advertiseHost, int wormholePort, GameEndpoint gameEndpoint, GameEndpoint privateGameEndpoint, byte[] nonce, byte[] publicKey, boolean compressionSupported, byte[] currentDictHash, int currentDictVersion) implements WireMessage {
         @Override
         public WireMessageType type() {
             return WireMessageType.HELLO;
@@ -39,7 +39,8 @@ public sealed interface WireMessage {
             out.writeUTF(serverName);
             out.writeUTF(advertiseHost);
             out.writeShort(wormholePort);
-            out.writeShort(gamePort);
+            GameEndpoint.write(out, gameEndpoint);
+            GameEndpoint.write(out, privateGameEndpoint);
             WireCodec.writeFixedBytes(out, nonce, Handshake.NONCE_LENGTH);
             WireCodec.writeByteArray(out, publicKey, Handshake.PUBLIC_KEY_MAX_LENGTH);
             out.writeBoolean(compressionSupported);
@@ -54,17 +55,21 @@ public sealed interface WireMessage {
             String serverName = in.readUTF();
             String advertiseHost = in.readUTF();
             int wormholePort = in.readUnsignedShort();
-            int gamePort = in.readUnsignedShort();
+            GameEndpoint gameEndpoint = GameEndpoint.read(in);
+            GameEndpoint privateGameEndpoint = GameEndpoint.read(in);
+            if (gameEndpoint == null) {
+                throw new IOException("Peer game endpoint is required");
+            }
             byte[] nonce = WireCodec.readFixedBytes(in, Handshake.NONCE_LENGTH);
             byte[] publicKey = WireCodec.readByteArray(in, Handshake.PUBLIC_KEY_MAX_LENGTH);
             boolean compressionSupported = in.readBoolean();
             byte[] currentDictHash = WireCodec.readFixedBytes(in, CompressionDictionary.HASH_LENGTH);
             int currentDictVersion = in.readInt();
-            return new Hello(protocolVersion, mcVersion, pluginVersion, serverName, advertiseHost, wormholePort, gamePort, nonce, publicKey, compressionSupported, currentDictHash, currentDictVersion);
+            return new Hello(protocolVersion, mcVersion, pluginVersion, serverName, advertiseHost, wormholePort, gameEndpoint, privateGameEndpoint, nonce, publicKey, compressionSupported, currentDictHash, currentDictVersion);
         }
     }
 
-    record Challenge(String serverName, String advertiseHost, int wormholePort, int gamePort, byte[] nonce, byte[] publicKey, byte[] signature, boolean compressionSupported, byte[] currentDictHash, int currentDictVersion) implements WireMessage {
+    record Challenge(String serverName, String advertiseHost, int wormholePort, GameEndpoint gameEndpoint, GameEndpoint privateGameEndpoint, byte[] nonce, byte[] publicKey, byte[] signature, boolean compressionSupported, byte[] currentDictHash, int currentDictVersion) implements WireMessage {
         @Override
         public WireMessageType type() {
             return WireMessageType.CHALLENGE;
@@ -75,7 +80,8 @@ public sealed interface WireMessage {
             out.writeUTF(serverName);
             out.writeUTF(advertiseHost);
             out.writeShort(wormholePort);
-            out.writeShort(gamePort);
+            GameEndpoint.write(out, gameEndpoint);
+            GameEndpoint.write(out, privateGameEndpoint);
             WireCodec.writeFixedBytes(out, nonce, Handshake.NONCE_LENGTH);
             WireCodec.writeByteArray(out, publicKey, Handshake.PUBLIC_KEY_MAX_LENGTH);
             WireCodec.writeByteArray(out, signature, Handshake.SIGNATURE_MAX_LENGTH);
@@ -88,14 +94,18 @@ public sealed interface WireMessage {
             String serverName = in.readUTF();
             String advertiseHost = in.readUTF();
             int wormholePort = in.readUnsignedShort();
-            int gamePort = in.readUnsignedShort();
+            GameEndpoint gameEndpoint = GameEndpoint.read(in);
+            GameEndpoint privateGameEndpoint = GameEndpoint.read(in);
+            if (gameEndpoint == null) {
+                throw new IOException("Peer game endpoint is required");
+            }
             byte[] nonce = WireCodec.readFixedBytes(in, Handshake.NONCE_LENGTH);
             byte[] publicKey = WireCodec.readByteArray(in, Handshake.PUBLIC_KEY_MAX_LENGTH);
             byte[] signature = WireCodec.readByteArray(in, Handshake.SIGNATURE_MAX_LENGTH);
             boolean compressionSupported = in.readBoolean();
             byte[] currentDictHash = WireCodec.readFixedBytes(in, CompressionDictionary.HASH_LENGTH);
             int currentDictVersion = in.readInt();
-            return new Challenge(serverName, advertiseHost, wormholePort, gamePort, nonce, publicKey, signature, compressionSupported, currentDictHash, currentDictVersion);
+            return new Challenge(serverName, advertiseHost, wormholePort, gameEndpoint, privateGameEndpoint, nonce, publicKey, signature, compressionSupported, currentDictHash, currentDictVersion);
         }
     }
 
@@ -378,7 +388,8 @@ public sealed interface WireMessage {
         }
     }
 
-    record HandoffRequest(UUID transferId, UUID playerId, String playerName, UUID destPortalId, boolean directTransfer, WireTraversive traversive) implements WireMessage {
+    record HandoffRequest(UUID transferId, UUID playerId, String playerName, UUID destPortalId, boolean directTransfer,
+                          boolean onlineMode, WireTraversive traversive) implements WireMessage {
         @Override
         public WireMessageType type() {
             return WireMessageType.HANDOFF_REQUEST;
@@ -389,13 +400,26 @@ public sealed interface WireMessage {
             writeUuid(out, transferId);
             writeUuid(out, playerId);
             out.writeUTF(playerName);
-            writeUuid(out, destPortalId);
+            out.writeBoolean(destPortalId != null);
+            if (destPortalId != null) {
+                writeUuid(out, destPortalId);
+            }
             out.writeBoolean(directTransfer);
-            traversive.write(out);
+            out.writeBoolean(onlineMode);
+            if (destPortalId != null) {
+                traversive.write(out);
+            }
         }
 
         public static HandoffRequest read(DataInputStream in) throws IOException {
-            return new HandoffRequest(readUuid(in), readUuid(in), in.readUTF(), readUuid(in), in.readBoolean(), WireTraversive.read(in));
+            UUID transferId = readUuid(in);
+            UUID playerId = readUuid(in);
+            String playerName = in.readUTF();
+            UUID portalId = in.readBoolean() ? readUuid(in) : null;
+            boolean direct = in.readBoolean();
+            boolean online = in.readBoolean();
+            return new HandoffRequest(transferId, playerId, playerName, portalId, direct, online,
+                portalId == null ? null : WireTraversive.read(in));
         }
     }
 
@@ -430,6 +454,42 @@ public sealed interface WireMessage {
 
         public static HandoffDeny read(DataInputStream in) throws IOException {
             return new HandoffDeny(readUuid(in), in.readUTF(), in.readLong());
+        }
+    }
+
+    record HandoffResult(UUID transferId, UUID playerId, boolean arrived, String detail) implements WireMessage {
+        @Override
+        public WireMessageType type() {
+            return WireMessageType.HANDOFF_RESULT;
+        }
+
+        @Override
+        public void write(DataOutputStream out) throws IOException {
+            writeUuid(out, transferId);
+            writeUuid(out, playerId);
+            out.writeBoolean(arrived);
+            out.writeUTF(detail);
+        }
+
+        public static HandoffResult read(DataInputStream in) throws IOException {
+            return new HandoffResult(readUuid(in), readUuid(in), in.readBoolean(), in.readUTF());
+        }
+    }
+
+    record HandoffStatus(UUID transferId, UUID playerId) implements WireMessage {
+        @Override
+        public WireMessageType type() {
+            return WireMessageType.HANDOFF_STATUS;
+        }
+
+        @Override
+        public void write(DataOutputStream out) throws IOException {
+            writeUuid(out, transferId);
+            writeUuid(out, playerId);
+        }
+
+        public static HandoffStatus read(DataInputStream in) throws IOException {
+            return new HandoffStatus(readUuid(in), readUuid(in));
         }
     }
 

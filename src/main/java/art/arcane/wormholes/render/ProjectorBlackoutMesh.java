@@ -1,13 +1,13 @@
 package art.arcane.wormholes.render;
 
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.TreeSet;
 
 import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 
 import art.arcane.wormholes.util.Direction;
@@ -17,10 +17,8 @@ final class ProjectorBlackoutMesh {
     static final int MAX_PANEL_SPAN = 64;
     static final double PANEL_THICKNESS = 1.0D / 64.0D;
     static final double PANEL_INSET = 1.0D / 1024.0D;
+    static final double PANEL_EDGE_OVERLAP = 1.0D / 256.0D;
 
-    private static final Comparator<Cell2> CELL_ORDER = Comparator
-        .comparingInt(Cell2::v)
-        .thenComparingInt(Cell2::u);
     private static final Result EMPTY = new Result(List.of(), false);
 
     private ProjectorBlackoutMesh() {
@@ -45,7 +43,7 @@ final class ProjectorBlackoutMesh {
         int plane = farCoordinate + (faceSign > 0 ? 1 : 0);
         int uAxis = firstPlaneAxis(normalAxis);
         int vAxis = secondPlaneAxis(normalAxis);
-        TreeSet<Cell2> cells = new TreeSet<Cell2>(CELL_ORDER);
+        LongOpenHashSet cells = new LongOpenHashSet();
         LongIterator iterator = geometry.iterator();
         while (iterator.hasNext()) {
             long key = iterator.nextLong();
@@ -53,7 +51,7 @@ final class ProjectorBlackoutMesh {
             int y = ProjectionCellKey.unpackY(key);
             int z = ProjectionCellKey.unpackZ(key);
             if (coordinate(x, y, z, normalAxis) == farCoordinate) {
-                cells.add(new Cell2(
+                cells.add(packCell(
                     coordinate(x, y, z, uAxis),
                     coordinate(x, y, z, vAxis)));
             }
@@ -94,7 +92,7 @@ final class ProjectorBlackoutMesh {
         }
         int uAxis = firstPlaneAxis(axis);
         int vAxis = secondPlaneAxis(axis);
-        Map<Integer, TreeSet<Cell2>> planes = new TreeMap<Integer, TreeSet<Cell2>>();
+        Map<Integer, LongOpenHashSet> planes = new TreeMap<Integer, LongOpenHashSet>();
         LongIterator iterator = faceCells.iterator();
         while (iterator.hasNext()) {
             long key = iterator.nextLong();
@@ -103,12 +101,12 @@ final class ProjectorBlackoutMesh {
             int z = ProjectionCellKey.unpackZ(key);
             int cellCoordinate = coordinate(x, y, z, axis);
             int plane = cellCoordinate + (sign > 0 ? 1 : 0);
-            TreeSet<Cell2> cells = planes.computeIfAbsent(plane, ignored -> new TreeSet<Cell2>(CELL_ORDER));
-            cells.add(new Cell2(
+            LongOpenHashSet cells = planes.computeIfAbsent(plane, ignored -> new LongOpenHashSet());
+            cells.add(packCell(
                 coordinate(x, y, z, uAxis),
                 coordinate(x, y, z, vAxis)));
         }
-        for (Map.Entry<Integer, TreeSet<Cell2>> entry : planes.entrySet()) {
+        for (Map.Entry<Integer, LongOpenHashSet> entry : planes.entrySet()) {
             meshPlane(axis, sign, entry.getKey().intValue(), entry.getValue(), panels);
             if (panels.size() > MAX_PANELS) {
                 return;
@@ -119,43 +117,53 @@ final class ProjectorBlackoutMesh {
     private static void meshPlane(int axis,
                                   int sign,
                                   int plane,
-                                  TreeSet<Cell2> cells,
+                                  LongOpenHashSet cells,
                                   List<Panel> panels) {
         int uAxis = firstPlaneAxis(axis);
         int vAxis = secondPlaneAxis(axis);
-        while (!cells.isEmpty()) {
-            Cell2 first = cells.first();
-            int maxWidth = spanLimit(first.u(), uAxis);
+        long[] ordered = cells.toLongArray();
+        Arrays.sort(ordered);
+        for (long first : ordered) {
+            if (!cells.contains(first)) {
+                continue;
+            }
+            int firstU = ((int) first) ^ Integer.MIN_VALUE;
+            int firstV = (int) (first >> 32);
+            int maxWidth = spanLimit(firstU, uAxis);
             int width = 1;
-            while (width < maxWidth && cells.contains(new Cell2(first.u() + width, first.v()))) {
+            while (width < maxWidth && cells.contains(packCell(firstU + width, firstV))) {
                 width++;
             }
 
-            int maxHeight = spanLimit(first.v(), vAxis);
+            int maxHeight = spanLimit(firstV, vAxis);
             int height = 1;
-            while (height < maxHeight && containsRow(cells, first.u(), first.v() + height, width)) {
+            while (height < maxHeight && containsRow(cells, firstU, firstV + height, width)) {
                 height++;
             }
 
             for (int vOffset = 0; vOffset < height; vOffset++) {
                 for (int uOffset = 0; uOffset < width; uOffset++) {
-                    cells.remove(new Cell2(first.u() + uOffset, first.v() + vOffset));
+                    cells.remove(packCell(firstU + uOffset, firstV + vOffset));
                 }
             }
-            panels.add(new Panel(axis, sign, plane, first.u(), first.v(), width, height));
+            panels.add(new Panel(axis, sign, plane, firstU, firstV, width, height));
             if (panels.size() > MAX_PANELS) {
                 return;
             }
         }
     }
 
-    private static boolean containsRow(TreeSet<Cell2> cells, int startU, int v, int width) {
+    private static boolean containsRow(LongOpenHashSet cells, int startU, int v, int width) {
         for (int offset = 0; offset < width; offset++) {
-            if (!cells.contains(new Cell2(startU + offset, v))) {
+            if (!cells.contains(packCell(startU + offset, v))) {
                 return false;
             }
         }
         return true;
+    }
+
+    private static long packCell(int u, int v) {
+        return ((long) v << 32) | ((u ^ Integer.MIN_VALUE) & 0xffffffffL);
     }
 
     private static int spanLimit(int coordinate, int axis) {
@@ -203,19 +211,19 @@ final class ProjectorBlackoutMesh {
             double minNormal = sign > 0
                 ? plane - PANEL_THICKNESS - PANEL_INSET
                 : plane + PANEL_INSET;
+            double scaleU = uSize + PANEL_EDGE_OVERLAP;
+            double scaleV = vSize + PANEL_EDGE_OVERLAP;
             if (axis == 0) {
-                return new Transform(minNormal, u, v, PANEL_THICKNESS, uSize, vSize);
+                return new Transform(minNormal, u, v, PANEL_THICKNESS, scaleU, scaleV);
             }
             if (axis == 1) {
-                return new Transform(u, minNormal, v, uSize, PANEL_THICKNESS, vSize);
+                return new Transform(u, minNormal, v, scaleU, PANEL_THICKNESS, scaleV);
             }
-            return new Transform(u, v, minNormal, uSize, vSize, PANEL_THICKNESS);
+            return new Transform(u, v, minNormal, scaleU, scaleV, PANEL_THICKNESS);
         }
     }
 
     record Transform(double x, double y, double z, double scaleX, double scaleY, double scaleZ) {
     }
 
-    private record Cell2(int u, int v) {
-    }
 }

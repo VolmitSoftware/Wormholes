@@ -37,19 +37,25 @@ class TraversalArrivalPlacerDispatchTest {
     @Test
     void arrivalPlacementIsPushedOffTheJoinEventStackBeforeItTeleports() {
         List<Long> delays = new ArrayList<>();
-        TraversalArrivalPlacer placer = new TraversalArrivalPlacer(
+        PlayerHandoffAdmission admissions = new PlayerHandoffAdmission();
+        TraversalArrivalPlacer placer = new TraversalArrivalPlacer(new TraversalArrivalPlacer.Services(
             null,
-            new PlayerHandoffAdmission(),
+            admissions,
             new TraversalFailureLedger(),
             new TraversalNotices(),
             (entity, task, retired, delayTicks) -> {
                 delays.add(Long.valueOf(delayTicks));
                 return true;
-            }
-        );
+            },
+            task -> {
+                task.run();
+                return true;
+            },
+            (reservation, arrived, detail) -> { }
+        ));
         UUID playerId = UUID.randomUUID();
 
-        placer.place(player(playerId), reservation(playerId), "join");
+        placer.place(player(playerId), reservation(admissions, playerId), "join");
 
         assertEquals(List.of(Long.valueOf(1L)), delays,
             "the arrival teleport must never run inline on the PlayerJoinEvent stack");
@@ -60,9 +66,10 @@ class TraversalArrivalPlacerDispatchTest {
         List<Runnable> tasks = new ArrayList<Runnable>();
         AtomicBoolean active = new AtomicBoolean(true);
         TraversalFailureLedger failures = new TraversalFailureLedger();
-        TraversalArrivalPlacer placer = new TraversalArrivalPlacer(
+        PlayerHandoffAdmission admissions = new PlayerHandoffAdmission();
+        TraversalArrivalPlacer placer = new TraversalArrivalPlacer(new TraversalArrivalPlacer.Services(
             null,
-            new PlayerHandoffAdmission(),
+            admissions,
             failures,
             new TraversalNotices(),
             (entity, task, retired, delayTicks) -> {
@@ -75,11 +82,12 @@ class TraversalArrivalPlacerDispatchTest {
                 }
                 task.run();
                 return true;
-            }
-        );
+            },
+            (reservation, arrived, detail) -> { }
+        ));
         UUID playerId = UUID.randomUUID();
 
-        placer.place(player(playerId), reservation(playerId), "join");
+        placer.place(player(playerId), reservation(admissions, playerId), "join");
         active.set(false);
         tasks.removeFirst().run();
 
@@ -87,7 +95,7 @@ class TraversalArrivalPlacerDispatchTest {
         assertEquals(0, tasks.size());
     }
 
-    private static PlayerHandoffAdmission.Reservation reservation(UUID playerId) {
+    private static PlayerHandoffAdmission.Reservation reservation(PlayerHandoffAdmission admissions, UUID playerId) {
         PlayerHandoffAdmission.Request request = new PlayerHandoffAdmission.Request(
             UUID.randomUUID(),
             playerId,
@@ -97,7 +105,9 @@ class TraversalArrivalPlacerDispatchTest {
             false,
             WireTraversive.fromTraversive(traversive())
         );
-        return new PlayerHandoffAdmission.Reservation(request, System.currentTimeMillis() + 60_000L, 1L);
+        long now = System.currentTimeMillis();
+        admissions.decide(new PlayerHandoffAdmission.Attempt(request, null, now, 60_000L, 1_000L));
+        return admissions.claimArrival(playerId, now);
     }
 
     private static Traversive traversive() {

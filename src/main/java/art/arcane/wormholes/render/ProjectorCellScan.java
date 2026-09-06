@@ -2,6 +2,7 @@ package art.arcane.wormholes.render;
 
 import java.util.List;
 
+import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -39,6 +40,7 @@ final class ProjectorCellScan {
     private final double[] scratchSlabWindowBounds;
     private final double[] scratchBlackoutSlabWindowBounds;
     private final int[] scratchCellCoords;
+    private final Long2ByteOpenHashMap localChunkReadiness;
     private LongOpenHashSet projectedBlackoutGeometry;
     private LongOpenHashSet blackoutGeometry;
     private Long2LongOpenHashMap projectedBlackoutRemoteKeys;
@@ -88,6 +90,7 @@ final class ProjectorCellScan {
         this.scratchSlabWindowBounds = new double[4];
         this.scratchBlackoutSlabWindowBounds = new double[4];
         this.scratchCellCoords = new int[3];
+        this.localChunkReadiness = new Long2ByteOpenHashMap(16);
         this.projectedBlackoutGeometry = new LongOpenHashSet(256);
         this.blackoutGeometry = new LongOpenHashSet(256);
         this.projectedBlackoutRemoteKeys = new Long2LongOpenHashMap(256);
@@ -201,6 +204,7 @@ final class ProjectorCellScan {
     }
 
     void clear() {
+        localChunkReadiness.clear();
         projected.clear();
         nextProjected.clear();
         projectedBlackoutGeometry.clear();
@@ -253,6 +257,7 @@ final class ProjectorCellScan {
         boolean mirrorMode = destination.mirrorMode;
         int mirrorRotationQuarterTurns = destination.mirrorRotationQuarterTurns;
 
+        localChunkReadiness.clear();
         nextProjected.clear();
         blackoutGeometry.clear();
         blackoutBoundary.clear();
@@ -488,8 +493,7 @@ final class ProjectorCellScan {
                     long previousRemoteKey = previousCell == null
                         ? ProjectedBlockClaim.NO_REMOTE_KEY
                         : previousCell.getLightRemoteKey();
-                    if (!localView.isChunkReady(x, z)) {
-                        localView.requestChunk(x, z);
+                    if (!localChunkReady(localView, x, z)) {
                         if (previousCell != null) {
                             ProjectedBlockClaim retained = previousCell.withFullBright(blackoutEnabled);
                             nextProjected.put(key, retained);
@@ -625,6 +629,20 @@ final class ProjectorCellScan {
 
     static boolean scanContinues(int coordinate, int end, int step) {
         return step > 0 ? coordinate <= end : coordinate >= end;
+    }
+
+    private boolean localChunkReady(ProjectionWorldView view, int x, int z) {
+        long key = ((long) (x >> 4) << 32) | ((z >> 4) & 0xFFFFFFFFL);
+        byte cached = localChunkReadiness.get(key);
+        if (cached != 0) {
+            return cached == 1;
+        }
+        boolean ready = view.isChunkReady(x, z);
+        localChunkReadiness.put(key, ready ? (byte) 1 : (byte) 2);
+        if (!ready) {
+            view.requestChunk(x, z);
+        }
+        return ready;
     }
 
     void updateEntityOcclusionEye(Location eye,

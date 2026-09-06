@@ -9,6 +9,9 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntitySnapshot;
 
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
+
 final class TraversalAdmissionPolicy {
     record HandoffRejection(Failure failure, String detail, boolean cooldown, long retryAfterMillis) {
     }
@@ -72,6 +75,22 @@ final class TraversalAdmissionPolicy {
         }
         if (state.maxPlayers() > 0 && state.admittedPlayers() >= state.maxPlayers()) {
             return "destination server is full";
+        }
+        return null;
+    }
+
+    static String directIdentityDenial(WireMessage.HandoffRequest request, boolean destinationOnlineMode) {
+        if (!request.directTransfer()) {
+            return null;
+        }
+        if (request.onlineMode() != destinationOnlineMode) {
+            return "source and destination authentication modes differ; use matching online-mode or a configured proxy";
+        }
+        if (!destinationOnlineMode) {
+            UUID offlineId = UUID.nameUUIDFromBytes(("OfflinePlayer:" + request.playerName()).getBytes(StandardCharsets.UTF_8));
+            if (!offlineId.equals(request.playerId())) {
+                return "direct login cannot preserve this forwarded player identity; use the configured proxy transfer path";
+            }
         }
         return null;
     }

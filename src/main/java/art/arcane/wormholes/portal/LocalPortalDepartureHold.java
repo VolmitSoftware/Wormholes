@@ -134,7 +134,7 @@ final class LocalPortalDepartureHold
 		LocalPortalTransitRegistry.clearTeleportInFlight(entityId);
 	}
 
-	void startPlayerDepartureHold(Player player, Traversive traversive)
+	void startPlayerDepartureHold(Player player, Traversive traversive, long deadlineMillis)
 	{
 		PortalStructure portalStructure = portal.getStructure();
 		World sourceWorld = portalStructure == null ? null : portalStructure.getWorld();
@@ -152,6 +152,7 @@ final class LocalPortalDepartureHold
 		{
 			if(!player.isValid())
 			{
+				abortDepartureHold(playerId);
 				return;
 			}
 			long nowMillis = System.currentTimeMillis();
@@ -160,11 +161,9 @@ final class LocalPortalDepartureHold
 			Location current = player.getLocation();
 			double driftSquared = sameWorld ? current.distanceSquared(anchor) : Double.MAX_VALUE;
 			double sideDistance = sameWorld ? LocalPortalTraversal.sourceSideDistance(traversive, current.toVector()) : 0.0D;
-			switch(DepartureHoldPolicy.decide(inFlight, sameWorld, sideDistance, driftSquared, nowMillis - startedAtMillis))
+			switch(DepartureHoldPolicy.decide(inFlight, sameWorld, sideDistance, driftSquared, deadlineMillis - nowMillis))
 			{
-				case STOP ->
-				{
-				}
+				case STOP -> abortDepartureHold(playerId);
 				case CANCEL_RETREAT -> abortDepartureHold(playerId);
 				case HOLD_PIN ->
 				{
@@ -182,14 +181,14 @@ final class LocalPortalDepartureHold
 						snap.setPitch(current.getPitch());
 						player.teleport(snap, PlayerTeleportEvent.TeleportCause.PLUGIN);
 					}
-					if(!runtime.dispatch(player, step[0], 1L))
+					if(!runtime.dispatch(player, step[0], () -> abortDepartureHold(playerId), 1L))
 					{
 						failDepartureHold(player, "the entity scheduler rejected the hold");
 					}
 				}
 			}
 		};
-		if(!runtime.dispatch(player, step[0], 1L))
+		if(!runtime.dispatch(player, step[0], () -> abortDepartureHold(playerId), 1L))
 		{
 			failDepartureHold(player, "the entity scheduler rejected the hold");
 		}
@@ -208,7 +207,6 @@ final class LocalPortalDepartureHold
 		if(Wormholes.traversalService != null)
 		{
 			Wormholes.traversalService.cancelPendingHandoff(playerId);
-			return;
 		}
 		LocalPortalTransitRegistry.clearTeleportInFlight(playerId);
 	}

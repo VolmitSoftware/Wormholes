@@ -8,7 +8,8 @@ public record LocalIdentity(
     String pluginVersion,
     String advertiseHost,
     int wormholePort,
-    int gamePort,
+    GameEndpoint gameEndpoint,
+    GameEndpoint privateGameEndpoint,
     byte[] publicKey,
     PrivateKey privateKey
 ) {

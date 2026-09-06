@@ -12,7 +12,7 @@ public final class WireCodec {
         void sample(WireMessageType type, byte[] payload);
     }
 
-    public static final int PROTOCOL_VERSION = 19;
+    public static final int PROTOCOL_VERSION = 20;
     public static final int MAX_FRAME_BYTES = 4 * 1024 * 1024;
     private static final int MIN_FRAME_BODY_BYTES = 2;
     private static final int PAYLOAD_SCRATCH_RETAIN_LIMIT_BYTES = 1024 * 1024;
@@ -109,6 +109,8 @@ public final class WireCodec {
             case HANDOFF_ACK -> WireMessage.HandoffAck.read(in);
             case HANDOFF_DENY -> WireMessage.HandoffDeny.read(in);
             case HANDOFF_CANCEL -> WireMessage.HandoffCancel.read(in);
+            case HANDOFF_RESULT -> WireMessage.HandoffResult.read(in);
+            case HANDOFF_STATUS -> WireMessage.HandoffStatus.read(in);
             case ENTITY_TRANSFER -> WireMessage.EntityTransfer.read(in);
             case ENTITY_TRANSFER_ACK -> WireMessage.EntityTransferAck.read(in);
             case VIEW_SUBSCRIBE -> WireMessage.ViewSubscribe.read(in);

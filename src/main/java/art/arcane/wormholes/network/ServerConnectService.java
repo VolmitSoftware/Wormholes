@@ -1,6 +1,7 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.Wormholes;
 
 import org.bukkit.entity.Player;
 
@@ -8,7 +9,7 @@ import java.util.Locale;
 
 public final class ServerConnectService {
     public enum Result {
-        SENT,
+        QUEUED,
         UNKNOWN_SERVER,
         NOT_READY,
         TRANSFER_FAILED
@@ -39,15 +40,13 @@ public final class ServerConnectService {
         if (peer == null) {
             return Result.UNKNOWN_SERVER;
         }
-        PlayerTransfer.Method method = PlayerTransfer.resolveMethod(peer, transferMode);
-        if (method == PlayerTransfer.Method.PROXY) {
-            return PlayerTransfer.send(player, peer, method) ? Result.SENT : Result.TRANSFER_FAILED;
-        }
-        if (!network.isPeerReady(serverName) || !PlayerTransfer.hasDirectHost(peer)) {
+        if (!network.isPeerReady(serverName)) {
             return Result.NOT_READY;
         }
-        return PlayerTransfer.send(player, peer, method, network.privatePlayerEndpoint(serverName))
-            ? Result.SENT
-            : Result.TRANSFER_FAILED;
+        TraversalService traversal = Wormholes.traversalService;
+        if (traversal == null) {
+            return Result.TRANSFER_FAILED;
+        }
+        return traversal.beginServerHandoff(player, serverName, transferMode) ? Result.QUEUED : Result.TRANSFER_FAILED;
     }
 }

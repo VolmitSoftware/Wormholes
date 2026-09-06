@@ -15,12 +15,13 @@ public record PortalCode(
     String advertiseHost,
     List<String> fallbackHosts,
     int wormholePort,
-    int gamePort,
+    GameEndpoint gameEndpoint,
+    GameEndpoint privateGameEndpoint,
     String publicKey,
     UUID portalId,
     String portalName
 ) {
-    public static final String PREFIX = "WHP5.";
+    public static final String PREFIX = "WHP6.";
     private static final int MAX_CODE_LENGTH = 2048;
     private static final int MAX_FALLBACK_HOSTS = 4;
 
@@ -35,7 +36,11 @@ public record PortalCode(
                 out.writeUTF(fallbackHosts.get(i));
             }
             out.writeShort(wormholePort);
-            out.writeShort(gamePort);
+            List<String> hosts = new ArrayList<>(Math.min(fallbackHosts.size(), MAX_FALLBACK_HOSTS) + 1);
+            hosts.add(advertiseHost);
+            hosts.addAll(fallbackHosts.subList(0, Math.min(fallbackHosts.size(), MAX_FALLBACK_HOSTS)));
+            GameEndpoint.writeCode(out, gameEndpoint, hosts);
+            GameEndpoint.writeCode(out, privateGameEndpoint, hosts);
             out.writeUTF(publicKey);
             out.writeLong(portalId.getMostSignificantBits());
             out.writeLong(portalId.getLeastSignificantBits());
@@ -68,14 +73,25 @@ public record PortalCode(
                 fallbackHosts.add(in.readUTF());
             }
             int wormholePort = in.readUnsignedShort();
-            int gamePort = in.readUnsignedShort();
+            List<String> hosts = new ArrayList<>(fallbackCount + 1);
+            hosts.add(advertiseHost);
+            hosts.addAll(fallbackHosts);
+            GameEndpoint gameEndpoint = GameEndpoint.readCode(in, hosts);
+            GameEndpoint privateGameEndpoint = GameEndpoint.readCode(in, hosts);
             String publicKey = in.readUTF();
             UUID portalId = new UUID(in.readLong(), in.readLong());
             String portalName = in.readUTF();
-            if (serverName.isBlank() || advertiseHost.isBlank() || wormholePort <= 0 || Handshake.decodePublicKeyText(publicKey) == null) {
+            if (in.available() != 0) {
                 return null;
             }
-            return new PortalCode(serverName, advertiseHost, List.copyOf(fallbackHosts), wormholePort, gamePort, publicKey, portalId, portalName);
+            if (serverName.isBlank() || advertiseHost.isBlank() || wormholePort <= 0 || gameEndpoint == null || Handshake.decodePublicKeyText(publicKey) == null) {
+                return null;
+            }
+            new GameEndpoint(advertiseHost, wormholePort);
+            for (String fallback : fallbackHosts) {
+                new GameEndpoint(fallback, wormholePort);
+            }
+            return new PortalCode(serverName, advertiseHost, List.copyOf(fallbackHosts), wormholePort, gameEndpoint, privateGameEndpoint, publicKey, portalId, portalName);
         } catch (IllegalArgumentException | IOException e) {
             return null;
         }

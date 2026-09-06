@@ -79,8 +79,7 @@ class HandshakeAutoFieldsTest {
         WireMessage.Challenge challenge = new WireMessage.Challenge(
             "beta",
             "203.0.113.42",
-            8901,
-            25566,
+            8901, new GameEndpoint("203.0.113.42", 25566), null,
             nonce,
             pair.getPublic().getEncoded(),
             new byte[]{1, 2, 3},
@@ -93,7 +92,7 @@ class HandshakeAutoFieldsTest {
         WireMessage.Challenge round = (WireMessage.Challenge) decoded;
         assertEquals("203.0.113.42", round.advertiseHost());
         assertEquals(8901, round.wormholePort());
-        assertEquals(25566, round.gamePort());
+        assertEquals(25566, round.gameEndpoint().port());
     }
 
     @Test

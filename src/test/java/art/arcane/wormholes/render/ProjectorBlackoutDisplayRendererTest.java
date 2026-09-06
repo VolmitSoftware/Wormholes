@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -56,6 +57,11 @@ public final class ProjectorBlackoutDisplayRendererTest {
             renderer.finish(observer);
             assertEquals(2, recorder.sentOfType(WrapperPlayServerSpawnEntity.class).size());
             assertEquals(4, recorder.sentOfType(WrapperPlayServerEntityMetadata.class).size());
+            for (WrapperPlayServerEntityMetadata update :
+                    recorder.sentOfType(WrapperPlayServerEntityMetadata.class).subList(2, 4)) {
+                assertEquals(1, update.getEntityMetadata().size());
+                assertEquals(23, update.getEntityMetadata().get(0).getIndex());
+            }
 
             assertTrue(renderer.prepare(observer, List.of(first), 42, 48.0D));
             renderer.finish(observer);
@@ -117,10 +123,65 @@ public final class ProjectorBlackoutDisplayRendererTest {
 
             assertEquals(1, recorder.sentOfType(WrapperPlayServerSpawnEntity.class).size());
             assertEquals(1, recorder.sentOfType(WrapperPlayServerEntityTeleport.class).size());
+            assertEquals(1, recorder.sentOfType(WrapperPlayServerEntityMetadata.class).size());
             assertEquals(entityId,
                 recorder.sentOfType(WrapperPlayServerEntityTeleport.class).get(0).getEntityId());
             assertTrue(recorder.sentOfType(WrapperPlayServerDestroyEntities.class).isEmpty());
             assertEquals(1, renderer.getPaneCount());
+        } finally {
+            recorder.uninstall();
+        }
+    }
+
+    @Test
+    public void abandonedRelocationCannotReuseOneEntityForTwoPanels() {
+        ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.install();
+        try {
+            Player observer = ProjectedEntityPacketRecorder.player(true);
+            ProjectorBlackoutDisplayRenderer renderer = new ProjectorBlackoutDisplayRenderer();
+            ProjectorBlackoutMesh.Panel first = new ProjectorBlackoutMesh.Panel(2, -1, 12, 3, 4, 5, 6);
+            ProjectorBlackoutMesh.Panel moved = new ProjectorBlackoutMesh.Panel(2, -1, 13, 3, 4, 5, 6);
+
+            assertTrue(renderer.prepare(observer, List.of(first), 7, 32.0D));
+            renderer.finish(observer);
+            assertTrue(renderer.prepare(observer, List.of(moved), 7, 32.0D));
+            assertTrue(renderer.prepare(observer, List.of(first, moved), 7, 32.0D));
+            renderer.finish(observer);
+
+            List<WrapperPlayServerSpawnEntity> spawns = recorder.sentOfType(WrapperPlayServerSpawnEntity.class);
+            assertEquals(2, spawns.size());
+            assertNotEquals(spawns.get(0).getEntityId(), spawns.get(1).getEntityId());
+            assertEquals(2, renderer.getPaneCount());
+
+            renderer.close(observer);
+            int[] destroyed = recorder.sentOfType(WrapperPlayServerDestroyEntities.class).get(0).getEntityIds();
+            assertEquals(2, destroyed.length);
+            assertNotEquals(destroyed[0], destroyed[1]);
+        } finally {
+            recorder.uninstall();
+        }
+    }
+
+    @Test
+    public void resizedPanelUpdatesOnlyItsScaleAndCullingBounds() {
+        ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.install();
+        try {
+            Player observer = ProjectedEntityPacketRecorder.player(true);
+            ProjectorBlackoutDisplayRenderer renderer = new ProjectorBlackoutDisplayRenderer();
+            ProjectorBlackoutMesh.Panel first = new ProjectorBlackoutMesh.Panel(2, -1, 12, 3, 4, 5, 6);
+            ProjectorBlackoutMesh.Panel resized = new ProjectorBlackoutMesh.Panel(2, -1, 12, 3, 4, 9, 7);
+
+            assertTrue(renderer.prepare(observer, List.of(first), 7, 32.0D));
+            renderer.finish(observer);
+            assertTrue(renderer.prepare(observer, List.of(resized), 7, 32.0D));
+            renderer.finish(observer);
+
+            List<EntityData<?>> update = recorder.sentOfType(WrapperPlayServerEntityMetadata.class)
+                .get(1).getEntityMetadata();
+            assertEquals(List.of(12, 20, 21), update.stream().map(EntityData::getIndex).toList());
+            assertEquals((float) resized.transform().scaleX(), ((Vector3f) update.get(0).getValue()).getX());
+            assertEquals((float) (resized.transform().scaleX() * 2.0D), update.get(1).getValue());
+            assertEquals((float) resized.transform().scaleY(), update.get(2).getValue());
         } finally {
             recorder.uninstall();
         }
@@ -198,13 +259,41 @@ public final class ProjectorBlackoutDisplayRendererTest {
 
             assertEquals(Integer.valueOf(ProjectorBlackoutDisplayRenderer.FULL_BRIGHT), values.get(Integer.valueOf(16)));
             assertEquals(Float.valueOf(2.5F), values.get(Integer.valueOf(17)));
-            assertEquals(Float.valueOf(0.0F), values.get(Integer.valueOf(20)));
-            assertEquals(Float.valueOf(0.0F), values.get(Integer.valueOf(21)));
+            assertEquals(Float.valueOf(0.0F), values.get(Integer.valueOf(18)));
+            assertEquals(Float.valueOf(0.0F), values.get(Integer.valueOf(19)));
+            assertEquals(Float.valueOf(8.0F), values.get(Integer.valueOf(20)));
+            assertEquals(Float.valueOf(5.0F), values.get(Integer.valueOf(21)));
             assertEquals(Integer.valueOf(1234), values.get(Integer.valueOf(23)));
             Vector3f scale = (Vector3f) values.get(Integer.valueOf(12));
             assertEquals(4.0F, scale.getX());
             assertEquals(5.0F, scale.getY());
             assertEquals((float) ProjectorBlackoutMesh.PANEL_THICKNESS, scale.getZ());
+        } finally {
+            recorder.uninstall();
+        }
+    }
+
+    @Test
+    public void cullingBoundsContainTheCompletePanelInEveryOrientation() {
+        ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.install();
+        try {
+            for (int axis = 0; axis < 3; axis++) {
+                for (int sign : new int[] {-1, 1}) {
+                    ProjectorBlackoutMesh.Transform transform =
+                        new ProjectorBlackoutMesh.Panel(axis, sign, -17, -64, 80, 16, 64).transform();
+                    List<EntityData<?>> metadata = ProjectorBlackoutDisplayRenderer.displayMetadata(transform, 4, 4.0F);
+                    float width = metadata.stream().filter(value -> value.getIndex() == 20)
+                        .map(value -> (Float) value.getValue()).findFirst().orElseThrow().floatValue();
+                    float height = metadata.stream().filter(value -> value.getIndex() == 21)
+                        .map(value -> (Float) value.getValue()).findFirst().orElseThrow().floatValue();
+
+                    assertTrue(width > 0.0F);
+                    assertTrue(height > 0.0F);
+                    assertTrue(width / 2.0D >= transform.scaleX());
+                    assertTrue(width / 2.0D >= transform.scaleZ());
+                    assertTrue(height >= transform.scaleY());
+                }
+            }
         } finally {
             recorder.uninstall();
         }

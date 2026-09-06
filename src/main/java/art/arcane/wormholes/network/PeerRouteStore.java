@@ -21,6 +21,7 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class PeerRouteStore {
+    private static final int FORMAT_VERSION = 2;
     private static final String ROUTES_FILE = "peers.properties";
 
     private final Path file;
@@ -110,10 +111,12 @@ public final class PeerRouteStore {
             && a.port == b.port
             && Objects.equals(a.publicHost, b.publicHost)
             && a.publicPort == b.publicPort
+            && Objects.equals(a.privateHost, b.privateHost)
+            && a.privatePort == b.privatePort
             && a.useProxy == b.useProxy;
     }
 
-    private static NetworkConfig.PeerEntry copy(NetworkConfig.PeerEntry source) {
+    static NetworkConfig.PeerEntry copy(NetworkConfig.PeerEntry source) {
         NetworkConfig.PeerEntry copy = new NetworkConfig.PeerEntry();
         copy.name = source.name;
         copy.host = source.host;
@@ -121,6 +124,8 @@ public final class PeerRouteStore {
         copy.port = source.port;
         copy.publicHost = source.publicHost;
         copy.publicPort = source.publicPort;
+        copy.privateHost = source.privateHost;
+        copy.privatePort = source.privatePort;
         copy.useProxy = source.useProxy;
         return copy;
     }
@@ -133,12 +138,15 @@ public final class PeerRouteStore {
         try {
             ByteArrayOutputStream buffer = new ByteArrayOutputStream(128);
             DataOutputStream out = new DataOutputStream(buffer);
+            out.writeInt(FORMAT_VERSION);
             out.writeUTF(blank(route.name));
             out.writeUTF(blank(route.host));
             out.writeUTF(blank(route.fallbackHosts));
             out.writeShort(route.port);
             out.writeUTF(blank(route.publicHost));
             out.writeShort(route.publicPort);
+            out.writeUTF(blank(route.privateHost));
+            out.writeShort(route.privatePort);
             out.writeBoolean(route.useProxy);
             out.flush();
             return Base64.getUrlEncoder().withoutPadding().encodeToString(buffer.toByteArray());
@@ -154,6 +162,9 @@ public final class PeerRouteStore {
         try {
             byte[] data = Base64.getUrlDecoder().decode(encoded);
             DataInputStream in = new DataInputStream(new ByteArrayInputStream(data));
+            if (in.readInt() != FORMAT_VERSION) {
+                return null;
+            }
             NetworkConfig.PeerEntry route = new NetworkConfig.PeerEntry();
             route.name = in.readUTF();
             route.host = in.readUTF();
@@ -161,9 +172,14 @@ public final class PeerRouteStore {
             route.port = in.readUnsignedShort();
             route.publicHost = in.readUTF();
             route.publicPort = in.readUnsignedShort();
-            if (in.available() > 0) {
-                route.useProxy = in.readBoolean();
+            route.privateHost = in.readUTF();
+            route.privatePort = in.readUnsignedShort();
+            route.useProxy = in.readBoolean();
+            if (in.available() != 0) {
+                return null;
             }
+            GameEndpoint.optional(route.publicHost, route.publicPort);
+            GameEndpoint.optional(route.privateHost, route.privatePort);
             return route;
         } catch (IllegalArgumentException | IOException e) {
             return null;

@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -63,12 +64,13 @@ class WireTraversiveTest {
         UUID playerId = UUID.randomUUID();
         UUID portalId = UUID.randomUUID();
 
-        WireMessage.HandoffRequest request = roundTrip(new WireMessage.HandoffRequest(transferId, playerId, "Psycho", portalId, true, wire));
+        WireMessage.HandoffRequest request = roundTrip(new WireMessage.HandoffRequest(transferId, playerId, "Psycho", portalId, true, true, wire));
         assertEquals(transferId, request.transferId());
         assertEquals(playerId, request.playerId());
         assertEquals("Psycho", request.playerName());
         assertEquals(portalId, request.destPortalId());
         assertTrue(request.directTransfer());
+        assertTrue(request.onlineMode());
         assertEquals(wire, request.traversive());
 
         assertEquals(transferId, roundTrip(new WireMessage.HandoffAck(transferId)).transferId());
@@ -78,6 +80,15 @@ class WireTraversiveTest {
         WireMessage.HandoffCancel cancel = roundTrip(new WireMessage.HandoffCancel(transferId, playerId));
         assertEquals(transferId, cancel.transferId());
         assertEquals(playerId, cancel.playerId());
+        WireMessage.HandoffRequest serverRequest = roundTrip(new WireMessage.HandoffRequest(
+            transferId, playerId, "Psycho", null, true, false, null));
+        assertEquals(null, serverRequest.destPortalId());
+        assertEquals(null, serverRequest.traversive());
+        assertFalse(serverRequest.onlineMode());
+        WireMessage.HandoffResult result = new WireMessage.HandoffResult(transferId, playerId, true, "arrived");
+        assertEquals(result, roundTrip(result));
+        WireMessage.HandoffStatus status = new WireMessage.HandoffStatus(transferId, playerId);
+        assertEquals(status, roundTrip(status));
     }
 
     @Test

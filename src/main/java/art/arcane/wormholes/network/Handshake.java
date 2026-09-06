@@ -32,14 +32,29 @@ public final class Handshake {
         return nonce;
     }
 
-    public static byte[] sign(PrivateKey privateKey, String role, String signerName, String peerName, byte[] dialerNonce, byte[] acceptorNonce, byte[] signerPublicKey, byte[] peerPublicKey) {
+    static byte[] signTranscript(PrivateKey key, WireMessage.Hello hello, WireMessage.Challenge challenge, String role) {
+        return sign(key, transcript(hello, challenge, role));
+    }
+
+    static boolean verifyTranscript(byte[] key, byte[] signature, WireMessage.Hello hello,
+                                    WireMessage.Challenge challenge, String role) {
+        return verify(key, signature, transcript(hello, challenge, role));
+    }
+
+    private static byte[] transcript(WireMessage.Hello hello, WireMessage.Challenge challenge, String role) {
         try {
-            Signature signature = Signature.getInstance(SIGNATURE_ALGORITHM);
-            signature.initSign(privateKey);
-            signature.update(payload(role, signerName, peerName, dialerNonce, acceptorNonce, signerPublicKey, peerPublicKey));
-            return signature.sign();
-        } catch (Exception e) {
-            throw new IllegalStateException("Ed25519 signing unavailable", e);
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream(512);
+            DataOutputStream output = new DataOutputStream(bytes);
+            output.writeUTF(role);
+            hello.write(output);
+            WireMessage.Challenge unsigned = new WireMessage.Challenge(challenge.serverName(), challenge.advertiseHost(),
+                challenge.wormholePort(), challenge.gameEndpoint(), challenge.privateGameEndpoint(), challenge.nonce(),
+                challenge.publicKey(), new byte[0], challenge.compressionSupported(), challenge.currentDictHash(),
+                challenge.currentDictVersion());
+            unsigned.write(output);
+            return bytes.toByteArray();
+        } catch (IOException error) {
+            throw new IllegalStateException("Could not encode peer handshake transcript", error);
         }
     }
 
@@ -63,20 +78,6 @@ public final class Handshake {
             return signature.sign();
         } catch (Exception e) {
             throw new IllegalStateException("Ed25519 signing unavailable", e);
-        }
-    }
-
-    public static boolean verify(byte[] publicKey, byte[] signatureBytes, String role, String signerName, String peerName, byte[] dialerNonce, byte[] acceptorNonce, byte[] signerPublicKey, byte[] peerPublicKey) {
-        if (publicKey == null || signatureBytes == null) {
-            return false;
-        }
-        try {
-            Signature signature = Signature.getInstance(SIGNATURE_ALGORITHM);
-            signature.initVerify(decodePublicKey(publicKey));
-            signature.update(payload(role, signerName, peerName, dialerNonce, acceptorNonce, signerPublicKey, peerPublicKey));
-            return signature.verify(signatureBytes);
-        } catch (Exception e) {
-            return false;
         }
     }
 
@@ -162,17 +163,4 @@ public final class Handshake {
         return expected != null && actual != null && MessageDigest.isEqual(expected, actual);
     }
 
-    private static byte[] payload(String role, String signerName, String peerName, byte[] dialerNonce, byte[] acceptorNonce, byte[] signerPublicKey, byte[] peerPublicKey) throws IOException {
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream(256);
-        DataOutputStream out = new DataOutputStream(buffer);
-        out.writeUTF(role);
-        out.writeUTF(signerName);
-        out.writeUTF(peerName);
-        WireCodec.writeByteArray(out, dialerNonce, NONCE_LENGTH);
-        WireCodec.writeByteArray(out, acceptorNonce, NONCE_LENGTH);
-        WireCodec.writeByteArray(out, signerPublicKey, PUBLIC_KEY_MAX_LENGTH);
-        WireCodec.writeByteArray(out, peerPublicKey, PUBLIC_KEY_MAX_LENGTH);
-        out.flush();
-        return buffer.toByteArray();
-    }
 }

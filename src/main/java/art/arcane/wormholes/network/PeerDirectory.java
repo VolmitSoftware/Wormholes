@@ -2,12 +2,11 @@ package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.config.toml.NetworkConfig;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -27,11 +26,12 @@ final class PeerDirectory {
     }
 
     NetworkConfig.PeerEntry find(String name) {
-        return learnedPeers.get(name);
+        NetworkConfig.PeerEntry peer = learnedPeers.get(name);
+        return peer == null ? null : PeerRouteStore.copy(peer);
     }
 
     Collection<NetworkConfig.PeerEntry> all() {
-        return learnedPeers.values();
+        return routeStore.all();
     }
 
     List<NetworkConfig.PeerEntry> known() {
@@ -62,7 +62,8 @@ final class PeerDirectory {
 
     void learnFromConnection(PeerConnection connection) {
         String name = connection.getPeerName();
-        if (name == null || name.isBlank()) {
+        GameEndpoint game = connection.getPeerGameEndpoint();
+        if (name == null || name.isBlank() || game == null) {
             return;
         }
         NetworkConfig.PeerEntry known = find(name);
@@ -70,123 +71,58 @@ final class PeerDirectory {
             if (connection.isDialer()) {
                 return;
             }
-            String host = connection.getPeerAdvertiseHost();
-            if (host == null || connection.getPeerWormholePort() <= 0) {
-                return;
-            }
-            NetworkConfig.PeerEntry learned = new NetworkConfig.PeerEntry();
-            learned.name = name;
-            learned.host = host;
-            learned.port = connection.getPeerWormholePort();
-            learned.publicHost = host;
-            learned.publicPort = connection.getPeerGamePort() > 0 ? connection.getPeerGamePort() : 25565;
-            network.savePeer(learned);
-            return;
+            known = new NetworkConfig.PeerEntry();
+            known.name = name;
+            known.host = connection.getPeerAdvertiseHost();
+            known.port = connection.getPeerWormholePort();
         }
-        if (autoPopulate(known, connection)) {
-            network.savePeer(known);
-        }
+        GameEndpoint privateGame = connection.getPeerPrivateGameEndpoint();
+        storeAdvertisedEndpoints(known, game, privateGame, connection.getPeerAdvertiseHost(), connection.getPeerWormholePort());
     }
 
     void learnFromStatusPacket(MinecraftStatusBridge.StatusPacket packet) {
-        String sourceServer = packet.sourceServer();
-        String replyHost = packet.replyHost();
-        if (replyHost == null || replyHost.isBlank()) {
+        GameEndpoint game = GameEndpoint.optional(packet.replyHost(), packet.replyPort());
+        if (game == null) {
             return;
         }
-        int replyPort = packet.replyPort() > 0 ? packet.replyPort() : 25565;
-        NetworkConfig.PeerEntry known = find(sourceServer);
-        if (known != null) {
-            boolean changed = !replyHost.equals(known.publicHost) || replyPort != known.publicPort;
-            if (changed && shouldAdoptAdvertisedHost(known.publicHost, replyHost)) {
-                String previous = known.publicHost + ":" + known.publicPort;
-                known.publicHost = replyHost;
-                known.publicPort = replyPort;
-                if (known.host == null || known.host.isBlank() || !isRoutableHost(known.host)) {
-                    known.host = replyHost;
-                }
-                network.savePeer(known);
-                logger.info("net: peer " + sourceServer + " advertised game-port address " + replyHost + ":" + replyPort + " (was " + previous + "); updated from signed status handshake");
-            }
+        NetworkConfig.PeerEntry known = find(packet.sourceServer());
+        if (known == null) {
+            known = new NetworkConfig.PeerEntry();
+            known.name = packet.sourceServer();
+            known.port = 0;
+        }
+        storeAdvertisedEndpoints(known, game, packet.privateGameEndpoint(), packet.peerHost(), packet.peerPort());
+    }
+
+    private void storeAdvertisedEndpoints(NetworkConfig.PeerEntry peer, GameEndpoint game, GameEndpoint privateGame,
+                                          String wireHost, int wirePort) {
+        GameEndpoint current = GameEndpoint.optional(peer.publicHost, peer.publicPort);
+        GameEndpoint currentPrivate = GameEndpoint.optional(peer.privateHost, peer.privatePort);
+        if (game.equals(current) && Objects.equals(privateGame, currentPrivate)
+            && Objects.equals(peer.host, wireHost) && peer.port == wirePort && find(peer.name) != null) {
             return;
         }
-        NetworkConfig.PeerEntry learned = new NetworkConfig.PeerEntry();
-        learned.name = sourceServer;
-        learned.host = replyHost;
-        learned.port = network.activeConfig().listenPort;
-        learned.publicHost = replyHost;
-        learned.publicPort = replyPort;
-        network.savePeer(learned);
-    }
-
-    private static boolean autoPopulate(NetworkConfig.PeerEntry peer, PeerConnection connection) {
-        boolean changed = false;
-        String advertised = connection.getPeerAdvertiseHost();
-        int peerWirePort = connection.getPeerWormholePort();
-        int peerGamePort = connection.getPeerGamePort();
-        if ((peer.publicHost == null || peer.publicHost.isBlank()) && advertised != null && !advertised.isBlank()) {
-            peer.publicHost = advertised;
-            changed = true;
-        }
-        if (peerGamePort > 0 && peerGamePort != peer.publicPort) {
-            peer.publicPort = peerGamePort;
-            changed = true;
-        }
-        if ((peer.host == null || peer.host.isBlank()) && advertised != null && !advertised.isBlank()) {
-            peer.host = advertised;
-            changed = true;
-        }
-        if (peer.port <= 0 && peerWirePort > 0) {
-            peer.port = peerWirePort;
-            changed = true;
-        }
-        return changed;
-    }
-
-    private static boolean shouldAdoptAdvertisedHost(String current, String advertised) {
-        if (current == null || current.isBlank()) {
-            return true;
-        }
-        boolean advertisedRoutable = isRoutableHost(advertised);
-        boolean currentRoutable = isRoutableHost(current);
-        if (advertisedRoutable && !currentRoutable) {
-            return true;
-        }
-        if (!advertisedRoutable && currentRoutable) {
-            return false;
-        }
-        return true;
-    }
-
-    private static boolean isRoutableHost(String host) {
-        if (host == null || host.isBlank()) {
-            return false;
-        }
-        try {
-            InetAddress address = InetAddress.getByName(host);
-            return !address.isLoopbackAddress() && !address.isAnyLocalAddress()
-                && !address.isLinkLocalAddress() && !address.isSiteLocalAddress();
-        } catch (UnknownHostException e) {
-            return true;
+        peer.host = wireHost;
+        peer.port = wirePort;
+        peer.publicHost = game.host();
+        peer.publicPort = game.port();
+        peer.privateHost = privateGame == null ? "" : privateGame.host();
+        peer.privatePort = privateGame == null ? 0 : privateGame.port();
+        network.savePeer(peer);
+        if (current != null && !game.equals(current)) {
+            logger.info("net: peer " + peer.name + " advertised game endpoint " + game.display()
+                + " (was " + current.display() + ")");
         }
     }
 
     static boolean isDialable(NetworkConfig.PeerEntry peer) {
-        if (peer == null) {
-            return false;
-        }
-        if (peer.host != null && !peer.host.isBlank()) {
-            return true;
-        }
-        return peer.fallbackHosts != null && !peer.fallbackHosts.isBlank();
+        return peer != null && peer.port > 0 && peer.port <= 65_535
+            && ((peer.host != null && !peer.host.isBlank())
+            || (peer.fallbackHosts != null && !peer.fallbackHosts.isBlank()));
     }
 
     static boolean canUseStatusBridge(NetworkConfig.PeerEntry peer) {
-        if (peer == null) {
-            return false;
-        }
-        String host = peer.publicHost == null || peer.publicHost.isBlank() ? peer.host : peer.publicHost;
-        return host != null && !host.isBlank();
+        return peer != null && !PeerEndpointResolver.gameEndpoints(peer).isEmpty();
     }
 
     static String peerAddress(NetworkConfig.PeerEntry peer) {
@@ -197,11 +133,7 @@ final class PeerDirectory {
     }
 
     static String statusBridgeAddress(NetworkConfig.PeerEntry peer) {
-        String host = peer.publicHost == null || peer.publicHost.isBlank() ? peer.host : peer.publicHost;
-        if (host == null || host.isBlank()) {
-            return "game-port route unavailable";
-        }
-        int port = peer.publicPort > 0 ? peer.publicPort : 25565;
-        return "game-port " + host + ":" + port;
+        List<GameEndpoint> endpoints = PeerEndpointResolver.gameEndpoints(peer);
+        return endpoints.isEmpty() ? "game-port route unavailable" : "game-port " + endpoints.getFirst().display();
     }
 }

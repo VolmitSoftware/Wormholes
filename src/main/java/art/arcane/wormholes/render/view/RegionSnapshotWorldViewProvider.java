@@ -44,6 +44,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongSupplier;
 import java.util.logging.Level;
 
 public final class RegionSnapshotWorldViewProvider implements ProjectionWorldViewProvider {
@@ -54,11 +55,17 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
     private static final long ENTITY_STATE_REFRESH_MILLIS = 500L;
 
     private final Plugin plugin;
+    private final LongSupplier clock;
     private final Map<World, SnapshotWorldView> views;
     private volatile boolean closed;
 
     public RegionSnapshotWorldViewProvider(Plugin plugin) {
+        this(plugin, System::currentTimeMillis);
+    }
+
+    RegionSnapshotWorldViewProvider(Plugin plugin, LongSupplier clock) {
         this.plugin = plugin;
+        this.clock = Objects.requireNonNull(clock);
         this.views = new ConcurrentHashMap<World, SnapshotWorldView>();
         this.closed = false;
     }
@@ -123,22 +130,22 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
                 return;
             }
             Chunk chunk = world.getChunkAt(chunkX, chunkZ);
-            long now = System.currentTimeMillis();
+            long now = clock.getAsLong();
             ProjectionWorldChangeTracker tracker = Wormholes.projectionChangeTracker;
             long trackerVersion = tracker == null ? Long.MIN_VALUE : tracker.currentVersion();
             CapturedChunk current = view.captured(key);
             boolean refreshBlocks = requiresBlockSnapshotRefresh(tracker, world.getUID(), chunkX, chunkZ,
                 current != null, current == null ? Long.MIN_VALUE : current.trackerVersion,
-                current == null ? Long.MIN_VALUE : current.capturedAtMillis, now);
+                current == null ? Long.MIN_VALUE : current.snapshotCapturedAtMillis, now);
             ChunkSnapshot snapshot = refreshBlocks
                 ? WormholesPlatform.chunkSnapshot(chunk, false, true, false, true)
                 : current.snapshot;
-            List<CapturedEntity> entities = captureEntities(view, chunk, key);
+            List<CapturedEntity> entities = captureEntities(view, chunk, key, now);
             int minHeight = current == null ? world.getMinHeight() : current.minHeight;
             int maxHeight = current == null ? world.getMaxHeight() : current.maxHeight;
             CapturedChunk captured = new CapturedChunk(snapshot, minHeight, maxHeight,
                 ProjectionWorldView.computeSkyDarken(world.getTime()), now, entities,
-                chunkX, chunkZ, trackerVersion);
+                chunkX, chunkZ, trackerVersion, refreshBlocks ? now : current.snapshotCapturedAtMillis);
             view.publish(key, captured);
         } catch (Throwable ex) {
             view.finishCapture(key);
@@ -146,7 +153,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         }
     }
 
-    private List<CapturedEntity> captureEntities(SnapshotWorldView view, Chunk chunk, long chunkKey) {
+    private List<CapturedEntity> captureEntities(SnapshotWorldView view, Chunk chunk, long chunkKey, long capturedAtMillis) {
         Entity[] source = chunk.getEntities();
         int limit = Math.min(source.length, MAX_ENTITIES_PER_CHUNK);
         List<CapturedEntity> captured = new ArrayList<CapturedEntity>(limit);
@@ -155,13 +162,12 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             if (entity == null || entity.isDead() || !entity.isValid() || EffectManager.isPortalEffectEntity(entity)) {
                 continue;
             }
-            captured.add(captureEntity(view, entity, chunkKey));
+            captured.add(captureEntity(view, entity, chunkKey, capturedAtMillis));
         }
         return List.copyOf(captured);
     }
 
-    private CapturedEntity captureEntity(SnapshotWorldView view, Entity entity, long chunkKey) {
-        long capturedAtMillis = System.currentTimeMillis();
+    private CapturedEntity captureEntity(SnapshotWorldView view, Entity entity, long chunkKey, long capturedAtMillis) {
         EntityState previousState = view.entityStates.get(entity.getUniqueId());
         CapturedEntity previous = previousState == null ? null : previousState.entity;
         Location location = entity.getLocation();
@@ -192,8 +198,8 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
                 leashHolder = null;
             }
         }
-        boolean reuseState = previousState != null
-            && capturedAtMillis - previousState.capturedAtMillis < ENTITY_STATE_REFRESH_MILLIS;
+        boolean reuseState = previous != null
+            && capturedAtMillis - previous.stateCapturedAtMillis < ENTITY_STATE_REFRESH_MILLIS;
         byte[] metadataBlob = reuseState ? previous.visual.metadata() : PacketBlobs.captureMetadata(entity);
         byte[] equipmentBlob = reuseState ? previous.visual.equipment() : PacketBlobs.captureEquipment(entity);
         byte[] mapData = reuseState ? previous.visual.mapData() : captureMapData(entity);
@@ -209,7 +215,8 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         RemoteViewCache.RemoteProfile profile = entity instanceof Player
             ? new RemoteViewCache.RemoteProfile(playerName, textureValue, textureSignature)
             : null;
-        return new CapturedEntity(chunkKey, visual, profile, metadata, equipment, mapView, capturedAtMillis);
+        return new CapturedEntity(chunkKey, visual, profile, metadata, equipment, mapView, capturedAtMillis,
+            reuseState ? previous.stateCapturedAtMillis : capturedAtMillis);
     }
 
     private static String[] playerTextures(Player player) {
@@ -432,7 +439,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         }
 
         private void requestIfStale(int chunkX, int chunkZ, long key, CapturedChunk current) {
-            long now = System.currentTimeMillis();
+            long now = clock.getAsLong();
             if (current != null && now - current.capturedAtMillis < REFRESH_INTERVAL_MILLIS) {
                 return;
             }
@@ -492,12 +499,8 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         }
 
         private boolean blocksChanged(CapturedChunk previous, CapturedChunk captured) {
-            if (previous == null || previous.skyDarken != captured.skyDarken) {
-                return true;
-            }
-            ProjectionWorldChangeTracker tracker = Wormholes.projectionChangeTracker;
-            return tracker == null || previous.trackerVersion == Long.MIN_VALUE
-                || isChunkDirty(tracker, world.getUID(), captured.chunkX, captured.chunkZ, previous.trackerVersion);
+            return previous == null || previous.snapshot != captured.snapshot
+                || previous.skyDarken != captured.skyDarken;
         }
 
         private void finishCapture(long key) {
@@ -589,10 +592,11 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         private final int chunkX;
         private final int chunkZ;
         private final long trackerVersion;
+        private final long snapshotCapturedAtMillis;
 
         private CapturedChunk(ChunkSnapshot snapshot, int minHeight, int maxHeight, int skyDarken,
                               long capturedAtMillis, List<CapturedEntity> entities, int chunkX, int chunkZ,
-                              long trackerVersion) {
+                              long trackerVersion, long snapshotCapturedAtMillis) {
             this.snapshot = snapshot;
             this.minHeight = minHeight;
             this.maxHeight = maxHeight;
@@ -602,6 +606,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             this.chunkX = chunkX;
             this.chunkZ = chunkZ;
             this.trackerVersion = trackerVersion;
+            this.snapshotCapturedAtMillis = snapshotCapturedAtMillis;
         }
     }
 
@@ -613,10 +618,11 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         private final List<Equipment> equipment;
         private final MapView mapView;
         private final long capturedAtMillis;
+        private final long stateCapturedAtMillis;
 
         private CapturedEntity(long chunkKey, EntityVisual visual, RemoteViewCache.RemoteProfile profile,
                                List<EntityData<?>> metadata, List<Equipment> equipment, MapView mapView,
-                               long capturedAtMillis) {
+                               long capturedAtMillis, long stateCapturedAtMillis) {
             this.chunkKey = chunkKey;
             this.visual = visual;
             this.profile = profile;
@@ -624,6 +630,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             this.equipment = equipment;
             this.mapView = mapView;
             this.capturedAtMillis = capturedAtMillis;
+            this.stateCapturedAtMillis = stateCapturedAtMillis;
         }
     }
 

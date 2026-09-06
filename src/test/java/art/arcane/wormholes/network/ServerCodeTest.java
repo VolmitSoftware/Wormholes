@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ServerCodeTest {
     @Test
     void codeRoundTripsAllFields() throws Exception {
-        ServerCode original = new ServerCode("hub", "play.example.com", List.of("203.0.113.7", "192.168.1.50"), 8901, 25565, publicKey());
+        ServerCode original = new ServerCode("hub", "play.example.com", List.of("203.0.113.7", "192.168.1.50"), 8901, new GameEndpoint("game.example.com", 25580), new GameEndpoint("192.168.1.50", 25566), publicKey());
         String encoded = original.encode();
         assertTrue(encoded.startsWith(ServerCode.PREFIX));
 
@@ -23,13 +23,13 @@ class ServerCodeTest {
 
     @Test
     void typicalCodeFitsInChat() throws Exception {
-        ServerCode code = new ServerCode("survival-main", "play.somewhere-long.example.com", List.of("203.0.113.7", "192.168.1.50"), 8901, 25565, publicKey());
+        ServerCode code = new ServerCode("survival-main", "play.somewhere-long.example.com", List.of("203.0.113.7", "192.168.1.50"), 8901, new GameEndpoint("play.somewhere-long.example.com", 25580), new GameEndpoint("192.168.1.50", 25566), publicKey());
         assertTrue(code.encode().length() <= 250, "typical code should be chat-pasteable, was " + code.encode().length());
     }
 
     @Test
     void decodeToleratesSurroundingWhitespace() throws Exception {
-        ServerCode original = new ServerCode("hub", "10.0.0.2", List.of(), 8901, 25565, publicKey());
+        ServerCode original = new ServerCode("hub", "10.0.0.2", List.of(), 8901, new GameEndpoint("10.0.0.2", 25565), null, publicKey());
         assertEquals(original, ServerCode.decode("  " + original.encode() + " \n"));
     }
 
@@ -38,27 +38,27 @@ class ServerCodeTest {
         assertNull(ServerCode.decode(null));
         assertNull(ServerCode.decode(""));
         assertNull(ServerCode.decode("not a code"));
-        assertNull(ServerCode.decode("WHS1.!!!!not-base64!!!!"));
+        assertNull(ServerCode.decode(ServerCode.PREFIX + "!!!!not-base64!!!!"));
         assertNull(ServerCode.decode(ServerCode.PREFIX));
 
-        String valid = new ServerCode("hub", "10.0.0.2", List.of(), 8901, 25565, publicKey()).encode();
+        String valid = new ServerCode("hub", "10.0.0.2", List.of(), 8901, new GameEndpoint("10.0.0.2", 25565), null, publicKey()).encode();
         assertNull(ServerCode.decode(valid.substring(0, valid.length() - 10)), "truncated code must not decode");
     }
 
     @Test
     void portalCodesDoNotDecodeAsServerCodes() throws Exception {
-        String portalCode = new PortalCode("hub", "10.0.0.2", List.of(), 8901, 25565, publicKey(), java.util.UUID.randomUUID(), "Gate").encode();
+        String portalCode = new PortalCode("hub", "10.0.0.2", List.of(), 8901, new GameEndpoint("10.0.0.2", 25565), null, publicKey(), java.util.UUID.randomUUID(), "Gate").encode();
         assertNull(ServerCode.decode(portalCode));
     }
 
     @Test
     void blankRequiredFieldsRejected() throws Exception {
         String publicKey = publicKey();
-        String blankServer = new ServerCode("", "10.0.0.2", List.of(), 8901, 25565, publicKey).encode();
+        String blankServer = new ServerCode("", "10.0.0.2", List.of(), 8901, new GameEndpoint("10.0.0.2", 25565), null, publicKey).encode();
         assertNull(ServerCode.decode(blankServer));
-        String blankHost = new ServerCode("hub", "", List.of(), 8901, 25565, publicKey).encode();
+        String blankHost = new ServerCode("hub", "", List.of(), 8901, new GameEndpoint("example.com", 25565), null, publicKey).encode();
         assertNull(ServerCode.decode(blankHost));
-        String blankPublicKey = new ServerCode("hub", "10.0.0.2", List.of(), 8901, 25565, "").encode();
+        String blankPublicKey = new ServerCode("hub", "10.0.0.2", List.of(), 8901, new GameEndpoint("10.0.0.2", 25565), null, "").encode();
         assertNull(ServerCode.decode(blankPublicKey));
     }
 

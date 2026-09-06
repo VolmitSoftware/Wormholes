@@ -76,6 +76,31 @@ final class NetworkIdentity {
         return lan;
     }
 
+    GameEndpoint gameEndpoint() {
+        NetworkConfig active = network.activeConfig();
+        String host = active.gameHostOverride == null || active.gameHostOverride.isBlank()
+            ? advertiseHost() : active.gameHostOverride;
+        int port = active.gamePortOverride == 0 ? network.gamePort() : active.gamePortOverride;
+        return new GameEndpoint(host, port);
+    }
+
+    GameEndpoint privateGameEndpoint() {
+        NetworkConfig active = network.activeConfig();
+        String host = active.privateGameHostOverride;
+        if (host == null || host.isBlank()) {
+            host = network.gameBindHost();
+        }
+        if (host == null || host.isBlank()) {
+            host = detectedLanHost;
+            if (host == null) {
+                host = LanAddressResolver.detectLanAddress();
+                detectedLanHost = host;
+            }
+        }
+        int port = active.privateGamePortOverride == 0 ? network.gamePort() : active.privateGamePortOverride;
+        return new GameEndpoint(host, port);
+    }
+
     String resolvedPublicHost() {
         String publicHost = detectedPublicHost;
         if (publicHost != null && !publicHost.isBlank()) {
@@ -116,7 +141,7 @@ final class NetworkIdentity {
 
     LocalIdentity snapshot() {
         return new LocalIdentity(localName(), mcVersion, pluginVersion, advertiseHost(), network.getBoundListenPort(),
-            network.gamePort(), identityStore.publicKeyBytes(), identityStore.privateKey());
+            gameEndpoint(), privateGameEndpoint(), identityStore.publicKeyBytes(), identityStore.privateKey());
     }
 
     private String generatedServerName() {

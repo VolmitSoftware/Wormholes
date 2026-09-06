@@ -64,7 +64,7 @@ public final class PocketWorldService implements Listener, AutoCloseable {
         accept(event.getWorld());
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onWorldUnload(WorldUnloadEvent event) {
         if (isPocketWorld(event.getWorld())) {
             world = null;

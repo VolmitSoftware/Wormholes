@@ -15,6 +15,7 @@ import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -93,7 +94,7 @@ public class PortalManager implements Listener
 		}
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void on(WorldUnloadEvent e)
 	{
 		BukkitRegionTaskProvider.worldUnloaded(e.getWorld().getUID());
@@ -473,7 +474,7 @@ public class PortalManager implements Listener
 		refreshPortalSnapshot();
 		pendingPortalFiles.clear();
 		initialLoadComplete = true;
-		storage.deletePortalFolder();
+		storage.deletePortalFolder(snapshot);
 		syncGatewayTickets();
 		return snapshot.size();
 	}

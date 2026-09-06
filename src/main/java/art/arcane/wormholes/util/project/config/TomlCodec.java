@@ -1,11 +1,14 @@
 package art.arcane.wormholes.util.project.config;
 
-import com.moandjiezana.toml.Toml;
+import com.electronwill.nightconfig.core.UnmodifiableConfig;
+import com.electronwill.nightconfig.toml.TomlParser;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
@@ -58,7 +61,7 @@ public final class TomlCodec {
         }
         try {
             T defaults = newInstance(type);
-            Toml toml = new Toml().read(content);
+            UnmodifiableConfig toml = new TomlParser().parse(content);
             T fresh = newInstance(type);
             T applied = applyToml(toml, fresh, type);
             copySectionRefs(applied, defaults);
@@ -226,7 +229,7 @@ public final class TomlCodec {
                     sleepBackoff(attempt);
                     continue;
                 }
-                Toml toml = new Toml().read(tomlFile);
+                UnmodifiableConfig toml = new TomlParser().parse(Files.readString(tomlFile.toPath(), StandardCharsets.UTF_8));
                 long sizeAfter = tomlFile.length();
                 if (sizeBefore != sizeAfter) {
                     sleepBackoff(attempt);
@@ -277,29 +280,35 @@ public final class TomlCodec {
         }
     }
 
-    private static <T> T applyToml(Toml toml, T target, Class<T> type) throws Exception {
+    private static <T> T applyToml(UnmodifiableConfig toml, T target, Class<T> type) throws Exception {
         applyTomlObject(toml, target, type);
         return target;
     }
 
-    private static void applyTomlObject(Toml toml, Object target, Class<?> type) throws Exception {
+    private static void applyTomlObject(UnmodifiableConfig toml, Object target, Class<?> type) throws Exception {
         for (Field f : type.getDeclaredFields()) {
             if (Modifier.isStatic(f.getModifiers()) || Modifier.isTransient(f.getModifiers())) {
                 continue;
             }
             f.setAccessible(true);
             String key = toTomlKey(f.getName());
+            Object value = toml.get(key);
+            if (value == null) {
+                continue;
+            }
 
             if (isSectionList(f)) {
-                List<Toml> tables = toml.getTables(key);
-                if (tables == null) {
-                    continue;
+                if (!(value instanceof List<?> tables)) {
+                    throw new IllegalArgumentException("Configuration " + key + " must be an array of tables");
                 }
-                Class<?> elementType = sectionListElementType(f);
+                Class<?> elementType = listElementType(f);
                 List<Object> entries = new ArrayList<>(tables.size());
-                for (Toml table : tables) {
+                for (Object table : tables) {
+                    if (!(table instanceof UnmodifiableConfig section)) {
+                        throw new IllegalArgumentException("Configuration " + key + " must contain only tables");
+                    }
                     Object entry = elementType.getDeclaredConstructor().newInstance();
-                    applyTomlSection(table, entry);
+                    applyTomlObject(section, entry, elementType);
                     entries.add(entry);
                 }
                 f.set(target, entries);
@@ -307,9 +316,8 @@ public final class TomlCodec {
             }
 
             if (isSection(f.getType())) {
-                Toml sub = toml.getTable(key);
-                if (sub == null) {
-                    continue;
+                if (!(value instanceof UnmodifiableConfig sub)) {
+                    throw new IllegalArgumentException("Configuration " + key + " must be a table");
                 }
                 Object existing = f.get(target);
                 if (existing == null) {
@@ -320,55 +328,59 @@ public final class TomlCodec {
                 continue;
             }
 
-            applyScalarField(toml, f, target, key);
+            applyScalarField(value, f, target, key);
         }
     }
 
-    private static void applyTomlSection(Toml toml, Object target) throws Exception {
-        applyTomlObject(toml, target, target.getClass());
-    }
-
-    private static void applyScalarField(Toml toml, Field f, Object target, String key) throws IllegalAccessException {
-        if (!toml.contains(key)) {
-            return;
-        }
+    private static void applyScalarField(Object value, Field f, Object target, String key) throws IllegalAccessException {
         Class<?> t = f.getType();
-        if (t == int.class || t == Integer.class) {
-            Long value = toml.getLong(key);
-            if (value != null) {
-                f.set(target, value.intValue());
+        if (isStringList(f)) {
+            if (!(value instanceof List<?> values)) {
+                throw new IllegalArgumentException("Configuration " + key + " must be an array of strings");
             }
-        } else if (t == long.class || t == Long.class) {
-            Long value = toml.getLong(key);
-            if (value != null) {
-                f.set(target, value);
-            }
-        } else if (t == double.class || t == Double.class) {
-            Object raw = toml.contains(key) ? toml.getDouble(key) : null;
-            if (raw == null) {
-                Long asLong = toml.getLong(key);
-                if (asLong != null) {
-                    f.set(target, asLong.doubleValue());
+            List<String> strings = new ArrayList<>(values.size());
+            for (Object element : values) {
+                if (!(element instanceof String string)) {
+                    throw new IllegalArgumentException("Configuration " + key + " must contain only strings");
                 }
-            } else {
-                f.set(target, raw);
+                strings.add(string);
             }
+            f.set(target, strings);
+        } else if (t == int.class || t == Integer.class) {
+            f.set(target, Math.toIntExact(integerValue(value, key)));
+        } else if (t == long.class || t == Long.class) {
+            f.set(target, integerValue(value, key));
+        } else if (t == double.class || t == Double.class) {
+            if (!(value instanceof Number number)) {
+                throw new IllegalArgumentException("Configuration " + key + " must be a number");
+            }
+            f.set(target, number.doubleValue());
         } else if (t == float.class || t == Float.class) {
-            Double value = toml.getDouble(key);
-            if (value != null) {
-                f.set(target, value.floatValue());
+            if (!(value instanceof Number number)) {
+                throw new IllegalArgumentException("Configuration " + key + " must be a number");
             }
+            f.set(target, number.floatValue());
         } else if (t == boolean.class || t == Boolean.class) {
-            Boolean value = toml.getBoolean(key);
-            if (value != null) {
-                f.set(target, value);
+            if (!(value instanceof Boolean)) {
+                throw new IllegalArgumentException("Configuration " + key + " must be a boolean");
             }
+            f.set(target, value);
         } else if (t == String.class) {
-            String value = toml.getString(key);
-            if (value != null) {
-                f.set(target, value);
+            if (!(value instanceof String)) {
+                throw new IllegalArgumentException("Configuration " + key + " must be a string");
             }
+            f.set(target, value);
         }
+    }
+
+    private static long integerValue(Object value, String key) {
+        if (value instanceof Long integer) {
+            return integer.longValue();
+        }
+        if (value instanceof Integer integer) {
+            return integer.longValue();
+        }
+        throw new IllegalArgumentException("Configuration " + key + " must be an integer");
     }
 
     private static void writeField(StringBuilder out, Field f, Object owner, String indent) throws IllegalAccessException {
@@ -382,7 +394,47 @@ public final class TomlCodec {
                 out.append(indent).append("# ").append(line).append('\n');
             }
         }
-        out.append(indent).append(toTomlKey(f.getName())).append(" = ").append(formatValue(value)).append('\n');
+        String formatted = isStringList(f) ? formatStringList((List<?>) value) : formatValue(value);
+        out.append(indent).append(toTomlKey(f.getName())).append(" = ").append(formatted).append('\n');
+    }
+
+    private static String formatStringList(List<?> values) {
+        StringBuilder out = new StringBuilder("[");
+        for (Object value : values) {
+            if (!(value instanceof String string)) {
+                throw new IllegalArgumentException("Configuration string arrays must contain only non-null strings");
+            }
+            if (out.length() > 1) {
+                out.append(", ");
+            }
+            out.append(formatString(string));
+        }
+        return out.append(']').toString();
+    }
+
+    private static String formatString(String value) {
+        StringBuilder out = new StringBuilder(value.length() + 2).append('"');
+        for (int index = 0; index < value.length(); index++) {
+            char character = value.charAt(index);
+            switch (character) {
+                case '"' -> out.append("\\\"");
+                case '\\' -> out.append("\\\\");
+                case '\b' -> out.append("\\b");
+                case '\t' -> out.append("\\t");
+                case '\n' -> out.append("\\n");
+                case '\f' -> out.append("\\f");
+                case '\r' -> out.append("\\r");
+                default -> {
+                    if (character < 0x20 || character == 0x7f) {
+                        String hexadecimal = Integer.toHexString(character);
+                        out.append("\\u").append("0".repeat(4 - hexadecimal.length())).append(hexadecimal);
+                    } else {
+                        out.append(character);
+                    }
+                }
+            }
+        }
+        return out.append('"').toString();
     }
 
     private static String formatValue(Object value) {
@@ -400,7 +452,7 @@ public final class TomlCodec {
             return n.toString();
         }
         if (value instanceof String s) {
-            return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+            return formatString(s);
         }
         return "\"" + value + "\"";
     }
@@ -438,15 +490,19 @@ public final class TomlCodec {
         if (!List.class.isAssignableFrom(f.getType())) {
             return false;
         }
-        Class<?> elementType = sectionListElementType(f);
+        Class<?> elementType = listElementType(f);
         return elementType != null && isSection(elementType);
     }
 
-    private static Class<?> sectionListElementType(Field f) {
-        if (!(f.getGenericType() instanceof java.lang.reflect.ParameterizedType parameterized)) {
+    private static boolean isStringList(Field field) {
+        return List.class.isAssignableFrom(field.getType()) && listElementType(field) == String.class;
+    }
+
+    private static Class<?> listElementType(Field f) {
+        if (!(f.getGenericType() instanceof ParameterizedType parameterized)) {
             return null;
         }
-        java.lang.reflect.Type[] arguments = parameterized.getActualTypeArguments();
+        Type[] arguments = parameterized.getActualTypeArguments();
         if (arguments.length != 1 || !(arguments[0] instanceof Class<?> element)) {
             return null;
         }

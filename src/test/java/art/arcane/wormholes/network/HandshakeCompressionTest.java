@@ -59,8 +59,7 @@ class HandshakeCompressionTest {
             "1.0.0",
             "alpha",
             "10.0.0.5",
-            8901,
-            25565,
+            8901, new GameEndpoint("10.0.0.5", 25565), null,
             Handshake.newNonce(),
             generatePublicKey(),
             true,
@@ -80,8 +79,7 @@ class HandshakeCompressionTest {
         WireMessage.Challenge challenge = new WireMessage.Challenge(
             "beta",
             "10.0.0.2",
-            8901,
-            25565,
+            8901, new GameEndpoint("10.0.0.2", 25565), null,
             Handshake.newNonce(),
             generatePublicKey(),
             new byte[]{1, 2, 3, 4},
@@ -100,10 +98,10 @@ class HandshakeCompressionTest {
     void matchingDictHashAndVersionEnablesDictMode() throws Exception {
         CompressionDictionary dictionary = trainDictionary();
         WireMessage.Hello local = new WireMessage.Hello(
-            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "alpha", "10.0.0.1", 8901, 25565,
+            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "alpha", "10.0.0.1", 8901, new GameEndpoint("10.0.0.1", 25565), null,
             Handshake.newNonce(), generatePublicKey(), true, dictionary.hash(), dictionary.version());
         WireMessage.Hello remote = new WireMessage.Hello(
-            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "beta", "10.0.0.2", 8901, 25565,
+            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "beta", "10.0.0.2", 8901, new GameEndpoint("10.0.0.2", 25565), null,
             Handshake.newNonce(), generatePublicKey(), true, dictionary.hash(), dictionary.version());
         assertTrue(negotiateUseDict(local, remote));
     }
@@ -117,10 +115,10 @@ class HandshakeCompressionTest {
             betaHash[i] = (byte) 0xBB;
         }
         WireMessage.Hello local = new WireMessage.Hello(
-            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "alpha", "10.0.0.1", 8901, 25565,
+            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "alpha", "10.0.0.1", 8901, new GameEndpoint("10.0.0.1", 25565), null,
             Handshake.newNonce(), generatePublicKey(), true, alphaHash, 50);
         WireMessage.Hello remote = new WireMessage.Hello(
-            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "beta", "10.0.0.2", 8901, 25565,
+            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "beta", "10.0.0.2", 8901, new GameEndpoint("10.0.0.2", 25565), null,
             Handshake.newNonce(), generatePublicKey(), true, betaHash, 50);
         assertFalse(negotiateUseDict(local, remote));
     }
@@ -129,10 +127,10 @@ class HandshakeCompressionTest {
     void unsupportedRemoteForcesPlainMode() throws Exception {
         CompressionDictionary dictionary = trainDictionary();
         WireMessage.Hello local = new WireMessage.Hello(
-            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "alpha", "10.0.0.1", 8901, 25565,
+            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "alpha", "10.0.0.1", 8901, new GameEndpoint("10.0.0.1", 25565), null,
             Handshake.newNonce(), generatePublicKey(), true, dictionary.hash(), dictionary.version());
         WireMessage.Hello remote = new WireMessage.Hello(
-            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "beta", "10.0.0.2", 8901, 25565,
+            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "beta", "10.0.0.2", 8901, new GameEndpoint("10.0.0.2", 25565), null,
             Handshake.newNonce(), generatePublicKey(), false, CompressionDictionary.ZERO_HASH, 0);
         assertFalse(negotiateUseDict(local, remote));
     }
@@ -140,10 +138,10 @@ class HandshakeCompressionTest {
     @Test
     void zeroVersionDoesNotNegotiateDict() throws Exception {
         WireMessage.Hello local = new WireMessage.Hello(
-            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "alpha", "10.0.0.1", 8901, 25565,
+            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "alpha", "10.0.0.1", 8901, new GameEndpoint("10.0.0.1", 25565), null,
             Handshake.newNonce(), generatePublicKey(), true, CompressionDictionary.ZERO_HASH, 0);
         WireMessage.Hello remote = new WireMessage.Hello(
-            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "beta", "10.0.0.2", 8901, 25565,
+            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "beta", "10.0.0.2", 8901, new GameEndpoint("10.0.0.2", 25565), null,
             Handshake.newNonce(), generatePublicKey(), true, CompressionDictionary.ZERO_HASH, 0);
         assertFalse(negotiateUseDict(local, remote));
     }
@@ -151,7 +149,7 @@ class HandshakeCompressionTest {
     @Test
     void invalidHashLengthIsRejectedAtEncodeTime() throws Exception {
         WireMessage.Hello hello = new WireMessage.Hello(
-            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "alpha", "10.0.0.1", 8901, 25565,
+            WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "alpha", "10.0.0.1", 8901, new GameEndpoint("10.0.0.1", 25565), null,
             Handshake.newNonce(), generatePublicKey(), true, new byte[]{1, 2, 3}, 1);
         try {
             WireCodec.encodeFrame(hello);

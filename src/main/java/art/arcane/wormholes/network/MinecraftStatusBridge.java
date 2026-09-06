@@ -31,12 +31,12 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class MinecraftStatusBridge extends PacketListenerAbstract {
-    record PollResult(StatusPacket packet, String host) {
+    record PollResult(StatusPacket packet, GameEndpoint endpoint) {
     }
 
     private static final String HOST_PREFIX = "whs.";
     private static final String JSON_FIELD = "wormholes";
-    private static final int FORMAT_VERSION = 6;
+    private static final int FORMAT_VERSION = 7;
     private static final int CONNECT_TIMEOUT_MS = 4000;
     private static final int READ_TIMEOUT_MS = 5000;
     private static final int MAX_HOST_LENGTH = 32000;
@@ -125,21 +125,24 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
     }
 
     PollResult pollWithEndpoint(NetworkConfig.PeerEntry peer, StatusPacket request) throws IOException {
-        List<String> hosts = gamePortHosts(peer);
-        int port = PeerEndpointResolver.gamePort(peer);
-        if (hosts.isEmpty()) {
-            throw new IOException("no game-port host available");
+        List<GameEndpoint> endpoints = new ArrayList<>(PeerEndpointResolver.gameEndpoints(peer));
+        GameEndpoint preferred = network.reachableGameEndpoint(peer.name);
+        if (preferred != null && endpoints.remove(preferred)) {
+            endpoints.addFirst(preferred);
+        }
+        if (endpoints.isEmpty()) {
+            throw new IOException("no game-port endpoint available");
         }
         String encoded = request.encode(network.compression());
         String handshakeHost = HOST_PREFIX + encoded;
         if (handshakeHost.length() > MAX_HOST_LENGTH) {
             throw new IOException("status sideband request is too large: " + handshakeHost.length() + " chars");
         }
-        byte[] requestBytes = requestBytes(handshakeHost, port);
         RequestUndeliveredException lastFailure = null;
-        for (String host : hosts) {
+        for (GameEndpoint endpoint : endpoints) {
             try {
-                return new PollResult(poll(host, port, requestBytes), host);
+                byte[] requestBytes = requestBytes(handshakeHost, endpoint.port());
+                return new PollResult(poll(endpoint, requestBytes, false), endpoint);
             } catch (RequestUndeliveredException error) {
                 lastFailure = error;
             }
@@ -147,19 +150,25 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
         throw lastFailure;
     }
 
-    static List<String> gamePortHosts(NetworkConfig.PeerEntry peer) {
-        return PeerEndpointResolver.gameHosts(peer);
+    StatusPacket pollEndpoint(GameEndpoint endpoint, StatusPacket request) throws IOException {
+        String handshakeHost = HOST_PREFIX + request.encode(network.compression());
+        if (handshakeHost.length() > MAX_HOST_LENGTH) {
+            throw new IOException("status sideband request is too large");
+        }
+        return poll(endpoint, requestBytes(handshakeHost, endpoint.port()), true);
     }
 
-    private StatusPacket poll(String host, int port, byte[] requestBytes) throws IOException {
+    private StatusPacket poll(GameEndpoint endpoint, byte[] requestBytes, boolean probe) throws IOException {
+        String host = endpoint.host();
+        int port = endpoint.port();
         try (Socket socket = new Socket()) {
             try {
-                socket.connect(new InetSocketAddress(host, port), CONNECT_TIMEOUT_MS);
+                socket.connect(new InetSocketAddress(host, port), probe ? 1000 : CONNECT_TIMEOUT_MS);
             } catch (IOException e) {
                 throw new RequestUndeliveredException(host, port, e);
             }
             socket.setTcpNoDelay(true);
-            socket.setSoTimeout(READ_TIMEOUT_MS);
+            socket.setSoTimeout(probe ? 1000 : READ_TIMEOUT_MS);
             OutputStream output = socket.getOutputStream();
             InputStream input = socket.getInputStream();
             output.write(requestBytes);
@@ -175,7 +184,8 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
 
     public static StatusPacket create(String sourceServer, String targetServer, int protocolVersion,
                                       String mcVersion, String pluginVersion,
-                                      String replyHost, int replyPort, byte[] publicKey, PrivateKey privateKey,
+                                      String replyHost, int replyPort, GameEndpoint privateGameEndpoint, String peerHost, int peerPort,
+                                      byte[] publicKey, PrivateKey privateKey,
                                       long ackNonce, List<EncodedMessage> messages) {
         List<WireMessage> wireMessages = new ArrayList<>(messages.size());
         List<byte[]> frames = new ArrayList<>(messages.size());
@@ -184,10 +194,19 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
             frames.add(message.frame());
         }
         StatusPacket unsigned = new StatusPacket(sourceServer, targetServer, protocolVersion, mcVersion,
-            pluginVersion, replyHost, replyPort, publicKey, nextNonce(), ackNonce, List.copyOf(wireMessages),
+            pluginVersion, replyHost, replyPort, privateGameEndpoint, peerHost, peerPort, false, publicKey, nextNonce(), ackNonce, List.copyOf(wireMessages),
             List.copyOf(frames), null);
         byte[] payload = unsigned.unsignedBytes();
         return unsigned.withSignature(Handshake.sign(privateKey, payload));
+    }
+
+    static StatusPacket createEndpointProbe(LocalIdentity identity, String target, long acknowledgedNonce) {
+        GameEndpoint endpoint = identity.gameEndpoint();
+        StatusPacket unsigned = new StatusPacket(identity.serverName(), target, WireCodec.PROTOCOL_VERSION,
+            identity.mcVersion(), identity.pluginVersion(), endpoint.host(), endpoint.port(),
+            identity.privateGameEndpoint(), identity.advertiseHost(), identity.wormholePort(), true, identity.publicKey(), nextNonce(), acknowledgedNonce,
+            List.of(), List.of(), null);
+        return unsigned.withSignature(Handshake.sign(identity.privateKey(), unsigned.unsignedBytes()));
     }
 
     private static long nextNonce() {
@@ -305,6 +324,10 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
         private final String pluginVersion;
         private final String replyHost;
         private final int replyPort;
+        private final GameEndpoint privateGameEndpoint;
+        private final String peerHost;
+        private final int peerPort;
+        private final boolean endpointProbe;
         private final byte[] publicKey;
         private final long nonce;
         private final long ackNonce;
@@ -314,7 +337,7 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
         private volatile byte[] unsignedBytesCache;
 
         private StatusPacket(String sourceServer, String targetServer, int protocolVersion, String mcVersion,
-                             String pluginVersion, String replyHost, int replyPort, byte[] publicKey, long nonce,
+                             String pluginVersion, String replyHost, int replyPort, GameEndpoint privateGameEndpoint, String peerHost, int peerPort, boolean endpointProbe, byte[] publicKey, long nonce,
                              long ackNonce, List<WireMessage> messages, List<byte[]> encodedFrames, byte[] signature) {
             this.sourceServer = sourceServer;
             this.targetServer = targetServer;
@@ -323,6 +346,10 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
             this.pluginVersion = pluginVersion;
             this.replyHost = replyHost;
             this.replyPort = replyPort;
+            this.privateGameEndpoint = privateGameEndpoint;
+            this.peerHost = peerHost;
+            this.peerPort = peerPort;
+            this.endpointProbe = endpointProbe;
             this.publicKey = publicKey == null ? new byte[0] : publicKey.clone();
             this.nonce = nonce;
             this.ackNonce = ackNonce;
@@ -357,6 +384,22 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
 
         public int replyPort() {
             return replyPort;
+        }
+
+        public GameEndpoint privateGameEndpoint() {
+            return privateGameEndpoint;
+        }
+
+        public String peerHost() {
+            return peerHost;
+        }
+
+        public int peerPort() {
+            return peerPort;
+        }
+
+        public boolean endpointProbe() {
+            return endpointProbe;
         }
 
         public byte[] publicKey() {
@@ -396,7 +439,7 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
 
         private StatusPacket withSignature(byte[] nextSignature) {
             StatusPacket signed = new StatusPacket(sourceServer, targetServer, protocolVersion, mcVersion,
-                pluginVersion, replyHost, replyPort, publicKey, nonce, ackNonce, messages, encodedFrames,
+                pluginVersion, replyHost, replyPort, privateGameEndpoint, peerHost, peerPort, endpointProbe, publicKey, nonce, ackNonce, messages, encodedFrames,
                 nextSignature);
             signed.unsignedBytesCache = unsignedBytesCache;
             return signed;
@@ -422,7 +465,11 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
                 writeUtf(out, mcVersion, MAX_VERSION_CHARS, "Minecraft version");
                 writeUtf(out, pluginVersion, MAX_VERSION_CHARS, "plugin version");
                 writeUtf(out, replyHost, MAX_REPLY_HOST_CHARS, "reply host");
-                out.writeShort(Math.max(0, Math.min(65535, replyPort)));
+                out.writeShort(replyPort);
+                GameEndpoint.write(out, privateGameEndpoint);
+                writeUtf(out, peerHost, MAX_REPLY_HOST_CHARS, "peer host");
+                out.writeShort(peerPort);
+                out.writeBoolean(endpointProbe);
                 WireCodec.writeByteArray(out, publicKey, Handshake.PUBLIC_KEY_MAX_LENGTH);
                 out.writeLong(nonce);
                 out.writeLong(ackNonce);
@@ -472,6 +519,10 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
             String pluginVersion = readUtf(in, MAX_VERSION_CHARS, "plugin version");
             String replyHost = readUtf(in, MAX_REPLY_HOST_CHARS, "reply host");
             int replyPort = in.readUnsignedShort();
+            GameEndpoint privateGameEndpoint = GameEndpoint.read(in);
+            String peerHost = readUtf(in, MAX_REPLY_HOST_CHARS, "peer host");
+            int peerPort = in.readUnsignedShort();
+            boolean endpointProbe = in.readBoolean();
             byte[] publicKey = WireCodec.readByteArray(in, Handshake.PUBLIC_KEY_MAX_LENGTH);
             long nonce = in.readLong();
             long ackNonce = in.readLong();
@@ -492,7 +543,7 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
                 throw new IOException("status bridge payload has trailing bytes");
             }
             StatusPacket packet = new StatusPacket(sourceServer, targetServer, protocolVersion, mcVersion,
-                pluginVersion, replyHost, replyPort, publicKey, nonce, ackNonce, messages, null, signature);
+                pluginVersion, replyHost, replyPort, privateGameEndpoint, peerHost, peerPort, endpointProbe, publicKey, nonce, ackNonce, messages, null, signature);
             packet.unsignedBytesCache = unsigned;
             return packet;
         }

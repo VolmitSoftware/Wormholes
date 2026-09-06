@@ -127,7 +127,7 @@ final class SidebandQueue {
     static boolean isLatencyCritical(WireMessage message) {
         WireMessageType type = message instanceof WireMessage.Routed routed ? routed.innerType() : message.type();
         return switch (type) {
-            case HANDOFF_REQUEST, HANDOFF_ACK, HANDOFF_DENY, HANDOFF_CANCEL,
+            case HANDOFF_REQUEST, HANDOFF_ACK, HANDOFF_DENY, HANDOFF_CANCEL, HANDOFF_RESULT, HANDOFF_STATUS,
                  ENTITY_TRANSFER, ENTITY_TRANSFER_ACK, VIEW_SUBSCRIBE, VIEW_UNSUBSCRIBE, VIEW_BULK_COMPLETE -> true;
             default -> false;
         };

@@ -7,6 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.io.File;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.bukkit.World;
@@ -81,6 +86,43 @@ final class LocalPortalPersistenceTest
 		persistence.writeSave(prepared);
 
 		assertFalse(Files.exists(stateFile));
+		assertFalse(persistence.needsSaving());
+	}
+
+	@Test
+	void bulkDeletionRetiresQueuedSavesBeforeRemovingTheStorageTree() throws Exception
+	{
+		World world = LocalPortalTestSupport.world("bulk-deleted-save");
+		LocalPortal portal = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
+		Path portalFolder = temporaryDirectory.resolve("portals");
+		Path stateFile = portalFolder.resolve("nested").resolve("portal.json");
+		LocalPortalPersistence persistence = new LocalPortalPersistence(portal, ignored -> stateFile.toFile());
+		persistence.saveNow();
+		persistence.save();
+		PortalSaveSnapshot queued = persistence.prepareSave();
+		assertNotNull(queued);
+		Files.writeString(portalFolder.resolve("unloaded-portal.json"), "{}");
+		ILocalPortal registered = (ILocalPortal) Proxy.newProxyInstance(
+			ILocalPortal.class.getClassLoader(), new Class<?>[] {ILocalPortal.class},
+			(instance, method, arguments) -> {
+				if("deleteData".equals(method.getName()))
+				{
+					persistence.deleteData();
+					return null;
+				}
+				throw new AssertionError("Unexpected bulk deletion operation: " + method.getName());
+			});
+		Class<?> storageType = Class.forName("art.arcane.wormholes.PortalRegistryStorage");
+		Constructor<?> constructor = storageType.getDeclaredConstructor(File.class);
+		constructor.setAccessible(true);
+		Object storage = constructor.newInstance(portalFolder.toFile());
+		Method delete = storageType.getDeclaredMethod("deletePortalFolder", List.class);
+		delete.setAccessible(true);
+		delete.invoke(storage, List.of(registered));
+		persistence.writeSave(queued);
+		persistence.saveNow();
+
+		assertFalse(Files.exists(portalFolder));
 		assertFalse(persistence.needsSaving());
 	}
 

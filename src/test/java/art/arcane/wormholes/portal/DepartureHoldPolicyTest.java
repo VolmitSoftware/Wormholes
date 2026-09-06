@@ -13,7 +13,7 @@ public final class DepartureHoldPolicyTest
 				DepartureHoldPolicy.decide(false, true, 5.0D, 100.0D, 0L));
 		assertEquals(DepartureHoldPolicy.Decision.STOP,
 				DepartureHoldPolicy.decide(false, false, -0.5D, 0.1D,
-						DepartureHoldPolicy.TIMEOUT_MILLIS + 1_000L));
+						-1_000L));
 	}
 
 	@Test
@@ -24,7 +24,7 @@ public final class DepartureHoldPolicyTest
 	}
 
 	@Test
-	public void largeDisplacementStopsInsteadOfCancelling()
+	public void largeDisplacementStopsTheHold()
 	{
 		assertEquals(DepartureHoldPolicy.Decision.STOP,
 				DepartureHoldPolicy.decide(true, true, 5.0D,
@@ -36,7 +36,18 @@ public final class DepartureHoldPolicyTest
 	{
 		assertEquals(DepartureHoldPolicy.Decision.STOP,
 				DepartureHoldPolicy.decide(true, true, -0.5D, 0.2D,
-						DepartureHoldPolicy.TIMEOUT_MILLIS));
+						0L));
+	}
+
+	@Test
+	public void pendingEndpointProbeKeepsTheTravelerHeldUntilTheActualDeadline()
+	{
+		assertEquals(DepartureHoldPolicy.Decision.HOLD_PIN,
+				DepartureHoldPolicy.decide(true, true, -0.5D, 0.2D, 5_999L));
+		assertEquals(DepartureHoldPolicy.Decision.HOLD_PIN,
+				DepartureHoldPolicy.decide(true, true, -0.5D, 0.2D, 1L));
+		assertEquals(DepartureHoldPolicy.Decision.STOP,
+				DepartureHoldPolicy.decide(true, true, -0.5D, 0.2D, -1L));
 	}
 
 	@Test

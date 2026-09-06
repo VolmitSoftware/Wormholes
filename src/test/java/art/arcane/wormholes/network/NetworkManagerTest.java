@@ -153,7 +153,7 @@ class NetworkManagerTest {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("Ed25519");
         KeyPair keyPair = generator.generateKeyPair();
         return MinecraftStatusBridge.create(sourceServer, targetServer, protocolVersion, mcVersion, pluginVersion,
-            "127.0.0.1", 25565, keyPair.getPublic().getEncoded(), keyPair.getPrivate(), 0L, List.of());
+            "127.0.0.1", 25565, null, "127.0.0.1", 8901, keyPair.getPublic().getEncoded(), keyPair.getPrivate(), 0L, List.of());
     }
 
     private static void assertStatusPacketRejected(NetworkManager manager, String sourceServer,
@@ -1064,7 +1064,7 @@ class NetworkManagerTest {
         alpha.statusPollInFlight.add(BETA_NAME);
         alpha.start();
 
-        WireMessage.HandoffRequest handoff = new WireMessage.HandoffRequest(UUID.randomUUID(), UUID.randomUUID(), "Steve", UUID.randomUUID(), true, traversive());
+        WireMessage.HandoffRequest handoff = new WireMessage.HandoffRequest(UUID.randomUUID(), UUID.randomUUID(), "Steve", UUID.randomUUID(), true, true, traversive());
         assertTrue(alpha.send(BETA_NAME, handoff));
 
         assertEquals(0L, alpha.nextStatusAttempt.get(BETA_NAME));

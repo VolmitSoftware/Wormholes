@@ -76,6 +76,8 @@ public final class NetworkRouter {
             case WireMessage.HandoffAck ack -> traversal.onHandoffAck(peerName, ack);
             case WireMessage.HandoffDeny deny -> traversal.onHandoffDeny(peerName, deny);
             case WireMessage.HandoffCancel cancel -> traversal.onHandoffCancel(peerName, cancel);
+            case WireMessage.HandoffResult result -> traversal.onHandoffResult(peerName, result);
+            case WireMessage.HandoffStatus status -> traversal.onHandoffStatus(peerName, status);
             case WireMessage.EntityTransfer transfer -> traversal.onEntityTransfer(peerName, transfer);
             case WireMessage.EntityTransferAck ack -> traversal.onEntityTransferAck(peerName, ack);
             case WireMessage.ViewSubscribe subscribe -> viewServer.onSubscribe(peerName, subscribe.portalId());

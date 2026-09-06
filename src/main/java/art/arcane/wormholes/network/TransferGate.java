@@ -10,8 +10,11 @@ import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.wrapper.handshaking.client.WrapperHandshakingClientHandshake;
 
 public final class TransferGate extends PacketListenerAbstract {
-    public TransferGate() {
+    private final boolean nativeAcceptingTransfers;
+
+    public TransferGate(boolean nativeAcceptingTransfers) {
         super(PacketListenerPriority.LOW);
+        this.nativeAcceptingTransfers = nativeAcceptingTransfers;
     }
 
     @Override
@@ -20,7 +23,7 @@ public final class TransferGate extends PacketListenerAbstract {
             return;
         }
         NetworkConfig config = Wormholes.settings == null ? null : Wormholes.settings.getNetwork();
-        if (config == null || !config.enabled || !config.autoAcceptTransfers) {
+        if (!shouldRewrite(config, nativeAcceptingTransfers)) {
             return;
         }
         WrapperHandshakingClientHandshake handshake = new WrapperHandshakingClientHandshake(event);
@@ -32,6 +35,10 @@ public final class TransferGate extends PacketListenerAbstract {
             + " protocol=" + handshake.getProtocolVersion() + " rewriting=LOGIN");
         handshake.setIntention(WrapperHandshakingClientHandshake.ConnectionIntention.LOGIN);
         event.markForReEncode(true);
+    }
+
+    static boolean shouldRewrite(NetworkConfig config, boolean nativeAcceptingTransfers) {
+        return !nativeAcceptingTransfers && config != null && config.enabled && config.autoAcceptTransfers;
     }
 
     private static String singleLine(String value) {

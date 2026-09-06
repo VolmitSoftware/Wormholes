@@ -4,6 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.util.Vector;
@@ -94,7 +97,7 @@ public final class LocalPortalDepartureHoldRecoveryTest
 		long before = failures("TRAVERSAL_DEPARTURE_HOLD_FAILED");
 
 		new LocalPortalDepartureHold(portal, LocalPortalTestSupport.rejectingRuntime())
-				.startPlayerDepartureHold(traveler.player(), traversive);
+				.startPlayerDepartureHold(traveler.player(), traversive, now + 12_000L);
 
 		assertEquals(before + 1L, failures("TRAVERSAL_DEPARTURE_HOLD_FAILED"),
 				"a cross-server departure hold that failed terminally must increment the failure counter");
@@ -113,7 +116,7 @@ public final class LocalPortalDepartureHoldRecoveryTest
 		assertTrue(LocalPortal.markTeleportInFlight(traveler.id(), now));
 
 		new LocalPortalDepartureHold(portal, LocalPortalTestSupport.runOnceThenRejectingRuntime())
-				.startPlayerDepartureHold(traveler.player(), traversive);
+				.startPlayerDepartureHold(traveler.player(), traversive, now + 12_000L);
 
 		assertFalse(LocalPortal.isTeleportInFlight(traveler.id(), System.currentTimeMillis()),
 				"a departure hold dropped mid-loop must release the cross-server claim");
@@ -131,10 +134,39 @@ public final class LocalPortalDepartureHoldRecoveryTest
 		assertTrue(LocalPortal.markTeleportInFlight(traveler.id(), now));
 
 		new LocalPortalDepartureHold(portal, LocalPortalTestSupport.rejectingRuntime())
-				.startPlayerDepartureHold(traveler.player(), traversive);
+				.startPlayerDepartureHold(traveler.player(), traversive, now + 12_000L);
 
 		assertFalse(LocalPortal.isTeleportInFlight(traveler.id(), System.currentTimeMillis()),
 				"a departure hold without a source world must release the cross-server claim");
+	}
+
+	@Test
+	public void terminalDepartureHoldConditionsReleaseTheClaimWithoutAnotherTick()
+	{
+		for(int scenario = 0; scenario < 5; scenario++)
+		{
+			World world = LocalPortalTestSupport.world("transfer-stop-" + scenario);
+			LocalPortal portal = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
+			FakeEntity traveler = FakeEntity.player("transfer-stop", anchor(world));
+			Traversive traversive = LocalPortalTestSupport.traversive(portal, traveler.entity(), anchorVector());
+			long now = System.currentTimeMillis();
+			assertTrue(LocalPortal.markTeleportInFlight(traveler.id(), now));
+			List<Runnable> pending = new ArrayList<Runnable>();
+			new LocalPortalDepartureHold(portal, LocalPortalTestSupport.deferringRuntime(pending, true))
+					.startPlayerDepartureHold(traveler.player(), traversive, scenario == 0 ? now - 1L : now + 12_000L);
+			switch(scenario)
+			{
+				case 1 -> traveler.player().teleport(anchor(LocalPortalTestSupport.world("transfer-other-world")));
+				case 2 -> traveler.player().teleport(anchor(world).add(17.0D, 0.0D, 0.0D));
+				case 3 -> traveler.invalidate();
+				case 4 -> LocalPortal.clearTeleportInFlight(traveler.id());
+			}
+
+			pending.getFirst().run();
+
+			assertFalse(LocalPortal.isTeleportInFlight(traveler.id(), System.currentTimeMillis()), "scenario=" + scenario);
+			assertEquals(1, pending.size(), "scenario=" + scenario);
+		}
 	}
 
 	private static long failures(String reason)

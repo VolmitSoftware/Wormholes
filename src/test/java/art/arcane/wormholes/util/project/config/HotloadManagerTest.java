@@ -17,6 +17,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -58,6 +60,75 @@ class HotloadManagerTest {
             assertEquals(VisualQualityProfile.PERFORMANCE, live.get().getVisualQualityProfile());
         } finally {
             manager.stop();
+        }
+    }
+
+    @Test
+    void invalidEndpointEditsNeverReplaceLiveSettingsAndCorrectedRouteRecovers() throws Exception {
+        WormholesSettings initial = WormholesSettings.loadAll(tempDir);
+        AtomicReference<WormholesSettings> live = new AtomicReference<>(initial);
+        AtomicInteger callbacks = new AtomicInteger();
+        AtomicInteger rejections = new AtomicInteger();
+        CountDownLatch hostRejected = new CountDownLatch(1);
+        CountDownLatch routeRejected = new CountDownLatch(1);
+        CountDownLatch corrected = new CountDownLatch(1);
+        Logger logger = Logger.getLogger("HotloadManagerEndpointValidationTest");
+        Handler errors = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                if (record.getThrown() instanceof IllegalArgumentException) {
+                    if (rejections.incrementAndGet() == 1) {
+                        hostRejected.countDown();
+                    } else {
+                        routeRejected.countDown();
+                    }
+                }
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        logger.addHandler(errors);
+        HotloadManager manager = manager(logger.getName(), (settings, completion) -> {
+            live.set(settings);
+            callbacks.incrementAndGet();
+            completion.complete(true, null);
+            corrected.countDown();
+            return true;
+        });
+        String invalidRoute = """
+            schema = 3
+            [[network.client-routes]]
+            server = "beta"
+            client-cidr = "10.0.0.0/99"
+            host = "lan.example"
+            port = 25566
+            """;
+
+        manager.start();
+        try {
+            Files.writeString(configFile(), "schema = 3\n[network]\ngame-host-override = \"bad host\"\n");
+            assertTrue(hostRejected.await(2L, TimeUnit.SECONDS));
+            assertSame(initial, live.get());
+            assertEquals(0, callbacks.get());
+
+            Files.writeString(configFile(), invalidRoute);
+            assertTrue(routeRejected.await(2L, TimeUnit.SECONDS));
+            assertSame(initial, live.get());
+            assertEquals(0, callbacks.get());
+
+            Files.writeString(configFile(), invalidRoute.replace("10.0.0.0/99", "10.0.0.0/8"));
+            assertTrue(corrected.await(2L, TimeUnit.SECONDS));
+            assertEquals(1, callbacks.get());
+            assertEquals("10.0.0.0/8", live.get().getNetwork().clientRoutes.getFirst().clientCidr);
+        } finally {
+            manager.stop();
+            logger.removeHandler(errors);
         }
     }
 

@@ -53,7 +53,7 @@ public final class WormholesMessages {
     public static final TextKey COMMAND_SERVER_CONNECT_DESCRIPTION = text("command.help.server.connect", "Transfer yourself to a linked server (shorthand: /wh server \\<name>)");
     public static final TextKey COMMAND_SERVER_CONNECT_NAME_DESCRIPTION = text("command.help.server.connect.name", "Linked server name (see /wh server list)");
     public static final TextKey COMMAND_SERVER_EXPORT_DESCRIPTION = text("command.help.server.export", "Export this server as a code other servers can import");
-    public static final TextKey COMMAND_SERVER_IMPORT_DESCRIPTION = text("command.help.server.import", "Import a server (WHS1.) or portal (WHP5.) code exported by another server");
+    public static final TextKey COMMAND_SERVER_IMPORT_DESCRIPTION = text("command.help.server.import", "Import a server (WHS2.) or portal (WHP6.) code exported by another server");
     public static final TextKey COMMAND_SERVER_IMPORT_CODE_DESCRIPTION = text("command.help.server.import.code", "Code from the other server's export");
     public static final TextKey COMMAND_SERVER_LIST_DESCRIPTION = text("command.help.server.list", "List linked servers and their connection state");
     public static final TextKey COMMAND_SERVER_REMOVE_DESCRIPTION = text("command.help.server.remove", "Forget a linked server (deletes its route and trusted key)");

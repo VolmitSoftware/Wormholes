@@ -28,6 +28,7 @@ import art.arcane.wormholes.portal.Traversive;
 import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.wormholes.util.Direction;
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
@@ -77,9 +78,11 @@ final class TraversalServiceCostIntegrationTest {
     private WormholesSettings previousSettings;
     private TraversalCostGateway previousGateway;
     private TestNetwork network;
+    private ClientProtocolFixture protocolFixture;
 
     @BeforeEach
     void setUp() {
+        protocolFixture = new ClientProtocolFixture(ClientVersion.V_26_2);
         previousSettings = Wormholes.settings;
         previousGateway = Wormholes.traversalCostGateway;
         NetworkConfig config = new NetworkConfig();
@@ -93,6 +96,7 @@ final class TraversalServiceCostIntegrationTest {
 
     @AfterEach
     void tearDown() {
+        protocolFixture.close();
         TraversalCostGateway active = Wormholes.traversalCostGateway;
         if (active != null && active != previousGateway) {
             active.shutdown();
@@ -151,8 +155,63 @@ final class TraversalServiceCostIntegrationTest {
         assertEquals(1, cost.commits.get());
         assertTrue(cost.refunds.isEmpty());
         assertSame(context, cost.contexts.getFirst());
+        assertEquals(0L, service.statsSnapshot().completed());
+        assertEquals(1, service.statsSnapshot().inFlight());
+
+        service.onHandoffResult("wrong-peer", new WireMessage.HandoffResult(transferId, player.player().getUniqueId(), true, "arrived"));
+        assertEquals(0L, service.statsSnapshot().completed());
+        service.onHandoffResult(PEER, new WireMessage.HandoffResult(transferId, player.player().getUniqueId(), true, "arrived"));
+        service.onHandoffResult(PEER, new WireMessage.HandoffResult(transferId, player.player().getUniqueId(), true, "arrived"));
         assertEquals(1L, service.statsSnapshot().completed());
         assertEquals(0, service.statsSnapshot().inFlight());
+    }
+
+    @Test
+    void immediateArrivalReceiptDoesNotRestoreTheReleasedTransferLock() throws Exception {
+        network = network();
+        TraversalService service = new TraversalService(network, immediateScheduler());
+        PlayerState player = new PlayerState(UUID.randomUUID(), world(), false);
+        UUID transferId = seedPendingHandoff(service, player.player(), context(player.player()));
+        player.onTransfer = () -> service.onHandoffResult(PEER,
+            new WireMessage.HandoffResult(transferId, player.player().getUniqueId(), true, "arrived"));
+
+        service.onHandoffAck(PEER, new WireMessage.HandoffAck(transferId));
+
+        assertEquals(1, player.transferCalls.get());
+        assertEquals(1L, service.statsSnapshot().completed());
+        assertEquals(0, service.statsSnapshot().inFlight());
+        assertFalse(transferLocks(service).isLocked(player.player().getUniqueId(), System.currentTimeMillis()));
+    }
+
+    @Test
+    void delayedAcknowledgementCannotDispatchOverANewerTransfer() throws Exception {
+        network = network();
+        TraversalService service = new TraversalService(network, immediateScheduler());
+        PlayerState player = new PlayerState(UUID.randomUUID(), world(), false);
+        UUID previous = seedPendingHandoff(service, player.player(), context(player.player()));
+        UUID current = seedPendingHandoff(service, player.player(), context(player.player()));
+
+        service.onHandoffAck(PEER, new WireMessage.HandoffAck(previous));
+
+        assertEquals(0, player.transferCalls.get());
+        assertEquals(1L, network.count(WireMessage.HandoffCancel.class));
+        assertEquals(1, service.statsSnapshot().inFlight());
+        assertTrue(transferLocks(service).ownsTransfer(player.player().getUniqueId(), current));
+    }
+
+    @Test
+    void delayedDenialCannotReleaseOrPenalizeANewerTransfer() throws Exception {
+        network = network();
+        TraversalService service = new TraversalService(network, immediateScheduler());
+        PlayerState player = new PlayerState(UUID.randomUUID(), world(), false);
+        UUID previous = seedPendingHandoff(service, player.player(), context(player.player()));
+        UUID current = seedPendingHandoff(service, player.player(), context(player.player()));
+
+        service.onHandoffDeny(PEER, new WireMessage.HandoffDeny(previous, "expired", 5_000L));
+
+        assertEquals(0L, service.statsSnapshot().failed());
+        assertEquals(1, service.statsSnapshot().inFlight());
+        assertTrue(transferLocks(service).ownsTransfer(player.player().getUniqueId(), current));
     }
 
     @Test
@@ -315,6 +374,7 @@ final class TraversalServiceCostIntegrationTest {
             "Late Traveler",
             UUID.randomUUID(),
             true,
+            true,
             WireTraversive.fromTraversive(traversive(null))));
 
         WireMessage.HandoffDeny denial = network.first(WireMessage.HandoffDeny.class);
@@ -388,7 +448,8 @@ final class TraversalServiceCostIntegrationTest {
             Traversive.class,
             PlayerTransfer.Method.class,
             PortalTravelCost.class,
-            TraversalContext.class);
+            TraversalContext.class,
+            GameEndpoint.class);
         constructor.setAccessible(true);
         Object handoff = constructor.newInstance(
             player,
@@ -398,7 +459,8 @@ final class TraversalServiceCostIntegrationTest {
             traversive(player),
             PlayerTransfer.Method.DIRECT,
             null,
-            context);
+            context,
+            new GameEndpoint("198.51.100.1", 25566));
         Field pendingField = TraversalService.class.getDeclaredField("pendingHandoffs");
         pendingField.setAccessible(true);
         Object pendingValue = pendingField.get(service);
@@ -408,7 +470,14 @@ final class TraversalServiceCostIntegrationTest {
         @SuppressWarnings("unchecked")
         Map<UUID, Object> typedPending = (Map<UUID, Object>) pending;
         typedPending.put(transferId, handoff);
+        transferLocks(service).lockTransfer(player.getUniqueId(), transferId, System.currentTimeMillis() + 60_000L);
         return transferId;
+    }
+
+    private static TraversalTransferLocks transferLocks(TraversalService service) throws ReflectiveOperationException {
+        Field locksField = TraversalService.class.getDeclaredField("transferLocks");
+        locksField.setAccessible(true);
+        return (TraversalTransferLocks) locksField.get(service);
     }
 
     private static LocalPortal portal(World world) {
@@ -537,6 +606,7 @@ final class TraversalServiceCostIntegrationTest {
     private static final class PlayerState {
         private final AtomicInteger transferCalls = new AtomicInteger();
         private final Player player;
+        private Runnable onTransfer = () -> { };
 
         private PlayerState(UUID id, World world, boolean rejectTransfer) throws Exception {
             InetSocketAddress address = new InetSocketAddress(InetAddress.getByName("198.51.100.42"), 51234);
@@ -566,6 +636,7 @@ final class TraversalServiceCostIntegrationTest {
                     if (rejectTransfer) {
                         throw new IllegalStateException("test transfer rejection");
                     }
+                    onTransfer.run();
                     yield null;
                 }
                 case "equals" -> Boolean.valueOf(proxy == arguments[0]);
@@ -612,7 +683,7 @@ final class TraversalServiceCostIntegrationTest {
         }
 
         @Override
-        String privatePlayerEndpoint(String name) {
+        GameEndpoint privatePlayerEndpoint(String name) {
             return null;
         }
 

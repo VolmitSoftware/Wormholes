@@ -3,6 +3,7 @@ package art.arcane.wormholes.service;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.TransferGate;
+import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.ProjectionClientChunkTracker;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.event.PacketListenerCommon;
@@ -47,7 +48,8 @@ public final class PacketEventsRuntime {
     }
 
     public void registerTransferGate() {
-        PacketEvents.getAPI().getEventManager().registerListener(new TransferGate());
+        PacketEvents.getAPI().getEventManager().registerListener(
+            new TransferGate(WormholesPlatform.isAcceptingTransfers(plugin.getServer())));
     }
 
     public void registerStatusBridge(NetworkManager manager) {

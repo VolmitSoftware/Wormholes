@@ -14,10 +14,11 @@ public record ServerCode(
     String advertiseHost,
     List<String> fallbackHosts,
     int wormholePort,
-    int gamePort,
+    GameEndpoint gameEndpoint,
+    GameEndpoint privateGameEndpoint,
     String publicKey
 ) {
-    public static final String PREFIX = "WHS1.";
+    public static final String PREFIX = "WHS2.";
     private static final int MAX_CODE_LENGTH = 2048;
     private static final int MAX_FALLBACK_HOSTS = 4;
 
@@ -32,7 +33,11 @@ public record ServerCode(
                 out.writeUTF(fallbackHosts.get(i));
             }
             out.writeShort(wormholePort);
-            out.writeShort(gamePort);
+            List<String> hosts = new ArrayList<>(Math.min(fallbackHosts.size(), MAX_FALLBACK_HOSTS) + 1);
+            hosts.add(advertiseHost);
+            hosts.addAll(fallbackHosts.subList(0, Math.min(fallbackHosts.size(), MAX_FALLBACK_HOSTS)));
+            GameEndpoint.writeCode(out, gameEndpoint, hosts);
+            GameEndpoint.writeCode(out, privateGameEndpoint, hosts);
             out.writeUTF(publicKey);
             return PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(buffer.toByteArray());
         } catch (IOException e) {
@@ -62,15 +67,23 @@ public record ServerCode(
                 fallbackHosts.add(in.readUTF());
             }
             int wormholePort = in.readUnsignedShort();
-            int gamePort = in.readUnsignedShort();
+            List<String> hosts = new ArrayList<>(fallbackCount + 1);
+            hosts.add(advertiseHost);
+            hosts.addAll(fallbackHosts);
+            GameEndpoint gameEndpoint = GameEndpoint.readCode(in, hosts);
+            GameEndpoint privateGameEndpoint = GameEndpoint.readCode(in, hosts);
             String publicKey = in.readUTF();
             if (in.available() > 0) {
                 return null;
             }
-            if (serverName.isBlank() || advertiseHost.isBlank() || wormholePort <= 0 || Handshake.decodePublicKeyText(publicKey) == null) {
+            if (serverName.isBlank() || advertiseHost.isBlank() || wormholePort <= 0 || gameEndpoint == null || Handshake.decodePublicKeyText(publicKey) == null) {
                 return null;
             }
-            return new ServerCode(serverName, advertiseHost, List.copyOf(fallbackHosts), wormholePort, gamePort, publicKey);
+            new GameEndpoint(advertiseHost, wormholePort);
+            for (String fallback : fallbackHosts) {
+                new GameEndpoint(fallback, wormholePort);
+            }
+            return new ServerCode(serverName, advertiseHost, List.copyOf(fallbackHosts), wormholePort, gameEndpoint, privateGameEndpoint, publicKey);
         } catch (IllegalArgumentException | IOException e) {
             return null;
         }

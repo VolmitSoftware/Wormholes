@@ -1,7 +1,13 @@
 package art.arcane.wormholes.config.toml;
 
+import art.arcane.wormholes.network.ClientEndpointRoutes;
+import art.arcane.wormholes.network.GameEndpoint;
 import art.arcane.wormholes.util.project.config.ConfigDescription;
 import art.arcane.wormholes.util.project.config.ConfigDoc;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 @ConfigDoc({
     "Cross-server networking. Portal codes discover peers automatically."
@@ -22,8 +28,19 @@ public class NetworkConfig {
     public boolean trustOnFirstUse = true;
     public String entityTransferDenyTypes = "";
     public String advertiseHostOverride = "";
+    @ConfigDescription("Public Minecraft host for transfers and game-port sideband; blank uses the advertised host.")
+    public String gameHostOverride = "";
+    @ConfigDescription("Public Minecraft port, including NAT mappings; zero uses server.properties server-port.")
+    public int gamePortOverride = 0;
+    @ConfigDescription("Private Minecraft host; blank uses a concrete server bind address, or detects LAN for a wildcard bind.")
+    public String privateGameHostOverride = "";
+    @ConfigDescription("Private Minecraft port; zero uses server.properties server-port.")
+    public int privateGamePortOverride = 0;
+    public List<ClientRoute> clientRoutes = new ArrayList<>();
     public String serverName = "";
     public String transferMode = "auto";
+    @ConfigDescription("Destination server names routed through the proxy when transfer-mode is auto.")
+    public List<String> proxyServers = new ArrayList<>();
     public long handoffTimeoutMs = 5000L;
     public boolean autoAcceptTransfers = true;
     public TransportConfig transport = new TransportConfig();
@@ -36,10 +53,48 @@ public class NetworkConfig {
             listenPort = DEFAULT_LISTEN_PORT;
         }
         handoffTimeoutMs = Math.max(MIN_HANDOFF_TIMEOUT_MS, Math.min(MAX_HANDOFF_TIMEOUT_MS, handoffTimeoutMs));
+        if (gamePortOverride < 0 || gamePortOverride > MAX_LISTEN_PORT
+            || privateGamePortOverride < 0 || privateGamePortOverride > MAX_LISTEN_PORT) {
+            throw new IllegalArgumentException("Network game-port overrides must be between 0 and 65535");
+        }
+        advertiseHostOverride = normalizeHostOverride(advertiseHostOverride, gamePortOverride);
+        gameHostOverride = normalizeHostOverride(gameHostOverride, gamePortOverride);
+        privateGameHostOverride = normalizeHostOverride(privateGameHostOverride, privateGamePortOverride);
+        if (clientRoutes == null) {
+            clientRoutes = new ArrayList<>();
+        }
+        ClientEndpointRoutes.validate(clientRoutes);
+        List<String> normalizedProxyServers = new ArrayList<>(proxyServers == null ? 0 : proxyServers.size());
+        if (proxyServers != null) {
+            for (String server : proxyServers) {
+                if (server == null || server.isBlank()) {
+                    throw new IllegalArgumentException("Network proxy-servers entries must be nonblank server names");
+                }
+                normalizedProxyServers.add(server.trim());
+            }
+        }
+        proxyServers = normalizedProxyServers;
         if (replication == null) {
             replication = new ReplicationConfig();
         }
         replication.normalizeRuntimeBounds();
+    }
+
+    public String effectiveTransferMode(String peerName, String requestedMode) {
+        String mode = requestedMode == null ? "auto" : requestedMode.trim().toLowerCase(Locale.ROOT);
+        if (!"auto".equals(mode)) {
+            return mode;
+        }
+        for (String server : proxyServers) {
+            if (server.equalsIgnoreCase(peerName)) {
+                return "proxy";
+            }
+        }
+        return mode;
+    }
+
+    private static String normalizeHostOverride(String host, int port) {
+        return host == null || host.isBlank() ? "" : new GameEndpoint(host, port == 0 ? 25565 : port).host();
     }
 
     public static class ViewConfig {
@@ -111,6 +166,15 @@ public class NetworkConfig {
         public int port = 8901;
         public String publicHost = "";
         public int publicPort = 25565;
+        public String privateHost = "";
+        public int privatePort = 0;
         public boolean useProxy = false;
+    }
+
+    public static class ClientRoute {
+        public String server = "";
+        public String clientCidr = "";
+        public String host = "";
+        public int port = 25565;
     }
 }

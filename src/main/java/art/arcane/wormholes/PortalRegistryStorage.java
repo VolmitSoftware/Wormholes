@@ -167,8 +167,12 @@ final class PortalRegistryStorage
 		}
 	}
 
-	void deletePortalFolder()
+	void deletePortalFolder(List<ILocalPortal> portals)
 	{
+		for(ILocalPortal portal : portals)
+		{
+			portal.deleteData();
+		}
 		Path path = portalFolder().toPath();
 		if(!Files.exists(path))
 		{

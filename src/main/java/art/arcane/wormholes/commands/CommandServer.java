@@ -41,7 +41,7 @@ public class CommandServer {
         Wormholes.importExportService.exportServerToChat(sender);
     }
 
-    @Director(name = "import", sync = true, descriptionKey = "command.help.server.import", description = "Import a server (WHS1.) or portal (WHP5.) code exported by another server")
+    @Director(name = "import", sync = true, descriptionKey = "command.help.server.import", description = "Import a server (WHS2.) or portal (WHP6.) code exported by another server")
     public void importCode(@Param(name = "sender", contextual = true) CommandSender sender,
                            @Param(name = "code", descriptionKey = "command.help.server.import.code", description = "Code from the other server's export") String code) {
         importAndReport(sender, code);
@@ -132,7 +132,7 @@ public class CommandServer {
         ServerConnectService.Result result = ServerConnectService.connect(
                 network, player, resolved, Wormholes.settings.getNetwork().transferMode);
         switch (result) {
-            case SENT -> {
+            case QUEUED -> {
             }
             case NOT_READY -> send(sender, WormholesMessages.SERVER_NOT_READY, args("server", resolved));
             case UNKNOWN_SERVER -> send(sender, WormholesMessages.SERVER_UNKNOWN, args("server", resolved));

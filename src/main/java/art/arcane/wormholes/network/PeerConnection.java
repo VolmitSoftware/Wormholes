@@ -71,7 +71,8 @@ public final class PeerConnection {
     private volatile String peerAdvertiseHost;
     private volatile byte[] peerPublicKey;
     private volatile int peerWormholePort = -1;
-    private volatile int peerGamePort = -1;
+    private volatile GameEndpoint peerGameEndpoint;
+    private volatile GameEndpoint peerPrivateGameEndpoint;
     private volatile boolean peerCompressionSupported;
     private volatile byte[] peerDictHash;
     private volatile int peerDictVersion;
@@ -170,8 +171,12 @@ public final class PeerConnection {
         return peerWormholePort;
     }
 
-    public int getPeerGamePort() {
-        return peerGamePort;
+    public GameEndpoint getPeerGameEndpoint() {
+        return peerGameEndpoint;
+    }
+
+    public GameEndpoint getPeerPrivateGameEndpoint() {
+        return peerPrivateGameEndpoint;
     }
 
     public byte[] getPeerPublicKey() {
@@ -288,9 +293,10 @@ public final class PeerConnection {
 
     private void handshakeAsDialer(DataInputStream in) throws IOException, HandshakeException {
         byte[] dialerNonce = Handshake.newNonce();
-        sendNow(new WireMessage.Hello(WireCodec.PROTOCOL_VERSION, identity.mcVersion(), identity.pluginVersion(), identity.serverName(),
-            identity.advertiseHost() == null ? "" : identity.advertiseHost(), identity.wormholePort(), identity.gamePort(), dialerNonce, identity.publicKey(),
-            localCompressionSupported(), localDictHash(), localDictVersion()));
+        WireMessage.Hello hello = new WireMessage.Hello(WireCodec.PROTOCOL_VERSION, identity.mcVersion(), identity.pluginVersion(), identity.serverName(),
+            identity.advertiseHost() == null ? "" : identity.advertiseHost(), identity.wormholePort(), identity.gameEndpoint(), identity.privateGameEndpoint(), dialerNonce, identity.publicKey(),
+            localCompressionSupported(), localDictHash(), localDictVersion());
+        sendNow(hello);
 
         WireMessage response = WireCodec.readFrame(in, compression);
         if (!(response instanceof WireMessage.Challenge challenge)) {
@@ -302,20 +308,21 @@ public final class PeerConnection {
         if (expectedPeerPublicKey != null && !Handshake.sameKey(expectedPeerPublicKey, challenge.publicKey())) {
             throw new HandshakeException("Peer '" + challenge.serverName() + "' used an unexpected public key");
         }
-        if (!Handshake.verify(challenge.publicKey(), challenge.signature(), Handshake.ROLE_ACCEPTOR, challenge.serverName(), identity.serverName(), dialerNonce, challenge.nonce(), challenge.publicKey(), identity.publicKey())) {
+        if (!Handshake.verifyTranscript(challenge.publicKey(), challenge.signature(), hello, challenge, Handshake.ROLE_ACCEPTOR)) {
             throw new HandshakeException("Peer failed authentication");
         }
         peerName = challenge.serverName();
         peerAdvertiseHost = challenge.advertiseHost();
         peerWormholePort = challenge.wormholePort();
-        peerGamePort = challenge.gamePort();
+        peerGameEndpoint = challenge.gameEndpoint();
+        peerPrivateGameEndpoint = challenge.privateGameEndpoint();
         peerPublicKey = challenge.publicKey();
         absorbPeerCompression(challenge.compressionSupported(), challenge.currentDictHash(), challenge.currentDictVersion());
         if (expectedPeerPublicKey == null && !listener.approvePeer(this, challenge.serverName(), identity.mcVersion(), identity.pluginVersion(), challenge.publicKey())) {
             throw new HandshakeException("Peer '" + challenge.serverName() + "' rejected");
         }
 
-        sendNow(new WireMessage.Auth(Handshake.sign(identity.privateKey(), Handshake.ROLE_DIALER, identity.serverName(), challenge.serverName(), dialerNonce, challenge.nonce(), identity.publicKey(), challenge.publicKey())));
+        sendNow(new WireMessage.Auth(Handshake.signTranscript(identity.privateKey(), hello, challenge, Handshake.ROLE_DIALER)));
 
         WireMessage ready = WireCodec.readFrame(in, compression);
         if (!(ready instanceof WireMessage.Ready)) {
@@ -346,20 +353,25 @@ public final class PeerConnection {
         peerAdvertiseHost = hello.advertiseHost();
         peerPublicKey = hello.publicKey();
         peerWormholePort = hello.wormholePort();
-        peerGamePort = hello.gamePort();
+        peerGameEndpoint = hello.gameEndpoint();
+        peerPrivateGameEndpoint = hello.privateGameEndpoint();
         absorbPeerCompression(hello.compressionSupported(), hello.currentDictHash(), hello.currentDictVersion());
 
         byte[] acceptorNonce = Handshake.newNonce();
-        sendNow(new WireMessage.Challenge(identity.serverName(), identity.advertiseHost() == null ? "" : identity.advertiseHost(), identity.wormholePort(), identity.gamePort(),
-            acceptorNonce, identity.publicKey(),
-            Handshake.sign(identity.privateKey(), Handshake.ROLE_ACCEPTOR, identity.serverName(), hello.serverName(), hello.nonce(), acceptorNonce, identity.publicKey(), hello.publicKey()),
-            localCompressionSupported(), localDictHash(), localDictVersion()));
+        WireMessage.Challenge challenge = new WireMessage.Challenge(identity.serverName(),
+            identity.advertiseHost() == null ? "" : identity.advertiseHost(), identity.wormholePort(),
+            identity.gameEndpoint(), identity.privateGameEndpoint(), acceptorNonce, identity.publicKey(), new byte[0],
+            localCompressionSupported(), localDictHash(), localDictVersion());
+        byte[] signature = Handshake.signTranscript(identity.privateKey(), hello, challenge, Handshake.ROLE_ACCEPTOR);
+        sendNow(new WireMessage.Challenge(challenge.serverName(), challenge.advertiseHost(), challenge.wormholePort(),
+            challenge.gameEndpoint(), challenge.privateGameEndpoint(), challenge.nonce(), challenge.publicKey(), signature,
+            challenge.compressionSupported(), challenge.currentDictHash(), challenge.currentDictVersion()));
 
         WireMessage second = WireCodec.readFrame(in, compression);
         if (!(second instanceof WireMessage.Auth auth)) {
             throw new HandshakeException("Expected AUTH, got " + second.type());
         }
-        if (!Handshake.verify(hello.publicKey(), auth.signature(), Handshake.ROLE_DIALER, hello.serverName(), identity.serverName(), hello.nonce(), acceptorNonce, hello.publicKey(), identity.publicKey())) {
+        if (!Handshake.verifyTranscript(hello.publicKey(), auth.signature(), hello, challenge, Handshake.ROLE_DIALER)) {
             throw new HandshakeException("Peer failed authentication");
         }
         if (!listener.approvePeer(this, hello.serverName(), hello.mcVersion(), hello.pluginVersion(), hello.publicKey())) {

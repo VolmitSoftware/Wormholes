@@ -60,6 +60,39 @@ class TraversalTransferLocksTest {
     }
 
     @Test
+    void aPriorTransferCannotReleaseOrRenewANewerLeaseEvenWithTheSameDeadline() {
+        TraversalTransferLocks locks = new TraversalTransferLocks();
+        UUID traveler = UUID.randomUUID();
+        UUID previous = UUID.randomUUID();
+        UUID current = UUID.randomUUID();
+        locks.lockTransfer(traveler, previous, 5_000L);
+        locks.lockTransfer(traveler, current, 5_000L);
+
+        assertFalse(locks.unlockTransfer(traveler, previous));
+        assertFalse(locks.renewTransfer(traveler, previous, 9_000L));
+        assertEquals(4_000L, locks.remaining(traveler, 1_000L));
+        assertTrue(locks.ownsTransfer(traveler, current));
+        assertTrue(locks.renewTransfer(traveler, current, 9_000L));
+        assertEquals(8_000L, locks.remaining(traveler, 1_000L));
+        assertTrue(locks.unlockTransfer(traveler, current));
+        assertFalse(locks.ownsTransfer(traveler, current));
+    }
+
+    @Test
+    void aTransferReceiptCannotClearAnEntityLease() {
+        TraversalTransferLocks locks = new TraversalTransferLocks();
+        UUID traveler = UUID.randomUUID();
+        UUID previous = UUID.randomUUID();
+        locks.lockTransfer(traveler, previous, 5_000L);
+        locks.lock(traveler, 5_000L);
+
+        assertFalse(locks.unlockTransfer(traveler, previous));
+        assertTrue(locks.isLocked(traveler, 1_000L));
+        locks.unlock(traveler);
+        assertFalse(locks.isLocked(traveler, 1_000L));
+    }
+
+    @Test
     void pruningBelowTheThresholdKeepsExpiredLocksAddressable() {
         TraversalTransferLocks locks = new TraversalTransferLocks();
         UUID traveler = UUID.randomUUID();

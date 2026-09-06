@@ -122,11 +122,16 @@ final class ProjectorBlackoutDisplayRenderer {
         try {
             channel.begin(observer);
             for (ProjectorBlackoutMesh.Panel panel : panels) {
+                ProjectorBlackoutMesh.Panel existingPanel = panel;
                 DisplayState existing = active.get(panel);
                 boolean relocated = false;
                 if (existing == null) {
-                    existing = takeReusable(reusable);
-                    relocated = existing != null;
+                    Map.Entry<ProjectorBlackoutMesh.Panel, DisplayState> reusableEntry = takeReusable(reusable);
+                    if (reusableEntry != null) {
+                        existingPanel = reusableEntry.getKey();
+                        existing = reusableEntry.getValue();
+                        relocated = true;
+                    }
                 }
                 DisplayState targetState = existing == null
                     ? new DisplayState(NEXT_DISPLAY_ID.getAndIncrement(), UUID.randomUUID(), globalId, viewRange)
@@ -140,12 +145,8 @@ final class ProjectorBlackoutDisplayRenderer {
                 if (relocated) {
                     relocatedStates.add(targetState);
                     sendRelocation(observer, panel, targetState);
-                    sendMetadata(observer, panel, targetState);
-                    metadataUpdates++;
-                    continue;
                 }
-                if (existing.globalId() != globalId || Float.compare(existing.viewRange(), viewRange) != 0) {
-                    sendMetadata(observer, panel, targetState);
+                if (sendMetadata(observer, panel, targetState, existingPanel, existing)) {
                     metadataUpdates++;
                 }
             }
@@ -291,9 +292,31 @@ final class ProjectorBlackoutDisplayRenderer {
         spawns++;
     }
 
-    private void sendMetadata(Player observer, ProjectorBlackoutMesh.Panel panel, DisplayState state) {
+    private boolean sendMetadata(Player observer,
+                                 ProjectorBlackoutMesh.Panel panel,
+                                 DisplayState state,
+                                 ProjectorBlackoutMesh.Panel previousPanel,
+                                 DisplayState previousState) {
+        boolean shapeChanged = panel.axis() != previousPanel.axis()
+            || panel.uSize() != previousPanel.uSize() || panel.vSize() != previousPanel.vSize();
+        boolean colorChanged = state.globalId() != previousState.globalId();
+        boolean rangeChanged = Float.compare(state.viewRange(), previousState.viewRange()) != 0;
+        if (!shapeChanged && !colorChanged && !rangeChanged) {
+            return false;
+        }
+        List<EntityData<?>> metadata = new ArrayList<EntityData<?>>(5);
+        if (shapeChanged) {
+            addShapeMetadata(metadata, panel.transform());
+        }
+        if (colorChanged) {
+            metadata.add(new EntityData<Integer>(23, EntityDataTypes.BLOCK_STATE, Integer.valueOf(state.globalId())));
+        }
+        if (rangeChanged) {
+            metadata.add(new EntityData<Float>(17, EntityDataTypes.FLOAT, Float.valueOf(state.viewRange())));
+        }
         channel.send(observer, new WrapperPlayServerEntityMetadata(
-            state.entityId(), displayMetadata(panel.transform(), state.globalId(), state.viewRange())));
+            state.entityId(), metadata));
+        return true;
     }
 
     private void sendRelocation(Player observer, ProjectorBlackoutMesh.Panel panel, DisplayState state) {
@@ -322,7 +345,7 @@ final class ProjectorBlackoutDisplayRenderer {
     static List<EntityData<?>> displayMetadata(ProjectorBlackoutMesh.Transform transform,
                                                int globalId,
                                                float viewRange) {
-        List<EntityData<?>> metadata = new ArrayList<EntityData<?>>(14);
+        List<EntityData<?>> metadata = new ArrayList<EntityData<?>>(17);
         metadata.add(new EntityData<Byte>(0, EntityDataTypes.BYTE, Byte.valueOf((byte) 0)));
         metadata.add(new EntityData<Boolean>(5, EntityDataTypes.BOOLEAN, Boolean.TRUE));
         metadata.add(new EntityData<Integer>(8, EntityDataTypes.INT, Integer.valueOf(0)));
@@ -330,8 +353,7 @@ final class ProjectorBlackoutDisplayRenderer {
         metadata.add(new EntityData<Integer>(10, EntityDataTypes.INT, Integer.valueOf(0)));
         metadata.add(new EntityData<Vector3f>(11, EntityDataTypes.VECTOR3F,
             new Vector3f(0.0F, 0.0F, 0.0F)));
-        metadata.add(new EntityData<Vector3f>(12, EntityDataTypes.VECTOR3F,
-            new Vector3f((float) transform.scaleX(), (float) transform.scaleY(), (float) transform.scaleZ())));
+        addShapeMetadata(metadata, transform);
         metadata.add(new EntityData<Quaternion4f>(13, EntityDataTypes.QUATERNION,
             new Quaternion4f(0.0F, 0.0F, 0.0F, 1.0F)));
         metadata.add(new EntityData<Quaternion4f>(14, EntityDataTypes.QUATERNION,
@@ -339,14 +361,22 @@ final class ProjectorBlackoutDisplayRenderer {
         metadata.add(new EntityData<Byte>(15, EntityDataTypes.BYTE, Byte.valueOf((byte) 0)));
         metadata.add(new EntityData<Integer>(16, EntityDataTypes.INT, Integer.valueOf(FULL_BRIGHT)));
         metadata.add(new EntityData<Float>(17, EntityDataTypes.FLOAT, Float.valueOf(viewRange)));
-        metadata.add(new EntityData<Float>(20, EntityDataTypes.FLOAT, Float.valueOf(0.0F)));
-        metadata.add(new EntityData<Float>(21, EntityDataTypes.FLOAT, Float.valueOf(0.0F)));
+        metadata.add(new EntityData<Float>(18, EntityDataTypes.FLOAT, Float.valueOf(0.0F)));
+        metadata.add(new EntityData<Float>(19, EntityDataTypes.FLOAT, Float.valueOf(0.0F)));
         metadata.add(new EntityData<Integer>(23, EntityDataTypes.BLOCK_STATE, Integer.valueOf(globalId)));
         return metadata;
     }
 
+    private static void addShapeMetadata(List<EntityData<?>> metadata, ProjectorBlackoutMesh.Transform transform) {
+        metadata.add(new EntityData<Vector3f>(12, EntityDataTypes.VECTOR3F,
+            new Vector3f((float) transform.scaleX(), (float) transform.scaleY(), (float) transform.scaleZ())));
+        metadata.add(new EntityData<Float>(20, EntityDataTypes.FLOAT,
+            Float.valueOf((float) (2.0D * Math.max(transform.scaleX(), transform.scaleZ())))));
+        metadata.add(new EntityData<Float>(21, EntityDataTypes.FLOAT, Float.valueOf((float) transform.scaleY())));
+    }
+
     static boolean supports(ServerVersion version) {
-        // BlockDisplay metadata layout (indices 0,5,8-17,20,21,23; 23=BLOCK_STATE) verified
+        // BlockDisplay metadata layout (indices 0,5,8-21,23; 23=BLOCK_STATE) verified
         // bit-identical between 26.1.2 and 26.2 server jars (Entity/Display/BlockDisplay
         // accessor order and EntityDataSerializers registry match).
         return version == ServerVersion.V_26_1_2 || version == ServerVersion.V_26_2;
@@ -419,6 +449,11 @@ final class ProjectorBlackoutDisplayRenderer {
         if (pending == null) {
             return;
         }
+        Set<Integer> pendingIds = new HashSet<Integer>(pending.size() * 2);
+        for (DisplayState state : pending.values()) {
+            pendingIds.add(Integer.valueOf(state.entityId()));
+        }
+        active.entrySet().removeIf(entry -> pendingIds.contains(Integer.valueOf(entry.getValue().entityId())));
         active.putAll(pending);
         pending = null;
     }
@@ -442,14 +477,15 @@ final class ProjectorBlackoutDisplayRenderer {
         active.entrySet().removeIf(entry -> relocatedIds.contains(Integer.valueOf(entry.getValue().entityId())));
     }
 
-    private static DisplayState takeReusable(Map<ProjectorBlackoutMesh.Panel, DisplayState> reusable) {
+    private static Map.Entry<ProjectorBlackoutMesh.Panel, DisplayState> takeReusable(
+            Map<ProjectorBlackoutMesh.Panel, DisplayState> reusable) {
         Iterator<Map.Entry<ProjectorBlackoutMesh.Panel, DisplayState>> iterator = reusable.entrySet().iterator();
         if (!iterator.hasNext()) {
             return null;
         }
         Map.Entry<ProjectorBlackoutMesh.Panel, DisplayState> entry = iterator.next();
         iterator.remove();
-        return entry.getValue();
+        return entry;
     }
 
     private boolean cleanupUncertain(Player observer) {

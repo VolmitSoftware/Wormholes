@@ -10,7 +10,7 @@ final class SidebandPresence {
 
     private final Map<String, Long> lastSeen = new ConcurrentHashMap<>();
     private final Map<String, Long> rttMillis = new ConcurrentHashMap<>();
-    private final Map<String, String> reachableGameHosts = new ConcurrentHashMap<>();
+    private final Map<String, GameEndpoint> reachableGameEndpoints = new ConcurrentHashMap<>();
 
     boolean isReady(String name) {
         Long seen = lastSeen.get(name);
@@ -40,23 +40,24 @@ final class SidebandPresence {
         return lastSeen.containsKey(name);
     }
 
-    String reachableGameHost(String name) {
-        return reachableGameHosts.get(name);
+    GameEndpoint reachableGameEndpoint(String name) {
+        return reachableGameEndpoints.get(name);
     }
 
-    void rememberReachableGameHost(String name, String host) {
-        reachableGameHosts.put(name, host);
+    void rememberReachableGameEndpoint(String name, GameEndpoint endpoint) {
+        reachableGameEndpoints.put(name, endpoint);
     }
 
     void forget(String name) {
         lastSeen.remove(name);
         rttMillis.remove(name);
+        reachableGameEndpoints.remove(name);
     }
 
     void clear() {
         lastSeen.clear();
         rttMillis.clear();
-        reachableGameHosts.clear();
+        reachableGameEndpoints.clear();
     }
 
     List<String> expire(long now) {
@@ -71,6 +72,7 @@ final class SidebandPresence {
                 continue;
             }
             rttMillis.remove(peerName);
+            reachableGameEndpoints.remove(peerName);
             expired.add(peerName);
         }
         return expired;

@@ -2,7 +2,6 @@ package art.arcane.wormholes.portal;
 
 public final class DepartureHoldPolicy
 {
-	public static final long TIMEOUT_MILLIS = 6_000L;
 	public static final double FAR_DRIFT_SQUARED = 256.0D;
 	public static final double RETREAT_FREE_DISTANCE = 0.25D;
 	public static final double RETREAT_CANCEL_DRIFT_SQUARED = 4.0D;
@@ -24,7 +23,7 @@ public final class DepartureHoldPolicy
 			boolean sameWorld,
 			double sideDistance,
 			double driftSquared,
-			long heldMillis)
+			long remainingMillis)
 	{
 		if(!inFlight)
 		{
@@ -38,7 +37,7 @@ public final class DepartureHoldPolicy
 		{
 			return Decision.STOP;
 		}
-		if(heldMillis >= TIMEOUT_MILLIS)
+		if(remainingMillis <= 0L)
 		{
 			return Decision.STOP;
 		}

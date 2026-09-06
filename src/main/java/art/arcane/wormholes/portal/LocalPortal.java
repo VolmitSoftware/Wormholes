@@ -365,9 +365,9 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener
 		rtp.completeTraversal(entity, traversive, targetFrame, target);
 	}
 
-	public void startPlayerDepartureHold(Player player, Traversive traversive)
+	public void startPlayerDepartureHold(Player player, Traversive traversive, long deadlineMillis)
 	{
-		departureHold.startPlayerDepartureHold(player, traversive);
+		departureHold.startPlayerDepartureHold(player, traversive, deadlineMillis);
 	}
 
 	static boolean isTeleportCoolingDown(UUID entityId, long now)

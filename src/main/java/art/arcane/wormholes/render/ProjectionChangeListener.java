@@ -150,7 +150,7 @@ public final class ProjectionChangeListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void on(WorldUnloadEvent e) {
         tracker.clearWorld(e.getWorld().getUID());
     }

@@ -151,7 +151,6 @@ class DictionaryRotationLifecycleTest {
         NetworkManager alpha = manager(config(portA, ALPHA_NAME), 25565, "rotate-alpha");
         NetworkManager beta = manager(config(portB, BETA_NAME), 25566, "rotate-beta");
         alpha.savePeer(route(BETA_NAME, portB));
-        beta.savePeer(route(ALPHA_NAME, portA));
 
         AtomicBoolean disconnected = new AtomicBoolean();
         AtomicInteger betaReceived = new AtomicInteger();
@@ -171,8 +170,8 @@ class DictionaryRotationLifecycleTest {
             }
         });
 
-        alpha.start();
         beta.start();
+        alpha.start();
         awaitTrue("connected", () -> alpha.isPeerReady(BETA_NAME) && beta.isPeerReady(ALPHA_NAME), 10_000L);
 
         fillCollector(alpha, 1L, TOKENS_A);

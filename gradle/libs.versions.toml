@@ -4,6 +4,7 @@ slimjar = "2.1.9"
 paper = "26.1.2.build.74-stable"
 packetevents = "2.13.0"
 bstats = "3.2.1"
+nightConfig = "3.9.0"
 toml4j = "0.7.2"
 adventure = "4.26.1"
 junit = "5.10.2"
@@ -14,6 +15,7 @@ fastutil = "8.5.15"
 paper = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
 packetevents = { module = "com.github.retrooper:packetevents-spigot", version.ref = "packetevents" }
 bstats = { module = "org.bstats:bstats-bukkit", version.ref = "bstats" }
+nightConfigToml = { module = "com.electronwill.night-config:toml", version.ref = "nightConfig" }
 toml4j = { module = "com.moandjiezana.toml:toml4j", version.ref = "toml4j" }
 adventureApi = { module = "net.kyori:adventure-api", version.ref = "adventure" }
 adventureNbt = { module = "net.kyori:adventure-nbt", version.ref = "adventure" }

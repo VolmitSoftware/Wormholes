@@ -12,28 +12,35 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HandshakeTest {
     @Test
-    void signatureVerifiesForMatchingInputs() throws Exception {
+    void transcriptBindsEndpointsVersionsCompressionAndRole() throws Exception {
         KeyPair signer = keyPair();
         KeyPair peer = keyPair();
-        byte[] nonceA = Handshake.newNonce();
-        byte[] nonceB = Handshake.newNonce();
-        byte[] signature = Handshake.sign(signer.getPrivate(), Handshake.ROLE_ACCEPTOR, "hub", "boat", nonceA, nonceB, signer.getPublic().getEncoded(), peer.getPublic().getEncoded());
+        WireMessage.Hello hello = new WireMessage.Hello(WireCodec.PROTOCOL_VERSION, "26.2", "test", "alpha",
+            "10.0.0.1", 8901, new GameEndpoint("alpha.example", 25570), new GameEndpoint("10.0.0.1", 25565),
+            Handshake.newNonce(), peer.getPublic().getEncoded(), true, CompressionDictionary.ZERO_HASH, 0);
+        WireMessage.Challenge challenge = new WireMessage.Challenge("beta", "10.0.0.2", 8902,
+            new GameEndpoint("beta.example", 25580), new GameEndpoint("10.0.0.2", 25566),
+            Handshake.newNonce(), signer.getPublic().getEncoded(), new byte[0], true, CompressionDictionary.ZERO_HASH, 0);
+        byte[] signature = Handshake.signTranscript(signer.getPrivate(), hello, challenge, Handshake.ROLE_ACCEPTOR);
+        assertTrue(Handshake.verifyTranscript(signer.getPublic().getEncoded(), signature, hello, challenge, Handshake.ROLE_ACCEPTOR));
+        assertFalse(Handshake.verifyTranscript(signer.getPublic().getEncoded(), signature, hello, challenge, Handshake.ROLE_DIALER));
+        assertFalse(Handshake.verifyTranscript(peer.getPublic().getEncoded(), signature, hello, challenge, Handshake.ROLE_ACCEPTOR));
 
-        assertTrue(Handshake.verify(signer.getPublic().getEncoded(), signature, Handshake.ROLE_ACCEPTOR, "hub", "boat", nonceA, nonceB, signer.getPublic().getEncoded(), peer.getPublic().getEncoded()));
-    }
+        WireMessage.Challenge wrongPort = new WireMessage.Challenge(challenge.serverName(), challenge.advertiseHost(),
+            challenge.wormholePort(), new GameEndpoint("beta.example", 25581), challenge.privateGameEndpoint(),
+            challenge.nonce(), challenge.publicKey(), challenge.signature(), challenge.compressionSupported(),
+            challenge.currentDictHash(), challenge.currentDictVersion());
+        assertFalse(Handshake.verifyTranscript(signer.getPublic().getEncoded(), signature, hello, wrongPort, Handshake.ROLE_ACCEPTOR));
 
-    @Test
-    void signatureRejectsChangedInputs() throws Exception {
-        KeyPair signer = keyPair();
-        KeyPair peer = keyPair();
-        byte[] nonceA = Handshake.newNonce();
-        byte[] nonceB = Handshake.newNonce();
-        byte[] signature = Handshake.sign(signer.getPrivate(), Handshake.ROLE_ACCEPTOR, "hub", "boat", nonceA, nonceB, signer.getPublic().getEncoded(), peer.getPublic().getEncoded());
+        WireMessage.Hello wrongPrivate = new WireMessage.Hello(hello.protocolVersion(), hello.mcVersion(), hello.pluginVersion(),
+            hello.serverName(), hello.advertiseHost(), hello.wormholePort(), hello.gameEndpoint(), new GameEndpoint("10.0.0.9", 25565),
+            hello.nonce(), hello.publicKey(), hello.compressionSupported(), hello.currentDictHash(), hello.currentDictVersion());
+        assertFalse(Handshake.verifyTranscript(signer.getPublic().getEncoded(), signature, wrongPrivate, challenge, Handshake.ROLE_ACCEPTOR));
 
-        assertFalse(Handshake.verify(signer.getPublic().getEncoded(), signature, Handshake.ROLE_DIALER, "hub", "boat", nonceA, nonceB, signer.getPublic().getEncoded(), peer.getPublic().getEncoded()));
-        assertFalse(Handshake.verify(signer.getPublic().getEncoded(), signature, Handshake.ROLE_ACCEPTOR, "spoke", "boat", nonceA, nonceB, signer.getPublic().getEncoded(), peer.getPublic().getEncoded()));
-        assertFalse(Handshake.verify(signer.getPublic().getEncoded(), signature, Handshake.ROLE_ACCEPTOR, "hub", "boat", nonceB, nonceA, signer.getPublic().getEncoded(), peer.getPublic().getEncoded()));
-        assertFalse(Handshake.verify(peer.getPublic().getEncoded(), signature, Handshake.ROLE_ACCEPTOR, "hub", "boat", nonceA, nonceB, signer.getPublic().getEncoded(), peer.getPublic().getEncoded()));
+        WireMessage.Hello wrongVersion = new WireMessage.Hello(hello.protocolVersion(), "1.21.11", hello.pluginVersion(),
+            hello.serverName(), hello.advertiseHost(), hello.wormholePort(), hello.gameEndpoint(), hello.privateGameEndpoint(),
+            hello.nonce(), hello.publicKey(), false, hello.currentDictHash(), hello.currentDictVersion());
+        assertFalse(Handshake.verifyTranscript(signer.getPublic().getEncoded(), signature, wrongVersion, challenge, Handshake.ROLE_ACCEPTOR));
     }
 
     @Test

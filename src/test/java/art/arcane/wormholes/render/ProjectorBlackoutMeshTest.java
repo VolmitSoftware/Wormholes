@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -133,6 +134,50 @@ public final class ProjectorBlackoutMeshTest {
         assertFalse(result.fallback());
         assertEquals(expandedArea, expanded.size());
         assertEquals(expectedFarCap(geometry, Direction.S), expanded);
+    }
+
+    @Test
+    public void neighboringPanelsOverlapAtChunkAndHeightSeamsInEveryOrientation() {
+        for (int axis = 0; axis < 3; axis++) {
+            for (int sign : new int[] {-1, 1}) {
+                ProjectorBlackoutMesh.Panel first = new ProjectorBlackoutMesh.Panel(axis, sign, 0, -16, 0, 16, 64);
+                ProjectorBlackoutMesh.Panel acrossU = new ProjectorBlackoutMesh.Panel(axis, sign, 0, 0, 0, 16, 64);
+                ProjectorBlackoutMesh.Panel acrossV = new ProjectorBlackoutMesh.Panel(axis, sign, 0, -16, 64, 16, 64);
+                int uAxis = axis == 0 ? 1 : 0;
+                int vAxis = axis == 2 ? 1 : 2;
+
+                assertEquals(first.u(), minimum(first.transform(), uAxis));
+                assertEquals(first.v(), minimum(first.transform(), vAxis));
+                assertEquals(acrossU.u(), minimum(acrossU.transform(), uAxis));
+                assertEquals(acrossV.v(), minimum(acrossV.transform(), vAxis));
+                assertEquals(ProjectorBlackoutMesh.PANEL_EDGE_OVERLAP,
+                    maximum(first.transform(), uAxis) - minimum(acrossU.transform(), uAxis));
+                assertEquals(ProjectorBlackoutMesh.PANEL_EDGE_OVERLAP,
+                    maximum(first.transform(), vAxis) - minimum(acrossV.transform(), vAxis));
+                assertEquals(ProjectorBlackoutMesh.PANEL_THICKNESS,
+                    maximum(first.transform(), axis) - minimum(first.transform(), axis));
+            }
+        }
+    }
+
+    @Test
+    public void fragmentedMasksRetainExactCellCoverageAndDeterministicOrdering() {
+        Random random = new Random(542_032L);
+        for (int attempt = 0; attempt < 30; attempt++) {
+            LongOpenHashSet geometry = new LongOpenHashSet();
+            for (int x = -19; x <= -3; x++) {
+                for (int y = -4; y <= 4; y++) {
+                    if (random.nextInt(4) != 0) {
+                        geometry.add(ProjectionCellKey.pack(x, y, -20));
+                    }
+                }
+            }
+            ProjectorBlackoutMesh.Result result = build(geometry, Direction.S);
+
+            assertFalse(result.fallback());
+            assertEquals(expectedFarCap(geometry, Direction.S), expandedFaces(result.panels()));
+            assertEquals(result, build(new LongOpenHashSet(geometry.toLongArray()), Direction.S));
+        }
     }
 
     @Test
@@ -275,6 +320,15 @@ public final class ProjectorBlackoutMeshTest {
         return axis == 0
             ? ProjectionCellKey.unpackX(key)
             : axis == 1 ? ProjectionCellKey.unpackY(key) : ProjectionCellKey.unpackZ(key);
+    }
+
+    private static double minimum(ProjectorBlackoutMesh.Transform transform, int axis) {
+        return axis == 0 ? transform.x() : axis == 1 ? transform.y() : transform.z();
+    }
+
+    private static double maximum(ProjectorBlackoutMesh.Transform transform, int axis) {
+        return minimum(transform, axis)
+            + (axis == 0 ? transform.scaleX() : axis == 1 ? transform.scaleY() : transform.scaleZ());
     }
 
     private static int axis(Direction direction) {

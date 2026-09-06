@@ -139,22 +139,39 @@ final class NetworkStatusReporter {
         }
         int bound = network.listener().boundPort();
         int gamePort = network.gamePort();
+        GameEndpoint publicGame = network.gameEndpoint();
+        GameEndpoint privateGame = network.localPrivateGameEndpoint();
+        messages.add("Player game endpoint: " + publicGame.display() + "; private game endpoint: " + privateGame.display()
+            + "; local Minecraft listener port: " + gamePort + ".");
+        messages.add("Direct transfer endpoint probes verify the destination before the client leaves. Public endpoints still require a client-reachable game port; a raw peer connection does not tunnel Minecraft clients.");
+        if (!active.clientRoutes.isEmpty()) {
+            messages.add(active.clientRoutes.size() + " client CIDR route(s) override automatic transfer selection; the longest matching prefix wins.");
+        }
         if (active.listenEnabled) {
             if (bound <= 0) {
                 messages.add("Raw Wormholes listener is unbound; running sideband-only over the MC game port " + gamePort + ". Open any port in " + active.listenPort + ".." + PeerListener.fallbackUpperPort(active.listenPort) + " to enable high-throughput projection streaming.");
             } else if (bound == gamePort) {
                 messages.add("Wormholes listen-port resolved to the Minecraft game port " + gamePort + "; the raw listener cannot bind the existing game socket. Peers use the signed status sideband instead.");
             } else {
-                messages.add("Raw Wormholes peers dial " + bound + ". If that port is not reachable, imported peers with public-host/public-port can still exchange small signed control frames over the Minecraft game port " + gamePort + "; open the raw port for high-throughput projection streaming.");
+                messages.add("Raw Wormholes peers dial " + bound + ". If that port is not reachable, imported peers can still exchange small signed control frames through their advertised game endpoints; open each server's actual raw port for high-throughput projection streaming.");
             }
         } else {
             messages.add("This server is outbound-only. It will not accept inbound raw Wormholes sockets; it relies on dialed peers or the game-port status sideband.");
         }
         for (NetworkConfig.PeerEntry peer : network.directory().known()) {
-            if (peer.name == null || peer.name.isBlank() || network.isPeerReady(peer.name)) {
+            if (peer.name == null || peer.name.isBlank()) {
                 continue;
             }
-            String publicAddress = peer.publicHost == null || peer.publicHost.isBlank() ? "no player address" : peer.publicHost + ":" + peer.publicPort;
+            GameEndpoint publicEndpoint = GameEndpoint.optional(peer.publicHost, peer.publicPort);
+            String publicAddress = publicEndpoint == null ? "no player address" : publicEndpoint.display();
+            GameEndpoint privateEndpoint = GameEndpoint.optional(peer.privateHost, peer.privatePort);
+            if (publicEndpoint != null && PeerEndpointResolver.isLocalAddress(GameEndpoint.literal(publicEndpoint.host()))) {
+                messages.add("Peer " + peer.name + " advertises a private player endpoint " + publicAddress
+                    + "; Internet players need a public game endpoint, a proxy, or an explicit reachable VPN route.");
+            }
+            if (privateEndpoint != null) {
+                messages.add("Peer " + peer.name + " private game endpoint: " + privateEndpoint.display() + ".");
+            }
             messages.add("Peer " + peer.name + " is dialed at raw address " + PeerDirectory.peerAddress(peer) + "; its player join address " + publicAddress + " is used as a signed status sideband when the raw port is unreachable.");
         }
         return messages;

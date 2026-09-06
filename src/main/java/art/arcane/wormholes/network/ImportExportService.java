@@ -12,7 +12,6 @@ import art.arcane.wormholes.service.WormholesAudience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
-import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -62,7 +61,8 @@ public final class ImportExportService {
             advertiseHost,
             alternateHosts(advertiseHost),
             network.getBoundListenPort(),
-            Bukkit.getPort(),
+            network.gameEndpoint(),
+            network.localPrivateGameEndpoint(),
             network.getPublicKey(),
             portal.getId(),
             portal.getName()
@@ -99,7 +99,8 @@ public final class ImportExportService {
             advertiseHost,
             alternateHosts(advertiseHost),
             network.getBoundListenPort(),
-            Bukkit.getPort(),
+            network.gameEndpoint(),
+            network.localPrivateGameEndpoint(),
             network.getPublicKey()
         );
         String encoded = code.encode();
@@ -151,7 +152,7 @@ public final class ImportExportService {
         }
 
         network.trustPeer(code.serverName(), code.publicKey());
-        saveRoute(code.serverName(), code.advertiseHost(), code.fallbackHosts(), code.wormholePort(), code.gamePort());
+        saveRoute(code.serverName(), code.advertiseHost(), code.fallbackHosts(), code.wormholePort(), code.gameEndpoint(), code.privateGameEndpoint());
         enableAndStart();
 
         if (portal != null) {
@@ -182,7 +183,7 @@ public final class ImportExportService {
         }
 
         network.trustPeer(code.serverName(), code.publicKey());
-        saveRoute(code.serverName(), code.advertiseHost(), code.fallbackHosts(), code.wormholePort(), code.gamePort());
+        saveRoute(code.serverName(), code.advertiseHost(), code.fallbackHosts(), code.wormholePort(), code.gameEndpoint(), code.privateGameEndpoint());
         enableAndStart();
 
         WormholesAudience.sendMessage(sender, Wormholes.text().component(sender,
@@ -193,14 +194,16 @@ public final class ImportExportService {
         WormholesAudience.sendMessage(sender, Wormholes.text().component(sender, WormholesMessages.NETWORK_CHECK_STATUS));
     }
 
-    private void saveRoute(String serverName, String advertiseHost, List<String> fallbackHosts, int wormholePort, int gamePort) {
+    private void saveRoute(String serverName, String advertiseHost, List<String> fallbackHosts, int wormholePort, GameEndpoint gameEndpoint, GameEndpoint privateGameEndpoint) {
         NetworkConfig.PeerEntry entry = new NetworkConfig.PeerEntry();
         entry.name = serverName;
         entry.host = advertiseHost;
         entry.fallbackHosts = joinFallbacks(advertiseHost, fallbackHosts);
         entry.port = wormholePort;
-        entry.publicHost = advertiseHost;
-        entry.publicPort = gamePort > 0 ? gamePort : 25565;
+        entry.publicHost = gameEndpoint.host();
+        entry.publicPort = gameEndpoint.port();
+        entry.privateHost = privateGameEndpoint == null ? "" : privateGameEndpoint.host();
+        entry.privatePort = privateGameEndpoint == null ? 0 : privateGameEndpoint.port();
         network.savePeer(entry);
     }
 

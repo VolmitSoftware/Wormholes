@@ -32,6 +32,56 @@ import art.arcane.wormholes.util.Direction;
 
 public final class ProjectorCellScanLightingRetentionTest {
     @Test
+    public void chunkReadinessAndRequestsAreSharedWithinEachScanAndRetriedNextPass()
+        throws ReflectiveOperationException {
+        for (Direction normal : Direction.values()) {
+            PortalFrame frame = PortalFrame.canonical(normal);
+            PortalStructure structure = orientedStructure(frame);
+            ILocalPortal portal = portal(structure, frame);
+            MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
+            MutableWorldView remoteView = new MutableWorldView(blockData(Material.STONE));
+            ProjectorDestination destination = destination(portal, structure, localView, remoteView);
+            ProjectorSampleMemo memo = new ProjectorSampleMemo(
+                ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
+            ProjectorSampler sampler = withBukkitServer(
+                () -> new ProjectorSampler(memo, new ProjectorRecursivePortals(), world -> remoteView));
+            ProjectorCellScan scan = new ProjectorCellScan(portal, sampler, memo, new ProjectorBlackoutSeal());
+            useOcclusion(scan, ProjectorCellScanLightingRetentionTest::testOccluding);
+            Location eye = structure.getCenter().add(normal.x() * 1.5D, normal.y() * 1.5D, normal.z() * 1.5D);
+            Frustum4D frustum = new Frustum4D(eye, structure, 4.0D, 2.0D);
+            scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC);
+
+            assertFalse(scan.claims().isEmpty(), normal.name());
+            LongOpenHashSet chunks = new LongOpenHashSet();
+            for (long key : scan.claims().keySet()) {
+                int chunkX = ProjectionCellKey.unpackX(key) >> 4;
+                int chunkZ = ProjectionCellKey.unpackZ(key) >> 4;
+                chunks.add(((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL));
+            }
+            assertEquals(chunks.size(), localView.readinessQueries, normal.name());
+            assertTrue(localView.readinessQueries < scan.claims().size(), normal.name());
+            LongOpenHashSet initialKeys = new LongOpenHashSet(scan.claims().keySet());
+            scan.commit();
+            localView.ready = false;
+            localView.readinessQueries = 0;
+            scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC);
+
+            assertEquals(initialKeys, scan.claims().keySet(), normal.name());
+            assertEquals(chunks.size(), localView.readinessQueries, normal.name());
+            assertEquals(chunks.size(), localView.requests, normal.name());
+            scan.commit();
+            localView.ready = true;
+            localView.readinessQueries = 0;
+            localView.requests = 0;
+            scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC);
+
+            assertEquals(initialKeys, scan.claims().keySet(), normal.name());
+            assertEquals(chunks.size(), localView.readinessQueries, normal.name());
+            assertEquals(0, localView.requests, normal.name());
+        }
+    }
+
+    @Test
     public void unavailableLocalAndRemoteChunksFollowCurrentBlackoutLighting() throws ReflectiveOperationException {
         PortalFrame frame = PortalFrame.canonical(Direction.S);
         PortalStructure structure = structure();
@@ -649,6 +699,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         private boolean ready;
         private int reads;
         private int requests;
+        private int readinessQueries;
 
         private MutableWorldView(BlockData data) {
             this.data = data;
@@ -695,6 +746,7 @@ public final class ProjectorCellScanLightingRetentionTest {
 
         @Override
         public boolean isChunkReady(int x, int z) {
+            readinessQueries++;
             return ready;
         }
 
