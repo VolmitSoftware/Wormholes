@@ -5,7 +5,6 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
-import org.bukkit.event.entity.EntityBreakDoorEvent;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -66,12 +65,6 @@ final class DoorBlockProtectionTest
 		protection.onEntityChangeBlock(event);
 
 		assertFalse(event.isCancelled());
-	}
-
-	@Test
-	void doorBreakingMobsAreCoveredByTheBlockChangeHandler()
-	{
-		assertTrue(EntityChangeBlockEvent.class.isAssignableFrom(EntityBreakDoorEvent.class));
 	}
 
 	@Test

@@ -129,14 +129,37 @@ tasks.named('compileJava', JavaCompile).configure {
     options.release.set(25)
 }
 
+String runtimeJarTestFilter = 'art.arcane.wormholes.RuntimePlatformAbiTest'
+
 tasks.named('test').configure {
+    useJUnitPlatform()
+    maxParallelForks = Math.max(1, Runtime.runtime.availableProcessors().intdiv(2))
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+    systemProperty('wormholes.projectVersion', project.version.toString())
+    filter {
+        excludeTestsMatching(runtimeJarTestFilter)
+    }
+}
+
+def runtimeJarTestTask = tasks.register('runtimeJarTest', Test) {
+    group = 'verification'
+    description = 'Runs the tests that inspect the shaded runtime jar.'
     dependsOn(shadowJarTask)
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform()
     jvmArgs '--enable-native-access=ALL-UNNAMED'
     systemProperty('wormholes.projectVersion', project.version.toString())
+    filter {
+        includeTestsMatching(runtimeJarTestFilter)
+    }
     doFirst {
         systemProperty('wormholes.runtimeJar', shadowJarTask.get().archiveFile.get().asFile.absolutePath)
     }
+}
+
+tasks.named('check').configure {
+    dependsOn(runtimeJarTestTask)
 }
 
 configurations {

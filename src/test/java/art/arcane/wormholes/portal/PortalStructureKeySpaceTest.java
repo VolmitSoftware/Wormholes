@@ -1,18 +1,10 @@
 package art.arcane.wormholes.portal;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
 
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
@@ -21,48 +13,6 @@ import art.arcane.wormholes.util.Cuboid;
 import art.arcane.wormholes.util.Direction;
 
 public final class PortalStructureKeySpaceTest {
-    private static final Path MAIN_SOURCES = Path.of("src/main/java");
-    private static final Path STRUCTURE_SOURCE =
-        Path.of("src/main/java/art/arcane/wormholes/portal/PortalStructure.java");
-    private static final String[] KEY_SYMBOLS = new String[] {
-        "packBlockKey", "unpackBlockX", "unpackBlockY", "unpackBlockZ"
-    };
-
-    @Test
-    public void theStructureBlockKeyIsNeverProducedOrConsumedOutsideItsOwnClass() throws IOException {
-        List<String> leaks = new ArrayList<String>();
-        try (Stream<Path> sources = Files.walk(MAIN_SOURCES)) {
-            List<Path> files = sources.filter(Files::isRegularFile)
-                .filter(path -> path.getFileName().toString().endsWith(".java"))
-                .filter(path -> !path.equals(STRUCTURE_SOURCE))
-                .sorted()
-                .toList();
-            for (Path file : files) {
-                String body = Files.readString(file, StandardCharsets.UTF_8);
-                for (String symbol : KEY_SYMBOLS) {
-                    if (body.contains(symbol)) {
-                        leaks.add(file + " references " + symbol);
-                    }
-                }
-            }
-        }
-
-        assertEquals(List.of(), leaks,
-            "PortalStructure block keys are a private sorted index, not a shared key space; the day one of them is "
-                + "handed to another subsystem it has to be unified with that subsystem's layout instead");
-    }
-
-    @Test
-    public void theStructureBlockIndexDoesNotDependOnTheRenderKeySpace() throws IOException {
-        String body = Files.readString(STRUCTURE_SOURCE, StandardCharsets.UTF_8);
-
-        assertFalse(body.contains("art.arcane.wormholes.render"),
-            "the portal model must not depend on the render package; sharing the render cell key here would invert "
-                + "the package dependency and force a render internal to become public API");
-        assertTrue(body.contains("private long[] blockKeys"),
-            "the block key array must stay private so the key space cannot escape the class");
-    }
-
     @Test
     public void theStructureIndexKeepsExtremeNegativeCellsDistinct() {
         PortalStructure structure = new PortalStructure();

@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public final class RtpManagedRetentionTest
@@ -38,7 +39,7 @@ public final class RtpManagedRetentionTest
 	@Test
 	public void closingAnAbsentCandidateIsANoOp()
 	{
-		RtpManagedRetention.closeLoaded(null);
+		assertDoesNotThrow(() -> RtpManagedRetention.closeLoaded(null));
 	}
 
 	private static RtpValidationRequest validationRequest()

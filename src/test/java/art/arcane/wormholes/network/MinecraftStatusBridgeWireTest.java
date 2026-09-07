@@ -50,9 +50,7 @@ class MinecraftStatusBridgeWireTest {
     }
 
     private static int freePort() throws IOException {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
-        }
+        return TestPorts.free();
     }
 
     private static NetworkConfig config(int listenPort, String serverName) {
@@ -164,12 +162,12 @@ class MinecraftStatusBridgeWireTest {
 
             NetworkConfig.PeerEntry peerEntry = new NetworkConfig.PeerEntry();
             peerEntry.name = BETA_NAME;
-            peerEntry.host = "127.0.0.2";
+            peerEntry.host = "127.0.0.1";
             peerEntry.port = 0;
             peerEntry.privateHost = "127.0.0.1";
             peerEntry.privatePort = serverSocket.getLocalPort();
-            peerEntry.publicHost = "127.0.0.2";
-            peerEntry.publicPort = serverSocket.getLocalPort();
+            peerEntry.publicHost = "127.0.0.1";
+            peerEntry.publicPort = freePort();
             alpha.savePeer(peerEntry);
 
             MinecraftStatusBridge.PollResult poll = alpha.statusBridge().pollWithEndpoint(

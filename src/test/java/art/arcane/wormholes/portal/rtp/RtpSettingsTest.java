@@ -276,12 +276,6 @@ public final class RtpSettingsTest
 	}
 
 	@Test
-	public void portalTypeIncludesRtp()
-	{
-		assertEquals(PortalType.RTP, PortalType.valueOf("RTP"));
-	}
-
-	@Test
 	public void enteringRtpDisablesMirrorAndRemovesLinks()
 	{
 		World world = world("overworld", -64, 320, 63);

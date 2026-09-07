@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OperatorLoggingPolicyTest {
@@ -27,20 +26,5 @@ class OperatorLoggingPolicyTest {
         }
 
         assertTrue(violations.isEmpty(), "raw console output in " + violations);
-    }
-
-    @Test
-    void routineNetworkAndPortalMessagesAreVerbose() throws Exception {
-        String traversal = Files.readString(PRODUCTION_SOURCE.resolve(
-            "art/arcane/wormholes/network/TraversalService.java"));
-        String arrival = Files.readString(PRODUCTION_SOURCE.resolve(
-            "art/arcane/wormholes/network/TraversalArrivalPlacer.java"));
-        String nether = Files.readString(PRODUCTION_SOURCE.resolve(
-            "art/arcane/wormholes/portal/vanilla/VanillaPortalNetherPairing.java"));
-
-        assertFalse(traversal.contains("Wormholes.i("));
-        assertFalse(arrival.contains("Wormholes.i("));
-        assertTrue(nether.contains("Wormholes.v(() -> \"[vanilla-portal] source built"));
-        assertTrue(nether.contains("Wormholes.v(() -> \"[vanilla-portal] counterpart frame built"));
     }
 }

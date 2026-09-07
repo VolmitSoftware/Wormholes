@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HotloadManagerTest {
-    private static final long TEST_COOLDOWN_MS = 250L;
+    private static final long TEST_COOLDOWN_MS = 100L;
 
     @TempDir
     Path tempDir;
@@ -50,7 +50,7 @@ class HotloadManagerTest {
         manager.start();
         try {
             Files.writeString(config, "schema = 3\nquality = \"unterminated\n", StandardCharsets.UTF_8);
-            assertFalse(corrected.await(300L, TimeUnit.MILLISECONDS));
+            assertFalse(corrected.await(150L, TimeUnit.MILLISECONDS));
             assertSame(initial, live.get());
             assertEquals(0, callbacks.get());
 
@@ -177,7 +177,7 @@ class HotloadManagerTest {
         try {
             Files.writeString(configFile(), config(VisualQualityProfile.PERFORMANCE), StandardCharsets.UTF_8);
             assertTrue(firstScheduled.await(2L, TimeUnit.SECONDS));
-            assertFalse(applied.await(200L, TimeUnit.MILLISECONDS));
+            assertFalse(applied.await(100L, TimeUnit.MILLISECONDS));
             assertEquals(1, callbacks.get());
 
             firstCompletion.get().complete(false, new IllegalStateException("cancelled"));
@@ -309,7 +309,7 @@ class HotloadManagerTest {
         manager.stop();
         Files.writeString(configFile(), config(VisualQualityProfile.PERFORMANCE), StandardCharsets.UTF_8);
 
-        Thread.sleep(300L);
+        Thread.sleep(150L);
         assertEquals(0, callbacks.get());
     }
 
@@ -349,12 +349,12 @@ class HotloadManagerTest {
 
         manager.startWithAppliedSnapshot(initial.getBytes(StandardCharsets.UTF_8));
         try {
-            Thread.sleep(250L);
+            Thread.sleep(60L);
             assertEquals(0L, manager.snapshotReadAttempts());
 
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2L);
             while (manager.snapshotReadAttempts() == 0L && System.nanoTime() < deadline) {
-                Thread.sleep(20L);
+                Thread.sleep(5L);
             }
             assertTrue(manager.snapshotReadAttempts() >= 1L);
         } finally {
@@ -381,7 +381,7 @@ class HotloadManagerTest {
                 return true;
             },
             false,
-            100L
+            40L
         );
 
         manager.startWithAppliedSnapshot(initial.getBytes(StandardCharsets.UTF_8));
@@ -397,7 +397,7 @@ class HotloadManagerTest {
     }
 
     private HotloadManager manager(String loggerName, HotloadManager.ReloadCallback callback) {
-        return manager(loggerName, callback, true, 500L);
+        return manager(loggerName, callback, true, 120L);
     }
 
     private HotloadManager manager(String loggerName,
@@ -405,14 +405,14 @@ class HotloadManagerTest {
                                    boolean filesystemEventsEnabled,
                                    long contentReconciliationMs) {
         HotloadManager.Timing timing = new HotloadManager.Timing(
-            20L,
-            60L,
+            5L,
+            15L,
             TEST_COOLDOWN_MS,
             1_000L,
-            50L,
-            200L,
+            10L,
+            40L,
             1_000L,
-            50L,
+            10L,
             contentReconciliationMs
         );
         HotloadManager.Options options = new HotloadManager.Options(

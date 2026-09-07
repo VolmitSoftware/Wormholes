@@ -19,8 +19,10 @@ import java.security.KeyPairGenerator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
@@ -48,6 +50,7 @@ class NetworkManagerTest {
     private static final String BETA_NAME = "beta";
     private static final int BETA_GAME_PORT = 25566;
     private static final String ZULU_NAME = "zulu";
+    private static final Map<String, Handler> CAPTURED = new ConcurrentHashMap<>();
 
     @TempDir
     Path tempDir;
@@ -63,9 +66,7 @@ class NetworkManagerTest {
     }
 
     private static int freePort() throws IOException {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
-        }
+        return TestPorts.free();
     }
 
     private static boolean udsSupported() {
@@ -81,6 +82,67 @@ class NetworkManagerTest {
         while (System.currentTimeMillis() < deadline) {
             if (condition.getAsBoolean()) {
                 return;
+            }
+            try {
+                Thread.sleep(10L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                fail("Interrupted while waiting for: " + what);
+            }
+        }
+        fail("Timed out waiting for: " + what);
+    }
+
+    private static List<String> captureWarnings(Logger logger) {
+        List<String> warnings = Collections.synchronizedList(new ArrayList<String>());
+        Handler capture = new Handler() {
+            @Override
+            public void publish(LogRecord record) {
+                if (record.getLevel().intValue() >= Level.WARNING.intValue() && record.getMessage() != null) {
+                    warnings.add(record.getMessage());
+                }
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        logger.addHandler(capture);
+        CAPTURED.put(logger.getName(), capture);
+        return warnings;
+    }
+
+    private static void releaseWarnings(Logger logger) {
+        Handler capture = CAPTURED.remove(logger.getName());
+        if (capture != null) {
+            logger.removeHandler(capture);
+        }
+    }
+
+    private static void startAndDial(NetworkManager... started) {
+        for (NetworkManager manager : started) {
+            manager.start();
+            assertEquals(manager.activeConfig().listenPort, manager.getBoundListenPort(),
+                "listener fell back off its configured port, so saved peer routes would point at nothing");
+        }
+        for (NetworkManager manager : started) {
+            manager.dialer().scan();
+        }
+    }
+
+    private static void awaitDialed(String what, BooleanSupplier condition, long timeoutMillis,
+                                    NetworkManager... dialers) {
+        long deadline = System.currentTimeMillis() + timeoutMillis;
+        while (System.currentTimeMillis() < deadline) {
+            if (condition.getAsBoolean()) {
+                return;
+            }
+            for (NetworkManager manager : dialers) {
+                manager.dialer().scan();
             }
             try {
                 Thread.sleep(10L);
@@ -212,8 +274,7 @@ class NetworkManagerTest {
         alpha.savePeer(route(BETA_NAME, portB));
         beta.savePeer(route(ALPHA_NAME, portA));
 
-        alpha.start();
-        beta.start();
+        startAndDial(alpha, beta);
 
         awaitTrue("alpha sees beta READY", () -> alpha.isPeerReady(BETA_NAME), 10_000L);
         awaitTrue("beta sees alpha READY", () -> beta.isPeerReady(ALPHA_NAME), 10_000L);
@@ -222,24 +283,7 @@ class NetworkManagerTest {
     @Test
     void mismatchedMinecraftVersionsRejectTheLink() throws IOException {
         Logger peerLog = Logger.getLogger("Wormholes");
-        List<String> warnings = Collections.synchronizedList(new ArrayList<String>());
-        Handler capture = new Handler() {
-            @Override
-            public void publish(LogRecord record) {
-                if (record.getLevel().intValue() >= Level.WARNING.intValue() && record.getMessage() != null) {
-                    warnings.add(record.getMessage());
-                }
-            }
-
-            @Override
-            public void flush() {
-            }
-
-            @Override
-            public void close() {
-            }
-        };
-        peerLog.addHandler(capture);
+        List<String> warnings = captureWarnings(peerLog);
         try {
             int portA = freePort();
             int portB = freePort();
@@ -248,8 +292,7 @@ class NetworkManagerTest {
             alpha.savePeer(route(BETA_NAME, portB));
             beta.savePeer(route(ALPHA_NAME, portA));
 
-            alpha.start();
-            beta.start();
+            startAndDial(alpha, beta);
 
             awaitTrue("acceptor logs the MC version rejection", () -> warnings.stream().anyMatch(message ->
                 message.contains("linked servers must run the same Minecraft version")
@@ -258,7 +301,7 @@ class NetworkManagerTest {
             assertFalse(alpha.isPeerReady(BETA_NAME));
             assertFalse(beta.isPeerReady(ALPHA_NAME));
         } finally {
-            peerLog.removeHandler(capture);
+            releaseWarnings(peerLog);
         }
     }
 
@@ -292,8 +335,7 @@ class NetworkManagerTest {
         NetworkManager alpha = manager(config(portA, ALPHA_NAME), ALPHA_GAME_PORT, "handler-alpha");
         NetworkManager beta = manager(config(portB, BETA_NAME), BETA_GAME_PORT, "handler-beta");
         alpha.savePeer(route(BETA_NAME, portB));
-        alpha.start();
-        beta.start();
+        startAndDial(alpha, beta);
         awaitTrue("alpha raw-connected to beta", () -> alpha.isRawPeerReady(BETA_NAME), 10_000L);
         awaitTrue("beta raw-connected to alpha", () -> beta.isRawPeerReady(ALPHA_NAME), 10_000L);
 
@@ -336,7 +378,7 @@ class NetworkManagerTest {
     }
 
     @Test
-    void trustedPeerRejectsChangedPublicKey() throws IOException, InterruptedException {
+    void trustedPeerRejectsChangedPublicKey() throws IOException {
         int portA = freePort();
         int portB = freePort();
         NetworkConfig alphaConfig = config(portA, ALPHA_NAME);
@@ -346,8 +388,7 @@ class NetworkManagerTest {
         alpha.savePeer(route(BETA_NAME, portB));
         beta.savePeer(route(ALPHA_NAME, portA));
 
-        alpha.start();
-        beta.start();
+        startAndDial(alpha, beta);
         awaitTrue("initial connect", () -> alpha.isPeerReady(BETA_NAME), 10_000L);
 
         beta.stop();
@@ -355,8 +396,14 @@ class NetworkManagerTest {
 
         NetworkManager impostor = manager(betaConfig, BETA_GAME_PORT, "beta-impostor");
         impostor.start();
-        Thread.sleep(2_000L);
+        alpha.dialer().resetDialState(BETA_NAME);
+
+        awaitDialed("alpha refuses the impostor's public key", () -> {
+            String error = alpha.dialer().lastError(BETA_NAME);
+            return error != null && error.contains("unexpected public key");
+        }, 10_000L, alpha);
         assertFalse(alpha.isPeerReady(BETA_NAME));
+        assertFalse(alpha.isRawPeerReady(BETA_NAME));
     }
 
     @Test
@@ -371,8 +418,7 @@ class NetworkManagerTest {
         NetworkManager zulu = manager(zuluConfig, 25599, "zulu");
         zulu.savePeer(route(ALPHA_NAME, portAlpha));
 
-        alpha.start();
-        zulu.start();
+        startAndDial(alpha, zulu);
 
         awaitTrue("zulu connects to alpha", () -> zulu.isPeerReady(ALPHA_NAME), 10_000L);
         awaitTrue("alpha accepts unconfigured zulu", () -> alpha.isPeerReady(ZULU_NAME), 10_000L);
@@ -394,8 +440,7 @@ class NetworkManagerTest {
         NetworkManager boat = manager(boatConfig, BETA_GAME_PORT, "boat");
         boat.savePeer(route(ALPHA_NAME, portAnchor));
 
-        anchor.start();
-        boat.start();
+        startAndDial(anchor, boat);
 
         awaitTrue("boat reaches anchor", () -> boat.isPeerReady(ALPHA_NAME), 10_000L);
         awaitTrue("anchor accepts boat", () -> anchor.isPeerReady(BETA_NAME), 10_000L);
@@ -438,9 +483,7 @@ class NetworkManagerTest {
             }
         });
 
-        anchor.start();
-        boatA.start();
-        boatB.start();
+        startAndDial(anchor, boatA, boatB);
 
         awaitTrue("boat A reaches anchor", () -> boatA.isPeerReady("anchor"), 10_000L);
         awaitTrue("boat B reaches anchor", () -> boatB.isPeerReady("anchor"), 10_000L);
@@ -497,9 +540,7 @@ class NetworkManagerTest {
             }
         });
 
-        alpha.start();
-        beta.start();
-        gamma.start();
+        startAndDial(alpha, beta, gamma);
 
         assertTrue(gamma.send(BETA_NAME, new WireMessage.PortalDirectory(List.of())));
         exchangeSideband(gamma, BETA_NAME, beta);
@@ -611,8 +652,7 @@ class NetworkManagerTest {
 
         NetworkManager alpha = manager(alphaConfig, ALPHA_GAME_PORT, "route-alpha");
         NetworkManager beta = manager(betaConfig, BETA_GAME_PORT, "route-beta");
-        alpha.start();
-        beta.start();
+        startAndDial(alpha, beta);
 
         awaitTrue("alpha reaches beta through saved route", () -> alpha.isPeerReady(BETA_NAME), 10_000L);
         awaitTrue("beta accepts alpha without configured peer", () -> beta.isPeerReady(ALPHA_NAME), 10_000L);
@@ -655,8 +695,7 @@ class NetworkManagerTest {
                 betaMessages.offer(peerName + ":" + message.type());
             }
         });
-        alpha.start();
-        beta.start();
+        startAndDial(alpha, beta);
 
         assertTrue(alpha.send(BETA_NAME, new WireMessage.PortalDirectory(List.of())));
         MinecraftStatusBridge.StatusPacket request = beta.createStatusBridgePacket(ALPHA_NAME, List.of());
@@ -694,8 +733,7 @@ class NetworkManagerTest {
                 betaEssential.offer(peerName + ":" + message.type());
             }
         });
-        alpha.start();
-        beta.start();
+        startAndDial(alpha, beta);
 
         for (int i = 0; i < 4000; i++) {
             alpha.send(BETA_NAME, new WireMessage.ViewEntities(UUID.randomUUID(), List.of(), List.of()));
@@ -815,8 +853,7 @@ class NetworkManagerTest {
                 betaTransfers.offer(transfer.entitySnapshot().length);
             }
         });
-        alpha.start();
-        beta.start();
+        startAndDial(alpha, beta);
 
         byte[] snapshot = new byte[70_000];
         new Random(42L).nextBytes(snapshot);
@@ -862,8 +899,7 @@ class NetworkManagerTest {
                 betaTransfers.offer(transfer.entitySnapshot().length);
             }
         });
-        alpha.start();
-        beta.start();
+        startAndDial(alpha, beta);
 
         byte[] snapshot = new byte[240_000];
         for (int i = 0; i < snapshot.length; i++) {
@@ -1138,10 +1174,9 @@ class NetworkManagerTest {
         alpha.savePeer(betaRoute);
         NetworkManager beta = manager(config(portB, BETA_NAME), BETA_GAME_PORT, "beta");
 
-        alpha.start();
-        beta.start();
+        startAndDial(alpha, beta);
 
-        awaitTrue("alpha reaches beta via fallback host", () -> alpha.isPeerReady(BETA_NAME), 20_000L);
+        awaitDialed("alpha reaches beta via fallback host", () -> alpha.isPeerReady(BETA_NAME), 20_000L, alpha);
         awaitTrue("beta accepts alpha", () -> beta.isPeerReady(ALPHA_NAME), 10_000L);
     }
 
@@ -1154,12 +1189,22 @@ class NetworkManagerTest {
         alpha.savePeer(route(BETA_NAME, portB));
         beta.savePeer(route(ALPHA_NAME, portA));
 
-        alpha.start();
-        beta.start();
+        startAndDial(alpha, beta);
 
         awaitTrue("connected", () -> alpha.isPeerReady(BETA_NAME) && beta.isPeerReady(ALPHA_NAME), 10_000L);
-        Thread.sleep(3_000L);
-        assertTrue(alpha.isPeerReady(BETA_NAME) && beta.isPeerReady(ALPHA_NAME), "connection should stay stable after duplicate-dial dedupe");
+        for (int round = 0; round < 20; round++) {
+            alpha.dialer().scan();
+            beta.dialer().scan();
+            Thread.sleep(10L);
+        }
+
+        awaitTrue("duplicate dials settle back to a ready link",
+            () -> alpha.isPeerReady(BETA_NAME) && beta.isPeerReady(ALPHA_NAME), 10_000L);
+        long quiet = System.currentTimeMillis() + 250L;
+        while (System.currentTimeMillis() < quiet) {
+            assertTrue(alpha.isPeerReady(BETA_NAME) && beta.isPeerReady(ALPHA_NAME), "connection should stay stable after duplicate-dial dedupe");
+            Thread.sleep(10L);
+        }
     }
 
     @Test
@@ -1172,8 +1217,7 @@ class NetworkManagerTest {
         NetworkManager alpha = manager(alphaConfig, ALPHA_GAME_PORT, "alpha");
         NetworkManager beta = manager(betaConfig, BETA_GAME_PORT, "beta");
         alpha.savePeer(route(BETA_NAME, portB));
-        alpha.start();
-        beta.start();
+        startAndDial(alpha, beta);
         awaitTrue("initial connect", () -> alpha.isPeerReady(BETA_NAME), 20_000L);
 
         beta.stop();
@@ -1181,7 +1225,8 @@ class NetworkManagerTest {
 
         NetworkManager betaReborn = manager(betaConfig, BETA_GAME_PORT, "beta");
         betaReborn.start();
-        awaitTrue("alpha reconnects", () -> alpha.isPeerReady(BETA_NAME), 20_000L);
+        alpha.dialer().resetDialState(BETA_NAME);
+        awaitDialed("alpha reconnects", () -> alpha.isPeerReady(BETA_NAME), 20_000L, alpha);
         awaitTrue("reborn beta sees alpha", () -> betaReborn.isPeerReady(ALPHA_NAME), 15_000L);
     }
 
@@ -1193,8 +1238,7 @@ class NetworkManagerTest {
         NetworkManager beta = manager(config(portB, BETA_NAME), BETA_GAME_PORT, "beta");
         alpha.savePeer(route(BETA_NAME, portB));
         beta.savePeer(route(ALPHA_NAME, portA));
-        alpha.start();
-        beta.start();
+        startAndDial(alpha, beta);
         awaitTrue("connected", () -> alpha.isPeerReady(BETA_NAME), 10_000L);
 
         NetworkManager previousNetwork = Wormholes.networkManager;
@@ -1244,9 +1288,7 @@ class NetworkManagerTest {
                 received.offer("gamma");
             }
         });
-        alpha.start();
-        beta.start();
-        gamma.start();
+        startAndDial(alpha, beta, gamma);
         awaitTrue("alpha raw-connected to both", () -> alpha.isPeerReady(BETA_NAME) && alpha.isPeerReady("gamma"), 10_000L);
 
         alpha.sendToPeers(List.of(BETA_NAME, "gamma"), new WireMessage.PortalDirectory(List.of()));
@@ -1297,9 +1339,7 @@ class NetworkManagerTest {
                 received.offer("gamma");
             }
         });
-        alpha.start();
-        beta.start();
-        gamma.start();
+        startAndDial(alpha, beta, gamma);
         awaitTrue("alpha raw-connected to beta", () -> alpha.isPeerReady(BETA_NAME), 10_000L);
 
         alpha.sendToPeers(List.of(BETA_NAME, "gamma"), new WireMessage.PortalDirectory(List.of()));
@@ -1354,8 +1394,7 @@ class NetworkManagerTest {
         NetworkManager beta = manager(config(portB, BETA_NAME), BETA_GAME_PORT, "beta");
         alpha.savePeer(route(BETA_NAME, portB));
         beta.savePeer(route(ALPHA_NAME, portA));
-        alpha.start();
-        beta.start();
+        startAndDial(alpha, beta);
         awaitTrue("connected", () -> alpha.isPeerReady(BETA_NAME), 10_000L);
 
         List<NetworkManager.PeerStatus> statuses = alpha.status();
