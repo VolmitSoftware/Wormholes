@@ -344,6 +344,15 @@ pluginPackaging {
             policyName = 'Wormholes'
             prunePrefixes = ['art/arcane/volmlib/']
             keepPrefixes = ['art/arcane/volmlib/util/matter/slices/']
+            shrinkRules = [file('packaging/shrink.pro')]
+            shrinkRelocations = [
+                'org.bstats'                       : "${lib}.bstats",
+                'com.github.retrooper.packetevents': "${lib}.packetevents.api",
+                'io.github.retrooper.packetevents' : "${lib}.packetevents.impl",
+                'com.electronwill.nightconfig'     : "${lib}.nightconfig",
+                'com.moandjiezana.toml'            : "${lib}.toml4j",
+                'net.kyori'                        : "${lib}.kyori"
+            ]
         }
     }
 }
