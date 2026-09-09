@@ -22,7 +22,7 @@ plugins {
 apply plugin: 'art.arcane.volmit-packaging'
 
 group = 'art.arcane'
-version = '2.0.4-26.2'
+version = '2.0.5-26.2'
 def apiVersion = '26.1'
 def main = 'art.arcane.wormholes.Wormholes'
 def bootstrapper = 'art.arcane.wormholes.survival.doors.dimension.WormholesBootstrap'
