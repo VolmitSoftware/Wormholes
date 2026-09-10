@@ -1,608 +1,1020 @@
-schema = 1
-locale = "fi_FI"
+# Wormholes — fi_FI
+#
+# === Tiedoston muokkaus ===
+# plugins/Wormholes/languages/fi_FI.toml
+# Voit muokata tätä tiedostoa suoraan. Paikalliset muutokset säilyvät; puuttuvat tai virheelliset kohdat käyttävät sisäänrakennettua englantia.
+# /wormholes language server edit fi_FI
+#
+# === Etuliite ===
+# Viestien etuliitteet kuuluvat viestipohjiin. {prefix} tarkoittaa portaalin tuontikoodin alkua.
+#
+# === Muotoilu ===
+# Värikoodit: &0-&f; muotoilu: &k-&r (&l = lihavointi, &r = nollaus). Säilytä paikkamerkit muuttumattomina vain niitä käyttävissä viesteissä.
+#
+# === Muuttujat ===
+# Säilytä muuttujien nimet ja käytä vain kunkin viestin omia muuttujia.
+#   {access}  Portaalin pääsykäytäntö
+#   {address}  Verkon vertaisosoite
+#   {after}  Viestin arvo muokkauksen jälkeen
+#   {allocation}  Taskutilan varaus
+#   {amount}  Matkan rahahinta Vault-valuutassa
+#   {argument}  Odottamaton komentoargumentti
+#   {before}  Viestin arvo ennen muokkausta
+#   {biome}  Biomin tunniste
+#   {blacklisted}  Estetyt pelaajat
+#   {block}  Valittu lohkomateriaali
+#   {blocks}  Uudelleenrakennukseen kuuluvat asetetut lohkot
+#   {cancel}  Chat-syötteen peruutussana
+#   {code}  Palvelimen tai portaalin kutsukoodi
+#   {color}  Valittu näyttöväri
+#   {command}  Komentopolku
+#   {containers}  Uudelleenrakennukseen kuuluvat säiliöt, joissa on sisältöä
+#   {cost}  Portaalin luonti- tai matkakustannus
+#   {count}  Portaalien, kohteiden tai viestien määrä
+#   {degrees}  Kuvan kierto asteina
+#   {depth}  Heijastuksen syvyys
+#   {description}  Viestin kuvaus
+#   {destination}  Matkan kohde
+#   {detail}  Diagnostiikan lisätiedot
+#   {diagnostic}  Diagnostiikkaviesti
+#   {direction}  Matkan tai katselun suunta
+#   {door}  Taskutilan uloskäyntiovi
+#   {duration}  Pelaajakohtainen päivitysväli
+#   {endpoint}  Madonreiän päätepisteen tunniste
+#   {entities}  Kohde-entiteettien määrä tai niiden päivitysväli tickeinä
+#   {entity}  Entiteettien päivitysväli tickeinä
+#   {error}  Viimeisimmän toiminnon virhe
+#   {facing}  Portaalin suunta
+#   {failed}  Epäonnistuneiden toimintojen määrä
+#   {fallback}  Vaihtoehtoinen matkatulos
+#   {fingerprint}  Julkisen avaimen sormenjälki
+#   {free}  Vapaiden satunnaiskohdepaikkojen määrä
+#   {grace}  Heijastuksen lisäaika sekunteina
+#   {group}  Kielieditorin luokka
+#   {id}  Kohteen tunniste
+#   {incoming}  Saapuvan matkustuksen käytäntö
+#   {item}  Matkaan vaadittu esine
+#   {key}  Viestin tai asetuksen avain
+#   {kind}  Oven pääsytyyppi
+#   {label}  Näyttöteksti
+#   {large_step}  Säätömäärä vaihtonäppäin pohjassa napsautettaessa
+#   {line}  Rivinumero viestissä
+#   {locale}  Kielitunnus
+#   {material}  Taskutilan seinämateriaali
+#   {maximum}  Suurin sallittu arvo
+#   {message}  Palauteviesti
+#   {minimum}  Pienin sallittu arvo
+#   {mode}  Matka- tai näyttötila
+#   {name}  Portaalin tai pelaajan nimi
+#   {next}  Seuraava käytettävissä oleva vaihtoehto
+#   {node}  Verkkosolmun tunniste
+#   {none}  Teksti puuttuvalle linkitetylle kohteelle
+#   {other}  Linkitetyn päätepisteen tunniste
+#   {outgoing}  Lähtevän matkustuksen käytäntö
+#   {owner}  Portaalin omistaja
+#   {page}  Nykyinen sivunumero
+#   {pages}  Sivujen kokonaismäärä
+#   {parameter}  Komennon parametrin nimi
+#   {path}  Tiedoston tai hakemiston polku
+#   {personal}  Henkilökohtainen kielitunnus
+#   {plugin}  Lisäosan nimi
+#   {portal}  Portaalin nimi tai tunniste
+#   {prefix}  Portaalin tuontikoodin alku
+#   {previous}  Taskutilan edellinen koko lohkoina
+#   {quality}  Heijastusvirran laatu
+#   {quantity}  Vaadittujen esineiden määrä
+#   {range}  Portaalin aktivointietäisyys lohkoina
+#   {readiness}  Satunnaiskohteen valmiustila
+#   {reason}  Virheen tai päätöksen syy
+#   {receive}  Heijastuksen vastaanottotila
+#   {refresh}  Heijastuksen päivitysväli tickeinä
+#   {reserved}  Varattujen satunnaiskohdepaikkojen määrä
+#   {resized}  Uudelleenrakennettujen taskutilojen määrä
+#   {rotation}  Heijastuksen kierto
+#   {route}  Yritetty matkareitti
+#   {rtt}  Verkon edestakainen viive
+#   {seconds}  Aika sekunteina
+#   {send}  Heijastuksen lähetystila
+#   {server}  Palvelimen nimi tai tunniste
+#   {size}  Taskutilan koko lohkoina
+#   {skin}  Portaalin valittu ulkoasu
+#   {skipped}  Ohitettujen toimintojen määrä
+#   {space}  Taskutilan tunniste
+#   {state}  Nykyinen pääsy-, linkki- tai verkkotila
+#   {step}  Säätömäärä napsautettaessa
+#   {style}  Näyttötyyli
+#   {target}  Kielivalinnan vastaanottava lisäosa
+#   {type}  Kohteen tai parametrin tyyppi
+#   {up}  Heijastuksen yläreunan suunta
+#   {usage}  Komennon syntaksi
+#   {value}  Nykyinen tai valittu arvo
+#   {variables}  Viestin sallitut paikkamerkit
+#   {whitelisted}  Sallitut pelaajat
+#   {world}  Maailman nimi
+#   {x}  X-koordinaatti
+#   {y}  Y-koordinaatti
+#   {z}  Z-koordinaatti
 
-[text]
-"command.help.debugdump" = "Luo diagnostiikkaraportti ja lähetä se halutessasi"
-"command.help.debugdump_upload" = "Lähetä raportti mclo.gs-palveluun"
-"command.help.language" = "Valitse oma kielesi tai palvelimen oletuskieli"
-"portal.network.label.render_mode" = "Renderöintitila"
-"portal.travel.transfer_holding" = "<gold>Yhdistetään kohdepalvelimeen..."
-"portal.travel.transfer_interrupted" = "<red>Portaalisiirto keskeytyi: siirryit pois portaalista."
-"portal.travel.transfer_source_unavailable" = "<red>Portaalisiirto keskeytyi: lähdeportaali ei ole enää käytettävissä."
-"portal.network.label.ambient_style" = "Ympäristöhiukkaset"
-"portal.network.label.ambient_color" = "Ympäristöväri"
-"portal.network.label.surface_skin" = "Pinnan ulkoasu"
-"portal.label.ambient.red" = "Punainen"
-"portal.label.ambient.green" = "Vihreä"
-"portal.label.ambient.blue" = "Sininen"
-"portal.label.ambient_style.sparks" = "Kipinät"
-"portal.label.ambient_style.outline" = "Ääriviiva"
-"portal.label.ambient_style.corners" = "Kulmat"
-"portal.label.ambient_style.off" = "Pois"
-"portal.label.skin.none" = "Ei mitään"
-"director.help.navigation.parent.hover" = "Palaa ylempään komentoryhmään"
-"director.help.navigation.back" = "Takaisin"
-"director.help.no_subcommands" = "Tällä sivulla ei ole alikomentoja."
-"director.help.no_description" = "Kuvausta ei ole annettu"
-"director.help.command_group" = "Komentoryhmä. Avaa napsauttamalla."
-"director.help.category" = "Komentokategoria"
-"director.help.no_parameters" = "Ei parametreja. Esitäytä komento napsauttamalla."
-"director.help.parameters_hover" = "Vie hiiri parametrien päälle saadaksesi lisätietoja."
-"director.help.parameter.required" = "Tämä parametri on pakollinen."
-"director.help.parameter.optional" = "Tämä parametri on valinnainen."
-"director.help.parameter.default" = "Oletusarvo on \"{value}\", jos sitä ei määritetä."
-"director.help.parameter.type" = "Tämän parametrin tyyppi on {type}."
-"director.help.navigation.previous.hover" = "Edellinen sivu"
-"director.help.navigation.next.hover" = "Seuraava sivu"
-"director.help.navigation.page" = "Sivu"
-"director.runtime.error.invalid_origin" = "Tätä komentoa ei voi suorittaa tästä lähteestä."
-"director.runtime.error.unknown_parameter" = "Tuntematon parametriavain: {key}"
-"director.runtime.error.unexpected_argument" = "Odottamaton argumentti \"{argument}\". Valinnaiset parametrit on annettava avaimella, esim. seed=123"
-"director.runtime.error.unclosed_group" = "Sulkeva \"]\" puuttuu parametrilta {key}"
-"director.runtime.error.conversion_failed" = "Arvoa \"{value}\" ei voi muuntaa tyypiksi {type} parametrille {parameter}"
-"director.runtime.error.default_parse_failed" = "Parametrin {parameter} oletusarvoa ei voi jäsentää"
-"director.runtime.error.missing_argument" = "Puuttuva argumentti \"{parameter}\" ({type})"
-"director.runtime.error.execution_failed" = "Komennon {command} suoritus epäonnistui: {reason}"
-"director.runtime.usage" = "Käyttö: {usage}"
-"command.help.root" = "Wormholes-pääkomento"
-"command.help.wand" = "Anna itsellesi portaalisauva ja madonreikaruuni"
-"command.help.wand.rune" = "Anna mukaan madonreikaruuni (rune=false antaa vain sauvan)"
-"command.help.door" = "Anna selviytymistilassa käytettävä ulottuvuusovi"
-"command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-"command.help.reload" = "Lataa Wormholes-asetukset ja kielitiedostot uudelleen"
-"command.help.debug" = "Vaihda yksityiskohtaiset konsolilokit ja sekunnin välein päivittyvä telemetria"
-"command.help.stats" = "Näytä reaaliaikaisen tilannekuvan polku; päivitä heti valinnalla now=true"
-"command.help.stats.now" = "Luo tilannekuva heti uudelleen synkronisesti"
-"command.help.info" = "Näytä portaalin rakennusohjeet"
-"command.help.admin" = "Wormholes-lisäosan tuhoavat ylläpitokomennot"
-"command.help.admin.delete_portals" = "Poista kaikki paikalliset portaalit ja tallennetut portaalilinkit"
-"command.help.admin.delete_everything" = "Nollaa Wormholes-lisäosan tiedot, asetukset, luottamus, identiteetti ja verkon tila"
-"command.help.admin.freeze" = "Jäädytä kaikki portaaliprojektiot paikoilleen tietyksi sekuntimääräksi (seconds=0 jatkaa)"
-"command.help.admin.freeze.seconds" = "Kuinka kauan jäädytettyä ruutua pidetään (5-300, 0 jatkaa heti)"
-"command.help.admin.flush" = "Palauta jokaisen tarkkailijan projisoidut lohkot todelliseen tilaan ja rakenna ne uudelleen"
-"command.help.network" = "Palvelinten välinen madonreikäverkko"
-"command.help.network.import" = "Tuo portaalikoodi toiselta palvelimelta (tallentaa sisäisen reitin; linkitä yhdyskäytävän Linkki-valikosta)"
-"command.help.network.import.code" = "Toisen palvelimen Vie-painikkeesta saatu portaalikoodi"
-"command.help.network.status" = "Näytä vertaispalvelinten yhteystila"
-"command.help.network.doctor" = "Selitä, miksi vertaispalvelimet eivät yhdistä"
-"command.help.server" = "Palvelinten välinen matkustus: yhdistä linkitettyihin palvelimiin, listaa ne ja vaihda niitä"
-"command.help.server.connect" = "Siirry linkitetylle palvelimelle (lyhenne: /wh server \\<name>)"
-"command.help.server.connect.name" = "Linkitetyn palvelimen nimi (katso /wh server list)"
-"command.help.server.export" = "Vie tämä palvelin koodina, jonka muut palvelimet voivat tuoda"
-"command.help.server.import" = "Tuo toisen palvelimen viemä palvelin- tai portaalikoodi"
-"command.help.server.import.code" = "Koodi toisen palvelimen viennistä"
-"command.help.server.list" = "Listaa linkitetyt palvelimet ja niiden yhteystila"
-"command.help.server.remove" = "Unohda linkitetty palvelin (poistaa sen reitin ja luotetun avaimen)"
-"command.help.server.remove.name" = "Unohdettavan linkitetyn palvelimen nimi"
-"command.error.no_permission" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Sinulla ei ole lupaa."
-"command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Sinulla ei ole lupaa käyttää sitä käskyä."
-"command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Vain pelaajat voivat vastaanottaa esineitä."
-"command.error.usage" = "<gray>Käyttö: <white>/wormholes help"
-"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portaalisauva annettu."
-"command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Ulottuvuusovet eivät ole käytettävissä."
-"command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Tuntematon ovityyppi. Käytä arvoa pair, personal tai public, pair_trapdoor, personal_trapdoor, public_trapdoor."
-"command.door.empty_type" = "Ovityyppi ei voi olla tyhjä"
-"command.door.granted" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Myönnettiin tyypin <white>{type}<green> ulottuvuusovi."
-"command.reload.applied" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes-laajennuksen määritys- ja kielitiedostot ladattiin uudelleen."
-"command.reload.language_retained" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Konfiguraatio ladattiin uudelleen, mutta kieli- tiedosto hylättiin. Viimeinen voimassa oleva kieli on edelleen aktiivinen; tarkista konsolin."
-"command.reload.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Konfiguraation uudelleenlataus epäonnistui; muokkaus jää odottamaan ja sitä yritetään uudelleen. Tarkista konsoli."
-"command.stats.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Tilastotiedostoa ei voitu kirjoittaa."
-"command.stats.refreshed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Tilastotiedosto päivitetty."
-"command.admin.delete_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Kaikkia portaaleja ei voitu poistaa. Katso täydellinen virhepino konsolista."
-"command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Portaalien nollausta ei voitu ajastaa."
-"command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Wormholes-laajennusta ei voitu nollata. Katso täydellinen virhepino konsolista."
-"command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Wormholes-laajennuksen nollausta ei voitu ajastaa."
-"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Kaikki portaaliprojektiot jäädytettiin <white>{seconds}<green> sekunniksi. Ne jatkuvat automaattisesti."
-"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portaaliprojektiot jatkettu."
-"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Portaaliprojektioiden päivitys epäonnistui. Tarkista konsolista koko virhepino."
-"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Projektiopäivitystä ei voitu ajastaa."
-"network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Verkkoa ei ole vielä alustettu."
-"network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Verkko on <red>poissa käytöstä<gray> (plugins/Wormholes/wormholes.toml)."
-"network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Verkko on käytössä, mutta ei ole käynnissä. Tarkista identiteettivarasto ja verkkoportti."
-"network.status.listening" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tämä palvelin: <white>{server}<gray>, kuuntelee osoitteessa <white>{address}"
-"network.status.outbound_only" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tämä palvelin: <white>{server}<gray>, vain lähtevä Boat-tila"
-"network.status.public_key" = "<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Julkinen avain: {fingerprint}"
-"network.status.no_routes" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Vertaispalvelimiin ei ole vielä liitetty reittejä."
-"network.status.peer" = "<dark_gray>[<gold>Wormholes<dark_gray>] <white>{server}<gray> {state} <gray>{address}{rtt}"
-"network.status.last_attempt" = "<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>  Viimeisin yritys: {error}"
-"network.doctor.clear" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Verkkoasetuksissa ei havaittu ongelmia."
-"network.doctor.header" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Verkkodiagnostiikka:"
-"network.doctor.line" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>- {diagnostic}"
-"network.code.building" = "<dark_gray>Luodaan portaalikoodia..."
-"network.code.copy" = "<gold><bold>[Kopioi portaalikoodi: {portal}]</bold>"
-"network.code.copy_hover" = "<gray>Kopioi napsauttamalla. Liitä koodi toisella palvelimella valitsemalla Portaalivalikko > Tuo tai käyttämällä /wh server import \\<code>"
-"network.code.fingerprint" = "<dark_gray>Sisältää tämän palvelimen osoitteen ja julkisen avaimen sormenjäljen {fingerprint}."
-"network.code.too_long" = "<yellow>Tämä koodi on liian pitkä chattiin. Käytä toisella palvelimella komentoa /wh server import \\<code>."
-"network.code.invalid" = "<red>Virheellinen portaalikoodi. Koodit alkavat merkkijonolla {prefix}; chattiin liitettäessä koodi on voinut katketa. Kokeile komentoa /wh server import \\<code>. Vanhojen laajennusversioiden koodit on vietävä uudelleen."
-"network.code.same_server" = "<red>Se koodi on tästä palvelimesta."
-"network.code.same_identity" = "<red>Tämä koodi viittaa tämän palvelimen identiteettiin ({server}). Käynnistä molemmat palvelimet uudelleen omalla Wormholes-identiteetillään ja vie koodi uudelleen toiselta palvelimelta."
-"network.code.linked" = "<green><white>{portal}<gray> -> <white>{destination}<green> linkitetty palvelimella <white>{server}<green>. Portaali avautuu, kun palvelimet ovat yhteydessä."
-"network.code.route_saved" = "<green>Reitti palvelimelle {server} tallennettiin julkisella avaimella {fingerprint}. '{portal}' näkyy yhdyskäytävän linkkivalikossa yhteyden muodostuttua."
-"network.code.check_status" = "<dark_gray>Tarkista yhteyden tila komennolla /wh network status."
-"network.code.using_address" = "<gray>Tämä portaalikoodi käyttää osoitetta {address}; allekirjoitettu protokolla havaitsee ja korjaa julkisen osoitteen muutoksen automaattisesti."
-"server.code.copy" = "<gold><bold>[Kopioi palvelinkoodi: {server}]</bold>"
-"server.code.copy_hover" = "<gray>Kopioi napsauttamalla. Liitä se toisella palvelimella: /wh server import \\<code>"
-"server.code.raw" = "<gray>Palvelinkoodi: <white>{code}"
-"server.code.saved" = "<green>Palvelin <white>{server}<green> tallennettiin julkisella avaimella {fingerprint}. Yhdistä komennolla <white>/wh server {server}<green>."
-"server.connect.sending" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Sinut lähetetään palvelimelle <white>{server}<green>..."
-"server.connect.not_ready" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{server} ei ole juuri nyt tavoitettavissa. Tarkista /wh network status."
-"server.connect.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Sinua ei voitu siirtää palvelimelle {server}. Tarkista konsoli ja /wh network status."
-"server.connect.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Vain pelaajat voivat yhdistää toiselle palvelimelle."
-"server.unknown" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Tuntematon palvelin '<white>{server}<red>'. Tuo ensin sen koodi tai katso /wh server list."
-"server.list.header" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Linkitetyt palvelimet:"
-"server.list.empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Palvelimia ei ole vielä linkitetty. Käytä <white>/wh server import \\<code><gray>."
-"server.list.entry" = "<dark_gray>[<gold>Wormholes<dark_gray>] <white>{server}<gray> {state} <dark_gray>{address}"
-"server.removed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Palvelin <white>{server}<green> ja sen luotettu avain poistettiin."
-"server.name_empty" = "Palvelimen nimi ei voi olla tyhjä"
-"portal.form.rtp_unsupported" = "<red>Satunnaisia teleporttiportaaleja ei voi luoda runista."
-"portal.form.forming" = "<aqua>Muodostetaan portaalia... {type}-riimujen on oltava yhteydessä tasaisella seinällä, lattialla tai katossa."
-"portal.form.must_be_flat" = "<red>Portaalin on oltava tasainen yhdellä seinällä, lattialla tai katossa."
-"portal.form.interrupted" = "<red>Portaalin muodostaminen keskeytyi; varatut riimut palautettiin."
-"portal.form.rune_placed" = "<aqua>Riimu asetettu. Rakenna yhtenäinen kuvio yhdelle tasaiselle pinnalle ja napsauta sitten mitä tahansa riimua portaalisauvalla vasemmalla."
-"portal.form.opened" = "<green>Portaali avattu. Pidä sauvaa kädessä ja NAPSAUTA portaalia määrittääksesi sen."
-"portal.travel.cooldown" = "<gold>Portaalin palautumisaika on käynnissä"
-"portal.travel.access_denied" = "<red>Pääsy portaaliin estetty"
-"portal.travel.cost_insufficient" = "<red>Tarvitset {quantity}x {item}, jotta voit käyttää tätä portaalia."
-"portal.travel.cost_vault_insufficient" = "<red>Tarvitset {amount}, jotta voit käyttää tätä portaalia."
-"portal.travel.cost_vault_unavailable" = "<red>Tämän portaalin talouskustannus ei ole käytettävissä."
-"portal.travel.cost_transaction_failed" = "<red>Portaali ei voinut käsitellä matkustuskustannustasi."
-"portal.travel.destination_unavailable" = "<red>Portaalin kohde ei ole käytettävissä"
-"portal.travel.arrival_denied" = "<red>Kohdeportaali hylkäsi saapumisesi."
-"portal.travel.arrival_returned" = "<red>Kohdeportaali hylkäsi saapumisesi; sinut palautetaan palvelimelle {server}"
-"door.transit.shutdown" = "Ulottuvuusovet sammutettiin ennen kuin siirtyminen valmistui."
-"portal.edit.denied" = "<red>Vain portaalin omistaja tai ylläpitäjä voi muokata tätä portaalia."
-"portal.deleted" = "<red>{portal} poistettu"
-"portal.travel.arrival_failed" = "<red>Saapumista portaaliin ei voitu sijoittaa; jäät kohteen syntymispisteeseen"
-"portal.travel.transfer_cooldown" = "<gold>Palvelinten välisen portaalin palautumisaika: {seconds}s"
-"portal.travel.destination_unreachable" = "<red>Kohdepalvelimeen ei saada yhteyttä"
-"portal.travel.destination_unreachable_detail" = "<red>Kohdepalvelimeen ei saada yhteyttä: {reason}"
-"portal.travel.transfer_blocked" = "<red>Portaalin siirto estettiin: {reason}"
-"portal.travel.transfer_blocked_retry" = "<red>Portaalisiirto estetty: {reason} (uusi yritys {seconds} s kuluttua)"
-"wand.selection.corner_a" = "<aqua>Kulma A asetettu. Napsauta vastakkaista kulmaa oikealla painikkeella."
-"wand.selection.corner_b" = "<aqua>Kulma B asetettu. Napsauta vastakkaista kulmaa vasemmalla painikkeella."
-"wand.selection.not_flat" = "<red>Valinnan on oltava yhden lohkon paksuinen. Tasoita valinta napsauttamalla kulmaa uudelleen."
-"wand.selection.too_large" = "<red>Valinta on liian suuri: {count} lohkoa (enintään {maximum})."
-"wand.selection.opening" = "<aqua>Avataan portaalia..."
-"wand.selection.open_failed" = "<red>Porttia ei voitu avata täällä."
-"door.craft.one_at_a_time" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Valmista ulottuvuusovet yksi kerrallaan, jotta jokainen saa yksilöllisen identiteetin."
-"door.pair.unpack_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Oviparia ei voitu purkaa; pakkausta ei kulutettu."
-"door.pair.unpacked" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Lomittunut pari erotettiin linkitetyiksi madonreikäoviksi A ja B."
-"door.legacy.combine" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Yhdistä tämä vanhoja ulottuvuuksia sisältävät ovet puun oven kanssa ennen asennusta."
-"door.pair.missing" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tälle pariovelle ei ole rekisteröity vastaparin identiteettiä."
-"door.place.already_placed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tämä ulottuvuusovi on jo asetettu tai sen tilaa ei voitu tallentaa."
-"door.break.exit_anchored" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Ulottuvuusuloskäynti on ankkuroitu tähän tasku-ulottuvuuteen."
-"door.break.support" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Riko ulottuvuusovi ennen sen tukilohkon poistamista."
-"door.disable.warning" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Ulottuvuusovet poistetaan käytöstä. Poistu nyt tasku-ulottuvuuden paluuoven kautta."
-"door.rescue.cancelled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Hätäevakuointi peruttiin; reitti säilytettiin."
-"door.transit.message" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>{message}"
-"door.transit.link_not_placed" = "Liittynyt madonreiän ovi ei ole vielä asennettu."
-"door.transit.link_unavailable" = "Liittynyt madonreiän ovi on poissa käytöstä tai estetty."
-"door.transit.nested_pocket" = "Taskuovi ei voi avata toista tasku-ulottuvuutta jaetun tyhjyysulottuvuuden sisällä."
-"door.transit.pocket_not_ready" = "Tasku-ulottuvuus ei ole vielä valmis."
-"door.transit.pocket_allocation_failed" = "Tasku-ulottuvuutta ei voitu varata."
-"door.transit.safe_return_not_found" = "Ei turvallista paluutapaa löydetty tästä puolelta ovea."
-"door.transit.pocket_prepare_failed" = "Tasku-ulottuvuutta ei voitu valmistella turvallisesti."
-"door.transit.return_ticket_save_failed" = "Turvallista paluureittiä ei voitu tallentaa."
-"door.transit.pocket_entry_unsafe" = "Tasku-ulottuvuuden sisäänkäynti ei ole turvallinen."
-"door.transit.pocket_entry_chunk_failed" = "Tasku-ulottuvuuden sisäänkäyntialuetta ei voitu ladata."
-"door.transit.no_return_route" = "Tälle tasku-ulottuvuudelle ei ole tallennettu paluureittiä."
-"door.transit.return_unavailable" = "Paluuovi ei ole käytettävissä tai se on tukossa vastaavalla puolella."
-"door.transit.return_world_unloaded" = "Paluumaailmaa ei ole ladattu."
-"door.transit.return_point_obstructed" = "Tallennettu paluupiste on tukossa."
-"door.transit.return_chunk_failed" = "Tallennettua paluualuetta ei voitu ladata."
-"door.transit.closed" = "Ulottuvuuden ovi suljettiin ennen kuljetuksen päättymistä."
-"door.transit.cycle_consumed" = "Tämän oven avautumissykli on jo käytetty. Sulje ja avaa ovi uudelleen."
-"door.transit.source_missing" = "Ulottuvuusovea ei ole enää olemassa."
-"door.transit.source_close_failed" = "Lähtöovea ei voitu sulkea turvallisesti."
-"door.transit.source_region_unavailable" = "Lähtöoven alue ei ole käytettävissä."
-"door.transit.start_failed" = "Ulottuvuuden siirtymä ei voinut alkaa."
-"door.transit.cancelled" = "Ulottuvuuden siirtäminen peruttiin."
-"door.rescue.reason.no_route" = "Tasku-ulottuvuudelle ei ole tallennettu paluureittiä."
-"door.rescue.reason.return_world_unavailable" = "Tallennettu paluumaailma ei ole käytettävissä."
-"door.rescue.reason.return_point_obstructed" = "Tallennettu paluupiste on tukossa."
-"door.rescue.reason.return_chunk_failed" = "Tallennettua paluualuetta ei voitu ladata."
-"door.rescue.fallback.no_world" = "Yhtään tasku-ulottuvuuden ulkopuolista varamaailmaa ei ole ladattu."
-"door.rescue.fallback.obstructed" = "Varasyntymispaikka on tukossa."
-"door.rescue.fallback.chunk_failed" = "Varasyntymispaikkaa ei voitu ladata."
-"door.rescue.fallback.schedule_failed" = "Varapoistumista ei voitu ajoittaa."
-"door.rescue.reason.start_failed" = "Hätäevakuointia ei voitu käynnistää."
-"door.rescue.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>{route} {fallback} Pysyt suojattuna yhdellä sydämellä."
-"door.access.label.neutral" = "Neutraali"
-"door.access.label.whitelist" = "Sallittujen lista"
-"door.access.label.blacklist" = "Estettyjen lista"
-"door.open_state.open" = "Avoin"
-"door.open_state.closed" = "Suljettu"
-"door.access.kind.pair" = "Kietoutunut"
-"door.access.kind.personal" = "Henkilökohtainen"
-"door.access.kind.public" = "Yhteinen"
-"door.access.kind.return" = "Uloskäynti"
-"door.access.unknown_player" = "Tuntematon ({id})"
-"door.access.edit_denied" = "<red>Vain oven omistaja tai ylläpitäjä voi muokata tätä ovea."
-"door.access.unavailable" = "<red>Tällä ulottuvuusovella ei ole käyttöoikeustietoja."
-"door.access.save_failed" = "<red>Oven käyttöoikeusmuutosta ei voitu tallentaa."
-"door.access.player_not_found" = "<red>Pelaajaa nimeltä {name} ei löytynyt."
-"door.access.owner_always" = "<gray>Oven omistajalla on aina pääsy."
-"door.access.already_listed" = "<gray>{name} on jo tämän oven listalla."
-"door.access.added" = "<green>{name} lisättiin tämän oven listalle."
-"door.access.removed" = "<green>{name} poistettiin tämän oven listalta."
-"door.access.state_changed" = "<green>{name} on nyt {state} tälle ovelle."
-"door.access.prompt_player" = "<aqua>Kirjoita pelaajan nimi, jonka haluat listata tälle ovelle (tai '{cancel}'):"
-"door.access.denied" = "<red>Tämä ulottuvuusovi torjuu sinut."
-"door.access.transit_denied" = "Sinulla ei ole pääsyä tähän ulottuvuusoveen."
-"door.menu.access.title" = "Oven käyttöoikeus: {kind}"
-"portal.menu.gateway.server" = "<gray>Palvelin: <white>{server}"
-"portal.menu.gateway.link" = "<gray>Linkki: <aqua>{state}"
-"portal.menu.mirror.rotation" = "<gray>Kuvan kierto: <aqua>{degrees} astetta"
-"portal.menu.mirror.rotate_clockwise" = "<dark_gray>Oikea napsautus: kierrä myötäpäivään."
-"portal.menu.mirror.rotate_counterclockwise" = "<dark_gray>Shift + oikea napsautus: kierrä vastapäivään."
-"portal.prompt.invite" = "<aqua>Liitä portaalikutsu chattiin (tai '{cancel}'):"
-"portal.prompt.block_state" = "<aqua>Anna lohkotila tämän portaalin verkkonäkymän reunalle tai '{cancel}':"
-"portal.prompt.name" = "<aqua>Kirjoita uusi portaalin nimi chatissa (tai '{cancel}'):"
-"portal.prompt.cost_item" = "<aqua>Pidä tarkkaa kustannusesinettä pääkädessäsi ja paina sitten Pudota. Esine ei poistu tavaraluettelostasi."
-"portal.prompt.cost_vault" = "<aqua>Syötä Vault-valuutan määrä läpikulkua kohden (tai '{cancel}'):"
-"portal.input.cancel" = "peruuta"
-"portal.rtp.editor_title" = "RTP: {portal}"
-"portal.notice.dimensional_link_managed" = "Tämä ulottuvuusportaali säilyttää luodun linkkinsä."
-"portal.notice.not_rtp" = "Tämä portaali ei ole enää satunnaisteleporttitilassa."
-"portal.rtp.notice.setting_rejected" = "Ei voitu soveltaa tätä asetusta: {reason}"
-"portal.notice.region_unavailable" = "Portaalin alue ei ole käytettävissä; yritä uudelleen."
-"portal.rtp.notice.applied" = "Satunnaisen kohteen asetukset otettiin käyttöön."
-"portal.rtp.notice.reset_defaults" = "Satunnaisteleporttauksen asetukset palautettu oletusarvoihin."
-"portal.rtp.notice.editor_refreshed" = "Asetukset muuttuivat; editori päivitettiin."
-"portal.rtp.notice.runtime_unavailable" = "Satunnainen teleportti ei ole käytettävissä."
-"portal.rtp.notice.reroll_failed" = "Uuden kohteen valinta epäonnistui; tarkista palvelinloki."
-"portal.rtp.notice.reroll_preparing" = "Uutta satunnaista kohdetta valmistellaan."
-"portal.rtp.notice.reroll_unavailable" = "Uutta kohdetta ei voi valita reitin valmistelun tai käytön aikana."
-"portal.rtp.notice.pool_rebuilding" = "Yksityistä kohdevarantoa rakennetaan uudelleen."
-"portal.rtp.notice.pool_failed" = "Kohdevarannon uudelleenrakennus epäonnistui; tarkista palvelinloki."
-"portal.rtp.notice.not_ready" = "<yellow>Portaali vakauttaa vielä kohdettaan."
-"portal.rtp.notice.traversal_failed" = "<red>Portaali ei vakautunut; yritä uudelleen."
-"portal.notice.travel_managed" = "Ulottuvuusportaalien matkustamista hallitaan automaattisesti."
-"portal.notice.travel_mirror_locked" = "Peilitilassa ei koskaan sallita matkustamista."
-"portal.notice.travel_changed" = "Matkustaminen: {mode}"
-"portal.notice.stream_quality_changed" = "Kuvavirran laatu: {quality}"
-"portal.notice.network_value_changed" = "{label}: {value}"
-"portal.notice.fallback_set" = "Varalohkoksi asetettiin {block}"
-"portal.notice.fallback_reset" = "Varalohkoksi palautettiin {block}"
-"portal.notice.managed_mode" = "Hallinnoidut ulottuvuusportaalit pysyvät portaalitilassa."
-"portal.notice.projection_receiver_inactive" = "Saapuminen The Endiin pysyy visuaalisesti poissa käytöstä."
-"portal.notice.projection_changed" = "Projektio: {mode}"
-"portal.notice.settings_sync_changed" = "Asetusten synkronointi: {state}"
-"portal.notice.access_changed" = "Pääsy: {mode}"
-"portal.notice.cost_item_set" = "Matkustaminen vaatii nyt {item}."
-"portal.notice.cost_item_invalid" = "Esinettä ei voitu tallentaa matkustuskustannukseksi."
-"portal.notice.cost_cleared" = "Matkustuskustannus poistettu."
-"portal.notice.cost_quantity_changed" = "Matkustuskustannuksen määrä: {quantity}"
-"portal.notice.cost_vault_changed" = "Vault-matkustuskustannus: {amount}"
-"portal.notice.cost_vault_invalid" = "Syötä positiivinen valuuttamäärä, joka on enintään {maximum}."
-"portal.notice.cost_vault_unavailable" = "Vaultin ja talousjärjestelmän tarjoajan on oltava käytettävissä ennen tämän kustannuksen valitsemista."
-"portal.notice.mirror_select_first" = "Valitse peili ennen kuvaa kiertämistä."
-"portal.notice.mirror_rotation_changed" = "Peilin kierto: {degrees} astetta"
-"portal.notice.rtp_cannot_link" = "Satunnaisteleporttiportaaleja ei linkitetä kohteisiin."
-"portal.label.travel.both" = "Molempiin suuntiin"
-"portal.label.travel.outbound" = "Vain lähtevä"
-"portal.label.travel.inbound" = "Vain saapuva"
-"portal.label.travel.locked" = "Lukittu"
-"portal.label.travel.arrival" = "Vain saapuminen"
-"portal.label.travel.departure" = "Vain lähtö"
-"portal.label.cost.free" = "Ilmainen"
-"portal.label.cost.vanilla" = "Vanilla-esine"
-"portal.label.cost.vault" = "Vault-talous"
-"portal.label.travel.dimensional_both" = "Molemmat yhdistetyt puolet pysyvät aktiivisina."
-"portal.label.travel.dimensional_return_disabled" = "Paluureitti pysyy poissa käytöstä."
-"portal.label.quality.standard" = "Vakio"
-"portal.label.quality.performance" = "Suorituskyky"
-"portal.label.quality.balanced" = "Tasapainoinen"
-"portal.label.quality.cinematic" = "Elokuvamainen"
-"portal.label.quality.custom" = "Mukautettu"
-"portal.label.mode.portal" = "Portaali"
-"portal.label.mode.wormhole" = "Madonreikä"
-"portal.label.mode.gateway" = "Yhdyskäytävä"
-"portal.label.mode.rtp" = "RTP"
-"portal.label.mode.mirror" = "Peili"
-"portal.label.direction.up" = "Ylös"
-"portal.label.direction.down" = "Alas"
-"portal.label.direction.north" = "Pohjoinen"
-"portal.label.direction.south" = "Etelä"
-"portal.label.direction.east" = "Itä"
-"portal.label.direction.west" = "Länsi"
-"portal.mode.description.portal" = "Perusyhteysportaali."
-"portal.mode.description.wormhole" = "Linkitettävä portaali, jossa on projisoitu näkymäalue."
-"portal.mode.description.gateway" = "Varattu verkkojen välisiin linkityksiin."
-"portal.mode.description.rtp" = "Paikallinen satunnainen teleporttiportaali."
-"portal.mode.description.mirror" = "Peilaa paikallisen maailman ja estää matkustamisen."
-"portal.label.allocation.shared" = "Yhteinen"
-"portal.label.allocation.per_player" = "Pelaajakohtainen"
-"portal.rtp.rotation.private" = "Pelaajakohtainen joka {duration}"
-"portal.label.permission.whitelist" = "Sallittujen lista"
-"portal.label.permission.blacklist" = "Estettyjen lista"
-"portal.permission.description.whitelist" = "Pelaajat tarvitsevat solmun tämän portaalin käyttöön."
-"portal.permission.description.blacklist" = "Pelaajat, joilla on solmu, estetään."
-"portal.label.network.direct" = "Suora"
-"portal.label.network.sideband" = "Sivukanava"
-"portal.label.network.reconnecting" = "Yhdistetään uudelleen"
-"portal.network.label.capture_radius" = "Kaappaussäde"
-"portal.network.description.capture_radius" = "Kohdeportaalin ympärillä lähetettävät lohkot."
-"portal.network.label.full_refresh" = "Täysi päivitys"
-"portal.network.description.full_refresh" = "Tickit täysien lohkopäivitysten välillä."
-"portal.network.label.entity_update" = "Entiteettipäivitys"
-"portal.network.description.entity_update" = "Tickit entiteettipäivitysten välillä."
-"portal.network.label.view_grace" = "Näkymän viiveaika"
-"portal.network.description.view_grace" = "Sekunnit, joiden ajan tietovirta pidetään aktiivisena katseen siirtymisen jälkeen."
-"portal.network.label.blackout" = "Pimennystausta"
-"portal.network.label.blackout_color" = "Pimennysväri"
-"portal.network.label.activation_range" = "Aktivointietäisyys"
-"portal.label.activation_global" = "Yleinen ({range})"
-"portal.direction.cancelled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Peruttu"
-"portal.direction.set" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Suunta asetettu"
-"portal.setting.notification" = "<green>{portal}: <reset>{message}"
-"portal.link.linked" = "<green>{portal} linkitetty kohteeseen {destination}."
-"portal.link.linked_remote" = "<green>{portal} linkitetty kohteeseen {destination} palvelimella {server}."
-"portal.link.unlinked" = "<yellow>Portaalin {portal} linkitys kohteeseen {destination} poistettiin."
-"portal.orientation.face_flipped" = "<green>Portaalin {portal} etupuoli käännettiin suuntaan {direction}."
-"portal.orientation.rotated_counterclockwise" = "<green>{portal} kierrettiin vastapäivään."
-"portal.orientation.rotated_clockwise" = "<green>{portal} kierrettiin myötäpäivään."
-"portal.orientation.direction_changed" = "<green>Portaalin {portal} suunta vaihdettiin suuntaan {direction}."
-"portal.mode.changed" = "<green>Portaalin {portal} tilaksi asetettiin {mode}."
-"label.none" = "Ei mitään"
-"label.on" = "Käytössä"
-"label.off" = "Pois käytöstä"
-"label.ready" = "Valmis"
-"label.preparing" = "Valmistellaan"
-"label.open" = "Auki"
-"label.closed" = "Suljettu"
-"rtp.routing.action_confirm" = "Avaa erillinen vahvistusnäkymä."
-"rtp.status.ready" = "Valmis"
-"rtp.status.warming" = "Valmistellaan"
-"rtp.status.rerolling" = "Uutta kohdetta valitaan"
-"rtp.status.backoff" = "Uudelleenyrityksen odotusaika"
-"rtp.status.world_unavailable" = "Kohdemaailma ei ole käytettävissä"
-"rtp.status.integration_failed" = "Pääsyn tarkistus epäonnistui"
-"rtp.status.failed" = "Epäonnistui"
-"rtp.status.idle" = "Toimeton"
-"rtp.rotation.static" = "Staattinen"
-"rtp.rotation.timed" = "Ajastettu"
-"rtp.rotation.trip" = "Jokaisen matkan jälkeen"
-"rtp.status.retry" = "<gray>Uusi yritys: <red>{duration}"
-"rtp.status.active" = "<gray>Aktiivinen: {readiness}"
-"rtp.status.standby" = "<gray>Valmiustila: {readiness}"
-"rtp.status.rotation" = "<gray>Luonnoksen vaihtotapa: <aqua>{rotation}"
-"rtp.status.pool" = "<gray>Vapaat: <aqua>{free}<gray>  Varatut: <aqua>{reserved}"
-"rtp.status.target_missing" = "<red>Kohdemaailma ei ole ladattu."
-"rtp.status.access_failed" = "<red>Kohteen pääsytarkistus epäonnistui ja esti pääsyn."
-"rtp.numeric.center_x" = "Keskus X"
-"rtp.numeric.center_z" = "Keskus Z"
-"rtp.numeric.minimum_radius" = "Vähimmäissäde"
-"rtp.numeric.maximum_radius" = "Enimmäissäde"
-"rtp.numeric.lower_y" = "Alempi Y-raja"
-"rtp.numeric.upper_y" = "Ylempi Y-raja"
-"rtp.numeric.preferred_y" = "Ensisijainen Y"
-"rtp.numeric.cycle" = "Syklin kesto"
-"rtp.numeric.private_rotation" = "Yksityinen kierrosaika"
-"rtp.numeric.lease" = "Jouten olevan varauksen lisäaika"
-"rtp.numeric.release" = "Yksityinen vapautus"
-"rtp.numeric.description.center" = "Siirtää mukautettua keskustaa tällä akselilla."
-"rtp.numeric.description.minimum_radius" = "Kohderenkaan sisäreuna."
-"rtp.numeric.description.maximum_radius" = "Kohderenkaan ulkoreuna."
-"rtp.numeric.description.y" = "Kelvollisen seisomakorkeuden hakuraja."
-"rtp.numeric.description.cycle" = "Yhteisten ajastettujen vaihtojen välinen aika."
-"rtp.numeric.description.private_rotation" = "Pelaajan valmistellun kohteen enimmäisikä."
-"rtp.numeric.description.lease" = "Pidä valmistellut kohteet hetken aktiivisina kaikkien lähdettyä."
-"rtp.numeric.description.release" = "Viive ennen käyttämättömän yksityisen varauksen vapauttamista."
-"rtp.duration.hours" = "{value}h"
-"rtp.duration.minutes" = "{value}m"
-"rtp.duration.seconds" = "{value}s"
-"rtp.duration.decimal_seconds" = "{value}s"
-"portal.menu.destination.sort_smart" = "Älykäs"
-"portal.menu.destination.sort_name" = "Nimi"
-"portal.menu.destination.sort_world" = "Maailma"
-"portal.menu.destination.sort_distance" = "Etäisyys"
-"rtp.biome.any_label" = "Mikä tahansa"
+[language.editor]
+loading = "Ladataan kielen {locale} viestejä..."
 
-"command.help.pocket" = "Tarkastele ja muokkaa taskuulottuvuuksia"
-"command.help.pocket.info" = "Nayta sen taskun koko, materiaalit ja rajat, jossa seisot"
-"command.help.pocket.resize" = "Rakenna tasku, jossa seisot, uudelleen uudella koolla tai materiaalilla"
-"command.help.pocket.resize.size" = "Huoneen uusi sarma lohkoina, tai 0 sailyttaa nykyisen koon"
-"command.help.pocket.resize.material" = "Uusi seinien, lattian ja katon lohko, tai keep"
-"command.help.pocket.resize.door" = "Uusi uloskaynnin ovilohko, tai keep"
-"command.help.pocket.resize.confirm" = "Vaaditaan, kun muutos tuhoaisi tai siirtaisi jotakin"
-"command.help.pocket.resizeall" = "Rakenna jokainen olemassa oleva tasku uudelleen uudella koolla tai materiaalilla"
-"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Seiso taskuulottuvuudessa suorittaaksesi taman."
-"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Taskun koon on oltava {minimum} ja {maximum} lohkon valilla."
-"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} ei kelpaa taskun seinaksi. Kayta kiinteaa lohkoa, joka ei putoa."
-"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} ei kelpaa taskun uloskayntioveksi. Kayta kasin avattavaa ovea; rautaovet hylataan."
-"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Taskulla on jo tama koko ja namä materiaalit."
-"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Taskun koon muuttaminen keskeytettiin: <white>{containers}<red> tavaroita sisaltavaa sailiota tuhoutuisi. Tyhjenna ne ennen uutta yritysta; <white>confirm=true<red> ei ohita tata turvatarkistusta."
-"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Tasku rakennettu uudelleen kokoon <white>{size}<green> lohkoa (aiemmin <white>{previous}<green>), seinat <white>{material}<green>, uloskayntiovi <white>{door}."
-"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Taskua ei voitu rakentaa uudelleen. Tarkista konsoli."
-"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Taskuulottuvuus ei ole ladattuna."
-"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} lohkon huone ei mahdu taskuulottuvuuden rakennuskorkeuteen."
-"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Rakennetaan <white>{count}<gray> taskua uudelleen."
-"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Rakennettu uudelleen <white>{resized}<green>, ohitettu <white>{skipped}<green>, epaonnistui <white>{failed}."
-"portal.label.public_look_label" = "Public Look Label"
-[lines]
-"portal.menu.render_mode" = ["<aqua><bold>Renderöintitila <white>{mode}</bold>","<gray>Kuinka suuren osan kohdetilavuudesta tämä portaali projisoi.","","<gray>Tila: <white>{mode}","","<dark_gray>PanOptic renderöi koko kohdetilavuuden.","<dark_gray>Venticular piilottaa näkyvien läpinäkymättömien pintojen takana olevan geometrian.","","<dark_gray>Vasen: vaihda tilaa."]
-"portal.menu.ambient_particles" = ["<aqua><bold>Ympäristöhiukkaset</bold>","<gray>Koristeellista pölyä, joka leijuu tämän portaalin ympärillä.","","<gray>Tyyli: <white>{style} <dark_gray>({color})","","<dark_gray>Vasen: vaihda tyyliä.","<dark_gray>Oikea: valitse väri."]
-"portal.menu.ambient_color.placard" = ["<gold><bold>Ympäristöväri</bold>","<gray>Ympäristön pölyhiukkasten väri.","","<gray>Nykyinen: <white>{color}"]
-"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>Vasen napsautus: +{step}","<dark_gray>Oikea napsautus: -{step}","<dark_gray>Shift + vasen napsautus: +{large_step}","<dark_gray>Shift + oikea napsautus: -{large_step}"]
-"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>Valitse napsauttamalla."]
-"portal.menu.surface_skin" = ["<aqua><bold>Pinnan ulkoasu</bold>","<gray>Peitä portaalin aukko renderöidyllä lohko- tai nestepaneelilla.","","<gray>Ulkoasu: <white>{skin}","","<dark_gray>Vasen: poista ulkoasu.","<dark_gray>Oikea: avaa ulkoasun asetukset."]
-"portal.menu.surface_skin.placard" = ["<gold><bold>Pinnan ulkoasu</bold>","<gray>Napsauta portaalia hiiren oikealla lohkolla tai ämpärillä ottaaksesi ulkoasun käyttöön.","","<gray>Ulkoasu: <white>{skin}"]
-"portal.menu.surface_skin.glass" = ["<aqua><bold>Lasi-ulkoasu</bold>","<gray>Kirkas lasi-ikkuna aukon päällä.","","<dark_gray>Napsauta ottaaksesi lasin käyttöön."]
-"portal.menu.surface_skin.clear" = ["<red><bold>Poista ulkoasu</bold>","<gray>Poistaa ulkoasun ja palauttaa projektiot.","","<dark_gray>Napsauta poistaaksesi ulkoasun."]
-"command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Portaaliohje: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Käytä portaalisauvaa portaaliin avataksesi kohteen, näkymän, matkustamisen ja käyttöoikeuksien asetukset."]
-"command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Sait portaalisauvan ja 1 madonreikäriimun.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Rakenna KAKSI madonreikäriimukuviota (mikä tahansa yhtenäinen kuvio yhdellä tasaisella pinnalla), linkitä ne ja pysy {range} lohkon sisällä nähdäksesi projektion.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Katso kaikki vaiheet komennolla <white>/wormholes info<gray>."]
-"command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tilastotiedosto: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Seuraa tätä tiedostoa jakaaksesi verkon ja näkymien reaaliaikaisen tilan. Tiedosto korvataan jokaisella aikavälillä."]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>Madonreiän rakentaminen</bold>","<dark_gray>1. <gray>Hanki portaalisauva ja portaaliriimuja palvelimelta tai ylläpitäjältä.","<dark_gray>2. <gray>Aseta riimut yhtenäiseksi kuvioksi yhdelle tasaiselle pinnalle.","<gray>   Mikä tahansa yhtenäinen kuvio toimii: suorakulmio, viiva (3x1), yksittäinen lohko, L-kuvio tai risti.","<gray>   Riimujen on oltava tasaisesti samalla akselinsuuntaisella seinällä, lattialla tai katossa.","<dark_gray>3. <gray>Pidä portaalisauvaa ja <white>napsauta mitä tahansa riimulohkoa vasemmalla<gray> muodostaaksesi portaalin.","<dark_gray>4. <gray>Rakenna TOINEN portaali muualle (mille tahansa etäisyydelle, mihin tahansa maailmaan).","<dark_gray>5. <gray>Avaa päävalikko napsauttamalla avointa portaalia sauvalla.","<gray>   Valitse <white>Kohde<gray> ja sitten toinen portaali. Toista sama toiselta puolelta.","<gray>   Suuntaus ja käyttöoikeudet ovat omissa selkeissä valikoissaan.","<dark_gray>6. <gray>Pysy {range} lohkon sisällä jommastakummasta portaalista — kohdemaailma projisoituu kehykseen ja sisään astuminen teleporttaa sinut.","<gray>Ylläpitäjät voivat luoda tarvikkeita komennolla <white>/wormholes wand"]
-"item.portal_wand" = ["<gold><bold>Portaalisauva</bold>"]
-"item.portal_rune" = ["<gold><bold>Portaaliriimu</bold>"]
-"item.wormhole_rune" = ["<gold><bold>Madonreikäriimu</bold>"]
-"item.door.entangled_pair" = ["<gold>Kietoutunut ovipari","<gray>Sisältää kaksi automaattisesti linkitettyä madonreikäovea.","<gray>Erota päätepisteet A ja B käyttämällä tätä."]
-"item.door.paired" = ["<gold>Madonreikäovi {endpoint}","<gray>Linkitetty automaattisesti päätepisteeseen {other}.","<gray>Avaa ovi ja ylitä sen kynnys fyysisesti."]
-"item.door.personal" = ["<aqua>Henkilökohtainen ulottuvuusovi","<gray>Jokainen matkustaja siirtyy omaan pysyvään ulottuvuuteensa.","<gray>Sama matkustaja saapuu aina samaan paikkaan."]
-"item.door.public" = ["<gold>Yhteinen ulottuvuusovi","<gray>Kaikki matkustajat siirtyvät tämän oven yhteiseen ulottuvuuteen.","<gray>Rikkominen ja siirtäminen säilyttää yhteisen kohteen."]
-"item.door.return" = ["<green>Ulottuvuuden uloskäyntiovi","<gray>Palauttaa matkustajat tästä tasku-ulottuvuudesta.","<gray>Tämä ovi on sidottu omaan tasku-ulottuvuuteensa."]
-"item.door.skin" = ["<gold>Ulottuvuusoven ulkoasu","<gray>Yhdistä ulottuvuusovi pelaajan käytettävissä olevaan oveen."]
-"item.door.entangled_pair_recipe" = ["<gold>Kietoutunut ovipari","<gray>Sisältää kaksi automaattisesti linkitettyä madonreikäovea."]
-"item.door.personal_recipe" = ["<aqua>Henkilökohtainen ulottuvuusovi","<gray>Jokainen matkustaja siirtyy omaan pysyvään ulottuvuuteensa."]
-"item.door.public_recipe" = ["<gold>Yhteinen ulottuvuusovi","<gray>Kaikki matkustajat siirtyvät tämän oven yhteiseen ulottuvuuteen."]
-"item.door.entangled_trapdoor_pair" = ["<gold>Kietoutunut luukkupari","<gray>Sisältää kaksi automaattisesti linkitettyä madonreikäluukkua.","<gray>Erota päätepisteet A ja B käyttämällä tätä."]
-"item.door.paired_trapdoor" = ["<gold>Madonreikäluukku {endpoint}","<gray>Linkitetty automaattisesti päätepisteeseen {other}.","<gray>Avaa luukku ja pudottaudu sen läpi."]
-"item.door.personal_trapdoor" = ["<aqua>Henkilökohtainen ulottuvuusluukku","<gray>Jokainen matkustaja siirtyy omaan pysyvään ulottuvuuteensa.","<gray>Sama matkustaja saapuu aina samaan paikkaan."]
-"item.door.public_trapdoor" = ["<gold>Yhteinen ulottuvuusluukku","<gray>Kaikki matkustajat siirtyvät tämän luukun yhteiseen ulottuvuuteen.","<gray>Rikkominen ja siirtäminen säilyttää yhteisen kohteen."]
-"item.door.trapdoor_skin" = ["<gold>Ulottuvuusluukun ulkoasu","<gray>Yhdistä ulottuvuusluukku käsin avattavaan luukkuun."]
-"item.door.entangled_trapdoor_pair_recipe" = ["<gold>Kietoutunut luukkupari","<gray>Sisältää kaksi automaattisesti linkitettyä madonreikäluukkua."]
-"item.door.personal_trapdoor_recipe" = ["<aqua>Henkilökohtainen ulottuvuusluukku","<gray>Jokainen matkustaja siirtyy omaan pysyvään ulottuvuuteensa."]
-"item.door.public_trapdoor_recipe" = ["<gold>Yhteinen ulottuvuusluukku","<gray>Kaikki matkustajat siirtyvät tämän luukun yhteiseen ulottuvuuteen."]
-"door.menu.access.placard" = ["<gold><bold>Ulottuvuusovi: {kind}</bold>","<gray>Omistaja: <white>{owner}","<gray>Sallittujen listalla: <green>{whitelisted}","<gray>Estettyjen listalla: <red>{blacklisted}","<gray>Listatut pelaajat: <aqua>{count}","<dark_gray>Omistajat ja ylläpitäjät muokkaavat tätä ovea."]
-"door.menu.access.add_player" = ["<green><bold>Lisää pelaaja</bold>","<gray>Kirjoita pelaajan nimi chattiin listataksesi hänet.","","<dark_gray>Lisää pelaaja napsauttamalla."]
-"door.menu.access.open_state" = ["<aqua><bold>OpenState: <white>{state}","<gray>Portaali seuraa tämän lohkon fyysistä tilaa.","<gray>Aktiivinen tila: <white>{state}<gray>.","","<dark_gray>Seuraava: {next}. Vaihda napsauttamalla."]
-"door.menu.access.entry" = ["<white>{name}","<gray>Tila: <aqua>{state}","","<dark_gray>Vasen napsautus: salli. Oikea napsautus: estä.","<dark_gray>Keskinapsautus tai vaihto + vasen napsautus: poista."]
-"portal.menu.destination" = ["<gold><bold>Kohde</bold>","<gray>Valitse portaali, johon linkitetään.","<gray>Nykyinen linkki: {destination}","","<dark_gray>Avaa kohdevalitsin napsauttamalla."]
-"portal.menu.gateway_destination" = ["<gold><bold>Paritus & Kohde</bold>","<gray>Parita toinen palvelin tai valitse yhdyskäytävä.","<gray>Nykyinen linkki: {destination}","","<dark_gray>Avaa paritusnäkymä napsauttamalla."]
-"portal.menu.rtp_destination" = ["<gold><bold>Satunnainen kohde</bold>","<gray>Määritä, missä ja milloin portaali valitsee uuden kohteen.","<gray>Vaihtotapa: <aqua>{rotation}","","<dark_gray>Avaa satunnaisteleportin asetukset napsauttamalla."]
-"portal.menu.rename" = ["<green><bold>Nimeä portaali uudelleen</bold>","<gray>Muuta linkeissä ja valikoissa näkyvää nimeä.","<gray>Nykyinen: <white>{portal}","","<dark_gray>Kirjoita uusi nimi napsauttamalla."]
-"portal.menu.delete" = ["<red><bold>Poista portaali</bold>","<gray>Poistaa portaalin pysyvästi.","","<red><underlined>Vahvista painamalla Shift + vasen napsautus</underlined>"]
-"portal.menu.advanced_settings" = ["<dark_aqua><bold>Kuvavirran lisäasetukset</bold>","<gray>Suorat asetukset diagnostiikkaan ja epätavallisiin linkkeihin.","<gray>Yhden arvon muuttaminen merkitsee kuvavirran laadun mukautetuksi."]
-"portal.menu.back_settings" = ["<yellow><bold>Palaa asetuksiin</bold>", "<gray>Palaa portaaliasetuksiin."]
-"portal.menu.travel.managed" = ["<gold><bold>Matkustaminen: {direction}</bold>","<gray>Ulottuvuusportaalin hallinnoitu matkustussuunta.","<gray>{detail}"]
-"portal.menu.travel.mirror" = ["<red><bold>Matkustaminen: peili estää</bold>","<gray>Peilitila on vain visuaalinen.","<gray>Entiteetit eivät voi kulkea sen läpi kumpaankaan suuntaan."]
-"portal.menu.travel.standard" = ["<aqua><bold>Matkustaminen: {mode}</bold>","<gray>Hallitsee matkustamista tämän portaalin läpi.","","<gray>Lähtevä: <aqua>{outgoing}<gray>  Saapuva: <aqua>{incoming}","","<dark_gray>Vaihda matkustussuuntaa napsauttamalla."]
-"portal.menu.stream_quality" = ["<aqua><bold>Kuvavirran laatu: {quality}</bold>","<gray>Yksi asetus etänäkymän kantamalle ja päivitystiheydelle.","","<gray>Syvyys <aqua>{depth}<gray>  Entiteetit <aqua>{entities}t","<gray>Päivitys <aqua>{refresh}t<gray>  Viive <aqua>{grace}s","","<dark_gray>Napsauta: vaihda laatua.","<dark_gray>Shift + napsautus: lisäasetukset."]
-"portal.menu.orientation" = ["<blue><bold>Suuntaus</bold>","<gray>Suunta: <blue>{facing}","<gray>Näytön yläreuna: <gold>{up}","","<dark_gray>Napsauta määrittääksesi suunnan, käännön ja kierron."]
-"portal.menu.orientation_placard" = ["<blue><bold>Portaalin suuntaus</bold>","<gray>Suunta: <blue>{facing}","<gray>Näytön yläreuna: <gold>{up}"]
-"portal.menu.gateway.choose" = ["<gold><bold>Valitse kohde</bold>","<gray>Valitse löydetyistä paikallisista ja etäisistä yhdyskäytävistä.","","<dark_gray>Avaa kohdeluettelo napsauttamalla."]
-"portal.menu.gateway.unpaired" = ["<gold><bold>Yhdyskäytävän paritus</bold>","<gray>Tila: <red>Ei paritettu"]
-"portal.menu.gateway.paired" = ["<gold><bold>Yhdyskäytävän paritus</bold>","<gray>Kohde: <gold>{destination}"]
-"portal.menu.gateway.export" = ["<gold><bold>Luo kutsu</bold>","<gray>Luo allekirjoitettu yhdyskäytäväkoodi toiselle palvelimelle.","","<dark_gray>Kopioi uusi koodi napsauttamalla."]
-"portal.menu.gateway.import" = ["<aqua><bold>Käytä kutsua</bold>","<gray>Liitä toisen yhdyskäytävän allekirjoitettu koodi.","","<dark_gray>Napsauta ja liitä sitten koodi chattiin."]
-"portal.menu.network_number" = ["<aqua><bold>{label} <white>{value}</bold>","<gray>{description}","","<gray>Nykyinen: <aqua>{value}","","<dark_gray>Vasen napsautus: +{step}","<dark_gray>Oikea napsautus: -{step}","<dark_gray>Shift + vasen napsautus: +{large_step}","<dark_gray>Shift + oikea napsautus: -{large_step}"]
-"portal.menu.fallback_block" = ["<aqua><bold>Varalohko</bold>","<gray>Lohko, joka näytetään kuvavirran syvyyden takana.","","<gray>Nykyinen: <white>{block}","","<dark_gray>Vasen napsautus: syötä lohkon tila.","<dark_gray>Oikea napsautus: palauta ilmaksi."]
-"portal.menu.blackout" = ["<aqua><bold>Pimennystausta</bold>","<gray>Sulkee projektion taka- ja sivurajat kiinteällä betonilla, jotta paikallinen maailma ei koskaan näy läpi.","","<gray>Nykyinen: <white>{state} <dark_gray>({color})","","<dark_gray>Vasen napsautus: vaihda käytössä/pois.","<dark_gray>Oikea napsautus: valitse väri."]
-"portal.menu.blackout_color.placard" = ["<gold><bold>Pimennysväri</bold>","<gray>Pimennyskuoreen käytettävän betonin väri.","","<gray>Nykyinen: <white>{color}"]
-"portal.menu.blackout_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>Valitse napsauttamalla."]
-"portal.menu.activation_range" = ["<aqua><bold>Aktivointietäisyys <white>{value}</bold>","<gray>Etäisyys lohkoina, jolla tämä portaali alkaa projisoida lähellä oleville pelaajille.","","<gray>Nykyinen: <aqua>{value}","","<dark_gray>Vasen napsautus: +{step}","<dark_gray>Oikea napsautus: -{step}","<dark_gray>Shift + vasen napsautus: +{large_step}","<dark_gray>Shift + oikea napsautus: -{large_step}","<dark_gray>Alle 8 palautuu arvoon Yleinen."]
-"portal.menu.placard.rtp" = ["<gold><bold>{portal}</bold>","<gray>Tyyppi: <yellow>{type}","<gray>Suunta: <blue>{facing}","<gray>Jako: <aqua>{allocation}","<gray>Vaihto: <aqua>{rotation}","","<dark_gray>Ylläpitäjät ohittavat sallittujen ja estettyjen listat."]
-"portal.menu.placard.linked" = ["<gold><bold>{portal}</bold>","<gray>Tyyppi: <yellow>{type}","<gray>Suunta: <blue>{facing}","<gray>Linkitetty kohteeseen: <gold>{destination}","","<dark_gray>Ylläpitäjät ohittavat sallittujen ja estettyjen listat."]
-"portal.menu.placard.unlinked" = ["<gold><bold>{portal}</bold>","<gray>Tyyppi: <yellow>{type}","<gray>Suunta: <blue>{facing}","<gray>Linkitetty kohteeseen: <red>{none}","","<dark_gray>Ylläpitäjät ohittavat sallittujen ja estettyjen listat."]
-"portal.menu.settings_placard_gateway" = ["<aqua><bold>Portaalin asetukset</bold>","<gray>Pääsyn ja siirtojen hallinta.","<gray>Lisäksi palvelinten välisen näkymän hienosäätö.","","<gray>Suurempi syvyys / lyhyemmät tick-välit =","<gray>tarkempi näkymä, suurempi kaistanleveys."]
-"portal.menu.cost.opener" = ["<gold><bold>Matkustuskustannus</bold>","<gray>Vaadi tarkka esine tai Vault-valuuttaa,","<gray>kun pelaaja käyttää tätä portaalia.","","<gray>Tila: <white>{mode}","<gray>Kustannus: <white>{cost}","","<dark_gray>Määritä napsauttamalla."]
-"portal.menu.cost.placard" = ["<gold><bold>Matkustuskustannus</bold>","<gray>Pelaajien on maksettava, ennen kuin tämä portaali","<gray>sallii heidän matkustaa.","","<gray>Tila: <white>{mode}","<gray>Kustannus: <white>{cost}"]
-"portal.menu.cost.mode_free" = ["<green><bold>Ilmainen</bold>","<gray>Maksua ei vaadita.","","<dark_gray>Tee matkustamisesta ilmaista napsauttamalla."]
-"portal.menu.cost.mode_vanilla" = ["<aqua><bold>Vanilla-esine</bold>","<gray>Kuluttaa tarkalleen vastaavan esineen.","","<dark_gray>Napsauta, pidä esinettä ja paina sitten Pudota."]
-"portal.menu.cost.mode_vault" = ["<green><bold>Vault-talous</bold>","<gray>Veloittaa valuuttaa Vaultin kautta.","","<dark_gray>Syötä määrä napsauttamalla."]
-"portal.menu.cost.mode_vault_unavailable" = ["<red><bold>Vault-talous ei käytettävissä</bold>","<gray>Vault ja talousjärjestelmän tarjoaja vaaditaan.","","<dark_gray>Asenna tai ota molemmat käyttöön käyttääksesi tätä tilaa."]
-"portal.menu.cost.free_detail" = ["<green><bold>Ei kustannusta</bold>","<gray>Matkustaminen tämän portaalin läpi on ilmaista."]
-"portal.menu.cost.secondary_empty" = ["<dark_gray><bold>Ei lisäasetusta</bold>"]
-"portal.menu.cost.item" = ["<aqua><bold>{item}</bold>","<gray>Tämä tarkka esine vaaditaan matkustamiseen.","<gray>Valintaesinettä ei koskaan kuluteta.","","<dark_gray>Vasen: valitse toinen kädessä pidetty esine.","<dark_gray>Oikea: poista kustannus."]
-"portal.menu.cost.quantity" = ["<aqua><bold>Määrä {quantity}</bold>","<gray>Montako tarkalleen vastaavaa esinettä","<gray>kulutetaan läpikulkua kohden.","","<dark_gray>Vasen napsautus: +1","<dark_gray>Oikea napsautus: -1","<dark_gray>Shift + vasen napsautus: +8","<dark_gray>Shift + oikea napsautus: -8","<dark_gray>Maksimi: {maximum}"]
-"portal.menu.cost.vault_amount" = ["<green><bold>{amount}</bold>","<gray>Valuutta, joka veloitetaan läpikulkua kohden.","","<dark_gray>Vasen: syötä toinen määrä.","<dark_gray>Oikea: poista kustannus."]
-"portal.menu.mode_placard" = ["<yellow><bold>Portaalitila</bold>","<gray>Nykyinen: <yellow>{mode}","","<gray>Portal: tavallinen linkitettävä portaali.","<gray>Wormhole: portaali, jossa on projisoitu näkymäalue.","<gray>Gateway: palvelinten välinen yhdyskäytävä.","<gray>RTP: mukautettavat satunnaiset kohteet.","<gray>Mirror: peilaa tämän puolen; ei matkustamista."]
-"portal.menu.mode_opener" = ["<yellow><bold>Tila</bold>","<gray>{description}","","<gray>Nykyinen: <yellow>{mode}","","<dark_gray>Vaihda tilaa napsauttamalla."]
-"portal.menu.direction" = ["<blue><bold>Suunta</bold>","<gray>Muuta portaalin katselusuuntaa.","","<gray>Nykyinen suunta: <blue>{direction}","","<dark_gray>Napsauta, katso suuntaan ja ota se käyttöön vasemmalla napsautuksella."]
-"portal.menu.flip_face" = ["<aqua><bold>Käännä etupuoli</bold>","<gray>Kääntää portaalin etupuolen suunnan.","<gray>Näytön kierto pysyy kohdistettuna.","","<gray>Näytön nykyinen yläreuna: <aqua>{up}","","<dark_gray>Käännä napsauttamalla."]
-"portal.menu.rotate_counterclockwise" = ["<gold><bold>Kierrä vastapäivään</bold>","<gray>Kiertää portaalin näkymäaluetta 90 astetta,","<gray>muuttamatta etupuolta.","","<gray>Näytön nykyinen yläreuna: <gold>{up}","","<dark_gray>Kierrä napsauttamalla."]
-"portal.menu.rotate_clockwise" = ["<gold><bold>Kierrä myötäpäivään</bold>","<gray>Kiertää portaalin näkymäaluetta 90 astetta,","<gray>muuttamatta etupuolta.","","<gray>Näytön nykyinen yläreuna: <gold>{up}","","<dark_gray>Kierrä napsauttamalla."]
-"portal.menu.back" = ["<yellow><bold>Takaisin</bold>","<gray>Palaa portaalivalikkoon."]
-"portal.menu.projection.on" = ["<gold><bold>Projektio päällä</bold>","<gray>Näyttää tämän portaalin reaaliaikaisen näkymän.","<gray>Kohteen tai peilin kuva näkyy.","","<gray>Nykyinen: <aqua>Projektio päällä</aqua>","","<dark_gray>Ota käyttöön tai poista käytöstä napsauttamalla."]
-"portal.menu.projection.off" = ["<dark_gray><bold>Projektio pois</bold>","<gray>Kehys pysyy tyhjänä.","<gray>Ei kohdenäkymää eikä peiliä.","","<gray>Nykyinen: <aqua>Projektio pois</aqua>","","<dark_gray>Ota käyttöön tai poista käytöstä napsauttamalla."]
-"portal.menu.settings_gateway" = ["<aqua><bold>Asetukset</bold>","<gray>Oikeudet, siirrot,","<gray>ja palvelinten välisen näkymän hienosäätö.","","<gray>Pääsy: <gold>{access}","<gray>Lähetys <aqua>{send}<gray>  Vastaanotto <aqua>{receive}","<gray>Syvyys <aqua>{depth}<gray>  Entiteetit <aqua>{entity}t","","<dark_gray>Avaa asetukset napsauttamalla."]
-"portal.menu.settings_sync" = ["<aqua><bold>Asetusten synkronointi {state}</bold>","<gray>Kun käytössä, tämän portaalin asetukset","<gray>(syvyys, tickit, projektio, käyttöoikeudet","<gray>ja siirrot) synkronoidaan kaikille linkitetyille palvelimille.","","<gray>Nykyinen: <aqua>{state}","","<dark_gray>Vaihda napsauttamalla."]
-"portal.menu.permission" = ["<gold><bold>Pääsy {mode}</bold>","<gray>{description}","<gray>Solmu: <white>{node}","","<gray>Nykyinen: <gold>{mode}","","<dark_gray>Vaihda sallittujen ja estettyjen listan välillä napsauttamalla.","<dark_gray>Ylläpitäjät ohittavat rajoituksen aina."]
-"portal.menu.mode_option.selected" = ["<yellow><bold>{mode}</bold>", "<gray>{description}", "", "<green>Tällä hetkellä valittu"]
-"portal.menu.mode_option.available" = ["<yellow><bold>{mode}</bold>","<gray>{description}","","<gray>Valitse napsauttamalla"]
-"portal.menu.mirror.selected" = ["<yellow><bold>Peili</bold>","<gray>Peilaa paikallisen maailman.","<gray>Näet itsesi katsomassa kehyksen läpi.","<gray>Peilitilassa ei voi matkustaa.","","<green>Valittu"]
-"portal.menu.mirror.available" = ["<yellow><bold>Peili</bold>","<gray>Peilaa paikallisen maailman.","<gray>Näet itsesi katsomassa kehyksen läpi.","<gray>Peilitilassa ei voi matkustaa.","","<gray>Valitse vasemmalla napsautuksella"]
-"portal.menu.mirror.flip" = ["<gray>Seinäpeilit kääntyvät 180 asteen askelin,","<gray>jotta peilatut entiteetit pysyvät kohdakkain.","<dark_gray>Oikea napsautus: käännä peilikuva."]
-"portal.menu.destination.local" = ["<gold>{portal}","<gray>kohdassa {x}, {y}, {z} maailmassa {world}, suunta {direction}"]
-"portal.menu.destination.remote" = ["<gold>{portal}","<gray>palvelimella <white>{server}","<gray>kohdassa {x}, {y}, {z} maailmassa {world}, suunta {direction}","<aqua>{state}"]
-"portal.menu.destination.sort" = ["<yellow><bold>Järjestys: <white>{mode}</bold>","<gray>Vaihda kohteiden järjestystä.","<yellow>Vasen napsautus"]
-"portal.menu.destination.previous_page" = ["<yellow><bold>Edellinen sivu</bold>","<gray>Näytä edelliset kohteet.","<yellow>Vasen napsautus"]
-"portal.menu.destination.next_page" = ["<yellow><bold>Seuraava sivu</bold>","<gray>Näytä seuraavat kohteet.","<yellow>Vasen napsautus"]
-"portal.menu.destination.page" = ["<aqua><bold>Sivu {page}/{pages}</bold>","<gray>{count} kohdetta"]
-"portal.menu.destination.empty" = ["<gray>Ei linkitettäviä kohteita saatavilla."]
-"portal.prompt.direction" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Katso haluamaasi suuntaan ja ota se käyttöön vasemmalla napsautuksella.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Peruuta painamalla Shift + vasen napsautus."]
-"rtp.overview.destination" = ["<yellow><bold>Kohde & Alue</bold>","<gray>Maailma, keskipiste ja säde.","<yellow>Vasen napsautus"]
-"rtp.overview.landing" = ["<yellow><bold>Laskeutumissäännöt</bold>","<gray>Pinnan ja korkeuden toiminta.","<yellow>Vasen napsautus"]
-"rtp.overview.routing" = ["<yellow><bold>Vaihto & Kohdevaranto</bold>","<gray>Jakaminen, kohteen vaihto ja varausten kestot.","<yellow>Vasen napsautus"]
-"rtp.overview.effects" = ["<yellow><bold>Tehosteet</bold>","<gray>Valmiusreunus päällä / Portaalin äänet päällä.","<yellow>Vasen napsautus"]
-"rtp.overview.reset_defaults" = ["<yellow><bold>Palauta oletukset</bold>","<gray>Palauttaa tämän portaalin satunnaisteleporttauksen asetukset heti oletusarvoihin.","<yellow>Vasen napsautus"]
-"rtp.navigation.back_portal" = ["<yellow><bold>Takaisin portaaliin</bold>","<gray>Palaa portaalivalikkoon.","<yellow>Vasen napsautus"]
-"rtp.navigation.overview" = ["<yellow><bold>Yleiskatsaus</bold>","<gray>Palaa RTP-yleiskatsaukseen.","<yellow>Vasen napsautus"]
-"rtp.navigation.back_category" = ["<yellow><bold>Takaisin</bold>","<gray>Palaa edelliseen luokkaan.","<yellow>Vasen napsautus"]
-"rtp.destination.header" = ["<aqua><bold>Kohde & Alue</bold>","<gray>Valitse vasemmalla napsautuksella"]
-"rtp.destination.world_current" = ["<green><bold>{world}</bold>", "<gray>Nykyinen kohdemaailma.", "<green>Valittu"]
-"rtp.destination.world_available" = ["<aqua><bold>{world}</bold>","<gray>Käytä tätä ladattua maailmaa.","<yellow>Valitse vasemmalla napsautuksella"]
-"rtp.destination.previous_worlds" = ["<yellow><bold>Edelliset maailmat</bold>","<gray>Näytä edellinen sivu.","<yellow>Vasen napsautus"]
-"rtp.destination.next_worlds" = ["<yellow><bold>Seuraavat maailmat</bold>","<gray>Näytä seuraava sivu.","<yellow>Vasen napsautus"]
-"rtp.destination.biome_link" = ["<yellow><bold>Kohdebiomi <white>{value}</bold>","<gray>Suosi laskeutumista valittuun biomiin.","<yellow>Vasen napsautus"]
-"rtp.biome.header" = ["<aqua><bold>Kohdebiomi</bold>","<gray>Haku suosii tätä biomia ja käyttää mitä tahansa turvallista paikkaa, jos sitä ei löydy läheltä."]
-"rtp.biome.any_selected" = ["<green><bold>Mikä tahansa biomi</bold>","<gray>Ei biomivalintaa.","<green>Valittu"]
-"rtp.biome.any_available" = ["<aqua><bold>Mikä tahansa biomi</bold>","<gray>Poista biomivalinta.","<yellow>Valitse vasemmalla napsautuksella"]
-"rtp.biome.current" = ["<green><bold>{biome}</bold>","<gray>{key}","<green>Valittu"]
-"rtp.biome.available" = ["<aqua><bold>{biome}</bold>","<gray>{key}","<yellow>Valitse vasemmalla napsautuksella"]
-"rtp.biome.empty" = ["<gray>Kohdemaailmalle ei ole biomeja saatavilla."]
-"rtp.biome.previous" = ["<yellow><bold>Edelliset biomit</bold>","<gray>Näytä edellinen sivu.","<yellow>Vasen napsautus"]
-"rtp.biome.next" = ["<yellow><bold>Seuraavat biomit</bold>","<gray>Näytä seuraava sivu.","<yellow>Vasen napsautus"]
-"rtp.destination.center_portal_selected" = ["<green><bold>Portaaliin suhteutettu keskipiste</bold>","<gray>Keskitä kohderengas tähän portaaliin.","<green>Valittu"]
-"rtp.destination.center_portal_available" = ["<aqua><bold>Portaaliin suhteutettu keskipiste</bold>","<gray>Keskitä kohderengas tähän portaaliin.","<yellow>Valitse vasemmalla napsautuksella"]
-"rtp.destination.center_custom_selected" = ["<green><bold>Mukautettu keskipiste</bold>","<gray>Käytä muokattavia X- ja Z-koordinaatteja.","<green>Valittu"]
-"rtp.destination.center_custom_available" = ["<aqua><bold>Mukautettu keskipiste</bold>","<gray>Käytä muokattavia X- ja Z-koordinaatteja.","<yellow>Valitse vasemmalla napsautuksella"]
-"rtp.numeric.link" = ["<yellow><bold>{label} <white>{value}</bold>","<gray>Avaa selkeät pienennys- ja suurennussäätimet.","<yellow>Vasen napsautus"]
-"rtp.destination.reset_center" = ["<yellow><bold>Palauta keskus / kohde</bold>","<gray>Käytä lähtömaailmaa ja portaalin keskustaa.","<yellow>Vasen napsautus"]
-"rtp.landing.header" = ["<aqua><bold>Laskeutumissäännöt</bold>","<gray>Choose surface or preferred-height behavior and its safety mode."]
-"rtp.landing.surface_selected" = ["<green><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<green>Selected"]
-"rtp.landing.surface_available" = ["<aqua><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<yellow>Left click to select"]
-"rtp.landing.preferred_selected" = ["<green><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<green>Selected"]
-"rtp.landing.preferred_available" = ["<aqua><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<yellow>Left click to select"]
-"rtp.landing.safe_policy" = ["<aqua><bold>Landing Safety: <white>{mode}</bold>","<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.","<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.","<yellow>Left click to toggle"]
-"rtp.routing.header" = ["<aqua><bold>Vaihto & Kohdevaranto</bold>","<gray>Valitse tilat suoraan ja ota sitten kaikki muutokset käyttöön yhdessä."]
-"rtp.routing.shared_selected" = ["<green><bold>Yhteinen kohde</bold>","<gray>Kaikki näkevät ja käyttävät samaa reittiä.","<green>Valittu"]
-"rtp.routing.shared_available" = ["<aqua><bold>Yhteinen kohde</bold>","<gray>Kaikki näkevät ja käyttävät samaa reittiä.","<yellow>Valitse vasemmalla napsautuksella"]
-"rtp.routing.private_selected" = ["<green><bold>Pelaajakohtaiset kohteet</bold>","<gray>Jokainen pelaaja saa oman varauksen.","<green>Valittu"]
-"rtp.routing.private_available" = ["<aqua><bold>Pelaajakohtaiset kohteet</bold>","<gray>Jokainen pelaaja saa oman varauksen.","<yellow>Valitse vasemmalla napsautuksella"]
-"rtp.routing.static_selected" = ["<green><bold>Pysyvä</bold>","<gray>Säilytä sama kohde.","<green>Valittu"]
-"rtp.routing.static_available" = ["<aqua><bold>Pysyvä</bold>","<gray>Säilytä sama kohde.","<yellow>Valitse vasemmalla napsautuksella"]
-"rtp.routing.timed_selected" = ["<green><bold>Ajastettu</bold>","<gray>Vaihda kohde määritetyn ajan jälkeen.","<green>Valittu"]
-"rtp.routing.timed_available" = ["<aqua><bold>Ajastettu</bold>","<gray>Vaihda kohde määritetyn ajan jälkeen.","<yellow>Valitse vasemmalla napsautuksella"]
-"rtp.routing.trip_selected" = ["<green><bold>Jokaisen matkan jälkeen</bold>","<gray>Ota valmisteltu korvaava kohde käyttöön matkan jälkeen.","<green>Valittu"]
-"rtp.routing.trip_available" = ["<aqua><bold>Jokaisen matkan jälkeen</bold>","<gray>Ota valmisteltu korvaava kohde käyttöön matkan jälkeen.","<yellow>Valitse vasemmalla napsautuksella"]
-"rtp.routing.manual_reroll" = ["<yellow><bold>Valitse uusi kohde</bold>","<gray>{description}","<yellow>Vasen napsautus"]
-"rtp.routing.rebuild_pool" = ["<yellow><bold>Rakenna kohdevaranto uudelleen</bold>","<gray>{description}","<yellow>Vasen napsautus"]
-"rtp.effects.header" = ["<aqua><bold>Tehosteet</bold>","<gray>Ulkoasumuutokset eivät luo kohteita uudelleen."]
-"rtp.effects.rim_on_selected" = ["<green><bold>Valmiusreunus päällä</bold>","<gray>Näytä henkilökohtainen valmius portaalin reunalla.","<green>Valittu"]
-"rtp.effects.rim_on_available" = ["<aqua><bold>Valmiusreunus päällä</bold>","<gray>Näytä henkilökohtainen valmius portaalin reunalla.","<yellow>Valitse vasemmalla napsautuksella"]
-"rtp.effects.rim_off_selected" = ["<green><bold>Valmiusreunus pois</bold>","<gray>Piilota valmiusreunus.","<green>Valittu"]
-"rtp.effects.rim_off_available" = ["<aqua><bold>Valmiusreunus pois</bold>","<gray>Piilota valmiusreunus.","<yellow>Valitse vasemmalla napsautuksella"]
-"rtp.effects.sound_on_selected" = ["<green><bold>Portaalin äänet päällä</bold>","<gray>Toista tämän RTP-portaalin tehosteet ja matkaäänet.","<green>Valittu"]
-"rtp.effects.sound_on_available" = ["<aqua><bold>Portaalin äänet päällä</bold>","<gray>Toista tämän RTP-portaalin tehosteet ja matkaäänet.","<yellow>Valitse vasemmalla napsautuksella"]
-"rtp.effects.sound_off_selected" = ["<green><bold>Portaalin äänet pois</bold>","<gray>Mykistä tämä RTP-portaali; hiukkaset pysyvät käytössä.","<green>Valittu"]
-"rtp.effects.sound_off_available" = ["<aqua><bold>Portaalin äänet pois</bold>","<gray>Mykistä tämä RTP-portaali; hiukkaset pysyvät käytössä.","<yellow>Valitse vasemmalla napsautuksella"]
-"rtp.numeric.target_unavailable" = ["<aqua><bold>Kohdemaailma ei ole käytettävissä</bold>","<gray>Lataa kohdemaailma ennen tämän arvon muokkaamista."]
-"rtp.numeric.value" = ["<aqua><bold>{value}</bold>","<gray>Luonnoksen nykyinen arvo."]
-"rtp.numeric.adjust" = ["<yellow><bold>{direction}{step}</bold>","<gray>Muuta luonnosta arvolla {direction}{step}.","<yellow>Vasen napsautus"]
-"rtp.numeric.header" = ["<aqua><bold>{label}</bold>", "<gray>{description}"]
-"rtp.confirm.reroll" = ["<aqua><bold>Valitaanko yhteiselle reitille uusi kohde?</bold>","<gray>Nykyinen projektio pysyy aktiivisena, kunnes uusi kohde on valmis."]
-"rtp.confirm.rebuild" = ["<aqua><bold>Rakennetaanko yksityinen kohdevaranto uudelleen?</bold>","<gray>Nykyiset varaukset säilyvät, kun vapaat kohteet rakennetaan uudelleen."]
-"rtp.confirm.confirm" = ["<yellow><bold>Vahvista</bold>","<gray>Suorita toiminto nyt.","<yellow>Vasen napsautus"]
-"rtp.confirm.cancel" = ["<yellow><bold>Peruuta</bold>","<gray>Palaa muuttamatta suorituksenaikaista tilaa.","<yellow>Vasen napsautus"]
-"rtp.status.header" = ["<gold><bold>Satunnaisen kohteen tila</bold>","<gray>Tila: {state}"]
+[language.editor.category]
+message-count = "&7{count} viestiä&r"
+open = "&8Avaa tämä luokka napsauttamalla.&r"
 
-"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tasku <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Koko <white>{size}<gray> lohkoa, seinat <white>{material}<gray>, uloskayntiovi <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Rajat <white>{minimum}<gray> - <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Uudelleenrakennus kokoon {size} tuhoaisi <white>{blocks}<red> asetettua lohkoa ja siirtaisi <white>{entities}<red> olentoa.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Uusien seinien ulkopuoliset lohkot tuhotaan; siirtyvat olennot viedaan sisaankaynnille.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Aja sama komento lisayksella <white>confirm=true<gray> jatkaaksesi."]
-"portal.menu.public_look_label" = ["<aqua><bold>Public Look Label: <white>{state}</bold>","<gray>Show this portal's name when nearby players look at it.","<gray>When Off, the route label remains portal-tool only.","","<yellow>Left click to toggle"]
-[plural."command.admin.deleted_portals"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Poistettiin <white>{count}<green> portaali ja puhdistettiin paikalliset portaalilinkit."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Poistettiin <white>{count}<green> portaalia ja puhdistettiin paikalliset portaalilinkit."
+[language.editor.error]
+no-permission = "Sinulla ei ole oikeutta muokata lisäosan {plugin} kieliä."
+unable-to-edit = "Muokkaus epäonnistui: {reason}"
 
-[plural."command.admin.reset_everything"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes palautettiin oletustilaan. <white>{count}<green> portaali poistettiin, verkkoyhteydet suljettiin ja oletusmääritystiedostot luotiin uudelleen."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes palautettiin oletustilaan. <white>{count}<green> portaalia poistettiin, verkkoyhteydet suljettiin ja oletusmääritystiedostot luotiin uudelleen."
+[language.editor.input]
+expired = "Kielieditorin syöttöaika päättyi."
+too-long = "Syöte saa sisältää enintään {maximum} merkkiä."
+unable-to-save = "Tallennus epäonnistui: {reason}"
 
-[plural."wand.selection.selected"]
-one = "<aqua>{count} lohko valittu. Avaa portaali napsauttamalla lasipaneelia vasemmalla."
-other = "<aqua>{count} lohkoa valittu. Avaa portaali napsauttamalla lasipaneelia vasemmalla."
+[language.editor.locale]
+open = "&8Avaa tämä kieli napsauttamalla.&r"
 
-[plural."command.admin.projection_flushed"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Tyhjennettiin <white>{count}<green> projektiotarkkailija; asiakkaat rakentavat uudelleen todellisesta tilasta."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Tyhjennettiin <white>{count}<green> projektiotarkkailijaa; asiakkaat rakentavat uudelleen todellisesta tilasta."
+[language.editor.message]
+current-value = "&7Nykyinen arvo:&r"
+edit-chat = "&7Muokkaa chatissa napsauttamalla.&r"
+edit-lines = "&7Muokkaa yksittäisiä rivejä napsauttamalla.&r"
+edit-plural = "&7Muokkaa monikkomuotoa napsauttamalla.&r"
+variables = "&8{variables}&r"
+
+[language.editor.navigation]
+back = "&eTakaisin&r"
+close = "&cSulje&r"
+next-page = "&eSeuraava sivu&r"
+previous-page = "&eEdellinen sivu&r"
+
+[language.editor.part]
+line = "Rivi {line}"
+
+[language.editor.prompt]
+current = "Nykyinen arvo: {value}"
+guidance = "Käytä \\n rivinvaihtoon ja \\\\ kenoviivaan tai palaa kirjoittamalla cancel."
+search = "Hae viestin avainta tai tekstiä. Palaa kirjoittamalla cancel."
+value = "Kirjoita avaimen {key} uusi arvo chattiin."
+variables = "Muuttujat: {variables}"
+
+[language.editor.saved]
+change = "{key}: ”{before}” muutettiin arvoon ”{after}”."
+summary = "{locale} tallennettu. Kielivalinnat säilyvät ennallaan."
+
+[language.editor.search]
+clear = "Tyhjennä haku"
+messages = "Hae viestejä"
+messages-lore = "Napsauta hakeaksesi kaikista viesteistä."
+
+[language.editor.section]
+group-title = "{locale} / {group}"
+languages = "Kielet"
+search = "Etsi"
+search-title = "{locale} / Etsi"
+
+[language.editor.value]
+empty = "(tyhjä)"
+none = "Ei ole"
+
+[language.error]
+editor-player-only = "Avaa kielieditori pelissä."
+no-providers = "Yhtään Volmit-kielipalvelua ei ole saatavilla."
+numeric-page = "Anna sivunumero numerona."
+personal-permission = "Sinulla ei ole lupaa valita kieltäsi."
+personal-player-only = "Pelaajan kieliasetukset on valittava pelissä."
+plugin-personal-permission = "Sinulla ei ole oikeutta valita kieltäsi lisäosalle {plugin}."
+plugin-server-permission = "Sinulla ei ole oikeutta muuttaa lisäosan {plugin} palvelinkieltä."
+server-locale-required = "Valitse palvelimen oletuskieleksi kielikoodi, kuten en_US."
+stopping = "Kielivalintaa ei ole saatavilla, kun plugin pysähtyy."
+unavailable-for-all = "Kieli {locale} ei ole saatavilla kaikille valituille lisäosille."
+
+[language.menu]
+all-volmit-plugins = "Kaikki Volmit-lisäosat"
+command = "Komento: {command}"
+current = "Nykyinen: {locale}"
+current_with_personal = "Nykyinen: {locale} (Omasi: {personal})"
+edit_description = "Avaa kielikohtainen viestieditori."
+edit_messages = "Muokkaa kieliviestejä"
+no_controls = "Sinulla ei ole käytettävissä kieliasetuksia."
+remove_personal_description = "Poista henkilökohtainen kielivalintasi."
+reset_description = "Käytä palvelimen oletuskieltä."
+reset_your_language = "Palauta oma kielesi"
+select_description = "Napsauta valitaksesi tämän kielen."
+selected = "valittu"
+server_default = "Palvelimen oletuskieli"
+server_description = "Vaihda palvelimen oletuskieli."
+use_server_default = "Käytä palvelimen oletuskieltä"
+your_description = "Vaihda vain näkemäsi viestit."
+your_language = "Oma kielesi"
+
+[language.selection]
+english-fallback = "{plugin}: {locale} ei ole saatavilla; käytetään englantia (en_US)."
+personal-selected = "{plugin}: kieli on nyt {locale}."
+preparing = "Valmistellaan kieltä {locale} kohteelle {target}..."
+save-failed = "{plugin}: kielivalintaa ei voitu tallentaa; tarkista palvelinkonsoli."
+server-default-selected = "{plugin}: kielesi noudattaa nyt palvelimen oletuskieltä."
+server-selected = "{plugin}: palvelinkieli on nyt {locale}."
+
+[language.usage]
+editor = "Käyttö: /{command} language server edit [locale]"
+selection = "Käyttö: /{command} language self [locale|reset] or server [locale]"
+volmit-selection = "Käyttö: /volmit plugins languages [locale]"
+
+[command]
+public_help = ["&8[&6Wormholes&8] &7Portaaliohje: &f/wormholes info", "&8[&6Wormholes&8] &7Käytä portaalisauvaa portaaliin avataksesi kohteen, näkymän, matkustamisen ja käyttöoikeuksien asetukset."]
+info = ["&8[&6Wormholes&8] &7&lMadonreiän rakentaminen&r", "&81. &7Hanki portaalisauva ja portaaliriimuja palvelimelta tai ylläpitäjältä.", "&82. &7Aseta riimut yhtenäiseksi kuvioksi yhdelle tasaiselle pinnalle.", "&7   Mikä tahansa yhtenäinen kuvio toimii: suorakulmio, viiva (3x1), yksittäinen lohko, L-kuvio tai risti.", "&7   Riimujen on oltava tasaisesti samalla akselinsuuntaisella seinällä, lattialla tai katossa.", "&83. &7Pidä portaalisauvaa ja &fnapsauta mitä tahansa riimulohkoa vasemmalla&7 muodostaaksesi portaalin.", "&84. &7Rakenna TOINEN portaali muualle (mille tahansa etäisyydelle, mihin tahansa maailmaan).", "&85. &7Avaa päävalikko napsauttamalla avointa portaalia sauvalla.", "&7   Valitse &fKohde&7 ja sitten toinen portaali. Toista sama toiselta puolelta.", "&7   Suuntaus ja käyttöoikeudet ovat omissa selkeissä valikoissaan.", "&86. &7Pysy {range} lohkon sisällä jommastakummasta portaalista — kohdemaailma projisoituu kehykseen ja sisään astuminen teleporttaa sinut.", "&7Ylläpitäjät voivat luoda tarvikkeita komennolla &f/wormholes wand"]
+
+[command.help]
+debug = "Wormholesin diagnostiikkatyökalut"
+debug_dump = "Luo diagnostiikkaraportti ja lähetä se halutessasi"
+debug_dump_upload = "Lähetä raportti mclo.gs-palveluun"
+language = "Valitse oma kielesi tai palvelimen oletuskieli"
+root = "Wormholes-pääkomento"
+wand = "Anna itsellesi portaalisauva ja madonreikaruuni"
+"wand.rune" = "Anna mukaan madonreikaruuni (rune=false antaa vain sauvan)"
+door = "Anna selviytymistilassa käytettävä ulottuvuusovi"
+"door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
+reload = "Lataa Wormholes-asetukset ja kielitiedostot uudelleen"
+debug_toggle = "Vaihda yksityiskohtaiset konsolilokit ja sekunnin välein päivittyvä telemetria"
+stats = "Näytä reaaliaikaisen tilannekuvan polku; päivitä heti valinnalla now=true"
+"stats.now" = "Luo tilannekuva heti uudelleen synkronisesti"
+info = "Näytä portaalin rakennusohjeet"
+admin = "Wormholes-lisäosan tuhoavat ylläpitokomennot"
+"admin.delete_portals" = "Poista kaikki paikalliset portaalit ja tallennetut portaalilinkit"
+"admin.delete_everything" = "Nollaa Wormholes-lisäosan tiedot, asetukset, luottamus, identiteetti ja verkon tila"
+"admin.freeze" = "Jäädytä kaikki portaaliprojektiot paikoilleen tietyksi sekuntimääräksi (seconds=0 jatkaa)"
+"admin.freeze.seconds" = "Kuinka kauan jäädytettyä ruutua pidetään (5-300, 0 jatkaa heti)"
+"admin.flush" = "Palauta jokaisen tarkkailijan projisoidut lohkot todelliseen tilaan ja rakenna ne uudelleen"
+network = "Palvelinten välinen madonreikäverkko"
+"network.import" = "Tuo portaalikoodi toiselta palvelimelta (tallentaa sisäisen reitin; linkitä yhdyskäytävän Linkki-valikosta)"
+"network.import.code" = "Toisen palvelimen Vie-painikkeesta saatu portaalikoodi"
+"network.status" = "Näytä vertaispalvelinten yhteystila"
+"network.doctor" = "Selitä, miksi vertaispalvelimet eivät yhdistä"
+server = "Palvelinten välinen matkustus: yhdistä linkitettyihin palvelimiin, listaa ne ja vaihda niitä"
+"server.connect" = "Siirry linkitetylle palvelimelle (lyhenne: /wh server \\<name>)"
+"server.connect.name" = "Linkitetyn palvelimen nimi (katso /wh server list)"
+"server.export" = "Vie tämä palvelin koodina, jonka muut palvelimet voivat tuoda"
+"server.import" = "Tuo toisen palvelimen viemä palvelin- tai portaalikoodi"
+"server.import.code" = "Koodi toisen palvelimen viennistä"
+"server.list" = "Listaa linkitetyt palvelimet ja niiden yhteystila"
+"server.remove" = "Unohda linkitetty palvelin (poistaa sen reitin ja luotetun avaimen)"
+"server.remove.name" = "Unohdettavan linkitetyn palvelimen nimi"
+pocket = "Tarkastele ja muokkaa taskuulottuvuuksia"
+"pocket.info" = "Nayta sen taskun koko, materiaalit ja rajat, jossa seisot"
+"pocket.resize" = "Rakenna tasku, jossa seisot, uudelleen uudella koolla tai materiaalilla"
+"pocket.resize.size" = "Huoneen uusi sarma lohkoina, tai 0 sailyttaa nykyisen koon"
+"pocket.resize.material" = "Uusi seinien, lattian ja katon lohko, tai keep"
+"pocket.resize.door" = "Uusi uloskaynnin ovilohko, tai keep"
+"pocket.resize.confirm" = "Vaaditaan, kun muutos tuhoaisi tai siirtaisi jotakin"
+"pocket.resizeall" = "Rakenna jokainen olemassa oleva tasku uudelleen uudella koolla tai materiaalilla"
+
+[command.error]
+no_permission = "&8[&6Wormholes&8] &cSinulla ei ole lupaa."
+no_permission_use = "&8[&6Wormholes&8] &cSinulla ei ole lupaa käyttää sitä käskyä."
+only_players = "&8[&6Wormholes&8] &cVain pelaajat voivat vastaanottaa esineitä."
+usage = "&7Käyttö: &f/wormholes help"
+
+[command.wand]
+granted_wand = "&8[&6Wormholes&8] &aPortaalisauva annettu."
+granted_starter = ["&8[&6Wormholes&8] &aSait portaalisauvan ja 1 madonreikäriimun.", "&8[&6Wormholes&8] &7Rakenna KAKSI madonreikäriimukuviota (mikä tahansa yhtenäinen kuvio yhdellä tasaisella pinnalla), linkitä ne ja pysy {range} lohkon sisällä nähdäksesi projektion.", "&8[&6Wormholes&8] &7Katso kaikki vaiheet komennolla &f/wormholes info&7."]
+
+[command.door]
+unavailable = "&8[&6Wormholes&8] &cUlottuvuusovet eivät ole käytettävissä."
+unknown_type = "&8[&6Wormholes&8] &cTuntematon ovityyppi. Käytä arvoa pair, personal tai public, pair_trapdoor, personal_trapdoor, public_trapdoor."
+empty_type = "Ovityyppi ei voi olla tyhjä"
+granted = "&8[&6Wormholes&8] &aMyönnettiin tyypin &f{type}&a ulottuvuusovi."
+
+[command.reload]
+applied = "&8[&6Wormholes&8] &aWormholes-laajennuksen määritys- ja kielitiedostot ladattiin uudelleen."
+language_retained = "&8[&6Wormholes&8] &eKonfiguraatio ladattiin uudelleen, mutta kieli- tiedosto hylättiin. Viimeinen voimassa oleva kieli on edelleen aktiivinen; tarkista konsolin."
+failed = "&8[&6Wormholes&8] &cKonfiguraation uudelleenlataus epäonnistui; muokkaus jää odottamaan ja sitä yritetään uudelleen. Tarkista konsoli."
+
+[command.stats]
+unavailable = "&8[&6Wormholes&8] &cTilastotiedostoa ei voitu kirjoittaa."
+refreshed = "&8[&6Wormholes&8] &aTilastotiedosto päivitetty."
+path = ["&8[&6Wormholes&8] &7Tilastotiedosto: &f{path}", "&8[&6Wormholes&8] &8Seuraa tätä tiedostoa jakaaksesi verkon ja näkymien reaaliaikaisen tilan. Tiedosto korvataan jokaisella aikavälillä."]
+
+[command.admin]
+delete_failed = "&8[&6Wormholes&8] &cKaikkia portaaleja ei voitu poistaa. Katso täydellinen virhepino konsolista."
+delete_schedule_failed = "&8[&6Wormholes&8] &cPortaalien nollausta ei voitu ajastaa."
+reset_failed = "&8[&6Wormholes&8] &cWormholes-laajennusta ei voitu nollata. Katso täydellinen virhepino konsolista."
+reset_schedule_failed = "&8[&6Wormholes&8] &cWormholes-laajennuksen nollausta ei voitu ajastaa."
+projection_frozen = "&8[&6Wormholes&8] &aKaikki portaaliprojektiot jäädytettiin &f{seconds}&a sekunniksi. Ne jatkuvat automaattisesti."
+projection_resumed = "&8[&6Wormholes&8] &aPortaaliprojektiot jatkettu."
+projection_failed = "&8[&6Wormholes&8] &cPortaaliprojektioiden päivitys epäonnistui. Tarkista konsolista koko virhepino."
+projection_schedule_failed = "&8[&6Wormholes&8] &cProjektiopäivitystä ei voitu ajastaa."
+
+[command.admin.deleted_portals]
+one = "&8[&6Wormholes&8] &aPoistettiin &f{count}&a portaali ja puhdistettiin paikalliset portaalilinkit."
+other = "&8[&6Wormholes&8] &aPoistettiin &f{count}&a portaalia ja puhdistettiin paikalliset portaalilinkit."
+
+[command.admin.reset_everything]
+one = "&8[&6Wormholes&8] &aWormholes palautettiin oletustilaan. &f{count}&a portaali poistettiin, verkkoyhteydet suljettiin ja oletusmääritystiedostot luotiin uudelleen."
+other = "&8[&6Wormholes&8] &aWormholes palautettiin oletustilaan. &f{count}&a portaalia poistettiin, verkkoyhteydet suljettiin ja oletusmääritystiedostot luotiin uudelleen."
+
+[command.admin.projection_flushed]
+one = "&8[&6Wormholes&8] &aTyhjennettiin &f{count}&a projektiotarkkailija; asiakkaat rakentavat uudelleen todellisesta tilasta."
+other = "&8[&6Wormholes&8] &aTyhjennettiin &f{count}&a projektiotarkkailijaa; asiakkaat rakentavat uudelleen todellisesta tilasta."
+
+[command.pocket]
+not_inside = "&8[&6Wormholes&8] &cSeiso taskuulottuvuudessa suorittaaksesi taman."
+invalid_size = "&8[&6Wormholes&8] &cTaskun koon on oltava {minimum} ja {maximum} lohkon valilla."
+invalid_shell_material = "&8[&6Wormholes&8] &c{material} ei kelpaa taskun seinaksi. Kayta kiinteaa lohkoa, joka ei putoa."
+invalid_door_material = "&8[&6Wormholes&8] &c{material} ei kelpaa taskun uloskayntioveksi. Kayta kasin avattavaa ovea; rautaovet hylataan."
+unchanged = "&8[&6Wormholes&8] &eTaskulla on jo tama koko ja namä materiaalit."
+containers_not_empty = "&8[&6Wormholes&8] &cTaskun koon muuttaminen keskeytettiin: &f{containers}&c tavaroita sisaltavaa sailiota tuhoutuisi. Tyhjenna ne ennen uutta yritysta; &fconfirm=true&c ei ohita tata turvatarkistusta."
+resized = "&8[&6Wormholes&8] &aTasku rakennettu uudelleen kokoon &f{size}&a lohkoa (aiemmin &f{previous}&a), seinat &f{material}&a, uloskayntiovi &f{door}."
+failed = "&8[&6Wormholes&8] &cTaskua ei voitu rakentaa uudelleen. Tarkista konsoli."
+world_unavailable = "&8[&6Wormholes&8] &cTaskuulottuvuus ei ole ladattuna."
+does_not_fit = "&8[&6Wormholes&8] &c{size} lohkon huone ei mahdu taskuulottuvuuden rakennuskorkeuteen."
+bulk_started = "&8[&6Wormholes&8] &7Rakennetaan &f{count}&7 taskua uudelleen."
+bulk_finished = "&8[&6Wormholes&8] &aRakennettu uudelleen &f{resized}&a, ohitettu &f{skipped}&a, epaonnistui &f{failed}."
+info = ["&8[&6Wormholes&8] &7Tasku &f{space}", "&8[&6Wormholes&8] &7Koko &f{size}&7 lohkoa, seinat &f{material}&7, uloskayntiovi &f{door}", "&8[&6Wormholes&8] &7Rajat &f{minimum}&7 - &f{maximum}"]
+confirm_required = ["&8[&6Wormholes&8] &cUudelleenrakennus kokoon {size} tuhoaisi &f{blocks}&c asetettua lohkoa ja siirtaisi &f{entities}&c olentoa.", "&8[&6Wormholes&8] &7Uusien seinien ulkopuoliset lohkot tuhotaan; siirtyvat olennot viedaan sisaankaynnille.", "&8[&6Wormholes&8] &7Aja sama komento lisayksella &fconfirm=true&7 jatkaaksesi."]
+
+[portal]
+deleted = "&c{portal} poistettu"
+
+[portal.network.label]
+render_mode = "Renderöintitila"
+ambient_style = "Ympäristöhiukkaset"
+ambient_color = "Ympäristöväri"
+surface_skin = "Pinnan ulkoasu"
+capture_radius = "Kaappaussäde"
+full_refresh = "Täysi päivitys"
+entity_update = "Entiteettipäivitys"
+view_grace = "Näkymän viiveaika"
+blackout = "Pimennystausta"
+blackout_color = "Pimennysväri"
+activation_range = "Aktivointietäisyys"
+
+[portal.network.description]
+capture_radius = "Kohdeportaalin ympärillä lähetettävät lohkot."
+full_refresh = "Tickit täysien lohkopäivitysten välillä."
+entity_update = "Tickit entiteettipäivitysten välillä."
+view_grace = "Sekunnit, joiden ajan tietovirta pidetään aktiivisena katseen siirtymisen jälkeen."
+
+[portal.travel]
+transfer_holding = "&6Yhdistetään kohdepalvelimeen..."
+transfer_interrupted = "&cPortaalisiirto keskeytyi: siirryit pois portaalista."
+transfer_source_unavailable = "&cPortaalisiirto keskeytyi: lähdeportaali ei ole enää käytettävissä."
+cooldown = "&6Portaalin palautumisaika on käynnissä"
+access_denied = "&cPääsy portaaliin estetty"
+cost_insufficient = "&cTarvitset {quantity}x {item}, jotta voit käyttää tätä portaalia."
+cost_vault_insufficient = "&cTarvitset {amount}, jotta voit käyttää tätä portaalia."
+cost_vault_unavailable = "&cTämän portaalin talouskustannus ei ole käytettävissä."
+cost_transaction_failed = "&cPortaali ei voinut käsitellä matkustuskustannustasi."
+destination_unavailable = "&cPortaalin kohde ei ole käytettävissä"
+arrival_denied = "&cKohdeportaali hylkäsi saapumisesi."
+arrival_returned = "&cKohdeportaali hylkäsi saapumisesi; sinut palautetaan palvelimelle {server}"
+arrival_failed = "&cSaapumista portaaliin ei voitu sijoittaa; jäät kohteen syntymispisteeseen"
+transfer_cooldown = "&6Palvelinten välisen portaalin palautumisaika: {seconds}s"
+destination_unreachable = "&cKohdepalvelimeen ei saada yhteyttä"
+destination_unreachable_detail = "&cKohdepalvelimeen ei saada yhteyttä: {reason}"
+transfer_blocked = "&cPortaalin siirto estettiin: {reason}"
+transfer_blocked_retry = "&cPortaalisiirto estetty: {reason} (uusi yritys {seconds} s kuluttua)"
+
+[portal.label]
+activation_global = "Yleinen ({range})"
+public_look_label = "Julkinen katseluteksti"
+
+[portal.label.ambient]
+red = "Punainen"
+green = "Vihreä"
+blue = "Sininen"
+
+[portal.label.ambient_style]
+sparks = "Kipinät"
+outline = "Ääriviiva"
+corners = "Kulmat"
+off = "Pois"
+
+[portal.label.skin]
+none = "Ei mitään"
+
+[portal.label.travel]
+both = "Molempiin suuntiin"
+outbound = "Vain lähtevä"
+inbound = "Vain saapuva"
+locked = "Lukittu"
+arrival = "Vain saapuminen"
+departure = "Vain lähtö"
+dimensional_both = "Molemmat yhdistetyt puolet pysyvät aktiivisina."
+dimensional_return_disabled = "Paluureitti pysyy poissa käytöstä."
+
+[portal.label.cost]
+free = "Ilmainen"
+vanilla = "Vanilla-esine"
+vault = "Vault-talous"
+
+[portal.label.quality]
+standard = "Vakio"
+performance = "Suorituskyky"
+balanced = "Tasapainoinen"
+cinematic = "Elokuvamainen"
+custom = "Mukautettu"
+
+[portal.label.mode]
+portal = "Portaali"
+wormhole = "Madonreikä"
+gateway = "Yhdyskäytävä"
+rtp = "RTP"
+mirror = "Peili"
+
+[portal.label.direction]
+up = "Ylös"
+down = "Alas"
+north = "Pohjoinen"
+south = "Etelä"
+east = "Itä"
+west = "Länsi"
+
+[portal.label.allocation]
+shared = "Yhteinen"
+per_player = "Pelaajakohtainen"
+
+[portal.label.permission]
+whitelist = "Sallittujen lista"
+blacklist = "Estettyjen lista"
+
+[portal.label.network]
+direct = "Suora"
+sideband = "Sivukanava"
+reconnecting = "Yhdistetään uudelleen"
+
+[portal.form]
+rtp_unsupported = "&cSatunnaisia teleporttiportaaleja ei voi luoda runista."
+forming = "&bMuodostetaan portaalia... {type}-riimujen on oltava yhteydessä tasaisella seinällä, lattialla tai katossa."
+must_be_flat = "&cPortaalin on oltava tasainen yhdellä seinällä, lattialla tai katossa."
+interrupted = "&cPortaalin muodostaminen keskeytyi; varatut riimut palautettiin."
+rune_placed = "&bRiimu asetettu. Rakenna yhtenäinen kuvio yhdelle tasaiselle pinnalle ja napsauta sitten mitä tahansa riimua portaalisauvalla vasemmalla."
+opened = "&aPortaali avattu. Pidä sauvaa kädessä ja NAPSAUTA portaalia määrittääksesi sen."
+
+[portal.edit]
+denied = "&cVain portaalin omistaja tai ylläpitäjä voi muokata tätä portaalia."
+
+[portal.menu]
+destination = ["&6&lKohde&r", "&7Valitse portaali, johon linkitetään.", "&7Nykyinen linkki: {destination}", "", "&8Avaa kohdevalitsin napsauttamalla."]
+"destination.sort_smart" = "Älykäs"
+"destination.sort_name" = "Nimi"
+"destination.sort_world" = "Maailma"
+"destination.sort_distance" = "Etäisyys"
+"destination.local" = ["&6{portal}", "&7kohdassa {x}, {y}, {z} maailmassa {world}, suunta {direction}"]
+"destination.remote" = ["&6{portal}", "&7palvelimella &f{server}", "&7kohdassa {x}, {y}, {z} maailmassa {world}, suunta {direction}", "&b{state}"]
+"destination.sort" = ["&e&lJärjestys: &f&l{mode}&r", "&7Vaihda kohteiden järjestystä.", "&eVasen napsautus"]
+"destination.previous_page" = ["&e&lEdellinen sivu&r", "&7Näytä edelliset kohteet.", "&eVasen napsautus"]
+"destination.next_page" = ["&e&lSeuraava sivu&r", "&7Näytä seuraavat kohteet.", "&eVasen napsautus"]
+"destination.page" = ["&b&lSivu {page}/{pages}&r", "&7{count} kohdetta"]
+"destination.empty" = ["&7Ei linkitettäviä kohteita saatavilla."]
+render_mode = ["&b&lRenderöintitila &f&l{mode}&r", "&7Kuinka suuren osan kohdetilavuudesta tämä portaali projisoi.", "", "&7Tila: &f{mode}", "", "&8PanOptic renderöi koko kohdetilavuuden.", "&8Venticular piilottaa näkyvien läpinäkymättömien pintojen takana olevan geometrian.", "", "&8Vasen: vaihda tilaa."]
+ambient_particles = ["&b&lYmpäristöhiukkaset&r", "&7Koristeellista pölyä, joka leijuu tämän portaalin ympärillä.", "", "&7Tyyli: &f{style} &8({color})", "", "&8Vasen: vaihda tyyliä.", "&8Oikea: valitse väri."]
+surface_skin = ["&b&lPinnan ulkoasu&r", "&7Peitä portaalin aukko renderöidyllä lohko- tai nestepaneelilla.", "", "&7Ulkoasu: &f{skin}", "", "&8Vasen: poista ulkoasu.", "&8Oikea: avaa ulkoasun asetukset."]
+"surface_skin.placard" = ["&6&lPinnan ulkoasu&r", "&7Napsauta portaalia hiiren oikealla lohkolla tai ämpärillä ottaaksesi ulkoasun käyttöön.", "", "&7Ulkoasu: &f{skin}"]
+"surface_skin.glass" = ["&b&lLasi-ulkoasu&r", "&7Kirkas lasi-ikkuna aukon päällä.", "", "&8Napsauta ottaaksesi lasin käyttöön."]
+"surface_skin.clear" = ["&c&lPoista ulkoasu&r", "&7Poistaa ulkoasun ja palauttaa projektiot.", "", "&8Napsauta poistaaksesi ulkoasun."]
+gateway_destination = ["&6&lParitus & Kohde&r", "&7Parita toinen palvelin tai valitse yhdyskäytävä.", "&7Nykyinen linkki: {destination}", "", "&8Avaa paritusnäkymä napsauttamalla."]
+rtp_destination = ["&6&lSatunnainen kohde&r", "&7Määritä, missä ja milloin portaali valitsee uuden kohteen.", "&7Vaihtotapa: &b{rotation}", "", "&8Avaa satunnaisteleportin asetukset napsauttamalla."]
+rename = ["&a&lNimeä portaali uudelleen&r", "&7Muuta linkeissä ja valikoissa näkyvää nimeä.", "&7Nykyinen: &f{portal}", "", "&8Kirjoita uusi nimi napsauttamalla."]
+delete = ["&c&lPoista portaali&r", "&7Poistaa portaalin pysyvästi.", "", "&c&nVahvista painamalla Shift + vasen napsautus&r"]
+advanced_settings = ["&3&lKuvavirran lisäasetukset&r", "&7Suorat asetukset diagnostiikkaan ja epätavallisiin linkkeihin.", "&7Yhden arvon muuttaminen merkitsee kuvavirran laadun mukautetuksi."]
+back_settings = ["&e&lPalaa asetuksiin&r", "&7Palaa portaaliasetuksiin."]
+stream_quality = ["&b&lKuvavirran laatu: {quality}&r", "&7Yksi asetus etänäkymän kantamalle ja päivitystiheydelle.", "", "&7Syvyys &b{depth}&7  Entiteetit &b{entities}t", "&7Päivitys &b{refresh}t&7  Viive &b{grace}s", "", "&8Napsauta: vaihda laatua.", "&8Shift + napsautus: lisäasetukset."]
+orientation = ["&9&lSuuntaus&r", "&7Suunta: &9{facing}", "&7Näytön yläreuna: &6{up}", "", "&8Napsauta määrittääksesi suunnan, käännön ja kierron."]
+orientation_placard = ["&9&lPortaalin suuntaus&r", "&7Suunta: &9{facing}", "&7Näytön yläreuna: &6{up}"]
+network_number = ["&b&l{label} &f&l{value}&r", "&7{description}", "", "&7Nykyinen: &b{value}", "", "&8Vasen napsautus: +{step}", "&8Oikea napsautus: -{step}", "&8Shift + vasen napsautus: +{large_step}", "&8Shift + oikea napsautus: -{large_step}"]
+fallback_block = ["&b&lVaralohko&r", "&7Lohko, joka näytetään kuvavirran syvyyden takana.", "", "&7Nykyinen: &f{block}", "", "&8Vasen napsautus: syötä lohkon tila.", "&8Oikea napsautus: palauta ilmaksi."]
+blackout = ["&b&lPimennystausta&r", "&7Sulkee projektion taka- ja sivurajat kiinteällä betonilla, jotta paikallinen maailma ei koskaan näy läpi.", "", "&7Nykyinen: &f{state} &8({color})", "", "&8Vasen napsautus: vaihda käytössä/pois.", "&8Oikea napsautus: valitse väri."]
+activation_range = ["&b&lAktivointietäisyys &f&l{value}&r", "&7Etäisyys lohkoina, jolla tämä portaali alkaa projisoida lähellä oleville pelaajille.", "", "&7Nykyinen: &b{value}", "", "&8Vasen napsautus: +{step}", "&8Oikea napsautus: -{step}", "&8Shift + vasen napsautus: +{large_step}", "&8Shift + oikea napsautus: -{large_step}", "&8Alle 8 palautuu arvoon Yleinen."]
+settings_placard_gateway = ["&b&lPortaalin asetukset&r", "&7Pääsyn ja siirtojen hallinta.", "&7Lisäksi palvelinten välisen näkymän hienosäätö.", "", "&7Suurempi syvyys / lyhyemmät tick-välit =", "&7tarkempi näkymä, suurempi kaistanleveys."]
+mode_placard = ["&e&lPortaalitila&r", "&7Nykyinen: &e{mode}", "", "&7Portal: tavallinen linkitettävä portaali.", "&7Wormhole: portaali, jossa on projisoitu näkymäalue.", "&7Gateway: palvelinten välinen yhdyskäytävä.", "&7RTP: mukautettavat satunnaiset kohteet.", "&7Mirror: peilaa tämän puolen; ei matkustamista."]
+mode_opener = ["&e&lTila&r", "&7{description}", "", "&7Nykyinen: &e{mode}", "", "&8Vaihda tilaa napsauttamalla."]
+direction = ["&9&lSuunta&r", "&7Muuta portaalin katselusuuntaa.", "", "&7Nykyinen suunta: &9{direction}", "", "&8Napsauta, katso suuntaan ja ota se käyttöön vasemmalla napsautuksella."]
+flip_face = ["&b&lKäännä etupuoli&r", "&7Kääntää portaalin etupuolen suunnan.", "&7Näytön kierto pysyy kohdistettuna.", "", "&7Näytön nykyinen yläreuna: &b{up}", "", "&8Käännä napsauttamalla."]
+rotate_counterclockwise = ["&6&lKierrä vastapäivään&r", "&7Kiertää portaalin näkymäaluetta 90 astetta,", "&7muuttamatta etupuolta.", "", "&7Näytön nykyinen yläreuna: &6{up}", "", "&8Kierrä napsauttamalla."]
+rotate_clockwise = ["&6&lKierrä myötäpäivään&r", "&7Kiertää portaalin näkymäaluetta 90 astetta,", "&7muuttamatta etupuolta.", "", "&7Näytön nykyinen yläreuna: &6{up}", "", "&8Kierrä napsauttamalla."]
+back = ["&e&lTakaisin&r", "&7Palaa portaalivalikkoon."]
+settings_gateway = ["&b&lAsetukset&r", "&7Oikeudet, siirrot,", "&7ja palvelinten välisen näkymän hienosäätö.", "", "&7Pääsy: &6{access}", "&7Lähetys &b{send}&7  Vastaanotto &b{receive}", "&7Syvyys &b{depth}&7  Entiteetit &b{entity}t", "", "&8Avaa asetukset napsauttamalla."]
+settings_sync = ["&b&lAsetusten synkronointi {state}&r", "&7Kun käytössä, tämän portaalin asetukset", "&7(syvyys, tickit, projektio, käyttöoikeudet", "&7ja siirrot) synkronoidaan kaikille linkitetyille palvelimille.", "", "&7Nykyinen: &b{state}", "", "&8Vaihda napsauttamalla."]
+permission = ["&6&lPääsy {mode}&r", "&7{description}", "&7Solmu: &f{node}", "", "&7Nykyinen: &6{mode}", "", "&8Vaihda sallittujen ja estettyjen listan välillä napsauttamalla.", "&8Ylläpitäjät ohittavat rajoituksen aina."]
+public_look_label = ["&b&lJulkinen katselunimike: &f&l{state}&r", "&7Näytä portin nimi, kun lähellä olevat pelaajat katsovat sitä.", "&7Kun pois käytöstä, reitin nimike näkyy vain porttityökalulla.", "", "&eVaihda vasemmalla napsautuksella"]
+
+[portal.menu.gateway]
+server = "&7Palvelin: &f{server}"
+link = "&7Linkki: &b{state}"
+choose = ["&6&lValitse kohde&r", "&7Valitse löydetyistä paikallisista ja etäisistä yhdyskäytävistä.", "", "&8Avaa kohdeluettelo napsauttamalla."]
+unpaired = ["&6&lYhdyskäytävän paritus&r", "&7Tila: &cEi paritettu"]
+paired = ["&6&lYhdyskäytävän paritus&r", "&7Kohde: &6{destination}"]
+export = ["&6&lLuo kutsu&r", "&7Luo allekirjoitettu yhdyskäytäväkoodi toiselle palvelimelle.", "", "&8Kopioi uusi koodi napsauttamalla."]
+import = ["&b&lKäytä kutsua&r", "&7Liitä toisen yhdyskäytävän allekirjoitettu koodi.", "", "&8Napsauta ja liitä sitten koodi chattiin."]
+
+[portal.menu.mirror]
+rotation = "&7Kuvan kierto: &b{degrees} astetta"
+rotate_clockwise = "&8Oikea napsautus: kierrä myötäpäivään."
+rotate_counterclockwise = "&8Shift + oikea napsautus: kierrä vastapäivään."
+selected = ["&e&lPeili&r", "&7Peilaa paikallisen maailman.", "&7Näet itsesi katsomassa kehyksen läpi.", "&7Peilitilassa ei voi matkustaa.", "", "&aValittu"]
+available = ["&e&lPeili&r", "&7Peilaa paikallisen maailman.", "&7Näet itsesi katsomassa kehyksen läpi.", "&7Peilitilassa ei voi matkustaa.", "", "&7Valitse vasemmalla napsautuksella"]
+flip = ["&7Seinäpeilit kääntyvät 180 asteen askelin,", "&7jotta peilatut entiteetit pysyvät kohdakkain.", "&8Oikea napsautus: käännä peilikuva."]
+
+[portal.menu.ambient_color]
+placard = ["&6&lYmpäristöväri&r", "&7Ympäristön pölyhiukkasten väri.", "", "&7Nykyinen: &f{color}"]
+channel = ["&b&l{label} &f&l{value}&r", "", "&8Vasen napsautus: +{step}", "&8Oikea napsautus: -{step}", "&8Shift + vasen napsautus: +{large_step}", "&8Shift + oikea napsautus: -{large_step}"]
+option = ["&b&l{color}&r", "", "&8Valitse napsauttamalla."]
+
+[portal.menu.travel]
+managed = ["&6&lMatkustaminen: {direction}&r", "&7Ulottuvuusportaalin hallinnoitu matkustussuunta.", "&7{detail}"]
+mirror = ["&c&lMatkustaminen: peili estää&r", "&7Peilitila on vain visuaalinen.", "&7Entiteetit eivät voi kulkea sen läpi kumpaankaan suuntaan."]
+standard = ["&b&lMatkustaminen: {mode}&r", "&7Hallitsee matkustamista tämän portaalin läpi.", "", "&7Lähtevä: &b{outgoing}&7  Saapuva: &b{incoming}", "", "&8Vaihda matkustussuuntaa napsauttamalla."]
+
+[portal.menu.blackout_color]
+placard = ["&6&lPimennysväri&r", "&7Pimennyskuoreen käytettävän betonin väri.", "", "&7Nykyinen: &f{color}"]
+option = ["&b&l{color}&r", "", "&8Valitse napsauttamalla."]
+
+[portal.menu.placard]
+rtp = ["&6&l{portal}&r", "&7Tyyppi: &e{type}", "&7Suunta: &9{facing}", "&7Jako: &b{allocation}", "&7Vaihto: &b{rotation}", "", "&8Ylläpitäjät ohittavat sallittujen ja estettyjen listat."]
+linked = ["&6&l{portal}&r", "&7Tyyppi: &e{type}", "&7Suunta: &9{facing}", "&7Linkitetty kohteeseen: &6{destination}", "", "&8Ylläpitäjät ohittavat sallittujen ja estettyjen listat."]
+unlinked = ["&6&l{portal}&r", "&7Tyyppi: &e{type}", "&7Suunta: &9{facing}", "&7Linkitetty kohteeseen: &c{none}", "", "&8Ylläpitäjät ohittavat sallittujen ja estettyjen listat."]
+
+[portal.menu.cost]
+opener = ["&6&lMatkustuskustannus&r", "&7Vaadi tarkka esine tai Vault-valuuttaa,", "&7kun pelaaja käyttää tätä portaalia.", "", "&7Tila: &f{mode}", "&7Kustannus: &f{cost}", "", "&8Määritä napsauttamalla."]
+placard = ["&6&lMatkustuskustannus&r", "&7Pelaajien on maksettava, ennen kuin tämä portaali", "&7sallii heidän matkustaa.", "", "&7Tila: &f{mode}", "&7Kustannus: &f{cost}"]
+mode_free = ["&a&lIlmainen&r", "&7Maksua ei vaadita.", "", "&8Tee matkustamisesta ilmaista napsauttamalla."]
+mode_vanilla = ["&b&lVanilla-esine&r", "&7Kuluttaa tarkalleen vastaavan esineen.", "", "&8Napsauta, pidä esinettä ja paina sitten Pudota."]
+mode_vault = ["&a&lVault-talous&r", "&7Veloittaa valuuttaa Vaultin kautta.", "", "&8Syötä määrä napsauttamalla."]
+mode_vault_unavailable = ["&c&lVault-talous ei käytettävissä&r", "&7Vault ja talousjärjestelmän tarjoaja vaaditaan.", "", "&8Asenna tai ota molemmat käyttöön käyttääksesi tätä tilaa."]
+free_detail = ["&a&lEi kustannusta&r", "&7Matkustaminen tämän portaalin läpi on ilmaista."]
+secondary_empty = ["&8&lEi lisäasetusta&r"]
+item = ["&b&l{item}&r", "&7Tämä tarkka esine vaaditaan matkustamiseen.", "&7Valintaesinettä ei koskaan kuluteta.", "", "&8Vasen: valitse toinen kädessä pidetty esine.", "&8Oikea: poista kustannus."]
+quantity = ["&b&lMäärä {quantity}&r", "&7Montako tarkalleen vastaavaa esinettä", "&7kulutetaan läpikulkua kohden.", "", "&8Vasen napsautus: +1", "&8Oikea napsautus: -1", "&8Shift + vasen napsautus: +8", "&8Shift + oikea napsautus: -8", "&8Maksimi: {maximum}"]
+vault_amount = ["&a&l{amount}&r", "&7Valuutta, joka veloitetaan läpikulkua kohden.", "", "&8Vasen: syötä toinen määrä.", "&8Oikea: poista kustannus."]
+
+[portal.menu.projection]
+on = ["&6&lProjektio päällä&r", "&7Näyttää tämän portaalin reaaliaikaisen näkymän.", "&7Kohteen tai peilin kuva näkyy.", "", "&7Nykyinen: &bProjektio päällä&r", "", "&8Ota käyttöön tai poista käytöstä napsauttamalla."]
+off = ["&8&lProjektio pois&r", "&7Kehys pysyy tyhjänä.", "&7Ei kohdenäkymää eikä peiliä.", "", "&7Nykyinen: &bProjektio pois&r", "", "&8Ota käyttöön tai poista käytöstä napsauttamalla."]
+
+[portal.menu.mode_option]
+selected = ["&e&l{mode}&r", "&7{description}", "", "&aTällä hetkellä valittu"]
+available = ["&e&l{mode}&r", "&7{description}", "", "&7Valitse napsauttamalla"]
+
+[portal.prompt]
+invite = "&bLiitä portaalikutsu chattiin (tai '{cancel}'):"
+block_state = "&bAnna lohkotila tämän portaalin verkkonäkymän reunalle tai '{cancel}':"
+name = "&bKirjoita uusi portaalin nimi chatissa (tai '{cancel}'):"
+cost_item = "&bPidä tarkkaa kustannusesinettä pääkädessäsi ja paina sitten Pudota. Esine ei poistu tavaraluettelostasi."
+cost_vault = "&bSyötä Vault-valuutan määrä läpikulkua kohden (tai '{cancel}'):"
+direction = ["&8[&6Wormholes&8] &7Katso haluamaasi suuntaan ja ota se käyttöön vasemmalla napsautuksella.", "&8[&6Wormholes&8] &7Peruuta painamalla Shift + vasen napsautus."]
+
+[portal.input]
+cancel = "peruuta"
+
+[portal.rtp]
+editor_title = "RTP: {portal}"
+
+[portal.rtp.notice]
+setting_rejected = "Ei voitu soveltaa tätä asetusta: {reason}"
+applied = "Satunnaisen kohteen asetukset otettiin käyttöön."
+reset_defaults = "Satunnaisteleporttauksen asetukset palautettu oletusarvoihin."
+editor_refreshed = "Asetukset muuttuivat; editori päivitettiin."
+runtime_unavailable = "Satunnainen teleportti ei ole käytettävissä."
+reroll_failed = "Uuden kohteen valinta epäonnistui; tarkista palvelinloki."
+reroll_preparing = "Uutta satunnaista kohdetta valmistellaan."
+reroll_unavailable = "Uutta kohdetta ei voi valita reitin valmistelun tai käytön aikana."
+pool_rebuilding = "Yksityistä kohdevarantoa rakennetaan uudelleen."
+pool_failed = "Kohdevarannon uudelleenrakennus epäonnistui; tarkista palvelinloki."
+not_ready = "&ePortaali vakauttaa vielä kohdettaan."
+traversal_failed = "&cPortaali ei vakautunut; yritä uudelleen."
+
+[portal.rtp.rotation]
+private = "Pelaajakohtainen joka {duration}"
+
+[portal.notice]
+dimensional_link_managed = "Tämä ulottuvuusportaali säilyttää luodun linkkinsä."
+not_rtp = "Tämä portaali ei ole enää satunnaisteleporttitilassa."
+region_unavailable = "Portaalin alue ei ole käytettävissä; yritä uudelleen."
+travel_managed = "Ulottuvuusportaalien matkustamista hallitaan automaattisesti."
+travel_mirror_locked = "Peilitilassa ei koskaan sallita matkustamista."
+travel_changed = "Matkustaminen: {mode}"
+stream_quality_changed = "Kuvavirran laatu: {quality}"
+network_value_changed = "{label}: {value}"
+fallback_set = "Varalohkoksi asetettiin {block}"
+fallback_reset = "Varalohkoksi palautettiin {block}"
+managed_mode = "Hallinnoidut ulottuvuusportaalit pysyvät portaalitilassa."
+projection_receiver_inactive = "Saapuminen The Endiin pysyy visuaalisesti poissa käytöstä."
+projection_changed = "Projektio: {mode}"
+settings_sync_changed = "Asetusten synkronointi: {state}"
+access_changed = "Pääsy: {mode}"
+cost_item_set = "Matkustaminen vaatii nyt {item}."
+cost_item_invalid = "Esinettä ei voitu tallentaa matkustuskustannukseksi."
+cost_cleared = "Matkustuskustannus poistettu."
+cost_quantity_changed = "Matkustuskustannuksen määrä: {quantity}"
+cost_vault_changed = "Vault-matkustuskustannus: {amount}"
+cost_vault_invalid = "Syötä positiivinen valuuttamäärä, joka on enintään {maximum}."
+cost_vault_unavailable = "Vaultin ja talousjärjestelmän tarjoajan on oltava käytettävissä ennen tämän kustannuksen valitsemista."
+mirror_select_first = "Valitse peili ennen kuvaa kiertämistä."
+mirror_rotation_changed = "Peilin kierto: {degrees} astetta"
+rtp_cannot_link = "Satunnaisteleporttiportaaleja ei linkitetä kohteisiin."
+
+[portal.mode]
+changed = "&aPortaalin {portal} tilaksi asetettiin {mode}."
+
+[portal.mode.description]
+portal = "Perusyhteysportaali."
+wormhole = "Linkitettävä portaali, jossa on projisoitu näkymäalue."
+gateway = "Varattu verkkojen välisiin linkityksiin."
+rtp = "Paikallinen satunnainen teleporttiportaali."
+mirror = "Peilaa paikallisen maailman ja estää matkustamisen."
+
+[portal.permission.description]
+whitelist = "Pelaajat tarvitsevat solmun tämän portaalin käyttöön."
+blacklist = "Pelaajat, joilla on solmu, estetään."
+
+[portal.direction]
+cancelled = "&8[&6Wormholes&8] &7Peruttu"
+set = "&8[&6Wormholes&8] &7Suunta asetettu"
+
+[portal.setting]
+notification = "&a{portal}: &r{message}"
+
+[portal.link]
+linked = "&a{portal} linkitetty kohteeseen {destination}."
+linked_remote = "&a{portal} linkitetty kohteeseen {destination} palvelimella {server}."
+unlinked = "&ePortaalin {portal} linkitys kohteeseen {destination} poistettiin."
+
+[portal.orientation]
+face_flipped = "&aPortaalin {portal} etupuoli käännettiin suuntaan {direction}."
+rotated_counterclockwise = "&a{portal} kierrettiin vastapäivään."
+rotated_clockwise = "&a{portal} kierrettiin myötäpäivään."
+direction_changed = "&aPortaalin {portal} suunta vaihdettiin suuntaan {direction}."
+
+[director.help]
+no_subcommands = "Tällä sivulla ei ole alikomentoja."
+no_description = "Kuvausta ei ole annettu"
+command_group = "Komentoryhmä. Avaa napsauttamalla."
+category = "Komentokategoria"
+no_parameters = "Ei parametreja. Esitäytä komento napsauttamalla."
+parameters_hover = "Vie hiiri parametrien päälle saadaksesi lisätietoja."
+
+[director.help.navigation]
+back = "Takaisin"
+page = "Sivu"
+
+[director.help.navigation.parent]
+hover = "Palaa ylempään komentoryhmään"
+
+[director.help.navigation.previous]
+hover = "Edellinen sivu"
+
+[director.help.navigation.next]
+hover = "Seuraava sivu"
+
+[director.help.parameter]
+required = "Tämä parametri on pakollinen."
+optional = "Tämä parametri on valinnainen."
+default = "Oletusarvo on \"{value}\", jos sitä ei määritetä."
+type = "Tämän parametrin tyyppi on {type}."
+
+[director.runtime]
+usage = "Käyttö: {usage}"
+
+[director.runtime.error]
+invalid_origin = "Tätä komentoa ei voi suorittaa tästä lähteestä."
+unknown_parameter = "Tuntematon parametriavain: {key}"
+unexpected_argument = "Odottamaton argumentti \"{argument}\". Valinnaiset parametrit on annettava avaimella, esim. seed=123"
+unclosed_group = "Sulkeva \"]\" puuttuu parametrilta {key}"
+conversion_failed = "Arvoa \"{value}\" ei voi muuntaa tyypiksi {type} parametrille {parameter}"
+default_parse_failed = "Parametrin {parameter} oletusarvoa ei voi jäsentää"
+missing_argument = "Puuttuva argumentti \"{parameter}\" ({type})"
+execution_failed = "Komennon {command} suoritus epäonnistui: {reason}"
+
+[network]
+not_initialized = "&8[&6Wormholes&8] &cVerkkoa ei ole vielä alustettu."
+
+[network.status]
+disabled = "&8[&6Wormholes&8] &7Verkko on &cpoissa käytöstä&7 (plugins/Wormholes/wormholes.toml)."
+not_running = "&8[&6Wormholes&8] &cVerkko on käytössä, mutta ei ole käynnissä. Tarkista identiteettivarasto ja verkkoportti."
+listening = "&8[&6Wormholes&8] &7Tämä palvelin: &f{server}&7, kuuntelee osoitteessa &f{address}"
+outbound_only = "&8[&6Wormholes&8] &7Tämä palvelin: &f{server}&7, vain lähtevä Boat-tila"
+public_key = "&8[&6Wormholes&8] &8Julkinen avain: {fingerprint}"
+no_routes = "&8[&6Wormholes&8] &7Vertaispalvelimiin ei ole vielä liitetty reittejä."
+peer = "&8[&6Wormholes&8] &f{server}&7 {state} &7{address}{rtt}"
+last_attempt = "&8[&6Wormholes&8] &8  Viimeisin yritys: {error}"
+
+[network.doctor]
+clear = "&8[&6Wormholes&8] &aVerkkoasetuksissa ei havaittu ongelmia."
+header = "&8[&6Wormholes&8] &eVerkkodiagnostiikka:"
+line = "&8[&6Wormholes&8] &7- {diagnostic}"
+
+[network.code]
+building = "&8Luodaan portaalikoodia..."
+copy = "&6&l[Kopioi portaalikoodi: {portal}]&r"
+copy_hover = "&7Kopioi napsauttamalla. Liitä koodi toisella palvelimella valitsemalla Portaalivalikko > Tuo tai käyttämällä /wh server import \\<code>"
+fingerprint = "&8Sisältää tämän palvelimen osoitteen ja julkisen avaimen sormenjäljen {fingerprint}."
+too_long = "&eTämä koodi on liian pitkä chattiin. Käytä toisella palvelimella komentoa /wh server import \\<code>."
+invalid = "&cVirheellinen portaalikoodi. Koodit alkavat merkkijonolla {prefix}; chattiin liitettäessä koodi on voinut katketa. Kokeile komentoa /wh server import \\<code>. Vanhojen laajennusversioiden koodit on vietävä uudelleen."
+same_server = "&cSe koodi on tästä palvelimesta."
+same_identity = "&cTämä koodi viittaa tämän palvelimen identiteettiin ({server}). Käynnistä molemmat palvelimet uudelleen omalla Wormholes-identiteetillään ja vie koodi uudelleen toiselta palvelimelta."
+linked = "&a&f{portal}&7 -> &f{destination}&a linkitetty palvelimella &f{server}&a. Portaali avautuu, kun palvelimet ovat yhteydessä."
+route_saved = "&aReitti palvelimelle {server} tallennettiin julkisella avaimella {fingerprint}. '{portal}' näkyy yhdyskäytävän linkkivalikossa yhteyden muodostuttua."
+check_status = "&8Tarkista yhteyden tila komennolla /wh network status."
+using_address = "&7Tämä portaalikoodi käyttää osoitetta {address}; allekirjoitettu protokolla havaitsee ja korjaa julkisen osoitteen muutoksen automaattisesti."
+
+[server]
+unknown = "&8[&6Wormholes&8] &cTuntematon palvelin '&f{server}&c'. Tuo ensin sen koodi tai katso /wh server list."
+removed = "&8[&6Wormholes&8] &aPalvelin &f{server}&a ja sen luotettu avain poistettiin."
+name_empty = "Palvelimen nimi ei voi olla tyhjä"
+
+[server.code]
+copy = "&6&l[Kopioi palvelinkoodi: {server}]&r"
+copy_hover = "&7Kopioi napsauttamalla. Liitä se toisella palvelimella: /wh server import \\<code>"
+raw = "&7Palvelinkoodi: &f{code}"
+saved = "&aPalvelin &f{server}&a tallennettiin julkisella avaimella {fingerprint}. Yhdistä komennolla &f/wh server {server}&a."
+
+[server.connect]
+sending = "&8[&6Wormholes&8] &aSinut lähetetään palvelimelle &f{server}&a..."
+not_ready = "&8[&6Wormholes&8] &c{server} ei ole juuri nyt tavoitettavissa. Tarkista /wh network status."
+failed = "&8[&6Wormholes&8] &cSinua ei voitu siirtää palvelimelle {server}. Tarkista konsoli ja /wh network status."
+only_players = "&8[&6Wormholes&8] &cVain pelaajat voivat yhdistää toiselle palvelimelle."
+
+[server.list]
+header = "&8[&6Wormholes&8] &7Linkitetyt palvelimet:"
+empty = "&8[&6Wormholes&8] &7Palvelimia ei ole vielä linkitetty. Käytä &f/wh server import \\<code>&7."
+entry = "&8[&6Wormholes&8] &f{server}&7 {state} &8{address}"
+
+[door.transit]
+shutdown = "Ulottuvuusovet sammutettiin ennen kuin siirtyminen valmistui."
+message = "&8[&6Wormholes&8] &7{message}"
+link_not_placed = "Liittynyt madonreiän ovi ei ole vielä asennettu."
+link_unavailable = "Liittynyt madonreiän ovi on poissa käytöstä tai estetty."
+nested_pocket = "Taskuovi ei voi avata toista tasku-ulottuvuutta jaetun tyhjyysulottuvuuden sisällä."
+pocket_not_ready = "Tasku-ulottuvuus ei ole vielä valmis."
+pocket_allocation_failed = "Tasku-ulottuvuutta ei voitu varata."
+safe_return_not_found = "Ei turvallista paluutapaa löydetty tästä puolelta ovea."
+pocket_prepare_failed = "Tasku-ulottuvuutta ei voitu valmistella turvallisesti."
+return_ticket_save_failed = "Turvallista paluureittiä ei voitu tallentaa."
+pocket_entry_unsafe = "Tasku-ulottuvuuden sisäänkäynti ei ole turvallinen."
+pocket_entry_chunk_failed = "Tasku-ulottuvuuden sisäänkäyntialuetta ei voitu ladata."
+no_return_route = "Tälle tasku-ulottuvuudelle ei ole tallennettu paluureittiä."
+return_unavailable = "Paluuovi ei ole käytettävissä tai se on tukossa vastaavalla puolella."
+return_world_unloaded = "Paluumaailmaa ei ole ladattu."
+return_point_obstructed = "Tallennettu paluupiste on tukossa."
+return_chunk_failed = "Tallennettua paluualuetta ei voitu ladata."
+closed = "Ulottuvuuden ovi suljettiin ennen kuljetuksen päättymistä."
+cycle_consumed = "Tämän oven avautumissykli on jo käytetty. Sulje ja avaa ovi uudelleen."
+source_missing = "Ulottuvuusovea ei ole enää olemassa."
+source_close_failed = "Lähtöovea ei voitu sulkea turvallisesti."
+source_region_unavailable = "Lähtöoven alue ei ole käytettävissä."
+start_failed = "Ulottuvuuden siirtymä ei voinut alkaa."
+cancelled = "Ulottuvuuden siirtäminen peruttiin."
+
+[door.craft]
+one_at_a_time = "&8[&6Wormholes&8] &7Valmista ulottuvuusovet yksi kerrallaan, jotta jokainen saa yksilöllisen identiteetin."
+
+[door.pair]
+unpack_failed = "&8[&6Wormholes&8] &7Oviparia ei voitu purkaa; pakkausta ei kulutettu."
+unpacked = "&8[&6Wormholes&8] &7Lomittunut pari erotettiin linkitetyiksi madonreikäoviksi A ja B."
+missing = "&8[&6Wormholes&8] &7Tälle pariovelle ei ole rekisteröity vastaparin identiteettiä."
+
+[door.legacy]
+combine = "&8[&6Wormholes&8] &7Yhdistä tämä vanhoja ulottuvuuksia sisältävät ovet puun oven kanssa ennen asennusta."
+
+[door.place]
+already_placed = "&8[&6Wormholes&8] &7Tämä ulottuvuusovi on jo asetettu tai sen tilaa ei voitu tallentaa."
+
+[door.break]
+exit_anchored = "&8[&6Wormholes&8] &7Ulottuvuusuloskäynti on ankkuroitu tähän tasku-ulottuvuuteen."
+support = "&8[&6Wormholes&8] &7Riko ulottuvuusovi ennen sen tukilohkon poistamista."
+
+[door.disable]
+warning = "&8[&6Wormholes&8] &7Ulottuvuusovet poistetaan käytöstä. Poistu nyt tasku-ulottuvuuden paluuoven kautta."
+
+[door.rescue]
+cancelled = "&8[&6Wormholes&8] &7Hätäevakuointi peruttiin; reitti säilytettiin."
+failed = "&8[&6Wormholes&8] &7{route} {fallback} Pysyt suojattuna yhdellä sydämellä."
+
+[door.rescue.reason]
+no_route = "Tasku-ulottuvuudelle ei ole tallennettu paluureittiä."
+return_world_unavailable = "Tallennettu paluumaailma ei ole käytettävissä."
+return_point_obstructed = "Tallennettu paluupiste on tukossa."
+return_chunk_failed = "Tallennettua paluualuetta ei voitu ladata."
+start_failed = "Hätäevakuointia ei voitu käynnistää."
+
+[door.rescue.fallback]
+no_world = "Yhtään tasku-ulottuvuuden ulkopuolista varamaailmaa ei ole ladattu."
+obstructed = "Varasyntymispaikka on tukossa."
+chunk_failed = "Varasyntymispaikkaa ei voitu ladata."
+schedule_failed = "Varapoistumista ei voitu ajoittaa."
+
+[door.access]
+unknown_player = "Tuntematon ({id})"
+edit_denied = "&cVain oven omistaja tai ylläpitäjä voi muokata tätä ovea."
+unavailable = "&cTällä ulottuvuusovella ei ole käyttöoikeustietoja."
+save_failed = "&cOven käyttöoikeusmuutosta ei voitu tallentaa."
+player_not_found = "&cPelaajaa nimeltä {name} ei löytynyt."
+owner_always = "&7Oven omistajalla on aina pääsy."
+already_listed = "&7{name} on jo tämän oven listalla."
+added = "&a{name} lisättiin tämän oven listalle."
+removed = "&a{name} poistettiin tämän oven listalta."
+state_changed = "&a{name} on nyt {state} tälle ovelle."
+prompt_player = "&bKirjoita pelaajan nimi, jonka haluat listata tälle ovelle (tai '{cancel}'):"
+denied = "&cTämä ulottuvuusovi torjuu sinut."
+transit_denied = "Sinulla ei ole pääsyä tähän ulottuvuusoveen."
+
+[door.access.label]
+neutral = "Neutraali"
+whitelist = "Sallittujen lista"
+blacklist = "Estettyjen lista"
+
+[door.access.kind]
+pair = "Kietoutunut"
+personal = "Henkilökohtainen"
+public = "Yhteinen"
+return = "Uloskäynti"
+
+[door.open_state]
+open = "Avoin"
+closed = "Suljettu"
+
+[door.menu.access]
+title = "Oven käyttöoikeus: {kind}"
+placard = ["&6&lUlottuvuusovi: {kind}&r", "&7Omistaja: &f{owner}", "&7Sallittujen listalla: &a{whitelisted}", "&7Estettyjen listalla: &c{blacklisted}", "&7Listatut pelaajat: &b{count}", "&8Omistajat ja ylläpitäjät muokkaavat tätä ovea."]
+add_player = ["&a&lLisää pelaaja&r", "&7Kirjoita pelaajan nimi chattiin listataksesi hänet.", "", "&8Lisää pelaaja napsauttamalla."]
+open_state = ["&b&lOpenState: &f&l{state}", "&7Portaali seuraa tämän lohkon fyysistä tilaa.", "&7Aktiivinen tila: &f{state}&7.", "", "&8Seuraava: {next}. Vaihda napsauttamalla."]
+entry = ["&f{name}", "&7Tila: &b{state}", "", "&8Vasen napsautus: salli. Oikea napsautus: estä.", "&8Keskinapsautus tai vaihto + vasen napsautus: poista."]
+
+[wand.selection]
+corner_a = "&bKulma A asetettu. Napsauta vastakkaista kulmaa oikealla painikkeella."
+corner_b = "&bKulma B asetettu. Napsauta vastakkaista kulmaa vasemmalla painikkeella."
+not_flat = "&cValinnan on oltava yhden lohkon paksuinen. Tasoita valinta napsauttamalla kulmaa uudelleen."
+too_large = "&cValinta on liian suuri: {count} lohkoa (enintään {maximum})."
+opening = "&bAvataan portaalia..."
+open_failed = "&cPorttia ei voitu avata täällä."
+
+[wand.selection.selected]
+one = "&b{count} lohko valittu. Avaa portaali napsauttamalla lasipaneelia vasemmalla."
+other = "&b{count} lohkoa valittu. Avaa portaali napsauttamalla lasipaneelia vasemmalla."
+
+[label]
+none = "Ei mitään"
+on = "Käytössä"
+off = "Pois käytöstä"
+ready = "Valmis"
+preparing = "Valmistellaan"
+open = "Auki"
+closed = "Suljettu"
+
+[rtp.routing]
+action_confirm = "Avaa erillinen vahvistusnäkymä."
+header = ["&b&lVaihto & Kohdevaranto&r", "&7Valitse tilat suoraan ja ota sitten kaikki muutokset käyttöön yhdessä."]
+shared_selected = ["&a&lYhteinen kohde&r", "&7Kaikki näkevät ja käyttävät samaa reittiä.", "&aValittu"]
+shared_available = ["&b&lYhteinen kohde&r", "&7Kaikki näkevät ja käyttävät samaa reittiä.", "&eValitse vasemmalla napsautuksella"]
+private_selected = ["&a&lPelaajakohtaiset kohteet&r", "&7Jokainen pelaaja saa oman varauksen.", "&aValittu"]
+private_available = ["&b&lPelaajakohtaiset kohteet&r", "&7Jokainen pelaaja saa oman varauksen.", "&eValitse vasemmalla napsautuksella"]
+static_selected = ["&a&lPysyvä&r", "&7Säilytä sama kohde.", "&aValittu"]
+static_available = ["&b&lPysyvä&r", "&7Säilytä sama kohde.", "&eValitse vasemmalla napsautuksella"]
+timed_selected = ["&a&lAjastettu&r", "&7Vaihda kohde määritetyn ajan jälkeen.", "&aValittu"]
+timed_available = ["&b&lAjastettu&r", "&7Vaihda kohde määritetyn ajan jälkeen.", "&eValitse vasemmalla napsautuksella"]
+trip_selected = ["&a&lJokaisen matkan jälkeen&r", "&7Ota valmisteltu korvaava kohde käyttöön matkan jälkeen.", "&aValittu"]
+trip_available = ["&b&lJokaisen matkan jälkeen&r", "&7Ota valmisteltu korvaava kohde käyttöön matkan jälkeen.", "&eValitse vasemmalla napsautuksella"]
+manual_reroll = ["&e&lValitse uusi kohde&r", "&7{description}", "&eVasen napsautus"]
+rebuild_pool = ["&e&lRakenna kohdevaranto uudelleen&r", "&7{description}", "&eVasen napsautus"]
+
+[rtp.status]
+ready = "Valmis"
+warming = "Valmistellaan"
+rerolling = "Uutta kohdetta valitaan"
+backoff = "Uudelleenyrityksen odotusaika"
+world_unavailable = "Kohdemaailma ei ole käytettävissä"
+integration_failed = "Pääsyn tarkistus epäonnistui"
+failed = "Epäonnistui"
+idle = "Toimeton"
+retry = "&7Uusi yritys: &c{duration}"
+active = "&7Aktiivinen: {readiness}"
+standby = "&7Valmiustila: {readiness}"
+rotation = "&7Luonnoksen vaihtotapa: &b{rotation}"
+pool = "&7Vapaat: &b{free}&7  Varatut: &b{reserved}"
+target_missing = "&cKohdemaailma ei ole ladattu."
+access_failed = "&cKohteen pääsytarkistus epäonnistui ja esti pääsyn."
+header = ["&6&lSatunnaisen kohteen tila&r", "&7Tila: {state}"]
+
+[rtp.rotation]
+static = "Staattinen"
+timed = "Ajastettu"
+trip = "Jokaisen matkan jälkeen"
+
+[rtp.numeric]
+center_x = "Keskus X"
+center_z = "Keskus Z"
+minimum_radius = "Vähimmäissäde"
+maximum_radius = "Enimmäissäde"
+lower_y = "Alempi Y-raja"
+upper_y = "Ylempi Y-raja"
+preferred_y = "Ensisijainen Y"
+cycle = "Syklin kesto"
+private_rotation = "Yksityinen kierrosaika"
+lease = "Jouten olevan varauksen lisäaika"
+release = "Yksityinen vapautus"
+link = ["&e&l{label} &f&l{value}&r", "&7Avaa selkeät pienennys- ja suurennussäätimet.", "&eVasen napsautus"]
+target_unavailable = ["&b&lKohdemaailma ei ole käytettävissä&r", "&7Lataa kohdemaailma ennen tämän arvon muokkaamista."]
+value = ["&b&l{value}&r", "&7Luonnoksen nykyinen arvo."]
+adjust = ["&e&l{direction}{step}&r", "&7Muuta luonnosta arvolla {direction}{step}.", "&eVasen napsautus"]
+header = ["&b&l{label}&r", "&7{description}"]
+
+[rtp.numeric.description]
+center = "Siirtää mukautettua keskustaa tällä akselilla."
+minimum_radius = "Kohderenkaan sisäreuna."
+maximum_radius = "Kohderenkaan ulkoreuna."
+y = "Kelvollisen seisomakorkeuden hakuraja."
+cycle = "Yhteisten ajastettujen vaihtojen välinen aika."
+private_rotation = "Pelaajan valmistellun kohteen enimmäisikä."
+lease = "Pidä valmistellut kohteet hetken aktiivisina kaikkien lähdettyä."
+release = "Viive ennen käyttämättömän yksityisen varauksen vapauttamista."
+
+[rtp.duration]
+hours = "{value}h"
+minutes = "{value}m"
+seconds = "{value}s"
+decimal_seconds = "{value}s"
+
+[rtp.biome]
+any_label = "Mikä tahansa"
+header = ["&b&lKohdebiomi&r", "&7Haku suosii tätä biomia ja käyttää mitä tahansa turvallista paikkaa, jos sitä ei löydy läheltä."]
+any_selected = ["&a&lMikä tahansa biomi&r", "&7Ei biomivalintaa.", "&aValittu"]
+any_available = ["&b&lMikä tahansa biomi&r", "&7Poista biomivalinta.", "&eValitse vasemmalla napsautuksella"]
+current = ["&a&l{biome}&r", "&7{key}", "&aValittu"]
+available = ["&b&l{biome}&r", "&7{key}", "&eValitse vasemmalla napsautuksella"]
+empty = ["&7Kohdemaailmalle ei ole biomeja saatavilla."]
+previous = ["&e&lEdelliset biomit&r", "&7Näytä edellinen sivu.", "&eVasen napsautus"]
+next = ["&e&lSeuraavat biomit&r", "&7Näytä seuraava sivu.", "&eVasen napsautus"]
+
+[rtp.overview]
+destination = ["&e&lKohde & Alue&r", "&7Maailma, keskipiste ja säde.", "&eVasen napsautus"]
+landing = ["&e&lLaskeutumissäännöt&r", "&7Pinnan ja korkeuden toiminta.", "&eVasen napsautus"]
+routing = ["&e&lVaihto & Kohdevaranto&r", "&7Jakaminen, kohteen vaihto ja varausten kestot.", "&eVasen napsautus"]
+effects = ["&e&lTehosteet&r", "&7Valmiusreunus päällä / Portaalin äänet päällä.", "&eVasen napsautus"]
+reset_defaults = ["&e&lPalauta oletukset&r", "&7Palauttaa tämän portaalin satunnaisteleporttauksen asetukset heti oletusarvoihin.", "&eVasen napsautus"]
+
+[rtp.navigation]
+back_portal = ["&e&lTakaisin portaaliin&r", "&7Palaa portaalivalikkoon.", "&eVasen napsautus"]
+overview = ["&e&lYleiskatsaus&r", "&7Palaa RTP-yleiskatsaukseen.", "&eVasen napsautus"]
+back_category = ["&e&lTakaisin&r", "&7Palaa edelliseen luokkaan.", "&eVasen napsautus"]
+
+[rtp.destination]
+header = ["&b&lKohde & Alue&r", "&7Valitse vasemmalla napsautuksella"]
+world_current = ["&a&l{world}&r", "&7Nykyinen kohdemaailma.", "&aValittu"]
+world_available = ["&b&l{world}&r", "&7Käytä tätä ladattua maailmaa.", "&eValitse vasemmalla napsautuksella"]
+previous_worlds = ["&e&lEdelliset maailmat&r", "&7Näytä edellinen sivu.", "&eVasen napsautus"]
+next_worlds = ["&e&lSeuraavat maailmat&r", "&7Näytä seuraava sivu.", "&eVasen napsautus"]
+biome_link = ["&e&lKohdebiomi &f&l{value}&r", "&7Suosi laskeutumista valittuun biomiin.", "&eVasen napsautus"]
+center_portal_selected = ["&a&lPortaaliin suhteutettu keskipiste&r", "&7Keskitä kohderengas tähän portaaliin.", "&aValittu"]
+center_portal_available = ["&b&lPortaaliin suhteutettu keskipiste&r", "&7Keskitä kohderengas tähän portaaliin.", "&eValitse vasemmalla napsautuksella"]
+center_custom_selected = ["&a&lMukautettu keskipiste&r", "&7Käytä muokattavia X- ja Z-koordinaatteja.", "&aValittu"]
+center_custom_available = ["&b&lMukautettu keskipiste&r", "&7Käytä muokattavia X- ja Z-koordinaatteja.", "&eValitse vasemmalla napsautuksella"]
+reset_center = ["&e&lPalauta keskus / kohde&r", "&7Käytä lähtömaailmaa ja portaalin keskustaa.", "&eVasen napsautus"]
+
+[rtp.landing]
+header = ["&b&lLaskeutumissäännöt&r", "&7Valitse pinta tai haluttu korkeus sekä laskeutumisen turvallisuustila."]
+surface_selected = ["&a&lPinta&r", "&7SAFE välttää veden ja puiden latvat. UNSAFE käyttää ylintä pintaa.", "&aValittu"]
+surface_available = ["&b&lPinta&r", "&7SAFE välttää veden ja puiden latvat. UNSAFE käyttää ylintä pintaa.", "&eValitse vasemmalla napsautuksella"]
+preferred_selected = ["&a&lHaluttu / tarkka korkeus&r", "&7SAFE etsii myös ympäristöstä. UNSAFE käyttää täsmälleen haluttua Y-korkeutta.", "&aValittu"]
+preferred_available = ["&b&lHaluttu / tarkka korkeus&r", "&7SAFE etsii myös ympäristöstä. UNSAFE käyttää täsmälleen haluttua Y-korkeutta.", "&eValitse vasemmalla napsautuksella"]
+safe_policy = ["&b&lLaskeutumisen turvallisuus: &f&l{mode}&r", "&7SAFE hylkää veden, vaarat, puut, törmäykset ja alustan, jolla ei voi seistä.", "&7UNSAFE hyväksyy valitun pinnan tai tarkan halutun Y-korkeuden sellaisenaan.", "&eVaihda vasemmalla napsautuksella"]
+
+[rtp.effects]
+header = ["&b&lTehosteet&r", "&7Ulkoasumuutokset eivät luo kohteita uudelleen."]
+rim_on_selected = ["&a&lValmiusreunus päällä&r", "&7Näytä henkilökohtainen valmius portaalin reunalla.", "&aValittu"]
+rim_on_available = ["&b&lValmiusreunus päällä&r", "&7Näytä henkilökohtainen valmius portaalin reunalla.", "&eValitse vasemmalla napsautuksella"]
+rim_off_selected = ["&a&lValmiusreunus pois&r", "&7Piilota valmiusreunus.", "&aValittu"]
+rim_off_available = ["&b&lValmiusreunus pois&r", "&7Piilota valmiusreunus.", "&eValitse vasemmalla napsautuksella"]
+sound_on_selected = ["&a&lPortaalin äänet päällä&r", "&7Toista tämän RTP-portaalin tehosteet ja matkaäänet.", "&aValittu"]
+sound_on_available = ["&b&lPortaalin äänet päällä&r", "&7Toista tämän RTP-portaalin tehosteet ja matkaäänet.", "&eValitse vasemmalla napsautuksella"]
+sound_off_selected = ["&a&lPortaalin äänet pois&r", "&7Mykistä tämä RTP-portaali; hiukkaset pysyvät käytössä.", "&aValittu"]
+sound_off_available = ["&b&lPortaalin äänet pois&r", "&7Mykistä tämä RTP-portaali; hiukkaset pysyvät käytössä.", "&eValitse vasemmalla napsautuksella"]
+
+[rtp.confirm]
+reroll = ["&b&lValitaanko yhteiselle reitille uusi kohde?&r", "&7Nykyinen projektio pysyy aktiivisena, kunnes uusi kohde on valmis."]
+rebuild = ["&b&lRakennetaanko yksityinen kohdevaranto uudelleen?&r", "&7Nykyiset varaukset säilyvät, kun vapaat kohteet rakennetaan uudelleen."]
+confirm = ["&e&lVahvista&r", "&7Suorita toiminto nyt.", "&eVasen napsautus"]
+cancel = ["&e&lPeruuta&r", "&7Palaa muuttamatta suorituksenaikaista tilaa.", "&eVasen napsautus"]
+
+[item]
+portal_wand = ["&6&lPortaalisauva&r"]
+portal_rune = ["&6&lPortaaliriimu&r"]
+wormhole_rune = ["&6&lMadonreikäriimu&r"]
+
+[item.door]
+entangled_pair = ["&6Kietoutunut ovipari", "&7Sisältää kaksi automaattisesti linkitettyä madonreikäovea.", "&7Erota päätepisteet A ja B käyttämällä tätä."]
+paired = ["&6Madonreikäovi {endpoint}", "&7Linkitetty automaattisesti päätepisteeseen {other}.", "&7Avaa ovi ja ylitä sen kynnys fyysisesti."]
+personal = ["&bHenkilökohtainen ulottuvuusovi", "&7Jokainen matkustaja siirtyy omaan pysyvään ulottuvuuteensa.", "&7Sama matkustaja saapuu aina samaan paikkaan."]
+public = ["&6Yhteinen ulottuvuusovi", "&7Kaikki matkustajat siirtyvät tämän oven yhteiseen ulottuvuuteen.", "&7Rikkominen ja siirtäminen säilyttää yhteisen kohteen."]
+return = ["&aUlottuvuuden uloskäyntiovi", "&7Palauttaa matkustajat tästä tasku-ulottuvuudesta.", "&7Tämä ovi on sidottu omaan tasku-ulottuvuuteensa."]
+skin = ["&6Ulottuvuusoven ulkoasu", "&7Yhdistä ulottuvuusovi pelaajan käytettävissä olevaan oveen."]
+entangled_pair_recipe = ["&6Kietoutunut ovipari", "&7Sisältää kaksi automaattisesti linkitettyä madonreikäovea."]
+personal_recipe = ["&bHenkilökohtainen ulottuvuusovi", "&7Jokainen matkustaja siirtyy omaan pysyvään ulottuvuuteensa."]
+public_recipe = ["&6Yhteinen ulottuvuusovi", "&7Kaikki matkustajat siirtyvät tämän oven yhteiseen ulottuvuuteen."]
+entangled_trapdoor_pair = ["&6Kietoutunut luukkupari", "&7Sisältää kaksi automaattisesti linkitettyä madonreikäluukkua.", "&7Erota päätepisteet A ja B käyttämällä tätä."]
+paired_trapdoor = ["&6Madonreikäluukku {endpoint}", "&7Linkitetty automaattisesti päätepisteeseen {other}.", "&7Avaa luukku ja pudottaudu sen läpi."]
+personal_trapdoor = ["&bHenkilökohtainen ulottuvuusluukku", "&7Jokainen matkustaja siirtyy omaan pysyvään ulottuvuuteensa.", "&7Sama matkustaja saapuu aina samaan paikkaan."]
+public_trapdoor = ["&6Yhteinen ulottuvuusluukku", "&7Kaikki matkustajat siirtyvät tämän luukun yhteiseen ulottuvuuteen.", "&7Rikkominen ja siirtäminen säilyttää yhteisen kohteen."]
+trapdoor_skin = ["&6Ulottuvuusluukun ulkoasu", "&7Yhdistä ulottuvuusluukku käsin avattavaan luukkuun."]
+entangled_trapdoor_pair_recipe = ["&6Kietoutunut luukkupari", "&7Sisältää kaksi automaattisesti linkitettyä madonreikäluukkua."]
+personal_trapdoor_recipe = ["&bHenkilökohtainen ulottuvuusluukku", "&7Jokainen matkustaja siirtyy omaan pysyvään ulottuvuuteensa."]
+public_trapdoor_recipe = ["&6Yhteinen ulottuvuusluukku", "&7Kaikki matkustajat siirtyvät tämän luukun yhteiseen ulottuvuuteen."]

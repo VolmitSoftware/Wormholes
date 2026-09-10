@@ -1,609 +1,1020 @@
-schema = 1
-locale = "ko_KR"
+# Wormholes — ko_KR
+#
+# === 파일 편집 ===
+# plugins/Wormholes/languages/ko_KR.toml
+# 이 파일을 직접 편집할 수 있습니다. 로컬 변경은 유지되며, 누락되거나 잘못된 항목에는 내장 영어를 사용합니다.
+# /wormholes language server edit ko_KR
+#
+# === 접두사 ===
+# 메시지 접두사는 각 템플릿에 있으므로 메시지마다 수정하세요. {prefix}는 포털 가져오기 코드의 시작 부분입니다.
+#
+# === 서식 ===
+# 색상 코드: &0-&f. 서식 코드: &k-&r (&l = 굵게, &r = 초기화). 변수 이름을 유지하고 해당 메시지에서만 사용하세요.
+#
+# === 변수 ===
+# 변수 이름을 변경하지 말고 각 메시지에 원래 있는 변수만 사용하세요.
+#   {access}  포털 접근 정책
+#   {address}  네트워크 상대 주소
+#   {after}  편집 후 메시지 값
+#   {allocation}  포켓 공간 할당
+#   {amount}  Vault 화폐 이동 비용
+#   {argument}  예상하지 못한 명령 인수
+#   {before}  편집 전 메시지 값
+#   {biome}  생물 군계 식별자
+#   {blacklisted}  차단된 플레이어
+#   {block}  선택한 블록 재료
+#   {blocks}  재건축에 영향을 받는 설치된 블록 수
+#   {cancel}  채팅 입력 취소 단어
+#   {code}  서버 또는 포털 초대 코드
+#   {color}  선택한 표시 색상
+#   {command}  명령 경로
+#   {containers}  재건축에 영향을 받는 내용물이 있는 용기 수
+#   {cost}  포털 생성 또는 이동 비용
+#   {count}  포털, 목적지 또는 메시지 수
+#   {degrees}  투영 이미지 회전 각도
+#   {depth}  투영 깊이
+#   {description}  메시지 설명
+#   {destination}  이동 목적지
+#   {detail}  추가 진단 정보
+#   {diagnostic}  진단 메시지
+#   {direction}  이동 또는 바라보는 방향
+#   {door}  포켓 출구 문
+#   {duration}  플레이어별 업데이트 간격
+#   {endpoint}  웜홀 끝점 식별자
+#   {entities}  영향받는 개체 수 또는 개체 업데이트 간격(틱)
+#   {entity}  개체 업데이트 간격(틱)
+#   {error}  마지막 작업 오류
+#   {facing}  포털이 향하는 방향
+#   {failed}  실패한 작업 수
+#   {fallback}  대체 이동 결과
+#   {fingerprint}  공개 키 지문
+#   {free}  사용 가능한 무작위 목적지 슬롯 수
+#   {grace}  투영 유예 시간(초)
+#   {group}  언어 편집기 분류
+#   {id}  객체 식별자
+#   {incoming}  들어오는 이동 정책
+#   {item}  이동에 필요한 아이템
+#   {key}  메시지 또는 설정 키
+#   {kind}  문 접근 유형
+#   {label}  표시 라벨
+#   {large_step}  Shift 클릭 시 조정량
+#   {line}  메시지 내 줄 번호
+#   {locale}  언어 코드
+#   {material}  포켓 벽 재료
+#   {maximum}  허용 최댓값
+#   {message}  응답 또는 진단 메시지
+#   {minimum}  허용 최솟값
+#   {mode}  선택한 작업 또는 표시 모드
+#   {name}  포털 또는 플레이어 이름
+#   {next}  다음 사용 가능한 옵션
+#   {node}  네트워크 노드 식별자
+#   {none}  연결된 목적지가 없음을 나타내는 라벨
+#   {other}  연결된 끝점 식별자
+#   {outgoing}  나가는 이동 정책
+#   {owner}  포털 소유자
+#   {page}  현재 페이지 번호
+#   {pages}  전체 페이지 수
+#   {parameter}  명령 매개변수 이름
+#   {path}  파일 또는 폴더 경로
+#   {personal}  개인 언어 코드
+#   {plugin}  플러그인 이름
+#   {portal}  포털 이름 또는 식별자
+#   {prefix}  포털 가져오기 코드의 시작 부분
+#   {previous}  이전 포켓 크기(블록)
+#   {quality}  투영 스트림 품질
+#   {quantity}  필요한 아이템 수
+#   {range}  포털 활성화 거리(블록)
+#   {readiness}  무작위 목적지 준비 상태
+#   {reason}  오류 또는 결정의 이유
+#   {receive}  투영 수신 상태
+#   {refresh}  투영 갱신 간격(틱)
+#   {reserved}  예약된 무작위 목적지 슬롯 수
+#   {resized}  재건축한 포켓 수
+#   {rotation}  투영 회전
+#   {route}  시도한 이동 경로
+#   {rtt}  네트워크 왕복 지연 시간
+#   {seconds}  시간(초)
+#   {send}  투영 송신 상태
+#   {server}  서버 이름 또는 식별자
+#   {size}  포켓 크기(블록)
+#   {skin}  선택한 포털 스킨
+#   {skipped}  건너뛴 작업 수
+#   {space}  포켓 공간 식별자
+#   {state}  현재 접근, 연결 또는 네트워크 상태
+#   {step}  클릭 시 조정량
+#   {style}  표시 스타일
+#   {target}  언어 선택을 적용할 플러그인
+#   {type}  객체 또는 매개변수 유형
+#   {up}  투영 상단 방향
+#   {usage}  명령 구문
+#   {value}  현재 또는 선택한 값
+#   {variables}  메시지에 허용되는 변수
+#   {whitelisted}  허용된 플레이어
+#   {world}  월드 이름
+#   {x}  X 좌표
+#   {y}  Y 좌표
+#   {z}  Z 좌표
 
-[text]
-"command.help.debugdump" = "진단 보고서를 생성하고 선택적으로 업로드"
-"command.help.debugdump_upload" = "보고서를 mclo.gs에 업로드"
-"command.help.language" = "개인 언어 또는 서버 기본 언어 선택"
-"portal.travel.cost_insufficient" = "<red>이 포털을 사용하려면 {item} {quantity}개가 필요합니다."
-"portal.travel.cost_vault_insufficient" = "<red>이 포털을 사용하려면 {amount}이(가) 필요합니다."
-"portal.travel.cost_vault_unavailable" = "<red>이 포털의 경제 비용을 사용할 수 없습니다."
-"portal.travel.cost_transaction_failed" = "<red>포털이 이동 비용을 처리하지 못했습니다."
-"portal.prompt.cost_item" = "<aqua>비용으로 사용할 아이템을 주로 쓰는 손에 든 채 버리기 키를 누르세요. 아이템은 인벤토리에서 사라지지 않습니다."
-"portal.prompt.cost_vault" = "<aqua>1회 통과당 Vault 화폐 금액을 입력하세요 (또는 '{cancel}'):"
-"portal.notice.cost_item_set" = "이제 이동하려면 {item}이(가) 필요합니다."
-"portal.notice.cost_item_invalid" = "해당 아이템을 이동 비용으로 저장할 수 없습니다."
-"portal.notice.cost_cleared" = "이동 비용이 제거되었습니다."
-"portal.notice.cost_quantity_changed" = "이동 비용 수량: {quantity}"
-"portal.notice.cost_vault_changed" = "Vault 이동 비용: {amount}"
-"portal.notice.cost_vault_invalid" = "{maximum} 이하의 양수 화폐 금액을 입력하세요."
-"portal.notice.cost_vault_unavailable" = "이 비용을 선택하려면 Vault와 경제 플러그인이 준비되어야 합니다."
-"portal.label.cost.free" = "무료"
-"portal.label.cost.vanilla" = "바닐라 아이템"
-"portal.label.cost.vault" = "Vault 경제"
-"portal.network.label.render_mode" = "렌더링 모드"
-"portal.travel.transfer_holding" = "<gold>대상 서버에 연결하는 중..."
-"portal.travel.transfer_interrupted" = "<red>포털 전송이 중단되었습니다: 포털에서 멀어졌습니다."
-"portal.travel.transfer_source_unavailable" = "<red>포털 전송이 중단되었습니다: 출발 포털을 더 이상 사용할 수 없습니다."
-"portal.network.label.ambient_style" = "환경 파티클"
-"portal.network.label.ambient_color" = "환경 색상"
-"portal.network.label.surface_skin" = "표면 스킨"
-"portal.label.ambient.red" = "빨강"
-"portal.label.ambient.green" = "초록"
-"portal.label.ambient.blue" = "파랑"
-"portal.label.ambient_style.sparks" = "불꽃"
-"portal.label.ambient_style.outline" = "윤곽선"
-"portal.label.ambient_style.corners" = "모서리"
-"portal.label.ambient_style.off" = "꺼짐"
-"portal.label.skin.none" = "없음"
-"director.help.navigation.parent.hover" = "상위 명령어 그룹으로 돌아가기"
-"director.help.navigation.back" = "뒤로"
-"director.help.no_subcommands" = "이 페이지에 하위 명령이 없습니다."
-"director.help.no_description" = "설명은 제공되지 않았습니다"
-"director.help.command_group" = "명령어 그룹입니다. 클릭하여 엽니다."
-"director.help.category" = "명령어 카테고리"
-"director.help.no_parameters" = "매개변수가 없습니다. 클릭하면 명령어 입력란을 채웁니다."
-"director.help.parameters_hover" = "매개변수 위에 마우스를 올리면 자세한 내용을 볼 수 있습니다."
-"director.help.parameter.required" = "이 매개변수는 필수입니다."
-"director.help.parameter.optional" = "이 매개변수는 선택 사항입니다."
-"director.help.parameter.default" = "지정하지 않으면 기본값은 \"{value}\"입니다."
-"director.help.parameter.type" = "이 매개변수의 유형은 {type}입니다."
-"director.help.navigation.previous.hover" = "이전 페이지"
-"director.help.navigation.next.hover" = "다음 페이지"
-"director.help.navigation.page" = "페이지"
-"director.runtime.error.invalid_origin" = "이 실행 위치에서는 명령어를 실행할 수 없습니다."
-"director.runtime.error.unknown_parameter" = "알 수 없는 매개변수: {key}"
-"director.runtime.error.unexpected_argument" = "예상하지 못한 인수 \"{argument}\"입니다. 선택 매개변수는 seed=123처럼 이름을 지정해야 합니다"
-"director.runtime.error.unclosed_group" = "매개변수 {key}의 닫는 \"]\"가 누락되었습니다"
-"director.runtime.error.conversion_failed" = "\"{value}\" 값을 매개변수 {parameter}의 {type} 형식으로 변환할 수 없습니다"
-"director.runtime.error.default_parse_failed" = "매개변수 {parameter}의 기본값을 해석할 수 없습니다"
-"director.runtime.error.missing_argument" = "인수 \"{parameter}\" ({type})이 누락되었습니다"
-"director.runtime.error.execution_failed" = "명령어 {command} 실행에 실패했습니다: {reason}"
-"director.runtime.usage" = "사용법: {usage}"
-"command.help.root" = "Wormholes 명령어 루트"
-"command.help.wand" = "포털 완드와 웜홀 룬 받기"
-"command.help.wand.rune" = "웜홀 룬도 함께 지급 (rune=false 이면 완드만)"
-"command.help.door" = "생존 모드에서 사용할 수 있는 차원문 아이템을 지급합니다"
-"command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-"command.help.reload" = "Wormholes 설정 및 언어 파일을 다시 불러옵니다"
-"command.help.debug" = "상세 콘솔 로그와 초당 텔레메트리를 전환합니다"
-"command.help.stats" = "실시간 통계 스냅샷 파일 경로를 표시합니다. now=true로 즉시 새로고침할 수 있습니다"
-"command.help.stats.now" = "스냅샷을 동기 방식으로 즉시 다시 생성합니다"
-"command.help.info" = "포털 건설 안내를 표시합니다"
-"command.help.admin" = "Wormholes의 데이터 삭제형 유지 관리 명령어"
-"command.help.admin.delete_portals" = "모든 로컬 포털 및 저장된 포털 링크를 삭제합니다"
-"command.help.admin.delete_everything" = "Wormholes 데이터, 설정, 신뢰 정보, ID 및 네트워크 상태를 초기화합니다"
-"command.help.admin.freeze" = "모든 포털 투영을 지정한 초 동안 그 자리에 고정합니다 (seconds=0 이면 재개)"
-"command.help.admin.freeze.seconds" = "고정된 프레임을 유지할 시간 (5-300, 0 이면 즉시 재개)"
-"command.help.admin.flush" = "각 관찰자의 투영 블록을 실제 상태로 되돌리고 다시 구성합니다"
-"command.help.network" = "서버 간 웜홀 네트워크"
-"command.help.network.import" = "다른 서버에서 포털 코드를 가져오십시오 (내부 경로를 저장하고, 게이트웨이의 링크 메뉴를 통해 연결합니다)"
-"command.help.network.import.code" = "다른 서버의 내보내기 버튼에서 생성한 포털 코드"
-"command.help.network.status" = "피어 서버 연결 상태를 표시합니다"
-"command.help.network.doctor" = "네트워크 피어가 연결되지 않는 이유를 진단합니다"
-"command.help.server" = "서버 간 이동: 연결된 서버에 접속하고, 목록을 확인하고, 서버 정보를 교환합니다"
-"command.help.server.connect" = "연결된 서버로 자신을 이동시킵니다 (단축형: /wh server \\<name>)"
-"command.help.server.connect.name" = "연결된 서버 이름 (/wh server list 참고)"
-"command.help.server.export" = "다른 서버가 가져올 수 있는 코드로 이 서버를 내보냅니다"
-"command.help.server.import" = "다른 서버에서 내보낸 서버 또는 포털 코드를 가져옵니다"
-"command.help.server.import.code" = "다른 서버의 내보내기에서 생성한 코드"
-"command.help.server.list" = "연결된 서버와 각 연결 상태를 나열합니다"
-"command.help.server.remove" = "연결된 서버를 잊습니다 (해당 경로와 신뢰된 키를 삭제합니다)"
-"command.help.server.remove.name" = "잊을 연결된 서버 이름"
-"command.error.no_permission" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>권한이 없습니다."
-"command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>이 명령을 사용할 권한이 없습니다."
-"command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>아이템은 플레이어만 받을 수 있습니다."
-"command.error.usage" = "<gray>사용법: <white>/wormholes help"
-"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>포털 완드를 지급했습니다."
-"command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>차원 문은 사용할 수 없습니다."
-"command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>알 수 없는 문 유형입니다. pair, personal 또는 public, pair_trapdoor, personal_trapdoor, public_trapdoor 값을 사용하세요."
-"command.door.empty_type" = "문 타입은 비어서는 안 됩니다"
-"command.door.granted" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{type}<green> 유형의 차원문 아이템을 지급했습니다."
-"command.reload.applied" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes 구성 및 언어 파일을 다시 불러왔습니다."
-"command.reload.language_retained" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>구성은 다시 로드되었지만 언어 파일이 거부되었습니다. 마지막 유효 언어는 여전히 활성화되어 있습니다. 콘솔을 확인하세요."
-"command.reload.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>구성을 다시 불러오지 못했습니다. 수정 사항은 대기 상태로 남아 다시 시도됩니다. 콘솔을 확인하세요."
-"command.stats.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>통계 스냅샷 기록기를 사용할 수 없습니다."
-"command.stats.refreshed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>스냅샷을 새로고쳤습니다."
-"command.admin.delete_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>모든 포털을 삭제하지 못했습니다. 전체 스택 추적은 콘솔에서 확인하세요."
-"command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>포털 초기화 작업을 예약할 수 없습니다."
-"command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Wormholes 초기화에 실패했습니다. 전체 스택 추적은 콘솔에서 확인하세요."
-"command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Wormholes 초기화 작업을 예약할 수 없습니다."
-"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>모든 포털 투영을 <white>{seconds}<green>초 동안 고정했습니다. 자동으로 재개됩니다."
-"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>포털 투영을 재개했습니다."
-"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>포털 투영을 업데이트하지 못했습니다. 전체 스택 트레이스는 콘솔을 확인하세요."
-"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>투영 업데이트를 예약할 수 없습니다."
-"network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>네트워크가 아직 초기화되지 않았습니다."
-"network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>네트워크가 <red>비활성화<gray>되었습니다 (plugins/Wormholes/wormholes.toml)."
-"network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>네트워크가 활성화되어 있지만 실행되지 않습니다. 신분 저장소 및 네트워크 포트를 확인하세요."
-"network.status.listening" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>현재 서버: <white>{server}<gray>, 수신 주소: <white>{address}"
-"network.status.outbound_only" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>현재 서버: <white>{server}<gray>, 송신 전용 Boat 모드"
-"network.status.public_key" = "<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>공개 키: {fingerprint}"
-"network.status.no_routes" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>연결된 피어 경로가 아직 없습니다."
-"network.status.peer" = "<dark_gray>[<gold>Wormholes<dark_gray>] <white>{server}<gray> {state} <gray>{address}{rtt}"
-"network.status.last_attempt" = "<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>  마지막 시도: {error}"
-"network.doctor.clear" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>네트워크 설정 문제가 발견되지 않았습니다."
-"network.doctor.header" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>네트워크 진단:"
-"network.doctor.line" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>- {diagnostic}"
-"network.code.building" = "<dark_gray>포털 코드를 생성하는 중..."
-"network.code.copy" = "<gold><bold>[포털 코드를 복사합니다: {portal}]</bold>"
-"network.code.copy_hover" = "<gray>클릭하여 복사하세요. 다른 서버의 포털 메뉴 > 가져오기 또는 /wh server import \\<code>에 붙여 넣으세요"
-"network.code.fingerprint" = "<dark_gray>현재 서버의 주소와 공개 키 지문 {fingerprint}이 포함되어 있습니다."
-"network.code.too_long" = "<yellow>이 코드는 채팅에 붙여 넣기에는 너무 깁니다. 다른 서버에서 /wh server import \\<code>를 사용하세요."
-"network.code.invalid" = "<red>포털 코드가 올바르지 않습니다. 코드는 {prefix}로 시작합니다. 채팅에 붙여 넣으며 잘렸을 수 있으니 /wh server import \\<code>를 사용하세요. 이전 플러그인 버전의 코드는 다시 내보내야 합니다."
-"network.code.same_server" = "<red>이 코드는 현재 서버에서 생성되었습니다."
-"network.code.same_identity" = "<red>이 코드는 현재 서버 ID ({server})를 가리킵니다. 두 서버를 각각 고유한 Wormholes ID로 다시 시작한 뒤 다른 서버에서 다시 내보내세요."
-"network.code.linked" = "<green><white>{portal}<gray> -> <white>{destination}<green>을 <white>{server}<green>에 연결했습니다. 서버가 연결되면 포털이 열립니다."
-"network.code.route_saved" = "<green>공개 키 {fingerprint}로 {server} 경로를 저장했습니다. 연결되면 '{portal}'이 게이트웨이 링크 메뉴에 표시됩니다."
-"network.code.check_status" = "<dark_gray>/wh network status로 연결 상태를 확인하세요."
-"network.code.using_address" = "<gray>이 포털 코드는 {address} 주소를 사용합니다. 공개 주소가 바뀌면 서명된 핸드셰이크가 자동으로 감지하여 수정합니다."
-"server.code.copy" = "<gold><bold>[서버 코드를 복사합니다: {server}]</bold>"
-"server.code.copy_hover" = "<gray>클릭하여 복사하세요. 다른 서버에서 붙여 넣으세요: /wh server import \\<code>"
-"server.code.raw" = "<gray>서버 코드: <white>{code}"
-"server.code.saved" = "<green>공개 키 {fingerprint}로 <white>{server}<green> 서버를 저장했습니다. <white>/wh server {server}<green>로 접속하세요."
-"server.connect.sending" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{server}<green> 서버로 보내는 중..."
-"server.connect.not_ready" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{server} 서버에 지금은 연결할 수 없습니다. /wh network status를 확인하세요."
-"server.connect.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{server} 서버로 이동시키지 못했습니다. 콘솔과 /wh network status를 확인하세요."
-"server.connect.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>플레이어만 다른 서버에 접속할 수 있습니다."
-"server.unknown" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>알 수 없는 서버 '<white>{server}<red>'입니다. 먼저 코드를 가져오거나 /wh server list를 확인하세요."
-"server.list.header" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>연결된 서버:"
-"server.list.empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>아직 연결된 서버가 없습니다. <white>/wh server import \\<code><gray>를 사용하세요."
-"server.list.entry" = "<dark_gray>[<gold>Wormholes<dark_gray>] <white>{server}<gray> {state} <dark_gray>{address}"
-"server.removed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{server}<green> 서버와 신뢰된 키를 제거했습니다."
-"server.name_empty" = "서버 이름은 비어서는 안 됩니다"
-"portal.form.rtp_unsupported" = "<red>무작위 순간이동 포털은 룬으로 만들 수 없습니다."
-"portal.form.forming" = "<aqua>포털 생성 중... {type} 룬은 한 평면의 벽, 바닥 또는 천장에서 서로 연결되어야 합니다."
-"portal.form.must_be_flat" = "<red>포털은 한 벽, 바닥 또는 천장에 평면으로 누워 있어야 합니다."
-"portal.form.interrupted" = "<red>포털 생성이 중단되었습니다. 예약된 룬은 돌려받았습니다."
-"portal.form.rune_placed" = "<aqua>룬을 설치했습니다. 한 평면에 연결된 모양을 만든 뒤 포털 지팡이로 아무 룬이나 왼쪽 클릭하세요."
-"portal.form.opened" = "<green>포털이 열렸습니다. 지팡이를 들고 포털을 클릭하면 설정할 수 있습니다."
-"portal.travel.cooldown" = "<gold>포털 쿨다운 중"
-"portal.travel.access_denied" = "<red>이 포털을 사용할 권한이 없습니다"
-"portal.travel.destination_unavailable" = "<red>포털 목적지를 사용할 수 없습니다"
-"portal.travel.arrival_denied" = "<red>목적지 포털이 도착을 거부했습니다."
-"portal.travel.arrival_returned" = "<red>목적지 포털이 도착을 거부했습니다. {server} 서버로 되돌립니다"
-"door.transit.shutdown" = "차원 이동이 완료되기 전에 차원문이 종료되었습니다."
-"portal.edit.denied" = "<red>포털 소유자 또는 관리자만 이 포털을 편집할 수 있습니다."
-"portal.deleted" = "<red>{portal} 포털을 삭제했습니다"
-"portal.travel.arrival_failed" = "<red>포털 도착 지점을 배치하지 못했습니다. 목적지 스폰 지점에 머뭅니다"
-"portal.travel.transfer_cooldown" = "<gold>서버 간 포털 쿨다운 중: {seconds}s"
-"portal.travel.destination_unreachable" = "<red>목적지 서버에 연결할 수 없습니다"
-"portal.travel.destination_unreachable_detail" = "<red>목적지 서버에 연결할 수 없습니다: {reason}"
-"portal.travel.transfer_blocked" = "<red>포털 전송이 차단되었습니다: {reason}"
-"portal.travel.transfer_blocked_retry" = "<red>포털 전송이 차단되었습니다: {reason} ({seconds}s 후 재시도)"
-"wand.selection.corner_a" = "<aqua>모서리 A를 설정했습니다. 반대쪽 모서리를 오른쪽 클릭하세요."
-"wand.selection.corner_b" = "<aqua>모서리 B를 설정했습니다. 반대쪽 모서리를 왼쪽 클릭하세요."
-"wand.selection.not_flat" = "<red>선택 영역은 한 블록 두께여야 합니다. 모서리를 다시 클릭해 평면으로 만드세요."
-"wand.selection.too_large" = "<red>선택 영역이 너무 큽니다: {count}블록 (최대 {maximum})."
-"wand.selection.opening" = "<aqua>포털을 여는 중..."
-"wand.selection.open_failed" = "<red>이곳에 포털을 열 수 없습니다."
-"door.craft.one_at_a_time" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>각 문에 고유한 ID를 부여하려면 차원문을 한 번에 하나씩 제작하세요."
-"door.pair.unpack_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>문 한 쌍을 풀 수 없습니다. 키트는 소모되지 않았습니다."
-"door.pair.unpacked" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>얽힌 문 쌍을 서로 연결된 웜홀 문 A와 B로 분리했습니다."
-"door.legacy.combine" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>설치하기 전에 이 이전 차원문을 나무 문과 함께 제작하세요."
-"door.pair.missing" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>이 쌍문에는 등록된 반대편 문이 없습니다."
-"door.place.already_placed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>이 차원문은 이미 설치되었거나 상태를 저장할 수 없습니다."
-"door.break.exit_anchored" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>이 차원 출구는 포켓 차원에 고정되어 있습니다."
-"door.break.support" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>받침 블록을 제거하기 전에 차원문을 부수세요."
-"door.disable.warning" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>차원문을 비활성화하는 중입니다. 지금 주머니 차원의 귀환문으로 나가세요."
-"door.rescue.cancelled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>긴급 탈출이 취소되었습니다. 귀환 경로는 유지됩니다."
-"door.transit.message" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>{message}"
-"door.transit.link_not_placed" = "연결된 웜홀 문이 아직 설치되지 않았습니다."
-"door.transit.link_unavailable" = "연결된 웜홀 문을 사용할 수 없거나 문이 막혀 있습니다."
-"door.transit.nested_pocket" = "공유 공허 차원 안에서는 포켓 문으로 다른 포켓 차원을 열 수 없습니다."
-"door.transit.pocket_not_ready" = "주머니 차원은 준비되지 않았습니다."
-"door.transit.pocket_allocation_failed" = "포켓 차원을 할당할 수 없습니다."
-"door.transit.safe_return_not_found" = "이쪽 문에서 안전한 복귀 경로를 찾을 수 없었습니다."
-"door.transit.pocket_prepare_failed" = "포켓 차원을 안전하게 준비할 수 없습니다."
-"door.transit.return_ticket_save_failed" = "안전한 귀환 경로를 저장할 수 없습니다."
-"door.transit.pocket_entry_unsafe" = "포켓 차원 입구가 안전하지 않습니다."
-"door.transit.pocket_entry_chunk_failed" = "포켓 차원의 입구 청크를 불러오지 못했습니다."
-"door.transit.no_return_route" = "이 포켓 차원에는 저장된 귀환 경로가 없습니다."
-"door.transit.return_unavailable" = "반대편 귀환 문을 사용할 수 없거나 문이 막혀 있습니다."
-"door.transit.return_world_unloaded" = "귀환할 월드가 로드되지 않았습니다."
-"door.transit.return_point_obstructed" = "저장된 귀환 지점이 막혀 있습니다."
-"door.transit.return_chunk_failed" = "저장된 귀환 청크를 불러올 수 없습니다."
-"door.transit.closed" = "차원 문은 통로가 완료되기 전에 닫혔습니다."
-"door.transit.cycle_consumed" = "이 문의 개방 주기는 이미 사용되었습니다. 문을 닫았다가 다시 여세요."
-"door.transit.source_missing" = "차원문이 더 이상 존재하지 않습니다."
-"door.transit.source_close_failed" = "출발 문을 안전하게 닫을 수 없습니다."
-"door.transit.source_region_unavailable" = "출발 문이 있는 영역을 사용할 수 없습니다."
-"door.transit.start_failed" = "차원 이동을 시작할 수 없습니다."
-"door.transit.cancelled" = "차원 이동이 취소되었습니다."
-"door.rescue.reason.no_route" = "포켓 차원에 저장된 귀환 경로가 없습니다."
-"door.rescue.reason.return_world_unavailable" = "저장된 복귀 세계는 사용할 수 없습니다."
-"door.rescue.reason.return_point_obstructed" = "저장된 귀환 지점이 막혀 있습니다."
-"door.rescue.reason.return_chunk_failed" = "저장된 귀환 청크를 불러올 수 없습니다."
-"door.rescue.fallback.no_world" = "주머니 차원이 아닌 대체 월드가 로드되어 있지 않습니다."
-"door.rescue.fallback.obstructed" = "대체 스폰 지점이 막혀 있습니다."
-"door.rescue.fallback.chunk_failed" = "대체 스폰 지점을 로드할 수 없습니다."
-"door.rescue.fallback.schedule_failed" = "대체 퇴출을 예약할 수 없습니다."
-"door.rescue.reason.start_failed" = "긴급 탈출을 시작할 수 없습니다."
-"door.rescue.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>{route} {fallback} 체력이 하트 한 칸인 상태로 계속 보호됩니다."
-"door.access.label.neutral" = "중립"
-"door.access.label.whitelist" = "허용 목록"
-"door.access.label.blacklist" = "차단 목록"
-"door.open_state.open" = "열림"
-"door.open_state.closed" = "닫힘"
-"door.access.kind.pair" = "얽힌"
-"door.access.kind.personal" = "개인"
-"door.access.kind.public" = "공용"
-"door.access.kind.return" = "출구"
-"door.access.unknown_player" = "알 수 없음 ({id})"
-"door.access.edit_denied" = "<red>이 문은 문 소유자나 관리자만 편집할 수 있습니다."
-"door.access.unavailable" = "<red>이 차원문에는 접근 기록이 없습니다."
-"door.access.save_failed" = "<red>해당 문 접근 변경 사항을 저장하지 못했습니다."
-"door.access.player_not_found" = "<red>{name} 이름의 플레이어를 찾을 수 없습니다."
-"door.access.owner_always" = "<gray>문 소유자는 항상 접근할 수 있습니다."
-"door.access.already_listed" = "<gray>{name} 님은 이미 이 문의 목록에 있습니다."
-"door.access.added" = "<green>{name} 님을 이 문의 목록에 추가했습니다."
-"door.access.removed" = "<green>{name} 님을 이 문의 목록에서 제거했습니다."
-"door.access.state_changed" = "<green>{name} 님을 이 문의 {state}(으)로 설정했습니다."
-"door.access.prompt_player" = "<aqua>이 문의 목록에 추가할 플레이어 이름을 입력하세요 (또는 '{cancel}'):"
-"door.access.denied" = "<red>이 차원문이 당신을 거부합니다."
-"door.access.transit_denied" = "이 차원문에 접근할 권한이 없습니다."
-"door.menu.access.title" = "{kind} 차원문 접근"
-"portal.menu.gateway.server" = "<gray>서버: <white>{server}"
-"portal.menu.gateway.link" = "<gray>연결: <aqua>{state}"
-"portal.menu.mirror.rotation" = "<gray>이미지 회전: <aqua>{degrees}도"
-"portal.menu.mirror.rotate_clockwise" = "<dark_gray>오른쪽 클릭: 시계 방향으로 회전."
-"portal.menu.mirror.rotate_counterclockwise" = "<dark_gray>Shift + 오른쪽 클릭: 시계 반대 방향으로 회전."
-"portal.prompt.invite" = "<aqua>포털 초대 코드를 채팅에 붙여 넣으세요 (또는 '{cancel}'):"
-"portal.prompt.block_state" = "<aqua>이 포털의 네트워크 뷰 가장자리에 사용할 블록 상태를 입력하거나 '{cancel}'을 입력하세요:"
-"portal.prompt.name" = "<aqua>채팅에 새로운 포털 이름 입력하세요 (또는 '{cancel}'):"
-"portal.input.cancel" = "취소"
-"portal.rtp.editor_title" = "RTP: {portal}"
-"portal.notice.dimensional_link_managed" = "이 차원 포털은 생성된 링크를 유지합니다."
-"portal.notice.not_rtp" = "이 포털은 무작위 순간이동 모드가 아닙니다."
-"portal.rtp.notice.setting_rejected" = "해당 설정을 적용할 수 없었습니다: {reason}"
-"portal.notice.region_unavailable" = "포털 영역을 사용할 수 없습니다. 다시 시도하세요."
-"portal.rtp.notice.applied" = "무작위 목적지 설정을 적용했습니다."
-"portal.rtp.notice.reset_defaults" = "무작위 텔레포트 설정이 기본값으로 초기화되었습니다."
-"portal.rtp.notice.editor_refreshed" = "설정이 변경되어 편집기를 새로고쳤습니다."
-"portal.rtp.notice.runtime_unavailable" = "무작위 순간이동 런타임을 사용할 수 없습니다."
-"portal.rtp.notice.reroll_failed" = "수동 재추첨에 실패했습니다. 서버 로그를 확인하세요."
-"portal.rtp.notice.reroll_preparing" = "새로운 무작위 목적지를 준비하는 중입니다."
-"portal.rtp.notice.reroll_unavailable" = "경로를 준비 중이거나 사용 중일 때는 다시 뽑을 수 없습니다."
-"portal.rtp.notice.pool_rebuilding" = "개인 목적지 풀을 다시 구성하는 중입니다."
-"portal.rtp.notice.pool_failed" = "목적지 풀 재구성에 실패했습니다. 서버 로그를 확인하세요."
-"portal.rtp.notice.not_ready" = "<yellow>포털이 아직 목적지를 안정화하는 중입니다."
-"portal.rtp.notice.traversal_failed" = "<red>포털을 안정화하지 못했습니다. 다시 시도하세요."
-"portal.notice.travel_managed" = "차원 포털의 이동 방향은 자동으로 관리됩니다."
-"portal.notice.travel_mirror_locked" = "거울 모드에서는 이동할 수 없습니다."
-"portal.notice.travel_changed" = "이동: {mode}"
-"portal.notice.stream_quality_changed" = "스트림 품질: {quality}"
-"portal.notice.network_value_changed" = "{label} {value}"
-"portal.notice.fallback_set" = "{block} 블록을 대체 블록으로 설정했습니다"
-"portal.notice.fallback_reset" = "대체 블록을 {block} 블록으로 초기화했습니다"
-"portal.notice.managed_mode" = "관리되는 차원 포털은 포털 모드에서 유지됩니다."
-"portal.notice.projection_receiver_inactive" = "종착지 도착 포털에서는 투영이 비활성 상태로 유지됩니다."
-"portal.notice.projection_changed" = "투영: {mode}"
-"portal.notice.settings_sync_changed" = "설정 동기화: {state}"
-"portal.notice.access_changed" = "접근: {mode}"
-"portal.notice.mirror_select_first" = "이미지를 회전하기 전에 거울을 선택하세요."
-"portal.notice.mirror_rotation_changed" = "거울 회전: {degrees}도"
-"portal.notice.rtp_cannot_link" = "무작위 텔레포트 포털은 목적지와 연결되지 않습니다."
-"portal.label.travel.both" = "양방향"
-"portal.label.travel.outbound" = "출발 전용"
-"portal.label.travel.inbound" = "도착 전용"
-"portal.label.travel.locked" = "잠김"
-"portal.label.travel.arrival" = "도착 전용"
-"portal.label.travel.departure" = "출발 전용"
-"portal.label.travel.dimensional_both" = "연결된 양쪽 모두 활성 상태를 유지합니다."
-"portal.label.travel.dimensional_return_disabled" = "귀환 경로는 비활성 상태로 유지됩니다."
-"portal.label.quality.standard" = "표준"
-"portal.label.quality.performance" = "성능"
-"portal.label.quality.balanced" = "균형"
-"portal.label.quality.cinematic" = "시네마틱"
-"portal.label.quality.custom" = "사용자 지정"
-"portal.label.mode.portal" = "포털"
-"portal.label.mode.wormhole" = "웜홀"
-"portal.label.mode.gateway" = "게이트웨이"
-"portal.label.mode.rtp" = "RTP"
-"portal.label.mode.mirror" = "거울"
-"portal.label.direction.up" = "위"
-"portal.label.direction.down" = "아래"
-"portal.label.direction.north" = "북쪽"
-"portal.label.direction.south" = "남쪽"
-"portal.label.direction.east" = "동쪽"
-"portal.label.direction.west" = "서쪽"
-"portal.mode.description.portal" = "연결 가능한 기본 포털."
-"portal.mode.description.wormhole" = "뷰포트 투영이 있는 연결 가능한 포털."
-"portal.mode.description.gateway" = "서버 간 네트워크 연결 전용."
-"portal.mode.description.rtp" = "로컬 무작위 순간이동 포털."
-"portal.mode.description.mirror" = "로컬 월드를 반사하며 이동은 차단됩니다."
-"portal.label.allocation.shared" = "공유"
-"portal.label.allocation.per_player" = "플레이어별"
-"portal.rtp.rotation.private" = "플레이어별 {duration}"
-"portal.label.permission.whitelist" = "허용 목록"
-"portal.label.permission.blacklist" = "차단 목록"
-"portal.permission.description.whitelist" = "이 포털을 사용하려면 플레이어에게 이 권한 노드가 필요합니다."
-"portal.permission.description.blacklist" = "이 권한 노드를 가진 플레이어는 차단됩니다."
-"portal.label.network.direct" = "직접"
-"portal.label.network.sideband" = "보조 채널"
-"portal.label.network.reconnecting" = "재연결 중"
-"portal.network.label.capture_radius" = "포착 반지름"
-"portal.network.description.capture_radius" = "목적지 포털 주변에서 전송할 블록 범위."
-"portal.network.label.full_refresh" = "전체 새로고침"
-"portal.network.description.full_refresh" = "전체 블록 새로고침 사이의 틱 수."
-"portal.network.label.entity_update" = "엔티티 업데이트"
-"portal.network.description.entity_update" = "엔티티 업데이트 사이의 틱 수."
-"portal.network.label.view_grace" = "보기 유지 시간"
-"portal.network.description.view_grace" = "시선을 돌린 뒤에도 스트림을 유지하는 초 단위 시간."
-"portal.network.label.blackout" = "배경 차단"
-"portal.network.label.blackout_color" = "차단 색상"
-"portal.network.label.activation_range" = "활성화 범위"
-"portal.label.activation_global" = "전역 ({range})"
-"portal.direction.cancelled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>취소했습니다"
-"portal.direction.set" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>방향을 설정했습니다"
-"portal.setting.notification" = "<green>{portal}: <reset>{message}"
-"portal.link.linked" = "<green>{portal} 포털을 {destination} 대상에 연결했습니다."
-"portal.link.linked_remote" = "<green>{portal} 포털을 {server} 서버의 {destination} 대상에 연결했습니다."
-"portal.link.unlinked" = "<yellow>{portal} 포털과 {destination} 대상의 연결을 해제했습니다."
-"portal.orientation.face_flipped" = "<green>{portal}의 앞면을 {direction} 방향으로 뒤집었습니다."
-"portal.orientation.rotated_counterclockwise" = "<green>{portal} 포털을 시계 반대 방향으로 회전했습니다."
-"portal.orientation.rotated_clockwise" = "<green>{portal} 포털을 시계 방향으로 회전했습니다."
-"portal.orientation.direction_changed" = "<green>{portal} 포털의 방향을 {direction} 방향으로 변경했습니다."
-"portal.mode.changed" = "<green>{portal} 포털의 모드를 {mode} 모드로 설정했습니다."
-"label.none" = "없음"
-"label.on" = "켜짐"
-"label.off" = "꺼짐"
-"label.ready" = "준비 완료"
-"label.preparing" = "준비 중"
-"label.open" = "열림"
-"label.closed" = "닫힘"
-"rtp.routing.action_confirm" = "별도의 확인 화면을 엽니다."
-"rtp.status.ready" = "준비 완료"
-"rtp.status.warming" = "준비 중"
-"rtp.status.rerolling" = "다시 뽑는 중"
-"rtp.status.backoff" = "재시도 대기 중"
-"rtp.status.world_unavailable" = "대상 월드를 사용할 수 없음"
-"rtp.status.integration_failed" = "접근 통합 실패"
-"rtp.status.failed" = "실패"
-"rtp.status.idle" = "대기 중"
-"rtp.rotation.static" = "고정"
-"rtp.rotation.timed" = "시간제"
-"rtp.rotation.trip" = "이동 후"
-"rtp.status.retry" = "<gray>재시도까지: <red>{duration}"
-"rtp.status.active" = "<gray>활성: {readiness}"
-"rtp.status.standby" = "<gray>준비 상태: {readiness}"
-"rtp.status.rotation" = "<gray>초안 순환 방식: <aqua>{rotation}"
-"rtp.status.pool" = "<gray>사용 가능: <aqua>{free}<gray>  예약됨: <aqua>{reserved}"
-"rtp.status.target_missing" = "<red>대상 월드가 로드되지 않았습니다."
-"rtp.status.access_failed" = "<red>목적지 접근 검사에 실패하여 접근을 거부했습니다."
-"rtp.numeric.center_x" = "중심 X"
-"rtp.numeric.center_z" = "중심 Z"
-"rtp.numeric.minimum_radius" = "최소 반경"
-"rtp.numeric.maximum_radius" = "최대 반경"
-"rtp.numeric.lower_y" = "하위 Y"
-"rtp.numeric.upper_y" = "위 Y"
-"rtp.numeric.preferred_y" = "우선 Y"
-"rtp.numeric.cycle" = "주기의 기간"
-"rtp.numeric.private_rotation" = "개인 회전 시간"
-"rtp.numeric.lease" = "유휴 예약 유지 시간"
-"rtp.numeric.release" = "개인 예약 해제 지연"
-"rtp.numeric.description.center" = "사용자 지정 중심을 이 축으로 이동합니다."
-"rtp.numeric.description.minimum_radius" = "목적지 고리 범위의 안쪽 경계."
-"rtp.numeric.description.maximum_radius" = "목적지 고리 범위의 바깥쪽 경계."
-"rtp.numeric.description.y" = "안전한 발 위치를 찾을 높이 범위."
-"rtp.numeric.description.cycle" = "공유 시간제 순환 사이의 간격."
-"rtp.numeric.description.private_rotation" = "플레이어별 준비된 목적지의 최대 유지 시간."
-"rtp.numeric.description.lease" = "모든 플레이어가 떠난 뒤에도 준비된 목적지를 잠시 유지합니다."
-"rtp.numeric.description.release" = "사용하지 않은 개인 예약을 해제하기 전의 지연 시간."
-"rtp.duration.hours" = "{value}h"
-"rtp.duration.minutes" = "{value}m"
-"rtp.duration.seconds" = "{value}s"
-"rtp.duration.decimal_seconds" = "{value}s"
+[language.editor]
+loading = "{locale} 메시지를 불러오는 중..."
 
-"portal.menu.destination.sort_smart" = "스마트"
-"portal.menu.destination.sort_name" = "이름"
-"portal.menu.destination.sort_world" = "월드"
-"portal.menu.destination.sort_distance" = "거리"
-"rtp.biome.any_label" = "모두"
+[language.editor.category]
+message-count = "&7메시지 {count}개&r"
+open = "&8클릭하여 이 그룹을 엽니다.&r"
 
-"command.help.pocket" = "포켓 차원 확인 및 재구성"
-"command.help.pocket.info" = "현재 서 있는 포켓의 크기, 재료, 범위를 표시"
-"command.help.pocket.resize" = "현재 서 있는 포켓을 새 크기나 재료로 다시 만들기"
-"command.help.pocket.resize.size" = "새 방 한 변의 블록 수, 또는 0으로 현재 크기 유지"
-"command.help.pocket.resize.material" = "벽, 바닥, 천장에 쓸 새 블록 또는 keep"
-"command.help.pocket.resize.door" = "출구 문에 쓸 새 블록 또는 keep"
-"command.help.pocket.resize.confirm" = "변경으로 무언가가 파괴되거나 이동할 때 필요"
-"command.help.pocket.resizeall" = "기존의 모든 포켓을 새 크기나 재료로 다시 만들기"
-"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>포켓 차원 안에서 실행하세요."
-"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>포켓 크기는 {minimum}에서 {maximum} 블록 사이여야 합니다."
-"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material}은(는) 포켓 벽으로 쓸 수 없습니다. 떨어지지 않는 단단한 블록을 사용하세요."
-"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material}은(는) 포켓 출구 문으로 쓸 수 없습니다. 손으로 여는 문을 사용하세요. 철문은 거부됩니다."
-"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>그 포켓은 이미 이 크기와 재료입니다."
-"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>포켓 크기 변경이 중단되었습니다. 내용물이 있는 보관함 <white>{containers}<red>개가 파괴됩니다. 비운 뒤 다시 시도하세요. <white>confirm=true<red>로도 이 안전 검사를 건너뛸 수 없습니다."
-"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>포켓을 <white>{size}<green> 블록으로 다시 만들었습니다 (이전 <white>{previous}<green>). 벽 <white>{material}<green>, 출구 문 <white>{door}."
-"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>포켓을 다시 만들지 못했습니다. 콘솔을 확인하세요."
-"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>포켓 차원이 로드되지 않았습니다."
-"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} 블록 크기의 방은 포켓 차원의 건축 높이에 맞지 않습니다."
-"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>포켓 <white>{count}<gray>개를 다시 만드는 중입니다."
-"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>재구성 <white>{resized}<green>, 건너뜀 <white>{skipped}<green>, 실패 <white>{failed}."
-"portal.label.public_look_label" = "Public Look Label"
-[lines]
-"portal.menu.cost.opener" = ["<gold><bold>이동 비용</bold>","<gray>플레이어가 이 포털을 사용할 때","<gray>정확한 아이템 또는 Vault 화폐를 요구합니다.","","<gray>모드: <white>{mode}","<gray>비용: <white>{cost}","","<dark_gray>클릭하여 설정합니다."]
-"portal.menu.cost.placard" = ["<gold><bold>이동 비용</bold>","<gray>플레이어는 비용을 지불해야","<gray>이 포털로 이동할 수 있습니다.","","<gray>모드: <white>{mode}","<gray>비용: <white>{cost}"]
-"portal.menu.cost.mode_free" = ["<green><bold>무료</bold>","<gray>지불이 필요하지 않습니다.","","<dark_gray>클릭하여 이동을 무료로 만듭니다."]
-"portal.menu.cost.mode_vanilla" = ["<aqua><bold>바닐라 아이템</bold>","<gray>정확히 일치하는 아이템을 소모합니다.","","<dark_gray>클릭한 뒤 아이템을 들고 버리기 키를 누르세요."]
-"portal.menu.cost.mode_vault" = ["<green><bold>Vault 경제</bold>","<gray>Vault를 통해 화폐를 인출합니다.","","<dark_gray>클릭하여 금액을 입력합니다."]
-"portal.menu.cost.mode_vault_unavailable" = ["<red><bold>Vault 경제 사용 불가</bold>","<gray>Vault와 경제 플러그인이 필요합니다.","","<dark_gray>이 모드를 사용하려면 둘 다 설치하거나 활성화하세요."]
-"portal.menu.cost.free_detail" = ["<green><bold>비용 없음</bold>","<gray>이 포털을 통한 이동은 무료입니다."]
-"portal.menu.cost.secondary_empty" = ["<dark_gray><bold>추가 설정 없음</bold>"]
-"portal.menu.cost.item" = ["<aqua><bold>{item}</bold>","<gray>이동하려면 정확히 이 아이템이 필요합니다.","<gray>선택에 사용한 아이템은 소모되지 않습니다.","","<dark_gray>좌클릭: 들고 있는 다른 아이템 선택.","<dark_gray>우클릭: 비용 제거."]
-"portal.menu.cost.quantity" = ["<aqua><bold>수량 {quantity}</bold>","<gray>1회 통과당 소모되는","<gray>일치 아이템의 개수입니다.","","<dark_gray>좌클릭: +1","<dark_gray>우클릭: -1","<dark_gray>Shift + 좌클릭: +8","<dark_gray>Shift + 우클릭: -8","<dark_gray>최대: {maximum}"]
-"portal.menu.cost.vault_amount" = ["<green><bold>{amount}</bold>","<gray>1회 통과당 인출되는 화폐입니다.","","<dark_gray>좌클릭: 다른 금액 입력.","<dark_gray>우클릭: 비용 제거."]
-"portal.menu.render_mode" = ["<aqua><bold>렌더링 모드 <white>{mode}</bold>","<gray>이 포털이 투영하는 대상 볼륨의 범위.","","<gray>모드: <white>{mode}","","<dark_gray>PanOptic은 전체 대상 볼륨을 렌더링합니다.","<dark_gray>Venticular은 보이는 불투명 표면 뒤의 지오메트리를 생략합니다.","","<dark_gray>좌클릭: 모드 전환."]
-"portal.menu.ambient_particles" = ["<aqua><bold>환경 파티클</bold>","<gray>이 포털 주위를 떠다니는 장식용 먼지.","","<gray>스타일: <white>{style} <dark_gray>({color})","","<dark_gray>왼쪽: 스타일 전환.","<dark_gray>오른쪽: 색상 선택."]
-"portal.menu.ambient_color.placard" = ["<gold><bold>환경 색상</bold>","<gray>환경 먼지 입자의 색상.","","<gray>현재: <white>{color}"]
-"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>왼쪽 클릭: +{step}","<dark_gray>오른쪽 클릭: -{step}","<dark_gray>Shift + 왼쪽 클릭: +{large_step}","<dark_gray>Shift + 오른쪽 클릭: -{large_step}"]
-"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>클릭하여 선택합니다."]
-"portal.menu.surface_skin" = ["<aqua><bold>표면 스킨</bold>","<gray>렌더링된 블록 또는 유체 패널로 포털 입구를 덮습니다.","","<gray>스킨: <white>{skin}","","<dark_gray>왼쪽: 스킨 제거.","<dark_gray>오른쪽: 스킨 옵션 열기."]
-"portal.menu.surface_skin.placard" = ["<gold><bold>표면 스킨</bold>","<gray>블록이나 양동이를 들고 포털을 우클릭하여 스킨을 적용합니다.","","<gray>스킨: <white>{skin}"]
-"portal.menu.surface_skin.glass" = ["<aqua><bold>유리 스킨</bold>","<gray>입구를 덮는 투명한 유리창.","","<dark_gray>클릭하여 유리를 적용합니다."]
-"portal.menu.surface_skin.clear" = ["<red><bold>스킨 제거</bold>","<gray>스킨을 제거하고 투영을 복원합니다.","","<dark_gray>클릭하여 스킨을 제거합니다."]
-"command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>포털 도움말: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>포털에 포털 지팡이를 사용하면 목적지, 보기, 이동 및 접근 설정을 열 수 있습니다."]
-"command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>포털 지팡이와 웜홀 룬 1개를 지급했습니다.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>웜홀 룬 모양 2개(한 평면에 연결된 어떤 모양이든 가능)를 만들어 연결한 뒤, {range}블록 안에 서면 투영을 볼 수 있습니다.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>전체 단계별 안내는 <white>/wormholes info<gray>에서 확인하세요."]
-"command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>스냅샷 파일: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>이 파일을 모니터링하면 실시간 네트워크 및 보기 상태를 확인할 수 있습니다. 파일은 주기마다 덮어씁니다."]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>웜홀 만드는 방법</bold>","<dark_gray>1. <gray>서버 또는 관리자에게서 포털 지팡이와 포털 룬을 받습니다.","<dark_gray>2. <gray>한 평면에 룬을 서로 연결된 모양으로 배치합니다.","<gray>   직사각형, 직선 (3x1), 단일 블록, L자, 십자 등 연결된 모양이면 됩니다.","<gray>   룬은 좌표축에 맞는 하나의 벽, 바닥 또는 천장에 평평하게 놓여야 합니다.","<dark_gray>3. <gray>포털 지팡이를 들고 <white>아무 룬 블록이나 왼쪽 클릭<gray>하여 포털을 만듭니다.","<dark_gray>4. <gray>다른 위치에 두 번째 포털을 만듭니다(거리와 월드는 무관합니다).","<dark_gray>5. <gray>지팡이로 열린 포털을 클릭해 주 메뉴를 엽니다.","<gray>   <white>목적지<gray>를 선택하고 다른 포털을 지정합니다. 반대쪽에서도 반복합니다.","<gray>   방향과 접근 설정은 각각 별도의 간단한 메뉴에 있습니다.","<dark_gray>6. <gray>두 포털 중 하나에서 {range}블록 안에 서면 목적지 월드가 프레임에 투영되며, 안으로 걸어가면 순간이동합니다.","<gray>관리자는 <white>/wormholes wand 명령으로 아이템을 만들 수 있습니다"]
-"item.portal_wand" = ["<gold><bold>포털 지팡이</bold>"]
-"item.portal_rune" = ["<gold><bold>포털 룬</bold>"]
-"item.wormhole_rune" = ["<gold><bold>웜홀 룬</bold>"]
-"item.door.entangled_pair" = ["<gold>얽힌 문 한 쌍","<gray>자동으로 연결된 웜홀 문 두 개입니다.","<gray>사용하면 A 문과 B 문으로 나뉩니다."]
-"item.door.paired" = ["<gold>웜홀 문 {endpoint}","<gray>{other} 쪽과 자동으로 연결됩니다.","<gray>문을 열고 문턱을 직접 넘으면 이동합니다."]
-"item.door.personal" = ["<aqua>개인 차원문","<gray>여행자마다 자신만의 영구 차원으로 들어갑니다.","<gray>같은 여행자는 항상 같은 장소에 도착합니다."]
-"item.door.public" = ["<gold>공용 차원문","<gray>모든 여행자가 이 문의 공유 차원으로 들어갑니다.","<gray>문을 부수고 옮겨도 공유 목적지는 바뀌지 않습니다."]
-"item.door.return" = ["<green>차원 출구 문","<gray>여행자를 이 포켓 차원에서 돌려보냅니다.","<gray>이 문은 해당 포켓 차원에 연결되어 있습니다."]
-"item.door.skin" = ["<gold>차원문 외형","<gray>차원문과 플레이어가 조작할 수 있는 문을 조합합니다."]
-"item.door.entangled_pair_recipe" = ["<gold>얽힌 문 한 쌍","<gray>자동으로 연결된 웜홀 문 두 개입니다."]
-"item.door.personal_recipe" = ["<aqua>개인 차원문","<gray>여행자마다 자신만의 영구 차원으로 들어갑니다."]
-"item.door.public_recipe" = ["<gold>공용 차원문","<gray>모든 여행자가 이 문의 공유 차원으로 들어갑니다."]
-"item.door.entangled_trapdoor_pair" = ["<gold>얽힌 다락문 한 쌍","<gray>자동으로 연결된 웜홀 다락문 두 개입니다.","<gray>사용하면 A 다락문과 B 다락문으로 나뉩니다."]
-"item.door.paired_trapdoor" = ["<gold>웜홀 다락문 {endpoint}","<gray>{other} 쪽과 자동으로 연결됩니다.","<gray>다락문을 열고 그 사이로 떨어지면 이동합니다."]
-"item.door.personal_trapdoor" = ["<aqua>개인 차원 다락문","<gray>여행자마다 자신만의 영구 차원으로 들어갑니다.","<gray>같은 여행자는 항상 같은 장소에 도착합니다."]
-"item.door.public_trapdoor" = ["<gold>공용 차원 다락문","<gray>모든 여행자가 이 다락문의 공유 차원으로 들어갑니다.","<gray>다락문을 부수고 옮겨도 공유 목적지는 바뀌지 않습니다."]
-"item.door.trapdoor_skin" = ["<gold>차원 다락문 외형","<gray>차원 다락문과 손으로 열 수 있는 다락문을 조합합니다."]
-"item.door.entangled_trapdoor_pair_recipe" = ["<gold>얽힌 다락문 한 쌍","<gray>자동으로 연결된 웜홀 다락문 두 개입니다."]
-"item.door.personal_trapdoor_recipe" = ["<aqua>개인 차원 다락문","<gray>여행자마다 자신만의 영구 차원으로 들어갑니다."]
-"item.door.public_trapdoor_recipe" = ["<gold>공용 차원 다락문","<gray>모든 여행자가 이 다락문의 공유 차원으로 들어갑니다."]
-"portal.menu.destination" = ["<gold><bold>목적지</bold>","<gray>연결할 포털을 선택합니다.","<gray>현재 연결: {destination}","","<dark_gray>클릭하여 목적지 선택기를 엽니다."]
-"portal.menu.gateway_destination" = ["<gold><bold>페어링 & 목적지</bold>","<gray>다른 서버와 페어링하거나 게이트웨이를 선택합니다.","<gray>현재 연결: {destination}","","<dark_gray>클릭하여 페어링 화면을 엽니다."]
-"portal.menu.rtp_destination" = ["<gold><bold>무작위 목적지</bold>","<gray>목적지를 다시 뽑을 위치와 시점을 설정합니다.","<gray>순환: <aqua>{rotation}","","<dark_gray>클릭하여 무작위 순간이동 설정을 엽니다."]
-"portal.menu.rename" = ["<green><bold>포털 이름 변경</bold>","<gray>연결과 메뉴에 표시되는 이름을 바꿉니다.","<gray>현재: <white>{portal}","","<dark_gray>클릭하여 새 이름을 입력합니다."]
-"portal.menu.delete" = ["<red><bold>포털 삭제</bold>","<gray>이 포털을 영구적으로 삭제합니다.","","<red><underlined>Shift + 왼쪽 클릭하여 확인</underlined>"]
-"portal.menu.advanced_settings" = ["<dark_aqua><bold>고급 스트림 조정</bold>","<gray>진단 및 특수 연결을 위한 직접 설정입니다.","<gray>값을 변경하면 스트림 품질이 사용자 지정으로 표시됩니다."]
-"portal.menu.back_settings" = ["<yellow><bold>설정으로 돌아가기</bold>","<gray>포털 설정으로 돌아갑니다."]
-"portal.menu.travel.managed" = ["<gold><bold>이동: {direction}</bold>","<gray>시스템이 관리하는 차원 포털 방향입니다.","<gray>{detail}"]
-"portal.menu.travel.mirror" = ["<red><bold>이동: 거울 잠금</bold>","<gray>거울 모드는 보기 전용입니다.","<gray>엔티티는 드나들 수 없습니다."]
-"portal.menu.travel.standard" = ["<aqua><bold>이동: {mode}</bold>","<gray>이 포털을 통과할 수 있는 방향을 설정합니다.","","<gray>송신: <aqua>{outgoing}<gray>  수신: <aqua>{incoming}","","<dark_gray>클릭하여 이동 방향을 전환합니다."]
-"portal.menu.stream_quality" = ["<aqua><bold>스트림 품질: {quality}</bold>","<gray>원격 보기 범위와 업데이트 주기를 한 번에 조절합니다.","","<gray>깊이 <aqua>{depth}<gray>  엔티티 <aqua>{entities}t","<gray>새로고침 <aqua>{refresh}t<gray>  유지 <aqua>{grace}s","","<dark_gray>클릭: 품질 전환.","<dark_gray>Shift + 클릭: 고급 조정."]
-"portal.menu.orientation" = ["<blue><bold>방향</bold>","<gray>정면: <blue>{facing}","<gray>화면 위쪽: <gold>{up}","","<dark_gray>클릭하여 정면, 뒤집기 및 회전을 설정합니다."]
-"portal.menu.orientation_placard" = ["<blue><bold>포털 방향</bold>","<gray>정면: <blue>{facing}","<gray>화면 위쪽: <gold>{up}"]
-"portal.menu.gateway.choose" = ["<gold><bold>목적지 선택</bold>","<gray>발견된 로컬 및 원격 게이트웨이 중에서 선택합니다.","","<dark_gray>클릭하여 목적지 목록을 엽니다."]
-"portal.menu.gateway.unpaired" = ["<gold><bold>게이트웨이 페어링</bold>","<gray>상태: <red>페어링되지 않음"]
-"portal.menu.gateway.paired" = ["<gold><bold>게이트웨이 페어링</bold>","<gray>목적지: <gold>{destination}"]
-"portal.menu.gateway.export" = ["<gold><bold>초대 만들기</bold>","<gray>다른 서버용 서명된 게이트웨이 코드를 만듭니다.","","<dark_gray>클릭하여 새 코드를 복사합니다."]
-"portal.menu.gateway.import" = ["<aqua><bold>초대 사용</bold>","<gray>다른 게이트웨이에서 받은 서명된 코드를 붙여 넣습니다.","","<dark_gray>클릭한 뒤 채팅에 코드를 붙여 넣습니다."]
-"portal.menu.network_number" = ["<aqua><bold>{label} <white>{value}</bold>","<gray>{description}","","<gray>현재: <aqua>{value}","","<dark_gray>왼쪽 클릭: +{step}","<dark_gray>오른쪽 클릭: -{step}","<dark_gray>Shift + 왼쪽 클릭: +{large_step}","<dark_gray>Shift + 오른쪽 클릭: -{large_step}"]
-"portal.menu.fallback_block" = ["<aqua><bold>대체 블록</bold>","<gray>스트림 깊이 밖에 표시되는 블록입니다.","","<gray>현재: <white>{block}","","<dark_gray>왼쪽 클릭: 블록 상태 입력.","<dark_gray>오른쪽 클릭: 공기로 초기화."]
-"portal.menu.blackout" = ["<aqua><bold>배경 차단</bold>","<gray>투영의 먼 경계와 측면 경계를 단단한 콘크리트로 막아 로컬 월드가 비쳐 보이지 않게 합니다.","","<gray>현재: <white>{state} <dark_gray>({color})","","<dark_gray>왼쪽 클릭: 켜기/끄기 전환.","<dark_gray>오른쪽 클릭: 색상 선택."]
-"portal.menu.blackout_color.placard" = ["<gold><bold>차단 색상</bold>","<gray>차단 셸에 사용하는 콘크리트 색상.","","<gray>현재: <white>{color}"]
-"portal.menu.blackout_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>클릭하여 선택합니다."]
-"portal.menu.activation_range" = ["<aqua><bold>활성화 범위 <white>{value}</bold>","<gray>이 포털이 근처 플레이어에게 투영을 시작하는 거리(블록 단위).","","<gray>현재: <aqua>{value}","","<dark_gray>왼쪽 클릭: +{step}","<dark_gray>오른쪽 클릭: -{step}","<dark_gray>Shift + 왼쪽 클릭: +{large_step}","<dark_gray>Shift + 오른쪽 클릭: -{large_step}","<dark_gray>8 미만이면 전역으로 재설정됩니다."]
-"portal.menu.placard.rtp" = ["<gold><bold>{portal}</bold>","<gray>유형: <yellow>{type}","<gray>방향: <blue>{facing}","<gray>할당: <aqua>{allocation}","<gray>순환: <aqua>{rotation}","","<dark_gray>관리자는 허용 목록과 차단 목록의 영향을 받지 않습니다."]
-"portal.menu.placard.linked" = ["<gold><bold>{portal}</bold>","<gray>유형: <yellow>{type}","<gray>방향: <blue>{facing}","<gray>연결 대상: <gold>{destination}","","<dark_gray>관리자는 허용 목록과 차단 목록의 영향을 받지 않습니다."]
-"portal.menu.placard.unlinked" = ["<gold><bold>{portal}</bold>","<gray>유형: <yellow>{type}","<gray>방향: <blue>{facing}","<gray>연결 대상: <red>{none}","","<dark_gray>관리자는 허용 목록과 차단 목록의 영향을 받지 않습니다."]
-"portal.menu.settings_placard_gateway" = ["<aqua><bold>포털 설정</bold>","<gray>접근 및 전송 제어.","<gray>서버 간 보기 조정도 포함합니다.","","<gray>더 큰 깊이 / 더 짧은 틱 간격 =","<gray>더 자세한 보기, 더 많은 대역폭."]
-"portal.menu.mode_placard" = ["<yellow><bold>포털 모드</bold>","<gray>현재: <yellow>{mode}","","<gray>포털: 기본 연결 포털.","<gray>웜홀: 뷰포트가 있는 포털.","<gray>게이트웨이: 서버 간 게이트웨이.","<gray>RTP: 설정 가능한 무작위 목적지.","<gray>거울: 이쪽을 반사하며 이동은 불가."]
-"portal.menu.mode_opener" = ["<yellow><bold>모드</bold>","<gray>{description}","","<gray>현재: <yellow>{mode}","","<dark_gray>클릭하여 모드를 변경합니다."]
-"portal.menu.direction" = ["<blue><bold>방향</bold>","<gray>포털 앞면이 향하는 방향을 변경합니다.","","<gray>현재 방향: <blue>{direction}","","<dark_gray>클릭한 뒤 원하는 방향을 보고 왼쪽 클릭하여 적용합니다."]
-"portal.menu.flip_face" = ["<aqua><bold>앞면 뒤집기</bold>","<gray>포털 앞면의 방향을 반대로 바꿉니다.","<gray>화면 회전 방향은 그대로 유지됩니다.","","<gray>현재 화면 위쪽: <aqua>{up}","","<dark_gray>클릭하여 뒤집습니다."]
-"portal.menu.rotate_counterclockwise" = ["<gold><bold>시계 반대 방향으로 회전</bold>","<gray>포털 뷰포트를 90도 회전하며","<gray>앞면 방향은 바꾸지 않습니다.","","<gray>현재 화면 위쪽: <gold>{up}","","<dark_gray>클릭하여 회전합니다."]
-"portal.menu.rotate_clockwise" = ["<gold><bold>시계 방향으로 회전</bold>","<gray>포털 뷰포트를 90도 회전하며","<gray>앞면 방향은 바꾸지 않습니다.","","<gray>현재 화면 위쪽: <gold>{up}","","<dark_gray>클릭하여 회전합니다."]
-"portal.menu.back" = ["<yellow><bold>뒤로</bold>","<gray>포털 메뉴로 돌아갑니다."]
-"portal.menu.projection.on" = ["<gold><bold>투영 켜짐</bold>","<gray>이 포털의 실시간 보기를 표시합니다.","<gray>목적지 또는 거울 화면이 보입니다.","","<gray>현재: <aqua>투영 켜짐</aqua>","","<dark_gray>클릭하여 켜기 / 끄기를 전환합니다."]
-"portal.menu.projection.off" = ["<dark_gray><bold>투영 꺼짐</bold>","<gray>프레임이 비어 있습니다.","<gray>목적지 화면이나 거울을 표시하지 않습니다.","","<gray>현재: <aqua>투영 꺼짐</aqua>","","<dark_gray>클릭하여 켜기 / 끄기를 전환합니다."]
-"portal.menu.settings_gateway" = ["<aqua><bold>설정</bold>","<gray>권한, 전송 제어 및","<gray>서버 간 보기 조정.","","<gray>접근: <gold>{access}","<gray>송신 <aqua>{send}<gray>  수신 <aqua>{receive}","<gray>깊이 <aqua>{depth}<gray>  엔티티 <aqua>{entity}t","","<dark_gray>클릭하여 설정을 엽니다."]
-"portal.menu.settings_sync" = ["<aqua><bold>설정 동기화 {state}</bold>","<gray>켜면 이 포털의 설정","<gray>(깊이, 틱, 투영, 권한,","<gray>전송)이 연결된 모든 피어와 동기화됩니다.","","<gray>현재: <aqua>{state}","","<dark_gray>클릭하여 전환합니다."]
-"portal.menu.permission" = ["<gold><bold>접근 {mode}</bold>","<gray>{description}","<gray>권한 노드: <white>{node}","","<gray>현재: <gold>{mode}","","<dark_gray>클릭하여 허용 목록 / 차단 목록을 전환합니다.","<dark_gray>관리자는 항상 영향을 받지 않습니다."]
-"portal.menu.mode_option.selected" = ["<yellow><bold>{mode}</bold>","<gray>{description}","","<green>현재 선택됨"]
-"portal.menu.mode_option.available" = ["<yellow><bold>{mode}</bold>","<gray>{description}","","<gray>선택하기 위해 클릭하세요"]
-"portal.menu.mirror.selected" = ["<yellow><bold>거울</bold>","<gray>로컬 월드를 이쪽으로 반사합니다.","<gray>프레임 너머로 자신을 볼 수 있습니다.","<gray>거울 모드에서는 이동할 수 없습니다.","","<green>현재 선택됨"]
-"portal.menu.mirror.available" = ["<yellow><bold>거울</bold>","<gray>로컬 월드를 이쪽으로 반사합니다.","<gray>프레임 너머로 자신을 볼 수 있습니다.","<gray>거울 모드에서는 이동할 수 없습니다.","","<gray>왼쪽 클릭하여 선택"]
-"portal.menu.mirror.flip" = ["<gray>벽 거울은 180도 단위로 뒤집혀","<gray>반사된 엔티티의 방향을 올바르게 유지합니다.","<dark_gray>오른쪽 클릭: 반사 이미지 뒤집기."]
-"portal.menu.destination.local" = ["<gold>{portal}","<gray>{world}의 {x}, {y}, {z}, 방향 {direction}"]
-"portal.menu.destination.remote" = ["<gold>{portal}","<gray>서버: <white>{server}","<gray>{world}의 {x}, {y}, {z}, 방향 {direction}","<aqua>{state}"]
-"portal.menu.destination.sort" = ["<yellow><bold>정렬: <white>{mode}</bold>","<gray>목적지 정렬 순서를 변경합니다.","<yellow>왼쪽 클릭"]
-"portal.menu.destination.previous_page" = ["<yellow><bold>이전 페이지</bold>","<gray>이전 목적지를 표시합니다.","<yellow>왼쪽 클릭"]
-"portal.menu.destination.next_page" = ["<yellow><bold>다음 페이지</bold>","<gray>다음 목적지를 표시합니다.","<yellow>왼쪽 클릭"]
-"portal.menu.destination.page" = ["<aqua><bold>페이지 {page}/{pages}</bold>","<gray>목적지 {count}개"]
-"portal.menu.destination.empty" = ["<gray>연결할 수 있는 목적지가 없습니다."]
-"portal.prompt.direction" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>방향을 보시고 왼쪽 클릭하여 적용하세요.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>취소하려면 Shift + 왼쪽 클릭하세요."]
-"rtp.overview.destination" = ["<yellow><bold>목적지 & 지역</bold>","<gray>세계, 중심 및 반경.","<yellow>왼쪽 클릭"]
-"rtp.overview.landing" = ["<yellow><bold>착륙 규칙</bold>","<gray>지표면 및 높이 설정.","<yellow>왼쪽 클릭"]
-"rtp.overview.routing" = ["<yellow><bold>순환 & 목적지 풀</bold>","<gray>공유 방식, 순환 및 예약 유지 시간.","<yellow>왼쪽 클릭"]
-"rtp.overview.effects" = ["<yellow><bold>효과</bold>","<gray>투영 테두리와 포털 소리.","<yellow>왼쪽 클릭"]
-"rtp.overview.reset_defaults" = ["<yellow><bold>기본값으로 초기화</bold>","<gray>이 포털의 무작위 텔레포트 설정을 즉시 기본값으로 되돌립니다.","<yellow>왼쪽 클릭"]
-"rtp.navigation.back_portal" = ["<yellow><bold>포털로 돌아갑니다</bold>","<gray>포털 메뉴로 돌아갑니다.","<yellow>왼쪽 클릭"]
-"rtp.navigation.overview" = ["<yellow><bold>개요</bold>","<gray>RTP 개요로 돌아갑니다.","<yellow>왼쪽 클릭"]
-"rtp.navigation.back_category" = ["<yellow><bold>뒤로</bold>","<gray>이전 범주로 돌아갑니다.","<yellow>왼쪽 클릭"]
-"rtp.destination.header" = ["<aqua><bold>목적지 & 지역</bold>","<gray>모든 옵션은 일반적인 왼쪽 클릭을 사용합니다."]
-"rtp.destination.world_current" = ["<green><bold>{world}</bold>","<gray>현재 대상 월드.","<green>선택됨"]
-"rtp.destination.world_available" = ["<aqua><bold>{world}</bold>","<gray>로드된 이 월드를 사용합니다.","<yellow>왼쪽 클릭하여 선택"]
-"rtp.destination.previous_worlds" = ["<yellow><bold>이전 월드</bold>","<gray>이전 페이지를 표시합니다.","<yellow>왼쪽 클릭"]
-"rtp.destination.next_worlds" = ["<yellow><bold>다음 월드</bold>","<gray>다음 페이지를 표시합니다.","<yellow>왼쪽 클릭"]
-"rtp.destination.biome_link" = ["<yellow><bold>대상 바이옴 <white>{value}</bold>","<gray>선택한 바이옴에 착륙하는 것을 우선합니다.","<yellow>왼쪽 클릭"]
-"rtp.biome.header" = ["<aqua><bold>대상 바이옴</bold>","<gray>검색 시 이 바이옴을 우선하며, 근처에서 찾을 수 없으면 임의의 안전한 지점을 사용합니다."]
-"rtp.biome.any_selected" = ["<green><bold>모든 바이옴</bold>","<gray>바이옴 선호가 없습니다.","<green>선택됨"]
-"rtp.biome.any_available" = ["<aqua><bold>모든 바이옴</bold>","<gray>바이옴 선호를 해제합니다.","<yellow>왼쪽 클릭하여 선택"]
-"rtp.biome.current" = ["<green><bold>{biome}</bold>","<gray>{key}","<green>선택됨"]
-"rtp.biome.available" = ["<aqua><bold>{biome}</bold>","<gray>{key}","<yellow>왼쪽 클릭하여 선택"]
-"rtp.biome.empty" = ["<gray>대상 월드에서 사용할 수 있는 바이옴이 없습니다."]
-"rtp.biome.previous" = ["<yellow><bold>이전 바이옴</bold>","<gray>이전 페이지를 표시합니다.","<yellow>왼쪽 클릭"]
-"rtp.biome.next" = ["<yellow><bold>다음 바이옴</bold>","<gray>다음 페이지를 표시합니다.","<yellow>왼쪽 클릭"]
-"rtp.destination.center_portal_selected" = ["<green><bold>포털 기준 중심</bold>","<gray>이 포털을 고리 영역의 중심으로 사용합니다.","<green>선택됨"]
-"rtp.destination.center_portal_available" = ["<aqua><bold>포털 기준 중심</bold>","<gray>이 포털을 고리 영역의 중심으로 사용합니다.","<yellow>왼쪽 클릭하여 선택"]
-"rtp.destination.center_custom_selected" = ["<green><bold>사용자 정의 센터</bold>","<gray>편집 가능한 X 및 Z 좌표를 사용하십시오.","<green>선택된 것"]
-"rtp.destination.center_custom_available" = ["<aqua><bold>사용자 정의 센터</bold>","<gray>편집 가능한 X 및 Z 좌표를 사용하십시오.","<yellow>선택하려면 왼쪽 클릭하세요"]
-"rtp.numeric.link" = ["<yellow><bold>{label} <white>{value}</bold>","<gray>값을 명확히 줄이거나 늘리는 화면을 엽니다.","<yellow>왼쪽 클릭"]
-"rtp.destination.reset_center" = ["<yellow><bold>중심 / 대상 초기화</bold>","<gray>출발 월드와 포털 중심을 사용합니다.","<yellow>왼쪽 클릭"]
-"rtp.landing.header" = ["<aqua><bold>착륙 규칙</bold>","<gray>Choose surface or preferred-height behavior and its safety mode."]
-"rtp.landing.surface_selected" = ["<green><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<green>Selected"]
-"rtp.landing.surface_available" = ["<aqua><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<yellow>Left click to select"]
-"rtp.landing.preferred_selected" = ["<green><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<green>Selected"]
-"rtp.landing.preferred_available" = ["<aqua><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<yellow>Left click to select"]
-"rtp.landing.safe_policy" = ["<aqua><bold>Landing Safety: <white>{mode}</bold>","<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.","<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.","<yellow>Left click to toggle"]
-"rtp.routing.header" = ["<aqua><bold>순환 & 목적지 풀</bold>","<gray>모드를 직접 선택한 뒤 전체를 한 번에 적용합니다."]
-"rtp.routing.shared_selected" = ["<green><bold>공유 목적지</bold>","<gray>모든 플레이어가 같은 경로를 보고 사용합니다.","<green>선택됨"]
-"rtp.routing.shared_available" = ["<aqua><bold>공유 목적지</bold>","<gray>모든 플레이어가 같은 경로를 보고 사용합니다.","<yellow>왼쪽 클릭하여 선택"]
-"rtp.routing.private_selected" = ["<green><bold>플레이어별 목적지</bold>","<gray>플레이어마다 개인 예약을 준비합니다.","<green>선택됨"]
-"rtp.routing.private_available" = ["<aqua><bold>플레이어별 목적지</bold>","<gray>플레이어마다 개인 예약을 준비합니다.","<yellow>왼쪽 클릭하여 선택"]
-"rtp.routing.static_selected" = ["<green><bold>고정</bold>","<gray>같은 목적지를 유지합니다.","<green>선택됨"]
-"rtp.routing.static_available" = ["<aqua><bold>고정</bold>","<gray>같은 목적지를 유지합니다.","<yellow>왼쪽 클릭하여 선택"]
-"rtp.routing.timed_selected" = ["<green><bold>시간제</bold>","<gray>설정한 시간이 지나면 목적지를 순환합니다.","<green>선택됨"]
-"rtp.routing.timed_available" = ["<aqua><bold>시간제</bold>","<gray>설정한 시간이 지나면 목적지를 순환합니다.","<yellow>왼쪽 클릭하여 선택"]
-"rtp.routing.trip_selected" = ["<green><bold>이동 후</bold>","<gray>사용 후 준비된 다음 후보로 이동합니다.","<green>선택됨"]
-"rtp.routing.trip_available" = ["<aqua><bold>이동 후</bold>","<gray>사용 후 준비된 다음 후보로 이동합니다.","<yellow>왼쪽 클릭하여 선택"]
-"rtp.routing.manual_reroll" = ["<yellow><bold>수동으로 다시 뽑기</bold>","<gray>{description}","<yellow>왼쪽 클릭"]
-"rtp.routing.rebuild_pool" = ["<yellow><bold>목적지 풀 재구성</bold>","<gray>{description}","<yellow>왼쪽 클릭"]
-"rtp.effects.header" = ["<aqua><bold>효과</bold>","<gray>표시 효과를 바꿔도 목적지는 다시 생성되지 않습니다."]
-"rtp.effects.rim_on_selected" = ["<green><bold>투영 테두리 켜짐</bold>","<gray>포털 테두리에 준비 상태를 표시합니다.","<green>선택됨"]
-"rtp.effects.rim_on_available" = ["<aqua><bold>투영 테두리 켜짐</bold>","<gray>포털 테두리에 준비 상태를 표시합니다.","<yellow>왼쪽 클릭하여 선택"]
-"rtp.effects.rim_off_selected" = ["<green><bold>투영 테두리 꺼짐</bold>","<gray>준비 상태 테두리를 숨깁니다.","<green>선택됨"]
-"rtp.effects.rim_off_available" = ["<aqua><bold>투영 테두리 꺼짐</bold>","<gray>준비 상태 테두리를 숨깁니다.","<yellow>왼쪽 클릭하여 선택"]
-"rtp.effects.sound_on_selected" = ["<green><bold>포털 소리 켜짐</bold>","<gray>이 RTP 포털의 효과음과 이동 소리를 재생합니다.","<green>선택됨"]
-"rtp.effects.sound_on_available" = ["<aqua><bold>포털 소리 켜짐</bold>","<gray>이 RTP 포털의 효과음과 이동 소리를 재생합니다.","<yellow>왼쪽 클릭하여 선택"]
-"rtp.effects.sound_off_selected" = ["<green><bold>포털 소리 꺼짐</bold>","<gray>이 RTP 포털을 음소거합니다. 입자는 계속 표시됩니다.","<green>선택됨"]
-"rtp.effects.sound_off_available" = ["<aqua><bold>포털 소리 꺼짐</bold>","<gray>이 RTP 포털을 음소거합니다. 입자는 계속 표시됩니다.","<yellow>왼쪽 클릭하여 선택"]
-"rtp.numeric.target_unavailable" = ["<aqua><bold>대상 월드를 사용할 수 없음</bold>","<gray>이 값을 편집하기 전에 대상 월드를 로드하세요."]
-"rtp.numeric.value" = ["<aqua><bold>{value}</bold>","<gray>현재 초안 값."]
-"rtp.numeric.adjust" = ["<yellow><bold>{direction}{step}</bold>","<gray>초안 값을 {direction}{step}만큼 조정합니다.","<yellow>왼쪽 클릭"]
-"rtp.numeric.header" = ["<aqua><bold>{label}</bold>","<gray>{description}"]
-"rtp.confirm.reroll" = ["<aqua><bold>공유 경로를 다시 뽑을까요?</bold>","<gray>대체 경로가 준비될 때까지 현재 투영을 유지합니다."]
-"rtp.confirm.rebuild" = ["<aqua><bold>개인 목적지 풀을 재구성할까요?</bold>","<gray>빈 후보를 다시 만드는 동안 기존 예약은 유지됩니다."]
-"rtp.confirm.confirm" = ["<yellow><bold>확인</bold>","<gray>이 작업을 실행합니다.","<yellow>왼쪽 클릭"]
-"rtp.confirm.cancel" = ["<yellow><bold>취소</bold>","<gray>실행 상태를 변경하지 않고 돌아갑니다.","<yellow>왼쪽 클릭"]
-"rtp.status.header" = ["<gold><bold>무작위 목적지 상태</bold>","<gray>상태: {state}"]
-"door.menu.access.placard" = ["<gold><bold>{kind} 차원문</bold>","<gray>소유자: <white>{owner}","<gray>허용 목록: <green>{whitelisted}","<gray>차단 목록: <red>{blacklisted}","<gray>등록된 플레이어: <aqua>{count}","<dark_gray>이 문은 소유자와 관리자만 편집할 수 있습니다."]
-"door.menu.access.add_player" = ["<green><bold>플레이어 추가</bold>","<gray>채팅에 플레이어 이름을 입력해 목록에 추가합니다.","","<dark_gray>클릭하여 플레이어를 추가합니다."]
-"door.menu.access.open_state" = ["<aqua><bold>OpenState: <white>{state}","<gray>포털은 이 블록의 물리적 상태를 따릅니다.","<gray>활성 상태: <white>{state}<gray>.","","<dark_gray>다음: {next}. 클릭하여 전환합니다."]
-"door.menu.access.entry" = ["<white>{name}","<gray>상태: <aqua>{state}","","<dark_gray>좌클릭: 허용. 우클릭: 차단.","<dark_gray>휠 클릭 또는 Shift + 좌클릭: 제거."]
+[language.editor.error]
+no-permission = "{plugin}의 언어를 편집할 권한이 없습니다."
+unable-to-edit = "편집하지 못했습니다: {reason}"
 
-"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>포켓 <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>크기 <white>{size}<gray> 블록, 벽 <white>{material}<gray>, 출구 문 <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>범위 <white>{minimum}<gray> ~ <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} 블록으로 다시 만들면 설치된 블록 <white>{blocks}<red>개가 파괴되고 엔티티 <white>{entities}<red>개가 이동합니다.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>새 벽 바깥의 블록은 파괴되고 이동 대상 엔티티는 입구로 옮겨집니다.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>계속하려면 같은 명령을 <white>confirm=true<gray>와 함께 실행하세요."]
-"portal.menu.public_look_label" = ["<aqua><bold>Public Look Label: <white>{state}</bold>","<gray>Show this portal's name when nearby players look at it.","<gray>When Off, the route label remains portal-tool only.","","<yellow>Left click to toggle"]
-[plural."command.admin.deleted_portals"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>포털 <white>{count}<green>개를 삭제하고 로컬 포털 연결을 지웠습니다."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>포털 <white>{count}<green>개를 삭제하고 로컬 포털 연결을 지웠습니다."
+[language.editor.input]
+expired = "언어 편집기의 입력 시간이 만료되었습니다."
+too-long = "입력은 최대 {maximum}자까지 가능합니다."
+unable-to-save = "저장하지 못했습니다: {reason}"
 
-[plural."command.admin.reset_everything"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes를 기본 상태로 초기화했습니다. 포털 <white>{count}<green>개를 삭제하고 네트워크 연결을 닫은 뒤 기본 구성 파일을 다시 생성했습니다."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes를 기본 상태로 초기화했습니다. 포털 <white>{count}<green>개를 삭제하고 네트워크 연결을 닫은 뒤 기본 구성 파일을 다시 생성했습니다."
+[language.editor.locale]
+open = "&8클릭하여 이 언어를 엽니다.&r"
 
-[plural."wand.selection.selected"]
-one = "<aqua>{count}블록을 선택했습니다. 왼쪽 클릭하여 포털을 여세요."
-other = "<aqua>{count}블록을 선택했습니다. 왼쪽 클릭하여 포털을 여세요."
+[language.editor.message]
+current-value = "&7현재 값:&r"
+edit-chat = "&7클릭하여 채팅에서 편집합니다.&r"
+edit-lines = "&7클릭하여 개별 줄을 편집합니다.&r"
+edit-plural = "&7클릭하여 복수형을 편집합니다.&r"
+variables = "&8{variables}&r"
 
-[plural."command.admin.projection_flushed"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>투영 관찰자 <white>{count}<green>명을 비웠습니다. 클라이언트가 실제 상태에서 다시 구성됩니다."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>투영 관찰자 <white>{count}<green>명을 비웠습니다. 클라이언트가 실제 상태에서 다시 구성됩니다."
+[language.editor.navigation]
+back = "&e뒤로&r"
+close = "&c닫기&r"
+next-page = "&e다음 페이지&r"
+previous-page = "&e이전 페이지&r"
+
+[language.editor.part]
+line = "{line}번째 줄"
+
+[language.editor.prompt]
+current = "현재 값: {value}"
+guidance = "줄바꿈에는 \\n, 역슬래시에는 \\\\를 사용하세요. 돌아가려면 cancel을 입력하세요."
+search = "메시지 키 또는 내용을 검색하세요. 돌아가려면 cancel을 입력하세요."
+value = "채팅에 {key}의 새 값을 입력하세요."
+variables = "변수: {variables}"
+
+[language.editor.saved]
+change = "{key}: “{before}”에서 “{after}”로 변경했습니다."
+summary = "{locale}을 저장했습니다. 언어 선택은 변경되지 않았습니다."
+
+[language.editor.search]
+clear = "검색 지우기"
+messages = "메시지 검색"
+messages-lore = "클릭하여 모든 메시지를 검색합니다."
+
+[language.editor.section]
+group-title = "{locale} / {group}"
+languages = "언어"
+search = "검색"
+search-title = "{locale} / 검색"
+
+[language.editor.value]
+empty = "(비어 있음)"
+none = "없음"
+
+[language.error]
+editor-player-only = "게임 안에서 언어 편집기를 여세요."
+no-providers = "사용 가능한 Volmit 언어 제공자가 없습니다."
+numeric-page = "페이지 번호를 숫자로 입력하세요."
+personal-permission = "개인 언어를 선택할 권한이 없습니다."
+personal-player-only = "개인 언어는 게임 안에서 선택해야 합니다."
+plugin-personal-permission = "{plugin}의 개인 언어를 선택할 권한이 없습니다."
+plugin-server-permission = "{plugin}의 서버 언어를 변경할 권한이 없습니다."
+server-locale-required = "서버 기본 언어로 en_US 같은 언어 코드를 선택하세요."
+stopping = "플러그인이 중지되는 동안에는 언어를 선택할 수 없습니다."
+unavailable-for-all = "{locale} 언어는 선택한 모든 플러그인에서 지원되는 것은 아닙니다."
+
+[language.menu]
+all-volmit-plugins = "모든 Volmit 플러그인"
+command = "명령어: {command}"
+current = "현재: {locale}"
+current_with_personal = "현재: {locale} (내 언어: {personal})"
+edit_description = "언어별 메시지 편집기를 엽니다."
+edit_messages = "언어 메시지 편집"
+no_controls = "사용할 수 있는 언어 설정이 없습니다."
+remove_personal_description = "개인 언어 선택을 제거합니다."
+reset_description = "서버 기본 언어를 사용합니다."
+reset_your_language = "내 언어 재설정"
+select_description = "클릭하여 이 언어를 선택합니다."
+selected = "선택됨"
+server_default = "서버 기본값"
+server_description = "서버 기본 언어를 변경합니다."
+use_server_default = "서버 기본값 사용"
+your_description = "나에게 표시되는 메시지만 변경합니다."
+your_language = "내 언어"
+
+[language.selection]
+english-fallback = "{plugin}: {locale}을 사용할 수 없어 영어(en_US)를 사용합니다."
+personal-selected = "{plugin}: 개인 언어를 {locale}으로 변경했습니다."
+preparing = "{target}의 {locale} 언어를 준비하는 중..."
+save-failed = "{plugin}: 언어 선택을 저장하지 못했습니다. 서버 콘솔을 확인하세요."
+server-default-selected = "{plugin}: 개인 언어가 이제 서버 기본 언어를 따릅니다."
+server-selected = "{plugin}: 서버 언어를 {locale}으로 변경했습니다."
+
+[language.usage]
+editor = "사용법: /{command} language server edit [locale]"
+selection = "사용법: /{command} language self [locale|reset] or server [locale]"
+volmit-selection = "사용법: /volmit plugins languages [locale]"
+
+[command]
+public_help = ["&8[&6Wormholes&8] &7포털 도움말: &f/wormholes info", "&8[&6Wormholes&8] &7포털에 포털 지팡이를 사용하면 목적지, 보기, 이동 및 접근 설정을 열 수 있습니다."]
+info = ["&8[&6Wormholes&8] &7&l웜홀 만드는 방법&r", "&81. &7서버 또는 관리자에게서 포털 지팡이와 포털 룬을 받습니다.", "&82. &7한 평면에 룬을 서로 연결된 모양으로 배치합니다.", "&7   직사각형, 직선 (3x1), 단일 블록, L자, 십자 등 연결된 모양이면 됩니다.", "&7   룬은 좌표축에 맞는 하나의 벽, 바닥 또는 천장에 평평하게 놓여야 합니다.", "&83. &7포털 지팡이를 들고 &f아무 룬 블록이나 왼쪽 클릭&7하여 포털을 만듭니다.", "&84. &7다른 위치에 두 번째 포털을 만듭니다(거리와 월드는 무관합니다).", "&85. &7지팡이로 열린 포털을 클릭해 주 메뉴를 엽니다.", "&7   &f목적지&7를 선택하고 다른 포털을 지정합니다. 반대쪽에서도 반복합니다.", "&7   방향과 접근 설정은 각각 별도의 간단한 메뉴에 있습니다.", "&86. &7두 포털 중 하나에서 {range}블록 안에 서면 목적지 월드가 프레임에 투영되며, 안으로 걸어가면 순간이동합니다.", "&7관리자는 &f/wormholes wand 명령으로 아이템을 만들 수 있습니다"]
+
+[command.help]
+debug = "Wormholes 진단 도구"
+debug_dump = "진단 보고서를 생성하고 선택적으로 업로드"
+debug_dump_upload = "보고서를 mclo.gs에 업로드"
+language = "개인 언어 또는 서버 기본 언어 선택"
+root = "Wormholes 명령어 루트"
+wand = "포털 완드와 웜홀 룬 받기"
+"wand.rune" = "웜홀 룬도 함께 지급 (rune=false 이면 완드만)"
+door = "생존 모드에서 사용할 수 있는 차원문 아이템을 지급합니다"
+"door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
+reload = "Wormholes 설정 및 언어 파일을 다시 불러옵니다"
+debug_toggle = "상세 콘솔 로그와 초당 텔레메트리를 전환합니다"
+stats = "실시간 통계 스냅샷 파일 경로를 표시합니다. now=true로 즉시 새로고침할 수 있습니다"
+"stats.now" = "스냅샷을 동기 방식으로 즉시 다시 생성합니다"
+info = "포털 건설 안내를 표시합니다"
+admin = "Wormholes의 데이터 삭제형 유지 관리 명령어"
+"admin.delete_portals" = "모든 로컬 포털 및 저장된 포털 링크를 삭제합니다"
+"admin.delete_everything" = "Wormholes 데이터, 설정, 신뢰 정보, ID 및 네트워크 상태를 초기화합니다"
+"admin.freeze" = "모든 포털 투영을 지정한 초 동안 그 자리에 고정합니다 (seconds=0 이면 재개)"
+"admin.freeze.seconds" = "고정된 프레임을 유지할 시간 (5-300, 0 이면 즉시 재개)"
+"admin.flush" = "각 관찰자의 투영 블록을 실제 상태로 되돌리고 다시 구성합니다"
+network = "서버 간 웜홀 네트워크"
+"network.import" = "다른 서버에서 포털 코드를 가져오십시오 (내부 경로를 저장하고, 게이트웨이의 링크 메뉴를 통해 연결합니다)"
+"network.import.code" = "다른 서버의 내보내기 버튼에서 생성한 포털 코드"
+"network.status" = "피어 서버 연결 상태를 표시합니다"
+"network.doctor" = "네트워크 피어가 연결되지 않는 이유를 진단합니다"
+server = "서버 간 이동: 연결된 서버에 접속하고, 목록을 확인하고, 서버 정보를 교환합니다"
+"server.connect" = "연결된 서버로 자신을 이동시킵니다 (단축형: /wh server \\<name>)"
+"server.connect.name" = "연결된 서버 이름 (/wh server list 참고)"
+"server.export" = "다른 서버가 가져올 수 있는 코드로 이 서버를 내보냅니다"
+"server.import" = "다른 서버에서 내보낸 서버 또는 포털 코드를 가져옵니다"
+"server.import.code" = "다른 서버의 내보내기에서 생성한 코드"
+"server.list" = "연결된 서버와 각 연결 상태를 나열합니다"
+"server.remove" = "연결된 서버를 잊습니다 (해당 경로와 신뢰된 키를 삭제합니다)"
+"server.remove.name" = "잊을 연결된 서버 이름"
+pocket = "포켓 차원 확인 및 재구성"
+"pocket.info" = "현재 서 있는 포켓의 크기, 재료, 범위를 표시"
+"pocket.resize" = "현재 서 있는 포켓을 새 크기나 재료로 다시 만들기"
+"pocket.resize.size" = "새 방 한 변의 블록 수, 또는 0으로 현재 크기 유지"
+"pocket.resize.material" = "벽, 바닥, 천장에 쓸 새 블록 또는 keep"
+"pocket.resize.door" = "출구 문에 쓸 새 블록 또는 keep"
+"pocket.resize.confirm" = "변경으로 무언가가 파괴되거나 이동할 때 필요"
+"pocket.resizeall" = "기존의 모든 포켓을 새 크기나 재료로 다시 만들기"
+
+[command.error]
+no_permission = "&8[&6Wormholes&8] &c권한이 없습니다."
+no_permission_use = "&8[&6Wormholes&8] &c이 명령을 사용할 권한이 없습니다."
+only_players = "&8[&6Wormholes&8] &c아이템은 플레이어만 받을 수 있습니다."
+usage = "&7사용법: &f/wormholes help"
+
+[command.wand]
+granted_wand = "&8[&6Wormholes&8] &a포털 완드를 지급했습니다."
+granted_starter = ["&8[&6Wormholes&8] &a포털 지팡이와 웜홀 룬 1개를 지급했습니다.", "&8[&6Wormholes&8] &7웜홀 룬 모양 2개(한 평면에 연결된 어떤 모양이든 가능)를 만들어 연결한 뒤, {range}블록 안에 서면 투영을 볼 수 있습니다.", "&8[&6Wormholes&8] &7전체 단계별 안내는 &f/wormholes info&7에서 확인하세요."]
+
+[command.door]
+unavailable = "&8[&6Wormholes&8] &c차원 문은 사용할 수 없습니다."
+unknown_type = "&8[&6Wormholes&8] &c알 수 없는 문 유형입니다. pair, personal 또는 public, pair_trapdoor, personal_trapdoor, public_trapdoor 값을 사용하세요."
+empty_type = "문 타입은 비어서는 안 됩니다"
+granted = "&8[&6Wormholes&8] &a&f{type}&a 유형의 차원문 아이템을 지급했습니다."
+
+[command.reload]
+applied = "&8[&6Wormholes&8] &aWormholes 구성 및 언어 파일을 다시 불러왔습니다."
+language_retained = "&8[&6Wormholes&8] &e구성은 다시 로드되었지만 언어 파일이 거부되었습니다. 마지막 유효 언어는 여전히 활성화되어 있습니다. 콘솔을 확인하세요."
+failed = "&8[&6Wormholes&8] &c구성을 다시 불러오지 못했습니다. 수정 사항은 대기 상태로 남아 다시 시도됩니다. 콘솔을 확인하세요."
+
+[command.stats]
+unavailable = "&8[&6Wormholes&8] &c통계 스냅샷 기록기를 사용할 수 없습니다."
+refreshed = "&8[&6Wormholes&8] &a스냅샷을 새로고쳤습니다."
+path = ["&8[&6Wormholes&8] &7스냅샷 파일: &f{path}", "&8[&6Wormholes&8] &8이 파일을 모니터링하면 실시간 네트워크 및 보기 상태를 확인할 수 있습니다. 파일은 주기마다 덮어씁니다."]
+
+[command.admin]
+delete_failed = "&8[&6Wormholes&8] &c모든 포털을 삭제하지 못했습니다. 전체 스택 추적은 콘솔에서 확인하세요."
+delete_schedule_failed = "&8[&6Wormholes&8] &c포털 초기화 작업을 예약할 수 없습니다."
+reset_failed = "&8[&6Wormholes&8] &cWormholes 초기화에 실패했습니다. 전체 스택 추적은 콘솔에서 확인하세요."
+reset_schedule_failed = "&8[&6Wormholes&8] &cWormholes 초기화 작업을 예약할 수 없습니다."
+projection_frozen = "&8[&6Wormholes&8] &a모든 포털 투영을 &f{seconds}&a초 동안 고정했습니다. 자동으로 재개됩니다."
+projection_resumed = "&8[&6Wormholes&8] &a포털 투영을 재개했습니다."
+projection_failed = "&8[&6Wormholes&8] &c포털 투영을 업데이트하지 못했습니다. 전체 스택 트레이스는 콘솔을 확인하세요."
+projection_schedule_failed = "&8[&6Wormholes&8] &c투영 업데이트를 예약할 수 없습니다."
+
+[command.admin.deleted_portals]
+one = "&8[&6Wormholes&8] &a포털 &f{count}&a개를 삭제하고 로컬 포털 연결을 지웠습니다."
+other = "&8[&6Wormholes&8] &a포털 &f{count}&a개를 삭제하고 로컬 포털 연결을 지웠습니다."
+
+[command.admin.reset_everything]
+one = "&8[&6Wormholes&8] &aWormholes를 기본 상태로 초기화했습니다. 포털 &f{count}&a개를 삭제하고 네트워크 연결을 닫은 뒤 기본 구성 파일을 다시 생성했습니다."
+other = "&8[&6Wormholes&8] &aWormholes를 기본 상태로 초기화했습니다. 포털 &f{count}&a개를 삭제하고 네트워크 연결을 닫은 뒤 기본 구성 파일을 다시 생성했습니다."
+
+[command.admin.projection_flushed]
+one = "&8[&6Wormholes&8] &a투영 관찰자 &f{count}&a명을 비웠습니다. 클라이언트가 실제 상태에서 다시 구성됩니다."
+other = "&8[&6Wormholes&8] &a투영 관찰자 &f{count}&a명을 비웠습니다. 클라이언트가 실제 상태에서 다시 구성됩니다."
+
+[command.pocket]
+not_inside = "&8[&6Wormholes&8] &c포켓 차원 안에서 실행하세요."
+invalid_size = "&8[&6Wormholes&8] &c포켓 크기는 {minimum}에서 {maximum} 블록 사이여야 합니다."
+invalid_shell_material = "&8[&6Wormholes&8] &c{material}은(는) 포켓 벽으로 쓸 수 없습니다. 떨어지지 않는 단단한 블록을 사용하세요."
+invalid_door_material = "&8[&6Wormholes&8] &c{material}은(는) 포켓 출구 문으로 쓸 수 없습니다. 손으로 여는 문을 사용하세요. 철문은 거부됩니다."
+unchanged = "&8[&6Wormholes&8] &e그 포켓은 이미 이 크기와 재료입니다."
+containers_not_empty = "&8[&6Wormholes&8] &c포켓 크기 변경이 중단되었습니다. 내용물이 있는 보관함 &f{containers}&c개가 파괴됩니다. 비운 뒤 다시 시도하세요. &fconfirm=true&c로도 이 안전 검사를 건너뛸 수 없습니다."
+resized = "&8[&6Wormholes&8] &a포켓을 &f{size}&a 블록으로 다시 만들었습니다 (이전 &f{previous}&a). 벽 &f{material}&a, 출구 문 &f{door}."
+failed = "&8[&6Wormholes&8] &c포켓을 다시 만들지 못했습니다. 콘솔을 확인하세요."
+world_unavailable = "&8[&6Wormholes&8] &c포켓 차원이 로드되지 않았습니다."
+does_not_fit = "&8[&6Wormholes&8] &c{size} 블록 크기의 방은 포켓 차원의 건축 높이에 맞지 않습니다."
+bulk_started = "&8[&6Wormholes&8] &7포켓 &f{count}&7개를 다시 만드는 중입니다."
+bulk_finished = "&8[&6Wormholes&8] &a재구성 &f{resized}&a, 건너뜀 &f{skipped}&a, 실패 &f{failed}."
+info = ["&8[&6Wormholes&8] &7포켓 &f{space}", "&8[&6Wormholes&8] &7크기 &f{size}&7 블록, 벽 &f{material}&7, 출구 문 &f{door}", "&8[&6Wormholes&8] &7범위 &f{minimum}&7 ~ &f{maximum}"]
+confirm_required = ["&8[&6Wormholes&8] &c{size} 블록으로 다시 만들면 설치된 블록 &f{blocks}&c개가 파괴되고 엔티티 &f{entities}&c개가 이동합니다.", "&8[&6Wormholes&8] &7새 벽 바깥의 블록은 파괴되고 이동 대상 엔티티는 입구로 옮겨집니다.", "&8[&6Wormholes&8] &7계속하려면 같은 명령을 &fconfirm=true&7와 함께 실행하세요."]
+
+[portal]
+deleted = "&c{portal} 포털을 삭제했습니다"
+
+[portal.travel]
+cost_insufficient = "&c이 포털을 사용하려면 {item} {quantity}개가 필요합니다."
+cost_vault_insufficient = "&c이 포털을 사용하려면 {amount}이(가) 필요합니다."
+cost_vault_unavailable = "&c이 포털의 경제 비용을 사용할 수 없습니다."
+cost_transaction_failed = "&c포털이 이동 비용을 처리하지 못했습니다."
+transfer_holding = "&6대상 서버에 연결하는 중..."
+transfer_interrupted = "&c포털 전송이 중단되었습니다: 포털에서 멀어졌습니다."
+transfer_source_unavailable = "&c포털 전송이 중단되었습니다: 출발 포털을 더 이상 사용할 수 없습니다."
+cooldown = "&6포털 쿨다운 중"
+access_denied = "&c이 포털을 사용할 권한이 없습니다"
+destination_unavailable = "&c포털 목적지를 사용할 수 없습니다"
+arrival_denied = "&c목적지 포털이 도착을 거부했습니다."
+arrival_returned = "&c목적지 포털이 도착을 거부했습니다. {server} 서버로 되돌립니다"
+arrival_failed = "&c포털 도착 지점을 배치하지 못했습니다. 목적지 스폰 지점에 머뭅니다"
+transfer_cooldown = "&6서버 간 포털 쿨다운 중: {seconds}s"
+destination_unreachable = "&c목적지 서버에 연결할 수 없습니다"
+destination_unreachable_detail = "&c목적지 서버에 연결할 수 없습니다: {reason}"
+transfer_blocked = "&c포털 전송이 차단되었습니다: {reason}"
+transfer_blocked_retry = "&c포털 전송이 차단되었습니다: {reason} ({seconds}s 후 재시도)"
+
+[portal.prompt]
+cost_item = "&b비용으로 사용할 아이템을 주로 쓰는 손에 든 채 버리기 키를 누르세요. 아이템은 인벤토리에서 사라지지 않습니다."
+cost_vault = "&b1회 통과당 Vault 화폐 금액을 입력하세요 (또는 '{cancel}'):"
+invite = "&b포털 초대 코드를 채팅에 붙여 넣으세요 (또는 '{cancel}'):"
+block_state = "&b이 포털의 네트워크 뷰 가장자리에 사용할 블록 상태를 입력하거나 '{cancel}'을 입력하세요:"
+name = "&b채팅에 새로운 포털 이름 입력하세요 (또는 '{cancel}'):"
+direction = ["&8[&6Wormholes&8] &7방향을 보시고 왼쪽 클릭하여 적용하세요.", "&8[&6Wormholes&8] &7취소하려면 Shift + 왼쪽 클릭하세요."]
+
+[portal.notice]
+cost_item_set = "이제 이동하려면 {item}이(가) 필요합니다."
+cost_item_invalid = "해당 아이템을 이동 비용으로 저장할 수 없습니다."
+cost_cleared = "이동 비용이 제거되었습니다."
+cost_quantity_changed = "이동 비용 수량: {quantity}"
+cost_vault_changed = "Vault 이동 비용: {amount}"
+cost_vault_invalid = "{maximum} 이하의 양수 화폐 금액을 입력하세요."
+cost_vault_unavailable = "이 비용을 선택하려면 Vault와 경제 플러그인이 준비되어야 합니다."
+dimensional_link_managed = "이 차원 포털은 생성된 링크를 유지합니다."
+not_rtp = "이 포털은 무작위 순간이동 모드가 아닙니다."
+region_unavailable = "포털 영역을 사용할 수 없습니다. 다시 시도하세요."
+travel_managed = "차원 포털의 이동 방향은 자동으로 관리됩니다."
+travel_mirror_locked = "거울 모드에서는 이동할 수 없습니다."
+travel_changed = "이동: {mode}"
+stream_quality_changed = "스트림 품질: {quality}"
+network_value_changed = "{label} {value}"
+fallback_set = "{block} 블록을 대체 블록으로 설정했습니다"
+fallback_reset = "대체 블록을 {block} 블록으로 초기화했습니다"
+managed_mode = "관리되는 차원 포털은 포털 모드에서 유지됩니다."
+projection_receiver_inactive = "종착지 도착 포털에서는 투영이 비활성 상태로 유지됩니다."
+projection_changed = "투영: {mode}"
+settings_sync_changed = "설정 동기화: {state}"
+access_changed = "접근: {mode}"
+mirror_select_first = "이미지를 회전하기 전에 거울을 선택하세요."
+mirror_rotation_changed = "거울 회전: {degrees}도"
+rtp_cannot_link = "무작위 텔레포트 포털은 목적지와 연결되지 않습니다."
+
+[portal.label]
+activation_global = "전역 ({range})"
+public_look_label = "바라볼 때 표시되는 공개 레이블"
+
+[portal.label.cost]
+free = "무료"
+vanilla = "바닐라 아이템"
+vault = "Vault 경제"
+
+[portal.label.ambient]
+red = "빨강"
+green = "초록"
+blue = "파랑"
+
+[portal.label.ambient_style]
+sparks = "불꽃"
+outline = "윤곽선"
+corners = "모서리"
+off = "꺼짐"
+
+[portal.label.skin]
+none = "없음"
+
+[portal.label.travel]
+both = "양방향"
+outbound = "출발 전용"
+inbound = "도착 전용"
+locked = "잠김"
+arrival = "도착 전용"
+departure = "출발 전용"
+dimensional_both = "연결된 양쪽 모두 활성 상태를 유지합니다."
+dimensional_return_disabled = "귀환 경로는 비활성 상태로 유지됩니다."
+
+[portal.label.quality]
+standard = "표준"
+performance = "성능"
+balanced = "균형"
+cinematic = "시네마틱"
+custom = "사용자 지정"
+
+[portal.label.mode]
+portal = "포털"
+wormhole = "웜홀"
+gateway = "게이트웨이"
+rtp = "RTP"
+mirror = "거울"
+
+[portal.label.direction]
+up = "위"
+down = "아래"
+north = "북쪽"
+south = "남쪽"
+east = "동쪽"
+west = "서쪽"
+
+[portal.label.allocation]
+shared = "공유"
+per_player = "플레이어별"
+
+[portal.label.permission]
+whitelist = "허용 목록"
+blacklist = "차단 목록"
+
+[portal.label.network]
+direct = "직접"
+sideband = "보조 채널"
+reconnecting = "재연결 중"
+
+[portal.network.label]
+render_mode = "렌더링 모드"
+ambient_style = "환경 파티클"
+ambient_color = "환경 색상"
+surface_skin = "표면 스킨"
+capture_radius = "포착 반지름"
+full_refresh = "전체 새로고침"
+entity_update = "엔티티 업데이트"
+view_grace = "보기 유지 시간"
+blackout = "배경 차단"
+blackout_color = "차단 색상"
+activation_range = "활성화 범위"
+
+[portal.network.description]
+capture_radius = "목적지 포털 주변에서 전송할 블록 범위."
+full_refresh = "전체 블록 새로고침 사이의 틱 수."
+entity_update = "엔티티 업데이트 사이의 틱 수."
+view_grace = "시선을 돌린 뒤에도 스트림을 유지하는 초 단위 시간."
+
+[portal.form]
+rtp_unsupported = "&c무작위 순간이동 포털은 룬으로 만들 수 없습니다."
+forming = "&b포털 생성 중... {type} 룬은 한 평면의 벽, 바닥 또는 천장에서 서로 연결되어야 합니다."
+must_be_flat = "&c포털은 한 벽, 바닥 또는 천장에 평면으로 누워 있어야 합니다."
+interrupted = "&c포털 생성이 중단되었습니다. 예약된 룬은 돌려받았습니다."
+rune_placed = "&b룬을 설치했습니다. 한 평면에 연결된 모양을 만든 뒤 포털 지팡이로 아무 룬이나 왼쪽 클릭하세요."
+opened = "&a포털이 열렸습니다. 지팡이를 들고 포털을 클릭하면 설정할 수 있습니다."
+
+[portal.edit]
+denied = "&c포털 소유자 또는 관리자만 이 포털을 편집할 수 있습니다."
+
+[portal.menu]
+destination = ["&6&l목적지&r", "&7연결할 포털을 선택합니다.", "&7현재 연결: {destination}", "", "&8클릭하여 목적지 선택기를 엽니다."]
+"destination.sort_smart" = "스마트"
+"destination.sort_name" = "이름"
+"destination.sort_world" = "월드"
+"destination.sort_distance" = "거리"
+"destination.local" = ["&6{portal}", "&7{world}의 {x}, {y}, {z}, 방향 {direction}"]
+"destination.remote" = ["&6{portal}", "&7서버: &f{server}", "&7{world}의 {x}, {y}, {z}, 방향 {direction}", "&b{state}"]
+"destination.sort" = ["&e&l정렬: &f&l{mode}&r", "&7목적지 정렬 순서를 변경합니다.", "&e왼쪽 클릭"]
+"destination.previous_page" = ["&e&l이전 페이지&r", "&7이전 목적지를 표시합니다.", "&e왼쪽 클릭"]
+"destination.next_page" = ["&e&l다음 페이지&r", "&7다음 목적지를 표시합니다.", "&e왼쪽 클릭"]
+"destination.page" = ["&b&l페이지 {page}/{pages}&r", "&7목적지 {count}개"]
+"destination.empty" = ["&7연결할 수 있는 목적지가 없습니다."]
+render_mode = ["&b&l렌더링 모드 &f&l{mode}&r", "&7이 포털이 투영하는 대상 볼륨의 범위.", "", "&7모드: &f{mode}", "", "&8PanOptic은 전체 대상 볼륨을 렌더링합니다.", "&8Venticular은 보이는 불투명 표면 뒤의 지오메트리를 생략합니다.", "", "&8좌클릭: 모드 전환."]
+ambient_particles = ["&b&l환경 파티클&r", "&7이 포털 주위를 떠다니는 장식용 먼지.", "", "&7스타일: &f{style} &8({color})", "", "&8왼쪽: 스타일 전환.", "&8오른쪽: 색상 선택."]
+surface_skin = ["&b&l표면 스킨&r", "&7렌더링된 블록 또는 유체 패널로 포털 입구를 덮습니다.", "", "&7스킨: &f{skin}", "", "&8왼쪽: 스킨 제거.", "&8오른쪽: 스킨 옵션 열기."]
+"surface_skin.placard" = ["&6&l표면 스킨&r", "&7블록이나 양동이를 들고 포털을 우클릭하여 스킨을 적용합니다.", "", "&7스킨: &f{skin}"]
+"surface_skin.glass" = ["&b&l유리 스킨&r", "&7입구를 덮는 투명한 유리창.", "", "&8클릭하여 유리를 적용합니다."]
+"surface_skin.clear" = ["&c&l스킨 제거&r", "&7스킨을 제거하고 투영을 복원합니다.", "", "&8클릭하여 스킨을 제거합니다."]
+gateway_destination = ["&6&l페어링 & 목적지&r", "&7다른 서버와 페어링하거나 게이트웨이를 선택합니다.", "&7현재 연결: {destination}", "", "&8클릭하여 페어링 화면을 엽니다."]
+rtp_destination = ["&6&l무작위 목적지&r", "&7목적지를 다시 뽑을 위치와 시점을 설정합니다.", "&7순환: &b{rotation}", "", "&8클릭하여 무작위 순간이동 설정을 엽니다."]
+rename = ["&a&l포털 이름 변경&r", "&7연결과 메뉴에 표시되는 이름을 바꿉니다.", "&7현재: &f{portal}", "", "&8클릭하여 새 이름을 입력합니다."]
+delete = ["&c&l포털 삭제&r", "&7이 포털을 영구적으로 삭제합니다.", "", "&c&nShift + 왼쪽 클릭하여 확인&r"]
+advanced_settings = ["&3&l고급 스트림 조정&r", "&7진단 및 특수 연결을 위한 직접 설정입니다.", "&7값을 변경하면 스트림 품질이 사용자 지정으로 표시됩니다."]
+back_settings = ["&e&l설정으로 돌아가기&r", "&7포털 설정으로 돌아갑니다."]
+stream_quality = ["&b&l스트림 품질: {quality}&r", "&7원격 보기 범위와 업데이트 주기를 한 번에 조절합니다.", "", "&7깊이 &b{depth}&7  엔티티 &b{entities}t", "&7새로고침 &b{refresh}t&7  유지 &b{grace}s", "", "&8클릭: 품질 전환.", "&8Shift + 클릭: 고급 조정."]
+orientation = ["&9&l방향&r", "&7정면: &9{facing}", "&7화면 위쪽: &6{up}", "", "&8클릭하여 정면, 뒤집기 및 회전을 설정합니다."]
+orientation_placard = ["&9&l포털 방향&r", "&7정면: &9{facing}", "&7화면 위쪽: &6{up}"]
+network_number = ["&b&l{label} &f&l{value}&r", "&7{description}", "", "&7현재: &b{value}", "", "&8왼쪽 클릭: +{step}", "&8오른쪽 클릭: -{step}", "&8Shift + 왼쪽 클릭: +{large_step}", "&8Shift + 오른쪽 클릭: -{large_step}"]
+fallback_block = ["&b&l대체 블록&r", "&7스트림 깊이 밖에 표시되는 블록입니다.", "", "&7현재: &f{block}", "", "&8왼쪽 클릭: 블록 상태 입력.", "&8오른쪽 클릭: 공기로 초기화."]
+blackout = ["&b&l배경 차단&r", "&7투영의 먼 경계와 측면 경계를 단단한 콘크리트로 막아 로컬 월드가 비쳐 보이지 않게 합니다.", "", "&7현재: &f{state} &8({color})", "", "&8왼쪽 클릭: 켜기/끄기 전환.", "&8오른쪽 클릭: 색상 선택."]
+activation_range = ["&b&l활성화 범위 &f&l{value}&r", "&7이 포털이 근처 플레이어에게 투영을 시작하는 거리(블록 단위).", "", "&7현재: &b{value}", "", "&8왼쪽 클릭: +{step}", "&8오른쪽 클릭: -{step}", "&8Shift + 왼쪽 클릭: +{large_step}", "&8Shift + 오른쪽 클릭: -{large_step}", "&88 미만이면 전역으로 재설정됩니다."]
+settings_placard_gateway = ["&b&l포털 설정&r", "&7접근 및 전송 제어.", "&7서버 간 보기 조정도 포함합니다.", "", "&7더 큰 깊이 / 더 짧은 틱 간격 =", "&7더 자세한 보기, 더 많은 대역폭."]
+mode_placard = ["&e&l포털 모드&r", "&7현재: &e{mode}", "", "&7포털: 기본 연결 포털.", "&7웜홀: 뷰포트가 있는 포털.", "&7게이트웨이: 서버 간 게이트웨이.", "&7RTP: 설정 가능한 무작위 목적지.", "&7거울: 이쪽을 반사하며 이동은 불가."]
+mode_opener = ["&e&l모드&r", "&7{description}", "", "&7현재: &e{mode}", "", "&8클릭하여 모드를 변경합니다."]
+direction = ["&9&l방향&r", "&7포털 앞면이 향하는 방향을 변경합니다.", "", "&7현재 방향: &9{direction}", "", "&8클릭한 뒤 원하는 방향을 보고 왼쪽 클릭하여 적용합니다."]
+flip_face = ["&b&l앞면 뒤집기&r", "&7포털 앞면의 방향을 반대로 바꿉니다.", "&7화면 회전 방향은 그대로 유지됩니다.", "", "&7현재 화면 위쪽: &b{up}", "", "&8클릭하여 뒤집습니다."]
+rotate_counterclockwise = ["&6&l시계 반대 방향으로 회전&r", "&7포털 뷰포트를 90도 회전하며", "&7앞면 방향은 바꾸지 않습니다.", "", "&7현재 화면 위쪽: &6{up}", "", "&8클릭하여 회전합니다."]
+rotate_clockwise = ["&6&l시계 방향으로 회전&r", "&7포털 뷰포트를 90도 회전하며", "&7앞면 방향은 바꾸지 않습니다.", "", "&7현재 화면 위쪽: &6{up}", "", "&8클릭하여 회전합니다."]
+back = ["&e&l뒤로&r", "&7포털 메뉴로 돌아갑니다."]
+settings_gateway = ["&b&l설정&r", "&7권한, 전송 제어 및", "&7서버 간 보기 조정.", "", "&7접근: &6{access}", "&7송신 &b{send}&7  수신 &b{receive}", "&7깊이 &b{depth}&7  엔티티 &b{entity}t", "", "&8클릭하여 설정을 엽니다."]
+settings_sync = ["&b&l설정 동기화 {state}&r", "&7켜면 이 포털의 설정", "&7(깊이, 틱, 투영, 권한,", "&7전송)이 연결된 모든 피어와 동기화됩니다.", "", "&7현재: &b{state}", "", "&8클릭하여 전환합니다."]
+permission = ["&6&l접근 {mode}&r", "&7{description}", "&7권한 노드: &f{node}", "", "&7현재: &6{mode}", "", "&8클릭하여 허용 목록 / 차단 목록을 전환합니다.", "&8관리자는 항상 영향을 받지 않습니다."]
+public_look_label = ["&b&l바라볼 때 표시되는 공개 레이블: &f&l{state}&r", "&7근처 플레이어가 이 차원문을 바라보면 이름을 표시합니다.", "&7끄면 경로 레이블은 차원문 도구를 사용할 때만 표시됩니다.", "", "&e좌클릭하여 전환"]
+
+[portal.menu.gateway]
+server = "&7서버: &f{server}"
+link = "&7연결: &b{state}"
+choose = ["&6&l목적지 선택&r", "&7발견된 로컬 및 원격 게이트웨이 중에서 선택합니다.", "", "&8클릭하여 목적지 목록을 엽니다."]
+unpaired = ["&6&l게이트웨이 페어링&r", "&7상태: &c페어링되지 않음"]
+paired = ["&6&l게이트웨이 페어링&r", "&7목적지: &6{destination}"]
+export = ["&6&l초대 만들기&r", "&7다른 서버용 서명된 게이트웨이 코드를 만듭니다.", "", "&8클릭하여 새 코드를 복사합니다."]
+import = ["&b&l초대 사용&r", "&7다른 게이트웨이에서 받은 서명된 코드를 붙여 넣습니다.", "", "&8클릭한 뒤 채팅에 코드를 붙여 넣습니다."]
+
+[portal.menu.mirror]
+rotation = "&7이미지 회전: &b{degrees}도"
+rotate_clockwise = "&8오른쪽 클릭: 시계 방향으로 회전."
+rotate_counterclockwise = "&8Shift + 오른쪽 클릭: 시계 반대 방향으로 회전."
+selected = ["&e&l거울&r", "&7로컬 월드를 이쪽으로 반사합니다.", "&7프레임 너머로 자신을 볼 수 있습니다.", "&7거울 모드에서는 이동할 수 없습니다.", "", "&a현재 선택됨"]
+available = ["&e&l거울&r", "&7로컬 월드를 이쪽으로 반사합니다.", "&7프레임 너머로 자신을 볼 수 있습니다.", "&7거울 모드에서는 이동할 수 없습니다.", "", "&7왼쪽 클릭하여 선택"]
+flip = ["&7벽 거울은 180도 단위로 뒤집혀", "&7반사된 엔티티의 방향을 올바르게 유지합니다.", "&8오른쪽 클릭: 반사 이미지 뒤집기."]
+
+[portal.menu.cost]
+opener = ["&6&l이동 비용&r", "&7플레이어가 이 포털을 사용할 때", "&7정확한 아이템 또는 Vault 화폐를 요구합니다.", "", "&7모드: &f{mode}", "&7비용: &f{cost}", "", "&8클릭하여 설정합니다."]
+placard = ["&6&l이동 비용&r", "&7플레이어는 비용을 지불해야", "&7이 포털로 이동할 수 있습니다.", "", "&7모드: &f{mode}", "&7비용: &f{cost}"]
+mode_free = ["&a&l무료&r", "&7지불이 필요하지 않습니다.", "", "&8클릭하여 이동을 무료로 만듭니다."]
+mode_vanilla = ["&b&l바닐라 아이템&r", "&7정확히 일치하는 아이템을 소모합니다.", "", "&8클릭한 뒤 아이템을 들고 버리기 키를 누르세요."]
+mode_vault = ["&a&lVault 경제&r", "&7Vault를 통해 화폐를 인출합니다.", "", "&8클릭하여 금액을 입력합니다."]
+mode_vault_unavailable = ["&c&lVault 경제 사용 불가&r", "&7Vault와 경제 플러그인이 필요합니다.", "", "&8이 모드를 사용하려면 둘 다 설치하거나 활성화하세요."]
+free_detail = ["&a&l비용 없음&r", "&7이 포털을 통한 이동은 무료입니다."]
+secondary_empty = ["&8&l추가 설정 없음&r"]
+item = ["&b&l{item}&r", "&7이동하려면 정확히 이 아이템이 필요합니다.", "&7선택에 사용한 아이템은 소모되지 않습니다.", "", "&8좌클릭: 들고 있는 다른 아이템 선택.", "&8우클릭: 비용 제거."]
+quantity = ["&b&l수량 {quantity}&r", "&71회 통과당 소모되는", "&7일치 아이템의 개수입니다.", "", "&8좌클릭: +1", "&8우클릭: -1", "&8Shift + 좌클릭: +8", "&8Shift + 우클릭: -8", "&8최대: {maximum}"]
+vault_amount = ["&a&l{amount}&r", "&71회 통과당 인출되는 화폐입니다.", "", "&8좌클릭: 다른 금액 입력.", "&8우클릭: 비용 제거."]
+
+[portal.menu.ambient_color]
+placard = ["&6&l환경 색상&r", "&7환경 먼지 입자의 색상.", "", "&7현재: &f{color}"]
+channel = ["&b&l{label} &f&l{value}&r", "", "&8왼쪽 클릭: +{step}", "&8오른쪽 클릭: -{step}", "&8Shift + 왼쪽 클릭: +{large_step}", "&8Shift + 오른쪽 클릭: -{large_step}"]
+option = ["&b&l{color}&r", "", "&8클릭하여 선택합니다."]
+
+[portal.menu.travel]
+managed = ["&6&l이동: {direction}&r", "&7시스템이 관리하는 차원 포털 방향입니다.", "&7{detail}"]
+mirror = ["&c&l이동: 거울 잠금&r", "&7거울 모드는 보기 전용입니다.", "&7엔티티는 드나들 수 없습니다."]
+standard = ["&b&l이동: {mode}&r", "&7이 포털을 통과할 수 있는 방향을 설정합니다.", "", "&7송신: &b{outgoing}&7  수신: &b{incoming}", "", "&8클릭하여 이동 방향을 전환합니다."]
+
+[portal.menu.blackout_color]
+placard = ["&6&l차단 색상&r", "&7차단 셸에 사용하는 콘크리트 색상.", "", "&7현재: &f{color}"]
+option = ["&b&l{color}&r", "", "&8클릭하여 선택합니다."]
+
+[portal.menu.placard]
+rtp = ["&6&l{portal}&r", "&7유형: &e{type}", "&7방향: &9{facing}", "&7할당: &b{allocation}", "&7순환: &b{rotation}", "", "&8관리자는 허용 목록과 차단 목록의 영향을 받지 않습니다."]
+linked = ["&6&l{portal}&r", "&7유형: &e{type}", "&7방향: &9{facing}", "&7연결 대상: &6{destination}", "", "&8관리자는 허용 목록과 차단 목록의 영향을 받지 않습니다."]
+unlinked = ["&6&l{portal}&r", "&7유형: &e{type}", "&7방향: &9{facing}", "&7연결 대상: &c{none}", "", "&8관리자는 허용 목록과 차단 목록의 영향을 받지 않습니다."]
+
+[portal.menu.projection]
+on = ["&6&l투영 켜짐&r", "&7이 포털의 실시간 보기를 표시합니다.", "&7목적지 또는 거울 화면이 보입니다.", "", "&7현재: &b투영 켜짐&r", "", "&8클릭하여 켜기 / 끄기를 전환합니다."]
+off = ["&8&l투영 꺼짐&r", "&7프레임이 비어 있습니다.", "&7목적지 화면이나 거울을 표시하지 않습니다.", "", "&7현재: &b투영 꺼짐&r", "", "&8클릭하여 켜기 / 끄기를 전환합니다."]
+
+[portal.menu.mode_option]
+selected = ["&e&l{mode}&r", "&7{description}", "", "&a현재 선택됨"]
+available = ["&e&l{mode}&r", "&7{description}", "", "&7선택하기 위해 클릭하세요"]
+
+[portal.input]
+cancel = "취소"
+
+[portal.rtp]
+editor_title = "RTP: {portal}"
+
+[portal.rtp.notice]
+setting_rejected = "해당 설정을 적용할 수 없었습니다: {reason}"
+applied = "무작위 목적지 설정을 적용했습니다."
+reset_defaults = "무작위 텔레포트 설정이 기본값으로 초기화되었습니다."
+editor_refreshed = "설정이 변경되어 편집기를 새로고쳤습니다."
+runtime_unavailable = "무작위 순간이동 런타임을 사용할 수 없습니다."
+reroll_failed = "수동 재추첨에 실패했습니다. 서버 로그를 확인하세요."
+reroll_preparing = "새로운 무작위 목적지를 준비하는 중입니다."
+reroll_unavailable = "경로를 준비 중이거나 사용 중일 때는 다시 뽑을 수 없습니다."
+pool_rebuilding = "개인 목적지 풀을 다시 구성하는 중입니다."
+pool_failed = "목적지 풀 재구성에 실패했습니다. 서버 로그를 확인하세요."
+not_ready = "&e포털이 아직 목적지를 안정화하는 중입니다."
+traversal_failed = "&c포털을 안정화하지 못했습니다. 다시 시도하세요."
+
+[portal.rtp.rotation]
+private = "플레이어별 {duration}"
+
+[portal.mode]
+changed = "&a{portal} 포털의 모드를 {mode} 모드로 설정했습니다."
+
+[portal.mode.description]
+portal = "연결 가능한 기본 포털."
+wormhole = "뷰포트 투영이 있는 연결 가능한 포털."
+gateway = "서버 간 네트워크 연결 전용."
+rtp = "로컬 무작위 순간이동 포털."
+mirror = "로컬 월드를 반사하며 이동은 차단됩니다."
+
+[portal.permission.description]
+whitelist = "이 포털을 사용하려면 플레이어에게 이 권한 노드가 필요합니다."
+blacklist = "이 권한 노드를 가진 플레이어는 차단됩니다."
+
+[portal.direction]
+cancelled = "&8[&6Wormholes&8] &7취소했습니다"
+set = "&8[&6Wormholes&8] &7방향을 설정했습니다"
+
+[portal.setting]
+notification = "&a{portal}: &r{message}"
+
+[portal.link]
+linked = "&a{portal} 포털을 {destination} 대상에 연결했습니다."
+linked_remote = "&a{portal} 포털을 {server} 서버의 {destination} 대상에 연결했습니다."
+unlinked = "&e{portal} 포털과 {destination} 대상의 연결을 해제했습니다."
+
+[portal.orientation]
+face_flipped = "&a{portal}의 앞면을 {direction} 방향으로 뒤집었습니다."
+rotated_counterclockwise = "&a{portal} 포털을 시계 반대 방향으로 회전했습니다."
+rotated_clockwise = "&a{portal} 포털을 시계 방향으로 회전했습니다."
+direction_changed = "&a{portal} 포털의 방향을 {direction} 방향으로 변경했습니다."
+
+[director.help]
+no_subcommands = "이 페이지에 하위 명령이 없습니다."
+no_description = "설명은 제공되지 않았습니다"
+command_group = "명령어 그룹입니다. 클릭하여 엽니다."
+category = "명령어 카테고리"
+no_parameters = "매개변수가 없습니다. 클릭하면 명령어 입력란을 채웁니다."
+parameters_hover = "매개변수 위에 마우스를 올리면 자세한 내용을 볼 수 있습니다."
+
+[director.help.navigation]
+back = "뒤로"
+page = "페이지"
+
+[director.help.navigation.parent]
+hover = "상위 명령어 그룹으로 돌아가기"
+
+[director.help.navigation.previous]
+hover = "이전 페이지"
+
+[director.help.navigation.next]
+hover = "다음 페이지"
+
+[director.help.parameter]
+required = "이 매개변수는 필수입니다."
+optional = "이 매개변수는 선택 사항입니다."
+default = "지정하지 않으면 기본값은 \"{value}\"입니다."
+type = "이 매개변수의 유형은 {type}입니다."
+
+[director.runtime]
+usage = "사용법: {usage}"
+
+[director.runtime.error]
+invalid_origin = "이 실행 위치에서는 명령어를 실행할 수 없습니다."
+unknown_parameter = "알 수 없는 매개변수: {key}"
+unexpected_argument = "예상하지 못한 인수 \"{argument}\"입니다. 선택 매개변수는 seed=123처럼 이름을 지정해야 합니다"
+unclosed_group = "매개변수 {key}의 닫는 \"]\"가 누락되었습니다"
+conversion_failed = "\"{value}\" 값을 매개변수 {parameter}의 {type} 형식으로 변환할 수 없습니다"
+default_parse_failed = "매개변수 {parameter}의 기본값을 해석할 수 없습니다"
+missing_argument = "인수 \"{parameter}\" ({type})이 누락되었습니다"
+execution_failed = "명령어 {command} 실행에 실패했습니다: {reason}"
+
+[network]
+not_initialized = "&8[&6Wormholes&8] &c네트워크가 아직 초기화되지 않았습니다."
+
+[network.status]
+disabled = "&8[&6Wormholes&8] &7네트워크가 &c비활성화&7되었습니다 (plugins/Wormholes/wormholes.toml)."
+not_running = "&8[&6Wormholes&8] &c네트워크가 활성화되어 있지만 실행되지 않습니다. 신분 저장소 및 네트워크 포트를 확인하세요."
+listening = "&8[&6Wormholes&8] &7현재 서버: &f{server}&7, 수신 주소: &f{address}"
+outbound_only = "&8[&6Wormholes&8] &7현재 서버: &f{server}&7, 송신 전용 Boat 모드"
+public_key = "&8[&6Wormholes&8] &8공개 키: {fingerprint}"
+no_routes = "&8[&6Wormholes&8] &7연결된 피어 경로가 아직 없습니다."
+peer = "&8[&6Wormholes&8] &f{server}&7 {state} &7{address}{rtt}"
+last_attempt = "&8[&6Wormholes&8] &8  마지막 시도: {error}"
+
+[network.doctor]
+clear = "&8[&6Wormholes&8] &a네트워크 설정 문제가 발견되지 않았습니다."
+header = "&8[&6Wormholes&8] &e네트워크 진단:"
+line = "&8[&6Wormholes&8] &7- {diagnostic}"
+
+[network.code]
+building = "&8포털 코드를 생성하는 중..."
+copy = "&6&l[포털 코드를 복사합니다: {portal}]&r"
+copy_hover = "&7클릭하여 복사하세요. 다른 서버의 포털 메뉴 > 가져오기 또는 /wh server import \\<code>에 붙여 넣으세요"
+fingerprint = "&8현재 서버의 주소와 공개 키 지문 {fingerprint}이 포함되어 있습니다."
+too_long = "&e이 코드는 채팅에 붙여 넣기에는 너무 깁니다. 다른 서버에서 /wh server import \\<code>를 사용하세요."
+invalid = "&c포털 코드가 올바르지 않습니다. 코드는 {prefix}로 시작합니다. 채팅에 붙여 넣으며 잘렸을 수 있으니 /wh server import \\<code>를 사용하세요. 이전 플러그인 버전의 코드는 다시 내보내야 합니다."
+same_server = "&c이 코드는 현재 서버에서 생성되었습니다."
+same_identity = "&c이 코드는 현재 서버 ID ({server})를 가리킵니다. 두 서버를 각각 고유한 Wormholes ID로 다시 시작한 뒤 다른 서버에서 다시 내보내세요."
+linked = "&a&f{portal}&7 -> &f{destination}&a을 &f{server}&a에 연결했습니다. 서버가 연결되면 포털이 열립니다."
+route_saved = "&a공개 키 {fingerprint}로 {server} 경로를 저장했습니다. 연결되면 '{portal}'이 게이트웨이 링크 메뉴에 표시됩니다."
+check_status = "&8/wh network status로 연결 상태를 확인하세요."
+using_address = "&7이 포털 코드는 {address} 주소를 사용합니다. 공개 주소가 바뀌면 서명된 핸드셰이크가 자동으로 감지하여 수정합니다."
+
+[server]
+unknown = "&8[&6Wormholes&8] &c알 수 없는 서버 '&f{server}&c'입니다. 먼저 코드를 가져오거나 /wh server list를 확인하세요."
+removed = "&8[&6Wormholes&8] &a&f{server}&a 서버와 신뢰된 키를 제거했습니다."
+name_empty = "서버 이름은 비어서는 안 됩니다"
+
+[server.code]
+copy = "&6&l[서버 코드를 복사합니다: {server}]&r"
+copy_hover = "&7클릭하여 복사하세요. 다른 서버에서 붙여 넣으세요: /wh server import \\<code>"
+raw = "&7서버 코드: &f{code}"
+saved = "&a공개 키 {fingerprint}로 &f{server}&a 서버를 저장했습니다. &f/wh server {server}&a로 접속하세요."
+
+[server.connect]
+sending = "&8[&6Wormholes&8] &a&f{server}&a 서버로 보내는 중..."
+not_ready = "&8[&6Wormholes&8] &c{server} 서버에 지금은 연결할 수 없습니다. /wh network status를 확인하세요."
+failed = "&8[&6Wormholes&8] &c{server} 서버로 이동시키지 못했습니다. 콘솔과 /wh network status를 확인하세요."
+only_players = "&8[&6Wormholes&8] &c플레이어만 다른 서버에 접속할 수 있습니다."
+
+[server.list]
+header = "&8[&6Wormholes&8] &7연결된 서버:"
+empty = "&8[&6Wormholes&8] &7아직 연결된 서버가 없습니다. &f/wh server import \\<code>&7를 사용하세요."
+entry = "&8[&6Wormholes&8] &f{server}&7 {state} &8{address}"
+
+[door.transit]
+shutdown = "차원 이동이 완료되기 전에 차원문이 종료되었습니다."
+message = "&8[&6Wormholes&8] &7{message}"
+link_not_placed = "연결된 웜홀 문이 아직 설치되지 않았습니다."
+link_unavailable = "연결된 웜홀 문을 사용할 수 없거나 문이 막혀 있습니다."
+nested_pocket = "공유 공허 차원 안에서는 포켓 문으로 다른 포켓 차원을 열 수 없습니다."
+pocket_not_ready = "주머니 차원은 준비되지 않았습니다."
+pocket_allocation_failed = "포켓 차원을 할당할 수 없습니다."
+safe_return_not_found = "이쪽 문에서 안전한 복귀 경로를 찾을 수 없었습니다."
+pocket_prepare_failed = "포켓 차원을 안전하게 준비할 수 없습니다."
+return_ticket_save_failed = "안전한 귀환 경로를 저장할 수 없습니다."
+pocket_entry_unsafe = "포켓 차원 입구가 안전하지 않습니다."
+pocket_entry_chunk_failed = "포켓 차원의 입구 청크를 불러오지 못했습니다."
+no_return_route = "이 포켓 차원에는 저장된 귀환 경로가 없습니다."
+return_unavailable = "반대편 귀환 문을 사용할 수 없거나 문이 막혀 있습니다."
+return_world_unloaded = "귀환할 월드가 로드되지 않았습니다."
+return_point_obstructed = "저장된 귀환 지점이 막혀 있습니다."
+return_chunk_failed = "저장된 귀환 청크를 불러올 수 없습니다."
+closed = "차원 문은 통로가 완료되기 전에 닫혔습니다."
+cycle_consumed = "이 문의 개방 주기는 이미 사용되었습니다. 문을 닫았다가 다시 여세요."
+source_missing = "차원문이 더 이상 존재하지 않습니다."
+source_close_failed = "출발 문을 안전하게 닫을 수 없습니다."
+source_region_unavailable = "출발 문이 있는 영역을 사용할 수 없습니다."
+start_failed = "차원 이동을 시작할 수 없습니다."
+cancelled = "차원 이동이 취소되었습니다."
+
+[door.craft]
+one_at_a_time = "&8[&6Wormholes&8] &7각 문에 고유한 ID를 부여하려면 차원문을 한 번에 하나씩 제작하세요."
+
+[door.pair]
+unpack_failed = "&8[&6Wormholes&8] &7문 한 쌍을 풀 수 없습니다. 키트는 소모되지 않았습니다."
+unpacked = "&8[&6Wormholes&8] &7얽힌 문 쌍을 서로 연결된 웜홀 문 A와 B로 분리했습니다."
+missing = "&8[&6Wormholes&8] &7이 쌍문에는 등록된 반대편 문이 없습니다."
+
+[door.legacy]
+combine = "&8[&6Wormholes&8] &7설치하기 전에 이 이전 차원문을 나무 문과 함께 제작하세요."
+
+[door.place]
+already_placed = "&8[&6Wormholes&8] &7이 차원문은 이미 설치되었거나 상태를 저장할 수 없습니다."
+
+[door.break]
+exit_anchored = "&8[&6Wormholes&8] &7이 차원 출구는 포켓 차원에 고정되어 있습니다."
+support = "&8[&6Wormholes&8] &7받침 블록을 제거하기 전에 차원문을 부수세요."
+
+[door.disable]
+warning = "&8[&6Wormholes&8] &7차원문을 비활성화하는 중입니다. 지금 주머니 차원의 귀환문으로 나가세요."
+
+[door.rescue]
+cancelled = "&8[&6Wormholes&8] &7긴급 탈출이 취소되었습니다. 귀환 경로는 유지됩니다."
+failed = "&8[&6Wormholes&8] &7{route} {fallback} 체력이 하트 한 칸인 상태로 계속 보호됩니다."
+
+[door.rescue.reason]
+no_route = "포켓 차원에 저장된 귀환 경로가 없습니다."
+return_world_unavailable = "저장된 복귀 세계는 사용할 수 없습니다."
+return_point_obstructed = "저장된 귀환 지점이 막혀 있습니다."
+return_chunk_failed = "저장된 귀환 청크를 불러올 수 없습니다."
+start_failed = "긴급 탈출을 시작할 수 없습니다."
+
+[door.rescue.fallback]
+no_world = "주머니 차원이 아닌 대체 월드가 로드되어 있지 않습니다."
+obstructed = "대체 스폰 지점이 막혀 있습니다."
+chunk_failed = "대체 스폰 지점을 로드할 수 없습니다."
+schedule_failed = "대체 퇴출을 예약할 수 없습니다."
+
+[door.access]
+unknown_player = "알 수 없음 ({id})"
+edit_denied = "&c이 문은 문 소유자나 관리자만 편집할 수 있습니다."
+unavailable = "&c이 차원문에는 접근 기록이 없습니다."
+save_failed = "&c해당 문 접근 변경 사항을 저장하지 못했습니다."
+player_not_found = "&c{name} 이름의 플레이어를 찾을 수 없습니다."
+owner_always = "&7문 소유자는 항상 접근할 수 있습니다."
+already_listed = "&7{name} 님은 이미 이 문의 목록에 있습니다."
+added = "&a{name} 님을 이 문의 목록에 추가했습니다."
+removed = "&a{name} 님을 이 문의 목록에서 제거했습니다."
+state_changed = "&a{name} 님을 이 문의 {state}(으)로 설정했습니다."
+prompt_player = "&b이 문의 목록에 추가할 플레이어 이름을 입력하세요 (또는 '{cancel}'):"
+denied = "&c이 차원문이 당신을 거부합니다."
+transit_denied = "이 차원문에 접근할 권한이 없습니다."
+
+[door.access.label]
+neutral = "중립"
+whitelist = "허용 목록"
+blacklist = "차단 목록"
+
+[door.access.kind]
+pair = "얽힌"
+personal = "개인"
+public = "공용"
+return = "출구"
+
+[door.open_state]
+open = "열림"
+closed = "닫힘"
+
+[door.menu.access]
+title = "{kind} 차원문 접근"
+placard = ["&6&l{kind} 차원문&r", "&7소유자: &f{owner}", "&7허용 목록: &a{whitelisted}", "&7차단 목록: &c{blacklisted}", "&7등록된 플레이어: &b{count}", "&8이 문은 소유자와 관리자만 편집할 수 있습니다."]
+add_player = ["&a&l플레이어 추가&r", "&7채팅에 플레이어 이름을 입력해 목록에 추가합니다.", "", "&8클릭하여 플레이어를 추가합니다."]
+open_state = ["&b&lOpenState: &f&l{state}", "&7포털은 이 블록의 물리적 상태를 따릅니다.", "&7활성 상태: &f{state}&7.", "", "&8다음: {next}. 클릭하여 전환합니다."]
+entry = ["&f{name}", "&7상태: &b{state}", "", "&8좌클릭: 허용. 우클릭: 차단.", "&8휠 클릭 또는 Shift + 좌클릭: 제거."]
+
+[wand.selection]
+corner_a = "&b모서리 A를 설정했습니다. 반대쪽 모서리를 오른쪽 클릭하세요."
+corner_b = "&b모서리 B를 설정했습니다. 반대쪽 모서리를 왼쪽 클릭하세요."
+not_flat = "&c선택 영역은 한 블록 두께여야 합니다. 모서리를 다시 클릭해 평면으로 만드세요."
+too_large = "&c선택 영역이 너무 큽니다: {count}블록 (최대 {maximum})."
+opening = "&b포털을 여는 중..."
+open_failed = "&c이곳에 포털을 열 수 없습니다."
+
+[wand.selection.selected]
+one = "&b{count}블록을 선택했습니다. 왼쪽 클릭하여 포털을 여세요."
+other = "&b{count}블록을 선택했습니다. 왼쪽 클릭하여 포털을 여세요."
+
+[label]
+none = "없음"
+on = "켜짐"
+off = "꺼짐"
+ready = "준비 완료"
+preparing = "준비 중"
+open = "열림"
+closed = "닫힘"
+
+[rtp.routing]
+action_confirm = "별도의 확인 화면을 엽니다."
+header = ["&b&l순환 & 목적지 풀&r", "&7모드를 직접 선택한 뒤 전체를 한 번에 적용합니다."]
+shared_selected = ["&a&l공유 목적지&r", "&7모든 플레이어가 같은 경로를 보고 사용합니다.", "&a선택됨"]
+shared_available = ["&b&l공유 목적지&r", "&7모든 플레이어가 같은 경로를 보고 사용합니다.", "&e왼쪽 클릭하여 선택"]
+private_selected = ["&a&l플레이어별 목적지&r", "&7플레이어마다 개인 예약을 준비합니다.", "&a선택됨"]
+private_available = ["&b&l플레이어별 목적지&r", "&7플레이어마다 개인 예약을 준비합니다.", "&e왼쪽 클릭하여 선택"]
+static_selected = ["&a&l고정&r", "&7같은 목적지를 유지합니다.", "&a선택됨"]
+static_available = ["&b&l고정&r", "&7같은 목적지를 유지합니다.", "&e왼쪽 클릭하여 선택"]
+timed_selected = ["&a&l시간제&r", "&7설정한 시간이 지나면 목적지를 순환합니다.", "&a선택됨"]
+timed_available = ["&b&l시간제&r", "&7설정한 시간이 지나면 목적지를 순환합니다.", "&e왼쪽 클릭하여 선택"]
+trip_selected = ["&a&l이동 후&r", "&7사용 후 준비된 다음 후보로 이동합니다.", "&a선택됨"]
+trip_available = ["&b&l이동 후&r", "&7사용 후 준비된 다음 후보로 이동합니다.", "&e왼쪽 클릭하여 선택"]
+manual_reroll = ["&e&l수동으로 다시 뽑기&r", "&7{description}", "&e왼쪽 클릭"]
+rebuild_pool = ["&e&l목적지 풀 재구성&r", "&7{description}", "&e왼쪽 클릭"]
+
+[rtp.status]
+ready = "준비 완료"
+warming = "준비 중"
+rerolling = "다시 뽑는 중"
+backoff = "재시도 대기 중"
+world_unavailable = "대상 월드를 사용할 수 없음"
+integration_failed = "접근 통합 실패"
+failed = "실패"
+idle = "대기 중"
+retry = "&7재시도까지: &c{duration}"
+active = "&7활성: {readiness}"
+standby = "&7준비 상태: {readiness}"
+rotation = "&7초안 순환 방식: &b{rotation}"
+pool = "&7사용 가능: &b{free}&7  예약됨: &b{reserved}"
+target_missing = "&c대상 월드가 로드되지 않았습니다."
+access_failed = "&c목적지 접근 검사에 실패하여 접근을 거부했습니다."
+header = ["&6&l무작위 목적지 상태&r", "&7상태: {state}"]
+
+[rtp.rotation]
+static = "고정"
+timed = "시간제"
+trip = "이동 후"
+
+[rtp.numeric]
+center_x = "중심 X"
+center_z = "중심 Z"
+minimum_radius = "최소 반경"
+maximum_radius = "최대 반경"
+lower_y = "하위 Y"
+upper_y = "위 Y"
+preferred_y = "우선 Y"
+cycle = "주기의 기간"
+private_rotation = "개인 회전 시간"
+lease = "유휴 예약 유지 시간"
+release = "개인 예약 해제 지연"
+link = ["&e&l{label} &f&l{value}&r", "&7값을 명확히 줄이거나 늘리는 화면을 엽니다.", "&e왼쪽 클릭"]
+target_unavailable = ["&b&l대상 월드를 사용할 수 없음&r", "&7이 값을 편집하기 전에 대상 월드를 로드하세요."]
+value = ["&b&l{value}&r", "&7현재 초안 값."]
+adjust = ["&e&l{direction}{step}&r", "&7초안 값을 {direction}{step}만큼 조정합니다.", "&e왼쪽 클릭"]
+header = ["&b&l{label}&r", "&7{description}"]
+
+[rtp.numeric.description]
+center = "사용자 지정 중심을 이 축으로 이동합니다."
+minimum_radius = "목적지 고리 범위의 안쪽 경계."
+maximum_radius = "목적지 고리 범위의 바깥쪽 경계."
+y = "안전한 발 위치를 찾을 높이 범위."
+cycle = "공유 시간제 순환 사이의 간격."
+private_rotation = "플레이어별 준비된 목적지의 최대 유지 시간."
+lease = "모든 플레이어가 떠난 뒤에도 준비된 목적지를 잠시 유지합니다."
+release = "사용하지 않은 개인 예약을 해제하기 전의 지연 시간."
+
+[rtp.duration]
+hours = "{value}h"
+minutes = "{value}m"
+seconds = "{value}s"
+decimal_seconds = "{value}s"
+
+[rtp.biome]
+any_label = "모두"
+header = ["&b&l대상 바이옴&r", "&7검색 시 이 바이옴을 우선하며, 근처에서 찾을 수 없으면 임의의 안전한 지점을 사용합니다."]
+any_selected = ["&a&l모든 바이옴&r", "&7바이옴 선호가 없습니다.", "&a선택됨"]
+any_available = ["&b&l모든 바이옴&r", "&7바이옴 선호를 해제합니다.", "&e왼쪽 클릭하여 선택"]
+current = ["&a&l{biome}&r", "&7{key}", "&a선택됨"]
+available = ["&b&l{biome}&r", "&7{key}", "&e왼쪽 클릭하여 선택"]
+empty = ["&7대상 월드에서 사용할 수 있는 바이옴이 없습니다."]
+previous = ["&e&l이전 바이옴&r", "&7이전 페이지를 표시합니다.", "&e왼쪽 클릭"]
+next = ["&e&l다음 바이옴&r", "&7다음 페이지를 표시합니다.", "&e왼쪽 클릭"]
+
+[rtp.overview]
+destination = ["&e&l목적지 & 지역&r", "&7세계, 중심 및 반경.", "&e왼쪽 클릭"]
+landing = ["&e&l착륙 규칙&r", "&7지표면 및 높이 설정.", "&e왼쪽 클릭"]
+routing = ["&e&l순환 & 목적지 풀&r", "&7공유 방식, 순환 및 예약 유지 시간.", "&e왼쪽 클릭"]
+effects = ["&e&l효과&r", "&7투영 테두리와 포털 소리.", "&e왼쪽 클릭"]
+reset_defaults = ["&e&l기본값으로 초기화&r", "&7이 포털의 무작위 텔레포트 설정을 즉시 기본값으로 되돌립니다.", "&e왼쪽 클릭"]
+
+[rtp.navigation]
+back_portal = ["&e&l포털로 돌아갑니다&r", "&7포털 메뉴로 돌아갑니다.", "&e왼쪽 클릭"]
+overview = ["&e&l개요&r", "&7RTP 개요로 돌아갑니다.", "&e왼쪽 클릭"]
+back_category = ["&e&l뒤로&r", "&7이전 범주로 돌아갑니다.", "&e왼쪽 클릭"]
+
+[rtp.destination]
+header = ["&b&l목적지 & 지역&r", "&7모든 옵션은 일반적인 왼쪽 클릭을 사용합니다."]
+world_current = ["&a&l{world}&r", "&7현재 대상 월드.", "&a선택됨"]
+world_available = ["&b&l{world}&r", "&7로드된 이 월드를 사용합니다.", "&e왼쪽 클릭하여 선택"]
+previous_worlds = ["&e&l이전 월드&r", "&7이전 페이지를 표시합니다.", "&e왼쪽 클릭"]
+next_worlds = ["&e&l다음 월드&r", "&7다음 페이지를 표시합니다.", "&e왼쪽 클릭"]
+biome_link = ["&e&l대상 바이옴 &f&l{value}&r", "&7선택한 바이옴에 착륙하는 것을 우선합니다.", "&e왼쪽 클릭"]
+center_portal_selected = ["&a&l포털 기준 중심&r", "&7이 포털을 고리 영역의 중심으로 사용합니다.", "&a선택됨"]
+center_portal_available = ["&b&l포털 기준 중심&r", "&7이 포털을 고리 영역의 중심으로 사용합니다.", "&e왼쪽 클릭하여 선택"]
+center_custom_selected = ["&a&l사용자 정의 센터&r", "&7편집 가능한 X 및 Z 좌표를 사용하십시오.", "&a선택된 것"]
+center_custom_available = ["&b&l사용자 정의 센터&r", "&7편집 가능한 X 및 Z 좌표를 사용하십시오.", "&e선택하려면 왼쪽 클릭하세요"]
+reset_center = ["&e&l중심 / 대상 초기화&r", "&7출발 월드와 포털 중심을 사용합니다.", "&e왼쪽 클릭"]
+
+[rtp.landing]
+header = ["&b&l착륙 규칙&r", "&7지표면 또는 선호 높이 착지 방식과 안전 모드를 선택하세요."]
+surface_selected = ["&a&l지표면&r", "&7SAFE는 물과 나무 꼭대기를 피합니다. UNSAFE는 가장 위쪽 표면을 사용합니다.", "&a선택됨"]
+surface_available = ["&b&l지표면&r", "&7SAFE는 물과 나무 꼭대기를 피합니다. UNSAFE는 가장 위쪽 표면을 사용합니다.", "&e좌클릭하여 선택"]
+preferred_selected = ["&a&l선호 높이 / 정확한 높이&r", "&7SAFE는 바깥쪽으로 탐색합니다. UNSAFE는 지정한 Y 좌표를 그대로 사용합니다.", "&a선택됨"]
+preferred_available = ["&b&l선호 높이 / 정확한 높이&r", "&7SAFE는 바깥쪽으로 탐색합니다. UNSAFE는 지정한 Y 좌표를 그대로 사용합니다.", "&e좌클릭하여 선택"]
+safe_policy = ["&b&l착지 안전 모드: &f&l{mode}&r", "&7SAFE는 물, 위험 요소, 나무, 충돌 지점 및 발판이 없는 곳을 제외합니다.", "&7UNSAFE는 선택한 지표면 또는 정확한 선호 Y 좌표를 그대로 사용합니다.", "&e좌클릭하여 전환"]
+
+[rtp.effects]
+header = ["&b&l효과&r", "&7표시 효과를 바꿔도 목적지는 다시 생성되지 않습니다."]
+rim_on_selected = ["&a&l투영 테두리 켜짐&r", "&7포털 테두리에 준비 상태를 표시합니다.", "&a선택됨"]
+rim_on_available = ["&b&l투영 테두리 켜짐&r", "&7포털 테두리에 준비 상태를 표시합니다.", "&e왼쪽 클릭하여 선택"]
+rim_off_selected = ["&a&l투영 테두리 꺼짐&r", "&7준비 상태 테두리를 숨깁니다.", "&a선택됨"]
+rim_off_available = ["&b&l투영 테두리 꺼짐&r", "&7준비 상태 테두리를 숨깁니다.", "&e왼쪽 클릭하여 선택"]
+sound_on_selected = ["&a&l포털 소리 켜짐&r", "&7이 RTP 포털의 효과음과 이동 소리를 재생합니다.", "&a선택됨"]
+sound_on_available = ["&b&l포털 소리 켜짐&r", "&7이 RTP 포털의 효과음과 이동 소리를 재생합니다.", "&e왼쪽 클릭하여 선택"]
+sound_off_selected = ["&a&l포털 소리 꺼짐&r", "&7이 RTP 포털을 음소거합니다. 입자는 계속 표시됩니다.", "&a선택됨"]
+sound_off_available = ["&b&l포털 소리 꺼짐&r", "&7이 RTP 포털을 음소거합니다. 입자는 계속 표시됩니다.", "&e왼쪽 클릭하여 선택"]
+
+[rtp.confirm]
+reroll = ["&b&l공유 경로를 다시 뽑을까요?&r", "&7대체 경로가 준비될 때까지 현재 투영을 유지합니다."]
+rebuild = ["&b&l개인 목적지 풀을 재구성할까요?&r", "&7빈 후보를 다시 만드는 동안 기존 예약은 유지됩니다."]
+confirm = ["&e&l확인&r", "&7이 작업을 실행합니다.", "&e왼쪽 클릭"]
+cancel = ["&e&l취소&r", "&7실행 상태를 변경하지 않고 돌아갑니다.", "&e왼쪽 클릭"]
+
+[item]
+portal_wand = ["&6&l포털 지팡이&r"]
+portal_rune = ["&6&l포털 룬&r"]
+wormhole_rune = ["&6&l웜홀 룬&r"]
+
+[item.door]
+entangled_pair = ["&6얽힌 문 한 쌍", "&7자동으로 연결된 웜홀 문 두 개입니다.", "&7사용하면 A 문과 B 문으로 나뉩니다."]
+paired = ["&6웜홀 문 {endpoint}", "&7{other} 쪽과 자동으로 연결됩니다.", "&7문을 열고 문턱을 직접 넘으면 이동합니다."]
+personal = ["&b개인 차원문", "&7여행자마다 자신만의 영구 차원으로 들어갑니다.", "&7같은 여행자는 항상 같은 장소에 도착합니다."]
+public = ["&6공용 차원문", "&7모든 여행자가 이 문의 공유 차원으로 들어갑니다.", "&7문을 부수고 옮겨도 공유 목적지는 바뀌지 않습니다."]
+return = ["&a차원 출구 문", "&7여행자를 이 포켓 차원에서 돌려보냅니다.", "&7이 문은 해당 포켓 차원에 연결되어 있습니다."]
+skin = ["&6차원문 외형", "&7차원문과 플레이어가 조작할 수 있는 문을 조합합니다."]
+entangled_pair_recipe = ["&6얽힌 문 한 쌍", "&7자동으로 연결된 웜홀 문 두 개입니다."]
+personal_recipe = ["&b개인 차원문", "&7여행자마다 자신만의 영구 차원으로 들어갑니다."]
+public_recipe = ["&6공용 차원문", "&7모든 여행자가 이 문의 공유 차원으로 들어갑니다."]
+entangled_trapdoor_pair = ["&6얽힌 다락문 한 쌍", "&7자동으로 연결된 웜홀 다락문 두 개입니다.", "&7사용하면 A 다락문과 B 다락문으로 나뉩니다."]
+paired_trapdoor = ["&6웜홀 다락문 {endpoint}", "&7{other} 쪽과 자동으로 연결됩니다.", "&7다락문을 열고 그 사이로 떨어지면 이동합니다."]
+personal_trapdoor = ["&b개인 차원 다락문", "&7여행자마다 자신만의 영구 차원으로 들어갑니다.", "&7같은 여행자는 항상 같은 장소에 도착합니다."]
+public_trapdoor = ["&6공용 차원 다락문", "&7모든 여행자가 이 다락문의 공유 차원으로 들어갑니다.", "&7다락문을 부수고 옮겨도 공유 목적지는 바뀌지 않습니다."]
+trapdoor_skin = ["&6차원 다락문 외형", "&7차원 다락문과 손으로 열 수 있는 다락문을 조합합니다."]
+entangled_trapdoor_pair_recipe = ["&6얽힌 다락문 한 쌍", "&7자동으로 연결된 웜홀 다락문 두 개입니다."]
+personal_trapdoor_recipe = ["&b개인 차원 다락문", "&7여행자마다 자신만의 영구 차원으로 들어갑니다."]
+public_trapdoor_recipe = ["&6공용 차원 다락문", "&7모든 여행자가 이 다락문의 공유 차원으로 들어갑니다."]

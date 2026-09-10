@@ -1,608 +1,1020 @@
-schema = 1
-locale = "es_ES"
+# Wormholes — es_ES
+#
+# === Editar el archivo ===
+# plugins/Wormholes/languages/es_ES.toml
+# Puede editar este archivo directamente. Los cambios locales se conservan; las entradas ausentes o no válidas usan el inglés incorporado.
+# /wormholes language server edit es_ES
+#
+# === Prefijo ===
+# Los prefijos de mensaje forman parte de cada plantilla. {prefix} indica el inicio de un código de importación de portal.
+#
+# === Formato ===
+# Códigos de color: &0-&f; formato: &k-&r (&l = negrita, &r = restablecer). Conserva los marcadores y úsalos solo en su mensaje correspondiente.
+#
+# === Variables ===
+# Mantenga los nombres de las variables y use solo las que ya contiene cada mensaje.
+#   {access}  Regla de acceso al portal
+#   {address}  Dirección de red del nodo remoto
+#   {after}  Texto del mensaje tras editarlo
+#   {allocation}  Espacio asignado al recinto
+#   {amount}  Coste del viaje en moneda de Vault
+#   {argument}  Argumento de comando inesperado
+#   {before}  Texto del mensaje antes de editarlo
+#   {biome}  Identificador del bioma
+#   {blacklisted}  Jugadores bloqueados
+#   {block}  Material del bloque seleccionado
+#   {blocks}  Bloques colocados afectados por la reconstrucción
+#   {cancel}  Palabra para cancelar la entrada por chat
+#   {code}  Código de invitación al servidor o portal
+#   {color}  Color de visualización seleccionado
+#   {command}  Ruta del comando
+#   {containers}  Contenedores no vacíos afectados por la reconstrucción
+#   {cost}  Coste de crear el portal o viajar
+#   {count}  Cantidad de portales, destinos o mensajes
+#   {degrees}  Rotación de la imagen en grados
+#   {depth}  Profundidad de la proyección
+#   {description}  Descripción del mensaje
+#   {destination}  Destino del viaje
+#   {detail}  Detalles adicionales del diagnóstico
+#   {diagnostic}  Mensaje de diagnóstico
+#   {direction}  Dirección de viaje u orientación
+#   {door}  Puerta de salida del recinto
+#   {duration}  Intervalo de actualización por jugador
+#   {endpoint}  Identificador del extremo del agujero de gusano
+#   {entities}  Cantidad de entidades afectadas o intervalo de actualización de entidades en ticks
+#   {entity}  Intervalo de actualización de entidades en ticks
+#   {error}  Error de la última operación
+#   {facing}  Orientación del portal
+#   {failed}  Cantidad de operaciones fallidas
+#   {fallback}  Resultado alternativo del viaje
+#   {fingerprint}  Huella de la clave pública
+#   {free}  Plazas disponibles para destinos aleatorios
+#   {grace}  Periodo de gracia de la proyección en segundos
+#   {group}  Categoría del editor de idiomas
+#   {id}  Identificador del objeto
+#   {incoming}  Regla de viajes entrantes
+#   {item}  Objeto necesario para viajar
+#   {key}  Clave del mensaje o de configuración
+#   {kind}  Tipo de acceso de la puerta
+#   {label}  Etiqueta mostrada
+#   {large_step}  Cantidad de ajuste al hacer clic con Mayús
+#   {line}  Número de línea dentro del mensaje
+#   {locale}  Código de idioma
+#   {material}  Material de las paredes del recinto
+#   {maximum}  Valor máximo permitido
+#   {message}  Mensaje de respuesta
+#   {minimum}  Valor mínimo permitido
+#   {mode}  Modo de viaje o visualización
+#   {name}  Nombre del portal o del jugador
+#   {next}  Siguiente opción disponible
+#   {node}  Identificador del nodo de red
+#   {none}  Etiqueta para la ausencia de un destino enlazado
+#   {other}  Identificador del extremo enlazado
+#   {outgoing}  Regla de viajes salientes
+#   {owner}  Propietario del portal
+#   {page}  Número de la página actual
+#   {pages}  Cantidad total de páginas
+#   {parameter}  Nombre del parámetro del comando
+#   {path}  Ruta del archivo o directorio
+#   {personal}  Código del idioma personal
+#   {plugin}  Nombre del complemento
+#   {portal}  Nombre o identificador del portal
+#   {prefix}  Inicio de un código de importación de portal
+#   {previous}  Tamaño anterior del recinto en bloques
+#   {quality}  Calidad de la transmisión de la proyección
+#   {quantity}  Cantidad de objetos necesaria
+#   {range}  Alcance de activación del portal en bloques
+#   {readiness}  Estado de disponibilidad de los destinos aleatorios
+#   {reason}  Motivo del error o de la decisión
+#   {receive}  Estado de recepción de la proyección
+#   {refresh}  Intervalo de actualización de la proyección en ticks
+#   {reserved}  Plazas reservadas para destinos aleatorios
+#   {resized}  Cantidad de recintos reconstruidos
+#   {rotation}  Rotación de la proyección
+#   {route}  Ruta de viaje intentada
+#   {rtt}  Latencia de ida y vuelta en la red
+#   {seconds}  Tiempo en segundos
+#   {send}  Estado de envío de la proyección
+#   {server}  Nombre o identificador del servidor
+#   {size}  Tamaño del recinto en bloques
+#   {skin}  Apariencia seleccionada del portal
+#   {skipped}  Cantidad de operaciones omitidas
+#   {space}  Identificador del espacio del recinto
+#   {state}  Estado actual del acceso, enlace o red
+#   {step}  Cantidad de ajuste al hacer clic
+#   {style}  Estilo de visualización
+#   {target}  Complemento al que se aplica la selección de idioma
+#   {type}  Tipo de objeto o parámetro
+#   {up}  Dirección de la parte superior de la proyección
+#   {usage}  Sintaxis del comando
+#   {value}  Valor actual o seleccionado
+#   {variables}  Variables permitidas en el mensaje
+#   {whitelisted}  Jugadores permitidos
+#   {world}  Nombre del mundo
+#   {x}  Coordenada X
+#   {y}  Coordenada Y
+#   {z}  Coordenada Z
 
-[text]
-"command.help.debugdump" = "Crear y subir opcionalmente un informe de diagnóstico"
-"command.help.debugdump_upload" = "Subir el informe a mclo.gs"
-"command.help.language" = "Elige tu idioma o el idioma predeterminado del servidor"
-"portal.network.label.render_mode" = "Modo de renderizado"
-"portal.travel.transfer_holding" = "<gold>Conectando con el servidor de destino..."
-"portal.travel.transfer_interrupted" = "<red>Transferencia de portal interrumpida: te alejaste del portal."
-"portal.travel.transfer_source_unavailable" = "<red>Transferencia de portal interrumpida: el portal de origen ya no está disponible."
-"portal.network.label.ambient_style" = "Partículas ambientales"
-"portal.network.label.ambient_color" = "Color ambiental"
-"portal.network.label.surface_skin" = "Aspecto de superficie"
-"portal.label.ambient.red" = "Rojo"
-"portal.label.ambient.green" = "Verde"
-"portal.label.ambient.blue" = "Azul"
-"portal.label.ambient_style.sparks" = "Chispas"
-"portal.label.ambient_style.outline" = "Contorno"
-"portal.label.ambient_style.corners" = "Esquinas"
-"portal.label.ambient_style.off" = "Apagado"
-"portal.label.skin.none" = "Ninguno"
-"director.help.navigation.parent.hover" = "Volver al grupo de comandos superior"
-"director.help.navigation.back" = "Atrás"
-"director.help.no_subcommands" = "No hay subcomandos en esta página."
-"director.help.no_description" = "No se proporcionó ninguna descripción"
-"director.help.command_group" = "Grupo de comandos. Haz clic para abrir."
-"director.help.category" = "Categoría de comandos"
-"director.help.no_parameters" = "No hay parámetros. Haz clic para completar el comando."
-"director.help.parameters_hover" = "Pasa el cursor sobre los parámetros para saber más."
-"director.help.parameter.required" = "Este parámetro es obligatorio."
-"director.help.parameter.optional" = "Este parámetro es opcional."
-"director.help.parameter.default" = "Valor predeterminado \"{value}\" si no se define."
-"director.help.parameter.type" = "Este parámetro es de tipo {type}."
-"director.help.navigation.previous.hover" = "Página anterior"
-"director.help.navigation.next.hover" = "Página siguiente"
-"director.help.navigation.page" = "Página"
-"director.runtime.error.invalid_origin" = "Este comando no se puede ejecutar desde este origen."
-"director.runtime.error.unknown_parameter" = "Clave de parámetro desconocida: {key}"
-"director.runtime.error.unexpected_argument" = "Argumento inesperado \"{argument}\". Los parámetros opcionales deben especificarse con clave, p. ej. seed=123"
-"director.runtime.error.unclosed_group" = "Falta el corchete de cierre \"]\" para el parámetro {key}"
-"director.runtime.error.conversion_failed" = "No se puede convertir \"{value}\" a {type} para {parameter}"
-"director.runtime.error.default_parse_failed" = "No se puede analizar el valor predeterminado del parámetro {parameter}"
-"director.runtime.error.missing_argument" = "Falta el argumento \"{parameter}\" ({type})"
-"director.runtime.error.execution_failed" = "No se pudo ejecutar el comando {command}: {reason}"
-"director.runtime.usage" = "Uso: {usage}"
-"command.help.root" = "Comando principal de Wormholes"
-"command.help.wand" = "Obtener la varita de portal y una runa de agujero de gusano"
-"command.help.wand.rune" = "Incluir una runa de agujero de gusano (rune=false entrega solo la varita)"
-"command.help.door" = "Obtener una Puerta Dimensional utilizable en supervivencia"
-"command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-"command.help.reload" = "Recargar la configuración y los archivos de idioma de Wormholes"
-"command.help.debug" = "Alternar registros detallados y telemetría de un segundo en la consola"
-"command.help.stats" = "Mostrar la ruta de la instantánea de estadísticas; usar now=true para actualizarla"
-"command.help.stats.now" = "Reconstruir la instantánea inmediatamente y de forma síncrona"
-"command.help.info" = "Mostrar las instrucciones para construir portales"
-"command.help.admin" = "Comandos destructivos de mantenimiento de Wormholes"
-"command.help.admin.delete_portals" = "Eliminar todos los portales locales y sus enlaces guardados"
-"command.help.admin.delete_everything" = "Restablecer los datos, la configuración, la confianza, la identidad y la red de Wormholes"
-"command.help.admin.freeze" = "Congela todas las proyecciones de portal en su sitio durante varios segundos (seconds=0 reanuda)"
-"command.help.admin.freeze.seconds" = "Cuánto tiempo mantener el fotograma congelado (5-300, 0 reanuda ahora)"
-"command.help.admin.flush" = "Revierte los bloques proyectados de cada observador al estado real y los reconstruye"
-"command.help.network" = "Red de agujeros de gusano entre servidores"
-"command.help.network.import" = "Importar un código de portal de otro servidor (guarda una ruta interna; se enlaza desde el menú Enlace de una puerta de enlace)"
-"command.help.network.import.code" = "Código de portal del botón Exportar del otro servidor"
-"command.help.network.status" = "Mostrar el estado de conexión de los servidores pares"
-"command.help.network.doctor" = "Explicar por qué no se conectan los servidores pares"
-"command.help.server" = "Viaje entre servidores: conectarse a servidores enlazados, listarlos e intercambiarlos"
-"command.help.server.connect" = "Transferirte a un servidor enlazado (abreviatura: /wh server \\<name>)"
-"command.help.server.connect.name" = "Nombre del servidor enlazado (ver /wh server list)"
-"command.help.server.export" = "Exportar este servidor como un código que otros servidores pueden importar"
-"command.help.server.import" = "Importar un código de servidor o de portal exportado por otro servidor"
-"command.help.server.import.code" = "Código de la exportación del otro servidor"
-"command.help.server.list" = "Listar los servidores enlazados y su estado de conexión"
-"command.help.server.remove" = "Olvidar un servidor enlazado (elimina su ruta y su clave de confianza)"
-"command.help.server.remove.name" = "Nombre del servidor enlazado a olvidar"
-"command.error.no_permission" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No tienes permiso."
-"command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No tienes permiso para usar ese comando."
-"command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Solo los jugadores pueden recibir objetos."
-"command.error.usage" = "<gray>Uso: <white>/wormholes help"
-"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Varita de portal entregada."
-"command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Las Puertas Dimensionales no están disponibles."
-"command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Tipo de puerta desconocido. Usa pair, personal o public, pair_trapdoor, personal_trapdoor, public_trapdoor."
-"command.door.empty_type" = "El tipo de puerta no puede estar vacío"
-"command.door.granted" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Se ha entregado un objeto de puerta dimensional de tipo <white>{type}<green>."
-"command.reload.applied" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Se han recargado los archivos de configuración e idioma de Wormholes."
-"command.reload.language_retained" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Configuración recargada, pero el archivo de idioma fue rechazado. El último idioma válido sigue activo; compruebe la consola."
-"command.reload.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Error al recargar la configuración; la edición sigue pendiente y se reintentará. Compruebe la consola."
-"command.stats.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No se puede escribir la instantánea de estadísticas."
-"command.stats.refreshed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Instantánea actualizada."
-"command.admin.delete_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No se pudieron eliminar todos los portales. Consulta la traza completa en la consola."
-"command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No se pudo programar el restablecimiento de los portales."
-"command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No se pudo restablecer Wormholes. Consulta la traza completa en la consola."
-"command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No se pudo programar el restablecimiento de Wormholes."
-"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Se congelaron todas las proyecciones de portal durante <white>{seconds}<green> segundos. Se reanudan automáticamente."
-"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Proyecciones de portal reanudadas."
-"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No se pudieron actualizar las proyecciones de portal. Consulta la consola para ver el stacktrace completo."
-"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No se pudo programar la actualización de la proyección."
-"network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>La red todavía no se ha inicializado."
-"network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>La red está <red>desactivada<gray> (plugins/Wormholes/wormholes.toml)."
-"network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>La red está activada, pero no se está ejecutando. Comprueba el almacén de identidad y el puerto de red."
-"network.status.listening" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Este servidor: <white>{server}<gray>, escuchando en <white>{address}"
-"network.status.outbound_only" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Este servidor: <white>{server}<gray>, modo Boat solo de salida"
-"network.status.public_key" = "<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Clave pública: {fingerprint}"
-"network.status.no_routes" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Todavía no hay rutas enlazadas con servidores pares."
-"network.status.peer" = "<dark_gray>[<gold>Wormholes<dark_gray>] <white>{server}<gray> {state} <gray>{address}{rtt}"
-"network.status.last_attempt" = "<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>  Último intento: {error}"
-"network.doctor.clear" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>No se detectaron problemas de configuración de red."
-"network.doctor.header" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Diagnóstico de red:"
-"network.doctor.line" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>- {diagnostic}"
-"network.code.building" = "<dark_gray>Creando código del portal..."
-"network.code.copy" = "<gold><bold>[Copiar código del portal: {portal}]</bold>"
-"network.code.copy_hover" = "<gray>Haz clic para copiarlo. En el otro servidor, pégalo en Menú del portal > Importar o usa /wh server import \\<code>"
-"network.code.fingerprint" = "<dark_gray>Contiene la dirección de este servidor y la huella de la clave pública {fingerprint}."
-"network.code.too_long" = "<yellow>Este código es demasiado largo para pegarlo en el chat. Usa /wh server import \\<code> en el otro servidor."
-"network.code.invalid" = "<red>Código de portal no válido. Los códigos empiezan por {prefix}; si se pegó en el chat, puede haberse truncado. Prueba /wh server import \\<code>. Los códigos de versiones anteriores del plugin deben volver a exportarse."
-"network.code.same_server" = "<red>Ese código es de este servidor."
-"network.code.same_identity" = "<red>Este código corresponde a la identidad de este servidor ({server}). Reinicia ambos servidores con su propia identidad de Wormholes y vuelve a exportar el código desde el otro servidor."
-"network.code.linked" = "<green><white>{portal}<gray> -> <white>{destination}<green> enlazado en <white>{server}<green>. El portal se abrirá cuando los servidores se conecten."
-"network.code.route_saved" = "<green>Ruta a {server} guardada con la clave pública {fingerprint}. '{portal}' aparecerá en el menú de enlaces de la puerta de enlace cuando se conecte."
-"network.code.check_status" = "<dark_gray>Comprueba el estado de la conexión con /wh network status."
-"network.code.using_address" = "<gray>Este código de portal usa {address}; si la dirección pública cambia, el protocolo firmado la detecta y corrige automáticamente."
-"server.code.copy" = "<gold><bold>[Copiar código del servidor: {server}]</bold>"
-"server.code.copy_hover" = "<gray>Haz clic para copiarlo. Pégalo en el otro servidor: /wh server import \\<code>"
-"server.code.raw" = "<gray>Código del servidor: <white>{code}"
-"server.code.saved" = "<green>Servidor <white>{server}<green> guardado con la clave pública {fingerprint}. Conéctate con <white>/wh server {server}<green>."
-"server.connect.sending" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Enviándote a <white>{server}<green>..."
-"server.connect.not_ready" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{server} no está accesible ahora mismo. Comprueba /wh network status."
-"server.connect.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No se te pudo transferir a {server}. Comprueba la consola y /wh network status."
-"server.connect.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Solo los jugadores pueden conectarse a otro servidor."
-"server.unknown" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Servidor desconocido '<white>{server}<red>'. Importa primero su código o consulta /wh server list."
-"server.list.header" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Servidores enlazados:"
-"server.list.empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Todavía no hay servidores enlazados. Usa <white>/wh server import \\<code><gray>."
-"server.list.entry" = "<dark_gray>[<gold>Wormholes<dark_gray>] <white>{server}<gray> {state} <dark_gray>{address}"
-"server.removed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Se eliminó el servidor <white>{server}<green> y su clave de confianza."
-"server.name_empty" = "El nombre del servidor no puede estar vacío"
-"portal.form.rtp_unsupported" = "<red>Los portales de teletransporte aleatorios no se pueden formar a partir de runas."
-"portal.form.forming" = "<aqua>Formando portal... Las runas de {type} deben estar conectadas sobre una pared, un suelo o un techo planos."
-"portal.form.must_be_flat" = "<red>El portal debe estar plano en una pared, piso o techo."
-"portal.form.interrupted" = "<red>La formación del portal fue interrumpida; las runas reservadas fueron restauradas."
-"portal.form.rune_placed" = "<aqua>Runa colocada. Construye cualquier figura conectada sobre una superficie plana y haz clic izquierdo en una runa con la Varita del Portal."
-"portal.form.opened" = "<green>Portal abierto. Sujeta la varita y HAZ CLIC en el portal para configurarlo."
-"portal.travel.cooldown" = "<gold>El portal está en tiempo de reutilización"
-"portal.travel.access_denied" = "<red>Se niega el acceso al portal"
-"portal.travel.cost_insufficient" = "<red>Necesitas {quantity}x {item} para usar este portal."
-"portal.travel.cost_vault_insufficient" = "<red>Necesitas {amount} para usar este portal."
-"portal.travel.cost_vault_unavailable" = "<red>El coste económico de este portal no está disponible."
-"portal.travel.cost_transaction_failed" = "<red>El portal no pudo procesar tu coste de viaje."
-"portal.travel.destination_unavailable" = "<red>Destino del portal no disponible"
-"portal.travel.arrival_denied" = "<red>El portal de destino rechazó tu llegada."
-"portal.travel.arrival_returned" = "<red>El portal de destino rechazó tu llegada; te devolvemos a {server}"
-"door.transit.shutdown" = "Las puertas dimensionales se apagaron antes de completar el tránsito."
-"portal.edit.denied" = "<red>Sólo el propietario del portal o un administrador puede editar este portal."
-"portal.deleted" = "<red>{portal} eliminado"
-"portal.travel.arrival_failed" = "<red>No se puede colocar la llegada al portal; permanece en el spawn de destino"
-"portal.travel.transfer_cooldown" = "<gold>Tiempo de reutilización del portal entre servidores: {seconds}s"
-"portal.travel.destination_unreachable" = "<red>Servidor de destino no accesible"
-"portal.travel.destination_unreachable_detail" = "<red>Servidor de destino no accesible: {reason}"
-"portal.travel.transfer_blocked" = "<red>Transferencia de portal bloqueada: {reason}"
-"portal.travel.transfer_blocked_retry" = "<red>Transferencia del portal bloqueada: {reason} (nuevo intento en {seconds}s)"
-"wand.selection.corner_a" = "<aqua>Esquina A establecida. Haz clic derecho en la esquina opuesta."
-"wand.selection.corner_b" = "<aqua>Esquina B establecida. Haz clic izquierdo en la esquina opuesta."
-"wand.selection.not_flat" = "<red>La selección debe tener un bloque de grosor. Vuelve a hacer clic en una esquina para aplanarla."
-"wand.selection.too_large" = "<red>Selección demasiado grande: {count} bloques (máximo {maximum})."
-"wand.selection.opening" = "<aqua>Abriendo portal..."
-"wand.selection.open_failed" = "<red>No se pudo abrir el portal aquí."
-"door.craft.one_at_a_time" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Fabrica las Puertas Dimensionales de una en una para que cada una reciba una identidad única."
-"door.pair.unpack_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>No se pudo separar el par de puertas; el conjunto no se consumió."
-"door.pair.unpacked" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>El par entrelazado se separó en las Puertas de Agujero de Gusano A y B enlazadas."
-"door.legacy.combine" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Combine esta puerta de dimensión con una puerta de madera antes de colocarla."
-"door.pair.missing" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Esta puerta emparejada no tiene registrada la identidad de su pareja."
-"door.place.already_placed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Esta Puerta Dimensional ya está colocada o no se pudo guardar su estado."
-"door.break.exit_anchored" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>La salida dimensional está anclada a esta dimensión de bolsillo."
-"door.break.support" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Rompa la puerta dimensional antes de quitar su bloque de soporte."
-"door.disable.warning" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Las puertas dimensionales se están desactivando. Sal ahora por la puerta de retorno de la dimensión de bolsillo."
-"door.rescue.cancelled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>La evacuación de emergencia se canceló; la ruta se conservó."
-"door.transit.message" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>{message}"
-"door.transit.link_not_placed" = "La puerta del agujero de gusano aún no se ha colocado."
-"door.transit.link_unavailable" = "La puerta del agujero de gusano está indisponible o obstruida."
-"door.transit.nested_pocket" = "Una puerta de bolsillo no puede abrir otra dimensión de bolsillo dentro de la dimensión de vacío compartida."
-"door.transit.pocket_not_ready" = "La dimensión de bolsillo todavía no está lista."
-"door.transit.pocket_allocation_failed" = "No se pudo asignar la dimensión de bolsillo."
-"door.transit.safe_return_not_found" = "No se pudo encontrar una ruta segura de regreso por este lado de la puerta."
-"door.transit.pocket_prepare_failed" = "No se pudo preparar la dimensión de bolsillo de forma segura."
-"door.transit.return_ticket_save_failed" = "No se pudo guardar una ruta de regreso segura."
-"door.transit.pocket_entry_unsafe" = "La entrada a la dimensión de bolsillo no es segura."
-"door.transit.pocket_entry_chunk_failed" = "No se pudo cargar el chunk de entrada de la dimensión de bolsillo."
-"door.transit.no_return_route" = "No hay ninguna ruta de regreso guardada para esta dimensión de bolsillo."
-"door.transit.return_unavailable" = "La puerta de regreso no está disponible o está obstruida en el lado correspondiente."
-"door.transit.return_world_unloaded" = "Tu mundo de regreso no está cargado."
-"door.transit.return_point_obstructed" = "El punto de regreso guardado está obstruido."
-"door.transit.return_chunk_failed" = "No se pudo cargar el chunk de regreso guardado."
-"door.transit.closed" = "La puerta dimensional se cerró antes de que el tránsito terminara."
-"door.transit.cycle_consumed" = "El ciclo de apertura de esta puerta ya se usó. Cierra y vuelve a abrir la puerta."
-"door.transit.source_missing" = "La puerta dimensional ya no está ahí."
-"door.transit.source_close_failed" = "No se pudo cerrar de forma segura la puerta de origen."
-"door.transit.source_region_unavailable" = "La región de la puerta fuente no está disponible."
-"door.transit.start_failed" = "El tránsito dimensional no pudo comenzar."
-"door.transit.cancelled" = "El tránsito dimensional fue cancelado."
-"door.rescue.reason.no_route" = "La dimensión de bolsillo no tiene una ruta de regreso guardada."
-"door.rescue.reason.return_world_unavailable" = "El mundo de regreso guardado no está disponible."
-"door.rescue.reason.return_point_obstructed" = "El punto de retorno guardado está obstruido."
-"door.rescue.reason.return_chunk_failed" = "No se pudo cargar el chunk de regreso guardado."
-"door.rescue.fallback.no_world" = "No hay cargado ningún mundo alternativo fuera de una dimensión de bolsillo."
-"door.rescue.fallback.obstructed" = "El punto de aparición alternativo está obstruido."
-"door.rescue.fallback.chunk_failed" = "No se pudo cargar el punto de aparición alternativo."
-"door.rescue.fallback.schedule_failed" = "No se pudo programar la evacuación alternativa."
-"door.rescue.reason.start_failed" = "No se pudo iniciar la evacuación de emergencia."
-"door.rescue.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>{route} {fallback} Sigues protegido con un corazón."
-"door.access.label.neutral" = "Neutral"
-"door.access.label.whitelist" = "Lista permitida"
-"door.access.label.blacklist" = "Lista bloqueada"
-"door.open_state.open" = "Abierto"
-"door.open_state.closed" = "Cerrado"
-"door.access.kind.pair" = "Entrelazada"
-"door.access.kind.personal" = "Personal"
-"door.access.kind.public" = "Compartida"
-"door.access.kind.return" = "de Salida"
-"door.access.unknown_player" = "Desconocido ({id})"
-"door.access.edit_denied" = "<red>Sólo el propietario de la puerta o un administrador puede editar esta puerta."
-"door.access.unavailable" = "<red>Esta puerta dimensional no tiene registro de acceso."
-"door.access.save_failed" = "<red>No se pudo guardar ese cambio de acceso de la puerta."
-"door.access.player_not_found" = "<red>No se encontró ningún jugador llamado {name}."
-"door.access.owner_always" = "<gray>El propietario de la puerta siempre tiene acceso."
-"door.access.already_listed" = "<gray>{name} ya está en la lista de esta puerta."
-"door.access.added" = "<green>{name} se añadió a la lista de esta puerta."
-"door.access.removed" = "<green>{name} se quitó de la lista de esta puerta."
-"door.access.state_changed" = "<green>{name} ahora es {state} en esta puerta."
-"door.access.prompt_player" = "<aqua>Escribe el nombre del jugador que quieres incluir en la lista de esta puerta (o '{cancel}'):"
-"door.access.denied" = "<red>Esta puerta dimensional te rechaza."
-"door.access.transit_denied" = "No tienes acceso a esta puerta dimensional."
-"door.menu.access.title" = "Acceso a la puerta: {kind}"
-"portal.menu.gateway.server" = "<gray>Servidor: <white>{server}"
-"portal.menu.gateway.link" = "<gray>Enlace: <aqua>{state}"
-"portal.menu.mirror.rotation" = "<gray>Rotación de la imagen: <aqua>{degrees} grados"
-"portal.menu.mirror.rotate_clockwise" = "<dark_gray>Haga clic derecho: gire en sentido horario."
-"portal.menu.mirror.rotate_counterclockwise" = "<dark_gray>Mayús + clic derecho: girar en sentido antihorario."
-"portal.prompt.invite" = "<aqua>Pega la invitación del portal en el chat (o '{cancel}'):"
-"portal.prompt.block_state" = "<aqua>Introduce un estado de bloque para el borde de la vista de red de este portal o '{cancel}':"
-"portal.prompt.name" = "<aqua>Escribe el nuevo nombre del portal en el chat (o '{cancel}'):"
-"portal.prompt.cost_item" = "<aqua>Sostén el objeto exacto del coste en tu mano principal y pulsa Soltar. El objeto no saldrá de tu inventario."
-"portal.prompt.cost_vault" = "<aqua>Introduce la cantidad de moneda de Vault por travesía (o '{cancel}'):"
-"portal.input.cancel" = "cancelar"
-"portal.rtp.editor_title" = "RTP: {portal}"
-"portal.notice.dimensional_link_managed" = "Este portal dimensional mantiene su enlace generado."
-"portal.notice.not_rtp" = "Este portal ya no está en modo de teletransporte aleatorio."
-"portal.rtp.notice.setting_rejected" = "No se pudo aplicar ese ajuste: {reason}"
-"portal.notice.region_unavailable" = "La región del portal no está disponible; intente de nuevo."
-"portal.rtp.notice.applied" = "Se aplicaron los ajustes del destino aleatorio."
-"portal.rtp.notice.reset_defaults" = "Ajustes de teletransporte aleatorio restablecidos a los valores predeterminados."
-"portal.rtp.notice.editor_refreshed" = "Cambiaron las configuraciones; se actualizó el editor."
-"portal.rtp.notice.runtime_unavailable" = "El sistema de teletransporte aleatorio no está disponible."
-"portal.rtp.notice.reroll_failed" = "No se pudo elegir manualmente otro destino; consulta el registro del servidor."
-"portal.rtp.notice.reroll_preparing" = "Preparando un nuevo destino aleatorio."
-"portal.rtp.notice.reroll_unavailable" = "No se puede elegir otro destino mientras la ruta se prepara o está en uso."
-"portal.rtp.notice.pool_rebuilding" = "Reconstruyendo la reserva privada de destinos."
-"portal.rtp.notice.pool_failed" = "No se pudo reconstruir la reserva de destinos; consulta el registro del servidor."
-"portal.rtp.notice.not_ready" = "<yellow>El portal aún está estabilizando su destino."
-"portal.rtp.notice.traversal_failed" = "<red>El portal no pudo estabilizarse; inténtalo de nuevo."
-"portal.notice.travel_managed" = "Los viajes de los portales dimensionales se gestionan automáticamente."
-"portal.notice.travel_mirror_locked" = "El modo espejo nunca permite viajar."
-"portal.notice.travel_changed" = "Viaje: {mode}"
-"portal.notice.stream_quality_changed" = "Calidad de transmisión: {quality}"
-"portal.notice.network_value_changed" = "{label}: {value}"
-"portal.notice.fallback_set" = "Bloque de respaldo establecido en {block}"
-"portal.notice.fallback_reset" = "Bloque de respaldo restablecido a {block}"
-"portal.notice.managed_mode" = "Los portales dimensionales gestionados permanecen en modo portal."
-"portal.notice.projection_receiver_inactive" = "La llegada a The End permanece visualmente inactiva."
-"portal.notice.projection_changed" = "Proyección: {mode}"
-"portal.notice.settings_sync_changed" = "Sincronización de ajustes: {state}"
-"portal.notice.access_changed" = "Acceso: {mode}"
-"portal.notice.cost_item_set" = "El viaje ahora requiere {item}."
-"portal.notice.cost_item_invalid" = "Ese objeto no se pudo guardar como coste de viaje."
-"portal.notice.cost_cleared" = "Coste de viaje eliminado."
-"portal.notice.cost_quantity_changed" = "Cantidad del coste de viaje: {quantity}"
-"portal.notice.cost_vault_changed" = "Coste de viaje de Vault: {amount}"
-"portal.notice.cost_vault_invalid" = "Introduce una cantidad de moneda positiva no mayor que {maximum}."
-"portal.notice.cost_vault_unavailable" = "Vault y un proveedor de economía deben estar disponibles antes de seleccionar este coste."
-"portal.notice.mirror_select_first" = "Seleccione Espejo antes de girar la imagen."
-"portal.notice.mirror_rotation_changed" = "Rotación del espejo: {degrees} grados"
-"portal.notice.rtp_cannot_link" = "Los portales de teletransporte aleatorios no se vinculan a los destinos."
-"portal.label.travel.both" = "Ambas direcciones"
-"portal.label.travel.outbound" = "Solo salida"
-"portal.label.travel.inbound" = "Solo entrada"
-"portal.label.travel.locked" = "Bloqueado"
-"portal.label.travel.arrival" = "Solo llegada"
-"portal.label.travel.departure" = "Solo salida"
-"portal.label.cost.free" = "Gratis"
-"portal.label.cost.vanilla" = "Objeto vanilla"
-"portal.label.cost.vault" = "Economía de Vault"
-"portal.label.travel.dimensional_both" = "Ambas mitades vinculadas permanecen activas."
-"portal.label.travel.dimensional_return_disabled" = "El camino de regreso se mantiene desactivado."
-"portal.label.quality.standard" = "Estándar"
-"portal.label.quality.performance" = "Rendimiento"
-"portal.label.quality.balanced" = "Equilibrado"
-"portal.label.quality.cinematic" = "Cinemático"
-"portal.label.quality.custom" = "Personalizado"
-"portal.label.mode.portal" = "Portal"
-"portal.label.mode.wormhole" = "Agujero de gusano"
-"portal.label.mode.gateway" = "Puerta de enlace"
-"portal.label.mode.rtp" = "RTP"
-"portal.label.mode.mirror" = "Espejo"
-"portal.label.direction.up" = "Arriba"
-"portal.label.direction.down" = "Abajo"
-"portal.label.direction.north" = "Norte"
-"portal.label.direction.south" = "Sur"
-"portal.label.direction.east" = "Este"
-"portal.label.direction.west" = "Oeste"
-"portal.mode.description.portal" = "Portal de enlace básico."
-"portal.mode.description.wormhole" = "Portal enlazable con una vista proyectada."
-"portal.mode.description.gateway" = "Reservado para enlaces entre redes."
-"portal.mode.description.rtp" = "Portal de teletransporte aleatorio local."
-"portal.mode.description.mirror" = "Refleja el mundo local con los viajes bloqueados."
-"portal.label.allocation.shared" = "Compartido"
-"portal.label.allocation.per_player" = "Por jugador"
-"portal.rtp.rotation.private" = "Privado cada {duration}"
-"portal.label.permission.whitelist" = "Lista permitida"
-"portal.label.permission.blacklist" = "Lista bloqueada"
-"portal.permission.description.whitelist" = "Los jugadores necesitan el nodo para usar este portal."
-"portal.permission.description.blacklist" = "Los jugadores con el nodo están bloqueados."
-"portal.label.network.direct" = "Directo"
-"portal.label.network.sideband" = "Canal secundario"
-"portal.label.network.reconnecting" = "Reconectando"
-"portal.network.label.capture_radius" = "Radio de captura"
-"portal.network.description.capture_radius" = "Bloques transmitidos alrededor del portal de destino."
-"portal.network.label.full_refresh" = "Actualización completa"
-"portal.network.description.full_refresh" = "Ticks entre actualizaciones completas de bloques."
-"portal.network.label.entity_update" = "Actualización de la entidad"
-"portal.network.description.entity_update" = "Ticks entre actualizaciones de entidades."
-"portal.network.label.view_grace" = "Margen de vista"
-"portal.network.description.view_grace" = "Segundos que se mantiene activo el flujo después de apartar la vista."
-"portal.network.label.blackout" = "Fondo opaco"
-"portal.network.label.blackout_color" = "Color opaco"
-"portal.network.label.activation_range" = "Rango de activación"
-"portal.label.activation_global" = "Global ({range})"
-"portal.direction.cancelled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Cancelado"
-"portal.direction.set" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Dirección establecida"
-"portal.setting.notification" = "<green>{portal}: <reset>{message}"
-"portal.link.linked" = "<green>{portal} vinculado a {destination}."
-"portal.link.linked_remote" = "<green>{portal} enlazado con {destination} en {server}."
-"portal.link.unlinked" = "<yellow>Se ha quitado el enlace entre {portal} y {destination}."
-"portal.orientation.face_flipped" = "<green>La cara de {portal} se invirtió hacia {direction}."
-"portal.orientation.rotated_counterclockwise" = "<green>{portal} girado en sentido antihorario."
-"portal.orientation.rotated_clockwise" = "<green>{portal} girado en sentido horario."
-"portal.orientation.direction_changed" = "<green>La dirección de {portal} cambió a {direction}."
-"portal.mode.changed" = "<green>El modo de {portal} se estableció en {mode}."
-"label.none" = "Ninguno"
-"label.on" = "Activado"
-"label.off" = "Desactivado"
-"label.ready" = "Listo"
-"label.preparing" = "Preparando"
-"label.open" = "Abierto"
-"label.closed" = "Cerrado"
-"rtp.routing.action_confirm" = "Abre una pantalla de confirmación independiente."
-"rtp.status.ready" = "Listo"
-"rtp.status.warming" = "Preparando"
-"rtp.status.rerolling" = "Eligiendo otro destino"
-"rtp.status.backoff" = "Espera antes de reintentar"
-"rtp.status.world_unavailable" = "El mundo objetivo no está disponible"
-"rtp.status.integration_failed" = "La integración de acceso falló"
-"rtp.status.failed" = "Fallido"
-"rtp.status.idle" = "Inactivo"
-"rtp.rotation.static" = "Estático"
-"rtp.rotation.timed" = "Temporizado"
-"rtp.rotation.trip" = "Después de cada viaje"
-"rtp.status.retry" = "<gray>Nuevo intento en: <red>{duration}"
-"rtp.status.active" = "<gray>Activo: {readiness}"
-"rtp.status.standby" = "<gray>En espera: {readiness}"
-"rtp.status.rotation" = "<gray>Rotación del borrador: <aqua>{rotation}"
-"rtp.status.pool" = "<gray>Libres: <aqua>{free}<gray>  Reservados: <aqua>{reserved}"
-"rtp.status.target_missing" = "<red>El mundo objetivo no está cargado."
-"rtp.status.access_failed" = "<red>Las comprobaciones de acceso al destino fallaron y denegaron el acceso."
-"rtp.numeric.center_x" = "Centro X"
-"rtp.numeric.center_z" = "Centro Z"
-"rtp.numeric.minimum_radius" = "Radio mínimo"
-"rtp.numeric.maximum_radius" = "Radio máximo"
-"rtp.numeric.lower_y" = "Y inferior"
-"rtp.numeric.upper_y" = "Y superior"
-"rtp.numeric.preferred_y" = "Y preferido"
-"rtp.numeric.cycle" = "Duración del ciclo"
-"rtp.numeric.private_rotation" = "Tiempo de rotación privado"
-"rtp.numeric.lease" = "Margen de reserva inactiva"
-"rtp.numeric.release" = "Liberación privada"
-"rtp.numeric.description.center" = "Mueve el centro personalizado sobre este eje."
-"rtp.numeric.description.minimum_radius" = "Borde interior del anillo de destino."
-"rtp.numeric.description.maximum_radius" = "Borde exterior del anillo de destino."
-"rtp.numeric.description.y" = "Límite de búsqueda de una altura de apoyo válida."
-"rtp.numeric.description.cycle" = "Tiempo entre las rotaciones cronometradas compartidas."
-"rtp.numeric.description.private_rotation" = "Edad máxima del destino preparado de cada jugador."
-"rtp.numeric.description.lease" = "Mantiene brevemente los destinos preparados después de que todos se vayan."
-"rtp.numeric.description.release" = "Retraso antes de que se libere una reserva privada no utilizada."
-"rtp.duration.hours" = "{value}h"
-"rtp.duration.minutes" = "{value}m"
-"rtp.duration.seconds" = "{value}s"
-"rtp.duration.decimal_seconds" = "{value}s"
-"portal.menu.destination.sort_smart" = "Inteligente"
-"portal.menu.destination.sort_name" = "Nombre"
-"portal.menu.destination.sort_world" = "Mundo"
-"portal.menu.destination.sort_distance" = "Distancia"
-"rtp.biome.any_label" = "Cualquiera"
+[language.editor]
+loading = "Cargando los mensajes de {locale}..."
 
-"command.help.pocket" = "Inspeccionar y remodelar dimensiones de bolsillo"
-"command.help.pocket.info" = "Mostrar el tamano, los materiales y los limites del bolsillo en el que estas"
-"command.help.pocket.resize" = "Reconstruir el bolsillo en el que estas con otro tamano o material"
-"command.help.pocket.resize.size" = "Nueva arista de la sala en bloques, o 0 para mantener el tamano actual"
-"command.help.pocket.resize.material" = "Nuevo bloque para paredes, suelo y techo, o keep"
-"command.help.pocket.resize.door" = "Nuevo bloque para la puerta de salida, o keep"
-"command.help.pocket.resize.confirm" = "Obligatorio cuando el cambio destruiria o movería algo"
-"command.help.pocket.resizeall" = "Reconstruir todos los bolsillos existentes con otro tamano o material"
-"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Colocate dentro de una dimension de bolsillo para ejecutar esto."
-"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>El tamano del bolsillo debe estar entre {minimum} y {maximum} bloques."
-"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} no sirve como pared de bolsillo. Usa un bloque solido que no caiga."
-"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} no sirve como puerta de salida. Usa una puerta que se abra a mano; las puertas de hierro se rechazan."
-"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Ese bolsillo ya tiene este tamano y estos materiales."
-"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>El cambio de tamano se detuvo: se destruirian <white>{containers}<red> contenedores con objetos. Vacialos antes de volver a intentarlo; <white>confirm=true<red> no puede omitir esta proteccion."
-"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Bolsillo reconstruido a <white>{size}<green> bloques (antes <white>{previous}<green>), paredes <white>{material}<green>, puerta de salida <white>{door}."
-"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>No se pudo reconstruir el bolsillo. Revisa la consola."
-"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>La dimension de bolsillo no esta cargada."
-"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Una sala de {size} bloques no cabe en la altura de construccion de la dimension de bolsillo."
-"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Reconstruyendo <white>{count}<gray> bolsillos."
-"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Reconstruidos <white>{resized}<green>, omitidos <white>{skipped}<green>, fallidos <white>{failed}."
-"portal.label.public_look_label" = "Public Look Label"
-[lines]
-"portal.menu.render_mode" = ["<aqua><bold>Modo de renderizado <white>{mode}</bold>","<gray>Cuánto del volumen de destino proyecta este portal.","","<gray>Modo: <white>{mode}","","<dark_gray>PanOptic renderiza todo el volumen de destino.","<dark_gray>Venticular oculta la geometría detrás de superficies opacas visibles.","","<dark_gray>Izquierda: cambiar de modo."]
-"portal.menu.ambient_particles" = ["<aqua><bold>Partículas ambientales</bold>","<gray>Polvo decorativo que flota alrededor de este portal.","","<gray>Estilo: <white>{style} <dark_gray>({color})","","<dark_gray>Izquierdo: cambiar de estilo.","<dark_gray>Derecho: elegir un color."]
-"portal.menu.ambient_color.placard" = ["<gold><bold>Color ambiental</bold>","<gray>Color de las partículas de polvo ambientales.","","<gray>Actual: <white>{color}"]
-"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>Clic izquierdo: +{step}","<dark_gray>Clic derecho: -{step}","<dark_gray>Mayús + clic izquierdo: +{large_step}","<dark_gray>Mayús + clic derecho: -{large_step}"]
-"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>Haz clic para seleccionar."]
-"portal.menu.surface_skin" = ["<aqua><bold>Aspecto de superficie</bold>","<gray>Cubre la abertura del portal con un panel de bloque o fluido renderizado.","","<gray>Aspecto: <white>{skin}","","<dark_gray>Izquierdo: quitar el aspecto.","<dark_gray>Derecho: abrir opciones de aspecto."]
-"portal.menu.surface_skin.placard" = ["<gold><bold>Aspecto de superficie</bold>","<gray>Haz clic derecho en el portal con un bloque o cubo para aplicar un aspecto.","","<gray>Aspecto: <white>{skin}"]
-"portal.menu.surface_skin.glass" = ["<aqua><bold>Aspecto de cristal</bold>","<gray>Una ventana de cristal transparente sobre la abertura.","","<dark_gray>Haz clic para aplicar cristal."]
-"portal.menu.surface_skin.clear" = ["<red><bold>Quitar aspecto</bold>","<gray>Quita el aspecto y restaura las proyecciones.","","<dark_gray>Haz clic para quitar el aspecto."]
-"command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Ayuda de portales: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Usa la Varita del Portal sobre un portal para configurar el destino, la vista, el viaje y el acceso."]
-"command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>Has recibido una Varita del Portal y 1 Runa de Agujero de Gusano.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Construye DOS formas con runas de agujero de gusano (cualquier forma conectada sobre una superficie plana), enlázalas y permanece a menos de {range} bloques para ver la proyección.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Ejecuta <white>/wormholes info<gray> para consultar todos los pasos."]
-"command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Archivo de instantánea: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Observa este archivo para compartir el estado en vivo de la red y las vistas. Se reemplaza en cada intervalo."]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>Cómo construir un agujero de gusano</bold>","<dark_gray>1. <gray>Obtén una Varita del Portal y runas de portal del servidor o de un administrador.","<dark_gray>2. <gray>Coloca las runas formando cualquier figura conectada sobre una superficie plana.","<gray>   Sirve cualquier figura conectada: rectángulos, líneas (3x1), bloques individuales, formas de L y cruces.","<gray>   Las runas deben quedar planas en una misma pared, suelo o techo alineado con los ejes.","<dark_gray>3. <gray>Sujeta la Varita del Portal y <white>haz clic izquierdo en cualquier bloque de runa<gray> para formar el portal.","<dark_gray>4. <gray>Construye un SEGUNDO portal en otro lugar (a cualquier distancia y en cualquier mundo).","<dark_gray>5. <gray>Haz clic en el portal abierto con la varita para abrir el menú principal.","<gray>   Elige <white>Destino<gray> y selecciona el otro portal. Repite la operación desde el otro lado.","<gray>   La orientación y el acceso se agrupan en sus propios menús sencillos.","<dark_gray>6. <gray>Permanece a menos de {range} bloques de cualquiera de los portales — el mundo de destino se proyectará en el marco y entrar te teletransportará.","<gray>Los administradores pueden crear objetos con <white>/wormholes wand"]
-"item.portal_wand" = ["<gold><bold>Varita del Portal</bold>"]
-"item.portal_rune" = ["<gold><bold>Runa de Portal</bold>"]
-"item.wormhole_rune" = ["<gold><bold>Runa de Agujero de Gusano</bold>"]
-"item.door.entangled_pair" = ["<gold>Par de Puertas Entrelazadas","<gray>Contiene dos Puertas de Agujero de Gusano enlazadas automáticamente.","<gray>Úsalo para separar los extremos A y B."]
-"item.door.paired" = ["<gold>Puerta de Agujero de Gusano {endpoint}","<gray>Enlazada automáticamente con el extremo {other}.","<gray>Abre la puerta y cruza físicamente su umbral."]
-"item.door.personal" = ["<aqua>Puerta Dimensional Personal","<gray>Cada viajero entra en su propia dimensión permanente.","<gray>El mismo viajero siempre llega al mismo lugar."]
-"item.door.public" = ["<gold>Puerta Dimensional Compartida","<gray>Todos los viajeros entran en la dimensión compartida de esta puerta.","<gray>Romperla y moverla conserva el destino compartido."]
-"item.door.return" = ["<green>Puerta de Salida Dimensional","<gray>Devuelve a los viajeros desde esta dimensión de bolsillo.","<gray>Esta puerta está vinculada a su dimensión de bolsillo."]
-"item.door.skin" = ["<gold>Aspecto de Puerta Dimensional","<gray>Combina una puerta dimensional con una puerta que pueda usar el jugador."]
-"item.door.entangled_pair_recipe" = ["<gold>Par de Puertas Entrelazadas","<gray>Contiene dos Puertas de Agujero de Gusano enlazadas automáticamente."]
-"item.door.personal_recipe" = ["<aqua>Puerta Dimensional Personal","<gray>Cada viajero entra en su propia dimensión permanente."]
-"item.door.public_recipe" = ["<gold>Puerta Dimensional Compartida","<gray>Todos los viajeros entran en la dimensión compartida de esta puerta."]
-"item.door.entangled_trapdoor_pair" = ["<gold>Par de Trampillas Entrelazadas","<gray>Contiene dos Trampillas de Agujero de Gusano enlazadas automáticamente.","<gray>Úsalo para separar los extremos A y B."]
-"item.door.paired_trapdoor" = ["<gold>Trampilla de Agujero de Gusano {endpoint}","<gray>Enlazada automáticamente con el extremo {other}.","<gray>Abre la trampilla y déjate caer a través de ella."]
-"item.door.personal_trapdoor" = ["<aqua>Trampilla Dimensional Personal","<gray>Cada viajero entra en su propia dimensión permanente.","<gray>El mismo viajero siempre llega al mismo lugar."]
-"item.door.public_trapdoor" = ["<gold>Trampilla Dimensional Compartida","<gray>Todos los viajeros entran en la dimensión compartida de esta trampilla.","<gray>Romperla y moverla conserva el destino compartido."]
-"item.door.trapdoor_skin" = ["<gold>Aspecto de Trampilla Dimensional","<gray>Combina una trampilla dimensional con una trampilla que pueda abrir el jugador."]
-"item.door.entangled_trapdoor_pair_recipe" = ["<gold>Par de Trampillas Entrelazadas","<gray>Contiene dos Trampillas de Agujero de Gusano enlazadas automáticamente."]
-"item.door.personal_trapdoor_recipe" = ["<aqua>Trampilla Dimensional Personal","<gray>Cada viajero entra en su propia dimensión permanente."]
-"item.door.public_trapdoor_recipe" = ["<gold>Trampilla Dimensional Compartida","<gray>Todos los viajeros entran en la dimensión compartida de esta trampilla."]
-"door.menu.access.placard" = ["<gold><bold>Puerta Dimensional {kind}</bold>","<gray>Propietario: <white>{owner}","<gray>En la lista permitida: <green>{whitelisted}","<gray>En la lista bloqueada: <red>{blacklisted}","<gray>Jugadores en la lista: <aqua>{count}","<dark_gray>Los propietarios y administradores editan esta puerta."]
-"door.menu.access.add_player" = ["<green><bold>Añadir jugador</bold>","<gray>Escribe un nombre de jugador en el chat para incluirlo.","","<dark_gray>Haz clic para añadir un jugador."]
-"door.menu.access.open_state" = ["<aqua><bold>OpenState: <white>{state}","<gray>El portal sigue el estado físico de este bloque.","<gray>Estado activo: <white>{state}<gray>.","","<dark_gray>Siguiente: {next}. Haz clic para cambiar."]
-"door.menu.access.entry" = ["<white>{name}","<gray>Estado: <aqua>{state}","","<dark_gray>Clic izquierdo: permitir. Clic derecho: bloquear.","<dark_gray>Clic central o Mayús + clic izquierdo: quitar."]
-"portal.menu.destination" = ["<gold><bold>Destino</bold>","<gray>Elige un portal con el que enlazar.","<gray>Enlace actual: {destination}","","<dark_gray>Haz clic para abrir el selector de destino."]
-"portal.menu.gateway_destination" = ["<gold><bold>Emparejamiento & Destino</bold>","<gray>Empareja otro servidor o elige una puerta de enlace.","<gray>Enlace actual: {destination}","","<dark_gray>Haz clic para abrir el centro de emparejamiento."]
-"portal.menu.rtp_destination" = ["<gold><bold>Destino aleatorio</bold>","<gray>Configura dónde y cuándo este portal elige otro destino.","<gray>Rotación: <aqua>{rotation}","","<dark_gray>Haz clic para abrir los ajustes de teletransporte aleatorio."]
-"portal.menu.rename" = ["<green><bold>Cambiar nombre del portal</bold>","<gray>Cambia el nombre mostrado en enlaces y menús.","<gray>Actual: <white>{portal}","","<dark_gray>Haz clic para escribir un nombre nuevo."]
-"portal.menu.delete" = ["<red><bold>Eliminar el portal</bold>","<gray>Elimina de forma permanente este portal.","","<red><underlined>Mayús + clic izquierdo para confirmar</underlined>"]
-"portal.menu.advanced_settings" = ["<dark_aqua><bold>Ajustes avanzados de transmisión</bold>","<gray>Controles directos para diagnósticos y enlaces poco habituales.","<gray>Cambiar un valor marca la Calidad de transmisión como Personalizada."]
-"portal.menu.back_settings" = ["<yellow><bold>Volver a los ajustes</bold>","<gray>Volver a los ajustes del portal."]
-"portal.menu.travel.managed" = ["<gold><bold>Viaje: {direction}</bold>","<gray>Dirección de viaje gestionada del portal dimensional.","<gray>{detail}"]
-"portal.menu.travel.mirror" = ["<red><bold>Viaje: bloqueado por el espejo</bold>","<gray>El modo espejo es solo visual.","<gray>Las entidades no pueden entrar ni salir a través de él."]
-"portal.menu.travel.standard" = ["<aqua><bold>Viaje: {mode}</bold>","<gray>Controla el viaje a través de este portal.","","<gray>Salida: <aqua>{outgoing}<gray>  Entrada: <aqua>{incoming}","","<dark_gray>Haz clic para cambiar la dirección del viaje."]
-"portal.menu.stream_quality" = ["<aqua><bold>Calidad de transmisión: {quality}</bold>","<gray>Un único ajuste para el alcance y la frecuencia de la vista remota.","","<gray>Profundidad <aqua>{depth}<gray>  Entidades <aqua>{entities}t","<gray>Actualización <aqua>{refresh}t<gray>  Margen <aqua>{grace}s","","<dark_gray>Clic: cambiar la calidad.","<dark_gray>Mayús + clic: ajustes avanzados."]
-"portal.menu.orientation" = ["<blue><bold>Orientación</bold>","<gray>Dirección: <blue>{facing}","<gray>Parte superior de la pantalla: <gold>{up}","","<dark_gray>Haz clic para configurar la dirección, inversión y rotación."]
-"portal.menu.orientation_placard" = ["<blue><bold>Orientación del portal</bold>","<gray>Dirección: <blue>{facing}","<gray>Parte superior de la pantalla: <gold>{up}"]
-"portal.menu.gateway.choose" = ["<gold><bold>Elegir destino</bold>","<gray>Elige entre las puertas de enlace locales y remotas detectadas.","","<dark_gray>Haz clic para abrir la lista de destinos."]
-"portal.menu.gateway.unpaired" = ["<gold><bold>Emparejamiento de puerta de enlace</bold>","<gray>Estado: <red>Sin emparejar"]
-"portal.menu.gateway.paired" = ["<gold><bold>Emparejamiento de puerta de enlace</bold>","<gray>Destino: <gold>{destination}"]
-"portal.menu.gateway.export" = ["<gold><bold>Crear invitación</bold>","<gray>Crea un código firmado de la puerta de enlace para otro servidor.","","<dark_gray>Haz clic para copiar un código nuevo."]
-"portal.menu.gateway.import" = ["<aqua><bold>Usar invitación</bold>","<gray>Pega un código firmado de otra puerta de enlace.","","<dark_gray>Haz clic y pega después el código en el chat."]
-"portal.menu.network_number" = ["<aqua><bold>{label} <white>{value}</bold>","<gray>{description}","","<gray>Actual: <aqua>{value}","","<dark_gray>Clic izquierdo: +{step}","<dark_gray>Clic derecho: -{step}","<dark_gray>Mayús + clic izquierdo: +{large_step}","<dark_gray>Mayús + clic derecho: -{large_step}"]
-"portal.menu.fallback_block" = ["<aqua><bold>Bloque de respaldo</bold>","<gray>Bloque mostrado más allá de la profundidad de transmisión.","","<gray>Actual: <white>{block}","","<dark_gray>Clic izquierdo: introduce un estado de bloque.","<dark_gray>Clic derecho: restablece a aire."]
-"portal.menu.blackout" = ["<aqua><bold>Fondo opaco</bold>","<gray>Sella el límite lejano y los límites laterales de la proyección con hormigón sólido para que el mundo local nunca se vea a través.","","<gray>Actual: <white>{state} <dark_gray>({color})","","<dark_gray>Clic izquierdo: alterna activado/desactivado.","<dark_gray>Clic derecho: elige un color."]
-"portal.menu.blackout_color.placard" = ["<gold><bold>Color opaco</bold>","<gray>Color del hormigón usado para la cubierta opaca.","","<gray>Actual: <white>{color}"]
-"portal.menu.blackout_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>Haz clic para seleccionar."]
-"portal.menu.activation_range" = ["<aqua><bold>Rango de activación <white>{value}</bold>","<gray>Distancia en bloques a la que este portal empieza a proyectar para los jugadores cercanos.","","<gray>Actual: <aqua>{value}","","<dark_gray>Clic izquierdo: +{step}","<dark_gray>Clic derecho: -{step}","<dark_gray>Mayús + clic izquierdo: +{large_step}","<dark_gray>Mayús + clic derecho: -{large_step}","<dark_gray>Por debajo de 8 se restablece a Global."]
-"portal.menu.placard.rtp" = ["<gold><bold>{portal}</bold>","<gray>Tipo: <yellow>{type}","<gray>Dirección: <blue>{facing}","<gray>Asignación: <aqua>{allocation}","<gray>Rotación: <aqua>{rotation}","","<dark_gray>Los operadores ignoran las listas de permitidos y bloqueados."]
-"portal.menu.placard.linked" = ["<gold><bold>{portal}</bold>","<gray>Tipo: <yellow>{type}","<gray>Dirección: <blue>{facing}","<gray>Enlazado con: <gold>{destination}","","<dark_gray>Los operadores ignoran las listas de permitidos y bloqueados."]
-"portal.menu.placard.unlinked" = ["<gold><bold>{portal}</bold>","<gray>Tipo: <yellow>{type}","<gray>Dirección: <blue>{facing}","<gray>Enlazado con: <red>{none}","","<dark_gray>Los operadores ignoran las listas de permitidos y bloqueados."]
-"portal.menu.settings_placard_gateway" = ["<aqua><bold>Configuración del portal</bold>","<gray>Control de acceso y transferencia.","<gray>Además, ajuste de la vista entre servidores.","","<gray>Mayor profundidad / intervalos de ticks más cortos =","<gray>vista más detallada, mayor ancho de banda."]
-"portal.menu.cost.opener" = ["<gold><bold>Coste de viaje</bold>","<gray>Exige un objeto exacto o moneda de Vault","<gray>cuando un jugador usa este portal.","","<gray>Modo: <white>{mode}","<gray>Coste: <white>{cost}","","<dark_gray>Haz clic para configurarlo."]
-"portal.menu.cost.placard" = ["<gold><bold>Coste de viaje</bold>","<gray>Los jugadores deben pagar antes de que este portal","<gray>les permita viajar.","","<gray>Modo: <white>{mode}","<gray>Coste: <white>{cost}"]
-"portal.menu.cost.mode_free" = ["<green><bold>Gratis</bold>","<gray>No se requiere ningún pago.","","<dark_gray>Haz clic para hacer el viaje gratuito."]
-"portal.menu.cost.mode_vanilla" = ["<aqua><bold>Objeto vanilla</bold>","<gray>Consume un objeto que coincida exactamente.","","<dark_gray>Haz clic, sostén el objeto y pulsa Soltar."]
-"portal.menu.cost.mode_vault" = ["<green><bold>Economía de Vault</bold>","<gray>Retira moneda a través de Vault.","","<dark_gray>Haz clic para introducir una cantidad."]
-"portal.menu.cost.mode_vault_unavailable" = ["<red><bold>Economía de Vault no disponible</bold>","<gray>Se requieren Vault y un proveedor de economía.","","<dark_gray>Instala o activa ambos para usar este modo."]
-"portal.menu.cost.free_detail" = ["<green><bold>Sin coste</bold>","<gray>El viaje a través de este portal es gratuito."]
-"portal.menu.cost.secondary_empty" = ["<dark_gray><bold>Sin ajuste adicional</bold>"]
-"portal.menu.cost.item" = ["<aqua><bold>{item}</bold>","<gray>Este objeto exacto es necesario para viajar.","<gray>El objeto de selección nunca se consume.","","<dark_gray>Izquierdo: selecciona otro objeto sostenido.","<dark_gray>Derecho: elimina el coste."]
-"portal.menu.cost.quantity" = ["<aqua><bold>Cantidad {quantity}</bold>","<gray>Cuántos objetos exactamente coincidentes","<gray>se consumen por travesía.","","<dark_gray>Clic izquierdo: +1","<dark_gray>Clic derecho: -1","<dark_gray>Mayús + clic izquierdo: +8","<dark_gray>Mayús + clic derecho: -8","<dark_gray>Máximo: {maximum}"]
-"portal.menu.cost.vault_amount" = ["<green><bold>{amount}</bold>","<gray>Moneda retirada por travesía.","","<dark_gray>Izquierdo: introduce otra cantidad.","<dark_gray>Derecho: elimina el coste."]
-"portal.menu.mode_placard" = ["<yellow><bold>Modo del portal</bold>","<gray>Actual: <yellow>{mode}","","<gray>Portal: portal básico enlazable.","<gray>Wormhole: portal con proyección de la vista.","<gray>Gateway: puerta de enlace entre servidores.","<gray>RTP: destinos aleatorios configurables.","<gray>Mirror: refleja este lado; no permite viajar."]
-"portal.menu.mode_opener" = ["<yellow><bold>Modo</bold>","<gray>{description}","","<gray>Actual: <yellow>{mode}","","<dark_gray>Haz clic para cambiar de modo."]
-"portal.menu.direction" = ["<blue><bold>Dirección</bold>","<gray>Cambia la dirección frontal del portal.","","<gray>Dirección actual: <blue>{direction}","","<dark_gray>Haz clic, mira en una dirección y haz clic izquierdo para aplicarla."]
-"portal.menu.flip_face" = ["<aqua><bold>Invertir frente</bold>","<gray>Invierte la dirección frontal del portal.","<gray>La rotación de la pantalla permanece alineada.","","<gray>Parte superior actual: <aqua>{up}","","<dark_gray>Haz clic para invertir."]
-"portal.menu.rotate_counterclockwise" = ["<gold><bold>Girar en sentido antihorario</bold>","<gray>Gira la vista del portal 90 grados,","<gray>sin cambiar el frente.","","<gray>Parte superior actual: <gold>{up}","","<dark_gray>Haz clic para girar."]
-"portal.menu.rotate_clockwise" = ["<gold><bold>Girar en sentido horario</bold>","<gray>Gira la vista del portal 90 grados,","<gray>sin cambiar el frente.","","<gray>Parte superior actual: <gold>{up}","","<dark_gray>Haz clic para girar."]
-"portal.menu.back" = ["<yellow><bold>Volver</bold>","<gray>Volver al menú del portal."]
-"portal.menu.projection.on" = ["<gold><bold>Proyección activada</bold>","<gray>Muestra la vista en vivo de este portal.","<gray>La imagen del destino o del espejo es visible.","","<gray>Actual: <aqua>Proyección activada</aqua>","","<dark_gray>Haz clic para activar o desactivar."]
-"portal.menu.projection.off" = ["<dark_gray><bold>Proyección desactivada</bold>","<gray>El marco se mantiene vacío.","<gray>No hay vista de destino, no hay espejo.","","<gray>Actual: <aqua>Proyección desactivada</aqua>","","<dark_gray>Haga clic para activar / desactivar."]
-"portal.menu.settings_gateway" = ["<aqua><bold>Ajustes</bold>","<gray>Permisos, transferencias","<gray>y ajustes de la vista entre servidores.","","<gray>Acceso: <gold>{access}","<gray>Enviar <aqua>{send}<gray>  Recibir <aqua>{receive}","<gray>Profundidad <aqua>{depth}<gray>  Entidades <aqua>{entity}t","","<dark_gray>Haz clic para abrir los ajustes."]
-"portal.menu.settings_sync" = ["<aqua><bold>Sincronización de ajustes {state}</bold>","<gray>Cuando está activada, los ajustes de este portal","<gray>(profundidad, ticks, proyección, permisos","<gray>y transferencias) se sincronizan con todos los pares enlazados.","","<gray>Actual: <aqua>{state}","","<dark_gray>Haz clic para cambiarla."]
-"portal.menu.permission" = ["<gold><bold>Acceso {mode}</bold>","<gray>{description}","<gray>Nodo: <white>{node}","","<gray>Actual: <gold>{mode}","","<dark_gray>Haz clic para alternar entre lista de permitidos y bloqueados.","<dark_gray>Los operadores siempre ignoran esta restricción."]
-"portal.menu.mode_option.selected" = ["<yellow><bold>{mode}</bold>", "<gray>{description}", "", "<green>Seleccionado actualmente"]
-"portal.menu.mode_option.available" = ["<yellow><bold>{mode}</bold>", "<gray>{description}", "", "<gray>Haga clic para seleccionar"]
-"portal.menu.mirror.selected" = ["<yellow><bold>Espejo</bold>", "<gray>Refleja el mundo local de nuevo.", "<gray>Te ves a ti mismo mirando por el marco.", "<gray>No viajar mientras se ve en espejo.", "", "<green>Seleccionado actualmente"]
-"portal.menu.mirror.available" = ["<yellow><bold>Espejo</bold>", "<gray>Refleja el mundo local de nuevo.", "<gray>Te ves a ti mismo mirando por el marco.", "<gray>No viajar mientras se ve en espejo.", "", "<gray>Haga clic izquierdo para seleccionar"]
-"portal.menu.mirror.flip" = ["<gray>Los espejos de pared se vuelven en 180 grados", "<gray>para que las entidades reflejas permanezcan alineadas.", "<dark_gray>Haga clic derecho: volte la imagen reflejada."]
-"portal.menu.destination.local" = ["<gold>{portal}", "<gray>en el {x}, {y}, {z} en el {world} Enfrentado {direction}"]
-"portal.menu.destination.remote" = ["<gold>{portal}", "<gray>en el servidor <white>{server}", "<gray>en el {x}, {y}, {z} en el {world} Enfrentado {direction}", "<aqua>{state}"]
-"portal.menu.destination.sort" = ["<yellow><bold>Orden: <white>{mode}</bold>","<gray>Cambiar el orden de los destinos.","<yellow>Clic izquierdo"]
-"portal.menu.destination.previous_page" = ["<yellow><bold>Página anterior</bold>","<gray>Mostrar los destinos anteriores.","<yellow>Clic izquierdo"]
-"portal.menu.destination.next_page" = ["<yellow><bold>Página siguiente</bold>","<gray>Mostrar los destinos siguientes.","<yellow>Clic izquierdo"]
-"portal.menu.destination.page" = ["<aqua><bold>Página {page}/{pages}</bold>","<gray>{count} destinos"]
-"portal.menu.destination.empty" = ["<gray>No hay destinos disponibles para vincular."]
-"portal.prompt.direction" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Mira en una dirección y luego haz clic izquierdo para aplicar.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Mayús + clic izquierdo para cancelar."]
-"rtp.overview.destination" = ["<yellow><bold>Destino & Zona</bold>","<gray>Mundo, centro y radio.","<yellow>Clic izquierdo"]
-"rtp.overview.landing" = ["<yellow><bold>Reglas de aterrizaje</bold>","<gray>Comportamiento de la superficie y la altura.","<yellow>Clic izquierdo"]
-"rtp.overview.routing" = ["<yellow><bold>Rotación & Reserva de destinos</bold>","<gray>Uso compartido, rotación y tiempos de reserva.","<yellow>Clic izquierdo"]
-"rtp.overview.effects" = ["<yellow><bold>Efectos</bold>","<gray>Borde de preparación activado / Sonidos del portal activados.","<yellow>Clic izquierdo"]
-"rtp.overview.reset_defaults" = ["<yellow><bold>Restablecer valores predeterminados</bold>","<gray>Restablece de inmediato los ajustes de teletransporte aleatorio de este portal a sus valores predeterminados.","<yellow>Clic izquierdo"]
-"rtp.navigation.back_portal" = ["<yellow><bold>Volver al portal</bold>","<gray>Volver al menú del portal.","<yellow>Clic izquierdo"]
-"rtp.navigation.overview" = ["<yellow><bold>Resumen</bold>","<gray>Volver al resumen de RTP.","<yellow>Clic izquierdo"]
-"rtp.navigation.back_category" = ["<yellow><bold>Volver</bold>","<gray>Volver a la categoría anterior.","<yellow>Clic izquierdo"]
-"rtp.destination.header" = ["<aqua><bold>Destino & Zona</bold>","<gray>Todas las opciones se eligen con un clic izquierdo normal."]
-"rtp.destination.world_current" = ["<green><bold>{world}</bold>", "<gray>Mundo objetivo actual.", "<green>Seleccionado"]
-"rtp.destination.world_available" = ["<aqua><bold>{world}</bold>","<gray>Usar este mundo cargado.","<yellow>Clic izquierdo para seleccionar"]
-"rtp.destination.previous_worlds" = ["<yellow><bold>Mundos anteriores</bold>", "<gray>Muestre la página anterior.", "<yellow>Haga clic izquierdo"]
-"rtp.destination.next_worlds" = ["<yellow><bold>Mundos siguientes</bold>","<gray>Mostrar la página siguiente.","<yellow>Clic izquierdo"]
-"rtp.destination.biome_link" = ["<yellow><bold>Bioma objetivo <white>{value}</bold>","<gray>Prefiere aterrizar en un bioma elegido.","<yellow>Clic izquierdo"]
-"rtp.biome.header" = ["<aqua><bold>Bioma objetivo</bold>","<gray>La búsqueda prefiere este bioma y recurre a cualquier lugar seguro cuando no puede encontrarlo cerca."]
-"rtp.biome.any_selected" = ["<green><bold>Cualquier bioma</bold>","<gray>Sin preferencia de bioma.","<green>Seleccionado"]
-"rtp.biome.any_available" = ["<aqua><bold>Cualquier bioma</bold>","<gray>Quitar la preferencia de bioma.","<yellow>Clic izquierdo para seleccionar"]
-"rtp.biome.current" = ["<green><bold>{biome}</bold>","<gray>{key}","<green>Seleccionado"]
-"rtp.biome.available" = ["<aqua><bold>{biome}</bold>","<gray>{key}","<yellow>Clic izquierdo para seleccionar"]
-"rtp.biome.empty" = ["<gray>No hay biomas disponibles para el mundo objetivo."]
-"rtp.biome.previous" = ["<yellow><bold>Biomas anteriores</bold>","<gray>Mostrar la página anterior.","<yellow>Clic izquierdo"]
-"rtp.biome.next" = ["<yellow><bold>Biomas siguientes</bold>","<gray>Mostrar la página siguiente.","<yellow>Clic izquierdo"]
-"rtp.destination.center_portal_selected" = ["<green><bold>Centro relativo al portal</bold>","<gray>Centra el anillo de destino en este portal.","<green>Seleccionado"]
-"rtp.destination.center_portal_available" = ["<aqua><bold>Centro relativo al portal</bold>","<gray>Centra el anillo de destino en este portal.","<yellow>Clic izquierdo para seleccionar"]
-"rtp.destination.center_custom_selected" = ["<green><bold>Centro personalizado</bold>","<gray>Usa coordenadas X y Z editables.","<green>Seleccionado"]
-"rtp.destination.center_custom_available" = ["<aqua><bold>Centro personalizado</bold>","<gray>Usa coordenadas X y Z editables.","<yellow>Clic izquierdo para seleccionar"]
-"rtp.numeric.link" = ["<yellow><bold>{label} <white>{value}</bold>", "<gray>Abre controles claros de disminución/aumento.", "<yellow>Haga clic izquierdo"]
-"rtp.destination.reset_center" = ["<yellow><bold>Restablecer centro / destino</bold>","<gray>Usar el mundo de origen y el centro del portal.","<yellow>Clic izquierdo"]
-"rtp.landing.header" = ["<aqua><bold>Reglas de aterrizaje</bold>","<gray>Choose surface or preferred-height behavior and its safety mode."]
-"rtp.landing.surface_selected" = ["<green><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<green>Selected"]
-"rtp.landing.surface_available" = ["<aqua><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<yellow>Left click to select"]
-"rtp.landing.preferred_selected" = ["<green><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<green>Selected"]
-"rtp.landing.preferred_available" = ["<aqua><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<yellow>Left click to select"]
-"rtp.landing.safe_policy" = ["<aqua><bold>Landing Safety: <white>{mode}</bold>","<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.","<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.","<yellow>Left click to toggle"]
-"rtp.routing.header" = ["<aqua><bold>Rotación & Reserva de destinos</bold>","<gray>Elige los modos directamente y aplica después todos los cambios juntos."]
-"rtp.routing.shared_selected" = ["<green><bold>Destino compartido</bold>","<gray>Todos ven y usan la misma ruta.","<green>Seleccionado"]
-"rtp.routing.shared_available" = ["<aqua><bold>Destino compartido</bold>","<gray>Todos ven y usan la misma ruta.","<yellow>Clic izquierdo para seleccionar"]
-"rtp.routing.private_selected" = ["<green><bold>Destinos por jugador</bold>","<gray>Cada jugador recibe una reserva privada.","<green>Seleccionado"]
-"rtp.routing.private_available" = ["<aqua><bold>Destinos por jugador</bold>","<gray>Cada jugador recibe una reserva privada.","<yellow>Clic izquierdo para seleccionar"]
-"rtp.routing.static_selected" = ["<green><bold>Estático</bold>","<gray>Mantiene el mismo destino.","<green>Seleccionado"]
-"rtp.routing.static_available" = ["<aqua><bold>Estático</bold>","<gray>Mantiene el mismo destino.","<yellow>Clic izquierdo para seleccionar"]
-"rtp.routing.timed_selected" = ["<green><bold>Temporizado</bold>","<gray>Cambia el destino al terminar el tiempo configurado.","<green>Seleccionado"]
-"rtp.routing.timed_available" = ["<aqua><bold>Temporizado</bold>","<gray>Cambia el destino al terminar el tiempo configurado.","<yellow>Clic izquierdo para seleccionar"]
-"rtp.routing.trip_selected" = ["<green><bold>Después de cada viaje</bold>","<gray>Activa un destino de sustitución preparado después del uso.","<green>Seleccionado"]
-"rtp.routing.trip_available" = ["<aqua><bold>Después de cada viaje</bold>","<gray>Activa un destino de sustitución preparado después del uso.","<yellow>Clic izquierdo para seleccionar"]
-"rtp.routing.manual_reroll" = ["<yellow><bold>Elegir otro destino</bold>","<gray>{description}","<yellow>Clic izquierdo"]
-"rtp.routing.rebuild_pool" = ["<yellow><bold>Reconstruir reserva de destinos</bold>","<gray>{description}","<yellow>Clic izquierdo"]
-"rtp.effects.header" = ["<aqua><bold>Efectos</bold>","<gray>Los cambios visuales no regeneran los destinos."]
-"rtp.effects.rim_on_selected" = ["<green><bold>Borde de preparación activado</bold>","<gray>Muestra la preparación privada en el borde del portal.","<green>Seleccionado"]
-"rtp.effects.rim_on_available" = ["<aqua><bold>Borde de preparación activado</bold>","<gray>Muestra la preparación privada en el borde del portal.","<yellow>Clic izquierdo para seleccionar"]
-"rtp.effects.rim_off_selected" = ["<green><bold>Borde de preparación desactivado</bold>","<gray>Oculta el borde de preparación.","<green>Seleccionado"]
-"rtp.effects.rim_off_available" = ["<aqua><bold>Borde de preparación desactivado</bold>","<gray>Oculta el borde de preparación.","<yellow>Clic izquierdo para seleccionar"]
-"rtp.effects.sound_on_selected" = ["<green><bold>Sonidos del portal activados</bold>","<gray>Reproduce los efectos y sonidos de viaje de este portal RTP.","<green>Seleccionado"]
-"rtp.effects.sound_on_available" = ["<aqua><bold>Sonidos del portal activados</bold>","<gray>Reproduce los efectos y sonidos de viaje de este portal RTP.","<yellow>Clic izquierdo para seleccionar"]
-"rtp.effects.sound_off_selected" = ["<green><bold>Sonidos del portal desactivados</bold>","<gray>Silencia este portal RTP; las partículas siguen activadas.","<green>Seleccionado"]
-"rtp.effects.sound_off_available" = ["<aqua><bold>Sonidos del portal desactivados</bold>","<gray>Silencia este portal RTP; las partículas siguen activadas.","<yellow>Clic izquierdo para seleccionar"]
-"rtp.numeric.target_unavailable" = ["<aqua><bold>El mundo objetivo no está disponible</bold>", "<gray>Cargar el mundo objetivo antes de editar este valor."]
-"rtp.numeric.value" = ["<aqua><bold>{value}</bold>","<gray>Valor actual del borrador."]
-"rtp.numeric.adjust" = ["<yellow><bold>{direction}{step}</bold>","<gray>Ajusta el borrador en {direction}{step}.","<yellow>Clic izquierdo"]
-"rtp.numeric.header" = ["<aqua><bold>{label}</bold>", "<gray>{description}"]
-"rtp.confirm.reroll" = ["<aqua><bold>¿Elegir otra ruta compartida?</bold>","<gray>La proyección actual permanece activa hasta que el nuevo destino esté listo."]
-"rtp.confirm.rebuild" = ["<aqua><bold>¿Reconstruir la reserva privada?</bold>","<gray>Las reservas existentes se conservan mientras se reconstruyen los destinos libres."]
-"rtp.confirm.confirm" = ["<yellow><bold>Confirmar</bold>","<gray>Ejecuta la acción ahora.","<yellow>Clic izquierdo"]
-"rtp.confirm.cancel" = ["<yellow><bold>Cancelar</bold>","<gray>Vuelve sin cambiar el estado de ejecución.","<yellow>Clic izquierdo"]
-"rtp.status.header" = ["<gold><bold>Estado del destino aleatorio</bold>","<gray>Estado: {state}"]
+[language.editor.category]
+message-count = "&7{count} mensajes&r"
+open = "&8Haga clic para abrir esta categoría.&r"
 
-"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Bolsillo <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Tamano <white>{size}<gray> bloques, paredes <white>{material}<gray>, puerta de salida <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Limites <white>{minimum}<gray> a <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>Reconstruir a {size} bloques destruiria <white>{blocks}<red> bloques colocados y moveria <white>{entities}<red> entidades.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Los bloques fuera de las nuevas paredes se destruyen; las entidades desplazadas se mueven a la entrada.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Ejecuta el mismo comando con <white>confirm=true<gray> para continuar."]
-"portal.menu.public_look_label" = ["<aqua><bold>Public Look Label: <white>{state}</bold>","<gray>Show this portal's name when nearby players look at it.","<gray>When Off, the route label remains portal-tool only.","","<yellow>Left click to toggle"]
-[plural."command.admin.deleted_portals"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Se eliminó <white>{count}<green> portal y se limpiaron los enlaces locales."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Se eliminaron <white>{count}<green> portales y se limpiaron los enlaces locales."
+[language.editor.error]
+no-permission = "No tienes permiso para editar los idiomas de {plugin}."
+unable-to-edit = "No se pudo editar: {reason}"
 
-[plural."command.admin.reset_everything"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes se restableció al estado predeterminado. Se eliminó <white>{count}<green> portal, se cerraron las conexiones de red y se regeneraron los archivos de configuración predeterminados."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes se restableció al estado predeterminado. Se eliminaron <white>{count}<green> portales, se cerraron las conexiones de red y se regeneraron los archivos de configuración predeterminados."
+[language.editor.input]
+expired = "Se agotó el tiempo de entrada del editor de idiomas."
+too-long = "La entrada debe tener como máximo {maximum} caracteres."
+unable-to-save = "No se pudo guardar: {reason}"
 
-[plural."wand.selection.selected"]
-one = "<aqua>{count} bloque seleccionado. Haz clic izquierdo en el panel de cristal para abrir el portal."
-other = "<aqua>{count} bloques seleccionados. Haz clic izquierdo en el panel de cristal para abrir el portal."
+[language.editor.locale]
+open = "&8Haga clic para abrir este idioma.&r"
 
-[plural."command.admin.projection_flushed"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Se vació <white>{count}<green> observador de proyección; los clientes se reconstruyen desde el estado real."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Se vaciaron <white>{count}<green> observadores de proyección; los clientes se reconstruyen desde el estado real."
+[language.editor.message]
+current-value = "&7Valor actual:&r"
+edit-chat = "&7Haz clic para editar en el chat.&r"
+edit-lines = "&7Haz clic para editar cada línea.&r"
+edit-plural = "&7Haz clic para editar una forma plural.&r"
+variables = "&8{variables}&r"
+
+[language.editor.navigation]
+back = "&eAtrás&r"
+close = "&cCerrar&r"
+next-page = "&ePágina siguiente&r"
+previous-page = "&ePágina anterior&r"
+
+[language.editor.part]
+line = "Línea {line}"
+
+[language.editor.prompt]
+current = "Valor actual: {value}"
+guidance = "Usa \\n para saltos de línea, \\\\ para una barra invertida, o escribe cancel para volver."
+search = "Busca una clave de mensaje o texto. Escribe cancel para volver."
+value = "Escribe un nuevo valor para {key} en el chat."
+variables = "Marcadores disponibles: {variables}"
+
+[language.editor.saved]
+change = "{key}: «{before}» se cambió por «{after}»."
+summary = "Se guardó {locale}. Las selecciones de idioma no cambian."
+
+[language.editor.search]
+clear = "Borrar la búsqueda"
+messages = "Buscar mensajes"
+messages-lore = "Haga clic para buscar todos los mensajes."
+
+[language.editor.section]
+group-title = "{locale} / {group}"
+languages = "Idiomas"
+search = "Búsqueda"
+search-title = "{locale} / Búsqueda"
+
+[language.editor.value]
+empty = "(vacío)"
+none = "Ninguno"
+
+[language.error]
+editor-player-only = "Abre el editor de idiomas dentro del juego."
+no-providers = "No hay proveedores de idiomas de Volmit disponibles."
+numeric-page = "Introduce un número de página."
+personal-permission = "Usted no tiene permiso para seleccionar su idioma."
+personal-player-only = "El idioma personal debe seleccionarse dentro del juego."
+plugin-personal-permission = "No tienes permiso para elegir tu idioma en {plugin}."
+plugin-server-permission = "No tienes permiso para cambiar el idioma del servidor en {plugin}."
+server-locale-required = "Elige un código como en_US para el idioma predeterminado del servidor."
+stopping = "No se puede elegir un idioma mientras se detiene el plugin."
+unavailable-for-all = "El idioma {locale} no está disponible para todos los plugins seleccionados."
+
+[language.menu]
+all-volmit-plugins = "Todos los plugins de Volmit"
+command = "Comando: {command}"
+current = "Actual: {locale}"
+current_with_personal = "Actual: {locale} (Tuyo: {personal})"
+edit_description = "Abre el editor de mensajes de cada idioma."
+edit_messages = "Editar mensajes de idioma"
+no_controls = "No tienes acceso a opciones de idioma."
+remove_personal_description = "Elimina tu selección personal de idioma."
+reset_description = "Usa el idioma predeterminado del servidor."
+reset_your_language = "Restablecer tu idioma"
+select_description = "Haz clic para seleccionar este idioma."
+selected = "seleccionado"
+server_default = "Idioma predeterminado del servidor"
+server_description = "Cambia el idioma predeterminado del servidor."
+use_server_default = "Usar el idioma predeterminado del servidor"
+your_description = "Cambia únicamente los mensajes que ves."
+your_language = "Tu idioma"
+
+[language.selection]
+english-fallback = "{plugin}: {locale} no está disponible; se usará inglés (en_US)."
+personal-selected = "{plugin}: tu idioma ahora es {locale}."
+preparing = "Preparando el idioma {locale} para {target}..."
+save-failed = "{plugin}: no se pudo guardar la selección de idioma; revisa la consola del servidor."
+server-default-selected = "{plugin}: tu idioma ahora sigue el idioma predeterminado del servidor."
+server-selected = "{plugin}: el idioma del servidor ahora es {locale}."
+
+[language.usage]
+editor = "Uso: /{command} language server edit [locale]"
+selection = "Uso: /{command} language self [locale|reset] or server [locale]"
+volmit-selection = "Uso: /volmit plugins languages [locale]"
+
+[command]
+public_help = ["&8[&6Wormholes&8] &7Ayuda de portales: &f/wormholes info", "&8[&6Wormholes&8] &7Usa la Varita del Portal sobre un portal para configurar el destino, la vista, el viaje y el acceso."]
+info = ["&8[&6Wormholes&8] &7&lCómo construir un agujero de gusano&r", "&81. &7Obtén una Varita del Portal y runas de portal del servidor o de un administrador.", "&82. &7Coloca las runas formando cualquier figura conectada sobre una superficie plana.", "&7   Sirve cualquier figura conectada: rectángulos, líneas (3x1), bloques individuales, formas de L y cruces.", "&7   Las runas deben quedar planas en una misma pared, suelo o techo alineado con los ejes.", "&83. &7Sujeta la Varita del Portal y &fhaz clic izquierdo en cualquier bloque de runa&7 para formar el portal.", "&84. &7Construye un SEGUNDO portal en otro lugar (a cualquier distancia y en cualquier mundo).", "&85. &7Haz clic en el portal abierto con la varita para abrir el menú principal.", "&7   Elige &fDestino&7 y selecciona el otro portal. Repite la operación desde el otro lado.", "&7   La orientación y el acceso se agrupan en sus propios menús sencillos.", "&86. &7Permanece a menos de {range} bloques de cualquiera de los portales — el mundo de destino se proyectará en el marco y entrar te teletransportará.", "&7Los administradores pueden crear objetos con &f/wormholes wand"]
+
+[command.help]
+debug = "Herramientas de diagnóstico de Wormholes"
+debug_dump = "Crear y subir opcionalmente un informe de diagnóstico"
+debug_dump_upload = "Subir el informe a mclo.gs"
+language = "Elige tu idioma o el idioma predeterminado del servidor"
+root = "Comando principal de Wormholes"
+wand = "Obtener la varita de portal y una runa de agujero de gusano"
+"wand.rune" = "Incluir una runa de agujero de gusano (rune=false entrega solo la varita)"
+door = "Obtener una Puerta Dimensional utilizable en supervivencia"
+"door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
+reload = "Recargar la configuración y los archivos de idioma de Wormholes"
+debug_toggle = "Alternar registros detallados y telemetría de un segundo en la consola"
+stats = "Mostrar la ruta de la instantánea de estadísticas; usar now=true para actualizarla"
+"stats.now" = "Reconstruir la instantánea inmediatamente y de forma síncrona"
+info = "Mostrar las instrucciones para construir portales"
+admin = "Comandos destructivos de mantenimiento de Wormholes"
+"admin.delete_portals" = "Eliminar todos los portales locales y sus enlaces guardados"
+"admin.delete_everything" = "Restablecer los datos, la configuración, la confianza, la identidad y la red de Wormholes"
+"admin.freeze" = "Congela todas las proyecciones de portal en su sitio durante varios segundos (seconds=0 reanuda)"
+"admin.freeze.seconds" = "Cuánto tiempo mantener el fotograma congelado (5-300, 0 reanuda ahora)"
+"admin.flush" = "Revierte los bloques proyectados de cada observador al estado real y los reconstruye"
+network = "Red de agujeros de gusano entre servidores"
+"network.import" = "Importar un código de portal de otro servidor (guarda una ruta interna; se enlaza desde el menú Enlace de una puerta de enlace)"
+"network.import.code" = "Código de portal del botón Exportar del otro servidor"
+"network.status" = "Mostrar el estado de conexión de los servidores pares"
+"network.doctor" = "Explicar por qué no se conectan los servidores pares"
+server = "Viaje entre servidores: conectarse a servidores enlazados, listarlos e intercambiarlos"
+"server.connect" = "Transferirte a un servidor enlazado (abreviatura: /wh server \\<name>)"
+"server.connect.name" = "Nombre del servidor enlazado (ver /wh server list)"
+"server.export" = "Exportar este servidor como un código que otros servidores pueden importar"
+"server.import" = "Importar un código de servidor o de portal exportado por otro servidor"
+"server.import.code" = "Código de la exportación del otro servidor"
+"server.list" = "Listar los servidores enlazados y su estado de conexión"
+"server.remove" = "Olvidar un servidor enlazado (elimina su ruta y su clave de confianza)"
+"server.remove.name" = "Nombre del servidor enlazado a olvidar"
+pocket = "Inspeccionar y remodelar dimensiones de bolsillo"
+"pocket.info" = "Mostrar el tamano, los materiales y los limites del bolsillo en el que estas"
+"pocket.resize" = "Reconstruir el bolsillo en el que estas con otro tamano o material"
+"pocket.resize.size" = "Nueva arista de la sala en bloques, o 0 para mantener el tamano actual"
+"pocket.resize.material" = "Nuevo bloque para paredes, suelo y techo, o keep"
+"pocket.resize.door" = "Nuevo bloque para la puerta de salida, o keep"
+"pocket.resize.confirm" = "Obligatorio cuando el cambio destruiria o movería algo"
+"pocket.resizeall" = "Reconstruir todos los bolsillos existentes con otro tamano o material"
+
+[command.error]
+no_permission = "&8[&6Wormholes&8] &cNo tienes permiso."
+no_permission_use = "&8[&6Wormholes&8] &cNo tienes permiso para usar ese comando."
+only_players = "&8[&6Wormholes&8] &cSolo los jugadores pueden recibir objetos."
+usage = "&7Uso: &f/wormholes help"
+
+[command.wand]
+granted_wand = "&8[&6Wormholes&8] &aVarita de portal entregada."
+granted_starter = ["&8[&6Wormholes&8] &aHas recibido una Varita del Portal y 1 Runa de Agujero de Gusano.", "&8[&6Wormholes&8] &7Construye DOS formas con runas de agujero de gusano (cualquier forma conectada sobre una superficie plana), enlázalas y permanece a menos de {range} bloques para ver la proyección.", "&8[&6Wormholes&8] &7Ejecuta &f/wormholes info&7 para consultar todos los pasos."]
+
+[command.door]
+unavailable = "&8[&6Wormholes&8] &cLas Puertas Dimensionales no están disponibles."
+unknown_type = "&8[&6Wormholes&8] &cTipo de puerta desconocido. Usa pair, personal o public, pair_trapdoor, personal_trapdoor, public_trapdoor."
+empty_type = "El tipo de puerta no puede estar vacío"
+granted = "&8[&6Wormholes&8] &aSe ha entregado un objeto de puerta dimensional de tipo &f{type}&a."
+
+[command.reload]
+applied = "&8[&6Wormholes&8] &aSe han recargado los archivos de configuración e idioma de Wormholes."
+language_retained = "&8[&6Wormholes&8] &eConfiguración recargada, pero el archivo de idioma fue rechazado. El último idioma válido sigue activo; compruebe la consola."
+failed = "&8[&6Wormholes&8] &cError al recargar la configuración; la edición sigue pendiente y se reintentará. Compruebe la consola."
+
+[command.stats]
+unavailable = "&8[&6Wormholes&8] &cNo se puede escribir la instantánea de estadísticas."
+refreshed = "&8[&6Wormholes&8] &aInstantánea actualizada."
+path = ["&8[&6Wormholes&8] &7Archivo de instantánea: &f{path}", "&8[&6Wormholes&8] &8Observa este archivo para compartir el estado en vivo de la red y las vistas. Se reemplaza en cada intervalo."]
+
+[command.admin]
+delete_failed = "&8[&6Wormholes&8] &cNo se pudieron eliminar todos los portales. Consulta la traza completa en la consola."
+delete_schedule_failed = "&8[&6Wormholes&8] &cNo se pudo programar el restablecimiento de los portales."
+reset_failed = "&8[&6Wormholes&8] &cNo se pudo restablecer Wormholes. Consulta la traza completa en la consola."
+reset_schedule_failed = "&8[&6Wormholes&8] &cNo se pudo programar el restablecimiento de Wormholes."
+projection_frozen = "&8[&6Wormholes&8] &aSe congelaron todas las proyecciones de portal durante &f{seconds}&a segundos. Se reanudan automáticamente."
+projection_resumed = "&8[&6Wormholes&8] &aProyecciones de portal reanudadas."
+projection_failed = "&8[&6Wormholes&8] &cNo se pudieron actualizar las proyecciones de portal. Consulta la consola para ver el stacktrace completo."
+projection_schedule_failed = "&8[&6Wormholes&8] &cNo se pudo programar la actualización de la proyección."
+
+[command.admin.deleted_portals]
+one = "&8[&6Wormholes&8] &aSe eliminó &f{count}&a portal y se limpiaron los enlaces locales."
+other = "&8[&6Wormholes&8] &aSe eliminaron &f{count}&a portales y se limpiaron los enlaces locales."
+
+[command.admin.reset_everything]
+one = "&8[&6Wormholes&8] &aWormholes se restableció al estado predeterminado. Se eliminó &f{count}&a portal, se cerraron las conexiones de red y se regeneraron los archivos de configuración predeterminados."
+other = "&8[&6Wormholes&8] &aWormholes se restableció al estado predeterminado. Se eliminaron &f{count}&a portales, se cerraron las conexiones de red y se regeneraron los archivos de configuración predeterminados."
+
+[command.admin.projection_flushed]
+one = "&8[&6Wormholes&8] &aSe vació &f{count}&a observador de proyección; los clientes se reconstruyen desde el estado real."
+other = "&8[&6Wormholes&8] &aSe vaciaron &f{count}&a observadores de proyección; los clientes se reconstruyen desde el estado real."
+
+[command.pocket]
+not_inside = "&8[&6Wormholes&8] &cColocate dentro de una dimension de bolsillo para ejecutar esto."
+invalid_size = "&8[&6Wormholes&8] &cEl tamano del bolsillo debe estar entre {minimum} y {maximum} bloques."
+invalid_shell_material = "&8[&6Wormholes&8] &c{material} no sirve como pared de bolsillo. Usa un bloque solido que no caiga."
+invalid_door_material = "&8[&6Wormholes&8] &c{material} no sirve como puerta de salida. Usa una puerta que se abra a mano; las puertas de hierro se rechazan."
+unchanged = "&8[&6Wormholes&8] &eEse bolsillo ya tiene este tamano y estos materiales."
+containers_not_empty = "&8[&6Wormholes&8] &cEl cambio de tamano se detuvo: se destruirian &f{containers}&c contenedores con objetos. Vacialos antes de volver a intentarlo; &fconfirm=true&c no puede omitir esta proteccion."
+resized = "&8[&6Wormholes&8] &aBolsillo reconstruido a &f{size}&a bloques (antes &f{previous}&a), paredes &f{material}&a, puerta de salida &f{door}."
+failed = "&8[&6Wormholes&8] &cNo se pudo reconstruir el bolsillo. Revisa la consola."
+world_unavailable = "&8[&6Wormholes&8] &cLa dimension de bolsillo no esta cargada."
+does_not_fit = "&8[&6Wormholes&8] &cUna sala de {size} bloques no cabe en la altura de construccion de la dimension de bolsillo."
+bulk_started = "&8[&6Wormholes&8] &7Reconstruyendo &f{count}&7 bolsillos."
+bulk_finished = "&8[&6Wormholes&8] &aReconstruidos &f{resized}&a, omitidos &f{skipped}&a, fallidos &f{failed}."
+info = ["&8[&6Wormholes&8] &7Bolsillo &f{space}", "&8[&6Wormholes&8] &7Tamano &f{size}&7 bloques, paredes &f{material}&7, puerta de salida &f{door}", "&8[&6Wormholes&8] &7Limites &f{minimum}&7 a &f{maximum}"]
+confirm_required = ["&8[&6Wormholes&8] &cReconstruir a {size} bloques destruiria &f{blocks}&c bloques colocados y moveria &f{entities}&c entidades.", "&8[&6Wormholes&8] &7Los bloques fuera de las nuevas paredes se destruyen; las entidades desplazadas se mueven a la entrada.", "&8[&6Wormholes&8] &7Ejecuta el mismo comando con &fconfirm=true&7 para continuar."]
+
+[portal]
+deleted = "&c{portal} eliminado"
+
+[portal.network.label]
+render_mode = "Modo de renderizado"
+ambient_style = "Partículas ambientales"
+ambient_color = "Color ambiental"
+surface_skin = "Aspecto de superficie"
+capture_radius = "Radio de captura"
+full_refresh = "Actualización completa"
+entity_update = "Actualización de la entidad"
+view_grace = "Margen de vista"
+blackout = "Fondo opaco"
+blackout_color = "Color opaco"
+activation_range = "Rango de activación"
+
+[portal.network.description]
+capture_radius = "Bloques transmitidos alrededor del portal de destino."
+full_refresh = "Ticks entre actualizaciones completas de bloques."
+entity_update = "Ticks entre actualizaciones de entidades."
+view_grace = "Segundos que se mantiene activo el flujo después de apartar la vista."
+
+[portal.travel]
+transfer_holding = "&6Conectando con el servidor de destino..."
+transfer_interrupted = "&cTransferencia de portal interrumpida: te alejaste del portal."
+transfer_source_unavailable = "&cTransferencia de portal interrumpida: el portal de origen ya no está disponible."
+cooldown = "&6El portal está en tiempo de reutilización"
+access_denied = "&cSe niega el acceso al portal"
+cost_insufficient = "&cNecesitas {quantity}x {item} para usar este portal."
+cost_vault_insufficient = "&cNecesitas {amount} para usar este portal."
+cost_vault_unavailable = "&cEl coste económico de este portal no está disponible."
+cost_transaction_failed = "&cEl portal no pudo procesar tu coste de viaje."
+destination_unavailable = "&cDestino del portal no disponible"
+arrival_denied = "&cEl portal de destino rechazó tu llegada."
+arrival_returned = "&cEl portal de destino rechazó tu llegada; te devolvemos a {server}"
+arrival_failed = "&cNo se puede colocar la llegada al portal; permanece en el spawn de destino"
+transfer_cooldown = "&6Tiempo de reutilización del portal entre servidores: {seconds}s"
+destination_unreachable = "&cServidor de destino no accesible"
+destination_unreachable_detail = "&cServidor de destino no accesible: {reason}"
+transfer_blocked = "&cTransferencia de portal bloqueada: {reason}"
+transfer_blocked_retry = "&cTransferencia del portal bloqueada: {reason} (nuevo intento en {seconds}s)"
+
+[portal.label]
+activation_global = "Global ({range})"
+public_look_label = "Etiqueta pública al mirar"
+
+[portal.label.ambient]
+red = "Rojo"
+green = "Verde"
+blue = "Azul"
+
+[portal.label.ambient_style]
+sparks = "Chispas"
+outline = "Contorno"
+corners = "Esquinas"
+off = "Apagado"
+
+[portal.label.skin]
+none = "Ninguno"
+
+[portal.label.travel]
+both = "Ambas direcciones"
+outbound = "Solo salida"
+inbound = "Solo entrada"
+locked = "Bloqueado"
+arrival = "Solo llegada"
+departure = "Solo salida"
+dimensional_both = "Ambas mitades vinculadas permanecen activas."
+dimensional_return_disabled = "El camino de regreso se mantiene desactivado."
+
+[portal.label.cost]
+free = "Gratis"
+vanilla = "Objeto vanilla"
+vault = "Economía de Vault"
+
+[portal.label.quality]
+standard = "Estándar"
+performance = "Rendimiento"
+balanced = "Equilibrado"
+cinematic = "Cinemático"
+custom = "Personalizado"
+
+[portal.label.mode]
+portal = "Portal"
+wormhole = "Agujero de gusano"
+gateway = "Puerta de enlace"
+rtp = "RTP"
+mirror = "Espejo"
+
+[portal.label.direction]
+up = "Arriba"
+down = "Abajo"
+north = "Norte"
+south = "Sur"
+east = "Este"
+west = "Oeste"
+
+[portal.label.allocation]
+shared = "Compartido"
+per_player = "Por jugador"
+
+[portal.label.permission]
+whitelist = "Lista permitida"
+blacklist = "Lista bloqueada"
+
+[portal.label.network]
+direct = "Directo"
+sideband = "Canal secundario"
+reconnecting = "Reconectando"
+
+[portal.form]
+rtp_unsupported = "&cLos portales de teletransporte aleatorios no se pueden formar a partir de runas."
+forming = "&bFormando portal... Las runas de {type} deben estar conectadas sobre una pared, un suelo o un techo planos."
+must_be_flat = "&cEl portal debe estar plano en una pared, piso o techo."
+interrupted = "&cLa formación del portal fue interrumpida; las runas reservadas fueron restauradas."
+rune_placed = "&bRuna colocada. Construye cualquier figura conectada sobre una superficie plana y haz clic izquierdo en una runa con la Varita del Portal."
+opened = "&aPortal abierto. Sujeta la varita y HAZ CLIC en el portal para configurarlo."
+
+[portal.edit]
+denied = "&cSólo el propietario del portal o un administrador puede editar este portal."
+
+[portal.menu]
+destination = ["&6&lDestino&r", "&7Elige un portal con el que enlazar.", "&7Enlace actual: {destination}", "", "&8Haz clic para abrir el selector de destino."]
+"destination.sort_smart" = "Inteligente"
+"destination.sort_name" = "Nombre"
+"destination.sort_world" = "Mundo"
+"destination.sort_distance" = "Distancia"
+"destination.local" = ["&6{portal}", "&7en el {x}, {y}, {z} en el {world} Enfrentado {direction}"]
+"destination.remote" = ["&6{portal}", "&7en el servidor &f{server}", "&7en el {x}, {y}, {z} en el {world} Enfrentado {direction}", "&b{state}"]
+"destination.sort" = ["&e&lOrden: &f&l{mode}&r", "&7Cambiar el orden de los destinos.", "&eClic izquierdo"]
+"destination.previous_page" = ["&e&lPágina anterior&r", "&7Mostrar los destinos anteriores.", "&eClic izquierdo"]
+"destination.next_page" = ["&e&lPágina siguiente&r", "&7Mostrar los destinos siguientes.", "&eClic izquierdo"]
+"destination.page" = ["&b&lPágina {page}/{pages}&r", "&7{count} destinos"]
+"destination.empty" = ["&7No hay destinos disponibles para vincular."]
+render_mode = ["&b&lModo de renderizado &f&l{mode}&r", "&7Cuánto del volumen de destino proyecta este portal.", "", "&7Modo: &f{mode}", "", "&8PanOptic renderiza todo el volumen de destino.", "&8Venticular oculta la geometría detrás de superficies opacas visibles.", "", "&8Izquierda: cambiar de modo."]
+ambient_particles = ["&b&lPartículas ambientales&r", "&7Polvo decorativo que flota alrededor de este portal.", "", "&7Estilo: &f{style} &8({color})", "", "&8Izquierdo: cambiar de estilo.", "&8Derecho: elegir un color."]
+surface_skin = ["&b&lAspecto de superficie&r", "&7Cubre la abertura del portal con un panel de bloque o fluido renderizado.", "", "&7Aspecto: &f{skin}", "", "&8Izquierdo: quitar el aspecto.", "&8Derecho: abrir opciones de aspecto."]
+"surface_skin.placard" = ["&6&lAspecto de superficie&r", "&7Haz clic derecho en el portal con un bloque o cubo para aplicar un aspecto.", "", "&7Aspecto: &f{skin}"]
+"surface_skin.glass" = ["&b&lAspecto de cristal&r", "&7Una ventana de cristal transparente sobre la abertura.", "", "&8Haz clic para aplicar cristal."]
+"surface_skin.clear" = ["&c&lQuitar aspecto&r", "&7Quita el aspecto y restaura las proyecciones.", "", "&8Haz clic para quitar el aspecto."]
+gateway_destination = ["&6&lEmparejamiento & Destino&r", "&7Empareja otro servidor o elige una puerta de enlace.", "&7Enlace actual: {destination}", "", "&8Haz clic para abrir el centro de emparejamiento."]
+rtp_destination = ["&6&lDestino aleatorio&r", "&7Configura dónde y cuándo este portal elige otro destino.", "&7Rotación: &b{rotation}", "", "&8Haz clic para abrir los ajustes de teletransporte aleatorio."]
+rename = ["&a&lCambiar nombre del portal&r", "&7Cambia el nombre mostrado en enlaces y menús.", "&7Actual: &f{portal}", "", "&8Haz clic para escribir un nombre nuevo."]
+delete = ["&c&lEliminar el portal&r", "&7Elimina de forma permanente este portal.", "", "&c&nMayús + clic izquierdo para confirmar&r"]
+advanced_settings = ["&3&lAjustes avanzados de transmisión&r", "&7Controles directos para diagnósticos y enlaces poco habituales.", "&7Cambiar un valor marca la Calidad de transmisión como Personalizada."]
+back_settings = ["&e&lVolver a los ajustes&r", "&7Volver a los ajustes del portal."]
+stream_quality = ["&b&lCalidad de transmisión: {quality}&r", "&7Un único ajuste para el alcance y la frecuencia de la vista remota.", "", "&7Profundidad &b{depth}&7  Entidades &b{entities}t", "&7Actualización &b{refresh}t&7  Margen &b{grace}s", "", "&8Clic: cambiar la calidad.", "&8Mayús + clic: ajustes avanzados."]
+orientation = ["&9&lOrientación&r", "&7Dirección: &9{facing}", "&7Parte superior de la pantalla: &6{up}", "", "&8Haz clic para configurar la dirección, inversión y rotación."]
+orientation_placard = ["&9&lOrientación del portal&r", "&7Dirección: &9{facing}", "&7Parte superior de la pantalla: &6{up}"]
+network_number = ["&b&l{label} &f&l{value}&r", "&7{description}", "", "&7Actual: &b{value}", "", "&8Clic izquierdo: +{step}", "&8Clic derecho: -{step}", "&8Mayús + clic izquierdo: +{large_step}", "&8Mayús + clic derecho: -{large_step}"]
+fallback_block = ["&b&lBloque de respaldo&r", "&7Bloque mostrado más allá de la profundidad de transmisión.", "", "&7Actual: &f{block}", "", "&8Clic izquierdo: introduce un estado de bloque.", "&8Clic derecho: restablece a aire."]
+blackout = ["&b&lFondo opaco&r", "&7Sella el límite lejano y los límites laterales de la proyección con hormigón sólido para que el mundo local nunca se vea a través.", "", "&7Actual: &f{state} &8({color})", "", "&8Clic izquierdo: alterna activado/desactivado.", "&8Clic derecho: elige un color."]
+activation_range = ["&b&lRango de activación &f&l{value}&r", "&7Distancia en bloques a la que este portal empieza a proyectar para los jugadores cercanos.", "", "&7Actual: &b{value}", "", "&8Clic izquierdo: +{step}", "&8Clic derecho: -{step}", "&8Mayús + clic izquierdo: +{large_step}", "&8Mayús + clic derecho: -{large_step}", "&8Por debajo de 8 se restablece a Global."]
+settings_placard_gateway = ["&b&lConfiguración del portal&r", "&7Control de acceso y transferencia.", "&7Además, ajuste de la vista entre servidores.", "", "&7Mayor profundidad / intervalos de ticks más cortos =", "&7vista más detallada, mayor ancho de banda."]
+mode_placard = ["&e&lModo del portal&r", "&7Actual: &e{mode}", "", "&7Portal: portal básico enlazable.", "&7Wormhole: portal con proyección de la vista.", "&7Gateway: puerta de enlace entre servidores.", "&7RTP: destinos aleatorios configurables.", "&7Mirror: refleja este lado; no permite viajar."]
+mode_opener = ["&e&lModo&r", "&7{description}", "", "&7Actual: &e{mode}", "", "&8Haz clic para cambiar de modo."]
+direction = ["&9&lDirección&r", "&7Cambia la dirección frontal del portal.", "", "&7Dirección actual: &9{direction}", "", "&8Haz clic, mira en una dirección y haz clic izquierdo para aplicarla."]
+flip_face = ["&b&lInvertir frente&r", "&7Invierte la dirección frontal del portal.", "&7La rotación de la pantalla permanece alineada.", "", "&7Parte superior actual: &b{up}", "", "&8Haz clic para invertir."]
+rotate_counterclockwise = ["&6&lGirar en sentido antihorario&r", "&7Gira la vista del portal 90 grados,", "&7sin cambiar el frente.", "", "&7Parte superior actual: &6{up}", "", "&8Haz clic para girar."]
+rotate_clockwise = ["&6&lGirar en sentido horario&r", "&7Gira la vista del portal 90 grados,", "&7sin cambiar el frente.", "", "&7Parte superior actual: &6{up}", "", "&8Haz clic para girar."]
+back = ["&e&lVolver&r", "&7Volver al menú del portal."]
+settings_gateway = ["&b&lAjustes&r", "&7Permisos, transferencias", "&7y ajustes de la vista entre servidores.", "", "&7Acceso: &6{access}", "&7Enviar &b{send}&7  Recibir &b{receive}", "&7Profundidad &b{depth}&7  Entidades &b{entity}t", "", "&8Haz clic para abrir los ajustes."]
+settings_sync = ["&b&lSincronización de ajustes {state}&r", "&7Cuando está activada, los ajustes de este portal", "&7(profundidad, ticks, proyección, permisos", "&7y transferencias) se sincronizan con todos los pares enlazados.", "", "&7Actual: &b{state}", "", "&8Haz clic para cambiarla."]
+permission = ["&6&lAcceso {mode}&r", "&7{description}", "&7Nodo: &f{node}", "", "&7Actual: &6{mode}", "", "&8Haz clic para alternar entre lista de permitidos y bloqueados.", "&8Los operadores siempre ignoran esta restricción."]
+public_look_label = ["&b&lEtiqueta pública al mirar: &f&l{state}&r", "&7Muestra el nombre del portal cuando los jugadores cercanos lo miran.", "&7Si está desactivada, la etiqueta de ruta solo se muestra con la herramienta de portales.", "", "&eClic izquierdo para alternar"]
+
+[portal.menu.gateway]
+server = "&7Servidor: &f{server}"
+link = "&7Enlace: &b{state}"
+choose = ["&6&lElegir destino&r", "&7Elige entre las puertas de enlace locales y remotas detectadas.", "", "&8Haz clic para abrir la lista de destinos."]
+unpaired = ["&6&lEmparejamiento de puerta de enlace&r", "&7Estado: &cSin emparejar"]
+paired = ["&6&lEmparejamiento de puerta de enlace&r", "&7Destino: &6{destination}"]
+export = ["&6&lCrear invitación&r", "&7Crea un código firmado de la puerta de enlace para otro servidor.", "", "&8Haz clic para copiar un código nuevo."]
+import = ["&b&lUsar invitación&r", "&7Pega un código firmado de otra puerta de enlace.", "", "&8Haz clic y pega después el código en el chat."]
+
+[portal.menu.mirror]
+rotation = "&7Rotación de la imagen: &b{degrees} grados"
+rotate_clockwise = "&8Haga clic derecho: gire en sentido horario."
+rotate_counterclockwise = "&8Mayús + clic derecho: girar en sentido antihorario."
+selected = ["&e&lEspejo&r", "&7Refleja el mundo local de nuevo.", "&7Te ves a ti mismo mirando por el marco.", "&7No viajar mientras se ve en espejo.", "", "&aSeleccionado actualmente"]
+available = ["&e&lEspejo&r", "&7Refleja el mundo local de nuevo.", "&7Te ves a ti mismo mirando por el marco.", "&7No viajar mientras se ve en espejo.", "", "&7Haga clic izquierdo para seleccionar"]
+flip = ["&7Los espejos de pared se vuelven en 180 grados", "&7para que las entidades reflejas permanezcan alineadas.", "&8Haga clic derecho: volte la imagen reflejada."]
+
+[portal.menu.ambient_color]
+placard = ["&6&lColor ambiental&r", "&7Color de las partículas de polvo ambientales.", "", "&7Actual: &f{color}"]
+channel = ["&b&l{label} &f&l{value}&r", "", "&8Clic izquierdo: +{step}", "&8Clic derecho: -{step}", "&8Mayús + clic izquierdo: +{large_step}", "&8Mayús + clic derecho: -{large_step}"]
+option = ["&b&l{color}&r", "", "&8Haz clic para seleccionar."]
+
+[portal.menu.travel]
+managed = ["&6&lViaje: {direction}&r", "&7Dirección de viaje gestionada del portal dimensional.", "&7{detail}"]
+mirror = ["&c&lViaje: bloqueado por el espejo&r", "&7El modo espejo es solo visual.", "&7Las entidades no pueden entrar ni salir a través de él."]
+standard = ["&b&lViaje: {mode}&r", "&7Controla el viaje a través de este portal.", "", "&7Salida: &b{outgoing}&7  Entrada: &b{incoming}", "", "&8Haz clic para cambiar la dirección del viaje."]
+
+[portal.menu.blackout_color]
+placard = ["&6&lColor opaco&r", "&7Color del hormigón usado para la cubierta opaca.", "", "&7Actual: &f{color}"]
+option = ["&b&l{color}&r", "", "&8Haz clic para seleccionar."]
+
+[portal.menu.placard]
+rtp = ["&6&l{portal}&r", "&7Tipo: &e{type}", "&7Dirección: &9{facing}", "&7Asignación: &b{allocation}", "&7Rotación: &b{rotation}", "", "&8Los operadores ignoran las listas de permitidos y bloqueados."]
+linked = ["&6&l{portal}&r", "&7Tipo: &e{type}", "&7Dirección: &9{facing}", "&7Enlazado con: &6{destination}", "", "&8Los operadores ignoran las listas de permitidos y bloqueados."]
+unlinked = ["&6&l{portal}&r", "&7Tipo: &e{type}", "&7Dirección: &9{facing}", "&7Enlazado con: &c{none}", "", "&8Los operadores ignoran las listas de permitidos y bloqueados."]
+
+[portal.menu.cost]
+opener = ["&6&lCoste de viaje&r", "&7Exige un objeto exacto o moneda de Vault", "&7cuando un jugador usa este portal.", "", "&7Modo: &f{mode}", "&7Coste: &f{cost}", "", "&8Haz clic para configurarlo."]
+placard = ["&6&lCoste de viaje&r", "&7Los jugadores deben pagar antes de que este portal", "&7les permita viajar.", "", "&7Modo: &f{mode}", "&7Coste: &f{cost}"]
+mode_free = ["&a&lGratis&r", "&7No se requiere ningún pago.", "", "&8Haz clic para hacer el viaje gratuito."]
+mode_vanilla = ["&b&lObjeto vanilla&r", "&7Consume un objeto que coincida exactamente.", "", "&8Haz clic, sostén el objeto y pulsa Soltar."]
+mode_vault = ["&a&lEconomía de Vault&r", "&7Retira moneda a través de Vault.", "", "&8Haz clic para introducir una cantidad."]
+mode_vault_unavailable = ["&c&lEconomía de Vault no disponible&r", "&7Se requieren Vault y un proveedor de economía.", "", "&8Instala o activa ambos para usar este modo."]
+free_detail = ["&a&lSin coste&r", "&7El viaje a través de este portal es gratuito."]
+secondary_empty = ["&8&lSin ajuste adicional&r"]
+item = ["&b&l{item}&r", "&7Este objeto exacto es necesario para viajar.", "&7El objeto de selección nunca se consume.", "", "&8Izquierdo: selecciona otro objeto sostenido.", "&8Derecho: elimina el coste."]
+quantity = ["&b&lCantidad {quantity}&r", "&7Cuántos objetos exactamente coincidentes", "&7se consumen por travesía.", "", "&8Clic izquierdo: +1", "&8Clic derecho: -1", "&8Mayús + clic izquierdo: +8", "&8Mayús + clic derecho: -8", "&8Máximo: {maximum}"]
+vault_amount = ["&a&l{amount}&r", "&7Moneda retirada por travesía.", "", "&8Izquierdo: introduce otra cantidad.", "&8Derecho: elimina el coste."]
+
+[portal.menu.projection]
+on = ["&6&lProyección activada&r", "&7Muestra la vista en vivo de este portal.", "&7La imagen del destino o del espejo es visible.", "", "&7Actual: &bProyección activada&r", "", "&8Haz clic para activar o desactivar."]
+off = ["&8&lProyección desactivada&r", "&7El marco se mantiene vacío.", "&7No hay vista de destino, no hay espejo.", "", "&7Actual: &bProyección desactivada&r", "", "&8Haga clic para activar / desactivar."]
+
+[portal.menu.mode_option]
+selected = ["&e&l{mode}&r", "&7{description}", "", "&aSeleccionado actualmente"]
+available = ["&e&l{mode}&r", "&7{description}", "", "&7Haga clic para seleccionar"]
+
+[portal.prompt]
+invite = "&bPega la invitación del portal en el chat (o '{cancel}'):"
+block_state = "&bIntroduce un estado de bloque para el borde de la vista de red de este portal o '{cancel}':"
+name = "&bEscribe el nuevo nombre del portal en el chat (o '{cancel}'):"
+cost_item = "&bSostén el objeto exacto del coste en tu mano principal y pulsa Soltar. El objeto no saldrá de tu inventario."
+cost_vault = "&bIntroduce la cantidad de moneda de Vault por travesía (o '{cancel}'):"
+direction = ["&8[&6Wormholes&8] &7Mira en una dirección y luego haz clic izquierdo para aplicar.", "&8[&6Wormholes&8] &7Mayús + clic izquierdo para cancelar."]
+
+[portal.input]
+cancel = "cancelar"
+
+[portal.rtp]
+editor_title = "RTP: {portal}"
+
+[portal.rtp.notice]
+setting_rejected = "No se pudo aplicar ese ajuste: {reason}"
+applied = "Se aplicaron los ajustes del destino aleatorio."
+reset_defaults = "Ajustes de teletransporte aleatorio restablecidos a los valores predeterminados."
+editor_refreshed = "Cambiaron las configuraciones; se actualizó el editor."
+runtime_unavailable = "El sistema de teletransporte aleatorio no está disponible."
+reroll_failed = "No se pudo elegir manualmente otro destino; consulta el registro del servidor."
+reroll_preparing = "Preparando un nuevo destino aleatorio."
+reroll_unavailable = "No se puede elegir otro destino mientras la ruta se prepara o está en uso."
+pool_rebuilding = "Reconstruyendo la reserva privada de destinos."
+pool_failed = "No se pudo reconstruir la reserva de destinos; consulta el registro del servidor."
+not_ready = "&eEl portal aún está estabilizando su destino."
+traversal_failed = "&cEl portal no pudo estabilizarse; inténtalo de nuevo."
+
+[portal.rtp.rotation]
+private = "Privado cada {duration}"
+
+[portal.notice]
+dimensional_link_managed = "Este portal dimensional mantiene su enlace generado."
+not_rtp = "Este portal ya no está en modo de teletransporte aleatorio."
+region_unavailable = "La región del portal no está disponible; intente de nuevo."
+travel_managed = "Los viajes de los portales dimensionales se gestionan automáticamente."
+travel_mirror_locked = "El modo espejo nunca permite viajar."
+travel_changed = "Viaje: {mode}"
+stream_quality_changed = "Calidad de transmisión: {quality}"
+network_value_changed = "{label}: {value}"
+fallback_set = "Bloque de respaldo establecido en {block}"
+fallback_reset = "Bloque de respaldo restablecido a {block}"
+managed_mode = "Los portales dimensionales gestionados permanecen en modo portal."
+projection_receiver_inactive = "La llegada a The End permanece visualmente inactiva."
+projection_changed = "Proyección: {mode}"
+settings_sync_changed = "Sincronización de ajustes: {state}"
+access_changed = "Acceso: {mode}"
+cost_item_set = "El viaje ahora requiere {item}."
+cost_item_invalid = "Ese objeto no se pudo guardar como coste de viaje."
+cost_cleared = "Coste de viaje eliminado."
+cost_quantity_changed = "Cantidad del coste de viaje: {quantity}"
+cost_vault_changed = "Coste de viaje de Vault: {amount}"
+cost_vault_invalid = "Introduce una cantidad de moneda positiva no mayor que {maximum}."
+cost_vault_unavailable = "Vault y un proveedor de economía deben estar disponibles antes de seleccionar este coste."
+mirror_select_first = "Seleccione Espejo antes de girar la imagen."
+mirror_rotation_changed = "Rotación del espejo: {degrees} grados"
+rtp_cannot_link = "Los portales de teletransporte aleatorios no se vinculan a los destinos."
+
+[portal.mode]
+changed = "&aEl modo de {portal} se estableció en {mode}."
+
+[portal.mode.description]
+portal = "Portal de enlace básico."
+wormhole = "Portal enlazable con una vista proyectada."
+gateway = "Reservado para enlaces entre redes."
+rtp = "Portal de teletransporte aleatorio local."
+mirror = "Refleja el mundo local con los viajes bloqueados."
+
+[portal.permission.description]
+whitelist = "Los jugadores necesitan el nodo para usar este portal."
+blacklist = "Los jugadores con el nodo están bloqueados."
+
+[portal.direction]
+cancelled = "&8[&6Wormholes&8] &7Cancelado"
+set = "&8[&6Wormholes&8] &7Dirección establecida"
+
+[portal.setting]
+notification = "&a{portal}: &r{message}"
+
+[portal.link]
+linked = "&a{portal} vinculado a {destination}."
+linked_remote = "&a{portal} enlazado con {destination} en {server}."
+unlinked = "&eSe ha quitado el enlace entre {portal} y {destination}."
+
+[portal.orientation]
+face_flipped = "&aLa cara de {portal} se invirtió hacia {direction}."
+rotated_counterclockwise = "&a{portal} girado en sentido antihorario."
+rotated_clockwise = "&a{portal} girado en sentido horario."
+direction_changed = "&aLa dirección de {portal} cambió a {direction}."
+
+[director.help]
+no_subcommands = "No hay subcomandos en esta página."
+no_description = "No se proporcionó ninguna descripción"
+command_group = "Grupo de comandos. Haz clic para abrir."
+category = "Categoría de comandos"
+no_parameters = "No hay parámetros. Haz clic para completar el comando."
+parameters_hover = "Pasa el cursor sobre los parámetros para saber más."
+
+[director.help.navigation]
+back = "Atrás"
+page = "Página"
+
+[director.help.navigation.parent]
+hover = "Volver al grupo de comandos superior"
+
+[director.help.navigation.previous]
+hover = "Página anterior"
+
+[director.help.navigation.next]
+hover = "Página siguiente"
+
+[director.help.parameter]
+required = "Este parámetro es obligatorio."
+optional = "Este parámetro es opcional."
+default = "Valor predeterminado \"{value}\" si no se define."
+type = "Este parámetro es de tipo {type}."
+
+[director.runtime]
+usage = "Uso: {usage}"
+
+[director.runtime.error]
+invalid_origin = "Este comando no se puede ejecutar desde este origen."
+unknown_parameter = "Clave de parámetro desconocida: {key}"
+unexpected_argument = "Argumento inesperado \"{argument}\". Los parámetros opcionales deben especificarse con clave, p. ej. seed=123"
+unclosed_group = "Falta el corchete de cierre \"]\" para el parámetro {key}"
+conversion_failed = "No se puede convertir \"{value}\" a {type} para {parameter}"
+default_parse_failed = "No se puede analizar el valor predeterminado del parámetro {parameter}"
+missing_argument = "Falta el argumento \"{parameter}\" ({type})"
+execution_failed = "No se pudo ejecutar el comando {command}: {reason}"
+
+[network]
+not_initialized = "&8[&6Wormholes&8] &cLa red todavía no se ha inicializado."
+
+[network.status]
+disabled = "&8[&6Wormholes&8] &7La red está &cdesactivada&7 (plugins/Wormholes/wormholes.toml)."
+not_running = "&8[&6Wormholes&8] &cLa red está activada, pero no se está ejecutando. Comprueba el almacén de identidad y el puerto de red."
+listening = "&8[&6Wormholes&8] &7Este servidor: &f{server}&7, escuchando en &f{address}"
+outbound_only = "&8[&6Wormholes&8] &7Este servidor: &f{server}&7, modo Boat solo de salida"
+public_key = "&8[&6Wormholes&8] &8Clave pública: {fingerprint}"
+no_routes = "&8[&6Wormholes&8] &7Todavía no hay rutas enlazadas con servidores pares."
+peer = "&8[&6Wormholes&8] &f{server}&7 {state} &7{address}{rtt}"
+last_attempt = "&8[&6Wormholes&8] &8  Último intento: {error}"
+
+[network.doctor]
+clear = "&8[&6Wormholes&8] &aNo se detectaron problemas de configuración de red."
+header = "&8[&6Wormholes&8] &eDiagnóstico de red:"
+line = "&8[&6Wormholes&8] &7- {diagnostic}"
+
+[network.code]
+building = "&8Creando código del portal..."
+copy = "&6&l[Copiar código del portal: {portal}]&r"
+copy_hover = "&7Haz clic para copiarlo. En el otro servidor, pégalo en Menú del portal > Importar o usa /wh server import \\<code>"
+fingerprint = "&8Contiene la dirección de este servidor y la huella de la clave pública {fingerprint}."
+too_long = "&eEste código es demasiado largo para pegarlo en el chat. Usa /wh server import \\<code> en el otro servidor."
+invalid = "&cCódigo de portal no válido. Los códigos empiezan por {prefix}; si se pegó en el chat, puede haberse truncado. Prueba /wh server import \\<code>. Los códigos de versiones anteriores del plugin deben volver a exportarse."
+same_server = "&cEse código es de este servidor."
+same_identity = "&cEste código corresponde a la identidad de este servidor ({server}). Reinicia ambos servidores con su propia identidad de Wormholes y vuelve a exportar el código desde el otro servidor."
+linked = "&a&f{portal}&7 -> &f{destination}&a enlazado en &f{server}&a. El portal se abrirá cuando los servidores se conecten."
+route_saved = "&aRuta a {server} guardada con la clave pública {fingerprint}. '{portal}' aparecerá en el menú de enlaces de la puerta de enlace cuando se conecte."
+check_status = "&8Comprueba el estado de la conexión con /wh network status."
+using_address = "&7Este código de portal usa {address}; si la dirección pública cambia, el protocolo firmado la detecta y corrige automáticamente."
+
+[server]
+unknown = "&8[&6Wormholes&8] &cServidor desconocido '&f{server}&c'. Importa primero su código o consulta /wh server list."
+removed = "&8[&6Wormholes&8] &aSe eliminó el servidor &f{server}&a y su clave de confianza."
+name_empty = "El nombre del servidor no puede estar vacío"
+
+[server.code]
+copy = "&6&l[Copiar código del servidor: {server}]&r"
+copy_hover = "&7Haz clic para copiarlo. Pégalo en el otro servidor: /wh server import \\<code>"
+raw = "&7Código del servidor: &f{code}"
+saved = "&aServidor &f{server}&a guardado con la clave pública {fingerprint}. Conéctate con &f/wh server {server}&a."
+
+[server.connect]
+sending = "&8[&6Wormholes&8] &aEnviándote a &f{server}&a..."
+not_ready = "&8[&6Wormholes&8] &c{server} no está accesible ahora mismo. Comprueba /wh network status."
+failed = "&8[&6Wormholes&8] &cNo se te pudo transferir a {server}. Comprueba la consola y /wh network status."
+only_players = "&8[&6Wormholes&8] &cSolo los jugadores pueden conectarse a otro servidor."
+
+[server.list]
+header = "&8[&6Wormholes&8] &7Servidores enlazados:"
+empty = "&8[&6Wormholes&8] &7Todavía no hay servidores enlazados. Usa &f/wh server import \\<code>&7."
+entry = "&8[&6Wormholes&8] &f{server}&7 {state} &8{address}"
+
+[door.transit]
+shutdown = "Las puertas dimensionales se apagaron antes de completar el tránsito."
+message = "&8[&6Wormholes&8] &7{message}"
+link_not_placed = "La puerta del agujero de gusano aún no se ha colocado."
+link_unavailable = "La puerta del agujero de gusano está indisponible o obstruida."
+nested_pocket = "Una puerta de bolsillo no puede abrir otra dimensión de bolsillo dentro de la dimensión de vacío compartida."
+pocket_not_ready = "La dimensión de bolsillo todavía no está lista."
+pocket_allocation_failed = "No se pudo asignar la dimensión de bolsillo."
+safe_return_not_found = "No se pudo encontrar una ruta segura de regreso por este lado de la puerta."
+pocket_prepare_failed = "No se pudo preparar la dimensión de bolsillo de forma segura."
+return_ticket_save_failed = "No se pudo guardar una ruta de regreso segura."
+pocket_entry_unsafe = "La entrada a la dimensión de bolsillo no es segura."
+pocket_entry_chunk_failed = "No se pudo cargar el chunk de entrada de la dimensión de bolsillo."
+no_return_route = "No hay ninguna ruta de regreso guardada para esta dimensión de bolsillo."
+return_unavailable = "La puerta de regreso no está disponible o está obstruida en el lado correspondiente."
+return_world_unloaded = "Tu mundo de regreso no está cargado."
+return_point_obstructed = "El punto de regreso guardado está obstruido."
+return_chunk_failed = "No se pudo cargar el chunk de regreso guardado."
+closed = "La puerta dimensional se cerró antes de que el tránsito terminara."
+cycle_consumed = "El ciclo de apertura de esta puerta ya se usó. Cierra y vuelve a abrir la puerta."
+source_missing = "La puerta dimensional ya no está ahí."
+source_close_failed = "No se pudo cerrar de forma segura la puerta de origen."
+source_region_unavailable = "La región de la puerta fuente no está disponible."
+start_failed = "El tránsito dimensional no pudo comenzar."
+cancelled = "El tránsito dimensional fue cancelado."
+
+[door.craft]
+one_at_a_time = "&8[&6Wormholes&8] &7Fabrica las Puertas Dimensionales de una en una para que cada una reciba una identidad única."
+
+[door.pair]
+unpack_failed = "&8[&6Wormholes&8] &7No se pudo separar el par de puertas; el conjunto no se consumió."
+unpacked = "&8[&6Wormholes&8] &7El par entrelazado se separó en las Puertas de Agujero de Gusano A y B enlazadas."
+missing = "&8[&6Wormholes&8] &7Esta puerta emparejada no tiene registrada la identidad de su pareja."
+
+[door.legacy]
+combine = "&8[&6Wormholes&8] &7Combine esta puerta de dimensión con una puerta de madera antes de colocarla."
+
+[door.place]
+already_placed = "&8[&6Wormholes&8] &7Esta Puerta Dimensional ya está colocada o no se pudo guardar su estado."
+
+[door.break]
+exit_anchored = "&8[&6Wormholes&8] &7La salida dimensional está anclada a esta dimensión de bolsillo."
+support = "&8[&6Wormholes&8] &7Rompa la puerta dimensional antes de quitar su bloque de soporte."
+
+[door.disable]
+warning = "&8[&6Wormholes&8] &7Las puertas dimensionales se están desactivando. Sal ahora por la puerta de retorno de la dimensión de bolsillo."
+
+[door.rescue]
+cancelled = "&8[&6Wormholes&8] &7La evacuación de emergencia se canceló; la ruta se conservó."
+failed = "&8[&6Wormholes&8] &7{route} {fallback} Sigues protegido con un corazón."
+
+[door.rescue.reason]
+no_route = "La dimensión de bolsillo no tiene una ruta de regreso guardada."
+return_world_unavailable = "El mundo de regreso guardado no está disponible."
+return_point_obstructed = "El punto de retorno guardado está obstruido."
+return_chunk_failed = "No se pudo cargar el chunk de regreso guardado."
+start_failed = "No se pudo iniciar la evacuación de emergencia."
+
+[door.rescue.fallback]
+no_world = "No hay cargado ningún mundo alternativo fuera de una dimensión de bolsillo."
+obstructed = "El punto de aparición alternativo está obstruido."
+chunk_failed = "No se pudo cargar el punto de aparición alternativo."
+schedule_failed = "No se pudo programar la evacuación alternativa."
+
+[door.access]
+unknown_player = "Desconocido ({id})"
+edit_denied = "&cSólo el propietario de la puerta o un administrador puede editar esta puerta."
+unavailable = "&cEsta puerta dimensional no tiene registro de acceso."
+save_failed = "&cNo se pudo guardar ese cambio de acceso de la puerta."
+player_not_found = "&cNo se encontró ningún jugador llamado {name}."
+owner_always = "&7El propietario de la puerta siempre tiene acceso."
+already_listed = "&7{name} ya está en la lista de esta puerta."
+added = "&a{name} se añadió a la lista de esta puerta."
+removed = "&a{name} se quitó de la lista de esta puerta."
+state_changed = "&a{name} ahora es {state} en esta puerta."
+prompt_player = "&bEscribe el nombre del jugador que quieres incluir en la lista de esta puerta (o '{cancel}'):"
+denied = "&cEsta puerta dimensional te rechaza."
+transit_denied = "No tienes acceso a esta puerta dimensional."
+
+[door.access.label]
+neutral = "Neutral"
+whitelist = "Lista permitida"
+blacklist = "Lista bloqueada"
+
+[door.access.kind]
+pair = "Entrelazada"
+personal = "Personal"
+public = "Compartida"
+return = "de Salida"
+
+[door.open_state]
+open = "Abierto"
+closed = "Cerrado"
+
+[door.menu.access]
+title = "Acceso a la puerta: {kind}"
+placard = ["&6&lPuerta Dimensional {kind}&r", "&7Propietario: &f{owner}", "&7En la lista permitida: &a{whitelisted}", "&7En la lista bloqueada: &c{blacklisted}", "&7Jugadores en la lista: &b{count}", "&8Los propietarios y administradores editan esta puerta."]
+add_player = ["&a&lAñadir jugador&r", "&7Escribe un nombre de jugador en el chat para incluirlo.", "", "&8Haz clic para añadir un jugador."]
+open_state = ["&b&lOpenState: &f&l{state}", "&7El portal sigue el estado físico de este bloque.", "&7Estado activo: &f{state}&7.", "", "&8Siguiente: {next}. Haz clic para cambiar."]
+entry = ["&f{name}", "&7Estado: &b{state}", "", "&8Clic izquierdo: permitir. Clic derecho: bloquear.", "&8Clic central o Mayús + clic izquierdo: quitar."]
+
+[wand.selection]
+corner_a = "&bEsquina A establecida. Haz clic derecho en la esquina opuesta."
+corner_b = "&bEsquina B establecida. Haz clic izquierdo en la esquina opuesta."
+not_flat = "&cLa selección debe tener un bloque de grosor. Vuelve a hacer clic en una esquina para aplanarla."
+too_large = "&cSelección demasiado grande: {count} bloques (máximo {maximum})."
+opening = "&bAbriendo portal..."
+open_failed = "&cNo se pudo abrir el portal aquí."
+
+[wand.selection.selected]
+one = "&b{count} bloque seleccionado. Haz clic izquierdo en el panel de cristal para abrir el portal."
+other = "&b{count} bloques seleccionados. Haz clic izquierdo en el panel de cristal para abrir el portal."
+
+[label]
+none = "Ninguno"
+on = "Activado"
+off = "Desactivado"
+ready = "Listo"
+preparing = "Preparando"
+open = "Abierto"
+closed = "Cerrado"
+
+[rtp.routing]
+action_confirm = "Abre una pantalla de confirmación independiente."
+header = ["&b&lRotación & Reserva de destinos&r", "&7Elige los modos directamente y aplica después todos los cambios juntos."]
+shared_selected = ["&a&lDestino compartido&r", "&7Todos ven y usan la misma ruta.", "&aSeleccionado"]
+shared_available = ["&b&lDestino compartido&r", "&7Todos ven y usan la misma ruta.", "&eClic izquierdo para seleccionar"]
+private_selected = ["&a&lDestinos por jugador&r", "&7Cada jugador recibe una reserva privada.", "&aSeleccionado"]
+private_available = ["&b&lDestinos por jugador&r", "&7Cada jugador recibe una reserva privada.", "&eClic izquierdo para seleccionar"]
+static_selected = ["&a&lEstático&r", "&7Mantiene el mismo destino.", "&aSeleccionado"]
+static_available = ["&b&lEstático&r", "&7Mantiene el mismo destino.", "&eClic izquierdo para seleccionar"]
+timed_selected = ["&a&lTemporizado&r", "&7Cambia el destino al terminar el tiempo configurado.", "&aSeleccionado"]
+timed_available = ["&b&lTemporizado&r", "&7Cambia el destino al terminar el tiempo configurado.", "&eClic izquierdo para seleccionar"]
+trip_selected = ["&a&lDespués de cada viaje&r", "&7Activa un destino de sustitución preparado después del uso.", "&aSeleccionado"]
+trip_available = ["&b&lDespués de cada viaje&r", "&7Activa un destino de sustitución preparado después del uso.", "&eClic izquierdo para seleccionar"]
+manual_reroll = ["&e&lElegir otro destino&r", "&7{description}", "&eClic izquierdo"]
+rebuild_pool = ["&e&lReconstruir reserva de destinos&r", "&7{description}", "&eClic izquierdo"]
+
+[rtp.status]
+ready = "Listo"
+warming = "Preparando"
+rerolling = "Eligiendo otro destino"
+backoff = "Espera antes de reintentar"
+world_unavailable = "El mundo objetivo no está disponible"
+integration_failed = "La integración de acceso falló"
+failed = "Fallido"
+idle = "Inactivo"
+retry = "&7Nuevo intento en: &c{duration}"
+active = "&7Activo: {readiness}"
+standby = "&7En espera: {readiness}"
+rotation = "&7Rotación del borrador: &b{rotation}"
+pool = "&7Libres: &b{free}&7  Reservados: &b{reserved}"
+target_missing = "&cEl mundo objetivo no está cargado."
+access_failed = "&cLas comprobaciones de acceso al destino fallaron y denegaron el acceso."
+header = ["&6&lEstado del destino aleatorio&r", "&7Estado: {state}"]
+
+[rtp.rotation]
+static = "Estático"
+timed = "Temporizado"
+trip = "Después de cada viaje"
+
+[rtp.numeric]
+center_x = "Centro X"
+center_z = "Centro Z"
+minimum_radius = "Radio mínimo"
+maximum_radius = "Radio máximo"
+lower_y = "Y inferior"
+upper_y = "Y superior"
+preferred_y = "Y preferido"
+cycle = "Duración del ciclo"
+private_rotation = "Tiempo de rotación privado"
+lease = "Margen de reserva inactiva"
+release = "Liberación privada"
+link = ["&e&l{label} &f&l{value}&r", "&7Abre controles claros de disminución/aumento.", "&eHaga clic izquierdo"]
+target_unavailable = ["&b&lEl mundo objetivo no está disponible&r", "&7Cargar el mundo objetivo antes de editar este valor."]
+value = ["&b&l{value}&r", "&7Valor actual del borrador."]
+adjust = ["&e&l{direction}{step}&r", "&7Ajusta el borrador en {direction}{step}.", "&eClic izquierdo"]
+header = ["&b&l{label}&r", "&7{description}"]
+
+[rtp.numeric.description]
+center = "Mueve el centro personalizado sobre este eje."
+minimum_radius = "Borde interior del anillo de destino."
+maximum_radius = "Borde exterior del anillo de destino."
+y = "Límite de búsqueda de una altura de apoyo válida."
+cycle = "Tiempo entre las rotaciones cronometradas compartidas."
+private_rotation = "Edad máxima del destino preparado de cada jugador."
+lease = "Mantiene brevemente los destinos preparados después de que todos se vayan."
+release = "Retraso antes de que se libere una reserva privada no utilizada."
+
+[rtp.duration]
+hours = "{value}h"
+minutes = "{value}m"
+seconds = "{value}s"
+decimal_seconds = "{value}s"
+
+[rtp.biome]
+any_label = "Cualquiera"
+header = ["&b&lBioma objetivo&r", "&7La búsqueda prefiere este bioma y recurre a cualquier lugar seguro cuando no puede encontrarlo cerca."]
+any_selected = ["&a&lCualquier bioma&r", "&7Sin preferencia de bioma.", "&aSeleccionado"]
+any_available = ["&b&lCualquier bioma&r", "&7Quitar la preferencia de bioma.", "&eClic izquierdo para seleccionar"]
+current = ["&a&l{biome}&r", "&7{key}", "&aSeleccionado"]
+available = ["&b&l{biome}&r", "&7{key}", "&eClic izquierdo para seleccionar"]
+empty = ["&7No hay biomas disponibles para el mundo objetivo."]
+previous = ["&e&lBiomas anteriores&r", "&7Mostrar la página anterior.", "&eClic izquierdo"]
+next = ["&e&lBiomas siguientes&r", "&7Mostrar la página siguiente.", "&eClic izquierdo"]
+
+[rtp.overview]
+destination = ["&e&lDestino & Zona&r", "&7Mundo, centro y radio.", "&eClic izquierdo"]
+landing = ["&e&lReglas de aterrizaje&r", "&7Comportamiento de la superficie y la altura.", "&eClic izquierdo"]
+routing = ["&e&lRotación & Reserva de destinos&r", "&7Uso compartido, rotación y tiempos de reserva.", "&eClic izquierdo"]
+effects = ["&e&lEfectos&r", "&7Borde de preparación activado / Sonidos del portal activados.", "&eClic izquierdo"]
+reset_defaults = ["&e&lRestablecer valores predeterminados&r", "&7Restablece de inmediato los ajustes de teletransporte aleatorio de este portal a sus valores predeterminados.", "&eClic izquierdo"]
+
+[rtp.navigation]
+back_portal = ["&e&lVolver al portal&r", "&7Volver al menú del portal.", "&eClic izquierdo"]
+overview = ["&e&lResumen&r", "&7Volver al resumen de RTP.", "&eClic izquierdo"]
+back_category = ["&e&lVolver&r", "&7Volver a la categoría anterior.", "&eClic izquierdo"]
+
+[rtp.destination]
+header = ["&b&lDestino & Zona&r", "&7Todas las opciones se eligen con un clic izquierdo normal."]
+world_current = ["&a&l{world}&r", "&7Mundo objetivo actual.", "&aSeleccionado"]
+world_available = ["&b&l{world}&r", "&7Usar este mundo cargado.", "&eClic izquierdo para seleccionar"]
+previous_worlds = ["&e&lMundos anteriores&r", "&7Muestre la página anterior.", "&eHaga clic izquierdo"]
+next_worlds = ["&e&lMundos siguientes&r", "&7Mostrar la página siguiente.", "&eClic izquierdo"]
+biome_link = ["&e&lBioma objetivo &f&l{value}&r", "&7Prefiere aterrizar en un bioma elegido.", "&eClic izquierdo"]
+center_portal_selected = ["&a&lCentro relativo al portal&r", "&7Centra el anillo de destino en este portal.", "&aSeleccionado"]
+center_portal_available = ["&b&lCentro relativo al portal&r", "&7Centra el anillo de destino en este portal.", "&eClic izquierdo para seleccionar"]
+center_custom_selected = ["&a&lCentro personalizado&r", "&7Usa coordenadas X y Z editables.", "&aSeleccionado"]
+center_custom_available = ["&b&lCentro personalizado&r", "&7Usa coordenadas X y Z editables.", "&eClic izquierdo para seleccionar"]
+reset_center = ["&e&lRestablecer centro / destino&r", "&7Usar el mundo de origen y el centro del portal.", "&eClic izquierdo"]
+
+[rtp.landing]
+header = ["&b&lReglas de aterrizaje&r", "&7Elige la superficie o una altura preferida, junto con su modo de seguridad."]
+surface_selected = ["&a&lSuperficie&r", "&7SAFE evita el agua y las copas de los árboles. UNSAFE usa la superficie más alta.", "&aSeleccionado"]
+surface_available = ["&b&lSuperficie&r", "&7SAFE evita el agua y las copas de los árboles. UNSAFE usa la superficie más alta.", "&eClic izquierdo para seleccionar"]
+preferred_selected = ["&a&lAltura preferida / exacta&r", "&7SAFE busca alrededor del punto preferido. UNSAFE usa exactamente la coordenada Y preferida.", "&aSeleccionado"]
+preferred_available = ["&b&lAltura preferida / exacta&r", "&7SAFE busca alrededor del punto preferido. UNSAFE usa exactamente la coordenada Y preferida.", "&eClic izquierdo para seleccionar"]
+safe_policy = ["&b&lSeguridad del aterrizaje: &f&l{mode}&r", "&7SAFE rechaza agua, peligros, árboles, colisiones y suelo sin apoyo.", "&7UNSAFE acepta sin cambios la superficie seleccionada o la coordenada Y preferida exacta.", "&eClic izquierdo para alternar"]
+
+[rtp.effects]
+header = ["&b&lEfectos&r", "&7Los cambios visuales no regeneran los destinos."]
+rim_on_selected = ["&a&lBorde de preparación activado&r", "&7Muestra la preparación privada en el borde del portal.", "&aSeleccionado"]
+rim_on_available = ["&b&lBorde de preparación activado&r", "&7Muestra la preparación privada en el borde del portal.", "&eClic izquierdo para seleccionar"]
+rim_off_selected = ["&a&lBorde de preparación desactivado&r", "&7Oculta el borde de preparación.", "&aSeleccionado"]
+rim_off_available = ["&b&lBorde de preparación desactivado&r", "&7Oculta el borde de preparación.", "&eClic izquierdo para seleccionar"]
+sound_on_selected = ["&a&lSonidos del portal activados&r", "&7Reproduce los efectos y sonidos de viaje de este portal RTP.", "&aSeleccionado"]
+sound_on_available = ["&b&lSonidos del portal activados&r", "&7Reproduce los efectos y sonidos de viaje de este portal RTP.", "&eClic izquierdo para seleccionar"]
+sound_off_selected = ["&a&lSonidos del portal desactivados&r", "&7Silencia este portal RTP; las partículas siguen activadas.", "&aSeleccionado"]
+sound_off_available = ["&b&lSonidos del portal desactivados&r", "&7Silencia este portal RTP; las partículas siguen activadas.", "&eClic izquierdo para seleccionar"]
+
+[rtp.confirm]
+reroll = ["&b&l¿Elegir otra ruta compartida?&r", "&7La proyección actual permanece activa hasta que el nuevo destino esté listo."]
+rebuild = ["&b&l¿Reconstruir la reserva privada?&r", "&7Las reservas existentes se conservan mientras se reconstruyen los destinos libres."]
+confirm = ["&e&lConfirmar&r", "&7Ejecuta la acción ahora.", "&eClic izquierdo"]
+cancel = ["&e&lCancelar&r", "&7Vuelve sin cambiar el estado de ejecución.", "&eClic izquierdo"]
+
+[item]
+portal_wand = ["&6&lVarita del Portal&r"]
+portal_rune = ["&6&lRuna de Portal&r"]
+wormhole_rune = ["&6&lRuna de Agujero de Gusano&r"]
+
+[item.door]
+entangled_pair = ["&6Par de Puertas Entrelazadas", "&7Contiene dos Puertas de Agujero de Gusano enlazadas automáticamente.", "&7Úsalo para separar los extremos A y B."]
+paired = ["&6Puerta de Agujero de Gusano {endpoint}", "&7Enlazada automáticamente con el extremo {other}.", "&7Abre la puerta y cruza físicamente su umbral."]
+personal = ["&bPuerta Dimensional Personal", "&7Cada viajero entra en su propia dimensión permanente.", "&7El mismo viajero siempre llega al mismo lugar."]
+public = ["&6Puerta Dimensional Compartida", "&7Todos los viajeros entran en la dimensión compartida de esta puerta.", "&7Romperla y moverla conserva el destino compartido."]
+return = ["&aPuerta de Salida Dimensional", "&7Devuelve a los viajeros desde esta dimensión de bolsillo.", "&7Esta puerta está vinculada a su dimensión de bolsillo."]
+skin = ["&6Aspecto de Puerta Dimensional", "&7Combina una puerta dimensional con una puerta que pueda usar el jugador."]
+entangled_pair_recipe = ["&6Par de Puertas Entrelazadas", "&7Contiene dos Puertas de Agujero de Gusano enlazadas automáticamente."]
+personal_recipe = ["&bPuerta Dimensional Personal", "&7Cada viajero entra en su propia dimensión permanente."]
+public_recipe = ["&6Puerta Dimensional Compartida", "&7Todos los viajeros entran en la dimensión compartida de esta puerta."]
+entangled_trapdoor_pair = ["&6Par de Trampillas Entrelazadas", "&7Contiene dos Trampillas de Agujero de Gusano enlazadas automáticamente.", "&7Úsalo para separar los extremos A y B."]
+paired_trapdoor = ["&6Trampilla de Agujero de Gusano {endpoint}", "&7Enlazada automáticamente con el extremo {other}.", "&7Abre la trampilla y déjate caer a través de ella."]
+personal_trapdoor = ["&bTrampilla Dimensional Personal", "&7Cada viajero entra en su propia dimensión permanente.", "&7El mismo viajero siempre llega al mismo lugar."]
+public_trapdoor = ["&6Trampilla Dimensional Compartida", "&7Todos los viajeros entran en la dimensión compartida de esta trampilla.", "&7Romperla y moverla conserva el destino compartido."]
+trapdoor_skin = ["&6Aspecto de Trampilla Dimensional", "&7Combina una trampilla dimensional con una trampilla que pueda abrir el jugador."]
+entangled_trapdoor_pair_recipe = ["&6Par de Trampillas Entrelazadas", "&7Contiene dos Trampillas de Agujero de Gusano enlazadas automáticamente."]
+personal_trapdoor_recipe = ["&bTrampilla Dimensional Personal", "&7Cada viajero entra en su propia dimensión permanente."]
+public_trapdoor_recipe = ["&6Trampilla Dimensional Compartida", "&7Todos los viajeros entran en la dimensión compartida de esta trampilla."]

@@ -39,17 +39,11 @@ public class CommandWormholes {
     private CommandNetwork network = new CommandNetwork();
     private CommandServer server = new CommandServer();
     private CommandPocket pocket = new CommandPocket();
+    private CommandDebug debug;
 
     public CommandWormholes(Wormholes plugin) {
         this.plugin = plugin;
-    }
-
-    @Director(name = "debugdump", sync = true, description = "Create and optionally upload a diagnostic report", descriptionKey = "command.help.debugdump")
-    public void debugdump(
-        @Param(name = "upload", defaultValue = "true", description = "Upload the report to mclo.gs", descriptionKey = "command.help.debugdump_upload") boolean upload,
-        @Param(name = "sender", contextual = true) CommandSender sender
-    ) {
-        plugin.debugDump().request(sender, upload);
+        debug = new CommandDebug(plugin);
     }
 
     @Director(name = "language", sync = true, descriptionKey = "command.help.language", description = "Choose your language or the server default")
@@ -122,15 +116,6 @@ public class CommandWormholes {
             return;
         }
         plugin.reloadAll().whenComplete((result, failure) -> sendReloadResult(sender, result, failure));
-    }
-
-    @Director(name = "debug", sync = true, descriptionKey = "command.help.debug", description = "Toggle verbose console logs and one-second telemetry")
-    public void debug(@Param(name = "sender", contextual = true) CommandSender sender) {
-        if (!sender.hasPermission("wormholes.admin")) {
-            send(sender, WormholesMessages.COMMAND_NO_PERMISSION);
-            return;
-        }
-        plugin.toggleDebugTelemetry(sender.getName());
     }
 
     @Director(name = "stats", sync = true, descriptionKey = "command.help.stats", description = "Print the live stats-snapshot file path, optionally force a refresh with now=true")

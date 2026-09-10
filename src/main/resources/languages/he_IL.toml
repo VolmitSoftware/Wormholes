@@ -1,609 +1,1020 @@
-schema = 1
-locale = "he_IL"
+# Wormholes — he_IL
+#
+# === עריכת הקובץ ===
+# plugins/Wormholes/languages/he_IL.toml
+# אפשר לערוך קובץ זה ישירות. שינויים מקומיים נשמרים; ערכים חסרים או לא תקינים משתמשים באנגלית המובנית.
+# /wormholes language server edit he_IL
+#
+# === קידומת ===
+# קידומות ההודעות כתובות בתבניות עצמן; יש לשנות אותן בכל הודעה. {prefix} הוא תחילת קוד ייבוא שער.
+#
+# === עיצוב ===
+# קודי צבע: &0-&f; עיצוב: &k-&r (&l = מודגש, &r = איפוס). יש לשמור על שמות המשתנים ולהשתמש בהם רק בהודעות המתאימות.
+#
+# === משתנים ===
+# יש לשמור על שמות המשתנים ולהשתמש רק במשתנים הקיימים בכל הודעה.
+#   {access}  מדיניות הגישה לשער
+#   {address}  כתובת עמית הרשת
+#   {after}  ערך ההודעה לאחר העריכה
+#   {allocation}  הקצאת מרחב הכיס
+#   {amount}  עלות הנסיעה במטבע Vault
+#   {argument}  ארגומנט פקודה לא צפוי
+#   {before}  ערך ההודעה לפני העריכה
+#   {biome}  מזהה הביומה
+#   {blacklisted}  השחקנים החסומים
+#   {block}  חומר הבלוק הנבחר
+#   {blocks}  מספר הבלוקים המוצבים שייפגעו בבנייה מחדש
+#   {cancel}  מילת ביטול הקלט בצ׳אט
+#   {code}  קוד השרת או הזמנת השער
+#   {color}  צבע התצוגה הנבחר
+#   {command}  נתיב הפקודה
+#   {containers}  מספר המכלים הלא ריקים שייפגעו בבנייה מחדש
+#   {cost}  עלות יצירת השער או הנסיעה
+#   {count}  מספר השערים, היעדים או ההודעות
+#   {degrees}  זווית סיבוב התמונה במעלות
+#   {depth}  עומק ההקרנה
+#   {description}  תיאור ההודעה
+#   {destination}  יעד הנסיעה
+#   {detail}  פרטי אבחון נוספים
+#   {diagnostic}  הודעת אבחון
+#   {direction}  כיוון הנסיעה או המבט
+#   {door}  דלת היציאה מהכיס
+#   {duration}  מרווח העדכון האישי לשחקן
+#   {endpoint}  מזהה קצה חור התולעת
+#   {entities}  מספר הישויות המושפעות או מרווח עדכונן בטיקים
+#   {entity}  מרווח עדכון הישויות בטיקים
+#   {error}  שגיאת הפעולה האחרונה
+#   {facing}  כיוון השער
+#   {failed}  מספר הפעולות שנכשלו
+#   {fallback}  תוצאת הנסיעה החלופית
+#   {fingerprint}  טביעת המפתח הציבורי
+#   {free}  מספר משבצות היעד האקראי הפנויות
+#   {grace}  תקופת השהיית ההקרנה בשניות
+#   {group}  קטגוריית עורך השפות
+#   {id}  מזהה העצם
+#   {incoming}  מדיניות הנסיעה הנכנסת
+#   {item}  הפריט הנדרש לנסיעה
+#   {key}  מפתח הודעה או הגדרה
+#   {kind}  סוג הגישה לדלת
+#   {label}  תווית התצוגה
+#   {large_step}  גודל השינוי בלחיצה עם Shift
+#   {line}  מספר השורה בהודעה
+#   {locale}  קוד השפה
+#   {material}  חומר קירות הכיס
+#   {maximum}  הערך המרבי המותר
+#   {message}  הודעת משוב או אבחון
+#   {minimum}  הערך המזערי המותר
+#   {mode}  מצב הפעולה או התצוגה הנבחר
+#   {name}  שם השער או השחקן
+#   {next}  האפשרות הזמינה הבאה
+#   {node}  מזהה צומת הרשת
+#   {none}  תווית המציינת שאין יעד מקושר
+#   {other}  מזהה הקצה המקושר
+#   {outgoing}  מדיניות הנסיעה היוצאת
+#   {owner}  בעל השער
+#   {page}  מספר העמוד הנוכחי
+#   {pages}  מספר העמודים הכולל
+#   {parameter}  שם פרמטר הפקודה
+#   {path}  נתיב הקובץ או התיקייה
+#   {personal}  קוד השפה האישי
+#   {plugin}  שם התוסף
+#   {portal}  שם השער או מזההו
+#   {prefix}  תחילת קוד ייבוא השער
+#   {previous}  גודל הכיס הקודם בבלוקים
+#   {quality}  איכות זרם ההקרנה
+#   {quantity}  מספר הפריטים הנדרש
+#   {range}  טווח הפעלת השער בבלוקים
+#   {readiness}  מצב מוכנות היעד האקראי
+#   {reason}  הסיבה לשגיאה או להחלטה
+#   {receive}  מצב קבלת ההקרנה
+#   {refresh}  מרווח רענון ההקרנה בטיקים
+#   {reserved}  מספר משבצות היעד האקראי השמורות
+#   {resized}  מספר הכיסים שנבנו מחדש
+#   {rotation}  סיבוב ההקרנה
+#   {route}  מסלול הנסיעה שנוסה
+#   {rtt}  השהיית הרשת הלוך ושוב
+#   {seconds}  משך בשניות
+#   {send}  מצב שליחת ההקרנה
+#   {server}  שם השרת או מזההו
+#   {size}  גודל הכיס בבלוקים
+#   {skin}  מראה השער הנבחר
+#   {skipped}  מספר הפעולות שדולגו
+#   {space}  מזהה מרחב הכיס
+#   {state}  מצב הגישה, הקישור או הרשת הנוכחי
+#   {step}  גודל השינוי בלחיצה
+#   {style}  סגנון התצוגה
+#   {target}  התוסף שמקבל את בחירת השפה
+#   {type}  סוג העצם או הפרמטר
+#   {up}  הכיוון בחלק העליון של ההקרנה
+#   {usage}  תחביר הפקודה
+#   {value}  הערך הנוכחי או הנבחר
+#   {variables}  מצייני המקום המותרים בהודעה
+#   {whitelisted}  השחקנים המורשים
+#   {world}  שם העולם
+#   {x}  קואורדינטת X
+#   {y}  קואורדינטת Y
+#   {z}  קואורדינטת Z
 
-[text]
-"command.help.debugdump" = "יצירת דוח אבחון והעלאתו לפי בחירה"
-"command.help.debugdump_upload" = "העלאת הדוח אל mclo.gs"
-"command.help.language" = "בחירת השפה שלך או שפת ברירת המחדל של השרת"
-"portal.travel.cost_insufficient" = "<red>נדרש {quantity}x {item} כדי להשתמש בפורטל הזה."
-"portal.travel.cost_vault_insufficient" = "<red>נדרש {amount} כדי להשתמש בפורטל הזה."
-"portal.travel.cost_vault_unavailable" = "<red>עלות הכלכלה של הפורטל הזה אינה זמינה."
-"portal.travel.cost_transaction_failed" = "<red>הפורטל לא הצליח לעבד את עלות המעבר שלכם."
-"portal.prompt.cost_item" = "<aqua>החזיקו את פריט העלות המדויק ביד הראשית ולחצו על מקש ההשלכה. הפריט לא יעזוב את המלאי שלכם."
-"portal.prompt.cost_vault" = "<aqua>הזינו את סכום המטבע של Vault לכל מעבר (או '{cancel}'):"
-"portal.notice.cost_item_set" = "המעבר דורש כעת {item}."
-"portal.notice.cost_item_invalid" = "לא ניתן לשמור את הפריט הזה כעלות מעבר."
-"portal.notice.cost_cleared" = "עלות המעבר נוקתה."
-"portal.notice.cost_quantity_changed" = "כמות עלות המעבר: {quantity}"
-"portal.notice.cost_vault_changed" = "עלות מעבר Vault: {amount}"
-"portal.notice.cost_vault_invalid" = "הזינו סכום מטבע חיובי שאינו גדול מ-{maximum}."
-"portal.notice.cost_vault_unavailable" = "Vault וספק כלכלה חייבים להיות זמינים לפני בחירת העלות הזו."
-"portal.label.cost.free" = "חינם"
-"portal.label.cost.vanilla" = "פריט וניל"
-"portal.label.cost.vault" = "כלכלת Vault"
-"portal.network.label.render_mode" = "מצב עיבוד"
-"portal.travel.transfer_holding" = "<gold>מתחבר לשרת היעד..."
-"portal.travel.transfer_interrupted" = "<red>העברת השער הופסקה: התרחקת מהשער."
-"portal.travel.transfer_source_unavailable" = "<red>העברת השער הופסקה: שער המקור אינו זמין עוד."
-"portal.network.label.ambient_style" = "חלקיקי סביבה"
-"portal.network.label.ambient_color" = "צבע סביבה"
-"portal.network.label.surface_skin" = "מעטה משטח"
-"portal.label.ambient.red" = "אדום"
-"portal.label.ambient.green" = "ירוק"
-"portal.label.ambient.blue" = "כחול"
-"portal.label.ambient_style.sparks" = "ניצוצות"
-"portal.label.ambient_style.outline" = "מתאר"
-"portal.label.ambient_style.corners" = "פינות"
-"portal.label.ambient_style.off" = "כבוי"
-"portal.label.skin.none" = "ללא"
-"director.help.navigation.parent.hover" = "חזרה לקבוצת הפקודות הקודמת"
-"director.help.navigation.back" = "חזרה"
-"director.help.no_subcommands" = "אין פקודות משנה בדף הזה."
-"director.help.no_description" = "לא סופק תיאור"
-"director.help.command_group" = "קבוצת פקודות. לחצו כדי לפתוח."
-"director.help.category" = "קטגוריית פקודות"
-"director.help.no_parameters" = "אין פרמטרים. לחצו כדי למלא את הפקודה מראש."
-"director.help.parameters_hover" = "רחפו מעל הפרמטרים כדי ללמוד עוד."
-"director.help.parameter.required" = "פרמטר זה הוא חובה."
-"director.help.parameter.optional" = "פרמטר זה הוא אופציונלי."
-"director.help.parameter.default" = "ברירת המחדל היא \"{value}\" אם לא הוגדר."
-"director.help.parameter.type" = "פרמטר זה הוא מסוג {type}."
-"director.help.navigation.previous.hover" = "דף קודם"
-"director.help.navigation.next.hover" = "דף הבא"
-"director.help.navigation.page" = "דף"
-"director.runtime.error.invalid_origin" = "לא ניתן להריץ את הפקודה מהמקור הזה."
-"director.runtime.error.unknown_parameter" = "פרמטר לא מוכר: {key}"
-"director.runtime.error.unexpected_argument" = "ארגומנט לא צפוי \"{argument}\". יש לציין שמות לפרמטרים אופציונליים, למשל seed=123"
-"director.runtime.error.unclosed_group" = "חסר סוגר \"]\" עבור הפרמטר {key}"
-"director.runtime.error.conversion_failed" = "לא ניתן להמיר את \"{value}\" ל-{type} עבור {parameter}"
-"director.runtime.error.default_parse_failed" = "לא ניתן לנתח את ערך ברירת המחדל של הפרמטר {parameter}"
-"director.runtime.error.missing_argument" = "חסר ארגומנט \"{parameter}\" ({type})"
-"director.runtime.error.execution_failed" = "הפעלת הפקודה {command} נכשלה: {reason}"
-"director.runtime.usage" = "שימוש: {usage}"
-"command.help.root" = "פקודת השורש של Wormholes"
-"command.help.wand" = "קבלת שרביט הפורטל ורונת חור תולעת אחת"
-"command.help.wand.rune" = "לכלול רונת חור תולעת (rune=false נותן רק את השרביט)"
-"command.help.door" = "קבלת פריט דלת ממדית למצב הישרדות"
-"command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-"command.help.reload" = "טעינה מחדש של קובצי התצורה והשפה של Wormholes"
-"command.help.debug" = "הפעלה או כיבוי של רישומי מסוף מפורטים וטלמטריה בכל שנייה"
-"command.help.stats" = "הצגת הנתיב לקובץ תמונת המצב של הנתונים; ניתן לאלץ רענון עם now=true"
-"command.help.stats.now" = "יצירה מחדש של תמונת המצב באופן סינכרוני"
-"command.help.info" = "הצגת הוראות לבניית פורטל"
-"command.help.admin" = "פקודות תחזוקה הרסניות של Wormholes"
-"command.help.admin.delete_portals" = "מחיקת כל הפורטלים המקומיים וקישורי הפורטלים השמורים"
-"command.help.admin.delete_everything" = "איפוס הנתונים, התצורה, האמון, הזהות ומצב הרשת של Wormholes"
-"command.help.admin.freeze" = "מקפיא את כל הקרנות השער במקומן למשך מספר שניות (seconds=0 מחדש)"
-"command.help.admin.freeze.seconds" = "כמה זמן להחזיק את התמונה הקפואה (5-300, 0 מחדש מיד)"
-"command.help.admin.flush" = "מחזיר את הבלוקים המוקרנים של כל צופה למצב האמת ובונה אותם מחדש"
-"command.help.network" = "רשת חור תולעת בין שרתים"
-"command.help.network.import" = "ייבוא קוד פורטל משרת אחר (שומר נתיב פנימי; הקישור נעשה דרך תפריט הקישור של שער)"
-"command.help.network.import.code" = "קוד פורטל מכפתור הייצוא בשרת האחר"
-"command.help.network.status" = "הצגת מצב החיבור לשרתי עמית"
-"command.help.network.doctor" = "הסבר מדוע שרתי עמית ברשת אינם מתחברים"
-"command.help.server" = "מעבר בין שרתים: התחברות לשרתים מקושרים, הצגתם והחלפת קודים ביניהם"
-"command.help.server.connect" = "מעבר לשרת מקושר (קיצור: /wh server \\<name>)"
-"command.help.server.connect.name" = "שם השרת המקושר (ראו /wh server list)"
-"command.help.server.export" = "ייצוא השרת הזה כקוד ששרתים אחרים יכולים לייבא"
-"command.help.server.import" = "ייבוא קוד שרת או קוד פורטל שיוצא משרת אחר"
-"command.help.server.import.code" = "הקוד מהייצוא של השרת האחר"
-"command.help.server.list" = "הצגת השרתים המקושרים ומצב החיבור שלהם"
-"command.help.server.remove" = "שכחת שרת מקושר (מחיקת המסלול והמפתח המהימן שלו)"
-"command.help.server.remove.name" = "שם השרת המקושר שיש לשכוח"
-"command.error.no_permission" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>אין לכם הרשאה."
-"command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>אין לכם הרשאה להשתמש בפקודה הזאת."
-"command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>רק שחקנים יכולים לקבל פריטים."
-"command.error.usage" = "<gray>שימוש: <white>/wormholes help"
-"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>שרביט הפורטל ניתן."
-"command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>דלתות ממדיות אינן זמינות."
-"command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>סוג דלת לא מוכר. יש להשתמש בערך pair, personal או public, pair_trapdoor, personal_trapdoor, public_trapdoor."
-"command.door.empty_type" = "סוג הדלת לא יכול להיות ריק"
-"command.door.granted" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>הוענק פריט דלת ממדית מסוג <white>{type}<green>."
-"command.reload.applied" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>קובצי התצורה והשפה של Wormholes נטענו מחדש."
-"command.reload.language_retained" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>התצורה נטענה מחדש, אך קובץ השפה נדחה. השפה התקינה האחרונה נשארה פעילה; בדקו את המסוף."
-"command.reload.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>טעינת התצורה מחדש נכשלה; העריכה נשארת ממתינה ותנוסה שוב. בדקו את המסוף."
-"command.stats.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>כותב תמונת המצב של הנתונים אינו זמין."
-"command.stats.refreshed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>תמונת המצב רועננה."
-"command.admin.delete_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>לא ניתן למחוק את כל הפורטלים. בדקו את המסוף לקבלת מעקב המחסנית המלא."
-"command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>לא ניתן לתזמן את איפוס הפורטלים."
-"command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>איפוס Wormholes נכשל. בדקו את המסוף לקבלת מעקב המחסנית המלא."
-"command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>לא ניתן לתזמן את איפוס Wormholes."
-"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>כל הקרנות השער הוקפאו למשך <white>{seconds}<green> שניות. הן יתחדשו אוטומטית."
-"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>הקרנות השער חודשו."
-"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>עדכון הקרנות השער נכשל. בדוק את המסוף לקבלת עקבת הקריסה המלאה."
-"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>לא ניתן לתזמן את עדכון ההקרנה."
-"network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>הרשת לא אותחלה."
-"network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>הרשת <red>כבויה<gray> (plugins/Wormholes/wormholes.toml)."
-"network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>הרשת מופעלת אך אינה פועלת. בדקו את מאגר הזהות ואת יציאת הרשת."
-"network.status.listening" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>השרת הזה: <white>{server}<gray> מאזין בכתובת <white>{address}"
-"network.status.outbound_only" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>השרת הזה: <white>{server}<gray> מצב Boat לחיבורים יוצאים בלבד"
-"network.status.public_key" = "<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>מפתח ציבורי: {fingerprint}"
-"network.status.no_routes" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>עדיין לא קושרו נתיבים לשרתי עמית."
-"network.status.peer" = "<dark_gray>[<gold>Wormholes<dark_gray>] <white>{server}<gray> {state} <gray>{address}{rtt}"
-"network.status.last_attempt" = "<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>  ניסיון אחרון: {error}"
-"network.doctor.clear" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>לא נמצאו בעיות בהקמת הרשת."
-"network.doctor.header" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>אבחון רשת:"
-"network.doctor.line" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>- {diagnostic}"
-"network.code.building" = "<dark_gray>יוצר קוד פורטל..."
-"network.code.copy" = "<gold><bold>[העתקת קוד הפורטל: {portal}]</bold>"
-"network.code.copy_hover" = "<gray>לחצו כדי להעתיק. הדביקו בשרת האחר: תפריט הפורטל > ייבוא, או /wh server import \\<code>"
-"network.code.fingerprint" = "<dark_gray>מכיל את כתובת השרת ואת טביעת האצבע של המפתח הציבורי {fingerprint}."
-"network.code.too_long" = "<yellow>הקוד ארוך מדי להדבקה בצ'אט — השתמשו במקום זאת ב-/wh server import \\<code> בשרת האחר."
-"network.code.invalid" = "<red>קוד פורטל לא תקין. קודים מתחילים ב-{prefix}; אם הודבק בצ'אט, ייתכן שנקטע. נסו /wh server import \\<code>. יש לייצא מחדש קודים מגרסאות ישנות של התוסף."
-"network.code.same_server" = "<red>הקוד הזה הוא מהשרת הזה."
-"network.code.same_identity" = "<red>הקוד מפנה לזהות של השרת הזה ({server}). ייצאו אותו מחדש מהשרת האחר לאחר ששני השרתים יופעלו מחדש עם זהות Wormholes משלהם."
-"network.code.linked" = "<green>הפורטל <white>{portal}<gray> קושר אל <white>{destination}<green> בשרת <white>{server}<green>. הוא ייפתח כשהשרתים יתחברו."
-"network.code.route_saved" = "<green>המסלול אל {server} נשמר עם המפתח הציבורי {fingerprint}. '{portal}' יופיע בתפריט קישור השער לאחר החיבור."
-"network.code.check_status" = "<dark_gray>בדוק /wh network status למצב החיבור."
-"network.code.using_address" = "<gray>נעשה שימוש ב-{address} בקוד הפורטל; אם הכתובת הציבורית תשתנה, היא תזוהה ותתוקן אוטומטית במהלך לחיצת היד החתומה."
-"server.code.copy" = "<gold><bold>[העתקת קוד השרת: {server}]</bold>"
-"server.code.copy_hover" = "<gray>לחצו כדי להעתיק. הדביקו בשרת האחר: /wh server import \\<code>"
-"server.code.raw" = "<gray>קוד השרת: <white>{code}"
-"server.code.saved" = "<green>השרת <white>{server}<green> נשמר עם המפתח הציבורי {fingerprint}. התחברו באמצעות <white>/wh server {server}<green>."
-"server.connect.sending" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>שולחים אתכם אל <white>{server}<green>..."
-"server.connect.not_ready" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{server} אינו זמין כרגע. בדקו את /wh network status."
-"server.connect.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>לא ניתן להעביר אתכם אל {server}. בדקו את המסוף ואת /wh network status."
-"server.connect.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>רק שחקנים יכולים להתחבר לשרת אחר."
-"server.unknown" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>שרת לא מוכר '<white>{server}<red>'. ייבאו קודם את הקוד שלו או ראו /wh server list."
-"server.list.header" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>שרתים מקושרים:"
-"server.list.empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>עדיין לא קושרו שרתים. השתמשו ב-<white>/wh server import \\<code><gray>."
-"server.list.entry" = "<dark_gray>[<gold>Wormholes<dark_gray>] <white>{server}<gray> {state} <dark_gray>{address}"
-"server.removed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>השרת <white>{server}<green> והמפתח המהימן שלו הוסרו."
-"server.name_empty" = "שם השרת לא יכול להיות ריק"
-"portal.form.rtp_unsupported" = "<red>לא ניתן ליצור פורטל טלפורט אקראי מרונות."
-"portal.form.forming" = "<aqua>הפורטל נוצר... רונות {type} חייבות להתחבר על אותו קיר, רצפה או תקרה שטוחים."
-"portal.form.must_be_flat" = "<red>פורטל חייב להיות שטוח על קיר אחד, רצפה או תקרה אחת."
-"portal.form.interrupted" = "<red>יצירת הפורטל הופסקה; הרונות שנשמרו הוחזרו."
-"portal.form.rune_placed" = "<aqua>הרונה הונחה. צרו צורה מחוברת על משטח שטוח אחד, ואז לחצו שמאל על רונה כלשהי עם מטה הפורטל."
-"portal.form.opened" = "<green>הפורטל נפתח. החזיקו את המטה ולחצו על הפורטל כדי להגדיר אותו."
-"portal.travel.cooldown" = "<gold>הפורטל בזמן המתנה"
-"portal.travel.access_denied" = "<red>הגישה לפורטל נדחתה"
-"portal.travel.destination_unavailable" = "<red>יעד השער אינו זמין"
-"portal.travel.arrival_denied" = "<red>שער היעד סירב להגעתך."
-"portal.travel.arrival_returned" = "<red>שער היעד סירב להגעתך; מחזירים אותך אל {server}"
-"door.transit.shutdown" = "דלתות הממדים כובו לפני שהמעבר הושלם."
-"portal.edit.denied" = "<red>רק בעל הפורטל או מנהל יכולים לערוך את הפורטל."
-"portal.deleted" = "<red>{portal} נמחק"
-"portal.travel.arrival_failed" = "<red>לא ניתן למקם את נקודת ההגעה; נשארתם בנקודת ההופעה של היעד"
-"portal.travel.transfer_cooldown" = "<gold>הפורטל הבין-שרתי בזמן המתנה: {seconds}s"
-"portal.travel.destination_unreachable" = "<red>שרת יעד בלתי נגיש"
-"portal.travel.destination_unreachable_detail" = "<red>שרת יעד בלתי נגיש: {reason}"
-"portal.travel.transfer_blocked" = "<red>המעבר דרך הפורטל נחסם: {reason}"
-"portal.travel.transfer_blocked_retry" = "<red>המעבר דרך הפורטל נחסם: {reason} (ניסיון חוזר בעוד {seconds}s)"
-"wand.selection.corner_a" = "<aqua>פינה A נקבעה. לחצו לחיצה ימנית על הפינה הנגדית."
-"wand.selection.corner_b" = "<aqua>פינה B נקבעה. לחצו לחיצה שמאלית על הפינה הנגדית."
-"wand.selection.not_flat" = "<red>הבחירה חייבת להיות בעובי בלוק אחד. לחצו שוב על פינה כדי לשטח אותה."
-"wand.selection.too_large" = "<red>הבחירה גדולה מדי: {count} בלוקים (מקסימום {maximum})."
-"wand.selection.opening" = "<aqua>פותח פורטל..."
-"wand.selection.open_failed" = "<red>לא ניתן לפתוח את הפורטל כאן."
-"door.craft.one_at_a_time" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>צרו דלתות ממדיות אחת בכל פעם, כדי שכל אחת תקבל זהות ייחודית."
-"door.pair.unpack_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>לא ניתן לפרוק את זוג הדלתות; הערכה לא נצרכה."
-"door.pair.unpacked" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>הזוג השזור התפצל לדלתות חור תולעת מקושרות A ו-B."
-"door.legacy.combine" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>שלבו את הדלת הממדית הישנה עם דלת עץ לפני הצבתה."
-"door.pair.missing" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>לדלת המקושרת אין זהות שותף רשומה."
-"door.place.already_placed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>הדלת הממדית כבר הוצבה, או שלא ניתן לשמור את מצבה."
-"door.break.exit_anchored" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>היציאה הממדית מעוגנת לממד הכיס הזה."
-"door.break.support" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>שברו את הדלת הממדית לפני הסרת בלוק התמיכה שלה."
-"door.disable.warning" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>דלתות הממדים מושבתות. צאו עכשיו דרך דלת החזרה של ממד הכיס."
-"door.rescue.cancelled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>חילוץ החירום בוטל; הנתיב נשמר."
-"door.transit.message" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>{message}"
-"door.transit.link_not_placed" = "דלת חור התולעת המקושרת עדיין לא הוצבה."
-"door.transit.link_unavailable" = "דלת חור התולעת המקושרת אינה זמינה או חסומה."
-"door.transit.nested_pocket" = "דלת כיס אינה יכולה לפתוח כיס נוסף מתוך ממד הריק המשותף."
-"door.transit.pocket_not_ready" = "ממד הכיס אינו מוכן."
-"door.transit.pocket_allocation_failed" = "לא ניתן להקצות את ממד הכיס."
-"door.transit.safe_return_not_found" = "לא ניתן למצוא דרך חזרה בטוחה בצד הזה של הדלת."
-"door.transit.pocket_prepare_failed" = "לא ניתן להכין את ממד הכיס בבטחה."
-"door.transit.return_ticket_save_failed" = "לא ניתן לשמור נתיב חזרה בטוח."
-"door.transit.pocket_entry_unsafe" = "הכניסה לכיס אינה בטוחה."
-"door.transit.pocket_entry_chunk_failed" = "ממד הכיס לא הצליח לטעון את צ'אנק הכניסה שלו."
-"door.transit.no_return_route" = "אין לכם נתיב חזרה שמור לממד הכיס הזה."
-"door.transit.return_unavailable" = "דלת החזרה אינה זמינה או חסומה בצד המתאים."
-"door.transit.return_world_unloaded" = "עולם החזרה שלכם אינו טעון."
-"door.transit.return_point_obstructed" = "נקודת החזרה השמורה חסומה."
-"door.transit.return_chunk_failed" = "לא ניתן לטעון את צ'אנק החזרה השמור."
-"door.transit.closed" = "הדלת הממדית נסגרה לפני סיום המעבר."
-"door.transit.cycle_consumed" = "מחזור הפתיחה של הדלת הזו כבר נוצל. סגור ופתח את הדלת מחדש."
-"door.transit.source_missing" = "הדלת הממדית כבר לא נמצאת שם."
-"door.transit.source_close_failed" = "דלת המקור לא הצליחה להיסגר בבטחה."
-"door.transit.source_region_unavailable" = "אזור דלת המקור אינו זמין."
-"door.transit.start_failed" = "המעבר הממדי לא הצליח להתחיל."
-"door.transit.cancelled" = "המעבר הממדי בוטל."
-"door.rescue.reason.no_route" = "לממד הכיס אין נתיב חזרה שמור."
-"door.rescue.reason.return_world_unavailable" = "עולם החזרה השמור אינו זמין."
-"door.rescue.reason.return_point_obstructed" = "נקודת החזרה השמורה חסומה."
-"door.rescue.reason.return_chunk_failed" = "לא ניתן לטעון את צ'אנק החזרה השמור."
-"door.rescue.fallback.no_world" = "לא נטען עולם גיבוי שאינו ממד כיס."
-"door.rescue.fallback.obstructed" = "נקודת ההופעה החלופית חסומה."
-"door.rescue.fallback.chunk_failed" = "לא ניתן לטעון את נקודת ההופעה החלופית."
-"door.rescue.fallback.schedule_failed" = "לא ניתן לתזמן את החילוץ החלופי."
-"door.rescue.reason.start_failed" = "חילוץ החירום לא הצליח להתחיל."
-"door.rescue.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>{route} {fallback} אתם נשארים מוגנים עם לב אחד."
-"door.access.label.neutral" = "ניטרלי"
-"door.access.label.whitelist" = "רשימת מורשים"
-"door.access.label.blacklist" = "רשימת חסומים"
-"door.open_state.open" = "פתוח"
-"door.open_state.closed" = "סגור"
-"door.access.kind.pair" = "שזורה"
-"door.access.kind.personal" = "אישית"
-"door.access.kind.public" = "ציבורית"
-"door.access.kind.return" = "יציאה"
-"door.access.unknown_player" = "לא ידוע ({id})"
-"door.access.edit_denied" = "<red>רק בעל הדלת או מנהל יכולים לערוך את הדלת."
-"door.access.unavailable" = "<red>לדלת הממדית הזו אין רשומת גישה."
-"door.access.save_failed" = "<red>לא ניתן לשמור את שינוי הגישה לדלת."
-"door.access.player_not_found" = "<red>לא נמצא שחקן בשם {name}."
-"door.access.owner_always" = "<gray>לבעל הדלת תמיד יש גישה."
-"door.access.already_listed" = "<gray>{name} כבר נמצא ברשימה של הדלת הזו."
-"door.access.added" = "<green>{name} נוסף לרשימה של הדלת הזו."
-"door.access.removed" = "<green>{name} הוסר מהרשימה של הדלת הזו."
-"door.access.state_changed" = "<green>{name} מוגדר כעת כ-{state} עבור הדלת הזו."
-"door.access.prompt_player" = "<aqua>הקלידו את שם השחקן שיירשם לדלת הזו (או '{cancel}'):"
-"door.access.denied" = "<red>הדלת הממדית הזו דוחה אתכם."
-"door.access.transit_denied" = "אין לכם גישה לדלת הממדית הזו."
-"door.menu.access.title" = "גישה לדלת: {kind}"
-"portal.menu.gateway.server" = "<gray>שרת: <white>{server}"
-"portal.menu.gateway.link" = "<gray>קישור: <aqua>{state}"
-"portal.menu.mirror.rotation" = "<gray>סיבוב התמונה: <aqua>{degrees} מעלות"
-"portal.menu.mirror.rotate_clockwise" = "<dark_gray>לחיצה ימנית: סיבוב בכיוון השעון."
-"portal.menu.mirror.rotate_counterclockwise" = "<dark_gray>Shift + לחיצה ימנית: סיבוב נגד כיוון השעון."
-"portal.prompt.invite" = "<aqua>הדביקו את הזמנת הפורטל בצ'אט (או '{cancel}'):"
-"portal.prompt.block_state" = "<aqua>הזינו מצב בלוק לשולי חלון התצוגה ברשת של הפורטל, או '{cancel}':"
-"portal.prompt.name" = "<aqua>הזינו בצ'אט את השם החדש של הפורטל (או '{cancel}'):"
-"portal.input.cancel" = "ביטול"
-"portal.rtp.editor_title" = "RTP: {portal}"
-"portal.notice.dimensional_link_managed" = "הפורטל הממדי שומר על הקישור שנוצר עבורו."
-"portal.notice.not_rtp" = "הפורטל כבר אינו במצב טלפורט אקראי."
-"portal.rtp.notice.setting_rejected" = "לא ניתן להחיל את ההגדרה: {reason}"
-"portal.notice.region_unavailable" = "אזור הפורטל אינו זמין; נסה שוב."
-"portal.rtp.notice.applied" = "הגדרות היעד האקראי הוחלו."
-"portal.rtp.notice.reset_defaults" = "הגדרות השיגור האקראי אופסו לברירת המחדל."
-"portal.rtp.notice.editor_refreshed" = "ההגדרות השתנו; העורך רוענן."
-"portal.rtp.notice.runtime_unavailable" = "מערכת הטלפורט האקראי אינה זמינה."
-"portal.rtp.notice.reroll_failed" = "הבחירה מחדש הידנית נכשלה; עיינו ביומן השרת."
-"portal.rtp.notice.reroll_preparing" = "מכין יעד אקראי חדש."
-"portal.rtp.notice.reroll_unavailable" = "בחירה מחדש אינה זמינה בזמן שהנתיב בהכנה או בשימוש."
-"portal.rtp.notice.pool_rebuilding" = "מאגר היעדים הפרטי נבנה מחדש."
-"portal.rtp.notice.pool_failed" = "הבנייה מחדש של מאגר היעדים נכשלה; בדקו את יומן השרת."
-"portal.rtp.notice.not_ready" = "<yellow>השער עדיין מייצב את היעד שלו."
-"portal.rtp.notice.traversal_failed" = "<red>השער לא הצליח להתייצב; נסה שוב."
-"portal.notice.travel_managed" = "המעבר דרך פורטל ממדי מנוהל אוטומטית."
-"portal.notice.travel_mirror_locked" = "מצב המראה אף פעם לא מאפשר נסיעה."
-"portal.notice.travel_changed" = "מעבר {mode}"
-"portal.notice.stream_quality_changed" = "איכות הזרם: {quality}"
-"portal.notice.network_value_changed" = "{label} {value}"
-"portal.notice.fallback_set" = "בלוק הגיבוי הוגדר ל-{block}"
-"portal.notice.fallback_reset" = "בלוק הגיבוי אופס ל-{block}"
-"portal.notice.managed_mode" = "פורטלים ממדיים מנוהלים נשארים במצב פורטל."
-"portal.notice.projection_receiver_inactive" = "נקודת ההגעה ב-End תישאר ללא תצוגה."
-"portal.notice.projection_changed" = "הקרנות: {mode}"
-"portal.notice.settings_sync_changed" = "סינכרון הגדרות {state}"
-"portal.notice.access_changed" = "גישה {mode}"
-"portal.notice.mirror_select_first" = "בחרו במצב מראה לפני סיבוב התמונה."
-"portal.notice.mirror_rotation_changed" = "סיבוב המראה: {degrees} מעלות"
-"portal.notice.rtp_cannot_link" = "פורטלים של טלפורט אקראי אינם מתקשרים ליעדים."
-"portal.label.travel.both" = "לשני הכיוונים"
-"portal.label.travel.outbound" = "יציאה בלבד"
-"portal.label.travel.inbound" = "כניסה בלבד"
-"portal.label.travel.locked" = "נעול"
-"portal.label.travel.arrival" = "הגעה בלבד"
-"portal.label.travel.departure" = "יציאה בלבד"
-"portal.label.travel.dimensional_both" = "שני החצאים המקושרים נשארים פעילים."
-"portal.label.travel.dimensional_return_disabled" = "נתיב החזרה נשאר מושבת."
-"portal.label.quality.standard" = "רגיל"
-"portal.label.quality.performance" = "ביצועים"
-"portal.label.quality.balanced" = "מאוזן"
-"portal.label.quality.cinematic" = "קולנועי"
-"portal.label.quality.custom" = "מותאם אישית"
-"portal.label.mode.portal" = "פורטל"
-"portal.label.mode.wormhole" = "חור תולעת"
-"portal.label.mode.gateway" = "שער"
-"portal.label.mode.rtp" = "RTP"
-"portal.label.mode.mirror" = "מראה"
-"portal.label.direction.up" = "למעלה"
-"portal.label.direction.down" = "למטה"
-"portal.label.direction.north" = "צפון"
-"portal.label.direction.south" = "דרום"
-"portal.label.direction.east" = "מזרח"
-"portal.label.direction.west" = "מערב"
-"portal.mode.description.portal" = "פורטל מקושר בסיסי."
-"portal.mode.description.wormhole" = "פורטל ניתן לקישור עם הקרנת חלון תצוגה."
-"portal.mode.description.gateway" = "מיועד לקישור בין רשתות."
-"portal.mode.description.rtp" = "פורטל טלפורט אקראי מקומי."
-"portal.mode.description.mirror" = "משקף את העולם המקומי בחזרה עם נסיעות נעולות."
-"portal.label.allocation.shared" = "משותף"
-"portal.label.allocation.per_player" = "לכל שחקן"
-"portal.rtp.rotation.private" = "פרטי לכל שחקן למשך {duration}"
-"portal.label.permission.whitelist" = "רשימת מורשים"
-"portal.label.permission.blacklist" = "רשימת חסומים"
-"portal.permission.description.whitelist" = "שחקנים זקוקים להרשאה הזו כדי להשתמש בפורטל."
-"portal.permission.description.blacklist" = "שחקנים בעלי ההרשאה הזו חסומים."
-"portal.label.network.direct" = "ישיר"
-"portal.label.network.sideband" = "ערוץ צדדי"
-"portal.label.network.reconnecting" = "מתחבר מחדש"
-"portal.network.label.capture_radius" = "רדיוס לכידה"
-"portal.network.description.capture_radius" = "בלוקים זורמים סביב פורטל היעד."
-"portal.network.label.full_refresh" = "רענון מלא"
-"portal.network.description.full_refresh" = "מספר הטיקים בין רענונים מלאים של הבלוקים."
-"portal.network.label.entity_update" = "עדכון ישויות"
-"portal.network.description.entity_update" = "מספר הטיקים בין עדכוני ישויות."
-"portal.network.label.view_grace" = "זמן חסד לתצוגה"
-"portal.network.description.view_grace" = "מספר השניות שבהן הזרם נשאר פעיל לאחר שמסיטים את המבט."
-"portal.network.label.blackout" = "רקע אטום"
-"portal.network.label.blackout_color" = "צבע אטום"
-"portal.network.label.activation_range" = "טווח הפעלה"
-"portal.label.activation_global" = "גלובלי ({range})"
-"portal.direction.cancelled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>בוטל"
-"portal.direction.set" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>הכיוון נקבע"
-"portal.setting.notification" = "<green>{portal}: <reset>{message}"
-"portal.link.linked" = "<green>{portal} קושר אל {destination}."
-"portal.link.linked_remote" = "<green>{portal} קושר אל {destination} בשרת {server}."
-"portal.link.unlinked" = "<yellow>הקישור בין {portal} ל-{destination} הוסר."
-"portal.orientation.face_flipped" = "<green>חזית {portal} נהפכה לכיוון {direction}."
-"portal.orientation.rotated_counterclockwise" = "<green>{portal} סובב נגד כיוון השעון."
-"portal.orientation.rotated_clockwise" = "<green>{portal} סובב בכיוון השעון."
-"portal.orientation.direction_changed" = "<green>הכיוון של {portal} שונה ל-{direction}."
-"portal.mode.changed" = "<green>המצב של {portal} הוגדר ל-{mode}."
-"label.none" = "ללא"
-"label.on" = "מופעל"
-"label.off" = "מושבת"
-"label.ready" = "מוכן"
-"label.preparing" = "בהכנה"
-"label.open" = "פתוח"
-"label.closed" = "סגור"
-"rtp.routing.action_confirm" = "פתח מסך אישור נפרד."
-"rtp.status.ready" = "מוכן"
-"rtp.status.warming" = "בהכנה"
-"rtp.status.rerolling" = "בוחר מחדש"
-"rtp.status.backoff" = "השהיית ניסיון חוזר"
-"rtp.status.world_unavailable" = "עולם היעד אינו זמין"
-"rtp.status.integration_failed" = "שילוב בקרת הגישה נכשל"
-"rtp.status.failed" = "נכשל"
-"rtp.status.idle" = "לא פעיל"
-"rtp.rotation.static" = "סטטי"
-"rtp.rotation.timed" = "מתוזמן"
-"rtp.rotation.trip" = "אחרי כל נסיעה"
-"rtp.status.retry" = "<gray>ניסיון חוזר בעוד: <red>{duration}"
-"rtp.status.active" = "<gray>פעיל: {readiness}"
-"rtp.status.standby" = "<gray>בהמתנה: {readiness}"
-"rtp.status.rotation" = "<gray>סבב בטיוטה: <aqua>{rotation}"
-"rtp.status.pool" = "<gray>פנויים: <aqua>{free}<gray>  שמורים: <aqua>{reserved}"
-"rtp.status.target_missing" = "<red>עולם היעד אינו טעון."
-"rtp.status.access_failed" = "<red>בדיקות הגישה ליעד נכשלו ולכן הגישה נדחתה."
-"rtp.numeric.center_x" = "מרכז X"
-"rtp.numeric.center_z" = "מרכז Z"
-"rtp.numeric.minimum_radius" = "רדיוס מינימום"
-"rtp.numeric.maximum_radius" = "רדיוס מקסימום"
-"rtp.numeric.lower_y" = "Y התחתון"
-"rtp.numeric.upper_y" = "Y העליון"
-"rtp.numeric.preferred_y" = "Y מועדף"
-"rtp.numeric.cycle" = "משך המחזור"
-"rtp.numeric.private_rotation" = "זמן החלפה פרטי"
-"rtp.numeric.lease" = "זמן חסד לחכירה לא פעילה"
-"rtp.numeric.release" = "שחרור פרטי"
-"rtp.numeric.description.center" = "הזזת המרכז המותאם אישית בציר הזה."
-"rtp.numeric.description.minimum_radius" = "הקצה הפנימי של טבעת היעד."
-"rtp.numeric.description.maximum_radius" = "הקצה החיצוני של טבעת היעד."
-"rtp.numeric.description.y" = "גבול חוקי לחיפוש גובה הרגליים."
-"rtp.numeric.description.cycle" = "הזמן בין החלפות משותפות מתוזמנות."
-"rtp.numeric.description.private_rotation" = "הזמן המרבי לשמירת יעד מוכן לכל שחקן."
-"rtp.numeric.description.lease" = "שמירת היעדים המוכנים לזמן קצר לאחר שכולם עוזבים."
-"rtp.numeric.description.release" = "עיכוב לפני שחרור הזמנה פרטית לא בשימוש."
-"rtp.duration.hours" = "{value}h"
-"rtp.duration.minutes" = "{value}m"
-"rtp.duration.seconds" = "{value}s"
-"rtp.duration.decimal_seconds" = "{value}s"
+[language.editor]
+loading = "טוען הודעות עבור {locale}..."
 
-"portal.menu.destination.sort_smart" = "חכם"
-"portal.menu.destination.sort_name" = "שם"
-"portal.menu.destination.sort_world" = "עולם"
-"portal.menu.destination.sort_distance" = "מרחק"
-"rtp.biome.any_label" = "הכול"
+[language.editor.category]
+message-count = "&7{count} הודעות&r"
+open = "&8לחץ לפתוח קטגוריה זו.&r"
 
-"command.help.pocket" = "בדיקה ועיצוב מחדש של ממדי כיס"
-"command.help.pocket.info" = "הצגת הגודל, החומרים והגבולות של הכיס שאתה עומד בו"
-"command.help.pocket.resize" = "בנייה מחדש של הכיס שאתה עומד בו בגודל או בחומר אחר"
-"command.help.pocket.resize.size" = "אורך צלע החדר החדש בבלוקים, או 0 כדי לשמור על הגודל הנוכחי"
-"command.help.pocket.resize.material" = "בלוק חדש לקירות, לרצפה ולתקרה, או keep"
-"command.help.pocket.resize.door" = "בלוק חדש לדלת היציאה, או keep"
-"command.help.pocket.resize.confirm" = "נדרש כאשר השינוי היה הורס או מזיז משהו"
-"command.help.pocket.resizeall" = "בנייה מחדש של כל הכיסים הקיימים בגודל או בחומר אחר"
-"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>עמוד בתוך ממד כיס כדי להריץ את זה."
-"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>גודל הכיס חייב להיות בין {minimum} ל-{maximum} בלוקים."
-"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} אינו מתאים לקיר כיס. השתמש בבלוק מוצק שאינו נופל."
-"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} אינו מתאים לדלת יציאה. השתמש בדלת שנפתחת ביד; דלתות ברזל נדחות."
-"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>לכיס הזה כבר יש הגודל והחומרים האלה."
-"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>שינוי גודל הכיס נעצר: <white>{containers}<red> מכלים שאינם ריקים היו נהרסים. יש לרוקן אותם לפני ניסיון נוסף; <white>confirm=true<red> אינו יכול לעקוף בדיקת בטיחות זו."
-"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>הכיס נבנה מחדש ל-<white>{size}<green> בלוקים (קודם <white>{previous}<green>), קירות <white>{material}<green>, דלת יציאה <white>{door}."
-"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>לא ניתן היה לבנות מחדש את הכיס. בדוק את הקונסולה."
-"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ממד הכיס אינו טעון."
-"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>חדר בגודל {size} בלוקים אינו נכנס לגובה הבנייה של ממד הכיס."
-"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>בונה מחדש <white>{count}<gray> כיסים."
-"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>נבנו מחדש <white>{resized}<green>, דולגו <white>{skipped}<green>, נכשלו <white>{failed}."
-"portal.label.public_look_label" = "Public Look Label"
-[lines]
-"portal.menu.cost.opener" = ["<gold><bold>עלות מעבר</bold>","<gray>דרשו פריט מדויק או מטבע Vault","<gray>כאשר שחקן משתמש בפורטל הזה.","","<gray>מצב: <white>{mode}","<gray>עלות: <white>{cost}","","<dark_gray>לחצו כדי להגדיר."]
-"portal.menu.cost.placard" = ["<gold><bold>עלות מעבר</bold>","<gray>שחקנים חייבים לשלם לפני שהפורטל","<gray>יאפשר להם לעבור.","","<gray>מצב: <white>{mode}","<gray>עלות: <white>{cost}"]
-"portal.menu.cost.mode_free" = ["<green><bold>חינם</bold>","<gray>לא נדרש תשלום.","","<dark_gray>לחצו כדי להפוך את המעבר לחינמי."]
-"portal.menu.cost.mode_vanilla" = ["<aqua><bold>פריט וניל</bold>","<gray>צורך פריט תואם במדויק.","","<dark_gray>לחצו, החזיקו את הפריט ואז לחצו על מקש ההשלכה."]
-"portal.menu.cost.mode_vault" = ["<green><bold>כלכלת Vault</bold>","<gray>מושך מטבע דרך Vault.","","<dark_gray>לחצו כדי להזין סכום."]
-"portal.menu.cost.mode_vault_unavailable" = ["<red><bold>כלכלת Vault אינה זמינה</bold>","<gray>נדרשים Vault וספק כלכלה.","","<dark_gray>התקינו או הפעילו את שניהם כדי להשתמש במצב הזה."]
-"portal.menu.cost.free_detail" = ["<green><bold>ללא עלות</bold>","<gray>המעבר דרך הפורטל הזה חינמי."]
-"portal.menu.cost.secondary_empty" = ["<dark_gray><bold>אין הגדרה נוספת</bold>"]
-"portal.menu.cost.item" = ["<aqua><bold>{item}</bold>","<gray>בדיוק הפריט הזה נדרש למעבר.","<gray>פריט הבחירה לעולם אינו נצרך.","","<dark_gray>שמאל: בחירת פריט מוחזק אחר.","<dark_gray>ימין: ניקוי העלות."]
-"portal.menu.cost.quantity" = ["<aqua><bold>כמות {quantity}</bold>","<gray>כמה פריטים תואמים במדויק","<gray>נצרכים בכל מעבר.","","<dark_gray>לחיצה שמאלית: +1","<dark_gray>לחיצה ימנית: -1","<dark_gray>Shift + לחיצה שמאלית: +8","<dark_gray>Shift + לחיצה ימנית: -8","<dark_gray>מקסימום: {maximum}"]
-"portal.menu.cost.vault_amount" = ["<green><bold>{amount}</bold>","<gray>מטבע שנמשך בכל מעבר.","","<dark_gray>שמאל: הזנת סכום אחר.","<dark_gray>ימין: ניקוי העלות."]
-"portal.menu.render_mode" = ["<aqua><bold>מצב עיבוד <white>{mode}</bold>","<gray>כמה מנפח היעד השער הזה מקרין.","","<gray>מצב: <white>{mode}","","<dark_gray>PanOptic מעבד את כל נפח היעד.","<dark_gray>Venticular מסתיר גאומטריה מאחורי משטחים אטומים גלויים.","","<dark_gray>שמאל: החלף מצב."]
-"portal.menu.ambient_particles" = ["<aqua><bold>חלקיקי סביבה</bold>","<gray>אבק דקורטיבי שמרחף סביב השער הזה.","","<gray>סגנון: <white>{style} <dark_gray>({color})","","<dark_gray>שמאלי: החלף סגנון.","<dark_gray>ימני: בחר צבע."]
-"portal.menu.ambient_color.placard" = ["<gold><bold>צבע סביבה</bold>","<gray>צבע חלקיקי האבק הסביבתיים.","","<gray>נוכחי: <white>{color}"]
-"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>לחיצה שמאלית: +{step}","<dark_gray>לחיצה ימנית: -{step}","<dark_gray>Shift + לחיצה שמאלית: +{large_step}","<dark_gray>Shift + לחיצה ימנית: -{large_step}"]
-"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>לחץ כדי לבחור."]
-"portal.menu.surface_skin" = ["<aqua><bold>מעטה משטח</bold>","<gray>כסה את פתח השער בלוח בלוק או נוזל מרונדר.","","<gray>מעטה: <white>{skin}","","<dark_gray>שמאלי: הסר את המעטה.","<dark_gray>ימני: פתח אפשרויות מעטה."]
-"portal.menu.surface_skin.placard" = ["<gold><bold>מעטה משטח</bold>","<gray>לחץ ימני על השער עם בלוק או דלי כדי להחיל מעטה.","","<gray>מעטה: <white>{skin}"]
-"portal.menu.surface_skin.glass" = ["<aqua><bold>מעטה זכוכית</bold>","<gray>חלון זכוכית שקוף מעל הפתח.","","<dark_gray>לחץ כדי להחיל זכוכית."]
-"portal.menu.surface_skin.clear" = ["<red><bold>הסר מעטה</bold>","<gray>מסיר את המעטה ומשחזר את ההקרנות.","","<dark_gray>לחץ כדי להסיר את המעטה."]
-"command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>עזרה לפורטל: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>השתמשו במטה הפורטל על פורטל כדי לפתוח את הגדרות היעד, התצוגה, המעבר והגישה שלו."]
-"command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>הוענקו מטה פורטל ו-1 רונת חור תולעת.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>בנו שתי צורות של רונות חור תולעת (כל צורה מחוברת על משטח שטוח אחד), קשרו ביניהן ועמדו בטווח של {range} בלוקים כדי לראות את ההקרנה.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>הריצו <white>/wormholes info<gray> לקבלת הוראות מלאות שלב אחר שלב."]
-"command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>קובץ תמונת מצב: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>עקבו אחר סוף הקובץ כדי לשתף מצב רשת ותצוגה בזמן אמת. הקובץ נכתב מחדש בכל מרווח זמן."]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>כיצד לבנות חור תולעת</bold>","<dark_gray>1. <gray>קבלו מטה פורטל ורונות פורטל מהשרת או ממנהל.","<dark_gray>2. <gray>הניחו את הרונות בצורה מחוברת כלשהי על משטח שטוח אחד.","<gray>   כל צורה מחוברת מתאימה: מלבנים, קווים (3x1), בלוק יחיד, צורת L וצלבים.","<gray>   הרונות חייבות להיות שטוחות על קיר, רצפה או תקרה אחת המיושרים לציר.","<dark_gray>3. <gray>החזיקו את מטה הפורטל ו<white>לחצו שמאל על בלוק רונה כלשהו<gray> כדי ליצור את הפורטל.","<dark_gray>4. <gray>בנו פורטל שני במקום אחר (בכל מרחק ובכל עולם).","<dark_gray>5. <gray>לחצו על הפורטל הפתוח עם המטה כדי לפתוח את התפריט הראשי.","<gray>   בחרו <white>יעד<gray> ובחרו את הפורטל האחר. חזרו על הפעולה מהצד השני.","<gray>   הגדרות הכיוון והגישה נמצאות בתפריטים פשוטים ונפרדים.","<dark_gray>6. <gray>עמדו בטווח של {range} בלוקים מאחד הפורטלים; עולם היעד יוקרן דרך המסגרת וכניסה אליה תטלפרט אתכם.","<gray>מנהלים יכולים ליצור פריטים בעזרת <white>/wormholes wand"]
-"item.portal_wand" = ["<gold><bold>מטה פורטל</bold>"]
-"item.portal_rune" = ["<gold><bold>רונת פורטל</bold>"]
-"item.wormhole_rune" = ["<gold><bold>רונת חור תולעת</bold>"]
-"item.door.entangled_pair" = ["<gold>זוג דלתות שזורות","<gray>מכיל שתי דלתות חור תולעת המקושרות אוטומטית.","<gray>השתמשו בו כדי לפרוק את נקודות הקצה A ו-B."]
-"item.door.paired" = ["<gold>דלת חור תולעת {endpoint}","<gray>מקושרת אוטומטית לנקודת הקצה {other}.","<gray>פתחו את הדלת וחצו פיזית את המפתן."]
-"item.door.personal" = ["<aqua>דלת ממד אישי","<gray>כל נוסע נכנס לממד הקבוע האישי שלו.","<gray>אותו נוסע תמיד מגיע לאותו מקום."]
-"item.door.public" = ["<gold>דלת ממד ציבורי","<gray>כל נוסע נכנס לממד המשותף של הדלת.","<gray>שבירה והעברה שלה שומרות על היעד המשותף."]
-"item.door.return" = ["<green>דלת יציאה ממדית","<gray>מחזירה נוסעים מממד הכיס הזה.","<gray>הדלת מקושרת לממד הכיס שלה."]
-"item.door.skin" = ["<gold>מעטפת דלת ממדית","<gray>שלבו דלת ממדית עם דלת ששחקנים יכולים להפעיל."]
-"item.door.entangled_pair_recipe" = ["<gold>זוג דלתות שזורות","<gray>מכיל שתי דלתות חור תולעת המקושרות אוטומטית."]
-"item.door.personal_recipe" = ["<aqua>דלת ממד אישי","<gray>כל נוסע נכנס לממד הקבוע האישי שלו."]
-"item.door.public_recipe" = ["<gold>דלת ממד ציבורי","<gray>כל נוסע נכנס לממד המשותף של הדלת."]
-"item.door.entangled_trapdoor_pair" = ["<gold>זוג דלתות מלכודת שזורות","<gray>מכיל שתי דלתות מלכודת חור תולעת המקושרות אוטומטית.","<gray>השתמשו בו כדי לפרוק את נקודות הקצה A ו-B."]
-"item.door.paired_trapdoor" = ["<gold>דלת מלכודת חור תולעת {endpoint}","<gray>מקושרת אוטומטית לנקודת הקצה {other}.","<gray>פתחו את דלת המלכודת וצנחו דרכה."]
-"item.door.personal_trapdoor" = ["<aqua>דלת מלכודת ממד אישי","<gray>כל נוסע נכנס לממד הקבוע האישי שלו.","<gray>אותו נוסע תמיד מגיע לאותו מקום."]
-"item.door.public_trapdoor" = ["<gold>דלת מלכודת ממד ציבורי","<gray>כל נוסע נכנס לממד המשותף של דלת המלכודת.","<gray>שבירה והעברה שלה שומרות על היעד המשותף."]
-"item.door.trapdoor_skin" = ["<gold>מעטפת דלת מלכודת ממדית","<gray>שלבו דלת מלכודת ממדית עם דלת מלכודת שנפתחת ביד."]
-"item.door.entangled_trapdoor_pair_recipe" = ["<gold>זוג דלתות מלכודת שזורות","<gray>מכיל שתי דלתות מלכודת חור תולעת המקושרות אוטומטית."]
-"item.door.personal_trapdoor_recipe" = ["<aqua>דלת מלכודת ממד אישי","<gray>כל נוסע נכנס לממד הקבוע האישי שלו."]
-"item.door.public_trapdoor_recipe" = ["<gold>דלת מלכודת ממד ציבורי","<gray>כל נוסע נכנס לממד המשותף של דלת המלכודת."]
-"door.menu.access.placard" = ["<gold><bold>דלת ממדית: {kind}</bold>","<gray>בעלים: <white>{owner}","<gray>ברשימת המורשים: <green>{whitelisted}","<gray>ברשימת החסומים: <red>{blacklisted}","<gray>שחקנים ברשימה: <aqua>{count}","<dark_gray>בעלים ומנהלים עורכים את הדלת הזו."]
-"door.menu.access.add_player" = ["<green><bold>הוספת שחקן</bold>","<gray>הקלידו שם שחקן בצ'אט כדי לרשום אותו.","","<dark_gray>לחצו כדי להוסיף שחקן."]
-"door.menu.access.open_state" = ["<aqua><bold>OpenState: <white>{state}","<gray>הפורטל עוקב אחר המצב הפיזי של הבלוק הזה.","<gray>מצב פעיל: <white>{state}<gray>.","","<dark_gray>הבא: {next}. לחצו כדי להחליף."]
-"door.menu.access.entry" = ["<white>{name}","<gray>מצב: <aqua>{state}","","<dark_gray>לחיצה שמאלית: מורשה. לחיצה ימנית: חסום.","<dark_gray>לחיצה אמצעית או Shift + לחיצה שמאלית: הסרה."]
-"portal.menu.destination" = ["<gold><bold>יעד</bold>","<gray>בחרו פורטל לקישור.","<gray>מקושר כעת אל: {destination}","","<dark_gray>לחצו כדי לפתוח את בורר היעדים."]
-"portal.menu.gateway_destination" = ["<gold><bold>צימוד & יעד</bold>","<gray>צמדו שרת אחר או בחרו שער.","<gray>מקושר כעת אל: {destination}","","<dark_gray>לחצו כדי לפתוח את מרכז הצימוד."]
-"portal.menu.rtp_destination" = ["<gold><bold>יעד אקראי</bold>","<gray>הגדירו היכן ומתי הפורטל יבחר יעד מחדש.","<gray>סבב: <aqua>{rotation}","","<dark_gray>לחצו כדי לפתוח את הגדרות הטלפורט האקראי."]
-"portal.menu.rename" = ["<green><bold>שינוי שם הפורטל</bold>","<gray>שנו את השם שמוצג בקישורים ובתפריטים.","<gray>נוכחי: <white>{portal}","","<dark_gray>לחצו כדי להקליד שם חדש."]
-"portal.menu.delete" = ["<red><bold>מחיקת פורטל</bold>","<gray>מוחק את הפורטל לצמיתות.","","<red><underlined>Shift + לחיצה שמאלית לאישור</underlined>"]
-"portal.menu.advanced_settings" = ["<dark_aqua><bold>כוונון זרם מתקדם</bold>","<gray>בקרה ישירה לאבחון ולקישורים מיוחדים.","<gray>שינוי ערך מסמן את איכות הזרם כמותאמת אישית."]
-"portal.menu.back_settings" = ["<yellow><bold>חזרה להגדרות</bold>","<gray>חזרה להגדרות הפורטל."]
-"portal.menu.travel.managed" = ["<gold><bold>מעבר: {direction}</bold>","<gray>כיוון המעבר בפורטל הממדי מנוהל אוטומטית.","<gray>{detail}"]
-"portal.menu.travel.mirror" = ["<red><bold>מעבר: נעול במצב מראה</bold>","<gray>מצב מראה מיועד לתצוגה בלבד.","<gray>ישויות אינן יכולות להיכנס או לצאת דרכו."]
-"portal.menu.travel.standard" = ["<aqua><bold>מעבר: {mode}</bold>","<gray>שליטה במעבר דרך הפורטל.","","<gray>יוצא: <aqua>{outgoing}<gray>  נכנס: <aqua>{incoming}","","<dark_gray>לחצו כדי לעבור בין כיווני המעבר."]
-"portal.menu.stream_quality" = ["<aqua><bold>איכות הזרם: {quality}</bold>","<gray>בקרה אחת לטווח חלון התצוגה המרוחק ולקצב העדכון.","","<gray>עומק <aqua>{depth}<gray>  ישויות <aqua>{entities}t","<gray>רענון <aqua>{refresh}t<gray>  זמן חסד <aqua>{grace}s","","<dark_gray>לחיצה: החלפת איכות.","<dark_gray>Shift + לחיצה: כוונון מתקדם."]
-"portal.menu.orientation" = ["<blue><bold>כיוון</bold>","<gray>חזית: <blue>{facing}","<gray>החלק העליון במסך: <gold>{up}","","<dark_gray>לחצו להגדרת חזית, היפוך וסיבוב."]
-"portal.menu.orientation_placard" = ["<blue><bold>כיוון הפורטל</bold>","<gray>חזית: <blue>{facing}","<gray>החלק העליון במסך: <gold>{up}"]
-"portal.menu.gateway.choose" = ["<gold><bold>בחירת יעד</bold>","<gray>בחרו מבין שערים מקומיים ומרוחקים שהתגלו.","","<dark_gray>לחצו כדי לפתוח את רשימת היעדים."]
-"portal.menu.gateway.unpaired" = ["<gold><bold>צימוד שערים</bold>","<gray>מצב: <red>לא מצומד"]
-"portal.menu.gateway.paired" = ["<gold><bold>צימוד שערים</bold>","<gray>יעד: <gold>{destination}"]
-"portal.menu.gateway.export" = ["<gold><bold>יצירת הזמנה</bold>","<gray>צרו קוד שער חתום עבור שרת אחר.","","<dark_gray>לחצו כדי להעתיק קוד חדש."]
-"portal.menu.gateway.import" = ["<aqua><bold>שימוש בהזמנה</bold>","<gray>הדביקו קוד חתום משער אחר.","","<dark_gray>לחצו ואז הדביקו את הקוד בצ'אט."]
-"portal.menu.network_number" = ["<aqua><bold>{label} <white>{value}</bold>","<gray>{description}","","<gray>נוכחי: <aqua>{value}","","<dark_gray>לחיצה שמאלית: +{step}","<dark_gray>לחיצה ימנית: -{step}","<dark_gray>Shift + לחיצה שמאלית: +{large_step}","<dark_gray>Shift + לחיצה ימנית: -{large_step}"]
-"portal.menu.fallback_block" = ["<aqua><bold>בלוק גיבוי</bold>","<gray>הבלוק שמוצג מעבר לעומק הזרם.","","<gray>נוכחי: <white>{block}","","<dark_gray>שמאל: הזנת מצב בלוק.","<dark_gray>ימין: איפוס לאוויר."]
-"portal.menu.blackout" = ["<aqua><bold>רקע אטום</bold>","<gray>אוטם את הגבול הרחוק ואת גבולות הצד של ההיטל בבטון מלא כך שהעולם המקומי לעולם לא ייראה מבעד.","","<gray>נוכחי: <white>{state} <dark_gray>({color})","","<dark_gray>שמאל: החלפת מופעל/מושבת.","<dark_gray>ימין: בחירת צבע."]
-"portal.menu.blackout_color.placard" = ["<gold><bold>צבע אטום</bold>","<gray>צבע הבטון המשמש למעטפת ההחשכה.","","<gray>נוכחי: <white>{color}"]
-"portal.menu.blackout_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>לחץ כדי לבחור."]
-"portal.menu.activation_range" = ["<aqua><bold>טווח הפעלה <white>{value}</bold>","<gray>המרחק בבלוקים שבו פורטל זה מתחיל להקרין עבור שחקנים בקרבת מקום.","","<gray>נוכחי: <aqua>{value}","","<dark_gray>לחיצה שמאלית: +{step}","<dark_gray>לחיצה ימנית: -{step}","<dark_gray>Shift + לחיצה שמאלית: +{large_step}","<dark_gray>Shift + לחיצה ימנית: -{large_step}","<dark_gray>מתחת ל-8 מתאפס לגלובלי."]
-"portal.menu.placard.rtp" = ["<gold><bold>{portal}</bold>","<gray>סוג: <yellow>{type}","<gray>חזית: <blue>{facing}","<gray>הקצאה: <aqua>{allocation}","<gray>החלפה: <aqua>{rotation}","","<dark_gray>מנהלים עוקפים את רשימות המורשים והחסומים."]
-"portal.menu.placard.linked" = ["<gold><bold>{portal}</bold>","<gray>סוג: <yellow>{type}","<gray>חזית: <blue>{facing}","<gray>מקושר אל: <gold>{destination}","","<dark_gray>מנהלים עוקפים את רשימות המורשים והחסומים."]
-"portal.menu.placard.unlinked" = ["<gold><bold>{portal}</bold>","<gray>סוג: <yellow>{type}","<gray>חזית: <blue>{facing}","<gray>מקושר אל: <red>{none}","","<dark_gray>מנהלים עוקפים את רשימות המורשים והחסומים."]
-"portal.menu.settings_placard_gateway" = ["<aqua><bold>הגדרות פורטל</bold>","<gray>בקרת גישה והעברות.","<gray>בנוסף, כוונון תצוגה בין שרתים.","","<gray>עומק גדול יותר / מרווחי טיקים קצרים יותר =","<gray>תצוגה מפורטת יותר, רוחב פס גדול יותר."]
-"portal.menu.mode_placard" = ["<yellow><bold>מצב פורטל</bold>","<gray>נוכחי: <yellow>{mode}","","<gray>פורטל: פורטל מקושר בסיסי.","<gray>חור תולעת: פורטל עם חלון תצוגה.","<gray>שער: שער בין שרתים.","<gray>RTP: יעדים אקראיים הניתנים להגדרה.","<gray>מראה: משקפת את הצד הזה ללא מעבר."]
-"portal.menu.mode_opener" = ["<yellow><bold>מצב</bold>","<gray>{description}","","<gray>כרגע: <yellow>{mode}","","<dark_gray>לחץ כדי לשנות מצב."]
-"portal.menu.direction" = ["<blue><bold>כיוון</bold>","<gray>שינוי כיוון החזית של הפורטל.","","<gray>כיוון נוכחי: <blue>{direction}","","<dark_gray>לחצו, הביטו לכיוון ולחצו שמאל כדי להחיל."]
-"portal.menu.flip_face" = ["<aqua><bold>היפוך החזית</bold>","<gray>היפוך כיוון החזית של הפורטל.","<gray>סיבוב המסך נשאר מיושר.","","<gray>החלק העליון במסך כעת: <aqua>{up}","","<dark_gray>לחצו כדי להפוך."]
-"portal.menu.rotate_counterclockwise" = ["<gold><bold>סיבוב נגד כיוון השעון</bold>","<gray>סיבוב חלון התצוגה של הפורטל ב-90 מעלות","<gray>בלי לשנות את החזית.","","<gray>החלק העליון במסך כעת: <gold>{up}","","<dark_gray>לחצו כדי לסובב."]
-"portal.menu.rotate_clockwise" = ["<gold><bold>סיבוב בכיוון השעון</bold>","<gray>סיבוב חלון התצוגה של הפורטל ב-90 מעלות","<gray>בלי לשנות את החזית.","","<gray>החלק העליון במסך כעת: <gold>{up}","","<dark_gray>לחצו כדי לסובב."]
-"portal.menu.back" = ["<yellow><bold>אחורה</bold>","<gray>חזרה לתפריט הפורטל."]
-"portal.menu.projection.on" = ["<gold><bold>הקרנה פועלת</bold>","<gray>מציג את התצוגה החיה של הפורטל.","<gray>תמונת היעד או המראה גלויה.","","<gray>נוכחי: <aqua>הקרנה פועלת</aqua>","","<dark_gray>לחצו כדי להפעיל / להשבית."]
-"portal.menu.projection.off" = ["<dark_gray><bold>הקרנה מושבתת</bold>","<gray>המסגרת נשארת ריקה.","<gray>אין תצוגת יעד ואין מראה.","","<gray>נוכחי: <aqua>הקרנה מושבתת</aqua>","","<dark_gray>לחצו כדי להפעיל / להשבית."]
-"portal.menu.settings_gateway" = ["<aqua><bold>הגדרות</bold>","<gray>הרשאות, העברות","<gray>וכוונון תצוגה בין שרתים.","","<gray>גישה: <gold>{access}","<gray>שליחה <aqua>{send}<gray>  קבלה <aqua>{receive}","<gray>עומק <aqua>{depth}<gray>  ישויות <aqua>{entity}t","","<dark_gray>לחצו כדי לפתוח את ההגדרות."]
-"portal.menu.settings_sync" = ["<aqua><bold>סנכרון הגדרות {state}</bold>","<gray>כאשר מופעל, הגדרות הפורטל הזה","<gray>(עומק, טיקים, הקרנה, הרשאות,","<gray>העברות) מסתנכרנות עם כל העמיתים המקושרים.","","<gray>נוכחי: <aqua>{state}","","<dark_gray>לחצו כדי להפעיל או להשבית."]
-"portal.menu.permission" = ["<gold><bold>גישה {mode}</bold>","<gray>{description}","<gray>הרשאה: <white>{node}","","<gray>נוכחי: <gold>{mode}","","<dark_gray>לחצו כדי לעבור בין רשימת מורשים / חסומים.","<dark_gray>מנהלים תמיד עוקפים הגבלה זו."]
-"portal.menu.mode_option.selected" = ["<yellow><bold>{mode}</bold>","<gray>{description}","","<green>נבחר כעת"]
-"portal.menu.mode_option.available" = ["<yellow><bold>{mode}</bold>","<gray>{description}","","<gray>לחץ על כדי לבחור"]
-"portal.menu.mirror.selected" = ["<yellow><bold>מראה</bold>","<gray>משקפת את העולם המקומי בחזרה לצד הזה.","<gray>ניתן לראות את עצמכם דרך המסגרת.","<gray>אין מעבר במצב מראה.","","<green>נבחר"]
-"portal.menu.mirror.available" = ["<yellow><bold>מראה</bold>","<gray>משקפת את העולם המקומי בחזרה לצד הזה.","<gray>ניתן לראות את עצמכם דרך המסגרת.","<gray>אין מעבר במצב מראה.","","<gray>לחיצה שמאלית לבחירה"]
-"portal.menu.mirror.flip" = ["<gray>מראות קיר מתהפכות במרווחים של 180 מעלות","<gray>כדי שהישויות המשתקפות יישארו מיושרות.","<dark_gray>לחיצה ימנית: היפוך התמונה המשתקפת."]
-"portal.menu.destination.local" = ["<gold>{portal}","<gray>ב-{x}, {y}, {z} בעולם {world}; חזית {direction}"]
-"portal.menu.destination.remote" = ["<gold>{portal}","<gray>בשרת <white>{server}","<gray>ב-{x}, {y}, {z} בעולם {world}; חזית {direction}","<aqua>{state}"]
-"portal.menu.destination.sort" = ["<yellow><bold>מיון: <white>{mode}</bold>","<gray>שינוי סדר היעדים.","<yellow>לחיצה שמאלית"]
-"portal.menu.destination.previous_page" = ["<yellow><bold>דף קודם</bold>","<gray>הצגת היעדים הקודמים.","<yellow>לחיצה שמאלית"]
-"portal.menu.destination.next_page" = ["<yellow><bold>דף הבא</bold>","<gray>הצגת היעדים הבאים.","<yellow>לחיצה שמאלית"]
-"portal.menu.destination.page" = ["<aqua><bold>דף {page}/{pages}</bold>","<gray>{count} יעדים"]
-"portal.menu.destination.empty" = ["<gray>אין יעדים זמינים לקישור."]
-"portal.prompt.direction" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>הביטו לכיוון ולחצו שמאל כדי להחיל.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Shift + לחיצה שמאלית לביטול."]
-"rtp.overview.destination" = ["<yellow><bold>יעד & אזור</bold>","<gray>עולם, מרכז ורדיוס.","<yellow>לחיצה שמאלית"]
-"rtp.overview.landing" = ["<yellow><bold>כללי נחיתה</bold>","<gray>התנהגות פני השטח והגובה.","<yellow>לחיצה שמאלית"]
-"rtp.overview.routing" = ["<yellow><bold>החלפה & מאגר יעדים</bold>","<gray>שיתוף, החלפה וזמני שמירת הקצאות.","<yellow>לחיצה שמאלית"]
-"rtp.overview.effects" = ["<yellow><bold>אפקטים</bold>","<gray>שולי ההקרנה וצלילי הפורטל.","<yellow>לחיצה שמאלית"]
-"rtp.overview.reset_defaults" = ["<yellow><bold>איפוס לברירת מחדל</bold>","<gray>משחזר מיד את הגדרות השיגור האקראי של הפורטל הזה לברירת המחדל.","<yellow>לחיצה שמאלית"]
-"rtp.navigation.back_portal" = ["<yellow><bold>חזרה לפורטל</bold>","<gray>חזרה לתפריט הפורטל.","<yellow>לחיצה שמאלית"]
-"rtp.navigation.overview" = ["<yellow><bold>סקירה כללית</bold>","<gray>חזרה לסקירה הכללית של RTP.","<yellow>לחיצה שמאלית"]
-"rtp.navigation.back_category" = ["<yellow><bold>חזרה</bold>","<gray>חזרה לקטגוריה הקודמת.","<yellow>לחיצה שמאלית"]
-"rtp.destination.header" = ["<aqua><bold>יעד & אזור</bold>","<gray>כל אפשרות משתמשת בלחיצה שמאלית רגילה."]
-"rtp.destination.world_current" = ["<green><bold>{world}</bold>","<gray>עולם היעד הנוכחי.","<green>נבחר"]
-"rtp.destination.world_available" = ["<aqua><bold>{world}</bold>","<gray>שימוש בעולם הטעון הזה.","<yellow>לחיצה שמאלית לבחירה"]
-"rtp.destination.previous_worlds" = ["<yellow><bold>עולמות קודמים</bold>","<gray>הצגת הדף הקודם.","<yellow>לחיצה שמאלית"]
-"rtp.destination.next_worlds" = ["<yellow><bold>עולמות הבאים</bold>","<gray>הצגת הדף הבא.","<yellow>לחיצה שמאלית"]
-"rtp.destination.biome_link" = ["<yellow><bold>ביום יעד <white>{value}</bold>","<gray>העדפת נחיתה בביום שנבחר.","<yellow>לחיצה שמאלית"]
-"rtp.biome.header" = ["<aqua><bold>ביום יעד</bold>","<gray>החיפוש מעדיף את הביום הזה וחוזר לכל נקודה בטוחה כאשר לא ניתן למצוא אותו בקרבת מקום."]
-"rtp.biome.any_selected" = ["<green><bold>כל ביום</bold>","<gray>ללא העדפת ביום.","<green>נבחר"]
-"rtp.biome.any_available" = ["<aqua><bold>כל ביום</bold>","<gray>ניקוי העדפת הביום.","<yellow>לחיצה שמאלית לבחירה"]
-"rtp.biome.current" = ["<green><bold>{biome}</bold>","<gray>{key}","<green>נבחר"]
-"rtp.biome.available" = ["<aqua><bold>{biome}</bold>","<gray>{key}","<yellow>לחיצה שמאלית לבחירה"]
-"rtp.biome.empty" = ["<gray>אין ביומים זמינים לעולם היעד."]
-"rtp.biome.previous" = ["<yellow><bold>ביומים קודמים</bold>","<gray>הצגת הדף הקודם.","<yellow>לחיצה שמאלית"]
-"rtp.biome.next" = ["<yellow><bold>ביומים הבאים</bold>","<gray>הצגת הדף הבא.","<yellow>לחיצה שמאלית"]
-"rtp.destination.center_portal_selected" = ["<green><bold>מרכז ביחס לפורטל</bold>","<gray>מרכוז טבעת היעד סביב הפורטל.","<green>נבחר"]
-"rtp.destination.center_portal_available" = ["<aqua><bold>מרכז ביחס לפורטל</bold>","<gray>מרכוז טבעת היעד סביב הפורטל.","<yellow>לחיצה שמאלית לבחירה"]
-"rtp.destination.center_custom_selected" = ["<green><bold>מרכז מותאם אישית</bold>","<gray>שימוש בקואורדינטות X ו-Z הניתנות לעריכה.","<green>נבחר"]
-"rtp.destination.center_custom_available" = ["<aqua><bold>מרכז מותאם אישית</bold>","<gray>שימוש בקואורדינטות X ו-Z הניתנות לעריכה.","<yellow>לחיצה שמאלית לבחירה"]
-"rtp.numeric.link" = ["<yellow><bold>{label} <white>{value}</bold>","<gray>פתיחת בקרות ברורות להפחתה ולהגדלה.","<yellow>לחיצה שמאלית"]
-"rtp.destination.reset_center" = ["<yellow><bold>איפוס מרכז / יעד</bold>","<gray>שימוש בעולם המקור ובמרכז הפורטל.","<yellow>לחיצה שמאלית"]
-"rtp.landing.header" = ["<aqua><bold>כללי נחיתה</bold>","<gray>Choose surface or preferred-height behavior and its safety mode."]
-"rtp.landing.surface_selected" = ["<green><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<green>Selected"]
-"rtp.landing.surface_available" = ["<aqua><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<yellow>Left click to select"]
-"rtp.landing.preferred_selected" = ["<green><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<green>Selected"]
-"rtp.landing.preferred_available" = ["<aqua><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<yellow>Left click to select"]
-"rtp.landing.safe_policy" = ["<aqua><bold>Landing Safety: <white>{mode}</bold>","<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.","<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.","<yellow>Left click to toggle"]
-"rtp.routing.header" = ["<aqua><bold>החלפה & מאגר יעדים</bold>","<gray>בחרו מצבים ישירות ואז החילו את כל השינויים פעם אחת."]
-"rtp.routing.shared_selected" = ["<green><bold>יעד משותף</bold>","<gray>כולם רואים ומשתמשים באותו נתיב.","<green>נבחר"]
-"rtp.routing.shared_available" = ["<aqua><bold>יעד משותף</bold>","<gray>כולם רואים ומשתמשים באותו נתיב.","<yellow>לחיצה שמאלית לבחירה"]
-"rtp.routing.private_selected" = ["<green><bold>יעדים לכל שחקן</bold>","<gray>כל שחקן מקבל הקצאה פרטית.","<green>נבחר"]
-"rtp.routing.private_available" = ["<aqua><bold>יעדים לכל שחקן</bold>","<gray>כל שחקן מקבל הקצאה פרטית.","<yellow>לחיצה שמאלית לבחירה"]
-"rtp.routing.static_selected" = ["<green><bold>קבוע</bold>","<gray>שמירה על אותו יעד.","<green>נבחר"]
-"rtp.routing.static_available" = ["<aqua><bold>קבוע</bold>","<gray>שמירה על אותו יעד.","<yellow>לחיצה שמאלית לבחירה"]
-"rtp.routing.timed_selected" = ["<green><bold>מתוזמן</bold>","<gray>החלפת היעד לאחר הזמן שהוגדר.","<green>נבחר"]
-"rtp.routing.timed_available" = ["<aqua><bold>מתוזמן</bold>","<gray>החלפת היעד לאחר הזמן שהוגדר.","<yellow>לחיצה שמאלית לבחירה"]
-"rtp.routing.trip_selected" = ["<green><bold>אחרי כל מעבר</bold>","<gray>קידום יעד חלופי מוכן לאחר השימוש.","<green>נבחר"]
-"rtp.routing.trip_available" = ["<aqua><bold>אחרי כל מעבר</bold>","<gray>קידום יעד חלופי מוכן לאחר השימוש.","<yellow>לחיצה שמאלית לבחירה"]
-"rtp.routing.manual_reroll" = ["<yellow><bold>בחירה מחדש ידנית</bold>","<gray>{description}","<yellow>לחיצה שמאלית"]
-"rtp.routing.rebuild_pool" = ["<yellow><bold>בנייה מחדש של מאגר היעדים</bold>","<gray>{description}","<yellow>לחיצה שמאלית"]
-"rtp.effects.header" = ["<aqua><bold>אפקטים</bold>","<gray>שינויי תצוגה אינם יוצרים מחדש את היעדים."]
-"rtp.effects.rim_on_selected" = ["<green><bold>שולי מוכנות פעילים</bold>","<gray>הצגת המוכנות האישית סביב שולי הפורטל.","<green>נבחר"]
-"rtp.effects.rim_on_available" = ["<aqua><bold>שולי מוכנות פעילים</bold>","<gray>הצגת המוכנות האישית סביב שולי הפורטל.","<yellow>לחיצה שמאלית לבחירה"]
-"rtp.effects.rim_off_selected" = ["<green><bold>שולי מוכנות כבויים</bold>","<gray>הסתרת שולי המוכנות.","<green>נבחר"]
-"rtp.effects.rim_off_available" = ["<aqua><bold>שולי מוכנות כבויים</bold>","<gray>הסתרת שולי המוכנות.","<yellow>לחיצה שמאלית לבחירה"]
-"rtp.effects.sound_on_selected" = ["<green><bold>צלילי הפורטל פועלים</bold>","<gray>השמעת האפקטים וצלילי המעבר של פורטל RTP זה.","<green>נבחר"]
-"rtp.effects.sound_on_available" = ["<aqua><bold>צלילי הפורטל פועלים</bold>","<gray>השמעת האפקטים וצלילי המעבר של פורטל RTP זה.","<yellow>לחיצה שמאלית לבחירה"]
-"rtp.effects.sound_off_selected" = ["<green><bold>צלילי הפורטל מושבתים</bold>","<gray>השתקת פורטל RTP זה; החלקיקים נשארים פעילים.","<green>נבחר"]
-"rtp.effects.sound_off_available" = ["<aqua><bold>צלילי הפורטל מושבתים</bold>","<gray>השתקת פורטל RTP זה; החלקיקים נשארים פעילים.","<yellow>לחיצה שמאלית לבחירה"]
-"rtp.numeric.target_unavailable" = ["<aqua><bold>עולם היעד אינו זמין</bold>","<gray>טענו את עולם היעד לפני עריכת הערך הזה."]
-"rtp.numeric.value" = ["<aqua><bold>{value}</bold>","<gray>הערך הנוכחי בטיוטה."]
-"rtp.numeric.adjust" = ["<yellow><bold>{direction}{step}</bold>","<gray>התאימו את ערך הטיוטה ב-{direction}{step}.","<yellow>לחיצה שמאלית"]
-"rtp.numeric.header" = ["<aqua><bold>{label}</bold>","<gray>{description}"]
-"rtp.confirm.reroll" = ["<aqua><bold>לבחור מחדש את הנתיב המשותף?</bold>","<gray>ההקרנה הנוכחית נשארת פעילה עד שהיעד החלופי מוכן."]
-"rtp.confirm.rebuild" = ["<aqua><bold>לבנות מחדש את מאגר היעדים הפרטי?</bold>","<gray>ההקצאות הקיימות נשמרות בזמן שהמועמדים הפנויים נבנים מחדש."]
-"rtp.confirm.confirm" = ["<yellow><bold>אישור</bold>","<gray>הפעלת הפעולה כעת.","<yellow>לחיצה שמאלית"]
-"rtp.confirm.cancel" = ["<yellow><bold>ביטול</bold>","<gray>חזרה בלי לשנות את מצב המערכת.","<yellow>לחיצה שמאלית"]
-"rtp.status.header" = ["<gold><bold>מצב היעד האקראי</bold>","<gray>מצב: {state}"]
+[language.editor.error]
+no-permission = "אין לך הרשאה לערוך את השפות של {plugin}."
+unable-to-edit = "לא ניתן לערוך: {reason}"
 
-"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>כיס <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>גודל <white>{size}<gray> בלוקים, קירות <white>{material}<gray>, דלת יציאה <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>גבולות <white>{minimum}<gray> עד <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>בנייה מחדש ל-{size} בלוקים תהרוס <white>{blocks}<red> בלוקים שהונחו ותזיז <white>{entities}<red> ישויות.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>בלוקים מחוץ לקירות החדשים נהרסים; ישויות שמוזזות מועברות לכניסה.","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>הרץ את אותה הפקודה עם <white>confirm=true<gray> כדי להמשיך."]
-"portal.menu.public_look_label" = ["<aqua><bold>Public Look Label: <white>{state}</bold>","<gray>Show this portal's name when nearby players look at it.","<gray>When Off, the route label remains portal-tool only.","","<yellow>Left click to toggle"]
-[plural."command.admin.deleted_portals"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>נמחק <white>{count}<green> פורטל וקישורי הפורטלים המקומיים נוקו."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>נמחקו <white>{count}<green> פורטלים וקישורי הפורטלים המקומיים נוקו."
+[language.editor.input]
+expired = "זמן ההזנה בעורך השפה פג."
+too-long = "הקלט יכול להכיל לכל היותר {maximum} תווים."
+unable-to-save = "לא ניתן לשמור: {reason}"
 
-[plural."command.admin.reset_everything"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes אופס למצב ברירת המחדל. נמחק <white>{count}<green> פורטל, חיבורי הרשת נסגרו וקובצי התצורה של ברירת המחדל נוצרו מחדש."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes אופס למצב ברירת המחדל. נמחקו <white>{count}<green> פורטלים, חיבורי הרשת נסגרו וקובצי התצורה של ברירת המחדל נוצרו מחדש."
+[language.editor.locale]
+open = "&8לחץ לפתוח את השפה.&r"
 
-[plural."wand.selection.selected"]
-one = "<aqua>נבחר {count} בלוק. לחצו שמאל על לוח הזכוכית כדי לפתוח את הפורטל."
-other = "<aqua>נבחרו {count} בלוקים. לחצו שמאל על לוח הזכוכית כדי לפתוח את הפורטל."
+[language.editor.message]
+current-value = "&7ערך נוכחי:&r"
+edit-chat = "&7לחיצה לעריכה בצ׳אט.&r"
+edit-lines = "&7לחיצה לעריכת שורות בודדות.&r"
+edit-plural = "&7לחיצה לעריכת צורת רבים.&r"
+variables = "&8{variables}&r"
 
-[plural."command.admin.projection_flushed"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>נוקה <white>{count}<green> צופה הקרנה; הלקוחות נבנים מחדש ממצב האמת."
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>נוקו <white>{count}<green> צופי הקרנה; הלקוחות נבנים מחדש ממצב האמת."
+[language.editor.navigation]
+back = "&eחזרה&r"
+close = "&cסגור&r"
+next-page = "&eדף הבא&r"
+previous-page = "&eהעמוד הקודם&r"
+
+[language.editor.part]
+line = "שורה {line}"
+
+[language.editor.prompt]
+current = "ערך נוכחי: {value}"
+guidance = "יש להשתמש ב־\\n לשורה חדשה וב־\\\\ ללוכסן הפוך, או להקליד cancel כדי לחזור."
+search = "יש לחפש מפתח הודעה או טקסט. לחזרה, יש להקליד cancel."
+value = "יש להקליד בצ׳אט ערך חדש עבור {key}."
+variables = "משתנים: {variables}"
+
+[language.editor.saved]
+change = "{key}: הערך ״{before}״ הוחלף ב־״{after}״."
+summary = "{locale} נשמרה. בחירות השפה לא השתנו."
+
+[language.editor.search]
+clear = "ניקוי החיפוש"
+messages = "חיפוש הודעות"
+messages-lore = "לחיצה לחיפוש בכל ההודעות."
+
+[language.editor.section]
+group-title = "{locale} / {group}"
+languages = "שפות"
+search = "חיפוש"
+search-title = "{locale} / חיפוש"
+
+[language.editor.value]
+empty = "(ריק)"
+none = "אין"
+
+[language.error]
+editor-player-only = "פתח את עורך השפה במשחק."
+no-providers = "אין ספקי שפה זמינים של Volmit."
+numeric-page = "יש להזין מספר עמוד."
+personal-permission = "אין לך רשות לבחור את השפה שלך."
+personal-player-only = "יש לבחור העדפות שפה של שחקן במשחק."
+plugin-personal-permission = "אין לך הרשאה לבחור שפה אישית עבור {plugin}."
+plugin-server-permission = "אין לך הרשאה לשנות את שפת השרת עבור {plugin}."
+server-locale-required = "יש לבחור קוד שפה כגון en_US כשפת ברירת המחדל של השרת."
+stopping = "בחירת שפה אינה זמינה בזמן שהתוסף מפסיק."
+unavailable-for-all = "השפה {locale} אינה זמינה לכל התוספים שנבחרו."
+
+[language.menu]
+all-volmit-plugins = "כל תוספי Volmit"
+command = "פקודה: {command}"
+current = "נוכחית: {locale}"
+current_with_personal = "נוכחית: {locale} (שלך: {personal})"
+edit_description = "פתח את עורך ההודעות לכל שפה."
+edit_messages = "עריכת הודעות השפה"
+no_controls = "אין לך גישה להגדרות שפה."
+remove_personal_description = "הסר את בחירת השפה האישית שלך."
+reset_description = "השתמש בשפת ברירת המחדל של השרת."
+reset_your_language = "איפוס השפה שלך"
+select_description = "לחץ כדי לבחור בשפה זו."
+selected = "נבחר"
+server_default = "ברירת המחדל של השרת"
+server_description = "שנה את שפת ברירת המחדל של השרת."
+use_server_default = "שימוש בברירת המחדל של השרת"
+your_description = "שנה רק את ההודעות שאתה רואה."
+your_language = "השפה שלך"
+
+[language.selection]
+english-fallback = "{plugin}: השפה {locale} אינה זמינה; נעשה שימוש באנגלית (en_US)."
+personal-selected = "{plugin}: השפה שלך עכשיו {locale}."
+preparing = "מכין את השפה {locale} עבור {target}..."
+save-failed = "{plugin}: לא ניתן לשמור את בחירת השפה; יש לבדוק את מסוף השרת."
+server-default-selected = "{plugin}: השפה שלך תואמת כעת לשפת ברירת המחדל של השרת."
+server-selected = "{plugin}: שפת השרת עכשיו {locale}."
+
+[language.usage]
+editor = "שימוש: /{command} language server edit [locale]"
+selection = "שימוש: /{command} language self [locale|reset] or server [locale]"
+volmit-selection = "שימוש: /volmit plugins languages [locale]"
+
+[command]
+public_help = ["&8[&6Wormholes&8] &7עזרה לפורטל: &f/wormholes info", "&8[&6Wormholes&8] &7השתמשו במטה הפורטל על פורטל כדי לפתוח את הגדרות היעד, התצוגה, המעבר והגישה שלו."]
+info = ["&8[&6Wormholes&8] &7&lכיצד לבנות חור תולעת&r", "&81. &7קבלו מטה פורטל ורונות פורטל מהשרת או ממנהל.", "&82. &7הניחו את הרונות בצורה מחוברת כלשהי על משטח שטוח אחד.", "&7   כל צורה מחוברת מתאימה: מלבנים, קווים (3x1), בלוק יחיד, צורת L וצלבים.", "&7   הרונות חייבות להיות שטוחות על קיר, רצפה או תקרה אחת המיושרים לציר.", "&83. &7החזיקו את מטה הפורטל ו&fלחצו שמאל על בלוק רונה כלשהו&7 כדי ליצור את הפורטל.", "&84. &7בנו פורטל שני במקום אחר (בכל מרחק ובכל עולם).", "&85. &7לחצו על הפורטל הפתוח עם המטה כדי לפתוח את התפריט הראשי.", "&7   בחרו &fיעד&7 ובחרו את הפורטל האחר. חזרו על הפעולה מהצד השני.", "&7   הגדרות הכיוון והגישה נמצאות בתפריטים פשוטים ונפרדים.", "&86. &7עמדו בטווח של {range} בלוקים מאחד הפורטלים; עולם היעד יוקרן דרך המסגרת וכניסה אליה תטלפרט אתכם.", "&7מנהלים יכולים ליצור פריטים בעזרת &f/wormholes wand"]
+
+[command.help]
+debug = "כלי האבחון של Wormholes"
+debug_dump = "יצירת דוח אבחון והעלאתו לפי בחירה"
+debug_dump_upload = "העלאת הדוח אל mclo.gs"
+language = "בחירת השפה שלך או שפת ברירת המחדל של השרת"
+root = "פקודת השורש של Wormholes"
+wand = "קבלת שרביט הפורטל ורונת חור תולעת אחת"
+"wand.rune" = "לכלול רונת חור תולעת (rune=false נותן רק את השרביט)"
+door = "קבלת פריט דלת ממדית למצב הישרדות"
+"door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
+reload = "טעינה מחדש של קובצי התצורה והשפה של Wormholes"
+debug_toggle = "הפעלה או כיבוי של רישומי מסוף מפורטים וטלמטריה בכל שנייה"
+stats = "הצגת הנתיב לקובץ תמונת המצב של הנתונים; ניתן לאלץ רענון עם now=true"
+"stats.now" = "יצירה מחדש של תמונת המצב באופן סינכרוני"
+info = "הצגת הוראות לבניית פורטל"
+admin = "פקודות תחזוקה הרסניות של Wormholes"
+"admin.delete_portals" = "מחיקת כל הפורטלים המקומיים וקישורי הפורטלים השמורים"
+"admin.delete_everything" = "איפוס הנתונים, התצורה, האמון, הזהות ומצב הרשת של Wormholes"
+"admin.freeze" = "מקפיא את כל הקרנות השער במקומן למשך מספר שניות (seconds=0 מחדש)"
+"admin.freeze.seconds" = "כמה זמן להחזיק את התמונה הקפואה (5-300, 0 מחדש מיד)"
+"admin.flush" = "מחזיר את הבלוקים המוקרנים של כל צופה למצב האמת ובונה אותם מחדש"
+network = "רשת חור תולעת בין שרתים"
+"network.import" = "ייבוא קוד פורטל משרת אחר (שומר נתיב פנימי; הקישור נעשה דרך תפריט הקישור של שער)"
+"network.import.code" = "קוד פורטל מכפתור הייצוא בשרת האחר"
+"network.status" = "הצגת מצב החיבור לשרתי עמית"
+"network.doctor" = "הסבר מדוע שרתי עמית ברשת אינם מתחברים"
+server = "מעבר בין שרתים: התחברות לשרתים מקושרים, הצגתם והחלפת קודים ביניהם"
+"server.connect" = "מעבר לשרת מקושר (קיצור: /wh server \\<name>)"
+"server.connect.name" = "שם השרת המקושר (ראו /wh server list)"
+"server.export" = "ייצוא השרת הזה כקוד ששרתים אחרים יכולים לייבא"
+"server.import" = "ייבוא קוד שרת או קוד פורטל שיוצא משרת אחר"
+"server.import.code" = "הקוד מהייצוא של השרת האחר"
+"server.list" = "הצגת השרתים המקושרים ומצב החיבור שלהם"
+"server.remove" = "שכחת שרת מקושר (מחיקת המסלול והמפתח המהימן שלו)"
+"server.remove.name" = "שם השרת המקושר שיש לשכוח"
+pocket = "בדיקה ועיצוב מחדש של ממדי כיס"
+"pocket.info" = "הצגת הגודל, החומרים והגבולות של הכיס שאתה עומד בו"
+"pocket.resize" = "בנייה מחדש של הכיס שאתה עומד בו בגודל או בחומר אחר"
+"pocket.resize.size" = "אורך צלע החדר החדש בבלוקים, או 0 כדי לשמור על הגודל הנוכחי"
+"pocket.resize.material" = "בלוק חדש לקירות, לרצפה ולתקרה, או keep"
+"pocket.resize.door" = "בלוק חדש לדלת היציאה, או keep"
+"pocket.resize.confirm" = "נדרש כאשר השינוי היה הורס או מזיז משהו"
+"pocket.resizeall" = "בנייה מחדש של כל הכיסים הקיימים בגודל או בחומר אחר"
+
+[command.error]
+no_permission = "&8[&6Wormholes&8] &cאין לכם הרשאה."
+no_permission_use = "&8[&6Wormholes&8] &cאין לכם הרשאה להשתמש בפקודה הזאת."
+only_players = "&8[&6Wormholes&8] &cרק שחקנים יכולים לקבל פריטים."
+usage = "&7שימוש: &f/wormholes help"
+
+[command.wand]
+granted_wand = "&8[&6Wormholes&8] &aשרביט הפורטל ניתן."
+granted_starter = ["&8[&6Wormholes&8] &aהוענקו מטה פורטל ו-1 רונת חור תולעת.", "&8[&6Wormholes&8] &7בנו שתי צורות של רונות חור תולעת (כל צורה מחוברת על משטח שטוח אחד), קשרו ביניהן ועמדו בטווח של {range} בלוקים כדי לראות את ההקרנה.", "&8[&6Wormholes&8] &7הריצו &f/wormholes info&7 לקבלת הוראות מלאות שלב אחר שלב."]
+
+[command.door]
+unavailable = "&8[&6Wormholes&8] &cדלתות ממדיות אינן זמינות."
+unknown_type = "&8[&6Wormholes&8] &cסוג דלת לא מוכר. יש להשתמש בערך pair, personal או public, pair_trapdoor, personal_trapdoor, public_trapdoor."
+empty_type = "סוג הדלת לא יכול להיות ריק"
+granted = "&8[&6Wormholes&8] &aהוענק פריט דלת ממדית מסוג &f{type}&a."
+
+[command.reload]
+applied = "&8[&6Wormholes&8] &aקובצי התצורה והשפה של Wormholes נטענו מחדש."
+language_retained = "&8[&6Wormholes&8] &eהתצורה נטענה מחדש, אך קובץ השפה נדחה. השפה התקינה האחרונה נשארה פעילה; בדקו את המסוף."
+failed = "&8[&6Wormholes&8] &cטעינת התצורה מחדש נכשלה; העריכה נשארת ממתינה ותנוסה שוב. בדקו את המסוף."
+
+[command.stats]
+unavailable = "&8[&6Wormholes&8] &cכותב תמונת המצב של הנתונים אינו זמין."
+refreshed = "&8[&6Wormholes&8] &aתמונת המצב רועננה."
+path = ["&8[&6Wormholes&8] &7קובץ תמונת מצב: &f{path}", "&8[&6Wormholes&8] &8עקבו אחר סוף הקובץ כדי לשתף מצב רשת ותצוגה בזמן אמת. הקובץ נכתב מחדש בכל מרווח זמן."]
+
+[command.admin]
+delete_failed = "&8[&6Wormholes&8] &cלא ניתן למחוק את כל הפורטלים. בדקו את המסוף לקבלת מעקב המחסנית המלא."
+delete_schedule_failed = "&8[&6Wormholes&8] &cלא ניתן לתזמן את איפוס הפורטלים."
+reset_failed = "&8[&6Wormholes&8] &cאיפוס Wormholes נכשל. בדקו את המסוף לקבלת מעקב המחסנית המלא."
+reset_schedule_failed = "&8[&6Wormholes&8] &cלא ניתן לתזמן את איפוס Wormholes."
+projection_frozen = "&8[&6Wormholes&8] &aכל הקרנות השער הוקפאו למשך &f{seconds}&a שניות. הן יתחדשו אוטומטית."
+projection_resumed = "&8[&6Wormholes&8] &aהקרנות השער חודשו."
+projection_failed = "&8[&6Wormholes&8] &cעדכון הקרנות השער נכשל. בדוק את המסוף לקבלת עקבת הקריסה המלאה."
+projection_schedule_failed = "&8[&6Wormholes&8] &cלא ניתן לתזמן את עדכון ההקרנה."
+
+[command.admin.deleted_portals]
+one = "&8[&6Wormholes&8] &aנמחק &f{count}&a פורטל וקישורי הפורטלים המקומיים נוקו."
+other = "&8[&6Wormholes&8] &aנמחקו &f{count}&a פורטלים וקישורי הפורטלים המקומיים נוקו."
+
+[command.admin.reset_everything]
+one = "&8[&6Wormholes&8] &aWormholes אופס למצב ברירת המחדל. נמחק &f{count}&a פורטל, חיבורי הרשת נסגרו וקובצי התצורה של ברירת המחדל נוצרו מחדש."
+other = "&8[&6Wormholes&8] &aWormholes אופס למצב ברירת המחדל. נמחקו &f{count}&a פורטלים, חיבורי הרשת נסגרו וקובצי התצורה של ברירת המחדל נוצרו מחדש."
+
+[command.admin.projection_flushed]
+one = "&8[&6Wormholes&8] &aנוקה &f{count}&a צופה הקרנה; הלקוחות נבנים מחדש ממצב האמת."
+other = "&8[&6Wormholes&8] &aנוקו &f{count}&a צופי הקרנה; הלקוחות נבנים מחדש ממצב האמת."
+
+[command.pocket]
+not_inside = "&8[&6Wormholes&8] &cעמוד בתוך ממד כיס כדי להריץ את זה."
+invalid_size = "&8[&6Wormholes&8] &cגודל הכיס חייב להיות בין {minimum} ל-{maximum} בלוקים."
+invalid_shell_material = "&8[&6Wormholes&8] &c{material} אינו מתאים לקיר כיס. השתמש בבלוק מוצק שאינו נופל."
+invalid_door_material = "&8[&6Wormholes&8] &c{material} אינו מתאים לדלת יציאה. השתמש בדלת שנפתחת ביד; דלתות ברזל נדחות."
+unchanged = "&8[&6Wormholes&8] &eלכיס הזה כבר יש הגודל והחומרים האלה."
+containers_not_empty = "&8[&6Wormholes&8] &cשינוי גודל הכיס נעצר: &f{containers}&c מכלים שאינם ריקים היו נהרסים. יש לרוקן אותם לפני ניסיון נוסף; &fconfirm=true&c אינו יכול לעקוף בדיקת בטיחות זו."
+resized = "&8[&6Wormholes&8] &aהכיס נבנה מחדש ל-&f{size}&a בלוקים (קודם &f{previous}&a), קירות &f{material}&a, דלת יציאה &f{door}."
+failed = "&8[&6Wormholes&8] &cלא ניתן היה לבנות מחדש את הכיס. בדוק את הקונסולה."
+world_unavailable = "&8[&6Wormholes&8] &cממד הכיס אינו טעון."
+does_not_fit = "&8[&6Wormholes&8] &cחדר בגודל {size} בלוקים אינו נכנס לגובה הבנייה של ממד הכיס."
+bulk_started = "&8[&6Wormholes&8] &7בונה מחדש &f{count}&7 כיסים."
+bulk_finished = "&8[&6Wormholes&8] &aנבנו מחדש &f{resized}&a, דולגו &f{skipped}&a, נכשלו &f{failed}."
+info = ["&8[&6Wormholes&8] &7כיס &f{space}", "&8[&6Wormholes&8] &7גודל &f{size}&7 בלוקים, קירות &f{material}&7, דלת יציאה &f{door}", "&8[&6Wormholes&8] &7גבולות &f{minimum}&7 עד &f{maximum}"]
+confirm_required = ["&8[&6Wormholes&8] &cבנייה מחדש ל-{size} בלוקים תהרוס &f{blocks}&c בלוקים שהונחו ותזיז &f{entities}&c ישויות.", "&8[&6Wormholes&8] &7בלוקים מחוץ לקירות החדשים נהרסים; ישויות שמוזזות מועברות לכניסה.", "&8[&6Wormholes&8] &7הרץ את אותה הפקודה עם &fconfirm=true&7 כדי להמשיך."]
+
+[portal]
+deleted = "&c{portal} נמחק"
+
+[portal.travel]
+cost_insufficient = "&cנדרש {quantity}x {item} כדי להשתמש בפורטל הזה."
+cost_vault_insufficient = "&cנדרש {amount} כדי להשתמש בפורטל הזה."
+cost_vault_unavailable = "&cעלות הכלכלה של הפורטל הזה אינה זמינה."
+cost_transaction_failed = "&cהפורטל לא הצליח לעבד את עלות המעבר שלכם."
+transfer_holding = "&6מתחבר לשרת היעד..."
+transfer_interrupted = "&cהעברת השער הופסקה: התרחקת מהשער."
+transfer_source_unavailable = "&cהעברת השער הופסקה: שער המקור אינו זמין עוד."
+cooldown = "&6הפורטל בזמן המתנה"
+access_denied = "&cהגישה לפורטל נדחתה"
+destination_unavailable = "&cיעד השער אינו זמין"
+arrival_denied = "&cשער היעד סירב להגעתך."
+arrival_returned = "&cשער היעד סירב להגעתך; מחזירים אותך אל {server}"
+arrival_failed = "&cלא ניתן למקם את נקודת ההגעה; נשארתם בנקודת ההופעה של היעד"
+transfer_cooldown = "&6הפורטל הבין-שרתי בזמן המתנה: {seconds}s"
+destination_unreachable = "&cשרת יעד בלתי נגיש"
+destination_unreachable_detail = "&cשרת יעד בלתי נגיש: {reason}"
+transfer_blocked = "&cהמעבר דרך הפורטל נחסם: {reason}"
+transfer_blocked_retry = "&cהמעבר דרך הפורטל נחסם: {reason} (ניסיון חוזר בעוד {seconds}s)"
+
+[portal.prompt]
+cost_item = "&bהחזיקו את פריט העלות המדויק ביד הראשית ולחצו על מקש ההשלכה. הפריט לא יעזוב את המלאי שלכם."
+cost_vault = "&bהזינו את סכום המטבע של Vault לכל מעבר (או '{cancel}'):"
+invite = "&bהדביקו את הזמנת הפורטל בצ'אט (או '{cancel}'):"
+block_state = "&bהזינו מצב בלוק לשולי חלון התצוגה ברשת של הפורטל, או '{cancel}':"
+name = "&bהזינו בצ'אט את השם החדש של הפורטל (או '{cancel}'):"
+direction = ["&8[&6Wormholes&8] &7הביטו לכיוון ולחצו שמאל כדי להחיל.", "&8[&6Wormholes&8] &7Shift + לחיצה שמאלית לביטול."]
+
+[portal.notice]
+cost_item_set = "המעבר דורש כעת {item}."
+cost_item_invalid = "לא ניתן לשמור את הפריט הזה כעלות מעבר."
+cost_cleared = "עלות המעבר נוקתה."
+cost_quantity_changed = "כמות עלות המעבר: {quantity}"
+cost_vault_changed = "עלות מעבר Vault: {amount}"
+cost_vault_invalid = "הזינו סכום מטבע חיובי שאינו גדול מ-{maximum}."
+cost_vault_unavailable = "Vault וספק כלכלה חייבים להיות זמינים לפני בחירת העלות הזו."
+dimensional_link_managed = "הפורטל הממדי שומר על הקישור שנוצר עבורו."
+not_rtp = "הפורטל כבר אינו במצב טלפורט אקראי."
+region_unavailable = "אזור הפורטל אינו זמין; נסה שוב."
+travel_managed = "המעבר דרך פורטל ממדי מנוהל אוטומטית."
+travel_mirror_locked = "מצב המראה אף פעם לא מאפשר נסיעה."
+travel_changed = "מעבר {mode}"
+stream_quality_changed = "איכות הזרם: {quality}"
+network_value_changed = "{label} {value}"
+fallback_set = "בלוק הגיבוי הוגדר ל-{block}"
+fallback_reset = "בלוק הגיבוי אופס ל-{block}"
+managed_mode = "פורטלים ממדיים מנוהלים נשארים במצב פורטל."
+projection_receiver_inactive = "נקודת ההגעה ב-End תישאר ללא תצוגה."
+projection_changed = "הקרנות: {mode}"
+settings_sync_changed = "סינכרון הגדרות {state}"
+access_changed = "גישה {mode}"
+mirror_select_first = "בחרו במצב מראה לפני סיבוב התמונה."
+mirror_rotation_changed = "סיבוב המראה: {degrees} מעלות"
+rtp_cannot_link = "פורטלים של טלפורט אקראי אינם מתקשרים ליעדים."
+
+[portal.label]
+activation_global = "גלובלי ({range})"
+public_look_label = "תווית ציבורית בעת מבט"
+
+[portal.label.cost]
+free = "חינם"
+vanilla = "פריט וניל"
+vault = "כלכלת Vault"
+
+[portal.label.ambient]
+red = "אדום"
+green = "ירוק"
+blue = "כחול"
+
+[portal.label.ambient_style]
+sparks = "ניצוצות"
+outline = "מתאר"
+corners = "פינות"
+off = "כבוי"
+
+[portal.label.skin]
+none = "ללא"
+
+[portal.label.travel]
+both = "לשני הכיוונים"
+outbound = "יציאה בלבד"
+inbound = "כניסה בלבד"
+locked = "נעול"
+arrival = "הגעה בלבד"
+departure = "יציאה בלבד"
+dimensional_both = "שני החצאים המקושרים נשארים פעילים."
+dimensional_return_disabled = "נתיב החזרה נשאר מושבת."
+
+[portal.label.quality]
+standard = "רגיל"
+performance = "ביצועים"
+balanced = "מאוזן"
+cinematic = "קולנועי"
+custom = "מותאם אישית"
+
+[portal.label.mode]
+portal = "פורטל"
+wormhole = "חור תולעת"
+gateway = "שער"
+rtp = "RTP"
+mirror = "מראה"
+
+[portal.label.direction]
+up = "למעלה"
+down = "למטה"
+north = "צפון"
+south = "דרום"
+east = "מזרח"
+west = "מערב"
+
+[portal.label.allocation]
+shared = "משותף"
+per_player = "לכל שחקן"
+
+[portal.label.permission]
+whitelist = "רשימת מורשים"
+blacklist = "רשימת חסומים"
+
+[portal.label.network]
+direct = "ישיר"
+sideband = "ערוץ צדדי"
+reconnecting = "מתחבר מחדש"
+
+[portal.network.label]
+render_mode = "מצב עיבוד"
+ambient_style = "חלקיקי סביבה"
+ambient_color = "צבע סביבה"
+surface_skin = "מעטה משטח"
+capture_radius = "רדיוס לכידה"
+full_refresh = "רענון מלא"
+entity_update = "עדכון ישויות"
+view_grace = "זמן חסד לתצוגה"
+blackout = "רקע אטום"
+blackout_color = "צבע אטום"
+activation_range = "טווח הפעלה"
+
+[portal.network.description]
+capture_radius = "בלוקים זורמים סביב פורטל היעד."
+full_refresh = "מספר הטיקים בין רענונים מלאים של הבלוקים."
+entity_update = "מספר הטיקים בין עדכוני ישויות."
+view_grace = "מספר השניות שבהן הזרם נשאר פעיל לאחר שמסיטים את המבט."
+
+[portal.form]
+rtp_unsupported = "&cלא ניתן ליצור פורטל טלפורט אקראי מרונות."
+forming = "&bהפורטל נוצר... רונות {type} חייבות להתחבר על אותו קיר, רצפה או תקרה שטוחים."
+must_be_flat = "&cפורטל חייב להיות שטוח על קיר אחד, רצפה או תקרה אחת."
+interrupted = "&cיצירת הפורטל הופסקה; הרונות שנשמרו הוחזרו."
+rune_placed = "&bהרונה הונחה. צרו צורה מחוברת על משטח שטוח אחד, ואז לחצו שמאל על רונה כלשהי עם מטה הפורטל."
+opened = "&aהפורטל נפתח. החזיקו את המטה ולחצו על הפורטל כדי להגדיר אותו."
+
+[portal.edit]
+denied = "&cרק בעל הפורטל או מנהל יכולים לערוך את הפורטל."
+
+[portal.menu]
+destination = ["&6&lיעד&r", "&7בחרו פורטל לקישור.", "&7מקושר כעת אל: {destination}", "", "&8לחצו כדי לפתוח את בורר היעדים."]
+"destination.sort_smart" = "חכם"
+"destination.sort_name" = "שם"
+"destination.sort_world" = "עולם"
+"destination.sort_distance" = "מרחק"
+"destination.local" = ["&6{portal}", "&7ב-{x}, {y}, {z} בעולם {world}; חזית {direction}"]
+"destination.remote" = ["&6{portal}", "&7בשרת &f{server}", "&7ב-{x}, {y}, {z} בעולם {world}; חזית {direction}", "&b{state}"]
+"destination.sort" = ["&e&lמיון: &f&l{mode}&r", "&7שינוי סדר היעדים.", "&eלחיצה שמאלית"]
+"destination.previous_page" = ["&e&lדף קודם&r", "&7הצגת היעדים הקודמים.", "&eלחיצה שמאלית"]
+"destination.next_page" = ["&e&lדף הבא&r", "&7הצגת היעדים הבאים.", "&eלחיצה שמאלית"]
+"destination.page" = ["&b&lדף {page}/{pages}&r", "&7{count} יעדים"]
+"destination.empty" = ["&7אין יעדים זמינים לקישור."]
+render_mode = ["&b&lמצב עיבוד &f&l{mode}&r", "&7כמה מנפח היעד השער הזה מקרין.", "", "&7מצב: &f{mode}", "", "&8PanOptic מעבד את כל נפח היעד.", "&8Venticular מסתיר גאומטריה מאחורי משטחים אטומים גלויים.", "", "&8שמאל: החלף מצב."]
+ambient_particles = ["&b&lחלקיקי סביבה&r", "&7אבק דקורטיבי שמרחף סביב השער הזה.", "", "&7סגנון: &f{style} &8({color})", "", "&8שמאלי: החלף סגנון.", "&8ימני: בחר צבע."]
+surface_skin = ["&b&lמעטה משטח&r", "&7כסה את פתח השער בלוח בלוק או נוזל מרונדר.", "", "&7מעטה: &f{skin}", "", "&8שמאלי: הסר את המעטה.", "&8ימני: פתח אפשרויות מעטה."]
+"surface_skin.placard" = ["&6&lמעטה משטח&r", "&7לחץ ימני על השער עם בלוק או דלי כדי להחיל מעטה.", "", "&7מעטה: &f{skin}"]
+"surface_skin.glass" = ["&b&lמעטה זכוכית&r", "&7חלון זכוכית שקוף מעל הפתח.", "", "&8לחץ כדי להחיל זכוכית."]
+"surface_skin.clear" = ["&c&lהסר מעטה&r", "&7מסיר את המעטה ומשחזר את ההקרנות.", "", "&8לחץ כדי להסיר את המעטה."]
+gateway_destination = ["&6&lצימוד & יעד&r", "&7צמדו שרת אחר או בחרו שער.", "&7מקושר כעת אל: {destination}", "", "&8לחצו כדי לפתוח את מרכז הצימוד."]
+rtp_destination = ["&6&lיעד אקראי&r", "&7הגדירו היכן ומתי הפורטל יבחר יעד מחדש.", "&7סבב: &b{rotation}", "", "&8לחצו כדי לפתוח את הגדרות הטלפורט האקראי."]
+rename = ["&a&lשינוי שם הפורטל&r", "&7שנו את השם שמוצג בקישורים ובתפריטים.", "&7נוכחי: &f{portal}", "", "&8לחצו כדי להקליד שם חדש."]
+delete = ["&c&lמחיקת פורטל&r", "&7מוחק את הפורטל לצמיתות.", "", "&c&nShift + לחיצה שמאלית לאישור&r"]
+advanced_settings = ["&3&lכוונון זרם מתקדם&r", "&7בקרה ישירה לאבחון ולקישורים מיוחדים.", "&7שינוי ערך מסמן את איכות הזרם כמותאמת אישית."]
+back_settings = ["&e&lחזרה להגדרות&r", "&7חזרה להגדרות הפורטל."]
+stream_quality = ["&b&lאיכות הזרם: {quality}&r", "&7בקרה אחת לטווח חלון התצוגה המרוחק ולקצב העדכון.", "", "&7עומק &b{depth}&7  ישויות &b{entities}t", "&7רענון &b{refresh}t&7  זמן חסד &b{grace}s", "", "&8לחיצה: החלפת איכות.", "&8Shift + לחיצה: כוונון מתקדם."]
+orientation = ["&9&lכיוון&r", "&7חזית: &9{facing}", "&7החלק העליון במסך: &6{up}", "", "&8לחצו להגדרת חזית, היפוך וסיבוב."]
+orientation_placard = ["&9&lכיוון הפורטל&r", "&7חזית: &9{facing}", "&7החלק העליון במסך: &6{up}"]
+network_number = ["&b&l{label} &f&l{value}&r", "&7{description}", "", "&7נוכחי: &b{value}", "", "&8לחיצה שמאלית: +{step}", "&8לחיצה ימנית: -{step}", "&8Shift + לחיצה שמאלית: +{large_step}", "&8Shift + לחיצה ימנית: -{large_step}"]
+fallback_block = ["&b&lבלוק גיבוי&r", "&7הבלוק שמוצג מעבר לעומק הזרם.", "", "&7נוכחי: &f{block}", "", "&8שמאל: הזנת מצב בלוק.", "&8ימין: איפוס לאוויר."]
+blackout = ["&b&lרקע אטום&r", "&7אוטם את הגבול הרחוק ואת גבולות הצד של ההיטל בבטון מלא כך שהעולם המקומי לעולם לא ייראה מבעד.", "", "&7נוכחי: &f{state} &8({color})", "", "&8שמאל: החלפת מופעל/מושבת.", "&8ימין: בחירת צבע."]
+activation_range = ["&b&lטווח הפעלה &f&l{value}&r", "&7המרחק בבלוקים שבו פורטל זה מתחיל להקרין עבור שחקנים בקרבת מקום.", "", "&7נוכחי: &b{value}", "", "&8לחיצה שמאלית: +{step}", "&8לחיצה ימנית: -{step}", "&8Shift + לחיצה שמאלית: +{large_step}", "&8Shift + לחיצה ימנית: -{large_step}", "&8מתחת ל-8 מתאפס לגלובלי."]
+settings_placard_gateway = ["&b&lהגדרות פורטל&r", "&7בקרת גישה והעברות.", "&7בנוסף, כוונון תצוגה בין שרתים.", "", "&7עומק גדול יותר / מרווחי טיקים קצרים יותר =", "&7תצוגה מפורטת יותר, רוחב פס גדול יותר."]
+mode_placard = ["&e&lמצב פורטל&r", "&7נוכחי: &e{mode}", "", "&7פורטל: פורטל מקושר בסיסי.", "&7חור תולעת: פורטל עם חלון תצוגה.", "&7שער: שער בין שרתים.", "&7RTP: יעדים אקראיים הניתנים להגדרה.", "&7מראה: משקפת את הצד הזה ללא מעבר."]
+mode_opener = ["&e&lמצב&r", "&7{description}", "", "&7כרגע: &e{mode}", "", "&8לחץ כדי לשנות מצב."]
+direction = ["&9&lכיוון&r", "&7שינוי כיוון החזית של הפורטל.", "", "&7כיוון נוכחי: &9{direction}", "", "&8לחצו, הביטו לכיוון ולחצו שמאל כדי להחיל."]
+flip_face = ["&b&lהיפוך החזית&r", "&7היפוך כיוון החזית של הפורטל.", "&7סיבוב המסך נשאר מיושר.", "", "&7החלק העליון במסך כעת: &b{up}", "", "&8לחצו כדי להפוך."]
+rotate_counterclockwise = ["&6&lסיבוב נגד כיוון השעון&r", "&7סיבוב חלון התצוגה של הפורטל ב-90 מעלות", "&7בלי לשנות את החזית.", "", "&7החלק העליון במסך כעת: &6{up}", "", "&8לחצו כדי לסובב."]
+rotate_clockwise = ["&6&lסיבוב בכיוון השעון&r", "&7סיבוב חלון התצוגה של הפורטל ב-90 מעלות", "&7בלי לשנות את החזית.", "", "&7החלק העליון במסך כעת: &6{up}", "", "&8לחצו כדי לסובב."]
+back = ["&e&lאחורה&r", "&7חזרה לתפריט הפורטל."]
+settings_gateway = ["&b&lהגדרות&r", "&7הרשאות, העברות", "&7וכוונון תצוגה בין שרתים.", "", "&7גישה: &6{access}", "&7שליחה &b{send}&7  קבלה &b{receive}", "&7עומק &b{depth}&7  ישויות &b{entity}t", "", "&8לחצו כדי לפתוח את ההגדרות."]
+settings_sync = ["&b&lסנכרון הגדרות {state}&r", "&7כאשר מופעל, הגדרות הפורטל הזה", "&7(עומק, טיקים, הקרנה, הרשאות,", "&7העברות) מסתנכרנות עם כל העמיתים המקושרים.", "", "&7נוכחי: &b{state}", "", "&8לחצו כדי להפעיל או להשבית."]
+permission = ["&6&lגישה {mode}&r", "&7{description}", "&7הרשאה: &f{node}", "", "&7נוכחי: &6{mode}", "", "&8לחצו כדי לעבור בין רשימת מורשים / חסומים.", "&8מנהלים תמיד עוקפים הגבלה זו."]
+public_look_label = ["&b&lתווית ציבורית בעת מבט: &f&l{state}&r", "&7הצגת שם השער כאשר שחקנים סמוכים מביטים בו.", "&7כאשר כבוי, תווית הנתיב מוצגת רק בעת שימוש בכלי השערים.", "", "&eלחיצה שמאלית להחלפה"]
+
+[portal.menu.gateway]
+server = "&7שרת: &f{server}"
+link = "&7קישור: &b{state}"
+choose = ["&6&lבחירת יעד&r", "&7בחרו מבין שערים מקומיים ומרוחקים שהתגלו.", "", "&8לחצו כדי לפתוח את רשימת היעדים."]
+unpaired = ["&6&lצימוד שערים&r", "&7מצב: &cלא מצומד"]
+paired = ["&6&lצימוד שערים&r", "&7יעד: &6{destination}"]
+export = ["&6&lיצירת הזמנה&r", "&7צרו קוד שער חתום עבור שרת אחר.", "", "&8לחצו כדי להעתיק קוד חדש."]
+import = ["&b&lשימוש בהזמנה&r", "&7הדביקו קוד חתום משער אחר.", "", "&8לחצו ואז הדביקו את הקוד בצ'אט."]
+
+[portal.menu.mirror]
+rotation = "&7סיבוב התמונה: &b{degrees} מעלות"
+rotate_clockwise = "&8לחיצה ימנית: סיבוב בכיוון השעון."
+rotate_counterclockwise = "&8Shift + לחיצה ימנית: סיבוב נגד כיוון השעון."
+selected = ["&e&lמראה&r", "&7משקפת את העולם המקומי בחזרה לצד הזה.", "&7ניתן לראות את עצמכם דרך המסגרת.", "&7אין מעבר במצב מראה.", "", "&aנבחר"]
+available = ["&e&lמראה&r", "&7משקפת את העולם המקומי בחזרה לצד הזה.", "&7ניתן לראות את עצמכם דרך המסגרת.", "&7אין מעבר במצב מראה.", "", "&7לחיצה שמאלית לבחירה"]
+flip = ["&7מראות קיר מתהפכות במרווחים של 180 מעלות", "&7כדי שהישויות המשתקפות יישארו מיושרות.", "&8לחיצה ימנית: היפוך התמונה המשתקפת."]
+
+[portal.menu.cost]
+opener = ["&6&lעלות מעבר&r", "&7דרשו פריט מדויק או מטבע Vault", "&7כאשר שחקן משתמש בפורטל הזה.", "", "&7מצב: &f{mode}", "&7עלות: &f{cost}", "", "&8לחצו כדי להגדיר."]
+placard = ["&6&lעלות מעבר&r", "&7שחקנים חייבים לשלם לפני שהפורטל", "&7יאפשר להם לעבור.", "", "&7מצב: &f{mode}", "&7עלות: &f{cost}"]
+mode_free = ["&a&lחינם&r", "&7לא נדרש תשלום.", "", "&8לחצו כדי להפוך את המעבר לחינמי."]
+mode_vanilla = ["&b&lפריט וניל&r", "&7צורך פריט תואם במדויק.", "", "&8לחצו, החזיקו את הפריט ואז לחצו על מקש ההשלכה."]
+mode_vault = ["&a&lכלכלת Vault&r", "&7מושך מטבע דרך Vault.", "", "&8לחצו כדי להזין סכום."]
+mode_vault_unavailable = ["&c&lכלכלת Vault אינה זמינה&r", "&7נדרשים Vault וספק כלכלה.", "", "&8התקינו או הפעילו את שניהם כדי להשתמש במצב הזה."]
+free_detail = ["&a&lללא עלות&r", "&7המעבר דרך הפורטל הזה חינמי."]
+secondary_empty = ["&8&lאין הגדרה נוספת&r"]
+item = ["&b&l{item}&r", "&7בדיוק הפריט הזה נדרש למעבר.", "&7פריט הבחירה לעולם אינו נצרך.", "", "&8שמאל: בחירת פריט מוחזק אחר.", "&8ימין: ניקוי העלות."]
+quantity = ["&b&lכמות {quantity}&r", "&7כמה פריטים תואמים במדויק", "&7נצרכים בכל מעבר.", "", "&8לחיצה שמאלית: +1", "&8לחיצה ימנית: -1", "&8Shift + לחיצה שמאלית: +8", "&8Shift + לחיצה ימנית: -8", "&8מקסימום: {maximum}"]
+vault_amount = ["&a&l{amount}&r", "&7מטבע שנמשך בכל מעבר.", "", "&8שמאל: הזנת סכום אחר.", "&8ימין: ניקוי העלות."]
+
+[portal.menu.ambient_color]
+placard = ["&6&lצבע סביבה&r", "&7צבע חלקיקי האבק הסביבתיים.", "", "&7נוכחי: &f{color}"]
+channel = ["&b&l{label} &f&l{value}&r", "", "&8לחיצה שמאלית: +{step}", "&8לחיצה ימנית: -{step}", "&8Shift + לחיצה שמאלית: +{large_step}", "&8Shift + לחיצה ימנית: -{large_step}"]
+option = ["&b&l{color}&r", "", "&8לחץ כדי לבחור."]
+
+[portal.menu.travel]
+managed = ["&6&lמעבר: {direction}&r", "&7כיוון המעבר בפורטל הממדי מנוהל אוטומטית.", "&7{detail}"]
+mirror = ["&c&lמעבר: נעול במצב מראה&r", "&7מצב מראה מיועד לתצוגה בלבד.", "&7ישויות אינן יכולות להיכנס או לצאת דרכו."]
+standard = ["&b&lמעבר: {mode}&r", "&7שליטה במעבר דרך הפורטל.", "", "&7יוצא: &b{outgoing}&7  נכנס: &b{incoming}", "", "&8לחצו כדי לעבור בין כיווני המעבר."]
+
+[portal.menu.blackout_color]
+placard = ["&6&lצבע אטום&r", "&7צבע הבטון המשמש למעטפת ההחשכה.", "", "&7נוכחי: &f{color}"]
+option = ["&b&l{color}&r", "", "&8לחץ כדי לבחור."]
+
+[portal.menu.placard]
+rtp = ["&6&l{portal}&r", "&7סוג: &e{type}", "&7חזית: &9{facing}", "&7הקצאה: &b{allocation}", "&7החלפה: &b{rotation}", "", "&8מנהלים עוקפים את רשימות המורשים והחסומים."]
+linked = ["&6&l{portal}&r", "&7סוג: &e{type}", "&7חזית: &9{facing}", "&7מקושר אל: &6{destination}", "", "&8מנהלים עוקפים את רשימות המורשים והחסומים."]
+unlinked = ["&6&l{portal}&r", "&7סוג: &e{type}", "&7חזית: &9{facing}", "&7מקושר אל: &c{none}", "", "&8מנהלים עוקפים את רשימות המורשים והחסומים."]
+
+[portal.menu.projection]
+on = ["&6&lהקרנה פועלת&r", "&7מציג את התצוגה החיה של הפורטל.", "&7תמונת היעד או המראה גלויה.", "", "&7נוכחי: &bהקרנה פועלת&r", "", "&8לחצו כדי להפעיל / להשבית."]
+off = ["&8&lהקרנה מושבתת&r", "&7המסגרת נשארת ריקה.", "&7אין תצוגת יעד ואין מראה.", "", "&7נוכחי: &bהקרנה מושבתת&r", "", "&8לחצו כדי להפעיל / להשבית."]
+
+[portal.menu.mode_option]
+selected = ["&e&l{mode}&r", "&7{description}", "", "&aנבחר כעת"]
+available = ["&e&l{mode}&r", "&7{description}", "", "&7לחץ על כדי לבחור"]
+
+[portal.input]
+cancel = "ביטול"
+
+[portal.rtp]
+editor_title = "RTP: {portal}"
+
+[portal.rtp.notice]
+setting_rejected = "לא ניתן להחיל את ההגדרה: {reason}"
+applied = "הגדרות היעד האקראי הוחלו."
+reset_defaults = "הגדרות השיגור האקראי אופסו לברירת המחדל."
+editor_refreshed = "ההגדרות השתנו; העורך רוענן."
+runtime_unavailable = "מערכת הטלפורט האקראי אינה זמינה."
+reroll_failed = "הבחירה מחדש הידנית נכשלה; עיינו ביומן השרת."
+reroll_preparing = "מכין יעד אקראי חדש."
+reroll_unavailable = "בחירה מחדש אינה זמינה בזמן שהנתיב בהכנה או בשימוש."
+pool_rebuilding = "מאגר היעדים הפרטי נבנה מחדש."
+pool_failed = "הבנייה מחדש של מאגר היעדים נכשלה; בדקו את יומן השרת."
+not_ready = "&eהשער עדיין מייצב את היעד שלו."
+traversal_failed = "&cהשער לא הצליח להתייצב; נסה שוב."
+
+[portal.rtp.rotation]
+private = "פרטי לכל שחקן למשך {duration}"
+
+[portal.mode]
+changed = "&aהמצב של {portal} הוגדר ל-{mode}."
+
+[portal.mode.description]
+portal = "פורטל מקושר בסיסי."
+wormhole = "פורטל ניתן לקישור עם הקרנת חלון תצוגה."
+gateway = "מיועד לקישור בין רשתות."
+rtp = "פורטל טלפורט אקראי מקומי."
+mirror = "משקף את העולם המקומי בחזרה עם נסיעות נעולות."
+
+[portal.permission.description]
+whitelist = "שחקנים זקוקים להרשאה הזו כדי להשתמש בפורטל."
+blacklist = "שחקנים בעלי ההרשאה הזו חסומים."
+
+[portal.direction]
+cancelled = "&8[&6Wormholes&8] &7בוטל"
+set = "&8[&6Wormholes&8] &7הכיוון נקבע"
+
+[portal.setting]
+notification = "&a{portal}: &r{message}"
+
+[portal.link]
+linked = "&a{portal} קושר אל {destination}."
+linked_remote = "&a{portal} קושר אל {destination} בשרת {server}."
+unlinked = "&eהקישור בין {portal} ל-{destination} הוסר."
+
+[portal.orientation]
+face_flipped = "&aחזית {portal} נהפכה לכיוון {direction}."
+rotated_counterclockwise = "&a{portal} סובב נגד כיוון השעון."
+rotated_clockwise = "&a{portal} סובב בכיוון השעון."
+direction_changed = "&aהכיוון של {portal} שונה ל-{direction}."
+
+[director.help]
+no_subcommands = "אין פקודות משנה בדף הזה."
+no_description = "לא סופק תיאור"
+command_group = "קבוצת פקודות. לחצו כדי לפתוח."
+category = "קטגוריית פקודות"
+no_parameters = "אין פרמטרים. לחצו כדי למלא את הפקודה מראש."
+parameters_hover = "רחפו מעל הפרמטרים כדי ללמוד עוד."
+
+[director.help.navigation]
+back = "חזרה"
+page = "דף"
+
+[director.help.navigation.parent]
+hover = "חזרה לקבוצת הפקודות הקודמת"
+
+[director.help.navigation.previous]
+hover = "דף קודם"
+
+[director.help.navigation.next]
+hover = "דף הבא"
+
+[director.help.parameter]
+required = "פרמטר זה הוא חובה."
+optional = "פרמטר זה הוא אופציונלי."
+default = "ברירת המחדל היא \"{value}\" אם לא הוגדר."
+type = "פרמטר זה הוא מסוג {type}."
+
+[director.runtime]
+usage = "שימוש: {usage}"
+
+[director.runtime.error]
+invalid_origin = "לא ניתן להריץ את הפקודה מהמקור הזה."
+unknown_parameter = "פרמטר לא מוכר: {key}"
+unexpected_argument = "ארגומנט לא צפוי \"{argument}\". יש לציין שמות לפרמטרים אופציונליים, למשל seed=123"
+unclosed_group = "חסר סוגר \"]\" עבור הפרמטר {key}"
+conversion_failed = "לא ניתן להמיר את \"{value}\" ל-{type} עבור {parameter}"
+default_parse_failed = "לא ניתן לנתח את ערך ברירת המחדל של הפרמטר {parameter}"
+missing_argument = "חסר ארגומנט \"{parameter}\" ({type})"
+execution_failed = "הפעלת הפקודה {command} נכשלה: {reason}"
+
+[network]
+not_initialized = "&8[&6Wormholes&8] &cהרשת לא אותחלה."
+
+[network.status]
+disabled = "&8[&6Wormholes&8] &7הרשת &cכבויה&7 (plugins/Wormholes/wormholes.toml)."
+not_running = "&8[&6Wormholes&8] &cהרשת מופעלת אך אינה פועלת. בדקו את מאגר הזהות ואת יציאת הרשת."
+listening = "&8[&6Wormholes&8] &7השרת הזה: &f{server}&7 מאזין בכתובת &f{address}"
+outbound_only = "&8[&6Wormholes&8] &7השרת הזה: &f{server}&7 מצב Boat לחיבורים יוצאים בלבד"
+public_key = "&8[&6Wormholes&8] &8מפתח ציבורי: {fingerprint}"
+no_routes = "&8[&6Wormholes&8] &7עדיין לא קושרו נתיבים לשרתי עמית."
+peer = "&8[&6Wormholes&8] &f{server}&7 {state} &7{address}{rtt}"
+last_attempt = "&8[&6Wormholes&8] &8  ניסיון אחרון: {error}"
+
+[network.doctor]
+clear = "&8[&6Wormholes&8] &aלא נמצאו בעיות בהקמת הרשת."
+header = "&8[&6Wormholes&8] &eאבחון רשת:"
+line = "&8[&6Wormholes&8] &7- {diagnostic}"
+
+[network.code]
+building = "&8יוצר קוד פורטל..."
+copy = "&6&l[העתקת קוד הפורטל: {portal}]&r"
+copy_hover = "&7לחצו כדי להעתיק. הדביקו בשרת האחר: תפריט הפורטל > ייבוא, או /wh server import \\<code>"
+fingerprint = "&8מכיל את כתובת השרת ואת טביעת האצבע של המפתח הציבורי {fingerprint}."
+too_long = "&eהקוד ארוך מדי להדבקה בצ'אט — השתמשו במקום זאת ב-/wh server import \\<code> בשרת האחר."
+invalid = "&cקוד פורטל לא תקין. קודים מתחילים ב-{prefix}; אם הודבק בצ'אט, ייתכן שנקטע. נסו /wh server import \\<code>. יש לייצא מחדש קודים מגרסאות ישנות של התוסף."
+same_server = "&cהקוד הזה הוא מהשרת הזה."
+same_identity = "&cהקוד מפנה לזהות של השרת הזה ({server}). ייצאו אותו מחדש מהשרת האחר לאחר ששני השרתים יופעלו מחדש עם זהות Wormholes משלהם."
+linked = "&aהפורטל &f{portal}&7 קושר אל &f{destination}&a בשרת &f{server}&a. הוא ייפתח כשהשרתים יתחברו."
+route_saved = "&aהמסלול אל {server} נשמר עם המפתח הציבורי {fingerprint}. '{portal}' יופיע בתפריט קישור השער לאחר החיבור."
+check_status = "&8בדוק /wh network status למצב החיבור."
+using_address = "&7נעשה שימוש ב-{address} בקוד הפורטל; אם הכתובת הציבורית תשתנה, היא תזוהה ותתוקן אוטומטית במהלך לחיצת היד החתומה."
+
+[server]
+unknown = "&8[&6Wormholes&8] &cשרת לא מוכר '&f{server}&c'. ייבאו קודם את הקוד שלו או ראו /wh server list."
+removed = "&8[&6Wormholes&8] &aהשרת &f{server}&a והמפתח המהימן שלו הוסרו."
+name_empty = "שם השרת לא יכול להיות ריק"
+
+[server.code]
+copy = "&6&l[העתקת קוד השרת: {server}]&r"
+copy_hover = "&7לחצו כדי להעתיק. הדביקו בשרת האחר: /wh server import \\<code>"
+raw = "&7קוד השרת: &f{code}"
+saved = "&aהשרת &f{server}&a נשמר עם המפתח הציבורי {fingerprint}. התחברו באמצעות &f/wh server {server}&a."
+
+[server.connect]
+sending = "&8[&6Wormholes&8] &aשולחים אתכם אל &f{server}&a..."
+not_ready = "&8[&6Wormholes&8] &c{server} אינו זמין כרגע. בדקו את /wh network status."
+failed = "&8[&6Wormholes&8] &cלא ניתן להעביר אתכם אל {server}. בדקו את המסוף ואת /wh network status."
+only_players = "&8[&6Wormholes&8] &cרק שחקנים יכולים להתחבר לשרת אחר."
+
+[server.list]
+header = "&8[&6Wormholes&8] &7שרתים מקושרים:"
+empty = "&8[&6Wormholes&8] &7עדיין לא קושרו שרתים. השתמשו ב-&f/wh server import \\<code>&7."
+entry = "&8[&6Wormholes&8] &f{server}&7 {state} &8{address}"
+
+[door.transit]
+shutdown = "דלתות הממדים כובו לפני שהמעבר הושלם."
+message = "&8[&6Wormholes&8] &7{message}"
+link_not_placed = "דלת חור התולעת המקושרת עדיין לא הוצבה."
+link_unavailable = "דלת חור התולעת המקושרת אינה זמינה או חסומה."
+nested_pocket = "דלת כיס אינה יכולה לפתוח כיס נוסף מתוך ממד הריק המשותף."
+pocket_not_ready = "ממד הכיס אינו מוכן."
+pocket_allocation_failed = "לא ניתן להקצות את ממד הכיס."
+safe_return_not_found = "לא ניתן למצוא דרך חזרה בטוחה בצד הזה של הדלת."
+pocket_prepare_failed = "לא ניתן להכין את ממד הכיס בבטחה."
+return_ticket_save_failed = "לא ניתן לשמור נתיב חזרה בטוח."
+pocket_entry_unsafe = "הכניסה לכיס אינה בטוחה."
+pocket_entry_chunk_failed = "ממד הכיס לא הצליח לטעון את צ'אנק הכניסה שלו."
+no_return_route = "אין לכם נתיב חזרה שמור לממד הכיס הזה."
+return_unavailable = "דלת החזרה אינה זמינה או חסומה בצד המתאים."
+return_world_unloaded = "עולם החזרה שלכם אינו טעון."
+return_point_obstructed = "נקודת החזרה השמורה חסומה."
+return_chunk_failed = "לא ניתן לטעון את צ'אנק החזרה השמור."
+closed = "הדלת הממדית נסגרה לפני סיום המעבר."
+cycle_consumed = "מחזור הפתיחה של הדלת הזו כבר נוצל. סגור ופתח את הדלת מחדש."
+source_missing = "הדלת הממדית כבר לא נמצאת שם."
+source_close_failed = "דלת המקור לא הצליחה להיסגר בבטחה."
+source_region_unavailable = "אזור דלת המקור אינו זמין."
+start_failed = "המעבר הממדי לא הצליח להתחיל."
+cancelled = "המעבר הממדי בוטל."
+
+[door.craft]
+one_at_a_time = "&8[&6Wormholes&8] &7צרו דלתות ממדיות אחת בכל פעם, כדי שכל אחת תקבל זהות ייחודית."
+
+[door.pair]
+unpack_failed = "&8[&6Wormholes&8] &7לא ניתן לפרוק את זוג הדלתות; הערכה לא נצרכה."
+unpacked = "&8[&6Wormholes&8] &7הזוג השזור התפצל לדלתות חור תולעת מקושרות A ו-B."
+missing = "&8[&6Wormholes&8] &7לדלת המקושרת אין זהות שותף רשומה."
+
+[door.legacy]
+combine = "&8[&6Wormholes&8] &7שלבו את הדלת הממדית הישנה עם דלת עץ לפני הצבתה."
+
+[door.place]
+already_placed = "&8[&6Wormholes&8] &7הדלת הממדית כבר הוצבה, או שלא ניתן לשמור את מצבה."
+
+[door.break]
+exit_anchored = "&8[&6Wormholes&8] &7היציאה הממדית מעוגנת לממד הכיס הזה."
+support = "&8[&6Wormholes&8] &7שברו את הדלת הממדית לפני הסרת בלוק התמיכה שלה."
+
+[door.disable]
+warning = "&8[&6Wormholes&8] &7דלתות הממדים מושבתות. צאו עכשיו דרך דלת החזרה של ממד הכיס."
+
+[door.rescue]
+cancelled = "&8[&6Wormholes&8] &7חילוץ החירום בוטל; הנתיב נשמר."
+failed = "&8[&6Wormholes&8] &7{route} {fallback} אתם נשארים מוגנים עם לב אחד."
+
+[door.rescue.reason]
+no_route = "לממד הכיס אין נתיב חזרה שמור."
+return_world_unavailable = "עולם החזרה השמור אינו זמין."
+return_point_obstructed = "נקודת החזרה השמורה חסומה."
+return_chunk_failed = "לא ניתן לטעון את צ'אנק החזרה השמור."
+start_failed = "חילוץ החירום לא הצליח להתחיל."
+
+[door.rescue.fallback]
+no_world = "לא נטען עולם גיבוי שאינו ממד כיס."
+obstructed = "נקודת ההופעה החלופית חסומה."
+chunk_failed = "לא ניתן לטעון את נקודת ההופעה החלופית."
+schedule_failed = "לא ניתן לתזמן את החילוץ החלופי."
+
+[door.access]
+unknown_player = "לא ידוע ({id})"
+edit_denied = "&cרק בעל הדלת או מנהל יכולים לערוך את הדלת."
+unavailable = "&cלדלת הממדית הזו אין רשומת גישה."
+save_failed = "&cלא ניתן לשמור את שינוי הגישה לדלת."
+player_not_found = "&cלא נמצא שחקן בשם {name}."
+owner_always = "&7לבעל הדלת תמיד יש גישה."
+already_listed = "&7{name} כבר נמצא ברשימה של הדלת הזו."
+added = "&a{name} נוסף לרשימה של הדלת הזו."
+removed = "&a{name} הוסר מהרשימה של הדלת הזו."
+state_changed = "&a{name} מוגדר כעת כ-{state} עבור הדלת הזו."
+prompt_player = "&bהקלידו את שם השחקן שיירשם לדלת הזו (או '{cancel}'):"
+denied = "&cהדלת הממדית הזו דוחה אתכם."
+transit_denied = "אין לכם גישה לדלת הממדית הזו."
+
+[door.access.label]
+neutral = "ניטרלי"
+whitelist = "רשימת מורשים"
+blacklist = "רשימת חסומים"
+
+[door.access.kind]
+pair = "שזורה"
+personal = "אישית"
+public = "ציבורית"
+return = "יציאה"
+
+[door.open_state]
+open = "פתוח"
+closed = "סגור"
+
+[door.menu.access]
+title = "גישה לדלת: {kind}"
+placard = ["&6&lדלת ממדית: {kind}&r", "&7בעלים: &f{owner}", "&7ברשימת המורשים: &a{whitelisted}", "&7ברשימת החסומים: &c{blacklisted}", "&7שחקנים ברשימה: &b{count}", "&8בעלים ומנהלים עורכים את הדלת הזו."]
+add_player = ["&a&lהוספת שחקן&r", "&7הקלידו שם שחקן בצ'אט כדי לרשום אותו.", "", "&8לחצו כדי להוסיף שחקן."]
+open_state = ["&b&lOpenState: &f&l{state}", "&7הפורטל עוקב אחר המצב הפיזי של הבלוק הזה.", "&7מצב פעיל: &f{state}&7.", "", "&8הבא: {next}. לחצו כדי להחליף."]
+entry = ["&f{name}", "&7מצב: &b{state}", "", "&8לחיצה שמאלית: מורשה. לחיצה ימנית: חסום.", "&8לחיצה אמצעית או Shift + לחיצה שמאלית: הסרה."]
+
+[wand.selection]
+corner_a = "&bפינה A נקבעה. לחצו לחיצה ימנית על הפינה הנגדית."
+corner_b = "&bפינה B נקבעה. לחצו לחיצה שמאלית על הפינה הנגדית."
+not_flat = "&cהבחירה חייבת להיות בעובי בלוק אחד. לחצו שוב על פינה כדי לשטח אותה."
+too_large = "&cהבחירה גדולה מדי: {count} בלוקים (מקסימום {maximum})."
+opening = "&bפותח פורטל..."
+open_failed = "&cלא ניתן לפתוח את הפורטל כאן."
+
+[wand.selection.selected]
+one = "&bנבחר {count} בלוק. לחצו שמאל על לוח הזכוכית כדי לפתוח את הפורטל."
+other = "&bנבחרו {count} בלוקים. לחצו שמאל על לוח הזכוכית כדי לפתוח את הפורטל."
+
+[label]
+none = "ללא"
+on = "מופעל"
+off = "מושבת"
+ready = "מוכן"
+preparing = "בהכנה"
+open = "פתוח"
+closed = "סגור"
+
+[rtp.routing]
+action_confirm = "פתח מסך אישור נפרד."
+header = ["&b&lהחלפה & מאגר יעדים&r", "&7בחרו מצבים ישירות ואז החילו את כל השינויים פעם אחת."]
+shared_selected = ["&a&lיעד משותף&r", "&7כולם רואים ומשתמשים באותו נתיב.", "&aנבחר"]
+shared_available = ["&b&lיעד משותף&r", "&7כולם רואים ומשתמשים באותו נתיב.", "&eלחיצה שמאלית לבחירה"]
+private_selected = ["&a&lיעדים לכל שחקן&r", "&7כל שחקן מקבל הקצאה פרטית.", "&aנבחר"]
+private_available = ["&b&lיעדים לכל שחקן&r", "&7כל שחקן מקבל הקצאה פרטית.", "&eלחיצה שמאלית לבחירה"]
+static_selected = ["&a&lקבוע&r", "&7שמירה על אותו יעד.", "&aנבחר"]
+static_available = ["&b&lקבוע&r", "&7שמירה על אותו יעד.", "&eלחיצה שמאלית לבחירה"]
+timed_selected = ["&a&lמתוזמן&r", "&7החלפת היעד לאחר הזמן שהוגדר.", "&aנבחר"]
+timed_available = ["&b&lמתוזמן&r", "&7החלפת היעד לאחר הזמן שהוגדר.", "&eלחיצה שמאלית לבחירה"]
+trip_selected = ["&a&lאחרי כל מעבר&r", "&7קידום יעד חלופי מוכן לאחר השימוש.", "&aנבחר"]
+trip_available = ["&b&lאחרי כל מעבר&r", "&7קידום יעד חלופי מוכן לאחר השימוש.", "&eלחיצה שמאלית לבחירה"]
+manual_reroll = ["&e&lבחירה מחדש ידנית&r", "&7{description}", "&eלחיצה שמאלית"]
+rebuild_pool = ["&e&lבנייה מחדש של מאגר היעדים&r", "&7{description}", "&eלחיצה שמאלית"]
+
+[rtp.status]
+ready = "מוכן"
+warming = "בהכנה"
+rerolling = "בוחר מחדש"
+backoff = "השהיית ניסיון חוזר"
+world_unavailable = "עולם היעד אינו זמין"
+integration_failed = "שילוב בקרת הגישה נכשל"
+failed = "נכשל"
+idle = "לא פעיל"
+retry = "&7ניסיון חוזר בעוד: &c{duration}"
+active = "&7פעיל: {readiness}"
+standby = "&7בהמתנה: {readiness}"
+rotation = "&7סבב בטיוטה: &b{rotation}"
+pool = "&7פנויים: &b{free}&7  שמורים: &b{reserved}"
+target_missing = "&cעולם היעד אינו טעון."
+access_failed = "&cבדיקות הגישה ליעד נכשלו ולכן הגישה נדחתה."
+header = ["&6&lמצב היעד האקראי&r", "&7מצב: {state}"]
+
+[rtp.rotation]
+static = "סטטי"
+timed = "מתוזמן"
+trip = "אחרי כל נסיעה"
+
+[rtp.numeric]
+center_x = "מרכז X"
+center_z = "מרכז Z"
+minimum_radius = "רדיוס מינימום"
+maximum_radius = "רדיוס מקסימום"
+lower_y = "Y התחתון"
+upper_y = "Y העליון"
+preferred_y = "Y מועדף"
+cycle = "משך המחזור"
+private_rotation = "זמן החלפה פרטי"
+lease = "זמן חסד לחכירה לא פעילה"
+release = "שחרור פרטי"
+link = ["&e&l{label} &f&l{value}&r", "&7פתיחת בקרות ברורות להפחתה ולהגדלה.", "&eלחיצה שמאלית"]
+target_unavailable = ["&b&lעולם היעד אינו זמין&r", "&7טענו את עולם היעד לפני עריכת הערך הזה."]
+value = ["&b&l{value}&r", "&7הערך הנוכחי בטיוטה."]
+adjust = ["&e&l{direction}{step}&r", "&7התאימו את ערך הטיוטה ב-{direction}{step}.", "&eלחיצה שמאלית"]
+header = ["&b&l{label}&r", "&7{description}"]
+
+[rtp.numeric.description]
+center = "הזזת המרכז המותאם אישית בציר הזה."
+minimum_radius = "הקצה הפנימי של טבעת היעד."
+maximum_radius = "הקצה החיצוני של טבעת היעד."
+y = "גבול חוקי לחיפוש גובה הרגליים."
+cycle = "הזמן בין החלפות משותפות מתוזמנות."
+private_rotation = "הזמן המרבי לשמירת יעד מוכן לכל שחקן."
+lease = "שמירת היעדים המוכנים לזמן קצר לאחר שכולם עוזבים."
+release = "עיכוב לפני שחרור הזמנה פרטית לא בשימוש."
+
+[rtp.duration]
+hours = "{value}h"
+minutes = "{value}m"
+seconds = "{value}s"
+decimal_seconds = "{value}s"
+
+[rtp.biome]
+any_label = "הכול"
+header = ["&b&lביום יעד&r", "&7החיפוש מעדיף את הביום הזה וחוזר לכל נקודה בטוחה כאשר לא ניתן למצוא אותו בקרבת מקום."]
+any_selected = ["&a&lכל ביום&r", "&7ללא העדפת ביום.", "&aנבחר"]
+any_available = ["&b&lכל ביום&r", "&7ניקוי העדפת הביום.", "&eלחיצה שמאלית לבחירה"]
+current = ["&a&l{biome}&r", "&7{key}", "&aנבחר"]
+available = ["&b&l{biome}&r", "&7{key}", "&eלחיצה שמאלית לבחירה"]
+empty = ["&7אין ביומים זמינים לעולם היעד."]
+previous = ["&e&lביומים קודמים&r", "&7הצגת הדף הקודם.", "&eלחיצה שמאלית"]
+next = ["&e&lביומים הבאים&r", "&7הצגת הדף הבא.", "&eלחיצה שמאלית"]
+
+[rtp.overview]
+destination = ["&e&lיעד & אזור&r", "&7עולם, מרכז ורדיוס.", "&eלחיצה שמאלית"]
+landing = ["&e&lכללי נחיתה&r", "&7התנהגות פני השטח והגובה.", "&eלחיצה שמאלית"]
+routing = ["&e&lהחלפה & מאגר יעדים&r", "&7שיתוף, החלפה וזמני שמירת הקצאות.", "&eלחיצה שמאלית"]
+effects = ["&e&lאפקטים&r", "&7שולי ההקרנה וצלילי הפורטל.", "&eלחיצה שמאלית"]
+reset_defaults = ["&e&lאיפוס לברירת מחדל&r", "&7משחזר מיד את הגדרות השיגור האקראי של הפורטל הזה לברירת המחדל.", "&eלחיצה שמאלית"]
+
+[rtp.navigation]
+back_portal = ["&e&lחזרה לפורטל&r", "&7חזרה לתפריט הפורטל.", "&eלחיצה שמאלית"]
+overview = ["&e&lסקירה כללית&r", "&7חזרה לסקירה הכללית של RTP.", "&eלחיצה שמאלית"]
+back_category = ["&e&lחזרה&r", "&7חזרה לקטגוריה הקודמת.", "&eלחיצה שמאלית"]
+
+[rtp.destination]
+header = ["&b&lיעד & אזור&r", "&7כל אפשרות משתמשת בלחיצה שמאלית רגילה."]
+world_current = ["&a&l{world}&r", "&7עולם היעד הנוכחי.", "&aנבחר"]
+world_available = ["&b&l{world}&r", "&7שימוש בעולם הטעון הזה.", "&eלחיצה שמאלית לבחירה"]
+previous_worlds = ["&e&lעולמות קודמים&r", "&7הצגת הדף הקודם.", "&eלחיצה שמאלית"]
+next_worlds = ["&e&lעולמות הבאים&r", "&7הצגת הדף הבא.", "&eלחיצה שמאלית"]
+biome_link = ["&e&lביום יעד &f&l{value}&r", "&7העדפת נחיתה בביום שנבחר.", "&eלחיצה שמאלית"]
+center_portal_selected = ["&a&lמרכז ביחס לפורטל&r", "&7מרכוז טבעת היעד סביב הפורטל.", "&aנבחר"]
+center_portal_available = ["&b&lמרכז ביחס לפורטל&r", "&7מרכוז טבעת היעד סביב הפורטל.", "&eלחיצה שמאלית לבחירה"]
+center_custom_selected = ["&a&lמרכז מותאם אישית&r", "&7שימוש בקואורדינטות X ו-Z הניתנות לעריכה.", "&aנבחר"]
+center_custom_available = ["&b&lמרכז מותאם אישית&r", "&7שימוש בקואורדינטות X ו-Z הניתנות לעריכה.", "&eלחיצה שמאלית לבחירה"]
+reset_center = ["&e&lאיפוס מרכז / יעד&r", "&7שימוש בעולם המקור ובמרכז הפורטל.", "&eלחיצה שמאלית"]
+
+[rtp.landing]
+header = ["&b&lכללי נחיתה&r", "&7בחרו נחיתה על פני השטח או בגובה הרצוי ואת מצב הבטיחות."]
+surface_selected = ["&a&lפני השטח&r", "&7SAFE נמנע ממים ומצמרות עצים. UNSAFE משתמש במשטח העליון ביותר.", "&aנבחר"]
+surface_available = ["&b&lפני השטח&r", "&7SAFE נמנע ממים ומצמרות עצים. UNSAFE משתמש במשטח העליון ביותר.", "&eלחיצה שמאלית לבחירה"]
+preferred_selected = ["&a&lגובה רצוי / מדויק&r", "&7SAFE מרחיב את החיפוש מסביב. UNSAFE משתמש בדיוק בקואורדינטת Y הרצויה.", "&aנבחר"]
+preferred_available = ["&b&lגובה רצוי / מדויק&r", "&7SAFE מרחיב את החיפוש מסביב. UNSAFE משתמש בדיוק בקואורדינטת Y הרצויה.", "&eלחיצה שמאלית לבחירה"]
+safe_policy = ["&b&lבטיחות הנחיתה: &f&l{mode}&r", "&7SAFE דוחה מים, סכנות, עצים, התנגשויות ומקומות ללא קרקע תומכת.", "&7UNSAFE מקבל את פני השטח שנבחרו או את קואורדינטת Y המדויקת כפי שהם.", "&eלחיצה שמאלית להחלפה"]
+
+[rtp.effects]
+header = ["&b&lאפקטים&r", "&7שינויי תצוגה אינם יוצרים מחדש את היעדים."]
+rim_on_selected = ["&a&lשולי מוכנות פעילים&r", "&7הצגת המוכנות האישית סביב שולי הפורטל.", "&aנבחר"]
+rim_on_available = ["&b&lשולי מוכנות פעילים&r", "&7הצגת המוכנות האישית סביב שולי הפורטל.", "&eלחיצה שמאלית לבחירה"]
+rim_off_selected = ["&a&lשולי מוכנות כבויים&r", "&7הסתרת שולי המוכנות.", "&aנבחר"]
+rim_off_available = ["&b&lשולי מוכנות כבויים&r", "&7הסתרת שולי המוכנות.", "&eלחיצה שמאלית לבחירה"]
+sound_on_selected = ["&a&lצלילי הפורטל פועלים&r", "&7השמעת האפקטים וצלילי המעבר של פורטל RTP זה.", "&aנבחר"]
+sound_on_available = ["&b&lצלילי הפורטל פועלים&r", "&7השמעת האפקטים וצלילי המעבר של פורטל RTP זה.", "&eלחיצה שמאלית לבחירה"]
+sound_off_selected = ["&a&lצלילי הפורטל מושבתים&r", "&7השתקת פורטל RTP זה; החלקיקים נשארים פעילים.", "&aנבחר"]
+sound_off_available = ["&b&lצלילי הפורטל מושבתים&r", "&7השתקת פורטל RTP זה; החלקיקים נשארים פעילים.", "&eלחיצה שמאלית לבחירה"]
+
+[rtp.confirm]
+reroll = ["&b&lלבחור מחדש את הנתיב המשותף?&r", "&7ההקרנה הנוכחית נשארת פעילה עד שהיעד החלופי מוכן."]
+rebuild = ["&b&lלבנות מחדש את מאגר היעדים הפרטי?&r", "&7ההקצאות הקיימות נשמרות בזמן שהמועמדים הפנויים נבנים מחדש."]
+confirm = ["&e&lאישור&r", "&7הפעלת הפעולה כעת.", "&eלחיצה שמאלית"]
+cancel = ["&e&lביטול&r", "&7חזרה בלי לשנות את מצב המערכת.", "&eלחיצה שמאלית"]
+
+[item]
+portal_wand = ["&6&lמטה פורטל&r"]
+portal_rune = ["&6&lרונת פורטל&r"]
+wormhole_rune = ["&6&lרונת חור תולעת&r"]
+
+[item.door]
+entangled_pair = ["&6זוג דלתות שזורות", "&7מכיל שתי דלתות חור תולעת המקושרות אוטומטית.", "&7השתמשו בו כדי לפרוק את נקודות הקצה A ו-B."]
+paired = ["&6דלת חור תולעת {endpoint}", "&7מקושרת אוטומטית לנקודת הקצה {other}.", "&7פתחו את הדלת וחצו פיזית את המפתן."]
+personal = ["&bדלת ממד אישי", "&7כל נוסע נכנס לממד הקבוע האישי שלו.", "&7אותו נוסע תמיד מגיע לאותו מקום."]
+public = ["&6דלת ממד ציבורי", "&7כל נוסע נכנס לממד המשותף של הדלת.", "&7שבירה והעברה שלה שומרות על היעד המשותף."]
+return = ["&aדלת יציאה ממדית", "&7מחזירה נוסעים מממד הכיס הזה.", "&7הדלת מקושרת לממד הכיס שלה."]
+skin = ["&6מעטפת דלת ממדית", "&7שלבו דלת ממדית עם דלת ששחקנים יכולים להפעיל."]
+entangled_pair_recipe = ["&6זוג דלתות שזורות", "&7מכיל שתי דלתות חור תולעת המקושרות אוטומטית."]
+personal_recipe = ["&bדלת ממד אישי", "&7כל נוסע נכנס לממד הקבוע האישי שלו."]
+public_recipe = ["&6דלת ממד ציבורי", "&7כל נוסע נכנס לממד המשותף של הדלת."]
+entangled_trapdoor_pair = ["&6זוג דלתות מלכודת שזורות", "&7מכיל שתי דלתות מלכודת חור תולעת המקושרות אוטומטית.", "&7השתמשו בו כדי לפרוק את נקודות הקצה A ו-B."]
+paired_trapdoor = ["&6דלת מלכודת חור תולעת {endpoint}", "&7מקושרת אוטומטית לנקודת הקצה {other}.", "&7פתחו את דלת המלכודת וצנחו דרכה."]
+personal_trapdoor = ["&bדלת מלכודת ממד אישי", "&7כל נוסע נכנס לממד הקבוע האישי שלו.", "&7אותו נוסע תמיד מגיע לאותו מקום."]
+public_trapdoor = ["&6דלת מלכודת ממד ציבורי", "&7כל נוסע נכנס לממד המשותף של דלת המלכודת.", "&7שבירה והעברה שלה שומרות על היעד המשותף."]
+trapdoor_skin = ["&6מעטפת דלת מלכודת ממדית", "&7שלבו דלת מלכודת ממדית עם דלת מלכודת שנפתחת ביד."]
+entangled_trapdoor_pair_recipe = ["&6זוג דלתות מלכודת שזורות", "&7מכיל שתי דלתות מלכודת חור תולעת המקושרות אוטומטית."]
+personal_trapdoor_recipe = ["&bדלת מלכודת ממד אישי", "&7כל נוסע נכנס לממד הקבוע האישי שלו."]
+public_trapdoor_recipe = ["&6דלת מלכודת ממד ציבורי", "&7כל נוסע נכנס לממד המשותף של דלת המלכודת."]

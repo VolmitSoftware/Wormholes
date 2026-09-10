@@ -47,7 +47,8 @@ class WormholesCommandServiceTest {
         assertNotNull(findChild(root, "reload"));
         assertNotNull(findChild(root, "info"));
         assertNotNull(findChild(root, "debug"));
-        assertNotNull(findChild(root, "debugdump"));
+        assertNotNull(findChild(findChild(root, "debug"), "dump"));
+        assertNotNull(findChild(findChild(root, "debug"), "toggle"));
         DirectorRuntimeNode network = findChild(root, "network");
         assertNotNull(network);
         assertNotNull(findChild(network, "status"));
@@ -140,8 +141,8 @@ class WormholesCommandServiceTest {
     void diagnosticCompletionUsesItsDedicatedPermissionWithoutAdminAccess() {
         CommandSender sender = permissionSender(Set.of("wormholes.debugdump"));
 
-        assertEquals(List.of("debugdump"), WormholesCommandService.publicTabCompletions(sender, new String[]{"debug"}));
-        assertEquals(List.of("help", "info", "debugdump"), WormholesCommandService.publicTabCompletions(sender, new String[]{""}));
+        assertEquals(List.of("debug"), WormholesCommandService.publicTabCompletions(sender, new String[]{"debug"}));
+        assertEquals(List.of("help", "info", "debug"), WormholesCommandService.publicTabCompletions(sender, new String[]{""}));
         assertEquals(List.of(), WormholesCommandService.publicTabCompletions(permissionSender(Set.of()), new String[]{"debug"}));
     }
 

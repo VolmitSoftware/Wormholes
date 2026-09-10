@@ -1,609 +1,1020 @@
-schema = 1
-locale = "ja-JP"
+# Wormholes — ja-JP
+#
+# === ファイルの編集 ===
+# plugins/Wormholes/languages/ja-JP.toml
+# このファイルを直接編集できます。ローカルの変更は保持され、不足または無効な項目には内蔵の英語を使用します。
+# /wormholes language server edit ja-JP
+#
+# === 接頭辞 ===
+# メッセージの接頭辞は各テンプレート内にあり、メッセージごとに編集します。{prefix} はポータルのインポートコードの先頭部分です。
+#
+# === 書式 ===
+# 色コード: &0-&f。書式コード: &k-&r（&l = 太字、&r = リセット）。変数名は変更せず、対応するメッセージ内でのみ使用してください。
+#
+# === 変数 ===
+# 変数名を変更せず、各メッセージに元からある変数だけを使用してください。
+#   {access}  ポータルのアクセス方針
+#   {address}  ネットワーク接続先のアドレス
+#   {after}  編集後のメッセージ値
+#   {allocation}  ポケット空間の割り当て
+#   {amount}  Vault通貨での移動料金
+#   {argument}  予期しないコマンド引数
+#   {before}  編集前のメッセージ値
+#   {biome}  バイオームの識別子
+#   {blacklisted}  拒否するプレイヤー
+#   {block}  選択したブロック素材
+#   {blocks}  再構築の影響を受ける設置済みブロック数
+#   {cancel}  チャット入力を取り消す語
+#   {code}  サーバーまたはポータル招待コード
+#   {color}  選択した表示色
+#   {command}  コマンドのパス
+#   {containers}  再構築の影響を受ける中身のある容器数
+#   {cost}  ポータル作成または移動の料金
+#   {count}  ポータル、行き先、またはメッセージ数
+#   {degrees}  投影画像の回転角度
+#   {depth}  投影の奥行き
+#   {description}  メッセージの説明
+#   {destination}  移動先
+#   {detail}  追加の診断詳細
+#   {diagnostic}  診断メッセージ
+#   {direction}  移動方向または向き
+#   {door}  ポケットの出口ドア
+#   {duration}  プレイヤーごとの更新間隔
+#   {endpoint}  ワームホール端点の識別子
+#   {entities}  影響を受けるエンティティ数、または更新間隔（ティック）
+#   {entity}  エンティティの更新間隔（ティック）
+#   {error}  直前の操作のエラー
+#   {facing}  ポータルの向き
+#   {failed}  失敗した操作数
+#   {fallback}  代替の移動結果
+#   {fingerprint}  公開鍵のフィンガープリント
+#   {free}  空いているランダム行き先の枠数
+#   {grace}  投影の猶予時間（秒）
+#   {group}  言語エディターの分類
+#   {id}  オブジェクトの識別子
+#   {incoming}  入ってくる移動の方針
+#   {item}  移動に必要なアイテム
+#   {key}  メッセージまたは設定のキー
+#   {kind}  ドアのアクセス種類
+#   {label}  表示ラベル
+#   {large_step}  Shiftクリック時の変更幅
+#   {line}  メッセージ内の行番号
+#   {locale}  言語コード
+#   {material}  ポケットの壁素材
+#   {maximum}  許容最大値
+#   {message}  応答または診断のメッセージ
+#   {minimum}  許容最小値
+#   {mode}  選択した操作または表示モード
+#   {name}  ポータル名またはプレイヤー名
+#   {next}  次に選べる項目
+#   {node}  ネットワークノードの識別子
+#   {none}  行き先が未接続であることを示すラベル
+#   {other}  接続した端点の識別子
+#   {outgoing}  出ていく移動の方針
+#   {owner}  ポータルの所有者
+#   {page}  現在のページ番号
+#   {pages}  総ページ数
+#   {parameter}  コマンドパラメーター名
+#   {path}  ファイルまたはフォルダーのパス
+#   {personal}  個人の言語コード
+#   {plugin}  プラグイン名
+#   {portal}  ポータル名または識別子
+#   {prefix}  ポータルのインポートコードの先頭部分
+#   {previous}  以前のポケットサイズ（ブロック）
+#   {quality}  投影ストリームの品質
+#   {quantity}  必要なアイテム数
+#   {range}  ポータルの有効化距離（ブロック）
+#   {readiness}  ランダム行き先の準備状態
+#   {reason}  エラーまたは判断の理由
+#   {receive}  投影の受信状態
+#   {refresh}  投影の更新間隔（ティック）
+#   {reserved}  予約済みランダム行き先の枠数
+#   {resized}  再構築したポケット数
+#   {rotation}  投影の回転
+#   {route}  試行した移動経路
+#   {rtt}  ネットワークの往復遅延
+#   {seconds}  時間（秒）
+#   {send}  投影の送信状態
+#   {server}  サーバー名または識別子
+#   {size}  ポケットサイズ（ブロック）
+#   {skin}  選択したポータルスキン
+#   {skipped}  スキップした操作数
+#   {space}  ポケット空間の識別子
+#   {state}  現在のアクセス、接続、またはネットワークの状態
+#   {step}  クリック時の変更幅
+#   {style}  表示スタイル
+#   {target}  言語選択を適用するプラグイン
+#   {type}  オブジェクトまたはパラメーターの種類
+#   {up}  投影の上側となる方向
+#   {usage}  コマンド構文
+#   {value}  現在または選択中の値
+#   {variables}  メッセージで使用可能な変数
+#   {whitelisted}  許可するプレイヤー
+#   {world}  ワールド名
+#   {x}  X座標
+#   {y}  Y座標
+#   {z}  Z座標
 
-[text]
-"command.help.debugdump" = "診断レポートを作成し、必要に応じてアップロードする"
-"command.help.debugdump_upload" = "レポートを mclo.gs にアップロードする"
-"command.help.language" = "自分の言語またはサーバーの既定言語を選択"
-"portal.travel.cost_insufficient" = "<red>このポータルを使用するには {quantity}x {item} が必要です。"
-"portal.travel.cost_vault_insufficient" = "<red>このポータルを使用するには {amount} が必要です。"
-"portal.travel.cost_vault_unavailable" = "<red>このポータルの経済コストは利用できません。"
-"portal.travel.cost_transaction_failed" = "<red>ポータルが移動コストを処理できませんでした。"
-"portal.prompt.cost_item" = "<aqua>コストとなる正確なアイテムをメインハンドに持ち、ドロップキーを押してください。アイテムはインベントリから失われません。"
-"portal.prompt.cost_vault" = "<aqua>1回の通過ごとの Vault 通貨額を入力してください (または '{cancel}'):"
-"portal.notice.cost_item_set" = "移動には {item} が必要になりました。"
-"portal.notice.cost_item_invalid" = "そのアイテムは移動コストとして保存できませんでした。"
-"portal.notice.cost_cleared" = "移動コストをクリアしました。"
-"portal.notice.cost_quantity_changed" = "移動コストの個数: {quantity}"
-"portal.notice.cost_vault_changed" = "Vault 移動コスト: {amount}"
-"portal.notice.cost_vault_invalid" = "{maximum} 以下の正の通貨額を入力してください。"
-"portal.notice.cost_vault_unavailable" = "このコストを選択するには Vault と経済プロバイダーが利用可能である必要があります。"
-"portal.label.cost.free" = "無料"
-"portal.label.cost.vanilla" = "バニラアイテム"
-"portal.label.cost.vault" = "Vault 経済"
-"portal.network.label.render_mode" = "レンダリングモード"
-"portal.travel.transfer_holding" = "<gold>接続先サーバーに接続しています..."
-"portal.travel.transfer_interrupted" = "<red>ポータル転送が中断されました: ポータルから離れました。"
-"portal.travel.transfer_source_unavailable" = "<red>ポータル転送が中断されました: 転送元ポータルは利用できなくなりました。"
-"portal.network.label.ambient_style" = "アンビエントパーティクル"
-"portal.network.label.ambient_color" = "アンビエントカラー"
-"portal.network.label.surface_skin" = "表面スキン"
-"portal.label.ambient.red" = "赤"
-"portal.label.ambient.green" = "緑"
-"portal.label.ambient.blue" = "青"
-"portal.label.ambient_style.sparks" = "スパーク"
-"portal.label.ambient_style.outline" = "アウトライン"
-"portal.label.ambient_style.corners" = "コーナー"
-"portal.label.ambient_style.off" = "オフ"
-"portal.label.skin.none" = "なし"
-"director.help.navigation.parent.hover" = "元のコマンドグループに戻る"
-"director.help.navigation.back" = "戻る"
-"director.help.no_subcommands" = "このページにはサブコマンドがありません。"
-"director.help.no_description" = "説明はありません"
-"director.help.command_group" = "コマンドグループ。クリックして開きます。"
-"director.help.category" = "コマンド分類"
-"director.help.no_parameters" = "パラメータはありません。クリックするとコマンドを入力欄に設定します。"
-"director.help.parameters_hover" = "パラメータにカーソルを合わせると詳細が表示されます。"
-"director.help.parameter.required" = "このパラメータは必須です。"
-"director.help.parameter.optional" = "このパラメータは任意です。"
-"director.help.parameter.default" = "未指定の場合は \"{value}\" になります。"
-"director.help.parameter.type" = "このパラメータの型は {type} です。"
-"director.help.navigation.previous.hover" = "前のページ"
-"director.help.navigation.next.hover" = "次のページへ"
-"director.help.navigation.page" = "ページ"
-"director.runtime.error.invalid_origin" = "この実行元からはコマンドを実行できません。"
-"director.runtime.error.unknown_parameter" = "不明なパラメーター: {key}"
-"director.runtime.error.unexpected_argument" = "予期しない引数 \"{argument}\"。任意パラメータは seed=123 のように名前を指定してください"
-"director.runtime.error.unclosed_group" = "パラメータ {key} の閉じかっこ \"]\" がありません"
-"director.runtime.error.conversion_failed" = "\"{value}\" をパラメータ {parameter} の型 {type} に変換できません"
-"director.runtime.error.default_parse_failed" = "パラメータ {parameter} のデフォルト値を解析できません"
-"director.runtime.error.missing_argument" = "引数 \"{parameter}\" ({type}) がありません"
-"director.runtime.error.execution_failed" = "コマンド {command} の実行に失敗しました: {reason}"
-"director.runtime.usage" = "使用法: {usage}"
-"command.help.root" = "Wormholes のルートコマンド"
-"command.help.wand" = "ポータルワンドとワームホールルーンを入手する"
-"command.help.wand.rune" = "ワームホールルーンも渡す (rune=false ならワンドのみ)"
-"command.help.door" = "サバイバルで使用できるディメンションドアのアイテムを付与します"
-"command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-"command.help.reload" = "Wormholes の設定ファイルと言語ファイルを再読み込みします"
-"command.help.debug" = "詳細なコンソールログと 1 秒間隔のテレメトリを切り替えます"
-"command.help.stats" = "リアルタイム統計スナップショットのファイルパスを表示します。now=true で即時更新できます"
-"command.help.stats.now" = "スナップショットを同期的に即時再生成します"
-"command.help.info" = "ポータルの建築手順を表示します"
-"command.help.admin" = "Wormholes の破壊的なメンテナンスコマンド"
-"command.help.admin.delete_portals" = "すべてのローカルポータルと保存済みポータルリンクを削除します"
-"command.help.admin.delete_everything" = "Wormholes のデータ、設定、信頼情報、ID、ネットワーク状態をリセットします"
-"command.help.admin.freeze" = "すべてのポータル投影を指定した秒数だけその場で凍結します (seconds=0 で再開)"
-"command.help.admin.freeze.seconds" = "凍結したフレームを保持する時間 (5-300、0 で即時再開)"
-"command.help.admin.flush" = "各観測者の投影ブロックを実際の状態に戻して再構築します"
-"command.help.network" = "サーバー間ワームホールネットワーク"
-"command.help.network.import" = "別のサーバーからポータルコードをインポートする (ゲートウェイのリンクメニューでリンクする)"
-"command.help.network.import.code" = "別のサーバーのエクスポートボタンで生成したポータルコード"
-"command.help.network.status" = "ピアサーバーとの接続状態を表示します"
-"command.help.network.doctor" = "ネットワークピアに接続できない理由を診断します"
-"command.help.server" = "サーバー間の移動: リンク済みサーバーへの接続、一覧表示、コードの交換を行います"
-"command.help.server.connect" = "リンク済みサーバーへ自分を転送します (短縮形: /wh server \\<name>)"
-"command.help.server.connect.name" = "リンク済みサーバー名 (/wh server list を参照)"
-"command.help.server.export" = "このサーバーを、他のサーバーがインポートできるコードとしてエクスポートします"
-"command.help.server.import" = "別のサーバーがエクスポートしたサーバーコードまたはポータルコードをインポートします"
-"command.help.server.import.code" = "他のサーバーのエクスポートで生成されたコード"
-"command.help.server.list" = "リンク済みサーバーとその接続状態を一覧表示します"
-"command.help.server.remove" = "リンク済みサーバーの登録を解除します (そのルートと信頼済みの鍵を削除します)"
-"command.help.server.remove.name" = "登録を解除するリンク済みサーバー名"
-"command.error.no_permission" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>権限がありません。"
-"command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>このコマンドを使用する権限がありません。"
-"command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>アイテムを受け取れるのはプレイヤーだけです。"
-"command.error.usage" = "<gray>使用法: <white>/wormholes help"
-"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>ポータルワンドを渡しました。"
-"command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ディメンションドアは現在使用できません。"
-"command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>不明なドア種別です。pair、personal、public、pair_trapdoor、personal_trapdoor、public_trapdoor のいずれかを使用してください。"
-"command.door.empty_type" = "ドアの種類は空にできません"
-"command.door.granted" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{type}<green> タイプの次元ドアアイテムを付与しました。"
-"command.reload.applied" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes の設定ファイルと言語ファイルを再読み込みしました。"
-"command.reload.language_retained" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>設定は再読み込みされましたが、言語ファイルが無効です。直前の有効な言語を使用し続けます。コンソールを確認してください。"
-"command.reload.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>設定の再読み込みに失敗しました。編集は保留のまま再試行されます。コンソールを確認してください。"
-"command.stats.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>統計スナップショットライターを使用できません。"
-"command.stats.refreshed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>スナップショットを更新しました。"
-"command.admin.delete_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>すべてのポータルを削除できませんでした。完全なスタックトレースはコンソールで確認してください。"
-"command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ポータルのリセットを予約できませんでした。"
-"command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Wormholes をリセットできませんでした。完全なスタックトレースはコンソールで確認してください。"
-"command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Wormholes のリセットを予約できませんでした。"
-"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>すべてのポータル投影を <white>{seconds}<green> 秒間その場で凍結しました。自動的に再開します。"
-"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>ポータル投影を再開しました。"
-"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ポータル投影を更新できませんでした。完全なスタックトレースはコンソールを確認してください。"
-"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>投影の更新を予約できませんでした。"
-"network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ネットワークはまだ初期化されていません。"
-"network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>ネットワークは<red>無効<gray>です (plugins/Wormholes/wormholes.toml)。"
-"network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ネットワークは有効ですが実行されていません。ID ストレージとネットワークポートを確認してください。"
-"network.status.listening" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>現在のサーバー: <white>{server}<gray>、待受アドレス: <white>{address}"
-"network.status.outbound_only" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>現在のサーバー: <white>{server}<gray>、送信専用 Boat モード"
-"network.status.public_key" = "<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>公開鍵: {fingerprint}"
-"network.status.no_routes" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>接続済みのピアルートはありません。"
-"network.status.peer" = "<dark_gray>[<gold>Wormholes<dark_gray>] <white>{server}<gray> {state} <gray>{address}{rtt}"
-"network.status.last_attempt" = "<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>  最後の試み: {error}"
-"network.doctor.clear" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>ネットワーク設定に問題はありません。"
-"network.doctor.header" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>ネットワーク診断:"
-"network.doctor.line" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>- {diagnostic}"
-"network.code.building" = "<dark_gray>ポータルコードを生成しています..."
-"network.code.copy" = "<gold><bold>[ポータルコードをコピーする: {portal}]</bold>"
-"network.code.copy_hover" = "<gray>クリックしてコピーします。別のサーバーのポータルメニュー > インポート、または /wh server import \\<code> に貼り付けてください"
-"network.code.fingerprint" = "<dark_gray>このサーバーのアドレスと公開鍵の指紋 {fingerprint} が含まれています。"
-"network.code.too_long" = "<yellow>このコードはチャットに貼り付けるには長すぎます。代わりに別のサーバーで /wh server import \\<code> を使用してください。"
-"network.code.invalid" = "<red>ポータルコードが無効です。コードは {prefix} で始まります。チャットへの貼り付けで切り詰められた可能性があるため、/wh server import \\<code> を試してください。旧バージョンで生成したコードは再エクスポートが必要です。"
-"network.code.same_server" = "<red>このコードは現在のサーバーで生成されています。"
-"network.code.same_identity" = "<red>このコードは現在のサーバー ID ({server}) を指しています。各サーバーを固有の Wormholes ID で再起動し、別のサーバーからもう一度エクスポートしてください。"
-"network.code.linked" = "<green><white>{portal}<gray> -> <white>{destination}<green> を <white>{server}<green> にリンクしました。サーバーが接続されるとポータルが開きます。"
-"network.code.route_saved" = "<green>公開鍵 {fingerprint} を使用する {server} へのルートを保存しました。接続後、'{portal}' がゲートウェイのリンクメニューに表示されます。"
-"network.code.check_status" = "<dark_gray>接続状態は /wh network status で確認できます。"
-"network.code.using_address" = "<gray>このポータルコードは {address} を使用します。公開アドレスが変わると、署名済みハンドシェイクが自動的に検出して修正します。"
-"server.code.copy" = "<gold><bold>[サーバーコードをコピーする: {server}]</bold>"
-"server.code.copy_hover" = "<gray>クリックしてコピーします。別のサーバーで /wh server import \\<code> に貼り付けてください"
-"server.code.raw" = "<gray>サーバーコード: <white>{code}"
-"server.code.saved" = "<green>公開鍵 {fingerprint} を使用するサーバー <white>{server}<green> を保存しました。<white>/wh server {server}<green> で接続できます。"
-"server.connect.sending" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>あなたを <white>{server}<green> へ転送しています..."
-"server.connect.not_ready" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{server} には現在到達できません。/wh network status を確認してください。"
-"server.connect.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{server} へ転送できませんでした。コンソールと /wh network status を確認してください。"
-"server.connect.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>別のサーバーに接続できるのはプレイヤーだけです。"
-"server.unknown" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>不明なサーバー '<white>{server}<red>' です。先にコードをインポートするか、/wh server list を確認してください。"
-"server.list.header" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>リンク済みサーバー:"
-"server.list.empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>まだリンクされたサーバーはありません。<white>/wh server import \\<code><gray> を使用してください。"
-"server.list.entry" = "<dark_gray>[<gold>Wormholes<dark_gray>] <white>{server}<gray> {state} <dark_gray>{address}"
-"server.removed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>サーバー <white>{server}<green> とその信頼済みの鍵を削除しました。"
-"server.name_empty" = "サーバー名は空にできません"
-"portal.form.rtp_unsupported" = "<red>ランダムテレポートポータルはルーンから形成できません。"
-"portal.form.forming" = "<aqua>ポータルを形成中... {type} ルーンは、同じ平面の壁、床、または天井上でつながっている必要があります。"
-"portal.form.must_be_flat" = "<red>ポータルは同じ壁、床、または天井上に平らに配置する必要があります。"
-"portal.form.interrupted" = "<red>ポータルの形成が中断されました。予約済みのルーンは返却されました。"
-"portal.form.rune_placed" = "<aqua>ルーンを設置しました。同じ平面上につながった形を作り、ポータルワンドで任意のルーンを左クリックしてください。"
-"portal.form.opened" = "<green>ポータルが開きました。ワンドを持ってポータルをクリックすると設定できます。"
-"portal.travel.cooldown" = "<gold>ポータルはクールダウン中です"
-"portal.travel.access_denied" = "<red>このポータルを使用する権限がありません"
-"portal.travel.destination_unavailable" = "<red>ポータルの目的地が利用できません"
-"portal.travel.arrival_denied" = "<red>目的地のポータルが到着を拒否しました。"
-"portal.travel.arrival_returned" = "<red>目的地のポータルが到着を拒否しました。{server} に戻します"
-"door.transit.shutdown" = "次元移動が完了する前に次元ドアが停止しました。"
-"portal.edit.denied" = "<red>このポータルを編集できるのは、所有者または管理者だけです。"
-"portal.deleted" = "<red>{portal} を削除しました"
-"portal.travel.arrival_failed" = "<red>ポータルの到着地点を配置できませんでした。目的地のスポーン地点に留まります"
-"portal.travel.transfer_cooldown" = "<gold>サーバー間ポータルはクールダウン中です: {seconds}s"
-"portal.travel.destination_unreachable" = "<red>目的地サーバーに接続できません"
-"portal.travel.destination_unreachable_detail" = "<red>目的地サーバーに接続できません: {reason}"
-"portal.travel.transfer_blocked" = "<red>ポータル転送が拒否されました: {reason}"
-"portal.travel.transfer_blocked_retry" = "<red>ポータル転送が拒否されました: {reason} ({seconds}s 後に再試行)"
-"wand.selection.corner_a" = "<aqua>コーナー A を設定しました。反対側の角を右クリックしてください。"
-"wand.selection.corner_b" = "<aqua>コーナー B を設定しました。反対側の角を左クリックしてください。"
-"wand.selection.not_flat" = "<red>選択範囲の厚さは 1 ブロックでなければなりません。角をもう一度クリックして平面にしてください。"
-"wand.selection.too_large" = "<red>選択範囲が大きすぎます: {count} ブロック (上限 {maximum})。"
-"wand.selection.opening" = "<aqua>ポータルを開いています..."
-"wand.selection.open_failed" = "<red>ここにポータルを開けませんでした。"
-"door.craft.one_at_a_time" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>各ドアに固有の ID を割り当てるため、ディメンションドアは 1 個ずつクラフトしてください。"
-"door.pair.unpack_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>ドアのペアを展開できませんでした。キットは消費されていません。"
-"door.pair.unpacked" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>結合されたペアを、リンク済みのワームホールドア A と B に分離しました。"
-"door.legacy.combine" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>設置する前に、この旧式ディメンションドアを木製ドアとクラフトしてください。"
-"door.pair.missing" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>このペアドアには登録済みの相手側がありません。"
-"door.place.already_placed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>このディメンションドアはすでに設置されているか、状態を保存できません。"
-"door.break.exit_anchored" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>このディメンション出口はポケット次元に固定されています。"
-"door.break.support" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>支持ブロックを取り除く前に、ディメンションドアを壊してください。"
-"door.disable.warning" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>次元ドアを無効化しています。今すぐポケット次元の帰還ドアから退出してください。"
-"door.rescue.cancelled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>緊急脱出はキャンセルされました。帰還ルートは維持されます。"
-"door.transit.message" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>{message}"
-"door.transit.link_not_placed" = "リンク先のワームホールドアはまだ設置されていません。"
-"door.transit.link_unavailable" = "リンク先のワームホールドアは使用できないか、塞がれています。"
-"door.transit.nested_pocket" = "共有虚無次元内では、ポケットドアから別のポケット次元を開けません。"
-"door.transit.pocket_not_ready" = "ポケット次元はまだ準備できていません。"
-"door.transit.pocket_allocation_failed" = "ポケット次元を割り当てられませんでした。"
-"door.transit.safe_return_not_found" = "ドアのこちら側に安全な帰還ルートが見つかりませんでした。"
-"door.transit.pocket_prepare_failed" = "ポケット次元を安全に準備できませんでした。"
-"door.transit.return_ticket_save_failed" = "安全な帰還ルートを保存できませんでした。"
-"door.transit.pocket_entry_unsafe" = "ポケット次元の入口は安全ではありません。"
-"door.transit.pocket_entry_chunk_failed" = "ポケットディメンションの入口チャンクを読み込めませんでした。"
-"door.transit.no_return_route" = "このポケット次元には保存済みの帰還ルートがありません。"
-"door.transit.return_unavailable" = "対応する側の帰還ドアは使用できないか、塞がれています。"
-"door.transit.return_world_unloaded" = "帰還先のワールドが読み込まれていません。"
-"door.transit.return_point_obstructed" = "保存済みの帰還地点が塞がれています。"
-"door.transit.return_chunk_failed" = "保存された帰還チャンクを読み込めませんでした。"
-"door.transit.closed" = "次元移動が完了する前にディメンションドアが閉じられました。"
-"door.transit.cycle_consumed" = "この扉の開放サイクルはすでに使用されています。扉を閉じてから再度開いてください。"
-"door.transit.source_missing" = "次元の扉はもう存在しません。"
-"door.transit.source_close_failed" = "出発側のドアを安全に閉じられませんでした。"
-"door.transit.source_region_unavailable" = "出発側ドアのリージョンを使用できません。"
-"door.transit.start_failed" = "次元移動を開始できませんでした。"
-"door.transit.cancelled" = "次元移動はキャンセルされました。"
-"door.rescue.reason.no_route" = "ポケット次元に保存済みの帰還ルートがありません。"
-"door.rescue.reason.return_world_unavailable" = "保存済みの帰還先ワールドを使用できません。"
-"door.rescue.reason.return_point_obstructed" = "保存済みの帰還地点が塞がれています。"
-"door.rescue.reason.return_chunk_failed" = "保存された帰還チャンクを読み込めませんでした。"
-"door.rescue.fallback.no_world" = "ポケット次元以外の退避先ワールドが読み込まれていません。"
-"door.rescue.fallback.obstructed" = "退避先のスポーン地点が塞がれています。"
-"door.rescue.fallback.chunk_failed" = "退避先のスポーン地点を読み込めませんでした。"
-"door.rescue.fallback.schedule_failed" = "緊急退避を予約できませんでした。"
-"door.rescue.reason.start_failed" = "緊急脱出を開始できませんでした。"
-"door.rescue.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>{route} {fallback} 保護状態のまま、体力はハート1個に維持されます。"
-"door.access.label.neutral" = "中立"
-"door.access.label.whitelist" = "許可リスト"
-"door.access.label.blacklist" = "拒否リスト"
-"door.open_state.open" = "開いている"
-"door.open_state.closed" = "閉じている"
-"door.access.kind.pair" = "量子もつれ"
-"door.access.kind.personal" = "個人用"
-"door.access.kind.public" = "共有"
-"door.access.kind.return" = "出口"
-"door.access.unknown_player" = "不明 ({id})"
-"door.access.edit_denied" = "<red>このドアを編集できるのは、ドアの所有者または管理者だけです。"
-"door.access.unavailable" = "<red>このディメンションドアにはアクセス記録がありません。"
-"door.access.save_failed" = "<red>そのドアのアクセス変更を保存できませんでした。"
-"door.access.player_not_found" = "<red>{name} という名前のプレイヤーは見つかりませんでした。"
-"door.access.owner_always" = "<gray>ドアの所有者は常にアクセスできます。"
-"door.access.already_listed" = "<gray>{name} はすでにこのドアのリストに登録されています。"
-"door.access.added" = "<green>{name} をこのドアのリストに追加しました。"
-"door.access.removed" = "<green>{name} をこのドアのリストから削除しました。"
-"door.access.state_changed" = "<green>{name} をこのドアの {state} に設定しました。"
-"door.access.prompt_player" = "<aqua>このドアのリストに登録するプレイヤー名を入力してください (または '{cancel}'):"
-"door.access.denied" = "<red>このディメンションドアはあなたを拒みます。"
-"door.access.transit_denied" = "このディメンションドアへのアクセス権がありません。"
-"door.menu.access.title" = "{kind}ドアのアクセス設定"
-"portal.menu.gateway.server" = "<gray>サーバー: <white>{server}"
-"portal.menu.gateway.link" = "<gray>リンク: <aqua>{state}"
-"portal.menu.mirror.rotation" = "<gray>画像の回転: <aqua>{degrees} 度"
-"portal.menu.mirror.rotate_clockwise" = "<dark_gray>右クリック: 時計回りに回転。"
-"portal.menu.mirror.rotate_counterclockwise" = "<dark_gray>Shift + 右クリック: 反時計回りに回転。"
-"portal.prompt.invite" = "<aqua>ポータル招待コードをチャットに貼り付けてください (または '{cancel}'):"
-"portal.prompt.block_state" = "<aqua>このポータルのネットワークビュー端に使うブロック状態を入力するか、'{cancel}' と入力してください:"
-"portal.prompt.name" = "<aqua>新しいポータル名をチャットに入力してください (または '{cancel}'):"
-"portal.input.cancel" = "キャンセル"
-"portal.rtp.editor_title" = "RTP: {portal}"
-"portal.notice.dimensional_link_managed" = "このディメンションポータルでは自動生成されたリンクが維持されます。"
-"portal.notice.not_rtp" = "このポータルはランダムテレポートモードではありません。"
-"portal.rtp.notice.setting_rejected" = "設定を適用できませんでした: {reason}"
-"portal.notice.region_unavailable" = "ポータルのリージョンを使用できません。もう一度試してください。"
-"portal.rtp.notice.applied" = "ランダム目的地の設定を適用しました。"
-"portal.rtp.notice.reset_defaults" = "ランダムテレポート設定をデフォルトにリセットしました。"
-"portal.rtp.notice.editor_refreshed" = "設定が変更されたため、エディターを更新しました。"
-"portal.rtp.notice.runtime_unavailable" = "ランダムテレポートのランタイムを使用できません。"
-"portal.rtp.notice.reroll_failed" = "手動の再抽選に失敗しました。サーバーログを確認してください。"
-"portal.rtp.notice.reroll_preparing" = "新しいランダム目的地を準備しています。"
-"portal.rtp.notice.reroll_unavailable" = "ルートの準備中または使用中は再抽選できません。"
-"portal.rtp.notice.pool_rebuilding" = "プレイヤー別の目的地プールを再構築しています。"
-"portal.rtp.notice.pool_failed" = "目的地プールの再構築に失敗しました。サーバーログを確認してください。"
-"portal.rtp.notice.not_ready" = "<yellow>ポータルはまだ目的地を安定させています。"
-"portal.rtp.notice.traversal_failed" = "<red>ポータルを安定させられませんでした。もう一度お試しください。"
-"portal.notice.travel_managed" = "ディメンションポータルの移動方向は自動管理されます。"
-"portal.notice.travel_mirror_locked" = "ミラーモードでは移動できません。"
-"portal.notice.travel_changed" = "移動: {mode}"
-"portal.notice.stream_quality_changed" = "ストリーム品質: {quality}"
-"portal.notice.network_value_changed" = "{label} {value}"
-"portal.notice.fallback_set" = "フォールバックブロックを {block} に設定しました"
-"portal.notice.fallback_reset" = "フォールバックブロックを {block} に戻しました"
-"portal.notice.managed_mode" = "管理対象のディメンションポータルはポータルモードに固定されます。"
-"portal.notice.projection_receiver_inactive" = "終端側の到着ポータルでは投影が無効のままです。"
-"portal.notice.projection_changed" = "投影: {mode}"
-"portal.notice.settings_sync_changed" = "設定同期: {state}"
-"portal.notice.access_changed" = "アクセス: {mode}"
-"portal.notice.mirror_select_first" = "画像を回転する前にミラーモードを選択してください。"
-"portal.notice.mirror_rotation_changed" = "ミラー回転: {degrees} 度"
-"portal.notice.rtp_cannot_link" = "ランダムテレポートポータルは固定の目的地にリンクできません。"
-"portal.label.travel.both" = "双方向"
-"portal.label.travel.outbound" = "出発のみ"
-"portal.label.travel.inbound" = "到着のみ"
-"portal.label.travel.locked" = "ロック"
-"portal.label.travel.arrival" = "到着のみ"
-"portal.label.travel.departure" = "出発のみ"
-"portal.label.travel.dimensional_both" = "リンクされた両側が有効になります。"
-"portal.label.travel.dimensional_return_disabled" = "帰還ルートは無効のままです。"
-"portal.label.quality.standard" = "標準"
-"portal.label.quality.performance" = "パフォーマンス"
-"portal.label.quality.balanced" = "バランス"
-"portal.label.quality.cinematic" = "シネマティック"
-"portal.label.quality.custom" = "カスタム"
-"portal.label.mode.portal" = "ポータル"
-"portal.label.mode.wormhole" = "ワームホール"
-"portal.label.mode.gateway" = "ゲートウェイ"
-"portal.label.mode.rtp" = "RTP"
-"portal.label.mode.mirror" = "ミラー"
-"portal.label.direction.up" = "上"
-"portal.label.direction.down" = "下"
-"portal.label.direction.north" = "北"
-"portal.label.direction.south" = "南"
-"portal.label.direction.east" = "東"
-"portal.label.direction.west" = "西"
-"portal.mode.description.portal" = "リンク可能な基本ポータル。"
-"portal.mode.description.wormhole" = "ビューポート投影を備えたリンク可能なポータル。"
-"portal.mode.description.gateway" = "サーバー間リンク専用。"
-"portal.mode.description.rtp" = "ローカルのランダムテレポートポータル。"
-"portal.mode.description.mirror" = "ローカルワールドを反射し、移動を禁止します。"
-"portal.label.allocation.shared" = "共有"
-"portal.label.allocation.per_player" = "プレイヤーごと"
-"portal.rtp.rotation.private" = "プレイヤーごとに {duration}"
-"portal.label.permission.whitelist" = "許可リスト"
-"portal.label.permission.blacklist" = "拒否リスト"
-"portal.permission.description.whitelist" = "このポータルを使用するには、プレイヤーにこの権限ノードが必要です。"
-"portal.permission.description.blacklist" = "この権限ノードを持つプレイヤーは使用できません。"
-"portal.label.network.direct" = "直接"
-"portal.label.network.sideband" = "サイドバンド"
-"portal.label.network.reconnecting" = "再接続中"
-"portal.network.label.capture_radius" = "取得半径"
-"portal.network.description.capture_radius" = "目的地ポータルの周囲でストリーム配信するブロック範囲。"
-"portal.network.label.full_refresh" = "完全更新"
-"portal.network.description.full_refresh" = "ブロックを完全更新する間隔のティック数。"
-"portal.network.label.entity_update" = "エンティティ更新"
-"portal.network.description.entity_update" = "エンティティを更新する間隔のティック数。"
-"portal.network.label.view_grace" = "ビュー猶予時間"
-"portal.network.description.view_grace" = "視線を外した後もストリームを維持する秒数。"
-"portal.network.label.blackout" = "背景遮蔽"
-"portal.network.label.blackout_color" = "遮蔽の色"
-"portal.network.label.activation_range" = "起動範囲"
-"portal.label.activation_global" = "グローバル ({range})"
-"portal.direction.cancelled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>キャンセルしました"
-"portal.direction.set" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>方向を設定しました"
-"portal.setting.notification" = "<green>{portal}: <reset>{message}"
-"portal.link.linked" = "<green>{portal} を {destination} にリンクしました。"
-"portal.link.linked_remote" = "<green>{portal} を {server} の {destination} にリンクしました。"
-"portal.link.unlinked" = "<yellow>{portal} と {destination} のリンクを解除しました。"
-"portal.orientation.face_flipped" = "<green>{portal} の正面を {direction} に反転しました。"
-"portal.orientation.rotated_counterclockwise" = "<green>{portal} を反時計回りに回転しました。"
-"portal.orientation.rotated_clockwise" = "<green>{portal} を時計回りに回転しました。"
-"portal.orientation.direction_changed" = "<green>{portal} の向きを {direction} に変更しました。"
-"portal.mode.changed" = "<green>{portal} のモードを {mode} に設定しました。"
-"label.none" = "なし"
-"label.on" = "オン"
-"label.off" = "オフ"
-"label.ready" = "準備完了"
-"label.preparing" = "準備中"
-"label.open" = "開"
-"label.closed" = "閉"
-"rtp.routing.action_confirm" = "確認画面を開きます。"
-"rtp.status.ready" = "準備完了"
-"rtp.status.warming" = "準備中"
-"rtp.status.rerolling" = "再抽選中"
-"rtp.status.backoff" = "再試行待ち"
-"rtp.status.world_unavailable" = "対象ワールドを使用できません"
-"rtp.status.integration_failed" = "アクセス連携に失敗"
-"rtp.status.failed" = "失敗"
-"rtp.status.idle" = "待機中"
-"rtp.rotation.static" = "固定"
-"rtp.rotation.timed" = "時間制"
-"rtp.rotation.trip" = "移動後"
-"rtp.status.retry" = "<gray>再試行まで: <red>{duration}"
-"rtp.status.active" = "<gray>稼働中: {readiness}"
-"rtp.status.standby" = "<gray>待機状態: {readiness}"
-"rtp.status.rotation" = "<gray>下書きのローテーション: <aqua>{rotation}"
-"rtp.status.pool" = "<gray>空き: <aqua>{free}<gray>  予約済み: <aqua>{reserved}"
-"rtp.status.target_missing" = "<red>対象ワールドが読み込まれていません。"
-"rtp.status.access_failed" = "<red>目的地のアクセス確認に失敗したため、拒否しました。"
-"rtp.numeric.center_x" = "中心 X"
-"rtp.numeric.center_z" = "中心 Z"
-"rtp.numeric.minimum_radius" = "最低半径"
-"rtp.numeric.maximum_radius" = "最大半径"
-"rtp.numeric.lower_y" = "下 Y"
-"rtp.numeric.upper_y" = "上限 Y"
-"rtp.numeric.preferred_y" = "優先 Y 値"
-"rtp.numeric.cycle" = "サイクル期間"
-"rtp.numeric.private_rotation" = "プライベート・ローテーション時間"
-"rtp.numeric.lease" = "アイドル予約の猶予時間"
-"rtp.numeric.release" = "個別予約の解放猶予"
-"rtp.numeric.description.center" = "カスタム中心をこの軸方向に移動します。"
-"rtp.numeric.description.minimum_radius" = "目的地の環状範囲の内側境界。"
-"rtp.numeric.description.maximum_radius" = "目的地の環状範囲の外側境界。"
-"rtp.numeric.description.y" = "安全な足元位置を探す高さの範囲。"
-"rtp.numeric.description.cycle" = "共有の時間制ローテーションを行う間隔。"
-"rtp.numeric.description.private_rotation" = "プレイヤーごとに準備された目的地の最大保持時間。"
-"rtp.numeric.description.lease" = "全員が離れた後も、準備済みの目的地を短時間維持します。"
-"rtp.numeric.description.release" = "未使用の個別予約を解放するまでの遅延。"
-"rtp.duration.hours" = "{value}h"
-"rtp.duration.minutes" = "{value}m"
-"rtp.duration.seconds" = "{value}s"
-"rtp.duration.decimal_seconds" = "{value}s"
+[language.editor]
+loading = "{locale}のメッセージを読み込んでいます..."
 
-"portal.menu.destination.sort_smart" = "スマート"
-"portal.menu.destination.sort_name" = "名前"
-"portal.menu.destination.sort_world" = "ワールド"
-"portal.menu.destination.sort_distance" = "距離"
-"rtp.biome.any_label" = "任意"
+[language.editor.category]
+message-count = "&7{count}件のメッセージ&r"
+open = "&8クリックしてこのグループを開きます。&r"
 
-"command.help.pocket" = "ポケットディメンションの確認と作り直し"
-"command.help.pocket.info" = "今いるポケットのサイズ、素材、範囲を表示する"
-"command.help.pocket.resize" = "今いるポケットを新しいサイズや素材で作り直す"
-"command.help.pocket.resize.size" = "部屋の新しい一辺のブロック数。0 で現在のサイズを維持"
-"command.help.pocket.resize.material" = "壁、床、天井の新しいブロック。または keep"
-"command.help.pocket.resize.door" = "出口のドアの新しいブロック。または keep"
-"command.help.pocket.resize.confirm" = "変更で何かが壊れたり移動したりする場合に必要"
-"command.help.pocket.resizeall" = "既存のすべてのポケットを新しいサイズや素材で作り直す"
-"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>このコマンドはポケットディメンションの中で実行してください。"
-"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ポケットのサイズは {minimum} から {maximum} ブロックの間にしてください。"
-"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} はポケットの壁に使えません。落下しない不透過ブロックを指定してください。"
-"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} はポケットの出口ドアに使えません。手で開けられるドアを指定してください。鉄のドアは使えません。"
-"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>そのポケットはすでにこのサイズと素材です。"
-"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ポケットのサイズ変更を中止しました。中身のあるコンテナ <white>{containers}<red> 個が破壊されます。空にしてから再試行してください。<white>confirm=true<red> でもこの安全確認は無効にできません。"
-"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>ポケットを <white>{size}<green> ブロックで作り直しました (以前は <white>{previous}<green>)。壁 <white>{material}<green>、出口ドア <white>{door}。"
-"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ポケットを作り直せませんでした。コンソールを確認してください。"
-"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>ポケットディメンションが読み込まれていません。"
-"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} ブロックの部屋はポケットディメンションの建築高度に収まりません。"
-"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray><white>{count}<gray> 個のポケットを作り直しています。"
-"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>作り直し <white>{resized}<green>、スキップ <white>{skipped}<green>、失敗 <white>{failed}。"
-"portal.label.public_look_label" = "Public Look Label"
-[lines]
-"portal.menu.cost.opener" = ["<gold><bold>移動コスト</bold>","<gray>プレイヤーがこのポータルを使用するときに","<gray>正確なアイテムまたは Vault 通貨を要求します。","","<gray>モード: <white>{mode}","<gray>コスト: <white>{cost}","","<dark_gray>クリックして設定します。"]
-"portal.menu.cost.placard" = ["<gold><bold>移動コスト</bold>","<gray>プレイヤーは支払いを済ませるまで","<gray>このポータルで移動できません。","","<gray>モード: <white>{mode}","<gray>コスト: <white>{cost}"]
-"portal.menu.cost.mode_free" = ["<green><bold>無料</bold>","<gray>支払いは不要です。","","<dark_gray>クリックして移動を無料にします。"]
-"portal.menu.cost.mode_vanilla" = ["<aqua><bold>バニラアイテム</bold>","<gray>完全に一致するアイテムを消費します。","","<dark_gray>クリックし、アイテムを持ってドロップキーを押してください。"]
-"portal.menu.cost.mode_vault" = ["<green><bold>Vault 経済</bold>","<gray>Vault を通じて通貨を引き落とします。","","<dark_gray>クリックして金額を入力します。"]
-"portal.menu.cost.mode_vault_unavailable" = ["<red><bold>Vault 経済は利用できません</bold>","<gray>Vault と経済プロバイダーが必要です。","","<dark_gray>このモードを使用するには両方を導入または有効化してください。"]
-"portal.menu.cost.free_detail" = ["<green><bold>コストなし</bold>","<gray>このポータルの移動は無料です。"]
-"portal.menu.cost.secondary_empty" = ["<dark_gray><bold>追加設定なし</bold>"]
-"portal.menu.cost.item" = ["<aqua><bold>{item}</bold>","<gray>移動にはこの正確なアイテムが必要です。","<gray>選択用のアイテムが消費されることはありません。","","<dark_gray>左クリック: 手に持った別のアイテムを選択。","<dark_gray>右クリック: コストをクリア。"]
-"portal.menu.cost.quantity" = ["<aqua><bold>個数 {quantity}</bold>","<gray>1回の通過ごとに消費される","<gray>完全一致アイテムの数です。","","<dark_gray>左クリック: +1","<dark_gray>右クリック: -1","<dark_gray>Shift + 左クリック: +8","<dark_gray>Shift + 右クリック: -8","<dark_gray>最大: {maximum}"]
-"portal.menu.cost.vault_amount" = ["<green><bold>{amount}</bold>","<gray>1回の通過ごとに引き落とされる通貨です。","","<dark_gray>左クリック: 別の金額を入力。","<dark_gray>右クリック: コストをクリア。"]
-"portal.menu.render_mode" = ["<aqua><bold>レンダリングモード <white>{mode}</bold>","<gray>このポータルが投影する目的地ボリュームの範囲。","","<gray>モード: <white>{mode}","","<dark_gray>PanOptic は目的地ボリューム全体をレンダリングします。","<dark_gray>Venticular は表示される不透明な表面の背後にある形状を省略します。","","<dark_gray>左クリック: モードを切り替え。"]
-"portal.menu.ambient_particles" = ["<aqua><bold>アンビエントパーティクル</bold>","<gray>このポータルの周りに漂う装飾的なほこり。","","<gray>スタイル: <white>{style} <dark_gray>({color})","","<dark_gray>左: スタイルを切り替え。","<dark_gray>右: 色を選択。"]
-"portal.menu.ambient_color.placard" = ["<gold><bold>アンビエントカラー</bold>","<gray>アンビエントのほこり粒子の色。","","<gray>現在: <white>{color}"]
-"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>左クリック: +{step}","<dark_gray>右クリック: -{step}","<dark_gray>Shift + 左クリック: +{large_step}","<dark_gray>Shift + 右クリック: -{large_step}"]
-"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>クリックして選択します。"]
-"portal.menu.surface_skin" = ["<aqua><bold>表面スキン</bold>","<gray>レンダリングされたブロックまたは液体のパネルでポータルの開口部を覆います。","","<gray>スキン: <white>{skin}","","<dark_gray>左: スキンを削除。","<dark_gray>右: スキンオプションを開く。"]
-"portal.menu.surface_skin.placard" = ["<gold><bold>表面スキン</bold>","<gray>ブロックまたはバケツを持ってポータルを右クリックしてスキンを適用します。","","<gray>スキン: <white>{skin}"]
-"portal.menu.surface_skin.glass" = ["<aqua><bold>ガラススキン</bold>","<gray>開口部を覆う透明なガラスの窓。","","<dark_gray>クリックしてガラスを適用します。"]
-"portal.menu.surface_skin.clear" = ["<red><bold>スキンを削除</bold>","<gray>スキンを削除し、投影を復元します。","","<dark_gray>クリックしてスキンを削除します。"]
-"command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>ポータルのヘルプ: <white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>ポータルにポータルワンドを使うと、目的地、表示、移動、アクセス設定を開けます。"]
-"command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>ポータルワンドとワームホールルーン 1 個を付与しました。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>ワームホールルーンの形を 2 つ(同じ平面上の任意のつながった形)作ってリンクし、{range} ブロック以内に立つと投影が見えます。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>詳しい手順は <white>/wormholes info<gray> で確認できます。"]
-"command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>スナップショットファイル: <white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>このファイルを監視すると、ネットワークとビューの状態をリアルタイムで確認できます。ファイルは周期ごとに上書きされます。"]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>ワームホールの作り方</bold>","<dark_gray>1. <gray>サーバーまたは管理者からポータルワンドとポータルルーンを入手します。","<dark_gray>2. <gray>同じ平面上に、ルーンを任意のつながった形で配置します。","<gray>   長方形、直線 (3x1)、単一ブロック、L 字形、十字形など、つながった形なら使用できます。","<gray>   ルーンは、座標軸に沿った 1 枚の壁、床、または天井上に平らに配置してください。","<dark_gray>3. <gray>ポータルワンドを持ち、<white>任意のルーンブロックを左クリック<gray>してポータルを形成します。","<dark_gray>4. <gray>別の場所に 2 つ目のポータルを作ります(距離とワールドは問いません)。","<dark_gray>5. <gray>開いたポータルをワンドでクリックし、メインメニューを開きます。","<gray>   <white>目的地<gray>を選び、もう一方のポータルを指定します。反対側でも同じ操作を行います。","<gray>   向きとアクセス設定は、それぞれ専用の簡単なメニューにまとまっています。","<dark_gray>6. <gray>どちらかのポータルから {range} ブロック以内に立つと、目的地のワールドがフレーム内に投影され、入るとテレポートします。","<gray>管理者は <white>/wormholes wand でアイテムを作成できます"]
-"item.portal_wand" = ["<gold><bold>ポータルワンド</bold>"]
-"item.portal_rune" = ["<gold><bold>ポータルルーン</bold>"]
-"item.wormhole_rune" = ["<gold><bold>ワームホールルーン</bold>"]
-"item.door.entangled_pair" = ["<gold>量子もつれドアのペア","<gray>自動的にリンクされた 2 枚のワームホールドアです。","<gray>使用すると A 側と B 側のドアに分かれます。"]
-"item.door.paired" = ["<gold>ワームホールドア {endpoint}","<gray>{other} 側に自動リンクされます。","<gray>ドアを開き、実際に敷居を越えると移動します。"]
-"item.door.personal" = ["<aqua>個人用ディメンションドア","<gray>移動者ごとに固有の永続次元へ入ります。","<gray>同じ移動者は常に同じ場所へ到着します。"]
-"item.door.public" = ["<gold>共有ディメンションドア","<gray>すべての移動者がこのドアの共有次元へ入ります。","<gray>ドアを壊して移動しても共有の目的地は変わりません。"]
-"item.door.return" = ["<green>ディメンション出口ドア","<gray>移動者をこのポケット次元から帰還させます。","<gray>このドアは対応するポケット次元に結び付けられています。"]
-"item.door.skin" = ["<gold>ディメンションドアの外装","<gray>ディメンションドアとプレイヤーが操作できるドアを組み合わせます。"]
-"item.door.entangled_pair_recipe" = ["<gold>量子もつれドアのペア","<gray>自動的にリンクされた 2 枚のワームホールドアです。"]
-"item.door.personal_recipe" = ["<aqua>個人用ディメンションドア","<gray>移動者ごとに固有の永続次元へ入ります。"]
-"item.door.public_recipe" = ["<gold>共有ディメンションドア","<gray>すべての移動者がこのドアの共有次元へ入ります。"]
-"item.door.entangled_trapdoor_pair" = ["<gold>量子もつれトラップドアのペア","<gray>自動的にリンクされた 2 枚のワームホールトラップドアです。","<gray>使用すると A 側と B 側のトラップドアに分かれます。"]
-"item.door.paired_trapdoor" = ["<gold>ワームホールトラップドア {endpoint}","<gray>{other} 側に自動リンクされます。","<gray>トラップドアを開き、その中へ飛び降りると移動します。"]
-"item.door.personal_trapdoor" = ["<aqua>個人用ディメンショントラップドア","<gray>移動者ごとに固有の永続次元へ入ります。","<gray>同じ移動者は常に同じ場所へ到着します。"]
-"item.door.public_trapdoor" = ["<gold>共有ディメンショントラップドア","<gray>すべての移動者がこのトラップドアの共有次元へ入ります。","<gray>トラップドアを壊して移動しても共有の目的地は変わりません。"]
-"item.door.trapdoor_skin" = ["<gold>ディメンショントラップドアの外装","<gray>ディメンショントラップドアと手で開けられるトラップドアを組み合わせます。"]
-"item.door.entangled_trapdoor_pair_recipe" = ["<gold>量子もつれトラップドアのペア","<gray>自動的にリンクされた 2 枚のワームホールトラップドアです。"]
-"item.door.personal_trapdoor_recipe" = ["<aqua>個人用ディメンショントラップドア","<gray>移動者ごとに固有の永続次元へ入ります。"]
-"item.door.public_trapdoor_recipe" = ["<gold>共有ディメンショントラップドア","<gray>すべての移動者がこのトラップドアの共有次元へ入ります。"]
-"portal.menu.destination" = ["<gold><bold>目的地</bold>","<gray>リンクするポータルを選びます。","<gray>現在のリンク先: {destination}","","<dark_gray>クリックして目的地選択を開きます。"]
-"portal.menu.gateway_destination" = ["<gold><bold>ペアリング & 目的地</bold>","<gray>別のサーバーとペアリングするか、ゲートウェイを選びます。","<gray>現在のリンク先: {destination}","","<dark_gray>クリックしてペアリング画面を開きます。"]
-"portal.menu.rtp_destination" = ["<gold><bold>ランダム目的地</bold>","<gray>目的地を選び直す場所とタイミングを設定します。","<gray>ローテーション: <aqua>{rotation}","","<dark_gray>クリックしてランダムテレポート設定を開きます。"]
-"portal.menu.rename" = ["<green><bold>ポータル名を変更</bold>","<gray>リンクとメニューに表示する名前を変更します。","<gray>現在: <white>{portal}","","<dark_gray>クリックして新しい名前を入力します。"]
-"portal.menu.delete" = ["<red><bold>ポータルを削除</bold>","<gray>このポータルを完全に削除します。","","<red><underlined>Shift + 左クリックで確定</underlined>"]
-"portal.menu.advanced_settings" = ["<dark_aqua><bold>高度なストリーム調整</bold>","<gray>診断や特殊なリンク向けの直接設定です。","<gray>値を変更するとストリーム品質がカスタムになります。"]
-"portal.menu.back_settings" = ["<yellow><bold>設定に戻る</bold>","<gray>ポータルの設定に戻ります。"]
-"portal.menu.travel.managed" = ["<gold><bold>移動: {direction}</bold>","<gray>システム管理のディメンションポータル方向です。","<gray>{detail}"]
-"portal.menu.travel.mirror" = ["<red><bold>移動: ミラーでロック</bold>","<gray>ミラーモードは表示専用です。","<gray>エンティティは出入りできません。"]
-"portal.menu.travel.standard" = ["<aqua><bold>移動: {mode}</bold>","<gray>このポータルを通過できる方向を制御します。","","<gray>送信: <aqua>{outgoing}<gray>  受信: <aqua>{incoming}","","<dark_gray>クリックして移動方向を切り替えます。"]
-"portal.menu.stream_quality" = ["<aqua><bold>ストリーム品質: {quality}</bold>","<gray>遠隔ビューの範囲と更新間隔をまとめて調整します。","","<gray>深度 <aqua>{depth}<gray>  エンティティ <aqua>{entities}t","<gray>更新 <aqua>{refresh}t<gray>  猶予 <aqua>{grace}s","","<dark_gray>クリック: 品質を切り替えます。","<dark_gray>Shift + クリック: 詳細調整。"]
-"portal.menu.orientation" = ["<blue><bold>向き</bold>","<gray>正面: <blue>{facing}","<gray>画面上方向: <gold>{up}","","<dark_gray>クリックして正面、反転、回転を設定します。"]
-"portal.menu.orientation_placard" = ["<blue><bold>ポータルの向き</bold>","<gray>正面: <blue>{facing}","<gray>画面上方向: <gold>{up}"]
-"portal.menu.gateway.choose" = ["<gold><bold>目的地を選択</bold>","<gray>検出済みのローカルおよびリモートゲートウェイから選びます。","","<dark_gray>クリックして目的地リストを開きます。"]
-"portal.menu.gateway.unpaired" = ["<gold><bold>ゲートウェイのペアリング</bold>","<gray>状態: <red>未ペアリング"]
-"portal.menu.gateway.paired" = ["<gold><bold>ゲートウェイペアリング</bold>","<gray>目的地: <gold>{destination}"]
-"portal.menu.gateway.export" = ["<gold><bold>招待を作成</bold>","<gray>別のサーバー用の署名済みゲートウェイコードを作成します。","","<dark_gray>クリックして新しいコードをコピーします。"]
-"portal.menu.gateway.import" = ["<aqua><bold>招待を使用</bold>","<gray>別のゲートウェイから取得した署名済みコードを貼り付けます。","","<dark_gray>クリックしてからチャットにコードを貼り付けます。"]
-"portal.menu.network_number" = ["<aqua><bold>{label} <white>{value}</bold>","<gray>{description}","","<gray>現在: <aqua>{value}","","<dark_gray>左クリック: +{step}","<dark_gray>右クリック: -{step}","<dark_gray>Shift + 左クリック: +{large_step}","<dark_gray>Shift + 右クリック: -{large_step}"]
-"portal.menu.fallback_block" = ["<aqua><bold>フォールバックブロック</bold>","<gray>ストリーム深度より先に表示するブロックです。","","<gray>現在: <white>{block}","","<dark_gray>左クリック: ブロック状態を入力。","<dark_gray>右クリック: 空気にリセット。"]
-"portal.menu.blackout" = ["<aqua><bold>背景遮蔽</bold>","<gray>投影の奥と側面の境界を不透明なコンクリートで塞ぎ、ローカルの世界が透けて見えないようにします。","","<gray>現在: <white>{state} <dark_gray>({color})","","<dark_gray>左クリック: オン/オフを切り替え。","<dark_gray>右クリック: 色を選択。"]
-"portal.menu.blackout_color.placard" = ["<gold><bold>遮蔽の色</bold>","<gray>遮蔽シェルに使うコンクリートの色。","","<gray>現在: <white>{color}"]
-"portal.menu.blackout_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>クリックして選択します。"]
-"portal.menu.activation_range" = ["<aqua><bold>起動範囲 <white>{value}</bold>","<gray>このポータルが近くのプレイヤーに投影を開始する距離（ブロック単位）。","","<gray>現在: <aqua>{value}","","<dark_gray>左クリック: +{step}","<dark_gray>右クリック: -{step}","<dark_gray>Shift + 左クリック: +{large_step}","<dark_gray>Shift + 右クリック: -{large_step}","<dark_gray>8 未満はグローバルにリセットされます。"]
-"portal.menu.placard.rtp" = ["<gold><bold>{portal}</bold>","<gray>種類: <yellow>{type}","<gray>向き: <blue>{facing}","<gray>割り当て: <aqua>{allocation}","<gray>ローテーション: <aqua>{rotation}","","<dark_gray>管理者は許可リストと拒否リストの対象外です。"]
-"portal.menu.placard.linked" = ["<gold><bold>{portal}</bold>","<gray>種類: <yellow>{type}","<gray>向き: <blue>{facing}","<gray>リンク先: <gold>{destination}","","<dark_gray>管理者は許可リストと拒否リストの対象外です。"]
-"portal.menu.placard.unlinked" = ["<gold><bold>{portal}</bold>","<gray>種類: <yellow>{type}","<gray>向き: <blue>{facing}","<gray>リンク先: <red>{none}","","<dark_gray>管理者は許可リストと拒否リストの対象外です。"]
-"portal.menu.settings_placard_gateway" = ["<aqua><bold>ポータルの設定</bold>","<gray>アクセスと転送の制御。","<gray>さらにサーバー間ビューを調整します。","","<gray>深度を上げる / ティック間隔を短くする =","<gray>より詳細な表示、より多くの帯域幅。"]
-"portal.menu.mode_placard" = ["<yellow><bold>ポータルモード</bold>","<gray>現在: <yellow>{mode}","","<gray>ポータル: 基本的なリンクポータル。","<gray>ワームホール: ビューポート付きポータル。","<gray>ゲートウェイ: サーバー間ゲートウェイ。","<gray>RTP: 設定可能なランダム目的地。","<gray>ミラー: こちら側を反射し、移動は不可。"]
-"portal.menu.mode_opener" = ["<yellow><bold>モード</bold>","<gray>{description}","","<gray>現在: <yellow>{mode}","","<dark_gray>クリックしてモードを変更します。"]
-"portal.menu.direction" = ["<blue><bold>方向</bold>","<gray>ポータル正面の向きを変更します。","","<gray>現在の向き: <blue>{direction}","","<dark_gray>クリック後に方向を向き、左クリックで適用します。"]
-"portal.menu.flip_face" = ["<aqua><bold>正面を反転</bold>","<gray>ポータル正面の向きを反転します。","<gray>画面の回転方向は維持されます。","","<gray>現在の画面上方向: <aqua>{up}","","<dark_gray>クリックして反転します。"]
-"portal.menu.rotate_counterclockwise" = ["<gold><bold>反時計回りに回転</bold>","<gray>ポータルのビューポートを 90 度回転し","<gray>正面の向きは変えません。","","<gray>現在の画面上方向: <gold>{up}","","<dark_gray>クリックして回転します。"]
-"portal.menu.rotate_clockwise" = ["<gold><bold>時計回りに回転</bold>","<gray>ポータルのビューポートを 90 度回転し","<gray>正面の向きは変えません。","","<gray>現在の画面上方向: <gold>{up}","","<dark_gray>クリックして回転します。"]
-"portal.menu.back" = ["<yellow><bold>戻る</bold>","<gray>ポータルメニューに戻ります。"]
-"portal.menu.projection.on" = ["<gold><bold>投影オン</bold>","<gray>このポータルのライブビューを表示します。","<gray>目的地またはミラー映像が見えます。","","<gray>現在: <aqua>投影オン</aqua>","","<dark_gray>クリックしてオン / オフを切り替えます。"]
-"portal.menu.projection.off" = ["<dark_gray><bold>投影オフ</bold>","<gray>フレームは空のままです。","<gray>目的地ビューもミラーも表示しません。","","<gray>現在: <aqua>投影オフ</aqua>","","<dark_gray>クリックしてオン / オフを切り替えます。"]
-"portal.menu.settings_gateway" = ["<aqua><bold>設定</bold>","<gray>権限、転送の制御、","<gray>サーバー間ビューの調整。","","<gray>アクセス: <gold>{access}","<gray>送信 <aqua>{send}<gray>  受信 <aqua>{receive}","<gray>深度 <aqua>{depth}<gray>  エンティティ <aqua>{entity}t","","<dark_gray>クリックして設定を開きます。"]
-"portal.menu.settings_sync" = ["<aqua><bold>設定同期 {state}</bold>","<gray>オンにすると、このポータルの設定","<gray>(深度、ティック、投影、権限、","<gray>転送)がリンク済みの全ピアに同期されます。","","<gray>現在: <aqua>{state}","","<dark_gray>クリックして切り替えます。"]
-"portal.menu.permission" = ["<gold><bold>アクセス {mode}</bold>","<gray>{description}","<gray>権限ノード: <white>{node}","","<gray>現在: <gold>{mode}","","<dark_gray>クリックして許可リスト / 拒否リストを切り替えます。","<dark_gray>管理者は常に対象外です。"]
-"portal.menu.mode_option.selected" = ["<yellow><bold>{mode}</bold>","<gray>{description}","","<green>現在選択されている"]
-"portal.menu.mode_option.available" = ["<yellow><bold>{mode}</bold>","<gray>{description}","","<gray>選択するにはクリックします"]
-"portal.menu.mirror.selected" = ["<yellow><bold>ミラー</bold>","<gray>ローカルワールドをこちら側に反射します。","<gray>フレーム越しに自分自身が見えます。","<gray>ミラー中は移動できません。","","<green>現在選択中"]
-"portal.menu.mirror.available" = ["<yellow><bold>ミラー</bold>","<gray>ローカルワールドをこちら側に反射します。","<gray>フレーム越しに自分自身が見えます。","<gray>ミラー中は移動できません。","","<gray>左クリックで選択"]
-"portal.menu.mirror.flip" = ["<gray>壁面のミラーは 180 度単位で反転し、","<gray>反射されたエンティティの向きを正しく保ちます。","<dark_gray>右クリック: 反射画像を反転。"]
-"portal.menu.destination.local" = ["<gold>{portal}","<gray>{world} の {x}, {y}, {z}、向き {direction}"]
-"portal.menu.destination.remote" = ["<gold>{portal}","<gray>サーバー: <white>{server}","<gray>{world} の {x}, {y}, {z}、向き {direction}","<aqua>{state}"]
-"portal.menu.destination.sort" = ["<yellow><bold>並び替え: <white>{mode}</bold>","<gray>目的地の並び順を変更します。","<yellow>左クリック"]
-"portal.menu.destination.previous_page" = ["<yellow><bold>前のページ</bold>","<gray>前の目的地を表示します。","<yellow>左クリック"]
-"portal.menu.destination.next_page" = ["<yellow><bold>次のページ</bold>","<gray>次の目的地を表示します。","<yellow>左クリック"]
-"portal.menu.destination.page" = ["<aqua><bold>ページ {page}/{pages}</bold>","<gray>目的地 {count} 件"]
-"portal.menu.destination.empty" = ["<gray>リンクできる目的地がありません。"]
-"portal.prompt.direction" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>設定する方向を向き、左クリックで適用します。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Shift + 左クリックでキャンセル。"]
-"rtp.overview.destination" = ["<yellow><bold>目的地 & 範囲</bold>","<gray>ワールド、中心、半径。","<yellow>左クリック"]
-"rtp.overview.landing" = ["<yellow><bold>着地点のルール</bold>","<gray>地表と高度の設定。","<yellow>左クリック"]
-"rtp.overview.routing" = ["<yellow><bold>ローテーション & 目的地プール</bold>","<gray>共有方法、ローテーション、予約保持時間。","<yellow>左クリック"]
-"rtp.overview.effects" = ["<yellow><bold>エフェクト</bold>","<gray>投影リムとポータルサウンド。","<yellow>左クリック"]
-"rtp.overview.reset_defaults" = ["<yellow><bold>デフォルトにリセット</bold>","<gray>このポータルのランダムテレポート設定を直ちにデフォルトへ戻します。","<yellow>左クリック"]
-"rtp.navigation.back_portal" = ["<yellow><bold>ポータルに戻る</bold>","<gray>ポータルメニューに戻ります。","<yellow>左クリック"]
-"rtp.navigation.overview" = ["<yellow><bold>概要</bold>","<gray>RTP の概要に戻ります。","<yellow>左クリック"]
-"rtp.navigation.back_category" = ["<yellow><bold>戻る</bold>","<gray>前のカテゴリに戻ります。","<yellow>左クリック"]
-"rtp.destination.header" = ["<aqua><bold>目的地 & 範囲</bold>","<gray>各項目は通常の左クリックで選択します。"]
-"rtp.destination.world_current" = ["<green><bold>{world}</bold>","<gray>現在の対象ワールド。","<green>選択中"]
-"rtp.destination.world_available" = ["<aqua><bold>{world}</bold>","<gray>読み込み済みのこのワールドを使用します。","<yellow>左クリックで選択"]
-"rtp.destination.previous_worlds" = ["<yellow><bold>前のワールド</bold>","<gray>前のページを表示します。","<yellow>左クリック"]
-"rtp.destination.next_worlds" = ["<yellow><bold>次のワールド</bold>","<gray>次のページを表示します。","<yellow>左クリック"]
-"rtp.destination.biome_link" = ["<yellow><bold>対象バイオーム <white>{value}</bold>","<gray>選択したバイオームへの着地を優先します。","<yellow>左クリック"]
-"rtp.biome.header" = ["<aqua><bold>対象バイオーム</bold>","<gray>このバイオームを優先して検索し、近くで見つからない場合は任意の安全な地点を使用します。"]
-"rtp.biome.any_selected" = ["<green><bold>任意のバイオーム</bold>","<gray>バイオームの指定はありません。","<green>選択中"]
-"rtp.biome.any_available" = ["<aqua><bold>任意のバイオーム</bold>","<gray>バイオームの指定を解除します。","<yellow>左クリックで選択"]
-"rtp.biome.current" = ["<green><bold>{biome}</bold>","<gray>{key}","<green>選択中"]
-"rtp.biome.available" = ["<aqua><bold>{biome}</bold>","<gray>{key}","<yellow>左クリックで選択"]
-"rtp.biome.empty" = ["<gray>対象ワールドで利用できるバイオームがありません。"]
-"rtp.biome.previous" = ["<yellow><bold>前のバイオーム</bold>","<gray>前のページを表示します。","<yellow>左クリック"]
-"rtp.biome.next" = ["<yellow><bold>次のバイオーム</bold>","<gray>次のページを表示します。","<yellow>左クリック"]
-"rtp.destination.center_portal_selected" = ["<green><bold>ポータル基準の中心</bold>","<gray>このポータルを環状範囲の中心にします。","<green>選択中"]
-"rtp.destination.center_portal_available" = ["<aqua><bold>ポータル基準の中心</bold>","<gray>このポータルを環状範囲の中心にします。","<yellow>左クリックで選択"]
-"rtp.destination.center_custom_selected" = ["<green><bold>カスタムセンター</bold>","<gray>編集可能な X 座標と Z 座標を使用します。","<green>選択した"]
-"rtp.destination.center_custom_available" = ["<aqua><bold>カスタムセンター</bold>","<gray>編集可能な X 座標と Z 座標を使用します。","<yellow>左クリックで選択します"]
-"rtp.numeric.link" = ["<yellow><bold>{label} <white>{value}</bold>","<gray>値を増減する専用画面を開きます。","<yellow>左クリック"]
-"rtp.destination.reset_center" = ["<yellow><bold>中心 / 対象をリセット</bold>","<gray>出発元のワールドとポータルの中心を使用します。","<yellow>左クリック"]
-"rtp.landing.header" = ["<aqua><bold>着地点のルール</bold>","<gray>Choose surface or preferred-height behavior and its safety mode."]
-"rtp.landing.surface_selected" = ["<green><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<green>Selected"]
-"rtp.landing.surface_available" = ["<aqua><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<yellow>Left click to select"]
-"rtp.landing.preferred_selected" = ["<green><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<green>Selected"]
-"rtp.landing.preferred_available" = ["<aqua><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<yellow>Left click to select"]
-"rtp.landing.safe_policy" = ["<aqua><bold>Landing Safety: <white>{mode}</bold>","<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.","<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.","<yellow>Left click to toggle"]
-"rtp.routing.header" = ["<aqua><bold>ローテーション & 目的地プール</bold>","<gray>モードを直接選び、最後に一括適用します。"]
-"rtp.routing.shared_selected" = ["<green><bold>共有目的地</bold>","<gray>全員が同じルートを見て使用します。","<green>選択中"]
-"rtp.routing.shared_available" = ["<aqua><bold>共有目的地</bold>","<gray>全員が同じルートを見て使用します。","<yellow>左クリックで選択"]
-"rtp.routing.private_selected" = ["<green><bold>プレイヤー別の目的地</bold>","<gray>各プレイヤーに個別の予約を用意します。","<green>選択中"]
-"rtp.routing.private_available" = ["<aqua><bold>プレイヤー別の目的地</bold>","<gray>各プレイヤーに個別の予約を用意します。","<yellow>左クリックで選択"]
-"rtp.routing.static_selected" = ["<green><bold>固定</bold>","<gray>目的地を変更しません。","<green>選択中"]
-"rtp.routing.static_available" = ["<aqua><bold>固定</bold>","<gray>目的地を変更しません。","<yellow>左クリックで選択"]
-"rtp.routing.timed_selected" = ["<green><bold>時間制</bold>","<gray>設定した時間が経過すると目的地を更新します。","<green>選択中"]
-"rtp.routing.timed_available" = ["<aqua><bold>時間制</bold>","<gray>設定した時間が経過すると目的地を更新します。","<yellow>左クリックで選択"]
-"rtp.routing.trip_selected" = ["<green><bold>移動後</bold>","<gray>使用後に準備済みの次候補へ進みます。","<green>選択中"]
-"rtp.routing.trip_available" = ["<aqua><bold>移動後</bold>","<gray>使用後に準備済みの次候補へ進みます。","<yellow>左クリックで選択"]
-"rtp.routing.manual_reroll" = ["<yellow><bold>手動で再抽選</bold>","<gray>{description}","<yellow>左クリック"]
-"rtp.routing.rebuild_pool" = ["<yellow><bold>目的地プールを再構築</bold>","<gray>{description}","<yellow>左クリック"]
-"rtp.effects.header" = ["<aqua><bold>エフェクト</bold>","<gray>表示エフェクトを変えても目的地は再生成されません。"]
-"rtp.effects.rim_on_selected" = ["<green><bold>投影リム オン</bold>","<gray>ゲートの縁に準備状態を表示します。","<green>選択中"]
-"rtp.effects.rim_on_available" = ["<aqua><bold>投影リム オン</bold>","<gray>ゲートの縁に準備状態を表示します。","<yellow>左クリックで選択"]
-"rtp.effects.rim_off_selected" = ["<green><bold>投影リム オフ</bold>","<gray>準備状態を示す縁を非表示にします。","<green>選択中"]
-"rtp.effects.rim_off_available" = ["<aqua><bold>投影リム オフ</bold>","<gray>準備状態を示す縁を非表示にします。","<yellow>左クリックで選択"]
-"rtp.effects.sound_on_selected" = ["<green><bold>ポータルサウンド オン</bold>","<gray>この RTP ポータルのエフェクト音と移動音を再生します。","<green>選択中"]
-"rtp.effects.sound_on_available" = ["<aqua><bold>ポータルサウンド オン</bold>","<gray>この RTP ポータルのエフェクト音と移動音を再生します。","<yellow>左クリックで選択"]
-"rtp.effects.sound_off_selected" = ["<green><bold>ポータルサウンド オフ</bold>","<gray>この RTP ポータルを消音します。パーティクルは有効なままです。","<green>選択中"]
-"rtp.effects.sound_off_available" = ["<aqua><bold>ポータルサウンド オフ</bold>","<gray>この RTP ポータルを消音します。パーティクルは有効なままです。","<yellow>左クリックで選択"]
-"rtp.numeric.target_unavailable" = ["<aqua><bold>対象ワールドを使用できません</bold>","<gray>この値を編集する前に対象ワールドを読み込んでください。"]
-"rtp.numeric.value" = ["<aqua><bold>{value}</bold>","<gray>現在の下書き値。"]
-"rtp.numeric.adjust" = ["<yellow><bold>{direction}{step}</bold>","<gray>下書きを {direction}{step} 調整します。","<yellow>左クリック"]
-"rtp.numeric.header" = ["<aqua><bold>{label}</bold>","<gray>{description}"]
-"rtp.confirm.reroll" = ["<aqua><bold>共有ルートを再抽選しますか?</bold>","<gray>代替の準備が整うまで現在の投影を維持します。"]
-"rtp.confirm.rebuild" = ["<aqua><bold>プレイヤー別の目的地プールを再構築しますか?</bold>","<gray>空き候補の再構築中も既存の予約は維持されます。"]
-"rtp.confirm.confirm" = ["<yellow><bold>確認</bold>","<gray>この操作を実行します。","<yellow>左クリック"]
-"rtp.confirm.cancel" = ["<yellow><bold>キャンセル</bold>","<gray>実行状態を変更せずに戻ります。","<yellow>左クリック"]
-"rtp.status.header" = ["<gold><bold>ランダム目的地の状態</bold>","<gray>状態: {state}"]
-"door.menu.access.placard" = ["<gold><bold>{kind}ディメンションドア</bold>","<gray>所有者: <white>{owner}","<gray>許可リスト: <green>{whitelisted}","<gray>拒否リスト: <red>{blacklisted}","<gray>登録プレイヤー: <aqua>{count}","<dark_gray>このドアを編集できるのは所有者と管理者だけです。"]
-"door.menu.access.add_player" = ["<green><bold>プレイヤーを追加</bold>","<gray>チャットにプレイヤー名を入力してリストに登録します。","","<dark_gray>クリックしてプレイヤーを追加します。"]
-"door.menu.access.open_state" = ["<aqua><bold>OpenState: <white>{state}","<gray>ポータルはこのブロックの物理状態に従います。","<gray>有効な状態: <white>{state}<gray>。","","<dark_gray>次: {next}。クリックして切り替えます。"]
-"door.menu.access.entry" = ["<white>{name}","<gray>状態: <aqua>{state}","","<dark_gray>左クリック: 許可。右クリック: 拒否。","<dark_gray>中クリックまたは Shift + 左クリック: 削除。"]
+[language.editor.error]
+no-permission = "{plugin}の言語を編集する権限がありません。"
+unable-to-edit = "編集できませんでした: {reason}"
 
-"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>ポケット <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>サイズ <white>{size}<gray> ブロック、壁 <white>{material}<gray>、出口ドア <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>範囲 <white>{minimum}<gray> から <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} ブロックで作り直すと、設置済みブロック <white>{blocks}<red> 個が壊れ、エンティティ <white>{entities}<red> 体が移動します。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>新しい壁の外側のブロックは破壊され、移動対象のエンティティは入口へ移されます。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>続けるには同じコマンドに <white>confirm=true<gray> を付けて実行してください。"]
-"portal.menu.public_look_label" = ["<aqua><bold>Public Look Label: <white>{state}</bold>","<gray>Show this portal's name when nearby players look at it.","<gray>When Off, the route label remains portal-tool only.","","<yellow>Left click to toggle"]
-[plural."command.admin.deleted_portals"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> 個のポータルを削除し、ローカルポータルリンクを消去しました。"
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green><white>{count}<green> 個のポータルを削除し、ローカルポータルリンクを消去しました。"
+[language.editor.input]
+expired = "言語エディターの入力時間が切れました。"
+too-long = "入力は{maximum}文字以内にしてください。"
+unable-to-save = "保存できませんでした: {reason}"
 
-[plural."command.admin.reset_everything"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes を既定の状態にリセットしました。<white>{count}<green> 個のポータルを削除し、ネットワーク接続を閉じ、既定の設定ファイルを再生成しました。"
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes を既定の状態にリセットしました。<white>{count}<green> 個のポータルを削除し、ネットワーク接続を閉じ、既定の設定ファイルを再生成しました。"
+[language.editor.locale]
+open = "&8クリックしてこの言語を開きます。&r"
 
-[plural."wand.selection.selected"]
-one = "<aqua>{count} ブロックを選択しました。左クリックでポータルを開きます。"
-other = "<aqua>{count} ブロックを選択しました。左クリックでポータルを開きます。"
+[language.editor.message]
+current-value = "&7現在の値:&r"
+edit-chat = "&7クリックしてチャットで編集します。&r"
+edit-lines = "&7クリックして各行を編集します。&r"
+edit-plural = "&7クリックして複数形を編集します。&r"
+variables = "&8{variables}&r"
 
-[plural."command.admin.projection_flushed"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>投影観測者 <white>{count}<green> 件をフラッシュしました。クライアントは実際の状態から再構築します。"
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>投影観測者 <white>{count}<green> 件をフラッシュしました。クライアントは実際の状態から再構築します。"
+[language.editor.navigation]
+back = "&e戻る&r"
+close = "&c閉じる&r"
+next-page = "&e次のページ&r"
+previous-page = "&e前のページ&r"
+
+[language.editor.part]
+line = "行{line}"
+
+[language.editor.prompt]
+current = "現在の値: {value}"
+guidance = "改行には\\n、バックスラッシュには\\\\を使ってください。cancelと入力すると戻ります。"
+search = "メッセージキーまたは本文を検索してください。cancelと入力すると戻ります。"
+value = "{key}の新しい値をチャットに入力してください。"
+variables = "変数: {variables}"
+
+[language.editor.saved]
+change = "{key}: 「{before}」を「{after}」に変更しました。"
+summary = "{locale}を保存しました。言語の選択は変更されていません。"
+
+[language.editor.search]
+clear = "検索をクリア"
+messages = "メッセージを検索"
+messages-lore = "クリックしてすべてのメッセージを検索します。"
+
+[language.editor.section]
+group-title = "{locale} / {group}"
+languages = "言語"
+search = "検索"
+search-title = "{locale} / 検索"
+
+[language.editor.value]
+empty = "(空)"
+none = "なし"
+
+[language.error]
+editor-player-only = "ゲーム内で言語エディターを開いてください。"
+no-providers = "利用できるVolmit言語プロバイダーがありません。"
+numeric-page = "ページ番号を数字で入力してください。"
+personal-permission = "個人言語を選択する権限がありません。"
+personal-player-only = "プレイヤーの個人言語はゲーム内で選択してください。"
+plugin-personal-permission = "{plugin}の個人言語を選択する権限がありません。"
+plugin-server-permission = "{plugin}のサーバー言語を変更する権限がありません。"
+server-locale-required = "サーバーの既定の言語としてen_USなどの言語コードを選択してください。"
+stopping = "プラグインを停止している間は言語を選択できません。"
+unavailable-for-all = "選択したすべてのプラグインで言語{locale}を利用できるわけではありません。"
+
+[language.menu]
+all-volmit-plugins = "すべてのVolmitプラグイン"
+command = "コマンド: {command}"
+current = "現在: {locale}"
+current_with_personal = "現在: {locale} (あなた: {personal})"
+edit_description = "言語ごとのメッセージエディターを開きます。"
+edit_messages = "言語メッセージを編集"
+no_controls = "利用できる言語設定はありません。"
+remove_personal_description = "個人の言語選択を削除します。"
+reset_description = "サーバーのデフォルト言語を使用します。"
+reset_your_language = "自分の言語をリセット"
+select_description = "クリックしてこの言語を選択します。"
+selected = "選択済み"
+server_default = "サーバーのデフォルト"
+server_description = "サーバーのデフォルト言語を変更します。"
+use_server_default = "サーバーのデフォルトを使用"
+your_description = "表示されるメッセージだけを変更します。"
+your_language = "あなたの言語"
+
+[language.selection]
+english-fallback = "{plugin}: {locale}は利用できないため、英語（en_US）を使用します。"
+personal-selected = "{plugin}: 個人言語を{locale}に変更しました。"
+preparing = "{target}の言語{locale}を準備しています..."
+save-failed = "{plugin}: 言語の選択を保存できませんでした。サーバーコンソールを確認してください。"
+server-default-selected = "{plugin}: 個人言語はサーバーの既定の言語に従うようになりました。"
+server-selected = "{plugin}: サーバー言語を{locale}に変更しました。"
+
+[language.usage]
+editor = "使い方: /{command} language server edit [locale]"
+selection = "使い方: /{command} language self [locale|reset] or server [locale]"
+volmit-selection = "使い方: /volmit plugins languages [locale]"
+
+[command]
+public_help = ["&8[&6Wormholes&8] &7ポータルのヘルプ: &f/wormholes info", "&8[&6Wormholes&8] &7ポータルにポータルワンドを使うと、目的地、表示、移動、アクセス設定を開けます。"]
+info = ["&8[&6Wormholes&8] &7&lワームホールの作り方&r", "&81. &7サーバーまたは管理者からポータルワンドとポータルルーンを入手します。", "&82. &7同じ平面上に、ルーンを任意のつながった形で配置します。", "&7   長方形、直線 (3x1)、単一ブロック、L 字形、十字形など、つながった形なら使用できます。", "&7   ルーンは、座標軸に沿った 1 枚の壁、床、または天井上に平らに配置してください。", "&83. &7ポータルワンドを持ち、&f任意のルーンブロックを左クリック&7してポータルを形成します。", "&84. &7別の場所に 2 つ目のポータルを作ります(距離とワールドは問いません)。", "&85. &7開いたポータルをワンドでクリックし、メインメニューを開きます。", "&7   &f目的地&7を選び、もう一方のポータルを指定します。反対側でも同じ操作を行います。", "&7   向きとアクセス設定は、それぞれ専用の簡単なメニューにまとまっています。", "&86. &7どちらかのポータルから {range} ブロック以内に立つと、目的地のワールドがフレーム内に投影され、入るとテレポートします。", "&7管理者は &f/wormholes wand でアイテムを作成できます"]
+
+[command.help]
+debug = "Wormholes診断ツール"
+debug_dump = "診断レポートを作成し、必要に応じてアップロードする"
+debug_dump_upload = "レポートを mclo.gs にアップロードする"
+language = "自分の言語またはサーバーの既定言語を選択"
+root = "Wormholes のルートコマンド"
+wand = "ポータルワンドとワームホールルーンを入手する"
+"wand.rune" = "ワームホールルーンも渡す (rune=false ならワンドのみ)"
+door = "サバイバルで使用できるディメンションドアのアイテムを付与します"
+"door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
+reload = "Wormholes の設定ファイルと言語ファイルを再読み込みします"
+debug_toggle = "詳細なコンソールログと 1 秒間隔のテレメトリを切り替えます"
+stats = "リアルタイム統計スナップショットのファイルパスを表示します。now=true で即時更新できます"
+"stats.now" = "スナップショットを同期的に即時再生成します"
+info = "ポータルの建築手順を表示します"
+admin = "Wormholes の破壊的なメンテナンスコマンド"
+"admin.delete_portals" = "すべてのローカルポータルと保存済みポータルリンクを削除します"
+"admin.delete_everything" = "Wormholes のデータ、設定、信頼情報、ID、ネットワーク状態をリセットします"
+"admin.freeze" = "すべてのポータル投影を指定した秒数だけその場で凍結します (seconds=0 で再開)"
+"admin.freeze.seconds" = "凍結したフレームを保持する時間 (5-300、0 で即時再開)"
+"admin.flush" = "各観測者の投影ブロックを実際の状態に戻して再構築します"
+network = "サーバー間ワームホールネットワーク"
+"network.import" = "別のサーバーからポータルコードをインポートする (ゲートウェイのリンクメニューでリンクする)"
+"network.import.code" = "別のサーバーのエクスポートボタンで生成したポータルコード"
+"network.status" = "ピアサーバーとの接続状態を表示します"
+"network.doctor" = "ネットワークピアに接続できない理由を診断します"
+server = "サーバー間の移動: リンク済みサーバーへの接続、一覧表示、コードの交換を行います"
+"server.connect" = "リンク済みサーバーへ自分を転送します (短縮形: /wh server \\<name>)"
+"server.connect.name" = "リンク済みサーバー名 (/wh server list を参照)"
+"server.export" = "このサーバーを、他のサーバーがインポートできるコードとしてエクスポートします"
+"server.import" = "別のサーバーがエクスポートしたサーバーコードまたはポータルコードをインポートします"
+"server.import.code" = "他のサーバーのエクスポートで生成されたコード"
+"server.list" = "リンク済みサーバーとその接続状態を一覧表示します"
+"server.remove" = "リンク済みサーバーの登録を解除します (そのルートと信頼済みの鍵を削除します)"
+"server.remove.name" = "登録を解除するリンク済みサーバー名"
+pocket = "ポケットディメンションの確認と作り直し"
+"pocket.info" = "今いるポケットのサイズ、素材、範囲を表示する"
+"pocket.resize" = "今いるポケットを新しいサイズや素材で作り直す"
+"pocket.resize.size" = "部屋の新しい一辺のブロック数。0 で現在のサイズを維持"
+"pocket.resize.material" = "壁、床、天井の新しいブロック。または keep"
+"pocket.resize.door" = "出口のドアの新しいブロック。または keep"
+"pocket.resize.confirm" = "変更で何かが壊れたり移動したりする場合に必要"
+"pocket.resizeall" = "既存のすべてのポケットを新しいサイズや素材で作り直す"
+
+[command.error]
+no_permission = "&8[&6Wormholes&8] &c権限がありません。"
+no_permission_use = "&8[&6Wormholes&8] &cこのコマンドを使用する権限がありません。"
+only_players = "&8[&6Wormholes&8] &cアイテムを受け取れるのはプレイヤーだけです。"
+usage = "&7使用法: &f/wormholes help"
+
+[command.wand]
+granted_wand = "&8[&6Wormholes&8] &aポータルワンドを渡しました。"
+granted_starter = ["&8[&6Wormholes&8] &aポータルワンドとワームホールルーン 1 個を付与しました。", "&8[&6Wormholes&8] &7ワームホールルーンの形を 2 つ(同じ平面上の任意のつながった形)作ってリンクし、{range} ブロック以内に立つと投影が見えます。", "&8[&6Wormholes&8] &7詳しい手順は &f/wormholes info&7 で確認できます。"]
+
+[command.door]
+unavailable = "&8[&6Wormholes&8] &cディメンションドアは現在使用できません。"
+unknown_type = "&8[&6Wormholes&8] &c不明なドア種別です。pair、personal、public、pair_trapdoor、personal_trapdoor、public_trapdoor のいずれかを使用してください。"
+empty_type = "ドアの種類は空にできません"
+granted = "&8[&6Wormholes&8] &a&f{type}&a タイプの次元ドアアイテムを付与しました。"
+
+[command.reload]
+applied = "&8[&6Wormholes&8] &aWormholes の設定ファイルと言語ファイルを再読み込みしました。"
+language_retained = "&8[&6Wormholes&8] &e設定は再読み込みされましたが、言語ファイルが無効です。直前の有効な言語を使用し続けます。コンソールを確認してください。"
+failed = "&8[&6Wormholes&8] &c設定の再読み込みに失敗しました。編集は保留のまま再試行されます。コンソールを確認してください。"
+
+[command.stats]
+unavailable = "&8[&6Wormholes&8] &c統計スナップショットライターを使用できません。"
+refreshed = "&8[&6Wormholes&8] &aスナップショットを更新しました。"
+path = ["&8[&6Wormholes&8] &7スナップショットファイル: &f{path}", "&8[&6Wormholes&8] &8このファイルを監視すると、ネットワークとビューの状態をリアルタイムで確認できます。ファイルは周期ごとに上書きされます。"]
+
+[command.admin]
+delete_failed = "&8[&6Wormholes&8] &cすべてのポータルを削除できませんでした。完全なスタックトレースはコンソールで確認してください。"
+delete_schedule_failed = "&8[&6Wormholes&8] &cポータルのリセットを予約できませんでした。"
+reset_failed = "&8[&6Wormholes&8] &cWormholes をリセットできませんでした。完全なスタックトレースはコンソールで確認してください。"
+reset_schedule_failed = "&8[&6Wormholes&8] &cWormholes のリセットを予約できませんでした。"
+projection_frozen = "&8[&6Wormholes&8] &aすべてのポータル投影を &f{seconds}&a 秒間その場で凍結しました。自動的に再開します。"
+projection_resumed = "&8[&6Wormholes&8] &aポータル投影を再開しました。"
+projection_failed = "&8[&6Wormholes&8] &cポータル投影を更新できませんでした。完全なスタックトレースはコンソールを確認してください。"
+projection_schedule_failed = "&8[&6Wormholes&8] &c投影の更新を予約できませんでした。"
+
+[command.admin.deleted_portals]
+one = "&8[&6Wormholes&8] &a&f{count}&a 個のポータルを削除し、ローカルポータルリンクを消去しました。"
+other = "&8[&6Wormholes&8] &a&f{count}&a 個のポータルを削除し、ローカルポータルリンクを消去しました。"
+
+[command.admin.reset_everything]
+one = "&8[&6Wormholes&8] &aWormholes を既定の状態にリセットしました。&f{count}&a 個のポータルを削除し、ネットワーク接続を閉じ、既定の設定ファイルを再生成しました。"
+other = "&8[&6Wormholes&8] &aWormholes を既定の状態にリセットしました。&f{count}&a 個のポータルを削除し、ネットワーク接続を閉じ、既定の設定ファイルを再生成しました。"
+
+[command.admin.projection_flushed]
+one = "&8[&6Wormholes&8] &a投影観測者 &f{count}&a 件をフラッシュしました。クライアントは実際の状態から再構築します。"
+other = "&8[&6Wormholes&8] &a投影観測者 &f{count}&a 件をフラッシュしました。クライアントは実際の状態から再構築します。"
+
+[command.pocket]
+not_inside = "&8[&6Wormholes&8] &cこのコマンドはポケットディメンションの中で実行してください。"
+invalid_size = "&8[&6Wormholes&8] &cポケットのサイズは {minimum} から {maximum} ブロックの間にしてください。"
+invalid_shell_material = "&8[&6Wormholes&8] &c{material} はポケットの壁に使えません。落下しない不透過ブロックを指定してください。"
+invalid_door_material = "&8[&6Wormholes&8] &c{material} はポケットの出口ドアに使えません。手で開けられるドアを指定してください。鉄のドアは使えません。"
+unchanged = "&8[&6Wormholes&8] &eそのポケットはすでにこのサイズと素材です。"
+containers_not_empty = "&8[&6Wormholes&8] &cポケットのサイズ変更を中止しました。中身のあるコンテナ &f{containers}&c 個が破壊されます。空にしてから再試行してください。&fconfirm=true&c でもこの安全確認は無効にできません。"
+resized = "&8[&6Wormholes&8] &aポケットを &f{size}&a ブロックで作り直しました (以前は &f{previous}&a)。壁 &f{material}&a、出口ドア &f{door}。"
+failed = "&8[&6Wormholes&8] &cポケットを作り直せませんでした。コンソールを確認してください。"
+world_unavailable = "&8[&6Wormholes&8] &cポケットディメンションが読み込まれていません。"
+does_not_fit = "&8[&6Wormholes&8] &c{size} ブロックの部屋はポケットディメンションの建築高度に収まりません。"
+bulk_started = "&8[&6Wormholes&8] &7&f{count}&7 個のポケットを作り直しています。"
+bulk_finished = "&8[&6Wormholes&8] &a作り直し &f{resized}&a、スキップ &f{skipped}&a、失敗 &f{failed}。"
+info = ["&8[&6Wormholes&8] &7ポケット &f{space}", "&8[&6Wormholes&8] &7サイズ &f{size}&7 ブロック、壁 &f{material}&7、出口ドア &f{door}", "&8[&6Wormholes&8] &7範囲 &f{minimum}&7 から &f{maximum}"]
+confirm_required = ["&8[&6Wormholes&8] &c{size} ブロックで作り直すと、設置済みブロック &f{blocks}&c 個が壊れ、エンティティ &f{entities}&c 体が移動します。", "&8[&6Wormholes&8] &7新しい壁の外側のブロックは破壊され、移動対象のエンティティは入口へ移されます。", "&8[&6Wormholes&8] &7続けるには同じコマンドに &fconfirm=true&7 を付けて実行してください。"]
+
+[portal]
+deleted = "&c{portal} を削除しました"
+
+[portal.travel]
+cost_insufficient = "&cこのポータルを使用するには {quantity}x {item} が必要です。"
+cost_vault_insufficient = "&cこのポータルを使用するには {amount} が必要です。"
+cost_vault_unavailable = "&cこのポータルの経済コストは利用できません。"
+cost_transaction_failed = "&cポータルが移動コストを処理できませんでした。"
+transfer_holding = "&6接続先サーバーに接続しています..."
+transfer_interrupted = "&cポータル転送が中断されました: ポータルから離れました。"
+transfer_source_unavailable = "&cポータル転送が中断されました: 転送元ポータルは利用できなくなりました。"
+cooldown = "&6ポータルはクールダウン中です"
+access_denied = "&cこのポータルを使用する権限がありません"
+destination_unavailable = "&cポータルの目的地が利用できません"
+arrival_denied = "&c目的地のポータルが到着を拒否しました。"
+arrival_returned = "&c目的地のポータルが到着を拒否しました。{server} に戻します"
+arrival_failed = "&cポータルの到着地点を配置できませんでした。目的地のスポーン地点に留まります"
+transfer_cooldown = "&6サーバー間ポータルはクールダウン中です: {seconds}s"
+destination_unreachable = "&c目的地サーバーに接続できません"
+destination_unreachable_detail = "&c目的地サーバーに接続できません: {reason}"
+transfer_blocked = "&cポータル転送が拒否されました: {reason}"
+transfer_blocked_retry = "&cポータル転送が拒否されました: {reason} ({seconds}s 後に再試行)"
+
+[portal.prompt]
+cost_item = "&bコストとなる正確なアイテムをメインハンドに持ち、ドロップキーを押してください。アイテムはインベントリから失われません。"
+cost_vault = "&b1回の通過ごとの Vault 通貨額を入力してください (または '{cancel}'):"
+invite = "&bポータル招待コードをチャットに貼り付けてください (または '{cancel}'):"
+block_state = "&bこのポータルのネットワークビュー端に使うブロック状態を入力するか、'{cancel}' と入力してください:"
+name = "&b新しいポータル名をチャットに入力してください (または '{cancel}'):"
+direction = ["&8[&6Wormholes&8] &7設定する方向を向き、左クリックで適用します。", "&8[&6Wormholes&8] &7Shift + 左クリックでキャンセル。"]
+
+[portal.notice]
+cost_item_set = "移動には {item} が必要になりました。"
+cost_item_invalid = "そのアイテムは移動コストとして保存できませんでした。"
+cost_cleared = "移動コストをクリアしました。"
+cost_quantity_changed = "移動コストの個数: {quantity}"
+cost_vault_changed = "Vault 移動コスト: {amount}"
+cost_vault_invalid = "{maximum} 以下の正の通貨額を入力してください。"
+cost_vault_unavailable = "このコストを選択するには Vault と経済プロバイダーが利用可能である必要があります。"
+dimensional_link_managed = "このディメンションポータルでは自動生成されたリンクが維持されます。"
+not_rtp = "このポータルはランダムテレポートモードではありません。"
+region_unavailable = "ポータルのリージョンを使用できません。もう一度試してください。"
+travel_managed = "ディメンションポータルの移動方向は自動管理されます。"
+travel_mirror_locked = "ミラーモードでは移動できません。"
+travel_changed = "移動: {mode}"
+stream_quality_changed = "ストリーム品質: {quality}"
+network_value_changed = "{label} {value}"
+fallback_set = "フォールバックブロックを {block} に設定しました"
+fallback_reset = "フォールバックブロックを {block} に戻しました"
+managed_mode = "管理対象のディメンションポータルはポータルモードに固定されます。"
+projection_receiver_inactive = "終端側の到着ポータルでは投影が無効のままです。"
+projection_changed = "投影: {mode}"
+settings_sync_changed = "設定同期: {state}"
+access_changed = "アクセス: {mode}"
+mirror_select_first = "画像を回転する前にミラーモードを選択してください。"
+mirror_rotation_changed = "ミラー回転: {degrees} 度"
+rtp_cannot_link = "ランダムテレポートポータルは固定の目的地にリンクできません。"
+
+[portal.label]
+activation_global = "グローバル ({range})"
+public_look_label = "注視時の公開ラベル"
+
+[portal.label.cost]
+free = "無料"
+vanilla = "バニラアイテム"
+vault = "Vault 経済"
+
+[portal.label.ambient]
+red = "赤"
+green = "緑"
+blue = "青"
+
+[portal.label.ambient_style]
+sparks = "スパーク"
+outline = "アウトライン"
+corners = "コーナー"
+off = "オフ"
+
+[portal.label.skin]
+none = "なし"
+
+[portal.label.travel]
+both = "双方向"
+outbound = "出発のみ"
+inbound = "到着のみ"
+locked = "ロック"
+arrival = "到着のみ"
+departure = "出発のみ"
+dimensional_both = "リンクされた両側が有効になります。"
+dimensional_return_disabled = "帰還ルートは無効のままです。"
+
+[portal.label.quality]
+standard = "標準"
+performance = "パフォーマンス"
+balanced = "バランス"
+cinematic = "シネマティック"
+custom = "カスタム"
+
+[portal.label.mode]
+portal = "ポータル"
+wormhole = "ワームホール"
+gateway = "ゲートウェイ"
+rtp = "RTP"
+mirror = "ミラー"
+
+[portal.label.direction]
+up = "上"
+down = "下"
+north = "北"
+south = "南"
+east = "東"
+west = "西"
+
+[portal.label.allocation]
+shared = "共有"
+per_player = "プレイヤーごと"
+
+[portal.label.permission]
+whitelist = "許可リスト"
+blacklist = "拒否リスト"
+
+[portal.label.network]
+direct = "直接"
+sideband = "サイドバンド"
+reconnecting = "再接続中"
+
+[portal.network.label]
+render_mode = "レンダリングモード"
+ambient_style = "アンビエントパーティクル"
+ambient_color = "アンビエントカラー"
+surface_skin = "表面スキン"
+capture_radius = "取得半径"
+full_refresh = "完全更新"
+entity_update = "エンティティ更新"
+view_grace = "ビュー猶予時間"
+blackout = "背景遮蔽"
+blackout_color = "遮蔽の色"
+activation_range = "起動範囲"
+
+[portal.network.description]
+capture_radius = "目的地ポータルの周囲でストリーム配信するブロック範囲。"
+full_refresh = "ブロックを完全更新する間隔のティック数。"
+entity_update = "エンティティを更新する間隔のティック数。"
+view_grace = "視線を外した後もストリームを維持する秒数。"
+
+[portal.form]
+rtp_unsupported = "&cランダムテレポートポータルはルーンから形成できません。"
+forming = "&bポータルを形成中... {type} ルーンは、同じ平面の壁、床、または天井上でつながっている必要があります。"
+must_be_flat = "&cポータルは同じ壁、床、または天井上に平らに配置する必要があります。"
+interrupted = "&cポータルの形成が中断されました。予約済みのルーンは返却されました。"
+rune_placed = "&bルーンを設置しました。同じ平面上につながった形を作り、ポータルワンドで任意のルーンを左クリックしてください。"
+opened = "&aポータルが開きました。ワンドを持ってポータルをクリックすると設定できます。"
+
+[portal.edit]
+denied = "&cこのポータルを編集できるのは、所有者または管理者だけです。"
+
+[portal.menu]
+destination = ["&6&l目的地&r", "&7リンクするポータルを選びます。", "&7現在のリンク先: {destination}", "", "&8クリックして目的地選択を開きます。"]
+"destination.sort_smart" = "スマート"
+"destination.sort_name" = "名前"
+"destination.sort_world" = "ワールド"
+"destination.sort_distance" = "距離"
+"destination.local" = ["&6{portal}", "&7{world} の {x}, {y}, {z}、向き {direction}"]
+"destination.remote" = ["&6{portal}", "&7サーバー: &f{server}", "&7{world} の {x}, {y}, {z}、向き {direction}", "&b{state}"]
+"destination.sort" = ["&e&l並び替え: &f&l{mode}&r", "&7目的地の並び順を変更します。", "&e左クリック"]
+"destination.previous_page" = ["&e&l前のページ&r", "&7前の目的地を表示します。", "&e左クリック"]
+"destination.next_page" = ["&e&l次のページ&r", "&7次の目的地を表示します。", "&e左クリック"]
+"destination.page" = ["&b&lページ {page}/{pages}&r", "&7目的地 {count} 件"]
+"destination.empty" = ["&7リンクできる目的地がありません。"]
+render_mode = ["&b&lレンダリングモード &f&l{mode}&r", "&7このポータルが投影する目的地ボリュームの範囲。", "", "&7モード: &f{mode}", "", "&8PanOptic は目的地ボリューム全体をレンダリングします。", "&8Venticular は表示される不透明な表面の背後にある形状を省略します。", "", "&8左クリック: モードを切り替え。"]
+ambient_particles = ["&b&lアンビエントパーティクル&r", "&7このポータルの周りに漂う装飾的なほこり。", "", "&7スタイル: &f{style} &8({color})", "", "&8左: スタイルを切り替え。", "&8右: 色を選択。"]
+surface_skin = ["&b&l表面スキン&r", "&7レンダリングされたブロックまたは液体のパネルでポータルの開口部を覆います。", "", "&7スキン: &f{skin}", "", "&8左: スキンを削除。", "&8右: スキンオプションを開く。"]
+"surface_skin.placard" = ["&6&l表面スキン&r", "&7ブロックまたはバケツを持ってポータルを右クリックしてスキンを適用します。", "", "&7スキン: &f{skin}"]
+"surface_skin.glass" = ["&b&lガラススキン&r", "&7開口部を覆う透明なガラスの窓。", "", "&8クリックしてガラスを適用します。"]
+"surface_skin.clear" = ["&c&lスキンを削除&r", "&7スキンを削除し、投影を復元します。", "", "&8クリックしてスキンを削除します。"]
+gateway_destination = ["&6&lペアリング & 目的地&r", "&7別のサーバーとペアリングするか、ゲートウェイを選びます。", "&7現在のリンク先: {destination}", "", "&8クリックしてペアリング画面を開きます。"]
+rtp_destination = ["&6&lランダム目的地&r", "&7目的地を選び直す場所とタイミングを設定します。", "&7ローテーション: &b{rotation}", "", "&8クリックしてランダムテレポート設定を開きます。"]
+rename = ["&a&lポータル名を変更&r", "&7リンクとメニューに表示する名前を変更します。", "&7現在: &f{portal}", "", "&8クリックして新しい名前を入力します。"]
+delete = ["&c&lポータルを削除&r", "&7このポータルを完全に削除します。", "", "&c&nShift + 左クリックで確定&r"]
+advanced_settings = ["&3&l高度なストリーム調整&r", "&7診断や特殊なリンク向けの直接設定です。", "&7値を変更するとストリーム品質がカスタムになります。"]
+back_settings = ["&e&l設定に戻る&r", "&7ポータルの設定に戻ります。"]
+stream_quality = ["&b&lストリーム品質: {quality}&r", "&7遠隔ビューの範囲と更新間隔をまとめて調整します。", "", "&7深度 &b{depth}&7  エンティティ &b{entities}t", "&7更新 &b{refresh}t&7  猶予 &b{grace}s", "", "&8クリック: 品質を切り替えます。", "&8Shift + クリック: 詳細調整。"]
+orientation = ["&9&l向き&r", "&7正面: &9{facing}", "&7画面上方向: &6{up}", "", "&8クリックして正面、反転、回転を設定します。"]
+orientation_placard = ["&9&lポータルの向き&r", "&7正面: &9{facing}", "&7画面上方向: &6{up}"]
+network_number = ["&b&l{label} &f&l{value}&r", "&7{description}", "", "&7現在: &b{value}", "", "&8左クリック: +{step}", "&8右クリック: -{step}", "&8Shift + 左クリック: +{large_step}", "&8Shift + 右クリック: -{large_step}"]
+fallback_block = ["&b&lフォールバックブロック&r", "&7ストリーム深度より先に表示するブロックです。", "", "&7現在: &f{block}", "", "&8左クリック: ブロック状態を入力。", "&8右クリック: 空気にリセット。"]
+blackout = ["&b&l背景遮蔽&r", "&7投影の奥と側面の境界を不透明なコンクリートで塞ぎ、ローカルの世界が透けて見えないようにします。", "", "&7現在: &f{state} &8({color})", "", "&8左クリック: オン/オフを切り替え。", "&8右クリック: 色を選択。"]
+activation_range = ["&b&l起動範囲 &f&l{value}&r", "&7このポータルが近くのプレイヤーに投影を開始する距離（ブロック単位）。", "", "&7現在: &b{value}", "", "&8左クリック: +{step}", "&8右クリック: -{step}", "&8Shift + 左クリック: +{large_step}", "&8Shift + 右クリック: -{large_step}", "&88 未満はグローバルにリセットされます。"]
+settings_placard_gateway = ["&b&lポータルの設定&r", "&7アクセスと転送の制御。", "&7さらにサーバー間ビューを調整します。", "", "&7深度を上げる / ティック間隔を短くする =", "&7より詳細な表示、より多くの帯域幅。"]
+mode_placard = ["&e&lポータルモード&r", "&7現在: &e{mode}", "", "&7ポータル: 基本的なリンクポータル。", "&7ワームホール: ビューポート付きポータル。", "&7ゲートウェイ: サーバー間ゲートウェイ。", "&7RTP: 設定可能なランダム目的地。", "&7ミラー: こちら側を反射し、移動は不可。"]
+mode_opener = ["&e&lモード&r", "&7{description}", "", "&7現在: &e{mode}", "", "&8クリックしてモードを変更します。"]
+direction = ["&9&l方向&r", "&7ポータル正面の向きを変更します。", "", "&7現在の向き: &9{direction}", "", "&8クリック後に方向を向き、左クリックで適用します。"]
+flip_face = ["&b&l正面を反転&r", "&7ポータル正面の向きを反転します。", "&7画面の回転方向は維持されます。", "", "&7現在の画面上方向: &b{up}", "", "&8クリックして反転します。"]
+rotate_counterclockwise = ["&6&l反時計回りに回転&r", "&7ポータルのビューポートを 90 度回転し", "&7正面の向きは変えません。", "", "&7現在の画面上方向: &6{up}", "", "&8クリックして回転します。"]
+rotate_clockwise = ["&6&l時計回りに回転&r", "&7ポータルのビューポートを 90 度回転し", "&7正面の向きは変えません。", "", "&7現在の画面上方向: &6{up}", "", "&8クリックして回転します。"]
+back = ["&e&l戻る&r", "&7ポータルメニューに戻ります。"]
+settings_gateway = ["&b&l設定&r", "&7権限、転送の制御、", "&7サーバー間ビューの調整。", "", "&7アクセス: &6{access}", "&7送信 &b{send}&7  受信 &b{receive}", "&7深度 &b{depth}&7  エンティティ &b{entity}t", "", "&8クリックして設定を開きます。"]
+settings_sync = ["&b&l設定同期 {state}&r", "&7オンにすると、このポータルの設定", "&7(深度、ティック、投影、権限、", "&7転送)がリンク済みの全ピアに同期されます。", "", "&7現在: &b{state}", "", "&8クリックして切り替えます。"]
+permission = ["&6&lアクセス {mode}&r", "&7{description}", "&7権限ノード: &f{node}", "", "&7現在: &6{mode}", "", "&8クリックして許可リスト / 拒否リストを切り替えます。", "&8管理者は常に対象外です。"]
+public_look_label = ["&b&l注視時の公開ラベル: &f&l{state}&r", "&7近くのプレイヤーがこのポータルを見たときに名前を表示します。", "&7オフの場合、経路ラベルはポータルツールを使っているときだけ表示します。", "", "&e左クリックで切り替え"]
+
+[portal.menu.gateway]
+server = "&7サーバー: &f{server}"
+link = "&7リンク: &b{state}"
+choose = ["&6&l目的地を選択&r", "&7検出済みのローカルおよびリモートゲートウェイから選びます。", "", "&8クリックして目的地リストを開きます。"]
+unpaired = ["&6&lゲートウェイのペアリング&r", "&7状態: &c未ペアリング"]
+paired = ["&6&lゲートウェイペアリング&r", "&7目的地: &6{destination}"]
+export = ["&6&l招待を作成&r", "&7別のサーバー用の署名済みゲートウェイコードを作成します。", "", "&8クリックして新しいコードをコピーします。"]
+import = ["&b&l招待を使用&r", "&7別のゲートウェイから取得した署名済みコードを貼り付けます。", "", "&8クリックしてからチャットにコードを貼り付けます。"]
+
+[portal.menu.mirror]
+rotation = "&7画像の回転: &b{degrees} 度"
+rotate_clockwise = "&8右クリック: 時計回りに回転。"
+rotate_counterclockwise = "&8Shift + 右クリック: 反時計回りに回転。"
+selected = ["&e&lミラー&r", "&7ローカルワールドをこちら側に反射します。", "&7フレーム越しに自分自身が見えます。", "&7ミラー中は移動できません。", "", "&a現在選択中"]
+available = ["&e&lミラー&r", "&7ローカルワールドをこちら側に反射します。", "&7フレーム越しに自分自身が見えます。", "&7ミラー中は移動できません。", "", "&7左クリックで選択"]
+flip = ["&7壁面のミラーは 180 度単位で反転し、", "&7反射されたエンティティの向きを正しく保ちます。", "&8右クリック: 反射画像を反転。"]
+
+[portal.menu.cost]
+opener = ["&6&l移動コスト&r", "&7プレイヤーがこのポータルを使用するときに", "&7正確なアイテムまたは Vault 通貨を要求します。", "", "&7モード: &f{mode}", "&7コスト: &f{cost}", "", "&8クリックして設定します。"]
+placard = ["&6&l移動コスト&r", "&7プレイヤーは支払いを済ませるまで", "&7このポータルで移動できません。", "", "&7モード: &f{mode}", "&7コスト: &f{cost}"]
+mode_free = ["&a&l無料&r", "&7支払いは不要です。", "", "&8クリックして移動を無料にします。"]
+mode_vanilla = ["&b&lバニラアイテム&r", "&7完全に一致するアイテムを消費します。", "", "&8クリックし、アイテムを持ってドロップキーを押してください。"]
+mode_vault = ["&a&lVault 経済&r", "&7Vault を通じて通貨を引き落とします。", "", "&8クリックして金額を入力します。"]
+mode_vault_unavailable = ["&c&lVault 経済は利用できません&r", "&7Vault と経済プロバイダーが必要です。", "", "&8このモードを使用するには両方を導入または有効化してください。"]
+free_detail = ["&a&lコストなし&r", "&7このポータルの移動は無料です。"]
+secondary_empty = ["&8&l追加設定なし&r"]
+item = ["&b&l{item}&r", "&7移動にはこの正確なアイテムが必要です。", "&7選択用のアイテムが消費されることはありません。", "", "&8左クリック: 手に持った別のアイテムを選択。", "&8右クリック: コストをクリア。"]
+quantity = ["&b&l個数 {quantity}&r", "&71回の通過ごとに消費される", "&7完全一致アイテムの数です。", "", "&8左クリック: +1", "&8右クリック: -1", "&8Shift + 左クリック: +8", "&8Shift + 右クリック: -8", "&8最大: {maximum}"]
+vault_amount = ["&a&l{amount}&r", "&71回の通過ごとに引き落とされる通貨です。", "", "&8左クリック: 別の金額を入力。", "&8右クリック: コストをクリア。"]
+
+[portal.menu.ambient_color]
+placard = ["&6&lアンビエントカラー&r", "&7アンビエントのほこり粒子の色。", "", "&7現在: &f{color}"]
+channel = ["&b&l{label} &f&l{value}&r", "", "&8左クリック: +{step}", "&8右クリック: -{step}", "&8Shift + 左クリック: +{large_step}", "&8Shift + 右クリック: -{large_step}"]
+option = ["&b&l{color}&r", "", "&8クリックして選択します。"]
+
+[portal.menu.travel]
+managed = ["&6&l移動: {direction}&r", "&7システム管理のディメンションポータル方向です。", "&7{detail}"]
+mirror = ["&c&l移動: ミラーでロック&r", "&7ミラーモードは表示専用です。", "&7エンティティは出入りできません。"]
+standard = ["&b&l移動: {mode}&r", "&7このポータルを通過できる方向を制御します。", "", "&7送信: &b{outgoing}&7  受信: &b{incoming}", "", "&8クリックして移動方向を切り替えます。"]
+
+[portal.menu.blackout_color]
+placard = ["&6&l遮蔽の色&r", "&7遮蔽シェルに使うコンクリートの色。", "", "&7現在: &f{color}"]
+option = ["&b&l{color}&r", "", "&8クリックして選択します。"]
+
+[portal.menu.placard]
+rtp = ["&6&l{portal}&r", "&7種類: &e{type}", "&7向き: &9{facing}", "&7割り当て: &b{allocation}", "&7ローテーション: &b{rotation}", "", "&8管理者は許可リストと拒否リストの対象外です。"]
+linked = ["&6&l{portal}&r", "&7種類: &e{type}", "&7向き: &9{facing}", "&7リンク先: &6{destination}", "", "&8管理者は許可リストと拒否リストの対象外です。"]
+unlinked = ["&6&l{portal}&r", "&7種類: &e{type}", "&7向き: &9{facing}", "&7リンク先: &c{none}", "", "&8管理者は許可リストと拒否リストの対象外です。"]
+
+[portal.menu.projection]
+on = ["&6&l投影オン&r", "&7このポータルのライブビューを表示します。", "&7目的地またはミラー映像が見えます。", "", "&7現在: &b投影オン&r", "", "&8クリックしてオン / オフを切り替えます。"]
+off = ["&8&l投影オフ&r", "&7フレームは空のままです。", "&7目的地ビューもミラーも表示しません。", "", "&7現在: &b投影オフ&r", "", "&8クリックしてオン / オフを切り替えます。"]
+
+[portal.menu.mode_option]
+selected = ["&e&l{mode}&r", "&7{description}", "", "&a現在選択されている"]
+available = ["&e&l{mode}&r", "&7{description}", "", "&7選択するにはクリックします"]
+
+[portal.input]
+cancel = "キャンセル"
+
+[portal.rtp]
+editor_title = "RTP: {portal}"
+
+[portal.rtp.notice]
+setting_rejected = "設定を適用できませんでした: {reason}"
+applied = "ランダム目的地の設定を適用しました。"
+reset_defaults = "ランダムテレポート設定をデフォルトにリセットしました。"
+editor_refreshed = "設定が変更されたため、エディターを更新しました。"
+runtime_unavailable = "ランダムテレポートのランタイムを使用できません。"
+reroll_failed = "手動の再抽選に失敗しました。サーバーログを確認してください。"
+reroll_preparing = "新しいランダム目的地を準備しています。"
+reroll_unavailable = "ルートの準備中または使用中は再抽選できません。"
+pool_rebuilding = "プレイヤー別の目的地プールを再構築しています。"
+pool_failed = "目的地プールの再構築に失敗しました。サーバーログを確認してください。"
+not_ready = "&eポータルはまだ目的地を安定させています。"
+traversal_failed = "&cポータルを安定させられませんでした。もう一度お試しください。"
+
+[portal.rtp.rotation]
+private = "プレイヤーごとに {duration}"
+
+[portal.mode]
+changed = "&a{portal} のモードを {mode} に設定しました。"
+
+[portal.mode.description]
+portal = "リンク可能な基本ポータル。"
+wormhole = "ビューポート投影を備えたリンク可能なポータル。"
+gateway = "サーバー間リンク専用。"
+rtp = "ローカルのランダムテレポートポータル。"
+mirror = "ローカルワールドを反射し、移動を禁止します。"
+
+[portal.permission.description]
+whitelist = "このポータルを使用するには、プレイヤーにこの権限ノードが必要です。"
+blacklist = "この権限ノードを持つプレイヤーは使用できません。"
+
+[portal.direction]
+cancelled = "&8[&6Wormholes&8] &7キャンセルしました"
+set = "&8[&6Wormholes&8] &7方向を設定しました"
+
+[portal.setting]
+notification = "&a{portal}: &r{message}"
+
+[portal.link]
+linked = "&a{portal} を {destination} にリンクしました。"
+linked_remote = "&a{portal} を {server} の {destination} にリンクしました。"
+unlinked = "&e{portal} と {destination} のリンクを解除しました。"
+
+[portal.orientation]
+face_flipped = "&a{portal} の正面を {direction} に反転しました。"
+rotated_counterclockwise = "&a{portal} を反時計回りに回転しました。"
+rotated_clockwise = "&a{portal} を時計回りに回転しました。"
+direction_changed = "&a{portal} の向きを {direction} に変更しました。"
+
+[director.help]
+no_subcommands = "このページにはサブコマンドがありません。"
+no_description = "説明はありません"
+command_group = "コマンドグループ。クリックして開きます。"
+category = "コマンド分類"
+no_parameters = "パラメータはありません。クリックするとコマンドを入力欄に設定します。"
+parameters_hover = "パラメータにカーソルを合わせると詳細が表示されます。"
+
+[director.help.navigation]
+back = "戻る"
+page = "ページ"
+
+[director.help.navigation.parent]
+hover = "元のコマンドグループに戻る"
+
+[director.help.navigation.previous]
+hover = "前のページ"
+
+[director.help.navigation.next]
+hover = "次のページへ"
+
+[director.help.parameter]
+required = "このパラメータは必須です。"
+optional = "このパラメータは任意です。"
+default = "未指定の場合は \"{value}\" になります。"
+type = "このパラメータの型は {type} です。"
+
+[director.runtime]
+usage = "使用法: {usage}"
+
+[director.runtime.error]
+invalid_origin = "この実行元からはコマンドを実行できません。"
+unknown_parameter = "不明なパラメーター: {key}"
+unexpected_argument = "予期しない引数 \"{argument}\"。任意パラメータは seed=123 のように名前を指定してください"
+unclosed_group = "パラメータ {key} の閉じかっこ \"]\" がありません"
+conversion_failed = "\"{value}\" をパラメータ {parameter} の型 {type} に変換できません"
+default_parse_failed = "パラメータ {parameter} のデフォルト値を解析できません"
+missing_argument = "引数 \"{parameter}\" ({type}) がありません"
+execution_failed = "コマンド {command} の実行に失敗しました: {reason}"
+
+[network]
+not_initialized = "&8[&6Wormholes&8] &cネットワークはまだ初期化されていません。"
+
+[network.status]
+disabled = "&8[&6Wormholes&8] &7ネットワークは&c無効&7です (plugins/Wormholes/wormholes.toml)。"
+not_running = "&8[&6Wormholes&8] &cネットワークは有効ですが実行されていません。ID ストレージとネットワークポートを確認してください。"
+listening = "&8[&6Wormholes&8] &7現在のサーバー: &f{server}&7、待受アドレス: &f{address}"
+outbound_only = "&8[&6Wormholes&8] &7現在のサーバー: &f{server}&7、送信専用 Boat モード"
+public_key = "&8[&6Wormholes&8] &8公開鍵: {fingerprint}"
+no_routes = "&8[&6Wormholes&8] &7接続済みのピアルートはありません。"
+peer = "&8[&6Wormholes&8] &f{server}&7 {state} &7{address}{rtt}"
+last_attempt = "&8[&6Wormholes&8] &8  最後の試み: {error}"
+
+[network.doctor]
+clear = "&8[&6Wormholes&8] &aネットワーク設定に問題はありません。"
+header = "&8[&6Wormholes&8] &eネットワーク診断:"
+line = "&8[&6Wormholes&8] &7- {diagnostic}"
+
+[network.code]
+building = "&8ポータルコードを生成しています..."
+copy = "&6&l[ポータルコードをコピーする: {portal}]&r"
+copy_hover = "&7クリックしてコピーします。別のサーバーのポータルメニュー > インポート、または /wh server import \\<code> に貼り付けてください"
+fingerprint = "&8このサーバーのアドレスと公開鍵の指紋 {fingerprint} が含まれています。"
+too_long = "&eこのコードはチャットに貼り付けるには長すぎます。代わりに別のサーバーで /wh server import \\<code> を使用してください。"
+invalid = "&cポータルコードが無効です。コードは {prefix} で始まります。チャットへの貼り付けで切り詰められた可能性があるため、/wh server import \\<code> を試してください。旧バージョンで生成したコードは再エクスポートが必要です。"
+same_server = "&cこのコードは現在のサーバーで生成されています。"
+same_identity = "&cこのコードは現在のサーバー ID ({server}) を指しています。各サーバーを固有の Wormholes ID で再起動し、別のサーバーからもう一度エクスポートしてください。"
+linked = "&a&f{portal}&7 -> &f{destination}&a を &f{server}&a にリンクしました。サーバーが接続されるとポータルが開きます。"
+route_saved = "&a公開鍵 {fingerprint} を使用する {server} へのルートを保存しました。接続後、'{portal}' がゲートウェイのリンクメニューに表示されます。"
+check_status = "&8接続状態は /wh network status で確認できます。"
+using_address = "&7このポータルコードは {address} を使用します。公開アドレスが変わると、署名済みハンドシェイクが自動的に検出して修正します。"
+
+[server]
+unknown = "&8[&6Wormholes&8] &c不明なサーバー '&f{server}&c' です。先にコードをインポートするか、/wh server list を確認してください。"
+removed = "&8[&6Wormholes&8] &aサーバー &f{server}&a とその信頼済みの鍵を削除しました。"
+name_empty = "サーバー名は空にできません"
+
+[server.code]
+copy = "&6&l[サーバーコードをコピーする: {server}]&r"
+copy_hover = "&7クリックしてコピーします。別のサーバーで /wh server import \\<code> に貼り付けてください"
+raw = "&7サーバーコード: &f{code}"
+saved = "&a公開鍵 {fingerprint} を使用するサーバー &f{server}&a を保存しました。&f/wh server {server}&a で接続できます。"
+
+[server.connect]
+sending = "&8[&6Wormholes&8] &aあなたを &f{server}&a へ転送しています..."
+not_ready = "&8[&6Wormholes&8] &c{server} には現在到達できません。/wh network status を確認してください。"
+failed = "&8[&6Wormholes&8] &c{server} へ転送できませんでした。コンソールと /wh network status を確認してください。"
+only_players = "&8[&6Wormholes&8] &c別のサーバーに接続できるのはプレイヤーだけです。"
+
+[server.list]
+header = "&8[&6Wormholes&8] &7リンク済みサーバー:"
+empty = "&8[&6Wormholes&8] &7まだリンクされたサーバーはありません。&f/wh server import \\<code>&7 を使用してください。"
+entry = "&8[&6Wormholes&8] &f{server}&7 {state} &8{address}"
+
+[door.transit]
+shutdown = "次元移動が完了する前に次元ドアが停止しました。"
+message = "&8[&6Wormholes&8] &7{message}"
+link_not_placed = "リンク先のワームホールドアはまだ設置されていません。"
+link_unavailable = "リンク先のワームホールドアは使用できないか、塞がれています。"
+nested_pocket = "共有虚無次元内では、ポケットドアから別のポケット次元を開けません。"
+pocket_not_ready = "ポケット次元はまだ準備できていません。"
+pocket_allocation_failed = "ポケット次元を割り当てられませんでした。"
+safe_return_not_found = "ドアのこちら側に安全な帰還ルートが見つかりませんでした。"
+pocket_prepare_failed = "ポケット次元を安全に準備できませんでした。"
+return_ticket_save_failed = "安全な帰還ルートを保存できませんでした。"
+pocket_entry_unsafe = "ポケット次元の入口は安全ではありません。"
+pocket_entry_chunk_failed = "ポケットディメンションの入口チャンクを読み込めませんでした。"
+no_return_route = "このポケット次元には保存済みの帰還ルートがありません。"
+return_unavailable = "対応する側の帰還ドアは使用できないか、塞がれています。"
+return_world_unloaded = "帰還先のワールドが読み込まれていません。"
+return_point_obstructed = "保存済みの帰還地点が塞がれています。"
+return_chunk_failed = "保存された帰還チャンクを読み込めませんでした。"
+closed = "次元移動が完了する前にディメンションドアが閉じられました。"
+cycle_consumed = "この扉の開放サイクルはすでに使用されています。扉を閉じてから再度開いてください。"
+source_missing = "次元の扉はもう存在しません。"
+source_close_failed = "出発側のドアを安全に閉じられませんでした。"
+source_region_unavailable = "出発側ドアのリージョンを使用できません。"
+start_failed = "次元移動を開始できませんでした。"
+cancelled = "次元移動はキャンセルされました。"
+
+[door.craft]
+one_at_a_time = "&8[&6Wormholes&8] &7各ドアに固有の ID を割り当てるため、ディメンションドアは 1 個ずつクラフトしてください。"
+
+[door.pair]
+unpack_failed = "&8[&6Wormholes&8] &7ドアのペアを展開できませんでした。キットは消費されていません。"
+unpacked = "&8[&6Wormholes&8] &7結合されたペアを、リンク済みのワームホールドア A と B に分離しました。"
+missing = "&8[&6Wormholes&8] &7このペアドアには登録済みの相手側がありません。"
+
+[door.legacy]
+combine = "&8[&6Wormholes&8] &7設置する前に、この旧式ディメンションドアを木製ドアとクラフトしてください。"
+
+[door.place]
+already_placed = "&8[&6Wormholes&8] &7このディメンションドアはすでに設置されているか、状態を保存できません。"
+
+[door.break]
+exit_anchored = "&8[&6Wormholes&8] &7このディメンション出口はポケット次元に固定されています。"
+support = "&8[&6Wormholes&8] &7支持ブロックを取り除く前に、ディメンションドアを壊してください。"
+
+[door.disable]
+warning = "&8[&6Wormholes&8] &7次元ドアを無効化しています。今すぐポケット次元の帰還ドアから退出してください。"
+
+[door.rescue]
+cancelled = "&8[&6Wormholes&8] &7緊急脱出はキャンセルされました。帰還ルートは維持されます。"
+failed = "&8[&6Wormholes&8] &7{route} {fallback} 保護状態のまま、体力はハート1個に維持されます。"
+
+[door.rescue.reason]
+no_route = "ポケット次元に保存済みの帰還ルートがありません。"
+return_world_unavailable = "保存済みの帰還先ワールドを使用できません。"
+return_point_obstructed = "保存済みの帰還地点が塞がれています。"
+return_chunk_failed = "保存された帰還チャンクを読み込めませんでした。"
+start_failed = "緊急脱出を開始できませんでした。"
+
+[door.rescue.fallback]
+no_world = "ポケット次元以外の退避先ワールドが読み込まれていません。"
+obstructed = "退避先のスポーン地点が塞がれています。"
+chunk_failed = "退避先のスポーン地点を読み込めませんでした。"
+schedule_failed = "緊急退避を予約できませんでした。"
+
+[door.access]
+unknown_player = "不明 ({id})"
+edit_denied = "&cこのドアを編集できるのは、ドアの所有者または管理者だけです。"
+unavailable = "&cこのディメンションドアにはアクセス記録がありません。"
+save_failed = "&cそのドアのアクセス変更を保存できませんでした。"
+player_not_found = "&c{name} という名前のプレイヤーは見つかりませんでした。"
+owner_always = "&7ドアの所有者は常にアクセスできます。"
+already_listed = "&7{name} はすでにこのドアのリストに登録されています。"
+added = "&a{name} をこのドアのリストに追加しました。"
+removed = "&a{name} をこのドアのリストから削除しました。"
+state_changed = "&a{name} をこのドアの {state} に設定しました。"
+prompt_player = "&bこのドアのリストに登録するプレイヤー名を入力してください (または '{cancel}'):"
+denied = "&cこのディメンションドアはあなたを拒みます。"
+transit_denied = "このディメンションドアへのアクセス権がありません。"
+
+[door.access.label]
+neutral = "中立"
+whitelist = "許可リスト"
+blacklist = "拒否リスト"
+
+[door.access.kind]
+pair = "量子もつれ"
+personal = "個人用"
+public = "共有"
+return = "出口"
+
+[door.open_state]
+open = "開いている"
+closed = "閉じている"
+
+[door.menu.access]
+title = "{kind}ドアのアクセス設定"
+placard = ["&6&l{kind}ディメンションドア&r", "&7所有者: &f{owner}", "&7許可リスト: &a{whitelisted}", "&7拒否リスト: &c{blacklisted}", "&7登録プレイヤー: &b{count}", "&8このドアを編集できるのは所有者と管理者だけです。"]
+add_player = ["&a&lプレイヤーを追加&r", "&7チャットにプレイヤー名を入力してリストに登録します。", "", "&8クリックしてプレイヤーを追加します。"]
+open_state = ["&b&lOpenState: &f&l{state}", "&7ポータルはこのブロックの物理状態に従います。", "&7有効な状態: &f{state}&7。", "", "&8次: {next}。クリックして切り替えます。"]
+entry = ["&f{name}", "&7状態: &b{state}", "", "&8左クリック: 許可。右クリック: 拒否。", "&8中クリックまたは Shift + 左クリック: 削除。"]
+
+[wand.selection]
+corner_a = "&bコーナー A を設定しました。反対側の角を右クリックしてください。"
+corner_b = "&bコーナー B を設定しました。反対側の角を左クリックしてください。"
+not_flat = "&c選択範囲の厚さは 1 ブロックでなければなりません。角をもう一度クリックして平面にしてください。"
+too_large = "&c選択範囲が大きすぎます: {count} ブロック (上限 {maximum})。"
+opening = "&bポータルを開いています..."
+open_failed = "&cここにポータルを開けませんでした。"
+
+[wand.selection.selected]
+one = "&b{count} ブロックを選択しました。左クリックでポータルを開きます。"
+other = "&b{count} ブロックを選択しました。左クリックでポータルを開きます。"
+
+[label]
+none = "なし"
+on = "オン"
+off = "オフ"
+ready = "準備完了"
+preparing = "準備中"
+open = "開"
+closed = "閉"
+
+[rtp.routing]
+action_confirm = "確認画面を開きます。"
+header = ["&b&lローテーション & 目的地プール&r", "&7モードを直接選び、最後に一括適用します。"]
+shared_selected = ["&a&l共有目的地&r", "&7全員が同じルートを見て使用します。", "&a選択中"]
+shared_available = ["&b&l共有目的地&r", "&7全員が同じルートを見て使用します。", "&e左クリックで選択"]
+private_selected = ["&a&lプレイヤー別の目的地&r", "&7各プレイヤーに個別の予約を用意します。", "&a選択中"]
+private_available = ["&b&lプレイヤー別の目的地&r", "&7各プレイヤーに個別の予約を用意します。", "&e左クリックで選択"]
+static_selected = ["&a&l固定&r", "&7目的地を変更しません。", "&a選択中"]
+static_available = ["&b&l固定&r", "&7目的地を変更しません。", "&e左クリックで選択"]
+timed_selected = ["&a&l時間制&r", "&7設定した時間が経過すると目的地を更新します。", "&a選択中"]
+timed_available = ["&b&l時間制&r", "&7設定した時間が経過すると目的地を更新します。", "&e左クリックで選択"]
+trip_selected = ["&a&l移動後&r", "&7使用後に準備済みの次候補へ進みます。", "&a選択中"]
+trip_available = ["&b&l移動後&r", "&7使用後に準備済みの次候補へ進みます。", "&e左クリックで選択"]
+manual_reroll = ["&e&l手動で再抽選&r", "&7{description}", "&e左クリック"]
+rebuild_pool = ["&e&l目的地プールを再構築&r", "&7{description}", "&e左クリック"]
+
+[rtp.status]
+ready = "準備完了"
+warming = "準備中"
+rerolling = "再抽選中"
+backoff = "再試行待ち"
+world_unavailable = "対象ワールドを使用できません"
+integration_failed = "アクセス連携に失敗"
+failed = "失敗"
+idle = "待機中"
+retry = "&7再試行まで: &c{duration}"
+active = "&7稼働中: {readiness}"
+standby = "&7待機状態: {readiness}"
+rotation = "&7下書きのローテーション: &b{rotation}"
+pool = "&7空き: &b{free}&7  予約済み: &b{reserved}"
+target_missing = "&c対象ワールドが読み込まれていません。"
+access_failed = "&c目的地のアクセス確認に失敗したため、拒否しました。"
+header = ["&6&lランダム目的地の状態&r", "&7状態: {state}"]
+
+[rtp.rotation]
+static = "固定"
+timed = "時間制"
+trip = "移動後"
+
+[rtp.numeric]
+center_x = "中心 X"
+center_z = "中心 Z"
+minimum_radius = "最低半径"
+maximum_radius = "最大半径"
+lower_y = "下 Y"
+upper_y = "上限 Y"
+preferred_y = "優先 Y 値"
+cycle = "サイクル期間"
+private_rotation = "プライベート・ローテーション時間"
+lease = "アイドル予約の猶予時間"
+release = "個別予約の解放猶予"
+link = ["&e&l{label} &f&l{value}&r", "&7値を増減する専用画面を開きます。", "&e左クリック"]
+target_unavailable = ["&b&l対象ワールドを使用できません&r", "&7この値を編集する前に対象ワールドを読み込んでください。"]
+value = ["&b&l{value}&r", "&7現在の下書き値。"]
+adjust = ["&e&l{direction}{step}&r", "&7下書きを {direction}{step} 調整します。", "&e左クリック"]
+header = ["&b&l{label}&r", "&7{description}"]
+
+[rtp.numeric.description]
+center = "カスタム中心をこの軸方向に移動します。"
+minimum_radius = "目的地の環状範囲の内側境界。"
+maximum_radius = "目的地の環状範囲の外側境界。"
+y = "安全な足元位置を探す高さの範囲。"
+cycle = "共有の時間制ローテーションを行う間隔。"
+private_rotation = "プレイヤーごとに準備された目的地の最大保持時間。"
+lease = "全員が離れた後も、準備済みの目的地を短時間維持します。"
+release = "未使用の個別予約を解放するまでの遅延。"
+
+[rtp.duration]
+hours = "{value}h"
+minutes = "{value}m"
+seconds = "{value}s"
+decimal_seconds = "{value}s"
+
+[rtp.biome]
+any_label = "任意"
+header = ["&b&l対象バイオーム&r", "&7このバイオームを優先して検索し、近くで見つからない場合は任意の安全な地点を使用します。"]
+any_selected = ["&a&l任意のバイオーム&r", "&7バイオームの指定はありません。", "&a選択中"]
+any_available = ["&b&l任意のバイオーム&r", "&7バイオームの指定を解除します。", "&e左クリックで選択"]
+current = ["&a&l{biome}&r", "&7{key}", "&a選択中"]
+available = ["&b&l{biome}&r", "&7{key}", "&e左クリックで選択"]
+empty = ["&7対象ワールドで利用できるバイオームがありません。"]
+previous = ["&e&l前のバイオーム&r", "&7前のページを表示します。", "&e左クリック"]
+next = ["&e&l次のバイオーム&r", "&7次のページを表示します。", "&e左クリック"]
+
+[rtp.overview]
+destination = ["&e&l目的地 & 範囲&r", "&7ワールド、中心、半径。", "&e左クリック"]
+landing = ["&e&l着地点のルール&r", "&7地表と高度の設定。", "&e左クリック"]
+routing = ["&e&lローテーション & 目的地プール&r", "&7共有方法、ローテーション、予約保持時間。", "&e左クリック"]
+effects = ["&e&lエフェクト&r", "&7投影リムとポータルサウンド。", "&e左クリック"]
+reset_defaults = ["&e&lデフォルトにリセット&r", "&7このポータルのランダムテレポート設定を直ちにデフォルトへ戻します。", "&e左クリック"]
+
+[rtp.navigation]
+back_portal = ["&e&lポータルに戻る&r", "&7ポータルメニューに戻ります。", "&e左クリック"]
+overview = ["&e&l概要&r", "&7RTP の概要に戻ります。", "&e左クリック"]
+back_category = ["&e&l戻る&r", "&7前のカテゴリに戻ります。", "&e左クリック"]
+
+[rtp.destination]
+header = ["&b&l目的地 & 範囲&r", "&7各項目は通常の左クリックで選択します。"]
+world_current = ["&a&l{world}&r", "&7現在の対象ワールド。", "&a選択中"]
+world_available = ["&b&l{world}&r", "&7読み込み済みのこのワールドを使用します。", "&e左クリックで選択"]
+previous_worlds = ["&e&l前のワールド&r", "&7前のページを表示します。", "&e左クリック"]
+next_worlds = ["&e&l次のワールド&r", "&7次のページを表示します。", "&e左クリック"]
+biome_link = ["&e&l対象バイオーム &f&l{value}&r", "&7選択したバイオームへの着地を優先します。", "&e左クリック"]
+center_portal_selected = ["&a&lポータル基準の中心&r", "&7このポータルを環状範囲の中心にします。", "&a選択中"]
+center_portal_available = ["&b&lポータル基準の中心&r", "&7このポータルを環状範囲の中心にします。", "&e左クリックで選択"]
+center_custom_selected = ["&a&lカスタムセンター&r", "&7編集可能な X 座標と Z 座標を使用します。", "&a選択した"]
+center_custom_available = ["&b&lカスタムセンター&r", "&7編集可能な X 座標と Z 座標を使用します。", "&e左クリックで選択します"]
+reset_center = ["&e&l中心 / 対象をリセット&r", "&7出発元のワールドとポータルの中心を使用します。", "&e左クリック"]
+
+[rtp.landing]
+header = ["&b&l着地点のルール&r", "&7地表または希望高度での着地方法と、安全モードを選択します。"]
+surface_selected = ["&a&l地表&r", "&7SAFE は水面と木の上を避けます。UNSAFE は最も上の地表を使用します。", "&a選択中"]
+surface_available = ["&b&l地表&r", "&7SAFE は水面と木の上を避けます。UNSAFE は最も上の地表を使用します。", "&e左クリックで選択"]
+preferred_selected = ["&a&l希望高度 / 正確な高度&r", "&7SAFE は周辺へ探索範囲を広げます。UNSAFE は希望するY座標をそのまま使用します。", "&a選択中"]
+preferred_available = ["&b&l希望高度 / 正確な高度&r", "&7SAFE は周辺へ探索範囲を広げます。UNSAFE は希望するY座標をそのまま使用します。", "&e左クリックで選択"]
+safe_policy = ["&b&l着地の安全性: &f&l{mode}&r", "&7SAFE は水、危険物、木、衝突する場所、足場のない場所を除外します。", "&7UNSAFE は選択した地表または希望するY座標をそのまま採用します。", "&e左クリックで切り替え"]
+
+[rtp.effects]
+header = ["&b&lエフェクト&r", "&7表示エフェクトを変えても目的地は再生成されません。"]
+rim_on_selected = ["&a&l投影リム オン&r", "&7ゲートの縁に準備状態を表示します。", "&a選択中"]
+rim_on_available = ["&b&l投影リム オン&r", "&7ゲートの縁に準備状態を表示します。", "&e左クリックで選択"]
+rim_off_selected = ["&a&l投影リム オフ&r", "&7準備状態を示す縁を非表示にします。", "&a選択中"]
+rim_off_available = ["&b&l投影リム オフ&r", "&7準備状態を示す縁を非表示にします。", "&e左クリックで選択"]
+sound_on_selected = ["&a&lポータルサウンド オン&r", "&7この RTP ポータルのエフェクト音と移動音を再生します。", "&a選択中"]
+sound_on_available = ["&b&lポータルサウンド オン&r", "&7この RTP ポータルのエフェクト音と移動音を再生します。", "&e左クリックで選択"]
+sound_off_selected = ["&a&lポータルサウンド オフ&r", "&7この RTP ポータルを消音します。パーティクルは有効なままです。", "&a選択中"]
+sound_off_available = ["&b&lポータルサウンド オフ&r", "&7この RTP ポータルを消音します。パーティクルは有効なままです。", "&e左クリックで選択"]
+
+[rtp.confirm]
+reroll = ["&b&l共有ルートを再抽選しますか?&r", "&7代替の準備が整うまで現在の投影を維持します。"]
+rebuild = ["&b&lプレイヤー別の目的地プールを再構築しますか?&r", "&7空き候補の再構築中も既存の予約は維持されます。"]
+confirm = ["&e&l確認&r", "&7この操作を実行します。", "&e左クリック"]
+cancel = ["&e&lキャンセル&r", "&7実行状態を変更せずに戻ります。", "&e左クリック"]
+
+[item]
+portal_wand = ["&6&lポータルワンド&r"]
+portal_rune = ["&6&lポータルルーン&r"]
+wormhole_rune = ["&6&lワームホールルーン&r"]
+
+[item.door]
+entangled_pair = ["&6量子もつれドアのペア", "&7自動的にリンクされた 2 枚のワームホールドアです。", "&7使用すると A 側と B 側のドアに分かれます。"]
+paired = ["&6ワームホールドア {endpoint}", "&7{other} 側に自動リンクされます。", "&7ドアを開き、実際に敷居を越えると移動します。"]
+personal = ["&b個人用ディメンションドア", "&7移動者ごとに固有の永続次元へ入ります。", "&7同じ移動者は常に同じ場所へ到着します。"]
+public = ["&6共有ディメンションドア", "&7すべての移動者がこのドアの共有次元へ入ります。", "&7ドアを壊して移動しても共有の目的地は変わりません。"]
+return = ["&aディメンション出口ドア", "&7移動者をこのポケット次元から帰還させます。", "&7このドアは対応するポケット次元に結び付けられています。"]
+skin = ["&6ディメンションドアの外装", "&7ディメンションドアとプレイヤーが操作できるドアを組み合わせます。"]
+entangled_pair_recipe = ["&6量子もつれドアのペア", "&7自動的にリンクされた 2 枚のワームホールドアです。"]
+personal_recipe = ["&b個人用ディメンションドア", "&7移動者ごとに固有の永続次元へ入ります。"]
+public_recipe = ["&6共有ディメンションドア", "&7すべての移動者がこのドアの共有次元へ入ります。"]
+entangled_trapdoor_pair = ["&6量子もつれトラップドアのペア", "&7自動的にリンクされた 2 枚のワームホールトラップドアです。", "&7使用すると A 側と B 側のトラップドアに分かれます。"]
+paired_trapdoor = ["&6ワームホールトラップドア {endpoint}", "&7{other} 側に自動リンクされます。", "&7トラップドアを開き、その中へ飛び降りると移動します。"]
+personal_trapdoor = ["&b個人用ディメンショントラップドア", "&7移動者ごとに固有の永続次元へ入ります。", "&7同じ移動者は常に同じ場所へ到着します。"]
+public_trapdoor = ["&6共有ディメンショントラップドア", "&7すべての移動者がこのトラップドアの共有次元へ入ります。", "&7トラップドアを壊して移動しても共有の目的地は変わりません。"]
+trapdoor_skin = ["&6ディメンショントラップドアの外装", "&7ディメンショントラップドアと手で開けられるトラップドアを組み合わせます。"]
+entangled_trapdoor_pair_recipe = ["&6量子もつれトラップドアのペア", "&7自動的にリンクされた 2 枚のワームホールトラップドアです。"]
+personal_trapdoor_recipe = ["&b個人用ディメンショントラップドア", "&7移動者ごとに固有の永続次元へ入ります。"]
+public_trapdoor_recipe = ["&6共有ディメンショントラップドア", "&7すべての移動者がこのトラップドアの共有次元へ入ります。"]

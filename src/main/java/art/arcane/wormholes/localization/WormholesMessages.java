@@ -2,6 +2,7 @@ package art.arcane.wormholes.localization;
 
 import art.arcane.volmlib.util.director.DirectorMessages;
 import art.arcane.volmlib.util.localization.LinesKey;
+import art.arcane.volmlib.util.localization.BukkitLanguageMessages;
 import art.arcane.volmlib.util.localization.MessageCatalog;
 import art.arcane.volmlib.util.localization.MessageKey;
 import art.arcane.volmlib.util.localization.PluralKey;
@@ -17,8 +18,8 @@ public final class WormholesMessages {
 
     private static final List<MessageKey> KEYS = new ArrayList<>();
 
-    public static final TextKey DEBUG_DUMP_DESCRIPTION = text("command.help.debugdump", "Create and optionally upload a diagnostic report");
-    public static final TextKey DEBUG_DUMP_UPLOAD = text("command.help.debugdump_upload", "Upload the report to mclo.gs");
+    public static final TextKey DEBUG_DUMP_DESCRIPTION = text("command.help.debug_dump", "Create and optionally upload a diagnostic report");
+    public static final TextKey DEBUG_DUMP_UPLOAD = text("command.help.debug_dump_upload", "Upload the report to mclo.gs");
     public static final TextKey HELP_LANGUAGE = text("command.help.language", "Choose your language or the server default");
     public static final TextKey COMMAND_ROOT_DESCRIPTION = text("command.help.root", "Wormholes command root");
     public static final TextKey COMMAND_WAND_DESCRIPTION = text("command.help.wand", "Give yourself the portal wand and a wormhole rune");
@@ -26,7 +27,8 @@ public final class WormholesMessages {
     public static final TextKey COMMAND_DOOR_DESCRIPTION = text("command.help.door", "Give a survival Dimensional Door item");
     public static final TextKey COMMAND_DOOR_TYPE_DESCRIPTION = text("command.help.door.type", "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor");
     public static final TextKey COMMAND_RELOAD_DESCRIPTION = text("command.help.reload", "Reload Wormholes configuration and language files");
-    public static final TextKey COMMAND_DEBUG_DESCRIPTION = text("command.help.debug", "Toggle verbose console logs and one-second telemetry");
+    public static final TextKey COMMAND_DEBUG_GROUP = text("command.help.debug", "Wormholes diagnostic tools");
+    public static final TextKey COMMAND_DEBUG_DESCRIPTION = text("command.help.debug_toggle", "Toggle verbose console logs and one-second telemetry");
     public static final TextKey COMMAND_STATS_DESCRIPTION = text("command.help.stats", "Print the live stats-snapshot file path, optionally force a refresh with now=true");
     public static final TextKey COMMAND_STATS_NOW_DESCRIPTION = text("command.help.stats.now", "Force-rebuild the snapshot synchronously");
     public static final TextKey COMMAND_INFO_DESCRIPTION = text("command.help.info", "Show portal building instructions");
@@ -59,238 +61,238 @@ public final class WormholesMessages {
     public static final TextKey COMMAND_SERVER_REMOVE_DESCRIPTION = text("command.help.server.remove", "Forget a linked server (deletes its route and trusted key)");
     public static final TextKey COMMAND_SERVER_REMOVE_NAME_DESCRIPTION = text("command.help.server.remove.name", "Linked server name to forget");
 
-    public static final TextKey COMMAND_NO_PERMISSION = text("command.error.no_permission", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>You do not have permission.");
-    public static final TextKey COMMAND_NO_PERMISSION_USE = text("command.error.no_permission_use", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>You do not have permission to use that command.");
-    public static final TextKey COMMAND_ONLY_PLAYERS = text("command.error.only_players", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Only players can receive items.");
-    public static final TextKey COMMAND_USAGE_HELP = text("command.error.usage", "<gray>Usage: <white>/wormholes help");
+    public static final TextKey COMMAND_NO_PERMISSION = text("command.error.no_permission", "&8[&6Wormholes&8] &cYou do not have permission.");
+    public static final TextKey COMMAND_NO_PERMISSION_USE = text("command.error.no_permission_use", "&8[&6Wormholes&8] &cYou do not have permission to use that command.");
+    public static final TextKey COMMAND_ONLY_PLAYERS = text("command.error.only_players", "&8[&6Wormholes&8] &cOnly players can receive items.");
+    public static final TextKey COMMAND_USAGE_HELP = text("command.error.usage", "&7Usage: &f/wormholes help");
     public static final LinesKey COMMAND_PUBLIC_HELP = lines("command.public_help",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Portal help: <white>/wormholes info",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Use the Portal Wand on a portal to open its destination, view, travel, and access controls.");
-    public static final TextKey COMMAND_GRANTED_WAND = text("command.wand.granted_wand", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portal Wand granted.");
+            "&8[&6Wormholes&8] &7Portal help: &f/wormholes info",
+            "&8[&6Wormholes&8] &7Use the Portal Wand on a portal to open its destination, view, travel, and access controls.");
+    public static final TextKey COMMAND_GRANTED_WAND = text("command.wand.granted_wand", "&8[&6Wormholes&8] &aPortal Wand granted.");
     public static final LinesKey COMMAND_GRANTED_STARTER = lines("command.wand.granted_starter",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portal Wand and 1 Wormhole Rune granted.",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Build TWO wormhole-rune shapes (any connected shape on one flat surface), link them, and stand within {range} blocks to see the projection.",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Run <white>/wormholes info<gray> for the full step-by-step.");
-    public static final TextKey COMMAND_DOORS_UNAVAILABLE = text("command.door.unavailable", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Dimensional Doors are unavailable.");
-    public static final TextKey COMMAND_UNKNOWN_DOOR = text("command.door.unknown_type", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Unknown door type. Use pair, personal, public, pair_trapdoor, personal_trapdoor, or public_trapdoor.");
+            "&8[&6Wormholes&8] &aPortal Wand and 1 Wormhole Rune granted.",
+            "&8[&6Wormholes&8] &7Build TWO wormhole-rune shapes (any connected shape on one flat surface), link them, and stand within {range} blocks to see the projection.",
+            "&8[&6Wormholes&8] &7Run &f/wormholes info&7 for the full step-by-step.");
+    public static final TextKey COMMAND_DOORS_UNAVAILABLE = text("command.door.unavailable", "&8[&6Wormholes&8] &cDimensional Doors are unavailable.");
+    public static final TextKey COMMAND_UNKNOWN_DOOR = text("command.door.unknown_type", "&8[&6Wormholes&8] &cUnknown door type. Use pair, personal, public, pair_trapdoor, personal_trapdoor, or public_trapdoor.");
     public static final TextKey COMMAND_EMPTY_DOOR = text("command.door.empty_type", "Door type cannot be empty");
-    public static final TextKey COMMAND_GRANTED_DOOR = text("command.door.granted", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Granted a <white>{type}<green> dimensional door item.");
-    public static final TextKey COMMAND_POCKET_NOT_INSIDE = text("command.pocket.not_inside", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Stand inside a pocket dimension to run this.");
+    public static final TextKey COMMAND_GRANTED_DOOR = text("command.door.granted", "&8[&6Wormholes&8] &aGranted a &f{type}&a dimensional door item.");
+    public static final TextKey COMMAND_POCKET_NOT_INSIDE = text("command.pocket.not_inside", "&8[&6Wormholes&8] &cStand inside a pocket dimension to run this.");
     public static final LinesKey COMMAND_POCKET_INFO = lines("command.pocket.info",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Pocket <white>{space}",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Size <white>{size}<gray> blocks, walls <white>{material}<gray>, exit door <white>{door}",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Bounds <white>{minimum}<gray> to <white>{maximum}");
-    public static final TextKey COMMAND_POCKET_INVALID_SIZE = text("command.pocket.invalid_size", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Pocket size must be between {minimum} and {maximum} blocks.");
-    public static final TextKey COMMAND_POCKET_INVALID_SHELL_MATERIAL = text("command.pocket.invalid_shell_material", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} cannot be a pocket wall. Use a solid block that does not fall.");
-    public static final TextKey COMMAND_POCKET_INVALID_DOOR_MATERIAL = text("command.pocket.invalid_door_material", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} cannot be a pocket exit door. Use a door that opens by hand; iron doors are rejected.");
-    public static final TextKey COMMAND_POCKET_UNCHANGED = text("command.pocket.unchanged", "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>That pocket already has this size and these materials.");
-    public static final TextKey COMMAND_POCKET_CONTAINERS_NOT_EMPTY = text("command.pocket.containers_not_empty", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Pocket resize stopped: <white>{containers}<red> non-empty containers would be destroyed. Empty them before retrying; <white>confirm=true<red> cannot override this safety check.");
+            "&8[&6Wormholes&8] &7Pocket &f{space}",
+            "&8[&6Wormholes&8] &7Size &f{size}&7 blocks, walls &f{material}&7, exit door &f{door}",
+            "&8[&6Wormholes&8] &7Bounds &f{minimum}&7 to &f{maximum}");
+    public static final TextKey COMMAND_POCKET_INVALID_SIZE = text("command.pocket.invalid_size", "&8[&6Wormholes&8] &cPocket size must be between {minimum} and {maximum} blocks.");
+    public static final TextKey COMMAND_POCKET_INVALID_SHELL_MATERIAL = text("command.pocket.invalid_shell_material", "&8[&6Wormholes&8] &c{material} cannot be a pocket wall. Use a solid block that does not fall.");
+    public static final TextKey COMMAND_POCKET_INVALID_DOOR_MATERIAL = text("command.pocket.invalid_door_material", "&8[&6Wormholes&8] &c{material} cannot be a pocket exit door. Use a door that opens by hand; iron doors are rejected.");
+    public static final TextKey COMMAND_POCKET_UNCHANGED = text("command.pocket.unchanged", "&8[&6Wormholes&8] &eThat pocket already has this size and these materials.");
+    public static final TextKey COMMAND_POCKET_CONTAINERS_NOT_EMPTY = text("command.pocket.containers_not_empty", "&8[&6Wormholes&8] &cPocket resize stopped: &f{containers}&c non-empty containers would be destroyed. Empty them before retrying; &fconfirm=true&c cannot override this safety check.");
     public static final LinesKey COMMAND_POCKET_CONFIRM_REQUIRED = lines("command.pocket.confirm_required",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Rebuilding at {size} blocks would destroy <white>{blocks}<red> placed blocks and move <white>{entities}<red> entities.",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Blocks outside the new walls are destroyed; displaced entities are moved to the entry.",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Run the same command with <white>confirm=true<gray> to go ahead.");
-    public static final TextKey COMMAND_POCKET_RESIZED = text("command.pocket.resized", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Pocket rebuilt at <white>{size}<green> blocks (was <white>{previous}<green>), walls <white>{material}<green>, exit door <white>{door}.");
-    public static final TextKey COMMAND_POCKET_FAILED = text("command.pocket.failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>The pocket could not be rebuilt. Check the console.");
-    public static final TextKey COMMAND_POCKET_WORLD_UNAVAILABLE = text("command.pocket.world_unavailable", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>The pocket dimension is not loaded.");
-    public static final TextKey COMMAND_POCKET_DOES_NOT_FIT = text("command.pocket.does_not_fit", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>A {size} block room does not fit the pocket dimension build height.");
-    public static final TextKey COMMAND_POCKET_BULK_STARTED = text("command.pocket.bulk_started", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Rebuilding <white>{count}<gray> pockets.");
-    public static final TextKey COMMAND_POCKET_BULK_FINISHED = text("command.pocket.bulk_finished", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Rebuilt <white>{resized}<green>, skipped <white>{skipped}<green>, failed <white>{failed}.");
-    public static final TextKey COMMAND_RELOADED = text("command.reload.applied", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes configuration and language files reloaded.");
-    public static final TextKey COMMAND_RELOADED_LANGUAGE_RETAINED = text("command.reload.language_retained", "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Configuration reloaded, but the language file was rejected. The last valid language remains active; check the console.");
-    public static final TextKey COMMAND_RELOAD_FAILED = text("command.reload.failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Configuration reload failed; the edit remains pending and will be retried. Check the console.");
-    public static final TextKey COMMAND_STATS_UNAVAILABLE = text("command.stats.unavailable", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Stats snapshot writer is unavailable.");
-    public static final TextKey COMMAND_STATS_REFRESHED = text("command.stats.refreshed", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Snapshot refreshed.");
+            "&8[&6Wormholes&8] &cRebuilding at {size} blocks would destroy &f{blocks}&c placed blocks and move &f{entities}&c entities.",
+            "&8[&6Wormholes&8] &7Blocks outside the new walls are destroyed; displaced entities are moved to the entry.",
+            "&8[&6Wormholes&8] &7Run the same command with &fconfirm=true&7 to go ahead.");
+    public static final TextKey COMMAND_POCKET_RESIZED = text("command.pocket.resized", "&8[&6Wormholes&8] &aPocket rebuilt at &f{size}&a blocks (was &f{previous}&a), walls &f{material}&a, exit door &f{door}.");
+    public static final TextKey COMMAND_POCKET_FAILED = text("command.pocket.failed", "&8[&6Wormholes&8] &cThe pocket could not be rebuilt. Check the console.");
+    public static final TextKey COMMAND_POCKET_WORLD_UNAVAILABLE = text("command.pocket.world_unavailable", "&8[&6Wormholes&8] &cThe pocket dimension is not loaded.");
+    public static final TextKey COMMAND_POCKET_DOES_NOT_FIT = text("command.pocket.does_not_fit", "&8[&6Wormholes&8] &cA {size} block room does not fit the pocket dimension build height.");
+    public static final TextKey COMMAND_POCKET_BULK_STARTED = text("command.pocket.bulk_started", "&8[&6Wormholes&8] &7Rebuilding &f{count}&7 pockets.");
+    public static final TextKey COMMAND_POCKET_BULK_FINISHED = text("command.pocket.bulk_finished", "&8[&6Wormholes&8] &aRebuilt &f{resized}&a, skipped &f{skipped}&a, failed &f{failed}.");
+    public static final TextKey COMMAND_RELOADED = text("command.reload.applied", "&8[&6Wormholes&8] &aWormholes configuration and language files reloaded.");
+    public static final TextKey COMMAND_RELOADED_LANGUAGE_RETAINED = text("command.reload.language_retained", "&8[&6Wormholes&8] &eConfiguration reloaded, but the language file was rejected. The last valid language remains active; check the console.");
+    public static final TextKey COMMAND_RELOAD_FAILED = text("command.reload.failed", "&8[&6Wormholes&8] &cConfiguration reload failed; the edit remains pending and will be retried. Check the console.");
+    public static final TextKey COMMAND_STATS_UNAVAILABLE = text("command.stats.unavailable", "&8[&6Wormholes&8] &cStats snapshot writer is unavailable.");
+    public static final TextKey COMMAND_STATS_REFRESHED = text("command.stats.refreshed", "&8[&6Wormholes&8] &aSnapshot refreshed.");
     public static final LinesKey COMMAND_STATS_PATH = lines("command.stats.path",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Snapshot file: <white>{path}",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Tail this file to share live network/view state. The file is overwritten in place each interval.");
+            "&8[&6Wormholes&8] &7Snapshot file: &f{path}",
+            "&8[&6Wormholes&8] &8Tail this file to share live network/view state. The file is overwritten in place each interval.");
     public static final LinesKey COMMAND_INFO = lines("command.info",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>How to build a Wormhole</bold>",
-            "<dark_gray>1. <gray>Get a Portal Wand and Wormhole Runes from your server or an administrator.",
-            "<dark_gray>2. <gray>Place the runes in any connected shape on one flat surface.",
-            "<gray>   Any connected shape works: rectangles, lines (3x1), single blocks, L-shapes, crosses.",
-            "<gray>   The runes must sit flat on one axis-aligned wall, floor, or ceiling.",
-            "<dark_gray>3. <gray>Hold the Portal Wand and <white>left-click any rune block<gray> to form the portal.",
-            "<dark_gray>4. <gray>Build a SECOND portal somewhere else (any distance, any world).",
-            "<dark_gray>5. <gray>Open the portal menu with the wand while looking at the portal, or sneak with an empty main hand and right-click a portal block (owner or admin).",
-            "<gray>   Choose <white>Destination<gray> and select the other portal. Repeat from the other side.",
-            "<gray>   Orientation and access controls are grouped into their own simple menus.",
-            "<dark_gray>6. <gray>Stand within {range} blocks of either portal (current global activation range) — the destination world will project through the frame and walking in teleports you.",
-            "<gray>Administrators can create supplies with <white>/wormholes wand");
+            "&8[&6Wormholes&8] &7&lHow to build a Wormhole&r",
+            "&81. &7Get a Portal Wand and Wormhole Runes from your server or an administrator.",
+            "&82. &7Place the runes in any connected shape on one flat surface.",
+            "&7   Any connected shape works: rectangles, lines (3x1), single blocks, L-shapes, crosses.",
+            "&7   The runes must sit flat on one axis-aligned wall, floor, or ceiling.",
+            "&83. &7Hold the Portal Wand and &fleft-click any rune block&7 to form the portal.",
+            "&84. &7Build a SECOND portal somewhere else (any distance, any world).",
+            "&85. &7Open the portal menu with the wand while looking at the portal, or sneak with an empty main hand and right-click a portal block (owner or admin).",
+            "&7   Choose &fDestination&7 and select the other portal. Repeat from the other side.",
+            "&7   Orientation and access controls are grouped into their own simple menus.",
+            "&86. &7Stand within {range} blocks of either portal (current global activation range) — the destination world will project through the frame and walking in teleports you.",
+            "&7Administrators can create supplies with &f/wormholes wand");
     public static final PluralKey COMMAND_DELETED_PORTALS = plural("command.admin.deleted_portals", "count", Map.of(
-            "one", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Deleted <white>{count}<green> portal and cleared local portal links.",
-            "other", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Deleted <white>{count}<green> portals and cleared local portal links."
+            "one", "&8[&6Wormholes&8] &aDeleted &f{count}&a portal and cleared local portal links.",
+            "other", "&8[&6Wormholes&8] &aDeleted &f{count}&a portals and cleared local portal links."
     ));
     public static final PluralKey COMMAND_RESET_EVERYTHING = plural("command.admin.reset_everything", "count", Map.of(
-            "one", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes reset to default state. Deleted <white>{count}<green> portal, closed network connections, and regenerated default config files.",
-            "other", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes reset to default state. Deleted <white>{count}<green> portals, closed network connections, and regenerated default config files."
+            "one", "&8[&6Wormholes&8] &aWormholes reset to default state. Deleted &f{count}&a portal, closed network connections, and regenerated default config files.",
+            "other", "&8[&6Wormholes&8] &aWormholes reset to default state. Deleted &f{count}&a portals, closed network connections, and regenerated default config files."
     ));
-    public static final TextKey COMMAND_DELETE_FAILED = text("command.admin.delete_failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Failed to delete all portals. Check console for the full stacktrace.");
-    public static final TextKey COMMAND_DELETE_SCHEDULE_FAILED = text("command.admin.delete_schedule_failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Could not schedule the portal reset.");
-    public static final TextKey COMMAND_RESET_FAILED = text("command.admin.reset_failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Failed to reset Wormholes. Check console for the full stacktrace.");
-    public static final TextKey COMMAND_RESET_SCHEDULE_FAILED = text("command.admin.reset_schedule_failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Could not schedule the Wormholes reset.");
-    public static final TextKey COMMAND_PROJECTION_FROZEN = text("command.admin.projection_frozen", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Froze all portal projections in place for <white>{seconds}<green> seconds. They resume automatically.");
-    public static final TextKey COMMAND_PROJECTION_RESUMED = text("command.admin.projection_resumed", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Portal projections resumed.");
+    public static final TextKey COMMAND_DELETE_FAILED = text("command.admin.delete_failed", "&8[&6Wormholes&8] &cFailed to delete all portals. Check console for the full stacktrace.");
+    public static final TextKey COMMAND_DELETE_SCHEDULE_FAILED = text("command.admin.delete_schedule_failed", "&8[&6Wormholes&8] &cCould not schedule the portal reset.");
+    public static final TextKey COMMAND_RESET_FAILED = text("command.admin.reset_failed", "&8[&6Wormholes&8] &cFailed to reset Wormholes. Check console for the full stacktrace.");
+    public static final TextKey COMMAND_RESET_SCHEDULE_FAILED = text("command.admin.reset_schedule_failed", "&8[&6Wormholes&8] &cCould not schedule the Wormholes reset.");
+    public static final TextKey COMMAND_PROJECTION_FROZEN = text("command.admin.projection_frozen", "&8[&6Wormholes&8] &aFroze all portal projections in place for &f{seconds}&a seconds. They resume automatically.");
+    public static final TextKey COMMAND_PROJECTION_RESUMED = text("command.admin.projection_resumed", "&8[&6Wormholes&8] &aPortal projections resumed.");
     public static final PluralKey COMMAND_PROJECTION_FLUSHED = plural("command.admin.projection_flushed", "count", Map.of(
-            "one", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Flushed <white>{count}<green> projection observer; clients are rebuilding from ground truth.",
-            "other", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Flushed <white>{count}<green> projection observers; clients are rebuilding from ground truth."
+            "one", "&8[&6Wormholes&8] &aFlushed &f{count}&a projection observer; clients are rebuilding from ground truth.",
+            "other", "&8[&6Wormholes&8] &aFlushed &f{count}&a projection observers; clients are rebuilding from ground truth."
     ));
-    public static final TextKey COMMAND_PROJECTION_FAILED = text("command.admin.projection_failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Failed to update portal projections. Check console for the full stacktrace.");
-    public static final TextKey COMMAND_PROJECTION_SCHEDULE_FAILED = text("command.admin.projection_schedule_failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Could not schedule the projection update.");
+    public static final TextKey COMMAND_PROJECTION_FAILED = text("command.admin.projection_failed", "&8[&6Wormholes&8] &cFailed to update portal projections. Check console for the full stacktrace.");
+    public static final TextKey COMMAND_PROJECTION_SCHEDULE_FAILED = text("command.admin.projection_schedule_failed", "&8[&6Wormholes&8] &cCould not schedule the projection update.");
 
-    public static final TextKey NETWORK_NOT_INITIALIZED = text("network.not_initialized", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Networking is not initialized.");
-    public static final TextKey NETWORK_DISABLED = text("network.status.disabled", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Networking is <red>disabled<gray> (plugins/Wormholes/wormholes.toml).");
-    public static final TextKey NETWORK_NOT_RUNNING = text("network.status.not_running", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Networking is enabled but not running. Check the identity store and network port.");
-    public static final TextKey NETWORK_LISTENING = text("network.status.listening", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>This server: <white>{server}<gray> listening on <white>{address}");
-    public static final TextKey NETWORK_OUTBOUND_ONLY = text("network.status.outbound_only", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>This server: <white>{server}<gray> outbound-only Boat mode");
-    public static final TextKey NETWORK_PUBLIC_KEY = text("network.status.public_key", "<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>Public key: {fingerprint}");
-    public static final TextKey NETWORK_NO_ROUTES = text("network.status.no_routes", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>No peer routes linked yet.");
-    public static final TextKey NETWORK_PEER = text("network.status.peer", "<dark_gray>[<gold>Wormholes<dark_gray>] <white>{server}<gray> {state} <gray>{address}{rtt}");
-    public static final TextKey NETWORK_LAST_ATTEMPT = text("network.status.last_attempt", "<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>  last attempt: {error}");
-    public static final TextKey NETWORK_DOCTOR_CLEAR = text("network.doctor.clear", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>No network setup issues detected.");
-    public static final TextKey NETWORK_DOCTOR_HEADER = text("network.doctor.header", "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>Network doctor:");
-    public static final TextKey NETWORK_DOCTOR_LINE = text("network.doctor.line", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>- {diagnostic}");
-    public static final TextKey NETWORK_BUILDING_CODE = text("network.code.building", "<dark_gray>Building portal code...");
-    public static final TextKey NETWORK_COPY_CODE = text("network.code.copy", "<gold><bold>[Copy portal code: {portal}]</bold>");
-    public static final TextKey NETWORK_COPY_CODE_HOVER = text("network.code.copy_hover", "<gray>Click to copy. Paste it on the other server:\nportal menu > Import, or /wh server import \\<code>");
-    public static final TextKey NETWORK_CODE_FINGERPRINT = text("network.code.fingerprint", "<dark_gray>Contains this server's address and public key fingerprint {fingerprint}.");
-    public static final TextKey NETWORK_CODE_TOO_LONG = text("network.code.too_long", "<yellow>This code is too long to paste into chat - use /wh server import \\<code> on the other server instead.");
-    public static final TextKey NETWORK_CODE_INVALID = text("network.code.invalid", "<red>Invalid portal code. Codes start with {prefix} - if pasted into chat it may have been truncated; try /wh server import \\<code>. Codes from older plugin versions must be re-exported.");
-    public static final TextKey NETWORK_CODE_SAME_SERVER = text("network.code.same_server", "<red>That code is from this server.");
-    public static final TextKey NETWORK_CODE_SAME_IDENTITY = text("network.code.same_identity", "<red>That code resolved to this server identity ({server}). Re-export from the other server after both servers restart with their own Wormholes identity.");
-    public static final TextKey NETWORK_LINKED = text("network.code.linked", "<green>Linked <white>{portal}<gray> -> <white>{destination}<green> on <white>{server}<green>. It opens once the servers connect.");
-    public static final TextKey NETWORK_ROUTE_SAVED = text("network.code.route_saved", "<green>Saved route to {server} with public key {fingerprint}. '{portal}' will appear in gateway Link menus once connected.");
-    public static final TextKey NETWORK_CHECK_STATUS = text("network.code.check_status", "<dark_gray>Check /wh network status for the connection state.");
-    public static final TextKey NETWORK_USING_ADDRESS = text("network.code.using_address", "<gray>Using {address} in this portal code; the public address auto-detects and self-corrects over the signed handshake if it changes.");
+    public static final TextKey NETWORK_NOT_INITIALIZED = text("network.not_initialized", "&8[&6Wormholes&8] &cNetworking is not initialized.");
+    public static final TextKey NETWORK_DISABLED = text("network.status.disabled", "&8[&6Wormholes&8] &7Networking is &cdisabled&7 (plugins/Wormholes/wormholes.toml).");
+    public static final TextKey NETWORK_NOT_RUNNING = text("network.status.not_running", "&8[&6Wormholes&8] &cNetworking is enabled but not running. Check the identity store and network port.");
+    public static final TextKey NETWORK_LISTENING = text("network.status.listening", "&8[&6Wormholes&8] &7This server: &f{server}&7 listening on &f{address}");
+    public static final TextKey NETWORK_OUTBOUND_ONLY = text("network.status.outbound_only", "&8[&6Wormholes&8] &7This server: &f{server}&7 outbound-only Boat mode");
+    public static final TextKey NETWORK_PUBLIC_KEY = text("network.status.public_key", "&8[&6Wormholes&8] &8Public key: {fingerprint}");
+    public static final TextKey NETWORK_NO_ROUTES = text("network.status.no_routes", "&8[&6Wormholes&8] &7No peer routes linked yet.");
+    public static final TextKey NETWORK_PEER = text("network.status.peer", "&8[&6Wormholes&8] &f{server}&7 {state} &7{address}{rtt}");
+    public static final TextKey NETWORK_LAST_ATTEMPT = text("network.status.last_attempt", "&8[&6Wormholes&8] &8  last attempt: {error}");
+    public static final TextKey NETWORK_DOCTOR_CLEAR = text("network.doctor.clear", "&8[&6Wormholes&8] &aNo network setup issues detected.");
+    public static final TextKey NETWORK_DOCTOR_HEADER = text("network.doctor.header", "&8[&6Wormholes&8] &eNetwork doctor:");
+    public static final TextKey NETWORK_DOCTOR_LINE = text("network.doctor.line", "&8[&6Wormholes&8] &7- {diagnostic}");
+    public static final TextKey NETWORK_BUILDING_CODE = text("network.code.building", "&8Building portal code...");
+    public static final TextKey NETWORK_COPY_CODE = text("network.code.copy", "&6&l[Copy portal code: {portal}]&r");
+    public static final TextKey NETWORK_COPY_CODE_HOVER = text("network.code.copy_hover", "&7Click to copy. Paste it on the other server:\nportal menu > Import, or /wh server import \\<code>");
+    public static final TextKey NETWORK_CODE_FINGERPRINT = text("network.code.fingerprint", "&8Contains this server's address and public key fingerprint {fingerprint}.");
+    public static final TextKey NETWORK_CODE_TOO_LONG = text("network.code.too_long", "&eThis code is too long to paste into chat - use /wh server import \\<code> on the other server instead.");
+    public static final TextKey NETWORK_CODE_INVALID = text("network.code.invalid", "&cInvalid portal code. Codes start with {prefix} - if pasted into chat it may have been truncated; try /wh server import \\<code>. Codes from older plugin versions must be re-exported.");
+    public static final TextKey NETWORK_CODE_SAME_SERVER = text("network.code.same_server", "&cThat code is from this server.");
+    public static final TextKey NETWORK_CODE_SAME_IDENTITY = text("network.code.same_identity", "&cThat code resolved to this server identity ({server}). Re-export from the other server after both servers restart with their own Wormholes identity.");
+    public static final TextKey NETWORK_LINKED = text("network.code.linked", "&aLinked &f{portal}&7 -> &f{destination}&a on &f{server}&a. It opens once the servers connect.");
+    public static final TextKey NETWORK_ROUTE_SAVED = text("network.code.route_saved", "&aSaved route to {server} with public key {fingerprint}. '{portal}' will appear in gateway Link menus once connected.");
+    public static final TextKey NETWORK_CHECK_STATUS = text("network.code.check_status", "&8Check /wh network status for the connection state.");
+    public static final TextKey NETWORK_USING_ADDRESS = text("network.code.using_address", "&7Using {address} in this portal code; the public address auto-detects and self-corrects over the signed handshake if it changes.");
 
-    public static final TextKey SERVER_COPY_CODE = text("server.code.copy", "<gold><bold>[Copy server code: {server}]</bold>");
-    public static final TextKey SERVER_COPY_CODE_HOVER = text("server.code.copy_hover", "<gray>Click to copy. Paste it on the other server:\n/wh server import \\<code>");
-    public static final TextKey SERVER_CODE_RAW = text("server.code.raw", "<gray>Server code: <white>{code}");
-    public static final TextKey SERVER_SAVED = text("server.code.saved", "<green>Saved server <white>{server}<green> with public key {fingerprint}. Connect with <white>/wh server {server}<green>.");
-    public static final TextKey SERVER_CONNECTING = text("server.connect.sending", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Sending you to <white>{server}<green>...");
-    public static final TextKey SERVER_NOT_READY = text("server.connect.not_ready", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{server} is not reachable right now. Check /wh network status.");
-    public static final TextKey SERVER_CONNECT_FAILED = text("server.connect.failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Could not transfer you to {server}. Check the console and /wh network status.");
-    public static final TextKey SERVER_ONLY_PLAYERS = text("server.connect.only_players", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Only players can connect to another server.");
-    public static final TextKey SERVER_UNKNOWN = text("server.unknown", "<dark_gray>[<gold>Wormholes<dark_gray>] <red>Unknown server '<white>{server}<red>'. Import its code first or see /wh server list.");
-    public static final TextKey SERVER_LIST_HEADER = text("server.list.header", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Linked servers:");
-    public static final TextKey SERVER_LIST_EMPTY = text("server.list.empty", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>No servers linked yet. Use <white>/wh server import \\<code><gray>.");
-    public static final TextKey SERVER_LIST_ENTRY = text("server.list.entry", "<dark_gray>[<gold>Wormholes<dark_gray>] <white>{server}<gray> {state} <dark_gray>{address}");
-    public static final TextKey SERVER_REMOVED = text("server.removed", "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Removed server <white>{server}<green> and its trusted key.");
+    public static final TextKey SERVER_COPY_CODE = text("server.code.copy", "&6&l[Copy server code: {server}]&r");
+    public static final TextKey SERVER_COPY_CODE_HOVER = text("server.code.copy_hover", "&7Click to copy. Paste it on the other server:\n/wh server import \\<code>");
+    public static final TextKey SERVER_CODE_RAW = text("server.code.raw", "&7Server code: &f{code}");
+    public static final TextKey SERVER_SAVED = text("server.code.saved", "&aSaved server &f{server}&a with public key {fingerprint}. Connect with &f/wh server {server}&a.");
+    public static final TextKey SERVER_CONNECTING = text("server.connect.sending", "&8[&6Wormholes&8] &aSending you to &f{server}&a...");
+    public static final TextKey SERVER_NOT_READY = text("server.connect.not_ready", "&8[&6Wormholes&8] &c{server} is not reachable right now. Check /wh network status.");
+    public static final TextKey SERVER_CONNECT_FAILED = text("server.connect.failed", "&8[&6Wormholes&8] &cCould not transfer you to {server}. Check the console and /wh network status.");
+    public static final TextKey SERVER_ONLY_PLAYERS = text("server.connect.only_players", "&8[&6Wormholes&8] &cOnly players can connect to another server.");
+    public static final TextKey SERVER_UNKNOWN = text("server.unknown", "&8[&6Wormholes&8] &cUnknown server '&f{server}&c'. Import its code first or see /wh server list.");
+    public static final TextKey SERVER_LIST_HEADER = text("server.list.header", "&8[&6Wormholes&8] &7Linked servers:");
+    public static final TextKey SERVER_LIST_EMPTY = text("server.list.empty", "&8[&6Wormholes&8] &7No servers linked yet. Use &f/wh server import \\<code>&7.");
+    public static final TextKey SERVER_LIST_ENTRY = text("server.list.entry", "&8[&6Wormholes&8] &f{server}&7 {state} &8{address}");
+    public static final TextKey SERVER_REMOVED = text("server.removed", "&8[&6Wormholes&8] &aRemoved server &f{server}&a and its trusted key.");
     public static final TextKey SERVER_NAME_EMPTY = text("server.name_empty", "Server name cannot be empty");
 
-    public static final LinesKey ITEM_PORTAL_WAND = lines("item.portal_wand", "<gold><bold>Portal Wand</bold>");
-    public static final LinesKey ITEM_PORTAL_RUNE = lines("item.portal_rune", "<gold><bold>Portal Rune</bold>");
-    public static final LinesKey ITEM_WORMHOLE_RUNE = lines("item.wormhole_rune", "<gold><bold>Wormhole Rune</bold>");
+    public static final LinesKey ITEM_PORTAL_WAND = lines("item.portal_wand", "&6&lPortal Wand&r");
+    public static final LinesKey ITEM_PORTAL_RUNE = lines("item.portal_rune", "&6&lPortal Rune&r");
+    public static final LinesKey ITEM_WORMHOLE_RUNE = lines("item.wormhole_rune", "&6&lWormhole Rune&r");
     public static final LinesKey ITEM_ENTANGLED_PAIR = lines("item.door.entangled_pair",
-            "<gold>Entangled Door Pair",
-            "<gray>Contains two automatically linked Wormhole Doors.",
-            "<gray>Use it to unpack endpoints A and B.");
+            "&6Entangled Door Pair",
+            "&7Contains two automatically linked Wormhole Doors.",
+            "&7Use it to unpack endpoints A and B.");
     public static final LinesKey ITEM_PAIRED_DOOR = lines("item.door.paired",
-            "<gold>Wormhole Door {endpoint}",
-            "<gray>Automatically linked to endpoint {other}.",
-            "<gray>Open the door and physically cross its threshold.");
+            "&6Wormhole Door {endpoint}",
+            "&7Automatically linked to endpoint {other}.",
+            "&7Open the door and physically cross its threshold.");
     public static final LinesKey ITEM_PERSONAL_DOOR = lines("item.door.personal",
-            "<aqua>Personal Dimension Door",
-            "<gray>Each traveler enters their own persistent dimension.",
-            "<gray>The same traveler always reaches the same place.");
+            "&bPersonal Dimension Door",
+            "&7Each traveler enters their own persistent dimension.",
+            "&7The same traveler always reaches the same place.");
     public static final LinesKey ITEM_PUBLIC_DOOR = lines("item.door.public",
-            "<gold>Public Dimension Door",
-            "<gray>Every traveler enters this door's shared dimension.",
-            "<gray>Breaking and moving it preserves the shared destination.");
+            "&6Public Dimension Door",
+            "&7Every traveler enters this door's shared dimension.",
+            "&7Breaking and moving it preserves the shared destination.");
     public static final LinesKey ITEM_RETURN_DOOR = lines("item.door.return",
-            "<green>Dimensional Exit Door",
-            "<gray>Returns travelers from this pocket dimension.",
-            "<gray>This door is bound to its pocket.");
+            "&aDimensional Exit Door",
+            "&7Returns travelers from this pocket dimension.",
+            "&7This door is bound to its pocket.");
     public static final LinesKey ITEM_DOOR_SKIN = lines("item.door.skin",
-            "<gold>Dimensional Door Skin",
-            "<gray>Combine a dimensional door with a player-operable door.");
+            "&6Dimensional Door Skin",
+            "&7Combine a dimensional door with a player-operable door.");
     public static final LinesKey ITEM_ENTANGLED_PAIR_RECIPE = lines("item.door.entangled_pair_recipe",
-            "<gold>Entangled Door Pair",
-            "<gray>Contains two automatically linked Wormhole Doors.");
+            "&6Entangled Door Pair",
+            "&7Contains two automatically linked Wormhole Doors.");
     public static final LinesKey ITEM_PERSONAL_DOOR_RECIPE = lines("item.door.personal_recipe",
-            "<aqua>Personal Dimension Door",
-            "<gray>Each traveler enters their own persistent dimension.");
+            "&bPersonal Dimension Door",
+            "&7Each traveler enters their own persistent dimension.");
     public static final LinesKey ITEM_PUBLIC_DOOR_RECIPE = lines("item.door.public_recipe",
-            "<gold>Public Dimension Door",
-            "<gray>Every traveler enters this door's shared dimension.");
+            "&6Public Dimension Door",
+            "&7Every traveler enters this door's shared dimension.");
     public static final LinesKey ITEM_ENTANGLED_TRAPDOOR_PAIR = lines("item.door.entangled_trapdoor_pair",
-            "<gold>Entangled Trapdoor Pair",
-            "<gray>Contains two automatically linked Wormhole Trapdoors.",
-            "<gray>Use it to unpack endpoints A and B.");
+            "&6Entangled Trapdoor Pair",
+            "&7Contains two automatically linked Wormhole Trapdoors.",
+            "&7Use it to unpack endpoints A and B.");
     public static final LinesKey ITEM_PAIRED_TRAPDOOR = lines("item.door.paired_trapdoor",
-            "<gold>Wormhole Trapdoor {endpoint}",
-            "<gray>Automatically linked to endpoint {other}.",
-            "<gray>Open the trapdoor and drop through it.");
+            "&6Wormhole Trapdoor {endpoint}",
+            "&7Automatically linked to endpoint {other}.",
+            "&7Open the trapdoor and drop through it.");
     public static final LinesKey ITEM_PERSONAL_TRAPDOOR = lines("item.door.personal_trapdoor",
-            "<aqua>Personal Dimension Trapdoor",
-            "<gray>Each traveler enters their own persistent dimension.",
-            "<gray>The same traveler always reaches the same place.");
+            "&bPersonal Dimension Trapdoor",
+            "&7Each traveler enters their own persistent dimension.",
+            "&7The same traveler always reaches the same place.");
     public static final LinesKey ITEM_PUBLIC_TRAPDOOR = lines("item.door.public_trapdoor",
-            "<gold>Public Dimension Trapdoor",
-            "<gray>Every traveler enters this trapdoor's shared dimension.",
-            "<gray>Breaking and moving it preserves the shared destination.");
+            "&6Public Dimension Trapdoor",
+            "&7Every traveler enters this trapdoor's shared dimension.",
+            "&7Breaking and moving it preserves the shared destination.");
     public static final LinesKey ITEM_TRAPDOOR_SKIN = lines("item.door.trapdoor_skin",
-            "<gold>Dimensional Trapdoor Skin",
-            "<gray>Combine a dimensional trapdoor with a hand-openable trapdoor.");
+            "&6Dimensional Trapdoor Skin",
+            "&7Combine a dimensional trapdoor with a hand-openable trapdoor.");
     public static final LinesKey ITEM_ENTANGLED_TRAPDOOR_PAIR_RECIPE = lines("item.door.entangled_trapdoor_pair_recipe",
-            "<gold>Entangled Trapdoor Pair",
-            "<gray>Contains two automatically linked Wormhole Trapdoors.");
+            "&6Entangled Trapdoor Pair",
+            "&7Contains two automatically linked Wormhole Trapdoors.");
     public static final LinesKey ITEM_PERSONAL_TRAPDOOR_RECIPE = lines("item.door.personal_trapdoor_recipe",
-            "<aqua>Personal Dimension Trapdoor",
-            "<gray>Each traveler enters their own persistent dimension.");
+            "&bPersonal Dimension Trapdoor",
+            "&7Each traveler enters their own persistent dimension.");
     public static final LinesKey ITEM_PUBLIC_TRAPDOOR_RECIPE = lines("item.door.public_trapdoor_recipe",
-            "<gold>Public Dimension Trapdoor",
-            "<gray>Every traveler enters this trapdoor's shared dimension.");
+            "&6Public Dimension Trapdoor",
+            "&7Every traveler enters this trapdoor's shared dimension.");
 
-    public static final TextKey PORTAL_RTP_RUNE_UNSUPPORTED = text("portal.form.rtp_unsupported", "<red>Random teleport portals cannot be formed from runes.");
-    public static final TextKey PORTAL_FORMING = text("portal.form.forming", "<aqua>Forming portal... {type} runes must connect on one flat wall, floor, or ceiling.");
-    public static final TextKey PORTAL_MUST_BE_FLAT = text("portal.form.must_be_flat", "<red>Portal must lie flat on one wall, floor, or ceiling.");
-    public static final TextKey PORTAL_FORM_INTERRUPTED = text("portal.form.interrupted", "<red>Portal formation was interrupted; the reserved runes were restored.");
-    public static final TextKey PORTAL_RUNE_PLACED = text("portal.form.rune_placed", "<aqua>Rune placed. Build any connected shape on one flat surface, then left-click any rune with the Portal Wand.");
-    public static final TextKey PORTAL_OPENED = text("portal.form.opened", "<green>Portal opened. Hold the wand and CLICK the portal to configure.");
-    public static final TextKey PORTAL_COOLDOWN = text("portal.travel.cooldown", "<gold>Portal cooling down");
-    public static final TextKey PORTAL_ACCESS_DENIED = text("portal.travel.access_denied", "<red>Portal access denied");
-    public static final TextKey PORTAL_COST_INSUFFICIENT = text("portal.travel.cost_insufficient", "<red>You need {quantity}x {item} to use this portal.");
-    public static final TextKey PORTAL_COST_VAULT_INSUFFICIENT = text("portal.travel.cost_vault_insufficient", "<red>You need {amount} to use this portal.");
-    public static final TextKey PORTAL_COST_VAULT_UNAVAILABLE = text("portal.travel.cost_vault_unavailable", "<red>This portal's economy cost is unavailable.");
-    public static final TextKey PORTAL_COST_TRANSACTION_FAILED = text("portal.travel.cost_transaction_failed", "<red>The portal could not process your travel cost.");
-    public static final TextKey PORTAL_DESTINATION_UNAVAILABLE = text("portal.travel.destination_unavailable", "<red>Portal destination unavailable");
-    public static final TextKey PORTAL_ARRIVAL_DENIED = text("portal.travel.arrival_denied", "<red>The destination portal refused your arrival.");
-    public static final TextKey PORTAL_ARRIVAL_RETURNED = text("portal.travel.arrival_returned", "<red>The destination portal refused your arrival; returning you to {server}");
+    public static final TextKey PORTAL_RTP_RUNE_UNSUPPORTED = text("portal.form.rtp_unsupported", "&cRandom teleport portals cannot be formed from runes.");
+    public static final TextKey PORTAL_FORMING = text("portal.form.forming", "&bForming portal... {type} runes must connect on one flat wall, floor, or ceiling.");
+    public static final TextKey PORTAL_MUST_BE_FLAT = text("portal.form.must_be_flat", "&cPortal must lie flat on one wall, floor, or ceiling.");
+    public static final TextKey PORTAL_FORM_INTERRUPTED = text("portal.form.interrupted", "&cPortal formation was interrupted; the reserved runes were restored.");
+    public static final TextKey PORTAL_RUNE_PLACED = text("portal.form.rune_placed", "&bRune placed. Build any connected shape on one flat surface, then left-click any rune with the Portal Wand.");
+    public static final TextKey PORTAL_OPENED = text("portal.form.opened", "&aPortal opened. Hold the wand and CLICK the portal to configure.");
+    public static final TextKey PORTAL_COOLDOWN = text("portal.travel.cooldown", "&6Portal cooling down");
+    public static final TextKey PORTAL_ACCESS_DENIED = text("portal.travel.access_denied", "&cPortal access denied");
+    public static final TextKey PORTAL_COST_INSUFFICIENT = text("portal.travel.cost_insufficient", "&cYou need {quantity}x {item} to use this portal.");
+    public static final TextKey PORTAL_COST_VAULT_INSUFFICIENT = text("portal.travel.cost_vault_insufficient", "&cYou need {amount} to use this portal.");
+    public static final TextKey PORTAL_COST_VAULT_UNAVAILABLE = text("portal.travel.cost_vault_unavailable", "&cThis portal's economy cost is unavailable.");
+    public static final TextKey PORTAL_COST_TRANSACTION_FAILED = text("portal.travel.cost_transaction_failed", "&cThe portal could not process your travel cost.");
+    public static final TextKey PORTAL_DESTINATION_UNAVAILABLE = text("portal.travel.destination_unavailable", "&cPortal destination unavailable");
+    public static final TextKey PORTAL_ARRIVAL_DENIED = text("portal.travel.arrival_denied", "&cThe destination portal refused your arrival.");
+    public static final TextKey PORTAL_ARRIVAL_RETURNED = text("portal.travel.arrival_returned", "&cThe destination portal refused your arrival; returning you to {server}");
     public static final TextKey DOOR_TRANSIT_SHUTDOWN = text("door.transit.shutdown", "Dimensional Doors shut down before the transit completed.");
-    public static final TextKey PORTAL_EDIT_DENIED = text("portal.edit.denied", "<red>Only the portal owner or an administrator can edit this portal.");
-    public static final TextKey PORTAL_DELETED = text("portal.deleted", "<red>{portal} Deleted");
-    public static final TextKey PORTAL_ARRIVAL_FAILED = text("portal.travel.arrival_failed", "<red>Portal arrival could not be placed; you remain at the destination spawn");
-    public static final TextKey PORTAL_TRANSFER_COOLDOWN = text("portal.travel.transfer_cooldown", "<gold>Cross-server portal cooling down: {seconds}s");
-    public static final TextKey PORTAL_DESTINATION_UNREACHABLE = text("portal.travel.destination_unreachable", "<red>Destination server unreachable");
-    public static final TextKey PORTAL_DESTINATION_UNREACHABLE_DETAIL = text("portal.travel.destination_unreachable_detail", "<red>Destination server unreachable: {reason}");
-    public static final TextKey PORTAL_TRANSFER_BLOCKED = text("portal.travel.transfer_blocked", "<red>Portal transfer blocked: {reason}");
-    public static final TextKey PORTAL_TRANSFER_BLOCKED_RETRY = text("portal.travel.transfer_blocked_retry", "<red>Portal transfer blocked: {reason} (retry in {seconds}s)");
-    public static final TextKey PORTAL_TRANSFER_HOLDING = text("portal.travel.transfer_holding", "<gold>Linking to the destination server...");
-    public static final TextKey PORTAL_TRANSFER_INTERRUPTED = text("portal.travel.transfer_interrupted", "<red>Portal transfer interrupted: you moved away from the portal.");
-    public static final TextKey PORTAL_TRANSFER_SOURCE_UNAVAILABLE = text("portal.travel.transfer_source_unavailable", "<red>Portal transfer interrupted: the source portal is no longer available.");
+    public static final TextKey PORTAL_EDIT_DENIED = text("portal.edit.denied", "&cOnly the portal owner or an administrator can edit this portal.");
+    public static final TextKey PORTAL_DELETED = text("portal.deleted", "&c{portal} Deleted");
+    public static final TextKey PORTAL_ARRIVAL_FAILED = text("portal.travel.arrival_failed", "&cPortal arrival could not be placed; you remain at the destination spawn");
+    public static final TextKey PORTAL_TRANSFER_COOLDOWN = text("portal.travel.transfer_cooldown", "&6Cross-server portal cooling down: {seconds}s");
+    public static final TextKey PORTAL_DESTINATION_UNREACHABLE = text("portal.travel.destination_unreachable", "&cDestination server unreachable");
+    public static final TextKey PORTAL_DESTINATION_UNREACHABLE_DETAIL = text("portal.travel.destination_unreachable_detail", "&cDestination server unreachable: {reason}");
+    public static final TextKey PORTAL_TRANSFER_BLOCKED = text("portal.travel.transfer_blocked", "&cPortal transfer blocked: {reason}");
+    public static final TextKey PORTAL_TRANSFER_BLOCKED_RETRY = text("portal.travel.transfer_blocked_retry", "&cPortal transfer blocked: {reason} (retry in {seconds}s)");
+    public static final TextKey PORTAL_TRANSFER_HOLDING = text("portal.travel.transfer_holding", "&6Linking to the destination server...");
+    public static final TextKey PORTAL_TRANSFER_INTERRUPTED = text("portal.travel.transfer_interrupted", "&cPortal transfer interrupted: you moved away from the portal.");
+    public static final TextKey PORTAL_TRANSFER_SOURCE_UNAVAILABLE = text("portal.travel.transfer_source_unavailable", "&cPortal transfer interrupted: the source portal is no longer available.");
 
-    public static final TextKey WAND_CORNER_A = text("wand.selection.corner_a", "<aqua>Corner A set. Right-click the opposite corner.");
-    public static final TextKey WAND_CORNER_B = text("wand.selection.corner_b", "<aqua>Corner B set. Left-click the opposite corner.");
-    public static final TextKey WAND_NOT_FLAT = text("wand.selection.not_flat", "<red>Selection must be one block thick. Re-click a corner to flatten it.");
-    public static final TextKey WAND_TOO_LARGE = text("wand.selection.too_large", "<red>Selection too large: {count} cells (max {maximum}).");
+    public static final TextKey WAND_CORNER_A = text("wand.selection.corner_a", "&bCorner A set. Right-click the opposite corner.");
+    public static final TextKey WAND_CORNER_B = text("wand.selection.corner_b", "&bCorner B set. Left-click the opposite corner.");
+    public static final TextKey WAND_NOT_FLAT = text("wand.selection.not_flat", "&cSelection must be one block thick. Re-click a corner to flatten it.");
+    public static final TextKey WAND_TOO_LARGE = text("wand.selection.too_large", "&cSelection too large: {count} cells (max {maximum}).");
     public static final PluralKey WAND_SELECTED = plural("wand.selection.selected", "count", Map.of(
-            "one", "<aqua>Selected {count} cell. Left-click the glass pane to open the portal.",
-            "other", "<aqua>Selected {count} cells. Left-click the glass pane to open the portal."
+            "one", "&bSelected {count} cell. Left-click the glass pane to open the portal.",
+            "other", "&bSelected {count} cells. Left-click the glass pane to open the portal."
     ));
-    public static final TextKey WAND_OPENING = text("wand.selection.opening", "<aqua>Opening portal...");
-    public static final TextKey WAND_OPEN_FAILED = text("wand.selection.open_failed", "<red>The portal could not be opened here.");
+    public static final TextKey WAND_OPENING = text("wand.selection.opening", "&bOpening portal...");
+    public static final TextKey WAND_OPEN_FAILED = text("wand.selection.open_failed", "&cThe portal could not be opened here.");
 
-    public static final TextKey DOOR_CRAFT_ONE = text("door.craft.one_at_a_time", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Craft dimensional doors one at a time so each receives a unique identity.");
-    public static final TextKey DOOR_PAIR_UNPACK_FAILED = text("door.pair.unpack_failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>The door pair could not be unpacked; the kit was not consumed.");
-    public static final TextKey DOOR_PAIR_UNPACKED = text("door.pair.unpacked", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>The entangled pair separated into linked Wormhole Doors A and B.");
-    public static final TextKey DOOR_LEGACY_COMBINE = text("door.legacy.combine", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Combine this legacy dimensional door with a wooden door before placing it.");
-    public static final TextKey DOOR_PAIR_MISSING = text("door.pair.missing", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>That paired door has no registered partner identity.");
-    public static final TextKey DOOR_ALREADY_PLACED = text("door.place.already_placed", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>That dimensional door is already placed, or its state could not be saved.");
-    public static final TextKey DOOR_EXIT_ANCHORED = text("door.break.exit_anchored", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>The dimensional exit is anchored to this pocket.");
-    public static final TextKey DOOR_BREAK_FIRST = text("door.break.support", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Break the dimensional door before removing its support block.");
-    public static final TextKey DOOR_DISABLE_WARNING = text("door.disable.warning", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Dimensional Doors are being disabled. Leave through the pocket return door now.");
-    public static final TextKey DOOR_RESCUE_CANCELLED = text("door.rescue.cancelled", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Your emergency ejection was cancelled; the route was kept.");
-    public static final TextKey DOOR_TRANSIT_MESSAGE = text("door.transit.message", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>{message}");
+    public static final TextKey DOOR_CRAFT_ONE = text("door.craft.one_at_a_time", "&8[&6Wormholes&8] &7Craft dimensional doors one at a time so each receives a unique identity.");
+    public static final TextKey DOOR_PAIR_UNPACK_FAILED = text("door.pair.unpack_failed", "&8[&6Wormholes&8] &7The door pair could not be unpacked; the kit was not consumed.");
+    public static final TextKey DOOR_PAIR_UNPACKED = text("door.pair.unpacked", "&8[&6Wormholes&8] &7The entangled pair separated into linked Wormhole Doors A and B.");
+    public static final TextKey DOOR_LEGACY_COMBINE = text("door.legacy.combine", "&8[&6Wormholes&8] &7Combine this legacy dimensional door with a wooden door before placing it.");
+    public static final TextKey DOOR_PAIR_MISSING = text("door.pair.missing", "&8[&6Wormholes&8] &7That paired door has no registered partner identity.");
+    public static final TextKey DOOR_ALREADY_PLACED = text("door.place.already_placed", "&8[&6Wormholes&8] &7That dimensional door is already placed, or its state could not be saved.");
+    public static final TextKey DOOR_EXIT_ANCHORED = text("door.break.exit_anchored", "&8[&6Wormholes&8] &7The dimensional exit is anchored to this pocket.");
+    public static final TextKey DOOR_BREAK_FIRST = text("door.break.support", "&8[&6Wormholes&8] &7Break the dimensional door before removing its support block.");
+    public static final TextKey DOOR_DISABLE_WARNING = text("door.disable.warning", "&8[&6Wormholes&8] &7Dimensional Doors are being disabled. Leave through the pocket return door now.");
+    public static final TextKey DOOR_RESCUE_CANCELLED = text("door.rescue.cancelled", "&8[&6Wormholes&8] &7Your emergency ejection was cancelled; the route was kept.");
+    public static final TextKey DOOR_TRANSIT_MESSAGE = text("door.transit.message", "&8[&6Wormholes&8] &7{message}");
     public static final TextKey DOOR_LINK_NOT_PLACED = text("door.transit.link_not_placed", "The linked Wormhole Door has not been placed yet.");
     public static final TextKey DOOR_LINK_UNAVAILABLE = text("door.transit.link_unavailable", "The linked Wormhole Door is unavailable or obstructed.");
     public static final TextKey DOOR_NESTED_POCKET = text("door.transit.nested_pocket", "A pocket door cannot open another pocket from inside the shared void dimension.");
@@ -322,7 +324,7 @@ public final class WormholesMessages {
     public static final TextKey DOOR_RESCUE_FALLBACK_CHUNK_FAILED = text("door.rescue.fallback.chunk_failed", "The fallback spawn could not be loaded.");
     public static final TextKey DOOR_RESCUE_FALLBACK_SCHEDULE_FAILED = text("door.rescue.fallback.schedule_failed", "The fallback ejection could not be scheduled.");
     public static final TextKey DOOR_RESCUE_START_FAILED = text("door.rescue.reason.start_failed", "The emergency ejection could not start.");
-    public static final TextKey DOOR_RESCUE_FAILED = text("door.rescue.failed", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>{route} {fallback} You remain protected at one heart.");
+    public static final TextKey DOOR_RESCUE_FAILED = text("door.rescue.failed", "&8[&6Wormholes&8] &7{route} {fallback} You remain protected at one heart.");
 
     public static final TextKey DOOR_ACCESS_LABEL_NEUTRAL = text("door.access.label.neutral", "Neutral");
     public static final TextKey DOOR_ACCESS_LABEL_WHITELIST = text("door.access.label.whitelist", "Whitelist");
@@ -334,484 +336,484 @@ public final class WormholesMessages {
     public static final TextKey DOOR_ACCESS_KIND_PUBLIC = text("door.access.kind.public", "Public");
     public static final TextKey DOOR_ACCESS_KIND_RETURN = text("door.access.kind.return", "Exit");
     public static final TextKey DOOR_ACCESS_UNKNOWN_PLAYER = text("door.access.unknown_player", "Unknown ({id})");
-    public static final TextKey DOOR_ACCESS_EDIT_DENIED = text("door.access.edit_denied", "<red>Only the door owner or an administrator can edit this door.");
-    public static final TextKey DOOR_ACCESS_UNAVAILABLE = text("door.access.unavailable", "<red>This dimensional door has no access record.");
-    public static final TextKey DOOR_ACCESS_SAVE_FAILED = text("door.access.save_failed", "<red>That door access change could not be saved.");
-    public static final TextKey DOOR_ACCESS_PLAYER_NOT_FOUND = text("door.access.player_not_found", "<red>No player named {name} could be found.");
-    public static final TextKey DOOR_ACCESS_OWNER_ALWAYS = text("door.access.owner_always", "<gray>The door owner always has access.");
-    public static final TextKey DOOR_ACCESS_ALREADY_LISTED = text("door.access.already_listed", "<gray>{name} is already listed for this door.");
-    public static final TextKey DOOR_ACCESS_ADDED = text("door.access.added", "<green>{name} was added to this door's list.");
-    public static final TextKey DOOR_ACCESS_REMOVED = text("door.access.removed", "<green>{name} was removed from this door's list.");
-    public static final TextKey DOOR_ACCESS_STATE_CHANGED = text("door.access.state_changed", "<green>{name} is now {state} for this door.");
-    public static final TextKey DOOR_ACCESS_PROMPT_PLAYER = text("door.access.prompt_player", "<aqua>Type the player name to list for this door (or '{cancel}'):");
-    public static final TextKey DOOR_ACCESS_DENIED = text("door.access.denied", "<red>This dimensional door refuses you.");
+    public static final TextKey DOOR_ACCESS_EDIT_DENIED = text("door.access.edit_denied", "&cOnly the door owner or an administrator can edit this door.");
+    public static final TextKey DOOR_ACCESS_UNAVAILABLE = text("door.access.unavailable", "&cThis dimensional door has no access record.");
+    public static final TextKey DOOR_ACCESS_SAVE_FAILED = text("door.access.save_failed", "&cThat door access change could not be saved.");
+    public static final TextKey DOOR_ACCESS_PLAYER_NOT_FOUND = text("door.access.player_not_found", "&cNo player named {name} could be found.");
+    public static final TextKey DOOR_ACCESS_OWNER_ALWAYS = text("door.access.owner_always", "&7The door owner always has access.");
+    public static final TextKey DOOR_ACCESS_ALREADY_LISTED = text("door.access.already_listed", "&7{name} is already listed for this door.");
+    public static final TextKey DOOR_ACCESS_ADDED = text("door.access.added", "&a{name} was added to this door's list.");
+    public static final TextKey DOOR_ACCESS_REMOVED = text("door.access.removed", "&a{name} was removed from this door's list.");
+    public static final TextKey DOOR_ACCESS_STATE_CHANGED = text("door.access.state_changed", "&a{name} is now {state} for this door.");
+    public static final TextKey DOOR_ACCESS_PROMPT_PLAYER = text("door.access.prompt_player", "&bType the player name to list for this door (or '{cancel}'):");
+    public static final TextKey DOOR_ACCESS_DENIED = text("door.access.denied", "&cThis dimensional door refuses you.");
     public static final TextKey DOOR_ACCESS_TRANSIT_DENIED = text("door.access.transit_denied", "You do not have access to this dimensional door.");
 
     public static final TextKey DOOR_MENU_ACCESS_TITLE = text("door.menu.access.title", "Door Access: {kind}");
     public static final LinesKey DOOR_MENU_ACCESS_PLACARD = lines("door.menu.access.placard",
-            "<gold><bold>{kind} Dimensional Door</bold>",
-            "<gray>Owner: <white>{owner}",
-            "<gray>Whitelisted: <green>{whitelisted}",
-            "<gray>Blacklisted: <red>{blacklisted}",
-            "<gray>Listed players: <aqua>{count}",
-            "<dark_gray>Owners and administrators edit this door.");
+            "&6&l{kind} Dimensional Door&r",
+            "&7Owner: &f{owner}",
+            "&7Whitelisted: &a{whitelisted}",
+            "&7Blacklisted: &c{blacklisted}",
+            "&7Listed players: &b{count}",
+            "&8Owners and administrators edit this door.");
     public static final LinesKey DOOR_MENU_ACCESS_ADD_PLAYER = lines("door.menu.access.add_player",
-            "<green><bold>Add Player</bold>",
-            "<gray>Type a player name in chat to list them.",
+            "&a&lAdd Player&r",
+            "&7Type a player name in chat to list them.",
             "",
-            "<dark_gray>Click to add a player.");
+            "&8Click to add a player.");
     public static final LinesKey DOOR_MENU_ACCESS_OPEN_STATE = lines("door.menu.access.open_state",
-            "<aqua><bold>OpenState: <white>{state}",
-            "<gray>The portal follows this block's physical state.",
-            "<gray>Active state: <white>{state}<gray>.",
+            "&b&lOpenState: &f&l{state}",
+            "&7The portal follows this block's physical state.",
+            "&7Active state: &f{state}&7.",
             "",
-            "<dark_gray>Next: {next}. Click to switch.");
+            "&8Next: {next}. Click to switch.");
     public static final LinesKey DOOR_MENU_ACCESS_ENTRY = lines("door.menu.access.entry",
-            "<white>{name}",
-            "<gray>State: <aqua>{state}",
+            "&f{name}",
+            "&7State: &b{state}",
             "",
-            "<dark_gray>Left click: whitelist. Right click: blacklist.",
-            "<dark_gray>Middle click or shift + left click: remove.");
+            "&8Left click: whitelist. Right click: blacklist.",
+            "&8Middle click or shift + left click: remove.");
 
     public static final LinesKey PORTAL_MENU_DESTINATION = lines("portal.menu.destination",
-            "<gold><bold>Destination</bold>",
-            "<gray>Choose a portal to link to.",
-            "<gray>Currently linked: {destination}",
+            "&6&lDestination&r",
+            "&7Choose a portal to link to.",
+            "&7Currently linked: {destination}",
             "",
-            "<dark_gray>Click to open the destination picker.");
+            "&8Click to open the destination picker.");
     public static final LinesKey PORTAL_MENU_GATEWAY_DESTINATION = lines("portal.menu.gateway_destination",
-            "<gold><bold>Pair & Destination</bold>",
-            "<gray>Pair another server or choose a gateway.",
-            "<gray>Currently linked: {destination}",
+            "&6&lPair & Destination&r",
+            "&7Pair another server or choose a gateway.",
+            "&7Currently linked: {destination}",
             "",
-            "<dark_gray>Click to open the pairing hub.");
+            "&8Click to open the pairing hub.");
     public static final LinesKey PORTAL_MENU_RTP_DESTINATION = lines("portal.menu.rtp_destination",
-            "<gold><bold>Random Destination</bold>",
-            "<gray>Configure where and when this portal rerolls.",
-            "<gray>Rotation: <aqua>{rotation}",
+            "&6&lRandom Destination&r",
+            "&7Configure where and when this portal rerolls.",
+            "&7Rotation: &b{rotation}",
             "",
-            "<dark_gray>Click to open random teleport settings.");
+            "&8Click to open random teleport settings.");
     public static final LinesKey PORTAL_MENU_RENAME = lines("portal.menu.rename",
-            "<green><bold>Rename Portal</bold>",
-            "<gray>Change the name shown on links and menus.",
-            "<gray>Current: <white>{portal}",
+            "&a&lRename Portal&r",
+            "&7Change the name shown on links and menus.",
+            "&7Current: &f{portal}",
             "",
-            "<dark_gray>Click to type a new name.");
+            "&8Click to type a new name.");
     public static final LinesKey PORTAL_MENU_DELETE = lines("portal.menu.delete",
-            "<red><bold>Delete Portal</bold>",
-            "<gray>Permanently removes this portal.",
+            "&c&lDelete Portal&r",
+            "&7Permanently removes this portal.",
             "",
-            "<red><underlined>Shift + Left Click to confirm</underlined>");
+            "&c&nShift + Left Click to confirm&r");
     public static final LinesKey PORTAL_MENU_ADVANCED_SETTINGS = lines("portal.menu.advanced_settings",
-            "<dark_aqua><bold>Advanced Stream Tuning</bold>",
-            "<gray>Direct controls for diagnostics and unusual links.",
-            "<gray>Changing one value marks Stream Quality as Custom.");
+            "&3&lAdvanced Stream Tuning&r",
+            "&7Direct controls for diagnostics and unusual links.",
+            "&7Changing one value marks Stream Quality as Custom.");
     public static final LinesKey PORTAL_MENU_BACK_SETTINGS = lines("portal.menu.back_settings",
-            "<yellow><bold>Back to Settings</bold>",
-            "<gray>Return to portal settings.");
+            "&e&lBack to Settings&r",
+            "&7Return to portal settings.");
     public static final LinesKey PORTAL_MENU_TRAVEL_MANAGED = lines("portal.menu.travel.managed",
-            "<gold><bold>Travel: {direction}</bold>",
-            "<gray>Managed dimensional portal direction.",
-            "<gray>{detail}");
+            "&6&lTravel: {direction}&r",
+            "&7Managed dimensional portal direction.",
+            "&7{detail}");
     public static final LinesKey PORTAL_MENU_TRAVEL_MIRROR = lines("portal.menu.travel.mirror",
-            "<red><bold>Travel: Mirror Locked</bold>",
-            "<gray>Mirror mode is visual only.",
-            "<gray>Entities cannot enter or leave through it.");
+            "&c&lTravel: Mirror Locked&r",
+            "&7Mirror mode is visual only.",
+            "&7Entities cannot enter or leave through it.");
     public static final LinesKey PORTAL_MENU_TRAVEL = lines("portal.menu.travel.standard",
-            "<aqua><bold>Travel: {mode}</bold>",
-            "<gray>Controls travel through this portal.",
+            "&b&lTravel: {mode}&r",
+            "&7Controls travel through this portal.",
             "",
-            "<gray>Outgoing: <aqua>{outgoing}<gray>  Incoming: <aqua>{incoming}",
+            "&7Outgoing: &b{outgoing}&7  Incoming: &b{incoming}",
             "",
-            "<dark_gray>Click to cycle travel direction.");
+            "&8Click to cycle travel direction.");
     public static final LinesKey PORTAL_MENU_STREAM_QUALITY = lines("portal.menu.stream_quality",
-            "<aqua><bold>Stream Quality: {quality}</bold>",
-            "<gray>One control for remote view range and cadence.",
+            "&b&lStream Quality: {quality}&r",
+            "&7One control for remote view range and cadence.",
             "",
-            "<gray>Depth <aqua>{depth}<gray>  Entities <aqua>{entities}t",
-            "<gray>Refresh <aqua>{refresh}t<gray>  Grace <aqua>{grace}s",
+            "&7Depth &b{depth}&7  Entities &b{entities}t",
+            "&7Refresh &b{refresh}t&7  Grace &b{grace}s",
             "",
-            "<dark_gray>Click: cycle quality.",
-            "<dark_gray>Shift-click: advanced tuning.");
+            "&8Click: cycle quality.",
+            "&8Shift-click: advanced tuning.");
     public static final LinesKey PORTAL_MENU_ORIENTATION = lines("portal.menu.orientation",
-            "<blue><bold>Orientation</bold>",
-            "<gray>Facing: <blue>{facing}",
-            "<gray>Up: <gold>{up}",
+            "&9&lOrientation&r",
+            "&7Facing: &9{facing}",
+            "&7Up: &6{up}",
             "",
-            "<dark_gray>Click for facing, flip, and rotation.");
+            "&8Click for facing, flip, and rotation.");
     public static final LinesKey PORTAL_MENU_ORIENTATION_PLACARD = lines("portal.menu.orientation_placard",
-            "<blue><bold>Portal Orientation</bold>",
-            "<gray>Facing: <blue>{facing}",
-            "<gray>Screen up: <gold>{up}");
+            "&9&lPortal Orientation&r",
+            "&7Facing: &9{facing}",
+            "&7Screen up: &6{up}");
     public static final LinesKey PORTAL_MENU_GATEWAY_CHOOSE = lines("portal.menu.gateway.choose",
-            "<gold><bold>Choose Destination</bold>",
-            "<gray>Choose from discovered local and remote gateways.",
+            "&6&lChoose Destination&r",
+            "&7Choose from discovered local and remote gateways.",
             "",
-            "<dark_gray>Click to open the destination list.");
+            "&8Click to open the destination list.");
     public static final LinesKey PORTAL_MENU_GATEWAY_UNPAIRED = lines("portal.menu.gateway.unpaired",
-            "<gold><bold>Gateway Pairing</bold>",
-            "<gray>Status: <red>Not paired");
+            "&6&lGateway Pairing&r",
+            "&7Status: &cNot paired");
     public static final LinesKey PORTAL_MENU_GATEWAY_PAIRED = lines("portal.menu.gateway.paired",
-            "<gold><bold>Gateway Pairing</bold>",
-            "<gray>Destination: <gold>{destination}");
-    public static final TextKey PORTAL_MENU_GATEWAY_SERVER = text("portal.menu.gateway.server", "<gray>Server: <white>{server}");
-    public static final TextKey PORTAL_MENU_GATEWAY_LINK = text("portal.menu.gateway.link", "<gray>Link: <aqua>{state}");
+            "&6&lGateway Pairing&r",
+            "&7Destination: &6{destination}");
+    public static final TextKey PORTAL_MENU_GATEWAY_SERVER = text("portal.menu.gateway.server", "&7Server: &f{server}");
+    public static final TextKey PORTAL_MENU_GATEWAY_LINK = text("portal.menu.gateway.link", "&7Link: &b{state}");
     public static final LinesKey PORTAL_MENU_GATEWAY_EXPORT = lines("portal.menu.gateway.export",
-            "<gold><bold>Create Invite</bold>",
-            "<gray>Create a signed gateway code for another server.",
+            "&6&lCreate Invite&r",
+            "&7Create a signed gateway code for another server.",
             "",
-            "<dark_gray>Click to copy a fresh code.");
+            "&8Click to copy a fresh code.");
     public static final LinesKey PORTAL_MENU_GATEWAY_IMPORT = lines("portal.menu.gateway.import",
-            "<aqua><bold>Use Invite</bold>",
-            "<gray>Paste a signed code from another gateway.",
+            "&b&lUse Invite&r",
+            "&7Paste a signed code from another gateway.",
             "",
-            "<dark_gray>Click, then paste the code in chat.");
+            "&8Click, then paste the code in chat.");
     public static final LinesKey PORTAL_MENU_NETWORK_NUMBER = lines("portal.menu.network_number",
-            "<aqua><bold>{label} <white>{value}</bold>",
-            "<gray>{description}",
+            "&b&l{label} &f&l{value}&r",
+            "&7{description}",
             "",
-            "<gray>Currently: <aqua>{value}",
+            "&7Currently: &b{value}",
             "",
-            "<dark_gray>Left click: +{step}",
-            "<dark_gray>Right click: -{step}",
-            "<dark_gray>Shift-left: +{large_step}",
-            "<dark_gray>Shift-right: -{large_step}");
+            "&8Left click: +{step}",
+            "&8Right click: -{step}",
+            "&8Shift-left: +{large_step}",
+            "&8Shift-right: -{large_step}");
     public static final LinesKey PORTAL_MENU_FALLBACK_BLOCK = lines("portal.menu.fallback_block",
-            "<aqua><bold>Fallback Block</bold>",
-            "<gray>Block shown beyond streamed depth.",
+            "&b&lFallback Block&r",
+            "&7Block shown beyond streamed depth.",
             "",
-            "<gray>Currently: <white>{block}",
+            "&7Currently: &f{block}",
             "",
-            "<dark_gray>Left: enter a block state.",
-            "<dark_gray>Right: reset to air.");
+            "&8Left: enter a block state.",
+            "&8Right: reset to air.");
     public static final LinesKey PORTAL_MENU_BLACKOUT = lines("portal.menu.blackout",
-            "<aqua><bold>Blackout Background</bold>",
-            "<gray>Seal the projection's far and side boundaries with solid concrete so the local world never shows through.",
+            "&b&lBlackout Background&r",
+            "&7Seal the projection's far and side boundaries with solid concrete so the local world never shows through.",
             "",
-            "<gray>Currently: <white>{state} <dark_gray>({color})",
+            "&7Currently: &f{state} &8({color})",
             "",
-            "<dark_gray>Left: toggle on/off.",
-            "<dark_gray>Right: choose a color.");
+            "&8Left: toggle on/off.",
+            "&8Right: choose a color.");
     public static final LinesKey PORTAL_MENU_BLACKOUT_COLOR_PLACARD = lines("portal.menu.blackout_color.placard",
-            "<gold><bold>Blackout Color</bold>",
-            "<gray>Concrete color used for the blackout shell.",
+            "&6&lBlackout Color&r",
+            "&7Concrete color used for the blackout shell.",
             "",
-            "<gray>Currently: <white>{color}");
+            "&7Currently: &f{color}");
     public static final LinesKey PORTAL_MENU_BLACKOUT_COLOR_OPTION = lines("portal.menu.blackout_color.option",
-            "<aqua><bold>{color}</bold>",
+            "&b&l{color}&r",
             "",
-            "<dark_gray>Click to select.");
+            "&8Click to select.");
     public static final LinesKey PORTAL_MENU_ACTIVATION_RANGE = lines("portal.menu.activation_range",
-            "<aqua><bold>Activation Range <white>{value}</bold>",
-            "<gray>Distance in blocks at which this portal starts projecting for nearby players.",
+            "&b&lActivation Range &f&l{value}&r",
+            "&7Distance in blocks at which this portal starts projecting for nearby players.",
             "",
-            "<gray>Currently: <aqua>{value}",
+            "&7Currently: &b{value}",
             "",
-            "<dark_gray>Left click: +{step}",
-            "<dark_gray>Right click: -{step}",
-            "<dark_gray>Shift-left: +{large_step}",
-            "<dark_gray>Shift-right: -{large_step}",
-            "<dark_gray>Below 8 resets to Global.");
+            "&8Left click: +{step}",
+            "&8Right click: -{step}",
+            "&8Shift-left: +{large_step}",
+            "&8Shift-right: -{large_step}",
+            "&8Below 8 resets to Global.");
     public static final LinesKey PORTAL_MENU_RENDER_MODE = lines("portal.menu.render_mode",
-            "<aqua><bold>Render Mode <white>{mode}</bold>",
-            "<gray>How much of the destination volume this portal projects.",
+            "&b&lRender Mode &f&l{mode}&r",
+            "&7How much of the destination volume this portal projects.",
             "",
-            "<gray>Mode: <white>{mode}",
+            "&7Mode: &f{mode}",
             "",
-            "<dark_gray>PanOptic renders the full destination volume.",
-            "<dark_gray>Venticular keeps visible surfaces and omits hidden destination geometry.",
+            "&8PanOptic renders the full destination volume.",
+            "&8Venticular keeps visible surfaces and omits hidden destination geometry.",
             "",
-            "<dark_gray>Left: cycle mode.");
+            "&8Left: cycle mode.");
     public static final LinesKey PORTAL_MENU_AMBIENT_PARTICLES = lines("portal.menu.ambient_particles",
-            "<aqua><bold>Ambient Particles</bold>",
-            "<gray>Decorative dust that drifts around this portal.",
+            "&b&lAmbient Particles&r",
+            "&7Decorative dust that drifts around this portal.",
             "",
-            "<gray>Style: <white>{style} <dark_gray>({color})",
+            "&7Style: &f{style} &8({color})",
             "",
-            "<dark_gray>Left: cycle style.",
-            "<dark_gray>Right: choose a color.");
+            "&8Left: cycle style.",
+            "&8Right: choose a color.");
     public static final LinesKey PORTAL_MENU_AMBIENT_COLOR_PLACARD = lines("portal.menu.ambient_color.placard",
-            "<gold><bold>Ambient Color</bold>",
-            "<gray>Color of the ambient dust particles.",
+            "&6&lAmbient Color&r",
+            "&7Color of the ambient dust particles.",
             "",
-            "<gray>Currently: <white>{color}");
+            "&7Currently: &f{color}");
     public static final LinesKey PORTAL_MENU_AMBIENT_CHANNEL = lines("portal.menu.ambient_color.channel",
-            "<aqua><bold>{label} <white>{value}</bold>",
+            "&b&l{label} &f&l{value}&r",
             "",
-            "<dark_gray>Left click: +{step}",
-            "<dark_gray>Right click: -{step}",
-            "<dark_gray>Shift-left: +{large_step}",
-            "<dark_gray>Shift-right: -{large_step}");
+            "&8Left click: +{step}",
+            "&8Right click: -{step}",
+            "&8Shift-left: +{large_step}",
+            "&8Shift-right: -{large_step}");
     public static final LinesKey PORTAL_MENU_AMBIENT_COLOR_OPTION = lines("portal.menu.ambient_color.option",
-            "<aqua><bold>{color}</bold>",
+            "&b&l{color}&r",
             "",
-            "<dark_gray>Click to select.");
+            "&8Click to select.");
     public static final LinesKey PORTAL_MENU_SURFACE_SKIN = lines("portal.menu.surface_skin",
-            "<aqua><bold>Surface Skin</bold>",
-            "<gray>Cover the portal aperture with a rendered block or fluid pane.",
+            "&b&lSurface Skin&r",
+            "&7Cover the portal aperture with a rendered block or fluid pane.",
             "",
-            "<gray>Skin: <white>{skin}",
+            "&7Skin: &f{skin}",
             "",
-            "<dark_gray>Left: clear the skin.",
-            "<dark_gray>Right: open skin options.");
+            "&8Left: clear the skin.",
+            "&8Right: open skin options.");
     public static final LinesKey PORTAL_MENU_SURFACE_SKIN_PLACARD = lines("portal.menu.surface_skin.placard",
-            "<gold><bold>Surface Skin</bold>",
-            "<gray>Right-click the portal with a block or bucket to apply a skin.",
+            "&6&lSurface Skin&r",
+            "&7Right-click the portal with a block or bucket to apply a skin.",
             "",
-            "<gray>Skin: <white>{skin}");
+            "&7Skin: &f{skin}");
     public static final LinesKey PORTAL_MENU_SURFACE_SKIN_GLASS = lines("portal.menu.surface_skin.glass",
-            "<aqua><bold>Glass Skin</bold>",
-            "<gray>A clear glass window over the aperture.",
+            "&b&lGlass Skin&r",
+            "&7A clear glass window over the aperture.",
             "",
-            "<dark_gray>Click to apply glass.");
+            "&8Click to apply glass.");
     public static final LinesKey PORTAL_MENU_SURFACE_SKIN_CLEAR = lines("portal.menu.surface_skin.clear",
-            "<red><bold>Clear Skin</bold>",
-            "<gray>Remove the skin and restore projections.",
+            "&c&lClear Skin&r",
+            "&7Remove the skin and restore projections.",
             "",
-            "<dark_gray>Click to remove the skin.");
+            "&8Click to remove the skin.");
     public static final LinesKey PORTAL_MENU_PLACARD_RTP = lines("portal.menu.placard.rtp",
-            "<gold><bold>{portal}</bold>",
-            "<gray>Type: <yellow>{type}",
-            "<gray>Facing: <blue>{facing}",
-            "<gray>Allocation: <aqua>{allocation}",
-            "<gray>Rotation: <aqua>{rotation}",
+            "&6&l{portal}&r",
+            "&7Type: &e{type}",
+            "&7Facing: &9{facing}",
+            "&7Allocation: &b{allocation}",
+            "&7Rotation: &b{rotation}",
             "",
-            "<dark_gray>Operators bypass white/blacklist.");
+            "&8Operators bypass white/blacklist.");
     public static final LinesKey PORTAL_MENU_PLACARD_LINKED = lines("portal.menu.placard.linked",
-            "<gold><bold>{portal}</bold>",
-            "<gray>Type: <yellow>{type}",
-            "<gray>Facing: <blue>{facing}",
-            "<gray>Linked to: <gold>{destination}",
+            "&6&l{portal}&r",
+            "&7Type: &e{type}",
+            "&7Facing: &9{facing}",
+            "&7Linked to: &6{destination}",
             "",
-            "<dark_gray>Operators bypass white/blacklist.");
+            "&8Operators bypass white/blacklist.");
     public static final LinesKey PORTAL_MENU_PLACARD_UNLINKED = lines("portal.menu.placard.unlinked",
-            "<gold><bold>{portal}</bold>",
-            "<gray>Type: <yellow>{type}",
-            "<gray>Facing: <blue>{facing}",
-            "<gray>Linked to: <red>{none}",
+            "&6&l{portal}&r",
+            "&7Type: &e{type}",
+            "&7Facing: &9{facing}",
+            "&7Linked to: &c{none}",
             "",
-            "<dark_gray>Operators bypass white/blacklist.");
+            "&8Operators bypass white/blacklist.");
     public static final LinesKey PORTAL_MENU_SETTINGS_PLACARD_GATEWAY = lines("portal.menu.settings_placard_gateway",
-            "<aqua><bold>Portal Settings</bold>",
-            "<gray>Access and transfer controls.",
-            "<gray>Plus projection view tuning.",
+            "&b&lPortal Settings&r",
+            "&7Access and transfer controls.",
+            "&7Plus projection view tuning.",
             "",
-            "<gray>Larger depth / shorter ticks =",
-            "<gray>richer view, more bandwidth.");
+            "&7Larger depth / shorter ticks =",
+            "&7richer view, more bandwidth.");
     public static final LinesKey PORTAL_MENU_PUBLIC_LOOK_LABEL = lines("portal.menu.public_look_label",
-            "<aqua><bold>Public Look Label: <white>{state}</bold>",
-            "<gray>Show this portal's name when nearby players look at it.",
-            "<gray>When Off, the route label remains portal-tool only.",
+            "&b&lPublic Look Label: &f&l{state}&r",
+            "&7Show this portal's name when nearby players look at it.",
+            "&7When Off, the route label remains portal-tool only.",
             "",
-            "<yellow>Left click to toggle");
+            "&eLeft click to toggle");
     public static final LinesKey PORTAL_MENU_COST_OPENER = lines("portal.menu.cost.opener",
-            "<gold><bold>Travel Cost</bold>",
-            "<gray>Require an exact item or Vault currency",
-            "<gray>when a player uses this portal.",
+            "&6&lTravel Cost&r",
+            "&7Require an exact item or Vault currency",
+            "&7when a player uses this portal.",
             "",
-            "<gray>Mode: <white>{mode}",
-            "<gray>Cost: <white>{cost}",
+            "&7Mode: &f{mode}",
+            "&7Cost: &f{cost}",
             "",
-            "<dark_gray>Click to configure.");
+            "&8Click to configure.");
     public static final LinesKey PORTAL_MENU_COST_PLACARD = lines("portal.menu.cost.placard",
-            "<gold><bold>Travel Cost</bold>",
-            "<gray>Players must pay before this portal",
-            "<gray>allows them to travel.",
+            "&6&lTravel Cost&r",
+            "&7Players must pay before this portal",
+            "&7allows them to travel.",
             "",
-            "<gray>Mode: <white>{mode}",
-            "<gray>Cost: <white>{cost}");
+            "&7Mode: &f{mode}",
+            "&7Cost: &f{cost}");
     public static final LinesKey PORTAL_MENU_COST_MODE_FREE = lines("portal.menu.cost.mode_free",
-            "<green><bold>Free</bold>",
-            "<gray>No payment is required.",
+            "&a&lFree&r",
+            "&7No payment is required.",
             "",
-            "<dark_gray>Click to make travel free.");
+            "&8Click to make travel free.");
     public static final LinesKey PORTAL_MENU_COST_MODE_VANILLA = lines("portal.menu.cost.mode_vanilla",
-            "<aqua><bold>Vanilla Item</bold>",
-            "<gray>Consume an exact matching item.",
+            "&b&lVanilla Item&r",
+            "&7Consume an exact matching item.",
             "",
-            "<dark_gray>Click, hold the item, then press Drop.");
+            "&8Click, hold the item, then press Drop.");
     public static final LinesKey PORTAL_MENU_COST_MODE_VAULT = lines("portal.menu.cost.mode_vault",
-            "<green><bold>Vault Economy</bold>",
-            "<gray>Withdraw currency through Vault.",
+            "&a&lVault Economy&r",
+            "&7Withdraw currency through Vault.",
             "",
-            "<dark_gray>Click to enter an amount.");
+            "&8Click to enter an amount.");
     public static final LinesKey PORTAL_MENU_COST_MODE_VAULT_UNAVAILABLE = lines("portal.menu.cost.mode_vault_unavailable",
-            "<red><bold>Vault Economy Unavailable</bold>",
-            "<gray>Vault and an economy provider are required.",
+            "&c&lVault Economy Unavailable&r",
+            "&7Vault and an economy provider are required.",
             "",
-            "<dark_gray>Install or enable both to use this mode.");
+            "&8Install or enable both to use this mode.");
     public static final LinesKey PORTAL_MENU_COST_FREE_DETAIL = lines("portal.menu.cost.free_detail",
-            "<green><bold>No Cost</bold>",
-            "<gray>Travel through this portal is free.");
+            "&a&lNo Cost&r",
+            "&7Travel through this portal is free.");
     public static final LinesKey PORTAL_MENU_COST_SECONDARY_EMPTY = lines("portal.menu.cost.secondary_empty",
-            "<dark_gray><bold>No Additional Setting</bold>");
+            "&8&lNo Additional Setting&r");
     public static final LinesKey PORTAL_MENU_COST_ITEM = lines("portal.menu.cost.item",
-            "<aqua><bold>{item}</bold>",
-            "<gray>This exact item is required for travel.",
-            "<gray>The selection item is never consumed.",
+            "&b&l{item}&r",
+            "&7This exact item is required for travel.",
+            "&7The selection item is never consumed.",
             "",
-            "<dark_gray>Left: select another held item.",
-            "<dark_gray>Right: clear the cost.");
+            "&8Left: select another held item.",
+            "&8Right: clear the cost.");
     public static final LinesKey PORTAL_MENU_COST_QUANTITY = lines("portal.menu.cost.quantity",
-            "<aqua><bold>Quantity {quantity}</bold>",
-            "<gray>How many exact matching items",
-            "<gray>are consumed per traversal.",
+            "&b&lQuantity {quantity}&r",
+            "&7How many exact matching items",
+            "&7are consumed per traversal.",
             "",
-            "<dark_gray>Left click: +1",
-            "<dark_gray>Right click: -1",
-            "<dark_gray>Shift-left: +8",
-            "<dark_gray>Shift-right: -8",
-            "<dark_gray>Maximum: {maximum}");
+            "&8Left click: +1",
+            "&8Right click: -1",
+            "&8Shift-left: +8",
+            "&8Shift-right: -8",
+            "&8Maximum: {maximum}");
     public static final LinesKey PORTAL_MENU_COST_VAULT_AMOUNT = lines("portal.menu.cost.vault_amount",
-            "<green><bold>{amount}</bold>",
-            "<gray>Currency withdrawn per traversal.",
+            "&a&l{amount}&r",
+            "&7Currency withdrawn per traversal.",
             "",
-            "<dark_gray>Left: enter another amount.",
-            "<dark_gray>Right: clear the cost.");
+            "&8Left: enter another amount.",
+            "&8Right: clear the cost.");
     public static final LinesKey PORTAL_MENU_MODE_PLACARD = lines("portal.menu.mode_placard",
-            "<yellow><bold>Portal Mode</bold>",
-            "<gray>Current: <yellow>{mode}",
+            "&e&lPortal Mode&r",
+            "&7Current: &e{mode}",
             "",
-            "<gray>Portal: basic linked portal.",
-            "<gray>Wormhole: portal with viewport.",
-            "<gray>Gateway: cross-server gateway.",
-            "<gray>RTP: configurable random destinations.",
-            "<gray>Mirror: reflect this side, no travel.");
+            "&7Portal: basic linked portal.",
+            "&7Wormhole: portal with viewport.",
+            "&7Gateway: cross-server gateway.",
+            "&7RTP: configurable random destinations.",
+            "&7Mirror: reflect this side, no travel.");
     public static final LinesKey PORTAL_MENU_MODE_OPENER = lines("portal.menu.mode_opener",
-            "<yellow><bold>Mode</bold>",
-            "<gray>{description}",
+            "&e&lMode&r",
+            "&7{description}",
             "",
-            "<gray>Currently: <yellow>{mode}",
+            "&7Currently: &e{mode}",
             "",
-            "<dark_gray>Click to change mode.");
+            "&8Click to change mode.");
     public static final LinesKey PORTAL_MENU_DIRECTION = lines("portal.menu.direction",
-            "<blue><bold>Direction</bold>",
-            "<gray>Change the portal facing direction.",
+            "&9&lDirection&r",
+            "&7Change the portal facing direction.",
             "",
-            "<gray>Currently facing: <blue>{direction}",
+            "&7Currently facing: &9{direction}",
             "",
-            "<dark_gray>Click then look, left click to apply.");
+            "&8Click then look, left click to apply.");
     public static final LinesKey PORTAL_MENU_FLIP_FACE = lines("portal.menu.flip_face",
-            "<aqua><bold>Flip Face</bold>",
-            "<gray>Reverse the portal face direction.",
-            "<gray>Screen rotation stays aligned.",
+            "&b&lFlip Face&r",
+            "&7Reverse the portal face direction.",
+            "&7Screen rotation stays aligned.",
             "",
-            "<gray>Currently rolling up: <aqua>{up}",
+            "&7Currently rolling up: &b{up}",
             "",
-            "<dark_gray>Click to flip.");
+            "&8Click to flip.");
     public static final LinesKey PORTAL_MENU_ROTATE_COUNTERCLOCKWISE = lines("portal.menu.rotate_counterclockwise",
-            "<gold><bold>Rotate Counterclockwise</bold>",
-            "<gray>Roll the portal viewport 90 degrees",
-            "<gray>without changing the face.",
+            "&6&lRotate Counterclockwise&r",
+            "&7Roll the portal viewport 90 degrees",
+            "&7without changing the face.",
             "",
-            "<gray>Currently rolling up: <gold>{up}",
+            "&7Currently rolling up: &6{up}",
             "",
-            "<dark_gray>Click to rotate.");
+            "&8Click to rotate.");
     public static final LinesKey PORTAL_MENU_ROTATE_CLOCKWISE = lines("portal.menu.rotate_clockwise",
-            "<gold><bold>Rotate Clockwise</bold>",
-            "<gray>Roll the portal viewport 90 degrees",
-            "<gray>without changing the face.",
+            "&6&lRotate Clockwise&r",
+            "&7Roll the portal viewport 90 degrees",
+            "&7without changing the face.",
             "",
-            "<gray>Currently rolling up: <gold>{up}",
+            "&7Currently rolling up: &6{up}",
             "",
-            "<dark_gray>Click to rotate.");
-    public static final LinesKey PORTAL_MENU_BACK = lines("portal.menu.back", "<yellow><bold>Back</bold>", "<gray>Return to the portal menu.");
+            "&8Click to rotate.");
+    public static final LinesKey PORTAL_MENU_BACK = lines("portal.menu.back", "&e&lBack&r", "&7Return to the portal menu.");
     public static final LinesKey PORTAL_MENU_PROJECTION_ON = lines("portal.menu.projection.on",
-            "<gold><bold>Projection On</bold>",
-            "<gray>Show this portal's live view.",
-            "<gray>Destination or mirror imagery is visible.",
+            "&6&lProjection On&r",
+            "&7Show this portal's live view.",
+            "&7Destination or mirror imagery is visible.",
             "",
-            "<gray>Currently: <aqua>Projection On</aqua>",
+            "&7Currently: &bProjection On&r",
             "",
-            "<dark_gray>Click to toggle On / Off.");
+            "&8Click to toggle On / Off.");
     public static final LinesKey PORTAL_MENU_PROJECTION_OFF = lines("portal.menu.projection.off",
-            "<dark_gray><bold>Projection Off</bold>",
-            "<gray>The frame stays empty.",
-            "<gray>No destination view, no mirror.",
+            "&8&lProjection Off&r",
+            "&7The frame stays empty.",
+            "&7No destination view, no mirror.",
             "",
-            "<gray>Currently: <aqua>Projection Off</aqua>",
+            "&7Currently: &bProjection Off&r",
             "",
-            "<dark_gray>Click to toggle On / Off.");
+            "&8Click to toggle On / Off.");
     public static final LinesKey PORTAL_MENU_SETTINGS_GATEWAY = lines("portal.menu.settings_gateway",
-            "<aqua><bold>Settings</bold>",
-            "<gray>Permissions, transfers,",
-            "<gray>and projection view tuning.",
+            "&b&lSettings&r",
+            "&7Permissions, transfers,",
+            "&7and projection view tuning.",
             "",
-            "<gray>Access: <gold>{access}",
-            "<gray>Send <aqua>{send}<gray>  Receive <aqua>{receive}",
-            "<gray>Depth <aqua>{depth}<gray>  Entity <aqua>{entity}t",
+            "&7Access: &6{access}",
+            "&7Send &b{send}&7  Receive &b{receive}",
+            "&7Depth &b{depth}&7  Entity &b{entity}t",
             "",
-            "<dark_gray>Click to open settings.");
+            "&8Click to open settings.");
     public static final LinesKey PORTAL_MENU_SETTINGS_SYNC = lines("portal.menu.settings_sync",
-            "<aqua><bold>Settings Sync {state}</bold>",
-            "<gray>When On, this portal's settings",
-            "<gray>(depth, ticks, projection, permissions,",
-            "<gray>transfers) sync to all linked peers.",
+            "&b&lSettings Sync {state}&r",
+            "&7When On, this portal's settings",
+            "&7(depth, ticks, projection, permissions,",
+            "&7transfers) sync to all linked peers.",
             "",
-            "<gray>Currently: <aqua>{state}",
+            "&7Currently: &b{state}",
             "",
-            "<dark_gray>Click to toggle.");
+            "&8Click to toggle.");
     public static final LinesKey PORTAL_MENU_PERMISSION = lines("portal.menu.permission",
-            "<gold><bold>Access {mode}</bold>",
-            "<gray>{description}",
-            "<gray>Node: <white>{node}",
+            "&6&lAccess {mode}&r",
+            "&7{description}",
+            "&7Node: &f{node}",
             "",
-            "<gray>Currently: <gold>{mode}",
+            "&7Currently: &6{mode}",
             "",
-            "<dark_gray>Click to toggle whitelist / blacklist.",
-            "<dark_gray>Operators always bypass.");
+            "&8Click to toggle whitelist / blacklist.",
+            "&8Operators always bypass.");
     public static final LinesKey PORTAL_MENU_MODE_OPTION_SELECTED = lines("portal.menu.mode_option.selected",
-            "<yellow><bold>{mode}</bold>", "<gray>{description}", "", "<green>Currently Selected");
+            "&e&l{mode}&r", "&7{description}", "", "&aCurrently Selected");
     public static final LinesKey PORTAL_MENU_MODE_OPTION_AVAILABLE = lines("portal.menu.mode_option.available",
-            "<yellow><bold>{mode}</bold>", "<gray>{description}", "", "<gray>Click to select");
+            "&e&l{mode}&r", "&7{description}", "", "&7Click to select");
     public static final LinesKey PORTAL_MENU_MIRROR_SELECTED = lines("portal.menu.mirror.selected",
-            "<yellow><bold>Mirror</bold>",
-            "<gray>Reflect the local world back.",
-            "<gray>See yourself looking through the frame.",
-            "<gray>No travel while mirrored.",
+            "&e&lMirror&r",
+            "&7Reflect the local world back.",
+            "&7See yourself looking through the frame.",
+            "&7No travel while mirrored.",
             "",
-            "<green>Currently Selected");
+            "&aCurrently Selected");
     public static final LinesKey PORTAL_MENU_MIRROR_AVAILABLE = lines("portal.menu.mirror.available",
-            "<yellow><bold>Mirror</bold>",
-            "<gray>Reflect the local world back.",
-            "<gray>See yourself looking through the frame.",
-            "<gray>No travel while mirrored.",
+            "&e&lMirror&r",
+            "&7Reflect the local world back.",
+            "&7See yourself looking through the frame.",
+            "&7No travel while mirrored.",
             "",
-            "<gray>Left click to select");
-    public static final TextKey PORTAL_MENU_MIRROR_ROTATION = text("portal.menu.mirror.rotation", "<gray>Image rotation: <aqua>{degrees} degrees");
-    public static final TextKey PORTAL_MENU_MIRROR_ROTATE_CLOCKWISE = text("portal.menu.mirror.rotate_clockwise", "<dark_gray>Right click: rotate clockwise.");
-    public static final TextKey PORTAL_MENU_MIRROR_ROTATE_COUNTERCLOCKWISE = text("portal.menu.mirror.rotate_counterclockwise", "<dark_gray>Shift + right click: rotate counterclockwise.");
+            "&7Left click to select");
+    public static final TextKey PORTAL_MENU_MIRROR_ROTATION = text("portal.menu.mirror.rotation", "&7Image rotation: &b{degrees} degrees");
+    public static final TextKey PORTAL_MENU_MIRROR_ROTATE_CLOCKWISE = text("portal.menu.mirror.rotate_clockwise", "&8Right click: rotate clockwise.");
+    public static final TextKey PORTAL_MENU_MIRROR_ROTATE_COUNTERCLOCKWISE = text("portal.menu.mirror.rotate_counterclockwise", "&8Shift + right click: rotate counterclockwise.");
     public static final LinesKey PORTAL_MENU_MIRROR_FLIP = lines("portal.menu.mirror.flip",
-            "<gray>Wall mirrors flip in 180 degree steps",
-            "<gray>so reflected entities stay aligned.",
-            "<dark_gray>Right click: flip the reflected image.");
+            "&7Wall mirrors flip in 180 degree steps",
+            "&7so reflected entities stay aligned.",
+            "&8Right click: flip the reflected image.");
     public static final LinesKey PORTAL_MENU_LOCAL_DESTINATION = lines("portal.menu.destination.local",
-            "<gold>{portal}",
-            "<gray>at {x}, {y}, {z} in {world} Facing {direction}");
+            "&6{portal}",
+            "&7at {x}, {y}, {z} in {world} Facing {direction}");
     public static final LinesKey PORTAL_MENU_REMOTE_DESTINATION = lines("portal.menu.destination.remote",
-            "<gold>{portal}",
-            "<gray>on server <white>{server}",
-            "<gray>at {x}, {y}, {z} in {world} Facing {direction}",
-            "<aqua>{state}");
+            "&6{portal}",
+            "&7on server &f{server}",
+            "&7at {x}, {y}, {z} in {world} Facing {direction}",
+            "&b{state}");
     public static final LinesKey PORTAL_MENU_DESTINATION_SORT = lines("portal.menu.destination.sort",
-            "<yellow><bold>Sort: <white>{mode}</bold>", "<gray>Change the destination ordering.", "<yellow>Left click");
+            "&e&lSort: &f&l{mode}&r", "&7Change the destination ordering.", "&eLeft click");
     public static final TextKey PORTAL_MENU_DESTINATION_SORT_SMART = text("portal.menu.destination.sort_smart", "Smart");
     public static final TextKey PORTAL_MENU_DESTINATION_SORT_NAME = text("portal.menu.destination.sort_name", "Name");
     public static final TextKey PORTAL_MENU_DESTINATION_SORT_WORLD = text("portal.menu.destination.sort_world", "World");
     public static final TextKey PORTAL_MENU_DESTINATION_SORT_DISTANCE = text("portal.menu.destination.sort_distance", "Distance");
     public static final LinesKey PORTAL_MENU_DESTINATION_PREVIOUS = lines("portal.menu.destination.previous_page",
-            "<yellow><bold>Previous Page</bold>", "<gray>Show the previous destinations.", "<yellow>Left click");
+            "&e&lPrevious Page&r", "&7Show the previous destinations.", "&eLeft click");
     public static final LinesKey PORTAL_MENU_DESTINATION_NEXT = lines("portal.menu.destination.next_page",
-            "<yellow><bold>Next Page</bold>", "<gray>Show the next destinations.", "<yellow>Left click");
+            "&e&lNext Page&r", "&7Show the next destinations.", "&eLeft click");
     public static final LinesKey PORTAL_MENU_DESTINATION_PAGE = lines("portal.menu.destination.page",
-            "<aqua><bold>Page {page}/{pages}</bold>", "<gray>{count} destinations");
+            "&b&lPage {page}/{pages}&r", "&7{count} destinations");
     public static final LinesKey PORTAL_MENU_DESTINATION_EMPTY = lines("portal.menu.destination.empty",
-            "<gray>No destinations are available to link.");
-    public static final TextKey PORTAL_PROMPT_INVITE = text("portal.prompt.invite", "<aqua>Paste the portal invite in chat (or '{cancel}'):");
-    public static final TextKey PORTAL_PROMPT_BLOCK_STATE = text("portal.prompt.block_state", "<aqua>Enter a block state for this portal's network view edge, or '{cancel}':");
-    public static final TextKey PORTAL_PROMPT_NAME = text("portal.prompt.name", "<aqua>Type the new portal name in chat (or '{cancel}'):");
-    public static final TextKey PORTAL_PROMPT_COST_ITEM = text("portal.prompt.cost_item", "<aqua>Hold the exact cost item in your main hand, then press Drop. The item will not leave your inventory.");
-    public static final TextKey PORTAL_PROMPT_COST_VAULT = text("portal.prompt.cost_vault", "<aqua>Enter the Vault currency amount per traversal (or '{cancel}'):");
+            "&7No destinations are available to link.");
+    public static final TextKey PORTAL_PROMPT_INVITE = text("portal.prompt.invite", "&bPaste the portal invite in chat (or '{cancel}'):");
+    public static final TextKey PORTAL_PROMPT_BLOCK_STATE = text("portal.prompt.block_state", "&bEnter a block state for this portal's network view edge, or '{cancel}':");
+    public static final TextKey PORTAL_PROMPT_NAME = text("portal.prompt.name", "&bType the new portal name in chat (or '{cancel}'):");
+    public static final TextKey PORTAL_PROMPT_COST_ITEM = text("portal.prompt.cost_item", "&bHold the exact cost item in your main hand, then press Drop. The item will not leave your inventory.");
+    public static final TextKey PORTAL_PROMPT_COST_VAULT = text("portal.prompt.cost_vault", "&bEnter the Vault currency amount per traversal (or '{cancel}'):");
     public static final TextKey PORTAL_INPUT_CANCEL = text("portal.input.cancel", "cancel");
     public static final TextKey PORTAL_RTP_EDITOR_TITLE = text("portal.rtp.editor_title", "RTP: {portal}");
     public static final TextKey PORTAL_DIMENSIONAL_LINK_MANAGED = text("portal.notice.dimensional_link_managed", "This dimensional portal keeps its generated link.");
@@ -827,8 +829,8 @@ public final class WormholesMessages {
     public static final TextKey PORTAL_RTP_REROLL_UNAVAILABLE = text("portal.rtp.notice.reroll_unavailable", "Reroll is unavailable while the route is preparing or in use.");
     public static final TextKey PORTAL_RTP_POOL_REBUILDING = text("portal.rtp.notice.pool_rebuilding", "Rebuilding the private destination pool.");
     public static final TextKey PORTAL_RTP_POOL_FAILED = text("portal.rtp.notice.pool_failed", "Pool rebuild failed; see the server log.");
-    public static final TextKey PORTAL_RTP_NOT_READY = text("portal.rtp.notice.not_ready", "<yellow>The portal is still stabilizing its destination.");
-    public static final TextKey PORTAL_RTP_TRAVERSAL_FAILED = text("portal.rtp.notice.traversal_failed", "<red>The portal could not stabilize; try again.");
+    public static final TextKey PORTAL_RTP_NOT_READY = text("portal.rtp.notice.not_ready", "&eThe portal is still stabilizing its destination.");
+    public static final TextKey PORTAL_RTP_TRAVERSAL_FAILED = text("portal.rtp.notice.traversal_failed", "&cThe portal could not stabilize; try again.");
     public static final TextKey PORTAL_TRAVEL_MANAGED = text("portal.notice.travel_managed", "Dimensional portal travel is managed automatically.");
     public static final TextKey PORTAL_TRAVEL_MIRROR_LOCKED = text("portal.notice.travel_mirror_locked", "Mirror mode never allows travel.");
     public static final TextKey PORTAL_TRAVEL_CHANGED = text("portal.notice.travel_changed", "Travel {mode}");
@@ -919,19 +921,19 @@ public final class WormholesMessages {
     public static final TextKey PORTAL_LABEL_AMBIENT_STYLE_OFF = text("portal.label.ambient_style.off", "Off");
     public static final TextKey PORTAL_LABEL_SKIN_NONE = text("portal.label.skin.none", "None");
     public static final LinesKey PORTAL_PROMPT_DIRECTION = lines("portal.prompt.direction",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Look in a direction then left click to apply.",
-            "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Shift-Left click to cancel.");
-    public static final TextKey PORTAL_DIRECTION_CANCELLED = text("portal.direction.cancelled", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Cancelled");
-    public static final TextKey PORTAL_DIRECTION_SET = text("portal.direction.set", "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Direction set");
-    public static final TextKey PORTAL_SETTING_NOTIFICATION = text("portal.setting.notification", "<green>{portal}: <reset>{message}");
-    public static final TextKey PORTAL_LINKED = text("portal.link.linked", "<green>{portal} linked to {destination}.");
-    public static final TextKey PORTAL_LINKED_REMOTE = text("portal.link.linked_remote", "<green>{portal} linked to {destination} on {server}.");
-    public static final TextKey PORTAL_UNLINKED = text("portal.link.unlinked", "<yellow>{portal} unlinked from {destination}.");
-    public static final TextKey PORTAL_FACE_FLIPPED = text("portal.orientation.face_flipped", "<green>{portal} face flipped to {direction}.");
-    public static final TextKey PORTAL_ROTATED_COUNTERCLOCKWISE = text("portal.orientation.rotated_counterclockwise", "<green>{portal} rolled counterclockwise.");
-    public static final TextKey PORTAL_ROTATED_CLOCKWISE = text("portal.orientation.rotated_clockwise", "<green>{portal} rolled clockwise.");
-    public static final TextKey PORTAL_DIRECTION_CHANGED = text("portal.orientation.direction_changed", "<green>{portal}'s direction changed to {direction}.");
-    public static final TextKey PORTAL_MODE_CHANGED = text("portal.mode.changed", "<green>{portal} mode set to {mode}.");
+            "&8[&6Wormholes&8] &7Look in a direction then left click to apply.",
+            "&8[&6Wormholes&8] &7Shift-Left click to cancel.");
+    public static final TextKey PORTAL_DIRECTION_CANCELLED = text("portal.direction.cancelled", "&8[&6Wormholes&8] &7Cancelled");
+    public static final TextKey PORTAL_DIRECTION_SET = text("portal.direction.set", "&8[&6Wormholes&8] &7Direction set");
+    public static final TextKey PORTAL_SETTING_NOTIFICATION = text("portal.setting.notification", "&a{portal}: &r{message}");
+    public static final TextKey PORTAL_LINKED = text("portal.link.linked", "&a{portal} linked to {destination}.");
+    public static final TextKey PORTAL_LINKED_REMOTE = text("portal.link.linked_remote", "&a{portal} linked to {destination} on {server}.");
+    public static final TextKey PORTAL_UNLINKED = text("portal.link.unlinked", "&e{portal} unlinked from {destination}.");
+    public static final TextKey PORTAL_FACE_FLIPPED = text("portal.orientation.face_flipped", "&a{portal} face flipped to {direction}.");
+    public static final TextKey PORTAL_ROTATED_COUNTERCLOCKWISE = text("portal.orientation.rotated_counterclockwise", "&a{portal} rolled counterclockwise.");
+    public static final TextKey PORTAL_ROTATED_CLOCKWISE = text("portal.orientation.rotated_clockwise", "&a{portal} rolled clockwise.");
+    public static final TextKey PORTAL_DIRECTION_CHANGED = text("portal.orientation.direction_changed", "&a{portal}'s direction changed to {direction}.");
+    public static final TextKey PORTAL_MODE_CHANGED = text("portal.mode.changed", "&a{portal} mode set to {mode}.");
 
     public static final TextKey LABEL_NONE = text("label.none", "None");
     public static final TextKey LABEL_ON = text("label.on", "On");
@@ -941,72 +943,72 @@ public final class WormholesMessages {
     public static final TextKey LABEL_OPEN = text("label.open", "Open");
     public static final TextKey LABEL_CLOSED = text("label.closed", "Closed");
 
-    public static final LinesKey RTP_OVERVIEW_DESTINATION = lines("rtp.overview.destination", "<yellow><bold>Destination & Area</bold>", "<gray>World, center, and radius.", "<yellow>Left click");
-    public static final LinesKey RTP_OVERVIEW_LANDING = lines("rtp.overview.landing", "<yellow><bold>Landing Rules</bold>", "<gray>Surface and height behavior.", "<yellow>Left click");
-    public static final LinesKey RTP_OVERVIEW_ROUTING = lines("rtp.overview.routing", "<yellow><bold>Rotation & Pool</bold>", "<gray>Sharing, rotation, and leases.", "<yellow>Left click");
-    public static final LinesKey RTP_OVERVIEW_EFFECTS = lines("rtp.overview.effects", "<yellow><bold>Effects</bold>", "<gray>Projection rim and portal sound.", "<yellow>Left click");
-    public static final LinesKey RTP_RESET_DEFAULTS = lines("rtp.overview.reset_defaults", "<yellow><bold>Reset To Defaults</bold>", "<gray>Immediately restore this portal's random teleport settings to their defaults.", "<yellow>Left click");
-    public static final LinesKey RTP_BACK_PORTAL = lines("rtp.navigation.back_portal", "<yellow><bold>Back to Portal</bold>", "<gray>Return to the portal menu.", "<yellow>Left click");
-    public static final LinesKey RTP_BACK_OVERVIEW = lines("rtp.navigation.overview", "<yellow><bold>Overview</bold>", "<gray>Return to the RTP overview.", "<yellow>Left click");
-    public static final LinesKey RTP_BACK_CATEGORY = lines("rtp.navigation.back_category", "<yellow><bold>Back</bold>", "<gray>Return to the previous category.", "<yellow>Left click");
-    public static final LinesKey RTP_DESTINATION_HEADER = lines("rtp.destination.header", "<aqua><bold>Destination & Area</bold>", "<gray>Every option uses a normal left click.");
-    public static final LinesKey RTP_WORLD_CURRENT = lines("rtp.destination.world_current", "<green><bold>{world}</bold>", "<gray>Current target world.", "<green>Selected");
-    public static final LinesKey RTP_WORLD_AVAILABLE = lines("rtp.destination.world_available", "<aqua><bold>{world}</bold>", "<gray>Use this loaded world.", "<yellow>Left click to select");
-    public static final LinesKey RTP_PREVIOUS_WORLDS = lines("rtp.destination.previous_worlds", "<yellow><bold>Previous Worlds</bold>", "<gray>Show the previous page.", "<yellow>Left click");
-    public static final LinesKey RTP_NEXT_WORLDS = lines("rtp.destination.next_worlds", "<yellow><bold>Next Worlds</bold>", "<gray>Show the next page.", "<yellow>Left click");
-    public static final LinesKey RTP_BIOME_LINK = lines("rtp.destination.biome_link", "<yellow><bold>Target Biome <white>{value}</bold>", "<gray>Prefer landing in a chosen biome.", "<yellow>Left click");
+    public static final LinesKey RTP_OVERVIEW_DESTINATION = lines("rtp.overview.destination", "&e&lDestination & Area&r", "&7World, center, and radius.", "&eLeft click");
+    public static final LinesKey RTP_OVERVIEW_LANDING = lines("rtp.overview.landing", "&e&lLanding Rules&r", "&7Surface and height behavior.", "&eLeft click");
+    public static final LinesKey RTP_OVERVIEW_ROUTING = lines("rtp.overview.routing", "&e&lRotation & Pool&r", "&7Sharing, rotation, and leases.", "&eLeft click");
+    public static final LinesKey RTP_OVERVIEW_EFFECTS = lines("rtp.overview.effects", "&e&lEffects&r", "&7Projection rim and portal sound.", "&eLeft click");
+    public static final LinesKey RTP_RESET_DEFAULTS = lines("rtp.overview.reset_defaults", "&e&lReset To Defaults&r", "&7Immediately restore this portal's random teleport settings to their defaults.", "&eLeft click");
+    public static final LinesKey RTP_BACK_PORTAL = lines("rtp.navigation.back_portal", "&e&lBack to Portal&r", "&7Return to the portal menu.", "&eLeft click");
+    public static final LinesKey RTP_BACK_OVERVIEW = lines("rtp.navigation.overview", "&e&lOverview&r", "&7Return to the RTP overview.", "&eLeft click");
+    public static final LinesKey RTP_BACK_CATEGORY = lines("rtp.navigation.back_category", "&e&lBack&r", "&7Return to the previous category.", "&eLeft click");
+    public static final LinesKey RTP_DESTINATION_HEADER = lines("rtp.destination.header", "&b&lDestination & Area&r", "&7Every option uses a normal left click.");
+    public static final LinesKey RTP_WORLD_CURRENT = lines("rtp.destination.world_current", "&a&l{world}&r", "&7Current target world.", "&aSelected");
+    public static final LinesKey RTP_WORLD_AVAILABLE = lines("rtp.destination.world_available", "&b&l{world}&r", "&7Use this loaded world.", "&eLeft click to select");
+    public static final LinesKey RTP_PREVIOUS_WORLDS = lines("rtp.destination.previous_worlds", "&e&lPrevious Worlds&r", "&7Show the previous page.", "&eLeft click");
+    public static final LinesKey RTP_NEXT_WORLDS = lines("rtp.destination.next_worlds", "&e&lNext Worlds&r", "&7Show the next page.", "&eLeft click");
+    public static final LinesKey RTP_BIOME_LINK = lines("rtp.destination.biome_link", "&e&lTarget Biome &f&l{value}&r", "&7Prefer landing in a chosen biome.", "&eLeft click");
     public static final TextKey RTP_BIOME_ANY_LABEL = text("rtp.biome.any_label", "Any");
-    public static final LinesKey RTP_BIOME_HEADER = lines("rtp.biome.header", "<aqua><bold>Target Biome</bold>", "<gray>The search prefers this biome and falls back to any safe spot when it cannot be found nearby.");
-    public static final LinesKey RTP_BIOME_ANY_SELECTED = lines("rtp.biome.any_selected", "<green><bold>Any Biome</bold>", "<gray>No biome preference.", "<green>Selected");
-    public static final LinesKey RTP_BIOME_ANY_AVAILABLE = lines("rtp.biome.any_available", "<aqua><bold>Any Biome</bold>", "<gray>Clear the biome preference.", "<yellow>Left click to select");
-    public static final LinesKey RTP_BIOME_CURRENT = lines("rtp.biome.current", "<green><bold>{biome}</bold>", "<gray>{key}", "<green>Selected");
-    public static final LinesKey RTP_BIOME_AVAILABLE = lines("rtp.biome.available", "<aqua><bold>{biome}</bold>", "<gray>{key}", "<yellow>Left click to select");
-    public static final LinesKey RTP_BIOME_EMPTY = lines("rtp.biome.empty", "<gray>No biomes are available for the target world.");
-    public static final LinesKey RTP_PREVIOUS_BIOMES = lines("rtp.biome.previous", "<yellow><bold>Previous Biomes</bold>", "<gray>Show the previous page.", "<yellow>Left click");
-    public static final LinesKey RTP_NEXT_BIOMES = lines("rtp.biome.next", "<yellow><bold>Next Biomes</bold>", "<gray>Show the next page.", "<yellow>Left click");
-    public static final LinesKey RTP_CENTER_PORTAL_SELECTED = lines("rtp.destination.center_portal_selected", "<green><bold>Portal-relative Center</bold>", "<gray>Center the annulus on this portal.", "<green>Selected");
-    public static final LinesKey RTP_CENTER_PORTAL_AVAILABLE = lines("rtp.destination.center_portal_available", "<aqua><bold>Portal-relative Center</bold>", "<gray>Center the annulus on this portal.", "<yellow>Left click to select");
-    public static final LinesKey RTP_CENTER_CUSTOM_SELECTED = lines("rtp.destination.center_custom_selected", "<green><bold>Custom Center</bold>", "<gray>Use editable X and Z coordinates.", "<green>Selected");
-    public static final LinesKey RTP_CENTER_CUSTOM_AVAILABLE = lines("rtp.destination.center_custom_available", "<aqua><bold>Custom Center</bold>", "<gray>Use editable X and Z coordinates.", "<yellow>Left click to select");
-    public static final LinesKey RTP_NUMERIC_LINK = lines("rtp.numeric.link", "<yellow><bold>{label} <white>{value}</bold>", "<gray>Open clear decrease/increase controls.", "<yellow>Left click");
-    public static final LinesKey RTP_RESET_CENTER = lines("rtp.destination.reset_center", "<yellow><bold>Reset Center / Target</bold>", "<gray>Use the source world and portal center.", "<yellow>Left click");
-    public static final LinesKey RTP_LANDING_HEADER = lines("rtp.landing.header", "<aqua><bold>Landing Rules</bold>", "<gray>Choose surface or preferred-height behavior and its safety mode.");
-    public static final LinesKey RTP_SURFACE_SELECTED = lines("rtp.landing.surface_selected", "<green><bold>Surface</bold>", "<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.", "<green>Selected");
-    public static final LinesKey RTP_SURFACE_AVAILABLE = lines("rtp.landing.surface_available", "<aqua><bold>Surface</bold>", "<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.", "<yellow>Left click to select");
-    public static final LinesKey RTP_PREFERRED_SELECTED = lines("rtp.landing.preferred_selected", "<green><bold>Preferred / Exact Height</bold>", "<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.", "<green>Selected");
-    public static final LinesKey RTP_PREFERRED_AVAILABLE = lines("rtp.landing.preferred_available", "<aqua><bold>Preferred / Exact Height</bold>", "<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.", "<yellow>Left click to select");
-    public static final LinesKey RTP_SAFE_LANDING = lines("rtp.landing.safe_policy", "<aqua><bold>Landing Safety: <white>{mode}</bold>", "<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.", "<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.", "<yellow>Left click to toggle");
-    public static final LinesKey RTP_ROUTING_HEADER = lines("rtp.routing.header", "<aqua><bold>Rotation & Pool</bold>", "<gray>Choose modes directly, then apply the batch once.");
-    public static final LinesKey RTP_SHARED_SELECTED = lines("rtp.routing.shared_selected", "<green><bold>Shared Destination</bold>", "<gray>Everyone sees and uses the same route.", "<green>Selected");
-    public static final LinesKey RTP_SHARED_AVAILABLE = lines("rtp.routing.shared_available", "<aqua><bold>Shared Destination</bold>", "<gray>Everyone sees and uses the same route.", "<yellow>Left click to select");
-    public static final LinesKey RTP_PRIVATE_SELECTED = lines("rtp.routing.private_selected", "<green><bold>Per-player Destinations</bold>", "<gray>Each player receives a private reservation.", "<green>Selected");
-    public static final LinesKey RTP_PRIVATE_AVAILABLE = lines("rtp.routing.private_available", "<aqua><bold>Per-player Destinations</bold>", "<gray>Each player receives a private reservation.", "<yellow>Left click to select");
-    public static final LinesKey RTP_STATIC_SELECTED = lines("rtp.routing.static_selected", "<green><bold>Static</bold>", "<gray>Keep the same destination.", "<green>Selected");
-    public static final LinesKey RTP_STATIC_AVAILABLE = lines("rtp.routing.static_available", "<aqua><bold>Static</bold>", "<gray>Keep the same destination.", "<yellow>Left click to select");
-    public static final LinesKey RTP_TIMED_SELECTED = lines("rtp.routing.timed_selected", "<green><bold>Timed</bold>", "<gray>Rotate after the configured duration.", "<green>Selected");
-    public static final LinesKey RTP_TIMED_AVAILABLE = lines("rtp.routing.timed_available", "<aqua><bold>Timed</bold>", "<gray>Rotate after the configured duration.", "<yellow>Left click to select");
-    public static final LinesKey RTP_TRIP_SELECTED = lines("rtp.routing.trip_selected", "<green><bold>After Every Trip</bold>", "<gray>Promote a prepared replacement after use.", "<green>Selected");
-    public static final LinesKey RTP_TRIP_AVAILABLE = lines("rtp.routing.trip_available", "<aqua><bold>After Every Trip</bold>", "<gray>Promote a prepared replacement after use.", "<yellow>Left click to select");
-    public static final LinesKey RTP_MANUAL_REROLL = lines("rtp.routing.manual_reroll", "<yellow><bold>Manual Reroll</bold>", "<gray>{description}", "<yellow>Left click");
-    public static final LinesKey RTP_REBUILD_POOL = lines("rtp.routing.rebuild_pool", "<yellow><bold>Rebuild Pool</bold>", "<gray>{description}", "<yellow>Left click");
+    public static final LinesKey RTP_BIOME_HEADER = lines("rtp.biome.header", "&b&lTarget Biome&r", "&7The search prefers this biome and falls back to any safe spot when it cannot be found nearby.");
+    public static final LinesKey RTP_BIOME_ANY_SELECTED = lines("rtp.biome.any_selected", "&a&lAny Biome&r", "&7No biome preference.", "&aSelected");
+    public static final LinesKey RTP_BIOME_ANY_AVAILABLE = lines("rtp.biome.any_available", "&b&lAny Biome&r", "&7Clear the biome preference.", "&eLeft click to select");
+    public static final LinesKey RTP_BIOME_CURRENT = lines("rtp.biome.current", "&a&l{biome}&r", "&7{key}", "&aSelected");
+    public static final LinesKey RTP_BIOME_AVAILABLE = lines("rtp.biome.available", "&b&l{biome}&r", "&7{key}", "&eLeft click to select");
+    public static final LinesKey RTP_BIOME_EMPTY = lines("rtp.biome.empty", "&7No biomes are available for the target world.");
+    public static final LinesKey RTP_PREVIOUS_BIOMES = lines("rtp.biome.previous", "&e&lPrevious Biomes&r", "&7Show the previous page.", "&eLeft click");
+    public static final LinesKey RTP_NEXT_BIOMES = lines("rtp.biome.next", "&e&lNext Biomes&r", "&7Show the next page.", "&eLeft click");
+    public static final LinesKey RTP_CENTER_PORTAL_SELECTED = lines("rtp.destination.center_portal_selected", "&a&lPortal-relative Center&r", "&7Center the annulus on this portal.", "&aSelected");
+    public static final LinesKey RTP_CENTER_PORTAL_AVAILABLE = lines("rtp.destination.center_portal_available", "&b&lPortal-relative Center&r", "&7Center the annulus on this portal.", "&eLeft click to select");
+    public static final LinesKey RTP_CENTER_CUSTOM_SELECTED = lines("rtp.destination.center_custom_selected", "&a&lCustom Center&r", "&7Use editable X and Z coordinates.", "&aSelected");
+    public static final LinesKey RTP_CENTER_CUSTOM_AVAILABLE = lines("rtp.destination.center_custom_available", "&b&lCustom Center&r", "&7Use editable X and Z coordinates.", "&eLeft click to select");
+    public static final LinesKey RTP_NUMERIC_LINK = lines("rtp.numeric.link", "&e&l{label} &f&l{value}&r", "&7Open clear decrease/increase controls.", "&eLeft click");
+    public static final LinesKey RTP_RESET_CENTER = lines("rtp.destination.reset_center", "&e&lReset Center / Target&r", "&7Use the source world and portal center.", "&eLeft click");
+    public static final LinesKey RTP_LANDING_HEADER = lines("rtp.landing.header", "&b&lLanding Rules&r", "&7Choose surface or preferred-height behavior and its safety mode.");
+    public static final LinesKey RTP_SURFACE_SELECTED = lines("rtp.landing.surface_selected", "&a&lSurface&r", "&7SAFE avoids water and tree tops. UNSAFE uses the topmost surface.", "&aSelected");
+    public static final LinesKey RTP_SURFACE_AVAILABLE = lines("rtp.landing.surface_available", "&b&lSurface&r", "&7SAFE avoids water and tree tops. UNSAFE uses the topmost surface.", "&eLeft click to select");
+    public static final LinesKey RTP_PREFERRED_SELECTED = lines("rtp.landing.preferred_selected", "&a&lPreferred / Exact Height&r", "&7SAFE searches outward. UNSAFE uses the exact preferred Y.", "&aSelected");
+    public static final LinesKey RTP_PREFERRED_AVAILABLE = lines("rtp.landing.preferred_available", "&b&lPreferred / Exact Height&r", "&7SAFE searches outward. UNSAFE uses the exact preferred Y.", "&eLeft click to select");
+    public static final LinesKey RTP_SAFE_LANDING = lines("rtp.landing.safe_policy", "&b&lLanding Safety: &f&l{mode}&r", "&7SAFE rejects water, hazards, trees, collisions, and unsupported ground.", "&7UNSAFE accepts the selected surface or exact preferred Y as-is.", "&eLeft click to toggle");
+    public static final LinesKey RTP_ROUTING_HEADER = lines("rtp.routing.header", "&b&lRotation & Pool&r", "&7Choose modes directly, then apply the batch once.");
+    public static final LinesKey RTP_SHARED_SELECTED = lines("rtp.routing.shared_selected", "&a&lShared Destination&r", "&7Everyone sees and uses the same route.", "&aSelected");
+    public static final LinesKey RTP_SHARED_AVAILABLE = lines("rtp.routing.shared_available", "&b&lShared Destination&r", "&7Everyone sees and uses the same route.", "&eLeft click to select");
+    public static final LinesKey RTP_PRIVATE_SELECTED = lines("rtp.routing.private_selected", "&a&lPer-player Destinations&r", "&7Each player receives a private reservation.", "&aSelected");
+    public static final LinesKey RTP_PRIVATE_AVAILABLE = lines("rtp.routing.private_available", "&b&lPer-player Destinations&r", "&7Each player receives a private reservation.", "&eLeft click to select");
+    public static final LinesKey RTP_STATIC_SELECTED = lines("rtp.routing.static_selected", "&a&lStatic&r", "&7Keep the same destination.", "&aSelected");
+    public static final LinesKey RTP_STATIC_AVAILABLE = lines("rtp.routing.static_available", "&b&lStatic&r", "&7Keep the same destination.", "&eLeft click to select");
+    public static final LinesKey RTP_TIMED_SELECTED = lines("rtp.routing.timed_selected", "&a&lTimed&r", "&7Rotate after the configured duration.", "&aSelected");
+    public static final LinesKey RTP_TIMED_AVAILABLE = lines("rtp.routing.timed_available", "&b&lTimed&r", "&7Rotate after the configured duration.", "&eLeft click to select");
+    public static final LinesKey RTP_TRIP_SELECTED = lines("rtp.routing.trip_selected", "&a&lAfter Every Trip&r", "&7Promote a prepared replacement after use.", "&aSelected");
+    public static final LinesKey RTP_TRIP_AVAILABLE = lines("rtp.routing.trip_available", "&b&lAfter Every Trip&r", "&7Promote a prepared replacement after use.", "&eLeft click to select");
+    public static final LinesKey RTP_MANUAL_REROLL = lines("rtp.routing.manual_reroll", "&e&lManual Reroll&r", "&7{description}", "&eLeft click");
+    public static final LinesKey RTP_REBUILD_POOL = lines("rtp.routing.rebuild_pool", "&e&lRebuild Pool&r", "&7{description}", "&eLeft click");
     public static final TextKey RTP_ACTION_CONFIRM = text("rtp.routing.action_confirm", "Open a separate confirmation screen.");
-    public static final LinesKey RTP_EFFECTS_HEADER = lines("rtp.effects.header", "<aqua><bold>Effects</bold>", "<gray>Presentation changes do not regenerate destinations.");
-    public static final LinesKey RTP_RIM_ON_SELECTED = lines("rtp.effects.rim_on_selected", "<green><bold>Readiness Rim On</bold>", "<gray>Show private readiness around the portal rim.", "<green>Selected");
-    public static final LinesKey RTP_RIM_ON_AVAILABLE = lines("rtp.effects.rim_on_available", "<aqua><bold>Readiness Rim On</bold>", "<gray>Show private readiness around the portal rim.", "<yellow>Left click to select");
-    public static final LinesKey RTP_RIM_OFF_SELECTED = lines("rtp.effects.rim_off_selected", "<green><bold>Readiness Rim Off</bold>", "<gray>Hide the readiness rim.", "<green>Selected");
-    public static final LinesKey RTP_RIM_OFF_AVAILABLE = lines("rtp.effects.rim_off_available", "<aqua><bold>Readiness Rim Off</bold>", "<gray>Hide the readiness rim.", "<yellow>Left click to select");
-    public static final LinesKey RTP_SOUND_ON_SELECTED = lines("rtp.effects.sound_on_selected", "<green><bold>Portal Sounds On</bold>", "<gray>Play this RTP portal's effects and travel sounds.", "<green>Selected");
-    public static final LinesKey RTP_SOUND_ON_AVAILABLE = lines("rtp.effects.sound_on_available", "<aqua><bold>Portal Sounds On</bold>", "<gray>Play this RTP portal's effects and travel sounds.", "<yellow>Left click to select");
-    public static final LinesKey RTP_SOUND_OFF_SELECTED = lines("rtp.effects.sound_off_selected", "<green><bold>Portal Sounds Off</bold>", "<gray>Mute this RTP portal; particles remain enabled.", "<green>Selected");
-    public static final LinesKey RTP_SOUND_OFF_AVAILABLE = lines("rtp.effects.sound_off_available", "<aqua><bold>Portal Sounds Off</bold>", "<gray>Mute this RTP portal; particles remain enabled.", "<yellow>Left click to select");
-    public static final LinesKey RTP_TARGET_UNAVAILABLE = lines("rtp.numeric.target_unavailable", "<aqua><bold>Target World Unavailable</bold>", "<gray>Load the target world before editing this value.");
-    public static final LinesKey RTP_NUMERIC_VALUE = lines("rtp.numeric.value", "<aqua><bold>{value}</bold>", "<gray>Current draft value.");
-    public static final LinesKey RTP_NUMERIC_ADJUST = lines("rtp.numeric.adjust", "<yellow><bold>{direction}{step}</bold>", "<gray>Adjust the draft by {direction}{step}.", "<yellow>Left click");
-    public static final LinesKey RTP_NUMERIC_HEADER = lines("rtp.numeric.header", "<aqua><bold>{label}</bold>", "<gray>{description}");
-    public static final LinesKey RTP_CONFIRM_REROLL = lines("rtp.confirm.reroll", "<aqua><bold>Reroll Shared Route?</bold>", "<gray>The current projection stays online until the replacement is ready.");
-    public static final LinesKey RTP_CONFIRM_REBUILD = lines("rtp.confirm.rebuild", "<aqua><bold>Rebuild Private Pool?</bold>", "<gray>Existing reservations stay intact while free candidates rebuild.");
-    public static final LinesKey RTP_CONFIRM = lines("rtp.confirm.confirm", "<yellow><bold>Confirm</bold>", "<gray>Run the action now.", "<yellow>Left click");
-    public static final LinesKey RTP_CANCEL = lines("rtp.confirm.cancel", "<yellow><bold>Cancel</bold>", "<gray>Return without changing runtime state.", "<yellow>Left click");
+    public static final LinesKey RTP_EFFECTS_HEADER = lines("rtp.effects.header", "&b&lEffects&r", "&7Presentation changes do not regenerate destinations.");
+    public static final LinesKey RTP_RIM_ON_SELECTED = lines("rtp.effects.rim_on_selected", "&a&lReadiness Rim On&r", "&7Show private readiness around the portal rim.", "&aSelected");
+    public static final LinesKey RTP_RIM_ON_AVAILABLE = lines("rtp.effects.rim_on_available", "&b&lReadiness Rim On&r", "&7Show private readiness around the portal rim.", "&eLeft click to select");
+    public static final LinesKey RTP_RIM_OFF_SELECTED = lines("rtp.effects.rim_off_selected", "&a&lReadiness Rim Off&r", "&7Hide the readiness rim.", "&aSelected");
+    public static final LinesKey RTP_RIM_OFF_AVAILABLE = lines("rtp.effects.rim_off_available", "&b&lReadiness Rim Off&r", "&7Hide the readiness rim.", "&eLeft click to select");
+    public static final LinesKey RTP_SOUND_ON_SELECTED = lines("rtp.effects.sound_on_selected", "&a&lPortal Sounds On&r", "&7Play this RTP portal's effects and travel sounds.", "&aSelected");
+    public static final LinesKey RTP_SOUND_ON_AVAILABLE = lines("rtp.effects.sound_on_available", "&b&lPortal Sounds On&r", "&7Play this RTP portal's effects and travel sounds.", "&eLeft click to select");
+    public static final LinesKey RTP_SOUND_OFF_SELECTED = lines("rtp.effects.sound_off_selected", "&a&lPortal Sounds Off&r", "&7Mute this RTP portal; particles remain enabled.", "&aSelected");
+    public static final LinesKey RTP_SOUND_OFF_AVAILABLE = lines("rtp.effects.sound_off_available", "&b&lPortal Sounds Off&r", "&7Mute this RTP portal; particles remain enabled.", "&eLeft click to select");
+    public static final LinesKey RTP_TARGET_UNAVAILABLE = lines("rtp.numeric.target_unavailable", "&b&lTarget World Unavailable&r", "&7Load the target world before editing this value.");
+    public static final LinesKey RTP_NUMERIC_VALUE = lines("rtp.numeric.value", "&b&l{value}&r", "&7Current draft value.");
+    public static final LinesKey RTP_NUMERIC_ADJUST = lines("rtp.numeric.adjust", "&e&l{direction}{step}&r", "&7Adjust the draft by {direction}{step}.", "&eLeft click");
+    public static final LinesKey RTP_NUMERIC_HEADER = lines("rtp.numeric.header", "&b&l{label}&r", "&7{description}");
+    public static final LinesKey RTP_CONFIRM_REROLL = lines("rtp.confirm.reroll", "&b&lReroll Shared Route?&r", "&7The current projection stays online until the replacement is ready.");
+    public static final LinesKey RTP_CONFIRM_REBUILD = lines("rtp.confirm.rebuild", "&b&lRebuild Private Pool?&r", "&7Existing reservations stay intact while free candidates rebuild.");
+    public static final LinesKey RTP_CONFIRM = lines("rtp.confirm.confirm", "&e&lConfirm&r", "&7Run the action now.", "&eLeft click");
+    public static final LinesKey RTP_CANCEL = lines("rtp.confirm.cancel", "&e&lCancel&r", "&7Return without changing runtime state.", "&eLeft click");
     public static final TextKey RTP_STATUS_READY = text("rtp.status.ready", "Ready");
     public static final TextKey RTP_STATUS_WARMING = text("rtp.status.warming", "Warming");
     public static final TextKey RTP_STATUS_REROLLING = text("rtp.status.rerolling", "Rerolling");
@@ -1018,14 +1020,14 @@ public final class WormholesMessages {
     public static final TextKey RTP_ROTATION_STATIC = text("rtp.rotation.static", "Static");
     public static final TextKey RTP_ROTATION_TIMED = text("rtp.rotation.timed", "Timed");
     public static final TextKey RTP_ROTATION_TRIP = text("rtp.rotation.trip", "After Every Trip");
-    public static final LinesKey RTP_STATUS_HEADER = lines("rtp.status.header", "<gold><bold>Random Destination Status</bold>", "<gray>State: {state}");
-    public static final TextKey RTP_STATUS_RETRY = text("rtp.status.retry", "<gray>Retry in: <red>{duration}");
-    public static final TextKey RTP_STATUS_ACTIVE = text("rtp.status.active", "<gray>Active: {readiness}");
-    public static final TextKey RTP_STATUS_STANDBY = text("rtp.status.standby", "<gray>Standby: {readiness}");
-    public static final TextKey RTP_STATUS_ROTATION = text("rtp.status.rotation", "<gray>Draft rotation: <aqua>{rotation}");
-    public static final TextKey RTP_STATUS_POOL = text("rtp.status.pool", "<gray>Free: <aqua>{free}<gray>  Reserved: <aqua>{reserved}");
-    public static final TextKey RTP_STATUS_TARGET_MISSING = text("rtp.status.target_missing", "<red>Target world is not loaded.");
-    public static final TextKey RTP_STATUS_ACCESS_FAILED = text("rtp.status.access_failed", "<red>Destination access checks failed closed.");
+    public static final LinesKey RTP_STATUS_HEADER = lines("rtp.status.header", "&6&lRandom Destination Status&r", "&7State: {state}");
+    public static final TextKey RTP_STATUS_RETRY = text("rtp.status.retry", "&7Retry in: &c{duration}");
+    public static final TextKey RTP_STATUS_ACTIVE = text("rtp.status.active", "&7Active: {readiness}");
+    public static final TextKey RTP_STATUS_STANDBY = text("rtp.status.standby", "&7Standby: {readiness}");
+    public static final TextKey RTP_STATUS_ROTATION = text("rtp.status.rotation", "&7Draft rotation: &b{rotation}");
+    public static final TextKey RTP_STATUS_POOL = text("rtp.status.pool", "&7Free: &b{free}&7  Reserved: &b{reserved}");
+    public static final TextKey RTP_STATUS_TARGET_MISSING = text("rtp.status.target_missing", "&cTarget world is not loaded.");
+    public static final TextKey RTP_STATUS_ACCESS_FAILED = text("rtp.status.access_failed", "&cDestination access checks failed closed.");
     public static final TextKey RTP_LABEL_CENTER_X = text("rtp.numeric.center_x", "Center X");
     public static final TextKey RTP_LABEL_CENTER_Z = text("rtp.numeric.center_z", "Center Z");
     public static final TextKey RTP_LABEL_MIN_RADIUS = text("rtp.numeric.minimum_radius", "Minimum Radius");
@@ -1056,6 +1058,7 @@ public final class WormholesMessages {
     public static MessageCatalog catalog() {
         return MessageCatalog.builder(ENGLISH_LOCALE)
                 .addAll(DirectorMessages.keys())
+                .addAll(BukkitLanguageMessages.keys())
                 .addAll(KEYS)
                 .build();
     }

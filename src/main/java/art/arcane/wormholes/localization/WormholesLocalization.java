@@ -4,6 +4,7 @@ import art.arcane.volmlib.util.director.DirectorTextResolver;
 import art.arcane.volmlib.util.localization.PluginLanguageService;
 import art.arcane.volmlib.util.localization.PluginLanguageEditor;
 import art.arcane.volmlib.util.localization.VolmitLocales;
+import art.arcane.volmlib.util.plugin.ComponentText;
 import art.arcane.volmlib.util.localization.LanguageAudience;
 import art.arcane.wormholes.Wormholes;
 import org.bukkit.command.CommandSender;
@@ -177,7 +178,7 @@ public final class WormholesLocalization {
         ResolvedLines resolved = snapshot().resolve(key, arguments);
         List<Component> components = new ArrayList<>(resolved.lines().size());
         for (String line : resolved.lines()) {
-            components.add(MINI_MESSAGE.deserialize(substitute(line, resolved.arguments())));
+            components.add(MINI_MESSAGE.deserialize(substitute(ComponentText.normalizeMarkup(line), resolved.arguments())));
         }
         return List.copyOf(components);
     }
@@ -186,7 +187,7 @@ public final class WormholesLocalization {
         ResolvedLines resolved = snapshot().resolve(key, MessageArgs.empty());
         List<String> lines = new ArrayList<>(resolved.lines().size());
         for (String line : resolved.lines()) {
-            lines.add(substitute(line, resolved.arguments()));
+            lines.add(substitute(ComponentText.normalizeMarkup(line), resolved.arguments()));
         }
         return List.copyOf(lines);
     }
@@ -230,7 +231,7 @@ public final class WormholesLocalization {
     }
 
     private Component deserialize(ResolvedText resolved) {
-        return MINI_MESSAGE.deserialize(substitute(resolved.template(), resolved.arguments()));
+        return MINI_MESSAGE.deserialize(substitute(ComponentText.normalizeMarkup(resolved.template()), resolved.arguments()));
     }
 
     private String substitute(String template, MessageArgs arguments) {

@@ -128,7 +128,7 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
     }
 
     private boolean executeOwned(CommandSender sender, String label, String[] args) {
-        if (!(args.length > 0 && args[0].equalsIgnoreCase("debugdump"))
+        if (!(args.length > 0 && args[0].equalsIgnoreCase("debug") && sender.hasPermission("wormholes.debugdump"))
             && !hasAdminCommandAccess(sender)) {
             if (sendPublicCommandIfRequested(sender, args)) {
                 playInfoChime(sender);
@@ -176,8 +176,14 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
     }
 
     List<String> tabComplete(CommandSender sender, String alias, String[] args) {
-        if (args != null && args.length > 1 && "debugdump".equalsIgnoreCase(args[0])) {
-            return sender.hasPermission("wormholes.debugdump") ? runDirectorTab(sender, alias, args) : List.of();
+        if (args != null && args.length > 1 && "debug".equalsIgnoreCase(args[0]) && !hasAdminCommandAccess(sender)) {
+            if (!sender.hasPermission("wormholes.debugdump")) {
+                return List.of();
+            }
+            if (args.length == 2) {
+                return "dump".startsWith(args[1].toLowerCase(Locale.ROOT)) ? List.of("dump") : List.of();
+            }
+            return "dump".equalsIgnoreCase(args[1]) ? runDirectorTab(sender, alias, args) : List.of();
         }
         if (args != null && args.length > 1 && "language".equalsIgnoreCase(args[0])) {
             return plugin.getLanguageSwitcher().complete(sender, Arrays.copyOfRange(args, 1, args.length));
@@ -247,7 +253,7 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
             commands.add("language");
         }
         if (sender.hasPermission("wormholes.debugdump")) {
-            commands.add("debugdump");
+            commands.add("debug");
         }
         return commands.stream().filter(value -> value.startsWith(prefix)).toList();
 	}

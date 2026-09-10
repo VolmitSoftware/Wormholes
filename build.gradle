@@ -38,7 +38,7 @@ List<String> languageLocales = fileTree('src/main/resources/languages') {
 }.files.collect { File source -> source.name.substring(0, source.name.length() - 5) }.sort()
 def languageSourceManifestTask = tasks.register('generateLanguageSourceManifest', WriteProperties) {
     destinationFile.set(layout.buildDirectory.file('generated/language-source/wormholes-language-source.properties'))
-    property('revision', 'e1af23bb9d3591f3931ce4092def91434f380e9d')
+    property('revision', 'main')
     property('locales', languageLocales.join(','))
 }
 

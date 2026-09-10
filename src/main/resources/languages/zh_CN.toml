@@ -1,608 +1,1020 @@
-schema = 1
-locale = "zh_CN"
+# Wormholes — zh_CN
+#
+# === 编辑文件 ===
+# plugins/Wormholes/languages/zh_CN.toml
+# 可直接编辑此文件。本地修改会保留；缺失或无效条目使用内置英语文本。
+# /wormholes language server edit zh_CN
+#
+# === 前缀 ===
+# 消息前缀位于各自模板中，请逐条编辑。{prefix} 是传送门导入代码的开头。
+#
+# === 格式 ===
+# 颜色代码：&0-&f；格式代码：&k-&r（&l = 粗体，&r = 重置）。请保留变量名称，并仅在对应消息中使用。
+#
+# === 变量 ===
+# 请勿更改变量名，仅使用各消息中原有的变量。
+#   {access}  传送门访问策略
+#   {address}  网络对端地址
+#   {after}  编辑后的消息值
+#   {allocation}  口袋空间分配
+#   {amount}  Vault 货币传送费用
+#   {argument}  意外的命令参数
+#   {before}  编辑前的消息值
+#   {biome}  生物群系标识符
+#   {blacklisted}  被阻止的玩家
+#   {block}  所选方块材质
+#   {blocks}  重建影响的已放置方块数量
+#   {cancel}  取消聊天输入的词语
+#   {code}  服务器或传送门邀请码
+#   {color}  所选显示颜色
+#   {command}  命令路径
+#   {containers}  重建影响的非空容器数量
+#   {cost}  传送门创建或传送费用
+#   {count}  传送门、目的地或消息数量
+#   {degrees}  图像旋转角度
+#   {depth}  投影深度
+#   {description}  消息说明
+#   {destination}  传送目的地
+#   {detail}  其他诊断详情
+#   {diagnostic}  诊断消息
+#   {direction}  传送或朝向方向
+#   {door}  口袋空间出口门
+#   {duration}  玩家专属更新间隔
+#   {endpoint}  虫洞端点标识符
+#   {entities}  受影响实体数量或实体更新间隔（刻）
+#   {entity}  实体更新间隔（刻）
+#   {error}  上次操作的错误
+#   {facing}  传送门朝向
+#   {failed}  失败的操作数量
+#   {fallback}  备用传送结果
+#   {fingerprint}  公钥指纹
+#   {free}  空闲随机目的地槽位数量
+#   {grace}  投影宽限时间（秒）
+#   {group}  语言编辑器类别
+#   {id}  对象标识符
+#   {incoming}  入站传送策略
+#   {item}  传送所需物品
+#   {key}  消息或配置键
+#   {kind}  门访问类型
+#   {label}  显示标签
+#   {large_step}  按住 Shift 点击时的调整量
+#   {line}  消息内的行号
+#   {locale}  语言代码
+#   {material}  口袋空间墙壁材质
+#   {maximum}  允许的最大值
+#   {message}  反馈或诊断消息
+#   {minimum}  允许的最小值
+#   {mode}  所选操作或显示模式
+#   {name}  传送门或玩家名称
+#   {next}  下一个可用选项
+#   {node}  网络节点标识符
+#   {none}  未连接目的地的标签
+#   {other}  已连接端点标识符
+#   {outgoing}  出站传送策略
+#   {owner}  传送门所有者
+#   {page}  当前页码
+#   {pages}  总页数
+#   {parameter}  命令参数名称
+#   {path}  文件或目录路径
+#   {personal}  个人语言代码
+#   {plugin}  插件名称
+#   {portal}  传送门名称或标识符
+#   {prefix}  传送门导入代码的开头
+#   {previous}  之前的口袋空间大小（方块）
+#   {quality}  投影流质量
+#   {quantity}  所需物品数量
+#   {range}  传送门激活范围（方块）
+#   {readiness}  随机目的地就绪状态
+#   {reason}  错误或决定的原因
+#   {receive}  投影接收状态
+#   {refresh}  投影刷新间隔（刻）
+#   {reserved}  已预留随机目的地槽位数量
+#   {resized}  已重建口袋空间数量
+#   {rotation}  投影旋转
+#   {route}  尝试的传送路线
+#   {rtt}  网络往返延迟
+#   {seconds}  时间（秒）
+#   {send}  投影发送状态
+#   {server}  服务器名称或标识符
+#   {size}  口袋空间大小（方块）
+#   {skin}  所选传送门皮肤
+#   {skipped}  已跳过操作数量
+#   {space}  口袋空间标识符
+#   {state}  当前访问、连接或网络状态
+#   {step}  点击时的调整量
+#   {style}  显示样式
+#   {target}  应用语言选择的插件
+#   {type}  对象或参数类型
+#   {up}  投影顶部方向
+#   {usage}  命令语法
+#   {value}  当前或所选值
+#   {variables}  消息允许的占位符
+#   {whitelisted}  允许的玩家
+#   {world}  世界名称
+#   {x}  X 坐标
+#   {y}  Y 坐标
+#   {z}  Z 坐标
 
-[text]
-"command.help.debugdump" = "创建诊断报告并选择是否上传"
-"command.help.debugdump_upload" = "将报告上传到 mclo.gs"
-"command.help.language" = "选择你的语言或服务器默认语言"
-"portal.travel.cost_insufficient" = "<red>需要 {quantity} 个 {item} 才能使用此传送门。"
-"portal.travel.cost_vault_insufficient" = "<red>需要 {amount} 才能使用此传送门。"
-"portal.travel.cost_vault_unavailable" = "<red>此传送门的经济费用不可用。"
-"portal.travel.cost_transaction_failed" = "<red>传送门无法处理你的通行费用。"
-"portal.prompt.cost_item" = "<aqua>将作为费用的物品拿在主手，然后按丢弃键。该物品不会离开你的物品栏。"
-"portal.prompt.cost_vault" = "<aqua>请输入每次通过的 Vault 货币金额(或输入 '{cancel}')："
-"portal.notice.cost_item_set" = "现在通行需要 {item}。"
-"portal.notice.cost_item_invalid" = "该物品无法保存为通行费用。"
-"portal.notice.cost_cleared" = "已清除通行费用。"
-"portal.notice.cost_quantity_changed" = "通行费用数量：{quantity}"
-"portal.notice.cost_vault_changed" = "Vault 通行费用：{amount}"
-"portal.notice.cost_vault_invalid" = "请输入不超过 {maximum} 的正数货币金额。"
-"portal.notice.cost_vault_unavailable" = "选择此费用前，Vault 和经济插件必须可用。"
-"portal.label.cost.free" = "免费"
-"portal.label.cost.vanilla" = "原版物品"
-"portal.label.cost.vault" = "Vault 经济"
-"portal.network.label.render_mode" = "渲染模式"
-"portal.travel.transfer_holding" = "<gold>正在连接到目标服务器..."
-"portal.travel.transfer_interrupted" = "<red>传送门传输中断：你离开了传送门。"
-"portal.travel.transfer_source_unavailable" = "<red>传送门传输中断：源传送门已不可用。"
-"portal.network.label.ambient_style" = "环境粒子"
-"portal.network.label.ambient_color" = "环境颜色"
-"portal.network.label.surface_skin" = "表面皮肤"
-"portal.label.ambient.red" = "红色"
-"portal.label.ambient.green" = "绿色"
-"portal.label.ambient.blue" = "蓝色"
-"portal.label.ambient_style.sparks" = "火花"
-"portal.label.ambient_style.outline" = "轮廓"
-"portal.label.ambient_style.corners" = "角落"
-"portal.label.ambient_style.off" = "关闭"
-"portal.label.skin.none" = "无"
-"director.help.navigation.parent.hover" = "返回上一级命令组"
-"director.help.navigation.back" = "返回"
-"director.help.no_subcommands" = "此页面没有子命令。"
-"director.help.no_description" = "未提供描述"
-"director.help.command_group" = "命令组。点击打开。"
-"director.help.category" = "命令类别"
-"director.help.no_parameters" = "没有参数。点击以预填命令。"
-"director.help.parameters_hover" = "将鼠标悬停在参数上以了解更多。"
-"director.help.parameter.required" = "此参数为必填项。"
-"director.help.parameter.optional" = "此参数为可选项。"
-"director.help.parameter.default" = "未指定时默认为 \"{value}\"。"
-"director.help.parameter.type" = "此参数的类型为 {type}。"
-"director.help.navigation.previous.hover" = "上一页"
-"director.help.navigation.next.hover" = "下一页"
-"director.help.navigation.page" = "页面"
-"director.runtime.error.invalid_origin" = "无法从此来源执行该命令。"
-"director.runtime.error.unknown_parameter" = "未知参数：{key}"
-"director.runtime.error.unexpected_argument" = "意外参数 \"{argument}\"。可选参数必须指定名称，例如 seed=123"
-"director.runtime.error.unclosed_group" = "参数 {key} 缺少闭合的 \"]\""
-"director.runtime.error.conversion_failed" = "无法将 \"{value}\" 转换为参数 {parameter} 所需的 {type} 类型"
-"director.runtime.error.default_parse_failed" = "无法解析参数 {parameter} 的默认值"
-"director.runtime.error.missing_argument" = "缺少参数 \"{parameter}\" ({type})"
-"director.runtime.error.execution_failed" = "执行命令 {command} 失败：{reason}"
-"director.runtime.usage" = "用法：{usage}"
-"command.help.root" = "Wormholes 命令根节点"
-"command.help.wand" = "获得传送门法杖和一个虫洞符文"
-"command.help.wand.rune" = "同时给予虫洞符文（rune=false 只给法杖）"
-"command.help.door" = "给予一个生存模式可用的维度门物品"
-"command.help.door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-"command.help.reload" = "重新加载 Wormholes 配置和语言文件"
-"command.help.debug" = "切换详细控制台日志和每秒遥测"
-"command.help.stats" = "显示实时统计快照文件路径；可用 now=true 强制刷新"
-"command.help.stats.now" = "同步强制重建快照"
-"command.help.info" = "显示传送门建造说明"
-"command.help.admin" = "Wormholes 破坏性维护命令"
-"command.help.admin.delete_portals" = "删除所有本地传送门及已保存的传送门链接"
-"command.help.admin.delete_everything" = "重置 Wormholes 数据、配置、信任、身份和网络状态"
-"command.help.admin.freeze" = "将所有传送门投影原地冻结指定秒数 (seconds=0 恢复)"
-"command.help.admin.freeze.seconds" = "保持冻结画面的时长 (5-300, 0 立即恢复)"
-"command.help.admin.flush" = "将每个观察者的投影方块恢复为真实状态并重建"
-"command.help.network" = "跨服务器虫洞网络"
-"command.help.network.import" = "从其他服务器导入传送门代码(保存内部路由；通过网关的链接菜单进行连接)"
-"command.help.network.import.code" = "其他服务器通过导出按钮生成的传送门代码"
-"command.help.network.status" = "显示对等服务器连接状态"
-"command.help.network.doctor" = "说明网络对等服务器无法连接的原因"
-"command.help.server" = "跨服务器传送：连接、列出并交换已链接的服务器"
-"command.help.server.connect" = "将自己传送到已链接的服务器(简写：/wh server \\<name>)"
-"command.help.server.connect.name" = "已链接的服务器名称(见 /wh server list)"
-"command.help.server.export" = "将本服务器导出为其他服务器可导入的代码"
-"command.help.server.import" = "导入其他服务器导出的服务器或传送门代码"
-"command.help.server.import.code" = "来自其他服务器导出的代码"
-"command.help.server.list" = "列出已链接的服务器及其连接状态"
-"command.help.server.remove" = "忘记一个已链接的服务器(删除其路由和受信任的密钥)"
-"command.help.server.remove.name" = "要忘记的已链接服务器名称"
-"command.error.no_permission" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>你没有权限。"
-"command.error.no_permission_use" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>你没有权限使用该命令。"
-"command.error.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>只有玩家可以接收物品。"
-"command.error.usage" = "<gray>用法：<white>/wormholes help"
-"command.wand.granted_wand" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已给予传送门法杖。"
-"command.door.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>维度门当前不可用。"
-"command.door.unknown_type" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>未知的门类型。请使用 pair、personal 或 public, pair_trapdoor, personal_trapdoor, public_trapdoor。"
-"command.door.empty_type" = "门类型不能为空"
-"command.door.granted" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已给予 <white>{type}<green> 类型的维度门物品。"
-"command.reload.applied" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已重新加载 Wormholes 配置和语言文件。"
-"command.reload.language_retained" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>配置已重新加载，但语言文件无效。系统仍使用上一个有效语言；请查看控制台。"
-"command.reload.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>配置重新加载失败；该修改仍处于待定状态并将重试。请查看控制台。"
-"command.stats.unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>统计快照写入器不可用。"
-"command.stats.refreshed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>快照已刷新。"
-"command.admin.delete_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>无法删除所有传送门。请在控制台查看完整堆栈跟踪。"
-"command.admin.delete_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>无法调度传送门重置。"
-"command.admin.reset_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>无法重置 Wormholes。请在控制台查看完整堆栈跟踪。"
-"command.admin.reset_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>无法调度 Wormholes 重置。"
-"command.admin.projection_frozen" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已将所有传送门投影原地冻结 <white>{seconds}<green> 秒。它们会自动恢复。"
-"command.admin.projection_resumed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已恢复传送门投影。"
-"command.admin.projection_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>无法更新传送门投影。请查看控制台获取完整堆栈跟踪。"
-"command.admin.projection_schedule_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>无法安排投影更新。"
-"network.not_initialized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>网络尚未初始化。"
-"network.status.disabled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>网络已<red>禁用<gray> (plugins/Wormholes/wormholes.toml)。"
-"network.status.not_running" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>网络已启用但未运行。请检查身份存储和网络端口。"
-"network.status.listening" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>当前服务器：<white>{server}<gray>，监听地址：<white>{address}"
-"network.status.outbound_only" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>当前服务器：<white>{server}<gray>，仅出站 Boat 模式"
-"network.status.public_key" = "<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>公钥：{fingerprint}"
-"network.status.no_routes" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>尚未链接任何对等路由。"
-"network.status.peer" = "<dark_gray>[<gold>Wormholes<dark_gray>] <white>{server}<gray> {state} <gray>{address}{rtt}"
-"network.status.last_attempt" = "<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>  上次尝试：{error}"
-"network.doctor.clear" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>未检测到网络配置问题。"
-"network.doctor.header" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>网络诊断："
-"network.doctor.line" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>- {diagnostic}"
-"network.code.building" = "<dark_gray>正在生成传送门代码..."
-"network.code.copy" = "<gold><bold>[复制传送门代码：{portal}]</bold>"
-"network.code.copy_hover" = "<gray>点击复制。将其粘贴到其他服务器：传送门菜单 > 导入，或 /wh server import \\<code>"
-"network.code.fingerprint" = "<dark_gray>包含当前服务器的地址和公钥指纹 {fingerprint}。"
-"network.code.too_long" = "<yellow>此代码过长，无法粘贴到聊天中；请改在其他服务器上使用 /wh server import \\<code>。"
-"network.code.invalid" = "<red>传送门代码无效。代码以 {prefix} 开头；若粘贴到聊天中可能被截断，请尝试 /wh server import \\<code>。旧版插件生成的代码必须重新导出。"
-"network.code.same_server" = "<red>该代码来自当前服务器。"
-"network.code.same_identity" = "<red>该代码解析为当前服务器身份 ({server})。请让两台服务器以各自的 Wormholes 身份重启，然后从另一台服务器重新导出。"
-"network.code.linked" = "<green>已将 <white>{portal}<gray> -> <white>{destination}<green> 链接到 <white>{server}<green>。服务器连接后传送门将开启。"
-"network.code.route_saved" = "<green>已保存通往 {server} 的路由，公钥为 {fingerprint}。连接后，'{portal}' 将显示在网关的链接菜单中。"
-"network.code.check_status" = "<dark_gray>使用 /wh network status 查看连接状态。"
-"network.code.using_address" = "<gray>此传送门代码使用 {address}；如果公网地址发生变化，签名握手会自动检测并修正地址。"
-"server.code.copy" = "<gold><bold>[复制服务器代码：{server}]</bold>"
-"server.code.copy_hover" = "<gray>点击复制。将其粘贴到其他服务器：/wh server import \\<code>"
-"server.code.raw" = "<gray>服务器代码：<white>{code}"
-"server.code.saved" = "<green>已保存服务器 <white>{server}<green>，公钥为 {fingerprint}。使用 <white>/wh server {server}<green> 连接。"
-"server.connect.sending" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>正在将你传送到 <white>{server}<green>..."
-"server.connect.not_ready" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{server} 当前不可达。请检查 /wh network status。"
-"server.connect.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>无法将你传送到 {server}。请查看控制台和 /wh network status。"
-"server.connect.only_players" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>只有玩家可以连接到其他服务器。"
-"server.unknown" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>未知的服务器 '<white>{server}<red>'。请先导入其代码，或查看 /wh server list。"
-"server.list.header" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>已链接的服务器："
-"server.list.empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>尚未链接任何服务器。请使用 <white>/wh server import \\<code><gray>。"
-"server.list.entry" = "<dark_gray>[<gold>Wormholes<dark_gray>] <white>{server}<gray> {state} <dark_gray>{address}"
-"server.removed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已移除服务器 <white>{server}<green> 及其受信任的密钥。"
-"server.name_empty" = "服务器名称不能为空"
-"portal.form.rtp_unsupported" = "<red>无法使用符文构建随机传送门。"
-"portal.form.forming" = "<aqua>正在构建传送门... {type} 符文必须在同一面平整的墙、地板或天花板上相连。"
-"portal.form.must_be_flat" = "<red>传送门必须平整地位于同一面墙、地板或天花板上。"
-"portal.form.interrupted" = "<red>传送门构建被中断；已返还预留的符文。"
-"portal.form.rune_placed" = "<aqua>已放置符文。请在同一平面上搭建任意相连形状，然后手持传送门法杖左键点击任意符文。"
-"portal.form.opened" = "<green>传送门已开启。手持法杖点击传送门即可配置。"
-"portal.travel.cooldown" = "<gold>传送门冷却中"
-"portal.travel.access_denied" = "<red>无权使用此传送门"
-"portal.travel.destination_unavailable" = "<red>传送门目的地不可用"
-"portal.travel.arrival_denied" = "<red>目标传送门拒绝了你的到达。"
-"portal.travel.arrival_returned" = "<red>目标传送门拒绝了你的到达；正在将你送回 {server}"
-"door.transit.shutdown" = "维度门在传送完成前已关闭。"
-"portal.edit.denied" = "<red>只有传送门所有者或管理员可以编辑此传送门。"
-"portal.deleted" = "<red>已删除 {portal}"
-"portal.travel.arrival_failed" = "<red>无法放置传送门抵达点；你仍位于目的地出生点"
-"portal.travel.transfer_cooldown" = "<gold>跨服务器传送门冷却中：{seconds}s"
-"portal.travel.destination_unreachable" = "<red>无法连接目的地服务器"
-"portal.travel.destination_unreachable_detail" = "<red>无法连接目的地服务器：{reason}"
-"portal.travel.transfer_blocked" = "<red>传送门传送被阻止：{reason}"
-"portal.travel.transfer_blocked_retry" = "<red>传送门传送被阻止：{reason}({seconds}s 后重试)"
-"wand.selection.corner_a" = "<aqua>已设置角点 A。右键点击对角。"
-"wand.selection.corner_b" = "<aqua>已设置角点 B。左键点击对角。"
-"wand.selection.not_flat" = "<red>选区厚度必须为一个方块。请重新点击一个角点使其变为平面。"
-"wand.selection.too_large" = "<red>选区过大：{count} 个方块(上限 {maximum})。"
-"wand.selection.opening" = "<aqua>正在开启传送门..."
-"wand.selection.open_failed" = "<red>无法在此处开启传送门。"
-"door.craft.one_at_a_time" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>请逐个合成维度门，以便每扇门获得唯一身份。"
-"door.pair.unpack_failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>无法拆分门组；套件未被消耗。"
-"door.pair.unpacked" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>缠结门组已拆分为相互连接的虫洞门 A 和 B。"
-"door.legacy.combine" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>放置前，请将此旧版维度门与一扇木门合成。"
-"door.pair.missing" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>该配对门没有已登记的另一端身份。"
-"door.place.already_placed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>该维度门已被放置，或其状态无法保存。"
-"door.break.exit_anchored" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>此维度出口已锚定到该口袋维度。"
-"door.break.support" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>移除支撑方块前，请先破坏维度门。"
-"door.disable.warning" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>维度门即将禁用。请立即通过口袋维度的返回门离开。"
-"door.rescue.cancelled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>紧急撤离已取消；返回路线已保留。"
-"door.transit.message" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>{message}"
-"door.transit.link_not_placed" = "链接的虫洞门尚未放置。"
-"door.transit.link_unavailable" = "链接的虫洞门不可用或被阻挡。"
-"door.transit.nested_pocket" = "在共享虚空维度内部，口袋门无法再开启另一个口袋维度。"
-"door.transit.pocket_not_ready" = "口袋维度尚未准备就绪。"
-"door.transit.pocket_allocation_failed" = "无法分配口袋维度。"
-"door.transit.safe_return_not_found" = "无法在门的这一侧找到安全返回路线。"
-"door.transit.pocket_prepare_failed" = "无法安全地准备口袋维度。"
-"door.transit.return_ticket_save_failed" = "无法保存安全返回路线。"
-"door.transit.pocket_entry_unsafe" = "口袋维度入口不安全。"
-"door.transit.pocket_entry_chunk_failed" = "口袋维度无法加载入口区块。"
-"door.transit.no_return_route" = "此口袋维度没有为你保存返回路线。"
-"door.transit.return_unavailable" = "你的返回门在对应一侧不可用或被阻挡。"
-"door.transit.return_world_unloaded" = "返回世界尚未加载。"
-"door.transit.return_point_obstructed" = "已保存的返回点被阻挡。"
-"door.transit.return_chunk_failed" = "无法加载已保存的返回区块。"
-"door.transit.closed" = "维度传送完成前，维度门已关闭。"
-"door.transit.cycle_consumed" = "这扇门的开启周期已被使用。请关闭后重新打开该门。"
-"door.transit.source_missing" = "次元门已经不在了。"
-"door.transit.source_close_failed" = "来源门无法安全关闭。"
-"door.transit.source_region_unavailable" = "来源门所在区域不可用。"
-"door.transit.start_failed" = "无法开始维度传送。"
-"door.transit.cancelled" = "维度传送已取消。"
-"door.rescue.reason.no_route" = "口袋维度没有已保存的返回路线。"
-"door.rescue.reason.return_world_unavailable" = "已保存的返回世界不可用。"
-"door.rescue.reason.return_point_obstructed" = "已保存的返回点被阻挡。"
-"door.rescue.reason.return_chunk_failed" = "无法加载已保存的返回区块。"
-"door.rescue.fallback.no_world" = "未加载任何非口袋维度的备用世界。"
-"door.rescue.fallback.obstructed" = "备用出生点被阻挡。"
-"door.rescue.fallback.chunk_failed" = "无法加载备用出生点。"
-"door.rescue.fallback.schedule_failed" = "无法安排备用撤离。"
-"door.rescue.reason.start_failed" = "无法开始紧急撤离。"
-"door.rescue.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>{route} {fallback} 你将保持受保护状态，生命值为一颗心。"
-"door.access.label.neutral" = "中立"
-"door.access.label.whitelist" = "白名单"
-"door.access.label.blacklist" = "黑名单"
-"door.open_state.open" = "打开"
-"door.open_state.closed" = "关闭"
-"door.access.kind.pair" = "纠缠"
-"door.access.kind.personal" = "个人"
-"door.access.kind.public" = "公共"
-"door.access.kind.return" = "出口"
-"door.access.unknown_player" = "未知 ({id})"
-"door.access.edit_denied" = "<red>只有门的所有者或管理员可以编辑此门。"
-"door.access.unavailable" = "<red>此维度门没有访问记录。"
-"door.access.save_failed" = "<red>无法保存该门的访问设置更改。"
-"door.access.player_not_found" = "<red>找不到名为 {name} 的玩家。"
-"door.access.owner_always" = "<gray>门的所有者始终拥有访问权限。"
-"door.access.already_listed" = "<gray>{name} 已在此门的名单中。"
-"door.access.added" = "<green>已将 {name} 加入此门的名单。"
-"door.access.removed" = "<green>已将 {name} 从此门的名单中移除。"
-"door.access.state_changed" = "<green>已将 {name} 设为此门的{state}。"
-"door.access.prompt_player" = "<aqua>请输入要加入此门名单的玩家名称(或输入 '{cancel}')："
-"door.access.denied" = "<red>此维度门拒绝了你。"
-"door.access.transit_denied" = "你没有此维度门的访问权限。"
-"door.menu.access.title" = "维度门访问：{kind}"
-"portal.menu.gateway.server" = "<gray>服务器：<white>{server}"
-"portal.menu.gateway.link" = "<gray>链接：<aqua>{state}"
-"portal.menu.mirror.rotation" = "<gray>图像旋转：<aqua>{degrees} 度"
-"portal.menu.mirror.rotate_clockwise" = "<dark_gray>右键点击：顺时针旋转。"
-"portal.menu.mirror.rotate_counterclockwise" = "<dark_gray>Shift + 右键点击：逆时针旋转。"
-"portal.prompt.invite" = "<aqua>请将传送门邀请粘贴到聊天中(或输入 '{cancel}')："
-"portal.prompt.block_state" = "<aqua>请输入此传送门网络视图边缘使用的方块状态，或输入 '{cancel}'："
-"portal.prompt.name" = "<aqua>请在聊天中输入新的传送门名称(或输入 '{cancel}')："
-"portal.input.cancel" = "取消"
-"portal.rtp.editor_title" = "RTP: {portal}"
-"portal.notice.dimensional_link_managed" = "此维度传送门会保留自动生成的链接。"
-"portal.notice.not_rtp" = "此传送门已不再使用随机传送模式。"
-"portal.rtp.notice.setting_rejected" = "无法应用该设置：{reason}"
-"portal.notice.region_unavailable" = "传送门区域不可用；请重试。"
-"portal.rtp.notice.applied" = "已应用随机目的地设置。"
-"portal.rtp.notice.reset_defaults" = "随机传送设置已重置为默认值。"
-"portal.rtp.notice.editor_refreshed" = "设置已更改；编辑器已刷新。"
-"portal.rtp.notice.runtime_unavailable" = "随机传送运行时不可用。"
-"portal.rtp.notice.reroll_failed" = "手动重选失败；请查看服务器日志。"
-"portal.rtp.notice.reroll_preparing" = "正在准备新的随机目的地。"
-"portal.rtp.notice.reroll_unavailable" = "路线正在准备或使用时无法重选。"
-"portal.rtp.notice.pool_rebuilding" = "正在重建私人目的地池。"
-"portal.rtp.notice.pool_failed" = "目的地池重建失败；请查看服务器日志。"
-"portal.rtp.notice.not_ready" = "<yellow>传送门仍在稳定其目的地。"
-"portal.rtp.notice.traversal_failed" = "<red>传送门无法稳定，请重试。"
-"portal.notice.travel_managed" = "维度传送门的通行方向由系统自动管理。"
-"portal.notice.travel_mirror_locked" = "镜像模式始终禁止通行。"
-"portal.notice.travel_changed" = "通行：{mode}"
-"portal.notice.stream_quality_changed" = "数据流质量：{quality}"
-"portal.notice.network_value_changed" = "{label} {value}"
-"portal.notice.fallback_set" = "备用方块已设为 {block}"
-"portal.notice.fallback_reset" = "备用方块已重置为 {block}"
-"portal.notice.managed_mode" = "受管理的维度传送门会保持传送门模式。"
-"portal.notice.projection_receiver_inactive" = "末地抵达端会保持不显示投影。"
-"portal.notice.projection_changed" = "投影：{mode}"
-"portal.notice.settings_sync_changed" = "设置同步：{state}"
-"portal.notice.access_changed" = "访问模式：{mode}"
-"portal.notice.mirror_select_first" = "旋转图像前请先选择镜像模式。"
-"portal.notice.mirror_rotation_changed" = "镜像旋转：{degrees} 度"
-"portal.notice.rtp_cannot_link" = "随机传送门不会链接到固定目的地。"
-"portal.label.travel.both" = "双向"
-"portal.label.travel.outbound" = "仅出站"
-"portal.label.travel.inbound" = "仅入站"
-"portal.label.travel.locked" = "已锁定"
-"portal.label.travel.arrival" = "仅到达"
-"portal.label.travel.departure" = "仅出发"
-"portal.label.travel.dimensional_both" = "链接的两端都会保持启用。"
-"portal.label.travel.dimensional_return_disabled" = "返回路径保持禁用。"
-"portal.label.quality.standard" = "标准"
-"portal.label.quality.performance" = "性能"
-"portal.label.quality.balanced" = "均衡"
-"portal.label.quality.cinematic" = "电影级"
-"portal.label.quality.custom" = "自定义"
-"portal.label.mode.portal" = "传送门"
-"portal.label.mode.wormhole" = "虫洞"
-"portal.label.mode.gateway" = "网关"
-"portal.label.mode.rtp" = "RTP"
-"portal.label.mode.mirror" = "镜像"
-"portal.label.direction.up" = "上"
-"portal.label.direction.down" = "下"
-"portal.label.direction.north" = "北"
-"portal.label.direction.south" = "南"
-"portal.label.direction.east" = "东"
-"portal.label.direction.west" = "西"
-"portal.mode.description.portal" = "可链接的基础传送门。"
-"portal.mode.description.wormhole" = "带视口投影的可链接传送门。"
-"portal.mode.description.gateway" = "用于跨网络链接。"
-"portal.mode.description.rtp" = "本地随机传送门。"
-"portal.mode.description.mirror" = "反射本地世界并禁止通行。"
-"portal.label.allocation.shared" = "共享"
-"portal.label.allocation.per_player" = "每位玩家"
-"portal.rtp.rotation.private" = "每位玩家每 {duration} 轮换"
-"portal.label.permission.whitelist" = "白名单"
-"portal.label.permission.blacklist" = "黑名单"
-"portal.permission.description.whitelist" = "玩家必须拥有此权限节点才能使用传送门。"
-"portal.permission.description.blacklist" = "拥有此权限节点的玩家会被阻止。"
-"portal.label.network.direct" = "直连"
-"portal.label.network.sideband" = "旁路"
-"portal.label.network.reconnecting" = "正在重新连接"
-"portal.network.label.capture_radius" = "捕获半径"
-"portal.network.description.capture_radius" = "围绕目的地传送门传输的方块范围。"
-"portal.network.label.full_refresh" = "完整刷新"
-"portal.network.description.full_refresh" = "两次完整方块刷新之间的 tick 数。"
-"portal.network.label.entity_update" = "实体更新"
-"portal.network.description.entity_update" = "两次实体更新之间的 tick 数。"
-"portal.network.label.view_grace" = "视图保持时间"
-"portal.network.description.view_grace" = "移开视线后继续保持数据流的秒数。"
-"portal.network.label.blackout" = "背景遮蔽"
-"portal.network.label.blackout_color" = "遮蔽颜色"
-"portal.network.label.activation_range" = "激活范围"
-"portal.label.activation_global" = "全局 ({range})"
-"portal.direction.cancelled" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>已取消"
-"portal.direction.set" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>方向已设置"
-"portal.setting.notification" = "<green>{portal}: <reset>{message}"
-"portal.link.linked" = "<green>{portal} 已链接到 {destination}。"
-"portal.link.linked_remote" = "<green>{portal} 已链接到 {server} 上的 {destination}。"
-"portal.link.unlinked" = "<yellow>{portal} 已取消与 {destination} 的链接。"
-"portal.orientation.face_flipped" = "<green>{portal} 的正面已翻转到 {direction}。"
-"portal.orientation.rotated_counterclockwise" = "<green>{portal} 已逆时针旋转。"
-"portal.orientation.rotated_clockwise" = "<green>{portal} 已顺时针旋转。"
-"portal.orientation.direction_changed" = "<green>{portal} 的方向已更改为 {direction}。"
-"portal.mode.changed" = "<green>{portal} 的模式已设为 {mode}。"
-"label.none" = "无"
-"label.on" = "开启"
-"label.off" = "关闭"
-"label.ready" = "就绪"
-"label.preparing" = "准备中"
-"label.open" = "打开"
-"label.closed" = "已关闭"
-"rtp.routing.action_confirm" = "打开单独的确认界面。"
-"rtp.status.ready" = "就绪"
-"rtp.status.warming" = "准备中"
-"rtp.status.rerolling" = "正在重选"
-"rtp.status.backoff" = "等待重试"
-"rtp.status.world_unavailable" = "目标世界不可用"
-"rtp.status.integration_failed" = "访问集成检查失败"
-"rtp.status.failed" = "失败"
-"rtp.status.idle" = "空闲"
-"rtp.rotation.static" = "固定"
-"rtp.rotation.timed" = "定时轮换"
-"rtp.rotation.trip" = "每次通行后轮换"
-"rtp.status.retry" = "<gray>重试倒计时：<red>{duration}"
-"rtp.status.active" = "<gray>使用中：{readiness}"
-"rtp.status.standby" = "<gray>待命：{readiness}"
-"rtp.status.rotation" = "<gray>草稿轮换方式：<aqua>{rotation}"
-"rtp.status.pool" = "<gray>空闲：<aqua>{free}<gray>  已预留：<aqua>{reserved}"
-"rtp.status.target_missing" = "<red>目标世界尚未加载。"
-"rtp.status.access_failed" = "<red>目的地访问检查失败，已拒绝访问。"
-"rtp.numeric.center_x" = "中心 X"
-"rtp.numeric.center_z" = "中心 Z"
-"rtp.numeric.minimum_radius" = "最小半径"
-"rtp.numeric.maximum_radius" = "最大半径"
-"rtp.numeric.lower_y" = "Y 下限"
-"rtp.numeric.upper_y" = "上限 Y"
-"rtp.numeric.preferred_y" = "首选 Y 值"
-"rtp.numeric.cycle" = "轮换周期"
-"rtp.numeric.private_rotation" = "私人目的地轮换时间"
-"rtp.numeric.lease" = "空闲保留宽限期"
-"rtp.numeric.release" = "私人预留释放延迟"
-"rtp.numeric.description.center" = "沿此轴移动自定义中心。"
-"rtp.numeric.description.minimum_radius" = "目的地环形区域的内边缘。"
-"rtp.numeric.description.maximum_radius" = "目的地环形区域的外边缘。"
-"rtp.numeric.description.y" = "合法落脚高度的搜索边界。"
-"rtp.numeric.description.cycle" = "共享目的地定时轮换的间隔。"
-"rtp.numeric.description.private_rotation" = "每位玩家已准备目的地的最长保留时间。"
-"rtp.numeric.description.lease" = "所有人离开后，短暂保持已准备的目的地。"
-"rtp.numeric.description.release" = "释放未使用私人预留前的延迟。"
-"rtp.duration.hours" = "{value}h"
-"rtp.duration.minutes" = "{value}m"
-"rtp.duration.seconds" = "{value}s"
-"rtp.duration.decimal_seconds" = "{value}s"
-"portal.menu.destination.sort_smart" = "智能"
-"portal.menu.destination.sort_name" = "名称"
-"portal.menu.destination.sort_world" = "世界"
-"portal.menu.destination.sort_distance" = "距离"
-"rtp.biome.any_label" = "任意"
+[language.editor]
+loading = "正在加载 {locale} 的消息..."
 
-"command.help.pocket" = "查看和重塑口袋维度"
-"command.help.pocket.info" = "显示你所在口袋的大小、材料和边界"
-"command.help.pocket.resize" = "以新的大小或材料重建你所在的口袋"
-"command.help.pocket.resize.size" = "房间新的边长（方块数），填 0 保持当前大小"
-"command.help.pocket.resize.material" = "墙壁、地板和天花板的新方块，或填 keep"
-"command.help.pocket.resize.door" = "出口门的新方块，或填 keep"
-"command.help.pocket.resize.confirm" = "当改动会破坏或移动任何东西时必须填写"
-"command.help.pocket.resizeall" = "以新的大小或材料重建所有现有口袋"
-"command.pocket.not_inside" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>请站在口袋维度内再执行此命令。"
-"command.pocket.invalid_size" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>口袋大小必须在 {minimum} 到 {maximum} 个方块之间。"
-"command.pocket.invalid_shell_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} 不能作为口袋墙壁。请使用不会掉落的固体方块。"
-"command.pocket.invalid_door_material" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{material} 不能作为口袋出口门。请使用可以手动打开的门；铁门会被拒绝。"
-"command.pocket.unchanged" = "<dark_gray>[<gold>Wormholes<dark_gray>] <yellow>该口袋已经是这个大小和这些材料。"
-"command.pocket.containers_not_empty" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>口袋尺寸调整已停止：<white>{containers}<red> 个非空容器会被摧毁。请清空后重试；<white>confirm=true<red> 无法绕过此安全检查。"
-"command.pocket.resized" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>口袋已重建为 <white>{size}<green> 个方块（原为 <white>{previous}<green>），墙壁 <white>{material}<green>，出口门 <white>{door}。"
-"command.pocket.failed" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>无法重建该口袋。请查看控制台。"
-"command.pocket.world_unavailable" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>口袋维度尚未加载。"
-"command.pocket.does_not_fit" = "<dark_gray>[<gold>Wormholes<dark_gray>] <red>{size} 个方块的房间超出了口袋维度的建筑高度。"
-"command.pocket.bulk_started" = "<dark_gray>[<gold>Wormholes<dark_gray>] <gray>正在重建 <white>{count}<gray> 个口袋。"
-"command.pocket.bulk_finished" = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已重建 <white>{resized}<green>，跳过 <white>{skipped}<green>，失败 <white>{failed}。"
-"portal.label.public_look_label" = "Public Look Label"
-[lines]
-"portal.menu.cost.opener" = ["<gold><bold>通行费用</bold>","<gray>要求玩家使用此传送门时","<gray>支付指定物品或 Vault 货币。","","<gray>模式：<white>{mode}","<gray>费用：<white>{cost}","","<dark_gray>点击进行配置。"]
-"portal.menu.cost.placard" = ["<gold><bold>通行费用</bold>","<gray>玩家必须先付费","<gray>才能通过此传送门。","","<gray>模式：<white>{mode}","<gray>费用：<white>{cost}"]
-"portal.menu.cost.mode_free" = ["<green><bold>免费</bold>","<gray>无需任何支付。","","<dark_gray>点击将通行设为免费。"]
-"portal.menu.cost.mode_vanilla" = ["<aqua><bold>原版物品</bold>","<gray>消耗一个完全匹配的物品。","","<dark_gray>点击后手持物品，再按丢弃键。"]
-"portal.menu.cost.mode_vault" = ["<green><bold>Vault 经济</bold>","<gray>通过 Vault 扣除货币。","","<dark_gray>点击输入金额。"]
-"portal.menu.cost.mode_vault_unavailable" = ["<red><bold>Vault 经济不可用</bold>","<gray>需要 Vault 和经济插件。","","<dark_gray>安装或启用两者后才能使用此模式。"]
-"portal.menu.cost.free_detail" = ["<green><bold>无费用</bold>","<gray>通过此传送门完全免费。"]
-"portal.menu.cost.secondary_empty" = ["<dark_gray><bold>无附加设置</bold>"]
-"portal.menu.cost.item" = ["<aqua><bold>{item}</bold>","<gray>通行需要这个完全一致的物品。","<gray>用于选择的物品不会被消耗。","","<dark_gray>左键：选择另一个手持物品。","<dark_gray>右键：清除费用。"]
-"portal.menu.cost.quantity" = ["<aqua><bold>数量 {quantity}</bold>","<gray>每次通过消耗的","<gray>完全匹配物品数量。","","<dark_gray>左键：+1","<dark_gray>右键：-1","<dark_gray>Shift + 左键：+8","<dark_gray>Shift + 右键：-8","<dark_gray>最大：{maximum}"]
-"portal.menu.cost.vault_amount" = ["<green><bold>{amount}</bold>","<gray>每次通过扣除的货币。","","<dark_gray>左键：输入其他金额。","<dark_gray>右键：清除费用。"]
-"portal.menu.render_mode" = ["<aqua><bold>渲染模式 <white>{mode}</bold>","<gray>此传送门投影目标区域的多少体积。","","<gray>模式: <white>{mode}","","<dark_gray>PanOptic 渲染完整的目标区域体积。","<dark_gray>Venticular 隐藏可见不透明表面后方的几何体。","","<dark_gray>左键: 切换模式。"]
-"portal.menu.ambient_particles" = ["<aqua><bold>环境粒子</bold>","<gray>在此传送门周围漂浮的装饰性尘埃。","","<gray>样式：<white>{style} <dark_gray>({color})","","<dark_gray>左键：切换样式。","<dark_gray>右键：选择颜色。"]
-"portal.menu.ambient_color.placard" = ["<gold><bold>环境颜色</bold>","<gray>环境尘埃粒子的颜色。","","<gray>当前：<white>{color}"]
-"portal.menu.ambient_color.channel" = ["<aqua><bold>{label} <white>{value}</bold>","","<dark_gray>左键点击：+{step}","<dark_gray>右键点击：-{step}","<dark_gray>Shift + 左键点击：+{large_step}","<dark_gray>Shift + 右键点击：-{large_step}"]
-"portal.menu.ambient_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>点击以选择。"]
-"portal.menu.surface_skin" = ["<aqua><bold>表面皮肤</bold>","<gray>用渲染的方块或流体面板覆盖传送门开口。","","<gray>皮肤：<white>{skin}","","<dark_gray>左键：清除皮肤。","<dark_gray>右键：打开皮肤选项。"]
-"portal.menu.surface_skin.placard" = ["<gold><bold>表面皮肤</bold>","<gray>手持方块或桶右键点击传送门以应用皮肤。","","<gray>皮肤：<white>{skin}"]
-"portal.menu.surface_skin.glass" = ["<aqua><bold>玻璃皮肤</bold>","<gray>覆盖开口的透明玻璃窗。","","<dark_gray>点击以应用玻璃。"]
-"portal.menu.surface_skin.clear" = ["<red><bold>清除皮肤</bold>","<gray>移除皮肤并恢复投影。","","<dark_gray>点击以移除皮肤。"]
-"command.public_help" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>传送门帮助：<white>/wormholes info","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>对传送门使用传送门法杖，可打开目的地、视图、通行和访问控制。"]
-"command.wand.granted_starter" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <green>已给予传送门法杖和 1 枚虫洞符文。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>搭建两个虫洞符文形状(同一平面上的任意相连形状)，将它们链接，并站在 {range} 个方块内查看投影。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>运行 <white>/wormholes info<gray> 查看完整分步说明。"]
-"command.stats.path" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>快照文件：<white>{path}","<dark_gray>[<gold>Wormholes<dark_gray>] <dark_gray>持续查看此文件可共享实时网络与视图状态。每个周期都会原地覆盖该文件。"]
-"command.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray><bold>如何建造虫洞</bold>","<dark_gray>1. <gray>从服务器或管理员处获得传送门法杖和传送门符文。","<dark_gray>2. <gray>在同一平面上将符文摆成任意相连形状。","<gray>   任意相连形状都可以：矩形、直线 (3x1)、单个方块、L 形和十字形。","<gray>   符文必须平整地位于同一面与坐标轴对齐的墙、地板或天花板上。","<dark_gray>3. <gray>手持传送门法杖，<white>左键点击任意符文方块<gray>以构建传送门。","<dark_gray>4. <gray>在其他位置建造第二个传送门(距离和世界不限)。","<dark_gray>5. <gray>手持法杖点击已开启的传送门，打开主菜单。","<gray>   选择<white>目的地<gray>并选中另一个传送门，然后在另一端重复此操作。","<gray>   方向和访问控制分别位于各自的简洁菜单中。","<dark_gray>6. <gray>站在任一传送门 {range} 个方块内，目的地世界会投影在框架中；走入框架即可传送。","<gray>管理员可使用 <white>/wormholes wand 创建物品"]
-"item.portal_wand" = ["<gold><bold>传送门法杖</bold>"]
-"item.portal_rune" = ["<gold><bold>传送门符文</bold>"]
-"item.wormhole_rune" = ["<gold><bold>虫洞符文</bold>"]
-"item.door.entangled_pair" = ["<gold>纠缠门组","<gray>包含两扇自动链接的虫洞门。","<gray>使用后可拆分出 A 端和 B 端。"]
-"item.door.paired" = ["<gold>虫洞门 {endpoint}","<gray>自动链接到 {other} 端。","<gray>打开门并亲自跨过门槛即可通行。"]
-"item.door.personal" = ["<aqua>个人维度门","<gray>每位旅行者都会进入自己的持久维度。","<gray>同一位旅行者始终会抵达同一地点。"]
-"item.door.public" = ["<gold>公共维度门","<gray>所有旅行者都会进入此门的共享维度。","<gray>破坏并移动此门不会改变共享目的地。"]
-"item.door.return" = ["<green>维度出口门","<gray>让旅行者离开此口袋维度。","<gray>此门已绑定到对应口袋维度。"]
-"item.door.skin" = ["<gold>维度门外观","<gray>将维度门与玩家可操作的门合成。"]
-"item.door.entangled_pair_recipe" = ["<gold>纠缠门组","<gray>包含两扇自动链接的虫洞门。"]
-"item.door.personal_recipe" = ["<aqua>个人维度门","<gray>每位旅行者都会进入自己的持久维度。"]
-"item.door.public_recipe" = ["<gold>公共维度门","<gray>所有旅行者都会进入此门的共享维度。"]
-"item.door.entangled_trapdoor_pair" = ["<gold>纠缠活板门组","<gray>包含两扇自动链接的虫洞活板门。","<gray>使用后可拆分出 A 端和 B 端。"]
-"item.door.paired_trapdoor" = ["<gold>虫洞活板门 {endpoint}","<gray>自动链接到 {other} 端。","<gray>打开活板门并从中落下即可通行。"]
-"item.door.personal_trapdoor" = ["<aqua>个人维度活板门","<gray>每位旅行者都会进入自己的持久维度。","<gray>同一位旅行者始终会抵达同一地点。"]
-"item.door.public_trapdoor" = ["<gold>公共维度活板门","<gray>所有旅行者都会进入此活板门的共享维度。","<gray>破坏并移动此活板门不会改变共享目的地。"]
-"item.door.trapdoor_skin" = ["<gold>维度活板门外观","<gray>将维度活板门与可徒手开启的活板门合成。"]
-"item.door.entangled_trapdoor_pair_recipe" = ["<gold>纠缠活板门组","<gray>包含两扇自动链接的虫洞活板门。"]
-"item.door.personal_trapdoor_recipe" = ["<aqua>个人维度活板门","<gray>每位旅行者都会进入自己的持久维度。"]
-"item.door.public_trapdoor_recipe" = ["<gold>公共维度活板门","<gray>所有旅行者都会进入此活板门的共享维度。"]
-"portal.menu.destination" = ["<gold><bold>目的地</bold>","<gray>选择要链接的传送门。","<gray>当前链接：{destination}","","<dark_gray>点击打开目的地选择器。"]
-"portal.menu.gateway_destination" = ["<gold><bold>配对 & 目的地</bold>","<gray>与其他服务器配对，或选择一个网关。","<gray>当前链接：{destination}","","<dark_gray>点击打开配对中心。"]
-"portal.menu.rtp_destination" = ["<gold><bold>随机目的地</bold>","<gray>配置此传送门重选目的地的位置和时机。","<gray>轮换：<aqua>{rotation}","","<dark_gray>点击打开随机传送设置。"]
-"portal.menu.rename" = ["<green><bold>重命名传送门</bold>","<gray>更改链接和菜单中显示的名称。","<gray>当前：<white>{portal}","","<dark_gray>点击输入新名称。"]
-"portal.menu.delete" = ["<red><bold>删除传送门</bold>","<gray>永久删除此传送门。","","<red><underlined>Shift + 左键点击以确认</underlined>"]
-"portal.menu.advanced_settings" = ["<dark_aqua><bold>高级数据流调节</bold>","<gray>用于诊断和特殊链接的直接控制。","<gray>更改任意值会将数据流质量标记为自定义。"]
-"portal.menu.back_settings" = ["<yellow><bold>返回设置</bold>","<gray>返回传送门设置。"]
-"portal.menu.travel.managed" = ["<gold><bold>通行：{direction}</bold>","<gray>由系统管理的维度传送门方向。","<gray>{detail}"]
-"portal.menu.travel.mirror" = ["<red><bold>通行：镜像锁定</bold>","<gray>镜像模式仅提供画面。","<gray>实体无法通过它进入或离开。"]
-"portal.menu.travel.standard" = ["<aqua><bold>通行：{mode}</bold>","<gray>控制通过此传送门的通行方向。","","<gray>出站：<aqua>{outgoing}<gray>  入站：<aqua>{incoming}","","<dark_gray>点击循环切换通行方向。"]
-"portal.menu.stream_quality" = ["<aqua><bold>数据流质量：{quality}</bold>","<gray>统一控制远程视图范围和更新频率。","","<gray>深度 <aqua>{depth}<gray>  实体 <aqua>{entities}t","<gray>刷新 <aqua>{refresh}t<gray>  保持 <aqua>{grace}s","","<dark_gray>点击：循环切换质量。","<dark_gray>Shift + 点击：高级调节。"]
-"portal.menu.orientation" = ["<blue><bold>朝向</bold>","<gray>正面方向：<blue>{facing}","<gray>屏幕上方：<gold>{up}","","<dark_gray>点击设置正面方向、翻面和旋转。"]
-"portal.menu.orientation_placard" = ["<blue><bold>传送门朝向</bold>","<gray>正面方向：<blue>{facing}","<gray>屏幕上方：<gold>{up}"]
-"portal.menu.gateway.choose" = ["<gold><bold>选择目的地</bold>","<gray>从已发现的本地和远程网关中选择。","","<dark_gray>点击打开目的地列表。"]
-"portal.menu.gateway.unpaired" = ["<gold><bold>网关配对</bold>","<gray>状态：<red>未配对"]
-"portal.menu.gateway.paired" = ["<gold><bold>网关配对</bold>","<gray>目的地：<gold>{destination}"]
-"portal.menu.gateway.export" = ["<gold><bold>创建邀请</bold>","<gray>为其他服务器创建已签名的网关代码。","","<dark_gray>点击复制新代码。"]
-"portal.menu.gateway.import" = ["<aqua><bold>使用邀请</bold>","<gray>粘贴来自其他网关的已签名代码。","","<dark_gray>点击后在聊天中粘贴代码。"]
-"portal.menu.network_number" = ["<aqua><bold>{label} <white>{value}</bold>","<gray>{description}","","<gray>当前：<aqua>{value}","","<dark_gray>左键点击：+{step}","<dark_gray>右键点击：-{step}","<dark_gray>Shift + 左键点击：+{large_step}","<dark_gray>Shift + 右键点击：-{large_step}"]
-"portal.menu.fallback_block" = ["<aqua><bold>备用方块</bold>","<gray>在数据流深度之外显示的方块。","","<gray>当前：<white>{block}","","<dark_gray>左键：输入方块状态。","<dark_gray>右键：重置为空气。"]
-"portal.menu.blackout" = ["<aqua><bold>背景遮蔽</bold>","<gray>用实心混凝土封住投影的远端和侧面边界，使本地世界永远不会透出来。","","<gray>当前：<white>{state} <dark_gray>({color})","","<dark_gray>左键：开启/关闭切换。","<dark_gray>右键：选择颜色。"]
-"portal.menu.blackout_color.placard" = ["<gold><bold>遮蔽颜色</bold>","<gray>用于遮蔽外壳的混凝土颜色。","","<gray>当前：<white>{color}"]
-"portal.menu.blackout_color.option" = ["<aqua><bold>{color}</bold>","","<dark_gray>点击以选择。"]
-"portal.menu.activation_range" = ["<aqua><bold>激活范围 <white>{value}</bold>","<gray>此传送门开始为附近玩家投影的距离（以方块计）。","","<gray>当前：<aqua>{value}","","<dark_gray>左键点击：+{step}","<dark_gray>右键点击：-{step}","<dark_gray>Shift + 左键点击：+{large_step}","<dark_gray>Shift + 右键点击：-{large_step}","<dark_gray>低于 8 将重置为全局。"]
-"portal.menu.placard.rtp" = ["<gold><bold>{portal}</bold>","<gray>类型：<yellow>{type}","<gray>朝向：<blue>{facing}","<gray>分配：<aqua>{allocation}","<gray>轮换：<aqua>{rotation}","","<dark_gray>管理员不受白名单或黑名单限制。"]
-"portal.menu.placard.linked" = ["<gold><bold>{portal}</bold>","<gray>类型：<yellow>{type}","<gray>朝向：<blue>{facing}","<gray>链接到：<gold>{destination}","","<dark_gray>管理员不受白名单或黑名单限制。"]
-"portal.menu.placard.unlinked" = ["<gold><bold>{portal}</bold>","<gray>类型：<yellow>{type}","<gray>朝向：<blue>{facing}","<gray>链接到：<red>{none}","","<dark_gray>管理员不受白名单或黑名单限制。"]
-"portal.menu.settings_placard_gateway" = ["<aqua><bold>传送门设置</bold>","<gray>访问和传送控制。","<gray>以及跨服务器视图调节。","","<gray>深度越大 / tick 间隔越短 =","<gray>视图越丰富，占用带宽越多。"]
-"portal.menu.mode_placard" = ["<yellow><bold>传送门模式</bold>","<gray>当前：<yellow>{mode}","","<gray>传送门：可链接的基础传送门。","<gray>虫洞：带视口的传送门。","<gray>网关：跨服务器网关。","<gray>RTP：可配置的随机目的地。","<gray>镜像：反射本侧画面，禁止通行。"]
-"portal.menu.mode_opener" = ["<yellow><bold>模式</bold>","<gray>{description}","","<gray>当前：<yellow>{mode}","","<dark_gray>点击更改模式。"]
-"portal.menu.direction" = ["<blue><bold>方向</bold>","<gray>更改传送门正面的朝向。","","<gray>当前朝向：<blue>{direction}","","<dark_gray>点击后看向一个方向，再左键点击应用。"]
-"portal.menu.flip_face" = ["<aqua><bold>翻转正面</bold>","<gray>反转传送门正面的方向。","<gray>屏幕旋转方向保持对齐。","","<gray>当前屏幕上方：<aqua>{up}","","<dark_gray>点击翻转。"]
-"portal.menu.rotate_counterclockwise" = ["<gold><bold>逆时针旋转</bold>","<gray>将传送门视口旋转 90 度","<gray>但不改变正面方向。","","<gray>当前屏幕上方：<gold>{up}","","<dark_gray>点击旋转。"]
-"portal.menu.rotate_clockwise" = ["<gold><bold>顺时针旋转</bold>","<gray>将传送门视口旋转 90 度","<gray>但不改变正面方向。","","<gray>当前屏幕上方：<gold>{up}","","<dark_gray>点击旋转。"]
-"portal.menu.back" = ["<yellow><bold>返回</bold>","<gray>返回传送门菜单。"]
-"portal.menu.projection.on" = ["<gold><bold>投影开启</bold>","<gray>显示此传送门的实时视图。","<gray>可以看到目的地或镜像画面。","","<gray>当前：<aqua>投影开启</aqua>","","<dark_gray>点击切换开启 / 关闭。"]
-"portal.menu.projection.off" = ["<dark_gray><bold>投影关闭</bold>","<gray>框架保持空白。","<gray>不显示目的地视图或镜像。","","<gray>当前：<aqua>投影关闭</aqua>","","<dark_gray>点击切换开启 / 关闭。"]
-"portal.menu.settings_gateway" = ["<aqua><bold>设置</bold>","<gray>权限、传送控制","<gray>和跨服务器视图调节。","","<gray>访问：<gold>{access}","<gray>发送 <aqua>{send}<gray>  接收 <aqua>{receive}","<gray>深度 <aqua>{depth}<gray>  实体 <aqua>{entity}t","","<dark_gray>点击打开设置。"]
-"portal.menu.settings_sync" = ["<aqua><bold>设置同步 {state}</bold>","<gray>开启后，此传送门的设置","<gray>(深度、tick、投影、权限和","<gray>传送控制)会同步到所有链接的对等端。","","<gray>当前：<aqua>{state}","","<dark_gray>点击切换。"]
-"portal.menu.permission" = ["<gold><bold>访问模式 {mode}</bold>","<gray>{description}","<gray>权限节点：<white>{node}","","<gray>当前：<gold>{mode}","","<dark_gray>点击切换白名单 / 黑名单。","<dark_gray>管理员始终不受限制。"]
-"portal.menu.mode_option.selected" = ["<yellow><bold>{mode}</bold>","<gray>{description}","","<green>当前已选择"]
-"portal.menu.mode_option.available" = ["<yellow><bold>{mode}</bold>","<gray>{description}","","<gray>点击选择"]
-"portal.menu.mirror.selected" = ["<yellow><bold>镜像</bold>","<gray>将本地世界反射回来。","<gray>透过框架可以看到自己。","<gray>镜像模式下无法通行。","","<green>当前已选择"]
-"portal.menu.mirror.available" = ["<yellow><bold>镜像</bold>","<gray>将本地世界反射回来。","<gray>透过框架可以看到自己。","<gray>镜像模式下无法通行。","","<gray>左键点击以选择"]
-"portal.menu.mirror.flip" = ["<gray>墙面镜像以 180 度为步长翻转","<gray>以保持反射实体方向正确。","<dark_gray>右键点击：翻转反射图像。"]
-"portal.menu.destination.local" = ["<gold>{portal}","<gray>位于 {world} 的 {x}, {y}, {z}，朝向 {direction}"]
-"portal.menu.destination.remote" = ["<gold>{portal}","<gray>服务器：<white>{server}","<gray>位于 {world} 的 {x}, {y}, {z}，朝向 {direction}","<aqua>{state}"]
-"portal.menu.destination.sort" = ["<yellow><bold>排序：<white>{mode}</bold>","<gray>更改目的地排序方式。","<yellow>左键点击"]
-"portal.menu.destination.previous_page" = ["<yellow><bold>上一页</bold>","<gray>显示上一页目的地。","<yellow>左键点击"]
-"portal.menu.destination.next_page" = ["<yellow><bold>下一页</bold>","<gray>显示下一页目的地。","<yellow>左键点击"]
-"portal.menu.destination.page" = ["<aqua><bold>第 {page}/{pages} 页</bold>","<gray>{count} 个目的地"]
-"portal.menu.destination.empty" = ["<gray>没有可链接的目的地。"]
-"portal.prompt.direction" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>看向一个方向，然后左键点击以应用。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>Shift + 左键点击以取消。"]
-"rtp.overview.destination" = ["<yellow><bold>目的地 & 区域</bold>","<gray>世界、中心和半径。","<yellow>左键点击"]
-"rtp.overview.landing" = ["<yellow><bold>落点规则</bold>","<gray>地表和高度设置。","<yellow>左键点击"]
-"rtp.overview.routing" = ["<yellow><bold>轮换 & 目的地池</bold>","<gray>共享方式、轮换和保留时间。","<yellow>左键点击"]
-"rtp.overview.effects" = ["<yellow><bold>效果</bold>","<gray>投影边缘和传送门音效。","<yellow>左键点击"]
-"rtp.overview.reset_defaults" = ["<yellow><bold>重置为默认值</bold>","<gray>立即将此传送门的随机传送设置恢复为默认值。","<yellow>左键点击"]
-"rtp.navigation.back_portal" = ["<yellow><bold>返回传送门</bold>","<gray>返回传送门菜单。","<yellow>左键点击"]
-"rtp.navigation.overview" = ["<yellow><bold>概览</bold>","<gray>返回 RTP 概览。","<yellow>左键点击"]
-"rtp.navigation.back_category" = ["<yellow><bold>返回</bold>","<gray>返回上一个类别。","<yellow>左键点击"]
-"rtp.destination.header" = ["<aqua><bold>目的地 & 区域</bold>","<gray>所有选项均使用普通左键点击。"]
-"rtp.destination.world_current" = ["<green><bold>{world}</bold>","<gray>当前目标世界。","<green>已选择"]
-"rtp.destination.world_available" = ["<aqua><bold>{world}</bold>","<gray>使用此已加载世界。","<yellow>左键点击以选择"]
-"rtp.destination.previous_worlds" = ["<yellow><bold>上一页世界</bold>","<gray>显示上一页。","<yellow>左键点击"]
-"rtp.destination.next_worlds" = ["<yellow><bold>下一页世界</bold>","<gray>显示下一页。","<yellow>左键点击"]
-"rtp.destination.biome_link" = ["<yellow><bold>目标生物群系 <white>{value}</bold>","<gray>优先降落在所选生物群系。","<yellow>左键点击"]
-"rtp.biome.header" = ["<aqua><bold>目标生物群系</bold>","<gray>搜索会优先选择此生物群系，附近找不到时回退到任意安全地点。"]
-"rtp.biome.any_selected" = ["<green><bold>任意生物群系</bold>","<gray>无生物群系偏好。","<green>已选择"]
-"rtp.biome.any_available" = ["<aqua><bold>任意生物群系</bold>","<gray>清除生物群系偏好。","<yellow>左键点击以选择"]
-"rtp.biome.current" = ["<green><bold>{biome}</bold>","<gray>{key}","<green>已选择"]
-"rtp.biome.available" = ["<aqua><bold>{biome}</bold>","<gray>{key}","<yellow>左键点击以选择"]
-"rtp.biome.empty" = ["<gray>目标世界没有可用的生物群系。"]
-"rtp.biome.previous" = ["<yellow><bold>上一页生物群系</bold>","<gray>显示上一页。","<yellow>左键点击"]
-"rtp.biome.next" = ["<yellow><bold>下一页生物群系</bold>","<gray>显示下一页。","<yellow>左键点击"]
-"rtp.destination.center_portal_selected" = ["<green><bold>相对传送门的中心</bold>","<gray>以此传送门为环形区域中心。","<green>已选择"]
-"rtp.destination.center_portal_available" = ["<aqua><bold>相对传送门的中心</bold>","<gray>以此传送门为环形区域中心。","<yellow>左键点击以选择"]
-"rtp.destination.center_custom_selected" = ["<green><bold>自定义中心</bold>","<gray>使用可编辑的 X 和 Z 坐标。","<green>已选择"]
-"rtp.destination.center_custom_available" = ["<aqua><bold>自定义中心</bold>","<gray>使用可编辑的 X 和 Z 坐标。","<yellow>左键点击以选择"]
-"rtp.numeric.link" = ["<yellow><bold>{label} <white>{value}</bold>","<gray>打开清晰的减少和增加控制。","<yellow>左键点击"]
-"rtp.destination.reset_center" = ["<yellow><bold>重置中心 / 目标世界</bold>","<gray>使用来源世界和传送门中心。","<yellow>左键点击"]
-"rtp.landing.header" = ["<aqua><bold>落点规则</bold>","<gray>Choose surface or preferred-height behavior and its safety mode."]
-"rtp.landing.surface_selected" = ["<green><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<green>Selected"]
-"rtp.landing.surface_available" = ["<aqua><bold>Surface</bold>","<gray>SAFE avoids water and tree tops. UNSAFE uses the topmost surface.","<yellow>Left click to select"]
-"rtp.landing.preferred_selected" = ["<green><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<green>Selected"]
-"rtp.landing.preferred_available" = ["<aqua><bold>Preferred / Exact Height</bold>","<gray>SAFE searches outward. UNSAFE uses the exact preferred Y.","<yellow>Left click to select"]
-"rtp.landing.safe_policy" = ["<aqua><bold>Landing Safety: <white>{mode}</bold>","<gray>SAFE rejects water, hazards, trees, collisions, and unsupported ground.","<gray>UNSAFE accepts the selected surface or exact preferred Y as-is.","<yellow>Left click to toggle"]
-"rtp.routing.header" = ["<aqua><bold>轮换 & 目的地池</bold>","<gray>直接选择模式，然后一次应用整批更改。"]
-"rtp.routing.shared_selected" = ["<green><bold>共享目的地</bold>","<gray>所有人看到并使用相同路线。","<green>已选择"]
-"rtp.routing.shared_available" = ["<aqua><bold>共享目的地</bold>","<gray>所有人看到并使用相同路线。","<yellow>左键点击以选择"]
-"rtp.routing.private_selected" = ["<green><bold>每位玩家独立目的地</bold>","<gray>每位玩家都会获得一份私人预留。","<green>已选择"]
-"rtp.routing.private_available" = ["<aqua><bold>每位玩家独立目的地</bold>","<gray>每位玩家都会获得一份私人预留。","<yellow>左键点击以选择"]
-"rtp.routing.static_selected" = ["<green><bold>固定</bold>","<gray>保持同一目的地。","<green>已选择"]
-"rtp.routing.static_available" = ["<aqua><bold>固定</bold>","<gray>保持同一目的地。","<yellow>左键点击以选择"]
-"rtp.routing.timed_selected" = ["<green><bold>定时轮换</bold>","<gray>经过配置的时长后轮换。","<green>已选择"]
-"rtp.routing.timed_available" = ["<aqua><bold>定时轮换</bold>","<gray>经过配置的时长后轮换。","<yellow>左键点击以选择"]
-"rtp.routing.trip_selected" = ["<green><bold>每次通行后</bold>","<gray>使用后启用已准备的替代目的地。","<green>已选择"]
-"rtp.routing.trip_available" = ["<aqua><bold>每次通行后</bold>","<gray>使用后启用已准备的替代目的地。","<yellow>左键点击以选择"]
-"rtp.routing.manual_reroll" = ["<yellow><bold>手动重选</bold>","<gray>{description}","<yellow>左键点击"]
-"rtp.routing.rebuild_pool" = ["<yellow><bold>重建目的地池</bold>","<gray>{description}","<yellow>左键点击"]
-"rtp.effects.header" = ["<aqua><bold>效果</bold>","<gray>更改显示效果不会重新生成目的地。"]
-"rtp.effects.rim_on_selected" = ["<green><bold>就绪边缘开启</bold>","<gray>在传送门边缘显示私人目的地就绪状态。","<green>已选择"]
-"rtp.effects.rim_on_available" = ["<aqua><bold>就绪边缘开启</bold>","<gray>在传送门边缘显示私人目的地就绪状态。","<yellow>左键点击以选择"]
-"rtp.effects.rim_off_selected" = ["<green><bold>就绪边缘关闭</bold>","<gray>隐藏就绪状态边缘。","<green>已选择"]
-"rtp.effects.rim_off_available" = ["<aqua><bold>就绪边缘关闭</bold>","<gray>隐藏就绪状态边缘。","<yellow>左键点击以选择"]
-"rtp.effects.sound_on_selected" = ["<green><bold>传送门音效开启</bold>","<gray>播放此 RTP 传送门的效果音和通行音效。","<green>已选择"]
-"rtp.effects.sound_on_available" = ["<aqua><bold>传送门音效开启</bold>","<gray>播放此 RTP 传送门的效果音和通行音效。","<yellow>左键点击以选择"]
-"rtp.effects.sound_off_selected" = ["<green><bold>传送门音效关闭</bold>","<gray>静音此 RTP 传送门；粒子效果仍会启用。","<green>已选择"]
-"rtp.effects.sound_off_available" = ["<aqua><bold>传送门音效关闭</bold>","<gray>静音此 RTP 传送门；粒子效果仍会启用。","<yellow>左键点击以选择"]
-"rtp.numeric.target_unavailable" = ["<aqua><bold>目标世界不可用</bold>","<gray>编辑此值前请先加载目标世界。"]
-"rtp.numeric.value" = ["<aqua><bold>{value}</bold>","<gray>当前草稿值。"]
-"rtp.numeric.adjust" = ["<yellow><bold>{direction}{step}</bold>","<gray>将草稿调整 {direction}{step}。","<yellow>左键点击"]
-"rtp.numeric.header" = ["<aqua><bold>{label}</bold>","<gray>{description}"]
-"rtp.confirm.reroll" = ["<aqua><bold>重选共享路线？</bold>","<gray>替代路线准备就绪前，当前投影会保持在线。"]
-"rtp.confirm.rebuild" = ["<aqua><bold>重建私人目的地池？</bold>","<gray>重建空闲候选目的地时，现有预留保持不变。"]
-"rtp.confirm.confirm" = ["<yellow><bold>确认</bold>","<gray>立即运行此操作。","<yellow>左键点击"]
-"rtp.confirm.cancel" = ["<yellow><bold>取消</bold>","<gray>返回且不更改运行状态。","<yellow>左键点击"]
-"rtp.status.header" = ["<gold><bold>随机目的地状态</bold>","<gray>状态：{state}"]
-"door.menu.access.placard" = ["<gold><bold>{kind}维度门</bold>","<gray>所有者：<white>{owner}","<gray>白名单：<green>{whitelisted}","<gray>黑名单：<red>{blacklisted}","<gray>名单玩家：<aqua>{count}","<dark_gray>只有所有者和管理员可以编辑此门。"]
-"door.menu.access.add_player" = ["<green><bold>添加玩家</bold>","<gray>在聊天中输入玩家名称即可加入名单。","","<dark_gray>点击添加玩家。"]
-"door.menu.access.open_state" = ["<aqua><bold>OpenState：<white>{state}","<gray>传送门会跟随此方块的物理状态。","<gray>激活状态：<white>{state}<gray>。","","<dark_gray>下一状态：{next}。点击切换。"]
-"door.menu.access.entry" = ["<white>{name}","<gray>状态：<aqua>{state}","","<dark_gray>左键：白名单。右键：黑名单。","<dark_gray>中键或 Shift + 左键：移除。"]
+[language.editor.category]
+message-count = "&7{count} 条消息&r"
+open = "&8点击打开此分类。&r"
 
-"command.pocket.info" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <gray>口袋 <white>{space}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>大小 <white>{size}<gray> 个方块，墙壁 <white>{material}<gray>，出口门 <white>{door}","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>边界 <white>{minimum}<gray> 到 <white>{maximum}"]
-"command.pocket.confirm_required" = ["<dark_gray>[<gold>Wormholes<dark_gray>] <red>重建为 {size} 个方块会摧毁 <white>{blocks}<red> 个已放置的方块，并移动 <white>{entities}<red> 个实体。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>新墙外的方块会被摧毁；需要移动的实体会被送到入口。","<dark_gray>[<gold>Wormholes<dark_gray>] <gray>加上 <white>confirm=true<gray> 重新执行同一命令以继续。"]
-"portal.menu.public_look_label" = ["<aqua><bold>Public Look Label: <white>{state}</bold>","<gray>Show this portal's name when nearby players look at it.","<gray>When Off, the route label remains portal-tool only.","","<yellow>Left click to toggle"]
-[plural."command.admin.deleted_portals"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已删除 <white>{count}<green> 个传送门，并清除本地传送门链接。"
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已删除 <white>{count}<green> 个传送门，并清除本地传送门链接。"
+[language.editor.error]
+no-permission = "你没有权限编辑 {plugin} 的语言。"
+unable-to-edit = "无法编辑：{reason}"
 
-[plural."command.admin.reset_everything"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes 已重置为默认状态。删除了 <white>{count}<green> 个传送门，关闭了网络连接，并重新生成了默认配置文件。"
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>Wormholes 已重置为默认状态。删除了 <white>{count}<green> 个传送门，关闭了网络连接，并重新生成了默认配置文件。"
+[language.editor.input]
+expired = "语言编辑器的输入时间已到期。"
+too-long = "输入最多可包含 {maximum} 个字符。"
+unable-to-save = "无法保存：{reason}"
 
-[plural."wand.selection.selected"]
-one = "<aqua>已选择 {count} 个方块。左键点击玻璃板以开启传送门。"
-other = "<aqua>已选择 {count} 个方块。左键点击玻璃板以开启传送门。"
+[language.editor.locale]
+open = "&8点击打开此语言。&r"
 
-[plural."command.admin.projection_flushed"]
-one = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已刷新 <white>{count}<green> 个投影观察者；客户端正在从真实状态重建。"
-other = "<dark_gray>[<gold>Wormholes<dark_gray>] <green>已刷新 <white>{count}<green> 个投影观察者；客户端正在从真实状态重建。"
+[language.editor.message]
+current-value = "&7当前值:&r"
+edit-chat = "&7点击在聊天中编辑。&r"
+edit-lines = "&7点击逐行编辑。&r"
+edit-plural = "&7点击编辑复数形式。&r"
+variables = "&8{variables}&r"
+
+[language.editor.navigation]
+back = "&e返回&r"
+close = "&c关闭&r"
+next-page = "&e下一页&r"
+previous-page = "&e上一页&r"
+
+[language.editor.part]
+line = "第 {line} 行"
+
+[language.editor.prompt]
+current = "当前值： {value}"
+guidance = "使用 \\n 表示换行，\\\\ 表示反斜杠，或输入 cancel 返回。"
+search = "搜索消息键或内容。输入 cancel 返回。"
+value = "请在聊天中输入 {key} 的新值。"
+variables = "变量: {variables}"
+
+[language.editor.saved]
+change = "{key}：已将“{before}”改为“{after}”。"
+summary = "已保存 {locale}。语言选择保持不变。"
+
+[language.editor.search]
+clear = "清除搜索"
+messages = "搜索消息"
+messages-lore = "点击搜索所有消息。"
+
+[language.editor.section]
+group-title = "{locale} / {group}"
+languages = "语言"
+search = "搜索"
+search-title = "{locale} / 搜索"
+
+[language.editor.value]
+empty = "(空)"
+none = "无"
+
+[language.error]
+editor-player-only = "请在游戏中打开语言编辑器。"
+no-providers = "没有可用的 Volmit 语言提供程序。"
+numeric-page = "请输入数字页码。"
+personal-permission = "你没有权限选择个人语言。"
+personal-player-only = "玩家必须在游戏中选择个人语言。"
+plugin-personal-permission = "你没有权限为 {plugin} 选择个人语言。"
+plugin-server-permission = "你没有权限更改 {plugin} 的服务器语言。"
+server-locale-required = "请选择 en_US 等语言代码作为服务器默认语言。"
+stopping = "插件停止期间无法选择语言。"
+unavailable-for-all = "语言 {locale} 并非适用于所有选中的插件。"
+
+[language.menu]
+all-volmit-plugins = "所有 Volmit 插件"
+command = "命令: {command}"
+current = "当前：{locale}"
+current_with_personal = "当前：{locale}（你的：{personal}）"
+edit_description = "打开各语言的消息编辑器。"
+edit_messages = "编辑语言消息"
+no_controls = "你无权使用语言设置。"
+remove_personal_description = "移除你的个人语言选择。"
+reset_description = "使用服务器默认语言。"
+reset_your_language = "重置你的语言"
+select_description = "点击以选择此语言。"
+selected = "选中"
+server_default = "服务器默认语言"
+server_description = "更改服务器默认语言。"
+use_server_default = "使用服务器默认语言"
+your_description = "仅更改你看到的消息。"
+your_language = "你的语言"
+
+[language.selection]
+english-fallback = "{plugin}：{locale} 不可用；将使用英语（en_US）。"
+personal-selected = "{plugin}：你的语言现在是 {locale}。"
+preparing = "正在为 {target} 准备语言 {locale}..."
+save-failed = "{plugin}：无法保存语言选择；请检查服务器控制台。"
+server-default-selected = "{plugin}：你的语言现在跟随服务器默认语言。"
+server-selected = "{plugin}：服务器语言现在是 {locale}。"
+
+[language.usage]
+editor = "用法: /{command} language server edit [locale]"
+selection = "用法: /{command} language self [locale|reset] or server [locale]"
+volmit-selection = "用法: /volmit plugins languages [locale]"
+
+[command]
+public_help = ["&8[&6Wormholes&8] &7传送门帮助：&f/wormholes info", "&8[&6Wormholes&8] &7对传送门使用传送门法杖，可打开目的地、视图、通行和访问控制。"]
+info = ["&8[&6Wormholes&8] &7&l如何建造虫洞&r", "&81. &7从服务器或管理员处获得传送门法杖和传送门符文。", "&82. &7在同一平面上将符文摆成任意相连形状。", "&7   任意相连形状都可以：矩形、直线 (3x1)、单个方块、L 形和十字形。", "&7   符文必须平整地位于同一面与坐标轴对齐的墙、地板或天花板上。", "&83. &7手持传送门法杖，&f左键点击任意符文方块&7以构建传送门。", "&84. &7在其他位置建造第二个传送门(距离和世界不限)。", "&85. &7手持法杖点击已开启的传送门，打开主菜单。", "&7   选择&f目的地&7并选中另一个传送门，然后在另一端重复此操作。", "&7   方向和访问控制分别位于各自的简洁菜单中。", "&86. &7站在任一传送门 {range} 个方块内，目的地世界会投影在框架中；走入框架即可传送。", "&7管理员可使用 &f/wormholes wand 创建物品"]
+
+[command.help]
+debug = "Wormholes诊断工具"
+debug_dump = "创建诊断报告并选择是否上传"
+debug_dump_upload = "将报告上传到 mclo.gs"
+language = "选择你的语言或服务器默认语言"
+root = "Wormholes 命令根节点"
+wand = "获得传送门法杖和一个虫洞符文"
+"wand.rune" = "同时给予虫洞符文（rune=false 只给法杖）"
+door = "给予一个生存模式可用的维度门物品"
+"door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
+reload = "重新加载 Wormholes 配置和语言文件"
+debug_toggle = "切换详细控制台日志和每秒遥测"
+stats = "显示实时统计快照文件路径；可用 now=true 强制刷新"
+"stats.now" = "同步强制重建快照"
+info = "显示传送门建造说明"
+admin = "Wormholes 破坏性维护命令"
+"admin.delete_portals" = "删除所有本地传送门及已保存的传送门链接"
+"admin.delete_everything" = "重置 Wormholes 数据、配置、信任、身份和网络状态"
+"admin.freeze" = "将所有传送门投影原地冻结指定秒数 (seconds=0 恢复)"
+"admin.freeze.seconds" = "保持冻结画面的时长 (5-300, 0 立即恢复)"
+"admin.flush" = "将每个观察者的投影方块恢复为真实状态并重建"
+network = "跨服务器虫洞网络"
+"network.import" = "从其他服务器导入传送门代码(保存内部路由；通过网关的链接菜单进行连接)"
+"network.import.code" = "其他服务器通过导出按钮生成的传送门代码"
+"network.status" = "显示对等服务器连接状态"
+"network.doctor" = "说明网络对等服务器无法连接的原因"
+server = "跨服务器传送：连接、列出并交换已链接的服务器"
+"server.connect" = "将自己传送到已链接的服务器(简写：/wh server \\<name>)"
+"server.connect.name" = "已链接的服务器名称(见 /wh server list)"
+"server.export" = "将本服务器导出为其他服务器可导入的代码"
+"server.import" = "导入其他服务器导出的服务器或传送门代码"
+"server.import.code" = "来自其他服务器导出的代码"
+"server.list" = "列出已链接的服务器及其连接状态"
+"server.remove" = "忘记一个已链接的服务器(删除其路由和受信任的密钥)"
+"server.remove.name" = "要忘记的已链接服务器名称"
+pocket = "查看和重塑口袋维度"
+"pocket.info" = "显示你所在口袋的大小、材料和边界"
+"pocket.resize" = "以新的大小或材料重建你所在的口袋"
+"pocket.resize.size" = "房间新的边长（方块数），填 0 保持当前大小"
+"pocket.resize.material" = "墙壁、地板和天花板的新方块，或填 keep"
+"pocket.resize.door" = "出口门的新方块，或填 keep"
+"pocket.resize.confirm" = "当改动会破坏或移动任何东西时必须填写"
+"pocket.resizeall" = "以新的大小或材料重建所有现有口袋"
+
+[command.error]
+no_permission = "&8[&6Wormholes&8] &c你没有权限。"
+no_permission_use = "&8[&6Wormholes&8] &c你没有权限使用该命令。"
+only_players = "&8[&6Wormholes&8] &c只有玩家可以接收物品。"
+usage = "&7用法：&f/wormholes help"
+
+[command.wand]
+granted_wand = "&8[&6Wormholes&8] &a已给予传送门法杖。"
+granted_starter = ["&8[&6Wormholes&8] &a已给予传送门法杖和 1 枚虫洞符文。", "&8[&6Wormholes&8] &7搭建两个虫洞符文形状(同一平面上的任意相连形状)，将它们链接，并站在 {range} 个方块内查看投影。", "&8[&6Wormholes&8] &7运行 &f/wormholes info&7 查看完整分步说明。"]
+
+[command.door]
+unavailable = "&8[&6Wormholes&8] &c维度门当前不可用。"
+unknown_type = "&8[&6Wormholes&8] &c未知的门类型。请使用 pair、personal 或 public, pair_trapdoor, personal_trapdoor, public_trapdoor。"
+empty_type = "门类型不能为空"
+granted = "&8[&6Wormholes&8] &a已给予 &f{type}&a 类型的维度门物品。"
+
+[command.reload]
+applied = "&8[&6Wormholes&8] &a已重新加载 Wormholes 配置和语言文件。"
+language_retained = "&8[&6Wormholes&8] &e配置已重新加载，但语言文件无效。系统仍使用上一个有效语言；请查看控制台。"
+failed = "&8[&6Wormholes&8] &c配置重新加载失败；该修改仍处于待定状态并将重试。请查看控制台。"
+
+[command.stats]
+unavailable = "&8[&6Wormholes&8] &c统计快照写入器不可用。"
+refreshed = "&8[&6Wormholes&8] &a快照已刷新。"
+path = ["&8[&6Wormholes&8] &7快照文件：&f{path}", "&8[&6Wormholes&8] &8持续查看此文件可共享实时网络与视图状态。每个周期都会原地覆盖该文件。"]
+
+[command.admin]
+delete_failed = "&8[&6Wormholes&8] &c无法删除所有传送门。请在控制台查看完整堆栈跟踪。"
+delete_schedule_failed = "&8[&6Wormholes&8] &c无法调度传送门重置。"
+reset_failed = "&8[&6Wormholes&8] &c无法重置 Wormholes。请在控制台查看完整堆栈跟踪。"
+reset_schedule_failed = "&8[&6Wormholes&8] &c无法调度 Wormholes 重置。"
+projection_frozen = "&8[&6Wormholes&8] &a已将所有传送门投影原地冻结 &f{seconds}&a 秒。它们会自动恢复。"
+projection_resumed = "&8[&6Wormholes&8] &a已恢复传送门投影。"
+projection_failed = "&8[&6Wormholes&8] &c无法更新传送门投影。请查看控制台获取完整堆栈跟踪。"
+projection_schedule_failed = "&8[&6Wormholes&8] &c无法安排投影更新。"
+
+[command.admin.deleted_portals]
+one = "&8[&6Wormholes&8] &a已删除 &f{count}&a 个传送门，并清除本地传送门链接。"
+other = "&8[&6Wormholes&8] &a已删除 &f{count}&a 个传送门，并清除本地传送门链接。"
+
+[command.admin.reset_everything]
+one = "&8[&6Wormholes&8] &aWormholes 已重置为默认状态。删除了 &f{count}&a 个传送门，关闭了网络连接，并重新生成了默认配置文件。"
+other = "&8[&6Wormholes&8] &aWormholes 已重置为默认状态。删除了 &f{count}&a 个传送门，关闭了网络连接，并重新生成了默认配置文件。"
+
+[command.admin.projection_flushed]
+one = "&8[&6Wormholes&8] &a已刷新 &f{count}&a 个投影观察者；客户端正在从真实状态重建。"
+other = "&8[&6Wormholes&8] &a已刷新 &f{count}&a 个投影观察者；客户端正在从真实状态重建。"
+
+[command.pocket]
+not_inside = "&8[&6Wormholes&8] &c请站在口袋维度内再执行此命令。"
+invalid_size = "&8[&6Wormholes&8] &c口袋大小必须在 {minimum} 到 {maximum} 个方块之间。"
+invalid_shell_material = "&8[&6Wormholes&8] &c{material} 不能作为口袋墙壁。请使用不会掉落的固体方块。"
+invalid_door_material = "&8[&6Wormholes&8] &c{material} 不能作为口袋出口门。请使用可以手动打开的门；铁门会被拒绝。"
+unchanged = "&8[&6Wormholes&8] &e该口袋已经是这个大小和这些材料。"
+containers_not_empty = "&8[&6Wormholes&8] &c口袋尺寸调整已停止：&f{containers}&c 个非空容器会被摧毁。请清空后重试；&fconfirm=true&c 无法绕过此安全检查。"
+resized = "&8[&6Wormholes&8] &a口袋已重建为 &f{size}&a 个方块（原为 &f{previous}&a），墙壁 &f{material}&a，出口门 &f{door}。"
+failed = "&8[&6Wormholes&8] &c无法重建该口袋。请查看控制台。"
+world_unavailable = "&8[&6Wormholes&8] &c口袋维度尚未加载。"
+does_not_fit = "&8[&6Wormholes&8] &c{size} 个方块的房间超出了口袋维度的建筑高度。"
+bulk_started = "&8[&6Wormholes&8] &7正在重建 &f{count}&7 个口袋。"
+bulk_finished = "&8[&6Wormholes&8] &a已重建 &f{resized}&a，跳过 &f{skipped}&a，失败 &f{failed}。"
+info = ["&8[&6Wormholes&8] &7口袋 &f{space}", "&8[&6Wormholes&8] &7大小 &f{size}&7 个方块，墙壁 &f{material}&7，出口门 &f{door}", "&8[&6Wormholes&8] &7边界 &f{minimum}&7 到 &f{maximum}"]
+confirm_required = ["&8[&6Wormholes&8] &c重建为 {size} 个方块会摧毁 &f{blocks}&c 个已放置的方块，并移动 &f{entities}&c 个实体。", "&8[&6Wormholes&8] &7新墙外的方块会被摧毁；需要移动的实体会被送到入口。", "&8[&6Wormholes&8] &7加上 &fconfirm=true&7 重新执行同一命令以继续。"]
+
+[portal]
+deleted = "&c已删除 {portal}"
+
+[portal.travel]
+cost_insufficient = "&c需要 {quantity} 个 {item} 才能使用此传送门。"
+cost_vault_insufficient = "&c需要 {amount} 才能使用此传送门。"
+cost_vault_unavailable = "&c此传送门的经济费用不可用。"
+cost_transaction_failed = "&c传送门无法处理你的通行费用。"
+transfer_holding = "&6正在连接到目标服务器..."
+transfer_interrupted = "&c传送门传输中断：你离开了传送门。"
+transfer_source_unavailable = "&c传送门传输中断：源传送门已不可用。"
+cooldown = "&6传送门冷却中"
+access_denied = "&c无权使用此传送门"
+destination_unavailable = "&c传送门目的地不可用"
+arrival_denied = "&c目标传送门拒绝了你的到达。"
+arrival_returned = "&c目标传送门拒绝了你的到达；正在将你送回 {server}"
+arrival_failed = "&c无法放置传送门抵达点；你仍位于目的地出生点"
+transfer_cooldown = "&6跨服务器传送门冷却中：{seconds}s"
+destination_unreachable = "&c无法连接目的地服务器"
+destination_unreachable_detail = "&c无法连接目的地服务器：{reason}"
+transfer_blocked = "&c传送门传送被阻止：{reason}"
+transfer_blocked_retry = "&c传送门传送被阻止：{reason}({seconds}s 后重试)"
+
+[portal.prompt]
+cost_item = "&b将作为费用的物品拿在主手，然后按丢弃键。该物品不会离开你的物品栏。"
+cost_vault = "&b请输入每次通过的 Vault 货币金额(或输入 '{cancel}')："
+invite = "&b请将传送门邀请粘贴到聊天中(或输入 '{cancel}')："
+block_state = "&b请输入此传送门网络视图边缘使用的方块状态，或输入 '{cancel}'："
+name = "&b请在聊天中输入新的传送门名称(或输入 '{cancel}')："
+direction = ["&8[&6Wormholes&8] &7看向一个方向，然后左键点击以应用。", "&8[&6Wormholes&8] &7Shift + 左键点击以取消。"]
+
+[portal.notice]
+cost_item_set = "现在通行需要 {item}。"
+cost_item_invalid = "该物品无法保存为通行费用。"
+cost_cleared = "已清除通行费用。"
+cost_quantity_changed = "通行费用数量：{quantity}"
+cost_vault_changed = "Vault 通行费用：{amount}"
+cost_vault_invalid = "请输入不超过 {maximum} 的正数货币金额。"
+cost_vault_unavailable = "选择此费用前，Vault 和经济插件必须可用。"
+dimensional_link_managed = "此维度传送门会保留自动生成的链接。"
+not_rtp = "此传送门已不再使用随机传送模式。"
+region_unavailable = "传送门区域不可用；请重试。"
+travel_managed = "维度传送门的通行方向由系统自动管理。"
+travel_mirror_locked = "镜像模式始终禁止通行。"
+travel_changed = "通行：{mode}"
+stream_quality_changed = "数据流质量：{quality}"
+network_value_changed = "{label} {value}"
+fallback_set = "备用方块已设为 {block}"
+fallback_reset = "备用方块已重置为 {block}"
+managed_mode = "受管理的维度传送门会保持传送门模式。"
+projection_receiver_inactive = "末地抵达端会保持不显示投影。"
+projection_changed = "投影：{mode}"
+settings_sync_changed = "设置同步：{state}"
+access_changed = "访问模式：{mode}"
+mirror_select_first = "旋转图像前请先选择镜像模式。"
+mirror_rotation_changed = "镜像旋转：{degrees} 度"
+rtp_cannot_link = "随机传送门不会链接到固定目的地。"
+
+[portal.label]
+activation_global = "全局 ({range})"
+public_look_label = "注视时的公开标签"
+
+[portal.label.cost]
+free = "免费"
+vanilla = "原版物品"
+vault = "Vault 经济"
+
+[portal.label.ambient]
+red = "红色"
+green = "绿色"
+blue = "蓝色"
+
+[portal.label.ambient_style]
+sparks = "火花"
+outline = "轮廓"
+corners = "角落"
+off = "关闭"
+
+[portal.label.skin]
+none = "无"
+
+[portal.label.travel]
+both = "双向"
+outbound = "仅出站"
+inbound = "仅入站"
+locked = "已锁定"
+arrival = "仅到达"
+departure = "仅出发"
+dimensional_both = "链接的两端都会保持启用。"
+dimensional_return_disabled = "返回路径保持禁用。"
+
+[portal.label.quality]
+standard = "标准"
+performance = "性能"
+balanced = "均衡"
+cinematic = "电影级"
+custom = "自定义"
+
+[portal.label.mode]
+portal = "传送门"
+wormhole = "虫洞"
+gateway = "网关"
+rtp = "RTP"
+mirror = "镜像"
+
+[portal.label.direction]
+up = "上"
+down = "下"
+north = "北"
+south = "南"
+east = "东"
+west = "西"
+
+[portal.label.allocation]
+shared = "共享"
+per_player = "每位玩家"
+
+[portal.label.permission]
+whitelist = "白名单"
+blacklist = "黑名单"
+
+[portal.label.network]
+direct = "直连"
+sideband = "旁路"
+reconnecting = "正在重新连接"
+
+[portal.network.label]
+render_mode = "渲染模式"
+ambient_style = "环境粒子"
+ambient_color = "环境颜色"
+surface_skin = "表面皮肤"
+capture_radius = "捕获半径"
+full_refresh = "完整刷新"
+entity_update = "实体更新"
+view_grace = "视图保持时间"
+blackout = "背景遮蔽"
+blackout_color = "遮蔽颜色"
+activation_range = "激活范围"
+
+[portal.network.description]
+capture_radius = "围绕目的地传送门传输的方块范围。"
+full_refresh = "两次完整方块刷新之间的 tick 数。"
+entity_update = "两次实体更新之间的 tick 数。"
+view_grace = "移开视线后继续保持数据流的秒数。"
+
+[portal.form]
+rtp_unsupported = "&c无法使用符文构建随机传送门。"
+forming = "&b正在构建传送门... {type} 符文必须在同一面平整的墙、地板或天花板上相连。"
+must_be_flat = "&c传送门必须平整地位于同一面墙、地板或天花板上。"
+interrupted = "&c传送门构建被中断；已返还预留的符文。"
+rune_placed = "&b已放置符文。请在同一平面上搭建任意相连形状，然后手持传送门法杖左键点击任意符文。"
+opened = "&a传送门已开启。手持法杖点击传送门即可配置。"
+
+[portal.edit]
+denied = "&c只有传送门所有者或管理员可以编辑此传送门。"
+
+[portal.menu]
+destination = ["&6&l目的地&r", "&7选择要链接的传送门。", "&7当前链接：{destination}", "", "&8点击打开目的地选择器。"]
+"destination.sort_smart" = "智能"
+"destination.sort_name" = "名称"
+"destination.sort_world" = "世界"
+"destination.sort_distance" = "距离"
+"destination.local" = ["&6{portal}", "&7位于 {world} 的 {x}, {y}, {z}，朝向 {direction}"]
+"destination.remote" = ["&6{portal}", "&7服务器：&f{server}", "&7位于 {world} 的 {x}, {y}, {z}，朝向 {direction}", "&b{state}"]
+"destination.sort" = ["&e&l排序：&f&l{mode}&r", "&7更改目的地排序方式。", "&e左键点击"]
+"destination.previous_page" = ["&e&l上一页&r", "&7显示上一页目的地。", "&e左键点击"]
+"destination.next_page" = ["&e&l下一页&r", "&7显示下一页目的地。", "&e左键点击"]
+"destination.page" = ["&b&l第 {page}/{pages} 页&r", "&7{count} 个目的地"]
+"destination.empty" = ["&7没有可链接的目的地。"]
+render_mode = ["&b&l渲染模式 &f&l{mode}&r", "&7此传送门投影目标区域的多少体积。", "", "&7模式: &f{mode}", "", "&8PanOptic 渲染完整的目标区域体积。", "&8Venticular 隐藏可见不透明表面后方的几何体。", "", "&8左键: 切换模式。"]
+ambient_particles = ["&b&l环境粒子&r", "&7在此传送门周围漂浮的装饰性尘埃。", "", "&7样式：&f{style} &8({color})", "", "&8左键：切换样式。", "&8右键：选择颜色。"]
+surface_skin = ["&b&l表面皮肤&r", "&7用渲染的方块或流体面板覆盖传送门开口。", "", "&7皮肤：&f{skin}", "", "&8左键：清除皮肤。", "&8右键：打开皮肤选项。"]
+"surface_skin.placard" = ["&6&l表面皮肤&r", "&7手持方块或桶右键点击传送门以应用皮肤。", "", "&7皮肤：&f{skin}"]
+"surface_skin.glass" = ["&b&l玻璃皮肤&r", "&7覆盖开口的透明玻璃窗。", "", "&8点击以应用玻璃。"]
+"surface_skin.clear" = ["&c&l清除皮肤&r", "&7移除皮肤并恢复投影。", "", "&8点击以移除皮肤。"]
+gateway_destination = ["&6&l配对 & 目的地&r", "&7与其他服务器配对，或选择一个网关。", "&7当前链接：{destination}", "", "&8点击打开配对中心。"]
+rtp_destination = ["&6&l随机目的地&r", "&7配置此传送门重选目的地的位置和时机。", "&7轮换：&b{rotation}", "", "&8点击打开随机传送设置。"]
+rename = ["&a&l重命名传送门&r", "&7更改链接和菜单中显示的名称。", "&7当前：&f{portal}", "", "&8点击输入新名称。"]
+delete = ["&c&l删除传送门&r", "&7永久删除此传送门。", "", "&c&nShift + 左键点击以确认&r"]
+advanced_settings = ["&3&l高级数据流调节&r", "&7用于诊断和特殊链接的直接控制。", "&7更改任意值会将数据流质量标记为自定义。"]
+back_settings = ["&e&l返回设置&r", "&7返回传送门设置。"]
+stream_quality = ["&b&l数据流质量：{quality}&r", "&7统一控制远程视图范围和更新频率。", "", "&7深度 &b{depth}&7  实体 &b{entities}t", "&7刷新 &b{refresh}t&7  保持 &b{grace}s", "", "&8点击：循环切换质量。", "&8Shift + 点击：高级调节。"]
+orientation = ["&9&l朝向&r", "&7正面方向：&9{facing}", "&7屏幕上方：&6{up}", "", "&8点击设置正面方向、翻面和旋转。"]
+orientation_placard = ["&9&l传送门朝向&r", "&7正面方向：&9{facing}", "&7屏幕上方：&6{up}"]
+network_number = ["&b&l{label} &f&l{value}&r", "&7{description}", "", "&7当前：&b{value}", "", "&8左键点击：+{step}", "&8右键点击：-{step}", "&8Shift + 左键点击：+{large_step}", "&8Shift + 右键点击：-{large_step}"]
+fallback_block = ["&b&l备用方块&r", "&7在数据流深度之外显示的方块。", "", "&7当前：&f{block}", "", "&8左键：输入方块状态。", "&8右键：重置为空气。"]
+blackout = ["&b&l背景遮蔽&r", "&7用实心混凝土封住投影的远端和侧面边界，使本地世界永远不会透出来。", "", "&7当前：&f{state} &8({color})", "", "&8左键：开启/关闭切换。", "&8右键：选择颜色。"]
+activation_range = ["&b&l激活范围 &f&l{value}&r", "&7此传送门开始为附近玩家投影的距离（以方块计）。", "", "&7当前：&b{value}", "", "&8左键点击：+{step}", "&8右键点击：-{step}", "&8Shift + 左键点击：+{large_step}", "&8Shift + 右键点击：-{large_step}", "&8低于 8 将重置为全局。"]
+settings_placard_gateway = ["&b&l传送门设置&r", "&7访问和传送控制。", "&7以及跨服务器视图调节。", "", "&7深度越大 / tick 间隔越短 =", "&7视图越丰富，占用带宽越多。"]
+mode_placard = ["&e&l传送门模式&r", "&7当前：&e{mode}", "", "&7传送门：可链接的基础传送门。", "&7虫洞：带视口的传送门。", "&7网关：跨服务器网关。", "&7RTP：可配置的随机目的地。", "&7镜像：反射本侧画面，禁止通行。"]
+mode_opener = ["&e&l模式&r", "&7{description}", "", "&7当前：&e{mode}", "", "&8点击更改模式。"]
+direction = ["&9&l方向&r", "&7更改传送门正面的朝向。", "", "&7当前朝向：&9{direction}", "", "&8点击后看向一个方向，再左键点击应用。"]
+flip_face = ["&b&l翻转正面&r", "&7反转传送门正面的方向。", "&7屏幕旋转方向保持对齐。", "", "&7当前屏幕上方：&b{up}", "", "&8点击翻转。"]
+rotate_counterclockwise = ["&6&l逆时针旋转&r", "&7将传送门视口旋转 90 度", "&7但不改变正面方向。", "", "&7当前屏幕上方：&6{up}", "", "&8点击旋转。"]
+rotate_clockwise = ["&6&l顺时针旋转&r", "&7将传送门视口旋转 90 度", "&7但不改变正面方向。", "", "&7当前屏幕上方：&6{up}", "", "&8点击旋转。"]
+back = ["&e&l返回&r", "&7返回传送门菜单。"]
+settings_gateway = ["&b&l设置&r", "&7权限、传送控制", "&7和跨服务器视图调节。", "", "&7访问：&6{access}", "&7发送 &b{send}&7  接收 &b{receive}", "&7深度 &b{depth}&7  实体 &b{entity}t", "", "&8点击打开设置。"]
+settings_sync = ["&b&l设置同步 {state}&r", "&7开启后，此传送门的设置", "&7(深度、tick、投影、权限和", "&7传送控制)会同步到所有链接的对等端。", "", "&7当前：&b{state}", "", "&8点击切换。"]
+permission = ["&6&l访问模式 {mode}&r", "&7{description}", "&7权限节点：&f{node}", "", "&7当前：&6{mode}", "", "&8点击切换白名单 / 黑名单。", "&8管理员始终不受限制。"]
+public_look_label = ["&b&l注视时的公开标签：&f&l{state}&r", "&7附近玩家注视此传送门时显示其名称。", "&7关闭时，路线标签仅在使用传送门工具时显示。", "", "&e左键点击切换"]
+
+[portal.menu.gateway]
+server = "&7服务器：&f{server}"
+link = "&7链接：&b{state}"
+choose = ["&6&l选择目的地&r", "&7从已发现的本地和远程网关中选择。", "", "&8点击打开目的地列表。"]
+unpaired = ["&6&l网关配对&r", "&7状态：&c未配对"]
+paired = ["&6&l网关配对&r", "&7目的地：&6{destination}"]
+export = ["&6&l创建邀请&r", "&7为其他服务器创建已签名的网关代码。", "", "&8点击复制新代码。"]
+import = ["&b&l使用邀请&r", "&7粘贴来自其他网关的已签名代码。", "", "&8点击后在聊天中粘贴代码。"]
+
+[portal.menu.mirror]
+rotation = "&7图像旋转：&b{degrees} 度"
+rotate_clockwise = "&8右键点击：顺时针旋转。"
+rotate_counterclockwise = "&8Shift + 右键点击：逆时针旋转。"
+selected = ["&e&l镜像&r", "&7将本地世界反射回来。", "&7透过框架可以看到自己。", "&7镜像模式下无法通行。", "", "&a当前已选择"]
+available = ["&e&l镜像&r", "&7将本地世界反射回来。", "&7透过框架可以看到自己。", "&7镜像模式下无法通行。", "", "&7左键点击以选择"]
+flip = ["&7墙面镜像以 180 度为步长翻转", "&7以保持反射实体方向正确。", "&8右键点击：翻转反射图像。"]
+
+[portal.menu.cost]
+opener = ["&6&l通行费用&r", "&7要求玩家使用此传送门时", "&7支付指定物品或 Vault 货币。", "", "&7模式：&f{mode}", "&7费用：&f{cost}", "", "&8点击进行配置。"]
+placard = ["&6&l通行费用&r", "&7玩家必须先付费", "&7才能通过此传送门。", "", "&7模式：&f{mode}", "&7费用：&f{cost}"]
+mode_free = ["&a&l免费&r", "&7无需任何支付。", "", "&8点击将通行设为免费。"]
+mode_vanilla = ["&b&l原版物品&r", "&7消耗一个完全匹配的物品。", "", "&8点击后手持物品，再按丢弃键。"]
+mode_vault = ["&a&lVault 经济&r", "&7通过 Vault 扣除货币。", "", "&8点击输入金额。"]
+mode_vault_unavailable = ["&c&lVault 经济不可用&r", "&7需要 Vault 和经济插件。", "", "&8安装或启用两者后才能使用此模式。"]
+free_detail = ["&a&l无费用&r", "&7通过此传送门完全免费。"]
+secondary_empty = ["&8&l无附加设置&r"]
+item = ["&b&l{item}&r", "&7通行需要这个完全一致的物品。", "&7用于选择的物品不会被消耗。", "", "&8左键：选择另一个手持物品。", "&8右键：清除费用。"]
+quantity = ["&b&l数量 {quantity}&r", "&7每次通过消耗的", "&7完全匹配物品数量。", "", "&8左键：+1", "&8右键：-1", "&8Shift + 左键：+8", "&8Shift + 右键：-8", "&8最大：{maximum}"]
+vault_amount = ["&a&l{amount}&r", "&7每次通过扣除的货币。", "", "&8左键：输入其他金额。", "&8右键：清除费用。"]
+
+[portal.menu.ambient_color]
+placard = ["&6&l环境颜色&r", "&7环境尘埃粒子的颜色。", "", "&7当前：&f{color}"]
+channel = ["&b&l{label} &f&l{value}&r", "", "&8左键点击：+{step}", "&8右键点击：-{step}", "&8Shift + 左键点击：+{large_step}", "&8Shift + 右键点击：-{large_step}"]
+option = ["&b&l{color}&r", "", "&8点击以选择。"]
+
+[portal.menu.travel]
+managed = ["&6&l通行：{direction}&r", "&7由系统管理的维度传送门方向。", "&7{detail}"]
+mirror = ["&c&l通行：镜像锁定&r", "&7镜像模式仅提供画面。", "&7实体无法通过它进入或离开。"]
+standard = ["&b&l通行：{mode}&r", "&7控制通过此传送门的通行方向。", "", "&7出站：&b{outgoing}&7  入站：&b{incoming}", "", "&8点击循环切换通行方向。"]
+
+[portal.menu.blackout_color]
+placard = ["&6&l遮蔽颜色&r", "&7用于遮蔽外壳的混凝土颜色。", "", "&7当前：&f{color}"]
+option = ["&b&l{color}&r", "", "&8点击以选择。"]
+
+[portal.menu.placard]
+rtp = ["&6&l{portal}&r", "&7类型：&e{type}", "&7朝向：&9{facing}", "&7分配：&b{allocation}", "&7轮换：&b{rotation}", "", "&8管理员不受白名单或黑名单限制。"]
+linked = ["&6&l{portal}&r", "&7类型：&e{type}", "&7朝向：&9{facing}", "&7链接到：&6{destination}", "", "&8管理员不受白名单或黑名单限制。"]
+unlinked = ["&6&l{portal}&r", "&7类型：&e{type}", "&7朝向：&9{facing}", "&7链接到：&c{none}", "", "&8管理员不受白名单或黑名单限制。"]
+
+[portal.menu.projection]
+on = ["&6&l投影开启&r", "&7显示此传送门的实时视图。", "&7可以看到目的地或镜像画面。", "", "&7当前：&b投影开启&r", "", "&8点击切换开启 / 关闭。"]
+off = ["&8&l投影关闭&r", "&7框架保持空白。", "&7不显示目的地视图或镜像。", "", "&7当前：&b投影关闭&r", "", "&8点击切换开启 / 关闭。"]
+
+[portal.menu.mode_option]
+selected = ["&e&l{mode}&r", "&7{description}", "", "&a当前已选择"]
+available = ["&e&l{mode}&r", "&7{description}", "", "&7点击选择"]
+
+[portal.input]
+cancel = "取消"
+
+[portal.rtp]
+editor_title = "RTP: {portal}"
+
+[portal.rtp.notice]
+setting_rejected = "无法应用该设置：{reason}"
+applied = "已应用随机目的地设置。"
+reset_defaults = "随机传送设置已重置为默认值。"
+editor_refreshed = "设置已更改；编辑器已刷新。"
+runtime_unavailable = "随机传送运行时不可用。"
+reroll_failed = "手动重选失败；请查看服务器日志。"
+reroll_preparing = "正在准备新的随机目的地。"
+reroll_unavailable = "路线正在准备或使用时无法重选。"
+pool_rebuilding = "正在重建私人目的地池。"
+pool_failed = "目的地池重建失败；请查看服务器日志。"
+not_ready = "&e传送门仍在稳定其目的地。"
+traversal_failed = "&c传送门无法稳定，请重试。"
+
+[portal.rtp.rotation]
+private = "每位玩家每 {duration} 轮换"
+
+[portal.mode]
+changed = "&a{portal} 的模式已设为 {mode}。"
+
+[portal.mode.description]
+portal = "可链接的基础传送门。"
+wormhole = "带视口投影的可链接传送门。"
+gateway = "用于跨网络链接。"
+rtp = "本地随机传送门。"
+mirror = "反射本地世界并禁止通行。"
+
+[portal.permission.description]
+whitelist = "玩家必须拥有此权限节点才能使用传送门。"
+blacklist = "拥有此权限节点的玩家会被阻止。"
+
+[portal.direction]
+cancelled = "&8[&6Wormholes&8] &7已取消"
+set = "&8[&6Wormholes&8] &7方向已设置"
+
+[portal.setting]
+notification = "&a{portal}: &r{message}"
+
+[portal.link]
+linked = "&a{portal} 已链接到 {destination}。"
+linked_remote = "&a{portal} 已链接到 {server} 上的 {destination}。"
+unlinked = "&e{portal} 已取消与 {destination} 的链接。"
+
+[portal.orientation]
+face_flipped = "&a{portal} 的正面已翻转到 {direction}。"
+rotated_counterclockwise = "&a{portal} 已逆时针旋转。"
+rotated_clockwise = "&a{portal} 已顺时针旋转。"
+direction_changed = "&a{portal} 的方向已更改为 {direction}。"
+
+[director.help]
+no_subcommands = "此页面没有子命令。"
+no_description = "未提供描述"
+command_group = "命令组。点击打开。"
+category = "命令类别"
+no_parameters = "没有参数。点击以预填命令。"
+parameters_hover = "将鼠标悬停在参数上以了解更多。"
+
+[director.help.navigation]
+back = "返回"
+page = "页面"
+
+[director.help.navigation.parent]
+hover = "返回上一级命令组"
+
+[director.help.navigation.previous]
+hover = "上一页"
+
+[director.help.navigation.next]
+hover = "下一页"
+
+[director.help.parameter]
+required = "此参数为必填项。"
+optional = "此参数为可选项。"
+default = "未指定时默认为 \"{value}\"。"
+type = "此参数的类型为 {type}。"
+
+[director.runtime]
+usage = "用法：{usage}"
+
+[director.runtime.error]
+invalid_origin = "无法从此来源执行该命令。"
+unknown_parameter = "未知参数：{key}"
+unexpected_argument = "意外参数 \"{argument}\"。可选参数必须指定名称，例如 seed=123"
+unclosed_group = "参数 {key} 缺少闭合的 \"]\""
+conversion_failed = "无法将 \"{value}\" 转换为参数 {parameter} 所需的 {type} 类型"
+default_parse_failed = "无法解析参数 {parameter} 的默认值"
+missing_argument = "缺少参数 \"{parameter}\" ({type})"
+execution_failed = "执行命令 {command} 失败：{reason}"
+
+[network]
+not_initialized = "&8[&6Wormholes&8] &c网络尚未初始化。"
+
+[network.status]
+disabled = "&8[&6Wormholes&8] &7网络已&c禁用&7 (plugins/Wormholes/wormholes.toml)。"
+not_running = "&8[&6Wormholes&8] &c网络已启用但未运行。请检查身份存储和网络端口。"
+listening = "&8[&6Wormholes&8] &7当前服务器：&f{server}&7，监听地址：&f{address}"
+outbound_only = "&8[&6Wormholes&8] &7当前服务器：&f{server}&7，仅出站 Boat 模式"
+public_key = "&8[&6Wormholes&8] &8公钥：{fingerprint}"
+no_routes = "&8[&6Wormholes&8] &7尚未链接任何对等路由。"
+peer = "&8[&6Wormholes&8] &f{server}&7 {state} &7{address}{rtt}"
+last_attempt = "&8[&6Wormholes&8] &8  上次尝试：{error}"
+
+[network.doctor]
+clear = "&8[&6Wormholes&8] &a未检测到网络配置问题。"
+header = "&8[&6Wormholes&8] &e网络诊断："
+line = "&8[&6Wormholes&8] &7- {diagnostic}"
+
+[network.code]
+building = "&8正在生成传送门代码..."
+copy = "&6&l[复制传送门代码：{portal}]&r"
+copy_hover = "&7点击复制。将其粘贴到其他服务器：传送门菜单 > 导入，或 /wh server import \\<code>"
+fingerprint = "&8包含当前服务器的地址和公钥指纹 {fingerprint}。"
+too_long = "&e此代码过长，无法粘贴到聊天中；请改在其他服务器上使用 /wh server import \\<code>。"
+invalid = "&c传送门代码无效。代码以 {prefix} 开头；若粘贴到聊天中可能被截断，请尝试 /wh server import \\<code>。旧版插件生成的代码必须重新导出。"
+same_server = "&c该代码来自当前服务器。"
+same_identity = "&c该代码解析为当前服务器身份 ({server})。请让两台服务器以各自的 Wormholes 身份重启，然后从另一台服务器重新导出。"
+linked = "&a已将 &f{portal}&7 -> &f{destination}&a 链接到 &f{server}&a。服务器连接后传送门将开启。"
+route_saved = "&a已保存通往 {server} 的路由，公钥为 {fingerprint}。连接后，'{portal}' 将显示在网关的链接菜单中。"
+check_status = "&8使用 /wh network status 查看连接状态。"
+using_address = "&7此传送门代码使用 {address}；如果公网地址发生变化，签名握手会自动检测并修正地址。"
+
+[server]
+unknown = "&8[&6Wormholes&8] &c未知的服务器 '&f{server}&c'。请先导入其代码，或查看 /wh server list。"
+removed = "&8[&6Wormholes&8] &a已移除服务器 &f{server}&a 及其受信任的密钥。"
+name_empty = "服务器名称不能为空"
+
+[server.code]
+copy = "&6&l[复制服务器代码：{server}]&r"
+copy_hover = "&7点击复制。将其粘贴到其他服务器：/wh server import \\<code>"
+raw = "&7服务器代码：&f{code}"
+saved = "&a已保存服务器 &f{server}&a，公钥为 {fingerprint}。使用 &f/wh server {server}&a 连接。"
+
+[server.connect]
+sending = "&8[&6Wormholes&8] &a正在将你传送到 &f{server}&a..."
+not_ready = "&8[&6Wormholes&8] &c{server} 当前不可达。请检查 /wh network status。"
+failed = "&8[&6Wormholes&8] &c无法将你传送到 {server}。请查看控制台和 /wh network status。"
+only_players = "&8[&6Wormholes&8] &c只有玩家可以连接到其他服务器。"
+
+[server.list]
+header = "&8[&6Wormholes&8] &7已链接的服务器："
+empty = "&8[&6Wormholes&8] &7尚未链接任何服务器。请使用 &f/wh server import \\<code>&7。"
+entry = "&8[&6Wormholes&8] &f{server}&7 {state} &8{address}"
+
+[door.transit]
+shutdown = "维度门在传送完成前已关闭。"
+message = "&8[&6Wormholes&8] &7{message}"
+link_not_placed = "链接的虫洞门尚未放置。"
+link_unavailable = "链接的虫洞门不可用或被阻挡。"
+nested_pocket = "在共享虚空维度内部，口袋门无法再开启另一个口袋维度。"
+pocket_not_ready = "口袋维度尚未准备就绪。"
+pocket_allocation_failed = "无法分配口袋维度。"
+safe_return_not_found = "无法在门的这一侧找到安全返回路线。"
+pocket_prepare_failed = "无法安全地准备口袋维度。"
+return_ticket_save_failed = "无法保存安全返回路线。"
+pocket_entry_unsafe = "口袋维度入口不安全。"
+pocket_entry_chunk_failed = "口袋维度无法加载入口区块。"
+no_return_route = "此口袋维度没有为你保存返回路线。"
+return_unavailable = "你的返回门在对应一侧不可用或被阻挡。"
+return_world_unloaded = "返回世界尚未加载。"
+return_point_obstructed = "已保存的返回点被阻挡。"
+return_chunk_failed = "无法加载已保存的返回区块。"
+closed = "维度传送完成前，维度门已关闭。"
+cycle_consumed = "这扇门的开启周期已被使用。请关闭后重新打开该门。"
+source_missing = "次元门已经不在了。"
+source_close_failed = "来源门无法安全关闭。"
+source_region_unavailable = "来源门所在区域不可用。"
+start_failed = "无法开始维度传送。"
+cancelled = "维度传送已取消。"
+
+[door.craft]
+one_at_a_time = "&8[&6Wormholes&8] &7请逐个合成维度门，以便每扇门获得唯一身份。"
+
+[door.pair]
+unpack_failed = "&8[&6Wormholes&8] &7无法拆分门组；套件未被消耗。"
+unpacked = "&8[&6Wormholes&8] &7缠结门组已拆分为相互连接的虫洞门 A 和 B。"
+missing = "&8[&6Wormholes&8] &7该配对门没有已登记的另一端身份。"
+
+[door.legacy]
+combine = "&8[&6Wormholes&8] &7放置前，请将此旧版维度门与一扇木门合成。"
+
+[door.place]
+already_placed = "&8[&6Wormholes&8] &7该维度门已被放置，或其状态无法保存。"
+
+[door.break]
+exit_anchored = "&8[&6Wormholes&8] &7此维度出口已锚定到该口袋维度。"
+support = "&8[&6Wormholes&8] &7移除支撑方块前，请先破坏维度门。"
+
+[door.disable]
+warning = "&8[&6Wormholes&8] &7维度门即将禁用。请立即通过口袋维度的返回门离开。"
+
+[door.rescue]
+cancelled = "&8[&6Wormholes&8] &7紧急撤离已取消；返回路线已保留。"
+failed = "&8[&6Wormholes&8] &7{route} {fallback} 你将保持受保护状态，生命值为一颗心。"
+
+[door.rescue.reason]
+no_route = "口袋维度没有已保存的返回路线。"
+return_world_unavailable = "已保存的返回世界不可用。"
+return_point_obstructed = "已保存的返回点被阻挡。"
+return_chunk_failed = "无法加载已保存的返回区块。"
+start_failed = "无法开始紧急撤离。"
+
+[door.rescue.fallback]
+no_world = "未加载任何非口袋维度的备用世界。"
+obstructed = "备用出生点被阻挡。"
+chunk_failed = "无法加载备用出生点。"
+schedule_failed = "无法安排备用撤离。"
+
+[door.access]
+unknown_player = "未知 ({id})"
+edit_denied = "&c只有门的所有者或管理员可以编辑此门。"
+unavailable = "&c此维度门没有访问记录。"
+save_failed = "&c无法保存该门的访问设置更改。"
+player_not_found = "&c找不到名为 {name} 的玩家。"
+owner_always = "&7门的所有者始终拥有访问权限。"
+already_listed = "&7{name} 已在此门的名单中。"
+added = "&a已将 {name} 加入此门的名单。"
+removed = "&a已将 {name} 从此门的名单中移除。"
+state_changed = "&a已将 {name} 设为此门的{state}。"
+prompt_player = "&b请输入要加入此门名单的玩家名称(或输入 '{cancel}')："
+denied = "&c此维度门拒绝了你。"
+transit_denied = "你没有此维度门的访问权限。"
+
+[door.access.label]
+neutral = "中立"
+whitelist = "白名单"
+blacklist = "黑名单"
+
+[door.access.kind]
+pair = "纠缠"
+personal = "个人"
+public = "公共"
+return = "出口"
+
+[door.open_state]
+open = "打开"
+closed = "关闭"
+
+[door.menu.access]
+title = "维度门访问：{kind}"
+placard = ["&6&l{kind}维度门&r", "&7所有者：&f{owner}", "&7白名单：&a{whitelisted}", "&7黑名单：&c{blacklisted}", "&7名单玩家：&b{count}", "&8只有所有者和管理员可以编辑此门。"]
+add_player = ["&a&l添加玩家&r", "&7在聊天中输入玩家名称即可加入名单。", "", "&8点击添加玩家。"]
+open_state = ["&b&lOpenState：&f&l{state}", "&7传送门会跟随此方块的物理状态。", "&7激活状态：&f{state}&7。", "", "&8下一状态：{next}。点击切换。"]
+entry = ["&f{name}", "&7状态：&b{state}", "", "&8左键：白名单。右键：黑名单。", "&8中键或 Shift + 左键：移除。"]
+
+[wand.selection]
+corner_a = "&b已设置角点 A。右键点击对角。"
+corner_b = "&b已设置角点 B。左键点击对角。"
+not_flat = "&c选区厚度必须为一个方块。请重新点击一个角点使其变为平面。"
+too_large = "&c选区过大：{count} 个方块(上限 {maximum})。"
+opening = "&b正在开启传送门..."
+open_failed = "&c无法在此处开启传送门。"
+
+[wand.selection.selected]
+one = "&b已选择 {count} 个方块。左键点击玻璃板以开启传送门。"
+other = "&b已选择 {count} 个方块。左键点击玻璃板以开启传送门。"
+
+[label]
+none = "无"
+on = "开启"
+off = "关闭"
+ready = "就绪"
+preparing = "准备中"
+open = "打开"
+closed = "已关闭"
+
+[rtp.routing]
+action_confirm = "打开单独的确认界面。"
+header = ["&b&l轮换 & 目的地池&r", "&7直接选择模式，然后一次应用整批更改。"]
+shared_selected = ["&a&l共享目的地&r", "&7所有人看到并使用相同路线。", "&a已选择"]
+shared_available = ["&b&l共享目的地&r", "&7所有人看到并使用相同路线。", "&e左键点击以选择"]
+private_selected = ["&a&l每位玩家独立目的地&r", "&7每位玩家都会获得一份私人预留。", "&a已选择"]
+private_available = ["&b&l每位玩家独立目的地&r", "&7每位玩家都会获得一份私人预留。", "&e左键点击以选择"]
+static_selected = ["&a&l固定&r", "&7保持同一目的地。", "&a已选择"]
+static_available = ["&b&l固定&r", "&7保持同一目的地。", "&e左键点击以选择"]
+timed_selected = ["&a&l定时轮换&r", "&7经过配置的时长后轮换。", "&a已选择"]
+timed_available = ["&b&l定时轮换&r", "&7经过配置的时长后轮换。", "&e左键点击以选择"]
+trip_selected = ["&a&l每次通行后&r", "&7使用后启用已准备的替代目的地。", "&a已选择"]
+trip_available = ["&b&l每次通行后&r", "&7使用后启用已准备的替代目的地。", "&e左键点击以选择"]
+manual_reroll = ["&e&l手动重选&r", "&7{description}", "&e左键点击"]
+rebuild_pool = ["&e&l重建目的地池&r", "&7{description}", "&e左键点击"]
+
+[rtp.status]
+ready = "就绪"
+warming = "准备中"
+rerolling = "正在重选"
+backoff = "等待重试"
+world_unavailable = "目标世界不可用"
+integration_failed = "访问集成检查失败"
+failed = "失败"
+idle = "空闲"
+retry = "&7重试倒计时：&c{duration}"
+active = "&7使用中：{readiness}"
+standby = "&7待命：{readiness}"
+rotation = "&7草稿轮换方式：&b{rotation}"
+pool = "&7空闲：&b{free}&7  已预留：&b{reserved}"
+target_missing = "&c目标世界尚未加载。"
+access_failed = "&c目的地访问检查失败，已拒绝访问。"
+header = ["&6&l随机目的地状态&r", "&7状态：{state}"]
+
+[rtp.rotation]
+static = "固定"
+timed = "定时轮换"
+trip = "每次通行后轮换"
+
+[rtp.numeric]
+center_x = "中心 X"
+center_z = "中心 Z"
+minimum_radius = "最小半径"
+maximum_radius = "最大半径"
+lower_y = "Y 下限"
+upper_y = "上限 Y"
+preferred_y = "首选 Y 值"
+cycle = "轮换周期"
+private_rotation = "私人目的地轮换时间"
+lease = "空闲保留宽限期"
+release = "私人预留释放延迟"
+link = ["&e&l{label} &f&l{value}&r", "&7打开清晰的减少和增加控制。", "&e左键点击"]
+target_unavailable = ["&b&l目标世界不可用&r", "&7编辑此值前请先加载目标世界。"]
+value = ["&b&l{value}&r", "&7当前草稿值。"]
+adjust = ["&e&l{direction}{step}&r", "&7将草稿调整 {direction}{step}。", "&e左键点击"]
+header = ["&b&l{label}&r", "&7{description}"]
+
+[rtp.numeric.description]
+center = "沿此轴移动自定义中心。"
+minimum_radius = "目的地环形区域的内边缘。"
+maximum_radius = "目的地环形区域的外边缘。"
+y = "合法落脚高度的搜索边界。"
+cycle = "共享目的地定时轮换的间隔。"
+private_rotation = "每位玩家已准备目的地的最长保留时间。"
+lease = "所有人离开后，短暂保持已准备的目的地。"
+release = "释放未使用私人预留前的延迟。"
+
+[rtp.duration]
+hours = "{value}h"
+minutes = "{value}m"
+seconds = "{value}s"
+decimal_seconds = "{value}s"
+
+[rtp.biome]
+any_label = "任意"
+header = ["&b&l目标生物群系&r", "&7搜索会优先选择此生物群系，附近找不到时回退到任意安全地点。"]
+any_selected = ["&a&l任意生物群系&r", "&7无生物群系偏好。", "&a已选择"]
+any_available = ["&b&l任意生物群系&r", "&7清除生物群系偏好。", "&e左键点击以选择"]
+current = ["&a&l{biome}&r", "&7{key}", "&a已选择"]
+available = ["&b&l{biome}&r", "&7{key}", "&e左键点击以选择"]
+empty = ["&7目标世界没有可用的生物群系。"]
+previous = ["&e&l上一页生物群系&r", "&7显示上一页。", "&e左键点击"]
+next = ["&e&l下一页生物群系&r", "&7显示下一页。", "&e左键点击"]
+
+[rtp.overview]
+destination = ["&e&l目的地 & 区域&r", "&7世界、中心和半径。", "&e左键点击"]
+landing = ["&e&l落点规则&r", "&7地表和高度设置。", "&e左键点击"]
+routing = ["&e&l轮换 & 目的地池&r", "&7共享方式、轮换和保留时间。", "&e左键点击"]
+effects = ["&e&l效果&r", "&7投影边缘和传送门音效。", "&e左键点击"]
+reset_defaults = ["&e&l重置为默认值&r", "&7立即将此传送门的随机传送设置恢复为默认值。", "&e左键点击"]
+
+[rtp.navigation]
+back_portal = ["&e&l返回传送门&r", "&7返回传送门菜单。", "&e左键点击"]
+overview = ["&e&l概览&r", "&7返回 RTP 概览。", "&e左键点击"]
+back_category = ["&e&l返回&r", "&7返回上一个类别。", "&e左键点击"]
+
+[rtp.destination]
+header = ["&b&l目的地 & 区域&r", "&7所有选项均使用普通左键点击。"]
+world_current = ["&a&l{world}&r", "&7当前目标世界。", "&a已选择"]
+world_available = ["&b&l{world}&r", "&7使用此已加载世界。", "&e左键点击以选择"]
+previous_worlds = ["&e&l上一页世界&r", "&7显示上一页。", "&e左键点击"]
+next_worlds = ["&e&l下一页世界&r", "&7显示下一页。", "&e左键点击"]
+biome_link = ["&e&l目标生物群系 &f&l{value}&r", "&7优先降落在所选生物群系。", "&e左键点击"]
+center_portal_selected = ["&a&l相对传送门的中心&r", "&7以此传送门为环形区域中心。", "&a已选择"]
+center_portal_available = ["&b&l相对传送门的中心&r", "&7以此传送门为环形区域中心。", "&e左键点击以选择"]
+center_custom_selected = ["&a&l自定义中心&r", "&7使用可编辑的 X 和 Z 坐标。", "&a已选择"]
+center_custom_available = ["&b&l自定义中心&r", "&7使用可编辑的 X 和 Z 坐标。", "&e左键点击以选择"]
+reset_center = ["&e&l重置中心 / 目标世界&r", "&7使用来源世界和传送门中心。", "&e左键点击"]
+
+[rtp.landing]
+header = ["&b&l落点规则&r", "&7选择地表或首选高度着陆方式及其安全模式。"]
+surface_selected = ["&a&l地表&r", "&7SAFE 会避开水面和树冠。UNSAFE 使用最上层表面。", "&a已选择"]
+surface_available = ["&b&l地表&r", "&7SAFE 会避开水面和树冠。UNSAFE 使用最上层表面。", "&e左键点击选择"]
+preferred_selected = ["&a&l首选 / 精确高度&r", "&7SAFE 向周围搜索。UNSAFE 使用精确的首选 Y 坐标。", "&a已选择"]
+preferred_available = ["&b&l首选 / 精确高度&r", "&7SAFE 向周围搜索。UNSAFE 使用精确的首选 Y 坐标。", "&e左键点击选择"]
+safe_policy = ["&b&l着陆安全模式：&f&l{mode}&r", "&7SAFE 排除水、危险物、树木、碰撞点及没有支撑的位置。", "&7UNSAFE 直接采用选定的地表或精确的首选 Y 坐标。", "&e左键点击切换"]
+
+[rtp.effects]
+header = ["&b&l效果&r", "&7更改显示效果不会重新生成目的地。"]
+rim_on_selected = ["&a&l就绪边缘开启&r", "&7在传送门边缘显示私人目的地就绪状态。", "&a已选择"]
+rim_on_available = ["&b&l就绪边缘开启&r", "&7在传送门边缘显示私人目的地就绪状态。", "&e左键点击以选择"]
+rim_off_selected = ["&a&l就绪边缘关闭&r", "&7隐藏就绪状态边缘。", "&a已选择"]
+rim_off_available = ["&b&l就绪边缘关闭&r", "&7隐藏就绪状态边缘。", "&e左键点击以选择"]
+sound_on_selected = ["&a&l传送门音效开启&r", "&7播放此 RTP 传送门的效果音和通行音效。", "&a已选择"]
+sound_on_available = ["&b&l传送门音效开启&r", "&7播放此 RTP 传送门的效果音和通行音效。", "&e左键点击以选择"]
+sound_off_selected = ["&a&l传送门音效关闭&r", "&7静音此 RTP 传送门；粒子效果仍会启用。", "&a已选择"]
+sound_off_available = ["&b&l传送门音效关闭&r", "&7静音此 RTP 传送门；粒子效果仍会启用。", "&e左键点击以选择"]
+
+[rtp.confirm]
+reroll = ["&b&l重选共享路线？&r", "&7替代路线准备就绪前，当前投影会保持在线。"]
+rebuild = ["&b&l重建私人目的地池？&r", "&7重建空闲候选目的地时，现有预留保持不变。"]
+confirm = ["&e&l确认&r", "&7立即运行此操作。", "&e左键点击"]
+cancel = ["&e&l取消&r", "&7返回且不更改运行状态。", "&e左键点击"]
+
+[item]
+portal_wand = ["&6&l传送门法杖&r"]
+portal_rune = ["&6&l传送门符文&r"]
+wormhole_rune = ["&6&l虫洞符文&r"]
+
+[item.door]
+entangled_pair = ["&6纠缠门组", "&7包含两扇自动链接的虫洞门。", "&7使用后可拆分出 A 端和 B 端。"]
+paired = ["&6虫洞门 {endpoint}", "&7自动链接到 {other} 端。", "&7打开门并亲自跨过门槛即可通行。"]
+personal = ["&b个人维度门", "&7每位旅行者都会进入自己的持久维度。", "&7同一位旅行者始终会抵达同一地点。"]
+public = ["&6公共维度门", "&7所有旅行者都会进入此门的共享维度。", "&7破坏并移动此门不会改变共享目的地。"]
+return = ["&a维度出口门", "&7让旅行者离开此口袋维度。", "&7此门已绑定到对应口袋维度。"]
+skin = ["&6维度门外观", "&7将维度门与玩家可操作的门合成。"]
+entangled_pair_recipe = ["&6纠缠门组", "&7包含两扇自动链接的虫洞门。"]
+personal_recipe = ["&b个人维度门", "&7每位旅行者都会进入自己的持久维度。"]
+public_recipe = ["&6公共维度门", "&7所有旅行者都会进入此门的共享维度。"]
+entangled_trapdoor_pair = ["&6纠缠活板门组", "&7包含两扇自动链接的虫洞活板门。", "&7使用后可拆分出 A 端和 B 端。"]
+paired_trapdoor = ["&6虫洞活板门 {endpoint}", "&7自动链接到 {other} 端。", "&7打开活板门并从中落下即可通行。"]
+personal_trapdoor = ["&b个人维度活板门", "&7每位旅行者都会进入自己的持久维度。", "&7同一位旅行者始终会抵达同一地点。"]
+public_trapdoor = ["&6公共维度活板门", "&7所有旅行者都会进入此活板门的共享维度。", "&7破坏并移动此活板门不会改变共享目的地。"]
+trapdoor_skin = ["&6维度活板门外观", "&7将维度活板门与可徒手开启的活板门合成。"]
+entangled_trapdoor_pair_recipe = ["&6纠缠活板门组", "&7包含两扇自动链接的虫洞活板门。"]
+personal_trapdoor_recipe = ["&b个人维度活板门", "&7每位旅行者都会进入自己的持久维度。"]
+public_trapdoor_recipe = ["&6公共维度活板门", "&7所有旅行者都会进入此活板门的共享维度。"]

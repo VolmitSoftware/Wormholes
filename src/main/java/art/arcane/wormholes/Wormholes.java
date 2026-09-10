@@ -520,7 +520,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
 
     private void enableLanguageSwitcher() {
         languageService = new PluginLanguageService(new PluginLanguageService.Options(
-                getDataFolder().toPath().resolve("language-preferences.properties"),
+                getDataFolder().toPath().resolve("languages/language-preferences.properties"),
                 VolmitLocales::all,
                 () -> settings.getLanguage(),
                 () -> localization.defaultSnapshot(),

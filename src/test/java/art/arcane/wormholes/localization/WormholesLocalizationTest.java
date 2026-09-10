@@ -3,6 +3,7 @@ package art.arcane.wormholes.localization;
 import art.arcane.volmlib.util.director.help.DirectorHelpMessages;
 import art.arcane.volmlib.util.director.runtime.DirectorRuntimeMessages;
 import art.arcane.volmlib.util.localization.LinesKey;
+import art.arcane.volmlib.util.localization.BukkitLanguageMessages;
 import art.arcane.volmlib.util.localization.LocalizationReloadResult;
 import art.arcane.volmlib.util.localization.LocalizationSnapshot;
 import art.arcane.volmlib.util.localization.PluginLanguageEditor;
@@ -30,6 +31,9 @@ import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -55,7 +59,7 @@ class WormholesLocalizationTest {
     }
 
     @Test
-    void editorPersistsEnglishTextLinesAndPluralFormsWithoutChangingTheBaseFiles() throws Exception {
+    void editorPersistsEnglishTextLinesAndPluralFormsInTheLanguageFile() throws Exception {
         WormholesLocalization localization = new WormholesLocalization();
         PluginLanguageEditor.Options editor = localization.editorOptions(tempDir, () -> "missing_custom");
         LocalizationSnapshot initial = editor.loader().load("en_US");
@@ -87,8 +91,7 @@ class WormholesLocalizationTest {
             assertFalse(initial.value(key).equals(loaded.value(key)));
             assertEquals(loaded.value(key), localization.defaultSnapshot().value(key));
         }
-        assertTrue(Files.isRegularFile(tempDir.resolve("languages/overrides/en_US.toml")));
-        assertFalse(Files.exists(tempDir.resolve("languages/en_US.toml")));
+        assertTrue(Files.isRegularFile(tempDir.resolve("languages/en_US.toml")));
     }
 
     @Test
@@ -96,26 +99,23 @@ class WormholesLocalizationTest {
         WormholesLocalization localization = new WormholesLocalization();
         PluginLanguageEditor.Options editor = localization.editorOptions(tempDir, () -> "");
         Files.writeString(tempDir.resolve("languages/fr_FR.toml"), """
-                schema = 1
-                locale = "fr_FR"
-                [text]
                 "command.error.usage" = "Utilisation"
                 """);
         TextKey key = (TextKey) WormholesMessages.catalog().require("command.error.usage");
         MessageValue original = editor.loader().load("fr_FR").value(key);
-        Path file = tempDir.resolve("languages/overrides/fr_FR.toml");
+        Path file = tempDir.resolve("languages/fr_FR.toml");
         Path installed = tempDir.resolve("languages/fr_FR.toml");
         byte[] base = Files.readAllBytes(installed);
         assertThrows(IllegalArgumentException.class, () -> editor.writer().write(new PluginLanguageEditor.Edit(
                 "fr_FR", key.id(), original, new TextValue("{unexpected}"))));
-        assertFalse(Files.exists(file));
+        assertArrayEquals(base, Files.readAllBytes(file));
         TextValue replacement = new TextValue("Utilisation modifiee");
         editor.writer().write(new PluginLanguageEditor.Edit("fr_FR", key.id(), original, replacement));
         byte[] saved = Files.readAllBytes(file);
         assertThrows(IOException.class, () -> editor.writer().write(new PluginLanguageEditor.Edit(
                 "fr_FR", key.id(), original, new TextValue("Stale"))));
         assertArrayEquals(saved, Files.readAllBytes(file));
-        assertArrayEquals(base, Files.readAllBytes(installed));
+        assertArrayEquals(saved, Files.readAllBytes(installed));
         assertEquals(key.englishValue(), localization.defaultSnapshot().value(key));
         assertEquals(replacement, editor.loader().load("fr_FR").value(key));
     }
@@ -129,7 +129,30 @@ class WormholesLocalizationTest {
             assertTrue(result.applied(), locale + ": " + result.failure());
             for (MessageKey key : WormholesMessages.catalog().keys()) {
                 assertEquals(locale, localization.snapshot().sourceLocale(key), locale + ":" + key.id());
+                MessageArgs arguments = renderArguments(key);
+                assertDoesNotThrow(() -> render(localization, key, arguments), locale + ":" + key.id());
             }
+            assertDoorTitleFormatting(localization, locale);
+        }
+    }
+
+    @Test
+    void everyLocaleDocumentsEveryCatalogPlaceholder() throws IOException {
+        Set<String> expected = new HashSet<>();
+        for (MessageKey key : WormholesMessages.catalog().keys()) {
+            expected.addAll(key.placeholders());
+        }
+        for (String locale : VolmitLocales.nonEnglish()) {
+            String content = Files.readString(Path.of("src/main/resources/languages", locale + ".toml"));
+            String header = content.substring(0, content.indexOf("\n["));
+            Set<String> documented = new HashSet<>();
+            Matcher matcher = Pattern.compile("\\{([A-Za-z_]+)}").matcher(header);
+            while (matcher.find()) {
+                documented.add(matcher.group(1));
+            }
+            assertEquals(expected, documented, locale);
+            assertTrue(header.contains("&0-&f"), locale);
+            assertTrue(header.contains("&k-&r"), locale);
         }
     }
 
@@ -151,25 +174,15 @@ class WormholesLocalizationTest {
     @Test
     void overlayFallbackAndDirectorTextRemainInMemoryAfterFilesDisappear() throws IOException {
         writeLocale("custom_ES", """
-            schema = 1
-            locale = "custom_ES"
-
-            [text]
             "portal.deleted" = "<red>{portal} eliminado"
             "director.help.navigation.back" = "Atrás"
-
-            [lines]
             "command.public_help" = ["Ayuda de portales", "Usa la varita"]
 
-            [plural."command.admin.deleted_portals"]
+            [command.admin.deleted_portals]
             one = "{count} portal borrado"
             other = "{count} portales borrados"
             """);
         writeLocale("fr_FR", """
-            schema = 1
-            locale = "fr_FR"
-
-            [text]
             "command.error.usage" = "<gray>Utilisation : <white>/wormholes help"
             """);
 
@@ -203,6 +216,22 @@ class WormholesLocalizationTest {
     }
 
     @Test
+    void nonEnglishStartupCreatesEnglishAndPreservesOperatorEdits() throws Exception {
+        WormholesLocalization localization = new WormholesLocalization();
+        assertTrue(localization.reload(tempDir, "fr_FR", "").applied());
+        Path english = tempDir.resolve("languages/en_US.toml");
+        String generated = Files.readString(english);
+        assertTrue(generated.startsWith("# Wormholes — en_US"));
+        assertTrue(generated.contains("&c{portal} Deleted"));
+        assertTrue(generated.contains("&b&lOpenState: &f&l{state}"));
+        String content = "\"command.error.usage\" = \"Edited help\"\n";
+        Files.writeString(english, content);
+        assertTrue(localization.reload(tempDir, "en_US", "").applied());
+        assertEquals("Edited help", localization.plain(WormholesMessages.COMMAND_USAGE_HELP));
+        assertEquals(content, Files.readString(english));
+    }
+
+    @Test
     void untrustedMiniMessageInputCannotInstallClickEvents() {
         WormholesLocalization localization = WormholesLocalization.english();
         String portalName = "<click:run_command:'/op attacker'>Owned</click>";
@@ -217,6 +246,22 @@ class WormholesLocalizationTest {
     }
 
     @Test
+    void colorCodesPreserveBoldUntilResetAndKeepArgumentsLiteral() throws IOException {
+        writeLocale("custom_colors", """
+                "portal.deleted" = "&c&l{portal} &f&lWhite&c Plain&r End"
+                """);
+        WormholesLocalization localization = new WormholesLocalization();
+        assertTrue(localization.reload(tempDir, "custom_colors", "").applied());
+        MessageArgs arguments = WormholesLocalization.args(
+                MessageArgument.untrusted("portal", "<red>Portal</red> &bName"));
+
+        assertEquals("\u00A7c\u00A7l<red>Portal</red> &bName \u00A7f\u00A7lWhite\u00A7c Plain\u00A7r End",
+                localization.legacy(WormholesMessages.PORTAL_DELETED, arguments));
+        assertEquals("<red>Portal</red> &bName White Plain End",
+                localization.plain(WormholesMessages.PORTAL_DELETED, arguments));
+    }
+
+    @Test
     void everyEnglishCatalogEntryRendersWithItsDeclaredArguments() {
         WormholesLocalization localization = WormholesLocalization.english();
 
@@ -224,15 +269,18 @@ class WormholesLocalizationTest {
             MessageArgs arguments = renderArguments(key);
             assertDoesNotThrow(() -> render(localization, key, arguments), key.id());
         }
+        assertDoorTitleFormatting(localization, VolmitLocales.ENGLISH);
+        assertTrue(localization.plain(WormholesMessages.NETWORK_COPY_CODE_HOVER).contains("/wh server import <code>"));
     }
 
     @Test
-    void invalidPlaceholderRetainsExactLastGoodSnapshot() throws IOException {
-        writeLocale("es_ES", """
-            schema = 1
-            locale = "es_ES"
+    void sharedLanguageEditorFormattingRendersWithoutLiteralColorCodes() {
+        assertEquals("Back", WormholesLocalization.english().plain(BukkitLanguageMessages.EDITOR_BACK));
+    }
 
-            [text]
+    @Test
+    void invalidPlaceholderUsesEnglishWhileValidEntriesRemainTranslated() throws IOException {
+        writeLocale("es_ES", """
             "portal.deleted" = "<red>{portal} eliminado"
             """);
         WormholesLocalization localization = new WormholesLocalization();
@@ -241,50 +289,35 @@ class WormholesLocalizationTest {
         LocalizationSnapshot lastGood = localization.snapshot();
 
         writeLocale("es_ES", """
-            schema = 1
-            locale = "es_ES"
-
-            [text]
             "portal.deleted" = "<red>{name} eliminado"
+            "command.error.usage" = "Ayuda"
             """);
         LocalizationReloadResult rejected = localization.reload(tempDir, "es_ES", "");
 
-        assertFalse(rejected.applied());
-        assertSame(lastGood, rejected.previous());
-        assertSame(lastGood, rejected.current());
-        assertSame(lastGood, localization.snapshot());
-        assertTrue(rejected.failure() != null);
-        assertEquals("Entrada eliminado", localization.plain(
-                WormholesMessages.PORTAL_DELETED,
-                WormholesLocalization.args(MessageArgument.untrusted("portal", "Entrada"))));
+        assertTrue(rejected.applied());
+        assertEquals(WormholesMessages.PORTAL_DELETED.englishValue(), localization.snapshot().value(WormholesMessages.PORTAL_DELETED));
+        assertEquals("Ayuda", localization.plain(WormholesMessages.COMMAND_USAGE_HELP));
+
     }
 
     @Test
-    void malformedSchemaAndUnknownKeysAreRejected() throws IOException {
+    void malformedTomlUsesEnglishAndUnknownKeysAreIgnored() throws IOException {
         writeLocale("es_ES", """
-            schema = 3
-            locale = "es_ES"
-
-            [text]
-            "portal.deleted" = "<red>{portal} eliminado"
+            [portal
+            deleted = "<red>{portal} eliminado"
             """);
         WormholesLocalization localization = new WormholesLocalization();
         LocalizationSnapshot initial = localization.snapshot();
 
-        LocalizationReloadResult schemaRejected = localization.reload(tempDir, "es_ES", "");
-        assertFalse(schemaRejected.applied());
-        assertSame(initial, localization.snapshot());
+        LocalizationReloadResult malformedRejected = localization.reload(tempDir, "es_ES", "");
+        assertTrue(malformedRejected.applied());
+        assertEquals(WormholesMessages.PORTAL_DELETED.englishValue(), localization.snapshot().value(WormholesMessages.PORTAL_DELETED));
 
         writeLocale("es_ES", """
-            schema = 1
-            locale = "es_ES"
-
-            [text]
             "portal.unknown" = "Desconocido"
             """);
         LocalizationReloadResult keyRejected = localization.reload(tempDir, "es_ES", "");
-        assertFalse(keyRejected.applied());
-        assertSame(initial, localization.snapshot());
+        assertTrue(keyRejected.applied());
         assertNull(keyRejected.current().catalog().key("portal.unknown"));
     }
 
@@ -303,6 +336,18 @@ class WormholesLocalizationTest {
             arguments.add(MessageArgument.untrusted(placeholder, value));
         }
         return arguments.build();
+    }
+
+    private void assertDoorTitleFormatting(WormholesLocalization localization, String locale) {
+        List<String> lines = localization.legacyLines(WormholesMessages.DOOR_MENU_ACCESS_OPEN_STATE,
+                WormholesLocalization.args(
+                        MessageArgument.untrusted("state", "OPEN"),
+                        MessageArgument.untrusted("next", "CLOSED")));
+        assertTrue(lines.getFirst().startsWith("\u00A7b\u00A7l"), locale);
+        assertTrue(lines.getFirst().endsWith("\u00A7f\u00A7lOPEN"), locale);
+        assertTrue(lines.get(1).startsWith("\u00A77"), locale);
+        assertFalse(lines.get(1).contains("\u00A7l"), locale);
+        assertTrue(lines.get(2).contains("\u00A7fOPEN\u00A77"), locale);
     }
 
     private void render(WormholesLocalization localization, MessageKey key, MessageArgs arguments) {
