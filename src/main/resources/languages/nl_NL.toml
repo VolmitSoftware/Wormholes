@@ -225,6 +225,7 @@ public_help = ["&8[&6Wormholes&8] &7Portaalhulp: &f/wormholes info", "&8[&6Wormh
 info = ["&8[&6Wormholes&8] &7&lEen wormgat bouwen&r", "&81. &7Haal een portaalstaf en portaalrunen bij de server of een beheerder.", "&82. &7Plaats de runen in een verbonden vorm op één vlak oppervlak.", "&7   Elke verbonden vorm werkt: rechthoeken, lijnen (3x1), losse blokken, L-vormen en kruisen.", "&7   De runen moeten vlak op dezelfde as-uitgelijnde muur, vloer of plafond liggen.", "&83. &7Houd de portaalstaf vast en &fklik met links op een runeblok&7 om het portaal te vormen.", "&84. &7Bouw ergens anders een TWEEDE portaal (op elke afstand en in elke wereld).", "&85. &7Klik met de staf op het open portaal om het hoofdmenu te openen.", "&7   Kies &fBestemming&7 en selecteer het andere portaal. Herhaal dit vanaf de andere kant.", "&7   Oriëntatie en toegang staan in afzonderlijke, eenvoudige menu's.", "&86. &7Blijf binnen {range} blokken van een portaal — de doelwereld wordt in het frame geprojecteerd en naar binnen lopen teleporteert je.", "&7Beheerders kunnen voorwerpen maken met &f/wormholes wand"]
 
 [command.help]
+version = "Toon de geïnstalleerde pluginversie"
 debug = "Diagnosehulpmiddelen voor Wormholes"
 debug_dump = "Maak een diagnostisch rapport en upload het desgewenst"
 debug_dump_upload = "Upload het rapport naar mclo.gs"

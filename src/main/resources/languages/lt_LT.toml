@@ -225,6 +225,7 @@ public_help = ["&8[&6Wormholes&8] &7Portalų pagalba: &f/wormholes info", "&8[&6
 info = ["&8[&6Wormholes&8] &7&lKaip pastatyti kirmgraužą&r", "&81. &7Gaukite portalo lazdelę ir portalo runų iš serverio arba administratoriaus.", "&82. &7Sudėkite runas į bet kokią sujungtą formą ant vieno lygaus paviršiaus.", "&7   Tinka bet kokia sujungta forma: stačiakampis, linija (3x1), vienas blokas, L forma ar kryžius.", "&7   Runos turi gulėti ant tos pačios su ašimis lygiagrečios sienos, grindų arba lubų.", "&83. &7Laikykite portalo lazdelę ir &fkairiuoju pelės mygtuku spustelėkite runos bloką&7, kad sukurtumėte portalą.", "&84. &7Kitur pastatykite ANTRĄ portalą (bet kokiu atstumu ir bet kuriame pasaulyje).", "&85. &7Spustelėkite atvertą portalą lazdele, kad atidarytumėte pagrindinį meniu.", "&7   Pasirinkite &fTikslas&7 ir kitą portalą. Pakartokite iš kitos pusės.", "&7   Krypties ir prieigos valdikliai pateikiami atskiruose paprastuose meniu.", "&86. &7Stovėkite ne toliau kaip {range} blokų nuo vieno portalo — tikslinis pasaulis bus projektuojamas rėme, o įžengę teleportuositės.", "&7Administratoriai gali kurti daiktus su &f/wormholes wand"]
 
 [command.help]
+version = "Rodyti įdiegto papildinio versiją"
 debug = "Wormholes diagnostikos įrankiai"
 debug_dump = "Sukurti diagnostikos ataskaitą ir pasirinktinai ją įkelti"
 debug_dump_upload = "Įkelti ataskaitą į mclo.gs"

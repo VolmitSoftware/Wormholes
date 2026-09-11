@@ -225,6 +225,7 @@ public_help = ["&8[&6Wormholes&8] &7Aide des portails : &f/wormholes info", "&8[
 info = ["&8[&6Wormholes&8] &7&lComment construire un trou de ver&r", "&81. &7Obtenez une baguette de portail et des runes de trou de ver auprès du serveur ou d'un administrateur.", "&82. &7Placez les runes en une forme reliée quelconque sur une surface plane.", "&7   Toute forme reliée fonctionne : rectangles, lignes (3x1), blocs seuls, formes en L et croix.", "&7   Les runes doivent reposer à plat sur un même mur, sol ou plafond aligné sur les axes.", "&83. &7Tenez la baguette de portail et &ffaites un clic gauche sur un bloc de rune&7 pour former le portail.", "&84. &7Construisez un DEUXIÈME portail ailleurs (à n'importe quelle distance et dans n'importe quel monde).", "&85. &7Cliquez sur le portail ouvert avec la baguette pour ouvrir le menu principal.", "&7   Choisissez &fDestination&7 puis l'autre portail. Répétez depuis l'autre côté.", "&7   L'orientation et l'accès sont regroupés dans leurs propres menus simples.", "&86. &7Restez à moins de {range} blocs de l'un des portails — le monde de destination est projeté dans le cadre et y entrer vous téléporte.", "&7Les administrateurs peuvent créer des objets avec &f/wormholes wand"]
 
 [command.help]
+version = "Afficher la version du plugin installé"
 debug = "Outils de diagnostic de Wormholes"
 debug_dump = "Créer un rapport de diagnostic et le publier si souhaité"
 debug_dump_upload = "Publier le rapport sur mclo.gs"

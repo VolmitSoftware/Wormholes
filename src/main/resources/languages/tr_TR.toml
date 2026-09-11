@@ -225,6 +225,7 @@ public_help = ["&8[&6Wormholes&8] &7Portal yardımı: &f/wormholes info", "&8[&6
 info = ["&8[&6Wormholes&8] &7&lSolucan deliği nasıl yapılır&r", "&81. &7Sunucudan veya bir yöneticiden portal asası ve portal rünleri alın.", "&82. &7Rünleri aynı düz yüzeyde bağlantılı herhangi bir şekle yerleştirin.", "&7   Dikdörtgen, çizgi (3x1), tek blok, L şekli ve haç gibi tüm bağlantılı şekiller çalışır.", "&7   Rünler eksenlere hizalı tek bir duvar, zemin veya tavanda düz durmalıdır.", "&83. &7Portal asasını tutup &fherhangi bir rün bloğuna sol tıklayarak&7 portalı oluşturun.", "&84. &7Başka bir yerde ikinci bir portal oluşturun (mesafe ve dünya fark etmez).", "&85. &7Ana menüyü açmak için açık portala asayla tıklayın.", "&7   &fHedef&7 seçeneğini açıp diğer portalı seçin. Öteki tarafta da tekrarlayın.", "&7   Yön ve erişim ayarları ayrı, basit menülerde gruplanmıştır.", "&86. &7Portallardan birinin {range} blok yakınında durun; hedef dünya çerçevede görünür ve içeri yürüdüğünüzde ışınlanırsınız.", "&7Yöneticiler &f/wormholes wand komutuyla malzeme oluşturabilir"]
 
 [command.help]
+version = "Yüklü eklenti sürümünü göster"
 debug = "Wormholes tanı araçları"
 debug_dump = "Tanılama raporu oluştur ve isteğe bağlı olarak yükle"
 debug_dump_upload = "Raporu mclo.gs üzerine yükle"

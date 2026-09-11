@@ -2,6 +2,7 @@ package art.arcane.wormholes.service;
 
 import art.arcane.volmlib.util.director.compat.DirectorEngineFactory;
 import art.arcane.volmlib.util.director.exceptions.DirectorParsingException;
+import art.arcane.volmlib.util.director.help.DirectorMiniMenu;
 import art.arcane.volmlib.util.director.runtime.DirectorInvocation;
 import art.arcane.volmlib.util.director.runtime.DirectorRuntimeEngine;
 import art.arcane.volmlib.util.director.runtime.DirectorRuntimeNode;
@@ -22,12 +23,42 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WormholesCommandServiceTest {
+    @Test
+    void dumpPermissionCannotReachVersionThroughCanonicalOrAbbreviatedCommands() {
+        List<String> messages = new ArrayList<>();
+        CommandSender sender = commandSender(messages, Set.of("wormholes.debugdump"));
+        WormholesCommandService service = new WormholesCommandService(null);
+
+        for (String token : List.of("version", "ver", "v")) {
+            messages.clear();
+            assertTrue(service.executeCommand(sender, "wormholes", new String[]{"debug", token}));
+            assertEquals(List.of("[Wormholes] You do not have permission to use that command."), messages);
+        }
+        messages.clear();
+        assertTrue(service.executeCommand(sender, "wormholes", new String[]{"version"}));
+        assertEquals(List.of("[Wormholes] You do not have permission to use that command."), messages);
+    }
+
+    @Test
+    void versionIsDiscoverableUnderDebugAndHiddenAtTheRoot() {
+        DirectorRuntimeEngine engine = DirectorEngineFactory.create(new CommandWormholes(null));
+        DirectorMiniMenu.DirectorHelpPage debug = DirectorMiniMenu.resolveHelp(engine, List.of("debug")).orElseThrow();
+
+        assertNotNull(findChild(engine.getRoot(), "version"));
+        assertTrue(debug.entries().stream().anyMatch(node -> node.getDescriptor().getName().equals("version")));
+        assertFalse(engine.tabComplete(new DirectorInvocation(directorSender(), "wormholes", List.of("version")))
+            .contains("version"));
+        assertTrue(engine.tabComplete(new DirectorInvocation(directorSender(), "wormholes", List.of("debug", "ver")))
+            .contains("version"));
+    }
+
     @Test
     void normalizeHelpArgsKeepsLegacyHelpSpellings() {
         assertArrayEquals(new String[]{"help=1"}, WormholesCommandService.normalizeHelpArgs(new String[]{"help"}));
@@ -172,7 +203,7 @@ class WormholesCommandServiceTest {
 	void nonAdministratorExecutionCannotReachMutatingDirectorCommands()
 	{
 		List<String> messages = new ArrayList<>();
-		CommandSender sender = commandSender(messages);
+		CommandSender sender = commandSender(messages, Set.of());
 		WormholesCommandService service = new WormholesCommandService(null);
 		Command command = new Command("wormholes")
 		{
@@ -187,7 +218,7 @@ class WormholesCommandServiceTest {
 		assertTrue(messages.stream().anyMatch(message -> message.contains("do not have permission")));
 	}
 
-	private static CommandSender commandSender(List<String> messages)
+	private static CommandSender commandSender(List<String> messages, Set<String> permissions)
 	{
 		return (CommandSender) Proxy.newProxyInstance(
 			WormholesCommandServiceTest.class.getClassLoader(),
@@ -200,7 +231,7 @@ class WormholesCommandServiceTest {
 				}
 				if(method.getName().equals("hasPermission") || method.getName().equals("isPermissionSet") || method.getName().equals("isOp"))
 				{
-					return false;
+					return args != null && args.length > 0 && permissions.contains(String.valueOf(args[0]));
 				}
 				if(method.getName().equals("sendMessage") && args != null)
 				{

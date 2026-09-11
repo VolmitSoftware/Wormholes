@@ -225,6 +225,7 @@ public_help = ["&8[&6Wormholes&8] &7Ayuda de portales: &f/wormholes info", "&8[&
 info = ["&8[&6Wormholes&8] &7&lCómo construir un agujero de gusano&r", "&81. &7Obtén una Varita del Portal y runas de portal del servidor o de un administrador.", "&82. &7Coloca las runas formando cualquier figura conectada sobre una superficie plana.", "&7   Sirve cualquier figura conectada: rectángulos, líneas (3x1), bloques individuales, formas de L y cruces.", "&7   Las runas deben quedar planas en una misma pared, suelo o techo alineado con los ejes.", "&83. &7Sujeta la Varita del Portal y &fhaz clic izquierdo en cualquier bloque de runa&7 para formar el portal.", "&84. &7Construye un SEGUNDO portal en otro lugar (a cualquier distancia y en cualquier mundo).", "&85. &7Haz clic en el portal abierto con la varita para abrir el menú principal.", "&7   Elige &fDestino&7 y selecciona el otro portal. Repite la operación desde el otro lado.", "&7   La orientación y el acceso se agrupan en sus propios menús sencillos.", "&86. &7Permanece a menos de {range} bloques de cualquiera de los portales — el mundo de destino se proyectará en el marco y entrar te teletransportará.", "&7Los administradores pueden crear objetos con &f/wormholes wand"]
 
 [command.help]
+version = "Mostrar la versión del plugin instalado"
 debug = "Herramientas de diagnóstico de Wormholes"
 debug_dump = "Crear y subir opcionalmente un informe de diagnóstico"
 debug_dump_upload = "Subir el informe a mclo.gs"

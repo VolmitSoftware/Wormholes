@@ -225,6 +225,7 @@ public_help = ["&8[&6Wormholes&8] &7Pomoc dotycząca portali: &f/wormholes info"
 info = ["&8[&6Wormholes&8] &7&lJak zbudować tunel czasoprzestrzenny&r", "&81. &7Zdobądź Różdżkę Portalu i runy portalu od serwera lub administratora.", "&82. &7Ułóż runy w dowolny połączony kształt na jednej płaskiej powierzchni.", "&7   Działa każdy połączony kształt: prostokąt, linia (3x1), pojedynczy blok, litera L lub krzyż.", "&7   Runy muszą leżeć płasko na tej samej ścianie, podłodze lub suficie wyrównanym do osi.", "&83. &7Trzymaj Różdżkę Portalu i &fkliknij lewym przyciskiem blok runy&7, aby utworzyć portal.", "&84. &7Zbuduj DRUGI portal w innym miejscu (w dowolnej odległości i w dowolnym świecie).", "&85. &7Kliknij otwarty portal różdżką, aby otworzyć menu główne.", "&7   Wybierz &fCel&7 i drugi portal. Powtórz po drugiej stronie.", "&7   Orientacja i dostęp znajdują się w oddzielnych, prostych menu.", "&86. &7Stań w odległości {range} bloków od jednego z portali — świat docelowy pojawi się w ramie, a wejście do niej cię teleportuje.", "&7Administratorzy mogą tworzyć przedmioty poleceniem &f/wormholes wand"]
 
 [command.help]
+version = "Pokaż wersję zainstalowanej wtyczki"
 debug = "Narzędzia diagnostyczne Wormholes"
 debug_dump = "Utwórz raport diagnostyczny i opcjonalnie go prześlij"
 debug_dump_upload = "Prześlij raport do mclo.gs"

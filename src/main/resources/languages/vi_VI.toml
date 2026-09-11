@@ -225,6 +225,7 @@ public_help = ["&8[&6Wormholes&8] &7Trợ giúp cổng dịch chuyển: &f/wormh
 info = ["&8[&6Wormholes&8] &7&lCách xây lỗ sâu&r", "&81. &7Nhận gậy cổng dịch chuyển và rune cổng từ máy chủ hoặc quản trị viên.", "&82. &7Đặt rune thành một hình nối liền trên cùng bề mặt phẳng.", "&7   Mọi hình nối liền đều dùng được: hình chữ nhật, đường thẳng (3x1), một khối, hình chữ L và hình chữ thập.", "&7   Rune phải nằm phẳng trên cùng một mặt tường, sàn hoặc trần thẳng theo trục tọa độ.", "&83. &7Cầm gậy cổng dịch chuyển và &fnhấp trái vào rune bất kỳ&7 để tạo cổng.", "&84. &7Xây cổng thứ hai ở nơi khác (không giới hạn khoảng cách hoặc thế giới).", "&85. &7Dùng gậy nhấp vào cổng đang mở để mở trình đơn chính.", "&7   Chọn &fĐiểm đến&7 rồi chọn cổng còn lại. Lặp lại ở phía bên kia.", "&7   Hướng và quyền truy cập nằm trong các trình đơn riêng, đơn giản.", "&86. &7Đứng trong phạm vi {range} khối của một trong hai cổng; thế giới đích sẽ chiếu qua khung và bạn sẽ dịch chuyển khi bước vào.", "&7Quản trị viên có thể tạo vật phẩm bằng &f/wormholes wand"]
 
 [command.help]
+version = "Hiển thị phiên bản plugin đã cài đặt"
 debug = "Công cụ chẩn đoán Wormholes"
 debug_dump = "Tạo báo cáo chẩn đoán và tải lên nếu muốn"
 debug_dump_upload = "Tải báo cáo lên mclo.gs"

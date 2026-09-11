@@ -225,6 +225,7 @@ public_help = ["&8[&6Wormholes&8] &7Portaaliohje: &f/wormholes info", "&8[&6Worm
 info = ["&8[&6Wormholes&8] &7&lMadonreiän rakentaminen&r", "&81. &7Hanki portaalisauva ja portaaliriimuja palvelimelta tai ylläpitäjältä.", "&82. &7Aseta riimut yhtenäiseksi kuvioksi yhdelle tasaiselle pinnalle.", "&7   Mikä tahansa yhtenäinen kuvio toimii: suorakulmio, viiva (3x1), yksittäinen lohko, L-kuvio tai risti.", "&7   Riimujen on oltava tasaisesti samalla akselinsuuntaisella seinällä, lattialla tai katossa.", "&83. &7Pidä portaalisauvaa ja &fnapsauta mitä tahansa riimulohkoa vasemmalla&7 muodostaaksesi portaalin.", "&84. &7Rakenna TOINEN portaali muualle (mille tahansa etäisyydelle, mihin tahansa maailmaan).", "&85. &7Avaa päävalikko napsauttamalla avointa portaalia sauvalla.", "&7   Valitse &fKohde&7 ja sitten toinen portaali. Toista sama toiselta puolelta.", "&7   Suuntaus ja käyttöoikeudet ovat omissa selkeissä valikoissaan.", "&86. &7Pysy {range} lohkon sisällä jommastakummasta portaalista — kohdemaailma projisoituu kehykseen ja sisään astuminen teleporttaa sinut.", "&7Ylläpitäjät voivat luoda tarvikkeita komennolla &f/wormholes wand"]
 
 [command.help]
+version = "Näytä asennetun lisäosan versio"
 debug = "Wormholesin diagnostiikkatyökalut"
 debug_dump = "Luo diagnostiikkaraportti ja lähetä se halutessasi"
 debug_dump_upload = "Lähetä raportti mclo.gs-palveluun"

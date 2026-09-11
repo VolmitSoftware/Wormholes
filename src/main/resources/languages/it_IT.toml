@@ -225,6 +225,7 @@ public_help = ["&8[&6Wormholes&8] &7Guida ai portali: &f/wormholes info", "&8[&6
 info = ["&8[&6Wormholes&8] &7&lCome costruire un wormhole&r", "&81. &7Ottieni una Bacchetta del Portale e rune del portale dal server o da un amministratore.", "&82. &7Disponi le rune in una forma collegata su una superficie piana.", "&7   Funziona qualsiasi forma collegata: rettangoli, linee (3x1), blocchi singoli, forme a L e croci.", "&7   Le rune devono essere piatte sulla stessa parete, pavimento o soffitto allineato agli assi.", "&83. &7Tieni la Bacchetta del Portale e &ffai clic sinistro su un blocco runa&7 per formare il portale.", "&84. &7Costruisci un SECONDO portale altrove (a qualsiasi distanza e in qualsiasi mondo).", "&85. &7Fai clic sul portale aperto con la bacchetta per aprire il menu principale.", "&7   Scegli &fDestinazione&7 e seleziona l'altro portale. Ripeti dall'altro lato.", "&7   Orientamento e accesso sono raggruppati in menu semplici separati.", "&86. &7Resta entro {range} blocchi da uno dei portali — il mondo di destinazione viene proiettato nella cornice ed entrarci ti teletrasporta.", "&7Gli amministratori possono creare oggetti con &f/wormholes wand"]
 
 [command.help]
+version = "Mostra la versione del plugin installato"
 debug = "Strumenti diagnostici di Wormholes"
 debug_dump = "Crea un rapporto diagnostico e caricalo facoltativamente"
 debug_dump_upload = "Carica il rapporto su mclo.gs"

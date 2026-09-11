@@ -46,6 +46,11 @@ public class CommandWormholes {
         debug = new CommandDebug(plugin);
     }
 
+    @Director(name = "version", hidden = true, descriptionKey = "command.help.version", description = "Show the installed plugin version")
+    public void version(@Param(name = "sender", contextual = true) CommandSender sender) {
+        debug.version(sender);
+    }
+
     @Director(name = "language", sync = true, descriptionKey = "command.help.language", description = "Choose your language or the server default")
     public void language(@Param(name = "sender", contextual = true) CommandSender sender) {
         plugin.getLanguageSwitcher().open(sender);

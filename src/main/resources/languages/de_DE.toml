@@ -225,6 +225,7 @@ public_help = ["&8[&6Wormholes&8] &7Portalhilfe: &f/wormholes info", "&8[&6Wormh
 info = ["&8[&6Wormholes&8] &7&lSo baust du ein Wurmloch&r", "&81. &7Hole dir einen Portalstab und Portalrunen vom Server oder von einem Administrator.", "&82. &7Platziere die Runen als beliebige zusammenhängende Form auf einer flachen Oberfläche.", "&7   Jede zusammenhängende Form funktioniert: Rechtecke, Linien (3x1), einzelne Blöcke, L-Formen und Kreuze.", "&7   Die Runen müssen flach auf derselben achsenparallelen Wand, demselben Boden oder derselben Decke liegen.", "&83. &7Halte den Portalstab und &fklicke mit links auf einen Runenblock&7, um das Portal zu bilden.", "&84. &7Baue an einer anderen Stelle ein ZWEITES Portal (beliebige Entfernung, beliebige Welt).", "&85. &7Klicke mit dem Stab auf das offene Portal, um das Hauptmenü zu öffnen.", "&7   Wähle &fZiel&7 und dann das andere Portal. Wiederhole dies auf der anderen Seite.", "&7   Ausrichtung und Zugriff sind in eigenen übersichtlichen Menüs angeordnet.", "&86. &7Bleibe innerhalb von {range} Blöcken eines Portals — die Zielwelt wird durch den Rahmen projiziert und beim Hineingehen wirst du teleportiert.", "&7Administratoren können Gegenstände mit &f/wormholes wand erstellen"]
 
 [command.help]
+version = "Installierte Plugin-Version anzeigen"
 debug = "Wormholes-Diagnosewerkzeuge"
 debug_dump = "Einen Diagnosebericht erstellen und optional hochladen"
 debug_dump_upload = "Den Bericht zu mclo.gs hochladen"

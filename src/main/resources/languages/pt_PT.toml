@@ -225,6 +225,7 @@ public_help = ["&8[&6Wormholes&8] &7Ajuda de portais: &f/wormholes info", "&8[&6
 info = ["&8[&6Wormholes&8] &7&lComo construir um buraco de minhoca&r", "&81. &7Obtenha uma Varinha do Portal e runas de portal junto do servidor ou de um administrador.", "&82. &7Coloque as runas em qualquer forma ligada sobre uma superfície plana.", "&7   Funciona qualquer forma ligada: retângulos, linhas (3x1), blocos individuais, formas em L e cruzes.", "&7   As runas devem ficar planas na mesma parede, chão ou teto alinhado com os eixos.", "&83. &7Segure a Varinha do Portal e &fclique com o botão esquerdo num bloco de runa&7 para formar o portal.", "&84. &7Construa um SEGUNDO portal noutro local (a qualquer distância e em qualquer mundo).", "&85. &7Clique no portal aberto com a varinha para abrir o menu principal.", "&7   Escolha &fDestino&7 e selecione o outro portal. Repita a partir do outro lado.", "&7   A orientação e o acesso estão agrupados em menus próprios e simples.", "&86. &7Permaneça a menos de {range} blocos de um dos portais — o mundo de destino será projetado na moldura e entrar irá teleportá-lo.", "&7Os administradores podem criar itens com &f/wormholes wand"]
 
 [command.help]
+version = "Mostrar a versão do plugin instalado"
 debug = "Ferramentas de diagnóstico do Wormholes"
 debug_dump = "Criar um relatório de diagnóstico e carregá-lo opcionalmente"
 debug_dump_upload = "Carregar o relatório para mclo.gs"
