@@ -505,6 +505,7 @@ public final class RtpService
 				!entry.accessIntegrationFailed,
 				entry.registration.settings(),
 				entry.runtime.snapshot(),
+				entry.runtime.playerDestinations(),
 				Set.copyOf(entry.viewers),
 				entry.views.published());
 		published.put(entry.portalId(), snapshot);
@@ -609,6 +610,7 @@ public final class RtpService
 			boolean integrationAvailable,
 			RtpSettings settings,
 			RtpRuntimeSnapshot runtime,
+			Map<UUID, RtpPortalRuntime.PlayerDestination> playerDestinations,
 			Set<UUID> viewers,
 			Map<UUID, RtpProjectionView> views)
 	{
@@ -621,6 +623,7 @@ public final class RtpService
 			}
 			Objects.requireNonNull(settings, "settings");
 			Objects.requireNonNull(runtime, "runtime");
+			playerDestinations = Map.copyOf(Objects.requireNonNull(playerDestinations, "playerDestinations"));
 			viewers = Set.copyOf(Objects.requireNonNull(viewers, "viewers"));
 			views = Map.copyOf(Objects.requireNonNull(views, "views"));
 		}

@@ -3,14 +3,21 @@ package art.arcane.wormholes.localization;
 import art.arcane.volmlib.util.io.AtomicFileIO;
 import art.arcane.volmlib.util.localization.LanguageFileEditor;
 import art.arcane.volmlib.util.localization.LanguageReferenceRenderer;
+import art.arcane.volmlib.util.localization.LinesKey;
+import art.arcane.volmlib.util.localization.LinesValue;
 import art.arcane.volmlib.util.localization.LocaleOverlay;
 import art.arcane.volmlib.util.localization.LocalizationCandidate;
 import art.arcane.volmlib.util.localization.LocalizationSnapshot;
+import art.arcane.volmlib.util.localization.MessageCatalog;
 import art.arcane.volmlib.util.localization.MessageKey;
 import art.arcane.volmlib.util.localization.MessageValue;
 import art.arcane.volmlib.util.localization.PluginLanguageEditor;
+import art.arcane.volmlib.util.localization.PluralKey;
 import art.arcane.volmlib.util.localization.PluralSelector;
+import art.arcane.volmlib.util.localization.PluralValue;
 import art.arcane.volmlib.util.localization.RemoteLanguageCatalog;
+import art.arcane.volmlib.util.localization.TextKey;
+import art.arcane.volmlib.util.localization.TextValue;
 import art.arcane.volmlib.util.localization.TomlLanguageEditor;
 import art.arcane.volmlib.util.localization.TomlLanguageParser;
 import art.arcane.volmlib.util.localization.VolmitLocales;
@@ -23,13 +30,11 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 final class WormholesLocaleLoader {
     private static final Logger LOGGER = Logger.getLogger("Wormholes");
-    private static final Pattern LOCALE_PATTERN = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_-]*");
 
     private WormholesLocaleLoader() {
     }
@@ -58,7 +63,10 @@ final class WormholesLocaleLoader {
 
     static LocalizationSnapshot edit(Path dataFolder, PluginLanguageEditor.Edit edit, String fallbacks) throws IOException {
         LocalizationCandidate current = load(dataFolder, edit.locale(), fallbacks);
-        Path path = languageFile(dataFolder.resolve("languages"), requireLocale(edit.locale()));
+        Path path = languageFile(dataFolder.resolve("languages"), WormholesLocales.require(edit.locale()));
+        if (hasBlankTranslation(current.catalog().require(edit.key()), edit.value())) {
+            throw new IllegalArgumentException("Language message cannot be blank: " + edit.key());
+        }
         List<LocaleOverlay> base = new ArrayList<>(current.overlays().size());
         for (LocaleOverlay overlay : current.overlays()) {
             if (!overlay.source().equals(path.toString())) {
@@ -106,14 +114,21 @@ final class WormholesLocaleLoader {
 
     private static List<String> requestedLocales(String locale, String fallbackLocales) {
         LinkedHashSet<String> locales = new LinkedHashSet<>();
-        locales.add(requireLocale(locale));
-        if (fallbackLocales != null && !fallbackLocales.isBlank()) {
+        String selected = WormholesLocales.normalize(locale);
+        locales.add(selected);
+        if (!WormholesMessages.ENGLISH_LOCALE.equals(selected)
+                && fallbackLocales != null && !fallbackLocales.isBlank()) {
             for (String fallback : fallbackLocales.split(",")) {
                 if (!fallback.isBlank()) {
-                    locales.add(requireLocale(fallback));
+                    try {
+                        locales.add(WormholesLocales.require(fallback));
+                    } catch (IllegalArgumentException exception) {
+                        LOGGER.log(Level.WARNING, "Ignoring invalid fallback language locale: " + fallback, exception);
+                    }
                 }
             }
         }
+        locales.add(WormholesMessages.ENGLISH_LOCALE);
         return List.copyOf(locales);
     }
 
@@ -148,18 +163,37 @@ final class WormholesLocaleLoader {
     }
 
     private static LocaleOverlay loadOverlay(String content, String source, String locale) throws IOException {
+        MessageCatalog catalog = WormholesMessages.catalog();
         LocaleOverlay.Builder overlay = LocaleOverlay.builder(source, locale);
         for (Map.Entry<String, MessageValue> entry : TomlLanguageParser.parseValidValues(
-                content, WormholesMessages.catalog()).entrySet()) {
-            overlay.put(entry.getKey(), entry.getValue());
+                content, catalog).entrySet()) {
+            if (!hasBlankTranslation(catalog.require(entry.getKey()), entry.getValue())) {
+                overlay.put(entry.getKey(), entry.getValue());
+            }
         }
         return overlay.build();
     }
 
-    private static String requireLocale(String locale) {
-        if (locale == null || !LOCALE_PATTERN.matcher(locale.trim()).matches()) {
-            throw new IllegalArgumentException("Invalid language locale: " + locale);
+    private static boolean hasBlankTranslation(MessageKey key, MessageValue value) {
+        if (key instanceof TextKey textKey && value instanceof TextValue textValue) {
+            return !textKey.english().isBlank() && textValue.template().isBlank();
         }
-        return locale.trim();
+        if (key instanceof LinesKey linesKey && value instanceof LinesValue linesValue) {
+            for (int index = 0; index < Math.min(linesKey.english().size(), linesValue.lines().size()); index++) {
+                if (!linesKey.english().get(index).isBlank() && linesValue.lines().get(index).isBlank()) {
+                    return true;
+                }
+            }
+        }
+        if (key instanceof PluralKey pluralKey && value instanceof PluralValue pluralValue) {
+            for (Map.Entry<String, String> form : pluralKey.english().entrySet()) {
+                String translated = pluralValue.forms().get(form.getKey());
+                if (!form.getValue().isBlank() && translated != null && translated.isBlank()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
+
 }

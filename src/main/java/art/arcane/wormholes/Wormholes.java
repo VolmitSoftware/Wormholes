@@ -7,7 +7,7 @@ import art.arcane.volmlib.util.bukkit.papi.PlaceholderRegistration;
 import art.arcane.volmlib.util.director.help.DirectorMiniMenu;
 import art.arcane.volmlib.util.director.theme.DirectorProduct;
 import art.arcane.volmlib.util.director.theme.DirectorThemes;
-import art.arcane.volmlib.util.localization.LocalizationReloadResult;
+import art.arcane.volmlib.util.plugin.ComponentText;
 import art.arcane.volmlib.util.localization.LocalizationSnapshot;
 import art.arcane.volmlib.util.localization.PluginLanguageService;
 import art.arcane.volmlib.util.localization.BukkitLanguageSwitcher;
@@ -67,7 +67,6 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -163,7 +162,16 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             localization = new WormholesLocalization();
             reloads.reloadLocalization(settings);
             enableLanguageSwitcher();
-            debugDump = BukkitDebugDump.create(this);
+            debugDump = BukkitDebugDump.create(this, new BukkitDebugDump.Options(
+                () -> true,
+                () -> () -> "",
+                new BukkitDebugDump.Presentation(
+                    "/wormholes debug dump",
+                    "/wormholes",
+                    DirectorMiniMenu.Theme.fromDirectorTheme(DirectorThemes.forProduct(DirectorProduct.WORMHOLES)),
+                    (key, arguments) -> ComponentText.literal(Wormholes.text().directorText(key, arguments))
+                )
+            ));
             this.schedulerRuntime = installSchedulerBridge();
             BukkitRegionTaskProvider.install(this);
             installChunkLeaseRegistry();
@@ -240,10 +248,9 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
 
             subsystems.startAll(this);
 
-            reloads.startHotloadManager(appliedSettingsSnapshot);
-
             diagnostics.start();
             network.startCaptureRuntime();
+            reloads.startHotloadManager(appliedSettingsSnapshot);
         } catch (Exception ex) {
             success = false;
             errorMessage = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
@@ -506,10 +513,6 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         } catch (Throwable ex) {
             getLogger().log(Level.WARNING, "Error unregistering the PlaceholderAPI expansion", ex);
         }
-    }
-
-    public CompletableFuture<LocalizationReloadResult> reloadAll() {
-        return reloads.reloadAll();
     }
 
     public int deleteAllPortalsNow() {
@@ -880,8 +883,8 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         return diagnostics.statsSnapshotWriter();
     }
 
-    public void toggleDebugTelemetry(String actor) {
-        diagnostics.toggleDebugTelemetry(actor);
+    public boolean toggleDebugTelemetry(String actor) {
+        return diagnostics.toggleDebugTelemetry(actor);
     }
 
     public CaptureRuntime getCaptureRuntime() {

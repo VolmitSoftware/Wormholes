@@ -7,6 +7,8 @@ import art.arcane.volmlib.util.director.runtime.DirectorInvocation;
 import art.arcane.volmlib.util.director.runtime.DirectorRuntimeEngine;
 import art.arcane.volmlib.util.director.runtime.DirectorRuntimeNode;
 import art.arcane.volmlib.util.director.runtime.DirectorSender;
+import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.commands.CommandDebug;
 import art.arcane.wormholes.commands.CommandWormholes;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -28,8 +30,61 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class WormholesCommandServiceTest {
+    @Test
+    void unknownCommandsUseOneBrandedMessageForRootAndNestedAliases() {
+        List<String> messages = new ArrayList<>();
+        CommandSender sender = commandSender(messages, Set.of("wormholes.admin"));
+        WormholesCommandService service = new WormholesCommandService(null);
+
+        for (String label : List.of("wormholes", "wh", "wormhole")) {
+            for (String[] arguments : List.of(new String[]{"testing"}, new String[]{"debug", "testing"})) {
+                messages.clear();
+                assertTrue(service.executeCommand(sender, label, arguments));
+                assertEquals(List.of("Wormholes > Unknown command, please use /wormholes for help."), messages);
+            }
+        }
+    }
+
+    @Test
+    void argumentMappingFailureDoesNotAppendUsageOrHelp() {
+        List<String> messages = new ArrayList<>();
+        CommandSender sender = commandSender(messages, Set.of("wormholes.admin"));
+        WormholesCommandService service = new WormholesCommandService(null);
+
+        assertTrue(service.executeCommand(sender, "wh", new String[]{"debug", "dump", "unexpected=true"}));
+
+        assertEquals(List.of("Unknown parameter key: unexpected"), messages);
+    }
+
+    @Test
+    void valueConversionFailureDoesNotAppendUsageOrHelp() {
+        List<String> messages = new ArrayList<>();
+        CommandSender sender = commandSender(messages, Set.of("wormholes.admin"));
+        WormholesCommandService service = new WormholesCommandService(null);
+
+        assertTrue(service.executeCommand(sender, "wh", new String[]{"debug", "dump", "upload=banana"}));
+
+        assertEquals(List.of("Cannot convert \"banana\" into boolean for upload"), messages);
+    }
+
+    @Test
+    void debugToggleConfirmsTheResultToThePlayer() {
+        List<String> messages = new ArrayList<>();
+        CommandSender sender = commandSender(Player.class, messages, Set.of("wormholes.admin"));
+        Wormholes plugin = mock(Wormholes.class);
+        when(plugin.toggleDebugTelemetry("guest")).thenReturn(true, false);
+        CommandDebug command = new CommandDebug(plugin);
+
+        command.toggle(sender);
+        command.toggle(sender);
+
+        assertEquals(List.of("Wormholes > Debug logging enabled.", "Wormholes > Debug logging disabled."), messages);
+    }
+
     @Test
     void dumpPermissionCannotReachVersionThroughCanonicalOrAbbreviatedCommands() {
         List<String> messages = new ArrayList<>();
@@ -75,7 +130,6 @@ class WormholesCommandServiceTest {
         assertEquals(List.of("wh", "wormhole"), List.copyOf(root.getDescriptor().getAliases()));
         assertNotNull(findChild(root, "wand"));
         assertNotNull(findChild(root, "door"));
-        assertNotNull(findChild(root, "reload"));
         assertNotNull(findChild(root, "info"));
         assertNotNull(findChild(root, "debug"));
         assertNotNull(findChild(findChild(root, "debug"), "dump"));
@@ -184,7 +238,7 @@ class WormholesCommandServiceTest {
 		assertEquals(true, WormholesCommandService.isPublicCommandRequest(new String[] {"help"}));
 		assertEquals(true, WormholesCommandService.isPublicCommandRequest(new String[] {"?"}));
 		assertEquals(true, WormholesCommandService.isPublicCommandRequest(new String[] {"info"}));
-		assertEquals(false, WormholesCommandService.isPublicCommandRequest(new String[] {"reload"}));
+		assertEquals(false, WormholesCommandService.isPublicCommandRequest(new String[] {"wand"}));
 		assertEquals(false, WormholesCommandService.isPublicCommandRequest(new String[] {"network", "status"}));
 		assertEquals(false, WormholesCommandService.isPublicCommandRequest(new String[] {"info", "extra"}));
 	}
@@ -192,7 +246,7 @@ class WormholesCommandServiceTest {
 	@Test
 	void anyAdministrativeLeafOpensDirectorRouting()
 	{
-		assertTrue(WormholesCommandService.hasAdminCommandAccess(permissionSender(Set.of("wormholes.admin.reload"))));
+		assertTrue(WormholesCommandService.hasAdminCommandAccess(permissionSender(Set.of("wormholes.admin.items"))));
 		assertTrue(WormholesCommandService.hasAdminCommandAccess(permissionSender(Set.of("wormholes.admin.network"))));
 		assertTrue(WormholesCommandService.hasAdminCommandAccess(permissionSender(Set.of("wormholes.admin"))));
 		assertEquals(false, WormholesCommandService.hasAdminCommandAccess(permissionSender(Set.of())));
@@ -214,15 +268,20 @@ class WormholesCommandServiceTest {
 			}
 		};
 
-		assertTrue(service.onCommand(sender, command, "wormholes", new String[] {"reload"}));
+		assertTrue(service.onCommand(sender, command, "wormholes", new String[] {"wand"}));
 		assertTrue(messages.stream().anyMatch(message -> message.contains("do not have permission")));
 	}
 
 	private static CommandSender commandSender(List<String> messages, Set<String> permissions)
 	{
+		return commandSender(CommandSender.class, messages, permissions);
+	}
+
+	private static CommandSender commandSender(Class<? extends CommandSender> senderType, List<String> messages, Set<String> permissions)
+	{
 		return (CommandSender) Proxy.newProxyInstance(
 			WormholesCommandServiceTest.class.getClassLoader(),
-			new Class<?>[] {CommandSender.class},
+			new Class<?>[] {senderType},
 			(proxy, method, args) ->
 			{
 				if(method.getName().equals("getName"))

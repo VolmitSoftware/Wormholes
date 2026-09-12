@@ -300,6 +300,25 @@ public final class RtpPortalRuntime
 		return reservation == null ? Optional.empty() : Optional.of(reservation.destination());
 	}
 
+	public synchronized Map<UUID, PlayerDestination> playerDestinations()
+	{
+		if(reservations.isEmpty())
+		{
+			return Map.of();
+		}
+		Map<UUID, PlayerDestination> destinations = new LinkedHashMap<>(reservations.size());
+		for(Map.Entry<UUID, Reservation> entry : reservations.entrySet())
+		{
+			Reservation reservation = entry.getValue();
+			if(reservation.leaveDeadlineMillis() != NO_LEAVE_DEADLINE || !interestedPlayers.contains(entry.getKey()))
+			{
+				continue;
+			}
+			destinations.put(entry.getKey(), new PlayerDestination(reservation.destination(), reservation.rotationDeadlineMillis()));
+		}
+		return Map.copyOf(destinations);
+	}
+
 	public synchronized Optional<TraversalClaim> claimShared(UUID claimId)
 	{
 		requireShared();
@@ -808,6 +827,18 @@ public final class RtpPortalRuntime
 		SHARED,
 		PLAYER,
 		ANONYMOUS
+	}
+
+	public record PlayerDestination(RtpDestination destination, long nextRotationAtMillis)
+	{
+		public PlayerDestination
+		{
+			Objects.requireNonNull(destination, "destination");
+			if(nextRotationAtMillis < 0L)
+			{
+				throw new IllegalArgumentException("nextRotationAtMillis must be non-negative");
+			}
+		}
 	}
 
 	public record SearchTicket(long generation, long epoch, long sequence, SearchPurpose purpose)

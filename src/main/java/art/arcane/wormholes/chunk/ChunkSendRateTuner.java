@@ -1,6 +1,8 @@
 package art.arcane.wormholes.chunk;
 
 import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.config.WormholesSettings;
+import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import org.bukkit.plugin.Plugin;
 
@@ -62,12 +64,27 @@ public final class ChunkSendRateTuner {
         plugin.getLogger().info(describe(outcome, accessor.describe()));
     }
 
+    public static void applySettingsReload(Plugin plugin, WormholesSettings previous, WormholesSettings reloaded) {
+        Objects.requireNonNull(plugin);
+        Objects.requireNonNull(previous);
+        Objects.requireNonNull(reloaded);
+        if (shouldApplyReload(previous.getMain(), reloaded.getMain())) {
+            install(plugin);
+        }
+    }
+
     public static double effectiveRate(double configured) {
         if (configured <= 0.0D || configured > UNLIMITED_RATE) {
             return UNLIMITED_RATE;
         }
 
         return Math.max(MINIMUM_RATE, configured);
+    }
+
+    static boolean shouldApplyReload(MainConfig previous, MainConfig reloaded) {
+        return previous.chunkSendRateTuner != reloaded.chunkSendRateTuner
+            || Double.compare(previous.chunkSendRateTarget, reloaded.chunkSendRateTarget) != 0
+            || Double.compare(previous.chunkLoadRateTarget, reloaded.chunkLoadRateTarget) != 0;
     }
 
     public static Outcome apply(ChunkSendRateAccessor accessor, boolean enabled, Targets targets) {

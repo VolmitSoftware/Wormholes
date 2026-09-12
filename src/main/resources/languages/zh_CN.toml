@@ -2,7 +2,7 @@
 #
 # === 编辑文件 ===
 # plugins/Wormholes/languages/zh_CN.toml
-# 可直接编辑此文件。本地修改会保留；缺失或无效条目使用内置英语文本。
+# 可以直接编辑此文件。本地修改会保留；缺失、空白或无效的条目先使用备用语言，最后使用英语。
 # /wormholes language server edit zh_CN
 #
 # === 前缀 ===
@@ -94,7 +94,7 @@
 #   {route}  尝试的传送路线
 #   {rtt}  网络往返延迟
 #   {seconds}  时间（秒）
-#   {section}  语言编辑器中显示的分区
+#   {section}  语言编辑器分区
 #   {send}  投影发送状态
 #   {server}  服务器名称或标识符
 #   {size}  口袋空间大小（方块）
@@ -107,7 +107,6 @@
 #   {target}  应用语言选择的插件
 #   {type}  对象或参数类型
 #   {up}  投影顶部方向
-#   {usage}  命令语法
 #   {value}  当前或所选值
 #   {variables}  消息允许的占位符
 #   {whitelisted}  允许的玩家
@@ -117,8 +116,8 @@
 #   {z}  Z 坐标
 
 [language.editor]
+title = "{plugin} › {section}"
 loading = "正在加载 {locale} 的消息..."
-title = "{plugin} / {section}"
 
 [language.editor.category]
 message-count = "&7{count} 条消息&r"
@@ -223,8 +222,13 @@ selection = "用法: /{command} language self [locale|reset] or server [locale]"
 volmit-selection = "用法: /volmit plugins languages [locale]"
 
 [command]
+unknown = "未知命令，请使用 /wormholes 查看帮助。"
 public_help = ["&8[&6Wormholes&8] &7传送门帮助：&f/wormholes info", "&8[&6Wormholes&8] &7对传送门使用传送门法杖，可打开目的地、视图、通行和访问控制。"]
 info = ["&8[&6Wormholes&8] &7&l如何建造虫洞&r", "&81. &7从服务器或管理员处获得传送门法杖和传送门符文。", "&82. &7在同一平面上将符文摆成任意相连形状。", "&7   任意相连形状都可以：矩形、直线 (3x1)、单个方块、L 形和十字形。", "&7   符文必须平整地位于同一面与坐标轴对齐的墙、地板或天花板上。", "&83. &7手持传送门法杖，&f左键点击任意符文方块&7以构建传送门。", "&84. &7在其他位置建造第二个传送门(距离和世界不限)。", "&85. &7手持法杖点击已开启的传送门，打开主菜单。", "&7   选择&f目的地&7并选中另一个传送门，然后在另一端重复此操作。", "&7   方向和访问控制分别位于各自的简洁菜单中。", "&86. &7站在任一传送门 {range} 个方块内，目的地世界会投影在框架中；走入框架即可传送。", "&7管理员可使用 &f/wormholes wand 创建物品"]
+
+[command.debug]
+enabled = "调试日志已启用。"
+disabled = "调试日志已禁用。"
 
 [command.help]
 version = "显示已安装的插件版本"
@@ -237,7 +241,6 @@ wand = "获得传送门法杖和一个虫洞符文"
 "wand.rune" = "同时给予虫洞符文（rune=false 只给法杖）"
 door = "给予一个生存模式可用的维度门物品"
 "door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-reload = "重新加载 Wormholes 配置和语言文件"
 debug_toggle = "切换详细控制台日志和每秒遥测"
 stats = "显示实时统计快照文件路径；可用 now=true 强制刷新"
 "stats.now" = "同步强制重建快照"
@@ -275,7 +278,6 @@ pocket = "查看和重塑口袋维度"
 no_permission = "&8[&6Wormholes&8] &c你没有权限。"
 no_permission_use = "&8[&6Wormholes&8] &c你没有权限使用该命令。"
 only_players = "&8[&6Wormholes&8] &c只有玩家可以接收物品。"
-usage = "&7用法：&f/wormholes help"
 
 [command.wand]
 granted_wand = "&8[&6Wormholes&8] &a已给予传送门法杖。"
@@ -286,11 +288,6 @@ unavailable = "&8[&6Wormholes&8] &c维度门当前不可用。"
 unknown_type = "&8[&6Wormholes&8] &c未知的门类型。请使用 pair、personal 或 public, pair_trapdoor, personal_trapdoor, public_trapdoor。"
 empty_type = "门类型不能为空"
 granted = "&8[&6Wormholes&8] &a已给予 &f{type}&a 类型的维度门物品。"
-
-[command.reload]
-applied = "&8[&6Wormholes&8] &a已重新加载 Wormholes 配置和语言文件。"
-language_retained = "&8[&6Wormholes&8] &e配置已重新加载，但语言文件无效。系统仍使用上一个有效语言；请查看控制台。"
-failed = "&8[&6Wormholes&8] &c配置重新加载失败；该修改仍处于待定状态并将重试。请查看控制台。"
 
 [command.stats]
 unavailable = "&8[&6Wormholes&8] &c统计快照写入器不可用。"
@@ -676,9 +673,6 @@ optional = "此参数为可选项。"
 default = "未指定时默认为 \"{value}\"。"
 type = "此参数的类型为 {type}。"
 
-[director.runtime]
-usage = "用法：{usage}"
-
 [director.runtime.error]
 invalid_origin = "无法从此来源执行该命令。"
 unknown_parameter = "未知参数：{key}"
@@ -1026,7 +1020,6 @@ public_trapdoor_recipe = ["&6公共维度活板门", "&7所有旅行者都会进
 
 # ==== Headline lane blocks. Each lane adds its tables between its own markers only. ====
 
-
 # ---- lane:rules (rules.*) ----
 [rules]
 route_card = "{portal} > {destination} | {amount} | {state}"
@@ -1110,7 +1103,6 @@ key = "给自己一把传送门钥匙"
 "key.uses" = "钥匙允许的通行次数，0 表示无限"
 # ---- end lane:rules ----
 
-
 # ---- lane:access (access.*) ----
 [access.denied]
 role = "&c你无权使用 {portal}。"
@@ -1188,7 +1180,6 @@ key = "设置传送门的固定权限键"
 limits = "显示玩家拥有和可拥有的传送门数量"
 "limits.player" = "要查看的玩家；默认是你"
 # ---- end lane:access ----
-
 
 # ---- lane:nexus (nexus.* and atlas.*) ----
 [nexus]
@@ -1297,7 +1288,6 @@ recents = ["&b&l仅最近：{state}&r", "&7只显示你最近使用的传送门�
 guide = ["&a&l指引：{portal}&r", "&7在快捷栏上方显示前往目标传送门的方位。", "&e左键停止指引"]
 # ---- end lane:nexus ----
 
-
 # ---- lane:doors (doorview.* and pockets.*) ----
 [doorview]
 "disabled" = "&8[&6Wormholes&8] &c门投影已在 wormholes.toml 中关闭。"
@@ -1331,7 +1321,6 @@ guide = ["&a&l指引：{portal}&r", "&7在快捷栏上方显示前往目标传�
 "template.list" = "&8[&6Wormholes&8] &7模板（&f{count}&7）：&f{value}"
 "template.missing" = "&8[&6Wormholes&8] &c没有名为 &f{name}&c 的口袋模板。"
 # ---- end lane:doors ----
-
 
 # ---- lane:mesh (mesh.*) ----
 [mesh]
@@ -1398,7 +1387,6 @@ tps = "候选服务器必须报告的最低 TPS；0 表示忽略 TPS"
 queue = "当所有候选都满员时让旅行者等待"
 # ---- end lane:mesh ----
 
-
 # ---- lane:transit (transit.*) ----
 [transit]
 bounced = "{portal} 把你推了回去。"
@@ -1423,7 +1411,6 @@ profile = ["&6&l过渡效果&r", "&7接近 {value}", "&7临界 {mode}", "&7到�
 prompt = "&b在聊天中输入新值（或输入 '{cancel}'）："
 # ---- end lane:transit ----
 
-
 # ---- lane:view (fidelity.*) ----
 [fidelity.menu]
 entry = ["&b&l保真度&r", "&7此传送门的大气、声学、细节与方块实体。", "&e左键点击"]
@@ -1439,7 +1426,6 @@ default = "默认"
 [fidelity.bedrock]
 profile = "Bedrock 配置已对 {count} 名观察者生效"
 # ---- end lane:view ----
-
 
 # ---- lane:ops (ops.*) ----
 [ops.console]

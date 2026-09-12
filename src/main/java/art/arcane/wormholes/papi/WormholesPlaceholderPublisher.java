@@ -41,6 +41,7 @@ public final class WormholesPlaceholderPublisher {
 
         EffectManager effects = Wormholes.effectManager;
         BukkitRtpRuntime rtp = Wormholes.rtpRuntime;
+        placeholders.publishNamedPortals(WormholesNamedPortalSnapshot.capture(portals, rtp));
 
         for (UUID playerId : viewers) {
             placeholders.publishAtlas(playerId, atlasFavorites(playerId));

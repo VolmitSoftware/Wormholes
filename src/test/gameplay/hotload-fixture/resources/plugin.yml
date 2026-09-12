@@ -1,0 +1,12 @@
+name: WormholesHotloadFixture
+version: 1.0.0
+main: qa.HotloadFixture
+api-version: '26.1'
+folia-supported: true
+depend: [Wormholes]
+commands:
+  whhotloadtest:
+    permission: wormholeshotloadfixture.use
+permissions:
+  wormholeshotloadfixture.use:
+    default: op

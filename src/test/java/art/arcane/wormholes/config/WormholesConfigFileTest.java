@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -128,6 +129,47 @@ class WormholesConfigFileTest {
         assertTrue(emitted.contains("[network.transport]"));
         String content = String.join("\n", emitted);
         assertEveryKeyEmitted(content, WormholesConfigFile.class);
+    }
+
+    @Test
+    void invalidLanguageIdentifiersUseEnglishWithoutRejectingOtherConfigChanges() throws IOException {
+        Path config = tempDir.resolve(WormholesSettings.CONFIG_FILE_NAME);
+        for (String locale : List.of("", "   ", "../outside", "fr/FR")) {
+            String content = "schema = 3\nlanguage = \"" + locale
+                    + "\"\nmetrics = false\n[projection]\nrange = 72.0\n";
+            WormholesSettings snapshot = WormholesSettings.loadSnapshot(content.getBytes(StandardCharsets.UTF_8));
+            assertEquals("en_US", snapshot.getLanguage(), locale);
+            assertFalse(snapshot.isMetrics());
+            assertEquals(72.0D, snapshot.getProjection().range);
+
+            Files.writeString(config, content, StandardCharsets.UTF_8);
+            WormholesSettings startup = WormholesSettings.loadAll(tempDir);
+            assertEquals("en_US", startup.getLanguage(), locale);
+            assertFalse(startup.isMetrics());
+            assertEquals(72.0D, startup.getProjection().range);
+            assertTrue(emittedSettings(config).contains("language = \"en_US\""));
+        }
+    }
+
+    @Test
+    void configuredAndSelectedLocalesUseTheSameBundledNamesAndPreserveCustomNames() {
+        WormholesSettings settings = WormholesSettings.loadSnapshot("schema = 3\n".getBytes(StandardCharsets.UTF_8));
+        Map<String, String> locales = Map.of(
+                " FR-fr ", "fr_FR",
+                "en-us", "en_US",
+                "JA_jp", "ja-JP",
+                " custom_ES ", "custom_ES");
+        for (Map.Entry<String, String> locale : locales.entrySet()) {
+            String content = "schema = 3\nlanguage = \"" + locale.getKey() + "\"\n";
+            WormholesSettings snapshot = WormholesSettings.loadSnapshot(content.getBytes(StandardCharsets.UTF_8));
+            assertEquals(locale.getValue(), snapshot.getLanguage());
+            assertEquals(locale.getValue(), settings.withLanguage(locale.getKey()).getLanguage());
+            assertEquals(locale.getValue(), WormholesSettings.loadSnapshot(snapshot.canonicalSnapshot()).getLanguage());
+        }
+        assertEquals("en_US", settings.getLanguage());
+        assertEquals("en_US", settings.withLanguage(null).getLanguage());
+        assertEquals("en_US", settings.withLanguage(" ").getLanguage());
+        assertEquals("en_US", settings.withLanguage("../outside").getLanguage());
     }
 
     @Test

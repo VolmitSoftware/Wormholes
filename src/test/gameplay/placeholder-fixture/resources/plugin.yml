@@ -1,0 +1,12 @@
+name: WormholesPlaceholderFixture
+version: 1.0.0
+main: qa.PlaceholderFixture
+api-version: '26.1'
+folia-supported: true
+depend: [Wormholes, PlaceholderAPI]
+commands:
+  whpapitest:
+    permission: wormholesplaceholderfixture.use
+permissions:
+  wormholesplaceholderfixture.use:
+    default: op

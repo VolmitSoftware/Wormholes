@@ -24,7 +24,8 @@ public final class WormholesPlaceholders implements Listener {
     private final PlaceholderSnapshot<WormholesRuntimeSnapshot> runtime = new PlaceholderSnapshot<>();
     private final PlayerSnapshotStore<WormholesPortalSnapshot> portals = new PlayerSnapshotStore<>();
     private final PlayerSnapshotStore<String> atlas = new PlayerSnapshotStore<>();
-    private final PlaceholderKeyRegistry keys = registry(runtime, portals, atlas);
+    private final PlaceholderSnapshot<WormholesNamedPortalSnapshot> namedPortals = new PlaceholderSnapshot<>();
+    private final PlaceholderKeyRegistry keys = registry(runtime, portals, atlas, namedPortals);
     private final PlaceholderRegistration registration;
     private final String version;
     private final Logger logger;
@@ -63,6 +64,7 @@ public final class WormholesPlaceholders implements Listener {
         portals.clear();
         atlas.clear();
         runtime.publish(null);
+        namedPortals.publish(null);
     }
 
     public void publishRuntime(WormholesRuntimeSnapshot snapshot) {
@@ -78,6 +80,10 @@ public final class WormholesPlaceholders implements Listener {
         atlas.publish(playerId, favorites);
     }
 
+    public void publishNamedPortals(WormholesNamedPortalSnapshot snapshot) {
+        namedPortals.publish(snapshot);
+    }
+
     public void forget(UUID playerId) {
         portals.evictAfterGrace(playerId, PlayerSnapshotStore.DEFAULT_GRACE_MS);
         atlas.evictAfterGrace(playerId, PlayerSnapshotStore.DEFAULT_GRACE_MS);
@@ -90,7 +96,8 @@ public final class WormholesPlaceholders implements Listener {
     public static PlaceholderKeyRegistry registry(
         PlaceholderSnapshot<WormholesRuntimeSnapshot> runtime,
         PlayerSnapshotStore<WormholesPortalSnapshot> portals,
-        PlayerSnapshotStore<String> atlas) {
+        PlayerSnapshotStore<String> atlas,
+        PlaceholderSnapshot<WormholesNamedPortalSnapshot> namedPortals) {
         return PlaceholderKeyRegistry.builder()
             .key(PlaceholderKeyRegistry.AVAILABLE, playerId -> runtime.available())
             .key("portals", playerId -> runtimeValue(runtime, WormholesRuntimeSnapshot::portals))
@@ -115,6 +122,8 @@ public final class WormholesPlaceholders implements Listener {
             .key("atlas.favorites", playerId -> atlasValue(atlas, playerId))
             .key("rtp.state", playerId -> portalValue(portals, playerId, WormholesPortalSnapshot::rtpState))
             .key("rtp.cooldown", playerId -> portalValue(portals, playerId, WormholesPortalSnapshot::rtpCooldown))
+            .group("portal", (playerId, tail) -> WormholesNamedPortalSnapshot.resolve(
+                namedPortals.get(), playerId, tail, System.currentTimeMillis()))
             .build();
     }
 

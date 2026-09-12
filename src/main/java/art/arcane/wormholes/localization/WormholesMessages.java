@@ -27,7 +27,6 @@ public final class WormholesMessages {
     public static final TextKey COMMAND_WAND_RUNE_DESCRIPTION = text("command.help.wand.rune", "Include a wormhole rune (rune=false gives only the wand)");
     public static final TextKey COMMAND_DOOR_DESCRIPTION = text("command.help.door", "Give a survival Dimensional Door item");
     public static final TextKey COMMAND_DOOR_TYPE_DESCRIPTION = text("command.help.door.type", "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor");
-    public static final TextKey COMMAND_RELOAD_DESCRIPTION = text("command.help.reload", "Reload Wormholes configuration and language files");
     public static final TextKey COMMAND_DEBUG_GROUP = text("command.help.debug", "Wormholes diagnostic tools");
     public static final TextKey COMMAND_DEBUG_DESCRIPTION = text("command.help.debug_toggle", "Toggle verbose console logs and one-second telemetry");
     public static final TextKey COMMAND_STATS_DESCRIPTION = text("command.help.stats", "Print the live stats-snapshot file path, optionally force a refresh with now=true");
@@ -65,7 +64,9 @@ public final class WormholesMessages {
     public static final TextKey COMMAND_NO_PERMISSION = text("command.error.no_permission", "&8[&6Wormholes&8] &cYou do not have permission.");
     public static final TextKey COMMAND_NO_PERMISSION_USE = text("command.error.no_permission_use", "&8[&6Wormholes&8] &cYou do not have permission to use that command.");
     public static final TextKey COMMAND_ONLY_PLAYERS = text("command.error.only_players", "&8[&6Wormholes&8] &cOnly players can receive items.");
-    public static final TextKey COMMAND_USAGE_HELP = text("command.error.usage", "&7Usage: &f/wormholes help");
+    public static final TextKey COMMAND_UNKNOWN = text("command.unknown", "Unknown command, please use /wormholes for help.");
+    public static final TextKey COMMAND_DEBUG_ENABLED = text("command.debug.enabled", "Debug logging enabled.");
+    public static final TextKey COMMAND_DEBUG_DISABLED = text("command.debug.disabled", "Debug logging disabled.");
     public static final LinesKey COMMAND_PUBLIC_HELP = lines("command.public_help",
             "&8[&6Wormholes&8] &7Portal help: &f/wormholes info",
             "&8[&6Wormholes&8] &7Use the Portal Wand on a portal to open its destination, view, travel, and access controls.");
@@ -98,9 +99,6 @@ public final class WormholesMessages {
     public static final TextKey COMMAND_POCKET_DOES_NOT_FIT = text("command.pocket.does_not_fit", "&8[&6Wormholes&8] &cA {size} block room does not fit the pocket dimension build height.");
     public static final TextKey COMMAND_POCKET_BULK_STARTED = text("command.pocket.bulk_started", "&8[&6Wormholes&8] &7Rebuilding &f{count}&7 pockets.");
     public static final TextKey COMMAND_POCKET_BULK_FINISHED = text("command.pocket.bulk_finished", "&8[&6Wormholes&8] &aRebuilt &f{resized}&a, skipped &f{skipped}&a, failed &f{failed}.");
-    public static final TextKey COMMAND_RELOADED = text("command.reload.applied", "&8[&6Wormholes&8] &aWormholes configuration and language files reloaded.");
-    public static final TextKey COMMAND_RELOADED_LANGUAGE_RETAINED = text("command.reload.language_retained", "&8[&6Wormholes&8] &eConfiguration reloaded, but the language file was rejected. The last valid language remains active; check the console.");
-    public static final TextKey COMMAND_RELOAD_FAILED = text("command.reload.failed", "&8[&6Wormholes&8] &cConfiguration reload failed; the edit remains pending and will be retried. Check the console.");
     public static final TextKey COMMAND_STATS_UNAVAILABLE = text("command.stats.unavailable", "&8[&6Wormholes&8] &cStats snapshot writer is unavailable.");
     public static final TextKey COMMAND_STATS_REFRESHED = text("command.stats.refreshed", "&8[&6Wormholes&8] &aSnapshot refreshed.");
     public static final LinesKey COMMAND_STATS_PATH = lines("command.stats.path",

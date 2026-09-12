@@ -10,6 +10,7 @@ import art.arcane.wormholes.portal.PortalType;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.bukkit.util.Vector;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -73,6 +74,16 @@ class PortalRegistryAttendancePlaceholderTest {
         assertEquals(PlaceholderValues.TRUE, resolve(TRAVELLER, "available"));
         assertEquals(PlaceholderValues.TRUE, resolve(TRAVELLER, "portal.available"));
         assertEquals("Rim Gate", resolve(TRAVELLER, "portal.name"));
+    }
+
+    @Test
+    void namedDestinationsPublishEvenWithNoPlayersOnline() {
+        publishSweep();
+
+        assertEquals("-13", resolve(null, "portal.rim-gate.destination.x"));
+        assertEquals("80", resolve(null, "portal.rim-gate.destination.y"));
+        assertEquals("31", resolve(null, "portal.rim-gate.destination.z"));
+        assertEquals(PlaceholderValues.UNAVAILABLE, resolve(null, "portal.hub-gate.destination.x"));
     }
 
     @Test
@@ -216,6 +227,7 @@ class PortalRegistryAttendancePlaceholderTest {
     private static ITunnel tunnel(String destinationName) {
         IPortal destination = (IPortal) Proxy.newProxyInstance(IPortal.class.getClassLoader(), new Class<?>[]{IPortal.class}, (proxy, method, args) -> switch (method.getName()) {
             case "getName" -> destinationName;
+            case "getOrigin" -> new Vector(-12.5D, 80.0D, 31.5D);
             case "hashCode" -> destinationName.hashCode();
             case "equals" -> proxy == args[0];
             case "toString" -> "IPortal[" + destinationName + "]";

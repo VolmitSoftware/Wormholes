@@ -45,6 +45,9 @@ public final class CommandDebug {
             WormholesAudience.sendMessage(sender, Wormholes.text().component(sender, WormholesMessages.COMMAND_NO_PERMISSION));
             return;
         }
-        plugin.toggleDebugTelemetry(sender.getName());
+        boolean enabled = plugin.toggleDebugTelemetry(sender.getName());
+        WormholesCommandService.sendFeedback(sender, enabled
+            ? WormholesMessages.COMMAND_DEBUG_ENABLED
+            : WormholesMessages.COMMAND_DEBUG_DISABLED);
     }
 }

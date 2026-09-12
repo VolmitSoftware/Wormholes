@@ -1,5 +1,6 @@
 package art.arcane.wormholes.chunk;
 
+import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import org.junit.jupiter.api.Test;
 
@@ -132,6 +133,47 @@ class ChunkSendRateTunerTest {
         assertEquals(ChunkSendRateTuner.Status.APPLIED, first.status());
         assertEquals(ChunkSendRateTuner.Status.UNCHANGED, second.status());
         assertEquals(List.of("SEND=1000.0", "LOAD=1000.0"), accessor.writes);
+    }
+
+    @Test
+    void unrelatedSettingsReloadLeavesServerChunkRatesUntouched() {
+        MainConfig previous = new MainConfig();
+        MainConfig reloaded = new MainConfig();
+        reloaded.enableParticles = !previous.enableParticles;
+        reloaded.verboseLogging = !previous.verboseLogging;
+
+        assertFalse(ChunkSendRateTuner.shouldApplyReload(previous, reloaded));
+    }
+
+    @Test
+    void reloadingEitherChunkRateTargetOrTheEnableFlagRequiresApplication() {
+        MainConfig previous = new MainConfig();
+        MainConfig enabled = new MainConfig();
+        enabled.chunkSendRateTuner = !previous.chunkSendRateTuner;
+        MainConfig send = new MainConfig();
+        send.chunkSendRateTarget = previous.chunkSendRateTarget + 250.0D;
+        MainConfig load = new MainConfig();
+        load.chunkLoadRateTarget = previous.chunkLoadRateTarget + 250.0D;
+
+        assertTrue(ChunkSendRateTuner.shouldApplyReload(previous, enabled));
+        assertTrue(ChunkSendRateTuner.shouldApplyReload(previous, send));
+        assertTrue(ChunkSendRateTuner.shouldApplyReload(previous, load));
+    }
+
+    @Test
+    void liveTargetChangesRaiseOnlyTheNewMinimumAndDisablingRetainsAppliedRates() {
+        FakeAccessor accessor = paperDefaults();
+        ChunkSendRateTuner.apply(accessor, true, targets(1000.0D, 1000.0D));
+        accessor.writes.clear();
+
+        ChunkSendRateTuner.Outcome changed = ChunkSendRateTuner.apply(accessor, true, targets(1500.0D, 500.0D));
+        ChunkSendRateTuner.Outcome disabled = ChunkSendRateTuner.apply(accessor, false, targets(2000.0D, 2000.0D));
+
+        assertEquals(ChunkSendRateTuner.Status.APPLIED, changed.status());
+        assertEquals(ChunkSendRateTuner.Status.DISABLED, disabled.status());
+        assertEquals(List.of("SEND=1500.0"), accessor.writes);
+        assertEquals(1500.0D, accessor.values.get(ChunkSendRateLimit.SEND));
+        assertEquals(1000.0D, accessor.values.get(ChunkSendRateLimit.LOAD));
     }
 
     @Test

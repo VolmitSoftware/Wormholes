@@ -36,12 +36,7 @@ final class WormholesDiagnosticsRuntime {
     }
 
     void start() {
-        WormholesSettings activeSettings = Wormholes.settings;
-        if (BSTATS_PLUGIN_ID > 0 && activeSettings != null && activeSettings.isMetrics()) {
-            MetricsRuntime runtime = MetricsRuntime.start(plugin, BSTATS_PLUGIN_ID);
-            registerMetricsCharts(runtime);
-            this.metricsRuntime = runtime;
-        }
+        synchronizeMetricsSetting(false);
         this.pluginStartedAt = Instant.now();
         startDebugTelemetryService();
         startStatsSnapshotWriter();
@@ -88,15 +83,31 @@ final class WormholesDiagnosticsRuntime {
         }));
     }
 
-    void toggleDebugTelemetry(String actor) {
+    boolean toggleDebugTelemetry(String actor) {
         DebugTelemetryService service = debugTelemetryService;
         if (service != null) {
-            service.toggle(actor);
-            return;
+            return service.toggle(actor);
         }
         boolean enabled = !Settings.DEBUG;
         Settings.DEBUG = enabled;
         plugin.getLogger().info("[debug] verbose logging " + (enabled ? "ENABLED" : "DISABLED") + " by " + actor + "; telemetry reporter unavailable");
+        return enabled;
+    }
+
+    void synchronizeMetricsSetting(boolean configurationChanged) {
+        WormholesSettings activeSettings = Wormholes.settings;
+        if (activeSettings == null || !activeSettings.isMetrics()) {
+            shutdownMetrics();
+            return;
+        }
+        if (configurationChanged) {
+            shutdownMetrics();
+        }
+        if (metricsRuntime == null) {
+            MetricsRuntime runtime = MetricsRuntime.start(plugin, BSTATS_PLUGIN_ID);
+            registerMetricsCharts(runtime);
+            metricsRuntime = runtime;
+        }
     }
 
     private void startDebugTelemetryService() {
