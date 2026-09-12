@@ -25,6 +25,10 @@ public final class BukkitChunkPreSendTransaction {
         return ticket.sentChunks();
     }
 
+    public int plannedChunks() {
+        return ticket.plannedChunks();
+    }
+
     public World sourceWorld() {
         return ticket.sourceWorld();
     }

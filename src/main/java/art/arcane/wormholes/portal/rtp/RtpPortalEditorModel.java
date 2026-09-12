@@ -474,7 +474,7 @@ public final class RtpPortalEditorModel
 	{
 	}
 
-	public record BiomeOption(String key, String displayName)
+	public record BiomeOption(String key, String displayName, boolean irisBiome)
 	{
 		public BiomeOption
 		{

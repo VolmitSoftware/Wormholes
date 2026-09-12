@@ -4,8 +4,8 @@ import org.bukkit.block.data.BlockData;
 
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 
-final class ProjectedBlockClaim {
-    static final long NO_REMOTE_KEY = Long.MIN_VALUE;
+public final class ProjectedBlockClaim {
+    public static final long NO_REMOTE_KEY = Long.MIN_VALUE;
     static final int UNRESOLVED_GLOBAL_ID = Integer.MIN_VALUE;
 
     private final BlockData data;
@@ -15,7 +15,7 @@ final class ProjectedBlockClaim {
     private final LightingPolicy lightingPolicy;
     private int globalId;
 
-    ProjectedBlockClaim(BlockData data, ProjectionWorldView lightView, long lightRemoteKey, boolean maskAir) {
+    public ProjectedBlockClaim(BlockData data, ProjectionWorldView lightView, long lightRemoteKey, boolean maskAir) {
         this(data, lightView, lightRemoteKey, maskAir,
             lightView != null && lightRemoteKey != NO_REMOTE_KEY ? LightingPolicy.SOURCE : LightingPolicy.LOCAL);
     }
@@ -33,7 +33,7 @@ final class ProjectedBlockClaim {
         this.globalId = UNRESOLVED_GLOBAL_ID;
     }
 
-    BlockData getData() {
+    public BlockData getData() {
         return data;
     }
 
@@ -41,11 +41,11 @@ final class ProjectedBlockClaim {
         return lightView;
     }
 
-    long getLightRemoteKey() {
+    public long getLightRemoteKey() {
         return lightRemoteKey;
     }
 
-    boolean isMaskAir() {
+    public boolean isMaskAir() {
         return maskAir;
     }
 

@@ -54,7 +54,7 @@ public class WandSelectionManager implements Listener
 		Wormholes.v("Starting Wand Selection Manager");
 	}
 
-	@EventHandler(priority = EventPriority.HIGH)
+	@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
 	public void on(PlayerInteractEvent e)
 	{
 		Action action = e.getAction();
@@ -73,7 +73,7 @@ public class WandSelectionManager implements Listener
 		{
 			return;
 		}
-		if(e.getClickedBlock() != null && e.useInteractedBlock() == Event.Result.DENY)
+		if(protectionDenied(e))
 		{
 			return;
 		}
@@ -321,6 +321,16 @@ public class WandSelectionManager implements Listener
 			return;
 		}
 		WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.WAND_OPEN_FAILED));
+	}
+
+	/**
+	 * Bukkit denies the clicked block by default when there is none, so an air click carries no
+	 * protection signal at all; only a real block click can tell us a plugin said no. An air-click
+	 * build is covered by the construct guard, which runs the same claim chain over the same cells.
+	 */
+	static boolean protectionDenied(PlayerInteractEvent e)
+	{
+		return e.getClickedBlock() != null && e.useInteractedBlock() == Event.Result.DENY;
 	}
 
 	private boolean isBuildClick(Player player, WandSelection selection, Block clicked)

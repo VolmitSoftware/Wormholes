@@ -141,6 +141,112 @@ class RoutedOriginAuthenticationTest {
         assertArrayEquals(announcement.signature(), decoded.signature());
     }
 
+    @Test
+    void unknownOriginAnnounceViaTrustedIntroducerLandsInQuarantineUnderTheIntroducerName() throws IOException {
+        NetworkManager origin = manager("origin");
+        NetworkManager relay = manager("trusted-relay");
+        NetworkManager destination = manager("destination");
+        destination.trustPeer("trusted-relay", relay.getPublicKey());
+        List<String> delivered = new ArrayList<>();
+        destination.setMessageSink((peerName, message) -> delivered.add(peerName + ":" + message.type()));
+        WireMessage.Routed routed = origin.relay().createRouted(
+            "destination",
+            RelayRouter.ROUTE_TTL,
+            new WireMessage.PeerAnnounceMessage(origin.buildAnnounce(3L, 1_000L))
+        );
+
+        assertTrue(destination.relay().handleRouted("trusted-relay", routed));
+        assertTrue(delivered.isEmpty());
+        art.arcane.wormholes.network.mesh.PeerQuarantineStore.Entry entry = destination.quarantine().get("origin");
+        assertEquals("trusted-relay", entry.introducer());
+        assertEquals(3L, entry.announce().epoch());
+        assertNull(destination.trust().key("origin"));
+        assertNull(destination.getPeer("origin"));
+        assertNull(destination.relay().nextHop("origin"));
+    }
+
+    @Test
+    void unknownOriginAnnounceIsAcceptedRoutedAndRelayedWhenAutoAcceptIsOn() throws IOException {
+        NetworkManager origin = manager("origin");
+        NetworkManager relay = manager("trusted-relay");
+        NetworkConfig config = new NetworkConfig();
+        config.enabled = true;
+        config.serverName = "destination";
+        config.listenEnabled = false;
+        config.mesh.autoAcceptIntroductions = true;
+        NetworkManager destination = new NetworkManager(LOGGER, config, "26.2", "test", 25565, tempDir.resolve("destination"));
+        managers.add(destination);
+        destination.trustPeer("trusted-relay", relay.getPublicKey());
+        WireMessage.Routed routed = origin.relay().createRouted(
+            "destination",
+            RelayRouter.ROUTE_TTL,
+            new WireMessage.PeerAnnounceMessage(origin.buildAnnounce(3L, 1_000L))
+        );
+
+        assertTrue(destination.relay().handleRouted("trusted-relay", routed));
+        assertArrayEquals(Handshake.decodePublicKeyText(origin.getPublicKey()), destination.trust().key("origin"));
+        assertEquals(8901, destination.getPeer("origin").port);
+        assertEquals("trusted-relay", destination.relay().nextHop("origin"));
+        assertNull(destination.quarantine().get("origin"));
+    }
+
+    @Test
+    void unknownOriginAnnounceWithoutATrustedIntroducerOrWithAForeignInnerTypeIsDropped() throws IOException {
+        NetworkManager origin = manager("origin");
+        NetworkManager destination = manager("destination");
+        WireMessage.Routed announce = origin.relay().createRouted(
+            "destination",
+            RelayRouter.ROUTE_TTL,
+            new WireMessage.PeerAnnounceMessage(origin.buildAnnounce(3L, 1_000L))
+        );
+        assertFalse(destination.relay().handleRouted("untrusted-relay", announce));
+        assertNull(destination.quarantine().get("origin"));
+
+        NetworkManager relay = manager("trusted-relay");
+        destination.trustPeer("trusted-relay", relay.getPublicKey());
+        WireMessage.Routed foreign = origin.relay().createRouted(
+            "destination",
+            RelayRouter.ROUTE_TTL,
+            new WireMessage.PortalDirectory(List.of())
+        );
+        assertFalse(destination.relay().handleRouted("trusted-relay", foreign));
+        assertNull(destination.relay().nextHop("origin"));
+    }
+
+    @Test
+    void tombstoneFromATrustedIssuerForgetsThePeerAndBlocksItsStaleAnnounce() throws IOException {
+        NetworkManager origin = manager("origin");
+        NetworkManager issuer = manager("issuer");
+        NetworkManager destination = manager("destination");
+        destination.trustPeer("origin", origin.getPublicKey());
+        destination.trustPeer("issuer", issuer.getPublicKey());
+        NetworkConfig.PeerEntry route = new NetworkConfig.PeerEntry();
+        route.name = "origin";
+        route.host = "127.0.0.1";
+        route.port = 8901;
+        destination.savePeer(route);
+        assertTrue(destination.relay().handleRouted("origin", origin.relay().createRouted("destination", RelayRouter.ROUTE_TTL,
+            new WireMessage.PeerAnnounceMessage(origin.buildAnnounce(7L, 1_000L)))));
+        assertEquals(7L, destination.members().epochOf("origin", 0L));
+
+        art.arcane.wormholes.network.mesh.PeerTombstone tombstone = issuer.buildTombstone("origin", 7L,
+            Handshake.decodePublicKeyText(origin.getPublicKey()), 2_000L);
+        assertTrue(destination.relay().handleRouted("issuer", issuer.relay().createRouted("destination", RelayRouter.ROUTE_TTL,
+            new WireMessage.PeerTombstoneMessage(tombstone))));
+        assertNull(destination.trust().key("origin"));
+        assertNull(destination.getPeer("origin"));
+        assertNull(destination.members().get("origin"));
+
+        NetworkManager relay = manager("trusted-relay");
+        destination.trustPeer("trusted-relay", relay.getPublicKey());
+        assertTrue(destination.relay().handleRouted("trusted-relay", origin.relay().createRouted("destination", RelayRouter.ROUTE_TTL,
+            new WireMessage.PeerAnnounceMessage(origin.buildAnnounce(7L, 3_000L)))));
+        assertNull(destination.quarantine().get("origin"));
+        assertTrue(destination.relay().handleRouted("trusted-relay", origin.relay().createRouted("destination", RelayRouter.ROUTE_TTL,
+            new WireMessage.PeerAnnounceMessage(origin.buildAnnounce(8L, 4_000L)))));
+        assertEquals("trusted-relay", destination.quarantine().get("origin").introducer());
+    }
+
     private NetworkManager manager(String name) {
         NetworkConfig config = new NetworkConfig();
         config.enabled = true;

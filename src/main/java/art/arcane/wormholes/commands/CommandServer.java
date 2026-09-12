@@ -10,6 +10,7 @@ import art.arcane.volmlib.util.localization.MessageArgument;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.localization.MeshMessages;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.network.NetworkManager;
@@ -87,14 +88,16 @@ public class CommandServer {
             return;
         }
         String resolved = ServerConnectService.resolveName(network, name);
-        if (resolved == null || !network.removePeer(resolved)) {
+        boolean networkWide = resolved != null && Wormholes.settings.getNetwork().mesh.enabled && network.trustedKey(resolved) != null;
+        boolean removed = resolved != null && (networkWide ? network.tombstone(resolved) : network.removePeer(resolved));
+        if (!removed) {
             send(sender, WormholesMessages.SERVER_UNKNOWN, args("server", name));
             return;
         }
         if (Wormholes.remotePortalRegistry != null) {
             Wormholes.remotePortalRegistry.removePeer(resolved);
         }
-        send(sender, WormholesMessages.SERVER_REMOVED, args("server", resolved));
+        send(sender, networkWide ? MeshMessages.TOMBSTONED : WormholesMessages.SERVER_REMOVED, args("server", resolved));
     }
 
     public static void importAndReport(CommandSender sender, String code) {

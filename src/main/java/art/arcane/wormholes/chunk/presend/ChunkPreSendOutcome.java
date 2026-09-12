@@ -12,7 +12,9 @@ public enum ChunkPreSendOutcome {
     SKIPPED_REGION_NOT_OWNED("PRESEND_REGION_NOT_OWNED", false),
     SKIPPED_NO_CHUNKS("PRESEND_NO_CHUNKS", false),
     SKIPPED_ALREADY_PRESENT(null, false),
-    FAILED_VIEW_CENTER("PRESEND_VIEW_CENTER_FAILED", false);
+    FAILED_VIEW_CENTER("PRESEND_VIEW_CENTER_FAILED", false),
+    /** A send stalled past the hard stop; everything half-sent was rolled back and the traversal proceeds without pre-send. */
+    ROLLED_BACK_BUDGET_OVERRUN("PRESEND_BUDGET_OVERRUN", false);
 
     private final String telemetryReason;
     private final boolean delivered;

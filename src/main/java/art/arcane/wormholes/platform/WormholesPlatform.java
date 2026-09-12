@@ -26,6 +26,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginDescriptionFile;
 
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -36,6 +37,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class WormholesPlatform {
     private static final Method BUKKIT_GET_MINECRAFT_VERSION = resolveMethod(Bukkit.class, "getMinecraftVersion");
@@ -361,6 +363,81 @@ public final class WormholesPlatform {
         } catch (InvocationTargetException exception) {
             throw propagate("Chunk snapshot capture failed", exception.getCause());
         }
+    }
+
+    private static final Method NO_SNAPSHOT_ACCESSOR = resolveMethod(WormholesPlatform.class, "blockEntityNbtPath");
+    private static final ConcurrentHashMap<Class<?>, Method> SNAPSHOT_NBT_ACCESSORS = new ConcurrentHashMap<Class<?>, Method>();
+    private static volatile Method nbtWriteMethod;
+    private static volatile boolean snapshotNbtUnavailable;
+    private static volatile boolean snapshotNbtUsed;
+
+    /**
+     * Vanilla block-entity tag of a block state as named-root binary NBT, read through the public
+     * {@code getSnapshotNBT()} accessor of the server's block-entity states and written with the
+     * server's NBT writer. Null when the platform exposes neither.
+     */
+    public static byte[] blockEntityNbt(BlockState state) {
+        if (state == null || snapshotNbtUnavailable) {
+            return null;
+        }
+        Method accessor = SNAPSHOT_NBT_ACCESSORS.computeIfAbsent(state.getClass(), type -> {
+            Method resolved = resolveMethod(type, "getSnapshotNBT");
+            return resolved == null ? NO_SNAPSHOT_ACCESSOR : resolved;
+        });
+        if (accessor == NO_SNAPSHOT_ACCESSOR) {
+            return null;
+        }
+        Object tag = invokeNoThrow(accessor, state);
+        if (tag == null) {
+            return null;
+        }
+        Method write = nbtWrite(tag.getClass());
+        if (write == null) {
+            snapshotNbtUnavailable = true;
+            return null;
+        }
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream(512);
+        Object result = invokeNoThrow(write, null, tag, new DataOutputStream(buffer));
+        if (result == null && buffer.size() == 0) {
+            snapshotNbtUnavailable = true;
+            return null;
+        }
+        snapshotNbtUsed = true;
+        return buffer.toByteArray();
+    }
+
+    public static void disableSnapshotNbt() {
+        snapshotNbtUnavailable = true;
+    }
+
+    public static String blockEntityNbtPath() {
+        if (snapshotNbtUnavailable) {
+            return "bukkit-api";
+        }
+        return snapshotNbtUsed ? "snapshot-nbt" : "unresolved";
+    }
+
+    private static Method nbtWrite(Class<?> tagClass) {
+        Method cached = nbtWriteMethod;
+        if (cached != null) {
+            return cached;
+        }
+        try {
+            Class<?> nbtIo = Class.forName("net.minecraft.nbt.NbtIo", false, tagClass.getClassLoader());
+            for (Method candidate : nbtIo.getMethods()) {
+                if (!"write".equals(candidate.getName()) || !java.lang.reflect.Modifier.isStatic(candidate.getModifiers())) {
+                    continue;
+                }
+                Class<?>[] parameters = candidate.getParameterTypes();
+                if (parameters.length == 2 && parameters[0].isAssignableFrom(tagClass) && parameters[1] == DataOutput.class) {
+                    nbtWriteMethod = candidate;
+                    return candidate;
+                }
+            }
+        } catch (ClassNotFoundException | RuntimeException | LinkageError unavailable) {
+            return null;
+        }
+        return null;
     }
 
     public static BlockState blockState(Block block, boolean useSnapshot) {

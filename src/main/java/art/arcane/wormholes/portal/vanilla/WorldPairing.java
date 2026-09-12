@@ -8,39 +8,8 @@ import org.bukkit.World;
 
 public final class WorldPairing
 {
-	private static final int NETHER_SCALE = 8;
-
 	private WorldPairing()
 	{
-	}
-
-	public static int overworldToNether(int coord)
-	{
-		return Math.floorDiv(coord, NETHER_SCALE);
-	}
-
-	public static int netherToOverworld(int coord)
-	{
-		return coord * NETHER_SCALE;
-	}
-
-	public static int scaleHorizontal(World from, World to, int coord)
-	{
-		if(from == null || to == null)
-		{
-			return coord;
-		}
-		World.Environment a = from.getEnvironment();
-		World.Environment b = to.getEnvironment();
-		if(a == World.Environment.NORMAL && b == World.Environment.NETHER)
-		{
-			return overworldToNether(coord);
-		}
-		if(a == World.Environment.NETHER && b == World.Environment.NORMAL)
-		{
-			return netherToOverworld(coord);
-		}
-		return coord;
 	}
 
 	public static World pairedNether(World overworld)
@@ -78,7 +47,7 @@ public final class WorldPairing
 		for(NamespacedKey candidate : pairedNetherKeys(overworldKey))
 		{
 			World paired = resolve(candidate, World.Environment.NETHER);
-			if(paired != null)
+			if(paired != null && WorldGroups.canPair(overworld, paired))
 			{
 				return new NetherPortalTarget(paired, !candidate.equals(exact));
 			}
@@ -96,7 +65,8 @@ public final class WorldPairing
 		{
 			return overworld;
 		}
-		return resolve(pairedEndKey(WorldIdentity.key(overworld)), World.Environment.THE_END);
+		World end = resolve(pairedEndKey(WorldIdentity.key(overworld)), World.Environment.THE_END);
+		return end != null && WorldGroups.canPair(overworld, end) ? end : null;
 	}
 
 	public static World pairedOverworld(World other)
@@ -109,7 +79,8 @@ public final class WorldPairing
 		{
 			return other;
 		}
-		return resolve(pairedOverworldKey(WorldIdentity.key(other)), World.Environment.NORMAL);
+		World overworld = resolve(pairedOverworldKey(WorldIdentity.key(other)), World.Environment.NORMAL);
+		return overworld != null && WorldGroups.canPair(other, overworld) ? overworld : null;
 	}
 
 	static NamespacedKey pairedNetherKey(NamespacedKey overworldKey)

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.portal;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -9,6 +10,8 @@ import org.bukkit.World;
 
 import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.access.AccessGuards;
+import art.arcane.wormholes.access.PlacementKind;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.util.AxisAlignedBB;
@@ -148,6 +151,10 @@ final class LocalPortalLinking
 		{
 			return false;
 		}
+		if(!claimsAllowLink(destinationPortal))
+		{
+			return false;
+		}
 		detachDimensionalPairIdentity();
 		if(destinationPortal instanceof ILocalPortal)
 		{
@@ -180,6 +187,22 @@ final class LocalPortalLinking
 		portal.gate().invalidateProjection();
 		portal.settings().syncLinkedLocalsIfEnabled();
 		return true;
+	}
+
+	/**
+	 * Land-claim check on the destination aperture, attributed to the portal owner. A remote
+	 * destination is on another server and cannot be asked, so it links as before.
+	 */
+	private boolean claimsAllowLink(IPortal destinationPortal)
+	{
+		if(!(destinationPortal instanceof ILocalPortal destination))
+		{
+			return true;
+		}
+		Location centre = destination.getStructure().getCenter();
+		List<int[]> cells = List.of(new int[] { centre.getBlockX(), centre.getBlockY(), centre.getBlockZ() });
+		return AccessGuards.allowPlacement(portal.getOwner(), destination.getStructure().getWorld(), cells,
+				PlacementKind.LINK, destination.getName());
 	}
 
 	boolean linkRemote(String serverName, UUID portalId)

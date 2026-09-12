@@ -1,0 +1,8 @@
+{
+  "id": "wormholesproxy",
+  "name": "WormholesProxy",
+  "version": "${version}",
+  "description": "Enrolls Wormholes backends and brokers proxy-mediated portal handoffs",
+  "authors": ["Volmit Software"],
+  "main": "art.arcane.wormholes.proxy.velocity.WormholesVelocityPlugin"
+}

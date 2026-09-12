@@ -21,7 +21,7 @@ public record GameEndpoint(String host, int port) {
         return host == null || host.isBlank() || port == 0 ? null : new GameEndpoint(host, port);
     }
 
-    static GameEndpoint read(DataInputStream input) throws IOException {
+    public static GameEndpoint read(DataInputStream input) throws IOException {
         String host = input.readUTF();
         int port = input.readUnsignedShort();
         if (host.isEmpty() && port == 0) {
@@ -34,7 +34,7 @@ public record GameEndpoint(String host, int port) {
         }
     }
 
-    static void write(DataOutputStream output, GameEndpoint endpoint) throws IOException {
+    public static void write(DataOutputStream output, GameEndpoint endpoint) throws IOException {
         output.writeUTF(endpoint == null ? "" : endpoint.host());
         output.writeShort(endpoint == null ? 0 : endpoint.port());
     }

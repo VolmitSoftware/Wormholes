@@ -164,10 +164,12 @@ final class ViewEntityPipeline {
         EntityCaptureContext context = new EntityCaptureContext(token);
         try {
             int skyDarken = art.arcane.wormholes.render.view.ProjectionWorldView.computeSkyDarken(session.world.getTime());
-            if (skyDarken != session.lastSkyDarken) {
+            int weather = (session.world.hasStorm() ? 1 : 0) | (session.world.isThundering() ? 2 : 0);
+            if (skyDarken != session.lastSkyDarken || weather != session.lastWeather) {
                 session.lastSkyDarken = skyDarken;
+                session.lastWeather = weather;
                 for (String peerName : session.peers) {
-                    timeDelivery.queue(session, peerName, skyDarken);
+                    timeDelivery.queue(session, peerName, skyDarken, (weather & 1) != 0, (weather & 2) != 0);
                 }
             }
             long entityTick = tickCounter;

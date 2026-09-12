@@ -21,9 +21,11 @@ public final class WormholesHud {
     private static final String HOLD_PURPOSE = "wormholes:hold";
     private static final String LOOK_PURPOSE = "wormholes:look";
     private static final String DIRECTION_PURPOSE = "wormholes:direction";
+    private static final String GUIDE_PURPOSE = "wormholes:guide";
     private static final long RESOLVE_THROTTLE_MILLIS = 250L;
     private static final List<HudSlot> NOTICE_SLOTS = List.of(HudSlot.CENTER, HudSlot.RIGHT);
     private static final List<HudSlot> HOLD_SLOTS = List.of(HudSlot.CENTER, HudSlot.LEFT);
+    private static final List<HudSlot> GUIDE_SLOTS = List.of(HudSlot.RIGHT, HudSlot.CENTER);
 
     private static final ConcurrentHashMap<UUID, ThrottledClaim> lookClaims = new ConcurrentHashMap<UUID, ThrottledClaim>();
     private static final ConcurrentHashMap<UUID, ThrottledClaim> directionClaims = new ConcurrentHashMap<UUID, ThrottledClaim>();
@@ -59,6 +61,18 @@ public final class WormholesHud {
 
     public static void hold(Player player, Component message) {
         publishSegment(player, message, HOLD_PURPOSE, HudPriority.MODAL, 1500L, HOLD_SLOTS);
+    }
+
+    /** Atlas bearing to the portal the player is guiding to. Ambient: any notice outranks it. */
+    public static void guide(Player player, Component message) {
+        publishSegment(player, message, GUIDE_PURPOSE, HudPriority.AMBIENT, 500L, GUIDE_SLOTS);
+    }
+
+    public static void clearGuide(Player player) {
+        HudActionBar activeBar = bar;
+        if (activeBar != null && player != null) {
+            activeBar.clear(player, GUIDE_PURPOSE);
+        }
     }
 
     public static boolean lookSubtitle(Player player, Title title) {

@@ -46,6 +46,7 @@ final class ViewSession {
     volatile ViewServer.TicketLease ticketLease;
     volatile ViewServer.EntityCaptureToken activeEntityCapture;
     volatile int lastSkyDarken = -1;
+    volatile int lastWeather = -1;
 
     ViewSession(UUID portalId, World world, ViewBox box, ProjectionRenderMode renderMode, int centerChunkX, int centerChunkZ,
                 double portalCenterX, double portalCenterY, double portalCenterZ) {

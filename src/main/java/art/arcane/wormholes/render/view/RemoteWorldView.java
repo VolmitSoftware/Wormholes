@@ -10,6 +10,8 @@ import com.github.retrooper.packetevents.protocol.player.Equipment;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 
+import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -77,6 +79,16 @@ public final class RemoteWorldView implements ProjectionWorldView, ProjectionEnt
     }
 
     @Override
+    public BlockEntitySample sampleBlockEntity(int x, int y, int z) {
+        ViewBox box = view.getBox();
+        if (box == null || !box.contains(x, y, z)) {
+            return null;
+        }
+        RemoteViewCache.DecodedSlice slice = decodedSliceAt(x, z);
+        return slice == null ? null : slice.blockEntityAt(x, y, z);
+    }
+
+    @Override
     public String sampleBiome(int x, int y, int z) {
         ViewBox box = view.getBox();
         if (box == null || !box.contains(x, y, z)) {
@@ -126,6 +138,14 @@ public final class RemoteWorldView implements ProjectionWorldView, ProjectionEnt
     @Override
     public int getSkyDarken() {
         return view.getSkyDarken();
+    }
+
+    public boolean hasStorm() {
+        return view.hasStorm();
+    }
+
+    public boolean isThundering() {
+        return view.isThundering();
     }
 
     @Override

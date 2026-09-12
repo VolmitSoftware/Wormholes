@@ -85,8 +85,9 @@ final class VanillaPortalEndPairing
 			{
 				if(PortalFactory.linkOneWay(sourcePortal, existing))
 				{
+					linkReturnPath(sourcePortal, existing);
 					VanillaPortalCleanup.clearCells(endPortalBlocks, Material.END_PORTAL);
-					Wormholes.v(() -> "[vanilla-portal] reused existing End arrival, linked one way");
+					Wormholes.v(() -> "[vanilla-portal] reused existing End arrival, linked with a return path");
 					return;
 				}
 			}
@@ -130,8 +131,9 @@ final class VanillaPortalEndPairing
 						}
 						if(counterpart != null && PortalFactory.linkOneWay(sourcePortal, counterpart))
 						{
+							linkReturnPath(sourcePortal, counterpart);
 							VanillaPortalCleanup.clearCells(endPortalBlocks, Material.END_PORTAL);
-							Wormholes.v(() -> "[vanilla-portal] End arrival placed " + VanillaPortalEndSites.COUNTERPART_RISE + " blocks above safe ground at " + target.x() + "," + target.z() + " + linked one way");
+							Wormholes.v(() -> "[vanilla-portal] End arrival placed " + VanillaPortalEndSites.COUNTERPART_RISE + " blocks above safe ground at " + target.x() + "," + target.z() + " + linked with a return path");
 						}
 						else
 						{
@@ -163,6 +165,22 @@ final class VanillaPortalEndPairing
 		{
 			Wormholes.instance.getLogger().log(Level.WARNING, "[vanilla-portal] end pair build failed", ex);
 		}
+	}
+
+	/**
+	 * Gives the End arrival a way home. {@code linkOneWay} leaves the arrival receiver-only, which
+	 * strands a traveler whose source portal can still receive; this points the arrival back at it.
+	 */
+	private static void linkReturnPath(ILocalPortal source, ILocalPortal arrival)
+	{
+		if(source == null || arrival == null || source.isDestroyed() || arrival.isDestroyed()
+				|| source.getType() == PortalType.RTP)
+		{
+			return;
+		}
+		arrival.setDestination(source);
+		arrival.setOutgoingTraversalsEnabled(true);
+		source.setIncomingTraversalsEnabled(true);
 	}
 
 	private static int scanEndSurface(World world, int x, int z)

@@ -5,7 +5,9 @@ import art.arcane.wormholes.network.replication.ChunkDiffBatch;
 import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.network.replication.RemoteChunkStore;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
+import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 import art.arcane.wormholes.render.view.OccludedMarker;
+import art.arcane.wormholes.render.view.ProjectionWorldView;
 
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
@@ -44,8 +46,10 @@ public final class RemoteViewCache {
         private final byte[] light;
         private final String[] biomePalette;
         private final short[] biomes;
+        private final ViewSlice source;
 
         private DecodedSlice(ViewSlice slice, BlockData[] palette, String[] biomePalette) {
+            this.source = slice;
             this.minX = slice.minX();
             this.minY = slice.minY();
             this.minZ = slice.minZ();
@@ -92,6 +96,10 @@ public final class RemoteViewCache {
             }
             return light[index] & 0xFF;
         }
+
+        public BlockEntitySample blockEntityAt(int x, int y, int z) {
+            return source.blockEntityAt(x, y, z);
+        }
     }
 
     public static final class RemoteView {
@@ -101,6 +109,8 @@ public final class RemoteViewCache {
         private volatile long lastUpdateMillis;
         private volatile long revision;
         private volatile int skyDarken;
+        private volatile boolean storm;
+        private volatile boolean thunder;
         private volatile boolean viewReady;
         private volatile UUID sourceWorldId;
         private volatile ProjectionRenderMode renderMode;
@@ -165,7 +175,15 @@ public final class RemoteViewCache {
         }
 
         public int getSkyDarken() {
-            return skyDarken;
+            return ProjectionWorldView.weatherDarken(skyDarken, storm, thunder);
+        }
+
+        public boolean hasStorm() {
+            return storm;
+        }
+
+        public boolean isThundering() {
+            return thunder;
         }
 
         public boolean isViewReady() {
@@ -417,6 +435,21 @@ public final class RemoteViewCache {
             }
         }
         return false;
+    }
+
+    public void applyWeather(String peerName, UUID portalId, boolean storm, boolean thunder) {
+        RemoteView view = views.get(key(peerName, portalId));
+        if (view == null) {
+            return;
+        }
+        synchronized (view) {
+            if (view.storm == storm && view.thunder == thunder) {
+                return;
+            }
+            view.storm = storm;
+            view.thunder = thunder;
+            view.revision++;
+        }
     }
 
     public void applyTime(String peerName, UUID portalId, int skyDarken) {

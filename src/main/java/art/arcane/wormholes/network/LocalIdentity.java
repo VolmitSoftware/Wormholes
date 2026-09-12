@@ -11,6 +11,8 @@ public record LocalIdentity(
     GameEndpoint gameEndpoint,
     GameEndpoint privateGameEndpoint,
     byte[] publicKey,
-    PrivateKey privateKey
+    PrivateKey privateKey,
+    /** The capability set this server advertises right now, which its configuration can reduce. */
+    long capabilities
 ) {
 }

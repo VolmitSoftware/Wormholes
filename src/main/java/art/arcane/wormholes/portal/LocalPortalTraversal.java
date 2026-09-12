@@ -23,18 +23,38 @@ import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendCapture;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendTransaction;
+import art.arcane.wormholes.config.toml.TransitConfig;
 import art.arcane.wormholes.geometry.Raycast;
+import art.arcane.wormholes.hook.DestinationResolver;
+import art.arcane.wormholes.hook.TraversalAttempt;
+import art.arcane.wormholes.hook.TraversalGate;
+import art.arcane.wormholes.hook.TraversalObserver;
+import art.arcane.wormholes.hook.TraversalPhase;
+import art.arcane.wormholes.hook.TraversalVerdict;
+import art.arcane.wormholes.hook.WormholesHooks;
+import art.arcane.wormholes.localization.TransitMessages;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.LocalPortalTransitRegistry.ReentryLatch;
 import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
 import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.wormholes.service.WormholesTelemetry;
+import art.arcane.wormholes.transit.AdaptiveArrivalMask;
+import art.arcane.wormholes.transit.ConvoyGraph;
+import art.arcane.wormholes.transit.ConvoyLocalTraversal;
+import art.arcane.wormholes.transit.MomentumPolicy;
+import art.arcane.wormholes.transit.MomentumTransform;
+import art.arcane.wormholes.transit.ObjectTransit;
+import art.arcane.wormholes.transit.OrientationPolicy;
+import art.arcane.wormholes.transit.OrientationTransform;
+import art.arcane.wormholes.transit.TransitPortalExtension;
+import art.arcane.wormholes.transit.TransitSubsystem;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 
 final class LocalPortalTraversal
 {
+	private static final java.util.logging.Logger HOOK_LOG = java.util.logging.Logger.getLogger("Wormholes");
 	private static final double REENTRY_EXIT_MARGIN = 2.0D;
 	private static final double DEPARTURE_COMMITMENT_RADIUS_SQUARED = 256.0D;
 	private static final int RETIRED_SETTLEMENT_ATTEMPTS = 4;
@@ -191,9 +211,20 @@ final class LocalPortalTraversal
 					rejectTraversal(i, traversive);
 					continue;
 				}
+				TraversalAttempt rtpAttempt = new TraversalAttempt(TraversalPhase.DEPART, portal, i, null, traversive, now);
+				TraversalVerdict rtpVerdict = evaluateGates(rtpAttempt);
+				if(rtpVerdict instanceof TraversalVerdict.Defer)
+				{
+					continue;
+				}
+				if(rtpVerdict instanceof TraversalVerdict.Deny rtpDeny)
+				{
+					rejectGateTraversal(i, traversive, rtpAttempt, rtpDeny);
+					continue;
+				}
 				if(i.getVehicle() != null || !i.getPassengers().isEmpty())
 				{
-					bounceRejectedTraversal(i, traversive);
+					rejectConvoyMemberTraversal(i, traversive);
 					continue;
 				}
 				if(!Wormholes.rtpRuntime.isReady(portal.getId()))
@@ -209,13 +240,31 @@ final class LocalPortalTraversal
 					rejectCostTraversal(i, traversive, rtpCost, rtpCostStatus);
 					continue;
 				}
+				notifyDeparted(rtpAttempt);
 				completeRtpDispatch(i, traversive, Wormholes.rtpRuntime.traverse(portal, i, traversive));
 				continue;
 			}
 
-			if(!canUseTunnel(i, activeTunnel))
+			ITunnel tunnel = resolveDestinationForPortal(i, activeTunnel);
+			if(!canUseTunnel(i, tunnel))
 			{
 				rejectTraversal(i, traversive);
+				continue;
+			}
+
+			TraversalAttempt attempt = new TraversalAttempt(TraversalPhase.DEPART, portal, i, tunnel, traversive, now);
+			TraversalVerdict verdict = evaluateGates(attempt);
+			if(verdict instanceof TraversalVerdict.Allow)
+			{
+				verdict = evaluateArrivalGates(i, tunnel, traversive, now);
+			}
+			if(verdict instanceof TraversalVerdict.Defer)
+			{
+				continue;
+			}
+			if(verdict instanceof TraversalVerdict.Deny deny)
+			{
+				rejectGateTraversal(i, traversive, attempt, deny);
 				continue;
 			}
 
@@ -226,9 +275,9 @@ final class LocalPortalTraversal
 			}
 
 			PortalTravelCost cost = travelCost(i);
-			boolean crossServerHandoff = activeTunnel instanceof UniversalTunnel && Wormholes.traversalService != null;
+			boolean crossServerHandoff = tunnel instanceof UniversalTunnel && Wormholes.traversalService != null;
 			TraversalCostGateway.Admission traversalAdmission = crossServerHandoff
-					? null : evaluateLocalTraversalCost(i, activeTunnel, traversive);
+					? null : evaluateLocalTraversalCost(i, tunnel, traversive);
 			if(traversalAdmission != null && !traversalAdmission.allowed())
 			{
 				rejectTraversal(i, traversive);
@@ -258,9 +307,13 @@ final class LocalPortalTraversal
 					reservation = result.reservation();
 				}
 			}
-			LocalPortalTransitRegistry.markTeleportCooldown(entityId, now);
-			Wormholes.v("[cross] " + i.getName() + " crossing portal " + portal.getId() + " -> " + (activeTunnel instanceof UniversalTunnel ? "CROSS-SERVER handoff" : "local teleport"));
-			if(!(activeTunnel instanceof UniversalTunnel && i instanceof Player))
+			boolean continuousObject = ObjectTransit.continuous(i) && !(tunnel instanceof UniversalTunnel);
+			if(!continuousObject)
+			{
+				LocalPortalTransitRegistry.markTeleportCooldown(entityId, now);
+			}
+			Wormholes.v("[cross] " + i.getName() + " crossing portal " + portal.getId() + " -> " + (tunnel instanceof UniversalTunnel ? "CROSS-SERVER handoff" : "local teleport"));
+			if(!(tunnel instanceof UniversalTunnel && i instanceof Player))
 			{
 				portal.playEffect(PortalEffect.PUSH, traversive.getInPoint().toLocation(portal.getStructure().getWorld()));
 			}
@@ -268,7 +321,271 @@ final class LocalPortalTraversal
 			{
 				LocalPortalTransitRegistry.markTeleportInFlight(entityId, now);
 			}
-			pushTraversive(traversive, activeTunnel, reservation, traversalAdmission);
+			notifyDeparted(attempt);
+			ConvoyGraph convoy = committedConvoy(i, now);
+			if(convoy != null)
+			{
+				pushConvoy(convoy, traversive, tunnel, reservation, traversalAdmission);
+				continue;
+			}
+			pushTraversive(traversive, tunnel, reservation, traversalAdmission);
+		}
+	}
+
+	private ConvoyGraph committedConvoy(Entity traveler, long now)
+	{
+		TransitPortalExtension transit = portal.extension(TransitPortalExtension.class);
+		return transit == null ? null : transit.takeCommittedConvoy(traveler.getUniqueId(), now);
+	}
+
+	/** Moves an admitted rig through a local tunnel as one unit; the root carries the cost and the notices. */
+	private void pushConvoy(
+			ConvoyGraph convoy,
+			Traversive traversive,
+			ITunnel tunnel,
+			PortalTravelCost.Reservation reservation,
+			TraversalCostGateway.Admission traversalAdmission)
+	{
+		Entity root = (Entity) traversive.getObject();
+		if(tunnel instanceof UniversalTunnel universal && Wormholes.traversalService != null && root instanceof Player rootPlayer)
+		{
+			long now = System.currentTimeMillis();
+			for(ConvoyGraph.Member member : convoy.members())
+			{
+				LocalPortalTransitRegistry.markTeleportInFlight(member.entity().getUniqueId(), now);
+			}
+			Wormholes.v("[convoy] " + root.getName() + " rig of " + convoy.size() + " crossing portal " + portal.getId() + " -> CROSS-SERVER " + universal.getServerName());
+			Wormholes.traversalService.beginConvoyHandoff(rootPlayer, convoy, universal, traversive, portal);
+			return;
+		}
+		IPortal destination = tunnel == null ? null : tunnel.getDestination();
+		if(!canDeliverThrough(tunnel) || !(destination instanceof LocalPortal localDestination))
+		{
+			refund(reservation);
+			refund(root, traversalAdmission, TraversalRefundReason.DESTINATION_UNAVAILABLE);
+			notifyDeliveryFailed(root);
+			rejectUndeliverableTraversal(root, traversive);
+			return;
+		}
+		long now = System.currentTimeMillis();
+		for(ConvoyGraph.Member member : convoy.members())
+		{
+			LocalPortalTransitRegistry.markTeleportInFlight(member.entity().getUniqueId(), now);
+		}
+		ArrivalWarmer warmer = Wormholes.arrivalWarmer;
+		World targetWorld = localDestination.getStructure().getWorld();
+		if(warmer != null && targetWorld != null)
+		{
+			Location target = localDestination.computeExitTarget(traversive);
+			int warmRadius = root instanceof Player rootPlayer ? warmer.viewRadius(rootPlayer) : Settings.ARRIVAL_WARM_RADIUS_CHUNKS;
+			warmer.warmAround(targetWorld, target.getBlockX(), target.getBlockZ(), warmRadius, Settings.ARRIVAL_WARM_HOLD_MILLIS);
+		}
+		Wormholes.v("[convoy] " + root.getName() + " rig of " + convoy.size() + " crossing portal " + portal.getId() + " -> " + localDestination.getId());
+		new ConvoyLocalTraversal(ConvoyLocalTraversal.BUKKIT).teleport(convoy, localDestination, traversive, new ConvoyLocalTraversal.Arrival()
+		{
+			@Override
+			public void settle(Entity member, Traversive memberTraversive, boolean reloadExpected)
+			{
+				localDestination.traversal().settleConvoyArrival(member, memberTraversive, reloadExpected);
+			}
+
+			@Override
+			public void completed()
+			{
+				commit(reservation);
+				commit(traversalAdmission);
+			}
+
+			@Override
+			public void failed(String reason)
+			{
+				for(ConvoyGraph.Member member : convoy.members())
+				{
+					LocalPortalTransitRegistry.clearTeleportInFlight(member.entity().getUniqueId());
+				}
+				refund(reservation);
+				refund(root, traversalAdmission, TraversalRefundReason.TELEPORT_FAILED);
+				notifyDeliveryFailed(root);
+				Wormholes.w("Portal " + portal.getId() + " could not move the rig of " + root.getName() + ": " + reason);
+				Runnable bounce = () -> rejectUndeliverableTraversal(root, traversive);
+				if(!runtime.dispatch(root, bounce, () -> { }, 0L))
+				{
+					bounce.run();
+				}
+			}
+		});
+	}
+
+	/**
+	 * Every check a rig member must pass to travel with its root: tunnel use plus the departure and arrival
+	 * gates, raised as a screening attempt so a member is judged on who it is and never charged or stamped.
+	 */
+	boolean memberMayTravel(Entity member, ITunnel tunnel, long now)
+	{
+		if(!canUseTunnel(member, tunnel))
+		{
+			return false;
+		}
+		TraversalAttempt attempt = new TraversalAttempt(TraversalPhase.DEPART, portal, member, tunnel, null, now, true);
+		if(!(evaluateGates(attempt) instanceof TraversalVerdict.Allow))
+		{
+			return false;
+		}
+		return evaluateArrivalGates(member, tunnel, null, now, true) instanceof TraversalVerdict.Allow;
+	}
+
+	/** Destination-side settlement for one rig member that has already been moved by the convoy. */
+	void settleConvoyArrival(Entity member, Traversive memberTraversive, boolean reloadExpected)
+	{
+		ExitPlacement placement = exitPlacement(memberTraversive);
+		settleArrival(member, member.getUniqueId(), placement.outVelocity(), placement.exit(), reloadExpected, arrivalMaskTicks(memberTraversive, reloadExpected, null));
+	}
+
+	private void rejectConvoyMemberTraversal(Entity entity, Traversive traversive)
+	{
+		bounceRejectedTraversal(entity, traversive);
+		if(entity instanceof Player player)
+		{
+			WormholesHud.notice(player, Wormholes.text().component(player, TransitMessages.DENIED_CONVOY_MEMBER,
+					LocalPortalText.arguments("portal", portal.getName())));
+		}
+	}
+
+	private ITunnel resolveDestinationForPortal(Entity entity, ITunnel current)
+	{
+		ITunnel resolved = current;
+		for(DestinationResolver resolver : WormholesHooks.destinationResolvers())
+		{
+			try
+			{
+				ITunnel candidate = resolver.resolve(portal, entity, resolved);
+				if(candidate != null && candidate != resolved)
+				{
+					return candidate;
+				}
+			}
+			catch(RuntimeException failure)
+			{
+				WormholesTelemetry.countFailure("TRAVERSAL_RESOLVER_FAILED");
+				HOOK_LOG.log(Level.WARNING, "destination resolver failed: " + resolver.getClass().getName(), failure);
+			}
+		}
+		return resolved;
+	}
+
+	static TraversalVerdict evaluateGates(TraversalAttempt attempt)
+	{
+		for(TraversalGate gate : WormholesHooks.traversalGates())
+		{
+			TraversalVerdict verdict;
+			try
+			{
+				verdict = gate.evaluate(attempt);
+			}
+			catch(RuntimeException failure)
+			{
+				WormholesTelemetry.countFailure("TRAVERSAL_GATE_FAILED");
+				HOOK_LOG.log(Level.WARNING, "traversal gate failed: " + gate.getClass().getName(), failure);
+				continue;
+			}
+			if(verdict != null && !(verdict instanceof TraversalVerdict.Allow))
+			{
+				return verdict;
+			}
+		}
+		return TraversalVerdict.ALLOW;
+	}
+
+	private static TraversalVerdict evaluateArrivalGates(Entity entity, ITunnel tunnel, Traversive traversive, long now)
+	{
+		return evaluateArrivalGates(entity, tunnel, traversive, now, false);
+	}
+
+	private static TraversalVerdict evaluateArrivalGates(Entity entity, ITunnel tunnel, Traversive traversive, long now, boolean screening)
+	{
+		if(WormholesHooks.traversalGates().isEmpty() || tunnel == null)
+		{
+			return TraversalVerdict.ALLOW;
+		}
+		IPortal destination = tunnel.getDestination();
+		if(!(destination instanceof LocalPortal localDestination))
+		{
+			return TraversalVerdict.ALLOW;
+		}
+		return evaluateGates(new TraversalAttempt(TraversalPhase.ARRIVE, localDestination, entity, tunnel, traversive, now, screening));
+	}
+
+	private void rejectGateTraversal(Entity entity, Traversive traversive, TraversalAttempt attempt, TraversalVerdict.Deny deny)
+	{
+		if(deny.bounce())
+		{
+			bounceRejectedTraversal(entity, traversive);
+		}
+		else
+		{
+			armRejectedReentry(entity);
+			LocalPortalTransitRegistry.markTeleportCooldown(entity.getUniqueId(), System.currentTimeMillis());
+		}
+		if(entity instanceof Player player)
+		{
+			WormholesHud.notice(player, Wormholes.text().component(player, deny.reason(), deny.args()));
+		}
+		for(TraversalObserver observer : WormholesHooks.traversalObservers())
+		{
+			try
+			{
+				observer.onRejected(attempt, deny);
+			}
+			catch(RuntimeException failure)
+			{
+				HOOK_LOG.log(Level.WARNING, "traversal observer failed: " + observer.getClass().getName(), failure);
+			}
+		}
+	}
+
+	private static void notifyDeparted(TraversalAttempt attempt)
+	{
+		for(TraversalObserver observer : WormholesHooks.traversalObservers())
+		{
+			try
+			{
+				observer.onDeparted(attempt);
+			}
+			catch(RuntimeException failure)
+			{
+				HOOK_LOG.log(Level.WARNING, "traversal observer failed: " + observer.getClass().getName(), failure);
+			}
+		}
+	}
+
+	/** Tells the observers a crossing died below the departure, so a lane can give back what it took. */
+	private void notifyDeliveryFailed(Entity entity)
+	{
+		for(TraversalObserver observer : WormholesHooks.traversalObservers())
+		{
+			try
+			{
+				observer.onDeliveryFailed(portal, entity);
+			}
+			catch(RuntimeException failure)
+			{
+				HOOK_LOG.log(Level.WARNING, "traversal observer failed: " + observer.getClass().getName(), failure);
+			}
+		}
+	}
+
+	private void notifyArrived(Entity entity, Location exit)
+	{
+		for(TraversalObserver observer : WormholesHooks.traversalObservers())
+		{
+			try
+			{
+				observer.onArrived(portal, entity, exit);
+			}
+			catch(RuntimeException failure)
+			{
+				HOOK_LOG.log(Level.WARNING, "traversal observer failed: " + observer.getClass().getName(), failure);
+			}
 		}
 	}
 
@@ -328,7 +645,49 @@ final class LocalPortalTraversal
 		double relZ = start.getZ() - portal.getOrigin().getZ();
 		PortalFrame frame = portal.getFrame();
 		boolean frontSide = ((relX * frame.getNormal().x()) + (relY * frame.getNormal().y()) + (relZ * frame.getNormal().z())) >= 0.0D;
-		return new Traversive(i, frame.view(frontSide), portal.getOrigin(), inPoint, velocity, start.getDirection(), frontSide);
+		return new Traversive(i, frame.view(frontSide), portal.getOrigin(), inPoint, velocity, start.getDirection(), frontSide, portal.getId());
+	}
+
+	/** Arrival mask length: a source profile override wins, then the adaptive size from the pre-send, then the fixed setting. */
+	private static int arrivalMaskTicks(Traversive traversive, boolean reloadExpected, BukkitChunkPreSendTransaction preSend)
+	{
+		TransitPortalExtension source = TransitPortalExtension.of(traversive.getSourcePortalId());
+		if(source != null && source.profile().overridesMask())
+		{
+			return source.profile().maskOverrideTicks();
+		}
+		if(!TransitSubsystem.config().arrivalMaskAdaptive)
+		{
+			return Settings.ARRIVAL_TRANSITION_MASK_TICKS;
+		}
+		return AdaptiveArrivalMask.maskTicks(
+				reloadExpected,
+				preSend == null ? null : preSend.outcome(),
+				preSend == null ? 0 : preSend.sentChunks(),
+				preSend == null ? 0 : preSend.plannedChunks());
+	}
+
+	/** Exit geometry for a crossing: the source portal's momentum and orientation policies applied to the frame transform. */
+	private record ExitPlacement(Location target, Location exit, Vector outVelocity)
+	{
+	}
+
+	private ExitPlacement exitPlacement(Traversive t)
+	{
+		PortalFrame frame = portal.getFrame();
+		TransitConfig transit = TransitSubsystem.config();
+		TransitPortalExtension source = TransitPortalExtension.of(t.getSourcePortalId());
+		MomentumPolicy momentum = source == null ? TransitPortalExtension.defaultMomentum(transit) : source.effectiveMomentum(transit);
+		OrientationPolicy orientation = source == null ? TransitPortalExtension.defaultOrientation(transit) : source.effectiveOrientation(transit);
+		Vector frameVelocity = t.getOutVelocity(frame);
+		Vector outVelocity = MomentumTransform.apply(frameVelocity, momentum, transit.momentumMaxSpeed);
+		Direction dx = Direction.closest(frameVelocity);
+		Location exit = t.getOutPoint(frame, portal.getOrigin()).toLocation(portal.getStructure().getWorld());
+		Location target = exit.clone().add(dx.toVector().normalize().multiply(1.25));
+		OrientationTransform.Look look = OrientationTransform.apply(t, frame, orientation, transit.gravityFlipEnabled);
+		target.setYaw(look.yaw());
+		target.setPitch(look.pitch());
+		return new ExitPlacement(target, exit, outVelocity);
 	}
 
 	private boolean canUseTunnel(Entity entity, ITunnel activeTunnel)
@@ -374,6 +733,7 @@ final class LocalPortalTraversal
 		{
 			refund(reservation);
 			refund(undeliverable, traversalAdmission, TraversalRefundReason.DESTINATION_UNAVAILABLE);
+			notifyDeliveryFailed(undeliverable);
 			rejectUndeliverableTraversal(undeliverable, traversive);
 			return;
 		}
@@ -388,6 +748,7 @@ final class LocalPortalTraversal
 		if(traversive.getObject() instanceof Entity undeliverable)
 		{
 			refund(undeliverable, traversalAdmission, TraversalRefundReason.DESTINATION_UNAVAILABLE);
+			notifyDeliveryFailed(undeliverable);
 			rejectUndeliverableTraversal(undeliverable, traversive);
 		}
 	}
@@ -553,16 +914,14 @@ final class LocalPortalTraversal
 			{
 				refund(reservation);
 				refund(p, traversalAdmission, TraversalRefundReason.DESTINATION_REJECTED);
+				notifyDeliveryFailed(p);
 				rejectTraversal(p, t);
 				return;
 			}
-			Vector outVelocity = t.getOutVelocity(portal.getFrame());
-			Vector outLook = t.getOutLook(portal.getFrame());
-			Direction dx = Direction.closest(outVelocity);
-			Location exit = t.getOutPoint(portal.getFrame(), portal.getOrigin()).toLocation(portal.getStructure().getWorld());
-
-			Location target = exit.clone().add(dx.toVector().normalize().multiply(1.25));
-			target.setDirection(outLook);
+			ExitPlacement placement = exitPlacement(t);
+			Vector outVelocity = placement.outVelocity();
+			Location exit = placement.exit();
+			Location target = placement.target();
 
 			boolean reloadExpected = target.getWorld() != null && !target.getWorld().equals(p.getWorld());
 
@@ -571,6 +930,7 @@ final class LocalPortalTraversal
 			{
 				refund(reservation);
 				refund(p, traversalAdmission, TraversalRefundReason.RATE_LIMITED);
+				notifyDeliveryFailed(p);
 				rejectUndeliverableTraversal(p, t);
 				return;
 			}
@@ -713,7 +1073,7 @@ final class LocalPortalTraversal
 					commitPreSend(preSend);
 					commit(reservation);
 					commit(traversalAdmission);
-					settleArrival(entity, entityId, outVelocity, exit, reloadExpected);
+					settleArrival(entity, entityId, outVelocity, exit, reloadExpected, arrivalMaskTicks(traversive, reloadExpected, preSend));
 				};
 				AtomicBoolean retirementStarted = new AtomicBoolean(false);
 				Runnable retired = () ->
@@ -847,6 +1207,7 @@ final class LocalPortalTraversal
 		rollbackPreSend(preSend);
 		refund(reservation);
 		refund(traversalAdmission, refundReason);
+		notifyDeliveryFailed(entity);
 		rejectUndeliverableTraversal(entity, traversive);
 	}
 
@@ -1052,22 +1413,31 @@ final class LocalPortalTraversal
 		}
 	}
 
-	private void settleArrival(Entity entity, UUID entityId, Vector outVelocity, Location exit, boolean reloadExpected)
+	private void settleArrival(Entity entity, UUID entityId, Vector outVelocity, Location exit, boolean reloadExpected, int maskTicks)
 	{
-		entity.setVelocity(outVelocity);
+		boolean continuousObject = ObjectTransit.continuous(entity);
+		if(continuousObject)
+		{
+			ObjectTransit.rearm(entity, outVelocity);
+		}
+		else
+		{
+			entity.setVelocity(outVelocity);
+			LocalPortalTransitRegistry.markTeleportCooldown(entityId, System.currentTimeMillis());
+		}
 		WormholesTelemetry.countTraversal();
-		LocalPortalTransitRegistry.markTeleportCooldown(entityId, System.currentTimeMillis());
 		LocalPortalTransitRegistry.latchReentry(entityId, portal.getId());
 		LocalPortalTransitRegistry.clearTeleportInFlight(entityId);
 		portal.playEffect(PortalEffect.PUSH, exit);
 		if(entity instanceof Player player)
 		{
-			ArrivalTransition.apply(player, reloadExpected);
+			ArrivalTransition.apply(player, reloadExpected, maskTicks);
 			if(Wormholes.projectionManager != null)
 			{
 				Wormholes.projectionManager.reprimeArrival(player);
 			}
 		}
+		notifyArrived(entity, exit);
 	}
 
 	private void logTeleportFailure(Entity entity, String action, Throwable error)
@@ -1086,13 +1456,7 @@ final class LocalPortalTraversal
 
 	Location computeExitTarget(Traversive t)
 	{
-		Vector outVelocity = t.getOutVelocity(portal.getFrame());
-		Vector outLook = t.getOutLook(portal.getFrame());
-		Direction dx = Direction.closest(outVelocity);
-		Location exit = t.getOutPoint(portal.getFrame(), portal.getOrigin()).toLocation(portal.getStructure().getWorld());
-		Location target = exit.clone().add(dx.toVector().normalize().multiply(1.25));
-		target.setDirection(outLook);
-		return target;
+		return exitPlacement(t).target();
 	}
 
 	void completeRemoteArrival(Entity entity, Traversive t)
@@ -1102,7 +1466,7 @@ final class LocalPortalTraversal
 			rejectRemoteArrival(entity, t);
 			return;
 		}
-		Vector outVelocity = t.getOutVelocity(portal.getFrame());
+		Vector outVelocity = exitPlacement(t).outVelocity();
 		entity.setVelocity(outVelocity);
 		LocalPortalTransitRegistry.markTeleportCooldown(entity.getUniqueId(), System.currentTimeMillis());
 		LocalPortalTransitRegistry.latchReentry(entity.getUniqueId(), portal.getId());
@@ -1113,6 +1477,7 @@ final class LocalPortalTraversal
 		{
 			Wormholes.projectionManager.reprimeArrival((Player) entity);
 		}
+		notifyArrived(entity, entity.getLocation());
 	}
 
 	boolean canCompleteDeparture(Entity entity, Traversive traversive)

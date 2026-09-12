@@ -1,6 +1,8 @@
 package art.arcane.wormholes.portal.vanilla;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.bukkit.Location;
@@ -24,6 +26,8 @@ import org.bukkit.entity.Player;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.access.AccessGuards;
+import art.arcane.wormholes.access.PlacementKind;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.PortalTypeAccess;
@@ -62,6 +66,10 @@ public final class VanillaPortalReplacer implements Listener
 			}
 		}
 		if(cells.isEmpty() || world == null)
+		{
+			return;
+		}
+		if(!claimsAllow(player, world, cells))
 		{
 			return;
 		}
@@ -137,6 +145,10 @@ public final class VanillaPortalReplacer implements Listener
 			return;
 		}
 		Location frame = event.getClickedBlock().getLocation();
+		if(!claimsAllow(event.getPlayer(), frame.getWorld(), Set.of(event.getClickedBlock())))
+		{
+			return;
+		}
 		VanillaPortalIndex.PendingCoverage pending = index.registerPendingEnd(frame);
 		if(!FoliaScheduler.runRegion(Wormholes.instance, frame, () ->
 		{
@@ -191,6 +203,21 @@ public final class VanillaPortalReplacer implements Listener
 	public void validateDimensionalFrames()
 	{
 		frames.validate();
+	}
+
+	/** A replaced vanilla portal is still a new Wormholes portal, so the claim policy has a say. */
+	private static boolean claimsAllow(Player player, World world, Set<Block> cells)
+	{
+		if(player == null || world == null || cells.isEmpty())
+		{
+			return true;
+		}
+		List<int[]> positions = new ArrayList<int[]>(cells.size());
+		for(Block cell : cells)
+		{
+			positions.add(new int[] { cell.getX(), cell.getY(), cell.getZ() });
+		}
+		return AccessGuards.allowPlacement(player.getUniqueId(), world, positions, PlacementKind.CREATE);
 	}
 
 	private static boolean isEndCause(PlayerTeleportEvent.TeleportCause cause)

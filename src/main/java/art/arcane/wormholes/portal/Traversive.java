@@ -1,5 +1,7 @@
 package art.arcane.wormholes.portal;
 
+import java.util.UUID;
+
 import org.bukkit.entity.Entity;
 import org.bukkit.util.Vector;
 
@@ -15,6 +17,7 @@ public class Traversive
 	private final Vector inVelocity;
 	private final Vector inLook;
 	private final boolean frontSide;
+	private final UUID sourcePortalId;
 
 	public Traversive(Object o, TraversableType type, Direction inDirection, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook)
 	{
@@ -28,6 +31,11 @@ public class Traversive
 
 	public Traversive(Object o, TraversableType type, PortalFrame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook, boolean frontSide)
 	{
+		this(o, type, inFrame, inOrigin, inPoint, inVelocity, inLook, frontSide, null);
+	}
+
+	public Traversive(Object o, TraversableType type, PortalFrame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook, boolean frontSide, UUID sourcePortalId)
+	{
 		this.object = o;
 		this.type = type;
 		this.inFrame = inFrame;
@@ -36,6 +44,7 @@ public class Traversive
 		this.inVelocity = inVelocity.clone();
 		this.inLook = inLook.clone();
 		this.frontSide = frontSide;
+		this.sourcePortalId = sourcePortalId;
 	}
 
 	public Traversive(Entity entity, Direction inDirection, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook)
@@ -51,6 +60,17 @@ public class Traversive
 	public Traversive(Entity entity, PortalFrame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook, boolean frontSide)
 	{
 		this(entity, TraversableType.ENTITY, inFrame, inOrigin, inPoint, inVelocity, inLook, frontSide);
+	}
+
+	public Traversive(Entity entity, PortalFrame inFrame, Vector inOrigin, Vector inPoint, Vector inVelocity, Vector inLook, boolean frontSide, UUID sourcePortalId)
+	{
+		this(entity, TraversableType.ENTITY, inFrame, inOrigin, inPoint, inVelocity, inLook, frontSide, sourcePortalId);
+	}
+
+	/** A copy of this crossing for another rig member at {@code memberPoint}, keeping frame, velocity, look, and source. */
+	public Traversive forMember(Object member, Vector memberPoint)
+	{
+		return new Traversive(member, TraversableType.ENTITY, inFrame, inOrigin, memberPoint, inVelocity, inLook, frontSide, sourcePortalId);
 	}
 
 	public Vector getOutVelocity(Direction outDirection)
@@ -121,6 +141,12 @@ public class Traversive
 	public boolean isFrontSide()
 	{
 		return frontSide;
+	}
+
+	/** The local portal this crossing entered, or null for remote arrivals and synthetic crossings. */
+	public UUID getSourcePortalId()
+	{
+		return sourcePortalId;
 	}
 
 	public Object getObject()

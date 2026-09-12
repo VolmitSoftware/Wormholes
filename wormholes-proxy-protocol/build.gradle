@@ -1,0 +1,30 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'art.arcane'
+version = rootProject.version
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation(libs.junitJupiter)
+    testRuntimeOnly(libs.junitPlatformLauncher)
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release.set(25)
+}
+
+tasks.named('test').configure {
+    useJUnitPlatform()
+}

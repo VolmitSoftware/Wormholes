@@ -99,7 +99,7 @@ final class ViewSubscriptions {
         session.lastPeerSideband.remove(peerName);
         int initialSkyDarken = art.arcane.wormholes.render.view.ProjectionWorldView.computeSkyDarken(session.world.getTime());
         session.timeDeliveryStates.put(peerName, new ViewServer.TimeDeliveryState(initialSkyDarken));
-        timeDelivery.queue(session, peerName, initialSkyDarken);
+        timeDelivery.queue(session, peerName, initialSkyDarken, session.world.hasStorm(), session.world.isThundering());
         for (long[] column : session.columns) {
             long chunkKey = ViewSlice.columnKey((int) column[0], (int) column[1]);
             replication.subscribe(peerName, session.subscriptionId, session.world, session.streamFor(chunkKey));

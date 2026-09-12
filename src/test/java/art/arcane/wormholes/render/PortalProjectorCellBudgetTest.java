@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -93,6 +94,38 @@ public final class PortalProjectorCellBudgetTest {
                 }
             }
         }
+    }
+
+    @Test
+    public void anOverBudgetViewCoarsensBeforeItShedsDepth() {
+        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        long budget = Settings.PROJECTION_MAX_PROJECTED_CELLS;
+        PortalStructure structure = null;
+        Location observerEye = null;
+        for (int size = 8; size <= 200 && structure == null; size += 2) {
+            PortalStructure candidate = structure(Direction.S, size, size);
+            Location eye = eye(candidate, frame, 4.0D, 0.0D, 0.0D);
+            ProjectorViewFrustum probe = new ProjectorViewFrustum(null);
+            Frustum4D narrow = probe.frustumFor(eye, candidate, 128.0D, 0.0D);
+            long narrowWork = probe.estimateCandidateWork(candidate, frame, eye, narrow, 128.0D, Long.MAX_VALUE);
+            if (narrowWork > budget && narrowWork <= (budget * 3L) / 2L) {
+                structure = candidate;
+                observerEye = eye;
+            }
+        }
+        assertTrue(structure != null, "no aperture between the budget and 1.5x the budget was found");
+
+        ProjectorViewFrustum dense = new ProjectorViewFrustum(null);
+        dense.fit(null, structure, frame, observerEye, 128.0D, LATERAL_PAD);
+        assertTrue(dense.fittedDepth() < 128.0D, "the dense fit must have to shed depth for this aperture");
+        assertFalse(dense.fittedCoarse());
+
+        ProjectorViewFrustum coarse = new ProjectorViewFrustum(null);
+        coarse.setLodPolicy(new art.arcane.wormholes.render.lod.LodPolicy(false, 1, 48));
+        coarse.fit(null, structure, frame, observerEye, 128.0D, LATERAL_PAD);
+        assertTrue(coarse.fittedCoarse(), "run merging must be tried before shedding depth");
+        assertEquals(128.0D, coarse.fittedDepth(), 1.0E-9D, "the coarse fit keeps the requested depth");
+        assertTrue(coarse.fittedCandidateWork() <= Settings.PROJECTION_MAX_PROJECTED_CELLS);
     }
 
     @Test

@@ -10,6 +10,7 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalStructure;
+import art.arcane.wormholes.render.lod.LodPolicy;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 
@@ -53,6 +54,10 @@ final class ProjectorViewFrustum {
     private double fittedAxial;
     private double fittedLateral;
     private long fittedCandidateWork;
+    private boolean fittedCoarse;
+    private boolean cachedFittedCoarse;
+    private LodPolicy lodPolicy = LodPolicy.NONE;
+    private LodPolicy cachedFitLod = LodPolicy.NONE;
     private final int[] scratchAxisMin;
     private final int[] scratchAxisMax;
     private final double[] scratchSlabWindowBounds;
@@ -99,10 +104,12 @@ final class ProjectorViewFrustum {
             && cachedFitBudget == budget
             && cachedFitNearPlanePadding == nearPlanePadding
             && cachedFitCullingRatio == cullingRatio
-            && cachedFitAperturePadding == aperturePadding) {
+            && cachedFitAperturePadding == aperturePadding
+            && cachedFitLod == lodPolicy) {
             fittedAxial = cachedFittedAxial;
             fittedLateral = cachedFittedLateral;
             fittedCandidateWork = cachedFittedCandidateWork;
+            fittedCoarse = cachedFittedCoarse;
             return reusable;
         }
         fitRecalculationCount++;
@@ -111,6 +118,7 @@ final class ProjectorViewFrustum {
         fittedAxial = solution.axial();
         fittedLateral = solution.lateral();
         fittedCandidateWork = solution.candidateWork();
+        fittedCoarse = solution.coarse();
         Frustum4D result = solution.frustum();
         cachedFit = result;
         cachedFitStructure = structure;
@@ -130,11 +138,26 @@ final class ProjectorViewFrustum {
         cachedFittedAxial = fittedAxial;
         cachedFittedLateral = fittedLateral;
         cachedFittedCandidateWork = fittedCandidateWork;
+        cachedFittedCoarse = fittedCoarse;
+        cachedFitLod = lodPolicy;
         return result;
+    }
+
+    void setLodPolicy(LodPolicy policy) {
+        lodPolicy = policy == null ? LodPolicy.NONE : policy;
+    }
+
+    LodPolicy lodPolicy() {
+        return lodPolicy;
     }
 
     double fittedDepth() {
         return fittedAxial;
+    }
+
+    /** True when the budget fit kept the depth by run-merging far slabs instead of shedding depth. */
+    boolean fittedCoarse() {
+        return fittedCoarse;
     }
 
     double fittedLateral() {
@@ -193,13 +216,18 @@ final class ProjectorViewFrustum {
         Frustum4D full = frustumFor(eye, structure, axial, lateralCeiling);
         long fullWork = estimateCandidateWork(structure, frame, eye, full, axial, limit);
         if (budget <= 0 || fullWork <= budget) {
-            return new FitSolution(full, axial, lateralCeiling, fullWork);
+            return new FitSolution(full, axial, lateralCeiling, fullWork, false);
         }
 
         Frustum4D narrow = frustumFor(eye, structure, axial, 0.0D);
         long narrowWork = estimateCandidateWork(structure, frame, eye, narrow, axial, budget);
         if (narrowWork <= budget) {
             return fitLateralWithinBudget(structure, frame, eye, axial, lateralCeiling, budget, narrow, narrowWork);
+        }
+        LodPolicy coarse = lodPolicy.withMergeRuns();
+        long exactNarrowWork = estimateCandidateWork(structure, frame, eye, narrow, axial, Long.MAX_VALUE);
+        if (coarse.coarsenedWork(exactNarrowWork, axial) <= budget) {
+            return new FitSolution(narrow, axial, 0.0D, coarse.coarsenedWork(exactNarrowWork, axial), true);
         }
         return fitAxialWithinBudget(structure, frame, eye, axial, budget);
     }
@@ -228,7 +256,7 @@ final class ProjectorViewFrustum {
                 high = candidateLateral;
             }
         }
-        return new FitSolution(fitted, axial, low, fittedWork);
+        return new FitSolution(fitted, axial, low, fittedWork, false);
     }
 
     private FitSolution fitAxialWithinBudget(PortalStructure structure,
@@ -241,7 +269,7 @@ final class ProjectorViewFrustum {
         Frustum4D fitted = frustumFor(eye, structure, 0.0D, 0.0D);
         long fittedWork = estimateCandidateWork(structure, frame, eye, fitted, 0.0D, budget);
         if (fittedWork > budget) {
-            return new FitSolution(Frustum4D.empty(), 0.0D, 0.0D, 0L);
+            return new FitSolution(Frustum4D.empty(), 0.0D, 0.0D, 0L, false);
         }
         for (int attempt = 0; attempt < CELL_BUDGET_SEARCH_ATTEMPTS; attempt++) {
             double candidateAxial = (low + high) * 0.5D;
@@ -256,9 +284,9 @@ final class ProjectorViewFrustum {
             }
         }
         if (fittedWork == 0L) {
-            return new FitSolution(Frustum4D.empty(), 0.0D, 0.0D, 0L);
+            return new FitSolution(Frustum4D.empty(), 0.0D, 0.0D, 0L, false);
         }
-        return new FitSolution(fitted, low, 0.0D, fittedWork);
+        return new FitSolution(fitted, low, 0.0D, fittedWork, false);
     }
 
     long estimateCandidateWork(PortalStructure structure,
@@ -426,6 +454,6 @@ final class ProjectorViewFrustum {
         return clientViewDistanceFailed;
     }
 
-    private record FitSolution(Frustum4D frustum, double axial, double lateral, long candidateWork) {
+    private record FitSolution(Frustum4D frustum, double axial, double lateral, long candidateWork, boolean coarse) {
     }
 }

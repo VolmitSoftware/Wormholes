@@ -192,6 +192,11 @@ final class ProjectedItemFrameTransform {
         return entityType == EntityTypes.ITEM_FRAME || entityType == EntityTypes.GLOW_ITEM_FRAME;
     }
 
+    /** Every entity the client anchors to a block face rather than to its own centre. */
+    static boolean isHanging(EntityType entityType) {
+        return isItemFrame(entityType) || entityType == EntityTypes.PAINTING;
+    }
+
     private static int encode(Direction targetFacing, Direction mappedTop, Direction mappedRight) {
         int quarterTurns = quarterTurns(targetFacing, mappedTop);
         Direction expectedRight = rotatedRight(targetFacing, quarterTurns);

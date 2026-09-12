@@ -1,10 +1,23 @@
 package art.arcane.wormholes.config;
 
+import art.arcane.wormholes.config.toml.AccessConfig;
+import art.arcane.wormholes.config.toml.AcousticsConfig;
+import art.arcane.wormholes.config.toml.AtlasConfig;
+import art.arcane.wormholes.config.toml.AtmosphereConfig;
+import art.arcane.wormholes.config.toml.BedrockConfig;
+import art.arcane.wormholes.config.toml.DimensionalConfig;
+import art.arcane.wormholes.config.toml.DoorsConfig;
+import art.arcane.wormholes.config.toml.LodConfig;
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.config.toml.NexusConfig;
+import art.arcane.wormholes.config.toml.OpsConfig;
+import art.arcane.wormholes.config.toml.PocketsConfig;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RecipesConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
+import art.arcane.wormholes.config.toml.RulesConfig;
+import art.arcane.wormholes.config.toml.TransitConfig;
 import art.arcane.wormholes.config.toml.WormholesConfigFile;
 import art.arcane.wormholes.util.project.config.TomlCodec;
 
@@ -28,13 +41,14 @@ public final class WormholesSettings {
     private final RenderConfig render;
     private final NetworkConfig network;
     private final RecipesConfig recipes;
+    private final FeatureSections features;
     private final VisualQualityProfile visualQualityProfile;
 
     public WormholesSettings(MainConfig main, ProjectionConfig projection, RenderConfig render, NetworkConfig network) {
-        this("en_US", true, "", main, projection, render, network, new RecipesConfig(), VisualQualityProfile.AUTO);
+        this("en_US", true, "", main, projection, render, network, new RecipesConfig(), FeatureSections.defaults(), VisualQualityProfile.AUTO);
     }
 
-    private WormholesSettings(String language, boolean metrics, String languageFallbacks, MainConfig main, ProjectionConfig projection, RenderConfig render, NetworkConfig network, RecipesConfig recipes, VisualQualityProfile visualQualityProfile) {
+    private WormholesSettings(String language, boolean metrics, String languageFallbacks, MainConfig main, ProjectionConfig projection, RenderConfig render, NetworkConfig network, RecipesConfig recipes, FeatureSections features, VisualQualityProfile visualQualityProfile) {
         this.language = language;
         this.metrics = metrics;
         this.languageFallbacks = languageFallbacks;
@@ -44,7 +58,58 @@ public final class WormholesSettings {
         this.network = network == null ? new NetworkConfig() : network;
         this.network.normalizeRuntimeBounds();
         this.recipes = recipes;
+        this.features = features == null ? FeatureSections.defaults() : features;
         this.visualQualityProfile = visualQualityProfile;
+    }
+
+    /**
+     * Headline feature sections. One record component per lane-owned top-level TOML table so
+     * feature lanes extend their own section class instead of this facade.
+     */
+    public record FeatureSections(DoorsConfig doors, PocketsConfig pockets, RulesConfig rules, AccessConfig access,
+                                  NexusConfig nexus, AtlasConfig atlas, TransitConfig transit,
+                                  AtmosphereConfig atmosphere, AcousticsConfig acoustics, LodConfig lod,
+                                  BedrockConfig bedrock, OpsConfig ops, DimensionalConfig dimensional) {
+        public FeatureSections {
+            doors = doors == null ? new DoorsConfig() : doors;
+            pockets = pockets == null ? new PocketsConfig() : pockets;
+            rules = rules == null ? new RulesConfig() : rules;
+            access = access == null ? new AccessConfig() : access;
+            nexus = nexus == null ? new NexusConfig() : nexus;
+            atlas = atlas == null ? new AtlasConfig() : atlas;
+            transit = transit == null ? new TransitConfig() : transit;
+            atmosphere = atmosphere == null ? new AtmosphereConfig() : atmosphere;
+            acoustics = acoustics == null ? new AcousticsConfig() : acoustics;
+            lod = lod == null ? new LodConfig() : lod;
+            bedrock = bedrock == null ? new BedrockConfig() : bedrock;
+            ops = ops == null ? new OpsConfig() : ops;
+            dimensional = dimensional == null ? new DimensionalConfig() : dimensional;
+        }
+
+        public static FeatureSections defaults() {
+            return new FeatureSections(null, null, null, null, null, null, null, null, null, null, null, null, null);
+        }
+
+        static FeatureSections fromFile(WormholesConfigFile file) {
+            return new FeatureSections(file.doors, file.pockets, file.rules, file.access, file.nexus, file.atlas,
+                file.transit, file.atmosphere, file.acoustics, file.lod, file.bedrock, file.ops, file.dimensional);
+        }
+
+        void applyTo(WormholesConfigFile file) {
+            file.doors = doors;
+            file.pockets = pockets;
+            file.rules = rules;
+            file.access = access;
+            file.nexus = nexus;
+            file.atlas = atlas;
+            file.transit = transit;
+            file.atmosphere = atmosphere;
+            file.acoustics = acoustics;
+            file.lod = lod;
+            file.bedrock = bedrock;
+            file.ops = ops;
+            file.dimensional = dimensional;
+        }
     }
 
     public static WormholesSettings loadAll(Path dataFolder) {
@@ -104,7 +169,7 @@ public final class WormholesSettings {
 
     public WormholesSettings withLanguage(String locale) {
         return new WormholesSettings(locale, metrics, languageFallbacks, main, projection, render, network,
-                recipes, visualQualityProfile);
+                recipes, features, visualQualityProfile);
     }
 
     public String getLanguage() {
@@ -133,6 +198,58 @@ public final class WormholesSettings {
 
     public RecipesConfig getRecipes() {
         return recipes;
+    }
+
+    public DoorsConfig getDoors() {
+        return features.doors();
+    }
+
+    public PocketsConfig getPockets() {
+        return features.pockets();
+    }
+
+    public RulesConfig getRules() {
+        return features.rules();
+    }
+
+    public AccessConfig getAccess() {
+        return features.access();
+    }
+
+    public NexusConfig getNexus() {
+        return features.nexus();
+    }
+
+    public AtlasConfig getAtlas() {
+        return features.atlas();
+    }
+
+    public TransitConfig getTransit() {
+        return features.transit();
+    }
+
+    public AtmosphereConfig getAtmosphere() {
+        return features.atmosphere();
+    }
+
+    public AcousticsConfig getAcoustics() {
+        return features.acoustics();
+    }
+
+    public LodConfig getLod() {
+        return features.lod();
+    }
+
+    public BedrockConfig getBedrock() {
+        return features.bedrock();
+    }
+
+    public OpsConfig getOps() {
+        return features.ops();
+    }
+
+    public DimensionalConfig getDimensional() {
+        return features.dimensional();
     }
 
     public VisualQualityProfile getVisualQualityProfile() {
@@ -177,7 +294,7 @@ public final class WormholesSettings {
         RenderConfig render = file.render == null ? new RenderConfig() : file.render;
         NetworkConfig network = file.network == null ? new NetworkConfig() : file.network;
         RecipesConfig recipes = file.recipes == null ? new RecipesConfig() : file.recipes;
-        return new WormholesSettings(file.language, file.metrics, file.languageFallbacks, main, projection, render, network, recipes, profile);
+        return new WormholesSettings(file.language, file.metrics, file.languageFallbacks, main, projection, render, network, recipes, FeatureSections.fromFile(file), profile);
     }
 
     private WormholesConfigFile toFile() {
@@ -192,6 +309,7 @@ public final class WormholesSettings {
         file.projection = projection;
         file.recipes = recipes;
         file.render = render;
+        features.applyTo(file);
         return file;
     }
 

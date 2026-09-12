@@ -2,30 +2,31 @@ package art.arcane.wormholes.door;
 
 import java.util.Objects;
 
-final class RuntimeDoor
+/** Live view of one placed door: its last read plane and its open cycle. */
+public final class RuntimeDoor
 {
 	private final PlacedDoorEndpoint endpoint;
 	private final DoorOpenCycle cycle;
 
 	private volatile DoorwayPlane plane;
 
-	RuntimeDoor(PlacedDoorEndpoint endpoint)
+	public RuntimeDoor(PlacedDoorEndpoint endpoint)
 	{
 		this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
 		cycle = new DoorOpenCycle();
 	}
 
-	PlacedDoorEndpoint endpoint()
+	public PlacedDoorEndpoint endpoint()
 	{
 		return endpoint;
 	}
 
-	DoorOpenCycle cycle()
+	public DoorOpenCycle cycle()
 	{
 		return cycle;
 	}
 
-	DoorwayPlane plane()
+	public DoorwayPlane plane()
 	{
 		return plane;
 	}

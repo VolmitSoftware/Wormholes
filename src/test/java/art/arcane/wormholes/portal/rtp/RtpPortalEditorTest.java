@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -145,20 +146,30 @@ public final class RtpPortalEditorTest
 	{
 		FakeHost host = new FakeHost(snapshot(settings(), status()));
 		host.biomeOptions = List.of(
-				new RtpPortalEditorModel.BiomeOption("minecraft:swamp", "Swamp"),
-				new RtpPortalEditorModel.BiomeOption("minecraft:desert", "Desert"));
+				new RtpPortalEditorModel.BiomeOption("minecraft:swamp", "Swamp", false),
+				new RtpPortalEditorModel.BiomeOption("tropical/highlands", "Tropical Highlands", true),
+				new RtpPortalEditorModel.BiomeOption("custom:lavender_fields", "Lavender Fields", false));
 		Rendered rendered = render(host);
 		click(rendered.window(), "rtp-open-destination", ElementEvent.LEFT);
 
 		assertTrue(rendered.window().hasId("rtp-target-biome"));
+		assertTrue(rendered.window().element("rtp-target-biome").getName().contains("Any"));
 		click(rendered.window(), "rtp-target-biome", ElementEvent.LEFT);
 		assertTrue(rendered.window().hasId("rtp-biome-any"));
 		assertTrue(rendered.window().hasId("rtp-biome-0"));
 		assertTrue(rendered.window().hasId("rtp-biome-1"));
 		assertTrue(rendered.window().hasId("rtp-biome-back"));
+		assertEquals(Material.FERN, rendered.window().element("rtp-biome-0").getMaterial().getMaterial());
+		assertEquals(Material.AMETHYST_SHARD, rendered.window().element("rtp-biome-1").getMaterial().getMaterial());
+		assertEquals(Material.FERN, rendered.window().element("rtp-biome-2").getMaterial().getMaterial());
+		assertTrue(rendered.window().element("rtp-biome-1").getName().contains("Tropical Highlands"));
 
 		click(rendered.window(), "rtp-biome-0", ElementEvent.LEFT);
 		assertEquals(new RtpPortalEditorModel.TargetBiomeMutation("minecraft:swamp"), host.lastMutation());
+
+		host.mutations.clear();
+		click(rendered.window(), "rtp-biome-1", ElementEvent.LEFT);
+		assertEquals(new RtpPortalEditorModel.TargetBiomeMutation("tropical/highlands"), host.lastMutation());
 
 		host.mutations.clear();
 		click(rendered.window(), "rtp-biome-any", ElementEvent.LEFT);
@@ -166,6 +177,53 @@ public final class RtpPortalEditorTest
 
 		click(rendered.window(), "rtp-biome-back", ElementEvent.LEFT);
 		assertTrue(rendered.window().hasId("rtp-target-biome"));
+	}
+
+	@Test
+	public void destinationSummaryUsesTheCurrentCatalogDisplayName()
+	{
+		SettingsSnapshot selected = SettingsSnapshot.from(RtpSettings.builder(world("overworld", -64, 320, 63))
+				.targetBiomeKey("tropical/highlands").build());
+		FakeHost host = new FakeHost(snapshot(selected, status()));
+		host.biomeOptions = List.of(new RtpPortalEditorModel.BiomeOption("tropical/highlands", "Tropical Highlands", true));
+		Rendered rendered = render(host);
+		click(rendered.window(), "rtp-open-destination", ElementEvent.LEFT);
+
+		String summary = rendered.window().element("rtp-target-biome").getName();
+		assertTrue(summary.contains("Tropical Highlands"));
+		assertFalse(summary.contains("tropical/highlands"));
+
+		click(rendered.window(), "rtp-target-biome", ElementEvent.LEFT);
+		host.biomeOptions = List.of(new RtpPortalEditorModel.BiomeOption("custom:highlands", "Other Highlands", false));
+		click(rendered.window(), "rtp-biome-back", ElementEvent.LEFT);
+		String unavailable = rendered.window().element("rtp-target-biome").getName();
+		assertTrue(unavailable.contains("Unavailable"));
+		assertFalse(unavailable.contains("Tropical Highlands"));
+		assertFalse(unavailable.contains("Other Highlands"));
+		assertTrue(host.mutations.isEmpty());
+	}
+
+	@Test
+	public void destinationSummaryHidesUnavailableRegistryIdentifiers()
+	{
+		String biomeKey = "iris:11111111-1111-1111-1111-111111111111";
+		SettingsSnapshot selected = SettingsSnapshot.from(RtpSettings.builder(world("overworld", -64, 320, 63))
+				.targetBiomeKey(biomeKey).build());
+		FakeHost host = new FakeHost(snapshot(selected, status()));
+		Rendered rendered = render(host);
+		click(rendered.window(), "rtp-open-destination", ElementEvent.LEFT);
+
+		String summary = rendered.window().element("rtp-target-biome").getName();
+		assertTrue(summary.contains("Unavailable"));
+		assertFalse(summary.contains("iris:"));
+		assertFalse(summary.contains("11111111"));
+		assertEquals(biomeKey, host.snapshot.settings().targetBiomeKey());
+		assertTrue(host.mutations.isEmpty());
+
+		click(rendered.window(), "rtp-target-biome", ElementEvent.LEFT);
+		assertTrue(rendered.window().hasId("rtp-biome-empty"));
+		assertTrue(rendered.window().hasId("rtp-biome-any"));
+		assertFalse(rendered.window().hasId("rtp-biome-0"));
 	}
 
 	@Test

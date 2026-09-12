@@ -55,6 +55,14 @@ final class ProjectorDestination {
         this.liveViews = new HashMap<World, ProjectionWorldView>(4);
     }
 
+    /** A destination view safe to read off the observer thread: remote views get their own decode cache. */
+    ProjectionWorldView plateView() {
+        if (destView instanceof RemoteWorldView && cachedRemoteViewSource != null) {
+            return new RemoteWorldView(cachedRemoteViewSource, remoteFallback);
+        }
+        return destView;
+    }
+
     ProjectionWorldView liveView(World world) {
         ProjectionWorldView view = liveViews.get(world);
         if (view == null) {

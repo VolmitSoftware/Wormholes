@@ -513,6 +513,7 @@ rename = ["&a&lĐổi tên cổng&r", "&7Đổi tên hiển thị trong liên k�
 delete = ["&c&lXóa cổng&r", "&7Xóa vĩnh viễn cổng này.", "", "&c&nShift + nhấp trái để xác nhận&r"]
 advanced_settings = ["&3&lTinh chỉnh luồng nâng cao&r", "&7Điều khiển trực tiếp để chẩn đoán và xử lý liên kết đặc biệt.", "&7Thay đổi một giá trị sẽ đặt Chất lượng luồng thành Tùy chỉnh."]
 back_settings = ["&e&lTrở lại cài đặt&r", "&7Trở lại cài đặt cổng dịch chuyển."]
+extensions = ["&b&lCài đặt khác&r", "&7Quy tắc, quyền truy cập, mạng lưới và các cài đặt tính năng khác.", "&eNhấp chuột trái"]
 stream_quality = ["&b&lChất lượng luồng: {quality}&r", "&7Một tùy chọn điều khiển phạm vi và nhịp cập nhật của khung nhìn từ xa.", "", "&7Độ sâu &b{depth}&7  Thực thể &b{entities}t", "&7Làm mới &b{refresh}t&7  Duy trì &b{grace}s", "", "&8Nhấp: đổi chất lượng.", "&8Shift + nhấp: tinh chỉnh nâng cao."]
 orientation = ["&9&lHướng&r", "&7Mặt trước: &9{facing}", "&7Phía trên màn hình: &6{up}", "", "&8Nhấp để chỉnh mặt trước, lật và xoay."]
 orientation_placard = ["&9&lHướng cổng&r", "&7Mặt trước: &9{facing}", "&7Phía trên màn hình: &6{up}"]
@@ -936,6 +937,7 @@ decimal_seconds = "{value}s"
 
 [rtp.biome]
 any_label = "Bất kỳ"
+unavailable_label = "Không khả dụng"
 header = ["&b&lQuần xã mục tiêu&r", "&7Tìm kiếm ưu tiên quần xã này và chuyển sang bất kỳ điểm an toàn nào khi không tìm thấy gần đó."]
 any_selected = ["&a&lQuần xã bất kỳ&r", "&7Không ưu tiên quần xã nào.", "&aĐã chọn"]
 any_available = ["&b&lQuần xã bất kỳ&r", "&7Xóa ưu tiên quần xã.", "&eNhấp trái để chọn"]
@@ -1018,3 +1020,513 @@ trapdoor_skin = ["&6Vỏ Cửa Sập Không Gian", "&7Kết hợp cửa sập kh
 entangled_trapdoor_pair_recipe = ["&6Cặp cửa sập liên kết", "&7Chứa hai Cửa Sập Lỗ Sâu tự động liên kết."]
 personal_trapdoor_recipe = ["&bCửa Sập Không Gian Cá Nhân", "&7Mỗi người đi vào chiều không gian riêng được lưu lâu dài."]
 public_trapdoor_recipe = ["&6Cửa Sập Không Gian Công Cộng", "&7Mọi người đi vào chiều không gian dùng chung của cửa sập này."]
+
+# ==== Headline lane blocks. Each lane adds its tables between its own markers only. ====
+
+
+# ---- lane:rules (rules.*) ----
+[rules]
+route_card = "{portal} > {destination} | {amount} | {state}"
+
+[rules.menu]
+entry = ["&6Quy tắc", "&7Ai được đi qua, chi phí bao nhiêu và điều gì xảy ra sau đó."]
+cooldown = ["&6Thời gian hồi: {seconds}s", "&7Nhấp trái và phải để thay đổi, giữ shift cho bước 10 giây."]
+warmup = ["&6Chuẩn bị: {seconds}s", "&7Nhấp trái và phải để thay đổi, giữ shift cho bước 10 giây."]
+group = ["&6Nhóm thời gian hồi: {value}", "&7Nhấp để nhập tên nhóm."]
+pushback = ["&6Đẩy lùi: {value}", "&7Nhấp trái và phải để thay đổi giá trị."]
+sound = ["&6Âm lượng từ chối: {value}", "&7Nhấp trái và phải để thay đổi giá trị."]
+charges = ["&6Lượt nạp: {count}", "&7Nhấp trái và phải để thay đổi dung lượng."]
+default_outcome = ["&6Mặc định: {mode}", "&7Nhấp để chuyển giữa cho phép và từ chối."]
+rules = ["&6Quy tắc ({count})", "&7Nhấp để mở danh sách quy tắc."]
+rule = ["&6{name}", "&7{value} &8- giữ shift và nhấp để xóa quy tắc."]
+add_rule = ["&aThêm quy tắc", "&7Nhấp để nhập id quy tắc."]
+line = ["&f{value}", "&7Giữ shift và nhấp để xóa dòng này."]
+add_line = ["&aThêm dòng", "&7Nhấp và nhập kind=PERMISSION;node=group.vip."]
+templates = ["&6Mẫu", "&7Nhấp để áp dụng mẫu đã lưu."]
+template = ["&f{name}", "&7Nhấp để áp dụng mẫu này."]
+back = ["&7Quay lại", "&8Về trang trước."]
+page = ["&7Trang {page} trên {pages}", "&8Nhấp để lật trang."]
+
+[rules.route]
+unlisted = "Không rõ"
+free = "Miễn phí"
+ready = "Sẵn sàng"
+cooldown = "{seconds}s"
+
+[rules.denied]
+default = "Cổng này đã từ chối bạn."
+entity_class = "Chỉ {mode} mới có thể dùng cổng này."
+key = "Bạn cần chìa khóa của {portal}."
+time = "{portal} hiện đang đóng."
+cooldown = "Chờ {seconds}s trước khi dùng lại {portal}."
+charges = "{portal} không còn lượt nạp."
+cost = "Bạn không thể trả {amount} để dùng {portal}."
+
+[rules.notice]
+rule_added = "Đã thêm quy tắc {name}."
+rule_removed = "Đã xóa quy tắc {name}."
+invalid = "Không thể áp dụng: {reason}"
+applied = "Đã áp dụng mẫu {name}."
+
+[rules.prompt]
+group = "&bNhập tên nhóm thời gian hồi (hoặc \"{cancel}\"):"
+rule_id = "&bNhập id cho quy tắc mới (hoặc \"{cancel}\"):"
+line = "&bNhập một dòng quy tắc, ví dụ kind=PERMISSION;node=group.vip (hoặc \"{cancel}\"):"
+
+[rules.warmup]
+countdown = "Đứng yên: {seconds}s"
+cancelled = "Đã hủy chuẩn bị."
+
+[rules.command]
+exported = "Đã ghi quy tắc của {portal} vào mẫu {name}."
+imported = "Đã áp dụng mẫu {name} cho {portal}."
+templates = "Mẫu quy tắc: {value}"
+no_templates = "Chưa có mẫu quy tắc nào được lưu."
+template_missing = "Không có mẫu quy tắc nào tên {name}."
+template_invalid = "Mẫu {name} không hợp lệ: {reason}"
+portal_missing = "Không có cổng nào tên {name}."
+portal_ambiguous = "{count} cổng cùng tên {name}; hãy đổi tên một cổng."
+not_in_portal = "Hãy đứng trong một cổng hoặc chỉ định cổng bằng tùy chọn portal."
+key_given = "Bạn đã nhận chìa khóa của {portal}."
+failed = "Không thể hoàn tất: {reason}"
+
+[rules.command.help]
+rules = "Quy tắc di chuyển: mẫu, chìa khóa và hồ sơ cổng"
+export = "Ghi quy tắc của cổng ra tệp mẫu"
+"export.name" = "Tên mẫu cần ghi"
+"export.portal" = "Tên cổng, hoặc cổng bạn đang đứng"
+import = "Áp dụng mẫu cho cổng bạn đang đứng"
+"import.name" = "Tên mẫu cần đọc"
+"import.portal" = "Tên cổng, hoặc cổng bạn đang đứng"
+apply = "Áp dụng mẫu cho cổng theo tên từ bất kỳ đâu"
+"apply.name" = "Tên mẫu cần đọc"
+"apply.portal" = "Tên cổng sẽ áp dụng mẫu"
+list = "Liệt kê các mẫu quy tắc đã lưu"
+key = "Tự cấp cho mình chìa khóa của cổng"
+"key.portal" = "Tên cổng để tạo chìa khóa"
+"key.uses" = "Số lần đi qua mà chìa khóa cho phép, 0 là không giới hạn"
+# ---- end lane:rules ----
+
+
+# ---- lane:access (access.*) ----
+[access.denied]
+role = "&cBạn không được phép dùng {portal}."
+claim = "&cMột vùng đất được bảo vệ chặn {portal}."
+limit = "&cBạn đã sở hữu {count} cổng; giới hạn là {maximum}."
+
+[access.construct]
+denied = "&cBạn không thể xây cổng ở đây: {reason}."
+
+[access.claim]
+reason = "{plugin} bảo vệ vùng đất này"
+failure = "không thể hỏi {plugin}"
+
+[access.transfer]
+done = "&8[&6Wormholes&8] &a{portal} bây giờ thuộc về {name}."
+
+[access.key]
+set = "&aKhóa quyền của {portal} bây giờ là {key}."
+taken = "&cKhóa quyền {key} đã được dùng."
+invalid = "&cKhóa quyền dùng a-z, 0-9, dấu chấm, dấu gạch ngang và gạch dưới, tối đa 64 ký tự."
+
+[access.player]
+not_found = "&cKhông có người chơi nào tên {name}."
+
+[access.portal]
+not_found = "&8[&6Wormholes&8] &cKhông có cổng nào tên {portal}."
+ambiguous = "&8[&6Wormholes&8] &c{count} cổng khớp với {portal}; hãy dùng id của cổng."
+
+[access.role]
+changed = "&a{name} bây giờ là {state} tại {portal}."
+removed = "&a{name} không còn vai trò nào tại {portal}."
+owner_always = "&7Chủ sở hữu luôn có toàn quyền."
+
+[access.listed]
+changed = "&a{portal} bây giờ {state} trong danh bạ công khai."
+
+[access.group]
+added = "&a{portal} bây giờ cấp quyền truy cập cho {node}."
+cleared = "&a{portal} không còn cấp quyền truy cập theo nhóm."
+
+[access.limits]
+report = "&8[&6Wormholes&8] &7{name} sở hữu {count} cổng; giới hạn là {maximum}."
+unlimited = "&8[&6Wormholes&8] &7{name} sở hữu {count} cổng và không có giới hạn."
+
+[access.prompt]
+player = "&7Gõ tên người chơi vào khung chat, hoặc {cancel} để dừng."
+key = "&7Gõ khóa quyền mới vào khung chat, hoặc {cancel} để dừng."
+group = "&7Gõ một node quyền vào khung chat, hoặc {cancel} để dừng."
+
+[access.label]
+owner = "Chủ sở hữu"
+co_owner = "Đồng sở hữu"
+user = "Tin cậy"
+denied = "Bị từ chối"
+listed = "Hiển thị"
+unlisted = "Ẩn"
+
+[access.menu]
+entry = ["&b&lTruy cập&r", "&7Vai trò, nhóm và khóa quyền."]
+placard = ["&b&lTruy cập: {portal}&r", "&7Chủ sở hữu: &f{owner}", "&7Vai trò: &f{count}", "&7Khóa: &f{key}"]
+add = ["&a&lThêm người chơi&r", "&7Gõ một tên vào khung chat để cấp vai trò."]
+role = ["&f&l{name}&r", "&7Vai trò: &f{state}", "&7Chuột trái hoặc phải để đổi vai trò.", "&7Shift + chuột trái để gỡ bỏ."]
+groups = ["&e&lNhóm được phép&r", "&7{count} node quyền cấp quyền truy cập.", "&7Chuột trái để thêm, chuột phải để xóa hết."]
+key = ["&b&lKhóa quyền&r", "&7{key}", "&7Chuột trái để đổi."]
+listed = ["&b&lDanh bạ công khai&r", "&7{state}", "&7Chuột trái để bật tắt."]
+
+[access.command.help]
+access = "Danh sách truy cập, quyền sở hữu và giới hạn cổng"
+transfer = "Trao một cổng cho người chơi khác"
+"transfer.portal" = "Tên hoặc id của cổng"
+"transfer.player" = "Tên chủ sở hữu mới"
+key = "Đặt khóa quyền cố định của một cổng"
+"key.portal" = "Tên hoặc id của cổng"
+"key.key" = "Khóa quyền mới"
+limits = "Hiển thị số cổng một người chơi sở hữu và được phép sở hữu"
+"limits.player" = "Người chơi cần xem; mặc định là bạn"
+# ---- end lane:access ----
+
+
+# ---- lane:nexus (nexus.* and atlas.*) ----
+[nexus]
+dialed = "&8[&6Wormholes&8] &a{portal} đã quay số {address}: &f{destination}"
+created = "&8[&6Wormholes&8] &aĐã tạo mạng {name}."
+deleted = "&8[&6Wormholes&8] &aĐã xóa mạng {name}."
+joined = "&8[&6Wormholes&8] &a{portal} đã vào {name} với địa chỉ {address}."
+left = "&8[&6Wormholes&8] &a{portal} đã rời {name}."
+
+[nexus.dial]
+unknown = "&8[&6Wormholes&8] &cKhông có cổng nào ở địa chỉ {address}."
+none = "&8[&6Wormholes&8] &c{portal} không thuộc mạng nào."
+debounced = "&8[&6Wormholes&8] &7Quay số quá nhanh; hãy chờ một chút."
+managed = "&8[&6Wormholes&8] &c{portal} là cổng do hệ thống quản lý, không quay số được."
+
+[nexus.address]
+taken = "&8[&6Wormholes&8] &cĐịa chỉ {address} đã được dùng trong {name}."
+set = "&8[&6Wormholes&8] &a{portal} trả lời ở địa chỉ {address}."
+invalid = "&8[&6Wormholes&8] &cĐịa chỉ chỉ dùng các ký tự sau: {value}"
+
+[nexus.network]
+unknown = "&8[&6Wormholes&8] &cKhông có mạng nào tên {name}."
+exists = "&8[&6Wormholes&8] &cĐã có một mạng tên {name}."
+full = "&8[&6Wormholes&8] &c{name} đã chứa {count} cổng."
+limit = "&8[&6Wormholes&8] &cBạn đã sở hữu {count} mạng."
+
+[nexus.portal]
+unknown = "&8[&6Wormholes&8] &cKhông có cổng nào tên {portal}."
+not_member = "&8[&6Wormholes&8] &c{portal} không thuộc {name}."
+
+[nexus.visibility]
+set = "&8[&6Wormholes&8] &a{name} nay là {value}."
+
+[nexus.hub]
+set = "&8[&6Wormholes&8] &a{portal} là trung tâm của {name}."
+
+[nexus.list]
+empty = "&8[&6Wormholes&8] &7Chưa có mạng nào."
+entry = "&7{name} &8- &f{count} cổng&7, {value}, chủ &f{owner}"
+
+[nexus.info]
+header = "&6{name} &8- &f{count} cổng&7, {value}, {mode}"
+member = "&e{address} &f{portal} &7ở {world} &8{state}"
+
+[nexus.doctor]
+header = "&8[&6Wormholes&8] &6Kiểm tra liên kết: {count} phát hiện."
+clean = "&8[&6Wormholes&8] &aKhông thấy vấn đề liên kết nào."
+oneway = "&e{portal} -> {destination} không có liên kết ngược."
+dangling = "&c{portal} trỏ tới một đích không còn tồn tại."
+unloaded = "&e{portal} trỏ vào thế giới chưa tải {world}."
+offline = "&c{portal} trỏ tới {server}, đã ngoại tuyến {count} ngày."
+
+[nexus.redstone]
+set = "&8[&6Wormholes&8] &a{portal} redstone: {value}."
+
+[nexus.reciprocal]
+paired = "&8[&6Wormholes&8] &a{portal} và {destination} nay liên kết hai chiều."
+unpaired = "&8[&6Wormholes&8] &a{portal} và {destination} không còn liên kết ngược."
+denied = "&8[&6Wormholes&8] &cBạn không thể quản lý cả {portal} lẫn {destination}."
+
+[nexus.prompt]
+network_name = "&bGõ tên mạng vào khung chat (hoặc '{cancel}'):"
+address = "&bGõ địa chỉ mới vào khung chat (hoặc '{cancel}'):"
+
+[nexus.menu]
+entry = ["&b&lMạng&r", "&7Mạng, địa chỉ, quay số, quy tắc đích, redstone.", "&7Mạng: &f{name}", "&7Địa chỉ: &f{address}", "&eChuột trái"]
+placard = ["&b&lMạng: {name}&r", "&7Địa chỉ: &f{address}", "&7Thành viên: &f{count}"]
+join = ["&a&lVào một mạng&r", "&7Thêm cổng này vào một mạng và cấp cho nó địa chỉ.", "&eChuột trái"]
+leave = ["&c&lRời {name}&r", "&7Gỡ cổng này và địa chỉ của nó khỏi mạng.", "&eChuột trái"]
+create = ["&a&lTạo mạng&r", "&7Đặt tên cho mạng mới và cho cổng này vào đó.", "&eChuột trái"]
+address = ["&e&lĐịa chỉ: {address}&r", "&7Mã ngắn mà các cổng khác quay để tới đây.", "&eChuột trái để gõ lại. &eChuột phải để bốc lại."]
+visibility = ["&e&lHiển thị: {value}&r", "&7Mạng công khai ai cũng thấy, mạng thành viên chỉ thành viên thấy, mạng ẩn không ai thấy.", "&eChuột trái để đổi"]
+topology = ["&e&lCấu trúc: {value}&r", "&7Lưới quay tới mọi thành viên, trung tâm đi qua một cổng, chuỗi và vòng quay tới cổng kề.", "&eChuột trái để đổi"]
+reciprocal = ["&e&lLiên kết ngược: {state}&r", "&7Giữ cho đích luôn trỏ ngược về cổng này.", "&eChuột trái để bật tắt"]
+policy = ["&e&lĐích: {mode}&r", "&7{count} mục. Theo thứ tự, theo trọng số, theo lịch, theo người chơi hoặc quay về.", "&eChuột trái đổi chế độ. &eChuột phải xóa danh sách."]
+redstone = ["&e&lRedstone: {value}&r", "&7Sườn lên cạnh khung làm gì và bộ so sánh đọc được gì.", "&eChuột trái chọn hành động. &eChuột phải chọn đầu ra bộ so sánh."]
+dial = ["&b&lQuay số&r", "&7Hướng cổng này tới một địa chỉ khác trong mạng của nó.", "&eChuột trái"]
+dial_entry = ["&e{address} &f{portal}", "&7{world}", "&b{state}"]
+link_and_return = ["&d&lLiên kết và quay về&r", "&7Hướng cả {destination} trở lại {portal}.", "&eChuột trái"]
+
+[atlas]
+title = "&8Atlas &7- &f{count} cổng"
+row = "&f{portal} &8| &7{destination} &8| &b{state}"
+empty = "&8[&6Wormholes&8] &7Chưa khám phá cổng nào."
+disabled = "&8[&6Wormholes&8] &cAtlas bị tắt trên máy chủ này."
+only_players = "&8[&6Wormholes&8] &cChỉ người chơi mới có atlas."
+no_permission = "&8[&6Wormholes&8] &cBạn không có quyền mở atlas."
+discovered = "&8[&6Wormholes&8] &aĐã khám phá {portal}."
+usage = ["&8[&6Wormholes&8] &7/atlas &8- &7mở danh sách cổng của bạn", "&8[&6Wormholes&8] &7/atlas favorites &8- &7chỉ các cổng đã ghim", "&8[&6Wormholes&8] &7/atlas recents &8- &7các cổng bạn dùng gần đây", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7hiện hướng; /atlas guide off để dừng"]
+
+[atlas.favorite]
+added = "&8[&6Wormholes&8] &aĐã ghim {portal}."
+removed = "&8[&6Wormholes&8] &aĐã bỏ ghim {portal}."
+full = "&8[&6Wormholes&8] &cBạn đã ghim {count} cổng."
+
+[atlas.guide]
+bearing = "&b{portal} &f{value}"
+set = "&8[&6Wormholes&8] &aĐang dẫn tới {portal}."
+cleared = "&8[&6Wormholes&8] &aĐã tắt dẫn đường."
+unknown = "&8[&6Wormholes&8] &cAtlas của bạn không có cổng nào tên {portal}."
+
+[atlas.menu]
+row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&eChuột trái để quay số. &eChuột phải để ghim. &eShift+trái để dẫn đường."]
+favorites = ["&d&lChỉ đã ghim: {state}&r", "&7Chỉ hiện các cổng bạn đã ghim.", "&eChuột trái"]
+recents = ["&b&lChỉ gần đây: {state}&r", "&7Chỉ hiện các cổng bạn dùng gần đây.", "&eChuột trái"]
+guide = ["&a&lDẫn đường: {portal}&r", "&7Hiện hướng tới cổng đang dẫn trên thanh hành động.", "&eChuột trái để dừng"]
+# ---- end lane:nexus ----
+
+
+# ---- lane:doors (doorview.* and pockets.*) ----
+[doorview]
+"disabled" = "&8[&6Wormholes&8] &cChieu hinh qua cua da bi tat trong wormholes.toml."
+"toggle.inherit" = "&8[&6Wormholes&8] &7Chieu hinh qua cua nay: &fke thua&7."
+"toggle.on" = "&8[&6Wormholes&8] &aChieu hinh qua cua nay: bat."
+"toggle.off" = "&8[&6Wormholes&8] &eChieu hinh qua cua nay: tat."
+"state.inherit" = "ke thua"
+"state.on" = "bat"
+"state.off" = "tat"
+"menu.projection" = ["&b&lChieu hinh: {state}&r", "&7Hien thi diem den xuyen qua khung cua nay.", "&eNhap chuot trai de doi"]
+
+[pockets]
+"confirm.overwrite" = ["&8[&6Wormholes&8] &cViec nay thay the moi thu ben trong tui &f{space}&c.", "&8[&6Wormholes&8] &7Chay lai lenh voi &fconfirm=true&7 de tiep tuc."]
+"denied.build" = "&8[&6Wormholes&8] &cBan khong phai tho xay trong tui nay."
+"denied.pvp" = "&8[&6Wormholes&8] &cGiao tranh da tat trong tui nay."
+"instance.none" = "&8[&6Wormholes&8] &cTui nay khong phai la mot ban the."
+"instance.reset" = "&8[&6Wormholes&8] &aBan the tui &f{space}&a da duoc dat lai."
+"room.added" = "&8[&6Wormholes&8] &aDa them phong &f{count}&a vao tui &f{space}&a."
+"room.blocked" = "&8[&6Wormholes&8] &cHay dat cua len mot buc tuong ben trong."
+"room.limit" = "&8[&6Wormholes&8] &cTui nay da dat toi da &f{count}&c phong."
+"roster.added" = "&8[&6Wormholes&8] &a{name}&a da vao danh sach tui voi vai tro &f{value}&a."
+"roster.missing" = "&8[&6Wormholes&8] &c{name}&c khong co trong danh sach cua tui nay."
+"roster.removed" = "&8[&6Wormholes&8] &e{name}&e da roi danh sach tui."
+"roster.role" = "&8[&6Wormholes&8] &a{name}&a gio la &f{value}&a trong tui nay."
+"rules.invalid" = "&8[&6Wormholes&8] &cQuy tac tui khong xac dinh &f{key}&c."
+"rules.set" = "&8[&6Wormholes&8] &a{key} &7= &f{value}"
+"snapshot.missing" = "&8[&6Wormholes&8] &cTui nay khong co anh chup nao ten &f{name}&c."
+"snapshot.restored" = "&8[&6Wormholes&8] &aDa khoi phuc anh chup &f{name}&a vao tui &f{space}&a."
+"snapshot.saved" = "&8[&6Wormholes&8] &aDa luu anh chup &f{name}&a cua tui &f{space}&a."
+"template.applied" = "&8[&6Wormholes&8] &aDa ap dung mau &f{name}&a cho tui &f{space}&a."
+"template.list" = "&8[&6Wormholes&8] &7Mau (&f{count}&7): &f{value}"
+"template.missing" = "&8[&6Wormholes&8] &cKhong co mau tui nao ten &f{name}&c."
+# ---- end lane:doors ----
+
+
+# ---- lane:mesh (mesh.*) ----
+[mesh]
+pending = "&8[&6Wormholes&8] &e{server}&7 muốn tham gia thông qua &f{name}&7: /wh network accept {server}"
+accepted = "&8[&6Wormholes&8] &a&f{server}&a đã được chấp nhận vào mạng."
+rejected = "&8[&6Wormholes&8] &c&f{server}&c đã bị từ chối và lời giới thiệu bị hủy."
+tombstoned = "&8[&6Wormholes&8] &f{server}&7 đã bị gỡ khỏi toàn bộ mạng."
+disabled = "&8[&6Wormholes&8] &7Liên kết mạng lưới đang &ctắt&7 ([network.mesh] enabled = false)."
+
+[mesh.introductions]
+none = "&8[&6Wormholes&8] &7Không có lời giới thiệu nào đang chờ phê duyệt."
+unknown = "&8[&6Wormholes&8] &c{server} không đang chờ phê duyệt."
+
+[mesh.members]
+none = "&8[&6Wormholes&8] &7Chưa biết thành viên mạng nào."
+row = "&8[&6Wormholes&8] &f{server}&7 {state} &8{fingerprint}"
+
+[mesh.versions]
+none = "&8[&6Wormholes&8] &7Chưa có máy chủ ngang hàng nào được liên kết."
+row = "&8[&6Wormholes&8] &f{server}&7: giao thức &f{value}&7, plugin &f{name}&7, khả năng &f{state}"
+reduced = "&8[&6Wormholes&8] &e{server}&7 liên kết với khả năng bị giảm: &f{reason}"
+
+[mesh.drain]
+on = "&8[&6Wormholes&8] &eChế độ rút cạn bật: máy chủ này từ chối người đến mới cho đến khi tắt chế độ."
+off = "&8[&6Wormholes&8] &aChế độ rút cạn tắt: máy chủ này lại chấp nhận người đến."
+state = "&8[&6Wormholes&8] &7Chế độ rút cạn đang {state}."
+invalid = "&8[&6Wormholes&8] &cTrạng thái rút cạn phải là on hoặc off, nhận được {value}."
+
+[mesh.queue]
+position = "&7Đang chờ máy chủ trống: vị trí &f{count}&7, &f{seconds}&7 giây"
+timeout = "&cKhông máy chủ đích nào còn chỗ kịp thời."
+
+[mesh.policy]
+none = "&cHiện không có điểm đến nào khả dụng."
+set = "&8[&6Wormholes&8] &aChính sách trên &f{portal}&a: {value}"
+cleared = "&8[&6Wormholes&8] &7Đã xóa chính sách trên &f{portal}&7; nó liên kết lại với điểm đến thường."
+portal_unknown = "&8[&6Wormholes&8] &cKhông có cổng cục bộ tên {portal}."
+invalid = "&8[&6Wormholes&8] &cChính sách không hợp lệ: {reason}"
+
+[mesh.command.help]
+members = "Liệt kê mọi thành viên mạng cùng trạng thái liên kết và dấu vân tay khóa"
+pending = "Liệt kê các máy chủ được giới thiệu đang chờ phê duyệt"
+accept = "Tin cậy một máy chủ được giới thiệu và lưu tuyến của nó"
+reject = "Hủy lời giới thiệu đang chờ của một máy chủ"
+versions = "Hiển thị giao thức, phiên bản plugin và khả năng của từng máy chủ ngang hàng"
+drain = "Đưa máy chủ này ra khỏi vòng luân phiên điểm đến hoặc đưa trở lại"
+policy = "Đặt hoặc xóa chính sách điểm đến của một cổng"
+
+[mesh.command.param.accept]
+server = "Tên máy chủ được giới thiệu (xem /wh network pending)"
+
+[mesh.command.param.reject]
+server = "Tên máy chủ được giới thiệu cần từ chối"
+
+[mesh.command.param.drain]
+state = "on hoặc off; bỏ trống để xem trạng thái hiện tại"
+
+[mesh.command.param.policy]
+portal = "Tên hoặc id của cổng cục bộ"
+candidates = "Các mục server:portal[:weight] cách nhau bằng dấu phẩy; để trống sẽ xóa chính sách"
+strategy = "FIRST_AVAILABLE, LEAST_LOADED, ROUND_ROBIN, STICKY hoặc NEAREST"
+headroom = "Số chỗ trống mà ứng viên phải báo cáo"
+tps = "TPS tối thiểu mà ứng viên phải báo cáo; 0 bỏ qua TPS"
+queue = "Giữ người đi khi mọi ứng viên đều đầy"
+# ---- end lane:mesh ----
+
+
+# ---- lane:transit (transit.*) ----
+[transit]
+bounced = "{portal} đã đẩy bạn lại."
+
+[transit.denied]
+membrane = "{portal} chỉ có thể đi vào từ mặt trước."
+convoy_size = "Đoàn của bạn có {count} thực thể; giới hạn là {value}."
+convoy_fit = "Đoàn của bạn không lọt qua {portal}."
+convoy_member = "Một phần đoàn của bạn không được dùng {portal}."
+
+[transit.convoy]
+waiting = "Đưa cả đoàn của bạn qua {portal}."
+failed = "Chuyển đoàn thất bại: {reason}."
+
+[transit.menu]
+entry = ["&b&lQuá cảnh&r", "&7Động lượng, hướng nhìn, màng, bật lại và hiệu ứng.", "&eNhấp trái"]
+momentum = ["&6&lĐộng lượng: {mode}&r", "&7Hệ số {value}. Cách suy ra tốc độ ra từ tốc độ vào.", "&eNhấp trái để đổi chế độ", "&eNhấp phải để đặt hệ số"]
+orientation = ["&6&lHướng nhìn: {mode}&r", "&7Người đi nhìn về hướng nào khi đến nơi.", "&eNhấp trái để đổi"]
+membrane = ["&6&lMàng: {state}&r", "&7Chỉ mặt trước cho người đi vào; mặt sau đẩy họ ra.", "&eNhấp trái để bật hoặc tắt"]
+bounce = ["&6&lBật lại: {state}&r", "&7Đẩy người đi ngược lại thay vì dịch chuyển họ.", "&eNhấp trái để bật hoặc tắt"]
+profile = ["&6&lHiệu ứng chuyển tiếp&r", "&7Tiếp cận {value}", "&7Ngưỡng {mode}", "&7Đến nơi {state}", "&eNhấp trái: âm tiếp cận, Nhấp phải: hiệu ứng ngưỡng", "&eShift + Nhấp trái: âm đến nơi, Shift + Nhấp phải: tick mặt nạ"]
+prompt = "&bNhập giá trị mới vào khung chat (hoặc '{cancel}'):"
+# ---- end lane:transit ----
+
+
+# ---- lane:view (fidelity.*) ----
+[fidelity.menu]
+entry = ["&b&lĐộ trung thực&r", "&7Khí quyển, âm thanh, chi tiết và thực thể khối của cổng này.", "&eNhấp chuột trái"]
+placard = ["&b&lĐộ trung thực chiếu&r", "&7Các kênh theo từng cổng được phủ lên hình chiếu."]
+atmosphere = "&bKhí quyển: &f{mode}"
+acoustics = "&bÂm thanh: &f{mode}"
+lod = "&bChi tiết: &f{mode}"
+block_entities = "&bThực thể khối: &f{state}"
+hint = ["&8Nhấp để chuyển đổi.", "&8Shift + nhấp dùng mặc định của máy chủ."]
+back = ["&e&lQuay lại&r", "&7Trở về menu cổng."]
+default = "mặc định"
+
+[fidelity.bedrock]
+profile = "Hồ sơ Bedrock đang áp dụng cho {count} người xem"
+# ---- end lane:view ----
+
+
+# ---- lane:ops (ops.*) ----
+[ops.console]
+started = "Diem cuoi so lieu dang lang nghe tai {value}."
+no_token = "Diem cuoi so lieu khong khoi dong: hay dat [ops.console] token."
+failed = "Diem cuoi so lieu khong the gan {value}: {reason}"
+
+[ops.webmap]
+published = "Da dang {count} diem danh dau cong len {name}."
+
+[ops.backup]
+created = "&8[&6Wormholes&8] &aBan sao luu &f{id}&a da ghi vao &f{path}&a."
+restored = "&8[&6Wormholes&8] &aDa khoi phuc &f{count}&a cong tu &f{id}&a."
+dry_run = "&8[&6Wormholes&8] &7Chay thu: &f{count}&7 cong se thay doi."
+list_row = "&8[&6Wormholes&8] &f{id} &8| &f{count}&7 cong &8| &7{path}"
+list_empty = "&8[&6Wormholes&8] &7Khong co ban sao luu trong &f{path}&7."
+not_found = "&8[&6Wormholes&8] &cKhong co ban sao luu nao khop voi &f{id}&c."
+confirm_required = "&8[&6Wormholes&8] &cChay lai voi &fconfirm=true&c de ap dung, hoac &fdry=true&c de xem ke hoach."
+failed = "&8[&6Wormholes&8] &cThao tac sao luu that bai: &f{reason}"
+reload_required = "&8[&6Wormholes&8] &7Da thay the cac tep cong. Chay &f/wormholes reload&7 de nap chung."
+signature_broken = "&8[&6Wormholes&8] &cTu choi &f{id}&c: chu ky khong khop voi noi dung."
+signature_untrusted = "&8[&6Wormholes&8] &cTu choi &f{id}&c: duoc ky boi &f{fingerprint}&c, may chu nay khong tin tuong. Them &fallow-unsigned=true&c de van ap dung."
+signature_ok = "&8[&6Wormholes&8] &7Duoc ky boi &f{name}&7 (&f{fingerprint}&7)."
+
+[ops.import]
+report = "&8[&6Wormholes&8] &f{name}&7: da nhap &f{count}&7 cong, bo qua &f{value}&7."
+skipped_row = "&8[&6Wormholes&8] &7{portal}&8: &f{reason}"
+not_detected = "&8[&6Wormholes&8] &cKhong tim thay du lieu {name} trong &f{path}&c."
+
+[ops.portals]
+row = "&8[&6Wormholes&8] &f{portal} &8| &7{world} &8| &7{state} &8| &7{destination}"
+page = "&8[&6Wormholes&8] &7Trang &f{page}&7/&f{pages}"
+empty = "&8[&6Wormholes&8] &7Khong co cong nao khop voi cac bo loc do."
+not_found = "&8[&6Wormholes&8] &cKhong co cong nao khop voi &f{name}&c."
+ambiguous = "&8[&6Wormholes&8] &cCo {count} cong khop voi &f{name}&c; hay dung id."
+info = ["&8[&6Wormholes&8] &7Cong &f{portal} &8| &7{id}", "&8[&6Wormholes&8] &7The gioi &f{world}&7 tai &f{value}", "&8[&6Wormholes&8] &7Trang thai &f{state}&7, dich &f{destination}&7, chu so huu &f{owner}"]
+teleported = "&8[&6Wormholes&8] &aDa dich chuyen den &f{portal}&a."
+teleport_unsafe = "&8[&6Wormholes&8] &eKhong co cho ha canh an toan gan &f{portal}&e; dung tam cong."
+retargeted = "&8[&6Wormholes&8] &a&f{portal}&a bay gio tro toi &f{destination}&a."
+unlinked = "&8[&6Wormholes&8] &a&f{portal}&a khong con lien ket."
+pruned = "&8[&6Wormholes&8] &aDa don &f{count}&a lien ket mo coi."
+prune_dry_run = "&8[&6Wormholes&8] &7Chay thu: se don &f{count}&7 lien ket mo coi."
+renamed_server = "&8[&6Wormholes&8] &aDa viet lai &f{count}&a lien ket cong noi tu &f{name}&a sang &f{server}&a."
+
+[ops.command.help]
+backup = "Tao, liet ke, khoi phuc va trao doi ban sao luu cong"
+"backup.now" = "Ghi ngay mot ban sao luu du lieu cong"
+"backup.list" = "Liet ke cac ban sao luu tren dia"
+"backup.restore" = "Khoi phuc tep cong tu mot ban sao luu (dry=true chi hien ke hoach)"
+"backup.restore.id" = "Id ban sao luu tu /wormholes admin backup list"
+"backup.restore.dry" = "Bao cao nhung gi se thay doi ma khong ghi gi"
+"backup.restore.world_map" = "Doi ten the gioi dang cu=moi,cu=moi"
+"backup.restore.owner_map" = "Doi chu so huu dang uuid-cu=uuid-moi"
+"backup.restore.confirm" = "Bat buoc de ghi tep khi dry=false"
+"backup.allow_unsigned" = "Ap dung goi ma khong khoa tin cay nao da ky"
+"backup.export" = "Ghi goi sao luu vao mot tep co the mang giua cac may chu"
+"backup.export.file" = "Tep dich; de trong se ghi vao thu muc sao luu"
+"backup.import" = "Nhap mot goi da xuat tu may chu khac"
+"backup.import.file" = "Tep goi can doc"
+"backup.import.dry" = "Bao cao nhung gi se thay doi ma khong ghi gi"
+"backup.import.world_map" = "Doi ten the gioi dang cu=moi,cu=moi"
+"backup.import.owner_map" = "Doi chu so huu dang uuid-cu=uuid-moi"
+"backup.import.confirm" = "Bat buoc de ghi tep khi dry=false"
+"backup.import_from" = "Nhap cong tu tep cua mot plugin cong khac"
+"backup.import_from.source" = "stargate, advancedportals, multiverse, betterportals hoac essentials"
+"backup.import_from.dry" = "Bao cao nhung gi se duoc tao ma khong tao gi"
+"backup.import_from.frame" = "Kich thuoc khung dang rong,cao cho nguon khong co khung"
+portals = "Liet ke, xem va sua cong hang loat"
+"portals.list" = "Liet ke cong voi cac bo loc tuy chon"
+"portals.list.world" = "Chi cong trong the gioi nay"
+"portals.list.type" = "Chi cong thuoc loai nay: portal, wormhole, gateway hoac rtp"
+"portals.list.owner" = "Chi cong cua ten nguoi choi hoac uuid nay"
+"portals.list.state" = "Chi cong o trang thai nay: open, closed, linked hoac unlinked"
+"portals.list.page" = "So trang"
+"portals.find" = "Tim cong co ten chua doan van ban"
+"portals.find.name" = "Van ban can tim"
+"portals.info" = "Hien the gioi, trang thai, dich va chu so huu cua mot cong"
+"portals.info.portal" = "Ten hoac id cong"
+"portals.tp" = "Dich chuyen den mot cong va ha canh tren nen an toan"
+"portals.tp.portal" = "Ten hoac id cong"
+"portals.retarget" = "Tro mot cong toi mot cong noi bo khac"
+"portals.retarget.portal" = "Ten hoac id cong can doi"
+"portals.retarget.destination" = "Ten hoac id cong dich"
+"portals.unlink" = "Go dich cua mot cong"
+"portals.unlink.portal" = "Ten hoac id cong"
+"portals.prune" = "Go cac lien ket ma dich khong con ton tai"
+"portals.prune.dry" = "Bao cao nhung gi se bi go ma khong thay doi gi"
+"portals.prune.confirm" = "Bat buoc de go khi dry=false"
+"portals.rename_server" = "Viet lai lien ket giua cac may chu tu ten may chu nay sang ten khac"
+"portals.rename_server.old" = "Ten may chu hien dang luu trong lien ket"
+"portals.rename_server.new" = "Ten may chu se luu thay the"
+"portals.rename_server.confirm" = "Bat buoc de viet lai cac lien ket"
+# ---- end lane:ops ----

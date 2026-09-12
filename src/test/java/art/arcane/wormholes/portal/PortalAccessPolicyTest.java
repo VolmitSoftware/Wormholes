@@ -31,4 +31,15 @@ class PortalAccessPolicyTest
 		assertFalse(PortalAccessPolicy.canManage(portalId, portalId, UUID.randomUUID(), false));
 		assertTrue(PortalAccessPolicy.canManage(portalId, portalId, UUID.randomUUID(), true));
 	}
+
+	@Test
+	void aCoOwnerManagesAPortalTheyDoNotOwn()
+	{
+		UUID portalId = UUID.randomUUID();
+		UUID ownerId = UUID.randomUUID();
+		UUID coOwnerId = UUID.randomUUID();
+		assertTrue(PortalAccessPolicy.canManage(portalId, ownerId, coOwnerId, false, true));
+		assertFalse(PortalAccessPolicy.canManage(portalId, ownerId, coOwnerId, false, false));
+		assertTrue(PortalAccessPolicy.canManage(portalId, ownerId, ownerId, false, false));
+	}
 }

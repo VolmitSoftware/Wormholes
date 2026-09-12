@@ -1,6 +1,12 @@
 package art.arcane.wormholes.network.replication;
 
 import art.arcane.wormholes.network.view.ViewSlice;
+import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
+import art.arcane.wormholes.render.blockentity.BlockEntityMaterials;
+import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+
+import org.bukkit.Material;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -47,6 +53,7 @@ public final class RemoteChunkStore {
     private volatile int diffWindowSize;
     private volatile long resyncTimeoutMillis;
     private final Map<ReplicationStreamKey, ReplicatedChunk> chunks = new ConcurrentHashMap<>();
+    private final Map<String, Material> materialsByState = new ConcurrentHashMap<>();
 
     public RemoteChunkStore() {
         this(DEFAULT_DIFF_WINDOW_SIZE, DEFAULT_RESYNC_TIMEOUT_MS);
@@ -77,6 +84,7 @@ public final class RemoteChunkStore {
         return new ArrayList<>(chunks.keySet());
     }
 
+    /** The slice declares its own layout, so the sender's capability set does not have to be re-derived here. */
     public ReplicatedChunk applyBulk(ChunkBulk bulk) throws IOException {
         ViewSlice decoded = ViewSlice.read(new DataInputStream(new ByteArrayInputStream(bulk.bulkPayload())));
         validateSliceStream(decoded, bulk.stream());
@@ -247,12 +255,14 @@ public final class RemoteChunkStore {
         if (current == null) {
             return;
         }
-        if (!batch.blocks().isEmpty()) {
+        if (!batch.blocks().isEmpty() || !batch.entities().isEmpty()) {
             chunk.contentHashValid = false;
         }
+        int chunkMinX = ((int) (chunk.stream().chunkKey() >> 32)) << 4;
+        int chunkMinZ = ((int) chunk.stream().chunkKey()) << 4;
         for (BlockChange change : batch.blocks()) {
-            int worldX = (((int) (chunk.stream().chunkKey() >> 32)) << 4) + BlockChange.unpackX(change.packedXyz());
-            int worldZ = (((int) chunk.stream().chunkKey()) << 4) + BlockChange.unpackZ(change.packedXyz());
+            int worldX = chunkMinX + BlockChange.unpackX(change.packedXyz());
+            int worldZ = chunkMinZ + BlockChange.unpackZ(change.packedXyz());
             int worldY = BlockChange.unpackY(change.packedXyz());
             if (!current.contains(worldX, worldY, worldZ)) {
                 continue;
@@ -263,10 +273,46 @@ public final class RemoteChunkStore {
                 continue;
             }
             current.indices()[cellIndex] = (short) paletteIndex;
+            if (!current.blockEntities().isEmpty() && !BlockEntityMaterials.isCandidate(materialOf(change.state()))) {
+                current.blockEntities().remove(Long.valueOf(ProjectionCellKey.pack(worldX, worldY, worldZ)));
+            }
         }
         for (LightDiff diff : batch.lights()) {
             applyLightDiff(current, diff);
         }
+        for (BlockEntityDiff diff : batch.entities()) {
+            int worldX = chunkMinX + BlockChange.unpackX(diff.packedXyz());
+            int worldZ = chunkMinZ + BlockChange.unpackZ(diff.packedXyz());
+            int worldY = BlockChange.unpackY(diff.packedXyz());
+            if (!current.contains(worldX, worldY, worldZ)) {
+                continue;
+            }
+            BlockEntitySample sample;
+            try {
+                sample = BlockEntityCapturer.decode(diff.nbt());
+            } catch (IOException | RuntimeException unreadable) {
+                continue;
+            }
+            current.blockEntities().put(Long.valueOf(ProjectionCellKey.pack(worldX, worldY, worldZ)), sample);
+        }
+    }
+
+    private Material materialOf(String state) {
+        if (state == null) {
+            return null;
+        }
+        Material cached = materialsByState.get(state);
+        if (cached != null) {
+            return cached;
+        }
+        int bracket = state.indexOf('[');
+        String key = bracket < 0 ? state : state.substring(0, bracket);
+        Material material = Material.matchMaterial(key);
+        if (material == null) {
+            return null;
+        }
+        materialsByState.put(state, material);
+        return material;
     }
 
     private static int resolvePaletteIndex(ReplicatedChunk chunk, ViewSlice slice, String state) {

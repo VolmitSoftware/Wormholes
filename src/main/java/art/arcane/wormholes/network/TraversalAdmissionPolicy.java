@@ -24,10 +24,13 @@ final class TraversalAdmissionPolicy {
         boolean whitelisted,
         boolean operator,
         int admittedPlayers,
-        int maxPlayers
+        int maxPlayers,
+        boolean draining
     ) {
     }
 
+    static final String DRAIN_DENIAL = "destination server is draining";
+    static final long DRAIN_RETRY_MILLIS = 5_000L;
     private static final long MIN_HANDOFF_RATE_LIMIT_MILLIS = 1_000L;
 
     private TraversalAdmissionPolicy() {
@@ -63,7 +66,15 @@ final class TraversalAdmissionPolicy {
         return null;
     }
 
+    /** Retry hint for a denial: draining servers ask for a quick retry, everything else keeps the admission rate limit. */
+    static long denialRetryMillis(String reason, long fallbackMillis) {
+        return DRAIN_DENIAL.equals(reason) ? DRAIN_RETRY_MILLIS : fallbackMillis;
+    }
+
     static String destinationPlayerDenialReason(DestinationPlayerState state) {
+        if (state.draining()) {
+            return DRAIN_DENIAL;
+        }
         if (state.directTransfer() && !state.transferSupported()) {
             return "destination does not accept direct transfers";
         }

@@ -98,6 +98,17 @@ final class DoorPortalVisualService implements AutoCloseable
 
 	void show(PlacedDoorEndpoint endpoint, VanillaDoorSnapshot snapshot)
 	{
+		show(endpoint, snapshot, false);
+	}
+
+	/**
+	 * Draws the veil for one door.
+	 *
+	 * <p>With {@code hideBacking} the opaque pane is left out entirely: it is exactly what a
+	 * projection through the doorway would be painted over, so drawing it would hide the view.</p>
+	 */
+	void show(PlacedDoorEndpoint endpoint, VanillaDoorSnapshot snapshot, boolean hideBacking)
+	{
 		Objects.requireNonNull(endpoint, "endpoint");
 		Objects.requireNonNull(snapshot, "snapshot");
 		if(closed.get())
@@ -106,7 +117,7 @@ final class DoorPortalVisualService implements AutoCloseable
 		}
 		UUID doorId = endpoint.identity().itemId();
 		Visual current = visuals.get(doorId);
-		if(current != null && current.isValid())
+		if(current != null && current.isValid() && (current.backing() == null) == hideBacking)
 		{
 			return;
 		}
@@ -129,7 +140,7 @@ final class DoorPortalVisualService implements AutoCloseable
 		{
 			return;
 		}
-		BlockDisplay backing = spawnBacking(world, anchor, doorId, geometry);
+		BlockDisplay backing = hideBacking ? null : spawnBacking(world, anchor, doorId, geometry);
 		if(closed.get())
 		{
 			remove(backing);
@@ -811,7 +822,7 @@ final class DoorPortalVisualService implements AutoCloseable
 
 	private static void remove(BlockDisplay display)
 	{
-		if(display.isValid())
+		if(display != null && display.isValid())
 		{
 			display.remove();
 		}
@@ -834,23 +845,23 @@ final class DoorPortalVisualService implements AutoCloseable
 			double rangeSquared);
 	}
 
+	/** A veil is the animated overlay plus, unless the aperture is projecting, an opaque backing. */
 	record Visual(DoorPosition position, BlockDisplay backing, BlockDisplay overlay)
 	{
 		Visual
 		{
 			Objects.requireNonNull(position, "position");
-			Objects.requireNonNull(backing, "backing");
 			Objects.requireNonNull(overlay, "overlay");
 		}
 
 		private boolean isValid()
 		{
-			return backing.isValid() && overlay.isValid();
+			return (backing == null || backing.isValid()) && overlay.isValid();
 		}
 
 		private boolean hasValidDisplay()
 		{
-			return backing.isValid() || overlay.isValid();
+			return overlay.isValid() || (backing != null && backing.isValid());
 		}
 
 		private boolean contains(BlockDisplay display)
@@ -860,7 +871,7 @@ final class DoorPortalVisualService implements AutoCloseable
 
 		private boolean isOwnedByCurrentRegion()
 		{
-			return backing.isValid()
+			return backing != null && backing.isValid()
 				? WormholesPlatform.isOwnedByCurrentRegion(backing)
 				: WormholesPlatform.isOwnedByCurrentRegion(overlay);
 		}

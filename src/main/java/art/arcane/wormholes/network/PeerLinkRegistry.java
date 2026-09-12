@@ -6,8 +6,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.logging.Logger;
 
 final class PeerLinkRegistry {
+    private static final Logger LOG = Logger.getLogger("Wormholes");
+    private static final long WORKER_STOP_TIMEOUT_MILLIS = 1_000L;
+
     static final int MAX_PENDING_INBOUND_HANDSHAKES = 128;
 
     private final Map<String, PeerConnection> readyPeers = new ConcurrentHashMap<>();
@@ -119,6 +123,12 @@ final class PeerLinkRegistry {
         connections.addAll(readyPeers.values());
         for (PeerConnection connection : connections) {
             connection.close(reason);
+        }
+        for (PeerConnection connection : connections) {
+            if (!connection.awaitWorkersStopped(WORKER_STOP_TIMEOUT_MILLIS)) {
+                LOG.warning("net: connection workers for " + connection.describeRemote() + " did not stop within "
+                    + WORKER_STOP_TIMEOUT_MILLIS + "ms");
+            }
         }
         synchronized (pendingInboundGate) {
             pending.clear();

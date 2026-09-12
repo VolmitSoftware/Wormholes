@@ -13,6 +13,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
+import art.arcane.wormholes.hook.PortalExtension;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.volmlib.util.inventorygui.Window;
 import art.arcane.wormholes.util.AxisAlignedBB;
@@ -33,6 +34,7 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener
 	private final LocalPortalDepartureHold departureHold = new LocalPortalDepartureHold(this);
 	private final LocalPortalPrompts prompts = new LocalPortalPrompts(this);
 	private final LocalPortalMenus menus = new LocalPortalMenus(this);
+	private final PortalExtensions extensions = new PortalExtensions(this);
 	private PortalStructure structure;
 	private volatile PortalType type;
 	private UUID owner;
@@ -83,6 +85,17 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener
 	LocalPortalLinking linking()
 	{
 		return linking;
+	}
+
+	/** Lane-owned per-portal state. Null when the extension type is not registered. */
+	public <T extends PortalExtension> T extension(Class<T> type)
+	{
+		return extensions.get(type);
+	}
+
+	public PortalExtensions extensions()
+	{
+		return extensions;
 	}
 
 	@Override
@@ -446,7 +459,12 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener
 	@Override
 	public void destroy()
 	{
+		boolean wasDestroyed = linking.isDestroyed();
 		linking.destroy();
+		if(!wasDestroyed && linking.isDestroyed())
+		{
+			extensions.onPortalDestroyed();
+		}
 	}
 
 	@Override

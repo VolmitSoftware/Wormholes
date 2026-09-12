@@ -12,13 +12,26 @@ public final class WireCodec {
         void sample(WireMessageType type, byte[] payload);
     }
 
-    public static final int PROTOCOL_VERSION = 20;
+    /** Current wire protocol. Bumped to 21 when the capability set joined Hello/Challenge. */
+    public static final int PROTOCOL_VERSION = 21;
+    /** Oldest peer protocol this build still links with. Raise only with a documented compatibility story. */
+    public static final int MIN_COMPATIBLE_PROTOCOL = 21;
     public static final int MAX_FRAME_BYTES = 4 * 1024 * 1024;
     private static final int MIN_FRAME_BODY_BYTES = 2;
     private static final int PAYLOAD_SCRATCH_RETAIN_LIMIT_BYTES = 1024 * 1024;
     private static final ThreadLocal<ExposedByteArrayOutputStream> PAYLOAD_SCRATCH = ThreadLocal.withInitial(ExposedByteArrayOutputStream::new);
 
     private WireCodec() {
+    }
+
+    /** Any peer at or above the minimum links; a newer peer talks the local layout through the negotiated transcript version. */
+    public static boolean isCompatibleProtocol(int peerProtocolVersion) {
+        return peerProtocolVersion >= MIN_COMPATIBLE_PROTOCOL;
+    }
+
+    /** Wire version both sides write their handshake transcript at: the lower of the two. */
+    public static int negotiatedProtocol(int peerProtocolVersion) {
+        return Math.min(PROTOCOL_VERSION, peerProtocolVersion);
     }
 
     public static byte[] encodeFrame(WireMessage message) throws IOException {
@@ -105,12 +118,20 @@ public final class WireCodec {
             case PORTAL_DIRECTORY -> WireMessage.PortalDirectory.read(in);
             case PORTAL_UPSERT -> WireMessage.PortalUpsert.read(in);
             case PORTAL_REMOVE -> WireMessage.PortalRemove.read(in);
+            case PEER_ANNOUNCE -> WireMessage.PeerAnnounceMessage.read(in);
+            case PEER_TOMBSTONE -> WireMessage.PeerTombstoneMessage.read(in);
+            case LOAD_BEACON -> WireMessage.LoadBeaconMessage.read(in);
+            case PORTAL_QUERY -> WireMessage.PortalQuery.read(in);
+            case PORTAL_QUERY_RESULT -> WireMessage.PortalQueryResult.read(in);
+            case HANDOFF_QUEUE_STATUS -> WireMessage.HandoffQueueStatus.read(in);
             case HANDOFF_REQUEST -> WireMessage.HandoffRequest.read(in);
             case HANDOFF_ACK -> WireMessage.HandoffAck.read(in);
             case HANDOFF_DENY -> WireMessage.HandoffDeny.read(in);
             case HANDOFF_CANCEL -> WireMessage.HandoffCancel.read(in);
             case HANDOFF_RESULT -> WireMessage.HandoffResult.read(in);
             case HANDOFF_STATUS -> WireMessage.HandoffStatus.read(in);
+            case CONVOY_TRANSFER -> WireMessage.ConvoyTransfer.read(in);
+            case CONVOY_ACK -> WireMessage.ConvoyAck.read(in);
             case ENTITY_TRANSFER -> WireMessage.EntityTransfer.read(in);
             case ENTITY_TRANSFER_ACK -> WireMessage.EntityTransferAck.read(in);
             case VIEW_SUBSCRIBE -> WireMessage.ViewSubscribe.read(in);
@@ -118,6 +139,8 @@ public final class WireCodec {
             case VIEW_ENTITIES -> WireMessage.ViewEntities.read(in);
             case VIEW_ENTITY_ANIMATION -> WireMessage.ViewEntityAnimation.read(in);
             case VIEW_TIME -> WireMessage.ViewTime.read(in);
+            case VIEW_SOUND -> WireMessage.ViewSound.read(in);
+            case VIEW_WEATHER -> WireMessage.ViewWeather.read(in);
             case CHUNK_BULK -> WireMessage.ChunkBulkBatch.read(in);
             case CHUNK_DIFF -> WireMessage.ChunkDiff.read(in);
             case CHUNK_HASH_PROBE -> WireMessage.ChunkHashProbeMessage.read(in);

@@ -134,6 +134,32 @@ public final class PocketAllocator {
         throw new IllegalArgumentException("unknown pocket space " + spaceId);
     }
 
+    /**
+     * Replaces one allocation in place, keeping its binding, slot, and coordinates.
+     *
+     * <p>This is how pocket v2 state (template, rules, roster, rooms, instance) changes; the
+     * allocation itself is immutable once handed out.</p>
+     */
+    public synchronized PocketSpace replace(PocketSpace updated) {
+        Objects.requireNonNull(updated, "updated");
+        for (Map.Entry<PocketBinding, PocketSpace> entry : byBinding.entrySet()) {
+            PocketSpace stored = entry.getValue();
+            if (!stored.spaceId().equals(updated.spaceId())) {
+                continue;
+            }
+            if (!stored.binding().equals(updated.binding())
+                || stored.slot() != updated.slot()
+                || stored.centerX() != updated.centerX()
+                || stored.centerY() != updated.centerY()
+                || stored.centerZ() != updated.centerZ()) {
+                throw new IllegalArgumentException("a replacement must not move pocket " + updated.spaceId());
+            }
+            entry.setValue(updated);
+            return updated;
+        }
+        throw new IllegalArgumentException("unknown pocket space " + updated.spaceId());
+    }
+
     public synchronized Optional<PocketSpace> findById(UUID spaceId) {
         Objects.requireNonNull(spaceId, "spaceId");
         return byBinding.values().stream().filter(space -> space.spaceId().equals(spaceId)).findFirst();

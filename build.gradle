@@ -271,6 +271,7 @@ dependencies {
         changing = true
         transitive = false
     }
+    implementation(project(':wormholes-proxy-protocol'))
     slim(libs.bstats)
     slim('com.github.luben:zstd-jni:1.5.7-11')
     slim(libs.packetevents) {

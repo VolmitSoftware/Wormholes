@@ -1,9 +1,18 @@
 package art.arcane.wormholes.door;
 
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
+import art.arcane.volmlib.util.localization.MessageArgument;
+import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.config.toml.DoorsConfig;
+import art.arcane.wormholes.config.toml.PocketsConfig;
+import art.arcane.wormholes.door.view.DoorApertureDestinations;
+import art.arcane.wormholes.door.view.DoorProjectionRegistry;
+import art.arcane.wormholes.localization.PocketsMessages;
+import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 import art.arcane.wormholes.platform.WormholesPlatform;
@@ -16,6 +25,9 @@ import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.Bisected;
+import org.bukkit.block.data.type.Door;
 import org.bukkit.entity.Boss;
 import org.bukkit.entity.ComplexLivingEntity;
 import org.bukkit.entity.Entity;
@@ -23,6 +35,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Vehicle;
+import org.bukkit.structure.Structure;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -51,6 +64,7 @@ import org.bukkit.util.Vector;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -89,13 +103,16 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	private final PocketWorldService pocketWorldService;
 	private final DoorStateGuard guard;
 	private final PocketStructureService pocketStructures;
+	private final PocketTemplateService templates;
+	private final PocketInstances instances;
+	private final PocketSnapshots snapshots;
 	private final PocketSpaceIndex pockets;
 	private final DoorRuntimeIndex runtimes;
 	private final DoorTransitLedger ledger;
 	private final DoorTransitCoordinator transits;
 	private final PocketRescueService rescues;
 	private final PocketResizeService resizes;
-	private final PocketResizeJournal resizeJournal;
+	private final PocketMutationJournal mutationJournal;
 	private final PocketResizeWorkflow resizeWorkflow;
 	private final Set<UUID> resizingPockets;
 	private final DoorChunkLoader.RegionDispatch regions;
@@ -105,6 +122,9 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	private final DoorAccessMenu accessMenu;
 	private final DoorAccessFeedback accessFeedback;
 	private final DoorAccessAuthorizer accessAuthorizer;
+	private final PocketRulesListener rulesListener;
+	private final DoorApertureDestinationService apertureDestinations;
+	private final DoorProjectionRegistry projectionRegistry;
 
 	private volatile DoorItemService items;
 	private volatile Listener livingEntityMoveListener;
@@ -115,6 +135,9 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		this.pocketWorldService = Objects.requireNonNull(pocketWorldService, "pocketWorldService");
 		guard = new DoorStateGuard();
 		pocketStructures = new PocketStructureService();
+		templates = PocketTemplateService.under(plugin.getDataFolder().toPath());
+		instances = new PocketInstances(templates);
+		snapshots = new PocketSnapshots(plugin.getDataFolder().toPath(), StructureIo.server());
 		pockets = new PocketSpaceIndex(pocketStructures);
 		runtimes = new DoorRuntimeIndex(plugin, guard, pocketWorldService);
 		ledger = new DoorTransitLedger(plugin);
@@ -159,16 +182,73 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			pockets,
 			pocketStructures,
 			pocketWorldService,
+			templates,
 			transitFailures);
 		rescues = new PocketRescueService(plugin, guard, ledger, chunkLoader, arrivals, tickets, travelers);
 		resizes = new PocketResizeService(plugin, pocketStructures);
-		resizeJournal = PocketResizeJournal.under(plugin.getDataFolder().toPath());
-		resizeWorkflow = new PocketResizeWorkflow(resizeJournal);
+		mutationJournal = PocketMutationJournal.under(plugin.getDataFolder().toPath());
+		resizeWorkflow = new PocketResizeWorkflow(mutationJournal);
 		resizingPockets = ConcurrentHashMap.newKeySet();
 		protection = new DoorBlockProtection(guard, pockets);
 		accessMenu = new DoorAccessMenu(this);
 		accessFeedback = new DoorAccessFeedback(plugin);
 		accessAuthorizer = new DoorAccessAuthorizer(plugin);
+		rulesListener = new PocketRulesListener(
+			(blockX, blockZ) -> Optional.ofNullable(pockets.spaceAt(blockX, blockZ)),
+			new PocketRosterService(
+				() -> guard.state(),
+				itemId -> guard.state().accessRecord(itemId)));
+		apertureDestinations = new DoorApertureDestinationService(guard, runtimes, pocketStructures, pocketWorldService);
+		DoorsConfig doorsConfig = doorsConfig();
+		projectionRegistry = new DoorProjectionRegistry(
+			doorsConfig.projectionMaxActive,
+			doorsConfig.projectionAttendanceSlots,
+			DimensionalDoorManager::playerWithin);
+	}
+
+	/** Where each door aperture looks; the doors subsystem feeds this to the projection provider. */
+	public DoorApertureDestinations apertureDestinations()
+	{
+		return apertureDestinations;
+	}
+
+	public DoorProjectionRegistry projectionRegistry()
+	{
+		return projectionRegistry;
+	}
+
+	/**
+	 * Applies the {@code [doors]} projection knobs and re-reads every placed door so apertures appear
+	 * or disappear and the backing panes follow.
+	 */
+	public void applyProjectionSettings(DoorsConfig doorsConfig)
+	{
+		Objects.requireNonNull(doorsConfig, "doorsConfig");
+		if(guard.closed())
+		{
+			return;
+		}
+		projectionRegistry.reconfigure(doorsConfig.projectionMaxActive, doorsConfig.projectionAttendanceSlots);
+		if(!doorsConfig.projectionEnabled)
+		{
+			projectionRegistry.clear();
+		}
+		runtimes.attachProjection(projectionRegistry, doorsConfig.projectionEnabled, doorsConfig.projectionHideBacking);
+		for(PlacedDoorEndpoint endpoint : guard.state().endpoints())
+		{
+			runtimes.scheduleReconcile(endpoint, 1L);
+		}
+	}
+
+	private static boolean playerWithin(UUID worldId, double x, double y, double z, double rangeSquared)
+	{
+		PortalManager portals = Wormholes.portalManager;
+		return portals != null && portals.hasPlayerWithin(worldId, x, y, z, rangeSquared);
+	}
+
+	private static DoorsConfig doorsConfig()
+	{
+		return Wormholes.settings == null ? new DoorsConfig() : Wormholes.settings.getDoors();
 	}
 
 	public void start() throws IOException
@@ -178,12 +258,15 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			return;
 		}
 		DoorStateService state = guard.open(plugin.getDataFolder().toPath());
-		List<PocketResizeIntent> pendingResizes = resizeJournal.load();
-		for(PocketResizeIntent intent : pendingResizes)
+		state.attachInstances(instances);
+		List<PocketMutationIntent> pendingResizes = mutationJournal.load();
+		for(PocketMutationIntent intent : pendingResizes)
 		{
 			resizingPockets.add(intent.spaceId());
 			guard.quarantinePocket(intent.spaceId());
 		}
+		DoorsConfig doorsConfig = doorsConfig();
+		runtimes.attachProjection(projectionRegistry, doorsConfig.projectionEnabled, doorsConfig.projectionHideBacking);
 		items = new DoorItemService(plugin, plugin.getBlockManager().getWormholeRune(1));
 		if(!items.registerRecipes())
 		{
@@ -192,6 +275,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		syncRecipeBooks();
 		plugin.getServer().getPluginManager().registerEvents(this, plugin);
 		plugin.getServer().getPluginManager().registerEvents(protection, plugin);
+		plugin.getServer().getPluginManager().registerEvents(rulesListener, plugin);
 		registerLivingEntityMovement();
 		// Projectiles, dropped items, and orbs fire no movement event; an open door
 		// sweeps for them instead and feeds the same pipeline.
@@ -424,6 +508,255 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 				PocketResizeOutcome.Status.FAILED, current, target)));
 	}
 
+	public PocketInstances instances()
+	{
+		return instances;
+	}
+
+	/**
+	 * Copies one pocket's interior to a snapshot file on the owning region thread.
+	 *
+	 * @throws IllegalStateException when the pocket world is not loaded
+	 */
+	public void captureSnapshot(PocketSpace space, String name) throws IOException
+	{
+		Objects.requireNonNull(space, "space");
+		Objects.requireNonNull(name, "name");
+		World world = pocketWorldService.world()
+			.orElseThrow(() -> new IllegalStateException("the pocket dimension is not loaded"));
+		snapshots.save(space.spaceId(), name, templates.capture(world, space));
+	}
+
+	public PocketSnapshots snapshots()
+	{
+		return snapshots;
+	}
+
+	/**
+	 * Resets the instances that are due and evicts the oldest idle ones past the cap.
+	 *
+	 * <p>Runs off a repeating task; every reset goes through the same journalled paste a template
+	 * apply does, so an interrupted wipe is finished on the next start.</p>
+	 */
+	public void sweepInstances(long nowMillis)
+	{
+		if(guard.closed() || pocketWorldService.world().isEmpty())
+		{
+			return;
+		}
+		PocketsConfig pockets = PocketSettings.current();
+		Set<UUID> occupied = occupiedPockets();
+		List<PocketSpace> live = new ArrayList<>();
+		for(PocketSpace space : guard.state().spaces())
+		{
+			if(space.instance() == null)
+			{
+				continue;
+			}
+			live.add(space);
+			if(PocketInstances.shouldReset(space.instance(), busy(space, occupied, nowMillis),
+				nowMillis, pockets.instanceResetSeconds))
+			{
+				resetInstance(space, outcome -> { });
+			}
+		}
+		for(PocketSpace evicted : PocketInstances.evictionOrder(live, occupied, pockets.instanceMaxLive))
+		{
+			resetInstance(evicted, outcome -> { });
+		}
+	}
+
+	/**
+	 * Somebody is in the room, or somebody has just been let in: entering stamps the instance before the
+	 * traveler's chunks finish loading, so a sweep in that window must not wipe the room under them.
+	 */
+	private static boolean busy(PocketSpace space, Set<UUID> occupied, long nowMillis)
+	{
+		return occupied.contains(space.spaceId())
+			|| nowMillis - space.instance().lastOccupiedMillis() < PocketInstances.ENTRY_GRACE_MILLIS;
+	}
+
+	/** Wipes one instance back to its template. */
+	public void resetInstance(PocketSpace space, Consumer<Boolean> callback)
+	{
+		Objects.requireNonNull(space, "space");
+		Objects.requireNonNull(callback, "callback");
+		PocketInstanceInfo info = space.instance();
+		if(info == null)
+		{
+			callback.accept(Boolean.FALSE);
+			return;
+		}
+		Optional<Structure> structure;
+		try
+		{
+			structure = templates.load(info.templateName());
+		}
+		catch(IOException | IllegalArgumentException ex)
+		{
+			plugin.getLogger().log(Level.WARNING, "Could not read template " + info.templateName()
+				+ " while resetting pocket " + space.spaceId(), ex);
+			callback.accept(Boolean.FALSE);
+			return;
+		}
+		if(structure.isEmpty())
+		{
+			callback.accept(Boolean.FALSE);
+			return;
+		}
+		applyTemplate(space, structure.get(), info.templateName(), true, applied ->
+		{
+			if(Boolean.TRUE.equals(applied))
+			{
+				markInstanceReset(space.spaceId());
+			}
+			callback.accept(applied);
+		});
+	}
+
+	/** Records that the room is its template again, so an idle instance is not wiped on every sweep. */
+	private void markInstanceReset(UUID spaceId)
+	{
+		try
+		{
+			guard.mutate(() ->
+			{
+				PocketSpace current = guard.state().findPocketById(spaceId).orElse(null);
+				if(current == null || current.instance() == null)
+				{
+					return null;
+				}
+				return guard.state().replacePocket(current.withInstance(
+					current.instance().withLastReset(System.currentTimeMillis())));
+			});
+		}
+		catch(IOException ex)
+		{
+			plugin.getLogger().log(Level.WARNING, "Could not record a pocket instance reset for " + spaceId, ex);
+		}
+	}
+
+	/**
+	 * Who is standing in a pocket, taken from the rules listener's move handler rather than polled off
+	 * the sweep's own thread: the sweep runs on the global scheduler and may not read another region's
+	 * entity, and what it decides is whether to wipe somebody's room.
+	 */
+	private Set<UUID> occupiedPockets()
+	{
+		return rulesListener.occupiedSpaces();
+	}
+
+	public PocketRosterService roster()
+	{
+		return new PocketRosterService(() -> guard.state(), itemId -> guard.state().accessRecord(itemId));
+	}
+
+	/**
+	 * Stores one rule change for the pocket a player is standing in.
+	 *
+	 * @return true when the rules actually changed
+	 */
+	public boolean applyPocketRules(UUID spaceId, PocketRules rules) throws IOException
+	{
+		Objects.requireNonNull(spaceId, "spaceId");
+		Objects.requireNonNull(rules, "rules");
+		return guard.mutate(() ->
+		{
+			PocketSpace current = guard.state().findPocketById(spaceId).orElse(null);
+			if(current == null || current.rules().equals(rules))
+			{
+				return Boolean.FALSE;
+			}
+			guard.state().replacePocket(current.withRules(rules));
+			return Boolean.TRUE;
+		});
+	}
+
+	public boolean assignPocketRole(UUID spaceId, UUID playerId, PocketRole role) throws IOException
+	{
+		return guard.mutate(() -> roster().assign(spaceId, playerId, role));
+	}
+
+	public boolean removePocketRole(UUID spaceId, UUID playerId) throws IOException
+	{
+		return guard.mutate(() -> roster().remove(spaceId, playerId));
+	}
+
+	public PocketTemplateService templates()
+	{
+		return templates;
+	}
+
+	/**
+	 * Stamps a template over one pocket's interior on the owning region thread.
+	 *
+	 * <p>A paste is journalled before the first block moves, so an interrupted one is finished on
+	 * the next start rather than leaving a half-furnished room.</p>
+	 *
+	 * @param clearFirst true to wipe the interior first, which is what a reset and a restore do
+	 * @param callback receives true once the paste is persisted, false when it could not run
+	 */
+	public void applyTemplate(
+		PocketSpace space,
+		Structure structure,
+		String templateName,
+		boolean clearFirst,
+		Consumer<Boolean> callback)
+	{
+		Objects.requireNonNull(space, "space");
+		Objects.requireNonNull(structure, "structure");
+		Objects.requireNonNull(templateName, "templateName");
+		Objects.requireNonNull(callback, "callback");
+		World world = pocketWorldService.world().orElse(null);
+		PocketSpace current = guard.state().findPocketById(space.spaceId()).orElse(null);
+		if(world == null || current == null || guard.pocketQuarantined(space.spaceId()))
+		{
+			callback.accept(Boolean.FALSE);
+			return;
+		}
+		chunkLoader.loadPocket(world, current, pocketStructures.layout(current),
+			() -> pasteTemplate(world, current, structure, templateName, clearFirst, callback),
+			() -> callback.accept(Boolean.FALSE));
+	}
+
+	private void pasteTemplate(
+		World world,
+		PocketSpace space,
+		Structure structure,
+		String templateName,
+		boolean clearFirst,
+		Consumer<Boolean> callback)
+	{
+		PocketMutationIntent intent;
+		try
+		{
+			intent = clearFirst
+				? mutationJournal.beginReset(space, templateName)
+				: mutationJournal.beginPaste(space, templateName);
+		}
+		catch(IOException | RuntimeException ex)
+		{
+			plugin.getLogger().log(Level.SEVERE, "Could not journal a pocket template paste", ex);
+			callback.accept(Boolean.FALSE);
+			return;
+		}
+		try
+		{
+			templates.paste(world, space, structure, clearFirst);
+			guard.mutate(() -> guard.state().setPocketTemplate(space.spaceId(), templateName));
+			mutationJournal.complete(intent);
+		}
+		catch(IOException | RuntimeException ex)
+		{
+			plugin.getLogger().log(Level.SEVERE, "Could not apply template " + templateName
+				+ " to pocket " + space.spaceId(), ex);
+			guard.quarantinePocket(space.spaceId());
+			callback.accept(Boolean.FALSE);
+			return;
+		}
+		callback.accept(Boolean.TRUE);
+	}
+
 	private void applyResize(
 		World world,
 		PocketSpace space,
@@ -513,7 +846,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		Throwable failure)
 	{
 		plugin.getLogger().log(Level.SEVERE, "Could not resize pocket " + source.spaceId(), failure);
-		if(resizeJournal.pending(source.spaceId()).isPresent())
+		if(mutationJournal.pending(source.spaceId()).isPresent())
 		{
 			guard.quarantinePocket(source.spaceId());
 			plugin.getLogger().severe(
@@ -549,11 +882,11 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		runtimes.reconcile(runtimes.install(returnEndpoint));
 	}
 
-	private void recoverPendingResizes(World world, List<PocketResizeIntent> pending)
+	private void recoverPendingResizes(World world, List<PocketMutationIntent> pending)
 	{
 		AtomicInteger remaining = new AtomicInteger(pending.size());
 		AtomicBoolean failed = new AtomicBoolean();
-		for(PocketResizeIntent intent : pending)
+		for(PocketMutationIntent intent : pending)
 		{
 			PocketSpace current = guard.state().findPocketById(intent.spaceId()).orElse(null);
 			if(current == null)
@@ -596,7 +929,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 
 	private void recoverPendingResize(
 		World world,
-		PocketResizeIntent intent,
+		PocketMutationIntent intent,
 		AtomicInteger remaining,
 		AtomicBoolean failed)
 	{
@@ -749,6 +1082,38 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		return true;
 	}
 
+	/**
+	 * Stores one door's through-view override and re-reads the door so its aperture and backing pane
+	 * follow immediately.
+	 */
+	boolean applyProjectionState(PlacedDoorEndpoint expected, DoorProjectionState projection) throws IOException
+	{
+		Objects.requireNonNull(expected, "expected");
+		Objects.requireNonNull(projection, "projection");
+		boolean changed = guard.mutate(() ->
+		{
+			PlacedDoorEndpoint current = guard.state()
+				.findEndpointByItem(expected.identity().itemId())
+				.orElse(null);
+			return expected.equals(current)
+				&& guard.state().setEndpointProjection(expected.position(), projection);
+		});
+		if(!changed)
+		{
+			return false;
+		}
+		PlacedDoorEndpoint updated = guard.state()
+			.findEndpointByItem(expected.identity().itemId())
+			.orElseThrow(() -> new IllegalStateException("Updated dimensional door is missing"));
+		if(!runtimes.replace(expected, updated))
+		{
+			plugin.getLogger().warning(
+				"Saved projection state for dimensional door " + updated.identity().itemId()
+					+ " but could not schedule its live refresh");
+		}
+		return true;
+	}
+
 	boolean applyAccessState(UUID itemId, UUID playerId, DoorAccessState state) throws IOException
 	{
 		return guard.mutate(() -> guard.state().setAccessState(itemId, playerId, state));
@@ -887,6 +1252,22 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			return;
 		}
 		DoorPosition position = position(event.getBlockPlaced(), captured.get().plane().blockY());
+		if(identity.kind() == DoorKind.PAIR
+			&& PocketWorldService.isPocketWorld(event.getBlockPlaced().getWorld()))
+		{
+			// A pair door inside a pocket grows the pocket instead of linking to the kit's far half.
+			if(growPocketRoom(event.getPlayer(), event.getBlockPlaced().getWorld(),
+				new PlacedDoorEndpoint(position, identity), captured.get().plane()))
+			{
+				if(consumesPlacedDoorItem(event.getPlayer().getGameMode()))
+				{
+					consumeHeldItem(event.getPlayer(), event.getHand());
+				}
+				return;
+			}
+			event.setCancelled(true);
+			return;
+		}
 		PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(position, identity);
 		UUID placedBy = event.getPlayer().getUniqueId();
 		boolean ownedBeforePlacement;
@@ -916,6 +1297,159 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		{
 			consumeHeldItem(event.getPlayer(), event.getHand());
 		}
+	}
+
+	/**
+	 * Grows a pocket when a Pair door is placed against an interior wall inside one.
+	 *
+	 * <p>The placed door becomes one half of an internal pair and a mate is built on the far side of
+	 * the new room's shared wall, so a player walks between rooms the same way they walk between any
+	 * two paired doors.</p>
+	 *
+	 * @return true once the room exists and both halves are registered
+	 */
+	private boolean growPocketRoom(
+		Player placer,
+		World world,
+		PlacedDoorEndpoint placed,
+		DoorwayPlane plane)
+	{
+		PocketSpace space = pockets.spaceAt(placed.position().x(), placed.position().z());
+		if(space == null)
+		{
+			return false;
+		}
+		PocketRoom parent = PocketRooms.roomAt(space, placed.position().x(), placed.position().z()).orElse(null);
+		BlockFace wall = wallBehind(space, parent, placed.position(), plane);
+		if(parent == null || wall == null)
+		{
+			deny(placer, PocketsMessages.ROOM_BLOCKED);
+			return false;
+		}
+		if(!roster().roleOf(space, placer.getUniqueId()).atLeast(PocketRole.BUILDER))
+		{
+			deny(placer, PocketsMessages.DENIED_BUILD);
+			return false;
+		}
+		int maximumRooms = PocketSettings.current().roomsPerPocketMax;
+		Optional<PocketRoom> allocated = PocketRooms.allocate(space, wall, maximumRooms);
+		if(allocated.isEmpty())
+		{
+			WormholesAudience.sendMessage(placer, Wormholes.text().component(placer, PocketsMessages.ROOM_LIMIT,
+				WormholesLocalization.args(MessageArgument.untrusted("count", Integer.valueOf(maximumRooms)))));
+			return false;
+		}
+		try
+		{
+			PocketRoom room = allocated.get();
+			PocketLayout layout = PocketRooms.layout(space, room);
+			PocketStructureService.requireWorldHeight(world, layout);
+			PocketStructureService.initializeShell(world, layout, pocketStructures.shellMaterial(space));
+			DoorPairIdentity pair = DoorPairIdentity.create();
+			PlacedDoorEndpoint near = new PlacedDoorEndpoint(placed.position(), pair.endpoint(PairEndpoint.A));
+			PlacedDoorEndpoint far = buildRoomMate(world, space, layout, wall, pair.endpoint(PairEndpoint.B));
+			UUID placerId = placer.getUniqueId();
+			guard.mutate(() ->
+			{
+				guard.state().registerPair(pair);
+				guard.state().registerEndpoint(near, placerId);
+				guard.state().registerEndpoint(far, placerId);
+				return guard.state().replacePocket(space.withRooms(withRoom(space,
+					new PocketRoom(room.index(), room.offsetX(), room.offsetZ(),
+						near.identity().itemId(), far.identity().itemId()))));
+			});
+			pockets.index(guard.state().findPocketById(space.spaceId()).orElse(space));
+			runtimes.install(near);
+			runtimes.reconcile(runtimes.install(far));
+			runtimes.scheduleReconcile(near, 1L);
+			WormholesAudience.sendMessage(placer, Wormholes.text().component(placer, PocketsMessages.ROOM_ADDED,
+				WormholesLocalization.args(
+					MessageArgument.untrusted("count", Integer.valueOf(room.index())),
+					MessageArgument.untrusted("space", space.spaceId()))));
+			return true;
+		}
+		catch(IOException | RuntimeException ex)
+		{
+			plugin.getLogger().log(Level.SEVERE, "Could not grow pocket " + space.spaceId(), ex);
+			deny(placer, PocketsMessages.ROOM_BLOCKED);
+			return false;
+		}
+	}
+
+	private static List<PocketRoom> withRoom(PocketSpace space, PocketRoom room)
+	{
+		List<PocketRoom> rooms = new ArrayList<>(space.rooms());
+		rooms.add(room);
+		return List.copyOf(rooms);
+	}
+
+	/** Builds the far half of an internal link on the new room's side of the shared wall. */
+	private PlacedDoorEndpoint buildRoomMate(
+		World world,
+		PocketSpace space,
+		PocketLayout layout,
+		BlockFace wall,
+		DoorItemIdentity identity)
+	{
+		BlockFace inward = wall.getOppositeFace();
+		int x = layout.minX() + (layout.size() / 2);
+		int z = layout.minZ() + (layout.size() / 2);
+		switch(wall)
+		{
+			case NORTH -> z = layout.maxZ() - 1;
+			case SOUTH -> z = layout.minZ() + 1;
+			case EAST -> x = layout.minX() + 1;
+			case WEST -> x = layout.maxX() - 1;
+			default -> throw new IllegalArgumentException("A pocket only grows through a cardinal wall: " + wall);
+		}
+		int y = layout.minY() + 1;
+		Material doorMaterial = DoorItemService.PAIR_DOOR_MATERIAL;
+		Door lower = (Door) doorMaterial.createBlockData();
+		lower.setHalf(Bisected.Half.BOTTOM);
+		lower.setFacing(inward);
+		lower.setHinge(Door.Hinge.LEFT);
+		lower.setOpen(false);
+		lower.setPowered(false);
+		Door upper = (Door) doorMaterial.createBlockData();
+		upper.setHalf(Bisected.Half.TOP);
+		upper.setFacing(inward);
+		upper.setHinge(Door.Hinge.LEFT);
+		upper.setOpen(false);
+		upper.setPowered(false);
+		world.getBlockAt(x, y - 1, z).setType(pocketStructures.shellMaterial(space), false);
+		world.getBlockAt(x, y, z).setBlockData(lower, false);
+		world.getBlockAt(x, y + 1, z).setBlockData(upper, false);
+		return new PlacedDoorEndpoint(
+			new DoorPosition(world.getUID(), WorldIdentity.serialize(world), x, y, z), identity);
+	}
+
+	/** The cardinal direction from a placed door to the room shell it is built against. */
+	private static BlockFace wallBehind(
+		PocketSpace space,
+		PocketRoom room,
+		DoorPosition position,
+		DoorwayPlane plane)
+	{
+		if(room == null || plane.form() != DoorForm.DOOR)
+		{
+			return null;
+		}
+		PocketLayout layout = PocketRooms.layout(space, room);
+		for(BlockFace candidate : new BlockFace[]{plane.facing(), plane.facing().getOppositeFace()})
+		{
+			int x = position.x() + candidate.getModX();
+			int z = position.z() + candidate.getModZ();
+			if(layout.isShellBlock(x, position.y(), z))
+			{
+				return candidate;
+			}
+		}
+		return null;
+	}
+
+	private void deny(Player player, TextKey message)
+	{
+		WormholesAudience.sendMessage(player, Wormholes.text().component(player, message));
 	}
 
 	@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -1552,6 +2086,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		}
 		HandlerList.unregisterAll(this);
 		HandlerList.unregisterAll(protection);
+		HandlerList.unregisterAll(rulesListener);
 		Listener entityMoveListener = livingEntityMoveListener;
 		if(entityMoveListener != null)
 		{
@@ -1563,6 +2098,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		{
 			activeItems.unregisterRecipes();
 		}
+		projectionRegistry.close();
 		runtimes.close();
 		ledger.clear();
 		pockets.clear();

@@ -18,6 +18,7 @@ import java.util.UUID;
  * use isolated per-player atomic files.</p>
  */
 public final class DoorStateService {
+    private volatile PocketInstances pocketInstances;
     private final DimensionalDoorRepository repository;
 
     private DoorRegistry registry;
@@ -195,8 +196,41 @@ public final class DoorStateService {
         return true;
     }
 
+    public synchronized boolean setEndpointProjection(DoorPosition position, DoorProjectionState projection)
+        throws IOException {
+        Objects.requireNonNull(position, "position");
+        Objects.requireNonNull(projection, "projection");
+        PlacedDoorEndpoint existing = registry.at(position).orElse(null);
+        if (existing == null || existing.projection() == projection) {
+            return false;
+        }
+
+        DoorRegistry candidateRegistry = copyRegistry();
+        candidateRegistry.remove(position)
+            .orElseThrow(() -> new IllegalStateException("endpoint is not registered"));
+        candidateRegistry.register(existing.withProjection(projection));
+        persistAndPublish(candidateRegistry, allocator, pairsById, ticketsByPlayer, accessByItem);
+        return true;
+    }
+
     public DoorDestination resolveDestination(DoorItemIdentity identity, UUID travelerId) {
-        return DoorDestinationResolver.resolve(identity, travelerId);
+        return DoorDestinationResolver.resolve(identity, travelerId, this::instancedTemplateOf);
+    }
+
+    /** The instanced template a public door's shared pocket was built from, if any. */
+    private synchronized Optional<String> instancedTemplateOf(UUID doorItemId) {
+        PocketInstances instances = pocketInstances;
+        if (instances == null) {
+            return Optional.empty();
+        }
+        return findPocket(PocketBinding.publicDoor(doorItemId))
+            .map(PocketSpace::templateName)
+            .filter(template -> !template.isEmpty() && instances.isInstanced(template));
+    }
+
+    /** Installed by the door manager once the template folder is known. */
+    public synchronized void attachInstances(PocketInstances instances) {
+        pocketInstances = instances;
     }
 
     /** Resolves PERSONAL/PUBLIC identity and creates its permanent pocket if needed. */
@@ -261,6 +295,26 @@ public final class DoorStateService {
         PocketSpace updated = candidateAllocator.reshape(spaceId, shell);
         persistAndPublish(registry, candidateAllocator, pairsById, ticketsByPlayer, accessByItem);
         return updated;
+    }
+
+    /** Stores pocket v2 state for one allocation without moving it. */
+    public synchronized PocketSpace replacePocket(PocketSpace updated) throws IOException {
+        Objects.requireNonNull(updated, "updated");
+        PocketAllocator candidateAllocator = copyAllocator();
+        PocketSpace persisted = candidateAllocator.replace(updated);
+        persistAndPublish(registry, candidateAllocator, pairsById, ticketsByPlayer, accessByItem);
+        return persisted;
+    }
+
+    public synchronized boolean setPocketTemplate(UUID spaceId, String templateName) throws IOException {
+        Objects.requireNonNull(spaceId, "spaceId");
+        Objects.requireNonNull(templateName, "templateName");
+        PocketSpace existing = allocator.findById(spaceId).orElse(null);
+        if (existing == null || existing.templateName().equals(templateName)) {
+            return false;
+        }
+        replacePocket(existing.withTemplateName(templateName));
+        return true;
     }
 
     public synchronized Optional<PocketSpace> findPocket(PocketBinding binding) {

@@ -54,6 +54,7 @@ public final class WormholesLifecycleBytecodeTest {
         "constructionManager",
         "effectManager",
         "blockManager",
+        "subsystems",
         "vaultEconomy",
         "instance",
         "INSTANCE"

@@ -47,8 +47,7 @@ class WireCodecCompressionTest {
             highlyCompressiblePublicKeyBlob(),
             true,
             CompressionDictionary.ZERO_HASH,
-            0
-        );
+            0, WireCapability.localSet());
     }
 
     private static CompressionDictionary trainDictionary() {

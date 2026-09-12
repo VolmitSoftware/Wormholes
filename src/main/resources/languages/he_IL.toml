@@ -513,6 +513,7 @@ rename = ["&a&lשינוי שם הפורטל&r", "&7שנו את השם שמוצג
 delete = ["&c&lמחיקת פורטל&r", "&7מוחק את הפורטל לצמיתות.", "", "&c&nShift + לחיצה שמאלית לאישור&r"]
 advanced_settings = ["&3&lכוונון זרם מתקדם&r", "&7בקרה ישירה לאבחון ולקישורים מיוחדים.", "&7שינוי ערך מסמן את איכות הזרם כמותאמת אישית."]
 back_settings = ["&e&lחזרה להגדרות&r", "&7חזרה להגדרות הפורטל."]
+extensions = ["&b&lהגדרות נוספות&r", "&7כללים, גישה, רשתות והגדרות תכונות נוספות.", "&eלחיצה שמאלית"]
 stream_quality = ["&b&lאיכות הזרם: {quality}&r", "&7בקרה אחת לטווח חלון התצוגה המרוחק ולקצב העדכון.", "", "&7עומק &b{depth}&7  ישויות &b{entities}t", "&7רענון &b{refresh}t&7  זמן חסד &b{grace}s", "", "&8לחיצה: החלפת איכות.", "&8Shift + לחיצה: כוונון מתקדם."]
 orientation = ["&9&lכיוון&r", "&7חזית: &9{facing}", "&7החלק העליון במסך: &6{up}", "", "&8לחצו להגדרת חזית, היפוך וסיבוב."]
 orientation_placard = ["&9&lכיוון הפורטל&r", "&7חזית: &9{facing}", "&7החלק העליון במסך: &6{up}"]
@@ -936,6 +937,7 @@ decimal_seconds = "{value}s"
 
 [rtp.biome]
 any_label = "הכול"
+unavailable_label = "לא זמין"
 header = ["&b&lביום יעד&r", "&7החיפוש מעדיף את הביום הזה וחוזר לכל נקודה בטוחה כאשר לא ניתן למצוא אותו בקרבת מקום."]
 any_selected = ["&a&lכל ביום&r", "&7ללא העדפת ביום.", "&aנבחר"]
 any_available = ["&b&lכל ביום&r", "&7ניקוי העדפת הביום.", "&eלחיצה שמאלית לבחירה"]
@@ -1018,3 +1020,513 @@ trapdoor_skin = ["&6מעטפת דלת מלכודת ממדית", "&7שלבו דל
 entangled_trapdoor_pair_recipe = ["&6זוג דלתות מלכודת שזורות", "&7מכיל שתי דלתות מלכודת חור תולעת המקושרות אוטומטית."]
 personal_trapdoor_recipe = ["&bדלת מלכודת ממד אישי", "&7כל נוסע נכנס לממד הקבוע האישי שלו."]
 public_trapdoor_recipe = ["&6דלת מלכודת ממד ציבורי", "&7כל נוסע נכנס לממד המשותף של דלת המלכודת."]
+
+# ==== Headline lane blocks. Each lane adds its tables between its own markers only. ====
+
+
+# ---- lane:rules (rules.*) ----
+[rules]
+route_card = "{portal} > {destination} | {amount} | {state}"
+
+[rules.menu]
+entry = ["&6כללים", "&7מי רשאי לעבור, כמה זה עולה ומה קורה אחר כך."]
+cooldown = ["&6זמן המתנה: {seconds}s", "&7לחיצה שמאלית וימנית משנה, Shift לקפיצות של 10 שניות."]
+warmup = ["&6זמן הכנה: {seconds}s", "&7לחיצה שמאלית וימנית משנה, Shift לקפיצות של 10 שניות."]
+group = ["&6קבוצת המתנה: {value}", "&7לחץ כדי להקליד שם קבוצה."]
+pushback = ["&6הדיפה: {value}", "&7לחיצה שמאלית וימנית משנה את הערך."]
+sound = ["&6עוצמת צליל הסירוב: {value}", "&7לחיצה שמאלית וימנית משנה את הערך."]
+charges = ["&6טעינות: {count}", "&7לחיצה שמאלית וימנית משנה את גודל המאגר."]
+default_outcome = ["&6ברירת מחדל: {mode}", "&7לחץ כדי להחליף בין אישור לסירוב."]
+rules = ["&6כללים ({count})", "&7לחץ כדי לפתוח את רשימת הכללים."]
+rule = ["&6{name}", "&7{value} &8- Shift ולחיצה מסירים את הכלל."]
+add_rule = ["&aהוסף כלל", "&7לחץ כדי להקליד מזהה כלל."]
+line = ["&f{value}", "&7Shift ולחיצה מסירים את השורה הזו."]
+add_line = ["&aהוסף שורה", "&7לחץ והקלד kind=PERMISSION;node=group.vip."]
+templates = ["&6תבניות", "&7לחץ כדי להחיל תבנית שמורה."]
+template = ["&f{name}", "&7לחץ כדי להחיל את התבנית הזו."]
+back = ["&7חזרה", "&8לעמוד הקודם."]
+page = ["&7עמוד {page} מתוך {pages}", "&8לחץ כדי לדפדף."]
+
+[rules.route]
+unlisted = "לא ידוע"
+free = "חינם"
+ready = "מוכן"
+cooldown = "{seconds}s"
+
+[rules.denied]
+default = "הפורטל הזה דחה אותך."
+entity_class = "רק {mode} רשאים להשתמש בפורטל הזה."
+key = "דרוש לך המפתח של {portal}."
+time = "{portal} סגור כרגע."
+cooldown = "המתן {seconds}s לפני שימוש חוזר ב-{portal}."
+charges = "ל-{portal} לא נותרו טעינות."
+cost = "אינך יכול לשלם {amount} כדי להשתמש ב-{portal}."
+
+[rules.notice]
+rule_added = "הכלל {name} נוסף."
+rule_removed = "הכלל {name} הוסר."
+invalid = "לא ניתן היה להחיל: {reason}"
+applied = "התבנית {name} הוחלה."
+
+[rules.prompt]
+group = "&bהקלד את שם קבוצת ההמתנה (או \"{cancel}\"):"
+rule_id = "&bהקלד מזהה לכלל החדש (או \"{cancel}\"):"
+line = "&bהקלד שורת כלל, לדוגמה kind=PERMISSION;node=group.vip (או \"{cancel}\"):"
+
+[rules.warmup]
+countdown = "עמוד במקום: {seconds}s"
+cancelled = "ההכנה בוטלה."
+
+[rules.command]
+exported = "כללי {portal} נכתבו לתבנית {name}."
+imported = "התבנית {name} הוחלה על {portal}."
+templates = "תבניות כללים: {value}"
+no_templates = "לא שמורות תבניות כללים."
+template_missing = "אין תבנית כללים בשם {name}."
+template_invalid = "התבנית {name} אינה תקינה: {reason}"
+portal_missing = "אין פורטל בשם {name}."
+portal_ambiguous = "{count} פורטלים נקראים {name}; שנה שם לאחד מהם."
+not_in_portal = "עמוד בתוך פורטל או ציין אחד באמצעות האפשרות portal."
+key_given = "קיבלת מפתח עבור {portal}."
+failed = "לא ניתן היה לסיים: {reason}"
+
+[rules.command.help]
+rules = "כללי מעבר: תבניות, מפתחות ופרופילי פורטל"
+export = "כתוב את כללי הפורטל לקובץ תבנית"
+"export.name" = "שם התבנית לכתיבה"
+"export.portal" = "שם הפורטל, או הפורטל שבו אתה עומד"
+import = "החל תבנית על הפורטל שבו אתה עומד"
+"import.name" = "שם התבנית לקריאה"
+"import.portal" = "שם הפורטל, או הפורטל שבו אתה עומד"
+apply = "החל תבנית על פורטל בשם מכל מקום"
+"apply.name" = "שם התבנית לקריאה"
+"apply.portal" = "שם הפורטל שעליו תוחל התבנית"
+list = "הצג תבניות כללים שמורות"
+key = "קבל לעצמך מפתח לפורטל"
+"key.portal" = "שם הפורטל שעבורו נוצר המפתח"
+"key.uses" = "כמה מעברים המפתח מאפשר, 0 לבלתי מוגבל"
+# ---- end lane:rules ----
+
+
+# ---- lane:access (access.*) ----
+[access.denied]
+role = "&cאין לך הרשאה להשתמש ב-{portal}."
+claim = "&cתביעת קרקע חוסמת את {portal}."
+limit = "&cכבר יש לך {count} שערים; המגבלה היא {maximum}."
+
+[access.construct]
+denied = "&cאי אפשר לבנות שער כאן: {reason}."
+
+[access.claim]
+reason = "{plugin} מגן על הקרקע הזו"
+failure = "לא ניתן היה לשאול את {plugin}"
+
+[access.transfer]
+done = "&8[&6Wormholes&8] &a{portal} שייך כעת ל-{name}."
+
+[access.key]
+set = "&aמפתח ההרשאה של {portal} הוא כעת {key}."
+taken = "&cמפתח ההרשאה {key} כבר בשימוש."
+invalid = "&cמפתחות הרשאה משתמשים ב-a-z, 0-9, נקודה, מקף וקו תחתון, עד 64 תווים."
+
+[access.player]
+not_found = "&cאין שחקן בשם {name}."
+
+[access.portal]
+not_found = "&8[&6Wormholes&8] &cאין שער בשם {portal}."
+ambiguous = "&8[&6Wormholes&8] &c{count} שערים מתאימים ל-{portal}; השתמש במזהה השער."
+
+[access.role]
+changed = "&a{name} הוא כעת {state} ב-{portal}."
+removed = "&aל-{name} אין יותר תפקיד ב-{portal}."
+owner_always = "&7לבעלים תמיד יש גישה מלאה."
+
+[access.listed]
+changed = "&a{portal} כעת {state} בספרייה הציבורית."
+
+[access.group]
+added = "&a{portal} מעניק כעת גישה ל-{node}."
+cleared = "&a{portal} כבר לא מעניק גישה לפי קבוצה."
+
+[access.limits]
+report = "&8[&6Wormholes&8] &7ל-{name} יש {count} שערים; המגבלה היא {maximum}."
+unlimited = "&8[&6Wormholes&8] &7ל-{name} יש {count} שערים ואין לו מגבלה."
+
+[access.prompt]
+player = "&7כתוב שם שחקן בצאט, או {cancel} כדי לעצור."
+key = "&7כתוב את מפתח ההרשאה החדש בצאט, או {cancel} כדי לעצור."
+group = "&7כתוב צומת הרשאה בצאט, או {cancel} כדי לעצור."
+
+[access.label]
+owner = "בעלים"
+co_owner = "שותף לבעלות"
+user = "מהימן"
+denied = "נדחה"
+listed = "רשום"
+unlisted = "מוסתר"
+
+[access.menu]
+entry = ["&b&lגישה&r", "&7תפקידים, קבוצות ומפתח ההרשאה."]
+placard = ["&b&lגישה: {portal}&r", "&7בעלים: &f{owner}", "&7תפקידים: &f{count}", "&7מפתח: &f{key}"]
+add = ["&a&lהוסף שחקן&r", "&7כתוב שם בצאט כדי להעניק תפקיד."]
+role = ["&f&l{name}&r", "&7תפקיד: &f{state}", "&7לחיצה שמאלית או ימנית משנה את התפקיד.", "&7Shift + לחיצה שמאלית מסירה אותו."]
+groups = ["&e&lקבוצות מורשות&r", "&7{count} צמתי הרשאה מעניקים גישה.", "&7לחיצה שמאלית מוסיפה, ימנית מנקה."]
+key = ["&b&lמפתח הרשאה&r", "&7{key}", "&7לחיצה שמאלית משנה אותו."]
+listed = ["&b&lספרייה ציבורית&r", "&7{state}", "&7לחיצה שמאלית מחליפה מצב."]
+
+[access.command.help]
+access = "רשימות גישה, בעלות ומגבלות של שערים"
+transfer = "העבר שער לשחקן אחר"
+"transfer.portal" = "שם או מזהה השער"
+"transfer.player" = "שם הבעלים החדש"
+key = "קבע את מפתח ההרשאה הקבוע של שער"
+"key.portal" = "שם או מזהה השער"
+"key.key" = "מפתח הרשאה חדש"
+limits = "הצג כמה שערים שחקן מחזיק ורשאי להחזיק"
+"limits.player" = "שחקן לבדיקה; ברירת המחדל היא אתה"
+# ---- end lane:access ----
+
+
+# ---- lane:nexus (nexus.* and atlas.*) ----
+[nexus]
+dialed = "&8[&6Wormholes&8] &a{portal} חויג אל {address}: &f{destination}"
+created = "&8[&6Wormholes&8] &aהרשת {name} נוצרה."
+deleted = "&8[&6Wormholes&8] &aהרשת {name} נמחקה."
+joined = "&8[&6Wormholes&8] &a{portal} הצטרף אל {name} בכתובת {address}."
+left = "&8[&6Wormholes&8] &a{portal} עזב את {name}."
+
+[nexus.dial]
+unknown = "&8[&6Wormholes&8] &cאין שער בכתובת {address}."
+none = "&8[&6Wormholes&8] &c{portal} אינו שייך לאף רשת."
+debounced = "&8[&6Wormholes&8] &7חיוג מהיר מדי; המתן רגע."
+managed = "&8[&6Wormholes&8] &c{portal} הוא שער מנוהל ואי אפשר לחייג אליו."
+
+[nexus.address]
+taken = "&8[&6Wormholes&8] &cהכתובת {address} כבר בשימוש ברשת {name}."
+set = "&8[&6Wormholes&8] &a{portal} עונה לכתובת {address}."
+invalid = "&8[&6Wormholes&8] &cכתובות משתמשות רק בתווים האלה: {value}"
+
+[nexus.network]
+unknown = "&8[&6Wormholes&8] &cאין רשת בשם {name}."
+exists = "&8[&6Wormholes&8] &cכבר קיימת רשת בשם {name}."
+full = "&8[&6Wormholes&8] &cברשת {name} כבר יש {count} שערים."
+limit = "&8[&6Wormholes&8] &cאתה כבר בעלים של {count} רשתות."
+
+[nexus.portal]
+unknown = "&8[&6Wormholes&8] &cאין שער בשם {portal}."
+not_member = "&8[&6Wormholes&8] &c{portal} אינו חבר ברשת {name}."
+
+[nexus.visibility]
+set = "&8[&6Wormholes&8] &a{name} כעת {value}."
+
+[nexus.hub]
+set = "&8[&6Wormholes&8] &a{portal} הוא המרכז של {name}."
+
+[nexus.list]
+empty = "&8[&6Wormholes&8] &7אין עדיין רשתות."
+entry = "&7{name} &8- &f{count} שערים&7, {value}, בעלים &f{owner}"
+
+[nexus.info]
+header = "&6{name} &8- &f{count} שערים&7, {value}, {mode}"
+member = "&e{address} &f{portal} &7בעולם {world} &8{state}"
+
+[nexus.doctor]
+header = "&8[&6Wormholes&8] &6בדיקת קישורים: {count} ממצאים."
+clean = "&8[&6Wormholes&8] &aלא נמצאו בעיות קישור."
+oneway = "&e{portal} -> {destination} ללא קישור חוזר."
+dangling = "&c{portal} מצביע אל יעד חסר."
+unloaded = "&e{portal} מצביע אל העולם הלא טעון {world}."
+offline = "&c{portal} מצביע אל {server}, שאינו מקוון כבר {count} ימים."
+
+[nexus.redstone]
+set = "&8[&6Wormholes&8] &a{portal} רדסטון: {value}."
+
+[nexus.reciprocal]
+paired = "&8[&6Wormholes&8] &a{portal} ו-{destination} מקושרים כעת בשני הכיוונים."
+unpaired = "&8[&6Wormholes&8] &a{portal} ו-{destination} כבר אינם מקושרים חזרה."
+denied = "&8[&6Wormholes&8] &cאינך יכול לנהל גם את {portal} וגם את {destination}."
+
+[nexus.prompt]
+network_name = "&bהקלד את שם הרשת בצ'אט (או '{cancel}'):"
+address = "&bהקלד את הכתובת החדשה בצ'אט (או '{cancel}'):"
+
+[nexus.menu]
+entry = ["&b&lרשת&r", "&7רשתות, כתובות, חיוג, כללי יעד, רדסטון.", "&7רשת: &f{name}", "&7כתובת: &f{address}", "&eלחיצה שמאלית"]
+placard = ["&b&lרשת: {name}&r", "&7כתובת: &f{address}", "&7חברים: &f{count}"]
+join = ["&a&lהצטרף לרשת&r", "&7הוסף שער זה לרשת ותן לו כתובת.", "&eלחיצה שמאלית"]
+leave = ["&c&lעזוב את {name}&r", "&7הסר שער זה ואת כתובתו מהרשת.", "&eלחיצה שמאלית"]
+create = ["&a&lצור רשת&r", "&7תן שם לרשת חדשה והכנס אליה שער זה.", "&eלחיצה שמאלית"]
+address = ["&e&lכתובת: {address}&r", "&7קוד קצר ששערים אחרים מחייגים כדי להגיע לכאן.", "&eלחיצה שמאלית להקלדה מחדש. &eלחיצה ימנית להגרלה."]
+visibility = ["&e&lנראות: {value}&r", "&7רשתות ציבוריות גלויות לכולם, רשתות חברים לחבריהן, ומוסתרות לאיש.", "&eלחיצה שמאלית להחלפה"]
+topology = ["&e&lטופולוגיה: {value}&r", "&7רשת מלאה מחייגת לכל חבר, מרכז מנתב דרך שער אחד, שרשרת וטבעת מחייגות לשכנים.", "&eלחיצה שמאלית להחלפה"]
+reciprocal = ["&e&lקישור חוזר: {state}&r", "&7השאר את היעד מצביע חזרה אל שער זה.", "&eלחיצה שמאלית להחלפה"]
+policy = ["&e&lיעדים: {mode}&r", "&7{count} רשומות. מסודר, משוקלל, מתוזמן, לפי שחקן או חזרה.", "&eלחיצה שמאלית מחליפה מצב. &eלחיצה ימנית מרוקנת."]
+redstone = ["&e&lרדסטון: {value}&r", "&7מה עושה עלייה בזרם ליד המסגרת ומה קורא משווה.", "&eלחיצה שמאלית לפעולה. &eלחיצה ימנית לפלט המשווה."]
+dial = ["&b&lחיוג&r", "&7כוון שער זה לכתובת אחרת ברשת שלו.", "&eלחיצה שמאלית"]
+dial_entry = ["&e{address} &f{portal}", "&7{world}", "&b{state}"]
+link_and_return = ["&d&lקשר וחזור&r", "&7כוון גם את {destination} חזרה אל {portal}.", "&eלחיצה שמאלית"]
+
+[atlas]
+title = "&8אטלס &7- &f{count} שערים"
+row = "&f{portal} &8| &7{destination} &8| &b{state}"
+empty = "&8[&6Wormholes&8] &7עדיין לא גילית שערים."
+disabled = "&8[&6Wormholes&8] &cהאטלס כבוי בשרת הזה."
+only_players = "&8[&6Wormholes&8] &cרק לשחקנים יש אטלס."
+no_permission = "&8[&6Wormholes&8] &cאין לך הרשאה לפתוח את האטלס."
+discovered = "&8[&6Wormholes&8] &aגילית את {portal}."
+usage = ["&8[&6Wormholes&8] &7/atlas &8- &7פתח את רשימת השערים שלך", "&8[&6Wormholes&8] &7/atlas favorites &8- &7רק שערים מוצמדים", "&8[&6Wormholes&8] &7/atlas recents &8- &7שערים שהשתמשת בהם לאחרונה", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7הצג כיוון; /atlas guide off מפסיק"]
+
+[atlas.favorite]
+added = "&8[&6Wormholes&8] &a{portal} הוצמד."
+removed = "&8[&6Wormholes&8] &a{portal} שוחרר."
+full = "&8[&6Wormholes&8] &cכבר הצמדת {count} שערים."
+
+[atlas.guide]
+bearing = "&b{portal} &f{value}"
+set = "&8[&6Wormholes&8] &aניווט אל {portal}."
+cleared = "&8[&6Wormholes&8] &aהניווט כובה."
+unknown = "&8[&6Wormholes&8] &cאין באטלס שלך שער בשם {portal}."
+
+[atlas.menu]
+row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&eלחיצה שמאלית לחיוג. &eימנית להצמדה. &eShift+שמאלית לניווט."]
+favorites = ["&d&lמוצמדים בלבד: {state}&r", "&7הצג רק את השערים שהצמדת.", "&eלחיצה שמאלית"]
+recents = ["&b&lאחרונים בלבד: {state}&r", "&7הצג רק שערים שהשתמשת בהם לאחרונה.", "&eלחיצה שמאלית"]
+guide = ["&a&lניווט: {portal}&r", "&7הצג כיוון אל השער המנווט בסרגל הפעולה.", "&eלחיצה שמאלית מפסיקה"]
+# ---- end lane:nexus ----
+
+
+# ---- lane:doors (doorview.* and pockets.*) ----
+[doorview]
+"disabled" = "&8[&6Wormholes&8] &cהקרנת דלתות מושבתת בקובץ wormholes.toml."
+"toggle.inherit" = "&8[&6Wormholes&8] &7ההקרנה של הדלת הזאת: &fבירושה&7."
+"toggle.on" = "&8[&6Wormholes&8] &aההקרנה של הדלת הזאת: פועלת."
+"toggle.off" = "&8[&6Wormholes&8] &eההקרנה של הדלת הזאת: כבויה."
+"state.inherit" = "בירושה"
+"state.on" = "פועלת"
+"state.off" = "כבויה"
+"menu.projection" = ["&b&lהקרנה: {state}&r", "&7מציגה את היעד דרך פתח הדלת.", "&eלחיצה שמאלית להחלפה"]
+
+[pockets]
+"confirm.overwrite" = ["&8[&6Wormholes&8] &cזה מחליף את כל מה שנמצא בכיס &f{space}&c.", "&8[&6Wormholes&8] &7הרץ את אותה הפקודה עם &fconfirm=true&7 כדי להמשיך."]
+"denied.build" = "&8[&6Wormholes&8] &cאינך בנאי בכיס הזה."
+"denied.pvp" = "&8[&6Wormholes&8] &cלחימה מושבתת בכיס הזה."
+"instance.none" = "&8[&6Wormholes&8] &cהכיס הזה אינו מופע."
+"instance.reset" = "&8[&6Wormholes&8] &aמופע הכיס &f{space}&a אופס."
+"room.added" = "&8[&6Wormholes&8] &aהחדר &f{count}&a נוסף לכיס &f{space}&a."
+"room.blocked" = "&8[&6Wormholes&8] &cהצב את הדלת על קיר פנימי."
+"room.limit" = "&8[&6Wormholes&8] &cלכיס הזה כבר יש את המקסימום של &f{count}&c חדרים."
+"roster.added" = "&8[&6Wormholes&8] &a{name}&a נוסף לרשימת הכיס בתור &f{value}&a."
+"roster.missing" = "&8[&6Wormholes&8] &c{name}&c אינו ברשימת הכיס הזה."
+"roster.removed" = "&8[&6Wormholes&8] &e{name}&e הוסר מרשימת הכיס."
+"roster.role" = "&8[&6Wormholes&8] &a{name}&a הוא כעת &f{value}&a בכיס הזה."
+"rules.invalid" = "&8[&6Wormholes&8] &cכלל כיס לא מוכר &f{key}&c."
+"rules.set" = "&8[&6Wormholes&8] &a{key} &7= &f{value}"
+"snapshot.missing" = "&8[&6Wormholes&8] &cלכיס הזה אין תצלום בשם &f{name}&c."
+"snapshot.restored" = "&8[&6Wormholes&8] &aתצלום &f{name}&a שוחזר לכיס &f{space}&a."
+"snapshot.saved" = "&8[&6Wormholes&8] &aתצלום &f{name}&a של הכיס &f{space}&a נשמר."
+"template.applied" = "&8[&6Wormholes&8] &aהתבנית &f{name}&a הוחלה על הכיס &f{space}&a."
+"template.list" = "&8[&6Wormholes&8] &7תבניות (&f{count}&7): &f{value}"
+"template.missing" = "&8[&6Wormholes&8] &cאין תבנית כיס בשם &f{name}&c."
+# ---- end lane:doors ----
+
+
+# ---- lane:mesh (mesh.*) ----
+[mesh]
+pending = "&8[&6Wormholes&8] &e{server}&7 מבקש להצטרף דרך &f{name}&7: /wh network accept {server}"
+accepted = "&8[&6Wormholes&8] &a&f{server}&a התקבל לרשת."
+rejected = "&8[&6Wormholes&8] &c&f{server}&c נדחה וההצגה שלו הושלכה."
+tombstoned = "&8[&6Wormholes&8] &f{server}&7 הוסר מכל הרשת."
+disabled = "&8[&6Wormholes&8] &7פדרציית הרשת &cמושבתת&7 ([network.mesh] enabled = false)."
+
+[mesh.introductions]
+none = "&8[&6Wormholes&8] &7אין הצגות שממתינות לאישור."
+unknown = "&8[&6Wormholes&8] &c{server} אינו ממתין לאישור."
+
+[mesh.members]
+none = "&8[&6Wormholes&8] &7עדיין לא ידועים חברי רשת."
+row = "&8[&6Wormholes&8] &f{server}&7 {state} &8{fingerprint}"
+
+[mesh.versions]
+none = "&8[&6Wormholes&8] &7עדיין לא קושר אף עמית."
+row = "&8[&6Wormholes&8] &f{server}&7: פרוטוקול &f{value}&7, תוסף &f{name}&7, יכולות &f{state}"
+reduced = "&8[&6Wormholes&8] &e{server}&7 מתקשר עם יכולות מופחתות: &f{reason}"
+
+[mesh.drain]
+on = "&8[&6Wormholes&8] &eמצב ניקוז פעיל: שרת זה דוחה הגעות חדשות עד לכיבוי הניקוז."
+off = "&8[&6Wormholes&8] &aמצב ניקוז כבוי: שרת זה מקבל הגעות שוב."
+state = "&8[&6Wormholes&8] &7מצב הניקוז הוא {state}."
+invalid = "&8[&6Wormholes&8] &cמצב הניקוז חייב להיות on או off, התקבל {value}."
+
+[mesh.queue]
+position = "&7ממתין לשרת פנוי: מיקום &f{count}&7, &f{seconds}&7 שניות"
+timeout = "&cלאף שרת יעד לא היה מקום בזמן."
+
+[mesh.policy]
+none = "&cאין יעד זמין כרגע."
+set = "&8[&6Wormholes&8] &aמדיניות על &f{portal}&a: {value}"
+cleared = "&8[&6Wormholes&8] &7המדיניות הוסרה מ-&f{portal}&7; הוא מקושר שוב ליעדו הרגיל."
+portal_unknown = "&8[&6Wormholes&8] &cאין פורטל מקומי בשם {portal}."
+invalid = "&8[&6Wormholes&8] &cמדיניות לא תקינה: {reason}"
+
+[mesh.command.help]
+members = "הצגת כל חברי הרשת עם מצב הקישור וטביעת אצבע של המפתח"
+pending = "הצגת שרתים שהוצגו וממתינים לאישור"
+accept = "מתן אמון בשרת שהוצג ושמירת הנתיב שלו"
+reject = "דחיית ההצגה הממתינה של שרת"
+versions = "הצגת הפרוטוקול, גרסת התוסף והיכולות של כל עמית"
+drain = "הוצאת שרת זה מסבב היעדים או החזרתו"
+policy = "הגדרה או הסרה של מדיניות היעד של שער"
+
+[mesh.command.param.accept]
+server = "שם השרת שהוצג (ראו /wh network pending)"
+
+[mesh.command.param.reject]
+server = "שם השרת שהוצג לדחייה"
+
+[mesh.command.param.drain]
+state = "on או off; ללא ערך יוצג המצב הנוכחי"
+
+[mesh.command.param.policy]
+portal = "שם או מזהה של הפורטל המקומי"
+candidates = "רשומות server:portal[:weight] מופרדות בפסיקים; ריק מסיר את המדיניות"
+strategy = "FIRST_AVAILABLE, LEAST_LOADED, ROUND_ROBIN, STICKY או NEAREST"
+headroom = "מקומות פנויים לשחקנים שמועמד חייב לדווח"
+tps = "TPS מינימלי שמועמד חייב לדווח; 0 מתעלם מ-TPS"
+queue = "להשהות נוסעים כאשר כל המועמדים מלאים"
+# ---- end lane:mesh ----
+
+
+# ---- lane:transit (transit.*) ----
+[transit]
+bounced = "{portal} דחף אותך לאחור."
+
+[transit.denied]
+membrane = "אל {portal} אפשר להיכנס רק מהחזית."
+convoy_size = "בשיירה שלך יש {count} ישויות; המגבלה היא {value}."
+convoy_fit = "השיירה שלך לא עוברת דרך {portal}."
+convoy_member = "חלק מהשיירה שלך אינו רשאי להשתמש ב-{portal}."
+
+[transit.convoy]
+waiting = "העבר את כל השיירה שלך דרך {portal}."
+failed = "העברת השיירה נכשלה: {reason}."
+
+[transit.menu]
+entry = ["&b&lמעבר&r", "&7תנע, כיוון, קרום, הדיפה ואפקטים.", "&eלחיצה שמאלית"]
+momentum = ["&6&lתנע: {mode}&r", "&7מקדם {value}. כיצד מהירות היציאה נגזרת ממהירות הכניסה.", "&eלחיצה שמאלית להחלפת מצב", "&eלחיצה ימנית לקביעת המקדם"]
+orientation = ["&6&lכיוון: {mode}&r", "&7לאן הנוסעים פונים בהגעתם.", "&eלחיצה שמאלית להחלפה"]
+membrane = ["&6&lקרום: {state}&r", "&7רק הצד הקדמי מכניס נוסעים; הצד האחורי דוחף אותם.", "&eלחיצה שמאלית להחלפה"]
+bounce = ["&6&lהדיפה: {state}&r", "&7להדוף נוסעים במקום להעביר אותם.", "&eלחיצה שמאלית להחלפה"]
+profile = ["&6&lאפקטי מעבר&r", "&7התקרבות {value}", "&7סף {mode}", "&7הגעה {state}", "&eלחיצה שמאלית: צליל התקרבות, לחיצה ימנית: אפקט סף", "&eShift + לחיצה שמאלית: צליל הגעה, Shift + לחיצה ימנית: טיקים של מסכה"]
+prompt = "&bהקלד את הערך החדש בצ'אט (או '{cancel}'):"
+# ---- end lane:transit ----
+
+
+# ---- lane:view (fidelity.*) ----
+[fidelity.menu]
+entry = ["&b&lנאמנות&r", "&7אטמוספירה, אקוסטיקה, רמת פירוט וישויות בלוק של הפורטל הזה.", "&eלחיצה שמאלית"]
+placard = ["&b&lנאמנות ההקרנה&r", "&7ערוצים לכל פורטל המונחים על ההקרנה."]
+atmosphere = "&bאטמוספירה: &f{mode}"
+acoustics = "&bאקוסטיקה: &f{mode}"
+lod = "&bפירוט: &f{mode}"
+block_entities = "&bישויות בלוק: &f{state}"
+hint = ["&8לחצו כדי להחליף.", "&8Shift + לחיצה משתמש בברירת המחדל של השרת."]
+back = ["&e&lחזרה&r", "&7חזרה לתפריט הפורטל."]
+default = "ברירת מחדל"
+
+[fidelity.bedrock]
+profile = "פרופיל Bedrock פעיל עבור {count} צופים"
+# ---- end lane:view ----
+
+
+# ---- lane:ops (ops.*) ----
+[ops.console]
+started = "נקודת הקצה למדדים מאזינה ב־{value}."
+no_token = "נקודת הקצה למדדים לא עלתה: הגדירו [ops.console] token."
+failed = "נקודת הקצה למדדים לא הצליחה להיקשר אל {value}: {reason}"
+
+[ops.webmap]
+published = "פורסמו {count} סימוני שערים אל {name}."
+
+[ops.backup]
+created = "&8[&6Wormholes&8] &aהגיבוי &f{id}&a נכתב אל &f{path}&a."
+restored = "&8[&6Wormholes&8] &aשוחזרו &f{count}&a שערים מתוך &f{id}&a."
+dry_run = "&8[&6Wormholes&8] &7הרצה יבשה: &f{count}&7 שערים היו משתנים."
+list_row = "&8[&6Wormholes&8] &f{id} &8| &f{count}&7 שערים &8| &7{path}"
+list_empty = "&8[&6Wormholes&8] &7אין גיבויים תחת &f{path}&7."
+not_found = "&8[&6Wormholes&8] &cאין גיבוי התואם ל־&f{id}&c."
+confirm_required = "&8[&6Wormholes&8] &cהריצו שוב עם &fconfirm=true&c כדי להחיל, או עם &fdry=true&c כדי לראות את התכנית."
+failed = "&8[&6Wormholes&8] &cפעולת הגיבוי נכשלה: &f{reason}"
+reload_required = "&8[&6Wormholes&8] &7קובצי השערים הוחלפו. הריצו &f/wormholes reload&7 כדי לטעון אותם."
+signature_broken = "&8[&6Wormholes&8] &cסירוב ל־&f{id}&c: החתימה אינה תואמת לתוכן."
+signature_untrusted = "&8[&6Wormholes&8] &cסירוב ל־&f{id}&c: נחתם על ידי &f{fingerprint}&c, שהשרת אינו בוטח בו. הוסיפו &fallow-unsigned=true&c כדי להחיל בכל זאת."
+signature_ok = "&8[&6Wormholes&8] &7נחתם על ידי &f{name}&7 (&f{fingerprint}&7)."
+
+[ops.import]
+report = "&8[&6Wormholes&8] &f{name}&7: יובאו &f{count}&7 שערים, דולגו &f{value}&7."
+skipped_row = "&8[&6Wormholes&8] &7{portal}&8: &f{reason}"
+not_detected = "&8[&6Wormholes&8] &cלא נמצאו נתוני {name} תחת &f{path}&c."
+
+[ops.portals]
+row = "&8[&6Wormholes&8] &f{portal} &8| &7{world} &8| &7{state} &8| &7{destination}"
+page = "&8[&6Wormholes&8] &7עמוד &f{page}&7/&f{pages}"
+empty = "&8[&6Wormholes&8] &7אין שערים התואמים למסננים האלה."
+not_found = "&8[&6Wormholes&8] &cאין שער התואם ל־&f{name}&c."
+ambiguous = "&8[&6Wormholes&8] &c{count} שערים תואמים ל־&f{name}&c; השתמשו במזהה."
+info = ["&8[&6Wormholes&8] &7שער &f{portal} &8| &7{id}", "&8[&6Wormholes&8] &7עולם &f{world}&7 במיקום &f{value}", "&8[&6Wormholes&8] &7מצב &f{state}&7, יעד &f{destination}&7, בעלים &f{owner}"]
+teleported = "&8[&6Wormholes&8] &aהשתגרתם אל &f{portal}&a."
+teleport_unsafe = "&8[&6Wormholes&8] &eאין נחיתה בטוחה ליד &f{portal}&e; נעשה שימוש במרכז השער."
+retargeted = "&8[&6Wormholes&8] &a&f{portal}&a מצביע כעת אל &f{destination}&a."
+unlinked = "&8[&6Wormholes&8] &a&f{portal}&a אינו מקושר עוד."
+pruned = "&8[&6Wormholes&8] &aנוקו &f{count}&a קישורים יתומים."
+prune_dry_run = "&8[&6Wormholes&8] &7הרצה יבשה: &f{count}&7 קישורים יתומים היו מנוקים."
+renamed_server = "&8[&6Wormholes&8] &aנכתבו מחדש &f{count}&a קישורי שער־על מ־&f{name}&a אל &f{server}&a."
+
+[ops.command.help]
+backup = "יצירה, הצגה, שחזור והעברה של גיבויי שערים"
+"backup.now" = "כתיבת גיבוי של נתוני השערים עכשיו"
+"backup.list" = "הצגת הגיבויים שעל הדיסק"
+"backup.restore" = "שחזור קובצי שערים מגיבוי (dry=true מציג את התכנית)"
+"backup.restore.id" = "מזהה גיבוי מתוך /wormholes admin backup list"
+"backup.restore.dry" = "דיווח על מה שישתנה בלי לכתוב דבר"
+"backup.restore.world_map" = "שינויי שמות עולמות בצורה ישן=חדש,ישן=חדש"
+"backup.restore.owner_map" = "שינויי בעלים בצורה uuid-ישן=uuid-חדש"
+"backup.restore.confirm" = "נדרש כדי לכתוב קבצים כאשר dry=false"
+"backup.allow_unsigned" = "להחיל חבילה שאף מפתח מהימן לא חתם עליה"
+"backup.export" = "כתיבת חבילת גיבוי לקובץ שניתן להעביר בין שרתים"
+"backup.export.file" = "קובץ היעד; ריק כותב לתיקיית הגיבויים"
+"backup.import" = "ייבוא חבילה שיוצאה משרת אחר"
+"backup.import.file" = "קובץ החבילה לקריאה"
+"backup.import.dry" = "דיווח על מה שישתנה בלי לכתוב דבר"
+"backup.import.world_map" = "שינויי שמות עולמות בצורה ישן=חדש,ישן=חדש"
+"backup.import.owner_map" = "שינויי בעלים בצורה uuid-ישן=uuid-חדש"
+"backup.import.confirm" = "נדרש כדי לכתוב קבצים כאשר dry=false"
+"backup.import_from" = "ייבוא שערים מקבצים של תוסף שערים אחר"
+"backup.import_from.source" = "stargate, advancedportals, multiverse, betterportals או essentials"
+"backup.import_from.dry" = "דיווח על מה שייווצר בלי ליצור דבר"
+"backup.import_from.frame" = "גודל מסגרת בצורה רוחב,גובה עבור מקורות ללא מסגרת"
+portals = "הצגה, בדיקה ועריכה מרוכזת של שערים"
+"portals.list" = "הצגת שערים עם מסננים אופציונליים"
+"portals.list.world" = "רק שערים בעולם הזה"
+"portals.list.type" = "רק שערים מהסוג הזה: portal, wormhole, gateway או rtp"
+"portals.list.owner" = "רק שערים של שם השחקן או המזהה הזה"
+"portals.list.state" = "רק שערים במצב הזה: open, closed, linked או unlinked"
+"portals.list.page" = "מספר עמוד"
+"portals.find" = "מציאת שערים ששמם מכיל את הטקסט"
+"portals.find.name" = "הטקסט לחיפוש"
+"portals.info" = "הצגת העולם, המצב, היעד והבעלים של שער"
+"portals.info.portal" = "שם השער או המזהה"
+"portals.tp" = "שיגור אל שער עם נחיתה על קרקע בטוחה"
+"portals.tp.portal" = "שם השער או המזהה"
+"portals.retarget" = "הפניית שער אל שער מקומי אחר"
+"portals.retarget.portal" = "שם או מזהה השער שישתנה"
+"portals.retarget.destination" = "שם או מזהה שער היעד"
+"portals.unlink" = "הסרת היעד של שער"
+"portals.unlink.portal" = "שם השער או המזהה"
+"portals.prune" = "הסרת קישורים שהיעד שלהם אינו קיים עוד"
+"portals.prune.dry" = "דיווח על מה שיוסר בלי לשנות דבר"
+"portals.prune.confirm" = "נדרש כדי להסיר כאשר dry=false"
+"portals.rename_server" = "כתיבה מחדש של קישורים בין שרתים משם שרת אחד לאחר"
+"portals.rename_server.old" = "שם השרת השמור כיום בקישורים"
+"portals.rename_server.new" = "שם השרת שיישמר במקומו"
+"portals.rename_server.confirm" = "נדרש כדי לכתוב מחדש את הקישורים"
+# ---- end lane:ops ----

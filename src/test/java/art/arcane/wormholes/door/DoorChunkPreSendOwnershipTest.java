@@ -147,6 +147,7 @@ final class DoorChunkPreSendOwnershipTest {
             new PocketSpaceIndex(pocketStructures),
             pocketStructures,
             pocketWorldService,
+            templateService(),
             new DoorTransitFailures(logger)
         );
         RuntimeDoor source = runtimeDoor();
@@ -461,5 +462,23 @@ final class DoorChunkPreSendOwnershipTest {
             return Character.valueOf('\0');
         }
         return null;
+    }
+
+    private static PocketTemplateService templateService() {
+        return new PocketTemplateService(
+            java.nio.file.Path.of("build", "tmp", "pocket-templates"), () -> "pockets/templates",
+            new EmptyStructureIo());
+    }
+
+    /** A structure store with nothing in it; these tests never read or write one. */
+    private static final class EmptyStructureIo implements StructureIo {
+        @Override
+        public java.util.Optional<org.bukkit.structure.Structure> load(java.nio.file.Path file) {
+            return java.util.Optional.empty();
+        }
+
+        @Override
+        public void save(org.bukkit.structure.Structure structure, java.nio.file.Path file) {
+        }
     }
 }

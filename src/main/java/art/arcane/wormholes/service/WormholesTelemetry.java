@@ -1,9 +1,6 @@
 package art.arcane.wormholes.service;
 
 import java.util.Map;
-import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -14,7 +11,6 @@ public final class WormholesTelemetry {
     private static final AtomicLong TRAVERSALS = new AtomicLong();
     private static final AtomicLong RENDER_NANOS = new AtomicLong();
     private static final AtomicLong FAILURES = new AtomicLong();
-    private static final ConcurrentMap<String, AtomicLong> FAILURE_REASONS = new ConcurrentHashMap<>();
     private static final AtomicBoolean RATE_GATE = new AtomicBoolean();
     private static volatile int activeProjections;
     private static volatile int projectionObservers;
@@ -47,12 +43,12 @@ public final class WormholesTelemetry {
     }
 
     public static void countFailure(String reason) {
-        FAILURES.incrementAndGet();
-        if (reason == null || reason.isEmpty()) {
-            return;
-        }
+        countFailure(reason, null);
+    }
 
-        FAILURE_REASONS.computeIfAbsent(reason, key -> new AtomicLong()).incrementAndGet();
+    public static void countFailure(String reason, String detail) {
+        FAILURES.incrementAndGet();
+        FailureRegistry.record(reason, detail);
     }
 
     public static long failures() {
@@ -60,13 +56,11 @@ public final class WormholesTelemetry {
     }
 
     public static int failureReasonCount() {
-        return FAILURE_REASONS.size();
+        return FailureRegistry.counts().size();
     }
 
     public static Map<String, Long> failureBreakdown() {
-        Map<String, Long> breakdown = new TreeMap<>();
-        FAILURE_REASONS.forEach((reason, count) -> breakdown.put(reason, count.get()));
-        return breakdown;
+        return FailureRegistry.counts();
     }
 
     public static void addRenderNanos(long nanos) {
@@ -129,7 +123,7 @@ public final class WormholesTelemetry {
             TRAVERSALS.set(0L);
             RENDER_NANOS.set(0L);
             FAILURES.set(0L);
-            FAILURE_REASONS.clear();
+            FailureRegistry.clear();
             windowStartMs = 0L;
             windowBlockChanges = 0L;
             windowPackets = 0L;

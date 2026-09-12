@@ -2,6 +2,7 @@ package art.arcane.wormholes.render;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -29,6 +30,9 @@ import art.arcane.wormholes.network.view.EntityVisual;
 
 final class EntityRenderSpoofRegistry {
     private static final int[] NO_PASSENGERS = new int[0];
+    private static final int NO_LEASH_HOLDER = -1;
+    /** Matches the untouched {@link EntityRenderSpoofedEntity#leashedToFakeId} default. */
+    private static final int NEVER_LEASHED = Integer.MIN_VALUE;
 
     private final Map<UUID, EntityRenderSpoofedEntity> spoofed;
     private final Map<Integer, EntityRenderSpoofedEntity> pendingDestroy;
@@ -115,24 +119,43 @@ final class EntityRenderSpoofRegistry {
     }
 
     void applyRelationships(Player observer, List<EntityVisual> visuals) {
-        if (!hasRelationshipWork(visuals)) {
+        if (!hasVisualRelationshipWork(visuals)) {
             return;
         }
-        Map<UUID, List<Integer>> ridersByVehicle = new HashMap<UUID, List<Integer>>();
+        List<EntityRelationship> relationships = new ArrayList<EntityRelationship>(visuals.size());
         for (EntityVisual visual : visuals) {
-            UUID vehicle = visual.passengerOf();
+            relationships.add(new EntityRelationship(visual.id(), visual.passengerOf(), List.of(), visual.leashHolder()));
+        }
+        applyRelationships(observer, relationships);
+    }
+
+    void applyRelationships(Player observer, Collection<EntityRelationship> relationships) {
+        if (!hasRelationshipWork(relationships)) {
+            return;
+        }
+        Map<UUID, List<Integer>> declaredRiders = new HashMap<UUID, List<Integer>>();
+        Map<UUID, List<Integer>> inferredRiders = new HashMap<UUID, List<Integer>>();
+        for (EntityRelationship relationship : relationships) {
+            List<Integer> riders = spoofedFakeIds(relationship.passengerIds());
+            if (!riders.isEmpty()) {
+                declaredRiders.put(relationship.entityId(), riders);
+            }
+            UUID vehicle = relationship.vehicleId();
             if (vehicle == null) {
                 continue;
             }
-            EntityRenderSpoofedEntity rider = spoofed.get(visual.id());
+            EntityRenderSpoofedEntity rider = spoofed.get(relationship.entityId());
             if (rider == null) {
                 continue;
             }
-            ridersByVehicle.computeIfAbsent(vehicle, ignored -> new ArrayList<Integer>()).add(rider.fakeId);
+            inferredRiders.computeIfAbsent(vehicle, ignored -> new ArrayList<Integer>()).add(Integer.valueOf(rider.fakeId));
         }
         for (Map.Entry<UUID, EntityRenderSpoofedEntity> entry : spoofed.entrySet()) {
             EntityRenderSpoofedEntity vehicleState = entry.getValue();
-            List<Integer> riders = ridersByVehicle.get(entry.getKey());
+            List<Integer> riders = declaredRiders.get(entry.getKey());
+            if (riders == null) {
+                riders = inferredRiders.get(entry.getKey());
+            }
             if (riders == null) {
                 if (vehicleState.lastPassengers != null && vehicleState.lastPassengers.length > 0) {
                     vehicleState.lastPassengers = NO_PASSENGERS;
@@ -149,32 +172,66 @@ final class EntityRenderSpoofRegistry {
                 channel.send(observer, new WrapperPlayServerSetPassengers(vehicleState.fakeId, passengers));
             }
         }
-        for (EntityVisual visual : visuals) {
-            EntityRenderSpoofedEntity mob = spoofed.get(visual.id());
+        for (EntityRelationship relationship : relationships) {
+            EntityRenderSpoofedEntity mob = spoofed.get(relationship.entityId());
             if (mob == null) {
                 continue;
             }
-            int holderFakeId = -1;
-            UUID holderUuid = visual.leashHolder();
+            int holderFakeId = NO_LEASH_HOLDER;
+            UUID holderUuid = relationship.leashHolderId();
             if (holderUuid != null) {
                 EntityRenderSpoofedEntity holder = spoofed.get(holderUuid);
                 if (holder != null) {
                     holderFakeId = holder.fakeId;
                 }
             }
-            if (holderFakeId != mob.leashedToFakeId) {
-                mob.leashedToFakeId = holderFakeId;
-                channel.send(observer, new WrapperPlayServerAttachEntity(mob.fakeId, holderFakeId, true));
+            int previousHolderFakeId = mob.leashedToFakeId;
+            if (previousHolderFakeId == holderFakeId) {
+                continue;
             }
+            mob.leashedToFakeId = holderFakeId;
+            if (previousHolderFakeId == NEVER_LEASHED && holderFakeId == NO_LEASH_HOLDER) {
+                continue;
+            }
+            channel.send(observer, new WrapperPlayServerAttachEntity(mob.fakeId, holderFakeId, true));
         }
     }
 
-    private boolean hasRelationshipWork(List<EntityVisual> visuals) {
+    private List<Integer> spoofedFakeIds(List<UUID> sourceIds) {
+        if (sourceIds.isEmpty()) {
+            return List.of();
+        }
+        List<Integer> fakeIds = new ArrayList<Integer>(sourceIds.size());
+        for (UUID sourceId : sourceIds) {
+            EntityRenderSpoofedEntity state = spoofed.get(sourceId);
+            if (state != null) {
+                fakeIds.add(Integer.valueOf(state.fakeId));
+            }
+        }
+        return fakeIds;
+    }
+
+    private boolean hasVisualRelationshipWork(List<EntityVisual> visuals) {
         for (EntityVisual visual : visuals) {
             if (visual.passengerOf() != null || visual.leashHolder() != null) {
                 return true;
             }
         }
+        return hasTrackedRelationshipState();
+    }
+
+    private boolean hasRelationshipWork(Collection<EntityRelationship> relationships) {
+        for (EntityRelationship relationship : relationships) {
+            if (relationship.vehicleId() != null
+                || !relationship.passengerIds().isEmpty()
+                || relationship.leashHolderId() != null) {
+                return true;
+            }
+        }
+        return hasTrackedRelationshipState();
+    }
+
+    private boolean hasTrackedRelationshipState() {
         for (EntityRenderSpoofedEntity state : spoofed.values()) {
             if (state.leashedToFakeId >= 0) {
                 return true;

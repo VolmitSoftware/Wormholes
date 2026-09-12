@@ -15,6 +15,8 @@ import art.arcane.volmlib.util.localization.VolmitLocales;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.volmlib.util.scheduling.SchedulerBridge;
 import art.arcane.volmlib.util.scheduling.SchedulerRuntime;
+import art.arcane.wormholes.access.adapters.ReflectiveEnvironment;
+import art.arcane.wormholes.access.adapters.WorldGuardFlags;
 import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
 import art.arcane.wormholes.api.traversal.internal.TraversalCostPolicy;
 import art.arcane.wormholes.chunk.BukkitChunkLeasePlatform;
@@ -78,6 +80,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     public static Wormholes instance;
 
     public static volatile WormholesSettings settings;
+    public static volatile WormholesSubsystems subsystems;
     public static volatile BlockManager blockManager;
     public static volatile EffectManager effectManager;
     public static volatile ConstructionManager constructionManager;
@@ -138,6 +141,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         INSTANCE = this;
         instance = this;
 
+        WorldGuardFlags.registerAtLoad(ReflectiveEnvironment.bukkit());
         packetEvents().load();
     }
 
@@ -168,6 +172,9 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
 
             packetEvents().init();
             WormholesHud.start(this);
+
+            subsystems = new WormholesSubsystems(getLogger());
+            subsystems.registerAll();
 
             blockManager = new BlockManager();
             effectManager = new EffectManager();
@@ -230,6 +237,8 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
                 Settings.TRAVERSAL_API_PROVIDER_FAILURE_POLICY,
                 Settings.TRAVERSAL_API_PROVIDER_FAULT_LIMIT,
                 Settings.TRAVERSAL_API_SLOW_PROVIDER_MILLIS));
+
+            subsystems.startAll(this);
 
             reloads.startHotloadManager(appliedSettingsSnapshot);
 
@@ -303,6 +312,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         } catch (Throwable ex) {
             getLogger().log(Level.WARNING, "Error during HotloadManager stop", ex);
         }
+        shutdownSubsystemsBeforeManagers();
         unregisterIntegrationService();
         unregisterPlaceholders();
         shutdownPortalSyncBeforeRegionTasks();
@@ -328,6 +338,18 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         }
         FoliaScheduler.cancelTasks(this);
         drain();
+    }
+
+    private void shutdownSubsystemsBeforeManagers() {
+        WormholesSubsystems active = subsystems;
+        if (active == null) {
+            return;
+        }
+        try {
+            active.stopAll();
+        } catch (Throwable ex) {
+            getLogger().log(Level.WARNING, "Error during subsystem teardown", ex);
+        }
     }
 
     private void shutdownPortalSyncBeforeRegionTasks() {
@@ -847,6 +869,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
         constructionManager = null;
         effectManager = null;
         blockManager = null;
+        subsystems = null;
         vaultEconomy = null;
         clearChatInputs();
         instance = null;

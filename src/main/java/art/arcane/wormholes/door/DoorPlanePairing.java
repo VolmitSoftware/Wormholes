@@ -14,7 +14,7 @@ import java.util.Objects;
 	 * <p>A closed-state trapdoor is the one exception: nothing can be delivered
 	 * inside its solid plate, so arrivals always land on its exposed upper face.</p>
  */
-final class DoorPlanePairing
+public final class DoorPlanePairing
 {
 	// A traveler leaving a trapdoor keeps going the way it was travelling. Never offer the
 	// far side as a fallback: dropping in through the top has to come out under the plate,
@@ -26,7 +26,7 @@ final class DoorPlanePairing
 	{
 	}
 
-	static boolean mirrored(DoorwayPlane source, DoorwayPlane destination)
+	public static boolean mirrored(DoorwayPlane source, DoorwayPlane destination)
 	{
 		Objects.requireNonNull(source, "source");
 		Objects.requireNonNull(destination, "destination");

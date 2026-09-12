@@ -11,11 +11,20 @@ import org.bukkit.block.data.MultipleFacing;
 import org.bukkit.block.data.Orientable;
 import org.bukkit.block.data.Rail;
 import org.bukkit.block.data.Rotatable;
+import org.bukkit.block.data.type.Chest;
+import org.bukkit.block.data.type.Door;
+import org.bukkit.block.data.type.RedstoneWire;
+import org.bukkit.block.data.type.Stairs;
+import org.bukkit.block.data.type.Wall;
 
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.util.Direction;
 
 public final class ProjectedBlockDataTransformer {
+    private static final BlockFace[] HORIZONTAL_FACES = {
+        BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST
+    };
+
     private ProjectedBlockDataTransformer() {
     }
 
@@ -34,6 +43,9 @@ public final class ProjectedBlockDataTransformer {
         transformOrientable(copy, mapping);
         transformMultipleFacing(copy, mapping);
         transformRail(copy, mapping);
+        transformWall(copy, mapping);
+        transformRedstoneWire(copy, mapping);
+        transformChirality(copy, mapping);
         return copy;
     }
 
@@ -42,7 +54,9 @@ public final class ProjectedBlockDataTransformer {
             || source instanceof Rotatable
             || source instanceof Orientable
             || source instanceof MultipleFacing
-            || source instanceof Rail;
+            || source instanceof Rail
+            || source instanceof Wall
+            || source instanceof RedstoneWire;
     }
 
     private static void transformDirectional(BlockData data, DirectionMapping mapping) {
@@ -67,16 +81,11 @@ public final class ProjectedBlockDataTransformer {
             return;
         }
         Rotatable rotatable = (Rotatable) data;
-        Direction source = fromBlockFace(rotatable.getRotation());
-        if (source == null) {
+        int index = BlockRotation16.index(rotatable.getRotation());
+        if (index < 0) {
             return;
         }
-        Direction target = mapping.map(source);
-        BlockFace targetFace = toBlockFace(target);
-        if (targetFace == null || targetFace == BlockFace.UP || targetFace == BlockFace.DOWN) {
-            return;
-        }
-        rotatable.setRotation(targetFace);
+        rotatable.setRotation(BlockRotation16.face(mapping.mapRotation(index)));
     }
 
     private static void transformOrientable(BlockData data, DirectionMapping mapping) {
@@ -112,6 +121,76 @@ public final class ProjectedBlockDataTransformer {
                 multiple.setFace(targetFace, true);
             }
         }
+    }
+
+    private static void transformWall(BlockData data, DirectionMapping mapping) {
+        if (!(data instanceof Wall wall)) {
+            return;
+        }
+        Wall.Height[] heights = new Wall.Height[HORIZONTAL_FACES.length];
+        for (int index = 0; index < HORIZONTAL_FACES.length; index++) {
+            heights[index] = wall.getHeight(HORIZONTAL_FACES[index]);
+            wall.setHeight(HORIZONTAL_FACES[index], Wall.Height.NONE);
+        }
+        for (int index = 0; index < HORIZONTAL_FACES.length; index++) {
+            BlockFace targetFace = mappedHorizontalFace(HORIZONTAL_FACES[index], mapping);
+            if (targetFace != null) {
+                wall.setHeight(targetFace, heights[index]);
+            }
+        }
+    }
+
+    private static void transformRedstoneWire(BlockData data, DirectionMapping mapping) {
+        if (!(data instanceof RedstoneWire wire)) {
+            return;
+        }
+        RedstoneWire.Connection[] connections = new RedstoneWire.Connection[HORIZONTAL_FACES.length];
+        for (int index = 0; index < HORIZONTAL_FACES.length; index++) {
+            connections[index] = wire.getFace(HORIZONTAL_FACES[index]);
+            wire.setFace(HORIZONTAL_FACES[index], RedstoneWire.Connection.NONE);
+        }
+        Set<BlockFace> allowed = wire.getAllowedFaces();
+        for (int index = 0; index < HORIZONTAL_FACES.length; index++) {
+            BlockFace targetFace = mappedHorizontalFace(HORIZONTAL_FACES[index], mapping);
+            if (targetFace != null && allowed.contains(targetFace)) {
+                wire.setFace(targetFace, connections[index]);
+            }
+        }
+    }
+
+    /**
+     * Swaps handed block states that a rotation leaves alone but a reflection turns inside out. Rails
+     * are already reflected by their endpoint remap, bisected halves and bell attachments survive a
+     * horizontal reflection unchanged.
+     */
+    private static void transformChirality(BlockData data, DirectionMapping mapping) {
+        if (!mapping.reflects()) {
+            return;
+        }
+        if (data instanceof Stairs stairs) {
+            stairs.setShape(switch (stairs.getShape()) {
+                case INNER_LEFT -> Stairs.Shape.INNER_RIGHT;
+                case INNER_RIGHT -> Stairs.Shape.INNER_LEFT;
+                case OUTER_LEFT -> Stairs.Shape.OUTER_RIGHT;
+                case OUTER_RIGHT -> Stairs.Shape.OUTER_LEFT;
+                case STRAIGHT -> Stairs.Shape.STRAIGHT;
+            });
+        }
+        if (data instanceof Door door) {
+            door.setHinge(door.getHinge() == Door.Hinge.LEFT ? Door.Hinge.RIGHT : Door.Hinge.LEFT);
+        }
+        if (data instanceof Chest chest && chest.getType() != Chest.Type.SINGLE) {
+            chest.setType(chest.getType() == Chest.Type.LEFT ? Chest.Type.RIGHT : Chest.Type.LEFT);
+        }
+    }
+
+    private static BlockFace mappedHorizontalFace(BlockFace face, DirectionMapping mapping) {
+        Direction source = fromBlockFace(face);
+        if (source == null) {
+            return null;
+        }
+        BlockFace target = toBlockFace(mapping.map(source));
+        return target == BlockFace.UP || target == BlockFace.DOWN ? null : target;
     }
 
     private static void transformRail(BlockData data, DirectionMapping mapping) {
@@ -217,11 +296,15 @@ public final class ProjectedBlockDataTransformer {
     }
 
     private static final class DirectionMapping {
+        private static final int HANDEDNESS_UNCOMPUTED = Integer.MIN_VALUE;
+
         private final PortalFrame fromFrame;
         private final PortalFrame toFrame;
         private final PortalFrame mirrorFrame;
         private final int quarterTurns;
         private final double[] scratch3;
+        private int imageQuarterTurns;
+        private boolean reflects;
 
         private DirectionMapping(PortalFrame fromFrame, PortalFrame toFrame, PortalFrame mirrorFrame, int quarterTurns, double[] scratch3) {
             this.fromFrame = fromFrame;
@@ -229,6 +312,42 @@ public final class ProjectedBlockDataTransformer {
             this.mirrorFrame = mirrorFrame;
             this.quarterTurns = quarterTurns;
             this.scratch3 = scratch3;
+            this.imageQuarterTurns = HANDEDNESS_UNCOMPUTED;
+            this.reflects = false;
+        }
+
+        /** Quarter turns clockwise from above that this mapping applies to the horizontal plane. */
+        private int quarterTurnsClockwise() {
+            if (imageQuarterTurns == HANDEDNESS_UNCOMPUTED) {
+                computeHandedness();
+            }
+            return imageQuarterTurns;
+        }
+
+        /** True when the mapping mirrors the horizontal plane, so handed block states must swap sides. */
+        private boolean reflects() {
+            if (imageQuarterTurns == HANDEDNESS_UNCOMPUTED) {
+                computeHandedness();
+            }
+            return reflects;
+        }
+
+        /** Maps a 16-step rotation index through the mapping, reflecting first and then turning. */
+        private int mapRotation(int index) {
+            int reflected = reflects() ? BlockRotation16.reflect(index, Direction.E) : index;
+            return BlockRotation16.rotate(reflected, quarterTurnsClockwise());
+        }
+
+        private void computeHandedness() {
+            int southIndex = BlockRotation16.index(toBlockFace(map(Direction.S)));
+            int eastIndex = BlockRotation16.index(toBlockFace(map(Direction.E)));
+            if (southIndex < 0 || eastIndex < 0) {
+                imageQuarterTurns = 0;
+                reflects = false;
+                return;
+            }
+            imageQuarterTurns = southIndex / 4;
+            reflects = eastIndex != BlockRotation16.rotate(BlockRotation16.index(BlockFace.EAST), imageQuarterTurns);
         }
 
         private static DirectionMapping between(PortalFrame fromFrame, PortalFrame toFrame, double[] scratch3) {

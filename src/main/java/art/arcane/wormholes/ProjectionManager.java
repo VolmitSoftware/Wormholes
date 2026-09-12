@@ -1,5 +1,7 @@
 package art.arcane.wormholes;
 
+import art.arcane.wormholes.hook.ProjectionSource;
+import art.arcane.wormholes.hook.WormholesHooks;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -49,7 +51,16 @@ import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.PortalSkinRenderer;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
+import art.arcane.wormholes.render.FidelitySettings;
+import art.arcane.wormholes.render.FidelitySubsystem;
 import art.arcane.wormholes.render.ProjectionClientChunkTracker;
+import art.arcane.wormholes.render.acoustics.AcousticsBridge;
+import art.arcane.wormholes.render.bedrock.ClientProfileService;
+import art.arcane.wormholes.render.plate.PlateWorkers;
+import art.arcane.wormholes.render.plate.ViewPlate;
+import art.arcane.wormholes.render.plate.ViewPlateBuilder;
+import art.arcane.wormholes.render.plate.ViewPlateCache;
+import art.arcane.wormholes.render.plate.ViewPlateKey;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.render.view.RegionSnapshotWorldViewProvider;
 import art.arcane.wormholes.service.WormholesTelemetry;
@@ -60,6 +71,8 @@ public class ProjectionManager implements Listener {
     private static final String OBSERVER_FRAME_DROPPED = "PROJECTION_OBSERVER_FRAME_DROPPED";
     private static final String ENTITY_UPDATE_DROPPED = "PROJECTION_ENTITY_UPDATE_DROPPED";
     private static final int TICK_INTERVAL_TICKS = 1;
+    private static final long PLATE_INVALIDATION_INTERVAL_TICKS = 4L;
+    private static final long ACOUSTICS_AMBIENT_INTERVAL_TICKS = 20L;
     private static final long OBSERVER_FRAME_SHUTDOWN_WAIT_MILLIS = 2_000L;
     private static final AtomicLong DROPPED_OBSERVER_FRAMES = new AtomicLong();
     private static final AtomicLong DROPPED_ENTITY_UPDATES = new AtomicLong();
@@ -78,6 +91,8 @@ public class ProjectionManager implements Listener {
     private final ProjectionBudgetLedger budgetLedger;
     private final ProjectionInterestFrame observerFrame;
     private final ProjectedEntityUpdateBatcher projectedEntityUpdates;
+    private final ViewPlateCache plateCache;
+    private final PlateWorkers plateWorkers;
     private final Set<UUID> observerTasksInFlight;
     private final AtomicBoolean shutdownFinalized;
     private final AtomicBoolean shutdownStarted;
@@ -99,7 +114,22 @@ public class ProjectionManager implements Listener {
         this.skinRenderer = new PortalSkinRenderer(claimArbiter);
         BooleanSupplier alive = () -> !closed;
         this.closeQueue = new ProjectionInterestCloseQueue(alive);
-        this.interestSet = new ProjectionInterestSet(claimArbiter, localEntityOcclusion, viewProvider, closeQueue, alive);
+        this.plateCache = new ViewPlateCache(FidelitySettings.plateMaxBytes, this::schedulePlateBuild);
+        this.plateWorkers = new PlateWorkers(FidelitySettings.plateWorkers, new PlateWorkers.PlateSink() {
+            @Override
+            public void publish(ViewPlate plate) {
+                if (!closed) {
+                    plateCache.publish(plate);
+                }
+            }
+
+            @Override
+            public void failed(ViewPlateKey key) {
+                plateCache.buildFailed(key);
+            }
+        });
+        this.interestSet = new ProjectionInterestSet(claimArbiter, localEntityOcclusion, viewProvider, closeQueue, alive,
+            plateCache);
         this.budgetLedger = new ProjectionBudgetLedger();
         this.observerFrame = new ProjectionInterestFrame(interestSet, budgetLedger, claimArbiter,
             localEntityOcclusion, skinRenderer, rtpRimRenderer,
@@ -120,10 +150,36 @@ public class ProjectionManager implements Listener {
         rtpProjectionProvider = provider;
     }
 
+    public ViewPlateCache plateCache() {
+        return plateCache;
+    }
+
+    public List<Player> observersOf(UUID portalId) {
+        return portalId == null || closed ? List.of() : interestSet.observersOf(portalId);
+    }
+
+    private void schedulePlateBuild(ViewPlateBuilder.Job job) {
+        if (closed) {
+            plateCache.buildFailed(job.key());
+            return;
+        }
+        ViewPlateBuilder.Execution execution = job.execution();
+        if (execution.offThread()) {
+            plateWorkers.submitAsync(job);
+            return;
+        }
+        plateWorkers.submitRegion(Wormholes.instance, execution.world(), execution.chunkX(), execution.chunkZ(), job);
+    }
+
     @EventHandler
     public void on(PlayerQuitEvent e) {
         observerTasksInFlight.remove(e.getPlayer().getUniqueId());
+        ClientProfileService.forgetPlayer(e.getPlayer().getUniqueId());
         skinRenderer.discardObserver(e.getPlayer().getUniqueId());
+        AcousticsBridge acoustics = FidelitySubsystem.acoustics();
+        if (acoustics != null) {
+            acoustics.forgetObserver(e.getPlayer().getUniqueId());
+        }
         discardObserverProjectors(e.getPlayer());
     }
 
@@ -178,6 +234,15 @@ public class ProjectionManager implements Listener {
         }
         tickCount++;
         closeQueue.retryPending();
+        if (tickCount % PLATE_INVALIDATION_INTERVAL_TICKS == 0L) {
+            plateCache.invalidateDirty(Wormholes.projectionChangeTracker);
+        }
+        if (tickCount % ACOUSTICS_AMBIENT_INTERVAL_TICKS == 0L) {
+            AcousticsBridge acoustics = FidelitySubsystem.acoustics();
+            if (acoustics != null) {
+                acoustics.tickAmbient(System.currentTimeMillis());
+            }
+        }
 
         if (!firstTickLogged) {
             firstTickLogged = true;
@@ -317,6 +382,15 @@ public class ProjectionManager implements Listener {
                 continue;
             }
             active.add(portal);
+        }
+
+        for (ProjectionSource source : WormholesHooks.projectionSources()) {
+            for (ILocalPortal portal : source.activeProjectionPortals()) {
+                if (portal == null || portal.isDestroyed() || !portal.isProjecting() || !portal.isOpen()) {
+                    continue;
+                }
+                active.add(portal);
+            }
         }
 
         return active;
@@ -499,6 +573,13 @@ public class ProjectionManager implements Listener {
 
     public void removeProjector(ILocalPortal portal) {
         interestSet.retirePortal(portal.getId());
+        if (portal.getId() != null) {
+            plateCache.invalidatePortal(portal.getId());
+            AcousticsBridge acoustics = FidelitySubsystem.acoustics();
+            if (acoustics != null) {
+                acoustics.forgetPortal(portal.getId());
+            }
+        }
     }
 
     public void removeProjector(Player player) {
@@ -568,6 +649,8 @@ public class ProjectionManager implements Listener {
         }
         closed = true;
         projectedEntityUpdates.close();
+        plateWorkers.shutdown();
+        plateCache.clear();
         if (taskId >= 0) {
             J.csr(taskId);
             taskId = -1;
@@ -617,6 +700,16 @@ public class ProjectionManager implements Listener {
     public void onSettingsReloaded() {
         interestSet.invalidateProjectionReuse();
         scheduleTick();
+    }
+
+    /** Runs after the lane snapshot refreshed, which is later in the reload than {@link #onSettingsReloaded()}. */
+    public void onFidelitySettingsReloaded() {
+        plateCache.recap(FidelitySettings.plateMaxBytes);
+        plateWorkers.resize(FidelitySettings.plateWorkers);
+        if (!FidelitySettings.sharedPlate) {
+            plateCache.clear();
+        }
+        interestSet.invalidateProjectionReuse();
     }
 
     private boolean shouldUpdateBlocks() {

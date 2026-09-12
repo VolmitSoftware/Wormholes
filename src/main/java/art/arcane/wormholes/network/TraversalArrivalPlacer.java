@@ -3,6 +3,7 @@ package art.arcane.wormholes.network;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.network.TraversalFailureLedger.Failure;
+import art.arcane.wormholes.network.convoy.ConvoyArrivalHook;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
@@ -35,6 +36,12 @@ final class TraversalArrivalPlacer {
     }
 
     private static final int MAX_ARRIVAL_PLACEMENT_ATTEMPTS = 5;
+    /** Transit lane: told once a handed-off player stands at their exit so a held rig can be re-attached. */
+    private static volatile ConvoyArrivalHook convoyArrivalHook;
+
+    static void setConvoyArrivalHook(ConvoyArrivalHook hook) {
+        convoyArrivalHook = hook;
+    }
 
     private final NetworkManager network;
     private final PlayerHandoffAdmission admissions;
@@ -292,6 +299,7 @@ final class TraversalArrivalPlacer {
         }
         try {
             teleport.exit().completeRemoteArrival(placement.player(), teleport.traversive());
+            notifyConvoyArrival(placement.player(), teleport.exit(), teleport.traversive());
             completion.finish(placement.reservation(), true, "portal arrival completed");
         } catch (RuntimeException failure) {
             LocalPortal.clearReentryLatch(placement.player().getUniqueId());
@@ -380,6 +388,18 @@ final class TraversalArrivalPlacer {
             return true;
         }
         return false;
+    }
+
+    private static void notifyConvoyArrival(Player player, ILocalPortal exit, Traversive traversive) {
+        ConvoyArrivalHook hook = convoyArrivalHook;
+        if (hook == null) {
+            return;
+        }
+        try {
+            hook.onPlayerPlaced(player, exit, traversive);
+        } catch (RuntimeException failure) {
+            Wormholes.instance.getLogger().log(Level.WARNING, "Convoy re-attachment failed for " + player.getName(), failure);
+        }
     }
 
     static String locStr(Location loc) {

@@ -513,6 +513,7 @@ rename = ["&a&lポータル名を変更&r", "&7リンクとメニューに表示
 delete = ["&c&lポータルを削除&r", "&7このポータルを完全に削除します。", "", "&c&nShift + 左クリックで確定&r"]
 advanced_settings = ["&3&l高度なストリーム調整&r", "&7診断や特殊なリンク向けの直接設定です。", "&7値を変更するとストリーム品質がカスタムになります。"]
 back_settings = ["&e&l設定に戻る&r", "&7ポータルの設定に戻ります。"]
+extensions = ["&b&lその他の設定&r", "&7ルール、アクセス、ネットワークなどの機能設定。", "&e左クリック"]
 stream_quality = ["&b&lストリーム品質: {quality}&r", "&7遠隔ビューの範囲と更新間隔をまとめて調整します。", "", "&7深度 &b{depth}&7  エンティティ &b{entities}t", "&7更新 &b{refresh}t&7  猶予 &b{grace}s", "", "&8クリック: 品質を切り替えます。", "&8Shift + クリック: 詳細調整。"]
 orientation = ["&9&l向き&r", "&7正面: &9{facing}", "&7画面上方向: &6{up}", "", "&8クリックして正面、反転、回転を設定します。"]
 orientation_placard = ["&9&lポータルの向き&r", "&7正面: &9{facing}", "&7画面上方向: &6{up}"]
@@ -936,6 +937,7 @@ decimal_seconds = "{value}s"
 
 [rtp.biome]
 any_label = "任意"
+unavailable_label = "利用不可"
 header = ["&b&l対象バイオーム&r", "&7このバイオームを優先して検索し、近くで見つからない場合は任意の安全な地点を使用します。"]
 any_selected = ["&a&l任意のバイオーム&r", "&7バイオームの指定はありません。", "&a選択中"]
 any_available = ["&b&l任意のバイオーム&r", "&7バイオームの指定を解除します。", "&e左クリックで選択"]
@@ -1018,3 +1020,513 @@ trapdoor_skin = ["&6ディメンショントラップドアの外装", "&7ディ
 entangled_trapdoor_pair_recipe = ["&6量子もつれトラップドアのペア", "&7自動的にリンクされた 2 枚のワームホールトラップドアです。"]
 personal_trapdoor_recipe = ["&b個人用ディメンショントラップドア", "&7移動者ごとに固有の永続次元へ入ります。"]
 public_trapdoor_recipe = ["&6共有ディメンショントラップドア", "&7すべての移動者がこのトラップドアの共有次元へ入ります。"]
+
+# ==== Headline lane blocks. Each lane adds its tables between its own markers only. ====
+
+
+# ---- lane:rules (rules.*) ----
+[rules]
+route_card = "{portal} > {destination} | {amount} | {state}"
+
+[rules.menu]
+entry = ["&6ルール", "&7誰が通れるか、費用、通過後に起きること。"]
+cooldown = ["&6クールダウン: {seconds}s", "&7左右クリックで変更、シフトで 10 秒単位。"]
+warmup = ["&6準備時間: {seconds}s", "&7左右クリックで変更、シフトで 10 秒単位。"]
+group = ["&6クールダウングループ: {value}", "&7クリックしてグループ名を入力します。"]
+pushback = ["&6押し戻し: {value}", "&7左右クリックで変更します。"]
+sound = ["&6拒否音の音量: {value}", "&7左右クリックで変更します。"]
+charges = ["&6チャージ: {count}", "&7左右クリックでプールの大きさを変更します。"]
+default_outcome = ["&6既定: {mode}", "&7クリックで許可と拒否を切り替えます。"]
+rules = ["&6ルール ({count})", "&7クリックしてルール一覧を開きます。"]
+rule = ["&6{name}", "&7{value} &8- シフトクリックでルールを削除します。"]
+add_rule = ["&aルールを追加", "&7クリックしてルール ID を入力します。"]
+line = ["&f{value}", "&7シフトクリックでこの行を削除します。"]
+add_line = ["&a行を追加", "&7クリックして kind=PERMISSION;node=group.vip と入力します。"]
+templates = ["&6テンプレート", "&7クリックして保存済みテンプレートを適用します。"]
+template = ["&f{name}", "&7クリックしてこのテンプレートを適用します。"]
+back = ["&7戻る", "&8前のページへ。"]
+page = ["&7{pages} ページ中 {page} ページ", "&8クリックでページを送ります。"]
+
+[rules.route]
+unlisted = "不明"
+free = "無料"
+ready = "準備完了"
+cooldown = "{seconds}s"
+
+[rules.denied]
+default = "このポータルはあなたを拒否しました。"
+entity_class = "このポータルを使用できるのは {mode} のみです。"
+key = "{portal} の鍵が必要です。"
+time = "{portal} は現在閉じています。"
+cooldown = "{portal} を再び使用するまで {seconds}s 待ってください。"
+charges = "{portal} のチャージが残っていません。"
+cost = "{portal} を使用するための {amount} を支払えません。"
+
+[rules.notice]
+rule_added = "ルール {name} を追加しました。"
+rule_removed = "ルール {name} を削除しました。"
+invalid = "適用できませんでした: {reason}"
+applied = "テンプレート {name} を適用しました。"
+
+[rules.prompt]
+group = "&bクールダウングループ名を入力してください（または \"{cancel}\"）:"
+rule_id = "&b新しいルールの ID を入力してください（または \"{cancel}\"）:"
+line = "&bルール行を入力してください。例: kind=PERMISSION;node=group.vip（または \"{cancel}\"）:"
+
+[rules.warmup]
+countdown = "動かないでください: {seconds}s"
+cancelled = "準備が中断されました。"
+
+[rules.command]
+exported = "{portal} のルールをテンプレート {name} に書き出しました。"
+imported = "テンプレート {name} を {portal} に適用しました。"
+templates = "ルールテンプレート: {value}"
+no_templates = "保存されたルールテンプレートはありません。"
+template_missing = "{name} という名前のルールテンプレートはありません。"
+template_invalid = "テンプレート {name} は無効です: {reason}"
+portal_missing = "{name} という名前のポータルはありません。"
+portal_ambiguous = "{count} 個のポータルが {name} という名前です。名前を変更してください。"
+not_in_portal = "ポータルの中に立つか、portal オプションでポータルを指定してください。"
+key_given = "{portal} の鍵を受け取りました。"
+failed = "完了できませんでした: {reason}"
+
+[rules.command.help]
+rules = "通行ルール: テンプレート、鍵、ポータルプロファイル"
+export = "ポータルのルールをテンプレートに書き出す"
+"export.name" = "書き出すテンプレート名"
+"export.portal" = "ポータル名、省略時は立っているポータル"
+import = "立っているポータルにテンプレートを適用する"
+"import.name" = "読み込むテンプレート名"
+"import.portal" = "ポータル名、省略時は立っているポータル"
+apply = "どこからでも指定した名前のポータルにテンプレートを適用する"
+"apply.name" = "読み込むテンプレート名"
+"apply.portal" = "テンプレートを適用するポータル名"
+list = "保存されたルールテンプレートを一覧表示する"
+key = "ポータルの鍵を自分に渡す"
+"key.portal" = "鍵を作るポータル名"
+"key.uses" = "鍵で通行できる回数、0 で無制限"
+# ---- end lane:rules ----
+
+
+# ---- lane:access (access.*) ----
+[access.denied]
+role = "&c{portal} を使用する権限がありません。"
+claim = "&c土地の保護が {portal} を妨げています。"
+limit = "&cすでに {count} 個のポータルを所有しています。上限は {maximum} です。"
+
+[access.construct]
+denied = "&cここにはポータルを建てられません: {reason}。"
+
+[access.claim]
+reason = "{plugin} がこの土地を保護しています"
+failure = "{plugin} に問い合わせできませんでした"
+
+[access.transfer]
+done = "&8[&6Wormholes&8] &a{portal} は {name} のものになりました。"
+
+[access.key]
+set = "&a{portal} の権限キーは {key} になりました。"
+taken = "&c権限キー {key} はすでに使用されています。"
+invalid = "&c権限キーには a-z、0-9、ピリオド、ハイフン、アンダースコアを使い、64 文字までです。"
+
+[access.player]
+not_found = "&c{name} という名前のプレイヤーはいません。"
+
+[access.portal]
+not_found = "&8[&6Wormholes&8] &c{portal} という名前のポータルはありません。"
+ambiguous = "&8[&6Wormholes&8] &c{count} 個のポータルが {portal} に一致します。ポータル ID を使ってください。"
+
+[access.role]
+changed = "&a{name} は {portal} で {state} になりました。"
+removed = "&a{name} は {portal} での役割を失いました。"
+owner_always = "&7所有者は常に完全なアクセス権を持ちます。"
+
+[access.listed]
+changed = "&a{portal} は公開ディレクトリで {state} になりました。"
+
+[access.group]
+added = "&a{portal} は {node} にアクセスを許可します。"
+cleared = "&a{portal} はグループによるアクセス許可をやめました。"
+
+[access.limits]
+report = "&8[&6Wormholes&8] &7{name} は {count} 個のポータルを所有しています。上限は {maximum} です。"
+unlimited = "&8[&6Wormholes&8] &7{name} は {count} 個のポータルを所有しており、上限はありません。"
+
+[access.prompt]
+player = "&7チャットにプレイヤー名を入力するか、{cancel} で中止します。"
+key = "&7チャットに新しい権限キーを入力するか、{cancel} で中止します。"
+group = "&7チャットに権限ノードを入力するか、{cancel} で中止します。"
+
+[access.label]
+owner = "所有者"
+co_owner = "共同所有者"
+user = "信頼済み"
+denied = "拒否"
+listed = "掲載"
+unlisted = "非表示"
+
+[access.menu]
+entry = ["&b&lアクセス&r", "&7役割、グループ、権限キー。"]
+placard = ["&b&lアクセス: {portal}&r", "&7所有者: &f{owner}", "&7役割: &f{count}", "&7キー: &f{key}"]
+add = ["&a&lプレイヤーを追加&r", "&7チャットに名前を入力して役割を与えます。"]
+role = ["&f&l{name}&r", "&7役割: &f{state}", "&7左クリックまたは右クリックで役割を変更。", "&7Shift + 左クリックで削除。"]
+groups = ["&e&l許可グループ&r", "&7{count} 個の権限ノードがアクセスを許可します。", "&7左クリックで追加、右クリックで消去。"]
+key = ["&b&l権限キー&r", "&7{key}", "&7左クリックで変更します。"]
+listed = ["&b&l公開ディレクトリ&r", "&7{state}", "&7左クリックで切り替えます。"]
+
+[access.command.help]
+access = "ポータルのアクセスリスト、所有権、上限"
+transfer = "ポータルを他のプレイヤーに譲渡します"
+"transfer.portal" = "ポータル名または ID"
+"transfer.player" = "新しい所有者の名前"
+key = "ポータルの固定権限キーを設定します"
+"key.portal" = "ポータル名または ID"
+"key.key" = "新しい権限キー"
+limits = "プレイヤーが所有するポータル数と上限を表示します"
+"limits.player" = "確認するプレイヤー。既定は自分です"
+# ---- end lane:access ----
+
+
+# ---- lane:nexus (nexus.* and atlas.*) ----
+[nexus]
+dialed = "&8[&6Wormholes&8] &a{portal} が {address} にダイヤルしました: &f{destination}"
+created = "&8[&6Wormholes&8] &aネットワーク {name} を作成しました。"
+deleted = "&8[&6Wormholes&8] &aネットワーク {name} を削除しました。"
+joined = "&8[&6Wormholes&8] &a{portal} がアドレス {address} で {name} に参加しました。"
+left = "&8[&6Wormholes&8] &a{portal} が {name} から離脱しました。"
+
+[nexus.dial]
+unknown = "&8[&6Wormholes&8] &cアドレス {address} にポータルはありません。"
+none = "&8[&6Wormholes&8] &c{portal} はどのネットワークにも属していません。"
+debounced = "&8[&6Wormholes&8] &7ダイヤルが速すぎます。少し待ってください。"
+managed = "&8[&6Wormholes&8] &c{portal} は管理ポータルのためダイヤルできません。"
+
+[nexus.address]
+taken = "&8[&6Wormholes&8] &cアドレス {address} は {name} で既に使われています。"
+set = "&8[&6Wormholes&8] &a{portal} のアドレスは {address} です。"
+invalid = "&8[&6Wormholes&8] &cアドレスに使える文字は次のみです: {value}"
+
+[nexus.network]
+unknown = "&8[&6Wormholes&8] &c{name} という名前のネットワークはありません。"
+exists = "&8[&6Wormholes&8] &c{name} という名前のネットワークは既にあります。"
+full = "&8[&6Wormholes&8] &c{name} には既に {count} 個のポータルがあります。"
+limit = "&8[&6Wormholes&8] &c既に {count} 個のネットワークを所有しています。"
+
+[nexus.portal]
+unknown = "&8[&6Wormholes&8] &c{portal} という名前のポータルはありません。"
+not_member = "&8[&6Wormholes&8] &c{portal} は {name} のメンバーではありません。"
+
+[nexus.visibility]
+set = "&8[&6Wormholes&8] &a{name} は {value} になりました。"
+
+[nexus.hub]
+set = "&8[&6Wormholes&8] &a{portal} が {name} のハブです。"
+
+[nexus.list]
+empty = "&8[&6Wormholes&8] &7ネットワークはまだありません。"
+entry = "&7{name} &8- &f{count} ポータル&7、{value}、所有者 &f{owner}"
+
+[nexus.info]
+header = "&6{name} &8- &f{count} ポータル&7、{value}、{mode}"
+member = "&e{address} &f{portal} &7({world}) &8{state}"
+
+[nexus.doctor]
+header = "&8[&6Wormholes&8] &6リンク診断: {count} 件。"
+clean = "&8[&6Wormholes&8] &aリンクの問題はありません。"
+oneway = "&e{portal} -> {destination} に戻りリンクがありません。"
+dangling = "&c{portal} は存在しない行き先を指しています。"
+unloaded = "&e{portal} は未読み込みのワールド {world} を指しています。"
+offline = "&c{portal} は {server} を指していますが、{count} 日オフラインです。"
+
+[nexus.redstone]
+set = "&8[&6Wormholes&8] &a{portal} のレッドストーン: {value}。"
+
+[nexus.reciprocal]
+paired = "&8[&6Wormholes&8] &a{portal} と {destination} が双方向にリンクしました。"
+unpaired = "&8[&6Wormholes&8] &a{portal} と {destination} の戻りリンクを解除しました。"
+denied = "&8[&6Wormholes&8] &c{portal} と {destination} の両方は管理できません。"
+
+[nexus.prompt]
+network_name = "&bネットワーク名をチャットに入力してください（'{cancel}' で中止）:"
+address = "&b新しいアドレスをチャットに入力してください（'{cancel}' で中止）:"
+
+[nexus.menu]
+entry = ["&b&lネットワーク&r", "&7ネットワーク、アドレス、ダイヤル、行き先ルール、レッドストーン。", "&7ネットワーク: &f{name}", "&7アドレス: &f{address}", "&e左クリック"]
+placard = ["&b&lネットワーク: {name}&r", "&7アドレス: &f{address}", "&7メンバー: &f{count}"]
+join = ["&a&lネットワークに参加&r", "&7このポータルをネットワークに加え、アドレスを付けます。", "&e左クリック"]
+leave = ["&c&l{name} から離脱&r", "&7このポータルとそのアドレスをネットワークから外します。", "&e左クリック"]
+create = ["&a&lネットワークを作成&r", "&7新しいネットワークに名前を付け、このポータルを入れます。", "&e左クリック"]
+address = ["&e&lアドレス: {address}&r", "&7他のポータルがここへ届くためにダイヤルする短い符号です。", "&e左クリックで入力し直し。&e右クリックで振り直し。"]
+visibility = ["&e&l公開範囲: {value}&r", "&7公開は全員、メンバー限定はメンバー、非公開は誰にも一覧されません。", "&e左クリックで切り替え"]
+topology = ["&e&lトポロジー: {value}&r", "&7メッシュは全メンバー、ハブは一つのポータル経由、チェーンとリングは隣をダイヤルします。", "&e左クリックで切り替え"]
+reciprocal = ["&e&l戻りリンク: {state}&r", "&7行き先がこのポータルを指したままにします。", "&e左クリックで切り替え"]
+policy = ["&e&l行き先: {mode}&r", "&7{count} 件。順番、重み、スケジュール、プレイヤー別、戻り。", "&e左クリックでモード変更。&e右クリックで消去。"]
+redstone = ["&e&lレッドストーン: {value}&r", "&7枠の隣で信号が立ち上がったときの動作と、コンパレーターが読む値。", "&e左クリックで動作。&e右クリックでコンパレーター出力。"]
+dial = ["&b&lダイヤル&r", "&7このポータルを同じネットワークの別のアドレスへ向けます。", "&e左クリック"]
+dial_entry = ["&e{address} &f{portal}", "&7{world}", "&b{state}"]
+link_and_return = ["&d&lリンクして戻す&r", "&7{destination} も {portal} へ向け直します。", "&e左クリック"]
+
+[atlas]
+title = "&8アトラス &7- &f{count} ポータル"
+row = "&f{portal} &8| &7{destination} &8| &b{state}"
+empty = "&8[&6Wormholes&8] &7まだポータルを発見していません。"
+disabled = "&8[&6Wormholes&8] &cこのサーバーではアトラスが無効です。"
+only_players = "&8[&6Wormholes&8] &cアトラスを持てるのはプレイヤーだけです。"
+no_permission = "&8[&6Wormholes&8] &cアトラスを開く権限がありません。"
+discovered = "&8[&6Wormholes&8] &a{portal} を発見しました。"
+usage = ["&8[&6Wormholes&8] &7/atlas &8- &7ポータル一覧を開く", "&8[&6Wormholes&8] &7/atlas favorites &8- &7ピン留めしたポータルのみ", "&8[&6Wormholes&8] &7/atlas recents &8- &7最近使ったポータル", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7方位を表示。/atlas guide off で停止"]
+
+[atlas.favorite]
+added = "&8[&6Wormholes&8] &a{portal} をピン留めしました。"
+removed = "&8[&6Wormholes&8] &a{portal} のピン留めを外しました。"
+full = "&8[&6Wormholes&8] &c既に {count} 個のポータルをピン留めしています。"
+
+[atlas.guide]
+bearing = "&b{portal} &f{value}"
+set = "&8[&6Wormholes&8] &a{portal} へ案内します。"
+cleared = "&8[&6Wormholes&8] &a案内を止めました。"
+unknown = "&8[&6Wormholes&8] &cアトラスに {portal} という名前のポータルはありません。"
+
+[atlas.menu]
+row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&e左クリックでダイヤル。&e右クリックでピン留め。&eShift+左クリックで案内。"]
+favorites = ["&d&lピン留めのみ: {state}&r", "&7ピン留めしたポータルだけを表示します。", "&e左クリック"]
+recents = ["&b&l最近のみ: {state}&r", "&7最近使ったポータルだけを表示します。", "&e左クリック"]
+guide = ["&a&l案内: {portal}&r", "&7案内先ポータルへの方位をアクションバーに表示します。", "&e左クリックで停止"]
+# ---- end lane:nexus ----
+
+
+# ---- lane:doors (doorview.* and pockets.*) ----
+[doorview]
+"disabled" = "&8[&6Wormholes&8] &cドアの投影は wormholes.toml で無効になっています。"
+"toggle.inherit" = "&8[&6Wormholes&8] &7このドアの投影: &f継承&7。"
+"toggle.on" = "&8[&6Wormholes&8] &aこのドアの投影: オン。"
+"toggle.off" = "&8[&6Wormholes&8] &eこのドアの投影: オフ。"
+"state.inherit" = "継承"
+"state.on" = "オン"
+"state.off" = "オフ"
+"menu.projection" = ["&b&l投影: {state}&r", "&7このドア越しに行き先を表示します。", "&e左クリックで切り替え"]
+
+[pockets]
+"confirm.overwrite" = ["&8[&6Wormholes&8] &cポケット &f{space}&c の中身がすべて置き換えられます。", "&8[&6Wormholes&8] &7続けるには同じコマンドを &fconfirm=true&7 で実行してください。"]
+"denied.build" = "&8[&6Wormholes&8] &cあなたはこのポケットの建築者ではありません。"
+"denied.pvp" = "&8[&6Wormholes&8] &cこのポケットでは戦闘が無効です。"
+"instance.none" = "&8[&6Wormholes&8] &cこのポケットはインスタンスではありません。"
+"instance.reset" = "&8[&6Wormholes&8] &aポケットインスタンス &f{space}&a をリセットしました。"
+"room.added" = "&8[&6Wormholes&8] &aポケット &f{space}&a に部屋 &f{count}&a を追加しました。"
+"room.blocked" = "&8[&6Wormholes&8] &c内壁にドアを設置してください。"
+"room.limit" = "&8[&6Wormholes&8] &cこのポケットはすでに最大 &f{count}&c 部屋です。"
+"roster.added" = "&8[&6Wormholes&8] &a{name}&a が &f{value}&a としてポケットの名簿に加わりました。"
+"roster.missing" = "&8[&6Wormholes&8] &c{name}&c はこのポケットの名簿にいません。"
+"roster.removed" = "&8[&6Wormholes&8] &e{name}&e がポケットの名簿から外れました。"
+"roster.role" = "&8[&6Wormholes&8] &a{name}&a はこのポケットで &f{value}&a になりました。"
+"rules.invalid" = "&8[&6Wormholes&8] &c不明なポケットルール &f{key}&c。"
+"rules.set" = "&8[&6Wormholes&8] &a{key} &7= &f{value}"
+"snapshot.missing" = "&8[&6Wormholes&8] &cこのポケットには &f{name}&c という名前のスナップショットがありません。"
+"snapshot.restored" = "&8[&6Wormholes&8] &aスナップショット &f{name}&a をポケット &f{space}&a に復元しました。"
+"snapshot.saved" = "&8[&6Wormholes&8] &aポケット &f{space}&a のスナップショット &f{name}&a を保存しました。"
+"template.applied" = "&8[&6Wormholes&8] &aテンプレート &f{name}&a をポケット &f{space}&a に適用しました。"
+"template.list" = "&8[&6Wormholes&8] &7テンプレート (&f{count}&7): &f{value}"
+"template.missing" = "&8[&6Wormholes&8] &f{name}&c という名前のポケットテンプレートはありません。"
+# ---- end lane:doors ----
+
+
+# ---- lane:mesh (mesh.*) ----
+[mesh]
+pending = "&8[&6Wormholes&8] &e{server}&7 が &f{name}&7 を介して参加を希望しています: /wh network accept {server}"
+accepted = "&8[&6Wormholes&8] &a&f{server}&a をネットワークに受け入れました。"
+rejected = "&8[&6Wormholes&8] &c&f{server}&c を拒否し、その紹介を破棄しました。"
+tombstoned = "&8[&6Wormholes&8] &f{server}&7 はネットワーク全体から削除されました。"
+disabled = "&8[&6Wormholes&8] &7メッシュ連合は&c無効&7です ([network.mesh] enabled = false)。"
+
+[mesh.introductions]
+none = "&8[&6Wormholes&8] &7承認待ちの紹介はありません。"
+unknown = "&8[&6Wormholes&8] &c{server} は承認待ちではありません。"
+
+[mesh.members]
+none = "&8[&6Wormholes&8] &7まだ既知のネットワークメンバーはいません。"
+row = "&8[&6Wormholes&8] &f{server}&7 {state} &8{fingerprint}"
+
+[mesh.versions]
+none = "&8[&6Wormholes&8] &7まだリンクしたピアはありません。"
+row = "&8[&6Wormholes&8] &f{server}&7: プロトコル &f{value}&7、プラグイン &f{name}&7、機能 &f{state}"
+reduced = "&8[&6Wormholes&8] &e{server}&7 は機能を制限してリンクしています: &f{reason}"
+
+[mesh.drain]
+on = "&8[&6Wormholes&8] &eドレインモード オン: ドレインを解除するまでこのサーバーは新規到着を拒否します。"
+off = "&8[&6Wormholes&8] &aドレインモード オフ: このサーバーは再び到着を受け入れます。"
+state = "&8[&6Wormholes&8] &7ドレインモードは {state} です。"
+invalid = "&8[&6Wormholes&8] &cドレイン状態は on または off にしてください。受け取った値: {value}"
+
+[mesh.queue]
+position = "&7空きサーバーを待機中: 順番 &f{count}&7、&f{seconds}&7秒"
+timeout = "&c時間内に空きのある移動先サーバーがありませんでした。"
+
+[mesh.policy]
+none = "&c現在利用できる移動先がありません。"
+set = "&8[&6Wormholes&8] &a&f{portal}&a のポリシー: {value}"
+cleared = "&8[&6Wormholes&8] &7&f{portal}&7 のポリシーを解除しました。通常の移動先に再びリンクします。"
+portal_unknown = "&8[&6Wormholes&8] &c{portal} という名前のローカルポータルはありません。"
+invalid = "&8[&6Wormholes&8] &c無効なポリシー: {reason}"
+
+[mesh.command.help]
+members = "すべてのネットワークメンバーをリンク状態と鍵の指紋付きで一覧表示"
+pending = "承認待ちの紹介されたサーバーを一覧表示"
+accept = "紹介されたサーバーを信頼してルートを保存"
+reject = "サーバーの保留中の紹介を破棄"
+versions = "各ピアのプロトコル、プラグインバージョン、機能を表示"
+drain = "このサーバーを移動先ローテーションから外す、または戻す"
+policy = "ゲートウェイの移動先ポリシーを設定または解除"
+
+[mesh.command.param.accept]
+server = "紹介されたサーバー名 (/wh network pending を参照)"
+
+[mesh.command.param.reject]
+server = "拒否する紹介されたサーバー名"
+
+[mesh.command.param.drain]
+state = "on または off。省略すると現在の状態を表示"
+
+[mesh.command.param.policy]
+portal = "ローカルポータルの名前または ID"
+candidates = "カンマ区切りの server:portal[:weight] エントリ。空なら解除"
+strategy = "FIRST_AVAILABLE、LEAST_LOADED、ROUND_ROBIN、STICKY または NEAREST"
+headroom = "候補が報告すべき空きプレイヤー枠数"
+tps = "候補が報告すべき最低 TPS。0 なら TPS を無視"
+queue = "すべての候補が満員のとき旅行者を待機させる"
+# ---- end lane:mesh ----
+
+
+# ---- lane:transit (transit.*) ----
+[transit]
+bounced = "{portal} に押し戻されました。"
+
+[transit.denied]
+membrane = "{portal} は正面からしか入れません。"
+convoy_size = "あなたの隊列は {count} 体です。上限は {value} 体です。"
+convoy_fit = "あなたの隊列は {portal} を通り抜けられません。"
+convoy_member = "隊列の一部は {portal} を使用できません。"
+
+[transit.convoy]
+waiting = "隊列全体を {portal} に通してください。"
+failed = "隊列の転送に失敗しました: {reason}。"
+
+[transit.menu]
+entry = ["&b&l通過&r", "&7勢い、向き、膜、跳ね返り、演出。", "&e左クリック"]
+momentum = ["&6&l勢い: {mode}&r", "&7係数 {value}。進入速度から退出速度をどう決めるか。", "&e左クリックでモードを切り替え", "&e右クリックで係数を設定"]
+orientation = ["&6&l向き: {mode}&r", "&7到着時に旅行者が向く方向。", "&e左クリックで切り替え"]
+membrane = ["&6&l膜: {state}&r", "&7正面からのみ進入でき、裏面は押し返します。", "&e左クリックで切り替え"]
+bounce = ["&6&l跳ね返り: {state}&r", "&7旅行者を移動させずに跳ね返します。", "&e左クリックで切り替え"]
+profile = ["&6&l遷移演出&r", "&7接近 {value}", "&7境界 {mode}", "&7到着 {state}", "&e左クリック: 接近音、右クリック: 境界エフェクト", "&eShift + 左クリック: 到着音、Shift + 右クリック: マスクのティック数"]
+prompt = "&b新しい値をチャットに入力してください（または '{cancel}'）:"
+# ---- end lane:transit ----
+
+
+# ---- lane:view (fidelity.*) ----
+[fidelity.menu]
+entry = ["&b&l忠実度&r", "&7このポータルの大気、音響、詳細度、ブロックエンティティ。", "&e左クリック"]
+placard = ["&b&l投影の忠実度&r", "&7投影に重ねるポータルごとのチャンネル。"]
+atmosphere = "&b大気: &f{mode}"
+acoustics = "&b音響: &f{mode}"
+lod = "&b詳細度: &f{mode}"
+block_entities = "&bブロックエンティティ: &f{state}"
+hint = ["&8クリックで切り替え。", "&8Shift + クリックでサーバーの既定値を使用。"]
+back = ["&e&l戻る&r", "&7ポータルメニューに戻る。"]
+default = "既定"
+
+[fidelity.bedrock]
+profile = "{count} 人の視聴者に Bedrock プロファイルが適用中"
+# ---- end lane:view ----
+
+
+# ---- lane:ops (ops.*) ----
+[ops.console]
+started = "メトリクスエンドポイントが {value} で待機しています。"
+no_token = "メトリクスエンドポイントは起動しませんでした: [ops.console] token を設定してください。"
+failed = "メトリクスエンドポイントは {value} をバインドできませんでした: {reason}"
+
+[ops.webmap]
+published = "{count} 件のポータルマーカーを {name} に公開しました。"
+
+[ops.backup]
+created = "&8[&6Wormholes&8] &aバックアップ &f{id}&a を &f{path}&a に書き出しました。"
+restored = "&8[&6Wormholes&8] &a&f{id}&a から &f{count}&a 件のポータルを復元しました。"
+dry_run = "&8[&6Wormholes&8] &7ドライラン: &f{count}&7 件のポータルが変更されます。"
+list_row = "&8[&6Wormholes&8] &f{id} &8| &f{count}&7 件のポータル &8| &7{path}"
+list_empty = "&8[&6Wormholes&8] &f{path}&7 にバックアップはありません。"
+not_found = "&8[&6Wormholes&8] &c&f{id}&c に一致するバックアップはありません。"
+confirm_required = "&8[&6Wormholes&8] &c適用するには &fconfirm=true&c を、計画を見るには &fdry=true&c を付けて実行してください。"
+failed = "&8[&6Wormholes&8] &cバックアップ処理に失敗しました: &f{reason}"
+reload_required = "&8[&6Wormholes&8] &7ポータルファイルを置き換えました。&f/wormholes reload&7 を実行して読み込んでください。"
+signature_broken = "&8[&6Wormholes&8] &c&f{id}&c を拒否しました: 署名が内容と一致しません。"
+signature_untrusted = "&8[&6Wormholes&8] &c&f{id}&c を拒否しました: &f{fingerprint}&c による署名で、このサーバーは信頼していません。適用するには &fallow-unsigned=true&c を付けてください。"
+signature_ok = "&8[&6Wormholes&8] &7&f{name}&7 (&f{fingerprint}&7) による署名です。"
+
+[ops.import]
+report = "&8[&6Wormholes&8] &f{name}&7: &f{count}&7 件のポータルを取り込み、&f{value}&7 件をスキップしました。"
+skipped_row = "&8[&6Wormholes&8] &7{portal}&8: &f{reason}"
+not_detected = "&8[&6Wormholes&8] &c&f{path}&c に {name} のデータが見つかりません。"
+
+[ops.portals]
+row = "&8[&6Wormholes&8] &f{portal} &8| &7{world} &8| &7{state} &8| &7{destination}"
+page = "&8[&6Wormholes&8] &7ページ &f{page}&7/&f{pages}"
+empty = "&8[&6Wormholes&8] &7その条件に一致するポータルはありません。"
+not_found = "&8[&6Wormholes&8] &c&f{name}&c に一致するポータルはありません。"
+ambiguous = "&8[&6Wormholes&8] &c&f{name}&c に {count} 件のポータルが一致します。ID を使ってください。"
+info = ["&8[&6Wormholes&8] &7ポータル &f{portal} &8| &7{id}", "&8[&6Wormholes&8] &7ワールド &f{world}&7 の &f{value}", "&8[&6Wormholes&8] &7状態 &f{state}&7、行き先 &f{destination}&7、所有者 &f{owner}"]
+teleported = "&8[&6Wormholes&8] &a&f{portal}&a にテレポートしました。"
+teleport_unsafe = "&8[&6Wormholes&8] &e&f{portal}&e の近くに安全な着地点がありません。ポータル中心を使います。"
+retargeted = "&8[&6Wormholes&8] &a&f{portal}&a は &f{destination}&a を指すようになりました。"
+unlinked = "&8[&6Wormholes&8] &a&f{portal}&a のリンクを解除しました。"
+pruned = "&8[&6Wormholes&8] &a孤立したリンクを &f{count}&a 件削除しました。"
+prune_dry_run = "&8[&6Wormholes&8] &7ドライラン: 孤立したリンク &f{count}&7 件が削除されます。"
+renamed_server = "&8[&6Wormholes&8] &aゲートウェイリンク &f{count}&a 件を &f{name}&a から &f{server}&a に書き換えました。"
+
+[ops.command.help]
+backup = "ポータルのバックアップを作成、一覧、復元、受け渡しする"
+"backup.now" = "ポータルデータのバックアップを今すぐ書き出す"
+"backup.list" = "ディスク上のバックアップを一覧表示する"
+"backup.restore" = "バックアップからポータルファイルを復元する (dry=true で計画を表示)"
+"backup.restore.id" = "/wormholes admin backup list で得られるバックアップ ID"
+"backup.restore.dry" = "何も書き込まずに変更点だけを報告する"
+"backup.restore.world_map" = "ワールド名の変更を 旧=新,旧=新 の形式で指定"
+"backup.restore.owner_map" = "所有者の変更を 旧uuid=新uuid の形式で指定"
+"backup.restore.confirm" = "dry=false でファイルを書き込むために必要"
+"backup.allow_unsigned" = "信頼された鍵で署名されていないパッケージを適用する"
+"backup.export" = "サーバー間で移せるファイルにバックアップ一式を書き出す"
+"backup.export.file" = "出力先ファイル。空ならバックアップフォルダに書き出す"
+"backup.import" = "別のサーバーで書き出した一式を取り込む"
+"backup.import.file" = "読み込む一式のファイル"
+"backup.import.dry" = "何も書き込まずに変更点だけを報告する"
+"backup.import.world_map" = "ワールド名の変更を 旧=新,旧=新 の形式で指定"
+"backup.import.owner_map" = "所有者の変更を 旧uuid=新uuid の形式で指定"
+"backup.import.confirm" = "dry=false でファイルを書き込むために必要"
+"backup.import_from" = "別のポータルプラグインのファイルからポータルを取り込む"
+"backup.import_from.source" = "stargate、advancedportals、multiverse、betterportals、essentials のいずれか"
+"backup.import_from.dry" = "何も作らずに作成予定だけを報告する"
+"backup.import_from.frame" = "枠のないデータ用の枠サイズを 幅,高さ で指定"
+portals = "ポータルの一覧、確認、一括編集"
+"portals.list" = "任意の絞り込みでポータルを一覧表示する"
+"portals.list.world" = "このワールドのポータルのみ"
+"portals.list.type" = "この種類のポータルのみ: portal、wormhole、gateway、rtp"
+"portals.list.owner" = "このプレイヤー名または uuid のポータルのみ"
+"portals.list.state" = "この状態のポータルのみ: open、closed、linked、unlinked"
+"portals.list.page" = "ページ番号"
+"portals.find" = "名前にこの文字列を含むポータルを探す"
+"portals.find.name" = "検索する文字列"
+"portals.info" = "ポータルのワールド、状態、行き先、所有者を表示する"
+"portals.info.portal" = "ポータル名または ID"
+"portals.tp" = "安全な地面に着地してポータルへテレポートする"
+"portals.tp.portal" = "ポータル名または ID"
+"portals.retarget" = "ポータルの行き先を別のローカルポータルにする"
+"portals.retarget.portal" = "変更するポータルの名前または ID"
+"portals.retarget.destination" = "行き先ポータルの名前または ID"
+"portals.unlink" = "ポータルの行き先を外す"
+"portals.unlink.portal" = "ポータル名または ID"
+"portals.prune" = "行き先が存在しなくなったリンクを削除する"
+"portals.prune.dry" = "何も変更せずに削除予定だけを報告する"
+"portals.prune.confirm" = "dry=false で削除するために必要"
+"portals.rename_server" = "サーバー間リンクのサーバー名を別の名前に書き換える"
+"portals.rename_server.old" = "現在リンクに保存されているサーバー名"
+"portals.rename_server.new" = "代わりに保存するサーバー名"
+"portals.rename_server.confirm" = "リンクを書き換えるために必要"
+# ---- end lane:ops ----

@@ -48,6 +48,30 @@ public final class TraversiveTest {
         assertVector(new Vector(0.4D, 0.0D, 0.0D), outVelocity);
     }
 
+    @Test
+    public void sourcePortalRidesAlongAndMemberCopiesKeepEverythingButThePoint() {
+        PortalFrame inFrame = PortalFrame.canonical(Direction.N);
+        Vector inOrigin = new Vector(10.0D, 64.0D, 20.0D);
+        Vector inPoint = new Vector(11.25D, 64.5D, 19.5D);
+        Vector velocity = new Vector(0.0D, 0.0D, -0.4D);
+        Vector look = new Vector(0.0D, 0.0D, -1.0D);
+        java.util.UUID source = java.util.UUID.randomUUID();
+        Traversive legacy = new Traversive(new Object(), TraversableType.ENTITY, inFrame, inOrigin, inPoint, velocity, look, false);
+        Traversive sourced = new Traversive(new Object(), TraversableType.ENTITY, inFrame, inOrigin, inPoint, velocity, look, false, source);
+        Object member = new Object();
+        Traversive copy = sourced.forMember(member, new Vector(9.0D, 64.5D, 19.5D));
+
+        assertEquals(null, legacy.getSourcePortalId());
+        assertEquals(source, sourced.getSourcePortalId());
+        assertEquals(source, copy.getSourcePortalId());
+        assertEquals(member, copy.getObject());
+        assertEquals(false, copy.isFrontSide());
+        assertVector(new Vector(9.0D, 64.5D, 19.5D), copy.getInPoint());
+        assertVector(velocity, copy.getInVelocity());
+        assertVector(look, copy.getInLook());
+        assertVector(inOrigin, copy.getInOrigin());
+    }
+
     private static void assertVector(Vector expected, Vector actual) {
         assertEquals(expected.getX(), actual.getX(), EPSILON);
         assertEquals(expected.getY(), actual.getY(), EPSILON);

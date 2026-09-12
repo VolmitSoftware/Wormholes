@@ -26,6 +26,7 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
+import art.arcane.wormholes.render.lod.LodPolicy;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.wormholes.util.Direction;
@@ -49,7 +50,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             useOcclusion(scan, ProjectorCellScanLightingRetentionTest::testOccluding);
             Location eye = structure.getCenter().add(normal.x() * 1.5D, normal.y() * 1.5D, normal.z() * 1.5D);
             Frustum4D frustum = new Frustum4D(eye, structure, 4.0D, 2.0D);
-            scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC);
+            scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
             assertFalse(scan.claims().isEmpty(), normal.name());
             LongOpenHashSet chunks = new LongOpenHashSet();
@@ -64,7 +65,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             scan.commit();
             localView.ready = false;
             localView.readinessQueries = 0;
-            scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC);
+            scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
             assertEquals(initialKeys, scan.claims().keySet(), normal.name());
             assertEquals(chunks.size(), localView.readinessQueries, normal.name());
@@ -73,7 +74,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             localView.ready = true;
             localView.readinessQueries = 0;
             localView.requests = 0;
-            scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC);
+            scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
             assertEquals(initialKeys, scan.claims().keySet(), normal.name());
             assertEquals(chunks.size(), localView.readinessQueries, normal.name());
@@ -99,7 +100,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
         Frustum4D frustum = new Frustum4D(eye, structure, 4.0D, 2.0D);
 
-        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC);
+        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
         assertFalse(scan.claims().isEmpty());
         assertLighting(scan, ProjectedBlockClaim.LightingPolicy.SOURCE);
@@ -108,7 +109,7 @@ public final class ProjectorCellScanLightingRetentionTest {
 
         enableBlackout(blackout);
         localView.ready = false;
-        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC);
+        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
         assertEquals(initialKeys, scan.claims().keySet());
         assertLighting(scan, ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT);
@@ -121,7 +122,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         remoteView.data = null;
         remoteView.reads = 0;
         memo.clearDestinationSamples();
-        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC);
+        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
         assertEquals(initialKeys, scan.claims().keySet());
         assertLighting(scan, ProjectedBlockClaim.LightingPolicy.SOURCE);
@@ -146,7 +147,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
         Frustum4D frustum = new Frustum4D(eye, structure, 4.0D, 2.0D);
 
-        scan.run(destination, null, eye, frustum, 4.0D, true, false, true, ProjectionRenderMode.VENTICULAR);
+        scan.run(destination, null, eye, frustum, 4.0D, true, false, true, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
 
         int grassClaims = 0;
         int foliageClaims = 0;
@@ -197,7 +198,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             sampler.setBuriedCellCullingPass(buriedCellCulling);
 
             scan.run(destination, null, eye, frustum, 4.0D, true, false,
-                buriedCellCulling, renderMode);
+                buriedCellCulling, renderMode, null, false, LodPolicy.NONE);
 
             LongOpenHashSet geometry = blackoutGeometry(scan);
             assertFalse(geometry.isEmpty(), renderMode.name());
@@ -283,7 +284,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
         Frustum4D frustum = new Frustum4D(eye, structure, 4.0D, 2.0D);
 
-        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC);
+        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
         assertTrue(scan.claims().isEmpty());
         LongOpenHashSet initialMask = new LongOpenHashSet(blackoutGeometry(scan));
@@ -294,7 +295,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         scan.commit();
 
         localView.ready = false;
-        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC);
+        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
         assertEquals(initialMask, blackoutGeometry(scan));
         assertFalse(scan.blackoutMesh().panels().isEmpty());
@@ -303,7 +304,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         localView.ready = true;
         remoteView.data = blockData(Material.STONE);
         memo.clearDestinationSamples();
-        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC);
+        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
         assertTrue(blackoutGeometry(scan).isEmpty());
         assertTrue(scan.blackoutMesh().panels().isEmpty());
@@ -327,7 +328,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
         Frustum4D frustum = new Frustum4D(eye, structure, 4.0D, 2.0D);
 
-        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC);
+        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
         assertFalse(scan.claims().isEmpty());
         assertTrue(blackoutGeometry(scan).isEmpty());
@@ -358,7 +359,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             int expectedCoordinate = farFrustumCoordinate(frustum, normal);
 
             scan.run(destination, null, eye, frustum, 4.0D, true, false,
-                false, ProjectionRenderMode.PANOPTIC);
+                false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
             LongOpenHashSet geometry = blackoutGeometry(scan);
             assertFalse(geometry.isEmpty(), normal.name()
@@ -399,7 +400,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         Frustum4D frustum = new Frustum4D(eye, structure, 64.0D, 2.0D);
 
         scan.run(destination, null, eye, frustum, 64.0D, true, false,
-            false, ProjectionRenderMode.PANOPTIC);
+            false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
         assertFalse(scan.blackoutMesh().fallback());
         assertTrue(scan.blackoutMesh().panels().size() <= ProjectorBlackoutMesh.MAX_PANELS);
@@ -428,7 +429,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             useOcclusion(scan, ProjectorCellScanLightingRetentionTest::testOccluding);
 
             scan.run(destination, null, eye, frustum, 4.0D, true, false,
-                false, ProjectionRenderMode.PANOPTIC);
+                false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
             assertFalse(blackoutGeometry(scan).isEmpty());
             scan.commit();
             localView.ready = false;
@@ -441,7 +442,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             }
 
             scan.run(destination, null, eye, frustum, 4.0D, true, false,
-                false, ProjectionRenderMode.PANOPTIC);
+                false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
             assertTrue(blackoutGeometry(scan).isEmpty(), "scenario=" + scenario);
             assertTrue(scan.blackoutMesh().panels().isEmpty(), "scenario=" + scenario);
@@ -467,7 +468,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
         Frustum4D frustum = new Frustum4D(eye, structure, 4.0D, 2.0D);
 
-        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC);
+        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
         Long2ObjectMap<ProjectedBlockClaim> projectionClaims =
             new Long2ObjectOpenHashMap<ProjectedBlockClaim>(scan.claims());
         assertFalse(scan.blackoutMesh().panels().isEmpty());

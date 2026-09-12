@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.access.PortalAdmission;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 
@@ -80,7 +81,7 @@ final class LocalPortalGate
 		{
 			return true;
 		}
-		return settings.isOutgoingTraversalsEnabled() && settings.allowsPortalPermission(entity);
+		return settings.isOutgoingTraversalsEnabled() && allowsPortalPermission(entity);
 	}
 
 	boolean canArrive(Entity entity)
@@ -94,7 +95,20 @@ final class LocalPortalGate
 		{
 			return true;
 		}
-		return settings.isIncomingTraversalsEnabled() && settings.allowsPortalPermission(entity);
+		return settings.isIncomingTraversalsEnabled() && allowsPortalPermission(entity);
+	}
+
+	/**
+	 * One aliased per-portal node, evaluated the same way the access gate evaluates it, so a rename never
+	 * costs a player a node they already hold and never asks them to hold two.
+	 */
+	private boolean allowsPortalPermission(Entity entity)
+	{
+		if(!(entity instanceof Player player))
+		{
+			return true;
+		}
+		return PortalAdmission.permissionAllows(portal, player);
 	}
 
 	void setDirection(Direction d)

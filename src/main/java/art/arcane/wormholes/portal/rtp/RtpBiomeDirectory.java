@@ -6,6 +6,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import org.bukkit.Registry;
 import org.bukkit.World;
@@ -22,20 +24,28 @@ public final class RtpBiomeDirectory
 	/** Selectable biomes for the world: Iris pack biomes when the world is an open Iris world, the vanilla registry otherwise. */
 	public static List<RtpPortalEditorModel.BiomeOption> optionsFor(World world)
 	{
+		return optionsFor(world, IrisBiomeProbe.shared()::allBiomes, RtpBiomeDirectory::registryKeys);
+	}
+
+	static List<RtpPortalEditorModel.BiomeOption> optionsFor(
+			World world,
+			Function<World, List<IrisBiomeProbe.BiomeInfo>> irisLookup,
+			Supplier<List<String>> registeredKeys)
+	{
 		if(world == null)
 		{
 			return List.of();
 		}
 		Map<String, RtpPortalEditorModel.BiomeOption> options = new LinkedHashMap<String, RtpPortalEditorModel.BiomeOption>();
-		List<IrisBiomeProbe.BiomeInfo> irisBiomes = IrisBiomeProbe.shared().allBiomes(world);
-		if(irisBiomes != null && !irisBiomes.isEmpty())
+		List<IrisBiomeProbe.BiomeInfo> irisBiomes = irisLookup.apply(world);
+		if(irisBiomes != null)
 		{
 			for(IrisBiomeProbe.BiomeInfo biome : irisBiomes)
 			{
 				String key = RtpBiomeMatcher.normalize(biome.loadKey());
 				if(key != null)
 				{
-					options.putIfAbsent(key, new RtpPortalEditorModel.BiomeOption(key, biome.displayName()));
+					options.putIfAbsent(key, new RtpPortalEditorModel.BiomeOption(key, biome.displayName(), true));
 				}
 			}
 		}
@@ -43,12 +53,12 @@ public final class RtpBiomeDirectory
 		{
 			try
 			{
-				for(Biome biome : Registry.BIOME)
+				for(String registeredKey : registeredKeys.get())
 				{
-					String key = RtpBiomeMatcher.normalize(WormholesPlatform.keyString(biome.getKey()));
-					if(key != null)
+					String key = RtpBiomeMatcher.normalize(registeredKey);
+					if(key != null && !key.startsWith("iris:"))
 					{
-						options.putIfAbsent(key, new RtpPortalEditorModel.BiomeOption(key, prettyPath(key)));
+						options.putIfAbsent(key, new RtpPortalEditorModel.BiomeOption(key, prettyPath(key), false));
 					}
 				}
 			}
@@ -62,6 +72,16 @@ public final class RtpBiomeDirectory
 				.comparing(RtpPortalEditorModel.BiomeOption::displayName, String.CASE_INSENSITIVE_ORDER)
 				.thenComparing(RtpPortalEditorModel.BiomeOption::key));
 		return List.copyOf(sorted);
+	}
+
+	private static List<String> registryKeys()
+	{
+		List<String> keys = new ArrayList<String>();
+		for(Biome biome : Registry.BIOME)
+		{
+			keys.add(WormholesPlatform.keyString(biome.getKey()));
+		}
+		return keys;
 	}
 
 	private static String prettyPath(String key)

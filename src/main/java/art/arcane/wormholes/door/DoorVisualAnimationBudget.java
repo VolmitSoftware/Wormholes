@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-final class DoorVisualAnimationBudget<K>
+public final class DoorVisualAnimationBudget<K>
 {
 	private final int maxAdmissionsPerPass;
 	private final int maxInFlight;
@@ -23,7 +23,7 @@ final class DoorVisualAnimationBudget<K>
 	private int inFlight;
 	private boolean closed;
 
-	DoorVisualAnimationBudget(Policy policy)
+	public DoorVisualAnimationBudget(Policy policy)
 	{
 		Objects.requireNonNull(policy, "policy");
 		int maxAdmissionsPerPass = policy.maxAdmissionsPerPass();
@@ -59,7 +59,7 @@ final class DoorVisualAnimationBudget<K>
 		ready = new ArrayDeque<VisualState<K>>();
 	}
 
-	synchronized void register(K key)
+	public synchronized void register(K key)
 	{
 		Objects.requireNonNull(key, "key");
 		if(closed || states.containsKey(key))
@@ -73,7 +73,7 @@ final class DoorVisualAnimationBudget<K>
 		attendanceBuckets.get(attendanceSlot).addLast(state);
 	}
 
-	synchronized List<AttendanceCheck<K>> advanceAttendanceChecks()
+	public synchronized List<AttendanceCheck<K>> advanceAttendanceChecks()
 	{
 		if(closed)
 		{
@@ -96,7 +96,7 @@ final class DoorVisualAnimationBudget<K>
 		return List.copyOf(checks);
 	}
 
-	synchronized void reportAttendance(AttendanceCheck<K> check, boolean attended)
+	public synchronized void reportAttendance(AttendanceCheck<K> check, boolean attended)
 	{
 		VisualState<K> state = matchingAttendance(check);
 		if(state == null)
@@ -111,7 +111,7 @@ final class DoorVisualAnimationBudget<K>
 		}
 	}
 
-	synchronized List<Admission<K>> acquire()
+	public synchronized List<Admission<K>> acquire()
 	{
 		int capacity = Math.min(maxAdmissionsPerPass, maxInFlight - inFlight);
 		if(closed || capacity <= 0)
@@ -142,13 +142,13 @@ final class DoorVisualAnimationBudget<K>
 		return List.copyOf(admissions);
 	}
 
-	synchronized boolean isActive(Admission<K> admission)
+	public synchronized boolean isActive(Admission<K> admission)
 	{
 		VisualState<K> state = matchingAdmission(admission);
 		return state != null && !closed && !state.retired && state.attended;
 	}
 
-	synchronized void complete(Admission<K> admission)
+	public synchronized void complete(Admission<K> admission)
 	{
 		VisualState<K> state = matchingAdmission(admission);
 		if(state == null)
@@ -169,12 +169,12 @@ final class DoorVisualAnimationBudget<K>
 		}
 	}
 
-	synchronized void reject(Admission<K> admission)
+	public synchronized void reject(Admission<K> admission)
 	{
 		complete(admission);
 	}
 
-	synchronized void retire(K key)
+	public synchronized void retire(K key)
 	{
 		VisualState<K> state = states.get(key);
 		if(state == null)
@@ -195,7 +195,7 @@ final class DoorVisualAnimationBudget<K>
 		}
 	}
 
-	synchronized void close()
+	public synchronized void close()
 	{
 		closed = true;
 		ready.clear();
@@ -216,7 +216,7 @@ final class DoorVisualAnimationBudget<K>
 		}
 	}
 
-	synchronized int pendingCount()
+	public synchronized int pendingCount()
 	{
 		int pending = 0;
 		for(VisualState<K> state : states.values())
@@ -229,7 +229,7 @@ final class DoorVisualAnimationBudget<K>
 		return pending;
 	}
 
-	synchronized int inFlightCount()
+	public synchronized int inFlightCount()
 	{
 		return inFlight;
 	}
@@ -258,15 +258,15 @@ final class DoorVisualAnimationBudget<K>
 			: null;
 	}
 
-	record AttendanceCheck<K>(K key, long token)
+	public record AttendanceCheck<K>(K key, long token)
 	{
 	}
 
-	record Admission<K>(K key, long leaseToken, int animationTick)
+	public record Admission<K>(K key, long leaseToken, int animationTick)
 	{
 	}
 
-	record Policy(int maxAdmissionsPerPass, int maxInFlight, int attendancePeriodPasses, int framePeriodTicks)
+	public record Policy(int maxAdmissionsPerPass, int maxInFlight, int attendancePeriodPasses, int framePeriodTicks)
 	{
 	}
 

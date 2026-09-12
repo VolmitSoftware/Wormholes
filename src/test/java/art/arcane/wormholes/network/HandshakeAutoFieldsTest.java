@@ -82,8 +82,7 @@ class HandshakeAutoFieldsTest {
             new byte[]{1, 2, 3},
             true,
             CompressionDictionary.ZERO_HASH,
-            0
-        );
+            0, WireCapability.localSet());
         byte[] frame = WireCodec.encodeFrame(challenge);
         WireMessage decoded = WireCodec.readFrame(new java.io.DataInputStream(new java.io.ByteArrayInputStream(frame)));
         WireMessage.Challenge round = (WireMessage.Challenge) decoded;

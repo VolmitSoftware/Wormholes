@@ -35,6 +35,8 @@ final class EntityRenderPlayerIdentity {
     private boolean vanillaNameTeamSent;
     private final Map<String, Integer> vanillaNameTeamMembers;
 
+    private boolean labelsEnabled = true;
+
     EntityRenderPlayerIdentity(EntityRenderPacketChannel channel) {
         this.channel = channel;
         this.vanillaNameTeamName = "whpn" + Integer.toUnsignedString(NEXT_NAME_TEAM_ID.getAndIncrement(), 36);
@@ -92,8 +94,12 @@ final class EntityRenderPlayerIdentity {
             info));
     }
 
+    void setLabelsEnabled(boolean enabled) {
+        labelsEnabled = enabled;
+    }
+
     void spawnPlayerLabel(Player observer, EntityRenderSpoofedEntity state, Vector3d playerPosition, double playerHeight) {
-        if (!state.playerEntry) {
+        if (!state.playerEntry || !labelsEnabled) {
             return;
         }
         Vector3d labelPosition = ProjectedEntityRenderer.playerLabelPosition(playerPosition, playerHeight);
@@ -105,7 +111,7 @@ final class EntityRenderPlayerIdentity {
     }
 
     void updatePlayerLabelPosition(Player observer, EntityRenderSpoofedEntity state, Vector3d playerPosition, double playerHeight) {
-        if (!state.playerEntry) {
+        if (!state.playerEntry || !labelsEnabled) {
             return;
         }
         Vector3d labelPosition = ProjectedEntityRenderer.playerLabelPosition(playerPosition, playerHeight);

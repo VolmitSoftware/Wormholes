@@ -567,6 +567,31 @@ class ChunkPreSendServiceTest {
     }
 
     @Test
+    void aCrossWorldDestinationIsPreSentAndItsRollbackCoversEverySentChunk() {
+        RecordingPreSendPlatform platform = new RecordingPreSendPlatform().playerChunk(3, 3);
+        ChunkPreSendService<String, String> service = service(platform, ENABLED);
+
+        ChunkPreSendTicket<String, String> ticket = service.preSend(
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 48, 48
+        );
+
+        assertEquals(ChunkPreSendOutcome.PRE_SENT, ticket.outcome());
+        assertEquals(9, ticket.sentChunks());
+        assertEquals(9, ticket.plannedChunks());
+        assertEquals(9, ticket.rollback().size(), "every chunk from another world evicts a source slot");
+        for (RecordingPreSendPlatform.Sent sent : platform.sent()) {
+            assertEquals(RecordingPreSendPlatform.DESTINATION_WORLD, sent.world());
+        }
+        assertEquals(RecordingPreSendPlatform.SOURCE_WORLD, ticket.sourceWorld());
+        platform.sent().clear();
+        assertEquals(ChunkPreSendRollbackOutcome.RESTORED, service.rollback(ticket));
+        assertEquals(9, platform.sent().size());
+        for (RecordingPreSendPlatform.Sent sent : platform.sent()) {
+            assertEquals(RecordingPreSendPlatform.SOURCE_WORLD, sent.world());
+        }
+    }
+
+    @Test
     void aNullOptionsSupplierDegradesToDisabledRatherThanThrowingInsideTheCommitmentWindow() {
         RecordingPreSendPlatform platform = new RecordingPreSendPlatform();
         ChunkPreSendService<String, String> service = new ChunkPreSendService<>(platform, () -> null);

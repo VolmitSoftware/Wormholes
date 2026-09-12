@@ -4,6 +4,8 @@ import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.network.view.ViewBox;
 import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
+import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 import art.arcane.wormholes.render.view.OccludedMarker;
 
 import org.bukkit.ChunkSnapshot;
@@ -28,6 +30,11 @@ public final class ChunkBulkBuilder {
     }
 
     public ViewSlice buildSlice(ViewBox box, int chunkX, int chunkZ, ChunkSnapshot snapshot, ProjectionRenderMode mode) {
+        return buildSlice(box, chunkX, chunkZ, snapshot, mode, Map.of());
+    }
+
+    public ViewSlice buildSlice(ViewBox box, int chunkX, int chunkZ, ChunkSnapshot snapshot, ProjectionRenderMode mode,
+                                Map<Long, BlockEntitySample> blockEntities) {
         int minX = Math.max(box.minX(), chunkX << 4);
         int maxX = Math.min(box.maxX(), (chunkX << 4) + 15);
         int minZ = Math.max(box.minZ(), chunkZ << 4);
@@ -94,7 +101,17 @@ public final class ChunkBulkBuilder {
             return (short) biomePaletteIndex.intValue();
         });
 
-        return new ViewSlice(minX, minY, minZ, sizeX, sizeY, sizeZ, palette, indices, light, biomePalette, biomes);
+        Map<Long, BlockEntitySample> inside = new HashMap<Long, BlockEntitySample>(Math.max(4, blockEntities.size()));
+        for (Map.Entry<Long, BlockEntitySample> entry : blockEntities.entrySet()) {
+            long key = entry.getKey().longValue();
+            int x = ProjectionCellKey.unpackX(key);
+            int y = ProjectionCellKey.unpackY(key);
+            int z = ProjectionCellKey.unpackZ(key);
+            if (x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ && z <= maxZ) {
+                inside.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return new ViewSlice(minX, minY, minZ, sizeX, sizeY, sizeZ, palette, indices, light, biomePalette, biomes, inside);
     }
 
     static void substituteDeeplyBuriedCells(int minX,
@@ -212,9 +229,13 @@ public final class ChunkBulkBuilder {
     }
 
     public static byte[] encodeSliceBytes(ViewSlice slice) throws IOException {
+        return encodeSliceBytes(slice, false);
+    }
+
+    public static byte[] encodeSliceBytes(ViewSlice slice, boolean withBlockEntities) throws IOException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream(slice.cellCount() * 3 + 2048);
         DataOutputStream out = new DataOutputStream(buffer);
-        slice.write(out);
+        slice.write(out, withBlockEntities);
         out.flush();
         return buffer.toByteArray();
     }

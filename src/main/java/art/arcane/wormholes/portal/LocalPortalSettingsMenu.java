@@ -80,6 +80,10 @@ final class LocalPortalSettingsMenu
 			window.setElement(-2, 4, renderModeElement(window, p));
 			window.setElement(0, 4, publicLookLabelElement(window, p));
 			window.setElement(2, 4, costOpenerElement(window, p));
+			if(LocalPortalExtensionsMenu.hasEntries())
+			{
+				window.setElement(4, 4, menus.extensions().openerElement(window, p));
+			}
 		}
 		else
 		{
@@ -90,6 +94,10 @@ final class LocalPortalSettingsMenu
 			window.setElement(4, 2, menus.cosmetics().surfaceSkinElement(window, p));
 			window.setElement(-1, 3, publicLookLabelElement(window, p));
 			window.setElement(1, 3, costOpenerElement(window, p));
+			if(LocalPortalExtensionsMenu.hasEntries())
+			{
+				window.setElement(3, 3, menus.extensions().openerElement(window, p));
+			}
 		}
 
 		window.setElement(0, custom ? 5 : 4, menus.backToPortalMenuElement(window, p));

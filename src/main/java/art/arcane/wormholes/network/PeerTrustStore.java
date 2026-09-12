@@ -8,12 +8,13 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.PublicKey;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class PeerTrustStore {
-    private static final String TRUST_FILE = "peers.properties";
+    public static final String FILE = "peers.properties";
 
     private final Path file;
     private final Map<String, byte[]> trustedKeys = new ConcurrentHashMap<>();
@@ -26,9 +27,18 @@ public final class PeerTrustStore {
     public static PeerTrustStore loadOrCreate(Path dataDirectory) throws IOException {
         Path trustDirectory = dataDirectory.resolve("trust");
         Files.createDirectories(trustDirectory);
-        PeerTrustStore store = new PeerTrustStore(trustDirectory.resolve(TRUST_FILE));
+        PeerTrustStore store = new PeerTrustStore(trustDirectory.resolve(FILE));
         store.load();
         return store;
+    }
+
+    /** Every trusted peer name to its pinned key. */
+    public Map<String, byte[]> all() {
+        Map<String, byte[]> copy = new LinkedHashMap<>();
+        for (Map.Entry<String, byte[]> entry : trustedKeys.entrySet()) {
+            copy.put(entry.getKey(), entry.getValue().clone());
+        }
+        return copy;
     }
 
     public byte[] get(String serverName) {

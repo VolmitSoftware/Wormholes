@@ -5,8 +5,6 @@ import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.block.data.BlockData;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import art.arcane.wormholes.Settings;
@@ -323,19 +321,6 @@ final class LocalPortalSettings
 	String getPermissionNode()
 	{
 		return "wormholes.portal." + sanitizePermissionName(portal.getName());
-	}
-
-	boolean allowsPortalPermission(Entity entity)
-	{
-		if(!(entity instanceof Player player))
-		{
-			return true;
-		}
-		if(player.isOp())
-		{
-			return true;
-		}
-		return permissionMode.allows(player, getPermissionNode());
 	}
 
 	boolean isOutgoingTraversalsEnabled()

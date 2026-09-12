@@ -10,6 +10,7 @@ import org.bukkit.block.Block;
 import org.bukkit.event.Listener;
 import org.bukkit.util.Vector;
 
+import art.arcane.wormholes.access.AccessGuards;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalStructure;
@@ -54,6 +55,11 @@ public class ConstructionManager implements Listener
 	boolean startConstruct(UUID ownerId, Set<Block> blocks, PortalType type, Vector look, Consumer<Boolean> onSettled)
 	{
 		if(blocks == null || blocks.isEmpty())
+		{
+			return false;
+		}
+
+		if(!AccessGuards.allowConstruct(ownerId, blocks, type))
 		{
 			return false;
 		}

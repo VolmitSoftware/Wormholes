@@ -18,6 +18,11 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
+import art.arcane.wormholes.render.blockentity.BlockEntityMaterials;
+import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.wormholes.render.lod.LodPolicy;
+import art.arcane.wormholes.render.plate.PlateCell;
+import art.arcane.wormholes.render.plate.ViewPlate;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
@@ -54,6 +59,8 @@ final class ProjectorCellScan {
     private LongOpenHashSet nextUnresolvedOcclusion;
     private Long2ObjectOpenHashMap<ProjectedBlockClaim> projected;
     private Long2ObjectOpenHashMap<ProjectedBlockClaim> nextProjected;
+    private Long2ObjectOpenHashMap<BlockEntitySample> projectedBlockEntities;
+    private Long2ObjectOpenHashMap<BlockEntitySample> nextBlockEntities;
     private ProjectorBlackoutMesh.Result blackoutMesh;
     private ProjectionWorldView projectedBlackoutView;
     private ProjectionWorldView blackoutView;
@@ -68,6 +75,7 @@ final class ProjectorCellScan {
     private int frustumRejected;
     private int occlusionRejected;
     private int maskedCells;
+    private int plateHits;
 
     ProjectorCellScan(ILocalPortal portal,
                       ProjectorSampler sampler,
@@ -104,11 +112,17 @@ final class ProjectorCellScan {
         this.nextUnresolvedOcclusion = new LongOpenHashSet(256);
         this.projected = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(256);
         this.nextProjected = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(256);
+        this.projectedBlockEntities = new Long2ObjectOpenHashMap<BlockEntitySample>(16);
+        this.nextBlockEntities = new Long2ObjectOpenHashMap<BlockEntitySample>(16);
         this.blackoutMesh = ProjectorBlackoutMesh.empty();
     }
 
     Long2ObjectOpenHashMap<ProjectedBlockClaim> claims() {
         return nextProjected;
+    }
+
+    Long2ObjectOpenHashMap<BlockEntitySample> blockEntities() {
+        return nextBlockEntities;
     }
 
     boolean hasProjection() {
@@ -203,10 +217,16 @@ final class ProjectorCellScan {
         return maskedCells;
     }
 
+    int plateHits() {
+        return plateHits;
+    }
+
     void clear() {
         localChunkReadiness.clear();
         projected.clear();
         nextProjected.clear();
+        projectedBlockEntities.clear();
+        nextBlockEntities.clear();
         projectedBlackoutGeometry.clear();
         blackoutGeometry.clear();
         blackoutBoundary.clear();
@@ -229,6 +249,9 @@ final class ProjectorCellScan {
         Long2ObjectOpenHashMap<ProjectedBlockClaim> swap = projected;
         projected = nextProjected;
         nextProjected = swap;
+        Long2ObjectOpenHashMap<BlockEntitySample> blockEntitySwap = projectedBlockEntities;
+        projectedBlockEntities = nextBlockEntities;
+        nextBlockEntities = blockEntitySwap;
         LongOpenHashSet blackoutSwap = projectedBlackoutGeometry;
         projectedBlackoutGeometry = blackoutGeometry;
         blackoutGeometry = blackoutSwap;
@@ -250,7 +273,10 @@ final class ProjectorCellScan {
              boolean forceStableCellResample,
              boolean forceFullSend,
              boolean buriedCellCulling,
-             ProjectionRenderMode renderMode) {
+             ProjectionRenderMode renderMode,
+             ViewPlate plate,
+             boolean blockEntities,
+             LodPolicy lod) {
         ProjectionWorldView localView = destination.localView;
         ProjectionWorldView destView = destination.destView;
         ILocalPortal dest = destination.dest;
@@ -259,6 +285,7 @@ final class ProjectorCellScan {
 
         localChunkReadiness.clear();
         nextProjected.clear();
+        nextBlockEntities.clear();
         blackoutGeometry.clear();
         blackoutBoundary.clear();
         blackoutRemoteKeys.clear();
@@ -346,6 +373,7 @@ final class ProjectorCellScan {
         frustumRejected = 0;
         occlusionRejected = 0;
         maskedCells = 0;
+        plateHits = 0;
 
         if (facingX != 0.0D) {
             double centerA = localOriginX + (signedMinDistance / facingX);
@@ -400,6 +428,8 @@ final class ProjectorCellScan {
         int normalEnd = normalStep > 0 ? axisMax[normalAxis] : axisMin[normalAxis];
         int blackoutFarCoordinate = 0;
         boolean blackoutFarSliceFound = false;
+        LodPolicy lodPolicy = lod == null ? LodPolicy.NONE : lod;
+        boolean lodActive = !lodPolicy.isNone();
 
         for (int n = normalStart; scanContinues(n, normalEnd, normalStep); n += normalStep) {
             double slabSignedDistance = projectionFacingNormal * ((n + 0.5D) - axisOrigin[normalAxis]);
@@ -439,6 +469,9 @@ final class ProjectorCellScan {
                     planeRejected, rightBlockMin, rightBlockMax, upBlockMin, upBlockMax);
                 continue;
             }
+            int slabIndex = LodPolicy.depthIndex(cellDot, portalPlaneClearance);
+            boolean mergedSlab = lodActive && lodPolicy.mergesSlab(slabIndex);
+            double sampleNormalCenter = mergedSlab ? (n - normalStep) + 0.5D : n + 0.5D;
             int rightStart = rightSign > 0 ? rightBlockMin : rightBlockMax;
             int rightEnd = rightSign > 0 ? rightBlockMax : rightBlockMin;
             int upStart = upSign > 0 ? upBlockMin : upBlockMax;
@@ -484,7 +517,13 @@ final class ProjectorCellScan {
                             rightAxis, upAxis);
                         blackoutBoundaryMask |= ProjectorBlackoutBoundary.faceMask(normalAxis, blackoutFarSign);
                     }
-                    cellTransform.apply(cx, cy, cz, scratchRemotePoint);
+                    if (mergedSlab) {
+                        cellTransform.apply(normalAxis == 0 ? sampleNormalCenter : cx,
+                            normalAxis == 1 ? sampleNormalCenter : cy,
+                            normalAxis == 2 ? sampleNormalCenter : cz, scratchRemotePoint);
+                    } else {
+                        cellTransform.apply(cx, cy, cz, scratchRemotePoint);
+                    }
 
                     int rx = (int) Math.floor(scratchRemotePoint[0]);
                     int ry = (int) Math.floor(scratchRemotePoint[1]);
@@ -497,6 +536,7 @@ final class ProjectorCellScan {
                         if (previousCell != null) {
                             ProjectedBlockClaim retained = previousCell.withFullBright(blackoutEnabled);
                             nextProjected.put(key, retained);
+                            retainBlockEntity(key);
                             rememberOcclusionBlocker(retained, observerOcclusion);
                             retainUnresolvedOcclusion(key, observerOcclusion);
                             if (blackoutCell) {
@@ -513,6 +553,7 @@ final class ProjectorCellScan {
                     if (previousLightingMatches && previousRemoteKey == remoteKey) {
                         if (!forceStableCellResample && !forceFullSend) {
                             nextProjected.put(key, previousCell);
+                            retainBlockEntity(key);
                             rememberOcclusionBlocker(previousCell, observerOcclusion);
                             if (observerOcclusion && projectedUnresolvedOcclusion.contains(key)) {
                                 addObserverTarget(key, remoteKey);
@@ -528,14 +569,25 @@ final class ProjectorCellScan {
                         ? null
                         : rootRecursiveIndex.find(scratchRemotePoint[0], scratchRemotePoint[1], scratchRemotePoint[2],
                             Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH);
-                    ProjectorSample sample = sampler.resolve(destView,
-                        scratchRemotePoint[0], scratchRemotePoint[1], scratchRemotePoint[2],
-                        scratchRemoteEye[0], scratchRemoteEye[1], scratchRemoteEye[2],
-                        dest,
-                        Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH,
-                        buriedCellCulling,
-                        rootRecursiveIndex,
-                        recursiveHit);
+                    PlateCell plateCell = plate == null || recursiveHit != null ? null : plate.cell(key);
+                    ProjectorSample sample;
+                    if (plateCell != null) {
+                        plateHits++;
+                        sample = plateCell.sample(destView);
+                    } else {
+                        sample = sampler.resolve(destView,
+                            scratchRemotePoint[0], scratchRemotePoint[1], scratchRemotePoint[2],
+                            scratchRemoteEye[0], scratchRemoteEye[1], scratchRemoteEye[2],
+                            dest,
+                            Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH,
+                            buriedCellCulling,
+                            rootRecursiveIndex,
+                            recursiveHit);
+                        if (lodActive && recursiveHit == null && sample.kind == ProjectorSample.Kind.BLOCK
+                            && lodPolicy.dropsDetail(mergedSlab ? slabIndex - 1 : slabIndex, sample.data.getMaterial())) {
+                            sample = new ProjectorSample(ProjectorSample.Kind.REMOTE_AIR, sampler.air(), destView, sample.remoteKey());
+                        }
+                    }
                     if (sample.kind == ProjectorSample.Kind.OCCLUDED) {
                         continue;
                     }
@@ -546,6 +598,7 @@ final class ProjectorCellScan {
                         if (matchingRemoteUnavailable) {
                             ProjectedBlockClaim retained = previousCell.withFullBright(blackoutEnabled);
                             nextProjected.put(key, retained);
+                            retainBlockEntity(key);
                             rememberOcclusionBlocker(retained, observerOcclusion);
                             retainUnresolvedOcclusion(key, observerOcclusion);
                             if (blackoutCell) {
@@ -569,6 +622,8 @@ final class ProjectorCellScan {
                     BlockData projectedHit;
                     if (maskAir || remoteAir) {
                         projectedHit = sampler.air();
+                    } else if (plateCell != null) {
+                        projectedHit = plateCell.data();
                     } else {
                         projectedHit = sampler.transformProjectedBlockData(sample.data, projectionRemoteFrame, projectionLocalFrame,
                             mirrorMode, localFrame, mirrorRotationQuarterTurns);
@@ -586,6 +641,16 @@ final class ProjectorCellScan {
                             : sample.asClaim(projectedHit);
                     }
                     nextProjected.put(key, nextCell);
+                    if (blockEntities && !maskAir && !remoteAir) {
+                        BlockEntitySample blockEntity = plateCell != null
+                            ? plateCell.blockEntity()
+                            : (BlockEntityMaterials.isCandidate(sample.data.getMaterial())
+                                ? destView.sampleBlockEntity(rx, ry, rz)
+                                : null);
+                        if (blockEntity != null) {
+                            nextBlockEntities.put(key, blockEntity);
+                        }
+                    }
                     if (observerOcclusion && recursiveHit == null) {
                         addObserverTarget(key, remoteKey);
                         rememberOcclusionBlocker(nextCell, true);
@@ -682,6 +747,13 @@ final class ProjectorCellScan {
 
     void dropBlackoutDisplay() {
         blackoutMesh = new ProjectorBlackoutMesh.Result(List.of(), true);
+    }
+
+    private void retainBlockEntity(long key) {
+        BlockEntitySample previous = projectedBlockEntities.get(key);
+        if (previous != null) {
+            nextBlockEntities.put(key, previous);
+        }
     }
 
     private void rememberOcclusionBlocker(ProjectedBlockClaim claim, boolean observerOcclusion) {

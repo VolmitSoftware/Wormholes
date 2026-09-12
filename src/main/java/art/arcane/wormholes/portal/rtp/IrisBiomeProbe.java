@@ -89,7 +89,7 @@ public final class IrisBiomeProbe
 					continue;
 				}
 				String name = active.getName().invoke(biome) instanceof String biomeName ? biomeName : loadKey;
-				infos.add(new BiomeInfo(loadKey, name, derivativeKey(active, biome)));
+				infos.add(new BiomeInfo(loadKey, name));
 			}
 			return infos;
 		}
@@ -176,7 +176,7 @@ public final class IrisBiomeProbe
 		return plugin.getClass().getClassLoader();
 	}
 
-	public record BiomeInfo(String loadKey, String displayName, String derivativeKey)
+	public record BiomeInfo(String loadKey, String displayName)
 	{
 		public BiomeInfo
 		{

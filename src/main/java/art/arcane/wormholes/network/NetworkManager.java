@@ -1,6 +1,18 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.network.mesh.DirectoryCache;
+import art.arcane.wormholes.network.mesh.DrainMode;
+import art.arcane.wormholes.network.mesh.LoadBeaconService;
+import art.arcane.wormholes.network.mesh.MeshHandlers;
+import art.arcane.wormholes.network.mesh.MeshMemberTable;
+import art.arcane.wormholes.network.mesh.PeerAnnounce;
+import art.arcane.wormholes.network.mesh.PeerAnnouncer;
+import art.arcane.wormholes.network.mesh.PeerLoadTable;
+import art.arcane.wormholes.network.mesh.PeerQuarantineStore;
+import art.arcane.wormholes.network.mesh.PeerTombstone;
+import art.arcane.wormholes.network.mesh.PluginVersionPolicy;
+import art.arcane.wormholes.network.mesh.TombstoneService;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.replication.HashProbeScheduler;
 
@@ -44,6 +56,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     }
 
     private static final long KEEPALIVE_INTERVAL_MS = 5_000L;
+    private static final long ANNOUNCE_TICK_MS = 1_000L;
     private static final long STATUS_BRIDGE_INTERVAL_MS = 600L;
     private static final long STATUS_BRIDGE_FAST_INTERVAL_MS = 75L;
     private static final long STATUS_BRIDGE_FAIL_BACKOFF_MS = 5_000L;
@@ -63,8 +76,17 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     private final Object lifecycleGate = new Object();
     private final ThreadLocal<Integer> lifecycleAdmissionDepth = ThreadLocal.withInitial(() -> 0);
     private final PeerLinkRegistry links = new PeerLinkRegistry();
+    private final ConcurrentHashMap<String, Long> statusPeerCapabilities = new ConcurrentHashMap<>();
     private final PeerDirectory directory;
     private final PeerTrustGate trust;
+    private final PeerQuarantineStore quarantine;
+    private final TombstoneService tombstones;
+    private final MeshHandlers mesh;
+    private final PeerAnnouncer announcer;
+    private final PeerLoadTable loads = new PeerLoadTable();
+    private final DrainMode drain;
+    private final LoadBeaconService beacons;
+    private final DirectoryCache directoryCache;
     private final PeerDialer dialer;
     private final PeerListener listener;
     private final SidebandQueue sideband;
@@ -81,6 +103,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     private final Map<String, Object> statusPeerGates = new ConcurrentHashMap<>();
     final Map<String, Long> nextStatusAttempt = new ConcurrentHashMap<>();
     private final Set<String> statusPollFailing = ConcurrentHashMap.newKeySet();
+    private final Set<String> reducedCapabilityLogged = ConcurrentHashMap.newKeySet();
     final Set<String> statusPollInFlight = ConcurrentHashMap.newKeySet();
     private final ChunkReplicationManager replicationManager;
     private final HashProbeScheduler hashProbeScheduler;
@@ -121,8 +144,15 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         this.listener = new PeerListener(this, logger, config.listenPort);
         try {
             this.identity = new NetworkIdentity(this, logger, IdentityStore.loadOrCreate(dataDirectory), mcVersion, pluginVersion);
-            this.trust = new PeerTrustGate(this, logger, PeerTrustStore.loadOrCreate(dataDirectory));
+            this.quarantine = PeerQuarantineStore.loadOrCreate(dataDirectory);
+            this.tombstones = TombstoneService.loadOrCreate(dataDirectory);
+            this.trust = new PeerTrustGate(this, logger, PeerTrustStore.loadOrCreate(dataDirectory), quarantine, tombstones);
             this.directory = new PeerDirectory(this, logger, PeerRouteStore.loadOrCreate(dataDirectory));
+            this.mesh = new MeshHandlers(this, logger, quarantine, tombstones, MeshMemberTable.loadOrCreate(dataDirectory), loads);
+            this.announcer = new PeerAnnouncer(this, logger, dataDirectory, System::currentTimeMillis);
+            this.drain = DrainMode.loadOrCreate(dataDirectory);
+            this.beacons = new LoadBeaconService(this, logger, drain, System::currentTimeMillis);
+            this.directoryCache = DirectoryCache.loadOrCreate(dataDirectory);
             this.statusBridge = new MinecraftStatusBridge(this);
         } catch (IOException e) {
             throw new IllegalStateException("Could not initialize Wormholes network identity", e);
@@ -134,8 +164,18 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         }
     }
 
-    NetworkConfig activeConfig() {
+    public NetworkConfig activeConfig() {
         return config;
+    }
+
+    /** Pinned public key for a trusted peer, or null. */
+    public byte[] trustedKey(String peerName) {
+        return trust.key(peerName);
+    }
+
+    /** Pins (or replaces) a peer's key without touching quarantine or tombstones; used by accepted introductions. */
+    public void trustKey(String peerName, byte[] publicKey) {
+        trust.trustKey(peerName, publicKey);
     }
 
     int gamePort() {
@@ -168,6 +208,35 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
 
     PeerTrustGate trust() {
         return trust;
+    }
+
+    public PeerQuarantineStore quarantine() {
+        return quarantine;
+    }
+
+    public TombstoneService tombstones() {
+        return tombstones;
+    }
+
+    public MeshMemberTable members() {
+        return mesh.members();
+    }
+
+    public MeshHandlers mesh() {
+        return mesh;
+    }
+
+    /** Signed self-advertisement for the federation flood. */
+    public PeerAnnounce buildAnnounce(long epoch, long nowMillis) {
+        LocalIdentity local = identity.snapshot();
+        return new PeerAnnounce(local.serverName(), WireCodec.PROTOCOL_VERSION, local.pluginVersion(), local.advertiseHost() == null ? "" : local.advertiseHost(), local.wormholePort(),
+            local.gameEndpoint(), local.privateGameEndpoint(), local.publicKey(), epoch, local.capabilities(), nowMillis, new byte[0])
+            .signWith(local.privateKey());
+    }
+
+    /** Tombstone for another member, signed by this server's identity. */
+    public PeerTombstone buildTombstone(String name, long epoch, byte[] publicKey, long nowMillis) {
+        return new PeerTombstone(name, epoch, publicKey, nowMillis, new byte[0]).signWith(identity.privateKey());
     }
 
     PeerDialer dialer() {
@@ -263,8 +332,20 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         identity.setInferredAdvertiseHost(host);
     }
 
+    /** Explicit operator trust (code import): also clears any quarantine entry and tombstone for the name. */
     public void trustPeer(String peerName, String publicKey) {
         trust.trustPeer(peerName, publicKey);
+        quarantine.remove(peerName);
+        tombstones.clear(peerName);
+    }
+
+    /**
+     * Trust for a peer this server was told about rather than one an operator typed in: the proxy
+     * roster. A tombstone still blocks the name for its TTL and an existing trusted key is never
+     * replaced, so only an operator can re-admit a removed peer or accept a key change.
+     */
+    public boolean trustIntroducedPeer(String peerName, String publicKey) {
+        return trust.trustIntroduced(peerName, publicKey);
     }
 
     public void savePeer(NetworkConfig.PeerEntry peer) {
@@ -281,13 +362,65 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         }
         PeerConnection connection = links.ready(name);
         if (connection != null) {
-            connection.close("peer removed");
+            connection.closeAfterFlush("peer removed");
         }
         boolean removed = directory.remove(name);
         removed |= trust.forgetPeer(name);
         presence.forget(name);
         dialer.resetDialState(name);
+        mesh.forget(name);
+        loads.forget(name);
         return removed;
+    }
+
+    /**
+     * Network-wide removal: floods a signed tombstone for the peer's trusted key to every other member,
+     * hands one to the peer itself so it forgets this server too, then forgets it locally. A peer
+     * without a trusted key is only removed locally.
+     */
+    public boolean tombstone(String name) {
+        if (name == null || name.isBlank()) {
+            return false;
+        }
+        byte[] key = trust.key(name);
+        if (key == null) {
+            return removePeer(name);
+        }
+        long now = System.currentTimeMillis();
+        PeerTombstone tombstone = buildTombstone(name, mesh.members().epochOf(name, 0L), key, now);
+        tombstones.record(tombstone);
+        WireMessage.PeerTombstoneMessage message = new WireMessage.PeerTombstoneMessage(tombstone);
+        for (NetworkConfig.PeerEntry peer : directory.known()) {
+            if (!peer.name.equals(name)) {
+                send(peer.name, message);
+            }
+        }
+        PeerConnection link = links.ready(name);
+        if (link != null) {
+            link.send(message);
+        }
+        logger.info("net: removed peer " + name + " network-wide (epoch " + tombstone.epoch() + ")");
+        return removePeer(name);
+    }
+
+    public PeerAnnouncer announcer() {
+        return announcer;
+    }
+
+    public PeerLoadTable loads() {
+        return loads;
+    }
+
+    public DrainMode drain() {
+        return drain;
+    }
+
+    public LoadBeaconService beacons() {
+        return beacons;
+    }
+
+    public DirectoryCache directoryCache() {
+        return directoryCache;
     }
 
     public List<NetworkConfig.PeerEntry> peers() {
@@ -350,10 +483,14 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
             executor.scheduleWithFixedDelay(dialer::scan, 250L, PeerDialer.SCAN_INTERVAL_MS, TimeUnit.MILLISECONDS);
             executor.scheduleWithFixedDelay(this::pollStatusBridges, 300L, STATUS_BRIDGE_FAST_INTERVAL_MS, TimeUnit.MILLISECONDS);
             executor.scheduleWithFixedDelay(this::keepalive, KEEPALIVE_INTERVAL_MS, KEEPALIVE_INTERVAL_MS, TimeUnit.MILLISECONDS);
+            announcer.start();
+            executor.scheduleWithFixedDelay(announcer::tickSafely, ANNOUNCE_TICK_MS, ANNOUNCE_TICK_MS, TimeUnit.MILLISECONDS);
+            executor.scheduleWithFixedDelay(beacons::tickSafely, ANNOUNCE_TICK_MS, ANNOUNCE_TICK_MS, TimeUnit.MILLISECONDS);
             scheduler = executor;
             scheduleDictionaryRetrain(executor, retrainIntervalSec(active));
 
             dictionary.loadPersisted(active);
+            tombstones.prune(System.currentTimeMillis(), MeshHandlers.tombstoneTtlMillis(active.mesh));
             hashProbeScheduler.start();
             identity.resolvePublicHostAsync();
 
@@ -671,6 +808,9 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         }
         OutboundFrame frame = new OutboundFrame(message);
         for (String name : peerNames) {
+            if (!peerAccepts(name, message.type())) {
+                continue;
+            }
             PeerConnection connection = links.ready(name);
             if (connection != null && connection.getState() == PeerConnection.State.READY) {
                 connection.send(frame);
@@ -681,7 +821,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     }
 
     public boolean send(String peerName, WireMessage message) {
-        if (message instanceof WireMessage.Routed) {
+        if (message instanceof WireMessage.Routed || !peerAccepts(peerName, message.type())) {
             return false;
         }
         PeerConnection connection = links.ready(peerName);
@@ -692,31 +832,54 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
             return connection.send(message);
         }
         NetworkConfig.PeerEntry peer = directory.find(peerName);
-        if (canQueueStatusBridge(peer)) {
-            if (WireMessage.Routed.isRelayAnnouncement(message.type())) {
-                return relay.enqueueRouted(peerName, peerName, RelayRouter.ROUTE_TTL, message);
+        boolean sidebandCapable = canQueueStatusBridge(peer);
+        String nextHop = relay.nextHop(peerName);
+        boolean relayHop = nextHop != null && !nextHop.equals(peerName) && !nextHop.equals(getLocalName());
+        if (sidebandCapable && (isStatusPeerReady(peerName) || !relayHop)) {
+            return enqueueSideband(peerName, message);
+        }
+        if (relayHop) {
+            PeerConnection route = links.ready(nextHop);
+            if (route != null) {
+                return relay.sendRouted(route, peerName, RelayRouter.ROUTE_TTL, message);
             }
-            OutboundFrame frame = new OutboundFrame(message);
-            dictionary.recordFrameSample(frame);
-            if (!sideband.enqueue(peerName, frame)) {
-                return false;
+            NetworkConfig.PeerEntry routedPeer = directory.find(nextHop);
+            if (routedPeer != null && canQueueStatusBridge(routedPeer)
+                && relay.enqueueRouted(nextHop, peerName, RelayRouter.ROUTE_TTL, message)) {
+                return true;
             }
-            if (SidebandQueue.isLatencyCritical(message)) {
-                nudgeStatusPoll(peerName);
-            }
+        }
+        return sidebandCapable && enqueueSideband(peerName, message);
+    }
+
+    /**
+     * Whether a guarded type may go to this peer. An unknown capability set (no link and no status
+     * packet yet) is not a refusal: that is the bootstrap case, and the frame still has to find a
+     * transport. A known set that lacks the bit is, so a peer never receives an id it cannot decode.
+     */
+    private boolean peerAccepts(String peerName, WireMessageType type) {
+        WireCapability guard = WireGuard.of(type);
+        if (guard == null) {
             return true;
         }
-        String nextHop = relay.nextHop(peerName);
-        if (nextHop == null || nextHop.equals(peerName) || nextHop.equals(getLocalName())) {
+        long capabilities = peerCapabilities(peerName);
+        return capabilities == 0L || guard.in(capabilities);
+    }
+
+    /** Queues a frame on the game-port status sideband; an unverified direct route only wins over a live relay hop once the sideband is ready. */
+    private boolean enqueueSideband(String peerName, WireMessage message) {
+        if (WireMessage.Routed.isRelayAnnouncement(message.type())) {
+            return relay.enqueueRouted(peerName, peerName, RelayRouter.ROUTE_TTL, message);
+        }
+        OutboundFrame frame = new OutboundFrame(message);
+        dictionary.recordFrameSample(frame);
+        if (!sideband.enqueue(peerName, frame)) {
             return false;
         }
-        PeerConnection route = links.ready(nextHop);
-        if (route != null) {
-            return relay.sendRouted(route, peerName, RelayRouter.ROUTE_TTL, message);
+        if (SidebandQueue.isLatencyCritical(message)) {
+            nudgeStatusPoll(peerName);
         }
-        NetworkConfig.PeerEntry routedPeer = directory.find(nextHop);
-        return routedPeer != null && canQueueStatusBridge(routedPeer)
-            && relay.enqueueRouted(nextHop, peerName, RelayRouter.ROUTE_TTL, message);
+        return true;
     }
 
     public NetworkConfig.PeerEntry getPeer(String name) {
@@ -891,12 +1054,19 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         LocalIdentity local = identity.snapshot();
         return MinecraftStatusBridge.create(local.serverName(), targetServer, WireCodec.PROTOCOL_VERSION,
             local.mcVersion(), local.pluginVersion(), local.gameEndpoint().host(), local.gameEndpoint().port(),
-            local.privateGameEndpoint(), local.advertiseHost(), local.wormholePort(), local.publicKey(), local.privateKey(), ackNonce, messages);
+            local.privateGameEndpoint(), local.advertiseHost(), local.wormholePort(), local.publicKey(), local.privateKey(),
+            local.capabilities(), ackNonce, messages);
     }
 
     @Override
     public boolean approvePeer(PeerConnection connection, String peerName, String peerMcVersion, String peerPluginVersion, byte[] publicKey) {
         if (peerName == null || peerName.isBlank() || peerName.equals(getLocalName())) {
+            return false;
+        }
+        PluginVersionPolicy.Verdict verdict = PluginVersionPolicy.check(config.pluginVersionPolicy, identity.pluginVersion(), peerPluginVersion,
+            localCapabilities(), connection.negotiatedCapabilities());
+        if (!verdict.accepted()) {
+            logger.warning("net: rejected link from " + peerName + " (" + connection.describeRemote() + "): " + verdict.rejection());
             return false;
         }
         return trust.approveConnection(peerName, publicKey);
@@ -933,21 +1103,65 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
         if (!trust.approveSideband(sourceServer, packet.publicKey())) {
             return false;
         }
+        statusPeerCapabilities.put(sourceServer, packet.capabilities());
+        reportReducedCapability(sourceServer, packet.capabilities() & localCapabilities());
         directory.learnFromStatusPacket(packet);
         return true;
     }
 
+    /**
+     * Capability bits negotiated with a peer: the raw-link intersection when a ready link exists, otherwise
+     * the intersection with the last authenticated status-sideband packet, otherwise 0.
+     */
+    public long peerCapabilities(String name) {
+        PeerConnection connection = name == null ? null : links.ready(name);
+        if (connection != null && connection.getState() == PeerConnection.State.READY) {
+            return connection.negotiatedCapabilities();
+        }
+        Long advertised = name == null ? null : statusPeerCapabilities.get(name);
+        return advertised == null ? 0L : advertised.longValue() & localCapabilities();
+    }
+
+    /** Measured round trip to a peer over its live link (raw or sideband), or -1 when unknown. */
+    public long peerRttMillis(String name) {
+        PeerConnection connection = name == null ? null : links.ready(name);
+        if (connection != null && connection.getState() == PeerConnection.State.READY) {
+            return connection.getRttMillis();
+        }
+        return presence.rttOrDefault(name, -1L);
+    }
+
+    /** The capability set this server advertises, reduced by the lanes its configuration turns off. */
+    public long localCapabilities() {
+        return WireCapability.localSet(config);
+    }
+
+    public boolean peerSupports(String name, WireCapability capability) {
+        return capability != null && capability.in(peerCapabilities(name));
+    }
+
     private String statusBridgeIncompatibility(MinecraftStatusBridge.StatusPacket packet) {
-        if (packet.protocolVersion() != WireCodec.PROTOCOL_VERSION) {
-            return "wire protocol mismatch: peer " + packet.protocolVersion() + ", local " + WireCodec.PROTOCOL_VERSION;
+        if (!WireCodec.isCompatibleProtocol(packet.protocolVersion())) {
+            return "wire protocol mismatch: peer " + packet.protocolVersion() + ", local " + WireCodec.PROTOCOL_VERSION
+                + " (accepts " + WireCodec.MIN_COMPATIBLE_PROTOCOL + "-" + WireCodec.PROTOCOL_VERSION + ")";
         }
         if (!identity.mcVersion().equals(packet.mcVersion())) {
             return "Minecraft version mismatch: peer " + packet.mcVersion() + ", local " + identity.mcVersion();
         }
-        if (!identity.pluginVersion().equals(packet.pluginVersion())) {
-            return "Wormholes version mismatch: peer " + packet.pluginVersion() + ", local " + identity.pluginVersion();
+        PluginVersionPolicy.Verdict verdict = PluginVersionPolicy.check(config.pluginVersionPolicy, identity.pluginVersion(), packet.pluginVersion(),
+            localCapabilities(), packet.capabilities() & localCapabilities());
+        return verdict.accepted() ? null : verdict.rejection();
+    }
+
+    private void reportReducedCapability(String name, long negotiatedCapabilities) {
+        long missing = localCapabilities() & ~negotiatedCapabilities;
+        if (missing == 0L) {
+            reducedCapabilityLogged.remove(name);
+            return;
         }
-        return null;
+        if (reducedCapabilityLogged.add(name)) {
+            logger.info("net: peer " + name + " links with reduced capability: " + PluginVersionPolicy.describe(missing));
+        }
     }
 
     @Override
@@ -995,7 +1209,9 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
                 return;
             }
 
-            logger.info("net: peer " + name + " connected (" + (connection.isDialer() ? "dialed" : "accepted") + " " + connection.describeRemote() + ")");
+            logger.info("net: peer " + name + " connected (" + (connection.isDialer() ? "dialed" : "accepted") + " " + connection.describeRemote()
+                + ", protocol " + connection.negotiatedProtocolVersion() + ")");
+            reportReducedCapability(name, connection.negotiatedCapabilities());
             BiConsumer<String, Boolean> sink = peerStateSink;
             if (sidebandWasReady && sink != null) {
                 sink.accept(name, false);
@@ -1008,6 +1224,7 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
                 return;
             }
             relay.sendRelayedDirectoriesTo(name);
+            announcer.onPeerReady(name);
             if (sink != null && isLifecycleActive(admission)) {
                 sink.accept(name, true);
             }
@@ -1141,6 +1358,12 @@ public class NetworkManager implements PeerConnection.Listener, PeerConnection.C
     }
 
     void deliverMessage(String peerName, WireMessage message) {
+        if (mesh.handle(peerName, message)) {
+            return;
+        }
+        if (WireMessageHandlers.dispatch(peerName, message)) {
+            return;
+        }
         BiConsumer<String, WireMessage> sink = messageSink;
         if (sink != null) {
             sink.accept(peerName, message);

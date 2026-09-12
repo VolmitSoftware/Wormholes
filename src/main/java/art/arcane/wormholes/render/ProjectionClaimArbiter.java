@@ -13,8 +13,10 @@ import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
@@ -36,6 +38,13 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.wormholes.render.atmosphere.BiomeClaimSet;
+import art.arcane.wormholes.render.atmosphere.BiomeIdResolver;
+import art.arcane.wormholes.render.atmosphere.BiomeRegistryIds;
+import art.arcane.wormholes.render.atmosphere.BiomeSink;
+import art.arcane.wormholes.render.atmosphere.ChunkBiomesPacketSink;
+import art.arcane.wormholes.render.bedrock.BedrockProfile;
+import art.arcane.wormholes.render.bedrock.ClientProfileService;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.service.WormholesTelemetry;
@@ -52,6 +61,8 @@ public final class ProjectionClaimArbiter {
     private final ProjectionWorldViewProvider viewProvider;
     private final ProjectionChunkVisibility chunkVisibility;
     private final LightingFactory lightingFactory;
+    private final BiomeSink biomeSink;
+    private final BiomeIdResolver biomeIds;
 
     public ProjectionClaimArbiter() {
         this(ProjectionWorldViewProvider.live());
@@ -68,11 +79,25 @@ public final class ProjectionClaimArbiter {
     ProjectionClaimArbiter(ProjectionWorldViewProvider viewProvider,
                            ProjectionChunkVisibility chunkVisibility,
                            LightingFactory lightingFactory) {
+        this(viewProvider, chunkVisibility, lightingFactory, new ChunkBiomesPacketSink(), new BiomeRegistryIds());
+    }
+
+    ProjectionClaimArbiter(ProjectionWorldViewProvider viewProvider,
+                           ProjectionChunkVisibility chunkVisibility,
+                           LightingFactory lightingFactory,
+                           BiomeSink biomeSink,
+                           BiomeIdResolver biomeIds) {
         this.observers = new ConcurrentHashMap<UUID, ObserverClaims>();
         this.blockGlobalIds = new ConcurrentHashMap<BlockData, Integer>();
         this.viewProvider = viewProvider;
         this.chunkVisibility = chunkVisibility;
         this.lightingFactory = lightingFactory;
+        this.biomeSink = biomeSink;
+        this.biomeIds = biomeIds;
+    }
+
+    public BiomeIdResolver biomeIds() {
+        return biomeIds;
     }
 
     public void beginFrame(Player observer, World localWorld, boolean allowLightingUpdate) {
@@ -133,10 +158,20 @@ public final class ProjectionClaimArbiter {
                                     Long2ObjectMap<ProjectedBlockClaim> claims,
                                     double priorityDistance,
                                     boolean allowLightingUpdate) {
+        return submit(observer, portal, localWorld, claims, priorityDistance, allowLightingUpdate, false);
+    }
+
+    public ClaimUpdateResult submit(Player observer,
+                                    ILocalPortal portal,
+                                    World localWorld,
+                                    Long2ObjectMap<ProjectedBlockClaim> claims,
+                                    double priorityDistance,
+                                    boolean allowLightingUpdate,
+                                    boolean sourceLighting) {
         if (observer == null || portal == null || portal.getId() == null || claims == null) {
             return ClaimUpdateResult.empty();
         }
-        return submit(observer, portal.getId(), localWorld, claims, priorityDistance, allowLightingUpdate);
+        return submit(observer, portal.getId(), localWorld, claims, priorityDistance, allowLightingUpdate, sourceLighting);
     }
 
     public ClaimUpdateResult submit(Player observer,
@@ -145,6 +180,20 @@ public final class ProjectionClaimArbiter {
                                     Long2ObjectMap<ProjectedBlockClaim> claims,
                                     double priorityDistance,
                                     boolean allowLightingUpdate) {
+        return submit(observer, claimOwnerId, localWorld, claims, priorityDistance, allowLightingUpdate, false);
+    }
+
+    /**
+     * @param sourceLighting promote destination sky-light rebasing for this owner even while the global
+     *                       lighting-fidelity switch is off (per-portal atmosphere tint_light and full)
+     */
+    public ClaimUpdateResult submit(Player observer,
+                                    UUID claimOwnerId,
+                                    World localWorld,
+                                    Long2ObjectMap<ProjectedBlockClaim> claims,
+                                    double priorityDistance,
+                                    boolean allowLightingUpdate,
+                                    boolean sourceLighting) {
         if (observer == null || claimOwnerId == null || claims == null) {
             return ClaimUpdateResult.empty();
         }
@@ -156,6 +205,11 @@ public final class ProjectionClaimArbiter {
             synchronized (state) {
                 if (state.retired) {
                     continue;
+                }
+                if (sourceLighting) {
+                    state.sourceLightingPortals.add(claimOwnerId);
+                } else {
+                    state.sourceLightingPortals.remove(claimOwnerId);
                 }
                 String tieKey = claimOwnerId.toString();
                 ObserverFrame frame = state.frame;
@@ -169,6 +223,75 @@ public final class ProjectionClaimArbiter {
                 return applyResult(observer, localWorld, state, setResult, allowLightingUpdate, false);
             }
         }
+    }
+
+    /**
+     * Replaces the biome overrides one portal contributes for this observer. Quart cells are keyed with
+     * quart coordinates; an empty map releases the portal's cells. Chunk columns whose grid changed are
+     * resent immediately, always as full columns (local biomes plus the surviving overrides).
+     */
+    public void submitBiomes(Player observer, UUID portalId, World localWorld, Long2IntMap overrides) {
+        if (observer == null || portalId == null || overrides == null) {
+            return;
+        }
+        while (true) {
+            ObserverClaims state = acquireState(observer, localWorld);
+            if (state == null) {
+                return;
+            }
+            synchronized (state) {
+                if (state.retired) {
+                    continue;
+                }
+                if (state.biomes == null) {
+                    if (overrides.isEmpty()) {
+                        return;
+                    }
+                    ProjectionWorldView localView = viewProvider.view(localWorld);
+                    if (localView == null) {
+                        return;
+                    }
+                    state.biomes = new BiomeClaimSet(localView.getMinHeight(), localView.getMaxHeight(),
+                        (x, y, z) -> biomeIds.id(localView.sampleBiome(x, y, z)));
+                }
+                List<BiomeClaimSet.ChunkBiomes> changed = state.biomes.apply(portalId, overrides);
+                sendBiomes(observer, localWorld, state, changed);
+                return;
+            }
+        }
+    }
+
+    public int retintedBiomeCells(Player observer) {
+        if (observer == null) {
+            return 0;
+        }
+        ObserverClaims state = observers.get(observer.getUniqueId());
+        if (state == null) {
+            return 0;
+        }
+        synchronized (state) {
+            return state.biomes == null ? 0 : state.biomes.retintedCells();
+        }
+    }
+
+    private void sendBiomes(Player observer, World localWorld, ObserverClaims state, List<BiomeClaimSet.ChunkBiomes> chunks) {
+        if (chunks.isEmpty()) {
+            return;
+        }
+        if (isObserverInWorld(observer, state.worldId)) {
+            biomeSink.send(observer, localWorld, chunks);
+        }
+        if (state.biomes != null && state.biomes.isEmpty()) {
+            state.biomes = null;
+        }
+    }
+
+    private void restoreBiomes(Player observer, World localWorld, ObserverClaims state, UUID claimOwnerId) {
+        state.sourceLightingPortals.remove(claimOwnerId);
+        if (state.biomes == null) {
+            return;
+        }
+        sendBiomes(observer, localWorld, state, state.biomes.release(claimOwnerId));
     }
 
     public ClaimUpdateResult release(Player observer, ILocalPortal portal, World localWorld, boolean allowLightingUpdate) {
@@ -200,6 +323,7 @@ public final class ProjectionClaimArbiter {
                 observers.remove(observerId, state);
                 return ClaimUpdateResult.empty();
             }
+            restoreBiomes(observer, localWorld, state, claimOwnerId);
             ObserverFrame frame = state.frame;
             if (frame != null) {
                 state.claimSet.stagePortalRelease(claimOwnerId, frame.affectedKeys);
@@ -436,7 +560,8 @@ public final class ProjectionClaimArbiter {
                 }
             }
             if (!blockChanges.isEmpty()) {
-                sendBlockChanges(observer, localWorld, blockChanges, blockChangeIds);
+                sendBlockChanges(observer, localWorld, blockChanges, blockChangeIds,
+                    ClientProfileService.profileFor(observer).blockBatchLimit());
             }
         } else {
             LongIterator packetIterator = packetKeys.iterator();
@@ -461,7 +586,12 @@ public final class ProjectionClaimArbiter {
         if (!canSend) {
             return;
         }
-        boolean sourceLightingEnabled = Settings.LIGHTING_FIDELITY;
+        BedrockProfile profile = ClientProfileService.profileFor(observer);
+        if (!profile.lightingFidelity()) {
+            observerClaims.pendingLightingKeys.clear();
+            return;
+        }
+        boolean sourceLightingEnabled = sourceLightingEnabled(observerClaims);
         boolean fullBrightEnabled = observerClaims.claimSet.hasFullBrightClaims();
         if (!sourceLightingEnabled && !fullBrightEnabled) {
             observerClaims.lighting.revert(observer, viewProvider.view(localWorld));
@@ -490,10 +620,14 @@ public final class ProjectionClaimArbiter {
         if (!state.pendingLightingKeys.isEmpty() || state.lighting.hasPendingUpdates()) {
             return true;
         }
-        if (!Settings.LIGHTING_FIDELITY && !state.claimSet.hasFullBrightClaims() && !state.lighting.isIdle()) {
+        if (!sourceLightingEnabled(state) && !state.claimSet.hasFullBrightClaims() && !state.lighting.isIdle()) {
             return true;
         }
         return state.claimSet.isEmpty() && !state.lighting.isIdle();
+    }
+
+    private static boolean sourceLightingEnabled(ObserverClaims state) {
+        return Settings.LIGHTING_FIDELITY || !state.sourceLightingPortals.isEmpty();
     }
 
     private void reconcileClientChunks(Player observer, ObserverClaims state) {
@@ -542,6 +676,28 @@ public final class ProjectionClaimArbiter {
                                  World localWorld,
                                  Long2ObjectMap<BlockData> blockChanges,
                                  Long2IntMap blockChangeIds) {
+        sendBlockChanges(observer, localWorld, blockChanges, blockChangeIds, Integer.MAX_VALUE);
+    }
+
+    /** Splits one section's encoded blocks into packets of at most {@code limit} entries. */
+    public static List<WrapperPlayServerMultiBlockChange.EncodedBlock[]> splitBatches(
+        WrapperPlayServerMultiBlockChange.EncodedBlock[] blocks, int limit) {
+        if (limit <= 0 || blocks.length <= limit) {
+            return List.<WrapperPlayServerMultiBlockChange.EncodedBlock[]>of(blocks);
+        }
+        List<WrapperPlayServerMultiBlockChange.EncodedBlock[]> batches =
+            new ArrayList<WrapperPlayServerMultiBlockChange.EncodedBlock[]>((blocks.length + limit - 1) / limit);
+        for (int start = 0; start < blocks.length; start += limit) {
+            batches.add(Arrays.copyOfRange(blocks, start, Math.min(blocks.length, start + limit)));
+        }
+        return batches;
+    }
+
+    static void sendBlockChanges(Player observer,
+                                 World localWorld,
+                                 Long2ObjectMap<BlockData> blockChanges,
+                                 Long2IntMap blockChangeIds,
+                                 int batchLimit) {
         if (blockChanges.size() == 1) {
             ObjectIterator<Long2ObjectMap.Entry<BlockData>> singleIterator = Long2ObjectMaps.fastIterator(blockChanges);
             while (singleIterator.hasNext()) {
@@ -563,18 +719,20 @@ public final class ProjectionClaimArbiter {
             for (Long2ObjectMap.Entry<List<WrapperPlayServerMultiBlockChange.EncodedBlock>> entry : sections.long2ObjectEntrySet()) {
                 long sectionKey = entry.getLongKey();
                 List<WrapperPlayServerMultiBlockChange.EncodedBlock> entries = entry.getValue();
-                WrapperPlayServerMultiBlockChange.EncodedBlock[] blocks = orderDenseSectionBlocks(
+                WrapperPlayServerMultiBlockChange.EncodedBlock[] ordered = orderDenseSectionBlocks(
                     entries.toArray(new WrapperPlayServerMultiBlockChange.EncodedBlock[entries.size()]));
                 Vector3i sectionPos = new Vector3i(unpackSectionX(sectionKey), unpackSectionY(sectionKey), unpackSectionZ(sectionKey));
-                WrapperPlayServerMultiBlockChange wrapper = new WrapperPlayServerMultiBlockChange(sectionPos, null, blocks);
-                if (batchUser == null) {
-                    PacketEvents.getAPI().getPlayerManager().sendPacket(observer, wrapper);
-                } else {
-                    batchUser.writePacket(wrapper);
-                }
-                WormholesTelemetry.countPacket();
-                for (int i = 0; i < blocks.length; i++) {
-                    WormholesTelemetry.countBlockChange();
+                for (WrapperPlayServerMultiBlockChange.EncodedBlock[] blocks : splitBatches(ordered, batchLimit)) {
+                    WrapperPlayServerMultiBlockChange wrapper = new WrapperPlayServerMultiBlockChange(sectionPos, null, blocks);
+                    if (batchUser == null) {
+                        PacketEvents.getAPI().getPlayerManager().sendPacket(observer, wrapper);
+                    } else {
+                        batchUser.writePacket(wrapper);
+                    }
+                    WormholesTelemetry.countPacket();
+                    for (int i = 0; i < blocks.length; i++) {
+                        WormholesTelemetry.countBlockChange();
+                    }
                 }
             }
         } catch (RuntimeException error) {
@@ -691,7 +849,8 @@ public final class ProjectionClaimArbiter {
     private void removeObserverIfEmpty(UUID observerId, ObserverClaims state) {
         if (state.claimSet.isEmpty() && state.frame == null && state.pendingSendKeys.isEmpty()
             && state.pendingRevertKeys.isEmpty() && state.pendingLightingKeys.isEmpty()
-            && state.sentBlocks.isEmpty() && state.lighting.isIdle()) {
+            && state.sentBlocks.isEmpty() && state.lighting.isIdle()
+            && (state.biomes == null || state.biomes.isEmpty())) {
             state.retired = true;
             observers.remove(observerId, state);
         }
@@ -737,6 +896,8 @@ public final class ProjectionClaimArbiter {
         state.chunkRevisionMemo.clear();
         state.chunkMemoRevision = Long.MIN_VALUE;
         state.lighting.discard();
+        state.biomes = null;
+        state.sourceLightingPortals.clear();
         state.frame = null;
         state.retired = true;
     }
@@ -808,6 +969,8 @@ public final class ProjectionClaimArbiter {
         private final Long2ByteOpenHashMap chunkSentMemo;
         private final Long2LongOpenHashMap chunkRevisionMemo;
         private final ProjectorLighting lighting;
+        private final Set<UUID> sourceLightingPortals;
+        private BiomeClaimSet biomes;
         private ObserverFrame frame;
         private long clientChunkRevision;
         private long chunkMemoRevision;
@@ -826,6 +989,8 @@ public final class ProjectionClaimArbiter {
             this.chunkRevisionMemo = new Long2LongOpenHashMap(64);
             this.chunkRevisionMemo.defaultReturnValue(Long.MIN_VALUE);
             this.lighting = lighting;
+            this.sourceLightingPortals = new HashSet<UUID>(4);
+            this.biomes = null;
             this.frame = null;
             this.clientChunkRevision = Long.MIN_VALUE;
             this.chunkMemoRevision = Long.MIN_VALUE;

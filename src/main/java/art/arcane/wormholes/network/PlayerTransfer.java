@@ -2,6 +2,7 @@ package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.network.mesh.ProxyBridge;
 
 import org.bukkit.entity.Player;
 
@@ -104,6 +105,10 @@ public final class PlayerTransfer {
     }
 
     private static boolean sendViaProxy(Player player, NetworkConfig.PeerEntry peer) {
+        ProxyBridge bridge = ProxyBridge.active();
+        if (bridge != null) {
+            return bridge.handoff(player, peer.name);
+        }
         try {
             ByteArrayOutputStream buffer = new ByteArrayOutputStream(64);
             DataOutputStream out = new DataOutputStream(buffer);

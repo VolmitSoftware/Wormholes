@@ -27,7 +27,7 @@ public final class ReplicationStreamKeyRenderModeTest {
         ReplicationStreamKey decoded = ReplicationStreamKey.read(
             new DataInputStream(new ByteArrayInputStream(bytes.toByteArray())));
 
-        assertEquals(20, WireCodec.PROTOCOL_VERSION);
+        assertEquals(21, WireCodec.PROTOCOL_VERSION);
         assertEquals(expected, decoded);
     }
 }

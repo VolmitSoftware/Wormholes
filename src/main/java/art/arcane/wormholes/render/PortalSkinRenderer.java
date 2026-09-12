@@ -50,6 +50,7 @@ import art.arcane.wormholes.portal.PortalSurfaceSkins;
 import art.arcane.wormholes.util.Axis;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
+import art.arcane.wormholes.render.bedrock.ClientProfileService;
 
 public final class PortalSkinRenderer {
     static final int MAX_PER_CELL_PANES = 128;
@@ -321,8 +322,11 @@ public final class PortalSkinRenderer {
             if (mode == SkinRenderMode.NONE) {
                 continue;
             }
+            if (mode == SkinRenderMode.DISPLAY && ClientProfileService.profileFor(observer).withholdsDisplays()) {
+                mode = SkinRenderMode.FLUID_CLAIMS;
+            }
             eligible.add(portalId);
-            String key = stateKey(portal);
+            String key = stateKey(portal) + "|" + mode.name();
             PortalSkinState existing = current == null ? null : current.get(portalId);
             if (existing != null && existing.stateKey().equals(key)) {
                 if (existing.mode() == SkinRenderMode.FLUID_CLAIMS) {

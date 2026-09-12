@@ -43,6 +43,11 @@ final class VanillaPortalNetherPairing
 				Wormholes.v(() -> "[vanilla-portal] skipped: cells already covered by an existing Wormholes portal");
 				return;
 			}
+			if(WorldGroups.isDisabled(sourceWorld))
+			{
+				Wormholes.v(() -> "[vanilla-portal] skipped: " + sourceWorld.getName() + " is paired to itself");
+				return;
+			}
 			Direction normal = deriveNormal(cells);
 			boolean alongX = normal.z() != 0;
 			int interiorWidth = interiorWidth(cells, alongX);
@@ -55,6 +60,12 @@ final class VanillaPortalNetherPairing
 				return;
 			}
 			World target = targetPlan.world();
+			if(!WorldGroups.canPair(sourceWorld, target))
+			{
+				Wormholes.v(() -> "[vanilla-portal] skipped: " + sourceWorld.getName() + " and " + target.getName()
+						+ " are not in the same world group");
+				return;
+			}
 			ILocalPortal sourcePortal = PortalFactory.createFromCells(cells, PortalFrame.canonical(normal), PortalType.PORTAL, VanillaPortalIndex.NETHER_TAG, DimensionalPortalKind.NETHER);
 			if(sourcePortal == null)
 			{
@@ -62,8 +73,9 @@ final class VanillaPortalNetherPairing
 				return;
 			}
 			Location center = sourcePortal.getCenter();
-			int tcx = WorldPairing.scaleHorizontal(sourceWorld, target, center.getBlockX());
-			int tcz = WorldPairing.scaleHorizontal(sourceWorld, target, center.getBlockZ());
+			int[] mapped = DimensionalScaling.mapBetween(sourceWorld, target, center.getBlockX(), center.getBlockZ());
+			int tcx = mapped[0];
+			int tcz = mapped[1];
 			int tcy = clampY(target, center.getBlockY());
 			int reuseRadius = target.getEnvironment() == World.Environment.NETHER ? 16 : 128;
 			Wormholes.v(() -> "[vanilla-portal] source built (" + interiorWidth + "x" + interiorHeight + "); target=" + target.getName() + " @ " + tcx + "," + tcy + "," + tcz);

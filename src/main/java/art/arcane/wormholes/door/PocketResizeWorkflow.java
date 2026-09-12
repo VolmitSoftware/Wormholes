@@ -6,9 +6,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 final class PocketResizeWorkflow {
-    private final PocketResizeJournal journal;
+    private final PocketMutationJournal journal;
 
-    PocketResizeWorkflow(PocketResizeJournal journal) {
+    PocketResizeWorkflow(PocketMutationJournal journal) {
         this.journal = Objects.requireNonNull(journal, "journal");
     }
 
@@ -28,12 +28,12 @@ final class PocketResizeWorkflow {
         Actions actions
     ) throws IOException {
         Objects.requireNonNull(actions, "actions").preflight().validate(current, target);
-        PocketResizeIntent intent = journal.begin(current, target);
+        PocketMutationIntent intent = journal.beginResize(current, target);
         return recover(intent, current, actions);
     }
 
     CompletionStage<PocketSpace> recover(
-        PocketResizeIntent intent,
+        PocketMutationIntent intent,
         PocketSpace current,
         Actions actions
     ) {
@@ -63,7 +63,7 @@ final class PocketResizeWorkflow {
     }
 
     private void complete(
-        PocketResizeIntent intent,
+        PocketMutationIntent intent,
         PocketSpace current,
         Actions actions,
         Throwable worldFailure,
@@ -81,7 +81,7 @@ final class PocketResizeWorkflow {
     }
 
     private PocketSpace persist(
-        PocketResizeIntent intent,
+        PocketMutationIntent intent,
         PocketSpace current,
         Actions actions
     ) throws IOException {

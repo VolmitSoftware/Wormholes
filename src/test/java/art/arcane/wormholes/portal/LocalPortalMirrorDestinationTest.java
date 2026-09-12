@@ -20,6 +20,7 @@ import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.util.Cuboid;
@@ -168,7 +169,17 @@ public final class LocalPortalMirrorDestinationTest
 		LocalPortal linkable = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
 
 		assertDoesNotThrow(() -> mirror.uiChooseDestination(null));
-		assertThrows(LinkageError.class, () -> linkable.uiChooseDestination(null));
+		IllegalStateException pickerEntered = new IllegalStateException("Destination picker requested its viewer identity");
+		Player viewer = (Player) Proxy.newProxyInstance(Player.class.getClassLoader(), new Class<?>[] { Player.class },
+				(proxy, method, arguments) ->
+				{
+					if(method.getName().equals("getUniqueId"))
+					{
+						throw pickerEntered;
+					}
+					throw new UnsupportedOperationException(method.getName());
+				});
+		assertSame(pickerEntered, assertThrows(IllegalStateException.class, () -> linkable.uiChooseDestination(viewer)));
 	}
 
 	@Test

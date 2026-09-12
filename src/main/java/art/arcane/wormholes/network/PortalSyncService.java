@@ -372,6 +372,7 @@ public final class PortalSyncService {
         settings.put(KEY_AMBIENT_COLOR, Integer.toString(portal.getAmbientColor()));
         settings.put(KEY_SURFACE_SKIN, portal.getSurfaceSkin());
         settings.put(KEY_SETTINGS_SYNC, Boolean.toString(portal.isSettingsSyncEnabled()));
+        portal.extensions().collectSync(settings);
         return settings;
     }
 
@@ -386,6 +387,7 @@ public final class PortalSyncService {
                 }
                 applyLocalKey(portal, entry.getKey(), entry.getValue());
             }
+            portal.extensions().applySync(settings);
         } finally {
             APPLYING_REMOTE.set(Boolean.valueOf(previous));
         }
@@ -457,8 +459,7 @@ public final class PortalSyncService {
                 case KEY_AMBIENT_STYLE -> remote.setMirroredAmbientStyle(AmbientParticleStyle.fromName(value, remote.getMirroredAmbientStyle()));
                 case KEY_AMBIENT_COLOR -> remote.setMirroredAmbientColor(parseIntOr(value, remote.getMirroredAmbientColor()));
                 case KEY_SURFACE_SKIN -> remote.setMirroredSurfaceSkin(value);
-                default -> {
-                }
+                default -> remote.putMirroredExtensionSetting(key, value);
             }
         }
     }
@@ -569,7 +570,7 @@ public final class PortalSyncService {
         return universal.getServerName();
     }
 
-    private static boolean isShareable(ILocalPortal portal) {
+    public static boolean isShareable(ILocalPortal portal) {
         return portal.isGateway()
             && portal.getStructure() != null
             && portal.getStructure().getWorld() != null

@@ -7,6 +7,17 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 class TraversalServiceDestinationAdmissionTest {
     @Test
+    void drainingDestinationDeniesBeforeEveryOtherArmWithAShortRetry() {
+        TraversalAdmissionPolicy.DestinationPlayerState state = new TraversalAdmissionPolicy.DestinationPlayerState(
+            false, true, false, false, false, true, 0, 20, true);
+
+        assertEquals(TraversalAdmissionPolicy.DRAIN_DENIAL, TraversalAdmissionPolicy.destinationPlayerDenialReason(state));
+        assertEquals("destination server is draining", TraversalAdmissionPolicy.DRAIN_DENIAL);
+        assertEquals(5_000L, TraversalAdmissionPolicy.denialRetryMillis(TraversalAdmissionPolicy.DRAIN_DENIAL, 12_000L));
+        assertEquals(12_000L, TraversalAdmissionPolicy.denialRetryMillis("destination server is full", 12_000L));
+    }
+
+    @Test
     void directTransferRequiresDestinationSupport() {
         TraversalAdmissionPolicy.DestinationPlayerState state = state(true, false, false, false, false, false, 0, 20);
 
@@ -73,7 +84,8 @@ class TraversalServiceDestinationAdmissionTest {
             whitelisted,
             operator,
             admittedPlayers,
-            maxPlayers
+            maxPlayers,
+            false
         );
     }
 }

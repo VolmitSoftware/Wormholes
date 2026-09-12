@@ -31,8 +31,8 @@ class BlockEntityCaptureTest {
     private static final String PEER = "peer-be";
 
     @Test
-    void blockEntityCaptureIsOptInByDefault() {
-        assertFalse(CaptureSettings.defaults().blockEntityCaptureEnabled());
+    void blockEntityCaptureIsOnByDefault() {
+        assertTrue(CaptureSettings.defaults().blockEntityCaptureEnabled());
     }
 
     @Test
@@ -157,6 +157,9 @@ class BlockEntityCaptureTest {
                 }
                 if ("getWorld".equals(name)) {
                     return world;
+                }
+                if ("getType".equals(name)) {
+                    return org.bukkit.Material.OAK_SIGN;
                 }
                 if ("getState".equals(name)) {
                     stateQueried.set(true);

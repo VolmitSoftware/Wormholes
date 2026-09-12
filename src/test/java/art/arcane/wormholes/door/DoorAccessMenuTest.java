@@ -88,6 +88,31 @@ class DoorAccessMenuTest {
     }
 
     @Test
+    void theProjectionCyclerSitsBesideTheOpenStateControlAndCarriesItsOwnIcon() {
+        assertEquals(2, DoorAccessMenu.PROJECTION_POSITION);
+        assertEquals(Material.SPYGLASS, DoorAccessMenu.projectionIcon(DoorProjectionState.INHERIT));
+        assertEquals(Material.SPYGLASS, DoorAccessMenu.projectionIcon(DoorProjectionState.ON));
+        assertEquals(Material.SPYGLASS, DoorAccessMenu.projectionIcon(DoorProjectionState.OFF));
+        assertThrows(NullPointerException.class, () -> DoorAccessMenu.projectionIcon(null));
+    }
+
+    @Test
+    void theProjectionCyclerWalksInheritToOnToOffAndBack() {
+        assertEquals(DoorProjectionState.ON, DoorAccessMenu.nextProjectionState(DoorProjectionState.INHERIT));
+        assertEquals(DoorProjectionState.OFF, DoorAccessMenu.nextProjectionState(DoorProjectionState.ON));
+        assertEquals(DoorProjectionState.INHERIT, DoorAccessMenu.nextProjectionState(DoorProjectionState.OFF));
+        assertThrows(NullPointerException.class, () -> DoorAccessMenu.nextProjectionState(null));
+    }
+
+    @Test
+    void everyHeaderControlOwnsADistinctSlot() {
+        assertEquals(3, java.util.Set.of(
+            DoorAccessMenu.OPEN_STATE_POSITION,
+            DoorAccessMenu.ADD_POSITION,
+            DoorAccessMenu.PROJECTION_POSITION).size());
+    }
+
+    @Test
     void firstEntryLandsUnderTheHeaderAtTheLeftEdge() {
         assertEquals(DoorAccessMenu.HEADER_ROW + 1, DoorAccessMenu.entryRow(0));
         assertEquals(-4, DoorAccessMenu.entryPosition(0));

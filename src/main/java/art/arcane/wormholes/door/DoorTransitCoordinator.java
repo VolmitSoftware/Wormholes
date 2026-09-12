@@ -20,6 +20,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.structure.Structure;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -45,6 +46,7 @@ final class DoorTransitCoordinator
 	private final PocketSpaceIndex pockets;
 	private final PocketStructureService pocketStructures;
 	private final PocketWorldService pocketWorldService;
+	private final PocketTemplateService templates;
 	private final DoorTransitFailures failures;
 
 	DoorTransitCoordinator(
@@ -60,6 +62,7 @@ final class DoorTransitCoordinator
 		PocketSpaceIndex pockets,
 		PocketStructureService pocketStructures,
 		PocketWorldService pocketWorldService,
+		PocketTemplateService templates,
 		DoorTransitFailures failures)
 	{
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
@@ -74,6 +77,7 @@ final class DoorTransitCoordinator
 		this.pockets = Objects.requireNonNull(pockets, "pockets");
 		this.pocketStructures = Objects.requireNonNull(pocketStructures, "pocketStructures");
 		this.pocketWorldService = Objects.requireNonNull(pocketWorldService, "pocketWorldService");
+		this.templates = Objects.requireNonNull(templates, "templates");
 		this.failures = Objects.requireNonNull(failures, "failures");
 	}
 
@@ -237,7 +241,11 @@ final class DoorTransitCoordinator
 		DoorTransit transit)
 	{
 		TransitContext ticketless = TransitContext.none(travelerId, transit);
-		if(PocketWorldService.isPocketWorld(sourceWorld))
+		boolean insidePocketWorld = PocketWorldService.isPocketWorld(sourceWorld);
+		if(insidePocketWorld && !PocketRooms.allowsPocketEntry(
+			true,
+			pockets.spaceAt(source.endpoint().position().x(), source.endpoint().position().z()),
+			guard.state().findPocket(destination.binding()).orElse(null)))
 		{
 			abortTransit(traveler, source, WormholesMessages.DOOR_NESTED_POCKET, ticketless);
 			return;
@@ -252,7 +260,27 @@ final class DoorTransitCoordinator
 		PocketSpace space;
 		try
 		{
-			space = guard.mutate(() -> guard.state().getOrAllocatePocket(destination.binding(), Settings.POCKET_SHELL));
+			space = guard.mutate(() ->
+			{
+				PocketSpace allocated = guard.state().getOrAllocatePocket(destination.binding(), Settings.POCKET_SHELL);
+				if(destination.isInstanced() && allocated.instance() == null)
+				{
+					return guard.state().replacePocket(allocated
+						.withTemplateName(destination.instancedTemplate())
+						.withInstance(PocketInstances.newInstance(
+							destination.instancedTemplate(),
+							travelerId,
+							PocketSettings.current().instanceReset,
+							System.currentTimeMillis())));
+				}
+				if(allocated.instance() == null)
+				{
+					return allocated;
+				}
+				// Entering is what marks an instance dirty; the sweep resets it once after it empties.
+				return guard.state().replacePocket(allocated.withInstance(
+					allocated.instance().withLastOccupied(System.currentTimeMillis())));
+			});
 			pockets.index(space);
 		}
 		catch(IOException | RuntimeException ex)
@@ -309,6 +337,10 @@ final class DoorTransitCoordinator
 				}
 				runtimes.reconcile(runtimes.install(returnEndpoint));
 				retirePreviousReturnDoor(pocketWorld, space, previous);
+				if(initialize)
+				{
+					applyFirstTemplate(pocketWorld, space);
+				}
 			}
 			catch(IOException | RuntimeException ex)
 			{
@@ -347,6 +379,35 @@ final class DoorTransitCoordinator
 			}
 			closeAndTeleport(traveler, source, arrival, context);
 		}, () -> abortTransit(traveler, source, WormholesMessages.DOOR_POCKET_ENTRY_CHUNK_FAILED, ticketless));
+	}
+
+	/**
+	 * Furnishes a brand new pocket from its template.
+	 *
+	 * <p>Only on the provisioning pass: a template is the room's starting state, never something a
+	 * later visit re-stamps over what the owner built.</p>
+	 */
+	private void applyFirstTemplate(World pocketWorld, PocketSpace space) throws IOException
+	{
+		String templateName = space.templateName().isEmpty()
+			? PocketSettings.current().defaultTemplate.trim()
+			: space.templateName();
+		if(templateName.isEmpty())
+		{
+			return;
+		}
+		Optional<Structure> structure = templates.load(templateName);
+		if(structure.isEmpty())
+		{
+			plugin.getLogger().warning("Pocket template " + templateName + " is missing; pocket "
+				+ space.spaceId() + " starts as a plain room.");
+			return;
+		}
+		templates.paste(pocketWorld, space, structure.get(), false);
+		if(!space.templateName().equals(templateName))
+		{
+			guard.mutate(() -> guard.state().setPocketTemplate(space.spaceId(), templateName));
+		}
 	}
 
 	private static ReturnTicket buildReturnTicket(UUID travelerId, UUID sourceEndpointId, Location savedReturn)

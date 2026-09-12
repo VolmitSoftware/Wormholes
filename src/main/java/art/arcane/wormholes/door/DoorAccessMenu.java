@@ -11,6 +11,8 @@ import art.arcane.volmlib.util.localization.MessageArgument;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.config.WormholesSettings;
+import art.arcane.wormholes.localization.DoorViewMessages;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.platform.WormholesPlatform;
@@ -32,7 +34,8 @@ final class DoorAccessMenu {
     static final int MAX_VIEWPORT_HEIGHT = 6;
     private static final int PLACARD_POSITION = -1;
     static final int OPEN_STATE_POSITION = 0;
-    private static final int ADD_POSITION = 1;
+    static final int ADD_POSITION = 1;
+    static final int PROJECTION_POSITION = 2;
     private static final int SHORT_ID_LENGTH = 8;
     private static final String ADMINISTRATOR_NODE = "wormholes.admin";
 
@@ -99,6 +102,16 @@ final class DoorAccessMenu {
         return Objects.requireNonNull(state, "state").flipped();
     }
 
+    /** One icon for all three states; the lore carries which one is active. */
+    static Material projectionIcon(DoorProjectionState state) {
+        Objects.requireNonNull(state, "state");
+        return Material.SPYGLASS;
+    }
+
+    static DoorProjectionState nextProjectionState(DoorProjectionState state) {
+        return Objects.requireNonNull(state, "state").next();
+    }
+
     static String resolveDisplayName(String knownName, String fallback) {
         Objects.requireNonNull(fallback, "fallback");
         if (knownName == null || knownName.isBlank()) {
@@ -144,6 +157,7 @@ final class DoorAccessMenu {
             window.setElement(PLACARD_POSITION, HEADER_ROW, placardElement(door, record));
             window.setElement(OPEN_STATE_POSITION, HEADER_ROW, openStateElement(window, viewer, door));
             window.setElement(ADD_POSITION, HEADER_ROW, addPlayerElement(window, viewer, door));
+            window.setElement(PROJECTION_POSITION, HEADER_ROW, projectionElement(window, viewer, door));
             List<UUID> listed = record.listedPlayers();
             for (int index = 0; index < listed.size(); index++) {
                 UUID playerId = listed.get(index);
@@ -188,6 +202,21 @@ final class DoorAccessMenu {
                 "next", openStateLabel(nextOpenState(state))),
             openStateIcon(state));
         element.onLeftClick(clicked -> toggleOpenState(window, viewer, door));
+        return element;
+    }
+
+    /**
+     * The through-door view toggle. It stays visible while {@code [doors] projection-enabled} is off
+     * so the setting is never hidden; clicking then says why nothing happened.
+     */
+    private UIElement projectionElement(UIWindow window, Player viewer, PlacedDoorEndpoint door) {
+        DoorProjectionState state = door.projection();
+        UIElement element = localizedElement(
+            "door-access-projection",
+            DoorViewMessages.MENU_PROJECTION,
+            arguments("state", projectionLabel(state)),
+            projectionIcon(state));
+        element.onLeftClick(clicked -> cycleProjection(window, viewer, door));
         return element;
     }
 
@@ -253,6 +282,48 @@ final class DoorAccessMenu {
                 + current.identity().itemId() + "\",\"state\":\"" + state + "\"}}");
         }
         refresh(window, viewer, current);
+    }
+
+    private void cycleProjection(UIWindow window, Player viewer, PlacedDoorEndpoint door) {
+        PlacedDoorEndpoint current = manager.endpoint(door.identity().itemId()).orElse(null);
+        if (current == null || manageableRecord(viewer, current) == null) {
+            closeWindow(window, viewer);
+            return;
+        }
+        if (!projectionGloballyEnabled()) {
+            notice(viewer, DoorViewMessages.DISABLED, MessageArgs.empty());
+            return;
+        }
+        DoorProjectionState state = nextProjectionState(current.projection());
+        if (apply(viewer, () -> manager.applyProjectionState(current, state))) {
+            Wormholes.v("QA_EVT {\"event\":\"door_access_menu_apply\",\"status\":\"info\",\"details\":\"projection\",\"context\":{\"item\":\""
+                + current.identity().itemId() + "\",\"state\":\"" + state + "\"}}");
+            notice(viewer, projectionNotice(state), MessageArgs.empty());
+        }
+        refresh(window, viewer, current);
+    }
+
+    private static boolean projectionGloballyEnabled() {
+        WormholesSettings settings = Wormholes.settings;
+        return settings != null && settings.getDoors().projectionEnabled;
+    }
+
+    private static TextKey projectionNotice(DoorProjectionState state) {
+        return switch (state) {
+            case INHERIT -> DoorViewMessages.TOGGLE_INHERIT;
+            case ON -> DoorViewMessages.TOGGLE_ON;
+            case OFF -> DoorViewMessages.TOGGLE_OFF;
+        };
+    }
+
+    /** A bare word for the lore; the chat notice carries the full sentence. */
+    private static String projectionLabel(DoorProjectionState state) {
+        TextKey key = switch (state) {
+            case INHERIT -> DoorViewMessages.STATE_INHERIT;
+            case ON -> DoorViewMessages.STATE_ON;
+            case OFF -> DoorViewMessages.STATE_OFF;
+        };
+        return Wormholes.text().plain(key);
     }
 
     private void promptForPlayer(UIWindow window, Player viewer, PlacedDoorEndpoint door) {

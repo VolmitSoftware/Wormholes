@@ -24,6 +24,7 @@ final class ProjectorSampler {
     private final BlockData occludedStandIn;
     private final ProjectorSample maskAirSample;
     private final Object2ObjectOpenHashMap<BlockData, BlockData> transformedBlockCache;
+    private final ProjectorRecursivePortals.RecursionPath recursionPath;
     private final double[] scratchRot;
     private Direction cachedFromNormal;
     private Direction cachedFromRight;
@@ -47,6 +48,7 @@ final class ProjectorSampler {
         this.occludedStandIn = OccludedMarker.standIn();
         this.maskAirSample = ProjectorSample.maskAir(airBlockData);
         this.transformedBlockCache = new Object2ObjectOpenHashMap<BlockData, BlockData>(128);
+        this.recursionPath = new ProjectorRecursivePortals.RecursionPath();
         this.scratchRot = new double[3];
         this.cachedFromNormal = null;
         this.cachedFromRight = null;
@@ -109,6 +111,23 @@ final class ProjectorSampler {
                             boolean applyBuriedCellCulling,
                             ProjectorRecursivePortals.Index preparedIndex,
                             ProjectorRecursivePortals.Hit preparedHit) {
+        recursionPath.clear();
+        return resolveNested(view, sampleX, sampleY, sampleZ, eyeX, eyeY, eyeZ, excludedPortal, remainingDepth,
+            applyBuriedCellCulling, preparedIndex, preparedHit);
+    }
+
+    private ProjectorSample resolveNested(ProjectionWorldView view,
+                                          double sampleX,
+                                          double sampleY,
+                                          double sampleZ,
+                                          double eyeX,
+                                          double eyeY,
+                                          double eyeZ,
+                                          ILocalPortal excludedPortal,
+                                          int remainingDepth,
+                                          boolean applyBuriedCellCulling,
+                                          ProjectorRecursivePortals.Index preparedIndex,
+                                          ProjectorRecursivePortals.Hit preparedHit) {
         if (view == null) {
             return ProjectorSample.noSample();
         }
@@ -118,7 +137,7 @@ final class ProjectorSampler {
         if (hit == null && preparedIndex == null && remainingDepth >= 0 && world != null) {
             ProjectorRecursivePortals.Index index = recursivePortals.indexFor(world, eyeX, eyeY, eyeZ, excludedPortal);
             if (!index.isEmpty()) {
-                hit = index.find(sampleX, sampleY, sampleZ, remainingDepth);
+                hit = index.find(sampleX, sampleY, sampleZ, remainingDepth, recursionPath);
             }
         }
         if (hit != null) {
@@ -126,14 +145,20 @@ final class ProjectorSampler {
             if (PortalProjector.shouldMaskRecursivePortalAperture(hit.traversable, hit.cycle, remainingDepth)) {
                 return maskAirSample;
             }
-            ProjectorSample nested = resolve(viewLookup.apply(hit.world),
-                hit.pointX, hit.pointY, hit.pointZ,
-                hit.eyeX, hit.eyeY, hit.eyeZ,
-                hit.destinationPortal,
-                remainingDepth - 1,
-                false,
-                null,
-                null);
+            ProjectorSample nested;
+            recursionPath.push(hit.portalId);
+            try {
+                nested = resolveNested(viewLookup.apply(hit.world),
+                    hit.pointX, hit.pointY, hit.pointZ,
+                    hit.eyeX, hit.eyeY, hit.eyeZ,
+                    hit.destinationPortal,
+                    remainingDepth - 1,
+                    false,
+                    null,
+                    null);
+            } finally {
+                recursionPath.pop();
+            }
             if (nested.kind == ProjectorSample.Kind.NO_SAMPLE) {
                 return maskAirSample;
             }

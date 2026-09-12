@@ -36,7 +36,9 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
 
     private static final String HOST_PREFIX = "whs.";
     private static final String JSON_FIELD = "wormholes";
-    private static final int FORMAT_VERSION = 7;
+    private static final int FORMAT_VERSION = 8;
+    /** Oldest status envelope format this build still reads; newer formats may append fields after the known ones. */
+    public static final int MIN_COMPATIBLE_FORMAT = 8;
     private static final int CONNECT_TIMEOUT_MS = 4000;
     private static final int READ_TIMEOUT_MS = 5000;
     private static final int MAX_HOST_LENGTH = 32000;
@@ -182,11 +184,15 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
         }
     }
 
+    public static boolean isCompatibleFormat(int version) {
+        return version >= MIN_COMPATIBLE_FORMAT;
+    }
+
     public static StatusPacket create(String sourceServer, String targetServer, int protocolVersion,
                                       String mcVersion, String pluginVersion,
                                       String replyHost, int replyPort, GameEndpoint privateGameEndpoint, String peerHost, int peerPort,
                                       byte[] publicKey, PrivateKey privateKey,
-                                      long ackNonce, List<EncodedMessage> messages) {
+                                      long capabilities, long ackNonce, List<EncodedMessage> messages) {
         List<WireMessage> wireMessages = new ArrayList<>(messages.size());
         List<byte[]> frames = new ArrayList<>(messages.size());
         for (EncodedMessage message : messages) {
@@ -194,7 +200,7 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
             frames.add(message.frame());
         }
         StatusPacket unsigned = new StatusPacket(sourceServer, targetServer, protocolVersion, mcVersion,
-            pluginVersion, replyHost, replyPort, privateGameEndpoint, peerHost, peerPort, false, publicKey, nextNonce(), ackNonce, List.copyOf(wireMessages),
+            pluginVersion, replyHost, replyPort, privateGameEndpoint, peerHost, peerPort, false, publicKey, nextNonce(), ackNonce, capabilities, List.copyOf(wireMessages),
             List.copyOf(frames), null);
         byte[] payload = unsigned.unsignedBytes();
         return unsigned.withSignature(Handshake.sign(privateKey, payload));
@@ -204,7 +210,7 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
         GameEndpoint endpoint = identity.gameEndpoint();
         StatusPacket unsigned = new StatusPacket(identity.serverName(), target, WireCodec.PROTOCOL_VERSION,
             identity.mcVersion(), identity.pluginVersion(), endpoint.host(), endpoint.port(),
-            identity.privateGameEndpoint(), identity.advertiseHost(), identity.wormholePort(), true, identity.publicKey(), nextNonce(), acknowledgedNonce,
+            identity.privateGameEndpoint(), identity.advertiseHost(), identity.wormholePort(), true, identity.publicKey(), nextNonce(), acknowledgedNonce, identity.capabilities(),
             List.of(), List.of(), null);
         return unsigned.withSignature(Handshake.sign(identity.privateKey(), unsigned.unsignedBytes()));
     }
@@ -331,6 +337,7 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
         private final byte[] publicKey;
         private final long nonce;
         private final long ackNonce;
+        private final long capabilities;
         private final List<WireMessage> messages;
         private final List<byte[]> encodedFrames;
         private final byte[] signature;
@@ -338,7 +345,8 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
 
         private StatusPacket(String sourceServer, String targetServer, int protocolVersion, String mcVersion,
                              String pluginVersion, String replyHost, int replyPort, GameEndpoint privateGameEndpoint, String peerHost, int peerPort, boolean endpointProbe, byte[] publicKey, long nonce,
-                             long ackNonce, List<WireMessage> messages, List<byte[]> encodedFrames, byte[] signature) {
+                             long ackNonce, long capabilities, List<WireMessage> messages, List<byte[]> encodedFrames, byte[] signature) {
+            this.capabilities = capabilities;
             this.sourceServer = sourceServer;
             this.targetServer = targetServer;
             this.protocolVersion = protocolVersion;
@@ -410,6 +418,11 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
             return nonce;
         }
 
+        /** Capability bits advertised by the sending peer. */
+        public long capabilities() {
+            return capabilities;
+        }
+
         public long ackNonce() {
             return ackNonce;
         }
@@ -439,7 +452,7 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
 
         private StatusPacket withSignature(byte[] nextSignature) {
             StatusPacket signed = new StatusPacket(sourceServer, targetServer, protocolVersion, mcVersion,
-                pluginVersion, replyHost, replyPort, privateGameEndpoint, peerHost, peerPort, endpointProbe, publicKey, nonce, ackNonce, messages, encodedFrames,
+                pluginVersion, replyHost, replyPort, privateGameEndpoint, peerHost, peerPort, endpointProbe, publicKey, nonce, ackNonce, capabilities, messages, encodedFrames,
                 nextSignature);
             signed.unsignedBytesCache = unsignedBytesCache;
             return signed;
@@ -473,6 +486,7 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
                 WireCodec.writeByteArray(out, publicKey, Handshake.PUBLIC_KEY_MAX_LENGTH);
                 out.writeLong(nonce);
                 out.writeLong(ackNonce);
+                out.writeLong(capabilities);
                 out.writeInt(Math.min(messages.size(), MAX_MESSAGES));
                 int written = 0;
                 for (int i = 0; i < messages.size(); i++) {
@@ -509,7 +523,7 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
             byte[] unsigned = compression.decode(transport, MAX_UNSIGNED_PACKET_BYTES).payload();
             DataInputStream in = new DataInputStream(new ByteArrayInputStream(unsigned));
             int version = in.readInt();
-            if (version != FORMAT_VERSION) {
+            if (!isCompatibleFormat(version)) {
                 throw new IOException("unsupported status bridge packet version: " + version);
             }
             int protocolVersion = in.readInt();
@@ -526,6 +540,7 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
             byte[] publicKey = WireCodec.readByteArray(in, Handshake.PUBLIC_KEY_MAX_LENGTH);
             long nonce = in.readLong();
             long ackNonce = in.readLong();
+            long capabilities = in.readLong();
             int messageCount = in.readInt();
             if (messageCount < 0 || messageCount > MAX_MESSAGES) {
                 throw new IOException("invalid status bridge message count: " + messageCount);
@@ -539,11 +554,11 @@ public final class MinecraftStatusBridge extends PacketListenerAbstract {
                     throw new IOException("status bridge message frame has trailing bytes");
                 }
             }
-            if (in.available() != 0) {
+            if (version <= FORMAT_VERSION && in.available() != 0) {
                 throw new IOException("status bridge payload has trailing bytes");
             }
             StatusPacket packet = new StatusPacket(sourceServer, targetServer, protocolVersion, mcVersion,
-                pluginVersion, replyHost, replyPort, privateGameEndpoint, peerHost, peerPort, endpointProbe, publicKey, nonce, ackNonce, messages, null, signature);
+                pluginVersion, replyHost, replyPort, privateGameEndpoint, peerHost, peerPort, endpointProbe, publicKey, nonce, ackNonce, capabilities, messages, null, signature);
             packet.unsignedBytesCache = unsigned;
             return packet;
         }

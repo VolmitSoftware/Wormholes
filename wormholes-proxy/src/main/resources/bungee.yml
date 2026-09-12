@@ -1,0 +1,5 @@
+name: WormholesProxy
+main: art.arcane.wormholes.proxy.bungee.WormholesBungeePlugin
+version: ${version}
+author: Volmit Software
+description: Enrolls Wormholes backends and brokers proxy-mediated portal handoffs

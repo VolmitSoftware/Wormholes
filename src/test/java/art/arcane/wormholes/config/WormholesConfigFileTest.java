@@ -40,7 +40,7 @@ class WormholesConfigFileTest {
         assertTrue(settings.getMain().dimensionalDoorsEnabled);
         assertEquals(16, settings.getMain().pocketRoomSize);
         assertEquals(1, settings.getProjection().initialResendPasses);
-        assertFalse(settings.getNetwork().replication.captureBlockEntityEnabled);
+        assertTrue(settings.getNetwork().replication.captureBlockEntityEnabled);
         List<String> emitted = emittedSettings(file);
         assertEquals("language = \"en_US\"", emitted.get(0));
         assertEquals("metrics = true", emitted.get(1));
@@ -59,7 +59,7 @@ class WormholesConfigFileTest {
         assertTrue(emitted.contains("occlusion-reveal-margin-degrees = 1.0"));
         assertTrue(emitted.contains("pocket-room-size = 16"));
         assertTrue(emitted.contains("initial-resend-passes = 1"));
-        assertTrue(emitted.contains("capture-block-entity-enabled = false"));
+        assertTrue(emitted.contains("capture-block-entity-enabled = true"));
 
         Settings.refresh(settings);
         assertEquals(16, Settings.POCKET_SHELL.size());
@@ -76,7 +76,7 @@ class WormholesConfigFileTest {
         created.network.listenPort = 9001;
         created.network.trustOnFirstUse = false;
         created.network.transport.compressionLevel = 7;
-        created.network.replication.captureBlockEntityEnabled = true;
+        created.network.replication.captureBlockEntityEnabled = false;
         created.main.enableParticles = false;
         created.projection.range = 72.0D;
         created.projection.occlusionRevealMarginDegrees = 2.5D;
@@ -89,7 +89,7 @@ class WormholesConfigFileTest {
         assertTrue(written.contains("[network.transport]"));
         assertTrue(written.contains("compression-level = 7"));
         assertTrue(written.contains("compression-enabled = true"));
-        assertTrue(written.contains("capture-block-entity-enabled = true"));
+        assertTrue(written.contains("capture-block-entity-enabled = false"));
         assertTrue(written.contains("[projection]"));
         assertTrue(written.contains("occlusion-reveal-margin-degrees = 2.5"));
         assertTrue(written.contains("initial-resend-passes = 3"));
@@ -99,7 +99,7 @@ class WormholesConfigFileTest {
         assertEquals(9001, result.value().network.listenPort);
         assertFalse(result.value().network.trustOnFirstUse);
         assertEquals(7, result.value().network.transport.compressionLevel);
-        assertTrue(result.value().network.replication.captureBlockEntityEnabled);
+        assertFalse(result.value().network.replication.captureBlockEntityEnabled);
         assertFalse(result.value().main.enableParticles);
         assertEquals(72.0D, result.value().projection.range);
         assertEquals(2.5D, result.value().projection.occlusionRevealMarginDegrees);

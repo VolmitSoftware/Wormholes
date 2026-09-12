@@ -33,25 +33,51 @@ public final class Handshake {
     }
 
     static byte[] signTranscript(PrivateKey key, WireMessage.Hello hello, WireMessage.Challenge challenge, String role) {
-        return sign(key, transcript(hello, challenge, role));
+        return signTranscript(key, hello, challenge, role, WireCodec.PROTOCOL_VERSION);
+    }
+
+    static byte[] signTranscript(PrivateKey key, WireMessage.Hello hello, WireMessage.Challenge challenge, String role, int negotiatedVersion) {
+        return sign(key, transcript(hello, challenge, role, negotiatedVersion));
     }
 
     static boolean verifyTranscript(byte[] key, byte[] signature, WireMessage.Hello hello,
                                     WireMessage.Challenge challenge, String role) {
-        return verify(key, signature, transcript(hello, challenge, role));
+        return verifyTranscript(key, signature, hello, challenge, role, WireCodec.PROTOCOL_VERSION);
     }
 
-    private static byte[] transcript(WireMessage.Hello hello, WireMessage.Challenge challenge, String role) {
+    static boolean verifyTranscript(byte[] key, byte[] signature, WireMessage.Hello hello,
+                                    WireMessage.Challenge challenge, String role, int negotiatedVersion) {
+        return verify(key, signature, transcript(hello, challenge, role, negotiatedVersion));
+    }
+
+    /**
+     * Dialer-side negotiation: the acceptor signed at min(its version, ours) but the challenge does not
+     * say which; try every layout from {@code fromVersion} down to the minimum. Returns the version that
+     * verifies, or -1 when none does.
+     */
+    static int negotiateTranscriptVersion(byte[] key, byte[] signature, WireMessage.Hello hello,
+                                          WireMessage.Challenge challenge, String role, int fromVersion) {
+        for (int version = Math.min(fromVersion, WireCodec.PROTOCOL_VERSION); version >= WireCodec.MIN_COMPATIBLE_PROTOCOL; version--) {
+            if (verifyTranscript(key, signature, hello, challenge, role, version)) {
+                return version;
+            }
+        }
+        return -1;
+    }
+
+    /** Role, negotiated version, then both handshake messages written at that version (challenge unsigned). */
+    private static byte[] transcript(WireMessage.Hello hello, WireMessage.Challenge challenge, String role, int negotiatedVersion) {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream(512);
             DataOutputStream output = new DataOutputStream(bytes);
             output.writeUTF(role);
-            hello.write(output);
+            output.writeInt(negotiatedVersion);
+            hello.writeTranscript(output, negotiatedVersion);
             WireMessage.Challenge unsigned = new WireMessage.Challenge(challenge.serverName(), challenge.advertiseHost(),
                 challenge.wormholePort(), challenge.gameEndpoint(), challenge.privateGameEndpoint(), challenge.nonce(),
                 challenge.publicKey(), new byte[0], challenge.compressionSupported(), challenge.currentDictHash(),
-                challenge.currentDictVersion());
-            unsigned.write(output);
+                challenge.currentDictVersion(), challenge.capabilities());
+            unsigned.writeTranscript(output, negotiatedVersion);
             return bytes.toByteArray();
         } catch (IOException error) {
             throw new IllegalStateException("Could not encode peer handshake transcript", error);

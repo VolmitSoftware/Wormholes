@@ -444,6 +444,44 @@ class DoorStateServiceTest {
     }
 
     @Test
+    void perDoorProjectionOverridesPersistAndSurviveRestart() throws Exception {
+        DoorStateService service = DoorStateService.load(repository());
+        PlacedDoorEndpoint door = placed(
+            id(621), "minecraft:overworld", 6, 64, 3, DoorItemIdentity.publicDoor(id(620)));
+        service.registerEndpoint(door, id(622));
+
+        assertEquals(DoorProjectionState.INHERIT,
+            service.findEndpoint(door.position()).orElseThrow().projection());
+        assertFalse(service.setEndpointProjection(door.position(), DoorProjectionState.INHERIT));
+        assertTrue(service.setEndpointProjection(door.position(), DoorProjectionState.OFF));
+
+        DoorStateService restarted = DoorStateService.load(
+            new DimensionalDoorRepository(service.repository().stateFile()));
+        PlacedDoorEndpoint reloaded = restarted.findEndpoint(door.position()).orElseThrow();
+        assertEquals(DoorProjectionState.OFF, reloaded.projection());
+        assertEquals(DoorOpenState.OPEN, reloaded.openState(), "the projection toggle never moves the open state");
+        assertTrue(restarted.setEndpointProjection(door.position(), DoorProjectionState.ON));
+        assertEquals(DoorProjectionState.ON,
+            DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile()))
+                .findEndpoint(door.position()).orElseThrow().projection());
+    }
+
+    @Test
+    void projectionOverridesRejectUnknownPositionsAndNullStatesWithoutMutation() throws Exception {
+        DoorStateService service = DoorStateService.load(repository());
+        PlacedDoorEndpoint placement = placed(
+            id(631), "minecraft:overworld", 7, 64, 0, DoorItemIdentity.publicDoor(id(630)));
+        service.registerEndpoint(placement, id(632));
+
+        assertFalse(service.setEndpointProjection(
+            new DoorPosition(id(633), "minecraft:overworld", 19, 64, 19), DoorProjectionState.ON));
+        assertThrows(NullPointerException.class,
+            () -> service.setEndpointProjection(placement.position(), null));
+        assertEquals(DoorProjectionState.INHERIT,
+            service.findEndpoint(placement.position()).orElseThrow().projection());
+    }
+
+    @Test
     void reshapingAPocketPersistsItsNewSizeAndMaterialsAcrossRestart() throws Exception {
         DimensionalDoorRepository repository = repository();
         DoorStateService service = DoorStateService.load(repository);

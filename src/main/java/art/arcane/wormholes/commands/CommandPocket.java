@@ -15,16 +15,26 @@ import art.arcane.wormholes.door.DimensionalDoorManager;
 import art.arcane.wormholes.door.PocketLayout;
 import art.arcane.wormholes.door.PocketMaterials;
 import art.arcane.wormholes.door.PocketResizeOutcome;
+import art.arcane.wormholes.door.PocketRole;
+import art.arcane.wormholes.door.PocketSnapshots;
+import art.arcane.wormholes.door.PocketRules;
 import art.arcane.wormholes.door.PocketShell;
 import art.arcane.wormholes.door.PocketSpace;
+import art.arcane.wormholes.localization.PocketsMessages;
+import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.service.WormholesAudience;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.structure.Structure;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -39,6 +49,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class CommandPocket {
     private static final String PERMISSION = "wormholes.admin.pocket";
     private static final String KEEP = "keep";
+
+    private Template template = new Template();
+    private Roster roster = new Roster();
+    private Instance instance = new Instance();
 
     @Director(name = "info", sync = true, descriptionKey = "command.help.pocket.info",
             description = "Show the size, materials, and bounds of the pocket you are standing in")
@@ -147,6 +161,320 @@ public class CommandPocket {
                     sendBulkSummary(sender, resized, skipped, failed);
                 }
             });
+        }
+    }
+
+    @Director(name = "template", sync = true, description = "List and apply pocket templates")
+    public static class Template {
+        @Director(name = "list", sync = true, description = "List the structure files usable as pocket templates")
+        public void list(@Param(name = "sender", contextual = true) CommandSender sender) {
+            DimensionalDoorManager manager = requireManager(sender);
+            if (manager == null) {
+                return;
+            }
+            List<String> names = manager.templates().names();
+            send(sender, PocketsMessages.TEMPLATE_LIST, WormholesLocalization.args(
+                    MessageArgument.untrusted("count", Integer.valueOf(names.size())),
+                    MessageArgument.untrusted("value", names.isEmpty() ? "-" : String.join(", ", names))));
+        }
+
+        @Director(name = "apply", sync = true, description = "Stamp a template over the pocket you are standing in")
+        public void apply(@Param(name = "sender", contextual = true) CommandSender sender,
+                          @Param(name = "name", description = "Template file name without .nbt") String name,
+                          @Param(name = "confirm", description = "Required because this replaces the room interior",
+                                  defaultValue = "false") boolean confirm) {
+            DimensionalDoorManager manager = requireManager(sender);
+            if (manager == null) {
+                return;
+            }
+            PocketSpace space = requireStandingPocket(sender, manager);
+            if (space == null) {
+                return;
+            }
+            Optional<Structure> structure = loadTemplate(sender, manager, name);
+            if (structure == null || structure.isEmpty()) {
+                return;
+            }
+            if (!confirm) {
+                sendLines(sender, PocketsMessages.CONFIRM_OVERWRITE, WormholesLocalization.args(
+                        MessageArgument.untrusted("space", space.spaceId())));
+                return;
+            }
+            manager.applyTemplate(space, structure.get(), name.trim(), true, applied -> {
+                if (Boolean.TRUE.equals(applied)) {
+                    send(sender, PocketsMessages.TEMPLATE_APPLIED, WormholesLocalization.args(
+                            MessageArgument.untrusted("name", name.trim()),
+                            MessageArgument.untrusted("space", space.spaceId())));
+                } else {
+                    send(sender, WormholesMessages.COMMAND_POCKET_FAILED);
+                }
+            });
+        }
+    }
+
+    @Director(name = "rules", sync = true, description = "Set one rule on the pocket you are standing in")
+    public void rules(@Param(name = "sender", contextual = true) CommandSender sender,
+                      @Param(name = "key", description = "mobs | pvp | keep-inventory | fixed-time | build")
+                      String key,
+                      @Param(name = "value", description = "true/false, a tick of day or -1, or everyone/builders/owner")
+                      String value) {
+        DimensionalDoorManager manager = requireManager(sender);
+        if (manager == null) {
+            return;
+        }
+        PocketSpace space = requireStandingPocket(sender, manager);
+        if (space == null) {
+            return;
+        }
+        PocketRules updated = withRule(space.rules(), key, value);
+        if (updated == null) {
+            send(sender, PocketsMessages.RULES_INVALID,
+                    WormholesLocalization.args(MessageArgument.untrusted("key", key)));
+            return;
+        }
+        try {
+            manager.applyPocketRules(space.spaceId(), updated);
+        } catch (IOException failure) {
+            send(sender, WormholesMessages.COMMAND_POCKET_FAILED);
+            return;
+        }
+        send(sender, PocketsMessages.RULES_SET, WormholesLocalization.args(
+                MessageArgument.untrusted("key", key.trim().toLowerCase(Locale.ROOT)),
+                MessageArgument.untrusted("value", value.trim())));
+    }
+
+    /** @return the updated rules, or null when the key or the value is not one we know */
+    private static PocketRules withRule(PocketRules rules, String key, String value) {
+        String normalizedKey = key == null ? "" : key.trim().toLowerCase(Locale.ROOT);
+        String normalizedValue = value == null ? "" : value.trim();
+        try {
+            return switch (normalizedKey) {
+                case "mobs" -> rules.withMobs(flag(normalizedValue));
+                case "pvp" -> rules.withPvp(flag(normalizedValue));
+                case "keep-inventory" -> rules.withKeepInventory(flag(normalizedValue));
+                case "fixed-time" -> rules.withFixedTime(Long.parseLong(normalizedValue));
+                case "build" -> rules.withBuild(PocketRules.BuildPolicy.parse(normalizedValue));
+                default -> null;
+            };
+        } catch (IllegalArgumentException rejected) {
+            return null;
+        }
+    }
+
+    private static boolean flag(String value) {
+        if (value.equalsIgnoreCase("true")) {
+            return true;
+        }
+        if (value.equalsIgnoreCase("false")) {
+            return false;
+        }
+        throw new IllegalArgumentException("expected true or false, got " + value);
+    }
+
+    @Director(name = "snapshot", sync = true, description = "Save a copy of this pocket's interior")
+    public void snapshot(@Param(name = "sender", contextual = true) CommandSender sender,
+                         @Param(name = "name", description = "Snapshot name",
+                                 defaultValue = PocketSnapshots.LATEST) String name) {
+        DimensionalDoorManager manager = requireManager(sender);
+        if (manager == null) {
+            return;
+        }
+        PocketSpace space = requireStandingPocket(sender, manager);
+        if (space == null) {
+            return;
+        }
+        try {
+            manager.captureSnapshot(space, name.trim());
+        } catch (IOException | IllegalArgumentException | IllegalStateException failure) {
+            send(sender, WormholesMessages.COMMAND_POCKET_FAILED);
+            return;
+        }
+        send(sender, PocketsMessages.SNAPSHOT_SAVED, WormholesLocalization.args(
+                MessageArgument.untrusted("name", name.trim()),
+                MessageArgument.untrusted("space", space.spaceId())));
+    }
+
+    @Director(name = "restore", sync = true, description = "Put a saved copy of this pocket's interior back")
+    public void restore(@Param(name = "sender", contextual = true) CommandSender sender,
+                        @Param(name = "name", description = "Snapshot name",
+                                defaultValue = PocketSnapshots.LATEST) String name,
+                        @Param(name = "confirm", description = "Required because this replaces the room interior",
+                                defaultValue = "false") boolean confirm) {
+        DimensionalDoorManager manager = requireManager(sender);
+        if (manager == null) {
+            return;
+        }
+        PocketSpace space = requireStandingPocket(sender, manager);
+        if (space == null) {
+            return;
+        }
+        Optional<Structure> snapshot;
+        try {
+            snapshot = manager.snapshots().load(space.spaceId(), name.trim());
+        } catch (IOException | IllegalArgumentException failure) {
+            snapshot = Optional.empty();
+        }
+        if (snapshot.isEmpty()) {
+            send(sender, PocketsMessages.SNAPSHOT_MISSING,
+                    WormholesLocalization.args(MessageArgument.untrusted("name", name)));
+            return;
+        }
+        if (!confirm) {
+            sendLines(sender, PocketsMessages.CONFIRM_OVERWRITE, WormholesLocalization.args(
+                    MessageArgument.untrusted("space", space.spaceId())));
+            return;
+        }
+        manager.applyTemplate(space, snapshot.get(), space.templateName(), true, applied -> {
+            if (Boolean.TRUE.equals(applied)) {
+                send(sender, PocketsMessages.SNAPSHOT_RESTORED, WormholesLocalization.args(
+                        MessageArgument.untrusted("name", name.trim()),
+                        MessageArgument.untrusted("space", space.spaceId())));
+            } else {
+                send(sender, WormholesMessages.COMMAND_POCKET_FAILED);
+            }
+        });
+    }
+
+    @Director(name = "instance", sync = true, description = "Manage the instance this pocket is a copy of")
+    public static class Instance {
+        @Director(name = "reset", sync = true, description = "Wipe this instance back to its template")
+        public void reset(@Param(name = "sender", contextual = true) CommandSender sender) {
+            DimensionalDoorManager manager = requireManager(sender);
+            if (manager == null) {
+                return;
+            }
+            PocketSpace space = requireStandingPocket(sender, manager);
+            if (space == null) {
+                return;
+            }
+            if (space.instance() == null) {
+                send(sender, PocketsMessages.INSTANCE_NONE);
+                return;
+            }
+            manager.resetInstance(space, applied -> {
+                if (Boolean.TRUE.equals(applied)) {
+                    send(sender, PocketsMessages.INSTANCE_RESET,
+                            WormholesLocalization.args(MessageArgument.untrusted("space", space.spaceId())));
+                } else {
+                    send(sender, WormholesMessages.COMMAND_POCKET_FAILED);
+                }
+            });
+        }
+    }
+
+    @Director(name = "roster", sync = true, description = "Manage who may build in this pocket")
+    public static class Roster {
+        @Director(name = "add", sync = true, description = "Put a player on this pocket's roster")
+        public void add(@Param(name = "sender", contextual = true) CommandSender sender,
+                        @Param(name = "player", description = "Player name") String player,
+                        @Param(name = "role", description = "visitor | builder | owner", defaultValue = "visitor")
+                        String role) {
+            assign(sender, player, role, PocketsMessages.ROSTER_ADDED);
+        }
+
+        @Director(name = "role", sync = true, description = "Change a listed player's role")
+        public void role(@Param(name = "sender", contextual = true) CommandSender sender,
+                         @Param(name = "player", description = "Player name") String player,
+                         @Param(name = "role", description = "visitor | builder | owner") String role) {
+            assign(sender, player, role, PocketsMessages.ROSTER_ROLE);
+        }
+
+        @Director(name = "remove", sync = true, description = "Take a player off this pocket's roster")
+        public void remove(@Param(name = "sender", contextual = true) CommandSender sender,
+                           @Param(name = "player", description = "Player name") String player) {
+            DimensionalDoorManager manager = requireManager(sender);
+            if (manager == null) {
+                return;
+            }
+            PocketSpace space = requireStandingPocket(sender, manager);
+            if (space == null) {
+                return;
+            }
+            UUID playerId = resolvePlayer(player);
+            boolean removed;
+            try {
+                removed = playerId != null && manager.removePocketRole(space.spaceId(), playerId);
+            } catch (IOException failure) {
+                send(sender, WormholesMessages.COMMAND_POCKET_FAILED);
+                return;
+            }
+            send(sender, removed ? PocketsMessages.ROSTER_REMOVED : PocketsMessages.ROSTER_MISSING,
+                    WormholesLocalization.args(MessageArgument.untrusted("name", player)));
+        }
+
+        private static void assign(CommandSender sender, String player, String role, TextKey success) {
+            DimensionalDoorManager manager = requireManager(sender);
+            if (manager == null) {
+                return;
+            }
+            PocketSpace space = requireStandingPocket(sender, manager);
+            if (space == null) {
+                return;
+            }
+            UUID playerId = resolvePlayer(player);
+            if (playerId == null) {
+                send(sender, PocketsMessages.ROSTER_MISSING,
+                        WormholesLocalization.args(MessageArgument.untrusted("name", player)));
+                return;
+            }
+            PocketRole requested = parseRole(role);
+            if (requested == null) {
+                send(sender, PocketsMessages.RULES_INVALID,
+                        WormholesLocalization.args(MessageArgument.untrusted("key", role)));
+                return;
+            }
+            try {
+                manager.assignPocketRole(space.spaceId(), playerId, requested);
+            } catch (IOException failure) {
+                send(sender, WormholesMessages.COMMAND_POCKET_FAILED);
+                return;
+            }
+            send(sender, success, WormholesLocalization.args(
+                    MessageArgument.untrusted("name", player),
+                    MessageArgument.untrusted("value", requested.name().toLowerCase(Locale.ROOT))));
+        }
+
+        private static PocketRole parseRole(String role) {
+            String normalized = role == null ? "" : role.trim().toUpperCase(Locale.ROOT);
+            for (PocketRole candidate : PocketRole.values()) {
+                if (candidate.name().equals(normalized)) {
+                    return candidate;
+                }
+            }
+            return null;
+        }
+
+        /** Offline players resolve too, so a roster survives the player being away. */
+        private static UUID resolvePlayer(String name) {
+            if (name == null || name.isBlank()) {
+                return null;
+            }
+            Player online = Bukkit.getPlayerExact(name.trim());
+            if (online != null) {
+                return online.getUniqueId();
+            }
+            OfflinePlayer known = WormholesPlatform.offlinePlayerIfCached(name.trim());
+            return known == null ? null : known.getUniqueId();
+        }
+    }
+
+    /** @return empty when the file is missing, null when the name itself was rejected */
+    private static Optional<Structure> loadTemplate(
+        CommandSender sender,
+        DimensionalDoorManager manager,
+        String name
+    ) {
+        try {
+            Optional<Structure> structure = manager.templates().load(name);
+            if (structure.isEmpty()) {
+                send(sender, PocketsMessages.TEMPLATE_MISSING,
+                        WormholesLocalization.args(MessageArgument.untrusted("name", name)));
+            }
+            return structure;
+        } catch (IOException | IllegalArgumentException rejected) {
+            send(sender, PocketsMessages.TEMPLATE_MISSING,
+                    WormholesLocalization.args(MessageArgument.untrusted("name", name)));
+            return null;
         }
     }
 

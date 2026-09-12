@@ -20,6 +20,7 @@ import org.bukkit.entity.Player;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
 import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
+import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.PortalSkinRenderer;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
@@ -82,8 +83,10 @@ final class ProjectionInterestFrame {
                 try {
                     claimArbiter.flushFrame(observer);
                 } finally {
+                    int blockEntityBudget = FidelitySettings.blockEntityBudgetPerTick;
                     for (PortalProjector projector : projected) {
                         projector.finishBlackoutDisplayFrame();
+                        blockEntityBudget -= projector.flushBlockEntities(blockEntityBudget);
                     }
                 }
             }
@@ -157,8 +160,11 @@ final class ProjectionInterestFrame {
         for (ILocalPortal portal : interested) {
             interestedIds.add(portal.getId());
         }
-        interestSet.closeUnplanned(observerId, interestedIds);
+        interestSet.closeUnplanned(observerId, interestedIds, frameTick, FidelitySettings.dissolveTicks);
         interestSet.setRtpTargets(observerId, resolvedRtpTargets);
+        if (updateBlocks) {
+            projectRetiring(observer, projected);
+        }
         if ((!updateBlocks && !updateEntities) || interested.isEmpty()) {
             remainingProjectors.addAndGet(reservedBudget);
             return;
@@ -187,6 +193,20 @@ final class ProjectionInterestFrame {
         }
         projectActiveObserver(observer, scheduledPortals, resolvedRtpTargets, observerUpdatesBlocks, updateEntities,
             projected);
+    }
+
+    private void projectRetiring(Player observer, List<PortalProjector> projected) {
+        for (PortalProjector projector : interestSet.retiringProjectors(observer.getUniqueId())) {
+            try {
+                projector.project(true, false);
+                if (!projector.isClosed()) {
+                    projected.add(projector);
+                }
+            } catch (Throwable ex) {
+                Wormholes.instance.getLogger().log(Level.WARNING,
+                    "[ProjectionManager] dissolve error portal=" + projector.getPortal().getName() + " observer=" + observer.getName(), ex);
+            }
+        }
     }
 
     private void projectActiveObserver(Player observer, List<ILocalPortal> scheduledPortals,

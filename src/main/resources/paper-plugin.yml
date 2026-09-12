@@ -26,6 +26,10 @@ dependencies:
       load: BEFORE
       required: false
       join-classpath: true
+    WorldGuard:
+      load: BEFORE
+      required: false
+      join-classpath: true
 permissions:
   wormholes.debugdump:
     description: Allows creating and optionally uploading diagnostic reports.
@@ -39,6 +43,7 @@ permissions:
     children:
       wormholes.debugdump: true
       wormholes.language.self: true
+      wormholes.atlas: true
       wormholes.admin: true
       wormholes.portals: true
       wormholes.gateway: true
@@ -54,7 +59,13 @@ permissions:
       wormholes.admin.projection: true
       wormholes.admin.reset: true
       wormholes.admin.pocket: true
+      wormholes.admin.rules: true
+      wormholes.admin.access: true
+      wormholes.admin.nexus: true
+      wormholes.admin.portals: true
+      wormholes.admin.backup: true
       wormholes.doors.bypass: true
+      wormholes.rules.bypass: true
   wormholes.admin.reload:
     description: Allows reloading Wormholes configuration.
     default: op
@@ -75,6 +86,27 @@ permissions:
     default: op
   wormholes.doors.bypass:
     description: Bypass dimensional door access restrictions.
+    default: op
+  wormholes.atlas:
+    description: Allows opening the player-facing portal atlas.
+    default: true
+  wormholes.rules.bypass:
+    description: Bypass traversal rule conditions, costs, and cooldowns.
+    default: op
+  wormholes.admin.rules:
+    description: Allows managing traversal rule templates.
+    default: op
+  wormholes.admin.access:
+    description: Allows managing portal access lists, ownership, and limits.
+    default: op
+  wormholes.admin.nexus:
+    description: Allows managing portal networks and addresses.
+    default: op
+  wormholes.admin.portals:
+    description: Allows listing, inspecting, teleporting to, and bulk-editing portals.
+    default: op
+  wormholes.admin.backup:
+    description: Allows creating, restoring, exporting, and importing portal backups.
     default: op
   wormholes.doors.craft:
     description: Allows crafting and reskinning dimensional doors.

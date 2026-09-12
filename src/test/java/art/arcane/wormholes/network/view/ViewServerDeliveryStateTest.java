@@ -31,6 +31,26 @@ class ViewServerDeliveryStateTest {
     }
 
     @Test
+    void weatherRidesBesideTimeAndOnlyResendsWhenItChanges() {
+        ViewServer.TimeDeliveryState state = new ViewServer.TimeDeliveryState(3);
+        state.markAccepted(3);
+        assertFalse(state.needsWeatherDelivery(), "clear weather is the implied initial state");
+
+        state.updateDesired(3, true, false);
+        assertTrue(state.needsWeatherDelivery());
+        assertFalse(state.needsDelivery(), "an unchanged sky darken needs no time frame");
+        state.markWeatherAccepted(true, false);
+        assertFalse(state.needsWeatherDelivery());
+
+        state.updateDesired(3, true, true);
+        assertTrue(state.needsWeatherDelivery());
+        state.updateDesired(3, false, false);
+        state.markWeatherAccepted(false, false);
+        assertFalse(state.needsWeatherDelivery());
+        assertFalse(state.desiredStorm());
+    }
+
+    @Test
     void entityCaptureTokenCanOnlyCompleteItsGenerationOnce() {
         ViewServer.EntityCaptureToken token = new ViewServer.EntityCaptureToken(12L, System.nanoTime() + 1_000_000_000L);
 

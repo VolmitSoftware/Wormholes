@@ -41,7 +41,10 @@ final class RelayRouter {
             return false;
         }
         PublicKey trustedKey = network.trust().publicKey(routed.sourceServer());
-        if (trustedKey == null || !routed.authenticates(trustedKey)) {
+        if (trustedKey == null) {
+            return handleIntroduction(inboundPeer, routed);
+        }
+        if (!routed.authenticates(trustedKey)) {
             logger.warning("net: rejected routed message claiming origin " + routed.sourceServer() + " via " + inboundPeer + " because origin authentication failed");
             return false;
         }
@@ -61,6 +64,49 @@ final class RelayRouter {
             return true;
         }
         return forwardRouted(inboundPeer, routed.withTtl(routed.ttl() - 1));
+    }
+
+    /**
+     * An announce from an origin this server does not trust yet. The inner announce must be self-signed
+     * by the key it carries, the envelope must be signed by that same key, and the link it arrived on
+     * must be a trusted peer (the introducer). Delivery names the introducer so the mesh handler can
+     * apply the introduction policy; the announce is only relayed further once the origin is trusted.
+     */
+    private boolean handleIntroduction(String inboundPeer, WireMessage.Routed routed) {
+        String origin = routed.sourceServer();
+        if (routed.innerType() != WireMessageType.PEER_ANNOUNCE || !routed.targetServer().equals(network.getLocalName())) {
+            logger.warning("net: rejected routed message claiming origin " + origin + " via " + inboundPeer + " because origin authentication failed");
+            return false;
+        }
+        if (network.trust().publicKey(inboundPeer) == null) {
+            logger.warning("net: rejected peer announce for " + origin + " via " + inboundPeer + " because the introducer is not trusted");
+            return false;
+        }
+        WireMessage inner;
+        PublicKey originKey;
+        try {
+            inner = WireCodec.decodePayload(routed.innerType(), routed.payload());
+            if (!(inner instanceof WireMessage.PeerAnnounceMessage message) || !origin.equals(message.announce().name())
+                || !message.announce().verify()) {
+                logger.warning("net: rejected peer announce for " + origin + " via " + inboundPeer + " because the announce signature failed");
+                return false;
+            }
+            originKey = Handshake.decodePublicKey(message.announce().publicKey());
+        } catch (Exception e) {
+            logger.warning("net: dropped peer announce for " + origin + " via " + inboundPeer + ": " + e.getMessage());
+            return false;
+        }
+        if (!routed.authenticates(originKey)) {
+            logger.warning("net: rejected peer announce for " + origin + " via " + inboundPeer + " because origin authentication failed");
+            return false;
+        }
+        network.deliverMessage(inboundPeer, inner);
+        if (network.trust().publicKey(origin) != null) {
+            learnRoute(origin, inboundPeer);
+            cacheAnnouncement(routed, inner);
+            relayAnnouncement(routed, inboundPeer, inner);
+        }
+        return true;
     }
 
     boolean sendRouted(PeerConnection connection, String targetServer, int ttl, WireMessage message) {
@@ -197,8 +243,12 @@ final class RelayRouter {
     }
 
     private static final class RelayedPortalAnnouncements {
+        private static final int MAX_TOMBSTONES = 64;
+
         private final Map<UUID, WireMessage.Routed> changes = new LinkedHashMap<>();
+        private final Map<String, WireMessage.Routed> tombstones = new LinkedHashMap<>();
         private WireMessage.Routed directory;
+        private WireMessage.Routed peerAnnounce;
 
         synchronized void record(WireMessage.Routed routed, WireMessage message) {
             if (message instanceof WireMessage.PortalDirectory) {
@@ -212,11 +262,26 @@ final class RelayRouter {
             }
             if (message instanceof WireMessage.PortalRemove remove) {
                 changes.put(remove.portalId(), routed);
+                return;
+            }
+            if (message instanceof WireMessage.PeerAnnounceMessage) {
+                peerAnnounce = routed;
+                return;
+            }
+            if (message instanceof WireMessage.PeerTombstoneMessage tombstone) {
+                tombstones.put(tombstone.tombstone().name(), routed);
+                if (tombstones.size() > MAX_TOMBSTONES) {
+                    tombstones.remove(tombstones.keySet().iterator().next());
+                }
             }
         }
 
         synchronized List<WireMessage.Routed> snapshot() {
-            List<WireMessage.Routed> snapshot = new ArrayList<>(changes.size() + (directory == null ? 0 : 1));
+            List<WireMessage.Routed> snapshot = new ArrayList<>(changes.size() + tombstones.size() + 2);
+            if (peerAnnounce != null) {
+                snapshot.add(peerAnnounce);
+            }
+            snapshot.addAll(tombstones.values());
             if (directory != null) {
                 snapshot.add(directory);
             }

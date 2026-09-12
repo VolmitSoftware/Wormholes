@@ -23,7 +23,8 @@ public final class WormholesPlaceholders implements Listener {
 
     private final PlaceholderSnapshot<WormholesRuntimeSnapshot> runtime = new PlaceholderSnapshot<>();
     private final PlayerSnapshotStore<WormholesPortalSnapshot> portals = new PlayerSnapshotStore<>();
-    private final PlaceholderKeyRegistry keys = registry(runtime, portals);
+    private final PlayerSnapshotStore<String> atlas = new PlayerSnapshotStore<>();
+    private final PlaceholderKeyRegistry keys = registry(runtime, portals, atlas);
     private final PlaceholderRegistration registration;
     private final String version;
     private final Logger logger;
@@ -60,6 +61,7 @@ public final class WormholesPlaceholders implements Listener {
         HandlerList.unregisterAll(this);
         registration.unregister();
         portals.clear();
+        atlas.clear();
         runtime.publish(null);
     }
 
@@ -71,8 +73,14 @@ public final class WormholesPlaceholders implements Listener {
         portals.publish(playerId, snapshot);
     }
 
+    /** The number of portals this player has pinned in their atlas, published beside the portal snapshot. */
+    public void publishAtlas(UUID playerId, String favorites) {
+        atlas.publish(playerId, favorites);
+    }
+
     public void forget(UUID playerId) {
         portals.evictAfterGrace(playerId, PlayerSnapshotStore.DEFAULT_GRACE_MS);
+        atlas.evictAfterGrace(playerId, PlayerSnapshotStore.DEFAULT_GRACE_MS);
     }
 
     public String resolve(UUID playerId, String key) {
@@ -81,7 +89,8 @@ public final class WormholesPlaceholders implements Listener {
 
     public static PlaceholderKeyRegistry registry(
         PlaceholderSnapshot<WormholesRuntimeSnapshot> runtime,
-        PlayerSnapshotStore<WormholesPortalSnapshot> portals) {
+        PlayerSnapshotStore<WormholesPortalSnapshot> portals,
+        PlayerSnapshotStore<String> atlas) {
         return PlaceholderKeyRegistry.builder()
             .key(PlaceholderKeyRegistry.AVAILABLE, playerId -> runtime.available())
             .key("portals", playerId -> runtimeValue(runtime, WormholesRuntimeSnapshot::portals))
@@ -98,6 +107,12 @@ public final class WormholesPlaceholders implements Listener {
             .key("portal.destination", playerId -> portalValue(portals, playerId, WormholesPortalSnapshot::destination))
             .key("portal.distance", playerId -> portalValue(portals, playerId, WormholesPortalSnapshot::distance))
             .key("portal.cross-server", playerId -> portalValue(portals, playerId, WormholesPortalSnapshot::crossServer))
+            .key("portal.price", playerId -> portalValue(portals, playerId, WormholesPortalSnapshot::price))
+            .key("portal.cooldown", playerId -> portalValue(portals, playerId, WormholesPortalSnapshot::cooldown))
+            .key("portal.refusal", playerId -> portalValue(portals, playerId, WormholesPortalSnapshot::refusal))
+            .key("portal.network", playerId -> portalValue(portals, playerId, WormholesPortalSnapshot::network))
+            .key("portal.address", playerId -> portalValue(portals, playerId, WormholesPortalSnapshot::address))
+            .key("atlas.favorites", playerId -> atlasValue(atlas, playerId))
             .key("rtp.state", playerId -> portalValue(portals, playerId, WormholesPortalSnapshot::rtpState))
             .key("rtp.cooldown", playerId -> portalValue(portals, playerId, WormholesPortalSnapshot::rtpCooldown))
             .build();
@@ -111,5 +126,10 @@ public final class WormholesPlaceholders implements Listener {
     private static String portalValue(PlayerSnapshotStore<WormholesPortalSnapshot> portals, UUID playerId, Function<WormholesPortalSnapshot, String> field) {
         WormholesPortalSnapshot snapshot = portals.get(playerId);
         return snapshot == null ? PlaceholderValues.UNAVAILABLE : field.apply(snapshot);
+    }
+
+    private static String atlasValue(PlayerSnapshotStore<String> atlas, UUID playerId) {
+        String favorites = atlas.get(playerId);
+        return favorites == null ? PlaceholderValues.UNAVAILABLE : favorites;
     }
 }

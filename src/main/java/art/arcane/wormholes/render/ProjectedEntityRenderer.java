@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -36,6 +37,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 
 import art.arcane.wormholes.EffectManager;
 import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.render.bedrock.BedrockProfile;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.network.view.EntityVisual;
@@ -63,6 +65,7 @@ public final class ProjectedEntityRenderer {
 
     private final EntityRenderPacketChannel channel;
     private final EntityRenderPlayerIdentity identity;
+    private BedrockProfile viewerProfile = BedrockProfile.JAVA;
     private final EntityRenderSpoofRegistry registry;
     private final EntityRenderMetadataBridge metadataBridge;
     private final EntityRenderLocalOccluder occluder;
@@ -72,6 +75,7 @@ public final class ProjectedEntityRenderer {
     private final double[] scratchDirection;
     private final double[] scratchLook;
     private final double[] scratchEntityPosition;
+    private final List<EntityRelationship> scratchRelationships;
     private final AtomicBoolean teardownRetryScheduled;
     private final AtomicBoolean teardownFailureReported;
     private volatile boolean recoveryPending;
@@ -127,9 +131,19 @@ public final class ProjectedEntityRenderer {
         this.scratchDirection = new double[3];
         this.scratchLook = new double[3];
         this.scratchEntityPosition = new double[5];
+        this.scratchRelationships = new ArrayList<EntityRelationship>(16);
         this.teardownRetryScheduled = new AtomicBoolean(false);
         this.teardownFailureReported = new AtomicBoolean(false);
         this.recoveryPending = false;
+    }
+
+    public void setViewerProfile(BedrockProfile profile) {
+        viewerProfile = profile == null ? BedrockProfile.JAVA : profile;
+        identity.setLabelsEnabled(!viewerProfile.withholdsDisplays());
+    }
+
+    private int entityLimit() {
+        return viewerProfile.entityLimit(Settings.MAX_SPOOFED_ENTITIES);
     }
 
     public int getSpoofedCount() {
@@ -145,7 +159,7 @@ public final class ProjectedEntityRenderer {
                       PortalFrame remoteViewFrame,
                       int mirrorRotationQuarterTurns,
                       ProjectedEntityOcclusion entityOcclusion) {
-        if (!Settings.ENTITY_SPOOFING || Settings.MAX_SPOOFED_ENTITIES <= 0) {
+        if (!Settings.ENTITY_SPOOFING || entityLimit() <= 0) {
             close(observer);
             return;
         }
@@ -162,6 +176,7 @@ public final class ProjectedEntityRenderer {
         try {
             double range = Math.min(Settings.ENTITY_SPOOF_RANGE, projectionDepth);
             registry.clearVisible();
+            scratchRelationships.clear();
             entityOcclusion.startBatch();
             occluder.hideLocalEntities(observer, localPortal, frustum, projectionDepth);
             boolean upsideDown = remotePortal == localPortal
@@ -170,7 +185,7 @@ public final class ProjectedEntityRenderer {
             int count = 0;
 
             for (Entity entity : EntityRenderCaches.nearbyRemoteEntities(remotePortal, remoteCenter, range)) {
-                if (count >= Settings.MAX_SPOOFED_ENTITIES) {
+                if (count >= entityLimit()) {
                     break;
                 }
                 if (!canSpoof(entity)) {
@@ -184,10 +199,12 @@ public final class ProjectedEntityRenderer {
                     continue;
                 }
                 registry.markVisible(entity.getUniqueId());
+                scratchRelationships.add(EntityRelationship.of(entity));
                 count++;
             }
 
             registry.destroyHidden(observer);
+            registry.applyRelationships(observer, scratchRelationships);
         } catch (RuntimeException error) {
             batchFailure = error;
             throw error;
@@ -207,7 +224,7 @@ public final class ProjectedEntityRenderer {
                             PortalFrame localViewFrame,
                             PortalFrame remoteViewFrame,
                             ProjectedEntityOcclusion entityOcclusion) {
-        if (!Settings.ENTITY_SPOOFING || Settings.MAX_SPOOFED_ENTITIES <= 0) {
+        if (!Settings.ENTITY_SPOOFING || entityLimit() <= 0) {
             close(observer);
             return;
         }
@@ -228,7 +245,7 @@ public final class ProjectedEntityRenderer {
 
             List<EntityVisual> visuals = remoteView.getEntities();
             for (EntityVisual visual : visuals) {
-                if (count >= Settings.MAX_SPOOFED_ENTITIES) {
+                if (count >= entityLimit()) {
                     break;
                 }
                 if (entityOcclusion.fullyHidden(visual)) {
@@ -262,7 +279,7 @@ public final class ProjectedEntityRenderer {
                               PortalFrame localViewFrame,
                               PortalFrame remoteViewFrame,
                               ProjectedEntityOcclusion entityOcclusion) {
-        if (!Settings.ENTITY_SPOOFING || Settings.MAX_SPOOFED_ENTITIES <= 0) {
+        if (!Settings.ENTITY_SPOOFING || entityLimit() <= 0) {
             close(observer);
             return;
         }
@@ -287,7 +304,7 @@ public final class ProjectedEntityRenderer {
             int count = 0;
             List<EntityVisual> visuals = entityView.getEntities(remoteOriginX, remoteOriginY, remoteOriginZ, range);
             for (EntityVisual visual : visuals) {
-                if (count >= Settings.MAX_SPOOFED_ENTITIES) {
+                if (count >= entityLimit()) {
                     break;
                 }
                 if (entityOcclusion.fullyHidden(visual)) {
@@ -508,7 +525,8 @@ public final class ProjectedEntityRenderer {
         double entityZ = scratchEntityPosition[2];
         double halfHeight = entity.getHeight() * 0.5D;
         boolean itemFrame = ProjectedItemFrameTransform.isItemFrame(packetType);
-        double visibleY = itemFrame ? scratchEntityPosition[1] : scratchEntityPosition[1] + halfHeight;
+        boolean hanging = ProjectedItemFrameTransform.isHanging(packetType);
+        double visibleY = hanging ? scratchEntityPosition[1] : scratchEntityPosition[1] + halfHeight;
         if (mirror) {
             PortalCoordMap.mirrorSourceToDisplayPointInto(entityX, visibleY, entityZ,
                 mirrorPlaneOrigin.getX(), mirrorPlaneOrigin.getY(), mirrorPlaneOrigin.getZ(),
@@ -524,8 +542,8 @@ public final class ProjectedEntityRenderer {
             return false;
         }
 
-        if (itemFrame && entity instanceof Hanging hanging) {
-            BlockFace facing = hanging.getFacing();
+        if (hanging && entity instanceof Hanging hangingEntity) {
+            BlockFace facing = hangingEntity.getFacing();
             scratchLook[0] = facing.getModX();
             scratchLook[1] = facing.getModY();
             scratchLook[2] = facing.getModZ();
@@ -550,12 +568,12 @@ public final class ProjectedEntityRenderer {
                     scratchDirection);
         }
         Vector3d position;
-        if (itemFrame && mirror) {
+        if (hanging && mirror) {
             position = ProjectedItemFrameTransform.mirrorAnchor(
                 entityX, scratchEntityPosition[1], entityZ,
                 mirrorPlaneOrigin.getX(), mirrorPlaneOrigin.getY(), mirrorPlaneOrigin.getZ(),
                 mirrorPlaneFrame, mirrorRotationQuarterTurns, scratchVisiblePoint);
-        } else if (itemFrame) {
+        } else if (hanging) {
             position = ProjectedItemFrameTransform.betweenAnchor(
                 entityX, scratchEntityPosition[1], entityZ,
                 remoteOrigin.getX(), remoteOrigin.getY(), remoteOrigin.getZ(),

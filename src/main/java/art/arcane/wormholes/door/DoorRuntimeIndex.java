@@ -1,6 +1,7 @@
 package art.arcane.wormholes.door;
 
 import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.door.view.DoorProjectionRegistry;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
@@ -37,6 +38,12 @@ final class DoorRuntimeIndex implements AutoCloseable
 	private final DoorSpatialIndex<RuntimeDoor> spatialIndex;
 	private final ConcurrentHashMap<UUID, RuntimeDoor> runtimes;
 
+	// Null until the doors subsystem starts, and again once it stops; every projection call is
+	// guarded so an unstarted or stopped lane leaves door behavior exactly as it was.
+	private volatile DoorProjectionRegistry projection;
+	private volatile boolean projectionEnabled;
+	private volatile boolean hideBacking;
+
 	DoorRuntimeIndex(Plugin plugin, DoorStateGuard guard, PocketWorldService pocketWorldService)
 	{
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
@@ -52,6 +59,13 @@ final class DoorRuntimeIndex implements AutoCloseable
 	void attachMovementSink(DoorEntitySweep.MovementSink sink)
 	{
 		sweep.attach(sink);
+	}
+
+	void attachProjection(DoorProjectionRegistry registry, boolean enabled, boolean hideBackingPane)
+	{
+		projection = registry;
+		projectionEnabled = registry != null && enabled;
+		hideBacking = hideBackingPane;
 	}
 
 	RuntimeDoor install(PlacedDoorEndpoint endpoint)
@@ -76,6 +90,7 @@ final class DoorRuntimeIndex implements AutoCloseable
 		visuals.hide(doorId);
 		sweep.stop(doorId);
 		autoClose.forget(doorId);
+		removeProjection(doorId);
 	}
 
 	boolean replace(PlacedDoorEndpoint expected, PlacedDoorEndpoint updated)
@@ -146,10 +161,11 @@ final class DoorRuntimeIndex implements AutoCloseable
 		boolean usable = snapshot.portalLive() && destinationAvailable(endpoint.identity());
 		if(usable)
 		{
-			visuals.show(endpoint, snapshot);
+			visuals.show(endpoint, snapshot, installProjection(runtime, snapshot, world));
 		}
 		else
 		{
+			removeProjection(endpoint.identity().itemId());
 			visuals.hide(endpoint.identity().itemId());
 		}
 		// The only place the physical open state is re-read for every door, so it is
@@ -161,6 +177,29 @@ final class DoorRuntimeIndex implements AutoCloseable
 	{
 		runtime.invalidate();
 		sweep.stop(runtime.endpoint().identity().itemId());
+		removeProjection(runtime.endpoint().identity().itemId());
+	}
+
+	/** @return true when the door's backing pane should stay hidden behind a live projection */
+	private boolean installProjection(RuntimeDoor runtime, VanillaDoorSnapshot snapshot, World world)
+	{
+		DoorProjectionRegistry registry = projection;
+		UUID doorId = runtime.endpoint().identity().itemId();
+		if(registry == null || !projectionEnabled)
+		{
+			return false;
+		}
+		registry.install(runtime, snapshot.plane(), world);
+		return registry.hidesBacking(doorId, true, hideBacking);
+	}
+
+	private void removeProjection(UUID doorId)
+	{
+		DoorProjectionRegistry registry = projection;
+		if(registry != null)
+		{
+			registry.remove(doorId);
+		}
 	}
 
 	void scheduleReconcile(PlacedDoorEndpoint endpoint, long delay)

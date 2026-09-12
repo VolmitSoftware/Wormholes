@@ -124,6 +124,28 @@ class StatsSnapshotWriterTest {
     }
 
     @Test
+    void recordedFailuresBecomeTheRenderedErrorsSection() {
+        FailureRegistry.clear();
+        FailureRegistry.record("HANDOFF_TIMED_OUT", "peer=beta", 10_000L);
+        FailureRegistry.record("ENTITY_SNAPSHOT_TOO_LARGE", null, 20_000L);
+
+        SnapshotData base = sampleSnapshot();
+        SnapshotData data = new SnapshotData(
+            base.generatedAt(), base.uptime(), base.pluginVersion(), base.intervalSec(),
+            base.localName(), base.transport(), base.view(), base.udsDirDisplay(),
+            base.peers(), base.compression(), base.viewMetrics(), base.transfers(),
+            FailureRegistry.recentLines(60_000L, 30_000L, 10), base.failures()
+        );
+        String rendered = StatsSnapshotWriter.render(data);
+
+        String errorsSection = rendered.substring(rendered.indexOf("ERRORS (last 60s)"));
+        assertTrue(errorsSection.contains("ENTITY_SNAPSHOT_TOO_LARGE"), errorsSection);
+        assertTrue(errorsSection.contains("HANDOFF_TIMED_OUT peer=beta"), errorsSection);
+        assertFalse(errorsSection.contains("- (none)"), errorsSection);
+        FailureRegistry.clear();
+    }
+
+    @Test
     void recentErrorsAreCappedAtTen() {
         List<String> errors = new ArrayList<>();
         for (int i = 0; i < 20; i++) {

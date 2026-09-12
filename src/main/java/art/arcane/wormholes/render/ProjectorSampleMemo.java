@@ -16,9 +16,9 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.util.AxisAlignedBB;
 
-final class ProjectorSampleMemo {
+public final class ProjectorSampleMemo {
     @FunctionalInterface
-    interface MaterialOcclusion {
+    public interface MaterialOcclusion {
         boolean occluding(Material material);
     }
 
@@ -43,13 +43,13 @@ final class ProjectorSampleMemo {
     private int localRegionChunkMaxX;
     private int localRegionChunkMaxZ;
 
-    ProjectorSampleMemo() {
+    public ProjectorSampleMemo() {
         this(material -> material != null
             && !ProjectionWorldView.isAir(material)
             && material.isOccluding());
     }
 
-    ProjectorSampleMemo(MaterialOcclusion materialOcclusion) {
+    public ProjectorSampleMemo(MaterialOcclusion materialOcclusion) {
         this.remoteSamples = new HashMap<ProjectionWorldView, Long2ObjectOpenHashMap<ProjectorSample>>(4);
         this.occlusion = new HashMap<ProjectionWorldView, Long2ByteOpenHashMap>(4);
         this.localAir = new Long2ByteOpenHashMap(1024);
@@ -104,7 +104,7 @@ final class ProjectorSampleMemo {
         return air;
     }
 
-    int occlusionDepthInView(ProjectionWorldView view, int x, int y, int z, BlockData selfData) {
+    public int occlusionDepthInView(ProjectionWorldView view, int x, int y, int z, BlockData selfData) {
         if (selfData == null) {
             return 0;
         }
@@ -257,7 +257,7 @@ final class ProjectorSampleMemo {
         lastOcclusionMap = null;
     }
 
-    static boolean isAir(Material material) {
+    public static boolean isAir(Material material) {
         return ProjectionWorldView.isAir(material);
     }
 

@@ -37,8 +37,8 @@ public class MainConfig {
     public int traversalApiProviderFaultLimit = 5;
     @ConfigDescription("Warn when a single traversal cost provider call takes at least this many milliseconds. 0 disables the warning.")
     public int traversalApiSlowProviderMillis = 5;
-    @ConfigDescription("Send the destination's chunks to the player during the moment a portal traversal commits, so the destination world is already drawn when they arrive instead of appearing blank while it streams in. Off by default until verified on a live server.")
-    public boolean chunkPreSendEnabled = false;
+    @ConfigDescription("Send the destination's chunks to the player during the moment a portal traversal commits, so the destination world is already drawn when they arrive instead of appearing blank while it streams in. Verified under load; set false if a traversal ever stalls a tick.")
+    public boolean chunkPreSendEnabled = true;
     @ConfigDescription("How many chunks out from the destination to pre-send. Further clamped to what the client will accept.")
     public int chunkPreSendRadiusChunks = 3;
     @ConfigDescription("Hard ceiling on chunks pre-sent for one traversal. A partial pre-send is a shorter blink; an overrun is a server stall.")

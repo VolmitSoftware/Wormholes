@@ -44,6 +44,35 @@ final class DoorStoreSnapshotTest {
         assertThrows(NullPointerException.class, () -> door.withOpenState(null));
     }
 
+    @Test
+    void everyEndpointInheritsProjectionUntilItIsToggled() {
+        PlacedDoorEndpoint door = new PlacedDoorEndpoint(
+            position(4),
+            DoorItemIdentity.personal(new UUID(0, 904))
+        );
+
+        assertEquals(DoorProjectionState.INHERIT, door.projection());
+        assertEquals(door, door.withProjection(DoorProjectionState.INHERIT));
+        assertEquals(DoorProjectionState.ON, door.withProjection(DoorProjectionState.ON).projection());
+        assertEquals(DoorOpenState.OPEN, door.withProjection(DoorProjectionState.ON).openState());
+        assertThrows(NullPointerException.class, () -> door.withProjection(null));
+    }
+
+    @Test
+    void theGlobalFlagIsTheMasterSwitchForEveryPerDoorState() {
+        for (DoorProjectionState state : DoorProjectionState.values()) {
+            assertEquals(false, state.projects(false), state.name());
+        }
+        assertEquals(true, DoorProjectionState.INHERIT.projects(true));
+        assertEquals(true, DoorProjectionState.ON.projects(true));
+        assertEquals(false, DoorProjectionState.OFF.projects(true));
+    }
+
+    @Test
+    void schemaEightCarriesTheProjectionToggleAndPocketVersionTwoFields() {
+        assertEquals(8, DoorStoreSnapshot.CURRENT_SCHEMA);
+    }
+
     private static DoorStoreSnapshot snapshot(PlacedDoorEndpoint... endpoints) {
         return new DoorStoreSnapshot(
             DoorStoreSnapshot.CURRENT_SCHEMA, 0, List.of(), List.of(endpoints),

@@ -1,5 +1,8 @@
 package art.arcane.wormholes.portal;
 
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.UUID;
 
 import org.bukkit.entity.Entity;
@@ -16,6 +19,7 @@ public class RemotePortal extends Portal implements IRemotePortal {
     private final PortalType type;
     private final boolean open;
     private final AxisAlignedBB area;
+    private final ConcurrentHashMap<String, String> mirroredExtensionSettings = new ConcurrentHashMap<>();
     private volatile ProjectionMode mirroredProjectionMode;
     private volatile boolean mirroredMirrorMode;
     private volatile MirrorRotation mirroredProjectionRotation;
@@ -270,5 +274,21 @@ public class RemotePortal extends Portal implements IRemotePortal {
 
     public void setMirroredSurfaceSkin(String skin) {
         this.mirroredSurfaceSkin = skin == null ? "" : skin;
+    }
+
+    /** Replicated lane-owned settings (keys prefixed by the owning extension key) mirrored from the peer. */
+    public void putMirroredExtensionSetting(String key, String value) {
+        if (key == null || value == null) {
+            return;
+        }
+        mirroredExtensionSettings.put(key, value);
+    }
+
+    public String mirroredExtensionSetting(String key) {
+        return key == null ? null : mirroredExtensionSettings.get(key);
+    }
+
+    public Map<String, String> mirroredExtensionSettings() {
+        return Collections.unmodifiableMap(mirroredExtensionSettings);
     }
 }

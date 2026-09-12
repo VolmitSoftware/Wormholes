@@ -29,6 +29,7 @@ public final class DimensionalDoorRepository {
     private static final int PRE_TRAPDOOR_SCHEMA = 4;
     private static final int LEGACY_POLARITY_SCHEMA = 5;
     private static final int PRE_POCKET_SHELL_SCHEMA = 6;
+    private static final int PRE_POCKET_V2_SCHEMA = 7;
     private static final int LEGACY_POCKET_SIZE = 32;
     private static final Pattern NEXT_POCKET_SLOT = Pattern.compile("\\\"nextPocketSlot\\\"\\s*:\\s*(\\d+)");
     private static final Pattern POCKET_SLOT = Pattern.compile("\\\"slot\\\"\\s*:\\s*(\\d+)");
@@ -181,13 +182,14 @@ public final class DimensionalDoorRepository {
                 .put("y", position.y())
                 .put("z", position.z())
                 .put("openState", endpoint.openState().name())
+                .put("projection", endpoint.projection().name())
                 .put("item", item));
         }
         root.put("endpoints", endpoints);
 
         JSONArray spaces = new JSONArray();
         for (PocketSpace space : snapshot.spaces()) {
-            spaces.put(new JSONObject()
+            JSONObject encoded = new JSONObject()
                 .put("spaceId", space.spaceId().toString())
                 .put("bindingKind", space.binding().kind().name())
                 .put("bindingId", space.binding().bindingId().toString())
@@ -198,7 +200,15 @@ public final class DimensionalDoorRepository {
                 .put("shell", new JSONObject()
                     .put("size", space.shell().size())
                     .put("shellMaterial", space.shell().shellMaterial())
-                    .put("returnDoorMaterial", space.shell().returnDoorMaterial())));
+                    .put("returnDoorMaterial", space.shell().returnDoorMaterial()))
+                .put("templateName", space.templateName())
+                .put("rules", rulesToJson(space.rules()))
+                .put("roster", rosterToJson(space.roster()))
+                .put("rooms", roomsToJson(space.rooms()));
+            if (space.instance() != null) {
+                encoded.put("instance", instanceToJson(space.instance()));
+            }
+            spaces.put(encoded);
         }
         root.put("spaces", spaces);
 
@@ -357,7 +367,8 @@ public final class DimensionalDoorRepository {
                     endpoint.getInt("z")
                 ),
                 identity,
-                decodeOpenState(schema, endpoint)
+                decodeOpenState(schema, endpoint),
+                decodeProjection(schema, endpoint)
             ));
         }
 
@@ -375,7 +386,12 @@ public final class DimensionalDoorRepository {
                 space.getInt("centerX"),
                 space.getInt("centerY"),
                 space.getInt("centerZ"),
-                decodePocketShell(schema, space)
+                decodePocketShell(schema, space),
+                schema <= PRE_POCKET_V2_SCHEMA ? PocketSpace.NO_TEMPLATE : space.optString("templateName", PocketSpace.NO_TEMPLATE),
+                decodeRules(schema, space),
+                decodeRoster(schema, space),
+                decodeRooms(schema, space),
+                decodeInstance(schema, space)
             ));
         }
 
@@ -403,6 +419,126 @@ public final class DimensionalDoorRepository {
             spaces,
             tickets,
             decodeAccessRecords(root.optJSONArray("access"), schema)
+        );
+    }
+
+    private static JSONObject rulesToJson(PocketRules rules) {
+        return new JSONObject()
+            .put("mobs", rules.mobs())
+            .put("pvp", rules.pvp())
+            .put("keepInventory", rules.keepInventory())
+            .put("fixedTime", rules.fixedTime())
+            .put("build", rules.build().name());
+    }
+
+    private static JSONArray rosterToJson(PocketRoster roster) {
+        JSONArray members = new JSONArray();
+        for (Map.Entry<UUID, PocketRole> member : roster.members().entrySet()) {
+            members.put(new JSONObject()
+                .put("id", member.getKey().toString())
+                .put("role", member.getValue().name()));
+        }
+        return members;
+    }
+
+    private static JSONArray roomsToJson(List<PocketRoom> rooms) {
+        JSONArray encoded = new JSONArray();
+        for (PocketRoom room : rooms) {
+            JSONObject entry = new JSONObject()
+                .put("index", room.index())
+                .put("offsetX", room.offsetX())
+                .put("offsetZ", room.offsetZ());
+            if (room.doorItemId() != null) {
+                entry.put("doorItemId", room.doorItemId().toString());
+            }
+            if (room.linkedDoorItemId() != null) {
+                entry.put("linkedDoorItemId", room.linkedDoorItemId().toString());
+            }
+            encoded.put(entry);
+        }
+        return encoded;
+    }
+
+    private static JSONObject instanceToJson(PocketInstanceInfo instance) {
+        return new JSONObject()
+            .put("templateName", instance.templateName())
+            .put("bindingKind", instance.ownerBinding().kind().name())
+            .put("bindingId", instance.ownerBinding().bindingId().toString())
+            .put("createdAtMillis", instance.createdAtMillis())
+            .put("resetPolicy", instance.resetPolicy())
+            .put("lastOccupiedMillis", instance.lastOccupiedMillis())
+            .put("lastResetMillis", instance.lastResetMillis());
+    }
+
+    /** Doors written before the projection toggle existed follow the global flag. */
+    private static DoorProjectionState decodeProjection(int schema, JSONObject endpoint) {
+        return schema <= PRE_POCKET_V2_SCHEMA
+            ? DoorProjectionState.INHERIT
+            : DoorProjectionState.valueOf(endpoint.getString("projection"));
+    }
+
+    private static PocketRules decodeRules(int schema, JSONObject space) {
+        JSONObject rules = schema <= PRE_POCKET_V2_SCHEMA ? null : space.optJSONObject("rules");
+        if (rules == null) {
+            return PocketRules.defaults();
+        }
+        PocketRules defaults = PocketRules.defaults();
+        return new PocketRules(
+            rules.optBoolean("mobs", defaults.mobs()),
+            rules.optBoolean("pvp", defaults.pvp()),
+            rules.optBoolean("keepInventory", defaults.keepInventory()),
+            rules.optLong("fixedTime", defaults.fixedTime()),
+            PocketRules.BuildPolicy.parse(rules.optString("build", defaults.build().name()))
+        );
+    }
+
+    private static PocketRoster decodeRoster(int schema, JSONObject space) {
+        JSONArray members = schema <= PRE_POCKET_V2_SCHEMA ? null : space.optJSONArray("roster");
+        if (members == null) {
+            return PocketRoster.empty();
+        }
+        LinkedHashMap<UUID, PocketRole> decoded = new LinkedHashMap<>();
+        for (int i = 0; i < members.length(); i++) {
+            JSONObject member = members.getJSONObject(i);
+            decoded.put(uuid(member, "id"), PocketRole.valueOf(member.getString("role")));
+        }
+        return new PocketRoster(decoded);
+    }
+
+    private static List<PocketRoom> decodeRooms(int schema, JSONObject space) {
+        JSONArray rooms = schema <= PRE_POCKET_V2_SCHEMA ? null : space.optJSONArray("rooms");
+        if (rooms == null) {
+            return List.of();
+        }
+        List<PocketRoom> decoded = new ArrayList<>(rooms.length());
+        for (int i = 0; i < rooms.length(); i++) {
+            JSONObject room = rooms.getJSONObject(i);
+            decoded.add(new PocketRoom(
+                room.getInt("index"),
+                room.getInt("offsetX"),
+                room.getInt("offsetZ"),
+                optionalUuid(room, "doorItemId"),
+                optionalUuid(room, "linkedDoorItemId")
+            ));
+        }
+        return List.copyOf(decoded);
+    }
+
+    private static PocketInstanceInfo decodeInstance(int schema, JSONObject space) {
+        JSONObject instance = schema <= PRE_POCKET_V2_SCHEMA ? null : space.optJSONObject("instance");
+        if (instance == null) {
+            return null;
+        }
+        return new PocketInstanceInfo(
+            instance.getString("templateName"),
+            new PocketBinding(
+                PocketBindingKind.valueOf(instance.getString("bindingKind")),
+                uuid(instance, "bindingId")
+            ),
+            instance.getLong("createdAtMillis"),
+            instance.getString("resetPolicy"),
+            instance.getLong("lastOccupiedMillis"),
+            instance.optLong("lastResetMillis", instance.getLong("lastOccupiedMillis"))
         );
     }
 

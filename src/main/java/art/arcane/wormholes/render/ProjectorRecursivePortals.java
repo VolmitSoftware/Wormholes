@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import org.bukkit.World;
 
@@ -20,16 +21,26 @@ final class ProjectorRecursivePortals {
     private static final int BUCKET_SHIFT = 4;
     private static final int MAX_INDEXES_PER_PASS = 256;
 
+    private final Supplier<List<ILocalPortal>> portalSource;
     private final HashMap<World, List<ILocalPortal>> candidatesByWorld;
     private final ArrayList<Index> indexes;
     private final double[] scratchRot;
     private Index lastIndex;
 
     ProjectorRecursivePortals() {
+        this(ProjectorRecursivePortals::registeredPortals);
+    }
+
+    ProjectorRecursivePortals(Supplier<List<ILocalPortal>> portalSource) {
+        this.portalSource = portalSource;
         this.candidatesByWorld = new HashMap<World, List<ILocalPortal>>(4);
         this.indexes = new ArrayList<Index>(4);
         this.scratchRot = new double[3];
         this.lastIndex = null;
+    }
+
+    private static List<ILocalPortal> registeredPortals() {
+        return Wormholes.portalManager == null ? List.of() : Wormholes.portalManager.getLocalPortals();
     }
 
     void clear() {
@@ -65,13 +76,11 @@ final class ProjectorRecursivePortals {
         }
 
         List<ILocalPortal> found = new ArrayList<ILocalPortal>();
-        if (Wormholes.portalManager != null) {
-            for (ILocalPortal candidate : Wormholes.portalManager.getLocalPortals()) {
-                if (!isCandidate(candidate, world)) {
-                    continue;
-                }
-                found.add(candidate);
+        for (ILocalPortal candidate : portalSource.get()) {
+            if (!isCandidate(candidate, world)) {
+                continue;
             }
+            found.add(candidate);
         }
         candidatesByWorld.put(world, found);
         return found;
@@ -151,6 +160,10 @@ final class ProjectorRecursivePortals {
         }
 
         Hit find(double pointX, double pointY, double pointZ, int remainingDepth) {
+            return find(pointX, pointY, pointZ, remainingDepth, null);
+        }
+
+        Hit find(double pointX, double pointY, double pointZ, int remainingDepth, RecursionPath visited) {
             int bucketX = bucket(pointX);
             int bucketY = bucket(pointY);
             int bucketZ = bucket(pointZ);
@@ -160,7 +173,7 @@ final class ProjectorRecursivePortals {
             }
             Hit best = null;
             for (Candidate candidate : bucketCandidates) {
-                Hit hit = candidate.hit(pointX, pointY, pointZ, remainingDepth);
+                Hit hit = candidate.hit(pointX, pointY, pointZ, remainingDepth, visited);
                 if (hit == null) {
                     continue;
                 }
@@ -199,6 +212,7 @@ final class ProjectorRecursivePortals {
     }
 
     private final class Candidate {
+        private final UUID portalId;
         private final AxisAlignedBB view;
         private final PortalFrame localFrame;
         private final PortalFrame remoteFrame;
@@ -246,6 +260,7 @@ final class ProjectorRecursivePortals {
             this.eyeX = eyeX;
             this.eyeY = eyeY;
             this.eyeZ = eyeZ;
+            this.portalId = candidate == null ? null : candidate.getId();
             if (candidate == null || candidate.getOrigin() == null || candidate.getFrame() == null || candidate.getStructure() == null) {
                 this.view = null;
                 this.localFrame = null;
@@ -455,7 +470,7 @@ final class ProjectorRecursivePortals {
             this.valid = candidateView != null && planeWindow != null;
         }
 
-        private Hit hit(double pointX, double pointY, double pointZ, int remainingDepth) {
+        private Hit hit(double pointX, double pointY, double pointZ, int remainingDepth, RecursionPath visited) {
             if (!valid || !view.containsPrimitive(pointX, pointY, pointZ)) {
                 return null;
             }
@@ -479,6 +494,9 @@ final class ProjectorRecursivePortals {
             if (!planeWindow.containsRayIntersection(eyeX, eyeY, eyeZ, pointX, pointY, pointZ, pointSignedDistance)) {
                 return null;
             }
+            if (visited != null && visited.contains(portalId)) {
+                return Hit.mask(rayT, true);
+            }
             if (!traversable || remainingDepth <= 0) {
                 return Hit.mask(rayT, false);
             }
@@ -486,14 +504,59 @@ final class ProjectorRecursivePortals {
             double nextPointX = remoteOriginX + (pointRelX * transformXX) + (pointRelY * transformXY) + (pointRelZ * transformXZ);
             double nextPointY = remoteOriginY + (pointRelX * transformYX) + (pointRelY * transformYY) + (pointRelZ * transformYZ);
             double nextPointZ = remoteOriginZ + (pointRelX * transformZX) + (pointRelY * transformZY) + (pointRelZ * transformZZ);
-            return new Hit(nestedWorld, nestedDestination, localFrame, remoteFrame,
+            return new Hit(portalId, nestedWorld, nestedDestination, localFrame, remoteFrame,
                 nextPointX, nextPointY, nextPointZ,
                 transformedEyeX, transformedEyeY, transformedEyeZ,
                 rayT, true, false, mirrorProjection, mirrorRotationQuarterTurns, mirrorFrame);
         }
     }
 
+    /** Portal ids already entered by the sample being resolved, newest last. */
+    static final class RecursionPath {
+        private static final int CAPACITY = 64;
+
+        private final UUID[] ids = new UUID[CAPACITY];
+        private int size;
+
+        void clear() {
+            for (int index = 0; index < Math.min(size, CAPACITY); index++) {
+                ids[index] = null;
+            }
+            size = 0;
+        }
+
+        boolean contains(UUID portalId) {
+            if (portalId == null) {
+                return false;
+            }
+            for (int index = 0; index < Math.min(size, CAPACITY); index++) {
+                if (portalId.equals(ids[index])) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        void push(UUID portalId) {
+            if (size < CAPACITY) {
+                ids[size] = portalId;
+            }
+            size++;
+        }
+
+        void pop() {
+            if (size <= 0) {
+                return;
+            }
+            size--;
+            if (size < CAPACITY) {
+                ids[size] = null;
+            }
+        }
+    }
+
     static final class Hit {
+        final UUID portalId;
         final World world;
         final ILocalPortal destinationPortal;
         final PortalFrame localFrame;
@@ -511,7 +574,8 @@ final class ProjectorRecursivePortals {
         final int mirrorRotationQuarterTurns;
         final PortalFrame mirrorFrame;
 
-        private Hit(World world,
+        private Hit(UUID portalId,
+                    World world,
                     ILocalPortal destinationPortal,
                     PortalFrame localFrame,
                     PortalFrame remoteFrame,
@@ -527,6 +591,7 @@ final class ProjectorRecursivePortals {
                     boolean mirrorProjection,
                     int mirrorRotationQuarterTurns,
                     PortalFrame mirrorFrame) {
+            this.portalId = portalId;
             this.world = world;
             this.destinationPortal = destinationPortal;
             this.localFrame = localFrame;
@@ -546,7 +611,7 @@ final class ProjectorRecursivePortals {
         }
 
         private static Hit mask(double rayT, boolean cycle) {
-            return new Hit(null, null, null, null,
+            return new Hit(null, null, null, null, null,
                 0.0D, 0.0D, 0.0D,
                 0.0D, 0.0D, 0.0D,
                 rayT, false, cycle, false, 0, null);

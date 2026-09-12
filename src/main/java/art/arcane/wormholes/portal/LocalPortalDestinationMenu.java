@@ -3,13 +3,17 @@ package art.arcane.wormholes.portal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.localization.NexusMessages;
 import art.arcane.wormholes.localization.WormholesMessages;
+import art.arcane.wormholes.nexus.NexusSubsystem;
+import art.arcane.wormholes.nexus.ReciprocalLinks;
 import art.arcane.wormholes.portal.LocalPortalDestinationModel.Entry;
 import art.arcane.wormholes.portal.LocalPortalDestinationModel.SortMode;
 import art.arcane.volmlib.util.inventorygui.UIElement;
@@ -174,6 +178,17 @@ final class LocalPortalDestinationMenu
 				repopulate();
 			});
 			window.setElement(-2, 5, sort);
+			LocalPortal returnTarget = reciprocalTarget();
+			if(returnTarget != null)
+			{
+				UIElement linkAndReturn = LocalPortalText.localizedElement(
+						"destination-link-return",
+						NexusMessages.MENU_LINK_AND_RETURN,
+						LocalPortalText.arguments("portal", portal.getName(), "destination", returnTarget.getName()),
+						Material.ENDER_EYE);
+				linkAndReturn.onLeftClick((e) -> FoliaScheduler.runEntity(Wormholes.instance, viewer, () -> linkAndReturn(returnTarget)));
+				window.setElement(2, 5, linkAndReturn);
+			}
 			window.setElement(0, 5, LocalPortalText.localizedElement(
 					"destination-page",
 					WormholesMessages.PORTAL_MENU_DESTINATION_PAGE,
@@ -196,6 +211,39 @@ final class LocalPortalDestinationMenu
 				});
 				window.setElement(4, 5, next);
 			}
+		}
+
+		/** The linked local portal both this viewer and this portal may pair with, or null. */
+		private LocalPortal reciprocalTarget()
+		{
+			ITunnel activeTunnel = portal.getTunnel();
+			IPortal destination = activeTunnel == null ? null : activeTunnel.getDestination();
+			if(!(destination instanceof LocalPortal target) || target.getId().equals(portal.getId()))
+			{
+				return null;
+			}
+			boolean administrator = viewer.isOp() || viewer.hasPermission("wormholes.admin");
+			UUID viewerId = viewer.getUniqueId();
+			if(!PortalAccessPolicy.canManage(portal.getId(), portal.getOwner(), viewerId, administrator)
+					|| !PortalAccessPolicy.canManage(target.getId(), target.getOwner(), viewerId, administrator))
+			{
+				return null;
+			}
+			return target;
+		}
+
+		private void linkAndReturn(LocalPortal target)
+		{
+			window.close();
+			NexusSubsystem nexus = NexusSubsystem.active();
+			ReciprocalLinks links = nexus == null ? null : nexus.reciprocalLinks();
+			if(links == null)
+			{
+				return;
+			}
+			boolean paired = links.pair(portal, target) == ReciprocalLinks.PairResult.PAIRED;
+			menus.text().notifySetting(viewer, paired ? NexusMessages.RECIPROCAL_PAIRED : NexusMessages.RECIPROCAL_DENIED,
+					LocalPortalText.arguments("portal", portal.getName(), "destination", target.getName()));
 		}
 
 		private List<Target> collectTargets()

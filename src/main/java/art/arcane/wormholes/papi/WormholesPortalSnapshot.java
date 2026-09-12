@@ -9,7 +9,29 @@ public record WormholesPortalSnapshot(
     String distance,
     String crossServer,
     String rtpState,
-    String rtpCooldown) {
+    String rtpCooldown,
+    String price,
+    String cooldown,
+    String refusal,
+    String network,
+    String address) {
+
+    /**
+     * What the rules engine and the portal network say about this portal for this viewer: the price a
+     * crossing would cost, how long their cooldown still has to run, the refusal they would be given,
+     * and the network and address the portal carries. Every text field is empty when it does not apply.
+     */
+    public record RouteFacts(String price, long cooldownMillis, String refusal, String network, String address) {
+        public static final RouteFacts NONE = new RouteFacts("", 0L, "", "", "");
+
+        public RouteFacts {
+            price = price == null ? "" : price;
+            refusal = refusal == null ? "" : refusal;
+            network = network == null ? "" : network;
+            address = address == null ? "" : address;
+            cooldownMillis = Math.max(0L, cooldownMillis);
+        }
+    }
 
     public static final String STATE_OPEN = "open";
     public static final String STATE_CLOSED = "closed";
@@ -32,7 +54,9 @@ public record WormholesPortalSnapshot(
         boolean rtpReady,
         boolean rtpSearching,
         boolean rtpRerolling,
-        long rtpCooldownMillis) {
+        long rtpCooldownMillis,
+        RouteFacts route) {
+        RouteFacts facts = route == null ? RouteFacts.NONE : route;
         return new WormholesPortalSnapshot(
             PlaceholderValues.text(portalName),
             state(open, syncing),
@@ -40,7 +64,12 @@ public record WormholesPortalSnapshot(
             PlaceholderValues.num(Math.max(0.0D, distance)),
             PlaceholderValues.bool(crossServer),
             rtpState(rtpPortal, rtpRegistered, rtpReady, rtpSearching, rtpRerolling, rtpCooldownMillis),
-            rtpCooldown(rtpPortal, rtpRegistered, rtpCooldownMillis));
+            rtpCooldown(rtpPortal, rtpRegistered, rtpCooldownMillis),
+            PlaceholderValues.text(facts.price()),
+            PlaceholderValues.num(facts.cooldownMillis() / 1000.0D),
+            PlaceholderValues.text(facts.refusal()),
+            PlaceholderValues.text(facts.network()),
+            PlaceholderValues.text(facts.address()));
     }
 
     public static String state(boolean open, boolean syncing) {

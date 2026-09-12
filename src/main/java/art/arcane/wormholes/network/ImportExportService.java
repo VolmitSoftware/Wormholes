@@ -94,15 +94,7 @@ public final class ImportExportService {
             network.start();
         }
 
-        ServerCode code = new ServerCode(
-            network.getLocalName(),
-            advertiseHost,
-            alternateHosts(advertiseHost),
-            network.getBoundListenPort(),
-            network.gameEndpoint(),
-            network.localPrivateGameEndpoint(),
-            network.getPublicKey()
-        );
+        ServerCode code = serverCode(advertiseHost);
         String encoded = code.encode();
 
         if (sender instanceof Player) {
@@ -194,7 +186,50 @@ public final class ImportExportService {
         WormholesAudience.sendMessage(sender, Wormholes.text().component(sender, WormholesMessages.NETWORK_CHECK_STATUS));
     }
 
+    /** This server's pairing code without chat output; used by the proxy bridge to enroll. */
+    public ServerCode localServerCode() {
+        NetworkConfig config = Wormholes.settings.getNetwork();
+        String advertiseHost = config.advertiseHostOverride != null && !config.advertiseHostOverride.isBlank()
+            ? config.advertiseHostOverride : network.getAdvertiseHost();
+        return serverCode(advertiseHost);
+    }
+
+    /**
+     * Trusts and routes a code the proxy handed us, without chat output. Weaker than an operator
+     * import on purpose: it never clears a tombstone, never replaces an already-trusted key and never
+     * turns the network on, so the worst a bad roster entry can do is add a route for a name nobody
+     * removed. Returns false when the entry was refused or names this server.
+     */
+    public boolean importProxyServerCode(ServerCode code) {
+        if (code == null || code.serverName().equals(network.getLocalName())) {
+            return false;
+        }
+        if (!network.trustIntroducedPeer(code.serverName(), code.publicKey())) {
+            return false;
+        }
+        NetworkConfig.PeerEntry entry = routeEntry(code.serverName(), code.advertiseHost(), code.fallbackHosts(), code.wormholePort(), code.gameEndpoint(), code.privateGameEndpoint());
+        entry.useProxy = true;
+        network.savePeer(entry);
+        return true;
+    }
+
+    private ServerCode serverCode(String advertiseHost) {
+        return new ServerCode(
+            network.getLocalName(),
+            advertiseHost,
+            alternateHosts(advertiseHost),
+            network.getBoundListenPort(),
+            network.gameEndpoint(),
+            network.localPrivateGameEndpoint(),
+            network.getPublicKey()
+        );
+    }
+
     private void saveRoute(String serverName, String advertiseHost, List<String> fallbackHosts, int wormholePort, GameEndpoint gameEndpoint, GameEndpoint privateGameEndpoint) {
+        network.savePeer(routeEntry(serverName, advertiseHost, fallbackHosts, wormholePort, gameEndpoint, privateGameEndpoint));
+    }
+
+    private static NetworkConfig.PeerEntry routeEntry(String serverName, String advertiseHost, List<String> fallbackHosts, int wormholePort, GameEndpoint gameEndpoint, GameEndpoint privateGameEndpoint) {
         NetworkConfig.PeerEntry entry = new NetworkConfig.PeerEntry();
         entry.name = serverName;
         entry.host = advertiseHost;
@@ -204,7 +239,7 @@ public final class ImportExportService {
         entry.publicPort = gameEndpoint.port();
         entry.privateHost = privateGameEndpoint == null ? "" : privateGameEndpoint.host();
         entry.privatePort = privateGameEndpoint == null ? 0 : privateGameEndpoint.port();
-        network.savePeer(entry);
+        return entry;
     }
 
     private void enableAndStart() {

@@ -52,6 +52,7 @@ final class LocalPortalPersistence
 		portal.rtp().save(j);
 		portal.settings().save(j);
 		portal.linking().save(j);
+		portal.extensions().save(j);
 	}
 
 	void readState(JSONObject j)
@@ -70,6 +71,7 @@ final class LocalPortalPersistence
 		portal.gate().rebuildView();
 
 		portal.linking().load(j);
+		portal.extensions().load(j);
 		boolean dimensionalStateNormalized = portal.linking().normalizeDimensionalState();
 		boolean rtpStateNormalized = portal.rtp().normalizeState();
 		boolean rtpPersistenceNormalized = portal.rtp().requiresPersistenceNormalization(j);

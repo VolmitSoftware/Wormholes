@@ -8,7 +8,11 @@ import art.arcane.wormholes.network.view.PacketBlobs;
 import art.arcane.wormholes.network.view.ProjectedMapData;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.wormholes.render.FidelitySettings;
+import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
+import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
@@ -53,6 +57,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
     private static final int MAX_CHUNKS_PER_WORLD = 256;
     private static final int MAX_ENTITIES_PER_CHUNK = 128;
     private static final long ENTITY_STATE_REFRESH_MILLIS = 500L;
+    private static final long BLOCK_ENTITY_REFRESH_MILLIS = 2_000L;
 
     private final Plugin plugin;
     private final LongSupplier clock;
@@ -141,11 +146,17 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
                 ? WormholesPlatform.chunkSnapshot(chunk, false, true, false, true)
                 : current.snapshot;
             List<CapturedEntity> entities = captureEntities(view, chunk, key, now);
+            boolean refreshBlockEntities = FidelitySettings.blockEntities
+                && (refreshBlocks || current == null || now - current.blockEntitiesCapturedAtMillis >= BLOCK_ENTITY_REFRESH_MILLIS);
+            Map<Long, BlockEntitySample> blockEntities = refreshBlockEntities
+                ? BlockEntityCapturer.captureChunk(chunk)
+                : current.blockEntities;
             int minHeight = current == null ? world.getMinHeight() : current.minHeight;
             int maxHeight = current == null ? world.getMaxHeight() : current.maxHeight;
             CapturedChunk captured = new CapturedChunk(snapshot, minHeight, maxHeight,
-                ProjectionWorldView.computeSkyDarken(world.getTime()), now, entities,
-                chunkX, chunkZ, trackerVersion, refreshBlocks ? now : current.snapshotCapturedAtMillis);
+                ProjectionWorldView.computeSkyDarken(world.getTime(), world.hasStorm(), world.isThundering()), now, entities,
+                chunkX, chunkZ, trackerVersion, refreshBlocks ? now : current.snapshotCapturedAtMillis,
+                blockEntities, refreshBlockEntities ? now : current.blockEntitiesCapturedAtMillis);
             view.publish(key, captured);
         } catch (Throwable ex) {
             view.finishCapture(key);
@@ -306,6 +317,15 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
                 return null;
             }
             return chunk.snapshot.getBlockType(x & 15, y, z & 15);
+        }
+
+        @Override
+        public BlockEntitySample sampleBlockEntity(int x, int y, int z) {
+            CapturedChunk chunk = capturedChunk(x, z);
+            if (chunk == null || chunk.blockEntities.isEmpty()) {
+                return null;
+            }
+            return chunk.blockEntities.get(Long.valueOf(ProjectionCellKey.pack(x, y, z)));
         }
 
         @Override
@@ -500,7 +520,8 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
 
         private boolean blocksChanged(CapturedChunk previous, CapturedChunk captured) {
             return previous == null || previous.snapshot != captured.snapshot
-                || previous.skyDarken != captured.skyDarken;
+                || previous.skyDarken != captured.skyDarken
+                || !previous.blockEntities.equals(captured.blockEntities);
         }
 
         private void finishCapture(long key) {
@@ -593,10 +614,13 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         private final int chunkZ;
         private final long trackerVersion;
         private final long snapshotCapturedAtMillis;
+        private final Map<Long, BlockEntitySample> blockEntities;
+        private final long blockEntitiesCapturedAtMillis;
 
         private CapturedChunk(ChunkSnapshot snapshot, int minHeight, int maxHeight, int skyDarken,
                               long capturedAtMillis, List<CapturedEntity> entities, int chunkX, int chunkZ,
-                              long trackerVersion, long snapshotCapturedAtMillis) {
+                              long trackerVersion, long snapshotCapturedAtMillis,
+                              Map<Long, BlockEntitySample> blockEntities, long blockEntitiesCapturedAtMillis) {
             this.snapshot = snapshot;
             this.minHeight = minHeight;
             this.maxHeight = maxHeight;
@@ -607,6 +631,8 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             this.chunkZ = chunkZ;
             this.trackerVersion = trackerVersion;
             this.snapshotCapturedAtMillis = snapshotCapturedAtMillis;
+            this.blockEntities = blockEntities;
+            this.blockEntitiesCapturedAtMillis = blockEntitiesCapturedAtMillis;
         }
     }
 

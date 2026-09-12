@@ -200,7 +200,7 @@ class DictionaryExchangeLimitsTest {
 
     private static PeerConnection connection(NetworkManager manager, String peerName) {
         LocalIdentity identity = new LocalIdentity("local", "26.2", "test", "127.0.0.1", 8901, new GameEndpoint("127.0.0.1", 25565), null,
-            new byte[0], null);
+            new byte[0], null, WireCapability.localSet());
         return new PeerConnection(new InertPeerChannel(), true, identity, peerName, null, manager, manager);
     }
 

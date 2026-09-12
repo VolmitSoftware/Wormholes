@@ -48,7 +48,17 @@ public final class IrisBiomeProbeTest
 		assertEquals(2, biomes.size());
 		assertEquals("tropical_beach", biomes.get(0).loadKey());
 		assertEquals("Tropical Beach", biomes.get(0).displayName());
-		assertEquals("minecraft:beach", biomes.get(0).derivativeKey());
+	}
+
+	@Test
+	public void catalogNamesDoNotRequireNativeDerivativeResolution()
+	{
+		FakeBiomeToolbelt.generator.engine.surfaceBiome.failDerivativeResolution = true;
+
+		List<IrisBiomeProbe.BiomeInfo> biomes = fakeProbe().allBiomes(null);
+
+		assertEquals(2, biomes.size());
+		assertEquals("Tropical Beach", biomes.get(0).displayName());
 	}
 
 	@Test
@@ -140,6 +150,7 @@ public final class IrisBiomeProbeTest
 		private final String loadKey;
 		private final String name;
 		private final FakeDerivative derivative;
+		private boolean failDerivativeResolution;
 
 		FakeIrisBiome(String loadKey, String name, String derivativeKey)
 		{
@@ -160,6 +171,10 @@ public final class IrisBiomeProbeTest
 
 		public FakeDerivative getDerivative()
 		{
+			if(failDerivativeResolution)
+			{
+				throw new IllegalStateException("Native derivative is unavailable");
+			}
 			return derivative;
 		}
 	}

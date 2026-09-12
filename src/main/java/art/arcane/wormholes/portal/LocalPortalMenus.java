@@ -11,6 +11,8 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.access.AccessPortalExtension;
+import art.arcane.wormholes.access.PortalRole;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.wormholes.service.WormholesAudience;
@@ -44,6 +46,7 @@ final class LocalPortalMenus
 	private final LocalPortalText text;
 	private final LocalPortalSettingsMenu settingsMenu;
 	private final LocalPortalCostMenu costMenu;
+	private final LocalPortalExtensionsMenu extensionsMenu;
 	private final LocalPortalCosmeticsMenu cosmeticsMenu;
 	private final LocalPortalDestinationMenu destinationMenu;
 	private final LocalPortalRtpEditor rtpEditor;
@@ -56,6 +59,7 @@ final class LocalPortalMenus
 		cosmeticsMenu = new LocalPortalCosmeticsMenu(portal, this);
 		settingsMenu = new LocalPortalSettingsMenu(portal, this);
 		costMenu = new LocalPortalCostMenu(portal, this);
+		extensionsMenu = new LocalPortalExtensionsMenu(portal, this);
 		destinationMenu = new LocalPortalDestinationMenu(portal, this);
 		rtpEditor = new LocalPortalRtpEditor(portal, this);
 	}
@@ -80,6 +84,11 @@ final class LocalPortalMenus
 		return costMenu;
 	}
 
+	LocalPortalExtensionsMenu extensions()
+	{
+		return extensionsMenu;
+	}
+
 	boolean ensureCanManage(Player player)
 	{
 		if(player == null)
@@ -88,7 +97,9 @@ final class LocalPortalMenus
 		}
 		boolean administrator = player.isOp() || player.hasPermission("wormholes.admin");
 		UUID playerId = player.getUniqueId();
-		if(PortalAccessPolicy.canManage(portal.getId(), portal.getOwner(), playerId, administrator))
+		AccessPortalExtension access = portal.extension(AccessPortalExtension.class);
+		PortalRole role = access == null ? null : access.role(playerId);
+		if(PortalAccessPolicy.canManage(portal.getId(), portal.getOwner(), playerId, administrator, role != null && role.manages()))
 		{
 			return true;
 		}

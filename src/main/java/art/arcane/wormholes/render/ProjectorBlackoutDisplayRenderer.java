@@ -33,6 +33,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSp
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.render.bedrock.ClientProfileService;
 import art.arcane.wormholes.service.WormholesTelemetry;
 
 final class ProjectorBlackoutDisplayRenderer {
@@ -102,6 +103,9 @@ final class ProjectorBlackoutDisplayRenderer {
                     double projectionDepth) {
         if (panels.isEmpty()) {
             return prepareEmpty();
+        }
+        if (ClientProfileService.profileFor(observer).withholdsDisplays()) {
+            return false;
         }
 
         mergeAbandonedPending();

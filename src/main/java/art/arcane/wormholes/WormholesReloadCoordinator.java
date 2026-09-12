@@ -189,11 +189,7 @@ final class WormholesReloadCoordinator {
         network.reset();
         Wormholes.clearChatInputs();
         Files.deleteIfExists(dataFolder.resolve(WormholesSettings.CONFIG_FILE_NAME));
-        deletePathTree(dataFolder.resolve("identity"));
-        deletePathTree(dataFolder.resolve("routes"));
-        deletePathTree(dataFolder.resolve("trust"));
-        deletePathTree(dataFolder.resolve("portals"));
-        deletePathTree(dataFolder.resolve("doors"));
+        deleteResetFolders(dataFolder);
         DimensionalDoorRepository.under(dataFolder).save(new DoorStoreSnapshot(
             DoorStoreSnapshot.CURRENT_SCHEMA,
             retiredPocketSlots,
@@ -325,6 +321,10 @@ final class WormholesReloadCoordinator {
         network.applyReplicationSettings(reloaded.getNetwork());
         diagnostics.restartStatsSnapshotWriter();
         network.applyCaptureSettings(reloaded);
+        WormholesSubsystems activeSubsystems = Wormholes.subsystems;
+        if (activeSubsystems != null) {
+            activeSubsystems.reloadAll(reloaded);
+        }
         plugin.getLogger().info("Configuration hot-reloaded.");
     }
 
@@ -393,6 +393,17 @@ final class WormholesReloadCoordinator {
                 + " missing translation key(s) falling through to a lower-priority locale or built-in English.");
         }
         return result;
+    }
+
+    /** Every data folder a full reset removes. Feature lanes add their own folder here. */
+    static final List<String> RESET_FOLDERS = List.of(
+        "identity", "routes", "trust", "portals", "doors",
+        "atlas", "rules", "mesh", "backups", "convoy", "pockets");
+
+    static void deleteResetFolders(Path dataFolder) throws IOException {
+        for (String folder : RESET_FOLDERS) {
+            deletePathTree(dataFolder.resolve(folder));
+        }
     }
 
     private static void deletePathTree(Path path) throws IOException {

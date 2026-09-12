@@ -4,11 +4,40 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
-public record ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int sizeZ, List<String> palette, short[] indices, byte[] light, List<String> biomePalette, short[] biomes) {
+import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+
+/**
+ * One chunk column of a remote view. The block-entity map is keyed by world cell and is only carried
+ * on the wire when both peers negotiated {@code WireCapability.VIEW_BLOCK_ENTITIES}; the pre-24 layout
+ * is the default writer and reader.
+ */
+public record ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int sizeZ, List<String> palette, short[] indices, byte[] light, List<String> biomePalette, short[] biomes, Map<Long, BlockEntitySample> blockEntities) {
     public static final int MAX_PALETTE_ENTRIES = 4096;
     public static final int MAX_CELLS = 16 * 512 * 16;
+    public static final int MAX_BLOCK_ENTITIES = 4096;
+    private static final int LAYOUT_BASE = 0;
+    private static final int LAYOUT_BLOCK_ENTITIES = 1;
+
+    public ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int sizeZ, List<String> palette, short[] indices, byte[] light, List<String> biomePalette, short[] biomes) {
+        this(minX, minY, minZ, sizeX, sizeY, sizeZ, palette, indices, light, biomePalette, biomes, new HashMap<Long, BlockEntitySample>());
+    }
+
+    public ViewSlice {
+        blockEntities = blockEntities == null ? new HashMap<Long, BlockEntitySample>() : blockEntities;
+    }
+
+    public BlockEntitySample blockEntityAt(int x, int y, int z) {
+        if (blockEntities.isEmpty()) {
+            return null;
+        }
+        return blockEntities.get(Long.valueOf(ProjectionCellKey.pack(x, y, z)));
+    }
 
     public int cellCount() {
         return sizeX * sizeY * sizeZ;
@@ -84,13 +113,32 @@ public record ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int 
             h ^= (idx < biomeSize ? biomeHashes[idx] : 0) & 0xFFFFFFFFL;
             h *= 1099511628211L;
         }
+        if (!blockEntities.isEmpty()) {
+            TreeMap<Long, BlockEntitySample> ordered = new TreeMap<Long, BlockEntitySample>(blockEntities);
+            for (Map.Entry<Long, BlockEntitySample> entry : ordered.entrySet()) {
+                h ^= entry.getKey().longValue();
+                h *= 1099511628211L;
+                h ^= entry.getValue().hashCode() & 0xFFFFFFFFL;
+                h *= 1099511628211L;
+            }
+        }
         return h;
     }
 
     public void write(DataOutputStream out) throws IOException {
+        write(out, false);
+    }
+
+    /**
+     * Writes the slice, block-entity map included when the peer negotiated VIEW_BLOCK_ENTITIES. The
+     * leading layout byte says which of the two shapes follows, so a reader never has to reach the
+     * same conclusion from its own view of the link and run off the end of the payload.
+     */
+    public void write(DataOutputStream out, boolean withBlockEntities) throws IOException {
         if (biomes.length != biomeGridLength()) {
             throw new IOException("View slice biome grid length mismatch: " + biomes.length + " != " + biomeGridLength());
         }
+        out.writeByte(withBlockEntities ? LAYOUT_BLOCK_ENTITIES : LAYOUT_BASE);
         out.writeInt(minX);
         out.writeInt(minY);
         out.writeInt(minZ);
@@ -108,6 +156,20 @@ public record ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int 
             out.writeUTF(entry);
         }
         writePackedIndices(out, biomes, biomePalette.size());
+        if (!withBlockEntities) {
+            return;
+        }
+        TreeMap<Long, BlockEntitySample> ordered = new TreeMap<Long, BlockEntitySample>(blockEntities);
+        out.writeShort(Math.min(MAX_BLOCK_ENTITIES, ordered.size()));
+        int written = 0;
+        for (Map.Entry<Long, BlockEntitySample> entry : ordered.entrySet()) {
+            if (written >= MAX_BLOCK_ENTITIES) {
+                break;
+            }
+            out.writeLong(entry.getKey().longValue());
+            entry.getValue().write(out);
+            written++;
+        }
     }
 
     private static void writePackedIndices(DataOutputStream out, short[] values, int paletteSize) throws IOException {
@@ -149,7 +211,13 @@ public record ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int 
         return values;
     }
 
+    /** Reads a slice in whatever layout its leading byte declares. */
     public static ViewSlice read(DataInputStream in) throws IOException {
+        int layout = in.readByte();
+        if (layout != LAYOUT_BASE && layout != LAYOUT_BLOCK_ENTITIES) {
+            throw new IOException("Invalid view slice layout: " + layout);
+        }
+        boolean withBlockEntities = layout == LAYOUT_BLOCK_ENTITIES;
         int minX = in.readInt();
         int minY = in.readInt();
         int minZ = in.readInt();
@@ -181,6 +249,17 @@ public record ViewSlice(int minX, int minY, int minZ, int sizeX, int sizeY, int 
         }
         int gridLength = biomeGridSpan(minX, sizeX) * biomeGridSpan(minY, sizeY) * biomeGridSpan(minZ, sizeZ);
         short[] biomes = readPackedIndices(in, gridLength);
-        return new ViewSlice(minX, minY, minZ, sizeX, sizeY, sizeZ, palette, indices, light, biomePalette, biomes);
+        Map<Long, BlockEntitySample> blockEntities = new HashMap<Long, BlockEntitySample>();
+        if (withBlockEntities) {
+            int count = in.readUnsignedShort();
+            if (count > MAX_BLOCK_ENTITIES) {
+                throw new IOException("View slice block entity count too large: " + count);
+            }
+            for (int i = 0; i < count; i++) {
+                long key = in.readLong();
+                blockEntities.put(Long.valueOf(key), BlockEntitySample.read(in));
+            }
+        }
+        return new ViewSlice(minX, minY, minZ, sizeX, sizeY, sizeZ, palette, indices, light, biomePalette, biomes, blockEntities);
     }
 }

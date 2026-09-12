@@ -9,6 +9,7 @@ import art.arcane.volmlib.integration.IntegrationMetricSchema;
 import art.arcane.volmlib.integration.IntegrationProtocolNegotiator;
 import art.arcane.volmlib.integration.IntegrationProtocolVersion;
 import art.arcane.volmlib.integration.IntegrationServiceContract;
+import art.arcane.wormholes.ProjectionManager;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.RemotePortalRegistry;
@@ -16,10 +17,12 @@ import art.arcane.wormholes.network.TraversalService;
 import art.arcane.wormholes.network.WireCompression;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.view.ViewServer;
+import art.arcane.wormholes.render.blockentity.ProjectedBlockEntityLayer;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.ServicePriority;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -38,10 +41,15 @@ public final class WormholesIntegrationService implements IntegrationServiceCont
     );
 
     private volatile IntegrationProtocolVersion negotiatedProtocol = new IntegrationProtocolVersion(1, 1);
+    public static final String PLATE_BUILDS_PER_SECOND = "wormholes.plate-builds-per-second";
+    public static final String PLATE_BYTES = "wormholes.plate-bytes";
+    public static final String BLOCK_ENTITIES_PER_SECOND = "wormholes.block-entities-per-second";
     private final RateWindow wireBytesOutWindow = new RateWindow();
     private final RateWindow wireBytesInWindow = new RateWindow();
     private final RateWindow sidebandDropsWindow = new RateWindow();
     private final RateWindow replicatedBlocksWindow = new RateWindow();
+    private final RateWindow plateBuildsWindow = new RateWindow();
+    private final RateWindow blockEntitiesWindow = new RateWindow();
 
     public void register() {
         Bukkit.getServicesManager().register(IntegrationServiceContract.class, this, Wormholes.instance, ServicePriority.Normal);
@@ -120,7 +128,7 @@ public final class WormholesIntegrationService implements IntegrationServiceCont
     @Override
     public Map<String, IntegrationMetricSample> sampleMetrics(Set<String> metricKeys) {
         Set<String> requested = metricKeys == null || metricKeys.isEmpty()
-            ? IntegrationMetricSchema.wormholesKeys()
+            ? defaultMetricKeys()
             : metricKeys;
         long now = System.currentTimeMillis();
         Map<String, IntegrationMetricSample> out = new HashMap<>();
@@ -171,6 +179,12 @@ public final class WormholesIntegrationService implements IntegrationServiceCont
                     out.put(key, sampleTransfersInFlight(now));
                 case IntegrationMetricSchema.WORMHOLES_TRANSFERS_FAILED_TOTAL ->
                     out.put(key, sampleTransfersFailedTotal(now));
+                case PLATE_BUILDS_PER_SECOND ->
+                    out.put(key, samplePlateBuildsPerSecond(now));
+                case PLATE_BYTES ->
+                    out.put(key, samplePlateBytes(now));
+                case BLOCK_ENTITIES_PER_SECOND ->
+                    out.put(key, available(key, blockEntitiesWindow.perSecond(ProjectedBlockEntityLayer.sentTotal(), now), now));
                 default -> out.put(key, IntegrationMetricSample.unavailable(
                     IntegrationMetricSchema.descriptor(key),
                     "unsupported-key",
@@ -180,6 +194,30 @@ public final class WormholesIntegrationService implements IntegrationServiceCont
         }
 
         return out;
+    }
+
+    private static Set<String> defaultMetricKeys() {
+        Set<String> keys = new HashSet<>(IntegrationMetricSchema.wormholesKeys());
+        keys.add(PLATE_BUILDS_PER_SECOND);
+        keys.add(PLATE_BYTES);
+        keys.add(BLOCK_ENTITIES_PER_SECOND);
+        return keys;
+    }
+
+    private IntegrationMetricSample samplePlateBuildsPerSecond(long now) {
+        ProjectionManager projection = Wormholes.projectionManager;
+        if (projection == null) {
+            return IntegrationMetricSample.unavailable(IntegrationMetricSchema.descriptor(PLATE_BUILDS_PER_SECOND), "projection-manager-not-ready", now);
+        }
+        return available(PLATE_BUILDS_PER_SECOND, plateBuildsWindow.perSecond(projection.plateCache().buildsCompleted(), now), now);
+    }
+
+    private IntegrationMetricSample samplePlateBytes(long now) {
+        ProjectionManager projection = Wormholes.projectionManager;
+        if (projection == null) {
+            return IntegrationMetricSample.unavailable(IntegrationMetricSchema.descriptor(PLATE_BYTES), "projection-manager-not-ready", now);
+        }
+        return available(PLATE_BYTES, projection.plateCache().bytes(), now);
     }
 
     private IntegrationMetricSample samplePortals(long now) {

@@ -275,7 +275,7 @@ class MinecraftStatusBridgeWireTest {
     private static LocalIdentity identity(NetworkManager network) {
         return new LocalIdentity(network.getLocalName(), "26.2", "test", network.getAdvertiseHost(),
             network.getBoundListenPort(), network.gameEndpoint(), network.localPrivateGameEndpoint(),
-            Handshake.decodePublicKeyText(network.getPublicKey()), network.identityPrivateKey());
+            Handshake.decodePublicKeyText(network.getPublicKey()), network.identityPrivateKey(), network.localCapabilities());
     }
 
     private static void serveStatusBridgeOnce(ServerSocket serverSocket, NetworkManager beta, AtomicReference<Throwable> failure,

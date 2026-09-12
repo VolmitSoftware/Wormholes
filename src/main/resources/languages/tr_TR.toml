@@ -513,6 +513,7 @@ rename = ["&a&lPortalı Yeniden Adlandır&r", "&7Bağlantılarda ve menülerde g
 delete = ["&c&lPortalı Sil&r", "&7Bu portalı kalıcı olarak siler.", "", "&c&nOnaylamak için Shift + sol tıklama&r"]
 advanced_settings = ["&3&lGelişmiş Akış Ayarı&r", "&7Tanılama ve sıra dışı bağlantılar için doğrudan ayarlar.", "&7Bir değeri değiştirmek Akış Kalitesini Özel olarak işaretler."]
 back_settings = ["&e&lAyarlara Geri Dönün&r", "&7Portal ayarlarına geri dönün."]
+extensions = ["&b&lDiğer ayarlar&r", "&7Kurallar, erişim, ağlar ve diğer özellik ayarları.", "&eSol tık"]
 stream_quality = ["&b&lAkış Kalitesi: {quality}&r", "&7Uzak görünüm menzili ve güncelleme sıklığı için tek ayar.", "", "&7Derinlik &b{depth}&7  Varlıklar &b{entities}t", "&7Yenileme &b{refresh}t&7  Bekleme &b{grace}s", "", "&8Tıklama: kaliteyi değiştirir.", "&8Shift + tıklama: gelişmiş ayar."]
 orientation = ["&9&lYön&r", "&7Ön yüz: &9{facing}", "&7Ekranın üstü: &6{up}", "", "&8Ön yüz, çevirme ve dönüş için tıklayın."]
 orientation_placard = ["&9&lPortal Yönü&r", "&7Ön yüz: &9{facing}", "&7Ekranın üstü: &6{up}"]
@@ -936,6 +937,7 @@ decimal_seconds = "{value}s"
 
 [rtp.biome]
 any_label = "Herhangi"
+unavailable_label = "Kullanılamıyor"
 header = ["&b&lHedef Biyom&r", "&7Arama bu biyomu tercih eder ve yakında bulunamazsa herhangi bir güvenli noktaya geri döner."]
 any_selected = ["&a&lHerhangi Bir Biyom&r", "&7Biyom tercihi yok.", "&aSeçili"]
 any_available = ["&b&lHerhangi Bir Biyom&r", "&7Biyom tercihini temizleyin.", "&eSeçmek için sol tıklayın"]
@@ -1018,3 +1020,513 @@ trapdoor_skin = ["&6Boyut Kapağı Görünümü", "&7Boyut kapağını elle aç�
 entangled_trapdoor_pair_recipe = ["&6Dolaşık Kapak Çifti", "&7Otomatik olarak bağlı iki solucan deliği kapağı içerir."]
 personal_trapdoor_recipe = ["&bKişisel Boyut Kapağı", "&7Her yolcu kendi kalıcı boyutuna girer."]
 public_trapdoor_recipe = ["&6Ortak Boyut Kapağı", "&7Her yolcu bu kapağın ortak boyutuna girer."]
+
+# ==== Headline lane blocks. Each lane adds its tables between its own markers only. ====
+
+
+# ---- lane:rules (rules.*) ----
+[rules]
+route_card = "{portal} > {destination} | {amount} | {state}"
+
+[rules.menu]
+entry = ["&6Kurallar", "&7Kimin gecebilecegi, maliyeti ve sonrasinda ne olacagi."]
+cooldown = ["&6Bekleme: {seconds}s", "&7Sol ve sag tik degistirir, shift 10 saniyelik adimlar."]
+warmup = ["&6Hazirlik: {seconds}s", "&7Sol ve sag tik degistirir, shift 10 saniyelik adimlar."]
+group = ["&6Bekleme grubu: {value}", "&7Bir grup adi yazmak icin tikla."]
+pushback = ["&6Geri itme: {value}", "&7Sol ve sag tik degeri degistirir."]
+sound = ["&6Ret sesi: {value}", "&7Sol ve sag tik degeri degistirir."]
+charges = ["&6Sarj: {count}", "&7Sol ve sag tik havuz boyutunu degistirir."]
+default_outcome = ["&6Varsayilan: {mode}", "&7Izin ver ve reddet arasinda gecmek icin tikla."]
+rules = ["&6Kurallar ({count})", "&7Kural listesini acmak icin tikla."]
+rule = ["&6{name}", "&7{value} &8- shift tik kurali kaldirir."]
+add_rule = ["&aKural ekle", "&7Bir kural kimligi yazmak icin tikla."]
+line = ["&f{value}", "&7Shift tik bu satiri kaldirir."]
+add_line = ["&aSatir ekle", "&7Tikla ve kind=PERMISSION;node=grup.vip yaz."]
+templates = ["&6Sablonlar", "&7Kayitli bir sablonu uygulamak icin tikla."]
+template = ["&f{name}", "&7Bu sablonu uygulamak icin tikla."]
+back = ["&7Geri", "&8Onceki sayfaya."]
+page = ["&7Sayfa {page} / {pages}", "&8Sayfa cevirmek icin tikla."]
+
+[rules.route]
+unlisted = "Bilinmiyor"
+free = "Ücretsiz"
+ready = "Hazır"
+cooldown = "{seconds}s"
+
+[rules.denied]
+default = "Bu portal seni reddetti."
+entity_class = "Bu portalı yalnızca {mode} kullanabilir."
+key = "{portal} için anahtara ihtiyacın var."
+time = "{portal} şu anda kapalı."
+cooldown = "{portal} portalını tekrar kullanmadan önce {seconds}s bekle."
+charges = "{portal} portalında şarj kalmadı."
+cost = "{portal} portalını kullanmak için {amount} ödeyemezsin."
+
+[rules.notice]
+rule_added = "{name} kurali eklendi."
+rule_removed = "{name} kurali kaldirildi."
+invalid = "Bu uygulanamadi: {reason}"
+applied = "{name} sablonu uygulandi."
+
+[rules.prompt]
+group = "&bBekleme grubunun adini yaz (ya da \"{cancel}\"):"
+rule_id = "&bYeni kural icin bir kimlik yaz (ya da \"{cancel}\"):"
+line = "&bBir kural satiri yaz, ornegin kind=PERMISSION;node=grup.vip (ya da \"{cancel}\"):"
+
+[rules.warmup]
+countdown = "Hareket etme: {seconds}s"
+cancelled = "Hazırlık iptal edildi."
+
+[rules.command]
+exported = "{portal} kurallari {name} sablonuna yazildi."
+imported = "{name} sablonu {portal} portalina uygulandi."
+templates = "Kural sablonlari: {value}"
+no_templates = "Kayitli kural sablonu yok."
+template_missing = "{name} adinda bir kural sablonu yok."
+template_invalid = "{name} sablonu gecersiz: {reason}"
+portal_missing = "{name} adinda bir portal yok."
+portal_ambiguous = "{count} portal {name} adini tasiyor; birini yeniden adlandir."
+not_in_portal = "Bir portalin icinde dur ya da portal secenegiyle bir portal belirt."
+key_given = "{portal} icin bir anahtar aldin."
+failed = "Tamamlanamadi: {reason}"
+
+[rules.command.help]
+rules = "Geçiş kuralları: şablonlar, anahtarlar ve portal profilleri"
+export = "Bir portalin kurallarini sablon dosyasina yaz"
+"export.name" = "Yazilacak sablonun adi"
+"export.portal" = "Portal adi, ya da icinde durdugun portal"
+import = "Icinde durdugun portala bir sablon uygula"
+"import.name" = "Okunacak sablonun adi"
+"import.portal" = "Portal adi, ya da icinde durdugun portal"
+apply = "Her yerden adi verilen bir portala sablon uygula"
+"apply.name" = "Okunacak sablonun adi"
+"apply.portal" = "Sablonun uygulanacagi portalin adi"
+list = "Kayitli kural sablonlarini listele"
+key = "Kendine bir portal anahtari ver"
+"key.portal" = "Anahtarin olusturulacagi portalin adi"
+"key.uses" = "Anahtarin izin verdigi gecis sayisi, 0 sinirsiz"
+# ---- end lane:rules ----
+
+
+# ---- lane:access (access.*) ----
+[access.denied]
+role = "&c{portal} kullanma izniniz yok."
+claim = "&cBir arazi talebi {portal} portalını engelliyor."
+limit = "&cZaten {count} portalınız var; sınır {maximum}."
+
+[access.construct]
+denied = "&cBuraya portal inşa edemezsiniz: {reason}."
+
+[access.claim]
+reason = "{plugin} bu araziyi koruyor"
+failure = "{plugin} sorgulanamadı"
+
+[access.transfer]
+done = "&8[&6Wormholes&8] &a{portal} artık {name} oyuncusuna ait."
+
+[access.key]
+set = "&a{portal} portalının izin anahtarı artık {key}."
+taken = "&cİzin anahtarı {key} zaten kullanılıyor."
+invalid = "&cİzin anahtarları a-z, 0-9, nokta, tire ve alt çizgi kullanır, en fazla 64 karakter."
+
+[access.player]
+not_found = "&c{name} adında bir oyuncu yok."
+
+[access.portal]
+not_found = "&8[&6Wormholes&8] &c{portal} adında bir portal yok."
+ambiguous = "&8[&6Wormholes&8] &c{count} portal {portal} ile eşleşiyor; portal kimliğini kullanın."
+
+[access.role]
+changed = "&a{name} artık {portal} portalında {state}."
+removed = "&a{name} artık {portal} portalında bir role sahip değil."
+owner_always = "&7Sahip her zaman tam erişime sahiptir."
+
+[access.listed]
+changed = "&a{portal} artık genel dizinde {state}."
+
+[access.group]
+added = "&a{portal} artık {node} için erişim veriyor."
+cleared = "&a{portal} artık gruplara göre erişim vermiyor."
+
+[access.limits]
+report = "&8[&6Wormholes&8] &7{name} {count} portala sahip; sınır {maximum}."
+unlimited = "&8[&6Wormholes&8] &7{name} {count} portala sahip ve sınırı yok."
+
+[access.prompt]
+player = "&7Sohbete bir oyuncu adı yazın veya durdurmak için {cancel} yazın."
+key = "&7Sohbete yeni izin anahtarını yazın veya durdurmak için {cancel} yazın."
+group = "&7Sohbete bir izin düğümü yazın veya durdurmak için {cancel} yazın."
+
+[access.label]
+owner = "Sahip"
+co_owner = "Ortak sahip"
+user = "Güvenilir"
+denied = "Reddedildi"
+listed = "Listede"
+unlisted = "Gizli"
+
+[access.menu]
+entry = ["&b&lErişim&r", "&7Roller, gruplar ve izin anahtarı."]
+placard = ["&b&lErişim: {portal}&r", "&7Sahip: &f{owner}", "&7Roller: &f{count}", "&7Anahtar: &f{key}"]
+add = ["&a&lOyuncu ekle&r", "&7Rol vermek için sohbete bir ad yazın."]
+role = ["&f&l{name}&r", "&7Rol: &f{state}", "&7Sol veya sağ tıklama rolü değiştirir.", "&7Shift + sol tıklama rolü kaldırır."]
+groups = ["&e&lİzinli gruplar&r", "&7{count} izin düğümü erişim veriyor.", "&7Sol tıklama ekler, sağ tıklama temizler."]
+key = ["&b&lİzin anahtarı&r", "&7{key}", "&7Sol tıklama anahtarı değiştirir."]
+listed = ["&b&lGenel dizin&r", "&7{state}", "&7Sol tıklama durumu değiştirir."]
+
+[access.command.help]
+access = "Portal erişim listeleri, sahiplik ve sınırlar"
+transfer = "Bir portalı başka bir oyuncuya devredin"
+"transfer.portal" = "Portal adı veya kimliği"
+"transfer.player" = "Yeni sahibin adı"
+key = "Bir portalın sabit izin anahtarını ayarlayın"
+"key.portal" = "Portal adı veya kimliği"
+"key.key" = "Yeni izin anahtarı"
+limits = "Bir oyuncunun kaç portala sahip olduğunu ve olabileceğini gösterir"
+"limits.player" = "İncelenecek oyuncu; varsayılan sizsiniz"
+# ---- end lane:access ----
+
+
+# ---- lane:nexus (nexus.* and atlas.*) ----
+[nexus]
+dialed = "&8[&6Wormholes&8] &a{portal} {address} adresini çevirdi: &f{destination}"
+created = "&8[&6Wormholes&8] &a{name} ağı oluşturuldu."
+deleted = "&8[&6Wormholes&8] &a{name} ağı silindi."
+joined = "&8[&6Wormholes&8] &a{portal}, {address} adresiyle {name} ağına katıldı."
+left = "&8[&6Wormholes&8] &a{portal}, {name} ağından ayrıldı."
+
+[nexus.dial]
+unknown = "&8[&6Wormholes&8] &c{address} adresinde portal yok."
+none = "&8[&6Wormholes&8] &c{portal} hiçbir ağa bağlı değil."
+debounced = "&8[&6Wormholes&8] &7Çok hızlı çeviriyorsun; biraz bekle."
+managed = "&8[&6Wormholes&8] &c{portal} yönetilen bir portal, çevrilemez."
+
+[nexus.address]
+taken = "&8[&6Wormholes&8] &c{address} adresi {name} ağında zaten kullanılıyor."
+set = "&8[&6Wormholes&8] &a{portal} artık {address} adresine yanıt veriyor."
+invalid = "&8[&6Wormholes&8] &cAdreslerde yalnızca şu karakterler kullanılır: {value}"
+
+[nexus.network]
+unknown = "&8[&6Wormholes&8] &c{name} adlı bir ağ yok."
+exists = "&8[&6Wormholes&8] &c{name} adlı bir ağ zaten var."
+full = "&8[&6Wormholes&8] &c{name} ağında zaten {count} portal var."
+limit = "&8[&6Wormholes&8] &cZaten {count} ağın sahibisin."
+
+[nexus.portal]
+unknown = "&8[&6Wormholes&8] &c{portal} adlı bir portal yok."
+not_member = "&8[&6Wormholes&8] &c{portal}, {name} ağının üyesi değil."
+
+[nexus.visibility]
+set = "&8[&6Wormholes&8] &a{name} artık {value}."
+
+[nexus.hub]
+set = "&8[&6Wormholes&8] &a{portal}, {name} ağının merkezi."
+
+[nexus.list]
+empty = "&8[&6Wormholes&8] &7Henüz ağ yok."
+entry = "&7{name} &8- &f{count} portal&7, {value}, sahibi &f{owner}"
+
+[nexus.info]
+header = "&6{name} &8- &f{count} portal&7, {value}, {mode}"
+member = "&e{address} &f{portal} &7{world} dünyasında &8{state}"
+
+[nexus.doctor]
+header = "&8[&6Wormholes&8] &6Bağlantı denetimi: {count} bulgu."
+clean = "&8[&6Wormholes&8] &aBağlantı sorunu bulunamadı."
+oneway = "&e{portal} -> {destination} geri bağlantısı yok."
+dangling = "&c{portal} eksik bir hedefi gösteriyor."
+unloaded = "&e{portal} yüklenmemiş {world} dünyasını gösteriyor."
+offline = "&c{portal} {server} sunucusunu gösteriyor, {count} gündür çevrimdışı."
+
+[nexus.redstone]
+set = "&8[&6Wormholes&8] &a{portal} kırmızı taş: {value}."
+
+[nexus.reciprocal]
+paired = "&8[&6Wormholes&8] &a{portal} ile {destination} artık iki yönlü bağlı."
+unpaired = "&8[&6Wormholes&8] &a{portal} ile {destination} artık geri bağlanmıyor."
+denied = "&8[&6Wormholes&8] &cHem {portal} hem {destination} üzerinde yetkin yok."
+
+[nexus.prompt]
+network_name = "&bAğ adını sohbete yaz (ya da '{cancel}'):"
+address = "&bYeni adresi sohbete yaz (ya da '{cancel}'):"
+
+[nexus.menu]
+entry = ["&b&lAğ&r", "&7Ağlar, adresler, çevirme, hedef kuralları, kırmızı taş.", "&7Ağ: &f{name}", "&7Adres: &f{address}", "&eSol tık"]
+placard = ["&b&lAğ: {name}&r", "&7Adres: &f{address}", "&7Üye: &f{count}"]
+join = ["&a&lBir ağa katıl&r", "&7Bu portalı bir ağa ekle ve ona adres ver.", "&eSol tık"]
+leave = ["&c&l{name} ağından ayrıl&r", "&7Bu portalı ve adresini ağdan çıkar.", "&eSol tık"]
+create = ["&a&lAğ oluştur&r", "&7Yeni bir ağa ad ver ve bu portalı içine koy.", "&eSol tık"]
+address = ["&e&lAdres: {address}&r", "&7Diğer portalların buraya ulaşmak için çevirdiği kısa kod.", "&eSol tık yeniden yazar. &eSağ tık yeniden çeker."]
+visibility = ["&e&lGörünürlük: {value}&r", "&7Herkese açık ağları herkes, üye ağlarını üyeler, gizli ağları kimse görmez.", "&eSol tık değiştirir"]
+topology = ["&e&lTopoloji: {value}&r", "&7Örgü her üyeyi çevirir, merkez tek portaldan geçer, zincir ve halka komşuları çevirir.", "&eSol tık değiştirir"]
+reciprocal = ["&e&lGeri bağlantı: {state}&r", "&7Hedefi bu portala geri bakar durumda tut.", "&eSol tık açar kapatır"]
+policy = ["&e&lHedefler: {mode}&r", "&7{count} kayıt. Sıralı, ağırlıklı, zamanlanmış, oyuncuya özel ya da dönüş.", "&eSol tık kipi değiştirir. &eSağ tık listeyi boşaltır."]
+redstone = ["&e&lKırmızı taş: {value}&r", "&7Çerçevenin yanındaki yükselen kenar ne yapar ve karşılaştırıcı ne okur.", "&eSol tık eylemi seçer. &eSağ tık karşılaştırıcı çıkışını."]
+dial = ["&b&lÇevir&r", "&7Bu portalı ağındaki başka bir adrese yönelt.", "&eSol tık"]
+dial_entry = ["&e{address} &f{portal}", "&7{world}", "&b{state}"]
+link_and_return = ["&d&lBağla ve döndür&r", "&7{destination} portalını da {portal} portalına geri yönelt.", "&eSol tık"]
+
+[atlas]
+title = "&8Atlas &7- &f{count} portal"
+row = "&f{portal} &8| &7{destination} &8| &b{state}"
+empty = "&8[&6Wormholes&8] &7Henüz portal keşfetmedin."
+disabled = "&8[&6Wormholes&8] &cBu sunucuda atlas kapalı."
+only_players = "&8[&6Wormholes&8] &cAtlas yalnızca oyunculara aittir."
+no_permission = "&8[&6Wormholes&8] &cAtlası açma yetkin yok."
+discovered = "&8[&6Wormholes&8] &a{portal} keşfedildi."
+usage = ["&8[&6Wormholes&8] &7/atlas &8- &7portal listeni aç", "&8[&6Wormholes&8] &7/atlas favorites &8- &7yalnızca sabitlenen portallar", "&8[&6Wormholes&8] &7/atlas recents &8- &7son kullandığın portallar", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7yön göster; /atlas guide off durdurur"]
+
+[atlas.favorite]
+added = "&8[&6Wormholes&8] &a{portal} sabitlendi."
+removed = "&8[&6Wormholes&8] &a{portal} sabitlemesi kaldırıldı."
+full = "&8[&6Wormholes&8] &cZaten {count} portal sabitledin."
+
+[atlas.guide]
+bearing = "&b{portal} &f{value}"
+set = "&8[&6Wormholes&8] &a{portal} yönüne kılavuz açık."
+cleared = "&8[&6Wormholes&8] &aKılavuz kapalı."
+unknown = "&8[&6Wormholes&8] &cAtlasında {portal} adlı bir portal yok."
+
+[atlas.menu]
+row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&eSol tık çevirir. &eSağ tık sabitler. &eShift+sol tık kılavuz açar."]
+favorites = ["&d&lYalnızca sabitlenen: {state}&r", "&7Yalnızca sabitlediğin portalları göster.", "&eSol tık"]
+recents = ["&b&lYalnızca son kullanılan: {state}&r", "&7Yalnızca son kullandığın portalları göster.", "&eSol tık"]
+guide = ["&a&lKılavuz: {portal}&r", "&7Kılavuzlanan portalın yönünü eylem çubuğunda göster.", "&eSol tık durdurur"]
+# ---- end lane:nexus ----
+
+
+# ---- lane:doors (doorview.* and pockets.*) ----
+[doorview]
+"disabled" = "&8[&6Wormholes&8] &cKapi yansitmasi wormholes.toml dosyasinda kapali."
+"toggle.inherit" = "&8[&6Wormholes&8] &7Bu kapinin yansitmasi: &fdevralinan&7."
+"toggle.on" = "&8[&6Wormholes&8] &aBu kapinin yansitmasi: acik."
+"toggle.off" = "&8[&6Wormholes&8] &eBu kapinin yansitmasi: kapali."
+"state.inherit" = "devralinan"
+"state.on" = "acik"
+"state.off" = "kapali"
+"menu.projection" = ["&b&lYansitma: {state}&r", "&7Hedefi bu kapi boslugundan gosterir.", "&eDegistirmek icin sol tikla"]
+
+[pockets]
+"confirm.overwrite" = ["&8[&6Wormholes&8] &cBu, &f{space}&c cebinin icindeki her seyi degistirir.", "&8[&6Wormholes&8] &7Devam etmek icin ayni komutu &fconfirm=true&7 ile calistir."]
+"denied.build" = "&8[&6Wormholes&8] &cBu cepte insaatci degilsin."
+"denied.pvp" = "&8[&6Wormholes&8] &cBu cepte dovus kapali."
+"instance.none" = "&8[&6Wormholes&8] &cBu cep bir ornek degil."
+"instance.reset" = "&8[&6Wormholes&8] &f{space}&a cep ornegi sifirlandi."
+"room.added" = "&8[&6Wormholes&8] &f{space}&a cebine &f{count}&a numarali oda eklendi."
+"room.blocked" = "&8[&6Wormholes&8] &cKapiyi bir ic duvara koy."
+"room.limit" = "&8[&6Wormholes&8] &cBu cep zaten en fazla &f{count}&c odaya sahip."
+"roster.added" = "&8[&6Wormholes&8] &a{name}&a cep listesine &f{value}&a olarak eklendi."
+"roster.missing" = "&8[&6Wormholes&8] &c{name}&c bu cebin listesinde degil."
+"roster.removed" = "&8[&6Wormholes&8] &e{name}&e cep listesinden cikarildi."
+"roster.role" = "&8[&6Wormholes&8] &a{name}&a artik bu cepte &f{value}&a."
+"rules.invalid" = "&8[&6Wormholes&8] &cBilinmeyen cep kurali &f{key}&c."
+"rules.set" = "&8[&6Wormholes&8] &a{key} &7= &f{value}"
+"snapshot.missing" = "&8[&6Wormholes&8] &cBu cebin &f{name}&c adinda bir anlik goruntusu yok."
+"snapshot.restored" = "&8[&6Wormholes&8] &f{name}&a anlik goruntusu &f{space}&a cebine geri yuklendi."
+"snapshot.saved" = "&8[&6Wormholes&8] &f{space}&a cebinin &f{name}&a anlik goruntusu kaydedildi."
+"template.applied" = "&8[&6Wormholes&8] &f{name}&a sablonu &f{space}&a cebine uygulandi."
+"template.list" = "&8[&6Wormholes&8] &7Sablonlar (&f{count}&7): &f{value}"
+"template.missing" = "&8[&6Wormholes&8] &f{name}&c adinda bir cep sablonu yok."
+# ---- end lane:doors ----
+
+
+# ---- lane:mesh (mesh.*) ----
+[mesh]
+pending = "&8[&6Wormholes&8] &e{server}&7, &f{name}&7 üzerinden katılmak istiyor: /wh network accept {server}"
+accepted = "&8[&6Wormholes&8] &a&f{server}&a ağa kabul edildi."
+rejected = "&8[&6Wormholes&8] &c&f{server}&c reddedildi ve tanıtımı atıldı."
+tombstoned = "&8[&6Wormholes&8] &f{server}&7 ağ genelinde kaldırıldı."
+disabled = "&8[&6Wormholes&8] &7Mesh federasyonu &cdevre dışı&7 ([network.mesh] enabled = false)."
+
+[mesh.introductions]
+none = "&8[&6Wormholes&8] &7Onay bekleyen tanıtım yok."
+unknown = "&8[&6Wormholes&8] &c{server} onay beklemiyor."
+
+[mesh.members]
+none = "&8[&6Wormholes&8] &7Henüz bilinen ağ üyesi yok."
+row = "&8[&6Wormholes&8] &f{server}&7 {state} &8{fingerprint}"
+
+[mesh.versions]
+none = "&8[&6Wormholes&8] &7Henüz bağlanan eş yok."
+row = "&8[&6Wormholes&8] &f{server}&7: protokol &f{value}&7, eklenti &f{name}&7, yetenekler &f{state}"
+reduced = "&8[&6Wormholes&8] &e{server}&7 kısıtlı yeteneklerle bağlanıyor: &f{reason}"
+
+[mesh.drain]
+on = "&8[&6Wormholes&8] &eBoşaltma modu açık: boşaltma kapatılana kadar bu sunucu yeni gelişleri reddeder."
+off = "&8[&6Wormholes&8] &aBoşaltma modu kapalı: bu sunucu yeniden gelişleri kabul ediyor."
+state = "&8[&6Wormholes&8] &7Boşaltma modu {state}."
+invalid = "&8[&6Wormholes&8] &cBoşaltma durumu on veya off olmalıdır, alınan: {value}."
+
+[mesh.queue]
+position = "&7Boş sunucu bekleniyor: sıra &f{count}&7, &f{seconds}&7sn"
+timeout = "&cHiçbir hedef sunucuda zamanında yer açılmadı."
+
+[mesh.policy]
+none = "&cŞu anda kullanılabilir bir hedef yok."
+set = "&8[&6Wormholes&8] &a&f{portal}&a üzerindeki ilke: {value}"
+cleared = "&8[&6Wormholes&8] &7&f{portal}&7 üzerindeki ilke kaldırıldı; yeniden düz hedefine bağlanıyor."
+portal_unknown = "&8[&6Wormholes&8] &c{portal} adında yerel bir portal yok."
+invalid = "&8[&6Wormholes&8] &cGeçersiz ilke: {reason}"
+
+[mesh.command.help]
+members = "Tüm ağ üyelerini bağlantı durumu ve anahtar parmak iziyle listele"
+pending = "Onay bekleyen tanıtılmış sunucuları listele"
+accept = "Tanıtılmış bir sunucuya güven ve rotasını kaydet"
+reject = "Bir sunucunun bekleyen tanıtımını at"
+versions = "Her eşin protokolünü, eklenti sürümünü ve yeteneklerini göster"
+drain = "Bu sunucuyu hedef rotasyonundan çıkar veya geri al"
+policy = "Bir geçidin hedef ilkesini ayarla veya kaldır"
+
+[mesh.command.param.accept]
+server = "Tanıtılmış sunucu adı (bkz. /wh network pending)"
+
+[mesh.command.param.reject]
+server = "Reddedilecek tanıtılmış sunucu adı"
+
+[mesh.command.param.drain]
+state = "on veya off; boş bırakılırsa mevcut durum gösterilir"
+
+[mesh.command.param.policy]
+portal = "Yerel portal adı veya kimliği"
+candidates = "Virgülle ayrılmış sunucu:portal[:ağırlık] girdileri; boş bırakılırsa ilke kaldırılır"
+strategy = "FIRST_AVAILABLE, LEAST_LOADED, ROUND_ROBIN, STICKY veya NEAREST"
+headroom = "Bir adayın bildirmesi gereken boş oyuncu yeri"
+tps = "Bir adayın bildirmesi gereken en düşük TPS; 0 TPS'yi yok sayar"
+queue = "Tüm adaylar doluyken yolcuları beklet"
+# ---- end lane:mesh ----
+
+
+# ---- lane:transit (transit.*) ----
+[transit]
+bounced = "{portal} seni geri itti."
+
+[transit.denied]
+membrane = "{portal} yalnızca önden geçilebilir."
+convoy_size = "Konvoyunda {count} varlık var; sınır {value}."
+convoy_fit = "Konvoyun {portal} içinden sığmıyor."
+convoy_member = "Konvoyunun bir kısmı {portal} kullanamaz."
+
+[transit.convoy]
+waiting = "Tüm konvoyunu {portal} içinden geçir."
+failed = "Konvoy aktarımı başarısız: {reason}."
+
+[transit.menu]
+entry = ["&b&lGeçiş&r", "&7Momentum, yön, zar, sekme ve efektler.", "&eSol tık"]
+momentum = ["&6&lMomentum: {mode}&r", "&7Çarpan {value}. Çıkış hızının giriş hızından nasıl türetildiği.", "&eMod değiştirmek için sol tık", "&eÇarpanı ayarlamak için sağ tık"]
+orientation = ["&6&lYön: {mode}&r", "&7Yolcuların varışta baktığı yön.", "&eDeğiştirmek için sol tık"]
+membrane = ["&6&lZar: {state}&r", "&7Yalnızca ön taraf yolcuları içeri alır; arka taraf onları iter.", "&eAçıp kapatmak için sol tık"]
+bounce = ["&6&lSekme: {state}&r", "&7Yolcuları taşımak yerine geri sektir.", "&eAçıp kapatmak için sol tık"]
+profile = ["&6&lGeçiş efektleri&r", "&7Yaklaşma {value}", "&7Eşik {mode}", "&7Varış {state}", "&eSol tık: yaklaşma sesi, Sağ tık: eşik efekti", "&eShift + Sol tık: varış sesi, Shift + Sağ tık: maske tikleri"]
+prompt = "&bYeni değeri sohbete yazın (veya '{cancel}'):"
+# ---- end lane:transit ----
+
+
+# ---- lane:view (fidelity.*) ----
+[fidelity.menu]
+entry = ["&b&lSadakat&r", "&7Bu portalın atmosferi, akustiği, ayrıntı düzeyi ve blok varlıkları.", "&eSol tık"]
+placard = ["&b&lProjeksiyon sadakati&r", "&7Projeksiyonun üzerine bindirilen portal başına kanallar."]
+atmosphere = "&bAtmosfer: &f{mode}"
+acoustics = "&bAkustik: &f{mode}"
+lod = "&bAyrıntı: &f{mode}"
+block_entities = "&bBlok varlıkları: &f{state}"
+hint = ["&8Değiştirmek için tıklayın.", "&8Shift + tık sunucu varsayılanını kullanır."]
+back = ["&e&lGeri&r", "&7Portal menüsüne dön."]
+default = "varsayılan"
+
+[fidelity.bedrock]
+profile = "{count} izleyici için Bedrock profili etkin"
+# ---- end lane:view ----
+
+
+# ---- lane:ops (ops.*) ----
+[ops.console]
+started = "Metrik ucu {value} adresinde dinliyor."
+no_token = "Metrik ucu baslamadi: [ops.console] token degerini ayarla."
+failed = "Metrik ucu {value} adresine baglanamadi: {reason}"
+
+[ops.webmap]
+published = "{name} uzerine {count} portal isareti yayimlandi."
+
+[ops.backup]
+created = "&8[&6Wormholes&8] &aYedek &f{id}&a su konuma yazildi: &f{path}&a."
+restored = "&8[&6Wormholes&8] &a&f{id}&a yedeginden &f{count}&a portal geri yuklendi."
+dry_run = "&8[&6Wormholes&8] &7Deneme: &f{count}&7 portal degisecekti."
+list_row = "&8[&6Wormholes&8] &f{id} &8| &f{count}&7 portal &8| &7{path}"
+list_empty = "&8[&6Wormholes&8] &f{path}&7 altinda yedek yok."
+not_found = "&8[&6Wormholes&8] &c&f{id}&c ile eslesen yedek yok."
+confirm_required = "&8[&6Wormholes&8] &cUygulamak icin komutu &fconfirm=true&c ile, plani gormek icin &fdry=true&c ile tekrar calistir."
+failed = "&8[&6Wormholes&8] &cYedekleme islemi basarisiz: &f{reason}"
+reload_required = "&8[&6Wormholes&8] &7Portal dosyalari degistirildi. Yuklemek icin &f/wormholes reload&7 calistir."
+signature_broken = "&8[&6Wormholes&8] &c&f{id}&c reddedildi: imza icerigiyle eslesmiyor."
+signature_untrusted = "&8[&6Wormholes&8] &c&f{id}&c reddedildi: &f{fingerprint}&c tarafindan imzalandi, bu sunucu ona guvenmiyor. Yine de uygulamak icin &fallow-unsigned=true&c ekle."
+signature_ok = "&8[&6Wormholes&8] &7&f{name}&7 (&f{fingerprint}&7) tarafindan imzalandi."
+
+[ops.import]
+report = "&8[&6Wormholes&8] &f{name}&7: &f{count}&7 portal alindi, &f{value}&7 atlandi."
+skipped_row = "&8[&6Wormholes&8] &7{portal}&8: &f{reason}"
+not_detected = "&8[&6Wormholes&8] &c&f{path}&c altinda {name} verisi bulunamadi."
+
+[ops.portals]
+row = "&8[&6Wormholes&8] &f{portal} &8| &7{world} &8| &7{state} &8| &7{destination}"
+page = "&8[&6Wormholes&8] &7Sayfa &f{page}&7/&f{pages}"
+empty = "&8[&6Wormholes&8] &7Bu filtrelerle eslesen portal yok."
+not_found = "&8[&6Wormholes&8] &c&f{name}&c ile eslesen portal yok."
+ambiguous = "&8[&6Wormholes&8] &c&f{name}&c ile {count} portal eslesiyor; kimligi kullan."
+info = ["&8[&6Wormholes&8] &7Portal &f{portal} &8| &7{id}", "&8[&6Wormholes&8] &7Dunya &f{world}&7, konum &f{value}", "&8[&6Wormholes&8] &7Durum &f{state}&7, hedef &f{destination}&7, sahip &f{owner}"]
+teleported = "&8[&6Wormholes&8] &a&f{portal}&a portalina isinlandin."
+teleport_unsafe = "&8[&6Wormholes&8] &e&f{portal}&e yakininda guvenli inis yok; portal merkezi kullaniliyor."
+retargeted = "&8[&6Wormholes&8] &a&f{portal}&a artik &f{destination}&a hedefini gosteriyor."
+unlinked = "&8[&6Wormholes&8] &a&f{portal}&a artik bagli degil."
+pruned = "&8[&6Wormholes&8] &a&f{count}&a sahipsiz bag temizlendi."
+prune_dry_run = "&8[&6Wormholes&8] &7Deneme: &f{count}&7 sahipsiz bag temizlenecekti."
+renamed_server = "&8[&6Wormholes&8] &a&f{count}&a gecit bagi &f{name}&a adindan &f{server}&a adina yeniden yazildi."
+
+[ops.command.help]
+backup = "Portal yedeklerini olustur, listele, geri yukle ve tasi"
+"backup.now" = "Portal verilerinin yedegini simdi yaz"
+"backup.list" = "Diskteki yedekleri listele"
+"backup.restore" = "Portal dosyalarini bir yedekten geri yukle (dry=true plani gosterir)"
+"backup.restore.id" = "/wormholes admin backup list komutundan alinan yedek kimligi"
+"backup.restore.dry" = "Hicbir sey yazmadan nelerin degisecegini bildir"
+"backup.restore.world_map" = "Dunya adi degisiklikleri eski=yeni,eski=yeni bicimiyle"
+"backup.restore.owner_map" = "Sahip degisiklikleri eski-uuid=yeni-uuid bicimiyle"
+"backup.restore.confirm" = "dry=false iken dosya yazmak icin gerekli"
+"backup.allow_unsigned" = "Guvenilen bir anahtarin imzalamadigi paketi uygula"
+"backup.export" = "Bir yedek paketini sunucular arasi tasinabilir bir dosyaya yaz"
+"backup.export.file" = "Hedef dosya; bos birakilirsa yedek klasorune yazar"
+"backup.import" = "Baska bir sunucudan disa aktarilmis paketi ice aktar"
+"backup.import.file" = "Okunacak paket dosyasi"
+"backup.import.dry" = "Hicbir sey yazmadan nelerin degisecegini bildir"
+"backup.import.world_map" = "Dunya adi degisiklikleri eski=yeni,eski=yeni bicimiyle"
+"backup.import.owner_map" = "Sahip degisiklikleri eski-uuid=yeni-uuid bicimiyle"
+"backup.import.confirm" = "dry=false iken dosya yazmak icin gerekli"
+"backup.import_from" = "Baska bir portal eklentisinin dosyalarindan portal ice aktar"
+"backup.import_from.source" = "stargate, advancedportals, multiverse, betterportals veya essentials"
+"backup.import_from.dry" = "Hicbir sey olusturmadan nelerin olusacagini bildir"
+"backup.import_from.frame" = "Cercevesi olmayan kaynaklar icin genislik,yukseklik bicimiyle cerceve boyutu"
+portals = "Portallari listele, incele ve toplu duzenle"
+"portals.list" = "Portallari istege bagli filtrelerle listele"
+"portals.list.world" = "Yalnizca bu dunyadaki portallar"
+"portals.list.type" = "Yalnizca bu turdeki portallar: portal, wormhole, gateway veya rtp"
+"portals.list.owner" = "Yalnizca bu oyuncu adina veya uuid degerine ait portallar"
+"portals.list.state" = "Yalnizca bu durumdaki portallar: open, closed, linked veya unlinked"
+"portals.list.page" = "Sayfa numarasi"
+"portals.find" = "Adinda bu metni gecen portallari bul"
+"portals.find.name" = "Aranacak metin"
+"portals.info" = "Bir portalin dunyasini, durumunu, hedefini ve sahibini goster"
+"portals.info.portal" = "Portal adi veya kimligi"
+"portals.tp" = "Bir portala guvenli zemine inerek isinlan"
+"portals.tp.portal" = "Portal adi veya kimligi"
+"portals.retarget" = "Bir portali baska bir yerel portala yonlendir"
+"portals.retarget.portal" = "Degistirilecek portalin adi veya kimligi"
+"portals.retarget.destination" = "Hedef portalin adi veya kimligi"
+"portals.unlink" = "Bir portalin hedefini kaldir"
+"portals.unlink.portal" = "Portal adi veya kimligi"
+"portals.prune" = "Hedefi artik var olmayan baglari kaldir"
+"portals.prune.dry" = "Hicbir seyi degistirmeden nelerin kaldirilacagini bildir"
+"portals.prune.confirm" = "dry=false iken kaldirmak icin gerekli"
+"portals.rename_server" = "Sunucular arasi baglari bir sunucu adindan digerine yeniden yaz"
+"portals.rename_server.old" = "Baglarda bugun kayitli olan sunucu adi"
+"portals.rename_server.new" = "Onun yerine kaydedilecek sunucu adi"
+"portals.rename_server.confirm" = "Baglari yeniden yazmak icin gerekli"
+# ---- end lane:ops ----

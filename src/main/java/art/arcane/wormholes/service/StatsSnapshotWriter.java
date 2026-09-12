@@ -70,6 +70,8 @@ public final class StatsSnapshotWriter {
 
     private static final DateTimeFormatter ISO_INSTANT = DateTimeFormatter.ISO_INSTANT.withZone(ZoneOffset.UTC);
     private static final int COL_WIDTH = 96;
+    private static final long RECENT_ERROR_WINDOW_MILLIS = 60_000L;
+    private static final int RECENT_ERROR_LIMIT = 10;
 
     private final Wormholes plugin;
     private final Logger logger;
@@ -310,12 +312,12 @@ public final class StatsSnapshotWriter {
         appendBreakdown(out, "door reasons", failures.doorBreakdown());
         out.append('\n');
 
-        out.append("ERRORS (last 60s)\n");
+        out.append("ERRORS (last ").append(RECENT_ERROR_WINDOW_MILLIS / 1000L).append("s)\n");
         List<String> errors = data.recentErrors();
         if (errors == null || errors.isEmpty()) {
             out.append("  - (none)\n");
         } else {
-            int limit = Math.min(errors.size(), 10);
+            int limit = Math.min(errors.size(), RECENT_ERROR_LIMIT);
             for (int i = 0; i < limit; i++) {
                 out.append("  - ").append(errors.get(i)).append('\n');
             }
@@ -426,7 +428,7 @@ public final class StatsSnapshotWriter {
             doors == null ? 0L : doors.failedTransits(),
             doors == null ? Map.of() : doors.failedTransitBreakdown()
         );
-        List<String> errors = List.of();
+        List<String> errors = FailureRegistry.recentLines(RECENT_ERROR_WINDOW_MILLIS, now.toEpochMilli(), RECENT_ERROR_LIMIT);
         return new SnapshotData(
             now,
             uptime,

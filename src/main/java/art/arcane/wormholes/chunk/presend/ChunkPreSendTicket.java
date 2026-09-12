@@ -9,6 +9,7 @@ public final class ChunkPreSendTicket<W, P> {
     private final W sourceWorld;
     private final ChunkPreSendRollback rollback;
     private final int sentChunks;
+    private final int plannedChunks;
     private final boolean viewCenterAnnounced;
     private final AtomicBoolean consumed;
 
@@ -18,6 +19,7 @@ public final class ChunkPreSendTicket<W, P> {
         W sourceWorld,
         ChunkPreSendRollback rollback,
         int sentChunks,
+        int plannedChunks,
         boolean viewCenterAnnounced
     ) {
         this.outcome = Objects.requireNonNull(outcome, "outcome");
@@ -25,12 +27,13 @@ public final class ChunkPreSendTicket<W, P> {
         this.sourceWorld = sourceWorld;
         this.rollback = Objects.requireNonNull(rollback, "rollback");
         this.sentChunks = sentChunks;
+        this.plannedChunks = plannedChunks;
         this.viewCenterAnnounced = viewCenterAnnounced;
         this.consumed = new AtomicBoolean();
     }
 
     static <W, P> ChunkPreSendTicket<W, P> rejected(ChunkPreSendOutcome outcome, P player) {
-        return new ChunkPreSendTicket<>(outcome, player, null, ChunkPreSendRollback.none(0, 0), 0, false);
+        return new ChunkPreSendTicket<>(outcome, player, null, ChunkPreSendRollback.none(0, 0), 0, 0, false);
     }
 
     public ChunkPreSendOutcome outcome() {
@@ -51,6 +54,11 @@ public final class ChunkPreSendTicket<W, P> {
 
     public int sentChunks() {
         return sentChunks;
+    }
+
+    /** Chunks the planner selected for this burst; the gap to {@link #sentChunks()} is what still has to stream. */
+    public int plannedChunks() {
+        return plannedChunks;
     }
 
     public boolean viewCenterAnnounced() {

@@ -164,13 +164,13 @@ public final class ChunkPreSendService<W, P> {
         ChunkPreSendPlan plan,
         ChunkPreSendOptions active
     ) {
-        long deadline = platform.nanoTime() + active.budgetNanos();
+        ChunkPreSendBudgetGuard guard = new ChunkPreSendBudgetGuard(platform.nanoTime(), active.budgetNanos());
         List<ChunkCoordinate> deliverable = new ArrayList<>(plan.size());
         int unloaded = 0;
         int inspected = 0;
         boolean starved = false;
         for (ChunkCoordinate coordinate : plan.chunks()) {
-            if (inspected > 0 && platform.nanoTime() >= deadline) {
+            if (inspected > 0 && guard.check(platform.nanoTime()) != ChunkPreSendBudgetGuard.Verdict.CONTINUE) {
                 starved = true;
                 break;
             }
@@ -195,16 +195,23 @@ public final class ChunkPreSendService<W, P> {
         }
         List<ChunkCoordinate> sent = new ArrayList<>(deliverable.size());
         boolean truncated = plan.truncated() || starved || unloaded > 0;
-        for (ChunkCoordinate coordinate : deliverable) {
-            if (!sent.isEmpty() && platform.nanoTime() >= deadline) {
-                truncated = true;
-                break;
-            }
+        boolean overrun = false;
+        for (int index = 0; index < deliverable.size(); index++) {
+            ChunkCoordinate coordinate = deliverable.get(index);
             if (!platform.sendChunk(player, destinationWorld, coordinate.x(), coordinate.z())) {
                 truncated = true;
                 break;
             }
             sent.add(coordinate);
+            ChunkPreSendBudgetGuard.Verdict verdict = guard.check(platform.nanoTime());
+            if (verdict == ChunkPreSendBudgetGuard.Verdict.OVERRUN) {
+                overrun = true;
+                break;
+            }
+            if (verdict == ChunkPreSendBudgetGuard.Verdict.STOP) {
+                truncated |= index + 1 < deliverable.size();
+                break;
+            }
         }
         ClientChunkWindow sourceWindow = ClientChunkWindow.around(
             request.sourceCenterX(),
@@ -212,11 +219,17 @@ public final class ChunkPreSendService<W, P> {
             request.clientViewDistance()
         );
         ChunkPreSendRollback rollback = ChunkPreSendRollback.of(sourceWindow, sent, request.sameWorld());
+        if (overrun) {
+            ChunkPreSendTicket<W, P> halfSent = new ChunkPreSendTicket<>(
+                ChunkPreSendOutcome.PRE_SENT_PARTIAL, player, sourceWorld, rollback, sent.size(), plan.size(), true);
+            rollback(halfSent);
+            return reject(ChunkPreSendOutcome.ROLLED_BACK_BUDGET_OVERRUN, player);
+        }
         ChunkPreSendOutcome outcome = truncated
             ? ChunkPreSendOutcome.PRE_SENT_PARTIAL
             : ChunkPreSendOutcome.PRE_SENT;
         count(outcome.telemetryReason());
-        return new ChunkPreSendTicket<>(outcome, player, sourceWorld, rollback, sent.size(), true);
+        return new ChunkPreSendTicket<>(outcome, player, sourceWorld, rollback, sent.size(), plan.size(), true);
     }
 
     private ChunkPreSendRollbackOutcome drain(

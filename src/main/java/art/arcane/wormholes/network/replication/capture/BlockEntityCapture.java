@@ -1,12 +1,16 @@
 package art.arcane.wormholes.network.replication.capture;
 
+import art.arcane.volmlib.util.scheduling.FoliaScheduler;
+import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.view.ViewSlice;
 import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
+import art.arcane.wormholes.render.blockentity.BlockEntityMaterials;
+import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
-import org.bukkit.block.TileState;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -21,8 +25,12 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * Captures the client-facing appearance of whitelisted block entities on the destination side and
+ * feeds it into the replication diff stream as an encoded {@link BlockEntitySample}.
+ */
 public final class BlockEntityCapture implements Listener {
-    public static final int MAX_NBT_BYTES = 2048;
+    public static final int MAX_NBT_BYTES = BlockEntitySample.MAX_NBT_BYTES + 64;
 
     private final RegionalDiffAccumulator accumulator;
     private final Logger logger;
@@ -34,7 +42,11 @@ public final class BlockEntityCapture implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onSignChange(SignChangeEvent event) {
-        captureFromBlock(event.getBlock());
+        Block block = event.getBlock();
+        Wormholes plugin = Wormholes.instance;
+        if (plugin == null || !FoliaScheduler.runRegion(plugin, block.getLocation(), () -> captureFromBlock(block), 1L)) {
+            captureFromBlock(block);
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -75,6 +87,9 @@ public final class BlockEntityCapture implements Listener {
         if (!accumulator.settings().blockEntityCaptureEnabled()) {
             return;
         }
+        if (!BlockEntityMaterials.isCandidate(block.getType())) {
+            return;
+        }
         int worldX = block.getX();
         int worldY = block.getY();
         int worldZ = block.getZ();
@@ -85,23 +100,21 @@ public final class BlockEntityCapture implements Listener {
         }
         BlockState state;
         try {
-            state = WormholesPlatform.blockState(block, false);
-        } catch (Throwable ex) {
+            state = WormholesPlatform.blockState(block, true);
+        } catch (RuntimeException ex) {
             return;
         }
-        if (!(state instanceof TileState tileState)) {
+        BlockEntitySample sample = BlockEntityCapturer.capture(state);
+        if (sample == null) {
             return;
         }
         byte[] payload;
         try {
-            payload = WormholesPlatform.serializePersistentData(tileState.getPersistentDataContainer());
+            payload = BlockEntityCapturer.encode(sample);
         } catch (IOException ex) {
             if (logger != null) {
-                logger.log(Level.WARNING, "Block-entity NBT serialization failed at " + worldX + "," + worldY + "," + worldZ, ex);
+                logger.log(Level.WARNING, "Block-entity sample encoding failed at " + worldX + "," + worldY + "," + worldZ, ex);
             }
-            return;
-        }
-        if (payload == null) {
             return;
         }
         if (payload.length > MAX_NBT_BYTES) {

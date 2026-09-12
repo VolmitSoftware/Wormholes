@@ -13,6 +13,9 @@ import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.replication.capture.CaptureRuntime;
 import art.arcane.wormholes.network.replication.capture.RegionalDiffAccumulator;
 import art.arcane.wormholes.network.view.ViewServer;
+import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.wormholes.render.bedrock.ClientProfileService;
+import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
 import org.bukkit.Bukkit;
 
 import java.io.BufferedReader;
@@ -204,7 +207,9 @@ public final class DebugTelemetryService {
             + " spoofed=" + WormholesTelemetry.spoofedEntities()
             + " clientPackets=" + formatRate(WormholesTelemetry.packetsPerSecond(now)) + "/s"
             + " blockChanges=" + formatRate(WormholesTelemetry.blockChangesPerSecond(now)) + "/s"
-            + " render=" + formatRate(WormholesTelemetry.renderMsPerSecond(now)) + "ms/s");
+            + " render=" + formatRate(WormholesTelemetry.renderMsPerSecond(now)) + "ms/s"
+            + " blockEntityNbt=" + WormholesPlatform.blockEntityNbtPath() + "/" + BlockEntityCapturer.activePath()
+            + " bedrockViewers=" + ClientProfileService.bedrockViewerCount());
     }
 
     private void logView(RuntimeSnapshot current, RateSnapshot rates) {

@@ -50,4 +50,13 @@ public class ProjectionConfig {
         "Set to 0 to disable the ceiling (not recommended: the through-portal scan can then cost millions of cells)."
     })
     public int maxProjectedCells = 250000;
+    @ConfigDescription({
+        "Build the portal-scoped projection stage (destination sampling, block-state transform, buried-cell culling) once per portal and share it between every observer.",
+        "Off falls back to per-observer sampling for every cell."
+    })
+    public boolean sharedPlate = true;
+    @ConfigDescription("Total memory the shared view plates may hold; the oldest plate is evicted first.")
+    public long plateMaxBytes = 33_554_432L;
+    @ConfigDescription("Worker threads that build shared view plates from region snapshots and remote views.")
+    public int plateWorkers = 2;
 }

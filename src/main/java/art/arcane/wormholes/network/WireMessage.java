@@ -12,10 +12,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import art.arcane.wormholes.network.convoy.ConvoyManifest;
 import art.arcane.wormholes.network.replication.ChunkBulk;
 import art.arcane.wormholes.network.replication.ChunkDiffBatch;
 import art.arcane.wormholes.network.replication.ChunkHashProbe;
 import art.arcane.wormholes.network.replication.ChunkResyncRequest;
+import art.arcane.wormholes.network.mesh.LoadBeacon;
+import art.arcane.wormholes.network.mesh.PeerAnnounce;
+import art.arcane.wormholes.network.mesh.PeerTombstone;
 import art.arcane.wormholes.network.replication.ReplicationVarint;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.network.view.ViewSlice;
@@ -25,7 +29,7 @@ public sealed interface WireMessage {
 
     void write(DataOutputStream out) throws IOException;
 
-    record Hello(int protocolVersion, String mcVersion, String pluginVersion, String serverName, String advertiseHost, int wormholePort, GameEndpoint gameEndpoint, GameEndpoint privateGameEndpoint, byte[] nonce, byte[] publicKey, boolean compressionSupported, byte[] currentDictHash, int currentDictVersion) implements WireMessage {
+    record Hello(int protocolVersion, String mcVersion, String pluginVersion, String serverName, String advertiseHost, int wormholePort, GameEndpoint gameEndpoint, GameEndpoint privateGameEndpoint, byte[] nonce, byte[] publicKey, boolean compressionSupported, byte[] currentDictHash, int currentDictVersion, long capabilities) implements WireMessage {
         @Override
         public WireMessageType type() {
             return WireMessageType.HELLO;
@@ -33,6 +37,14 @@ public sealed interface WireMessage {
 
         @Override
         public void write(DataOutputStream out) throws IOException {
+            writeTranscript(out, WireCodec.PROTOCOL_VERSION);
+        }
+
+        /**
+         * Writes the fields defined at or below {@code wireVersion}. Both handshake sides sign this layout
+         * at the negotiated version, so a newer peer's trailing fields never enter an older peer's transcript.
+         */
+        public void writeTranscript(DataOutputStream out, int wireVersion) throws IOException {
             out.writeInt(protocolVersion);
             out.writeUTF(mcVersion);
             out.writeUTF(pluginVersion);
@@ -46,6 +58,8 @@ public sealed interface WireMessage {
             out.writeBoolean(compressionSupported);
             WireCodec.writeFixedBytes(out, currentDictHash, CompressionDictionary.HASH_LENGTH);
             out.writeInt(currentDictVersion);
+            out.writeLong(capabilities);
+            // Fields introduced after protocol 21 go below, each guarded by "if (wireVersion >= N)".
         }
 
         public static Hello read(DataInputStream in) throws IOException {
@@ -65,11 +79,12 @@ public sealed interface WireMessage {
             boolean compressionSupported = in.readBoolean();
             byte[] currentDictHash = WireCodec.readFixedBytes(in, CompressionDictionary.HASH_LENGTH);
             int currentDictVersion = in.readInt();
-            return new Hello(protocolVersion, mcVersion, pluginVersion, serverName, advertiseHost, wormholePort, gameEndpoint, privateGameEndpoint, nonce, publicKey, compressionSupported, currentDictHash, currentDictVersion);
+            long capabilities = in.readLong();
+            return new Hello(protocolVersion, mcVersion, pluginVersion, serverName, advertiseHost, wormholePort, gameEndpoint, privateGameEndpoint, nonce, publicKey, compressionSupported, currentDictHash, currentDictVersion, capabilities);
         }
     }
 
-    record Challenge(String serverName, String advertiseHost, int wormholePort, GameEndpoint gameEndpoint, GameEndpoint privateGameEndpoint, byte[] nonce, byte[] publicKey, byte[] signature, boolean compressionSupported, byte[] currentDictHash, int currentDictVersion) implements WireMessage {
+    record Challenge(String serverName, String advertiseHost, int wormholePort, GameEndpoint gameEndpoint, GameEndpoint privateGameEndpoint, byte[] nonce, byte[] publicKey, byte[] signature, boolean compressionSupported, byte[] currentDictHash, int currentDictVersion, long capabilities) implements WireMessage {
         @Override
         public WireMessageType type() {
             return WireMessageType.CHALLENGE;
@@ -77,6 +92,11 @@ public sealed interface WireMessage {
 
         @Override
         public void write(DataOutputStream out) throws IOException {
+            writeTranscript(out, WireCodec.PROTOCOL_VERSION);
+        }
+
+        /** Same rule as {@link Hello#writeTranscript}: only fields defined at or below {@code wireVersion}. */
+        public void writeTranscript(DataOutputStream out, int wireVersion) throws IOException {
             out.writeUTF(serverName);
             out.writeUTF(advertiseHost);
             out.writeShort(wormholePort);
@@ -88,6 +108,8 @@ public sealed interface WireMessage {
             out.writeBoolean(compressionSupported);
             WireCodec.writeFixedBytes(out, currentDictHash, CompressionDictionary.HASH_LENGTH);
             out.writeInt(currentDictVersion);
+            out.writeLong(capabilities);
+            // Fields introduced after protocol 21 go below, each guarded by "if (wireVersion >= N)".
         }
 
         public static Challenge read(DataInputStream in) throws IOException {
@@ -105,7 +127,8 @@ public sealed interface WireMessage {
             boolean compressionSupported = in.readBoolean();
             byte[] currentDictHash = WireCodec.readFixedBytes(in, CompressionDictionary.HASH_LENGTH);
             int currentDictVersion = in.readInt();
-            return new Challenge(serverName, advertiseHost, wormholePort, gameEndpoint, privateGameEndpoint, nonce, publicKey, signature, compressionSupported, currentDictHash, currentDictVersion);
+            long capabilities = in.readLong();
+            return new Challenge(serverName, advertiseHost, wormholePort, gameEndpoint, privateGameEndpoint, nonce, publicKey, signature, compressionSupported, currentDictHash, currentDictVersion, capabilities);
         }
     }
 
@@ -238,10 +261,12 @@ public sealed interface WireMessage {
             return new Routed(sourceServer, targetServer, ttl, innerType, payload, signature);
         }
 
-        static boolean isRelayAnnouncement(WireMessageType type) {
+        public static boolean isRelayAnnouncement(WireMessageType type) {
             return type == WireMessageType.PORTAL_DIRECTORY
                 || type == WireMessageType.PORTAL_UPSERT
-                || type == WireMessageType.PORTAL_REMOVE;
+                || type == WireMessageType.PORTAL_REMOVE
+                || type == WireMessageType.PEER_ANNOUNCE
+                || type == WireMessageType.PEER_TOMBSTONE;
         }
 
         private static byte[] authenticationHeader(String sourceServer, String targetServer, WireMessageType innerType, int payloadLength) throws IOException {
@@ -388,8 +413,145 @@ public sealed interface WireMessage {
         }
     }
 
+    record PeerAnnounceMessage(PeerAnnounce announce) implements WireMessage {
+        @Override
+        public WireMessageType type() {
+            return WireMessageType.PEER_ANNOUNCE;
+        }
+
+        @Override
+        public void write(DataOutputStream out) throws IOException {
+            announce.write(out);
+        }
+
+        public static PeerAnnounceMessage read(DataInputStream in) throws IOException {
+            return new PeerAnnounceMessage(PeerAnnounce.read(in));
+        }
+    }
+
+    record PeerTombstoneMessage(PeerTombstone tombstone) implements WireMessage {
+        @Override
+        public WireMessageType type() {
+            return WireMessageType.PEER_TOMBSTONE;
+        }
+
+        @Override
+        public void write(DataOutputStream out) throws IOException {
+            tombstone.write(out);
+        }
+
+        public static PeerTombstoneMessage read(DataInputStream in) throws IOException {
+            return new PeerTombstoneMessage(PeerTombstone.read(in));
+        }
+    }
+
+    record LoadBeaconMessage(LoadBeacon beacon) implements WireMessage {
+        @Override
+        public WireMessageType type() {
+            return WireMessageType.LOAD_BEACON;
+        }
+
+        @Override
+        public void write(DataOutputStream out) throws IOException {
+            beacon.write(out);
+        }
+
+        public static LoadBeaconMessage read(DataInputStream in) throws IOException {
+            return new LoadBeaconMessage(LoadBeacon.read(in));
+        }
+    }
+
+    /** On-demand directory pull: name filter (blank or glob with a trailing '*') and a result cap. */
+    record PortalQuery(String filter, int limit) implements WireMessage {
+        public static final int MAX_LIMIT = 256;
+        private static final int MAX_FILTER_CHARS = 128;
+
+        @Override
+        public WireMessageType type() {
+            return WireMessageType.PORTAL_QUERY;
+        }
+
+        @Override
+        public void write(DataOutputStream out) throws IOException {
+            out.writeUTF(filter == null ? "" : filter);
+            out.writeInt(limit);
+        }
+
+        public static PortalQuery read(DataInputStream in) throws IOException {
+            String filter = in.readUTF();
+            int limit = in.readInt();
+            if (filter.length() > MAX_FILTER_CHARS || limit < 0 || limit > MAX_LIMIT) {
+                throw new IOException("Invalid portal query");
+            }
+            return new PortalQuery(filter, limit);
+        }
+    }
+
+    record PortalQueryResult(List<PortalInfo> portals, boolean truncated) implements WireMessage {
+        @Override
+        public WireMessageType type() {
+            return WireMessageType.PORTAL_QUERY_RESULT;
+        }
+
+        @Override
+        public void write(DataOutputStream out) throws IOException {
+            out.writeInt(portals.size());
+            for (PortalInfo portal : portals) {
+                portal.write(out);
+            }
+            out.writeBoolean(truncated);
+        }
+
+        public static PortalQueryResult read(DataInputStream in) throws IOException {
+            int count = in.readInt();
+            if (count < 0 || count > PortalQuery.MAX_LIMIT) {
+                throw new IOException("Invalid portal query result size: " + count);
+            }
+            List<PortalInfo> portals = new ArrayList<>(count);
+            for (int i = 0; i < count; i++) {
+                portals.add(PortalInfo.read(in));
+            }
+            return new PortalQueryResult(portals, in.readBoolean());
+        }
+    }
+
+    /** Queue feedback for a traveler held behind a full destination policy. */
+    record HandoffQueueStatus(UUID transferId, int position, long etaMillis) implements WireMessage {
+        @Override
+        public WireMessageType type() {
+            return WireMessageType.HANDOFF_QUEUE_STATUS;
+        }
+
+        @Override
+        public void write(DataOutputStream out) throws IOException {
+            writeUuid(out, transferId);
+            out.writeInt(position);
+            out.writeLong(etaMillis);
+        }
+
+        public static HandoffQueueStatus read(DataInputStream in) throws IOException {
+            UUID transferId = readUuid(in);
+            int position = in.readInt();
+            long etaMillis = in.readLong();
+            if (position < 0) {
+                throw new IOException("Invalid handoff queue position: " + position);
+            }
+            return new HandoffQueueStatus(transferId, position, etaMillis);
+        }
+    }
+
+    /**
+     * {@code groupId} is the transit lane's optional convoy correlation: a trailing field written only
+     * when set (the sender gates convoys on {@link WireCapability#CONVOY}), so the seam layout is
+     * unchanged when it is null and readers tolerate both shapes.
+     */
     record HandoffRequest(UUID transferId, UUID playerId, String playerName, UUID destPortalId, boolean directTransfer,
-                          boolean onlineMode, WireTraversive traversive) implements WireMessage {
+                          boolean onlineMode, WireTraversive traversive, UUID groupId) implements WireMessage {
+        public HandoffRequest(UUID transferId, UUID playerId, String playerName, UUID destPortalId, boolean directTransfer,
+                              boolean onlineMode, WireTraversive traversive) {
+            this(transferId, playerId, playerName, destPortalId, directTransfer, onlineMode, traversive, null);
+        }
+
         @Override
         public WireMessageType type() {
             return WireMessageType.HANDOFF_REQUEST;
@@ -409,6 +571,10 @@ public sealed interface WireMessage {
             if (destPortalId != null) {
                 traversive.write(out);
             }
+            if (groupId != null) {
+                out.writeBoolean(true);
+                writeUuid(out, groupId);
+            }
         }
 
         public static HandoffRequest read(DataInputStream in) throws IOException {
@@ -418,8 +584,45 @@ public sealed interface WireMessage {
             UUID portalId = in.readBoolean() ? readUuid(in) : null;
             boolean direct = in.readBoolean();
             boolean online = in.readBoolean();
-            return new HandoffRequest(transferId, playerId, playerName, portalId, direct, online,
-                portalId == null ? null : WireTraversive.read(in));
+            WireTraversive traversive = portalId == null ? null : WireTraversive.read(in);
+            UUID groupId = in.available() > 0 && in.readBoolean() ? readUuid(in) : null;
+            return new HandoffRequest(transferId, playerId, playerName, portalId, direct, online, traversive, groupId);
+        }
+    }
+
+    /** Transit lane: a whole rig offered to the destination ahead of the player's handoff. Gated on CONVOY. */
+    record ConvoyTransfer(ConvoyManifest manifest) implements WireMessage {
+        @Override
+        public WireMessageType type() {
+            return WireMessageType.CONVOY_TRANSFER;
+        }
+
+        @Override
+        public void write(DataOutputStream out) throws IOException {
+            manifest.write(out);
+        }
+
+        public static ConvoyTransfer read(DataInputStream in) throws IOException {
+            return new ConvoyTransfer(ConvoyManifest.read(in));
+        }
+    }
+
+    /** Transit lane: the destination's all-or-nothing answer to a ConvoyTransfer, or its later timeout. */
+    record ConvoyAck(UUID groupId, boolean accepted, String reason) implements WireMessage {
+        @Override
+        public WireMessageType type() {
+            return WireMessageType.CONVOY_ACK;
+        }
+
+        @Override
+        public void write(DataOutputStream out) throws IOException {
+            writeUuid(out, groupId);
+            out.writeBoolean(accepted);
+            out.writeUTF(reason == null ? "" : reason);
+        }
+
+        public static ConvoyAck read(DataInputStream in) throws IOException {
+            return new ConvoyAck(readUuid(in), in.readBoolean(), in.readUTF());
         }
     }
 
@@ -658,6 +861,62 @@ public sealed interface WireMessage {
 
         public static ViewTime read(DataInputStream in) throws IOException {
             return new ViewTime(readUuid(in), in.readUnsignedByte());
+        }
+    }
+
+    /** A destination-side sound relayed to the observers of a subscribed portal; gated on VIEW_ACOUSTICS. */
+    record ViewSound(UUID portalId, String soundKey, double x, double y, double z, float volume, float pitch,
+                     byte soundClass) implements WireMessage {
+        private static final int MAX_KEY_LENGTH = 256;
+
+        @Override
+        public WireMessageType type() {
+            return WireMessageType.VIEW_SOUND;
+        }
+
+        @Override
+        public void write(DataOutputStream out) throws IOException {
+            if (soundKey.length() > MAX_KEY_LENGTH) {
+                throw new IOException("Sound key too long: " + soundKey.length());
+            }
+            writeUuid(out, portalId);
+            out.writeUTF(soundKey);
+            out.writeDouble(x);
+            out.writeDouble(y);
+            out.writeDouble(z);
+            out.writeFloat(volume);
+            out.writeFloat(pitch);
+            out.writeByte(soundClass);
+        }
+
+        public static ViewSound read(DataInputStream in) throws IOException {
+            UUID portalId = readUuid(in);
+            String soundKey = in.readUTF();
+            if (soundKey.length() > MAX_KEY_LENGTH) {
+                throw new IOException("Sound key too long: " + soundKey.length());
+            }
+            return new ViewSound(portalId, soundKey, in.readDouble(), in.readDouble(), in.readDouble(),
+                in.readFloat(), in.readFloat(), in.readByte());
+        }
+    }
+
+    /** Destination weather for a subscribed portal, sent beside VIEW_TIME; gated on VIEW_ATMOSPHERE. */
+    record ViewWeather(UUID portalId, boolean storm, boolean thunder) implements WireMessage {
+        @Override
+        public WireMessageType type() {
+            return WireMessageType.VIEW_WEATHER;
+        }
+
+        @Override
+        public void write(DataOutputStream out) throws IOException {
+            writeUuid(out, portalId);
+            out.writeByte((storm ? 1 : 0) | (thunder ? 2 : 0));
+        }
+
+        public static ViewWeather read(DataInputStream in) throws IOException {
+            UUID portalId = readUuid(in);
+            int flags = in.readUnsignedByte();
+            return new ViewWeather(portalId, (flags & 1) != 0, (flags & 2) != 0);
         }
     }
 

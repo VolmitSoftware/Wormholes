@@ -513,6 +513,7 @@ rename = ["&a&lPortaal hernoemen&r", "&7Wijzigt de naam die in verbindingen en m
 delete = ["&c&lPortal verwijderen&r", "&7Verwijder dit portaal permanent.", "", "&c&nShift + linkermuisknop om te bevestigen&r"]
 advanced_settings = ["&3&lGeavanceerde streaminstellingen&r", "&7Directe instellingen voor diagnose en ongebruikelijke verbindingen.", "&7Door één waarde te wijzigen wordt Streamkwaliteit ingesteld op Aangepast."]
 back_settings = ["&e&lTerug naar instellingen&r", "&7Terug naar de portalinstellingen."]
+extensions = ["&b&lMeer instellingen&r", "&7Regels, toegang, netwerken en andere functie-instellingen.", "&eLinkerklik"]
 stream_quality = ["&b&lStreamkwaliteit: {quality}&r", "&7Een bediening voor afstandsbekijkbereik en cadentie.", "", "&7Diepte &b{depth}&7  Entiteiten &b{entities}t", "&7Vernieuwen &b{refresh}t&7  Uitlooptijd &b{grace}s", "", "&8Klik op: cycluskwaliteit.", "&8Shift-klik: geavanceerde afstelling."]
 orientation = ["&9&lOriëntatie&r", "&7Kijkrichting: &9{facing}", "&7Bovenkant scherm: &6{up}", "", "&8Klik om kijkrichting, omkering en rotatie in te stellen."]
 orientation_placard = ["&9&lPortaaloriëntatie&r", "&7Kijkrichting: &9{facing}", "&7Bovenkant scherm: &6{up}"]
@@ -936,6 +937,7 @@ decimal_seconds = "{value}s"
 
 [rtp.biome]
 any_label = "Elk"
+unavailable_label = "Niet beschikbaar"
 header = ["&b&lDoelbioom&r", "&7De zoekopdracht geeft de voorkeur aan dit bioom en valt terug op elke veilige plek wanneer het niet in de buurt gevonden kan worden."]
 any_selected = ["&a&lElk bioom&r", "&7Geen bioomvoorkeur.", "&aGeselecteerd"]
 any_available = ["&b&lElk bioom&r", "&7Wis de bioomvoorkeur.", "&eLinks klik om te selecteren"]
@@ -1018,3 +1020,513 @@ trapdoor_skin = ["&6Uiterlijk van Dimensievalluik", "&7Combineer een dimensieval
 entangled_trapdoor_pair_recipe = ["&6Verstrengeld Valluikenpaar", "&7Bevat twee automatisch verbonden wormgatvalluiken."]
 personal_trapdoor_recipe = ["&bPersoonlijk Dimensievalluik", "&7Elke reiziger betreedt een eigen blijvende dimensie."]
 public_trapdoor_recipe = ["&6Gedeeld Dimensievalluik", "&7Elke reiziger betreedt de gedeelde dimensie van dit valluik."]
+
+# ==== Headline lane blocks. Each lane adds its tables between its own markers only. ====
+
+
+# ---- lane:rules (rules.*) ----
+[rules]
+route_card = "{portal} > {destination} | {amount} | {state}"
+
+[rules.menu]
+entry = ["&6Regels", "&7Wie erdoor mag, wat het kost en wat er daarna gebeurt."]
+cooldown = ["&6Afkoeltijd: {seconds}s", "&7Linker en rechter klik wijzigt, shift voor 10s."]
+warmup = ["&6Voorbereiding: {seconds}s", "&7Linker en rechter klik wijzigt, shift voor 10s."]
+group = ["&6Afkoelgroep: {value}", "&7Klik om een groepsnaam te typen."]
+pushback = ["&6Terugduwen: {value}", "&7Linker en rechter klik wijzigt de waarde."]
+sound = ["&6Volume van weigering: {value}", "&7Linker en rechter klik wijzigt de waarde."]
+charges = ["&6Ladingen: {count}", "&7Linker en rechter klik wijzigt de voorraad."]
+default_outcome = ["&6Standaard: {mode}", "&7Klik om te wisselen tussen toestaan en weigeren."]
+rules = ["&6Regels ({count})", "&7Klik om de regellijst te openen."]
+rule = ["&6{name}", "&7{value} &8- shift klik verwijdert de regel."]
+add_rule = ["&aRegel toevoegen", "&7Klik om een regel-id te typen."]
+line = ["&f{value}", "&7Shift klik verwijdert deze regel."]
+add_line = ["&aRegel toevoegen", "&7Klik en typ kind=PERMISSION;node=groep.vip."]
+templates = ["&6Sjablonen", "&7Klik om een opgeslagen sjabloon toe te passen."]
+template = ["&f{name}", "&7Klik om dit sjabloon toe te passen."]
+back = ["&7Terug", "&8Naar de vorige pagina."]
+page = ["&7Pagina {page} van {pages}", "&8Klik om te bladeren."]
+
+[rules.route]
+unlisted = "Onbekend"
+free = "Gratis"
+ready = "Gereed"
+cooldown = "{seconds}s"
+
+[rules.denied]
+default = "Dit portaal heeft je geweigerd."
+entity_class = "Alleen {mode} mag dit portaal gebruiken."
+key = "Je hebt de sleutel van {portal} nodig."
+time = "{portal} is nu gesloten."
+cooldown = "Wacht {seconds}s voordat je {portal} opnieuw gebruikt."
+charges = "{portal} heeft geen ladingen meer."
+cost = "Je kunt {amount} niet betalen om {portal} te gebruiken."
+
+[rules.notice]
+rule_added = "Regel {name} toegevoegd."
+rule_removed = "Regel {name} verwijderd."
+invalid = "Dit kon niet worden toegepast: {reason}"
+applied = "Sjabloon {name} toegepast."
+
+[rules.prompt]
+group = "&bTyp de naam van de afkoelgroep (of \"{cancel}\"):"
+rule_id = "&bTyp een id voor de nieuwe regel (of \"{cancel}\"):"
+line = "&bTyp een regelregel, bijvoorbeeld kind=PERMISSION;node=groep.vip (of \"{cancel}\"):"
+
+[rules.warmup]
+countdown = "Blijf stilstaan: {seconds}s"
+cancelled = "Voorbereiding geannuleerd."
+
+[rules.command]
+exported = "Regels van {portal} geschreven naar sjabloon {name}."
+imported = "Sjabloon {name} toegepast op {portal}."
+templates = "Regelsjablonen: {value}"
+no_templates = "Er zijn geen regelsjablonen opgeslagen."
+template_missing = "Er is geen regelsjabloon met de naam {name}."
+template_invalid = "Sjabloon {name} is ongeldig: {reason}"
+portal_missing = "Er is geen portaal met de naam {name}."
+portal_ambiguous = "{count} portalen heten {name}; hernoem er een."
+not_in_portal = "Ga in een portaal staan of noem er een met de optie portal."
+key_given = "Je hebt een sleutel voor {portal} gekregen."
+failed = "Kon niet voltooien: {reason}"
+
+[rules.command.help]
+rules = "Doorgangsregels: sjablonen, sleutels en portaalprofielen"
+export = "Schrijf de regels van een portaal naar een sjabloon"
+"export.name" = "Naam van het te schrijven sjabloon"
+"export.portal" = "Portaalnaam, of het portaal waarin je staat"
+import = "Pas een sjabloon toe op het portaal waarin je staat"
+"import.name" = "Naam van het te lezen sjabloon"
+"import.portal" = "Portaalnaam, of het portaal waarin je staat"
+apply = "Pas een sjabloon overal vandaan toe op een benoemd portaal"
+"apply.name" = "Naam van het te lezen sjabloon"
+"apply.portal" = "Naam van het portaal waarop het sjabloon komt"
+list = "Toon opgeslagen regelsjablonen"
+key = "Geef jezelf een sleutel voor een portaal"
+"key.portal" = "Naam van het portaal waarvoor de sleutel geldt"
+"key.uses" = "Hoeveel doorgangen de sleutel toestaat, 0 voor onbeperkt"
+# ---- end lane:rules ----
+
+
+# ---- lane:access (access.*) ----
+[access.denied]
+role = "&cJe mag {portal} niet gebruiken."
+claim = "&cEen grondclaim blokkeert {portal}."
+limit = "&cJe bezit al {count} portalen; de limiet is {maximum}."
+
+[access.construct]
+denied = "&cJe kunt hier geen portaal bouwen: {reason}."
+
+[access.claim]
+reason = "{plugin} beschermt deze grond"
+failure = "{plugin} kon niet worden geraadpleegd"
+
+[access.transfer]
+done = "&8[&6Wormholes&8] &a{portal} is nu van {name}."
+
+[access.key]
+set = "&aDe rechtensleutel van {portal} is nu {key}."
+taken = "&cRechtensleutel {key} is al in gebruik."
+invalid = "&cRechtensleutels gebruiken a-z, 0-9, punt, streepje en underscore, tot 64 tekens."
+
+[access.player]
+not_found = "&cGeen speler met de naam {name}."
+
+[access.portal]
+not_found = "&8[&6Wormholes&8] &cGeen portaal met de naam {portal}."
+ambiguous = "&8[&6Wormholes&8] &c{count} portalen komen overeen met {portal}; gebruik de portaal-id."
+
+[access.role]
+changed = "&a{name} is nu {state} op {portal}."
+removed = "&a{name} heeft geen rol meer op {portal}."
+owner_always = "&7De eigenaar heeft altijd volledige toegang."
+
+[access.listed]
+changed = "&a{portal} staat nu {state} in de openbare lijst."
+
+[access.group]
+added = "&a{portal} verleent nu toegang aan {node}."
+cleared = "&a{portal} verleent geen toegang meer via groepen."
+
+[access.limits]
+report = "&8[&6Wormholes&8] &7{name} bezit {count} portalen; de limiet is {maximum}."
+unlimited = "&8[&6Wormholes&8] &7{name} bezit {count} portalen en heeft geen limiet."
+
+[access.prompt]
+player = "&7Typ een spelersnaam in de chat, of {cancel} om te stoppen."
+key = "&7Typ de nieuwe rechtensleutel in de chat, of {cancel} om te stoppen."
+group = "&7Typ een rechtennode in de chat, of {cancel} om te stoppen."
+
+[access.label]
+owner = "Eigenaar"
+co_owner = "Mede-eigenaar"
+user = "Vertrouwd"
+denied = "Geweigerd"
+listed = "Vermeld"
+unlisted = "Verborgen"
+
+[access.menu]
+entry = ["&b&lToegang&r", "&7Rollen, groepen en de rechtensleutel."]
+placard = ["&b&lToegang: {portal}&r", "&7Eigenaar: &f{owner}", "&7Rollen: &f{count}", "&7Sleutel: &f{key}"]
+add = ["&a&lSpeler toevoegen&r", "&7Typ een naam in de chat om een rol te geven."]
+role = ["&f&l{name}&r", "&7Rol: &f{state}", "&7Links- of rechtsklik verandert de rol.", "&7Shift + linksklik verwijdert hem."]
+groups = ["&e&lToegestane groepen&r", "&7{count} rechtennodes verlenen toegang.", "&7Linksklik voegt toe, rechtsklik wist alles."]
+key = ["&b&lRechtensleutel&r", "&7{key}", "&7Linksklik om hem te wijzigen."]
+listed = ["&b&lOpenbare lijst&r", "&7{state}", "&7Linksklik om te wisselen."]
+
+[access.command.help]
+access = "Toegangslijsten, eigendom en limieten van portalen"
+transfer = "Geef een portaal aan een andere speler"
+"transfer.portal" = "Portaalnaam of id"
+"transfer.player" = "Naam van de nieuwe eigenaar"
+key = "Stel de vaste rechtensleutel van een portaal in"
+"key.portal" = "Portaalnaam of id"
+"key.key" = "Nieuwe rechtensleutel"
+limits = "Toon hoeveel portalen een speler bezit en mag bezitten"
+"limits.player" = "Te bekijken speler; standaard jijzelf"
+# ---- end lane:access ----
+
+
+# ---- lane:nexus (nexus.* and atlas.*) ----
+[nexus]
+dialed = "&8[&6Wormholes&8] &a{portal} gekozen op {address}: &f{destination}"
+created = "&8[&6Wormholes&8] &aNetwerk {name} aangemaakt."
+deleted = "&8[&6Wormholes&8] &aNetwerk {name} verwijderd."
+joined = "&8[&6Wormholes&8] &a{portal} is toegetreden tot {name} op adres {address}."
+left = "&8[&6Wormholes&8] &a{portal} heeft {name} verlaten."
+
+[nexus.dial]
+unknown = "&8[&6Wormholes&8] &cGeen portaal op adres {address}."
+none = "&8[&6Wormholes&8] &c{portal} zit niet in een netwerk."
+debounced = "&8[&6Wormholes&8] &7Je kiest te snel; wacht even."
+managed = "&8[&6Wormholes&8] &c{portal} is een beheerd portaal en kan niet gekozen worden."
+
+[nexus.address]
+taken = "&8[&6Wormholes&8] &cAdres {address} is al in gebruik in {name}."
+set = "&8[&6Wormholes&8] &a{portal} luistert naar {address}."
+invalid = "&8[&6Wormholes&8] &cAdressen gebruiken alleen deze tekens: {value}"
+
+[nexus.network]
+unknown = "&8[&6Wormholes&8] &cGeen netwerk met de naam {name}."
+exists = "&8[&6Wormholes&8] &cEr bestaat al een netwerk met de naam {name}."
+full = "&8[&6Wormholes&8] &c{name} bevat al {count} portalen."
+limit = "&8[&6Wormholes&8] &cJe bezit al {count} netwerken."
+
+[nexus.portal]
+unknown = "&8[&6Wormholes&8] &cGeen portaal met de naam {portal}."
+not_member = "&8[&6Wormholes&8] &c{portal} zit niet in {name}."
+
+[nexus.visibility]
+set = "&8[&6Wormholes&8] &a{name} is nu {value}."
+
+[nexus.hub]
+set = "&8[&6Wormholes&8] &a{portal} is het knooppunt van {name}."
+
+[nexus.list]
+empty = "&8[&6Wormholes&8] &7Nog geen netwerken."
+entry = "&7{name} &8- &f{count} portalen&7, {value}, eigenaar &f{owner}"
+
+[nexus.info]
+header = "&6{name} &8- &f{count} portalen&7, {value}, {mode}"
+member = "&e{address} &f{portal} &7in {world} &8{state}"
+
+[nexus.doctor]
+header = "&8[&6Wormholes&8] &6Verbindingsdokter: {count} bevindingen."
+clean = "&8[&6Wormholes&8] &aGeen verbindingsproblemen gevonden."
+oneway = "&e{portal} -> {destination} heeft geen terugkoppeling."
+dangling = "&c{portal} wijst naar een ontbrekende bestemming."
+unloaded = "&e{portal} wijst naar de niet-geladen wereld {world}."
+offline = "&c{portal} wijst naar {server}, al {count} dagen offline."
+
+[nexus.redstone]
+set = "&8[&6Wormholes&8] &a{portal} redstone: {value}."
+
+[nexus.reciprocal]
+paired = "&8[&6Wormholes&8] &a{portal} en {destination} verbinden nu beide kanten op."
+unpaired = "&8[&6Wormholes&8] &a{portal} en {destination} verbinden niet meer terug."
+denied = "&8[&6Wormholes&8] &cJe kunt niet zowel {portal} als {destination} beheren."
+
+[nexus.prompt]
+network_name = "&bTyp de netwerknaam in de chat (of '{cancel}'):"
+address = "&bTyp het nieuwe adres in de chat (of '{cancel}'):"
+
+[nexus.menu]
+entry = ["&b&lNetwerk&r", "&7Netwerken, adressen, kiezen, bestemmingsregels, redstone.", "&7Netwerk: &f{name}", "&7Adres: &f{address}", "&eLinkerklik"]
+placard = ["&b&lNetwerk: {name}&r", "&7Adres: &f{address}", "&7Leden: &f{count}"]
+join = ["&a&lNetwerk binnengaan&r", "&7Voeg dit portaal toe aan een netwerk en geef het een adres.", "&eLinkerklik"]
+leave = ["&c&l{name} verlaten&r", "&7Haal dit portaal en zijn adres uit het netwerk.", "&eLinkerklik"]
+create = ["&a&lNetwerk maken&r", "&7Geef een nieuw netwerk een naam en zet dit portaal erin.", "&eLinkerklik"]
+address = ["&e&lAdres: {address}&r", "&7Korte code die andere portalen kiezen om hier te komen.", "&eLinkerklik om opnieuw te typen. &eRechterklik om opnieuw te trekken."]
+visibility = ["&e&lZichtbaarheid: {value}&r", "&7Openbare netwerken ziet iedereen, ledennetwerken alleen leden, verborgen netwerken niemand.", "&eLinkerklik om te wisselen"]
+topology = ["&e&lTopologie: {value}&r", "&7Mesh kiest elk lid, knooppunt loopt via één portaal, ketting en ring kiezen buren.", "&eLinkerklik om te wisselen"]
+reciprocal = ["&e&lTerugkoppeling: {state}&r", "&7Houd de bestemming naar dit portaal wijzen.", "&eLinkerklik om te schakelen"]
+policy = ["&e&lBestemmingen: {mode}&r", "&7{count} regels. Op volgorde, gewogen, gepland, per speler of terugkeer.", "&eLinkerklik wisselt de modus. &eRechterklik wist de lijst."]
+redstone = ["&e&lRedstone: {value}&r", "&7Wat een stijgende flank naast het frame doet en wat een comparator uitleest.", "&eLinkerklik voor de actie. &eRechterklik voor comparatoruitvoer."]
+dial = ["&b&lKiezen&r", "&7Richt dit portaal op een ander adres in zijn netwerk.", "&eLinkerklik"]
+dial_entry = ["&e{address} &f{portal}", "&7{world}", "&b{state}"]
+link_and_return = ["&d&lKoppelen en terug&r", "&7Laat {destination} ook terugwijzen naar {portal}.", "&eLinkerklik"]
+
+[atlas]
+title = "&8Atlas &7- &f{count} portalen"
+row = "&f{portal} &8| &7{destination} &8| &b{state}"
+empty = "&8[&6Wormholes&8] &7Nog geen portalen ontdekt."
+disabled = "&8[&6Wormholes&8] &cDe atlas staat uit op deze server."
+only_players = "&8[&6Wormholes&8] &cAlleen spelers hebben een atlas."
+no_permission = "&8[&6Wormholes&8] &cJe hebt geen toestemming om de atlas te openen."
+discovered = "&8[&6Wormholes&8] &a{portal} ontdekt."
+usage = ["&8[&6Wormholes&8] &7/atlas &8- &7open je portalenlijst", "&8[&6Wormholes&8] &7/atlas favorites &8- &7alleen vastgezette portalen", "&8[&6Wormholes&8] &7/atlas recents &8- &7portalen die je pas gebruikte", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7toon een koers; /atlas guide off stopt hem"]
+
+[atlas.favorite]
+added = "&8[&6Wormholes&8] &a{portal} vastgezet."
+removed = "&8[&6Wormholes&8] &a{portal} losgemaakt."
+full = "&8[&6Wormholes&8] &cJe hebt al {count} portalen vastgezet."
+
+[atlas.guide]
+bearing = "&b{portal} &f{value}"
+set = "&8[&6Wormholes&8] &aKoers naar {portal}."
+cleared = "&8[&6Wormholes&8] &aKoers uit."
+unknown = "&8[&6Wormholes&8] &cGeen portaal met de naam {portal} in je atlas."
+
+[atlas.menu]
+row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&eLinkerklik om te kiezen. &eRechterklik om vast te zetten. &eShift+linkerklik voor de koers."]
+favorites = ["&d&lAlleen vastgezet: {state}&r", "&7Toon alleen de portalen die je vastzette.", "&eLinkerklik"]
+recents = ["&b&lAlleen recent: {state}&r", "&7Toon alleen de portalen die je pas gebruikte.", "&eLinkerklik"]
+guide = ["&a&lKoers: {portal}&r", "&7Toon de koers naar het gekozen portaal in de actiebalk.", "&eLinkerklik om te stoppen"]
+# ---- end lane:nexus ----
+
+
+# ---- lane:doors (doorview.* and pockets.*) ----
+[doorview]
+"disabled" = "&8[&6Wormholes&8] &cDeurprojectie staat uit in wormholes.toml."
+"toggle.inherit" = "&8[&6Wormholes&8] &7Projectie voor deze deur: &fovernemen&7."
+"toggle.on" = "&8[&6Wormholes&8] &aProjectie voor deze deur: aan."
+"toggle.off" = "&8[&6Wormholes&8] &eProjectie voor deze deur: uit."
+"state.inherit" = "overnemen"
+"state.on" = "aan"
+"state.off" = "uit"
+"menu.projection" = ["&b&lProjectie: {state}&r", "&7Toont de bestemming door deze deuropening.", "&eLinksklik om te wisselen"]
+
+[pockets]
+"confirm.overwrite" = ["&8[&6Wormholes&8] &cDit vervangt alles in zak &f{space}&c.", "&8[&6Wormholes&8] &7Voer hetzelfde commando uit met &fconfirm=true&7 om door te gaan."]
+"denied.build" = "&8[&6Wormholes&8] &cJe bent geen bouwer in deze zak."
+"denied.pvp" = "&8[&6Wormholes&8] &cVechten staat uit in deze zak."
+"instance.none" = "&8[&6Wormholes&8] &cDeze zak is geen instantie."
+"instance.reset" = "&8[&6Wormholes&8] &aZakinstantie &f{space}&a is gereset."
+"room.added" = "&8[&6Wormholes&8] &aKamer &f{count}&a toegevoegd aan zak &f{space}&a."
+"room.blocked" = "&8[&6Wormholes&8] &cPlaats de deur op een binnenmuur."
+"room.limit" = "&8[&6Wormholes&8] &cDeze zak heeft al het maximum van &f{count}&c kamers."
+"roster.added" = "&8[&6Wormholes&8] &a{name}&a staat nu als &f{value}&a op de zaklijst."
+"roster.missing" = "&8[&6Wormholes&8] &c{name}&c staat niet op de lijst van deze zak."
+"roster.removed" = "&8[&6Wormholes&8] &e{name}&e is van de zaklijst gehaald."
+"roster.role" = "&8[&6Wormholes&8] &a{name}&a is nu &f{value}&a in deze zak."
+"rules.invalid" = "&8[&6Wormholes&8] &cOnbekende zakregel &f{key}&c."
+"rules.set" = "&8[&6Wormholes&8] &a{key} &7= &f{value}"
+"snapshot.missing" = "&8[&6Wormholes&8] &cDeze zak heeft geen momentopname met de naam &f{name}&c."
+"snapshot.restored" = "&8[&6Wormholes&8] &aMomentopname &f{name}&a hersteld in zak &f{space}&a."
+"snapshot.saved" = "&8[&6Wormholes&8] &aMomentopname &f{name}&a van zak &f{space}&a opgeslagen."
+"template.applied" = "&8[&6Wormholes&8] &aSjabloon &f{name}&a toegepast op zak &f{space}&a."
+"template.list" = "&8[&6Wormholes&8] &7Sjablonen (&f{count}&7): &f{value}"
+"template.missing" = "&8[&6Wormholes&8] &cEr is geen zaksjabloon met de naam &f{name}&c."
+# ---- end lane:doors ----
+
+
+# ---- lane:mesh (mesh.*) ----
+[mesh]
+pending = "&8[&6Wormholes&8] &e{server}&7 wil via &f{name}&7 toetreden: /wh network accept {server}"
+accepted = "&8[&6Wormholes&8] &a&f{server}&a is toegelaten tot het netwerk."
+rejected = "&8[&6Wormholes&8] &c&f{server}&c afgewezen en de introductie verwijderd."
+tombstoned = "&8[&6Wormholes&8] &f{server}&7 is netwerkbreed verwijderd."
+disabled = "&8[&6Wormholes&8] &7Mesh-federatie is &cuitgeschakeld&7 ([network.mesh] enabled = false)."
+
+[mesh.introductions]
+none = "&8[&6Wormholes&8] &7Er wachten geen introducties op goedkeuring."
+unknown = "&8[&6Wormholes&8] &c{server} wacht niet op goedkeuring."
+
+[mesh.members]
+none = "&8[&6Wormholes&8] &7Er zijn nog geen netwerkleden bekend."
+row = "&8[&6Wormholes&8] &f{server}&7 {state} &8{fingerprint}"
+
+[mesh.versions]
+none = "&8[&6Wormholes&8] &7Er is nog geen peer gekoppeld."
+row = "&8[&6Wormholes&8] &f{server}&7: protocol &f{value}&7, plugin &f{name}&7, mogelijkheden &f{state}"
+reduced = "&8[&6Wormholes&8] &e{server}&7 koppelt met beperkte mogelijkheden: &f{reason}"
+
+[mesh.drain]
+on = "&8[&6Wormholes&8] &eDrain-modus aan: deze server weigert nieuwe aankomsten tot drain wordt uitgezet."
+off = "&8[&6Wormholes&8] &aDrain-modus uit: deze server accepteert weer aankomsten."
+state = "&8[&6Wormholes&8] &7Drain-modus is {state}."
+invalid = "&8[&6Wormholes&8] &cDe drain-status moet on of off zijn, ontvangen: {value}."
+
+[mesh.queue]
+position = "&7Wachten op een vrije server: positie &f{count}&7, &f{seconds}&7s"
+timeout = "&cGeen enkele bestemmingsserver had op tijd plaats."
+
+[mesh.policy]
+none = "&cEr is op dit moment geen bestemming beschikbaar."
+set = "&8[&6Wormholes&8] &aBeleid op &f{portal}&a: {value}"
+cleared = "&8[&6Wormholes&8] &7Beleid verwijderd van &f{portal}&7; het koppelt weer aan zijn gewone bestemming."
+portal_unknown = "&8[&6Wormholes&8] &cGeen lokaal portaal met de naam {portal}."
+invalid = "&8[&6Wormholes&8] &cOngeldig beleid: {reason}"
+
+[mesh.command.help]
+members = "Alle netwerkleden tonen met koppelingsstatus en sleutelvingerafdruk"
+pending = "Geïntroduceerde servers tonen die op goedkeuring wachten"
+accept = "Een geïntroduceerde server vertrouwen en zijn route opslaan"
+reject = "De openstaande introductie van een server verwerpen"
+versions = "Protocol, pluginversie en mogelijkheden van elke peer tonen"
+drain = "Deze server uit de bestemmingsrotatie halen of terugzetten"
+policy = "Het bestemmingsbeleid van een gateway instellen of verwijderen"
+
+[mesh.command.param.accept]
+server = "Naam van de geïntroduceerde server (zie /wh network pending)"
+
+[mesh.command.param.reject]
+server = "Naam van de geïntroduceerde server om af te wijzen"
+
+[mesh.command.param.drain]
+state = "on of off; weglaten toont de huidige status"
+
+[mesh.command.param.policy]
+portal = "Naam of id van het lokale portaal"
+candidates = "Door komma's gescheiden server:portaal[:gewicht]-items; leeg verwijdert het beleid"
+strategy = "FIRST_AVAILABLE, LEAST_LOADED, ROUND_ROBIN, STICKY of NEAREST"
+headroom = "Vrije spelersplaatsen die een kandidaat moet melden"
+tps = "Minimale TPS die een kandidaat moet melden; 0 negeert TPS"
+queue = "Reizigers vasthouden wanneer alle kandidaten vol zijn"
+# ---- end lane:mesh ----
+
+
+# ---- lane:transit (transit.*) ----
+[transit]
+bounced = "{portal} heeft je teruggeduwd."
+
+[transit.denied]
+membrane = "{portal} kan alleen vanaf de voorkant worden betreden."
+convoy_size = "Je konvooi heeft {count} entiteiten; de limiet is {value}."
+convoy_fit = "Je konvooi past niet door {portal}."
+convoy_member = "Een deel van je konvooi mag {portal} niet gebruiken."
+
+[transit.convoy]
+waiting = "Breng je hele konvooi door {portal}."
+failed = "Konvooioverdracht mislukt: {reason}."
+
+[transit.menu]
+entry = ["&b&lDoorgang&r", "&7Vaart, oriëntatie, membraan, terugkaatsing en effecten.", "&eLinkerklik"]
+momentum = ["&6&lVaart: {mode}&r", "&7Factor {value}. Hoe de uitgangssnelheid wordt afgeleid van de ingangssnelheid.", "&eLinkerklik om de modus te wisselen", "&eRechterklik om de factor in te stellen"]
+orientation = ["&6&lOriëntatie: {mode}&r", "&7Welke kant reizigers op kijken bij aankomst.", "&eLinkerklik om te wisselen"]
+membrane = ["&6&lMembraan: {state}&r", "&7Alleen de voorkant laat reizigers binnen; de achterkant duwt ze weg.", "&eLinkerklik om te schakelen"]
+bounce = ["&6&lTerugkaatsing: {state}&r", "&7Reizigers terugkaatsen in plaats van verplaatsen.", "&eLinkerklik om te schakelen"]
+profile = ["&6&lOvergangseffecten&r", "&7Nadering {value}", "&7Drempel {mode}", "&7Aankomst {state}", "&eLinkerklik: naderingsgeluid, Rechterklik: drempeleffect", "&eShift + Linkerklik: aankomstgeluid, Shift + Rechterklik: maskerticks"]
+prompt = "&bTyp de nieuwe waarde in de chat (of '{cancel}'):"
+# ---- end lane:transit ----
+
+
+# ---- lane:view (fidelity.*) ----
+[fidelity.menu]
+entry = ["&b&lGetrouwheid&r", "&7Atmosfeer, akoestiek, detail en blokentiteiten van dit portaal.", "&eLinkermuisklik"]
+placard = ["&b&lProjectiegetrouwheid&r", "&7Kanalen per portaal die over de projectie worden gelegd."]
+atmosphere = "&bAtmosfeer: &f{mode}"
+acoustics = "&bAkoestiek: &f{mode}"
+lod = "&bDetail: &f{mode}"
+block_entities = "&bBlokentiteiten: &f{state}"
+hint = ["&8Klik om te wisselen.", "&8Shift + klik gebruikt de serverstandaard."]
+back = ["&e&lTerug&r", "&7Terug naar het portaalmenu."]
+default = "standaard"
+
+[fidelity.bedrock]
+profile = "Bedrock-profiel actief voor {count} kijkers"
+# ---- end lane:view ----
+
+
+# ---- lane:ops (ops.*) ----
+[ops.console]
+started = "Metriek-eindpunt luistert op {value}."
+no_token = "Metriek-eindpunt niet gestart: stel [ops.console] token in."
+failed = "Metriek-eindpunt kon {value} niet binden: {reason}"
+
+[ops.webmap]
+published = "{count} portaalmarkeringen naar {name} gepubliceerd."
+
+[ops.backup]
+created = "&8[&6Wormholes&8] &aBack-up &f{id}&a geschreven naar &f{path}&a."
+restored = "&8[&6Wormholes&8] &a&f{count}&a portalen hersteld uit &f{id}&a."
+dry_run = "&8[&6Wormholes&8] &7Proefrun: &f{count}&7 portalen zouden veranderen."
+list_row = "&8[&6Wormholes&8] &f{id} &8| &f{count}&7 portalen &8| &7{path}"
+list_empty = "&8[&6Wormholes&8] &7Geen back-ups in &f{path}&7."
+not_found = "&8[&6Wormholes&8] &cGeen back-up komt overeen met &f{id}&c."
+confirm_required = "&8[&6Wormholes&8] &cVoer dit opnieuw uit met &fconfirm=true&c om het toe te passen, of &fdry=true&c voor het plan."
+failed = "&8[&6Wormholes&8] &cBack-upbewerking mislukt: &f{reason}"
+reload_required = "&8[&6Wormholes&8] &7Portaalbestanden vervangen. Voer &f/wormholes reload&7 uit om ze te laden."
+signature_broken = "&8[&6Wormholes&8] &c&f{id}&c geweigerd: de handtekening past niet bij de inhoud."
+signature_untrusted = "&8[&6Wormholes&8] &c&f{id}&c geweigerd: ondertekend door &f{fingerprint}&c, die deze server niet vertrouwt. Voeg &fallow-unsigned=true&c toe om het toch toe te passen."
+signature_ok = "&8[&6Wormholes&8] &7Ondertekend door &f{name}&7 (&f{fingerprint}&7)."
+
+[ops.import]
+report = "&8[&6Wormholes&8] &f{name}&7: &f{count}&7 portalen geimporteerd, &f{value}&7 overgeslagen."
+skipped_row = "&8[&6Wormholes&8] &7{portal}&8: &f{reason}"
+not_detected = "&8[&6Wormholes&8] &cGeen {name}-gegevens gevonden in &f{path}&c."
+
+[ops.portals]
+row = "&8[&6Wormholes&8] &f{portal} &8| &7{world} &8| &7{state} &8| &7{destination}"
+page = "&8[&6Wormholes&8] &7Pagina &f{page}&7/&f{pages}"
+empty = "&8[&6Wormholes&8] &7Geen portalen komen overeen met deze filters."
+not_found = "&8[&6Wormholes&8] &cGeen portaal komt overeen met &f{name}&c."
+ambiguous = "&8[&6Wormholes&8] &c{count} portalen komen overeen met &f{name}&c; gebruik de id."
+info = ["&8[&6Wormholes&8] &7Portaal &f{portal} &8| &7{id}", "&8[&6Wormholes&8] &7Wereld &f{world}&7 op &f{value}", "&8[&6Wormholes&8] &7Status &f{state}&7, bestemming &f{destination}&7, eigenaar &f{owner}"]
+teleported = "&8[&6Wormholes&8] &aGeteleporteerd naar &f{portal}&a."
+teleport_unsafe = "&8[&6Wormholes&8] &eGeen veilige landing bij &f{portal}&e; het portaalmidden wordt gebruikt."
+retargeted = "&8[&6Wormholes&8] &a&f{portal}&a wijst nu naar &f{destination}&a."
+unlinked = "&8[&6Wormholes&8] &a&f{portal}&a heeft nu geen koppeling."
+pruned = "&8[&6Wormholes&8] &a&f{count}&a verweesde koppelingen verwijderd."
+prune_dry_run = "&8[&6Wormholes&8] &7Proefrun: &f{count}&7 verweesde koppelingen zouden verwijderd worden."
+renamed_server = "&8[&6Wormholes&8] &a&f{count}&a gateway-koppelingen herschreven van &f{name}&a naar &f{server}&a."
+
+[ops.command.help]
+backup = "Portaalback-ups maken, tonen, herstellen en uitwisselen"
+"backup.now" = "Nu een back-up van de portaalgegevens schrijven"
+"backup.list" = "De back-ups op schijf tonen"
+"backup.restore" = "Portaalbestanden uit een back-up herstellen (dry=true toont het plan)"
+"backup.restore.id" = "Back-up-id uit /wormholes admin backup list"
+"backup.restore.dry" = "Melden wat zou veranderen zonder iets te schrijven"
+"backup.restore.world_map" = "Wereldhernoemingen als oud=nieuw,oud=nieuw"
+"backup.restore.owner_map" = "Eigenaarhernoemingen als oude-uuid=nieuwe-uuid"
+"backup.restore.confirm" = "Nodig om bestanden te schrijven bij dry=false"
+"backup.allow_unsigned" = "Een bundel toepassen die geen vertrouwde sleutel heeft ondertekend"
+"backup.export" = "Een back-uppakket naar een bestand schrijven dat tussen servers kan reizen"
+"backup.export.file" = "Doelbestand; leeg schrijft in de back-upmap"
+"backup.import" = "Een pakket importeren dat op een andere server is geexporteerd"
+"backup.import.file" = "Te lezen pakketbestand"
+"backup.import.dry" = "Melden wat zou veranderen zonder iets te schrijven"
+"backup.import.world_map" = "Wereldhernoemingen als oud=nieuw,oud=nieuw"
+"backup.import.owner_map" = "Eigenaarhernoemingen als oude-uuid=nieuwe-uuid"
+"backup.import.confirm" = "Nodig om bestanden te schrijven bij dry=false"
+"backup.import_from" = "Portalen importeren uit de bestanden van een andere portaalplugin"
+"backup.import_from.source" = "stargate, advancedportals, multiverse, betterportals of essentials"
+"backup.import_from.dry" = "Melden wat gemaakt zou worden zonder iets te maken"
+"backup.import_from.frame" = "Framegrootte als breedte,hoogte voor bronnen zonder frame"
+portals = "Portalen tonen, bekijken en in bulk bewerken"
+"portals.list" = "Portalen tonen met optionele filters"
+"portals.list.world" = "Alleen portalen in deze wereld"
+"portals.list.type" = "Alleen portalen van dit type: portal, wormhole, gateway of rtp"
+"portals.list.owner" = "Alleen portalen van deze spelernaam of uuid"
+"portals.list.state" = "Alleen portalen in deze status: open, closed, linked of unlinked"
+"portals.list.page" = "Paginanummer"
+"portals.find" = "Portalen zoeken waarvan de naam de tekst bevat"
+"portals.find.name" = "Te zoeken tekst"
+"portals.info" = "Wereld, status, bestemming en eigenaar van een portaal tonen"
+"portals.info.portal" = "Portaalnaam of id"
+"portals.tp" = "Naar een portaal teleporteren en veilig landen"
+"portals.tp.portal" = "Portaalnaam of id"
+"portals.retarget" = "Een portaal naar een ander lokaal portaal laten wijzen"
+"portals.retarget.portal" = "Portaalnaam of id die verandert"
+"portals.retarget.destination" = "Portaalnaam of id om naar te wijzen"
+"portals.unlink" = "De bestemming van een portaal verwijderen"
+"portals.unlink.portal" = "Portaalnaam of id"
+"portals.prune" = "Koppelingen verwijderen waarvan de bestemming niet meer bestaat"
+"portals.prune.dry" = "Melden wat verwijderd zou worden zonder iets te wijzigen"
+"portals.prune.confirm" = "Nodig om te verwijderen bij dry=false"
+"portals.rename_server" = "Koppelingen tussen servers van de ene servernaam naar de andere herschrijven"
+"portals.rename_server.old" = "Servernaam die nu in de koppelingen staat"
+"portals.rename_server.new" = "Servernaam die in plaats daarvan wordt opgeslagen"
+"portals.rename_server.confirm" = "Nodig om de koppelingen te herschrijven"
+# ---- end lane:ops ----

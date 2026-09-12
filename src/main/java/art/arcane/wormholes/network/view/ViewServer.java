@@ -8,11 +8,15 @@ import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
 import art.arcane.wormholes.chunk.ChunkLease;
 import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
 import art.arcane.wormholes.network.NetworkManager;
+import art.arcane.wormholes.network.WireCapability;
+import art.arcane.wormholes.network.WireMessage;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.replication.ChunkResyncRequest;
 import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
+import art.arcane.wormholes.render.FidelitySettings;
+import art.arcane.wormholes.render.acoustics.AcousticsProfile;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
@@ -79,6 +83,10 @@ public final class ViewServer implements Listener {
         private final AtomicBoolean initialAccepted = new AtomicBoolean(false);
         private volatile int desiredSkyDarken;
         private volatile int acceptedSkyDarken = -1;
+        private volatile boolean desiredStorm;
+        private volatile boolean desiredThunder;
+        private volatile boolean acceptedStorm;
+        private volatile boolean acceptedThunder;
 
         TimeDeliveryState(int desiredSkyDarken) {
             this.desiredSkyDarken = desiredSkyDarken;
@@ -88,12 +96,35 @@ public final class ViewServer implements Listener {
             desiredSkyDarken = skyDarken;
         }
 
+        void updateDesired(int skyDarken, boolean storm, boolean thunder) {
+            desiredSkyDarken = skyDarken;
+            desiredStorm = storm;
+            desiredThunder = thunder;
+        }
+
         int desiredSkyDarken() {
             return desiredSkyDarken;
         }
 
+        boolean desiredStorm() {
+            return desiredStorm;
+        }
+
+        boolean desiredThunder() {
+            return desiredThunder;
+        }
+
         boolean needsDelivery() {
             return acceptedSkyDarken != desiredSkyDarken;
+        }
+
+        boolean needsWeatherDelivery() {
+            return acceptedStorm != desiredStorm || acceptedThunder != desiredThunder;
+        }
+
+        void markWeatherAccepted(boolean storm, boolean thunder) {
+            acceptedStorm = storm;
+            acceptedThunder = thunder;
         }
 
         boolean hasAcceptedInitial() {
@@ -366,6 +397,34 @@ public final class ViewServer implements Listener {
 
     public void forwardHurt(UUID entityId, float yaw) {
         entityPipeline.forwardEntityEvent(entityId, true, 0, yaw);
+    }
+
+    /** Forwards a destination-side sound to every subscribed peer that negotiated VIEW_ACOUSTICS. */
+    public void forwardSound(World world, double x, double y, double z, String soundKey, float volume, float pitch,
+                             AcousticsProfile.SoundClass soundClass) {
+        if (world == null || registry.isEmpty()) {
+            return;
+        }
+        double radius = FidelitySettings.acousticsRadius;
+        NetworkManager network = registry.network();
+        for (ViewSession session : registry.sessions()) {
+            if (!session.world.equals(world) || session.peers.isEmpty()) {
+                continue;
+            }
+            double dx = x - session.portalCenterX;
+            double dy = y - session.portalCenterY;
+            double dz = z - session.portalCenterZ;
+            if (dx * dx + dy * dy + dz * dz > radius * radius) {
+                continue;
+            }
+            WireMessage.ViewSound message = new WireMessage.ViewSound(session.portalId, soundKey, x, y, z, volume, pitch,
+                (byte) soundClass.ordinal());
+            for (String peer : session.peers) {
+                if (network.peerSupports(peer, WireCapability.VIEW_ACOUSTICS)) {
+                    network.send(peer, message);
+                }
+            }
+        }
     }
 
     public Stats statsSnapshot() {

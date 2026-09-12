@@ -33,15 +33,16 @@ final class PocketResizeWorkflowTest {
     void journalSurvivesRestartAndOnlyCompletesTheExactIntent() throws Exception {
         Path directory = temporaryDirectory.resolve("journal");
         PocketSpace source = space(1L, SOURCE);
-        PocketResizeJournal first = loadedJournal(directory);
+        PocketMutationJournal first = loadedJournal(directory);
 
-        PocketResizeIntent intent = first.begin(source, TARGET);
-        PocketResizeJournal restarted = loadedJournal(directory);
+        PocketMutationIntent intent = first.beginResize(source, TARGET);
+        PocketMutationJournal restarted = loadedJournal(directory);
 
         assertEquals(List.of(intent), restarted.pending());
-        assertThrows(IllegalStateException.class, () -> restarted.begin(source, TARGET));
-        assertThrows(IllegalStateException.class, () -> restarted.complete(new PocketResizeIntent(
-            UUID.randomUUID(), source.spaceId(), SOURCE, TARGET)));
+        assertThrows(IllegalStateException.class, () -> restarted.beginResize(source, TARGET));
+        assertThrows(IllegalStateException.class, () -> restarted.complete(new PocketMutationIntent(
+            PocketMutationIntent.Kind.RESIZE, UUID.randomUUID(), source.spaceId(), SOURCE, TARGET,
+            PocketMutationIntent.NO_TEMPLATE)));
 
         restarted.complete(intent);
 
@@ -51,12 +52,12 @@ final class PocketResizeWorkflowTest {
 
     @Test
     void journalsForDifferentPocketsCanProgressIndependently() throws Exception {
-        PocketResizeJournal journal = loadedJournal(temporaryDirectory.resolve("journal"));
+        PocketMutationJournal journal = loadedJournal(temporaryDirectory.resolve("journal"));
         PocketSpace first = space(2L, SOURCE);
         PocketSpace second = space(3L, SOURCE);
 
-        PocketResizeIntent firstIntent = journal.begin(first, TARGET);
-        PocketResizeIntent secondIntent = journal.begin(second, TARGET);
+        PocketMutationIntent firstIntent = journal.beginResize(first, TARGET);
+        PocketMutationIntent secondIntent = journal.beginResize(second, TARGET);
 
         journal.complete(secondIntent);
 
@@ -98,7 +99,7 @@ final class PocketResizeWorkflowTest {
     @Test
     void scheduledResizeRejectsAStaleShellBeforeOpeningItsJournal() throws Exception {
         Path directory = temporaryDirectory.resolve("journal");
-        PocketResizeJournal journal = loadedJournal(directory);
+        PocketMutationJournal journal = loadedJournal(directory);
         PocketSpace scheduled = space(9L, SOURCE);
         PocketSpace changed = scheduled.withShell(new PocketShell(48, "STONE", "BIRCH_DOOR"));
 
@@ -110,7 +111,7 @@ final class PocketResizeWorkflowTest {
 
     @Test
     void unsupportedRegionFailsBeforeOpeningItsJournal() throws Exception {
-        PocketResizeJournal journal = loadedJournal(temporaryDirectory.resolve("journal"));
+        PocketMutationJournal journal = loadedJournal(temporaryDirectory.resolve("journal"));
         PocketResizeWorkflow workflow = new PocketResizeWorkflow(journal);
         PocketSpace source = space(14L, SOURCE);
         AtomicBoolean worldMutationStarted = new AtomicBoolean();
@@ -165,7 +166,7 @@ final class PocketResizeWorkflowTest {
 
     @Test
     void workflowPersistsIntentBeforeWorldAndClearsItAfterPublication() throws Exception {
-        PocketResizeJournal journal = loadedJournal(temporaryDirectory.resolve("journal"));
+        PocketMutationJournal journal = loadedJournal(temporaryDirectory.resolve("journal"));
         PocketResizeWorkflow workflow = new PocketResizeWorkflow(journal);
         PocketSpace source = space(4L, SOURCE);
         List<String> order = new ArrayList<>();
@@ -200,7 +201,7 @@ final class PocketResizeWorkflowTest {
     @Test
     void stateFailureLeavesDurableIntentAndRecoveryReplaysFromSource() throws Exception {
         Path directory = temporaryDirectory.resolve("journal");
-        PocketResizeJournal journal = loadedJournal(directory);
+        PocketMutationJournal journal = loadedJournal(directory);
         PocketResizeWorkflow workflow = new PocketResizeWorkflow(journal);
         PocketSpace source = space(5L, SOURCE);
 
@@ -221,8 +222,8 @@ final class PocketResizeWorkflowTest {
 
         assertTrue(failure.getCause() instanceof IOException);
 
-        PocketResizeJournal restarted = loadedJournal(directory);
-        PocketResizeIntent intent = restarted.pending().getFirst();
+        PocketMutationJournal restarted = loadedJournal(directory);
+        PocketMutationIntent intent = restarted.pending().getFirst();
         AtomicReference<PocketShell> replayedSource = new AtomicReference<>();
         PocketSpace recovered = new PocketResizeWorkflow(restarted).recover(intent, source,
             new PocketResizeWorkflow.Actions(
@@ -245,7 +246,7 @@ final class PocketResizeWorkflowTest {
     @Test
     void publicationFailureRecoversAfterStateReachedTargetWithoutRepersisting() throws Exception {
         Path directory = temporaryDirectory.resolve("journal");
-        PocketResizeJournal journal = loadedJournal(directory);
+        PocketMutationJournal journal = loadedJournal(directory);
         PocketResizeWorkflow workflow = new PocketResizeWorkflow(journal);
         PocketSpace source = space(6L, SOURCE);
 
@@ -265,8 +266,8 @@ final class PocketResizeWorkflowTest {
 
         assertTrue(failure.getCause() instanceof IOException);
 
-        PocketResizeJournal restarted = loadedJournal(directory);
-        PocketResizeIntent intent = restarted.pending().getFirst();
+        PocketMutationJournal restarted = loadedJournal(directory);
+        PocketMutationIntent intent = restarted.pending().getFirst();
         AtomicReference<PocketShell> replayedSource = new AtomicReference<>();
         AtomicBoolean statePersisted = new AtomicBoolean();
         PocketSpace stateAtTarget = source.withShell(TARGET);
@@ -296,10 +297,10 @@ final class PocketResizeWorkflowTest {
     void conflictingPersistedShellKeepsJournalForOperatorRecovery() throws Exception {
         Path directory = temporaryDirectory.resolve("journal");
         PocketSpace source = space(7L, SOURCE);
-        PocketResizeJournal journal = loadedJournal(directory);
-        journal.begin(source, TARGET);
-        PocketResizeJournal restarted = loadedJournal(directory);
-        PocketResizeIntent intent = restarted.pending().getFirst();
+        PocketMutationJournal journal = loadedJournal(directory);
+        journal.beginResize(source, TARGET);
+        PocketMutationJournal restarted = loadedJournal(directory);
+        PocketMutationIntent intent = restarted.pending().getFirst();
         PocketSpace conflicting = source.withShell(new PocketShell(48, "STONE", "BIRCH_DOOR"));
 
         assertThrows(IllegalStateException.class, () -> new PocketResizeWorkflow(restarted).recover(
@@ -322,20 +323,20 @@ final class PocketResizeWorkflowTest {
     @Test
     void mismatchedJournalFilenameFailsClosed() throws Exception {
         Path directory = temporaryDirectory.resolve("journal");
-        PocketResizeJournal journal = loadedJournal(directory);
-        PocketResizeIntent intent = journal.begin(space(8L, SOURCE), TARGET);
+        PocketMutationJournal journal = loadedJournal(directory);
+        PocketMutationIntent intent = journal.beginResize(space(8L, SOURCE), TARGET);
         Path expected = directory.resolve(intent.spaceId() + ".json");
         Path mismatched = directory.resolve(UUID.randomUUID() + ".json");
         Files.move(expected, mismatched);
 
-        IOException failure = assertThrows(IOException.class, () -> new PocketResizeJournal(directory).load());
+        IOException failure = assertThrows(IOException.class, () -> new PocketMutationJournal(directory).load());
 
         assertTrue(failure.getMessage().contains("filename does not match"));
     }
 
     @Test
     void workflowKeepsIntentUntilEveryWorldMutationCompletes() throws Exception {
-        PocketResizeJournal journal = loadedJournal(temporaryDirectory.resolve("journal"));
+        PocketMutationJournal journal = loadedJournal(temporaryDirectory.resolve("journal"));
         PocketResizeWorkflow workflow = new PocketResizeWorkflow(journal);
         PocketSpace source = space(11L, SOURCE);
         CompletableFuture<Void> worldMutation = new CompletableFuture<>();
@@ -367,7 +368,7 @@ final class PocketResizeWorkflowTest {
 
     @Test
     void failedWorldMutationKeepsIntentAndSkipsPersistence() throws Exception {
-        PocketResizeJournal journal = loadedJournal(temporaryDirectory.resolve("journal"));
+        PocketMutationJournal journal = loadedJournal(temporaryDirectory.resolve("journal"));
         PocketResizeWorkflow workflow = new PocketResizeWorkflow(journal);
         PocketSpace source = space(12L, SOURCE);
         CompletableFuture<Void> worldMutation = new CompletableFuture<>();
@@ -397,7 +398,7 @@ final class PocketResizeWorkflowTest {
 
     @Test
     void retiredRegionContinuationKeepsIntentAndSkipsPersistence() throws Exception {
-        PocketResizeJournal journal = loadedJournal(temporaryDirectory.resolve("journal"));
+        PocketMutationJournal journal = loadedJournal(temporaryDirectory.resolve("journal"));
         PocketResizeWorkflow workflow = new PocketResizeWorkflow(journal);
         PocketSpace source = space(13L, SOURCE);
         AtomicBoolean persisted = new AtomicBoolean();
@@ -426,8 +427,8 @@ final class PocketResizeWorkflowTest {
         assertTrue(journal.pending(source.spaceId()).isPresent());
     }
 
-    private static PocketResizeJournal loadedJournal(Path directory) throws IOException {
-        PocketResizeJournal journal = new PocketResizeJournal(directory);
+    private static PocketMutationJournal loadedJournal(Path directory) throws IOException {
+        PocketMutationJournal journal = new PocketMutationJournal(directory);
         journal.load();
         return journal;
     }

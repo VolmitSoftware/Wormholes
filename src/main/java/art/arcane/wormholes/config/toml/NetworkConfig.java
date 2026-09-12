@@ -18,6 +18,8 @@ public class NetworkConfig {
     public static final int MAX_LISTEN_PORT = 65_535;
     public static final long MIN_HANDOFF_TIMEOUT_MS = 50L;
     public static final long MAX_HANDOFF_TIMEOUT_MS = 60_000L;
+    public static final String PLUGIN_VERSION_POLICY_COMPATIBLE = "compatible";
+    public static final String PLUGIN_VERSION_POLICY_EXACT = "exact";
 
     @ConfigDescription("Enable cross-server portals.")
     public boolean enabled = false;
@@ -43,10 +45,20 @@ public class NetworkConfig {
     public List<String> proxyServers = new ArrayList<>();
     public long handoffTimeoutMs = 5000L;
     public boolean autoAcceptTransfers = true;
+    @ConfigDescription({
+        "Wormholes version policy for peer links: \"compatible\" links any protocol-21 peer and reports reduced capability,",
+        "\"exact\" requires identical Wormholes versions."
+    })
+    public String pluginVersionPolicy = "compatible";
+    @ConfigDescription("Persist the remote portal directory to mesh/directory.json so linked portals show as stale after a restart instead of vanishing.")
+    public boolean directoryCacheEnabled = true;
     public TransportConfig transport = new TransportConfig();
     public ViewConfig view = new ViewConfig();
     public StatsConfig stats = new StatsConfig();
     public ReplicationConfig replication = new ReplicationConfig();
+    public MeshConfig mesh = new MeshConfig();
+    public PolicyConfig policy = new PolicyConfig();
+    public ProxyConfig proxy = new ProxyConfig();
 
     public void normalizeRuntimeBounds() {
         if (listenPort < MIN_LISTEN_PORT || listenPort > MAX_LISTEN_PORT) {
@@ -78,6 +90,31 @@ public class NetworkConfig {
             replication = new ReplicationConfig();
         }
         replication.normalizeRuntimeBounds();
+        pluginVersionPolicy = normalizePluginVersionPolicy(pluginVersionPolicy);
+        if (mesh == null) {
+            mesh = new MeshConfig();
+        }
+        mesh.normalizeRuntimeBounds();
+        if (policy == null) {
+            policy = new PolicyConfig();
+        }
+        policy.normalizeRuntimeBounds();
+        if (proxy == null) {
+            proxy = new ProxyConfig();
+        }
+        proxy.normalizeRuntimeBounds();
+    }
+
+    public boolean exactPluginVersionPolicy() {
+        return PLUGIN_VERSION_POLICY_EXACT.equals(pluginVersionPolicy);
+    }
+
+    private static String normalizePluginVersionPolicy(String value) {
+        String normalized = value == null ? PLUGIN_VERSION_POLICY_COMPATIBLE : value.trim().toLowerCase(Locale.ROOT);
+        if (!PLUGIN_VERSION_POLICY_COMPATIBLE.equals(normalized) && !PLUGIN_VERSION_POLICY_EXACT.equals(normalized)) {
+            throw new IllegalArgumentException("Network plugin-version-policy must be \"compatible\" or \"exact\", got \"" + value + "\"");
+        }
+        return normalized;
     }
 
     public String effectiveTransferMode(String peerName, String requestedMode) {
@@ -137,10 +174,10 @@ public class NetworkConfig {
         public int captureMaxQueuedDiffsPerChunk = 256;
         public boolean captureLightEnabled = true;
         @ConfigDescription({
-            "Capture block-entity NBT in cross-server replication streams.",
-            "The projection renderer does not currently consume this payload, so it is disabled by default to avoid unused traffic."
+            "Capture block-entity appearance (signs, banners, heads, pots, bells, spawners) in cross-server replication streams.",
+            "Container contents never cross; the projection block-entity layer consumes this payload."
         })
-        public boolean captureBlockEntityEnabled = false;
+        public boolean captureBlockEntityEnabled = true;
 
         public void normalizeRuntimeBounds() {
             hashProbeIntervalSec = Math.max(MIN_HASH_PROBE_INTERVAL_SEC, hashProbeIntervalSec);
@@ -150,6 +187,110 @@ public class NetworkConfig {
             maxQueuedDiffsPerPeer = Math.max(MIN_QUEUED_DIFFS_PER_PEER, maxQueuedDiffsPerPeer);
             captureSnapshotIntervalTicks = Math.max(MIN_CAPTURE_SNAPSHOT_INTERVAL_TICKS, captureSnapshotIntervalTicks);
             captureMaxQueuedDiffsPerChunk = Math.max(MIN_CAPTURE_QUEUED_DIFFS_PER_CHUNK, captureMaxQueuedDiffsPerChunk);
+        }
+    }
+
+    @ConfigDoc({
+        "Signed peer federation: linked servers introduce each other and the whole network converges from one pasted code."
+    })
+    public static class MeshConfig {
+        public static final String INTRODUCERS_TRUSTED = "trusted";
+        public static final String INTRODUCERS_ALLOWLIST = "allowlist";
+        public static final String INTRODUCERS_MANUAL = "manual";
+        public static final int MIN_ANNOUNCE_INTERVAL_SEC = 5;
+
+        @ConfigDescription("Accept and flood signed peer announcements.")
+        public boolean enabled = true;
+        @ConfigDescription("Who may introduce new peers: \"trusted\" (any trusted peer), \"allowlist\" (introducer-allowlist only), \"manual\" (introductions are ignored).")
+        public String introducers = INTRODUCERS_TRUSTED;
+        @ConfigDescription("Peer names allowed to introduce when introducers = \"allowlist\".")
+        public List<String> introducerAllowlist = new ArrayList<>();
+        @ConfigDescription("Trust introduced peers on their first handshake instead of holding them in quarantine for /wh network accept.")
+        public boolean autoAcceptIntroductions = false;
+        public int announceIntervalSec = 60;
+        public int announceRateLimitPerSourcePerMin = 30;
+        public int tombstoneTtlDays = 30;
+
+        public void normalizeRuntimeBounds() {
+            String policy = introducers == null ? INTRODUCERS_TRUSTED : introducers.trim().toLowerCase(Locale.ROOT);
+            if (!INTRODUCERS_TRUSTED.equals(policy) && !INTRODUCERS_ALLOWLIST.equals(policy) && !INTRODUCERS_MANUAL.equals(policy)) {
+                throw new IllegalArgumentException("Network mesh introducers must be \"trusted\", \"allowlist\" or \"manual\", got \"" + introducers + "\"");
+            }
+            introducers = policy;
+            List<String> normalizedAllowlist = new ArrayList<>(introducerAllowlist == null ? 0 : introducerAllowlist.size());
+            if (introducerAllowlist != null) {
+                for (String server : introducerAllowlist) {
+                    if (server != null && !server.isBlank()) {
+                        normalizedAllowlist.add(server.trim());
+                    }
+                }
+            }
+            introducerAllowlist = normalizedAllowlist;
+            announceIntervalSec = Math.max(MIN_ANNOUNCE_INTERVAL_SEC, announceIntervalSec);
+            announceRateLimitPerSourcePerMin = Math.max(1, announceRateLimitPerSourcePerMin);
+            tombstoneTtlDays = Math.max(1, tombstoneTtlDays);
+        }
+
+        public boolean mayIntroduce(String peerName) {
+            if (INTRODUCERS_MANUAL.equals(introducers)) {
+                return false;
+            }
+            if (INTRODUCERS_TRUSTED.equals(introducers)) {
+                return true;
+            }
+            for (String allowed : introducerAllowlist) {
+                if (allowed.equalsIgnoreCase(peerName)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    @ConfigDoc({
+        "Load beacons and gateway destination policy: candidate selection, failover, queueing."
+    })
+    public static class PolicyConfig {
+        public static final int MIN_BEACON_INTERVAL_SEC = 1;
+        /** Must stay under the 30 s teleport in-flight limit that bounds a departure hold. */
+        public static final int MAX_QUEUE_WAIT_SEC = 29;
+
+        public int beaconIntervalSec = 5;
+        public int beaconStaleSec = 20;
+        @ConfigDescription("Hold travelers at a gateway while every policy candidate is full instead of bouncing them.")
+        public boolean queueEnabled = true;
+        @ConfigDescription("Longest hold before a queued traveler is released (1-29 s; the in-flight limit is 30 s).")
+        public int queueMaxWaitSec = 25;
+
+        public void normalizeRuntimeBounds() {
+            beaconIntervalSec = Math.max(MIN_BEACON_INTERVAL_SEC, beaconIntervalSec);
+            beaconStaleSec = Math.max(beaconIntervalSec * 2, beaconStaleSec);
+            queueMaxWaitSec = Math.max(1, Math.min(MAX_QUEUE_WAIT_SEC, queueMaxWaitSec));
+        }
+    }
+
+    @ConfigDoc({
+        "Wormholes proxy module (Velocity or BungeeCord): backends enroll over a plugin channel instead of pasting codes."
+    })
+    public static class ProxyConfig {
+        public static final String DEFAULT_CHANNEL = "wormholes:proxy";
+
+        @ConfigDescription("Use the proxy module channel when the WormholesProxy plugin is installed on the proxy.")
+        public boolean enabled = false;
+        public String channel = DEFAULT_CHANNEL;
+        @ConfigDescription({
+            "Shared secret for the enrollment channel, copied from plugins/WormholesProxy/secret.txt on the proxy.",
+            "Clients can send on this channel too, so frames are signed with it; the module stays off while it is blank."
+        })
+        public String secret = "";
+
+        public void normalizeRuntimeBounds() {
+            if (channel == null || channel.isBlank() || channel.indexOf(':') <= 0) {
+                channel = DEFAULT_CHANNEL;
+            } else {
+                channel = channel.trim().toLowerCase(Locale.ROOT);
+            }
+            secret = secret == null ? "" : secret.trim();
         }
     }
 

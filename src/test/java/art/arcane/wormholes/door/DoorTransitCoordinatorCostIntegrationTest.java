@@ -399,6 +399,7 @@ final class DoorTransitCoordinatorCostIntegrationTest {
                 new PocketSpaceIndex(pocketStructures),
                 pocketStructures,
                 pocketWorldService,
+                templateService(),
                 new DoorTransitFailures(logger));
             DoorwayPlane plane = new DoorwayPlane(0, 64, 0, BlockFace.NORTH);
             endpoint = new PlacedDoorEndpoint(
@@ -609,6 +610,24 @@ final class DoorTransitCoordinatorCostIntegrationTest {
         @Override
         public void refund(TraversalReceipt receipt, TraversalRefundReason reason) {
             refunds.add(reason);
+        }
+    }
+
+    private static PocketTemplateService templateService() {
+        return new PocketTemplateService(
+            java.nio.file.Path.of("build", "tmp", "pocket-templates"), () -> "pockets/templates",
+            new EmptyStructureIo());
+    }
+
+    /** A structure store with nothing in it; these tests never read or write one. */
+    private static final class EmptyStructureIo implements StructureIo {
+        @Override
+        public java.util.Optional<org.bukkit.structure.Structure> load(java.nio.file.Path file) {
+            return java.util.Optional.empty();
+        }
+
+        @Override
+        public void save(org.bukkit.structure.Structure structure, java.nio.file.Path file) {
         }
     }
 }

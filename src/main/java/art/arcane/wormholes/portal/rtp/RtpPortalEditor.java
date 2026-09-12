@@ -179,13 +179,27 @@ public final class RtpPortalEditor
 		window.setElement(-3, 5, actionElement("rtp-center-reset", WormholesMessages.RTP_RESET_CENTER,
 				MessageArgs.empty(), Material.BARRIER,
 				() -> mutate(snapshot, viewerId, new ResetCenterTargetMutation())));
-		String biomeValue = settings.targetBiomeKey() == null
-				? Wormholes.text().plain(WormholesMessages.RTP_BIOME_ANY_LABEL)
-				: settings.targetBiomeKey();
+		String biomeValue = selectedBiomeName(viewerId, settings.targetBiomeKey());
 		window.setElement(3, 5, actionElement("rtp-target-biome", WormholesMessages.RTP_BIOME_LINK,
 				WormholesLocalization.args(MessageArgument.untrusted("value", biomeValue)),
 				Material.OAK_SAPLING, () -> navigate(window, viewerId, Page.BIOME)));
 		window.setElement(0, 5, submenuBackElement(window, viewerId));
+	}
+
+	private String selectedBiomeName(UUID viewerId, String biomeKey)
+	{
+		if(biomeKey == null)
+		{
+			return Wormholes.text().plain(WormholesMessages.RTP_BIOME_ANY_LABEL);
+		}
+		for(RtpPortalEditorModel.BiomeOption biome : host.biomeOptions(viewerId))
+		{
+			if(biome.key().equalsIgnoreCase(biomeKey))
+			{
+				return biome.displayName();
+			}
+		}
+		return Wormholes.text().plain(WormholesMessages.RTP_BIOME_UNAVAILABLE_LABEL);
 	}
 
 	private void populateBiome(Window window, UUID viewerId, EditorSnapshot snapshot)
@@ -221,7 +235,7 @@ public final class RtpPortalEditor
 					WormholesLocalization.args(
 							MessageArgument.untrusted("biome", biome.displayName()),
 							MessageArgument.untrusted("key", biome.key())),
-					Material.FERN,
+					biome.irisBiome() ? Material.AMETHYST_SHARD : Material.FERN,
 					selected,
 					() -> mutate(snapshot, viewerId, new RtpPortalEditorModel.TargetBiomeMutation(biome.key()))));
 		}

@@ -141,7 +141,8 @@ final class NetworkIdentity {
 
     LocalIdentity snapshot() {
         return new LocalIdentity(localName(), mcVersion, pluginVersion, advertiseHost(), network.getBoundListenPort(),
-            gameEndpoint(), privateGameEndpoint(), identityStore.publicKeyBytes(), identityStore.privateKey());
+            gameEndpoint(), privateGameEndpoint(), identityStore.publicKeyBytes(), identityStore.privateKey(),
+            network.localCapabilities());
     }
 
     private String generatedServerName() {

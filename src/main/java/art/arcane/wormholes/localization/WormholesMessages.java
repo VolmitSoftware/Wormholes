@@ -411,6 +411,8 @@ public final class WormholesMessages {
     public static final LinesKey PORTAL_MENU_BACK_SETTINGS = lines("portal.menu.back_settings",
             "&e&lBack to Settings&r",
             "&7Return to portal settings.");
+    public static final LinesKey PORTAL_MENU_EXTENSIONS = lines("portal.menu.extensions",
+            "&b&lMore settings&r", "&7Rules, access, networks, and other feature settings.", "&eLeft-click");
     public static final LinesKey PORTAL_MENU_TRAVEL_MANAGED = lines("portal.menu.travel.managed",
             "&6&lTravel: {direction}&r",
             "&7Managed dimensional portal direction.",
@@ -958,6 +960,7 @@ public final class WormholesMessages {
     public static final LinesKey RTP_NEXT_WORLDS = lines("rtp.destination.next_worlds", "&e&lNext Worlds&r", "&7Show the next page.", "&eLeft click");
     public static final LinesKey RTP_BIOME_LINK = lines("rtp.destination.biome_link", "&e&lTarget Biome &f&l{value}&r", "&7Prefer landing in a chosen biome.", "&eLeft click");
     public static final TextKey RTP_BIOME_ANY_LABEL = text("rtp.biome.any_label", "Any");
+    public static final TextKey RTP_BIOME_UNAVAILABLE_LABEL = text("rtp.biome.unavailable_label", "Unavailable");
     public static final LinesKey RTP_BIOME_HEADER = lines("rtp.biome.header", "&b&lTarget Biome&r", "&7The search prefers this biome and falls back to any safe spot when it cannot be found nearby.");
     public static final LinesKey RTP_BIOME_ANY_SELECTED = lines("rtp.biome.any_selected", "&a&lAny Biome&r", "&7No biome preference.", "&aSelected");
     public static final LinesKey RTP_BIOME_ANY_AVAILABLE = lines("rtp.biome.any_available", "&b&lAny Biome&r", "&7Clear the biome preference.", "&eLeft click to select");
@@ -1060,6 +1063,7 @@ public final class WormholesMessages {
                 .addAll(DirectorMessages.keys())
                 .addAll(BukkitLanguageMessages.keys())
                 .addAll(KEYS)
+                .addAll(WormholesMessageGroups.keys())
                 .build();
     }
 

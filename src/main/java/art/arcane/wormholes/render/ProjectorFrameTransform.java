@@ -2,7 +2,7 @@ package art.arcane.wormholes.render;
 
 import art.arcane.wormholes.portal.PortalFrame;
 
-final class ProjectorFrameTransform {
+public final class ProjectorFrameTransform {
     private double fromRightX;
     private double fromRightY;
     private double fromRightZ;
@@ -48,7 +48,7 @@ final class ProjectorFrameTransform {
     private final double[] scratchOffset = new double[3];
     private final double[] scratchMatrix = new double[9];
 
-    void configure(PortalFrame from, PortalFrame to,
+    public void configure(PortalFrame from, PortalFrame to,
                    double fromOriginX, double fromOriginY, double fromOriginZ,
                    double toOriginX, double toOriginY, double toOriginZ) {
         this.mirror = false;
@@ -91,7 +91,7 @@ final class ProjectorFrameTransform {
         detectSignedPermutation(matrix);
     }
 
-    void configureMirror(PortalFrame frame, int quarterTurns,
+    public void configureMirror(PortalFrame frame, int quarterTurns,
                          double originX, double originY, double originZ,
                          double[] scratch3) {
         this.mirror = true;
@@ -160,7 +160,7 @@ final class ProjectorFrameTransform {
         return source;
     }
 
-    void apply(double x, double y, double z, double[] out3) {
+    public void apply(double x, double y, double z, double[] out3) {
         double offsetX = x - fromOriginX;
         double offsetY = y - fromOriginY;
         double offsetZ = z - fromOriginZ;

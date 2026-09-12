@@ -513,6 +513,7 @@ rename = ["&a&l포털 이름 변경&r", "&7연결과 메뉴에 표시되는 이�
 delete = ["&c&l포털 삭제&r", "&7이 포털을 영구적으로 삭제합니다.", "", "&c&nShift + 왼쪽 클릭하여 확인&r"]
 advanced_settings = ["&3&l고급 스트림 조정&r", "&7진단 및 특수 연결을 위한 직접 설정입니다.", "&7값을 변경하면 스트림 품질이 사용자 지정으로 표시됩니다."]
 back_settings = ["&e&l설정으로 돌아가기&r", "&7포털 설정으로 돌아갑니다."]
+extensions = ["&b&l추가 설정&r", "&7규칙, 접근, 네트워크 및 기타 기능 설정입니다.", "&e왼쪽 클릭"]
 stream_quality = ["&b&l스트림 품질: {quality}&r", "&7원격 보기 범위와 업데이트 주기를 한 번에 조절합니다.", "", "&7깊이 &b{depth}&7  엔티티 &b{entities}t", "&7새로고침 &b{refresh}t&7  유지 &b{grace}s", "", "&8클릭: 품질 전환.", "&8Shift + 클릭: 고급 조정."]
 orientation = ["&9&l방향&r", "&7정면: &9{facing}", "&7화면 위쪽: &6{up}", "", "&8클릭하여 정면, 뒤집기 및 회전을 설정합니다."]
 orientation_placard = ["&9&l포털 방향&r", "&7정면: &9{facing}", "&7화면 위쪽: &6{up}"]
@@ -936,6 +937,7 @@ decimal_seconds = "{value}s"
 
 [rtp.biome]
 any_label = "모두"
+unavailable_label = "사용 불가"
 header = ["&b&l대상 바이옴&r", "&7검색 시 이 바이옴을 우선하며, 근처에서 찾을 수 없으면 임의의 안전한 지점을 사용합니다."]
 any_selected = ["&a&l모든 바이옴&r", "&7바이옴 선호가 없습니다.", "&a선택됨"]
 any_available = ["&b&l모든 바이옴&r", "&7바이옴 선호를 해제합니다.", "&e왼쪽 클릭하여 선택"]
@@ -1018,3 +1020,513 @@ trapdoor_skin = ["&6차원 다락문 외형", "&7차원 다락문과 손으로 �
 entangled_trapdoor_pair_recipe = ["&6얽힌 다락문 한 쌍", "&7자동으로 연결된 웜홀 다락문 두 개입니다."]
 personal_trapdoor_recipe = ["&b개인 차원 다락문", "&7여행자마다 자신만의 영구 차원으로 들어갑니다."]
 public_trapdoor_recipe = ["&6공용 차원 다락문", "&7모든 여행자가 이 다락문의 공유 차원으로 들어갑니다."]
+
+# ==== Headline lane blocks. Each lane adds its tables between its own markers only. ====
+
+
+# ---- lane:rules (rules.*) ----
+[rules]
+route_card = "{portal} > {destination} | {amount} | {state}"
+
+[rules.menu]
+entry = ["&6규칙", "&7누가 통과할 수 있는지, 비용, 통과 후 일어나는 일."]
+cooldown = ["&6재사용 대기: {seconds}s", "&7좌우 클릭으로 변경, 시프트는 10초 단위."]
+warmup = ["&6준비 시간: {seconds}s", "&7좌우 클릭으로 변경, 시프트는 10초 단위."]
+group = ["&6대기 그룹: {value}", "&7클릭하여 그룹 이름을 입력하세요."]
+pushback = ["&6밀어내기: {value}", "&7좌우 클릭으로 변경합니다."]
+sound = ["&6거부음 볼륨: {value}", "&7좌우 클릭으로 변경합니다."]
+charges = ["&6충전: {count}", "&7좌우 클릭으로 충전 용량을 변경합니다."]
+default_outcome = ["&6기본값: {mode}", "&7클릭하여 허용과 거부를 전환합니다."]
+rules = ["&6규칙 ({count})", "&7클릭하여 규칙 목록을 엽니다."]
+rule = ["&6{name}", "&7{value} &8- 시프트 클릭으로 규칙을 삭제합니다."]
+add_rule = ["&a규칙 추가", "&7클릭하여 규칙 ID를 입력하세요."]
+line = ["&f{value}", "&7시프트 클릭으로 이 줄을 삭제합니다."]
+add_line = ["&a줄 추가", "&7클릭하여 kind=PERMISSION;node=group.vip 를 입력하세요."]
+templates = ["&6템플릿", "&7클릭하여 저장된 템플릿을 적용합니다."]
+template = ["&f{name}", "&7클릭하여 이 템플릿을 적용합니다."]
+back = ["&7뒤로", "&8이전 페이지로."]
+page = ["&7{pages} 페이지 중 {page} 페이지", "&8클릭하여 페이지를 넘깁니다."]
+
+[rules.route]
+unlisted = "알 수 없음"
+free = "무료"
+ready = "준비됨"
+cooldown = "{seconds}s"
+
+[rules.denied]
+default = "이 포털이 당신을 거부했습니다."
+entity_class = "이 포털은 {mode}만 사용할 수 있습니다."
+key = "{portal}의 열쇠가 필요합니다."
+time = "{portal}은(는) 지금 닫혀 있습니다."
+cooldown = "{portal}을(를) 다시 사용하려면 {seconds}s 기다리세요."
+charges = "{portal}에 남은 충전이 없습니다."
+cost = "{portal}을(를) 사용하기 위한 {amount}을(를) 지불할 수 없습니다."
+
+[rules.notice]
+rule_added = "규칙 {name}을(를) 추가했습니다."
+rule_removed = "규칙 {name}을(를) 삭제했습니다."
+invalid = "적용할 수 없습니다: {reason}"
+applied = "템플릿 {name}을(를) 적용했습니다."
+
+[rules.prompt]
+group = "&b재사용 대기 그룹 이름을 입력하세요 (또는 \"{cancel}\"):"
+rule_id = "&b새 규칙의 ID를 입력하세요 (또는 \"{cancel}\"):"
+line = "&b규칙 줄을 입력하세요. 예: kind=PERMISSION;node=group.vip (또는 \"{cancel}\"):"
+
+[rules.warmup]
+countdown = "움직이지 마세요: {seconds}s"
+cancelled = "준비가 취소되었습니다."
+
+[rules.command]
+exported = "{portal}의 규칙을 템플릿 {name}에 저장했습니다."
+imported = "템플릿 {name}을(를) {portal}에 적용했습니다."
+templates = "규칙 템플릿: {value}"
+no_templates = "저장된 규칙 템플릿이 없습니다."
+template_missing = "{name}(이)라는 규칙 템플릿이 없습니다."
+template_invalid = "템플릿 {name}이(가) 잘못되었습니다: {reason}"
+portal_missing = "{name}(이)라는 포털이 없습니다."
+portal_ambiguous = "{count}개의 포털이 {name}(이)라는 이름입니다. 하나의 이름을 바꾸세요."
+not_in_portal = "포털 안에 서거나 portal 옵션으로 포털을 지정하세요."
+key_given = "{portal}의 열쇠를 받았습니다."
+failed = "완료하지 못했습니다: {reason}"
+
+[rules.command.help]
+rules = "통행 규칙: 템플릿, 열쇠, 포털 프로필"
+export = "포털 규칙을 템플릿 파일로 저장"
+"export.name" = "저장할 템플릿 이름"
+"export.portal" = "포털 이름, 생략하면 서 있는 포털"
+import = "서 있는 포털에 템플릿 적용"
+"import.name" = "불러올 템플릿 이름"
+"import.portal" = "포털 이름, 생략하면 서 있는 포털"
+apply = "어디서든 이름으로 지정한 포털에 템플릿 적용"
+"apply.name" = "불러올 템플릿 이름"
+"apply.portal" = "템플릿을 적용할 포털 이름"
+list = "저장된 규칙 템플릿 목록 보기"
+key = "포털 열쇠를 자신에게 지급"
+"key.portal" = "열쇠를 만들 포털 이름"
+"key.uses" = "열쇠로 통과할 수 있는 횟수, 0이면 무제한"
+# ---- end lane:rules ----
+
+
+# ---- lane:access (access.*) ----
+[access.denied]
+role = "&c{portal}을(를) 사용할 권한이 없습니다."
+claim = "&c토지 보호가 {portal}을(를) 막고 있습니다."
+limit = "&c이미 포털을 {count}개 소유하고 있습니다. 한도는 {maximum}개입니다."
+
+[access.construct]
+denied = "&c여기에는 포털을 지을 수 없습니다: {reason}."
+
+[access.claim]
+reason = "{plugin}이(가) 이 땅을 보호합니다"
+failure = "{plugin}에 문의할 수 없습니다"
+
+[access.transfer]
+done = "&8[&6Wormholes&8] &a{portal}은(는) 이제 {name}의 것입니다."
+
+[access.key]
+set = "&a{portal}의 권한 키가 이제 {key}입니다."
+taken = "&c권한 키 {key}은(는) 이미 사용 중입니다."
+invalid = "&c권한 키는 a-z, 0-9, 마침표, 하이픈, 밑줄을 사용하며 최대 64자입니다."
+
+[access.player]
+not_found = "&c{name}(이)라는 플레이어가 없습니다."
+
+[access.portal]
+not_found = "&8[&6Wormholes&8] &c{portal}(이)라는 포털이 없습니다."
+ambiguous = "&8[&6Wormholes&8] &c{count}개의 포털이 {portal}과(와) 일치합니다. 포털 ID를 사용하세요."
+
+[access.role]
+changed = "&a{name}은(는) 이제 {portal}에서 {state}입니다."
+removed = "&a{name}은(는) 더 이상 {portal}에서 역할이 없습니다."
+owner_always = "&7소유자는 항상 모든 권한을 가집니다."
+
+[access.listed]
+changed = "&a{portal}은(는) 이제 공개 목록에서 {state}입니다."
+
+[access.group]
+added = "&a{portal}은(는) 이제 {node}에 접근을 허용합니다."
+cleared = "&a{portal}은(는) 더 이상 그룹으로 접근을 허용하지 않습니다."
+
+[access.limits]
+report = "&8[&6Wormholes&8] &7{name}은(는) 포털 {count}개를 소유하고 있으며 한도는 {maximum}개입니다."
+unlimited = "&8[&6Wormholes&8] &7{name}은(는) 포털 {count}개를 소유하고 있으며 한도가 없습니다."
+
+[access.prompt]
+player = "&7채팅에 플레이어 이름을 입력하거나 {cancel}을 입력해 중단하세요."
+key = "&7채팅에 새 권한 키를 입력하거나 {cancel}을 입력해 중단하세요."
+group = "&7채팅에 권한 노드를 입력하거나 {cancel}을 입력해 중단하세요."
+
+[access.label]
+owner = "소유자"
+co_owner = "공동 소유자"
+user = "신뢰됨"
+denied = "거부됨"
+listed = "공개"
+unlisted = "숨김"
+
+[access.menu]
+entry = ["&b&l접근&r", "&7역할, 그룹, 권한 키."]
+placard = ["&b&l접근: {portal}&r", "&7소유자: &f{owner}", "&7역할: &f{count}", "&7키: &f{key}"]
+add = ["&a&l플레이어 추가&r", "&7채팅에 이름을 입력해 역할을 부여합니다."]
+role = ["&f&l{name}&r", "&7역할: &f{state}", "&7좌클릭 또는 우클릭으로 역할을 바꿉니다.", "&7Shift + 좌클릭으로 제거합니다."]
+groups = ["&e&l허용 그룹&r", "&7{count}개의 권한 노드가 접근을 허용합니다.", "&7좌클릭으로 추가, 우클릭으로 비웁니다."]
+key = ["&b&l권한 키&r", "&7{key}", "&7좌클릭으로 변경합니다."]
+listed = ["&b&l공개 목록&r", "&7{state}", "&7좌클릭으로 전환합니다."]
+
+[access.command.help]
+access = "포털 접근 목록, 소유권, 한도"
+transfer = "포털을 다른 플레이어에게 넘깁니다"
+"transfer.portal" = "포털 이름 또는 ID"
+"transfer.player" = "새 소유자의 이름"
+key = "포털의 고정 권한 키를 설정합니다"
+"key.portal" = "포털 이름 또는 ID"
+"key.key" = "새 권한 키"
+limits = "플레이어가 소유한 포털 수와 한도를 표시합니다"
+"limits.player" = "확인할 플레이어. 기본값은 자신입니다"
+# ---- end lane:access ----
+
+
+# ---- lane:nexus (nexus.* and atlas.*) ----
+[nexus]
+dialed = "&8[&6Wormholes&8] &a{portal}이(가) {address}(으)로 연결됨: &f{destination}"
+created = "&8[&6Wormholes&8] &a네트워크 {name}을(를) 만들었습니다."
+deleted = "&8[&6Wormholes&8] &a네트워크 {name}을(를) 삭제했습니다."
+joined = "&8[&6Wormholes&8] &a{portal}이(가) 주소 {address}(으)로 {name}에 참여했습니다."
+left = "&8[&6Wormholes&8] &a{portal}이(가) {name}에서 나갔습니다."
+
+[nexus.dial]
+unknown = "&8[&6Wormholes&8] &c주소 {address}에 포털이 없습니다."
+none = "&8[&6Wormholes&8] &c{portal}은(는) 어떤 네트워크에도 속해 있지 않습니다."
+debounced = "&8[&6Wormholes&8] &7연결이 너무 빠릅니다. 잠시 기다리세요."
+managed = "&8[&6Wormholes&8] &c{portal}은(는) 관리 포털이라 연결할 수 없습니다."
+
+[nexus.address]
+taken = "&8[&6Wormholes&8] &c주소 {address}은(는) {name}에서 이미 사용 중입니다."
+set = "&8[&6Wormholes&8] &a{portal}의 주소는 {address}입니다."
+invalid = "&8[&6Wormholes&8] &c주소에는 다음 문자만 쓸 수 있습니다: {value}"
+
+[nexus.network]
+unknown = "&8[&6Wormholes&8] &c{name}이라는 네트워크가 없습니다."
+exists = "&8[&6Wormholes&8] &c{name}이라는 네트워크가 이미 있습니다."
+full = "&8[&6Wormholes&8] &c{name}에는 이미 포털이 {count}개 있습니다."
+limit = "&8[&6Wormholes&8] &c이미 네트워크를 {count}개 소유하고 있습니다."
+
+[nexus.portal]
+unknown = "&8[&6Wormholes&8] &c{portal}이라는 포털이 없습니다."
+not_member = "&8[&6Wormholes&8] &c{portal}은(는) {name}의 구성원이 아닙니다."
+
+[nexus.visibility]
+set = "&8[&6Wormholes&8] &a{name}이(가) 이제 {value}입니다."
+
+[nexus.hub]
+set = "&8[&6Wormholes&8] &a{portal}이(가) {name}의 허브입니다."
+
+[nexus.list]
+empty = "&8[&6Wormholes&8] &7아직 네트워크가 없습니다."
+entry = "&7{name} &8- &f포털 {count}개&7, {value}, 소유자 &f{owner}"
+
+[nexus.info]
+header = "&6{name} &8- &f포털 {count}개&7, {value}, {mode}"
+member = "&e{address} &f{portal} &7({world}) &8{state}"
+
+[nexus.doctor]
+header = "&8[&6Wormholes&8] &6연결 점검: 발견 {count}건."
+clean = "&8[&6Wormholes&8] &a연결 문제가 없습니다."
+oneway = "&e{portal} -> {destination}에 되돌아오는 연결이 없습니다."
+dangling = "&c{portal}이(가) 없는 목적지를 가리킵니다."
+unloaded = "&e{portal}이(가) 불러오지 않은 월드 {world}을(를) 가리킵니다."
+offline = "&c{portal}이(가) {server}을(를) 가리키지만 {count}일째 오프라인입니다."
+
+[nexus.redstone]
+set = "&8[&6Wormholes&8] &a{portal} 레드스톤: {value}."
+
+[nexus.reciprocal]
+paired = "&8[&6Wormholes&8] &a{portal}과(와) {destination}이(가) 이제 양방향으로 연결됩니다."
+unpaired = "&8[&6Wormholes&8] &a{portal}과(와) {destination}의 되돌아오는 연결을 해제했습니다."
+denied = "&8[&6Wormholes&8] &c{portal}과(와) {destination}을(를) 모두 관리할 수는 없습니다."
+
+[nexus.prompt]
+network_name = "&b채팅에 네트워크 이름을 입력하세요('{cancel}' 입력 시 취소):"
+address = "&b채팅에 새 주소를 입력하세요('{cancel}' 입력 시 취소):"
+
+[nexus.menu]
+entry = ["&b&l네트워크&r", "&7네트워크, 주소, 연결, 목적지 규칙, 레드스톤.", "&7네트워크: &f{name}", "&7주소: &f{address}", "&e좌클릭"]
+placard = ["&b&l네트워크: {name}&r", "&7주소: &f{address}", "&7구성원: &f{count}"]
+join = ["&a&l네트워크 참여&r", "&7이 포털을 네트워크에 넣고 주소를 부여합니다.", "&e좌클릭"]
+leave = ["&c&l{name} 나가기&r", "&7이 포털과 주소를 네트워크에서 제거합니다.", "&e좌클릭"]
+create = ["&a&l네트워크 만들기&r", "&7새 네트워크 이름을 정하고 이 포털을 넣습니다.", "&e좌클릭"]
+address = ["&e&l주소: {address}&r", "&7다른 포털이 여기로 오기 위해 거는 짧은 코드입니다.", "&e좌클릭으로 다시 입력. &e우클릭으로 다시 뽑기."]
+visibility = ["&e&l공개 범위: {value}&r", "&7공개는 모두에게, 구성원 전용은 구성원에게, 숨김은 아무에게도 표시되지 않습니다.", "&e좌클릭으로 전환"]
+topology = ["&e&l구조: {value}&r", "&7메시는 아무 구성원, 허브는 한 포털 경유, 체인과 링은 이웃을 부릅니다.", "&e좌클릭으로 전환"]
+reciprocal = ["&e&l되돌아오는 연결: {state}&r", "&7목적지가 이 포털을 계속 가리키게 합니다.", "&e좌클릭으로 전환"]
+policy = ["&e&l목적지: {mode}&r", "&7항목 {count}개. 순서, 가중치, 예약, 플레이어별, 복귀.", "&e좌클릭으로 모드 전환. &e우클릭으로 비우기."]
+redstone = ["&e&l레드스톤: {value}&r", "&7프레임 옆 신호가 켜질 때의 동작과 비교기가 읽는 값입니다.", "&e좌클릭은 동작. &e우클릭은 비교기 출력."]
+dial = ["&b&l연결&r", "&7이 포털을 같은 네트워크의 다른 주소로 향하게 합니다.", "&e좌클릭"]
+dial_entry = ["&e{address} &f{portal}", "&7{world}", "&b{state}"]
+link_and_return = ["&d&l연결하고 되돌리기&r", "&7{destination}도 {portal}을(를) 향하게 합니다.", "&e좌클릭"]
+
+[atlas]
+title = "&8아틀라스 &7- &f포털 {count}개"
+row = "&f{portal} &8| &7{destination} &8| &b{state}"
+empty = "&8[&6Wormholes&8] &7아직 발견한 포털이 없습니다."
+disabled = "&8[&6Wormholes&8] &c이 서버에서는 아틀라스가 꺼져 있습니다."
+only_players = "&8[&6Wormholes&8] &c아틀라스는 플레이어만 가질 수 있습니다."
+no_permission = "&8[&6Wormholes&8] &c아틀라스를 열 권한이 없습니다."
+discovered = "&8[&6Wormholes&8] &a{portal}을(를) 발견했습니다."
+usage = ["&8[&6Wormholes&8] &7/atlas &8- &7포털 목록 열기", "&8[&6Wormholes&8] &7/atlas favorites &8- &7고정한 포털만", "&8[&6Wormholes&8] &7/atlas recents &8- &7최근 사용한 포털", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7방위 표시. /atlas guide off로 중지"]
+
+[atlas.favorite]
+added = "&8[&6Wormholes&8] &a{portal}을(를) 고정했습니다."
+removed = "&8[&6Wormholes&8] &a{portal}의 고정을 해제했습니다."
+full = "&8[&6Wormholes&8] &c이미 포털 {count}개를 고정했습니다."
+
+[atlas.guide]
+bearing = "&b{portal} &f{value}"
+set = "&8[&6Wormholes&8] &a{portal}(으)로 안내합니다."
+cleared = "&8[&6Wormholes&8] &a안내를 껐습니다."
+unknown = "&8[&6Wormholes&8] &c아틀라스에 {portal}이라는 포털이 없습니다."
+
+[atlas.menu]
+row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&e좌클릭으로 연결. &e우클릭으로 고정. &eShift+좌클릭으로 안내."]
+favorites = ["&d&l고정만: {state}&r", "&7고정한 포털만 표시합니다.", "&e좌클릭"]
+recents = ["&b&l최근만: {state}&r", "&7최근 사용한 포털만 표시합니다.", "&e좌클릭"]
+guide = ["&a&l안내: {portal}&r", "&7안내 중인 포털의 방위를 액션바에 표시합니다.", "&e좌클릭으로 중지"]
+# ---- end lane:nexus ----
+
+
+# ---- lane:doors (doorview.* and pockets.*) ----
+[doorview]
+"disabled" = "&8[&6Wormholes&8] &c문 투영은 wormholes.toml에서 비활성화되어 있습니다."
+"toggle.inherit" = "&8[&6Wormholes&8] &7이 문의 투영: &f상속&7."
+"toggle.on" = "&8[&6Wormholes&8] &a이 문의 투영: 켬."
+"toggle.off" = "&8[&6Wormholes&8] &e이 문의 투영: 끔."
+"state.inherit" = "상속"
+"state.on" = "켬"
+"state.off" = "끔"
+"menu.projection" = ["&b&l투영: {state}&r", "&7이 문 너머의 목적지를 보여줍니다.", "&e좌클릭으로 전환"]
+
+[pockets]
+"confirm.overwrite" = ["&8[&6Wormholes&8] &c포켓 &f{space}&c 안의 모든 것이 교체됩니다.", "&8[&6Wormholes&8] &7계속하려면 같은 명령을 &fconfirm=true&7 로 실행하세요."]
+"denied.build" = "&8[&6Wormholes&8] &c당신은 이 포켓의 건축자가 아닙니다."
+"denied.pvp" = "&8[&6Wormholes&8] &c이 포켓에서는 전투가 꺼져 있습니다."
+"instance.none" = "&8[&6Wormholes&8] &c이 포켓은 인스턴스가 아닙니다."
+"instance.reset" = "&8[&6Wormholes&8] &a포켓 인스턴스 &f{space}&a 를 초기화했습니다."
+"room.added" = "&8[&6Wormholes&8] &a포켓 &f{space}&a 에 방 &f{count}&a 을 추가했습니다."
+"room.blocked" = "&8[&6Wormholes&8] &c문을 내벽에 설치하세요."
+"room.limit" = "&8[&6Wormholes&8] &c이 포켓은 이미 최대 &f{count}&c 개의 방을 가지고 있습니다."
+"roster.added" = "&8[&6Wormholes&8] &a{name}&a 님이 &f{value}&a 로 포켓 명단에 합류했습니다."
+"roster.missing" = "&8[&6Wormholes&8] &c{name}&c 님은 이 포켓 명단에 없습니다."
+"roster.removed" = "&8[&6Wormholes&8] &e{name}&e 님이 포켓 명단에서 빠졌습니다."
+"roster.role" = "&8[&6Wormholes&8] &a{name}&a 님은 이제 이 포켓에서 &f{value}&a 입니다."
+"rules.invalid" = "&8[&6Wormholes&8] &c알 수 없는 포켓 규칙 &f{key}&c."
+"rules.set" = "&8[&6Wormholes&8] &a{key} &7= &f{value}"
+"snapshot.missing" = "&8[&6Wormholes&8] &c이 포켓에는 &f{name}&c 이름의 스냅샷이 없습니다."
+"snapshot.restored" = "&8[&6Wormholes&8] &a스냅샷 &f{name}&a 을 포켓 &f{space}&a 에 복원했습니다."
+"snapshot.saved" = "&8[&6Wormholes&8] &a포켓 &f{space}&a 의 스냅샷 &f{name}&a 을 저장했습니다."
+"template.applied" = "&8[&6Wormholes&8] &a템플릿 &f{name}&a 을 포켓 &f{space}&a 에 적용했습니다."
+"template.list" = "&8[&6Wormholes&8] &7템플릿 (&f{count}&7): &f{value}"
+"template.missing" = "&8[&6Wormholes&8] &f{name}&c 이름의 포켓 템플릿이 없습니다."
+# ---- end lane:doors ----
+
+
+# ---- lane:mesh (mesh.*) ----
+[mesh]
+pending = "&8[&6Wormholes&8] &e{server}&7 서버가 &f{name}&7 서버를 통해 참여를 요청합니다: /wh network accept {server}"
+accepted = "&8[&6Wormholes&8] &a&f{server}&a 서버를 네트워크에 받아들였습니다."
+rejected = "&8[&6Wormholes&8] &c&f{server}&c 서버를 거부하고 소개를 폐기했습니다."
+tombstoned = "&8[&6Wormholes&8] &f{server}&7 서버가 네트워크 전체에서 제거되었습니다."
+disabled = "&8[&6Wormholes&8] &7메시 연합이 &c비활성화&7되어 있습니다 ([network.mesh] enabled = false)."
+
+[mesh.introductions]
+none = "&8[&6Wormholes&8] &7승인 대기 중인 소개가 없습니다."
+unknown = "&8[&6Wormholes&8] &c{server} 서버는 승인 대기 중이 아닙니다."
+
+[mesh.members]
+none = "&8[&6Wormholes&8] &7아직 알려진 네트워크 구성원이 없습니다."
+row = "&8[&6Wormholes&8] &f{server}&7 {state} &8{fingerprint}"
+
+[mesh.versions]
+none = "&8[&6Wormholes&8] &7아직 연결된 피어가 없습니다."
+row = "&8[&6Wormholes&8] &f{server}&7: 프로토콜 &f{value}&7, 플러그인 &f{name}&7, 기능 &f{state}"
+reduced = "&8[&6Wormholes&8] &e{server}&7 서버가 축소된 기능으로 연결됩니다: &f{reason}"
+
+[mesh.drain]
+on = "&8[&6Wormholes&8] &e드레인 모드 켜짐: 드레인을 끌 때까지 이 서버는 새 도착을 거부합니다."
+off = "&8[&6Wormholes&8] &a드레인 모드 꺼짐: 이 서버가 다시 도착을 받아들입니다."
+state = "&8[&6Wormholes&8] &7드레인 모드는 {state} 상태입니다."
+invalid = "&8[&6Wormholes&8] &c드레인 상태는 on 또는 off여야 합니다. 입력값: {value}"
+
+[mesh.queue]
+position = "&7빈 서버를 기다리는 중: 순서 &f{count}&7, &f{seconds}&7초"
+timeout = "&c제시간에 자리가 있는 목적지 서버가 없었습니다."
+
+[mesh.policy]
+none = "&c지금은 사용할 수 있는 목적지가 없습니다."
+set = "&8[&6Wormholes&8] &a&f{portal}&a 의 정책: {value}"
+cleared = "&8[&6Wormholes&8] &7&f{portal}&7 의 정책을 해제했습니다. 다시 일반 목적지로 연결됩니다."
+portal_unknown = "&8[&6Wormholes&8] &c{portal} 라는 로컬 포털이 없습니다."
+invalid = "&8[&6Wormholes&8] &c잘못된 정책: {reason}"
+
+[mesh.command.help]
+members = "모든 네트워크 구성원을 연결 상태와 키 지문과 함께 나열"
+pending = "승인 대기 중인 소개된 서버 나열"
+accept = "소개된 서버를 신뢰하고 경로 저장"
+reject = "서버의 대기 중인 소개 폐기"
+versions = "각 피어의 프로토콜, 플러그인 버전, 기능 표시"
+drain = "이 서버를 목적지 순환에서 제외하거나 다시 포함"
+policy = "게이트웨이의 목적지 정책 설정 또는 해제"
+
+[mesh.command.param.accept]
+server = "소개된 서버 이름 (/wh network pending 참고)"
+
+[mesh.command.param.reject]
+server = "거부할 소개된 서버 이름"
+
+[mesh.command.param.drain]
+state = "on 또는 off; 생략하면 현재 상태 표시"
+
+[mesh.command.param.policy]
+portal = "로컬 포털 이름 또는 ID"
+candidates = "쉼표로 구분된 server:portal[:weight] 항목; 비우면 정책 해제"
+strategy = "FIRST_AVAILABLE, LEAST_LOADED, ROUND_ROBIN, STICKY 또는 NEAREST"
+headroom = "후보가 보고해야 하는 빈 플레이어 자리 수"
+tps = "후보가 보고해야 하는 최소 TPS; 0이면 TPS 무시"
+queue = "모든 후보가 가득 찼을 때 여행자를 대기시킴"
+# ---- end lane:mesh ----
+
+
+# ---- lane:transit (transit.*) ----
+[transit]
+bounced = "{portal}이(가) 당신을 밀어냈습니다."
+
+[transit.denied]
+membrane = "{portal}은(는) 앞면으로만 들어갈 수 있습니다."
+convoy_size = "당신의 대열에는 {count}개의 개체가 있습니다. 제한은 {value}입니다."
+convoy_fit = "당신의 대열은 {portal}을(를) 통과할 수 없습니다."
+convoy_member = "대열의 일부는 {portal}을(를) 사용할 수 없습니다."
+
+[transit.convoy]
+waiting = "대열 전체를 {portal}로 통과시키세요."
+failed = "대열 전송 실패: {reason}."
+
+[transit.menu]
+entry = ["&b&l통과&r", "&7운동량, 방향, 막, 튕김, 연출.", "&e왼쪽 클릭"]
+momentum = ["&6&l운동량: {mode}&r", "&7계수 {value}. 진입 속도에서 퇴장 속도를 정하는 방식.", "&e왼쪽 클릭으로 모드 전환", "&e오른쪽 클릭으로 계수 설정"]
+orientation = ["&6&l방향: {mode}&r", "&7도착 시 여행자가 바라보는 방향.", "&e왼쪽 클릭으로 전환"]
+membrane = ["&6&l막: {state}&r", "&7앞면으로만 들어올 수 있으며 뒷면은 밀어냅니다.", "&e왼쪽 클릭으로 전환"]
+bounce = ["&6&l튕김: {state}&r", "&7여행자를 이동시키는 대신 튕겨냅니다.", "&e왼쪽 클릭으로 전환"]
+profile = ["&6&l전환 연출&r", "&7접근 {value}", "&7경계 {mode}", "&7도착 {state}", "&e왼쪽 클릭: 접근 소리, 오른쪽 클릭: 경계 효과", "&eShift + 왼쪽 클릭: 도착 소리, Shift + 오른쪽 클릭: 마스크 틱"]
+prompt = "&b채팅에 새 값을 입력하세요 (또는 '{cancel}'):"
+# ---- end lane:transit ----
+
+
+# ---- lane:view (fidelity.*) ----
+[fidelity.menu]
+entry = ["&b&l충실도&r", "&7이 포털의 대기, 음향, 세부 수준 및 블록 엔티티.", "&e좌클릭"]
+placard = ["&b&l투영 충실도&r", "&7투영 위에 겹쳐지는 포털별 채널."]
+atmosphere = "&b대기: &f{mode}"
+acoustics = "&b음향: &f{mode}"
+lod = "&b세부 수준: &f{mode}"
+block_entities = "&b블록 엔티티: &f{state}"
+hint = ["&8클릭하여 전환.", "&8Shift + 클릭하면 서버 기본값을 사용합니다."]
+back = ["&e&l뒤로&r", "&7포털 메뉴로 돌아갑니다."]
+default = "기본값"
+
+[fidelity.bedrock]
+profile = "{count}명의 시청자에게 Bedrock 프로필 적용 중"
+# ---- end lane:view ----
+
+
+# ---- lane:ops (ops.*) ----
+[ops.console]
+started = "메트릭 엔드포인트가 {value} 에서 대기 중입니다."
+no_token = "메트릭 엔드포인트가 시작되지 않았습니다: [ops.console] token 을 설정하세요."
+failed = "메트릭 엔드포인트가 {value} 를 바인딩하지 못했습니다: {reason}"
+
+[ops.webmap]
+published = "포털 표식 {count} 개를 {name} 에 게시했습니다."
+
+[ops.backup]
+created = "&8[&6Wormholes&8] &a백업 &f{id}&a 을 &f{path}&a 에 기록했습니다."
+restored = "&8[&6Wormholes&8] &a&f{id}&a 에서 포털 &f{count}&a 개를 복원했습니다."
+dry_run = "&8[&6Wormholes&8] &7시험 실행: 포털 &f{count}&7 개가 바뀝니다."
+list_row = "&8[&6Wormholes&8] &f{id} &8| 포털 &f{count}&7 개 &8| &7{path}"
+list_empty = "&8[&6Wormholes&8] &f{path}&7 아래에 백업이 없습니다."
+not_found = "&8[&6Wormholes&8] &c&f{id}&c 와 일치하는 백업이 없습니다."
+confirm_required = "&8[&6Wormholes&8] &c적용하려면 &fconfirm=true&c 로, 계획을 보려면 &fdry=true&c 로 다시 실행하세요."
+failed = "&8[&6Wormholes&8] &c백업 작업이 실패했습니다: &f{reason}"
+reload_required = "&8[&6Wormholes&8] &7포털 파일을 교체했습니다. &f/wormholes reload&7 를 실행해 불러오세요."
+signature_broken = "&8[&6Wormholes&8] &c&f{id}&c 거부: 서명이 내용과 일치하지 않습니다."
+signature_untrusted = "&8[&6Wormholes&8] &c&f{id}&c 거부: &f{fingerprint}&c 가 서명했으며 이 서버는 신뢰하지 않습니다. 그래도 적용하려면 &fallow-unsigned=true&c 를 추가하세요."
+signature_ok = "&8[&6Wormholes&8] &7&f{name}&7 (&f{fingerprint}&7) 가 서명했습니다."
+
+[ops.import]
+report = "&8[&6Wormholes&8] &f{name}&7: 포털 &f{count}&7 개를 가져오고 &f{value}&7 개를 건너뛰었습니다."
+skipped_row = "&8[&6Wormholes&8] &7{portal}&8: &f{reason}"
+not_detected = "&8[&6Wormholes&8] &c&f{path}&c 아래에서 {name} 데이터를 찾지 못했습니다."
+
+[ops.portals]
+row = "&8[&6Wormholes&8] &f{portal} &8| &7{world} &8| &7{state} &8| &7{destination}"
+page = "&8[&6Wormholes&8] &7페이지 &f{page}&7/&f{pages}"
+empty = "&8[&6Wormholes&8] &7해당 조건에 맞는 포털이 없습니다."
+not_found = "&8[&6Wormholes&8] &c&f{name}&c 와 일치하는 포털이 없습니다."
+ambiguous = "&8[&6Wormholes&8] &c&f{name}&c 와 일치하는 포털이 {count} 개입니다. 식별자를 사용하세요."
+info = ["&8[&6Wormholes&8] &7포털 &f{portal} &8| &7{id}", "&8[&6Wormholes&8] &7월드 &f{world}&7 위치 &f{value}", "&8[&6Wormholes&8] &7상태 &f{state}&7, 목적지 &f{destination}&7, 소유자 &f{owner}"]
+teleported = "&8[&6Wormholes&8] &a&f{portal}&a 로 순간이동했습니다."
+teleport_unsafe = "&8[&6Wormholes&8] &e&f{portal}&e 근처에 안전한 착지점이 없어 포털 중앙을 사용합니다."
+retargeted = "&8[&6Wormholes&8] &a&f{portal}&a 이 이제 &f{destination}&a 을 가리킵니다."
+unlinked = "&8[&6Wormholes&8] &a&f{portal}&a 의 연결을 해제했습니다."
+pruned = "&8[&6Wormholes&8] &a고아 연결 &f{count}&a 개를 정리했습니다."
+prune_dry_run = "&8[&6Wormholes&8] &7시험 실행: 고아 연결 &f{count}&7 개가 정리됩니다."
+renamed_server = "&8[&6Wormholes&8] &a게이트웨이 연결 &f{count}&a 개를 &f{name}&a 에서 &f{server}&a 로 다시 썼습니다."
+
+[ops.command.help]
+backup = "포털 백업을 만들고 나열하고 복원하고 주고받기"
+"backup.now" = "포털 데이터 백업을 지금 기록"
+"backup.list" = "디스크에 있는 백업 나열"
+"backup.restore" = "백업에서 포털 파일 복원 (dry=true 는 계획만 표시)"
+"backup.restore.id" = "/wormholes admin backup list 에서 얻은 백업 식별자"
+"backup.restore.dry" = "아무것도 쓰지 않고 바뀔 내용만 보고"
+"backup.restore.world_map" = "월드 이름 변경을 옛=새,옛=새 형식으로 지정"
+"backup.restore.owner_map" = "소유자 변경을 옛uuid=새uuid 형식으로 지정"
+"backup.restore.confirm" = "dry=false 로 파일을 쓰려면 필요"
+"backup.allow_unsigned" = "신뢰된 키가 서명하지 않은 번들을 적용"
+"backup.export" = "서버 간 이동 가능한 파일로 백업 묶음을 기록"
+"backup.export.file" = "대상 파일. 비우면 백업 폴더에 기록"
+"backup.import" = "다른 서버에서 내보낸 묶음 가져오기"
+"backup.import.file" = "읽을 묶음 파일"
+"backup.import.dry" = "아무것도 쓰지 않고 바뀔 내용만 보고"
+"backup.import.world_map" = "월드 이름 변경을 옛=새,옛=새 형식으로 지정"
+"backup.import.owner_map" = "소유자 변경을 옛uuid=새uuid 형식으로 지정"
+"backup.import.confirm" = "dry=false 로 파일을 쓰려면 필요"
+"backup.import_from" = "다른 포털 플러그인의 파일에서 포털 가져오기"
+"backup.import_from.source" = "stargate, advancedportals, multiverse, betterportals 또는 essentials"
+"backup.import_from.dry" = "아무것도 만들지 않고 만들 내용만 보고"
+"backup.import_from.frame" = "틀이 없는 원본을 위한 틀 크기를 너비,높이 로 지정"
+portals = "포털 나열, 확인, 일괄 편집"
+"portals.list" = "선택 조건으로 포털 나열"
+"portals.list.world" = "이 월드의 포털만"
+"portals.list.type" = "이 종류의 포털만: portal, wormhole, gateway, rtp"
+"portals.list.owner" = "이 플레이어 이름 또는 uuid 의 포털만"
+"portals.list.state" = "이 상태의 포털만: open, closed, linked, unlinked"
+"portals.list.page" = "페이지 번호"
+"portals.find" = "이름에 해당 문자열이 있는 포털 찾기"
+"portals.find.name" = "찾을 문자열"
+"portals.info" = "포털의 월드, 상태, 목적지, 소유자 표시"
+"portals.info.portal" = "포털 이름 또는 식별자"
+"portals.tp" = "안전한 지면에 착지하며 포털로 순간이동"
+"portals.tp.portal" = "포털 이름 또는 식별자"
+"portals.retarget" = "포털이 다른 로컬 포털을 가리키게 하기"
+"portals.retarget.portal" = "바꿀 포털의 이름 또는 식별자"
+"portals.retarget.destination" = "목적지 포털의 이름 또는 식별자"
+"portals.unlink" = "포털의 목적지 제거"
+"portals.unlink.portal" = "포털 이름 또는 식별자"
+"portals.prune" = "목적지가 사라진 연결 제거"
+"portals.prune.dry" = "아무것도 바꾸지 않고 제거될 내용만 보고"
+"portals.prune.confirm" = "dry=false 로 제거하려면 필요"
+"portals.rename_server" = "서버 간 연결의 서버 이름을 다른 이름으로 다시 쓰기"
+"portals.rename_server.old" = "현재 연결에 저장된 서버 이름"
+"portals.rename_server.new" = "대신 저장할 서버 이름"
+"portals.rename_server.confirm" = "연결을 다시 쓰려면 필요"
+# ---- end lane:ops ----

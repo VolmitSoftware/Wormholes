@@ -53,7 +53,8 @@ class WormholesPortalSnapshotTest {
             false,
             false,
             false,
-            0L);
+            0L,
+            WormholesPortalSnapshot.RouteFacts.NONE);
 
         assertEquals("Hub Gate", snapshot.name());
         assertEquals(WormholesPortalSnapshot.STATE_OPEN, snapshot.state());
@@ -78,7 +79,8 @@ class WormholesPortalSnapshotTest {
             false,
             true,
             false,
-            2_500L);
+            2_500L,
+            new WormholesPortalSnapshot.RouteFacts("3x DIAMOND", 4_250L, "", "Trade Ring", "AB12"));
 
         assertEquals("beta", snapshot.destination());
         assertEquals(PlaceholderValues.TRUE, snapshot.crossServer());
@@ -86,6 +88,11 @@ class WormholesPortalSnapshotTest {
         assertEquals(WormholesPortalSnapshot.RTP_WARMING, snapshot.rtpState());
         assertEquals("2.50", snapshot.rtpCooldown());
         assertEquals("0.00", snapshot.distance());
+        assertEquals("3x DIAMOND", snapshot.price());
+        assertEquals("4.25", snapshot.cooldown());
+        assertEquals(PlaceholderValues.UNAVAILABLE, snapshot.refusal());
+        assertEquals("Trade Ring", snapshot.network());
+        assertEquals("AB12", snapshot.address());
     }
 
     @Test
@@ -102,7 +109,8 @@ class WormholesPortalSnapshotTest {
             false,
             false,
             false,
-            0L);
+            0L,
+            WormholesPortalSnapshot.RouteFacts.NONE);
 
         assertEquals(PlaceholderValues.UNAVAILABLE, snapshot.name());
         assertEquals(PlaceholderValues.UNAVAILABLE, snapshot.destination());
@@ -122,7 +130,8 @@ class WormholesPortalSnapshotTest {
             false,
             false,
             false,
-            0L);
+            0L,
+            WormholesPortalSnapshot.RouteFacts.NONE);
 
         assertFalse(snapshot.name().contains("%"));
         assertFalse(snapshot.name().contains("§"));

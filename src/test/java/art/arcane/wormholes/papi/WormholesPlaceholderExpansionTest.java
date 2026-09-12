@@ -22,16 +22,22 @@ class WormholesPlaceholderExpansionTest {
     private static final UUID BYSTANDER = UUID.fromString("00000000-0000-0000-0000-0000000000b2");
 
     private static final List<String> PUBLISHED_KEYS = List.of(
+        "atlas.favorites",
         "available",
         "failures",
         "failures.per-minute",
         "peers.connected",
         "peers.link",
+        "portal.address",
         "portal.available",
+        "portal.cooldown",
         "portal.cross-server",
         "portal.destination",
         "portal.distance",
         "portal.name",
+        "portal.network",
+        "portal.price",
+        "portal.refusal",
         "portal.state",
         "portals",
         "projections.active",
@@ -42,13 +48,43 @@ class WormholesPlaceholderExpansionTest {
 
     private PlaceholderSnapshot<WormholesRuntimeSnapshot> runtime;
     private PlayerSnapshotStore<WormholesPortalSnapshot> portals;
+    private PlayerSnapshotStore<String> atlas;
     private WormholesPlaceholderExpansion expansion;
 
     @BeforeEach
     void setUp() {
         runtime = new PlaceholderSnapshot<>();
         portals = new PlayerSnapshotStore<>();
-        expansion = new WormholesPlaceholderExpansion("1.0.0-26.2", WormholesPlaceholders.registry(runtime, portals), Logger.getAnonymousLogger());
+        atlas = new PlayerSnapshotStore<>();
+        expansion = new WormholesPlaceholderExpansion("1.0.0-26.2", WormholesPlaceholders.registry(runtime, portals, atlas), Logger.getAnonymousLogger());
+    }
+
+    @Test
+    void theRuleAndNetworkKeysReportWhatTheNearestPortalWouldChargeAndWhereItSits() {
+        portals.publish(TRAVELLER, WormholesPortalSnapshot.of("Hub Gate", true, false, "Beta Gate", false, 3.0D,
+            false, false, false, false, false, 0L,
+            new WormholesPortalSnapshot.RouteFacts("12.50 coins", 7_400L, "This portal refused you.", "Trade Ring", "AB12")));
+        atlas.publish(TRAVELLER, "3");
+
+        assertEquals("12.50 coins", expansion.onRequest(player(TRAVELLER), "portal.price"));
+        assertEquals("7.40", expansion.onRequest(player(TRAVELLER), "portal.cooldown"));
+        assertEquals("This portal refused you.", expansion.onRequest(player(TRAVELLER), "portal.refusal"));
+        assertEquals("Trade Ring", expansion.onRequest(player(TRAVELLER), "portal.network"));
+        assertEquals("AB12", expansion.onRequest(player(TRAVELLER), "portal.address"));
+        assertEquals("3", expansion.onRequest(player(TRAVELLER), "atlas.favorites"));
+    }
+
+    @Test
+    void aPortalWithNoRulesOrNetworkReportsTheRouteKeysAsUnavailable() {
+        portals.publish(BYSTANDER, WormholesPortalSnapshot.of("Plain Gate", true, false, "", false, 9.0D,
+            false, false, false, false, false, 0L, WormholesPortalSnapshot.RouteFacts.NONE));
+
+        assertEquals(PlaceholderValues.UNAVAILABLE, expansion.onRequest(player(BYSTANDER), "portal.price"));
+        assertEquals("0.00", expansion.onRequest(player(BYSTANDER), "portal.cooldown"));
+        assertEquals(PlaceholderValues.UNAVAILABLE, expansion.onRequest(player(BYSTANDER), "portal.refusal"));
+        assertEquals(PlaceholderValues.UNAVAILABLE, expansion.onRequest(player(BYSTANDER), "portal.network"));
+        assertEquals(PlaceholderValues.UNAVAILABLE, expansion.onRequest(player(BYSTANDER), "portal.address"));
+        assertEquals(PlaceholderValues.UNAVAILABLE, expansion.onRequest(player(BYSTANDER), "atlas.favorites"));
     }
 
     @Test
@@ -179,7 +215,9 @@ class WormholesPlaceholderExpansionTest {
     @Test
     void noPublishedValueCanEverOpenANewPlaceholder() {
         publishRuntime();
-        portals.publish(TRAVELLER, WormholesPortalSnapshot.of("%hub% §aGate", true, false, "%beta%", true, 4.0D, true, true, true, false, false, 0L));
+        portals.publish(TRAVELLER, WormholesPortalSnapshot.of("%hub% §aGate", true, false, "%beta%", true, 4.0D, true, true, true, false, false, 0L,
+            new WormholesPortalSnapshot.RouteFacts("%12% §c coins", 0L, "%refused%", "%ring%", "%AB12%")));
+        atlas.publish(TRAVELLER, "2");
 
         for (String key : PUBLISHED_KEYS) {
             String value = expansion.onRequest(player(TRAVELLER), key);
@@ -193,7 +231,8 @@ class WormholesPlaceholderExpansionTest {
     }
 
     private void publishPortal(UUID playerId) {
-        portals.publish(playerId, WormholesPortalSnapshot.of("Hub Gate", true, true, "beta", true, 18.25D, true, true, false, true, false, 2_500L));
+        portals.publish(playerId, WormholesPortalSnapshot.of("Hub Gate", true, true, "beta", true, 18.25D, true, true, false, true, false, 2_500L,
+            WormholesPortalSnapshot.RouteFacts.NONE));
     }
 
     private static OfflinePlayer player(UUID id) {

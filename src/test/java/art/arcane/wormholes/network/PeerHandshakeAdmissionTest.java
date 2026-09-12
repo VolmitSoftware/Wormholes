@@ -38,7 +38,8 @@ import static org.junit.jupiter.api.Assertions.fail;
 class PeerHandshakeAdmissionTest {
     private static final Logger LOGGER = Logger.getLogger("PeerHandshakeAdmissionTest");
     private static final LocalIdentity IDENTITY = new LocalIdentity(
-        "local", "26.2", "test", "127.0.0.1", 8901, new GameEndpoint("127.0.0.1", 25565), null, new byte[0], null
+        "local", "26.2", "test", "127.0.0.1", 8901, new GameEndpoint("127.0.0.1", 25565), null, new byte[0], null,
+        WireCapability.localSet()
     );
 
     @TempDir
@@ -141,6 +142,21 @@ class PeerHandshakeAdmissionTest {
         assertTrue(manager.acceptInbound(channel));
         awaitTrue("failed handshake closed channel", channel::isClosed, 5_000L);
         awaitTrue("failed handshake released admission", () -> manager.links().pendingInboundCount() == 0, 5_000L);
+    }
+
+    @Test
+    void closingEveryLinkWaitsForItsWorkersToStop() throws Exception {
+        PeerLinkRegistry registry = new PeerLinkRegistry();
+        BlockingPeerChannel channel = new BlockingPeerChannel();
+        PeerConnection connection = connection(channel, false, NoopListener.INSTANCE);
+        assertTrue(registry.tryAddInboundPending(connection));
+        connection.start();
+        assertTrue(channel.awaitWorkers(5L, TimeUnit.SECONDS));
+
+        registry.closeAll("shutdown");
+
+        assertFalse(channel.inputThread().isAlive(), "a reader must not outlive the shutdown that closed it");
+        assertFalse(channel.outputThread().isAlive(), "a writer must not outlive the shutdown that closed it");
     }
 
     @Test

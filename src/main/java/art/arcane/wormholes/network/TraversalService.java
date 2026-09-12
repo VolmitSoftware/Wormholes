@@ -8,9 +8,14 @@ import art.arcane.wormholes.api.traversal.TraversalDestination;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
 import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
 import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.localization.MeshMessages;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.network.TraversalFailureLedger.Failure;
+import art.arcane.wormholes.network.mesh.DestinationPolicy;
+import art.arcane.wormholes.network.mesh.DestinationPolicyEngine;
+import art.arcane.wormholes.network.mesh.HandoffQueue;
+import art.arcane.wormholes.network.mesh.MeshPortalExtension;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
@@ -66,7 +71,10 @@ public final class TraversalService implements Listener {
     }
 
     private record Departure(String peerName, UUID destinationPortalId, Traversive traversive,
-                             LocalPortal sourcePortal, String transferMode) {
+                             LocalPortal sourcePortal, String transferMode, boolean policyResolved, boolean holdActive) {
+        Departure resolved(String server, UUID portalId, boolean queued) {
+            return new Departure(server, portalId, traversive, sourcePortal, transferMode, true, queued);
+        }
     }
 
     private record PendingEntityTransfer(Entity entity, String peerName, UUID sourcePortalId, Traversive traversive,
@@ -83,6 +91,9 @@ public final class TraversalService implements Listener {
     }
 
     private static final long ARRIVAL_TTL_MILLIS = 60_000L;
+    /** Teleport in-flight stamps expire 30 s after the crossing; a queued wait plus its handoff must fit inside. */
+    private static final long IN_FLIGHT_LIMIT_MILLIS = 30_000L;
+    private static final long QUEUE_TICK_TICKS = 20L;
     private static final long SHUTDOWN_RESTORE_TIMEOUT_MILLIS = 2_000L;
 
     private final NetworkManager network;
@@ -96,6 +107,8 @@ public final class TraversalService implements Listener {
     private final TraversalEntityTransferLedger appliedEntityTransfers = new TraversalEntityTransferLedger();
     private final EntityTransferAckRetryQueue acceptedEntityAckRetries = new EntityTransferAckRetryQueue();
     private final TraversalTransferLocks transferLocks = new TraversalTransferLocks();
+    private final DestinationPolicyEngine policyEngine = new DestinationPolicyEngine();
+    private final HandoffQueue handoffQueue = new HandoffQueue();
     private final AtomicLong completedTransfers = new AtomicLong();
     private final TraversalFailureLedger failures = new TraversalFailureLedger();
     private final TraversalNotices notices = new TraversalNotices();
@@ -142,6 +155,11 @@ public final class TraversalService implements Listener {
 
     public Map<String, Long> failureBreakdown() {
         return failures.breakdown();
+    }
+
+    /** Inbound handoffs admitted but not yet arrived; counts against headroom in load beacons. */
+    public int activeInboundReservations(long nowMillis) {
+        return inboundAdmissions.activeReservations(nowMillis);
     }
 
     public void shutdown() {
@@ -243,11 +261,11 @@ public final class TraversalService implements Listener {
 
     public void beginPlayerHandoff(Player player, UniversalTunnel tunnel, Traversive traversive, LocalPortal sourcePortal) {
         beginHandoff(player, new Departure(tunnel.getServerName(), tunnel.getDestinationPortalId(), traversive,
-            sourcePortal, Wormholes.settings.getNetwork().transferMode));
+            sourcePortal, Wormholes.settings.getNetwork().transferMode, false, false));
     }
 
     public boolean beginServerHandoff(Player player, String peerName, String transferMode) {
-        return beginHandoff(player, new Departure(peerName, null, null, null, transferMode));
+        return beginHandoff(player, new Departure(peerName, null, null, null, transferMode, false, false));
     }
 
     private boolean beginHandoff(Player player, Departure departure) {
@@ -256,6 +274,13 @@ public final class TraversalService implements Listener {
         if (shutdownStarted.get()) {
             rejectSource(player, sourcePortal, traversive);
             return false;
+        }
+        if (sourcePortal != null && !departure.policyResolved()) {
+            MeshPortalExtension extension = sourcePortal.extension(MeshPortalExtension.class);
+            DestinationPolicy policy = extension == null ? null : extension.policy();
+            if (policy != null && !policy.candidates().isEmpty()) {
+                return beginPolicyHandoff(player, departure, policy);
+            }
         }
         String peerName = departure.peerName();
         NetworkConfig config = Wormholes.settings.getNetwork();
@@ -385,7 +410,7 @@ public final class TraversalService implements Listener {
                 }
                 return false;
             }
-            if (sourcePortal != null) {
+            if (sourcePortal != null && !departure.holdActive()) {
                 sourcePortal.startPlayerDepartureHold(player, traversive, deadline);
             }
             prepareHandoffRequest(transferId, pendingHandoff, request);
@@ -393,6 +418,79 @@ public final class TraversalService implements Listener {
             lifecycleReadLock.unlock();
         }
         return true;
+    }
+
+    /**
+     * Gateway policy arm: pick the destination before the departure is built. NONE bounces the traveler
+     * with a notice; QUEUE holds them at the portal and re-resolves once a second until a candidate has
+     * headroom or the queue wait runs out. The wait is capped so that the wait plus the handoff budget
+     * stays inside the 30 s in-flight window that bounds the departure hold.
+     */
+    private boolean beginPolicyHandoff(Player player, Departure departure, DestinationPolicy policy) {
+        LocalPortal sourcePortal = departure.sourcePortal();
+        Traversive traversive = departure.traversive();
+        UUID playerId = player.getUniqueId();
+        NetworkConfig config = Wormholes.settings.getNetwork();
+        long now = System.currentTimeMillis();
+        DestinationPolicyEngine.Resolution resolution = policyEngine.resolve(playerId, policy, policyInputs(config, now), now);
+        if (resolution.kind() == DestinationPolicyEngine.Resolution.Kind.CHOSEN) {
+            return beginHandoff(player, departure.resolved(resolution.server(), resolution.portalId(), false));
+        }
+        boolean queue = resolution.kind() == DestinationPolicyEngine.Resolution.Kind.QUEUE && config.policy.queueEnabled;
+        if (!queue) {
+            failures.record(Failure.HANDOFF_POLICY_UNAVAILABLE, playerId, "no policy candidate available at portal " + sourcePortal.getId());
+            rejectSource(player, sourcePortal, traversive);
+            WormholesHud.notice(player, Wormholes.text().component(player, MeshMessages.POLICY_NONE));
+            return false;
+        }
+        long handoffBudget = config.handoffTimeoutMs + NetworkManager.PLAYER_ENDPOINT_TIMEOUT_MILLIS + 1_000L;
+        long maxWaitMillis = Math.max(1_000L, Math.min(config.policy.queueMaxWaitSec * 1_000L, IN_FLIGHT_LIMIT_MILLIS - handoffBudget));
+        handoffQueue.enqueue(playerId, now, maxWaitMillis,
+            () -> {
+                long tickNow = System.currentTimeMillis();
+                return policyEngine.resolve(playerId, policy, policyInputs(Wormholes.settings.getNetwork(), tickNow), tickNow);
+            },
+            chosen -> beginHandoff(player, departure.resolved(chosen.server(), chosen.portalId(), true)),
+            () -> releaseQueued(player, sourcePortal, traversive),
+            (position, remainingMillis) -> WormholesHud.hold(player, Wormholes.text().component(player, MeshMessages.QUEUE_POSITION,
+                WormholesLocalization.args(
+                    MessageArgument.untrusted("count", position),
+                    MessageArgument.untrusted("seconds", Math.max(0L, (remainingMillis + 999L) / 1_000L))))));
+        sourcePortal.startPlayerDepartureHold(player, traversive, now + maxWaitMillis + handoffBudget);
+        Wormholes.v(() -> "[handoff] queued " + player.getName() + " at portal " + sourcePortal.getId() + " for up to " + maxWaitMillis + "ms");
+        scheduleQueueTick(player);
+        return true;
+    }
+
+    private void scheduleQueueTick(Player player) {
+        UUID playerId = player.getUniqueId();
+        Runnable tick = () -> {
+            if (shutdownStarted.get() || handoffQueue.ticket(playerId) == null) {
+                return;
+            }
+            handoffQueue.tick(playerId, System.currentTimeMillis());
+            if (handoffQueue.ticket(playerId) != null) {
+                scheduleQueueTick(player);
+            }
+        };
+        if (!scheduleEntity(player, tick, () -> handoffQueue.remove(playerId), QUEUE_TICK_TICKS)) {
+            HandoffQueue.Ticket ticket = handoffQueue.ticket(playerId);
+            if (ticket != null && handoffQueue.remove(playerId)) {
+                ticket.onTimeout().run();
+            }
+        }
+    }
+
+    private void releaseQueued(Player player, LocalPortal sourcePortal, Traversive traversive) {
+        UUID playerId = player.getUniqueId();
+        failures.record(Failure.HANDOFF_QUEUE_TIMED_OUT, playerId, "no policy candidate gained headroom in time at portal " + sourcePortal.getId());
+        LocalPortal.clearTeleportInFlight(playerId);
+        rejectSource(player, sourcePortal, traversive);
+        WormholesHud.notice(player, Wormholes.text().component(player, MeshMessages.QUEUE_TIMEOUT));
+    }
+
+    private DestinationPolicyEngine.Inputs policyInputs(NetworkConfig config, long nowMillis) {
+        return DestinationPolicyEngine.inputs(network, Wormholes.remotePortalRegistry, config.policy.beaconStaleSec * 1_000L, nowMillis);
     }
 
     private void prepareHandoffRequest(UUID transferId, PendingHandoff handoff, WireMessage.HandoffRequest request) {
@@ -483,6 +581,7 @@ public final class TraversalService implements Listener {
     }
 
     public void cancelPendingHandoff(UUID playerId) {
+        handoffQueue.remove(playerId);
         lifecycleReadLock.lock();
         try {
             if (shutdownStarted.get()) {
@@ -700,7 +799,7 @@ public final class TraversalService implements Listener {
             network.send(peerName, new WireMessage.HandoffDeny(
                 wireRequest.transferId(),
                 decision.reason(),
-                decision.retryAfterMillis()
+                TraversalAdmissionPolicy.denialRetryMillis(decision.reason(), decision.retryAfterMillis())
             ));
             Wormholes.v(() -> "[handoff] request DENIED peer=" + peerName + " player=" + wireRequest.playerName() + " transferId=" + wireRequest.transferId() + " reason=" + decision.reason() + " retryAfterMs=" + decision.retryAfterMillis());
             return;
@@ -823,7 +922,8 @@ public final class TraversalService implements Listener {
             profile.isWhitelisted(),
             operator,
             admittedPlayers,
-            maxPlayers
+            maxPlayers,
+            network.drain().isDraining()
         ));
     }
 
@@ -1555,4 +1655,246 @@ public final class TraversalService implements Listener {
             }
         }
     }
+    // lane:transit
+    private final Map<UUID, TraversalEntityTransit.TransitState> convoyTransitStates = new ConcurrentHashMap<>();
+    private volatile art.arcane.wormholes.network.convoy.ConvoyTransferService convoyTransfers;
+    private volatile art.arcane.wormholes.network.convoy.ConvoyArrivalPlacer convoyArrivals;
+
+    /** Source-side convoy service, built on first use around this service's transit, lock, and network plumbing. */
+    public art.arcane.wormholes.network.convoy.ConvoyTransferService convoyTransfers() {
+        art.arcane.wormholes.network.convoy.ConvoyTransferService service = convoyTransfers;
+        if (service == null) {
+            synchronized (convoyTransitStates) {
+                service = convoyTransfers;
+                if (service == null) {
+                    service = new art.arcane.wormholes.network.convoy.ConvoyTransferService(
+                        new art.arcane.wormholes.network.convoy.ConvoyLedger(), new ConvoyTransport(), new ConvoyRig(), System::currentTimeMillis);
+                    convoyTransfers = service;
+                }
+            }
+        }
+        return service;
+    }
+
+    /** Destination-side convoy placer; creating it also installs the arrival hook that re-attaches held rigs. */
+    public art.arcane.wormholes.network.convoy.ConvoyArrivalPlacer convoyArrivals() {
+        art.arcane.wormholes.network.convoy.ConvoyArrivalPlacer placer = convoyArrivals;
+        if (placer == null) {
+            synchronized (convoyTransitStates) {
+                placer = convoyArrivals;
+                if (placer == null) {
+                    placer = new art.arcane.wormholes.network.convoy.ConvoyArrivalPlacer(
+                        new art.arcane.wormholes.network.convoy.ConvoyLedger(), new ConvoySpawner(),
+                        (peerName, message) -> network != null && network.send(peerName, message), System::currentTimeMillis);
+                    convoyArrivals = placer;
+                    TraversalArrivalPlacer.setConvoyArrivalHook(placer);
+                }
+            }
+        }
+        return placer;
+    }
+
+    /** Offers a whole rig to the peer; the player's handoff follows only after the peer admits every member. */
+    public void beginConvoyHandoff(Player player, art.arcane.wormholes.transit.ConvoyGraph graph, UniversalTunnel tunnel,
+                                   Traversive traversive, LocalPortal sourcePortal) {
+        if (shutdownStarted.get()) {
+            rejectSource(player, sourcePortal, traversive);
+            return;
+        }
+        long timeoutMillis = TimeUnit.SECONDS.toMillis(
+            Math.max(1, art.arcane.wormholes.transit.TransitSubsystem.config().convoyCrossServerTimeoutSec));
+        convoyTransfers().begin(player, graph, tunnel, traversive, sourcePortal, timeoutMillis);
+    }
+
+    public void installConvoyArrivalHook(art.arcane.wormholes.network.convoy.ConvoyArrivalHook hook) {
+        TraversalArrivalPlacer.setConvoyArrivalHook(hook);
+    }
+
+    /** Journal recovery: releases a member a previous run left frozen for a convoy that never finished. */
+    public void restoreConvoyMember(Entity entity) {
+        entityTransit.reconcileLoadedEntity(entity);
+    }
+
+    private final class ConvoyTransport implements art.arcane.wormholes.network.convoy.ConvoyTransferService.Transport {
+        @Override
+        public boolean peerReady(String peerName) {
+            return network != null && network.getPeer(peerName) != null && network.isPeerReady(peerName);
+        }
+
+        @Override
+        public boolean peerSupportsConvoy(String peerName) {
+            return network != null && network.peerSupports(peerName, WireCapability.CONVOY);
+        }
+
+        @Override
+        public boolean send(String peerName, WireMessage message) {
+            return network != null && network.send(peerName, message);
+        }
+    }
+
+    private final class ConvoyRig implements art.arcane.wormholes.network.convoy.ConvoyTransferService.Rig {
+        @Override
+        public byte[] snapshot(Entity member) {
+            EntitySnapshot snapshot = member.createSnapshot();
+            if (snapshot == null) {
+                return null;
+            }
+            byte[] data = snapshot.getAsString().getBytes(StandardCharsets.UTF_8);
+            return data.length > WireMessage.EntityTransfer.MAX_SNAPSHOT_BYTES ? null : data;
+        }
+
+        @Override
+        public void freeze(Entity member, java.util.function.BooleanSupplier stillPending) {
+            convoyTransitStates.put(member.getUniqueId(), TraversalEntityTransit.TransitState.capture(member));
+            entityTransit.markInTransit(member, stillPending);
+        }
+
+        @Override
+        public void restore(Entity member) {
+            TraversalEntityTransit.TransitState state = convoyTransitStates.remove(member.getUniqueId());
+            if (state == null) {
+                LocalPortal.clearTeleportInFlight(member.getUniqueId());
+                return;
+            }
+            entityTransit.restoreRejected(member, state, null, null);
+        }
+
+        @Override
+        public void remove(Entity member) {
+            convoyTransitStates.remove(member.getUniqueId());
+            removeSourceEntity(member);
+        }
+
+        @Override
+        public void dispatchPlayer(Player player, UniversalTunnel tunnel, Traversive traversive, LocalPortal source) {
+            Runnable dispatch = () -> beginPlayerHandoff(player, tunnel, traversive, source);
+            if (Wormholes.instance == null || !FoliaScheduler.runEntity(Wormholes.instance, player, dispatch)) {
+                dispatch.run();
+            }
+        }
+
+        @Override
+        public void rejectSource(Player player, LocalPortal source, Traversive traversive) {
+            TraversalService.this.rejectSource(player, source, traversive);
+        }
+
+        @Override
+        public void clearInFlight(Entity member) {
+            LocalPortal.clearTeleportInFlight(member.getUniqueId());
+        }
+
+        @Override
+        public void notice(Player player, String reason) {
+            WormholesHud.notice(player, Wormholes.text().component(player, art.arcane.wormholes.localization.TransitMessages.CONVOY_FAILED,
+                WormholesLocalization.args(MessageArgument.untrusted("reason", reason == null ? "" : reason))));
+        }
+
+        @Override
+        public boolean schedule(Runnable task, long delayTicks) {
+            return Wormholes.instance != null && FoliaScheduler.runGlobal(Wormholes.instance, task, delayTicks);
+        }
+    }
+
+    private final class ConvoySpawner implements art.arcane.wormholes.network.convoy.ConvoyArrivalPlacer.Spawner {
+        private record Hold(TraversalEntityTransit.TransitState state, boolean invisible) {
+        }
+
+        private final Map<UUID, Hold> holds = new ConcurrentHashMap<>();
+
+        @Override
+        public ILocalPortal exit(UUID portalId) {
+            return Wormholes.portalManager == null || portalId == null ? null : Wormholes.portalManager.getLocalPortal(portalId);
+        }
+
+        @Override
+        public boolean accepts(ILocalPortal exit) {
+            return exit.isOpen() && exit.getStructure() != null && exit.getStructure().getWorld() != null
+                && TraversalAdmissionPolicy.acceptsInbound(exit);
+        }
+
+        @Override
+        public Entity spawn(ILocalPortal exit, byte[] snapshot, Location target) {
+            EntitySnapshot parsed = Wormholes.instance.getServer().getEntityFactory().createEntitySnapshot(
+                new String(snapshot, StandardCharsets.UTF_8));
+            if (TraversalAdmissionPolicy.isEntityTypeDenied(parsed)) {
+                return null;
+            }
+            Entity created = parsed.createEntity(target);
+            if (!TraversalAdmissionPolicy.acceptsEntityArrival(exit, created)) {
+                created.remove();
+                return null;
+            }
+            return created;
+        }
+
+        @Override
+        public void hold(Entity spawned) {
+            boolean invisible = spawned instanceof org.bukkit.entity.LivingEntity living && living.isInvisible();
+            holds.put(spawned.getUniqueId(), new Hold(TraversalEntityTransit.TransitState.capture(spawned), invisible));
+            if (spawned instanceof org.bukkit.entity.LivingEntity living) {
+                living.setInvisible(true);
+            }
+            spawned.setInvulnerable(true);
+            spawned.setSilent(true);
+            spawned.setGravity(false);
+            spawned.setVelocity(spawned.getVelocity().zero());
+        }
+
+        @Override
+        public void reveal(Entity spawned) {
+            Hold hold = holds.remove(spawned.getUniqueId());
+            if (hold == null) {
+                return;
+            }
+            if (spawned instanceof org.bukkit.entity.LivingEntity living) {
+                living.setInvisible(hold.invisible());
+            }
+            spawned.setInvulnerable(hold.state().invulnerable());
+            spawned.setSilent(hold.state().silent());
+            spawned.setGravity(hold.state().gravity());
+        }
+
+        @Override
+        public void remove(Entity spawned) {
+            holds.remove(spawned.getUniqueId());
+            Runnable removal = () -> {
+                if (spawned.isValid()) {
+                    spawned.remove();
+                }
+            };
+            if (Wormholes.instance == null || !FoliaScheduler.runEntity(Wormholes.instance, spawned, removal)) {
+                removal.run();
+            }
+        }
+
+        @Override
+        public void mount(Entity vehicle, Entity passenger) {
+            if (vehicle.isValid() && passenger.isValid()) {
+                vehicle.addPassenger(passenger);
+            }
+        }
+
+        @Override
+        public void leash(Entity leashed, Entity holder) {
+            if (leashed instanceof org.bukkit.entity.LivingEntity living && leashed.isValid() && holder.isValid()) {
+                living.setLeashHolder(holder);
+            }
+        }
+
+        @Override
+        public void settle(ILocalPortal exit, Entity member, Traversive traversive) {
+            exit.completeRemoteArrival(member, traversive);
+        }
+
+        @Override
+        public boolean runRegion(Location location, Runnable task) {
+            return Wormholes.instance != null && FoliaScheduler.runRegion(Wormholes.instance, location, task);
+        }
+
+        @Override
+        public boolean schedule(Runnable task, long delayTicks) {
+            return Wormholes.instance != null && FoliaScheduler.runGlobal(Wormholes.instance, task, delayTicks);
+        }
+    }
+    // end lane:transit
 }

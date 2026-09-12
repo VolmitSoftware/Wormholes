@@ -215,7 +215,7 @@ class NetworkManagerTest {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("Ed25519");
         KeyPair keyPair = generator.generateKeyPair();
         return MinecraftStatusBridge.create(sourceServer, targetServer, protocolVersion, mcVersion, pluginVersion,
-            "127.0.0.1", 25565, null, "127.0.0.1", 8901, keyPair.getPublic().getEncoded(), keyPair.getPrivate(), 0L, List.of());
+            "127.0.0.1", 25565, null, "127.0.0.1", 8901, keyPair.getPublic().getEncoded(), keyPair.getPrivate(), WireCapability.localSet(), 0L, List.of());
     }
 
     private static void assertStatusPacketRejected(NetworkManager manager, String sourceServer,
@@ -307,19 +307,20 @@ class NetworkManagerTest {
 
     @Test
     void statusSidebandRejectsIncompatiblePeersBeforeReadinessOrDiscovery() throws Exception {
-        NetworkManager beta = manager(config(freePort(), BETA_NAME), BETA_GAME_PORT, "status-admission-beta",
-            "26.2", "test");
+        NetworkConfig exactConfig = config(freePort(), BETA_NAME);
+        exactConfig.pluginVersionPolicy = NetworkConfig.PLUGIN_VERSION_POLICY_EXACT;
+        NetworkManager beta = manager(exactConfig, BETA_GAME_PORT, "status-admission-beta", "26.2", "test");
         beta.start();
 
         assertStatusPacketRejected(beta, "wire-mismatch",
-            statusPacket("wire-mismatch", BETA_NAME, WireCodec.PROTOCOL_VERSION + 1, "26.2", "test"));
+            statusPacket("wire-mismatch", BETA_NAME, WireCodec.MIN_COMPATIBLE_PROTOCOL - 1, "26.2", "test"));
         assertStatusPacketRejected(beta, "mc-mismatch",
             statusPacket("mc-mismatch", BETA_NAME, WireCodec.PROTOCOL_VERSION, "26.1.2", "test"));
         assertStatusPacketRejected(beta, "plugin-mismatch",
             statusPacket("plugin-mismatch", BETA_NAME, WireCodec.PROTOCOL_VERSION, "26.2", "other"));
 
         assertStatusResponseRejected(beta, "response-wire-mismatch",
-            statusPacket("response-wire-mismatch", BETA_NAME, WireCodec.PROTOCOL_VERSION + 1, "26.2", "test"));
+            statusPacket("response-wire-mismatch", BETA_NAME, WireCodec.MIN_COMPATIBLE_PROTOCOL - 1, "26.2", "test"));
         assertStatusResponseRejected(beta, "response-mc-mismatch",
             statusPacket("response-mc-mismatch", BETA_NAME, WireCodec.PROTOCOL_VERSION, "26.1.2", "test"));
         assertStatusResponseRejected(beta, "response-plugin-mismatch",

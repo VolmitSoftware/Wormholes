@@ -478,6 +478,7 @@ rename = ["&a&lZmień nazwę portalu&r", "&7Zmienia nazwę wyświetlaną w poł�
 delete = ["&c&lUsuń portal&r", "&7Trwale usuwa ten portal.", "", "&c&nShift + lewy przycisk myszy, aby potwierdzić&r"]
 advanced_settings = ["&3&lZaawansowane ustawienia strumienia&r", "&7Bezpośrednie ustawienia diagnostyczne i nietypowych połączeń.", "&7Zmiana jednej wartości ustawia Jakość strumienia na Własną."]
 back_settings = ["&e&lWróć do ustawień&r", "&7Wróć do ustawień portalu."]
+extensions = ["&b&lWięcej ustawień&r", "&7Reguły, dostęp, sieci i inne ustawienia funkcji.", "&eLewy przycisk"]
 stream_quality = ["&b&lJakość strumienia: {quality}&r", "&7Jedno ustawienie zasięgu zdalnego widoku i częstotliwości odświeżania.", "", "&7Głębokość &b{depth}&7  Byty &b{entities}t", "&7Odświeżanie &b{refresh}t&7  Podtrzymanie &b{grace}s", "", "&8Kliknij: zmień jakość.", "&8Shift + kliknięcie: ustawienia zaawansowane."]
 orientation = ["&9&lOrientacja&r", "&7Kierunek: &9{facing}", "&7Góra ekranu: &6{up}", "", "&8Kliknij, aby ustawić kierunek, odwrócenie i obrót."]
 orientation_placard = ["&9&lOrientacja portalu&r", "&7Kierunek: &9{facing}", "&7Góra ekranu: &6{up}"]
@@ -936,6 +937,7 @@ decimal_seconds = "{value}s"
 
 [rtp.biome]
 any_label = "Dowolny"
+unavailable_label = "Niedostępny"
 header = ["&b&lDocelowy biom&r", "&7Wyszukiwanie preferuje ten biom, a gdy nie można go znaleźć w pobliżu, wybiera dowolne bezpieczne miejsce."]
 any_selected = ["&a&lDowolny biom&r", "&7Brak preferencji biomu.", "&aWybrano"]
 any_available = ["&b&lDowolny biom&r", "&7Wyczyść preferencję biomu.", "&eKliknij lewym, aby wybrać"]
@@ -1018,3 +1020,513 @@ trapdoor_skin = ["&6Wygląd Klapy Wymiarowej", "&7Połącz klapę wymiarową z k
 entangled_trapdoor_pair_recipe = ["&6Splątana Para Klap", "&7Zawiera dwie automatycznie połączone Klapy Tunelu Czasoprzestrzennego."]
 personal_trapdoor_recipe = ["&bOsobista Klapa Wymiarowa", "&7Każdy podróżny wchodzi do własnego trwałego wymiaru."]
 public_trapdoor_recipe = ["&6Wspólna Klapa Wymiarowa", "&7Każdy podróżny wchodzi do wspólnego wymiaru tej klapy."]
+
+# ==== Headline lane blocks. Each lane adds its tables between its own markers only. ====
+
+
+# ---- lane:rules (rules.*) ----
+[rules]
+route_card = "{portal} > {destination} | {amount} | {state}"
+
+[rules.menu]
+entry = ["&6Zasady", "&7Kto moze przejsc, ile to kosztuje i co dzieje sie potem."]
+cooldown = ["&6Odnowienie: {seconds}s", "&7Lewy i prawy klik zmienia, shift co 10s."]
+warmup = ["&6Przygotowanie: {seconds}s", "&7Lewy i prawy klik zmienia, shift co 10s."]
+group = ["&6Grupa odnowienia: {value}", "&7Kliknij, aby wpisac nazwe grupy."]
+pushback = ["&6Odepchniecie: {value}", "&7Lewy i prawy klik zmienia wartosc."]
+sound = ["&6Glosnosc odmowy: {value}", "&7Lewy i prawy klik zmienia wartosc."]
+charges = ["&6Ladunki: {count}", "&7Lewy i prawy klik zmienia rozmiar zapasu."]
+default_outcome = ["&6Domyslnie: {mode}", "&7Kliknij, aby przelaczyc miedzy zezwol i odmow."]
+rules = ["&6Zasady ({count})", "&7Kliknij, aby otworzyc liste zasad."]
+rule = ["&6{name}", "&7{value} &8- shift klik usuwa zasade."]
+add_rule = ["&aDodaj zasade", "&7Kliknij, aby wpisac id zasady."]
+line = ["&f{value}", "&7Shift klik usuwa ten wiersz."]
+add_line = ["&aDodaj wiersz", "&7Kliknij i wpisz kind=PERMISSION;node=grupa.vip."]
+templates = ["&6Szablony", "&7Kliknij, aby zastosowac zapisany szablon."]
+template = ["&f{name}", "&7Kliknij, aby zastosowac ten szablon."]
+back = ["&7Wstecz", "&8Do poprzedniej strony."]
+page = ["&7Strona {page} z {pages}", "&8Kliknij, aby zmienic strone."]
+
+[rules.route]
+unlisted = "Nieznany"
+free = "Za darmo"
+ready = "Gotowy"
+cooldown = "{seconds}s"
+
+[rules.denied]
+default = "Ten portal cię odrzucił."
+entity_class = "Tego portalu może używać tylko {mode}."
+key = "Potrzebujesz klucza do {portal}."
+time = "{portal} jest teraz zamknięty."
+cooldown = "Odczekaj {seconds}s przed ponownym użyciem {portal}."
+charges = "{portal} nie ma już ładunków."
+cost = "Nie możesz zapłacić {amount} za użycie {portal}."
+
+[rules.notice]
+rule_added = "Dodano zasade {name}."
+rule_removed = "Usunieto zasade {name}."
+invalid = "Nie mozna tego zastosowac: {reason}"
+applied = "Zastosowano szablon {name}."
+
+[rules.prompt]
+group = "&bWpisz nazwe grupy odnowienia (lub \"{cancel}\"):"
+rule_id = "&bWpisz id nowej zasady (lub \"{cancel}\"):"
+line = "&bWpisz wiersz zasady, np. kind=PERMISSION;node=grupa.vip (lub \"{cancel}\"):"
+
+[rules.warmup]
+countdown = "Nie ruszaj się: {seconds}s"
+cancelled = "Przygotowanie anulowane."
+
+[rules.command]
+exported = "Zasady portalu {portal} zapisano w szablonie {name}."
+imported = "Szablon {name} zastosowano do {portal}."
+templates = "Szablony zasad: {value}"
+no_templates = "Nie zapisano zadnych szablonow zasad."
+template_missing = "Nie ma szablonu zasad o nazwie {name}."
+template_invalid = "Szablon {name} jest nieprawidlowy: {reason}"
+portal_missing = "Nie ma portalu o nazwie {name}."
+portal_ambiguous = "{count} portali nosi nazwe {name}; zmien nazwe jednego."
+not_in_portal = "Stan w portalu lub wskaz go opcja portal."
+key_given = "Otrzymales klucz do {portal}."
+failed = "Nie udalo sie zakonczyc: {reason}"
+
+[rules.command.help]
+rules = "Zasady przejscia: szablony, klucze i profile portali"
+export = "Zapisz zasady portalu do pliku szablonu"
+"export.name" = "Nazwa zapisywanego szablonu"
+"export.portal" = "Nazwa portalu lub portal, w ktorym stoisz"
+import = "Zastosuj szablon do portalu, w ktorym stoisz"
+"import.name" = "Nazwa wczytywanego szablonu"
+"import.portal" = "Nazwa portalu lub portal, w ktorym stoisz"
+apply = "Zastosuj szablon do nazwanego portalu z dowolnego miejsca"
+"apply.name" = "Nazwa wczytywanego szablonu"
+"apply.portal" = "Nazwa portalu, do ktorego zastosowac szablon"
+list = "Wypisz zapisane szablony zasad"
+key = "Daj sobie klucz do portalu"
+"key.portal" = "Nazwa portalu, dla ktorego powstanie klucz"
+"key.uses" = "Ile przejsc pozwala klucz, 0 oznacza bez limitu"
+# ---- end lane:rules ----
+
+
+# ---- lane:access (access.*) ----
+[access.denied]
+role = "&cNie masz uprawnień, aby użyć {portal}."
+claim = "&cRoszczenie terenu blokuje {portal}."
+limit = "&cMasz już {count} portali; limit to {maximum}."
+
+[access.construct]
+denied = "&cNie możesz tu zbudować portalu: {reason}."
+
+[access.claim]
+reason = "{plugin} chroni ten teren"
+failure = "nie udało się zapytać {plugin}"
+
+[access.transfer]
+done = "&8[&6Wormholes&8] &a{portal} należy teraz do {name}."
+
+[access.key]
+set = "&aKlucz uprawnień portalu {portal} to teraz {key}."
+taken = "&cKlucz uprawnień {key} jest już używany."
+invalid = "&cKlucze uprawnień używają a-z, 0-9, kropki, myślnika i podkreślenia, do 64 znaków."
+
+[access.player]
+not_found = "&cNie ma gracza o nazwie {name}."
+
+[access.portal]
+not_found = "&8[&6Wormholes&8] &cNie ma portalu o nazwie {portal}."
+ambiguous = "&8[&6Wormholes&8] &c{count} portali pasuje do {portal}; użyj identyfikatora portalu."
+
+[access.role]
+changed = "&a{name} ma teraz rolę {state} w {portal}."
+removed = "&a{name} nie ma już roli w {portal}."
+owner_always = "&7Właściciel zawsze ma pełny dostęp."
+
+[access.listed]
+changed = "&a{portal} jest teraz {state} w katalogu publicznym."
+
+[access.group]
+added = "&a{portal} przyznaje teraz dostęp dla {node}."
+cleared = "&a{portal} nie przyznaje już dostępu według grup."
+
+[access.limits]
+report = "&8[&6Wormholes&8] &7{name} ma {count} portali; limit to {maximum}."
+unlimited = "&8[&6Wormholes&8] &7{name} ma {count} portali i nie ma limitu."
+
+[access.prompt]
+player = "&7Wpisz nazwę gracza na czacie lub {cancel}, aby przerwać."
+key = "&7Wpisz nowy klucz uprawnień na czacie lub {cancel}, aby przerwać."
+group = "&7Wpisz węzeł uprawnień na czacie lub {cancel}, aby przerwać."
+
+[access.label]
+owner = "Właściciel"
+co_owner = "Współwłaściciel"
+user = "Zaufany"
+denied = "Odmowa"
+listed = "Widoczny"
+unlisted = "Ukryty"
+
+[access.menu]
+entry = ["&b&lDostęp&r", "&7Role, grupy i klucz uprawnień."]
+placard = ["&b&lDostęp: {portal}&r", "&7Właściciel: &f{owner}", "&7Role: &f{count}", "&7Klucz: &f{key}"]
+add = ["&a&lDodaj gracza&r", "&7Wpisz nazwę na czacie, aby nadać mu rolę."]
+role = ["&f&l{name}&r", "&7Rola: &f{state}", "&7Lewy lub prawy przycisk zmienia rolę.", "&7Shift + lewy przycisk ją usuwa."]
+groups = ["&e&lDozwolone grupy&r", "&7{count} węzłów uprawnień przyznaje dostęp.", "&7Lewy przycisk dodaje, prawy czyści."]
+key = ["&b&lKlucz uprawnień&r", "&7{key}", "&7Lewy przycisk go zmienia."]
+listed = ["&b&lKatalog publiczny&r", "&7{state}", "&7Lewy przycisk przełącza."]
+
+[access.command.help]
+access = "Listy dostępu, własność i limity portali"
+transfer = "Przekaż portal innemu graczowi"
+"transfer.portal" = "Nazwa lub identyfikator portalu"
+"transfer.player" = "Nazwa nowego właściciela"
+key = "Ustaw stały klucz uprawnień portalu"
+"key.portal" = "Nazwa lub identyfikator portalu"
+"key.key" = "Nowy klucz uprawnień"
+limits = "Pokaż, ile portali gracz ma i może mieć"
+"limits.player" = "Gracz do sprawdzenia; domyślnie ty"
+# ---- end lane:access ----
+
+
+# ---- lane:nexus (nexus.* and atlas.*) ----
+[nexus]
+dialed = "&8[&6Wormholes&8] &a{portal} wybrał adres {address}: &f{destination}"
+created = "&8[&6Wormholes&8] &aUtworzono sieć {name}."
+deleted = "&8[&6Wormholes&8] &aUsunięto sieć {name}."
+joined = "&8[&6Wormholes&8] &a{portal} dołączył do {name} pod adresem {address}."
+left = "&8[&6Wormholes&8] &a{portal} opuścił sieć {name}."
+
+[nexus.dial]
+unknown = "&8[&6Wormholes&8] &cBrak portalu pod adresem {address}."
+none = "&8[&6Wormholes&8] &c{portal} nie należy do żadnej sieci."
+debounced = "&8[&6Wormholes&8] &7Wybierasz zbyt szybko; poczekaj chwilę."
+managed = "&8[&6Wormholes&8] &c{portal} to portal zarządzany i nie można go wybrać."
+
+[nexus.address]
+taken = "&8[&6Wormholes&8] &cAdres {address} jest już używany w sieci {name}."
+set = "&8[&6Wormholes&8] &a{portal} odpowiada pod adresem {address}."
+invalid = "&8[&6Wormholes&8] &cAdresy używają tylko tych znaków: {value}"
+
+[nexus.network]
+unknown = "&8[&6Wormholes&8] &cBrak sieci o nazwie {name}."
+exists = "&8[&6Wormholes&8] &cSieć o nazwie {name} już istnieje."
+full = "&8[&6Wormholes&8] &cSieć {name} zawiera już {count} portali."
+limit = "&8[&6Wormholes&8] &cMasz już {count} sieci."
+
+[nexus.portal]
+unknown = "&8[&6Wormholes&8] &cBrak portalu o nazwie {portal}."
+not_member = "&8[&6Wormholes&8] &c{portal} nie należy do sieci {name}."
+
+[nexus.visibility]
+set = "&8[&6Wormholes&8] &a{name} jest teraz {value}."
+
+[nexus.hub]
+set = "&8[&6Wormholes&8] &a{portal} jest węzłem sieci {name}."
+
+[nexus.list]
+empty = "&8[&6Wormholes&8] &7Nie ma jeszcze sieci."
+entry = "&7{name} &8- &f{count} portali&7, {value}, właściciel &f{owner}"
+
+[nexus.info]
+header = "&6{name} &8- &f{count} portali&7, {value}, {mode}"
+member = "&e{address} &f{portal} &7w świecie {world} &8{state}"
+
+[nexus.doctor]
+header = "&8[&6Wormholes&8] &6Kontrola połączeń: {count} spostrzeżeń."
+clean = "&8[&6Wormholes&8] &aNie znaleziono problemów z połączeniami."
+oneway = "&e{portal} -> {destination} nie ma połączenia powrotnego."
+dangling = "&c{portal} wskazuje na brakujący cel."
+unloaded = "&e{portal} wskazuje na niewczytany świat {world}."
+offline = "&c{portal} wskazuje na {server}, offline od {count} dni."
+
+[nexus.redstone]
+set = "&8[&6Wormholes&8] &a{portal} czerwony kamień: {value}."
+
+[nexus.reciprocal]
+paired = "&8[&6Wormholes&8] &a{portal} i {destination} łączą się teraz w obie strony."
+unpaired = "&8[&6Wormholes&8] &a{portal} i {destination} nie łączą się już z powrotem."
+denied = "&8[&6Wormholes&8] &cNie możesz zarządzać jednocześnie {portal} i {destination}."
+
+[nexus.prompt]
+network_name = "&bWpisz nazwę sieci na czacie (lub '{cancel}'):"
+address = "&bWpisz nowy adres na czacie (lub '{cancel}'):"
+
+[nexus.menu]
+entry = ["&b&lSieć&r", "&7Sieci, adresy, wybieranie, reguły celów, czerwony kamień.", "&7Sieć: &f{name}", "&7Adres: &f{address}", "&eLewy klik"]
+placard = ["&b&lSieć: {name}&r", "&7Adres: &f{address}", "&7Członkowie: &f{count}"]
+join = ["&a&lDołącz do sieci&r", "&7Dodaj ten portal do sieci i nadaj mu adres.", "&eLewy klik"]
+leave = ["&c&lOpuść {name}&r", "&7Usuń ten portal i jego adres z sieci.", "&eLewy klik"]
+create = ["&a&lUtwórz sieć&r", "&7Nazwij nową sieć i umieść w niej ten portal.", "&eLewy klik"]
+address = ["&e&lAdres: {address}&r", "&7Krótki kod, który inne portale wybierają, by tu trafić.", "&eLewy klik przepisuje. &ePrawy losuje ponownie."]
+visibility = ["&e&lWidoczność: {value}&r", "&7Sieci publiczne widzą wszyscy, sieci członkowskie tylko członkowie, ukrytych nikt.", "&eLewy klik zmienia"]
+topology = ["&e&lTopologia: {value}&r", "&7Siatka wybiera dowolnego członka, węzeł kieruje przez jeden portal, łańcuch i pierścień wybierają sąsiadów.", "&eLewy klik zmienia"]
+reciprocal = ["&e&lPołączenie powrotne: {state}&r", "&7Utrzymuj cel wskazujący z powrotem na ten portal.", "&eLewy klik przełącza"]
+policy = ["&e&lCele: {mode}&r", "&7{count} pozycji. Po kolei, ważone, planowane, na gracza lub powrót.", "&eLewy klik zmienia tryb. &ePrawy czyści listę."]
+redstone = ["&e&lCzerwony kamień: {value}&r", "&7Co robi narastające zbocze przy ramie i co odczytuje komparator.", "&eLewy klik ustawia akcję. &ePrawy wyjście komparatora."]
+dial = ["&b&lWybierz&r", "&7Skieruj ten portal na inny adres w jego sieci.", "&eLewy klik"]
+dial_entry = ["&e{address} &f{portal}", "&7{world}", "&b{state}"]
+link_and_return = ["&d&lPołącz i wróć&r", "&7Skieruj także {destination} z powrotem na {portal}.", "&eLewy klik"]
+
+[atlas]
+title = "&8Atlas &7- &f{count} portali"
+row = "&f{portal} &8| &7{destination} &8| &b{state}"
+empty = "&8[&6Wormholes&8] &7Nie odkryto jeszcze żadnych portali."
+disabled = "&8[&6Wormholes&8] &cAtlas jest wyłączony na tym serwerze."
+only_players = "&8[&6Wormholes&8] &cAtlas mają tylko gracze."
+no_permission = "&8[&6Wormholes&8] &cNie masz uprawnień, by otworzyć atlas."
+discovered = "&8[&6Wormholes&8] &aOdkryto {portal}."
+usage = ["&8[&6Wormholes&8] &7/atlas &8- &7otwórz listę portali", "&8[&6Wormholes&8] &7/atlas favorites &8- &7tylko przypięte portale", "&8[&6Wormholes&8] &7/atlas recents &8- &7ostatnio używane portale", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7pokaż kierunek; /atlas guide off wyłącza"]
+
+[atlas.favorite]
+added = "&8[&6Wormholes&8] &aPrzypięto {portal}."
+removed = "&8[&6Wormholes&8] &aOdpięto {portal}."
+full = "&8[&6Wormholes&8] &cMasz już przypięte {count} portali."
+
+[atlas.guide]
+bearing = "&b{portal} &f{value}"
+set = "&8[&6Wormholes&8] &aKierunek na {portal}."
+cleared = "&8[&6Wormholes&8] &aKierunek wyłączony."
+unknown = "&8[&6Wormholes&8] &cW twoim atlasie nie ma portalu o nazwie {portal}."
+
+[atlas.menu]
+row = ["&6{portal}", "&7{world} &8- &f{destination}", "&b{state}", "", "&eLewy klik wybiera. &ePrawy przypina. &eShift+lewy prowadzi."]
+favorites = ["&d&lTylko przypięte: {state}&r", "&7Pokaż tylko przypięte portale.", "&eLewy klik"]
+recents = ["&b&lTylko ostatnie: {state}&r", "&7Pokaż tylko ostatnio używane portale.", "&eLewy klik"]
+guide = ["&a&lKierunek: {portal}&r", "&7Pokaż kierunek do prowadzonego portalu na pasku akcji.", "&eLewy klik wyłącza"]
+# ---- end lane:nexus ----
+
+
+# ---- lane:doors (doorview.* and pockets.*) ----
+[doorview]
+"disabled" = "&8[&6Wormholes&8] &cProjekcja drzwi jest wylaczona w wormholes.toml."
+"toggle.inherit" = "&8[&6Wormholes&8] &7Projekcja tych drzwi: &fdziedziczona&7."
+"toggle.on" = "&8[&6Wormholes&8] &aProjekcja tych drzwi: wlaczona."
+"toggle.off" = "&8[&6Wormholes&8] &eProjekcja tych drzwi: wylaczona."
+"state.inherit" = "dziedziczona"
+"state.on" = "wlaczona"
+"state.off" = "wylaczona"
+"menu.projection" = ["&b&lProjekcja: {state}&r", "&7Pokazuje cel przez ten otwor drzwiowy.", "&eLewy klik zmienia"]
+
+[pockets]
+"confirm.overwrite" = ["&8[&6Wormholes&8] &cTo zastapi wszystko wewnatrz kieszeni &f{space}&c.", "&8[&6Wormholes&8] &7Uruchom to samo polecenie z &fconfirm=true&7, aby kontynuowac."]
+"denied.build" = "&8[&6Wormholes&8] &cNie jestes budowniczym w tej kieszeni."
+"denied.pvp" = "&8[&6Wormholes&8] &cWalka jest wylaczona w tej kieszeni."
+"instance.none" = "&8[&6Wormholes&8] &cTa kieszen nie jest instancja."
+"instance.reset" = "&8[&6Wormholes&8] &aInstancja kieszeni &f{space}&a zostala zresetowana."
+"room.added" = "&8[&6Wormholes&8] &aDodano pokoj &f{count}&a do kieszeni &f{space}&a."
+"room.blocked" = "&8[&6Wormholes&8] &cPostaw drzwi na scianie wewnetrznej."
+"room.limit" = "&8[&6Wormholes&8] &cTa kieszen ma juz maksymalnie &f{count}&c pokoi."
+"roster.added" = "&8[&6Wormholes&8] &a{name}&a dolaczyl do listy kieszeni jako &f{value}&a."
+"roster.missing" = "&8[&6Wormholes&8] &c{name}&c nie znajduje sie na liscie tej kieszeni."
+"roster.removed" = "&8[&6Wormholes&8] &e{name}&e opuscil liste kieszeni."
+"roster.role" = "&8[&6Wormholes&8] &a{name}&a jest teraz &f{value}&a w tej kieszeni."
+"rules.invalid" = "&8[&6Wormholes&8] &cNieznana regula kieszeni &f{key}&c."
+"rules.set" = "&8[&6Wormholes&8] &a{key} &7= &f{value}"
+"snapshot.missing" = "&8[&6Wormholes&8] &cTa kieszen nie ma migawki o nazwie &f{name}&c."
+"snapshot.restored" = "&8[&6Wormholes&8] &aPrzywrocono migawke &f{name}&a do kieszeni &f{space}&a."
+"snapshot.saved" = "&8[&6Wormholes&8] &aZapisano migawke &f{name}&a kieszeni &f{space}&a."
+"template.applied" = "&8[&6Wormholes&8] &aZastosowano szablon &f{name}&a do kieszeni &f{space}&a."
+"template.list" = "&8[&6Wormholes&8] &7Szablony (&f{count}&7): &f{value}"
+"template.missing" = "&8[&6Wormholes&8] &cNie ma szablonu kieszeni o nazwie &f{name}&c."
+# ---- end lane:doors ----
+
+
+# ---- lane:mesh (mesh.*) ----
+[mesh]
+pending = "&8[&6Wormholes&8] &e{server}&7 chce dołączyć przez &f{name}&7: /wh network accept {server}"
+accepted = "&8[&6Wormholes&8] &a&f{server}&a przyjęto do sieci."
+rejected = "&8[&6Wormholes&8] &c&f{server}&c odrzucono, a jego przedstawienie usunięto."
+tombstoned = "&8[&6Wormholes&8] &f{server}&7 usunięto z całej sieci."
+disabled = "&8[&6Wormholes&8] &7Federacja mesh jest &cwyłączona&7 ([network.mesh] enabled = false)."
+
+[mesh.introductions]
+none = "&8[&6Wormholes&8] &7Żadne przedstawienie nie czeka na zatwierdzenie."
+unknown = "&8[&6Wormholes&8] &c{server} nie czeka na zatwierdzenie."
+
+[mesh.members]
+none = "&8[&6Wormholes&8] &7Nie są jeszcze znani żadni członkowie sieci."
+row = "&8[&6Wormholes&8] &f{server}&7 {state} &8{fingerprint}"
+
+[mesh.versions]
+none = "&8[&6Wormholes&8] &7Żaden partner nie został jeszcze połączony."
+row = "&8[&6Wormholes&8] &f{server}&7: protokół &f{value}&7, wtyczka &f{name}&7, możliwości &f{state}"
+reduced = "&8[&6Wormholes&8] &e{server}&7 łączy się z ograniczonymi możliwościami: &f{reason}"
+
+[mesh.drain]
+on = "&8[&6Wormholes&8] &eTryb opróżniania włączony: ten serwer odrzuca nowe przybycia do czasu wyłączenia trybu."
+off = "&8[&6Wormholes&8] &aTryb opróżniania wyłączony: ten serwer znów przyjmuje przybycia."
+state = "&8[&6Wormholes&8] &7Tryb opróżniania: {state}."
+invalid = "&8[&6Wormholes&8] &cStan opróżniania musi być on lub off, otrzymano {value}."
+
+[mesh.queue]
+position = "&7Oczekiwanie na wolny serwer: pozycja &f{count}&7, &f{seconds}&7s"
+timeout = "&cŻaden serwer docelowy nie miał miejsca na czas."
+
+[mesh.policy]
+none = "&cW tej chwili żaden cel nie jest dostępny."
+set = "&8[&6Wormholes&8] &aPolityka na &f{portal}&a: {value}"
+cleared = "&8[&6Wormholes&8] &7Polityka usunięta z &f{portal}&7; znów prowadzi do zwykłego celu."
+portal_unknown = "&8[&6Wormholes&8] &cBrak lokalnego portalu o nazwie {portal}."
+invalid = "&8[&6Wormholes&8] &cNieprawidłowa polityka: {reason}"
+
+[mesh.command.help]
+members = "Wypisz wszystkich członków sieci ze stanem połączenia i odciskiem klucza"
+pending = "Wypisz przedstawione serwery czekające na zatwierdzenie"
+accept = "Zaufaj przedstawionemu serwerowi i zapisz jego trasę"
+reject = "Odrzuć oczekujące przedstawienie serwera"
+versions = "Pokaż protokół, wersję wtyczki i możliwości każdego partnera"
+drain = "Wyłącz ten serwer z rotacji celów lub przywróć go"
+policy = "Ustaw lub usuń politykę celu bramy"
+
+[mesh.command.param.accept]
+server = "Nazwa przedstawionego serwera (zobacz /wh network pending)"
+
+[mesh.command.param.reject]
+server = "Nazwa przedstawionego serwera do odrzucenia"
+
+[mesh.command.param.drain]
+state = "on lub off; pominięcie pokazuje bieżący stan"
+
+[mesh.command.param.policy]
+portal = "Nazwa lub id lokalnego portalu"
+candidates = "Wpisy serwer:portal[:waga] oddzielone przecinkami; puste usuwa politykę"
+strategy = "FIRST_AVAILABLE, LEAST_LOADED, ROUND_ROBIN, STICKY lub NEAREST"
+headroom = "Wolne miejsca dla graczy, które musi zgłosić kandydat"
+tps = "Minimalne TPS, które musi zgłosić kandydat; 0 ignoruje TPS"
+queue = "Zatrzymuj podróżnych, gdy wszyscy kandydaci są pełni"
+# ---- end lane:mesh ----
+
+
+# ---- lane:transit (transit.*) ----
+[transit]
+bounced = "{portal} odepchnął cię."
+
+[transit.denied]
+membrane = "Do {portal} można wejść tylko od przodu."
+convoy_size = "Twój zaprzęg ma {count} istot; limit to {value}."
+convoy_fit = "Twój zaprzęg nie mieści się w {portal}."
+convoy_member = "Część twojego zaprzęgu nie może używać {portal}."
+
+[transit.convoy]
+waiting = "Przeprowadź cały zaprzęg przez {portal}."
+failed = "Przeniesienie zaprzęgu nie powiodło się: {reason}."
+
+[transit.menu]
+entry = ["&b&lTranzyt&r", "&7Pęd, orientacja, membrana, odbicie i efekty.", "&eLewy przycisk"]
+momentum = ["&6&lPęd: {mode}&r", "&7Współczynnik {value}. Jak prędkość wyjścia wynika z prędkości wejścia.", "&eLewy przycisk zmienia tryb", "&ePrawy przycisk ustawia współczynnik"]
+orientation = ["&6&lOrientacja: {mode}&r", "&7W którą stronę patrzą podróżni po przybyciu.", "&eLewy przycisk zmienia"]
+membrane = ["&6&lMembrana: {state}&r", "&7Tylko przód wpuszcza podróżnych; tył ich odpycha.", "&eLewy przycisk przełącza"]
+bounce = ["&6&lOdbicie: {state}&r", "&7Odbijaj podróżnych zamiast ich przenosić.", "&eLewy przycisk przełącza"]
+profile = ["&6&lEfekty przejścia&r", "&7Zbliżanie {value}", "&7Próg {mode}", "&7Przybycie {state}", "&eLewy przycisk: dźwięk zbliżania, Prawy przycisk: efekt progu", "&eShift + lewy: dźwięk przybycia, Shift + prawy: tiki maski"]
+prompt = "&bWpisz nową wartość na czacie (lub '{cancel}'):"
+# ---- end lane:transit ----
+
+
+# ---- lane:view (fidelity.*) ----
+[fidelity.menu]
+entry = ["&b&lWierność&r", "&7Atmosfera, akustyka, szczegółowość i encje bloków tego portalu.", "&eLewy przycisk"]
+placard = ["&b&lWierność projekcji&r", "&7Kanały dla portalu nakładane na projekcję."]
+atmosphere = "&bAtmosfera: &f{mode}"
+acoustics = "&bAkustyka: &f{mode}"
+lod = "&bSzczegółowość: &f{mode}"
+block_entities = "&bEncje bloków: &f{state}"
+hint = ["&8Kliknij, aby przełączyć.", "&8Shift + kliknięcie używa domyślnego ustawienia serwera."]
+back = ["&e&lWstecz&r", "&7Wróć do menu portalu."]
+default = "domyślne"
+
+[fidelity.bedrock]
+profile = "Profil Bedrock aktywny dla {count} widzów"
+# ---- end lane:view ----
+
+
+# ---- lane:ops (ops.*) ----
+[ops.console]
+started = "Punkt metryk nasluchuje na {value}."
+no_token = "Punkt metryk nie wystartowal: ustaw [ops.console] token."
+failed = "Punkt metryk nie mogl przypisac {value}: {reason}"
+
+[ops.webmap]
+published = "Opublikowano {count} znacznikow portali w {name}."
+
+[ops.backup]
+created = "&8[&6Wormholes&8] &aKopia &f{id}&a zapisana w &f{path}&a."
+restored = "&8[&6Wormholes&8] &aPrzywrocono &f{count}&a portali z &f{id}&a."
+dry_run = "&8[&6Wormholes&8] &7Proba: &f{count}&7 portali zmienioby sie."
+list_row = "&8[&6Wormholes&8] &f{id} &8| &f{count}&7 portali &8| &7{path}"
+list_empty = "&8[&6Wormholes&8] &7Brak kopii w &f{path}&7."
+not_found = "&8[&6Wormholes&8] &cZadna kopia nie pasuje do &f{id}&c."
+confirm_required = "&8[&6Wormholes&8] &cUruchom ponownie z &fconfirm=true&c aby to zastosowac, albo z &fdry=true&c aby zobaczyc plan."
+failed = "&8[&6Wormholes&8] &cOperacja kopii nie powiodla sie: &f{reason}"
+reload_required = "&8[&6Wormholes&8] &7Pliki portali zastapione. Uruchom &f/wormholes reload&7 aby je wczytac."
+signature_broken = "&8[&6Wormholes&8] &cOdrzucono &f{id}&c: podpis nie pasuje do zawartosci."
+signature_untrusted = "&8[&6Wormholes&8] &cOdrzucono &f{id}&c: podpisane przez &f{fingerprint}&c, ktoremu ten serwer nie ufa. Dodaj &fallow-unsigned=true&c aby mimo to zastosowac."
+signature_ok = "&8[&6Wormholes&8] &7Podpisane przez &f{name}&7 (&f{fingerprint}&7)."
+
+[ops.import]
+report = "&8[&6Wormholes&8] &f{name}&7: zaimportowano &f{count}&7 portali, pominieto &f{value}&7."
+skipped_row = "&8[&6Wormholes&8] &7{portal}&8: &f{reason}"
+not_detected = "&8[&6Wormholes&8] &cNie znaleziono danych {name} w &f{path}&c."
+
+[ops.portals]
+row = "&8[&6Wormholes&8] &f{portal} &8| &7{world} &8| &7{state} &8| &7{destination}"
+page = "&8[&6Wormholes&8] &7Strona &f{page}&7/&f{pages}"
+empty = "&8[&6Wormholes&8] &7Zaden portal nie pasuje do tych filtrow."
+not_found = "&8[&6Wormholes&8] &cZaden portal nie pasuje do &f{name}&c."
+ambiguous = "&8[&6Wormholes&8] &c{count} portali pasuje do &f{name}&c; uzyj identyfikatora."
+info = ["&8[&6Wormholes&8] &7Portal &f{portal} &8| &7{id}", "&8[&6Wormholes&8] &7Swiat &f{world}&7 w &f{value}", "&8[&6Wormholes&8] &7Stan &f{state}&7, cel &f{destination}&7, wlasciciel &f{owner}"]
+teleported = "&8[&6Wormholes&8] &aTeleportowano do &f{portal}&a."
+teleport_unsafe = "&8[&6Wormholes&8] &eBrak bezpiecznego ladowania przy &f{portal}&e; uzywam srodka portalu."
+retargeted = "&8[&6Wormholes&8] &a&f{portal}&a wskazuje teraz na &f{destination}&a."
+unlinked = "&8[&6Wormholes&8] &a&f{portal}&a nie ma juz polaczenia."
+pruned = "&8[&6Wormholes&8] &aUsunieto &f{count}&a osieroconych polaczen."
+prune_dry_run = "&8[&6Wormholes&8] &7Proba: usunieto by &f{count}&7 osieroconych polaczen."
+renamed_server = "&8[&6Wormholes&8] &aPrzepisano &f{count}&a polaczen bramowych z &f{name}&a na &f{server}&a."
+
+[ops.command.help]
+backup = "Tworzenie, lista, przywracanie i wymiana kopii portali"
+"backup.now" = "Zapisz teraz kopie danych portali"
+"backup.list" = "Wypisz kopie zapisane na dysku"
+"backup.restore" = "Przywroc pliki portali z kopii (dry=true pokazuje plan)"
+"backup.restore.id" = "Identyfikator kopii z /wormholes admin backup list"
+"backup.restore.dry" = "Zglos co by sie zmienilo bez zapisywania czegokolwiek"
+"backup.restore.world_map" = "Zmiany nazw swiatow jako stara=nowa,stara=nowa"
+"backup.restore.owner_map" = "Zmiany wlascicieli jako stary-uuid=nowy-uuid"
+"backup.restore.confirm" = "Wymagane do zapisu plikow gdy dry=false"
+"backup.allow_unsigned" = "Zastosuj paczke, ktorej nie podpisal zaden zaufany klucz"
+"backup.export" = "Zapisz paczke kopii do pliku, ktory mozna przeniesc miedzy serwerami"
+"backup.export.file" = "Plik docelowy; puste zapisuje w folderze kopii"
+"backup.import" = "Zaimportuj paczke wyeksportowana z innego serwera"
+"backup.import.file" = "Plik paczki do odczytu"
+"backup.import.dry" = "Zglos co by sie zmienilo bez zapisywania czegokolwiek"
+"backup.import.world_map" = "Zmiany nazw swiatow jako stara=nowa,stara=nowa"
+"backup.import.owner_map" = "Zmiany wlascicieli jako stary-uuid=nowy-uuid"
+"backup.import.confirm" = "Wymagane do zapisu plikow gdy dry=false"
+"backup.import_from" = "Zaimportuj portale z plikow innego pluginu portali"
+"backup.import_from.source" = "stargate, advancedportals, multiverse, betterportals lub essentials"
+"backup.import_from.dry" = "Zglos co zostaloby utworzone bez tworzenia czegokolwiek"
+"backup.import_from.frame" = "Rozmiar ramy jako szerokosc,wysokosc dla zrodel bez ramy"
+portals = "Wypisuj, sprawdzaj i masowo edytuj portale"
+"portals.list" = "Wypisz portale z opcjonalnymi filtrami"
+"portals.list.world" = "Tylko portale w tym swiecie"
+"portals.list.type" = "Tylko portale tego typu: portal, wormhole, gateway lub rtp"
+"portals.list.owner" = "Tylko portale tego gracza lub uuid"
+"portals.list.state" = "Tylko portale w tym stanie: open, closed, linked lub unlinked"
+"portals.list.page" = "Numer strony"
+"portals.find" = "Znajdz portale, ktorych nazwa zawiera tekst"
+"portals.find.name" = "Szukany tekst"
+"portals.info" = "Pokaz swiat, stan, cel i wlasciciela portalu"
+"portals.info.portal" = "Nazwa lub identyfikator portalu"
+"portals.tp" = "Teleportuj sie do portalu, ladujac na bezpiecznym gruncie"
+"portals.tp.portal" = "Nazwa lub identyfikator portalu"
+"portals.retarget" = "Skieruj portal na inny lokalny portal"
+"portals.retarget.portal" = "Nazwa lub identyfikator zmienianego portalu"
+"portals.retarget.destination" = "Nazwa lub identyfikator portalu docelowego"
+"portals.unlink" = "Usun cel portalu"
+"portals.unlink.portal" = "Nazwa lub identyfikator portalu"
+"portals.prune" = "Usun polaczenia, ktorych cel juz nie istnieje"
+"portals.prune.dry" = "Zglos co zostaloby usuniete bez zmieniania czegokolwiek"
+"portals.prune.confirm" = "Wymagane do usuwania gdy dry=false"
+"portals.rename_server" = "Przepisz polaczenia miedzyserwerowe z jednej nazwy serwera na inna"
+"portals.rename_server.old" = "Nazwa serwera zapisana dzis w polaczeniach"
+"portals.rename_server.new" = "Nazwa serwera do zapisania zamiast niej"
+"portals.rename_server.confirm" = "Wymagane do przepisania polaczen"
+# ---- end lane:ops ----

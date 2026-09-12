@@ -41,6 +41,25 @@ public class CommandWormholes {
     private CommandPocket pocket = new CommandPocket();
     private CommandDebug debug;
 
+    // Lane command-group slots. Each lane replaces only its own marker line with a non-final field
+    // (for example: private CommandNexus nexus = new CommandNexus();). Keep the blank lines between slots.
+
+    private CommandRules rules = new CommandRules();
+
+    private CommandAccess access = new CommandAccess();
+
+    private CommandNexus nexus = new CommandNexus();
+
+    // slot:doors
+
+    // slot:transit
+
+    // slot:mesh
+
+    // slot:view
+
+    // slot:ops
+
     public CommandWormholes(Wormholes plugin) {
         this.plugin = plugin;
         debug = new CommandDebug(plugin);

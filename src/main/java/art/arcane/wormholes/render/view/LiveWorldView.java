@@ -1,9 +1,13 @@
 package art.arcane.wormholes.render.view;
 
 import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
+import art.arcane.wormholes.render.blockentity.BlockEntityMaterials;
+import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 
 public final class LiveWorldView implements ProjectionWorldView {
@@ -56,6 +60,24 @@ public final class LiveWorldView implements ProjectionWorldView {
     }
 
     @Override
+    public BlockEntitySample sampleBlockEntity(int x, int y, int z) {
+        if (y < world.getMinHeight() || y > world.getMaxHeight() - 1) {
+            return null;
+        }
+        Block block = world.getBlockAt(x, y, z);
+        if (!BlockEntityMaterials.isCandidate(block.getType())) {
+            return null;
+        }
+        BlockState state;
+        try {
+            state = WormholesPlatform.blockState(block, true);
+        } catch (RuntimeException unavailable) {
+            return null;
+        }
+        return BlockEntityCapturer.capture(state);
+    }
+
+    @Override
     public int getLight(int x, int y, int z) {
         if (y < world.getMinHeight() || y > world.getMaxHeight() - 1) {
             return LIGHT_UNAVAILABLE;
@@ -66,7 +88,7 @@ public final class LiveWorldView implements ProjectionWorldView {
 
     @Override
     public int getSkyDarken() {
-        return ProjectionWorldView.computeSkyDarken(world.getTime());
+        return ProjectionWorldView.computeSkyDarken(world.getTime(), world.hasStorm(), world.isThundering());
     }
 
     @Override

@@ -2,12 +2,15 @@ package art.arcane.wormholes.network.view;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.network.WireCapability;
 import art.arcane.wormholes.network.WireMessage;
 import art.arcane.wormholes.network.replication.ChunkBulkBuilder;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.replication.ChunkResyncRequest;
 import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
+import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 
 import org.bukkit.ChunkSnapshot;
 import org.bukkit.block.data.BlockData;
@@ -159,20 +162,22 @@ final class ViewBulkPipeline {
                     return;
                 }
                 ChunkSnapshot snapshot = WormholesPlatform.chunkSnapshot(chunk, false, true, false, true);
+                Map<Long, BlockEntitySample> blockEntities = BlockEntityCapturer.captureChunk(chunk);
                 boolean encodeScheduled = FoliaScheduler.runAsync(Wormholes.instance, () -> {
                     try {
                         if (!registry.isSessionChunkActive(session, peerName, chunkKey)) {
                             done.complete(false);
                             return;
                         }
-                        ViewSlice slice = chunkBulkBuilder.buildSlice(session.box, chunkX, chunkZ, snapshot, session.renderMode);
+                        ViewSlice slice = chunkBulkBuilder.buildSlice(session.box, chunkX, chunkZ, snapshot, session.renderMode, blockEntities);
                         if (slice == null) {
                             done.complete(registry.isSessionChunkActive(session, peerName, chunkKey));
                             return;
                         }
                         byte[] payload;
                         try {
-                            payload = ChunkBulkBuilder.encodeSliceBytes(slice);
+                            payload = ChunkBulkBuilder.encodeSliceBytes(slice,
+                                registry.network().peerSupports(peerName, WireCapability.VIEW_BLOCK_ENTITIES));
                         } catch (IOException e) {
                             Wormholes.v("net: failed to encode chunk bulk for " + peerName + " (" + chunkX + "," + chunkZ + "): " + e.getMessage());
                             done.complete(false);

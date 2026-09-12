@@ -47,7 +47,7 @@ class StatusBridgeCompressionTest {
 
         MinecraftStatusBridge.StatusPacket packet = MinecraftStatusBridge.create(
             "alpha", "beta", WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "10.0.0.5", 25565, null, "10.0.0.5", 8901,
-            keyPair.getPublic().getEncoded(), keyPair.getPrivate(), 77L, messages);
+            keyPair.getPublic().getEncoded(), keyPair.getPrivate(), WireCapability.localSet(), 77L, messages);
 
         byte[] plainUnsigned = unsignedBytes(packet);
         String encoded = packet.encode(encodeSide);
@@ -98,7 +98,7 @@ class StatusBridgeCompressionTest {
         }
         MinecraftStatusBridge.StatusPacket packet = MinecraftStatusBridge.create(
             "alpha", "beta", WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "10.0.0.5", 25565, null, "10.0.0.5", 8901,
-            keyPair.getPublic().getEncoded(), keyPair.getPrivate(), 77L, messages);
+            keyPair.getPublic().getEncoded(), keyPair.getPrivate(), WireCapability.localSet(), 77L, messages);
 
         byte[] unsigned = unsignedBytes(packet);
         byte[] actualTransport = transportBlob(packet.encode(compression));
@@ -129,7 +129,7 @@ class StatusBridgeCompressionTest {
 
         MinecraftStatusBridge.StatusPacket packet = MinecraftStatusBridge.create(
             "alpha", "beta", WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "10.0.0.5", 25565, null, "10.0.0.5", 8901,
-            keyPair.getPublic().getEncoded(), keyPair.getPrivate(), 77L, fragments);
+            keyPair.getPublic().getEncoded(), keyPair.getPrivate(), WireCapability.localSet(), 77L, fragments);
 
         String encoded = packet.encode(encodeSide);
         MinecraftStatusBridge.StatusPacket decoded = MinecraftStatusBridge.StatusPacket.decode(encoded, decodeSide);
@@ -163,7 +163,7 @@ class StatusBridgeCompressionTest {
 
         MinecraftStatusBridge.StatusPacket packet = MinecraftStatusBridge.create(
             "alpha", "beta", WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "10.0.0.5", 25565, null, "10.0.0.5", 8901,
-            keyPair.getPublic().getEncoded(), keyPair.getPrivate(), 77L, messages);
+            keyPair.getPublic().getEncoded(), keyPair.getPrivate(), WireCapability.localSet(), 77L, messages);
 
         String encoded = packet.encode(encodeSide);
         assertTrue(encoded.length() < MinecraftStatusBridge.MAX_ENCODED_CHARS, "a full 64-message packet must stay under the encoded cap, got " + encoded.length());
@@ -179,7 +179,7 @@ class StatusBridgeCompressionTest {
         WireCompression compression = new WireCompression(WireCompression.DEFAULT_LEVEL);
         MinecraftStatusBridge.StatusPacket packet = MinecraftStatusBridge.create(
             "alpha", "beta", WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "10.0.0.5", 25565, null, "10.0.0.5", 8901,
-            keyPair.getPublic().getEncoded(), keyPair.getPrivate(), 77L, List.of());
+            keyPair.getPublic().getEncoded(), keyPair.getPrivate(), WireCapability.localSet(), 77L, List.of());
         byte[] envelope = Base64.getUrlDecoder().decode(packet.encode(compression));
         byte[] withTrailingByte = Arrays.copyOf(envelope, envelope.length + 1);
         String encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(withTrailingByte);
@@ -193,7 +193,7 @@ class StatusBridgeCompressionTest {
         WireCompression compression = new WireCompression(WireCompression.DEFAULT_LEVEL);
         MinecraftStatusBridge.StatusPacket packet = MinecraftStatusBridge.create(
             "alpha", "beta", WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "10.0.0.5", 25565, null, "10.0.0.5", 8901,
-            keyPair.getPublic().getEncoded(), keyPair.getPrivate(), 77L, List.of());
+            keyPair.getPublic().getEncoded(), keyPair.getPrivate(), WireCapability.localSet(), 77L, List.of());
         String original = packet.encode(compression);
         byte[] unsigned = unsignedBytes(packet);
         byte[] withTrailingByte = Arrays.copyOf(unsigned, unsigned.length + 1);
@@ -210,7 +210,7 @@ class StatusBridgeCompressionTest {
         WireCompression compression = new WireCompression(WireCompression.DEFAULT_LEVEL);
         MinecraftStatusBridge.StatusPacket packet = MinecraftStatusBridge.create(
             "alpha", "beta", WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "10.0.0.5", 25565, null, "10.0.0.5", 8901,
-            keyPair.getPublic().getEncoded(), keyPair.getPrivate(), 77L, List.of());
+            keyPair.getPublic().getEncoded(), keyPair.getPrivate(), WireCapability.localSet(), 77L, List.of());
         String original = packet.encode(compression);
         byte[] formerUnsigned = unsignedBytes(packet).clone();
         ByteBuffer.wrap(formerUnsigned).putInt(5);
@@ -227,7 +227,7 @@ class StatusBridgeCompressionTest {
         WireCompression compression = new WireCompression(WireCompression.DEFAULT_LEVEL);
         MinecraftStatusBridge.StatusPacket packet = MinecraftStatusBridge.create(
             "alpha", "beta", WireCodec.PROTOCOL_VERSION, "26.2", "1.0.0", "10.0.0.5", 25565, null, "10.0.0.5", 8901,
-            keyPair.getPublic().getEncoded(), keyPair.getPrivate(), 77L, List.of());
+            keyPair.getPublic().getEncoded(), keyPair.getPrivate(), WireCapability.localSet(), 77L, List.of());
         String original = packet.encode(compression);
         byte[] tamperedUnsigned = unsignedBytes(packet).clone();
         ByteBuffer.wrap(tamperedUnsigned).putInt(Integer.BYTES, WireCodec.PROTOCOL_VERSION + 1);

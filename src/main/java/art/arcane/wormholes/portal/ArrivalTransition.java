@@ -14,12 +14,13 @@ public final class ArrivalTransition
 
 	public static void apply(Player player, boolean reloadExpected)
 	{
-		if(player == null || !reloadExpected || !Settings.ARRIVAL_TRANSITION_MASK)
-		{
-			return;
-		}
-		int ticks = Settings.ARRIVAL_TRANSITION_MASK_TICKS;
-		if(ticks <= 0)
+		apply(player, reloadExpected, Settings.ARRIVAL_TRANSITION_MASK_TICKS);
+	}
+
+	/** Masks the arrival for {@code ticks}; the transit lane passes the adaptive size, callers without one pass the fixed setting. */
+	public static void apply(Player player, boolean reloadExpected, int ticks)
+	{
+		if(player == null || !reloadExpected || !Settings.ARRIVAL_TRANSITION_MASK || ticks <= 0)
 		{
 			return;
 		}

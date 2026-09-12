@@ -29,4 +29,17 @@ public class WormholesConfigFile {
     public ProjectionConfig projection = new ProjectionConfig();
     public RecipesConfig recipes = new RecipesConfig();
     public RenderConfig render = new RenderConfig();
+    public DoorsConfig doors = new DoorsConfig();
+    public PocketsConfig pockets = new PocketsConfig();
+    public RulesConfig rules = new RulesConfig();
+    public AccessConfig access = new AccessConfig();
+    public NexusConfig nexus = new NexusConfig();
+    public AtlasConfig atlas = new AtlasConfig();
+    public TransitConfig transit = new TransitConfig();
+    public AtmosphereConfig atmosphere = new AtmosphereConfig();
+    public AcousticsConfig acoustics = new AcousticsConfig();
+    public LodConfig lod = new LodConfig();
+    public BedrockConfig bedrock = new BedrockConfig();
+    public OpsConfig ops = new OpsConfig();
+    public DimensionalConfig dimensional = new DimensionalConfig();
 }
