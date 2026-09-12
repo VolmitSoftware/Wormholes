@@ -94,6 +94,7 @@
 #   {route}  Podjęta trasa podróży
 #   {rtt}  Opóźnienie sieciowe w obie strony
 #   {seconds}  Czas w sekundach
+#   {section}  Sekcja wyświetlana w edytorze języka
 #   {send}  Stan wysyłania projekcji
 #   {server}  Nazwa lub identyfikator serwera
 #   {size}  Rozmiar kieszeni w blokach
@@ -117,6 +118,7 @@
 
 [language.editor]
 loading = "Wczytywanie wiadomości w języku {locale}..."
+title = "{plugin} / {section}"
 
 [language.editor.category]
 message-count = "&7{count} wiadomości&r"

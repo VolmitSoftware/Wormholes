@@ -94,6 +94,7 @@
 #   {route}  Tuyến di chuyển đã thử
 #   {rtt}  Độ trễ khứ hồi mạng
 #   {seconds}  Thời gian tính bằng giây
+#   {section}  Mục hiển thị trong trình soạn thảo ngôn ngữ
 #   {send}  Trạng thái gửi hình chiếu
 #   {server}  Tên hoặc mã định danh máy chủ
 #   {size}  Kích thước không gian túi theo khối
@@ -117,6 +118,7 @@
 
 [language.editor]
 loading = "Đang tải tin nhắn cho {locale}..."
+title = "{plugin} / {section}"
 
 [language.editor.category]
 message-count = "&7{count} tin nhắn&r"

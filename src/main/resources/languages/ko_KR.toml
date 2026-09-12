@@ -94,6 +94,7 @@
 #   {route}  시도한 이동 경로
 #   {rtt}  네트워크 왕복 지연 시간
 #   {seconds}  시간(초)
+#   {section}  언어 편집기에 표시되는 섹션
 #   {send}  투영 송신 상태
 #   {server}  서버 이름 또는 식별자
 #   {size}  포켓 크기(블록)
@@ -117,6 +118,7 @@
 
 [language.editor]
 loading = "{locale} 메시지를 불러오는 중..."
+title = "{plugin} / {section}"
 
 [language.editor.category]
 message-count = "&7메시지 {count}개&r"

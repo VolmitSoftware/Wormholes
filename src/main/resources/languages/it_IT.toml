@@ -94,6 +94,7 @@
 #   {route}  Percorso di viaggio tentato
 #   {rtt}  Latenza di andata e ritorno della rete
 #   {seconds}  Tempo in secondi
+#   {section}  Sezione mostrata nell’editor di lingua
 #   {send}  Stato di invio della proiezione
 #   {server}  Nome o identificatore del server
 #   {size}  Dimensione dello spazio tascabile in blocchi
@@ -117,6 +118,7 @@
 
 [language.editor]
 loading = "Caricamento dei messaggi in {locale}..."
+title = "{plugin} / {section}"
 
 [language.editor.category]
 message-count = "&7{count} messaggi&r"

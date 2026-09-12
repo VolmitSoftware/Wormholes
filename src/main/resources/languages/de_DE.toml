@@ -94,6 +94,7 @@
 #   {route}  Versuchte Reiseroute
 #   {rtt}  Netzwerklatenz für Hin- und Rückweg
 #   {seconds}  Zeit in Sekunden
+#   {section}  Im Spracheditor angezeigter Abschnitt
 #   {send}  Sendestatus der Projektion
 #   {server}  Servername oder -kennung
 #   {size}  Taschenraumgröße in Blöcken
@@ -117,6 +118,7 @@
 
 [language.editor]
 loading = "Nachrichten für {locale} werden geladen..."
+title = "{plugin} / {section}"
 
 [language.editor.category]
 message-count = "&7{count} Nachrichten&r"

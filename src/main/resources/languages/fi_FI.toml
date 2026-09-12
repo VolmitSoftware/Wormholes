@@ -94,6 +94,7 @@
 #   {route}  Yritetty matkareitti
 #   {rtt}  Verkon edestakainen viive
 #   {seconds}  Aika sekunteina
+#   {section}  Kielieditorissa näytettävä osio
 #   {send}  Heijastuksen lähetystila
 #   {server}  Palvelimen nimi tai tunniste
 #   {size}  Taskutilan koko lohkoina
@@ -117,6 +118,7 @@
 
 [language.editor]
 loading = "Ladataan kielen {locale} viestejä..."
+title = "{plugin} / {section}"
 
 [language.editor.category]
 message-count = "&7{count} viestiä&r"

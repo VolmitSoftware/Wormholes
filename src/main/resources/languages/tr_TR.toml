@@ -94,6 +94,7 @@
 #   {route}  Denenen yolculuk rotası
 #   {rtt}  Ağ gidiş dönüş gecikmesi
 #   {seconds}  Saniye cinsinden süre
+#   {section}  Dil editöründe gösterilen bölüm
 #   {send}  Yansıtma gönderme durumu
 #   {server}  Sunucu adı veya kimliği
 #   {size}  Blok cinsinden cep boyutu
@@ -117,6 +118,7 @@
 
 [language.editor]
 loading = "{locale} mesajları yükleniyor..."
+title = "{plugin} / {section}"
 
 [language.editor.category]
 message-count = "&7{count} mesaj&r"

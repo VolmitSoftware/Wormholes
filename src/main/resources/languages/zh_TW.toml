@@ -94,6 +94,7 @@
 #   {route}  嘗試的傳送路線
 #   {rtt}  網路往返延遲
 #   {seconds}  時間（秒）
+#   {section}  語言編輯器中顯示的區段
 #   {send}  投影傳送狀態
 #   {server}  伺服器名稱或識別碼
 #   {size}  口袋空間大小（方塊）
@@ -117,6 +118,7 @@
 
 [language.editor]
 loading = "正在載入 {locale} 的訊息..."
+title = "{plugin} / {section}"
 
 [language.editor.category]
 message-count = "&7{count} 則訊息&r"

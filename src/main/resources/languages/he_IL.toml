@@ -94,6 +94,7 @@
 #   {route}  מסלול הנסיעה שנוסה
 #   {rtt}  השהיית הרשת הלוך ושוב
 #   {seconds}  משך בשניות
+#   {section}  המקטע המוצג בעורך השפה
 #   {send}  מצב שליחת ההקרנה
 #   {server}  שם השרת או מזההו
 #   {size}  גודל הכיס בבלוקים
@@ -117,6 +118,7 @@
 
 [language.editor]
 loading = "טוען הודעות עבור {locale}..."
+title = "{plugin} / {section}"
 
 [language.editor.category]
 message-count = "&7{count} הודעות&r"

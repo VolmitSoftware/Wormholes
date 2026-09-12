@@ -94,6 +94,7 @@
 #   {route}  Bandytas kelionės maršrutas
 #   {rtt}  Tinklo užklausos ir atsakymo delsa
 #   {seconds}  Laikas sekundėmis
+#   {section}  Kalbos rengyklėje rodomas skyrius
 #   {send}  Projekcijos siuntimo būsena
 #   {server}  Serverio pavadinimas arba identifikatorius
 #   {size}  Kišeninės erdvės dydis blokais
@@ -117,6 +118,7 @@
 
 [language.editor]
 loading = "Įkeliami kalbos {locale} pranešimai..."
+title = "{plugin} / {section}"
 
 [language.editor.category]
 message-count = "&7{count} pranešimai&r"

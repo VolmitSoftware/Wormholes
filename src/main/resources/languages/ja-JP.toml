@@ -94,6 +94,7 @@
 #   {route}  試行した移動経路
 #   {rtt}  ネットワークの往復遅延
 #   {seconds}  時間（秒）
+#   {section}  言語エディターで表示中のセクション
 #   {send}  投影の送信状態
 #   {server}  サーバー名または識別子
 #   {size}  ポケットサイズ（ブロック）
@@ -117,6 +118,7 @@
 
 [language.editor]
 loading = "{locale}のメッセージを読み込んでいます..."
+title = "{plugin} / {section}"
 
 [language.editor.category]
 message-count = "&7{count}件のメッセージ&r"

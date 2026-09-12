@@ -88,6 +88,7 @@ final class WormholesLanguageHeader {
             Map.entry("route", "Attempted travel route"),
             Map.entry("rtt", "Network round-trip latency"),
             Map.entry("seconds", "Time in seconds"),
+            Map.entry("section", "Section shown in the language editor"),
             Map.entry("send", "Projection sending state"),
             Map.entry("server", "Server name or identifier"),
             Map.entry("size", "Pocket size in blocks"),

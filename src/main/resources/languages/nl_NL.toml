@@ -94,6 +94,7 @@
 #   {route}  Geprobeerd reistraject
 #   {rtt}  Netwerklatentie voor heen- en terugreis
 #   {seconds}  Tijd in seconden
+#   {section}  Sectie die in de taalbewerker wordt getoond
 #   {send}  Verzendstatus van de projectie
 #   {server}  Servernaam of -identificatie
 #   {size}  Grootte van de pocketruimte in blokken
@@ -117,6 +118,7 @@
 
 [language.editor]
 loading = "Berichten voor {locale} laden..."
+title = "{plugin} / {section}"
 
 [language.editor.category]
 message-count = "&7{count} berichten&r"
