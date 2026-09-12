@@ -18,6 +18,7 @@ public final class WormholesMessages {
 
     private static final List<MessageKey> KEYS = new ArrayList<>();
 
+    public static final TextKey VERSION_DESCRIPTION = text("command.help.version", "Show the installed plugin version");
     public static final TextKey DEBUG_DUMP_DESCRIPTION = text("command.help.debug_dump", "Create and optionally upload a diagnostic report");
     public static final TextKey DEBUG_DUMP_UPLOAD = text("command.help.debug_dump_upload", "Upload the report to mclo.gs");
     public static final TextKey HELP_LANGUAGE = text("command.help.language", "Choose your language or the server default");

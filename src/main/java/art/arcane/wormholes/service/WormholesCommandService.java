@@ -263,7 +263,7 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
         return commands.stream().filter(value -> value.startsWith(prefix)).toList();
 	}
 
-    static boolean hasAdminCommandAccess(CommandSender sender) {
+    public static boolean hasAdminCommandAccess(CommandSender sender) {
         if (sender == null) {
             return false;
         }

@@ -1,13 +1,19 @@
 package art.arcane.wormholes.portal;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.RETURNS_DEFAULTS;
+import static org.mockito.Mockito.RETURNS_SELF;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
@@ -17,13 +23,22 @@ import java.util.function.Supplier;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Registry;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.MenuType;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 
+import io.papermc.paper.registry.RegistryAccess;
+import io.papermc.paper.registry.RegistryKey;
+
+import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.util.Cuboid;
+import art.arcane.volmlib.util.inventorygui.UIWindow;
 import art.arcane.volmlib.util.json.JSONObject;
 
 public final class LocalPortalMirrorDestinationTest
@@ -167,19 +182,32 @@ public final class LocalPortalMirrorDestinationTest
 		LocalPortal mirror = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
 		mirror.setMirrorMode(true);
 		LocalPortal linkable = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
+		Player viewer = LocalPortalTestSupport.FakeEntity.player("viewer", new Location(world, 0.0D, 64.0D, 0.0D)).player();
+		LocalPortalMenus menus = mock(LocalPortalMenus.class);
+		LocalPortalText text = mock(LocalPortalText.class);
+		when(menus.text()).thenReturn(text);
 
 		assertDoesNotThrow(() -> mirror.uiChooseDestination(null));
-		IllegalStateException pickerEntered = new IllegalStateException("Destination picker requested its viewer identity");
-		Player viewer = (Player) Proxy.newProxyInstance(Player.class.getClassLoader(), new Class<?>[] { Player.class },
-				(proxy, method, arguments) ->
-				{
-					if(method.getName().equals("getUniqueId"))
-					{
-						throw pickerEntered;
-					}
-					throw new UnsupportedOperationException(method.getName());
-				});
-		assertSame(pickerEntered, assertThrows(IllegalStateException.class, () -> linkable.uiChooseDestination(viewer)));
+
+		try(MockedStatic<RegistryAccess> registries = mockStatic(RegistryAccess.class))
+		{
+			RegistryAccess access = mock(RegistryAccess.class, invocation -> menuRegistry(invocation.getArgument(0)));
+			registries.when(RegistryAccess::registryAccess).thenReturn(access);
+
+			try(MockedConstruction<UIWindow> windows = mockConstruction(UIWindow.class, withSettings().defaultAnswer(RETURNS_SELF),
+					(window, context) -> assertSame(viewer, context.arguments().get(1))))
+			{
+				new LocalPortalDestinationMenu(mirror, menus).open(viewer);
+
+				assertTrue(windows.constructed().isEmpty());
+				verify(text).notifySetting(viewer, WormholesMessages.PORTAL_TRAVEL_MIRROR_LOCKED);
+
+				new LocalPortalDestinationMenu(linkable, menus).open(viewer);
+
+				assertEquals(1, windows.constructed().size());
+				verify(windows.constructed().getFirst()).setVisible(true);
+			}
+		}
 	}
 
 	@Test
@@ -237,6 +265,16 @@ public final class LocalPortalMirrorDestinationTest
 		assertFalse(reloaded.isMirrorMode());
 		assertNotNull(reloaded.getTunnel());
 		assertEquals(destination.getId(), reloaded.getTunnel().getDestinationId());
+	}
+
+	private static Registry<?> menuRegistry(Object key)
+	{
+		boolean menu = key == MenuType.class || key == RegistryKey.MENU;
+		return mock(Registry.class, invocation -> switch(invocation.getMethod().getName())
+		{
+			case "get", "getOrThrow" -> menu ? mock(MenuType.Typed.class, RETURNS_SELF) : null;
+			default -> RETURNS_DEFAULTS.answer(invocation);
+		});
 	}
 
 	private static LocalPortal reload(JSONObject stored, World world) throws Exception
