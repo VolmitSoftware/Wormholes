@@ -48,16 +48,12 @@ permissions:
     description: Gives access to all Wormholes admin permissions.
     default: op
     children:
-      wormholes.admin.reload: true
       wormholes.admin.items: true
       wormholes.admin.network: true
       wormholes.admin.projection: true
       wormholes.admin.reset: true
       wormholes.admin.pocket: true
       wormholes.doors.bypass: true
-  wormholes.admin.reload:
-    description: Allows reloading Wormholes configuration.
-    default: op
   wormholes.admin.items:
     description: Allows spawning Wormholes items (Portal Wand, Wormhole Rune, and Dimensional Door items).
     default: op

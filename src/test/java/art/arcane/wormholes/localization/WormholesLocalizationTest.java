@@ -99,9 +99,9 @@ class WormholesLocalizationTest {
         WormholesLocalization localization = new WormholesLocalization();
         PluginLanguageEditor.Options editor = localization.editorOptions(tempDir, () -> "");
         Files.writeString(tempDir.resolve("languages/fr_FR.toml"), """
-                "command.error.usage" = "Utilisation"
+                "command.unknown" = "Commande inconnue"
                 """);
-        TextKey key = (TextKey) WormholesMessages.catalog().require("command.error.usage");
+        TextKey key = WormholesMessages.COMMAND_UNKNOWN;
         MessageValue original = editor.loader().load("fr_FR").value(key);
         Path file = tempDir.resolve("languages/fr_FR.toml");
         Path installed = tempDir.resolve("languages/fr_FR.toml");
@@ -109,7 +109,10 @@ class WormholesLocalizationTest {
         assertThrows(IllegalArgumentException.class, () -> editor.writer().write(new PluginLanguageEditor.Edit(
                 "fr_FR", key.id(), original, new TextValue("{unexpected}"))));
         assertArrayEquals(base, Files.readAllBytes(file));
-        TextValue replacement = new TextValue("Utilisation modifiee");
+        assertThrows(IllegalArgumentException.class, () -> editor.writer().write(new PluginLanguageEditor.Edit(
+                "fr_FR", key.id(), original, new TextValue(" \t"))));
+        assertArrayEquals(base, Files.readAllBytes(file));
+        TextValue replacement = new TextValue("Commande inconnue modifiée");
         editor.writer().write(new PluginLanguageEditor.Edit("fr_FR", key.id(), original, replacement));
         byte[] saved = Files.readAllBytes(file);
         assertThrows(IOException.class, () -> editor.writer().write(new PluginLanguageEditor.Edit(
@@ -183,7 +186,7 @@ class WormholesLocalizationTest {
             other = "{count} portales borrados"
             """);
         writeLocale("fr_FR", """
-            "command.error.usage" = "<gray>Utilisation : <white>/wormholes help"
+            "command.unknown" = "<gray>Commande inconnue. Utilisez <white>/wormholes."
             """);
 
         WormholesLocalization localization = new WormholesLocalization();
@@ -193,7 +196,7 @@ class WormholesLocalizationTest {
         assertEquals("Entrada eliminado", localization.plain(
                 WormholesMessages.PORTAL_DELETED,
                 WormholesLocalization.args(MessageArgument.untrusted("portal", "Entrada"))));
-        assertEquals("Utilisation : /wormholes help", localization.plain(WormholesMessages.COMMAND_USAGE_HELP));
+        assertEquals("Commande inconnue. Utilisez /wormholes.", localization.plain(WormholesMessages.COMMAND_UNKNOWN));
         assertEquals("Ayuda de portales", localization.legacyLines(WormholesMessages.COMMAND_PUBLIC_HELP).getFirst());
         assertEquals("2 portales borrados", localization.plain(
                 WormholesMessages.COMMAND_DELETED_PORTALS,
@@ -212,7 +215,7 @@ class WormholesLocalizationTest {
         assertEquals("Entrada eliminado", localization.plain(
                 WormholesMessages.PORTAL_DELETED,
                 WormholesLocalization.args(MessageArgument.untrusted("portal", "Entrada"))));
-        assertEquals("Utilisation : /wormholes help", localization.plain(WormholesMessages.COMMAND_USAGE_HELP));
+        assertEquals("Commande inconnue. Utilisez /wormholes.", localization.plain(WormholesMessages.COMMAND_UNKNOWN));
     }
 
     @Test
@@ -224,11 +227,111 @@ class WormholesLocalizationTest {
         assertTrue(generated.startsWith("# Wormholes — en_US"));
         assertTrue(generated.contains("&c{portal} Deleted"));
         assertTrue(generated.contains("&b&lOpenState: &f&l{state}"));
-        String content = "\"command.error.usage\" = \"Edited help\"\n";
+        String content = "\"command.unknown\" = \"Edited feedback\"\n";
         Files.writeString(english, content);
         assertTrue(localization.reload(tempDir, "en_US", "").applied());
-        assertEquals("Edited help", localization.plain(WormholesMessages.COMMAND_USAGE_HELP));
+        assertEquals("Edited feedback", localization.plain(WormholesMessages.COMMAND_UNKNOWN));
         assertEquals(content, Files.readString(english));
+    }
+
+    @Test
+    void selectedLanguageFallsThroughConfiguredLanguagesThenEditedEnglish() throws IOException {
+        writeLocale("custom_ES", """
+                "command.debug.enabled" = "Depuración activada."
+                """);
+        writeLocale("fr_FR", """
+                "command.unknown" = "Commande inconnue."
+                """);
+        writeLocale("en_US", """
+                "command.unknown" = "Edited unknown command."
+                "command.debug.disabled" = "Edited debug disabled."
+                """);
+        WormholesLocalization localization = new WormholesLocalization();
+
+        assertTrue(localization.reload(tempDir, "custom_ES", "fr_FR,../invalid").applied());
+        assertEquals("Depuración activada.", localization.plain(WormholesMessages.COMMAND_DEBUG_ENABLED));
+        assertEquals("Commande inconnue.", localization.plain(WormholesMessages.COMMAND_UNKNOWN));
+        assertEquals("Edited debug disabled.", localization.plain(WormholesMessages.COMMAND_DEBUG_DISABLED));
+        assertEquals("en_US", localization.snapshot().sourceLocale(WormholesMessages.COMMAND_DEBUG_DISABLED));
+        assertEquals(WormholesMessages.PORTAL_DELETED.englishValue(),
+                localization.snapshot().value(WormholesMessages.PORTAL_DELETED));
+
+        writeLocale("en_US", """
+                "command.debug.disabled" = "Updated English feedback."
+                """);
+        assertTrue(localization.reload(tempDir, "custom_ES", "fr_FR").applied());
+        assertEquals("Updated English feedback.", localization.plain(WormholesMessages.COMMAND_DEBUG_DISABLED));
+    }
+
+    @Test
+    void missingSelectedLanguageUsesEditedEnglishAndInvalidEnglishEntriesUseCatalogDefaults() throws IOException {
+        writeLocale("en_US", """
+                "command.unknown" = "Edited unknown command."
+                "command.debug.enabled" = "   "
+                "command.debug.disabled" = false
+                """);
+        WormholesLocalization localization = new WormholesLocalization();
+
+        assertTrue(localization.reload(tempDir, "missing_custom", "").applied());
+        assertEquals("Edited unknown command.", localization.plain(WormholesMessages.COMMAND_UNKNOWN));
+        assertEquals("Debug logging enabled.", localization.plain(WormholesMessages.COMMAND_DEBUG_ENABLED));
+        assertEquals("Debug logging disabled.", localization.plain(WormholesMessages.COMMAND_DEBUG_DISABLED));
+    }
+
+    @Test
+    void invalidSelectedLocaleReturnsToEnglishAfterAnotherLanguageWasActive() throws IOException {
+        writeLocale("en_US", "");
+        WormholesLocalization localization = new WormholesLocalization();
+        String[] invalidLocales = {null, "", " \t", "../outside", "fr/FR", "en_US", " EN-us "};
+        for (String locale : invalidLocales) {
+            assertTrue(localization.reload(tempDir, "fr_FR", "").applied());
+            assertEquals("fr_FR", localization.snapshot().sourceLocale(WormholesMessages.COMMAND_UNKNOWN));
+
+            assertTrue(localization.reload(tempDir, locale, "fr_FR").applied());
+            assertEquals("en_US", localization.snapshot().sourceLocale(WormholesMessages.COMMAND_UNKNOWN));
+            assertEquals("Unknown command, please use /wormholes for help.",
+                    localization.plain(WormholesMessages.COMMAND_UNKNOWN));
+        }
+    }
+
+    @Test
+    void blankAndWrongShapeTranslationsFallBackWhileValidMessagesRemainTranslated() throws IOException {
+        writeLocale("custom_ES", """
+                "portal.deleted" = "{portal} eliminado"
+                "command.unknown" = ""
+                "command.debug.enabled" = "   "
+                "command.debug.disabled" = false
+                "command.public_help" = ["Ayuda", ""]
+
+                [command.admin.deleted_portals]
+                one = ""
+                other = "{count} portales borrados"
+                """);
+        WormholesLocalization localization = new WormholesLocalization();
+
+        assertTrue(localization.reload(tempDir, "custom_ES", "").applied());
+        for (MessageKey key : List.of(WormholesMessages.COMMAND_UNKNOWN, WormholesMessages.COMMAND_DEBUG_ENABLED,
+                WormholesMessages.COMMAND_DEBUG_DISABLED, WormholesMessages.COMMAND_PUBLIC_HELP,
+                WormholesMessages.COMMAND_DELETED_PORTALS)) {
+            assertEquals(key.englishValue(), localization.snapshot().value(key), key.id());
+            assertEquals("en_US", localization.snapshot().sourceLocale(key), key.id());
+        }
+        assertEquals("Entrada eliminado", localization.plain(WormholesMessages.PORTAL_DELETED,
+                WormholesLocalization.args(MessageArgument.untrusted("portal", "Entrada"))));
+    }
+
+    @Test
+    void malformedEnglishFileFallsBackToCatalogWhileValidSelectedEntriesRemainTranslated() throws IOException {
+        writeLocale("custom_ES", """
+                "command.debug.enabled" = "Depuración activada."
+                """);
+        writeLocale("en_US", "[command\nunknown = \"Unclosed table\"\n");
+        WormholesLocalization localization = new WormholesLocalization();
+
+        assertTrue(localization.reload(tempDir, "custom_ES", "").applied());
+        assertEquals("Depuración activada.", localization.plain(WormholesMessages.COMMAND_DEBUG_ENABLED));
+        assertEquals("Unknown command, please use /wormholes for help.",
+                localization.plain(WormholesMessages.COMMAND_UNKNOWN));
     }
 
     @Test
@@ -290,13 +393,13 @@ class WormholesLocalizationTest {
 
         writeLocale("es_ES", """
             "portal.deleted" = "<red>{name} eliminado"
-            "command.error.usage" = "Ayuda"
+            "command.unknown" = "Comando desconocido."
             """);
         LocalizationReloadResult rejected = localization.reload(tempDir, "es_ES", "");
 
         assertTrue(rejected.applied());
         assertEquals(WormholesMessages.PORTAL_DELETED.englishValue(), localization.snapshot().value(WormholesMessages.PORTAL_DELETED));
-        assertEquals("Ayuda", localization.plain(WormholesMessages.COMMAND_USAGE_HELP));
+        assertEquals("Comando desconocido.", localization.plain(WormholesMessages.COMMAND_UNKNOWN));
 
     }
 

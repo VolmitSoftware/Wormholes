@@ -23,7 +23,8 @@ public final class WormholesPlaceholders implements Listener {
 
     private final PlaceholderSnapshot<WormholesRuntimeSnapshot> runtime = new PlaceholderSnapshot<>();
     private final PlayerSnapshotStore<WormholesPortalSnapshot> portals = new PlayerSnapshotStore<>();
-    private final PlaceholderKeyRegistry keys = registry(runtime, portals);
+    private final PlaceholderSnapshot<WormholesNamedPortalSnapshot> namedPortals = new PlaceholderSnapshot<>();
+    private final PlaceholderKeyRegistry keys = registry(runtime, portals, namedPortals);
     private final PlaceholderRegistration registration;
     private final String version;
     private final Logger logger;
@@ -61,6 +62,7 @@ public final class WormholesPlaceholders implements Listener {
         registration.unregister();
         portals.clear();
         runtime.publish(null);
+        namedPortals.publish(null);
     }
 
     public void publishRuntime(WormholesRuntimeSnapshot snapshot) {
@@ -69,6 +71,10 @@ public final class WormholesPlaceholders implements Listener {
 
     public void publishPortal(UUID playerId, WormholesPortalSnapshot snapshot) {
         portals.publish(playerId, snapshot);
+    }
+
+    public void publishNamedPortals(WormholesNamedPortalSnapshot snapshot) {
+        namedPortals.publish(snapshot);
     }
 
     public void forget(UUID playerId) {
@@ -81,7 +87,8 @@ public final class WormholesPlaceholders implements Listener {
 
     public static PlaceholderKeyRegistry registry(
         PlaceholderSnapshot<WormholesRuntimeSnapshot> runtime,
-        PlayerSnapshotStore<WormholesPortalSnapshot> portals) {
+        PlayerSnapshotStore<WormholesPortalSnapshot> portals,
+        PlaceholderSnapshot<WormholesNamedPortalSnapshot> namedPortals) {
         return PlaceholderKeyRegistry.builder()
             .key(PlaceholderKeyRegistry.AVAILABLE, playerId -> runtime.available())
             .key("portals", playerId -> runtimeValue(runtime, WormholesRuntimeSnapshot::portals))
@@ -100,6 +107,8 @@ public final class WormholesPlaceholders implements Listener {
             .key("portal.cross-server", playerId -> portalValue(portals, playerId, WormholesPortalSnapshot::crossServer))
             .key("rtp.state", playerId -> portalValue(portals, playerId, WormholesPortalSnapshot::rtpState))
             .key("rtp.cooldown", playerId -> portalValue(portals, playerId, WormholesPortalSnapshot::rtpCooldown))
+            .group("portal", (playerId, tail) -> WormholesNamedPortalSnapshot.resolve(
+                namedPortals.get(), playerId, tail, System.currentTimeMillis()))
             .build();
     }
 

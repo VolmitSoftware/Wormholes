@@ -2,7 +2,7 @@
 #
 # === Failo redagavimas ===
 # plugins/Wormholes/languages/lt_LT.toml
-# Šį failą galima redaguoti tiesiogiai. Vietiniai pakeitimai išsaugomi; trūkstamiems ar netinkamiems įrašams naudojama integruota anglų kalba.
+# Šį failą galima redaguoti tiesiogiai. Vietiniai pakeitimai išsaugomi; trūkstami, tušti ar netinkami įrašai naudoja atsargines kalbas, o po jų naudojama anglų kalba.
 # /wormholes language server edit lt_LT
 #
 # === Priešdėlis ===
@@ -94,6 +94,7 @@
 #   {route}  Bandytas kelionės maršrutas
 #   {rtt}  Tinklo užklausos ir atsakymo delsa
 #   {seconds}  Laikas sekundėmis
+#   {section}  Kalbos redaktoriaus skyrius
 #   {send}  Projekcijos siuntimo būsena
 #   {server}  Serverio pavadinimas arba identifikatorius
 #   {size}  Kišeninės erdvės dydis blokais
@@ -106,7 +107,6 @@
 #   {target}  Kalbos pasirinkimą gaunantis papildinys
 #   {type}  Objekto arba parametro tipas
 #   {up}  Kryptis projekcijos viršuje
-#   {usage}  Komandos sintaksė
 #   {value}  Dabartinė arba pasirinkta reikšmė
 #   {variables}  Pranešime leidžiami kintamieji
 #   {whitelisted}  Leidžiami žaidėjai
@@ -116,6 +116,7 @@
 #   {z}  Z koordinatė
 
 [language.editor]
+title = "{plugin} › {section}"
 loading = "Įkeliami kalbos {locale} pranešimai..."
 
 [language.editor.category]
@@ -221,8 +222,13 @@ selection = "Naudojimas: /{command} language self [locale|reset] or server [loca
 volmit-selection = "Naudojimas: /volmit plugins languages [locale]"
 
 [command]
+unknown = "Nežinoma komanda. Pagalbai naudokite /wormholes."
 public_help = ["&8[&6Wormholes&8] &7Portalų pagalba: &f/wormholes info", "&8[&6Wormholes&8] &7Naudokite portalo lazdelę portale, kad keistumėte jo tikslą, vaizdą, keliavimą ir prieigą."]
 info = ["&8[&6Wormholes&8] &7&lKaip pastatyti kirmgraužą&r", "&81. &7Gaukite portalo lazdelę ir portalo runų iš serverio arba administratoriaus.", "&82. &7Sudėkite runas į bet kokią sujungtą formą ant vieno lygaus paviršiaus.", "&7   Tinka bet kokia sujungta forma: stačiakampis, linija (3x1), vienas blokas, L forma ar kryžius.", "&7   Runos turi gulėti ant tos pačios su ašimis lygiagrečios sienos, grindų arba lubų.", "&83. &7Laikykite portalo lazdelę ir &fkairiuoju pelės mygtuku spustelėkite runos bloką&7, kad sukurtumėte portalą.", "&84. &7Kitur pastatykite ANTRĄ portalą (bet kokiu atstumu ir bet kuriame pasaulyje).", "&85. &7Spustelėkite atvertą portalą lazdele, kad atidarytumėte pagrindinį meniu.", "&7   Pasirinkite &fTikslas&7 ir kitą portalą. Pakartokite iš kitos pusės.", "&7   Krypties ir prieigos valdikliai pateikiami atskiruose paprastuose meniu.", "&86. &7Stovėkite ne toliau kaip {range} blokų nuo vieno portalo — tikslinis pasaulis bus projektuojamas rėme, o įžengę teleportuositės.", "&7Administratoriai gali kurti daiktus su &f/wormholes wand"]
+
+[command.debug]
+enabled = "Derinimo žurnalas įjungtas."
+disabled = "Derinimo žurnalas išjungtas."
 
 [command.help]
 version = "Rodyti įdiegto papildinio versiją"
@@ -235,7 +241,6 @@ wand = "Gauti portalo lazdele ir kirmgrauzos runa"
 "wand.rune" = "Iteikti ir kirmgrauzos runa (rune=false duoda tik lazdele)"
 door = "Gauti išgyvenimo režime naudojamas dimensijų duris"
 "door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-reload = "Iš naujo įkelti Wormholes nuostatas ir kalbos failus"
 debug_toggle = "Perjungti išsamius konsolės žurnalus ir vienos sekundės telemetriją"
 stats = "Rodyti tiesioginės statistikos failo kelią; atnaujinti su now=true"
 "stats.now" = "Nedelsiant sinchroniškai atkurti statistikos failą"
@@ -273,7 +278,6 @@ pocket = "Perziureti ir perstatyti kisenines dimensijas"
 no_permission = "&8[&6Wormholes&8] &cJūs neturite leidimo."
 no_permission_use = "&8[&6Wormholes&8] &cNeturite leidimo naudoti šią komandą."
 only_players = "&8[&6Wormholes&8] &cTik žaidėjai gali gauti daiktus."
-usage = "&7Naudojimas: &f/wormholes help"
 
 [command.wand]
 granted_wand = "&8[&6Wormholes&8] &aPortalo lazdele iteikta."
@@ -284,11 +288,6 @@ unavailable = "&8[&6Wormholes&8] &cNegalima naudoti matmeninių durų."
 unknown_type = "&8[&6Wormholes&8] &cNežinomas durų tipas. Naudokite pair, personal arba public, pair_trapdoor, personal_trapdoor, public_trapdoor."
 empty_type = "Durų tipas negali būti tuščias"
 granted = "&8[&6Wormholes&8] &aSuteiktas &f{type}&a tipo matmenų durų daiktas."
-
-[command.reload]
-applied = "&8[&6Wormholes&8] &aWormholes konfigūracijos ir kalbos failai įkelti iš naujo."
-language_retained = "&8[&6Wormholes&8] &eKonfigūracija įkelta iš naujo, tačiau kalbos failas atmestas. Paskutinė tinkama kalba lieka aktyvi; patikrinkite konsolę."
-failed = "&8[&6Wormholes&8] &cKonfigūracijos nepavyko įkelti iš naujo; pakeitimas lieka laukiantis ir bus bandomas dar kartą. Patikrinkite konsolę."
 
 [command.stats]
 unavailable = "&8[&6Wormholes&8] &cNepavyko įrašyti statistikos momentinės kopijos."
@@ -672,9 +671,6 @@ required = "Šis parametras yra privalomas."
 optional = "Šis parametras yra neprivalomas."
 default = "Jei nenurodyta, numatytoji reikšmė yra \"{value}\"."
 type = "Šio parametro tipas yra {type}."
-
-[director.runtime]
-usage = "Naudojimas: {usage}"
 
 [director.runtime.error]
 invalid_origin = "Šios komandos negalima vykdyti iš šio šaltinio."

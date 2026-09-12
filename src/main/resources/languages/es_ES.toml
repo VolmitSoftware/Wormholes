@@ -2,7 +2,7 @@
 #
 # === Editar el archivo ===
 # plugins/Wormholes/languages/es_ES.toml
-# Puede editar este archivo directamente. Los cambios locales se conservan; las entradas ausentes o no válidas usan el inglés incorporado.
+# Puedes editar este archivo directamente. Se conservan los cambios locales; las entradas ausentes, vacías o no válidas usan los idiomas de respaldo y después el inglés.
 # /wormholes language server edit es_ES
 #
 # === Prefijo ===
@@ -94,6 +94,7 @@
 #   {route}  Ruta de viaje intentada
 #   {rtt}  Latencia de ida y vuelta en la red
 #   {seconds}  Tiempo en segundos
+#   {section}  Sección del editor de idiomas
 #   {send}  Estado de envío de la proyección
 #   {server}  Nombre o identificador del servidor
 #   {size}  Tamaño del recinto en bloques
@@ -106,7 +107,6 @@
 #   {target}  Complemento al que se aplica la selección de idioma
 #   {type}  Tipo de objeto o parámetro
 #   {up}  Dirección de la parte superior de la proyección
-#   {usage}  Sintaxis del comando
 #   {value}  Valor actual o seleccionado
 #   {variables}  Variables permitidas en el mensaje
 #   {whitelisted}  Jugadores permitidos
@@ -116,6 +116,7 @@
 #   {z}  Coordenada Z
 
 [language.editor]
+title = "{plugin} › {section}"
 loading = "Cargando los mensajes de {locale}..."
 
 [language.editor.category]
@@ -221,8 +222,13 @@ selection = "Uso: /{command} language self [locale|reset] or server [locale]"
 volmit-selection = "Uso: /volmit plugins languages [locale]"
 
 [command]
+unknown = "Comando desconocido. Usa /wormholes para obtener ayuda."
 public_help = ["&8[&6Wormholes&8] &7Ayuda de portales: &f/wormholes info", "&8[&6Wormholes&8] &7Usa la Varita del Portal sobre un portal para configurar el destino, la vista, el viaje y el acceso."]
 info = ["&8[&6Wormholes&8] &7&lCómo construir un agujero de gusano&r", "&81. &7Obtén una Varita del Portal y runas de portal del servidor o de un administrador.", "&82. &7Coloca las runas formando cualquier figura conectada sobre una superficie plana.", "&7   Sirve cualquier figura conectada: rectángulos, líneas (3x1), bloques individuales, formas de L y cruces.", "&7   Las runas deben quedar planas en una misma pared, suelo o techo alineado con los ejes.", "&83. &7Sujeta la Varita del Portal y &fhaz clic izquierdo en cualquier bloque de runa&7 para formar el portal.", "&84. &7Construye un SEGUNDO portal en otro lugar (a cualquier distancia y en cualquier mundo).", "&85. &7Haz clic en el portal abierto con la varita para abrir el menú principal.", "&7   Elige &fDestino&7 y selecciona el otro portal. Repite la operación desde el otro lado.", "&7   La orientación y el acceso se agrupan en sus propios menús sencillos.", "&86. &7Permanece a menos de {range} bloques de cualquiera de los portales — el mundo de destino se proyectará en el marco y entrar te teletransportará.", "&7Los administradores pueden crear objetos con &f/wormholes wand"]
+
+[command.debug]
+enabled = "Registro de depuración activado."
+disabled = "Registro de depuración desactivado."
 
 [command.help]
 version = "Mostrar la versión del plugin instalado"
@@ -235,7 +241,6 @@ wand = "Obtener la varita de portal y una runa de agujero de gusano"
 "wand.rune" = "Incluir una runa de agujero de gusano (rune=false entrega solo la varita)"
 door = "Obtener una Puerta Dimensional utilizable en supervivencia"
 "door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-reload = "Recargar la configuración y los archivos de idioma de Wormholes"
 debug_toggle = "Alternar registros detallados y telemetría de un segundo en la consola"
 stats = "Mostrar la ruta de la instantánea de estadísticas; usar now=true para actualizarla"
 "stats.now" = "Reconstruir la instantánea inmediatamente y de forma síncrona"
@@ -273,7 +278,6 @@ pocket = "Inspeccionar y remodelar dimensiones de bolsillo"
 no_permission = "&8[&6Wormholes&8] &cNo tienes permiso."
 no_permission_use = "&8[&6Wormholes&8] &cNo tienes permiso para usar ese comando."
 only_players = "&8[&6Wormholes&8] &cSolo los jugadores pueden recibir objetos."
-usage = "&7Uso: &f/wormholes help"
 
 [command.wand]
 granted_wand = "&8[&6Wormholes&8] &aVarita de portal entregada."
@@ -284,11 +288,6 @@ unavailable = "&8[&6Wormholes&8] &cLas Puertas Dimensionales no están disponibl
 unknown_type = "&8[&6Wormholes&8] &cTipo de puerta desconocido. Usa pair, personal o public, pair_trapdoor, personal_trapdoor, public_trapdoor."
 empty_type = "El tipo de puerta no puede estar vacío"
 granted = "&8[&6Wormholes&8] &aSe ha entregado un objeto de puerta dimensional de tipo &f{type}&a."
-
-[command.reload]
-applied = "&8[&6Wormholes&8] &aSe han recargado los archivos de configuración e idioma de Wormholes."
-language_retained = "&8[&6Wormholes&8] &eConfiguración recargada, pero el archivo de idioma fue rechazado. El último idioma válido sigue activo; compruebe la consola."
-failed = "&8[&6Wormholes&8] &cError al recargar la configuración; la edición sigue pendiente y se reintentará. Compruebe la consola."
 
 [command.stats]
 unavailable = "&8[&6Wormholes&8] &cNo se puede escribir la instantánea de estadísticas."
@@ -672,9 +671,6 @@ required = "Este parámetro es obligatorio."
 optional = "Este parámetro es opcional."
 default = "Valor predeterminado \"{value}\" si no se define."
 type = "Este parámetro es de tipo {type}."
-
-[director.runtime]
-usage = "Uso: {usage}"
 
 [director.runtime.error]
 invalid_origin = "Este comando no se puede ejecutar desde este origen."

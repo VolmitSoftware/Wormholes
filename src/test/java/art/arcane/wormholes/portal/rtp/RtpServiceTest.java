@@ -67,6 +67,34 @@ public final class RtpServiceTest
 	}
 
 	@Test
+	public void publishesEachPlayersDestinationAndDeadlineWithoutReleasingReservations()
+	{
+		TestHarness harness = new TestHarness(uniqueSampler());
+		UUID portalId = uuid("published-player-destinations");
+		UUID first = uuid("first-published-player");
+		UUID second = uuid("second-published-player");
+		harness.register(portalId, settings(RtpAllocationMode.PER_PLAYER, RtpRotationMode.TIMED));
+		harness.service.touchViewer(portalId, first).join();
+		harness.executor.runAll();
+		harness.advance(1_000L);
+		harness.service.touchViewer(portalId, second).join();
+		harness.executor.runAll();
+		RtpService.Snapshot published = harness.service.snapshot(portalId).orElseThrow();
+
+		assertEquals(15_000L, published.playerDestinations().get(first).nextRotationAtMillis());
+		assertEquals(16_000L, published.playerDestinations().get(second).nextRotationAtMillis());
+		assertNotEquals(published.playerDestinations().get(first).destination(), published.playerDestinations().get(second).destination());
+		assertThrows(UnsupportedOperationException.class, () -> published.playerDestinations().clear());
+
+		harness.service.leaveViewer(portalId, first).join();
+		assertFalse(harness.service.snapshot(portalId).orElseThrow().playerDestinations().containsKey(first));
+		assertEquals(2, published.playerDestinations().size());
+		harness.service.touchViewer(portalId, first).join();
+		assertEquals(published.playerDestinations().get(first),
+				harness.service.snapshot(portalId).orElseThrow().playerDestinations().get(first));
+	}
+
+	@Test
 	public void sharedPortalPublishesFirstSafeCandidateWhileStandbyWarms()
 	{
 		TestHarness harness = new TestHarness(uniqueSampler());

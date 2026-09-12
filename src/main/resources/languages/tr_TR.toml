@@ -2,7 +2,7 @@
 #
 # === Dosyayı düzenleme ===
 # plugins/Wormholes/languages/tr_TR.toml
-# Bu dosyayı doğrudan düzenleyebilirsiniz. Yerel değişiklikler korunur; eksik veya geçersiz girdiler yerleşik İngilizce metni kullanır.
+# Bu dosya doğrudan düzenlenebilir. Yerel değişiklikler korunur; eksik, boş veya geçersiz girdiler önce yedek dilleri, ardından İngilizceyi kullanır.
 # /wormholes language server edit tr_TR
 #
 # === Önek ===
@@ -94,6 +94,7 @@
 #   {route}  Denenen yolculuk rotası
 #   {rtt}  Ağ gidiş dönüş gecikmesi
 #   {seconds}  Saniye cinsinden süre
+#   {section}  Dil düzenleyicisi bölümü
 #   {send}  Yansıtma gönderme durumu
 #   {server}  Sunucu adı veya kimliği
 #   {size}  Blok cinsinden cep boyutu
@@ -106,7 +107,6 @@
 #   {target}  Dil seçiminin uygulanacağı eklenti
 #   {type}  Nesne veya parametre türü
 #   {up}  Yansıtmanın üst tarafındaki yön
-#   {usage}  Komut sözdizimi
 #   {value}  Geçerli veya seçilen değer
 #   {variables}  İletide izin verilen değişkenler
 #   {whitelisted}  İzin verilen oyuncular
@@ -116,6 +116,7 @@
 #   {z}  Z koordinatı
 
 [language.editor]
+title = "{plugin} › {section}"
 loading = "{locale} mesajları yükleniyor..."
 
 [language.editor.category]
@@ -221,8 +222,13 @@ selection = "Kullanım: /{command} language self [locale|reset] or server [local
 volmit-selection = "Kullanım: /volmit plugins languages [locale]"
 
 [command]
+unknown = "Bilinmeyen komut. Yardım için /wormholes kullanın."
 public_help = ["&8[&6Wormholes&8] &7Portal yardımı: &f/wormholes info", "&8[&6Wormholes&8] &7Hedef, görünüm, seyahat ve erişim ayarlarını açmak için portal asasını portalda kullanın."]
 info = ["&8[&6Wormholes&8] &7&lSolucan deliği nasıl yapılır&r", "&81. &7Sunucudan veya bir yöneticiden portal asası ve portal rünleri alın.", "&82. &7Rünleri aynı düz yüzeyde bağlantılı herhangi bir şekle yerleştirin.", "&7   Dikdörtgen, çizgi (3x1), tek blok, L şekli ve haç gibi tüm bağlantılı şekiller çalışır.", "&7   Rünler eksenlere hizalı tek bir duvar, zemin veya tavanda düz durmalıdır.", "&83. &7Portal asasını tutup &fherhangi bir rün bloğuna sol tıklayarak&7 portalı oluşturun.", "&84. &7Başka bir yerde ikinci bir portal oluşturun (mesafe ve dünya fark etmez).", "&85. &7Ana menüyü açmak için açık portala asayla tıklayın.", "&7   &fHedef&7 seçeneğini açıp diğer portalı seçin. Öteki tarafta da tekrarlayın.", "&7   Yön ve erişim ayarları ayrı, basit menülerde gruplanmıştır.", "&86. &7Portallardan birinin {range} blok yakınında durun; hedef dünya çerçevede görünür ve içeri yürüdüğünüzde ışınlanırsınız.", "&7Yöneticiler &f/wormholes wand komutuyla malzeme oluşturabilir"]
+
+[command.debug]
+enabled = "Hata ayıklama günlükleri etkinleştirildi."
+disabled = "Hata ayıklama günlükleri devre dışı bırakıldı."
 
 [command.help]
 version = "Yüklü eklenti sürümünü göster"
@@ -235,7 +241,6 @@ wand = "Portal asasi ve bir solucan deligi runu al"
 "wand.rune" = "Solucan deligi runu da ver (rune=false yalnizca asayi verir)"
 door = "Hayatta kalma modunda kullanılabilen bir boyut kapısı öğesi ver"
 "door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-reload = "Wormholes yapılandırma ve dil dosyalarını yeniden yükle"
 debug_toggle = "Ayrıntılı konsol günlüklerini ve saniyelik telemetriyi açıp kapat"
 stats = "Canlı istatistik anlık görüntüsünün dosya yolunu göster; now=true ile yenilemeyi zorla"
 "stats.now" = "Anlık görüntüyü eşzamanlı olarak yeniden oluştur"
@@ -273,7 +278,6 @@ pocket = "Cep boyutlarini incele ve yeniden sekillendir"
 no_permission = "&8[&6Wormholes&8] &cİzininiz yok."
 no_permission_use = "&8[&6Wormholes&8] &cBu komutu kullanma izniniz yok."
 only_players = "&8[&6Wormholes&8] &cSadece oyuncular eşyalar alabilir."
-usage = "&7Kullanım: &f/wormholes help"
 
 [command.wand]
 granted_wand = "&8[&6Wormholes&8] &aPortal asasi verildi."
@@ -284,11 +288,6 @@ unavailable = "&8[&6Wormholes&8] &cBoyut kapıları kullanılamıyor."
 unknown_type = "&8[&6Wormholes&8] &cBilinmeyen kapı türü. pair, personal veya public, pair_trapdoor, personal_trapdoor, public_trapdoor değerini kullanın."
 empty_type = "Kapı tipi boş olamaz"
 granted = "&8[&6Wormholes&8] &a&f{type}&a türünde bir boyut kapısı öğesi verildi."
-
-[command.reload]
-applied = "&8[&6Wormholes&8] &aWormholes yapılandırma ve dil dosyaları yeniden yüklendi."
-language_retained = "&8[&6Wormholes&8] &eYapılandırma yeniden yüklendi ancak dil dosyası reddedildi. Son geçerli dil etkin kalır; konsolu kontrol edin."
-failed = "&8[&6Wormholes&8] &cYapılandırma yeniden yüklenemedi; düzenleme beklemede kalıyor ve yeniden denenecek. Konsolu kontrol edin."
 
 [command.stats]
 unavailable = "&8[&6Wormholes&8] &cİstatistik anlık görüntü yazıcısı kullanılamıyor."
@@ -672,9 +671,6 @@ required = "Bu parametre zorunludur."
 optional = "Bu parametre isteğe bağlıdır."
 default = "Belirtilmezse varsayılan değer \"{value}\" olur."
 type = "Bu parametrenin türü {type}."
-
-[director.runtime]
-usage = "Kullanım: {usage}"
 
 [director.runtime.error]
 invalid_origin = "Bu komut bu kaynaktan çalıştırılamaz."

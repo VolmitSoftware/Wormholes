@@ -2,7 +2,7 @@
 #
 # === ファイルの編集 ===
 # plugins/Wormholes/languages/ja-JP.toml
-# このファイルを直接編集できます。ローカルの変更は保持され、不足または無効な項目には内蔵の英語を使用します。
+# このファイルは直接編集できます。ローカルの変更は保持されます。欠落、空、または無効な項目には代替言語を使用し、その後に英語を使用します。
 # /wormholes language server edit ja-JP
 #
 # === 接頭辞 ===
@@ -94,6 +94,7 @@
 #   {route}  試行した移動経路
 #   {rtt}  ネットワークの往復遅延
 #   {seconds}  時間（秒）
+#   {section}  言語エディターのセクション
 #   {send}  投影の送信状態
 #   {server}  サーバー名または識別子
 #   {size}  ポケットサイズ（ブロック）
@@ -106,7 +107,6 @@
 #   {target}  言語選択を適用するプラグイン
 #   {type}  オブジェクトまたはパラメーターの種類
 #   {up}  投影の上側となる方向
-#   {usage}  コマンド構文
 #   {value}  現在または選択中の値
 #   {variables}  メッセージで使用可能な変数
 #   {whitelisted}  許可するプレイヤー
@@ -116,6 +116,7 @@
 #   {z}  Z座標
 
 [language.editor]
+title = "{plugin} › {section}"
 loading = "{locale}のメッセージを読み込んでいます..."
 
 [language.editor.category]
@@ -221,8 +222,13 @@ selection = "使い方: /{command} language self [locale|reset] or server [local
 volmit-selection = "使い方: /volmit plugins languages [locale]"
 
 [command]
+unknown = "不明なコマンドです。ヘルプは /wormholes を使用してください。"
 public_help = ["&8[&6Wormholes&8] &7ポータルのヘルプ: &f/wormholes info", "&8[&6Wormholes&8] &7ポータルにポータルワンドを使うと、目的地、表示、移動、アクセス設定を開けます。"]
 info = ["&8[&6Wormholes&8] &7&lワームホールの作り方&r", "&81. &7サーバーまたは管理者からポータルワンドとポータルルーンを入手します。", "&82. &7同じ平面上に、ルーンを任意のつながった形で配置します。", "&7   長方形、直線 (3x1)、単一ブロック、L 字形、十字形など、つながった形なら使用できます。", "&7   ルーンは、座標軸に沿った 1 枚の壁、床、または天井上に平らに配置してください。", "&83. &7ポータルワンドを持ち、&f任意のルーンブロックを左クリック&7してポータルを形成します。", "&84. &7別の場所に 2 つ目のポータルを作ります(距離とワールドは問いません)。", "&85. &7開いたポータルをワンドでクリックし、メインメニューを開きます。", "&7   &f目的地&7を選び、もう一方のポータルを指定します。反対側でも同じ操作を行います。", "&7   向きとアクセス設定は、それぞれ専用の簡単なメニューにまとまっています。", "&86. &7どちらかのポータルから {range} ブロック以内に立つと、目的地のワールドがフレーム内に投影され、入るとテレポートします。", "&7管理者は &f/wormholes wand でアイテムを作成できます"]
+
+[command.debug]
+enabled = "デバッグログを有効にしました。"
+disabled = "デバッグログを無効にしました。"
 
 [command.help]
 version = "インストールされているプラグインのバージョンを表示"
@@ -235,7 +241,6 @@ wand = "ポータルワンドとワームホールルーンを入手する"
 "wand.rune" = "ワームホールルーンも渡す (rune=false ならワンドのみ)"
 door = "サバイバルで使用できるディメンションドアのアイテムを付与します"
 "door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-reload = "Wormholes の設定ファイルと言語ファイルを再読み込みします"
 debug_toggle = "詳細なコンソールログと 1 秒間隔のテレメトリを切り替えます"
 stats = "リアルタイム統計スナップショットのファイルパスを表示します。now=true で即時更新できます"
 "stats.now" = "スナップショットを同期的に即時再生成します"
@@ -273,7 +278,6 @@ pocket = "ポケットディメンションの確認と作り直し"
 no_permission = "&8[&6Wormholes&8] &c権限がありません。"
 no_permission_use = "&8[&6Wormholes&8] &cこのコマンドを使用する権限がありません。"
 only_players = "&8[&6Wormholes&8] &cアイテムを受け取れるのはプレイヤーだけです。"
-usage = "&7使用法: &f/wormholes help"
 
 [command.wand]
 granted_wand = "&8[&6Wormholes&8] &aポータルワンドを渡しました。"
@@ -284,11 +288,6 @@ unavailable = "&8[&6Wormholes&8] &cディメンションドアは現在使用で
 unknown_type = "&8[&6Wormholes&8] &c不明なドア種別です。pair、personal、public、pair_trapdoor、personal_trapdoor、public_trapdoor のいずれかを使用してください。"
 empty_type = "ドアの種類は空にできません"
 granted = "&8[&6Wormholes&8] &a&f{type}&a タイプの次元ドアアイテムを付与しました。"
-
-[command.reload]
-applied = "&8[&6Wormholes&8] &aWormholes の設定ファイルと言語ファイルを再読み込みしました。"
-language_retained = "&8[&6Wormholes&8] &e設定は再読み込みされましたが、言語ファイルが無効です。直前の有効な言語を使用し続けます。コンソールを確認してください。"
-failed = "&8[&6Wormholes&8] &c設定の再読み込みに失敗しました。編集は保留のまま再試行されます。コンソールを確認してください。"
 
 [command.stats]
 unavailable = "&8[&6Wormholes&8] &c統計スナップショットライターを使用できません。"
@@ -672,9 +671,6 @@ required = "このパラメータは必須です。"
 optional = "このパラメータは任意です。"
 default = "未指定の場合は \"{value}\" になります。"
 type = "このパラメータの型は {type} です。"
-
-[director.runtime]
-usage = "使用法: {usage}"
 
 [director.runtime.error]
 invalid_origin = "この実行元からはコマンドを実行できません。"

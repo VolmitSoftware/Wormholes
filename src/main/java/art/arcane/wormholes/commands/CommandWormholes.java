@@ -6,11 +6,9 @@ import art.arcane.volmlib.util.director.annotations.Director;
 import art.arcane.volmlib.util.director.annotations.Param;
 import art.arcane.volmlib.util.director.exceptions.DirectorParsingException;
 import art.arcane.volmlib.util.localization.LinesKey;
-import art.arcane.volmlib.util.localization.LocalizationReloadResult;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.MessageArgument;
 import art.arcane.volmlib.util.localization.TextKey;
-import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.door.DimensionalDoorManager;
@@ -114,15 +112,6 @@ public class CommandWormholes {
         send(sender, WormholesMessages.COMMAND_GRANTED_DOOR, args("type", normalized));
     }
 
-    @Director(name = "reload", sync = true, descriptionKey = "command.help.reload", description = "Reload Wormholes configuration and language files")
-    public void reload(@Param(name = "sender", contextual = true) CommandSender sender) {
-        if (!sender.hasPermission("wormholes.admin.reload")) {
-            send(sender, WormholesMessages.COMMAND_NO_PERMISSION);
-            return;
-        }
-        plugin.reloadAll().whenComplete((result, failure) -> sendReloadResult(sender, result, failure));
-    }
-
     @Director(name = "stats", sync = true, descriptionKey = "command.help.stats", description = "Print the live stats-snapshot file path, optionally force a refresh with now=true")
     public void stats(@Param(name = "sender", contextual = true) CommandSender sender,
                       @Param(name = "now", descriptionKey = "command.help.stats.now", description = "Force-rebuild the snapshot synchronously", defaultValue = "false") boolean now) {
@@ -174,31 +163,6 @@ public class CommandWormholes {
     private static void sendLines(CommandSender sender, LinesKey key, MessageArgs arguments) {
         for (Component line : Wormholes.text().components(sender, key, arguments)) {
             WormholesAudience.sendMessage(sender, line);
-        }
-    }
-
-    private void sendReloadResult(
-        CommandSender sender,
-        LocalizationReloadResult result,
-        Throwable failure
-    ) {
-        Runnable delivery = () -> {
-            if (failure != null) {
-                send(sender, WormholesMessages.COMMAND_RELOAD_FAILED);
-                return;
-            }
-            send(sender, result.applied()
-                ? WormholesMessages.COMMAND_RELOADED
-                : WormholesMessages.COMMAND_RELOADED_LANGUAGE_RETAINED);
-        };
-        if (sender instanceof Player player) {
-            if (!FoliaScheduler.runEntity(plugin, player, delivery)) {
-                plugin.getLogger().warning("Could not deliver the configuration reload result to " + player.getUniqueId());
-            }
-            return;
-        }
-        if (!FoliaScheduler.runGlobal(plugin, delivery)) {
-            plugin.getLogger().warning("Could not deliver the configuration reload result to " + sender.getName());
         }
     }
 

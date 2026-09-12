@@ -90,10 +90,6 @@ public final class HotloadManager {
         startInternal(new FileSignature(requiredContent.length, digest(requiredContent)), false);
     }
 
-    public void startWithPendingSnapshot() {
-        startInternal(null, false);
-    }
-
     private void startInternal(FileSignature appliedSignature, boolean captureDiskBaseline) {
         if (!running.compareAndSet(false, true)) {
             return;

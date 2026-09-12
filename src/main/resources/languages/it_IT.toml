@@ -2,7 +2,7 @@
 #
 # === Modifica del file ===
 # plugins/Wormholes/languages/it_IT.toml
-# Puoi modificare direttamente questo file. Le modifiche locali vengono conservate; le voci mancanti o non valide usano l’inglese incorporato.
+# Puoi modificare direttamente questo file. Le modifiche locali vengono conservate; le voci mancanti, vuote o non valide usano le lingue di riserva, poi l’inglese.
 # /wormholes language server edit it_IT
 #
 # === Prefisso ===
@@ -94,6 +94,7 @@
 #   {route}  Percorso di viaggio tentato
 #   {rtt}  Latenza di andata e ritorno della rete
 #   {seconds}  Tempo in secondi
+#   {section}  Sezione dell’editor delle lingue
 #   {send}  Stato di invio della proiezione
 #   {server}  Nome o identificatore del server
 #   {size}  Dimensione dello spazio tascabile in blocchi
@@ -106,7 +107,6 @@
 #   {target}  Plugin che riceve la selezione della lingua
 #   {type}  Tipo di oggetto o parametro
 #   {up}  Direzione nella parte superiore della proiezione
-#   {usage}  Sintassi del comando
 #   {value}  Valore attuale o selezionato
 #   {variables}  Segnaposto consentiti nel messaggio
 #   {whitelisted}  Giocatori consentiti
@@ -116,6 +116,7 @@
 #   {z}  Coordinata Z
 
 [language.editor]
+title = "{plugin} › {section}"
 loading = "Caricamento dei messaggi in {locale}..."
 
 [language.editor.category]
@@ -221,8 +222,13 @@ selection = "Uso: /{command} language self [locale|reset] or server [locale]"
 volmit-selection = "Uso: /volmit plugins languages [locale]"
 
 [command]
+unknown = "Comando sconosciuto. Usa /wormholes per ricevere aiuto."
 public_help = ["&8[&6Wormholes&8] &7Guida ai portali: &f/wormholes info", "&8[&6Wormholes&8] &7Usa la Bacchetta del Portale su un portale per impostare destinazione, vista, viaggio e accesso."]
 info = ["&8[&6Wormholes&8] &7&lCome costruire un wormhole&r", "&81. &7Ottieni una Bacchetta del Portale e rune del portale dal server o da un amministratore.", "&82. &7Disponi le rune in una forma collegata su una superficie piana.", "&7   Funziona qualsiasi forma collegata: rettangoli, linee (3x1), blocchi singoli, forme a L e croci.", "&7   Le rune devono essere piatte sulla stessa parete, pavimento o soffitto allineato agli assi.", "&83. &7Tieni la Bacchetta del Portale e &ffai clic sinistro su un blocco runa&7 per formare il portale.", "&84. &7Costruisci un SECONDO portale altrove (a qualsiasi distanza e in qualsiasi mondo).", "&85. &7Fai clic sul portale aperto con la bacchetta per aprire il menu principale.", "&7   Scegli &fDestinazione&7 e seleziona l'altro portale. Ripeti dall'altro lato.", "&7   Orientamento e accesso sono raggruppati in menu semplici separati.", "&86. &7Resta entro {range} blocchi da uno dei portali — il mondo di destinazione viene proiettato nella cornice ed entrarci ti teletrasporta.", "&7Gli amministratori possono creare oggetti con &f/wormholes wand"]
+
+[command.debug]
+enabled = "Registrazione di debug attivata."
+disabled = "Registrazione di debug disattivata."
 
 [command.help]
 version = "Mostra la versione del plugin installato"
@@ -235,7 +241,6 @@ wand = "Ottieni la bacchetta del portale e una runa del wormhole"
 "wand.rune" = "Includi una runa del wormhole (rune=false consegna solo la bacchetta)"
 door = "Ottieni una Porta Dimensionale utilizzabile in sopravvivenza"
 "door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-reload = "Ricarica la configurazione e i file di lingua di Wormholes"
 debug_toggle = "Attiva i registri dettagliati e la telemetria al secondo nella console"
 stats = "Mostra il percorso dell'istantanea delle statistiche; usa now=true per aggiornarla"
 "stats.now" = "Ricrea subito e in modo sincrono l'istantanea"
@@ -273,7 +278,6 @@ pocket = "Ispeziona e rimodella le dimensioni tascabili"
 no_permission = "&8[&6Wormholes&8] &cNon hai il permesso."
 no_permission_use = "&8[&6Wormholes&8] &cNon hai il permesso di usare quel comando."
 only_players = "&8[&6Wormholes&8] &cSolo i giocatori possono ricevere oggetti."
-usage = "&7Utilizzo: &f/wormholes help"
 
 [command.wand]
 granted_wand = "&8[&6Wormholes&8] &aBacchetta del portale consegnata."
@@ -284,11 +288,6 @@ unavailable = "&8[&6Wormholes&8] &cLe porte dimensionali non sono disponibili."
 unknown_type = "&8[&6Wormholes&8] &cTipo di porta sconosciuto. Usa pair, personal o public, pair_trapdoor, personal_trapdoor, public_trapdoor."
 empty_type = "Il tipo di porta non può essere vuoto"
 granted = "&8[&6Wormholes&8] &aConcesso un oggetto porta dimensionale di tipo &f{type}&a."
-
-[command.reload]
-applied = "&8[&6Wormholes&8] &aI file di configurazione e lingua di Wormholes sono stati ricaricati."
-language_retained = "&8[&6Wormholes&8] &eLa configurazione è stata ricaricata, ma il file linguistico è stato respinto. L' ultima lingua valida rimane attiva; controlla la console."
-failed = "&8[&6Wormholes&8] &cRicaricamento della configurazione non riuscito; la modifica resta in sospeso e verrà ritentata. Controlla la console."
 
 [command.stats]
 unavailable = "&8[&6Wormholes&8] &cImpossibile scrivere l'istantanea delle statistiche."
@@ -672,9 +671,6 @@ required = "Questo parametro è obbligatorio."
 optional = "Questo parametro è facoltativo."
 default = "Il valore predefinito è \"{value}\" se non definito."
 type = "Questo parametro è di tipo {type}."
-
-[director.runtime]
-usage = "Utilizzo: {usage}"
 
 [director.runtime.error]
 invalid_origin = "Questo comando non può essere eseguito da questa origine."

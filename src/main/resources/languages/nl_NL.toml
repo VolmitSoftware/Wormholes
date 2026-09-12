@@ -2,7 +2,7 @@
 #
 # === Bestand bewerken ===
 # plugins/Wormholes/languages/nl_NL.toml
-# Je kunt dit bestand rechtstreeks bewerken. Lokale wijzigingen blijven behouden; ontbrekende of ongeldige vermeldingen gebruiken het ingebouwde Engels.
+# Je kunt dit bestand direct bewerken. Lokale wijzigingen blijven behouden; ontbrekende, lege of ongeldige vermeldingen gebruiken de terugvaltalen en daarna Engels.
 # /wormholes language server edit nl_NL
 #
 # === Voorvoegsel ===
@@ -94,6 +94,7 @@
 #   {route}  Geprobeerd reistraject
 #   {rtt}  Netwerklatentie voor heen- en terugreis
 #   {seconds}  Tijd in seconden
+#   {section}  Onderdeel van de taaleditor
 #   {send}  Verzendstatus van de projectie
 #   {server}  Servernaam of -identificatie
 #   {size}  Grootte van de pocketruimte in blokken
@@ -106,7 +107,6 @@
 #   {target}  Plugin waarop de taalkeuze wordt toegepast
 #   {type}  Object- of parametertype
 #   {up}  Richting aan de bovenkant van de projectie
-#   {usage}  Opdrachtsyntaxis
 #   {value}  Huidige of geselecteerde waarde
 #   {variables}  Toegestane plaatshouders in het bericht
 #   {whitelisted}  Toegestane spelers
@@ -116,6 +116,7 @@
 #   {z}  Z-coördinaat
 
 [language.editor]
+title = "{plugin} › {section}"
 loading = "Berichten voor {locale} laden..."
 
 [language.editor.category]
@@ -221,8 +222,13 @@ selection = "Gebruik: /{command} language self [locale|reset] or server [locale]
 volmit-selection = "Gebruik: /volmit plugins languages [locale]"
 
 [command]
+unknown = "Onbekend commando. Gebruik /wormholes voor hulp."
 public_help = ["&8[&6Wormholes&8] &7Portaalhulp: &f/wormholes info", "&8[&6Wormholes&8] &7Gebruik de portaalstaf op een portaal om bestemming, weergave, reizen en toegang in te stellen."]
 info = ["&8[&6Wormholes&8] &7&lEen wormgat bouwen&r", "&81. &7Haal een portaalstaf en portaalrunen bij de server of een beheerder.", "&82. &7Plaats de runen in een verbonden vorm op één vlak oppervlak.", "&7   Elke verbonden vorm werkt: rechthoeken, lijnen (3x1), losse blokken, L-vormen en kruisen.", "&7   De runen moeten vlak op dezelfde as-uitgelijnde muur, vloer of plafond liggen.", "&83. &7Houd de portaalstaf vast en &fklik met links op een runeblok&7 om het portaal te vormen.", "&84. &7Bouw ergens anders een TWEEDE portaal (op elke afstand en in elke wereld).", "&85. &7Klik met de staf op het open portaal om het hoofdmenu te openen.", "&7   Kies &fBestemming&7 en selecteer het andere portaal. Herhaal dit vanaf de andere kant.", "&7   Oriëntatie en toegang staan in afzonderlijke, eenvoudige menu's.", "&86. &7Blijf binnen {range} blokken van een portaal — de doelwereld wordt in het frame geprojecteerd en naar binnen lopen teleporteert je.", "&7Beheerders kunnen voorwerpen maken met &f/wormholes wand"]
+
+[command.debug]
+enabled = "Debuglogboek ingeschakeld."
+disabled = "Debuglogboek uitgeschakeld."
 
 [command.help]
 version = "Toon de geïnstalleerde pluginversie"
@@ -235,7 +241,6 @@ wand = "Ontvang de portaalstaf en een wormgatrune"
 "wand.rune" = "Ook een wormgatrune geven (rune=false geeft alleen de staf)"
 door = "Geef een dimensiedeur die in survival kan worden gebruikt"
 "door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-reload = "Herlaad de Wormholes-configuratie en taalbestanden"
 debug_toggle = "Schakel uitgebreide consolelogs en telemetrie per seconde in of uit"
 stats = "Toon het pad naar de live statistiekmomentopname; vernieuw met now=true"
 "stats.now" = "Bouw de momentopname direct en synchroon opnieuw op"
@@ -273,7 +278,6 @@ pocket = "Zakdimensies bekijken en opnieuw vormgeven"
 no_permission = "&8[&6Wormholes&8] &cJe hebt geen toestemming."
 no_permission_use = "&8[&6Wormholes&8] &cJe hebt geen toestemming om dat commando te gebruiken."
 only_players = "&8[&6Wormholes&8] &cAlleen spelers kunnen items ontvangen."
-usage = "&7Gebruik: &f/wormholes help"
 
 [command.wand]
 granted_wand = "&8[&6Wormholes&8] &aPortaalstaf gegeven."
@@ -284,11 +288,6 @@ unavailable = "&8[&6Wormholes&8] &cDimensionele deuren zijn niet beschikbaar."
 unknown_type = "&8[&6Wormholes&8] &cOnbekend deurtype. Gebruik pair, personal of public, pair_trapdoor, personal_trapdoor, public_trapdoor."
 empty_type = "Deurtype mag niet leeg zijn"
 granted = "&8[&6Wormholes&8] &aEen dimensionaal deurobject van type &f{type}&a gegeven."
-
-[command.reload]
-applied = "&8[&6Wormholes&8] &aDe configuratie- en taalbestanden van Wormholes zijn opnieuw geladen."
-language_retained = "&8[&6Wormholes&8] &eConfiguratie opnieuw geladen, maar het taalbestand werd afgewezen. De laatste geldige taal blijft actief; controleer de console."
-failed = "&8[&6Wormholes&8] &cHerladen van de configuratie is mislukt; de wijziging blijft in behandeling en wordt opnieuw geprobeerd. Controleer de console."
 
 [command.stats]
 unavailable = "&8[&6Wormholes&8] &cDe statistiekopname kan niet worden geschreven."
@@ -672,9 +671,6 @@ required = "Deze parameter is verplicht."
 optional = "Deze parameter is optioneel."
 default = "Standaard \"{value}\" indien niet opgegeven."
 type = "Deze parameter is van het type {type}."
-
-[director.runtime]
-usage = "Gebruik: {usage}"
 
 [director.runtime.error]
 invalid_origin = "Deze opdracht kan niet vanuit deze bron worden uitgevoerd."

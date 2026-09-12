@@ -2,7 +2,7 @@
 #
 # === Chỉnh sửa tệp ===
 # plugins/Wormholes/languages/vi_VI.toml
-# Bạn có thể chỉnh sửa trực tiếp tệp này. Thay đổi cục bộ được giữ lại; mục thiếu hoặc không hợp lệ dùng bản tiếng Anh tích hợp.
+# Bạn có thể sửa trực tiếp tệp này. Các thay đổi cục bộ được giữ lại; mục bị thiếu, trống hoặc không hợp lệ sẽ dùng các ngôn ngữ dự phòng, sau đó là tiếng Anh.
 # /wormholes language server edit vi_VI
 #
 # === Tiền tố ===
@@ -94,6 +94,7 @@
 #   {route}  Tuyến di chuyển đã thử
 #   {rtt}  Độ trễ khứ hồi mạng
 #   {seconds}  Thời gian tính bằng giây
+#   {section}  Mục trong trình chỉnh sửa ngôn ngữ
 #   {send}  Trạng thái gửi hình chiếu
 #   {server}  Tên hoặc mã định danh máy chủ
 #   {size}  Kích thước không gian túi theo khối
@@ -106,7 +107,6 @@
 #   {target}  Plugin nhận lựa chọn ngôn ngữ
 #   {type}  Loại đối tượng hoặc tham số
 #   {up}  Hướng ở phía trên hình chiếu
-#   {usage}  Cú pháp lệnh
 #   {value}  Giá trị hiện tại hoặc đã chọn
 #   {variables}  Các biến được phép dùng trong thông báo
 #   {whitelisted}  Người chơi được phép
@@ -116,6 +116,7 @@
 #   {z}  Tọa độ Z
 
 [language.editor]
+title = "{plugin} › {section}"
 loading = "Đang tải tin nhắn cho {locale}..."
 
 [language.editor.category]
@@ -221,8 +222,13 @@ selection = "Cách dùng: /{command} language self [locale|reset] or server [loc
 volmit-selection = "Cách dùng: /volmit plugins languages [locale]"
 
 [command]
+unknown = "Lệnh không xác định. Vui lòng dùng /wormholes để xem trợ giúp."
 public_help = ["&8[&6Wormholes&8] &7Trợ giúp cổng dịch chuyển: &f/wormholes info", "&8[&6Wormholes&8] &7Dùng gậy cổng dịch chuyển lên cổng để mở các tùy chọn điểm đến, khung nhìn, di chuyển và truy cập."]
 info = ["&8[&6Wormholes&8] &7&lCách xây lỗ sâu&r", "&81. &7Nhận gậy cổng dịch chuyển và rune cổng từ máy chủ hoặc quản trị viên.", "&82. &7Đặt rune thành một hình nối liền trên cùng bề mặt phẳng.", "&7   Mọi hình nối liền đều dùng được: hình chữ nhật, đường thẳng (3x1), một khối, hình chữ L và hình chữ thập.", "&7   Rune phải nằm phẳng trên cùng một mặt tường, sàn hoặc trần thẳng theo trục tọa độ.", "&83. &7Cầm gậy cổng dịch chuyển và &fnhấp trái vào rune bất kỳ&7 để tạo cổng.", "&84. &7Xây cổng thứ hai ở nơi khác (không giới hạn khoảng cách hoặc thế giới).", "&85. &7Dùng gậy nhấp vào cổng đang mở để mở trình đơn chính.", "&7   Chọn &fĐiểm đến&7 rồi chọn cổng còn lại. Lặp lại ở phía bên kia.", "&7   Hướng và quyền truy cập nằm trong các trình đơn riêng, đơn giản.", "&86. &7Đứng trong phạm vi {range} khối của một trong hai cổng; thế giới đích sẽ chiếu qua khung và bạn sẽ dịch chuyển khi bước vào.", "&7Quản trị viên có thể tạo vật phẩm bằng &f/wormholes wand"]
+
+[command.debug]
+enabled = "Đã bật nhật ký gỡ lỗi."
+disabled = "Đã tắt nhật ký gỡ lỗi."
 
 [command.help]
 version = "Hiển thị phiên bản plugin đã cài đặt"
@@ -235,7 +241,6 @@ wand = "Nhan gay portal va mot rune wormhole"
 "wand.rune" = "Kem theo mot rune wormhole (rune=false chi dua gay)"
 door = "Nhận một vật phẩm Cửa Không Gian dùng trong sinh tồn"
 "door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-reload = "Tải lại cấu hình và tệp ngôn ngữ của Wormholes"
 debug_toggle = "Bật/tắt nhật ký bảng điều khiển chi tiết và dữ liệu đo mỗi giây"
 stats = "In đường dẫn tệp ảnh chụp thống kê trực tiếp; có thể buộc làm mới bằng now=true"
 "stats.now" = "Buộc tạo lại ảnh chụp một cách đồng bộ"
@@ -273,7 +278,6 @@ pocket = "Xem va dinh hinh lai cac chieu khong gian tui"
 no_permission = "&8[&6Wormholes&8] &cBạn không có quyền."
 no_permission_use = "&8[&6Wormholes&8] &cAnh không được phép sử dụng lệnh đó."
 only_players = "&8[&6Wormholes&8] &cChỉ người chơi mới có thể nhận vật phẩm."
-usage = "&7Sử dụng: &f/wormholes help"
 
 [command.wand]
 granted_wand = "&8[&6Wormholes&8] &aDa trao gay portal."
@@ -284,11 +288,6 @@ unavailable = "&8[&6Wormholes&8] &cCửa Không Gian không khả dụng."
 unknown_type = "&8[&6Wormholes&8] &cLoại cửa không xác định. Hãy dùng pair, personal hoặc public, pair_trapdoor, personal_trapdoor, public_trapdoor."
 empty_type = "Loại cửa không được để trống"
 granted = "&8[&6Wormholes&8] &aĐã cấp vật phẩm cửa không gian loại &f{type}&a."
-
-[command.reload]
-applied = "&8[&6Wormholes&8] &aĐã tải lại các tệp cấu hình và ngôn ngữ của Wormholes."
-language_retained = "&8[&6Wormholes&8] &eĐã tải lại cấu hình nhưng tệp ngôn ngữ bị từ chối. Ngôn ngữ hợp lệ gần nhất vẫn hoạt động; hãy kiểm tra bảng điều khiển."
-failed = "&8[&6Wormholes&8] &cTải lại cấu hình thất bại; thay đổi vẫn đang chờ và sẽ được thử lại. Hãy kiểm tra bảng điều khiển."
 
 [command.stats]
 unavailable = "&8[&6Wormholes&8] &cTrình ghi ảnh chụp thống kê không khả dụng."
@@ -672,9 +671,6 @@ required = "Tham số này là bắt buộc."
 optional = "Tham số này là tùy chọn."
 default = "Mặc định là \"{value}\" nếu không được chỉ định."
 type = "Tham số này có kiểu {type}."
-
-[director.runtime]
-usage = "Sử dụng: {usage}"
 
 [director.runtime.error]
 invalid_origin = "Không thể chạy lệnh này từ nguồn này."

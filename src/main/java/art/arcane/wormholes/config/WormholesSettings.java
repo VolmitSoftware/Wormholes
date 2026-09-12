@@ -6,6 +6,7 @@ import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RecipesConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.config.toml.WormholesConfigFile;
+import art.arcane.wormholes.localization.WormholesLocales;
 import art.arcane.wormholes.util.project.config.TomlCodec;
 
 import java.io.File;
@@ -35,7 +36,7 @@ public final class WormholesSettings {
     }
 
     private WormholesSettings(String language, boolean metrics, String languageFallbacks, MainConfig main, ProjectionConfig projection, RenderConfig render, NetworkConfig network, RecipesConfig recipes, VisualQualityProfile visualQualityProfile) {
-        this.language = language;
+        this.language = WormholesLocales.normalize(language);
         this.metrics = metrics;
         this.languageFallbacks = languageFallbacks;
         this.main = main;
@@ -155,13 +156,10 @@ public final class WormholesSettings {
             throw new IllegalArgumentException("Unsupported Wormholes config schema " + file.schema + "; expected " + WormholesConfigFile.CURRENT_SCHEMA + ".");
         }
         VisualQualityProfile profile = VisualQualityProfile.parse(file.quality);
-        if (file.language == null || file.language.isBlank()) {
-            throw new IllegalArgumentException("Wormholes language must be a non-empty locale name.");
-        }
         if (file.languageFallbacks == null) {
             throw new IllegalArgumentException("Wormholes language-fallbacks must be a string.");
         }
-        file.language = file.language.trim();
+        file.language = WormholesLocales.normalize(file.language);
         file.languageFallbacks = file.languageFallbacks.trim();
         file.quality = profile.configValue();
         if (file.network == null) {

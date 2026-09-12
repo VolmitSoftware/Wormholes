@@ -53,7 +53,7 @@ public class MainConfig {
     public boolean arrivalTransitionMask = true;
     public int arrivalTransitionMaskTicks = 25;
 
-    @ConfigDescription("Raise the server's per-player chunk streaming limits once at startup so destination geometry can reach the client before arrival. Only ever raises; a higher server value is left alone. Applied once and never touched again.")
+    @ConfigDescription("Raise the server's per-player chunk streaming limits at startup and when the tuner settings change so destination geometry can reach the client before arrival. Only ever raises; a higher server value is left alone. Disabling the tuner stops further changes without restoring earlier rates.")
     public boolean chunkSendRateTuner = true;
     @ConfigDescription("Target per-player chunk send rate in chunks per second. Paper's compiled default is 75. Zero or negative means unlimited, and anything above 10000 is treated as unlimited.")
     public double chunkSendRateTarget = 1000.0;

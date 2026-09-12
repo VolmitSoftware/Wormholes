@@ -27,6 +27,7 @@ class WormholesPlaceholderExpansionTest {
         "failures.per-minute",
         "peers.connected",
         "peers.link",
+        "portal.*",
         "portal.available",
         "portal.cross-server",
         "portal.destination",
@@ -48,7 +49,7 @@ class WormholesPlaceholderExpansionTest {
     void setUp() {
         runtime = new PlaceholderSnapshot<>();
         portals = new PlayerSnapshotStore<>();
-        expansion = new WormholesPlaceholderExpansion("1.0.0-26.2", WormholesPlaceholders.registry(runtime, portals), Logger.getAnonymousLogger());
+        expansion = new WormholesPlaceholderExpansion("1.0.0-26.2", WormholesPlaceholders.registry(runtime, portals, new PlaceholderSnapshot<>()), Logger.getAnonymousLogger());
     }
 
     @Test
@@ -71,7 +72,7 @@ class WormholesPlaceholderExpansionTest {
         assertEquals(PlaceholderValues.FALSE, expansion.onRequest(player(TRAVELLER), "portal.available"));
 
         for (String key : PUBLISHED_KEYS) {
-            if (key.equals("available") || key.equals("portal.available")) {
+            if (key.equals("available") || key.equals("portal.available") || key.equals("portal.*")) {
                 continue;
             }
 
@@ -182,6 +183,9 @@ class WormholesPlaceholderExpansionTest {
         portals.publish(TRAVELLER, WormholesPortalSnapshot.of("%hub% §aGate", true, false, "%beta%", true, 4.0D, true, true, true, false, false, 0L));
 
         for (String key : PUBLISHED_KEYS) {
+            if (key.equals("portal.*")) {
+                continue;
+            }
             String value = expansion.onRequest(player(TRAVELLER), key);
             assertFalse(value.contains("%"), key);
             assertFalse(value.contains("§"), key);

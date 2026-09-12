@@ -66,7 +66,7 @@ public final class WormholesLocalization {
     public synchronized LocalizationReloadResult reload(Path dataFolder, String locale, String fallbackLocales) {
         LocalizationReloadResult result = manager.reload(() -> WormholesLocaleLoader.load(dataFolder, locale, fallbackLocales));
         if (result.applied()) {
-            activeLocale = locale;
+            activeLocale = WormholesLocales.normalize(locale);
         }
         return result;
     }

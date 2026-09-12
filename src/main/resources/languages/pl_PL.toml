@@ -2,7 +2,7 @@
 #
 # === Edycja pliku ===
 # plugins/Wormholes/languages/pl_PL.toml
-# Ten plik można edytować bezpośrednio. Lokalne zmiany są zachowywane; brakujące lub nieprawidłowe wpisy korzystają z wbudowanego angielskiego tekstu.
+# Ten plik można edytować bezpośrednio. Lokalne zmiany są zachowywane; brakujące, puste lub nieprawidłowe wpisy korzystają z języków zastępczych, a następnie z angielskiego.
 # /wormholes language server edit pl_PL
 #
 # === Prefiks ===
@@ -94,6 +94,7 @@
 #   {route}  Podjęta trasa podróży
 #   {rtt}  Opóźnienie sieciowe w obie strony
 #   {seconds}  Czas w sekundach
+#   {section}  Sekcja edytora języka
 #   {send}  Stan wysyłania projekcji
 #   {server}  Nazwa lub identyfikator serwera
 #   {size}  Rozmiar kieszeni w blokach
@@ -106,7 +107,6 @@
 #   {target}  Wtyczka, dla której wybierany jest język
 #   {type}  Typ obiektu lub parametru
 #   {up}  Kierunek u góry projekcji
-#   {usage}  Składnia polecenia
 #   {value}  Bieżąca lub wybrana wartość
 #   {variables}  Dozwolone zmienne wiadomości
 #   {whitelisted}  Dozwoleni gracze
@@ -116,6 +116,7 @@
 #   {z}  Współrzędna Z
 
 [language.editor]
+title = "{plugin} › {section}"
 loading = "Wczytywanie wiadomości w języku {locale}..."
 
 [language.editor.category]
@@ -221,8 +222,13 @@ selection = "Użycie: /{command} language self [locale|reset] or server [locale]
 volmit-selection = "Użycie: /volmit plugins languages [locale]"
 
 [command]
+unknown = "Nieznane polecenie. Użyj /wormholes, aby uzyskać pomoc."
 public_help = ["&8[&6Wormholes&8] &7Pomoc dotycząca portali: &f/wormholes info", "&8[&6Wormholes&8] &7Użyj Różdżki Portalu na portalu, aby ustawić cel, widok, podróż i dostęp."]
 info = ["&8[&6Wormholes&8] &7&lJak zbudować tunel czasoprzestrzenny&r", "&81. &7Zdobądź Różdżkę Portalu i runy portalu od serwera lub administratora.", "&82. &7Ułóż runy w dowolny połączony kształt na jednej płaskiej powierzchni.", "&7   Działa każdy połączony kształt: prostokąt, linia (3x1), pojedynczy blok, litera L lub krzyż.", "&7   Runy muszą leżeć płasko na tej samej ścianie, podłodze lub suficie wyrównanym do osi.", "&83. &7Trzymaj Różdżkę Portalu i &fkliknij lewym przyciskiem blok runy&7, aby utworzyć portal.", "&84. &7Zbuduj DRUGI portal w innym miejscu (w dowolnej odległości i w dowolnym świecie).", "&85. &7Kliknij otwarty portal różdżką, aby otworzyć menu główne.", "&7   Wybierz &fCel&7 i drugi portal. Powtórz po drugiej stronie.", "&7   Orientacja i dostęp znajdują się w oddzielnych, prostych menu.", "&86. &7Stań w odległości {range} bloków od jednego z portali — świat docelowy pojawi się w ramie, a wejście do niej cię teleportuje.", "&7Administratorzy mogą tworzyć przedmioty poleceniem &f/wormholes wand"]
+
+[command.debug]
+enabled = "Rejestrowanie debugowania włączone."
+disabled = "Rejestrowanie debugowania wyłączone."
 
 [command.help]
 version = "Pokaż wersję zainstalowanej wtyczki"
@@ -235,7 +241,6 @@ wand = "Otrzymaj rozdzke portalu i rune tunelu czasoprzestrzennego"
 "wand.rune" = "Dolacz rune tunelu czasoprzestrzennego (rune=false daje tylko rozdzke)"
 door = "Daj Drzwi Wymiarowe użyteczne w trybie przetrwania"
 "door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-reload = "Przeładuj konfigurację i pliki językowe Wormholes"
 debug_toggle = "Przełącz szczegółowe logi konsoli i telemetrię co sekundę"
 stats = "Pokaż ścieżkę migawki statystyk na żywo; odśwież przez now=true"
 "stats.now" = "Natychmiast i synchronicznie utwórz migawkę ponownie"
@@ -273,7 +278,6 @@ pocket = "Podglad i przebudowa wymiarow kieszonkowych"
 no_permission = "&8[&6Wormholes&8] &cNie masz pozwolenia."
 no_permission_use = "&8[&6Wormholes&8] &cNie masz uprawnień do użycia tego polecenia."
 only_players = "&8[&6Wormholes&8] &cTylko gracze mogą otrzymać przedmioty."
-usage = "&7Użycie: &f/wormholes help"
 
 [command.wand]
 granted_wand = "&8[&6Wormholes&8] &aRozdzka portalu przyznana."
@@ -284,11 +288,6 @@ unavailable = "&8[&6Wormholes&8] &cDrzwi Wymiarowe są niedostępne."
 unknown_type = "&8[&6Wormholes&8] &cNieznany typ drzwi. Użyj pair, personal lub public, pair_trapdoor, personal_trapdoor, public_trapdoor."
 empty_type = "Typ drzwi nie może być pusty"
 granted = "&8[&6Wormholes&8] &aPrzyznano przedmiot drzwi wymiarowych typu &f{type}&a."
-
-[command.reload]
-applied = "&8[&6Wormholes&8] &aPonownie wczytano pliki konfiguracji i języka Wormholes."
-language_retained = "&8[&6Wormholes&8] &eKonfigurację wczytano ponownie, ale plik językowy został odrzucony. Ostatni poprawny język pozostaje aktywny; sprawdź konsolę."
-failed = "&8[&6Wormholes&8] &cNie udało się ponownie wczytać konfiguracji; edycja pozostaje w toku i zostanie ponowiona. Sprawdź konsolę."
 
 [command.stats]
 unavailable = "&8[&6Wormholes&8] &cNie można zapisać migawki statystyk."
@@ -672,9 +671,6 @@ required = "Ten parametr jest wymagany."
 optional = "Ten parametr jest opcjonalny."
 default = "Domyślnie \"{value}\", jeśli nie określono."
 type = "Ten parametr jest typu {type}."
-
-[director.runtime]
-usage = "Użycie: {usage}"
 
 [director.runtime.error]
 invalid_origin = "Tego polecenia nie można wykonać z tego źródła."

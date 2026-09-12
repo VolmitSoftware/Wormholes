@@ -31,6 +31,7 @@ public final class WormholesPlaceholderPublisher {
 
         EffectManager effects = Wormholes.effectManager;
         BukkitRtpRuntime rtp = Wormholes.rtpRuntime;
+        placeholders.publishNamedPortals(WormholesNamedPortalSnapshot.capture(portals, rtp));
 
         for (UUID playerId : viewers) {
             PortalProximityIndex.Match match = index.match(playerId);

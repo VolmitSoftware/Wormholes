@@ -42,8 +42,8 @@ final class RtpTraversalPipeline
 	private static final String FAILURE_CANCELLED = "RTP_TRAVERSAL_CANCELLED";
 	private static final String FAILURE_STAGE = "RTP_TRAVERSAL_STAGE_FAILED";
 	private static final String FAILURE_SCHEDULER_REJECTED = "RTP_TRAVERSAL_ENTITY_SCHEDULER_REJECTED";
-	private static final int SUCCESS_SETTLEMENT_ATTEMPTS = 4;
-	private static final long SUCCESS_SETTLEMENT_RETRY_TICKS = 1L;
+	private static final long SUCCESS_TERMINAL_DELAY_TICKS = 1L;
+	private static final long RETIRED_SETTLEMENT_DELAY_MILLIS = 50L;
 
 	private final RtpService service;
 	private final BukkitRtpRuntime.Environment environment;
@@ -607,37 +607,18 @@ final class RtpTraversalPipeline
 		}
 		SuccessfulTeleport successful = new SuccessfulTeleport(
 			portal, entity, traversive, preparation, targetFrame, target, retained, traversal);
-		scheduleSuccessfulSettlement(successful, SUCCESS_SETTLEMENT_ATTEMPTS);
+		scheduleSuccessfulSettlement(successful);
 	}
 
-	private void scheduleSuccessfulSettlement(SuccessfulTeleport successful, int attemptsRemaining)
+	private void scheduleSuccessfulSettlement(SuccessfulTeleport successful)
 	{
-		AtomicBoolean attemptFinished = new AtomicBoolean(false);
-		Runnable settlement = () ->
-		{
-			if(attemptFinished.compareAndSet(false, true))
-			{
-				settleSuccessfulTeleportOnEntity(successful);
-			}
-		};
-		Runnable retired = () ->
-		{
-			if(!attemptFinished.compareAndSet(false, true))
-			{
-				return;
-			}
-			if(attemptsRemaining > 1)
-			{
-				scheduleSuccessfulSettlement(successful, attemptsRemaining - 1);
-				return;
-			}
-			settleRetiredSuccessfulTeleport(successful);
-		};
+		Runnable settlement = () -> settleSuccessfulTeleportOnEntity(successful);
+		Runnable retired = () -> settleRetiredSuccessfulTeleport(successful);
 		boolean scheduled;
 		try
 		{
 			scheduled = environment.scheduleEntity(
-				successful.entity(), settlement, retired, SUCCESS_SETTLEMENT_RETRY_TICKS);
+				successful.entity(), settlement, retired, SUCCESS_TERMINAL_DELAY_TICKS);
 		}
 		catch(RuntimeException exception)
 		{
@@ -668,7 +649,7 @@ final class RtpTraversalPipeline
 			return;
 		}
 		successful.traversal().commit();
-		completeSuccessfulSource(successful);
+		completeSuccessfulSource(successful, false);
 	}
 
 	private void settleRetiredSuccessfulTeleport(SuccessfulTeleport successful)
@@ -677,11 +658,41 @@ final class RtpTraversalPipeline
 		{
 			return;
 		}
-		successful.traversal().deferCommit();
-		completeSuccessfulSource(successful);
+		Runnable settlement = () -> completeRetiredSuccessfulTeleport(successful);
+		try
+		{
+			service.dependencies().sourceDispatcher().schedule(
+				successful.portal().getId(), settlement, RETIRED_SETTLEMENT_DELAY_MILLIS);
+		}
+		catch(RuntimeException exception)
+		{
+			try
+			{
+				service.dependencies().searchExecutor().execute(settlement);
+			}
+			catch(RuntimeException recoveryFailure)
+			{
+				exception.addSuppressed(recoveryFailure);
+				scheduleSuccessfulArrival(successful, true);
+			}
+			failures.report("retired-success-settlement-schedule:" + successful.portal().getId(), exception);
+		}
 	}
 
-	private void completeSuccessfulSource(SuccessfulTeleport successful)
+	private void completeRetiredSuccessfulTeleport(SuccessfulTeleport successful)
+	{
+		try
+		{
+			successful.traversal().deferCommit();
+		}
+		catch(RuntimeException exception)
+		{
+			failures.report("retired-success-settlement:" + successful.portal().getId(), exception);
+		}
+		completeSuccessfulSource(successful, true);
+	}
+
+	private void completeSuccessfulSource(SuccessfulTeleport successful, boolean travelerRetired)
 	{
 		CompletionStage<Boolean> completion;
 		try
@@ -694,7 +705,7 @@ final class RtpTraversalPipeline
 			successful.retained().close();
 			failures.report("complete-success:" + successful.portal().getId(), exception);
 			recoveredArrivals.incrementAndGet();
-			scheduleSuccessfulArrival(successful, SUCCESS_SETTLEMENT_ATTEMPTS);
+			scheduleSuccessfulArrival(successful, travelerRetired);
 			return;
 		}
 		completion.whenComplete((completed, completionFailure) ->
@@ -708,53 +719,30 @@ final class RtpTraversalPipeline
 			{
 				recoveredArrivals.incrementAndGet();
 			}
-			scheduleSuccessfulArrival(successful, SUCCESS_SETTLEMENT_ATTEMPTS);
+			scheduleSuccessfulArrival(successful, travelerRetired);
 		});
 	}
 
-	private void scheduleSuccessfulArrival(SuccessfulTeleport successful, int attemptsRemaining)
+	private void scheduleSuccessfulArrival(SuccessfulTeleport successful, boolean travelerRetired)
 	{
-		AtomicBoolean attemptFinished = new AtomicBoolean(false);
-		Runnable arrival = () ->
-		{
-			if(!attemptFinished.compareAndSet(false, true)
-				|| !successful.arrivalFinished().compareAndSet(false, true))
-			{
-				return;
-			}
-			try
-			{
-				environment.completeSuccess(
-					successful.portal(), successful.entity(), successful.traversive(),
-					successful.targetFrame(), successful.target());
-			}
-			catch(RuntimeException exception)
-			{
-				failures.report("arrival-success:" + successful.portal().getId(), exception);
-				finishRetiredSuccessfulArrival(successful, false);
-			}
-		};
+		Runnable arrival = () -> completeSuccessfulArrival(successful);
 		Runnable retired = () ->
 		{
-			if(!attemptFinished.compareAndSet(false, true))
-			{
-				return;
-			}
-			if(attemptsRemaining > 1)
-			{
-				scheduleSuccessfulArrival(successful, attemptsRemaining - 1);
-				return;
-			}
 			if(successful.arrivalFinished().compareAndSet(false, true))
 			{
-				finishRetiredSuccessfulArrival(successful, true);
+				finishUnavailableSuccessfulArrival(successful, true);
 			}
 		};
+		if(travelerRetired)
+		{
+			retired.run();
+			return;
+		}
 		boolean scheduled;
 		try
 		{
 			scheduled = environment.scheduleEntity(
-				successful.entity(), arrival, retired, SUCCESS_SETTLEMENT_RETRY_TICKS);
+				successful.entity(), arrival, retired, SUCCESS_TERMINAL_DELAY_TICKS);
 		}
 		catch(RuntimeException exception)
 		{
@@ -767,7 +755,26 @@ final class RtpTraversalPipeline
 		}
 	}
 
-	private void finishRetiredSuccessfulArrival(SuccessfulTeleport successful, boolean countTraversal)
+	private void completeSuccessfulArrival(SuccessfulTeleport successful)
+	{
+		if(!successful.arrivalFinished().compareAndSet(false, true))
+		{
+			return;
+		}
+		try
+		{
+			environment.completeSuccess(
+				successful.portal(), successful.entity(), successful.traversive(),
+				successful.targetFrame(), successful.target());
+		}
+		catch(RuntimeException exception)
+		{
+			failures.report("arrival-success:" + successful.portal().getId(), exception);
+			finishUnavailableSuccessfulArrival(successful, false);
+		}
+	}
+
+	private void finishUnavailableSuccessfulArrival(SuccessfulTeleport successful, boolean countTraversal)
 	{
 		UUID entityId = successful.entity().getUniqueId();
 		LocalPortal.clearTeleportInFlight(entityId);
@@ -778,8 +785,6 @@ final class RtpTraversalPipeline
 			WormholesTelemetry.countTraversal();
 		}
 		recoveredArrivals.incrementAndGet();
-		failures.report("arrival-success-retired:" + successful.portal().getId(),
-			new IllegalStateException("Deferred RTP arrival effects because traveler terminal work repeatedly retired"));
 	}
 
 	private void guard(

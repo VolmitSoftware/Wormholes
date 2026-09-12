@@ -216,14 +216,6 @@ export default {
         return
       }
       const keeper = await context.step('Connect destination fixture operator', () => connect(destination, 'GateKeeper'))
-      if (process.env.WORMHOLES_RELOAD === 'true') {
-        await context.step('Reload both plugins while observers remain connected', async () => {
-          await chat(traveler, '/wh reload', /configuration and language files reloaded/i)
-          await chat(keeper, '/wh reload', /configuration and language files reloaded/i)
-          await peerState(traveler, 'ready')
-          await peerState(keeper, 'ready')
-        })
-      }
       await context.step('Construct frame gateways', async () => {
         await chat(traveler, '/whtest setup', /FIXTURE ready/)
         await chat(keeper, '/whtest setup', /FIXTURE ready/)

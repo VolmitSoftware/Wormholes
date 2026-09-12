@@ -12,6 +12,7 @@ import java.lang.reflect.Constructor;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -318,6 +319,35 @@ public final class RtpPortalRuntimeTest
 		assertFalse(initial.equals(replacement));
 		assertTrue(runtime.snapshot().freeEntries().contains(initial));
 		assertEquals(2_100L, runtime.snapshot().nextRotationAtMillis());
+	}
+
+	@Test
+	public void playerDestinationSnapshotsContainOnlyActiveReservationsAndTheirOwnDeadlines()
+	{
+		RtpPortalRuntime runtime = RtpPortalRuntime.perPlayer(1L, 5_000L, 1_000L);
+		UUID first = uuid("first-published-destination");
+		UUID second = uuid("second-published-destination");
+		runtime.touchPlayer(first);
+		runtime.touchPlayer(second);
+		fillPerPlayer(runtime, 4, "published-destination");
+		RtpDestination firstDestination = runtime.reservePlayer(first, 100L).orElseThrow();
+		RtpDestination secondDestination = runtime.reservePlayer(second, 400L).orElseThrow();
+		Map<UUID, RtpPortalRuntime.PlayerDestination> published = runtime.playerDestinations();
+
+		assertEquals(firstDestination, published.get(first).destination());
+		assertEquals(secondDestination, published.get(second).destination());
+		assertEquals(1_100L, published.get(first).nextRotationAtMillis());
+		assertEquals(1_400L, published.get(second).nextRotationAtMillis());
+		assertThrows(UnsupportedOperationException.class, published::clear);
+
+		runtime.leavePlayer(first, 500L);
+		assertFalse(runtime.playerDestinations().containsKey(first));
+		RtpPortalRuntime.TraversalClaim claim = runtime.claimPlayer(uuid("published-claim"), second).orElseThrow();
+		assertTrue(runtime.playerDestinations().isEmpty());
+		assertTrue(runtime.completeTraversal(claim, false, 800L));
+		assertEquals(1_800L, runtime.playerDestinations().get(second).nextRotationAtMillis());
+		assertEquals(1_400L, published.get(second).nextRotationAtMillis());
+		assertEquals(2, published.size());
 	}
 
 	@Test

@@ -3,6 +3,8 @@ package art.arcane.wormholes.service;
 import art.arcane.volmlib.util.director.DirectorEngineOptions;
 import art.arcane.volmlib.util.director.compat.BukkitDirectorContext;
 import art.arcane.volmlib.util.localization.LanguageAudience;
+import art.arcane.volmlib.util.localization.MessageArgs;
+import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.volmlib.util.director.compat.DirectorEngineFactory;
 import art.arcane.volmlib.util.director.context.DirectorContextRegistry;
 import art.arcane.volmlib.util.director.help.DirectorMiniMenu;
@@ -11,12 +13,14 @@ import art.arcane.volmlib.util.director.runtime.DirectorExecutionResult;
 import art.arcane.volmlib.util.director.runtime.DirectorInvocation;
 import art.arcane.volmlib.util.director.runtime.DirectorInvocationHook;
 import art.arcane.volmlib.util.director.runtime.DirectorRuntimeEngine;
+import art.arcane.volmlib.util.director.runtime.DirectorRuntimeMessages;
 import art.arcane.volmlib.util.director.runtime.DirectorRuntimeNode;
 import art.arcane.volmlib.util.director.runtime.DirectorSender;
 import art.arcane.volmlib.util.director.theme.DirectorProduct;
 import art.arcane.volmlib.util.director.theme.DirectorTheme;
 import art.arcane.volmlib.util.director.theme.DirectorThemes;
 import art.arcane.volmlib.util.plugin.ComponentMessenger;
+import art.arcane.volmlib.util.plugin.ComponentText;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.commands.CommandServer;
 import art.arcane.wormholes.commands.CommandWormholes;
@@ -44,9 +48,10 @@ import java.util.logging.Level;
 
 public final class WormholesCommandService implements CommandExecutor, TabCompleter, DirectorInvocationHook {
     private static final String ROOT_COMMAND = "wormholes";
+    private static final DirectorMiniMenu.Theme FEEDBACK_THEME = DirectorMiniMenu.Theme.fromDirectorTheme(
+        DirectorThemes.forProduct(DirectorProduct.WORMHOLES));
     private static final List<String> ADMIN_COMMAND_PERMISSIONS = List.of(
             "wormholes.admin",
-            "wormholes.admin.reload",
             "wormholes.admin.items",
             "wormholes.admin.network",
             "wormholes.admin.projection",
@@ -156,9 +161,17 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
             return true;
         }
 
-        WormholesAudience.sendMessage(sender, Wormholes.text().component(sender, WormholesMessages.COMMAND_USAGE_HELP));
+        if (!result.isHandled()) {
+            sendFeedback(sender, WormholesMessages.COMMAND_UNKNOWN);
+        }
         playFailureChime(sender);
         return true;
+    }
+
+    public static void sendFeedback(CommandSender sender, TextKey key) {
+        ComponentText message = ComponentText.component(Wormholes.text().component(sender, key));
+        ComponentMessenger.sendMarkup(sender, "<gradient:" + FEEDBACK_THEME.primaryLeft() + ":"
+            + FEEDBACK_THEME.primaryRight() + ">Wormholes > " + message.miniMessage() + "</gradient>");
     }
 
     static boolean isServerShorthand(String[] args) {
@@ -324,7 +337,13 @@ public final class WormholesCommandService implements CommandExecutor, TabComple
             return getDirector().execute(new DirectorInvocation(new BukkitDirectorSender(sender), label, Arrays.asList(args)));
         } catch (Throwable e) {
             plugin.getLogger().log(Level.SEVERE, "Director command execution failed", e);
-            return DirectorExecutionResult.notHandled();
+            MessageArgs arguments = MessageArgs.builder()
+                .untrusted("command", ROOT_COMMAND + " " + String.join(" ", args))
+                .untrusted("reason", e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage())
+                .build();
+            String message = Wormholes.text().directorText(DirectorRuntimeMessages.EXECUTION_FAILED, arguments);
+            ComponentMessenger.sendLiteral(sender, message);
+            return DirectorExecutionResult.failure(message);
         }
     }
 

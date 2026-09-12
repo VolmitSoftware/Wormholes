@@ -2,7 +2,7 @@
 #
 # === Tiedoston muokkaus ===
 # plugins/Wormholes/languages/fi_FI.toml
-# Voit muokata tätä tiedostoa suoraan. Paikalliset muutokset säilyvät; puuttuvat tai virheelliset kohdat käyttävät sisäänrakennettua englantia.
+# Tätä tiedostoa voi muokata suoraan. Paikalliset muutokset säilyvät; puuttuvat, tyhjät tai virheelliset tekstit haetaan varakielistä ja sitten englannista.
 # /wormholes language server edit fi_FI
 #
 # === Etuliite ===
@@ -94,6 +94,7 @@
 #   {route}  Yritetty matkareitti
 #   {rtt}  Verkon edestakainen viive
 #   {seconds}  Aika sekunteina
+#   {section}  Kielieditorin osio
 #   {send}  Heijastuksen lähetystila
 #   {server}  Palvelimen nimi tai tunniste
 #   {size}  Taskutilan koko lohkoina
@@ -106,7 +107,6 @@
 #   {target}  Kielivalinnan vastaanottava lisäosa
 #   {type}  Kohteen tai parametrin tyyppi
 #   {up}  Heijastuksen yläreunan suunta
-#   {usage}  Komennon syntaksi
 #   {value}  Nykyinen tai valittu arvo
 #   {variables}  Viestin sallitut paikkamerkit
 #   {whitelisted}  Sallitut pelaajat
@@ -116,6 +116,7 @@
 #   {z}  Z-koordinaatti
 
 [language.editor]
+title = "{plugin} › {section}"
 loading = "Ladataan kielen {locale} viestejä..."
 
 [language.editor.category]
@@ -221,8 +222,13 @@ selection = "Käyttö: /{command} language self [locale|reset] or server [locale
 volmit-selection = "Käyttö: /volmit plugins languages [locale]"
 
 [command]
+unknown = "Tuntematon komento. Saat ohjeita komennolla /wormholes."
 public_help = ["&8[&6Wormholes&8] &7Portaaliohje: &f/wormholes info", "&8[&6Wormholes&8] &7Käytä portaalisauvaa portaaliin avataksesi kohteen, näkymän, matkustamisen ja käyttöoikeuksien asetukset."]
 info = ["&8[&6Wormholes&8] &7&lMadonreiän rakentaminen&r", "&81. &7Hanki portaalisauva ja portaaliriimuja palvelimelta tai ylläpitäjältä.", "&82. &7Aseta riimut yhtenäiseksi kuvioksi yhdelle tasaiselle pinnalle.", "&7   Mikä tahansa yhtenäinen kuvio toimii: suorakulmio, viiva (3x1), yksittäinen lohko, L-kuvio tai risti.", "&7   Riimujen on oltava tasaisesti samalla akselinsuuntaisella seinällä, lattialla tai katossa.", "&83. &7Pidä portaalisauvaa ja &fnapsauta mitä tahansa riimulohkoa vasemmalla&7 muodostaaksesi portaalin.", "&84. &7Rakenna TOINEN portaali muualle (mille tahansa etäisyydelle, mihin tahansa maailmaan).", "&85. &7Avaa päävalikko napsauttamalla avointa portaalia sauvalla.", "&7   Valitse &fKohde&7 ja sitten toinen portaali. Toista sama toiselta puolelta.", "&7   Suuntaus ja käyttöoikeudet ovat omissa selkeissä valikoissaan.", "&86. &7Pysy {range} lohkon sisällä jommastakummasta portaalista — kohdemaailma projisoituu kehykseen ja sisään astuminen teleporttaa sinut.", "&7Ylläpitäjät voivat luoda tarvikkeita komennolla &f/wormholes wand"]
+
+[command.debug]
+enabled = "Vianmääritysloki käytössä."
+disabled = "Vianmääritysloki poistettu käytöstä."
 
 [command.help]
 version = "Näytä asennetun lisäosan versio"
@@ -235,7 +241,6 @@ wand = "Anna itsellesi portaalisauva ja madonreikaruuni"
 "wand.rune" = "Anna mukaan madonreikaruuni (rune=false antaa vain sauvan)"
 door = "Anna selviytymistilassa käytettävä ulottuvuusovi"
 "door.type" = "pair | personal | public | pair_trapdoor | personal_trapdoor | public_trapdoor"
-reload = "Lataa Wormholes-asetukset ja kielitiedostot uudelleen"
 debug_toggle = "Vaihda yksityiskohtaiset konsolilokit ja sekunnin välein päivittyvä telemetria"
 stats = "Näytä reaaliaikaisen tilannekuvan polku; päivitä heti valinnalla now=true"
 "stats.now" = "Luo tilannekuva heti uudelleen synkronisesti"
@@ -273,7 +278,6 @@ pocket = "Tarkastele ja muokkaa taskuulottuvuuksia"
 no_permission = "&8[&6Wormholes&8] &cSinulla ei ole lupaa."
 no_permission_use = "&8[&6Wormholes&8] &cSinulla ei ole lupaa käyttää sitä käskyä."
 only_players = "&8[&6Wormholes&8] &cVain pelaajat voivat vastaanottaa esineitä."
-usage = "&7Käyttö: &f/wormholes help"
 
 [command.wand]
 granted_wand = "&8[&6Wormholes&8] &aPortaalisauva annettu."
@@ -284,11 +288,6 @@ unavailable = "&8[&6Wormholes&8] &cUlottuvuusovet eivät ole käytettävissä."
 unknown_type = "&8[&6Wormholes&8] &cTuntematon ovityyppi. Käytä arvoa pair, personal tai public, pair_trapdoor, personal_trapdoor, public_trapdoor."
 empty_type = "Ovityyppi ei voi olla tyhjä"
 granted = "&8[&6Wormholes&8] &aMyönnettiin tyypin &f{type}&a ulottuvuusovi."
-
-[command.reload]
-applied = "&8[&6Wormholes&8] &aWormholes-laajennuksen määritys- ja kielitiedostot ladattiin uudelleen."
-language_retained = "&8[&6Wormholes&8] &eKonfiguraatio ladattiin uudelleen, mutta kieli- tiedosto hylättiin. Viimeinen voimassa oleva kieli on edelleen aktiivinen; tarkista konsolin."
-failed = "&8[&6Wormholes&8] &cKonfiguraation uudelleenlataus epäonnistui; muokkaus jää odottamaan ja sitä yritetään uudelleen. Tarkista konsoli."
 
 [command.stats]
 unavailable = "&8[&6Wormholes&8] &cTilastotiedostoa ei voitu kirjoittaa."
@@ -672,9 +671,6 @@ required = "Tämä parametri on pakollinen."
 optional = "Tämä parametri on valinnainen."
 default = "Oletusarvo on \"{value}\", jos sitä ei määritetä."
 type = "Tämän parametrin tyyppi on {type}."
-
-[director.runtime]
-usage = "Käyttö: {usage}"
 
 [director.runtime.error]
 invalid_origin = "Tätä komentoa ei voi suorittaa tästä lähteestä."
