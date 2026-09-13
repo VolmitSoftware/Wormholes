@@ -10,7 +10,7 @@ import org.bukkit.plugin.Plugin;
 
 public final class IrisTerrainProbe
 {
-	private static final String TOOLBELT_CLASS = "art.arcane.iris.core.tools.IrisToolbelt";
+	private static final String TOOLBELT_CLASS = "art.arcane.iris.world.IrisToolbelt";
 	private static final IrisTerrainProbe SHARED = new IrisTerrainProbe(TOOLBELT_CLASS, IrisTerrainProbe::irisClassLoader);
 
 	private final String toolbeltClassName;

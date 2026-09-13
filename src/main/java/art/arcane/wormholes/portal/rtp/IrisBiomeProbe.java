@@ -12,7 +12,7 @@ import org.bukkit.plugin.Plugin;
 
 public final class IrisBiomeProbe
 {
-	private static final String TOOLBELT_CLASS = "art.arcane.iris.core.tools.IrisToolbelt";
+	private static final String TOOLBELT_CLASS = "art.arcane.iris.world.IrisToolbelt";
 	private static final IrisBiomeProbe SHARED = new IrisBiomeProbe(TOOLBELT_CLASS, IrisBiomeProbe::irisClassLoader);
 
 	private final String toolbeltClassName;
