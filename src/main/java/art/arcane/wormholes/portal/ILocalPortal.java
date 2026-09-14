@@ -2,6 +2,7 @@ package art.arcane.wormholes.portal;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.CompletionStage;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -63,7 +64,9 @@ public interface ILocalPortal extends IPortal, Listener
 
 	public boolean canCompleteDeparture(Entity entity, Traversive traversive);
 
-	public void confirmDeparture(Entity entity, Traversive t);
+	public CompletionStage<Boolean> prepareDeparture(Entity entity, Traversive traversive);
+
+	public boolean confirmDeparture(Entity entity, Traversive t);
 
 	public void rejectRemoteArrival(Entity entity, Traversive t);
 

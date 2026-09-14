@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HandoffQueueTest {
@@ -71,8 +72,9 @@ class HandoffQueueTest {
         assertEquals(1, queue.size());
         queue.tick(6_000L);
         assertEquals(0, timeouts.get());
-        assertTrue(queue.remove(player));
-        assertFalse(queue.remove(player));
+        HandoffQueue.Ticket ticket = queue.ticket(player);
+        assertTrue(queue.remove(ticket));
+        assertFalse(queue.remove(ticket));
         queue.tick(10_000L);
         assertEquals(0, timeouts.get());
         assertNull(queue.ticket(player));
@@ -87,5 +89,41 @@ class HandoffQueueTest {
         queue.tick(1_000L);
         assertEquals(1, releases.get());
         assertEquals(0, queue.size());
+    }
+
+    @Test
+    void aResolverCannotRemoveOrDispatchAReplacementTicket() {
+        HandoffQueue queue = new HandoffQueue();
+        UUID player = UUID.randomUUID();
+        AtomicInteger dispatches = new AtomicInteger();
+        AtomicReference<HandoffQueue.Ticket> replacement = new AtomicReference<>();
+        HandoffQueue.Ticket old = queue.enqueue(player, 0L, 25_000L, () -> {
+            replacement.set(queue.enqueue(player, 1L, 30_000L, () -> QUEUE,
+                resolution -> dispatches.incrementAndGet(), () -> { }, (position, remaining) -> { }));
+            return CHOSEN;
+        }, resolution -> dispatches.incrementAndGet(), () -> { }, (position, remaining) -> { });
+
+        queue.tick(old, 1_000L);
+
+        assertSame(replacement.get(), queue.ticket(player));
+        assertEquals(0, dispatches.get());
+        assertFalse(queue.remove(old));
+        queue.tick(old, 40_000L);
+        assertSame(replacement.get(), queue.ticket(player));
+    }
+
+    @Test
+    void ticketOwnershipUsesIdentityEvenWhenEveryValueMatches() {
+        HandoffQueue queue = new HandoffQueue();
+        UUID player = UUID.randomUUID();
+        HandoffQueue.Ticket first = queue.enqueue(player, 0L, 25_000L, () -> QUEUE,
+            resolution -> { }, () -> { }, (position, remaining) -> { });
+        HandoffQueue.Ticket second = queue.enqueue(player, first.enqueuedAtMillis(), 25_000L,
+            first.resolver(), first.onResolved(), first.onTimeout(), first.onPosition());
+
+        assertEquals(first, second);
+        assertFalse(queue.remove(first));
+        assertSame(second, queue.ticket(player));
+        assertTrue(queue.remove(second));
     }
 }

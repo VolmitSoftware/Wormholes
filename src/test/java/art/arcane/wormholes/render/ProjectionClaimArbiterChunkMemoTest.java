@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -27,6 +28,27 @@ import art.arcane.wormholes.render.view.ProjectionWorldView;
 public final class ProjectionClaimArbiterChunkMemoTest {
     private static final UUID WORLD_ID = UUID.fromString("00000000-0000-0000-0000-0000000000d1");
     private static final long CELL = packKey(3, 70, 5);
+
+    @Test
+    public void unchangedDeltaStillRepairsAReplacedClientChunk() {
+        AtomicLong revision = new AtomicLong(1L);
+        AtomicLong chunkRevision = new AtomicLong(1L);
+        List<Location> sentLocations = new ArrayList<>();
+        Player observer = player(sentLocations);
+        World world = world();
+        ILocalPortal portal = portal();
+        ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(ignored -> availableView(world),
+            countingVisibility(new AtomicInteger(), new AtomicBoolean(true), revision, chunkRevision));
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> first = claims(blockData("stable"));
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> next = new Long2ObjectOpenHashMap<>(first);
+        assertEquals(1, arbiter.submit(observer, portal, world, first, 2.0D, false).getBlockChanges());
+        chunkRevision.incrementAndGet();
+        revision.incrementAndGet();
+        assertEquals(1, arbiter.submitDelta(observer, portal, world,
+            new ProjectionClaimSet.ClaimDelta(first, next, new LongOpenHashSet(), new LongOpenHashSet()),
+            2.0D, false, false).getBlockChanges());
+        assertEquals(2, sentLocations.size());
+    }
 
     @Test
     public void stableClientChunkRevisionReusesVisibilityAcrossPasses() {
@@ -111,6 +133,119 @@ public final class ProjectionClaimArbiterChunkMemoTest {
         assertEquals(1, sentLocations.size());
     }
 
+    @Test
+    public void denseOverlayResendsOnlyTheReloadedChunk() {
+        AtomicLong revision = new AtomicLong(1L);
+        AtomicLong reloadedChunkRevision = new AtomicLong(1L);
+        AtomicInteger localSamples = new AtomicInteger();
+        List<Location> sentLocations = new ArrayList<Location>();
+        Player observer = player(sentLocations);
+        World world = world();
+        ILocalPortal portal = portal();
+        ProjectionChunkVisibility visibility = new ProjectionChunkVisibility() {
+            @Override
+            public boolean isChunkSent(Player player, int chunkX, int chunkZ) {
+                return true;
+            }
+
+            @Override
+            public long revision(Player player) {
+                return revision.get();
+            }
+
+            @Override
+            public long chunkRevision(Player player, int chunkX, int chunkZ) {
+                return chunkX == 7 ? reloadedChunkRevision.get() : 1L;
+            }
+        };
+        ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
+            ignored -> availableView(world, localSamples), visibility);
+        ProjectedBlockClaim projected = new ProjectedBlockClaim(
+            blockData("projected"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+        projected.setGlobalId(-1);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> cells = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(4096);
+        for (int chunkX = 0; chunkX < 16; chunkX++) {
+            for (int cell = 0; cell < 256; cell++) {
+                cells.put(packKey((chunkX << 4) + (cell & 15), 64 + (cell >> 4), 5), projected);
+            }
+        }
+
+        assertEquals(4096, arbiter.submit(observer, portal, world, cells, 2.0D, false).getBlockChanges());
+        sentLocations.clear();
+        revision.incrementAndGet();
+        assertEquals(0, arbiter.retryPending(observer, world).getBlockChanges());
+        assertTrue(sentLocations.isEmpty());
+
+        reloadedChunkRevision.incrementAndGet();
+        revision.incrementAndGet();
+        assertEquals(256, arbiter.retryPending(observer, world).getBlockChanges());
+        assertEquals(256, sentLocations.size());
+        assertTrue(sentLocations.stream().allMatch(location -> (location.getBlockX() >> 4) == 7));
+        assertEquals(0, localSamples.get());
+    }
+
+    @Test
+    public void partialRestoreRemovesOnlyReleasedCellsFromChunkReplay() {
+        AtomicLong revision = new AtomicLong(1L);
+        AtomicLong chunkRevision = new AtomicLong(1L);
+        AtomicInteger localSamples = new AtomicInteger();
+        List<Location> sentLocations = new ArrayList<Location>();
+        Player observer = player(sentLocations);
+        World world = world();
+        ILocalPortal portal = portal();
+        ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
+            ignored -> availableView(world, localSamples),
+            countingVisibility(new AtomicInteger(), new AtomicBoolean(true), revision, chunkRevision));
+        ProjectedBlockClaim projected = new ProjectedBlockClaim(
+            blockData("projected"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+        projected.setGlobalId(-1);
+        long releasedKey = packKey(4, 70, 5);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> cells = claims(projected.getData());
+        cells.put(CELL, projected);
+        cells.put(releasedKey, projected);
+        assertEquals(2, arbiter.submit(observer, portal, world, cells, 2.0D, false).getBlockChanges());
+
+        cells.remove(releasedKey);
+        assertEquals(1, arbiter.submit(observer, portal, world, cells, 2.0D, false).getBlockChanges());
+        assertEquals(1, localSamples.get());
+        sentLocations.clear();
+        chunkRevision.incrementAndGet();
+        revision.incrementAndGet();
+
+        assertEquals(1, arbiter.retryPending(observer, world).getBlockChanges());
+        assertEquals(1, sentLocations.size());
+        assertEquals(3, sentLocations.getFirst().getBlockX());
+        assertEquals(1, localSamples.get());
+        assertEquals(1, arbiter.release(observer, portal, world, false).getBlockChanges());
+        assertEquals(2, localSamples.get());
+        assertTrue(arbiter.isIdle());
+    }
+
+    @Test
+    public void unloadedOverlayReleaseDoesNotReadLocalBlocks() {
+        AtomicLong revision = new AtomicLong(1L);
+        AtomicBoolean chunkSent = new AtomicBoolean(true);
+        AtomicInteger localSamples = new AtomicInteger();
+        List<Location> sentLocations = new ArrayList<Location>();
+        Player observer = player(sentLocations);
+        World world = world();
+        ILocalPortal portal = portal();
+        ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
+            ignored -> availableView(world, localSamples),
+            countingVisibility(new AtomicInteger(), chunkSent, revision, new AtomicLong(1L)));
+        assertEquals(1, arbiter.submit(observer, portal, world, claims(blockData("projected")), 2.0D, false)
+            .getBlockChanges());
+
+        chunkSent.set(false);
+        revision.incrementAndGet();
+        assertEquals(0, arbiter.retryPending(observer, world).getBlockChanges());
+        assertEquals(0, arbiter.release(observer, portal, world, false).getBlockChanges());
+
+        assertEquals(0, localSamples.get());
+        assertEquals(1, sentLocations.size());
+        assertTrue(arbiter.isIdle());
+    }
+
     private static ProjectionChunkVisibility countingVisibility(AtomicInteger sentQueries,
                                                                 AtomicBoolean chunkSent,
                                                                 AtomicLong revision,
@@ -189,6 +324,10 @@ public final class ProjectionClaimArbiterChunkMemoTest {
     }
 
     private static ProjectionWorldView availableView(World world) {
+        return availableView(world, new AtomicInteger());
+    }
+
+    private static ProjectionWorldView availableView(World world, AtomicInteger localSamples) {
         return new ProjectionWorldView() {
             @Override
             public World getWorld() {
@@ -207,6 +346,7 @@ public final class ProjectionClaimArbiterChunkMemoTest {
 
             @Override
             public BlockData sampleBlockData(int x, int y, int z) {
+                localSamples.incrementAndGet();
                 return blockData("local");
             }
 

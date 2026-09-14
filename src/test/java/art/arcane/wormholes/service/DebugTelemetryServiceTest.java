@@ -11,10 +11,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.logging.Level;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DebugTelemetryServiceTest {
@@ -125,6 +130,133 @@ class DebugTelemetryServiceTest {
     }
 
     @Test
+    void enablingReportsExistingReasonsWithTheirLatestDetailsOnce() {
+        RecordingHandler handler = new RecordingHandler();
+        DebugTelemetryService service = new DebugTelemetryService(null, recordingLogger(handler));
+        FailureRegistry.record("HANDOFF_TIMED_OUT", "peer=old", 1_000L);
+        FailureRegistry.record("HANDOFF_TIMED_OUT", "peer=beta portal=hub", 2_000L);
+
+        service.logFailureReasons();
+        assertTrue(handler.records.isEmpty());
+        Settings.DEBUG = true;
+        service.logFailureReasons();
+
+        assertEquals(1, handler.records.size());
+        assertEquals("[debug/failure] reason=HANDOFF_TIMED_OUT total=2 new=2"
+            + " lastSeen=1970-01-01T00:00:02Z detail=peer=beta portal=hub", handler.records.getFirst().getMessage());
+        service.logFailureReasons();
+        assertEquals(1, handler.records.size());
+    }
+
+    @Test
+    void onlyChangedReasonsAreReportedAgain() {
+        RecordingHandler handler = new RecordingHandler();
+        DebugTelemetryService service = new DebugTelemetryService(null, recordingLogger(handler));
+        Settings.DEBUG = true;
+        FailureRegistry.record("ACCESS_DENIED", "portal=old", 1_000L);
+        FailureRegistry.record("HANDOFF_TIMED_OUT", "peer=beta", 1_000L);
+        service.logFailureReasons();
+        handler.records.clear();
+
+        FailureRegistry.record("ACCESS_DENIED", "portal=hub", 2_000L);
+        service.logFailureReasons();
+
+        assertEquals(1, handler.records.size());
+        assertEquals("[debug/failure] reason=ACCESS_DENIED total=2 new=1"
+            + " lastSeen=1970-01-01T00:00:02Z detail=portal=hub", handler.records.getFirst().getMessage());
+        service.logFailureReasons();
+        assertEquals(1, handler.records.size());
+    }
+
+    @Test
+    void reEnablingReportsTheCurrentBreakdownAgain() {
+        RecordingHandler handler = new RecordingHandler();
+        DebugTelemetryService service = new DebugTelemetryService(null, recordingLogger(handler));
+        FailureRegistry.record("ACCESS_DENIED", "portal=hub", 1_000L);
+        assertTrue(service.toggle("tester"));
+        service.logFailureReasons();
+        assertFalse(service.toggle("tester"));
+        handler.records.clear();
+        service.logFailureReasons();
+        assertTrue(handler.records.isEmpty());
+
+        assertTrue(service.toggle("tester"));
+        handler.records.clear();
+        service.logFailureReasons();
+
+        assertEquals(1, handler.records.size());
+        assertTrue(handler.records.getFirst().getMessage().contains("reason=ACCESS_DENIED total=1 new=1"));
+    }
+
+    @Test
+    void resetCountersAreReportedWithoutNegativeDeltas() {
+        RecordingHandler handler = new RecordingHandler();
+        DebugTelemetryService service = new DebugTelemetryService(null, recordingLogger(handler));
+        Settings.DEBUG = true;
+        FailureRegistry.record("ACCESS_DENIED", "portal=old", 1_000L);
+        FailureRegistry.record("ACCESS_DENIED", "portal=old", 1_001L);
+        service.logFailureReasons();
+        handler.records.clear();
+        FailureRegistry.clear();
+        FailureRegistry.record("ACCESS_DENIED", "portal=new", 2_000L);
+
+        service.logFailureReasons();
+
+        assertEquals(1, handler.records.size());
+        assertTrue(handler.records.getFirst().getMessage().contains("total=1 new=1"));
+        assertTrue(handler.records.getFirst().getMessage().endsWith("detail=portal=new"));
+    }
+
+    @Test
+    void reasonAndDetailLineBreaksCannotCreateExtraConsoleLines() {
+        RecordingHandler handler = new RecordingHandler();
+        DebugTelemetryService service = new DebugTelemetryService(null, recordingLogger(handler));
+        Settings.DEBUG = true;
+        FailureRegistry.record("ACCESS\nDENIED", "peer=beta\r\nportal=hub\tname=one\u0085two\u2028three\u2029four", 1_000L);
+
+        service.logFailureReasons();
+
+        assertEquals(1, handler.records.size());
+        String line = handler.records.getFirst().getMessage();
+        assertTrue(line.contains("reason=ACCESS DENIED"), line);
+        assertTrue(line.endsWith("detail=peer=beta  portal=hub name=one two three four"), line);
+        assertFalse(line.chars().anyMatch(character -> character == '\n' || character == '\r'
+            || character == '\t' || character == '\u0085' || character == '\u2028' || character == '\u2029'));
+    }
+
+    @Test
+    void countersRemainAvailableWhenTheirDetailHasLeftTheRecentRing() {
+        RecordingHandler handler = new RecordingHandler();
+        DebugTelemetryService service = new DebugTelemetryService(null, recordingLogger(handler));
+        Settings.DEBUG = true;
+        FailureRegistry.record("OLDER", "expired", 1_000L);
+        for (int index = 0; index < FailureRegistry.RING_CAPACITY; index++) {
+            FailureRegistry.record("RECENT", "index=" + index, 2_000L + index);
+        }
+
+        service.logFailureReasons();
+
+        assertEquals(2, handler.records.size());
+        assertEquals("[debug/failure] reason=OLDER total=1 new=1"
+            + " lastSeen=1970-01-01T00:00:01Z detail=-", handler.records.getFirst().getMessage());
+        assertTrue(handler.records.get(1).getMessage().endsWith("detail=index=255"));
+    }
+
+    @Test
+    void sampleFailureLoggingPreservesTheOriginalException() {
+        RecordingHandler handler = new RecordingHandler();
+        IllegalStateException failure = new IllegalStateException("sample failure");
+
+        assertFalse(DebugTelemetryService.runSample(recordingLogger(handler), () -> {
+            throw failure;
+        }));
+
+        assertEquals(1, handler.records.size());
+        assertSame(failure, handler.records.getFirst().getThrown());
+        assertEquals(Level.WARNING, handler.records.getFirst().getLevel());
+    }
+
+    @Test
     void sampleFailuresAreCountedInsteadOfVanishing() {
         assertFalse(DebugTelemetryService.runSample(quietLogger(), () -> {
             throw new IllegalStateException("boom");
@@ -175,6 +307,14 @@ class DebugTelemetryServiceTest {
         return logger;
     }
 
+    private static Logger recordingLogger(RecordingHandler handler) {
+        Logger logger = Logger.getAnonymousLogger();
+        logger.setUseParentHandlers(false);
+        logger.setLevel(Level.ALL);
+        logger.addHandler(handler);
+        return logger;
+    }
+
     private static DebugTelemetryService.CounterSnapshot counters(long capturedAtNanos, long value) {
         return new DebugTelemetryService.CounterSnapshot(
             capturedAtNanos,
@@ -196,5 +336,22 @@ class DebugTelemetryServiceTest {
             value,
             value
         );
+    }
+
+    private static final class RecordingHandler extends Handler {
+        private final List<LogRecord> records = new ArrayList<LogRecord>();
+
+        @Override
+        public void publish(LogRecord record) {
+            records.add(record);
+        }
+
+        @Override
+        public void flush() {
+        }
+
+        @Override
+        public void close() {
+        }
     }
 }

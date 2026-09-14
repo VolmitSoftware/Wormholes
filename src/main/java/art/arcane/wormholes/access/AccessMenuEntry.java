@@ -2,7 +2,6 @@ package art.arcane.wormholes.access;
 
 import art.arcane.volmlib.util.inventorygui.Window;
 import art.arcane.volmlib.util.localization.LinesKey;
-import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.wormholes.hook.PortalMenuEntry;
 import art.arcane.wormholes.localization.AccessMessages;
 import art.arcane.wormholes.portal.LocalPortal;
@@ -26,12 +25,6 @@ public final class AccessMenuEntry implements PortalMenuEntry {
     @Override
     public LinesKey label() {
         return AccessMessages.MENU_ENTRY;
-    }
-
-    @Override
-    public MessageArgs arguments(LocalPortal portal, Player viewer) {
-        AccessPortalExtension access = portal.extension(AccessPortalExtension.class);
-        return access == null ? MessageArgs.empty() : AccessMenu.placardArguments(portal, access);
     }
 
     @Override

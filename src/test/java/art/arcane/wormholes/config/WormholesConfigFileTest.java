@@ -41,6 +41,7 @@ class WormholesConfigFileTest {
         assertTrue(settings.getMain().dimensionalDoorsEnabled);
         assertEquals(16, settings.getMain().pocketRoomSize);
         assertEquals(1, settings.getProjection().initialResendPasses);
+        assertEquals(30_000, settings.getProjection().maxFrameMicros);
         assertTrue(settings.getNetwork().replication.captureBlockEntityEnabled);
         List<String> emitted = emittedSettings(file);
         assertEquals("language = \"en_US\"", emitted.get(0));
@@ -60,6 +61,7 @@ class WormholesConfigFileTest {
         assertTrue(emitted.contains("occlusion-reveal-margin-degrees = 1.0"));
         assertTrue(emitted.contains("pocket-room-size = 16"));
         assertTrue(emitted.contains("initial-resend-passes = 1"));
+        assertTrue(emitted.contains("max-frame-micros = 30000"));
         assertTrue(emitted.contains("capture-block-entity-enabled = true"));
 
         Settings.refresh(settings);
@@ -82,6 +84,7 @@ class WormholesConfigFileTest {
         created.projection.range = 72.0D;
         created.projection.occlusionRevealMarginDegrees = 2.5D;
         created.projection.initialResendPasses = 3;
+        created.projection.maxFrameMicros = 18_000;
         created.render.entitySpoofing = false;
         TomlCodec.writeCanonical(file, created);
 
@@ -105,6 +108,7 @@ class WormholesConfigFileTest {
         assertEquals(72.0D, result.value().projection.range);
         assertEquals(2.5D, result.value().projection.occlusionRevealMarginDegrees);
         assertEquals(3, result.value().projection.initialResendPasses);
+        assertEquals(18_000, result.value().projection.maxFrameMicros);
         assertFalse(result.value().render.entitySpoofing);
     }
 
@@ -314,6 +318,29 @@ class WormholesConfigFileTest {
         assertEquals(3, Settings.PROJECTION_INITIAL_RESEND_PASSES);
 
         refreshProjection(new ProjectionConfig());
+    }
+
+    @Test
+    void projectionFrameBudgetClampsAndAllowsExplicitUnlimited() {
+        ProjectionConfig projection = new ProjectionConfig();
+        try {
+            refreshProjection(projection);
+            assertEquals(30_000, Settings.PROJECTION_MAX_FRAME_MICROS);
+            projection.maxFrameMicros = -1;
+            refreshProjection(projection);
+            assertEquals(0, Settings.PROJECTION_MAX_FRAME_MICROS);
+            projection.maxFrameMicros = 0;
+            refreshProjection(projection);
+            assertEquals(0, Settings.PROJECTION_MAX_FRAME_MICROS);
+            projection.maxFrameMicros = 2_000_000;
+            refreshProjection(projection);
+            assertEquals(1_000_000, Settings.PROJECTION_MAX_FRAME_MICROS);
+            projection.maxFrameMicros = 18_000;
+            refreshProjection(projection);
+            assertEquals(18_000, Settings.PROJECTION_MAX_FRAME_MICROS);
+        } finally {
+            refreshProjection(new ProjectionConfig());
+        }
     }
 
     @Test

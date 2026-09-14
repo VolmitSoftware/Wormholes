@@ -30,6 +30,6 @@ class DirectTransferIdentityTest {
     }
 
     private static WireMessage.HandoffRequest request(UUID playerId, boolean direct, boolean online) {
-        return new WireMessage.HandoffRequest(UUID.randomUUID(), playerId, "Traveler", null, direct, online, null);
+        return new WireMessage.HandoffRequest(UUID.randomUUID(), playerId, "Traveler", null, direct, online, false, null);
     }
 }

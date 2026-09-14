@@ -45,7 +45,7 @@ public final class MirrorInboundGateTest {
     }
 
 	@Test
-	public void remotePreflightUsesMirroredPermissionPolicyBeforeOptimisticTransfer() {
+	public void remotePreflightDefersPlayerPermissionsToTheDestination() {
 		RemotePortal remote = remotePortal(true);
 		remote.setName("Beta Gate");
 		Player allowed = player(false, true);
@@ -53,10 +53,10 @@ public final class MirrorInboundGateTest {
 
 		remote.setMirroredPermissionMode(PortalPermissionMode.WHITELIST);
 		assertTrue(remote.acceptsInboundTraversal(allowed));
-		assertFalse(remote.acceptsInboundTraversal(denied));
+		assertTrue(remote.acceptsInboundTraversal(denied));
 
 		remote.setMirroredPermissionMode(PortalPermissionMode.BLACKLIST);
-		assertFalse(remote.acceptsInboundTraversal(allowed));
+		assertTrue(remote.acceptsInboundTraversal(allowed));
 		assertTrue(remote.acceptsInboundTraversal(denied));
 	}
 
@@ -104,7 +104,7 @@ public final class MirrorInboundGateTest {
 	private static Player player(boolean operator, boolean hasPermission) {
 		return (Player) Proxy.newProxyInstance(Player.class.getClassLoader(), new Class<?>[] { Player.class }, (proxy, method, args) -> switch(method.getName()) {
 			case "isOp" -> Boolean.valueOf(operator);
-			case "hasPermission" -> Boolean.valueOf(hasPermission);
+			case "hasPermission" -> Boolean.valueOf(hasPermission && !"*".equals(args[0]));
 			case "toString" -> "MirrorInboundGatePlayer";
 			case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
 			case "equals" -> Boolean.valueOf(proxy == args[0]);

@@ -876,6 +876,24 @@ public final class RtpLiveRuntimeTest
 	}
 
 	@Test
+	public void cancellingDispatchedTeleportKeepsClaimUntilPhysicalCompletion()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.prepareReady();
+		MutableEntity traveler = MutableEntity.entity(harness.world, harness.sourceLocation());
+		harness.environment.deferredTeleport = new CompletableFuture<Boolean>();
+		assertTrue(harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+		assertEquals(1, harness.environment.teleports.get());
+		harness.runtime.leaveViewer(traveler.id);
+		assertTrue(LocalPortal.isTeleportInFlight(traveler.id, harness.environment.nowMillis));
+		assertFalse(harness.portal.beginRtpTraversal(traveler.entity(), harness.environment.nowMillis));
+		assertLocation(harness.sourceLocation(), traveler.location);
+		harness.environment.deferredTeleport.complete(Boolean.TRUE);
+		assertFalse(LocalPortal.isTeleportInFlight(traveler.id, harness.environment.nowMillis));
+		assertEquals(0, harness.environment.successes.get());
+	}
+
+	@Test
 	public void foliaConfirmationAcceptsMovementAfterSuccessfulTeleport()
 	{
 		Harness harness = new Harness(RtpRotationMode.STATIC);
@@ -884,6 +902,7 @@ public final class RtpLiveRuntimeTest
 		harness.environment.holdEntitySchedules = true;
 
 		assertTrue(harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
+		harness.environment.runNextEntityCommand();
 		harness.environment.runNextEntityCommand();
 		harness.environment.runNextEntityCommand();
 		harness.environment.runNextEntityCommand();
@@ -929,6 +948,7 @@ public final class RtpLiveRuntimeTest
 		assertTrue(harness.runtime.traverse(harness.portal, traveler.entity(), harness.traversive(traveler.entity())));
 		harness.environment.runNextEntityCommand();
 		int scheduledBeforeDispatch = harness.environment.dispatcher.size();
+		harness.environment.runNextEntityCommand();
 		harness.environment.runNextEntityCommand();
 		harness.environment.runNextEntityCommand();
 		assertEquals(1, harness.environment.teleports.get());
@@ -1205,7 +1225,7 @@ public final class RtpLiveRuntimeTest
 			PortalStructure structure = new PortalStructure();
 			structure.setWorld(world);
 			structure.setArea(new Cuboid(new Location(world, 0.0D, 64.0D, 0.0D), new Location(world, 0.0D, 66.0D, 2.0D)));
-			LocalPortal created = new LocalPortal(UUID.randomUUID(), type, structure);
+			LocalPortal created = new HoldPortal(UUID.randomUUID(), type, structure);
 			created.setAmbientAttended(false);
 			if(type == PortalType.RTP)
 			{
@@ -1229,6 +1249,64 @@ public final class RtpLiveRuntimeTest
 			PortalFrame inFrame = portal.getFrame().view(frontSide);
 			return new Traversive(entity, inFrame, new Vector(0.5D, 65.0D, 1.0D),
 					new Vector(0.5D, 65.0D, 1.0D), velocity, look, frontSide);
+		}
+	}
+
+	private static final class HoldPortal extends LocalPortal
+	{
+		private final LocalPortalDepartureHold hold = new LocalPortalDepartureHold(this, new LocalPortalRuntime()
+		{
+			@Override
+			public boolean dispatch(Entity entity, Runnable task, Runnable retired, long delayTicks)
+			{
+				if(delayTicks == 0L)
+				{
+					task.run();
+				}
+				return true;
+			}
+
+			@Override
+			public boolean dispatchRegion(World world, int chunkX, int chunkZ, Runnable task, long delayTicks)
+			{
+				task.run();
+				return true;
+			}
+
+			@Override
+			public CompletionStage<Boolean> teleport(Entity entity, Location target)
+			{
+				return CompletableFuture.completedFuture(entity.teleport(target));
+			}
+		});
+
+		private HoldPortal(UUID id, PortalType type, PortalStructure structure)
+		{
+			super(id, type, structure);
+		}
+
+		@Override
+		public void startRtpTraversalHold(Entity entity, Traversive traversive, Runnable onCancel)
+		{
+			hold.startRtpTraversalHold(entity, traversive, onCancel);
+		}
+
+		@Override
+		public CompletionStage<Boolean> prepareDeparture(Entity entity, Traversive traversive)
+		{
+			return hold.prepareDeparture(entity, traversive);
+		}
+
+		@Override
+		public CompletionStage<Boolean> cancelDepartureHold(Entity entity, Traversive traversive)
+		{
+			return hold.cancelDepartureHold(entity, traversive);
+		}
+
+		@Override
+		public boolean commitDepartureHold(Entity entity, Traversive traversive)
+		{
+			return hold.commitDeparture(entity, traversive);
 		}
 	}
 
@@ -1533,6 +1611,7 @@ public final class RtpLiveRuntimeTest
 		private long nowMillis;
 		private FailureMode failureMode;
 		private boolean deferTraversalLoad;
+		private CompletableFuture<Boolean> deferredTeleport;
 		private boolean holdEntitySchedules;
 		private boolean rejectEntitySchedules;
 		private boolean retireNextEntityFromDestination;
@@ -1738,6 +1817,17 @@ public final class RtpLiveRuntimeTest
 				return CompletableFuture.completedFuture(Boolean.FALSE);
 			}
 			MutableEntity mutable = MutableEntity.of(entity);
+			if(deferredTeleport != null)
+			{
+				return deferredTeleport.thenApply(success ->
+				{
+					if(Boolean.TRUE.equals(success))
+					{
+						mutable.location = target.clone();
+					}
+					return success;
+				});
+			}
 			mutable.location = failureMode == FailureMode.ARRIVAL_DRIFT
 					? target.clone().add(0.75D, 0.0D, 0.0D)
 					: target.clone();
@@ -1917,7 +2007,7 @@ public final class RtpLiveRuntimeTest
 				case "getVehicle" -> vehicle;
 				case "isValid", "isOnline" -> valid;
 				case "isOp" -> false;
-				case "hasPermission" -> permission;
+				case "hasPermission" -> permission && !"*".equals(arguments[0]);
 				case "getFallDistance" -> 0.0F;
 				case "hasGravity" -> true;
 				case "equals" -> instance == arguments[0];

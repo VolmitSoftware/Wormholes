@@ -4,6 +4,7 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import java.util.logging.Level;
 
@@ -87,6 +88,7 @@ public final class PortalProjector {
     private int lastBlockChanges;
     private volatile int lastRenderedCells;
     private int lastReuseSkips;
+    private int occlusionResumes;
     private int lastClaimConflicts;
     private int lastWinnerChanges;
     private int lastClaimReverts;
@@ -98,7 +100,15 @@ public final class PortalProjector {
     private volatile boolean reuseInvalidated;
     private RtpProjectionTarget rtpProjectionTarget;
     private ProjectionRenderMode lastRenderMode;
+    private long lastPresentationRevision;
     private boolean lastPassUsedPlate;
+    private final AtomicLong invalidationGeneration = new AtomicLong();
+    private long lastCommittedGeneration;
+    private volatile PendingProjection pendingProjection;
+    private long scanSlices;
+    private long completedScans;
+    private long lastScanNanos;
+    private long lastFinalizeNanos;
 
     public PortalProjector(ILocalPortal portal, Player observer, ProjectionClaimArbiter claimArbiter,
                            ProjectionWorldViewProvider viewProvider, BooleanSupplier activeGuard) {
@@ -182,6 +192,10 @@ public final class PortalProjector {
         return firstProjectionDone && cellScan.hasProjection();
     }
 
+    public boolean hasPendingScan() {
+        return pendingProjection != null;
+    }
+
     public boolean isRetiring() {
         return dissolve.isRetiring();
     }
@@ -199,6 +213,7 @@ public final class PortalProjector {
     }
 
     public void invalidateProjectionReuse() {
+        invalidationGeneration.incrementAndGet();
         reuseInvalidated = true;
     }
 
@@ -242,8 +257,11 @@ public final class PortalProjector {
             + " planeReject=" + cellScan.planeRejected()
             + " windowReject=" + cellScan.windowRejected()
             + " frustumReject=" + cellScan.frustumRejected()
+            + " frustumMaskRows=" + cellScan.frustumMaskedRows()
+            + " frustumScalarRows=" + cellScan.frustumScalarRows()
             + " occlusionReject=" + cellScan.occlusionRejected()
             + " occlusionSteps=" + cellScan.occlusionVoxelSteps()
+            + " occlusionResumes=" + occlusionResumes
             + " occlusionProofHits=" + cellScan.occlusionProofHits()
             + " occlusionProofRevalidations=" + cellScan.occlusionProofRevalidations()
             + " occlusionProofInvalidations=" + cellScan.occlusionProofInvalidations()
@@ -251,7 +269,13 @@ public final class PortalProjector {
             + " unresolvedOcclusion=" + cellScan.unresolvedOcclusionCells()
             + " occlusionBudgetExhausted=" + cellScan.occlusionBudgetExhausted()
             + " remoteSamples=" + sampler.remoteSampleCount()
+            + " emptyCellSkips=" + cellScan.emptyCellSkips()
             + " reuseSkips=" + lastReuseSkips
+            + " scanSlices=" + scanSlices
+            + " completedScans=" + completedScans
+            + " scanPending=" + hasPendingScan()
+            + " scanNanos=" + lastScanNanos
+            + " finalizeNanos=" + lastFinalizeNanos
             + " maskAir=" + cellScan.maskedCells()
             + " plate=" + lastPassUsedPlate
             + " plateHits=" + cellScan.plateHits()
@@ -272,6 +296,10 @@ public final class PortalProjector {
     }
 
     public void project(boolean updateBlocks, boolean updateEntities) {
+        project(updateBlocks, updateEntities, Long.MAX_VALUE);
+    }
+
+    public void project(boolean updateBlocks, boolean updateEntities, long deadlineNanos) {
         if (!activeGuard.getAsBoolean()) {
             close();
             return;
@@ -310,11 +338,22 @@ public final class PortalProjector {
 
         Location eye = observer.getEyeLocation();
         entityRenderer.setViewerProfile(ClientProfileService.profileFor(observer));
+        PendingProjection pending = pendingProjection;
+        if (pending != null && !matchesPendingContext(pending, eye, rtpTarget)) {
+            cancelPendingProjection();
+            pending = null;
+        }
         if (!updateBlocks) {
             updateEntitiesOnly(startNanos, eye);
             return;
         }
+        if (pending != null) {
+            advanceProjection(pending, startNanos, eye, updateEntities, deadlineNanos);
+            return;
+        }
 
+        long scanGeneration = invalidationGeneration.get();
+        boolean projectionInvalidated = reuseInvalidated || lastCommittedGeneration != scanGeneration;
         schedule.beginBlockPass();
         blockPasses++;
         if (dissolve.retireComplete(blockPasses)) {
@@ -379,9 +418,6 @@ public final class PortalProjector {
         }
 
         boolean scheduledContentResample = schedule.consumeForcedResample(stableResample);
-        boolean forceStableCellResample = shouldForceCellResample(
-            scheduledContentResample, renderModeChanged, viewCameraMoved);
-
         long destinationRevision = destination.destView.getRevision();
         boolean destinationSamplesStale = shouldInvalidateDestinationContentSamples(
             scheduledContentResample, renderModeChanged, buriedCellCullingChanged,
@@ -396,12 +432,23 @@ public final class PortalProjector {
         }
         sampler.resetRecursiveSamplesCached();
         boolean localContentResample = scheduledContentResample || renderModeChanged;
-        sampleMemo.refreshLocal(localContentResample, localDirty, destination.localView.getRevision(),
+        boolean localSamplesStale = sampleMemo.refreshLocal(localContentResample, localDirty, destination.localView.getRevision(),
             sampleMemoBudget(viewFrustum.fittedCandidateWork()));
         sampleMemo.expandLocalRegionRect(next.getRegion());
         sampleMemo.markLocalScanned();
 
         boolean forceFullSend = initialFullSendPassesRemaining > 0;
+        boolean blockEntities = FidelitySettings.blockEntities && (fidelity == null || fidelity.effectiveBlockEntities());
+        long presentationRevision = presentationRevision(eye, rtpTarget, buriedCellCulling, observerLod, blockEntities);
+        boolean contentInvalidated = projectionInvalidated || destinationSamplesStale || localSamplesStale
+            || presentationRevision != lastPresentationRevision;
+        boolean reuseStableContent = viewCameraMoved && !contentInvalidated
+            && !scheduledContentResample && !renderModeChanged;
+        if (contentInvalidated) {
+            cellScan.invalidateContent();
+        }
+        boolean forceStableCellResample = contentInvalidated || shouldForceCellResample(
+            scheduledContentResample, renderModeChanged, viewCameraMoved && !reuseStableContent);
         sampler.resetRemoteSampleCount();
         lastBlockChanges = 0;
         lastClaimConflicts = 0;
@@ -409,14 +456,62 @@ public final class PortalProjector {
         lastClaimReverts = 0;
         ViewPlate plate = rtpTarget == null ? acquirePlate(eye, buriedCellCulling, destinationRevision) : null;
         lastPassUsedPlate = plate != null;
-        boolean blockEntities = FidelitySettings.blockEntities && (fidelity == null || fidelity.effectiveBlockEntities());
-        cellScan.run(destination, rtpTarget, eye, next, depthBlocks, forceStableCellResample, forceFullSend,
-            buriedCellCulling, renderMode, plate, blockEntities, observerLod);
+        PendingProjection frame = new PendingProjection(eye, next, depthBlocks, viewFrustum.fittedCoarse(),
+            fidelity, renderMode, forceFullSend, presentationRevision, destinationRevision,
+            destination.localView, destination.destView, destination.destAnchor, scanContextRevision(),
+            scanGeneration);
+        if (firstProjectionDone && !projectionInvalidated && !dissolve.isActive()
+            && !forceStableCellResample && !forceFullSend && !destinationSamplesStale && !localSamplesStale
+            && presentationRevision == lastPresentationRevision && cellScan.canResumeOcclusion(destination, eye, next)) {
+            long scanStarted = System.nanoTime();
+            cellScan.resumeOcclusion();
+            lastScanNanos = System.nanoTime() - scanStarted;
+            occlusionResumes++;
+            completeProjection(frame, startNanos, updateEntities);
+        } else {
+            cellScan.begin(destination, rtpTarget, eye, next, depthBlocks, forceStableCellResample, forceFullSend,
+                viewCameraMoved, buriedCellCulling, renderMode, plate, blockEntities, observerLod);
+            pendingProjection = frame;
+            advanceProjection(frame, startNanos, eye, updateEntities, deadlineNanos);
+        }
+    }
+
+    private void advanceProjection(PendingProjection frame, long startNanos, Location eye,
+                                   boolean updateEntities, long deadlineNanos) {
+        long scanStarted = System.nanoTime();
+        boolean ready = cellScan.advance(deadlineNanos);
+        lastScanNanos = System.nanoTime() - scanStarted;
+        scanSlices++;
+        if (ready) {
+            completeProjection(frame, startNanos, updateEntities);
+        } else if (updateEntities) {
+            updateEntitiesOnly(startNanos, eye);
+        } else {
+            recordProjectTime(startNanos);
+        }
+    }
+
+    private void completeProjection(PendingProjection frame, long startNanos, boolean updateEntities) {
+        long finalizeStarted = System.nanoTime();
+        if (!matchesPendingContext(frame, observer.getEyeLocation(), rtpProjectionTarget)) {
+            cancelPendingProjection();
+            recordProjectTime(startNanos);
+            return;
+        }
+        Location eye = frame.eye();
+        Frustum4D next = frame.frustum();
+        double depthBlocks = frame.depthBlocks();
+        FidelityPortalExtension fidelity = frame.fidelity();
+        boolean forceFullSend = frame.forceFullSend();
+        ProjectionRenderMode renderMode = frame.renderMode();
+        long destinationRevision = frame.destinationRevision();
+        long presentationRevision = frame.presentationRevision();
         if (!firstProjectionDone && !dissolve.isRetiring()) {
             dissolve.beginAdmit(blockPasses, FidelitySettings.dissolveTicks);
         }
         double admitted = dissolve.admittedFraction(blockPasses);
         if (admitted < 1.0D) {
+            cellScan.invalidateOcclusionContinuation();
             double clearance = portalPlaneClearance(portal.getStructure().getArea(), portal.getFrame());
             Direction dissolveNormal = portal.getFrame().getNormal();
             double originNormal = axisValueOf(portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(), dissolveNormal);
@@ -451,8 +546,8 @@ public final class PortalProjector {
         noteClaimWorld(submitWorld);
         boolean sourceLighting = FidelitySettings.skyLight && atmosphereMode.promotesSkyLight();
         boolean lightingPass = (Settings.LIGHTING_FIDELITY || sourceLighting) && schedule.lightingUpdatePass(firstProjectionDone);
-        ProjectionClaimArbiter.ClaimUpdateResult claimResult = claimArbiter.submit(observer, portal, submitWorld,
-            cellScan.claims(), Math.abs(cellScan.eyeDot()), lightingPass, sourceLighting);
+        ProjectionClaimArbiter.ClaimUpdateResult claimResult = claimArbiter.submitDelta(observer, portal, submitWorld,
+            cellScan.claimDelta(), Math.abs(cellScan.eyeDot()), lightingPass, sourceLighting);
         lastBlockChanges = claimResult.getBlockChanges();
         lastClaimConflicts = claimResult.getConflicts();
         lastWinnerChanges = claimResult.getWinnerChanges();
@@ -488,10 +583,57 @@ public final class PortalProjector {
         }
 
         cellScan.commit();
+        completedScans++;
+        pendingProjection = null;
+        lastFinalizeNanos = System.nanoTime() - finalizeStarted;
 
         firstProjectionDone = true;
         lastRenderMode = renderMode;
+        lastPresentationRevision = presentationRevision;
+        lastCommittedGeneration = frame.invalidationGeneration();
         rememberCamera(eye);
+        reuseInvalidated = invalidationGeneration.get() != frame.invalidationGeneration();
+    }
+
+    private boolean matchesPendingContext(PendingProjection frame, Location eye, RtpProjectionTarget rtpTarget) {
+        if (frame.invalidationGeneration() != invalidationGeneration.get()
+            || frame.contextRevision() != scanContextRevision()
+            || frame.localView() != destination.localView || frame.destinationView() != destination.destView
+            || frame.destinationAnchor() != destination.destAnchor) {
+            return false;
+        }
+        FidelityPortalExtension fidelity = fidelityExtension();
+        LodPolicy lod = portalLod(fidelity);
+        if (frame.coarse()) {
+            lod = lod.withMergeRuns();
+        }
+        boolean blockEntities = FidelitySettings.blockEntities && (fidelity == null || fidelity.effectiveBlockEntities());
+        return frame.presentationRevision() == presentationRevision(eye, rtpTarget,
+            portal.getRenderMode().usesBuriedCellCulling(), lod, blockEntities);
+    }
+
+    private long scanContextRevision() {
+        long revision = mix(portal.getStructure().getRevision(), portal.getRenderMode().ordinal());
+        revision = mix(revision, portal.isBlackoutBackground() ? 1L : 0L);
+        revision = mix(revision, portal.getBlackoutColor() == null ? -1L : portal.getBlackoutColor().ordinal());
+        revision = mix(revision, Double.doubleToLongBits(Settings.NEAR_PLANE_PADDING));
+        revision = mix(revision, Double.doubleToLongBits(Settings.FRUSTUM_CULLING_RATIO));
+        revision = mix(revision, Double.doubleToLongBits(Settings.PROJECTION_OCCLUSION_REVEAL_MARGIN_DEGREES));
+        revision = mix(revision, Settings.PROJECTION_MAX_PROJECTED_CELLS);
+        revision = mix(revision, Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH);
+        return mix(revision, rtpProjectionTarget == null ? -1L : rtpProjectionTarget.routeRevision());
+    }
+
+    private void cancelPendingProjection() {
+        cellScan.cancelPending();
+        pendingProjection = null;
+        reuseInvalidated = true;
+        schedule.invalidateDestination();
+    }
+
+    private void recordProjectTime(long startNanos) {
+        lastProjectNanos = System.nanoTime() - startNanos;
+        WormholesTelemetry.addRenderNanos(lastProjectNanos);
     }
 
     public void finishBlackoutDisplayFrame() {
@@ -715,6 +857,28 @@ public final class PortalProjector {
         return LodPolicy.current(fidelity == null ? null : fidelity.effectiveLodProfile());
     }
 
+    private long presentationRevision(Location eye, RtpProjectionTarget rtpTarget, boolean buriedCellCulling,
+                                      LodPolicy lod, boolean blockEntities) {
+        PortalFrame localFrame = portal.getFrame();
+        PortalFrame remoteFrame = rtpTarget != null ? rtpTarget.frame()
+            : destination.mirrorMode ? localFrame.flipNormal() : destination.destAnchor.getFrame();
+        double localOriginX = portal.getOrigin().getX();
+        double localOriginY = portal.getOrigin().getY();
+        double localOriginZ = portal.getOrigin().getZ();
+        double remoteOriginX = destination.mirrorMode ? localOriginX : destination.originX;
+        double remoteOriginY = destination.mirrorMode ? localOriginY : destination.originY;
+        double remoteOriginZ = destination.mirrorMode ? localOriginZ : destination.originZ;
+        Direction facing = localFrame.getNormal();
+        boolean eyeFrontSide = ((eye.getX() - localOriginX) * facing.x()
+            + (eye.getY() - localOriginY) * facing.y()
+            + (eye.getZ() - localOriginZ) * facing.z()) >= 0.0D;
+        long revision = plateTransformRevision(localFrame, remoteFrame, localOriginX, localOriginY, localOriginZ,
+            remoteOriginX, remoteOriginY, remoteOriginZ, portal.getNetworkViewDepth(), portal.getNetworkViewLateralPad(),
+            Settings.PROJECTION_APERTURE_PADDING_BLOCKS, buriedCellCulling, lod, blockEntities);
+        revision = mix(revision, destination.mirrorRotationQuarterTurns);
+        return mix(revision, eyeFrontSide ? 1L : 0L);
+    }
+
     FidelityPortalExtension fidelityExtension() {
         if (portal instanceof LocalPortal local) {
             return local.extension(FidelityPortalExtension.class);
@@ -833,7 +997,7 @@ public final class PortalProjector {
     }
 
     private boolean canReuseProjection(Location eye, boolean stableResample, boolean localDirty) {
-        if (reuseInvalidated) {
+        if (reuseInvalidated || lastCommittedGeneration != invalidationGeneration.get()) {
             return false;
         }
         if (cellScan.hasUnresolvedOcclusion()) {
@@ -931,6 +1095,7 @@ public final class PortalProjector {
     }
 
     private void invalidateRtpDestinationState() {
+        cancelPendingProjection();
         schedule.invalidateDestination();
         sampler.resetRecursiveSamplesCached();
         sampleMemo.discard();
@@ -955,6 +1120,7 @@ public final class PortalProjector {
             blockEntityLayer.clear();
         }
         cellScan.clear();
+        pendingProjection = null;
         lastRenderedCells = 0;
     }
 
@@ -1008,6 +1174,7 @@ public final class PortalProjector {
             claimArbiter.discardObserver(observerId, claimWorldId);
         }
         cellScan.clear();
+        pendingProjection = null;
         lastRenderedCells = 0;
         blackoutDisplayRenderer.discard();
         entityRenderer.discard(observer);
@@ -1024,6 +1191,13 @@ public final class PortalProjector {
         }
         return "[" + box.getXa() + "," + box.getYa() + "," + box.getZa()
             + " -> " + box.getXb() + "," + box.getYb() + "," + box.getZb() + "]";
+    }
+
+    private record PendingProjection(Location eye, Frustum4D frustum, double depthBlocks, boolean coarse,
+                                     FidelityPortalExtension fidelity, ProjectionRenderMode renderMode,
+                                     boolean forceFullSend, long presentationRevision, long destinationRevision,
+                                     ProjectionWorldView localView, ProjectionWorldView destinationView,
+                                     IPortal destinationAnchor, long contextRevision, long invalidationGeneration) {
     }
 
     public record RtpProjectionTarget(World world, double originX, double originY, double originZ,

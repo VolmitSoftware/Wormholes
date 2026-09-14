@@ -15,9 +15,11 @@ import art.arcane.wormholes.util.Direction;
 public final class Frustum4D {
     private static final double EPSILON = 1.0E-7D;
     private static final Direction[] DIRECTIONS = Direction.values();
+    private static final Frustum.FaceIndex[] NO_FACE_INDEX = new Frustum.FaceIndex[0];
     private static final Frustum4D EMPTY = new Frustum4D();
 
     private final Frustum[] frustums;
+    private volatile Frustum.FaceIndex[] faceIndex;
     private final AxisAlignedBB region;
     private final double regionXa;
     private final double regionXb;
@@ -28,6 +30,7 @@ public final class Frustum4D {
 
     private Frustum4D() {
         this.frustums = new Frustum[0];
+        this.faceIndex = NO_FACE_INDEX;
         this.region = new AxisAlignedBB(0.25D, 0.25D, 0.25D, 0.25D, 0.25D, 0.25D);
         this.regionXa = region.getXa();
         this.regionXb = region.getXb();
@@ -111,6 +114,7 @@ public final class Frustum4D {
         }
 
         this.frustums = built.toArray(new Frustum[built.size()]);
+        this.faceIndex = frustums.length < 4 ? NO_FACE_INDEX : null;
 
         AxisAlignedBB acc = new AxisAlignedBB(this.frustums[0].getRegion());
         for (int i = 1; i < this.frustums.length; i++) {
@@ -139,6 +143,18 @@ public final class Frustum4D {
 
     public boolean containsPrimitive(double x, double y, double z) {
         if (x < regionXa || x > regionXb || y < regionYa || y > regionYb || z < regionZa || z > regionZb) {
+            return false;
+        }
+        Frustum.FaceIndex[] indexedFaces = faceIndex;
+        if (indexedFaces == null) {
+            indexedFaces = initializeFaceIndex();
+        }
+        if (indexedFaces.length > 0) {
+            for (Frustum.FaceIndex group : indexedFaces) {
+                if (group.contains(x, y, z)) {
+                    return true;
+                }
+            }
             return false;
         }
         Frustum[] arr = frustums;
@@ -172,12 +188,44 @@ public final class Frustum4D {
             && containsPrimitive(maxX, maxY, maxZ);
     }
 
+    boolean containsRow(int axis, double x, double y, double z, double end) {
+        if (frustums.length > 3) {
+            return false;
+        }
+        for (Frustum frustum : frustums) {
+            if (frustum.containsRow(axis, x, y, z, end)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    boolean appendRow(ProjectorFrustumRow row, int axis, double x, double y, double z, int minimum, int maximum) {
+        if (frustums.length > 128) {
+            return false;
+        }
+        for (Frustum frustum : frustums) {
+            if (!frustum.appendRow(row, axis, x, y, z, minimum, maximum)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public AxisAlignedBB getRegion() {
         return region;
     }
 
     public int getFaceCount() {
         return frustums.length;
+    }
+
+    private synchronized Frustum.FaceIndex[] initializeFaceIndex() {
+        if (faceIndex == null) {
+            Frustum.FaceIndex[] built = Frustum.FaceIndex.build(frustums);
+            faceIndex = built == null ? NO_FACE_INDEX : built;
+        }
+        return faceIndex;
     }
 
     private static double clamp(double value, double low, double high) {

@@ -3,6 +3,14 @@ package art.arcane.wormholes.network;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -13,6 +21,92 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlayerHandoffAdmissionTest {
+    @Test
+    void arrivalCompletionCannotDisappearBetweenCapacitySnapshotAndReservation() {
+        PlayerHandoffAdmission admission = new PlayerHandoffAdmission();
+        UUID arrivingId = UUID.randomUUID();
+        PlayerHandoffAdmission.Request first = request(UUID.randomUUID(), arrivingId, UUID.randomUUID(), false, 4.0D);
+        assertTrue(admission.decide(attempt(first, null, 1_000L, 60_000L, 1_000L)).accepted());
+        PlayerHandoffAdmission.Reservation placing = admission.claimArrival(arrivingId, 1_100L);
+        PlayerHandoffAdmission.Request next = request(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), false, 4.0D);
+        CountDownLatch completionStarted = new CountDownLatch(1);
+        AtomicReference<CompletableFuture<Boolean>> completion = new AtomicReference<>();
+
+        PlayerHandoffAdmission.Decision result = admission.decideAfterPreflight(() -> {
+            Set<UUID> onlineSnapshot = Set.of();
+            completion.set(CompletableFuture.supplyAsync(() -> {
+                completionStarted.countDown();
+                return admission.completeArrival(placing, 1_200L);
+            }));
+            try {
+                assertTrue(completionStarted.await(5L, TimeUnit.SECONDS));
+            } catch (InterruptedException error) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(error);
+            }
+            int occupied = onlineSnapshot.size() + admission.reservedOfflinePlayers(onlineSnapshot, 1_200L);
+            return attempt(next, occupied >= 1 ? "destination server is full" : null, 1_200L, 60_000L, 1_000L);
+        });
+
+        assertEquals(PlayerHandoffAdmission.Status.DENIED, result.status());
+        assertTrue(completion.get().join());
+        assertEquals(0, admission.activeReservations(1_300L));
+    }
+
+    @Test
+    void simultaneousPlayerBurstKeepsIndependentReservations() {
+        PlayerHandoffAdmission admission = new PlayerHandoffAdmission();
+        List<CompletableFuture<PlayerHandoffAdmission.Decision>> futures = new ArrayList<>();
+        for (int index = 0; index < 64; index++) {
+            PlayerHandoffAdmission.Request request = request(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), false, 4.0D);
+            futures.add(CompletableFuture.supplyAsync(() -> admission.decide(attempt(request, null, 1_000L, 60_000L, 1_000L))));
+        }
+        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+        Set<UUID> players = new HashSet<>();
+        for (CompletableFuture<PlayerHandoffAdmission.Decision> future : futures) {
+            PlayerHandoffAdmission.Decision decision = future.join();
+            assertTrue(decision.accepted());
+            UUID playerId = decision.reservation().request().playerId();
+            assertTrue(players.add(playerId));
+            assertNotNull(admission.claimArrival(playerId, 1_100L));
+        }
+        assertEquals(64, admission.activeReservations(1_100L));
+    }
+
+    @Test
+    void joinedPlayersNeverConsumeAnAdditionalReservedSlotDuringPlacement() {
+        PlayerHandoffAdmission admission = new PlayerHandoffAdmission();
+        Set<UUID> online = new HashSet<>();
+        for (int index = 0; index < 16; index++) {
+            UUID playerId = UUID.randomUUID();
+            PlayerHandoffAdmission.Request request = request(UUID.randomUUID(), playerId, UUID.randomUUID(), false, 4.0D);
+            assertTrue(admission.decide(attempt(request, null, 1_000L, 60_000L, 1_000L)).accepted());
+            if (index < 12) {
+                online.add(playerId);
+                assertNotNull(admission.claimArrival(playerId, 1_100L));
+            }
+        }
+        assertEquals(16, admission.activeReservations(1_100L));
+        assertEquals(4, admission.reservedOfflinePlayers(online, 1_100L));
+        assertEquals(16, online.size() + admission.reservedOfflinePlayers(online, 1_100L));
+    }
+
+    @Test
+    void accessBypassBelongsOnlyToAnActiveAuthenticatedReservation() {
+        PlayerHandoffAdmission admission = new PlayerHandoffAdmission();
+        UUID playerId = UUID.randomUUID();
+        PlayerHandoffAdmission.Request request = new PlayerHandoffAdmission.Request(
+            UUID.randomUUID(), playerId, "Staff", "source", null, false, true, null);
+        assertFalse(admission.hasAccessBypass(playerId, 1_000L));
+        assertTrue(admission.decide(attempt(request, null, 1_000L, 60_000L, 1_000L)).accepted());
+        assertTrue(admission.hasAccessBypass(playerId, 1_100L));
+        PlayerHandoffAdmission.Reservation placement = admission.claimArrival(playerId, 1_200L);
+        assertTrue(admission.hasAccessBypass(playerId, 1_300L));
+        assertTrue(admission.completeArrival(placement, 1_400L));
+        assertFalse(admission.hasAccessBypass(playerId, 1_500L));
+        assertFalse(admission.hasAdmission(playerId, 1_500L));
+    }
+
     @Test
     void exactRetryReplaysAckWithoutAnotherReservation() {
         PlayerHandoffAdmission admission = new PlayerHandoffAdmission();
@@ -246,7 +340,7 @@ class PlayerHandoffAdmissionTest {
             "Traveler",
             "alpha",
             portalId,
-            directTransfer,
+            directTransfer, false,
             traversive
         );
     }

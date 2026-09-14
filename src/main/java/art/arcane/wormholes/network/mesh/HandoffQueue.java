@@ -35,9 +35,13 @@ public final class HandoffQueue {
         return ticket;
     }
 
-    public boolean remove(UUID playerId) {
+    public boolean remove(Ticket ticket) {
         synchronized (tickets) {
-            return tickets.remove(playerId) != null;
+            if (ticket == null || tickets.get(ticket.playerId()) != ticket) {
+                return false;
+            }
+            tickets.remove(ticket.playerId());
+            return true;
         }
     }
 
@@ -74,21 +78,19 @@ public final class HandoffQueue {
             snapshot = new ArrayList<>(tickets.values());
         }
         for (Ticket ticket : snapshot) {
-            tick(ticket.playerId(), nowMillis);
+            tick(ticket, nowMillis);
         }
     }
 
     /** Advances one ticket: timeout, chosen, released, or a position report. */
-    public void tick(UUID playerId, long nowMillis) {
-        Ticket ticket;
+    public void tick(Ticket ticket, long nowMillis) {
         synchronized (tickets) {
-            ticket = tickets.get(playerId);
-        }
-        if (ticket == null) {
-            return;
+            if (ticket == null || tickets.get(ticket.playerId()) != ticket) {
+                return;
+            }
         }
         if (nowMillis >= ticket.deadlineMillis()) {
-            if (remove(playerId)) {
+            if (remove(ticket)) {
                 ticket.onTimeout().run();
             }
             return;
@@ -96,16 +98,20 @@ public final class HandoffQueue {
         DestinationPolicyEngine.Resolution resolution = ticket.resolver().get();
         switch (resolution.kind()) {
             case CHOSEN -> {
-                if (remove(playerId)) {
+                if (remove(ticket)) {
                     ticket.onResolved().accept(resolution);
                 }
             }
             case NONE -> {
-                if (remove(playerId)) {
+                if (remove(ticket)) {
                     ticket.onTimeout().run();
                 }
             }
-            case QUEUE -> ticket.onPosition().onPosition(position(playerId), ticket.deadlineMillis() - nowMillis);
+            case QUEUE -> {
+                if (ticket(ticket.playerId()) == ticket) {
+                    ticket.onPosition().onPosition(position(ticket.playerId()), ticket.deadlineMillis() - nowMillis);
+                }
+            }
         }
     }
 }

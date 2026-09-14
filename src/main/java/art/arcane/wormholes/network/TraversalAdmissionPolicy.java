@@ -84,7 +84,7 @@ final class TraversalAdmissionPolicy {
         if (state.whitelistEnabled() && !state.operator() && !state.whitelisted()) {
             return "player is not whitelisted";
         }
-        if (state.maxPlayers() > 0 && state.admittedPlayers() >= state.maxPlayers()) {
+        if (!state.operator() && state.maxPlayers() > 0 && state.admittedPlayers() >= state.maxPlayers()) {
             return "destination server is full";
         }
         return null;

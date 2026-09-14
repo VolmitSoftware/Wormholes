@@ -37,6 +37,10 @@ final class LocalPortalGate
 	{
 		boolean changed = this.open != open;
 		this.open = open;
+		if(changed)
+		{
+			portal.traversal().invalidateCaptures();
+		}
 		if(changed && Wormholes.instance != null && Wormholes.effectManager != null)
 		{
 			if(open)
@@ -77,7 +81,7 @@ final class LocalPortalGate
 		{
 			return false;
 		}
-		if(entity instanceof Player player && player.isOp())
+		if(entity instanceof Player player && PortalAdmission.bypassesAccess(player))
 		{
 			return true;
 		}
@@ -91,7 +95,7 @@ final class LocalPortalGate
 		{
 			return false;
 		}
-		if(entity instanceof Player player && player.isOp())
+		if(entity instanceof Player player && PortalAdmission.bypassesAccess(player))
 		{
 			return true;
 		}
@@ -108,7 +112,7 @@ final class LocalPortalGate
 		{
 			return true;
 		}
-		return PortalAdmission.permissionAllows(portal, player);
+		return PortalAdmission.allows(portal, player);
 	}
 
 	void setDirection(Direction d)

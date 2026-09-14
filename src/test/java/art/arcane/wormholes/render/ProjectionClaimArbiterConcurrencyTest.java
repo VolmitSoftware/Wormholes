@@ -38,6 +38,42 @@ public final class ProjectionClaimArbiterConcurrencyTest {
     private static final UUID TEST_WORLD_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     @Test
+    public void deltaFramesKeepFinalPacketsAndRecoverAfterDiscardAndWorldChange() {
+        World firstWorld = world();
+        World secondWorld = world(new UUID(0L, 200L));
+        AtomicReference<World> playerWorld = new AtomicReference<>(firstWorld);
+        List<Location> sentLocations = new ArrayList<>();
+        Player observer = player(new UUID(0L, 201L), playerWorld, new AtomicBoolean(true), sentLocations);
+        ILocalPortal portal = portal(new UUID(0L, 202L));
+        ProjectionClaimArbiter arbiter = arbiter();
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> first = singleClaim(blockData("stable"));
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> transientClaims = singleClaim(blockData("transient"));
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> finalClaims = new Long2ObjectOpenHashMap<>(first);
+        LongOpenHashSet changed = new LongOpenHashSet(new long[] {CELL_KEY});
+        LongOpenHashSet empty = new LongOpenHashSet();
+        assertEquals(1, arbiter.submitDelta(observer, portal, firstWorld,
+            new ProjectionClaimSet.ClaimDelta(null, first, empty, empty), 1.0D, false, false).getBlockChanges());
+        sentLocations.clear();
+        arbiter.beginFrame(observer, firstWorld, false);
+        arbiter.submitDelta(observer, portal, firstWorld,
+            new ProjectionClaimSet.ClaimDelta(first, transientClaims, changed, empty), 1.0D, false, false);
+        arbiter.submitDelta(observer, portal, firstWorld,
+            new ProjectionClaimSet.ClaimDelta(transientClaims, finalClaims, changed, empty), 1.0D, false, false);
+        assertEquals(0, arbiter.flushFrame(observer).getBlockChanges());
+        assertTrue(sentLocations.isEmpty());
+
+        arbiter.discardObserver(observer.getUniqueId());
+        assertEquals(1, arbiter.submitDelta(observer, portal, firstWorld,
+            new ProjectionClaimSet.ClaimDelta(finalClaims, first, empty, empty), 1.0D, false, false).getBlockChanges());
+        playerWorld.set(secondWorld);
+        assertEquals(1, arbiter.submitDelta(observer, portal, secondWorld,
+            new ProjectionClaimSet.ClaimDelta(first, finalClaims, empty, empty), 1.0D, false, false).getBlockChanges());
+        assertEquals(0, arbiter.release(observer, portal, firstWorld, false).getReverts());
+        assertEquals(1, arbiter.release(observer, portal, secondWorld, false).getReverts());
+        assertTrue(arbiter.isIdle());
+    }
+
+    @Test
     public void emptyFrameFlushesWithoutChangesAndReleasesObserverState() throws Exception {
         ProjectionClaimArbiter arbiter = arbiter();
         Player observer = player(UUID.fromString("00000000-0000-0000-0000-000000000010"));

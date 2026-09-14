@@ -80,6 +80,17 @@ public final class PortalProjectorMemoInvalidationTest {
     }
 
     @Test
+    public void localRefreshReportsEveryContentInvalidationBeforeCameraReuse() {
+        ProjectorSampleMemo memo = new ProjectorSampleMemo();
+
+        assertTrue(memo.refreshLocal(false, false, 4L, 4096));
+        assertFalse(memo.refreshLocal(false, false, 4L, 4096));
+        assertTrue(memo.refreshLocal(false, false, 5L, 4096));
+        assertTrue(memo.refreshLocal(false, true, 5L, 4096));
+        assertTrue(memo.refreshLocal(true, false, 5L, 4096));
+    }
+
+    @Test
     public void trackedLocalChangesAndMemoOverflowDropTheLocalAirMemo() {
         assertTrue(ProjectorSampleMemo.localSampleMemoStale(false, true, 4L, 4L, 10, 4096));
         assertTrue(ProjectorSampleMemo.localSampleMemoStale(false, false, 4L, 4L, 4097, 4096));

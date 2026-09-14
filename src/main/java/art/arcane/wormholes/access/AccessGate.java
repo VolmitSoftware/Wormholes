@@ -56,7 +56,7 @@ public final class AccessGate implements TraversalGate {
 
     @Override
     public TraversalVerdict evaluate(TraversalAttempt attempt) {
-        if (!(attempt.traveler() instanceof Player player) || player.isOp()) {
+        if (!(attempt.traveler() instanceof Player player) || PortalAdmission.bypassesAccess(player)) {
             return TraversalVerdict.ALLOW;
         }
         LocalPortal portal = attempt.portal();
@@ -66,11 +66,14 @@ public final class AccessGate implements TraversalGate {
         }
         reportLegacyNodeOnce(portal, access);
         if (!PortalAdmission.allows(portal, player)) {
+            PortalAccessDiagnostics.accessDenied(attempt);
             return refuse(portal);
         }
-        return claimAllowsUse(portal, player, attempt)
-            ? TraversalVerdict.ALLOW
-            : new TraversalVerdict.Deny(AccessMessages.DENIED_CLAIM, portalArgument(portal), true);
+        if (!claimAllowsUse(portal, player, attempt)) {
+            PortalAccessDiagnostics.gateDenied(attempt, "land_claim");
+            return new TraversalVerdict.Deny(AccessMessages.DENIED_CLAIM, portalArgument(portal), true);
+        }
+        return TraversalVerdict.ALLOW;
     }
 
     /**

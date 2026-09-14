@@ -2,7 +2,10 @@ package art.arcane.wormholes.access;
 
 import art.arcane.wormholes.hook.WormholesHooks;
 import art.arcane.wormholes.hook.WormholesRegistrar;
+import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.portal.LocalPortal;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.junit.jupiter.api.AfterEach;
@@ -10,11 +13,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 final class AccessMenuModelTest {
@@ -93,7 +96,9 @@ final class AccessMenuModelTest {
 
         assertEquals("access", entry.id());
         assertSame(Material.NAME_TAG, entry.icon());
-        assertNotEquals(0, entry.label().english().size());
-        assertEquals(Set.of("portal", "owner", "count", "key"), entry.arguments(portal, null).names());
+        List<Component> lines = new WormholesLocalization().components(entry.label(), entry.arguments(portal, null));
+        assertEquals(2, lines.size());
+        assertEquals("Access", PlainTextComponentSerializer.plainText().serialize(lines.getFirst()));
+        assertEquals("Roles, groups, and the permission key.", PlainTextComponentSerializer.plainText().serialize(lines.get(1)));
     }
 }

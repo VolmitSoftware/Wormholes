@@ -53,7 +53,7 @@ public final class PortalProjectorPlateFallbackTest {
             ProjectorSampler samplerPath = samplerOf(samplerScan);
             samplerPath.setBuriedCellCullingPass(buried);
             samplerScan.run(destination(portal, structure, new StoneView(), remoteView), null, eye, frustum, 4.0D,
-                true, false, buried, renderMode, null, false, LodPolicy.NONE);
+                true, false, false, buried, renderMode, null, false, LodPolicy.NONE);
             Long2ObjectOpenHashMap<ProjectedBlockClaim> samplerClaims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(samplerScan.claims());
             assertFalse(samplerClaims.isEmpty(), renderMode.name());
             assertTrue(samplerPath.remoteSampleCount() > 0, renderMode.name());
@@ -64,7 +64,7 @@ public final class PortalProjectorPlateFallbackTest {
             platePath.setBuriedCellCullingPass(buried);
             remoteView.reads = 0;
             plateScan.run(destination(portal, structure, new StoneView(), remoteView), null, eye, frustum, 4.0D,
-                true, false, buried, renderMode, plate, false, LodPolicy.NONE);
+                true, false, false, buried, renderMode, plate, false, LodPolicy.NONE);
 
             assertSameClaims(samplerClaims, plateScan.claims(), renderMode.name());
             assertEquals(0, platePath.remoteSampleCount(), renderMode.name() + ": plate cells must bypass the sampler");
@@ -83,7 +83,7 @@ public final class PortalProjectorPlateFallbackTest {
 
         ProjectorCellScan samplerScan = scan(portal, remoteView);
         samplerScan.run(destination(portal, structure, new StoneView(), remoteView), null, eye, frustum, 4.0D,
-            true, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
+            true, false, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
         Long2ObjectOpenHashMap<ProjectedBlockClaim> expected = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(samplerScan.claims());
 
         ViewPlate partial = ViewPlateBuilder.build(new ViewPlateBuilder.Request(
@@ -95,7 +95,7 @@ public final class PortalProjectorPlateFallbackTest {
         ProjectorCellScan plateScan = scan(portal, remoteView);
         ProjectorSampler platePath = samplerOf(plateScan);
         plateScan.run(destination(portal, structure, new StoneView(), remoteView), null, eye, frustum, 4.0D,
-            true, false, false, ProjectionRenderMode.PANOPTIC, partial, false, LodPolicy.NONE);
+            true, false, false, false, ProjectionRenderMode.PANOPTIC, partial, false, LodPolicy.NONE);
 
         assertSameClaims(expected, plateScan.claims(), "partial plate");
         assertTrue(platePath.remoteSampleCount() > 0, "cells outside the shallow plate must come from the sampler");
@@ -115,14 +115,14 @@ public final class PortalProjectorPlateFallbackTest {
         ProjectorCellScan samplerScan = scan(portal, remoteView);
         ProjectorSampler samplerPath = samplerOf(samplerScan);
         samplerScan.run(destination(portal, structure, new StoneView(), remoteView), null, eye, frustum, 6.0D,
-            true, false, false, ProjectionRenderMode.PANOPTIC, null, false, lod);
+            true, false, false, false, ProjectionRenderMode.PANOPTIC, null, false, lod);
         Long2ObjectOpenHashMap<ProjectedBlockClaim> coarse = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(samplerScan.claims());
         int coarseReads = remoteView.reads;
 
         ProjectorCellScan denseScan = scan(portal, remoteView);
         remoteView.reads = 0;
         denseScan.run(destination(portal, structure, new StoneView(), remoteView), null, eye, frustum, 6.0D,
-            true, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
+            true, false, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
         assertTrue(coarseReads < remoteView.reads, "run merging must read fewer destination cells than the dense scan");
         assertTrue(samplerPath.remoteSampleCount() > 0);
 
@@ -135,7 +135,7 @@ public final class PortalProjectorPlateFallbackTest {
         ViewPlate plate = ViewPlateBuilder.build(request);
         ProjectorCellScan plateScan = scan(portal, remoteView);
         plateScan.run(destination(portal, structure, new StoneView(), remoteView), null, eye, frustum, 6.0D,
-            true, false, false, ProjectionRenderMode.PANOPTIC, plate, false, lod);
+            true, false, false, false, ProjectionRenderMode.PANOPTIC, plate, false, lod);
         assertSameClaims(coarse, plateScan.claims(), "lod plate");
         assertEquals(0, samplerOf(plateScan).remoteSampleCount());
     }

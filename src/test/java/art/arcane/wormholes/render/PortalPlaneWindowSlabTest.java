@@ -112,6 +112,10 @@ public final class PortalPlaneWindowSlabTest {
             coords[normalAxis] = n;
             for (int r = rightBase - LATERAL_RADIUS; r <= rightBase + LATERAL_RADIUS; r++) {
                 coords[rightAxis] = r;
+                coords[upAxis] = upBase - LATERAL_RADIUS;
+                boolean rowProven = window.containsRow(upAxis, eyeX, eyeY, eyeZ,
+                    coords[0] + 0.5D, coords[1] + 0.5D, coords[2] + 0.5D,
+                    upBase + LATERAL_RADIUS + 0.5D, slabSignedDistance);
                 for (int u = upBase - LATERAL_RADIUS; u <= upBase + LATERAL_RADIUS; u++) {
                     coords[upAxis] = u;
                     double cx = coords[0] + 0.5D;
@@ -119,6 +123,7 @@ public final class PortalPlaneWindowSlabTest {
                     double cz = coords[2] + 0.5D;
                     double cellSignedDistance = ((cx - ORIGIN_X) * normal.x()) + ((cy - ORIGIN_Y) * normal.y()) + ((cz - ORIGIN_Z) * normal.z());
                     boolean contained = window.containsRayIntersection(eyeX, eyeY, eyeZ, cx, cy, cz, cellSignedDistance);
+                    assertEquals(contained, rowProven || contained);
                     if (!slabAccepted) {
                         assertFalse(contained,
                             "slab rejected but cell accepted at n=" + n + " r=" + r + " u=" + u + " frame=" + frame.getNormal().name());

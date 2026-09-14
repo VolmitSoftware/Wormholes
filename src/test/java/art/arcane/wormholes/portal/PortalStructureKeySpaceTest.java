@@ -2,6 +2,7 @@ package art.arcane.wormholes.portal;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,6 +26,27 @@ public final class PortalStructureKeySpaceTest {
         assertFalse(structure.containsBlock(-30_000_000, -2033, -30_000_000));
         assertFalse(structure.containsBlock(-30_000_000, -2032, -30_000_001));
         assertFalse(structure.containsBlock(30_000_000, -2032, -30_000_000));
+    }
+
+    @Test
+    public void replacingAreaClearsOldCellsAndRetainsTheZeroKey() {
+        PortalStructure structure = new PortalStructure();
+        structure.setArea(cuboid(-32, 0, -32, 32, 0, 32));
+
+        assertTrue(structure.containsBlock(0, 0, 0));
+        assertTrue(structure.containsBlock(-32, 0, -32));
+        assertTrue(structure.containsBlock(32, 0, 32));
+        assertEquals(4225, structure.getBlockPositions().size());
+        assertTrue(structure.isFullCuboid());
+
+        structure.setArea(cuboid(0, 0, 0, 0, 0, 0));
+
+        assertTrue(structure.containsBlock(0, 0, 0));
+        assertFalse(structure.containsBlock(-32, 0, -32));
+        assertFalse(structure.containsBlock(32, 0, 32));
+        assertEquals(1, structure.getBlockPositions().size());
+        assertEquals(new Vector(0, 0, 0), structure.getBlockPositions().getFirst());
+        assertTrue(structure.isFullCuboid());
     }
 
     private static Cuboid cuboid(int x1, int y1, int z1, int x2, int y2, int z2) {

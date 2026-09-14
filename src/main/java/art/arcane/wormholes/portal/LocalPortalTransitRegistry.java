@@ -4,6 +4,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
 
 import org.bukkit.entity.Entity;
 
@@ -18,7 +19,8 @@ final class LocalPortalTransitRegistry
 	private static final long TELEPORT_IN_FLIGHT_TTL_MILLIS = 30_000L;
 	private static final ConcurrentHashMap<UUID, Long> TELEPORT_COOLDOWNS = new ConcurrentHashMap<UUID, Long>();
 	private static final ConcurrentHashMap<UUID, ReentryLatch> REENTRY_LATCHES = new ConcurrentHashMap<UUID, ReentryLatch>();
-	private static final ConcurrentHashMap<UUID, Long> TELEPORT_IN_FLIGHT = new ConcurrentHashMap<UUID, Long>();
+	private static final ConcurrentHashMap<UUID, TeleportClaim> TELEPORT_IN_FLIGHT = new ConcurrentHashMap<UUID, TeleportClaim>();
+	private static final ConcurrentHashMap<UUID, PinFlight> PINS_IN_FLIGHT = new ConcurrentHashMap<UUID, PinFlight>();
 
 	private LocalPortalTransitRegistry()
 	{
@@ -69,24 +71,24 @@ final class LocalPortalTransitRegistry
 		boolean[] acquired = new boolean[1];
 		TELEPORT_IN_FLIGHT.compute(entityId, (id, stamped) ->
 		{
-			if(stamped != null && now - stamped.longValue() < TELEPORT_IN_FLIGHT_TTL_MILLIS)
+			if(stamped != null && now - stamped.stampedMillis < TELEPORT_IN_FLIGHT_TTL_MILLIS)
 			{
 				return stamped;
 			}
 			acquired[0] = true;
-			return Long.valueOf(now);
+			return new TeleportClaim(now);
 		});
 		return acquired[0];
 	}
 
 	static boolean isTeleportInFlight(UUID entityId, long now)
 	{
-		Long stamped = TELEPORT_IN_FLIGHT.get(entityId);
+		TeleportClaim stamped = TELEPORT_IN_FLIGHT.get(entityId);
 		if(stamped == null)
 		{
 			return false;
 		}
-		if(now - stamped.longValue() >= TELEPORT_IN_FLIGHT_TTL_MILLIS)
+		if(now - stamped.stampedMillis >= TELEPORT_IN_FLIGHT_TTL_MILLIS)
 		{
 			TELEPORT_IN_FLIGHT.remove(entityId, stamped);
 			return false;
@@ -102,6 +104,74 @@ final class LocalPortalTransitRegistry
 	static boolean clearTeleportInFlight(UUID entityId)
 	{
 		return TELEPORT_IN_FLIGHT.remove(entityId) != null;
+	}
+
+	static TeleportClaim teleportClaim(UUID entityId)
+	{
+		return TELEPORT_IN_FLIGHT.get(entityId);
+	}
+
+	static boolean clearTeleportInFlight(UUID entityId, TeleportClaim claim)
+	{
+		return claim != null && TELEPORT_IN_FLIGHT.remove(entityId, claim);
+	}
+
+	static boolean bindDepartureClaim(Entity entity, Traversive traversive)
+	{
+		TeleportClaim claim = TELEPORT_IN_FLIGHT.get(entity.getUniqueId());
+		return claim != null && claim.bind(entity, traversive);
+	}
+
+	static TeleportClaim departureClaim(Entity entity, Traversive traversive)
+	{
+		TeleportClaim claim = TELEPORT_IN_FLIGHT.get(entity.getUniqueId());
+		return claim != null && claim.matches(entity, traversive) ? claim : null;
+	}
+
+	static CompletableFuture<Void> pendingTeleport(Entity entity)
+	{
+		PinFlight pin = PINS_IN_FLIGHT.get(entity.getUniqueId());
+		return pin != null && pin.entity() == entity ? pin.completion() : CompletableFuture.completedFuture(null);
+	}
+
+	static CompletableFuture<Void> beginTeleport(Entity entity)
+	{
+		CompletableFuture<Void> completion = new CompletableFuture<Void>();
+		PinFlight pin = new PinFlight(entity, completion);
+		PINS_IN_FLIGHT.put(entity.getUniqueId(), pin);
+		completion.whenComplete((ignored, failure) -> PINS_IN_FLIGHT.remove(entity.getUniqueId(), pin));
+		return completion;
+	}
+
+	private record PinFlight(Entity entity, CompletableFuture<Void> completion)
+	{
+	}
+
+	static final class TeleportClaim
+	{
+		private final long stampedMillis;
+		private Entity entity;
+		private Traversive traversive;
+
+		private synchronized boolean bind(Entity source, Traversive crossing)
+		{
+			if(entity == null)
+			{
+				entity = source;
+				traversive = crossing;
+			}
+			return entity == source && traversive == crossing;
+		}
+
+		private synchronized boolean matches(Entity source, Traversive crossing)
+		{
+			return entity == source && traversive == crossing;
+		}
+
+		private TeleportClaim(long stampedMillis)
+		{
+			this.stampedMillis = stampedMillis;
+		}
 	}
 
 	static void latchReentry(UUID entityId, UUID portalId)
@@ -195,11 +265,11 @@ final class LocalPortalTransitRegistry
 				REENTRY_LATCHES.remove(entry.getKey(), entry.getValue());
 			}
 		}
-		Iterator<Map.Entry<UUID, Long>> inFlightIterator = TELEPORT_IN_FLIGHT.entrySet().iterator();
+		Iterator<Map.Entry<UUID, TeleportClaim>> inFlightIterator = TELEPORT_IN_FLIGHT.entrySet().iterator();
 		while(inFlightIterator.hasNext())
 		{
-			Map.Entry<UUID, Long> entry = inFlightIterator.next();
-			if(now - entry.getValue().longValue() >= TELEPORT_IN_FLIGHT_TTL_MILLIS)
+			Map.Entry<UUID, TeleportClaim> entry = inFlightIterator.next();
+			if(now - entry.getValue().stampedMillis >= TELEPORT_IN_FLIGHT_TTL_MILLIS)
 			{
 				TELEPORT_IN_FLIGHT.remove(entry.getKey(), entry.getValue());
 			}

@@ -105,7 +105,9 @@ final class ProjectorViewFrustum {
             && cachedFitNearPlanePadding == nearPlanePadding
             && cachedFitCullingRatio == cullingRatio
             && cachedFitAperturePadding == aperturePadding
-            && cachedFitLod == lodPolicy) {
+            && cachedFitLod.mergeRuns() == lodPolicy.mergeRuns()
+            && cachedFitLod.distanceBlocks() == lodPolicy.distanceBlocks()
+            && cachedFitLod.detailCutoffBlocks() == lodPolicy.detailCutoffBlocks()) {
             fittedAxial = cachedFittedAxial;
             fittedLateral = cachedFittedLateral;
             fittedCandidateWork = cachedFittedCandidateWork;

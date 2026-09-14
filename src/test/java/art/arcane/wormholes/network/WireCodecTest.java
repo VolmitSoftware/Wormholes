@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -166,20 +167,24 @@ class WireCodecTest {
         UUID portalId = UUID.randomUUID();
         UUID groupId = UUID.randomUUID();
         WireTraversive traversive = new WireTraversive("N", "E", "U", 1.0D, 64.0D, 2.0D, 1.5D, 64.5D, 2.0D, 0.0D, 0.0D, -0.4D, 0.0D, 0.0D, -1.0D, true);
-        WireMessage.HandoffRequest plain = new WireMessage.HandoffRequest(transferId, playerId, "steve", portalId, true, true, traversive);
-        WireMessage.HandoffRequest grouped = new WireMessage.HandoffRequest(transferId, playerId, "steve", portalId, true, true, traversive, groupId);
+        WireMessage.HandoffRequest plain = new WireMessage.HandoffRequest(transferId, playerId, "steve", portalId, true, true, false, traversive);
+        WireMessage.HandoffRequest grouped = new WireMessage.HandoffRequest(transferId, playerId, "steve", portalId, true, true, false, traversive, groupId);
 
         assertNull(plain.groupId());
         WireMessage.HandoffRequest decodedPlain = assertInstanceOf(WireMessage.HandoffRequest.class, roundTrip(plain));
         assertNull(decodedPlain.groupId());
         assertEquals(portalId, decodedPlain.destPortalId());
+        assertFalse(decodedPlain.accessBypass());
         WireMessage.HandoffRequest decodedGrouped = assertInstanceOf(WireMessage.HandoffRequest.class, roundTrip(grouped));
         assertEquals(groupId, decodedGrouped.groupId());
         assertEquals(playerId, decodedGrouped.playerId());
         assertTrue(WireCodec.encodePayload(grouped).length > WireCodec.encodePayload(plain).length,
             "the group id is a trailing field that only appears when set");
-        assertArrayEquals(WireCodec.encodePayload(plain), WireCodec.encodePayload(new WireMessage.HandoffRequest(transferId, playerId, "steve", portalId, true, true, traversive, null)),
+        assertArrayEquals(WireCodec.encodePayload(plain), WireCodec.encodePayload(new WireMessage.HandoffRequest(transferId, playerId, "steve", portalId, true, true, false, traversive, null)),
             "a null group id writes the seam layout byte for byte");
+        WireMessage.HandoffRequest privileged = new WireMessage.HandoffRequest(
+            transferId, playerId, "steve", portalId, true, true, true, traversive, groupId);
+        assertEquals(privileged, roundTrip(privileged));
     }
 
     @Test

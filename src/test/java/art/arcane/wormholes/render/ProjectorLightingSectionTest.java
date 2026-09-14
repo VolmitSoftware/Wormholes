@@ -124,6 +124,54 @@ public final class ProjectorLightingSectionTest {
     }
 
     @Test
+    public void budgetedSectionsUseCurrentClaimsWhenPendingUpdatesResume() {
+        boolean adaptiveLighting = Settings.ADAPTIVE_LIGHTING;
+        int sectionBudget = Settings.LIGHTING_MAX_SECTIONS_PER_PASS;
+        Settings.ADAPTIVE_LIGHTING = true;
+        Settings.LIGHTING_MAX_SECTIONS_PER_PASS = 1;
+        try {
+            List<LightData> packets = new ArrayList<LightData>();
+            ProjectorLighting lighting = new ProjectorLighting(
+                (observer, chunkX, chunkZ) -> true,
+                (observer, chunkX, chunkZ, data) -> packets.add(data));
+            Player observer = onlinePlayer();
+            ProjectionWorldView localView = lightView(new AtomicInteger(), 3, 4);
+            ProjectionWorldView sourceView = lightView(new AtomicInteger(), 8, 7);
+            Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>();
+            for (int section = 4; section <= 6; section++) {
+                claims.put(packKey(1, section << 4, 1),
+                    new ProjectedBlockClaim(null, sourceView, packKey(20, 64, 20), false));
+            }
+
+            lighting.apply(observer, localView, claims, null);
+
+            assertEquals(1, packets.size());
+            assertEquals(1, packets.get(0).getSkyLightArray().length);
+            assertTrue(lighting.hasPendingUpdates());
+            int nibbleIndex = (1 << 4) | 1;
+            assertEquals(8, readNibble(packets.get(0).getSkyLightArray()[0], nibbleIndex));
+            for (int section = 4; section <= 6; section++) {
+                claims.put(packKey(1, section << 4, 1), new ProjectedBlockClaim(null, null,
+                    ProjectedBlockClaim.NO_REMOTE_KEY, false, ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT));
+            }
+
+            lighting.apply(observer, localView, claims, new LongOpenHashSet(), false);
+            lighting.apply(observer, localView, claims, new LongOpenHashSet(), false);
+
+            assertEquals(3, packets.size());
+            assertFalse(lighting.hasPendingUpdates());
+            for (int index = 1; index < packets.size(); index++) {
+                assertEquals(1, packets.get(index).getSkyLightArray().length);
+                assertEquals(15, readNibble(packets.get(index).getSkyLightArray()[0], nibbleIndex));
+                assertEquals(15, readNibble(packets.get(index).getBlockLightArray()[0], nibbleIndex));
+            }
+        } finally {
+            Settings.ADAPTIVE_LIGHTING = adaptiveLighting;
+            Settings.LIGHTING_MAX_SECTIONS_PER_PASS = sectionBudget;
+        }
+    }
+
+    @Test
     public void removingOneSectionRestoresItWhileRetainingAnotherInTheSameChunk() {
         boolean adaptiveLighting = Settings.ADAPTIVE_LIGHTING;
         Settings.ADAPTIVE_LIGHTING = false;

@@ -1101,7 +1101,7 @@ class NetworkManagerTest {
         alpha.statusPollInFlight.add(BETA_NAME);
         alpha.start();
 
-        WireMessage.HandoffRequest handoff = new WireMessage.HandoffRequest(UUID.randomUUID(), UUID.randomUUID(), "Steve", UUID.randomUUID(), true, true, traversive());
+        WireMessage.HandoffRequest handoff = new WireMessage.HandoffRequest(UUID.randomUUID(), UUID.randomUUID(), "Steve", UUID.randomUUID(), true, true, false, traversive());
         assertTrue(alpha.send(BETA_NAME, handoff));
 
         assertEquals(0L, alpha.nextStatusAttempt.get(BETA_NAME));

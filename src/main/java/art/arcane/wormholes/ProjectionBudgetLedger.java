@@ -3,9 +3,12 @@ package art.arcane.wormholes;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.LongSupplier;
 
 import org.bukkit.entity.Player;
 
@@ -13,7 +16,10 @@ import art.arcane.wormholes.portal.ILocalPortal;
 
 final class ProjectionBudgetLedger {
     private static final long DIAGNOSTIC_INTERVAL_MS = 5_000L;
+    private static final long OBSERVER_COST_DECAY_DIVISOR = 64L;
 
+    private final Map<UUID, ObserverCost> observerCosts = new ConcurrentHashMap<UUID, ObserverCost>();
+    private final LongSupplier nanoTime;
     private final AtomicInteger lastInterestedObservers = new AtomicInteger();
     private final AtomicInteger lastObserverCandidates = new AtomicInteger();
     private final AtomicInteger lastNewObserverScans = new AtomicInteger();
@@ -24,17 +30,31 @@ final class ProjectionBudgetLedger {
     private int discoveryObserverCursor;
 
     ProjectionBudgetLedger() {
+        this(System::nanoTime);
+    }
+
+    ProjectionBudgetLedger(LongSupplier nanoTime) {
+        this.nanoTime = nanoTime;
         this.lastDiagnostic = 0L;
         this.priorityObserverCursor = 0;
         this.discoveryObserverCursor = 0;
     }
 
-    void beginFrame() {
+    FrameBudget beginFrame(int maxFrameMicros) {
         lastInterestedObservers.set(0);
         lastObserverCandidates.set(0);
         lastNewObserverScans.set(0);
         lastScheduledProjectors.set(0);
         lastDeferredProjectors.set(0);
+        return new FrameBudget(Math.max(0L, maxFrameMicros) * 1_000L);
+    }
+
+    void forgetObserver(UUID observerId) {
+        observerCosts.remove(observerId);
+    }
+
+    void clearObserverCosts() {
+        observerCosts.clear();
     }
 
     void recordInterested() {
@@ -192,5 +212,78 @@ final class ProjectionBudgetLedger {
                 .append(" mode=").append(portal.getProjectionMode())
                 .append(" mirror=").append(portal.isMirrorMode());
         return sb.toString();
+    }
+
+    final class FrameBudget {
+        private final long limitNanos;
+        private final Map<Thread, ExecutionBudget> executionBudgets = new ConcurrentHashMap<Thread, ExecutionBudget>();
+
+        private FrameBudget(long limitNanos) {
+            this.limitNanos = limitNanos;
+        }
+
+        ObserverFrame beginObserver(UUID observerId) {
+            return new ObserverFrame(observerId, this);
+        }
+    }
+
+    final class ObserverFrame implements AutoCloseable {
+        private final UUID observerId;
+        private final ObserverCost cost;
+        private final ExecutionBudget execution;
+        private final boolean admitsBlocks;
+        private final long startedNanos;
+        private final long deadlineNanos;
+        private boolean renderedBlocks;
+        private boolean closed;
+
+        private ObserverFrame(UUID observerId, FrameBudget frameBudget) {
+            this.observerId = observerId;
+            this.cost = observerCosts.computeIfAbsent(observerId, ignored -> new ObserverCost());
+            this.execution = frameBudget.executionBudgets.computeIfAbsent(Thread.currentThread(), ignored -> new ExecutionBudget());
+            long estimate = cost.peakNanos > 0L ? cost.peakNanos : frameBudget.limitNanos;
+            this.admitsBlocks = frameBudget.limitNanos == 0L || !execution.startedBlocks
+                || estimate <= Math.max(0L, frameBudget.limitNanos - execution.spentNanos);
+            this.startedNanos = nanoTime.getAsLong();
+            long remainingNanos = Math.max(0L, frameBudget.limitNanos - execution.spentNanos);
+            this.deadlineNanos = frameBudget.limitNanos == 0L || startedNanos > Long.MAX_VALUE - remainingNanos
+                ? Long.MAX_VALUE : startedNanos + remainingNanos;
+        }
+
+        boolean admitsBlocks() {
+            return admitsBlocks;
+        }
+
+        long deadlineNanos() {
+            return deadlineNanos;
+        }
+
+        void recordBlockWork() {
+            renderedBlocks = true;
+            execution.startedBlocks = true;
+        }
+
+        @Override
+        public void close() {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            long elapsedNanos = Math.max(0L, nanoTime.getAsLong() - startedNanos);
+            execution.spentNanos += Math.min(elapsedNanos, Long.MAX_VALUE - execution.spentNanos);
+            if (renderedBlocks && observerCosts.get(observerId) == cost) {
+                long decayedPeak = cost.peakNanos - cost.peakNanos / OBSERVER_COST_DECAY_DIVISOR;
+                cost.peakNanos = Math.max(elapsedNanos, decayedPeak);
+            }
+        }
+    }
+
+    private static final class ObserverCost {
+        private volatile long peakNanos;
+    }
+
+    private static final class ExecutionBudget {
+        private long spentNanos;
+        private boolean startedBlocks;
     }
 }

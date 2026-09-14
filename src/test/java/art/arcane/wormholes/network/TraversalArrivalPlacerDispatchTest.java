@@ -86,7 +86,7 @@ class TraversalArrivalPlacerDispatchTest {
             "traveler",
             "beta",
             UUID.randomUUID(),
-            false,
+            false, false,
             WireTraversive.fromTraversive(traversive())
         );
         long now = System.currentTimeMillis();

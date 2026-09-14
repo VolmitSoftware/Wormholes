@@ -30,7 +30,7 @@ public final class LocalPortalDepartureHoldRecoveryTest
 		long before = failures("TRAVERSAL_RTP_HOLD_FAILED");
 
 		new LocalPortalDepartureHold(portal, LocalPortalTestSupport.rejectingRuntime())
-				.startRtpTraversalHold(traveler.entity(), traversive);
+				.startRtpTraversalHold(traveler.entity(), traversive, () -> { });
 
 		assertEquals(before + 1L, failures("TRAVERSAL_RTP_HOLD_FAILED"),
 				"a random-teleport hold that failed terminally must increment the failure counter");
@@ -54,7 +54,7 @@ public final class LocalPortalDepartureHoldRecoveryTest
 		assertTrue(LocalPortal.markTeleportInFlight(traveler.id(), now));
 
 		new LocalPortalDepartureHold(portal, LocalPortalTestSupport.runOnceThenRejectingRuntime())
-				.startRtpTraversalHold(traveler.entity(), traversive);
+				.startRtpTraversalHold(traveler.entity(), traversive, () -> { });
 
 		assertFalse(LocalPortal.isTeleportInFlight(traveler.id(), System.currentTimeMillis()));
 		assertTrue(LocalPortal.isTeleportCoolingDown(traveler.id(), System.currentTimeMillis()),
@@ -75,7 +75,7 @@ public final class LocalPortalDepartureHoldRecoveryTest
 		assertTrue(LocalPortal.markTeleportInFlight(traveler.id(), now));
 
 		new LocalPortalDepartureHold(portal, LocalPortalTestSupport.rejectingRuntime())
-				.startRtpTraversalHold(traveler.entity(), traversive);
+				.startRtpTraversalHold(traveler.entity(), traversive, () -> { });
 
 		assertFalse(LocalPortal.isTeleportInFlight(traveler.id(), System.currentTimeMillis()),
 				"a hold with no source world must release the traversal claim");
@@ -97,7 +97,7 @@ public final class LocalPortalDepartureHoldRecoveryTest
 		long before = failures("TRAVERSAL_DEPARTURE_HOLD_FAILED");
 
 		new LocalPortalDepartureHold(portal, LocalPortalTestSupport.rejectingRuntime())
-				.startPlayerDepartureHold(traveler.player(), traversive, now + 12_000L);
+				.startPlayerDepartureHold(traveler.player(), traversive, now + 12_000L, () -> { });
 
 		assertEquals(before + 1L, failures("TRAVERSAL_DEPARTURE_HOLD_FAILED"),
 				"a cross-server departure hold that failed terminally must increment the failure counter");
@@ -116,7 +116,7 @@ public final class LocalPortalDepartureHoldRecoveryTest
 		assertTrue(LocalPortal.markTeleportInFlight(traveler.id(), now));
 
 		new LocalPortalDepartureHold(portal, LocalPortalTestSupport.runOnceThenRejectingRuntime())
-				.startPlayerDepartureHold(traveler.player(), traversive, now + 12_000L);
+				.startPlayerDepartureHold(traveler.player(), traversive, now + 12_000L, () -> { });
 
 		assertFalse(LocalPortal.isTeleportInFlight(traveler.id(), System.currentTimeMillis()),
 				"a departure hold dropped mid-loop must release the cross-server claim");
@@ -134,10 +134,79 @@ public final class LocalPortalDepartureHoldRecoveryTest
 		assertTrue(LocalPortal.markTeleportInFlight(traveler.id(), now));
 
 		new LocalPortalDepartureHold(portal, LocalPortalTestSupport.rejectingRuntime())
-				.startPlayerDepartureHold(traveler.player(), traversive, now + 12_000L);
+				.startPlayerDepartureHold(traveler.player(), traversive, now + 12_000L, () -> { });
 
 		assertFalse(LocalPortal.isTeleportInFlight(traveler.id(), System.currentTimeMillis()),
 				"a departure hold without a source world must release the cross-server claim");
+	}
+
+	@Test
+	public void delayedCrossingCommitsFromItsCapturedPositionAndStillRejectsDrift()
+	{
+		World world = LocalPortalTestSupport.world("transfer-swept-hold");
+		LocalPortal portal = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
+		Location captured = anchor(world).subtract(24.0D, 0.0D, 0.0D);
+		FakeEntity traveler = FakeEntity.player("transfer-swept", captured);
+		Traversive traversive = LocalPortalTestSupport.traversive(portal, traveler.entity(), anchorVector());
+		long now = System.currentTimeMillis();
+		assertTrue(LocalPortal.markTeleportInFlight(traveler.id(), now));
+		List<Runnable> pending = new ArrayList<Runnable>();
+		LocalPortalDepartureHold hold = new LocalPortalDepartureHold(portal, LocalPortalTestSupport.deferringRuntime(pending, true));
+		hold.startPlayerDepartureHold(traveler.player(), traversive, now + 12_000L, () -> { });
+
+		assertTrue(hold.canCompleteDeparture(traveler.player(), traversive, captured));
+		assertFalse(hold.canCompleteDeparture(traveler.player(), traversive, captured.clone().add(17.0D, 0.0D, 0.0D)));
+		assertFalse(hold.canCompleteDeparture(traveler.player(), traversive,
+				anchor(LocalPortalTestSupport.world("transfer-swept-other-world"))));
+		assertFalse(hold.canCompleteDeparture(traveler.player(),
+				LocalPortalTestSupport.traversive(portal, traveler.entity(), anchorVector()), captured));
+		LocalPortal.clearTeleportInFlight(traveler.id());
+		assertFalse(hold.canCompleteDeparture(traveler.player(), traversive, captured));
+		pending.getFirst().run();
+	}
+
+	@Test
+	public void acknowledgementRejectsRetreatBeforeTheNextHoldTick()
+	{
+		World world = LocalPortalTestSupport.world("transfer-ack-retreat");
+		LocalPortal portal = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
+		FakeEntity traveler = FakeEntity.player("transfer-retreat", anchor(world));
+		Traversive traversive = LocalPortalTestSupport.traversive(portal, traveler.entity(), anchorVector());
+		long now = System.currentTimeMillis();
+		assertTrue(LocalPortal.markTeleportInFlight(traveler.id(), now));
+		List<Runnable> pending = new ArrayList<Runnable>();
+		LocalPortalDepartureHold hold = new LocalPortalDepartureHold(portal, LocalPortalTestSupport.deferringRuntime(pending, true));
+		hold.startPlayerDepartureHold(traveler.player(), traversive, now + 12_000L, () -> { });
+		Location retreat = anchor(world).add(traversive.getInFrame().getNormal().toVector().multiply(3.0D));
+
+		assertFalse(hold.canCompleteDeparture(traveler.player(), traversive, retreat));
+		LocalPortal.clearTeleportInFlight(traveler.id());
+		pending.getFirst().run();
+	}
+
+	@Test
+	public void replacedHoldCannotCancelTheCurrentCrossing()
+	{
+		World world = LocalPortalTestSupport.world("transfer-replaced-hold");
+		LocalPortal portal = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
+		FakeEntity traveler = FakeEntity.player("transfer-replaced", anchor(world));
+		Traversive first = LocalPortalTestSupport.traversive(portal, traveler.entity(), anchorVector());
+		Traversive second = LocalPortalTestSupport.traversive(portal, traveler.entity(), anchorVector());
+		long now = System.currentTimeMillis();
+		assertTrue(LocalPortal.markTeleportInFlight(traveler.id(), now));
+		List<Runnable> pending = new ArrayList<Runnable>();
+		LocalPortalDepartureHold hold = new LocalPortalDepartureHold(portal, LocalPortalTestSupport.deferringRuntime(pending, true));
+		hold.startPlayerDepartureHold(traveler.player(), first, now - 1L, () -> { });
+		LocalPortal.clearTeleportInFlight(traveler.id());
+		assertTrue(LocalPortal.markTeleportInFlight(traveler.id(), now));
+		hold.startPlayerDepartureHold(traveler.player(), second, now + 12_000L, () -> { });
+
+		pending.getFirst().run();
+
+		assertTrue(hold.canCompleteDeparture(traveler.player(), second, anchor(world)));
+		assertFalse(hold.canCompleteDeparture(traveler.player(), first, anchor(world)));
+		LocalPortal.clearTeleportInFlight(traveler.id());
+		pending.get(1).run();
 	}
 
 	@Test
@@ -153,7 +222,7 @@ public final class LocalPortalDepartureHoldRecoveryTest
 			assertTrue(LocalPortal.markTeleportInFlight(traveler.id(), now));
 			List<Runnable> pending = new ArrayList<Runnable>();
 			new LocalPortalDepartureHold(portal, LocalPortalTestSupport.deferringRuntime(pending, true))
-					.startPlayerDepartureHold(traveler.player(), traversive, scenario == 0 ? now - 1L : now + 12_000L);
+					.startPlayerDepartureHold(traveler.player(), traversive, scenario == 0 ? now - 1L : now + 12_000L, () -> { });
 			switch(scenario)
 			{
 				case 1 -> traveler.player().teleport(anchor(LocalPortalTestSupport.world("transfer-other-world")));

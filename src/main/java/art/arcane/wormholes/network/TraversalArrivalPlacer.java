@@ -1,6 +1,8 @@
 package art.arcane.wormholes.network;
 
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.access.PortalAccessDiagnostics;
+import art.arcane.wormholes.access.PortalAdmission;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.network.TraversalFailureLedger.Failure;
 import art.arcane.wormholes.network.convoy.ConvoyArrivalHook;
@@ -196,8 +198,9 @@ final class TraversalArrivalPlacer {
             return;
         }
         LocalPortal.latchReentry(player.getUniqueId(), exit.getId());
-        if (!exit.isOpen() || !exit.canArrive(player)) {
+        if (!acceptsArrival(exit, placement)) {
             if (finishAdmission(placement, false, "destination portal refused arrival")) {
+                PortalAccessDiagnostics.frameDenied("ARRIVE", exit, player);
                 Wormholes.v(() -> "[arrival] " + placement.via() + " " + player.getName() + " DENIED at exitPortal=" + exit.getId() + " (closed/incoming disabled/permission)");
                 recoverDeniedArrival(placement, exit, traversive);
             }
@@ -285,8 +288,9 @@ final class TraversalArrivalPlacer {
             retryArrivalPlacement(placement, "portal teleport did not complete", error);
             return;
         }
-        if (!teleport.exit().isOpen() || !teleport.exit().canArrive(placement.player())) {
+        if (!acceptsArrival(teleport.exit(), placement)) {
             if (finishAdmission(placement, false, "destination portal refused arrival after teleport")) {
+                PortalAccessDiagnostics.frameDenied("ARRIVE_AFTER_TELEPORT", teleport.exit(), placement.player());
                 recoverDeniedArrival(placement, teleport.exit(), teleport.traversive());
             }
             return;
@@ -317,6 +321,13 @@ final class TraversalArrivalPlacer {
         admissions.releaseArrival(placement.reservation(), System.currentTimeMillis());
         LocalPortal.clearReentryLatch(placement.player().getUniqueId());
         return true;
+    }
+
+    private static boolean acceptsArrival(ILocalPortal exit, ArrivalPlacement placement) {
+        boolean accessBypass = placement.reservation().request().accessBypass()
+            || PortalAdmission.bypassesAccess(placement.player());
+        return exit.isOpen() && (accessBypass
+            ? TraversalAdmissionPolicy.acceptsInbound(exit, true) : exit.canArrive(placement.player()));
     }
 
     private synchronized void retryArrivalPlacement(ArrivalPlacement placement, String reason, Throwable error) {

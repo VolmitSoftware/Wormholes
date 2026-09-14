@@ -201,12 +201,14 @@ public final class ProjectorSampleMemo {
         }
     }
 
-    void refreshLocal(boolean forceStableCellResample, boolean localDirty, long viewRevision, int budget) {
+    boolean refreshLocal(boolean forceStableCellResample, boolean localDirty, long viewRevision, int budget) {
         if (localSampleMemoStale(forceStableCellResample, localDirty, viewRevision, localRevision, localAir.size(), budget)) {
             localAir.clear();
             localRevision = viewRevision;
             hasLocalRegionRect = false;
+            return true;
         }
+        return false;
     }
 
     void markLocalScanned() {

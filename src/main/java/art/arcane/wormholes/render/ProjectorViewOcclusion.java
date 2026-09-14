@@ -176,9 +176,6 @@ final class ProjectorViewOcclusion {
             adjacentOcclusionHits++;
             return Visibility.HIDDEN;
         }
-        if (budgetExhausted) {
-            return Visibility.UNRESOLVED;
-        }
         RayResult center = traceClippedRay(view, eyeX, eyeY, eyeZ,
             targetX + 0.5D, targetY + 0.5D, targetZ + 0.5D, targetX, targetY, targetZ);
         if (center == RayResult.CLEAR) {
@@ -410,6 +407,9 @@ final class ProjectorViewOcclusion {
         int y = floor(startY);
         int z = floor(startZ);
         if (x == targetX && y == targetY && z == targetZ) {
+            return RayResult.CLEAR;
+        }
+        if (eligibleBlockers != null && !eligibleOctree.intersectsRayBounds(x, y, z, targetX, targetY, targetZ)) {
             return RayResult.CLEAR;
         }
 

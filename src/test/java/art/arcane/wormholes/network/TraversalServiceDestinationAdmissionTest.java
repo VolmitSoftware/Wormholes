@@ -60,10 +60,10 @@ class TraversalServiceDestinationAdmissionTest {
     }
 
     @Test
-    void operatorIsDeniedWhenPlayerLimitBypassCannotBeVerified() {
+    void operatorBypassesCapacityAndWhitelist() {
         TraversalAdmissionPolicy.DestinationPlayerState state = state(true, true, false, true, false, true, 20, 20);
 
-        assertEquals("destination server is full", TraversalAdmissionPolicy.destinationPlayerDenialReason(state));
+        assertNull(TraversalAdmissionPolicy.destinationPlayerDenialReason(state));
     }
 
     private static TraversalAdmissionPolicy.DestinationPlayerState state(

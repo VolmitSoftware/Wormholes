@@ -3,6 +3,9 @@ package art.arcane.wormholes.render;
 import org.bukkit.Location;
 import org.bukkit.util.Vector;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+
 import art.arcane.wormholes.util.Axis;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
@@ -29,6 +32,7 @@ public final class Frustum {
     private final double faceYb;
     private final double faceZa;
     private final double faceZb;
+    private final boolean finiteGeometry;
 
     public Frustum(Location apex,
                    AxisAlignedBB apertureFace,
@@ -132,6 +136,14 @@ public final class Frustum {
         this.regionYb = region.getYb();
         this.regionZa = region.getZa();
         this.regionZb = region.getZb();
+        this.finiteGeometry = Double.isFinite(originX) && Double.isFinite(originY) && Double.isFinite(originZ)
+            && Double.isFinite(planeDelta)
+            && Double.isFinite(regionXa) && Double.isFinite(regionXb)
+            && Double.isFinite(regionYa) && Double.isFinite(regionYb)
+            && Double.isFinite(regionZa) && Double.isFinite(regionZb)
+            && Double.isFinite(faceXa) && Double.isFinite(faceXb)
+            && Double.isFinite(faceYa) && Double.isFinite(faceYb)
+            && Double.isFinite(faceZa) && Double.isFinite(faceZb);
     }
 
     public boolean contains(Location l) {
@@ -167,6 +179,78 @@ public final class Frustum {
         return containsFacePoint(hitX, hitY, hitZ);
     }
 
+    boolean containsRow(int axis, double x, double y, double z, double end) {
+        return normalAxis.ordinal() != axis
+            && containsPrimitive(x, y, z)
+            && containsPrimitive(axis == 0 ? end : x, axis == 1 ? end : y, axis == 2 ? end : z);
+    }
+
+    boolean appendRow(ProjectorFrustumRow row, int axis, double x, double y, double z, int minimum, int maximum) {
+        if (!finiteGeometry) {
+            return false;
+        }
+        if ((axis != 0 && (x < regionXa || x > regionXb))
+            || (axis != 1 && (y < regionYa || y > regionYb))
+            || (axis != 2 && (z < regionZa || z > regionZb))) {
+            return true;
+        }
+        double regionMinimum = axis == 0 ? regionXa : axis == 1 ? regionYa : regionZa;
+        double regionMaximum = axis == 0 ? regionXb : axis == 1 ? regionYb : regionZb;
+        if (maximum + 0.5D < regionMinimum || minimum + 0.5D > regionMaximum) {
+            return true;
+        }
+        if (normalAxis.ordinal() == axis) {
+            return false;
+        }
+        minimum = Math.max(minimum, (int) Math.ceil(regionMinimum - 0.5D));
+        maximum = Math.min(maximum, (int) Math.floor(regionMaximum - 0.5D));
+        if (minimum > maximum) {
+            return true;
+        }
+        double axisDelta = switch (normalAxis) {
+            case X -> x - originX;
+            case Y -> y - originY;
+            case Z -> z - originZ;
+        };
+        if (Math.abs(axisDelta) <= EPSILON) {
+            return true;
+        }
+        double t = planeDelta / axisDelta;
+        if (t < -EPSILON || t > 1.0D + EPSILON) {
+            return true;
+        }
+        double hitX = originX + ((x - originX) * t);
+        double hitY = originY + ((y - originY) * t);
+        double hitZ = originZ + ((z - originZ) * t);
+        if (!Double.isFinite(t) || !Double.isFinite(hitX) || !Double.isFinite(hitY) || !Double.isFinite(hitZ)) {
+            return false;
+        }
+        if ((axis != 0 && (hitX < faceXa - EPSILON || hitX > faceXb + EPSILON))
+            || (axis != 1 && (hitY < faceYa - EPSILON || hitY > faceYb + EPSILON))
+            || (axis != 2 && (hitZ < faceZa - EPSILON || hitZ > faceZb + EPSILON))) {
+            return true;
+        }
+        double origin = axis == 0 ? originX : axis == 1 ? originY : originZ;
+        double faceMinimum = (axis == 0 ? faceXa : axis == 1 ? faceYa : faceZa) - EPSILON;
+        double faceMaximum = (axis == 0 ? faceXb : axis == 1 ? faceYb : faceZb) + EPSILON;
+        boolean increasing = t >= 0.0D;
+        int count = maximum - minimum + 1;
+        int first = rowBoundary(minimum, count, origin, t, increasing ? faceMinimum : faceMaximum, increasing, false);
+        int after = rowBoundary(minimum, count, origin, t, increasing ? faceMaximum : faceMinimum, increasing, true);
+        if (first >= after) {
+            return true;
+        }
+        int firstCell = minimum + first;
+        int lastCell = minimum + after - 1;
+        if (!containsRowCell(axis, x, y, z, firstCell) || !containsRowCell(axis, x, y, z, lastCell)
+            || (first > 0 && containsRowCell(axis, x, y, z, firstCell - 1))
+            || (after < count && containsRowCell(axis, x, y, z, lastCell + 1))) {
+            return false;
+        }
+        row.accept(firstCell, lastCell);
+        return true;
+    }
+
     public AxisAlignedBB getRegion() {
         return region;
     }
@@ -175,6 +259,28 @@ public final class Frustum {
         return x >= faceXa - EPSILON && x <= faceXb + EPSILON
             && y >= faceYa - EPSILON && y <= faceYb + EPSILON
             && z >= faceZa - EPSILON && z <= faceZb + EPSILON;
+    }
+
+    private boolean containsRowCell(int axis, double x, double y, double z, int coordinate) {
+        double center = coordinate + 0.5D;
+        return containsPrimitive(axis == 0 ? center : x, axis == 1 ? center : y, axis == 2 ? center : z);
+    }
+
+    private static int rowBoundary(int minimum, int count, double origin, double t,
+                                    double bound, boolean increasing, boolean after) {
+        int low = 0;
+        int high = count;
+        while (low < high) {
+            int middle = (low + high) >>> 1;
+            double hit = origin + (((minimum + middle + 0.5D) - origin) * t);
+            boolean before = increasing ? (after ? hit <= bound : hit < bound) : (after ? hit >= bound : hit > bound);
+            if (before) {
+                low = middle + 1;
+            } else {
+                high = middle;
+            }
+        }
+        return low;
     }
 
     private static double axisValue(Vector vector, Axis axis) {
@@ -230,5 +336,191 @@ public final class Frustum {
         }
 
         return new AxisAlignedBB(xa, xb, ya, yb, za, zb);
+    }
+
+    static final class FaceIndex {
+        private static final int MIN_INDEXED_FACES = 4;
+        private static final int MAX_BUCKETS = 16_384;
+        private static final int MAX_REFERENCES = 65_536;
+
+        private final Frustum[] faces;
+        private final Frustum[][] buckets;
+        private final int firstMin;
+        private final int secondMin;
+        private final int width;
+        private final int height;
+
+        private FaceIndex(Frustum[] faces, GridBounds bounds) {
+            this.faces = faces;
+            if (bounds == null) {
+                buckets = null;
+                firstMin = 0;
+                secondMin = 0;
+                width = 0;
+                height = 0;
+                return;
+            }
+            firstMin = bounds.firstMin();
+            secondMin = bounds.secondMin();
+            width = bounds.firstMax() - firstMin + 1;
+            height = bounds.secondMax() - secondMin + 1;
+            int[] sizes = new int[bounds.bucketCount()];
+            for (Frustum face : faces) {
+                for (int first = firstLow(face); first <= firstHigh(face); first++) {
+                    for (int second = secondLow(face); second <= secondHigh(face); second++) {
+                        sizes[(first - firstMin) * height + second - secondMin]++;
+                    }
+                }
+            }
+            buckets = new Frustum[sizes.length][];
+            for (int index = 0; index < sizes.length; index++) {
+                if (sizes[index] > 0) {
+                    buckets[index] = new Frustum[sizes[index]];
+                    sizes[index] = 0;
+                }
+            }
+            for (Frustum face : faces) {
+                for (int first = firstLow(face); first <= firstHigh(face); first++) {
+                    for (int second = secondLow(face); second <= secondHigh(face); second++) {
+                        int index = (first - firstMin) * height + second - secondMin;
+                        buckets[index][sizes[index]++] = face;
+                    }
+                }
+            }
+        }
+
+        static FaceIndex[] build(Frustum[] faces) {
+            if (faces.length < MIN_INDEXED_FACES) {
+                return null;
+            }
+            LinkedHashMap<PlaneKey, ArrayList<Frustum>> groups = new LinkedHashMap<PlaneKey, ArrayList<Frustum>>();
+            for (Frustum face : faces) {
+                PlaneKey key = new PlaneKey(face.normalAxis,
+                    Double.doubleToLongBits(face.planeDelta), Double.doubleToLongBits(face.originX),
+                    Double.doubleToLongBits(face.originY), Double.doubleToLongBits(face.originZ));
+                groups.computeIfAbsent(key, ignored -> new ArrayList<Frustum>()).add(face);
+            }
+            FaceIndex[] result = new FaceIndex[groups.size()];
+            int bucketsRemaining = MAX_BUCKETS;
+            int referencesRemaining = MAX_REFERENCES;
+            int index = 0;
+            boolean indexed = false;
+            for (ArrayList<Frustum> group : groups.values()) {
+                Frustum[] groupedFaces = group.toArray(new Frustum[0]);
+                GridBounds bounds = gridBounds(groupedFaces, bucketsRemaining, referencesRemaining);
+                if (bounds != null) {
+                    bucketsRemaining -= bounds.bucketCount();
+                    referencesRemaining -= bounds.referenceCount();
+                    indexed = true;
+                }
+                result[index++] = new FaceIndex(groupedFaces, bounds);
+            }
+            return indexed ? result : null;
+        }
+
+        boolean contains(double x, double y, double z) {
+            if (buckets == null) {
+                return containsAny(faces, x, y, z);
+            }
+            Frustum plane = faces[0];
+            double axisDelta = switch (plane.normalAxis) {
+                case X -> x - plane.originX;
+                case Y -> y - plane.originY;
+                case Z -> z - plane.originZ;
+            };
+            if (Math.abs(axisDelta) <= EPSILON) {
+                return false;
+            }
+            double t = plane.planeDelta / axisDelta;
+            if (t < -EPSILON || t > 1.0D + EPSILON) {
+                return false;
+            }
+            double hitFirst = plane.normalAxis == Axis.X
+                ? plane.originY + ((y - plane.originY) * t)
+                : plane.originX + ((x - plane.originX) * t);
+            double hitSecond = plane.normalAxis == Axis.Z
+                ? plane.originY + ((y - plane.originY) * t)
+                : plane.originZ + ((z - plane.originZ) * t);
+            double first = Math.floor(hitFirst) - firstMin;
+            double second = Math.floor(hitSecond) - secondMin;
+            if (!(first >= 0.0D && first < width && second >= 0.0D && second < height)) {
+                return false;
+            }
+            Frustum[] candidates = buckets[(int) first * height + (int) second];
+            return candidates != null && containsAny(candidates, x, y, z);
+        }
+
+        private static boolean containsAny(Frustum[] faces, double x, double y, double z) {
+            for (Frustum face : faces) {
+                if (face.containsPrimitive(x, y, z)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static GridBounds gridBounds(Frustum[] faces, int bucketBudget, int referenceBudget) {
+            if (faces.length < MIN_INDEXED_FACES) {
+                return null;
+            }
+            int firstMin = Integer.MAX_VALUE;
+            int firstMax = Integer.MIN_VALUE;
+            int secondMin = Integer.MAX_VALUE;
+            int secondMax = Integer.MIN_VALUE;
+            long references = 0L;
+            for (Frustum face : faces) {
+                double firstLow = Math.floor((face.normalAxis == Axis.X ? face.faceYa : face.faceXa) - EPSILON);
+                double firstHigh = Math.floor((face.normalAxis == Axis.X ? face.faceYb : face.faceXb) + EPSILON);
+                double secondLow = Math.floor((face.normalAxis == Axis.Z ? face.faceYa : face.faceZa) - EPSILON);
+                double secondHigh = Math.floor((face.normalAxis == Axis.Z ? face.faceYb : face.faceZb) + EPSILON);
+                if (!(firstLow > Integer.MIN_VALUE && firstHigh < Integer.MAX_VALUE
+                    && secondLow > Integer.MIN_VALUE && secondHigh < Integer.MAX_VALUE)) {
+                    return null;
+                }
+                long firstSize = (long) firstHigh - (long) firstLow + 1L;
+                long secondSize = (long) secondHigh - (long) secondLow + 1L;
+                if (firstSize > referenceBudget || secondSize > referenceBudget) {
+                    return null;
+                }
+                references += firstSize * secondSize;
+                if (references > referenceBudget) {
+                    return null;
+                }
+                firstMin = Math.min(firstMin, (int) firstLow);
+                firstMax = Math.max(firstMax, (int) firstHigh);
+                secondMin = Math.min(secondMin, (int) secondLow);
+                secondMax = Math.max(secondMax, (int) secondHigh);
+                long width = (long) firstMax - firstMin + 1L;
+                long height = (long) secondMax - secondMin + 1L;
+                if (width > bucketBudget || height > bucketBudget || width * height > bucketBudget) {
+                    return null;
+                }
+            }
+            return new GridBounds(firstMin, firstMax, secondMin, secondMax,
+                (firstMax - firstMin + 1) * (secondMax - secondMin + 1), (int) references);
+        }
+
+        private static int firstLow(Frustum face) {
+            return (int) Math.floor((face.normalAxis == Axis.X ? face.faceYa : face.faceXa) - EPSILON);
+        }
+
+        private static int firstHigh(Frustum face) {
+            return (int) Math.floor((face.normalAxis == Axis.X ? face.faceYb : face.faceXb) + EPSILON);
+        }
+
+        private static int secondLow(Frustum face) {
+            return (int) Math.floor((face.normalAxis == Axis.Z ? face.faceYa : face.faceZa) - EPSILON);
+        }
+
+        private static int secondHigh(Frustum face) {
+            return (int) Math.floor((face.normalAxis == Axis.Z ? face.faceYb : face.faceZb) + EPSILON);
+        }
+
+        private record PlaneKey(Axis normalAxis, long planeDelta, long originX, long originY, long originZ) {
+        }
+
+        private record GridBounds(int firstMin, int firstMax, int secondMin, int secondMax,
+                                  int bucketCount, int referenceCount) {
+        }
     }
 }

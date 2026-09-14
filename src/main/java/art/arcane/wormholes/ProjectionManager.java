@@ -260,7 +260,7 @@ public class ProjectionManager implements Listener {
         List<ILocalPortal> skinnedPortals = collectSkinnedPortals();
         boolean skinWork = !skinnedPortals.isEmpty() || skinRenderer.isActive();
         PortalCandidateSnapshot skinSnapshot = skinRenderer.capture(skinnedPortals);
-        budgetLedger.beginFrame();
+        ProjectionBudgetLedger.FrameBudget frameBudget = budgetLedger.beginFrame(Settings.PROJECTION_MAX_FRAME_MICROS);
         List<ILocalPortal> active = collectActiveProjectors();
         PortalCandidateSnapshot activeSnapshot = PortalCandidateSnapshot.captureProjection(active);
         interestSet.retainPortals(active);
@@ -278,7 +278,8 @@ public class ProjectionManager implements Listener {
         boolean discoveryEnabled = !active.isEmpty() || !skinnedPortals.isEmpty();
         List<Player> observerCandidates = budgetLedger.selectObserverCandidates(onlinePlayers, priorityObservers,
             observerTasksInFlight, frameTick, Settings.PROJECTION_MAX_NEW_OBSERVER_SCANS_PER_TICK, discoveryEnabled);
-        int totalBudget = updateBlocks ? Math.max(0, Settings.PROJECTION_MAX_PROJECTORS_PER_TICK) : 0;
+        int totalBudget = updateBlocks || interestSet.hasPendingScans()
+            ? Math.max(0, Settings.PROJECTION_MAX_PROJECTORS_PER_TICK) : 0;
         int perObserverBudget = Math.max(0, Settings.PROJECTION_MAX_PORTALS_PER_OBSERVER_TICK);
         int[] reservedBudgets = fairBudgetAllocations(observerCandidates.size(), totalBudget, perObserverBudget, frameTick);
         int reservedTotal = 0;
@@ -299,7 +300,7 @@ public class ProjectionManager implements Listener {
                         return;
                     }
                     observerFrame.project(observer, activeSnapshot, remainingProjectors, reservedBudget,
-                        updateBlocks, updateEntities, frameTick, skinWork, skinSnapshot);
+                        updateBlocks, updateEntities, frameTick, skinWork, skinSnapshot, frameBudget);
                 } finally {
                     observerTasksInFlight.remove(observerId);
                 }
@@ -584,6 +585,7 @@ public class ProjectionManager implements Listener {
 
     public void removeProjector(Player player) {
         UUID id = player.getUniqueId();
+        budgetLedger.forgetObserver(id);
         interestSet.closeObserver(id);
         interestSet.forgetObserver(id);
         projectedEntityUpdates.discard(id);
@@ -591,6 +593,7 @@ public class ProjectionManager implements Listener {
 
     private void discardObserverProjectors(Player player) {
         UUID id = player.getUniqueId();
+        budgetLedger.forgetObserver(id);
         interestSet.discardObserver(id);
         localEntityOcclusion.discardObserver(id);
         claimArbiter.discardObserver(id);
@@ -675,6 +678,7 @@ public class ProjectionManager implements Listener {
             }
         }
         interestSet.clear();
+        budgetLedger.clearObserverCosts();
         try {
             completion.await(2L, TimeUnit.SECONDS);
         } catch (InterruptedException ex) {

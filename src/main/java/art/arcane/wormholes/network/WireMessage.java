@@ -546,10 +546,10 @@ public sealed interface WireMessage {
      * unchanged when it is null and readers tolerate both shapes.
      */
     record HandoffRequest(UUID transferId, UUID playerId, String playerName, UUID destPortalId, boolean directTransfer,
-                          boolean onlineMode, WireTraversive traversive, UUID groupId) implements WireMessage {
+                          boolean onlineMode, boolean accessBypass, WireTraversive traversive, UUID groupId) implements WireMessage {
         public HandoffRequest(UUID transferId, UUID playerId, String playerName, UUID destPortalId, boolean directTransfer,
-                              boolean onlineMode, WireTraversive traversive) {
-            this(transferId, playerId, playerName, destPortalId, directTransfer, onlineMode, traversive, null);
+                              boolean onlineMode, boolean accessBypass, WireTraversive traversive) {
+            this(transferId, playerId, playerName, destPortalId, directTransfer, onlineMode, accessBypass, traversive, null);
         }
 
         @Override
@@ -568,6 +568,7 @@ public sealed interface WireMessage {
             }
             out.writeBoolean(directTransfer);
             out.writeBoolean(onlineMode);
+            out.writeBoolean(accessBypass);
             if (destPortalId != null) {
                 traversive.write(out);
             }
@@ -584,9 +585,10 @@ public sealed interface WireMessage {
             UUID portalId = in.readBoolean() ? readUuid(in) : null;
             boolean direct = in.readBoolean();
             boolean online = in.readBoolean();
+            boolean accessBypass = in.readBoolean();
             WireTraversive traversive = portalId == null ? null : WireTraversive.read(in);
             UUID groupId = in.available() > 0 && in.readBoolean() ? readUuid(in) : null;
-            return new HandoffRequest(transferId, playerId, playerName, portalId, direct, online, traversive, groupId);
+            return new HandoffRequest(transferId, playerId, playerName, portalId, direct, online, accessBypass, traversive, groupId);
         }
     }
 

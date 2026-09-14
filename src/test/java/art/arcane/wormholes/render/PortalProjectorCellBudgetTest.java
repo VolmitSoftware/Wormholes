@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalStructure;
+import art.arcane.wormholes.render.lod.LodPolicy;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.wormholes.util.Direction;
@@ -178,6 +179,27 @@ public final class PortalProjectorCellBudgetTest {
         assertEquals(1L, viewFrustum.fitRecalculationCount());
 
         viewFrustum.fit(null, structure, frame, eye.clone().add(0.3D, 0.0D, 0.0D), DEPTH_BLOCKS, LATERAL_PAD);
+        assertEquals(2L, viewFrustum.fitRecalculationCount());
+    }
+
+    @Test
+    public void equivalentDetailPoliciesReuseTheFittedFrustumAcrossProductionPasses() {
+        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        PortalStructure structure = structure(Direction.S, 3, 3);
+        Location eye = eye(structure, frame, 0.5D, 1.0D, 0.0D);
+        ProjectorViewFrustum viewFrustum = new ProjectorViewFrustum(null);
+        viewFrustum.setLodPolicy(LodPolicy.current(null));
+        Frustum4D first = viewFrustum.fit(null, structure, frame, eye, DEPTH_BLOCKS, LATERAL_PAD);
+
+        viewFrustum.setLodPolicy(LodPolicy.current(null));
+        Frustum4D second = viewFrustum.fit(null, structure, frame, eye, DEPTH_BLOCKS, LATERAL_PAD);
+
+        assertSame(first, second);
+        assertEquals(1L, viewFrustum.fitRecalculationCount());
+        LodPolicy previous = viewFrustum.lodPolicy();
+        viewFrustum.setLodPolicy(new LodPolicy(!previous.mergeRuns(),
+            previous.distanceBlocks(), previous.detailCutoffBlocks()));
+        viewFrustum.fit(null, structure, frame, eye, DEPTH_BLOCKS, LATERAL_PAD);
         assertEquals(2L, viewFrustum.fitRecalculationCount());
     }
 

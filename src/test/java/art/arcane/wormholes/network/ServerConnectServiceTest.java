@@ -357,6 +357,7 @@ class ServerConnectServiceTest {
                 case "getName" -> "Traveler";
                 case "getUniqueId" -> playerId;
                 case "isOnline", "isValid" -> Boolean.TRUE;
+                case "isOp", "hasPermission" -> Boolean.FALSE;
                 case "transfer" -> {
                     transfer.set(new TransferCall((String) arguments[0], ((Integer) arguments[1]).intValue()));
                     yield null;

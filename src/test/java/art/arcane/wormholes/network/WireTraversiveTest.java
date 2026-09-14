@@ -64,7 +64,7 @@ class WireTraversiveTest {
         UUID playerId = UUID.randomUUID();
         UUID portalId = UUID.randomUUID();
 
-        WireMessage.HandoffRequest request = roundTrip(new WireMessage.HandoffRequest(transferId, playerId, "Psycho", portalId, true, true, wire));
+        WireMessage.HandoffRequest request = roundTrip(new WireMessage.HandoffRequest(transferId, playerId, "Psycho", portalId, true, true, false, wire));
         assertEquals(transferId, request.transferId());
         assertEquals(playerId, request.playerId());
         assertEquals("Psycho", request.playerName());
@@ -81,7 +81,7 @@ class WireTraversiveTest {
         assertEquals(transferId, cancel.transferId());
         assertEquals(playerId, cancel.playerId());
         WireMessage.HandoffRequest serverRequest = roundTrip(new WireMessage.HandoffRequest(
-            transferId, playerId, "Psycho", null, true, false, null));
+            transferId, playerId, "Psycho", null, true, false, false, null));
         assertEquals(null, serverRequest.destPortalId());
         assertEquals(null, serverRequest.traversive());
         assertFalse(serverRequest.onlineMode());

@@ -32,6 +32,13 @@ public class ProjectionConfig {
     public int maxProjectorsPerTick = 24;
     public int maxPortalsPerObserverTick = 4;
     @ConfigDescription({
+        "Soft projection frame budget in microseconds per execution thread and manager tick, including final claim flushing.",
+        "Recent observer costs predict whether more block work fits; large geometry scans yield at the deadline while committed views and entity updates remain available.",
+        "Pending scans continue between scheduled refresh ticks without starting unrelated refreshes early.",
+        "Finalization and required cleanup can exceed the budget. Set to 0 for unlimited frame time."
+    })
+    public int maxFrameMicros = 30_000;
+    @ConfigDescription({
         "Maximum player-owner reconciliation frames admitted per tick across normal projection and surface skins.",
         "Existing observer state has priority while a rotating share remains available for discovery."
     })

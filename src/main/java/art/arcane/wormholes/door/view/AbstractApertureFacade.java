@@ -27,6 +27,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 /**
  * An {@link ILocalPortal} that only ever gets projected.
@@ -491,7 +493,13 @@ public abstract class AbstractApertureFacade implements ILocalPortal {
     }
 
     @Override
-    public void confirmDeparture(Entity entity, Traversive traversive) {
+    public CompletionStage<Boolean> prepareDeparture(Entity entity, Traversive traversive) {
+        return CompletableFuture.completedFuture(canCompleteDeparture(entity, traversive));
+    }
+
+    @Override
+    public boolean confirmDeparture(Entity entity, Traversive traversive) {
+        return false;
     }
 
     @Override

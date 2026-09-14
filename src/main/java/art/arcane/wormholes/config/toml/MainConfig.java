@@ -22,6 +22,7 @@ public class MainConfig {
     @ConfigDescription("Door a newly created pocket room's exit is built from. Must be a hand-operable door, so iron doors are rejected. Existing pockets keep their own door.")
     public String pocketReturnDoorMaterial = "CRIMSON_DOOR";
     public double portalCollapseSpeed = 0.91;
+    @ConfigDescription("Enable console debug with one-second projection, network, peer, handoff, and failure summaries plus access-denial details. Use /wormholes debug toggle for a temporary session.")
     public boolean verboseLogging = false;
     public boolean debugRendering = false;
     public int teleportCooldownMillis = 1000;

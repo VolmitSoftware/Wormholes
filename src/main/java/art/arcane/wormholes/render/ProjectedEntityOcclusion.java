@@ -56,6 +56,10 @@ final class ProjectedEntityOcclusion {
         }
     }
 
+    void retainRevision(long revision) {
+        this.revision = revision;
+    }
+
     void updateEye(double eyeX, double eyeY, double eyeZ) {
         this.eyeX = eyeX;
         this.eyeY = eyeY;

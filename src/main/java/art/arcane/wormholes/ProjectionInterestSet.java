@@ -63,6 +63,23 @@ final class ProjectionInterestSet {
         return projectors.isEmpty();
     }
 
+    boolean hasPendingScans() {
+        for (Map<UUID, PortalProjector> portalProjectors : projectors.values()) {
+            for (PortalProjector projector : portalProjectors.values()) {
+                if (projector.hasPendingScan()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    boolean hasPendingScan(UUID portalId, UUID observerId) {
+        Map<UUID, PortalProjector> portalProjectors = projectors.get(portalId);
+        PortalProjector projector = portalProjectors == null ? null : portalProjectors.get(observerId);
+        return projector != null && projector.hasPendingScan();
+    }
+
     PortalProjector obtain(ILocalPortal portal, Player observer) {
         Map<UUID, PortalProjector> portalProjectors = projectors.get(portal.getId());
         if (portalProjectors == null) {

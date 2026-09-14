@@ -12,10 +12,10 @@ public final class WireCodec {
         void sample(WireMessageType type, byte[] payload);
     }
 
-    /** Current wire protocol. Bumped to 21 when the capability set joined Hello/Challenge. */
-    public static final int PROTOCOL_VERSION = 21;
+    /** Current wire protocol. Bumped to 22 for authenticated handoff access bypass. */
+    public static final int PROTOCOL_VERSION = 22;
     /** Oldest peer protocol this build still links with. Raise only with a documented compatibility story. */
-    public static final int MIN_COMPATIBLE_PROTOCOL = 21;
+    public static final int MIN_COMPATIBLE_PROTOCOL = 22;
     public static final int MAX_FRAME_BYTES = 4 * 1024 * 1024;
     private static final int MIN_FRAME_BODY_BYTES = 2;
     private static final int PAYLOAD_SCRATCH_RETAIN_LIMIT_BYTES = 1024 * 1024;

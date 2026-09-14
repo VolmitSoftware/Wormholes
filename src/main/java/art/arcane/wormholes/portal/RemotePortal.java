@@ -1,5 +1,7 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.wormholes.access.PortalAdmission;
+
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -155,17 +157,10 @@ public class RemotePortal extends Portal implements IRemotePortal {
         if (!open || mirroredMirrorMode) {
             return false;
         }
-        if (entity instanceof Player operator && operator.isOp()) {
+        if (entity instanceof Player player && PortalAdmission.bypassesAccess(player)) {
             return true;
         }
-        if (!mirroredIncomingTraversalsEnabled) {
-            return false;
-        }
-        if (!(entity instanceof Player player)) {
-            return true;
-        }
-        String node = "wormholes.portal." + LocalPortalSettings.sanitizePermissionName(getName());
-        return mirroredPermissionMode.allows(player, node);
+        return mirroredIncomingTraversalsEnabled;
     }
 
     public void setMirroredIncomingTraversalsEnabled(boolean enabled) {

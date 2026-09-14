@@ -7,9 +7,11 @@ import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 import java.util.Arrays;
 import java.util.BitSet;
@@ -31,8 +33,14 @@ public final class ProjectorLighting {
     private final Long2ObjectOpenHashMap<IntOpenHashSet> chunkToSections = new Long2ObjectOpenHashMap<IntOpenHashSet>(8);
     private final Long2ObjectOpenHashMap<IntOpenHashSet> pendingChunkSections = new Long2ObjectOpenHashMap<IntOpenHashSet>(8);
     private final Long2ObjectOpenHashMap<SectionBaseline[]> baselineCache = new Long2ObjectOpenHashMap<SectionBaseline[]>(8);
+    private final Long2ObjectOpenHashMap<SectionClaims> sectionClaims = new Long2ObjectOpenHashMap<SectionClaims>(16);
+    private final Long2ObjectOpenHashMap<IntOpenHashSet> currentChunkSections = new Long2ObjectOpenHashMap<IntOpenHashSet>(8);
     private final ProjectionChunkVisibility chunkVisibility;
     private final LightPacketSender packetSender;
+    private ProjectionWorldView indexedLocalView;
+    private int indexedMinHeight;
+    private int indexedMaxHeight;
+    private boolean indexedSourceLighting;
 
     public ProjectorLighting() {
         this(WormholesPlatform::isChunkSent, ProjectorLighting::sendPacket);
@@ -62,16 +70,16 @@ public final class ProjectorLighting {
         if (observer == null || !observer.isOnline()) {
             return;
         }
-        boolean hasDirtyKeys = dirtyLocalKeys == null || !dirtyLocalKeys.isEmpty();
-        Long2ObjectOpenHashMap<IntOpenHashSet> currentSections = collectCurrentSections(
-            localView, projectedClaims, sourceLightingEnabled);
+        Long2ObjectOpenHashMap<IntOpenHashSet> currentSections = updateCurrentSections(
+            localView, projectedClaims, dirtyLocalKeys, sourceLightingEnabled);
         revertStaleSections(observer, localView, currentSections);
         prunePendingSections(currentSections);
 
-        if (hasDirtyKeys) {
-            LongSet dirtyKeys = dirtyLocalKeys == null ? projectedClaims.keySet() : dirtyLocalKeys;
+        if (dirtyLocalKeys == null) {
+            mergePendingSections(currentSections);
+        } else if (!dirtyLocalKeys.isEmpty()) {
             chunkToSections.clear();
-            collectDirtySections(localView, dirtyKeys, chunkToSections);
+            collectDirtySections(localView, dirtyLocalKeys, chunkToSections);
             retainCurrentSections(chunkToSections, currentSections);
             mergePendingSections(chunkToSections);
         }
@@ -95,8 +103,7 @@ public final class ProjectorLighting {
             if (selected.isEmpty()) {
                 continue;
             }
-            if (!sendChunkLight(observer, localView, projectedClaims, chunkX, chunkZ, selected,
-                sourceLightingEnabled)) {
+            if (!sendChunkLight(observer, localView, chunkX, chunkZ, selected)) {
                 continue;
             }
             recordSentSections(chunkKey, selected);
@@ -108,33 +115,81 @@ public final class ProjectorLighting {
         }
     }
 
-    private Long2ObjectOpenHashMap<IntOpenHashSet> collectCurrentSections(
+    private Long2ObjectOpenHashMap<IntOpenHashSet> updateCurrentSections(
         ProjectionWorldView localView,
         Long2ObjectMap<ProjectedBlockClaim> projectedClaims,
+        LongSet dirtyLocalKeys,
         boolean sourceLightingEnabled
     ) {
-        Long2ObjectOpenHashMap<IntOpenHashSet> current = new Long2ObjectOpenHashMap<IntOpenHashSet>(8);
-        for (Long2ObjectMap.Entry<ProjectedBlockClaim> entry : projectedClaims.long2ObjectEntrySet()) {
-            ProjectedBlockClaim claim = entry.getValue();
-            if (!claim.requiresLightOverlay(sourceLightingEnabled)) {
-                continue;
+        int minHeight = localView.getMinHeight();
+        int maxHeight = localView.getMaxHeight();
+        if (dirtyLocalKeys != null && indexedLocalView == localView
+            && indexedMinHeight == minHeight && indexedMaxHeight == maxHeight
+            && indexedSourceLighting == sourceLightingEnabled) {
+            LongIterator dirty = dirtyLocalKeys.iterator();
+            while (dirty.hasNext()) {
+                long key = dirty.nextLong();
+                updateSectionClaim(key, projectedClaims.get(key), sourceLightingEnabled, minHeight, maxHeight);
             }
-            long packed = entry.getLongKey();
-            int worldX = ProjectionCellKey.unpackX(packed);
-            int worldY = ProjectionCellKey.unpackY(packed);
-            int worldZ = ProjectionCellKey.unpackZ(packed);
-            if (!isWorldYInsideWorld(localView, worldY)) {
-                continue;
+            return currentChunkSections;
+        }
+        indexedLocalView = null;
+        for (SectionClaims claims : sectionClaims.values()) {
+            claims.clear();
+        }
+        currentChunkSections.clear();
+        ObjectIterator<Long2ObjectMap.Entry<ProjectedBlockClaim>> iterator = Long2ObjectMaps.fastIterator(projectedClaims);
+        while (iterator.hasNext()) {
+            Long2ObjectMap.Entry<ProjectedBlockClaim> entry = iterator.next();
+            updateSectionClaim(entry.getLongKey(), entry.getValue(), sourceLightingEnabled, minHeight, maxHeight);
+        }
+        sectionClaims.values().removeIf(claims -> claims.size == 0);
+        indexedMinHeight = minHeight;
+        indexedMaxHeight = maxHeight;
+        indexedSourceLighting = sourceLightingEnabled;
+        indexedLocalView = localView;
+        return currentChunkSections;
+    }
+
+    private void updateSectionClaim(long key, ProjectedBlockClaim claim, boolean sourceLightingEnabled,
+                                    int minHeight, int maxHeight) {
+        int worldY = ProjectionCellKey.unpackY(key);
+        if (worldY < minHeight || worldY >= maxHeight) {
+            return;
+        }
+        int worldX = ProjectionCellKey.unpackX(key);
+        int worldZ = ProjectionCellKey.unpackZ(key);
+        long chunkKey = internalChunkKey(worldX >> 4, worldZ >> 4);
+        long sectionKey = ProjectionCellKey.pack(worldX >> 4, worldY >> 4, worldZ >> 4);
+        SectionClaims claims = sectionClaims.get(sectionKey);
+        int nibbleIndex = ((worldY & 0xF) << 8) | ((worldZ & 0xF) << 4) | (worldX & 0xF);
+        if (claim == null || !claim.requiresLightOverlay(sourceLightingEnabled)) {
+            if (claims == null || !claims.remove(nibbleIndex) || claims.size > 0) {
+                return;
             }
-            long chunkKey = (((long) (worldX >> 4)) << 32) | (((long) (worldZ >> 4)) & 0xFFFFFFFFL);
-            IntOpenHashSet sections = current.get(chunkKey);
+            sectionClaims.remove(sectionKey);
+            IntOpenHashSet sections = currentChunkSections.get(chunkKey);
+            if (sections != null) {
+                sections.remove(worldY >> 4);
+                if (sections.isEmpty()) {
+                    currentChunkSections.remove(chunkKey);
+                }
+            }
+            return;
+        }
+        if (claims == null) {
+            claims = new SectionClaims();
+            sectionClaims.put(sectionKey, claims);
+        }
+        if (claims.size == 0) {
+            IntOpenHashSet sections = currentChunkSections.get(chunkKey);
             if (sections == null) {
                 sections = new IntOpenHashSet(4);
-                current.put(chunkKey, sections);
+                currentChunkSections.put(chunkKey, sections);
             }
             sections.add(worldY >> 4);
         }
-        return current;
+        claims.put(nibbleIndex, claim);
     }
 
     private void collectDirtySections(ProjectionWorldView localView, LongSet dirtyKeys, Long2ObjectOpenHashMap<IntOpenHashSet> chunkToSections) {
@@ -192,6 +247,9 @@ public final class ProjectorLighting {
 
     public void revert(Player observer, ProjectionWorldView localView) {
         pendingChunkSections.clear();
+        sectionClaims.clear();
+        currentChunkSections.clear();
+        indexedLocalView = null;
         if (sentChunkSections.isEmpty()) {
             baselineCache.clear();
             return;
@@ -225,6 +283,9 @@ public final class ProjectorLighting {
         pendingChunkSections.clear();
         chunkToSections.clear();
         baselineCache.clear();
+        sectionClaims.clear();
+        currentChunkSections.clear();
+        indexedLocalView = null;
     }
 
     void discardChunk(int chunkX, int chunkZ) {
@@ -330,11 +391,9 @@ public final class ProjectorLighting {
 
     private boolean sendChunkLight(Player observer,
                                 ProjectionWorldView localView,
-                                Long2ObjectMap<ProjectedBlockClaim> projectedClaims,
                                 int chunkX,
                                 int chunkZ,
-                                IntSet dirtySections,
-                                boolean sourceLightingEnabled) {
+                                IntSet dirtySections) {
         if (!chunkVisibility.isChunkSent(observer, chunkX, chunkZ)) {
             return false;
         }
@@ -366,8 +425,8 @@ public final class ProjectorLighting {
             }
             byte[] skyArr = baseline.sky.clone();
             byte[] blockArr = baseline.block.clone();
-            overlayProjectedLight(projectedClaims, chunkX, chunkZ, section, localSkyDarken,
-                skyArr, blockArr, sourceLightingEnabled);
+            overlayProjectedLight(sectionClaims.get(ProjectionCellKey.pack(chunkX, section, chunkZ)),
+                localSkyDarken, skyArr, blockArr);
 
             skyArrays[arrIdx] = skyArr;
             blockArrays[arrIdx] = blockArr;
@@ -383,51 +442,22 @@ public final class ProjectorLighting {
         return true;
     }
 
-    static void overlayProjectedLight(Long2ObjectMap<ProjectedBlockClaim> projectedClaims,
-                                      int chunkX,
-                                      int chunkZ,
-                                      int section,
+    private static void overlayProjectedLight(SectionClaims projectedClaims,
                                       int localSkyDarken,
                                       byte[] skyArr,
                                       byte[] blockArr) {
-        overlayProjectedLight(projectedClaims, chunkX, chunkZ, section, localSkyDarken,
-            skyArr, blockArr, true);
-    }
-
-    static void overlayProjectedLight(Long2ObjectMap<ProjectedBlockClaim> projectedClaims,
-                                      int chunkX,
-                                      int chunkZ,
-                                      int section,
-                                      int localSkyDarken,
-                                      byte[] skyArr,
-                                      byte[] blockArr,
-                                      boolean sourceLightingEnabled) {
-        if (projectedClaims == null || projectedClaims.isEmpty()) {
+        if (projectedClaims == null) {
             return;
         }
-        int sectionMinY = section << 4;
-        for (Long2ObjectMap.Entry<ProjectedBlockClaim> entry : projectedClaims.long2ObjectEntrySet()) {
-            long localKey = entry.getLongKey();
-            int x = ProjectionCellKey.unpackX(localKey);
-            int y = ProjectionCellKey.unpackY(localKey);
-            int z = ProjectionCellKey.unpackZ(localKey);
-            if ((x >> 4) != chunkX || (z >> 4) != chunkZ || (y >> 4) != section) {
-                continue;
-            }
-            ProjectedBlockClaim claim = entry.getValue();
-            int nibbleIdx = ((y - sectionMinY) << 8) | ((z & 0xF) << 4) | (x & 0xF);
+        for (int index = 0; index < projectedClaims.size; index++) {
+            ProjectedBlockClaim claim = projectedClaims.claims[index];
+            int nibbleIdx = projectedClaims.nibbleIndices[index];
             if (claim.isFullBright()) {
                 writeLightNibble(skyArr, blockArr, nibbleIdx, 15, 15);
                 continue;
             }
-            if (!sourceLightingEnabled || claim.getLightingPolicy() != ProjectedBlockClaim.LightingPolicy.SOURCE) {
-                continue;
-            }
             long remoteKey = claim.getLightRemoteKey();
             ProjectionWorldView sourceView = claim.getLightView();
-            if (remoteKey == ProjectedBlockClaim.NO_REMOTE_KEY || sourceView == null) {
-                continue;
-            }
             int rx = ProjectionCellKey.unpackX(remoteKey);
             int ry = ProjectionCellKey.unpackY(remoteKey);
             int rz = ProjectionCellKey.unpackZ(remoteKey);
@@ -604,6 +634,55 @@ public final class ProjectorLighting {
 
     private static boolean isWorldYInsideWorld(ProjectionWorldView view, int y) {
         return y >= view.getMinHeight() && y < view.getMaxHeight();
+    }
+
+    private static final class SectionClaims {
+        private final short[] slots = new short[4096];
+        private int[] nibbleIndices = new int[16];
+        private ProjectedBlockClaim[] claims = new ProjectedBlockClaim[16];
+        private int size;
+
+        private void put(int nibbleIndex, ProjectedBlockClaim claim) {
+            int slot = slots[nibbleIndex] - 1;
+            if (slot >= 0) {
+                claims[slot] = claim;
+                return;
+            }
+            if (size == claims.length) {
+                int capacity = size << 1;
+                nibbleIndices = Arrays.copyOf(nibbleIndices, capacity);
+                claims = Arrays.copyOf(claims, capacity);
+            }
+            nibbleIndices[size] = nibbleIndex;
+            claims[size] = claim;
+            size++;
+            slots[nibbleIndex] = (short) size;
+        }
+
+        private boolean remove(int nibbleIndex) {
+            int slot = slots[nibbleIndex] - 1;
+            if (slot < 0) {
+                return false;
+            }
+            int last = --size;
+            if (slot != last) {
+                int movedNibble = nibbleIndices[last];
+                nibbleIndices[slot] = movedNibble;
+                claims[slot] = claims[last];
+                slots[movedNibble] = (short) (slot + 1);
+            }
+            claims[last] = null;
+            slots[nibbleIndex] = 0;
+            return true;
+        }
+
+        private void clear() {
+            for (int index = 0; index < size; index++) {
+                slots[nibbleIndices[index]] = 0;
+            }
+            Arrays.fill(claims, 0, size, null);
+            size = 0;
+        }
     }
 
     private static final class SectionBaseline {

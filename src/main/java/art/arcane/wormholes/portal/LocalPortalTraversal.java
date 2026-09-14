@@ -15,7 +15,9 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.TraversableManager.Movement;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.access.PortalAccessDiagnostics;
 import art.arcane.wormholes.api.traversal.TraversalContext;
 import art.arcane.wormholes.api.traversal.TraversalDestination;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
@@ -62,6 +64,8 @@ final class LocalPortalTraversal
 
 	private final LocalPortal portal;
 	private final LocalPortalRuntime runtime;
+	private final PortalCaptureHistory captureHistory = new PortalCaptureHistory();
+	private ITunnel captureTunnel;
 
 	LocalPortalTraversal(LocalPortal portal)
 	{
@@ -141,195 +145,240 @@ final class LocalPortalTraversal
 
 	void updateCaptures(ITunnel activeTunnel, boolean tunnelPresent)
 	{
+		if(captureTunnel != activeTunnel)
+		{
+			captureHistory.clear();
+			captureTunnel = activeTunnel;
+		}
 		boolean rtp = portal.getType() == PortalType.RTP;
 		if(!portal.isOpen() || !tunnelPresent && !rtp)
 		{
+			captureHistory.clear();
 			return;
 		}
 
 		if(portal.isMirrorMode())
 		{
+			captureHistory.clear();
 			return;
 		}
 
 		long now = System.currentTimeMillis();
 		LocalPortalTransitRegistry.pruneTeleportCooldowns(now);
-		for(Entity i : portal.getStructure().getCaptureZone().getEntities(portal.getStructure().getWorld()))
+		captureHistory.beginPass();
+		for(Entity entity : portal.getStructure().getCaptureZone().getEntities(portal.getStructure().getWorld()))
 		{
-			UUID entityId = i.getUniqueId();
-			if(!rtp && i instanceof Player viewer)
+			Location start = null;
+			if(entity instanceof Player player)
 			{
-				ArrivalWarmer warmer = Wormholes.arrivalWarmer;
-				if(warmer != null)
-				{
-					warmer.warmImminent(portal, viewer);
-				}
+				Location location = player.getLocation();
+				Movement movement = Wormholes.traversableManager.movement(player, location);
+				start = captureHistory.capture(movement, location, now);
 			}
-			ReentryLatch latch = LocalPortalTransitRegistry.activeReentryLatch(entityId, now);
-			if(latch != null && portal.getId().equals(latch.portalId()))
+			captureEntity(entity, activeTunnel, now, rtp, start);
+		}
+		for(PortalCaptureHistory.Pending pending : captureHistory.departed(Wormholes.traversableManager, portal.getStructure(), now))
+		{
+			Runnable capture = () ->
 			{
-				if(isOccupyingPortal(i))
+				long captureTime = System.currentTimeMillis();
+				ITunnel currentTunnel = portal.getTunnel();
+				if(portal.isOpen() && !portal.isMirrorMode() && currentTunnel == activeTunnel
+					&& (rtp || currentTunnel != null && currentTunnel.isValid())
+					&& pending.stillContinuous(Wormholes.traversableManager.movement(pending.playerId()), captureTime))
 				{
-					if(!latch.armed())
-					{
-						latch.arm();
-						Wormholes.v("[latch] " + i.getName() + " inside portal " + portal.getId() + " - reentry latch ARMED (no teleport until they fully leave)");
-					}
+					captureEntity(pending.player(), currentTunnel, captureTime, rtp, pending.start());
 				}
-				else if(LocalPortalTransitRegistry.shouldReleaseReentryLatchOutsidePortal(latch.armed(), latch.stampMillis(), now))
-				{
-					LocalPortalTransitRegistry.clearReentryLatch(entityId);
-					Wormholes.v("[latch] " + i.getName() + " left portal " + portal.getId() + " - reentry latch CLEARED (eligible again)");
-				}
-				continue;
+			};
+			if(!runtime.dispatch(pending.player(), capture, () -> { }, 0L))
+			{
+				Wormholes.w("Entity scheduler rejected a swept portal crossing for " + pending.playerId() + " at " + portal.getId());
 			}
+		}
+	}
 
-			if(LocalPortalTransitRegistry.isTeleportInFlight(entityId, now))
-			{
-				continue;
-			}
+	void invalidateCaptures()
+	{
+		captureHistory.invalidate();
+	}
 
-			Traversive traversive = rayTeleport(i);
-			if(traversive == null)
+	private void captureEntity(Entity i, ITunnel activeTunnel, long now, boolean rtp, Location sweepStart)
+	{
+		UUID entityId = i.getUniqueId();
+		if(!rtp && i instanceof Player viewer)
+		{
+			ArrivalWarmer warmer = Wormholes.arrivalWarmer;
+			if(warmer != null)
 			{
-				continue;
+				warmer.warmImminent(portal, viewer);
 			}
+		}
+		ReentryLatch latch = LocalPortalTransitRegistry.activeReentryLatch(entityId, now);
+		if(latch != null && portal.getId().equals(latch.portalId()))
+		{
+			if(isOccupyingPortal(i))
+			{
+				if(!latch.armed())
+				{
+					latch.arm();
+					Wormholes.v("[latch] " + i.getName() + " inside portal " + portal.getId() + " - reentry latch ARMED (no teleport until they fully leave)");
+				}
+			}
+			else if(LocalPortalTransitRegistry.shouldReleaseReentryLatchOutsidePortal(latch.armed(), latch.stampMillis(), now))
+			{
+				LocalPortalTransitRegistry.clearReentryLatch(entityId);
+				Wormholes.v("[latch] " + i.getName() + " left portal " + portal.getId() + " - reentry latch CLEARED (eligible again)");
+			}
+			return;
+		}
 
-			if(rtp)
-			{
-				if(Wormholes.rtpRuntime == null || !BukkitRtpRuntime.physicallyTraversable(i))
-				{
-					continue;
-				}
-				if(LocalPortalTransitRegistry.isTeleportCoolingDown(entityId, now))
-				{
-					rejectCooldownTraversal(i, traversive);
-					continue;
-				}
-				if(!portal.canDepart(i))
-				{
-					rejectTraversal(i, traversive);
-					continue;
-				}
-				TraversalAttempt rtpAttempt = new TraversalAttempt(TraversalPhase.DEPART, portal, i, null, traversive, now);
-				TraversalVerdict rtpVerdict = evaluateGates(rtpAttempt);
-				if(rtpVerdict instanceof TraversalVerdict.Defer)
-				{
-					continue;
-				}
-				if(rtpVerdict instanceof TraversalVerdict.Deny rtpDeny)
-				{
-					rejectGateTraversal(i, traversive, rtpAttempt, rtpDeny);
-					continue;
-				}
-				if(i.getVehicle() != null || !i.getPassengers().isEmpty())
-				{
-					rejectConvoyMemberTraversal(i, traversive);
-					continue;
-				}
-				if(!Wormholes.rtpRuntime.isReady(portal.getId()))
-				{
-					rejectUnreadyRtpTraversal(i, traversive);
-					continue;
-				}
-				PortalTravelCost rtpCost = travelCost(i);
-				PortalTravelCost.Status rtpCostStatus = rtpCost == null
-						? PortalTravelCost.Status.AVAILABLE : rtpCost.status((Player) i);
-				if(rtpCost != null && rtpCostStatus != PortalTravelCost.Status.AVAILABLE)
-				{
-					rejectCostTraversal(i, traversive, rtpCost, rtpCostStatus);
-					continue;
-				}
-				notifyDeparted(rtpAttempt);
-				completeRtpDispatch(i, traversive, Wormholes.rtpRuntime.traverse(portal, i, traversive));
-				continue;
-			}
+		if(LocalPortalTransitRegistry.isTeleportInFlight(entityId, now))
+		{
+			return;
+		}
 
-			ITunnel tunnel = resolveDestinationForPortal(i, activeTunnel);
-			if(!canUseTunnel(i, tunnel))
-			{
-				rejectTraversal(i, traversive);
-				continue;
-			}
+		Traversive traversive = rayTeleport(i, sweepStart);
+		if(traversive == null)
+		{
+			return;
+		}
 
-			TraversalAttempt attempt = new TraversalAttempt(TraversalPhase.DEPART, portal, i, tunnel, traversive, now);
-			TraversalVerdict verdict = evaluateGates(attempt);
-			if(verdict instanceof TraversalVerdict.Allow)
+		if(rtp)
+		{
+			if(Wormholes.rtpRuntime == null || !BukkitRtpRuntime.physicallyTraversable(i))
 			{
-				verdict = evaluateArrivalGates(i, tunnel, traversive, now);
+				return;
 			}
-			if(verdict instanceof TraversalVerdict.Defer)
-			{
-				continue;
-			}
-			if(verdict instanceof TraversalVerdict.Deny deny)
-			{
-				rejectGateTraversal(i, traversive, attempt, deny);
-				continue;
-			}
-
 			if(LocalPortalTransitRegistry.isTeleportCoolingDown(entityId, now))
 			{
 				rejectCooldownTraversal(i, traversive);
-				continue;
+				return;
 			}
-
-			PortalTravelCost cost = travelCost(i);
-			boolean crossServerHandoff = tunnel instanceof UniversalTunnel && Wormholes.traversalService != null;
-			TraversalCostGateway.Admission traversalAdmission = crossServerHandoff
-					? null : evaluateLocalTraversalCost(i, tunnel, traversive);
-			if(traversalAdmission != null && !traversalAdmission.allowed())
+			if(!portal.canDepart(i))
 			{
+				PortalAccessDiagnostics.frameDenied("DEPART", portal, i);
 				rejectTraversal(i, traversive);
-				continue;
+				return;
 			}
-			PortalTravelCost.Reservation reservation = null;
-			if(cost != null)
+			TraversalAttempt rtpAttempt = new TraversalAttempt(TraversalPhase.DEPART, portal, i, null, traversive, now);
+			TraversalVerdict rtpVerdict = evaluateGates(rtpAttempt);
+			if(rtpVerdict instanceof TraversalVerdict.Defer)
 			{
-				if(crossServerHandoff)
-				{
-					PortalTravelCost.Status status = cost.status((Player) i);
-					if(status != PortalTravelCost.Status.AVAILABLE)
-					{
-						rejectCostTraversal(i, traversive, cost, status);
-						continue;
-					}
-				}
-				else
-				{
-					PortalTravelCost.ReserveResult result = cost.reserve((Player) i);
-					if(!result.successful())
-					{
-						refund(i, traversalAdmission, TraversalRefundReason.CHARGE_ROLLBACK);
-						rejectCostTraversal(i, traversive, cost, result.status());
-						continue;
-					}
-					reservation = result.reservation();
-				}
+				return;
 			}
-			boolean continuousObject = ObjectTransit.continuous(i) && !(tunnel instanceof UniversalTunnel);
-			if(!continuousObject)
+			if(rtpVerdict instanceof TraversalVerdict.Deny rtpDeny)
 			{
-				LocalPortalTransitRegistry.markTeleportCooldown(entityId, now);
+				rejectGateTraversal(i, traversive, rtpAttempt, rtpDeny);
+				return;
 			}
-			Wormholes.v("[cross] " + i.getName() + " crossing portal " + portal.getId() + " -> " + (tunnel instanceof UniversalTunnel ? "CROSS-SERVER handoff" : "local teleport"));
-			if(!(tunnel instanceof UniversalTunnel && i instanceof Player))
+			if(i.getVehicle() != null || !i.getPassengers().isEmpty())
 			{
-				portal.playEffect(PortalEffect.PUSH, traversive.getInPoint().toLocation(portal.getStructure().getWorld()));
+				rejectConvoyMemberTraversal(i, traversive);
+				return;
 			}
+			if(!Wormholes.rtpRuntime.isReady(portal.getId()))
+			{
+				rejectUnreadyRtpTraversal(i, traversive);
+				return;
+			}
+			PortalTravelCost rtpCost = travelCost(i);
+			PortalTravelCost.Status rtpCostStatus = rtpCost == null
+					? PortalTravelCost.Status.AVAILABLE : rtpCost.status((Player) i);
+			if(rtpCost != null && rtpCostStatus != PortalTravelCost.Status.AVAILABLE)
+			{
+				rejectCostTraversal(i, traversive, rtpCost, rtpCostStatus);
+				return;
+			}
+			notifyDeparted(rtpAttempt);
+			completeRtpDispatch(i, traversive, Wormholes.rtpRuntime.traverse(portal, i, traversive));
+			return;
+		}
+
+		ITunnel tunnel = resolveDestinationForPortal(i, activeTunnel);
+		if(!canUseTunnel(i, tunnel, true))
+		{
+			rejectTraversal(i, traversive);
+			return;
+		}
+
+		TraversalAttempt attempt = new TraversalAttempt(TraversalPhase.DEPART, portal, i, tunnel, traversive, now);
+		TraversalVerdict verdict = evaluateGates(attempt);
+		if(verdict instanceof TraversalVerdict.Allow)
+		{
+			verdict = evaluateArrivalGates(i, tunnel, traversive, now);
+		}
+		if(verdict instanceof TraversalVerdict.Defer)
+		{
+			return;
+		}
+		if(verdict instanceof TraversalVerdict.Deny deny)
+		{
+			rejectGateTraversal(i, traversive, attempt, deny);
+			return;
+		}
+
+		if(LocalPortalTransitRegistry.isTeleportCoolingDown(entityId, now))
+		{
+			rejectCooldownTraversal(i, traversive);
+			return;
+		}
+
+		PortalTravelCost cost = travelCost(i);
+		boolean crossServerHandoff = tunnel instanceof UniversalTunnel && Wormholes.traversalService != null;
+		TraversalCostGateway.Admission traversalAdmission = crossServerHandoff
+				? null : evaluateLocalTraversalCost(i, tunnel, traversive);
+		if(traversalAdmission != null && !traversalAdmission.allowed())
+		{
+			PortalAccessDiagnostics.decisionDenied(attempt, traversalAdmission.decision());
+			rejectTraversal(i, traversive);
+			return;
+		}
+		PortalTravelCost.Reservation reservation = null;
+		if(cost != null)
+		{
 			if(crossServerHandoff)
 			{
-				LocalPortalTransitRegistry.markTeleportInFlight(entityId, now);
+				PortalTravelCost.Status status = cost.status((Player) i);
+				if(status != PortalTravelCost.Status.AVAILABLE)
+				{
+					rejectCostTraversal(i, traversive, cost, status);
+					return;
+				}
 			}
-			notifyDeparted(attempt);
-			ConvoyGraph convoy = committedConvoy(i, now);
-			if(convoy != null)
+			else
 			{
-				pushConvoy(convoy, traversive, tunnel, reservation, traversalAdmission);
-				continue;
+				PortalTravelCost.ReserveResult result = cost.reserve((Player) i);
+				if(!result.successful())
+				{
+					refund(i, traversalAdmission, TraversalRefundReason.CHARGE_ROLLBACK);
+					rejectCostTraversal(i, traversive, cost, result.status());
+					return;
+				}
+				reservation = result.reservation();
 			}
-			pushTraversive(traversive, tunnel, reservation, traversalAdmission);
 		}
+		boolean continuousObject = ObjectTransit.continuous(i) && !(tunnel instanceof UniversalTunnel);
+		if(!continuousObject)
+		{
+			LocalPortalTransitRegistry.markTeleportCooldown(entityId, now);
+		}
+		Wormholes.v("[cross] " + i.getName() + " crossing portal " + portal.getId() + " -> " + (tunnel instanceof UniversalTunnel ? "CROSS-SERVER handoff" : "local teleport"));
+		if(!(tunnel instanceof UniversalTunnel && i instanceof Player))
+		{
+			portal.playEffect(PortalEffect.PUSH, traversive.getInPoint().toLocation(portal.getStructure().getWorld()));
+		}
+		if(crossServerHandoff)
+		{
+			LocalPortalTransitRegistry.markTeleportInFlight(entityId, now);
+		}
+		notifyDeparted(attempt);
+		ConvoyGraph convoy = committedConvoy(i, now);
+		if(convoy != null)
+		{
+			pushConvoy(convoy, traversive, tunnel, reservation, traversalAdmission);
+			return;
+		}
+		pushTraversive(traversive, tunnel, reservation, traversalAdmission);
 	}
 
 	private ConvoyGraph committedConvoy(Entity traveler, long now)
@@ -422,7 +471,7 @@ final class LocalPortalTraversal
 	 */
 	boolean memberMayTravel(Entity member, ITunnel tunnel, long now)
 	{
-		if(!canUseTunnel(member, tunnel))
+		if(!canUseTunnel(member, tunnel, false))
 		{
 			return false;
 		}
@@ -607,15 +656,26 @@ final class LocalPortalTraversal
 			&& location.getZ() >= area.getZa() - REENTRY_EXIT_MARGIN && location.getZ() <= area.getZb() + REENTRY_EXIT_MARGIN;
 	}
 
-	private Traversive rayTeleport(Entity i)
+	private Traversive rayTeleport(Entity i, Location sweepStart)
 	{
 		Vector velocity = Wormholes.traversableManager.getVelocity(i);
+		if(i instanceof Player && velocity.lengthSquared() == 0.0D)
+		{
+			return null;
+		}
 		Location end = i.getLocation();
-		Location start = end.clone().subtract(velocity);
+		Location start = sweepStart == null ? end.clone().subtract(velocity) : sweepStart;
+		start.setYaw(end.getYaw());
+		start.setPitch(end.getPitch());
+		PortalCaptureHistory.Segment segment = PortalCaptureHistory.clip(start, end, portal.getStructure().getArea());
+		if(segment == null)
+		{
+			return null;
+		}
 		Vector crossingVelocity = velocity.lengthSquared() > 1.0E-4D ? velocity : end.getDirection().clone().multiply(0.2D);
 		Traversive[] f = new Traversive[1];
 
-		new Raycast(start, end, 0.09)
+		new Raycast(segment.start(), segment.end(), 0.09)
 		{
 			@Override
 			public boolean shouldContinue(Location l)
@@ -681,33 +741,53 @@ final class LocalPortalTraversal
 		OrientationPolicy orientation = source == null ? TransitPortalExtension.defaultOrientation(transit) : source.effectiveOrientation(transit);
 		Vector frameVelocity = t.getOutVelocity(frame);
 		Vector outVelocity = MomentumTransform.apply(frameVelocity, momentum, transit.momentumMaxSpeed);
-		Direction dx = Direction.closest(frameVelocity);
 		Location exit = t.getOutPoint(frame, portal.getOrigin()).toLocation(portal.getStructure().getWorld());
-		Location target = exit.clone().add(dx.toVector().normalize().multiply(1.25));
+		Vector exitNormal = frame.getNormal().toVector();
+		double normalSpeed = frameVelocity.dot(exitNormal);
+		double exitSign = normalSpeed == 0.0D ? (t.isFrontSide() ? -1.0D : 1.0D) : Math.copySign(1.0D, normalSpeed);
+		Location target = exit.clone().add(exitNormal.multiply(1.25D * exitSign));
 		OrientationTransform.Look look = OrientationTransform.apply(t, frame, orientation, transit.gravityFlipEnabled);
 		target.setYaw(look.yaw());
 		target.setPitch(look.pitch());
 		return new ExitPlacement(target, exit, outVelocity);
 	}
 
-	private boolean canUseTunnel(Entity entity, ITunnel activeTunnel)
+	private boolean canUseTunnel(Entity entity, ITunnel activeTunnel, boolean reportDenial)
 	{
 		if(!portal.canDepart(entity))
 		{
+			if(reportDenial)
+			{
+				PortalAccessDiagnostics.frameDenied("DEPART", portal, entity);
+			}
 			return false;
 		}
 		IPortal destination = activeTunnel == null ? null : activeTunnel.getDestination();
 		if(destination == null)
 		{
+			if(reportDenial)
+			{
+				PortalAccessDiagnostics.destinationMissing(portal, entity);
+			}
 			return false;
 		}
 		if(destination instanceof ILocalPortal localDestination)
 		{
-			return localDestination.canArrive(entity);
+			boolean allowed = localDestination.canArrive(entity);
+			if(!allowed && reportDenial)
+			{
+				PortalAccessDiagnostics.frameDenied("ARRIVE_PREFLIGHT", localDestination, entity);
+			}
+			return allowed;
 		}
 		if(destination instanceof RemotePortal remoteDestination)
 		{
-			return remoteDestination.acceptsInboundTraversal(entity);
+			boolean allowed = remoteDestination.acceptsInboundTraversal(entity);
+			if(!allowed && reportDenial)
+			{
+				PortalAccessDiagnostics.frameDenied("REMOTE_PREFLIGHT", remoteDestination, entity);
+			}
+			return allowed;
 		}
 		return true;
 	}
@@ -852,7 +932,6 @@ final class LocalPortalTraversal
 			rejectRefusedRtpTraversal(entity, traversive);
 			return;
 		}
-		portal.departureHold().startRtpTraversalHold(entity, traversive);
 	}
 
 	private void rejectRefusedRtpTraversal(Entity entity, Traversive traversive)
@@ -912,6 +991,7 @@ final class LocalPortalTraversal
 			Entity p = (Entity) t.getObject();
 			if(!portal.canArrive(p))
 			{
+				PortalAccessDiagnostics.frameDenied("LOCAL_ARRIVE", portal, p);
 				refund(reservation);
 				refund(p, traversalAdmission, TraversalRefundReason.DESTINATION_REJECTED);
 				notifyDeliveryFailed(p);
@@ -1461,11 +1541,6 @@ final class LocalPortalTraversal
 
 	void completeRemoteArrival(Entity entity, Traversive t)
 	{
-		if(!portal.canArrive(entity))
-		{
-			rejectRemoteArrival(entity, t);
-			return;
-		}
 		Vector outVelocity = exitPlacement(t).outVelocity();
 		entity.setVelocity(outVelocity);
 		LocalPortalTransitRegistry.markTeleportCooldown(entity.getUniqueId(), System.currentTimeMillis());
@@ -1492,6 +1567,10 @@ final class LocalPortalTraversal
 			|| !portalStructure.getWorld().equals(location.getWorld()))
 		{
 			return false;
+		}
+		if(entity instanceof Player player)
+		{
+			return portal.departureHold().canCompleteDeparture(player, traversive, location);
 		}
 		return withinDepartureCommitmentRadius(traversive.getInPoint().distanceSquared(location.toVector()));
 	}

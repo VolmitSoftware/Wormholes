@@ -2,6 +2,8 @@ package art.arcane.wormholes.portal;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -324,15 +326,53 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener
 	}
 
 	@Override
-	public void confirmDeparture(Entity entity, Traversive t)
+	public CompletionStage<Boolean> prepareDeparture(Entity entity, Traversive traversive)
 	{
+		return departureHold.prepareDeparture(entity, traversive);
+	}
+
+	public boolean commitDepartureHold(Entity entity, Traversive traversive)
+	{
+		return departureHold.commitDeparture(entity, traversive);
+	}
+
+	public boolean bindDepartureClaim(Entity entity, Traversive traversive)
+	{
+		return LocalPortalTransitRegistry.bindDepartureClaim(entity, traversive);
+	}
+
+	public CompletionStage<Boolean> releaseDepartureClaim(Entity entity, Traversive traversive)
+	{
+		LocalPortalTransitRegistry.TeleportClaim claim = LocalPortalTransitRegistry.departureClaim(entity, traversive);
+		return LocalPortalTransitRegistry.pendingTeleport(entity).thenApply(ignored ->
+			LocalPortalTransitRegistry.clearTeleportInFlight(entity.getUniqueId(), claim));
+	}
+
+	public CompletableFuture<Void> beginDepartureTeleport(Entity entity)
+	{
+		return LocalPortalTransitRegistry.beginTeleport(entity);
+	}
+
+	public CompletionStage<Boolean> cancelDepartureHold(Entity entity, Traversive traversive)
+	{
+		return departureHold.cancelDepartureHold(entity, traversive);
+	}
+
+	@Override
+	public boolean confirmDeparture(Entity entity, Traversive t)
+	{
+		if(!departureHold.commitDeparture(entity, t))
+		{
+			return false;
+		}
 		traversal.confirmDeparture(entity, t);
+		return true;
 	}
 
 	@Override
 	public void rejectDeparture(Entity entity, Traversive t)
 	{
-		traversal.rejectDeparture(entity, t);
+		departureHold.rejectDeparture(entity, t);
 	}
 
 	@Override
@@ -378,9 +418,14 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener
 		rtp.completeTraversal(entity, traversive, targetFrame, target);
 	}
 
-	public void startPlayerDepartureHold(Player player, Traversive traversive, long deadlineMillis)
+	public void startPlayerDepartureHold(Player player, Traversive traversive, long deadlineMillis, Runnable onCancel)
 	{
-		departureHold.startPlayerDepartureHold(player, traversive, deadlineMillis);
+		departureHold.startPlayerDepartureHold(player, traversive, deadlineMillis, onCancel);
+	}
+
+	public void startRtpTraversalHold(Entity entity, Traversive traversive, Runnable onCancel)
+	{
+		departureHold.startRtpTraversalHold(entity, traversive, onCancel);
 	}
 
 	static boolean isTeleportCoolingDown(UUID entityId, long now)

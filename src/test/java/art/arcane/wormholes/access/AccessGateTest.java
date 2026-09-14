@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -74,6 +75,53 @@ final class AccessGateTest {
 
         assertSame(TraversalVerdict.ALLOW, gate.evaluate(attempt(portal, AccessTestPortals.mob())));
         assertSame(TraversalVerdict.ALLOW, gate.evaluate(attempt(portal, operator)));
+    }
+
+    @Test
+    void wildcardBypassesRolePermissionsDirectionAndClaims() {
+        LocalPortal portal = AccessTestPortals.portal(world);
+        Player traveler = AccessTestPortals.player("Wildcard", false, Set.of("*", "wormholes.portal.portal"));
+        portal.extension(AccessPortalExtension.class).setRole(traveler.getUniqueId(), PortalRole.DENIED);
+        portal.setOutgoingTraversalsEnabled(false);
+        portal.setIncomingTraversalsEnabled(false);
+        CountingAdapter claim = new CountingAdapter();
+        ClaimAdapters claims = new ClaimAdapters(List.of(claim));
+        claims.configure("worldguard", true);
+        AccessGate claimGate = new AccessGate(claims);
+        AccessConfig config = new AccessConfig();
+        config.claimCheckOnUse = true;
+        claimGate.applySettings(config);
+
+        for (PortalPermissionMode mode : PortalPermissionMode.values()) {
+            portal.setPermissionMode(mode);
+            assertTrue(PortalAdmission.allows(portal, traveler));
+            assertTrue(portal.canDepart(traveler));
+            assertTrue(portal.canArrive(traveler));
+            assertSame(TraversalVerdict.ALLOW, claimGate.evaluate(attempt(portal, traveler)));
+        }
+        assertEquals(0, claim.calls);
+    }
+
+    @Test
+    void frameAdmissionHonorsOwnerRoleAndGroupWithoutAWhitelistPermissionNode() {
+        LocalPortal portal = AccessTestPortals.portal(world);
+        portal.setPermissionMode(PortalPermissionMode.WHITELIST);
+        AccessPortalExtension access = portal.extension(AccessPortalExtension.class);
+        Player owner = AccessTestPortals.player("Owner", false, Set.of());
+        Player member = AccessTestPortals.player("Member", false, Set.of());
+        Player group = AccessTestPortals.player("Group", false, Set.of("group.allowed"));
+        Player stranger = AccessTestPortals.player("Stranger", false, Set.of());
+        portal.setOwner(owner.getUniqueId());
+        access.setRole(member.getUniqueId(), PortalRole.USER);
+        access.addGroup("group.allowed");
+
+        for (Player player : List.of(owner, member, group)) {
+            assertTrue(portal.canDepart(player));
+            assertTrue(portal.canArrive(player));
+            assertSame(TraversalVerdict.ALLOW, gate.evaluate(attempt(portal, player)));
+        }
+        assertFalse(portal.canDepart(stranger));
+        assertFalse(portal.canArrive(stranger));
     }
 
     @Test

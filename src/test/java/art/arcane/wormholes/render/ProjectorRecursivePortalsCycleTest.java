@@ -32,6 +32,18 @@ final class ProjectorRecursivePortalsCycleTest {
     private static final double SAMPLE_Z = 6.0D;
 
     @Test
+    void indexRejectsDisjointSampleVolumesAndRetainsEveryPossibleHit() {
+        FacingPair pair = new FacingPair();
+        ProjectorRecursivePortals portals = new ProjectorRecursivePortals(pair::portals);
+        ProjectorRecursivePortals.Index index = portals.indexFor(pair.world, EYE_X, EYE_Y, EYE_Z, pair.back);
+        assertTrue(index.intersects(SAMPLE_X, SAMPLE_Y, SAMPLE_Z, SAMPLE_X, SAMPLE_Y, SAMPLE_Z));
+        assertFalse(index.intersects(80.0D, 40.0D, -20.0D, 180.0D, 90.0D, 20.0D));
+        assertFalse(index.intersects(-180.0D, 40.0D, -20.0D, -80.0D, 90.0D, 20.0D));
+        assertFalse(index.intersects(-20.0D, 200.0D, -20.0D, 20.0D, 250.0D, 20.0D));
+        assertFalse(index.intersects(-20.0D, 40.0D, -180.0D, 20.0D, 90.0D, -80.0D));
+    }
+
+    @Test
     void aCandidateAlreadyOnThePathIsReportedAsACycle() {
         FacingPair pair = new FacingPair();
         ProjectorRecursivePortals portals = new ProjectorRecursivePortals(pair::portals);

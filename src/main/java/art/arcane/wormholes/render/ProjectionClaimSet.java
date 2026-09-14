@@ -7,6 +7,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 import java.util.HashMap;
@@ -16,6 +17,12 @@ import java.util.UUID;
 
 final class ProjectionClaimSet {
     private static final double PRIORITY_EPSILON = 1.0E-7D;
+
+    record ClaimDelta(Long2ObjectMap<ProjectedBlockClaim> previousClaims,
+                      Long2ObjectMap<ProjectedBlockClaim> claims,
+                      LongSet changedKeys,
+                      LongSet removedKeys) {
+    }
 
     private final Map<UUID, PortalClaims> portals;
     private final Long2ObjectOpenHashMap<WinningClaim> winners;
@@ -62,6 +69,20 @@ final class ProjectionClaimSet {
         affected.clear();
         replacePortalClaimState(portalId, tieKey, priorityDistance, claims, affected);
         appendAffectedKeys(affected, stagedKeys);
+    }
+
+    ProjectionClaimSetResult replacePortalDelta(UUID portalId, String tieKey,
+                                                double priorityDistance, ClaimDelta delta) {
+        affectedScratch.clear();
+        replacePortalDeltaState(portalId, tieKey, priorityDistance, delta, affectedScratch);
+        return recomputeAffected(affectedScratch);
+    }
+
+    void stagePortalDelta(UUID portalId, String tieKey, double priorityDistance,
+                          ClaimDelta delta, LongOpenHashSet stagedKeys) {
+        affectedScratch.clear();
+        replacePortalDeltaState(portalId, tieKey, priorityDistance, delta, affectedScratch);
+        appendAffectedKeys(affectedScratch, stagedKeys);
     }
 
     ProjectionClaimSetResult releasePortal(UUID portalId) {
@@ -147,7 +168,56 @@ final class ProjectionClaimSet {
 
         portalClaims.tieKey = tieKey;
         portalClaims.priorityDistance = priorityDistance;
+        portalClaims.submittedClaims = claims;
 
+        if (priorityChanged && !contestedKeys.isEmpty()) {
+            appendContestedKeys(portalClaims, passGeneration, affected);
+        }
+    }
+
+    private void replacePortalDeltaState(UUID portalId, String tieKey, double priorityDistance,
+                                         ClaimDelta delta, LongArrayList affected) {
+        PortalClaims portalClaims = portals.get(portalId);
+        if (portalClaims == null || delta.previousClaims() == null
+            || portalClaims.submittedClaims != delta.previousClaims()) {
+            replacePortalClaimState(portalId, tieKey, priorityDistance, delta.claims(), affected);
+            return;
+        }
+        if (delta.claims().isEmpty()) {
+            releasePortalState(portalId, affected);
+            return;
+        }
+        boolean priorityChanged = hasPriorityChanged(portalClaims, tieKey, priorityDistance);
+        long passGeneration = ++generation;
+        LongIterator removed = delta.removedKeys().iterator();
+        while (removed.hasNext()) {
+            long key = removed.nextLong();
+            if (!delta.claims().containsKey(key) && portalClaims.claims.remove(key) != null) {
+                decrementClaimCount(key, portalClaims);
+                affected.add(key);
+            }
+        }
+        LongIterator changed = delta.changedKeys().iterator();
+        while (changed.hasNext()) {
+            long key = changed.nextLong();
+            ProjectedBlockClaim nextClaim = delta.claims().get(key);
+            if (nextClaim == null) {
+                continue;
+            }
+            ClaimSlot slot = portalClaims.claims.get(key);
+            if (slot == null) {
+                incrementClaimCount(key, portalClaims);
+                portalClaims.claims.put(key, new ClaimSlot(key, nextClaim, passGeneration));
+                affected.add(key);
+            } else if (!sameClaim(slot.claim, nextClaim)) {
+                slot.claim = nextClaim;
+                slot.affectedGeneration = passGeneration;
+                affected.add(key);
+            }
+        }
+        portalClaims.tieKey = tieKey;
+        portalClaims.priorityDistance = priorityDistance;
+        portalClaims.submittedClaims = delta.claims();
         if (priorityChanged && !contestedKeys.isEmpty()) {
             appendContestedKeys(portalClaims, passGeneration, affected);
         }
@@ -271,8 +341,8 @@ final class ProjectionClaimSet {
                 }
                 winners.remove(key);
                 winningClaims.remove(key);
-                result.packetChangeKeys.add(key);
-                result.dirtyLightingKeys.add(key);
+                result.addPacketChange(key);
+                result.addDirtyLighting(key);
                 result.reverts++;
             }
             return;
@@ -280,6 +350,13 @@ final class ProjectionClaimSet {
 
         ProjectedBlockClaim nextClaim = choice.claim;
         boolean ownerChanged = previous == null || isDifferentOwner(previous.owner, nextOwner);
+        if (previous != null && previous.claim == nextClaim) {
+            previous.owner = nextOwner;
+            if (ownerChanged) {
+                result.winnerChanges++;
+            }
+            return;
+        }
         boolean dataChanged = previous == null || !previous.claim.getData().equals(nextClaim.getData());
         boolean lightChanged = previous == null || !previous.claim.sameLightSource(nextClaim);
         if (previous != null && previous.claim.isFullBright() && !nextClaim.isFullBright()) {
@@ -302,13 +379,13 @@ final class ProjectionClaimSet {
             }
         }
         if (dataChanged) {
-            result.packetChangeKeys.add(key);
+            result.addPacketChange(key);
         }
         if (ownerChanged) {
             result.winnerChanges++;
         }
         if (lightChanged) {
-            result.dirtyLightingKeys.add(key);
+            result.addDirtyLighting(key);
         }
     }
 
@@ -432,8 +509,9 @@ final class ProjectionClaimSet {
     }
 
     static final class ProjectionClaimSetResult {
-        private final LongOpenHashSet packetChangeKeys;
-        private final LongOpenHashSet dirtyLightingKeys;
+        private final int expectedKeys;
+        private LongOpenHashSet packetChangeKeys;
+        private LongOpenHashSet dirtyLightingKeys;
         private int conflicts;
         private int winnerChanges;
         private int reverts;
@@ -444,8 +522,7 @@ final class ProjectionClaimSet {
         }
 
         ProjectionClaimSetResult(int expectedKeys) {
-            this.packetChangeKeys = new LongOpenHashSet(expectedKeys);
-            this.dirtyLightingKeys = new LongOpenHashSet(expectedKeys);
+            this.expectedKeys = expectedKeys;
             this.conflicts = 0;
             this.winnerChanges = 0;
             this.reverts = 0;
@@ -453,11 +530,31 @@ final class ProjectionClaimSet {
         }
 
         LongOpenHashSet getPacketChangeKeys() {
+            if (packetChangeKeys == null) {
+                packetChangeKeys = new LongOpenHashSet(0);
+            }
             return packetChangeKeys;
         }
 
         LongOpenHashSet getDirtyLightingKeys() {
+            if (dirtyLightingKeys == null) {
+                dirtyLightingKeys = new LongOpenHashSet(0);
+            }
             return dirtyLightingKeys;
+        }
+
+        private void addPacketChange(long key) {
+            if (packetChangeKeys == null) {
+                packetChangeKeys = new LongOpenHashSet(expectedKeys);
+            }
+            packetChangeKeys.add(key);
+        }
+
+        private void addDirtyLighting(long key) {
+            if (dirtyLightingKeys == null) {
+                dirtyLightingKeys = new LongOpenHashSet(expectedKeys);
+            }
+            dirtyLightingKeys.add(key);
         }
 
         int getConflicts() {
@@ -480,6 +577,7 @@ final class ProjectionClaimSet {
     private static final class PortalClaims {
         private final UUID portalId;
         private final Long2ObjectOpenHashMap<ClaimSlot> claims;
+        private Long2ObjectMap<ProjectedBlockClaim> submittedClaims;
         private String tieKey;
         private double priorityDistance;
 

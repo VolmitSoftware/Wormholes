@@ -1,41 +1,112 @@
 package art.arcane.wormholes;
 
 import java.util.UUID;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.util.Vector;
 
-import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.service.WormholesTelemetry;
-import art.arcane.wormholes.util.VectorMath;
 
 public class TraversableManager implements Listener
 {
-	private final KMap<UUID, Vector> velocities;
+	public record Movement(Player player, UUID worldId, double x, double y, double z,
+		float yaw, float pitch, double velocityX, double velocityY, double velocityZ, long continuity)
+	{
+		public Location location(World world)
+		{
+			return new Location(world, x, y, z, yaw, pitch);
+		}
+
+		public Vector velocity()
+		{
+			return new Vector(velocityX, velocityY, velocityZ);
+		}
+	}
+
+	private final Map<UUID, Movement> movements = new ConcurrentHashMap<>();
+	private final AtomicLong continuitySequence = new AtomicLong();
 
 	public TraversableManager()
 	{
 		Wormholes.v("Starting Traversable Manager");
-		velocities = new KMap<>();
 	}
 
-	@EventHandler
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	public void on(PlayerMoveEvent e)
 	{
-		impulse(e.getPlayer(), VectorMath.directionNoNormal(e.getFrom(), e.getTo()));
+		if(e.isCancelled() || e instanceof PlayerTeleportEvent || e.getTo() == null)
+		{
+			return;
+		}
+		Location from = e.getFrom();
+		Location to = e.getTo();
+		if(from.getWorld() != to.getWorld())
+		{
+			recordTeleport(e.getPlayer(), to);
+			return;
+		}
+		if(from.getX() == to.getX() && from.getY() == to.getY() && from.getZ() == to.getZ())
+		{
+			return;
+		}
+		Player player = e.getPlayer();
+		Movement previous = movements.get(player.getUniqueId());
+		long continuity = previous != null && previous.player() == player
+			? previous.continuity() : continuitySequence.incrementAndGet();
+		movements.put(player.getUniqueId(), new Movement(player, to.getWorld().getUID(),
+			to.getX(), to.getY(), to.getZ(), to.getYaw(), to.getPitch(),
+			to.getX() - from.getX(), to.getY() - from.getY(), to.getZ() - from.getZ(), continuity));
+	}
+
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+	public void on(PlayerTeleportEvent e)
+	{
+		if(!e.isCancelled() && e.getTo() != null)
+		{
+			recordTeleport(e.getPlayer(), e.getTo());
+		}
+	}
+
+	@EventHandler(priority = EventPriority.MONITOR)
+	public void on(PlayerRespawnEvent e)
+	{
+		recordTeleport(e.getPlayer(), e.getRespawnLocation());
+	}
+
+	@EventHandler(priority = EventPriority.MONITOR)
+	public void on(PlayerChangedWorldEvent e)
+	{
+		recordTeleport(e.getPlayer(), e.getPlayer().getLocation());
 	}
 
 	@EventHandler
 	public void on(PlayerQuitEvent e)
 	{
 		UUID playerId = e.getPlayer().getUniqueId();
-		velocities.remove(playerId);
+		Movement movement = movements.get(playerId);
+		if(movement != null && movement.player() != e.getPlayer())
+		{
+			return;
+		}
+		if(movement != null && movement.player() == e.getPlayer())
+		{
+			movements.remove(playerId, movement);
+		}
 		LocalPortal.clearReentryLatch(playerId);
 		LocalPortal.clearTeleportCooldown(playerId);
 		if(LocalPortal.clearTeleportInFlight(playerId))
@@ -47,13 +118,21 @@ public class TraversableManager implements Listener
 
 	public Vector getVelocity(Player p)
 	{
-		Vector velocity = velocities.get(p.getUniqueId());
-		return velocity != null ? velocity : new Vector();
+		Movement movement = movements.get(p.getUniqueId());
+		return movement != null && movement.player() == p ? movement.velocity() : new Vector();
 	}
 
-	public void impulse(Player p, Vector v)
+	public Movement movement(UUID playerId)
 	{
-		velocities.put(p.getUniqueId(), v);
+		return movements.get(playerId);
+	}
+
+	public Movement movement(Player player, Location location)
+	{
+		return movements.compute(player.getUniqueId(), (id, current) -> current != null && current.player() == player
+			? current : new Movement(player, location.getWorld().getUID(),
+				location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch(),
+				0.0D, 0.0D, 0.0D, continuitySequence.incrementAndGet()));
 	}
 
 	public Vector getVelocity(Entity i)
@@ -64,5 +143,12 @@ public class TraversableManager implements Listener
 		}
 
 		return i.getVelocity();
+	}
+
+	private void recordTeleport(Player player, Location target)
+	{
+		movements.put(player.getUniqueId(), new Movement(player, target.getWorld().getUID(),
+			target.getX(), target.getY(), target.getZ(), target.getYaw(), target.getPitch(),
+			0.0D, 0.0D, 0.0D, continuitySequence.incrementAndGet()));
 	}
 }

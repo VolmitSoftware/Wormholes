@@ -1,9 +1,10 @@
 package art.arcane.wormholes.portal;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -32,8 +33,7 @@ public class PortalStructure implements IWritable
 	private KSet<Location> cornerCache;
 	private volatile Location centerCache;
 	private volatile long revision;
-	private long[] blockKeys = new long[0];
-	private int blockKeyCount;
+	private final LongOpenHashSet blockKeys = new LongOpenHashSet();
 	private final KList<Vector> blockPositions = new KList<Vector>();
 
 	@Override
@@ -232,12 +232,12 @@ public class PortalStructure implements IWritable
 
 	public boolean containsBlock(int x, int y, int z)
 	{
-		if(blockKeyCount == 0)
+		if(blockKeys.isEmpty())
 		{
 			return getArea() != null && getArea().containsPrimitive(x + 0.5D, y + 0.5D, z + 0.5D);
 		}
 
-		return Arrays.binarySearch(blockKeys, 0, blockKeyCount, packBlockKey(x, y, z)) >= 0;
+		return blockKeys.contains(packBlockKey(x, y, z));
 	}
 
 	public boolean containsOrAdjoinsBlock(int x, int y, int z)
@@ -297,7 +297,7 @@ public class PortalStructure implements IWritable
 
 	public boolean isFullCuboid()
 	{
-		return blockKeyCount > 0 && blockKeyCount == getBoundingBlockVolume();
+		return !blockKeys.isEmpty() && blockKeys.size() == getBoundingBlockVolume();
 	}
 
 	private void invalidateCache()
@@ -332,7 +332,7 @@ public class PortalStructure implements IWritable
 
 	private void clearBlockCells()
 	{
-		blockKeyCount = 0;
+		blockKeys.clear();
 		blockPositions.clear();
 	}
 
@@ -348,11 +348,7 @@ public class PortalStructure implements IWritable
 	private void setBlockCellsFromAreaBounds()
 	{
 		clearBlockCells();
-		int volume = getBoundingBlockVolume();
-		if(blockKeys.length < volume)
-		{
-			blockKeys = new long[volume];
-		}
+		blockKeys.ensureCapacity(getBoundingBlockVolume());
 		int xa = (int) Math.floor(getArea().getXa());
 		int ya = (int) Math.floor(getArea().getYa());
 		int za = (int) Math.floor(getArea().getZa());
@@ -374,21 +370,10 @@ public class PortalStructure implements IWritable
 
 	private void addBlockCell(int x, int y, int z)
 	{
-		long key = packBlockKey(x, y, z);
-		int index = Arrays.binarySearch(blockKeys, 0, blockKeyCount, key);
-		if(index >= 0)
+		if(!blockKeys.add(packBlockKey(x, y, z)))
 		{
 			return;
 		}
-
-		int insertion = -(index + 1);
-		if(blockKeyCount == blockKeys.length)
-		{
-			blockKeys = Arrays.copyOf(blockKeys, Math.max(16, blockKeys.length * 2));
-		}
-		System.arraycopy(blockKeys, insertion, blockKeys, insertion + 1, blockKeyCount - insertion);
-		blockKeys[insertion] = key;
-		blockKeyCount++;
 		blockPositions.add(new Vector(x, y, z));
 	}
 

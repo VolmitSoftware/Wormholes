@@ -76,6 +76,20 @@ public final class ProjectedEntityOcclusionTest {
         assertFalse(occlusion.fullyHidden(visual(4.5D, 1.0D, 0.5D, 0.7D)));
     }
 
+    @Test
+    public void geometryPreparedAcrossRevisionsCannotHideEntitiesUsingStaleBlockers() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = wall(view, 2, -4, 6, -4, 6);
+        long capturedRevision = view.getRevision();
+        view.incrementRevision();
+        ProjectedEntityOcclusion occlusion = occlusion();
+        occlusion.beginPass(view, 0.5D, 0.5D, 0.5D, Direction.W, blockers,
+            0.5D, 1.5D, 0.5D, 0.0D);
+        occlusion.retainRevision(capturedRevision);
+        occlusion.startBatch();
+        assertFalse(occlusion.fullyHidden(visual(4.5D, 1.0D, 0.5D, 0.7D)));
+    }
+
     private static void begin(ProjectedEntityOcclusion occlusion,
                               FakeWorldView view,
                               LongOpenHashSet blockers) {

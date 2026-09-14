@@ -123,6 +123,12 @@ final class ProjectorRecursivePortals {
         private final double eyeY;
         private final double eyeZ;
         private final Long2ObjectOpenHashMap<ArrayList<Candidate>> buckets;
+        private int minimumX = Integer.MAX_VALUE;
+        private int minimumY = Integer.MAX_VALUE;
+        private int minimumZ = Integer.MAX_VALUE;
+        private int maximumX = Integer.MIN_VALUE;
+        private int maximumY = Integer.MIN_VALUE;
+        private int maximumZ = Integer.MIN_VALUE;
 
         private Index(World world, double eyeX, double eyeY, double eyeZ, ILocalPortal excludedPortal) {
             this.world = world;
@@ -159,6 +165,12 @@ final class ProjectorRecursivePortals {
             return buckets.isEmpty();
         }
 
+        boolean intersects(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+            return !isEmpty() && bucket(maxX) >= minimumX && bucket(minX) <= maximumX
+                && bucket(maxY) >= minimumY && bucket(minY) <= maximumY
+                && bucket(maxZ) >= minimumZ && bucket(minZ) <= maximumZ;
+        }
+
         Hit find(double pointX, double pointY, double pointZ, int remainingDepth) {
             return find(pointX, pointY, pointZ, remainingDepth, null);
         }
@@ -191,6 +203,12 @@ final class ProjectorRecursivePortals {
             int maxY = bucket(candidate.view.getYb());
             int minZ = bucket(candidate.view.getZa());
             int maxZ = bucket(candidate.view.getZb());
+            minimumX = Math.min(minimumX, minX);
+            minimumY = Math.min(minimumY, minY);
+            minimumZ = Math.min(minimumZ, minZ);
+            maximumX = Math.max(maximumX, maxX);
+            maximumY = Math.max(maximumY, maxY);
+            maximumZ = Math.max(maximumZ, maxZ);
             for (int x = minX; x <= maxX; x++) {
                 for (int y = minY; y <= maxY; y++) {
                     for (int z = minZ; z <= maxZ; z++) {

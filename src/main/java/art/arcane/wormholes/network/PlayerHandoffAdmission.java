@@ -3,8 +3,10 @@ package art.arcane.wormholes.network;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 final class PlayerHandoffAdmission {
     enum Status {
@@ -27,6 +29,7 @@ final class PlayerHandoffAdmission {
         String peerName,
         UUID exitPortalId,
         boolean directTransfer,
+        boolean accessBypass,
         WireTraversive traversive
     ) {
         Request {
@@ -115,6 +118,10 @@ final class PlayerHandoffAdmission {
     private final Map<UUID, UUID> transferByPlayer = new HashMap<>();
     private final PlayerHandoffRateLimiter rateLimiter = new PlayerHandoffRateLimiter();
     private long claimSequence;
+
+    synchronized Decision decideAfterPreflight(Supplier<Attempt> preflight) {
+        return decide(preflight.get());
+    }
 
     synchronized Decision decide(Attempt attempt) {
         Request request = attempt.request();
@@ -273,6 +280,29 @@ final class PlayerHandoffAdmission {
     synchronized int activeReservations(long nowMillis) {
         prune(nowMillis);
         return transferByPlayer.size();
+    }
+
+    synchronized int reservedOfflinePlayers(Set<UUID> onlinePlayers, long nowMillis) {
+        prune(nowMillis);
+        int count = 0;
+        for (UUID playerId : transferByPlayer.keySet()) {
+            if (!onlinePlayers.contains(playerId)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    synchronized boolean hasAdmission(UUID playerId, long nowMillis) {
+        prune(nowMillis);
+        return transferByPlayer.containsKey(playerId);
+    }
+
+    synchronized boolean hasAccessBypass(UUID playerId, long nowMillis) {
+        prune(nowMillis);
+        UUID transferId = transferByPlayer.get(playerId);
+        Entry entry = transferId == null ? null : entriesByTransfer.get(transferId);
+        return entry != null && entry.request().accessBypass();
     }
 
     synchronized void prune(long nowMillis) {

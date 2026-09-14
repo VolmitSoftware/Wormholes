@@ -11,6 +11,12 @@ final class ProjectionOccupancyOctree {
 
     private final LongOpenHashSet[] occupiedByLog;
     private boolean empty;
+    private int minX;
+    private int minY;
+    private int minZ;
+    private int maxX;
+    private int maxY;
+    private int maxZ;
 
     ProjectionOccupancyOctree() {
         occupiedByLog = new LongOpenHashSet[LEVEL_COUNT];
@@ -29,12 +35,24 @@ final class ProjectionOccupancyOctree {
         if (empty) {
             return;
         }
+        minX = Integer.MAX_VALUE;
+        minY = Integer.MAX_VALUE;
+        minZ = Integer.MAX_VALUE;
+        maxX = Integer.MIN_VALUE;
+        maxY = Integer.MIN_VALUE;
+        maxZ = Integer.MIN_VALUE;
         LongIterator iterator = cells.iterator();
         while (iterator.hasNext()) {
             long key = iterator.nextLong();
             int x = ProjectionCellKey.unpackX(key);
             int y = ProjectionCellKey.unpackY(key);
             int z = ProjectionCellKey.unpackZ(key);
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            minZ = Math.min(minZ, z);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+            maxZ = Math.max(maxZ, z);
             occupiedByLog[0].add(cubeKey(x, y, z, MIN_SKIP_LOG));
         }
         for (int level = 1; level < LEVEL_COUNT; level++) {
@@ -48,6 +66,13 @@ final class ProjectionOccupancyOctree {
 
     boolean isEmpty() {
         return empty;
+    }
+
+    boolean intersectsRayBounds(int startX, int startY, int startZ, int targetX, int targetY, int targetZ) {
+        return !empty
+            && Math.min(startX, targetX) <= maxX && Math.max(startX, targetX) >= minX
+            && Math.min(startY, targetY) <= maxY && Math.max(startY, targetY) >= minY
+            && Math.min(startZ, targetZ) <= maxZ && Math.max(startZ, targetZ) >= minZ;
     }
 
     int largestEmptyLog(int x, int y, int z) {

@@ -44,6 +44,16 @@ public final class PortalPlaneWindowPerCellToleranceTest {
         assertTrue(window(0.0D).containsRayIntersection(EYE_X, EYE_Y, EYE_Z, 0.5D, 64.5D, 16.0D, CELL_SIGNED_DISTANCE));
     }
 
+    @Test
+    public void rowEndpointsDoNotFillIrregularApertureHoles() {
+        ProjectorPlaneWindow window = window(0.0D);
+        assertTrue(window.containsRayIntersection(EYE_X, EYE_Y, EYE_Z, 0.5D, 64.5D, 16.0D, CELL_SIGNED_DISTANCE));
+        assertTrue(window.containsRayIntersection(EYE_X, EYE_Y, EYE_Z, 4.5D, 64.5D, 16.0D, CELL_SIGNED_DISTANCE));
+        assertFalse(window.containsRayIntersection(EYE_X, EYE_Y, EYE_Z, 2.5D, 64.5D, 16.0D, CELL_SIGNED_DISTANCE));
+        assertFalse(window.containsRow(0, EYE_X, EYE_Y, EYE_Z,
+            0.5D, 64.5D, 16.0D, 4.5D, CELL_SIGNED_DISTANCE));
+    }
+
     private static final class NotchedStructure extends PortalStructure {
         @Override
         public boolean isFullCuboid() {

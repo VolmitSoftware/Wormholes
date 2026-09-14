@@ -22,8 +22,11 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -33,6 +36,7 @@ public final class DebugTelemetryService {
 
     private final Wormholes plugin;
     private final Logger logger;
+    private final HashMap<String, FailureCursor> reportedFailures = new HashMap<String, FailureCursor>();
     private boolean started;
     private boolean observedEnabled;
     private Boolean runtimeOverride;
@@ -68,6 +72,7 @@ public final class DebugTelemetryService {
         observedEnabled = false;
         runtimeOverride = null;
         previous = null;
+        reportedFailures.clear();
         SchedulerRuntime runtime = plugin.getSchedulerRuntime();
         if (runtime != null && taskId != 0) {
             runtime.car(taskId);
@@ -81,6 +86,7 @@ public final class DebugTelemetryService {
         runtimeOverride = Boolean.valueOf(enabled);
         Settings.DEBUG = enabled;
         previous = null;
+        reportedFailures.clear();
         observedEnabled = enabled;
         logger.info("[debug] verbose logging and console telemetry " + (enabled ? "ENABLED" : "DISABLED")
             + " by " + singleLine(actor));
@@ -104,6 +110,7 @@ public final class DebugTelemetryService {
         if (!Settings.DEBUG) {
             observedEnabled = false;
             previous = null;
+            reportedFailures.clear();
             return;
         }
         runSample(logger, this::sampleOnce);
@@ -287,6 +294,7 @@ public final class DebugTelemetryService {
             current.counters().doorTransitsFailed(),
             rates.doorTransitsFailedPerSecond()
         ));
+        logFailureReasons();
     }
 
     static String failureLine(long nowMillis, long traversalFailed, double traversalFailedPerSecond,
@@ -295,8 +303,41 @@ public final class DebugTelemetryService {
             + " (+" + formatRate(WormholesTelemetry.failuresPerMinute(nowMillis)) + "/min)"
             + " traversal=" + traversalFailed + " (+" + formatRate(traversalFailedPerSecond) + "/s)"
             + " doors=" + doorTransitsFailed + " (+" + formatRate(doorTransitsFailedPerSecond) + "/s)"
-            + " pluginReasons=" + WormholesTelemetry.failureReasonCount()
-            + " (see stats snapshot for the per-reason breakdown)";
+            + " pluginReasons=" + WormholesTelemetry.failureReasonCount();
+    }
+
+    void logFailureReasons() {
+        if (!Settings.DEBUG) {
+            reportedFailures.clear();
+            return;
+        }
+        Map<String, Long> counts = FailureRegistry.counts();
+        reportedFailures.keySet().retainAll(counts.keySet());
+        HashMap<String, FailureRegistry.Entry> latestEntries = null;
+        for (Map.Entry<String, Long> countEntry : counts.entrySet()) {
+            String reason = countEntry.getKey();
+            long count = countEntry.getValue().longValue();
+            long lastSeen = FailureRegistry.lastSeenMillis(reason);
+            FailureCursor previousFailure = reportedFailures.get(reason);
+            if (previousFailure != null && previousFailure.count() == count && previousFailure.lastSeen() == lastSeen) {
+                continue;
+            }
+            if (latestEntries == null) {
+                latestEntries = new HashMap<String, FailureRegistry.Entry>(Math.min(counts.size(), FailureRegistry.RING_CAPACITY));
+                for (FailureRegistry.Entry entry : FailureRegistry.recent(Long.MAX_VALUE)) {
+                    latestEntries.putIfAbsent(entry.id(), entry);
+                }
+            }
+            FailureRegistry.Entry latest = latestEntries.get(reason);
+            long newFailures = previousFailure == null || count < previousFailure.count()
+                ? count : count - previousFailure.count();
+            logger.info("[debug/failure] reason=" + singleLine(reason)
+                + " total=" + count
+                + " new=" + newFailures
+                + " lastSeen=" + Instant.ofEpochMilli(lastSeen)
+                + " detail=" + singleLine(latest == null ? null : latest.detail()));
+            reportedFailures.put(reason, new FailureCursor(count, lastSeen));
+        }
     }
 
     private void logPeers(List<NetworkManager.PeerSnapshot> peers, NetworkManager network) {
@@ -356,7 +397,8 @@ public final class DebugTelemetryService {
         if (value == null || value.isBlank()) {
             return "-";
         }
-        return value.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ').trim();
+        return value.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+            .replace('\u0085', ' ').replace('\u2028', ' ').replace('\u2029', ' ').trim();
     }
 
     private static String formatRate(double value) {
@@ -455,5 +497,8 @@ public final class DebugTelemetryService {
                                    ChunkReplicationManager.Stats replication,
                                    TraversalService.Stats transfers,
                                    RegionalDiffAccumulator.Stats capture) {
+    }
+
+    private record FailureCursor(long count, long lastSeen) {
     }
 }

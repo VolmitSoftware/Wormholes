@@ -25,6 +25,89 @@ import art.arcane.wormholes.util.Direction;
 
 public final class ProjectorViewOcclusionTest {
     @Test
+    public void raysBeforeDistantBlockersStayVisibleWithoutSpendingTheTraceBudget() {
+        FakeWorldView view = new FakeWorldView();
+        for (Direction normal : Direction.values()) {
+            LongOpenHashSet blockers = new LongOpenHashSet();
+            blockers.add(ProjectionCellKey.pack(normal.x() * -60, normal.y() * -60, normal.z() * -60));
+            ProjectorViewOcclusion occlusion = new ProjectorViewOcclusion(data -> true, 1);
+            occlusion.setRevealMarginDegrees(2.0D);
+            occlusion.beginPass(0.5D, 0.5D, 0.5D, normal, blockers);
+            for (int depth = 1; depth < 60; depth++) {
+                assertEquals(ProjectorViewOcclusion.Visibility.VISIBLE,
+                    occlusion.visibility(view, normal.x() * -depth, normal.y() * -depth, normal.z() * -depth,
+                        0.5D + normal.x() * 2.0D, 0.5D + normal.y() * 2.0D, 0.5D + normal.z() * 2.0D),
+                    normal.name() + " depth=" + depth);
+            }
+            assertEquals(0, occlusion.voxelSteps(), normal.name());
+            assertFalse(occlusion.budgetExhausted(), normal.name());
+        }
+    }
+
+    @Test
+    public void disjointRaysCanResolveAfterOtherRaysExhaustTheBudget() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(2, 0, 0));
+        ProjectorViewOcclusion occlusion = new ProjectorViewOcclusion(data -> true, 1);
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+
+        assertEquals(ProjectorViewOcclusion.Visibility.UNRESOLVED,
+            occlusion.visibility(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+        assertTrue(occlusion.budgetExhausted());
+        assertEquals(ProjectorViewOcclusion.Visibility.VISIBLE,
+            occlusion.visibility(view, 40, 10, 10, 0.5D, 10.5D, 10.5D));
+        assertEquals(1, occlusion.voxelSteps());
+    }
+
+    @Test
+    public void blockerBoundsMatchDenseVisibilityAcrossMovingEyesAndAllPortalAxes() {
+        for (Direction normal : Direction.values()) {
+            FakeWorldView view = new FakeWorldView();
+            LongOpenHashSet blockers = new LongOpenHashSet();
+            int axis = normal.x() != 0 ? 0 : normal.y() != 0 ? 1 : 2;
+            int rightAxis = (axis + 1) % 3;
+            int upAxis = (axis + 2) % 3;
+            int sign = -(normal.x() + normal.y() + normal.z());
+            int[] cell = new int[3];
+            cell[axis] = sign * 12;
+            for (int r = -2; r <= 2; r++) {
+                cell[rightAxis] = r;
+                for (int u = -2; u <= 2; u++) {
+                    cell[upAxis] = u;
+                    view.put(cell[0], cell[1], cell[2], Material.STONE);
+                    blockers.add(ProjectionCellKey.pack(cell[0], cell[1], cell[2]));
+                }
+            }
+            ProjectorViewOcclusion dense = occlusion();
+            ProjectorViewOcclusion bounded = occlusion();
+            dense.setRevealMarginDegrees(2.0D);
+            bounded.setRevealMarginDegrees(2.0D);
+            for (int offset = -2; offset <= 2; offset++) {
+                dense.beginPass(0.5D, 0.5D, 0.5D, normal);
+                bounded.beginPass(0.5D, 0.5D, 0.5D, normal, blockers);
+                double[] eye = {0.5D + normal.x() * 2.0D, 0.5D + normal.y() * 2.0D,
+                    0.5D + normal.z() * 2.0D};
+                eye[rightAxis] += offset * 2.0D;
+                for (int depth = 1; depth <= 18; depth++) {
+                    cell[axis] = sign * depth;
+                    for (int r = -3; r <= 3; r++) {
+                        cell[rightAxis] = r;
+                        for (int u = -3; u <= 3; u++) {
+                            cell[upAxis] = u;
+                            assertEquals(dense.visibility(view, cell[0], cell[1], cell[2], eye[0], eye[1], eye[2]),
+                                bounded.visibility(view, cell[0], cell[1], cell[2], eye[0], eye[1], eye[2]),
+                                normal.name() + " offset=" + offset + " depth=" + depth + " r=" + r + " u=" + u);
+                        }
+                    }
+                }
+                assertFalse(dense.budgetExhausted());
+                assertFalse(bounded.budgetExhausted());
+            }
+        }
+    }
+
+    @Test
     public void flatOpaqueWallCullsEverythingBehindItsVisibleSurface() {
         FakeWorldView view = new FakeWorldView();
         fillPlane(view, 2, -2, 4, -2, 4, Material.STONE);

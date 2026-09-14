@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -84,13 +85,18 @@ final class RtpTraversalPipeline
 			portal.cancelRtpTraversal(entity);
 			return false;
 		}
-		Active claimed = new Active(portal, entity, travelCost);
+		Active claimed = new Active(portal, entity, traversive, travelCost);
 		if(active.putIfAbsent(entity.getUniqueId(), claimed) != null)
 		{
 			countTerminalFailure(FAILURE_DUPLICATE_CLAIM);
 			failures.report("duplicate-traversal:" + portal.getId(),
 					new IllegalStateException("RTP traversal already in progress for " + entity.getUniqueId()));
 			claimed.refund(TraversalRefundReason.TRAVERSAL_ABORTED);
+			return false;
+		}
+		portal.startRtpTraversalHold(entity, traversive, () -> cancelFromHold(entity.getUniqueId(), claimed));
+		if(active.get(entity.getUniqueId()) != claimed)
+		{
 			return false;
 		}
 		RtpService.TraversalActor actor = entity instanceof Player
@@ -108,7 +114,7 @@ final class RtpTraversalPipeline
 				if(active.remove(entity.getUniqueId(), claimed))
 				{
 					claimed.refund(TraversalRefundReason.TRAVERSAL_ABORTED);
-					portal.cancelRtpTraversal(entity);
+					portal.cancelDepartureHold(entity, traversive).thenRun(() -> portal.releaseDepartureClaim(entity, traversive));
 				}
 				return;
 			}
@@ -149,7 +155,7 @@ final class RtpTraversalPipeline
 			Active traversal = entry.getValue();
 			if(traversal.portal().getId().equals(portalId) && active.remove(entry.getKey(), traversal))
 			{
-				cancel(traversal, TraversalRefundReason.DESTINATION_UNAVAILABLE);
+				cancel(traversal, TraversalRefundReason.DESTINATION_UNAVAILABLE, true);
 			}
 		}
 	}
@@ -159,7 +165,7 @@ final class RtpTraversalPipeline
 		Active traversal = active.remove(entityId);
 		if(traversal != null)
 		{
-			cancel(traversal, TraversalRefundReason.TRAVELER_LEFT);
+			cancel(traversal, TraversalRefundReason.TRAVELER_LEFT, true);
 		}
 	}
 
@@ -170,17 +176,29 @@ final class RtpTraversalPipeline
 			Active traversal = entry.getValue();
 			if(active.remove(entry.getKey(), traversal))
 			{
-				cancel(traversal, TraversalRefundReason.SERVER_SHUTDOWN);
+				cancel(traversal, TraversalRefundReason.SERVER_SHUTDOWN, true);
 			}
 		}
 	}
 
-	private void cancel(Active traversal, TraversalRefundReason reason)
+	private void cancelFromHold(UUID entityId, Active traversal)
+	{
+		if(active.remove(entityId, traversal))
+		{
+			cancel(traversal, TraversalRefundReason.TRAVERSAL_ABORTED, false);
+		}
+	}
+
+	private void cancel(Active traversal, TraversalRefundReason reason, boolean releaseHold)
 	{
 		traversal.cancel();
 		countTerminalFailure(FAILURE_CANCELLED);
 		refund(traversal, reason);
-		traversal.portal().cancelRtpTraversal(traversal.entity());
+		if(releaseHold)
+		{
+			traversal.portal().cancelDepartureHold(traversal.entity(), traversal.traversive)
+				.thenRun(() -> traversal.portal().releaseDepartureClaim(traversal.entity(), traversal.traversive));
+		}
 		RtpService.TraversalPreparation preparation = traversal.preparation();
 		if(preparation != null)
 		{
@@ -559,12 +577,53 @@ final class RtpTraversalPipeline
 		Retained retained,
 		Active traversal)
 	{
-		if(active.get(entity.getUniqueId()) != traversal)
+		portal.prepareDeparture(entity, traversive).whenComplete((prepared, preparationFailure) ->
+		{
+			Runnable retired = () ->
+			{
+				retained.close();
+				fail(portal, entity, preparation, preparationFailure);
+			};
+			boolean scheduled = environment.scheduleEntity(entity, () -> guard(portal, entity, preparation, retained, () ->
+			{
+				if(preparationFailure != null || !Boolean.TRUE.equals(prepared))
+				{
+					retired.run();
+					return;
+				}
+				teleportPrepared(portal, entity, traversive, preparation, targetFrame, target, retained, traversal);
+			}), retired, 0L);
+			if(!scheduled)
+			{
+				retired.run();
+			}
+		});
+	}
+
+	private void teleportPrepared(
+		LocalPortal portal,
+		Entity entity,
+		Traversive traversive,
+		RtpService.TraversalPreparation preparation,
+		PortalFrame targetFrame,
+		Location target,
+		Retained retained,
+		Active traversal)
+	{
+		if(active.get(entity.getUniqueId()) != traversal || !traversal.canProceed()
+			|| !sourceEligible(portal, entity) || !portal.canContinueRtpTraversal(entity))
 		{
 			retained.close();
 			fail(portal, entity, preparation, null);
 			return;
 		}
+		if(!portal.commitDepartureHold(entity, traversive))
+		{
+			retained.close();
+			fail(portal, entity, preparation, null);
+			return;
+		}
+		CompletableFuture<Void> departureDrain = portal.beginDepartureTeleport(entity);
 		CompletionStage<Boolean> teleportStage;
 		try
 		{
@@ -572,12 +631,16 @@ final class RtpTraversalPipeline
 		}
 		catch(RuntimeException exception)
 		{
+			departureDrain.complete(null);
 			retained.close();
 			fail(portal, entity, preparation, exception, FAILURE_STAGE, TraversalRefundReason.TELEPORT_FAILED);
 			return;
 		}
-		teleportStage.whenComplete((teleported, teleportFailure) -> guard(portal, entity, preparation, retained, () ->
+		teleportStage.whenComplete((teleported, teleportFailure) ->
 		{
+			departureDrain.complete(null);
+			guard(portal, entity, preparation, retained, () ->
+			{
 			if(teleportFailure != null || !Boolean.TRUE.equals(teleported))
 			{
 				retained.close();
@@ -586,7 +649,8 @@ final class RtpTraversalPipeline
 			}
 			beginSuccessfulTeleport(
 				portal, entity, traversive, preparation, targetFrame, target, retained, traversal);
-		}));
+			});
+		});
 	}
 
 	private void beginSuccessfulTeleport(
@@ -644,7 +708,7 @@ final class RtpTraversalPipeline
 			successful.retained().close();
 			successful.traversal().cancel();
 			refund(successful.traversal(), TraversalRefundReason.TELEPORT_FAILED);
-			successful.portal().cancelRtpTraversal(entity);
+			successful.portal().releaseDepartureClaim(entity, successful.traversive());
 			releaseClaim(successful.portal().getId(), successful.preparation());
 			return;
 		}
@@ -777,7 +841,7 @@ final class RtpTraversalPipeline
 	private void finishUnavailableSuccessfulArrival(SuccessfulTeleport successful, boolean countTraversal)
 	{
 		UUID entityId = successful.entity().getUniqueId();
-		LocalPortal.clearTeleportInFlight(entityId);
+		successful.portal().releaseDepartureClaim(successful.entity(), successful.traversive());
 		LocalPortal.markRefusedBounce(entityId, successful.portal().getId());
 		LocalPortal.latchReentry(entityId, successful.portal().getId());
 		if(countTraversal)
@@ -848,7 +912,8 @@ final class RtpTraversalPipeline
 		{
 			current.cancel();
 			refund(current, refundReason);
-			portal.cancelRtpTraversal(entity);
+			portal.cancelDepartureHold(entity, current.traversive)
+				.thenRun(() -> portal.releaseDepartureClaim(entity, current.traversive));
 		}
 		releaseClaim(portal.getId(), preparation);
 	}
@@ -1013,6 +1078,7 @@ final class RtpTraversalPipeline
 	{
 		private final LocalPortal portal;
 		private final Entity entity;
+		private final Traversive traversive;
 		private final PortalTravelCost travelCost;
 		private PortalTravelCost.Reservation reservation;
 		private RtpService.TraversalPreparation preparation;
@@ -1022,10 +1088,11 @@ final class RtpTraversalPipeline
 		private boolean settled;
 		private boolean builtInSettled;
 
-		private Active(LocalPortal portal, Entity entity, PortalTravelCost travelCost)
+		private Active(LocalPortal portal, Entity entity, Traversive traversive, PortalTravelCost travelCost)
 		{
 			this.portal = Objects.requireNonNull(portal, "portal");
 			this.entity = Objects.requireNonNull(entity, "entity");
+			this.traversive = traversive;
 			this.travelCost = travelCost;
 		}
 

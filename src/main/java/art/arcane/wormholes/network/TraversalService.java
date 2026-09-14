@@ -3,6 +3,7 @@ package art.arcane.wormholes.network;
 import art.arcane.volmlib.util.localization.MessageArgument;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.access.PortalAdmission;
 import art.arcane.wormholes.api.traversal.TraversalContext;
 import art.arcane.wormholes.api.traversal.TraversalDestination;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
@@ -38,19 +39,23 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntitySnapshot;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.EntitiesLoadEvent;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -71,9 +76,9 @@ public final class TraversalService implements Listener {
     }
 
     private record Departure(String peerName, UUID destinationPortalId, Traversive traversive,
-                             LocalPortal sourcePortal, String transferMode, boolean policyResolved, boolean holdActive) {
-        Departure resolved(String server, UUID portalId, boolean queued) {
-            return new Departure(server, portalId, traversive, sourcePortal, transferMode, true, queued);
+                             LocalPortal sourcePortal, String transferMode, boolean policyResolved) {
+        Departure resolved(String server, UUID portalId) {
+            return new Departure(server, portalId, traversive, sourcePortal, transferMode, true);
         }
     }
 
@@ -159,7 +164,9 @@ public final class TraversalService implements Listener {
 
     /** Inbound handoffs admitted but not yet arrived; counts against headroom in load beacons. */
     public int activeInboundReservations(long nowMillis) {
-        return inboundAdmissions.activeReservations(nowMillis);
+        synchronized (inboundAdmissions) {
+            return inboundAdmissions.reservedOfflinePlayers(onlinePlayerIds(Wormholes.instance.getServer()), nowMillis);
+        }
     }
 
     public void shutdown() {
@@ -261,16 +268,19 @@ public final class TraversalService implements Listener {
 
     public void beginPlayerHandoff(Player player, UniversalTunnel tunnel, Traversive traversive, LocalPortal sourcePortal) {
         beginHandoff(player, new Departure(tunnel.getServerName(), tunnel.getDestinationPortalId(), traversive,
-            sourcePortal, Wormholes.settings.getNetwork().transferMode, false, false));
+            sourcePortal, Wormholes.settings.getNetwork().transferMode, false));
     }
 
     public boolean beginServerHandoff(Player player, String peerName, String transferMode) {
-        return beginHandoff(player, new Departure(peerName, null, null, null, transferMode, false, false));
+        return beginHandoff(player, new Departure(peerName, null, null, null, transferMode, false));
     }
 
     private boolean beginHandoff(Player player, Departure departure) {
         LocalPortal sourcePortal = departure.sourcePortal();
         Traversive traversive = departure.traversive();
+        if (sourcePortal != null && !sourcePortal.bindDepartureClaim(player, traversive)) {
+            return false;
+        }
         if (shutdownStarted.get()) {
             rejectSource(player, sourcePortal, traversive);
             return false;
@@ -375,6 +385,7 @@ public final class TraversalService implements Listener {
                 departure.destinationPortalId(),
                 directTransfer,
                 Wormholes.instance.getServer().getOnlineMode(),
+                PortalAdmission.bypassesAccess(player),
                 traversive == null ? null : WireTraversive.fromTraversive(traversive)
             );
             long timeoutTicks = Math.max(1L, (timeoutMillis + 49L) / 50L);
@@ -410,8 +421,9 @@ public final class TraversalService implements Listener {
                 }
                 return false;
             }
-            if (sourcePortal != null && !departure.holdActive()) {
-                sourcePortal.startPlayerDepartureHold(player, traversive, deadline);
+            if (sourcePortal != null) {
+                sourcePortal.startPlayerDepartureHold(player, traversive, deadline,
+                    () -> cancelPendingHandoff(transferId, pendingHandoff));
             }
             prepareHandoffRequest(transferId, pendingHandoff, request);
         } finally {
@@ -434,7 +446,7 @@ public final class TraversalService implements Listener {
         long now = System.currentTimeMillis();
         DestinationPolicyEngine.Resolution resolution = policyEngine.resolve(playerId, policy, policyInputs(config, now), now);
         if (resolution.kind() == DestinationPolicyEngine.Resolution.Kind.CHOSEN) {
-            return beginHandoff(player, departure.resolved(resolution.server(), resolution.portalId(), false));
+            return beginHandoff(player, departure.resolved(resolution.server(), resolution.portalId()));
         }
         boolean queue = resolution.kind() == DestinationPolicyEngine.Resolution.Kind.QUEUE && config.policy.queueEnabled;
         if (!queue) {
@@ -445,48 +457,55 @@ public final class TraversalService implements Listener {
         }
         long handoffBudget = config.handoffTimeoutMs + NetworkManager.PLAYER_ENDPOINT_TIMEOUT_MILLIS + 1_000L;
         long maxWaitMillis = Math.max(1_000L, Math.min(config.policy.queueMaxWaitSec * 1_000L, IN_FLIGHT_LIMIT_MILLIS - handoffBudget));
-        handoffQueue.enqueue(playerId, now, maxWaitMillis,
+        HandoffQueue.Ticket ticket = handoffQueue.enqueue(playerId, now, maxWaitMillis,
             () -> {
                 long tickNow = System.currentTimeMillis();
                 return policyEngine.resolve(playerId, policy, policyInputs(Wormholes.settings.getNetwork(), tickNow), tickNow);
             },
-            chosen -> beginHandoff(player, departure.resolved(chosen.server(), chosen.portalId(), true)),
+            chosen -> beginHandoff(player, departure.resolved(chosen.server(), chosen.portalId())),
             () -> releaseQueued(player, sourcePortal, traversive),
             (position, remainingMillis) -> WormholesHud.hold(player, Wormholes.text().component(player, MeshMessages.QUEUE_POSITION,
                 WormholesLocalization.args(
                     MessageArgument.untrusted("count", position),
                     MessageArgument.untrusted("seconds", Math.max(0L, (remainingMillis + 999L) / 1_000L))))));
-        sourcePortal.startPlayerDepartureHold(player, traversive, now + maxWaitMillis + handoffBudget);
+        sourcePortal.startPlayerDepartureHold(player, traversive, now + maxWaitMillis + handoffBudget,
+            () -> handoffQueue.remove(ticket));
         Wormholes.v(() -> "[handoff] queued " + player.getName() + " at portal " + sourcePortal.getId() + " for up to " + maxWaitMillis + "ms");
-        scheduleQueueTick(player);
+        scheduleQueueTick(player, ticket);
         return true;
     }
 
-    private void scheduleQueueTick(Player player) {
-        UUID playerId = player.getUniqueId();
+    private void scheduleQueueTick(Player player, HandoffQueue.Ticket ticket) {
         Runnable tick = () -> {
-            if (shutdownStarted.get() || handoffQueue.ticket(playerId) == null) {
+            if (shutdownStarted.get() || handoffQueue.ticket(ticket.playerId()) != ticket) {
                 return;
             }
-            handoffQueue.tick(playerId, System.currentTimeMillis());
-            if (handoffQueue.ticket(playerId) != null) {
-                scheduleQueueTick(player);
+            handoffQueue.tick(ticket, System.currentTimeMillis());
+            if (handoffQueue.ticket(ticket.playerId()) == ticket) {
+                scheduleQueueTick(player, ticket);
             }
         };
-        if (!scheduleEntity(player, tick, () -> handoffQueue.remove(playerId), QUEUE_TICK_TICKS)) {
-            HandoffQueue.Ticket ticket = handoffQueue.ticket(playerId);
-            if (ticket != null && handoffQueue.remove(playerId)) {
+        Runnable retired = () -> {
+            if (handoffQueue.remove(ticket)) {
                 ticket.onTimeout().run();
             }
+        };
+        if (!scheduleEntity(player, tick, retired, QUEUE_TICK_TICKS)) {
+            retired.run();
         }
     }
 
     private void releaseQueued(Player player, LocalPortal sourcePortal, Traversive traversive) {
-        UUID playerId = player.getUniqueId();
-        failures.record(Failure.HANDOFF_QUEUE_TIMED_OUT, playerId, "no policy candidate gained headroom in time at portal " + sourcePortal.getId());
-        LocalPortal.clearTeleportInFlight(playerId);
-        rejectSource(player, sourcePortal, traversive);
-        WormholesHud.notice(player, Wormholes.text().component(player, MeshMessages.QUEUE_TIMEOUT));
+        sourcePortal.cancelDepartureHold(player, traversive).thenAccept(cancelled -> {
+            if (!Boolean.TRUE.equals(cancelled) || !player.isOnline()) {
+                return;
+            }
+            UUID playerId = player.getUniqueId();
+            failures.record(Failure.HANDOFF_QUEUE_TIMED_OUT, playerId,
+                "no policy candidate gained headroom in time at portal " + sourcePortal.getId());
+            rejectSource(player, sourcePortal, traversive);
+            WormholesHud.notice(player, Wormholes.text().component(player, MeshMessages.QUEUE_TIMEOUT));
+        });
     }
 
     private DestinationPolicyEngine.Inputs policyInputs(NetworkConfig config, long nowMillis) {
@@ -580,29 +599,17 @@ public final class TraversalService implements Listener {
         }
     }
 
-    public void cancelPendingHandoff(UUID playerId) {
-        handoffQueue.remove(playerId);
+    private void cancelPendingHandoff(UUID transferId, PendingHandoff handoff) {
         lifecycleReadLock.lock();
         try {
-            if (shutdownStarted.get()) {
+            if (shutdownStarted.get() || !pendingHandoffs.remove(transferId, handoff)) {
                 return;
             }
-            for (Map.Entry<UUID, PendingHandoff> entry : pendingHandoffs.entrySet()) {
-                PendingHandoff handoff = entry.getValue();
-                if (!handoff.playerId().equals(playerId)) {
-                    continue;
-                }
-                if (!pendingHandoffs.remove(entry.getKey(), handoff)) {
-                    continue;
-                }
-                acknowledgedHandoffs.remove(entry.getKey());
-                network.send(handoff.peerName(), new WireMessage.HandoffCancel(entry.getKey(), handoff.playerId()));
-                if (!transferLocks.unlockTransfer(handoff.playerId(), entry.getKey())) {
-                    continue;
-                }
-                LocalPortal.clearTeleportInFlight(handoff.playerId());
-                failures.record(Failure.HANDOFF_RETREATED, handoff.playerId(), "traveler retreated from the source portal before " + handoff.peerName() + " acked");
-                return;
+            acknowledgedHandoffs.remove(transferId);
+            network.send(handoff.peerName(), new WireMessage.HandoffCancel(transferId, handoff.playerId()));
+            if (transferLocks.unlockTransfer(handoff.playerId(), transferId)) {
+                failures.record(Failure.HANDOFF_RETREATED, handoff.playerId(),
+                    "traveler retreated from the source portal before " + handoff.peerName() + " acked");
             }
         } finally {
             lifecycleReadLock.unlock();
@@ -614,6 +621,9 @@ public final class TraversalService implements Listener {
     }
 
     public void beginEntityTransfer(Entity entity, UniversalTunnel tunnel, Traversive traversive, LocalPortal sourcePortal) {
+        if (sourcePortal != null && !sourcePortal.bindDepartureClaim(entity, traversive)) {
+            return;
+        }
         if (shutdownStarted.get()) {
             rejectSource(entity, sourcePortal, traversive);
             return;
@@ -783,14 +793,14 @@ public final class TraversalService implements Listener {
             peerName,
             wireRequest.destPortalId(),
             wireRequest.directTransfer(),
+            wireRequest.accessBypass(),
             wireRequest.traversive()
         );
         ILocalPortal exit = Wormholes.portalManager == null || wireRequest.destPortalId() == null
             ? null : Wormholes.portalManager.getLocalPortal(wireRequest.destPortalId());
-        String denialReason = destinationDenialReason(wireRequest, exit, now);
-        PlayerHandoffAdmission.Decision decision = inboundAdmissions.decide(new PlayerHandoffAdmission.Attempt(
+        PlayerHandoffAdmission.Decision decision = inboundAdmissions.decideAfterPreflight(() -> new PlayerHandoffAdmission.Attempt(
             request,
-            denialReason,
+            destinationDenialReason(wireRequest, exit, now),
             now,
             ARRIVAL_TTL_MILLIS,
             rateLimitMillis
@@ -907,12 +917,13 @@ public final class TraversalService implements Listener {
             return "player already connected";
         }
         OfflinePlayer profile = server.getOfflinePlayer(request.playerId());
-        boolean operator = profile.isOp();
+        boolean operator = profile.isOp() || request.accessBypass();
         if (exit != null && !TraversalAdmissionPolicy.acceptsInbound(exit, operator)) {
             return "portal receive disabled";
         }
         int maxPlayers = server.getMaxPlayers();
-        int admittedPlayers = server.getOnlinePlayers().size() + inboundAdmissions.activeReservations(nowMillis);
+        Set<UUID> onlinePlayers = onlinePlayerIds(server);
+        int admittedPlayers = onlinePlayers.size() + inboundAdmissions.reservedOfflinePlayers(onlinePlayers, nowMillis);
         boolean transferSupported = networkConfig.autoAcceptTransfers || WormholesPlatform.isAcceptingTransfers(server);
         return TraversalAdmissionPolicy.destinationPlayerDenialReason(new TraversalAdmissionPolicy.DestinationPlayerState(
             request.directTransfer(),
@@ -925,6 +936,14 @@ public final class TraversalService implements Listener {
             maxPlayers,
             network.drain().isDraining()
         ));
+    }
+
+    private static Set<UUID> onlinePlayerIds(Server server) {
+        Set<UUID> players = new HashSet<>();
+        for (Player player : server.getOnlinePlayers()) {
+            players.add(player.getUniqueId());
+        }
+        return players;
     }
 
     public void onHandoffAck(String peerName, WireMessage.HandoffAck ack) {
@@ -956,21 +975,7 @@ public final class TraversalService implements Listener {
                 "peer '" + peerName + "' disappeared between handoff and ack");
             return;
         }
-        Runnable dispatch = () -> {
-            lifecycleReadLock.lock();
-            try {
-                if (!dispatchClaimed.compareAndSet(false, true)) {
-                    return;
-                }
-                acknowledgedHandoffs.remove(ack.transferId());
-                if (shutdownStarted.get() || !pendingHandoffs.remove(ack.transferId(), handoff)) {
-                    return;
-                }
-                dispatchAcknowledgedHandoff(peerName, ack.transferId(), handoff, peer);
-            } finally {
-                lifecycleReadLock.unlock();
-            }
-        };
+        Runnable dispatch = () -> prepareAcknowledgedHandoff(peerName, ack.transferId(), handoff, peer, dispatchClaimed);
         Runnable retired = () -> rejectAcknowledgedHandoffSchedule(
             peerName,
             ack.transferId(),
@@ -992,11 +997,69 @@ public final class TraversalService implements Listener {
         }
     }
 
+    private void prepareAcknowledgedHandoff(String peerName, UUID transferId, PendingHandoff handoff,
+                                             NetworkConfig.PeerEntry peer, AtomicBoolean dispatchClaimed) {
+        if (shutdownStarted.get() || pendingHandoffs.get(transferId) != handoff || dispatchClaimed.get()) {
+            return;
+        }
+        if (handoff.sourcePortalId() == null) {
+            finishAcknowledgedHandoff(peerName, transferId, handoff, peer, dispatchClaimed, true);
+            return;
+        }
+        ILocalPortal source = sourcePortal(handoff.sourcePortalId());
+        if (source == null) {
+            finishAcknowledgedHandoff(peerName, transferId, handoff, peer, dispatchClaimed, false);
+            return;
+        }
+        CompletionStage<Boolean> preparation;
+        try {
+            preparation = Objects.requireNonNull(source.prepareDeparture(handoff.player(), handoff.traversive()));
+        } catch (RuntimeException error) {
+            Wormholes.instance.getLogger().log(Level.WARNING,
+                "Failed to prepare departure for " + handoff.playerId() + " to " + peerName, error);
+            finishAcknowledgedHandoff(peerName, transferId, handoff, peer, dispatchClaimed, false);
+            return;
+        }
+        preparation.whenComplete((ready, error) -> {
+            if (error != null) {
+                Wormholes.instance.getLogger().log(Level.WARNING,
+                    "Failed to prepare departure for " + handoff.playerId() + " to " + peerName, error);
+            }
+            Runnable dispatch = () -> finishAcknowledgedHandoff(peerName, transferId, handoff, peer,
+                dispatchClaimed, error == null && Boolean.TRUE.equals(ready));
+            Runnable retired = () -> rejectAcknowledgedHandoffSchedule(peerName, transferId, handoff, dispatchClaimed,
+                Failure.HANDOFF_DISPATCH_RETIRED, "traveler retired while preparing departure", "source traveler retired before the transfer");
+            if (!entityScheduler.schedule(handoff.player(), dispatch, retired, 0L)) {
+                rejectAcknowledgedHandoffSchedule(peerName, transferId, handoff, dispatchClaimed,
+                    Failure.HANDOFF_DISPATCH_SCHEDULE_REJECTED, "source scheduler rejected the prepared departure", "source scheduler rejected the transfer");
+            }
+        });
+    }
+
+    private void finishAcknowledgedHandoff(String peerName, UUID transferId, PendingHandoff handoff,
+                                           NetworkConfig.PeerEntry peer, AtomicBoolean dispatchClaimed,
+                                           boolean departurePrepared) {
+        lifecycleReadLock.lock();
+        try {
+            if (!dispatchClaimed.compareAndSet(false, true)) {
+                return;
+            }
+            acknowledgedHandoffs.remove(transferId);
+            if (shutdownStarted.get() || !pendingHandoffs.remove(transferId, handoff)) {
+                return;
+            }
+            dispatchAcknowledgedHandoff(peerName, transferId, handoff, peer, departurePrepared);
+        } finally {
+            lifecycleReadLock.unlock();
+        }
+    }
+
     private void dispatchAcknowledgedHandoff(
         String peerName,
         UUID transferId,
         PendingHandoff handoff,
-        NetworkConfig.PeerEntry peer
+        NetworkConfig.PeerEntry peer,
+        boolean departurePrepared
     ) {
         Player player = handoff.player();
         if (!transferLocks.ownsTransfer(handoff.playerId(), transferId)) {
@@ -1014,12 +1077,15 @@ public final class TraversalService implements Listener {
             return;
         }
         ILocalPortal source = sourcePortal(handoff.sourcePortalId());
-        if (handoff.sourcePortalId() != null && (source == null || !source.canCompleteDeparture(player, handoff.traversive()))) {
+        if (handoff.sourcePortalId() != null
+            && (!departurePrepared || source == null || !source.canCompleteDeparture(player, handoff.traversive()))) {
             network.send(peerName, new WireMessage.HandoffCancel(transferId, handoff.playerId()));
             if (!transferLocks.unlockTransfer(handoff.playerId(), transferId)) {
                 return;
             }
-            LocalPortal.clearTeleportInFlight(handoff.playerId());
+            if (source instanceof LocalPortal local) {
+                local.cancelDepartureHold(player, handoff.traversive());
+            }
             long retryAfterMillis = TraversalAdmissionPolicy.handoffRateLimitMillis();
             outboundRateLimiter.penalize(handoff.playerId(), System.currentTimeMillis(), retryAfterMillis);
             failures.record(Failure.HANDOFF_DEPARTURE_INTERRUPTED, handoff.playerId(), source == null
@@ -1072,11 +1138,11 @@ public final class TraversalService implements Listener {
         handoffCompletions.dispatched(new PlayerHandoffCompletion.Attempt(
             transferId, handoff.playerId(), peerName, arrivalDeadlineMillis), dispatchedAtMillis);
         boolean transferred;
+        boolean departureCommitted = false;
         try {
-            if (source != null) {
-                source.confirmDeparture(player, handoff.traversive());
-            }
-            transferred = PlayerTransfer.send(player, peer, handoff.transferMethod(), handoff.endpoint());
+            departureCommitted = source == null || source.confirmDeparture(player, handoff.traversive());
+            transferred = departureCommitted
+                && PlayerTransfer.send(player, peer, handoff.transferMethod(), handoff.endpoint());
         } catch (RuntimeException exception) {
             transferred = false;
             Wormholes.instance.getLogger().log(Level.WARNING,
@@ -1093,9 +1159,14 @@ public final class TraversalService implements Listener {
                 return;
             }
             outboundRateLimiter.penalize(handoff.playerId(), System.currentTimeMillis(), TraversalAdmissionPolicy.handoffRateLimitMillis());
-            failures.record(Failure.HANDOFF_TRANSFER_REJECTED, handoff.playerId(), "transfer method '" + handoff.transferMethod() + "' was rejected by Bukkit");
             rejectSource(player, handoff);
-            notices.unreachable(player, "transfer method '" + handoff.transferMethod() + "' was rejected by Bukkit");
+            if (departureCommitted) {
+                failures.record(Failure.HANDOFF_TRANSFER_REJECTED, handoff.playerId(), "transfer method '" + handoff.transferMethod() + "' was rejected by Bukkit");
+                notices.unreachable(player, "transfer method '" + handoff.transferMethod() + "' was rejected by Bukkit");
+            } else {
+                failures.record(Failure.HANDOFF_DEPARTURE_INTERRUPTED, handoff.playerId(), "departure was cancelled before dispatch");
+                notices.transferInterrupted(player, WormholesMessages.PORTAL_TRANSFER_INTERRUPTED);
+            }
             return;
         }
         if (costReservation != null) {
@@ -1477,6 +1548,20 @@ public final class TraversalService implements Listener {
         runArrivalLifecycleTask(() -> arrivals.playerQuit(event.getPlayer()));
     }
 
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void on(PlayerLoginEvent event) {
+        if (shutdownStarted.get() || (event.getResult() != PlayerLoginEvent.Result.KICK_FULL
+            && event.getResult() != PlayerLoginEvent.Result.KICK_WHITELIST)) {
+            return;
+        }
+        Player player = event.getPlayer();
+        long nowMillis = System.currentTimeMillis();
+        if (inboundAdmissions.hasAdmission(player.getUniqueId(), nowMillis)
+            && (PortalAdmission.bypassesAccess(player) || inboundAdmissions.hasAccessBypass(player.getUniqueId(), nowMillis))) {
+            event.allow();
+        }
+    }
+
     @EventHandler
     public void on(PlayerJoinEvent event) {
         lifecycleReadLock.lock();
@@ -1572,7 +1657,9 @@ public final class TraversalService implements Listener {
         if (entity == null) {
             return;
         }
-        LocalPortal.clearTeleportInFlight(entity.getUniqueId());
+        if (traversive == null || sourcePortalId == null) {
+            LocalPortal.clearTeleportInFlight(entity.getUniqueId());
+        }
         if (traversive == null || sourcePortalId == null) {
             return;
         }

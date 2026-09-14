@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
@@ -34,7 +35,14 @@ public final class ProjectionClaimSetEquivalenceTest {
     @Test
     public void incrementalUpdatesMatchFullRebuildOverRandomMutationSequences() {
         for (int seed = 0; seed < 24; seed++) {
-            runEquivalenceSequence(seed, 260);
+            runEquivalenceSequence(seed, 260, false);
+        }
+    }
+
+    @Test
+    public void deltasMatchFullRebuildOverRandomMutationSequences() {
+        for (int seed = 0; seed < 24; seed++) {
+            runEquivalenceSequence(seed, 260, true);
         }
     }
 
@@ -81,7 +89,115 @@ public final class ProjectionClaimSetEquivalenceTest {
         assertSame(stable, set.getWinningClaim(1L));
     }
 
-    private static void runEquivalenceSequence(int seed, int operations) {
+    @Test
+    public void priorityHandoverAcrossTwelveOwnersReusesIdenticalClaims() {
+        ProjectionClaimSet set = new ProjectionClaimSet();
+        AtomicInteger dataComparisons = new AtomicInteger();
+        BlockData data = (BlockData) Proxy.newProxyInstance(BlockData.class.getClassLoader(),
+            new Class<?>[] { BlockData.class }, (proxy, method, args) -> {
+                if ("equals".equals(method.getName())) {
+                    dataComparisons.incrementAndGet();
+                    return proxy == args[0];
+                }
+                return null;
+            });
+        ProjectedBlockClaim shared = claim(data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> cells = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(4096);
+        for (long key = 0; key < 4096; key++) {
+            cells.put(key, shared);
+        }
+        for (int owner = 1; owner <= 12; owner++) {
+            UUID portal = new UUID(0L, owner);
+            set.replacePortalClaims(portal, portal.toString(), owner, cells);
+        }
+        dataComparisons.set(0);
+        UUID movedPortal = new UUID(0L, 12L);
+
+        ProjectionClaimSet.ProjectionClaimSetResult moved =
+            set.replacePortalClaims(movedPortal, movedPortal.toString(), 0.5D, cells);
+
+        assertEquals(4096, moved.getConflicts());
+        assertEquals(4096, moved.getWinnerChanges());
+        assertEquals(0, dataComparisons.get());
+        assertTrue(moved.getPacketChangeKeys().isEmpty());
+        assertTrue(moved.getDirtyLightingKeys().isEmpty());
+        assertSame(shared, set.getWinningClaim(2048L));
+    }
+
+    @Test
+    public void deltaUpdatesTouchOnlyChangedClaimsAndRetainPriorityArbitration() {
+        ProjectionClaimSet set = new ProjectionClaimSet();
+        UUID firstOwner = new UUID(0L, 1L);
+        UUID secondOwner = new UUID(0L, 2L);
+        ProjectedBlockClaim stable = claim(blockData("stable"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+        ProjectedBlockClaim changed = claim(blockData("changed"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> first = new Long2ObjectOpenHashMap<>(16_384);
+        for (long key = 0; key < 16_384; key++) {
+            first.put(key, stable);
+        }
+        set.replacePortalClaims(firstOwner, firstOwner.toString(), 2.0D, first);
+        set.replacePortalClaims(secondOwner, secondOwner.toString(), 3.0D, toFastMap(claims(5L, changed)));
+        CountingClaims next = new CountingClaims(first);
+        next.remove(4L);
+        next.put(8L, changed);
+        ProjectionClaimSet.ProjectionClaimSetResult result = set.replacePortalDelta(firstOwner, firstOwner.toString(),
+            4.0D, new ProjectionClaimSet.ClaimDelta(first, next, new LongOpenHashSet(new long[] {8L}),
+                new LongOpenHashSet(new long[] {4L})));
+
+        assertEquals(1, next.reads);
+        assertEquals(new LongOpenHashSet(new long[] {4L, 5L, 8L}), result.getPacketChangeKeys());
+        assertSame(changed, set.getWinningClaim(5L));
+        assertSame(stable, set.getWinningClaim(10_000L));
+    }
+
+    @Test
+    public void alternatingMapReuseAndUnknownBaselinesFallBackToFullReplacement() {
+        ProjectionClaimSet set = new ProjectionClaimSet();
+        UUID owner = new UUID(0L, 1L);
+        ProjectedBlockClaim stable = claim(blockData("stable"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> first = toFastMap(claims(1L, stable));
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> second = toFastMap(claims(2L, stable));
+        set.replacePortalClaims(owner, owner.toString(), 1.0D, first);
+        set.replacePortalDelta(owner, owner.toString(), 1.0D, delta(first, second));
+        first.clear();
+        first.put(3L, stable);
+        set.replacePortalDelta(owner, owner.toString(), 1.0D, delta(second, first));
+        assertEquals(new LongOpenHashSet(new long[] {3L}), set.getWinningClaims().keySet());
+
+        second.clear();
+        second.put(4L, stable);
+        set.replacePortalDelta(owner, owner.toString(), 1.0D,
+            new ProjectionClaimSet.ClaimDelta(null, second, new LongOpenHashSet(), new LongOpenHashSet()));
+        assertEquals(new LongOpenHashSet(new long[] {4L}), set.getWinningClaims().keySet());
+        set.clear();
+        set.replacePortalDelta(owner, owner.toString(), 1.0D,
+            new ProjectionClaimSet.ClaimDelta(second, first, new LongOpenHashSet(), new LongOpenHashSet()));
+        assertEquals(new LongOpenHashSet(new long[] {3L}), set.getWinningClaims().keySet());
+    }
+
+    @Test
+    public void stagedDeltasResolveOnlyTheFinalOwnerAndLighting() {
+        ProjectionClaimSet set = new ProjectionClaimSet();
+        UUID firstOwner = new UUID(0L, 1L);
+        UUID secondOwner = new UUID(0L, 2L);
+        ProjectedBlockClaim stable = claim(blockData("stable"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+        ProjectedBlockClaim brighter = stable.withFullBright(true);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> first = toFastMap(claims(1L, stable));
+        Long2ObjectOpenHashMap<ProjectedBlockClaim> second = toFastMap(claims(1L, brighter));
+        set.replacePortalClaims(firstOwner, firstOwner.toString(), 1.0D, first);
+        LongOpenHashSet affected = new LongOpenHashSet();
+        set.stagePortalDelta(firstOwner, firstOwner.toString(), 1.0D,
+            delta(first, new Long2ObjectOpenHashMap<>()), affected);
+        set.stagePortalDelta(secondOwner, secondOwner.toString(), 1.0D, delta(null, second), affected);
+        ProjectionClaimSet.ProjectionClaimSetResult result = set.resolveStaged(affected);
+        assertTrue(result.getPacketChangeKeys().isEmpty());
+        assertEquals(new LongOpenHashSet(new long[] {1L}), result.getDirtyLightingKeys());
+        assertEquals(0, result.getReverts());
+        assertTrue(set.hasFullBrightClaims());
+        assertSame(brighter, set.getWinningClaim(1L));
+    }
+
+    private static void runEquivalenceSequence(int seed, int operations, boolean deltas) {
         Random random = new Random(seed * 7919L + 13L);
         ProjectionClaimSet set = new ProjectionClaimSet();
         ReferenceClaimSet reference = new ReferenceClaimSet();
@@ -89,6 +205,7 @@ public final class ProjectionClaimSetEquivalenceTest {
         List<BlockData> dataPool = dataPool();
         List<ProjectionWorldView> lightViews = lightViews();
         Map<UUID, Map<Long, ProjectedBlockClaim>> lastSubmitted = new HashMap<UUID, Map<Long, ProjectedBlockClaim>>();
+        Map<UUID, Long2ObjectOpenHashMap<ProjectedBlockClaim>> lastMaps = new HashMap<>();
 
         for (int operation = 0; operation < operations; operation++) {
             int roll = random.nextInt(100);
@@ -96,6 +213,7 @@ public final class ProjectionClaimSetEquivalenceTest {
                 set.clear();
                 reference.clear();
                 lastSubmitted.clear();
+                lastMaps.clear();
                 assertEquals(reference.isEmpty(), set.isEmpty(), () -> "isEmpty mismatch after clear");
                 continue;
             }
@@ -104,6 +222,7 @@ public final class ProjectionClaimSetEquivalenceTest {
                 ProjectionClaimSet.ProjectionClaimSetResult actual = set.releasePortal(portalId);
                 ReferenceResult expected = reference.releasePortal(portalId);
                 lastSubmitted.remove(portalId);
+                lastMaps.remove(portalId);
                 assertResultsMatch(seed, operation, expected, actual, set, reference);
                 continue;
             }
@@ -114,10 +233,46 @@ public final class ProjectionClaimSetEquivalenceTest {
             double priorityDistance = PRIORITY_POOL[random.nextInt(PRIORITY_POOL.length)];
             String tieKey = portalId.toString();
 
-            ProjectionClaimSet.ProjectionClaimSetResult actual =
-                set.replacePortalClaims(portalId, tieKey, priorityDistance, toFastMap(submitted));
+            Long2ObjectOpenHashMap<ProjectedBlockClaim> submittedMap = toFastMap(submitted);
+            ProjectionClaimSet.ProjectionClaimSetResult actual = deltas
+                ? set.replacePortalDelta(portalId, tieKey, priorityDistance, delta(lastMaps.get(portalId), submittedMap))
+                : set.replacePortalClaims(portalId, tieKey, priorityDistance, submittedMap);
+            lastMaps.put(portalId, submittedMap);
             ReferenceResult expected = reference.replacePortalClaims(portalId, tieKey, priorityDistance, submitted);
             assertResultsMatch(seed, operation, expected, actual, set, reference);
+        }
+    }
+
+    private static ProjectionClaimSet.ClaimDelta delta(Long2ObjectOpenHashMap<ProjectedBlockClaim> previous,
+                                                        Long2ObjectOpenHashMap<ProjectedBlockClaim> next) {
+        LongOpenHashSet changed = new LongOpenHashSet();
+        LongOpenHashSet removed = new LongOpenHashSet();
+        for (long key : next.keySet()) {
+            if (previous == null || previous.get(key) != next.get(key)) {
+                changed.add(key);
+            }
+        }
+        if (previous != null) {
+            for (long key : previous.keySet()) {
+                if (!next.containsKey(key)) {
+                    removed.add(key);
+                }
+            }
+        }
+        return new ProjectionClaimSet.ClaimDelta(previous, next, changed, removed);
+    }
+
+    private static final class CountingClaims extends Long2ObjectOpenHashMap<ProjectedBlockClaim> {
+        private int reads;
+
+        private CountingClaims(Long2ObjectOpenHashMap<ProjectedBlockClaim> previous) {
+            super(previous);
+        }
+
+        @Override
+        public ProjectedBlockClaim get(long key) {
+            reads++;
+            return super.get(key);
         }
     }
 

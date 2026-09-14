@@ -62,31 +62,34 @@ final class ProjectionInterestFrame {
                  boolean updateEntities,
                  long frameTick,
                  boolean skinWork,
-                 PortalCandidateSnapshot skinSnapshot) {
+                 PortalCandidateSnapshot skinSnapshot,
+                 ProjectionBudgetLedger.FrameBudget frameBudget) {
         if (!observer.isOnline()) {
             remainingProjectors.addAndGet(reservedBudget);
             return;
         }
-        List<PortalProjector> projected = new ArrayList<PortalProjector>();
-        claimArbiter.beginFrame(observer, observer.getWorld(), false);
-        localEntityOcclusion.beginFrame(observer);
-        try {
-            if (skinWork) {
-                skinRenderer.reconcile(observer, skinSnapshot);
-            }
-            projectWithinFrame(observer, active, remainingProjectors, reservedBudget,
-                updateBlocks, updateEntities, frameTick, projected);
-        } finally {
+        try (ProjectionBudgetLedger.ObserverFrame observerBudget = frameBudget.beginObserver(observer.getUniqueId())) {
+            List<PortalProjector> projected = new ArrayList<PortalProjector>();
+            claimArbiter.beginFrame(observer, observer.getWorld(), false);
+            localEntityOcclusion.beginFrame(observer);
             try {
-                localEntityOcclusion.flushFrame(observer);
+                if (skinWork) {
+                    skinRenderer.reconcile(observer, skinSnapshot);
+                }
+                projectWithinFrame(observer, active, remainingProjectors, reservedBudget,
+                    updateBlocks, updateEntities, frameTick, projected, observerBudget);
             } finally {
                 try {
-                    claimArbiter.flushFrame(observer);
+                    localEntityOcclusion.flushFrame(observer);
                 } finally {
-                    int blockEntityBudget = FidelitySettings.blockEntityBudgetPerTick;
-                    for (PortalProjector projector : projected) {
-                        projector.finishBlackoutDisplayFrame();
-                        blockEntityBudget -= projector.flushBlockEntities(blockEntityBudget);
+                    try {
+                        claimArbiter.flushFrame(observer);
+                    } finally {
+                        int blockEntityBudget = FidelitySettings.blockEntityBudgetPerTick;
+                        for (PortalProjector projector : projected) {
+                            projector.finishBlackoutDisplayFrame();
+                            blockEntityBudget -= projector.flushBlockEntities(blockEntityBudget);
+                        }
                     }
                 }
             }
@@ -100,7 +103,8 @@ final class ProjectionInterestFrame {
                                     boolean updateBlocks,
                                     boolean updateEntities,
                                     long frameTick,
-                                    List<PortalProjector> projected) {
+                                    List<PortalProjector> projected,
+                                    ProjectionBudgetLedger.ObserverFrame observerBudget) {
         UUID observerId = observer.getUniqueId();
         World observerWorld = observer.getWorld();
         Location observerLocation = observer.getLocation();
@@ -162,43 +166,49 @@ final class ProjectionInterestFrame {
         }
         interestSet.closeUnplanned(observerId, interestedIds, frameTick, FidelitySettings.dissolveTicks);
         interestSet.setRtpTargets(observerId, resolvedRtpTargets);
-        if (updateBlocks) {
-            projectRetiring(observer, projected);
+        List<ILocalPortal> blockCandidates = new ArrayList<ILocalPortal>(interested.size());
+        for (ILocalPortal portal : interested) {
+            if (updateBlocks || interestSet.hasPendingScan(portal.getId(), observerId)) {
+                blockCandidates.add(portal);
+            }
         }
-        if ((!updateBlocks && !updateEntities) || interested.isEmpty()) {
-            remainingProjectors.addAndGet(reservedBudget);
-            return;
+        List<PortalProjector> retiring = interestSet.retiringProjectors(observerId);
+        for (PortalProjector projector : retiring) {
+            if (updateBlocks || projector.hasPendingScan()) {
+                blockCandidates.add(projector.getPortal());
+            }
         }
-        int desiredBlocks = updateBlocks
-            ? Math.min(Settings.PROJECTION_MAX_PORTALS_PER_OBSERVER_TICK, interested.size())
+        int desiredBlocks = observerBudget.admitsBlocks()
+            ? Math.min(Settings.PROJECTION_MAX_PORTALS_PER_OBSERVER_TICK, blockCandidates.size())
             : 0;
         int reservedUsed = Math.min(reservedBudget, desiredBlocks);
         int claimedBlocks = reservedUsed + ProjectionBudgetLedger.claim(remainingProjectors, desiredBlocks - reservedUsed);
         if (reservedBudget > reservedUsed) {
             remainingProjectors.addAndGet(reservedBudget - reservedUsed);
         }
-        boolean observerUpdatesBlocks = claimedBlocks > 0;
-        int limit = observerUpdatesBlocks ? claimedBlocks : (updateEntities ? interested.size() : 0);
-        if (limit == 0) {
-            ledger.recordDeferred(interested.size());
-            return;
+        List<ILocalPortal> scheduledBlocks = claimedBlocks > 0
+            ? interestSet.nextSlice(observerId, blockCandidates, claimedBlocks) : List.of();
+        Set<UUID> blockPortalIds = new HashSet<UUID>(scheduledBlocks.size());
+        for (ILocalPortal portal : scheduledBlocks) {
+            blockPortalIds.add(portal.getId());
         }
-        List<ILocalPortal> scheduledPortals = observerUpdatesBlocks
-            ? interestSet.nextSlice(observerId, interested, limit)
-            : interested;
-        int deferred = Math.max(0, interested.size() - scheduledPortals.size());
-        if (observerUpdatesBlocks) {
-            ledger.recordScheduled(scheduledPortals.size());
-            ledger.recordDeferred(deferred);
-        }
-        projectActiveObserver(observer, scheduledPortals, resolvedRtpTargets, observerUpdatesBlocks, updateEntities,
-            projected);
+        ledger.recordScheduled(scheduledBlocks.size());
+        ledger.recordDeferred(Math.max(0, blockCandidates.size() - scheduledBlocks.size()));
+        projectRetiring(observer, retiring, blockPortalIds, projected, observerBudget);
+        projectActiveObserver(observer, interested, resolvedRtpTargets, blockPortalIds, updateEntities,
+            projected, observerBudget);
     }
 
-    private void projectRetiring(Player observer, List<PortalProjector> projected) {
-        for (PortalProjector projector : interestSet.retiringProjectors(observer.getUniqueId())) {
+    private void projectRetiring(Player observer, List<PortalProjector> retiring, Set<UUID> blockPortalIds,
+                                 List<PortalProjector> projected,
+                                 ProjectionBudgetLedger.ObserverFrame observerBudget) {
+        for (PortalProjector projector : retiring) {
+            if (!blockPortalIds.contains(projector.getPortal().getId())) {
+                continue;
+            }
             try {
-                projector.project(true, false);
+                observerBudget.recordBlockWork();
+                projector.project(true, false, observerBudget.deadlineNanos());
                 if (!projector.isClosed()) {
                     projected.add(projector);
                 }
@@ -211,12 +221,17 @@ final class ProjectionInterestFrame {
 
     private void projectActiveObserver(Player observer, List<ILocalPortal> scheduledPortals,
                                        Map<UUID, PortalProjector.RtpProjectionTarget> rtpTargets,
-                                       boolean updateBlocks, boolean updateEntities,
-                                       List<PortalProjector> projected) {
+                                       Set<UUID> blockPortalIds, boolean updateEntities,
+                                       List<PortalProjector> projected,
+                                       ProjectionBudgetLedger.ObserverFrame observerBudget) {
         if (!alive.getAsBoolean() || observer == null || !observer.isOnline()) {
             return;
         }
         for (ILocalPortal portal : scheduledPortals) {
+            boolean updateBlocks = blockPortalIds.contains(portal.getId());
+            if (!updateBlocks && !updateEntities) {
+                continue;
+            }
             PortalProjector.RtpProjectionTarget rtpTarget = rtpTargets.get(portal.getId());
             if (!isPortalStillProjectable(portal, rtpTarget != null)) {
                 continue;
@@ -228,7 +243,10 @@ final class ProjectionInterestFrame {
 
             projector.setRtpProjectionTarget(rtpTarget);
             try {
-                projector.project(updateBlocks, updateEntities);
+                if (updateBlocks) {
+                    observerBudget.recordBlockWork();
+                }
+                projector.project(updateBlocks, updateEntities, observerBudget.deadlineNanos());
                 projected.add(projector);
             } catch (Throwable ex) {
                 Wormholes.instance.getLogger().log(Level.WARNING,

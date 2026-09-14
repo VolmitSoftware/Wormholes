@@ -22,14 +22,18 @@ public final class PortalAdmission {
         return Wormholes.settings == null || Wormholes.settings.getAccess().legacyNameNodeEnabled;
     }
 
+    public static boolean bypassesAccess(Player player) {
+        return player.isOp() || player.hasPermission("*");
+    }
+
     /** Role, group and permission-node admission. The land-claim check belongs to the gate alone. */
     public static boolean allows(LocalPortal portal, Player player) {
-        if (player.isOp()) {
+        if (bypassesAccess(player)) {
             return true;
         }
         AccessPortalExtension access = portal.extension(AccessPortalExtension.class);
         if (access == null) {
-            return true;
+            return permissionAllows(portal, player);
         }
         UUID playerId = player.getUniqueId();
         PortalRole role = access.role(playerId);
@@ -51,6 +55,9 @@ public final class PortalAdmission {
      * either. With {@code [access] legacy-name-node-enabled} off the stable key is the only node.
      */
     public static boolean permissionAllows(LocalPortal portal, Player player) {
+        if (bypassesAccess(player)) {
+            return true;
+        }
         AccessPortalExtension access = portal.extension(AccessPortalExtension.class);
         boolean alias = legacyNameNodeAlias();
         String nameNode = PermissionKeys.node(PermissionKeys.sanitize(portal.getName()));

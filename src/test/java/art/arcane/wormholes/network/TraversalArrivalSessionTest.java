@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TraversalArrivalSessionTest {
     @Test
     void reconnectCompletesBeforeTheOldTeleportFutureAndKeepsItsReceiptAndLatch() throws Exception {
-        try (Fixture fixture = new Fixture()) {
+        try (Fixture fixture = new Fixture(false)) {
             Session oldSession = fixture.session();
             fixture.placer.placeOnJoin(oldSession.player);
             ScheduledTask oldPlacement = fixture.runNext();
@@ -60,7 +60,7 @@ class TraversalArrivalSessionTest {
 
     @Test
     void queuedOldCompletionCannotReleaseTheNewSessionsClaim() throws Exception {
-        try (Fixture fixture = new Fixture()) {
+        try (Fixture fixture = new Fixture(false)) {
             Session oldSession = fixture.session();
             fixture.placer.placeOnJoin(oldSession.player);
             fixture.runNext();
@@ -85,6 +85,24 @@ class TraversalArrivalSessionTest {
     private record ScheduledTask(Runnable task, Runnable retired) {
     }
 
+    @Test
+    void sourceOnlyPrivilegeSettlesWithoutGrantingDestinationPermissions() throws Exception {
+        try (Fixture fixture = new Fixture(true)) {
+            Session session = fixture.session();
+            assertFalse(session.player.isOp());
+            assertFalse(session.player.hasPermission("*"));
+            fixture.placer.placeOnJoin(session.player);
+            fixture.runNext();
+            assertEquals(1, session.teleports);
+            session.teleport.complete(Boolean.TRUE);
+            fixture.runNext();
+            fixture.assertCompletedBy(session);
+            assertFalse(session.player.isOp());
+            assertFalse(session.player.hasPermission("*"));
+            assertFalse(fixture.admissions.hasAccessBypass(fixture.playerId, System.currentTimeMillis()));
+        }
+    }
+
     private static final class Fixture implements AutoCloseable {
         private final Wormholes previousPlugin = Wormholes.instance;
         private final PortalManager previousManager = Wormholes.portalManager;
@@ -100,7 +118,7 @@ class TraversalArrivalSessionTest {
         private final World world;
         private final TraversalArrivalPlacer placer;
 
-        private Fixture() throws ReflectiveOperationException {
+        private Fixture(boolean sourceBypass) throws ReflectiveOperationException {
             Wormholes.instance = allocate(Wormholes.class);
             Field logger = JavaPlugin.class.getDeclaredField("logger");
             logger.setAccessible(true);
@@ -116,7 +134,9 @@ class TraversalArrivalSessionTest {
                 new Class<?>[] {ILocalPortal.class}, (instance, method, arguments) -> switch (method.getName()) {
                     case "getId" -> portalId;
                     case "getStructure" -> structure;
-                    case "isOpen", "canArrive" -> Boolean.TRUE;
+                    case "isOpen" -> Boolean.TRUE;
+                    case "canArrive" -> Boolean.valueOf(!sourceBypass);
+                    case "isMirrorMode" -> Boolean.FALSE;
                     case "computeExitTarget" -> new Location(world, 100.5D, 64.0D, 100.5D);
                     case "completeRemoteArrival" -> {
                         Player player = (Player) arguments[0];
@@ -134,7 +154,7 @@ class TraversalArrivalSessionTest {
                 0.0D, 64.0D, 0.0D, 0.0D, 64.0D, 0.0D,
                 0.0D, 0.0D, 1.0D, 0.0D, 0.0D, 1.0D, true);
             PlayerHandoffAdmission.Request request = new PlayerHandoffAdmission.Request(
-                transferId, playerId, "traveler", "source", portalId, true, geometry);
+                transferId, playerId, "traveler", "source", portalId, true, sourceBypass, geometry);
             admissions.decide(new PlayerHandoffAdmission.Attempt(request, null, System.currentTimeMillis(), 60_000L, 1_000L));
             placer = new TraversalArrivalPlacer(new TraversalArrivalPlacer.Services(
                 null, admissions, failures, new TraversalNotices(),
@@ -203,6 +223,7 @@ class TraversalArrivalSessionTest {
                 case "getUniqueId" -> playerId;
                 case "getName" -> "traveler";
                 case "isOnline", "isValid" -> Boolean.valueOf(online);
+                case "isOp", "hasPermission" -> Boolean.FALSE;
                 case "getLocation" -> new Location(world, 0.5D, 64.0D, 0.5D);
                 case "teleportAsync" -> {
                     teleports++;

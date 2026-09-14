@@ -194,6 +194,24 @@ public final class ProjectionClaimArbiter {
                                     double priorityDistance,
                                     boolean allowLightingUpdate,
                                     boolean sourceLighting) {
+        return submitClaims(observer, claimOwnerId, localWorld, claims, priorityDistance,
+            allowLightingUpdate, sourceLighting, null);
+    }
+
+    ClaimUpdateResult submitDelta(Player observer, ILocalPortal portal, World localWorld,
+                                   ProjectionClaimSet.ClaimDelta delta, double priorityDistance,
+                                   boolean allowLightingUpdate, boolean sourceLighting) {
+        if (portal == null || delta == null) {
+            return ClaimUpdateResult.empty();
+        }
+        return submitClaims(observer, portal.getId(), localWorld, delta.claims(), priorityDistance,
+            allowLightingUpdate, sourceLighting, delta);
+    }
+
+    private ClaimUpdateResult submitClaims(Player observer, UUID claimOwnerId, World localWorld,
+                                           Long2ObjectMap<ProjectedBlockClaim> claims, double priorityDistance,
+                                           boolean allowLightingUpdate, boolean sourceLighting,
+                                           ProjectionClaimSet.ClaimDelta delta) {
         if (observer == null || claimOwnerId == null || claims == null) {
             return ClaimUpdateResult.empty();
         }
@@ -214,12 +232,17 @@ public final class ProjectionClaimArbiter {
                 String tieKey = claimOwnerId.toString();
                 ObserverFrame frame = state.frame;
                 if (frame != null) {
-                    state.claimSet.stagePortalClaims(claimOwnerId, tieKey, priorityDistance, claims, frame.affectedKeys);
+                    if (delta == null) {
+                        state.claimSet.stagePortalClaims(claimOwnerId, tieKey, priorityDistance, claims, frame.affectedKeys);
+                    } else {
+                        state.claimSet.stagePortalDelta(claimOwnerId, tieKey, priorityDistance, delta, frame.affectedKeys);
+                    }
                     frame.allowLightingUpdate |= allowLightingUpdate;
                     return ClaimUpdateResult.empty();
                 }
-                ProjectionClaimSet.ProjectionClaimSetResult setResult = state.claimSet.replacePortalClaims(
-                    claimOwnerId, tieKey, priorityDistance, claims);
+                ProjectionClaimSet.ProjectionClaimSetResult setResult = delta == null
+                    ? state.claimSet.replacePortalClaims(claimOwnerId, tieKey, priorityDistance, claims)
+                    : state.claimSet.replacePortalDelta(claimOwnerId, tieKey, priorityDistance, delta);
                 return applyResult(observer, localWorld, state, setResult, allowLightingUpdate, false);
             }
         }
@@ -486,100 +509,125 @@ public final class ProjectionClaimArbiter {
             return new ClaimUpdateResult(0, setResult.getConflicts(),
                 setResult.getWinnerChanges(), setResult.getReverts());
         }
-        int mapCapacity = expectedChanges <= 2 ? 4 : (expectedChanges * 4 / 3) + 2;
-        Long2ObjectMap<BlockData> blockChanges = new Long2ObjectOpenHashMap<BlockData>(mapCapacity);
-        Long2IntOpenHashMap blockChangeIds = new Long2IntOpenHashMap(mapCapacity);
-        blockChangeIds.defaultReturnValue(-1);
-        if (canSend) {
-            ProjectionWorldView localView = viewProvider.view(localWorld);
-            Long2ByteOpenHashMap chunkSentMemo = observerClaims.chunkSentMemo;
-            Long2LongOpenHashMap chunkRevisionMemo = observerClaims.chunkRevisionMemo;
-            long visibilityRevision = observerClaims.clientChunkRevision;
-            if (visibilityRevision == Long.MIN_VALUE || visibilityRevision != observerClaims.chunkMemoRevision) {
-                chunkSentMemo.clear();
-                chunkRevisionMemo.clear();
-                observerClaims.chunkMemoRevision = visibilityRevision;
-            }
-            LongIterator packetIterator = packetKeys.iterator();
-            while (packetIterator.hasNext()) {
-                long key = packetIterator.nextLong();
-                ProjectedBlockClaim winner = observerClaims.claimSet.getWinningClaim(key);
-                int x = ProjectionCellKey.unpackX(key);
-                int y = ProjectionCellKey.unpackY(key);
-                int z = ProjectionCellKey.unpackZ(key);
-                int chunkX = x >> 4;
-                int chunkZ = z >> 4;
-                long chunkKey = (((long) chunkX) << 32) | (chunkZ & 0xFFFFFFFFL);
-                byte sentState = chunkSentMemo.get(chunkKey);
-                if (sentState == 0) {
-                    sentState = chunkVisibility.isChunkSent(observer, chunkX, chunkZ) ? (byte) 1 : (byte) 2;
-                    chunkSentMemo.put(chunkKey, sentState);
+        BlockChangeBatch batch = observerClaims.blockBatch;
+        observerClaims.blockBatch = null;
+        if (batch == null) {
+            batch = new BlockChangeBatch(expectedChanges);
+        }
+        Long2ObjectMap<BlockData> blockChanges = batch.blocks;
+        Long2IntOpenHashMap blockChangeIds = batch.ids;
+        try {
+            if (canSend) {
+                ProjectionWorldView localView = null;
+                boolean localViewResolved = false;
+                LongOpenHashSet discardedLightingChunks = observerClaims.discardedLightingChunks;
+                discardedLightingChunks.clear();
+                Long2ByteOpenHashMap chunkSentMemo = observerClaims.chunkSentMemo;
+                Long2LongOpenHashMap chunkRevisionMemo = observerClaims.chunkRevisionMemo;
+                long visibilityRevision = observerClaims.clientChunkRevision;
+                if (visibilityRevision == Long.MIN_VALUE || visibilityRevision != observerClaims.chunkMemoRevision) {
+                    chunkSentMemo.clear();
+                    chunkRevisionMemo.clear();
+                    observerClaims.chunkMemoRevision = visibilityRevision;
                 }
-                if (sentState == 2) {
-                    observerClaims.sentBlocks.remove(key);
-                    observerClaims.sentBlockChunkRevisions.remove(key);
-                    observerClaims.lighting.discardChunk(chunkX, chunkZ);
-                    if (winner != null) {
-                        observerClaims.pendingSendKeys.add(key);
-                        observerClaims.pendingLightingKeys.add(key);
+                LongIterator packetIterator = packetKeys.iterator();
+                while (packetIterator.hasNext()) {
+                    long key = packetIterator.nextLong();
+                    ProjectedBlockClaim winner = observerClaims.claimSet.getWinningClaim(key);
+                    int x = ProjectionCellKey.unpackX(key);
+                    int y = ProjectionCellKey.unpackY(key);
+                    int z = ProjectionCellKey.unpackZ(key);
+                    int chunkX = x >> 4;
+                    int chunkZ = z >> 4;
+                    long chunkKey = packChunkKey(chunkX, chunkZ);
+                    byte sentState = chunkSentMemo.get(chunkKey);
+                    if (sentState == 0) {
+                        sentState = chunkVisibility.isChunkSent(observer, chunkX, chunkZ) ? (byte) 1 : (byte) 2;
+                        chunkSentMemo.put(chunkKey, sentState);
                     }
-                    continue;
-                }
-                if (winner == null) {
-                    if (!observerClaims.sentBlocks.containsKey(key)) {
+                    if (sentState == 2) {
+                        observerClaims.sentBlocks.remove(key);
+                        removeSentChunkKey(observerClaims, chunkKey, key);
+                        if (discardedLightingChunks.add(chunkKey)) {
+                            observerClaims.lighting.discardChunk(chunkX, chunkZ);
+                        }
+                        if (winner != null) {
+                            observerClaims.pendingSendKeys.add(key);
+                            observerClaims.pendingLightingKeys.add(key);
+                        }
                         continue;
                     }
-                    BlockData localData = localView == null ? null : localView.sampleBlockData(x, y, z);
-                    if (localData == null) {
+                    if (winner == null) {
+                        BlockData sentData = observerClaims.sentBlocks.get(key);
+                        if (sentData == null) {
+                            continue;
+                        }
+                        if (!localViewResolved) {
+                            localView = viewProvider.view(localWorld);
+                            localViewResolved = true;
+                        }
+                        BlockData localData = localView == null ? null : localView.sampleBlockData(x, y, z);
+                        if (localData == null) {
+                            observerClaims.pendingRevertKeys.add(key);
+                            continue;
+                        }
+                        observerClaims.sentBlocks.remove(key);
+                        removeSentChunkKey(observerClaims, chunkKey, key);
+                        if (sentData.equals(localData)) {
+                            continue;
+                        }
+                        blockChanges.put(key, localData);
+                        blockChangeIds.put(key, resolveGlobalId(localData));
+                    } else {
+                        BlockData sentData = observerClaims.sentBlocks.get(key);
+                        BlockData winnerData = winner.getData();
+                        if (sentData != null && sentData.equals(winnerData)) {
+                            continue;
+                        }
+                        observerClaims.sentBlocks.put(key, winnerData);
+                        long chunkRevision = chunkRevisionMemo.get(chunkKey);
+                        if (chunkRevision == Long.MIN_VALUE) {
+                            chunkRevision = chunkVisibility.chunkRevision(observer, chunkX, chunkZ);
+                            chunkRevisionMemo.put(chunkKey, chunkRevision);
+                        }
+                        SentChunk sentChunk = observerClaims.sentChunks.get(chunkKey);
+                        if (sentChunk == null) {
+                            sentChunk = new SentChunk(chunkRevision);
+                            observerClaims.sentChunks.put(chunkKey, sentChunk);
+                        }
+                        sentChunk.keys.add(key);
+                        blockChanges.put(key, winnerData);
+                        blockChangeIds.put(key, claimGlobalId(winner, winnerData));
+                    }
+                }
+                if (!blockChanges.isEmpty()) {
+                    sendBlockChanges(observer, localWorld, blockChanges, blockChangeIds,
+                        ClientProfileService.profileFor(observer).blockBatchLimit());
+                }
+            } else {
+                LongIterator packetIterator = packetKeys.iterator();
+                while (packetIterator.hasNext()) {
+                    long key = packetIterator.nextLong();
+                    if (observerClaims.claimSet.getWinningClaim(key) == null) {
                         observerClaims.pendingRevertKeys.add(key);
-                        continue;
+                    } else {
+                        observerClaims.pendingSendKeys.add(key);
                     }
-                    BlockData sentData = observerClaims.sentBlocks.get(key);
-                    observerClaims.sentBlocks.remove(key);
-                    observerClaims.sentBlockChunkRevisions.remove(key);
-                    if (sentData.equals(localData)) {
-                        continue;
-                    }
-                    blockChanges.put(key, localData);
-                    blockChangeIds.put(key, resolveGlobalId(localData));
-                } else {
-                    BlockData sentData = observerClaims.sentBlocks.get(key);
-                    BlockData winnerData = winner.getData();
-                    if (sentData != null && sentData.equals(winnerData)) {
-                        continue;
-                    }
-                    observerClaims.sentBlocks.put(key, winnerData);
-                    long chunkRevision = chunkRevisionMemo.get(chunkKey);
-                    if (chunkRevision == Long.MIN_VALUE) {
-                        chunkRevision = chunkVisibility.chunkRevision(observer, chunkX, chunkZ);
-                        chunkRevisionMemo.put(chunkKey, chunkRevision);
-                    }
-                    observerClaims.sentBlockChunkRevisions.put(key, chunkRevision);
-                    blockChanges.put(key, winnerData);
-                    blockChangeIds.put(key, claimGlobalId(winner, winnerData));
                 }
             }
-            if (!blockChanges.isEmpty()) {
-                sendBlockChanges(observer, localWorld, blockChanges, blockChangeIds,
-                    ClientProfileService.profileFor(observer).blockBatchLimit());
-            }
-        } else {
-            LongIterator packetIterator = packetKeys.iterator();
-            while (packetIterator.hasNext()) {
-                long key = packetIterator.nextLong();
-                if (observerClaims.claimSet.getWinningClaim(key) == null) {
-                    observerClaims.pendingRevertKeys.add(key);
-                } else {
-                    observerClaims.pendingSendKeys.add(key);
-                }
+
+            observerClaims.pendingLightingKeys.addAll(setResult.getDirtyLightingKeys());
+            applyLighting(observer, localWorld, observerClaims, canSend, updateLightingNow);
+
+            return new ClaimUpdateResult(blockChanges.size(), setResult.getConflicts(),
+                setResult.getWinnerChanges(), setResult.getReverts());
+        } finally {
+            batch.blocks.clear();
+            batch.ids.clear();
+            if (expectedChanges <= 65_536 && !observerClaims.retired) {
+                observerClaims.blockBatch = batch;
             }
         }
-
-        observerClaims.pendingLightingKeys.addAll(setResult.getDirtyLightingKeys());
-        applyLighting(observer, localWorld, observerClaims, canSend, updateLightingNow);
-
-        return new ClaimUpdateResult(blockChanges.size(), setResult.getConflicts(),
-            setResult.getWinnerChanges(), setResult.getReverts());
     }
 
     private void applyLighting(Player observer, World localWorld, ObserverClaims observerClaims, boolean canSend, boolean allowLightingUpdate) {
@@ -636,40 +684,38 @@ public final class ProjectionClaimArbiter {
             return;
         }
         state.clientChunkRevision = revision;
-        LongOpenHashSet validChunks = new LongOpenHashSet();
-        LongOpenHashSet invalidChunks = new LongOpenHashSet();
-        LongIterator iterator = state.sentBlocks.keySet().iterator();
+        ObjectIterator<Long2ObjectMap.Entry<SentChunk>> iterator = Long2ObjectMaps.fastIterator(state.sentChunks);
         while (iterator.hasNext()) {
-            long key = iterator.nextLong();
-            int chunkX = ProjectionCellKey.unpackX(key) >> 4;
-            int chunkZ = ProjectionCellKey.unpackZ(key) >> 4;
-            long chunkKey = packChunkKey(chunkX, chunkZ);
-            if (validChunks.contains(chunkKey)) {
+            Long2ObjectMap.Entry<SentChunk> entry = iterator.next();
+            long chunkKey = entry.getLongKey();
+            SentChunk sentChunk = entry.getValue();
+            int chunkX = (int) (chunkKey >> 32);
+            int chunkZ = (int) chunkKey;
+            long currentChunkRevision = chunkVisibility.chunkRevision(observer, chunkX, chunkZ);
+            if (chunkVisibility.isChunkSent(observer, chunkX, chunkZ)
+                && (currentChunkRevision == Long.MIN_VALUE || currentChunkRevision == sentChunk.revision)) {
                 continue;
             }
-            if (!invalidChunks.contains(chunkKey)) {
-                long currentChunkRevision = chunkVisibility.chunkRevision(observer, chunkX, chunkZ);
-                long sentChunkRevision = state.sentBlockChunkRevisions.get(key);
-                if (chunkVisibility.isChunkSent(observer, chunkX, chunkZ)
-                    && (currentChunkRevision == Long.MIN_VALUE || currentChunkRevision == sentChunkRevision)) {
-                    validChunks.add(chunkKey);
-                    continue;
-                }
-                invalidChunks.add(chunkKey);
-            }
             iterator.remove();
-            state.sentBlockChunkRevisions.remove(key);
-            if (state.claimSet.getWinningClaim(key) != null) {
-                state.pendingSendKeys.add(key);
-                state.pendingLightingKeys.add(key);
+            LongIterator keys = sentChunk.keys.iterator();
+            while (keys.hasNext()) {
+                long key = keys.nextLong();
+                state.sentBlocks.remove(key);
+                if (state.claimSet.getWinningClaim(key) != null) {
+                    state.pendingSendKeys.add(key);
+                    state.pendingLightingKeys.add(key);
+                }
             }
-        }
-        LongIterator invalidIterator = invalidChunks.iterator();
-        while (invalidIterator.hasNext()) {
-            long chunkKey = invalidIterator.nextLong();
-            state.lighting.discardChunk((int) (chunkKey >> 32), (int) chunkKey);
+            state.lighting.discardChunk(chunkX, chunkZ);
         }
         state.lighting.discardUnsentChunks(observer);
+    }
+
+    private static void removeSentChunkKey(ObserverClaims state, long chunkKey, long key) {
+        SentChunk sentChunk = state.sentChunks.get(chunkKey);
+        if (sentChunk != null && sentChunk.keys.remove(key) && sentChunk.keys.isEmpty()) {
+            state.sentChunks.remove(chunkKey);
+        }
     }
 
     static void sendBlockChanges(Player observer,
@@ -891,9 +937,11 @@ public final class ProjectionClaimArbiter {
         state.pendingRevertKeys.clear();
         state.pendingSendKeys.clear();
         state.sentBlocks.clear();
-        state.sentBlockChunkRevisions.clear();
+        state.blockBatch = null;
+        state.sentChunks.clear();
         state.chunkSentMemo.clear();
         state.chunkRevisionMemo.clear();
+        state.discardedLightingChunks.clear();
         state.chunkMemoRevision = Long.MIN_VALUE;
         state.lighting.discard();
         state.biomes = null;
@@ -965,13 +1013,15 @@ public final class ProjectionClaimArbiter {
         private final LongOpenHashSet pendingRevertKeys;
         private final LongOpenHashSet pendingSendKeys;
         private final Long2ObjectOpenHashMap<BlockData> sentBlocks;
-        private final Long2LongOpenHashMap sentBlockChunkRevisions;
+        private final Long2ObjectOpenHashMap<SentChunk> sentChunks;
         private final Long2ByteOpenHashMap chunkSentMemo;
         private final Long2LongOpenHashMap chunkRevisionMemo;
+        private final LongOpenHashSet discardedLightingChunks;
         private final ProjectorLighting lighting;
         private final Set<UUID> sourceLightingPortals;
         private BiomeClaimSet biomes;
         private ObserverFrame frame;
+        private BlockChangeBatch blockBatch;
         private long clientChunkRevision;
         private long chunkMemoRevision;
         private boolean retired;
@@ -983,11 +1033,11 @@ public final class ProjectionClaimArbiter {
             this.pendingRevertKeys = new LongOpenHashSet();
             this.pendingSendKeys = new LongOpenHashSet();
             this.sentBlocks = new Long2ObjectOpenHashMap<BlockData>(256);
-            this.sentBlockChunkRevisions = new Long2LongOpenHashMap(256);
-            this.sentBlockChunkRevisions.defaultReturnValue(Long.MIN_VALUE);
+            this.sentChunks = new Long2ObjectOpenHashMap<SentChunk>(16);
             this.chunkSentMemo = new Long2ByteOpenHashMap(64);
             this.chunkRevisionMemo = new Long2LongOpenHashMap(64);
             this.chunkRevisionMemo.defaultReturnValue(Long.MIN_VALUE);
+            this.discardedLightingChunks = new LongOpenHashSet(16);
             this.lighting = lighting;
             this.sourceLightingPortals = new HashSet<UUID>(4);
             this.biomes = null;
@@ -995,6 +1045,27 @@ public final class ProjectionClaimArbiter {
             this.clientChunkRevision = Long.MIN_VALUE;
             this.chunkMemoRevision = Long.MIN_VALUE;
             this.retired = false;
+        }
+    }
+
+    private static final class BlockChangeBatch {
+        private final Long2ObjectOpenHashMap<BlockData> blocks;
+        private final Long2IntOpenHashMap ids;
+
+        private BlockChangeBatch(int expectedChanges) {
+            blocks = new Long2ObjectOpenHashMap<BlockData>(expectedChanges);
+            ids = new Long2IntOpenHashMap(expectedChanges);
+            ids.defaultReturnValue(-1);
+        }
+    }
+
+    private static final class SentChunk {
+        private final LongOpenHashSet keys;
+        private final long revision;
+
+        private SentChunk(long revision) {
+            this.keys = new LongOpenHashSet(64);
+            this.revision = revision;
         }
     }
 
