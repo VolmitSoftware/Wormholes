@@ -1,12 +1,15 @@
 package art.arcane.wormholes.render;
 
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Proxy;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.PacketEventsAPI;
@@ -26,6 +29,10 @@ import com.github.retrooper.packetevents.protocol.player.UserProfile;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import io.github.retrooper.packetevents.impl.netty.buffer.ByteBufAllocationOperatorImpl;
 import io.github.retrooper.packetevents.impl.netty.buffer.ByteBufOperatorImpl;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
     private final List<PacketWrapper<?>> sent = new ArrayList<PacketWrapper<?>>();
@@ -191,30 +198,16 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
     }
 
     static Player player(boolean online) {
-        UUID id = UUID.randomUUID();
-        InvocationHandler handler = (proxy, method, args) -> {
-            String name = method.getName();
-            if ("isOnline".equals(name)) {
-                return Boolean.valueOf(online);
-            }
-            if ("getUniqueId".equals(name)) {
-                return id;
-            }
-            if ("getName".equals(name)) {
-                return "Observer";
-            }
-            if ("toString".equals(name)) {
-                return "Observer";
-            }
-            if ("hashCode".equals(name)) {
-                return Integer.valueOf(id.hashCode());
-            }
-            if ("equals".equals(name)) {
-                return Boolean.valueOf(proxy == args[0]);
-            }
-            return null;
-        };
-        return (Player) Proxy.newProxyInstance(Player.class.getClassLoader(), new Class<?>[] { Player.class }, handler);
+        Player observer = mock(VisiblePlayer.class, withSettings().useConstructor());
+        when(observer.isOnline()).thenReturn(online);
+        when(observer.getUniqueId()).thenReturn(UUID.randomUUID());
+        when(observer.getName()).thenReturn("Observer");
+        return observer;
+    }
+
+    abstract static class VisiblePlayer implements Player {
+        private final Map<UUID, Set<WeakReference<Plugin>>> invertedVisibilityEntities =
+            new HashMap<UUID, Set<WeakReference<Plugin>>>();
     }
 
     @Override

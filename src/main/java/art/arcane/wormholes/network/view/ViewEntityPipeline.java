@@ -5,11 +5,11 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.protocol.player.TextureProperty;
 import com.github.retrooper.packetevents.protocol.player.UserProfile;
-import art.arcane.wormholes.EffectManager;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.network.WireMessage;
 import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.wormholes.render.ProjectionEntityFilter;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -179,7 +179,7 @@ final class ViewEntityPipeline {
             if (!FoliaScheduler.isFoliaThreading(Bukkit.getServer())) {
                 ViewServer.EntityAdmission<Entity> admission = new ViewServer.EntityAdmission<>(ViewServer.MAX_CAPTURED_ENTITIES);
                 for (Entity entity : session.world.getNearbyEntities(session.bounds)) {
-                    if (entity.isDead() || !entity.isValid() || EffectManager.isPortalEffectEntity(entity)) {
+                    if (!ProjectionEntityFilter.canBroadcast(entity)) {
                         continue;
                     }
                     admission.admit(entityRank(session, entity), entity);
@@ -190,7 +190,7 @@ final class ViewEntityPipeline {
                         retireCapture(session, token);
                         return;
                     }
-                    if (entity.isDead() || !entity.isValid() || EffectManager.isPortalEffectEntity(entity)) {
+                    if (!ProjectionEntityFilter.canBroadcast(entity)) {
                         continue;
                     }
                     EntityVisual currentFull = captureEntityVisualFull(session, context, entity, entityTick);
@@ -222,9 +222,7 @@ final class ViewEntityPipeline {
                         }
                         for (Entity entity : session.world.getNearbyEntities(partitionBounds)) {
                             if (!FoliaScheduler.isOwnedByCurrentRegion(entity)
-                                || entity.isDead()
-                                || !entity.isValid()
-                                || EffectManager.isPortalEffectEntity(entity)) {
+                                || !ProjectionEntityFilter.canBroadcast(entity)) {
                                 continue;
                             }
                             ViewServer.EntityRank rank = entityRank(session, entity);
@@ -270,9 +268,7 @@ final class ViewEntityPipeline {
                         return;
                     }
                     Location location = entity.getLocation();
-                    if (entity.isDead()
-                        || !entity.isValid()
-                        || EffectManager.isPortalEffectEntity(entity)
+                    if (!ProjectionEntityFilter.canBroadcast(entity)
                         || !session.bounds.contains(location.getX(), location.getY(), location.getZ())) {
                         capture.complete(null);
                         return;

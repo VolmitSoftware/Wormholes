@@ -10,6 +10,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
@@ -243,7 +244,11 @@ public final class EntityRenderLocalOcclusionArbiter {
 
         @Override
         public void show(Player observer, Entity entity) {
-            observer.showEntity(Wormholes.instance, entity);
+            if (entity instanceof Item && !entity.isVisibleByDefault()) {
+                observer.hideEntity(Wormholes.instance, entity);
+            } else {
+                observer.showEntity(Wormholes.instance, entity);
+            }
         }
     }
 

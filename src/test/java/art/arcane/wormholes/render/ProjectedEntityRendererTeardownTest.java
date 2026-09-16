@@ -4,6 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.anyDouble;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
@@ -154,6 +157,36 @@ public final class ProjectedEntityRendererTeardownTest {
     }
 
     @Test
+    public void hidingAnEntityDestroysItsExistingProjection() {
+        ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.install();
+        try {
+            EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
+            EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
+            EntityRenderSpoofRegistry registry = new EntityRenderSpoofRegistry(channel, identity);
+            UUID sourceId = UUID.randomUUID();
+            EntityRenderSpoofedEntity item = EntityRenderSpoofedEntity.create(false, false, false);
+            registry.track(sourceId, item);
+            ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
+            Player observer = ProjectedEntityPacketRecorder.player(true);
+            EntityVisual visual = mock(EntityVisual.class);
+            when(visual.id()).thenReturn(sourceId);
+            ProjectionEntityView view = mock(ProjectionEntityView.class);
+            when(view.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(visual));
+            when(view.isVisibleTo(observer, sourceId)).thenReturn(false);
+            PortalFrame frame = PortalFrame.canonical(Direction.N);
+
+            renderer.applySnapshot(observer, null, portalAt(0.0D, 64.0D, 0.0D), false, 0, view,
+                null, 32.0D, frame, frame, new ProjectedEntityOcclusion());
+
+            assertFalse(renderer.hasProjectedEntity(sourceId));
+            assertArrayEquals(new int[] {item.fakeId},
+                recorder.sentOfType(WrapperPlayServerDestroyEntities.class).getFirst().getEntityIds());
+        } finally {
+            recorder.uninstall();
+        }
+    }
+
+    @Test
     public void snapshotPassDestroysCulledSpoofsBeforeEmittingRelationshipPackets() {
         boolean spoofing = Settings.ENTITY_SPOOFING;
         int maxSpoofed = Settings.MAX_SPOOFED_ENTITIES;
@@ -186,6 +219,11 @@ public final class ProjectedEntityRendererTeardownTest {
 
     private static ProjectionEntityView emptyEntityView() {
         return new ProjectionEntityView() {
+            @Override
+            public boolean isVisibleTo(Player observer, UUID entityId) {
+                return true;
+            }
+
             @Override
             public List<EntityVisual> getEntities(double centerX, double centerY, double centerZ, double range) {
                 return List.of();

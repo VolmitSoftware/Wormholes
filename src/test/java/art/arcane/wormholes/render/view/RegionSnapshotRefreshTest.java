@@ -2,6 +2,7 @@ package art.arcane.wormholes.render.view;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.wormholes.platform.EntityVisibilityAccess;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 
 import org.bukkit.Bukkit;
@@ -14,10 +15,13 @@ import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
@@ -25,14 +29,60 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 
 final class RegionSnapshotRefreshTest {
+    @Test
+    void snapshotsCaptureDefaultVisibilityWithoutReadingEntitiesOnTheViewerThread() throws ReflectiveOperationException {
+        try (Fixture fixture = new Fixture();
+             MockedStatic<EntityVisibilityAccess> visibility = mockStatic(EntityVisibilityAccess.class)) {
+            AtomicInteger visibilityReads = new AtomicInteger();
+            Item item = proxy(Item.class, (instance, method, arguments) -> switch (method.getName()) {
+                case "isVisibleByDefault" -> {
+                    visibilityReads.incrementAndGet();
+                    yield fixture.itemVisible.get();
+                }
+                case "getType" -> EntityType.ITEM;
+                default -> fixture.entityValue(instance, method, arguments);
+            });
+            fixture.entities.set(new Entity[] {item});
+            fixture.itemVisible.set(true);
+            fixture.capture();
+            ProjectionEntityView entityView = (ProjectionEntityView) fixture.view;
+            Player observer = mock(Player.class);
+            visibility.when(() -> EntityVisibilityAccess.isVisible(eq(observer), eq(fixture.entityId),
+                anyBoolean(), eq(fixture.plugin))).thenAnswer(call -> call.getArgument(2));
+            assertEquals(1, entityView.getEntities(4.0D, 64.0D, 8.0D, 4.0D).size());
+            assertTrue(entityView.isVisibleTo(observer, fixture.entityId));
+
+            fixture.itemVisible.set(false);
+            assertTrue(entityView.isVisibleTo(observer, fixture.entityId));
+            fixture.now.set(1_250L);
+            fixture.capture();
+            assertFalse(entityView.isVisibleTo(observer, fixture.entityId));
+            assertEquals(1, entityView.getEntities(4.0D, 64.0D, 8.0D, 4.0D).size());
+
+            fixture.itemVisible.set(true);
+            fixture.now.set(1_500L);
+            fixture.capture();
+            assertEquals(1, entityView.getEntities(4.0D, 64.0D, 8.0D, 4.0D).size());
+            assertTrue(entityView.isVisibleTo(observer, fixture.entityId));
+            assertFalse(entityView.isVisibleTo(observer, UUID.randomUUID()));
+            assertEquals(3, visibilityReads.get());
+        }
+    }
+
     @Test
     void continuousEntityCapturesDoNotPostponeTheBlockSnapshotBackstop() throws ReflectiveOperationException {
         try (Fixture fixture = new Fixture()) {
@@ -113,17 +163,21 @@ final class RegionSnapshotRefreshTest {
         private final AtomicInteger snapshotCaptures = new AtomicInteger();
         private final AtomicInteger equipmentCaptures = new AtomicInteger();
         private final AtomicReference<Material> material = new AtomicReference<Material>(Material.STONE);
+        private final AtomicReference<Entity[]> entities = new AtomicReference<Entity[]>();
+        private final AtomicBoolean itemVisible = new AtomicBoolean();
         private final ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
         private final ProjectionWorldChangeTracker previousTracker;
+        private final Plugin plugin;
         private final RegionSnapshotWorldViewProvider provider;
         private final ProjectionWorldView view;
         private final Method capture;
 
         private Fixture() throws ReflectiveOperationException {
             LivingEntity entity = proxy(LivingEntity.class, this::entityValue);
+            entities.set(new Entity[] {entity});
             Chunk chunk = proxy(Chunk.class, (instance, method, arguments) -> switch (method.getName()) {
                 case "getChunkSnapshot" -> snapshot();
-                case "getEntities" -> new Entity[] {entity};
+                case "getEntities" -> entities.get();
                 default -> objectValue(instance, method, arguments);
             });
             World world = proxy(World.class, (instance, method, arguments) -> switch (method.getName()) {
@@ -135,7 +189,7 @@ final class RegionSnapshotRefreshTest {
                 case "getTime" -> Long.valueOf(6_000L);
                 default -> objectValue(instance, method, arguments);
             });
-            Plugin plugin = proxy(Plugin.class, (instance, method, arguments) -> {
+            plugin = proxy(Plugin.class, (instance, method, arguments) -> {
                 throw new AssertionError("Unexpected plugin access: " + method.getName());
             });
             provider = new RegionSnapshotWorldViewProvider(plugin, now::get);

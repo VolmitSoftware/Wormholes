@@ -1,0 +1,12 @@
+name: WormholesRealDropsFixture
+version: 1.0.0
+main: qa.RealDropsFixture
+api-version: '26.1'
+folia-supported: true
+depend: [Wormholes, Gloss]
+commands:
+  whdrops:
+    permission: wormholesdropsfixture.use
+permissions:
+  wormholesdropsfixture.use:
+    default: op

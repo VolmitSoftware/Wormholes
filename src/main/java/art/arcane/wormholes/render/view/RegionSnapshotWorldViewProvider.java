@@ -1,15 +1,16 @@
 package art.arcane.wormholes.render.view;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
-import art.arcane.wormholes.EffectManager;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.network.view.PacketBlobs;
 import art.arcane.wormholes.network.view.ProjectedMapData;
 import art.arcane.wormholes.network.view.RemoteViewCache;
+import art.arcane.wormholes.platform.EntityVisibilityAccess;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.wormholes.render.ProjectionEntityFilter;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
@@ -170,7 +171,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         List<CapturedEntity> captured = new ArrayList<CapturedEntity>(limit);
         for (int i = 0; i < source.length && captured.size() < limit; i++) {
             Entity entity = source[i];
-            if (entity == null || entity.isDead() || !entity.isValid() || EffectManager.isPortalEffectEntity(entity)) {
+            if (!ProjectionEntityFilter.canCapture(entity)) {
                 continue;
             }
             captured.add(captureEntity(view, entity, chunkKey, capturedAtMillis));
@@ -226,7 +227,8 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         RemoteViewCache.RemoteProfile profile = entity instanceof Player
             ? new RemoteViewCache.RemoteProfile(playerName, textureValue, textureSignature)
             : null;
-        return new CapturedEntity(chunkKey, visual, profile, metadata, equipment, mapView, capturedAtMillis,
+        return new CapturedEntity(chunkKey, visual, profile, metadata, equipment, mapView,
+            entity.isVisibleByDefault(), capturedAtMillis,
             reuseState ? previous.stateCapturedAtMillis : capturedAtMillis);
     }
 
@@ -409,6 +411,13 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
                 }
             }
             return result;
+        }
+
+        @Override
+        public boolean isVisibleTo(Player observer, UUID entityId) {
+            EntityState state = entityStates.get(entityId);
+            return state != null && EntityVisibilityAccess.isVisible(observer, entityId,
+                state.entity.visibleByDefault, plugin);
         }
 
         @Override
@@ -643,18 +652,20 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         private final List<EntityData<?>> metadata;
         private final List<Equipment> equipment;
         private final MapView mapView;
+        private final boolean visibleByDefault;
         private final long capturedAtMillis;
         private final long stateCapturedAtMillis;
 
         private CapturedEntity(long chunkKey, EntityVisual visual, RemoteViewCache.RemoteProfile profile,
                                List<EntityData<?>> metadata, List<Equipment> equipment, MapView mapView,
-                               long capturedAtMillis, long stateCapturedAtMillis) {
+                               boolean visibleByDefault, long capturedAtMillis, long stateCapturedAtMillis) {
             this.chunkKey = chunkKey;
             this.visual = visual;
             this.profile = profile;
             this.metadata = metadata;
             this.equipment = equipment;
             this.mapView = mapView;
+            this.visibleByDefault = visibleByDefault;
             this.capturedAtMillis = capturedAtMillis;
             this.stateCapturedAtMillis = stateCapturedAtMillis;
         }

@@ -3,11 +3,14 @@ package art.arcane.wormholes.render.view;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.network.view.ViewBox;
+import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.platform.EntityVisibilityAccess;
 
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
 
 import org.bukkit.World;
+import org.bukkit.entity.Player;
 import org.bukkit.block.data.BlockData;
 
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
@@ -121,6 +124,11 @@ public final class RemoteWorldView implements ProjectionWorldView, ProjectionEnt
     @Override
     public List<EntityVisual> getEntities(double centerX, double centerY, double centerZ, double range) {
         return view.getEntities();
+    }
+
+    @Override
+    public boolean isVisibleTo(Player observer, UUID entityId) {
+        return EntityVisibilityAccess.isVisible(observer, entityId, true, Wormholes.instance);
     }
 
     public RemoteViewCache.RemoteProfile getProfile(UUID entityId) {

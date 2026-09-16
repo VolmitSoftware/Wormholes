@@ -212,6 +212,7 @@ final class RenderTestSupport {
         state.put("velocity", new Vector(0.0D, 0.0D, 0.0D));
         state.put("passengers", List.of());
         state.put("valid", Boolean.TRUE);
+        state.put("visibleByDefault", Boolean.TRUE);
         state.put("dead", Boolean.FALSE);
         state.put("onGround", Boolean.TRUE);
         state.put("leashed", Boolean.FALSE);

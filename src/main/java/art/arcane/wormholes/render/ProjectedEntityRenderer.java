@@ -35,12 +35,12 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSp
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
-import art.arcane.wormholes.EffectManager;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.render.bedrock.BedrockProfile;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.wormholes.platform.EntityVisibilityAccess;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
@@ -188,7 +188,9 @@ public final class ProjectedEntityRenderer {
                 if (count >= entityLimit()) {
                     break;
                 }
-                if (!canSpoof(entity)) {
+                if (!ProjectionEntityFilter.canCapture(entity)
+                    || !EntityVisibilityAccess.isVisible(observer, entity.getUniqueId(),
+                        entity.isVisibleByDefault(), Wormholes.instance)) {
                     continue;
                 }
                 if (entityOcclusion.fullyHidden(entity.getBoundingBox())) {
@@ -248,6 +250,9 @@ public final class ProjectedEntityRenderer {
                 if (count >= entityLimit()) {
                     break;
                 }
+                if (!remoteView.isVisibleTo(observer, visual.id())) {
+                    continue;
+                }
                 if (entityOcclusion.fullyHidden(visual)) {
                     continue;
                 }
@@ -306,6 +311,9 @@ public final class ProjectedEntityRenderer {
             for (EntityVisual visual : visuals) {
                 if (count >= entityLimit()) {
                     break;
+                }
+                if (!entityView.isVisibleTo(observer, visual.id())) {
+                    continue;
                 }
                 if (entityOcclusion.fullyHidden(visual)) {
                     continue;
@@ -629,13 +637,6 @@ public final class ProjectedEntityRenderer {
             state.resetMetadataCooldown();
         }
         return true;
-    }
-
-    private boolean canSpoof(Entity entity) {
-        if (entity == null || entity.isDead() || EffectManager.isPortalEffectEntity(entity)) {
-            return false;
-        }
-        return entity.isValid();
     }
 
     private EntityType packetEntityType(Entity entity) {

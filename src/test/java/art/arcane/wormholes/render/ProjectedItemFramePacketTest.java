@@ -150,6 +150,11 @@ public final class ProjectedItemFramePacketTest {
         }
         return new ProjectionEntityView() {
             @Override
+            public boolean isVisibleTo(Player observer, UUID entityId) {
+                return true;
+            }
+
+            @Override
             public List<EntityVisual> getEntities(double centerX, double centerY, double centerZ, double range) {
                 return List.of();
             }

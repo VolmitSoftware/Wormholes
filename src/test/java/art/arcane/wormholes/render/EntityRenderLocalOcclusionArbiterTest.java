@@ -3,6 +3,11 @@ package art.arcane.wormholes.render;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -11,11 +16,84 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
+import art.arcane.wormholes.Wormholes;
+
 public final class EntityRenderLocalOcclusionArbiterTest {
+    @Test
+    public void releasingDefaultHiddenItemNeverAddsAVisibilityGrant() {
+        EntityRenderLocalOcclusionArbiter arbiter = new EntityRenderLocalOcclusionArbiter();
+        Player observer = mockPlayer();
+        Item item = item(false);
+        UUID portalId = UUID.randomUUID();
+
+        arbiter.replace(observer, portalId, Map.of(item.getUniqueId(), item));
+        arbiter.release(observer, portalId);
+
+        verify(observer, times(2)).hideEntity(Wormholes.instance, item);
+        verify(observer, never()).showEntity(Wormholes.instance, item);
+        assertFalse(arbiter.isClaimed(observer.getUniqueId(), item.getUniqueId()));
+    }
+
+    @Test
+    public void releasingDefaultVisibleItemClearsTheOcclusionHide() {
+        EntityRenderLocalOcclusionArbiter arbiter = new EntityRenderLocalOcclusionArbiter();
+        Player observer = mockPlayer();
+        Item item = item(true);
+        UUID portalId = UUID.randomUUID();
+
+        arbiter.replace(observer, portalId, Map.of(item.getUniqueId(), item));
+        arbiter.release(observer, portalId);
+
+        verify(observer).hideEntity(Wormholes.instance, item);
+        verify(observer).showEntity(Wormholes.instance, item);
+        assertFalse(arbiter.isClaimed(observer.getUniqueId(), item.getUniqueId()));
+    }
+
+    @Test
+    public void releasingItemUsesDefaultVisibilityAtReleaseTime() {
+        EntityRenderLocalOcclusionArbiter arbiter = new EntityRenderLocalOcclusionArbiter();
+        Player observer = mockPlayer();
+        Item item = item(true);
+        UUID portalId = UUID.randomUUID();
+
+        arbiter.replace(observer, portalId, Map.of(item.getUniqueId(), item));
+        when(item.isVisibleByDefault()).thenReturn(false);
+        arbiter.release(observer, portalId);
+
+        verify(observer, times(2)).hideEntity(Wormholes.instance, item);
+        verify(observer, never()).showEntity(Wormholes.instance, item);
+
+        arbiter.replace(observer, portalId, Map.of(item.getUniqueId(), item));
+        when(item.isVisibleByDefault()).thenReturn(true);
+        arbiter.release(observer, portalId);
+
+        verify(observer, times(3)).hideEntity(Wormholes.instance, item);
+        verify(observer).showEntity(Wormholes.instance, item);
+    }
+
+    @Test
+    public void releasingDefaultHiddenDisplayPreservesItsExistingRestoreBehavior() {
+        EntityRenderLocalOcclusionArbiter arbiter = new EntityRenderLocalOcclusionArbiter();
+        Player observer = mockPlayer();
+        BlockDisplay display = mock(BlockDisplay.class);
+        when(display.getUniqueId()).thenReturn(UUID.randomUUID());
+        when(display.isValid()).thenReturn(true);
+        when(display.isVisibleByDefault()).thenReturn(false);
+        UUID portalId = UUID.randomUUID();
+
+        arbiter.replace(observer, portalId, Map.of(display.getUniqueId(), display));
+        arbiter.release(observer, portalId);
+
+        verify(observer).hideEntity(Wormholes.instance, display);
+        verify(observer).showEntity(Wormholes.instance, display);
+    }
+
     @Test
     public void entityRemainsHiddenUntilItsLastPortalClaimIsReleased() {
         VisibilityRecorder visibility = new VisibilityRecorder();
@@ -87,6 +165,21 @@ public final class EntityRenderLocalOcclusionArbiterTest {
         assertEquals(1, visibility.shows.get());
         assertFalse(arbiter.isClaimed(observer.getUniqueId(), first.getUniqueId()));
         assertTrue(arbiter.isClaimed(observer.getUniqueId(), second.getUniqueId()));
+    }
+
+    private static Player mockPlayer() {
+        Player observer = mock(Player.class);
+        when(observer.getUniqueId()).thenReturn(UUID.randomUUID());
+        when(observer.isOnline()).thenReturn(true);
+        return observer;
+    }
+
+    private static Item item(boolean visibleByDefault) {
+        Item item = mock(Item.class);
+        when(item.getUniqueId()).thenReturn(UUID.randomUUID());
+        when(item.isValid()).thenReturn(true);
+        when(item.isVisibleByDefault()).thenReturn(visibleByDefault);
+        return item;
     }
 
     private static Player player(UUID id) {

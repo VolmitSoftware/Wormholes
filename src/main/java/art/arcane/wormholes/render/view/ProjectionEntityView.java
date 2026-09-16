@@ -5,6 +5,7 @@ import art.arcane.wormholes.network.view.RemoteViewCache;
 
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
+import org.bukkit.entity.Player;
 import org.bukkit.map.MapView;
 
 import java.util.List;
@@ -12,6 +13,8 @@ import java.util.UUID;
 
 public interface ProjectionEntityView {
     List<EntityVisual> getEntities(double centerX, double centerY, double centerZ, double range);
+
+    boolean isVisibleTo(Player observer, UUID entityId);
 
     RemoteViewCache.RemoteProfile getProfile(UUID entityId);
 
