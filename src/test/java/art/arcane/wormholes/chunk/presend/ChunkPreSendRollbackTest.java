@@ -113,7 +113,7 @@ class ChunkPreSendRollbackTest {
     void theRollbackCostIsBoundedByTheSameChunkBudgetThatBoundedTheBurst() {
         ChunkPreSendOptions options = ChunkPreSendOptions.of(true, 8, 12, 4000);
         ChunkPreSendRequest request = new ChunkPreSendRequest(
-            true, true, true, true, true, false, 0, 0, 4000, -4000, 10, options
+            true, true, true, true, true, false, true, 0, 0, 4000, -4000, 10, options
         );
 
         ChunkPreSendPlan plan = ChunkPreSendPlanner.plan(request);

@@ -123,6 +123,7 @@ public final class ChunkPreSendService<W, P> {
             destinationLoaded,
             destinationRegionOwned,
             destinationLocal && Objects.equals(destinationWorld, sourceWorld),
+            destinationLocal && platform.sectionCount(destinationWorld) == platform.sectionCount(sourceWorld),
             origin.sourceChunkX(),
             origin.sourceChunkZ(),
             destinationCenterX,

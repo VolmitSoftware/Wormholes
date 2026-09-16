@@ -219,6 +219,26 @@ public final class DimensionalPortalPairStateTest
 		assertTrue(portal.isIncomingTraversalsEnabled());
 	}
 
+	@Test
+	public void aManagedNetherPortalOpensOnlyOnceItsCounterpartIsLinked()
+	{
+		World world = world();
+		LocalPortal source = portal(PortalType.PORTAL, world);
+		LocalPortal counterpart = portal(PortalType.PORTAL, world);
+		source.setAmbientAttended(false);
+		source.setDimensionalPortalKind(DimensionalPortalKind.NETHER);
+		counterpart.setDimensionalPortalKind(DimensionalPortalKind.NETHER);
+
+		assertFalse(source.isOpen());
+		source.update();
+		assertFalse(source.isOpen(), "a portal whose counterpart is still being built has nothing to show yet");
+
+		source.setDestination(counterpart);
+		source.update();
+
+		assertTrue(source.isOpen());
+	}
+
 	private static LocalPortal portal()
 	{
 		return portal(PortalType.PORTAL, world());

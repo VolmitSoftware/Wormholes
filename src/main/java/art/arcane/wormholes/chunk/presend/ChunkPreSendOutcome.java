@@ -9,6 +9,8 @@ public enum ChunkPreSendOutcome {
     SKIPPED_CROSS_SERVER("PRESEND_CROSS_SERVER", false),
     SKIPPED_NO_BUDGET("PRESEND_NO_BUDGET", false),
     SKIPPED_DESTINATION_UNLOADED("PRESEND_DESTINATION_UNLOADED", false),
+    /** The destination dimension is a different height, so its chunks would not decode on a client that has not moved yet. */
+    SKIPPED_DIMENSION_MISMATCH("PRESEND_DIMENSION_MISMATCH", false),
     SKIPPED_REGION_NOT_OWNED("PRESEND_REGION_NOT_OWNED", false),
     SKIPPED_NO_CHUNKS("PRESEND_NO_CHUNKS", false),
     SKIPPED_ALREADY_PRESENT(null, false),

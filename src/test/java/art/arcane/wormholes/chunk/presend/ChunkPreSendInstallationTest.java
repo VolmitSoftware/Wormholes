@@ -259,6 +259,11 @@ class ChunkPreSendInstallationTest {
             }
 
             @Override
+            public int sectionCount(World world) {
+                return 24;
+            }
+
+            @Override
             public World world(Player player) {
                 return world;
             }

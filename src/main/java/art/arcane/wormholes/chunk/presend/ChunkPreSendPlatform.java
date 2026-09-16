@@ -13,6 +13,9 @@ public interface ChunkPreSendPlatform<W, P> {
 
     int clientViewDistance(P player);
 
+    /** Chunk sections in this world's dimension. A chunk packet is only decodable by a client whose level has the same count. */
+    int sectionCount(W world);
+
     boolean chunkLoaded(W world, int chunkX, int chunkZ);
 
     boolean regionOwned(W world, int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ);

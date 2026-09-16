@@ -74,7 +74,7 @@ public final class AtlasService implements Listener, TraversalObserver {
             return;
         }
         AtlasPlayerState state = store.cached(player.getUniqueId());
-        if (state == null) {
+        if (state == null || attempt.portal().getDimensionalPortalKind().isManagedPortal()) {
             return;
         }
         state.discover(attempt.portal().getId());
@@ -127,7 +127,8 @@ public final class AtlasService implements Listener, TraversalObserver {
         List<AtlasModel.Row> rows = new ArrayList<>();
         for (ILocalPortal portal : portals.get()) {
             if (portal == null || portal.isDestroyed() || portal.getStructure() == null
-                    || portal.getStructure().getWorld() == null || !portal.canDepart(viewer)) {
+                    || portal.getStructure().getWorld() == null || portal.getDimensionalPortalKind().isManagedPortal()
+                    || !portal.canDepart(viewer)) {
                 continue;
             }
             rows.add(row(portal, eye));

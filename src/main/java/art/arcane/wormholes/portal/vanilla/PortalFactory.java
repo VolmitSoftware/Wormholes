@@ -14,6 +14,11 @@ import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
 
+/**
+ * Builds the Wormholes portals that stand in for lit vanilla frames. Portals are handed back closed:
+ * the registry update pass opens one the tick its destination resolves, so a portal whose pairing is
+ * still in flight never plays an open-then-close burst at the player who lit it.
+ */
 public final class PortalFactory
 {
 	private PortalFactory()
@@ -55,11 +60,7 @@ public final class PortalFactory
 			portal.setName(name);
 		}
 		portal.setDimensionalPortalKind(kind);
-		if(active)
-		{
-			portal.open();
-		}
-		else
+		if(!active)
 		{
 			portal.setProjectionMode(ProjectionMode.OFF);
 			portal.setOutgoingTraversalsEnabled(false);

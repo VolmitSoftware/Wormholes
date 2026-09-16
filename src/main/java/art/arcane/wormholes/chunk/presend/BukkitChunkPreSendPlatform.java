@@ -59,6 +59,16 @@ public final class BukkitChunkPreSendPlatform implements ChunkPreSendPlatform<Wo
     }
 
     @Override
+    public int sectionCount(World world) {
+        if (world == null) {
+            return 0;
+        }
+        int topSection = (world.getMaxHeight() - 1) >> 4;
+        int bottomSection = world.getMinHeight() >> 4;
+        return Math.max(0, topSection - bottomSection + 1);
+    }
+
+    @Override
     public boolean chunkLoaded(World world, int chunkX, int chunkZ) {
         return world != null && operations.chunkLoaded(world, chunkX, chunkZ);
     }

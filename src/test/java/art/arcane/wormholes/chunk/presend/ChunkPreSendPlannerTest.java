@@ -101,7 +101,7 @@ class ChunkPreSendPlannerTest {
     @Test
     void anUnsupportedPlatformDegradesToASkipRatherThanAnError() {
         ChunkPreSendRequest request = new ChunkPreSendRequest(
-            false, true, true, true, true, false, 0, 0, 30, -40, 10, GENEROUS
+            false, true, true, true, true, false, true, 0, 0, 30, -40, 10, GENEROUS
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_UNSUPPORTED_PLATFORM, ChunkPreSendPlanner.plan(request).outcome());
@@ -110,7 +110,7 @@ class ChunkPreSendPlannerTest {
     @Test
     void aPlayerWhoLeftTheServerDegradesToASkip() {
         ChunkPreSendRequest request = new ChunkPreSendRequest(
-            true, false, true, true, true, false, 0, 0, 30, -40, 10, GENEROUS
+            true, false, true, true, true, false, true, 0, 0, 30, -40, 10, GENEROUS
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_PLAYER_OFFLINE, ChunkPreSendPlanner.plan(request).outcome());
@@ -119,7 +119,7 @@ class ChunkPreSendPlannerTest {
     @Test
     void aCrossServerDestinationIsSkippedBeforeAnyLocalWorldQuestionIsAsked() {
         ChunkPreSendRequest request = new ChunkPreSendRequest(
-            true, true, false, false, false, false, 0, 0, 30, -40, 10, GENEROUS
+            true, true, false, false, false, false, true, 0, 0, 30, -40, 10, GENEROUS
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_CROSS_SERVER, ChunkPreSendPlanner.plan(request).outcome());
@@ -128,7 +128,7 @@ class ChunkPreSendPlannerTest {
     @Test
     void aZeroChunkBudgetIsRefusedInsteadOfAnnouncingAViewCentreWithNothingBehindIt() {
         ChunkPreSendRequest request = new ChunkPreSendRequest(
-            true, true, true, true, true, false, 0, 0, 30, -40, 10, ChunkPreSendOptions.of(true, 2, 0, 5000)
+            true, true, true, true, true, false, true, 0, 0, 30, -40, 10, ChunkPreSendOptions.of(true, 2, 0, 5000)
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_NO_BUDGET, ChunkPreSendPlanner.plan(request).outcome());
@@ -137,7 +137,7 @@ class ChunkPreSendPlannerTest {
     @Test
     void aZeroTimeBudgetIsRefusedForTheSameReason() {
         ChunkPreSendRequest request = new ChunkPreSendRequest(
-            true, true, true, true, true, false, 0, 0, 30, -40, 10, ChunkPreSendOptions.of(true, 2, 32, 0)
+            true, true, true, true, true, false, true, 0, 0, 30, -40, 10, ChunkPreSendOptions.of(true, 2, 32, 0)
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_NO_BUDGET, ChunkPreSendPlanner.plan(request).outcome());
@@ -146,16 +146,25 @@ class ChunkPreSendPlannerTest {
     @Test
     void anUnloadedDestinationDegradesToASkipInsteadOfForcingAChunkLoad() {
         ChunkPreSendRequest request = new ChunkPreSendRequest(
-            true, true, true, false, true, false, 0, 0, 30, -40, 10, GENEROUS
+            true, true, true, false, true, false, true, 0, 0, 30, -40, 10, GENEROUS
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_DESTINATION_UNLOADED, ChunkPreSendPlanner.plan(request).outcome());
     }
 
     @Test
+    void aDestinationDimensionOfAnotherHeightIsSkippedBecauseItsChunksCannotDecodeYet() {
+        ChunkPreSendRequest request = new ChunkPreSendRequest(
+            true, true, true, true, true, false, false, 0, 0, 30, -40, 10, GENEROUS
+        );
+
+        assertEquals(ChunkPreSendOutcome.SKIPPED_DIMENSION_MISMATCH, ChunkPreSendPlanner.plan(request).outcome());
+    }
+
+    @Test
     void aDestinationOwnedByAnotherRegionThreadIsSkippedRatherThanReadAcrossRegions() {
         ChunkPreSendRequest request = new ChunkPreSendRequest(
-            true, true, true, true, false, false, 0, 0, 30, -40, 10, GENEROUS
+            true, true, true, true, false, false, true, 0, 0, 30, -40, 10, GENEROUS
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_REGION_NOT_OWNED, ChunkPreSendPlanner.plan(request).outcome());
@@ -164,7 +173,7 @@ class ChunkPreSendPlannerTest {
     @Test
     void aForeignRegionIsAnsweredBeforeTheLoadedQuestionBecauseTheChunkMapIsAlsoRegionState() {
         ChunkPreSendRequest request = new ChunkPreSendRequest(
-            true, true, true, false, false, false, 0, 0, 30, -40, 10, GENEROUS
+            true, true, true, false, false, false, true, 0, 0, 30, -40, 10, GENEROUS
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_REGION_NOT_OWNED, ChunkPreSendPlanner.plan(request).outcome());
@@ -196,7 +205,7 @@ class ChunkPreSendPlannerTest {
     @Test
     void aBurstAtShippedDefaultsIsWholeRatherThanPartial() {
         ChunkPreSendRequest request = new ChunkPreSendRequest(
-            true, true, true, true, true, false, 0, 0, 30, -40, 10,
+            true, true, true, true, true, false, true, 0, 0, 30, -40, 10,
             ChunkPreSendOptions.of(
                 true,
                 ChunkPreSendOptions.DEFAULT_RADIUS_CHUNKS,
@@ -213,6 +222,6 @@ class ChunkPreSendPlannerTest {
     }
 
     private static ChunkPreSendRequest request(ChunkPreSendOptions options) {
-        return new ChunkPreSendRequest(true, true, true, true, true, false, 0, 0, 30, -40, 10, options);
+        return new ChunkPreSendRequest(true, true, true, true, true, false, true, 0, 0, 30, -40, 10, options);
     }
 }

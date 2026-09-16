@@ -31,6 +31,7 @@ final class RecordingPreSendPlatform implements ChunkPreSendPlatform<String, Str
     private long clock;
     private long clockStep;
     private int chunkLoadedCalls;
+    private int destinationSectionCount = 24;
 
     RecordingPreSendPlatform supported(boolean value) {
         this.supported = value;
@@ -50,6 +51,11 @@ final class RecordingPreSendPlatform implements ChunkPreSendPlatform<String, Str
 
     RecordingPreSendPlatform clientViewDistance(int value) {
         this.clientViewDistance = value;
+        return this;
+    }
+
+    RecordingPreSendPlatform destinationSectionCount(int value) {
+        this.destinationSectionCount = value;
         return this;
     }
 
@@ -154,6 +160,11 @@ final class RecordingPreSendPlatform implements ChunkPreSendPlatform<String, Str
     @Override
     public int clientViewDistance(String player) {
         return clientViewDistance;
+    }
+
+    @Override
+    public int sectionCount(String world) {
+        return DESTINATION_WORLD.equals(world) ? destinationSectionCount : 24;
     }
 
     @Override

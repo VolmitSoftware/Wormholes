@@ -11,7 +11,8 @@ import java.util.UUID;
 
 /**
  * Chunk-bucketed portal centres. Discovery probes the player's chunk and its neighbours instead of
- * walking every portal on the server; the buckets are rebuilt on a slow cadence.
+ * walking every portal on the server; the buckets are rebuilt on a slow cadence. Vanilla nether and
+ * end portals Wormholes replaced are left out: they are not atlas destinations.
  */
 final class AtlasProximityIndex {
     private volatile Map<Long, List<Anchor>> byChunk = Map.of();
@@ -19,8 +20,9 @@ final class AtlasProximityIndex {
 
     void rebuild(List<ILocalPortal> portals) {
         Map<Long, List<Anchor>> buckets = new HashMap<>();
+        int indexed = 0;
         for (ILocalPortal portal : portals) {
-            if (portal == null || portal.isDestroyed()) {
+            if (portal == null || portal.isDestroyed() || portal.getDimensionalPortalKind().isManagedPortal()) {
                 continue;
             }
             Location center = portal.getCenter();
@@ -31,9 +33,10 @@ final class AtlasProximityIndex {
                     center.getX(), center.getY(), center.getZ());
             buckets.computeIfAbsent(chunkKey(center.getBlockX() >> 4, center.getBlockZ() >> 4),
                     ignored -> new ArrayList<>()).add(anchor);
+            indexed++;
         }
         byChunk = Map.copyOf(buckets);
-        portalCount = portals.size();
+        portalCount = indexed;
     }
 
     int portalCount() {

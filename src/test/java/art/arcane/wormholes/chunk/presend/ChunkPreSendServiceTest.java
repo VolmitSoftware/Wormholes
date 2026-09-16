@@ -592,6 +592,21 @@ class ChunkPreSendServiceTest {
     }
 
     @Test
+    void aShorterDestinationDimensionIsNotPreSentBecauseItsChunksCannotDecodeOnTheClientYet() {
+        RecordingPreSendPlatform platform = new RecordingPreSendPlatform().playerChunk(3, 3).destinationSectionCount(16);
+        ChunkPreSendService<String, String> service = service(platform, ENABLED);
+
+        ChunkPreSendTicket<String, String> ticket = service.preSend(
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 48, 48
+        );
+
+        assertEquals(ChunkPreSendOutcome.SKIPPED_DIMENSION_MISMATCH, ticket.outcome());
+        assertEquals(0, ticket.sentChunks());
+        assertTrue(platform.sent().isEmpty(), "a nether-shaped chunk packet would disconnect an overworld client");
+        assertTrue(platform.announced().isEmpty(), "and the client's view centre must not move either");
+    }
+
+    @Test
     void aNullOptionsSupplierDegradesToDisabledRatherThanThrowingInsideTheCommitmentWindow() {
         RecordingPreSendPlatform platform = new RecordingPreSendPlatform();
         ChunkPreSendService<String, String> service = new ChunkPreSendService<>(platform, () -> null);

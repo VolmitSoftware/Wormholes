@@ -9,6 +9,12 @@ public record ChunkPreSendRequest(
     boolean destinationLoaded,
     boolean destinationRegionOwned,
     boolean sameWorld,
+    /**
+     * Whether the destination dimension has the same chunk section count as the one the client is
+     * still standing in. A chunk packet is shaped by its level's height, so a destination of another
+     * height cannot be decoded by a client that has not changed dimension yet.
+     */
+    boolean sameChunkShape,
     int sourceCenterX,
     int sourceCenterZ,
     int destinationCenterX,
