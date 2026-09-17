@@ -1,5 +1,7 @@
 package art.arcane.wormholes.nexus;
 
+import art.arcane.volmlib.util.event.ProtectionProbe;
+
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.localization.NexusMessages;
 import art.arcane.wormholes.portal.ILocalPortal;
@@ -54,6 +56,9 @@ public final class DialGestures implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void on(PlayerInteractEvent event) {
+        if (ProtectionProbe.isProbe(event)) {
+            return;
+        }
         Player player = event.getPlayer();
         if (!PortalInteractionGestures.opensPortalMenu(player.isSneaking(),
                 player.getInventory().getItemInMainHand().getType().isAir(), event.getAction(), event.getHand())) {

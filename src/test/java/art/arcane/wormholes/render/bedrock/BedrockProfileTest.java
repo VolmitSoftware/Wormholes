@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
-import art.arcane.wormholes.render.ProjectorBlackoutDisplayRendererBedrockProbe;
 
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMultiBlockChange;
 
@@ -59,20 +58,5 @@ final class BedrockProfileTest {
         assertEquals(64, batches.get(1).length);
         assertEquals(22, batches.get(2).length);
         assertEquals(1, ProjectionClaimArbiter.splitBatches(blocks, Integer.MAX_VALUE).size(), "Java viewers keep one packet per section");
-    }
-
-    @Test
-    void theBlackoutDisplayRendererWithholdsPanelsFromBedrockViewers() {
-        ClientProfileService.install(new ClientProfileService(player -> true, player -> null));
-        FidelitySettings.bedrockDisplayEntities = false;
-        try (ProjectorBlackoutDisplayRendererBedrockProbe probe = new ProjectorBlackoutDisplayRendererBedrockProbe()) {
-            assertFalse(probe.prepareForViewer(ClientProfileServiceTest.player(UUID.randomUUID())),
-                "a Bedrock viewer with display entities withheld never receives blackout panels");
-            assertEquals(0, probe.packetsSent());
-
-            FidelitySettings.bedrockDisplayEntities = true;
-            ClientProfileService.install(new ClientProfileService(player -> true, player -> null));
-            assertTrue(probe.prepareForViewer(ClientProfileServiceTest.player(UUID.randomUUID())));
-        }
     }
 }

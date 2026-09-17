@@ -1407,7 +1407,7 @@ momentum = ["&6&lImpulso: {mode}&r", "&7Fator {value}. Como a velocidade de saí
 orientation = ["&6&lOrientação: {mode}&r", "&7Para onde os viajantes olham ao chegar.", "&eClique esquerdo para mudar"]
 membrane = ["&6&lMembrana: {state}&r", "&7Só a frente deixa entrar os viajantes; o verso empurra-os.", "&eClique esquerdo para alternar"]
 bounce = ["&6&lRessalto: {state}&r", "&7Repelir os viajantes em vez de os mover.", "&eClique esquerdo para alternar"]
-profile = ["&6&lEfeitos de transição&r", "&7Aproximação {value}", "&7Limiar {mode}", "&7Chegada {state}", "&eClique esquerdo: som de aproximação, Clique direito: efeito de limiar", "&eShift + Clique esquerdo: som de chegada, Shift + Clique direito: ticks da máscara"]
+profile = ["&6&lEfeitos de transição&r", "&7Limiar {mode}", "&7Chegada {state}", "&eClique esquerdo: efeito de limiar, Clique direito: som de chegada", "&eShift + Clique esquerdo: ticks da máscara"]
 prompt = "&bEscreve o novo valor no chat (ou '{cancel}'):"
 # ---- end lane:transit ----
 

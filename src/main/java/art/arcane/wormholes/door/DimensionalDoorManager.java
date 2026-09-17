@@ -1,5 +1,7 @@
 package art.arcane.wormholes.door;
 
+import art.arcane.volmlib.util.event.ProtectionProbe;
+
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.volmlib.util.localization.MessageArgument;
 import art.arcane.volmlib.util.localization.TextKey;
@@ -1178,6 +1180,10 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	@EventHandler(priority = EventPriority.HIGHEST)
 	public void onPairKitUse(PlayerInteractEvent event)
 	{
+		if(ProtectionProbe.isProbe(event))
+		{
+			return;
+		}
 		if(event.getHand() == null
 			|| !shouldUnpackPairKit(event.getAction(), event.useInteractedBlock(), event.useItemInHand()))
 		{

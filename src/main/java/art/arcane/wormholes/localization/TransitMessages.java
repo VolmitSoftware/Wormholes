@@ -53,11 +53,10 @@ public final class TransitMessages {
         "&bType the new value in chat (or '{cancel}'):");
     public static final LinesKey MENU_PROFILE = GROUP.lines("transit.menu.profile",
         "&6&lTransition cues&r",
-        "&7Approach {value}",
         "&7Threshold {mode}",
         "&7Arrival {state}",
-        "&eLeft-click: approach sound, Right-click: threshold effect",
-        "&eShift + Left-click: arrival sound, Shift + Right-click: mask ticks");
+        "&eLeft-click: threshold effect, Right-click: arrival sound",
+        "&eShift + Left-click: mask ticks");
 
     private TransitMessages() {
     }

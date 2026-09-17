@@ -9,9 +9,11 @@ import org.bukkit.block.data.type.Door;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 import java.lang.reflect.Proxy;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -20,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 
 class DoorPortalVisualServiceTest
 {
@@ -564,7 +568,7 @@ class DoorPortalVisualServiceTest
 						particleSpawns.incrementAndGet();
 						yield null;
 					}
-					case "playSound" -> null;
+					case "playSound" -> throw new AssertionError("Portal surface animation must remain silent");
 					default -> throw new AssertionError("Unexpected world method " + method.getName());
 				});
 			Plugin plugin = (Plugin) Proxy.newProxyInstance(
@@ -588,7 +592,12 @@ class DoorPortalVisualServiceTest
 					DoorPortalVisualService.geometry(BlockFace.NORTH, Door.Hinge.LEFT), BlockFace.NORTH);
 			org.bukkit.Location anchor = new org.bukkit.Location(world, 1.5D, 2.0D, 3.5D);
 
-			service.animateFrame(visual, world, anchor, BlockFace.NORTH, base, 2);
+			ThreadLocalRandom random = mock(ThreadLocalRandom.class);
+			try(MockedStatic<ThreadLocalRandom> randomSource = mockStatic(ThreadLocalRandom.class))
+			{
+				randomSource.when(ThreadLocalRandom::current).thenReturn(random);
+				service.animateFrame(visual, world, anchor, BlockFace.NORTH, base, 2);
+			}
 
 			assertEquals(0, interpolationDelay.get());
 			assertEquals(DoorPortalAnimation.FRAME_PERIOD_TICKS, interpolationDuration.get());

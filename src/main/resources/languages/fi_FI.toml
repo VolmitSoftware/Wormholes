@@ -1407,7 +1407,7 @@ momentum = ["&6&lLiikemäärä: {mode}&r", "&7Kerroin {value}. Miten poistumisno
 orientation = ["&6&lSuunta: {mode}&r", "&7Mihin suuntaan matkaajat katsovat saapuessaan.", "&eVasen klikkaus vaihtaa"]
 membrane = ["&6&lKalvo: {state}&r", "&7Vain etupuoli päästää matkaajat sisään; takapuoli työntää heidät pois.", "&eVasen klikkaus vaihtaa"]
 bounce = ["&6&lKimmoke: {state}&r", "&7Heijasta matkaajat takaisin sen sijaan että siirtäisit heidät.", "&eVasen klikkaus vaihtaa"]
-profile = ["&6&lSiirtymätehosteet&r", "&7Lähestyminen {value}", "&7Kynnys {mode}", "&7Saapuminen {state}", "&eVasen klikkaus: lähestymisääni, Oikea klikkaus: kynnystehoste", "&eVaihto + vasen klikkaus: saapumisääni, Vaihto + oikea klikkaus: maskin tikit"]
+profile = ["&6&lSiirtymätehosteet&r", "&7Kynnys {mode}", "&7Saapuminen {state}", "&eVasen klikkaus: kynnystehoste, Oikea klikkaus: saapumisääni", "&eVaihto + vasen klikkaus: maskin tikit"]
 prompt = "&bKirjoita uusi arvo chattiin (tai '{cancel}'):"
 # ---- end lane:transit ----
 

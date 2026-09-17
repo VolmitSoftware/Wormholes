@@ -1407,7 +1407,7 @@ momentum = ["&6&lJudesio kiekis: {mode}&r", "&7Koeficientas {value}. Kaip išėj
 orientation = ["&6&lKryptis: {mode}&r", "&7Kur keliautojai žiūri atvykę.", "&eKairysis spustelėjimas keičia"]
 membrane = ["&6&lMembrana: {state}&r", "&7Tik priekinė pusė įleidžia keliautojus; galinė juos atstumia.", "&eKairysis spustelėjimas perjungia"]
 bounce = ["&6&lAtšokimas: {state}&r", "&7Atstumti keliautojus, o ne juos perkelti.", "&eKairysis spustelėjimas perjungia"]
-profile = ["&6&lPerėjimo efektai&r", "&7Artėjimas {value}", "&7Slenkstis {mode}", "&7Atvykimas {state}", "&eKairysis spustelėjimas: artėjimo garsas, Dešinysis: slenksčio efektas", "&eShift + kairysis: atvykimo garsas, Shift + dešinysis: kaukės tikai"]
+profile = ["&6&lPerėjimo efektai&r", "&7Slenkstis {mode}", "&7Atvykimas {state}", "&eKairysis spustelėjimas: slenksčio efektas, Dešinysis: atvykimo garsas", "&eShift + kairysis: kaukės tikai"]
 prompt = "&bĮveskite naują reikšmę pokalbyje (arba '{cancel}'):"
 # ---- end lane:transit ----
 

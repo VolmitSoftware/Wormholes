@@ -1407,7 +1407,7 @@ momentum = ["&6&l动量：{mode}&r", "&7系数 {value}。出口速度如何由�
 orientation = ["&6&l朝向：{mode}&r", "&7旅行者到达时面朝的方向。", "&e左键切换"]
 membrane = ["&6&l单向膜：{state}&r", "&7只有正面允许进入；背面会将旅行者推开。", "&e左键切换"]
 bounce = ["&6&l反弹：{state}&r", "&7将旅行者弹回而不是传送。", "&e左键切换"]
-profile = ["&6&l过渡效果&r", "&7接近 {value}", "&7临界 {mode}", "&7到达 {state}", "&e左键：接近音效，右键：临界效果", "&eShift + 左键：到达音效，Shift + 右键：遮罩刻数"]
+profile = ["&6&l过渡效果&r", "&7临界 {mode}", "&7到达 {state}", "&e左键：临界效果，右键：到达音效", "&eShift + 左键：遮罩刻数"]
 prompt = "&b在聊天中输入新值（或输入 '{cancel}'）："
 # ---- end lane:transit ----
 

@@ -13,6 +13,7 @@ public final class ProjectedBlockClaim {
     private final long lightRemoteKey;
     private final boolean maskAir;
     private final LightingPolicy lightingPolicy;
+    private final boolean blackout;
     private int globalId;
 
     public ProjectedBlockClaim(BlockData data, ProjectionWorldView lightView, long lightRemoteKey, boolean maskAir) {
@@ -25,12 +26,27 @@ public final class ProjectedBlockClaim {
                         long lightRemoteKey,
                         boolean maskAir,
                         LightingPolicy lightingPolicy) {
+        this(data, lightView, lightRemoteKey, maskAir, lightingPolicy, false);
+    }
+
+    private ProjectedBlockClaim(BlockData data,
+                                ProjectionWorldView lightView,
+                                long lightRemoteKey,
+                                boolean maskAir,
+                                LightingPolicy lightingPolicy,
+                                boolean blackout) {
         this.data = data;
         this.lightView = lightView;
         this.lightRemoteKey = lightRemoteKey;
         this.maskAir = maskAir;
         this.lightingPolicy = lightingPolicy;
+        this.blackout = blackout;
         this.globalId = UNRESOLVED_GLOBAL_ID;
+    }
+
+    /** A blackout shell cell: the seal block, full bright, never a mask, keyed to the destination cell it covers. */
+    static ProjectedBlockClaim blackout(BlockData data, ProjectionWorldView lightView, long lightRemoteKey) {
+        return new ProjectedBlockClaim(data, lightView, lightRemoteKey, false, LightingPolicy.FULL_BRIGHT, true);
     }
 
     public BlockData getData() {
@@ -57,6 +73,11 @@ public final class ProjectedBlockClaim {
         return lightingPolicy == LightingPolicy.FULL_BRIGHT;
     }
 
+    /** True for shell cells the blackout pass synthesized rather than sampled from the destination. */
+    boolean isBlackout() {
+        return blackout;
+    }
+
     int getGlobalId() {
         return globalId;
     }
@@ -79,7 +100,7 @@ public final class ProjectedBlockClaim {
             return this;
         }
         ProjectedBlockClaim updated = new ProjectedBlockClaim(
-            data, lightView, lightRemoteKey, maskAir, nextPolicy);
+            data, lightView, lightRemoteKey, maskAir, nextPolicy, blackout);
         updated.globalId = globalId;
         return updated;
     }

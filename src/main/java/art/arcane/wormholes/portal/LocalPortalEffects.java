@@ -15,7 +15,6 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.M;
 
 final class LocalPortalEffects
 {
@@ -74,17 +73,6 @@ final class LocalPortalEffects
 				break;
 			case AMBIENT_OPEN:
 				renderAmbientParticles(true);
-
-				if(isPortalSoundEnabled() && M.r(0.01))
-				{
-					portal.getStructure().getCenter().getWorld().playSound(portal.getStructure().getCenter(), Sound.BLOCK_LAVA_AMBIENT, Settings.portalSoundVolume(0.25f), 0.025f);
-				}
-
-				if(isPortalSoundEnabled() && M.r(0.01))
-				{
-					portal.getStructure().getCenter().getWorld().playSound(portal.getStructure().getCenter(), Sound.BLOCK_PORTAL_AMBIENT, Settings.portalSoundVolume(0.25f), 0.025f);
-				}
-
 				break;
 			case CLOSE:
 				long closeSequence = effectSequence.incrementAndGet();

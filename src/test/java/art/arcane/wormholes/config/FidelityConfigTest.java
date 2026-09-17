@@ -14,6 +14,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import art.arcane.wormholes.config.toml.RenderConfig;
+import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.render.FidelityPortalExtension;
+import art.arcane.wormholes.render.FidelitySettings;
+import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
 
 class FidelityConfigTest {
     @TempDir
@@ -25,10 +29,10 @@ class FidelityConfigTest {
         List<String> emitted = emittedSettings(tempDir.resolve(WormholesSettings.CONFIG_FILE_NAME));
 
         assertTrue(emitted.contains("[atmosphere]"));
-        assertTrue(emitted.contains("mode-default = \"tint_light\""));
-        assertTrue(emitted.contains("biome-tint = true"));
+        assertTrue(emitted.contains("mode-default = \"off\""));
+        assertTrue(emitted.contains("biome-tint = false"));
         assertTrue(emitted.contains("biome-dominance = 0.6"));
-        assertTrue(emitted.contains("sky-light = true"));
+        assertTrue(emitted.contains("sky-light = false"));
         assertTrue(emitted.contains("fog-plate = true"));
         assertTrue(emitted.contains("weather = true"));
         assertTrue(emitted.contains("[lod]"));
@@ -53,7 +57,10 @@ class FidelityConfigTest {
         assertTrue(emitted.contains("block-entity-containers = false"));
         assertTrue(emitted.contains("block-entity-types = [\"sign\", \"hanging_sign\", \"banner\", \"skull\", \"decorated_pot\", \"bell\", \"spawner\"]"));
 
-        assertEquals("tint_light", settings.getAtmosphere().modeDefault);
+        assertEquals("off", settings.getAtmosphere().modeDefault);
+        assertFalse(settings.getAtmosphere().biomeTint);
+        assertFalse(settings.getAtmosphere().skyLight);
+        assertFalse(settings.getRender().lightingFidelity);
         assertEquals(0.6D, settings.getAtmosphere().biomeDominance);
         assertEquals(8, settings.getLod().dissolveTicks);
         assertEquals("ambient", settings.getAcoustics().profileDefault);
@@ -73,10 +80,13 @@ class FidelityConfigTest {
             shared-plate = false
             plate-workers = 3
             [render]
+            lighting-fidelity = true
             block-entity-types = ["sign"]
             block-entity-containers = true
             [atmosphere]
             mode-default = "full"
+            biome-tint = true
+            sky-light = true
             biome-dominance = 0.4
             [lod]
             dissolve-ticks = 12
@@ -92,11 +102,62 @@ class FidelityConfigTest {
         assertEquals(3, settings.getProjection().plateWorkers);
         assertEquals(List.of("sign"), settings.getRender().blockEntityTypes);
         assertTrue(settings.getRender().blockEntityContainers);
+        assertTrue(settings.getRender().lightingFidelity);
+        assertTrue(settings.getAtmosphere().biomeTint);
+        assertTrue(settings.getAtmosphere().skyLight);
         assertEquals("full", settings.getAtmosphere().modeDefault);
         assertEquals(0.4D, settings.getAtmosphere().biomeDominance);
         assertEquals(12, settings.getLod().dissolveTicks);
         assertEquals("off", settings.getAcoustics().profileDefault);
         assertEquals(3, settings.getBedrock().entityCap);
+    }
+
+    @Test
+    void tintAndLightingStayDisabledUntilExplicitlyEnabledAndReloadBackOff() throws IOException {
+        WormholesSettings settings = WormholesSettings.loadAll(tempDir);
+        try {
+            Settings.refresh(settings);
+            FidelitySettings.refresh(settings);
+            FidelityPortalExtension portal = new FidelityPortalExtension();
+            assertEquals(AtmosphereMode.OFF, portal.effectiveAtmosphereMode());
+            assertFalse(FidelitySettings.biomeTint);
+            assertFalse(FidelitySettings.skyLight);
+            assertFalse(Settings.LIGHTING_FIDELITY);
+
+            settings.getAtmosphere().modeDefault = "tint_light";
+            settings.getAtmosphere().biomeTint = true;
+            settings.getAtmosphere().skyLight = true;
+            settings.getRender().lightingFidelity = true;
+            Settings.refresh(settings);
+            FidelitySettings.refresh(settings);
+            assertEquals(AtmosphereMode.TINT_LIGHT, portal.effectiveAtmosphereMode());
+            assertTrue(FidelitySettings.biomeTint);
+            assertTrue(FidelitySettings.skyLight);
+            assertTrue(Settings.LIGHTING_FIDELITY);
+
+            settings.getAtmosphere().modeDefault = "off";
+            settings.getAtmosphere().biomeTint = false;
+            settings.getAtmosphere().skyLight = false;
+            settings.getRender().lightingFidelity = false;
+            Settings.refresh(settings);
+            FidelitySettings.refresh(settings);
+            assertEquals(AtmosphereMode.OFF, portal.effectiveAtmosphereMode());
+            assertFalse(FidelitySettings.biomeTint);
+            assertFalse(FidelitySettings.skyLight);
+            assertFalse(Settings.LIGHTING_FIDELITY);
+        } finally {
+            WormholesSettings defaults = WormholesSettings.loadAll(tempDir);
+            Settings.refresh(defaults);
+            FidelitySettings.refresh(defaults);
+        }
+    }
+
+    @Test
+    void invalidAtmosphereDefaultFallsBackToOff() throws IOException {
+        WormholesSettings settings = WormholesSettings.loadAll(tempDir);
+        settings.getAtmosphere().modeDefault = "invalid";
+        FidelitySettings.refresh(settings);
+        assertEquals(AtmosphereMode.OFF, FidelitySettings.atmosphereModeDefault);
     }
 
     private static List<String> emittedSettings(Path file) throws IOException {

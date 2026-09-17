@@ -13,7 +13,6 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
-import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
@@ -58,7 +57,6 @@ final class DoorPortalVisualService implements AutoCloseable
 	private static final int ATTENDANCE_PERIOD_PASSES =
 		DoorPortalAnimation.ATTENDANCE_PERIOD_TICKS / DoorPortalAnimation.FRAME_PERIOD_TICKS;
 	private static final long LOOP_RETRY_SECONDS = 1L;
-	private static final double AMBIENT_SOUND_CHANCE = 0.008D;
 	private static final Particle.DustTransition SURFACE_DUST =
 		new Particle.DustTransition(Color.fromRGB(185, 105, 255), Color.fromRGB(20, 5, 35), 0.7F);
 
@@ -499,15 +497,6 @@ final class DoorPortalVisualService implements AutoCloseable
 				anchor.getY() + point[1],
 				anchor.getZ() + point[2],
 				1, 0.0D, 0.0D, 0.0D, 0.0D, SURFACE_DUST);
-		}
-		if(random.nextDouble() < AMBIENT_SOUND_CHANCE)
-		{
-			world.playSound(
-				anchor.clone().add(0.0D, 1.0D, 0.0D),
-				DimensionalDoorSounds.portalAmbientSound(),
-				SoundCategory.BLOCKS,
-				Settings.portalSoundVolume(0.3F),
-				0.65F + (random.nextFloat() * 0.3F));
 		}
 	}
 

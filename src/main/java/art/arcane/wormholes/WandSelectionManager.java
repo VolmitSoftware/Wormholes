@@ -32,6 +32,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import art.arcane.volmlib.util.localization.MessageArgument;
+import art.arcane.volmlib.util.event.ProtectionProbe;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
@@ -54,9 +55,13 @@ public class WandSelectionManager implements Listener
 		Wormholes.v("Starting Wand Selection Manager");
 	}
 
-	@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+	@EventHandler(priority = EventPriority.HIGH)
 	public void on(PlayerInteractEvent e)
 	{
+		if(ProtectionProbe.isProbe(e))
+		{
+			return;
+		}
 		Action action = e.getAction();
 		boolean isLeft = action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK;
 		boolean isRight = action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK;

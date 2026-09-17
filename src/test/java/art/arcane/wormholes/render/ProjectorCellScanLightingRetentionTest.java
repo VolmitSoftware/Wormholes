@@ -74,7 +74,6 @@ public final class ProjectorCellScanLightingRetentionTest {
                     Long2ObjectOpenHashMap<ProjectedBlockClaim> committedCopy = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(committed);
                     Long2ObjectMap<BlockEntitySample> committedBlockEntities = staged.scan().blockEntities();
                     Long2ObjectOpenHashMap<BlockEntitySample> blockEntityCopy = new Long2ObjectOpenHashMap<BlockEntitySample>(committedBlockEntities);
-                    ProjectorBlackoutMesh.Result mesh = staged.scan().blackoutMesh();
                     ProjectedEntityOcclusion entityOcclusion = staged.scan().entityOcclusion();
                     Field blockerField = ProjectorCellScan.class.getDeclaredField("projectedOcclusionGeometry");
                     blockerField.setAccessible(true);
@@ -100,7 +99,6 @@ public final class ProjectorCellScanLightingRetentionTest {
                         assertEquals(committedCopy, committed);
                         assertSame(committedBlockEntities, staged.scan().blockEntities());
                         assertEquals(blockEntityCopy, committedBlockEntities);
-                        assertSame(mesh, staged.scan().blackoutMesh());
                         assertSame(entityOcclusion, staged.scan().entityOcclusion());
                         assertEquals(blockerCopy, committedBlockers);
                         assertSame(localFrame, staged.scan().localFrame());
@@ -117,7 +115,6 @@ public final class ProjectorCellScanLightingRetentionTest {
                     assertSame(staged.scan().claims(), staged.scan().claimDelta().claims());
                     assertSame(pass == 0 ? null : committed, staged.scan().claimDelta().previousClaims());
                     assertEquivalentClaims(unlimited.scan().claims(), staged.scan().claims());
-                    assertEquals(unlimited.scan().blackoutMesh(), staged.scan().blackoutMesh());
                     assertEquals(unlimited.scan().blockEntities(), staged.scan().blockEntities());
                     assertEquals(unlimited.scan().frustumMaskedRows(), staged.scan().frustumMaskedRows());
                     assertEquals(unlimited.scan().frustumScalarRows(), staged.scan().frustumScalarRows());
@@ -467,8 +464,6 @@ public final class ProjectorCellScanLightingRetentionTest {
             false, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
         scan.commit();
         assertTrue(scan.canResumeOcclusion(destination, eye, frustum));
-        scan.dropBlackoutDisplay();
-        assertFalse(scan.canResumeOcclusion(destination, eye, frustum));
         localView.ready = false;
         scan.run(destination, null, eye, frustum, 6.0D, true, false, false,
             false, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
@@ -890,7 +885,7 @@ public final class ProjectorCellScanLightingRetentionTest {
     }
 
     @Test
-    public void blackoutMasksTransparentFarAndLateralProjectionBoundaries()
+    public void blackoutSealsTransparentFarAndLateralBoundariesWithConcreteClaims()
         throws ReflectiveOperationException {
         PortalFrame frame = PortalFrame.canonical(Direction.S);
         PortalStructure structure = structure();
@@ -926,20 +921,31 @@ public final class ProjectorCellScanLightingRetentionTest {
                 structure, structure.getArea(), projectionFrame,
                 portalOrigin.getX(), portalOrigin.getY(), portalOrigin.getZ(), 0.0D, scan.eyeDot());
             Direction projectionNormal = projectionFrame.getNormal();
-            LongOpenHashSet expectedGeometry = new LongOpenHashSet();
             boolean foundOpaque = false;
-            boolean foundGlass = false;
-            boolean foundWater = false;
-            boolean foundAir = false;
+            boolean foundSealedGlassOrWater = false;
+            boolean foundSealedAir = false;
             boolean foundNearTransparent = false;
+            boolean foundLateralShell = false;
             for (Long2ObjectMap.Entry<ProjectedBlockClaim> entry : scan.claims().long2ObjectEntrySet()) {
                 long key = entry.getLongKey();
-                Material material = entry.getValue().getData().getMaterial();
-                boolean transparent = !testOccluding(entry.getValue().getData());
-                if (ProjectionCellKey.unpackZ(key) == expectedFarZ) {
-                    int x = ProjectionCellKey.unpackX(key);
-                    int y = ProjectionCellKey.unpackY(key);
-                    int z = ProjectionCellKey.unpackZ(key);
+                ProjectedBlockClaim claim = entry.getValue();
+                int x = ProjectionCellKey.unpackX(key);
+                int y = ProjectionCellKey.unpackY(key);
+                int z = ProjectionCellKey.unpackZ(key);
+                if (claim.isBlackout()) {
+                    assertTrue(geometry.contains(key), renderMode.name());
+                    assertEquals(Material.BLACK_CONCRETE, claim.getData().getMaterial(), renderMode.name());
+                    assertEquals(ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT, claim.getLightingPolicy(), renderMode.name());
+                    assertFalse(claim.isMaskAir(), renderMode.name());
+                    Material remote = remoteView.sampleBlockData(x, y, z).getMaterial();
+                    assertFalse(testMaterialOccluding(remote), renderMode.name() + " sealed an opaque cell");
+                    foundSealedGlassOrWater |= remote == Material.GLASS || remote == Material.WATER;
+                    foundSealedAir |= remote == Material.AIR;
+                    foundLateralShell |= z != expectedFarZ;
+                    continue;
+                }
+                boolean transparent = !testOccluding(claim.getData());
+                if (z == expectedFarZ) {
                     double cx = x + 0.5D;
                     double cy = y + 0.5D;
                     double cz = z + 0.5D;
@@ -948,38 +954,22 @@ public final class ProjectorCellScanLightingRetentionTest {
                         + ((cz - portalOrigin.getZ()) * projectionNormal.z());
                     boolean exactAperture = exactWindow.containsRayIntersection(
                         eye.getX(), eye.getY(), eye.getZ(), cx, cy, cz, cellSignedDistance);
-                    if (transparent && exactAperture) {
-                        expectedGeometry.add(key);
-                    }
+                    assertFalse(transparent && exactAperture,
+                        renderMode.name() + " left a transparent far cell unsealed at " + x + "," + y + "," + z);
                     foundOpaque |= !transparent && exactAperture;
-                    foundGlass |= material == Material.GLASS && exactAperture;
-                    foundWater |= material == Material.WATER && exactAperture;
-                    foundAir |= material == Material.AIR && exactAperture;
                 } else if (transparent) {
                     foundNearTransparent = true;
                 }
             }
             assertTrue(foundOpaque, renderMode.name());
-            assertTrue(foundGlass, renderMode.name());
-            assertTrue(foundWater, renderMode.name());
-            assertTrue(foundAir, renderMode.name());
+            assertTrue(foundSealedGlassOrWater, renderMode.name());
+            assertTrue(foundSealedAir, renderMode.name());
             assertTrue(foundNearTransparent, renderMode.name());
-            LongOpenHashSet actualFarGeometry = new LongOpenHashSet();
+            assertTrue(foundLateralShell, renderMode.name());
             for (long key : geometry) {
                 ProjectedBlockClaim claim = scan.claims().get(key);
-                assertTrue(claim != null && !testOccluding(claim.getData()), renderMode.name());
-                if (ProjectionCellKey.unpackZ(key) == expectedFarZ) {
-                    actualFarGeometry.add(key);
-                }
+                assertTrue(claim != null && claim.isBlackout(), renderMode.name());
             }
-            assertEquals(expectedGeometry, actualFarGeometry, renderMode.name());
-            assertTrue(geometry.size() > expectedGeometry.size(), renderMode.name());
-            assertEquals(expectedGeometry.size(), scan.blackoutMesh().panels().stream()
-                .filter(panel -> panel.axis() == 2 && panel.sign() == -1 && panel.plane() == expectedFarZ)
-                .mapToInt(panel -> panel.uSize() * panel.vSize())
-                .sum(), renderMode.name());
-            assertTrue(scan.blackoutMesh().panels().stream()
-                .anyMatch(panel -> panel.axis() != 2), renderMode.name());
         }
     }
 
@@ -1003,19 +993,20 @@ public final class ProjectorCellScanLightingRetentionTest {
 
         scan.run(destination, null, eye, frustum, 4.0D, true, false, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
-        assertTrue(scan.claims().isEmpty());
         LongOpenHashSet initialMask = new LongOpenHashSet(blackoutGeometry(scan));
         assertFalse(initialMask.isEmpty());
+        assertEquals(initialMask, scan.claims().keySet(), "every claim is a shell cell over air");
+        assertAllBlackout(scan);
         assertEquals(PortalProjector.minBlockForCenter(frustum.getRegion().getZa()),
             minimumBlackoutGeometryZ(scan));
-        assertFalse(scan.blackoutMesh().panels().isEmpty());
         scan.commit();
 
         localView.ready = false;
         scan.run(destination, null, eye, frustum, 4.0D, true, false, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
         assertEquals(initialMask, blackoutGeometry(scan));
-        assertFalse(scan.blackoutMesh().panels().isEmpty());
+        assertEquals(initialMask, scan.claims().keySet(), "the shell carries over while the local chunk loads");
+        assertAllBlackout(scan);
         scan.commit();
 
         localView.ready = true;
@@ -1024,7 +1015,11 @@ public final class ProjectorCellScanLightingRetentionTest {
         scan.run(destination, null, eye, frustum, 4.0D, true, false, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
         assertTrue(blackoutGeometry(scan).isEmpty());
-        assertTrue(scan.blackoutMesh().panels().isEmpty());
+        assertNoBlackoutClaims(scan);
+        assertFalse(scan.claims().isEmpty());
+        for (ProjectedBlockClaim claim : scan.claims().values()) {
+            assertEquals(Material.STONE, claim.getData().getMaterial());
+        }
     }
 
     @Test
@@ -1049,8 +1044,7 @@ public final class ProjectorCellScanLightingRetentionTest {
 
         assertFalse(scan.claims().isEmpty());
         assertTrue(blackoutGeometry(scan).isEmpty());
-        assertTrue(scan.blackoutMesh().panels().isEmpty());
-        assertFalse(scan.blackoutMesh().fallback());
+        assertNoBlackoutClaims(scan);
     }
 
     @Test
@@ -1084,22 +1078,28 @@ public final class ProjectorCellScanLightingRetentionTest {
                 + " windowRejected=" + scan.windowRejected()
                 + " frustumRejected=" + scan.frustumRejected()
                 + " region=" + frustum.getRegion());
+            boolean farFace = false;
+            boolean lateral = false;
             for (long key : geometry) {
                 ProjectedBlockClaim claim = scan.claims().get(key);
-                assertTrue(claim != null && claim.getData().getMaterial() == Material.AIR, normal.name());
+                assertTrue(claim != null && claim.isBlackout(), normal.name());
+                assertEquals(Material.BLACK_CONCRETE, claim.getData().getMaterial(), normal.name());
+                farFace |= coordinate(key, normal) == expectedCoordinate;
+                lateral |= coordinate(key, normal) != expectedCoordinate;
             }
-            int expectedAxis = normal.x() != 0 ? 0 : normal.y() != 0 ? 1 : 2;
-            assertTrue(scan.blackoutMesh().panels().stream()
-                .anyMatch(panel -> panel.axis() == expectedAxis
-                    && panel.plane() == expectedCoordinate + (panel.sign() > 0 ? 1 : 0)), normal.name());
-            assertTrue(scan.blackoutMesh().panels().stream()
-                .anyMatch(panel -> panel.axis() != expectedAxis), normal.name());
+            assertTrue(farFace, normal.name());
+            assertTrue(lateral, normal.name());
+            for (Long2ObjectMap.Entry<ProjectedBlockClaim> entry : scan.claims().long2ObjectEntrySet()) {
+                if (!entry.getValue().isBlackout()) {
+                    assertEquals(Material.AIR, entry.getValue().getData().getMaterial(), normal.name());
+                    assertFalse(geometry.contains(entry.getLongKey()), normal.name());
+                }
+            }
         }
     }
 
     @Test
-    public void depth64BlackoutShellStaysWithinTheDisplayPanelBudget()
-        throws ReflectiveOperationException {
+    public void staleShellClaimsAreResampledWhenTheCellLeavesTheShell() throws ReflectiveOperationException {
         PortalFrame frame = PortalFrame.canonical(Direction.S);
         PortalStructure structure = structure();
         ILocalPortal portal = portal(structure, frame);
@@ -1114,14 +1114,119 @@ public final class ProjectorCellScanLightingRetentionTest {
         ProjectorCellScan scan = new ProjectorCellScan(portal, sampler, memo, blackout);
         useOcclusion(scan, ProjectorCellScanLightingRetentionTest::testOccluding);
         Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
-        Frustum4D frustum = new Frustum4D(eye, structure, 64.0D, 2.0D);
+        Frustum4D shallow = new Frustum4D(eye, structure, 4.0D, 2.0D);
+        Frustum4D deep = new Frustum4D(eye, structure, 6.0D, 2.0D);
+        int shallowFarZ = PortalProjector.minBlockForCenter(shallow.getRegion().getZa());
+        int deepFarZ = PortalProjector.minBlockForCenter(deep.getRegion().getZa());
+        assertTrue(deepFarZ < shallowFarZ);
 
-        scan.run(destination, null, eye, frustum, 64.0D, true, false, false,
+        scan.run(destination, null, eye, shallow, 4.0D, true, false, false,
+            false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
+        assertEquals(shallowFarZ, minimumBlackoutGeometryZ(scan));
+        scan.commit();
+
+        scan.run(destination, null, eye, deep, 6.0D, false, false, false,
             false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
-        assertFalse(scan.blackoutMesh().fallback());
-        assertTrue(scan.blackoutMesh().panels().size() <= ProjectorBlackoutMesh.MAX_PANELS);
-        assertTrue(scan.blackoutMesh().panels().stream().anyMatch(panel -> panel.axis() != 2));
+        LongOpenHashSet geometry = blackoutGeometry(scan);
+        assertEquals(deepFarZ, minimumBlackoutGeometryZ(scan));
+        int formerFarCells = 0;
+        for (Long2ObjectMap.Entry<ProjectedBlockClaim> entry : scan.claims().long2ObjectEntrySet()) {
+            long key = entry.getLongKey();
+            ProjectedBlockClaim claim = entry.getValue();
+            assertEquals(geometry.contains(key), claim.isBlackout(),
+                "shell membership and concrete must agree at " + ProjectionCellKey.unpackX(key)
+                    + "," + ProjectionCellKey.unpackY(key) + "," + ProjectionCellKey.unpackZ(key));
+            if (ProjectionCellKey.unpackZ(key) == shallowFarZ && !claim.isBlackout()) {
+                assertEquals(Material.AIR, claim.getData().getMaterial());
+                formerFarCells++;
+            }
+        }
+        assertTrue(formerFarCells > 0, "the old far slab must be resampled as air once it is interior");
+        ProjectionClaimSet.ClaimDelta delta = scan.claimDelta();
+        for (long key : delta.changedKeys()) {
+            ProjectedBlockClaim previous = delta.previousClaims().get(key);
+            ProjectedBlockClaim next = delta.claims().get(key);
+            assertTrue(previous == null || next == null || previous != next);
+        }
+    }
+
+    @Test
+    public void disablingBlackoutRestoresSampledClaims() throws ReflectiveOperationException {
+        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        PortalStructure structure = structure();
+        ILocalPortal portal = portal(structure, frame);
+        MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
+        MutableWorldView remoteView = new MutableWorldView(blockData(Material.AIR));
+        ProjectorDestination destination = destination(portal, structure, localView, remoteView);
+        ProjectorSampleMemo memo = new ProjectorSampleMemo();
+        ProjectorSampler sampler = withBukkitServer(
+            () -> new ProjectorSampler(memo, new ProjectorRecursivePortals(), world -> remoteView));
+        ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
+        enableBlackout(blackout);
+        ProjectorCellScan scan = new ProjectorCellScan(portal, sampler, memo, blackout);
+        useOcclusion(scan, ProjectorCellScanLightingRetentionTest::testOccluding);
+        Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
+        Frustum4D frustum = new Frustum4D(eye, structure, 4.0D, 2.0D);
+
+        scan.run(destination, null, eye, frustum, 4.0D, true, false, false,
+            false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
+        LongOpenHashSet shell = new LongOpenHashSet(blackoutGeometry(scan));
+        assertFalse(shell.isEmpty());
+        LongOpenHashSet keys = new LongOpenHashSet(scan.claims().keySet());
+        scan.commit();
+
+        blackout.disable();
+        scan.run(destination, null, eye, frustum, 4.0D, true, false, false,
+            false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
+
+        assertTrue(blackoutGeometry(scan).isEmpty());
+        assertNoBlackoutClaims(scan);
+        assertEquals(keys, scan.claims().keySet());
+        assertLighting(scan, ProjectedBlockClaim.LightingPolicy.SOURCE);
+        for (long key : shell) {
+            assertEquals(Material.AIR, scan.claims().get(key).getData().getMaterial());
+        }
+    }
+
+    @Test
+    public void shellClaimsFollowTheSealBlock() throws ReflectiveOperationException {
+        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        PortalStructure structure = structure();
+        ILocalPortal portal = portal(structure, frame);
+        MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
+        MutableWorldView remoteView = new MutableWorldView(blockData(Material.AIR));
+        ProjectorDestination destination = destination(portal, structure, localView, remoteView);
+        ProjectorSampleMemo memo = new ProjectorSampleMemo();
+        ProjectorSampler sampler = withBukkitServer(
+            () -> new ProjectorSampler(memo, new ProjectorRecursivePortals(), world -> remoteView));
+        ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
+        enableBlackout(blackout);
+        ProjectorCellScan scan = new ProjectorCellScan(portal, sampler, memo, blackout);
+        useOcclusion(scan, ProjectorCellScanLightingRetentionTest::testOccluding);
+        Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
+        Frustum4D frustum = new Frustum4D(eye, structure, 4.0D, 2.0D);
+
+        scan.run(destination, null, eye, frustum, 4.0D, true, false, false,
+            false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
+        LongOpenHashSet shell = new LongOpenHashSet(blackoutGeometry(scan));
+        assertFalse(shell.isEmpty());
+        scan.commit();
+
+        Field data = ProjectorBlackoutSeal.class.getDeclaredField("blackoutData");
+        data.setAccessible(true);
+        data.set(blackout, blockData(Material.RED_CONCRETE));
+        scan.run(destination, null, eye, frustum, 4.0D, false, false, false,
+            false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
+
+        assertEquals(shell, blackoutGeometry(scan));
+        ProjectionClaimSet.ClaimDelta delta = scan.claimDelta();
+        for (long key : shell) {
+            ProjectedBlockClaim claim = scan.claims().get(key);
+            assertTrue(claim.isBlackout());
+            assertEquals(Material.RED_CONCRETE, claim.getData().getMaterial());
+            assertTrue(delta.changedKeys().contains(key), "recoloured shell cells must be resent");
+        }
     }
 
     @Test
@@ -1162,41 +1267,22 @@ public final class ProjectorCellScanLightingRetentionTest {
                 false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
 
             assertTrue(blackoutGeometry(scan).isEmpty(), "scenario=" + scenario);
-            assertTrue(scan.blackoutMesh().panels().isEmpty(), "scenario=" + scenario);
+            assertNoBlackoutClaims(scan);
         }
     }
 
-    @Test
-    public void blackoutDisplayFailureFailsOpenWithoutCreatingConcreteClaims()
-        throws ReflectiveOperationException {
-        PortalFrame frame = PortalFrame.canonical(Direction.S);
-        PortalStructure structure = structure();
-        ILocalPortal portal = portal(structure, frame);
-        MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
-        MutableWorldView remoteView = new MutableWorldView(blockData(Material.AIR));
-        ProjectorDestination destination = destination(portal, structure, localView, remoteView);
-        ProjectorSampleMemo memo = new ProjectorSampleMemo();
-        ProjectorSampler sampler = withBukkitServer(
-            () -> new ProjectorSampler(memo, new ProjectorRecursivePortals(), world -> remoteView));
-        ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
-        enableBlackout(blackout);
-        ProjectorCellScan scan = new ProjectorCellScan(portal, sampler, memo, blackout);
-        useOcclusion(scan, ProjectorCellScanLightingRetentionTest::testOccluding);
-        Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
-        Frustum4D frustum = new Frustum4D(eye, structure, 4.0D, 2.0D);
-
-        scan.run(destination, null, eye, frustum, 4.0D, true, false, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
-        Long2ObjectMap<ProjectedBlockClaim> projectionClaims =
-            new Long2ObjectOpenHashMap<ProjectedBlockClaim>(scan.claims());
-        assertFalse(scan.blackoutMesh().panels().isEmpty());
-
-        scan.dropBlackoutDisplay();
-
-        assertEquals(projectionClaims, scan.claims());
-        assertTrue(scan.blackoutMesh().fallback());
-        assertTrue(scan.blackoutMesh().panels().isEmpty());
+    private static void assertAllBlackout(ProjectorCellScan scan) {
         assertFalse(scan.claims().isEmpty());
         for (ProjectedBlockClaim claim : scan.claims().values()) {
+            assertTrue(claim.isBlackout());
+            assertEquals(Material.BLACK_CONCRETE, claim.getData().getMaterial());
+            assertEquals(ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT, claim.getLightingPolicy());
+        }
+    }
+
+    private static void assertNoBlackoutClaims(ProjectorCellScan scan) {
+        for (ProjectedBlockClaim claim : scan.claims().values()) {
+            assertFalse(claim.isBlackout());
             assertFalse(claim.getData().getMaterial() == Material.BLACK_CONCRETE);
         }
     }

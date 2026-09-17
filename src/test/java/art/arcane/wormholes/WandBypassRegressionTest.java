@@ -37,12 +37,15 @@ public final class WandBypassRegressionTest {
     }
 
     @Test
-    public void theWandHandlerSkipsInteractionsProtectionAlreadyCancelled() throws NoSuchMethodException {
+    public void theWandHandlerReceivesAirClicksCancelledByBukkit() throws NoSuchMethodException {
         Method handler = WandSelectionManager.class.getMethod("on", PlayerInteractEvent.class);
         EventHandler annotation = handler.getAnnotation(EventHandler.class);
+        PlayerInteractEvent inAir = new PlayerInteractEvent(player(), Action.LEFT_CLICK_AIR,
+            null, null, BlockFace.SELF);
 
         assertSame(EventPriority.HIGH, annotation.priority());
-        assertTrue(annotation.ignoreCancelled(), "a cancelled interaction must never reach the wand");
+        assertTrue(inAir.isCancelled());
+        assertFalse(annotation.ignoreCancelled(), "Bukkit pre-cancels air clicks before listener dispatch");
     }
 
     @Test

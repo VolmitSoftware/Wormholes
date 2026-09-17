@@ -87,7 +87,6 @@ final class ProjectionInterestFrame {
                     } finally {
                         int blockEntityBudget = FidelitySettings.blockEntityBudgetPerTick;
                         for (PortalProjector projector : projected) {
-                            projector.finishBlackoutDisplayFrame();
                             blockEntityBudget -= projector.flushBlockEntities(blockEntityBudget);
                         }
                     }

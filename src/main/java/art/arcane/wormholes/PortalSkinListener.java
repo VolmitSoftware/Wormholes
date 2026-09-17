@@ -2,6 +2,8 @@ package art.arcane.wormholes;
 
 import java.util.Optional;
 
+import art.arcane.volmlib.util.event.ProtectionProbe;
+
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
@@ -28,6 +30,10 @@ public class PortalSkinListener implements Listener
 	@EventHandler(priority = EventPriority.HIGH)
 	public void on(PlayerInteractEvent e)
 	{
+		if(ProtectionProbe.isProbe(e))
+		{
+			return;
+		}
 		Action action = e.getAction();
 		if(action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK)
 		{

@@ -1407,7 +1407,7 @@ momentum = ["&6&lĐộng lượng: {mode}&r", "&7Hệ số {value}. Cách suy ra
 orientation = ["&6&lHướng nhìn: {mode}&r", "&7Người đi nhìn về hướng nào khi đến nơi.", "&eNhấp trái để đổi"]
 membrane = ["&6&lMàng: {state}&r", "&7Chỉ mặt trước cho người đi vào; mặt sau đẩy họ ra.", "&eNhấp trái để bật hoặc tắt"]
 bounce = ["&6&lBật lại: {state}&r", "&7Đẩy người đi ngược lại thay vì dịch chuyển họ.", "&eNhấp trái để bật hoặc tắt"]
-profile = ["&6&lHiệu ứng chuyển tiếp&r", "&7Tiếp cận {value}", "&7Ngưỡng {mode}", "&7Đến nơi {state}", "&eNhấp trái: âm tiếp cận, Nhấp phải: hiệu ứng ngưỡng", "&eShift + Nhấp trái: âm đến nơi, Shift + Nhấp phải: tick mặt nạ"]
+profile = ["&6&lHiệu ứng chuyển tiếp&r", "&7Ngưỡng {mode}", "&7Đến nơi {state}", "&eNhấp trái: hiệu ứng ngưỡng, Nhấp phải: âm đến nơi", "&eShift + Nhấp trái: tick mặt nạ"]
 prompt = "&bNhập giá trị mới vào khung chat (hoặc '{cancel}'):"
 # ---- end lane:transit ----
 

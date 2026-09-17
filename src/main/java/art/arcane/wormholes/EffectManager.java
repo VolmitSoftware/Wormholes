@@ -1,5 +1,7 @@
 package art.arcane.wormholes;
 
+import art.arcane.volmlib.util.event.ProtectionProbe;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -317,8 +319,8 @@ public class EffectManager implements Listener
 			boolean syncing = !ready && cache.hasSlicesFor(remote.getId());
 			if(syncing)
 			{
-				boolean justStarted = portalSyncActive.put(portalKey, Boolean.TRUE) == null;
-				FoliaScheduler.runRegion(Wormholes.instance, center, () -> playPortalSyncing(center, justStarted));
+				portalSyncActive.put(portalKey, Boolean.TRUE);
+				FoliaScheduler.runRegion(Wormholes.instance, center, () -> playPortalSyncing(center));
 			}
 			else if(ready && Boolean.TRUE.equals(portalSyncActive.remove(portalKey)))
 			{
@@ -332,7 +334,7 @@ public class EffectManager implements Listener
 		portalSyncActive.keySet().removeIf(portalId -> !currentPortalIds.contains(portalId));
 	}
 
-	private void playPortalSyncing(Location center, boolean justStarted)
+	private void playPortalSyncing(Location center)
 	{
 		World world = center.getWorld();
 		if(world == null)
@@ -343,10 +345,6 @@ public class EffectManager implements Listener
 		{
 			world.spawnParticle(Particle.PORTAL, center, 4, 0.45, 0.65, 0.45, 0.18);
 			world.spawnParticle(Particle.REVERSE_PORTAL, center, 1, 0.2, 0.35, 0.2, 0.01);
-		}
-		if(justStarted)
-		{
-			world.playSound(center, Sound.BLOCK_BEACON_AMBIENT, SoundCategory.BLOCKS, Settings.portalSoundVolume(0.3f), 1.7f);
 		}
 	}
 
@@ -361,7 +359,6 @@ public class EffectManager implements Listener
 		{
 			world.spawnParticle(Particle.REVERSE_PORTAL, center, 12, 0.4, 0.6, 0.4, 0.4);
 		}
-		world.playSound(center, Sound.BLOCK_BEACON_ACTIVATE, SoundCategory.BLOCKS, Settings.portalSoundVolume(0.165f), 1.5f);
 	}
 
 	private void validatePortalToolHolder(Player player, PortalCandidateSnapshot candidates, long currentTick,
@@ -450,6 +447,10 @@ public class EffectManager implements Listener
 	@EventHandler
 	public void on(PlayerInteractEvent e)
 	{
+		if(ProtectionProbe.isProbe(e))
+		{
+			return;
+		}
 		Action action = e.getAction();
 		boolean isLeft = action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK;
 		boolean isRight = action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK;
@@ -486,6 +487,10 @@ public class EffectManager implements Listener
 	@EventHandler(priority = EventPriority.LOW)
 	public void onPortalMenuGesture(PlayerInteractEvent e)
 	{
+		if(ProtectionProbe.isProbe(e))
+		{
+			return;
+		}
 		if(e.getAction() != Action.RIGHT_CLICK_BLOCK)
 		{
 			return;

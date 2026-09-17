@@ -144,7 +144,6 @@ final class ProjectionInterestFrameBudgetTest {
         assertThrows(IllegalStateException.class, () -> interestFrame.project(observer, active,
             new AtomicInteger(), 1, true, true, 1L, false, active, frame));
 
-        verify(projector).finishBlackoutDisplayFrame();
         verify(projector).flushBlockEntities(anyInt());
         try (ProjectionBudgetLedger.ObserverFrame next = frame.beginObserver(cheapId)) {
             assertFalse(next.admitsBlocks());

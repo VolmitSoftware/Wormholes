@@ -146,18 +146,14 @@ public final class TransitMenu {
         element.setMaterial(new MaterialBlock(Material.NOTE_BLOCK));
         applyProfile(element, transit);
         element.onLeftClick(event -> prompt(window, viewer, text -> {
-            transit.setProfile(transit.profile().withApproachSound(soundOrEmpty(text)));
-            changed(transit);
-        }));
-        element.onRightClick(event -> prompt(window, viewer, text -> {
             transit.setProfile(transit.profile().withThresholdEffect(soundOrEmpty(text)));
             changed(transit);
         }));
-        element.onShiftLeftClick(event -> prompt(window, viewer, text -> {
+        element.onRightClick(event -> prompt(window, viewer, text -> {
             transit.setProfile(transit.profile().withArrivalSound(soundOrEmpty(text)));
             changed(transit);
         }));
-        element.onShiftRightClick(event -> prompt(window, viewer, text -> {
+        element.onShiftLeftClick(event -> prompt(window, viewer, text -> {
             Integer ticks = parseMaskTicks(text);
             if (ticks != null) {
                 transit.setProfile(transit.profile().withMaskOverrideTicks(ticks.intValue()));
@@ -171,7 +167,6 @@ public final class TransitMenu {
         TransitionProfile profile = transit.profile();
         element.setEnchanted(!profile.isNone());
         Wormholes.text().apply(element, TransitMessages.MENU_PROFILE, args(
-            MessageArgument.untrusted("value", labelOrDefault(profile.approachSound())),
             MessageArgument.untrusted("mode", labelOrDefault(profile.thresholdEffect())),
             MessageArgument.untrusted("state", labelOrDefault(profile.arrivalSound())
                 + (profile.overridesMask() ? " / " + profile.maskOverrideTicks() + "t" : ""))));

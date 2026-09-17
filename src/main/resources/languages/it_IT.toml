@@ -1407,7 +1407,7 @@ momentum = ["&6&lSlancio: {mode}&r", "&7Fattore {value}. Come la velocità di us
 orientation = ["&6&lOrientamento: {mode}&r", "&7Dove guardano i viaggiatori all'arrivo.", "&eClic sinistro per cambiare"]
 membrane = ["&6&lMembrana: {state}&r", "&7Solo il lato anteriore fa entrare i viaggiatori; il retro li respinge.", "&eClic sinistro per attivare o disattivare"]
 bounce = ["&6&lRimbalzo: {state}&r", "&7Respingi i viaggiatori invece di spostarli.", "&eClic sinistro per attivare o disattivare"]
-profile = ["&6&lEffetti di transizione&r", "&7Avvicinamento {value}", "&7Soglia {mode}", "&7Arrivo {state}", "&eClic sinistro: suono di avvicinamento, Clic destro: effetto di soglia", "&eMaiusc + Clic sinistro: suono di arrivo, Maiusc + Clic destro: tick della maschera"]
+profile = ["&6&lEffetti di transizione&r", "&7Soglia {mode}", "&7Arrivo {state}", "&eClic sinistro: effetto di soglia, Clic destro: suono di arrivo", "&eMaiusc + Clic sinistro: tick della maschera"]
 prompt = "&bScrivi il nuovo valore in chat (oppure '{cancel}'):"
 # ---- end lane:transit ----
 

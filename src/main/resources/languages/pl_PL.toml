@@ -1407,7 +1407,7 @@ momentum = ["&6&lPęd: {mode}&r", "&7Współczynnik {value}. Jak prędkość wyj
 orientation = ["&6&lOrientacja: {mode}&r", "&7W którą stronę patrzą podróżni po przybyciu.", "&eLewy przycisk zmienia"]
 membrane = ["&6&lMembrana: {state}&r", "&7Tylko przód wpuszcza podróżnych; tył ich odpycha.", "&eLewy przycisk przełącza"]
 bounce = ["&6&lOdbicie: {state}&r", "&7Odbijaj podróżnych zamiast ich przenosić.", "&eLewy przycisk przełącza"]
-profile = ["&6&lEfekty przejścia&r", "&7Zbliżanie {value}", "&7Próg {mode}", "&7Przybycie {state}", "&eLewy przycisk: dźwięk zbliżania, Prawy przycisk: efekt progu", "&eShift + lewy: dźwięk przybycia, Shift + prawy: tiki maski"]
+profile = ["&6&lEfekty przejścia&r", "&7Próg {mode}", "&7Przybycie {state}", "&eLewy przycisk: efekt progu, Prawy przycisk: dźwięk przybycia", "&eShift + lewy: tiki maski"]
 prompt = "&bWpisz nową wartość na czacie (lub '{cancel}'):"
 # ---- end lane:transit ----
 

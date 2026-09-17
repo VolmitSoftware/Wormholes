@@ -4,7 +4,7 @@ import art.arcane.wormholes.util.project.config.ConfigDescription;
 import art.arcane.wormholes.util.project.config.ConfigDoc;
 
 @ConfigDoc({
-    "Portal physics, convoy traversal, and traversal cinematics. Changes hot-reload."
+    "Portal physics, convoy traversal, and traversal cues. Changes hot-reload."
 })
 public class TransitConfig {
     @ConfigDescription("Momentum policy for portals that set none of their own: preserve, scale, clamp, zero, or impulse.")
@@ -25,10 +25,8 @@ public class TransitConfig {
     public boolean convoyCrossServerEnabled = true;
     @ConfigDescription("Seconds a cross-server rig transfer may wait for the destination before the source restores the rig. Keep under 30.")
     public int convoyCrossServerTimeoutSec = 20;
-    @ConfigDescription("Play approach, threshold, and arrival cues (sound and particles only).")
+    @ConfigDescription("Play threshold and arrival cues (sound and particles only).")
     public boolean cinematicsEnabled = true;
-    @ConfigDescription("Blocks in front of the aperture where the approach cue starts.")
-    public double cinematicsApproachRange = 4.0D;
     @ConfigDescription("Size the arrival darkness mask by how many destination chunks still need to stream instead of using the fixed tick count.")
     public boolean arrivalMaskAdaptive = true;
     @ConfigDescription("Shortest adaptive arrival mask in ticks when any destination chunk is still missing.")

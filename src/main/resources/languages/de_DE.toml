@@ -1407,7 +1407,7 @@ momentum = ["&6&lSchwung: {mode}&r", "&7Faktor {value}. Wie die Austrittsgeschwi
 orientation = ["&6&lAusrichtung: {mode}&r", "&7In welche Richtung Reisende bei der Ankunft blicken.", "&eLinksklick zum Wechseln"]
 membrane = ["&6&lMembran: {state}&r", "&7Nur die Vorderseite lässt Reisende hinein; die Rückseite stößt sie ab.", "&eLinksklick zum Umschalten"]
 bounce = ["&6&lAbprall: {state}&r", "&7Reisende zurückwerfen, statt sie zu bewegen.", "&eLinksklick zum Umschalten"]
-profile = ["&6&lÜbergangseffekte&r", "&7Annäherung {value}", "&7Schwelle {mode}", "&7Ankunft {state}", "&eLinksklick: Annäherungsklang, Rechtsklick: Schwelleneffekt", "&eUmschalt + Linksklick: Ankunftsklang, Umschalt + Rechtsklick: Masken-Ticks"]
+profile = ["&6&lÜbergangseffekte&r", "&7Schwelle {mode}", "&7Ankunft {state}", "&eLinksklick: Schwelleneffekt, Rechtsklick: Ankunftsklang", "&eUmschalt + Linksklick: Masken-Ticks"]
 prompt = "&bGib den neuen Wert im Chat ein (oder '{cancel}'):"
 # ---- end lane:transit ----
 

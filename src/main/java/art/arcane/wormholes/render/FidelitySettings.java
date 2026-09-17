@@ -27,10 +27,10 @@ public final class FidelitySettings {
     public static volatile int blockEntityBudgetPerTick = 64;
     public static volatile List<String> blockEntityTypes = RenderConfig.DEFAULT_BLOCK_ENTITY_TYPES;
     public static volatile boolean blockEntityContainers = false;
-    public static volatile AtmosphereMode atmosphereModeDefault = AtmosphereMode.TINT_LIGHT;
-    public static volatile boolean biomeTint = true;
+    public static volatile AtmosphereMode atmosphereModeDefault = AtmosphereMode.OFF;
+    public static volatile boolean biomeTint = false;
     public static volatile double biomeDominance = 0.6D;
-    public static volatile boolean skyLight = true;
+    public static volatile boolean skyLight = false;
     public static volatile boolean fogPlate = true;
     public static volatile boolean weather = true;
     public static volatile int lodDistanceBlocks = 32;
@@ -66,7 +66,7 @@ public final class FidelitySettings {
         blockEntityBudgetPerTick = clamp(render.blockEntityBudgetPerTick, 1, 1024);
         blockEntityTypes = normalizeTypes(render.blockEntityTypes);
         blockEntityContainers = render.blockEntityContainers;
-        atmosphereModeDefault = AtmosphereMode.parse(atmosphere.modeDefault, AtmosphereMode.TINT_LIGHT);
+        atmosphereModeDefault = AtmosphereMode.parse(atmosphere.modeDefault, AtmosphereMode.OFF);
         biomeTint = atmosphere.biomeTint;
         biomeDominance = clamp(atmosphere.biomeDominance, 0.0D, 1.0D);
         skyLight = atmosphere.skyLight;

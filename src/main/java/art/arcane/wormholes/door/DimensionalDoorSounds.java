@@ -35,11 +35,6 @@ final class DimensionalDoorSounds
 		return denyThudCue().key();
 	}
 
-	static String portalAmbientSound()
-	{
-		return portalAmbientCue().key();
-	}
-
 	static SoundCue teleportCue()
 	{
 		return SoundCue.PLAYER_TELEPORT;
@@ -85,11 +80,6 @@ final class DimensionalDoorSounds
 		return SoundCue.DENY_THUD;
 	}
 
-	static SoundCue portalAmbientCue()
-	{
-		return SoundCue.PORTAL_AMBIENT;
-	}
-
 	enum SoundCue
 	{
 		PLAYER_TELEPORT("entity.player.teleport"),
@@ -106,8 +96,7 @@ final class DimensionalDoorSounds
 		NETHER_WOOD_TRAPDOOR_OPEN("block.nether_wood_trapdoor.open"),
 		WOODEN_TRAPDOOR_OPEN("block.wooden_trapdoor.open"),
 		DENY_BASS("block.note_block.bass"),
-		DENY_THUD("entity.warden.heartbeat"),
-		PORTAL_AMBIENT("block.portal.ambient");
+		DENY_THUD("entity.warden.heartbeat");
 
 		private final String key;
 

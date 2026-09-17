@@ -26,8 +26,6 @@ public final class TransitSubsystem implements WormholesSubsystem {
 
     private static volatile TransitConfig active = new TransitConfig();
 
-    private final Cinematics cinematics = new Cinematics();
-
     /** The current {@code [transit]} section; defaults until the subsystem starts. */
     public static TransitConfig config() {
         return active;
@@ -60,7 +58,6 @@ public final class TransitSubsystem implements WormholesSubsystem {
     public void start(Wormholes plugin) {
         WormholesSettings settings = Wormholes.settings;
         apply(settings == null ? null : settings.getTransit());
-        cinematics.start(plugin);
         TraversalService service = Wormholes.traversalService;
         if (service == null) {
             return;
@@ -73,7 +70,6 @@ public final class TransitSubsystem implements WormholesSubsystem {
 
     @Override
     public void stop() {
-        cinematics.stop();
         TraversalService service = Wormholes.traversalService;
         if (service != null) {
             service.installConvoyArrivalHook(null);

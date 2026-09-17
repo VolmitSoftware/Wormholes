@@ -1407,7 +1407,7 @@ momentum = ["&6&lVaart: {mode}&r", "&7Factor {value}. Hoe de uitgangssnelheid wo
 orientation = ["&6&lOriëntatie: {mode}&r", "&7Welke kant reizigers op kijken bij aankomst.", "&eLinkerklik om te wisselen"]
 membrane = ["&6&lMembraan: {state}&r", "&7Alleen de voorkant laat reizigers binnen; de achterkant duwt ze weg.", "&eLinkerklik om te schakelen"]
 bounce = ["&6&lTerugkaatsing: {state}&r", "&7Reizigers terugkaatsen in plaats van verplaatsen.", "&eLinkerklik om te schakelen"]
-profile = ["&6&lOvergangseffecten&r", "&7Nadering {value}", "&7Drempel {mode}", "&7Aankomst {state}", "&eLinkerklik: naderingsgeluid, Rechterklik: drempeleffect", "&eShift + Linkerklik: aankomstgeluid, Shift + Rechterklik: maskerticks"]
+profile = ["&6&lOvergangseffecten&r", "&7Drempel {mode}", "&7Aankomst {state}", "&eLinkerklik: drempeleffect, Rechterklik: aankomstgeluid", "&eShift + Linkerklik: maskerticks"]
 prompt = "&bTyp de nieuwe waarde in de chat (of '{cancel}'):"
 # ---- end lane:transit ----
 

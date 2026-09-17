@@ -1407,7 +1407,7 @@ momentum = ["&6&lMomentum: {mode}&r", "&7Çarpan {value}. Çıkış hızının g
 orientation = ["&6&lYön: {mode}&r", "&7Yolcuların varışta baktığı yön.", "&eDeğiştirmek için sol tık"]
 membrane = ["&6&lZar: {state}&r", "&7Yalnızca ön taraf yolcuları içeri alır; arka taraf onları iter.", "&eAçıp kapatmak için sol tık"]
 bounce = ["&6&lSekme: {state}&r", "&7Yolcuları taşımak yerine geri sektir.", "&eAçıp kapatmak için sol tık"]
-profile = ["&6&lGeçiş efektleri&r", "&7Yaklaşma {value}", "&7Eşik {mode}", "&7Varış {state}", "&eSol tık: yaklaşma sesi, Sağ tık: eşik efekti", "&eShift + Sol tık: varış sesi, Shift + Sağ tık: maske tikleri"]
+profile = ["&6&lGeçiş efektleri&r", "&7Eşik {mode}", "&7Varış {state}", "&eSol tık: eşik efekti, Sağ tık: varış sesi", "&eShift + Sol tık: maske tikleri"]
 prompt = "&bYeni değeri sohbete yazın (veya '{cancel}'):"
 # ---- end lane:transit ----
 

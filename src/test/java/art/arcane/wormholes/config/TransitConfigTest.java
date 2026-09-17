@@ -1,6 +1,7 @@
 package art.arcane.wormholes.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -34,7 +35,7 @@ final class TransitConfigTest {
         assertTrue(emitted.contains("convoy-cross-server-enabled = true"));
         assertTrue(emitted.contains("convoy-cross-server-timeout-sec = 20"));
         assertTrue(emitted.contains("cinematics-enabled = true"));
-        assertTrue(emitted.contains("cinematics-approach-range = 4.0"));
+        assertFalse(emitted.contains("cinematics-approach-range"));
         assertTrue(emitted.contains("arrival-mask-adaptive = true"));
         assertTrue(emitted.contains("arrival-mask-min-ticks = 5"));
 
@@ -49,7 +50,6 @@ final class TransitConfigTest {
         assertTrue(transit.convoyCrossServerEnabled);
         assertEquals(20, transit.convoyCrossServerTimeoutSec);
         assertTrue(transit.cinematicsEnabled);
-        assertEquals(4.0D, transit.cinematicsApproachRange);
         assertTrue(transit.arrivalMaskAdaptive);
         assertEquals(5, transit.arrivalMaskMinTicks);
     }

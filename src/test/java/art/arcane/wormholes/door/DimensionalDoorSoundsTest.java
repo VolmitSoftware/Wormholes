@@ -71,14 +71,6 @@ class DimensionalDoorSoundsTest
 	}
 
 	@Test
-	void portalSurfaceUsesTheAmbientPortalCue()
-	{
-		assertEquals(DimensionalDoorSounds.SoundCue.PORTAL_AMBIENT, DimensionalDoorSounds.portalAmbientCue());
-		assertEquals("block.portal.ambient", DimensionalDoorSounds.portalAmbientCue().key());
-		assertEquals("block.portal.ambient", DimensionalDoorSounds.portalAmbientSound());
-	}
-
-	@Test
 	void denyCuesAreDistinctFromDoorCloseCues()
 	{
 		assertNotEquals(DimensionalDoorSounds.denyBassSound(), DimensionalDoorSounds.denyThudSound());

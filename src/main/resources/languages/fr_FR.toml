@@ -1407,7 +1407,7 @@ momentum = ["&6&lÉlan : {mode}&r", "&7Facteur {value}. Comment la vitesse de so
 orientation = ["&6&lOrientation : {mode}&r", "&7Dans quelle direction les voyageurs regardent à l'arrivée.", "&eClic gauche pour changer"]
 membrane = ["&6&lMembrane : {state}&r", "&7Seule la face avant laisse entrer les voyageurs ; l'arrière les repousse.", "&eClic gauche pour basculer"]
 bounce = ["&6&lRebond : {state}&r", "&7Renvoyer les voyageurs au lieu de les déplacer.", "&eClic gauche pour basculer"]
-profile = ["&6&lEffets de transition&r", "&7Approche {value}", "&7Seuil {mode}", "&7Arrivée {state}", "&eClic gauche : son d'approche, Clic droit : effet de seuil", "&eMaj + Clic gauche : son d'arrivée, Maj + Clic droit : ticks du masque"]
+profile = ["&6&lEffets de transition&r", "&7Seuil {mode}", "&7Arrivée {state}", "&eClic gauche : effet de seuil, Clic droit : son d'arrivée", "&eMaj + Clic gauche : ticks du masque"]
 prompt = "&bSaisissez la nouvelle valeur dans le chat (ou '{cancel}') :"
 # ---- end lane:transit ----
 

@@ -1,7 +1,5 @@
 package art.arcane.wormholes.render;
 
-import java.util.List;
-
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -50,10 +48,8 @@ final class ProjectorCellScan {
     private final Long2ByteOpenHashMap localChunkReadiness;
     private final ProjectorEmptyCellRuns emptyCells;
     private final ProjectorFrustumRow frustumRow;
-    private LongOpenHashSet projectedBlackoutGeometry;
-    private LongOpenHashSet blackoutGeometry;
-    private Long2LongOpenHashMap projectedBlackoutRemoteKeys;
-    private Long2LongOpenHashMap blackoutRemoteKeys;
+    private final LongOpenHashSet blackoutGeometry;
+    private final Long2LongOpenHashMap blackoutRemoteKeys;
     private LongOpenHashSet occlusionGeometry;
     private LongOpenHashSet projectedOcclusionGeometry;
     private final LongArrayList observerTargetCells;
@@ -71,9 +67,6 @@ final class ProjectorCellScan {
     private int unfilteredClaimCount;
     private Long2ObjectOpenHashMap<BlockEntitySample> projectedBlockEntities;
     private Long2ObjectOpenHashMap<BlockEntitySample> nextBlockEntities;
-    private ProjectorBlackoutMesh.Result blackoutMesh;
-    private ProjectionWorldView projectedBlackoutView;
-    private ProjectionWorldView blackoutView;
     private PortalFrame projectionLocalFrame;
     private PortalFrame projectionRemoteFrame;
     private double projectionEyeDot;
@@ -108,9 +101,7 @@ final class ProjectorCellScan {
     private ScanPass pending;
     private boolean preparedResult;
     private boolean reuseCommittedEntityOcclusion;
-    private ProjectorBlackoutMesh.Result projectedBlackoutMesh;
-    private BlockData projectedBlackoutData;
-    private BlockData pendingBlackoutData;
+    private int blackoutClaims;
     private PortalFrame committedLocalFrame;
     private PortalFrame committedRemoteFrame;
     private double committedEyeDot;
@@ -140,9 +131,7 @@ final class ProjectorCellScan {
         this.localChunkReadiness = new Long2ByteOpenHashMap(16);
         this.emptyCells = new ProjectorEmptyCellRuns();
         this.frustumRow = new ProjectorFrustumRow();
-        this.projectedBlackoutGeometry = new LongOpenHashSet(256);
         this.blackoutGeometry = new LongOpenHashSet(256);
-        this.projectedBlackoutRemoteKeys = new Long2LongOpenHashMap(256);
         this.blackoutRemoteKeys = new Long2LongOpenHashMap(256);
         this.occlusionGeometry = new LongOpenHashSet(256);
         this.projectedOcclusionGeometry = new LongOpenHashSet(256);
@@ -158,8 +147,6 @@ final class ProjectorCellScan {
         this.removedClaimKeys = new LongOpenHashSet(64);
         this.projectedBlockEntities = new Long2ObjectOpenHashMap<BlockEntitySample>(16);
         this.nextBlockEntities = new Long2ObjectOpenHashMap<BlockEntitySample>(16);
-        this.blackoutMesh = ProjectorBlackoutMesh.empty();
-        this.projectedBlackoutMesh = ProjectorBlackoutMesh.empty();
     }
 
     Long2ObjectOpenHashMap<ProjectedBlockClaim> claims() {
@@ -189,15 +176,12 @@ final class ProjectorCellScan {
     }
 
     boolean hasProjection() {
-        return !projected.isEmpty() || projectedBlackoutMesh.hasProjection();
+        return !projected.isEmpty();
     }
 
-    ProjectorBlackoutMesh.Result blackoutMesh() {
-        return preparedResult ? blackoutMesh : projectedBlackoutMesh;
-    }
-
-    BlockData blackoutData() {
-        return preparedResult ? pendingBlackoutData : projectedBlackoutData;
+    /** Shell cells the last completed scan sealed with the blackout block. */
+    int blackoutClaims() {
+        return blackoutClaims;
     }
 
     ProjectedEntityOcclusion entityOcclusion() {
@@ -306,9 +290,7 @@ final class ProjectorCellScan {
         reuseCommittedEntityOcclusion = false;
         projectedOcclusionGeometry.clear();
         projectedEntityOcclusion.disable();
-        projectedBlackoutMesh = ProjectorBlackoutMesh.empty();
-        projectedBlackoutData = null;
-        pendingBlackoutData = null;
+        blackoutClaims = 0;
         committedLocalFrame = null;
         committedRemoteFrame = null;
         committedEyeDot = 0.0D;
@@ -326,10 +308,8 @@ final class ProjectorCellScan {
         nextProjected.clear();
         projectedBlockEntities.clear();
         nextBlockEntities.clear();
-        projectedBlackoutGeometry.clear();
         blackoutGeometry.clear();
         blackoutBoundary.clear();
-        projectedBlackoutRemoteKeys.clear();
         blackoutRemoteKeys.clear();
         occlusionGeometry.clear();
         observerTargetCells.clear();
@@ -339,9 +319,6 @@ final class ProjectorCellScan {
         projectedUnresolvedOcclusion.clear();
         nextUnresolvedOcclusion.clear();
         entityOcclusion.disable();
-        blackoutMesh = ProjectorBlackoutMesh.empty();
-        projectedBlackoutView = null;
-        blackoutView = null;
     }
 
     void commit() {
@@ -356,8 +333,6 @@ final class ProjectorCellScan {
             projectedEntityOcclusion = entityOcclusion;
             entityOcclusion = entityOcclusionSwap;
         }
-        projectedBlackoutMesh = blackoutMesh;
-        projectedBlackoutData = pendingBlackoutData;
         committedLocalFrame = projectionLocalFrame;
         committedRemoteFrame = projectionRemoteFrame;
         committedEyeDot = projectionEyeDot;
@@ -370,17 +345,9 @@ final class ProjectorCellScan {
         Long2ObjectOpenHashMap<BlockEntitySample> blockEntitySwap = projectedBlockEntities;
         projectedBlockEntities = nextBlockEntities;
         nextBlockEntities = blockEntitySwap;
-        LongOpenHashSet blackoutSwap = projectedBlackoutGeometry;
-        projectedBlackoutGeometry = blackoutGeometry;
-        blackoutGeometry = blackoutSwap;
-        Long2LongOpenHashMap remoteKeySwap = projectedBlackoutRemoteKeys;
-        projectedBlackoutRemoteKeys = blackoutRemoteKeys;
-        blackoutRemoteKeys = remoteKeySwap;
         LongOpenHashSet unresolvedSwap = projectedUnresolvedOcclusion;
         projectedUnresolvedOcclusion = nextUnresolvedOcclusion;
         nextUnresolvedOcclusion = unresolvedSwap;
-        projectedBlackoutView = blackoutView;
-        blackoutView = null;
         scanCommitted = true;
     }
 
@@ -402,8 +369,6 @@ final class ProjectorCellScan {
     void resumeOcclusion() {
         preparedResult = true;
         reuseCommittedEntityOcclusion = true;
-        blackoutMesh = projectedBlackoutMesh;
-        pendingBlackoutData = projectedBlackoutData;
         deltaBaseline = scanCommitted ? projected : null;
         retainedClaimCount = projected.size();
         unfilteredClaimCount = projected.size();
@@ -414,11 +379,6 @@ final class ProjectorCellScan {
         nextProjected.putAll(projected);
         nextBlockEntities.clear();
         nextBlockEntities.putAll(projectedBlockEntities);
-        blackoutGeometry.clear();
-        blackoutGeometry.addAll(projectedBlackoutGeometry);
-        blackoutRemoteKeys.clear();
-        blackoutRemoteKeys.putAll(projectedBlackoutRemoteKeys);
-        blackoutView = projectedBlackoutView;
         nextUnresolvedOcclusion.clear();
         enterCount = 0;
         exitCount = 0;
@@ -605,11 +565,6 @@ final class ProjectorCellScan {
         return count >= Integer.MAX_VALUE - current ? Integer.MAX_VALUE : current + (int) count;
     }
 
-    void dropBlackoutDisplay() {
-        completeGeometry = false;
-        blackoutMesh = new ProjectorBlackoutMesh.Result(List.of(), true);
-    }
-
     private void retainBlockEntity(long key) {
         BlockEntitySample previous = projectedBlockEntities.get(key);
         if (previous != null) {
@@ -705,10 +660,12 @@ final class ProjectorCellScan {
         blackoutBoundary.add(key, boundaryMask);
     }
 
-    private boolean previousBlackoutMatches(ProjectionWorldView destView, long key, long remoteKey) {
-        return projectedBlackoutView == destView
-            && projectedBlackoutGeometry.contains(key)
-            && projectedBlackoutRemoteKeys.get(key) == remoteKey;
+    /** A committed shell claim still covers this cell only while the destination view and the remote cell it sealed are unchanged. */
+    private static boolean previousShellMatches(ProjectedBlockClaim previous, ProjectionWorldView destView, long remoteKey) {
+        return previous != null
+            && previous.isBlackout()
+            && previous.getLightRemoteKey() == remoteKey
+            && previous.getLightView() == destView;
     }
 
     private void filterObserverTargets(ProjectionWorldView view,
@@ -742,8 +699,11 @@ final class ProjectorCellScan {
             ProjectionCellKey.unpackZ(remoteKey), eyeX, eyeY, eyeZ);
         switch (visibility) {
             case HIDDEN -> {
-                nextProjected.remove(localKey);
-                occlusionRejected++;
+                ProjectedBlockClaim hidden = nextProjected.get(localKey);
+                if (hidden == null || !hidden.isBlackout()) {
+                    nextProjected.remove(localKey);
+                    occlusionRejected++;
+                }
             }
             case UNRESOLVED -> nextUnresolvedOcclusion.add(localKey);
             case VISIBLE -> {
@@ -823,6 +783,7 @@ final class ProjectorCellScan {
         private boolean cacheEmptyCells;
         private boolean skipKnownEmptyCells;
         private boolean blackoutEnabled;
+        private BlockData blackoutData;
         private boolean observerOcclusion;
         private boolean blackoutFarSliceFound;
         private boolean lodActive;
@@ -895,7 +856,7 @@ final class ProjectorCellScan {
             blockEntities = request.blockEntities();
             LodPolicy lod = request.lod();
             recursiveDepth = Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH;
-            pendingBlackoutData = blackout.data();
+            blackoutData = blackout.data();
             localView = destination.localView;
             destView = destination.destView;
             dest = destination.dest;
@@ -944,8 +905,6 @@ final class ProjectorCellScan {
             unresolvedTargetCells.clear();
             unresolvedTargetRemoteKeys.clear();
             nextUnresolvedOcclusion.clear();
-            blackoutMesh = ProjectorBlackoutMesh.empty();
-            blackoutView = null;
             enterCount = 0;
             keptCount = 0;
 
@@ -1014,7 +973,7 @@ final class ProjectorCellScan {
             double projectionFacingY = projectionLocalFrame.getNormal().y();
             double projectionFacingZ = projectionLocalFrame.getNormal().z();
             projectionEyeDot = (eyeRelX * projectionFacingX) + (eyeRelY * projectionFacingY) + (eyeRelZ * projectionFacingZ);
-            blackoutEnabled = blackout.isEnabled();
+            blackoutEnabled = blackout.isEnabled() && blackoutData != null;
             portalPlaneClearance = PortalProjector.portalPlaneClearance(portal.getStructure().getArea(), localFrame);
             maxProjectionDepth = depthBlocks + portalPlaneClearance;
             double signedMinDistance = eyeFrontSide ? -maxProjectionDepth : portalPlaneClearance;
@@ -1078,9 +1037,6 @@ final class ProjectorCellScan {
             slabWindowBounds = scratchSlabWindowBounds;
             blackoutSlabWindowBounds = scratchBlackoutSlabWindowBounds;
             cellCoords = scratchCellCoords;
-            if (blackoutEnabled) {
-                blackoutView = destView;
-            }
             observerOcclusion = renderMode.usesObserverOcclusion();
             localFacingNormal = normalAxis == 0 ? facingX : normalAxis == 1 ? facingY : facingZ;
             normalStep = projectionFacingNormal > 0.0D ? -1 : 1;
@@ -1234,7 +1190,7 @@ final class ProjectorCellScan {
                                 rightAxis, upAxis);
                             blackoutBoundaryMask |= ProjectorBlackoutBoundary.faceMask(normalAxis, blackoutFarSign);
                         }
-                        if (reuseMappedClaims && previousCell != null
+                        if (reuseMappedClaims && previousCell != null && !previousCell.isBlackout()
                             && previousCell.getLightView() == destView
                             && previousCell.isFullBright() == blackoutEnabled) {
                             long remoteKey = previousCell.getLightRemoteKey();
@@ -1271,7 +1227,7 @@ final class ProjectorCellScan {
                             : previousCell.getLightRemoteKey();
                         if (!localChunkReady(localView, x, z)) {
                             completeGeometry = false;
-                            if (previousCell != null) {
+                            if (previousCell != null && !previousCell.isBlackout()) {
                                 ProjectedBlockClaim retained = previousCell.withFullBright(blackoutEnabled);
                                 nextProjected.put(key, retained);
                                 retainedClaimCount++;
@@ -1284,13 +1240,13 @@ final class ProjectorCellScan {
                                 if (blackoutCell) {
                                     rememberBlackoutCell(key, remoteKey, blackoutBoundaryMask, retained);
                                 }
-                            }
-                            if (blackoutCell && previousBlackoutMatches(destView, key, remoteKey)) {
-                                addBlackoutCell(key, remoteKey, blackoutBoundaryMask);
+                            } else if (blackoutCell && previousShellMatches(previousCell, destView, remoteKey)) {
+                                retainShellClaim(key, remoteKey, blackoutBoundaryMask, previousCell);
                             }
                             continue;
                         }
                         boolean previousLightingMatches = previousCell != null
+                            && !previousCell.isBlackout()
                             && previousCell.isFullBright() == blackoutEnabled;
                         if (previousLightingMatches && previousRemoteKey == remoteKey
                             && previousCell.getLightView() == destView) {
@@ -1344,7 +1300,7 @@ final class ProjectorCellScan {
                             boolean matchingRemoteUnavailable = !destView.isChunkReady(rx, rz)
                                 && previousCell != null
                                 && previousRemoteKey == remoteKey;
-                            if (matchingRemoteUnavailable) {
+                            if (matchingRemoteUnavailable && !previousCell.isBlackout()) {
                                 ProjectedBlockClaim retained = previousCell.withFullBright(blackoutEnabled);
                                 nextProjected.put(key, retained);
                                 retainedClaimCount++;
@@ -1357,9 +1313,8 @@ final class ProjectorCellScan {
                                 if (blackoutCell) {
                                     rememberBlackoutCell(key, remoteKey, blackoutBoundaryMask, retained);
                                 }
-                            }
-                            if (blackoutCell && previousBlackoutMatches(destView, key, remoteKey)) {
-                                addBlackoutCell(key, remoteKey, blackoutBoundaryMask);
+                            } else if (blackoutCell && previousShellMatches(previousCell, destView, remoteKey)) {
+                                retainShellClaim(key, remoteKey, blackoutBoundaryMask, previousCell);
                             }
                             continue;
                         }
@@ -1425,6 +1380,10 @@ final class ProjectorCellScan {
         }
 
         private void finishGeometry() {
+            blackoutClaims = 0;
+            if (blackoutEnabled && blackoutFarSliceFound && !blackoutGeometry.isEmpty()) {
+                sealBlackoutGeometry();
+            }
             unfilteredClaimCount = nextProjected.size();
             if (observerOcclusion && (!unresolvedTargetCells.isEmpty() || !observerTargetCells.isEmpty())) {
                 viewOcclusion.setRevealMarginDegrees(scannedRevealMargin);
@@ -1451,13 +1410,52 @@ final class ProjectorCellScan {
                 scannedRemoteEyeZ,
                 scannedRevealMargin);
             entityOcclusion.retainRevision(scannedDestinationRevision);
-
-            if (blackoutEnabled && blackoutFarSliceFound && !blackoutBoundary.isEmpty()) {
-                blackoutMesh = ProjectorBlackoutMesh.build(blackoutBoundary);
-            }
             if (Settings.DEBUG) {
                 recountProjectionChanges(forceFullSend);
             }
+        }
+
+        /**
+         * Every shell cell (the deepest slab plus each slab's lateral rim, where the destination was
+         * transparent) becomes a claim of the blackout block, replacing whatever the scan projected
+         * there. Unchanged shell claims are reused so the delta stays quiet for a stationary viewer.
+         */
+        private void sealBlackoutGeometry() {
+            LongIterator iterator = blackoutGeometry.iterator();
+            while (iterator.hasNext()) {
+                long key = iterator.nextLong();
+                ProjectedBlockClaim existing = nextProjected.get(key);
+                if (existing != null && existing.isBlackout() && existing.getData().equals(blackoutData)) {
+                    blackoutClaims++;
+                    continue;
+                }
+                long remoteKey = blackoutRemoteKeys.get(key);
+                ProjectedBlockClaim previous = projected.get(key);
+                ProjectedBlockClaim claim = previousShellMatches(previous, destView, remoteKey)
+                    && previous.getData().equals(blackoutData)
+                    ? previous
+                    : ProjectedBlockClaim.blackout(blackoutData, destView, remoteKey);
+                nextProjected.put(key, claim);
+                blackoutClaims++;
+                if (existing == null && previous != null) {
+                    retainedClaimCount++;
+                }
+                if (deltaBaseline != null) {
+                    if (claim != previous) {
+                        changedClaimKeys.add(key);
+                    } else {
+                        changedClaimKeys.remove(key);
+                    }
+                }
+            }
+        }
+
+        /** Keeps a committed shell claim over a cell whose chunks are still loading. */
+        private void retainShellClaim(long key, long remoteKey, int boundaryMask, ProjectedBlockClaim previousCell) {
+            nextProjected.put(key, previousCell);
+            retainedClaimCount++;
+            retainUnresolvedOcclusion(key, observerOcclusion);
+            addBlackoutCell(key, remoteKey, boundaryMask);
         }
     }
 

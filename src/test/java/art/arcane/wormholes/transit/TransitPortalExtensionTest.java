@@ -48,7 +48,7 @@ final class TransitPortalExtensionTest {
         transit.setOrientation(OrientationPolicy.SNAP);
         transit.setMembrane(true);
         transit.setBounce(true);
-        transit.setProfile(new TransitionProfile("minecraft:block.beacon.ambient", "minecraft:entity.enderman.teleport",
+        transit.setProfile(new TransitionProfile("minecraft:entity.enderman.teleport",
             "minecraft:block.portal.travel", 12));
 
         JSONObject encoded = source.toJSON();
@@ -67,7 +67,6 @@ final class TransitPortalExtensionTest {
         assertEquals(OrientationPolicy.SNAP, copy.orientation());
         assertTrue(copy.isMembrane());
         assertTrue(copy.isBounce());
-        assertEquals("minecraft:block.beacon.ambient", copy.profile().approachSound());
         assertEquals("minecraft:entity.enderman.teleport", copy.profile().thresholdEffect());
         assertEquals("minecraft:block.portal.travel", copy.profile().arrivalSound());
         assertEquals(12, copy.profile().maskOverrideTicks());

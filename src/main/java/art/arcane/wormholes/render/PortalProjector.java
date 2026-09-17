@@ -10,7 +10,6 @@ import java.util.logging.Level;
 
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityAnimation.EntityAnimationType;
@@ -29,7 +28,6 @@ import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.portal.rtp.RtpProjectionView;
 import art.arcane.wormholes.render.atmosphere.AtmosphereChannel;
 import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
-import art.arcane.wormholes.render.atmosphere.FogPlatePolicy;
 import art.arcane.wormholes.render.atmosphere.WeatherRelay;
 import art.arcane.wormholes.render.acoustics.AcousticsBridge;
 import art.arcane.wormholes.render.acoustics.AcousticsProfile;
@@ -68,8 +66,6 @@ public final class PortalProjector {
     private final ProjectorCellScan cellScan;
     private final ProjectorFrustumFailures frustumFailures;
     private final ProjectedEntityRenderer entityRenderer;
-    private final ProjectorBlackoutDisplayRenderer blackoutDisplayRenderer =
-        new ProjectorBlackoutDisplayRenderer();
     private final ViewPlateCache plateCache;
     private final AtmosphereChannel atmosphere = new AtmosphereChannel();
     private final WeatherRelay weather = new WeatherRelay();
@@ -222,7 +218,7 @@ public final class PortalProjector {
     }
 
     public int getSpoofedEntityCount() {
-        return entityRenderer.getSpoofedCount() + blackoutDisplayRenderer.getPaneCount();
+        return entityRenderer.getSpoofedCount();
     }
 
     public boolean hasProjectedEntity(UUID entityId) {
@@ -279,11 +275,7 @@ public final class PortalProjector {
             + " maskAir=" + cellScan.maskedCells()
             + " plate=" + lastPassUsedPlate
             + " plateHits=" + cellScan.plateHits()
-            + " blackoutPanes=" + blackoutDisplayRenderer.getPaneCount()
-            + " blackoutFallback=" + cellScan.blackoutMesh().fallback()
-            + " blackoutSpawns=" + blackoutDisplayRenderer.getSpawns()
-            + " blackoutMetadata=" + blackoutDisplayRenderer.getMetadataUpdates()
-            + " blackoutDestroys=" + blackoutDisplayRenderer.getDestroys()
+            + " blackoutClaims=" + cellScan.blackoutClaims()
             + " claimConflicts=" + lastClaimConflicts
             + " winnerChanges=" + lastWinnerChanges
             + " claimReverts=" + lastClaimReverts
@@ -400,7 +392,9 @@ public final class PortalProjector {
         double depthBlocks = viewFrustum.fittedDepth();
         LodPolicy observerLod = viewFrustum.fittedCoarse() ? portalLod.withMergeRuns() : portalLod;
         if (portal.isBlackoutBackground()) {
-            blackout.beginPass(portal.getBlackoutColor());
+            blackout.beginPass(portal.getBlackoutColor(),
+                destWorld == null ? null : destWorld.getEnvironment(),
+                fidelity == null ? FidelitySettings.atmosphereModeDefault : fidelity.effectiveAtmosphereMode());
         } else {
             blackout.disable();
         }
@@ -532,16 +526,6 @@ public final class PortalProjector {
         AtmosphereMode atmosphereMode = fidelity == null
             ? FidelitySettings.atmosphereModeDefault
             : fidelity.effectiveAtmosphereMode();
-        ProjectorBlackoutMesh.Result blackoutMesh = cellScan.blackoutMesh();
-        boolean displayReady = blackoutMesh.fallback()
-            ? blackoutDisplayRenderer.prepareEmpty()
-            : blackoutDisplayRenderer.prepare(observer, blackoutMesh.panels(),
-                blackoutShell(atmosphereMode, cellScan.blackoutData()), depthBlocks);
-        if (!displayReady) {
-            cellScan.dropBlackoutDisplay();
-            blackoutDisplayRenderer.prepareEmpty();
-        }
-
         World submitWorld = destination.localWorld;
         noteClaimWorld(submitWorld);
         boolean sourceLighting = FidelitySettings.skyLight && atmosphereMode.promotesSkyLight();
@@ -634,12 +618,6 @@ public final class PortalProjector {
     private void recordProjectTime(long startNanos) {
         lastProjectNanos = System.nanoTime() - startNanos;
         WormholesTelemetry.addRenderNanos(lastProjectNanos);
-    }
-
-    public void finishBlackoutDisplayFrame() {
-        if (!closed) {
-            blackoutDisplayRenderer.finish(observer);
-        }
     }
 
     /** Sends queued block-entity data after the frame's block changes; returns the packets sent. */
@@ -759,14 +737,6 @@ public final class PortalProjector {
                 destination.originX, destination.originY, destination.originZ,
                 center.getX(), center.getY(), center.getZ(), profile, now);
         }
-    }
-
-    private BlockData blackoutShell(AtmosphereMode mode, BlockData blackoutData) {
-        World destWorld = destination.destWorld;
-        if (destWorld == null || !FogPlatePolicy.applies(FidelitySettings.fogPlate, mode)) {
-            return blackoutData;
-        }
-        return FogPlatePolicy.shell(destWorld.getEnvironment(), blackoutData);
     }
 
     private void driveAtmosphere(World submitWorld, AtmosphereMode mode, boolean claimsChanged) {
@@ -1101,7 +1071,6 @@ public final class PortalProjector {
         sampleMemo.discard();
         sampler.clearRecursivePortals();
         entityRenderer.close(observer);
-        blackoutDisplayRenderer.close(observer);
     }
 
     public synchronized void close() {
@@ -1111,11 +1080,9 @@ public final class PortalProjector {
         closed = true;
 
         if (releaseClaims()) {
-            blackoutDisplayRenderer.close(observer);
             entityRenderer.close(observer);
             restoreLocalBlockEntities();
         } else {
-            blackoutDisplayRenderer.discard();
             entityRenderer.discard(observer);
             blockEntityLayer.clear();
         }
@@ -1176,7 +1143,6 @@ public final class PortalProjector {
         cellScan.clear();
         pendingProjection = null;
         lastRenderedCells = 0;
-        blackoutDisplayRenderer.discard();
         entityRenderer.discard(observer);
         blockEntityLayer.clear();
     }
