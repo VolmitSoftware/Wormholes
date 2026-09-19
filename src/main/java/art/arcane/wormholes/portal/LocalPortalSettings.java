@@ -331,7 +331,7 @@ final class LocalPortalSettings
 	void setOutgoingTraversalsEnabled(boolean enabled)
 	{
 		DimensionalPortalKind kind = portal.getDimensionalPortalKind();
-		boolean normalized = kind == DimensionalPortalKind.NETHER
+		boolean normalized = kind.isNetherPortal()
 				|| kind == DimensionalPortalKind.END_SOURCE
 				|| (!kind.isReceiverOnly() && enabled);
 		if(outgoingTraversalsEnabled == normalized)
@@ -400,7 +400,7 @@ final class LocalPortalSettings
 	void setIncomingTraversalsEnabled(boolean enabled)
 	{
 		DimensionalPortalKind kind = portal.getDimensionalPortalKind();
-		boolean normalized = kind == DimensionalPortalKind.NETHER
+		boolean normalized = kind.isNetherPortal()
 				|| kind.isReceiverOnly()
 				|| (kind != DimensionalPortalKind.END_SOURCE && enabled);
 		if(incomingTraversalsEnabled == normalized)

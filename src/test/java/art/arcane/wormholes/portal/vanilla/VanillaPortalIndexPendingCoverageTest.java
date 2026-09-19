@@ -14,10 +14,55 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.util.BlockVector;
 import org.junit.jupiter.api.Test;
 
 public final class VanillaPortalIndexPendingCoverageTest
 {
+	@Test
+	public void netherShapeOwnershipRequiresOneExactPendingShape()
+	{
+		World world = world("world");
+		VanillaPortalIndex index = new VanillaPortalIndex();
+		Set<BlockVector> shape = Set.of(new BlockVector(4, 65, 7), new BlockVector(4, 66, 7));
+		index.registerPending(cells(new FakeBlock(world, 4, 65, 7, Material.AIR)));
+		index.registerPending(cells(new FakeBlock(world, 4, 66, 7, Material.AIR)));
+
+		assertFalse(index.ownsNetherShape(world, shape));
+
+		VanillaPortalIndex.PendingCoverage pending = index.registerPending(cells(
+				new FakeBlock(world, 4, 65, 7, Material.AIR), new FakeBlock(world, 4, 66, 7, Material.AIR)));
+
+		assertTrue(index.ownsNetherShape(world, shape));
+		assertFalse(index.ownsNetherShape(world("other"), shape));
+		assertFalse(index.ownsNetherShape(world, Set.of(new BlockVector(4, 65, 7), new BlockVector(4, 67, 7))));
+
+		index.releasePending(pending);
+
+		assertFalse(index.ownsNetherShape(world, shape));
+	}
+
+	@Test
+	public void netherShapeOwnershipExcludesPendingEndWindowsAndPartialShapes()
+	{
+		World world = world("world");
+		VanillaPortalIndex index = new VanillaPortalIndex();
+		index.registerPendingEnd(new Location(world, 4, 65, 7));
+		Set<BlockVector> endCells = new LinkedHashSet<BlockVector>();
+		for(int x = 0; x <= 8; x++)
+		{
+			for(int z = 3; z <= 11; z++)
+			{
+				endCells.add(new BlockVector(x, 65, z));
+			}
+		}
+		assertFalse(index.ownsNetherShape(world, endCells));
+
+		index.registerPending(cells(new FakeBlock(world, 4, 65, 7, Material.AIR), new FakeBlock(world, 4, 66, 7, Material.AIR)));
+
+		assertFalse(index.ownsNetherShape(world, Set.of(new BlockVector(4, 65, 7))));
+	}
+
 	@Test
 	public void pendingNetherCreateIsCoveredBeforePairFinishes()
 	{

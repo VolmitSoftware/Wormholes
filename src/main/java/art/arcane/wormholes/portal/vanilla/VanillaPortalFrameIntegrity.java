@@ -22,6 +22,7 @@ import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.wormholes.util.Direction;
 
 final class VanillaPortalFrameIntegrity
 {
@@ -41,10 +42,8 @@ final class VanillaPortalFrameIntegrity
 		for(ILocalPortal portal : Wormholes.portalManager.getLocalPortals())
 		{
 			DimensionalPortalKind kind = portal.getDimensionalPortalKind();
-			Material expected = kind == DimensionalPortalKind.NETHER ? Material.OBSIDIAN
-					: kind == DimensionalPortalKind.END_SOURCE ? Material.END_PORTAL_FRAME : null;
 			PortalStructure structure = portal.getStructure();
-			if(expected == null || structure == null || structure.getWorld() == null || portal.isDestroyed())
+			if((!kind.isNetherPortal() && kind != DimensionalPortalKind.END_SOURCE) || structure == null || structure.getWorld() == null || portal.isDestroyed())
 			{
 				continue;
 			}
@@ -53,13 +52,13 @@ final class VanillaPortalFrameIntegrity
 			CachedFramePositions cached = framePositionCache.get(portal.getId());
 			if(cached == null || cached.structure() != structure)
 			{
-				cached = new CachedFramePositions(structure, expectedFramePositions(structure));
+				cached = new CachedFramePositions(structure, expectedFramePositions(structure, portal.getDirection()));
 				framePositionCache.put(portal.getId(), cached);
 			}
 			for(FramePosition position : cached.positions())
 			{
 				FrameChunk chunk = new FrameChunk(world, position.x() >> 4, position.z() >> 4);
-				byChunk.computeIfAbsent(chunk, ignored -> new ArrayList<FrameCheck>()).add(new FrameCheck(portal, position, expected));
+				byChunk.computeIfAbsent(chunk, ignored -> new ArrayList<FrameCheck>()).add(new FrameCheck(portal, position, kind));
 			}
 		}
 		framePositionCache.keySet().retainAll(activePortals);
@@ -93,7 +92,7 @@ final class VanillaPortalFrameIntegrity
 	void scheduleBreakCheck(Block broken, BooleanSupplier stillBroken)
 	{
 		Material brokenType = broken.getType();
-		if(brokenType != Material.OBSIDIAN && brokenType != Material.END_PORTAL_FRAME)
+		if(!isFrameMaterial(DimensionalPortalKind.SHAPED_NETHER, brokenType))
 		{
 			return;
 		}
@@ -121,7 +120,7 @@ final class VanillaPortalFrameIntegrity
 		for(Block block : blocks)
 		{
 			Material material = block.getType();
-			if(material != Material.OBSIDIAN && material != Material.END_PORTAL_FRAME)
+			if(!isFrameMaterial(DimensionalPortalKind.SHAPED_NETHER, material))
 			{
 				continue;
 			}
@@ -157,7 +156,7 @@ final class VanillaPortalFrameIntegrity
 		{
 			ILocalPortal portal = check.portal();
 			FramePosition position = check.position();
-			if(!portal.isDestroyed() && chunk.world().getBlockAt(position.x(), position.y(), position.z()).getType() != check.expected())
+			if(!portal.isDestroyed() && !isFrameMaterial(check.kind(), chunk.world().getBlockAt(position.x(), position.y(), position.z()).getType()))
 			{
 				portal.destroy();
 			}
@@ -173,8 +172,7 @@ final class VanillaPortalFrameIntegrity
 		World world = broken.getWorld();
 		for(ILocalPortal portal : Wormholes.portalManager.getLocalPortals())
 		{
-			if((broken.getType() == Material.OBSIDIAN && !VanillaPortalIndex.isManagedKind(portal, VanillaPortalIndex.NETHER_TAG, DimensionalPortalKind.NETHER))
-					|| (broken.getType() == Material.END_PORTAL_FRAME && !VanillaPortalIndex.isManagedKind(portal, VanillaPortalIndex.END_TAG, DimensionalPortalKind.END_SOURCE)))
+			if(!isFrameMaterial(portal.getDimensionalPortalKind(), broken.getType()))
 			{
 				continue;
 			}
@@ -183,12 +181,36 @@ final class VanillaPortalFrameIntegrity
 			{
 				continue;
 			}
-			if(isOpenFrameBlock(broken, structure))
+			if(portal.getDimensionalPortalKind() == DimensionalPortalKind.SHAPED_NETHER
+					? isCardinalFrameBlock(broken, structure, portal.getDirection()) : isOpenFrameBlock(broken, structure))
 			{
 				return portal;
 			}
 		}
 		return null;
+	}
+
+	static boolean isFrameMaterial(DimensionalPortalKind kind, Material material)
+	{
+		return switch(kind)
+		{
+			case NETHER -> material == Material.OBSIDIAN;
+			case END_SOURCE -> material == Material.END_PORTAL_FRAME;
+			case SHAPED_NETHER -> material != Material.AIR && material != Material.CAVE_AIR && material != Material.VOID_AIR && material != Material.FIRE
+					&& material != Material.SOUL_FIRE && material != Material.NETHER_PORTAL;
+			default -> false;
+		};
+	}
+
+	private static boolean isCardinalFrameBlock(Block block, PortalStructure structure, Direction normal)
+	{
+		int x = block.getX();
+		int y = block.getY();
+		int z = block.getZ();
+		return !structure.containsBlock(x, y, z)
+				&& ((normal.x() == 0 && (structure.containsBlock(x - 1, y, z) || structure.containsBlock(x + 1, y, z)))
+				|| (normal.y() == 0 && (structure.containsBlock(x, y - 1, z) || structure.containsBlock(x, y + 1, z)))
+				|| (normal.z() == 0 && (structure.containsBlock(x, y, z - 1) || structure.containsBlock(x, y, z + 1))));
 	}
 
 	private static boolean isOpenFrameBlock(Block broken, PortalStructure structure)
@@ -256,58 +278,33 @@ final class VanillaPortalFrameIntegrity
 		return false;
 	}
 
-	private static Set<FramePosition> expectedFramePositions(PortalStructure structure)
+	private static Set<FramePosition> expectedFramePositions(PortalStructure structure, Direction normal)
 	{
 		Set<FramePosition> cells = new HashSet<FramePosition>();
 		for(Vector vector : structure.getBlockPositions())
 		{
 			cells.add(new FramePosition(vector.getBlockX(), vector.getBlockY(), vector.getBlockZ()));
 		}
-		return expectedFramePositions(cells);
+		return expectedFramePositions(cells, normal);
 	}
 
-	static Set<FramePosition> expectedFramePositions(Set<FramePosition> cells)
+	static Set<FramePosition> expectedFramePositions(Set<FramePosition> cells, Direction normal)
 	{
-		if(cells.isEmpty())
-		{
-			return Set.of();
-		}
-		int minX = Integer.MAX_VALUE;
-		int maxX = Integer.MIN_VALUE;
-		int minY = Integer.MAX_VALUE;
-		int maxY = Integer.MIN_VALUE;
-		int minZ = Integer.MAX_VALUE;
-		int maxZ = Integer.MIN_VALUE;
-		for(FramePosition cell : cells)
-		{
-			minX = Math.min(minX, cell.x());
-			maxX = Math.max(maxX, cell.x());
-			minY = Math.min(minY, cell.y());
-			maxY = Math.max(maxY, cell.y());
-			minZ = Math.min(minZ, cell.z());
-			maxZ = Math.max(maxZ, cell.z());
-		}
 		Set<FramePosition> frame = new HashSet<FramePosition>();
 		for(FramePosition cell : cells)
 		{
-			if(minZ == maxZ)
+			if(normal.x() == 0)
 			{
 				addFrameNeighbor(cells, frame, cell.x() - 1, cell.y(), cell.z());
 				addFrameNeighbor(cells, frame, cell.x() + 1, cell.y(), cell.z());
-				addFrameNeighbor(cells, frame, cell.x(), cell.y() - 1, cell.z());
-				addFrameNeighbor(cells, frame, cell.x(), cell.y() + 1, cell.z());
 			}
-			else if(minY == maxY)
-			{
-				addFrameNeighbor(cells, frame, cell.x() - 1, cell.y(), cell.z());
-				addFrameNeighbor(cells, frame, cell.x() + 1, cell.y(), cell.z());
-				addFrameNeighbor(cells, frame, cell.x(), cell.y(), cell.z() - 1);
-				addFrameNeighbor(cells, frame, cell.x(), cell.y(), cell.z() + 1);
-			}
-			else if(minX == maxX)
+			if(normal.y() == 0)
 			{
 				addFrameNeighbor(cells, frame, cell.x(), cell.y() - 1, cell.z());
 				addFrameNeighbor(cells, frame, cell.x(), cell.y() + 1, cell.z());
+			}
+			if(normal.z() == 0)
+			{
 				addFrameNeighbor(cells, frame, cell.x(), cell.y(), cell.z() - 1);
 				addFrameNeighbor(cells, frame, cell.x(), cell.y(), cell.z() + 1);
 			}
@@ -328,7 +325,7 @@ final class VanillaPortalFrameIntegrity
 	{
 	}
 
-	private record FrameCheck(ILocalPortal portal, FramePosition position, Material expected)
+	private record FrameCheck(ILocalPortal portal, FramePosition position, DimensionalPortalKind kind)
 	{
 	}
 

@@ -36,6 +36,11 @@ final class VanillaPortalNetherPairing
 
 	void pair(World sourceWorld, Set<Block> cells)
 	{
+		pair(sourceWorld, cells, deriveNormal(cells), DimensionalPortalKind.NETHER);
+	}
+
+	void pair(World sourceWorld, Set<Block> cells, Direction normal, DimensionalPortalKind kind)
+	{
 		try
 		{
 			if(index.coversCells(cells))
@@ -48,7 +53,6 @@ final class VanillaPortalNetherPairing
 				Wormholes.v(() -> "[vanilla-portal] skipped: " + sourceWorld.getName() + " is paired to itself");
 				return;
 			}
-			Direction normal = deriveNormal(cells);
 			boolean alongX = normal.z() != 0;
 			int interiorWidth = interiorWidth(cells, alongX);
 			int interiorHeight = interiorHeight(cells);
@@ -66,7 +70,7 @@ final class VanillaPortalNetherPairing
 						+ " are not in the same world group");
 				return;
 			}
-			ILocalPortal sourcePortal = PortalFactory.createFromCells(cells, PortalFrame.canonical(normal), PortalType.PORTAL, VanillaPortalIndex.NETHER_TAG, DimensionalPortalKind.NETHER);
+			ILocalPortal sourcePortal = PortalFactory.createFromCells(cells, PortalFrame.canonical(normal), PortalType.PORTAL, VanillaPortalIndex.NETHER_TAG, kind);
 			if(sourcePortal == null)
 			{
 				Wormholes.w("[vanilla-portal] source portal creation returned null");

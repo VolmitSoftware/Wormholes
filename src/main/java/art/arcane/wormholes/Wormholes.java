@@ -43,6 +43,8 @@ import art.arcane.wormholes.portal.VanillaTravelCostCapture;
 import art.arcane.wormholes.portal.rtp.BukkitRtpEnvironment;
 import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
 import art.arcane.wormholes.portal.vanilla.VanillaPortalReplacer;
+import art.arcane.wormholes.api.portal.NetherPortalShapes;
+import org.bukkit.plugin.ServicePriority;
 import art.arcane.wormholes.render.CitizensLocalEntityOcclusionListener;
 import art.arcane.wormholes.service.PacketEventsRuntime;
 import art.arcane.wormholes.service.StatsSnapshotWriter;
@@ -215,6 +217,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             getServer().getPluginManager().registerEvents(new art.arcane.wormholes.service.WormholesHudListener(), this);
             VanillaPortalReplacer vanillaPortalReplacer = new VanillaPortalReplacer();
             getServer().getPluginManager().registerEvents(vanillaPortalReplacer, this);
+            getServer().getServicesManager().register(NetherPortalShapes.class, vanillaPortalReplacer, this, ServicePriority.Normal);
             registerChatInputListener();
             J.ar(() -> {
                 BukkitRtpRuntime activeRuntime = rtpRuntime;

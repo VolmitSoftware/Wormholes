@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.util.BlockVector;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.DimensionalPortalKind;
@@ -21,6 +22,57 @@ final class VanillaPortalIndex
 	private static final int END_CANCEL_RADIUS = 6;
 
 	private final Set<PendingCoverage> pending = ConcurrentHashMap.newKeySet();
+
+	boolean ownsNetherShape(World world, Set<BlockVector> positions)
+	{
+		if(world == null || positions == null || positions.isEmpty())
+		{
+			return false;
+		}
+		Set<PendingCell> cells = new HashSet<PendingCell>(positions.size());
+		for(BlockVector position : positions)
+		{
+			if(position == null)
+			{
+				return false;
+			}
+			cells.add(new PendingCell(position.getBlockX(), position.getBlockY(), position.getBlockZ()));
+		}
+		for(PendingCoverage coverage : pending)
+		{
+			if(!coverage.endWindow && world.equals(coverage.world) && cells.equals(coverage.cells))
+			{
+				return true;
+			}
+		}
+		if(Wormholes.portalManager == null)
+		{
+			return false;
+		}
+		for(ILocalPortal portal : Wormholes.portalManager.getLocalPortals())
+		{
+			PortalStructure structure = portal.getStructure();
+			if(portal.isDestroyed() || !portal.getDimensionalPortalKind().isNetherPortal() || structure == null
+					|| !world.equals(structure.getWorld()) || structure.getBlockPositions().size() != cells.size())
+			{
+				continue;
+			}
+			boolean matches = true;
+			for(PendingCell cell : cells)
+			{
+				if(!structure.containsBlock(cell.x(), cell.y(), cell.z()))
+				{
+					matches = false;
+					break;
+				}
+			}
+			if(matches)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
 
 	boolean covers(Location location)
 	{
@@ -187,7 +239,7 @@ final class VanillaPortalIndex
 	static boolean isManagedKind(ILocalPortal portal, String legacyTag, DimensionalPortalKind kind)
 	{
 		DimensionalPortalKind savedKind = portal.getDimensionalPortalKind();
-		return savedKind == kind || (savedKind == DimensionalPortalKind.NONE && legacyTag.equals(portal.getName()));
+		return savedKind == kind || (kind == DimensionalPortalKind.NETHER && savedKind.isNetherPortal()) || (savedKind == DimensionalPortalKind.NONE && legacyTag.equals(portal.getName()));
 	}
 
 	PendingCoverage registerPending(Set<Block> cells)

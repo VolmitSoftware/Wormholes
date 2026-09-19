@@ -453,7 +453,7 @@ final class LocalPortalLinking
 			settings.assignMirrorMode(false);
 			changed = true;
 		}
-		if(dimensionalPortalKind == DimensionalPortalKind.NETHER)
+		if(dimensionalPortalKind.isNetherPortal())
 		{
 			if(!settings.isOutgoingTraversalsEnabled())
 			{

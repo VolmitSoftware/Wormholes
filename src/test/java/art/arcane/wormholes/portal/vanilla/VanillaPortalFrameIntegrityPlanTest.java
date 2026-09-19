@@ -8,9 +8,59 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
+import org.bukkit.Material;
+
+import art.arcane.wormholes.portal.DimensionalPortalKind;
+import art.arcane.wormholes.util.Direction;
 
 public final class VanillaPortalFrameIntegrityPlanTest
 {
+	@Test
+	public void shapedFrameAcceptsArbitraryBoundaryMaterials()
+	{
+		assertTrue(VanillaPortalFrameIntegrity.isFrameMaterial(DimensionalPortalKind.SHAPED_NETHER, Material.STONE));
+		assertTrue(VanillaPortalFrameIntegrity.isFrameMaterial(DimensionalPortalKind.SHAPED_NETHER, Material.GLASS));
+		assertFalse(VanillaPortalFrameIntegrity.isFrameMaterial(DimensionalPortalKind.NETHER, Material.STONE));
+		for(Material material : new Material[] {Material.AIR, Material.CAVE_AIR, Material.VOID_AIR, Material.FIRE, Material.SOUL_FIRE, Material.NETHER_PORTAL})
+		{
+			assertFalse(VanillaPortalFrameIntegrity.isFrameMaterial(DimensionalPortalKind.SHAPED_NETHER, material));
+		}
+		assertTrue(DimensionalPortalKind.SHAPED_NETHER.isNetherPortal());
+		assertTrue(DimensionalPortalKind.SHAPED_NETHER.isManagedPortal());
+		assertEquals(DimensionalPortalKind.SHAPED_NETHER, DimensionalPortalKind.fromName("SHAPED_NETHER"));
+	}
+
+	@Test
+	public void narrowShapedFrameUsesItsNormalToSelectBoundaryPlane()
+	{
+		Set<VanillaPortalFrameIntegrity.FramePosition> cells = Set.of(
+				new VanillaPortalFrameIntegrity.FramePosition(0, 64, 0),
+				new VanillaPortalFrameIntegrity.FramePosition(0, 65, 0));
+
+		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, Direction.E);
+
+		assertEquals(6, frame.size());
+		assertTrue(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(0, 64, -1)));
+		assertFalse(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(-1, 64, 0)));
+		assertFalse(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(0, 63, -1)));
+	}
+
+	@Test
+	public void shapedFrameFollowsConcaveApertureInsteadOfBoundingBox()
+	{
+		Set<VanillaPortalFrameIntegrity.FramePosition> cells = Set.of(
+				new VanillaPortalFrameIntegrity.FramePosition(0, 64, 0),
+				new VanillaPortalFrameIntegrity.FramePosition(0, 65, 0),
+				new VanillaPortalFrameIntegrity.FramePosition(1, 64, 0));
+
+		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, Direction.N);
+
+		assertEquals(7, frame.size());
+		assertTrue(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(1, 65, 0)));
+		assertFalse(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(1, 66, 0)));
+		assertFalse(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(0, 64, 1)));
+	}
+
 	@Test
 	public void verticalPortalRequiresEveryOrthogonalFrameBlock()
 	{
@@ -23,7 +73,7 @@ public final class VanillaPortalFrameIntegrityPlanTest
 			}
 		}
 
-		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells);
+		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, Direction.N);
 
 		assertEquals(10, frame.size());
 		assertTrue(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(-1, 1, 0)));
@@ -43,7 +93,7 @@ public final class VanillaPortalFrameIntegrityPlanTest
 			}
 		}
 
-		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells);
+		Set<VanillaPortalFrameIntegrity.FramePosition> frame = VanillaPortalFrameIntegrity.expectedFramePositions(cells, Direction.U);
 
 		assertEquals(12, frame.size());
 		assertTrue(frame.contains(new VanillaPortalFrameIntegrity.FramePosition(0, 64, -2)));
