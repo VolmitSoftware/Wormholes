@@ -1267,7 +1267,6 @@ empty = "&8[&6Wormholes&8] &7Ainda não descobriste portais."
 disabled = "&8[&6Wormholes&8] &cO atlas está desligado neste servidor."
 only_players = "&8[&6Wormholes&8] &cSó os jogadores têm atlas."
 no_permission = "&8[&6Wormholes&8] &cNão tens permissão para abrir o atlas."
-discovered = "&8[&6Wormholes&8] &a{portal} descoberto."
 usage = ["&8[&6Wormholes&8] &7/atlas &8- &7abre a tua lista de portais", "&8[&6Wormholes&8] &7/atlas favorites &8- &7só os portais fixados", "&8[&6Wormholes&8] &7/atlas recents &8- &7portais usados há pouco", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7mostra um rumo; /atlas guide off para"]
 
 [atlas.favorite]

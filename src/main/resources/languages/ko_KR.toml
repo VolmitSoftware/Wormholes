@@ -1267,7 +1267,6 @@ empty = "&8[&6Wormholes&8] &7아직 발견한 포털이 없습니다."
 disabled = "&8[&6Wormholes&8] &c이 서버에서는 아틀라스가 꺼져 있습니다."
 only_players = "&8[&6Wormholes&8] &c아틀라스는 플레이어만 가질 수 있습니다."
 no_permission = "&8[&6Wormholes&8] &c아틀라스를 열 권한이 없습니다."
-discovered = "&8[&6Wormholes&8] &a{portal}을(를) 발견했습니다."
 usage = ["&8[&6Wormholes&8] &7/atlas &8- &7포털 목록 열기", "&8[&6Wormholes&8] &7/atlas favorites &8- &7고정한 포털만", "&8[&6Wormholes&8] &7/atlas recents &8- &7최근 사용한 포털", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7방위 표시. /atlas guide off로 중지"]
 
 [atlas.favorite]

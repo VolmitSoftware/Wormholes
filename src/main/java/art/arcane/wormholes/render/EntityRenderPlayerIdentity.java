@@ -4,12 +4,12 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.bukkit.entity.Player;
 
-import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
 import com.github.retrooper.packetevents.protocol.player.GameMode;
 import com.github.retrooper.packetevents.protocol.player.TextureProperty;
@@ -22,12 +22,14 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPl
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTeams;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
+import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
 import art.arcane.wormholes.network.view.RemoteViewCache;
 
 final class EntityRenderPlayerIdentity {
+    private static final long PROFILE_REFRESH_NANOS = 500_000_000L;
     private static final AtomicInteger NEXT_NAME_TEAM_ID = new AtomicInteger();
 
     private final EntityRenderPacketChannel channel;
@@ -51,14 +53,11 @@ final class EntityRenderPlayerIdentity {
         state.setPlayerIdentity(name, label);
         hideVanillaNametag(observer, name);
         UserProfile userProfile = new UserProfile(state.fakeUuid, name);
-        try {
-            UserProfile sourceProfile = PacketEvents.getAPI().getPlayerManager().getUser(player).getProfile();
-            if (sourceProfile != null) {
-                for (TextureProperty property : sourceProfile.getTextureProperties()) {
-                    userProfile.getTextureProperties().add(new TextureProperty(property.getName(), property.getValue(), property.getSignature()));
-                }
-            }
-        } catch (Throwable ignored) {
+        state.playerProfile = playerProfile(player);
+        state.playerProfileCheckedAtNanos = System.nanoTime();
+        if (!state.playerProfile.textureValue().isEmpty()) {
+            userProfile.getTextureProperties().add(new TextureProperty("textures", state.playerProfile.textureValue(),
+                state.playerProfile.textureSignature().isEmpty() ? null : state.playerProfile.textureSignature()));
         }
         GameMode gameMode = SpigotConversionUtil.fromBukkitGameMode(player.getGameMode());
         WrapperPlayServerPlayerInfoUpdate.PlayerInfo info = new WrapperPlayServerPlayerInfoUpdate.PlayerInfo(
@@ -72,7 +71,16 @@ final class EntityRenderPlayerIdentity {
             info));
     }
 
+    boolean playerProfileChanged(Player player, EntityRenderSpoofedEntity state, long nowNanos) {
+        if (nowNanos - state.playerProfileCheckedAtNanos < PROFILE_REFRESH_NANOS) {
+            return false;
+        }
+        state.playerProfileCheckedAtNanos = nowNanos;
+        return !Objects.equals(state.playerProfile, playerProfile(player));
+    }
+
     void sendRemotePlayerInfo(Player observer, RemoteViewCache.RemoteProfile profile, EntityRenderSpoofedEntity state, boolean upsideDown) {
+        state.playerProfile = profile;
         String sourceName = profile == null ? null : profile.name();
         String label = ProjectedEntityRenderer.playerLabelText(sourceName);
         String name = ProjectedEntityRenderer.projectedProfileName(sourceName, state.fakeUuid, upsideDown);
@@ -174,6 +182,16 @@ final class EntityRenderPlayerIdentity {
 
     boolean hasVanillaNameTeam() {
         return vanillaNameTeamSent;
+    }
+
+    private static RemoteViewCache.RemoteProfile playerProfile(Player player) {
+        for (TextureProperty property : SpigotReflectionUtil.getUserProfile(player)) {
+            if ("textures".equals(property.getName())) {
+                return new RemoteViewCache.RemoteProfile(player.getName(), property.getValue(),
+                    property.getSignature() == null ? "" : property.getSignature());
+            }
+        }
+        return new RemoteViewCache.RemoteProfile(player.getName(), "", "");
     }
 
     private void hideVanillaNametag(Player observer, String name) {

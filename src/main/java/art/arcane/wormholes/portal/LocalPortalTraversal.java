@@ -12,6 +12,7 @@ import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.Settings;
@@ -57,7 +58,6 @@ import art.arcane.wormholes.util.Direction;
 final class LocalPortalTraversal
 {
 	private static final java.util.logging.Logger HOOK_LOG = java.util.logging.Logger.getLogger("Wormholes");
-	private static final double REENTRY_EXIT_MARGIN = 2.0D;
 	private static final double DEPARTURE_COMMITMENT_RADIUS_SQUARED = 256.0D;
 	private static final int RETIRED_SETTLEMENT_ATTEMPTS = 4;
 	private static final long RETIRED_SETTLEMENT_RETRY_TICKS = 1L;
@@ -651,9 +651,10 @@ final class LocalPortalTraversal
 			return false;
 		}
 		AxisAlignedBB area = portalStructure.getArea();
-		return location.getX() >= area.getXa() - REENTRY_EXIT_MARGIN && location.getX() <= area.getXb() + REENTRY_EXIT_MARGIN
-			&& location.getY() >= area.getYa() - REENTRY_EXIT_MARGIN && location.getY() <= area.getYb() + REENTRY_EXIT_MARGIN
-			&& location.getZ() >= area.getZa() - REENTRY_EXIT_MARGIN && location.getZ() <= area.getZb() + REENTRY_EXIT_MARGIN;
+		BoundingBox bounds = entity.getBoundingBox();
+		return bounds.getMaxX() > area.getXa() && bounds.getMinX() < area.getXb()
+			&& bounds.getMaxY() > area.getYa() && bounds.getMinY() < area.getYb()
+			&& bounds.getMaxZ() > area.getZa() && bounds.getMinZ() < area.getZb();
 	}
 
 	private Traversive rayTeleport(Entity i, Location sweepStart)
@@ -1506,7 +1507,7 @@ final class LocalPortalTraversal
 			LocalPortalTransitRegistry.markTeleportCooldown(entityId, System.currentTimeMillis());
 		}
 		WormholesTelemetry.countTraversal();
-		LocalPortalTransitRegistry.latchReentry(entityId, portal.getId());
+		LocalPortalTransitRegistry.latchArrivedReentry(entityId, portal.getId());
 		LocalPortalTransitRegistry.clearTeleportInFlight(entityId);
 		portal.playEffect(PortalEffect.PUSH, exit);
 		if(entity instanceof Player player)
@@ -1544,7 +1545,7 @@ final class LocalPortalTraversal
 		Vector outVelocity = exitPlacement(t).outVelocity();
 		entity.setVelocity(outVelocity);
 		LocalPortalTransitRegistry.markTeleportCooldown(entity.getUniqueId(), System.currentTimeMillis());
-		LocalPortalTransitRegistry.latchReentry(entity.getUniqueId(), portal.getId());
+		LocalPortalTransitRegistry.latchArrivedReentry(entity.getUniqueId(), portal.getId());
 		WormholesTelemetry.countTraversal();
 		Wormholes.v(() -> "[arrival] completeRemoteArrival " + entity.getName() + " settled near portal " + portal.getId() + ", latched + cooldown set");
 		portal.playEffect(PortalEffect.PUSH, entity.getLocation());

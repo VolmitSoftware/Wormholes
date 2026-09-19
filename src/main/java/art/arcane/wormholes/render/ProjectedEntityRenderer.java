@@ -596,7 +596,8 @@ public final class ProjectedEntityRenderer {
             : transformedVelocity(entity, remoteViewFrame, localViewFrame);
 
         EntityRenderSpoofedEntity state = registry.get(entity.getUniqueId());
-        if (state != null && state.upsideDown != upsideDown) {
+        if (state != null && (state.upsideDown != upsideDown
+            || entity instanceof Player player && identity.playerProfileChanged(player, state, System.nanoTime()))) {
             registry.destroySingle(observer, entity.getUniqueId(), state);
             state = null;
         }

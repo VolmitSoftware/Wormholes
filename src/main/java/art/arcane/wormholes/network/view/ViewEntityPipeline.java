@@ -2,9 +2,8 @@ package art.arcane.wormholes.network.view;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 
-import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.protocol.player.TextureProperty;
-import com.github.retrooper.packetevents.protocol.player.UserProfile;
+import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.network.WireMessage;
@@ -551,18 +550,12 @@ final class ViewEntityPipeline {
     }
 
     private static String[] playerTextures(Player player) {
-        try {
-            UserProfile profile = PacketEvents.getAPI().getPlayerManager().getUser(player).getProfile();
-            if (profile != null) {
-                for (TextureProperty property : profile.getTextureProperties()) {
-                    if ("textures".equals(property.getName())) {
-                        return new String[]{property.getValue(), property.getSignature() == null ? "" : property.getSignature()};
-                    }
-                }
+        for (TextureProperty property : SpigotReflectionUtil.getUserProfile(player)) {
+            if ("textures".equals(property.getName())) {
+                return new String[] {property.getValue(), property.getSignature() == null ? "" : property.getSignature()};
             }
-        } catch (Throwable ignored) {
         }
-        return new String[]{"", ""};
+        return new String[] {"", ""};
     }
 
     private static final class CaptureSchedulingRejectedException extends IllegalStateException {

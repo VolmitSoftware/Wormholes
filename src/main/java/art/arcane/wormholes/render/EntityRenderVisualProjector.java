@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render;
 
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.bukkit.NamespacedKey;
@@ -93,7 +94,8 @@ final class EntityRenderVisualProjector {
         Vector3d velocity = new Vector3d(scratchDirection[0], scratchDirection[1], scratchDirection[2]);
 
         EntityRenderSpoofedEntity state = registry.get(visual.id());
-        if (state != null && state.upsideDown != upsideDown) {
+        if (state != null && (state.upsideDown != upsideDown
+            || visual.isPlayer() && !Objects.equals(state.playerProfile, remoteView.getProfile(visual.id())))) {
             registry.destroySingle(observer, visual.id(), state);
             state = null;
         }
@@ -220,7 +222,8 @@ final class EntityRenderVisualProjector {
         Vector3d velocity = new Vector3d(scratchDirection[0], scratchDirection[1], scratchDirection[2]);
 
         EntityRenderSpoofedEntity state = registry.get(visual.id());
-        if (state != null && state.upsideDown != upsideDown) {
+        if (state != null && (state.upsideDown != upsideDown
+            || visual.isPlayer() && !Objects.equals(state.playerProfile, entityView.getProfile(visual.id())))) {
             registry.destroySingle(observer, visual.id(), state);
             state = null;
         }

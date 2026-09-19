@@ -1267,7 +1267,6 @@ empty = "&8[&6Wormholes&8] &7Portalų dar neaptikta."
 disabled = "&8[&6Wormholes&8] &cAtlasas šiame serveryje išjungtas."
 only_players = "&8[&6Wormholes&8] &cAtlasą turi tik žaidėjai."
 no_permission = "&8[&6Wormholes&8] &cNeturite teisės atverti atlaso."
-discovered = "&8[&6Wormholes&8] &aAptiktas {portal}."
 usage = ["&8[&6Wormholes&8] &7/atlas &8- &7atverti portalų sąrašą", "&8[&6Wormholes&8] &7/atlas favorites &8- &7tik prisegti portalai", "&8[&6Wormholes&8] &7/atlas recents &8- &7neseniai naudoti portalai", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7rodyti kryptį; /atlas guide off sustabdo"]
 
 [atlas.favorite]

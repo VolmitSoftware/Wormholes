@@ -1267,7 +1267,6 @@ empty = "&8[&6Wormholes&8] &7尚未发现任何传送门。"
 disabled = "&8[&6Wormholes&8] &c本服务器已关闭图册。"
 only_players = "&8[&6Wormholes&8] &c只有玩家才有图册。"
 no_permission = "&8[&6Wormholes&8] &c你没有打开图册的权限。"
-discovered = "&8[&6Wormholes&8] &a发现了 {portal}。"
 usage = ["&8[&6Wormholes&8] &7/atlas &8- &7打开你的传送门列表", "&8[&6Wormholes&8] &7/atlas favorites &8- &7仅显示已置顶的传送门", "&8[&6Wormholes&8] &7/atlas recents &8- &7最近使用过的传送门", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7显示方位；/atlas guide off 关闭"]
 
 [atlas.favorite]

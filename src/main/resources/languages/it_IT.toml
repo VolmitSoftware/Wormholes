@@ -1267,7 +1267,6 @@ empty = "&8[&6Wormholes&8] &7Nessun portale scoperto finora."
 disabled = "&8[&6Wormholes&8] &cL'atlante è disattivato su questo server."
 only_players = "&8[&6Wormholes&8] &cSolo i giocatori hanno un atlante."
 no_permission = "&8[&6Wormholes&8] &cNon hai il permesso di aprire l'atlante."
-discovered = "&8[&6Wormholes&8] &a{portal} scoperto."
 usage = ["&8[&6Wormholes&8] &7/atlas &8- &7apri il tuo elenco di portali", "&8[&6Wormholes&8] &7/atlas favorites &8- &7solo i portali fissati", "&8[&6Wormholes&8] &7/atlas recents &8- &7portali usati di recente", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7mostra una rotta; /atlas guide off la ferma"]
 
 [atlas.favorite]

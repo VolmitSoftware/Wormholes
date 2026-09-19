@@ -1267,7 +1267,6 @@ empty = "&8[&6Wormholes&8] &7Chưa khám phá cổng nào."
 disabled = "&8[&6Wormholes&8] &cAtlas bị tắt trên máy chủ này."
 only_players = "&8[&6Wormholes&8] &cChỉ người chơi mới có atlas."
 no_permission = "&8[&6Wormholes&8] &cBạn không có quyền mở atlas."
-discovered = "&8[&6Wormholes&8] &aĐã khám phá {portal}."
 usage = ["&8[&6Wormholes&8] &7/atlas &8- &7mở danh sách cổng của bạn", "&8[&6Wormholes&8] &7/atlas favorites &8- &7chỉ các cổng đã ghim", "&8[&6Wormholes&8] &7/atlas recents &8- &7các cổng bạn dùng gần đây", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7hiện hướng; /atlas guide off để dừng"]
 
 [atlas.favorite]

@@ -1267,7 +1267,6 @@ empty = "&8[&6Wormholes&8] &7Portteja ei ole vielä löydetty."
 disabled = "&8[&6Wormholes&8] &cAtlas on poistettu käytöstä tällä palvelimella."
 only_players = "&8[&6Wormholes&8] &cVain pelaajilla on atlas."
 no_permission = "&8[&6Wormholes&8] &cSinulla ei ole oikeutta avata atlasta."
-discovered = "&8[&6Wormholes&8] &aLöysit portin {portal}."
 usage = ["&8[&6Wormholes&8] &7/atlas &8- &7avaa porttiluettelosi", "&8[&6Wormholes&8] &7/atlas favorites &8- &7vain kiinnitetyt portit", "&8[&6Wormholes&8] &7/atlas recents &8- &7viimeksi käyttämäsi portit", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7näytä suunta; /atlas guide off lopettaa"]
 
 [atlas.favorite]

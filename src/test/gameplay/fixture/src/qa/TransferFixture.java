@@ -53,8 +53,8 @@ public final class TransferFixture extends JavaPlugin {
                 }
             }
             case "horizontal" -> HorizontalProjectionFixture.execute(this, player, args);
-            case "setup" -> {
-                SetupRequest request = new SetupRequest(player.getWorld(), player.getUniqueId(), player);
+            case "setup", "reentry" -> {
+                SetupRequest request = new SetupRequest(player.getWorld(), player.getUniqueId(), player, args[0].equals("reentry"));
                 getServer().getRegionScheduler().execute(this, request.world(), 0, 0, () -> setup(request));
             }
             case "stage" -> player.teleportAsync(new Location(player.getWorld(), 8.5, 101, 12.5, 180, 0)).thenAccept(done -> player.sendMessage("FIXTURE staged " + done));
@@ -148,7 +148,7 @@ public final class TransferFixture extends JavaPlugin {
             }
             PortalStructure structure = new PortalStructure();
             structure.setBlocks(aperture);
-            LocalPortal portal = new LocalPortal(portalId(), PortalType.GATEWAY, structure);
+            LocalPortal portal = new LocalPortal(portalId(), request.reentry() ? PortalType.PORTAL : PortalType.GATEWAY, structure);
             portal.setName("Transfer fixture " + Wormholes.networkManager.getLocalName());
             portal.setFrame(PortalFrame.canonical(Direction.S));
             portal.setOwner(request.owner());
@@ -157,6 +157,28 @@ public final class TransferFixture extends JavaPlugin {
             portal.open();
             portal.save();
         }
+        if (request.reentry()) {
+            Set<Block> aperture = new HashSet<>();
+            for (int x = 11; x <= 13; x++) {
+                for (int y = 101; y <= 104; y++) {
+                    aperture.add(world.getBlockAt(x, y, 8));
+                }
+            }
+            PortalStructure structure = new PortalStructure();
+            structure.setBlocks(aperture);
+            LocalPortal target = new LocalPortal(UUID.randomUUID(), PortalType.PORTAL, structure);
+            target.setFrame(PortalFrame.canonical(Direction.S));
+            target.setOwner(request.owner());
+            target.setProjectionMode(ProjectionMode.OFF);
+            Wormholes.portalManager.addLocalPortal(target);
+            target.open();
+            ILocalPortal source = Wormholes.portalManager.getLocalPortal(portalId());
+            if (!source.setDestination(target)) {
+                throw new IllegalStateException("Reentry fixture portals could not link");
+            }
+            target.save();
+            source.save();
+        }
         request.recipient().sendMessage("FIXTURE ready " + portalId());
     }
 
@@ -164,6 +186,6 @@ public final class TransferFixture extends JavaPlugin {
         return UUID.nameUUIDFromBytes(("transfer-fixture:" + Wormholes.networkManager.getLocalName()).getBytes(StandardCharsets.UTF_8));
     }
 
-    private record SetupRequest(World world, UUID owner, Player recipient) {
+    private record SetupRequest(World world, UUID owner, Player recipient, boolean reentry) {
     }
 }

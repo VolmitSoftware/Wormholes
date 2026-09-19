@@ -179,6 +179,13 @@ final class LocalPortalTransitRegistry
 		REENTRY_LATCHES.put(entityId, ReentryLatch.waiting(portalId, System.currentTimeMillis()));
 	}
 
+	static void latchArrivedReentry(UUID entityId, UUID portalId)
+	{
+		ReentryLatch latch = ReentryLatch.waiting(portalId, System.currentTimeMillis());
+		latch.arm();
+		REENTRY_LATCHES.put(entityId, latch);
+	}
+
 	static void latchRejectedReentry(UUID entityId, UUID portalId)
 	{
 		REENTRY_LATCHES.put(entityId, ReentryLatch.armed(portalId, System.currentTimeMillis()));

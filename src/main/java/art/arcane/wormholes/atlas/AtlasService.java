@@ -13,7 +13,6 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.ITunnel;
 import art.arcane.wormholes.portal.LocalPortal;
-import art.arcane.wormholes.service.WormholesAudience;
 import art.arcane.wormholes.service.WormholesHud;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -174,10 +173,7 @@ public final class AtlasService implements Listener, TraversalObserver {
         }
         List<UUID> near = index.near(at.getWorld().getUID(), at.getX(), at.getY(), at.getZ(), settings.discoveryRadius);
         for (UUID portalId : near) {
-            if (state.discover(portalId)) {
-                WormholesAudience.sendMessage(player, Wormholes.text().component(player, AtlasMessages.DISCOVERED,
-                        AtlasText.args("portal", portalName(portalId))));
-            }
+            state.discover(portalId);
         }
     }
 
@@ -198,8 +194,4 @@ public final class AtlasService implements Listener, TraversalObserver {
                 AtlasText.args("portal", portal.getName(), "value", bearing)));
     }
 
-    private static String portalName(UUID portalId) {
-        ILocalPortal portal = Wormholes.portalManager == null ? null : Wormholes.portalManager.getLocalPortal(portalId);
-        return portal == null ? "" : portal.getName();
-    }
 }

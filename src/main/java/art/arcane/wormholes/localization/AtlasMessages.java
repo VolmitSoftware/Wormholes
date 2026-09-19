@@ -23,8 +23,6 @@ public final class AtlasMessages {
             "&8[&6Wormholes&8] &cOnly players have an atlas.");
     public static final TextKey NO_PERMISSION = GROUP.text("atlas.no_permission",
             "&8[&6Wormholes&8] &cYou do not have permission to open the atlas.");
-    public static final TextKey DISCOVERED = GROUP.text("atlas.discovered",
-            "&8[&6Wormholes&8] &aDiscovered {portal}.");
     public static final TextKey FAVORITE_ADDED = GROUP.text("atlas.favorite.added",
             "&8[&6Wormholes&8] &aPinned {portal}.");
     public static final TextKey FAVORITE_REMOVED = GROUP.text("atlas.favorite.removed",

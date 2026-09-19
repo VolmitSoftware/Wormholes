@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.github.retrooper.packetevents.util.Vector3d;
 
 import art.arcane.wormholes.network.view.ProjectedMapData;
+import art.arcane.wormholes.network.view.RemoteViewCache;
 
 final class EntityRenderSpoofedEntity {
     private static final AtomicInteger NEXT_FAKE_ID = new AtomicInteger(1_900_000_000);
@@ -29,6 +30,8 @@ final class EntityRenderSpoofedEntity {
     private boolean lastMapReversed;
     String lastMetadataSignature;
     String lastEquipmentSignature;
+    RemoteViewCache.RemoteProfile playerProfile;
+    long playerProfileCheckedAtNanos;
     String playerProfileName;
     String playerLabelText;
     private float yaw;

@@ -1267,7 +1267,6 @@ empty = "&8[&6Wormholes&8] &7まだポータルを発見していません。"
 disabled = "&8[&6Wormholes&8] &cこのサーバーではアトラスが無効です。"
 only_players = "&8[&6Wormholes&8] &cアトラスを持てるのはプレイヤーだけです。"
 no_permission = "&8[&6Wormholes&8] &cアトラスを開く権限がありません。"
-discovered = "&8[&6Wormholes&8] &a{portal} を発見しました。"
 usage = ["&8[&6Wormholes&8] &7/atlas &8- &7ポータル一覧を開く", "&8[&6Wormholes&8] &7/atlas favorites &8- &7ピン留めしたポータルのみ", "&8[&6Wormholes&8] &7/atlas recents &8- &7最近使ったポータル", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7方位を表示。/atlas guide off で停止"]
 
 [atlas.favorite]

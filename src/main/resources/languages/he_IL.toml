@@ -1267,7 +1267,6 @@ empty = "&8[&6Wormholes&8] &7עדיין לא גילית שערים."
 disabled = "&8[&6Wormholes&8] &cהאטלס כבוי בשרת הזה."
 only_players = "&8[&6Wormholes&8] &cרק לשחקנים יש אטלס."
 no_permission = "&8[&6Wormholes&8] &cאין לך הרשאה לפתוח את האטלס."
-discovered = "&8[&6Wormholes&8] &aגילית את {portal}."
 usage = ["&8[&6Wormholes&8] &7/atlas &8- &7פתח את רשימת השערים שלך", "&8[&6Wormholes&8] &7/atlas favorites &8- &7רק שערים מוצמדים", "&8[&6Wormholes&8] &7/atlas recents &8- &7שערים שהשתמשת בהם לאחרונה", "&8[&6Wormholes&8] &7/atlas guide \\<portal> &8- &7הצג כיוון; /atlas guide off מפסיק"]
 
 [atlas.favorite]

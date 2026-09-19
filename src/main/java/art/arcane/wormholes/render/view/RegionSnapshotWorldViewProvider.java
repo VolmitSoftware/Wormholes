@@ -15,11 +15,10 @@ import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 
-import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
 import com.github.retrooper.packetevents.protocol.player.TextureProperty;
-import com.github.retrooper.packetevents.protocol.player.UserProfile;
+import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 
 import org.bukkit.Chunk;
 import org.bukkit.ChunkSnapshot;
@@ -182,6 +181,8 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
     private CapturedEntity captureEntity(SnapshotWorldView view, Entity entity, long chunkKey, long capturedAtMillis) {
         EntityState previousState = view.entityStates.get(entity.getUniqueId());
         CapturedEntity previous = previousState == null ? null : previousState.entity;
+        boolean reuseState = previous != null
+            && capturedAtMillis - previous.stateCapturedAtMillis < ENTITY_STATE_REFRESH_MILLIS;
         Location location = entity.getLocation();
         Vector look = entityLook(entity, location);
         Vector velocity = entity.getVelocity();
@@ -190,7 +191,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         String textureSignature = "";
         if (entity instanceof Player player) {
             playerName = player.getName();
-            if (previous != null && previous.profile != null) {
+            if (reuseState && previous.profile != null) {
                 textureValue = previous.profile.textureValue();
                 textureSignature = previous.profile.textureSignature();
             } else {
@@ -210,8 +211,6 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
                 leashHolder = null;
             }
         }
-        boolean reuseState = previous != null
-            && capturedAtMillis - previous.stateCapturedAtMillis < ENTITY_STATE_REFRESH_MILLIS;
         byte[] metadataBlob = reuseState ? previous.visual.metadata() : PacketBlobs.captureMetadata(entity);
         byte[] equipmentBlob = reuseState ? previous.visual.equipment() : PacketBlobs.captureEquipment(entity);
         byte[] mapData = reuseState ? previous.visual.mapData() : captureMapData(entity);
@@ -233,17 +232,10 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
     }
 
     private static String[] playerTextures(Player player) {
-        try {
-            UserProfile profile = PacketEvents.getAPI().getPlayerManager().getUser(player).getProfile();
-            if (profile != null) {
-                for (TextureProperty property : profile.getTextureProperties()) {
-                    if ("textures".equals(property.getName())) {
-                        String signature = property.getSignature() == null ? "" : property.getSignature();
-                        return new String[] {property.getValue(), signature};
-                    }
-                }
+        for (TextureProperty property : SpigotReflectionUtil.getUserProfile(player)) {
+            if ("textures".equals(property.getName())) {
+                return new String[] {property.getValue(), property.getSignature() == null ? "" : property.getSignature()};
             }
-        } catch (Throwable ignored) {
         }
         return new String[] {"", ""};
     }
