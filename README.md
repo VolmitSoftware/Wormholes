@@ -14,7 +14,7 @@ Authoritative reference: the central [VolmitSoftware/docs](https://github.com/Vo
 
 ## Install
 
-1. Java 25 on Paper, Purpur, or Folia **26.1.2–26.2** (`folia-supported: true`). Spigot 26.2 is a compile and runtime fallback.
+1. Java 25 on Paper, Purpur, or Folia **26.1.2–26.3** (`folia-supported: true`), using a build available for that Minecraft version. Spigot 26.2 is a compile and runtime fallback.
 2. Drop runtime `Wormholes-<version>.jar` from `./gradlew shadowJar` into
    `plugins/`.
 3. First start needs access to the configured dependency repositories unless the

@@ -38,6 +38,7 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
     private final List<PacketWrapper<?>> sent = new ArrayList<PacketWrapper<?>>();
     private final PacketEventsAPI<?> previous;
     private final boolean recordBatchWrites;
+    private ServerVersion serverVersion = ServerVersion.getLatest();
     private User batchUser;
     private int batchLookups;
     private int batchFlushes;
@@ -80,7 +81,7 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
     private final ServerManager serverManager = new ServerManager() {
         @Override
         public ServerVersion getVersion() {
-            return ServerVersion.getLatest();
+            return serverVersion;
         }
     };
 
@@ -122,6 +123,10 @@ final class ProjectedEntityPacketRecorder extends PacketEventsAPI<Object> {
         ProjectedEntityPacketRecorder recorder = new ProjectedEntityPacketRecorder(previous, true);
         PacketEvents.setAPI(recorder);
         return recorder;
+    }
+
+    void serverVersion(ServerVersion version) {
+        serverVersion = version;
     }
 
     void uninstall() {

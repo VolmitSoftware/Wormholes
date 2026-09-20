@@ -2,7 +2,7 @@
 shadow = "9.0.0-rc3"
 slimjar = "2.1.9"
 paper = "26.1.2.build.74-stable"
-packetevents = "2.13.0"
+packetevents = "2.14.0-20260919.033014-1"
 bstats = "3.2.1"
 nightConfig = "3.9.0"
 toml4j = "0.7.2"

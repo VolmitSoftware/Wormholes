@@ -295,6 +295,16 @@ java {
     }
 }
 
+allprojects {
+    configurations.configureEach {
+        resolutionStrategy.eachDependency { details ->
+            if (details.requested.group == 'com.github.retrooper' && details.requested.name.startsWith('packetevents-')) {
+                details.useVersion(libs.versions.packetevents.get())
+            }
+        }
+    }
+}
+
 configurations.configureEach {
     resolutionStrategy.cacheChangingModulesFor(0, 'seconds')
     resolutionStrategy.cacheDynamicVersionsFor(0, 'seconds')
