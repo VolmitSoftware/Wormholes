@@ -197,7 +197,7 @@ final class ProjectedItemFrameTransform {
         return isItemFrame(entityType) || entityType == EntityTypes.PAINTING;
     }
 
-    private static int encode(Direction targetFacing, Direction mappedTop, Direction mappedRight) {
+    static int encode(Direction targetFacing, Direction mappedTop, Direction mappedRight) {
         int quarterTurns = quarterTurns(targetFacing, mappedTop);
         Direction expectedRight = rotatedRight(targetFacing, quarterTurns);
         boolean reversed;
@@ -241,7 +241,7 @@ final class ProjectedItemFrameTransform {
         };
     }
 
-    private static Direction canonicalTop(Direction facing) {
+    static Direction canonicalTop(Direction facing) {
         return switch (facing) {
             case U -> Direction.N;
             case D -> Direction.S;
@@ -249,7 +249,7 @@ final class ProjectedItemFrameTransform {
         };
     }
 
-    private static Direction cross(Direction left, Direction right) {
+    static Direction cross(Direction left, Direction right) {
         return Direction.closest(
             (left.y() * right.z()) - (left.z() * right.y()),
             (left.z() * right.x()) - (left.x() * right.z()),
@@ -291,7 +291,7 @@ final class ProjectedItemFrameTransform {
         return Math.floor(coordinate) + 0.5D;
     }
 
-    private static Vector3d anchorPosition(double x,
+    static Vector3d anchorPosition(double x,
                                            double y,
                                            double z,
                                            double xScale,

@@ -27,7 +27,6 @@ import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendCapture;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendProvider;
 import art.arcane.wormholes.chunk.presend.BukkitChunkPreSendTransaction;
 import art.arcane.wormholes.config.toml.TransitConfig;
-import art.arcane.wormholes.geometry.Raycast;
 import art.arcane.wormholes.hook.DestinationResolver;
 import art.arcane.wormholes.hook.TraversalAttempt;
 import art.arcane.wormholes.hook.TraversalGate;
@@ -169,11 +168,15 @@ final class LocalPortalTraversal
 		for(Entity entity : portal.getStructure().getCaptureZone().getEntities(portal.getStructure().getWorld()))
 		{
 			Location start = null;
+			Location location = entity.getLocation();
 			if(entity instanceof Player player)
 			{
-				Location location = player.getLocation();
 				Movement movement = Wormholes.traversableManager.movement(player, location);
 				start = captureHistory.capture(movement, location, now);
+			}
+			else
+			{
+				start = captureHistory.capture(Wormholes.traversableManager.entityContinuity(entity, location, now), location, now);
 			}
 			captureEntity(entity, activeTunnel, now, rtp, start);
 		}
@@ -657,7 +660,7 @@ final class LocalPortalTraversal
 			&& bounds.getMaxZ() > area.getZa() && bounds.getMinZ() < area.getZb();
 	}
 
-	private Traversive rayTeleport(Entity i, Location sweepStart)
+	Traversive rayTeleport(Entity i, Location sweepStart)
 	{
 		Vector velocity = Wormholes.traversableManager.getVelocity(i);
 		if(i instanceof Player && velocity.lengthSquared() == 0.0D)
@@ -668,35 +671,22 @@ final class LocalPortalTraversal
 		Location start = sweepStart == null ? end.clone().subtract(velocity) : sweepStart;
 		start.setYaw(end.getYaw());
 		start.setPitch(end.getPitch());
-		PortalCaptureHistory.Segment segment = PortalCaptureHistory.clip(start, end, portal.getStructure().getArea());
-		if(segment == null)
+		Vector origin = portal.getOrigin();
+		Vector normal = portal.getFrame().getNormal().toVector();
+		double startDistance = start.toVector().subtract(origin).dot(normal);
+		double endDistance = end.toVector().subtract(origin).dot(normal);
+		if(startDistance == endDistance || startDistance > 0.0D && endDistance > 0.0D
+			|| startDistance < 0.0D && endDistance < 0.0D)
 		{
 			return null;
 		}
-		Vector crossingVelocity = velocity.lengthSquared() > 1.0E-4D ? velocity : end.getDirection().clone().multiply(0.2D);
-		Traversive[] f = new Traversive[1];
-
-		new Raycast(segment.start(), segment.end(), 0.09)
+		double fraction = startDistance / (startDistance - endDistance);
+		Location intersection = start.clone().add(end.toVector().subtract(start.toVector()).multiply(fraction));
+		if(!portal.getStructure().contains(intersection))
 		{
-			@Override
-			public boolean shouldContinue(Location l)
-			{
-				if(portal.getStructure().contains(l))
-				{
-					f[0] = buildCrossing(i, start, l.toVector(), crossingVelocity);
-					return false;
-				}
-
-				return true;
-			}
-		};
-
-		if(f[0] == null && portal.getStructure().contains(end))
-		{
-			f[0] = buildCrossing(i, start, end.toVector(), crossingVelocity);
+			return null;
 		}
-
-		return f[0];
+		return buildCrossing(i, start, end.toVector(), velocity);
 	}
 
 	private Traversive buildCrossing(Entity i, Location start, Vector inPoint, Vector velocity)
@@ -705,7 +695,8 @@ final class LocalPortalTraversal
 		double relY = start.getY() - portal.getOrigin().getY();
 		double relZ = start.getZ() - portal.getOrigin().getZ();
 		PortalFrame frame = portal.getFrame();
-		boolean frontSide = ((relX * frame.getNormal().x()) + (relY * frame.getNormal().y()) + (relZ * frame.getNormal().z())) >= 0.0D;
+		double startDistance = (relX * frame.getNormal().x()) + (relY * frame.getNormal().y()) + (relZ * frame.getNormal().z());
+		boolean frontSide = startDistance == 0.0D ? velocity.dot(frame.getNormal().toVector()) <= 0.0D : startDistance > 0.0D;
 		return new Traversive(i, frame.view(frontSide), portal.getOrigin(), inPoint, velocity, start.getDirection(), frontSide, portal.getId());
 	}
 
@@ -743,10 +734,7 @@ final class LocalPortalTraversal
 		Vector frameVelocity = t.getOutVelocity(frame);
 		Vector outVelocity = MomentumTransform.apply(frameVelocity, momentum, transit.momentumMaxSpeed);
 		Location exit = t.getOutPoint(frame, portal.getOrigin()).toLocation(portal.getStructure().getWorld());
-		Vector exitNormal = frame.getNormal().toVector();
-		double normalSpeed = frameVelocity.dot(exitNormal);
-		double exitSign = normalSpeed == 0.0D ? (t.isFrontSide() ? -1.0D : 1.0D) : Math.copySign(1.0D, normalSpeed);
-		Location target = exit.clone().add(exitNormal.multiply(1.25D * exitSign));
+		Location target = exit.clone();
 		OrientationTransform.Look look = OrientationTransform.apply(t, frame, orientation, transit.gravityFlipEnabled);
 		target.setYaw(look.yaw());
 		target.setPitch(look.pitch());
@@ -1653,7 +1641,9 @@ final class LocalPortalTraversal
 
 	static Vector sourceRejectionPoint(Traversive traversive)
 	{
-		return traversive.getInPoint().clone().add(traversive.getInFrame().getNormal().toVector().normalize().multiply(1.25D));
+		Vector normal = traversive.getInFrame().getNormal().toVector();
+		double sourceDistance = traversive.getInOffset().dot(normal);
+		return traversive.getInPoint().clone().add(normal.multiply(1.25D - Math.min(0.0D, sourceDistance)));
 	}
 
 	static double sourceSideDistance(Traversive traversive, Vector point)

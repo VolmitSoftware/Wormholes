@@ -23,7 +23,9 @@ export default {
     try {
       await context.step('create linked portals and stage player', async () => {
         await context.command('/whtest reentry', /FIXTURE ready/, 30000)
-        await context.command('/gamemode creative', /creative|already/i)
+        if (bot.game.gameMode !== 'creative') {
+          await context.command('/gamemode creative', /creative/i)
+        }
         await context.command('/whtest stage', /FIXTURE staged true/)
         await waitFor(() => Math.abs(bot.entity.position.x - 8.5) < 0.1 && bot.entity.position.y > 100, 'Player did not stage')
         sample('staged')

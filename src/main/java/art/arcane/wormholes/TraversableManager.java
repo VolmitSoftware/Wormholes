@@ -12,6 +12,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityTeleportEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
@@ -39,7 +40,9 @@ public class TraversableManager implements Listener
 	}
 
 	private final Map<UUID, Movement> movements = new ConcurrentHashMap<>();
+	private final Map<UUID, EntityContinuity> entityContinuities = new ConcurrentHashMap<>();
 	private final AtomicLong continuitySequence = new AtomicLong();
+	private final AtomicLong nextEntityPruneMillis = new AtomicLong();
 
 	public TraversableManager()
 	{
@@ -145,10 +148,33 @@ public class TraversableManager implements Listener
 		return i.getVelocity();
 	}
 
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+	public void on(EntityTeleportEvent event)
+	{
+		entityContinuities.remove(event.getEntity().getUniqueId());
+	}
+
+	public EntityContinuity entityContinuity(Entity entity, Location location, long nowMillis)
+	{
+		long nextPrune = nextEntityPruneMillis.get();
+		if(nowMillis >= nextPrune && nextEntityPruneMillis.compareAndSet(nextPrune, nowMillis + 5_000L))
+		{
+			entityContinuities.entrySet().removeIf(entry -> nowMillis - entry.getValue().capturedAtMillis() > 5_000L);
+		}
+		return entityContinuities.compute(entity.getUniqueId(), (id, previous) ->
+			new EntityContinuity(entity, location.getWorld().getUID(),
+				previous != null && previous.entity() == entity && previous.worldId().equals(location.getWorld().getUID())
+					? previous.continuity() : continuitySequence.incrementAndGet(), nowMillis));
+	}
+
 	private void recordTeleport(Player player, Location target)
 	{
 		movements.put(player.getUniqueId(), new Movement(player, target.getWorld().getUID(),
 			target.getX(), target.getY(), target.getZ(), target.getYaw(), target.getPitch(),
 			0.0D, 0.0D, 0.0D, continuitySequence.incrementAndGet()));
+	}
+
+	public record EntityContinuity(Entity entity, UUID worldId, long continuity, long capturedAtMillis)
+	{
 	}
 }

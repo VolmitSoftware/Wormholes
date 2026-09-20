@@ -100,6 +100,25 @@ final class ProjectedEntityOcclusion {
             visual.z() + VISUAL_HALF_WIDTH);
     }
 
+    boolean fullyHidden(BoundingBox box, EntityProjectionPath path) {
+        if (path == null || !path.nested() || box == null) {
+            return fullyHidden(box);
+        }
+        return path.fullyHidden(this, box.getMinX() - LABEL_HORIZONTAL_MARGIN, box.getMinY(),
+            box.getMinZ() - LABEL_HORIZONTAL_MARGIN, box.getMaxX() + LABEL_HORIZONTAL_MARGIN,
+            box.getMaxY() + LABEL_VERTICAL_MARGIN, box.getMaxZ() + LABEL_HORIZONTAL_MARGIN);
+    }
+
+    boolean fullyHidden(EntityVisual visual, EntityProjectionPath path) {
+        if (path == null || !path.nested() || visual == null) {
+            return fullyHidden(visual);
+        }
+        return path.fullyHidden(this, visual.x() - VISUAL_HALF_WIDTH, visual.y(),
+            visual.z() - VISUAL_HALF_WIDTH, visual.x() + VISUAL_HALF_WIDTH,
+            visual.y() + Math.max(MIN_VISUAL_HEIGHT, visual.height()) + LABEL_VERTICAL_MARGIN,
+            visual.z() + VISUAL_HALF_WIDTH);
+    }
+
     void disable() {
         view = null;
         revision = 0L;
@@ -107,7 +126,7 @@ final class ProjectedEntityOcclusion {
         batchReady = false;
     }
 
-    private boolean fullyHidden(double minX,
+    boolean fullyHidden(double minX,
                                 double minY,
                                 double minZ,
                                 double maxX,

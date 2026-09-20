@@ -2,6 +2,7 @@ package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.TraversableManager;
 import art.arcane.wormholes.TraversableManager.Movement;
+import art.arcane.wormholes.TraversableManager.EntityContinuity;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -19,6 +20,7 @@ final class PortalCaptureHistory {
     private static final long MAX_SWEEP_AGE_MILLIS = 5_000L;
 
     private final Map<UUID, Capture> captures = new HashMap<>();
+    private final Map<UUID, EntityCapture> entityCaptures = new HashMap<>();
     private final AtomicLong generation = new AtomicLong();
     private long captureGeneration;
     private long pass;
@@ -27,13 +29,16 @@ final class PortalCaptureHistory {
         long currentGeneration = generation.get();
         if (captureGeneration != currentGeneration) {
             captures.clear();
+            entityCaptures.clear();
             captureGeneration = currentGeneration;
         }
         pass++;
+        entityCaptures.entrySet().removeIf(entry -> entry.getValue().pass() < pass - 1L);
     }
 
     void clear() {
         captures.clear();
+        entityCaptures.clear();
         captureGeneration = generation.incrementAndGet();
     }
 
@@ -51,6 +56,16 @@ final class PortalCaptureHistory {
         Capture next = new Capture(movement, location.clone(), pass, nowMillis);
         Capture previous = captures.put(movement.player().getUniqueId(), next);
         return continuous(previous, movement, nowMillis) ? previous.location().clone() : null;
+    }
+
+    Location capture(EntityContinuity movement, Location location, long nowMillis) {
+        EntityCapture previous = entityCaptures.put(movement.entity().getUniqueId(),
+            new EntityCapture(movement, location.clone(), pass));
+        return previous != null && previous.movement().entity() == movement.entity()
+            && previous.movement().continuity() == movement.continuity()
+            && previous.movement().worldId().equals(movement.worldId())
+            && nowMillis - previous.movement().capturedAtMillis() <= MAX_SWEEP_AGE_MILLIS
+            ? previous.location().clone() : location.clone();
     }
 
     List<Pending> departed(TraversableManager manager, PortalStructure structure, long nowMillis) {
@@ -136,5 +151,8 @@ final class PortalCaptureHistory {
     }
 
     private record Capture(Movement movement, Location location, long pass, long capturedAtMillis) {
+    }
+
+    private record EntityCapture(EntityContinuity movement, Location location, long pass) {
     }
 }

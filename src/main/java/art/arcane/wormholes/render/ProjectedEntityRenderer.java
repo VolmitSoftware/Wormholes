@@ -2,6 +2,8 @@ package art.arcane.wormholes.render;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.function.Function;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +48,7 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
+import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.RemoteWorldView;
 import art.arcane.wormholes.util.Direction;
 
@@ -80,6 +83,11 @@ public final class ProjectedEntityRenderer {
     private final AtomicBoolean teardownFailureReported;
     private volatile boolean recoveryPending;
     private volatile int publishedSpoofedCount;
+    private final Map<UUID, ProjectedEntityRenderer> nestedRenderers = new HashMap<UUID, ProjectedEntityRenderer>();
+    private ProjectorRecursivePortals recursivePortals;
+    private volatile int publishedNestedCount;
+    private EntityProjectionPath projectionPath;
+    private int renderLimit = Integer.MAX_VALUE;
 
     public ProjectedEntityRenderer() {
         this(new EntityRenderPacketChannel());
@@ -143,11 +151,77 @@ public final class ProjectedEntityRenderer {
     }
 
     private int entityLimit() {
-        return viewerProfile.entityLimit(Settings.MAX_SPOOFED_ENTITIES);
+        return Math.min(renderLimit, viewerProfile.entityLimit(Settings.MAX_SPOOFED_ENTITIES));
     }
 
     public int getSpoofedCount() {
-        return publishedSpoofedCount;
+        return publishedSpoofedCount + publishedNestedCount;
+    }
+
+    void prepareRecursiveProjection(EntityProjectionPath.Root root, ProjectorRecursivePortals portals) {
+        recursivePortals = portals;
+        portals.clear();
+        projectionPath = root == null ? null : new EntityProjectionPath(root, portals);
+    }
+
+    void applyRecursive(Player observer, RecursiveRender context) {
+        int[] budget = {Math.max(0, entityLimit() - registry.size()), 256};
+        applyRecursive(observer, context, recursivePortals, budget);
+    }
+
+    private void applyRecursive(Player observer, RecursiveRender context,
+                                ProjectorRecursivePortals portals, int[] budget) {
+        Set<UUID> visiblePaths = new HashSet<UUID>();
+        if (projectionPath != null && Settings.ENTITY_SPOOFING) {
+            for (ProjectorRecursivePortals.Candidate candidate : projectionPath.index.paths()) {
+                if (budget[0] <= 0 || budget[1] <= 0) {
+                    break;
+                }
+                EntityProjectionPath childPath = projectionPath.child(candidate, portals);
+                if (childPath == null) {
+                    continue;
+                }
+                budget[1]--;
+                ProjectionWorldView view = context.viewLookup().apply(candidate.nestedWorld);
+                if (context.snapshots() && !(view instanceof ProjectionEntityView)) {
+                    continue;
+                }
+                ProjectedEntityRenderer renderer = nestedRenderers.computeIfAbsent(candidate.portalId,
+                    ignored -> new ProjectedEntityRenderer(channel));
+                visiblePaths.add(candidate.portalId);
+                renderer.setViewerProfile(viewerProfile);
+                renderer.projectionPath = childPath;
+                renderer.renderLimit = budget[0];
+                ILocalPortal destination = candidate.nestedDestination;
+                if (context.snapshots()) {
+                    renderer.applySnapshot(observer, context.localPortal(), destination, false, 0,
+                        (ProjectionEntityView) view, context.frustum(), context.depth(),
+                        context.localFrame(), destination.getFrame(), context.occlusion());
+                } else {
+                    renderer.apply(observer, context.localPortal(), destination, context.frustum(), context.depth(),
+                        context.localFrame(), destination.getFrame(), 0, context.occlusion());
+                }
+                budget[0] -= renderer.registry.size();
+                renderer.applyRecursive(observer, context, portals, budget);
+            }
+        }
+        Iterator<Map.Entry<UUID, ProjectedEntityRenderer>> iterator = nestedRenderers.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<UUID, ProjectedEntityRenderer> entry = iterator.next();
+            if (!visiblePaths.contains(entry.getKey())) {
+                entry.getValue().close(observer);
+                iterator.remove();
+            }
+        }
+        int count = 0;
+        for (ProjectedEntityRenderer renderer : nestedRenderers.values()) {
+            count += renderer.getSpoofedCount();
+        }
+        publishedNestedCount = count;
+    }
+
+    record RecursiveRender(ILocalPortal localPortal, PortalFrame localFrame, Frustum4D frustum, double depth,
+                           boolean snapshots, Function<World, ProjectionWorldView> viewLookup, ProjectedEntityOcclusion occlusion) {
     }
 
     public void apply(Player observer,
@@ -177,11 +251,18 @@ public final class ProjectedEntityRenderer {
             double range = Math.min(Settings.ENTITY_SPOOF_RANGE, projectionDepth);
             registry.clearVisible();
             scratchRelationships.clear();
-            entityOcclusion.startBatch();
-            occluder.hideLocalEntities(observer, localPortal, frustum, projectionDepth);
+            if (projectionPath == null || !projectionPath.nested()) {
+                entityOcclusion.startBatch();
+            }
+            if (projectionPath == null || !projectionPath.nested()) {
+                occluder.hideLocalEntities(observer, localPortal, frustum, projectionDepth);
+            }
             boolean upsideDown = remotePortal == localPortal
                 ? PortalCoordMap.mirrorTransformFlipsWorldUp(localPortal.getFrame(), mirrorRotationQuarterTurns)
                 : PortalCoordMap.transformFlipsWorldUp(remoteViewFrame, localViewFrame);
+            if (projectionPath != null) {
+                upsideDown = projectionPath.upsideDown();
+            }
             int count = 0;
 
             for (Entity entity : EntityRenderCaches.nearbyRemoteEntities(remotePortal, remoteCenter, range)) {
@@ -193,7 +274,7 @@ public final class ProjectedEntityRenderer {
                         entity.isVisibleByDefault(), Wormholes.instance)) {
                     continue;
                 }
-                if (entityOcclusion.fullyHidden(entity.getBoundingBox())) {
+                if (entityOcclusion.fullyHidden(entity.getBoundingBox(), projectionPath)) {
                     continue;
                 }
                 if (!projectEntity(observer, localPortal, remotePortal, localViewFrame, remoteViewFrame, frustum,
@@ -240,9 +321,16 @@ public final class ProjectedEntityRenderer {
         try {
             double range = Math.min(Settings.ENTITY_SPOOF_RANGE, projectionDepth);
             registry.clearVisible();
-            entityOcclusion.startBatch();
-            occluder.hideLocalEntities(observer, localPortal, frustum, projectionDepth);
+            if (projectionPath == null || !projectionPath.nested()) {
+                entityOcclusion.startBatch();
+            }
+            if (projectionPath == null || !projectionPath.nested()) {
+                occluder.hideLocalEntities(observer, localPortal, frustum, projectionDepth);
+            }
             boolean upsideDown = PortalCoordMap.transformFlipsWorldUp(remoteViewFrame, localViewFrame);
+            if (projectionPath != null) {
+                upsideDown = projectionPath.upsideDown();
+            }
             int count = 0;
 
             List<EntityVisual> visuals = remoteView.getEntities();
@@ -253,7 +341,7 @@ public final class ProjectedEntityRenderer {
                 if (!remoteView.isVisibleTo(observer, visual.id())) {
                     continue;
                 }
-                if (entityOcclusion.fullyHidden(visual)) {
+                if (entityOcclusion.fullyHidden(visual, projectionPath)) {
                     continue;
                 }
                 if (!visualProjector.projectRemoteVisual(observer, localPortal, remoteOriginX, remoteOriginY, remoteOriginZ, localViewFrame, remoteViewFrame, frustum, remoteView, visual, upsideDown)) {
@@ -301,11 +389,18 @@ public final class ProjectedEntityRenderer {
         try {
             double range = Math.min(Settings.ENTITY_SPOOF_RANGE, projectionDepth);
             registry.clearVisible();
-            entityOcclusion.startBatch();
-            occluder.hideLocalEntities(observer, localPortal, frustum, projectionDepth);
+            if (projectionPath == null || !projectionPath.nested()) {
+                entityOcclusion.startBatch();
+            }
+            if (projectionPath == null || !projectionPath.nested()) {
+                occluder.hideLocalEntities(observer, localPortal, frustum, projectionDepth);
+            }
             boolean upsideDown = mirror
                 ? PortalCoordMap.mirrorTransformFlipsWorldUp(localPortal.getFrame(), mirrorRotationQuarterTurns)
                 : PortalCoordMap.transformFlipsWorldUp(remoteViewFrame, localViewFrame);
+            if (projectionPath != null) {
+                upsideDown = projectionPath.upsideDown();
+            }
             int count = 0;
             List<EntityVisual> visuals = entityView.getEntities(remoteOriginX, remoteOriginY, remoteOriginZ, range);
             for (EntityVisual visual : visuals) {
@@ -315,12 +410,12 @@ public final class ProjectedEntityRenderer {
                 if (!entityView.isVisibleTo(observer, visual.id())) {
                     continue;
                 }
-                if (entityOcclusion.fullyHidden(visual)) {
+                if (entityOcclusion.fullyHidden(visual, projectionPath)) {
                     continue;
                 }
                 if (!visualProjector.projectSnapshotVisual(observer, localPortal, remoteOriginX, remoteOriginY, remoteOriginZ,
                     localViewFrame, remoteViewFrame, frustum, entityView, visual, upsideDown, mirror,
-                    mirrorRotationQuarterTurns)) {
+                    mirrorRotationQuarterTurns, projectionPath)) {
                     continue;
                 }
                 registry.markVisible(visual.id());
@@ -337,10 +432,20 @@ public final class ProjectedEntityRenderer {
     }
 
     public void close(Player observer) {
+        for (ProjectedEntityRenderer renderer : nestedRenderers.values()) {
+            renderer.close(observer);
+        }
+        nestedRenderers.clear();
+        publishedNestedCount = 0;
         teardown(observer);
     }
 
     public void discard(Player observer) {
+        for (ProjectedEntityRenderer renderer : nestedRenderers.values()) {
+            renderer.close(observer);
+        }
+        nestedRenderers.clear();
+        publishedNestedCount = 0;
         teardown(observer);
     }
 
@@ -475,16 +580,34 @@ public final class ProjectedEntityRenderer {
     }
 
     public boolean hasProjectedEntity(UUID sourceId) {
-        return registry.contains(sourceId);
+        if (registry.contains(sourceId)) {
+            return true;
+        }
+        for (ProjectedEntityRenderer renderer : nestedRenderers.values()) {
+            if (renderer.hasProjectedEntity(sourceId)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public Set<UUID> getProjectedEntityIds() {
-        return registry.sourceIds();
+        if (nestedRenderers.isEmpty()) {
+            return registry.sourceIds();
+        }
+        Set<UUID> ids = new HashSet<UUID>(registry.sourceIds());
+        for (ProjectedEntityRenderer renderer : nestedRenderers.values()) {
+            ids.addAll(renderer.getProjectedEntityIds());
+        }
+        return ids;
     }
 
     public void sendAnimation(Player observer, UUID sourceId, EntityAnimationType type) {
         if (observer == null || !observer.isOnline() || sourceId == null || type == null) {
             return;
+        }
+        for (ProjectedEntityRenderer renderer : nestedRenderers.values()) {
+            renderer.sendAnimation(observer, sourceId, type);
         }
         EntityRenderSpoofedEntity state = registry.get(sourceId);
         if (state == null || !state.living) {
@@ -499,6 +622,9 @@ public final class ProjectedEntityRenderer {
     public void sendHurt(Player observer, UUID sourceId, float yaw) {
         if (observer == null || !observer.isOnline() || sourceId == null) {
             return;
+        }
+        for (ProjectedEntityRenderer renderer : nestedRenderers.values()) {
+            renderer.sendHurt(observer, sourceId, yaw);
         }
         EntityRenderSpoofedEntity state = registry.get(sourceId);
         if (state == null || !state.living) {
@@ -535,7 +661,11 @@ public final class ProjectedEntityRenderer {
         boolean itemFrame = ProjectedItemFrameTransform.isItemFrame(packetType);
         boolean hanging = ProjectedItemFrameTransform.isHanging(packetType);
         double visibleY = hanging ? scratchEntityPosition[1] : scratchEntityPosition[1] + halfHeight;
-        if (mirror) {
+        if (projectionPath != null) {
+            if (!projectionPath.visible(entityX, visibleY, entityZ, entity.getBoundingBox(), scratchVisiblePoint)) {
+                return false;
+            }
+        } else if (mirror) {
             PortalCoordMap.mirrorSourceToDisplayPointInto(entityX, visibleY, entityZ,
                 mirrorPlaneOrigin.getX(), mirrorPlaneOrigin.getY(), mirrorPlaneOrigin.getZ(),
                 mirrorPlaneFrame, mirrorRotationQuarterTurns, scratchVisiblePoint);
@@ -546,7 +676,7 @@ public final class ProjectedEntityRenderer {
                 remoteViewFrame, localViewFrame, scratchVisiblePoint);
         }
 
-        if (!frustum.containsPrimitive(scratchVisiblePoint[0], scratchVisiblePoint[1], scratchVisiblePoint[2])) {
+        if (projectionPath == null && !frustum.containsPrimitive(scratchVisiblePoint[0], scratchVisiblePoint[1], scratchVisiblePoint[2])) {
             return false;
         }
 
@@ -558,7 +688,9 @@ public final class ProjectedEntityRenderer {
         } else {
             lookDirectionInto((float) scratchEntityPosition[3], (float) scratchEntityPosition[4], scratchLook);
         }
-        if (mirror) {
+        if (projectionPath != null) {
+            projectionPath.vector(scratchLook[0], scratchLook[1], scratchLook[2], scratchDirection);
+        } else if (mirror) {
             PortalCoordMap.mirrorSourceToDisplayVectorInto(scratchLook[0], scratchLook[1], scratchLook[2],
                 mirrorPlaneFrame, mirrorRotationQuarterTurns, scratchDirection);
         } else {
@@ -569,14 +701,16 @@ public final class ProjectedEntityRenderer {
         Direction sourceFacing = Direction.closest(scratchLook[0], scratchLook[1], scratchLook[2]);
         int metadataTransform = ProjectedItemFrameTransform.NONE;
         if (itemFrame) {
-            metadataTransform = mirror
+            metadataTransform = projectionPath != null ? projectionPath.itemFrameTransform(sourceFacing) : mirror
                 ? ProjectedItemFrameTransform.mirror(sourceFacing, mirrorPlaneFrame,
                     mirrorRotationQuarterTurns, scratchDirection)
                 : ProjectedItemFrameTransform.between(sourceFacing, remoteViewFrame, localViewFrame,
                     scratchDirection);
         }
         Vector3d position;
-        if (hanging && mirror) {
+        if (hanging && projectionPath != null) {
+            position = projectionPath.anchor(entityX, scratchEntityPosition[1], entityZ);
+        } else if (hanging && mirror) {
             position = ProjectedItemFrameTransform.mirrorAnchor(
                 entityX, scratchEntityPosition[1], entityZ,
                 mirrorPlaneOrigin.getX(), mirrorPlaneOrigin.getY(), mirrorPlaneOrigin.getZ(),
@@ -591,7 +725,7 @@ public final class ProjectedEntityRenderer {
             double visualBaseY = scratchVisiblePoint[1] - halfHeight;
             position = new Vector3d(scratchVisiblePoint[0], visualBaseY, scratchVisiblePoint[2]);
         }
-        Vector3d velocity = mirror
+        Vector3d velocity = projectionPath != null ? projectedVelocity(entity) : mirror
             ? mirroredVelocity(entity, mirrorPlaneFrame, mirrorRotationQuarterTurns)
             : transformedVelocity(entity, remoteViewFrame, localViewFrame);
 
@@ -654,6 +788,12 @@ public final class ProjectedEntityRenderer {
             entityTypeCache.put(key, resolved);
         }
         return resolved;
+    }
+
+    private Vector3d projectedVelocity(Entity entity) {
+        Vector velocity = entity.getVelocity();
+        projectionPath.vector(velocity.getX(), velocity.getY(), velocity.getZ(), scratchDirection);
+        return new Vector3d(scratchDirection[0], scratchDirection[1], scratchDirection[2]);
     }
 
     private Vector3d transformedVelocity(Entity entity, PortalFrame fromFrame, PortalFrame toFrame) {

@@ -66,6 +66,7 @@ public final class PortalProjector {
     private final ProjectorCellScan cellScan;
     private final ProjectorFrustumFailures frustumFailures;
     private final ProjectedEntityRenderer entityRenderer;
+    private final ProjectorRecursivePortals entityRecursivePortals = new ProjectorRecursivePortals();
     private final ViewPlateCache plateCache;
     private final AtmosphereChannel atmosphere = new AtmosphereChannel();
     private final WeatherRelay weather = new WeatherRelay();
@@ -680,18 +681,17 @@ public final class PortalProjector {
         ProjectionWorldView destView = destination.destView;
         boolean mirrorMode = destination.mirrorMode;
         int mirrorRotationQuarterTurns = destination.mirrorRotationQuarterTurns;
+        entityRenderer.prepareRecursiveProjection(destination.dest == null ? null : new EntityProjectionPath.Root(
+            portal, destination.dest, projectionLocalFrame, projectionRemoteFrame, mirrorMode,
+            mirrorRotationQuarterTurns, observer.getEyeLocation(), frustum), entityRecursivePortals);
         if (viewProvider.usesRegionSnapshots() && destView instanceof ProjectionEntityView entityView) {
             entityRenderer.applySnapshot(observer, portal, destAnchor, mirrorMode, mirrorRotationQuarterTurns,
                 entityView, frustum, depthBlocks,
                 projectionLocalFrame, projectionRemoteFrame, cellScan.entityOcclusion());
-            return;
-        }
-        if (destination.dest != null) {
+        } else if (destination.dest != null) {
             entityRenderer.apply(observer, portal, destination.dest, frustum, depthBlocks, projectionLocalFrame,
                 projectionRemoteFrame, mirrorRotationQuarterTurns, cellScan.entityOcclusion());
-            return;
-        }
-        if (destView instanceof RemoteWorldView remoteWorldView) {
+        } else if (destView instanceof RemoteWorldView remoteWorldView) {
             double remoteOriginX = destAnchor.getOrigin().getX();
             double remoteOriginY = destAnchor.getOrigin().getY();
             double remoteOriginZ = destAnchor.getOrigin().getZ();
@@ -699,6 +699,8 @@ public final class PortalProjector {
                 remoteWorldView, frustum, depthBlocks, projectionLocalFrame, projectionRemoteFrame,
                 cellScan.entityOcclusion());
         }
+        entityRenderer.applyRecursive(observer, new ProjectedEntityRenderer.RecursiveRender(portal,
+            projectionLocalFrame, frustum, depthBlocks, viewProvider.usesRegionSnapshots(), destination::liveView, cellScan.entityOcclusion()));
     }
 
     private void maybeForceRemoteResend(RemoteWorldView remoteView) {

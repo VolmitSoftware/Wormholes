@@ -129,7 +129,7 @@ public final class ProjectedItemFramePacketTest {
             visual,
             false,
             false,
-            0);
+            0, null);
     }
 
     private static ProjectionEntityView entityView(UUID entityId, boolean filledMap) {

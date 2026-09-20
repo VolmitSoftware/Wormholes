@@ -7,6 +7,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.util.BoundingBox;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
@@ -48,9 +49,40 @@ interface LocalPortalRuntime
 			{
 				return CompletableFuture.completedFuture(Boolean.FALSE);
 			}
+			if(!FoliaScheduler.isFoliaThreading(Wormholes.instance.getServer())
+				&& FoliaScheduler.isOwnedByCurrentRegion(entity) && destinationChunksLoaded(entity, target))
+			{
+				return CompletableFuture.completedFuture(entity.teleport(target, PlayerTeleportEvent.TeleportCause.PLUGIN));
+			}
 			return WormholesPlatform.teleport(Wormholes.instance, entity, target, PlayerTeleportEvent.TeleportCause.PLUGIN);
 		}
 	};
+
+	static boolean destinationChunksLoaded(Entity entity, Location target)
+	{
+		World world = target.getWorld();
+		if(world == null)
+		{
+			return false;
+		}
+		Location current = entity.getLocation();
+		BoundingBox bounds = entity.getBoundingBox();
+		int minChunkX = (((int) Math.floor(target.getX() + bounds.getMinX() - current.getX() - 1.0E-7D)) - 3) >> 4;
+		int maxChunkX = (((int) Math.floor(target.getX() + bounds.getMaxX() - current.getX() + 1.0E-7D)) + 3) >> 4;
+		int minChunkZ = (((int) Math.floor(target.getZ() + bounds.getMinZ() - current.getZ() - 1.0E-7D)) - 3) >> 4;
+		int maxChunkZ = (((int) Math.floor(target.getZ() + bounds.getMaxZ() - current.getZ() + 1.0E-7D)) + 3) >> 4;
+		for(int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++)
+		{
+			for(int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++)
+			{
+				if(!world.isChunkLoaded(chunkX, chunkZ))
+				{
+					return false;
+				}
+			}
+		}
+		return true;
+	}
 
 	boolean dispatch(Entity entity, Runnable task, Runnable retired, long delayTicks);
 

@@ -33,6 +33,22 @@ class LocalPortalRejectionTest {
         assertFalse(LocalPortalTraversal.withinDepartureCommitmentRadius(256.1D));
     }
 
+    @Test
+    void rejectedFastCrossingReturnsBeyondTheSourcePlane() {
+        for (boolean frontSide : new boolean[] {true, false}) {
+            Traversive surface = traversive(frontSide);
+            Vector normal = surface.getInFrame().getNormal().toVector();
+            Vector endpoint = surface.getInOrigin().clone().subtract(normal.clone().multiply(8.0D))
+                .add(new Vector(0.4D, 0.2D, 0.0D));
+            Traversive crossing = surface.forMember(new Object(), endpoint);
+            Vector rejection = LocalPortalTraversal.sourceRejectionPoint(crossing);
+
+            assertEquals(1.25D, rejection.clone().subtract(surface.getInOrigin()).dot(normal), 1.0E-9D);
+            assertEquals(endpoint.getX(), rejection.getX(), 1.0E-9D);
+            assertEquals(endpoint.getY(), rejection.getY(), 1.0E-9D);
+        }
+    }
+
     private static Traversive traversive(boolean frontSide) {
         PortalFrame frame = PortalFrame.canonical(Direction.N).view(frontSide);
         return new Traversive(

@@ -23,12 +23,12 @@ class LocalPortalExitPlacementTest {
 
         assertEquals(101.42D, target.getY(), 1.0E-9D);
         assertEquals(point.getX(), target.getX(), 1.0E-9D);
-        assertEquals(point.getZ() - 1.25D, target.getZ(), 1.0E-9D);
+        assertEquals(point.getZ(), target.getZ(), 1.0E-9D);
         assertEquals(new Vector(0.0D, -0.8D, -0.2D), traversive.getOutVelocity(portal.getFrame()));
     }
 
     @Test
-    void jumpingAndStrafingExitAlongThePortalNormalOnEveryFrame() {
+    void jumpingAndStrafingPreserveTheTransformedEndpointOnEveryFrame() {
         for (Direction direction : List.of(Direction.N, Direction.S, Direction.E, Direction.W, Direction.U, Direction.D)) {
             LocalPortal portal = portal(direction);
             PortalFrame frame = portal.getFrame();
@@ -42,7 +42,7 @@ class LocalPortalExitPlacementTest {
                     Traversive traversive = crossing(portal, point, velocity, frontSide);
 
                     Location target = portal.computeExitTarget(traversive);
-                    Vector expected = point.clone().add(frame.getNormal().toVector().multiply(sign * 1.25D));
+                    Vector expected = point;
 
                     assertEquals(expected.getX(), target.getX(), 1.0E-9D);
                     assertEquals(expected.getY(), target.getY(), 1.0E-9D);
@@ -54,7 +54,7 @@ class LocalPortalExitPlacementTest {
     }
 
     @Test
-    void zeroNormalVelocityUsesTheCrossedSide() {
+    void zeroNormalVelocityDoesNotDisplaceTheArrival() {
         LocalPortal portal = portal(Direction.S);
         Vector point = portal.getOrigin().clone();
         for (boolean frontSide : List.of(Boolean.TRUE, Boolean.FALSE)) {
@@ -62,7 +62,7 @@ class LocalPortalExitPlacementTest {
             Location target = portal.computeExitTarget(traversive);
 
             assertEquals(point.getY(), target.getY(), 1.0E-9D);
-            assertEquals(point.getZ() + (frontSide ? -1.25D : 1.25D), target.getZ(), 1.0E-9D);
+            assertEquals(point.getZ(), target.getZ(), 1.0E-9D);
         }
     }
 

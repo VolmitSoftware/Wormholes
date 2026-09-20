@@ -157,7 +157,8 @@ final class EntityRenderVisualProjector {
                                   EntityVisual visual,
                                   boolean upsideDown,
                                   boolean mirror,
-                                  int mirrorRotationQuarterTurns) {
+                                  int mirrorRotationQuarterTurns,
+                                  EntityProjectionPath projectionPath) {
         EntityType packetType = packetEntityTypeByKey(visual.typeKey());
         if (packetType == null) {
             return false;
@@ -166,7 +167,11 @@ final class EntityRenderVisualProjector {
         Vector localOrigin = localPortal.getOrigin();
         boolean itemFrame = ProjectedItemFrameTransform.isItemFrame(packetType);
         double visibleY = itemFrame ? visual.y() : visual.y() + (visual.height() * 0.5D);
-        if (mirror) {
+        if (projectionPath != null) {
+            if (!projectionPath.visible(visual, visibleY, scratchVisiblePoint)) {
+                return false;
+            }
+        } else if (mirror) {
             PortalCoordMap.mirrorSourceToDisplayPointInto(visual.x(), visibleY, visual.z(),
                 remoteOriginX, remoteOriginY, remoteOriginZ, localPortal.getFrame(), mirrorRotationQuarterTurns,
                 scratchVisiblePoint);
@@ -176,11 +181,13 @@ final class EntityRenderVisualProjector {
                 localOrigin.getX(), localOrigin.getY(), localOrigin.getZ(),
                 remoteViewFrame, localViewFrame, scratchVisiblePoint);
         }
-        if (!frustum.containsPrimitive(scratchVisiblePoint[0], scratchVisiblePoint[1], scratchVisiblePoint[2])) {
+        if (projectionPath == null && !frustum.containsPrimitive(scratchVisiblePoint[0], scratchVisiblePoint[1], scratchVisiblePoint[2])) {
             return false;
         }
 
-        if (mirror) {
+        if (projectionPath != null) {
+            projectionPath.vector(visual.lookX(), visual.lookY(), visual.lookZ(), scratchDirection);
+        } else if (mirror) {
             PortalCoordMap.mirrorSourceToDisplayVectorInto(visual.lookX(), visual.lookY(), visual.lookZ(),
                 localPortal.getFrame(), mirrorRotationQuarterTurns, scratchDirection);
         } else {
@@ -191,14 +198,16 @@ final class EntityRenderVisualProjector {
         Direction sourceFacing = Direction.closest(visual.lookX(), visual.lookY(), visual.lookZ());
         int metadataTransform = ProjectedItemFrameTransform.NONE;
         if (itemFrame) {
-            metadataTransform = mirror
+            metadataTransform = projectionPath != null ? projectionPath.itemFrameTransform(sourceFacing) : mirror
                 ? ProjectedItemFrameTransform.mirror(sourceFacing, localPortal.getFrame(),
                     mirrorRotationQuarterTurns, scratchDirection)
                 : ProjectedItemFrameTransform.between(sourceFacing, remoteViewFrame, localViewFrame,
                     scratchDirection);
         }
         Vector3d position;
-        if (itemFrame && mirror) {
+        if (itemFrame && projectionPath != null) {
+            position = projectionPath.anchor(visual.x(), visual.y(), visual.z());
+        } else if (itemFrame && mirror) {
             position = ProjectedItemFrameTransform.mirrorAnchor(
                 visual.x(), visual.y(), visual.z(),
                 remoteOriginX, remoteOriginY, remoteOriginZ,
@@ -213,7 +222,9 @@ final class EntityRenderVisualProjector {
             double visualBaseY = scratchVisiblePoint[1] - (visual.height() * 0.5D);
             position = new Vector3d(scratchVisiblePoint[0], visualBaseY, scratchVisiblePoint[2]);
         }
-        if (mirror) {
+        if (projectionPath != null) {
+            projectionPath.vector(visual.velocityX(), visual.velocityY(), visual.velocityZ(), scratchDirection);
+        } else if (mirror) {
             PortalCoordMap.mirrorSourceToDisplayVectorInto(visual.velocityX(), visual.velocityY(), visual.velocityZ(),
                 localPortal.getFrame(), mirrorRotationQuarterTurns, scratchDirection);
         } else {

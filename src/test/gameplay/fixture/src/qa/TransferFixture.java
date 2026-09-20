@@ -158,6 +158,7 @@ public final class TransferFixture extends JavaPlugin {
             portal.save();
         }
         if (request.reentry()) {
+            Settings.TELEPORT_COOLDOWN_MILLIS = 0L;
             Set<Block> aperture = new HashSet<>();
             for (int x = 11; x <= 13; x++) {
                 for (int y = 101; y <= 104; y++) {
@@ -166,14 +167,21 @@ public final class TransferFixture extends JavaPlugin {
             }
             PortalStructure structure = new PortalStructure();
             structure.setBlocks(aperture);
-            LocalPortal target = new LocalPortal(UUID.randomUUID(), PortalType.PORTAL, structure);
+            UUID targetId = UUID.nameUUIDFromBytes(("transfer-fixture-reentry:" + Wormholes.networkManager.getLocalName()).getBytes(StandardCharsets.UTF_8));
+            LocalPortal target = (LocalPortal) Wormholes.portalManager.getLocalPortal(targetId);
+            boolean newTarget = target == null;
+            if (newTarget) {
+                target = new LocalPortal(targetId, PortalType.PORTAL, structure);
+            }
             target.setFrame(PortalFrame.canonical(Direction.S));
             target.setOwner(request.owner());
             target.setProjectionMode(ProjectionMode.OFF);
-            Wormholes.portalManager.addLocalPortal(target);
+            if (newTarget) {
+                Wormholes.portalManager.addLocalPortal(target);
+            }
             target.open();
             ILocalPortal source = Wormholes.portalManager.getLocalPortal(portalId());
-            if (!source.setDestination(target)) {
+            if (!source.setDestination(target) || !target.setDestination(source)) {
                 throw new IllegalStateException("Reentry fixture portals could not link");
             }
             target.save();

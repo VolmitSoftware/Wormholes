@@ -1,0 +1,11 @@
+name: WormholesNestedEntityFixture
+version: 1.0.0
+main: qa.NestedEntityFixture
+api-version: '26.1'
+depend: [Wormholes]
+commands:
+  whnested:
+    permission: wormholesnestedfixture.use
+permissions:
+  wormholesnestedfixture.use:
+    default: op

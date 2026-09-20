@@ -123,6 +123,7 @@ final class ProjectorRecursivePortals {
         private final double eyeY;
         private final double eyeZ;
         private final Long2ObjectOpenHashMap<ArrayList<Candidate>> buckets;
+        private final ArrayList<Candidate> paths = new ArrayList<Candidate>();
         private int minimumX = Integer.MAX_VALUE;
         private int minimumY = Integer.MAX_VALUE;
         private int minimumZ = Integer.MAX_VALUE;
@@ -144,6 +145,7 @@ final class ProjectorRecursivePortals {
                 Candidate indexed = new Candidate(candidate, eyeX, eyeY, eyeZ);
                 if (indexed.valid) {
                     index(indexed);
+                    paths.add(indexed);
                 }
             }
         }
@@ -159,6 +161,10 @@ final class ProjectorRecursivePortals {
             return Double.compare(this.eyeX, eyeX) == 0
                 && Double.compare(this.eyeY, eyeY) == 0
                 && Double.compare(this.eyeZ, eyeZ) == 0;
+        }
+
+        List<Candidate> paths() {
+            return paths;
         }
 
         boolean isEmpty() {
@@ -229,13 +235,13 @@ final class ProjectorRecursivePortals {
         }
     }
 
-    private final class Candidate {
-        private final UUID portalId;
-        private final AxisAlignedBB view;
+    final class Candidate {
+        final UUID portalId;
+        final AxisAlignedBB view;
         private final PortalFrame localFrame;
         private final PortalFrame remoteFrame;
-        private final World nestedWorld;
-        private final ILocalPortal nestedDestination;
+        final World nestedWorld;
+        final ILocalPortal nestedDestination;
         private final ProjectorPlaneWindow planeWindow;
         private final double originX;
         private final double originY;
@@ -258,9 +264,9 @@ final class ProjectorRecursivePortals {
         private final double transformZX;
         private final double transformZY;
         private final double transformZZ;
-        private final double transformedEyeX;
-        private final double transformedEyeY;
-        private final double transformedEyeZ;
+        final double transformedEyeX;
+        final double transformedEyeY;
+        final double transformedEyeZ;
         private final double eyeX;
         private final double eyeY;
         private final double eyeZ;
@@ -268,7 +274,7 @@ final class ProjectorRecursivePortals {
         private final double clearance;
         private final double maxDepth;
         private final boolean eyeFrontSide;
-        private final boolean traversable;
+        final boolean traversable;
         private final boolean mirrorProjection;
         private final int mirrorRotationQuarterTurns;
         private final PortalFrame mirrorFrame;
@@ -486,6 +492,19 @@ final class ProjectorRecursivePortals {
             this.mirrorRotationQuarterTurns = mirrorQuarterTurns;
             this.mirrorFrame = mirrors ? frame : null;
             this.valid = candidateView != null && planeWindow != null;
+        }
+
+        void sourceToDisplayPoint(double x, double y, double z, double[] out) {
+            sourceToDisplayVector(x - remoteOriginX, y - remoteOriginY, z - remoteOriginZ, out);
+            out[0] += originX;
+            out[1] += originY;
+            out[2] += originZ;
+        }
+
+        void sourceToDisplayVector(double x, double y, double z, double[] out) {
+            out[0] = x * transformXX + y * transformYX + z * transformZX;
+            out[1] = x * transformXY + y * transformYY + z * transformZY;
+            out[2] = x * transformXZ + y * transformYZ + z * transformZZ;
         }
 
         private Hit hit(double pointX, double pointY, double pointZ, int remainingDepth, RecursionPath visited) {
