@@ -1,5 +1,8 @@
 package art.arcane.wormholes.chunk;
 
+import art.arcane.volmlib.nativelib.chunk.ChunkSendRateAccessor;
+import art.arcane.volmlib.nativelib.chunk.ChunkSendRateLimit;
+
 import art.arcane.wormholes.config.toml.MainConfig;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import org.junit.jupiter.api.Test;
@@ -212,7 +215,7 @@ class ChunkSendRateTunerTest {
         assertEquals(List.of(ChunkSendRateLimit.SEND), outcome.unavailable());
         assertEquals(List.of("LOAD=1000.0"), accessor.writes);
         assertTrue(ChunkSendRateTuner.describe(outcome, "Paper GlobalConfiguration")
-            .contains("unreadable fields playerMaxChunkSendRate"));
+            .contains("unreadable fields send"));
     }
 
     @Test
@@ -227,7 +230,7 @@ class ChunkSendRateTunerTest {
         assertEquals(List.of(), accessor.writes);
         assertEquals(before + 1L, failureCount());
         assertTrue(ChunkSendRateTuner.describe(outcome, "Paper GlobalConfiguration")
-            .contains("playerMaxChunkSendRate, playerMaxChunkLoadRate"));
+            .contains("send, load"));
     }
 
     @Test

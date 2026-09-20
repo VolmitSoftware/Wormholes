@@ -93,9 +93,33 @@ tasks.named('build').configure {
 }
 
 shadowJarTask.configure {
+    exclude('com/fren_gor/**')
+    exclude { FileTreeElement entry ->
+        String nativePrefix = 'art/arcane/volmlib/nativelib/'
+        if (entry.isDirectory() || !entry.path.startsWith(nativePrefix)) {
+            return false
+        }
+        String relative = entry.path.substring(nativePrefix.length())
+        if (!relative.contains('/')) {
+            return false
+        }
+        List<String> segments = relative.tokenize('/')
+        String capability = segments[0] == 'common' || segments[0].startsWith('v') ? segments[1] : segments[0]
+        if (!['block', 'chunk', 'map', 'entity'].contains(capability)) {
+            return true
+        }
+        if (capability == 'entity') {
+            return !segments.last().startsWith('EntityVisibilityAccess')
+                    && !segments.last().startsWith('ReflectiveEntityVisibilityAccess')
+                    && !segments.last().startsWith('NativeEntityVisibilityAccess')
+        }
+        return false
+    }
     archiveClassifier.set('')
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    minimize()
+    minimize {
+        exclude(dependency('com.github.VolmitSoftware.VolmLib:.*:.*'))
+    }
     relocate('io.github.slimjar', "${lib}.slimjar")
     relocate('org.bstats', "${lib}.bstats")
     relocate('com.github.retrooper.packetevents', "${lib}.packetevents.api")
@@ -268,6 +292,10 @@ dependencies {
     testImplementation(libs.junitJupiter)
     testImplementation('org.mockito:mockito-core:5.23.0')
     testRuntimeOnly(libs.junitPlatformLauncher)
+    implementation("com.github.VolmitSoftware.VolmLib:native-api:${volmLibCoordinate.tokenize(':').last()}")
+    implementation("com.github.VolmitSoftware.VolmLib:native-common:${volmLibCoordinate.tokenize(':').last()}")
+    implementation("com.github.VolmitSoftware.VolmLib:native-v26_2_R1:${volmLibCoordinate.tokenize(':').last()}")
+    implementation("com.github.VolmitSoftware.VolmLib:native-v26_3_R1:${volmLibCoordinate.tokenize(':').last()}")
     implementation(volmLibCoordinate) {
         changing = true
         transitive = false
@@ -355,7 +383,7 @@ pluginPackaging {
             taskName = 'shadowJar'
             policyName = 'Wormholes'
             prunePrefixes = ['art/arcane/volmlib/']
-            keepPrefixes = ['art/arcane/volmlib/util/matter/slices/']
+            keepPrefixes = ['art/arcane/volmlib/util/matter/slices/', 'art/arcane/volmlib/nativelib/']
             shrinkRules = [file('packaging/shrink.pro')]
             shrinkRelocations = [
                 'org.bstats'                       : "${lib}.bstats",

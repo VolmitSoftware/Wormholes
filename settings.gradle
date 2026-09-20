@@ -41,6 +41,10 @@ if (useLocalVolmLib && localVolmLibDirectory != null) {
     includeBuild(localVolmLibDirectory) {
         dependencySubstitution {
             substitute(module('com.github.VolmitSoftware:VolmLib')).using(project(':shared'))
+            substitute(module('com.github.VolmitSoftware.VolmLib:native-api')).using(project(':native-api'))
+            substitute(module('com.github.VolmitSoftware.VolmLib:native-common')).using(project(':native-common'))
+            substitute(module('com.github.VolmitSoftware.VolmLib:native-v26_2_R1')).using(project(':native:v26_2_R1'))
+            substitute(module('com.github.VolmitSoftware.VolmLib:native-v26_3_R1')).using(project(':native:v26_3_R1'))
             substitute(module('com.github.VolmitSoftware.VolmLib:shared')).using(project(':shared'))
             substitute(module('com.github.VolmitSoftware.VolmLib:packaging')).using(project(':packaging'))
             substitute(module('com.github.VolmitSoftware.VolmLib:volmlib-shared')).using(project(':shared'))

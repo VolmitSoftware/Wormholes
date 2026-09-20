@@ -1,24 +1,21 @@
 package art.arcane.wormholes.network.view;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
+import art.arcane.volmlib.nativelib.NativeAdapters;
+import art.arcane.volmlib.nativelib.map.MapPixelsAccess;
+
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
 
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.MapMeta;
-import org.bukkit.map.MapRenderer;
 import org.bukkit.map.MapView;
 
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMapData;
 
-import art.arcane.wormholes.Wormholes;
 
 public final class ProjectedMapData {
     public static final int WIDTH = 128;
@@ -32,7 +29,7 @@ public final class ProjectedMapData {
     private static final int KNOWN_FLAGS = FLAG_TRACKING | FLAG_LOCKED;
     private static final int ENCODED_LENGTH = Integer.BYTES + Byte.BYTES + Integer.BYTES
         + Byte.BYTES + Byte.BYTES + PIXEL_COUNT;
-    private static final AtomicBoolean CAPTURE_FAILURE_REPORTED = new AtomicBoolean(false);
+    private static volatile MapPixelsAccess nativeMaps;
 
     private final int sourceMapId;
     private final byte scale;
@@ -135,45 +132,16 @@ public final class ProjectedMapData {
     }
 
     public static Optional<ProjectedMapData> capture(MapView mapView) {
-        if (mapView == null || !"CraftMapView".equals(mapView.getClass().getSimpleName())) {
+        MapPixelsAccess access = nativeMaps;
+        if (access == null) {
+            access = NativeAdapters.find(MapPixelsAccess.class).orElse(null);
+            nativeMaps = access;
+        }
+        if (access == null) {
             return Optional.empty();
         }
-        try {
-            Field worldMapField = accessibleField(mapView.getClass(), "worldMap");
-            if (worldMapField == null) {
-                reportCaptureFailure(mapView, "worldMap field is unavailable", null);
-                return Optional.empty();
-            }
-            Object worldMap = worldMapField.get(mapView);
-            if (worldMap == null) {
-                reportCaptureFailure(mapView, "worldMap is null", null);
-                return Optional.empty();
-            }
-            Field colorsField = accessibleField(worldMap.getClass(), "colors");
-            if (colorsField == null || colorsField.getType() != byte[].class) {
-                reportCaptureFailure(mapView, "map colors field is unavailable", null);
-                return Optional.empty();
-            }
-            synchronized (worldMap) {
-                if (!hasVanillaRenderer(mapView)) {
-                    return Optional.empty();
-                }
-                Object rawColors = colorsField.get(worldMap);
-                if (!(rawColors instanceof byte[] colors) || colors.length != PIXEL_COUNT) {
-                    reportCaptureFailure(mapView, "map colors have an invalid shape", null);
-                    return Optional.empty();
-                }
-                MapView.Scale mapScale = mapView.getScale();
-                if (mapScale == null) {
-                    return Optional.empty();
-                }
-                return Optional.of(new ProjectedMapData(
-                    mapView.getId(), mapScale.getValue(), mapView.isTrackingPosition(), mapView.isLocked(), colors));
-            }
-        } catch (ReflectiveOperationException | RuntimeException | LinkageError error) {
-            reportCaptureFailure(mapView, "map data reflection failed", error);
-            return Optional.empty();
-        }
+        return access.capture(mapView).map(snapshot -> new ProjectedMapData(
+            snapshot.sourceMapId(), snapshot.scale(), snapshot.tracking(), snapshot.locked(), snapshot.pixels()));
     }
 
     public ProjectedMapData mirrorHorizontally() {
@@ -227,45 +195,4 @@ public final class ProjectedMapData {
             + ", pixels=" + pixels.length + "]";
     }
 
-    private static boolean hasVanillaRenderer(MapView mapView) {
-        List<MapRenderer> renderers;
-        try {
-            renderers = mapView.getRenderers();
-        } catch (RuntimeException | LinkageError error) {
-            return false;
-        }
-        return renderers != null
-            && renderers.size() == 1
-            && renderers.get(0) != null
-            && "CraftMapRenderer".equals(renderers.get(0).getClass().getSimpleName());
-    }
-
-    private static Field accessibleField(Class<?> type, String name) {
-        Class<?> current = type;
-        while (current != null) {
-            try {
-                Field field = current.getDeclaredField(name);
-                if (Modifier.isStatic(field.getModifiers()) || !field.trySetAccessible()) {
-                    return null;
-                }
-                return field;
-            } catch (NoSuchFieldException error) {
-                current = current.getSuperclass();
-            } catch (RuntimeException | LinkageError error) {
-                return null;
-            }
-        }
-        return null;
-    }
-
-    private static void reportCaptureFailure(MapView mapView, String reason, Throwable error) {
-        Wormholes plugin = Wormholes.instance;
-        if (plugin == null || !CAPTURE_FAILURE_REPORTED.compareAndSet(false, true)) {
-            return;
-        }
-        Throwable cause = error == null ? new IllegalStateException(reason) : error;
-        plugin.getLogger().log(Level.WARNING,
-            "Projected vanilla map capture failed for " + mapView.getClass().getName()
-                + "; cross-server item-frame maps will omit pixels until restart", cause);
-    }
 }

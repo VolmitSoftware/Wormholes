@@ -25,12 +25,33 @@ import org.bukkit.map.MapCanvas;
 import org.bukkit.map.MapRenderer;
 import org.bukkit.map.MapView;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+import org.mockito.MockedStatic;
+import static org.mockito.Mockito.mockStatic;
+import art.arcane.volmlib.nativelib.NativeAdapters;
+import art.arcane.volmlib.nativelib.map.MapPixelsAccess;
+import art.arcane.volmlib.nativelib.common.map.ReflectiveMapPixelsAccess;
 
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMapData;
 
 import art.arcane.wormholes.network.view.ProjectedMapData;
 
 public final class ProjectedMapDataTest {
+    private MockedStatic<NativeAdapters> nativeAdapters;
+
+    @BeforeEach
+    void installNativeMapAccess() {
+        nativeAdapters = mockStatic(NativeAdapters.class);
+        nativeAdapters.when(() -> NativeAdapters.find(MapPixelsAccess.class))
+            .thenReturn(Optional.of(new ReflectiveMapPixelsAccess()));
+    }
+
+    @AfterEach
+    void releaseNativeMapAccess() {
+        nativeAdapters.close();
+    }
+
     @Test
     public void encodedPayloadRoundTripsEveryFieldAndOwnsItsPixels() {
         byte[] source = pixels();

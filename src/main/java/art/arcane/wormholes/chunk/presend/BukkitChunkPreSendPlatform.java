@@ -17,7 +17,7 @@ public final class BukkitChunkPreSendPlatform implements ChunkPreSendPlatform<Wo
     private final ThreadLocal<double[]> position;
 
     public BukkitChunkPreSendPlatform(Plugin plugin) {
-        this(plugin, new NmsChunkPreSendDelivery(plugin), new BukkitOperations());
+        this(plugin, new NativeChunkPreSendDelivery(plugin), new BukkitOperations());
     }
 
     public BukkitChunkPreSendPlatform(Plugin plugin, ChunkPreSendDelivery delivery, Operations operations) {

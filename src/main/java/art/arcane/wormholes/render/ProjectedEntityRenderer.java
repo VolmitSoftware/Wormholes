@@ -42,7 +42,6 @@ import art.arcane.wormholes.render.bedrock.BedrockProfile;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.platform.EntityVisibilityAccess;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
@@ -270,7 +269,7 @@ public final class ProjectedEntityRenderer {
                     break;
                 }
                 if (!ProjectionEntityFilter.canCapture(entity)
-                    || !EntityVisibilityAccess.isVisible(observer, entity.getUniqueId(),
+                    || !WormholesPlatform.isEntityVisible(observer, entity.getUniqueId(),
                         entity.isVisibleByDefault(), Wormholes.instance)) {
                     continue;
                 }

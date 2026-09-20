@@ -1,6 +1,10 @@
 package art.arcane.wormholes.platform;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
+import art.arcane.wormholes.Wormholes;
+import art.arcane.volmlib.nativelib.NativeAdapters;
+import art.arcane.volmlib.nativelib.entity.EntityVisibilityAccess;
+import art.arcane.volmlib.nativelib.block.BlockEntityAccess;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.ChunkSnapshot;
@@ -26,7 +30,6 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginDescriptionFile;
 
 import java.io.ByteArrayOutputStream;
-import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -35,9 +38,11 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 
 public final class WormholesPlatform {
     private static final Method BUKKIT_GET_MINECRAFT_VERSION = resolveMethod(Bukkit.class, "getMinecraftVersion");
@@ -365,9 +370,24 @@ public final class WormholesPlatform {
         }
     }
 
-    private static final Method NO_SNAPSHOT_ACCESSOR = resolveMethod(WormholesPlatform.class, "blockEntityNbtPath");
-    private static final ConcurrentHashMap<Class<?>, Method> SNAPSHOT_NBT_ACCESSORS = new ConcurrentHashMap<Class<?>, Method>();
-    private static volatile Method nbtWriteMethod;
+    private static volatile EntityVisibilityAccess nativeVisibility;
+
+    public static boolean isEntityVisible(Player observer, UUID entityId, boolean visibleByDefault, Plugin excludedPlugin) {
+        if (observer == null || entityId == null) {
+            return false;
+        }
+        if (entityId.equals(observer.getUniqueId())) {
+            return true;
+        }
+        EntityVisibilityAccess visibility = nativeVisibility;
+        if (visibility == null) {
+            visibility = NativeAdapters.find(EntityVisibilityAccess.class).orElse(null);
+            nativeVisibility = visibility;
+        }
+        return visibility != null && visibility.isVisible(observer, entityId, visibleByDefault, excludedPlugin);
+    }
+
+    private static volatile BlockEntityAccess nativeBlocks;
     private static volatile boolean snapshotNbtUnavailable;
     private static volatile boolean snapshotNbtUsed;
 
@@ -380,30 +400,26 @@ public final class WormholesPlatform {
         if (state == null || snapshotNbtUnavailable) {
             return null;
         }
-        Method accessor = SNAPSHOT_NBT_ACCESSORS.computeIfAbsent(state.getClass(), type -> {
-            Method resolved = resolveMethod(type, "getSnapshotNBT");
-            return resolved == null ? NO_SNAPSHOT_ACCESSOR : resolved;
-        });
-        if (accessor == NO_SNAPSHOT_ACCESSOR) {
-            return null;
-        }
-        Object tag = invokeNoThrow(accessor, state);
-        if (tag == null) {
-            return null;
-        }
-        Method write = nbtWrite(tag.getClass());
-        if (write == null) {
+        try {
+            BlockEntityAccess blocks = nativeBlocks;
+            if (blocks == null) {
+                blocks = NativeAdapters.find(BlockEntityAccess.class).orElse(null);
+                nativeBlocks = blocks;
+            }
+            if (blocks == null) {
+                snapshotNbtUnavailable = true;
+                return null;
+            }
+            byte[] bytes = blocks.snapshotNbt(state);
+            snapshotNbtUsed |= bytes != null;
+            return bytes;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError failure) {
             snapshotNbtUnavailable = true;
+            Logger logger = Wormholes.instance == null ? Logger.getLogger("Wormholes") : Wormholes.instance.getLogger();
+            logger.log(Level.WARNING,
+                "Native block entity snapshots are unavailable; using Bukkit block state data", failure);
             return null;
         }
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream(512);
-        Object result = invokeNoThrow(write, null, tag, new DataOutputStream(buffer));
-        if (result == null && buffer.size() == 0) {
-            snapshotNbtUnavailable = true;
-            return null;
-        }
-        snapshotNbtUsed = true;
-        return buffer.toByteArray();
     }
 
     public static void disableSnapshotNbt() {
@@ -415,29 +431,6 @@ public final class WormholesPlatform {
             return "bukkit-api";
         }
         return snapshotNbtUsed ? "snapshot-nbt" : "unresolved";
-    }
-
-    private static Method nbtWrite(Class<?> tagClass) {
-        Method cached = nbtWriteMethod;
-        if (cached != null) {
-            return cached;
-        }
-        try {
-            Class<?> nbtIo = Class.forName("net.minecraft.nbt.NbtIo", false, tagClass.getClassLoader());
-            for (Method candidate : nbtIo.getMethods()) {
-                if (!"write".equals(candidate.getName()) || !java.lang.reflect.Modifier.isStatic(candidate.getModifiers())) {
-                    continue;
-                }
-                Class<?>[] parameters = candidate.getParameterTypes();
-                if (parameters.length == 2 && parameters[0].isAssignableFrom(tagClass) && parameters[1] == DataOutput.class) {
-                    nbtWriteMethod = candidate;
-                    return candidate;
-                }
-            }
-        } catch (ClassNotFoundException | RuntimeException | LinkageError unavailable) {
-            return null;
-        }
-        return null;
     }
 
     public static BlockState blockState(Block block, boolean useSnapshot) {

@@ -159,7 +159,7 @@ final class RenderTestSupport {
                 }
                 return switch (method.getName()) {
                     case "getName", "toString" -> "RenderTestServer";
-                    case "getVersion", "getBukkitVersion" -> "1.21.11-R0.1-SNAPSHOT";
+                    case "getVersion", "getBukkitVersion" -> "26.2-R0.1-SNAPSHOT";
                     case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
                     case "equals" -> Boolean.valueOf(proxy == args[0]);
                     default -> defaultValue(method);

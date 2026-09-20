@@ -1,5 +1,9 @@
 package art.arcane.wormholes.chunk;
 
+import art.arcane.volmlib.nativelib.NativeAdapters;
+import art.arcane.volmlib.nativelib.chunk.ChunkSendRateAccessor;
+import art.arcane.volmlib.nativelib.chunk.ChunkSendRateLimit;
+
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.MainConfig;
@@ -10,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.OptionalDouble;
+import java.util.Optional;
 
 public final class ChunkSendRateTuner {
     public static final double MINIMUM_RATE = 1.0D;
@@ -51,7 +56,14 @@ public final class ChunkSendRateTuner {
 
     public static void install(Plugin plugin) {
         Objects.requireNonNull(plugin);
-        ChunkSendRateAccessor accessor = PaperChunkSendRateAccessor.resolve();
+        Optional<ChunkSendRateAccessor> nativeAccess = NativeAdapters.find(ChunkSendRateAccessor.class);
+        if (nativeAccess.isEmpty()) {
+            if (Settings.CHUNK_SEND_RATE_TUNER) {
+                plugin.getLogger().info(describe(new Outcome(Status.UNSUPPORTED, List.of(), List.of()), null));
+            }
+            return;
+        }
+        ChunkSendRateAccessor accessor = nativeAccess.get();
         Outcome outcome = apply(
             accessor,
             Settings.CHUNK_SEND_RATE_TUNER,
@@ -191,7 +203,7 @@ public final class ChunkSendRateTuner {
             if (!out.isEmpty()) {
                 out.append(", ");
             }
-            out.append(limit.field());
+            out.append(limit.label());
         }
         return out.toString();
     }

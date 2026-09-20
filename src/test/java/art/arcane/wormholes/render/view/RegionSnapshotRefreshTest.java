@@ -2,7 +2,7 @@ package art.arcane.wormholes.render.view;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.platform.EntityVisibilityAccess;
+import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 
 import org.bukkit.Bukkit;
@@ -46,7 +46,7 @@ final class RegionSnapshotRefreshTest {
     @Test
     void snapshotsCaptureDefaultVisibilityWithoutReadingEntitiesOnTheViewerThread() throws ReflectiveOperationException {
         try (Fixture fixture = new Fixture();
-             MockedStatic<EntityVisibilityAccess> visibility = mockStatic(EntityVisibilityAccess.class)) {
+             MockedStatic<WormholesPlatform> visibility = mockStatic(WormholesPlatform.class)) {
             AtomicInteger visibilityReads = new AtomicInteger();
             Item item = proxy(Item.class, (instance, method, arguments) -> switch (method.getName()) {
                 case "isVisibleByDefault" -> {
@@ -61,7 +61,7 @@ final class RegionSnapshotRefreshTest {
             fixture.capture();
             ProjectionEntityView entityView = (ProjectionEntityView) fixture.view;
             Player observer = mock(Player.class);
-            visibility.when(() -> EntityVisibilityAccess.isVisible(eq(observer), eq(fixture.entityId),
+            visibility.when(() -> WormholesPlatform.isEntityVisible(eq(observer), eq(fixture.entityId),
                 anyBoolean(), eq(fixture.plugin))).thenAnswer(call -> call.getArgument(2));
             assertEquals(1, entityView.getEntities(4.0D, 64.0D, 8.0D, 4.0D).size());
             assertTrue(entityView.isVisibleTo(observer, fixture.entityId));

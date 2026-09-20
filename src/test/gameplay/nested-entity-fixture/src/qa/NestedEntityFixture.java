@@ -42,6 +42,7 @@ public final class NestedEntityFixture extends JavaPlugin {
             return true;
         }
         switch (args[0]) {
+            case "native" -> NativeAccessFixture.verify(player, this);
             case "motion" -> motion.execute(player, args);
             case "setup" -> setup(player);
             case "stage" -> player.teleportAsync(new Location(player.getWorld(), 8.5, 191, 13.5, 180, 0))

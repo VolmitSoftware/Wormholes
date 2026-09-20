@@ -9,9 +9,6 @@ import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
@@ -154,7 +151,7 @@ class ChunkPreSendInstallationTest {
         logger.setUseParentHandlers(false);
         logger.addHandler(handler);
 
-        NmsChunkPreSendDelivery delivery = new NmsChunkPreSendDelivery(plugin(logger));
+        NativeChunkPreSendDelivery delivery = new NativeChunkPreSendDelivery(plugin(logger));
 
         assertFalse(delivery.supported(),
             "net.minecraft is absent from the unit-test classpath, which is exactly the Spigot-style degrade path");
@@ -169,7 +166,7 @@ class ChunkPreSendInstallationTest {
         Logger logger = Logger.getLogger("ChunkPreSendInstallationTest-announce");
         logger.setUseParentHandlers(false);
         logger.addHandler(handler);
-        NmsChunkPreSendDelivery delivery = new NmsChunkPreSendDelivery(plugin(logger));
+        NativeChunkPreSendDelivery delivery = new NativeChunkPreSendDelivery(plugin(logger));
         long before = failureCount("PRESEND_VIEW_CENTER_DELIVERY_FAILED");
 
         assertFalse(delivery.announceViewCenter(player(), 0, 0));
@@ -177,49 +174,6 @@ class ChunkPreSendInstallationTest {
         assertEquals(before + 1L, failureCount("PRESEND_VIEW_CENTER_DELIVERY_FAILED"));
         assertTrue(handler.thrown.size() >= 1, "the first delivery failure must be logged with its cause");
         logger.removeHandler(handler);
-    }
-
-    @Test
-    void everyChunkInABurstReusesTheAlreadyResolvedNmsMembersInsteadOfRewalkingTheHierarchy() {
-        NmsChunkPreSendDelivery delivery =
-            new NmsChunkPreSendDelivery(plugin(Logger.getLogger("ChunkPreSendInstallationTest-members")));
-
-        Method firstHandle = delivery.handleMethod(SampleHandleOwner.class);
-        Field firstConnection = delivery.connectionField(SampleConnectionOwner.class);
-
-        assertNotNull(firstHandle);
-        assertNotNull(firstConnection);
-        for (int chunk = 0; chunk < 49; chunk++) {
-            assertSame(firstHandle, delivery.handleMethod(SampleHandleOwner.class),
-                "resolving the handle method per chunk would allocate a fresh Method inside the commitment window");
-            assertSame(firstConnection, delivery.connectionField(SampleConnectionOwner.class));
-        }
-    }
-
-    @Test
-    void aMemberThatIsAbsentOnThisRuntimeIsRememberedAsAbsent() {
-        NmsChunkPreSendDelivery delivery =
-            new NmsChunkPreSendDelivery(plugin(Logger.getLogger("ChunkPreSendInstallationTest-absent")));
-
-        assertNull(delivery.handleMethod(SampleConnectionOwner.class));
-        assertNull(delivery.handleMethod(SampleConnectionOwner.class));
-    }
-
-    @Test
-    void compatiblePacketConstructorSelectionIsReusedAcrossAChunkBurst() {
-        NmsChunkPreSendDelivery delivery = new NmsChunkPreSendDelivery(
-            plugin(Logger.getLogger("ChunkPreSendInstallationTest-constructors")),
-            SampleChunkPacket.class
-        );
-
-        Constructor<?> selected = delivery.packetConstructor(SampleChunk.class, SampleLightEngine.class);
-
-        assertNotNull(selected);
-        assertEquals(4, selected.getParameterCount());
-        for (int chunk = 0; chunk < 49; chunk++) {
-            assertSame(selected, delivery.packetConstructor(SampleChunk.class, SampleLightEngine.class));
-        }
-        assertNull(delivery.packetConstructor(String.class, SampleLightEngine.class));
     }
 
     private static long failureCount(String reason) {
@@ -376,35 +330,6 @@ class ChunkPreSendInstallationTest {
                 default -> throw new UnsupportedOperationException(method.getName());
             }
         );
-    }
-
-    private static final class SampleHandleOwner {
-        Object getHandle() {
-            return this;
-        }
-    }
-
-    private static final class SampleConnectionOwner {
-        private Object connection;
-
-        Object connection() {
-            return connection;
-        }
-    }
-
-    private static final class SampleChunk {
-    }
-
-    private static final class SampleLightEngine {
-    }
-
-    private static final class SampleChunkPacket {
-        private SampleChunkPacket(SampleChunk chunk, SampleLightEngine lightEngine, Object filter, Object packetData) {
-        }
-
-        private SampleChunkPacket(SampleChunk chunk, SampleLightEngine lightEngine, Object filter, Object packetData,
-                                  boolean modifyBlocks) {
-        }
     }
 
     private static final class RecordingHandler extends Handler {

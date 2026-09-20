@@ -1,8 +1,9 @@
 package qa;
 
+import art.arcane.wormholes.platform.WormholesPlatform;
+
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.access.PortalAdmission;
-import art.arcane.wormholes.platform.EntityVisibilityAccess;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.PortalFrame;
@@ -116,12 +117,12 @@ public final class RealDropsFixture extends JavaPlugin {
     private void reportSample(Player recipient, Player viewer, VisibilitySample sample) {
         int visibleDisplays = 0;
         for (EntityVisibility display : sample.displays()) {
-            if (EntityVisibilityAccess.isVisible(viewer, display.id(), display.visibleByDefault(), null)) {
+            if (WormholesPlatform.isEntityVisible(viewer, display.id(), display.visibleByDefault(), null)) {
                 visibleDisplays++;
             }
         }
         reply(recipient, sample.itemState() + " viewer=" + viewer.getName() + " canSee="
-            + EntityVisibilityAccess.isVisible(viewer, sample.carrier().id(), sample.carrier().visibleByDefault(), null)
+            + WormholesPlatform.isEntityVisible(viewer, sample.carrier().id(), sample.carrier().visibleByDefault(), null)
             + " visibleDisplays=" + visibleDisplays + " observer=" + Wormholes.projectionManager.observersOf(sourcePortal().getId()).contains(viewer)
             + " allowed=" + PortalAdmission.allows((LocalPortal) sourcePortal(), viewer)
             + " position=" + viewer.getLocation().toVector() + " yaw=" + viewer.getLocation().getYaw());
@@ -142,7 +143,7 @@ public final class RealDropsFixture extends JavaPlugin {
                 viewer.hideEntity(this, change.item());
             }
             reply(recipient, "DROPS visibility viewer=" + viewer.getName() + " canSee="
-                + EntityVisibilityAccess.isVisible(viewer, change.id(), change.visibleByDefault(), null));
+                + WormholesPlatform.isEntityVisible(viewer, change.id(), change.visibleByDefault(), null));
         }, null);
     }
 

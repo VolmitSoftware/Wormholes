@@ -6,7 +6,6 @@ import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.network.view.PacketBlobs;
 import art.arcane.wormholes.network.view.ProjectedMapData;
 import art.arcane.wormholes.network.view.RemoteViewCache;
-import art.arcane.wormholes.platform.EntityVisibilityAccess;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.ProjectionCellKey;
@@ -408,7 +407,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         @Override
         public boolean isVisibleTo(Player observer, UUID entityId) {
             EntityState state = entityStates.get(entityId);
-            return state != null && EntityVisibilityAccess.isVisible(observer, entityId,
+            return state != null && WormholesPlatform.isEntityVisible(observer, entityId,
                 state.entity.visibleByDefault, plugin);
         }
 
