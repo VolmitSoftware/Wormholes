@@ -24,16 +24,21 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
+import com.github.retrooper.packetevents.PacketEvents;
+import com.github.retrooper.packetevents.manager.server.ServerVersion;
+import com.github.retrooper.packetevents.protocol.component.builtin.item.ItemSwingAnimation;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityType;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
+import com.github.retrooper.packetevents.protocol.player.InteractionHand;
 import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityAnimation;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityAnimation.EntityAnimationType;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityVelocity;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerHurtAnimation;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSwingAnimation;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
@@ -615,6 +620,14 @@ public final class ProjectedEntityRenderer {
             // the viewer with a ClassCastException.
             return;
         }
+        if ((type == EntityAnimationType.SWING_MAIN_ARM || type == EntityAnimationType.SWING_OFF_HAND)
+            && PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_26_3)) {
+            InteractionHand hand = type == EntityAnimationType.SWING_OFF_HAND
+                ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
+            channel.send(observer, new WrapperPlayServerSwingAnimation(state.fakeId, hand,
+                new ItemSwingAnimation(ItemSwingAnimation.Type.WHACK, 6)));
+            return;
+        }
         channel.send(observer, new WrapperPlayServerEntityAnimation(state.fakeId, type));
     }
 
@@ -629,7 +642,6 @@ public final class ProjectedEntityRenderer {
         if (state == null || !state.living) {
             return;
         }
-        channel.send(observer, new WrapperPlayServerEntityAnimation(state.fakeId, EntityAnimationType.HURT));
         channel.send(observer, new WrapperPlayServerHurtAnimation(state.fakeId, yaw));
     }
 

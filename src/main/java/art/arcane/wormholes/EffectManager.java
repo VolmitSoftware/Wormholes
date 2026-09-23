@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -626,7 +627,7 @@ public class EffectManager implements Listener
 		Location center = location.clone().add(0.0, 1.0, 0.0);
 		if(Settings.ENABLE_PARTICLES)
 		{
-			world.spawnParticle(Particle.FLASH, center, 1, 0.0, 0.0, 0.0, 0.0);
+			world.spawnParticle(Particle.FLASH, center, 1, 0.0, 0.0, 0.0, 0.0, Color.WHITE);
 			world.spawnParticle(Particle.REVERSE_PORTAL, center, 40, 0.35, 0.7, 0.35, 0.25);
 			world.spawnParticle(Particle.PORTAL, center, 24, 0.3, 0.6, 0.3, 0.5);
 			world.spawnParticle(Particle.ELECTRIC_SPARK, center, 18, 0.4, 0.8, 0.4, 0.15);
