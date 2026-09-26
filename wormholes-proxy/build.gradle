@@ -3,6 +3,8 @@ plugins {
     id 'com.gradleup.shadow'
 }
 
+apply plugin: 'art.arcane.volmit-packaging'
+
 group = 'art.arcane'
 version = rootProject.version
 
@@ -58,4 +60,23 @@ tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.Shadow
 
 tasks.named('build').configure {
     dependsOn(tasks.named('shadowJar'))
+}
+
+pluginPackaging {
+    artifacts {
+        create('distribution') {
+            taskName = 'shadowJar'
+            maximumBytes = 7_600_000
+            shrink = false
+            releaseCompression = true
+            packed = true
+            requiredEntries = [
+                'velocity-plugin.json',
+                'bungee.yml',
+                'art/arcane/wormholes/proxy/velocity/WormholesVelocityPlugin.class',
+                'art/arcane/wormholes/proxy/bungee/WormholesBungeePlugin.class'
+            ]
+            forbiddenPrefixes = ['com/velocitypowered/', 'net/md_5/bungee/', 'com/google/inject/']
+        }
+    }
 }
