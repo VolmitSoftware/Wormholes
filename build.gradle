@@ -22,7 +22,7 @@ plugins {
 apply plugin: 'art.arcane.volmit-packaging'
 
 group = 'art.arcane'
-version = '2.0.6-26.2'
+version = '2.0.7-26.2'
 def apiVersion = '26.1'
 def main = 'art.arcane.wormholes.Wormholes'
 def bootstrapper = 'art.arcane.wormholes.survival.doors.dimension.WormholesBootstrap'
@@ -51,14 +51,15 @@ tasks.register('buildPsychoLT', Copy) {
     description = 'Builds and deploys Wormholes to the managed Minecraft test-server dropins.'
     outputs.upToDateWhen { false }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    dependsOn(tasks.named('check'), shadowJarTask)
-    from(shadowJarTask.flatMap { it.archiveFile })
+    dependsOn(tasks.named('check'), 'packedJar')
+    from({ tasks.named('packedJar').get().outputJar })
     into(layout.projectDirectory.dir('../../[Minecraft Server]/consumers/plugin-consumers/dropins/plugins'))
     rename { String ignored -> 'Wormholes.jar' }
     doLast {
         project.copy {
-            from(shadowJarTask.get().archiveFile.get().asFile)
+            from(tasks.named('packedJar').get().outputJar.get().asFile)
             into(pluginOutDirectory)
+            rename { String fileName -> fileName.replaceFirst(/-packed\.jar$/, '.jar') }
         }
     }
 }
@@ -68,8 +69,8 @@ tasks.register('buildSwiftSwamp', Copy) {
     description = 'Builds and deploys Wormholes to the local BUILDS output directory.'
     outputs.upToDateWhen { false }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    dependsOn(tasks.named('check'), shadowJarTask)
-    from(shadowJarTask.flatMap { it.archiveFile })
+    dependsOn(tasks.named('check'), 'packedJar')
+    from({ tasks.named('packedJar').get().outputJar })
     into(file('C://VolmitSoftware/BUILDS'))
     rename { String ignored -> 'Wormholes.jar' }
 }
@@ -380,6 +381,7 @@ tasks.named('check').configure {
 pluginPackaging {
     artifacts {
         create('distribution') {
+            packed = true
             taskName = 'shadowJar'
             policyName = 'Wormholes'
             prunePrefixes = ['art/arcane/volmlib/']
