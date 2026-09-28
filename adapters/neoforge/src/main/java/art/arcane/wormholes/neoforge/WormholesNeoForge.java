@@ -1,13 +1,10 @@
 package art.arcane.wormholes.neoforge;
 
-import art.arcane.wormholes.modded.MinecraftDoorRecipes;
 import art.arcane.wormholes.modded.MinecraftProxyPayload;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.core.registries.Registries;
 import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.registries.RegisterEvent;
 import net.minecraft.world.InteractionResult;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
@@ -26,8 +23,6 @@ public final class WormholesNeoForge {
     public WormholesNeoForge(IEventBus bus) {
         bus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("1").optional()
             .playToClient(MinecraftProxyPayload.TYPE, MinecraftProxyPayload.CODEC, (payload, context) -> { }));
-        bus.addListener((RegisterEvent event) -> MinecraftDoorRecipes.serializers().forEach((id, serializer) ->
-            event.register(Registries.RECIPE_SERIALIZER, id, () -> serializer)));
         NeoForge.EVENT_BUS.addListener(this::registerCommands);
         NeoForge.EVENT_BUS.addListener(this::start);
         NeoForge.EVENT_BUS.addListener(this::tick);

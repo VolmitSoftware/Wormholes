@@ -5,6 +5,8 @@ import net.minecraft.SharedConstants;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.players.PlayerList;
+import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.world.level.storage.WorldData;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
@@ -156,6 +158,8 @@ public class WormholesModRuntimeTest {
         PlayerList players = mock(PlayerList.class);
         when(players.getPlayers()).thenReturn(List.of());
         when(server.getPlayerList()).thenReturn(players);
+        when(server.getRecipeManager()).thenReturn(mock(RecipeManager.class));
+        when(server.getWorldData()).thenReturn(mock(WorldData.class));
         when(server.getPort()).thenReturn(25565);
         when(server.getAllLevels()).thenReturn(List.of());
         when(server.isSameThread()).thenReturn(true);

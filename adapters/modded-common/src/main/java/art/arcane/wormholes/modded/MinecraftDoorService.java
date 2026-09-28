@@ -148,7 +148,7 @@ public final class MinecraftDoorService implements AutoCloseable {
 
     public MinecraftDoorService(WormholesModRuntime runtime) {
         this.runtime = Objects.requireNonNull(runtime);
-        recipes = new MinecraftDoorRecipes(runtime);
+        recipes = new MinecraftDoorRecipes(runtime, this);
     }
 
     public void load(Options options) throws IOException {
@@ -176,6 +176,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         for (PlacedDoorEndpoint endpoint : state.endpoints()) {
             doors.put(endpoint.identity().itemId(), new ActiveDoor(endpoint));
         }
+        recipes.open(server);
     }
 
     public static MinecraftDoorService forServer(MinecraftServer server) {
@@ -609,6 +610,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         runtime.requireServerThread();
         closed = true;
         SERVICES.remove(server, this);
+        recipes.close();
         generation++;
         for (Flight flight : flights.values()) {
             flight.lease.close();

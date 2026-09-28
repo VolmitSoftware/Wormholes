@@ -88,6 +88,25 @@ public record MinecraftGameTestPlayer(WormholesModRuntime runtime, ServerPlayer 
         return true;
     }
 
+    public List<Object> drainPackets() {
+        channel.runPendingTasks();
+        channel.flushOutbound();
+        List<Object> packets = new ArrayList<>();
+        Iterator<Object> pending = channel.outboundMessages().iterator();
+        while (pending.hasNext()) {
+            Object message = pending.next();
+            Object packet = HiddenByteBuf.unpack(message);
+            if (packet instanceof ByteBuf bytes) {
+                packet = GameProtocols.CLIENTBOUND_TEMPLATE.bind(RegistryFriendlyByteBuf.decorator(runtime.server().registryAccess()))
+                    .codec().decode(bytes.duplicate());
+            }
+            packets.add(packet);
+            pending.remove();
+            ReferenceCountUtil.release(message);
+        }
+        return packets;
+    }
+
     @Override
     public void close() {
         runtime.playerDisconnected(player);

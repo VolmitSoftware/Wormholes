@@ -1,6 +1,5 @@
 package art.arcane.wormholes.gametest;
 
-import art.arcane.wormholes.modded.MinecraftDoorRecipes;
 import art.arcane.wormholes.modded.WormholesGameTests;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestTicker;
@@ -16,8 +15,6 @@ import net.minecraftforge.registries.RegisterEvent;
 @Mod("wormholes")
 public final class ForgeGameTests {
     public ForgeGameTests(FMLJavaModLoadingContext context) {
-        RegisterEvent.getBus(context.getModBusGroup()).addListener(event -> MinecraftDoorRecipes.serializers().forEach((id, serializer) ->
-            event.register(Registries.RECIPE_SERIALIZER, id, () -> serializer)));
         RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.PORTAL_RUNTIME, () -> WormholesGameTests::portalRuntime));
         RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
@@ -32,6 +29,8 @@ public final class ForgeGameTests {
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.NEXUS_RUNTIME, () -> WormholesGameTests::nexusRuntime));
         RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.OPS_RUNTIME, () -> WormholesGameTests::opsRuntime));
+        RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
+            event.register(Registries.TEST_FUNCTION, WormholesGameTests.RECIPE_BOOK_RUNTIME, () -> WormholesGameTests::recipeBookRuntime));
         RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.EFFECTS_RUNTIME, () -> WormholesGameTests::effectsRuntime));
         RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->

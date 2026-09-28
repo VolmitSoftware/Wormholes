@@ -1,10 +1,7 @@
 package art.arcane.wormholes.forge;
 
-import art.arcane.wormholes.modded.MinecraftDoorRecipes;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.core.registries.Registries;
-import net.minecraftforge.registries.RegisterEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraft.world.InteractionResult;
 import net.minecraftforge.event.RegisterCommandsEvent;
@@ -23,8 +20,6 @@ public final class WormholesForge {
     private final WormholesModRuntime runtime = new WormholesModRuntime();
 
     public WormholesForge(FMLJavaModLoadingContext context) {
-        RegisterEvent.getBus(context.getModBusGroup()).addListener(event -> MinecraftDoorRecipes.serializers().forEach((id, serializer) ->
-            event.register(Registries.RECIPE_SERIALIZER, id, () -> serializer)));
         RegisterCommandsEvent.BUS.addListener(event -> runtime.registerCommands(event.getDispatcher()));
         ServerStartedEvent.BUS.addListener(event -> runtime.start(event.getServer()));
         TickEvent.ServerTickEvent.Post.BUS.addListener(event -> runtime.tick());

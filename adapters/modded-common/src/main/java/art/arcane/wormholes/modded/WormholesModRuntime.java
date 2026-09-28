@@ -418,6 +418,7 @@ public final class WormholesModRuntime {
             }
             FidelitySettings.refresh(settings);
             MinecraftClientProfiles.clear();
+            doors.recipes().refresh();
             try {
                 network.reload();
             } catch (RuntimeException reloadError) {

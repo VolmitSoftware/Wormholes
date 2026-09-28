@@ -13,7 +13,11 @@ import net.minecraft.server.Bootstrap;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -89,22 +93,44 @@ public class MinecraftDoorRecipeTest {
     }
 
     @Test
-    public void configReplacementChangesEnabledRecipesAndShape() {
+    public void configuredRecipesBuildOnlyEnabledHoldersWithConfiguredShape() {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);
         WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
         WormholesSettings settings = mock(WormholesSettings.class);
+        MinecraftDoorService doors = mock(MinecraftDoorService.class);
         when(runtime.configuration()).thenReturn(configuration);
         when(configuration.settings()).thenReturn(settings);
-        RecipesConfig first = new RecipesConfig();
+        when(doors.enabled()).thenReturn(true);
+        RecipesConfig first = doorRecipesOnly();
         first.personalDoor.shape = "A";
         first.personalDoor.ingredients = "A=STONE";
         when(settings.getRecipes()).thenReturn(first);
-        MinecraftDoorRecipes recipes = new MinecraftDoorRecipes(runtime);
-        CraftingInput input = CraftingInput.of(1, 1, List.of(new ItemStack(Items.STONE)));
-        assertTrue(recipes.matches(DoorCraftProduct.PERSONAL_DOOR, input));
-        RecipesConfig second = new RecipesConfig();
+        MinecraftDoorRecipes recipes = new MinecraftDoorRecipes(runtime, doors);
+        List<ResourceKey<Recipe<?>>> doorKeys = List.of(MinecraftDoorRecipes.key(DoorCraftProduct.PAIR_KIT),
+            MinecraftDoorRecipes.key(DoorCraftProduct.PERSONAL_DOOR), MinecraftDoorRecipes.key(DoorCraftProduct.PUBLIC_DOOR),
+            MinecraftDoorRecipes.skinKey(DoorForm.DOOR));
+        List<RecipeHolder<?>> built = recipes.build();
+        assertEquals(doorKeys, built.stream().<ResourceKey<Recipe<?>>>map(RecipeHolder::id).toList());
+        RecipeHolder<?> personal = built.get(1);
+        assertTrue(((CraftingRecipe) personal.value()).matches(CraftingInput.of(1, 1, List.of(new ItemStack(Items.STONE))), null));
+        assertFalse(personal.value().isSpecial());
+        assertFalse(personal.value().placementInfo().isImpossibleToPlace());
+        RecipesConfig second = doorRecipesOnly();
         second.personalDoor.enabled = false;
+        second.doorSkin.enabled = false;
         when(settings.getRecipes()).thenReturn(second);
-        assertFalse(recipes.matches(DoorCraftProduct.PERSONAL_DOOR, input));
+        assertEquals(List.of(MinecraftDoorRecipes.key(DoorCraftProduct.PAIR_KIT), MinecraftDoorRecipes.key(DoorCraftProduct.PUBLIC_DOOR)),
+            recipes.build().stream().<ResourceKey<Recipe<?>>>map(RecipeHolder::id).toList());
+        when(doors.enabled()).thenReturn(false);
+        assertTrue(recipes.build().isEmpty());
+    }
+
+    private static RecipesConfig doorRecipesOnly() {
+        RecipesConfig recipes = new RecipesConfig();
+        recipes.trapdoorPairKit.enabled = false;
+        recipes.personalTrapdoor.enabled = false;
+        recipes.publicTrapdoor.enabled = false;
+        recipes.trapdoorSkin.enabled = false;
+        return recipes;
     }
 }
