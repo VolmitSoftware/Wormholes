@@ -33,6 +33,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.level.block.Blocks;
 import org.slf4j.LoggerFactory;
@@ -99,17 +100,22 @@ public final class MinecraftRecipeBookGameTest {
                 "Door recipe is hidden from the recipe book: " + key);
             helper.assertTrue(displays(key).size() == 1, "Door recipe has no recipe-book display: " + key);
         }
-        helper.assertTrue(runtime.doors().recipes().registered().size() == MinecraftDoorRecipes.keys().size(),
+        helper.assertTrue(runtime.recipeBook().doorRecipes().size() == MinecraftDoorRecipes.keys().size(),
             "Enabled door recipes were not all registered");
+        RecipeHolder<?> wand = registered(MinecraftPortalTools.WAND_RECIPE);
+        helper.assertTrue(wand.value() instanceof ShapedRecipe && !(wand.value() instanceof MinecraftDoorRecipes.DoorRecipe)
+            && !wand.value().isSpecial() && displays(MinecraftPortalTools.WAND_RECIPE).size() == 1, "Portal Wand recipe is not a recipe-book recipe");
+        helper.assertTrue(runtime.recipeBook().sharedRecipes().contains(wand), "Portal Wand recipe is not shared with every player");
         level.setBlockAndUpdate(table, Blocks.CRAFTING_TABLE.defaultBlockState());
         connection = MinecraftGameTestPlayer.connect(runtime, level, NAME);
         player = connection.player();
         player.setPos(table.getX() + 0.5, table.getY(), table.getZ() + 1.5);
-        assertBook(MinecraftDoorRecipes.keys(), List.of());
+        assertBook(MinecraftRecipeBook.keys(), List.of());
         Set<RecipeDisplayId> added = addedDisplays(connection.drainPackets());
-        for (ResourceKey<Recipe<?>> key : MinecraftDoorRecipes.keys()) {
-            helper.assertTrue(added.containsAll(displays(key)), "Join did not send the door recipe to the client book: " + key);
+        for (ResourceKey<Recipe<?>> key : MinecraftRecipeBook.keys()) {
+            helper.assertTrue(added.containsAll(displays(key)), "Join did not send the recipe to the client book: " + key);
         }
+        autofillWand(openTable());
         for (DoorCraftProduct product : DoorCraftProduct.values()) {
             autofillProduct(product);
         }
@@ -120,11 +126,12 @@ public final class MinecraftRecipeBookGameTest {
         }
         rejectMissingRune();
         rejectOversizedInventoryPlacement();
-        LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS recipe_book_runtime registered unlocked autofill_products autofill_maximum autofill_skins ghost_missing_rune");
+        disableDoorsKeepsWand();
+        LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS recipe_book_runtime registered unlocked autofill_wand autofill_products autofill_maximum autofill_skins ghost_missing_rune doors_disabled_wand_kept");
         permitted = false;
         command("wormholes reload");
         helper.startSequence()
-            .thenWaitUntil(() -> assertBook(List.of(), MinecraftDoorRecipes.keys()))
+            .thenWaitUntil(() -> assertBook(List.of(MinecraftPortalTools.WAND_RECIPE), MinecraftDoorRecipes.keys()))
             .thenIdle(20)
             .thenExecute(this::assertRevoked)
             .thenExecute(() -> {
@@ -154,7 +161,7 @@ public final class MinecraftRecipeBookGameTest {
                 "Re-enabled pair kit recipe was not registered"))
             .thenIdle(20)
             .thenExecute(() -> {
-                assertBook(MinecraftDoorRecipes.keys(), List.of());
+                assertBook(MinecraftRecipeBook.keys(), List.of());
                 helper.assertTrue(addedDisplays(connection.drainPackets()).containsAll(displays(MinecraftDoorRecipes.key(DoorCraftProduct.PAIR_KIT))),
                     "Re-enabled pair kit recipe was not sent to the client book");
                 loadedRecipes = server.getRecipeManager();
@@ -166,12 +173,14 @@ public final class MinecraftRecipeBookGameTest {
                     helper.assertTrue(registered(key).value() instanceof MinecraftDoorRecipes.DoorRecipe && displays(key).size() == 1,
                         "Datapack reload dropped the door recipe: " + key);
                 }
-                assertBook(MinecraftDoorRecipes.keys(), List.of());
+                helper.assertTrue(displays(MinecraftPortalTools.WAND_RECIPE).size() == 1, "Datapack reload dropped the Portal Wand recipe");
+                assertBook(MinecraftRecipeBook.keys(), List.of());
                 Set<RecipeDisplayId> resent = addedDisplays(connection.drainPackets());
-                for (ResourceKey<Recipe<?>> key : MinecraftDoorRecipes.keys()) {
-                    helper.assertTrue(resent.containsAll(displays(key)), "Datapack reload did not resend the door recipe: " + key);
+                for (ResourceKey<Recipe<?>> key : MinecraftRecipeBook.keys()) {
+                    helper.assertTrue(resent.containsAll(displays(key)), "Datapack reload did not resend the recipe: " + key);
                 }
                 autofillProduct(DoorCraftProduct.PERSONAL_TRAPDOOR);
+                autofillWand(openTable());
                 LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS recipe_book_runtime permission_resync disabled_absent reenabled_unlocked datapack_reload");
                 cleanup();
             })
@@ -200,6 +209,46 @@ public final class MinecraftRecipeBookGameTest {
         clearGrid(menu);
         assertSameProduct(product, autofilled, manual);
         player.closeContainer();
+    }
+
+    private void autofillWand(CraftingMenu menu) {
+        clearInventory();
+        give(List.of(new ItemStack(Items.GLOWSTONE_DUST, 3), new ItemStack(Items.BLAZE_ROD), MinecraftPortalTools.wand()));
+        place(menu, MinecraftPortalTools.WAND_RECIPE, false);
+        helper.assertTrue(gridCount(menu, item -> item.is(Items.GLOWSTONE_DUST)) == 3
+            && gridCount(menu, item -> item.is(Items.BLAZE_ROD) && !MinecraftPortalTools.isWand(item)) == 1
+            && gridCount(menu, MinecraftPortalTools::isWand) == 0, "Autofill did not place the Portal Wand ingredients");
+        ItemStack autofilled = take(menu);
+        helper.assertTrue(MinecraftPortalTools.isWand(autofilled) && ItemStack.isSameItemSameComponents(autofilled, MinecraftPortalTools.wand()),
+            "Autofilled Portal Wand differs from the /wormholes wand item");
+        helper.assertTrue(gridCount(menu, item -> !item.isEmpty()) == 0 && inventoryCount(MinecraftPortalTools::isWand) == 1,
+            "Portal Wand autofill consumed the wrong items");
+        menu.getInputGridSlots().get(0).set(new ItemStack(Items.GLOWSTONE_DUST));
+        menu.getInputGridSlots().get(2).set(new ItemStack(Items.GLOWSTONE_DUST));
+        menu.getInputGridSlots().get(4).set(new ItemStack(Items.BLAZE_ROD));
+        menu.getInputGridSlots().get(7).set(new ItemStack(Items.GLOWSTONE_DUST));
+        ItemStack manual = menu.getResultSlot().getItem().copy();
+        clearGrid(menu);
+        helper.assertTrue(ItemStack.isSameItemSameComponents(autofilled, manual), "Autofilled Portal Wand differs from manual crafting");
+        player.closeContainer();
+    }
+
+    private void disableDoorsKeepsWand() {
+        runtime.configuration().settings().getMain().dimensionalDoorsEnabled = false;
+        try {
+            runtime.recipeBook().refresh();
+            helper.assertTrue(runtime.recipeBook().doorRecipes().isEmpty() && displays(MinecraftPortalTools.WAND_RECIPE).size() == 1,
+                "Disabling Dimensional Doors did not leave only the Portal Wand recipe");
+            for (ResourceKey<Recipe<?>> key : MinecraftDoorRecipes.keys()) {
+                helper.assertTrue(server.getRecipeManager().byKey(key).isEmpty(), "Disabled Dimensional Doors kept the recipe " + key);
+            }
+            assertBook(List.of(MinecraftPortalTools.WAND_RECIPE), MinecraftDoorRecipes.keys());
+        } finally {
+            runtime.configuration().settings().getMain().dimensionalDoorsEnabled = true;
+            runtime.recipeBook().refresh();
+        }
+        assertBook(MinecraftRecipeBook.keys(), List.of());
+        connection.drainPackets();
     }
 
     private void autofillMaximum() {
@@ -270,10 +319,11 @@ public final class MinecraftRecipeBookGameTest {
     }
 
     private void assertRevoked() {
-        helper.assertTrue(runtime.doors().recipes().registered().size() == MinecraftDoorRecipes.keys().size(),
+        helper.assertTrue(runtime.recipeBook().doorRecipes().size() == MinecraftDoorRecipes.keys().size(),
             "Revoking one player's permission removed server recipes");
+        List<Object> packets = connection.drainPackets();
         Set<RecipeDisplayId> removed = new HashSet<>();
-        for (Object packet : connection.drainPackets()) {
+        for (Object packet : packets) {
             if (packet instanceof ClientboundRecipeBookRemovePacket remove) {
                 removed.addAll(remove.recipes());
             }
@@ -281,6 +331,9 @@ public final class MinecraftRecipeBookGameTest {
         for (ResourceKey<Recipe<?>> key : MinecraftDoorRecipes.keys()) {
             helper.assertTrue(removed.containsAll(displays(key)), "Revoked door recipe was not removed from the client book: " + key);
         }
+        List<RecipeDisplayId> wand = displays(MinecraftPortalTools.WAND_RECIPE);
+        helper.assertTrue(addedDisplays(packets).containsAll(wand) && !removed.containsAll(wand),
+            "Revoking door crafting removed the Portal Wand recipe from the client book");
         CraftingMenu menu = openTable();
         fill(menu, DoorCraftProduct.PERSONAL_DOOR.defaultSpec());
         helper.assertTrue(MinecraftDoorItems.identity(menu.getResultSlot().getItem()).isPresent(),
@@ -294,7 +347,7 @@ public final class MinecraftRecipeBookGameTest {
         List<ResourceKey<Recipe<?>>> remaining = new ArrayList<>(MinecraftDoorRecipes.keys());
         remaining.remove(pair);
         assertBook(remaining, List.of(pair));
-        helper.assertTrue(runtime.doors().recipes().registered().size() == remaining.size(), "Disabled pair kit recipe is still registered");
+        helper.assertTrue(runtime.recipeBook().doorRecipes().size() == remaining.size(), "Disabled pair kit recipe is still registered");
         helper.assertTrue(displays(pair).isEmpty(), "Disabled pair kit recipe still has a recipe-book display");
         Set<RecipeDisplayId> added = addedDisplays(connection.drainPackets());
         for (ResourceKey<Recipe<?>> key : remaining) {

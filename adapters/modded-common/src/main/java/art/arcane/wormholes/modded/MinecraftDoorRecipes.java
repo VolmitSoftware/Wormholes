@@ -12,8 +12,6 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.item.BlockItem;
@@ -27,9 +25,6 @@ import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.item.crafting.RecipeManager;
-import net.minecraft.world.item.crafting.RecipeMap;
-import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.ShapedRecipePattern;
 import net.minecraft.world.item.crafting.ShapelessRecipe;
@@ -44,48 +39,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
 public final class MinecraftDoorRecipes {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
-    private static final Map<MinecraftServer, MinecraftDoorRecipes> ACTIVE = new ConcurrentHashMap<>();
     private static final Recipe.CommonInfo COMMON = new Recipe.CommonInfo(true);
     private static final CraftingRecipe.CraftingBookInfo BOOK = new CraftingRecipe.CraftingBookInfo(CraftingBookCategory.MISC, "");
     private static final SlotDisplay STATION = new SlotDisplay.ItemSlotDisplay(Items.CRAFTING_TABLE);
 
-    private final WormholesModRuntime runtime;
-    private final MinecraftDoorService doors;
-    private MinecraftServer server;
-    private List<RecipeHolder<?>> registered = List.of();
-
-    MinecraftDoorRecipes(WormholesModRuntime runtime, MinecraftDoorService doors) {
-        this.runtime = runtime;
-        this.doors = doors;
-    }
-
-    void open(MinecraftServer server) {
-        this.server = server;
-        ACTIVE.put(server, this);
-        refresh();
-    }
-
-    void close() {
-        if (server == null) {
-            return;
-        }
-        ACTIVE.remove(server, this);
-        server.getRecipeManager().finalizeRecipeLoading(server.getWorldData().enabledFeatures());
-        registered = List.of();
-        server = null;
+    private MinecraftDoorRecipes() {
     }
 
     public static ResourceKey<Recipe<?>> key(DoorCraftProduct product) {
@@ -107,78 +74,7 @@ public final class MinecraftDoorRecipes {
         return List.copyOf(keys);
     }
 
-    public static RecipeMap inject(RecipeManager manager, RecipeMap loaded) {
-        List<RecipeHolder<?>> door = List.of();
-        for (Map.Entry<MinecraftServer, MinecraftDoorRecipes> active : ACTIVE.entrySet()) {
-            if (active.getKey().getRecipeManager() == manager) {
-                MinecraftDoorRecipes owner = active.getValue();
-                try {
-                    owner.registered = owner.build();
-                } catch (RuntimeException failure) {
-                    LOGGER.error("Could not build the dimensional-door recipes; they are unavailable until the next reload", failure);
-                    owner.registered = List.of();
-                }
-                door = owner.registered;
-            }
-        }
-        Set<ResourceKey<Recipe<?>>> replaced = new HashSet<>();
-        for (RecipeHolder<?> holder : door) {
-            replaced.add(holder.id());
-        }
-        List<RecipeHolder<?>> merged = new ArrayList<>(loaded.values().size() + door.size());
-        boolean changed = !door.isEmpty();
-        for (RecipeType<?> type : BuiltInRegistries.RECIPE_TYPE) {
-            for (RecipeHolder<?> holder : holders(loaded, type)) {
-                if (holder.value() instanceof DoorRecipe || replaced.contains(holder.id())) {
-                    changed = true;
-                } else {
-                    merged.add(holder);
-                }
-            }
-        }
-        if (!changed) {
-            return loaded;
-        }
-        merged.addAll(door);
-        return RecipeMap.create(merged);
-    }
-
-    public List<RecipeHolder<?>> registered() {
-        return registered;
-    }
-
-    public void refresh() {
-        runtime.requireServerThread();
-        server.getRecipeManager().finalizeRecipeLoading(server.getWorldData().enabledFeatures());
-        List<ResourceKey<Recipe<?>>> retired = new ArrayList<>(keys());
-        for (RecipeHolder<?> holder : registered) {
-            retired.remove(holder.id());
-        }
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            for (ResourceKey<Recipe<?>> key : retired) {
-                player.getRecipeBook().remove(key);
-            }
-            player.getRecipeBook().sendInitialRecipeBook(player);
-            synchronize(player);
-        }
-    }
-
-    public void synchronize(ServerPlayer player) {
-        if (registered.isEmpty()) {
-            return;
-        }
-        if (doors.canCraft(player)) {
-            player.awardRecipes(registered);
-        } else {
-            player.resetRecipes(registered);
-        }
-    }
-
-    List<RecipeHolder<?>> build() {
-        if (!doors.enabled()) {
-            return List.of();
-        }
-        RecipesConfig configured = runtime.configuration().settings().getRecipes();
+    static List<RecipeHolder<?>> build(RecipesConfig configured) {
         List<RecipeHolder<?>> holders = new ArrayList<>(DoorCraftProduct.values().length + DoorForm.values().length);
         for (DoorCraftProduct product : DoorCraftProduct.values()) {
             RecipeConfig recipe = configured.forProduct(product);
@@ -265,11 +161,6 @@ public final class MinecraftDoorRecipes {
 
     private static ResourceKey<Recipe<?>> key(String name) {
         return ResourceKey.create(Registries.RECIPE, Identifier.fromNamespaceAndPath("wormholes", name));
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private static Collection<RecipeHolder<?>> holders(RecipeMap map, RecipeType<?> type) {
-        return (Collection) map.byType((RecipeType) type);
     }
 
     private static ProductRecipe product(DoorCraftProduct product, RecipeConfig recipe) {

@@ -124,7 +124,6 @@ public final class MinecraftDoorService implements AutoCloseable {
     private static final long TRANSIT_COOLDOWN_MILLIS = 1_000L;
 
     private final WormholesModRuntime runtime;
-    private final MinecraftDoorRecipes recipes;
     private Options options;
     private ExecutorService storage;
     private MinecraftServer server;
@@ -148,7 +147,6 @@ public final class MinecraftDoorService implements AutoCloseable {
 
     public MinecraftDoorService(WormholesModRuntime runtime) {
         this.runtime = Objects.requireNonNull(runtime);
-        recipes = new MinecraftDoorRecipes(runtime, this);
     }
 
     public void load(Options options) throws IOException {
@@ -176,7 +174,6 @@ public final class MinecraftDoorService implements AutoCloseable {
         for (PlacedDoorEndpoint endpoint : state.endpoints()) {
             doors.put(endpoint.identity().itemId(), new ActiveDoor(endpoint));
         }
-        recipes.open(server);
     }
 
     public static MinecraftDoorService forServer(MinecraftServer server) {
@@ -191,10 +188,6 @@ public final class MinecraftDoorService implements AutoCloseable {
 
     public boolean projectionEnabled() {
         return enabled() && configuration.settings().getDoors().projectionEnabled;
-    }
-
-    public MinecraftDoorRecipes recipes() {
-        return recipes;
     }
 
     public MinecraftPocketRules rules() {
@@ -610,7 +603,6 @@ public final class MinecraftDoorService implements AutoCloseable {
         runtime.requireServerThread();
         closed = true;
         SERVICES.remove(server, this);
-        recipes.close();
         generation++;
         for (Flight flight : flights.values()) {
             flight.lease.close();

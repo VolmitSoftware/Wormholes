@@ -45,6 +45,7 @@ public final class WormholesModRuntime {
     private final MinecraftAccessService access = new MinecraftAccessService(this);
     private final MinecraftTravelCosts costs = new MinecraftTravelCosts(this);
     private final MinecraftNetworkTools networkTools = new MinecraftNetworkTools(this);
+    private final MinecraftRecipeBook recipeBook = new MinecraftRecipeBook(this);
     private MinecraftServer server;
     private ChunkLeaseRegistry<ServerLevel> leases;
     private ChunkPreSendService<ServerLevel, ServerPlayer> preSend;
@@ -90,6 +91,7 @@ public final class WormholesModRuntime {
             network.start();
             networkTools.start();
             projections.start();
+            recipeBook.open(server);
             running = true;
             api.start();
         } catch (RuntimeException error) {
@@ -241,6 +243,10 @@ public final class WormholesModRuntime {
         return construction;
     }
 
+    public MinecraftRecipeBook recipeBook() {
+        return recipeBook;
+    }
+
     public MinecraftDoorService doors() {
         requireServerThread();
         return doors;
@@ -361,6 +367,7 @@ public final class WormholesModRuntime {
         RuntimeException failure = null;
         for (Runnable cleanup : new Runnable[] {
             api::close,
+            recipeBook::close,
             operations::close,
             effects::close,
             nexus::close,
@@ -418,7 +425,7 @@ public final class WormholesModRuntime {
             }
             FidelitySettings.refresh(settings);
             MinecraftClientProfiles.clear();
-            doors.recipes().refresh();
+            recipeBook.refresh();
             try {
                 network.reload();
             } catch (RuntimeException reloadError) {
