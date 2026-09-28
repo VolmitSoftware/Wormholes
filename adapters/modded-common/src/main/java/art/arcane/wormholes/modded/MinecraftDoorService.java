@@ -125,6 +125,7 @@ public final class MinecraftDoorService implements AutoCloseable {
 
     private final WormholesModRuntime runtime;
     private final MinecraftDoorRecipes recipes;
+    private final MinecraftDoorAccessMenu accessMenu;
     private Options options;
     private ExecutorService storage;
     private MinecraftServer server;
@@ -140,7 +141,6 @@ public final class MinecraftDoorService implements AutoCloseable {
     private MinecraftPocketRooms pockets;
     private MinecraftPocketRules rules;
     private MinecraftPocketService pocketOperations;
-    private MinecraftDoorMenus menus;
     private MinecraftDoorPresentation presentation;
     private final Map<UUID, PocketTrip> pocketTrips = new HashMap<>();
     private final Map<Long, PocketSpace> pocketChunks = new HashMap<>();
@@ -149,6 +149,7 @@ public final class MinecraftDoorService implements AutoCloseable {
     public MinecraftDoorService(WormholesModRuntime runtime) {
         this.runtime = Objects.requireNonNull(runtime);
         recipes = new MinecraftDoorRecipes(runtime);
+        accessMenu = new MinecraftDoorAccessMenu(runtime, this);
     }
 
     public void load(Options options) throws IOException {
@@ -165,7 +166,6 @@ public final class MinecraftDoorService implements AutoCloseable {
         rules = new MinecraftPocketRules(runtime, this);
         pocketOperations = new MinecraftPocketService(runtime,
             new MinecraftPocketService.Options(options.directory(), this, pockets, storage));
-        menus = new MinecraftDoorMenus(runtime, this);
         presentation = new MinecraftDoorPresentation(runtime, this);
         closed = false;
         generation++;
@@ -320,7 +320,7 @@ public final class MinecraftDoorService implements AutoCloseable {
             clickedBlock.getY(), clickedBlock.getZ()).orElse(null);
         if (clicked != null && hand == InteractionHand.MAIN_HAND && player.isShiftKeyDown() && held.isEmpty()
             && canManage(player, clicked.identity().itemId())) {
-            menus.open(player, clicked.identity().itemId());
+            accessMenu.open(player, clicked);
             return true;
         }
         if (clicked != null && !canAccess(player, clicked)) {
@@ -490,12 +490,10 @@ public final class MinecraftDoorService implements AutoCloseable {
         runtime.requireServerThread();
         if (!enabled()) {
             presentation.clear();
-            menus.tick();
             return;
         }
         presentation.tick();
         rules.tick();
-        menus.tick();
         pocketOperations.tick();
         long now = System.currentTimeMillis();
         cooldowns.entrySet().removeIf(entry -> entry.getValue() <= now);
@@ -590,7 +588,6 @@ public final class MinecraftDoorService implements AutoCloseable {
             return;
         }
         rules.playerDisconnected(player);
-        menus.disconnected(player);
         presentation.disconnected(player);
         Flight flight = flights.remove(player.getUUID());
         if (flight != null) {
@@ -619,10 +616,6 @@ public final class MinecraftDoorService implements AutoCloseable {
         if (presentation != null) {
             presentation.close();
             presentation = null;
-        }
-        if (menus != null) {
-            menus.close();
-            menus = null;
         }
         if (rules != null) {
             rules.close();

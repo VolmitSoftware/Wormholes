@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.volmlib.util.localization.MessageArgs;
+import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.atlas.AtlasGuide;
 import art.arcane.wormholes.atlas.AtlasModel;
 import art.arcane.wormholes.atlas.AtlasPlayerState;
@@ -7,20 +9,14 @@ import art.arcane.wormholes.atlas.AtlasPlayerStore;
 import art.arcane.wormholes.atlas.AtlasProximityIndex;
 import art.arcane.wormholes.config.toml.AtlasConfig;
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.localization.AtlasMessages;
+import art.arcane.wormholes.nexus.PortalNetwork;
+import art.arcane.wormholes.nexus.Visibility;
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.ItemLore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,9 +34,9 @@ public final class MinecraftAtlasService implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
 
     private final WormholesModRuntime runtime;
+    private final MinecraftAtlasMenu menu;
     private final AtlasProximityIndex<String> index = new AtlasProximityIndex<>();
     private final Map<UUID, CompletableFuture<AtlasPlayerState>> loading = new HashMap<>();
-    private final Map<UUID, Session> sessions = new HashMap<>();
     private AtlasPlayerStore store;
     private ExecutorService storage;
     private int ticks;
@@ -48,6 +44,7 @@ public final class MinecraftAtlasService implements AutoCloseable {
 
     public MinecraftAtlasService(WormholesModRuntime runtime) {
         this.runtime = runtime;
+        menu = new MinecraftAtlasMenu(runtime, this);
     }
 
     public void start() {
@@ -60,37 +57,7 @@ public final class MinecraftAtlasService implements AutoCloseable {
     }
 
     public void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher) {
-        LiteralCommandNode<CommandSourceStack> command = dispatcher.register(Commands.literal("atlas")
-            .executes(context -> open(context.getSource(), AtlasModel.Filter.ALL))
-            .then(Commands.literal("favorites").executes(context -> open(context.getSource(), AtlasModel.Filter.FAVORITES)))
-            .then(Commands.literal("recents").executes(context -> open(context.getSource(), AtlasModel.Filter.RECENTS)))
-            .then(Commands.literal("guide").then(Commands.argument("portal", StringArgumentType.greedyString())
-                .executes(context -> guideCommand(context.getSource(), StringArgumentType.getString(context, "portal"))))));
-        dispatcher.register(Commands.literal("portals").executes(context -> open(context.getSource(), AtlasModel.Filter.ALL)).redirect(command));
-    }
-
-    private int guideCommand(CommandSourceStack source, String name) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        if (!running || !settings().enabled) {
-            return 0;
-        }
-        withState(player, state -> {
-            if (name.equalsIgnoreCase("off")) {
-                state.setGuideTarget(null);
-                player.sendSystemMessage(Component.empty(), true);
-                source.sendSuccess(() -> Component.literal("Portal guide cleared."), false);
-                return;
-            }
-            for (AtlasModel.Row row : candidates(player)) {
-                if (row.name().equalsIgnoreCase(name)) {
-                    state.setGuideTarget(row.portalId());
-                    source.sendSuccess(() -> Component.literal("Guiding to " + row.name() + "."), false);
-                    return;
-                }
-            }
-            source.sendFailure(Component.literal("Portal not found: " + name));
-        });
-        return 1;
+        new MinecraftAtlasCommand(runtime, this).register(dispatcher);
     }
 
     public void tick() {
@@ -111,7 +78,7 @@ public final class MinecraftAtlasService implements AutoCloseable {
                     state.discover(id);
                 }
             }
-            guide(player, state);
+            publishGuide(player, state);
         }
         if (ticks % 200 == 0) {
             storage.execute(store::flushDirty);
@@ -142,7 +109,6 @@ public final class MinecraftAtlasService implements AutoCloseable {
 
     public void playerDisconnected(ServerPlayer player) {
         runtime.requireServerThread();
-        sessions.remove(player.getUUID());
         loading.remove(player.getUUID());
         if (running) {
             UUID id = player.getUUID();
@@ -158,35 +124,21 @@ public final class MinecraftAtlasService implements AutoCloseable {
             return;
         }
         running = false;
-        for (Session session : List.copyOf(sessions.values())) {
-            if (session.player.containerMenu instanceof MinecraftInventoryMenu) {
-                session.player.closeContainer();
-            }
-        }
-        sessions.clear();
         loading.clear();
         index.clear();
         storage.execute(store::flushAll);
         storage.close();
     }
 
-    private int open(CommandSourceStack source, AtlasModel.Filter filter) throws CommandSyntaxException {
-        ServerPlayer player = source.getPlayerOrException();
-        if (!running || !settings().enabled) {
-            source.sendFailure(Component.literal("The portal atlas is disabled."));
-            return 0;
-        }
-        withState(player, state -> {
-            Session session = new Session(player, state, filter);
-            sessions.put(player.getUUID(), session);
-            MinecraftInventoryMenu.open(player, Component.literal("Portal Atlas"), new MinecraftInventoryMenu.Actions(
-                () -> running && settings().enabled && sessions.get(player.getUUID()) == session,
-                session::render, session::click));
-        });
-        return 1;
+    boolean enabled() {
+        return running && settings().enabled;
     }
 
-    private void withState(ServerPlayer player, Consumer<AtlasPlayerState> action) {
+    void open(ServerPlayer player, AtlasModel.Filter filter) {
+        withState(player, state -> menu.open(player, state, filter));
+    }
+
+    void withState(ServerPlayer player, Consumer<AtlasPlayerState> action) {
         AtlasPlayerState state = state(player);
         if (state != null) {
             action.accept(state);
@@ -199,15 +151,61 @@ public final class MinecraftAtlasService implements AutoCloseable {
         MinecraftServer server = runtime.server();
         AtlasPlayerStore activeStore = store;
         future.whenComplete((loaded, error) -> server.execute(() -> {
-            if (!running || store != activeStore || player.hasDisconnected()) {
-                return;
+            if (running && store == activeStore && error == null && !player.hasDisconnected()) {
+                action.accept(loaded);
             }
-            if (error != null) {
-                player.sendSystemMessage(Component.literal("Your portal atlas could not be loaded."));
-                return;
-            }
-            action.accept(loaded);
         }));
+    }
+
+    AtlasPlayerState.FavoriteResult toggleFavorite(AtlasPlayerState state, UUID portalId) {
+        return state.toggleFavorite(portalId, settings().favoritesLimit);
+    }
+
+    void setGuideTarget(ServerPlayer player, AtlasPlayerState state, UUID portalId) {
+        state.setGuideTarget(portalId);
+        if (portalId == null) {
+            MinecraftMenuText.notice(player, Component.empty());
+        }
+    }
+
+    List<AtlasModel.Row> candidates(ServerPlayer player) {
+        List<AtlasModel.Row> rows = new ArrayList<>();
+        for (MinecraftPortal portal : runtime.portals().snapshot()) {
+            if (portal.isManaged() || !runtime.portals().canDepart(player, portal)) {
+                continue;
+            }
+            rows.add(row(player, portal));
+        }
+        return rows;
+    }
+
+    AtlasConfig settings() {
+        return runtime.configuration().settings().getAtlas();
+    }
+
+    void send(ServerPlayer player, TextKey key, MessageArgs arguments) {
+        player.sendSystemMessage(MinecraftMenuText.text(player, key, arguments));
+    }
+
+    static UUID networkId(MinecraftPortal portal) {
+        return portal.setting("nexus.networkId") instanceof String id && !id.isBlank() ? UUID.fromString(id) : null;
+    }
+
+    private AtlasModel.Row row(ServerPlayer player, MinecraftPortal portal) {
+        GeometryVector center = portal.getGeometry().getApertureCenter();
+        double distance = world(player).equals(portal.getWorldKey())
+            ? player.distanceToSqr(center.getX(), center.getY(), center.getZ()) : Double.MAX_VALUE;
+        String address = "";
+        boolean listed = Boolean.TRUE.equals(portal.setting("publicLookLabel"));
+        UUID networkId = networkId(portal);
+        if (networkId != null) {
+            address = portal.setting("nexus.address") instanceof String value ? value : "";
+            PortalNetwork network = runtime.nexus().networks().byId(networkId);
+            listed |= network != null && network.visibility() == Visibility.PUBLIC;
+        }
+        MinecraftPortal destination = portal.getDestinationId() == null ? null : runtime.portals().get(portal.getDestinationId());
+        return new AtlasModel.Row(portal.getId(), portal.getName(), portal.getWorldKey(),
+            destination == null ? "" : destination.getName(), address, distance, portal.isOpen(), false, listed);
     }
 
     private AtlasPlayerState state(ServerPlayer player) {
@@ -244,24 +242,7 @@ public final class MinecraftAtlasService implements AutoCloseable {
         index.rebuild(anchors);
     }
 
-    private List<AtlasModel.Row> candidates(ServerPlayer player) {
-        List<AtlasModel.Row> rows = new ArrayList<>();
-        for (MinecraftPortal portal : runtime.portals().snapshot()) {
-            if (portal.isManaged() || !runtime.portals().canDepart(player, portal)) {
-                continue;
-            }
-            GeometryVector center = portal.getGeometry().getApertureCenter();
-            double distance = world(player).equals(portal.getWorldKey())
-                ? player.distanceToSqr(center.getX(), center.getY(), center.getZ()) : Double.MAX_VALUE;
-            MinecraftPortal destination = portal.getDestinationId() == null ? null : runtime.portals().get(portal.getDestinationId());
-            rows.add(new AtlasModel.Row(portal.getId(), portal.getName(), portal.getWorldKey(),
-                destination == null ? "" : destination.getName(), "", distance, portal.isOpen(), false,
-                Boolean.TRUE.equals(portal.setting("publicLookLabel"))));
-        }
-        return rows;
-    }
-
-    private void guide(ServerPlayer player, AtlasPlayerState state) {
+    private void publishGuide(ServerPlayer player, AtlasPlayerState state) {
         if (!settings().guideEnabled || state.guideTarget() == null) {
             return;
         }
@@ -271,129 +252,11 @@ public final class MinecraftAtlasService implements AutoCloseable {
         }
         GeometryVector center = portal.getGeometry().getApertureCenter();
         String bearing = AtlasGuide.bearing(player.getYRot(), center.getX() - player.getX(), center.getZ() - player.getZ());
-        player.sendSystemMessage(Component.literal(portal.getName() + " " + bearing), true);
-    }
-
-    private AtlasConfig settings() {
-        return runtime.configuration().settings().getAtlas();
+        MinecraftMenuText.notice(player, MinecraftMenuText.text(player, AtlasMessages.GUIDE_BEARING,
+            MinecraftPortalText.arguments("portal", portal.getName(), "value", bearing)));
     }
 
     private static String world(ServerPlayer player) {
         return player.level().dimension().identifier().toString();
-    }
-
-    private static ItemStack icon(Item item, String title, List<String> lines) {
-        ItemStack stack = new ItemStack(item);
-        stack.set(DataComponents.CUSTOM_NAME, Component.literal(title));
-        List<Component> lore = new ArrayList<>(lines.size());
-        for (String line : lines) {
-            lore.add(Component.literal(line));
-        }
-        stack.set(DataComponents.LORE, new ItemLore(lore));
-        return stack;
-    }
-
-    private final class Session {
-        private final ServerPlayer player;
-        private final AtlasPlayerState state;
-        private final Map<Integer, UUID> entries = new HashMap<>();
-        private AtlasModel.Filter filter;
-        private AtlasModel.SortMode sort = AtlasModel.SortMode.SMART;
-        private int page;
-        private int pages;
-
-        private Session(ServerPlayer player, AtlasPlayerState state, AtlasModel.Filter filter) {
-            this.player = player;
-            this.state = state;
-            this.filter = filter;
-        }
-
-        private void render(MinecraftInventoryMenu menu) {
-            entries.clear();
-            List<AtlasModel.Row> rows = AtlasModel.sorted(AtlasModel.visible(candidates(player), state,
-                settings().discoveryRequired, filter), state, sort);
-            pages = AtlasModel.pageCount(rows.size());
-            page = AtlasModel.clampPage(page, pages);
-            int start = AtlasModel.pageStart(page);
-            int end = AtlasModel.pageEnd(rows.size(), page);
-            for (int i = start; i < end; i++) {
-                AtlasModel.Row row = rows.get(i);
-                List<String> lore = new ArrayList<>(List.of(row.world(), row.destination(), row.open() ? "Open" : "Closed",
-                    "Right click: favorite", "Shift left click: guide"));
-                if (settings().showCoordinates) {
-                    MinecraftPortal portal = runtime.portals().get(row.portalId());
-                    GeometryVector center = portal.getGeometry().getApertureCenter();
-                    lore.add((int) center.getX() + ", " + (int) center.getY() + ", " + (int) center.getZ());
-                }
-                ItemStack item = icon(Items.ENDER_PEARL, row.name(), lore);
-                item.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, state.isFavorite(row.portalId()));
-                menu.set(i - start, item);
-                entries.put(i - start, row.portalId());
-            }
-            if (rows.isEmpty()) {
-                menu.set(22, icon(Items.BARRIER, "No portals found", List.of()));
-            }
-            control(menu, AtlasModel.Control.SORT, Items.COMPARATOR, "Sort: " + sort);
-            control(menu, AtlasModel.Control.FAVORITES, Items.NETHER_STAR, "Favorites: " + (filter == AtlasModel.Filter.FAVORITES));
-            control(menu, AtlasModel.Control.RECENTS, Items.CLOCK, "Recent: " + (filter == AtlasModel.Filter.RECENTS));
-            control(menu, AtlasModel.Control.PAGE, Items.PAPER, "Page " + (page + 1) + "/" + pages + " - " + rows.size() + " portals");
-            if (page > 0) {
-                control(menu, AtlasModel.Control.PREVIOUS, Items.ARROW, "Previous page");
-            }
-            if (page + 1 < pages) {
-                control(menu, AtlasModel.Control.NEXT, Items.ARROW, "Next page");
-            }
-            if (state.guideTarget() != null) {
-                control(menu, AtlasModel.Control.GUIDE, Items.COMPASS, "Clear guide");
-            }
-        }
-
-        private void click(MinecraftInventoryMenu.Click click) {
-            UUID id = entries.get(click.slot());
-            if (id != null) {
-                MinecraftPortal portal = runtime.portals().get(id);
-                if (portal == null || !runtime.portals().canDepart(player, portal)) {
-                    click.menu().refresh();
-                    return;
-                }
-                if (click.right() && !click.shift()) {
-                    AtlasPlayerState.FavoriteResult result = state.toggleFavorite(id, settings().favoritesLimit);
-                    player.sendSystemMessage(Component.literal(switch (result) {
-                        case ADDED -> "Portal added to favorites.";
-                        case REMOVED -> "Portal removed from favorites.";
-                        case FULL -> "Your favorites list is full.";
-                    }));
-                } else if (!click.right() && click.shift()) {
-                    state.setGuideTarget(id);
-                    player.sendSystemMessage(Component.literal("Guiding to " + portal.getName() + "."));
-                } else if (!click.right()) {
-                    player.sendSystemMessage(Component.literal(portal.getName() + " - " + portal.getWorldKey()
-                        + " - " + (portal.isOpen() ? "Open" : "Closed")));
-                }
-            } else if (!click.right() && !click.shift()) {
-                if (click.slot() == AtlasModel.Control.PREVIOUS.slot() && page > 0) {
-                    page--;
-                } else if (click.slot() == AtlasModel.Control.NEXT.slot() && page + 1 < pages) {
-                    page++;
-                } else if (click.slot() == AtlasModel.Control.SORT.slot()) {
-                    sort = sort.next();
-                    page = 0;
-                } else if (click.slot() == AtlasModel.Control.FAVORITES.slot()) {
-                    filter = filter == AtlasModel.Filter.FAVORITES ? AtlasModel.Filter.ALL : AtlasModel.Filter.FAVORITES;
-                    page = 0;
-                } else if (click.slot() == AtlasModel.Control.RECENTS.slot()) {
-                    filter = filter == AtlasModel.Filter.RECENTS ? AtlasModel.Filter.ALL : AtlasModel.Filter.RECENTS;
-                    page = 0;
-                } else if (click.slot() == AtlasModel.Control.GUIDE.slot()) {
-                    state.setGuideTarget(null);
-                    player.sendSystemMessage(Component.empty(), true);
-                }
-            }
-            click.menu().refresh();
-        }
-
-        private void control(MinecraftInventoryMenu menu, AtlasModel.Control control, Item item, String label) {
-            menu.set(control.slot(), icon(item, label, List.of()));
-        }
     }
 }

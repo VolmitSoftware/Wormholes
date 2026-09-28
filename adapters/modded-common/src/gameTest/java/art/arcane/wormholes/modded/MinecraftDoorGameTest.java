@@ -70,6 +70,7 @@ public final class MinecraftDoorGameTest {
     private CompletableFuture<Boolean> entities;
     private CompletableFuture<Boolean> handoff;
     private CompletableFuture<Boolean> doorMenu;
+    private CompletableFuture<Boolean> atlasMenu;
     private CompletableFuture<Boolean> rescue;
     private ItemStack craftedKit;
     private DoorItemIdentity personal;
@@ -111,9 +112,11 @@ public final class MinecraftDoorGameTest {
             .thenWaitUntil(() -> placed(0, source))
             .thenExecute(() -> place(1, destination))
             .thenWaitUntil(() -> placed(1, destination))
-            .thenExecute(() -> doorMenu = MinecraftDoorMenuGameTest.verify(new MinecraftDoorMenuGameTest.Options(helper, runtime, player,
+            .thenExecute(() -> doorMenu = MinecraftDoorMenuGameTest.verify(new MinecraftDoorMenuGameTest.Options(helper, runtime, player, channel,
                 runtime.doors().state().findEndpointByItem(identity(0)).orElseThrow())))
             .thenWaitUntil(() -> helper.assertTrue(WormholesGameTests.completed(helper, doorMenu, "door_menu"), "Door menu verification did not complete"))
+            .thenExecute(() -> atlasMenu = MinecraftAtlasMenuGameTest.verify(helper, runtime))
+            .thenWaitUntil(() -> helper.assertTrue(WormholesGameTests.completed(helper, atlasMenu, "atlas_menu"), "Atlas menu verification did not complete"))
             .thenExecute(this::openAndSpawn)
             .thenIdle(3)
             .thenExecute(this::cross)
