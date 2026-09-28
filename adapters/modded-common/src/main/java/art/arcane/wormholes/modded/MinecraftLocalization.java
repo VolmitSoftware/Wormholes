@@ -1,50 +1,41 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.volmlib.util.localization.BukkitLanguageMessages;
 import art.arcane.volmlib.util.localization.LocalizationSnapshot;
-import art.arcane.volmlib.util.localization.PluginLanguageService;
+import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.PluginLanguageEditor;
+import art.arcane.volmlib.util.localization.PluginLanguageService;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.volmlib.util.localization.VolmitLocales;
+import art.arcane.volmlib.util.plugin.ComponentText;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.localization.WormholesLocaleLoader;
+import art.arcane.wormholes.localization.WormholesMessageRenderer;
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
-import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.ItemLore;
-import java.util.List;
-import java.util.HashMap;
-import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public final class MinecraftLocalization implements AutoCloseable {
     private static final Logger LOGGER = Logger.getLogger("Wormholes");
     private static final Map<MinecraftServer, MinecraftLocalization> SERVICES = new ConcurrentHashMap<>();
     private final WormholesModRuntime runtime;
-    private final MinecraftLanguageEditor editor;
-    private final Map<UUID, Picker> pickers = new HashMap<>();
+    private final MinecraftLanguageSwitcher switcher;
     private final Set<CompletableFuture<?>> pending = ConcurrentHashMap.newKeySet();
     private final AtomicLong generation = new AtomicLong();
     private volatile DefaultLanguage current;
@@ -58,11 +49,23 @@ public final class MinecraftLocalization implements AutoCloseable {
 
     public MinecraftLocalization(WormholesModRuntime runtime) {
         this.runtime = Objects.requireNonNull(runtime);
-        editor = new MinecraftLanguageEditor(runtime);
+        switcher = new MinecraftLanguageSwitcher(runtime, this);
     }
 
     public static MinecraftLocalization forPlayer(ServerPlayer player) {
         return Objects.requireNonNull(SERVICES.get(player.level().getServer()), "Wormholes localization is not running");
+    }
+
+    public static boolean chat(ServerPlayer player, String message) {
+        MinecraftLocalization service = SERVICES.get(player.level().getServer());
+        return service != null && service.switcher.editor().chat(player, message);
+    }
+
+    public static void menuOpened(ServerPlayer player, AbstractContainerMenu menu) {
+        MinecraftLocalization service = SERVICES.get(player.level().getServer());
+        if (service != null) {
+            service.switcher.editor().opened(player, menu);
+        }
     }
 
     public void start(Path directory, WormholesSettings settings) throws IOException {
@@ -78,7 +81,7 @@ public final class MinecraftLocalization implements AutoCloseable {
             directory.resolve("languages/language-preferences.properties"), VolmitLocales::all,
             () -> current.locale(), () -> current.snapshot(), locale -> load(locale, fallbacks),
             (locale, snapshot) -> current = new DefaultLanguage(locale, snapshot), LOGGER));
-        editor.start(new PluginLanguageEditor(languages, new PluginLanguageEditor.Options(
+        switcher.editor().start(new PluginLanguageEditor(languages, new PluginLanguageEditor.Options(
             locale -> load(locale, locale.equals(VolmitLocales.ENGLISH) ? "" : fallbacks), edit -> {
                 LocalizationSnapshot updated = WormholesLocaleLoader.edit(this.directory, edit,
                     edit.locale().equals(VolmitLocales.ENGLISH) ? "" : fallbacks);
@@ -105,13 +108,7 @@ public final class MinecraftLocalization implements AutoCloseable {
     public void close() {
         runtime.requireServerThread();
         closed = true;
-        editor.close();
-        for (Picker picker : pickers.values()) {
-            if (picker.viewer.containerMenu == picker.menu) {
-                picker.viewer.closeContainer();
-            }
-        }
-        pickers.clear();
+        switcher.editor().close();
         generation.incrementAndGet();
         if (server != null) {
             SERVICES.remove(server, this);
@@ -136,13 +133,15 @@ public final class MinecraftLocalization implements AutoCloseable {
         return MinecraftMenuText.text(snapshot(player), key, arguments);
     }
 
-    public CompletableFuture<Void> selectPlayer(ServerPlayer player, String locale) {
+    CompletableFuture<String> selectPlayer(ServerPlayer player, String locale) {
         runtime.requireServerThread();
-        return track(locale.equalsIgnoreCase("default") ? languages.clearPlayer(player.getUUID())
-            : languages.selectPlayer(player.getUUID(), locale));
+        UUID playerId = player.getUUID();
+        return track(locale.equalsIgnoreCase("reset")
+            ? languages.clearPlayer(playerId).thenApply(ignored -> "reset")
+            : languages.selectPlayer(playerId, locale).thenApply(ignored -> languages.effectiveLocale(playerId)));
     }
 
-    public CompletableFuture<Void> selectServer(String locale) {
+    CompletableFuture<Void> selectServer(String locale) {
         runtime.requireServerThread();
         CompletableFuture<Void> result = track(new CompletableFuture<>());
         long expected = generation.get();
@@ -179,151 +178,23 @@ public final class MinecraftLocalization implements AutoCloseable {
     }
 
     public void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(Commands.literal("wormholes").then(Commands.literal("language")
-            .executes(context -> openPicker(context.getSource(), false))
-            .then(Commands.argument("locale", StringArgumentType.word())
-                .suggests((context, builder) -> SharedSuggestionProvider.suggest(VolmitLocales.all(), builder))
-                .executes(context -> choose(context.getSource(), StringArgumentType.getString(context, "locale"), false)))
-            .then(Commands.literal("self").requires(source -> canChoose(source, false))
-                .executes(context -> openPicker(context.getSource(), false))
-                .then(Commands.literal("reset").executes(context -> choose(context.getSource(), "default", false)))
-                .then(Commands.argument("locale", StringArgumentType.word())
-                    .suggests((context, builder) -> SharedSuggestionProvider.suggest(VolmitLocales.all(), builder))
-                    .executes(context -> choose(context.getSource(), StringArgumentType.getString(context, "locale"), false))))
-            .then(Commands.literal("server").requires(source -> runtime.access().permission(source, "wormholes.admin")
-                || runtime.access().permission(source, "volmit.language.admin"))
-                .then(editor.commands())
-                .executes(context -> openPicker(context.getSource(), true))
-                .then(Commands.argument("locale", StringArgumentType.word())
-                    .suggests((context, builder) -> SharedSuggestionProvider.suggest(VolmitLocales.all(), builder))
-                    .executes(context -> choose(context.getSource(), StringArgumentType.getString(context, "locale"), true))))));
+        switcher.register(dispatcher);
     }
 
     public void disconnected(ServerPlayer player) {
-        pickers.remove(player.getUUID());
-        editor.disconnected(player);
+        switcher.editor().disconnected(player);
     }
 
-    private int openPicker(CommandSourceStack source, boolean serverDefault) {
-        ServerPlayer player = source.getPlayer();
-        if (player == null) {
-            return show(source);
-        }
-        if (!canChoose(source, serverDefault)) {
-            source.sendFailure(text(player, BukkitLanguageMessages.NO_CONTROLS, Map.of()));
-            return 0;
-        }
-        Picker picker = new Picker(player, serverDefault);
-        pickers.put(player.getUUID(), picker);
-        MinecraftInventoryMenu.open(player, text(player, serverDefault ? BukkitLanguageMessages.SERVER_DEFAULT
-            : BukkitLanguageMessages.YOUR_LANGUAGE, Map.of()), new MinecraftInventoryMenu.Actions(picker::valid, picker::render, picker::click));
-        return 1;
+    PluginLanguageService languages() {
+        return languages;
     }
 
-    private final class Picker {
-        private final ServerPlayer viewer;
-        private final boolean serverDefault;
-        private MinecraftInventoryMenu menu;
-
-        private Picker(ServerPlayer viewer, boolean serverDefault) {
-            this.viewer = viewer;
-            this.serverDefault = serverDefault;
-        }
-
-        private boolean valid() {
-            return !closed && !viewer.hasDisconnected() && pickers.get(viewer.getUUID()) == this
-                && canChoose(viewer.createCommandSourceStack(), serverDefault);
-        }
-
-        private void render(MinecraftInventoryMenu menu) {
-            this.menu = menu;
-            List<String> locales = VolmitLocales.all();
-            String selected = serverDefault ? current.locale() : languages.effectiveLocale(viewer.getUUID());
-            for (int index = 0; index < locales.size(); index++) {
-                String locale = locales.get(index);
-                ItemStack item = new ItemStack(Items.PAPER);
-                item.set(DataComponents.CUSTOM_NAME, Component.literal(VolmitLocales.displayName(locale).orElse(locale)));
-                item.set(DataComponents.LORE, new ItemLore(List.of(Component.literal(locale), text(viewer, BukkitLanguageMessages.SELECT_DESCRIPTION, Map.of()))));
-                item.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, selected.equals(locale));
-                menu.set(index, item);
-            }
-            if (!serverDefault) {
-                control(47, Items.BARRIER, BukkitLanguageMessages.USE_SERVER_DEFAULT);
-            }
-            control(49, Items.ARROW, BukkitLanguageMessages.EDITOR_CLOSE);
-            if (canChoose(viewer.createCommandSourceStack(), true)) {
-                control(51, Items.COMPARATOR, serverDefault ? BukkitLanguageMessages.YOUR_LANGUAGE : BukkitLanguageMessages.SERVER_DEFAULT);
-            }
-        }
-
-        private void control(int slot, Item material, TextKey key) {
-            ItemStack item = new ItemStack(material);
-            item.set(DataComponents.CUSTOM_NAME, text(viewer, key, Map.of()));
-            menu.set(slot, item);
-        }
-
-        private void click(MinecraftInventoryMenu.Click click) {
-            if (!valid() || viewer.containerMenu != menu || click.menu() != menu || click.right() || click.shift() || click.middle()) {
-                return;
-            }
-            List<String> locales = VolmitLocales.all();
-            if (click.slot() < locales.size()) {
-                choose(viewer.createCommandSourceStack(), locales.get(click.slot()), serverDefault);
-                viewer.closeContainer();
-                pickers.remove(viewer.getUUID(), this);
-            } else if (click.slot() == 47 && !serverDefault) {
-                choose(viewer.createCommandSourceStack(), "default", false);
-                viewer.closeContainer();
-                pickers.remove(viewer.getUUID(), this);
-            } else if (click.slot() == 49) {
-                viewer.closeContainer();
-                pickers.remove(viewer.getUUID(), this);
-            } else if (click.slot() == 51 && canChoose(viewer.createCommandSourceStack(), true)) {
-                openPicker(viewer.createCommandSourceStack(), !serverDefault);
-            }
-        }
+    boolean closed() {
+        return closed;
     }
 
-    private int show(CommandSourceStack source) {
-        ServerPlayer player = source.getPlayer();
-        source.sendSuccess(() -> text(player, BukkitLanguageMessages.CURRENT,
-            Map.of("locale", languages.effectiveLocale(player == null ? null : player.getUUID()))), false);
-        return 1;
-    }
-
-    private boolean canChoose(CommandSourceStack source, boolean serverDefault) {
-        return serverDefault ? runtime.access().permission(source, "wormholes.admin") || runtime.access().permission(source, "volmit.language.admin")
-            : runtime.access().permission(source, "wormholes.language.self") && runtime.access().permission(source, "volmit.language.self");
-    }
-
-    private int choose(CommandSourceStack source, String locale, boolean serverDefault) {
-        ServerPlayer player = source.getPlayer();
-        if (!serverDefault && player == null) {
-            source.sendFailure(text(null, BukkitLanguageMessages.PERSONAL_PLAYER_ONLY, Map.of()));
-            return 0;
-        }
-        if (!canChoose(source, serverDefault)) {
-            source.sendFailure(text(player, serverDefault ? BukkitLanguageMessages.PLUGIN_SERVER_PERMISSION
-                : BukkitLanguageMessages.PLUGIN_PERSONAL_PERMISSION, Map.of("plugin", "Wormholes")));
-            return 0;
-        }
-        CompletableFuture<Void> selection = serverDefault ? selectServer(locale) : selectPlayer(player, locale);
-        selection.whenComplete((ignored, error) -> server.execute(() -> {
-            if (closed || player != null && player.hasDisconnected()) {
-                return;
-            }
-            if (error != null) {
-                LOGGER.log(Level.WARNING, "Could not select Wormholes language " + locale, error);
-                source.sendFailure(text(player, BukkitLanguageMessages.SAVE_FAILED, Map.of("plugin", "Wormholes")));
-                return;
-            }
-            TextKey message = serverDefault ? BukkitLanguageMessages.SERVER_SELECTED
-                : locale.equalsIgnoreCase("default") ? BukkitLanguageMessages.SERVER_DEFAULT_SELECTED : BukkitLanguageMessages.PERSONAL_SELECTED;
-            source.sendSuccess(() -> text(player, message,
-                message == BukkitLanguageMessages.SERVER_DEFAULT_SELECTED ? Map.of("plugin", "Wormholes")
-                    : Map.of("plugin", "Wormholes", "locale", languages.effectiveLocale(player == null ? null : player.getUUID()))), false);
-        }));
-        return 1;
+    String directorText(ServerPlayer player, TextKey key, MessageArgs arguments) {
+        return ComponentText.component(WormholesMessageRenderer.render(snapshot(player).resolve(key, arguments))).plain();
     }
 
     private void prepareReload(WormholesSettings settings, long expected, CompletableFuture<Void> result) {

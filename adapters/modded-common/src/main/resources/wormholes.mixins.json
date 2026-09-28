@@ -21,6 +21,7 @@
     "RulesPlayerMixin",
     "PocketClockMixin",
     "PortalMenuChatMixin",
+    "LanguageEditorOpenMixin",
     "PortalDirectionMixin",
     "PortalInteractionMixin",
     "PortalCostCaptureMixin",

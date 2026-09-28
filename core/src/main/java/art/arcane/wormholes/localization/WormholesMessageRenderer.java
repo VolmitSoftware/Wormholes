@@ -75,6 +75,10 @@ public final class WormholesMessageRenderer {
         return MINI_MESSAGE.deserialize(substitute(ComponentText.normalizeMarkup(resolved.template()), resolved.arguments()));
     }
 
+    public static Component markup(String markup) {
+        return MINI_MESSAGE.deserialize(markup);
+    }
+
     private static String substitute(String template, MessageArgs arguments) {
         StringBuilder rendered = new StringBuilder(template.length() + arguments.size() * 8);
         for (int index = 0; index < template.length(); index++) {

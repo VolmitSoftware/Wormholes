@@ -58,7 +58,7 @@ public class MinecraftLocalizationTest {
         localization.start(directory, settings);
         try {
             assertEquals("Denied locally", localization.text(player, WormholesMessages.PORTAL_EDIT_DENIED, Map.of()).getString());
-            localization.selectPlayer(player, "fr_FR").get(5, TimeUnit.SECONDS);
+            assertEquals("fr_FR", localization.selectPlayer(player, "fr_FR").get(5, TimeUnit.SECONDS));
             assertEquals("Accès refusé", localization.text(player, WormholesMessages.PORTAL_EDIT_DENIED, Map.of()).getString());
             assertTrue(Files.readString(directory.resolve("languages/language-preferences.properties")).contains("fr_FR"));
             ItemStack rename = MinecraftMenuText.item(player, Items.NAME_TAG, WormholesMessages.PORTAL_MENU_RENAME,
@@ -69,7 +69,7 @@ public class MinecraftLocalizationTest {
             localization.reload(settings).get(5, TimeUnit.SECONDS);
             localization.selectPlayer(player, "fr_FR").get(5, TimeUnit.SECONDS);
             assertEquals("Denied locally", localization.text(player, WormholesMessages.PORTAL_EDIT_DENIED, Map.of()).getString());
-            localization.selectPlayer(player, "default").get(5, TimeUnit.SECONDS);
+            assertEquals("reset", localization.selectPlayer(player, "reset").get(5, TimeUnit.SECONDS));
             assertEquals("Denied locally", localization.text(player, WormholesMessages.PORTAL_EDIT_DENIED, Map.of()).getString());
             WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
             when(runtime.configuration()).thenReturn(configuration);

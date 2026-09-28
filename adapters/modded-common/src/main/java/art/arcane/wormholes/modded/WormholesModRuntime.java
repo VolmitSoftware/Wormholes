@@ -265,6 +265,7 @@ public final class WormholesModRuntime {
         costs.disconnected(player);
         network.handoffs().disconnected(player);
         chatInput.disconnected(player);
+        localization.disconnected(player);
         menus.playerDisconnected(player);
         lookLabels.playerDisconnected(player);
         projections.playerDisconnected(player);
