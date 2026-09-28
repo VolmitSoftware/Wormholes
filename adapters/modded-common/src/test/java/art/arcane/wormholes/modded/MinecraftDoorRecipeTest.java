@@ -1,6 +1,5 @@
 package art.arcane.wormholes.modded;
 
-import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.RecipesConfig;
 import art.arcane.wormholes.door.DoorCraftProduct;
 import art.arcane.wormholes.door.DoorForm;
@@ -13,7 +12,12 @@ import net.minecraft.server.Bootstrap;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.ShapedRecipe;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -23,8 +27,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 public class MinecraftDoorRecipeTest {
     @BeforeClass
@@ -33,7 +35,7 @@ public class MinecraftDoorRecipeTest {
         Bootstrap.bootStrap();
         for (Item item : List.of(Items.BUNDLE, Items.OAK_DOOR, Items.OAK_TRAPDOOR, Items.DARK_OAK_DOOR,
             Items.DARK_OAK_TRAPDOOR, Items.PALE_OAK_DOOR, Items.PALE_OAK_TRAPDOOR, Items.BIRCH_DOOR,
-            Items.DARK_PRISMARINE, Items.STONE, Items.DIRT, Items.GLOWSTONE_DUST)) {
+            Items.DARK_PRISMARINE, Items.STONE, Items.DIRT, Items.GLOWSTONE_DUST, Items.BLAZE_ROD)) {
             item.builtInRegistryHolder().bindComponents(DataComponents.COMMON_ITEM_COMPONENTS);
         }
     }
@@ -89,22 +91,45 @@ public class MinecraftDoorRecipeTest {
     }
 
     @Test
-    public void configReplacementChangesEnabledRecipesAndShape() {
-        WormholesModRuntime runtime = mock(WormholesModRuntime.class);
-        WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
-        WormholesSettings settings = mock(WormholesSettings.class);
-        when(runtime.configuration()).thenReturn(configuration);
-        when(configuration.settings()).thenReturn(settings);
-        RecipesConfig first = new RecipesConfig();
+    public void configuredRecipesBuildOnlyEnabledHoldersWithConfiguredShape() {
+        RecipesConfig first = doorRecipesOnly();
         first.personalDoor.shape = "A";
         first.personalDoor.ingredients = "A=STONE";
-        when(settings.getRecipes()).thenReturn(first);
-        MinecraftDoorRecipes recipes = new MinecraftDoorRecipes(runtime);
-        CraftingInput input = CraftingInput.of(1, 1, List.of(new ItemStack(Items.STONE)));
-        assertTrue(recipes.matches(DoorCraftProduct.PERSONAL_DOOR, input));
-        RecipesConfig second = new RecipesConfig();
+        List<ResourceKey<Recipe<?>>> doorKeys = List.of(MinecraftDoorRecipes.key(DoorCraftProduct.PAIR_KIT),
+            MinecraftDoorRecipes.key(DoorCraftProduct.PERSONAL_DOOR), MinecraftDoorRecipes.key(DoorCraftProduct.PUBLIC_DOOR),
+            MinecraftDoorRecipes.skinKey(DoorForm.DOOR));
+        List<RecipeHolder<?>> built = MinecraftDoorRecipes.build(first);
+        assertEquals(doorKeys, built.stream().<ResourceKey<Recipe<?>>>map(RecipeHolder::id).toList());
+        RecipeHolder<?> personal = built.get(1);
+        assertTrue(((CraftingRecipe) personal.value()).matches(CraftingInput.of(1, 1, List.of(new ItemStack(Items.STONE))), null));
+        assertFalse(personal.value().isSpecial());
+        assertFalse(personal.value().placementInfo().isImpossibleToPlace());
+        RecipesConfig second = doorRecipesOnly();
         second.personalDoor.enabled = false;
-        when(settings.getRecipes()).thenReturn(second);
-        assertFalse(recipes.matches(DoorCraftProduct.PERSONAL_DOOR, input));
+        second.doorSkin.enabled = false;
+        assertEquals(List.of(MinecraftDoorRecipes.key(DoorCraftProduct.PAIR_KIT), MinecraftDoorRecipes.key(DoorCraftProduct.PUBLIC_DOOR)),
+            MinecraftDoorRecipes.build(second).stream().<ResourceKey<Recipe<?>>>map(RecipeHolder::id).toList());
+    }
+
+    @Test
+    public void wandRecipeCraftsTheCommandWand() {
+        RecipeHolder<ShapedRecipe> recipe = MinecraftPortalTools.wandRecipe();
+        assertEquals(MinecraftPortalTools.WAND_RECIPE, recipe.id());
+        CraftingInput input = CraftingInput.of(3, 3, List.of(new ItemStack(Items.GLOWSTONE_DUST), ItemStack.EMPTY, new ItemStack(Items.GLOWSTONE_DUST),
+            ItemStack.EMPTY, new ItemStack(Items.BLAZE_ROD), ItemStack.EMPTY, ItemStack.EMPTY, new ItemStack(Items.GLOWSTONE_DUST), ItemStack.EMPTY));
+        assertTrue(recipe.value().matches(input, null));
+        ItemStack crafted = recipe.value().assemble(input);
+        assertTrue(MinecraftPortalTools.isWand(crafted));
+        assertTrue(ItemStack.isSameItemSameComponents(crafted, MinecraftPortalTools.wand()));
+        assertFalse(recipe.value().isSpecial());
+    }
+
+    private static RecipesConfig doorRecipesOnly() {
+        RecipesConfig recipes = new RecipesConfig();
+        recipes.trapdoorPairKit.enabled = false;
+        recipes.personalTrapdoor.enabled = false;
+        recipes.publicTrapdoor.enabled = false;
+        recipes.trapdoorSkin.enabled = false;
+        return recipes;
     }
 }

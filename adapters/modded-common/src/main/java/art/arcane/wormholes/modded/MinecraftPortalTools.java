@@ -11,15 +11,26 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.UuidArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.crafting.CraftingBookCategory;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.world.item.crafting.ShapedRecipePattern;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
@@ -37,6 +48,7 @@ import java.util.UUID;
 public final class MinecraftPortalTools implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private static final CompoundTag WAND_IDENTITY = wandIdentity();
+    public static final ResourceKey<Recipe<?>> WAND_RECIPE = ResourceKey.create(Registries.RECIPE, Identifier.fromNamespaceAndPath("wormholes", "portal_wand"));
 
     private final WormholesModRuntime runtime;
     private final Map<UUID, Selection> selections = new HashMap<>();
@@ -176,6 +188,13 @@ public final class MinecraftPortalTools implements AutoCloseable {
             Component.literal("Left click: first corner. Right click: second corner."),
             Component.literal("Left click the selection to open a portal."))));
         return item;
+    }
+
+    static RecipeHolder<ShapedRecipe> wandRecipe() {
+        ShapedRecipePattern pattern = ShapedRecipePattern.of(Map.of('d', Ingredient.of(Items.GLOWSTONE_DUST), 'r', Ingredient.of(Items.BLAZE_ROD)),
+            "d d", " r ", " d ");
+        return new RecipeHolder<>(WAND_RECIPE, new ShapedRecipe(new Recipe.CommonInfo(true),
+            new CraftingRecipe.CraftingBookInfo(CraftingBookCategory.MISC, ""), pattern, ItemStackTemplate.fromNonEmptyStack(wand())));
     }
 
     static boolean isWand(ItemStack item) {

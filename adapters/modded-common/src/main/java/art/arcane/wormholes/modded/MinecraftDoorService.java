@@ -124,7 +124,6 @@ public final class MinecraftDoorService implements AutoCloseable {
     private static final long TRANSIT_COOLDOWN_MILLIS = 1_000L;
 
     private final WormholesModRuntime runtime;
-    private final MinecraftDoorRecipes recipes;
     private final MinecraftDoorAccessMenu accessMenu;
     private Options options;
     private ExecutorService storage;
@@ -148,7 +147,6 @@ public final class MinecraftDoorService implements AutoCloseable {
 
     public MinecraftDoorService(WormholesModRuntime runtime) {
         this.runtime = Objects.requireNonNull(runtime);
-        recipes = new MinecraftDoorRecipes(runtime);
         accessMenu = new MinecraftDoorAccessMenu(runtime, this);
     }
 
@@ -190,10 +188,6 @@ public final class MinecraftDoorService implements AutoCloseable {
 
     public boolean projectionEnabled() {
         return enabled() && configuration.settings().getDoors().projectionEnabled;
-    }
-
-    public MinecraftDoorRecipes recipes() {
-        return recipes;
     }
 
     public MinecraftPocketRules rules() {

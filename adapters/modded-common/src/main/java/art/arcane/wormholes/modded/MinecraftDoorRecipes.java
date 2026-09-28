@@ -5,22 +5,33 @@ import art.arcane.wormholes.config.toml.RecipesConfig;
 import art.arcane.wormholes.door.DoorCraftProduct;
 import art.arcane.wormholes.door.DoorForm;
 import art.arcane.wormholes.door.DoorItemIdentity;
-import art.arcane.wormholes.door.DoorKind;
 import art.arcane.wormholes.door.DoorRecipeSpec;
-import com.mojang.serialization.MapCodec;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.ItemTags;
+import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.CraftingBookCategory;
 import net.minecraft.world.item.crafting.CraftingInput;
-import net.minecraft.world.item.crafting.CustomRecipe;
-import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.world.item.crafting.ShapedRecipePattern;
+import net.minecraft.world.item.crafting.ShapelessRecipe;
+import net.minecraft.world.item.crafting.display.RecipeDisplay;
+import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
+import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
+import net.minecraft.world.item.crafting.display.SlotDisplay;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
@@ -28,7 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -38,30 +48,47 @@ import java.util.function.Predicate;
 
 public final class MinecraftDoorRecipes {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
-    private static final Map<Identifier, RecipeSerializer<?>> SERIALIZERS = createSerializers();
+    private static final Recipe.CommonInfo COMMON = new Recipe.CommonInfo(true);
+    private static final CraftingRecipe.CraftingBookInfo BOOK = new CraftingRecipe.CraftingBookInfo(CraftingBookCategory.MISC, "");
+    private static final SlotDisplay STATION = new SlotDisplay.ItemSlotDisplay(Items.CRAFTING_TABLE);
 
-    private final WormholesModRuntime runtime;
-    private final Map<DoorCraftProduct, Grid> grids = new EnumMap<>(DoorCraftProduct.class);
-    private RecipesConfig configured;
-
-    MinecraftDoorRecipes(WormholesModRuntime runtime) {
-        this.runtime = runtime;
+    private MinecraftDoorRecipes() {
     }
 
-    public static Map<Identifier, RecipeSerializer<?>> serializers() {
-        return SERIALIZERS;
+    public static ResourceKey<Recipe<?>> key(DoorCraftProduct product) {
+        return key(product.recipeName());
     }
 
-    public boolean matches(DoorCraftProduct product, CraftingInput input) {
-        refresh();
-        Grid grid = grids.get(product);
-        return grid != null && grid.matches(input);
+    public static ResourceKey<Recipe<?>> skinKey(DoorForm form) {
+        return key(form == DoorForm.DOOR ? "dimensional_door_skin" : "dimensional_trapdoor_skin");
     }
 
-    public boolean matchesSkin(DoorForm form, CraftingInput input) {
-        refresh();
-        boolean enabled = form == DoorForm.DOOR ? configured.doorSkin.enabled : configured.trapdoorSkin.enabled;
-        return enabled && !skin(form, input).isEmpty();
+    public static List<ResourceKey<Recipe<?>>> keys() {
+        List<ResourceKey<Recipe<?>>> keys = new ArrayList<>(DoorCraftProduct.values().length + DoorForm.values().length);
+        for (DoorCraftProduct product : DoorCraftProduct.values()) {
+            keys.add(key(product));
+        }
+        for (DoorForm form : DoorForm.values()) {
+            keys.add(skinKey(form));
+        }
+        return List.copyOf(keys);
+    }
+
+    static List<RecipeHolder<?>> build(RecipesConfig configured) {
+        List<RecipeHolder<?>> holders = new ArrayList<>(DoorCraftProduct.values().length + DoorForm.values().length);
+        for (DoorCraftProduct product : DoorCraftProduct.values()) {
+            RecipeConfig recipe = configured.forProduct(product);
+            if (recipe == null || recipe.enabled) {
+                holders.add(new RecipeHolder<>(key(product), product(product, recipe)));
+            }
+        }
+        if (configured.doorSkin.enabled) {
+            holders.add(new RecipeHolder<>(skinKey(DoorForm.DOOR), new SkinRecipe(DoorForm.DOOR)));
+        }
+        if (configured.trapdoorSkin.enabled) {
+            holders.add(new RecipeHolder<>(skinKey(DoorForm.TRAPDOOR), new SkinRecipe(DoorForm.TRAPDOOR)));
+        }
+        return List.copyOf(holders);
     }
 
     static ItemStack mint(DoorCraftProduct product) {
@@ -96,16 +123,16 @@ public final class MinecraftDoorRecipes {
             }
         }
         if (identity == null || identity.form() != form || source.is(target.getItem())
-            || formOf(source) != form || formOf(target) != form || form == DoorForm.TRAPDOOR && !target.is(ItemTags.WOODEN_TRAPDOORS)) {
+            || formOf(source.getItem()) != form || formOf(target.getItem()) != form || form == DoorForm.TRAPDOOR && !target.is(ItemTags.WOODEN_TRAPDOORS)) {
             return ItemStack.EMPTY;
         }
         return MinecraftDoorItems.door(identity, target.getItem());
     }
 
     static Grid resolve(DoorRecipeSpec spec) {
-        Map<Character, Predicate<ItemStack>> ingredients = new LinkedHashMap<>();
+        Map<Character, Cell> cells = new LinkedHashMap<>();
         for (Map.Entry<Character, String> entry : spec.ingredients().entrySet()) {
-            ingredients.put(entry.getKey(), ingredient(entry.getValue()));
+            cells.put(entry.getKey(), cell(entry.getValue()));
         }
         List<String> rows = spec.shape().rows();
         int minX = rows.getFirst().length();
@@ -129,38 +156,32 @@ public final class MinecraftDoorRecipes {
         for (int y = minY; y <= maxY; y++) {
             trimmed.add(rows.get(y).substring(minX, maxX + 1));
         }
-        return new Grid(List.copyOf(trimmed), Map.copyOf(ingredients));
+        return new Grid(List.copyOf(trimmed), Map.copyOf(cells));
     }
 
-    private void refresh() {
-        RecipesConfig current = runtime.configuration().settings().getRecipes();
-        if (current == configured) {
-            return;
-        }
-        grids.clear();
-        for (DoorCraftProduct product : DoorCraftProduct.values()) {
-            RecipeConfig recipe = current.forProduct(product);
-            if (recipe != null && !recipe.enabled) {
-                continue;
-            }
+    private static ResourceKey<Recipe<?>> key(String name) {
+        return ResourceKey.create(Registries.RECIPE, Identifier.fromNamespaceAndPath("wormholes", name));
+    }
+
+    private static ProductRecipe product(DoorCraftProduct product, RecipeConfig recipe) {
+        if (recipe != null) {
             try {
-                grids.put(product, resolve(recipe == null ? product.defaultSpec() : DoorRecipeSpec.parse(recipe.shape, recipe.ingredients)));
+                return new ProductRecipe(product, resolve(DoorRecipeSpec.parse(recipe.shape, recipe.ingredients)));
             } catch (IllegalArgumentException exception) {
                 LOGGER.warn("Invalid dimensional-door recipe {}; using its shipped recipe", product.recipeName(), exception);
-                grids.put(product, resolve(product.defaultSpec()));
             }
         }
-        configured = current;
+        return new ProductRecipe(product, resolve(product.defaultSpec()));
     }
 
-    private static Predicate<ItemStack> ingredient(String token) {
+    private static Cell cell(String token) {
         String normalized = token.trim().toLowerCase(Locale.ROOT).replace('_', '-');
         if (normalized.startsWith("#")) {
             return switch (normalized) {
-                case "#doors" -> item -> formOf(item) == DoorForm.DOOR;
-                case "#trapdoors" -> item -> item.is(ItemTags.WOODEN_TRAPDOORS);
-                case "#any-trapdoors" -> item -> formOf(item) == DoorForm.TRAPDOOR;
-                case "#wormhole-rune" -> MinecraftDoorItems::isWormholeRune;
+                case "#doors" -> group(token, item -> formOf(item) == DoorForm.DOOR);
+                case "#trapdoors" -> group(token, item -> item.builtInRegistryHolder().is(ItemTags.WOODEN_TRAPDOORS));
+                case "#any-trapdoors" -> group(token, item -> formOf(item) == DoorForm.TRAPDOOR);
+                case "#wormhole-rune" -> new Cell(Ingredient.of(Items.DARK_PRISMARINE), MinecraftDoorItems::isWormholeRune, true);
                 default -> throw new IllegalArgumentException("Unknown door ingredient group " + token);
             };
         }
@@ -179,11 +200,28 @@ public final class MinecraftDoorRecipes {
         if (accepted.isEmpty()) {
             throw new IllegalArgumentException("Door ingredient contains no items: " + token);
         }
-        return item -> !item.isEmpty() && accepted.contains(item.getItem());
+        return plain(Ingredient.of(accepted.stream()));
     }
 
-    private static DoorForm formOf(ItemStack item) {
-        if (!(item.getItem() instanceof BlockItem block)) {
+    private static Cell group(String token, Predicate<Item> member) {
+        List<Item> items = new ArrayList<>();
+        for (Item item : BuiltInRegistries.ITEM) {
+            if (member.test(item)) {
+                items.add(item);
+            }
+        }
+        if (items.isEmpty()) {
+            throw new IllegalArgumentException("Door ingredient group matches no items: " + token);
+        }
+        return plain(Ingredient.of(items.stream()));
+    }
+
+    private static Cell plain(Ingredient ingredient) {
+        return new Cell(ingredient, ingredient, false);
+    }
+
+    private static DoorForm formOf(Item item) {
+        if (!(item instanceof BlockItem block)) {
             return null;
         }
         if (block.getBlock() instanceof DoorBlock) {
@@ -192,39 +230,43 @@ public final class MinecraftDoorRecipes {
         return block.getBlock() instanceof TrapDoorBlock ? DoorForm.TRAPDOOR : null;
     }
 
-    private static Map<Identifier, RecipeSerializer<?>> createSerializers() {
-        Map<Identifier, RecipeSerializer<?>> serializers = new LinkedHashMap<>();
-        for (DoorCraftProduct product : DoorCraftProduct.values()) {
-            Identifier id = Identifier.fromNamespaceAndPath("wormholes", product.recipeName());
-            ProductRecipe recipe = new ProductRecipe(product);
-            serializers.put(id, new RecipeSerializer<>(MapCodec.unit(() -> recipe), StreamCodec.<RegistryFriendlyByteBuf, ProductRecipe>unit(recipe)));
-        }
-        for (DoorForm form : DoorForm.values()) {
-            Identifier id = skinKey(form);
-            SkinRecipe recipe = new SkinRecipe(form);
-            serializers.put(id, new RecipeSerializer<>(MapCodec.unit(() -> recipe), StreamCodec.<RegistryFriendlyByteBuf, SkinRecipe>unit(recipe)));
-        }
-        return Map.copyOf(serializers);
+    private static ItemStackTemplate preview(DoorCraftProduct product) {
+        ItemStack item = mint(product);
+        item.remove(DataComponents.CUSTOM_DATA);
+        return ItemStackTemplate.fromNonEmptyStack(item);
     }
 
-    private static Identifier skinKey(DoorForm form) {
-        return Identifier.fromNamespaceAndPath("wormholes", form == DoorForm.DOOR ? "dimensional_door_skin" : "dimensional_trapdoor_skin");
+    private static ItemStackTemplate skinPreview(DoorForm form) {
+        ItemStack item = new ItemStack(form == DoorForm.DOOR ? Items.OAK_DOOR : Items.OAK_TRAPDOOR);
+        item.set(DataComponents.CUSTOM_NAME, Component.literal(form == DoorForm.DOOR ? "Dimensional Door Skin" : "Dimensional Trapdoor Skin"));
+        return ItemStackTemplate.fromNonEmptyStack(item);
     }
 
-    public abstract static class DoorRecipe extends CustomRecipe {
+    private static Ingredient skinSource(DoorForm form) {
+        return group(form.name(), item -> formOf(item) == form).ingredient();
     }
 
-    private static final class ProductRecipe extends DoorRecipe {
+    private static Ingredient skinTarget(DoorForm form) {
+        return form == DoorForm.DOOR ? skinSource(form) : group(form.name(), item -> item.builtInRegistryHolder().is(ItemTags.WOODEN_TRAPDOORS)).ingredient();
+    }
+
+    public interface DoorRecipe {
+        RecipeBookMenu.PostPlaceAction place(MinecraftDoorRecipePlacement.Placement<?> placement);
+    }
+
+    private static final class ProductRecipe extends ShapedRecipe implements DoorRecipe {
         private final DoorCraftProduct product;
+        private final Grid grid;
 
-        private ProductRecipe(DoorCraftProduct product) {
+        private ProductRecipe(DoorCraftProduct product, Grid grid) {
+            super(COMMON, BOOK, grid.pattern(), preview(product));
             this.product = product;
+            this.grid = grid;
         }
 
         @Override
         public boolean matches(CraftingInput input, Level level) {
-            MinecraftDoorService service = level instanceof ServerLevel serverLevel ? MinecraftDoorService.forServer(serverLevel.getServer()) : null;
-            return service != null && service.recipes().matches(product, input);
+            return grid.matches(input);
         }
 
         @Override
@@ -233,23 +275,34 @@ public final class MinecraftDoorRecipes {
         }
 
         @Override
-        @SuppressWarnings("unchecked")
-        public RecipeSerializer<ProductRecipe> getSerializer() {
-            return (RecipeSerializer<ProductRecipe>) SERIALIZERS.get(Identifier.fromNamespaceAndPath("wormholes", product.recipeName()));
+        public List<RecipeDisplay> display() {
+            List<SlotDisplay> slots = new ArrayList<>(getWidth() * getHeight());
+            for (String row : grid.rows()) {
+                for (int x = 0; x < row.length(); x++) {
+                    char symbol = row.charAt(x);
+                    slots.add(symbol == ' ' ? SlotDisplay.Empty.INSTANCE : grid.cells().get(symbol).display());
+                }
+            }
+            return List.of(new ShapedCraftingRecipeDisplay(getWidth(), getHeight(), slots, new SlotDisplay.ItemStackSlotDisplay(preview(product)), STATION));
+        }
+
+        @Override
+        public RecipeBookMenu.PostPlaceAction place(MinecraftDoorRecipePlacement.Placement<?> placement) {
+            return MinecraftDoorRecipePlacement.shaped(placement, this, grid.placement());
         }
     }
 
-    private static final class SkinRecipe extends DoorRecipe {
+    private static final class SkinRecipe extends ShapelessRecipe implements DoorRecipe {
         private final DoorForm form;
 
         private SkinRecipe(DoorForm form) {
+            super(COMMON, BOOK, skinPreview(form), List.of(skinSource(form), skinTarget(form)));
             this.form = form;
         }
 
         @Override
         public boolean matches(CraftingInput input, Level level) {
-            MinecraftDoorService service = level instanceof ServerLevel serverLevel ? MinecraftDoorService.forServer(serverLevel.getServer()) : null;
-            return service != null && service.recipes().matchesSkin(form, input);
+            return !skin(form, input).isEmpty();
         }
 
         @Override
@@ -258,13 +311,28 @@ public final class MinecraftDoorRecipes {
         }
 
         @Override
-        @SuppressWarnings("unchecked")
-        public RecipeSerializer<SkinRecipe> getSerializer() {
-            return (RecipeSerializer<SkinRecipe>) SERIALIZERS.get(skinKey(form));
+        public List<RecipeDisplay> display() {
+            DoorCraftProduct personal = form == DoorForm.DOOR ? DoorCraftProduct.PERSONAL_DOOR : DoorCraftProduct.PERSONAL_TRAPDOOR;
+            DoorCraftProduct shared = form == DoorForm.DOOR ? DoorCraftProduct.PUBLIC_DOOR : DoorCraftProduct.PUBLIC_TRAPDOOR;
+            SlotDisplay source = new SlotDisplay.Composite(List.of(new SlotDisplay.ItemStackSlotDisplay(preview(personal)),
+                new SlotDisplay.ItemStackSlotDisplay(preview(shared))));
+            return List.of(new ShapelessCraftingRecipeDisplay(List.of(source, skinTarget(form).display()),
+                new SlotDisplay.ItemStackSlotDisplay(skinPreview(form)), STATION));
+        }
+
+        @Override
+        public RecipeBookMenu.PostPlaceAction place(MinecraftDoorRecipePlacement.Placement<?> placement) {
+            return MinecraftDoorRecipePlacement.reskin(placement, this, form);
         }
     }
 
-    record Grid(List<String> rows, Map<Character, Predicate<ItemStack>> ingredients) {
+    record Cell(Ingredient ingredient, Predicate<ItemStack> accepts, boolean exact) {
+        SlotDisplay display() {
+            return exact ? new SlotDisplay.ItemStackSlotDisplay(ItemStackTemplate.fromNonEmptyStack(MinecraftDoorItems.wormholeRune())) : ingredient.display();
+        }
+    }
+
+    record Grid(List<String> rows, Map<Character, Cell> cells) {
         boolean matches(CraftingInput input) {
             int width = rows.getFirst().length();
             if (input.width() != width || input.height() != rows.size()) {
@@ -273,13 +341,35 @@ public final class MinecraftDoorRecipes {
             return matches(input, false) || matches(input, true);
         }
 
+        ShapedRecipePattern pattern() {
+            Map<Character, Ingredient> key = new LinkedHashMap<>();
+            for (Map.Entry<Character, Cell> cell : cells.entrySet()) {
+                key.put(cell.getKey(), cell.getValue().ingredient());
+            }
+            return ShapedRecipePattern.of(key, rows);
+        }
+
+        List<Predicate<ItemStack>> placement() {
+            List<Predicate<ItemStack>> slots = new ArrayList<>();
+            for (String row : rows) {
+                for (int x = 0; x < row.length(); x++) {
+                    char symbol = row.charAt(x);
+                    if (symbol != ' ') {
+                        Cell cell = cells.get(symbol);
+                        slots.add(cell.exact() ? cell.accepts() : MinecraftDoorRecipePlacement.plain(cell.accepts()));
+                    }
+                }
+            }
+            return List.copyOf(slots);
+        }
+
         private boolean matches(CraftingInput input, boolean mirrored) {
             int width = rows.getFirst().length();
             for (int y = 0; y < rows.size(); y++) {
                 for (int x = 0; x < width; x++) {
                     char symbol = rows.get(y).charAt(mirrored ? width - x - 1 : x);
                     ItemStack item = input.getItem(x, y);
-                    if (symbol == ' ' ? !item.isEmpty() : !ingredients.get(symbol).test(item)) {
+                    if (symbol == ' ' ? !item.isEmpty() : item.isEmpty() || !cells.get(symbol).accepts().test(item)) {
                         return false;
                     }
                 }
