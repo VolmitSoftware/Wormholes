@@ -33,5 +33,6 @@ public final class MinecraftFidelityMenuEntry implements MinecraftPortalMenuEntr
     @Override
     public void onLeftClick(MinecraftPortal portal, ServerPlayer viewer, MinecraftWindow window) {
         window.close();
+        runtime.schedule(() -> new MinecraftFidelityMenu(runtime, portal).open(viewer), 1L);
     }
 }

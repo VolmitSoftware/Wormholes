@@ -6,13 +6,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 
-import java.util.Objects;
-
 public final class MinecraftAccessMenuEntry implements MinecraftPortalMenuEntry {
-    private final WormholesModRuntime runtime;
+    private final MinecraftAccessMenu menu;
 
     public MinecraftAccessMenuEntry(WormholesModRuntime runtime) {
-        this.runtime = Objects.requireNonNull(runtime, "runtime");
+        menu = new MinecraftAccessMenu(runtime);
     }
 
     @Override
@@ -31,7 +29,13 @@ public final class MinecraftAccessMenuEntry implements MinecraftPortalMenuEntry 
     }
 
     @Override
+    public boolean enchanted(MinecraftPortal portal, ServerPlayer viewer) {
+        return !portal.getRoles().isEmpty();
+    }
+
+    @Override
     public void onLeftClick(MinecraftPortal portal, ServerPlayer viewer, MinecraftWindow window) {
         window.close();
+        menu.open(portal, viewer);
     }
 }

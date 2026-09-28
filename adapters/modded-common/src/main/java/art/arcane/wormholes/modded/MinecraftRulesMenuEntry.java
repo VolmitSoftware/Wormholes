@@ -10,9 +10,11 @@ import java.util.Objects;
 
 public final class MinecraftRulesMenuEntry implements MinecraftPortalMenuEntry {
     private final WormholesModRuntime runtime;
+    private final MinecraftRulesMenus menus;
 
     public MinecraftRulesMenuEntry(WormholesModRuntime runtime) {
         this.runtime = Objects.requireNonNull(runtime, "runtime");
+        menus = new MinecraftRulesMenus(runtime);
     }
 
     @Override
@@ -31,7 +33,14 @@ public final class MinecraftRulesMenuEntry implements MinecraftPortalMenuEntry {
     }
 
     @Override
+    public boolean enchanted(MinecraftPortal portal, ServerPlayer viewer) {
+        return !runtime.rules().document(portal).isInert();
+    }
+
+    @Override
     public void onLeftClick(MinecraftPortal portal, ServerPlayer viewer, MinecraftWindow window) {
         window.close();
+        viewer.closeContainer();
+        runtime.schedule(() -> menus.open(viewer, portal.getId()), 1L);
     }
 }

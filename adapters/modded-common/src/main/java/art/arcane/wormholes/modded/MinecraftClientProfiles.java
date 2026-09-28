@@ -30,6 +30,7 @@ public final class MinecraftClientProfiles {
     }
     public static void forget(ServerPlayer player) { PROFILES.forget(player.getUUID()); }
     public static void clear() { PROFILES.clear(); }
+    public static int bedrockViewers() { return PROFILES.bedrockViewers(); }
 
     public static void brand(Connection connection, String brand) {
         Channel channel = ((ConnectionChannelAccess) connection).wormholesChannel();

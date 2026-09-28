@@ -8,7 +8,15 @@ import art.arcane.wormholes.portal.rtp.RtpRotationMode;
 import art.arcane.wormholes.portal.rtp.RtpService;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import net.minecraft.core.BlockPos;
+import art.arcane.volmlib.util.localization.MessageArgs;
+import art.arcane.volmlib.util.localization.TextKey;
+import art.arcane.wormholes.localization.WormholesMessages;
+import art.arcane.wormholes.portal.rtp.RtpSafetyMode;
+import art.arcane.wormholes.portal.rtp.RtpVerticalMode;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.gametest.framework.GameTestSequence;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.Items;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
@@ -22,6 +30,9 @@ import java.util.List;
 import java.util.UUID;
 
 public final class MinecraftRtpGameTest {
+    private static final int EDITOR_CLICK_TICKS = 2;
+    private static final int EDITOR_MUTATION_TICKS = 4;
+
     private final GameTestHelper helper;
     private final WormholesModRuntime runtime;
     private final MinecraftGameTestPlayer connection;
@@ -31,6 +42,10 @@ public final class MinecraftRtpGameTest {
     private MinecraftGameTestPlayer second;
     private long rotationDeadline;
     private boolean cleaned;
+    private MinecraftPortal editorPortal;
+    private RtpSettings editorInitial;
+    private MinecraftWindow editorWindow;
+    private double editorCenterX;
 
     private MinecraftRtpGameTest(GameTestHelper helper) {
         this.helper = helper;
@@ -66,7 +81,7 @@ public final class MinecraftRtpGameTest {
             }
         }
         approach();
-        helper.startSequence().thenWaitUntil(() -> {
+        editor(helper.startSequence()).thenWaitUntil(() -> {
             preview = runtime.rtp().projectionDestination(connection.player(), portal);
             helper.assertTrue(preview != null, "Random destination preview did not become ready");
         }).thenExecute(() -> {
@@ -155,6 +170,136 @@ public final class MinecraftRtpGameTest {
         }).thenSucceed();
     }
 
+    private GameTestSequence editor(GameTestSequence sequence) {
+        ServerPlayer viewer = connection.player();
+        List<BlockPos> cells = new ArrayList<>(9);
+        for (int x = 10; x <= 12; x++) {
+            for (int y = 2; y <= 4; y++) {
+                cells.add(helper.absolutePos(new BlockPos(x, y, 12)));
+            }
+        }
+        MinecraftRtpMenus menus = new MinecraftRtpMenus(runtime);
+        return sequence.thenExecute(() -> {
+            editorPortal = runtime.portals().create(viewer.getUUID(), helper.getLevel(), cells, PortalType.RTP, new Vec3(0, 0, -1));
+            editorInitial = runtime.rtp().settings(editorPortal);
+            MinecraftGameTestPlayer outsider = MinecraftGameTestPlayer.connect(runtime, helper.getLevel(), "RtpOutsider");
+            try {
+                menus.open(outsider.player(), editorPortal.getId());
+                MinecraftSubsystemMenuProbe.assertClosed(helper, outsider.player(), "Outsider RTP editor");
+                helper.assertTrue(MinecraftSubsystemMenuProbe.messaged(outsider.messages(), MinecraftSubsystemMenuProbe.text(outsider.player(),
+                    WormholesMessages.PORTAL_EDIT_DENIED, MessageArgs.empty())), "Outsider RTP editor denial was not sent");
+            } finally {
+                outsider.close();
+            }
+            menus.open(viewer, editorPortal.getId());
+            assertOverview(viewer);
+            MinecraftSubsystemMenuProbe.left(viewer, 3, 2);
+        }).thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> {
+            assertEditorWindow(viewer);
+            MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 2, 1, Items.GUNPOWDER, MinecraftSubsystemMenuProbe.name(viewer,
+                WormholesMessages.RTP_RIM_OFF_AVAILABLE, MessageArgs.empty()), false, "RTP rim off");
+            MinecraftSubsystemMenuProbe.left(viewer, 2, 1);
+        }).thenIdle(EDITOR_MUTATION_TICKS).thenExecute(() -> {
+            helper.assertTrue(!runtime.rtp().settings(editorPortal).isRimEnabled(), "RTP rim control did not persist");
+            MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 2, 1, Items.GUNPOWDER, MinecraftSubsystemMenuProbe.name(viewer,
+                WormholesMessages.RTP_RIM_OFF_SELECTED, MessageArgs.empty()), true, "RTP rim off selected");
+            helper.assertTrue(noticed(viewer, WormholesMessages.PORTAL_RTP_APPLIED), "RTP applied notice was not sent");
+            MinecraftSubsystemMenuProbe.left(viewer, 2, 3);
+        }).thenIdle(EDITOR_MUTATION_TICKS).thenExecute(() -> {
+            helper.assertTrue(!runtime.rtp().settings(editorPortal).isSoundEnabled(), "RTP sound control did not persist");
+            MinecraftSubsystemMenuProbe.left(viewer, 0, 5);
+        }).thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> {
+            assertOverview(viewer);
+            MinecraftSubsystemMenuProbe.left(viewer, -3, 2);
+        }).thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> MinecraftSubsystemMenuProbe.left(viewer, 2, 3))
+            .thenIdle(EDITOR_MUTATION_TICKS).thenExecute(() -> {
+                helper.assertTrue(runtime.rtp().settings(editorPortal).getCustomCenterX() != null, "RTP custom center did not apply");
+                editorCenterX = runtime.rtp().settings(editorPortal).getCustomCenterX();
+                MinecraftSubsystemMenuProbe.left(viewer, -3, 4);
+            }).thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> MinecraftSubsystemMenuProbe.left(viewer, 2, 2))
+            .thenIdle(EDITOR_MUTATION_TICKS).thenExecute(() -> {
+                helper.assertTrue(runtime.rtp().settings(editorPortal).getCustomCenterX() == editorCenterX + 16D,
+                    "RTP numeric coordinate control failed");
+                MinecraftSubsystemMenuProbe.left(viewer, 0, 5);
+            }).thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> MinecraftSubsystemMenuProbe.left(viewer, 3, 5))
+            .thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> MinecraftSubsystemMenuProbe.left(viewer, -3, 1))
+            .thenIdle(EDITOR_MUTATION_TICKS).thenExecute(() -> {
+                helper.assertTrue(runtime.rtp().settings(editorPortal).getTargetBiomeKey() != null, "RTP biome picker did not select a biome");
+                MinecraftSubsystemMenuProbe.left(viewer, -4, 1);
+            }).thenIdle(EDITOR_MUTATION_TICKS).thenExecute(() -> {
+                helper.assertTrue(runtime.rtp().settings(editorPortal).getTargetBiomeKey() == null, "RTP biome picker did not clear the biome");
+                MinecraftSubsystemMenuProbe.left(viewer, 0, 5);
+            }).thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> MinecraftSubsystemMenuProbe.left(viewer, 0, 5))
+            .thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> {
+                assertOverview(viewer);
+                MinecraftSubsystemMenuProbe.left(viewer, 1, 2);
+            }).thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> MinecraftSubsystemMenuProbe.left(viewer, 2, 1))
+            .thenIdle(EDITOR_MUTATION_TICKS).thenExecute(() -> MinecraftSubsystemMenuProbe.left(viewer, -3, 3))
+            .thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> MinecraftSubsystemMenuProbe.left(viewer, 2, 2))
+            .thenIdle(EDITOR_MUTATION_TICKS).thenExecute(() -> {
+                RtpSettings settings = runtime.rtp().settings(editorPortal);
+                helper.assertTrue(settings.getAllocationMode() == RtpAllocationMode.PER_PLAYER
+                    && settings.getCycleDurationMillis() == editorInitial.getCycleDurationMillis() + 30_000L, "RTP private rotation controls did not apply");
+                MinecraftSubsystemMenuProbe.left(viewer, 0, 5);
+            }).thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> MinecraftSubsystemMenuProbe.left(viewer, 0, 5))
+            .thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> MinecraftSubsystemMenuProbe.left(viewer, -1, 2))
+            .thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> MinecraftSubsystemMenuProbe.left(viewer, 2, 1))
+            .thenIdle(EDITOR_MUTATION_TICKS).thenExecute(() -> MinecraftSubsystemMenuProbe.left(viewer, 0, 2))
+            .thenIdle(EDITOR_MUTATION_TICKS).thenExecute(() -> {
+                RtpSettings settings = runtime.rtp().settings(editorPortal);
+                helper.assertTrue(settings.getVerticalMode() == RtpVerticalMode.PREFERRED_AVERAGE && settings.getSafetyMode() == RtpSafetyMode.UNSAFE,
+                    "RTP landing controls did not apply");
+                MinecraftSubsystemMenuProbe.left(viewer, 0, 5);
+            }).thenIdle(EDITOR_CLICK_TICKS).thenExecute(() -> MinecraftSubsystemMenuProbe.left(viewer, 0, 4))
+            .thenIdle(EDITOR_MUTATION_TICKS).thenExecute(() -> {
+                helper.assertTrue(runtime.rtp().settings(editorPortal).equals(editorInitial), "RTP reset did not restore every default");
+                helper.assertTrue(noticed(viewer, WormholesMessages.PORTAL_RTP_RESET_DEFAULTS), "RTP reset notice was not sent");
+                assertOverview(viewer);
+                editorWindow = MinecraftWindow.active(viewer);
+                MinecraftSubsystemMenuProbe.left(viewer, 0, 5);
+            }).thenIdle(EDITOR_MUTATION_TICKS).thenExecute(() -> {
+                helper.assertTrue(editorWindow != null && !editorWindow.isVisible() && viewer.containerMenu != viewer.inventoryMenu,
+                    "RTP back did not open the portal menu");
+                viewer.closeContainer();
+                menus.close();
+                runtime.portals().remove(viewer, editorPortal.getId());
+                editorPortal = null;
+                LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS rtp_editor denial layout effects coordinates biomes private landing reset notices back_navigation");
+            });
+    }
+
+    private void assertEditorWindow(ServerPlayer viewer) {
+        MinecraftSubsystemMenuProbe.assertWindow(helper, viewer, MinecraftSubsystemMenuProbe.text(viewer, WormholesMessages.PORTAL_RTP_EDITOR_TITLE,
+            MinecraftPortalText.arguments("portal", editorPortal.getName())), 6, Items.STAINED_GLASS_PANE.black(),
+            MinecraftSubsystemMenuProbe.slot(-4, 4), "RTP editor");
+    }
+
+    private void assertOverview(ServerPlayer viewer) {
+        assertEditorWindow(viewer);
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, -3, 2, Items.RECOVERY_COMPASS,
+            MinecraftSubsystemMenuProbe.name(viewer, WormholesMessages.RTP_OVERVIEW_DESTINATION, MessageArgs.empty()), false, "RTP destination");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, -1, 2, Items.GRASS_BLOCK,
+            MinecraftSubsystemMenuProbe.name(viewer, WormholesMessages.RTP_OVERVIEW_LANDING, MessageArgs.empty()), false, "RTP landing");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 1, 2, Items.CLOCK,
+            MinecraftSubsystemMenuProbe.name(viewer, WormholesMessages.RTP_OVERVIEW_ROUTING, MessageArgs.empty()), false, "RTP routing");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 3, 2, Items.GLOWSTONE_DUST,
+            MinecraftSubsystemMenuProbe.name(viewer, WormholesMessages.RTP_OVERVIEW_EFFECTS, MessageArgs.empty()), false, "RTP effects");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 0, 4, Items.TNT_MINECART,
+            MinecraftSubsystemMenuProbe.name(viewer, WormholesMessages.RTP_RESET_DEFAULTS, MessageArgs.empty()), false, "RTP reset");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 0, 5, Items.ARROW,
+            MinecraftSubsystemMenuProbe.name(viewer, WormholesMessages.RTP_BACK_PORTAL, MessageArgs.empty()), false, "RTP back");
+    }
+
+    private boolean noticed(ServerPlayer viewer, TextKey message) {
+        String expected = MinecraftSubsystemMenuProbe.text(viewer, message, MessageArgs.empty());
+        for (Component line : connection.messages()) {
+            if (line.getString().contains(expected)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void approach() {
         connection.player().snapTo(Vec3.atBottomCenterOf(helper.absolutePos(new BlockPos(3, 2, 3))));
         connection.player().setDeltaMovement(Vec3.ZERO);
@@ -174,6 +319,9 @@ public final class MinecraftRtpGameTest {
             return;
         }
         cleaned = true;
+        if (editorPortal != null) {
+            runtime.portals().remove(connection.player(), editorPortal.getId());
+        }
         if (second != null) {
             second.close();
         }

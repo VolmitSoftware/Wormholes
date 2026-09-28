@@ -8,10 +8,6 @@ import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.BlackoutColor;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.TransitionProfile;
-import art.arcane.wormholes.portal.rtp.RtpSettings;
-import art.arcane.wormholes.portal.rtp.RtpAllocationMode;
-import art.arcane.wormholes.portal.rtp.RtpVerticalMode;
-import art.arcane.wormholes.portal.rtp.RtpSafetyMode;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import com.mojang.authlib.GameProfile;
@@ -129,46 +125,6 @@ public final class MinecraftPortalMenuGameTest {
             click(viewer, 16);
             helper.assertTrue(portal.getType() == PortalType.RTP && portal.getDestinationId() == null, "Mode picker did not select RTP");
             click(viewer, 49);
-            click(viewer, 11);
-            RtpSettings initial = runtime.rtp().settings(portal);
-            click(viewer, 25);
-            click(viewer, 15);
-            click(viewer, 33);
-            helper.assertTrue(!runtime.rtp().settings(portal).isRimEnabled() && !runtime.rtp().settings(portal).isSoundEnabled(),
-                "Native RTP effect controls did not persist");
-            click(viewer, 49);
-            click(viewer, 19);
-            click(viewer, 33);
-            double centerX = runtime.rtp().settings(portal).getCustomCenterX();
-            click(viewer, 37);
-            click(viewer, 24);
-            helper.assertTrue(runtime.rtp().settings(portal).getCustomCenterX() == centerX + 16D, "Native RTP numeric coordinate control failed");
-            click(viewer, 49);
-            click(viewer, 52);
-            click(viewer, 10);
-            helper.assertTrue(runtime.rtp().settings(portal).getTargetBiomeKey() != null, "Native biome picker did not select biome");
-            click(viewer, 9);
-            helper.assertTrue(runtime.rtp().settings(portal).getTargetBiomeKey() == null, "Native biome picker did not clear biome");
-            click(viewer, 49);
-            click(viewer, 49);
-            click(viewer, 23);
-            click(viewer, 15);
-            click(viewer, 28);
-            click(viewer, 24);
-            helper.assertTrue(runtime.rtp().settings(portal).getAllocationMode() == RtpAllocationMode.PER_PLAYER
-                && runtime.rtp().settings(portal).getCycleDurationMillis() == initial.getCycleDurationMillis() + 30_000L,
-                "Native private rotation controls did not apply");
-            click(viewer, 49);
-            click(viewer, 49);
-            click(viewer, 21);
-            click(viewer, 15);
-            click(viewer, 22);
-            helper.assertTrue(runtime.rtp().settings(portal).getVerticalMode() == RtpVerticalMode.PREFERRED_AVERAGE
-                && runtime.rtp().settings(portal).getSafetyMode() == RtpSafetyMode.UNSAFE, "Native landing controls did not apply");
-            click(viewer, 49);
-            click(viewer, 40);
-            helper.assertTrue(runtime.rtp().settings(portal).equals(initial), "Native RTP reset did not restore all defaults");
-            click(viewer, 49);
             click(viewer, 22);
             click(viewer, 31);
             helper.assertTrue(portal.isMirrorMode() && portal.getType() == PortalType.PORTAL, "Mirror conversion retained RTP travel");
@@ -187,7 +143,7 @@ public final class MinecraftPortalMenuGameTest {
             helper.assertTrue(portal.getFrame().getNormal() == original.getNormal() && portal.getFrame().getUp() == original.getUp(),
                 "Orientation roll controls did not invert each other");
             click(viewer, 49);
-            LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS portal_editor type mirror orientation rtp_effects rtp_coordinates rtp_biomes rtp_private rtp_landing rtp_reset");
+            LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS portal_editor type mirror orientation");
         } catch (Exception failure) {
             throw new IllegalStateException("Native portal editor acceptance failed", failure);
         }

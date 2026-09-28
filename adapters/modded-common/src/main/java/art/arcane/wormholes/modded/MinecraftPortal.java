@@ -37,6 +37,7 @@ import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.wormholes.portal.rtp.RtpSettingsCodec;
 import art.arcane.wormholes.portal.ProjectionMode;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Collections;
 import java.util.Objects;
@@ -628,6 +629,45 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
             throw new IllegalArgumentException("Invalid portal permission key");
         }
         values.put("access.permissionKey", key);
+    }
+
+    public List<String> getGroups() {
+        List<String> groups = new ArrayList<>();
+        if (values.get("access.groups") instanceof List<?> stored) {
+            for (Object group : stored) {
+                if (group instanceof String node && !node.isBlank() && !groups.contains(node)) {
+                    groups.add(node);
+                }
+            }
+        }
+        return List.copyOf(groups);
+    }
+
+    public boolean addGroup(String node) {
+        String requested = node == null ? "" : node.trim();
+        List<String> groups = new ArrayList<>(getGroups());
+        if (requested.isEmpty() || groups.contains(requested)) {
+            return false;
+        }
+        groups.add(requested);
+        values.put("access.groups", groups);
+        return true;
+    }
+
+    public boolean clearGroups() {
+        if (getGroups().isEmpty()) {
+            return false;
+        }
+        values.put("access.groups", new ArrayList<>());
+        return true;
+    }
+
+    public boolean isListed() {
+        return flag("access.listed", true);
+    }
+
+    public void setListed(boolean listed) {
+        values.put("access.listed", listed);
     }
 
     public PortalRole role(UUID playerId) {

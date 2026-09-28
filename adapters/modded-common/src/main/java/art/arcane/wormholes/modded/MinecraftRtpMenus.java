@@ -5,22 +5,16 @@ import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.portal.rtp.RtpBiomeMatcher;
 import art.arcane.wormholes.portal.rtp.RtpPortalEditor;
 import art.arcane.wormholes.portal.rtp.RtpPortalEditorModel;
 import art.arcane.wormholes.portal.rtp.RtpService;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.wormholes.portal.rtp.RtpWorld;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.ItemLore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,48 +22,45 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 public final class MinecraftRtpMenus implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
+    private static final String POCKET_DIMENSION = "wormholes:pockets";
+
     private final WormholesModRuntime runtime;
     private final Map<UUID, Session> sessions = new HashMap<>();
-    private int ticks;
 
     public MinecraftRtpMenus(WormholesModRuntime runtime) {
-        this.runtime = Objects.requireNonNull(runtime);
+        this.runtime = Objects.requireNonNull(runtime, "runtime");
     }
 
     public void open(ServerPlayer viewer, UUID portalId) {
         MinecraftPortal portal = runtime.portals().get(portalId);
-        if (portal == null || portal.getType() != PortalType.RTP || !runtime.portals().canManage(viewer, portal)) {
+        if (portal == null || !ensureCanManage(viewer, portal)) {
             return;
         }
-        Session session = new Session(viewer, portal);
-        sessions.put(viewer.getUUID(), session);
-        MinecraftInventoryMenu.open(viewer, runtime.localization().text(viewer, WormholesMessages.PORTAL_RTP_EDITOR_TITLE,
-            Map.of("portal", portal.getName())), new MinecraftInventoryMenu.Actions(session::valid, session::render, session::click));
+        if (portal.getType() != PortalType.RTP) {
+            notifySetting(viewer, portal, WormholesMessages.PORTAL_NOT_RTP, MessageArgs.empty());
+            runtime.menus().open(viewer, portal.getId());
+            return;
+        }
+        Session replacement = new Session(viewer, portal);
+        Session previous = sessions.put(viewer.getUUID(), replacement);
+        if (previous != null) {
+            previous.close();
+        }
+        replacement.open();
     }
 
     public void tick() {
-        Iterator<Session> iterator = sessions.values().iterator();
-        boolean refresh = ++ticks % 20 == 0;
-        while (iterator.hasNext()) {
-            Session session = iterator.next();
-            if (session.viewer.containerMenu != session.menu) {
-                iterator.remove();
-            } else if (!session.valid()) {
-                iterator.remove();
-                session.viewer.closeContainer();
-            } else if (refresh) {
-                session.menu.refresh();
-            }
-        }
+        sessions.values().removeIf(session -> !session.window.isVisible());
     }
 
     public void disconnected(ServerPlayer viewer) {
@@ -78,12 +69,39 @@ public final class MinecraftRtpMenus implements AutoCloseable {
 
     @Override
     public void close() {
-        for (Session session : sessions.values()) {
-            if (session.viewer.containerMenu == session.menu) {
-                session.viewer.closeContainer();
-            }
+        for (Session session : List.copyOf(sessions.values())) {
+            session.close();
         }
         sessions.clear();
+    }
+
+    static List<RtpPortalEditorModel.BiomeOption> biomeOptions(List<String> registeredKeys) {
+        Map<String, RtpPortalEditorModel.BiomeOption> options = new LinkedHashMap<>();
+        for (String registeredKey : registeredKeys) {
+            String key = RtpBiomeMatcher.normalize(registeredKey);
+            if (key != null && !key.startsWith("iris:")) {
+                options.putIfAbsent(key, new RtpPortalEditorModel.BiomeOption(key, prettyPath(key), false));
+            }
+        }
+        List<RtpPortalEditorModel.BiomeOption> sorted = new ArrayList<>(options.values());
+        sorted.sort(Comparator
+            .comparing(RtpPortalEditorModel.BiomeOption::displayName, String.CASE_INSENSITIVE_ORDER)
+            .thenComparing(RtpPortalEditorModel.BiomeOption::key));
+        return List.copyOf(sorted);
+    }
+
+    private boolean ensureCanManage(ServerPlayer viewer, MinecraftPortal portal) {
+        if (runtime.portals().canManage(viewer, portal)) {
+            return true;
+        }
+        MinecraftMenuText.notice(viewer, MinecraftMenuText.text(viewer, WormholesMessages.PORTAL_EDIT_DENIED, MessageArgs.empty()));
+        viewer.closeContainer();
+        return false;
+    }
+
+    private void notifySetting(ServerPlayer viewer, MinecraftPortal portal, TextKey message, MessageArgs arguments) {
+        MinecraftMenuText.notifySuccess(viewer, MinecraftLegacyText.text(viewer, WormholesMessages.PORTAL_SETTING_NOTIFICATION,
+            MinecraftPortalText.arguments("portal", portal.getName(), "message", MinecraftMenuText.text(viewer, message, arguments).getString())));
     }
 
     private ServerLevel level(String key) {
@@ -104,216 +122,269 @@ public final class MinecraftRtpMenus implements AutoCloseable {
             level.getMinY(), level.getMaxY(), level.getSeaLevel());
     }
 
-    private static Map<String, Object> arguments(MessageArgs arguments) {
-        Map<String, Object> values = new HashMap<>();
-        arguments.arguments().forEach((name, argument) -> values.put(name, argument.value()));
-        return values;
+    private static String prettyPath(String key) {
+        int separator = key.lastIndexOf(':');
+        String path = separator < 0 ? key : key.substring(separator + 1);
+        String[] words = path.split("_");
+        StringBuilder pretty = new StringBuilder(path.length());
+        for (String word : words) {
+            if (word.isEmpty()) {
+                continue;
+            }
+            if (!pretty.isEmpty()) {
+                pretty.append(' ');
+            }
+            pretty.append(word.substring(0, 1).toUpperCase(Locale.ROOT)).append(word.substring(1));
+        }
+        return pretty.isEmpty() ? key : pretty.toString();
     }
 
-    private final class Session implements RtpPortalEditor.Host, RtpPortalEditor.View {
+    private final class Session implements RtpPortalEditor.Host {
         private final ServerPlayer viewer;
+        private final UUID viewerId;
         private final MinecraftPortal portal;
+        private final MinecraftWindow window;
         private final RtpPortalEditor editor;
-        private final Map<Integer, RtpPortalEditor.Entry> entries = new HashMap<>();
-        private MinecraftInventoryMenu menu;
-        private RtpSettings renderedSettings;
+        private final MinecraftRtpMenuView view;
+        private RtpSettings knownSettings;
         private long revision;
+        private long baseRevision;
 
         private Session(ServerPlayer viewer, MinecraftPortal portal) {
             this.viewer = viewer;
             this.portal = portal;
+            viewerId = viewer.getUUID();
+            window = new MinecraftWindow(runtime, viewer);
+            window.onClosed(closed -> sessions.remove(viewerId, this));
+            view = new MinecraftRtpMenuView(window);
             editor = new RtpPortalEditor(this);
+            baseRevision = revision();
         }
 
-        private boolean valid() {
-            return runtime.running() && !viewer.hasDisconnected() && sessions.get(viewer.getUUID()) == this
-                && runtime.portals().get(portal.getId()) == portal && portal.getType() == PortalType.RTP
-                && runtime.portals().canManage(viewer, portal);
+        private void open() {
+            editor.populate(view, viewerId);
+            window.setVisible(true);
         }
 
-        private void render(MinecraftInventoryMenu menu) {
-            this.menu = menu;
-            editor.populate(this, viewer.getUUID());
-        }
-
-        private void click(MinecraftInventoryMenu.Click click) {
-            if (!valid() || click.menu() != menu || viewer.containerMenu != menu || click.right() || click.shift() || click.middle()) {
-                return;
+        private void close() {
+            if (window.isVisible()) {
+                window.close();
             }
-            RtpPortalEditor.Entry entry = entries.get(click.slot());
-            if (entry != null) {
-                entry.activate();
-            }
+            sessions.remove(viewerId, this);
         }
 
         @Override
         public String text(TextKey key, MessageArgs arguments) {
-            return runtime.localization().text(viewer, key, arguments(arguments)).getString();
+            return MinecraftMenuText.text(viewer, key, arguments).getString();
         }
 
         @Override
-        public RtpPortalEditorModel.EditorSnapshot snapshot(UUID viewerId) {
-            if (!valid() || !viewer.getUUID().equals(viewerId)) {
+        public RtpPortalEditorModel.EditorSnapshot snapshot(UUID requestedViewerId) {
+            if (!viewerId.equals(requestedViewerId) || !active()) {
                 throw new IllegalStateException("RTP editor session is stale");
             }
+            baseRevision = revision();
             RtpSettings settings = runtime.rtp().settings(portal);
-            if (!settings.equals(renderedSettings)) {
-                renderedSettings = settings;
-                revision++;
-            }
             List<RtpPortalEditorModel.WorldOption> worlds = new ArrayList<>();
             for (ServerLevel level : runtime.server().getAllLevels()) {
-                if (!level.dimension().identifier().toString().equals("wormholes:pockets")) {
+                if (!level.dimension().identifier().toString().equals(POCKET_DIMENSION)) {
                     worlds.add(RtpPortalEditorModel.WorldOption.from(world(level)));
                 }
             }
-            boolean available = level(settings.getTargetWorldKey()) != null;
-            RtpService.Snapshot state = runtime.rtp().snapshot(portal.getId()).orElse(null);
-            RtpPortalEditorModel.StatusSnapshot status = state == null
-                ? new RtpPortalEditorModel.StatusSnapshot(available ? RtpPortalEditorModel.StatusState.IDLE
-                    : RtpPortalEditorModel.StatusState.TARGET_WORLD_UNAVAILABLE, available, true, false, false, 0, 0, 0, 0, 0, 0)
-                : RtpPortalEditorModel.StatusSnapshot.from(state.runtime(), new RtpPortalEditorModel.StatusContext(
-                    available, state.integrationAvailable(), System.currentTimeMillis(), state.nextSearchAllowedAtMillis()));
+            boolean targetWorldAvailable = level(settings.getTargetWorldKey()) != null;
+            Optional<RtpService.Snapshot> state = runtime.rtp().snapshot(portal.getId());
+            RtpPortalEditorModel.StatusSnapshot status = state.isEmpty() ? idleStatus(targetWorldAvailable)
+                : RtpPortalEditorModel.StatusSnapshot.from(state.get().runtime(), new RtpPortalEditorModel.StatusContext(
+                    level(state.get().settings().getTargetWorldKey()) != null, state.get().integrationAvailable(),
+                    System.currentTimeMillis(), state.get().nextSearchAllowedAtMillis()));
             GeometryVector center = portal.getGeometry().getApertureCenter();
-            return new RtpPortalEditorModel.EditorSnapshot(revision, portal.getName(), RtpPortalEditorModel.SettingsSnapshot.from(settings),
-                status, worlds, center.x(), center.z());
+            return new RtpPortalEditorModel.EditorSnapshot(
+                baseRevision,
+                text(WormholesMessages.PORTAL_RTP_EDITOR_TITLE, MinecraftPortalText.arguments("portal", portal.getName())),
+                RtpPortalEditorModel.SettingsSnapshot.from(settings),
+                status,
+                worlds,
+                center.x(),
+                center.z());
         }
 
         @Override
-        public List<RtpPortalEditorModel.BiomeOption> biomeOptions(UUID viewerId) {
-            if (!valid() || !viewer.getUUID().equals(viewerId)) {
+        public List<RtpPortalEditorModel.BiomeOption> biomeOptions(UUID requestedViewerId) {
+            if (!viewerId.equals(requestedViewerId) || !active()) {
                 return List.of();
             }
             ServerLevel target = level(runtime.rtp().settings(portal).getTargetWorldKey());
             if (target == null) {
                 return List.of();
             }
-            List<RtpPortalEditorModel.BiomeOption> options = new ArrayList<>();
+            List<String> keys = new ArrayList<>();
             for (Identifier id : target.registryAccess().lookupOrThrow(Registries.BIOME).keySet()) {
-                options.add(new RtpPortalEditorModel.BiomeOption(id.toString(), id.toString(), false));
+                keys.add(id.toString());
             }
-            options.sort(Comparator.comparing(RtpPortalEditorModel.BiomeOption::key));
-            return List.copyOf(options);
-        }
-
-        private boolean current(UUID viewerId, long expectedRevision) {
-            if (!valid() || !viewer.getUUID().equals(viewerId)) {
-                return false;
-            }
-            if (revision != expectedRevision || !runtime.rtp().settings(portal).equals(renderedSettings)) {
-                notice(WormholesMessages.PORTAL_RTP_EDITOR_REFRESHED);
-                menu.refresh();
-                return false;
-            }
-            return true;
+            return MinecraftRtpMenus.biomeOptions(keys);
         }
 
         @Override
-        public void mutate(UUID viewerId, long expectedRevision, RtpPortalEditorModel.Mutation mutation) {
-            if (!current(viewerId, expectedRevision)) {
+        public void mutate(UUID requestedViewerId, long expectedRevision, RtpPortalEditorModel.Mutation mutation) {
+            if (viewer.hasDisconnected() || !viewerId.equals(requestedViewerId)) {
+                return;
+            }
+            runtime.schedule(() -> mutateForViewer(expectedRevision, mutation), 1L);
+        }
+
+        @Override
+        public void reset(UUID requestedViewerId, long expectedRevision) {
+            if (viewer.hasDisconnected() || !viewerId.equals(requestedViewerId)) {
+                return;
+            }
+            runtime.schedule(() -> resetForViewer(expectedRevision), 1L);
+        }
+
+        @Override
+        public void manual(UUID requestedViewerId, long expectedRevision, RtpPortalEditorModel.ManualAction action) {
+            if (viewer.hasDisconnected() || !viewerId.equals(requestedViewerId)) {
+                return;
+            }
+            runtime.schedule(() -> manualForViewer(expectedRevision, action), 1L);
+        }
+
+        @Override
+        public void back(UUID requestedViewerId) {
+            if (viewer.hasDisconnected() || !viewerId.equals(requestedViewerId)) {
+                return;
+            }
+            runtime.schedule(() -> {
+                close();
+                runtime.menus().open(viewer, portal.getId());
+            }, 1L);
+        }
+
+        private void mutateForViewer(long expectedRevision, RtpPortalEditorModel.Mutation mutation) {
+            if (!ensureCanManage(viewer, portal)) {
+                close();
+                return;
+            }
+            if (!active()) {
+                refresh(WormholesMessages.PORTAL_NOT_RTP, MessageArgs.empty());
+                return;
+            }
+            if (baseRevision != expectedRevision || revision() != baseRevision) {
+                baseRevision = revision();
+                refresh(WormholesMessages.PORTAL_RTP_EDITOR_REFRESHED, MessageArgs.empty());
+                return;
+            }
+            RtpWorld sourceWorld = world(level(portal.getWorldKey()));
+            if (sourceWorld == null) {
+                refresh(WormholesMessages.PORTAL_REGION_UNAVAILABLE, MessageArgs.empty());
                 return;
             }
             try {
-                RtpSettings changed = RtpPortalEditorModel.applyMutation(renderedSettings, mutation,
-                    world(level(portal.getWorldKey())), key -> world(level(key)));
+                RtpSettings changed = RtpPortalEditorModel.applyMutation(runtime.rtp().settings(portal), mutation, sourceWorld,
+                    key -> world(level(key)));
                 runtime.portals().update(viewer, portal.getId(), target -> target.setRtpSettings(changed));
-                notice(WormholesMessages.PORTAL_RTP_APPLIED);
-                menu.refresh();
-            } catch (IllegalArgumentException failure) {
-                viewer.sendSystemMessage(runtime.localization().text(viewer, WormholesMessages.PORTAL_RTP_SETTING_REJECTED,
-                    Map.of("reason", Objects.toString(failure.getMessage(), "Invalid setting"))));
-                menu.refresh();
+                baseRevision = revision();
+                refresh(WormholesMessages.PORTAL_RTP_APPLIED, MessageArgs.empty());
+            } catch (IllegalArgumentException | IllegalStateException exception) {
+                refresh(WormholesMessages.PORTAL_RTP_SETTING_REJECTED,
+                    MinecraftPortalText.arguments("reason", Objects.toString(exception.getMessage(), "")));
             }
         }
 
-        @Override
-        public void reset(UUID viewerId, long expectedRevision) {
-            if (!current(viewerId, expectedRevision)) {
+        private void resetForViewer(long expectedRevision) {
+            if (!ensureCanManage(viewer, portal)) {
+                close();
                 return;
             }
-            RtpSettings defaults = RtpSettings.defaults(world(level(portal.getWorldKey())));
+            if (!active()) {
+                refresh(WormholesMessages.PORTAL_NOT_RTP, MessageArgs.empty());
+                return;
+            }
+            if (baseRevision != expectedRevision || revision() != baseRevision) {
+                baseRevision = revision();
+                refresh(WormholesMessages.PORTAL_RTP_EDITOR_REFRESHED, MessageArgs.empty());
+                return;
+            }
+            RtpWorld sourceWorld = world(level(portal.getWorldKey()));
+            if (sourceWorld == null) {
+                refresh(WormholesMessages.PORTAL_REGION_UNAVAILABLE, MessageArgs.empty());
+                return;
+            }
+            RtpSettings defaults = RtpSettings.defaults(sourceWorld);
             runtime.portals().update(viewer, portal.getId(), target -> target.setRtpSettings(defaults));
-            notice(WormholesMessages.PORTAL_RTP_RESET_DEFAULTS);
-            menu.refresh();
+            baseRevision = revision();
+            refresh(WormholesMessages.PORTAL_RTP_RESET_DEFAULTS, MessageArgs.empty());
         }
 
-        @Override
-        public void manual(UUID viewerId, long expectedRevision, RtpPortalEditorModel.ManualAction action) {
-            if (!current(viewerId, expectedRevision)) {
+        private void manualForViewer(long expectedRevision, RtpPortalEditorModel.ManualAction action) {
+            if (!ensureCanManage(viewer, portal)) {
+                close();
+                return;
+            }
+            if (!active() || baseRevision != expectedRevision || revision() != baseRevision) {
+                refresh(WormholesMessages.PORTAL_RTP_EDITOR_REFRESHED, MessageArgs.empty());
                 return;
             }
             if (action == RtpPortalEditorModel.ManualAction.REROLL) {
-                runtime.rtp().reroll(portal.getId()).whenComplete((accepted, error) -> runtime.server().execute(() -> {
-                    complete(error, error != null ? WormholesMessages.PORTAL_RTP_REROLL_FAILED
-                        : Boolean.TRUE.equals(accepted) ? WormholesMessages.PORTAL_RTP_REROLL_PREPARING : WormholesMessages.PORTAL_RTP_REROLL_UNAVAILABLE);
-                }));
-            } else {
-                runtime.rtp().rebuild(portal.getId()).whenComplete((destinations, error) -> runtime.server().execute(() ->
-                    complete(error, error == null ? WormholesMessages.PORTAL_RTP_POOL_REBUILDING : WormholesMessages.PORTAL_RTP_POOL_FAILED)));
+                runtime.rtp().reroll(portal.getId()).whenComplete((accepted, failure) -> {
+                    if (failure != null) {
+                        LOGGER.error("Could not reroll the random destination of portal {}", portal.getId(), failure);
+                    }
+                    refresh(failure != null
+                        ? WormholesMessages.PORTAL_RTP_REROLL_FAILED
+                        : Boolean.TRUE.equals(accepted)
+                            ? WormholesMessages.PORTAL_RTP_REROLL_PREPARING
+                            : WormholesMessages.PORTAL_RTP_REROLL_UNAVAILABLE, MessageArgs.empty());
+                });
+                return;
             }
-        }
-
-        private void complete(Throwable error, TextKey key) {
-            if (error != null) {
-                LOGGER.error("Could not update random destinations for portal {}", portal.getId(), error);
-            }
-            if (valid() && viewer.containerMenu == menu) {
-                notice(key);
-                menu.refresh();
-            }
-        }
-
-        private void notice(TextKey key) {
-            viewer.sendSystemMessage(runtime.localization().text(viewer, key, Map.of()));
-        }
-
-        @Override
-        public void back(UUID viewerId) {
-            if (viewer.getUUID().equals(viewerId)) {
-                runtime.menus().open(viewer, portal.getId());
-            }
-        }
-
-        @Override
-        public void configure(String title) {
-        }
-
-        @Override
-        public void clearElements() {
-            entries.clear();
-            for (int slot = 0; slot < 54; slot++) {
-                ItemStack background = new ItemStack(Items.STAINED_GLASS_PANE.black());
-                background.set(DataComponents.CUSTOM_NAME, Component.empty());
-                menu.set(slot, background);
-            }
-        }
-
-        @Override
-        public void setElement(int position, int row, RtpPortalEditor.Entry entry) {
-            int slot = row * 9 + position + 4;
-            entries.put(slot, entry);
-            Item material = BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace(entry.icon().name().toLowerCase(Locale.ROOT)));
-            ItemStack item = MinecraftMenuText.item(viewer, material, entry.key(), arguments(entry.arguments()));
-            item.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, entry.selected());
-            if (!entry.lore().isEmpty()) {
-                List<Component> lore = new ArrayList<>(item.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines());
-                for (String line : entry.lore()) {
-                    lore.add(Component.literal(line));
+            runtime.rtp().rebuild(portal.getId()).whenComplete((removed, failure) -> {
+                if (failure != null) {
+                    LOGGER.error("Could not rebuild the random destination pool of portal {}", portal.getId(), failure);
                 }
-                item.set(DataComponents.LORE, new ItemLore(lore));
+                refresh(failure == null
+                    ? WormholesMessages.PORTAL_RTP_POOL_REBUILDING
+                    : WormholesMessages.PORTAL_RTP_POOL_FAILED, MessageArgs.empty());
+            });
+        }
+
+        private void refresh(TextKey message, MessageArgs arguments) {
+            runtime.schedule(() -> {
+                if (viewer.hasDisconnected()) {
+                    sessions.remove(viewerId, this);
+                    return;
+                }
+                notifySetting(viewer, portal, message, arguments);
+                if (!active()) {
+                    close();
+                    if (runtime.portals().get(portal.getId()) == portal) {
+                        runtime.menus().open(viewer, portal.getId());
+                    }
+                    return;
+                }
+                if (window.isVisible()) {
+                    editor.populate(view, viewerId);
+                    window.updateInventory();
+                }
+            }, 1L);
+        }
+
+        private boolean active() {
+            return runtime.portals().get(portal.getId()) == portal && portal.getType() == PortalType.RTP;
+        }
+
+        private long revision() {
+            RtpSettings settings = runtime.rtp().settings(portal);
+            if (!settings.equals(knownSettings)) {
+                knownSettings = settings;
+                revision++;
             }
-            menu.set(slot, item);
+            return revision;
         }
 
-        @Override
-        public void updateInventory() {
-            menu.broadcastFullState();
-        }
-
-        @Override
-        public void close() {
-            viewer.closeContainer();
-            sessions.remove(viewer.getUUID(), this);
+        private RtpPortalEditorModel.StatusSnapshot idleStatus(boolean targetWorldAvailable) {
+            return new RtpPortalEditorModel.StatusSnapshot(
+                targetWorldAvailable ? RtpPortalEditorModel.StatusState.IDLE : RtpPortalEditorModel.StatusState.TARGET_WORLD_UNAVAILABLE,
+                targetWorldAvailable, true, false, false, 0L, 0L, 0, 0, 0, 0);
         }
     }
 }
