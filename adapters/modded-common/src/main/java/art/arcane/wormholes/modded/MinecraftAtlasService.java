@@ -205,7 +205,7 @@ public final class MinecraftAtlasService implements AutoCloseable {
         }
         MinecraftPortal destination = portal.getDestinationId() == null ? null : runtime.portals().get(portal.getDestinationId());
         return new AtlasModel.Row(portal.getId(), portal.getName(), portal.getWorldKey(),
-            destination == null ? "" : destination.getName(), address, distance, portal.isOpen(), false, listed);
+            destination == null ? "" : destination.getName(), address, distance, portal.isOpen() && runtime.effects().ready(portal), false, listed);
     }
 
     private AtlasPlayerState state(ServerPlayer player) {

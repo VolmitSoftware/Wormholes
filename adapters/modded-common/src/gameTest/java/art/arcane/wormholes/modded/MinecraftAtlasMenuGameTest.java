@@ -91,8 +91,7 @@ public final class MinecraftAtlasMenuGameTest {
             }).thenCompose(ignored -> {
                 click(slotOf(second), 0, ContainerInput.PICKUP);
                 return await(() -> received(text(AtlasMessages.ROW, MinecraftPortalText.arguments("portal", second.getName(),
-                    "destination", second.getWorldKey(), "state", text(second.isOpen() ? WormholesMessages.LABEL_OPEN : WormholesMessages.LABEL_CLOSED,
-                        MessageArgs.empty())))));
+                    "destination", second.getWorldKey(), "state", text(WormholesMessages.LABEL_CLOSED, MessageArgs.empty())))));
             }).thenCompose(ignored -> {
                 helper.assertTrue(window() != null && window().isVisible(), "Dialing an unnetworked atlas row closed the atlas");
                 command("atlas guide " + second.getName());

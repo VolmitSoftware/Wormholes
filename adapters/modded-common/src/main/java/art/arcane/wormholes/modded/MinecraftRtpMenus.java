@@ -105,7 +105,7 @@ public final class MinecraftRtpMenus implements AutoCloseable {
         }
         String key = level.dimension().identifier().toString();
         return new RtpWorld(UUID.nameUUIDFromBytes(key.getBytes(StandardCharsets.UTF_8)), key,
-            level.getMinY(), level.getMaxY(), level.getSeaLevel());
+            level.getMinY(), level.getMaxY() + 1, level.getSeaLevel());
     }
 
     private static String prettyPath(String key) {
