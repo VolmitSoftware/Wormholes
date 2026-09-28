@@ -38,6 +38,7 @@ public final class NeoForgeGameTests {
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
             WormholesGameTests.RECIPE_BOOK_RUNTIME, () -> WormholesGameTests::recipeBookRuntime));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION, WormholesGameTests.EFFECTS_RUNTIME, () -> WormholesGameTests::effectsRuntime));
+        bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION, WormholesGameTests.LOOK_LABEL_RUNTIME, () -> WormholesGameTests::lookLabelRuntime));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
             WormholesGameTests.RTP_RUNTIME, () -> WormholesGameTests::rtpRuntime));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,

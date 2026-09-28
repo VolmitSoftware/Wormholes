@@ -34,6 +34,8 @@ public final class ForgeGameTests {
         RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.EFFECTS_RUNTIME, () -> WormholesGameTests::effectsRuntime));
         RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
+            event.register(Registries.TEST_FUNCTION, WormholesGameTests.LOOK_LABEL_RUNTIME, () -> WormholesGameTests::lookLabelRuntime));
+        RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.RTP_RUNTIME, () -> WormholesGameTests::rtpRuntime));
         RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.ENTITY_PROJECTION_RUNTIME, () -> WormholesGameTests::entityProjectionRuntime));

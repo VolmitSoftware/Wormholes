@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-final class PortalToolHolderPolicy
+public final class PortalToolHolderPolicy
 {
 	private static final Comparator<HolderState> OLDEST_FIRST = Comparator
 		.comparingLong(HolderState::lastAdmissionOrder)
@@ -22,13 +22,13 @@ final class PortalToolHolderPolicy
 	private long leaseSequence;
 	private long selectionPass;
 
-	PortalToolHolderPolicy(int fallbackIntervalTicks)
+	public PortalToolHolderPolicy(int fallbackIntervalTicks)
 	{
 		this.fallbackIntervalTicks = Math.max(1, fallbackIntervalTicks);
 		states = new HashMap<UUID, HolderState>();
 	}
 
-	synchronized List<Admission> acquireValidations(Collection<UUID> onlinePlayerIds, long currentTick, int maxAdmissions)
+	public synchronized List<Admission> acquireValidations(Collection<UUID> onlinePlayerIds, long currentTick, int maxAdmissions)
 	{
 		Set<UUID> online = new HashSet<UUID>(onlinePlayerIds);
 		states.keySet().removeIf(playerId -> !online.contains(playerId));
@@ -100,14 +100,14 @@ final class PortalToolHolderPolicy
 		return admissions;
 	}
 
-	synchronized void markDirty(UUID playerId)
+	public synchronized void markDirty(UUID playerId)
 	{
 		HolderState state = states.computeIfAbsent(playerId, id -> new HolderState(id, Long.MAX_VALUE));
 		state.mutationVersion++;
 		state.dirty = true;
 	}
 
-	synchronized void completeValidation(Admission admission, boolean confirmedHolder, long currentTick)
+	public synchronized void completeValidation(Admission admission, boolean confirmedHolder, long currentTick)
 	{
 		HolderState state = matchingState(admission);
 		if(state == null)
@@ -120,7 +120,7 @@ final class PortalToolHolderPolicy
 		state.nextFallbackTick = currentTick + fallbackIntervalTicks;
 	}
 
-	synchronized void rejectValidation(Admission admission)
+	public synchronized void rejectValidation(Admission admission)
 	{
 		HolderState state = matchingState(admission);
 		if(state == null)
@@ -132,12 +132,12 @@ final class PortalToolHolderPolicy
 		state.lastAdmissionOrder = admission.previousOrder();
 	}
 
-	synchronized void remove(UUID playerId)
+	public synchronized void remove(UUID playerId)
 	{
 		states.remove(playerId);
 	}
 
-	synchronized void clear()
+	public synchronized void clear()
 	{
 		states.clear();
 	}
@@ -193,7 +193,7 @@ final class PortalToolHolderPolicy
 		return capacity - Math.max(1, capacity / 4);
 	}
 
-	record Admission(UUID playerId, long leaseToken, long previousOrder)
+	public record Admission(UUID playerId, long leaseToken, long previousOrder)
 	{
 	}
 

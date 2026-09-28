@@ -26,6 +26,7 @@ public final class FabricTestBootstrap extends TestFunctionLoader implements Pre
         register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.OPS_RUNTIME), WormholesGameTests::opsRuntime);
         register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.RECIPE_BOOK_RUNTIME), WormholesGameTests::recipeBookRuntime);
         register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.EFFECTS_RUNTIME), WormholesGameTests::effectsRuntime);
+        register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.LOOK_LABEL_RUNTIME), WormholesGameTests::lookLabelRuntime);
         register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.ENTITY_TRANSFERS_RUNTIME), WormholesGameTests::entityTransfersRuntime);
         register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.NEXUS_RUNTIME), WormholesGameTests::nexusRuntime);
         register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.RTP_RUNTIME), WormholesGameTests::rtpRuntime);

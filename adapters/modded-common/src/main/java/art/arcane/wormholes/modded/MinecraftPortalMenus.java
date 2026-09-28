@@ -15,9 +15,6 @@ import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.wormholes.util.Direction;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -36,10 +33,7 @@ import java.util.function.Consumer;
 
 public final class MinecraftPortalMenus implements AutoCloseable {
     private static final Map<MinecraftServer, MinecraftPortalMenus> SERVICES = new HashMap<>();
-    private static final long SHORT_TITLE_FRESH_LOOK_TICKS = 8L;
-    private static final int SHORT_TITLE_FADE_IN_TICKS = 5;
-    private static final int SHORT_TITLE_STAY_TICKS = 7;
-    private static final int SHORT_TITLE_FADE_OUT_TICKS = 5;
+    private static final long SHORT_TITLE_EXPIRY_INTERVAL_TICKS = 200L;
     private static final String GRAY_BOLD = "§7§l";
 
     private final WormholesModRuntime runtime;
@@ -50,6 +44,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
     private final MinecraftPortalExtensionsMenu extensionsMenu;
     private final MinecraftPortalDestinationMenu destinationMenu;
     private final MinecraftRtpMenus rtpEditor;
+    private final MinecraftShortTitles shortTitles;
     private final Map<UUID, DirectionPrompt> directions = new HashMap<>();
     private final Map<UUID, PortalWindow> openMenus = new HashMap<>();
     private final Map<UUID, PortalWindow> windows = new HashMap<>();
@@ -70,6 +65,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
             new MinecraftFidelityMenuEntry(runtime)));
         destinationMenu = new MinecraftPortalDestinationMenu(runtime, this);
         rtpEditor = new MinecraftRtpMenus(runtime);
+        shortTitles = new MinecraftShortTitles(() -> runtime.server().getTickCount());
     }
 
     public static boolean packetInteraction(ServerPlayer player, InteractionHand hand, boolean attack) {
@@ -104,6 +100,9 @@ public final class MinecraftPortalMenus implements AutoCloseable {
         rtpEditor.tick();
         closeRevokedWindows();
         showDirectionTitles();
+        if (ticks % SHORT_TITLE_EXPIRY_INTERVAL_TICKS == 0L) {
+            shortTitles.expire();
+        }
     }
 
     public void playerDisconnected(ServerPlayer player) {
@@ -121,6 +120,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
         SERVICES.remove(server, this);
         rtpEditor.close();
         costMenu.close();
+        shortTitles.clear();
         directions.clear();
         openMenus.clear();
         windows.clear();
@@ -129,6 +129,14 @@ public final class MinecraftPortalMenus implements AutoCloseable {
 
     public MinecraftRulesMenus rules() {
         return rules;
+    }
+
+    MinecraftShortTitles shortTitles() {
+        return shortTitles;
+    }
+
+    boolean choosingDirection(ServerPlayer player) {
+        return directions.containsKey(player.getUUID());
     }
 
     public void refresh(UUID portalId) {
@@ -287,7 +295,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
         for (Component line : MinecraftMenuText.lines(runtime.localization().snapshot(viewer), WormholesMessages.PORTAL_PROMPT_DIRECTION, Map.of())) {
             viewer.sendSystemMessage(line);
         }
-        directions.put(viewer.getUUID(), new DirectionPrompt(viewer, portal.getId(), -1L, -1L));
+        directions.put(viewer.getUUID(), new DirectionPrompt(viewer, portal.getId()));
     }
 
     void uiOpenGatewayPairMenu(ServerPlayer viewer, MinecraftPortal portal) {
@@ -714,27 +722,17 @@ public final class MinecraftPortalMenus implements AutoCloseable {
     }
 
     private void showDirectionTitles() {
-        Iterator<Map.Entry<UUID, DirectionPrompt>> iterator = directions.entrySet().iterator();
+        Iterator<DirectionPrompt> iterator = directions.values().iterator();
         while (iterator.hasNext()) {
-            Map.Entry<UUID, DirectionPrompt> entry = iterator.next();
-            DirectionPrompt prompt = entry.getValue();
+            DirectionPrompt prompt = iterator.next();
             ServerPlayer player = prompt.player();
             if (player.hasDisconnected()) {
                 iterator.remove();
                 continue;
             }
-            boolean fresh = prompt.lastSentTick() < 0L || ticks - prompt.lastSentTick() > SHORT_TITLE_FRESH_LOOK_TICKS;
-            long lookStart = fresh ? ticks : prompt.lookStartTick();
-            entry.setValue(new DirectionPrompt(player, prompt.portalId(), lookStart, ticks));
-            if (!fresh && ticks - lookStart < SHORT_TITLE_FADE_IN_TICKS) {
-                continue;
-            }
             Vec3 look = player.getLookAngle();
-            String label = GRAY_BOLD + MinecraftPortalText.directionLabel(player, Direction.closest(look.x, look.y, look.z));
-            player.connection.send(new ClientboundSetTitlesAnimationPacket(fresh ? SHORT_TITLE_FADE_IN_TICKS : 0,
-                SHORT_TITLE_STAY_TICKS, SHORT_TITLE_FADE_OUT_TICKS));
-            player.connection.send(new ClientboundSetSubtitleTextPacket(MinecraftLegacyText.component(label)));
-            player.connection.send(new ClientboundSetTitleTextPacket(Component.empty()));
+            shortTitles.send(player, prompt.portalId(),
+                GRAY_BOLD + MinecraftPortalText.directionLabel(player, Direction.closest(look.x, look.y, look.z)));
         }
     }
 
@@ -799,7 +797,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
         }
     }
 
-    private record DirectionPrompt(ServerPlayer player, UUID portalId, long lookStartTick, long lastSentTick) {
+    private record DirectionPrompt(ServerPlayer player, UUID portalId) {
     }
 
     private record PortalWindow(UUID portalId, MinecraftWindow window) {
