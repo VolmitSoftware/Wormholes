@@ -139,18 +139,12 @@ public final class MinecraftAtlasService implements AutoCloseable {
     }
 
     void withState(ServerPlayer player, Consumer<AtlasPlayerState> action) {
-        AtlasPlayerState state = state(player);
-        if (state != null) {
-            action.accept(state);
-            return;
-        }
-        CompletableFuture<AtlasPlayerState> future = loading.get(player.getUUID());
-        if (future == null) {
+        if (!running) {
             return;
         }
         MinecraftServer server = runtime.server();
         AtlasPlayerStore activeStore = store;
-        future.whenComplete((loaded, error) -> server.execute(() -> {
+        load(player).whenComplete((loaded, error) -> server.execute(() -> {
             if (running && store == activeStore && error == null && !player.hasDisconnected()) {
                 action.accept(loaded);
             }
@@ -216,19 +210,30 @@ public final class MinecraftAtlasService implements AutoCloseable {
         if (state != null) {
             return state;
         }
+        load(player);
+        return store.cached(player.getUUID());
+    }
+
+    private CompletableFuture<AtlasPlayerState> load(ServerPlayer player) {
         UUID id = player.getUUID();
-        if (!loading.containsKey(id)) {
-            AtlasPlayerStore activeStore = store;
-            MinecraftServer server = runtime.server();
-            CompletableFuture<AtlasPlayerState> future = CompletableFuture.supplyAsync(() -> activeStore.load(id), storage);
-            loading.put(id, future);
-            future.whenComplete((loaded, error) -> server.execute(() -> {
-                if (running && store == activeStore && loading.remove(id, future) && error != null) {
-                    LOGGER.error("Could not load portal atlas for {}", id, error);
-                }
-            }));
+        AtlasPlayerState cached = store.cached(id);
+        if (cached != null) {
+            return CompletableFuture.completedFuture(cached);
         }
-        return null;
+        CompletableFuture<AtlasPlayerState> pending = loading.get(id);
+        if (pending != null) {
+            return pending;
+        }
+        AtlasPlayerStore activeStore = store;
+        MinecraftServer server = runtime.server();
+        CompletableFuture<AtlasPlayerState> future = CompletableFuture.supplyAsync(() -> activeStore.load(id), storage);
+        loading.put(id, future);
+        future.whenComplete((loaded, error) -> server.execute(() -> {
+            if (running && store == activeStore && loading.remove(id, future) && error != null) {
+                LOGGER.error("Could not load portal atlas for {}", id, error);
+            }
+        }));
+        return future;
     }
 
     private void rebuildIndex() {

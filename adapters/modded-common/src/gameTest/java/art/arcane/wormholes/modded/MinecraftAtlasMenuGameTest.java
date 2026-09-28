@@ -3,6 +3,8 @@ package art.arcane.wormholes.modded;
 import art.arcane.volmlib.util.localization.LinesKey;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.TextKey;
+import art.arcane.wormholes.atlas.AtlasModel;
+import art.arcane.wormholes.atlas.AtlasPlayerStore;
 import art.arcane.wormholes.config.toml.AtlasConfig;
 import art.arcane.wormholes.localization.AtlasMessages;
 import art.arcane.wormholes.localization.WormholesMessages;
@@ -18,8 +20,10 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BooleanSupplier;
 
@@ -62,40 +66,40 @@ public final class MinecraftAtlasMenuGameTest {
             helper.assertTrue(received(MinecraftLegacyText.component(line).getString()), "Atlas usage line was not sent: " + line);
         }
         command("atlas");
-        return await(() -> window() != null && window().getTitle().equals(title(candidates())))
+        return await("open", () -> window() != null && window().getTitle().equals(title(candidates())))
             .thenCompose(ignored -> {
                 layout();
                 click(slotOf(first), 1, ContainerInput.PICKUP);
-                return await(() -> slotOf(first) == 0 && item(0).has(DataComponents.ENCHANTMENT_GLINT_OVERRIDE)
+                return await("pin", () -> slotOf(first) == 0 && item(0).has(DataComponents.ENCHANTMENT_GLINT_OVERRIDE)
                     && received(text(AtlasMessages.FAVORITE_ADDED, MinecraftPortalText.arguments("portal", first.getName()))));
             }).thenCompose(ignored -> {
                 click(slotOf(first), 0, ContainerInput.QUICK_MOVE);
-                return await(() -> item(GUIDE_SLOT).is(Items.COMPASS)
+                return await("guide", () -> item(GUIDE_SLOT).is(Items.COMPASS)
                     && received(text(AtlasMessages.GUIDE_SET, MinecraftPortalText.arguments("portal", first.getName()))));
             }).thenCompose(ignored -> {
                 helper.assertTrue(name(GUIDE_SLOT).equals(firstLine(AtlasMessages.MENU_GUIDE, MinecraftPortalText.arguments("portal", first.getName()))),
                     "Atlas guide control does not name the guided portal");
                 click(GUIDE_SLOT, 0, ContainerInput.PICKUP);
-                return await(() -> item(GUIDE_SLOT).is(Items.STAINED_GLASS_PANE.blue())
+                return await("guide-clear", () -> item(GUIDE_SLOT).is(Items.STAINED_GLASS_PANE.blue())
                     && received(text(AtlasMessages.GUIDE_CLEARED, MessageArgs.empty())));
             }).thenCompose(ignored -> {
                 click(FAVORITES_SLOT, 0, ContainerInput.PICKUP);
-                return await(() -> window() != null && window().getTitle().equals(title(1)) && slotOf(first) == 0
+                return await("favorites-filter", () -> window() != null && window().getTitle().equals(title(1)) && slotOf(first) == 0
                     && name(FAVORITES_SLOT).equals(firstLine(AtlasMessages.MENU_FAVORITES, MinecraftPortalText.arguments("state", "true"))));
             }).thenCompose(ignored -> {
                 click(FAVORITES_SLOT, 0, ContainerInput.PICKUP);
-                return await(() -> window() != null && window().getTitle().equals(title(candidates())));
+                return await("all-filter", () -> window() != null && window().getTitle().equals(title(candidates())));
             }).thenCompose(ignored -> {
                 click(SORT_SLOT, 0, ContainerInput.PICKUP);
-                return await(() -> name(SORT_SLOT).equals(sortName(WormholesMessages.PORTAL_MENU_DESTINATION_SORT_NAME)));
+                return await("sort", () -> name(SORT_SLOT).equals(sortName(WormholesMessages.PORTAL_MENU_DESTINATION_SORT_NAME)));
             }).thenCompose(ignored -> {
                 click(slotOf(second), 0, ContainerInput.PICKUP);
-                return await(() -> received(text(AtlasMessages.ROW, MinecraftPortalText.arguments("portal", second.getName(),
+                return await("dial-row", () -> received(text(AtlasMessages.ROW, MinecraftPortalText.arguments("portal", second.getName(),
                     "destination", second.getWorldKey(), "state", text(WormholesMessages.LABEL_CLOSED, MessageArgs.empty())))));
             }).thenCompose(ignored -> {
                 helper.assertTrue(window() != null && window().isVisible(), "Dialing an unnetworked atlas row closed the atlas");
                 command("atlas guide " + second.getName());
-                return await(() -> received(text(AtlasMessages.GUIDE_SET, MinecraftPortalText.arguments("portal", second.getName()))));
+                return await("guide-command", () -> received(text(AtlasMessages.GUIDE_SET, MinecraftPortalText.arguments("portal", second.getName()))));
             }).thenApply(ignored -> {
                 command("atlas guide off");
                 helper.assertTrue(received(text(AtlasMessages.GUIDE_CLEARED, MessageArgs.empty())), "Atlas guide off did not clear the guide");
@@ -203,20 +207,20 @@ public final class MinecraftAtlasMenuGameTest {
         return cells;
     }
 
-    private CompletableFuture<Boolean> await(BooleanSupplier condition) {
-        return await(condition, 0);
+    private CompletableFuture<Boolean> await(String step, BooleanSupplier condition) {
+        return await(step, condition, 0);
     }
 
-    private CompletableFuture<Boolean> await(BooleanSupplier condition, int ticks) {
+    private CompletableFuture<Boolean> await(String step, BooleanSupplier condition, int ticks) {
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         if (!runtime.schedule(() -> {
             try {
                 if (condition.getAsBoolean()) {
                     result.complete(true);
                 } else if (ticks >= 100) {
-                    result.completeExceptionally(new IllegalStateException("Atlas menu change did not happen within 100 ticks"));
+                    result.completeExceptionally(new IllegalStateException("Atlas menu step " + step + " did not happen within 100 ticks: " + observed()));
                 } else {
-                    await(condition, ticks + 1).whenComplete((value, failure) -> {
+                    await(step, condition, ticks + 1).whenComplete((value, failure) -> {
                         if (failure == null) {
                             result.complete(value);
                         } else {
@@ -228,8 +232,50 @@ public final class MinecraftAtlasMenuGameTest {
                 result.completeExceptionally(failure);
             }
         }, 1L)) {
-            result.completeExceptionally(new IllegalStateException("Atlas menu test scheduler stopped"));
+            result.completeExceptionally(new IllegalStateException("Atlas menu test scheduler stopped during " + step));
         }
         return result;
+    }
+
+    private String observed() {
+        MinecraftWindow window = window();
+        StringBuilder state = new StringBuilder();
+        state.append("tick=").append(runtime.server().getTickCount());
+        state.append(" window=").append(window == null ? "none" : "'" + window.getTitle() + "' visible=" + window.isVisible());
+        state.append(" container=").append(viewer.player().containerMenu.getClass().getSimpleName());
+        state.append(" expectedTitle='").append(title(candidates())).append("'");
+        state.append(" candidates=[");
+        for (AtlasModel.Row row : runtime.atlas().candidates(viewer.player())) {
+            state.append(row.name()).append('@').append(row.world()).append(row.open() ? " open" : " closed").append("; ");
+        }
+        state.append("] shown=[");
+        for (int slot = 0; slot < 54; slot++) {
+            ItemStack item = item(slot);
+            if (!item.isEmpty() && !item.is(Items.STAINED_GLASS_PANE.blue())) {
+                state.append(slot).append(':').append(name(slot)).append('(').append(item.getItem()).append(item.has(DataComponents.ENCHANTMENT_GLINT_OVERRIDE) ? ",glint" : "").append("); ");
+            }
+        }
+        state.append("] atlasState=").append(atlasState());
+        state.append(" messages=[");
+        for (Component message : viewer.messages()) {
+            state.append(message.getString()).append("; ");
+        }
+        return state.append(']').toString();
+    }
+
+    private String atlasState() {
+        try {
+            Field storeField = MinecraftAtlasService.class.getDeclaredField("store");
+            Field loadingField = MinecraftAtlasService.class.getDeclaredField("loading");
+            storeField.setAccessible(true);
+            loadingField.setAccessible(true);
+            AtlasPlayerStore store = (AtlasPlayerStore) storeField.get(runtime.atlas());
+            Map<?, ?> loading = (Map<?, ?>) loadingField.get(runtime.atlas());
+            Object future = loading.get(viewer.player().getUUID());
+            return (store.cached(viewer.player().getUUID()) == null ? "uncached" : "cached")
+                + (future == null ? " no-load" : " loading done=" + ((CompletableFuture<?>) future).isDone());
+        } catch (ReflectiveOperationException failure) {
+            return "unreadable " + failure;
+        }
     }
 }
