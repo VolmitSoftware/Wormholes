@@ -1,17 +1,13 @@
 package art.arcane.wormholes.render.bedrock;
 
 import java.lang.reflect.Method;
-import java.util.Locale;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
-import art.arcane.wormholes.render.FidelitySettings;
 
 /**
  * Classifies viewers once per session. Detection order: the Floodgate API when the plugin is present
@@ -32,14 +28,11 @@ public final class ClientProfileService {
     private static final String FLOODGATE_API = "org.geysermc.floodgate.api.FloodgateApi";
     private static volatile ClientProfileService active;
 
-    private final BedrockDetector detector;
-    private final BrandSource brands;
-    private final Map<UUID, BedrockProfile> profiles;
+    private final ClientProfiles<Player> profiles;
 
     public ClientProfileService(BedrockDetector detector, BrandSource brands) {
-        this.detector = detector;
-        this.brands = brands;
-        this.profiles = new ConcurrentHashMap<UUID, BedrockProfile>();
+        profiles = new ClientProfiles<>(new ClientProfiles.Options<>(player -> detector != null && detector.isBedrock(player),
+            player -> brands == null ? null : brands.brand(player), Player::getUniqueId));
     }
 
     public static ClientProfileService detectFloodgateAndBrand(Plugin plugin) {
@@ -67,48 +60,17 @@ public final class ClientProfileService {
         return service == null ? 0 : service.bedrockViewers();
     }
 
-    public BedrockProfile profile(Player player) {
-        if (player == null || !FidelitySettings.bedrockEnabled) {
-            return BedrockProfile.JAVA;
-        }
-        return profiles.computeIfAbsent(player.getUniqueId(), ignored -> detect(player));
-    }
+    public BedrockProfile profile(Player player) { return profiles.profile(player); }
 
-    public void forget(UUID playerId) {
-        if (playerId != null) {
-            profiles.remove(playerId);
-        }
-    }
+    public void forget(UUID playerId) { profiles.forget(playerId); }
 
     /** Drops every cached classification; a profile snapshots the fidelity caps, so a reload re-detects. */
     public static void forgetAll() {
         ClientProfileService service = active;
-        if (service != null) {
-            service.profiles.clear();
-        }
+        if (service != null) { service.profiles.clear(); }
     }
 
-    public int bedrockViewers() {
-        int count = 0;
-        for (BedrockProfile profile : profiles.values()) {
-            if (profile.bedrock()) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private BedrockProfile detect(Player player) {
-        boolean bedrock = detector != null && detector.isBedrock(player);
-        if (!bedrock) {
-            String brand = brands == null ? null : brands.brand(player);
-            bedrock = brand != null && brand.toLowerCase(Locale.ROOT).contains("geyser");
-        }
-        if (!bedrock) {
-            bedrock = player.getUniqueId().getMostSignificantBits() == 0L;
-        }
-        return bedrock ? BedrockProfile.forBedrock() : BedrockProfile.JAVA;
-    }
+    public int bedrockViewers() { return profiles.bedrockViewers(); }
 
     private static BedrockDetector floodgateDetector(Plugin plugin) {
         Plugin floodgate;

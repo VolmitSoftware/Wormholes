@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.render.view.ProjectionContentView;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -39,13 +40,13 @@ public final class ProjectionClaimArbiterChunkMemoTest {
         ILocalPortal portal = portal();
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(ignored -> availableView(world),
             countingVisibility(new AtomicInteger(), new AtomicBoolean(true), revision, chunkRevision));
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> first = claims(blockData("stable"));
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> next = new Long2ObjectOpenHashMap<>(first);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> first = claims(blockData("stable"));
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> next = new Long2ObjectOpenHashMap<>(first);
         assertEquals(1, arbiter.submit(observer, portal, world, first, 2.0D, false).getBlockChanges());
         chunkRevision.incrementAndGet();
         revision.incrementAndGet();
         assertEquals(1, arbiter.submitDelta(observer, portal, world,
-            new ProjectionClaimSet.ClaimDelta(first, next, new LongOpenHashSet(), new LongOpenHashSet()),
+            new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(first, next, new LongOpenHashSet(), new LongOpenHashSet()),
             2.0D, false, false).getBlockChanges());
         assertEquals(2, sentLocations.size());
     }
@@ -160,10 +161,10 @@ public final class ProjectionClaimArbiterChunkMemoTest {
         };
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
             ignored -> availableView(world, localSamples), visibility);
-        ProjectedBlockClaim projected = new ProjectedBlockClaim(
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> projected = new ProjectedBlockClaim<BlockData, ProjectionWorldView>(
             blockData("projected"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
         projected.setGlobalId(-1);
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> cells = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(4096);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> cells = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(4096);
         for (int chunkX = 0; chunkX < 16; chunkX++) {
             for (int cell = 0; cell < 256; cell++) {
                 cells.put(packKey((chunkX << 4) + (cell & 15), 64 + (cell >> 4), 5), projected);
@@ -196,11 +197,11 @@ public final class ProjectionClaimArbiterChunkMemoTest {
         ProjectionClaimArbiter arbiter = new ProjectionClaimArbiter(
             ignored -> availableView(world, localSamples),
             countingVisibility(new AtomicInteger(), new AtomicBoolean(true), revision, chunkRevision));
-        ProjectedBlockClaim projected = new ProjectedBlockClaim(
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> projected = new ProjectedBlockClaim<BlockData, ProjectionWorldView>(
             blockData("projected"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
         projected.setGlobalId(-1);
         long releasedKey = packKey(4, 70, 5);
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> cells = claims(projected.getData());
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> cells = claims(projected.getData());
         cells.put(CELL, projected);
         cells.put(releasedKey, projected);
         assertEquals(2, arbiter.submit(observer, portal, world, cells, 2.0D, false).getBlockChanges());
@@ -269,9 +270,9 @@ public final class ProjectionClaimArbiterChunkMemoTest {
         };
     }
 
-    private static Long2ObjectOpenHashMap<ProjectedBlockClaim> claims(BlockData data) {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(1);
-        claims.put(CELL, new ProjectedBlockClaim(data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
+    private static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims(BlockData data) {
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(1);
+        claims.put(CELL, new ProjectedBlockClaim<BlockData, ProjectionWorldView>(data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
         return claims;
     }
 
@@ -357,7 +358,7 @@ public final class ProjectionClaimArbiterChunkMemoTest {
 
             @Override
             public int getLight(int x, int y, int z) {
-                return ProjectionWorldView.packLight(15, 0);
+                return ProjectionContentView.packLight(15, 0);
             }
 
             @Override

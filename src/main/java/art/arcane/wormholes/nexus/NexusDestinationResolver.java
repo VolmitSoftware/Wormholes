@@ -1,5 +1,6 @@
 package art.arcane.wormholes.nexus;
 
+import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.hook.DestinationResolver;
@@ -89,7 +90,7 @@ public final class NexusDestinationResolver implements DestinationResolver {
      */
     public static boolean isFrontSide(LocalPortal portal, Vector position) {
         Direction normal = portal.getFrame().getNormal();
-        Vector origin = portal.getOrigin();
+        GeometryVector origin = portal.getOrigin();
         double dot = (position.getX() - origin.getX()) * normal.x()
                 + (position.getY() - origin.getY()) * normal.y()
                 + (position.getZ() - origin.getZ()) * normal.z();

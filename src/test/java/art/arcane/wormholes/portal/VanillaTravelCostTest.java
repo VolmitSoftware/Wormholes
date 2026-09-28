@@ -174,7 +174,7 @@ public final class VanillaTravelCostTest
 	private static VanillaTravelCost cost(
 		ItemStack template,
 		int quantity,
-		OwnerRefundSettlement.Executor refundExecutor)
+		OwnerRefundSettlement.Executor<Player> refundExecutor)
 	{
 		return new VanillaTravelCost(template, "stored-template", quantity, refundExecutor);
 	}
@@ -297,7 +297,7 @@ public final class VanillaTravelCostTest
 		}
 	}
 
-	private static final class RecordingRefundExecutor implements OwnerRefundSettlement.Executor
+	private static final class RecordingRefundExecutor implements OwnerRefundSettlement.Executor<Player>
 	{
 		private final List<ScheduledRetry> retries;
 		private boolean active;

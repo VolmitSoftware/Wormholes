@@ -19,14 +19,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class PacketBlobs {
-    public static final byte[] EMPTY = new byte[0];
 
     private PacketBlobs() {
     }
 
     public static byte[] writeMetadata(List<EntityData<?>> metadata) {
         if (metadata == null || metadata.isEmpty()) {
-            return EMPTY;
+            return EntityVisual.EMPTY;
         }
         Object buffer = UnpooledByteBufAllocationHelper.buffer();
         try {
@@ -55,13 +54,13 @@ public final class PacketBlobs {
         try {
             return writeMetadata(SpigotConversionUtil.getEntityMetadata(entity));
         } catch (Throwable e) {
-            return EMPTY;
+            return EntityVisual.EMPTY;
         }
     }
 
     public static byte[] writeEquipment(List<Equipment> equipment) {
         if (equipment == null || equipment.isEmpty()) {
-            return EMPTY;
+            return EntityVisual.EMPTY;
         }
         Object buffer = UnpooledByteBufAllocationHelper.buffer();
         try {
@@ -104,7 +103,7 @@ public final class PacketBlobs {
         try {
             return writeEquipment(collectEquipment(entity));
         } catch (Throwable e) {
-            return EMPTY;
+            return EntityVisual.EMPTY;
         }
     }
 

@@ -1,5 +1,8 @@
 package art.arcane.wormholes.network.convoy;
 
+import art.arcane.wormholes.network.WireTraversive;
+import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.wormholes.util.BukkitGeometry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -181,6 +184,53 @@ final class ConvoyTransferServiceTest {
         assertTrue(fixture.service.ledger().inFlight().isEmpty());
     }
 
+    @Test
+    void aSnapshotFailureReleasesEveryMemberBeforeSending() {
+        Fixture fixture = new Fixture();
+        fixture.rig.snapshotFailure = new IllegalStateException("invalid entity data");
+
+        assertFalse(fixture.service.begin(fixture.player(), fixture.graph, fixture.tunnel, fixture.traversive, fixture.source, TIMEOUT_MILLIS));
+
+        assertEquals(fixture.graph.size(), fixture.rig.cleared.size());
+        assertEquals(List.of(fixture.player()), fixture.rig.rejected);
+        assertTrue(fixture.rig.frozen.isEmpty());
+        assertTrue(fixture.transport.sent.isEmpty());
+        assertTrue(fixture.service.ledger().inFlight().isEmpty());
+    }
+
+    @Test
+    void dispatchRejectionRestoresTheSourceRig() {
+        Fixture fixture = new Fixture();
+        fixture.rig.dispatchAccepted = false;
+        fixture.service.begin(fixture.player(), fixture.graph, fixture.tunnel, fixture.traversive, fixture.source, TIMEOUT_MILLIS);
+        UUID group = ((WireMessage.ConvoyTransfer) fixture.transport.sent.getFirst()).manifest().groupId();
+        fixture.service.onAck("beta", new WireMessage.ConvoyAck(group, true, "admitted"));
+        assertEquals(List.of(fixture.boat.entity(), fixture.horse.entity()), fixture.rig.restored);
+        assertTrue(fixture.service.ledger().inFlight().isEmpty());
+    }
+
+    @Test
+    void anotherPeerCannotDispatchOrCompleteTheGroup() {
+        Fixture fixture = new Fixture();
+        fixture.service.begin(fixture.player(), fixture.graph, fixture.tunnel, fixture.traversive, fixture.source, TIMEOUT_MILLIS);
+        UUID group = ((WireMessage.ConvoyTransfer) fixture.transport.sent.getFirst()).manifest().groupId();
+        fixture.service.onAck("impostor", new WireMessage.ConvoyAck(group, true, "admitted"));
+        assertTrue(fixture.rig.dispatched.isEmpty());
+        fixture.service.onAck("beta", new WireMessage.ConvoyAck(group, true, "admitted"));
+        fixture.service.onHandoffResult("impostor", new WireMessage.HandoffResult(UUID.randomUUID(), fixture.driver.id(), true, "placed"));
+        assertTrue(fixture.rig.removed.isEmpty());
+    }
+
+    @Test
+    void sourceShutdownRestoresAnUndispatchedGroupExactlyOnce() {
+        Fixture fixture = new Fixture();
+        fixture.service.begin(fixture.player(), fixture.graph, fixture.tunnel, fixture.traversive, fixture.source, TIMEOUT_MILLIS);
+        fixture.service.close();
+        fixture.service.close();
+        assertEquals(List.of(fixture.boat.entity(), fixture.horse.entity()), fixture.rig.restored);
+        assertTrue(fixture.service.ledger().inFlight().isEmpty());
+    }
+
     private static final class Fixture {
         private final World world = TransitTestSupport.world("convoy-transfer");
         private final LocalPortal source = TransitTestSupport.portal(world);
@@ -189,16 +239,16 @@ final class ConvoyTransferServiceTest {
         private final Rig horse = Rig.mob("horse", new Location(world, 1.0D, 65.0D, 2.0D), 1.4D, 1.6D).leashTo(driver);
         private final ConvoyGraph graph = ConvoyGraph.closure(driver.entity(), List.of(boat.entity(), driver.entity(), horse.entity()), 16);
         private final UniversalTunnel tunnel = new UniversalTunnel("beta", UUID.randomUUID());
-        private final Traversive traversive = new Traversive(driver.entity(), source.getFrame().view(true), source.getOrigin(),
+        private final Traversive traversive = new Traversive(driver.entity(), source.getFrame().view(true), BukkitGeometry.bukkit(source.getOrigin()),
             driver.entity().getLocation().toVector(), new Vector(-0.4D, 0.0D, 0.0D), new Vector(-1.0D, 0.0D, 0.0D), true, source.getId());
         private final FakeTransport transport = new FakeTransport();
         private final FakeRig rig = new FakeRig();
         private final List<List<ConvoyLedger.Group>> journal = new ArrayList<List<ConvoyLedger.Group>>();
         private long clock = 100_000L;
-        private final ConvoyTransferService service;
+        private final ConvoyTransferService<Entity, Player, ConvoyGraph, UniversalTunnel, Traversive, LocalPortal> service;
 
         private Fixture() {
-            service = new ConvoyTransferService(new ConvoyLedger(), transport, rig, () -> clock);
+            service = new ConvoyTransferService<>(new ConvoyLedger(), transport, rig, () -> clock);
             service.journal(inFlight -> journal.add(List.copyOf(inFlight)));
         }
 
@@ -232,7 +282,26 @@ final class ConvoyTransferServiceTest {
         }
     }
 
-    private static final class FakeRig implements ConvoyTransferService.Rig {
+    private static final class FakeRig implements ConvoyTransferService.Rig<Entity, Player, ConvoyGraph, UniversalTunnel, Traversive, LocalPortal> {
+        public UUID id(Entity entity) { return entity.getUniqueId(); }
+        public UUID playerId(Player player) { return player.getUniqueId(); }
+        public String name(Entity entity) { return entity.getName(); }
+        public String playerName(Player player) { return player.getName(); }
+        public String peer(UniversalTunnel tunnel) { return tunnel.getServerName(); }
+        public UUID destination(UniversalTunnel tunnel) { return tunnel.getDestinationPortalId(); }
+        public WireTraversive crossing(Entity entity, Traversive traversive) {
+            return Traversive.toWire(traversive.forMember(entity, entity.getLocation().toVector()));
+        }
+        public List<ConvoyTransferService.Member<Entity>> members(ConvoyGraph graph) {
+            List<ConvoyTransferService.Member<Entity>> members = new ArrayList<>(graph.size());
+            for (ConvoyGraph.Member member : graph.members()) {
+                members.add(new ConvoyTransferService.Member<>(member.entity(), member.vehicle(), member.leashHolder()));
+            }
+            return members;
+        }
+
+        private boolean dispatchAccepted = true;
+        private RuntimeException snapshotFailure;
         private final List<Entity> frozen = new ArrayList<Entity>();
         private final List<BooleanSupplier> stillPending = new ArrayList<BooleanSupplier>();
         private final List<Entity> restored = new ArrayList<Entity>();
@@ -246,6 +315,9 @@ final class ConvoyTransferServiceTest {
 
         @Override
         public byte[] snapshot(Entity member) {
+            if (snapshotFailure != null) {
+                throw snapshotFailure;
+            }
             return member.getName().getBytes(StandardCharsets.UTF_8);
         }
 
@@ -266,8 +338,9 @@ final class ConvoyTransferServiceTest {
         }
 
         @Override
-        public void dispatchPlayer(Player player, UniversalTunnel tunnel, Traversive traversive, LocalPortal source) {
+        public boolean dispatchPlayer(Player player, UniversalTunnel tunnel, Traversive traversive, LocalPortal source) {
             dispatched.add(player);
+            return dispatchAccepted;
         }
 
         @Override

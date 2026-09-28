@@ -352,7 +352,7 @@ final class RtpTraversalPipeline
 				fail(portal, entity, preparation, null);
 				return;
 			}
-			PortalFrame targetFrame = BukkitRtpRuntime.targetFrameFor(portal.getFrame());
+			PortalFrame targetFrame = RtpProjectionGeometry.targetFrameFor(portal.getFrame());
 			Location target = targetLocation(targetWorld, preparation.claim().destination(), traversive, targetFrame, envelope);
 			service.markTraversalDispatched(preparation).whenComplete((marked, markFailure) -> guard(portal, entity, preparation, retained, () ->
 			{

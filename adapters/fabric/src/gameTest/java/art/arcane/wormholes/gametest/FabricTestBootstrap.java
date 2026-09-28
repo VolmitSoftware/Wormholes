@@ -1,0 +1,33 @@
+package art.arcane.wormholes.gametest;
+
+import art.arcane.wormholes.modded.WormholesGameTests;
+import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.gametest.framework.TestFunctionLoader;
+import net.minecraft.resources.ResourceKey;
+
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+
+public final class FabricTestBootstrap extends TestFunctionLoader implements PreLaunchEntrypoint {
+    @Override
+    public void onPreLaunch() {
+        TestFunctionLoader.registerLoader(this);
+    }
+
+    @Override
+    public void load(BiConsumer<ResourceKey<Consumer<GameTestHelper>>, Consumer<GameTestHelper>> register) {
+        register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.PORTAL_RUNTIME), WormholesGameTests::portalRuntime);
+        register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.INTERACTION_RUNTIME), WormholesGameTests::interactionRuntime);
+        register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.HANDOFF_RUNTIME), WormholesGameTests::handoffRuntime);
+        register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.COSTS_RUNTIME), WormholesGameTests::costsRuntime);
+        register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.RULES_RUNTIME), WormholesGameTests::rulesRuntime);
+        register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.OPS_RUNTIME), WormholesGameTests::opsRuntime);
+        register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.EFFECTS_RUNTIME), WormholesGameTests::effectsRuntime);
+        register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.ENTITY_TRANSFERS_RUNTIME), WormholesGameTests::entityTransfersRuntime);
+        register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.NEXUS_RUNTIME), WormholesGameTests::nexusRuntime);
+        register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.RTP_RUNTIME), WormholesGameTests::rtpRuntime);
+        register.accept(ResourceKey.create(Registries.TEST_FUNCTION, WormholesGameTests.ENTITY_PROJECTION_RUNTIME), WormholesGameTests::entityProjectionRuntime);
+    }
+}

@@ -1,0 +1,187 @@
+package art.arcane.wormholes.render.view;
+
+import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.wormholes.network.view.RemoteViewCache;
+import art.arcane.wormholes.network.view.ViewBox;
+import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.function.Function;
+
+public class RemoteProjectionView<B, T, M, E> implements ProjectionContentView<B, T>, ProjectionEntityData<M, E> {
+    private final RemoteViewCache.RemoteView<B, M, E> view;
+    private final B fallback;
+    private final Function<B, T> materials;
+    private int cachedChunkX = Integer.MIN_VALUE;
+    private int cachedChunkZ = Integer.MIN_VALUE;
+    private RemoteViewCache.DecodedSlice<B> cachedSlice;
+    private boolean cachedSliceValid;
+    private long cachedSliceRevision;
+
+    public RemoteProjectionView(RemoteViewCache.RemoteView<B, M, E> view, Options<B, T> options) {
+        this.view = view;
+        this.fallback = options.fallback();
+        this.materials = options.materials();
+    }
+
+    private RemoteViewCache.DecodedSlice<B> decodedSliceAt(int x, int z) {
+        int chunkX = x >> 4;
+        int chunkZ = z >> 4;
+        long revision = view.getRevision();
+        if (cachedSliceValid && chunkX == cachedChunkX && chunkZ == cachedChunkZ && cachedSliceRevision == revision) {
+            return cachedSlice;
+        }
+        RemoteViewCache.DecodedSlice<B> slice = view.sliceAt(x, z);
+        cachedChunkX = chunkX;
+        cachedChunkZ = chunkZ;
+        cachedSlice = slice;
+        cachedSliceValid = true;
+        cachedSliceRevision = revision;
+        return slice;
+    }
+
+    @Override
+    public UUID worldId() {
+        return null;
+    }
+
+    @Override
+    public int getMinHeight() {
+        ViewBox box = view.getBox();
+        return box == null ? 0 : box.minY();
+    }
+
+    @Override
+    public int getMaxHeight() {
+        ViewBox box = view.getBox();
+        return box == null ? 0 : box.maxY() + 1;
+    }
+
+    @Override
+    public B sampleBlockData(int x, int y, int z) {
+        ViewBox box = view.getBox();
+        if (box == null) {
+            return null;
+        }
+        if (!box.contains(x, y, z)) {
+            return fallback;
+        }
+        RemoteViewCache.DecodedSlice<B> slice = decodedSliceAt(x, z);
+        if (slice == null) {
+            return null;
+        }
+        return slice.blockAt(x, y, z);
+    }
+
+    @Override
+    public BlockEntitySample sampleBlockEntity(int x, int y, int z) {
+        ViewBox box = view.getBox();
+        if (box == null || !box.contains(x, y, z)) {
+            return null;
+        }
+        RemoteViewCache.DecodedSlice<B> slice = decodedSliceAt(x, z);
+        return slice == null ? null : slice.blockEntityAt(x, y, z);
+    }
+
+    @Override
+    public String sampleBiome(int x, int y, int z) {
+        ViewBox box = view.getBox();
+        if (box == null || !box.contains(x, y, z)) {
+            return null;
+        }
+        RemoteViewCache.DecodedSlice<B> slice = decodedSliceAt(x, z);
+        if (slice == null) {
+            return null;
+        }
+        return slice.biomeAt(x, y, z);
+    }
+
+    @Override
+    public int getLight(int x, int y, int z) {
+        ViewBox box = view.getBox();
+        if (box == null || !box.contains(x, y, z)) {
+            return -1;
+        }
+        RemoteViewCache.DecodedSlice<B> slice = decodedSliceAt(x, z);
+        if (slice == null) {
+            return -1;
+        }
+        return slice.lightAt(x, y, z);
+    }
+
+    public List<EntityVisual> getEntities() {
+        return view.getEntities();
+    }
+
+    public List<EntityVisual> getEntities(double centerX, double centerY, double centerZ, double range) {
+        return view.getEntities();
+    }
+
+    public RemoteViewCache.RemoteProfile getProfile(UUID entityId) {
+        return view.getProfile(entityId);
+    }
+
+    public List<M> getMetadata(UUID entityId) {
+        return view.getMetadata(entityId);
+    }
+
+    public List<E> getEquipment(UUID entityId) {
+        return view.getEquipment(entityId);
+    }
+
+    @Override
+    public int getSkyDarken() {
+        return view.getSkyDarken();
+    }
+
+    public boolean hasStorm() {
+        return view.hasStorm();
+    }
+
+    public boolean isThundering() {
+        return view.isThundering();
+    }
+
+    @Override
+    public long getRevision() {
+        return view.getRevision();
+    }
+
+    public int getStateVersion(UUID entityId) {
+        return view.getStateVersion(entityId);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof RemoteProjectionView<?, ?, ?, ?> remote)) {
+            return false;
+        }
+        return view.equals(remote.view);
+    }
+
+    @Override
+    public int hashCode() {
+        return view.hashCode();
+    }
+    @Override
+    public T sampleMaterial(int x, int y, int z) {
+        B block = sampleBlockData(x, y, z);
+        return block == null ? null : materials.apply(block);
+    }
+
+    @Override
+    public boolean isChunkReady(int x, int z) {
+        return true;
+    }
+
+    @Override
+    public void requestChunk(int x, int z) {
+    }
+
+    public record Options<B, T>(B fallback, Function<B, T> materials) {
+    }
+}

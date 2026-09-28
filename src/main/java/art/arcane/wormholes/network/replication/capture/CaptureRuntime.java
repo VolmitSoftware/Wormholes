@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.replication.capture;
 
+import org.bukkit.block.data.BlockData;
+import org.bukkit.World;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.network.replication.BlockChangeFeed;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
@@ -14,7 +16,7 @@ public final class CaptureRuntime {
     private final Plugin plugin;
     private final Logger logger;
     private final ChunkReplicationManager replication;
-    private final RegionalDiffAccumulator accumulator;
+    private final RegionalDiffAccumulator<World, BlockData> accumulator;
     private final LightDiffCapture lightDiffCapture;
     private final BlockEntityCapture blockEntityCapture;
     private final BlockChangeCapture blockChangeCapture;
@@ -28,7 +30,7 @@ public final class CaptureRuntime {
         this.logger = logger;
         this.replication = replication;
         this.settings = initialSettings == null ? CaptureSettings.defaults() : initialSettings;
-        this.accumulator = new RegionalDiffAccumulator(replication, feed, this.settings);
+        this.accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, this.settings, BukkitCaptureAccess.INSTANCE));
         this.lightDiffCapture = new LightDiffCapture(accumulator);
         this.blockEntityCapture = new BlockEntityCapture(accumulator, logger);
         this.blockChangeCapture = new BlockChangeCapture(accumulator, blockEntityCapture);
@@ -88,7 +90,7 @@ public final class CaptureRuntime {
         return started;
     }
 
-    public RegionalDiffAccumulator accumulator() {
+    public RegionalDiffAccumulator<World, BlockData> accumulator() {
         return accumulator;
     }
 

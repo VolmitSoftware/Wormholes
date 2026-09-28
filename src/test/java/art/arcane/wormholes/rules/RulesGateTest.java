@@ -162,7 +162,7 @@ final class RulesGateTest {
         RulesTestSupport.FakeTraveler player = RulesTestSupport.FakeTraveler.player("restless", origin(), Set.of());
         gate.evaluate(depart(player.entity(), 1000L));
 
-        warmups.cancelOnMove(player.id(), new Location(world, 4.0D, 64.0D, 1.0D), 0.5D, 1500L);
+        warmups.cancelOnMove(player.id(), RuleContext.anchor(new Location(world, 4.0D, 64.0D, 1.0D)),  0.5D, 1500L);
 
         TraversalVerdict.Deny deny = assertInstanceOf(TraversalVerdict.Deny.class, gate.evaluate(depart(player.entity(), 1600L)));
         assertEquals(RulesMessages.WARMUP_CANCELLED, deny.reason());

@@ -63,7 +63,7 @@ class PlayerTransferTest {
         AtomicReference<TransferCall> call = new AtomicReference<>();
         Player player = player(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 60123), call, false);
 
-        assertTrue(PlayerTransfer.send(player, peer, PlayerTransfer.Method.DIRECT, new GameEndpoint("192.168.1.42", 25567)));
+        assertTrue(PlayerTransfer.send(player, peer, PlayerTransferMethod.DIRECT, new GameEndpoint("192.168.1.42", 25567)));
         assertEquals(new TransferCall("192.168.1.42", 25567), call.get());
     }
 
@@ -134,7 +134,7 @@ class PlayerTransferTest {
 
         assertTrue(PlayerTransfer.usesProxy(peer, "auto"));
         assertFalse(PlayerTransfer.usesProxy(peer, "direct"));
-        assertTrue(PlayerTransfer.hasDirectHost(peer));
+        assertTrue(PlayerTransferMethod.hasDirectHost(peer));
     }
 
     @Test
@@ -165,7 +165,7 @@ class PlayerTransferTest {
         AtomicReference<TransferCall> call = new AtomicReference<TransferCall>();
         Player player = player(new InetSocketAddress("127.0.0.1", 60123), call, false);
 
-        assertFalse(PlayerTransfer.send(player, route(), PlayerTransfer.Method.DIRECT, null));
+        assertFalse(PlayerTransfer.send(player, route(), PlayerTransferMethod.DIRECT, null));
         assertNull(call.get());
     }
 

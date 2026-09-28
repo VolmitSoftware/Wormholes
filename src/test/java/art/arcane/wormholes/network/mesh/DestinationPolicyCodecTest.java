@@ -51,6 +51,9 @@ class DestinationPolicyCodecTest {
         assertNull(DestinationPolicy.decode(null));
         assertNull(DestinationPolicy.decode("{\"s\":\"NOPE\",\"c\":[]}"));
         assertNull(DestinationPolicy.decode("not json"));
+        assertNull(DestinationPolicy.decode("{\"s\":null,\"c\":[]}"));
+        assertNull(DestinationPolicy.decode("{\"s\":\"FIRST_AVAILABLE\",\"c\":[null]}"));
+        assertNull(DestinationPolicy.decode("{\"s\":\"FIRST_AVAILABLE\",\"c\":[],\"h\":null}"));
         assertNull(DestinationPolicy.decode("{\"s\":\"FIRST_AVAILABLE\",\"c\":[\"beta|not-a-uuid|1\"]}"));
     }
 

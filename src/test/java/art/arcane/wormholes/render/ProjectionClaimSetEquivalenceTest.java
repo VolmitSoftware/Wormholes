@@ -48,12 +48,12 @@ public final class ProjectionClaimSetEquivalenceTest {
 
     @Test
     public void contestedCellReactsToPriorityOnlyResubmit() {
-        ProjectionClaimSet set = new ProjectionClaimSet();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         ReferenceClaimSet reference = new ReferenceClaimSet();
         UUID first = UUID.fromString("00000000-0000-0000-0000-0000000000a1");
         UUID second = UUID.fromString("00000000-0000-0000-0000-0000000000a2");
-        ProjectedBlockClaim firstClaim = claim(blockData("first"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
-        ProjectedBlockClaim secondClaim = claim(blockData("second"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> firstClaim = claim(blockData("first"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> secondClaim = claim(blockData("second"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
 
         submitBoth(set, reference, first, 2.0D, claims(7L, firstClaim));
         submitBoth(set, reference, second, 8.0D, claims(7L, secondClaim));
@@ -69,17 +69,17 @@ public final class ProjectionClaimSetEquivalenceTest {
 
     @Test
     public void carriedOverClaimInstancesDoNotReemitPackets() {
-        ProjectionClaimSet set = new ProjectionClaimSet();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         UUID portal = UUID.fromString("00000000-0000-0000-0000-0000000000b1");
-        ProjectedBlockClaim stable = claim(blockData("stable"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
-        ProjectedBlockClaim dropped = claim(blockData("dropped"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> stable = claim(blockData("stable"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> dropped = claim(blockData("dropped"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
 
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> first = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(2);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> first = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(2);
         first.put(1L, stable);
         first.put(2L, dropped);
         set.replacePortalClaims(portal, portal.toString(), 3.0D, first);
 
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> second = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(1);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> second = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(1);
         second.put(1L, stable);
         ProjectionClaimSet.ProjectionClaimSetResult result = set.replacePortalClaims(portal, portal.toString(), 3.0D, second);
 
@@ -91,7 +91,7 @@ public final class ProjectionClaimSetEquivalenceTest {
 
     @Test
     public void priorityHandoverAcrossTwelveOwnersReusesIdenticalClaims() {
-        ProjectionClaimSet set = new ProjectionClaimSet();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         AtomicInteger dataComparisons = new AtomicInteger();
         BlockData data = (BlockData) Proxy.newProxyInstance(BlockData.class.getClassLoader(),
             new Class<?>[] { BlockData.class }, (proxy, method, args) -> {
@@ -101,8 +101,8 @@ public final class ProjectionClaimSetEquivalenceTest {
                 }
                 return null;
             });
-        ProjectedBlockClaim shared = claim(data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> cells = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(4096);
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> shared = claim(data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> cells = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(4096);
         for (long key = 0; key < 4096; key++) {
             cells.put(key, shared);
         }
@@ -126,12 +126,12 @@ public final class ProjectionClaimSetEquivalenceTest {
 
     @Test
     public void deltaUpdatesTouchOnlyChangedClaimsAndRetainPriorityArbitration() {
-        ProjectionClaimSet set = new ProjectionClaimSet();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         UUID firstOwner = new UUID(0L, 1L);
         UUID secondOwner = new UUID(0L, 2L);
-        ProjectedBlockClaim stable = claim(blockData("stable"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
-        ProjectedBlockClaim changed = claim(blockData("changed"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> first = new Long2ObjectOpenHashMap<>(16_384);
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> stable = claim(blockData("stable"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> changed = claim(blockData("changed"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> first = new Long2ObjectOpenHashMap<>(16_384);
         for (long key = 0; key < 16_384; key++) {
             first.put(key, stable);
         }
@@ -141,7 +141,7 @@ public final class ProjectionClaimSetEquivalenceTest {
         next.remove(4L);
         next.put(8L, changed);
         ProjectionClaimSet.ProjectionClaimSetResult result = set.replacePortalDelta(firstOwner, firstOwner.toString(),
-            4.0D, new ProjectionClaimSet.ClaimDelta(first, next, new LongOpenHashSet(new long[] {8L}),
+            4.0D, new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(first, next, new LongOpenHashSet(new long[] {8L}),
                 new LongOpenHashSet(new long[] {4L})));
 
         assertEquals(1, next.reads);
@@ -152,11 +152,11 @@ public final class ProjectionClaimSetEquivalenceTest {
 
     @Test
     public void alternatingMapReuseAndUnknownBaselinesFallBackToFullReplacement() {
-        ProjectionClaimSet set = new ProjectionClaimSet();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         UUID owner = new UUID(0L, 1L);
-        ProjectedBlockClaim stable = claim(blockData("stable"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> first = toFastMap(claims(1L, stable));
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> second = toFastMap(claims(2L, stable));
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> stable = claim(blockData("stable"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> first = toFastMap(claims(1L, stable));
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> second = toFastMap(claims(2L, stable));
         set.replacePortalClaims(owner, owner.toString(), 1.0D, first);
         set.replacePortalDelta(owner, owner.toString(), 1.0D, delta(first, second));
         first.clear();
@@ -167,23 +167,23 @@ public final class ProjectionClaimSetEquivalenceTest {
         second.clear();
         second.put(4L, stable);
         set.replacePortalDelta(owner, owner.toString(), 1.0D,
-            new ProjectionClaimSet.ClaimDelta(null, second, new LongOpenHashSet(), new LongOpenHashSet()));
+            new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(null, second, new LongOpenHashSet(), new LongOpenHashSet()));
         assertEquals(new LongOpenHashSet(new long[] {4L}), set.getWinningClaims().keySet());
         set.clear();
         set.replacePortalDelta(owner, owner.toString(), 1.0D,
-            new ProjectionClaimSet.ClaimDelta(second, first, new LongOpenHashSet(), new LongOpenHashSet()));
+            new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(second, first, new LongOpenHashSet(), new LongOpenHashSet()));
         assertEquals(new LongOpenHashSet(new long[] {3L}), set.getWinningClaims().keySet());
     }
 
     @Test
     public void stagedDeltasResolveOnlyTheFinalOwnerAndLighting() {
-        ProjectionClaimSet set = new ProjectionClaimSet();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         UUID firstOwner = new UUID(0L, 1L);
         UUID secondOwner = new UUID(0L, 2L);
-        ProjectedBlockClaim stable = claim(blockData("stable"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
-        ProjectedBlockClaim brighter = stable.withFullBright(true);
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> first = toFastMap(claims(1L, stable));
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> second = toFastMap(claims(1L, brighter));
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> stable = claim(blockData("stable"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> brighter = stable.withFullBright(true);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> first = toFastMap(claims(1L, stable));
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> second = toFastMap(claims(1L, brighter));
         set.replacePortalClaims(firstOwner, firstOwner.toString(), 1.0D, first);
         LongOpenHashSet affected = new LongOpenHashSet();
         set.stagePortalDelta(firstOwner, firstOwner.toString(), 1.0D,
@@ -199,13 +199,13 @@ public final class ProjectionClaimSetEquivalenceTest {
 
     private static void runEquivalenceSequence(int seed, int operations, boolean deltas) {
         Random random = new Random(seed * 7919L + 13L);
-        ProjectionClaimSet set = new ProjectionClaimSet();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         ReferenceClaimSet reference = new ReferenceClaimSet();
         List<UUID> portalIds = portalIds();
         List<BlockData> dataPool = dataPool();
         List<ProjectionWorldView> lightViews = lightViews();
-        Map<UUID, Map<Long, ProjectedBlockClaim>> lastSubmitted = new HashMap<UUID, Map<Long, ProjectedBlockClaim>>();
-        Map<UUID, Long2ObjectOpenHashMap<ProjectedBlockClaim>> lastMaps = new HashMap<>();
+        Map<UUID, Map<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>>> lastSubmitted = new HashMap<UUID, Map<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>>>();
+        Map<UUID, Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>> lastMaps = new HashMap<>();
 
         for (int operation = 0; operation < operations; operation++) {
             int roll = random.nextInt(100);
@@ -227,13 +227,13 @@ public final class ProjectionClaimSetEquivalenceTest {
                 continue;
             }
 
-            Map<Long, ProjectedBlockClaim> previous = lastSubmitted.get(portalId);
-            Map<Long, ProjectedBlockClaim> submitted = randomClaims(random, previous, dataPool, lightViews);
+            Map<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>> previous = lastSubmitted.get(portalId);
+            Map<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>> submitted = randomClaims(random, previous, dataPool, lightViews);
             lastSubmitted.put(portalId, submitted);
             double priorityDistance = PRIORITY_POOL[random.nextInt(PRIORITY_POOL.length)];
             String tieKey = portalId.toString();
 
-            Long2ObjectOpenHashMap<ProjectedBlockClaim> submittedMap = toFastMap(submitted);
+            Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> submittedMap = toFastMap(submitted);
             ProjectionClaimSet.ProjectionClaimSetResult actual = deltas
                 ? set.replacePortalDelta(portalId, tieKey, priorityDistance, delta(lastMaps.get(portalId), submittedMap))
                 : set.replacePortalClaims(portalId, tieKey, priorityDistance, submittedMap);
@@ -243,8 +243,8 @@ public final class ProjectionClaimSetEquivalenceTest {
         }
     }
 
-    private static ProjectionClaimSet.ClaimDelta delta(Long2ObjectOpenHashMap<ProjectedBlockClaim> previous,
-                                                        Long2ObjectOpenHashMap<ProjectedBlockClaim> next) {
+    private static ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>> delta(Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> previous,
+                                                        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> next) {
         LongOpenHashSet changed = new LongOpenHashSet();
         LongOpenHashSet removed = new LongOpenHashSet();
         for (long key : next.keySet()) {
@@ -259,28 +259,28 @@ public final class ProjectionClaimSetEquivalenceTest {
                 }
             }
         }
-        return new ProjectionClaimSet.ClaimDelta(previous, next, changed, removed);
+        return new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(previous, next, changed, removed);
     }
 
-    private static final class CountingClaims extends Long2ObjectOpenHashMap<ProjectedBlockClaim> {
+    private static final class CountingClaims extends Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> {
         private int reads;
 
-        private CountingClaims(Long2ObjectOpenHashMap<ProjectedBlockClaim> previous) {
+        private CountingClaims(Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> previous) {
             super(previous);
         }
 
         @Override
-        public ProjectedBlockClaim get(long key) {
+        public ProjectedBlockClaim<BlockData, ProjectionWorldView> get(long key) {
             reads++;
             return super.get(key);
         }
     }
 
-    private static ProjectionClaimSet.ProjectionClaimSetResult submitBoth(ProjectionClaimSet set,
+    private static ProjectionClaimSet.ProjectionClaimSetResult submitBoth(ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set,
                                                                           ReferenceClaimSet reference,
                                                                           UUID portalId,
                                                                           double priorityDistance,
-                                                                          Map<Long, ProjectedBlockClaim> claims) {
+                                                                          Map<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims) {
         ProjectionClaimSet.ProjectionClaimSetResult actual =
             set.replacePortalClaims(portalId, portalId.toString(), priorityDistance, toFastMap(claims));
         ReferenceResult expected = reference.replacePortalClaims(portalId, portalId.toString(), priorityDistance, claims);
@@ -292,7 +292,7 @@ public final class ProjectionClaimSetEquivalenceTest {
                                            int operation,
                                            ReferenceResult expected,
                                            ProjectionClaimSet.ProjectionClaimSetResult actual,
-                                           ProjectionClaimSet set,
+                                           ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set,
                                            ReferenceClaimSet reference) {
         String context = "seed=" + seed + " op=" + operation;
         assertEquals(expected.packetChangeKeys, toSet(actual.getPacketChangeKeys()), () -> context + " packet keys");
@@ -307,15 +307,15 @@ public final class ProjectionClaimSetEquivalenceTest {
         }
     }
 
-    private static Map<Long, ProjectedBlockClaim> randomClaims(Random random,
-                                                               Map<Long, ProjectedBlockClaim> previous,
+    private static Map<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>> randomClaims(Random random,
+                                                               Map<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>> previous,
                                                                List<BlockData> dataPool,
                                                                List<ProjectionWorldView> lightViews) {
-        Map<Long, ProjectedBlockClaim> claims = new LinkedHashMap<Long, ProjectedBlockClaim>();
+        Map<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new LinkedHashMap<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         int count = random.nextInt(CELL_UNIVERSE + 1);
         for (int i = 0; i < count; i++) {
             long key = cellKey(random.nextInt(CELL_UNIVERSE));
-            ProjectedBlockClaim carried = previous == null ? null : previous.get(Long.valueOf(key));
+            ProjectedBlockClaim<BlockData, ProjectionWorldView> carried = previous == null ? null : previous.get(Long.valueOf(key));
             if (carried != null && random.nextInt(100) < 65) {
                 claims.put(Long.valueOf(key), carried);
                 continue;
@@ -329,17 +329,17 @@ public final class ProjectionClaimSetEquivalenceTest {
         return claims;
     }
 
-    private static Long2ObjectOpenHashMap<ProjectedBlockClaim> toFastMap(Map<Long, ProjectedBlockClaim> claims) {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> fast =
-            new Long2ObjectOpenHashMap<ProjectedBlockClaim>(Math.max(1, claims.size()));
-        for (Map.Entry<Long, ProjectedBlockClaim> entry : claims.entrySet()) {
+    private static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> toFastMap(Map<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims) {
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> fast =
+            new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(Math.max(1, claims.size()));
+        for (Map.Entry<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : claims.entrySet()) {
             fast.put(entry.getKey().longValue(), entry.getValue());
         }
         return fast;
     }
 
-    private static Map<Long, ProjectedBlockClaim> claims(long key, ProjectedBlockClaim claim) {
-        Map<Long, ProjectedBlockClaim> claims = new LinkedHashMap<Long, ProjectedBlockClaim>();
+    private static Map<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims(long key, ProjectedBlockClaim<BlockData, ProjectionWorldView> claim) {
+        Map<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new LinkedHashMap<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         claims.put(Long.valueOf(key), claim);
         return claims;
     }
@@ -381,8 +381,8 @@ public final class ProjectionClaimSetEquivalenceTest {
         return views;
     }
 
-    private static ProjectedBlockClaim claim(BlockData data, ProjectionWorldView lightView, long lightRemoteKey, boolean maskAir) {
-        return new ProjectedBlockClaim(data, lightView, lightRemoteKey, maskAir);
+    private static ProjectedBlockClaim<BlockData, ProjectionWorldView> claim(BlockData data, ProjectionWorldView lightView, long lightRemoteKey, boolean maskAir) {
+        return new ProjectedBlockClaim<BlockData, ProjectionWorldView>(data, lightView, lightRemoteKey, maskAir);
     }
 
     private static BlockData blockData(String name) {
@@ -459,7 +459,7 @@ public final class ProjectionClaimSetEquivalenceTest {
 
     private static final class ReferencePortal {
         private final UUID portalId;
-        private final Map<Long, ProjectedBlockClaim> claims = new LinkedHashMap<Long, ProjectedBlockClaim>();
+        private final Map<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new LinkedHashMap<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         private String tieKey;
         private double priorityDistance;
 
@@ -472,9 +472,9 @@ public final class ProjectionClaimSetEquivalenceTest {
 
     private static final class ReferenceWinner {
         private final UUID portalId;
-        private final ProjectedBlockClaim claim;
+        private final ProjectedBlockClaim<BlockData, ProjectionWorldView> claim;
 
-        private ReferenceWinner(UUID portalId, ProjectedBlockClaim claim) {
+        private ReferenceWinner(UUID portalId, ProjectedBlockClaim<BlockData, ProjectionWorldView> claim) {
             this.portalId = portalId;
             this.claim = claim;
         }
@@ -487,7 +487,7 @@ public final class ProjectionClaimSetEquivalenceTest {
         private ReferenceResult replacePortalClaims(UUID portalId,
                                                     String tieKey,
                                                     double priorityDistance,
-                                                    Map<Long, ProjectedBlockClaim> claims) {
+                                                    Map<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims) {
             if (claims == null || claims.isEmpty()) {
                 return releasePortal(portalId);
             }
@@ -507,10 +507,10 @@ public final class ProjectionClaimSetEquivalenceTest {
                 portal.claims.remove(key);
                 affected.add(key);
             }
-            for (Map.Entry<Long, ProjectedBlockClaim> entry : claims.entrySet()) {
+            for (Map.Entry<Long, ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : claims.entrySet()) {
                 Long key = entry.getKey();
-                ProjectedBlockClaim nextClaim = entry.getValue();
-                ProjectedBlockClaim previousClaim = portal.claims.get(key);
+                ProjectedBlockClaim<BlockData, ProjectionWorldView> nextClaim = entry.getValue();
+                ProjectedBlockClaim<BlockData, ProjectionWorldView> previousClaim = portal.claims.get(key);
                 if (previousClaim == null) {
                     portal.claims.put(key, nextClaim);
                     affected.add(key);
@@ -546,7 +546,7 @@ public final class ProjectionClaimSetEquivalenceTest {
             return winners.isEmpty();
         }
 
-        private ProjectedBlockClaim winningClaim(long key) {
+        private ProjectedBlockClaim<BlockData, ProjectionWorldView> winningClaim(long key) {
             ReferenceWinner winner = winners.get(Long.valueOf(key));
             return winner == null ? null : winner.claim;
         }
@@ -566,10 +566,10 @@ public final class ProjectionClaimSetEquivalenceTest {
             for (Long key : affected) {
                 ReferenceWinner previous = winners.get(key);
                 ReferencePortal bestPortal = null;
-                ProjectedBlockClaim bestClaim = null;
+                ProjectedBlockClaim<BlockData, ProjectionWorldView> bestClaim = null;
                 int claimCount = 0;
                 for (ReferencePortal portal : portals.values()) {
-                    ProjectedBlockClaim claim = portal.claims.get(key);
+                    ProjectedBlockClaim<BlockData, ProjectionWorldView> claim = portal.claims.get(key);
                     if (claim == null) {
                         continue;
                     }
@@ -610,7 +610,7 @@ public final class ProjectionClaimSetEquivalenceTest {
             return result;
         }
 
-        private static boolean sameClaim(ProjectedBlockClaim previous, ProjectedBlockClaim next) {
+        private static boolean sameClaim(ProjectedBlockClaim<BlockData, ProjectionWorldView> previous, ProjectedBlockClaim<BlockData, ProjectionWorldView> next) {
             if (previous == next) {
                 return true;
             }
@@ -624,10 +624,10 @@ public final class ProjectionClaimSetEquivalenceTest {
 
         private static boolean higherPriority(double candidateDistance,
                                               String candidateTieKey,
-                                              ProjectedBlockClaim candidateClaim,
+                                              ProjectedBlockClaim<BlockData, ProjectionWorldView> candidateClaim,
                                               double currentDistance,
                                               String currentTieKey,
-                                              ProjectedBlockClaim currentClaim) {
+                                              ProjectedBlockClaim<BlockData, ProjectionWorldView> currentClaim) {
             if (candidateClaim.isMaskAir() && !currentClaim.isMaskAir()) {
                 return false;
             }

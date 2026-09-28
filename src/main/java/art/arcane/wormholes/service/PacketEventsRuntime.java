@@ -1,5 +1,6 @@
 package art.arcane.wormholes.service;
 
+import art.arcane.wormholes.network.BukkitStatusBridgeListener;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.TransferGate;
@@ -54,7 +55,7 @@ public final class PacketEventsRuntime {
 
     public void registerStatusBridge(NetworkManager manager) {
         unregisterStatusBridge();
-        statusBridgeListener = PacketEvents.getAPI().getEventManager().registerListener(manager.statusBridge());
+        statusBridgeListener = PacketEvents.getAPI().getEventManager().registerListener(new BukkitStatusBridgeListener(manager.statusBridge()));
     }
 
     public void unregisterStatusBridge() {

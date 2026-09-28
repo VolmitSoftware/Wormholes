@@ -1,6 +1,9 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.network.view.BukkitProjectedMapData;
 import java.util.Optional;
+import java.util.UUID;
+import art.arcane.wormholes.render.ProjectedEntityMaps.Projection;
 import java.util.logging.Level;
 
 import org.bukkit.entity.Entity;
@@ -18,10 +21,20 @@ import art.arcane.wormholes.render.view.ProjectionEntityView;
 import art.arcane.wormholes.service.WormholesTelemetry;
 
 final class EntityRenderMapBridge {
-    private final EntityRenderPacketChannel channel;
+    private final ProjectedEntityMaps<Player> projected;
 
     EntityRenderMapBridge(EntityRenderPacketChannel channel) {
-        this.channel = channel;
+        this.projected = new ProjectedEntityMaps<>(new ProjectedEntityMaps.Host<>() {
+            @Override
+            public void send(Player observer, ProjectedMapData map, int virtualMapId) {
+                channel.send(observer, BukkitProjectedMapData.toPacket(map, virtualMapId));
+            }
+
+            @Override
+            public void invalid(UUID sourceId, String reason, RuntimeException error) {
+                reportInvalidPayload(sourceId, reason, error);
+            }
+        });
     }
 
     Projection projectLocal(Player observer,
@@ -41,12 +54,12 @@ final class EntityRenderMapBridge {
             sendMap(observer, mapView);
             return Projection.none();
         }
-        Optional<ProjectedMapData> captured = ProjectedMapData.capture(mapView);
+        Optional<ProjectedMapData> captured = BukkitProjectedMapData.capture(mapView);
         if (captured.isEmpty()) {
             sendMap(observer, mapView);
             return Projection.none();
         }
-        return sendProjected(observer, state, captured.orElseThrow(), true, force);
+        return projected.send(observer, state, captured.orElseThrow(), true, force);
     }
 
     Projection projectVisual(Player observer,
@@ -66,46 +79,14 @@ final class EntityRenderMapBridge {
             return Projection.none();
         }
         if (localMapView != null) {
-            Optional<ProjectedMapData> localCapture = ProjectedMapData.capture(localMapView);
+            Optional<ProjectedMapData> localCapture = BukkitProjectedMapData.capture(localMapView);
             if (localCapture.isPresent()) {
-                return sendProjected(observer, state, localCapture.orElseThrow(), true, force);
+                return projected.send(observer, state, localCapture.orElseThrow(), true, force);
             }
             sendMap(observer, localMapView);
             return Projection.none();
         }
-        byte[] encoded = visual.mapData();
-        if (encoded == null || encoded.length == 0) {
-            return Projection.strip();
-        }
-        try {
-            ProjectedMapData mapData = ProjectedMapData.decode(encoded);
-            if (mapData.sourceMapId() != sourceMapId.intValue()) {
-                reportInvalidPayload(visual, state, "source map id does not match item metadata", null);
-                return Projection.strip();
-            }
-            return sendProjected(observer, state, mapData, reversed, force);
-        } catch (IllegalArgumentException error) {
-            reportInvalidPayload(visual, state, "payload did not decode", error);
-            return Projection.strip();
-        }
-    }
-
-    private Projection sendProjected(Player observer,
-                                     EntityRenderSpoofedEntity state,
-                                     ProjectedMapData source,
-                                     boolean reversed,
-                                     boolean force) {
-        int virtualMapId = virtualMapId(state.fakeId);
-        boolean mapChanged = state.updateMapData(source, reversed);
-        if (force || mapChanged) {
-            ProjectedMapData projected = reversed ? source.mirrorHorizontally() : source;
-            channel.send(observer, projected.toPacket(virtualMapId));
-        }
-        return Projection.virtual(virtualMapId);
-    }
-
-    private static int virtualMapId(int fakeEntityId) {
-        return fakeEntityId > 0 ? -fakeEntityId : Integer.MIN_VALUE + Math.floorMod(fakeEntityId, Integer.MAX_VALUE);
+        return projected.project(observer, visual, state, new ProjectedEntityMaps.Options(sourceMapId, metadataTransform, force));
     }
 
     private static MapView mapView(ItemFrame itemFrame) {
@@ -125,15 +106,14 @@ final class EntityRenderMapBridge {
         observer.sendMap(mapView);
     }
 
-    private static void reportInvalidPayload(EntityVisual visual,
-                                             EntityRenderSpoofedEntity state,
+    private static void reportInvalidPayload(UUID sourceId,
                                              String reason,
                                              RuntimeException error) {
         Wormholes plugin = Wormholes.instance;
-        if (plugin == null || !state.markMapPayloadFailureReported()) {
+        if (plugin == null) {
             return;
         }
-        String message = "[ProjectedEntityRenderer] rejected projected map data for " + visual.id() + ": " + reason;
+        String message = "[ProjectedEntityRenderer] rejected projected map data for " + sourceId + ": " + reason;
         if (error == null) {
             plugin.getLogger().warning(message);
             return;
@@ -141,17 +121,4 @@ final class EntityRenderMapBridge {
         plugin.getLogger().log(Level.WARNING, message, error);
     }
 
-    record Projection(Integer mapId, boolean stripMapId) {
-        private static Projection none() {
-            return new Projection(null, false);
-        }
-
-        private static Projection virtual(int mapId) {
-            return new Projection(Integer.valueOf(mapId), false);
-        }
-
-        private static Projection strip() {
-            return new Projection(null, true);
-        }
-    }
 }

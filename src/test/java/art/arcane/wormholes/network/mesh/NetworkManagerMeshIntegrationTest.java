@@ -1,5 +1,19 @@
 package art.arcane.wormholes.network.mesh;
 
+import art.arcane.wormholes.network.view.BukkitRemoteViewCodec;
+
+import com.github.retrooper.packetevents.protocol.player.Equipment;
+
+import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
+
+import org.bukkit.block.data.BlockData;
+
+import art.arcane.wormholes.network.BukkitPortalSyncAccess;
+
+import art.arcane.wormholes.portal.ILocalPortal;
+
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.NetworkRouter;
@@ -79,7 +93,7 @@ class NetworkManagerMeshIntegrationTest {
         config.serverName = name;
         config.advertiseHostOverride = "127.0.0.1";
         config.listenPort = listenPort;
-        NetworkManager manager = new NetworkManager(LOGGER, config, "26.2", "test", gamePort, tempDir.resolve(name));
+        NetworkManager manager = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", gamePort, tempDir.resolve(name), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         managers.add(manager);
         return manager;
     }
@@ -101,10 +115,10 @@ class NetworkManagerMeshIntegrationTest {
 
     private static RemotePortalRegistry attachRouter(NetworkManager manager) {
         RemotePortalRegistry registry = new RemotePortalRegistry();
-        PortalSyncService sync = new PortalSyncService(manager, List::of, Runnable::run);
-        RemoteViewCache viewCache = new RemoteViewCache();
+        PortalSyncService<ILocalPortal> sync = BukkitPortalSyncAccess.create(manager, List::of, Runnable::run);
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> viewCache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         NetworkRouter router = new NetworkRouter(registry, sync, new TraversalService(manager), new ViewServer(manager), viewCache,
-            new ViewSubscriptionManager(manager, viewCache), manager.getReplicationManager(), manager);
+            new ViewSubscriptionManager<>(manager, viewCache), manager.getReplicationManager(), manager);
         manager.setMessageSink(router::onMessage);
         manager.setPeerStateSink(router::onPeerState);
         return registry;

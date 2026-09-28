@@ -78,7 +78,7 @@ final class RouteCardService implements Listener {
             : extension.compiled().evaluate(new RuleContext(portal, player, player, nowMillis, true, environment));
         long cooldownRemaining = extension == null ? 0L : PortalCooldowns.remainingMillis(player.getUniqueId(),
             portal.getId(), extension.document().profile().cooldownGroup(), nowMillis);
-        ChargePool charges = extension == null ? new ChargePool() : extension.charges();
+        ChargePool charges = extension == null ? new ChargePool(() -> RulesLimits.config().chargesRegenIntervalSeconds * 1000L) : extension.charges();
         RouteCardModel.RouteCard card = RouteCardModel.build(portal, player, dryRun, cooldownRemaining, charges, listed(portal), nowMillis);
         RouteCardCache.publish(player.getUniqueId(), new RouteCardCache.Entry(portal.getId(), card.price(),
             card.state() == RouteCardModel.RouteCard.State.REFUSED ? refusalText(player, card) : "", nowMillis));

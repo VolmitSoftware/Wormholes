@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.replication;
 
+import art.arcane.wormholes.network.view.BukkitRemoteViewCodec;
+
 import art.arcane.wormholes.network.WireMessage;
 import art.arcane.wormholes.network.view.ViewSlice;
 
@@ -45,7 +47,7 @@ class HashProbeSchedulerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(2, 4);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(2, 4);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload));
         sink.clear();
@@ -78,11 +80,11 @@ class HashProbeSchedulerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(0, 0);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload));
 
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         try {
             store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(world.getUID(), world, chunkKey), 1L, payload));
         } catch (java.io.IOException ex) {
@@ -101,11 +103,11 @@ class HashProbeSchedulerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(0, 0);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload));
 
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         try {
             byte[] mutated = withFlippedBlock(payload);
             store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(world.getUID(), world, chunkKey), 1L, mutated));
@@ -125,10 +127,10 @@ class HashProbeSchedulerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(6, 6);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(6, 6);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload));
-        manager.onChunkDrain(world, chunkKey,
+        manager.onChunkDrain(world.getUID(), chunkKey,
             List.of(new BlockChange(BlockChange.pack(1, 62, 1), "minecraft:dirt", BlockChange.FLAG_NONE)),
             List.of(), List.of());
         manager.flushTick();

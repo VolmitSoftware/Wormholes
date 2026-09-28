@@ -1,10 +1,17 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
+
+import art.arcane.wormholes.geometry.GeometryVector;
+
+import art.arcane.wormholes.util.GeometryPersistence;
+
+import art.arcane.wormholes.util.BukkitGeometry;
+
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import java.util.ArrayList;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -15,59 +22,40 @@ import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.wormholes.util.Direction;
-import art.arcane.volmlib.util.json.JSONArray;
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.volmlib.util.collection.KMap;
 import art.arcane.volmlib.util.collection.KSet;
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.volmlib.util.json.JSONObject;
 
-public class PortalStructure implements IWritable
+public class PortalStructure implements IWritable, PortalCellAperture
 {
 	private AxisAlignedBB captureZone;
-	private AxisAlignedBB area;
+	private final PortalGeometry geometry = new PortalGeometry();
 	private AxisAlignedBB box;
 	private World world;
 	private KMap<Direction, AxisAlignedBB> faceCache = new KMap<>();
-	private final ConcurrentHashMap<Direction, List<AxisAlignedBB>> apertureFaceCache = new ConcurrentHashMap<>();
+
 	private KSet<Location> cornerCache;
 	private volatile Location centerCache;
-	private volatile long revision;
-	private final LongOpenHashSet blockKeys = new LongOpenHashSet();
-	private final KList<Vector> blockPositions = new KList<Vector>();
+
+
+
 
 	@Override
 	public void saveJSON(JSONObject j)
 	{
-		j.put("worldKey", WorldIdentity.serialize(world));
-		j.put("area", area.toJSON());
-		JSONArray blocks = new JSONArray();
-		for(Vector block : blockPositions)
-		{
-			JSONObject blockJson = new JSONObject();
-			blockJson.put("x", block.getBlockX());
-			blockJson.put("y", block.getBlockY());
-			blockJson.put("z", block.getBlockZ());
-			blocks.put(blockJson);
-		}
-		j.put("blocks", blocks);
+        JSONObject encoded = new JSONObject(PortalStateCodec.writeGeometry(WorldIdentity.serialize(world), geometry));
+        for(String key : encoded.keySet()) {
+            j.put(key, encoded.get(key));
+        }
 	}
 
 	@Override
 	public void loadJSON(JSONObject j)
 	{
-		area = new AxisAlignedBB(0, 0, 0, 0, 0, 0);
-		area.loadJSON(j.getJSONObject("area"));
-		setWorld(WorldIdentity.resolve(j.getString("worldKey")).orElse(null));
-		clearBlockCells();
-		if(j.has("blocks"))
-		{
-			loadBlockCells(j.getJSONArray("blocks"));
-		}
-		else
-		{
-			setBlockCellsFromAreaBounds();
-		}
+        setWorld(WorldIdentity.resolve(j.getString("worldKey")).orElse(null));
+        PortalStateCodec.readGeometry(BukkitJsonDocuments.values(j), geometry);
 		rebuildCaptureZone();
 		invalidateCache();
 	}
@@ -111,15 +99,22 @@ public class PortalStructure implements IWritable
 		return cached.clone();
 	}
 
+	@Override
+	public GeometryVector getApertureCenter()
+	{
+		return BukkitGeometry.vector(getCenter());
+	}
+
 	public Location randomLocation()
 	{
-		if(!blockPositions.isEmpty())
+		if(!geometry.getBlockPositions().isEmpty())
 		{
-			Vector block = blockPositions.getRandom();
+			List<GeometryVector> cells = geometry.getBlockPositions();
+            GeometryVector block = cells.get(ThreadLocalRandom.current().nextInt(cells.size()));
 			return new Location(getWorld(), block.getBlockX() + Math.random(), block.getBlockY() + Math.random(), block.getBlockZ() + Math.random());
 		}
 
-		return getArea().random().toLocation(getWorld());
+		return BukkitGeometry.location(getArea().random(), getWorld());
 	}
 
 	public void setWorld(World world)
@@ -148,7 +143,7 @@ public class PortalStructure implements IWritable
 
 	private Location corner(Direction x, Direction y, Direction z)
 	{
-		Vector v = getArea().getCornerVector(x, y, z);
+		GeometryVector v = getArea().getCornerVector(x, y, z);
 		return new Location(getWorld(), v.getX(), v.getY(), v.getZ());
 	}
 
@@ -164,60 +159,41 @@ public class PortalStructure implements IWritable
 
 	public AxisAlignedBB getArea()
 	{
-		return area;
+		return geometry.getArea();
 	}
 
 	public long getRevision()
 	{
-		return revision;
+		return geometry.getRevision();
 	}
 
 	public void setArea(Cuboid area)
 	{
-		this.area = new AxisAlignedBB(area);
-		setBlockCellsFromAreaBounds();
+		geometry.setArea(BukkitGeometry.bounds(area));
 		rebuildCaptureZone();
 		invalidateCache();
 	}
 
 	public void setBlocks(Set<Block> blocks)
 	{
-		if(blocks == null || blocks.isEmpty())
-		{
-			return;
-		}
-
-		Cuboid bounds = null;
-		World blockWorld = null;
-		clearBlockCells();
-
-		for(Block block : blocks)
-		{
-			if(block == null || block.getWorld() == null)
-			{
-				continue;
-			}
-
-			blockWorld = block.getWorld();
-			addBlockCell(block.getX(), block.getY(), block.getZ());
-			Cuboid cell = new Cuboid(block.getLocation());
-			bounds = bounds == null ? cell : bounds.getBoundingCuboid(cell);
-		}
-
-		if(bounds == null)
-		{
-			return;
-		}
-
-		setWorld(blockWorld);
-		this.area = new AxisAlignedBB(bounds);
-		rebuildCaptureZone();
-		invalidateCache();
+        if(blocks == null || blocks.isEmpty()) { return; }
+        ArrayList<GeometryVector> cells = new ArrayList<>(blocks.size());
+        World blockWorld = null;
+        for(Block block : blocks) {
+            if(block == null || block.getWorld() == null) { continue; }
+            blockWorld = block.getWorld();
+            cells.add(new GeometryVector(block.getX(), block.getY(), block.getZ()));
+        }
+        if(cells.isEmpty()) { return; }
+        setWorld(blockWorld);
+        geometry.setBlocks(cells);
+        rebuildCaptureZone();
+        invalidateCache();
 	}
 
 	public boolean contains(Location location)
 	{
-		if(location == null || getArea() == null || !getArea().contains(location))
+		if(location == null || getArea() == null || !getArea().containsPrimitive(location.getX(), location.getY(), location.getZ()))
 		{
 			return false;
 		}
@@ -232,82 +208,42 @@ public class PortalStructure implements IWritable
 
 	public boolean containsBlock(int x, int y, int z)
 	{
-		if(blockKeys.isEmpty())
-		{
-			return getArea() != null && getArea().containsPrimitive(x + 0.5D, y + 0.5D, z + 0.5D);
-		}
-
-		return blockKeys.contains(packBlockKey(x, y, z));
+        return geometry.containsBlock(x, y, z);
 	}
 
 	public boolean containsOrAdjoinsBlock(int x, int y, int z)
 	{
-		for(int offsetX = -1; offsetX <= 1; offsetX++)
-		{
-			for(int offsetY = -1; offsetY <= 1; offsetY++)
-			{
-				for(int offsetZ = -1; offsetZ <= 1; offsetZ++)
-				{
-					if(containsBlock(x + offsetX, y + offsetY, z + offsetZ))
-					{
-						return true;
-					}
-				}
-			}
-		}
-
-		return false;
+        return geometry.containsOrAdjoinsBlock(x, y, z);
 	}
 
 	public KList<Vector> getBlockPositions()
 	{
 		KList<Vector> copy = new KList<Vector>();
-		for(Vector block : blockPositions)
+		for(GeometryVector block : geometry.getBlockPositions())
 		{
-			copy.add(block.clone());
+			copy.add(BukkitGeometry.bukkit(block));
 		}
 		return copy;
 	}
 
 	public List<AxisAlignedBB> getCachedApertureFaces(Direction face)
 	{
-		List<AxisAlignedBB> cached = apertureFaceCache.get(face);
-		if(cached != null)
-		{
-			return cached;
-		}
-
-		KList<AxisAlignedBB> faces = new KList<AxisAlignedBB>();
-		if(blockPositions.isEmpty() || isFullCuboid())
-		{
-			faces.add(getArea().getFace(face));
-		}
-		else
-		{
-			for(Vector block : blockPositions)
-			{
-				faces.add(getBlockBox(block.getBlockX(), block.getBlockY(), block.getBlockZ()).getFace(face));
-			}
-		}
-
-		List<AxisAlignedBB> immutable = List.copyOf(faces);
-		List<AxisAlignedBB> raced = apertureFaceCache.putIfAbsent(face, immutable);
-		return raced == null ? immutable : raced;
+        return geometry.getCachedApertureFaces(face);
 	}
 
 	public boolean isFullCuboid()
 	{
-		return !blockKeys.isEmpty() && blockKeys.size() == getBoundingBlockVolume();
+        return geometry.isFullCuboid();
 	}
 
 	private void invalidateCache()
 	{
 		faceCache.clear();
-		apertureFaceCache.clear();
+
 		cornerCache = null;
 		box = null;
 		centerCache = null;
-		revision++;
+
 	}
 
 	public double getSize()
@@ -322,97 +258,11 @@ public class PortalStructure implements IWritable
 
 	public void rebuildCaptureZone()
 	{
-		if(getArea() == null)
-		{
-			captureZone = null;
-			return;
-		}
-		captureZone = new AxisAlignedBB(getArea().min().add(new Vector(-Settings.CAPTURE_ZONE_RADIUS, -Settings.CAPTURE_ZONE_RADIUS, -Settings.CAPTURE_ZONE_RADIUS)), getArea().max().add(new Vector(Settings.CAPTURE_ZONE_RADIUS, Settings.CAPTURE_ZONE_RADIUS, Settings.CAPTURE_ZONE_RADIUS)));
+		captureZone = geometry.captureZone(Settings.CAPTURE_ZONE_RADIUS);
 	}
 
-	private void clearBlockCells()
-	{
-		blockKeys.clear();
-		blockPositions.clear();
-	}
+    public PortalGeometry geometry() {
+        return geometry;
+    }
 
-	private void loadBlockCells(JSONArray blocks)
-	{
-		for(int i = 0; i < blocks.length(); i++)
-		{
-			JSONObject block = blocks.getJSONObject(i);
-			addBlockCell(block.getInt("x"), block.getInt("y"), block.getInt("z"));
-		}
-	}
-
-	private void setBlockCellsFromAreaBounds()
-	{
-		clearBlockCells();
-		blockKeys.ensureCapacity(getBoundingBlockVolume());
-		int xa = (int) Math.floor(getArea().getXa());
-		int ya = (int) Math.floor(getArea().getYa());
-		int za = (int) Math.floor(getArea().getZa());
-		int xb = (int) Math.floor(getArea().getXb());
-		int yb = (int) Math.floor(getArea().getYb());
-		int zb = (int) Math.floor(getArea().getZb());
-
-		for(int x = xa; x <= xb; x++)
-		{
-			for(int y = ya; y <= yb; y++)
-			{
-				for(int z = za; z <= zb; z++)
-				{
-					addBlockCell(x, y, z);
-				}
-			}
-		}
-	}
-
-	private void addBlockCell(int x, int y, int z)
-	{
-		if(!blockKeys.add(packBlockKey(x, y, z)))
-		{
-			return;
-		}
-		blockPositions.add(new Vector(x, y, z));
-	}
-
-	private int getBoundingBlockVolume()
-	{
-		int xa = (int) Math.floor(getArea().getXa());
-		int ya = (int) Math.floor(getArea().getYa());
-		int za = (int) Math.floor(getArea().getZa());
-		int xb = (int) Math.floor(getArea().getXb());
-		int yb = (int) Math.floor(getArea().getYb());
-		int zb = (int) Math.floor(getArea().getZb());
-		return Math.max(0, (xb - xa + 1) * (yb - ya + 1) * (zb - za + 1));
-	}
-
-	private AxisAlignedBB getBlockBox(int x, int y, int z)
-	{
-		return new AxisAlignedBB(x, x + 0.999D, y, y + 0.999D, z, z + 0.999D);
-	}
-
-	static long packBlockKey(int x, int y, int z)
-	{
-		return (((long) x & 0x3FFFFFFL) << 38) | ((((long) y) & 0xFFFL) << 26) | (((long) z) & 0x3FFFFFFL);
-	}
-
-	static int unpackBlockX(long key)
-	{
-		long raw = (key >> 38) & 0x3FFFFFFL;
-		return (int) ((raw << 38) >> 38);
-	}
-
-	static int unpackBlockY(long key)
-	{
-		long raw = (key >> 26) & 0xFFFL;
-		return (int) ((raw << 52) >> 52);
-	}
-
-	static int unpackBlockZ(long key)
-	{
-		long raw = key & 0x3FFFFFFL;
-		return (int) ((raw << 38) >> 38);
-	}
 }

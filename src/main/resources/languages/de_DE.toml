@@ -17,7 +17,7 @@
 #   {address}  Netzwerkadresse der Gegenstelle
 #   {after}  Nachrichtentext nach der Bearbeitung
 #   {allocation}  Zugewiesener Taschenraum
-#   {amount}  Reisekosten in Vault-Währung
+#  {amount} Reisekosten in -Währung
 #   {argument}  Unerwartetes Befehlsargument
 #   {before}  Nachrichtentext vor der Bearbeitung
 #   {biome}  Biomkennung
@@ -357,7 +357,7 @@ transfer_blocked_retry = "&cPortaltransfer blockiert: {reason} (erneuter Versuch
 
 [portal.prompt]
 cost_item = "&bHalte den exakten Kostengegenstand in deiner Haupthand und drücke dann Fallenlassen. Der Gegenstand verlässt dein Inventar nicht."
-cost_vault = "&bGib den Vault-Währungsbetrag pro Durchquerung ein (oder '{cancel}'):"
+cost_vault = "&bGib den Währungsbetrag pro Durchreise ein (oder '{cancel}'):"
 invite = "&bFüge die Portal-Einladung im Chat ein (oder '{cancel}'):"
 block_state = "&bGib einen Blockzustand für den Rand der Netzwerkansicht dieses Portals ein oder '{cancel}':"
 name = "&bGib den neuen Portalnamen im Chat ein (oder '{cancel}'):"
@@ -368,9 +368,9 @@ cost_item_set = "Reisen erfordert jetzt {item}."
 cost_item_invalid = "Dieser Gegenstand konnte nicht als Reisekosten gespeichert werden."
 cost_cleared = "Reisekosten entfernt."
 cost_quantity_changed = "Reisekosten-Anzahl: {quantity}"
-cost_vault_changed = "Vault-Reisekosten: {amount}"
+cost_vault_changed = "Reisekosten: {amount}"
 cost_vault_invalid = "Gib einen positiven Währungsbetrag von höchstens {maximum} ein."
-cost_vault_unavailable = "Vault und ein Wirtschaftsanbieter müssen verfügbar sein, bevor diese Kosten gewählt werden können."
+cost_vault_unavailable = "Vor Auswahl dieser Kosten muss ein Wirtschaftsanbieter verfügbar sein."
 dimensional_link_managed = "Dieses Dimensionsportal behält seine erzeugte Verknüpfung."
 not_rtp = "Dieses Portal ist nicht mehr im Modus zur Zufallsteleportation."
 region_unavailable = "Die Portalregion ist nicht verfügbar; versuche es erneut."
@@ -397,7 +397,7 @@ public_look_label = "Öffentliche Blickbezeichnung"
 [portal.label.cost]
 free = "Kostenlos"
 vanilla = "Vanilla-Gegenstand"
-vault = "Vault-Wirtschaft"
+vault = "Wirtschaft"
 
 [portal.label.ambient]
 red = "Rot"
@@ -552,12 +552,12 @@ available = ["&e&lSpiegel&r", "&7Spiegelt die lokale Welt zurück.", "&7Du siehs
 flip = ["&7Wandspiegel werden in Schritten von 180 Grad gewendet,", "&7damit gespiegelte Entitäten ausgerichtet bleiben.", "&8Rechtsklick: gespiegeltes Bild wenden."]
 
 [portal.menu.cost]
-opener = ["&6&lReisekosten&r", "&7Verlange einen exakten Gegenstand oder Vault-Währung,", "&7wenn ein Spieler dieses Portal nutzt.", "", "&7Modus: &f{mode}", "&7Kosten: &f{cost}", "", "&8Klicken, um zu konfigurieren."]
+opener = ["&6&lReisekosten&r", "&7Verlange einen exakten Gegenstand oder-Währung,", "&7wenn ein Spieler dieses Portal nutzt.", "", "&7Modus: &f{mode}", "&7Kosten: &f{cost}", "", "&8Klicken, um zu konfigurieren."]
 placard = ["&6&lReisekosten&r", "&7Spieler müssen zahlen, bevor dieses Portal", "&7ihnen die Reise erlaubt.", "", "&7Modus: &f{mode}", "&7Kosten: &f{cost}"]
 mode_free = ["&a&lKostenlos&r", "&7Keine Zahlung erforderlich.", "", "&8Klicken, um Reisen kostenlos zu machen."]
 mode_vanilla = ["&b&lVanilla-Gegenstand&r", "&7Verbraucht einen exakt passenden Gegenstand.", "", "&8Klicken, den Gegenstand halten und dann Fallenlassen drücken."]
-mode_vault = ["&a&lVault-Wirtschaft&r", "&7Zieht Währung über Vault ein.", "", "&8Klicken, um einen Betrag einzugeben."]
-mode_vault_unavailable = ["&c&lVault-Wirtschaft nicht verfügbar&r", "&7Vault und ein Wirtschaftsanbieter sind erforderlich.", "", "&8Installiere oder aktiviere beide, um diesen Modus zu nutzen."]
+mode_vault = ["&a&lWirtschaft&r", "&7Währung über einen Wirtschaftsanbieter abbuchen.", "", "&8Klicken, um einen Betrag einzugeben."]
+mode_vault_unavailable = ["&c&lWirtschaft nicht verfügbar&r", "&7Ein Wirtschaftsanbieter ist erforderlich.", "", "&8Aktiviere einen Wirtschaftsanbieter für diesen Modus."]
 free_detail = ["&a&lKeine Kosten&r", "&7Reisen durch dieses Portal ist kostenlos."]
 secondary_empty = ["&8&lKeine weitere Einstellung&r"]
 item = ["&b&l{item}&r", "&7Genau dieser Gegenstand ist für die Reise erforderlich.", "&7Der Auswahlgegenstand wird nie verbraucht.", "", "&8Links: einen anderen gehaltenen Gegenstand wählen.", "&8Rechts: Kosten entfernen."]
@@ -687,7 +687,7 @@ execution_failed = "Befehl {command} konnte nicht ausgeführt werden: {reason}"
 not_initialized = "&8[&6Wormholes&8] &cDas Netzwerk wurde noch nicht initialisiert."
 
 [network.status]
-disabled = "&8[&6Wormholes&8] &7Das Netzwerk ist &cdeaktiviert&7 (plugins/Wormholes/wormholes.toml)."
+disabled = "&8[&6Wormholes&8] &7Das Netzwerk ist &cdeaktiviert&7 (wormholes.toml)."
 not_running = "&8[&6Wormholes&8] &cDas Netzwerk ist aktiviert, läuft aber nicht. Prüfe Identitätsspeicher und Netzwerkport."
 listening = "&8[&6Wormholes&8] &7Dieser Server: &f{server}&7, lauscht auf &f{address}"
 outbound_only = "&8[&6Wormholes&8] &7Dieser Server: &f{server}&7, Boat-Modus nur ausgehend"

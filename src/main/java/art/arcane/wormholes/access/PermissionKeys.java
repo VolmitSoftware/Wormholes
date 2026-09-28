@@ -27,46 +27,15 @@ public final class PermissionKeys {
      * underscore, collapse every other run into one underscore, trim the edges.
      */
     public static String sanitize(String name) {
-        String source = name == null || name.isBlank() ? FALLBACK : name.toLowerCase(Locale.ROOT);
-        StringBuilder builder = new StringBuilder(source.length());
-        boolean previousSeparator = false;
-        for (int index = 0; index < source.length(); index++) {
-            char character = source.charAt(index);
-            boolean allowed = (character >= 'a' && character <= 'z')
-                || (character >= '0' && character <= '9')
-                || character == '.' || character == '-' || character == '_';
-            if (allowed) {
-                builder.append(character);
-                previousSeparator = false;
-                continue;
-            }
-            if (!previousSeparator) {
-                builder.append('_');
-                previousSeparator = true;
-            }
-        }
-        String trimmed = trimSeparators(builder.toString());
-        return trimmed.isEmpty() ? FALLBACK : trimmed;
+        return PortalPermissionKey.sanitize(name);
     }
 
     public static boolean isValid(String key) {
-        if (key == null || key.isEmpty() || key.length() > MAX_LENGTH) {
-            return false;
-        }
-        for (int index = 0; index < key.length(); index++) {
-            char character = key.charAt(index);
-            boolean allowed = (character >= 'a' && character <= 'z')
-                || (character >= '0' && character <= '9')
-                || character == '.' || character == '-' || character == '_';
-            if (!allowed) {
-                return false;
-            }
-        }
-        return true;
+        return PortalPermissionKey.isValid(key);
     }
 
     public static String node(String key) {
-        return NODE_PREFIX + key;
+        return PortalPermissionKey.node(key);
     }
 
     /** True when a portal other than {@code portalId} already answers to {@code key}. */
@@ -96,15 +65,4 @@ public final class PermissionKeys {
         return isTaken(key, portalId, portals);
     }
 
-    private static String trimSeparators(String value) {
-        int start = 0;
-        int end = value.length();
-        while (start < end && value.charAt(start) == '_') {
-            start++;
-        }
-        while (end > start && value.charAt(end - 1) == '_') {
-            end--;
-        }
-        return value.substring(start, end);
-    }
 }

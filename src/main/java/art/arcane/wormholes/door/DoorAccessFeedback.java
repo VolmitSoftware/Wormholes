@@ -3,7 +3,6 @@ package art.arcane.wormholes.door;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.door.DoorPortalVisualService.PortalPlaneGeometry;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.service.WormholesHud;
@@ -12,8 +11,7 @@ import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.SoundCategory;
 import org.bukkit.World;
-import org.bukkit.block.BlockFace;
-import org.bukkit.block.data.type.Door;
+import art.arcane.wormholes.util.Direction;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -25,7 +23,6 @@ import java.util.logging.Level;
 
 final class DoorAccessFeedback
 {
-	static final long DENY_COOLDOWN_MILLIS = 1500L;
 
 	private static final int COOLDOWN_PRUNE_THRESHOLD = 256;
 	private static final int DENY_DUST_COUNT = 24;
@@ -48,15 +45,6 @@ final class DoorAccessFeedback
 		denyCooldowns = new ConcurrentHashMap<>();
 	}
 
-	static boolean isCoolingDown(Long nextAllowedMillis, long nowMillis)
-	{
-		return nextAllowedMillis != null && nextAllowedMillis.longValue() > nowMillis;
-	}
-
-	static long nextAllowedMillis(long nowMillis)
-	{
-		return nowMillis + DENY_COOLDOWN_MILLIS;
-	}
 
 	void deny(Player player, PlacedDoorEndpoint endpoint, DoorwayPlane plane, World world)
 	{
@@ -96,11 +84,11 @@ final class DoorAccessFeedback
 
 	private boolean claimDeny(UUID playerId, long nowMillis)
 	{
-		if(isCoolingDown(denyCooldowns.get(playerId), nowMillis))
+		if(DoorAccessFeedbackPolicy.isCoolingDown(denyCooldowns.get(playerId), nowMillis))
 		{
 			return false;
 		}
-		denyCooldowns.put(playerId, Long.valueOf(nextAllowedMillis(nowMillis)));
+		denyCooldowns.put(playerId, Long.valueOf(DoorAccessFeedbackPolicy.nextAllowedMillis(nowMillis)));
 		if(denyCooldowns.size() > COOLDOWN_PRUNE_THRESHOLD)
 		{
 			denyCooldowns.values().removeIf(until -> until.longValue() <= nowMillis);
@@ -154,8 +142,8 @@ final class DoorAccessFeedback
 		ThreadLocalRandom random = ThreadLocalRandom.current();
 		PortalPlaneGeometry geometry = plane == null
 			? null
-			: DoorPortalVisualService.planeGeometry(plane, Door.Hinge.LEFT);
-		BlockFace panelFace = plane == null ? null : DoorPortalVisualService.panelFace(plane);
+			: DoorPortalGeometry.planeGeometry(plane, DoorHinge.LEFT);
+		Direction panelFace = plane == null ? null : DoorPortalGeometry.panelFace(plane);
 		for(int index = 0; index < DENY_DUST_COUNT; index++)
 		{
 			double u = random.nextDouble();

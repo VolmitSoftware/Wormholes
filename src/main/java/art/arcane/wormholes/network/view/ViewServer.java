@@ -18,8 +18,6 @@ import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.acoustics.AcousticsProfile;
 import art.arcane.wormholes.service.WormholesTelemetry;
-import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.Direction;
 
 import org.bukkit.World;
 import org.bukkit.entity.Pose;
@@ -38,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.logging.Level;
 
 public final class ViewServer implements Listener {
     public record Stats(int subscriptions, int trackedEntities, long chunkBulkSentCount, long chunkDiffSentCount, long entitySendCount, long timeSendCount) {
@@ -63,19 +62,13 @@ public final class ViewServer implements Listener {
     private final ViewTicketRegistry tickets;
     private final ViewTimeDelivery timeDelivery;
     private final ViewBulkPipeline bulkPipeline;
-    private final ViewEntityPublisher entityPublisher;
+    private final ViewEntityPublisher<ViewSession> entityPublisher;
     private final ViewEntityPipeline entityPipeline;
     private final ViewSubscriptions subscriptions;
     private final ViewTaskLoop taskLoop;
     private volatile int captureApertureGuard;
 
-    record BlobCaptureState(long lastCaptureTick, Pose pose, boolean onFire, int stateSignature) {
-    }
-
     record BulkRetryKey(UUID subscriptionId, String peerName, ReplicationStreamKey stream, long bulkGeneration) {
-    }
-
-    record EntityRank(UUID id, boolean player, double distanceSquared) {
     }
 
     static final class TimeDeliveryState {
@@ -229,55 +222,13 @@ public final class ViewServer implements Listener {
         }
     }
 
-    static final class EntityAdmission<T> {
-        private static final Comparator<EntityRank> RANK_ORDER = ViewServer::compareRanks;
-
-        private final int limit;
-        private final TreeSet<EntityRank> ranks = new TreeSet<>(RANK_ORDER);
-        private final Map<UUID, EntityRank> ranksById = new HashMap<>();
-        private final Map<UUID, T> valuesById = new HashMap<>();
-
-        EntityAdmission(int limit) {
-            if (limit <= 0) {
-                throw new IllegalArgumentException("limit must be positive");
-            }
-            this.limit = limit;
-        }
-
-        synchronized boolean admit(EntityRank rank, T value) {
-            if (ranksById.containsKey(rank.id())) {
-                return false;
-            }
-            if (ranks.size() >= limit) {
-                EntityRank worst = ranks.last();
-                if (RANK_ORDER.compare(rank, worst) >= 0) {
-                    return false;
-                }
-                ranks.remove(worst);
-                ranksById.remove(worst.id());
-                valuesById.remove(worst.id());
-            }
-            ranks.add(rank);
-            ranksById.put(rank.id(), rank);
-            valuesById.put(rank.id(), value);
-            return true;
-        }
-
-        synchronized Set<UUID> admittedIds() {
-            return Set.copyOf(ranksById.keySet());
-        }
-
-        synchronized List<T> selectedEntities() {
-            return List.copyOf(valuesById.values());
-        }
-    }
-
     public ViewServer(NetworkManager network) {
         this.registry = new ViewSessionRegistry(network);
         this.tickets = new ViewTicketRegistry();
         this.timeDelivery = new ViewTimeDelivery(registry);
         this.bulkPipeline = new ViewBulkPipeline(registry, timeDelivery);
-        this.entityPublisher = new ViewEntityPublisher(registry);
+        this.entityPublisher = new ViewEntityPublisher<>(network, new ViewEntityPublisher.Options<>(registry::isSessionCurrent,
+            () -> Settings.DEBUG, Wormholes::v, (message, error) -> Wormholes.instance.getLogger().log(Level.WARNING, message, error)));
         this.entityPipeline = new ViewEntityPipeline(registry, timeDelivery, entityPublisher);
         this.subscriptions = new ViewSubscriptions(registry, tickets, timeDelivery, bulkPipeline, this::startTask);
         this.taskLoop = new ViewTaskLoop(
@@ -296,24 +247,10 @@ public final class ViewServer implements Listener {
     }
 
     public static ViewBox computeBox(ILocalPortal portal, int radius) {
-        AxisAlignedBB area = portal.getStructure().getArea();
         World world = portal.getStructure().getWorld();
-        Direction normal = portal.getFrame().getNormal();
-        int depth = Math.max(0, radius);
-        int apertureGuard = currentCaptureApertureGuard();
-        int lateral = Math.max(0, portal.getNetworkViewLateralPad()) + apertureGuard;
-        int expandX = normal.x() == 0 ? lateral : depth;
-        int expandY = normal.y() == 0 ? lateral : depth;
-        int expandZ = normal.z() == 0 ? lateral : depth;
-        int minX = (int) Math.floor(Math.min(area.getXa(), area.getXb())) - expandX;
-        int minY = (int) Math.floor(Math.min(area.getYa(), area.getYb())) - expandY;
-        int minZ = (int) Math.floor(Math.min(area.getZa(), area.getZb())) - expandZ;
-        int maxX = (int) Math.floor(Math.max(area.getXa(), area.getXb())) + expandX;
-        int maxY = (int) Math.floor(Math.max(area.getYa(), area.getYb())) + expandY;
-        int maxZ = (int) Math.floor(Math.max(area.getZa(), area.getZb())) + expandZ;
-        minY = Math.max(minY, world.getMinHeight());
-        maxY = Math.min(maxY, world.getMaxHeight() - 1);
-        return new ViewBox(minX, minY, minZ, maxX, maxY, maxZ);
+        return ViewCaptureBounds.compute(portal.getStructure().getArea(), portal.getFrame().getNormal(),
+            new ViewCaptureBounds.Options(radius, portal.getNetworkViewLateralPad(),
+                Settings.PROJECTION_APERTURE_PADDING_BLOCKS, world.getMinHeight(), world.getMaxHeight()));
     }
 
     static int currentCaptureApertureGuard() {
@@ -473,7 +410,7 @@ public final class ViewServer implements Listener {
         return sidebandAllowed == null ? Set.of() : sidebandAllowed;
     }
 
-    static boolean shouldRecaptureBlobs(EntityVisual previousVisual, BlobCaptureState previousBlobState, long entityTick, long intervalTicks,
+    static boolean shouldRecaptureBlobs(EntityVisual previousVisual, ViewEntityState.BlobCaptureState<Pose> previousBlobState, long entityTick, long intervalTicks,
                                         Pose pose, boolean onFire, int stateSignature) {
         return previousVisual == null
             || previousBlobState == null
@@ -481,17 +418,6 @@ public final class ViewServer implements Listener {
             || previousBlobState.pose() != pose
             || previousBlobState.onFire() != onFire
             || previousBlobState.stateSignature() != stateSignature;
-    }
-
-    private static int compareRanks(EntityRank left, EntityRank right) {
-        if (left.player() != right.player()) {
-            return left.player() ? -1 : 1;
-        }
-        int distanceOrder = Double.compare(left.distanceSquared(), right.distanceSquared());
-        if (distanceOrder != 0) {
-            return distanceOrder;
-        }
-        return left.id().compareTo(right.id());
     }
 
     private void startTask() {

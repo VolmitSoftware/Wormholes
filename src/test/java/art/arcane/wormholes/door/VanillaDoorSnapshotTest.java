@@ -1,5 +1,7 @@
 package art.arcane.wormholes.door;
 
+import art.arcane.wormholes.util.Direction;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -40,7 +42,7 @@ final class VanillaDoorSnapshotTest
 				WORLD_ID, 7, 65, -2, trapDoorData(BlockFace.SOUTH, half, false), DoorOpenState.OPEN);
 
 			assertEquals(65, snapshot.plane().blockY(), "a trapdoor never normalizes to a lower half");
-			assertEquals(half, snapshot.plane().half());
+			assertEquals(BukkitDoorGeometry.half(half), snapshot.plane().half());
 			assertEquals(DoorForm.TRAPDOOR, snapshot.plane().form());
 		}
 	}
@@ -48,9 +50,9 @@ final class VanillaDoorSnapshotTest
 	@Test
 	void portalLivenessFollowsTheConfiguredOpenStateForBothForms()
 	{
-		DoorwayPlane door = new DoorwayPlane(0, 64, 0, BlockFace.NORTH);
+		DoorwayPlane door = new DoorwayPlane(0, 64, 0, Direction.N);
 		DoorwayPlane trapdoor = DoorwayPlane.trapdoor(
-			0, 64, 0, BlockFace.NORTH, Bisected.Half.BOTTOM, DoorOpenState.OPEN);
+			0, 64, 0, Direction.N, DoorHalf.BOTTOM, DoorOpenState.OPEN);
 
 		for(DoorwayPlane plane : new DoorwayPlane[] {door, trapdoor})
 		{

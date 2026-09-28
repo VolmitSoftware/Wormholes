@@ -14,10 +14,9 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.World;
-import org.bukkit.block.BlockFace;
+import art.arcane.wormholes.util.Direction;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Orientable;
-import org.bukkit.block.data.type.Door;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
@@ -43,14 +42,8 @@ final class DoorPortalVisualService implements AutoCloseable
 {
 	static final Material PORTAL_MATERIAL = Material.CRYING_OBSIDIAN;
 	static final Material PORTAL_OVERLAY_MATERIAL = Material.NETHER_PORTAL;
-	private static final float PORTAL_INSET = 0.0625F;
-	private static final float PORTAL_RECESS = (float) DoorwayPlane.PORTAL_RECESS;
-	private static final float PORTAL_WIDTH = 1.0F - PORTAL_INSET;
-	private static final float PORTAL_HEIGHT = 2.0F - (PORTAL_INSET * 2.0F);
-	private static final float PORTAL_THICKNESS = (float) DoorwayPlane.PORTAL_THICKNESS;
-	private static final float CONTACT_PORTAL_THICKNESS =
-		(float) DoorwayPlane.TRAPDOOR_PLATE_THICKNESS + 0.02F;
-	private static final float PORTAL_OVERLAY_THICKNESS = 0.15F;
+	private static final float PORTAL_WIDTH = 0.9375F;
+	private static final float PORTAL_HEIGHT = 1.875F;
 	private static final int SPARKLE_PERIOD_TICKS = 16;
 	static final int MAX_ANIMATION_TASKS_PER_PASS = 64;
 	static final int MAX_ANIMATION_TASKS_IN_FLIGHT = 64;
@@ -132,8 +125,8 @@ final class DoorPortalVisualService implements AutoCloseable
 			return;
 		}
 		Location anchor = new Location(world, plane.blockX() + 0.5D, plane.blockY(), plane.blockZ() + 0.5D);
-		BlockFace panelFace = panelFace(plane);
-		PortalPlaneGeometry geometry = planeGeometry(plane, snapshot.hinge());
+		Direction panelFace = DoorPortalGeometry.panelFace(plane);
+		PortalPlaneGeometry geometry = DoorPortalGeometry.planeGeometry(plane, DoorHinge.valueOf(snapshot.hinge().name()));
 		if(closed.get())
 		{
 			return;
@@ -144,7 +137,7 @@ final class DoorPortalVisualService implements AutoCloseable
 			remove(backing);
 			return;
 		}
-		PortalPlaneGeometry overlayGeometry = overlayGeometry(geometry, panelFace);
+		PortalPlaneGeometry overlayGeometry = DoorPortalGeometry.overlayGeometry(geometry, panelFace);
 		BlockDisplay overlay;
 		try
 		{
@@ -183,19 +176,13 @@ final class DoorPortalVisualService implements AutoCloseable
 		registerAnimation(doorId, replacement, world, anchor, panelFace, overlayGeometry);
 	}
 
-	/** The surface normal of the visible panel: flat and upward for a trapdoor. */
-	static BlockFace panelFace(DoorwayPlane plane)
-	{
-		Objects.requireNonNull(plane, "plane");
-		return plane.horizontal() ? BlockFace.UP : plane.facing();
-	}
 
 	private void registerAnimation(
 		UUID doorId,
 		Visual visual,
 		World world,
 		Location anchor,
-		BlockFace facing,
+		Direction facing,
 		PortalPlaneGeometry overlayGeometry)
 	{
 		AnimationTarget target = new AnimationTarget(
@@ -458,7 +445,7 @@ final class DoorPortalVisualService implements AutoCloseable
 		Visual visual,
 		World world,
 		Location anchor,
-		BlockFace facing,
+		Direction facing,
 		PortalPlaneGeometry overlayGeometry,
 		int tick)
 	{
@@ -514,7 +501,7 @@ final class DoorPortalVisualService implements AutoCloseable
 		World world,
 		Location anchor,
 		UUID doorId,
-		BlockFace facing,
+		Direction facing,
 		PortalPlaneGeometry geometry)
 	{
 		return world.spawn(anchor, BlockDisplay.class, spawned -> configureDisplay(
@@ -546,10 +533,10 @@ final class DoorPortalVisualService implements AutoCloseable
 		display.getPersistentDataContainer().set(markerKey, PersistentDataType.STRING, doorId.toString());
 	}
 
-	private static BlockData portalOverlayData(BlockFace facing)
+	private static BlockData portalOverlayData(Direction facing)
 	{
 		Orientable blockData = (Orientable) PORTAL_OVERLAY_MATERIAL.createBlockData();
-		blockData.setAxis(overlayAxis(facing));
+		blockData.setAxis(Axis.valueOf(DoorPortalGeometry.overlayAxis(facing).name()));
 		return blockData;
 	}
 
@@ -648,161 +635,6 @@ final class DoorPortalVisualService implements AutoCloseable
 		cleanedChunks.clear();
 	}
 
-	/**
-	 * Panel geometry for one plane. A trapdoor's veil is a flat one-by-one slab
-	 * lying in the plate plane, so the hinge - a hinged-door concept - is ignored.
-	 */
-	static PortalPlaneGeometry planeGeometry(DoorwayPlane plane, Door.Hinge hinge)
-	{
-		Objects.requireNonNull(plane, "plane");
-		if(!plane.horizontal())
-		{
-			PortalPlaneGeometry vertical = geometry(plane.facing(), hinge);
-			return plane.contactSurface() ? contactGeometry(vertical, plane.facing()) : vertical;
-		}
-		float thickness = plane.contactSurface() ? CONTACT_PORTAL_THICKNESS : PORTAL_THICKNESS;
-		return new PortalPlaneGeometry(
-			-PORTAL_WIDTH / 2.0F,
-			(float) (plane.planeY() - plane.blockY()) - (thickness / 2.0F),
-			-PORTAL_WIDTH / 2.0F,
-			PORTAL_WIDTH,
-			thickness,
-			PORTAL_WIDTH);
-	}
-
-	private static PortalPlaneGeometry contactGeometry(PortalPlaneGeometry geometry, BlockFace facing)
-	{
-		return switch(facing)
-		{
-			case NORTH, SOUTH -> new PortalPlaneGeometry(
-				geometry.translationX(),
-				geometry.translationY(),
-				geometry.translationZ() + ((geometry.scaleZ() - CONTACT_PORTAL_THICKNESS) / 2.0F),
-				geometry.scaleX(),
-				geometry.scaleY(),
-				CONTACT_PORTAL_THICKNESS);
-			case EAST, WEST -> new PortalPlaneGeometry(
-				geometry.translationX() + ((geometry.scaleX() - CONTACT_PORTAL_THICKNESS) / 2.0F),
-				geometry.translationY(),
-				geometry.translationZ(),
-				CONTACT_PORTAL_THICKNESS,
-				geometry.scaleY(),
-				geometry.scaleZ());
-			default -> throw new IllegalArgumentException("Door portal facing must be cardinal: " + facing);
-		};
-	}
-
-	static PortalPlaneGeometry geometry(BlockFace facing, Door.Hinge hinge)
-	{
-		Objects.requireNonNull(facing, "facing");
-		Objects.requireNonNull(hinge, "hinge");
-		float lateralTranslation = lateralTranslation(facing, hinge);
-		return switch(facing)
-		{
-			case NORTH -> new PortalPlaneGeometry(
-				lateralTranslation,
-				PORTAL_INSET,
-				0.5F - PORTAL_RECESS - PORTAL_THICKNESS,
-				PORTAL_WIDTH,
-				PORTAL_HEIGHT,
-				PORTAL_THICKNESS);
-			case SOUTH -> new PortalPlaneGeometry(
-				lateralTranslation,
-				PORTAL_INSET,
-				-0.5F + PORTAL_RECESS,
-				PORTAL_WIDTH,
-				PORTAL_HEIGHT,
-				PORTAL_THICKNESS);
-			case EAST -> new PortalPlaneGeometry(
-				-0.5F + PORTAL_RECESS,
-				PORTAL_INSET,
-				lateralTranslation,
-				PORTAL_THICKNESS,
-				PORTAL_HEIGHT,
-				PORTAL_WIDTH);
-			case WEST -> new PortalPlaneGeometry(
-				0.5F - PORTAL_RECESS - PORTAL_THICKNESS,
-				PORTAL_INSET,
-				lateralTranslation,
-				PORTAL_THICKNESS,
-				PORTAL_HEIGHT,
-				PORTAL_WIDTH);
-			default -> throw new IllegalArgumentException("Door portal facing must be cardinal: " + facing);
-		};
-	}
-
-	static PortalPlaneGeometry overlayGeometry(PortalPlaneGeometry backing, BlockFace facing)
-	{
-		Objects.requireNonNull(backing, "backing");
-		Objects.requireNonNull(facing, "facing");
-		return switch(facing)
-		{
-			case NORTH, SOUTH -> overlayAlongZ(backing);
-			case EAST, WEST -> overlayAlongX(backing);
-			case UP, DOWN -> overlayAlongY(backing);
-			default -> throw new IllegalArgumentException("Door portal facing must be axial: " + facing);
-		};
-	}
-
-	private static PortalPlaneGeometry overlayAlongX(PortalPlaneGeometry backing)
-	{
-		float thickness = Math.max(PORTAL_OVERLAY_THICKNESS, backing.scaleX() + 0.02F);
-		return new PortalPlaneGeometry(
-			backing.translationX() + (backing.scaleX() / 2.0F) - (thickness / 2.0F),
-			backing.translationY(),
-			backing.translationZ(),
-			thickness,
-			backing.scaleY(),
-			backing.scaleZ());
-	}
-
-	private static PortalPlaneGeometry overlayAlongY(PortalPlaneGeometry backing)
-	{
-		float thickness = Math.max(PORTAL_OVERLAY_THICKNESS, backing.scaleY() + 0.02F);
-		return new PortalPlaneGeometry(
-			backing.translationX(),
-			backing.translationY() + (backing.scaleY() / 2.0F) - (thickness / 2.0F),
-			backing.translationZ(),
-			backing.scaleX(),
-			thickness,
-			backing.scaleZ());
-	}
-
-	private static PortalPlaneGeometry overlayAlongZ(PortalPlaneGeometry backing)
-	{
-		float thickness = Math.max(PORTAL_OVERLAY_THICKNESS, backing.scaleZ() + 0.02F);
-		return new PortalPlaneGeometry(
-			backing.translationX(),
-			backing.translationY(),
-			backing.translationZ() + (backing.scaleZ() / 2.0F) - (thickness / 2.0F),
-			backing.scaleX(),
-			backing.scaleY(),
-			thickness);
-	}
-
-	/** A nether portal block only ever lies on X or Z, so a flat panel picks X. */
-	static Axis overlayAxis(BlockFace facing)
-	{
-		Objects.requireNonNull(facing, "facing");
-		return switch(facing)
-		{
-			case NORTH, SOUTH, UP, DOWN -> Axis.X;
-			case EAST, WEST -> Axis.Z;
-			default -> throw new IllegalArgumentException("Door portal facing must be axial: " + facing);
-		};
-	}
-
-	private static float lateralTranslation(BlockFace facing, Door.Hinge hinge)
-	{
-		int hingeSign = hinge == Door.Hinge.LEFT ? 1 : -1;
-		int farSideSign = switch(facing)
-		{
-			case NORTH, SOUTH -> -facing.getModZ() * hingeSign;
-			case EAST, WEST -> facing.getModX() * hingeSign;
-			default -> throw new IllegalArgumentException("Door portal facing must be cardinal: " + facing);
-		};
-		return farSideSign > 0 ? -0.5F + PORTAL_INSET : -0.5F;
-	}
 
 	private World world(PlacedDoorEndpoint endpoint)
 	{
@@ -878,7 +710,7 @@ final class DoorPortalVisualService implements AutoCloseable
 		private final Visual visual;
 		private final World world;
 		private final Location anchor;
-		private final BlockFace facing;
+		private final Direction facing;
 		private final PortalPlaneGeometry overlayGeometry;
 
 		private AnimationTarget(
@@ -886,7 +718,7 @@ final class DoorPortalVisualService implements AutoCloseable
 			Visual visual,
 			World world,
 			Location anchor,
-			BlockFace facing,
+			Direction facing,
 			PortalPlaneGeometry overlayGeometry)
 		{
 			this.doorId = Objects.requireNonNull(doorId, "doorId");
@@ -906,13 +738,5 @@ final class DoorPortalVisualService implements AutoCloseable
 		}
 	}
 
-	record PortalPlaneGeometry(
-		float translationX,
-		float translationY,
-		float translationZ,
-		float scaleX,
-		float scaleY,
-		float scaleZ)
-	{
-	}
+
 }

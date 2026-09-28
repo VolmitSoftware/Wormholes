@@ -38,9 +38,9 @@ class ChunkSnapshotComparatorTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
-        RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, CaptureSettings.defaults());
+        RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, CaptureSettings.defaults(), BukkitCaptureAccess.INSTANCE));
         accumulator.recordBlockChange(world, 3, 70, 3, fakeBlockData("minecraft:stone"), BlockChange.FLAG_NONE);
         accumulator.recordBlockChange(world, 3, 70, 3, fakeBlockData("minecraft:dirt"), BlockChange.FLAG_NONE);
         drainAllSafely(accumulator, world);
@@ -53,9 +53,9 @@ class ChunkSnapshotComparatorTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
-        RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, CaptureSettings.defaults());
+        RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, CaptureSettings.defaults(), BukkitCaptureAccess.INSTANCE));
         accumulator.recordBlockChange(world, 1, -64, 1, fakeBlockData("minecraft:deepslate"), BlockChange.FLAG_NONE);
         accumulator.recordBlockChange(world, 1, 0, 1, fakeBlockData("minecraft:stone"), BlockChange.FLAG_NONE);
         accumulator.recordBlockChange(world, 1, 319, 1, fakeBlockData("minecraft:air"), BlockChange.FLAG_NONE);
@@ -78,9 +78,9 @@ class ChunkSnapshotComparatorTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
-        RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, CaptureSettings.defaults());
+        RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, CaptureSettings.defaults(), BukkitCaptureAccess.INSTANCE));
         ChunkSnapshotComparator comparator = new ChunkSnapshotComparator(null, replication, accumulator, CaptureSettings.defaults(), null);
 
         BlockData stone = fakeBlockData("minecraft:stone");
@@ -100,9 +100,9 @@ class ChunkSnapshotComparatorTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
-        RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, CaptureSettings.defaults());
+        RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, CaptureSettings.defaults(), BukkitCaptureAccess.INSTANCE));
         ChunkSnapshotComparator comparator = new ChunkSnapshotComparator(null, replication, accumulator, CaptureSettings.defaults(), null);
 
         BlockData stone = fakeBlockData("minecraft:stone");
@@ -126,10 +126,10 @@ class ChunkSnapshotComparatorTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = fakeWorld(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world,
+        replication.subscribe(PEER, world.getUID(), world.getUID(),
             ReplicationTestStream.stream(world.getUID(), world, chunkKey, ProjectionRenderMode.VENTICULAR));
         CapturingFeed feed = new CapturingFeed();
-        RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, CaptureSettings.defaults());
+        RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, CaptureSettings.defaults(), BukkitCaptureAccess.INSTANCE));
         ChunkSnapshotComparator comparator =
             new ChunkSnapshotComparator(null, replication, accumulator, CaptureSettings.defaults(), null);
         BlockData solid = fakeBlockData("minecraft:stone");
@@ -158,10 +158,10 @@ class ChunkSnapshotComparatorTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world,
+        replication.subscribe(PEER, world.getUID(), world.getUID(),
             ReplicationTestStream.stream(world.getUID(), world, chunkKey));
-        RegionalDiffAccumulator accumulator =
-            new RegionalDiffAccumulator(replication, new CapturingFeed(), CaptureSettings.defaults());
+        RegionalDiffAccumulator<World, BlockData> accumulator =
+            new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(new CapturingFeed(), CaptureSettings.defaults(), BukkitCaptureAccess.INSTANCE));
         ChunkSnapshotComparator comparator =
             new ChunkSnapshotComparator(null, replication, accumulator, CaptureSettings.defaults(), null);
         RegionalDiffAccumulator.BlockCaptureRevision staleRevision =
@@ -181,11 +181,11 @@ class ChunkSnapshotComparatorTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world,
+        replication.subscribe(PEER, world.getUID(), world.getUID(),
             ReplicationTestStream.stream(world.getUID(), world, chunkKey, ProjectionRenderMode.VENTICULAR));
         CapturingFeed feed = new CapturingFeed();
         CaptureSettings settings = new CaptureSettings(100, 16, true, true);
-        RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, settings);
+        RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, settings, BukkitCaptureAccess.INSTANCE));
         ChunkSnapshotComparator comparator = new ChunkSnapshotComparator(null, replication, accumulator, settings, null);
 
         BlockData stone = fakeBlockData("minecraft:stone");
@@ -207,8 +207,8 @@ class ChunkSnapshotComparatorTest {
     void activeChunksOnlyReceiveSparseIntegrityCaptures(@TempDir Path dir) {
         TestNetworkSink sink = new TestNetworkSink(dir);
         ChunkReplicationManager replication = sink.getReplicationManager();
-        RegionalDiffAccumulator accumulator =
-            new RegionalDiffAccumulator(replication, new CapturingFeed(), CaptureSettings.defaults());
+        RegionalDiffAccumulator<World, BlockData> accumulator =
+            new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(new CapturingFeed(), CaptureSettings.defaults(), BukkitCaptureAccess.INSTANCE));
         ChunkSnapshotComparator comparator =
             new ChunkSnapshotComparator(null, replication, accumulator, CaptureSettings.defaults(), null);
         UUID worldId = UUID.randomUUID();
@@ -223,7 +223,7 @@ class ChunkSnapshotComparatorTest {
     }
 
     private static void invokeCompare(ChunkSnapshotComparator comparator,
-                                      RegionalDiffAccumulator accumulator,
+                                      RegionalDiffAccumulator<World, BlockData> accumulator,
                                       World world,
                                       long chunkKey,
                                       int chunkX,
@@ -335,7 +335,7 @@ class ChunkSnapshotComparatorTest {
             });
     }
 
-    private static void drainAllSafely(RegionalDiffAccumulator accumulator, World world) {
+    private static void drainAllSafely(RegionalDiffAccumulator<World, BlockData> accumulator, World world) {
         java.util.Map<Long, ChunkDirtySet> chunkMap = accumulator.dirtyWorlds().get(world.getUID());
         if (chunkMap == null) {
             return;
@@ -349,7 +349,7 @@ class ChunkSnapshotComparatorTest {
         private final List<BlockChange> blocks = new ArrayList<>();
 
         @Override
-        public void onChunkDrain(World world, long chunkKey, List<BlockChange> drainedBlocks, List<LightDiff> drainedLights, List<BlockEntityDiff> drainedEntities) {
+        public void onChunkDrain(UUID world, long chunkKey, List<BlockChange> drainedBlocks, List<LightDiff> drainedLights, List<BlockEntityDiff> drainedEntities) {
             blocks.addAll(drainedBlocks);
         }
 

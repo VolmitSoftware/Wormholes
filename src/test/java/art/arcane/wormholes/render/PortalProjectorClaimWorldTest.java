@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.render.view.ProjectionContentView;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -88,9 +89,9 @@ public final class PortalProjectorClaimWorldTest {
         assertTrue(arbiter.isIdle(), "the abandoned claim state must be discarded, not leaked");
     }
 
-    private static Long2ObjectOpenHashMap<ProjectedBlockClaim> claims() {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(1);
-        claims.put(CELL, new ProjectedBlockClaim(blockData("projected"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
+    private static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims() {
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(1);
+        claims.put(CELL, new ProjectedBlockClaim<BlockData, ProjectionWorldView>(blockData("projected"), null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
         return claims;
     }
 
@@ -123,7 +124,7 @@ public final class PortalProjectorClaimWorldTest {
 
             @Override
             public int getLight(int x, int y, int z) {
-                return ProjectionWorldView.packLight(15, 0);
+                return ProjectionContentView.packLight(15, 0);
             }
 
             @Override

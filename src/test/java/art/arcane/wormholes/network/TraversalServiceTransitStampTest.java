@@ -49,7 +49,7 @@ public final class TraversalServiceTransitStampTest {
     public void strandedStampRestoresFlagsAndClearsStamp() {
         TraversalService service = new TraversalService(null);
         FakeEntityState state = new FakeEntityState(UUID.randomUUID());
-        state.pdc.put(TraversalEntityTransit.TRANSIT_STAMP_KEY, Byte.valueOf(TraversalEntityTransit.encodeTransitStamp(false, true, true)));
+        state.pdc.put(BukkitEntityTransit.TRANSIT_STAMP_KEY, Byte.valueOf(TraversalEntityTransit.encodeTransitStamp(false, true, true)));
         Entity entity = fakeEntity(state);
 
         service.reconcileLoadedEntity(entity);
@@ -58,7 +58,7 @@ public final class TraversalServiceTransitStampTest {
         assertEquals(Boolean.FALSE, state.invulnerable);
         assertEquals(Boolean.TRUE, state.silent);
         assertEquals(Boolean.TRUE, state.gravity);
-        assertNull(state.pdc.get(TraversalEntityTransit.TRANSIT_STAMP_KEY));
+        assertNull(state.pdc.get(BukkitEntityTransit.TRANSIT_STAMP_KEY));
     }
 
     @Test

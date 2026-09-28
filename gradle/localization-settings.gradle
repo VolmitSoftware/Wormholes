@@ -1,0 +1,18 @@
+Properties localBuildProperties = new Properties()
+File localBuildFile = new File(settingsDir, '../../.gradle/local.properties')
+if (localBuildFile.isFile()) {
+    localBuildFile.withInputStream { InputStream input -> localBuildProperties.load(input) }
+}
+String localDirectory = providers.gradleProperty('localVolmLibDirectory')
+    .orElse(providers.environmentVariable('VOLMLIB_DIR'))
+    .orElse(localBuildProperties.getProperty('localVolmLibDirectory', ''))
+    .get()
+if (!localDirectory.isBlank()) {
+    includeBuild(file(localDirectory)) {
+        name = 'VolmLib'
+        dependencySubstitution {
+            substitute(module('com.github.VolmitSoftware.VolmLib:volmlib-localization')).using(project(':localization'))
+            substitute(module('com.github.VolmitSoftware.VolmLib:volmlib-web')).using(project(':web'))
+        }
+    }
+}

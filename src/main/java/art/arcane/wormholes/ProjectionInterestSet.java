@@ -1,5 +1,8 @@
 package art.arcane.wormholes;
 
+import org.bukkit.entity.Entity;
+import org.bukkit.World;
+import org.bukkit.block.data.BlockData;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -21,11 +24,11 @@ import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 
 final class ProjectionInterestSet {
     private final ProjectionClaimArbiter claimArbiter;
-    private final EntityRenderLocalOcclusionArbiter localEntityOcclusion;
+    private final EntityRenderLocalOcclusionArbiter<Player, Entity> localEntityOcclusion;
     private final ProjectionWorldViewProvider viewProvider;
     private final ProjectionInterestCloseQueue closeQueue;
     private final BooleanSupplier alive;
-    private final ViewPlateCache plateCache;
+    private final ViewPlateCache<BlockData, World> plateCache;
     private final Map<UUID, Map<UUID, PortalProjector>> projectors;
     private final Map<UUID, Set<UUID>> retiring;
     private final Map<UUID, Map<UUID, Long>> interestGraceUntil;
@@ -33,7 +36,7 @@ final class ProjectionInterestSet {
     private final ProjectedEntityInterestIndex<PortalProjector> projectedEntityInterests;
 
     ProjectionInterestSet(ProjectionClaimArbiter claimArbiter,
-                          EntityRenderLocalOcclusionArbiter localEntityOcclusion,
+                          EntityRenderLocalOcclusionArbiter<Player, Entity> localEntityOcclusion,
                           ProjectionWorldViewProvider viewProvider,
                           ProjectionInterestCloseQueue closeQueue,
                           BooleanSupplier alive) {
@@ -41,11 +44,11 @@ final class ProjectionInterestSet {
     }
 
     ProjectionInterestSet(ProjectionClaimArbiter claimArbiter,
-                          EntityRenderLocalOcclusionArbiter localEntityOcclusion,
+                          EntityRenderLocalOcclusionArbiter<Player, Entity> localEntityOcclusion,
                           ProjectionWorldViewProvider viewProvider,
                           ProjectionInterestCloseQueue closeQueue,
                           BooleanSupplier alive,
-                          ViewPlateCache plateCache) {
+                          ViewPlateCache<BlockData, World> plateCache) {
         this.claimArbiter = claimArbiter;
         this.localEntityOcclusion = localEntityOcclusion;
         this.viewProvider = viewProvider;

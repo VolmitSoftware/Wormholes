@@ -39,13 +39,13 @@ class WireTraversiveTest {
     void wireRoundTripPreservesAllOutputMath() throws IOException {
         for (boolean frontSide : new boolean[]{true, false}) {
             Traversive original = sampleTraversive(frontSide);
-            WireTraversive wire = WireTraversive.fromTraversive(original);
+            WireTraversive wire = Traversive.toWire(original);
 
             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
             wire.write(new DataOutputStream(buffer));
             WireTraversive decoded = WireTraversive.read(new DataInputStream(new ByteArrayInputStream(buffer.toByteArray())));
 
-            Traversive reconstructed = decoded.toTraversive(new Object());
+            Traversive reconstructed = Traversive.fromWire(decoded, new Object());
             for (Direction outDirection : new Direction[]{Direction.N, Direction.S, Direction.E, Direction.U}) {
                 PortalFrame outFrame = PortalFrame.canonical(outDirection);
                 Vector outOrigin = new Vector(-10.5D, 70.0D, 33.5D);
@@ -59,7 +59,7 @@ class WireTraversiveTest {
 
     @Test
     void handoffMessagesRoundTrip() throws IOException {
-        WireTraversive wire = WireTraversive.fromTraversive(sampleTraversive(true));
+        WireTraversive wire = Traversive.toWire(sampleTraversive(true));
         UUID transferId = UUID.randomUUID();
         UUID playerId = UUID.randomUUID();
         UUID portalId = UUID.randomUUID();
@@ -93,7 +93,7 @@ class WireTraversiveTest {
 
     @Test
     void entityTransferMessagesRoundTrip() throws IOException {
-        WireTraversive wire = WireTraversive.fromTraversive(sampleTraversive(false));
+        WireTraversive wire = Traversive.toWire(sampleTraversive(false));
         UUID transferId = UUID.randomUUID();
         UUID portalId = UUID.randomUUID();
         byte[] nbt = "{id:\"minecraft:item\",Item:{id:\"minecraft:diamond\",count:3}}".getBytes(java.nio.charset.StandardCharsets.UTF_8);

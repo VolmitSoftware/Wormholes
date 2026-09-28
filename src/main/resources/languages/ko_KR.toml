@@ -17,7 +17,7 @@
 #   {address}  네트워크 상대 주소
 #   {after}  편집 후 메시지 값
 #   {allocation}  포켓 공간 할당
-#   {amount}  Vault 화폐 이동 비용
+#  {amount}  화폐 이동 비용
 #   {argument}  예상하지 못한 명령 인수
 #   {before}  편집 전 메시지 값
 #   {biome}  생물 군계 식별자
@@ -357,7 +357,7 @@ transfer_blocked_retry = "&c포털 전송이 차단되었습니다: {reason} ({s
 
 [portal.prompt]
 cost_item = "&b비용으로 사용할 아이템을 주로 쓰는 손에 든 채 버리기 키를 누르세요. 아이템은 인벤토리에서 사라지지 않습니다."
-cost_vault = "&b1회 통과당 Vault 화폐 금액을 입력하세요 (또는 '{cancel}'):"
+cost_vault = "&b통과당 금액을 입력하세요 (또는 '{cancel}'):"
 invite = "&b포털 초대 코드를 채팅에 붙여 넣으세요 (또는 '{cancel}'):"
 block_state = "&b이 포털의 네트워크 뷰 가장자리에 사용할 블록 상태를 입력하거나 '{cancel}'을 입력하세요:"
 name = "&b채팅에 새로운 포털 이름 입력하세요 (또는 '{cancel}'):"
@@ -368,9 +368,9 @@ cost_item_set = "이제 이동하려면 {item}이(가) 필요합니다."
 cost_item_invalid = "해당 아이템을 이동 비용으로 저장할 수 없습니다."
 cost_cleared = "이동 비용이 제거되었습니다."
 cost_quantity_changed = "이동 비용 수량: {quantity}"
-cost_vault_changed = "Vault 이동 비용: {amount}"
+cost_vault_changed = "통과 비용: {amount}"
 cost_vault_invalid = "{maximum} 이하의 양수 화폐 금액을 입력하세요."
-cost_vault_unavailable = "이 비용을 선택하려면 Vault와 경제 플러그인이 준비되어야 합니다."
+cost_vault_unavailable = "이 비용을 선택하려면 경제 제공자를 사용할 수 있어야 합니다."
 dimensional_link_managed = "이 차원 포털은 생성된 링크를 유지합니다."
 not_rtp = "이 포털은 무작위 순간이동 모드가 아닙니다."
 region_unavailable = "포털 영역을 사용할 수 없습니다. 다시 시도하세요."
@@ -397,7 +397,7 @@ public_look_label = "바라볼 때 표시되는 공개 레이블"
 [portal.label.cost]
 free = "무료"
 vanilla = "바닐라 아이템"
-vault = "Vault 경제"
+vault = "경제"
 
 [portal.label.ambient]
 red = "빨강"
@@ -552,12 +552,12 @@ available = ["&e&l거울&r", "&7로컬 월드를 이쪽으로 반사합니다.",
 flip = ["&7벽 거울은 180도 단위로 뒤집혀", "&7반사된 엔티티의 방향을 올바르게 유지합니다.", "&8오른쪽 클릭: 반사 이미지 뒤집기."]
 
 [portal.menu.cost]
-opener = ["&6&l이동 비용&r", "&7플레이어가 이 포털을 사용할 때", "&7정확한 아이템 또는 Vault 화폐를 요구합니다.", "", "&7모드: &f{mode}", "&7비용: &f{cost}", "", "&8클릭하여 설정합니다."]
+opener = ["&6&l이동 비용&r", "&7플레이어가 이 포털을 사용할 때", "&7정확한 아이템 또는 화폐를 요구합니다.", "", "&7모드: &f{mode}", "&7비용: &f{cost}", "", "&8클릭하여 설정합니다."]
 placard = ["&6&l이동 비용&r", "&7플레이어는 비용을 지불해야", "&7이 포털로 이동할 수 있습니다.", "", "&7모드: &f{mode}", "&7비용: &f{cost}"]
 mode_free = ["&a&l무료&r", "&7지불이 필요하지 않습니다.", "", "&8클릭하여 이동을 무료로 만듭니다."]
 mode_vanilla = ["&b&l바닐라 아이템&r", "&7정확히 일치하는 아이템을 소모합니다.", "", "&8클릭한 뒤 아이템을 들고 버리기 키를 누르세요."]
-mode_vault = ["&a&lVault 경제&r", "&7Vault를 통해 화폐를 인출합니다.", "", "&8클릭하여 금액을 입력합니다."]
-mode_vault_unavailable = ["&c&lVault 경제 사용 불가&r", "&7Vault와 경제 플러그인이 필요합니다.", "", "&8이 모드를 사용하려면 둘 다 설치하거나 활성화하세요."]
+mode_vault = ["&a&l경제&r", "&7경제 제공자를 통해 화폐를 차감합니다.", "", "&8클릭하여 금액을 입력합니다."]
+mode_vault_unavailable = ["&c&l경제 사용 불가&r", "&7경제 제공자가 필요합니다.", "", "&8이 모드에는 경제 제공자를 활성화해야 합니다."]
 free_detail = ["&a&l비용 없음&r", "&7이 포털을 통한 이동은 무료입니다."]
 secondary_empty = ["&8&l추가 설정 없음&r"]
 item = ["&b&l{item}&r", "&7이동하려면 정확히 이 아이템이 필요합니다.", "&7선택에 사용한 아이템은 소모되지 않습니다.", "", "&8좌클릭: 들고 있는 다른 아이템 선택.", "&8우클릭: 비용 제거."]
@@ -687,7 +687,7 @@ execution_failed = "명령어 {command} 실행에 실패했습니다: {reason}"
 not_initialized = "&8[&6Wormholes&8] &c네트워크가 아직 초기화되지 않았습니다."
 
 [network.status]
-disabled = "&8[&6Wormholes&8] &7네트워크가 &c비활성화&7되었습니다 (plugins/Wormholes/wormholes.toml)."
+disabled = "&8[&6Wormholes&8] &7네트워크가 &c비활성화&7되었습니다 (wormholes.toml)."
 not_running = "&8[&6Wormholes&8] &c네트워크가 활성화되어 있지만 실행되지 않습니다. 신분 저장소 및 네트워크 포트를 확인하세요."
 listening = "&8[&6Wormholes&8] &7현재 서버: &f{server}&7, 수신 주소: &f{address}"
 outbound_only = "&8[&6Wormholes&8] &7현재 서버: &f{server}&7, 송신 전용 Boat 모드"

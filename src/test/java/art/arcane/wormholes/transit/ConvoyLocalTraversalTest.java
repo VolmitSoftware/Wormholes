@@ -1,5 +1,6 @@
 package art.arcane.wormholes.transit;
 
+import art.arcane.wormholes.util.BukkitGeometry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -116,7 +117,7 @@ final class ConvoyLocalTraversalTest {
     }
 
     private static Traversive crossing(LocalPortal source, Entity root) {
-        return new Traversive(root, source.getFrame().view(true), source.getOrigin(), root.getLocation().toVector(),
+        return new Traversive(root, source.getFrame().view(true), BukkitGeometry.bukkit(source.getOrigin()), root.getLocation().toVector(),
             new Vector(-0.4D, 0.0D, 0.0D), new Vector(-1.0D, 0.0D, 0.0D), true, source.getId());
     }
 

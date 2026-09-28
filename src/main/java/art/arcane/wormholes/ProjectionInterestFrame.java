@@ -1,5 +1,6 @@
 package art.arcane.wormholes;
 
+import org.bukkit.entity.Entity;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -30,7 +31,7 @@ final class ProjectionInterestFrame {
     private final ProjectionInterestSet interestSet;
     private final ProjectionBudgetLedger ledger;
     private final ProjectionClaimArbiter claimArbiter;
-    private final EntityRenderLocalOcclusionArbiter localEntityOcclusion;
+    private final EntityRenderLocalOcclusionArbiter<Player, Entity> localEntityOcclusion;
     private final PortalSkinRenderer skinRenderer;
     private final RtpRimRenderer rtpRimRenderer;
     private final Supplier<ProjectionManager.RtpProjectionProvider> rtpProjectionProvider;
@@ -39,7 +40,7 @@ final class ProjectionInterestFrame {
     ProjectionInterestFrame(ProjectionInterestSet interestSet,
                             ProjectionBudgetLedger ledger,
                             ProjectionClaimArbiter claimArbiter,
-                            EntityRenderLocalOcclusionArbiter localEntityOcclusion,
+                            EntityRenderLocalOcclusionArbiter<Player, Entity> localEntityOcclusion,
                             PortalSkinRenderer skinRenderer,
                             RtpRimRenderer rtpRimRenderer,
                             Supplier<ProjectionManager.RtpProjectionProvider> rtpProjectionProvider,
@@ -119,7 +120,7 @@ final class ProjectionInterestFrame {
                 continue;
             }
             AxisAlignedBB view = portal.getView();
-            if (view == null || !view.contains(observerLocation)) {
+            if (view == null || !view.containsPrimitive(observerLocation.getX(), observerLocation.getY(), observerLocation.getZ())) {
                 continue;
             }
             candidates.add(portal);

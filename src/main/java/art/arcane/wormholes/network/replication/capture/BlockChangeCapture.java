@@ -36,10 +36,10 @@ import java.util.List;
 public final class BlockChangeCapture implements Listener {
     private static final BlockData AIR = Material.AIR.createBlockData();
 
-    private final RegionalDiffAccumulator accumulator;
+    private final RegionalDiffAccumulator<World, BlockData> accumulator;
     private final BlockEntityCapture blockEntityCapture;
 
-    public BlockChangeCapture(RegionalDiffAccumulator accumulator, BlockEntityCapture blockEntityCapture) {
+    public BlockChangeCapture(RegionalDiffAccumulator<World, BlockData> accumulator, BlockEntityCapture blockEntityCapture) {
         this.accumulator = accumulator;
         this.blockEntityCapture = blockEntityCapture;
     }

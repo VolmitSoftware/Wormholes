@@ -16,10 +16,10 @@ import art.arcane.wormholes.portal.Traversive;
 /** Particle burst and sound at the commit point, played on the source region thread when a crossing departs. */
 public final class ThresholdCue {
     public static final Particle DEFAULT_PARTICLE = Particle.REVERSE_PORTAL;
-    public static final String SOUND = "minecraft:block.respawn_anchor.set_spawn";
-    private static final int PARTICLE_COUNT = 24;
-    private static final double PARTICLE_SPREAD = 0.35D;
-    private static final double PARTICLE_SPEED = 0.05D;
+    public static final String SOUND = TraversalCues.THRESHOLD_SOUND;
+    private static final int PARTICLE_COUNT = TraversalCues.THRESHOLD_PARTICLES;
+    private static final double PARTICLE_SPREAD = TraversalCues.THRESHOLD_SPREAD;
+    private static final double PARTICLE_SPEED = TraversalCues.THRESHOLD_SPEED;
 
     private ThresholdCue() {
     }
@@ -47,7 +47,7 @@ public final class ThresholdCue {
         if (effect == null || effect.isBlank()) {
             return DEFAULT_PARTICLE;
         }
-        String name = effect.trim();
+        String name = TraversalCues.particleKey(effect);
         int namespace = name.indexOf(':');
         if (namespace >= 0) {
             name = name.substring(namespace + 1);

@@ -1,5 +1,10 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.geometry.GeometryVector;
+
+import art.arcane.wormholes.Settings;
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.MainConfig;
@@ -70,10 +75,10 @@ class TraversalRecoveryPathsTest {
 
     @Test
     void aRefusedTransitRollbackIsCountedAndQueuedForTheNextReconcile() {
-        TraversalFailureLedger ledger = new TraversalFailureLedger();
-        TraversalEntityTransit transit = new TraversalEntityTransit(id -> false, ledger);
+        TraversalFailureLedger ledger = new TraversalFailureLedger(new TraversalFailureLedger.Options(() -> Settings.DEBUG, Wormholes::v, Wormholes::w));
+        TraversalEntityTransit<Entity, Traversive> transit = new TraversalEntityTransit<>(new TraversalEntityTransit.Options(id -> false, ledger), new BukkitEntityTransit(TraversalEntityScheduler.BUKKIT));
         FakeEntityState state = new FakeEntityState(UUID.randomUUID());
-        state.pdc.put(TraversalEntityTransit.TRANSIT_STAMP_KEY,
+        state.pdc.put(BukkitEntityTransit.TRANSIT_STAMP_KEY,
             Byte.valueOf(TraversalEntityTransit.encodeTransitStamp(false, false, true)));
         Entity entity = fakeEntity(state);
 
@@ -86,21 +91,21 @@ class TraversalRecoveryPathsTest {
         transit.reconcileLoadedEntity(entity);
 
         assertEquals(Long.valueOf(2L), ledger.breakdown().get(Failure.ENTITY_TRANSIT_RESTORE_SCHEDULE_REJECTED.name()));
-        assertNotNull(state.pdc.get(TraversalEntityTransit.TRANSIT_STAMP_KEY),
+        assertNotNull(state.pdc.get(BukkitEntityTransit.TRANSIT_STAMP_KEY),
             "the queued rollback owns the entity, so the stamp sweep must not race it");
     }
 
     @Test
     void aRefusedInTransitStampIsCounted() {
-        TraversalFailureLedger ledger = new TraversalFailureLedger();
-        TraversalEntityTransit transit = new TraversalEntityTransit(id -> false, ledger);
+        TraversalFailureLedger ledger = new TraversalFailureLedger(new TraversalFailureLedger.Options(() -> Settings.DEBUG, Wormholes::v, Wormholes::w));
+        TraversalEntityTransit<Entity, Traversive> transit = new TraversalEntityTransit<>(new TraversalEntityTransit.Options(id -> false, ledger), new BukkitEntityTransit(TraversalEntityScheduler.BUKKIT));
         FakeEntityState state = new FakeEntityState(UUID.randomUUID());
         Entity entity = fakeEntity(state);
 
         transit.markInTransit(entity, () -> true);
 
         assertEquals(Long.valueOf(1L), ledger.breakdown().get(Failure.ENTITY_TRANSIT_STAMP_SCHEDULE_REJECTED.name()));
-        assertNull(state.pdc.get(TraversalEntityTransit.TRANSIT_STAMP_KEY));
+        assertNull(state.pdc.get(BukkitEntityTransit.TRANSIT_STAMP_KEY));
     }
 
     @Test
@@ -135,7 +140,7 @@ class TraversalRecoveryPathsTest {
             UUID.randomUUID(),
             UUID.randomUUID(),
             new byte[]{1, 2, 3},
-            WireTraversive.fromTraversive(traversive())
+            Traversive.toWire(traversive())
         ));
 
         assertEquals(Long.valueOf(1L), service.failureBreakdown().get(Failure.ENTITY_ARRIVAL_PORTAL_UNAVAILABLE.name()));
@@ -150,28 +155,17 @@ class TraversalRecoveryPathsTest {
             transferId,
             UUID.randomUUID(),
             new byte[]{1, 2, 3},
-            WireTraversive.fromTraversive(traversive())
+            Traversive.toWire(traversive())
         );
 
-        Method apply = TraversalService.class.getDeclaredMethod(
-            "applyInboundEntityTransfer",
-            String.class,
-            WireMessage.EntityTransfer.class,
-            ILocalPortal.class,
-            Traversive.class,
-            Location.class,
-            TraversalEntityTransferLedger.Claim.class
-        );
-        apply.setAccessible(true);
-        apply.invoke(
-            service,
-            PEER,
-            transfer,
-            fakeExit(),
-            traversive(),
-            new Location(null, 0.0D, 64.0D, 0.0D),
-            new TraversalEntityTransferLedger.Claim(TraversalEntityTransferLedger.ClaimStatus.STARTED, 1L)
-        );
+        Field field = TraversalService.class.getDeclaredField("entityArrivals");
+        field.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        InboundEntityTransfers<Entity, ILocalPortal, Traversive, Location> arrivals =
+            (InboundEntityTransfers<Entity, ILocalPortal, Traversive, Location>) field.get(service);
+        arrivals.apply(new InboundEntityTransfers.Arrival<>(PEER, transfer, fakeExit(),
+            new InboundEntityTransfers.Target<>(traversive(), new Location(null, 0.0D, 64.0D, 0.0D)),
+            new TraversalEntityTransferLedger.Claim(TraversalEntityTransferLedger.ClaimStatus.STARTED, 1L)));
 
         assertEquals(Long.valueOf(1L), service.failureBreakdown().get(Failure.ENTITY_ARRIVAL_DENIED.name()));
         assertEquals(1L, service.statsSnapshot().failed());
@@ -208,7 +202,7 @@ class TraversalRecoveryPathsTest {
         List<Long> delays = new ArrayList<>();
         TraversalService service = new TraversalService(null, recordingScheduler(delays, true));
         FakeEntityState state = new FakeEntityState(UUID.randomUUID());
-        state.pdc.put(TraversalEntityTransit.TRANSIT_STAMP_KEY,
+        state.pdc.put(BukkitEntityTransit.TRANSIT_STAMP_KEY,
             Byte.valueOf(TraversalEntityTransit.encodeTransitStamp(false, false, true)));
         Entity entity = fakeEntity(state);
         seedPendingEntityTransfer(service, UUID.randomUUID(), entity, System.currentTimeMillis() - 60_000L);
@@ -274,7 +268,7 @@ class TraversalRecoveryPathsTest {
         service.shutdown();
 
         assertEquals(0, service.statsSnapshot().inFlight());
-        assertNotNull(state.pdc.get(TraversalEntityTransit.TRANSIT_STAMP_KEY));
+        assertNotNull(state.pdc.get(BukkitEntityTransit.TRANSIT_STAMP_KEY));
         assertEquals(Long.valueOf(1L),
             service.failureBreakdown().get(Failure.ENTITY_TRANSIT_RESTORE_SCHEDULE_REJECTED.name()));
     }
@@ -300,7 +294,7 @@ class TraversalRecoveryPathsTest {
 
     private static FakeEntityState transitStampedEntityState() {
         FakeEntityState state = new FakeEntityState(UUID.randomUUID());
-        state.pdc.put(TraversalEntityTransit.TRANSIT_STAMP_KEY,
+        state.pdc.put(BukkitEntityTransit.TRANSIT_STAMP_KEY,
             Byte.valueOf(TraversalEntityTransit.encodeTransitStamp(false, false, true)));
         state.invulnerable = Boolean.TRUE;
         state.silent = Boolean.TRUE;
@@ -309,7 +303,7 @@ class TraversalRecoveryPathsTest {
     }
 
     private static void assertRestored(FakeEntityState state) {
-        assertNull(state.pdc.get(TraversalEntityTransit.TRANSIT_STAMP_KEY));
+        assertNull(state.pdc.get(BukkitEntityTransit.TRANSIT_STAMP_KEY));
         assertEquals(Boolean.FALSE, state.invulnerable);
         assertEquals(Boolean.FALSE, state.silent);
         assertEquals(Boolean.TRUE, state.gravity);
@@ -326,14 +320,14 @@ class TraversalRecoveryPathsTest {
     void anExpiredEntityTransferNoLongerBlocksTheStrandedStampSweep() throws Exception {
         TraversalService service = new TraversalService(null);
         FakeEntityState state = new FakeEntityState(UUID.randomUUID());
-        state.pdc.put(TraversalEntityTransit.TRANSIT_STAMP_KEY,
+        state.pdc.put(BukkitEntityTransit.TRANSIT_STAMP_KEY,
             Byte.valueOf(TraversalEntityTransit.encodeTransitStamp(false, true, true)));
         Entity entity = fakeEntity(state);
         seedPendingEntityTransfer(service, UUID.randomUUID(), entity, System.currentTimeMillis() - 60_000L);
 
         service.reconcileLoadedEntity(entity);
 
-        assertNull(state.pdc.get(TraversalEntityTransit.TRANSIT_STAMP_KEY),
+        assertNull(state.pdc.get(BukkitEntityTransit.TRANSIT_STAMP_KEY),
             "a transfer that blew its deadline must not keep the entity stamped in transit");
         assertEquals(Boolean.FALSE, state.invulnerable);
         assertEquals(Boolean.TRUE, state.silent);
@@ -345,29 +339,18 @@ class TraversalRecoveryPathsTest {
         config.enabled = true;
         config.serverName = "alpha";
         config.listenPort = 0;
-        network = new NetworkManager(LOGGER, config, "26.2", "test", 25565, tempDir.resolve("alpha"));
+        network = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", 25565, tempDir.resolve("alpha"), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         return new TraversalService(network);
     }
 
     private static void seedPendingEntityTransfer(TraversalService service, UUID transferId, Entity entity, long deadlineMillis)
         throws Exception {
-        Class<?> pendingType = Class.forName("art.arcane.wormholes.network.TraversalService$PendingEntityTransfer");
-        Constructor<?> constructor = pendingType.getDeclaredConstructors()[0];
-        constructor.setAccessible(true);
-        Object pending = constructor.newInstance(
-            entity,
-            PEER,
-            null,
-            traversive(),
-            transitState(),
-            Long.valueOf(deadlineMillis)
-        );
-        Field field = TraversalService.class.getDeclaredField("pendingEntityTransfers");
+        Field field = TraversalService.class.getDeclaredField("entityTransfers");
         field.setAccessible(true);
         @SuppressWarnings("unchecked")
-        Map<UUID, Object> pendingTransfers = (Map<UUID, Object>) field.get(service);
-        pendingTransfers.put(transferId, pending);
-        assertTrue(pendingTransfers.containsKey(transferId));
+        OutboundEntityTransfers<Entity, Traversive> transfers = (OutboundEntityTransfers<Entity, Traversive>) field.get(service);
+        transfers.pending().put(transferId, new OutboundEntityTransfers.Pending<>(entity, PEER, null, traversive(), transitState(), deadlineMillis));
+        assertTrue(transfers.pending().containsKey(transferId));
     }
 
     private static ILocalPortal fakeExit() {
@@ -387,7 +370,7 @@ class TraversalRecoveryPathsTest {
     }
 
     private static TraversalEntityTransit.TransitState transitState() {
-        return new TraversalEntityTransit.TransitState(false, false, true, new Vector(0.0D, 0.0D, 0.0D));
+        return new TraversalEntityTransit.TransitState(false, false, true, new GeometryVector(0.0D, 0.0D, 0.0D));
     }
 
     private static Traversive traversive() {

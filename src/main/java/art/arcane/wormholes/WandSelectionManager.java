@@ -43,7 +43,6 @@ import art.arcane.wormholes.service.WormholesHud;
 
 public class WandSelectionManager implements Listener
 {
-	static final int MAX_DRAWN_CELLS = 4096;
 	private static final double BUILD_CLICK_RANGE = 64.0D;
 	private static final float PANE_THICKNESS = 0.12f;
 	private static final float PANE_INSET = 0.02f;
@@ -150,84 +149,6 @@ public class WandSelectionManager implements Listener
 		clearSelection(e.getPlayer().getUniqueId());
 	}
 
-	static int[] selectionMin(int[] a, int[] b)
-	{
-		return new int[] { Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.min(a[2], b[2]) };
-	}
-
-	static int[] selectionMax(int[] a, int[] b)
-	{
-		return new int[] { Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(a[2], b[2]) };
-	}
-
-	static int flatAxis(int[] min, int[] max)
-	{
-		for(int axis = 0; axis < 3; axis++)
-		{
-			if(min[axis] == max[axis])
-			{
-				return axis;
-			}
-		}
-		return -1;
-	}
-
-	static long cellCount(int[] min, int[] max)
-	{
-		return (long) (max[0] - min[0] + 1) * (long) (max[1] - min[1] + 1) * (long) (max[2] - min[2] + 1);
-	}
-
-	static float[] paneBox(int[] min, int[] max, int normalAxis, float thickness, float inset)
-	{
-		float[] box = new float[6];
-		for(int axis = 0; axis < 3; axis++)
-		{
-			float extent = (float) (max[axis] - min[axis] + 1);
-			if(axis == normalAxis)
-			{
-				box[axis] = thickness;
-				box[axis + 3] = (extent - thickness) / 2.0f;
-			}
-			else
-			{
-				box[axis] = extent - (inset * 2.0f);
-				box[axis + 3] = inset;
-			}
-		}
-		return box;
-	}
-
-	static boolean rayIntersectsBox(double ox, double oy, double oz, double dx, double dy, double dz, double minX, double minY, double minZ, double maxX, double maxY, double maxZ, double range)
-	{
-		double[] origin = new double[] { ox, oy, oz };
-		double[] direction = new double[] { dx, dy, dz };
-		double[] lower = new double[] { minX, minY, minZ };
-		double[] upper = new double[] { maxX, maxY, maxZ };
-		double tMin = 0.0D;
-		double tMax = range;
-		for(int axis = 0; axis < 3; axis++)
-		{
-			if(Math.abs(direction[axis]) < 1.0E-9D)
-			{
-				if(origin[axis] < lower[axis] || origin[axis] > upper[axis])
-				{
-					return false;
-				}
-				continue;
-			}
-			double inverse = 1.0D / direction[axis];
-			double t1 = (lower[axis] - origin[axis]) * inverse;
-			double t2 = (upper[axis] - origin[axis]) * inverse;
-			tMin = Math.max(tMin, Math.min(t1, t2));
-			tMax = Math.min(tMax, Math.max(t1, t2));
-			if(tMin > tMax)
-			{
-				return false;
-			}
-		}
-		return true;
-	}
-
 	private static void deny(PlayerInteractEvent e)
 	{
 		if(e.getClickedBlock() != null)
@@ -260,22 +181,22 @@ public class WandSelectionManager implements Listener
 					primary ? WormholesMessages.WAND_CORNER_A : WormholesMessages.WAND_CORNER_B));
 			return;
 		}
-		int[] min = selectionMin(selection.cornerA, selection.cornerB);
-		int[] max = selectionMax(selection.cornerA, selection.cornerB);
-		int flat = flatAxis(min, max);
-		long cells = cellCount(min, max);
+		int[] min = WandSelectionGeometry.selectionMin(selection.cornerA, selection.cornerB);
+		int[] max = WandSelectionGeometry.selectionMax(selection.cornerA, selection.cornerB);
+		int flat = WandSelectionGeometry.flatAxis(min, max);
+		long cells = WandSelectionGeometry.cellCount(min, max);
 		if(flat < 0)
 		{
 			WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.WAND_NOT_FLAT));
 			return;
 		}
-		if(cells > MAX_DRAWN_CELLS)
+		if(cells > WandSelectionGeometry.MAX_DRAWN_CELLS)
 		{
 			WormholesHud.notice(player, Wormholes.text().component(
 					WormholesMessages.WAND_TOO_LARGE,
 					WormholesLocalization.args(
 							MessageArgument.untrusted("count", cells),
-							MessageArgument.untrusted("maximum", MAX_DRAWN_CELLS))));
+							MessageArgument.untrusted("maximum", WandSelectionGeometry.MAX_DRAWN_CELLS))));
 			return;
 		}
 		WormholesHud.notice(player, Wormholes.text().component(
@@ -285,21 +206,21 @@ public class WandSelectionManager implements Listener
 
 	private void buildSelection(Player player, WandSelection selection)
 	{
-		int[] min = selectionMin(selection.cornerA, selection.cornerB);
-		int[] max = selectionMax(selection.cornerA, selection.cornerB);
-		if(flatAxis(min, max) < 0)
+		int[] min = WandSelectionGeometry.selectionMin(selection.cornerA, selection.cornerB);
+		int[] max = WandSelectionGeometry.selectionMax(selection.cornerA, selection.cornerB);
+		if(WandSelectionGeometry.flatAxis(min, max) < 0)
 		{
 			WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.WAND_NOT_FLAT));
 			return;
 		}
-		long cells = cellCount(min, max);
-		if(cells > MAX_DRAWN_CELLS)
+		long cells = WandSelectionGeometry.cellCount(min, max);
+		if(cells > WandSelectionGeometry.MAX_DRAWN_CELLS)
 		{
 			WormholesHud.notice(player, Wormholes.text().component(
 					WormholesMessages.WAND_TOO_LARGE,
 					WormholesLocalization.args(
 							MessageArgument.untrusted("count", cells),
-							MessageArgument.untrusted("maximum", MAX_DRAWN_CELLS))));
+							MessageArgument.untrusted("maximum", WandSelectionGeometry.MAX_DRAWN_CELLS))));
 			return;
 		}
 		if(!PortalTypeAccess.allows(player, PortalType.PORTAL))
@@ -340,8 +261,8 @@ public class WandSelectionManager implements Listener
 
 	private boolean isBuildClick(Player player, WandSelection selection, Block clicked)
 	{
-		int[] min = selectionMin(selection.cornerA, selection.cornerB);
-		int[] max = selectionMax(selection.cornerA, selection.cornerB);
+		int[] min = WandSelectionGeometry.selectionMin(selection.cornerA, selection.cornerB);
+		int[] max = WandSelectionGeometry.selectionMax(selection.cornerA, selection.cornerB);
 		if(clicked != null
 			&& clicked.getX() >= min[0] && clicked.getX() <= max[0]
 			&& clicked.getY() >= min[1] && clicked.getY() <= max[1]
@@ -351,7 +272,7 @@ public class WandSelectionManager implements Listener
 		}
 		Location eye = player.getEyeLocation();
 		Vector direction = eye.getDirection();
-		return rayIntersectsBox(eye.getX(), eye.getY(), eye.getZ(), direction.getX(), direction.getY(), direction.getZ(),
+		return WandSelectionGeometry.rayIntersectsBox(eye.getX(), eye.getY(), eye.getZ(), direction.getX(), direction.getY(), direction.getZ(),
 			min[0], min[1], min[2], max[0] + 1.0D, max[1] + 1.0D, max[2] + 1.0D, BUILD_CLICK_RANGE);
 	}
 
@@ -372,13 +293,13 @@ public class WandSelectionManager implements Listener
 		World world = player.getWorld();
 		int[] cornerA = selection.cornerA != null ? selection.cornerA : selection.cornerB;
 		int[] cornerB = selection.cornerB != null ? selection.cornerB : selection.cornerA;
-		int[] min = selectionMin(cornerA, cornerB);
-		int[] max = selectionMax(cornerA, cornerB);
-		int flat = flatAxis(min, max);
-		boolean valid = selection.isComplete() && flat >= 0 && cellCount(min, max) <= MAX_DRAWN_CELLS;
+		int[] min = WandSelectionGeometry.selectionMin(cornerA, cornerB);
+		int[] max = WandSelectionGeometry.selectionMax(cornerA, cornerB);
+		int flat = WandSelectionGeometry.flatAxis(min, max);
+		boolean valid = selection.isComplete() && flat >= 0 && WandSelectionGeometry.cellCount(min, max) <= WandSelectionGeometry.MAX_DRAWN_CELLS;
 		Material material = !selection.isComplete() || valid ? Material.LIGHT_BLUE_STAINED_GLASS : Material.RED_STAINED_GLASS;
 		boolean planar = selection.isComplete() && flat >= 0;
-		float[] box = paneBox(min, max, planar ? flat : -1, PANE_THICKNESS, PANE_INSET);
+		float[] box = WandSelectionGeometry.paneBox(min, max, planar ? flat : -1, PANE_THICKNESS, PANE_INSET);
 		double playerNormal = switch(planar ? flat : -1)
 		{
 			case 0 -> player.getLocation().getX();

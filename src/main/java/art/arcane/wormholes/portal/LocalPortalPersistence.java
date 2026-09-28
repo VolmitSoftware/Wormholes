@@ -1,16 +1,21 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.logging.Level;
 
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.util.GeometryPersistence;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.util.VIO;
 
@@ -43,6 +48,12 @@ final class LocalPortalPersistence
 
 	void writeState(JSONObject j)
 	{
+        Map<String, Object> identity = new LinkedHashMap<>();
+        PortalStateCodec.write(identity, new Portal.State(portal.getId(), portal.getOrigin(), portal.getName(), portal.getFrame(), true));
+        JSONObject encoded = new JSONObject(identity);
+        for(String key : encoded.keySet()) {
+            j.put(key, encoded.get(key));
+        }
 		j.put("structure", portal.getStructure().toJSON());
 		j.put("type", portal.getType().name());
 		j.put("owner", portal.getOwner().toString());
@@ -57,10 +68,11 @@ final class LocalPortalPersistence
 
 	void readState(JSONObject j)
 	{
+        portal.restore(PortalStateCodec.read(BukkitJsonDocuments.values(j)));
 		PortalStructure structure = new PortalStructure();
 		portal.assignStructure(structure);
 		structure.loadJSON(j.getJSONObject("structure"));
-		if(!portal.hasFrameLoadedFromJson())
+		if(!portal.hasExplicitFrame())
 		{
 			portal.applyFrame(PortalFrame.derive(structure.getArea(), portal.direction));
 		}

@@ -1,5 +1,7 @@
 package art.arcane.wormholes.portal.rtp;
 
+import art.arcane.wormholes.geometry.GeometryVector;
+
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
@@ -267,70 +269,16 @@ public final class BukkitRtpEnvironment implements BukkitRtpRuntime.Environment
 		{
 			throw new IllegalStateException("RTP source portal is unavailable");
 		}
-		PortalStructure structure = portal.getStructure();
-		PortalFrame sourceFrame = portal.getFrame();
-		PortalFrame targetFrame = BukkitRtpRuntime.targetFrameFor(sourceFrame);
-		Location center = structure.getCenter();
-		AxisAlignedBB area = structure.getArea();
-		RtpProjectionView.SourceFrame source = new RtpProjectionView.SourceFrame(
-				WorldIdentity.serialize(structure.getWorld()),
-				point(center.getX(), center.getY(), center.getZ()),
-				vector(sourceFrame.getRight()),
-				vector(sourceFrame.getUp()),
-				vector(sourceFrame.getNormal().reverse()),
-				axisSpan(area, sourceFrame.getRight()),
-				axisSpan(area, sourceFrame.getUp()),
-				structure.getRevision());
-		RtpProjectionView.Target target = new RtpProjectionView.Target(
-				destination.worldKey(),
-				point(
-						destination.blockX() + 0.5D,
-						destination.feetY() + previewAnchorLift(center, area),
-						destination.blockZ() + 0.5D),
-				vector(targetFrame.getRight()),
-				vector(targetFrame.getUp()),
-				vector(targetFrame.getNormal().reverse()));
-		return new RtpProjectionView.ReadyData(routeId(portalId, destination), routeRevision, source, target);
-	}
+        PortalStructure structure = portal.getStructure();
+        Location center = structure.getCenter();
+        return RtpProjectionGeometry.create(new RtpProjectionGeometry.Source(portalId, WorldIdentity.serialize(structure.getWorld()),
+            new GeometryVector(center.getX(), center.getY(), center.getZ()), portal.getFrame(), structure.getArea(), structure.getRevision()),
+            destination, routeRevision);
+    }
 
-	static double previewAnchorLift(Location center, AxisAlignedBB area)
-	{
-		if(center == null || area == null)
-		{
-			return 1.0D;
-		}
-		return Math.max(1.0D, center.getY() - area.getYa());
-	}
-
-	private RtpProjectionView.Point3 point(double x, double y, double z)
-	{
-		return new RtpProjectionView.Point3(x, y, z);
-	}
-
-	private RtpProjectionView.Vector3 vector(Direction direction)
-	{
-		Vector vector = direction.toVector();
-		return new RtpProjectionView.Vector3(vector.getX(), vector.getY(), vector.getZ());
-	}
-
-	private double axisSpan(AxisAlignedBB area, Direction direction)
-	{
-		if(area == null)
-		{
-			return 1.0D;
-		}
-		return Math.max(1.0D,
-				Math.abs(direction.x()) * area.sizeX()
-						+ Math.abs(direction.y()) * area.sizeY()
-						+ Math.abs(direction.z()) * area.sizeZ());
-	}
-
-	private UUID routeId(UUID portalId, RtpDestination destination)
-	{
-		String value = portalId + ":" + destination.worldKey() + ":" + destination.blockX() + ":"
-				+ destination.feetY() + ":" + destination.blockZ() + ":" + destination.generation() + ":" + destination.attempt();
-		return UUID.nameUUIDFromBytes(value.getBytes(StandardCharsets.UTF_8));
-	}
+    static double previewAnchorLift(Location center, AxisAlignedBB area) {
+        return RtpProjectionGeometry.previewAnchorLift(center == null ? null : new GeometryVector(center.getX(), center.getY(), center.getZ()), area);
+    }
 
 	private long delayTicks(long delayMillis)
 	{

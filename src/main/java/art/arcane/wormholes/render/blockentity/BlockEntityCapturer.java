@@ -46,7 +46,7 @@ public final class BlockEntityCapturer {
         if (state == null) {
             return null;
         }
-        String typeKey = BlockEntityMaterials.typeKey(state.getType());
+        String typeKey = BlockEntityMaterials.typeKey(state.getType().name());
         if (typeKey == null || !BlockEntityMaterials.allowed(typeKey, whitelist, containers)) {
             return null;
         }
@@ -67,7 +67,7 @@ public final class BlockEntityCapturer {
             }
             activePath = PATH_BUKKIT;
         }
-        return BlockEntitySanitizer.sanitize(typeKey, tag, whitelist, containers);
+        return BlockEntitySanitizer.sanitize(typeKey, tag, new BlockEntitySanitizer.Options<>(whitelist, containers, BukkitBlockEntityTags.INSTANCE));
     }
 
     /** Whitelisted block entities of a loaded chunk keyed by world cell; call on the chunk's region thread. */
@@ -89,7 +89,7 @@ public final class BlockEntityCapturer {
             if (samples.size() >= MAX_PER_CHUNK) {
                 break;
             }
-            if (state == null || !BlockEntityMaterials.isCandidate(state.getType())) {
+            if (state == null || !BlockEntityMaterials.isCandidate(state.getType().name())) {
                 continue;
             }
             BlockEntitySample sample = capture(state);
@@ -100,15 +100,4 @@ public final class BlockEntityCapturer {
         return samples;
     }
 
-    public static byte[] encode(BlockEntitySample sample) throws IOException {
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream(sample.nbt().length + 32);
-        DataOutputStream out = new DataOutputStream(buffer);
-        sample.write(out);
-        out.flush();
-        return buffer.toByteArray();
-    }
-
-    public static BlockEntitySample decode(byte[] payload) throws IOException {
-        return BlockEntitySample.read(new DataInputStream(new ByteArrayInputStream(payload)));
-    }
 }

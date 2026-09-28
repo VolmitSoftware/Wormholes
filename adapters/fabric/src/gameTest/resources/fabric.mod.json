@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "wormholes_gametest",
+  "version": "${version}",
+  "name": "Wormholes GameTest",
+  "description": "Through-portal projection and traversal.",
+  "authors": [
+    "Volmit Software"
+  ],
+  "license": "GPL-3.0",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "art.arcane.wormholes.gametest.FabricGameTests"
+    ],
+    "preLaunch": [
+      "art.arcane.wormholes.gametest.FabricTestBootstrap"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "${minecraftVersion}",
+    "java": ">=25",
+    "wormholes": "${version}"
+  }
+}

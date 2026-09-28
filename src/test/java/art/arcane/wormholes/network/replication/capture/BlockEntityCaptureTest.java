@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network.replication.capture;
 
+import org.bukkit.block.data.BlockData;
 import art.arcane.wormholes.network.replication.BlockChange;
 import art.arcane.wormholes.network.replication.BlockChangeFeed;
 import art.arcane.wormholes.network.replication.BlockEntityDiff;
@@ -41,9 +42,9 @@ class BlockEntityCaptureTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
-        RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, blockEntitySettings());
+        RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, blockEntitySettings(), BukkitCaptureAccess.INSTANCE));
 
         byte[] nbt = "sign-line-1\nsign-line-2".getBytes();
         accumulator.recordBlockEntityChange(world, 4, 70, 8, nbt);
@@ -61,10 +62,10 @@ class BlockEntityCaptureTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
         CaptureSettings disabled = new CaptureSettings(100, 256, true, false);
-        RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, disabled);
+        RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, disabled, BukkitCaptureAccess.INSTANCE));
 
         accumulator.recordBlockEntityChange(world, 0, 64, 0, new byte[]{1, 2, 3});
         drainAllSafely(accumulator, world);
@@ -77,9 +78,9 @@ class BlockEntityCaptureTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
-        RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, blockEntitySettings());
+        RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, blockEntitySettings(), BukkitCaptureAccess.INSTANCE));
         accumulator.recordBlockEntityChange(world, 1, -40, 1, new byte[]{7});
         drainAllSafely(accumulator, world);
         assertEquals(1, feed.entities.size());
@@ -92,7 +93,7 @@ class BlockEntityCaptureTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         CapturingFeed feed = new CapturingFeed();
-        RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, blockEntitySettings());
+        RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, blockEntitySettings(), BukkitCaptureAccess.INSTANCE));
         BlockEntityCapture capture = new BlockEntityCapture(accumulator, null);
 
         AtomicBoolean stateQueried = new AtomicBoolean(false);
@@ -109,9 +110,9 @@ class BlockEntityCaptureTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
-        RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, blockEntitySettings());
+        RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, blockEntitySettings(), BukkitCaptureAccess.INSTANCE));
         BlockEntityCapture capture = new BlockEntityCapture(accumulator, null);
 
         AtomicBoolean stateQueried = new AtomicBoolean(false);
@@ -127,10 +128,10 @@ class BlockEntityCaptureTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         CapturingFeed feed = new CapturingFeed();
         CaptureSettings disabled = new CaptureSettings(100, 256, true, false);
-        RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, disabled);
+        RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, disabled, BukkitCaptureAccess.INSTANCE));
         BlockEntityCapture capture = new BlockEntityCapture(accumulator, null);
 
         AtomicBoolean stateQueried = new AtomicBoolean(false);
@@ -192,7 +193,7 @@ class BlockEntityCaptureTest {
         return new CaptureSettings(100, 256, true, true);
     }
 
-    private static void drainAllSafely(RegionalDiffAccumulator accumulator, World world) {
+    private static void drainAllSafely(RegionalDiffAccumulator<World, BlockData> accumulator, World world) {
         java.util.Map<Long, ChunkDirtySet> chunkMap = accumulator.dirtyWorlds().get(world.getUID());
         if (chunkMap == null) {
             return;
@@ -206,7 +207,7 @@ class BlockEntityCaptureTest {
         private final List<BlockEntityDiff> entities = new ArrayList<>();
 
         @Override
-        public void onChunkDrain(World world, long chunkKey, List<BlockChange> drainedBlocks, List<LightDiff> drainedLights, List<BlockEntityDiff> drainedEntities) {
+        public void onChunkDrain(UUID world, long chunkKey, List<BlockChange> drainedBlocks, List<LightDiff> drainedLights, List<BlockEntityDiff> drainedEntities) {
             entities.addAll(drainedEntities);
         }
 

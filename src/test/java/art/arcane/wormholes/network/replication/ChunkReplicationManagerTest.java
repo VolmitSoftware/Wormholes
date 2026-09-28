@@ -34,7 +34,7 @@ class ChunkReplicationManagerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(2, 3);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         assertFalse(manager.isBulked(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey)));
         byte[] payload = synthesizeBulkPayload(2, 3);
         assertTrue(manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload)));
@@ -49,7 +49,7 @@ class ChunkReplicationManagerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(8, 9);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(8, 9);
 
         sink.setAccepting(false);
@@ -67,8 +67,8 @@ class ChunkReplicationManagerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         assertEquals(1, manager.totalSubscriptionCount());
         manager.unsubscribe(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         assertEquals(0, manager.totalSubscriptionCount());
@@ -82,8 +82,8 @@ class ChunkReplicationManagerTest {
         UUID firstPortal = UUID.randomUUID();
         UUID secondPortal = UUID.randomUUID();
         long chunkKey = ViewSlice.columnKey(4, 4);
-        manager.subscribe(PEER, firstPortal, world, ReplicationTestStream.stream(firstPortal, world, chunkKey));
-        manager.subscribe(PEER, secondPortal, world, ReplicationTestStream.stream(secondPortal, world, chunkKey));
+        manager.subscribe(PEER, firstPortal, world.getUID(), ReplicationTestStream.stream(firstPortal, world, chunkKey));
+        manager.subscribe(PEER, secondPortal, world.getUID(), ReplicationTestStream.stream(secondPortal, world, chunkKey));
 
         manager.unsubscribe(PEER, firstPortal, ReplicationTestStream.stream(firstPortal, world, chunkKey));
 
@@ -119,8 +119,8 @@ class ChunkReplicationManagerTest {
             chunkKey,
             ProjectionRenderMode.VENTICULAR
         );
-        manager.subscribe(PEER, firstWorld.getUID(), firstWorld, firstStream);
-        manager.subscribe(PEER, secondWorld.getUID(), secondWorld, secondStream);
+        manager.subscribe(PEER, firstWorld.getUID(), firstWorld.getUID(), firstStream);
+        manager.subscribe(PEER, secondWorld.getUID(), secondWorld.getUID(), secondStream);
         byte[] firstPayload = synthesizeBulkPayload(6, 7);
         byte[] secondPayload = synthesizeBulkPayload(6, 7);
 
@@ -144,11 +144,11 @@ class ChunkReplicationManagerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(1, 1);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(1, 1);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload));
         sink.clear();
-        manager.onChunkDrain(world, chunkKey, List.of(
+        manager.onChunkDrain(world.getUID(), chunkKey, List.of(
             new BlockChange(BlockChange.pack(3, 80, 7), "minecraft:dirt", BlockChange.FLAG_NONE),
             new BlockChange(BlockChange.pack(4, 81, 7), "minecraft:stone", BlockChange.FLAG_NONE)
         ), List.of(), List.of());
@@ -169,16 +169,16 @@ class ChunkReplicationManagerTest {
         World world = StubWorld.create(UUID.randomUUID());
         long firstChunk = ViewSlice.columnKey(10, 10);
         long secondChunk = ViewSlice.columnKey(11, 10);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, firstChunk));
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, secondChunk));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, firstChunk));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, secondChunk));
         byte[] firstPayload = synthesizeBulkPayload(10, 10);
         byte[] secondPayload = synthesizeBulkPayload(11, 10);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, firstChunk), firstPayload, contentHashOf(firstPayload));
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, secondChunk), secondPayload, contentHashOf(secondPayload));
-        manager.onChunkDrain(world, firstChunk, List.of(
+        manager.onChunkDrain(world.getUID(), firstChunk, List.of(
             new BlockChange(BlockChange.pack(1, 70, 1), "minecraft:dirt", BlockChange.FLAG_NONE)
         ), List.of(), List.of());
-        manager.onChunkDrain(world, secondChunk, List.of(
+        manager.onChunkDrain(world.getUID(), secondChunk, List.of(
             new BlockChange(BlockChange.pack(2, 71, 2), "minecraft:stone", BlockChange.FLAG_NONE)
         ), List.of(), List.of());
         sink.clear();
@@ -208,7 +208,7 @@ class ChunkReplicationManagerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(5, 5);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(5, 5);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload));
         manager.unsubscribe(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
@@ -222,7 +222,7 @@ class ChunkReplicationManagerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(12, 13);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         manager.unsubscribe(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
 
         byte[] payload = synthesizeBulkPayload(12, 13);
@@ -242,8 +242,8 @@ class ChunkReplicationManagerTest {
         long secondChunk = ViewSlice.columnKey(15, 14);
         ReplicationStreamKey firstStream = ReplicationTestStream.stream(world.getUID(), world, firstChunk);
         ReplicationStreamKey secondStream = ReplicationTestStream.stream(world.getUID(), world, secondChunk);
-        manager.subscribe(PEER, world.getUID(), world, firstStream);
-        manager.subscribe(PEER, world.getUID(), world, secondStream);
+        manager.subscribe(PEER, world.getUID(), world.getUID(), firstStream);
+        manager.subscribe(PEER, world.getUID(), world.getUID(), secondStream);
         byte[] firstPayload = synthesizeBulkPayload(14, 14);
         byte[] secondPayload = synthesizeBulkPayload(15, 14);
         assertTrue(manager.sendBulk(PEER, world.getUID(), firstStream, firstPayload, contentHashOf(firstPayload)));
@@ -271,7 +271,7 @@ class ChunkReplicationManagerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         assertEquals(0L, manager.canonicalHash(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey)));
         byte[] payload = synthesizeBulkPayload(0, 0);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload));
@@ -285,11 +285,11 @@ class ChunkReplicationManagerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] initial = synthesizeBulkPayload(0, 0);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), initial, contentHashOf(initial));
         assertNotEquals(0L, manager.canonicalHash(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey)));
-        manager.onChunkDrain(world, chunkKey,
+        manager.onChunkDrain(world.getUID(), chunkKey,
             List.of(new BlockChange(BlockChange.pack(0, 60, 0), "minecraft:dirt", BlockChange.FLAG_NONE)),
             List.of(), List.of());
         assertEquals(0L, manager.canonicalHash(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey)));
@@ -308,9 +308,9 @@ class ChunkReplicationManagerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(3, 5);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         BlockChange queued = new BlockChange(BlockChange.pack(2, 64, 4), "minecraft:stone", BlockChange.FLAG_NONE);
-        manager.onChunkDrain(world, chunkKey, List.of(queued), List.of(), List.of());
+        manager.onChunkDrain(world.getUID(), chunkKey, List.of(queued), List.of(), List.of());
         long generation = manager.bulkGeneration(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(3, 5);
 
@@ -335,11 +335,11 @@ class ChunkReplicationManagerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(0, 0);
         long expected = contentHashOf(payload);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, expected);
-        manager.onChunkDrain(world, chunkKey, List.of(),
+        manager.onChunkDrain(world.getUID(), chunkKey, List.of(),
             List.of(LightDiff.full(4, LightDiff.TYPE_SKYLIGHT, new byte[LightDiff.DATA_LENGTH])),
             List.of(new BlockEntityDiff(BlockChange.pack(1, 61, 1), new byte[]{1})));
         assertEquals(expected, manager.canonicalHash(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey)));
@@ -351,7 +351,7 @@ class ChunkReplicationManagerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(7, 7);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(7, 7);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload));
         manager.requestResync(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
@@ -366,14 +366,14 @@ class ChunkReplicationManagerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(9, 7);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         long initialGeneration = manager.bulkGeneration(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(9, 7);
         assertTrue(manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload), initialGeneration));
         List<Long> retries = new ArrayList<>();
         manager.setBulkRetryListener((peerName, key) -> retries.add(key.chunkKey()));
 
-        manager.forceResync(world, chunkKey);
+        manager.forceResync(world.getUID(), chunkKey);
 
         long recoveryGeneration = manager.bulkGeneration(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         assertTrue(recoveryGeneration > initialGeneration);
@@ -389,13 +389,13 @@ class ChunkReplicationManagerTest {
         manager.applyConfig(new ChunkReplicationManager.ReplicationConfig(1L));
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(6, 8);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] payload = synthesizeBulkPayload(6, 8);
         assertTrue(manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), payload, contentHashOf(payload)));
         List<Long> retries = new ArrayList<>();
         manager.setBulkRetryListener((peerName, key) -> retries.add(key.chunkKey()));
 
-        manager.onChunkDrain(world, chunkKey, List.of(
+        manager.onChunkDrain(world.getUID(), chunkKey, List.of(
             new BlockChange(BlockChange.pack(1, 70, 1), "minecraft:dirt", BlockChange.FLAG_NONE),
             new BlockChange(BlockChange.pack(2, 70, 1), "minecraft:stone", BlockChange.FLAG_NONE)
         ), List.of(), List.of());
@@ -412,8 +412,8 @@ class ChunkReplicationManagerTest {
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKeyA = ViewSlice.columnKey(0, 0);
         long chunkKeyB = ViewSlice.columnKey(1, 0);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKeyA));
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKeyB));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKeyA));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKeyB));
         List<Long> keys = manager.subscribedChunkKeys(world.getUID());
         assertEquals(2, keys.size());
         assertTrue(keys.contains(chunkKeyA));
@@ -431,7 +431,7 @@ class ChunkReplicationManagerTest {
         ChunkReplicationManager manager = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(2, 2);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         manager.clearPeer(PEER);
         assertTrue(manager.subscribedChunkKeys(world.getUID()).isEmpty());
     }
@@ -447,13 +447,13 @@ class ChunkReplicationManagerTest {
             assertEquals(world.getUID(), worldId);
             evicted.add(key);
         });
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
-        manager.subscribe("peer-b", world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe("peer-b", world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         manager.unsubscribe(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         assertTrue(evicted.isEmpty());
         manager.unsubscribe("peer-b", world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         assertEquals(List.of(chunkKey), evicted);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         manager.clearPeer(PEER);
         assertEquals(List.of(chunkKey, chunkKey), evicted);
     }

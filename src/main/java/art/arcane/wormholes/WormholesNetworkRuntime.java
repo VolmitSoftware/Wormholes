@@ -1,5 +1,17 @@
 package art.arcane.wormholes;
 
+import art.arcane.wormholes.network.view.BukkitRemoteViewCodec;
+
+import com.github.retrooper.packetevents.protocol.player.Equipment;
+
+import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
+
+import org.bukkit.block.data.BlockData;
+
+import art.arcane.wormholes.network.BukkitPortalSyncAccess;
+
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.NetworkConfig;
@@ -45,7 +57,7 @@ final class WormholesNetworkRuntime {
         plugin.packetEvents().registerTransferGate();
         Wormholes.networkManager.start();
         J.ar(() -> {
-            ViewSubscriptionManager subscriptions = Wormholes.viewSubscriptions;
+            ViewSubscriptionManager<BlockData, EntityData<?>, Equipment> subscriptions = Wormholes.viewSubscriptions;
             if (subscriptions != null) {
                 subscriptions.sweep();
             }
@@ -64,17 +76,13 @@ final class WormholesNetworkRuntime {
 
     private void construct(WormholesSettings activeSettings) {
         Wormholes.remotePortalRegistry = new RemotePortalRegistry();
-        Wormholes.networkManager = new NetworkManager(plugin.getLogger(), activeSettings.getNetwork(), WormholesPlatform.minecraftVersion(), WormholesPlatform.pluginVersion(plugin), Bukkit.getPort(), plugin.getDataFolder().toPath());
+        Wormholes.networkManager = new NetworkManager(plugin.getLogger(), new NetworkManager.Options( activeSettings.getNetwork(), WormholesPlatform.minecraftVersion(), WormholesPlatform.pluginVersion(plugin), Bukkit.getPort(), plugin.getDataFolder().toPath(), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         Wormholes.networkManager.setGameBindHost(Bukkit.getIp());
         Wormholes.importExportService = new ImportExportService(Wormholes.networkManager);
-        Wormholes.portalSyncService = new PortalSyncService(
-            Wormholes.networkManager,
-            () -> Wormholes.portalManager.getLocalPortals(),
-            this::runPortalSyncTask
-        );
+        Wormholes.portalSyncService = BukkitPortalSyncAccess.create(Wormholes.networkManager, () -> Wormholes.portalManager.getLocalPortals(), this::runPortalSyncTask);
         Wormholes.traversalService = new TraversalService(Wormholes.networkManager);
         Wormholes.remoteViewCache = createRemoteViewCache(activeSettings.getNetwork());
-        Wormholes.viewSubscriptions = new ViewSubscriptionManager(Wormholes.networkManager, Wormholes.remoteViewCache);
+        Wormholes.viewSubscriptions = new ViewSubscriptionManager<>(Wormholes.networkManager, Wormholes.remoteViewCache);
         Wormholes.viewServer = new ViewServer(Wormholes.networkManager);
         NetworkRouter networkRouter = new NetworkRouter(Wormholes.remotePortalRegistry, Wormholes.portalSyncService, Wormholes.traversalService, Wormholes.viewServer, Wormholes.remoteViewCache, Wormholes.viewSubscriptions, Wormholes.networkManager.getReplicationManager(), Wormholes.networkManager);
         Wormholes.networkManager.setMessageSink(networkRouter::onMessage);
@@ -159,7 +167,7 @@ final class WormholesNetworkRuntime {
         Wormholes.remotePortalRegistry = new RemotePortalRegistry();
         Wormholes.portalSyncService = null;
         Wormholes.traversalService = null;
-        Wormholes.remoteViewCache = new RemoteViewCache();
+        Wormholes.remoteViewCache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         Wormholes.viewSubscriptions = null;
         Wormholes.viewServer = null;
         Wormholes.importExportService = null;
@@ -224,19 +232,16 @@ final class WormholesNetworkRuntime {
         });
     }
 
-    static RemoteViewCache createRemoteViewCache(NetworkConfig networkConfig) {
+    static RemoteViewCache<BlockData, EntityData<?>, Equipment> createRemoteViewCache(NetworkConfig networkConfig) {
         NetworkConfig.ReplicationConfig replication = networkConfig == null ? null : networkConfig.replication;
         if (replication == null) {
-            return new RemoteViewCache();
+            return new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         }
-        return new RemoteViewCache(
-            replication.diffWindowSize,
-            TimeUnit.SECONDS.toMillis(replication.resyncTimeoutSec)
-        );
+        return new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, new RemoteViewCache.Options(replication.diffWindowSize, TimeUnit.SECONDS.toMillis(replication.resyncTimeoutSec)));
     }
 
     void applyReplicationSettings(NetworkConfig networkConfig) {
-        RemoteViewCache cache = Wormholes.remoteViewCache;
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = Wormholes.remoteViewCache;
         NetworkConfig.ReplicationConfig replication = networkConfig == null ? null : networkConfig.replication;
         if (cache == null || replication == null) {
             return;

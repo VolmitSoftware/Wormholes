@@ -26,7 +26,7 @@ final class PocketSnapshotsTest {
 
     @Test
     void aSnapshotIsFiledUnderItsOwnPocketSoTwoPocketsNeverShareOne() {
-        PocketSnapshots snapshots = new PocketSnapshots(temporaryDirectory, new MapStructureIo());
+        PocketSnapshots<Structure> snapshots = new PocketSnapshots<>(temporaryDirectory, new MapStructureIo());
         UUID other = new UUID(0, 1201);
 
         Path mine = snapshots.file(SPACE_ID, PocketSnapshots.LATEST);
@@ -41,7 +41,7 @@ final class PocketSnapshotsTest {
     @Test
     void savingThenLoadingGivesBackTheSameStructure() throws IOException {
         MapStructureIo io = new MapStructureIo();
-        PocketSnapshots snapshots = new PocketSnapshots(temporaryDirectory, io);
+        PocketSnapshots<Structure> snapshots = new PocketSnapshots<>(temporaryDirectory, io);
         Structure captured = structure();
 
         snapshots.save(SPACE_ID, PocketSnapshots.LATEST, captured);
@@ -58,7 +58,7 @@ final class PocketSnapshotsTest {
         Files.writeString(directory.resolve("before-the-fire.nbt"), "x");
         Files.writeString(directory.resolve("notes.txt"), "x");
 
-        PocketSnapshots snapshots = new PocketSnapshots(temporaryDirectory, new MapStructureIo());
+        PocketSnapshots<Structure> snapshots = new PocketSnapshots<>(temporaryDirectory, new MapStructureIo());
 
         assertEquals(List.of("before-the-fire", "latest"), snapshots.names(SPACE_ID));
         assertEquals(List.of(), snapshots.names(new UUID(0, 1202)));
@@ -66,7 +66,7 @@ final class PocketSnapshotsTest {
 
     @Test
     void aSnapshotNameIsNeverAllowedToReachOutsideItsFolder() {
-        PocketSnapshots snapshots = new PocketSnapshots(temporaryDirectory, new MapStructureIo());
+        PocketSnapshots<Structure> snapshots = new PocketSnapshots<>(temporaryDirectory, new MapStructureIo());
 
         assertThrows(IllegalArgumentException.class, () -> snapshots.file(SPACE_ID, "../../state"));
         assertThrows(IllegalArgumentException.class, () -> snapshots.file(SPACE_ID, "sub/dir"));
@@ -81,7 +81,7 @@ final class PocketSnapshotsTest {
     }
 
     /** An in-memory structure store, so a save is observable without a server. */
-    private static final class MapStructureIo implements StructureIo {
+    private static final class MapStructureIo implements StructureIo<Structure> {
         private final Map<Path, Structure> stored = new LinkedHashMap<>();
 
         @Override

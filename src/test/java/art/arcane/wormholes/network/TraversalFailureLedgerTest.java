@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.network.TraversalFailureLedger.Failure;
 
 import org.junit.jupiter.api.Test;
@@ -17,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TraversalFailureLedgerTest {
     @Test
     void aFreshLedgerReportsNothing() {
-        TraversalFailureLedger ledger = new TraversalFailureLedger();
+        TraversalFailureLedger ledger = new TraversalFailureLedger(new TraversalFailureLedger.Options(() -> Settings.DEBUG, Wormholes::v, Wormholes::w));
 
         assertEquals(0L, ledger.failed());
         assertTrue(ledger.breakdown().isEmpty());
@@ -25,7 +27,7 @@ class TraversalFailureLedgerTest {
 
     @Test
     void everyRecordedFailureCountsTowardTheAggregate() {
-        TraversalFailureLedger ledger = new TraversalFailureLedger();
+        TraversalFailureLedger ledger = new TraversalFailureLedger(new TraversalFailureLedger.Options(() -> Settings.DEBUG, Wormholes::v, Wormholes::w));
 
         ledger.record(Failure.HANDOFF_PEER_UNKNOWN, UUID.randomUUID(), "no such peer");
         ledger.record(Failure.HANDOFF_PEER_UNKNOWN, UUID.randomUUID(), null);
@@ -38,7 +40,7 @@ class TraversalFailureLedgerTest {
 
     @Test
     void reasonsThatWereNeverHitAreOmittedFromTheBreakdown() {
-        TraversalFailureLedger ledger = new TraversalFailureLedger();
+        TraversalFailureLedger ledger = new TraversalFailureLedger(new TraversalFailureLedger.Options(() -> Settings.DEBUG, Wormholes::v, Wormholes::w));
 
         ledger.record(Failure.ARRIVAL_EXHAUSTED, UUID.randomUUID(), "gave up");
 
@@ -49,7 +51,7 @@ class TraversalFailureLedgerTest {
 
     @Test
     void theBreakdownFollowsDeclarationOrderNotInsertionOrder() {
-        TraversalFailureLedger ledger = new TraversalFailureLedger();
+        TraversalFailureLedger ledger = new TraversalFailureLedger(new TraversalFailureLedger.Options(() -> Settings.DEBUG, Wormholes::v, Wormholes::w));
 
         ledger.record(Failure.ARRIVAL_DENIED_STRANDED, UUID.randomUUID(), "stranded");
         ledger.record(Failure.HANDOFF_RATE_LIMITED, UUID.randomUUID(), "slow down");
@@ -65,7 +67,7 @@ class TraversalFailureLedgerTest {
 
     @Test
     void theBreakdownIsASnapshotCallersCannotMutate() {
-        TraversalFailureLedger ledger = new TraversalFailureLedger();
+        TraversalFailureLedger ledger = new TraversalFailureLedger(new TraversalFailureLedger.Options(() -> Settings.DEBUG, Wormholes::v, Wormholes::w));
         ledger.record(Failure.HANDOFF_DENIED, UUID.randomUUID(), "nope");
         Map<String, Long> snapshot = ledger.breakdown();
 

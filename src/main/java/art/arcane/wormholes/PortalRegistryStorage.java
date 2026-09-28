@@ -18,6 +18,7 @@ import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.PortalStructure;
+import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.util.VIO;
@@ -38,7 +39,7 @@ final class PortalRegistryStorage
 
 	File saveFile(UUID id)
 	{
-		return new File(new File(new File(portalFolder(), id.toString().split("-")[1]), id.toString().split("-")[0]), id.toString() + ".json");
+		return PortalStateCodec.file(portalFolder().toPath(), id).toFile();
 	}
 
 	PortalFileListing listPortalFiles() throws IOException

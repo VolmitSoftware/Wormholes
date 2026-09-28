@@ -1,0 +1,137 @@
+package art.arcane.wormholes.render.plate;
+
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+
+
+/**
+ * Runs plate builds either on the bounded {@code Wormholes-Plate-N} pool (snapshot and remote views,
+ * which are safe to read off-thread) or, for live Paper views, on the destination region thread in
+ * time slices of {@link #REGION_CELLS_PER_TICK} cells per tick.
+ */
+public final class PlateWorkers<B, W> {
+    public interface Host<B, W> {
+        void publish(ViewPlate<B> plate);
+
+        void failed(ViewPlateKey key);
+
+        boolean schedule(ViewPlateBuilder.Execution<W> execution, Runnable task, long delayTicks);
+
+        void warning(ViewPlateKey key, RuntimeException failure);
+    }
+
+    static final int ASYNC_CELLS_PER_STEP = 8192;
+    static final int REGION_CELLS_PER_TICK = 6144;
+    private static final int QUEUE_CAPACITY = 256;
+    private static final AtomicInteger THREAD_SEQUENCE = new AtomicInteger();
+
+    private final Host<B, W> host;
+    private volatile ThreadPoolExecutor executor;
+
+    public PlateWorkers(int threads, Host<B, W> host) {
+        this.host = host;
+        this.executor = createExecutor(threads);
+    }
+
+    public void submitAsync(ViewPlateBuilder.Job<B, W> job) {
+        ThreadPoolExecutor active = executor;
+        if (active == null) {
+            host.failed(job.key());
+            return;
+        }
+        try {
+            active.execute(() -> runToCompletion(job));
+        } catch (RejectedExecutionException rejected) {
+            host.failed(job.key());
+        }
+    }
+
+    public void submitRegion(ViewPlateBuilder.Job<B, W> job) {
+        if (executor == null || !host.schedule(job.execution(), () -> stepOnRegion(job), 0L)) {
+            host.failed(job.key());
+        }
+    }
+
+    public void resize(int threads) {
+        ThreadPoolExecutor active = executor;
+        int target = Math.max(1, threads);
+        if (active == null || active.getCorePoolSize() == target) {
+            return;
+        }
+        if (target > active.getCorePoolSize()) {
+            active.setMaximumPoolSize(target);
+            active.setCorePoolSize(target);
+        } else {
+            active.setCorePoolSize(target);
+            active.setMaximumPoolSize(target);
+        }
+    }
+
+    public int threads() {
+        ThreadPoolExecutor active = executor;
+        return active == null ? 0 : active.getCorePoolSize();
+    }
+
+    public void shutdown() {
+        ThreadPoolExecutor active = executor;
+        executor = null;
+        if (active != null) {
+            active.shutdownNow();
+        }
+    }
+
+    private void runToCompletion(ViewPlateBuilder.Job<B, W> job) {
+        try {
+            while (!job.step(ASYNC_CELLS_PER_STEP)) {
+                if (Thread.currentThread().isInterrupted()) {
+                    host.failed(job.key());
+                    return;
+                }
+            }
+            host.publish(job.result());
+        } catch (RuntimeException failure) {
+            host.failed(job.key());
+            host.warning(job.key(), failure);
+        }
+    }
+
+    private void stepOnRegion(ViewPlateBuilder.Job<B, W> job) {
+        if (executor == null) {
+            host.failed(job.key());
+            return;
+        }
+        boolean finished;
+        try {
+            finished = job.step(REGION_CELLS_PER_TICK);
+        } catch (RuntimeException failure) {
+            host.failed(job.key());
+            host.warning(job.key(), failure);
+            return;
+        }
+        if (finished) {
+            host.publish(job.result());
+            return;
+        }
+        if (!host.schedule(job.execution(), () -> stepOnRegion(job), 1L)) {
+            host.failed(job.key());
+        }
+    }
+
+    private static ThreadPoolExecutor createExecutor(int threads) {
+        int size = Math.max(1, threads);
+        ThreadFactory factory = runnable -> {
+            Thread thread = new Thread(runnable, "Wormholes-Plate-" + THREAD_SEQUENCE.incrementAndGet());
+            thread.setDaemon(true);
+            return thread;
+        };
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(size, size, 30L, TimeUnit.SECONDS,
+            new ArrayBlockingQueue<Runnable>(QUEUE_CAPACITY), factory, new ThreadPoolExecutor.AbortPolicy());
+        executor.allowCoreThreadTimeOut(true);
+        return executor;
+    }
+}

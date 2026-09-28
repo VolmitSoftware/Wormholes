@@ -1,6 +1,7 @@
 package art.arcane.wormholes.rules;
 
 import art.arcane.volmlib.util.json.JSONObject;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.hook.PortalExtension;
 import art.arcane.wormholes.portal.LocalPortal;
@@ -22,7 +23,7 @@ public final class RulesPortalExtension implements PortalExtension {
     private static final String SYNC_PROFILE = KEY + ".profile";
 
     private final LocalPortal portal;
-    private final ChargePool charges = new ChargePool();
+    private final ChargePool charges = new ChargePool(() -> RulesLimits.config().chargesRegenIntervalSeconds * 1000L);
     private volatile RuleDocument document = RuleDocument.EMPTY;
     private volatile CompiledRules compiled = CompiledRules.compile(RuleDocument.EMPTY);
     private volatile String mirroredCooldownGroup = "";
@@ -77,10 +78,10 @@ public final class RulesPortalExtension implements PortalExtension {
     @Override
     public void save(JSONObject portalJson) {
         if (!document.isInert()) {
-            portalJson.put(DOCUMENT_KEY, RuleDocumentCodec.toJson(document));
+            portalJson.put(DOCUMENT_KEY, new JSONObject(RuleDocumentCodec.toJson(document)));
         }
         if (!charges.unlimited()) {
-            charges.save(portalJson, CHARGES_KEY);
+            portalJson.put(CHARGES_KEY, new JSONObject(charges.save()));
         }
     }
 
@@ -90,7 +91,7 @@ public final class RulesPortalExtension implements PortalExtension {
         RuleDocument loaded = RuleDocument.EMPTY;
         if (stored != null) {
             List<String> problems = new ArrayList<>();
-            RuleDocument decoded = RuleDocumentCodec.decode(stored, problems);
+            RuleDocument decoded = RuleDocumentCodec.decode(BukkitJsonDocuments.values(stored), problems, RulesLimits.config());
             if (problems.isEmpty()) {
                 loaded = decoded;
             } else {
@@ -99,7 +100,8 @@ public final class RulesPortalExtension implements PortalExtension {
         }
         document = loaded;
         compiled = CompiledRules.compile(loaded);
-        charges.load(portalJson, CHARGES_KEY);
+        JSONObject storedCharges = portalJson.optJSONObject(CHARGES_KEY);
+        charges.load(storedCharges == null ? null : BukkitJsonDocuments.values(storedCharges));
         charges.reshape(loaded.profile(), System.currentTimeMillis());
     }
 

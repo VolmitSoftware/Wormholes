@@ -1,5 +1,6 @@
 package art.arcane.wormholes.door;
 
+import org.bukkit.structure.Structure;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -26,7 +27,7 @@ final class PocketTemplateServiceTest {
         Files.writeString(templates.resolve("arena.nbt"), "x");
         Files.writeString(templates.resolve("notes.txt"), "x");
 
-        PocketTemplateService service = service();
+        PocketTemplateService<Structure> service = service();
 
         assertEquals(List.of("arena", "dungeon"), service.names());
         assertTrue(service.exists("dungeon"));
@@ -37,7 +38,7 @@ final class PocketTemplateServiceTest {
     @Test
     void aTemplateNameNeverEscapesTheTemplatesDirectory() throws IOException {
         Files.createDirectories(temporaryDirectory.resolve("pockets/templates"));
-        PocketTemplateService service = service();
+        PocketTemplateService<Structure> service = service();
 
         assertThrows(IllegalArgumentException.class, () -> service.exists("../secrets"));
         assertThrows(IllegalArgumentException.class, () -> service.exists("nested/dungeon"));
@@ -110,8 +111,8 @@ final class PocketTemplateServiceTest {
         assertEquals(Optional.empty(), service().load("dungeon"));
     }
 
-    private PocketTemplateService service() {
-        return new PocketTemplateService(temporaryDirectory, () -> "pockets/templates", new EmptyStructureIo());
+    private PocketTemplateService<Structure> service() {
+        return new PocketTemplateService<>(temporaryDirectory, () -> "pockets/templates", new EmptyStructureIo());
     }
 
     private static PocketSpace space(PocketShell shell) {
@@ -123,7 +124,7 @@ final class PocketTemplateServiceTest {
     }
 
     /** A structure store with nothing in it; these tests never read or write one. */
-    private static final class EmptyStructureIo implements StructureIo {
+    private static final class EmptyStructureIo implements StructureIo<Structure> {
         @Override
         public java.util.Optional<org.bukkit.structure.Structure> load(java.nio.file.Path file) {
             return java.util.Optional.empty();

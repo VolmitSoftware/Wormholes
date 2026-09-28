@@ -1,0 +1,10 @@
+name: WormholesItemExchange
+version: '1'
+main: art.arcane.wormholes.ItemExchangePlugin
+api-version: '26.1.2'
+dependencies:
+  server:
+    Wormholes:
+      load: BEFORE
+      required: true
+      join-classpath: true

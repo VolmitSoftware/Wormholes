@@ -17,7 +17,7 @@
 #   {address}  Adres van de netwerkpeer
 #   {after}  Berichtwaarde na bewerking
 #   {allocation}  Toewijzing van de pocketruimte
-#   {amount}  Reiskosten in Vault-valuta
+#  {amount} Reiskosten in -valuta
 #   {argument}  Onverwacht opdrachtargument
 #   {before}  Berichtwaarde vóór bewerking
 #   {biome}  Bioomidentificatie
@@ -357,7 +357,7 @@ transfer_blocked_retry = "&cPortaaloverdracht geblokkeerd: {reason} (nieuwe pogi
 
 [portal.prompt]
 cost_item = "&bHoud het exacte kostenvoorwerp in je hoofdhand en druk daarna op Weggooien. Het voorwerp verlaat je inventaris niet."
-cost_vault = "&bVoer het Vault-valutabedrag per doorgang in (of '{cancel}'):"
+cost_vault = "&bVoer het bedrag per doorgang in (of '{cancel}'):"
 invite = "&bPlak de portaaluitnodiging in de chat (of '{cancel}'):"
 block_state = "&bVoer een blokstatus in voor de netwerkweergave van dit portaal, of '{cancel}':"
 name = "&bTyp de nieuwe portaalnaam in chat (of '{cancel}'):"
@@ -368,9 +368,9 @@ cost_item_set = "Reizen vereist nu {item}."
 cost_item_invalid = "Dat voorwerp kon niet als reiskosten worden opgeslagen."
 cost_cleared = "Reiskosten gewist."
 cost_quantity_changed = "Reiskostenaantal: {quantity}"
-cost_vault_changed = "Vault-reiskosten: {amount}"
+cost_vault_changed = "Reiskosten: {amount}"
 cost_vault_invalid = "Voer een positief valutabedrag in van hoogstens {maximum}."
-cost_vault_unavailable = "Vault en een economieaanbieder moeten beschikbaar zijn voordat je deze kosten kunt kiezen."
+cost_vault_unavailable = "Er moet een economieprovider beschikbaar zijn voordat je deze kosten kiest."
 dimensional_link_managed = "Dit dimensionale portaal behoudt de gegenereerde koppeling."
 not_rtp = "Dit portaal is niet meer in willekeurige teleportmodus."
 region_unavailable = "De portaalregio is niet beschikbaar; probeer opnieuw."
@@ -397,7 +397,7 @@ public_look_label = "Openbaar kijklabel"
 [portal.label.cost]
 free = "Gratis"
 vanilla = "Vanilla-voorwerp"
-vault = "Vault-economie"
+vault = "Economie"
 
 [portal.label.ambient]
 red = "Rood"
@@ -552,12 +552,12 @@ available = ["&e&lSpiegel&r", "&7Bekijk de lokale wereld terug.", "&7Zie jezelf 
 flip = ["&7Muurspiegels draaien in 180 graden stappen", "&7zodat weerspiegelde entiteiten in lijn blijven.", "&8Rechte klik: het afgebeeld beeld omdraaien."]
 
 [portal.menu.cost]
-opener = ["&6&lReiskosten&r", "&7Vereis een exact voorwerp of Vault-valuta", "&7wanneer een speler dit portaal gebruikt.", "", "&7Modus: &f{mode}", "&7Kosten: &f{cost}", "", "&8Klik om te configureren."]
+opener = ["&6&lReiskosten&r", "&7Vereis een exact voorwerp of-valuta", "&7wanneer een speler dit portaal gebruikt.", "", "&7Modus: &f{mode}", "&7Kosten: &f{cost}", "", "&8Klik om te configureren."]
 placard = ["&6&lReiskosten&r", "&7Spelers moeten betalen voordat dit portaal", "&7ze laat reizen.", "", "&7Modus: &f{mode}", "&7Kosten: &f{cost}"]
 mode_free = ["&a&lGratis&r", "&7Er is geen betaling vereist.", "", "&8Klik om reizen gratis te maken."]
 mode_vanilla = ["&b&lVanilla-voorwerp&r", "&7Verbruikt een exact overeenkomend voorwerp.", "", "&8Klik, houd het voorwerp vast en druk daarna op Weggooien."]
-mode_vault = ["&a&lVault-economie&r", "&7Trekt valuta af via Vault.", "", "&8Klik om een bedrag in te voeren."]
-mode_vault_unavailable = ["&c&lVault-economie niet beschikbaar&r", "&7Vault en een economieaanbieder zijn vereist.", "", "&8Installeer of activeer beide om deze modus te gebruiken."]
+mode_vault = ["&a&lEconomie&r", "&7Schrijf valuta af via een economieprovider.", "", "&8Klik om een bedrag in te voeren."]
+mode_vault_unavailable = ["&c&lEconomie niet beschikbaar&r", "&7Een economieprovider is vereist.", "", "&8Schakel een economieprovider in voor deze modus."]
 free_detail = ["&a&lGeen kosten&r", "&7Reizen door dit portaal is gratis."]
 secondary_empty = ["&8&lGeen extra instelling&r"]
 item = ["&b&l{item}&r", "&7Precies dit voorwerp is vereist om te reizen.", "&7Het selectievoorwerp wordt nooit verbruikt.", "", "&8Links: kies een ander vastgehouden voorwerp.", "&8Rechts: wis de kosten."]
@@ -687,7 +687,7 @@ execution_failed = "Opdracht {command} kon niet worden uitgevoerd: {reason}"
 not_initialized = "&8[&6Wormholes&8] &cHet netwerk is nog niet geïnitialiseerd."
 
 [network.status]
-disabled = "&8[&6Wormholes&8] &7Het netwerk is &cuitgeschakeld&7 (plugins/Wormholes/wormholes.toml)."
+disabled = "&8[&6Wormholes&8] &7Het netwerk is &cuitgeschakeld&7 (wormholes.toml)."
 not_running = "&8[&6Wormholes&8] &cHet netwerk is ingeschakeld maar draait niet. Controleer de identiteitsopslag en netwerkpoort."
 listening = "&8[&6Wormholes&8] &7Deze server: &f{server}&7, luistert op &f{address}"
 outbound_only = "&8[&6Wormholes&8] &7Deze server: &f{server}&7, Boat-modus alleen uitgaand"

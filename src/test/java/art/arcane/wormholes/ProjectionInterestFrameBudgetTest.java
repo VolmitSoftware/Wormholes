@@ -1,5 +1,6 @@
 package art.arcane.wormholes;
 
+import org.bukkit.entity.Entity;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -37,7 +38,7 @@ final class ProjectionInterestFrameBudgetTest {
     private final ProjectionBudgetLedger ledger = new ProjectionBudgetLedger(now::get);
     private final ProjectionInterestSet interestSet = mock(ProjectionInterestSet.class);
     private final ProjectionClaimArbiter claimArbiter = mock(ProjectionClaimArbiter.class);
-    private final EntityRenderLocalOcclusionArbiter localEntityOcclusion = mock(EntityRenderLocalOcclusionArbiter.class);
+    private final EntityRenderLocalOcclusionArbiter<Player, Entity> localEntityOcclusion = mock(EntityRenderLocalOcclusionArbiter.class);
     private final PortalSkinRenderer skinRenderer = mock(PortalSkinRenderer.class);
     private final PortalProjector projector = mock(PortalProjector.class);
     private final Player observer = mock(Player.class);

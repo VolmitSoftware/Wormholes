@@ -1,5 +1,11 @@
 package art.arcane.wormholes.network.view;
 
+import com.github.retrooper.packetevents.protocol.player.Equipment;
+
+import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
+
+import org.bukkit.block.data.BlockData;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
@@ -11,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RemoteViewReadyTest {
     @Test
     void configuredReplicationLimitsReachPeerChunkStores() {
-        RemoteViewCache cache = new RemoteViewCache(7, 12_000L);
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, new RemoteViewCache.Options(7, 12_000L));
 
         assertEquals(7, cache.chunkStore("hub").diffWindowSize());
         assertEquals(12_000L, cache.chunkStore("hub").resyncTimeoutMillis());
@@ -19,7 +25,7 @@ class RemoteViewReadyTest {
 
     @Test
     void newViewIsNotReady() {
-        RemoteViewCache cache = new RemoteViewCache();
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         UUID portalId = UUID.randomUUID();
         cache.getOrCreate("hub", portalId);
         assertFalse(cache.isViewReady(portalId));
@@ -27,12 +33,12 @@ class RemoteViewReadyTest {
 
     @Test
     void markViewReadyFlipsFlagOnAndIsStickyAcrossUpdates() {
-        RemoteViewCache cache = new RemoteViewCache();
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         UUID portalId = UUID.randomUUID();
         cache.getOrCreate("hub", portalId);
         cache.markViewReady("hub", portalId);
         assertTrue(cache.isViewReady(portalId));
-        RemoteViewCache.RemoteView view = cache.get("hub", portalId);
+        RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> view = cache.get("hub", portalId);
         assertTrue(view.isViewReady());
 
         cache.applyTime("hub", portalId, 4);
@@ -42,7 +48,7 @@ class RemoteViewReadyTest {
 
     @Test
     void readyFlagDropsOnUnsubscribeAndCacheRemove() {
-        RemoteViewCache cache = new RemoteViewCache();
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         UUID portalId = UUID.randomUUID();
         cache.markViewReady("hub", portalId);
         assertTrue(cache.isViewReady(portalId));
@@ -52,7 +58,7 @@ class RemoteViewReadyTest {
 
     @Test
     void readyFlagDoesNotCrossPortals() {
-        RemoteViewCache cache = new RemoteViewCache();
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();
         cache.markViewReady("hub", first);

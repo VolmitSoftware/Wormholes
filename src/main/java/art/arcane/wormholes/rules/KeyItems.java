@@ -89,38 +89,12 @@ public final class KeyItems {
      * untouched. Returns false when the item does not have that many uses left.
      */
     public static boolean spend(Player player, ItemStack stack, int uses) {
-        int remaining = remainingUses(stack);
-        if (remaining <= 0) {
-            return true;
-        }
-        if (remaining < uses) {
-            return false;
-        }
-        int left = remaining - uses;
-        if (left <= 0) {
-            player.getInventory().removeItem(stack);
-            return true;
-        }
-        ItemMeta meta = stack.getItemMeta();
-        meta.getPersistentDataContainer().set(USES, PersistentDataType.INTEGER, Integer.valueOf(left));
-        stack.setItemMeta(meta);
-        return true;
+        return KeyItemUses.spend(new PlayerKeys(player), stack, uses);
     }
 
     /** Puts back uses a rolled-back reservation had taken. */
     public static void refund(Player player, UUID identity, int uses) {
-        ItemStack existing = find(player, identity);
-        if (existing == null) {
-            player.getInventory().addItem(mint(identity, uses));
-            return;
-        }
-        int remaining = remainingUses(existing);
-        if (remaining <= 0) {
-            return;
-        }
-        ItemMeta meta = existing.getItemMeta();
-        meta.getPersistentDataContainer().set(USES, PersistentDataType.INTEGER, Integer.valueOf(remaining + uses));
-        existing.setItemMeta(meta);
+        KeyItemUses.refund(new PlayerKeys(player), identity, uses);
     }
 
     private static String read(ItemStack stack, NamespacedKey key) {
@@ -132,5 +106,34 @@ public final class KeyItems {
             return null;
         }
         return meta.getPersistentDataContainer().get(key, PersistentDataType.STRING);
+    }
+
+    private record PlayerKeys(Player player) implements KeyItemUses.Host<ItemStack> {
+        @Override
+        public ItemStack find(UUID identity) {
+            return KeyItems.find(player, identity);
+        }
+
+        @Override
+        public int remaining(ItemStack stack) {
+            return remainingUses(stack);
+        }
+
+        @Override
+        public void setRemaining(ItemStack stack, int remaining) {
+            ItemMeta meta = stack.getItemMeta();
+            meta.getPersistentDataContainer().set(USES, PersistentDataType.INTEGER, remaining);
+            stack.setItemMeta(meta);
+        }
+
+        @Override
+        public void remove(ItemStack stack) {
+            player.getInventory().removeItem(stack);
+        }
+
+        @Override
+        public void give(UUID identity, int uses) {
+            player.getInventory().addItem(mint(identity, uses));
+        }
     }
 }

@@ -42,20 +42,20 @@ public final class ProjectedPlayerLabelTest {
         UUID firstUuid = UUID.fromString("12345678-1234-5678-90ab-cdef12345678");
         UUID secondUuid = UUID.fromString("abcdef12-3456-7890-abcd-ef1234567890");
 
-        String first = ProjectedEntityRenderer.projectedProfileName("Alice", firstUuid, false);
-        String second = ProjectedEntityRenderer.projectedProfileName("Alice", secondUuid, false);
+        String first = ProjectedPlayerNames.projectedProfileName("Alice", firstUuid, false);
+        String second = ProjectedPlayerNames.projectedProfileName("Alice", secondUuid, false);
 
         assertEquals(16, first.length());
         assertTrue(first.matches("wh[0-9a-f]{14}"));
         assertNotEquals("Alice", first);
         assertNotEquals(first, second);
-        assertEquals("Dinnerbone", ProjectedEntityRenderer.projectedProfileName("Alice", firstUuid, true));
-        assertEquals("PortalPlayer", ProjectedEntityRenderer.projectedProfileName("Dinnerbone", firstUuid, true));
+        assertEquals("Dinnerbone", ProjectedPlayerNames.projectedProfileName("Alice", firstUuid, true));
+        assertEquals("PortalPlayer", ProjectedPlayerNames.projectedProfileName("Dinnerbone", firstUuid, true));
     }
 
     @Test
     public void blankAndOversizedLabelsAreSafeAndNonempty() {
-        assertEquals("PortalPlayer", ProjectedEntityRenderer.playerLabelText(" "));
-        assertEquals("abcdefghijklmnop", ProjectedEntityRenderer.playerLabelText("abcdefghijklmnop-extra"));
+        assertEquals("PortalPlayer", ProjectedPlayerNames.playerLabelText(" "));
+        assertEquals("abcdefghijklmnop", ProjectedPlayerNames.playerLabelText("abcdefghijklmnop-extra"));
     }
 }

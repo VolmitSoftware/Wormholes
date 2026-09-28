@@ -1,5 +1,10 @@
 package art.arcane.wormholes.render;
 
+import com.github.retrooper.packetevents.util.Vector3d;
+
+import art.arcane.wormholes.render.view.ProjectionWorldView;
+import org.bukkit.block.data.BlockData;
+import art.arcane.wormholes.util.BukkitGeometry;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -120,8 +125,8 @@ final class ProjectedEntityRendererRelationshipsTest {
         riderState.put("leashed", Boolean.TRUE);
         riderState.put("leashHolder", horse);
 
-        EntityRelationship vehicle = EntityRelationship.of(horse);
-        EntityRelationship passenger = EntityRelationship.of(rider);
+        EntityRelationship vehicle = BukkitEntityRelationships.of(horse);
+        EntityRelationship passenger = BukkitEntityRelationships.of(rider);
 
         assertEquals(horseId, vehicle.entityId());
         assertNull(vehicle.vehicleId());
@@ -136,15 +141,14 @@ final class ProjectedEntityRendererRelationshipsTest {
         PortalFrame frame = PortalFrame.canonical(Direction.N);
         ILocalPortal localPortal = RenderTestSupport.portal(world, new Vector(0.0D, 0.0D, 0.0D), frame);
         ILocalPortal remotePortal = RenderTestSupport.portal(world, new Vector(0.0D, 0.0D, 0.0D), frame);
-        Frustum4D frustum = new Frustum4D(
-            new Location(null, 1.5D, 1.5D, 0.0D), new RenderTestSupport.ApertureStructure(), 16.0D, 16.0D);
+        Frustum4D frustum = new Frustum4D(BukkitGeometry.vector(new Location(null, 1.5D, 1.5D, 0.0D)), new RenderTestSupport.ApertureStructure(), new Frustum4D.Options(16.0D, 16.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
         EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
         EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-        EntityRenderSpoofRegistry registry = new EntityRenderSpoofRegistry(channel, identity);
+        EntityRenderSpoofRegistry<Player, Vector3d> registry = new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
         ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
         Player observer = ProjectedEntityPacketRecorder.player(true);
 
         RenderTestSupport.withBukkitServer(() -> renderer.apply(observer, localPortal, remotePortal, frustum, 32.0D,
-            frame, frame, 0, new ProjectedEntityOcclusion()));
+            frame, frame, 0, BukkitEntityOcclusion.create()));
     }
 }

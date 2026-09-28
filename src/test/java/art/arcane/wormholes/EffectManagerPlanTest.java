@@ -1,5 +1,7 @@
 package art.arcane.wormholes;
 
+import art.arcane.wormholes.portal.PortalAnimationPlan;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -28,19 +30,19 @@ public final class EffectManagerPlanTest
 	@Test
 	public void formationDisplayCapsStayBoundedByQuality()
 	{
-		assertEquals(8, EffectManager.formationDisplayCap(VisualQualityProfile.PERFORMANCE));
-		assertEquals(16, EffectManager.formationDisplayCap(VisualQualityProfile.BALANCED));
-		assertEquals(18, EffectManager.formationDisplayCap(VisualQualityProfile.AUTO));
-		assertEquals(24, EffectManager.formationDisplayCap(VisualQualityProfile.CINEMATIC));
+		assertEquals(8, PortalAnimationPlan.formationDisplayCap(VisualQualityProfile.PERFORMANCE));
+		assertEquals(16, PortalAnimationPlan.formationDisplayCap(VisualQualityProfile.BALANCED));
+		assertEquals(18, PortalAnimationPlan.formationDisplayCap(VisualQualityProfile.AUTO));
+		assertEquals(24, PortalAnimationPlan.formationDisplayCap(VisualQualityProfile.CINEMATIC));
 	}
 
 	@Test
 	public void openingRingPointsStayBoundedByQuality()
 	{
-		assertEquals(6, EffectManager.openingRingPoints(VisualQualityProfile.PERFORMANCE));
-		assertEquals(10, EffectManager.openingRingPoints(VisualQualityProfile.BALANCED));
-		assertEquals(12, EffectManager.openingRingPoints(VisualQualityProfile.AUTO));
-		assertEquals(16, EffectManager.openingRingPoints(VisualQualityProfile.CINEMATIC));
+		assertEquals(6, PortalAnimationPlan.openingRingPoints(VisualQualityProfile.PERFORMANCE));
+		assertEquals(10, PortalAnimationPlan.openingRingPoints(VisualQualityProfile.BALANCED));
+		assertEquals(12, PortalAnimationPlan.openingRingPoints(VisualQualityProfile.AUTO));
+		assertEquals(16, PortalAnimationPlan.openingRingPoints(VisualQualityProfile.CINEMATIC));
 	}
 
 	@Test
@@ -54,8 +56,8 @@ public final class EffectManagerPlanTest
 	@Test
 	public void closingEffectsScaleWithVisualQuality()
 	{
-		EffectManager.CloseEffectPlan performance = EffectManager.closeEffectPlan(VisualQualityProfile.PERFORMANCE);
-		EffectManager.CloseEffectPlan cinematic = EffectManager.closeEffectPlan(VisualQualityProfile.CINEMATIC);
+		PortalAnimationPlan.CloseEffectPlan performance = PortalAnimationPlan.closeEffectPlan(VisualQualityProfile.PERFORMANCE);
+		PortalAnimationPlan.CloseEffectPlan cinematic = PortalAnimationPlan.closeEffectPlan(VisualQualityProfile.CINEMATIC);
 
 		assertTrue(performance.branches() < cinematic.branches());
 		assertTrue(performance.segments() < cinematic.segments());
@@ -65,8 +67,8 @@ public final class EffectManagerPlanTest
 	@Test
 	public void kawooshScalesWithVisualQuality()
 	{
-		EffectManager.KawooshPlan performance = EffectManager.kawooshPlan(VisualQualityProfile.PERFORMANCE);
-		EffectManager.KawooshPlan cinematic = EffectManager.kawooshPlan(VisualQualityProfile.CINEMATIC);
+		PortalAnimationPlan.KawooshPlan performance = PortalAnimationPlan.kawooshPlan(VisualQualityProfile.PERFORMANCE);
+		PortalAnimationPlan.KawooshPlan cinematic = PortalAnimationPlan.kawooshPlan(VisualQualityProfile.CINEMATIC);
 
 		assertTrue(performance.arms() <= cinematic.arms());
 		assertTrue(performance.armPoints() < cinematic.armPoints());
@@ -78,7 +80,7 @@ public final class EffectManagerPlanTest
 	@Test
 	public void openingImpactSoundsStayBelowFullVolume()
 	{
-		EffectManager.OpeningSoundPlan plan = EffectManager.openingSoundPlan();
+		PortalAnimationPlan.OpeningSoundPlan plan = PortalAnimationPlan.openingSoundPlan(Settings.PORTAL_SOUND_VOLUME_MULTIPLIER);
 
 		assertEquals(0.2f, plan.frameVolume());
 		assertEquals(0.225f, plan.portalImpactVolume());
@@ -93,8 +95,8 @@ public final class EffectManagerPlanTest
 	@Test
 	public void crackRadiusStaysOnRectangularPaneEllipse()
 	{
-		assertEquals(1.0D, EffectManager.ellipseRadius(1.0D, 5.0D, 0.0D), 0.000001D);
-		assertEquals(5.0D, EffectManager.ellipseRadius(1.0D, 5.0D, Math.PI / 2.0D), 0.000001D);
+		assertEquals(1.0D, PortalAnimationPlan.ellipseRadius(1.0D, 5.0D, 0.0D), 0.000001D);
+		assertEquals(5.0D, PortalAnimationPlan.ellipseRadius(1.0D, 5.0D, Math.PI / 2.0D), 0.000001D);
 	}
 
 	@Test
@@ -307,8 +309,8 @@ public final class EffectManagerPlanTest
 	{
 		double radialA = 0.6D;
 		double radialB = 0.8D;
-		double[] positive = EffectManager.outwardShardVelocity(normalAxis, planeA, planeB, radialA, radialB, 1.0D);
-		double[] negative = EffectManager.outwardShardVelocity(normalAxis, planeA, planeB, radialA, radialB, -1.0D);
+		double[] positive = PortalAnimationPlan.outwardShardVelocity(normalAxis, planeA, planeB, radialA, radialB, 1.0D);
+		double[] negative = PortalAnimationPlan.outwardShardVelocity(normalAxis, planeA, planeB, radialA, radialB, -1.0D);
 		assertTrue((positive[planeA] * radialA) + (positive[planeB] * radialB) > 0.0D);
 		assertTrue((negative[planeA] * radialA) + (negative[planeB] * radialB) > 0.0D);
 		assertTrue(positive[normalAxis] > 0.0D);

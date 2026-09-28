@@ -1,0 +1,17 @@
+pluginManagement {
+    repositories {
+        maven { url = uri('https://maven.minecraftforge.net/') }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+rootProject.name = 'wormholes-forge'
+include(':core')
+project(':core').projectDir = file('../../core')
+
+apply from: file('../../gradle/localization-settings.gradle')

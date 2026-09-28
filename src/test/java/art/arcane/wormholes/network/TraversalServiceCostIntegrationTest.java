@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.api.traversal.TraversalContext;
@@ -485,7 +486,7 @@ final class TraversalServiceCostIntegrationTest {
             UUID.randomUUID(),
             true,
             true, false,
-            WireTraversive.fromTraversive(traversive(null))));
+            Traversive.toWire(traversive(null))));
 
         WireMessage.HandoffDeny denial = network.first(WireMessage.HandoffDeny.class);
         assertEquals(transferId, denial.transferId());
@@ -503,7 +504,7 @@ final class TraversalServiceCostIntegrationTest {
             transferId,
             UUID.randomUUID(),
             new byte[]{1, 2, 3},
-            WireTraversive.fromTraversive(traversive(null))));
+            Traversive.toWire(traversive(null))));
 
         WireMessage.EntityTransferAck acknowledgement = network.first(WireMessage.EntityTransferAck.class);
         assertEquals(transferId, acknowledgement.transferId());
@@ -561,7 +562,7 @@ final class TraversalServiceCostIntegrationTest {
             String.class,
             UUID.class,
             Traversive.class,
-            PlayerTransfer.Method.class,
+            PlayerTransferMethod.class,
             PortalTravelCost.class,
             TraversalContext.class,
             GameEndpoint.class);
@@ -572,7 +573,7 @@ final class TraversalServiceCostIntegrationTest {
             PEER,
             sourcePortalId,
             traversive(player),
-            PlayerTransfer.Method.DIRECT,
+            PlayerTransferMethod.DIRECT,
             null,
             context,
             new GameEndpoint("198.51.100.1", 25566));
@@ -772,12 +773,12 @@ final class TraversalServiceCostIntegrationTest {
 
         private TestNetwork(Path dataDirectory, NetworkConfig.PeerEntry peer) {
             super(
-                Logger.getLogger(TraversalServiceCostIntegrationTest.class.getName() + ".network"),
+                Logger.getLogger(TraversalServiceCostIntegrationTest.class.getName() + ".network"), new NetworkManager.Options(
                 networkConfig(),
                 "26.2",
                 "test",
                 25565,
-                dataDirectory);
+                dataDirectory, BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
             this.peer = peer;
         }
 

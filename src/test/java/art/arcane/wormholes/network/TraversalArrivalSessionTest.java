@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
@@ -111,7 +112,7 @@ class TraversalArrivalSessionTest {
         private final UUID portalId = UUID.randomUUID();
         private final PlayerHandoffAdmission admissions = new PlayerHandoffAdmission();
         private final PlayerHandoffCompletion receipts = new PlayerHandoffCompletion();
-        private final TraversalFailureLedger failures = new TraversalFailureLedger();
+        private final TraversalFailureLedger failures = new TraversalFailureLedger(new TraversalFailureLedger.Options(() -> Settings.DEBUG, Wormholes::v, Wormholes::w));
         private final List<ScheduledTask> tasks = new ArrayList<>();
         private final List<Player> completed = new ArrayList<>();
         private final List<WireMessage.HandoffResult> results = new ArrayList<>();

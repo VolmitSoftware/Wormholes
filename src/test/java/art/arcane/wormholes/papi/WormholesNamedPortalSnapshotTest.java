@@ -1,5 +1,6 @@
 package art.arcane.wormholes.papi;
 
+import art.arcane.wormholes.util.BukkitGeometry;
 import art.arcane.volmlib.util.bukkit.papi.PlaceholderSnapshot;
 import art.arcane.volmlib.util.bukkit.papi.PlaceholderValues;
 import art.arcane.volmlib.util.bukkit.papi.PlayerSnapshotStore;
@@ -125,7 +126,7 @@ class WormholesNamedPortalSnapshotTest {
         when(portal.hasTunnel()).thenReturn(true);
         when(portal.getTunnel()).thenReturn(tunnel);
         when(tunnel.getDestination()).thenReturn(destination);
-        when(destination.getOrigin()).thenReturn(coordinates);
+        when(destination.getOrigin()).thenReturn(BukkitGeometry.vector(coordinates));
         return portal;
     }
 }

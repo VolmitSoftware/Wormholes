@@ -11,6 +11,7 @@ import art.arcane.wormholes.util.Direction;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.util.Vector;
+import art.arcane.wormholes.geometry.GeometryVector;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -72,7 +73,7 @@ final class DoorApertureDestinationService implements DoorApertureDestinations {
         return Optional.of(new DoorProjectionDestination(
             placed.identity().itemId(),
             WorldIdentity.serialize(world),
-            new Vector(center.x(), center.y(), center.z()),
+            new GeometryVector(center.x(), center.y(), center.z()),
             DoorApertureFrames.destinationFrame(adapter.plane(), matePlane)));
     }
 
@@ -86,9 +87,9 @@ final class DoorApertureDestinationService implements DoorApertureDestinations {
         return Optional.of(new DoorProjectionDestination(
             space.get().spaceId(),
             WorldIdentity.serialize(world.get()),
-            entry.toVector(),
+            new GeometryVector(entry.getX(), entry.getY(), entry.getZ()),
             PortalFrame.fromNormalUp(
-                DoorApertureFrames.normalOf(PocketStructureService.RETURN_DOOR_FACING), Direction.U)));
+                BukkitDoorGeometry.direction(PocketStructureService.RETURN_DOOR_FACING), Direction.U)));
     }
 
     /**
@@ -104,7 +105,7 @@ final class DoorApertureDestinationService implements DoorApertureDestinations {
         return Optional.of(new DoorProjectionDestination(
             found.sourceEndpointId(),
             found.sourceWorldKey(),
-            new Vector(found.x(), found.y(), found.z()),
+            new GeometryVector(found.x(), found.y(), found.z()),
             PortalFrame.fromNormalUp(lookDirection(found.yaw()).reverse(), Direction.U)));
     }
 

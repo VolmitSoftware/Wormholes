@@ -1,5 +1,7 @@
 package art.arcane.wormholes;
 
+import art.arcane.wormholes.portal.PortalAnimationPlan;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -82,7 +84,7 @@ final class EffectVortexDirector
 		final double convergeSy = extentY + 1.0D;
 		final double convergeSz = extentZ + 1.0D;
 
-		int displayCap = EffectManager.formationDisplayCap(Settings.VISUAL_QUALITY_PROFILE);
+		int displayCap = PortalAnimationPlan.formationDisplayCap(Settings.VISUAL_QUALITY_PROFILE);
 		List<EffectManager.PortalBlockSnapshot> selected = selectFormationSnapshots(snapshots, center, planeA, planeB, displayCap);
 		List<VortexBlock> vortex = new ArrayList<VortexBlock>(selected.size());
 		for(EffectManager.PortalBlockSnapshot snapshot : selected)
@@ -116,7 +118,7 @@ final class EffectVortexDirector
 
 		world.spawnParticle(Particle.PORTAL, center, 12, 0.65, 0.8, 0.65, 0.35);
 		world.playSound(center, Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.BLOCKS, Settings.portalSoundVolume(0.165f), 0.55f);
-		world.playSound(center, Sound.BLOCK_END_PORTAL_SPAWN, SoundCategory.BLOCKS, EffectManager.openingSoundPlan().frameVolume(), 0.35f);
+		world.playSound(center, Sound.BLOCK_END_PORTAL_SPAWN, SoundCategory.BLOCKS, PortalAnimationPlan.openingSoundPlan(Settings.PORTAL_SOUND_VOLUME_MULTIPLIER).frameVolume(), 0.35f);
 
 		VortexKey markerKey = vortexKey(world, center);
 		VortexMarker marker = new VortexMarker(markerKey, world, center.getX(), center.getY(), center.getZ(),

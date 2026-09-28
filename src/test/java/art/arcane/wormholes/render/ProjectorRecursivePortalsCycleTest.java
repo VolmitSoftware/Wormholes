@@ -1,5 +1,7 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.render.BukkitProjectorBlocks;
+import org.bukkit.Material;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -34,8 +36,8 @@ final class ProjectorRecursivePortalsCycleTest {
     @Test
     void indexRejectsDisjointSampleVolumesAndRetainsEveryPossibleHit() {
         FacingPair pair = new FacingPair();
-        ProjectorRecursivePortals portals = new ProjectorRecursivePortals(pair::portals);
-        ProjectorRecursivePortals.Index index = portals.indexFor(pair.world, EYE_X, EYE_Y, EYE_Z, pair.back);
+        ProjectorRecursivePortals<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
+        ProjectorRecursivePortals<World, ILocalPortal>.Index index = portals.indexFor(pair.world, EYE_X, EYE_Y, EYE_Z, pair.back);
         assertTrue(index.intersects(SAMPLE_X, SAMPLE_Y, SAMPLE_Z, SAMPLE_X, SAMPLE_Y, SAMPLE_Z));
         assertFalse(index.intersects(80.0D, 40.0D, -20.0D, 180.0D, 90.0D, 20.0D));
         assertFalse(index.intersects(-180.0D, 40.0D, -20.0D, -80.0D, 90.0D, 20.0D));
@@ -46,13 +48,13 @@ final class ProjectorRecursivePortalsCycleTest {
     @Test
     void aCandidateAlreadyOnThePathIsReportedAsACycle() {
         FacingPair pair = new FacingPair();
-        ProjectorRecursivePortals portals = new ProjectorRecursivePortals(pair::portals);
-        ProjectorRecursivePortals.Index index = portals.indexFor(pair.world, EYE_X, EYE_Y, EYE_Z, pair.back);
+        ProjectorRecursivePortals<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
+        ProjectorRecursivePortals<World, ILocalPortal>.Index index = portals.indexFor(pair.world, EYE_X, EYE_Y, EYE_Z, pair.back);
 
-        ProjectorRecursivePortals.Hit fresh = index.find(SAMPLE_X, SAMPLE_Y, SAMPLE_Z, 3);
+        ProjectorRecursivePortals.Hit<World, ILocalPortal> fresh = index.find(SAMPLE_X, SAMPLE_Y, SAMPLE_Z, 3);
         ProjectorRecursivePortals.RecursionPath path = new ProjectorRecursivePortals.RecursionPath();
         path.push(pair.front.getId());
-        ProjectorRecursivePortals.Hit revisited = index.find(SAMPLE_X, SAMPLE_Y, SAMPLE_Z, 3, path);
+        ProjectorRecursivePortals.Hit<World, ILocalPortal> revisited = index.find(SAMPLE_X, SAMPLE_Y, SAMPLE_Z, 3, path);
 
         assertNotNull(fresh);
         assertTrue(fresh.traversable);
@@ -66,17 +68,18 @@ final class ProjectorRecursivePortalsCycleTest {
     @Test
     void aSelfFacingPairMasksAtTheSecondNestingInsteadOfSpendingTheDepthBudget() {
         FacingPair pair = new FacingPair();
-        ProjectorRecursivePortals portals = new ProjectorRecursivePortals(pair::portals);
+        ProjectorRecursivePortals<World, ILocalPortal> portals = BukkitProjectorPortalAccess.create(pair::portals);
         AtomicInteger nestedViewLookups = new AtomicInteger();
         ProjectionWorldView view = new StoneWorldView(pair.world);
-        ProjectorSampler[] sampler = new ProjectorSampler[1];
-        RenderTestSupport.withBukkitServer(() -> sampler[0] = new ProjectorSampler(new ProjectorSampleMemo(), portals,
+        @SuppressWarnings("unchecked")
+        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>[] sampler = (ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>[]) new ProjectorSampler<?, ?, ?, ?, ?>[1];
+        RenderTestSupport.withBukkitServer(() -> sampler[0] = BukkitProjectorBlocks.sampler(BukkitProjectorBlocks.memo(), portals,
             ignored -> {
                 nestedViewLookups.incrementAndGet();
                 return view;
             }));
 
-        ProjectorSample sample = sampler[0].resolve(view, SAMPLE_X, SAMPLE_Y, SAMPLE_Z, EYE_X, EYE_Y, EYE_Z,
+        ProjectorSample<BlockData, ProjectionWorldView> sample = sampler[0].resolve(view, SAMPLE_X, SAMPLE_Y, SAMPLE_Z, EYE_X, EYE_Y, EYE_Z,
             pair.back, 3, false, null, null);
 
         assertEquals(ProjectorSample.Kind.MASK_AIR, sample.kind);

@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -75,6 +77,6 @@ class NetworkIdentityGameBindTest {
         config.serverName = "alpha";
         config.gameHostOverride = "play.example";
         config.gamePortOverride = 25580;
-        return new NetworkManager(Logger.getLogger(getClass().getName()), config, "26.2", "test", 25566, tempDirectory);
+        return new NetworkManager(Logger.getLogger(getClass().getName()), new NetworkManager.Options( config, "26.2", "test", 25566, tempDirectory, BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
     }
 }

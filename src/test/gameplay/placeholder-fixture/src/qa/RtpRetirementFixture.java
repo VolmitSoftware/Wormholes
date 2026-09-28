@@ -1,5 +1,6 @@
 package qa;
 
+import art.arcane.wormholes.util.BukkitGeometry;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
@@ -144,7 +145,7 @@ final class RtpRetirementFixture {
             Location source = trial.mob.getLocation();
             trial.target = new Location(source.getWorld(), destination.blockX() + 0.5D,
                 destination.feetY(), destination.blockZ() + 0.5D);
-            Traversive traversal = new Traversive(trial.mob, portal.getFrame(), portal.getOrigin(), source.toVector(),
+            Traversive traversal = new Traversive(trial.mob, portal.getFrame(), BukkitGeometry.bukkit(portal.getOrigin()), source.toVector(),
                 new Vector(), new Vector(0.0D, 0.0D, 1.0D));
             scheduleArrivalObservation(trial, 200);
             if (!Wormholes.rtpRuntime.traverse(portal, trial.mob, traversal)) {

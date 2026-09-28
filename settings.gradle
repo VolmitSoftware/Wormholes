@@ -1,15 +1,21 @@
 import java.io.File
 
 rootProject.name = 'Wormholes'
-include 'wormholes-proxy-protocol', 'wormholes-proxy'
+include 'core', 'wormholes-proxy-protocol', 'wormholes-proxy'
 
 boolean hasVolmLibSettings(File directory) {
     new File(directory, 'settings.gradle.kts').exists() || new File(directory, 'settings.gradle').exists()
 }
 
 File resolveLocalVolmLibDirectory() {
+    Properties localBuildProperties = new Properties()
+    File localBuildFile = file('.gradle/local.properties')
+    if (localBuildFile.isFile()) {
+        localBuildFile.withInputStream { InputStream input -> localBuildProperties.load(input) }
+    }
     String configuredPath = providers.gradleProperty('localVolmLibDirectory')
         .orElse(providers.environmentVariable('VOLMLIB_DIR'))
+        .orElse(localBuildProperties.getProperty('localVolmLibDirectory', ''))
         .orNull
     if (configuredPath != null && !configuredPath.isBlank()) {
         File configuredDirectory = file(configuredPath)
@@ -18,14 +24,25 @@ File resolveLocalVolmLibDirectory() {
         }
     }
 
-    File currentDirectory = settingsDir
-    while (currentDirectory != null) {
-        File candidate = new File(currentDirectory, 'VolmLib')
-        if (hasVolmLibSettings(candidate)) {
-            return candidate
+    List<File> roots = [settingsDir]
+    File gitPointer = new File(settingsDir, '.git')
+    if (gitPointer.isFile()) {
+        String pointer = gitPointer.text.trim()
+        if (pointer.startsWith('gitdir: ')) {
+            File gitDirectory = new File(pointer.substring(8))
+            roots.add((gitDirectory.isAbsolute() ? gitDirectory : new File(settingsDir, gitDirectory.path)).canonicalFile)
         }
+    }
+    for (File root : roots) {
+        File currentDirectory = root
+        while (currentDirectory != null) {
+            File candidate = new File(currentDirectory, 'VolmLib')
+            if (hasVolmLibSettings(candidate)) {
+                return candidate
+            }
 
-        currentDirectory = currentDirectory.parentFile
+            currentDirectory = currentDirectory.parentFile
+        }
     }
 
     null
@@ -39,6 +56,7 @@ File localVolmLibDirectory = resolveLocalVolmLibDirectory()
 
 if (useLocalVolmLib && localVolmLibDirectory != null) {
     includeBuild(localVolmLibDirectory) {
+        name = 'VolmLib'
         dependencySubstitution {
             substitute(module('com.github.VolmitSoftware:VolmLib')).using(project(':shared'))
             substitute(module('com.github.VolmitSoftware.VolmLib:native-api')).using(project(':native-api'))
@@ -46,6 +64,8 @@ if (useLocalVolmLib && localVolmLibDirectory != null) {
             substitute(module('com.github.VolmitSoftware.VolmLib:native-v26_2_R1')).using(project(':native:v26_2_R1'))
             substitute(module('com.github.VolmitSoftware.VolmLib:native-v26_3_R1')).using(project(':native:v26_3_R1'))
             substitute(module('com.github.VolmitSoftware.VolmLib:shared')).using(project(':shared'))
+            substitute(module('com.github.VolmitSoftware.VolmLib:volmlib-localization')).using(project(':localization'))
+            substitute(module('com.github.VolmitSoftware.VolmLib:volmlib-web')).using(project(':web'))
             substitute(module('com.github.VolmitSoftware.VolmLib:packaging')).using(project(':packaging'))
             substitute(module('com.github.VolmitSoftware.VolmLib:volmlib-shared')).using(project(':shared'))
         }

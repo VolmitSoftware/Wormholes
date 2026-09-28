@@ -1,5 +1,7 @@
 package art.arcane.wormholes.door.view;
 
+import art.arcane.wormholes.geometry.GeometryVector;
+
 import art.arcane.volmlib.util.inventorygui.Window;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.Wormholes;
@@ -42,13 +44,6 @@ import java.util.concurrent.CompletionStage;
  * sits, and whether it is open.</p>
  */
 public abstract class AbstractApertureFacade implements ILocalPortal {
-    /** Lateral padding around a one-block-wide aperture, in blocks. */
-    public static final int VIEW_LATERAL_PAD = 4;
-    public static final int VIEW_HEARTBEAT_TICKS = 60;
-    public static final int VIEW_ENTITY_INTERVAL_TICKS = 10;
-    public static final int VIEW_UNSUBSCRIBE_GRACE_SECONDS = 30;
-    public static final String VIEW_FALLBACK_BLOCK = "minecraft:air";
-
     private static final DoorsConfig FALLBACK_DOORS = new DoorsConfig();
 
     private volatile boolean destroyed;
@@ -65,7 +60,7 @@ public abstract class AbstractApertureFacade implements ILocalPortal {
     public abstract PortalFrame getFrame();
 
     @Override
-    public abstract Vector getOrigin();
+    public abstract GeometryVector getOrigin();
 
     @Override
     public abstract org.bukkit.World getWorld();
@@ -84,8 +79,8 @@ public abstract class AbstractApertureFacade implements ILocalPortal {
         double range = getEffectiveActivationRange();
         AxisAlignedBB area = getStructure().getArea();
         return new AxisAlignedBB(
-            area.min().add(new Vector(-range, -range, -range)),
-            area.max().add(new Vector(range, range, range)));
+            area.min().add(new GeometryVector(-range, -range, -range)),
+            area.max().add(new GeometryVector(range, range, range)));
     }
 
     @Override
@@ -95,7 +90,7 @@ public abstract class AbstractApertureFacade implements ILocalPortal {
 
     @Override
     public Location getCenter() {
-        Vector origin = getOrigin();
+        GeometryVector origin = getOrigin();
         return new Location(getWorld(), origin.getX(), origin.getY(), origin.getZ());
     }
 
@@ -146,27 +141,27 @@ public abstract class AbstractApertureFacade implements ILocalPortal {
 
     @Override
     public int getNetworkViewLateralPad() {
-        return VIEW_LATERAL_PAD;
+        return DoorProjectionProfile.VIEW_LATERAL_PAD;
     }
 
     @Override
     public int getNetworkViewHeartbeatTicks() {
-        return VIEW_HEARTBEAT_TICKS;
+        return DoorProjectionProfile.VIEW_HEARTBEAT_TICKS;
     }
 
     @Override
     public int getNetworkViewEntityIntervalTicks() {
-        return VIEW_ENTITY_INTERVAL_TICKS;
+        return DoorProjectionProfile.VIEW_ENTITY_INTERVAL_TICKS;
     }
 
     @Override
     public int getNetworkViewUnsubscribeGraceSeconds() {
-        return VIEW_UNSUBSCRIBE_GRACE_SECONDS;
+        return DoorProjectionProfile.VIEW_UNSUBSCRIBE_GRACE_SECONDS;
     }
 
     @Override
     public String getNetworkViewFallbackBlock() {
-        return VIEW_FALLBACK_BLOCK;
+        return DoorProjectionProfile.VIEW_FALLBACK_BLOCK;
     }
 
     @Override

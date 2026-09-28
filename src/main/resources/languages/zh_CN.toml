@@ -17,7 +17,7 @@
 #   {address}  网络对端地址
 #   {after}  编辑后的消息值
 #   {allocation}  口袋空间分配
-#   {amount}  Vault 货币传送费用
+#  {amount}  货币传送费用
 #   {argument}  意外的命令参数
 #   {before}  编辑前的消息值
 #   {biome}  生物群系标识符
@@ -357,7 +357,7 @@ transfer_blocked_retry = "&c传送门传送被阻止：{reason}({seconds}s 后�
 
 [portal.prompt]
 cost_item = "&b将作为费用的物品拿在主手，然后按丢弃键。该物品不会离开你的物品栏。"
-cost_vault = "&b请输入每次通过的 Vault 货币金额(或输入 '{cancel}')："
+cost_vault = "&b输入每次穿越的金额（或输入 '{cancel}'）："
 invite = "&b请将传送门邀请粘贴到聊天中(或输入 '{cancel}')："
 block_state = "&b请输入此传送门网络视图边缘使用的方块状态，或输入 '{cancel}'："
 name = "&b请在聊天中输入新的传送门名称(或输入 '{cancel}')："
@@ -368,9 +368,9 @@ cost_item_set = "现在通行需要 {item}。"
 cost_item_invalid = "该物品无法保存为通行费用。"
 cost_cleared = "已清除通行费用。"
 cost_quantity_changed = "通行费用数量：{quantity}"
-cost_vault_changed = "Vault 通行费用：{amount}"
+cost_vault_changed = "穿越费用：{amount}"
 cost_vault_invalid = "请输入不超过 {maximum} 的正数货币金额。"
-cost_vault_unavailable = "选择此费用前，Vault 和经济插件必须可用。"
+cost_vault_unavailable = "选择此费用前必须有可用的经济服务。"
 dimensional_link_managed = "此维度传送门会保留自动生成的链接。"
 not_rtp = "此传送门已不再使用随机传送模式。"
 region_unavailable = "传送门区域不可用；请重试。"
@@ -397,7 +397,7 @@ public_look_label = "注视时的公开标签"
 [portal.label.cost]
 free = "免费"
 vanilla = "原版物品"
-vault = "Vault 经济"
+vault = "经济"
 
 [portal.label.ambient]
 red = "红色"
@@ -552,12 +552,12 @@ available = ["&e&l镜像&r", "&7将本地世界反射回来。", "&7透过框架
 flip = ["&7墙面镜像以 180 度为步长翻转", "&7以保持反射实体方向正确。", "&8右键点击：翻转反射图像。"]
 
 [portal.menu.cost]
-opener = ["&6&l通行费用&r", "&7要求玩家使用此传送门时", "&7支付指定物品或 Vault 货币。", "", "&7模式：&f{mode}", "&7费用：&f{cost}", "", "&8点击进行配置。"]
+opener = ["&6&l通行费用&r", "&7要求玩家使用此传送门时", "&7支付指定物品或 货币。", "", "&7模式：&f{mode}", "&7费用：&f{cost}", "", "&8点击进行配置。"]
 placard = ["&6&l通行费用&r", "&7玩家必须先付费", "&7才能通过此传送门。", "", "&7模式：&f{mode}", "&7费用：&f{cost}"]
 mode_free = ["&a&l免费&r", "&7无需任何支付。", "", "&8点击将通行设为免费。"]
 mode_vanilla = ["&b&l原版物品&r", "&7消耗一个完全匹配的物品。", "", "&8点击后手持物品，再按丢弃键。"]
-mode_vault = ["&a&lVault 经济&r", "&7通过 Vault 扣除货币。", "", "&8点击输入金额。"]
-mode_vault_unavailable = ["&c&lVault 经济不可用&r", "&7需要 Vault 和经济插件。", "", "&8安装或启用两者后才能使用此模式。"]
+mode_vault = ["&a&l经济&r", "&7通过经济服务扣除货币。", "", "&8点击输入金额。"]
+mode_vault_unavailable = ["&c&l经济不可用&r", "&7需要经济服务。", "", "&8启用经济服务后才能使用此模式。"]
 free_detail = ["&a&l无费用&r", "&7通过此传送门完全免费。"]
 secondary_empty = ["&8&l无附加设置&r"]
 item = ["&b&l{item}&r", "&7通行需要这个完全一致的物品。", "&7用于选择的物品不会被消耗。", "", "&8左键：选择另一个手持物品。", "&8右键：清除费用。"]
@@ -687,7 +687,7 @@ execution_failed = "执行命令 {command} 失败：{reason}"
 not_initialized = "&8[&6Wormholes&8] &c网络尚未初始化。"
 
 [network.status]
-disabled = "&8[&6Wormholes&8] &7网络已&c禁用&7 (plugins/Wormholes/wormholes.toml)。"
+disabled = "&8[&6Wormholes&8] &7网络已&c禁用&7 (wormholes.toml)。"
 not_running = "&8[&6Wormholes&8] &c网络已启用但未运行。请检查身份存储和网络端口。"
 listening = "&8[&6Wormholes&8] &7当前服务器：&f{server}&7，监听地址：&f{address}"
 outbound_only = "&8[&6Wormholes&8] &7当前服务器：&f{server}&7，仅出站 Boat 模式"

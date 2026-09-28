@@ -5,7 +5,6 @@ import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.DimensionalConfig;
 import org.bukkit.World;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,15 +22,7 @@ public final class WorldGroups {
     }
 
     public static Optional<String> groupOf(String worldName, List<String> groups) {
-        if (worldName == null || groups == null) {
-            return Optional.empty();
-        }
-        for (String group : groups) {
-            if (members(group).contains(worldName)) {
-                return Optional.of(group);
-            }
-        }
-        return Optional.empty();
+        return DimensionalRouting.groupOf(worldName, groups);
     }
 
     public static boolean canPair(World a, World b) {
@@ -39,18 +30,7 @@ public final class WorldGroups {
     }
 
     public static boolean canPair(String a, String b, List<String> groups) {
-        if (groups == null || groups.isEmpty()) {
-            return true;
-        }
-        if (isDisabled(a, groups) || isDisabled(b, groups)) {
-            return false;
-        }
-        Optional<String> groupA = groupOf(a, groups);
-        Optional<String> groupB = groupOf(b, groups);
-        if (groupA.isEmpty() && groupB.isEmpty()) {
-            return true;
-        }
-        return groupA.isPresent() && groupA.equals(groupB);
+        return DimensionalRouting.canPair(a, b, groups);
     }
 
     public static boolean isDisabled(World world) {
@@ -59,30 +39,7 @@ public final class WorldGroups {
 
     /** A group that names one world twice is the operator saying "no vanilla portals here". */
     public static boolean isDisabled(String worldName, List<String> groups) {
-        if (worldName == null || groups == null) {
-            return false;
-        }
-        for (String group : groups) {
-            List<String> members = members(group);
-            if (members.size() > 1 && members.stream().allMatch(worldName::equals)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static List<String> members(String group) {
-        List<String> members = new ArrayList<>();
-        if (group == null) {
-            return members;
-        }
-        for (String member : group.split(",")) {
-            String trimmed = member.trim();
-            if (!trimmed.isEmpty()) {
-                members.add(trimmed);
-            }
-        }
-        return members;
+        return DimensionalRouting.isDisabled(worldName, groups);
     }
 
     static List<String> configuredGroups() {

@@ -20,12 +20,27 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 final class RuntimePlatformAbiTest
 {
 	private static final String RUNTIME_JAR_PROPERTY = "wormholes.runtimeJar";
 	private static final String PLUGIN_CLASSES = "art/arcane/wormholes/";
 	private static final String RELOCATED_ADVENTURE = "Lart/arcane/wormholes/libs/kyori/";
+
+	@Test
+	void shadedRuntimeIncludesExactItemSerializationBindings() throws IOException
+	{
+		Path runtimeJar = Path.of(Objects.requireNonNull(System.getProperty(RUNTIME_JAR_PROPERTY)));
+		try(JarFile jar = new JarFile(runtimeJar.toFile()))
+		{
+			assertNotNull(jar.getEntry("art/arcane/volmlib/nativelib/item/ItemStackAccess.class"));
+			for(String binding : List.of("v26_2_R1", "v26_3_R1"))
+			{
+				assertNotNull(jar.getEntry("art/arcane/volmlib/nativelib/" + binding + "/item/ItemStackAccessImpl.class"), binding);
+			}
+		}
+	}
 
 	@Test
 	void shadedRuntimeKeepsRelocatedAdventureOutOfPlatformMethodDescriptors() throws IOException

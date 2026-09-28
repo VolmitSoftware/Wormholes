@@ -1,6 +1,10 @@
 package art.arcane.wormholes.portal.rtp;
 
 import java.util.ArrayList;
+
+import art.arcane.volmlib.util.bukkit.WorldIdentity;
+import art.arcane.volmlib.util.json.JSONObject;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -55,6 +59,20 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 		appliedRegistrations = new ConcurrentHashMap<UUID, PortalRegistration>();
 		pendingRegistrations = new ConcurrentHashMap<UUID, PortalRegistration>();
 		closed = new AtomicBoolean(false);
+	}
+
+    public static RtpSettings readSettings(JSONObject json, WorldResolver resolver) {
+        return RtpSettingsCodec.readSettings(BukkitJsonDocuments.values(json), key -> worldSettings(resolver.resolve(key)));
+    }
+
+    public static JSONObject writeSettings(RtpSettings settings) {
+        return new JSONObject(RtpSettingsCodec.writeSettings(settings));
+    }
+
+	public static RtpWorld worldSettings(World world)
+	{
+		return world == null ? null : new RtpWorld(world.getUID(), WorldIdentity.serialize(world),
+				world.getMinHeight(), world.getMaxHeight(), world.getSeaLevel());
 	}
 
 	public void synchronize(LocalPortal portal)
@@ -361,13 +379,13 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 		double centerZ = settings.getCenterMode() == RtpCenterMode.CUSTOM
 				? Objects.requireNonNull(settings.getCustomCenterZ(), "custom center Z").doubleValue() : center.getZ();
 		World sourceWorld = Objects.requireNonNull(portal.getStructure().getWorld(), "portal source world");
-		World targetWorld = settings.getTargetWorld();
+		RtpWorld targetWorld = settings.getTargetWorld();
 		RtpService.Registration registration = new RtpService.Registration(
 				portal.getId(), settings, centerX, centerZ, portal.getId().getMostSignificantBits() ^ portal.getId().getLeastSignificantBits());
 		return new PortalRegistration(
 				registration,
 				sourceWorld.getUID(),
-				targetWorld == null ? null : targetWorld.getUID(),
+				targetWorld == null ? null : targetWorld.id(),
 				center.getX(),
 				center.getY(),
 				center.getZ());
@@ -451,15 +469,11 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 		return new double[] {center - half, center + half};
 	}
 
-	static PortalFrame targetFrameFor(PortalFrame sourceFrame)
+
+	@FunctionalInterface
+	public interface WorldResolver
 	{
-		Direction sourceNormal = sourceFrame.getNormal();
-		Direction horizontal = sourceNormal.isVertical() ? sourceFrame.getUp() : sourceNormal;
-		if(horizontal.isVertical())
-		{
-			horizontal = Direction.N;
-		}
-		return PortalFrame.fromNormalUp(horizontal, Direction.U);
+		World resolve(String worldKey);
 	}
 
 	public interface Environment extends AutoCloseable

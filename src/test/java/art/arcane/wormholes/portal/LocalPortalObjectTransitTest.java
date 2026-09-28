@@ -1,5 +1,6 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.wormholes.util.BukkitGeometry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -34,7 +35,7 @@ public final class LocalPortalObjectTransitTest {
         LocalPortalTestSupport.FakeEntity archer = LocalPortalTestSupport.FakeEntity.player("archer", new Location(world, 0.5D, 65.0D, 4.0D));
         shooter.set(archer.player());
         Entity arrow = projectile(velocity, shooter);
-        Traversive crossing = new Traversive(arrow, source.getFrame().view(true), source.getOrigin(), new Vector(0.5D, 65.0D, 1.0D),
+        Traversive crossing = new Traversive(arrow, source.getFrame().view(true), BukkitGeometry.bukkit(source.getOrigin()), new Vector(0.5D, 65.0D, 1.0D),
             new Vector(0.0D, 0.3D, -2.0D), new Vector(0.0D, 0.15D, -1.0D), true, source.getId());
 
         new LocalPortalTraversal(destination, inlineRuntime()).receive(crossing);
@@ -56,7 +57,7 @@ public final class LocalPortalObjectTransitTest {
         LocalPortal destination = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
         AtomicReference<Vector> velocity = new AtomicReference<Vector>(new Vector(0.1D, -0.2D, -0.3D));
         Entity drop = item(velocity);
-        Traversive crossing = new Traversive(drop, source.getFrame().view(true), source.getOrigin(), new Vector(0.5D, 65.0D, 1.0D),
+        Traversive crossing = new Traversive(drop, source.getFrame().view(true), BukkitGeometry.bukkit(source.getOrigin()), new Vector(0.5D, 65.0D, 1.0D),
             new Vector(0.1D, -0.2D, -0.3D), new Vector(0.0D, 0.0D, -1.0D), true, source.getId());
 
         new LocalPortalTraversal(destination, inlineRuntime()).receive(crossing);

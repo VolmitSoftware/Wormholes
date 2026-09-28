@@ -18,6 +18,8 @@ import art.arcane.wormholes.portal.rtp.RtpBiomeDirectory;
 import art.arcane.wormholes.portal.rtp.RtpPortalEditor;
 import art.arcane.wormholes.portal.rtp.RtpPortalEditorModel;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
+import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
+import art.arcane.wormholes.portal.rtp.BukkitRtpMenuView;
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import art.arcane.volmlib.util.inventorygui.UIWindow;
 import art.arcane.volmlib.util.inventorygui.WindowResolution;
@@ -67,6 +69,7 @@ final class LocalPortalRtpEditor
 		private final UUID viewerId;
 		private final UIWindow window;
 		private final RtpPortalEditor editor;
+        private final BukkitRtpMenuView view;
 		private long baseRevision;
 
 		private Session(Player viewer)
@@ -75,14 +78,15 @@ final class LocalPortalRtpEditor
 			window = new UIWindow(Wormholes.instance, viewer);
 			window.setResolution(WindowResolution.W9_H6);
 			window.onClosed(closed -> sessions.remove(viewerId, this));
-			editor = new RtpPortalEditor(this);
+			view = new BukkitRtpMenuView(window);
+            editor = new RtpPortalEditor(this);
 			Objects.requireNonNull(portal.getRtpSettings(), "RTP settings");
 			baseRevision = portal.rtp().revision();
 		}
 
 		private void open()
 		{
-			editor.populate(window, viewerId);
+			editor.populate(view, viewerId);
 			window.setVisible(true);
 		}
 
@@ -94,6 +98,11 @@ final class LocalPortalRtpEditor
 			}
 			sessions.remove(viewerId, this);
 		}
+
+		@Override
+        public String text(TextKey key, MessageArgs arguments) {
+            return Wormholes.text().plain(key, arguments);
+        }
 
 		@Override
 		public RtpPortalEditorModel.EditorSnapshot snapshot(UUID requestedViewerId)
@@ -111,7 +120,7 @@ final class LocalPortalRtpEditor
 				{
 					continue;
 				}
-				worlds.add(RtpPortalEditorModel.WorldOption.from(world));
+				worlds.add(new RtpPortalEditorModel.WorldOption(world.getKey().toString(), world.getName(), world.getMinHeight() + 1, world.getMaxHeight() - 2));
 			}
 			boolean targetWorldAvailable = portal.rtp().resolveRtpWorld(settings.getTargetWorldKey()) != null;
 			RtpPortalEditorModel.StatusSnapshot status = Wormholes.rtpRuntime == null
@@ -213,8 +222,11 @@ final class LocalPortalRtpEditor
 					portal.rtp().applyRtpSettings(RtpPortalEditorModel.applyMutation(
 							portal.getRtpSettings(),
 							mutation,
-							sourceWorld,
-							portal.rtp()::resolveRtpWorld));
+							BukkitRtpRuntime.worldSettings(sourceWorld),
+							key -> {
+                                World target = portal.rtp().resolveRtpWorld(key);
+                                return target == null ? null : BukkitRtpRuntime.worldSettings(target);
+                            }));
 					baseRevision = portal.rtp().revision();
 					Wormholes.v("QA_EVT {\"event\":\"rtp_editor_apply\",\"status\":\"pass\",\"details\":\""
 							+ mutation.getClass().getSimpleName() + "\",\"context\":{\"portal\":\"" + portal.getId()
@@ -331,7 +343,7 @@ final class LocalPortalRtpEditor
 				}
 				if(window.isVisible())
 				{
-					editor.populate(window, viewerId);
+					editor.populate(view, viewerId);
 					window.updateInventory();
 				}
 			});

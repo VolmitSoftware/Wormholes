@@ -17,7 +17,7 @@
 #   {address}  Kito tinklo mazgo adresas
 #   {after}  Pranešimo reikšmė po redagavimo
 #   {allocation}  Kišeninės erdvės paskirstymas
-#   {amount}  Kelionės kaina Vault valiuta
+#  {amount} Kelionės kaina valiuta
 #   {argument}  Netikėtas komandos argumentas
 #   {before}  Pranešimo reikšmė prieš redagavimą
 #   {biome}  Biomo identifikatorius
@@ -405,7 +405,7 @@ dimensional_return_disabled = "Grįžimo kelias lieka išjungtas."
 [portal.label.cost]
 free = "Nemokama"
 vanilla = "Vanilla daiktas"
-vault = "Vault ekonomika"
+vault = "Ekonomika"
 
 [portal.label.quality]
 standard = "Standartinė"
@@ -536,12 +536,12 @@ linked = ["&6&l{portal}&r", "&7Tipas: &e{type}", "&7Kryptis: &9{facing}", "&7Sus
 unlinked = ["&6&l{portal}&r", "&7Tipas: &e{type}", "&7Kryptis: &9{facing}", "&7Susieta su: &c{none}", "", "&8Operatoriai apeina leidžiamųjų ir blokuojamųjų sąrašų ribojimus."]
 
 [portal.menu.cost]
-opener = ["&6&lKelionės kaina&r", "&7Reikalaukite tikslaus daikto arba Vault valiutos,", "&7kai žaidėjas naudojasi šiuo portalu.", "", "&7Režimas: &f{mode}", "&7Kaina: &f{cost}", "", "&8Spustelėkite, kad sukonfigūruotumėte."]
+opener = ["&6&lKelionės kaina&r", "&7Reikalaukite tikslaus daikto arba valiutos,", "&7kai žaidėjas naudojasi šiuo portalu.", "", "&7Režimas: &f{mode}", "&7Kaina: &f{cost}", "", "&8Spustelėkite, kad sukonfigūruotumėte."]
 placard = ["&6&lKelionės kaina&r", "&7Žaidėjai turi sumokėti, kad šis portalas", "&7leistų jiems keliauti.", "", "&7Režimas: &f{mode}", "&7Kaina: &f{cost}"]
 mode_free = ["&a&lNemokama&r", "&7Mokėti nereikia.", "", "&8Spustelėkite, kad kelionė būtų nemokama."]
 mode_vanilla = ["&b&lVanilla daiktas&r", "&7Sunaudoja tiksliai atitinkantį daiktą.", "", "&8Spustelėkite, laikykite daiktą ir paspauskite Išmesti."]
-mode_vault = ["&a&lVault ekonomika&r", "&7Nuskaito valiutą per Vault.", "", "&8Spustelėkite, kad įvestumėte sumą."]
-mode_vault_unavailable = ["&c&lVault ekonomika nepasiekiama&r", "&7Reikalingi Vault ir ekonomikos tiekėjas.", "", "&8Įdiekite arba įjunkite abu, kad naudotumėte šį režimą."]
+mode_vault = ["&a&lEkonomika&r", "&7Nuskaito valiutą per ekonomikos teikėją.", "", "&8Spustelėkite, kad įvestumėte sumą."]
+mode_vault_unavailable = ["&c&lEkonomika nepasiekiama&r", "&7Reikalingas ekonomikos teikėjas.", "", "&8Šiam režimui įjunkite ekonomikos teikėją."]
 free_detail = ["&a&lBe kainos&r", "&7Kelionė per šį portalą yra nemokama."]
 secondary_empty = ["&8&lNėra papildomo nustatymo&r"]
 item = ["&b&l{item}&r", "&7Kelionei reikalingas šis tikslus daiktas.", "&7Pasirinkimo daiktas niekada nesunaudojamas.", "", "&8Kairys: pasirinkite kitą laikomą daiktą.", "&8Dešinys: pašalinkite kainą."]
@@ -561,7 +561,7 @@ invite = "&bĮklijuokite portalo kvietimą pokalbyje (arba '{cancel}'):"
 block_state = "&bĮveskite blokų būseną šio portalo tinklo matymo kraštyje arba '{cancel}':"
 name = "&bĮveskite naują portalo pavadinimą pokalbyje (arba '{cancel}'):"
 cost_item = "&bLaikykite tikslų kainos daiktą pagrindinėje rankoje ir paspauskite Išmesti. Daiktas nepaliks jūsų inventoriaus."
-cost_vault = "&bĮveskite Vault valiutos sumą už perėjimą (arba '{cancel}'):"
+cost_vault = "&bĮveskite sumą už perėjimą (arba '{cancel}'):"
 direction = ["&8[&6Wormholes&8] &7Pažvelkite norima kryptimi ir pritaikykite ją kairiuoju spustelėjimu.", "&8[&6Wormholes&8] &7Shift + kairysis spustelėjimas atšaukia."]
 
 [portal.input]
@@ -607,9 +607,9 @@ cost_item_set = "Kelionei dabar reikia {item}."
 cost_item_invalid = "Šio daikto nepavyko išsaugoti kaip kelionės kainos."
 cost_cleared = "Kelionės kaina pašalinta."
 cost_quantity_changed = "Kelionės kainos kiekis: {quantity}"
-cost_vault_changed = "Vault kelionės kaina: {amount}"
+cost_vault_changed = "Kelionės kaina: {amount}"
 cost_vault_invalid = "Įveskite teigiamą valiutos sumą, ne didesnę nei {maximum}."
-cost_vault_unavailable = "Prieš pasirenkant šią kainą turi būti pasiekiami Vault ir ekonomikos tiekėjas."
+cost_vault_unavailable = "Prieš pasirenkant šią kainą turi būti pasiekiamas ekonomikos teikėjas."
 mirror_select_first = "Prieš sukdami vaizdą pasirinkite veidrodį."
 mirror_rotation_changed = "Veidrodžio pasukimas: {degrees} laipsniai"
 rtp_cannot_link = "Atsitiktinio teleportavimo portalai nesiejami su tikslais."
@@ -687,7 +687,7 @@ execution_failed = "Nepavyko įvykdyti komandos {command}: {reason}"
 not_initialized = "&8[&6Wormholes&8] &cTinklas dar neinicijuotas."
 
 [network.status]
-disabled = "&8[&6Wormholes&8] &7Tinklas &cišjungtas&7 (plugins/Wormholes/wormholes.toml)."
+disabled = "&8[&6Wormholes&8] &7Tinklas &cišjungtas&7 (wormholes.toml)."
 not_running = "&8[&6Wormholes&8] &cTinklas įjungtas, bet neveikia. Patikrinkite tapatybės saugyklą ir tinklo prievadą."
 listening = "&8[&6Wormholes&8] &7Šis serveris: &f{server}&7, klausosi adresu &f{address}"
 outbound_only = "&8[&6Wormholes&8] &7Šis serveris: &f{server}&7, tik išeinantis Boat režimas"

@@ -1,5 +1,15 @@
 package art.arcane.wormholes.network;
 
+import com.github.retrooper.packetevents.protocol.player.Equipment;
+
+import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
+
+import org.bukkit.block.data.BlockData;
+
+import art.arcane.wormholes.Wormholes;
+
+import art.arcane.wormholes.portal.ILocalPortal;
+
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.replication.ChunkResyncRequest;
 import art.arcane.wormholes.network.replication.ReplicationStreamKey;
@@ -12,15 +22,15 @@ import java.util.List;
 
 public final class NetworkRouter {
     private final RemotePortalRegistry registry;
-    private final PortalSyncService portalSync;
+    private final PortalSyncService<ILocalPortal> portalSync;
     private final TraversalService traversal;
     private final ViewServer viewServer;
-    private final RemoteViewCache viewCache;
-    private final ViewSubscriptionManager viewSubscriptions;
+    private final RemoteViewCache<BlockData, EntityData<?>, Equipment> viewCache;
+    private final ViewSubscriptionManager<BlockData, EntityData<?>, Equipment> viewSubscriptions;
     private final ChunkReplicationManager replicationManager;
     private final NetworkManager network;
 
-    public NetworkRouter(RemotePortalRegistry registry, PortalSyncService portalSync, TraversalService traversal, ViewServer viewServer, RemoteViewCache viewCache, ViewSubscriptionManager viewSubscriptions, ChunkReplicationManager replicationManager, NetworkManager network) {
+    public NetworkRouter(RemotePortalRegistry registry, PortalSyncService<ILocalPortal> portalSync, TraversalService traversal, ViewServer viewServer, RemoteViewCache<BlockData, EntityData<?>, Equipment> viewCache, ViewSubscriptionManager<BlockData, EntityData<?>, Equipment> viewSubscriptions, ChunkReplicationManager replicationManager, NetworkManager network) {
         this.registry = registry;
         this.portalSync = portalSync;
         this.traversal = traversal;

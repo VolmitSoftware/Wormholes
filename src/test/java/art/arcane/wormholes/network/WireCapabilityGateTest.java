@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.network.mesh.PeerAnnounce;
 
@@ -56,7 +58,7 @@ class WireCapabilityGateTest {
     @Test
     void aPeerThatDoesNotAdvertiseTheBitIsNotSentTheFrameItGuards() throws Exception {
         NetworkConfig config = config();
-        NetworkManager network = new NetworkManager(LOGGER, config, "26.2", "test", 25565, dataDirectory);
+        NetworkManager network = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", 25565, dataDirectory, BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         NetworkConfig.PeerEntry peer = new NetworkConfig.PeerEntry();
         peer.name = "creative";
         peer.publicHost = "127.0.0.1";
@@ -100,7 +102,7 @@ class WireCapabilityGateTest {
     void aServerWithTheMeshOffAdvertisesTheReducedSetAndRefusesToSendMeshFrames() throws Exception {
         NetworkConfig config = config();
         config.mesh.enabled = false;
-        NetworkManager network = new NetworkManager(LOGGER, config, "26.2", "test", 25565, dataDirectory);
+        NetworkManager network = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", 25565, dataDirectory, BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         NetworkConfig.PeerEntry peer = new NetworkConfig.PeerEntry();
         peer.name = "creative";
         peer.publicHost = "127.0.0.1";

@@ -95,7 +95,7 @@ public final class RtpLiveRuntimeTest
 		harness.runtime.synchronize(portal);
 		long originalGeneration = harness.service.snapshot(portal.getId()).orElseThrow().generation();
 
-		portal.setRtpSettings(RtpSettings.builder(harness.world).radii(32, 96).build());
+		portal.setRtpSettings(RtpSettings.builder(BukkitRtpRuntime.worldSettings(harness.world)).radii(32, 96).build());
 		harness.runtime.synchronize(portal);
 		long updatedGeneration = harness.service.snapshot(portal.getId()).orElseThrow().generation();
 		portal.setType(PortalType.PORTAL);
@@ -142,7 +142,7 @@ public final class RtpLiveRuntimeTest
 		harness.runtime.synchronize(harness.portal);
 		RtpService.Snapshot original = harness.service.snapshot(harness.portal.getId()).orElseThrow();
 		harness.environment.dispatcher.rejectNextExecute();
-		harness.portal.setRtpSettings(RtpSettings.builder(harness.world).radii(512, 4096).build());
+		harness.portal.setRtpSettings(RtpSettings.builder(BukkitRtpRuntime.worldSettings(harness.world)).radii(512, 4096).build());
 
 		assertEquals(original.settings(), harness.service.snapshot(harness.portal.getId()).orElseThrow().settings());
 		assertFalse(harness.runtime.isReady(harness.portal.getId()));
@@ -159,9 +159,9 @@ public final class RtpLiveRuntimeTest
 		Harness harness = new Harness(RtpRotationMode.STATIC);
 		harness.runtime.synchronize(harness.portal);
 		harness.environment.dispatcher.deferNextExecute();
-		harness.portal.setRtpSettings(RtpSettings.builder(harness.world).radii(128, 1024).build());
+		harness.portal.setRtpSettings(RtpSettings.builder(BukkitRtpRuntime.worldSettings(harness.world)).radii(128, 1024).build());
 		harness.runtime.synchronize(harness.portal);
-		harness.portal.setRtpSettings(RtpSettings.builder(harness.world).radii(512, 4096).build());
+		harness.portal.setRtpSettings(RtpSettings.builder(BukkitRtpRuntime.worldSettings(harness.world)).radii(512, 4096).build());
 		harness.runtime.synchronize(harness.portal);
 
 		harness.environment.dispatcher.runDeferred();
@@ -177,7 +177,7 @@ public final class RtpLiveRuntimeTest
 		Harness harness = new Harness(RtpRotationMode.STATIC);
 		harness.runtime.synchronize(harness.portal);
 		harness.environment.dispatcher.deferNextExecute();
-		harness.portal.setRtpSettings(RtpSettings.builder(harness.world).radii(512, 4096).build());
+		harness.portal.setRtpSettings(RtpSettings.builder(BukkitRtpRuntime.worldSettings(harness.world)).radii(512, 4096).build());
 		harness.runtime.synchronize(harness.portal);
 
 		harness.runtime.unregister(harness.portal.getId());
@@ -261,7 +261,7 @@ public final class RtpLiveRuntimeTest
 	public void perPlayerProjectionReportsItsTimedRuntimeMode()
 	{
 		Harness harness = new Harness(RtpRotationMode.ON_TRAVERSAL);
-		harness.portal.setRtpSettings(RtpSettings.builder(harness.world)
+		harness.portal.setRtpSettings(RtpSettings.builder(BukkitRtpRuntime.worldSettings(harness.world))
 				.radii(16, 64)
 				.allocationMode(RtpAllocationMode.PER_PLAYER)
 				.rotationMode(RtpRotationMode.ON_TRAVERSAL)
@@ -1229,7 +1229,7 @@ public final class RtpLiveRuntimeTest
 			created.setAmbientAttended(false);
 			if(type == PortalType.RTP)
 			{
-				created.setRtpSettings(RtpSettings.builder(world).radii(16, 64).rotationMode(rotationMode).build());
+				created.setRtpSettings(RtpSettings.builder(BukkitRtpRuntime.worldSettings(world)).radii(16, 64).rotationMode(rotationMode).build());
 			}
 			return created;
 		}

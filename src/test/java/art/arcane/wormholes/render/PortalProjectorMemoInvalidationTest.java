@@ -1,5 +1,8 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.render.BukkitProjectorBlocks;
+import org.bukkit.Material;
+import org.bukkit.block.data.BlockData;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -81,7 +84,7 @@ public final class PortalProjectorMemoInvalidationTest {
 
     @Test
     public void localRefreshReportsEveryContentInvalidationBeforeCameraReuse() {
-        ProjectorSampleMemo memo = new ProjectorSampleMemo();
+        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
 
         assertTrue(memo.refreshLocal(false, false, 4L, 4096));
         assertFalse(memo.refreshLocal(false, false, 4L, 4096));
@@ -116,9 +119,9 @@ public final class PortalProjectorMemoInvalidationTest {
 
     @Test
     public void cameraOnlyVenticularResamplingRetainsDestinationContentSamples() {
-        ProjectorSampleMemo memo = new ProjectorSampleMemo();
+        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
         ProjectionWorldView destination = destinationView();
-        ProjectorSample sample = ProjectorSample.noSample();
+        ProjectorSample<BlockData, ProjectionWorldView> sample = ProjectorSample.noSample();
         memo.cacheSample(destination, 12, 80, -9, sample);
 
         boolean forceCellResample = PortalProjector.shouldForceCellResample(false, false, true);
@@ -135,7 +138,7 @@ public final class PortalProjectorMemoInvalidationTest {
 
     @Test
     public void scheduledContentResamplingDropsDestinationContentSamples() {
-        ProjectorSampleMemo memo = new ProjectorSampleMemo();
+        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
         ProjectionWorldView destination = destinationView();
         memo.cacheSample(destination, 12, 80, -9, ProjectorSample.noSample());
 
@@ -160,7 +163,7 @@ public final class PortalProjectorMemoInvalidationTest {
 
     @Test
     public void destinationMemoBudgetOverflowStillInvalidatesContentSamples() {
-        ProjectorSampleMemo memo = new ProjectorSampleMemo();
+        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
         ProjectionWorldView destination = destinationView();
 
         assertFalse(memo.destinationOverBudget(0));

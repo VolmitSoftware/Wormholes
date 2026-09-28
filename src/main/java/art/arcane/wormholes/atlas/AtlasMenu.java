@@ -1,6 +1,7 @@
 package art.arcane.wormholes.atlas;
 
 import art.arcane.volmlib.util.inventorygui.UIElement;
+import art.arcane.volmlib.util.inventorygui.Element;
 import art.arcane.volmlib.util.inventorygui.UIPaneDecorator;
 import art.arcane.volmlib.util.inventorygui.UIWindow;
 import art.arcane.volmlib.util.inventorygui.Window;
@@ -98,7 +99,7 @@ public final class AtlasMenu {
                     page--;
                     repopulate();
                 });
-                window.setElement(-4, 5, previous);
+                control(AtlasModel.Control.PREVIOUS, previous);
             }
             UIElement sort = AtlasText.element("atlas-sort", WormholesMessages.PORTAL_MENU_DESTINATION_SORT,
                     AtlasText.args("mode", Wormholes.text().plain(sortLabel())), Material.COMPARATOR);
@@ -107,19 +108,19 @@ public final class AtlasMenu {
                 page = 0;
                 repopulate();
             });
-            window.setElement(-3, 5, sort);
+            control(AtlasModel.Control.SORT, sort);
 
             UIElement favorites = AtlasText.element("atlas-favorites", AtlasMessages.MENU_FAVORITES,
                     AtlasText.args("state", Boolean.toString(filter == AtlasModel.Filter.FAVORITES)), Material.NETHER_STAR);
             favorites.onLeftClick(event -> setFilter(AtlasModel.Filter.FAVORITES));
-            window.setElement(-2, 5, favorites);
+            control(AtlasModel.Control.FAVORITES, favorites);
 
             UIElement recents = AtlasText.element("atlas-recents", AtlasMessages.MENU_RECENTS,
                     AtlasText.args("state", Boolean.toString(filter == AtlasModel.Filter.RECENTS)), Material.CLOCK);
             recents.onLeftClick(event -> setFilter(AtlasModel.Filter.RECENTS));
-            window.setElement(-1, 5, recents);
+            control(AtlasModel.Control.RECENTS, recents);
 
-            window.setElement(0, 5, AtlasText.element("atlas-page", WormholesMessages.PORTAL_MENU_DESTINATION_PAGE,
+            control(AtlasModel.Control.PAGE, AtlasText.element("atlas-page", WormholesMessages.PORTAL_MENU_DESTINATION_PAGE,
                     AtlasText.args("page", page + 1, "pages", pageCount, "count", rowCount), Material.PAPER));
 
             UUID guided = state.guideTarget();
@@ -131,7 +132,7 @@ public final class AtlasMenu {
                     AtlasText.send(viewer, AtlasMessages.GUIDE_CLEARED);
                     repopulate();
                 }));
-                window.setElement(2, 5, guide);
+                control(AtlasModel.Control.GUIDE, guide);
             }
             if (page + 1 < pageCount) {
                 UIElement next = AtlasText.element("atlas-next", WormholesMessages.PORTAL_MENU_DESTINATION_NEXT,
@@ -140,8 +141,12 @@ public final class AtlasMenu {
                     page++;
                     repopulate();
                 });
-                window.setElement(4, 5, next);
+                control(AtlasModel.Control.NEXT, next);
             }
+        }
+
+        private void control(AtlasModel.Control control, Element element) {
+            window.setElement(control.slot() % ROW_WIDTH - ROW_WIDTH / 2, control.slot() / ROW_WIDTH, element);
         }
 
         private void setFilter(AtlasModel.Filter requested) {

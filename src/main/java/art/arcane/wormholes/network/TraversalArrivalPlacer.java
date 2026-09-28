@@ -130,7 +130,7 @@ final class TraversalArrivalPlacer {
                 placement.via() + ": traveler retired before portal placement");
         };
         if (!scheduler.schedule(player, () -> beginArrivalPlacement(placement), retired,
-            TraversalEntityScheduler.OFF_EVENT_STACK_DELAY_TICKS) && abandonArrivalPlacement(placement)) {
+            TraversalEntityTransit.OFF_EVENT_STACK_DELAY_TICKS) && abandonArrivalPlacement(placement)) {
             failures.record(Failure.ARRIVAL_SCHEDULE_REJECTED, player.getUniqueId(), placement.via() + ": player scheduler rejected portal placement");
             notices.arrivalUnplaced(player);
         }
@@ -192,7 +192,7 @@ final class TraversalArrivalPlacer {
 
         Traversive traversive;
         try {
-            traversive = request.traversive().toTraversive(player);
+            traversive = Traversive.fromWire(request.traversive(), player);
         } catch (RuntimeException error) {
             retryArrivalPlacement(placement, "arrival geometry is invalid", error);
             return;

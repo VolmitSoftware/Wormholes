@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.network.view.BukkitProjectedMapData;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -116,7 +117,7 @@ public final class ProjectedMapDataTest {
         try {
             ProjectedMapData mapData = new ProjectedMapData(7, (byte) 4, true, true, pixels());
 
-            WrapperPlayServerMapData packet = mapData.toPacket(-31);
+            WrapperPlayServerMapData packet = BukkitProjectedMapData.toPacket(mapData, -31);
 
             assertEquals(-31, packet.getMapId());
             assertEquals((byte) 4, packet.getScale());
@@ -140,7 +141,7 @@ public final class ProjectedMapDataTest {
         byte[] rawPixels = pixels();
         CraftMapView mapView = new CraftMapView(41, MapView.Scale.FAR, true, true, rawPixels);
 
-        Optional<ProjectedMapData> captured = ProjectedMapData.capture(mapView);
+        Optional<ProjectedMapData> captured = BukkitProjectedMapData.capture(mapView);
         rawPixels[0] = 112;
 
         assertTrue(captured.isPresent());
@@ -151,9 +152,9 @@ public final class ProjectedMapDataTest {
         assertNotEquals(112, captured.orElseThrow().pixels()[0]);
 
         mapView.addRenderer(new CustomRenderer());
-        assertFalse(ProjectedMapData.capture(mapView).isPresent());
-        assertFalse(ProjectedMapData.capture((MapView) null).isPresent());
-        assertFalse(ProjectedMapData.capture(
+        assertFalse(BukkitProjectedMapData.capture(mapView).isPresent());
+        assertFalse(BukkitProjectedMapData.capture((MapView) null).isPresent());
+        assertFalse(BukkitProjectedMapData.capture(
             new CraftMapView(41, MapView.Scale.FAR, true, true, new byte[1])).isPresent());
     }
 
@@ -164,7 +165,7 @@ public final class ProjectedMapDataTest {
         ItemStack item = new TestMapItemStack(mapMeta);
         ItemFrame itemFrame = itemFrame(item);
 
-        Optional<ProjectedMapData> captured = ProjectedMapData.capture(itemFrame);
+        Optional<ProjectedMapData> captured = BukkitProjectedMapData.capture(itemFrame);
 
         assertTrue(captured.isPresent());
         assertEquals(52, captured.orElseThrow().sourceMapId());

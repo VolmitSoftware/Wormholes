@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -21,8 +23,8 @@ class NetworkConfigurationValidationTest {
     @Test
     void rejectedHostAndRouteUpdatesKeepTheActiveConfigAndClientRoute() {
         NetworkConfig initial = config();
-        NetworkManager network = new NetworkManager(Logger.getLogger(getClass().getName()), initial,
-            "26.2", "test", 25565, tempDirectory);
+        NetworkManager network = new NetworkManager(Logger.getLogger(getClass().getName()), new NetworkManager.Options( initial,
+            "26.2", "test", 25565, tempDirectory, BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         try {
             NetworkConfig invalidHost = config();
             invalidHost.gameHostOverride = "bad host";

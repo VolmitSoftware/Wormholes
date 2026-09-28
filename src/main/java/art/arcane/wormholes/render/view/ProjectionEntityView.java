@@ -11,20 +11,10 @@ import org.bukkit.map.MapView;
 import java.util.List;
 import java.util.UUID;
 
-public interface ProjectionEntityView {
-    List<EntityVisual> getEntities(double centerX, double centerY, double centerZ, double range);
-
+public interface ProjectionEntityView extends ProjectionEntityData<EntityData<?>, Equipment> {
     boolean isVisibleTo(Player observer, UUID entityId);
-
-    RemoteViewCache.RemoteProfile getProfile(UUID entityId);
-
-    List<EntityData<?>> getMetadata(UUID entityId);
-
-    List<Equipment> getEquipment(UUID entityId);
 
     default MapView getMapView(UUID entityId) {
         return null;
     }
-
-    int getStateVersion(UUID entityId);
 }

@@ -27,7 +27,7 @@ final class PocketResizeDisplacedBlockTest {
             Set<Coordinate> expected = originalSelection(previous, updated);
             Set<Coordinate> actual = new HashSet<>();
 
-            PocketResizeService.forEachDisplacedBlock(previous, updated, (x, y, z) ->
+            PocketResizeGeometry.forEachDisplacedBlock(previous, updated, (x, y, z) ->
                 assertTrue(actual.add(new Coordinate(x, y, z)), "duplicate coordinate"));
 
             assertEquals(expected, actual, resizeCase.toString());
@@ -38,7 +38,7 @@ final class PocketResizeDisplacedBlockTest {
     void maximumGrowthDoesNotWalkThePreviousVolume() {
         AtomicInteger visited = new AtomicInteger();
 
-        PocketResizeService.forEachDisplacedBlock(layout(8), layout(128),
+        PocketResizeGeometry.forEachDisplacedBlock(layout(8), layout(128),
             (x, y, z) -> visited.incrementAndGet());
 
         assertEquals(0, visited.get());

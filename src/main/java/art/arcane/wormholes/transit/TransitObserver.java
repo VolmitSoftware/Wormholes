@@ -1,5 +1,7 @@
 package art.arcane.wormholes.transit;
 
+import art.arcane.wormholes.util.BukkitGeometry;
+
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.util.Vector;
@@ -41,9 +43,7 @@ public final class TransitObserver implements TraversalObserver {
     }
 
     static Vector reflect(Traversive traversive) {
-        Vector normal = traversive.getInFrame().getNormal().toVector();
-        Vector velocity = traversive.getInVelocity().clone();
-        double along = velocity.dot(normal);
-        return velocity.subtract(normal.multiply(2.0D * along)).multiply(Settings.portalPushback(1.0D));
+        return BukkitGeometry.bukkit(MomentumTransform.reflect(BukkitGeometry.vector(traversive.getInVelocity()),
+            traversive.getInFrame().getNormal().toVector(), Settings.portalPushback(1.0D)));
     }
 }

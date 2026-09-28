@@ -1,5 +1,7 @@
 package art.arcane.wormholes;
 
+import art.arcane.wormholes.render.BukkitEntityVisibility;
+import org.bukkit.block.data.BlockData;
 import art.arcane.wormholes.hook.ProjectionSource;
 import art.arcane.wormholes.hook.WormholesHooks;
 import java.util.ArrayList;
@@ -81,7 +83,7 @@ public class ProjectionManager implements Listener {
     private static final EntityUpdateScheduler ENTITY_UPDATE_SCHEDULER = (observer, update, retired) ->
         FoliaScheduler.runEntity(Wormholes.instance, observer, update, 0L, retired);
     private final ProjectionClaimArbiter claimArbiter;
-    private final EntityRenderLocalOcclusionArbiter localEntityOcclusion;
+    private final EntityRenderLocalOcclusionArbiter<Player, Entity> localEntityOcclusion;
     private final ProjectionClientChunkTracker clientChunkTracker;
     private final ProjectionWorldViewProvider viewProvider;
     private final RtpRimRenderer rtpRimRenderer;
@@ -91,8 +93,8 @@ public class ProjectionManager implements Listener {
     private final ProjectionBudgetLedger budgetLedger;
     private final ProjectionInterestFrame observerFrame;
     private final ProjectedEntityUpdateBatcher projectedEntityUpdates;
-    private final ViewPlateCache plateCache;
-    private final PlateWorkers plateWorkers;
+    private final ViewPlateCache<BlockData, World> plateCache;
+    private final PlateWorkers<BlockData, World> plateWorkers;
     private final Set<UUID> observerTasksInFlight;
     private final AtomicBoolean shutdownFinalized;
     private final AtomicBoolean shutdownStarted;
@@ -109,15 +111,15 @@ public class ProjectionManager implements Listener {
             : ProjectionWorldViewProvider.live();
         this.clientChunkTracker = clientChunkTracker;
         this.claimArbiter = new ProjectionClaimArbiter(viewProvider, clientChunkTracker);
-        this.localEntityOcclusion = new EntityRenderLocalOcclusionArbiter();
+        this.localEntityOcclusion = new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create());
         this.rtpRimRenderer = new RtpRimRenderer();
         this.skinRenderer = new PortalSkinRenderer(claimArbiter);
         BooleanSupplier alive = () -> !closed;
         this.closeQueue = new ProjectionInterestCloseQueue(alive);
-        this.plateCache = new ViewPlateCache(FidelitySettings.plateMaxBytes, this::schedulePlateBuild);
-        this.plateWorkers = new PlateWorkers(FidelitySettings.plateWorkers, new PlateWorkers.PlateSink() {
+        this.plateCache = new ViewPlateCache<BlockData, World>(FidelitySettings.plateMaxBytes, this::schedulePlateBuild);
+        this.plateWorkers = new PlateWorkers<>(FidelitySettings.plateWorkers, new PlateWorkers.Host<>() {
             @Override
-            public void publish(ViewPlate plate) {
+            public void publish(ViewPlate<BlockData> plate) {
                 if (!closed) {
                     plateCache.publish(plate);
                 }
@@ -126,6 +128,16 @@ public class ProjectionManager implements Listener {
             @Override
             public void failed(ViewPlateKey key) {
                 plateCache.buildFailed(key);
+            }
+
+            @Override
+            public boolean schedule(ViewPlateBuilder.Execution<World> execution, Runnable task, long delayTicks) {
+                return FoliaScheduler.runRegion(Wormholes.instance, execution.world(), execution.chunkX(), execution.chunkZ(), task, delayTicks);
+            }
+
+            @Override
+            public void warning(ViewPlateKey key, RuntimeException failure) {
+                Wormholes.instance.getLogger().log(Level.WARNING, "[plate] build failed for portal " + key.portalId(), failure);
             }
         });
         this.interestSet = new ProjectionInterestSet(claimArbiter, localEntityOcclusion, viewProvider, closeQueue, alive,
@@ -150,7 +162,7 @@ public class ProjectionManager implements Listener {
         rtpProjectionProvider = provider;
     }
 
-    public ViewPlateCache plateCache() {
+    public ViewPlateCache<BlockData, World> plateCache() {
         return plateCache;
     }
 
@@ -158,17 +170,17 @@ public class ProjectionManager implements Listener {
         return portalId == null || closed ? List.of() : interestSet.observersOf(portalId);
     }
 
-    private void schedulePlateBuild(ViewPlateBuilder.Job job) {
+    private void schedulePlateBuild(ViewPlateBuilder.Job<BlockData, World> job) {
         if (closed) {
             plateCache.buildFailed(job.key());
             return;
         }
-        ViewPlateBuilder.Execution execution = job.execution();
+        ViewPlateBuilder.Execution<World> execution = job.execution();
         if (execution.offThread()) {
             plateWorkers.submitAsync(job);
             return;
         }
-        plateWorkers.submitRegion(Wormholes.instance, execution.world(), execution.chunkX(), execution.chunkZ(), job);
+        plateWorkers.submitRegion(job);
     }
 
     @EventHandler
@@ -176,7 +188,7 @@ public class ProjectionManager implements Listener {
         observerTasksInFlight.remove(e.getPlayer().getUniqueId());
         ClientProfileService.forgetPlayer(e.getPlayer().getUniqueId());
         skinRenderer.discardObserver(e.getPlayer().getUniqueId());
-        AcousticsBridge acoustics = FidelitySubsystem.acoustics();
+        AcousticsBridge<Player> acoustics = FidelitySubsystem.acoustics();
         if (acoustics != null) {
             acoustics.forgetObserver(e.getPlayer().getUniqueId());
         }
@@ -238,7 +250,7 @@ public class ProjectionManager implements Listener {
             plateCache.invalidateDirty(Wormholes.projectionChangeTracker);
         }
         if (tickCount % ACOUSTICS_AMBIENT_INTERVAL_TICKS == 0L) {
-            AcousticsBridge acoustics = FidelitySubsystem.acoustics();
+            AcousticsBridge<Player> acoustics = FidelitySubsystem.acoustics();
             if (acoustics != null) {
                 acoustics.tickAmbient(System.currentTimeMillis());
             }
@@ -509,17 +521,9 @@ public class ProjectionManager implements Listener {
         if (eye.getWorld() != null && center.getWorld() != null && !eye.getWorld().equals(center.getWorld())) {
             return false;
         }
-        double dx = center.getX() - eye.getX();
-        double dy = center.getY() - eye.getY();
-        double dz = center.getZ() - eye.getZ();
-        double distanceSquared = (dx * dx) + (dy * dy) + (dz * dz);
-        if (distanceSquared <= 1.0E-6D) {
-            return true;
-        }
-        double inverseDistance = 1.0D / Math.sqrt(distanceSquared);
         Vector direction = eye.getDirection();
-        double dot = ((direction.getX() * dx) + (direction.getY() * dy) + (direction.getZ() * dz)) * inverseDistance;
-        return dot >= minimumDot;
+        return ProjectionObserverGeometry.isLookingTowardPortal(eye.getX(), eye.getY(), eye.getZ(),
+            center.getX(), center.getY(), center.getZ(), direction.getX(), direction.getY(), direction.getZ(), minimumDot);
     }
 
     static boolean isObserverProjectionInterested(Location eye, Location center, ILocalPortal portal, boolean foveatedUnrendering) {
@@ -542,41 +546,17 @@ public class ProjectionManager implements Listener {
             return true;
         }
         Direction normal = portal.getFrame().getNormal();
-        return hasStablePortalSide(eye.getX(), eye.getY(), eye.getZ(),
+        return ProjectionObserverGeometry.hasStablePortalSide(eye.getX(), eye.getY(), eye.getZ(),
                 portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(),
                 normal.x(), normal.y(), normal.z(), minimumAbsoluteDot);
     }
 
-    static boolean hasStablePortalSide(double eyeX,
-                                       double eyeY,
-                                       double eyeZ,
-                                       double originX,
-                                       double originY,
-                                       double originZ,
-                                       double normalX,
-                                       double normalY,
-                                       double normalZ,
-                                       double minimumAbsoluteDot) {
-        if (minimumAbsoluteDot <= 0.0D) {
-            return true;
-        }
-        double dx = eyeX - originX;
-        double dy = eyeY - originY;
-        double dz = eyeZ - originZ;
-        double distanceSquared = (dx * dx) + (dy * dy) + (dz * dz);
-        if (distanceSquared <= 1.0E-6D) {
-            return true;
-        }
-        double inverseDistance = 1.0D / Math.sqrt(distanceSquared);
-        double dot = ((dx * normalX) + (dy * normalY) + (dz * normalZ)) * inverseDistance;
-        return Math.abs(dot) >= minimumAbsoluteDot;
-    }
 
     public void removeProjector(ILocalPortal portal) {
         interestSet.retirePortal(portal.getId());
         if (portal.getId() != null) {
             plateCache.invalidatePortal(portal.getId());
-            AcousticsBridge acoustics = FidelitySubsystem.acoustics();
+            AcousticsBridge<Player> acoustics = FidelitySubsystem.acoustics();
             if (acoustics != null) {
                 acoustics.forgetPortal(portal.getId());
             }

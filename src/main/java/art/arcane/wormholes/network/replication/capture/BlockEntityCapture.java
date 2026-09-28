@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network.replication.capture;
 
+import org.bukkit.block.data.BlockData;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.view.ViewSlice;
@@ -32,10 +33,10 @@ import java.util.logging.Logger;
 public final class BlockEntityCapture implements Listener {
     public static final int MAX_NBT_BYTES = BlockEntitySample.MAX_NBT_BYTES + 64;
 
-    private final RegionalDiffAccumulator accumulator;
+    private final RegionalDiffAccumulator<World, BlockData> accumulator;
     private final Logger logger;
 
-    public BlockEntityCapture(RegionalDiffAccumulator accumulator, Logger logger) {
+    public BlockEntityCapture(RegionalDiffAccumulator<World, BlockData> accumulator, Logger logger) {
         this.accumulator = accumulator;
         this.logger = logger;
     }
@@ -87,7 +88,7 @@ public final class BlockEntityCapture implements Listener {
         if (!accumulator.settings().blockEntityCaptureEnabled()) {
             return;
         }
-        if (!BlockEntityMaterials.isCandidate(block.getType())) {
+        if (!BlockEntityMaterials.isCandidate(block.getType().name())) {
             return;
         }
         int worldX = block.getX();
@@ -110,7 +111,7 @@ public final class BlockEntityCapture implements Listener {
         }
         byte[] payload;
         try {
-            payload = BlockEntityCapturer.encode(sample);
+            payload = BlockEntitySample.encode(sample);
         } catch (IOException ex) {
             if (logger != null) {
                 logger.log(Level.WARNING, "Block-entity sample encoding failed at " + worldX + "," + worldY + "," + worldZ, ex);

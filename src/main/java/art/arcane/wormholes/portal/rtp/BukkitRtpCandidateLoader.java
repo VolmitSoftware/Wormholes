@@ -425,7 +425,7 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 		int lowestFeetY = world.getMinHeight() + 1;
 		IntPredicate support = y -> isSupport(world.getBlockAt(destination.blockX(), y, destination.blockZ()));
 		IntPredicate open = y -> isOpen(world.getBlockAt(destination.blockX(), y, destination.blockZ()));
-		Integer feetY = descendingSurfaceFeetY(highestFeetY, lowestFeetY, support, open);
+		Integer feetY = RtpSampler.descendingSurfaceFeetY(highestFeetY, lowestFeetY, support, open);
 		if(feetY == null)
 		{
 			throw new IllegalStateException("RTP nether column has no sheltered surface");
@@ -438,18 +438,6 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 		return safetyMode == RtpSafetyMode.SAFE
 				? HeightMap.MOTION_BLOCKING_NO_LEAVES
 				: HeightMap.MOTION_BLOCKING;
-	}
-
-	static Integer descendingSurfaceFeetY(int highestFeetY, int lowestFeetY, IntPredicate support, IntPredicate open)
-	{
-		for(int feetY = highestFeetY; feetY >= lowestFeetY; feetY--)
-		{
-			if(support.test(feetY - 1) && open.test(feetY) && open.test(feetY + 1))
-			{
-				return Integer.valueOf(feetY);
-			}
-		}
-		return null;
 	}
 
 	private static boolean isSupport(Block block)
@@ -509,7 +497,7 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 			RtpValidationRequest.EntityEnvelope envelope,
 			ChunkCoordinate chunk)
 	{
-		BlockRange range = blockRange(destination, envelope);
+		RtpProbeBounds range = RtpProbeBounds.of(destination, envelope);
 		int chunkMinimumX = chunk.x() * 16;
 		int chunkMinimumZ = chunk.z() * 16;
 		int minimumX = Math.max(range.minimumX(), chunkMinimumX);
@@ -641,7 +629,7 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 			RtpDestination destination,
 			RtpValidationRequest.EntityEnvelope envelope)
 	{
-		BlockRange range = blockRange(destination, envelope);
+		RtpProbeBounds range = RtpProbeBounds.of(destination, envelope);
 		int minimumChunkX = Math.floorDiv(range.minimumX(), 16);
 		int maximumChunkX = Math.floorDiv(range.maximumX(), 16);
 		int minimumChunkZ = Math.floorDiv(range.minimumZ(), 16);
@@ -659,38 +647,6 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 			throw new IllegalArgumentException("RTP entity envelope spans more than four chunks");
 		}
 		return Set.copyOf(chunks);
-	}
-
-	private BlockRange blockRange(
-			RtpDestination destination,
-			RtpValidationRequest.EntityEnvelope envelope)
-	{
-		double centerX = destination.blockX() + 0.5D;
-		double centerZ = destination.blockZ() + 0.5D;
-		double anchorX = centerX - (envelope.minimumXOffset() + envelope.maximumXOffset()) / 2.0D;
-		double anchorY = destination.feetY() - envelope.minimumYOffset();
-		double anchorZ = centerZ - (envelope.minimumZOffset() + envelope.maximumZOffset()) / 2.0D;
-		double minimumX = anchorX + envelope.minimumXOffset() - RtpSafetyValidator.HORIZONTAL_CLEARANCE_BLOCKS;
-		double maximumX = anchorX + envelope.maximumXOffset() + RtpSafetyValidator.HORIZONTAL_CLEARANCE_BLOCKS;
-		double maximumY = anchorY + envelope.maximumYOffset();
-		double minimumZ = anchorZ + envelope.minimumZOffset() - RtpSafetyValidator.HORIZONTAL_CLEARANCE_BLOCKS;
-		double maximumZ = anchorZ + envelope.maximumZOffset() + RtpSafetyValidator.HORIZONTAL_CLEARANCE_BLOCKS;
-		return new BlockRange(
-				floor(minimumX - RtpSafetyValidator.EPSILON),
-				floor(maximumX + RtpSafetyValidator.EPSILON),
-				destination.feetY() - 1,
-				floor(maximumY + RtpSafetyValidator.EPSILON),
-				floor(minimumZ - RtpSafetyValidator.EPSILON),
-				floor(maximumZ + RtpSafetyValidator.EPSILON));
-	}
-
-	private int floor(double value)
-	{
-		if(value < Integer.MIN_VALUE || value >= (double) Integer.MAX_VALUE + 1.0D)
-		{
-			throw new IllegalArgumentException("RTP snapshot coordinate exceeds integer bounds");
-		}
-		return (int) Math.floor(value);
 	}
 
 	private World resolveWorld(String worldKey)
@@ -711,15 +667,7 @@ public final class BukkitRtpCandidateLoader implements RtpService.CandidateLoade
 	{
 	}
 
-	private record BlockRange(
-			int minimumX,
-			int maximumX,
-			int minimumY,
-			int maximumY,
-			int minimumZ,
-			int maximumZ)
-	{
-	}
+
 
 	private record PendingRetention(
 			CompositeRetention retention,

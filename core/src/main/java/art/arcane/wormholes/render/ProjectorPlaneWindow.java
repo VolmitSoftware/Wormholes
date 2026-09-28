@@ -1,0 +1,365 @@
+package art.arcane.wormholes.render;
+
+import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.wormholes.portal.PortalCellAperture;
+import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.wormholes.util.Direction;
+
+public final class ProjectorPlaneWindow {
+    private static final double EPSILON = 1.0E-7D;
+
+    private final PortalCellAperture structure;
+    private final boolean perCell;
+    private final int normalAxis;
+    private final int planeCoord;
+    private final double originX;
+    private final double originY;
+    private final double originZ;
+    private final double rightX;
+    private final double rightY;
+    private final double rightZ;
+    private final double upX;
+    private final double upY;
+    private final double upZ;
+    private final double eyeSignedDistance;
+    private final double rightMin;
+    private final double rightMax;
+    private final double upMin;
+    private final double upMax;
+    private final double cellTolerance;
+    private final RowWindow row = new RowWindow();
+
+    private ProjectorPlaneWindow(PortalCellAperture structure,
+                                 boolean perCell,
+                                 int normalAxis,
+                                 int planeCoord,
+                                 double originX,
+                                 double originY,
+                                 double originZ,
+                                 double rightX,
+                                 double rightY,
+                                 double rightZ,
+                                 double upX,
+                                 double upY,
+                                 double upZ,
+                                 double eyeSignedDistance,
+                                 double rightMin,
+                                 double rightMax,
+                                 double upMin,
+                                 double upMax,
+                                 double cellTolerance) {
+        this.structure = structure;
+        this.perCell = perCell;
+        this.normalAxis = normalAxis;
+        this.planeCoord = planeCoord;
+        this.originX = originX;
+        this.originY = originY;
+        this.originZ = originZ;
+        this.rightX = rightX;
+        this.rightY = rightY;
+        this.rightZ = rightZ;
+        this.upX = upX;
+        this.upY = upY;
+        this.upZ = upZ;
+        this.eyeSignedDistance = eyeSignedDistance;
+        this.rightMin = rightMin;
+        this.rightMax = rightMax;
+        this.upMin = upMin;
+        this.upMax = upMax;
+        this.cellTolerance = cellTolerance;
+    }
+
+    public static ProjectorPlaneWindow create(PortalCellAperture structure,
+                                       AxisAlignedBB area,
+                                       PortalFrame frame,
+                                       double originX,
+                                       double originY,
+                                       double originZ,
+                                       double padding,
+                                       double eyeSignedDistance) {
+        double rightMin = Double.POSITIVE_INFINITY;
+        double rightMax = Double.NEGATIVE_INFINITY;
+        double upMin = Double.POSITIVE_INFINITY;
+        double upMax = Double.NEGATIVE_INFINITY;
+
+        for (int xi = 0; xi < 2; xi++) {
+            double x = xi == 0 ? area.getXa() : area.getXb();
+            for (int yi = 0; yi < 2; yi++) {
+                double y = yi == 0 ? area.getYa() : area.getYb();
+                for (int zi = 0; zi < 2; zi++) {
+                    double z = zi == 0 ? area.getZa() : area.getZb();
+                    double relX = x - originX;
+                    double relY = y - originY;
+                    double relZ = z - originZ;
+                    double right = dot(relX, relY, relZ, frame.getRight());
+                    double up = dot(relX, relY, relZ, frame.getUp());
+                    rightMin = Math.min(rightMin, right);
+                    rightMax = Math.max(rightMax, right);
+                    upMin = Math.min(upMin, up);
+                    upMax = Math.max(upMax, up);
+                }
+            }
+        }
+
+        Direction normal = frame.getNormal();
+        int normalAxis = normal.x() != 0 ? 0 : (normal.y() != 0 ? 1 : 2);
+        double normalOrigin = normalAxis == 0 ? originX : (normalAxis == 1 ? originY : originZ);
+        int planeCoord = (int) Math.floor(normalOrigin);
+        boolean perCell = structure != null && !structure.isFullCuboid();
+
+        return new ProjectorPlaneWindow(structure, perCell, normalAxis, planeCoord,
+            originX, originY, originZ,
+            frame.getRight().x(), frame.getRight().y(), frame.getRight().z(),
+            frame.getUp().x(), frame.getUp().y(), frame.getUp().z(),
+            eyeSignedDistance, rightMin - padding, rightMax + padding, upMin - padding, upMax + padding,
+            Math.min(padding, 1.0D - EPSILON));
+    }
+
+    public boolean slabWindow(double eyeX, double eyeY, double eyeZ, double cellSignedDistance, double[] out4) {
+        double denom = cellSignedDistance - eyeSignedDistance;
+        if (Math.abs(denom) <= EPSILON) {
+            return false;
+        }
+        double t = -eyeSignedDistance / denom;
+        if (t < -EPSILON || t > 1.0D + EPSILON) {
+            return false;
+        }
+        if (t <= 1.0E-6D) {
+            out4[0] = Double.NEGATIVE_INFINITY;
+            out4[1] = Double.POSITIVE_INFINITY;
+            out4[2] = Double.NEGATIVE_INFINITY;
+            out4[3] = Double.POSITIVE_INFINITY;
+            return true;
+        }
+        double relX = eyeX - originX;
+        double relY = eyeY - originY;
+        double relZ = eyeZ - originZ;
+        double eyeR = (relX * rightX) + (relY * rightY) + (relZ * rightZ);
+        double eyeU = (relX * upX) + (relY * upY) + (relZ * upZ);
+        out4[0] = eyeR + (((rightMin - EPSILON) - eyeR) / t);
+        out4[1] = eyeR + (((rightMax + EPSILON) - eyeR) / t);
+        out4[2] = eyeU + (((upMin - EPSILON) - eyeU) / t);
+        out4[3] = eyeU + (((upMax + EPSILON) - eyeU) / t);
+        return true;
+    }
+
+    public static int slabBlockMin(double windowLow, double windowHigh, int sign, double axisOrigin, int clampMin) {
+        double a = axisOrigin + (sign * windowLow);
+        double b = axisOrigin + (sign * windowHigh);
+        double lowest = Math.ceil(Math.min(a, b) - 0.5D);
+        if (lowest <= clampMin) {
+            return clampMin;
+        }
+        return (int) lowest;
+    }
+
+    public static int slabBlockMax(double windowLow, double windowHigh, int sign, double axisOrigin, int clampMax) {
+        double a = axisOrigin + (sign * windowLow);
+        double b = axisOrigin + (sign * windowHigh);
+        double highest = Math.floor(Math.max(a, b) - 0.5D);
+        if (highest >= clampMax) {
+            return clampMax;
+        }
+        return (int) highest;
+    }
+
+    public boolean containsRayIntersection(double eyeX,
+                                    double eyeY,
+                                    double eyeZ,
+                                    double cellX,
+                                    double cellY,
+                                    double cellZ,
+                                    double cellSignedDistance) {
+        double denom = cellSignedDistance - eyeSignedDistance;
+        if (Math.abs(denom) <= EPSILON) {
+            return false;
+        }
+        double t = -eyeSignedDistance / denom;
+        if (t < -EPSILON || t > 1.0D + EPSILON) {
+            return false;
+        }
+        double hitX = eyeX + ((cellX - eyeX) * t);
+        double hitY = eyeY + ((cellY - eyeY) * t);
+        double hitZ = eyeZ + ((cellZ - eyeZ) * t);
+        double relX = hitX - originX;
+        double relY = hitY - originY;
+        double relZ = hitZ - originZ;
+        double right = (relX * rightX) + (relY * rightY) + (relZ * rightZ);
+        double up = (relX * upX) + (relY * upY) + (relZ * upZ);
+        if (right < rightMin - EPSILON || right > rightMax + EPSILON
+            || up < upMin - EPSILON || up > upMax + EPSILON) {
+            return false;
+        }
+        if (!perCell) {
+            return true;
+        }
+        int bx = (int) Math.floor(hitX);
+        int by = (int) Math.floor(hitY);
+        int bz = (int) Math.floor(hitZ);
+        if (normalAxis == 0) {
+            bx = planeCoord;
+        } else if (normalAxis == 1) {
+            by = planeCoord;
+        } else {
+            bz = planeCoord;
+        }
+        if (structure.containsBlock(bx, by, bz)) {
+            return true;
+        }
+        if (cellTolerance <= 0.0D) {
+            return false;
+        }
+        double firstLateral = normalAxis == 0 ? hitY : hitX;
+        double secondLateral = normalAxis == 2 ? hitY : hitZ;
+        int firstLow = lateralLowOffset(firstLateral, cellTolerance);
+        int firstHigh = lateralHighOffset(firstLateral, cellTolerance);
+        int secondLow = lateralLowOffset(secondLateral, cellTolerance);
+        int secondHigh = lateralHighOffset(secondLateral, cellTolerance);
+        for (int first = firstLow; first <= firstHigh; first++) {
+            for (int second = secondLow; second <= secondHigh; second++) {
+                if (first == 0 && second == 0) {
+                    continue;
+                }
+                int nx = bx;
+                int ny = by;
+                int nz = bz;
+                if (normalAxis == 0) {
+                    ny = by + first;
+                    nz = bz + second;
+                } else if (normalAxis == 1) {
+                    nx = bx + first;
+                    nz = bz + second;
+                } else {
+                    nx = bx + first;
+                    ny = by + second;
+                }
+                if (structure.containsBlock(nx, ny, nz)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean containsRow(int axis, double eyeX, double eyeY, double eyeZ,
+                        double x, double y, double z, double end, double cellSignedDistance) {
+        return !perCell && normalAxis != axis
+            && containsRayIntersection(eyeX, eyeY, eyeZ, x, y, z, cellSignedDistance)
+            && containsRayIntersection(eyeX, eyeY, eyeZ,
+                axis == 0 ? end : x, axis == 1 ? end : y, axis == 2 ? end : z, cellSignedDistance);
+    }
+
+    void prepareRow(int axis, double eyeX, double eyeY, double eyeZ,
+                    double x, double y, double z, double cellSignedDistance) {
+        row.axis = axis;
+        row.valid = false;
+        row.cached = false;
+        double denom = cellSignedDistance - eyeSignedDistance;
+        if (axis == normalAxis || Math.abs(denom) <= EPSILON) {
+            return;
+        }
+        double t = -eyeSignedDistance / denom;
+        if (t < -EPSILON || t > 1.0D + EPSILON) {
+            return;
+        }
+        double hitX = eyeX + ((x - eyeX) * t);
+        double hitY = eyeY + ((y - eyeY) * t);
+        double hitZ = eyeZ + ((z - eyeZ) * t);
+        double rightComponent = axis == 0 ? rightX : axis == 1 ? rightY : rightZ;
+        boolean variesRight = rightComponent != 0.0D;
+        double fixed = variesRight
+            ? ((hitX - originX) * upX) + ((hitY - originY) * upY) + ((hitZ - originZ) * upZ)
+            : ((hitX - originX) * rightX) + ((hitY - originY) * rightY) + ((hitZ - originZ) * rightZ);
+        double fixedMin = variesRight ? upMin : rightMin;
+        double fixedMax = variesRight ? upMax : rightMax;
+        if (fixed < fixedMin - EPSILON || fixed > fixedMax + EPSILON) {
+            return;
+        }
+        row.valid = true;
+        row.t = t;
+        row.eye = axis == 0 ? eyeX : axis == 1 ? eyeY : eyeZ;
+        row.origin = axis == 0 ? originX : axis == 1 ? originY : originZ;
+        row.sign = variesRight ? rightComponent : axis == 0 ? upX : axis == 1 ? upY : upZ;
+        row.min = (variesRight ? rightMin : upMin) - EPSILON;
+        row.max = (variesRight ? rightMax : upMax) + EPSILON;
+        row.x = normalAxis == 0 ? planeCoord : (int) Math.floor(hitX);
+        row.y = normalAxis == 1 ? planeCoord : (int) Math.floor(hitY);
+        row.z = normalAxis == 2 ? planeCoord : (int) Math.floor(hitZ);
+        row.fixedAxis = 3 - normalAxis - axis;
+        double fixedHit = row.fixedAxis == 0 ? hitX : row.fixedAxis == 1 ? hitY : hitZ;
+        row.fixedLow = cellTolerance <= 0.0D ? 0 : lateralLowOffset(fixedHit, cellTolerance);
+        row.fixedHigh = cellTolerance <= 0.0D ? 0 : lateralHighOffset(fixedHit, cellTolerance);
+    }
+
+    public boolean containsRowCell(int coordinate) {
+        if (!row.valid) {
+            return false;
+        }
+        double hit = row.eye + ((coordinate + 0.5D - row.eye) * row.t);
+        double lateral = (hit - row.origin) * row.sign;
+        if (lateral < row.min || lateral > row.max) {
+            return false;
+        }
+        if (!perCell) {
+            return true;
+        }
+        int cell = (int) Math.floor(hit);
+        int low = cell + (cellTolerance <= 0.0D ? 0 : lateralLowOffset(hit, cellTolerance));
+        int high = cell + (cellTolerance <= 0.0D ? 0 : lateralHighOffset(hit, cellTolerance));
+        if (row.cached && row.cachedLow == low && row.cachedHigh == high) {
+            return row.cachedResult;
+        }
+        row.cached = true;
+        row.cachedLow = low;
+        row.cachedHigh = high;
+        row.cachedResult = containsRowMembers(low, high);
+        return row.cachedResult;
+    }
+
+    private boolean containsRowMembers(int low, int high) {
+        for (int coordinate = low; coordinate <= high; coordinate++) {
+            for (int offset = row.fixedLow; offset <= row.fixedHigh; offset++) {
+                int x = row.axis == 0 ? coordinate : row.x + (row.fixedAxis == 0 ? offset : 0);
+                int y = row.axis == 1 ? coordinate : row.y + (row.fixedAxis == 1 ? offset : 0);
+                int z = row.axis == 2 ? coordinate : row.z + (row.fixedAxis == 2 ? offset : 0);
+                if (structure.containsBlock(x, y, z)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static int lateralLowOffset(double coordinate, double tolerance) {
+        return coordinate - Math.floor(coordinate) < tolerance ? -1 : 0;
+    }
+
+    private static int lateralHighOffset(double coordinate, double tolerance) {
+        return coordinate - Math.floor(coordinate) > 1.0D - tolerance ? 1 : 0;
+    }
+
+    private static double dot(double x, double y, double z, Direction direction) {
+        return (x * direction.x()) + (y * direction.y()) + (z * direction.z());
+    }
+
+    private static final class RowWindow {
+        private int axis;
+        private int fixedAxis;
+        private int x;
+        private int y;
+        private int z;
+        private int fixedLow;
+        private int fixedHigh;
+        private int cachedLow;
+        private int cachedHigh;
+        private double t;
+        private double eye;
+        private double origin;
+        private double sign;
+        private double min;
+        private double max;
+        private boolean valid;
+        private boolean cached;
+        private boolean cachedResult;
+    }
+}

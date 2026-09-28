@@ -1,5 +1,8 @@
 package art.arcane.wormholes.access;
 
+import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.util.BukkitGeometry;
+
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.MainConfig;
@@ -99,23 +102,23 @@ class PortalAccessDiagnosticsTest {
     @Test
     void remotePreflightLeavesPermissionsToTheDestination() {
         RemotePortal portal = new RemotePortal(UUID.randomUUID(), new RemoteWorld("qa-b", "minecraft:overworld"),
-            new Vector(0, 64, 0), PortalType.GATEWAY, true, new AxisAlignedBB(new Vector(0, 64, 0), new Vector(2, 67, 0)));
+            new GeometryVector(0, 64, 0), PortalType.GATEWAY, true, new AxisAlignedBB(0, 2, 64, 67, 0, 0));
         portal.setName("Destination Gate");
         portal.putMirroredExtensionSetting("access.permissionKey", "stable_remote");
         portal.setMirroredPermissionMode(PortalPermissionMode.WHITELIST);
         Player player = AccessTestPortals.player("Guest", false, Set.of("wormholes.portal.stable_remote"));
 
-        assertTrue(portal.acceptsInboundTraversal(player));
+        assertTrue(portal.acceptsInboundTraversal(PortalAdmission.bypassesAccess(player)));
         String detail = PortalAccessDiagnostics.describe(portal, player);
 
         assertTrue(detail.contains("remote=true peer=\"qa-b\""));
         assertTrue(detail.contains("mode=WHITELIST nameNode=wormholes.portal.destination_gate nameGranted=false"));
         assertFalse(detail.contains("keyNode="));
         portal.setMirroredIncomingTraversalsEnabled(false);
-        assertFalse(portal.acceptsInboundTraversal(player));
+        assertFalse(portal.acceptsInboundTraversal(PortalAdmission.bypassesAccess(player)));
         assertEquals("incoming_disabled", PortalAccessDiagnostics.frameReason("REMOTE_PREFLIGHT", portal, player));
         Player wildcard = AccessTestPortals.player("Wildcard", false, Set.of("*"));
-        assertTrue(portal.acceptsInboundTraversal(wildcard));
+        assertTrue(portal.acceptsInboundTraversal(PortalAdmission.bypassesAccess(wildcard)));
     }
 
     @Test

@@ -1,7 +1,6 @@
 package art.arcane.wormholes.portal;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Objects;
 
 import org.bukkit.entity.Player;
@@ -12,38 +11,26 @@ import art.arcane.volmlib.util.json.JSONObject;
 
 public final class VaultTravelCost implements PortalTravelCost
 {
-	public static final BigDecimal MAX_AMOUNT = new BigDecimal("1000000000000");
-	private static final int MAX_SCALE = 8;
+	public static final BigDecimal MAX_AMOUNT = TravelCurrencyAmount.MAX_AMOUNT;
 
 	private final BigDecimal amount;
-	private final OwnerRefundSettlement.Executor refundExecutor;
+	private final OwnerRefundSettlement.Executor<Player> refundExecutor;
 
 	private VaultTravelCost(BigDecimal amount)
 	{
-		this(amount, OwnerRefundSettlement.BukkitExecutor.INSTANCE);
+		this(amount, BukkitOwnerRefundExecutor.INSTANCE);
 	}
 
-	VaultTravelCost(BigDecimal amount, OwnerRefundSettlement.Executor refundExecutor)
+	VaultTravelCost(BigDecimal amount, OwnerRefundSettlement.Executor<Player> refundExecutor)
 	{
-		this.amount = normalize(amount);
+		this.amount = TravelCurrencyAmount.normalize(amount);
 		this.refundExecutor = refundExecutor;
 	}
 
 	public static VaultTravelCost of(String amount)
 	{
-		if(amount == null || amount.isBlank())
-		{
-			throw new IllegalArgumentException("Vault travel cost must be a decimal amount");
-		}
-		try
-		{
-			return new VaultTravelCost(new BigDecimal(amount));
-		}
-		catch(NumberFormatException exception)
-		{
-			throw new IllegalArgumentException("Vault travel cost must be a decimal amount", exception);
-		}
-	}
+        return new VaultTravelCost(TravelCurrencyAmount.parse(amount));
+    }
 
 	static VaultTravelCost fromJson(JSONObject json)
 	{
@@ -123,42 +110,24 @@ public final class VaultTravelCost implements PortalTravelCost
 				.put("amount", getPlainAmount());
 	}
 
-	private static BigDecimal normalize(BigDecimal amount)
-	{
-		if(amount == null || amount.signum() <= 0 || amount.compareTo(MAX_AMOUNT) > 0)
-		{
-			throw new IllegalArgumentException("Vault travel cost must be greater than zero and at most " + MAX_AMOUNT);
-		}
-		BigDecimal normalized = amount.setScale(Math.min(Math.max(amount.scale(), 0), MAX_SCALE), RoundingMode.HALF_UP)
-				.stripTrailingZeros();
-		if(normalized.signum() <= 0)
-		{
-			throw new IllegalArgumentException("Vault travel cost is too small");
-		}
-		if(normalized.scale() < 0)
-		{
-			normalized = normalized.setScale(0);
-		}
-		return normalized;
-	}
 
 	static final class Reservation implements PortalTravelCost.Reservation
 	{
 		private final Runnable commitAction;
-		private final OwnerRefundSettlement settlement;
+		private final OwnerRefundSettlement<Player> settlement;
 
 		Reservation(
 			Player player,
 			Runnable commitAction,
-			OwnerRefundSettlement.RefundAction refundAction,
-			OwnerRefundSettlement.Executor refundExecutor)
+			OwnerRefundSettlement.RefundAction<Player> refundAction,
+			OwnerRefundSettlement.Executor<Player> refundExecutor)
 		{
 			this.commitAction = Objects.requireNonNull(commitAction, "commitAction");
-			settlement = new OwnerRefundSettlement(
-				player,
+			settlement = new OwnerRefundSettlement<>(new OwnerRefundSettlement.Options<>(
+				player, player.getUniqueId(),
 				refundExecutor,
 				refundAction,
-				"Vault portal travel cost");
+				"Vault portal travel cost", BukkitOwnerRefundExecutor.logger()));
 		}
 
 		@Override

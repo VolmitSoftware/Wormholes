@@ -1,5 +1,7 @@
 package art.arcane.wormholes.door;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -23,7 +25,7 @@ class DimensionalDoorRepositoryTest {
 
     @Test
     void missingRepositoryLoadsEmptyWithoutCreatingStateFile() throws Exception {
-        DimensionalDoorRepository repository = DimensionalDoorRepository.under(temporaryDirectory);
+        DimensionalDoorRepository repository = DimensionalDoorRepository.under(temporaryDirectory, BukkitJsonDocuments.INSTANCE);
 
         assertEquals(DoorStoreSnapshot.empty(), repository.load());
         assertFalse(Files.exists(repository.stateFile()));
@@ -59,8 +61,8 @@ class DimensionalDoorRepositoryTest {
         );
         Path stateFile = temporaryDirectory.resolve("custom-state.json");
 
-        new DimensionalDoorRepository(stateFile).save(expected);
-        DoorStoreSnapshot actual = new DimensionalDoorRepository(stateFile).load();
+        new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).save(expected);
+        DoorStoreSnapshot actual = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).load();
 
         assertEquals(expected, actual);
         assertEquals(List.of(pairedAccess, personalAccess), actual.accessRecords());
@@ -142,7 +144,7 @@ class DimensionalDoorRepositoryTest {
                 publicSpaceId,
                 publicItemId));
 
-        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile);
+        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE);
         DoorStoreSnapshot migrated = repository.load();
 
         assertEquals(DoorStoreSnapshot.CURRENT_SCHEMA, migrated.schema());
@@ -188,7 +190,7 @@ class DimensionalDoorRepositoryTest {
             }
             """.formatted(id(130), id(131)));
 
-        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile);
+        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE);
         DoorStoreSnapshot loaded = repository.load();
 
         assertTrue(loaded.accessRecords().isEmpty());
@@ -222,7 +224,7 @@ class DimensionalDoorRepositoryTest {
                 id(320), id(321), id(322),
                 id(330), id(331)));
 
-        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile);
+        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE);
         DoorStoreSnapshot migrated = repository.load();
 
         assertEquals(DoorStoreSnapshot.CURRENT_SCHEMA, migrated.schema());
@@ -241,7 +243,7 @@ class DimensionalDoorRepositoryTest {
         String upgraded = Files.readString(stateFile);
         assertTrue(upgraded.contains("\"schema\": 8"));
         assertFalse(upgraded.contains("\"mode\""));
-        assertEquals(migrated, new DimensionalDoorRepository(stateFile).load());
+        assertEquals(migrated, new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).load());
     }
 
     @Test
@@ -261,7 +263,7 @@ class DimensionalDoorRepositoryTest {
             }
             """.formatted(id(340), id(341), id(341), id(342)));
 
-        DoorStoreSnapshot migrated = new DimensionalDoorRepository(stateFile).load();
+        DoorStoreSnapshot migrated = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).load();
 
         DoorAccessRecord record = migrated.accessRecords().get(0);
         assertEquals(DoorAccessState.BLACKLIST, record.stateOf(id(341)));
@@ -287,8 +289,8 @@ class DimensionalDoorRepositoryTest {
             List.of(), List.of(), List.of()
         );
 
-        new DimensionalDoorRepository(stateFile).save(expected);
-        DoorStoreSnapshot actual = new DimensionalDoorRepository(stateFile).load();
+        new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).save(expected);
+        DoorStoreSnapshot actual = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).load();
 
         assertEquals(expected, actual);
         assertEquals(DoorForm.TRAPDOOR, actual.endpoints().get(0).identity().form());
@@ -327,7 +329,7 @@ class DimensionalDoorRepositoryTest {
             }
             """.formatted(id(410), id(411)));
 
-        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile);
+        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE);
         DoorStoreSnapshot migrated = repository.load();
 
         assertEquals(DoorStoreSnapshot.CURRENT_SCHEMA, migrated.schema());
@@ -339,7 +341,7 @@ class DimensionalDoorRepositoryTest {
         assertTrue(upgraded.contains("\"form\": \"DOOR\""));
         assertTrue(upgraded.contains("\"openState\": \"OPEN\""));
 
-        assertEquals(migrated, new DimensionalDoorRepository(stateFile).load());
+        assertEquals(migrated, new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).load());
         assertEquals(upgraded, Files.readString(stateFile), "an already migrated file must not be rewritten");
     }
 
@@ -351,7 +353,7 @@ class DimensionalDoorRepositoryTest {
             "\"form\": \"TRAPDOOR\",",
             "\"activeWhenOpen\": false,"));
 
-        DoorStoreSnapshot migrated = new DimensionalDoorRepository(stateFile).load();
+        DoorStoreSnapshot migrated = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).load();
 
         assertEquals(DoorOpenState.CLOSED, migrated.endpoints().get(0).openState());
         String upgraded = Files.readString(stateFile);
@@ -364,22 +366,22 @@ class DimensionalDoorRepositoryTest {
     void corruptedFormAndOpenStateValuesFailTheLoadInsteadOfDefaultingSilently() throws Exception {
         Path unknownForm = temporaryDirectory.resolve("unknown-form-state.json");
         Files.writeString(unknownForm, endpointState(6, "\"form\": \"HATCH\",", "\"openState\": \"OPEN\","));
-        assertThrows(IOException.class, () -> new DimensionalDoorRepository(unknownForm).load());
+        assertThrows(IOException.class, () -> new DimensionalDoorRepository(unknownForm, BukkitJsonDocuments.INSTANCE).load());
 
         Path missingForm = temporaryDirectory.resolve("missing-form-state.json");
         Files.writeString(missingForm, endpointState(6, "", "\"openState\": \"OPEN\","));
-        assertThrows(IOException.class, () -> new DimensionalDoorRepository(missingForm).load());
+        assertThrows(IOException.class, () -> new DimensionalDoorRepository(missingForm, BukkitJsonDocuments.INSTANCE).load());
 
         Path missingOpenState = temporaryDirectory.resolve("missing-open-state.json");
         Files.writeString(missingOpenState, endpointState(6, "\"form\": \"TRAPDOOR\",", ""));
-        assertThrows(IOException.class, () -> new DimensionalDoorRepository(missingOpenState).load());
+        assertThrows(IOException.class, () -> new DimensionalDoorRepository(missingOpenState, BukkitJsonDocuments.INSTANCE).load());
 
         Path corruptOpenState = temporaryDirectory.resolve("corrupt-open-state.json");
         Files.writeString(corruptOpenState, endpointState(
             6,
             "\"form\": \"TRAPDOOR\",",
             "\"openState\": \"SIDEWAYS\","));
-        assertThrows(IOException.class, () -> new DimensionalDoorRepository(corruptOpenState).load());
+        assertThrows(IOException.class, () -> new DimensionalDoorRepository(corruptOpenState, BukkitJsonDocuments.INSTANCE).load());
     }
 
     @Test
@@ -390,7 +392,7 @@ class DimensionalDoorRepositoryTest {
             "\"form\": \"DOOR\",",
             "\"activeWhenOpen\": \"maybe\","));
 
-        assertThrows(IOException.class, () -> new DimensionalDoorRepository(corrupt).load());
+        assertThrows(IOException.class, () -> new DimensionalDoorRepository(corrupt, BukkitJsonDocuments.INSTANCE).load());
     }
 
     private static String endpointState(int schema, String formEntry, String openStateEntry) {
@@ -438,7 +440,7 @@ class DimensionalDoorRepositoryTest {
             }
             """.formatted(id(350), id(351), id(352)));
 
-        assertThrows(IOException.class, () -> new DimensionalDoorRepository(stateFile).load());
+        assertThrows(IOException.class, () -> new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).load());
     }
 
     @Test
@@ -454,7 +456,7 @@ class DimensionalDoorRepositoryTest {
     @Test
     void returnTicketApisReplacePersistAndRemovePerPlayer() throws Exception {
         Path stateFile = temporaryDirectory.resolve("state.json");
-        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile);
+        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE);
         ReturnTicket first = ticket(id(20), id(21));
         ReturnTicket replacement = new ReturnTicket(
             first.playerId(), id(22), id(23), "minecraft:the_nether", 9.5, 75, -4.5, 180, -10
@@ -469,12 +471,12 @@ class DimensionalDoorRepositoryTest {
         assertEquals(1, repository.load().returnTickets().size());
         assertEquals(
             replacement,
-            new DimensionalDoorRepository(stateFile).getReturnTicket(first.playerId()).orElseThrow()
+            new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).getReturnTicket(first.playerId()).orElseThrow()
         );
 
         assertEquals(replacement, repository.removeReturnTicket(first.playerId()).orElseThrow());
         assertTrue(repository.getReturnTicket(first.playerId()).isEmpty());
-        assertTrue(new DimensionalDoorRepository(stateFile).load().returnTickets().isEmpty());
+        assertTrue(new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).load().returnTickets().isEmpty());
         assertTrue(repository.removeReturnTicket(first.playerId()).isEmpty());
     }
 
@@ -513,7 +515,7 @@ class DimensionalDoorRepositoryTest {
                 ticket.pitch()
             ));
 
-        DoorStoreSnapshot migrated = new DimensionalDoorRepository(stateFile).load();
+        DoorStoreSnapshot migrated = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).load();
 
         assertEquals(List.of(ticket), migrated.returnTickets());
         assertTrue(Files.readString(stateFile).contains("\"returnTickets\": []"));
@@ -525,24 +527,24 @@ class DimensionalDoorRepositoryTest {
     @Test
     void successiveAtomicSavesReplaceWholeSnapshot() throws Exception {
         Path stateFile = temporaryDirectory.resolve("state.json");
-        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile);
+        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE);
         repository.save(DoorStoreSnapshot.empty().withReturnTicket(ticket(id(30), id(31))));
         repository.save(DoorStoreSnapshot.empty());
 
-        assertEquals(DoorStoreSnapshot.empty(), new DimensionalDoorRepository(stateFile).load());
+        assertEquals(DoorStoreSnapshot.empty(), new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).load());
     }
 
     @Test
     void malformedAndUnsupportedFilesFailLoudly() throws Exception {
         Path malformed = temporaryDirectory.resolve("malformed.json");
         Files.writeString(malformed, "{ definitely not json");
-        assertThrows(IOException.class, () -> new DimensionalDoorRepository(malformed).load());
+        assertThrows(IOException.class, () -> new DimensionalDoorRepository(malformed, BukkitJsonDocuments.INSTANCE).load());
 
         Path unsupported = temporaryDirectory.resolve("unsupported.json");
         Files.writeString(unsupported, """
             {"schema": 999, "nextPocketSlot": 0, "pairs": [], "endpoints": [], "spaces": [], "returnTickets": []}
             """);
-        assertThrows(IOException.class, () -> new DimensionalDoorRepository(unsupported).load());
+        assertThrows(IOException.class, () -> new DimensionalDoorRepository(unsupported, BukkitJsonDocuments.INSTANCE).load());
     }
 
     @Test
@@ -550,7 +552,7 @@ class DimensionalDoorRepositoryTest {
         Path stateFile = temporaryDirectory.resolve("state.json");
         Files.writeString(stateFile, "{\"nextPocketSlot\": 37, broken");
 
-        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile);
+        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE);
 
         assertThrows(IOException.class, repository::load);
         assertEquals(37L, repository.recoverNextPocketSlot());
@@ -563,7 +565,7 @@ class DimensionalDoorRepositoryTest {
             stateFile,
             "{\"nextPocketSlot\":1,\"spaces\":[{\"slot\":4},{\"slot\":9}], broken");
 
-        assertEquals(10L, new DimensionalDoorRepository(stateFile).recoverNextPocketSlot());
+        assertEquals(10L, new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).recoverNextPocketSlot());
     }
 
     @Test
@@ -573,7 +575,7 @@ class DimensionalDoorRepositoryTest {
 
         assertThrows(
             IOException.class,
-            () -> new DimensionalDoorRepository(stateFile).recoverNextPocketSlot());
+            () -> new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).recoverNextPocketSlot());
     }
 
     @Test
@@ -641,7 +643,7 @@ class DimensionalDoorRepositoryTest {
             }
             """.formatted(spaceId, doorItemId));
 
-        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile);
+        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE);
         DoorStoreSnapshot migrated = repository.load();
 
         PocketShell migratedShell = migrated.spaces().get(0).shell();
@@ -671,11 +673,11 @@ class DimensionalDoorRepositoryTest {
             shell
         );
         Path stateFile = temporaryDirectory.resolve("resized-state.json");
-        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile);
+        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE);
         repository.save(new DoorStoreSnapshot(
             DoorStoreSnapshot.CURRENT_SCHEMA, 1, List.of(), List.of(), List.of(space), List.of(), List.of()));
 
-        DoorStoreSnapshot reloaded = new DimensionalDoorRepository(stateFile).load();
+        DoorStoreSnapshot reloaded = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).load();
 
         assertEquals(shell, reloaded.spaces().get(0).shell());
         assertEquals(space, reloaded.spaces().get(0));
@@ -720,7 +722,7 @@ class DimensionalDoorRepositoryTest {
             }
             """.formatted(worldId, doorItemId, spaceId, doorItemId));
 
-        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile);
+        DimensionalDoorRepository repository = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE);
         DoorStoreSnapshot migrated = repository.load();
 
         assertEquals(DoorProjectionState.INHERIT, migrated.endpoints().get(0).projection());
@@ -768,8 +770,8 @@ class DimensionalDoorRepositoryTest {
         DoorStoreSnapshot expected = new DoorStoreSnapshot(
             DoorStoreSnapshot.CURRENT_SCHEMA, 1, List.of(), List.of(endpoint), List.of(space), List.of(), List.of());
 
-        new DimensionalDoorRepository(stateFile).save(expected);
-        DoorStoreSnapshot actual = new DimensionalDoorRepository(stateFile).load();
+        new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).save(expected);
+        DoorStoreSnapshot actual = new DimensionalDoorRepository(stateFile, BukkitJsonDocuments.INSTANCE).load();
 
         assertEquals(expected, actual);
         assertEquals(DoorProjectionState.OFF, actual.endpoints().get(0).projection());

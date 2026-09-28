@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.replication;
 
+import art.arcane.wormholes.network.view.BukkitRemoteViewCodec;
+
 import art.arcane.wormholes.network.WireMessage;
 import art.arcane.wormholes.network.view.ViewSlice;
 
@@ -28,11 +30,11 @@ class ReplicationIntegrationTest {
         ChunkReplicationManager manager = source.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] bulkPayload = synthesizeBulkPayload(0, 0, 17L);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), bulkPayload, contentHashOf(bulkPayload));
 
-        RemoteChunkStore sink = new RemoteChunkStore();
+        RemoteChunkStore sink = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         WireMessage bulkMessage = source.sentTo(PEER).get(0);
         assertTrue(bulkMessage instanceof WireMessage.ChunkBulkBatch);
         WireMessage.ChunkBulkBatch chunkBulkBatch = (WireMessage.ChunkBulkBatch) bulkMessage;
@@ -47,7 +49,7 @@ class ReplicationIntegrationTest {
             int lz = random.nextInt(16);
             changes.add(new BlockChange(BlockChange.pack(lx, ly, lz), "minecraft:dirt", BlockChange.FLAG_NONE));
         }
-        manager.onChunkDrain(world, chunkKey, changes, List.of(), List.of());
+        manager.onChunkDrain(world.getUID(), chunkKey, changes, List.of(), List.of());
         source.clear();
         manager.flushTick();
         assertEquals(0L, manager.canonicalHash(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey)));
@@ -67,11 +69,11 @@ class ReplicationIntegrationTest {
         ChunkReplicationManager manager = source.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] bulkPayload = synthesizeBulkPayload(0, 0, 17L);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), bulkPayload, contentHashOf(bulkPayload));
 
-        RemoteChunkStore sink = new RemoteChunkStore();
+        RemoteChunkStore sink = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         byte[] tamperedPayload = synthesizeBulkPayload(0, 0, 99L);
         sink.applyBulk(new ChunkBulk(ReplicationTestStream.stream(world.getUID(), world, chunkKey), 1L, tamperedPayload));
         assertNotEquals(manager.canonicalHash(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey)), sink.hashAt(ReplicationTestStream.stream(world.getUID(), world, chunkKey)));
@@ -85,7 +87,7 @@ class ReplicationIntegrationTest {
 
     @Test
     void sequenceGapTriggersResyncRequest(@TempDir Path dir) throws IOException {
-        RemoteChunkStore sink = new RemoteChunkStore(4, 50L);
+        RemoteChunkStore sink = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, new RemoteChunkStore.Options(4, 50L));
         long chunkKey = ViewSlice.columnKey(0, 0);
         ReplicationStreamKey stream = ReplicationTestStream.stream(chunkKey);
         sink.applyBulk(new ChunkBulk(stream, 1L, synthesizeBulkPayload(0, 0, 1L)));
@@ -111,7 +113,7 @@ class ReplicationIntegrationTest {
         ChunkReplicationManager manager = source.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(1, 1);
-        manager.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        manager.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         byte[] bulkPayload = synthesizeBulkPayload(1, 1, 5L);
         manager.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), bulkPayload, contentHashOf(bulkPayload));
         assertTrue(manager.isBulked(PEER, ReplicationTestStream.stream(world.getUID(), world, chunkKey)));

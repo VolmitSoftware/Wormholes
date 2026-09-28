@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 
 import org.junit.jupiter.api.Test;
@@ -193,7 +195,7 @@ class DictionaryExchangeLimitsTest {
         config.enabled = true;
         config.serverName = "local";
         config.transport.compressionEnabled = true;
-        NetworkManager manager = new NetworkManager(LOGGER, config, "26.2", "test", 25565, tempDir.resolve("manager-" + System.nanoTime()));
+        NetworkManager manager = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", 25565, tempDir.resolve("manager-" + System.nanoTime()), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         DictionaryExchange exchange = new DictionaryExchange(manager, LOGGER, tempDir.resolve("exchange-" + System.nanoTime()), config);
         return new TestContext(manager, exchange);
     }

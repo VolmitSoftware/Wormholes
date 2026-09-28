@@ -1,5 +1,6 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.wormholes.network.TraversalAdmissionPolicy;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
@@ -14,7 +15,7 @@ import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 import art.arcane.volmlib.util.inventorygui.Window;
 
-public interface ILocalPortal extends IPortal, Listener
+public interface ILocalPortal extends IPortal, IWritable, Listener, TraversalAdmissionPolicy.InboundPortal
 {
 	public void save();
 
@@ -213,7 +214,7 @@ public interface ILocalPortal extends IPortal, Listener
 
 	public default boolean blocksProjection()
 	{
-		return hasSurfaceSkin() && !PortalSurfaceSkins.isTransparentSkin(getSurfaceSkin());
+		return hasSurfaceSkin() && !BukkitPortalSurfaces.isTransparentSkin(getSurfaceSkin());
 	}
 
 	public AxisAlignedBB getView();

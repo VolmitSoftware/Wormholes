@@ -241,7 +241,7 @@ public final class ConvoyGraph {
             if (location == null || location.getWorld() == null || world == null || !location.getWorld().equals(world)) {
                 return false;
             }
-            if (!captureZone.contains(location.toVector())) {
+            if (!captureZone.containsPrimitive(location.getX(), location.getY(), location.getZ())) {
                 return false;
             }
         }

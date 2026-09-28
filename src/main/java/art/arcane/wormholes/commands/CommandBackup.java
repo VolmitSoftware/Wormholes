@@ -12,6 +12,7 @@ import art.arcane.wormholes.localization.OpsMessages;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.ops.backup.BackupService;
+import art.arcane.wormholes.ops.OpsSubsystem;
 import art.arcane.wormholes.ops.backup.BundleSignature;
 import art.arcane.wormholes.ops.backup.RestorePlan;
 import art.arcane.wormholes.ops.backup.WorldKeyRemap;
@@ -296,7 +297,7 @@ public class CommandBackup {
     }
 
     private static BackupService service() {
-        return BackupService.forRuntime(Wormholes.instance.getDataFolder().toPath());
+        return OpsSubsystem.backupService(Wormholes.instance.getDataFolder().toPath());
     }
 
     private static int retain() {

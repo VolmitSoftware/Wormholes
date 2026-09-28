@@ -17,7 +17,7 @@
 #   {address}  Adres sieciowy węzła zdalnego
 #   {after}  Treść wiadomości po edycji
 #   {allocation}  Przydzielona przestrzeń kieszeni
-#   {amount}  Koszt podróży w walucie Vault
+#  {amount} Koszt podróży w walucie
 #   {argument}  Nieoczekiwany argument polecenia
 #   {before}  Treść wiadomości przed edycją
 #   {biome}  Identyfikator biomu
@@ -405,7 +405,7 @@ dimensional_return_disabled = "Ścieżka powrotna pozostaje wyłączona."
 [portal.label.cost]
 free = "Darmowy"
 vanilla = "Przedmiot vanilla"
-vault = "Ekonomia Vault"
+vault = "Ekonomia"
 
 [portal.label.quality]
 standard = "Standardowa"
@@ -536,12 +536,12 @@ linked = ["&6&l{portal}&r", "&7Typ: &e{type}", "&7Kierunek: &9{facing}", "&7Poł
 unlinked = ["&6&l{portal}&r", "&7Typ: &e{type}", "&7Kierunek: &9{facing}", "&7Połączony z: &c{none}", "", "&8Operatorzy omijają listy dozwolonych i zablokowanych."]
 
 [portal.menu.cost]
-opener = ["&6&lKoszt podróży&r", "&7Wymagaj dokładnego przedmiotu lub waluty Vault,", "&7gdy gracz używa tego portalu.", "", "&7Tryb: &f{mode}", "&7Koszt: &f{cost}", "", "&8Kliknij, aby skonfigurować."]
+opener = ["&6&lKoszt podróży&r", "&7Wymagaj dokładnego przedmiotu lub waluty,", "&7gdy gracz używa tego portalu.", "", "&7Tryb: &f{mode}", "&7Koszt: &f{cost}", "", "&8Kliknij, aby skonfigurować."]
 placard = ["&6&lKoszt podróży&r", "&7Gracze muszą zapłacić, zanim ten portal", "&7pozwoli im podróżować.", "", "&7Tryb: &f{mode}", "&7Koszt: &f{cost}"]
 mode_free = ["&a&lDarmowy&r", "&7Nie jest wymagana żadna opłata.", "", "&8Kliknij, aby podróż była darmowa."]
 mode_vanilla = ["&b&lPrzedmiot vanilla&r", "&7Zużywa dokładnie pasujący przedmiot.", "", "&8Kliknij, trzymaj przedmiot, a następnie naciśnij Upuść."]
-mode_vault = ["&a&lEkonomia Vault&r", "&7Pobiera walutę poprzez Vault.", "", "&8Kliknij, aby wpisać kwotę."]
-mode_vault_unavailable = ["&c&lEkonomia Vault niedostępna&r", "&7Wymagane są Vault i dostawca ekonomii.", "", "&8Zainstaluj lub włącz oba, aby użyć tego trybu."]
+mode_vault = ["&a&lEkonomia&r", "&7Pobiera walutę przez dostawcę ekonomii.", "", "&8Kliknij, aby wpisać kwotę."]
+mode_vault_unavailable = ["&c&lEkonomia niedostępna&r", "&7Wymagany jest dostawca ekonomii.", "", "&8Włącz dostawcę ekonomii, aby użyć tego trybu."]
 free_detail = ["&a&lBez kosztu&r", "&7Podróż przez ten portal jest darmowa."]
 secondary_empty = ["&8&lBrak dodatkowego ustawienia&r"]
 item = ["&b&l{item}&r", "&7Ten dokładny przedmiot jest wymagany do podróży.", "&7Przedmiot wyboru nigdy nie jest zużywany.", "", "&8Lewy: wybierz inny trzymany przedmiot.", "&8Prawy: usuń koszt."]
@@ -561,7 +561,7 @@ invite = "&bWklej zaproszenie portalu na czacie (lub '{cancel}'):"
 block_state = "&bWprowadź stan bloku dla krawędzi widoku sieciowego tego portalu lub '{cancel}':"
 name = "&bWpisz nową nazwę portalu na czacie (lub '{cancel}'):"
 cost_item = "&bTrzymaj dokładny przedmiot kosztu w głównej ręce, a następnie naciśnij Upuść. Przedmiot nie opuści twojego ekwipunku."
-cost_vault = "&bWpisz kwotę waluty Vault za przejście (lub '{cancel}'):"
+cost_vault = "&bPodaj kwotę za przejście (lub '{cancel}'):"
 direction = ["&8[&6Wormholes&8] &7Spójrz w kierunku i kliknij lewym przyciskiem, aby go zastosować.", "&8[&6Wormholes&8] &7Shift + lewy przycisk, aby anulować."]
 
 [portal.input]
@@ -607,9 +607,9 @@ cost_item_set = "Podróż wymaga teraz {item}."
 cost_item_invalid = "Tego przedmiotu nie udało się zapisać jako kosztu podróży."
 cost_cleared = "Koszt podróży usunięto."
 cost_quantity_changed = "Ilość kosztu podróży: {quantity}"
-cost_vault_changed = "Koszt podróży Vault: {amount}"
+cost_vault_changed = "Koszt podróży: {amount}"
 cost_vault_invalid = "Wpisz dodatnią kwotę waluty nie większą niż {maximum}."
-cost_vault_unavailable = "Vault i dostawca ekonomii muszą być dostępne przed wybraniem tego kosztu."
+cost_vault_unavailable = "Dostawca ekonomii musi być dostępny przed wybraniem tego kosztu."
 mirror_select_first = "Wybierz lustro przed obrazem."
 mirror_rotation_changed = "Obrót lustra: {degrees} stopni"
 rtp_cannot_link = "Portale losowej teleportacji nie łączą się z celami."
@@ -687,7 +687,7 @@ execution_failed = "Nie udało się wykonać polecenia {command}: {reason}"
 not_initialized = "&8[&6Wormholes&8] &cSieć nie została jeszcze zainicjalizowana."
 
 [network.status]
-disabled = "&8[&6Wormholes&8] &7Sieć jest &cwyłączona&7 (plugins/Wormholes/wormholes.toml)."
+disabled = "&8[&6Wormholes&8] &7Sieć jest &cwyłączona&7 (wormholes.toml)."
 not_running = "&8[&6Wormholes&8] &cSieć jest włączona, ale nie działa. Sprawdź magazyn tożsamości i port sieciowy."
 listening = "&8[&6Wormholes&8] &7Ten serwer: &f{server}&7, nasłuchuje na &f{address}"
 outbound_only = "&8[&6Wormholes&8] &7Ten serwer: &f{server}&7, tryb Boat tylko wychodzący"

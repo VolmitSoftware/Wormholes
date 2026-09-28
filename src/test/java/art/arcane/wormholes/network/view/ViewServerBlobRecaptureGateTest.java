@@ -33,8 +33,8 @@ class ViewServerBlobRecaptureGateTest {
         );
     }
 
-    private static ViewServer.BlobCaptureState state(long tick) {
-        return new ViewServer.BlobCaptureState(tick, Pose.STANDING, false, UNCHANGED_STATE);
+    private static ViewEntityState.BlobCaptureState<Pose> state(long tick) {
+        return new ViewEntityState.BlobCaptureState<>(tick, Pose.STANDING, false, UNCHANGED_STATE);
     }
 
     @Test

@@ -32,10 +32,10 @@ public final class ProjectedEntityCandidateCacheTest {
 
     @Test
     public void candidateQueryRangeRoundsUpAndStaysPositive() {
-        assertEquals(48, EntityRenderCaches.candidateQueryRange(47.3D));
-        assertEquals(48, EntityRenderCaches.candidateQueryRange(48.0D));
-        assertEquals(1, EntityRenderCaches.candidateQueryRange(0.25D));
-        assertEquals(1, EntityRenderCaches.candidateQueryRange(Double.NaN));
+        assertEquals(48, EntityCandidateCache.queryRange(47.3D));
+        assertEquals(48, EntityCandidateCache.queryRange(48.0D));
+        assertEquals(1, EntityCandidateCache.queryRange(0.25D));
+        assertEquals(1, EntityCandidateCache.queryRange(Double.NaN));
     }
 
     private static ILocalPortal portal() {

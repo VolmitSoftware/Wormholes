@@ -122,7 +122,7 @@ public final class PortalCandidateSnapshotTest {
         List<ILocalPortal> eligible = new ArrayList<ILocalPortal>();
         for (ILocalPortal portal : portals) {
             Location center = portal.getCenter();
-            if (center != null && world.equals(center.getWorld()) && portal.getView().contains(location)) {
+            if (center != null && world.equals(center.getWorld()) && portal.getView().containsPrimitive(location.getX(), location.getY(), location.getZ())) {
                 eligible.add(portal);
             }
         }
@@ -133,7 +133,7 @@ public final class PortalCandidateSnapshotTest {
         List<ILocalPortal> eligible = new ArrayList<ILocalPortal>();
         for (ILocalPortal portal : snapshot.candidates(world, location)) {
             Location center = portal.getCenter();
-            if (center != null && world.equals(center.getWorld()) && portal.getView().contains(location)) {
+            if (center != null && world.equals(center.getWorld()) && portal.getView().containsPrimitive(location.getX(), location.getY(), location.getZ())) {
                 eligible.add(portal);
             }
         }

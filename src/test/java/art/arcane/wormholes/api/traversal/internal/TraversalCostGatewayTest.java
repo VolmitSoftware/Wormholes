@@ -699,7 +699,7 @@ class TraversalCostGatewayTest {
     void theReentrancyGuardIsReleasedSoNoRegionThreadKeepsGatewayStateForever() throws Exception {
         gateway.evaluate(localContext(player(UUID.randomUUID())));
 
-        java.lang.reflect.Field field = TraversalCostGateway.class.getDeclaredField("inPipeline");
+        java.lang.reflect.Field field = TraversalCostEngine.class.getDeclaredField("inPipeline");
         field.setAccessible(true);
         ThreadLocal<?> guard = (ThreadLocal<?>) field.get(gateway);
 
@@ -855,7 +855,7 @@ class TraversalCostGatewayTest {
     }
 
     private static void awaitClosing(TraversalCostGateway gateway) throws Exception {
-        java.lang.reflect.Field field = TraversalCostGateway.class.getDeclaredField("closing");
+        java.lang.reflect.Field field = TraversalCostEngine.class.getDeclaredField("closing");
         field.setAccessible(true);
         AtomicBoolean closing = (AtomicBoolean) field.get(gateway);
         long deadline = System.nanoTime() + 1_000_000_000L;

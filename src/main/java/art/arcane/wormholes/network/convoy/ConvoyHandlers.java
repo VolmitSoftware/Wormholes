@@ -1,5 +1,17 @@
 package art.arcane.wormholes.network.convoy;
 
+import java.util.UUID;
+import java.util.ArrayList;
+import java.util.List;
+import org.bukkit.Location;
+import org.bukkit.entity.Player;
+import org.bukkit.entity.Entity;
+import art.arcane.wormholes.network.WireTraversive;
+import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.wormholes.portal.LocalPortal;
+import art.arcane.wormholes.portal.Traversive;
+import art.arcane.wormholes.portal.UniversalTunnel;
+import art.arcane.wormholes.transit.ConvoyGraph;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
@@ -16,24 +28,24 @@ public final class ConvoyHandlers {
     private ConvoyHandlers() {
     }
 
-    public static void register(WormholesRegistrar registrar, Supplier<ConvoyTransferService> transfers,
-                                Supplier<ConvoyArrivalPlacer> arrivals, LongSupplier timeoutMillis) {
+    public static void register(WormholesRegistrar registrar, Supplier<ConvoyTransferService<Entity, Player, ConvoyGraph, UniversalTunnel, Traversive, LocalPortal>> transfers,
+                                Supplier<ConvoyArrivalPlacer<Entity, ILocalPortal, Traversive, Location>> arrivals, LongSupplier timeoutMillis) {
         registrar.wireHandler(WireMessageType.CONVOY_TRANSFER, (peerName, message) -> {
-            ConvoyArrivalPlacer placer = arrivals.get();
+            ConvoyArrivalPlacer<Entity, ILocalPortal, Traversive, Location> placer = arrivals.get();
             if (placer != null && message instanceof WireMessage.ConvoyTransfer transfer) {
                 placer.admit(peerName, transfer.manifest(), timeoutMillis.getAsLong());
             }
             return true;
         });
         registrar.wireHandler(WireMessageType.CONVOY_ACK, (peerName, message) -> {
-            ConvoyTransferService service = transfers.get();
+            ConvoyTransferService<Entity, Player, ConvoyGraph, UniversalTunnel, Traversive, LocalPortal> service = transfers.get();
             if (service != null && message instanceof WireMessage.ConvoyAck ack) {
                 service.onAck(peerName, ack);
             }
             return true;
         });
         registrar.wireHandler(WireMessageType.HANDOFF_RESULT, (peerName, message) -> {
-            ConvoyTransferService service = transfers.get();
+            ConvoyTransferService<Entity, Player, ConvoyGraph, UniversalTunnel, Traversive, LocalPortal> service = transfers.get();
             if (service != null && message instanceof WireMessage.HandoffResult result) {
                 service.onHandoffResult(peerName, result);
             }

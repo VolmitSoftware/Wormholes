@@ -1,5 +1,13 @@
 package art.arcane.wormholes.transit;
 
+import java.util.ArrayList;
+import org.bukkit.Location;
+import art.arcane.wormholes.network.WireTraversive;
+import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.wormholes.portal.LocalPortal;
+import art.arcane.wormholes.portal.Traversive;
+import art.arcane.wormholes.portal.UniversalTunnel;
+import art.arcane.wormholes.transit.ConvoyGraph;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -62,7 +70,7 @@ public final class TransitSubsystem implements WormholesSubsystem {
         if (service == null) {
             return;
         }
-        service.installConvoyArrivalHook(service.convoyArrivals());
+        service.installConvoyArrivalHook(service.convoyArrivals()::onPlayerPlaced);
         ConvoyJournal journal = new ConvoyJournal(plugin.getDataFolder().toPath().resolve(CONVOY_FOLDER));
         restoreStaleConvoys(plugin, service, journal);
         service.convoyTransfers().journal(journal);
@@ -82,12 +90,12 @@ public final class TransitSubsystem implements WormholesSubsystem {
         apply(settings == null ? null : settings.getTransit());
     }
 
-    private static ConvoyTransferService convoyTransfers() {
+    private static ConvoyTransferService<Entity, Player, ConvoyGraph, UniversalTunnel, Traversive, LocalPortal> convoyTransfers() {
         TraversalService service = Wormholes.traversalService;
         return service == null ? null : service.convoyTransfers();
     }
 
-    private static ConvoyArrivalPlacer convoyArrivals() {
+    private static ConvoyArrivalPlacer<Entity, ILocalPortal, Traversive, Location> convoyArrivals() {
         TraversalService service = Wormholes.traversalService;
         return service == null ? null : service.convoyArrivals();
     }

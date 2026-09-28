@@ -1,5 +1,6 @@
 package art.arcane.wormholes.ops;
 
+import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
@@ -41,7 +42,7 @@ public final class PortalSafeLanding {
         RtpDestination destination = new RtpDestination(WorldIdentity.serialize(world),
             front.getBlockX(), front.getBlockY(), front.getBlockZ(), 0L, 0);
         RtpService.SearchRequest request = new RtpService.SearchRequest(portal.getId(), 0L,
-            RtpSettings.defaults(world), destination);
+            RtpSettings.defaults(BukkitRtpRuntime.worldSettings(world)), destination);
 
         BukkitRtpCandidateLoader loader = new BukkitRtpCandidateLoader(plugin);
         CompletableFuture<Landing> landing = new CompletableFuture<>();

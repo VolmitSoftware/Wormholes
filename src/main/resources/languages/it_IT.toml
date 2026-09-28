@@ -17,7 +17,7 @@
 #   {address}  Indirizzo del nodo remoto
 #   {after}  Valore del messaggio dopo la modifica
 #   {allocation}  Allocazione dello spazio tascabile
-#   {amount}  Costo del viaggio in valuta Vault
+#  {amount} Costo del viaggio in valuta
 #   {argument}  Argomento di comando inatteso
 #   {before}  Valore del messaggio prima della modifica
 #   {biome}  Identificatore del bioma
@@ -357,7 +357,7 @@ transfer_blocked_retry = "&cTrasferimento del portale bloccato: {reason} (nuovo 
 
 [portal.prompt]
 cost_item = "&bTieni l'oggetto di costo esatto nella mano principale, poi premi Getta. L'oggetto non lascerà il tuo inventario."
-cost_vault = "&bInserisci l'importo di valuta Vault per attraversamento (o '{cancel}'):"
+cost_vault = "&bInserisci l’importo per attraversamento (o '{cancel}'):"
 invite = "&bIncolla l'invito del portale nella chat (o '{cancel}'):"
 block_state = "&bInserire uno stato di blocco per il bordo della vista rete del portale, o '{cancel}':"
 name = "&bInserisci il nuovo nome del portale nella chat (o '{cancel}'):"
@@ -368,9 +368,9 @@ cost_item_set = "Viaggiare ora richiede {item}."
 cost_item_invalid = "Impossibile salvare quell'oggetto come costo di viaggio."
 cost_cleared = "Costo di viaggio rimosso."
 cost_quantity_changed = "Quantità del costo di viaggio: {quantity}"
-cost_vault_changed = "Costo di viaggio Vault: {amount}"
+cost_vault_changed = "Costo del viaggio: {amount}"
 cost_vault_invalid = "Inserisci un importo di valuta positivo non superiore a {maximum}."
-cost_vault_unavailable = "Vault e un fornitore di economia devono essere disponibili prima di selezionare questo costo."
+cost_vault_unavailable = "Deve essere disponibile un fornitore di economia prima di selezionare questo costo."
 dimensional_link_managed = "Questo portale dimensionale mantiene il suo collegamento generato."
 not_rtp = "Questo portale non è più in modalità teleportazione casuale."
 region_unavailable = "La regione del portale non è disponibile; riprova."
@@ -397,7 +397,7 @@ public_look_label = "Etichetta pubblica quando osservato"
 [portal.label.cost]
 free = "Gratuito"
 vanilla = "Oggetto vanilla"
-vault = "Economia Vault"
+vault = "Economia"
 
 [portal.label.ambient]
 red = "Rosso"
@@ -552,12 +552,12 @@ available = ["&e&lSpecchio&r", "&7Riflettete il mondo locale.", "&7Vedi te stess
 flip = ["&7Gli specchi murali si girano a 180 gradi", "&7in modo che le entità riflesse restino allineate.", "&8Clicca a destra: inversa l'immagine riflessa."]
 
 [portal.menu.cost]
-opener = ["&6&lCosto di viaggio&r", "&7Richiedi un oggetto esatto o valuta Vault", "&7quando un giocatore usa questo portale.", "", "&7Modalità: &f{mode}", "&7Costo: &f{cost}", "", "&8Fai clic per configurare."]
+opener = ["&6&lCosto di viaggio&r", "&7Richiedi un oggetto esatto o valuta", "&7quando un giocatore usa questo portale.", "", "&7Modalità: &f{mode}", "&7Costo: &f{cost}", "", "&8Fai clic per configurare."]
 placard = ["&6&lCosto di viaggio&r", "&7I giocatori devono pagare prima che questo portale", "&7permetta loro di viaggiare.", "", "&7Modalità: &f{mode}", "&7Costo: &f{cost}"]
 mode_free = ["&a&lGratuito&r", "&7Non è richiesto alcun pagamento.", "", "&8Fai clic per rendere il viaggio gratuito."]
 mode_vanilla = ["&b&lOggetto vanilla&r", "&7Consuma un oggetto che corrisponde esattamente.", "", "&8Fai clic, tieni l'oggetto, poi premi Getta."]
-mode_vault = ["&a&lEconomia Vault&r", "&7Preleva valuta tramite Vault.", "", "&8Fai clic per inserire un importo."]
-mode_vault_unavailable = ["&c&lEconomia Vault non disponibile&r", "&7Sono richiesti Vault e un fornitore di economia.", "", "&8Installa o attiva entrambi per usare questa modalità."]
+mode_vault = ["&a&lEconomia&r", "&7Preleva valuta tramite un fornitore di economia.", "", "&8Fai clic per inserire un importo."]
+mode_vault_unavailable = ["&c&lEconomia non disponibile&r", "&7È necessario un fornitore di economia.", "", "&8Abilita un fornitore di economia per questa modalità."]
 free_detail = ["&a&lNessun costo&r", "&7Viaggiare attraverso questo portale è gratuito."]
 secondary_empty = ["&8&lNessuna impostazione aggiuntiva&r"]
 item = ["&b&l{item}&r", "&7Per viaggiare è richiesto esattamente questo oggetto.", "&7L'oggetto di selezione non viene mai consumato.", "", "&8Sinistro: seleziona un altro oggetto in mano.", "&8Destro: rimuovi il costo."]
@@ -687,7 +687,7 @@ execution_failed = "Impossibile eseguire il comando {command}: {reason}"
 not_initialized = "&8[&6Wormholes&8] &cLa rete non è ancora stata inizializzata."
 
 [network.status]
-disabled = "&8[&6Wormholes&8] &7La rete è &cdisabilitata&7 (plugins/Wormholes/wormholes.toml)."
+disabled = "&8[&6Wormholes&8] &7La rete è &cdisabilitata&7 (wormholes.toml)."
 not_running = "&8[&6Wormholes&8] &cLa rete è abilitata ma non è in esecuzione. Controlla l'archivio dell'identità e la porta di rete."
 listening = "&8[&6Wormholes&8] &7Questo server: &f{server}&7, in ascolto su &f{address}"
 outbound_only = "&8[&6Wormholes&8] &7Questo server: &f{server}&7, modalità Boat solo in uscita"

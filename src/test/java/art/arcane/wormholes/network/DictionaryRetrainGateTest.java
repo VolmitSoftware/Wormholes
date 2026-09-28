@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -66,7 +68,7 @@ class DictionaryRetrainGateTest {
         config.listenPort = freePort();
         config.transport.compressionDictTrainBytes = 512 * 1024;
         config.transport.compressionDictTargetSize = 8 * 1024;
-        NetworkManager manager = new NetworkManager(LOGGER, config, "26.2", "test", 25565, tempDir.resolve(identityName));
+        NetworkManager manager = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", 25565, tempDir.resolve(identityName), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         managers.add(manager);
         manager.start();
         assertTrue(manager.isRunning());

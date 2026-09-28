@@ -1,5 +1,7 @@
 package art.arcane.wormholes.render.view;
 
+import art.arcane.wormholes.network.view.BukkitProjectedMapData;
+import art.arcane.wormholes.render.view.ProjectionContentView;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.view.EntityVisual;
@@ -153,7 +155,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             int minHeight = current == null ? world.getMinHeight() : current.minHeight;
             int maxHeight = current == null ? world.getMaxHeight() : current.maxHeight;
             CapturedChunk captured = new CapturedChunk(snapshot, minHeight, maxHeight,
-                ProjectionWorldView.computeSkyDarken(world.getTime(), world.hasStorm(), world.isThundering()), now, entities,
+                ProjectionSkyMath.computeSkyDarken(world.getTime(), world.hasStorm(), world.isThundering()), now, entities,
                 chunkX, chunkZ, trackerVersion, refreshBlocks ? now : current.snapshotCapturedAtMillis,
                 blockEntities, refreshBlockEntities ? now : current.blockEntitiesCapturedAtMillis);
             view.publish(key, captured);
@@ -336,7 +338,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             if (chunk == null || y < chunk.minHeight || y >= chunk.maxHeight) {
                 return LIGHT_UNAVAILABLE;
             }
-            return ProjectionWorldView.packLight(chunk.snapshot.getBlockSkyLight(x & 15, y, z & 15),
+            return ProjectionContentView.packLight(chunk.snapshot.getBlockSkyLight(x & 15, y, z & 15),
                 chunk.snapshot.getBlockEmittedLight(x & 15, y, z & 15));
         }
 
@@ -569,11 +571,11 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
 
     private static byte[] captureMapData(Entity entity) {
         if (!(entity instanceof ItemFrame itemFrame)) {
-            return PacketBlobs.EMPTY;
+            return EntityVisual.EMPTY;
         }
-        return ProjectedMapData.capture(itemFrame)
+        return BukkitProjectedMapData.capture(itemFrame)
             .map(ProjectedMapData::encode)
-            .orElse(PacketBlobs.EMPTY);
+            .orElse(EntityVisual.EMPTY);
     }
 
     private static MapView mapView(Entity entity) {

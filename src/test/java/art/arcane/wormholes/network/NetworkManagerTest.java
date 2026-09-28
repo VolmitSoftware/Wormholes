@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.portal.UniversalTunnel;
@@ -46,11 +48,20 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 class NetworkManagerTest {
     private static final Logger LOGGER = Logger.getLogger("NetworkManagerTest");
     private static final String ALPHA_NAME = "alpha";
-    private static final int ALPHA_GAME_PORT = 25565;
+    private static final int ALPHA_GAME_PORT;
     private static final String BETA_NAME = "beta";
-    private static final int BETA_GAME_PORT = 25566;
+    private static final int BETA_GAME_PORT;
     private static final String ZULU_NAME = "zulu";
     private static final Map<String, Handler> CAPTURED = new ConcurrentHashMap<>();
+
+    static {
+        try {
+            ALPHA_GAME_PORT = TestPorts.free();
+            BETA_GAME_PORT = TestPorts.free();
+        } catch (IOException error) {
+            throw new ExceptionInInitializerError(error);
+        }
+    }
 
     @TempDir
     Path tempDir;
@@ -125,6 +136,11 @@ class NetworkManagerTest {
 
     private static void startAndDial(NetworkManager... started) {
         for (NetworkManager manager : started) {
+            for (NetworkManager peer : started) {
+                if (peer != manager) {
+                    manager.statusPollInFlight.add(peer.getLocalName());
+                }
+            }
             manager.start();
             assertEquals(manager.activeConfig().listenPort, manager.getBoundListenPort(),
                 "listener fell back off its configured port, so saved peer routes would point at nothing");
@@ -203,8 +219,8 @@ class NetworkManagerTest {
 
     private NetworkManager manager(NetworkConfig config, int gamePort, String identityName, String mcVersion,
                                    String pluginVersion) {
-        NetworkManager manager = new NetworkManager(LOGGER, config, mcVersion, pluginVersion, gamePort,
-            tempDir.resolve(identityName));
+        NetworkManager manager = new NetworkManager(LOGGER, new NetworkManager.Options( config, mcVersion, pluginVersion, gamePort,
+            tempDir.resolve(identityName), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         managers.add(manager);
         return manager;
     }
@@ -443,7 +459,13 @@ class NetworkManagerTest {
 
         startAndDial(anchor, boat);
 
-        awaitTrue("boat reaches anchor", () -> boat.isPeerReady(ALPHA_NAME), 10_000L);
+        try {
+            awaitTrue("boat reaches anchor", () -> boat.isPeerReady(ALPHA_NAME), 10_000L);
+        } catch (AssertionError failure) {
+            throw new AssertionError("Boat dial error: " + boat.dialer().lastError(ALPHA_NAME)
+                + "; boat pending=" + boat.links().pendingCount() + "; anchor pending=" + anchor.links().pendingCount()
+                + "; boat status=" + boat.status() + "; anchor status=" + anchor.status(), failure);
+        }
         awaitTrue("anchor accepts boat", () -> anchor.isPeerReady(BETA_NAME), 10_000L);
     }
 
@@ -597,8 +619,15 @@ class NetworkManagerTest {
 
     @Test
     void sidebandFragmentAssemblySaturationRejectsTheNewBatch() throws IOException {
-        NetworkManager alpha = manager(config(freePort(), ALPHA_NAME), ALPHA_GAME_PORT, "fragment-cap-alpha");
-        NetworkManager beta = manager(config(freePort(), BETA_NAME), BETA_GAME_PORT, "fragment-cap-beta");
+        NetworkConfig alphaConfig = config(freePort(), ALPHA_NAME);
+        NetworkConfig betaConfig = config(freePort(), BETA_NAME);
+        alphaConfig.listenEnabled = false;
+        betaConfig.listenEnabled = false;
+        NetworkManager alpha = manager(alphaConfig, ALPHA_GAME_PORT, "fragment-cap-alpha");
+        NetworkManager beta = manager(betaConfig, BETA_GAME_PORT, "fragment-cap-beta");
+        alpha.statusPollInFlight.add(BETA_NAME);
+        beta.statusPollInFlight.add(ALPHA_NAME);
+        alpha.start();
         beta.start();
         for (long messageId = 0L; messageId < 128L; messageId++) {
             WireMessage.SidebandFragment fragment = new WireMessage.SidebandFragment(
@@ -613,7 +642,13 @@ class NetworkManagerTest {
                 WireCodec.encodeFrame(fragment)
             );
             MinecraftStatusBridge.StatusPacket request = alpha.createStatusBridgePacket(BETA_NAME, List.of(encoded));
-            assertNotNull(beta.handleStatusBridgeRequest(request));
+            MinecraftStatusBridge.StatusPacket response = beta.handleStatusBridgeRequest(request);
+            assertNotNull(response);
+            assertTrue(alpha.handleStatusBridgeResponse(BETA_NAME, response, 1L));
+            assertEquals(messageId + 1, beta.fragmenter().assemblyCount());
+            if (messageId == 0L) {
+                assertTrue(beta.send(ALPHA_NAME, new WireMessage.ViewTime(UUID.randomUUID(), 11)));
+            }
         }
         WireMessage.SidebandFragment overflow = new WireMessage.SidebandFragment(
             128L,

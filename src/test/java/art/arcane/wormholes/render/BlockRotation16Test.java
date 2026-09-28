@@ -11,9 +11,9 @@ final class BlockRotation16Test {
     @Test
     void indexRoundTripsAllSixteenFaces() {
         for (int index = 0; index < 16; index++) {
-            assertEquals(index, BlockRotation16.index(BlockRotation16.face(index)));
+            assertEquals(index, BukkitBlockRotation16.index(BukkitBlockRotation16.face(index)));
         }
-        assertEquals(-1, BlockRotation16.index(BlockFace.UP));
+        assertEquals(-1, BukkitBlockRotation16.index(BlockFace.UP));
     }
 
     @Test
@@ -26,17 +26,17 @@ final class BlockRotation16Test {
 
     @Test
     void reflectionAcrossNorthSouthPlaneSwapsEastAndWest() {
-        assertEquals(BlockRotation16.index(BlockFace.WEST),
-            BlockRotation16.reflect(BlockRotation16.index(BlockFace.EAST), Direction.E));
-        assertEquals(BlockRotation16.index(BlockFace.NORTH_NORTH_WEST),
-            BlockRotation16.reflect(BlockRotation16.index(BlockFace.NORTH_NORTH_EAST), Direction.E));
-        assertEquals(BlockRotation16.index(BlockFace.SOUTH),
-            BlockRotation16.reflect(BlockRotation16.index(BlockFace.NORTH), Direction.S));
+        assertEquals(BukkitBlockRotation16.index(BlockFace.WEST),
+            BlockRotation16.reflect(BukkitBlockRotation16.index(BlockFace.EAST), Direction.E));
+        assertEquals(BukkitBlockRotation16.index(BlockFace.NORTH_NORTH_WEST),
+            BlockRotation16.reflect(BukkitBlockRotation16.index(BlockFace.NORTH_NORTH_EAST), Direction.E));
+        assertEquals(BukkitBlockRotation16.index(BlockFace.SOUTH),
+            BlockRotation16.reflect(BukkitBlockRotation16.index(BlockFace.NORTH), Direction.S));
     }
 
     @Test
     void reflectionAcrossAHorizontalPlaneLeavesHorizontalRotationsAlone() {
-        assertEquals(BlockRotation16.index(BlockFace.NORTH_NORTH_EAST),
-            BlockRotation16.reflect(BlockRotation16.index(BlockFace.NORTH_NORTH_EAST), Direction.U));
+        assertEquals(BukkitBlockRotation16.index(BlockFace.NORTH_NORTH_EAST),
+            BlockRotation16.reflect(BukkitBlockRotation16.index(BlockFace.NORTH_NORTH_EAST), Direction.U));
     }
 }

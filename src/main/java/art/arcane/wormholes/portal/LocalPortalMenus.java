@@ -534,8 +534,8 @@ final class LocalPortalMenus
 		ProjectionMode mode = portal.getProjectionMode();
 		Wormholes.text().apply(element, mode == ProjectionMode.ON
 				? WormholesMessages.PORTAL_MENU_PROJECTION_ON : WormholesMessages.PORTAL_MENU_PROJECTION_OFF);
-		element.setEnchanted(mode.isEnchanted());
-		element.setMaterial(new MaterialBlock(mode.getIcon()));
+		element.setEnchanted(mode == ProjectionMode.ON);
+		element.setMaterial(new MaterialBlock(mode == ProjectionMode.ON ? Material.REDSTONE_TORCH : Material.TORCH));
 	}
 
 	private Element settingsOpenerElement(Window window, Player viewer)

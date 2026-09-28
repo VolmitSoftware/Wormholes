@@ -1,6 +1,5 @@
 package art.arcane.wormholes.render;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -14,15 +13,16 @@ import org.bukkit.entity.Entity;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
 
-import art.arcane.volmlib.util.bukkit.WorldIdentity;
+import art.arcane.wormholes.geometry.GeometryVector;
+import org.bukkit.World;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.ILocalPortal;
 
 final class EntityRenderCaches {
     private static final long ENTITY_STATE_REFRESH_MILLIS = 500L;
     private static final long STATIC_CACHE_EVICT_MILLIS = 10_000L;
-    private static final Map<CandidateKey, EntityCandidateSnapshot> REMOTE_ENTITY_CACHE = new ConcurrentHashMap<CandidateKey, EntityCandidateSnapshot>();
-    private static final Map<CandidateKey, EntityCandidateSnapshot> LOCAL_ENTITY_CACHE = new ConcurrentHashMap<CandidateKey, EntityCandidateSnapshot>();
+    private static final EntityCandidateCache<World, Entity> REMOTE_ENTITY_CACHE = new EntityCandidateCache<>(EntityRenderCaches::queryEntities);
+    private static final EntityCandidateCache<World, Entity> LOCAL_ENTITY_CACHE = new EntityCandidateCache<>(EntityRenderCaches::queryEntities);
     private static final Map<UUID, EntityStateSnapshot> ENTITY_STATE_CACHE = new ConcurrentHashMap<UUID, EntityStateSnapshot>();
     private static final AtomicLong STATIC_CACHE_SWEEP_DUE = new AtomicLong(0L);
 
@@ -37,30 +37,16 @@ final class EntityRenderCaches {
         return nearbyEntities(LOCAL_ENTITY_CACHE, portal, center, range);
     }
 
-    private static Collection<Entity> nearbyEntities(Map<CandidateKey, EntityCandidateSnapshot> cache, ILocalPortal portal, Location center, double range) {
+    private static Collection<Entity> nearbyEntities(EntityCandidateCache<World, Entity> cache, ILocalPortal portal, Location center, double range) {
         if (portal == null || portal.getId() == null || center == null || center.getWorld() == null) {
             return List.of();
         }
-        long now = System.currentTimeMillis();
-        sweepStaticCaches(now);
-        int queryRange = candidateQueryRange(range);
-        CandidateKey key = new CandidateKey(portal.getId(), queryRange);
-        EntityCandidateSnapshot snapshot = cache.get(key);
-        long maxAgeMillis = Math.max(1, Settings.ENTITY_CANDIDATE_CACHE_TICKS) * 50L;
-        if (snapshot != null && snapshot.matches(center) && now - snapshot.createdAtMillis <= maxAgeMillis) {
-            return snapshot.entities;
-        }
-        Collection<Entity> entities = center.getWorld().getNearbyEntities(center, queryRange, queryRange, queryRange);
-        EntityCandidateSnapshot next = new EntityCandidateSnapshot(center, now, new ArrayList<Entity>(entities));
-        cache.put(key, next);
-        return next.entities;
+        return cache.nearby(new EntityCandidateCache.Query<>(portal.getId(), center.getWorld(),
+            new GeometryVector(center.getX(), center.getY(), center.getZ()), range, Settings.ENTITY_CANDIDATE_CACHE_TICKS), System.currentTimeMillis());
     }
 
-    static int candidateQueryRange(double range) {
-        if (!Double.isFinite(range) || range <= 1.0D) {
-            return 1;
-        }
-        return (int) Math.ceil(range);
+    private static Collection<Entity> queryEntities(World world, GeometryVector center, int range) {
+        return world.getNearbyEntities(new Location(world, center.x(), center.y(), center.z()), range, range, range);
     }
 
     static EntityStateSnapshot freshEntityState(UUID entityId, long now) {
@@ -80,8 +66,6 @@ final class EntityRenderCaches {
         if (now < due || !STATIC_CACHE_SWEEP_DUE.compareAndSet(due, now + STATIC_CACHE_EVICT_MILLIS)) {
             return;
         }
-        REMOTE_ENTITY_CACHE.values().removeIf(candidate -> now - candidate.createdAtMillis > STATIC_CACHE_EVICT_MILLIS);
-        LOCAL_ENTITY_CACHE.values().removeIf(candidate -> now - candidate.createdAtMillis > STATIC_CACHE_EVICT_MILLIS);
         ENTITY_STATE_CACHE.values().removeIf(snapshot -> now - snapshot.stampMillis > STATIC_CACHE_EVICT_MILLIS);
     }
 
@@ -101,31 +85,4 @@ final class EntityRenderCaches {
         }
     }
 
-    private record CandidateKey(UUID portalId, int rangeBlocks) {
-    }
-
-    private static final class EntityCandidateSnapshot {
-        private final String worldKey;
-        private final int centerBlockX;
-        private final int centerBlockY;
-        private final int centerBlockZ;
-        private final long createdAtMillis;
-        private final List<Entity> entities;
-
-        private EntityCandidateSnapshot(Location center, long createdAtMillis, List<Entity> entities) {
-            this.worldKey = WorldIdentity.serialize(center.getWorld());
-            this.centerBlockX = center.getBlockX();
-            this.centerBlockY = center.getBlockY();
-            this.centerBlockZ = center.getBlockZ();
-            this.createdAtMillis = createdAtMillis;
-            this.entities = entities;
-        }
-
-        private boolean matches(Location center) {
-            return worldKey.equals(WorldIdentity.serialize(center.getWorld()))
-                && centerBlockX == center.getBlockX()
-                && centerBlockY == center.getBlockY()
-                && centerBlockZ == center.getBlockZ();
-        }
-    }
 }

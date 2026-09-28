@@ -3,6 +3,7 @@ package art.arcane.wormholes.access;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.LocalPortal;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Entity;
 
 import java.util.UUID;
 
@@ -22,8 +23,8 @@ public final class PortalAdmission {
         return Wormholes.settings == null || Wormholes.settings.getAccess().legacyNameNodeEnabled;
     }
 
-    public static boolean bypassesAccess(Player player) {
-        return player.isOp() || player.hasPermission("*");
+    public static boolean bypassesAccess(Entity entity) {
+        return entity instanceof Player player && (player.isOp() || player.hasPermission("*"));
     }
 
     /** Role, group and permission-node admission. The land-claim check belongs to the gate alone. */
@@ -36,17 +37,9 @@ public final class PortalAdmission {
             return permissionAllows(portal, player);
         }
         UUID playerId = player.getUniqueId();
-        PortalRole role = access.role(playerId);
-        if (role == PortalRole.DENIED) {
-            return false;
-        }
-        if ((role != null && role.trusted()) || playerId.equals(portal.getOwner()) || grantedByGroup(player, access)) {
-            return true;
-        }
-        if (access.whitelistOnly()) {
-            return false;
-        }
-        return permissionAllows(portal, player);
+        return PortalAdmissionPolicy.allows(new PortalAdmissionPolicy.Admission(playerId, portal.getOwner(),
+            access.role(playerId), false, true, grantedByGroup(player, access), access.whitelistOnly(),
+            permissionAllows(portal, player)));
     }
 
     /**
@@ -62,13 +55,13 @@ public final class PortalAdmission {
         boolean alias = legacyNameNodeAlias();
         String nameNode = PermissionKeys.node(PermissionKeys.sanitize(portal.getName()));
         if (access == null) {
-            return !alias || portal.getPermissionMode().allows(player, nameNode);
+            return !alias || portal.getPermissionMode().allows(player::hasPermission, nameNode);
         }
         String keyNode = access.permissionNode();
         if (!alias || keyNode.equals(nameNode)) {
-            return portal.getPermissionMode().allows(player, keyNode);
+            return portal.getPermissionMode().allows(player::hasPermission, keyNode);
         }
-        return portal.getPermissionMode().allowsAny(player, keyNode, nameNode);
+        return portal.getPermissionMode().allowsAny(player::hasPermission, keyNode, nameNode);
     }
 
     static boolean grantedByGroup(Player player, AccessPortalExtension access) {

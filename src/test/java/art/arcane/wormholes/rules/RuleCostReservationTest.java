@@ -29,7 +29,7 @@ final class RuleCostReservationTest {
 
     @Test
     void experienceLevelsLeaveOnReserveAndComeBackOnRefund() {
-        RuleCostReservation reservation = RuleCostReservation.reserve(traveler.player(), List.of(new Cost.Xp(5, true)), pool(0));
+        RuleCostReservation reservation = RuleCostReservation.reserve(new BukkitRuleCostSubject(traveler.player()), List.of(new Cost.Xp(5, true)), pool(0));
 
         assertTrue(reservation.successful());
         assertEquals(25, traveler.level());
@@ -40,7 +40,7 @@ final class RuleCostReservationTest {
 
     @Test
     void committingKeepsWhatTheReservationTook() {
-        RuleCostReservation reservation = RuleCostReservation.reserve(traveler.player(),
+        RuleCostReservation reservation = RuleCostReservation.reserve(new BukkitRuleCostSubject(traveler.player()),
             List.of(new Cost.Xp(5, true), new Cost.Hunger(4)), pool(0));
 
         reservation.commit();
@@ -51,7 +51,7 @@ final class RuleCostReservationTest {
 
     @Test
     void hungerAndHealthComeBackOnRefund() {
-        RuleCostReservation reservation = RuleCostReservation.reserve(traveler.player(),
+        RuleCostReservation reservation = RuleCostReservation.reserve(new BukkitRuleCostSubject(traveler.player()),
             List.of(new Cost.Hunger(6), new Cost.Health(4.0D)), pool(0));
 
         assertTrue(reservation.successful());
@@ -72,7 +72,7 @@ final class RuleCostReservationTest {
         traveler.maximumHealth(40.0D);
         traveler.health(30.0D);
 
-        RuleCostReservation reservation = RuleCostReservation.reserve(traveler.player(),
+        RuleCostReservation reservation = RuleCostReservation.reserve(new BukkitRuleCostSubject(traveler.player()),
             List.of(new Cost.Health(4.0D)), pool(0));
 
         assertTrue(reservation.successful());
@@ -85,7 +85,7 @@ final class RuleCostReservationTest {
     @Test
     void aChargeCostDecrementsThePoolOnlyOnCommit() {
         ChargePool charges = pool(4);
-        RuleCostReservation reservation = RuleCostReservation.reserve(traveler.player(), List.of(new Cost.Charge(2)), charges);
+        RuleCostReservation reservation = RuleCostReservation.reserve(new BukkitRuleCostSubject(traveler.player()), List.of(new Cost.Charge(2)), charges);
 
         assertTrue(reservation.successful());
         assertEquals(4, charges.count());
@@ -97,7 +97,7 @@ final class RuleCostReservationTest {
     @Test
     void anUnaffordableCostRollsBackEverythingAlreadyTakenAndNamesTheCost() {
         ChargePool charges = pool(1);
-        RuleCostReservation reservation = RuleCostReservation.reserve(traveler.player(),
+        RuleCostReservation reservation = RuleCostReservation.reserve(new BukkitRuleCostSubject(traveler.player()),
             List.of(new Cost.Hunger(4), new Cost.Charge(9)), charges);
 
         assertFalse(reservation.successful());
@@ -110,7 +110,7 @@ final class RuleCostReservationTest {
     void healthNeverDropsBelowHalfAHeart() {
         traveler.health(3.0D);
 
-        RuleCostReservation reservation = RuleCostReservation.reserve(traveler.player(), List.of(new Cost.Health(4.0D)), pool(0));
+        RuleCostReservation reservation = RuleCostReservation.reserve(new BukkitRuleCostSubject(traveler.player()), List.of(new Cost.Health(4.0D)), pool(0));
 
         assertFalse(reservation.successful());
         assertEquals(3.0D, traveler.health());
@@ -118,7 +118,7 @@ final class RuleCostReservationTest {
 
     @Test
     void vaultCostsFailClosedWhenNoEconomyIsInstalled() {
-        RuleCostReservation reservation = RuleCostReservation.reserve(traveler.player(),
+        RuleCostReservation reservation = RuleCostReservation.reserve(new BukkitRuleCostSubject(traveler.player()),
             List.of(new Cost.Vault(new BigDecimal("10.00"))), pool(0));
 
         assertFalse(reservation.successful());
@@ -127,7 +127,7 @@ final class RuleCostReservationTest {
 
     @Test
     void anEmptyCostListReservesTrivially() {
-        RuleCostReservation reservation = RuleCostReservation.reserve(traveler.player(), List.of(), pool(0));
+        RuleCostReservation reservation = RuleCostReservation.reserve(new BukkitRuleCostSubject(traveler.player()), List.of(), pool(0));
 
         assertTrue(reservation.successful());
         reservation.commit();
@@ -137,7 +137,7 @@ final class RuleCostReservationTest {
 
     @Test
     void chargesRegenerateOnTheirOwnCadenceWithoutATimer() {
-        ChargePool charges = new ChargePool();
+        ChargePool charges = new ChargePool(() -> RulesLimits.config().chargesRegenIntervalSeconds * 1000L);
         charges.reshape(new TraversalProfile(0L, "", 0L, 1.0D, 1.0D, 10, 2), 0L);
         assertTrue(charges.consume(8, 0L));
         assertEquals(2, charges.count());
@@ -151,7 +151,7 @@ final class RuleCostReservationTest {
     }
 
     private static ChargePool pool(int capacity) {
-        ChargePool charges = new ChargePool();
+        ChargePool charges = new ChargePool(() -> RulesLimits.config().chargesRegenIntervalSeconds * 1000L);
         charges.reshape(new TraversalProfile(0L, "", 0L, 1.0D, 1.0D, capacity, 0), 0L);
         return charges;
     }

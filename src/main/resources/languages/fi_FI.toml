@@ -17,7 +17,7 @@
 #   {address}  Verkon vertaisosoite
 #   {after}  Viestin arvo muokkauksen jälkeen
 #   {allocation}  Taskutilan varaus
-#   {amount}  Matkan rahahinta Vault-valuutassa
+#  {amount} Matkan rahahinta -valuutassa
 #   {argument}  Odottamaton komentoargumentti
 #   {before}  Viestin arvo ennen muokkausta
 #   {biome}  Biomin tunniste
@@ -405,7 +405,7 @@ dimensional_return_disabled = "Paluureitti pysyy poissa käytöstä."
 [portal.label.cost]
 free = "Ilmainen"
 vanilla = "Vanilla-esine"
-vault = "Vault-talous"
+vault = "Talous"
 
 [portal.label.quality]
 standard = "Vakio"
@@ -536,12 +536,12 @@ linked = ["&6&l{portal}&r", "&7Tyyppi: &e{type}", "&7Suunta: &9{facing}", "&7Lin
 unlinked = ["&6&l{portal}&r", "&7Tyyppi: &e{type}", "&7Suunta: &9{facing}", "&7Linkitetty kohteeseen: &c{none}", "", "&8Ylläpitäjät ohittavat sallittujen ja estettyjen listat."]
 
 [portal.menu.cost]
-opener = ["&6&lMatkustuskustannus&r", "&7Vaadi tarkka esine tai Vault-valuuttaa,", "&7kun pelaaja käyttää tätä portaalia.", "", "&7Tila: &f{mode}", "&7Kustannus: &f{cost}", "", "&8Määritä napsauttamalla."]
+opener = ["&6&lMatkustuskustannus&r", "&7Vaadi tarkka esine tai-valuuttaa,", "&7kun pelaaja käyttää tätä portaalia.", "", "&7Tila: &f{mode}", "&7Kustannus: &f{cost}", "", "&8Määritä napsauttamalla."]
 placard = ["&6&lMatkustuskustannus&r", "&7Pelaajien on maksettava, ennen kuin tämä portaali", "&7sallii heidän matkustaa.", "", "&7Tila: &f{mode}", "&7Kustannus: &f{cost}"]
 mode_free = ["&a&lIlmainen&r", "&7Maksua ei vaadita.", "", "&8Tee matkustamisesta ilmaista napsauttamalla."]
 mode_vanilla = ["&b&lVanilla-esine&r", "&7Kuluttaa tarkalleen vastaavan esineen.", "", "&8Napsauta, pidä esinettä ja paina sitten Pudota."]
-mode_vault = ["&a&lVault-talous&r", "&7Veloittaa valuuttaa Vaultin kautta.", "", "&8Syötä määrä napsauttamalla."]
-mode_vault_unavailable = ["&c&lVault-talous ei käytettävissä&r", "&7Vault ja talousjärjestelmän tarjoaja vaaditaan.", "", "&8Asenna tai ota molemmat käyttöön käyttääksesi tätä tilaa."]
+mode_vault = ["&a&lTalous&r", "&7Veloita valuuttaa talouspalvelun kautta.", "", "&8Syötä määrä napsauttamalla."]
+mode_vault_unavailable = ["&c&lTalous ei ole käytettävissä&r", "&7Talouspalvelu vaaditaan.", "", "&8Ota talouspalvelu käyttöön tätä tilaa varten."]
 free_detail = ["&a&lEi kustannusta&r", "&7Matkustaminen tämän portaalin läpi on ilmaista."]
 secondary_empty = ["&8&lEi lisäasetusta&r"]
 item = ["&b&l{item}&r", "&7Tämä tarkka esine vaaditaan matkustamiseen.", "&7Valintaesinettä ei koskaan kuluteta.", "", "&8Vasen: valitse toinen kädessä pidetty esine.", "&8Oikea: poista kustannus."]
@@ -561,7 +561,7 @@ invite = "&bLiitä portaalikutsu chattiin (tai '{cancel}'):"
 block_state = "&bAnna lohkotila tämän portaalin verkkonäkymän reunalle tai '{cancel}':"
 name = "&bKirjoita uusi portaalin nimi chatissa (tai '{cancel}'):"
 cost_item = "&bPidä tarkkaa kustannusesinettä pääkädessäsi ja paina sitten Pudota. Esine ei poistu tavaraluettelostasi."
-cost_vault = "&bSyötä Vault-valuutan määrä läpikulkua kohden (tai '{cancel}'):"
+cost_vault = "&bAnna valuuttamäärä kulkua kohti (tai '{cancel}'):"
 direction = ["&8[&6Wormholes&8] &7Katso haluamaasi suuntaan ja ota se käyttöön vasemmalla napsautuksella.", "&8[&6Wormholes&8] &7Peruuta painamalla Shift + vasen napsautus."]
 
 [portal.input]
@@ -607,9 +607,9 @@ cost_item_set = "Matkustaminen vaatii nyt {item}."
 cost_item_invalid = "Esinettä ei voitu tallentaa matkustuskustannukseksi."
 cost_cleared = "Matkustuskustannus poistettu."
 cost_quantity_changed = "Matkustuskustannuksen määrä: {quantity}"
-cost_vault_changed = "Vault-matkustuskustannus: {amount}"
+cost_vault_changed = "Matkan hinta: {amount}"
 cost_vault_invalid = "Syötä positiivinen valuuttamäärä, joka on enintään {maximum}."
-cost_vault_unavailable = "Vaultin ja talousjärjestelmän tarjoajan on oltava käytettävissä ennen tämän kustannuksen valitsemista."
+cost_vault_unavailable = "Talouspalvelun on oltava käytettävissä ennen tämän hinnan valitsemista."
 mirror_select_first = "Valitse peili ennen kuvaa kiertämistä."
 mirror_rotation_changed = "Peilin kierto: {degrees} astetta"
 rtp_cannot_link = "Satunnaisteleporttiportaaleja ei linkitetä kohteisiin."
@@ -687,7 +687,7 @@ execution_failed = "Komennon {command} suoritus epäonnistui: {reason}"
 not_initialized = "&8[&6Wormholes&8] &cVerkkoa ei ole vielä alustettu."
 
 [network.status]
-disabled = "&8[&6Wormholes&8] &7Verkko on &cpoissa käytöstä&7 (plugins/Wormholes/wormholes.toml)."
+disabled = "&8[&6Wormholes&8] &7Verkko on &cpoissa käytöstä&7 (wormholes.toml)."
 not_running = "&8[&6Wormholes&8] &cVerkko on käytössä, mutta ei ole käynnissä. Tarkista identiteettivarasto ja verkkoportti."
 listening = "&8[&6Wormholes&8] &7Tämä palvelin: &f{server}&7, kuuntelee osoitteessa &f{address}"
 outbound_only = "&8[&6Wormholes&8] &7Tämä palvelin: &f{server}&7, vain lähtevä Boat-tila"

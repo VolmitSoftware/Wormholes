@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -68,7 +70,7 @@ class NetworkManagerListenPortFallbackTest {
         config.listenPort = basePort;
         config.advertiseHostOverride = "127.0.0.1";
 
-        manager = new NetworkManager(LOGGER, config, "26.2", "test", 25565, tempDir);
+        manager = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", 25565, tempDir, BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         manager.start();
 
         assertTrue(manager.isRunning());
@@ -116,7 +118,7 @@ class NetworkManagerListenPortFallbackTest {
             config.listenPort = basePort;
             config.advertiseHostOverride = "127.0.0.1";
 
-            manager = new NetworkManager(LOGGER, config, "26.2", "test", 25565, tempDir);
+            manager = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", 25565, tempDir, BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
             manager.start();
             assertTrue(manager.isRunning());
             assertEquals(basePort, manager.getBoundListenPort(), "sideband-only mode should fall back to configured listen-port for getBoundListenPort() reporting");

@@ -30,28 +30,23 @@ import art.arcane.wormholes.network.view.RemoteViewCache;
 
 final class EntityRenderPlayerIdentity {
     private static final long PROFILE_REFRESH_NANOS = 500_000_000L;
-    private static final AtomicInteger NEXT_NAME_TEAM_ID = new AtomicInteger();
 
     private final EntityRenderPacketChannel channel;
-    private final String vanillaNameTeamName;
-    private boolean vanillaNameTeamSent;
-    private final Map<String, Integer> vanillaNameTeamMembers;
+    private final ProjectedPlayerNames<Player> names;
 
     private boolean labelsEnabled = true;
 
     EntityRenderPlayerIdentity(EntityRenderPacketChannel channel) {
         this.channel = channel;
-        this.vanillaNameTeamName = "whpn" + Integer.toUnsignedString(NEXT_NAME_TEAM_ID.getAndIncrement(), 36);
-        this.vanillaNameTeamSent = false;
-        this.vanillaNameTeamMembers = new HashMap<String, Integer>(4);
+        this.names = new ProjectedPlayerNames<>(new BukkitPlayerNameTeams(channel));
     }
 
     void sendPlayerInfo(Player observer, Player player, EntityRenderSpoofedEntity state, boolean upsideDown) {
         String sourceName = player.getName();
-        String label = ProjectedEntityRenderer.playerLabelText(sourceName);
-        String name = ProjectedEntityRenderer.projectedProfileName(sourceName, state.fakeUuid, upsideDown);
+        String label = ProjectedPlayerNames.playerLabelText(sourceName);
+        String name = ProjectedPlayerNames.projectedProfileName(sourceName, state.fakeUuid, upsideDown);
         state.setPlayerIdentity(name, label);
-        hideVanillaNametag(observer, name);
+        names.retain(observer, name);
         UserProfile userProfile = new UserProfile(state.fakeUuid, name);
         state.playerProfile = playerProfile(player);
         state.playerProfileCheckedAtNanos = System.nanoTime();
@@ -82,10 +77,10 @@ final class EntityRenderPlayerIdentity {
     void sendRemotePlayerInfo(Player observer, RemoteViewCache.RemoteProfile profile, EntityRenderSpoofedEntity state, boolean upsideDown) {
         state.playerProfile = profile;
         String sourceName = profile == null ? null : profile.name();
-        String label = ProjectedEntityRenderer.playerLabelText(sourceName);
-        String name = ProjectedEntityRenderer.projectedProfileName(sourceName, state.fakeUuid, upsideDown);
+        String label = ProjectedPlayerNames.playerLabelText(sourceName);
+        String name = ProjectedPlayerNames.projectedProfileName(sourceName, state.fakeUuid, upsideDown);
         state.setPlayerIdentity(name, label);
-        hideVanillaNametag(observer, name);
+        names.retain(observer, name);
         UserProfile userProfile = new UserProfile(state.fakeUuid, name);
         if (profile != null && profile.textureValue() != null && !profile.textureValue().isEmpty()) {
             String signature = profile.textureSignature() == null || profile.textureSignature().isEmpty() ? null : profile.textureSignature();
@@ -115,7 +110,7 @@ final class EntityRenderPlayerIdentity {
             EntityTypes.TEXT_DISPLAY, labelPosition, 0.0F, 0.0F, 0.0F, 0, Optional.empty());
         channel.send(observer, spawn);
         channel.send(observer, new WrapperPlayServerEntityMetadata(state.labelFakeId, ProjectedEntityRenderer.playerLabelMetadata(state.playerLabelText)));
-        state.rememberLabelPosition(labelPosition);
+        state.rememberLabelPosition(labelPosition.getX(), labelPosition.getY(), labelPosition.getZ());
     }
 
     void updatePlayerLabelPosition(Player observer, EntityRenderSpoofedEntity state, Vector3d playerPosition, double playerHeight) {
@@ -123,7 +118,7 @@ final class EntityRenderPlayerIdentity {
             return;
         }
         Vector3d labelPosition = ProjectedEntityRenderer.playerLabelPosition(playerPosition, playerHeight);
-        EntityRenderSpoofedEntity.Move move = state.updateLabelPosition(labelPosition);
+        EntityRenderSpoofedEntity.Move move = state.updateLabelPosition(labelPosition.getX(), labelPosition.getY(), labelPosition.getZ());
         if (!move.moved) {
             return;
         }
@@ -140,7 +135,7 @@ final class EntityRenderPlayerIdentity {
             return;
         }
         String sourceName = profile == null ? null : profile.name();
-        String label = ProjectedEntityRenderer.playerLabelText(sourceName);
+        String label = ProjectedPlayerNames.playerLabelText(sourceName);
         if (!state.updatePlayerLabelText(label)) {
             return;
         }
@@ -148,40 +143,19 @@ final class EntityRenderPlayerIdentity {
     }
 
     void releaseVanillaNametag(Player observer, EntityRenderSpoofedEntity state) {
-        String name = state.playerProfileName;
-        if (name == null) {
-            return;
-        }
-        Integer references = vanillaNameTeamMembers.get(name);
-        if (references == null) {
-            return;
-        }
-        if (references.intValue() > 1) {
-            vanillaNameTeamMembers.put(name, references.intValue() - 1);
-            return;
-        }
-        vanillaNameTeamMembers.remove(name);
-        if (vanillaNameTeamSent) {
-            channel.send(observer, new WrapperPlayServerTeams(vanillaNameTeamName,
-                WrapperPlayServerTeams.TeamMode.REMOVE_ENTITIES, (WrapperPlayServerTeams.ScoreBoardTeamInfo) null, name));
-        }
+        names.release(observer, state.playerProfileName);
     }
 
     void sendVanillaNameTeamRemoval(Player observer) {
-        if (!vanillaNameTeamSent) {
-            return;
-        }
-        channel.send(observer, new WrapperPlayServerTeams(vanillaNameTeamName,
-            WrapperPlayServerTeams.TeamMode.REMOVE, (WrapperPlayServerTeams.ScoreBoardTeamInfo) null, List.of()));
+        names.removeTeam(observer);
     }
 
     void forgetVanillaNameTeam() {
-        vanillaNameTeamMembers.clear();
-        vanillaNameTeamSent = false;
+        names.forget();
     }
 
     boolean hasVanillaNameTeam() {
-        return vanillaNameTeamSent;
+        return names.hasTeam();
     }
 
     private static RemoteViewCache.RemoteProfile playerProfile(Player player) {
@@ -194,31 +168,4 @@ final class EntityRenderPlayerIdentity {
         return new RemoteViewCache.RemoteProfile(player.getName(), "", "");
     }
 
-    private void hideVanillaNametag(Player observer, String name) {
-        if (name == null || name.isEmpty()) {
-            return;
-        }
-        ensureVanillaNameTeam(observer);
-        int references = vanillaNameTeamMembers.getOrDefault(name, 0);
-        vanillaNameTeamMembers.put(name, references + 1);
-        if (references == 0) {
-            channel.send(observer, new WrapperPlayServerTeams(vanillaNameTeamName,
-                WrapperPlayServerTeams.TeamMode.ADD_ENTITIES, (WrapperPlayServerTeams.ScoreBoardTeamInfo) null, name));
-        }
-    }
-
-    private void ensureVanillaNameTeam(Player observer) {
-        if (vanillaNameTeamSent) {
-            return;
-        }
-        WrapperPlayServerTeams.ScoreBoardTeamInfo info = new WrapperPlayServerTeams.ScoreBoardTeamInfo(
-            Component.empty(), Component.empty(), Component.empty(),
-            WrapperPlayServerTeams.NameTagVisibility.NEVER,
-            WrapperPlayServerTeams.CollisionRule.NEVER,
-            NamedTextColor.WHITE,
-            WrapperPlayServerTeams.OptionData.NONE);
-        channel.send(observer, new WrapperPlayServerTeams(vanillaNameTeamName,
-            WrapperPlayServerTeams.TeamMode.CREATE, info, List.of()));
-        vanillaNameTeamSent = true;
-    }
 }

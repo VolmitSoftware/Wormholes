@@ -1,36 +1,37 @@
 package art.arcane.wormholes.portal;
 
+import java.io.IOException;
 import java.util.Locale;
-import java.util.Map;
+
+import art.arcane.volmlib.nativelib.NativeAdapters;
+import art.arcane.volmlib.nativelib.item.ItemStackAccess;
+import java.util.Base64;
 
 import org.bukkit.Material;
-import org.bukkit.configuration.InvalidConfigurationException;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
 
 import art.arcane.volmlib.util.json.JSONObject;
 
 public final class VanillaTravelCost implements PortalTravelCost
 {
-	public static final int MAX_QUANTITY = 2304;
+	public static final int MAX_QUANTITY = ExactItemPayment.MAX_QUANTITY;
 
 	private final ItemStack template;
 	private final String serializedTemplate;
 	private final int quantity;
-	private final OwnerRefundSettlement.Executor refundExecutor;
+	private final OwnerRefundSettlement.Executor<Player> refundExecutor;
 
 	private VanillaTravelCost(ItemStack template, String serializedTemplate, int quantity)
 	{
-		this(template, serializedTemplate, quantity, OwnerRefundSettlement.BukkitExecutor.INSTANCE);
+		this(template, serializedTemplate, quantity, BukkitOwnerRefundExecutor.INSTANCE);
 	}
 
 	VanillaTravelCost(
 		ItemStack template,
 		String serializedTemplate,
 		int quantity,
-		OwnerRefundSettlement.Executor refundExecutor)
+		OwnerRefundSettlement.Executor<Player> refundExecutor)
 	{
 		this.template = normalizeTemplate(template);
 		this.serializedTemplate = serializedTemplate;
@@ -111,28 +112,8 @@ public final class VanillaTravelCost implements PortalTravelCost
 
 	public boolean canAfford(Player player)
 	{
-		if(player == null)
-		{
-			return false;
-		}
-		PlayerInventory inventory = player.getInventory();
-		int found = 0;
-		int storageSize = inventory.getStorageContents().length;
-		for(int slot = 0; slot < storageSize; slot++)
-		{
-			ItemStack stack = inventory.getItem(slot);
-			if(stack == null || !stack.isSimilar(template))
-			{
-				continue;
-			}
-			found += stack.getAmount();
-			if(found >= quantity)
-			{
-				return true;
-			}
-		}
-		return false;
-	}
+        return player != null && ExactItemPayment.canAfford(new Inventory(player), template, quantity);
+    }
 
 	@Override
 	public Status status(Player player)
@@ -143,36 +124,11 @@ public final class VanillaTravelCost implements PortalTravelCost
 	@Override
 	public ReserveResult reserve(Player player)
 	{
-		if(!canAfford(player))
-		{
-			return ReserveResult.failed(Status.INSUFFICIENT);
-		}
-		PlayerInventory inventory = player.getInventory();
-		int remaining = quantity;
-		int storageSize = inventory.getStorageContents().length;
-		for(int slot = 0; slot < storageSize && remaining > 0; slot++)
-		{
-			ItemStack stack = inventory.getItem(slot);
-			if(stack == null || !stack.isSimilar(template))
-			{
-				continue;
-			}
-			int removed = Math.min(remaining, stack.getAmount());
-			int retained = stack.getAmount() - removed;
-			if(retained == 0)
-			{
-				inventory.setItem(slot, null);
-			}
-			else
-			{
-				ItemStack replacement = stack.clone();
-				replacement.setAmount(retained);
-				inventory.setItem(slot, replacement);
-			}
-			remaining -= removed;
-		}
-		return ReserveResult.reserved(new Reservation(player, template, quantity, refundExecutor));
-	}
+        if (player == null || !ExactItemPayment.take(new Inventory(player), template, quantity)) {
+            return ReserveResult.failed(Status.INSUFFICIENT);
+        }
+        return ReserveResult.reserved(new Reservation(player, template, quantity, refundExecutor));
+    }
 
 	private static ItemStack normalizeTemplate(ItemStack item)
 	{
@@ -188,65 +144,48 @@ public final class VanillaTravelCost implements PortalTravelCost
 
 	private static int clampQuantity(int quantity)
 	{
-		return Math.max(1, Math.min(quantity, MAX_QUANTITY));
+		return ExactItemPayment.clampQuantity(quantity);
 	}
 
-	private static String encode(ItemStack template)
-	{
-		try
-		{
-			YamlConfiguration configuration = new YamlConfiguration();
-			configuration.set("item", template);
-			return configuration.saveToString();
-		}
-		catch(RuntimeException exception)
-		{
-			throw new IllegalArgumentException("Could not preserve the exact travel cost item", exception);
-		}
-	}
+    private static String encode(ItemStack template) {
+        try {
+            return Base64.getEncoder().encodeToString(NativeAdapters.require(ItemStackAccess.class).encode(template));
+        } catch (IOException | RuntimeException exception) {
+            throw new IllegalArgumentException("Could not preserve the exact travel cost item", exception);
+        }
+    }
 
-	private static ItemStack decode(String serialized)
-	{
-		try
-		{
-			YamlConfiguration configuration = new YamlConfiguration();
-			configuration.loadFromString(serialized);
-			ItemStack item = configuration.getItemStack("item");
-			if(item == null)
-			{
-				throw new IllegalArgumentException("Stored travel cost item is not an item stack");
-			}
-			return normalizeTemplate(item);
-		}
-		catch(InvalidConfigurationException | RuntimeException exception)
-		{
-			throw new IllegalArgumentException("Could not read the stored travel cost item", exception);
-		}
-	}
+    private static ItemStack decode(String serialized) {
+        try {
+            return normalizeTemplate(NativeAdapters.require(ItemStackAccess.class).decode(Base64.getDecoder().decode(serialized)));
+        } catch (IOException | RuntimeException exception) {
+            throw new IllegalArgumentException("Could not read the stored travel cost item", exception);
+        }
+    }
 
 	static final class Reservation implements PortalTravelCost.Reservation
 	{
 		private final ItemStack template;
 		private final int quantity;
-		private final OwnerRefundSettlement settlement;
+		private final OwnerRefundSettlement<Player> settlement;
 
 		Reservation(
 			Player player,
 			ItemStack template,
 			int quantity,
-			OwnerRefundSettlement.Executor refundExecutor)
+			OwnerRefundSettlement.Executor<Player> refundExecutor)
 		{
 			this.template = template.clone();
 			this.quantity = quantity;
-			settlement = new OwnerRefundSettlement(
-				player,
+			settlement = new OwnerRefundSettlement<>(new OwnerRefundSettlement.Options<>(
+				player, player.getUniqueId(),
 				refundExecutor,
 				ownedPlayer ->
 				{
 					restore(ownedPlayer);
 					return true;
 				},
-				"vanilla portal travel cost");
+				"vanilla portal travel cost", BukkitOwnerRefundExecutor.logger()));
 		}
 
 		@Override
@@ -273,19 +212,58 @@ public final class VanillaTravelCost implements PortalTravelCost
 
 		private void restore(Player ownedPlayer)
 		{
-			int remaining = quantity;
-			while(remaining > 0)
-			{
-				ItemStack stack = template.clone();
-				int restored = Math.min(remaining, stack.getMaxStackSize());
-				stack.setAmount(restored);
-				Map<Integer, ItemStack> overflow = ownedPlayer.getInventory().addItem(stack);
-				for(ItemStack dropped : overflow.values())
-				{
-					ownedPlayer.getWorld().dropItemNaturally(ownedPlayer.getLocation(), dropped);
-				}
-				remaining -= restored;
-			}
-		}
-	}
+            ExactItemPayment.restore(new Inventory(ownedPlayer), template, quantity);
+        }
+    }
+
+    private record Inventory(Player player) implements ExactItemPayment.Inventory<ItemStack> {
+        @Override
+        public int storageSize() {
+            return player.getInventory().getStorageContents().length;
+        }
+
+        @Override
+        public ItemStack get(int slot) {
+            return player.getInventory().getItem(slot);
+        }
+
+        @Override
+        public void set(int slot, ItemStack item) {
+            player.getInventory().setItem(slot, item);
+        }
+
+        @Override
+        public ItemStack empty() {
+            return null;
+        }
+
+        @Override
+        public boolean matches(ItemStack stack, ItemStack template) {
+            return stack != null && stack.isSimilar(template);
+        }
+
+        @Override
+        public int count(ItemStack item) {
+            return item.getAmount();
+        }
+
+        @Override
+        public ItemStack copy(ItemStack item, int count) {
+            ItemStack copy = item.clone();
+            copy.setAmount(count);
+            return copy;
+        }
+
+        @Override
+        public int maximumStackSize(ItemStack item) {
+            return item.getMaxStackSize();
+        }
+
+        @Override
+        public void give(ItemStack item) {
+            for (ItemStack overflow : player.getInventory().addItem(item).values()) {
+                player.getWorld().dropItemNaturally(player.getLocation(), overflow);
+            }
+        }
+    }
 }

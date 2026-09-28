@@ -1,5 +1,8 @@
 package art.arcane.wormholes.door.view;
 
+import art.arcane.wormholes.door.DoorHalf;
+
+
 import art.arcane.wormholes.ProjectionManager;
 import art.arcane.wormholes.door.DoorForm;
 import art.arcane.wormholes.door.DoorItemIdentity;
@@ -16,7 +19,7 @@ import org.bukkit.World;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.Bisected;
 import org.bukkit.entity.Player;
-import org.bukkit.util.Vector;
+import art.arcane.wormholes.geometry.GeometryVector;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Proxy;
@@ -36,8 +39,8 @@ final class DoorProjectionProviderTest {
 
     @Test
     void twoHingedDoorsMirrorSoTheViewLooksBackOutOfTheMate() {
-        DoorwayPlane source = new DoorwayPlane(10, 64, 10, BlockFace.NORTH);
-        DoorwayPlane mate = new DoorwayPlane(40, 64, 40, BlockFace.EAST);
+        DoorwayPlane source = new DoorwayPlane(10, 64, 10, Direction.N);
+        DoorwayPlane mate = new DoorwayPlane(40, 64, 40, Direction.E);
 
         PortalFrame frame = DoorApertureFrames.destinationFrame(source, mate);
 
@@ -47,27 +50,27 @@ final class DoorProjectionProviderTest {
 
     @Test
     void aTrapdoorPairingIsStraightThroughAndKeepsTheMateFacing() {
-        DoorwayPlane source = new DoorwayPlane(10, 64, 10, BlockFace.NORTH);
+        DoorwayPlane source = new DoorwayPlane(10, 64, 10, Direction.N);
         DoorwayPlane trapdoorMate =
-            DoorwayPlane.trapdoor(40, 64, 40, BlockFace.SOUTH, Bisected.Half.BOTTOM, DoorOpenState.OPEN);
+            DoorwayPlane.trapdoor(40, 64, 40, Direction.S, DoorHalf.BOTTOM, DoorOpenState.OPEN);
 
         assertEquals(Direction.D, DoorApertureFrames.destinationFrame(source, trapdoorMate).getNormal());
         assertEquals(Direction.D, DoorApertureFrames.of(trapdoorMate).getNormal());
 
         DoorwayPlane trapdoorSource =
-            DoorwayPlane.trapdoor(10, 64, 10, BlockFace.NORTH, Bisected.Half.TOP, DoorOpenState.OPEN);
-        DoorwayPlane hingedMate = new DoorwayPlane(40, 64, 40, BlockFace.EAST);
+            DoorwayPlane.trapdoor(10, 64, 10, Direction.N, DoorHalf.TOP, DoorOpenState.OPEN);
+        DoorwayPlane hingedMate = new DoorwayPlane(40, 64, 40, Direction.E);
         assertEquals(Direction.E, DoorApertureFrames.destinationFrame(trapdoorSource, hingedMate).getNormal());
     }
 
     @Test
     void aResolvedDestinationBecomesAReadyTargetTheProjectorCanAimAt() {
-        DoorProjectionAdapter adapter = adapter(new DoorwayPlane(10, 64, 10, BlockFace.NORTH), DoorForm.DOOR);
+        DoorProjectionAdapter adapter = adapter(new DoorwayPlane(10, 64, 10, Direction.N), DoorForm.DOOR);
         PortalFrame destinationFrame = PortalFrame.fromNormalUp(Direction.W, Direction.U);
         UUID routeId = new UUID(0, 702);
         DoorProjectionProvider provider = new DoorProjectionProvider((requested, observerId) ->
             Optional.of(new DoorProjectionDestination(
-                routeId, "minecraft:the_nether", new Vector(40.5D, 65.0D, 40.92D), destinationFrame)));
+                routeId, "minecraft:the_nether", new GeometryVector(40.5D, 65.0D, 40.92D), destinationFrame)));
 
         assertTrue(provider.supports(adapter));
         ProjectionManager.RtpProjectionResult result = provider.touch(adapter, observer());
@@ -87,8 +90,8 @@ final class DoorProjectionProviderTest {
 
     @Test
     void theRouteRevisionOnlyMovesWhenTheDestinationDoes() {
-        DoorProjectionAdapter adapter = adapter(new DoorwayPlane(10, 64, 10, BlockFace.NORTH), DoorForm.DOOR);
-        AtomicReference<Vector> origin = new AtomicReference<>(new Vector(40.5D, 65.0D, 40.92D));
+        DoorProjectionAdapter adapter = adapter(new DoorwayPlane(10, 64, 10, Direction.N), DoorForm.DOOR);
+        AtomicReference<GeometryVector> origin = new AtomicReference<>(new GeometryVector(40.5D, 65.0D, 40.92D));
         DoorProjectionProvider provider = new DoorProjectionProvider((requested, observerId) ->
             Optional.of(new DoorProjectionDestination(
                 new UUID(0, 703), "minecraft:overworld", origin.get(),
@@ -97,13 +100,13 @@ final class DoorProjectionProviderTest {
         long first = revision(provider, adapter);
         assertEquals(first, revision(provider, adapter));
 
-        origin.set(new Vector(41.5D, 65.0D, 40.92D));
+        origin.set(new GeometryVector(41.5D, 65.0D, 40.92D));
         assertNotEquals(first, revision(provider, adapter));
     }
 
     @Test
     void anUnresolvableDestinationSuppressesTheProjectionInsteadOfGuessing() {
-        DoorProjectionAdapter adapter = adapter(new DoorwayPlane(10, 64, 10, BlockFace.NORTH), DoorForm.DOOR);
+        DoorProjectionAdapter adapter = adapter(new DoorwayPlane(10, 64, 10, Direction.N), DoorForm.DOOR);
         DoorProjectionProvider provider = new DoorProjectionProvider((requested, observerId) -> Optional.empty());
 
         ProjectionManager.RtpProjectionResult result = provider.touch(adapter, observer());

@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.network.replication.ChunkBulk;
 import art.arcane.wormholes.network.replication.ReplicationTestStream;
@@ -80,7 +82,7 @@ class PeerConnectionAsyncEncodeTest {
     }
 
     private NetworkManager manager(NetworkConfig config, int gamePort, String identityName) {
-        NetworkManager manager = new NetworkManager(LOGGER, config, "26.2", "test", gamePort, tempDir.resolve(identityName));
+        NetworkManager manager = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", gamePort, tempDir.resolve(identityName), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         managers.add(manager);
         return manager;
     }

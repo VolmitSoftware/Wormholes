@@ -1,5 +1,8 @@
 package art.arcane.wormholes.door;
 
+import org.bukkit.structure.Structure;
+import art.arcane.wormholes.util.Direction;
+
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.api.traversal.TraversalContext;
 import art.arcane.wormholes.api.traversal.TraversalCostProvider;
@@ -401,7 +404,7 @@ final class DoorTransitCoordinatorCostIntegrationTest {
                 pocketWorldService,
                 templateService(),
                 new DoorTransitFailures(logger));
-            DoorwayPlane plane = new DoorwayPlane(0, 64, 0, BlockFace.NORTH);
+            DoorwayPlane plane = new DoorwayPlane(0, 64, 0, Direction.N);
             endpoint = new PlacedDoorEndpoint(
                 new DoorPosition(WORLD_ID, "minecraft:overworld", 0, 64, 0),
                 DoorItemIdentity.publicDoor(UUID.randomUUID()));
@@ -613,14 +616,14 @@ final class DoorTransitCoordinatorCostIntegrationTest {
         }
     }
 
-    private static PocketTemplateService templateService() {
-        return new PocketTemplateService(
+    private static BukkitPocketTemplates templateService() {
+        return new BukkitPocketTemplates(
             java.nio.file.Path.of("build", "tmp", "pocket-templates"), () -> "pockets/templates",
             new EmptyStructureIo());
     }
 
     /** A structure store with nothing in it; these tests never read or write one. */
-    private static final class EmptyStructureIo implements StructureIo {
+    private static final class EmptyStructureIo implements StructureIo<Structure> {
         @Override
         public java.util.Optional<org.bukkit.structure.Structure> load(java.nio.file.Path file) {
             return java.util.Optional.empty();

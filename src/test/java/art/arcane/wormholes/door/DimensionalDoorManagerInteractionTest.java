@@ -151,13 +151,13 @@ final class DimensionalDoorManagerInteractionTest
 	void aTrapdoorArrivalPutsFeetOnThePlateGoingUpAndTheWholeBodyUnderItGoingDown()
 	{
 		DoorwayPlane plane = DoorwayPlane.trapdoor(
-			5, 70, -3, org.bukkit.block.BlockFace.EAST, org.bukkit.block.data.Bisected.Half.BOTTOM,
+			5, 70, -3, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.EAST), BukkitDoorGeometry.half(org.bukkit.block.data.Bisected.Half.BOTTOM),
 			DoorOpenState.OPEN);
 		DoorTransit transit = new DoorTransit(
 			plane, DoorwayCrossing.Direction.FRONT_TO_BACK, 0.0F, 0.0F, 0.3D, 1.8D);
 
-		DoorVec3 up = DimensionalDoorManager.arrivalPoint(plane, transit, 1);
-		DoorVec3 down = DimensionalDoorManager.arrivalPoint(plane, transit, -1);
+		DoorVec3 up = DoorArrivals.arrivalPoint(plane, transit, 1);
+		DoorVec3 down = DoorArrivals.arrivalPoint(plane, transit, -1);
 
 		assertEquals(5.5D, up.x(), 1.0E-9D);
 		assertEquals(-2.5D, up.z(), 1.0E-9D);
@@ -168,11 +168,11 @@ final class DimensionalDoorManagerInteractionTest
 	@Test
 	void aHingedArrivalStillStepsAStrideClearOfTheDoorway()
 	{
-		DoorwayPlane plane = new DoorwayPlane(5, 70, -3, org.bukkit.block.BlockFace.EAST);
+		DoorwayPlane plane = new DoorwayPlane(5, 70, -3, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.EAST));
 		DoorTransit transit = new DoorTransit(
 			plane, DoorwayCrossing.Direction.FRONT_TO_BACK, 0.0F, 0.0F, 0.3D, 1.8D);
 
-		DoorVec3 arrival = DimensionalDoorManager.arrivalPoint(plane, transit, 1);
+		DoorVec3 arrival = DoorArrivals.arrivalPoint(plane, transit, 1);
 
 		assertEquals(70.0D, arrival.y(), 1.0E-9D);
 		assertTrue(arrival.x() > 5.5D, "pushed out along the facing");
@@ -182,14 +182,14 @@ final class DimensionalDoorManagerInteractionTest
 	void theVerticalSearchLadderFollowsTheExitDirection()
 	{
 		DoorwayPlane trapdoor = DoorwayPlane.trapdoor(
-			0, 64, 0, org.bukkit.block.BlockFace.NORTH, org.bukkit.block.data.Bisected.Half.TOP,
+			0, 64, 0, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.NORTH), BukkitDoorGeometry.half(org.bukkit.block.data.Bisected.Half.TOP),
 			DoorOpenState.OPEN);
-		DoorwayPlane door = new DoorwayPlane(0, 64, 0, org.bukkit.block.BlockFace.NORTH);
+		DoorwayPlane door = new DoorwayPlane(0, 64, 0, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.NORTH));
 
 		assertEquals(1, DoorPlanePairing.arrivalYOffsets(trapdoor, 1)[1], "an upward exit searches upward first");
 		assertEquals(-1, DoorPlanePairing.arrivalYOffsets(trapdoor, -1)[1], "a downward exit searches downward first");
-		assertArrayEquals(DimensionalDoorManager.DOOR_ARRIVAL_Y_OFFSETS, DoorPlanePairing.arrivalYOffsets(door, 1));
-		assertArrayEquals(DimensionalDoorManager.DOOR_ARRIVAL_Y_OFFSETS, DoorPlanePairing.arrivalYOffsets(door, -1));
+		assertArrayEquals(DoorPlanePairing.DOOR_ARRIVAL_Y_OFFSETS, DoorPlanePairing.arrivalYOffsets(door, 1));
+		assertArrayEquals(DoorPlanePairing.DOOR_ARRIVAL_Y_OFFSETS, DoorPlanePairing.arrivalYOffsets(door, -1));
 
 		for(int offset : DoorPlanePairing.arrivalYOffsets(trapdoor, -1))
 		{
@@ -205,10 +205,10 @@ final class DimensionalDoorManagerInteractionTest
 	void droppingInThroughOneTrapdoorLeavesUnderTheFarPlate()
 	{
 		DoorwayPlane source = DoorwayPlane.trapdoor(
-			0, 64, 0, org.bukkit.block.BlockFace.NORTH, org.bukkit.block.data.Bisected.Half.TOP,
+			0, 64, 0, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.NORTH), BukkitDoorGeometry.half(org.bukkit.block.data.Bisected.Half.TOP),
 			DoorOpenState.OPEN);
 		DoorwayPlane destination = DoorwayPlane.trapdoor(
-			40, 20, 40, org.bukkit.block.BlockFace.EAST, org.bukkit.block.data.Bisected.Half.BOTTOM,
+			40, 20, 40, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.EAST), BukkitDoorGeometry.half(org.bukkit.block.data.Bisected.Half.BOTTOM),
 			DoorOpenState.OPEN);
 
 		// falling in from above the source plate is a FRONT_TO_BACK crossing of an upward normal
@@ -222,7 +222,7 @@ final class DimensionalDoorManagerInteractionTest
 
 		DoorTransit transit = new DoorTransit(
 			source, crossing.direction(), 0.0F, 0.0F, 0.3D, 1.8D);
-		DoorVec3 arrival = DimensionalDoorManager.arrivalPoint(destination, transit, sideSign);
+		DoorVec3 arrival = DoorArrivals.arrivalPoint(destination, transit, sideSign);
 		assertTrue(
 			arrival.y() + transit.height() <= destination.planeY() + 1.0E-9D,
 			"the whole traveler clears the destination plate downward");
@@ -232,10 +232,10 @@ final class DimensionalDoorManagerInteractionTest
 	void climbingUpThroughOneTrapdoorLeavesAboveTheFarPlate()
 	{
 		DoorwayPlane source = DoorwayPlane.trapdoor(
-			0, 64, 0, org.bukkit.block.BlockFace.NORTH, org.bukkit.block.data.Bisected.Half.BOTTOM,
+			0, 64, 0, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.NORTH), BukkitDoorGeometry.half(org.bukkit.block.data.Bisected.Half.BOTTOM),
 			DoorOpenState.OPEN);
 		DoorwayPlane destination = DoorwayPlane.trapdoor(
-			40, 20, 40, org.bukkit.block.BlockFace.WEST, org.bukkit.block.data.Bisected.Half.TOP,
+			40, 20, 40, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.WEST), BukkitDoorGeometry.half(org.bukkit.block.data.Bisected.Half.TOP),
 			DoorOpenState.OPEN);
 
 		DoorwayCrossing crossing = source.crossing(
@@ -248,7 +248,7 @@ final class DimensionalDoorManagerInteractionTest
 
 		DoorTransit transit = new DoorTransit(
 			source, crossing.direction(), 0.0F, 0.0F, 0.3D, 1.8D);
-		DoorVec3 arrival = DimensionalDoorManager.arrivalPoint(destination, transit, sideSign);
+		DoorVec3 arrival = DoorArrivals.arrivalPoint(destination, transit, sideSign);
 		assertTrue(
 			arrival.y() >= destination.planeY() - 1.0E-9D,
 			"the traveler stands on the destination plate rather than under it");
@@ -260,9 +260,9 @@ final class DimensionalDoorManagerInteractionTest
 		for(org.bukkit.block.data.Bisected.Half half : org.bukkit.block.data.Bisected.Half.values())
 		{
 			DoorwayPlane plane = DoorwayPlane.trapdoor(
-				2, 64, 2, org.bukkit.block.BlockFace.NORTH, half, DoorOpenState.OPEN);
-			DoorPortalVisualService.PortalPlaneGeometry veil =
-				DoorPortalVisualService.planeGeometry(plane, org.bukkit.block.data.type.Door.Hinge.LEFT);
+				2, 64, 2, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.NORTH), BukkitDoorGeometry.half(half), DoorOpenState.OPEN);
+			PortalPlaneGeometry veil =
+				DoorPortalGeometry.planeGeometry(plane, DoorHinge.LEFT);
 			double veilCentre = plane.blockY() + veil.translationY() + (veil.scaleY() / 2.0D);
 
 			// the veil is built from floats, so match to well under a visible fraction of a block
@@ -275,9 +275,9 @@ final class DimensionalDoorManagerInteractionTest
 	@Test
 	void aContactPadAlwaysDeliversOntoItsExposedFace()
 	{
-		DoorwayPlane source = new DoorwayPlane(0, 64, 0, org.bukkit.block.BlockFace.NORTH);
+		DoorwayPlane source = new DoorwayPlane(0, 64, 0, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.NORTH));
 		DoorwayPlane pad = DoorwayPlane.trapdoor(
-			9, 64, 9, org.bukkit.block.BlockFace.SOUTH, org.bukkit.block.data.Bisected.Half.BOTTOM,
+			9, 64, 9, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.SOUTH), BukkitDoorGeometry.half(org.bukkit.block.data.Bisected.Half.BOTTOM),
 			DoorOpenState.CLOSED);
 
 		for(DoorwayCrossing.Direction direction : DoorwayCrossing.Direction.values())
@@ -292,7 +292,7 @@ final class DimensionalDoorManagerInteractionTest
 		for(org.bukkit.block.data.Bisected.Half half : org.bukkit.block.data.Bisected.Half.values())
 		{
 			DoorwayPlane plane = DoorwayPlane.trapdoor(
-				5, 70, -3, org.bukkit.block.BlockFace.EAST, half, DoorOpenState.CLOSED);
+				5, 70, -3, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.EAST), BukkitDoorGeometry.half(half), DoorOpenState.CLOSED);
 			DoorTransit living = new DoorTransit(
 				plane, DoorwayCrossing.Direction.FRONT_TO_BACK, 0.0F, 0.0F, 0.3D, 1.8D);
 			DoorTransit object = new DoorTransit(
@@ -317,7 +317,7 @@ final class DimensionalDoorManagerInteractionTest
 			{
 				for(int sideSign : new int[] {-1, 1})
 				{
-					DoorVec3 arrival = DimensionalDoorManager.arrivalPoint(plane, transit, sideSign);
+					DoorVec3 arrival = DoorArrivals.arrivalPoint(plane, transit, sideSign);
 					double expectedY = sideSign > 0
 						? expectedUpper
 						: expectedLower - transit.height();
@@ -343,14 +343,14 @@ final class DimensionalDoorManagerInteractionTest
 	@Test
 	void aClosedHingedDestinationStillPreservesTheEnteredFace()
 	{
-		DoorwayPlane source = new DoorwayPlane(0, 64, 0, org.bukkit.block.BlockFace.NORTH);
+		DoorwayPlane source = new DoorwayPlane(0, 64, 0, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.NORTH));
 		DoorwayPlane destination = new DoorwayPlane(
 			9,
 			64,
 			9,
-			org.bukkit.block.BlockFace.SOUTH,
+			BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.SOUTH),
 			DoorForm.DOOR,
-			org.bukkit.block.data.Bisected.Half.BOTTOM,
+			BukkitDoorGeometry.half(org.bukkit.block.data.Bisected.Half.BOTTOM),
 			DoorOpenState.CLOSED);
 
 		for(DoorwayCrossing.Direction direction : DoorwayCrossing.Direction.values())
@@ -364,8 +364,8 @@ final class DimensionalDoorManagerInteractionTest
 	@Test
 	void objectArrivalsPreserveExactUpperLowerAndOffCenterCrossings()
 	{
-		DoorwayPlane source = new DoorwayPlane(0, 64, 0, org.bukkit.block.BlockFace.NORTH);
-		DoorwayPlane destination = new DoorwayPlane(40, 20, 40, org.bukkit.block.BlockFace.EAST);
+		DoorwayPlane source = new DoorwayPlane(0, 64, 0, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.NORTH));
+		DoorwayPlane destination = new DoorwayPlane(40, 20, 40, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.EAST));
 		double[][] offsets = {
 			{-0.3D, 0.25D},
 			{0.3D, 1.75D},
@@ -386,7 +386,7 @@ final class DimensionalDoorManagerInteractionTest
 				new DoorVec3(0.0D, 0.0D, -1.0D));
 			DoorVec3 aperturePoint = DoorPlanePairing.mapAperturePoint(source, destination, crossing);
 			int sideSign = DoorPlanePairing.arrivalSideSign(source, destination, crossing.direction());
-			DoorVec3 arrival = DimensionalDoorManager.arrivalPoint(destination, transit, sideSign);
+			DoorVec3 arrival = DoorArrivals.arrivalPoint(destination, transit, sideSign);
 
 			assertEquals(aperturePoint.x() + (destination.normalX() * sideSign), arrival.x(), 1.0E-9D);
 			assertEquals(aperturePoint.y(), arrival.y(), 1.0E-9D);
@@ -397,8 +397,8 @@ final class DimensionalDoorManagerInteractionTest
 	@Test
 	void livingArrivalsRemainCenteredDespiteAnExactOffCenterCrossing()
 	{
-		DoorwayPlane source = new DoorwayPlane(0, 64, 0, org.bukkit.block.BlockFace.NORTH);
-		DoorwayPlane destination = new DoorwayPlane(40, 20, 40, org.bukkit.block.BlockFace.EAST);
+		DoorwayPlane source = new DoorwayPlane(0, 64, 0, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.NORTH));
+		DoorwayPlane destination = new DoorwayPlane(40, 20, 40, BukkitDoorGeometry.direction(org.bukkit.block.BlockFace.EAST));
 		DoorwayCrossing crossing = doorCrossing(source, 0.4D, 1.75D);
 		DoorTransit exact = new DoorTransit(
 			source,
@@ -413,8 +413,8 @@ final class DimensionalDoorManagerInteractionTest
 			source, crossing.direction(), 0.0F, 0.0F, 0.3D, 1.8D);
 
 		assertEquals(
-			DimensionalDoorManager.arrivalPoint(destination, centered),
-			DimensionalDoorManager.arrivalPoint(destination, exact));
+			DoorArrivals.arrivalPoint(destination, centered),
+			DoorArrivals.arrivalPoint(destination, exact));
 	}
 
 	@Test
@@ -458,9 +458,9 @@ final class DimensionalDoorManagerInteractionTest
 	{
 		DoorVec3 center = plane.center();
 		DoorVec3 point = new DoorVec3(
-			center.x() + (lateralOffset * -plane.facing().getModZ()),
+			center.x() + (lateralOffset * -plane.facing().z()),
 			plane.blockY() + verticalOffset,
-			center.z() + (lateralOffset * plane.facing().getModX()));
+			center.z() + (lateralOffset * plane.facing().x()));
 		DoorVec3 from = new DoorVec3(
 			point.x() + plane.normalX(),
 			point.y() + plane.normalY(),

@@ -25,7 +25,7 @@ class DestinationPolicyTest {
                 new DestinationEntry(TargetKind.REMOTE, "beta/" + PLAYER, 1, 13000, 23000, "night")),
                 SelectionRule.RANDOM);
 
-        DestinationPolicy decoded = DestinationPolicy.fromJSON(original.toJSON());
+        DestinationPolicy decoded = DestinationPolicy.fromMap(original.toMap());
 
         assertEquals(original, decoded);
         assertEquals(2, decoded.entries().size());
@@ -140,7 +140,7 @@ class DestinationPolicyTest {
 
     @Test
     void emptyPolicyChoosesNothingAndDecodesFromAnEmptyDocument() {
-        DestinationPolicy empty = DestinationPolicy.fromJSON(new JSONObject());
+        DestinationPolicy empty = DestinationPolicy.fromMap(java.util.Map.of());
 
         assertEquals(DestinationMode.SINGLE, empty.mode());
         assertTrue(empty.entries().isEmpty());

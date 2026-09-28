@@ -1,5 +1,6 @@
 package art.arcane.wormholes.door;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.util.VIO;
 import org.junit.jupiter.api.Test;
@@ -36,7 +37,7 @@ final class PocketMutationJournalTest {
             .put("target", shell(TARGET))
             .toString(2));
 
-        List<PocketMutationIntent> pending = new PocketMutationJournal(directory).load();
+        List<PocketMutationIntent> pending = new PocketMutationJournal(directory, BukkitJsonDocuments.INSTANCE).load();
 
         assertEquals(1, pending.size());
         PocketMutationIntent intent = pending.getFirst();
@@ -106,12 +107,12 @@ final class PocketMutationJournalTest {
             .put("target", shell(TARGET))
             .toString(2));
 
-        IOException failure = assertThrows(IOException.class, () -> new PocketMutationJournal(directory).load());
+        IOException failure = assertThrows(IOException.class, () -> new PocketMutationJournal(directory, BukkitJsonDocuments.INSTANCE).load());
         assertTrue(failure.getMessage().contains("pocket-mutation journal"), failure.getMessage());
     }
 
     private static PocketMutationJournal loaded(Path directory) throws IOException {
-        PocketMutationJournal journal = new PocketMutationJournal(directory);
+        PocketMutationJournal journal = new PocketMutationJournal(directory, BukkitJsonDocuments.INSTANCE);
         journal.load();
         return journal;
     }

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.nexus;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.WormholesSubsystems;
 import art.arcane.wormholes.atlas.AtlasRuntime;
@@ -76,7 +77,7 @@ public final class NexusSubsystem implements WormholesSubsystem, NexusPortalList
     @Override
     public void register(WormholesRegistrar registrar) {
         Path networks = Wormholes.instance.getDataFolder().toPath().resolve("atlas").resolve("networks");
-        NetworkRegistry created = new NetworkRegistry(networks);
+        NetworkRegistry created = new NetworkRegistry(networks, BukkitJsonDocuments.INSTANCE);
         registry = created;
         dialer = new Dialer(created, NexusSubsystem::applyTunnel, NexusSubsystem::config);
         RedstoneIo io = new RedstoneIo(redstoneIndex, dialer, NexusSubsystem::config, NexusSubsystem::loadedPortals);

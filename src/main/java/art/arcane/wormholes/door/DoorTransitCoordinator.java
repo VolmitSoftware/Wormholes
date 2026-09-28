@@ -46,7 +46,7 @@ final class DoorTransitCoordinator
 	private final PocketSpaceIndex pockets;
 	private final PocketStructureService pocketStructures;
 	private final PocketWorldService pocketWorldService;
-	private final PocketTemplateService templates;
+	private final BukkitPocketTemplates templates;
 	private final DoorTransitFailures failures;
 
 	DoorTransitCoordinator(
@@ -62,7 +62,7 @@ final class DoorTransitCoordinator
 		PocketSpaceIndex pockets,
 		PocketStructureService pocketStructures,
 		PocketWorldService pocketWorldService,
-		PocketTemplateService templates,
+		BukkitPocketTemplates templates,
 		DoorTransitFailures failures)
 	{
 		this.plugin = Objects.requireNonNull(plugin, "plugin");

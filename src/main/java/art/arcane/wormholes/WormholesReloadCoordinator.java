@@ -1,5 +1,7 @@
 package art.arcane.wormholes;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
+
 import art.arcane.volmlib.util.localization.LocalizationReloadResult;
 import art.arcane.volmlib.util.localization.LocalizationSnapshot;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
@@ -133,7 +135,7 @@ final class WormholesReloadCoordinator {
         Wormholes.clearChatInputs();
         Files.deleteIfExists(dataFolder.resolve(WormholesSettings.CONFIG_FILE_NAME));
         deleteResetFolders(dataFolder);
-        DimensionalDoorRepository.under(dataFolder).save(new DoorStoreSnapshot(
+        DimensionalDoorRepository.under(dataFolder, BukkitJsonDocuments.INSTANCE).save(new DoorStoreSnapshot(
             DoorStoreSnapshot.CURRENT_SCHEMA,
             retiredPocketSlots,
             List.of(),
@@ -166,7 +168,7 @@ final class WormholesReloadCoordinator {
     }
 
     private long loadRetiredPocketSlots(Path dataFolder) throws IOException {
-        DimensionalDoorRepository repository = DimensionalDoorRepository.under(dataFolder);
+        DimensionalDoorRepository repository = DimensionalDoorRepository.under(dataFolder, BukkitJsonDocuments.INSTANCE);
         try {
             return repository.load().nextPocketSlot();
         } catch (IOException parseFailure) {
