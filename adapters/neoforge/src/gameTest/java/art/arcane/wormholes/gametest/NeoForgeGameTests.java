@@ -42,6 +42,8 @@ public final class NeoForgeGameTests {
             WormholesGameTests.RTP_RUNTIME, () -> WormholesGameTests::rtpRuntime));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
             WormholesGameTests.ENTITY_PROJECTION_RUNTIME, () -> WormholesGameTests::entityProjectionRuntime));
+        bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
+            WormholesGameTests.MENU_PARITY_RUNTIME, () -> WormholesGameTests::menuParityRuntime));
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> WormholesGameTests.RUNTIME.registerCommands(event.getDispatcher()));
         NeoForge.EVENT_BUS.addListener((ServerStartedEvent event) -> WormholesGameTests.start(event.getServer()));
         NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post event) -> tick());
