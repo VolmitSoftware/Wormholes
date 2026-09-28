@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.WormholesSettings;
@@ -336,7 +337,7 @@ class ServerConnectServiceTest {
         config.serverName = serverName;
         config.advertiseHostOverride = "127.0.0.1";
         config.listenPort = 8901;
-        return new NetworkManager(LOGGER, config, "26.2", "test", 25565, tempDir.resolve(serverName));
+        return new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", 25565, tempDir.resolve(serverName), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
     }
 
     private static NetworkConfig.PeerEntry route(String name) {
@@ -387,7 +388,7 @@ class ServerConnectServiceTest {
         private int validationRequests;
 
         private TestNetwork(Path directory, NetworkConfig.PeerEntry peer) {
-            super(LOGGER, new NetworkConfig(), "26.2", "test", 25565, directory);
+            super(LOGGER, new NetworkManager.Options( new NetworkConfig(), "26.2", "test", 25565, directory, BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
             this.peer = peer;
             this.endpoint = new GameEndpoint(peer.publicHost, peer.publicPort);
         }

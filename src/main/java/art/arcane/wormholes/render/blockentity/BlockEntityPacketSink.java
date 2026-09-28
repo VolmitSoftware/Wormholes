@@ -13,16 +13,17 @@ import com.github.retrooper.packetevents.util.Vector3i;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBlockEntityData;
 
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.service.WormholesTelemetry;
 
 /** Sends a sanitized sample as a block-entity data packet. */
-public final class BlockEntityPacketSink implements ProjectedBlockEntityLayer.PacketSink {
+public final class BlockEntityPacketSink implements ProjectedBlockEntityLayer.PacketSink<Player> {
     private static final String FAILURE_REASON = "PROJECTION_BLOCK_ENTITY_PACKET_FAILED";
 
     private volatile boolean failureLogged;
 
     @Override
-    public void send(Player observer, int x, int y, int z, BlockEntitySample sample) {
+    public void send(Player observer, long key, BlockEntitySample sample) {
         if (observer == null || sample == null) {
             return;
         }
@@ -33,7 +34,7 @@ public final class BlockEntityPacketSink implements ProjectedBlockEntityLayer.Pa
         try {
             NBTCompound nbt = BlockEntityNbt.decode(sample.nbt());
             PacketEvents.getAPI().getPlayerManager().sendPacket(observer,
-                new WrapperPlayServerBlockEntityData(new Vector3i(x, y, z), type, nbt));
+                new WrapperPlayServerBlockEntityData(new Vector3i(ProjectionCellKey.unpackX(key), ProjectionCellKey.unpackY(key), ProjectionCellKey.unpackZ(key)), type, nbt));
             WormholesTelemetry.countPacket();
         } catch (IOException | RuntimeException failure) {
             WormholesTelemetry.countFailure(FAILURE_REASON);

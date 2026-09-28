@@ -17,7 +17,7 @@
 #   {address}  ネットワーク接続先のアドレス
 #   {after}  編集後のメッセージ値
 #   {allocation}  ポケット空間の割り当て
-#   {amount}  Vault通貨での移動料金
+#  {amount} 通貨での移動料金
 #   {argument}  予期しないコマンド引数
 #   {before}  編集前のメッセージ値
 #   {biome}  バイオームの識別子
@@ -357,7 +357,7 @@ transfer_blocked_retry = "&cポータル転送が拒否されました: {reason}
 
 [portal.prompt]
 cost_item = "&bコストとなる正確なアイテムをメインハンドに持ち、ドロップキーを押してください。アイテムはインベントリから失われません。"
-cost_vault = "&b1回の通過ごとの Vault 通貨額を入力してください (または '{cancel}'):"
+cost_vault = "&b通過ごとの金額を入力してください（または '{cancel}'）："
 invite = "&bポータル招待コードをチャットに貼り付けてください (または '{cancel}'):"
 block_state = "&bこのポータルのネットワークビュー端に使うブロック状態を入力するか、'{cancel}' と入力してください:"
 name = "&b新しいポータル名をチャットに入力してください (または '{cancel}'):"
@@ -368,9 +368,9 @@ cost_item_set = "移動には {item} が必要になりました。"
 cost_item_invalid = "そのアイテムは移動コストとして保存できませんでした。"
 cost_cleared = "移動コストをクリアしました。"
 cost_quantity_changed = "移動コストの個数: {quantity}"
-cost_vault_changed = "Vault 移動コスト: {amount}"
+cost_vault_changed = "通過料金：{amount}"
 cost_vault_invalid = "{maximum} 以下の正の通貨額を入力してください。"
-cost_vault_unavailable = "このコストを選択するには Vault と経済プロバイダーが利用可能である必要があります。"
+cost_vault_unavailable = "この料金を選ぶには経済プロバイダーが利用可能である必要があります。"
 dimensional_link_managed = "このディメンションポータルでは自動生成されたリンクが維持されます。"
 not_rtp = "このポータルはランダムテレポートモードではありません。"
 region_unavailable = "ポータルのリージョンを使用できません。もう一度試してください。"
@@ -397,7 +397,7 @@ public_look_label = "注視時の公開ラベル"
 [portal.label.cost]
 free = "無料"
 vanilla = "バニラアイテム"
-vault = "Vault 経済"
+vault = "経済"
 
 [portal.label.ambient]
 red = "赤"
@@ -552,12 +552,12 @@ available = ["&e&lミラー&r", "&7ローカルワールドをこちら側に反
 flip = ["&7壁面のミラーは 180 度単位で反転し、", "&7反射されたエンティティの向きを正しく保ちます。", "&8右クリック: 反射画像を反転。"]
 
 [portal.menu.cost]
-opener = ["&6&l移動コスト&r", "&7プレイヤーがこのポータルを使用するときに", "&7正確なアイテムまたは Vault 通貨を要求します。", "", "&7モード: &f{mode}", "&7コスト: &f{cost}", "", "&8クリックして設定します。"]
+opener = ["&6&l移動コスト&r", "&7プレイヤーがこのポータルを使用するときに", "&7正確なアイテムまたは 通貨を要求します。", "", "&7モード: &f{mode}", "&7コスト: &f{cost}", "", "&8クリックして設定します。"]
 placard = ["&6&l移動コスト&r", "&7プレイヤーは支払いを済ませるまで", "&7このポータルで移動できません。", "", "&7モード: &f{mode}", "&7コスト: &f{cost}"]
 mode_free = ["&a&l無料&r", "&7支払いは不要です。", "", "&8クリックして移動を無料にします。"]
 mode_vanilla = ["&b&lバニラアイテム&r", "&7完全に一致するアイテムを消費します。", "", "&8クリックし、アイテムを持ってドロップキーを押してください。"]
-mode_vault = ["&a&lVault 経済&r", "&7Vault を通じて通貨を引き落とします。", "", "&8クリックして金額を入力します。"]
-mode_vault_unavailable = ["&c&lVault 経済は利用できません&r", "&7Vault と経済プロバイダーが必要です。", "", "&8このモードを使用するには両方を導入または有効化してください。"]
+mode_vault = ["&a&l経済&r", "&7経済プロバイダーを通じて通貨を引き落とします。", "", "&8クリックして金額を入力します。"]
+mode_vault_unavailable = ["&c&l経済を利用できません&r", "&7経済プロバイダーが必要です。", "", "&8このモードには経済プロバイダーを有効にしてください。"]
 free_detail = ["&a&lコストなし&r", "&7このポータルの移動は無料です。"]
 secondary_empty = ["&8&l追加設定なし&r"]
 item = ["&b&l{item}&r", "&7移動にはこの正確なアイテムが必要です。", "&7選択用のアイテムが消費されることはありません。", "", "&8左クリック: 手に持った別のアイテムを選択。", "&8右クリック: コストをクリア。"]
@@ -687,7 +687,7 @@ execution_failed = "コマンド {command} の実行に失敗しました: {reas
 not_initialized = "&8[&6Wormholes&8] &cネットワークはまだ初期化されていません。"
 
 [network.status]
-disabled = "&8[&6Wormholes&8] &7ネットワークは&c無効&7です (plugins/Wormholes/wormholes.toml)。"
+disabled = "&8[&6Wormholes&8] &7ネットワークは&c無効&7です (wormholes.toml)。"
 not_running = "&8[&6Wormholes&8] &cネットワークは有効ですが実行されていません。ID ストレージとネットワークポートを確認してください。"
 listening = "&8[&6Wormholes&8] &7現在のサーバー: &f{server}&7、待受アドレス: &f{address}"
 outbound_only = "&8[&6Wormholes&8] &7現在のサーバー: &f{server}&7、送信専用 Boat モード"

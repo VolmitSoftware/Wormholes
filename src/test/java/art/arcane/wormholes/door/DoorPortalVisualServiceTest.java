@@ -1,11 +1,12 @@
 package art.arcane.wormholes.door;
 
-import org.bukkit.Axis;
+import art.arcane.wormholes.util.Direction;
+
+import art.arcane.wormholes.util.Axis;
 import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.World;
-import org.bukkit.block.BlockFace;
-import org.bukkit.block.data.type.Door;
+import art.arcane.wormholes.util.Direction;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.Test;
@@ -33,25 +34,25 @@ class DoorPortalVisualServiceTest
 	@Test
 	void portalKeepsTheHingeInsetAndExtendsFlushToEveryLatchEdge()
 	{
-		assertLateralBounds(BlockFace.NORTH, Door.Hinge.LEFT, PIXEL, 1.0F);
-		assertLateralBounds(BlockFace.NORTH, Door.Hinge.RIGHT, 0.0F, 1.0F - PIXEL);
-		assertLateralBounds(BlockFace.SOUTH, Door.Hinge.LEFT, 0.0F, 1.0F - PIXEL);
-		assertLateralBounds(BlockFace.SOUTH, Door.Hinge.RIGHT, PIXEL, 1.0F);
-		assertLateralBounds(BlockFace.EAST, Door.Hinge.LEFT, PIXEL, 1.0F);
-		assertLateralBounds(BlockFace.EAST, Door.Hinge.RIGHT, 0.0F, 1.0F - PIXEL);
-		assertLateralBounds(BlockFace.WEST, Door.Hinge.LEFT, 0.0F, 1.0F - PIXEL);
-		assertLateralBounds(BlockFace.WEST, Door.Hinge.RIGHT, PIXEL, 1.0F);
+		assertLateralBounds(Direction.N, DoorHinge.LEFT, PIXEL, 1.0F);
+		assertLateralBounds(Direction.N, DoorHinge.RIGHT, 0.0F, 1.0F - PIXEL);
+		assertLateralBounds(Direction.S, DoorHinge.LEFT, 0.0F, 1.0F - PIXEL);
+		assertLateralBounds(Direction.S, DoorHinge.RIGHT, PIXEL, 1.0F);
+		assertLateralBounds(Direction.E, DoorHinge.LEFT, PIXEL, 1.0F);
+		assertLateralBounds(Direction.E, DoorHinge.RIGHT, 0.0F, 1.0F - PIXEL);
+		assertLateralBounds(Direction.W, DoorHinge.LEFT, 0.0F, 1.0F - PIXEL);
+		assertLateralBounds(Direction.W, DoorHinge.RIGHT, PIXEL, 1.0F);
 	}
 
 	@Test
 	void everyCardinalPlaneIsInsetFromTheDoorFrame()
 	{
-		for(BlockFace facing : new BlockFace[] {BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST})
+		for(Direction facing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W})
 		{
-			for(Door.Hinge hinge : Door.Hinge.values())
+			for(DoorHinge hinge : DoorHinge.values())
 			{
-				DoorPortalVisualService.PortalPlaneGeometry geometry =
-					DoorPortalVisualService.geometry(facing, hinge);
+				PortalPlaneGeometry geometry =
+					DoorPortalGeometry.geometry(facing, hinge);
 				assertEquals(PIXEL, geometry.translationY(), EPSILON);
 				assertEquals(1.9375F, geometry.translationY() + geometry.scaleY(), EPSILON);
 				assertEquals(1.875F, geometry.scaleY(), EPSILON);
@@ -63,21 +64,21 @@ class DoorPortalVisualServiceTest
 	@Test
 	void movementThresholdMatchesTheVisiblePortalSurface()
 	{
-		for(BlockFace facing : new BlockFace[] {BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST})
+		for(Direction facing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W})
 		{
-			for(Door.Hinge hinge : Door.Hinge.values())
+			for(DoorHinge hinge : DoorHinge.values())
 			{
-				DoorPortalVisualService.PortalPlaneGeometry geometry =
-					DoorPortalVisualService.geometry(facing, hinge);
+				PortalPlaneGeometry geometry =
+					DoorPortalGeometry.geometry(facing, hinge);
 				double localCenterX = geometry.translationX() + (geometry.scaleX() / 2.0D);
 				double localCenterZ = geometry.translationZ() + (geometry.scaleZ() / 2.0D);
-				double visibleOffset = (localCenterX * facing.getModX()) + (localCenterZ * facing.getModZ());
+				double visibleOffset = (localCenterX * facing.x()) + (localCenterZ * facing.z());
 				DoorwayPlane plane = new DoorwayPlane(0, 64, 0, facing);
 
 				assertEquals(DoorwayPlane.PORTAL_THRESHOLD_OFFSET, visibleOffset, EPSILON);
 				assertEquals(DoorwayPlane.PORTAL_THRESHOLD_OFFSET,
-					((plane.center().x() - 0.5D) * facing.getModX())
-						+ ((plane.center().z() - 0.5D) * facing.getModZ()),
+					((plane.center().x() - 0.5D) * facing.x())
+						+ ((plane.center().z() - 0.5D) * facing.z()),
 					EPSILON);
 			}
 		}
@@ -88,23 +89,23 @@ class DoorPortalVisualServiceTest
 	{
 		assertEquals(Material.CRYING_OBSIDIAN, DoorPortalVisualService.PORTAL_MATERIAL);
 		assertEquals(Material.NETHER_PORTAL, DoorPortalVisualService.PORTAL_OVERLAY_MATERIAL);
-		assertEquals(Axis.X, DoorPortalVisualService.overlayAxis(BlockFace.NORTH));
-		assertEquals(Axis.X, DoorPortalVisualService.overlayAxis(BlockFace.SOUTH));
-		assertEquals(Axis.Z, DoorPortalVisualService.overlayAxis(BlockFace.EAST));
-		assertEquals(Axis.Z, DoorPortalVisualService.overlayAxis(BlockFace.WEST));
+		assertEquals(Axis.X, DoorPortalGeometry.overlayAxis(Direction.N));
+		assertEquals(Axis.X, DoorPortalGeometry.overlayAxis(Direction.S));
+		assertEquals(Axis.Z, DoorPortalGeometry.overlayAxis(Direction.E));
+		assertEquals(Axis.Z, DoorPortalGeometry.overlayAxis(Direction.W));
 	}
 
 	@Test
 	void animatedOverlayStraddlesBothBackingFacesWithoutZFighting()
 	{
-		for(BlockFace facing : new BlockFace[] {BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST})
+		for(Direction facing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W})
 		{
-			for(Door.Hinge hinge : Door.Hinge.values())
+			for(DoorHinge hinge : DoorHinge.values())
 			{
-				DoorPortalVisualService.PortalPlaneGeometry backing =
-					DoorPortalVisualService.geometry(facing, hinge);
-				DoorPortalVisualService.PortalPlaneGeometry overlay =
-					DoorPortalVisualService.overlayGeometry(backing, facing);
+				PortalPlaneGeometry backing =
+					DoorPortalGeometry.geometry(facing, hinge);
+				PortalPlaneGeometry overlay =
+					DoorPortalGeometry.overlayGeometry(backing, facing);
 				float backingStart = normalTranslation(backing, facing);
 				float backingEnd = backingStart + normalScale(backing, facing);
 				float overlayStart = normalTranslation(overlay, facing);
@@ -122,26 +123,25 @@ class DoorPortalVisualServiceTest
 	void nonCardinalFacingsAreRejected()
 	{
 		assertThrows(IllegalArgumentException.class,
-			() -> DoorPortalVisualService.geometry(BlockFace.UP, Door.Hinge.LEFT));
+			() -> DoorPortalGeometry.geometry(Direction.U, DoorHinge.LEFT));
 		assertThrows(NullPointerException.class,
-			() -> DoorPortalVisualService.geometry(null, Door.Hinge.LEFT));
+			() -> DoorPortalGeometry.geometry(null, DoorHinge.LEFT));
 		assertThrows(NullPointerException.class,
-			() -> DoorPortalVisualService.geometry(BlockFace.NORTH, null));
-		assertThrows(IllegalArgumentException.class, () -> DoorPortalVisualService.overlayAxis(BlockFace.NORTH_EAST));
+			() -> DoorPortalGeometry.geometry(Direction.N, null));
 	}
 
 	@Test
 	void trapdoorVeilIsAFlatUnitPanelLyingInThePlatePlane()
 	{
-		for(BlockFace facing : new BlockFace[] {BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST})
+		for(Direction facing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W})
 		{
 			for(org.bukkit.block.data.Bisected.Half half : org.bukkit.block.data.Bisected.Half.values())
 			{
 					DoorwayPlane plane = DoorwayPlane.trapdoor(
-						4, 70, -9, facing, half, DoorOpenState.OPEN);
-				assertEquals(BlockFace.UP, DoorPortalVisualService.panelFace(plane));
-				DoorPortalVisualService.PortalPlaneGeometry geometry =
-					DoorPortalVisualService.planeGeometry(plane, Door.Hinge.LEFT);
+						4, 70, -9, facing, BukkitDoorGeometry.half(half), DoorOpenState.OPEN);
+				assertEquals(Direction.U, DoorPortalGeometry.panelFace(plane));
+				PortalPlaneGeometry geometry =
+					DoorPortalGeometry.planeGeometry(plane, DoorHinge.LEFT);
 				assertEquals(geometry.scaleX(), geometry.scaleZ(), EPSILON);
 				assertTrue(geometry.scaleY() < geometry.scaleX());
 				// the panel is centred on the block and straddles the crossing plane, so what
@@ -156,8 +156,8 @@ class DoorPortalVisualServiceTest
 				assertTrue(geometry.translationY() >= 0.0F);
 				assertTrue(geometry.translationY() + geometry.scaleY() <= 1.0F);
 
-				DoorPortalVisualService.PortalPlaneGeometry overlay =
-					DoorPortalVisualService.overlayGeometry(geometry, BlockFace.UP);
+				PortalPlaneGeometry overlay =
+					DoorPortalGeometry.overlayGeometry(geometry, Direction.U);
 				assertEquals(geometry.scaleX(), overlay.scaleX(), EPSILON);
 				assertEquals(geometry.scaleZ(), overlay.scaleZ(), EPSILON);
 				// the animated overlay straddles both faces of the flat backing, as it does on a hinged door
@@ -166,7 +166,7 @@ class DoorPortalVisualServiceTest
 					geometry.translationY() + (geometry.scaleY() / 2.0F),
 					overlay.translationY() + (overlay.scaleY() / 2.0F),
 					EPSILON);
-				assertEquals(Axis.X, DoorPortalVisualService.overlayAxis(BlockFace.UP));
+				assertEquals(Axis.X, DoorPortalGeometry.overlayAxis(Direction.U));
 			}
 		}
 	}
@@ -178,24 +178,24 @@ class DoorPortalVisualServiceTest
 			0,
 			64,
 			0,
-			BlockFace.NORTH,
-			org.bukkit.block.data.Bisected.Half.TOP,
+			Direction.N,
+			BukkitDoorGeometry.half(org.bukkit.block.data.Bisected.Half.TOP),
 			DoorOpenState.CLOSED);
 		assertEquals(
-			DoorPortalVisualService.planeGeometry(plane, Door.Hinge.LEFT),
-			DoorPortalVisualService.planeGeometry(plane, Door.Hinge.RIGHT));
+			DoorPortalGeometry.planeGeometry(plane, DoorHinge.LEFT),
+			DoorPortalGeometry.planeGeometry(plane, DoorHinge.RIGHT));
 	}
 
 	@Test
 	void hingedPlaneGeometryStillDelegatesToTheCardinalTable()
 	{
-		for(BlockFace facing : new BlockFace[] {BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST})
+		for(Direction facing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W})
 		{
-			for(Door.Hinge hinge : Door.Hinge.values())
+			for(DoorHinge hinge : DoorHinge.values())
 			{
 				assertEquals(
-					DoorPortalVisualService.geometry(facing, hinge),
-					DoorPortalVisualService.planeGeometry(new DoorwayPlane(1, 2, 3, facing), hinge));
+					DoorPortalGeometry.geometry(facing, hinge),
+					DoorPortalGeometry.planeGeometry(new DoorwayPlane(1, 2, 3, facing), hinge));
 			}
 		}
 	}
@@ -207,9 +207,9 @@ class DoorPortalVisualServiceTest
 		for(org.bukkit.block.data.Bisected.Half half : org.bukkit.block.data.Bisected.Half.values())
 		{
 			DoorwayPlane plane = DoorwayPlane.trapdoor(
-				0, 64, 0, BlockFace.NORTH, half, DoorOpenState.CLOSED);
-			DoorPortalVisualService.PortalPlaneGeometry geometry =
-				DoorPortalVisualService.planeGeometry(plane, Door.Hinge.LEFT);
+				0, 64, 0, Direction.N, BukkitDoorGeometry.half(half), DoorOpenState.CLOSED);
+			PortalPlaneGeometry geometry =
+				DoorPortalGeometry.planeGeometry(plane, DoorHinge.LEFT);
 			float plateMinimum = half == org.bukkit.block.data.Bisected.Half.BOTTOM
 				? 0.0F
 				: 1.0F - (float) DoorwayPlane.TRAPDOOR_PLATE_THICKNESS;
@@ -226,21 +226,21 @@ class DoorPortalVisualServiceTest
 				EPSILON);
 		}
 
-		for(BlockFace facing : new BlockFace[] {BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST})
+		for(Direction facing : new Direction[] {Direction.N, Direction.S, Direction.E, Direction.W})
 		{
-			for(Door.Hinge hinge : Door.Hinge.values())
+			for(DoorHinge hinge : DoorHinge.values())
 			{
-				DoorPortalVisualService.PortalPlaneGeometry open = DoorPortalVisualService.geometry(facing, hinge);
+				PortalPlaneGeometry open = DoorPortalGeometry.geometry(facing, hinge);
 				DoorwayPlane plane = new DoorwayPlane(
 					0,
 					64,
 					0,
 					facing,
 					DoorForm.DOOR,
-					org.bukkit.block.data.Bisected.Half.BOTTOM,
+					BukkitDoorGeometry.half(org.bukkit.block.data.Bisected.Half.BOTTOM),
 					DoorOpenState.CLOSED);
-				DoorPortalVisualService.PortalPlaneGeometry closed =
-					DoorPortalVisualService.planeGeometry(plane, hinge);
+				PortalPlaneGeometry closed =
+					DoorPortalGeometry.planeGeometry(plane, hinge);
 
 				assertEquals(contactThickness, normalScale(closed, facing), EPSILON);
 				assertEquals(
@@ -274,8 +274,8 @@ class DoorPortalVisualServiceTest
 			DoorItemIdentity.personal(UUID.randomUUID()));
 		VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(
 			worldId,
-			new DoorwayPlane(1, 2, 3, BlockFace.NORTH),
-			Door.Hinge.LEFT,
+			new DoorwayPlane(1, 2, 3, Direction.N),
+			org.bukkit.block.data.type.Door.Hinge.LEFT,
 			true,
 			false);
 
@@ -378,8 +378,8 @@ class DoorPortalVisualServiceTest
 			identity);
 		VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(
 			worldId,
-			new DoorwayPlane(1, 2, 3, BlockFace.NORTH),
-			Door.Hinge.LEFT,
+			new DoorwayPlane(1, 2, 3, Direction.N),
+			org.bukkit.block.data.type.Door.Hinge.LEFT,
 			true,
 			false);
 
@@ -440,8 +440,8 @@ class DoorPortalVisualServiceTest
 			DoorItemIdentity.personal(UUID.randomUUID()));
 		VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(
 			worldId,
-			new DoorwayPlane(1, 2, 3, BlockFace.NORTH),
-			Door.Hinge.LEFT,
+			new DoorwayPlane(1, 2, 3, Direction.N),
+			org.bukkit.block.data.type.Door.Hinge.LEFT,
 			true,
 			false);
 
@@ -512,8 +512,8 @@ class DoorPortalVisualServiceTest
 			DoorItemIdentity.personal(UUID.randomUUID()));
 		VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(
 			worldId,
-			new DoorwayPlane(1, 2, 3, BlockFace.NORTH),
-			Door.Hinge.LEFT,
+			new DoorwayPlane(1, 2, 3, Direction.N),
+			org.bukkit.block.data.type.Door.Hinge.LEFT,
 			true,
 			false);
 
@@ -587,16 +587,16 @@ class DoorPortalVisualServiceTest
 				new DoorPosition(UUID.randomUUID(), "minecraft:overworld", 1, 2, 3),
 				backing,
 				overlay);
-			DoorPortalVisualService.PortalPlaneGeometry base =
-				DoorPortalVisualService.overlayGeometry(
-					DoorPortalVisualService.geometry(BlockFace.NORTH, Door.Hinge.LEFT), BlockFace.NORTH);
+			PortalPlaneGeometry base =
+				DoorPortalGeometry.overlayGeometry(
+					DoorPortalGeometry.geometry(Direction.N, DoorHinge.LEFT), Direction.N);
 			org.bukkit.Location anchor = new org.bukkit.Location(world, 1.5D, 2.0D, 3.5D);
 
 			ThreadLocalRandom random = mock(ThreadLocalRandom.class);
 			try(MockedStatic<ThreadLocalRandom> randomSource = mockStatic(ThreadLocalRandom.class))
 			{
 				randomSource.when(ThreadLocalRandom::current).thenReturn(random);
-				service.animateFrame(visual, world, anchor, BlockFace.NORTH, base, 2);
+				service.animateFrame(visual, world, anchor, Direction.N, base, 2);
 			}
 
 			assertEquals(0, interpolationDelay.get());
@@ -605,7 +605,7 @@ class DoorPortalVisualServiceTest
 			assertEquals(2, particleSpawns.get());
 
 			particleSpawns.set(0);
-			service.animateFrame(visual, world, anchor, BlockFace.NORTH, base, 0);
+			service.animateFrame(visual, world, anchor, Direction.N, base, 0);
 			assertEquals(3, particleSpawns.get());
 		}
 		finally
@@ -657,12 +657,12 @@ class DoorPortalVisualServiceTest
 				new DoorPosition(UUID.randomUUID(), "minecraft:overworld", 1, 2, 3),
 				display(new AtomicBoolean()),
 				overlay);
-			DoorPortalVisualService.PortalPlaneGeometry base =
-				DoorPortalVisualService.overlayGeometry(
-					DoorPortalVisualService.geometry(BlockFace.EAST, Door.Hinge.RIGHT), BlockFace.EAST);
+			PortalPlaneGeometry base =
+				DoorPortalGeometry.overlayGeometry(
+					DoorPortalGeometry.geometry(Direction.E, DoorHinge.RIGHT), Direction.E);
 
 			service.animateFrame(
-				visual, world, new org.bukkit.Location(world, 1.5D, 2.0D, 3.5D), BlockFace.EAST, base, 4);
+				visual, world, new org.bukkit.Location(world, 1.5D, 2.0D, 3.5D), Direction.E, base, 4);
 
 			assertEquals(3, overlayCalls.get());
 		}
@@ -699,17 +699,17 @@ class DoorPortalVisualServiceTest
 	}
 
 	private static void assertLateralBounds(
-		BlockFace facing,
-		Door.Hinge hinge,
+		Direction facing,
+		DoorHinge hinge,
 		float expectedMin,
 		float expectedMax)
 	{
-		DoorPortalVisualService.PortalPlaneGeometry geometry =
-			DoorPortalVisualService.geometry(facing, hinge);
-		float translation = facing == BlockFace.NORTH || facing == BlockFace.SOUTH
+		PortalPlaneGeometry geometry =
+			DoorPortalGeometry.geometry(facing, hinge);
+		float translation = facing == Direction.N || facing == Direction.S
 			? geometry.translationX()
 			: geometry.translationZ();
-		float scale = facing == BlockFace.NORTH || facing == BlockFace.SOUTH
+		float scale = facing == Direction.N || facing == Direction.S
 			? geometry.scaleX()
 			: geometry.scaleZ();
 
@@ -719,19 +719,19 @@ class DoorPortalVisualServiceTest
 	}
 
 	private static float normalTranslation(
-		DoorPortalVisualService.PortalPlaneGeometry geometry,
-		BlockFace facing)
+		PortalPlaneGeometry geometry,
+		Direction facing)
 	{
-		return facing == BlockFace.NORTH || facing == BlockFace.SOUTH
+		return facing == Direction.N || facing == Direction.S
 			? geometry.translationZ()
 			: geometry.translationX();
 	}
 
 	private static float normalScale(
-		DoorPortalVisualService.PortalPlaneGeometry geometry,
-		BlockFace facing)
+		PortalPlaneGeometry geometry,
+		Direction facing)
 	{
-		return facing == BlockFace.NORTH || facing == BlockFace.SOUTH
+		return facing == Direction.N || facing == Direction.S
 			? geometry.scaleZ()
 			: geometry.scaleX();
 	}

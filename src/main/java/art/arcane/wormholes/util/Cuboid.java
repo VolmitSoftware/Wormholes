@@ -99,7 +99,14 @@ public class Cuboid implements Iterable<Block>, Cloneable, ConfigurationSerializ
 
 	public Cuboid e(Direction d, int amt)
 	{
-		return expand(d.f(), amt);
+		return expand(switch (d) {
+            case U -> CuboidDirection.Up;
+            case D -> CuboidDirection.Down;
+            case N -> CuboidDirection.North;
+            case S -> CuboidDirection.South;
+            case E -> CuboidDirection.East;
+            case W -> CuboidDirection.West;
+        }, amt);
 	}
 
 	public Cuboid e(Axis d, int amt)

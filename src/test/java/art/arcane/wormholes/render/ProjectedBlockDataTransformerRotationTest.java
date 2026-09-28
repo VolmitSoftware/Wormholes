@@ -31,11 +31,11 @@ final class ProjectedBlockDataTransformerRotationTest {
                 PortalFrame to = PortalFrame.canonical(HORIZONTAL_CLOCKWISE[toIndex]);
                 int quarterTurns = toIndex - fromIndex;
                 for (int rotation = 0; rotation < 16; rotation++) {
-                    Rotatable sign = RenderTestSupport.rotatable(BlockRotation16.face(rotation));
+                    Rotatable sign = RenderTestSupport.rotatable(BukkitBlockRotation16.face(rotation));
 
                     BlockData projected = ProjectedBlockDataTransformer.transform((BlockData) sign, from, to, new double[3]);
 
-                    assertEquals(BlockRotation16.face(BlockRotation16.rotate(rotation, quarterTurns)),
+                    assertEquals(BukkitBlockRotation16.face(BlockRotation16.rotate(rotation, quarterTurns)),
                         ((Rotatable) projected).getRotation(),
                         "rotation " + rotation + " from " + HORIZONTAL_CLOCKWISE[fromIndex] + " to " + HORIZONTAL_CLOCKWISE[toIndex]);
                 }

@@ -1,5 +1,7 @@
 package art.arcane.wormholes;
 
+import art.arcane.wormholes.util.BukkitGeometry;
+
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
@@ -13,6 +15,7 @@ import org.bukkit.util.Vector;
 import art.arcane.wormholes.access.AccessGuards;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.wormholes.portal.PortalConstruction;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.localization.WormholesMessages;
@@ -130,13 +133,13 @@ public class ConstructionManager implements Listener
 		int yDepth = c.depth(Axis.Y);
 		int zDepth = c.depth(Axis.Z);
 
-		if(isCoplanarPortalArea(xDepth, yDepth, zDepth))
+		if(PortalConstruction.isCoplanarPortalArea(xDepth, yDepth, zDepth))
 		{
 			Location center = c.getCenter();
 			double lookX = look == null ? 0.0D : look.getX();
 			double lookY = look == null ? 0.0D : look.getY();
 			double lookZ = look == null ? -1.0D : look.getZ();
-			Direction normal = derivePortalNormal(xDepth, yDepth, zDepth, lookX, lookY, lookZ);
+			Direction normal = PortalConstruction.derivePortalNormal(xDepth, yDepth, zDepth, lookX, lookY, lookZ);
 			PortalStructure s = new PortalStructure();
 			s.setBlocks(blocks);
 			LocalPortal portal = createPortal(s, type);
@@ -144,7 +147,7 @@ public class ConstructionManager implements Listener
 			{
 				portal.setOwner(ownerId);
 			}
-			portal.setFrame(PortalFrame.fromDirectionAndLook(normal, look));
+			portal.setFrame(PortalFrame.fromDirectionAndLook(normal, BukkitGeometry.vector(look)));
 			portal.open();
 			portal.save();
 			Wormholes.portalManager.addLocalPortal(portal);
@@ -156,44 +159,6 @@ public class ConstructionManager implements Listener
 		Wormholes.effectManager.playPortalFailOpen(blocks);
 		Wormholes.blockManager.refund(blocks, type);
 		return false;
-	}
-
-	static boolean isCoplanarPortalArea(int xDepth, int yDepth, int zDepth)
-	{
-		int flatAxes = 0;
-		if(xDepth == 0)
-		{
-			flatAxes++;
-		}
-		if(yDepth == 0)
-		{
-			flatAxes++;
-		}
-		if(zDepth == 0)
-		{
-			flatAxes++;
-		}
-
-		return flatAxes >= 1;
-	}
-
-	static Direction derivePortalNormal(int xDepth, int yDepth, int zDepth, double lookX, double lookY, double lookZ)
-	{
-		double ax = xDepth == 0 ? Math.abs(lookX) : -1.0D;
-		double ay = yDepth == 0 ? Math.abs(lookY) : -1.0D;
-		double az = zDepth == 0 ? Math.abs(lookZ) : -1.0D;
-
-		if(ax >= ay && ax >= az)
-		{
-			return lookX >= 0.0D ? Direction.E : Direction.W;
-		}
-
-		if(ay >= az)
-		{
-			return lookY >= 0.0D ? Direction.U : Direction.D;
-		}
-
-		return lookZ >= 0.0D ? Direction.S : Direction.N;
 	}
 
 	private LocalPortal createPortal(PortalStructure s, PortalType type)

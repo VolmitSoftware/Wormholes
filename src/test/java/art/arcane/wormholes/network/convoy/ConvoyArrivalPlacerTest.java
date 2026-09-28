@@ -1,10 +1,13 @@
 package art.arcane.wormholes.network.convoy;
 
+import art.arcane.wormholes.portal.UniversalTunnel;
+import art.arcane.wormholes.transit.ConvoyGraph;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -113,6 +116,57 @@ final class ConvoyArrivalPlacerTest {
         assertTrue(((WireMessage.ConvoyAck) fixture.sent.getLast()).accepted());
     }
 
+    @Test
+    void aCompletedManifestReplayReturnsItsReceiptWithoutSpawning() {
+        Fixture fixture = new Fixture();
+        fixture.placer.admit("alpha", fixture.manifest, TIMEOUT_MILLIS);
+        fixture.placer.onPlayerPlaced(fixture.player(), fixture.exit, fixture.traversive);
+        fixture.placer.admit("alpha", fixture.manifest, TIMEOUT_MILLIS);
+        assertEquals(2, fixture.spawner.spawned.size());
+        assertTrue(((WireMessage.ConvoyAck) fixture.sent.getLast()).accepted());
+    }
+
+    @Test
+    void aFailedManifestReplayStaysDenied() {
+        Fixture fixture = new Fixture();
+        fixture.spawner.refuse = "horse";
+        fixture.placer.admit("alpha", fixture.manifest, TIMEOUT_MILLIS);
+        fixture.spawner.refuse = null;
+        fixture.placer.admit("alpha", fixture.manifest, TIMEOUT_MILLIS);
+        assertEquals(1, fixture.spawner.spawned.size());
+        assertFalse(((WireMessage.ConvoyAck) fixture.sent.getLast()).accepted());
+    }
+
+    @Test
+    void anotherPeerCannotReplayAnAdmittedGroup() {
+        Fixture fixture = new Fixture();
+        fixture.placer.admit("alpha", fixture.manifest, TIMEOUT_MILLIS);
+        fixture.placer.admit("impostor", fixture.manifest, TIMEOUT_MILLIS);
+        assertEquals(2, fixture.spawner.spawned.size());
+        assertFalse(((WireMessage.ConvoyAck) fixture.sent.getLast()).accepted());
+        assertEquals(ConvoyLedger.Phase.ADMITTED, fixture.ledger.find(fixture.manifest.groupId()).phase());
+    }
+
+    @Test
+    void aFailedAttachmentRemovesTheWholeDestinationRig() {
+        Fixture fixture = new Fixture();
+        fixture.placer.admit("alpha", fixture.manifest, TIMEOUT_MILLIS);
+        fixture.spawner.failMount = true;
+        assertThrows(IllegalStateException.class, () -> fixture.placer.onPlayerPlaced(fixture.player(), fixture.exit, fixture.traversive));
+        assertEquals(fixture.spawner.spawned, fixture.spawner.removed);
+        assertEquals(ConvoyLedger.Phase.FAILED, fixture.ledger.receipt(fixture.manifest.groupId()).phase());
+    }
+
+    @Test
+    void shutdownRemovesHeldMembersAndDeniesTheirReplay() {
+        Fixture fixture = new Fixture();
+        fixture.placer.admit("alpha", fixture.manifest, TIMEOUT_MILLIS);
+        fixture.placer.close();
+        fixture.placer.admit("alpha", fixture.manifest, TIMEOUT_MILLIS);
+        assertEquals(fixture.spawner.spawned, fixture.spawner.removed);
+        assertFalse(((WireMessage.ConvoyAck) fixture.sent.getLast()).accepted());
+    }
+
     private static final class Fixture {
         private final World world = TransitTestSupport.world("convoy-arrival");
         private final LocalPortal exit = TransitTestSupport.portal(world);
@@ -123,16 +177,16 @@ final class ConvoyArrivalPlacerTest {
             new ConvoyManifest.Member(boatId, bytes("boat"), null, null, wire(1.0D), false),
             new ConvoyManifest.Member(driver.id(), new byte[0], boatId, null, wire(1.0D), true),
             new ConvoyManifest.Member(horseId, bytes("horse"), null, driver.id(), wire(2.0D), false)));
-        private final Traversive traversive = wire(1.0D).toTraversive(driver.entity());
+        private final Traversive traversive = Traversive.fromWire(wire(1.0D), driver.entity());
         private final FakeSpawner spawner = new FakeSpawner(world);
         private final List<WireMessage> sent = new ArrayList<WireMessage>();
         private final ConvoyLedger ledger = new ConvoyLedger();
         private long clock = 500_000L;
-        private final ConvoyArrivalPlacer placer;
+        private final ConvoyArrivalPlacer<Entity, ILocalPortal, Traversive, Location> placer;
 
         private Fixture() {
             spawner.exit = exit;
-            placer = new ConvoyArrivalPlacer(ledger, spawner, (peer, message) -> sent.add(message), () -> clock);
+            placer = new ConvoyArrivalPlacer<>(ledger, spawner, (peer, message) -> sent.add(message), () -> clock);
         }
 
         private Player player() {
@@ -148,7 +202,14 @@ final class ConvoyArrivalPlacerTest {
         return text.getBytes(StandardCharsets.UTF_8);
     }
 
-    private static final class FakeSpawner implements ConvoyArrivalPlacer.Spawner {
+    private static final class FakeSpawner implements ConvoyArrivalPlacer.Spawner<Entity, ILocalPortal, Traversive, Location> {
+        public UUID id(Entity entity) { return entity.getUniqueId(); }
+        public String name(Entity entity) { return entity.getName(); }
+        public Traversive crossing(WireTraversive traversive, Entity entity) { return Traversive.fromWire(traversive, entity); }
+        public Location target(ILocalPortal portal, WireTraversive traversive) {
+            return portal.computeExitTarget(Traversive.fromWire(traversive, null));
+        }
+
         private final World world;
         private final List<Entity> spawned = new ArrayList<Entity>();
         private final List<Entity> held = new ArrayList<Entity>();
@@ -161,6 +222,7 @@ final class ConvoyArrivalPlacerTest {
         private ILocalPortal exit;
         private boolean accepting = true;
         private String refuse;
+        private boolean failMount;
 
         private FakeSpawner(World world) {
             this.world = world;
@@ -212,6 +274,9 @@ final class ConvoyArrivalPlacerTest {
 
         @Override
         public void mount(Entity vehicle, Entity passenger) {
+            if (failMount) {
+                throw new IllegalStateException("mount rejected");
+            }
             mounted.add(vehicle.getName() + "<-" + passenger.getName());
         }
 
@@ -226,7 +291,7 @@ final class ConvoyArrivalPlacerTest {
         }
 
         @Override
-        public boolean runRegion(Location location, Runnable task) {
+        public boolean runRegion(Location location, Runnable task, Runnable rejected) {
             task.run();
             return true;
         }

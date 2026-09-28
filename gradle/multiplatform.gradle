@@ -1,0 +1,127 @@
+String minecraftVersion = providers.gradleProperty('minecraftVersion').get()
+String bukkitRange = providers.gradleProperty('bukkitMinecraftRange').get()
+String wrapper = System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows') ? 'gradlew.bat' : 'gradlew'
+File outputDirectory = providers.gradleProperty('pluginOutDirectory')
+    .map { String path -> file(path) }
+    .getOrElse(file('../PluginOuts'))
+Map<String, FileTree> previousArtifacts = ['CraftBukkit', 'Fabric', 'Forge', 'NeoForge'].collectEntries { String platform ->
+    [(platform): fileTree(outputDirectory) { include("Wormholes v* [${platform}] *.jar") }]
+}
+
+tasks.register('buildBukkit', Copy) {
+    group = 'distribution'
+    dependsOn('check', 'packedJar')
+    from(tasks.named('packedJar').flatMap { task -> task.outputJar })
+    into(outputDirectory)
+    rename { String name -> "Wormholes v${project.version} [CraftBukkit] ${bukkitRange}.jar" }
+    doFirst {
+        delete(previousArtifacts['CraftBukkit'])
+    }
+}
+
+Map<String, String> loaders = [fabric: 'Fabric', forge: 'Forge', neoforge: 'NeoForge']
+Map<String, String> versionKeys = [fabric: 'fabricLoaderVersion', forge: 'forgeVersion', neoforge: 'neoForgeVersion']
+loaders.each { String loader, String display ->
+    String versionKey = versionKeys[loader]
+    String loaderVersion = providers.gradleProperty(versionKey).get()
+    String displayVersion = loaderVersion.startsWith("${minecraftVersion}-")
+        ? loaderVersion.substring(minecraftVersion.length() + 1)
+        : loaderVersion
+    String artifactName = "Wormholes v${project.version} [${display}] ${minecraftVersion}+${displayVersion}.jar"
+    TaskProvider<Exec> jarTask = tasks.register("${loader}Jar", Exec) {
+        group = 'build'
+        workingDir(file("adapters/${loader}"))
+        commandLine(file(wrapper).absolutePath, 'build', '--console=plain',
+            "-PwormholesVersion=${project.version}", "-PminecraftVersion=${minecraftVersion}",
+            "-P${versionKey}=${loaderVersion}")
+        inputs.files(fileTree('core/src'), file('core/build.gradle'), fileTree('adapters/modded-common/src'),
+            fileTree("adapters/${loader}/src"), file("adapters/${loader}/build.gradle"),
+            file("adapters/${loader}/settings.gradle"), file("adapters/game-test.gradle"), file("adapters/${loader}/gradle.properties"),
+            file('gradle.properties'), file('gradle/libs.versions.toml'), file('gradle/localization-settings.gradle'),
+            file('.gradle/local.properties'), fileTree('gradle/wrapper'),
+            fileTree('src/main/resources/languages'), fileTree('src/main/resources/wormholes-pockets-pack/data'))
+        gradle.includedBuilds.find { IncludedBuild included -> new File(included.projectDir, 'localization/build.gradle').isFile() }?.with { IncludedBuild included ->
+            inputs.files(fileTree(new File(included.projectDir, 'localization/src')), new File(included.projectDir, 'localization/build.gradle'),
+                fileTree(new File(included.projectDir, 'web/src')), new File(included.projectDir, 'web/build.gradle'))
+        }
+        inputs.property('minecraftVersion', minecraftVersion)
+        inputs.property('loaderVersion', loaderVersion)
+        inputs.property('wormholesVersion', project.version.toString())
+        outputs.file(file("adapters/${loader}/build/libs/${artifactName}"))
+    }
+    TaskProvider<Task> verifyTask = tasks.register("verify${display}Artifact") {
+        group = 'verification'
+        dependsOn(jarTask)
+        inputs.files(jarTask.map { Task task -> task.outputs.files })
+        doLast {
+            File artifact = file("adapters/${loader}/build/libs/${artifactName}")
+            new java.util.jar.JarFile(artifact).withCloseable { java.util.jar.JarFile archive ->
+                String metadata = loader == 'fabric' ? 'fabric.mod.json'
+                    : loader == 'forge' ? 'META-INF/mods.toml' : 'META-INF/neoforge.mods.toml'
+                for (String required : [metadata, 'art/arcane/wormholes/modded/WormholesModRuntime.class',
+                                        'art/arcane/wormholes/network/WireCodec.class',
+                                        'art/arcane/wormholes/portal/PortalFrame.class']) {
+                    if (archive.getEntry(required) == null) {
+                        throw new GradleException("${artifact.name} is missing ${required}")
+                    }
+                }
+                archive.entries().each { java.util.jar.JarEntry entry ->
+                    if (entry.name.startsWith('art/arcane/wormholes/')
+                        && (entry.name.contains('/gametest/') || entry.name.contains('GameTest')
+                            || entry.name.endsWith('/NativeHandoffProbe.class'))) {
+                        throw new GradleException("${artifact.name} contains test fixture ${entry.name}")
+                    }
+                    if (entry.name == 'plugin.yml' || entry.name == 'paper-plugin.yml'
+                        || entry.name.startsWith('org/bukkit/') || entry.name.startsWith('io/papermc/')) {
+                        throw new GradleException("${artifact.name} contains Bukkit runtime entry ${entry.name}")
+                    }
+                    if (entry.name.startsWith('art/arcane/wormholes/') && entry.name.endsWith('.class')) {
+                        String constants = archive.getInputStream(entry).withCloseable { InputStream stream ->
+                            new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1)
+                        }
+                        if (constants.contains('org/bukkit/') || constants.contains('io/papermc/')) {
+                            throw new GradleException("${artifact.name} references a Bukkit API in ${entry.name}")
+                        }
+                    }
+                }
+            }
+        }
+    }
+    tasks.register("build${display == 'NeoForge' ? 'Neoforge' : display}", Copy) {
+        group = 'distribution'
+        dependsOn(verifyTask)
+        from(jarTask.map { Task task -> task.outputs.files })
+        into(outputDirectory)
+        doFirst {
+            delete(previousArtifacts[display])
+        }
+    }
+}
+
+tasks.named('fabricJar').configure {
+    mustRunAfter('buildBukkit', ':core:build')
+}
+tasks.named('forgeJar').configure {
+    mustRunAfter('fabricJar')
+}
+tasks.named('neoforgeJar').configure {
+    mustRunAfter('forgeJar')
+}
+
+tasks.register('buildAllToOut') {
+    group = 'distribution'
+    dependsOn('buildBukkit', 'buildFabric', 'buildForge', 'buildNeoforge')
+    doLast {
+        logger.lifecycle("Wormholes distributions: ${outputDirectory}")
+        previousArtifacts.values().each { FileTree artifacts ->
+            artifacts.files.sort { File artifact -> artifact.name }.each { File artifact ->
+                logger.lifecycle("  ${artifact.name} (${artifact.length()} bytes)")
+            }
+        }
+    }
+}
+
+tasks.register('buildAll') {
+    group = 'distribution'
+    dependsOn('buildAllToOut')
+}

@@ -1,5 +1,7 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.wormholes.util.BukkitGeometry;
+
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
@@ -163,7 +165,7 @@ final class LocalPortalGate
 		viewRange = range;
 		Vector pad = new Vector(-range, -range, -range);
 		Vector padPositive = new Vector(range, range, range);
-		return new AxisAlignedBB(portal.getStructure().getArea().min().add(pad), portal.getStructure().getArea().max().add(padPositive));
+		return new AxisAlignedBB(portal.getStructure().getArea().min().add(BukkitGeometry.vector(pad)), portal.getStructure().getArea().max().add(BukkitGeometry.vector(padPositive)));
 	}
 
 	void syncGatewayTickets()

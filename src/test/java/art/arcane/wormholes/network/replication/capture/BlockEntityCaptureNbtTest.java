@@ -59,8 +59,8 @@ final class BlockEntityCaptureNbtTest {
     void theEncodedSampleRoundTripsThroughTheDiffPayload() throws IOException {
         Sign sign = sign(new String[] {"x", "", "", ""}, new String[] {"", "", "", ""}, false, DyeColor.BLACK);
         BlockEntitySample sample = BlockEntityCapturer.capture(sign, List.of("minecraft:sign"), false);
-        byte[] payload = BlockEntityCapturer.encode(sample);
-        BlockEntitySample decoded = BlockEntityCapturer.decode(payload);
+        byte[] payload = BlockEntitySample.encode(sample);
+        BlockEntitySample decoded = BlockEntitySample.decode(payload);
         assertEquals(sample, decoded);
     }
 

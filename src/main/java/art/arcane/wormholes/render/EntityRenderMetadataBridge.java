@@ -24,10 +24,7 @@ import art.arcane.wormholes.network.view.PacketBlobs;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
 
 final class EntityRenderMetadataBridge {
-    private static final int CUSTOM_NAME_INDEX = 2;
-    private static final int CUSTOM_NAME_VISIBLE_INDEX = 3;
-    private static final int PLAYER_SKIN_PARTS_INDEX = 16;
-    private static final byte CAPE_PART_BIT = 0x01;
+    private static final ProjectedEntityMetadata<EntityData<?>> METADATA = new ProjectedEntityMetadata<>(new MetadataAccess());
     static final long METADATA_BRIDGE_RETRY_MILLIS = 60_000L;
 
     private final EntityRenderPacketChannel channel;
@@ -61,10 +58,10 @@ final class EntityRenderMetadataBridge {
                                boolean force) {
         List<EntityData<?>> metadata = remoteView.getMetadata(visual.id());
         if (metadata != null && !metadata.isEmpty()) {
-            Integer sourceMapId = ProjectedItemFrameTransform.mapId(metadata);
-            EntityRenderMapBridge.Projection mapProjection = mapBridge.projectVisual(
+            Integer sourceMapId = BukkitItemFrameMetadata.TRANSFORM.mapId(metadata);
+            ProjectedEntityMaps.Projection mapProjection = mapBridge.projectVisual(
                 observer, remoteView, visual, state, metadataTransform, sourceMapId, force);
-            metadata = ProjectedItemFrameTransform.transformMetadata(
+            metadata = BukkitItemFrameMetadata.TRANSFORM.transformMetadata(
                 metadata, metadataTransform, mapProjection.mapId(), mapProjection.stripMapId());
             List<EntityData<?>> patched = state.upsideDown ? withUpsideDownMetadataRemote(visual.isPlayer(), metadata) : metadata;
             String signature = metadataSignature(patched);
@@ -136,10 +133,10 @@ final class EntityRenderMetadataBridge {
         if (!bridgeAvailable) {
             return;
         }
-        Integer sourceMapId = ProjectedItemFrameTransform.mapId(snapshot.metadata);
-        EntityRenderMapBridge.Projection mapProjection = mapBridge.projectLocal(
+        Integer sourceMapId = BukkitItemFrameMetadata.TRANSFORM.mapId(snapshot.metadata);
+        ProjectedEntityMaps.Projection mapProjection = mapBridge.projectLocal(
             observer, entity, state, metadataTransform, sourceMapId, force);
-        List<EntityData<?>> metadata = ProjectedItemFrameTransform.transformMetadata(
+        List<EntityData<?>> metadata = BukkitItemFrameMetadata.TRANSFORM.transformMetadata(
             snapshot.metadata, metadataTransform, mapProjection.mapId(), mapProjection.stripMapId());
         boolean metadataUnchanged = metadataTransform == ProjectedItemFrameTransform.NONE
             && mapProjection.mapId() == null
@@ -177,57 +174,19 @@ final class EntityRenderMetadataBridge {
         if (!(entity instanceof LivingEntity)) {
             return metadata;
         }
-        List<EntityData<?>> patched = new ArrayList<EntityData<?>>(metadata.size() + 2);
-        for (EntityData<?> data : metadata) {
-            if (data.getIndex() == CUSTOM_NAME_INDEX || data.getIndex() == CUSTOM_NAME_VISIBLE_INDEX) {
-                continue;
-            }
-            patched.add(data);
-        }
-        if (!ProjectedEntityRenderer.isFlipName(entity.getCustomName())) {
-            patched.add(new EntityData<Optional<Component>>(CUSTOM_NAME_INDEX, EntityDataTypes.OPTIONAL_ADV_COMPONENT, Optional.of(Component.text(ProjectedEntityRenderer.FLIP_NAME))));
-            patched.add(new EntityData<Boolean>(CUSTOM_NAME_VISIBLE_INDEX, EntityDataTypes.BOOLEAN, Boolean.FALSE));
-        }
-        return patched;
+        return METADATA.upsideDownEntity(metadata, ProjectedPlayerNames.isFlipName(entity.getCustomName()));
     }
 
     private List<EntityData<?>> withUpsideDownMetadataRemote(boolean isPlayer, List<EntityData<?>> metadata) {
-        if (isPlayer) {
-            return withUpsideDownPlayerMetadata(metadata);
-        }
-        List<EntityData<?>> patched = new ArrayList<EntityData<?>>(metadata.size() + 2);
-        for (EntityData<?> data : metadata) {
-            if (data.getIndex() == CUSTOM_NAME_INDEX || data.getIndex() == CUSTOM_NAME_VISIBLE_INDEX) {
-                continue;
-            }
-            patched.add(data);
-        }
-        patched.add(new EntityData<Optional<Component>>(CUSTOM_NAME_INDEX, EntityDataTypes.OPTIONAL_ADV_COMPONENT, Optional.of(Component.text(ProjectedEntityRenderer.FLIP_NAME))));
-        patched.add(new EntityData<Boolean>(CUSTOM_NAME_VISIBLE_INDEX, EntityDataTypes.BOOLEAN, Boolean.FALSE));
-        return patched;
+        return isPlayer ? withUpsideDownPlayerMetadata(metadata) : METADATA.upsideDownEntity(metadata, false);
     }
 
     static List<EntityData<?>> withUpsideDownPlayerMetadata(List<EntityData<?>> metadata) {
-        List<EntityData<?>> patched = new ArrayList<EntityData<?>>(metadata.size() + 1);
-        byte skinParts = 0;
-        for (EntityData<?> data : metadata) {
-            if (data.getIndex() == PLAYER_SKIN_PARTS_INDEX && data.getValue() instanceof Byte) {
-                skinParts = ((Byte) data.getValue()).byteValue();
-                continue;
-            }
-            patched.add(data);
-        }
-        patched.add(new EntityData<Byte>(PLAYER_SKIN_PARTS_INDEX, EntityDataTypes.BYTE,
-            Byte.valueOf((byte) (skinParts | CAPE_PART_BIT))));
-        return patched;
+        return METADATA.upsideDownPlayer(metadata);
     }
 
     private static String metadataSignature(List<EntityData<?>> metadata) {
-        StringBuilder builder = new StringBuilder(metadata.size() * 8);
-        for (EntityData<?> data : metadata) {
-            builder.append(data.getIndex()).append('=').append(String.valueOf(data.getValue())).append(';');
-        }
-        return builder.toString();
+        return METADATA.signature(metadata);
     }
 
     private static String equipmentSignature(List<Equipment> equipment) {
@@ -236,5 +195,12 @@ final class EntityRenderMetadataBridge {
             builder.append(item.getSlot()).append('=').append(String.valueOf(item.getItem())).append(';');
         }
         return builder.toString();
+    }
+    private static final class MetadataAccess implements ProjectedEntityMetadata.Access<EntityData<?>> {
+        public int index(EntityData<?> value) { return value.getIndex(); }
+        public Object value(EntityData<?> value) { return value.getValue(); }
+        public EntityData<?> skinParts(int index, byte parts) { return new EntityData<>(index, EntityDataTypes.BYTE, parts); }
+        public EntityData<?> customName(int index, String name) { return new EntityData<>(index, EntityDataTypes.OPTIONAL_ADV_COMPONENT, Optional.of(Component.text(name))); }
+        public EntityData<?> nameVisible(int index, boolean visible) { return new EntityData<>(index, EntityDataTypes.BOOLEAN, visible); }
     }
 }

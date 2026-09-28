@@ -1,5 +1,7 @@
 package art.arcane.wormholes.render;
 
+import com.github.retrooper.packetevents.util.Vector3d;
+
 import com.github.retrooper.packetevents.manager.server.ServerVersion;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityAnimation;
@@ -29,7 +31,7 @@ final class ProjectedEntityAnimationTest {
             Player observer = ProjectedEntityPacketRecorder.player(true);
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-            EntityRenderSpoofRegistry registry = new EntityRenderSpoofRegistry(channel, identity);
+            EntityRenderSpoofRegistry<Player, Vector3d> registry = new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
             for (boolean player : new boolean[] {true, false}) {
                 UUID sourceId = player ? observer.getUniqueId() : UUID.randomUUID();
@@ -85,7 +87,7 @@ final class ProjectedEntityAnimationTest {
             Player observer = ProjectedEntityPacketRecorder.player(true);
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-            EntityRenderSpoofRegistry registry = new EntityRenderSpoofRegistry(channel, identity);
+            EntityRenderSpoofRegistry<Player, Vector3d> registry = new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
             UUID sourceId = UUID.randomUUID();
             registry.track(sourceId, EntityRenderSpoofedEntity.create(false, false, false));

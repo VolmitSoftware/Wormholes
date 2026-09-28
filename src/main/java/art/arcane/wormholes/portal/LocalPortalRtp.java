@@ -1,5 +1,8 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
+import art.arcane.wormholes.util.BukkitGeometry;
+
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -107,7 +110,7 @@ final class LocalPortalRtp
 	{
 		PortalStructure structure = portal.getStructure();
 		World world = structure == null ? null : structure.getWorld();
-		return world == null ? null : RtpSettings.defaults(world);
+		return world == null ? null : RtpSettings.defaults(BukkitRtpRuntime.worldSettings(world));
 	}
 
 	World resolveRtpWorld(String worldKey)
@@ -124,7 +127,7 @@ final class LocalPortalRtp
 	{
 		if(rtpSettings != null)
 		{
-			j.put("rtp", rtpSettings.toJson());
+			j.put("rtp", BukkitRtpRuntime.writeSettings(rtpSettings));
 			return;
 		}
 		JSONObject unresolved = unresolvedRtpJson;
@@ -159,7 +162,7 @@ final class LocalPortalRtp
 			Wormholes.w("Portal " + portal.getId() + " has malformed RTP settings; approved defaults will be persisted");
 			return defaultRtpSettings();
 		}
-		return RtpSettings.fromJson(stored, this::resolveRtpWorld);
+		return BukkitRtpRuntime.readSettings(stored, this::resolveRtpWorld);
 	}
 
 	boolean requiresPersistenceNormalization(JSONObject json)
@@ -178,7 +181,7 @@ final class LocalPortalRtp
 			return true;
 		}
 		JSONObject canonicalStored = new JSONObject(stored.toString());
-		JSONObject canonicalSettings = new JSONObject(rtpSettings.toJson().toString());
+		JSONObject canonicalSettings = new JSONObject(BukkitRtpRuntime.writeSettings(rtpSettings).toString());
 		return !canonicalStored.similar(canonicalSettings);
 	}
 
@@ -288,7 +291,7 @@ final class LocalPortalRtp
 			return;
 		}
 		long now = System.currentTimeMillis();
-		for(Entity i : portalStructure.getCaptureZone().getEntities(portalStructure.getWorld()))
+		for(Entity i : BukkitGeometry.entities(portalStructure.getCaptureZone(), portalStructure.getWorld()))
 		{
 			if(!(i instanceof Player player) || !portalStructure.contains(player.getLocation()))
 			{

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.geometry.GeometryVector;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,12 +24,12 @@ final class EntityRenderLocalOccluder {
     private static final double LABEL_HORIZONTAL_MARGIN = 0.5D;
     private static final double LABEL_VERTICAL_MARGIN = 0.75D;
 
-    private final EntityRenderLocalOcclusionArbiter arbiter;
+    private final EntityRenderLocalOcclusionArbiter<Player, Entity> arbiter;
     private final UUID ownerId;
     private final double[] scratchEntityPosition;
     private boolean localHideOwnershipWarningSent;
 
-    EntityRenderLocalOccluder(EntityRenderLocalOcclusionArbiter arbiter, UUID ownerId) {
+    EntityRenderLocalOccluder(EntityRenderLocalOcclusionArbiter<Player, Entity> arbiter, UUID ownerId) {
         this.arbiter = arbiter;
         this.ownerId = ownerId;
         this.scratchEntityPosition = new double[5];
@@ -46,14 +47,14 @@ final class EntityRenderLocalOccluder {
             return;
         }
         PortalFrame frame = localPortal.getFrame();
-        Vector origin = localPortal.getOrigin();
+        GeometryVector origin = localPortal.getOrigin();
         WormholesPlatform.entityPosition(observer, scratchEntityPosition);
         double eyeX = scratchEntityPosition[0];
         double eyeY = scratchEntityPosition[1] + observer.getEyeHeight();
         double eyeZ = scratchEntityPosition[2];
-        double eyeDot = dot(eyeX - origin.getX(), eyeY - origin.getY(), eyeZ - origin.getZ(), frame);
+        double eyeDot = ProjectorLocalEntityEnvelope.dot(eyeX - origin.getX(), eyeY - origin.getY(), eyeZ - origin.getZ(), frame);
         boolean eyeFrontSide = eyeDot >= 0.0D;
-        double clearance = PortalProjector.portalPlaneClearance(localPortal.getStructure().getArea(), frame);
+        double clearance = ProjectorFrameTransform.portalPlaneClearance(localPortal.getStructure().getArea(), frame);
         double maxDepth = projectionDepth + clearance;
         double ownedRange = largestOwnedLocalEntityRange(localWorld, localCenter, maxDepth);
         if (ownedRange <= 0.0D) {
@@ -106,7 +107,7 @@ final class EntityRenderLocalOccluder {
 
     private boolean shouldHideLocalEntity(UUID observerId,
                                           Entity entity,
-                                          Vector origin,
+                                          GeometryVector origin,
                                           PortalFrame frame,
                                           Frustum4D frustum,
                                           boolean eyeFrontSide,
@@ -119,7 +120,7 @@ final class EntityRenderLocalOccluder {
             return false;
         }
         BoundingBox box = entity.getBoundingBox();
-        return envelopeFullyProjected(
+        return ProjectorLocalEntityEnvelope.envelopeFullyProjected(
             box.getMinX() - LABEL_HORIZONTAL_MARGIN,
             box.getMinY(),
             box.getMinZ() - LABEL_HORIZONTAL_MARGIN,
@@ -127,38 +128,6 @@ final class EntityRenderLocalOccluder {
             box.getMaxY() + LABEL_VERTICAL_MARGIN,
             box.getMaxZ() + LABEL_HORIZONTAL_MARGIN,
             origin, frame, frustum, eyeFrontSide, clearance, maxDepth);
-    }
-
-    static boolean envelopeFullyProjected(double minX,
-                                          double minY,
-                                          double minZ,
-                                          double maxX,
-                                          double maxY,
-                                          double maxZ,
-                                          Vector origin,
-                                          PortalFrame frame,
-                                          Frustum4D frustum,
-                                          boolean eyeFrontSide,
-                                          double clearance,
-                                          double maxDepth) {
-        double firstSignedDistance = dot(
-            minX - origin.getX(), minY - origin.getY(), minZ - origin.getZ(), frame);
-        double secondSignedDistance = dot(
-            maxX - origin.getX(), maxY - origin.getY(), maxZ - origin.getZ(), frame);
-        double minSignedDistance = Math.min(firstSignedDistance, secondSignedDistance);
-        double maxSignedDistance = Math.max(firstSignedDistance, secondSignedDistance);
-        if (eyeFrontSide) {
-            if (maxSignedDistance >= -clearance || minSignedDistance < -maxDepth) {
-                return false;
-            }
-        } else if (minSignedDistance <= clearance || maxSignedDistance > maxDepth) {
-            return false;
-        }
-        return frustum.containsBox(minX, minY, minZ, maxX, maxY, maxZ);
-    }
-
-    private static double dot(double x, double y, double z, PortalFrame frame) {
-        return (x * frame.getNormal().x()) + (y * frame.getNormal().y()) + (z * frame.getNormal().z());
     }
 
     private void reportOwnershipFailure(IllegalStateException error) {

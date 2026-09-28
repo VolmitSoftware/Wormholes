@@ -22,11 +22,8 @@ import art.arcane.wormholes.platform.WormholesPlatform;
 
 public final class PortalSiteBuilder
 {
-	private static final int MIN_INTERIOR_WIDTH = 1;
 	private static final int MIN_INTERIOR_HEIGHT = 2;
 	private static final int MAX_INTERIOR = 21;
-	private static final int PLATFORM_SIZE_STEP = 7;
-	private static final int MAX_PLATFORM_PADDING = 3;
 	private static final int OPENING_CLEARANCE_HEIGHT = 3;
 
 	private PortalSiteBuilder()
@@ -83,87 +80,34 @@ public final class PortalSiteBuilder
 
 	static List<NetherMutation> planNetherMutations(int centerX, int baseY, int centerZ, boolean alongX, int interiorWidth, int interiorHeight)
 	{
-		int width = netherInteriorWidth(interiorWidth);
-		int height = Math.max(MIN_INTERIOR_HEIGHT, Math.min(MAX_INTERIOR, interiorHeight));
-		int ax = alongX ? 1 : 0;
-		int az = alongX ? 0 : 1;
-		int nx = alongX ? 0 : 1;
-		int nz = alongX ? 1 : 0;
-		int bx = centerX - (alongX ? width / 2 : 0);
-		int bz = centerZ - (alongX ? 0 : width / 2);
-		int padding = netherPlatformPadding(width, height);
-		List<NetherMutation> mutations = new ArrayList<NetherMutation>();
-
-		for(int u = -1; u <= width; u++)
-		{
-			for(int v = -1; v <= height; v++)
-			{
-				if(isNetherFrameEdge(u, v, width, height))
-				{
-					mutations.add(new NetherMutation(bx + ax * u, baseY + v, bz + az * u, Material.OBSIDIAN, false, false));
-				}
-			}
-		}
-
-		for(int u = -1 - padding; u <= width + padding; u++)
-		{
-			for(int n = -padding; n <= padding; n++)
-			{
-				if(n == 0 && u >= -1 && u <= width)
-				{
-					continue;
-				}
-				mutations.add(new NetherMutation(bx + ax * u + nx * n, baseY - 1, bz + az * u + nz * n,
-						Material.NETHERRACK, true, false));
-			}
-		}
-
-		for(int u = -1 - padding; u <= width + padding; u++)
-		{
-			for(int v = 0; v < OPENING_CLEARANCE_HEIGHT; v++)
-			{
-				for(int n = -padding; n <= padding; n++)
-				{
-					if(n == 0 && u >= -1 && u <= width)
-					{
-						continue;
-					}
-					mutations.add(new NetherMutation(bx + ax * u + nx * n, baseY + v, bz + az * u + nz * n, Material.AIR, false, false));
-				}
-			}
-		}
-
-		for(int u = 0; u < width; u++)
-		{
-			for(int v = 0; v < height; v++)
-			{
-				mutations.add(new NetherMutation(bx + ax * u, baseY + v, bz + az * u, Material.AIR, false, true));
-			}
-		}
-		return List.copyOf(mutations);
-	}
+        List<NetherSitePlan.Mutation> planned = NetherSitePlan.plan(new NetherSitePlan.Options(centerX, baseY, centerZ, alongX, interiorWidth, interiorHeight));
+        List<NetherMutation> mutations = new ArrayList<>(planned.size());
+        for (NetherSitePlan.Mutation mutation : planned) {
+            mutations.add(new NetherMutation(mutation.x(), mutation.y(), mutation.z(), Material.valueOf(mutation.material().name()),
+                mutation.preserveObsidian(), mutation.interior()));
+        }
+        return List.copyOf(mutations);
+    }
 
 	static boolean isNetherFrameEdge(int u, int v, int width, int height)
 	{
-		return u == -1 || u == width || v == -1 || v == height;
-	}
+        return NetherSitePlan.isNetherFrameEdge(u, v, width, height);
+    }
 
 	static int netherInteriorWidth(int requestedWidth)
 	{
-		return Math.max(MIN_INTERIOR_WIDTH, Math.min(MAX_INTERIOR, requestedWidth));
-	}
+        return NetherSitePlan.netherInteriorWidth(requestedWidth);
+    }
 
 	static int netherPlatformPadding(int interiorWidth, int interiorHeight)
 	{
-		int size = Math.max(netherInteriorWidth(interiorWidth), Math.max(MIN_INTERIOR_HEIGHT, Math.min(MAX_INTERIOR, interiorHeight)));
-		return Math.min(MAX_PLATFORM_PADDING, Math.max(1, (size + PLATFORM_SIZE_STEP - 1) / PLATFORM_SIZE_STEP));
-	}
+        return NetherSitePlan.netherPlatformPadding(interiorWidth, interiorHeight);
+    }
 
 	static boolean netherFrameFits(int baseY, int interiorHeight, int minHeight, int maxHeight)
 	{
-		int height = Math.max(MIN_INTERIOR_HEIGHT, Math.min(MAX_INTERIOR, interiorHeight));
-		return baseY - 1 >= minHeight && baseY + height <= maxHeight - 3;
-	}
+        return NetherSitePlan.netherFrameFits(baseY, interiorHeight, minHeight, maxHeight);
+    }
 
 	private static void addMutation(Map<Long, ChunkMutationPlan> plans, NetherMutation mutation)
 	{

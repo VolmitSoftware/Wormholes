@@ -1,5 +1,13 @@
 package art.arcane.wormholes;
 
+import com.github.retrooper.packetevents.protocol.player.Equipment;
+
+import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
+
+import org.bukkit.block.data.BlockData;
+
+import art.arcane.wormholes.portal.ILocalPortal;
+
 import art.arcane.volmlib.util.diagnostics.BukkitDebugDump;
 import art.arcane.volmlib.integration.ReloadAware;
 import art.arcane.volmlib.integration.VaultEconomy;
@@ -94,13 +102,13 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     public static volatile BukkitRtpRuntime rtpRuntime;
     public static volatile NetworkManager networkManager;
     public static volatile RemotePortalRegistry remotePortalRegistry;
-    public static volatile PortalSyncService portalSyncService;
+    public static volatile PortalSyncService<ILocalPortal> portalSyncService;
     public static volatile TraversalService traversalService;
     public static volatile TraversalCostGateway traversalCostGateway;
     public static volatile VaultEconomy vaultEconomy;
     public static volatile VanillaTravelCostCapture vanillaTravelCostCapture;
-    public static volatile RemoteViewCache remoteViewCache;
-    public static volatile ViewSubscriptionManager viewSubscriptions;
+    public static volatile RemoteViewCache<BlockData, EntityData<?>, Equipment> remoteViewCache;
+    public static volatile ViewSubscriptionManager<BlockData, EntityData<?>, Equipment> viewSubscriptions;
     public static volatile ViewServer viewServer;
     public static volatile ImportExportService importExportService;
     public static volatile PocketWorldService pocketWorldService;
@@ -363,7 +371,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
     }
 
     private void shutdownPortalSyncBeforeRegionTasks() {
-        PortalSyncService activePortalSync = portalSyncService;
+        PortalSyncService<ILocalPortal> activePortalSync = portalSyncService;
         if (activePortalSync != null) {
             activePortalSync.shutdown();
         }

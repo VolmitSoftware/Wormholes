@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.render.view.ProjectionContentView;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -94,7 +95,7 @@ public final class ProjectorLightingSectionTest {
         AtomicBoolean chunkSent = new AtomicBoolean(false);
         AtomicInteger localSamples = new AtomicInteger();
         List<LightData> packets = new ArrayList<LightData>();
-        ProjectorLighting lighting = new ProjectorLighting(
+        ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = BukkitProjectorLighting.create(
             (observer, chunkX, chunkZ) -> chunkSent.get(),
             (observer, chunkX, chunkZ, data) -> packets.add(data)
         );
@@ -102,8 +103,8 @@ public final class ProjectorLightingSectionTest {
         ProjectionWorldView localView = lightView(localSamples, 15, 0);
         ProjectionWorldView remoteView = lightView(new AtomicInteger(), 9, 6);
         long localKey = packKey(1, 64, 1);
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>();
-        claims.put(localKey, new ProjectedBlockClaim(null, remoteView, packKey(20, 64, 20), false));
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+        claims.put(localKey, new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, remoteView, packKey(20, 64, 20), false));
         LongOpenHashSet dirty = new LongOpenHashSet();
         dirty.add(localKey);
 
@@ -131,16 +132,16 @@ public final class ProjectorLightingSectionTest {
         Settings.LIGHTING_MAX_SECTIONS_PER_PASS = 1;
         try {
             List<LightData> packets = new ArrayList<LightData>();
-            ProjectorLighting lighting = new ProjectorLighting(
+            ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = BukkitProjectorLighting.create(
                 (observer, chunkX, chunkZ) -> true,
                 (observer, chunkX, chunkZ, data) -> packets.add(data));
             Player observer = onlinePlayer();
             ProjectionWorldView localView = lightView(new AtomicInteger(), 3, 4);
             ProjectionWorldView sourceView = lightView(new AtomicInteger(), 8, 7);
-            Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>();
+            Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
             for (int section = 4; section <= 6; section++) {
                 claims.put(packKey(1, section << 4, 1),
-                    new ProjectedBlockClaim(null, sourceView, packKey(20, 64, 20), false));
+                    new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, sourceView, packKey(20, 64, 20), false));
             }
 
             lighting.apply(observer, localView, claims, null);
@@ -151,7 +152,7 @@ public final class ProjectorLightingSectionTest {
             int nibbleIndex = (1 << 4) | 1;
             assertEquals(8, readNibble(packets.get(0).getSkyLightArray()[0], nibbleIndex));
             for (int section = 4; section <= 6; section++) {
-                claims.put(packKey(1, section << 4, 1), new ProjectedBlockClaim(null, null,
+                claims.put(packKey(1, section << 4, 1), new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, null,
                     ProjectedBlockClaim.NO_REMOTE_KEY, false, ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT));
             }
 
@@ -177,7 +178,7 @@ public final class ProjectorLightingSectionTest {
         Settings.ADAPTIVE_LIGHTING = false;
         try {
             List<LightData> packets = new ArrayList<LightData>();
-            ProjectorLighting lighting = new ProjectorLighting(
+            ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = BukkitProjectorLighting.create(
                 (observer, chunkX, chunkZ) -> true,
                 (observer, chunkX, chunkZ, data) -> packets.add(data)
             );
@@ -186,9 +187,9 @@ public final class ProjectorLightingSectionTest {
             ProjectionWorldView remoteView = lightView(new AtomicInteger(), 8, 7);
             long sectionFour = packKey(1, 64, 1);
             long sectionFive = packKey(1, 80, 1);
-            Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>();
-            claims.put(sectionFour, new ProjectedBlockClaim(null, remoteView, packKey(20, 64, 20), false));
-            claims.put(sectionFive, new ProjectedBlockClaim(null, remoteView, packKey(20, 80, 20), false));
+            Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+            claims.put(sectionFour, new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, remoteView, packKey(20, 64, 20), false));
+            claims.put(sectionFive, new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, remoteView, packKey(20, 80, 20), false));
             LongOpenHashSet dirty = new LongOpenHashSet();
             dirty.add(sectionFour);
             dirty.add(sectionFive);
@@ -220,15 +221,15 @@ public final class ProjectorLightingSectionTest {
     @Test
     public void fullBrightLightingRestoresTheLocalBaselineAfterRelease() {
         List<LightData> packets = new ArrayList<LightData>();
-        ProjectorLighting lighting = new ProjectorLighting(
+        ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = BukkitProjectorLighting.create(
             (observer, chunkX, chunkZ) -> true,
             (observer, chunkX, chunkZ, data) -> packets.add(data)
         );
         Player observer = onlinePlayer();
         ProjectionWorldView localView = lightView(new AtomicInteger(), 2, 3);
         long localKey = packKey(1, 64, 1);
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>();
-        claims.put(localKey, new ProjectedBlockClaim(
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+        claims.put(localKey, new ProjectedBlockClaim<BlockData, ProjectionWorldView>(
             null, null, ProjectedBlockClaim.NO_REMOTE_KEY, false,
             ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT));
         LongOpenHashSet dirty = new LongOpenHashSet();
@@ -252,7 +253,7 @@ public final class ProjectorLightingSectionTest {
 
     @Test
     public void sentLightingKeepsTheRendererNonIdleUntilReverted() throws Exception {
-        ProjectorLighting lighting = new ProjectorLighting();
+        ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = BukkitProjectorLighting.create();
         assertTrue(lighting.isIdle());
 
         Field field = ProjectorLighting.class.getDeclaredField("sentChunkSections");
@@ -266,14 +267,14 @@ public final class ProjectorLightingSectionTest {
 
     @Test
     public void pendingSectionsDrainWithoutFreshDirtyKeys() throws Exception {
-        ProjectorLighting lighting = new ProjectorLighting();
+        ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = BukkitProjectorLighting.create();
         Field field = ProjectorLighting.class.getDeclaredField("pendingChunkSections");
         field.setAccessible(true);
         @SuppressWarnings("unchecked")
         Long2ObjectOpenHashMap<IntOpenHashSet> pending = (Long2ObjectOpenHashMap<IntOpenHashSet>) field.get(lighting);
         pending.put(7L, new IntOpenHashSet(new int[] { 2 }));
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>();
-        claims.put(0L, new ProjectedBlockClaim(null, null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+        claims.put(0L, new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
         Player observer = (Player) Proxy.newProxyInstance(Player.class.getClassLoader(), new Class<?>[] { Player.class },
             (proxy, method, args) -> "isOnline".equals(method.getName()) ? Boolean.TRUE : null);
         ProjectionWorldView view = new ProjectionWorldView() {
@@ -369,7 +370,7 @@ public final class ProjectorLightingSectionTest {
             @Override
             public int getLight(int x, int y, int z) {
                 samples.incrementAndGet();
-                return ProjectionWorldView.packLight(sky, block);
+                return ProjectionContentView.packLight(sky, block);
             }
 
             @Override

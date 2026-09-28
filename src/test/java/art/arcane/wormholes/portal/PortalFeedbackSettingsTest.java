@@ -1,5 +1,7 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.wormholes.util.BukkitGeometry;
+
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.MainConfig;
@@ -30,7 +32,7 @@ class PortalFeedbackSettingsTest
 		assertEquals(1.0D, Settings.PORTAL_PUSHBACK_MULTIPLIER);
 		assertEquals(1.0D, Settings.PORTAL_SOUND_VOLUME_MULTIPLIER);
 		assertEquals(-3.0D, LocalPortalTraversal.sourceRejectionVelocity(traversive).getZ(), 1.0E-9D);
-		assertEquals(1.75D, LocalPortalTraversal.sourceRejectionPoint(traversive).getZ(), 1.0E-9D);
+		assertEquals(1.75D, BukkitGeometry.bukkit(traversive.crossing().rejectionPoint()).getZ(), 1.0E-9D);
 		assertEquals(0.5F, Settings.portalSoundVolume(0.5F), 1.0E-6F);
 	}
 
@@ -45,7 +47,7 @@ class PortalFeedbackSettingsTest
 
 		assertEquals(-1.5D, LocalPortalTraversal.sourceRejectionVelocity(traversive).getZ(), 1.0E-9D);
 		assertEquals(1.0D, Settings.portalPushback(2.0D), 1.0E-9D);
-		assertEquals(1.75D, LocalPortalTraversal.sourceRejectionPoint(traversive).getZ(), 1.0E-9D);
+		assertEquals(1.75D, BukkitGeometry.bukkit(traversive.crossing().rejectionPoint()).getZ(), 1.0E-9D);
 		assertEquals(0.125F, Settings.portalSoundVolume(0.5F), 1.0E-6F);
 	}
 

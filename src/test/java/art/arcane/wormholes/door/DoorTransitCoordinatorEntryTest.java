@@ -1,5 +1,8 @@
 package art.arcane.wormholes.door;
 
+import org.bukkit.structure.Structure;
+import art.arcane.wormholes.util.Direction;
+
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -273,7 +276,7 @@ final class DoorTransitCoordinatorEntryTest
 
 		private DoorTransitAttempt attempt(Entity activeTraveler, UUID travelerId, int blockX)
 		{
-			DoorwayPlane plane = new DoorwayPlane(blockX, 64, 0, BlockFace.NORTH);
+			DoorwayPlane plane = new DoorwayPlane(blockX, 64, 0, Direction.N);
 			PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(
 				new DoorPosition(WORLD_ID, "minecraft:overworld", blockX, 64, 0),
 				new DoorItemIdentity(new UUID(1L, 2L), DoorKind.PUBLIC, null, null, null));
@@ -444,15 +447,15 @@ final class DoorTransitCoordinatorEntryTest
 		}
 	}
 
-	private static PocketTemplateService templateService()
+	private static BukkitPocketTemplates templateService()
 	{
-		return new PocketTemplateService(
+		return new BukkitPocketTemplates(
 			java.nio.file.Path.of("build", "tmp", "pocket-templates"), () -> "pockets/templates",
 			new EmptyStructureIo());
 	}
 
 	/** A structure store with nothing in it; these tests never read or write one. */
-	private static final class EmptyStructureIo implements StructureIo
+	private static final class EmptyStructureIo implements StructureIo<Structure>
 	{
 		@Override
 		public java.util.Optional<org.bukkit.structure.Structure> load(java.nio.file.Path file)

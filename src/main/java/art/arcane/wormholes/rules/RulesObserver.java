@@ -74,7 +74,7 @@ public final class RulesObserver implements TraversalObserver {
         if (extension == null || !(traveler instanceof Player player)) {
             return false;
         }
-        RuleCostReservation reservation = pending.reserve(player, extension.charges(), nowMillis);
+        RuleCostReservation reservation = pending.reserve(new BukkitRuleCostSubject(player), extension.charges(), nowMillis);
         if (reservation.successful()) {
             return true;
         }

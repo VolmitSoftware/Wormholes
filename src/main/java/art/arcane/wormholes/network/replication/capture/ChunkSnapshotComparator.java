@@ -40,7 +40,7 @@ public final class ChunkSnapshotComparator {
 
     private final Plugin plugin;
     private final ChunkReplicationManager replication;
-    private final RegionalDiffAccumulator accumulator;
+    private final RegionalDiffAccumulator<World, BlockData> accumulator;
     private final Logger logger;
     private volatile CaptureSettings settings;
     private final boolean folia;
@@ -53,7 +53,7 @@ public final class ChunkSnapshotComparator {
     private final AtomicLong chunksProbed = new AtomicLong();
     private final AtomicLong divergencesEmitted = new AtomicLong();
 
-    public ChunkSnapshotComparator(Plugin plugin, ChunkReplicationManager replication, RegionalDiffAccumulator accumulator, CaptureSettings settings, Logger logger) {
+    public ChunkSnapshotComparator(Plugin plugin, ChunkReplicationManager replication, RegionalDiffAccumulator<World, BlockData> accumulator, CaptureSettings settings, Logger logger) {
         this.plugin = plugin;
         this.replication = replication;
         this.accumulator = accumulator;
@@ -194,7 +194,7 @@ public final class ChunkSnapshotComparator {
         if (!world.isChunkLoaded(chunkX, chunkZ)) {
             return;
         }
-        if (!replication.hasSubscribers(world, chunkKey)) {
+        if (!replication.hasSubscribers(world.getUID(), chunkKey)) {
             return;
         }
         UUID worldId = world.getUID();
@@ -249,7 +249,7 @@ public final class ChunkSnapshotComparator {
         if (previous == null) {
             return;
         }
-        int diffAmplification = replication.hasBuriedCellCullingSubscriber(world, chunkKey)
+        int diffAmplification = replication.hasBuriedCellCullingSubscriber(world.getUID(), chunkKey)
             ? RegionalDiffAccumulator.MAX_BLOCK_DIFFS_PER_CHANGE
             : 1;
         int maxChangedCells = Math.max(1, settings.maxQueuedDiffsPerChunk() / diffAmplification);
@@ -308,27 +308,27 @@ public final class ChunkSnapshotComparator {
                                       SnapshotComparison comparison,
                                       RegionalDiffAccumulator.BlockCaptureRevision blockRevision,
                                       int startIndex) {
-        if (!replication.hasSubscribers(world, chunkKey)) {
+        if (!replication.hasSubscribers(world.getUID(), chunkKey)) {
             evict(worldId, chunkKey);
             return;
         }
         if (!accumulator.isBlockRevisionCurrent(world, chunkKey, blockRevision)) {
-            replication.forceResync(world, chunkKey);
+            replication.forceResync(world.getUID(), chunkKey);
             return;
         }
         if (comparison.resyncRequired()) {
-            replication.forceResync(world, chunkKey);
+            replication.forceResync(world.getUID(), chunkKey);
             return;
         }
         int endIndex = Math.min(comparison.changes().size(), startIndex + MAX_CHANGED_CELLS_PER_BATCH);
-        RegionalDiffAccumulator.SnapshotBlockReader reader =
+        RegionalDiffAccumulator.SnapshotBlockReader<BlockData> reader =
             (x, y, z) -> snapshot.getBlockData(x & 0xF, y, z & 0xF);
         for (int index = startIndex; index < endIndex; index++) {
             SnapshotChange change = comparison.changes().get(index);
             accumulator.recordSnapshotBlockChange(world, change.worldX(), change.worldY(), change.worldZ(),
                 change.data(), BlockChange.FLAG_NONE, reader, minHeight, maxHeight, blockRevision);
             if (!accumulator.isBlockRevisionCurrent(world, chunkKey, blockRevision)) {
-                replication.forceResync(world, chunkKey);
+                replication.forceResync(world.getUID(), chunkKey);
                 return;
             }
         }
@@ -344,7 +344,7 @@ public final class ChunkSnapshotComparator {
             () -> applyComparisonBatch(world, worldId, chunkKey, chunkX, chunkZ, snapshot, minHeight,
                 maxHeight, comparison, blockRevision, endIndex), 1L);
         if (!scheduled) {
-            replication.forceResync(world, chunkKey);
+            replication.forceResync(world.getUID(), chunkKey);
         }
     }
 

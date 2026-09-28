@@ -1,5 +1,8 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.render.view.ProjectionWorldView;
+import art.arcane.wormholes.render.PortalSkinGeometry.SkinTransform;
+import art.arcane.wormholes.geometry.GeometryVector;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,17 +48,12 @@ import art.arcane.wormholes.PortalCandidateSnapshot;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
-import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalSurfaceSkins;
-import art.arcane.wormholes.util.Axis;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 import art.arcane.wormholes.render.bedrock.ClientProfileService;
 
 public final class PortalSkinRenderer {
-    static final int MAX_PER_CELL_PANES = 128;
-    // Skin panes are always a full block deep so they never thin out at grazing view angles.
-    static final double SURFACE_THICKNESS_BLOCKS = 1.0D;
     private static final int FULL_BRIGHT = (15 << 4) | (15 << 20);
     private static final float VIEW_RANGE = 64.0F;
     private static final long SHUTDOWN_WAIT_MILLIS = 2_000L;
@@ -314,7 +312,7 @@ public final class PortalSkinRenderer {
                 continue;
             }
             AxisAlignedBB view = portal.getView();
-            if (view == null || !view.contains(location)) {
+            if (view == null || !view.containsPrimitive(location.getX(), location.getY(), location.getZ())) {
                 continue;
             }
             String skin = portal.getSurfaceSkin();
@@ -389,7 +387,7 @@ public final class PortalSkinRenderer {
         if (cells.isEmpty()) {
             return null;
         }
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = fluidClaims(cells, data);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = fluidClaims(cells, data);
         if (!submitFluidClaims(observer, portal, world, claimOwnerId, claims)) {
             return null;
         }
@@ -397,7 +395,7 @@ public final class PortalSkinRenderer {
     }
 
     private boolean submitFluidClaims(Player observer, ILocalPortal portal, World world, UUID claimOwnerId,
-                                      Long2ObjectOpenHashMap<ProjectedBlockClaim> claims) {
+                                      Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims) {
         if (claims == null || claims.isEmpty()) {
             return false;
         }
@@ -405,12 +403,12 @@ public final class PortalSkinRenderer {
         return true;
     }
 
-    static Long2ObjectOpenHashMap<ProjectedBlockClaim> fluidClaims(List<Vector> cells, BlockData data) {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims =
-            new Long2ObjectOpenHashMap<ProjectedBlockClaim>(Math.max(4, cells.size() * 2));
+    static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> fluidClaims(List<Vector> cells, BlockData data) {
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims =
+            new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(Math.max(4, cells.size() * 2));
         for (Vector cell : cells) {
             long key = ProjectionCellKey.pack(cell.getBlockX(), cell.getBlockY(), cell.getBlockZ());
-            claims.put(key, new ProjectedBlockClaim(data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
+            claims.put(key, new ProjectedBlockClaim<BlockData, ProjectionWorldView>(data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
         }
         return claims;
     }
@@ -420,7 +418,7 @@ public final class PortalSkinRenderer {
         if (globalId < 0) {
             return null;
         }
-        List<SkinTransform> panes = buildPanes(portal);
+        List<SkinTransform> panes = PortalSkinGeometry.panes(portal.getStructure().geometry(), portal.getFrame(), portal.getOrigin());
         if (panes.isEmpty()) {
             return null;
         }
@@ -475,25 +473,6 @@ public final class PortalSkinRenderer {
         }
         noteDisplayFailure(observer.getUniqueId(), "spawn", failure);
         return null;
-    }
-
-    static List<SkinTransform> buildPanes(ILocalPortal portal) {
-        PortalStructure structure = portal.getStructure();
-        Axis normalAxis = portal.getFrame().getNormal().getAxis();
-        double planeCoordinate = axisComponent(portal.getOrigin(), normalAxis);
-        KList<Vector> cells = structure.getBlockPositions();
-        if (structure.isFullCuboid() || cells.isEmpty() || cells.size() > MAX_PER_CELL_PANES) {
-            return List.of(skinTransforms(structure.getArea(), normalAxis, planeCoordinate, SURFACE_THICKNESS_BLOCKS));
-        }
-        List<SkinTransform> panes = new ArrayList<SkinTransform>(cells.size());
-        for (Vector cell : cells) {
-            int x = cell.getBlockX();
-            int y = cell.getBlockY();
-            int z = cell.getBlockZ();
-            AxisAlignedBB cellBox = new AxisAlignedBB(x, x + 1.0D, y, y + 1.0D, z, z + 1.0D);
-            panes.add(skinTransforms(cellBox, normalAxis, planeCoordinate, SURFACE_THICKNESS_BLOCKS));
-        }
-        return panes;
     }
 
     private void sendDisplay(Player observer, User user, int entityId, SkinTransform transform, int globalId) {
@@ -649,20 +628,12 @@ public final class PortalSkinRenderer {
 
     private static double priorityDistance(Player observer, ILocalPortal portal) {
         Location eye = observer.getEyeLocation();
-        Vector origin = portal.getOrigin();
+        GeometryVector origin = portal.getOrigin();
         Direction normal = portal.getFrame().getNormal();
         double dot = ((eye.getX() - origin.getX()) * normal.x())
             + ((eye.getY() - origin.getY()) * normal.y())
             + ((eye.getZ() - origin.getZ()) * normal.z());
         return Math.abs(dot);
-    }
-
-    private static double axisComponent(Vector vector, Axis axis) {
-        return switch (axis) {
-            case X -> vector.getX();
-            case Y -> vector.getY();
-            case Z -> vector.getZ();
-        };
     }
 
     static SkinRenderMode skinRenderMode(String skin) {
@@ -679,40 +650,15 @@ public final class PortalSkinRenderer {
         return UUID.nameUUIDFromBytes(("wormholes:surface-skin:" + portalId).getBytes(StandardCharsets.UTF_8));
     }
 
-    static SkinTransform skinTransforms(AxisAlignedBB area, Axis normalAxis, double planeCoordinate, double thickness) {
-        double sizeX = normalAxis == Axis.X ? thickness : area.sizeX();
-        double sizeY = normalAxis == Axis.Y ? thickness : area.sizeY();
-        double sizeZ = normalAxis == Axis.Z ? thickness : area.sizeZ();
-        double anchorX = normalAxis == Axis.X ? planeCoordinate : area.getXa();
-        double anchorY = normalAxis == Axis.Y ? planeCoordinate : area.getYa();
-        double anchorZ = normalAxis == Axis.Z ? planeCoordinate : area.getZa();
-        double translationX = normalAxis == Axis.X ? -thickness / 2.0D : 0.0D;
-        double translationY = normalAxis == Axis.Y ? -thickness / 2.0D : 0.0D;
-        double translationZ = normalAxis == Axis.Z ? -thickness / 2.0D : 0.0D;
-        return new SkinTransform(anchorX, anchorY, anchorZ, translationX, translationY, translationZ, sizeX, sizeY, sizeZ);
-    }
-
     enum SkinRenderMode {
         NONE,
         DISPLAY,
         FLUID_CLAIMS
     }
 
-    record SkinTransform(
-        double anchorX,
-        double anchorY,
-        double anchorZ,
-        double translationX,
-        double translationY,
-        double translationZ,
-        double scaleX,
-        double scaleY,
-        double scaleZ) {
-    }
-
     private record PortalSkinState(SkinRenderMode mode, String stateKey, int[] displayIds,
                                    ILocalPortal portal, UUID claimOwnerId,
-                                   Long2ObjectOpenHashMap<ProjectedBlockClaim> fluidClaims) {
+                                   Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> fluidClaims) {
     }
 
     @FunctionalInterface

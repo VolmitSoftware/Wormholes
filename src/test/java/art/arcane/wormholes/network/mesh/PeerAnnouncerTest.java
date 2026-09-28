@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.mesh;
 
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.network.NetworkManager;
 
@@ -38,7 +40,7 @@ class PeerAnnouncerTest {
         config.enabled = true;
         config.serverName = name;
         config.listenEnabled = false;
-        NetworkManager manager = new NetworkManager(LOGGER, config, "26.2", "test", 25565, tempDir.resolve(name));
+        NetworkManager manager = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", 25565, tempDir.resolve(name), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         managers.add(manager);
         return manager;
     }

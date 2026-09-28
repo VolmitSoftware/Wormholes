@@ -214,9 +214,9 @@ public final class DoorItemPdcCodecTest
 	public void oneKitAlwaysDerivesTheSameUniquePair()
 	{
 		UUID kitId = UUID.randomUUID();
-		DoorPairIdentity first = DoorItemService.pairIdentityForKit(kitId);
-		DoorPairIdentity replay = DoorItemService.pairIdentityForKit(kitId);
-		DoorPairIdentity otherKit = DoorItemService.pairIdentityForKit(UUID.randomUUID());
+		DoorPairIdentity first = DoorPairIdentity.forKit(kitId);
+		DoorPairIdentity replay = DoorPairIdentity.forKit(kitId);
+		DoorPairIdentity otherKit = DoorPairIdentity.forKit(UUID.randomUUID());
 
 		assertEquals(first, replay);
 		assertNotEquals(first, otherKit);

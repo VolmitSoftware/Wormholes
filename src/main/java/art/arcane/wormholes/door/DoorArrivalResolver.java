@@ -16,7 +16,6 @@ final class DoorArrivalResolver
 	private static final double PLAYER_HALF_WIDTH = 0.3D;
 	private static final double PLAYER_HEIGHT = 1.8D;
 	private static final double COLLISION_EPSILON = 1.0E-7D;
-	private static final int[] NEAR_Y_OFFSETS = {0, 1, -1, 2, -2};
 
 	private final DoorRuntimeIndex runtimes;
 	private final DoorChunkLoader chunkLoader;
@@ -65,8 +64,8 @@ final class DoorArrivalResolver
 	{
 		DoorwayPlane plane = transit.sourcePlane();
 		int sideSign = transit.direction().entrySideSign();
-		DoorVec3 point = DimensionalDoorManager.arrivalPoint(plane, transit, sideSign);
-		float yaw = DimensionalDoorManager.arrivalYaw(plane, plane, transit);
+		DoorVec3 point = DoorArrivals.arrivalPoint(plane, transit, sideSign);
+		float yaw = DoorArrivals.arrivalYaw(plane, plane, transit);
 		return safeArrivalLocation(world, point, yaw, transit, plane, sideSign);
 	}
 
@@ -77,44 +76,16 @@ final class DoorArrivalResolver
 	{
 		int sideSign = DoorPlanePairing.arrivalSideSign(
 			transit.sourcePlane(), destinationPlane, transit.direction());
-		DoorVec3 point = DimensionalDoorManager.arrivalPoint(destinationPlane, transit, sideSign);
-		float yaw = DimensionalDoorManager.arrivalYaw(transit.sourcePlane(), destinationPlane, transit);
+		DoorVec3 point = DoorArrivals.arrivalPoint(destinationPlane, transit, sideSign);
+		float yaw = DoorArrivals.arrivalYaw(transit.sourcePlane(), destinationPlane, transit);
 		return safeArrivalLocation(world, point, yaw, transit, destinationPlane, sideSign);
 	}
 
 	Optional<Location> findSafeNear(Location stored, int radius)
 	{
-		if(isSafeStanding(stored))
-		{
-			return Optional.of(stored);
-		}
-		int originX = stored.getBlockX();
-		int originY = stored.getBlockY();
-		int originZ = stored.getBlockZ();
-		for(int distance = 1; distance <= radius; distance++)
-		{
-			for(int x = -distance; x <= distance; x++)
-			{
-				for(int z = -distance; z <= distance; z++)
-				{
-					if(Math.max(Math.abs(x), Math.abs(z)) != distance)
-					{
-						continue;
-					}
-					for(int yOffset : NEAR_Y_OFFSETS)
-					{
-						Location candidate = new Location(stored.getWorld(),
-							originX + x + 0.5D, originY + yOffset, originZ + z + 0.5D,
-							stored.getYaw(), stored.getPitch());
-						if(isSafeStanding(candidate))
-						{
-							return Optional.of(candidate);
-						}
-					}
-				}
-			}
-		}
-		return Optional.empty();
+        return DoorArrivals.findSafeNear(new DoorVec3(stored.getX(), stored.getY(), stored.getZ()), radius,
+            point -> isSafeStanding(new Location(stored.getWorld(), point.x(), point.y(), point.z())))
+            .map(point -> new Location(stored.getWorld(), point.x(), point.y(), point.z(), stored.getYaw(), stored.getPitch()));
 	}
 
 	static boolean isSafeStanding(Location location)
@@ -170,7 +141,7 @@ final class DoorArrivalResolver
 		// Leaving through a trapdoor aperture is a fall, not a step: demanding a floor
 		// under the traveler would reject every open drop and strand it at the plate.
 		boolean throughAperture = destination.horizontal() && !destination.contactSurface();
-		return DimensionalDoorManager.findSafeVerticalDoorStanding(
+		return DoorArrivals.findSafeVerticalDoorStanding(
 			nominal,
 			DoorPlanePairing.arrivalYOffsets(destination, sideSign),
 			candidate -> fitsArrival(

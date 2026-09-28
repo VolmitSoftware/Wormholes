@@ -17,7 +17,7 @@
 #   {address}  Endereço do par de rede
 #   {after}  Valor da mensagem após a edição
 #   {allocation}  Alocação do espaço de bolso
-#   {amount}  Custo da viagem em moeda Vault
+#  {amount} Custo da viagem em moeda
 #   {argument}  Argumento de comando inesperado
 #   {before}  Valor da mensagem antes da edição
 #   {biome}  Identificador do bioma
@@ -405,7 +405,7 @@ dimensional_return_disabled = "O caminho de volta permanece desativado."
 [portal.label.cost]
 free = "Grátis"
 vanilla = "Item vanilla"
-vault = "Economia do Vault"
+vault = "Economia"
 
 [portal.label.quality]
 standard = "Padrão"
@@ -536,12 +536,12 @@ linked = ["&6&l{portal}&r", "&7Tipo: &e{type}", "&7Direção: &9{facing}", "&7Li
 unlinked = ["&6&l{portal}&r", "&7Tipo: &e{type}", "&7Direção: &9{facing}", "&7Ligado a: &c{none}", "", "&8Os operadores ignoram as listas de permissões e bloqueios."]
 
 [portal.menu.cost]
-opener = ["&6&lCusto de viagem&r", "&7Exija um item exato ou moeda do Vault", "&7quando um jogador usa este portal.", "", "&7Modo: &f{mode}", "&7Custo: &f{cost}", "", "&8Clique para configurar."]
+opener = ["&6&lCusto de viagem&r", "&7Exija um item exato ou moeda do", "&7quando um jogador usa este portal.", "", "&7Modo: &f{mode}", "&7Custo: &f{cost}", "", "&8Clique para configurar."]
 placard = ["&6&lCusto de viagem&r", "&7Os jogadores devem pagar antes de este portal", "&7lhes permitir viajar.", "", "&7Modo: &f{mode}", "&7Custo: &f{cost}"]
 mode_free = ["&a&lGrátis&r", "&7Não é necessário qualquer pagamento.", "", "&8Clique para tornar a viagem gratuita."]
 mode_vanilla = ["&b&lItem vanilla&r", "&7Consome um item que corresponda exatamente.", "", "&8Clique, segure o item e pressione Largar."]
-mode_vault = ["&a&lEconomia do Vault&r", "&7Retira moeda através do Vault.", "", "&8Clique para introduzir um valor."]
-mode_vault_unavailable = ["&c&lEconomia do Vault indisponível&r", "&7São necessários o Vault e um fornecedor de economia.", "", "&8Instale ou ative ambos para usar este modo."]
+mode_vault = ["&a&lEconomia&r", "&7Retira moeda através de um fornecedor de economia.", "", "&8Clique para introduzir um valor."]
+mode_vault_unavailable = ["&c&lEconomia indisponível&r", "&7É necessário um fornecedor de economia.", "", "&8Ativa um fornecedor de economia para este modo."]
 free_detail = ["&a&lSem custo&r", "&7A viagem através deste portal é gratuita."]
 secondary_empty = ["&8&lSem definição adicional&r"]
 item = ["&b&l{item}&r", "&7Este item exato é necessário para viajar.", "&7O item de seleção nunca é consumido.", "", "&8Esquerdo: selecione outro item na mão.", "&8Direito: remova o custo."]
@@ -561,7 +561,7 @@ invite = "&bCole o convite do portal no chat (ou '{cancel}'):"
 block_state = "&bDigite um estado de bloco para a borda da visão de rede deste portal, ou '{cancel}':"
 name = "&bDigite o novo nome do portal no chat (ou '{cancel}'):"
 cost_item = "&bSegure o item exato do custo na mão principal e pressione Largar. O item não sairá do seu inventário."
-cost_vault = "&bIntroduza o valor de moeda do Vault por travessia (ou '{cancel}'):"
+cost_vault = "&bIntroduz o valor por travessia (ou '{cancel}'):"
 direction = ["&8[&6Wormholes&8] &7Olhe em direção e clique no botão esquerdo para aplicar.", "&8[&6Wormholes&8] &7Shift + clique esquerdo para cancelar."]
 
 [portal.input]
@@ -607,9 +607,9 @@ cost_item_set = "A viagem agora requer {item}."
 cost_item_invalid = "Esse item não pôde ser guardado como custo de viagem."
 cost_cleared = "Custo de viagem removido."
 cost_quantity_changed = "Quantidade do custo de viagem: {quantity}"
-cost_vault_changed = "Custo de viagem do Vault: {amount}"
+cost_vault_changed = "Custo da viagem: {amount}"
 cost_vault_invalid = "Introduza um valor de moeda positivo não superior a {maximum}."
-cost_vault_unavailable = "O Vault e um fornecedor de economia devem estar disponíveis antes de selecionar este custo."
+cost_vault_unavailable = "Tem de existir um fornecedor de economia disponível antes de selecionar este custo."
 mirror_select_first = "Escolha o espelho antes de girar a imagem."
 mirror_rotation_changed = "Rotação do espelho: {degrees} graus"
 rtp_cannot_link = "Portais aleatórios de teletransporte não ligam a destinos."
@@ -687,7 +687,7 @@ execution_failed = "Falha ao executar o comando {command}: {reason}"
 not_initialized = "&8[&6Wormholes&8] &cA rede ainda não foi inicializada."
 
 [network.status]
-disabled = "&8[&6Wormholes&8] &7A rede está &cdesativada&7 (plugins/Wormholes/wormholes.toml)."
+disabled = "&8[&6Wormholes&8] &7A rede está &cdesativada&7 (wormholes.toml)."
 not_running = "&8[&6Wormholes&8] &cA rede está ativada, mas não está em execução. Verifique o armazenamento de identidade e a porta de rede."
 listening = "&8[&6Wormholes&8] &7Este servidor: &f{server}&7, a escutar em &f{address}"
 outbound_only = "&8[&6Wormholes&8] &7Este servidor: &f{server}&7, modo Boat apenas de saída"

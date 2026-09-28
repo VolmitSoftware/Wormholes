@@ -36,7 +36,7 @@ public final class ProjectedBlockDataTransformer {
         return transform(source, DirectionMapping.mirror(frame, quarterTurns, scratch3));
     }
 
-    private static BlockData transform(BlockData source, DirectionMapping mapping) {
+    public static BlockData transform(BlockData source, DirectionMapping mapping) {
         BlockData copy = source.clone();
         transformDirectional(copy, mapping);
         transformRotatable(copy, mapping);
@@ -81,11 +81,11 @@ public final class ProjectedBlockDataTransformer {
             return;
         }
         Rotatable rotatable = (Rotatable) data;
-        int index = BlockRotation16.index(rotatable.getRotation());
+        int index = BukkitBlockRotation16.index(rotatable.getRotation());
         if (index < 0) {
             return;
         }
-        rotatable.setRotation(BlockRotation16.face(mapping.mapRotation(index)));
+        rotatable.setRotation(BukkitBlockRotation16.face(mapping.mapRotation(index)));
     }
 
     private static void transformOrientable(BlockData data, DirectionMapping mapping) {
@@ -198,172 +198,16 @@ public final class ProjectedBlockDataTransformer {
             return;
         }
         Rail rail = (Rail) data;
-        Rail.Shape transformed = rotateRailShape(rail.getShape(), mapping);
+        DirectionMapping.RailShape shape = mapping.mapRailShape(DirectionMapping.RailShape.valueOf(rail.getShape().name()));
+        Rail.Shape transformed = shape == null ? null : Rail.Shape.valueOf(shape.name());
         if (transformed != null && rail.getShapes().contains(transformed)) {
             rail.setShape(transformed);
         }
     }
 
-    private static Rail.Shape rotateRailShape(Rail.Shape shape, DirectionMapping mapping) {
-        switch(shape) {
-            case NORTH_SOUTH:
-                return straightRailShape(rotateHorizontal(Direction.N, mapping));
-            case EAST_WEST:
-                return straightRailShape(rotateHorizontal(Direction.E, mapping));
-            case ASCENDING_NORTH:
-                return ascendingRailShape(rotateHorizontal(Direction.N, mapping), shape);
-            case ASCENDING_SOUTH:
-                return ascendingRailShape(rotateHorizontal(Direction.S, mapping), shape);
-            case ASCENDING_EAST:
-                return ascendingRailShape(rotateHorizontal(Direction.E, mapping), shape);
-            case ASCENDING_WEST:
-                return ascendingRailShape(rotateHorizontal(Direction.W, mapping), shape);
-            case SOUTH_EAST:
-                return curvedRailShape(rotateHorizontal(Direction.S, mapping), rotateHorizontal(Direction.E, mapping));
-            case SOUTH_WEST:
-                return curvedRailShape(rotateHorizontal(Direction.S, mapping), rotateHorizontal(Direction.W, mapping));
-            case NORTH_WEST:
-                return curvedRailShape(rotateHorizontal(Direction.N, mapping), rotateHorizontal(Direction.W, mapping));
-            case NORTH_EAST:
-                return curvedRailShape(rotateHorizontal(Direction.N, mapping), rotateHorizontal(Direction.E, mapping));
-            default:
-                return null;
-        }
-    }
-
-    private static BlockFace rotateHorizontal(Direction source, DirectionMapping mapping) {
-        BlockFace face = toBlockFace(mapping.map(source));
-        if (face == BlockFace.NORTH || face == BlockFace.SOUTH || face == BlockFace.EAST || face == BlockFace.WEST) {
-            return face;
-        }
-        return null;
-    }
-
-    private static Rail.Shape straightRailShape(BlockFace face) {
-        if (face == BlockFace.NORTH || face == BlockFace.SOUTH) {
-            return Rail.Shape.NORTH_SOUTH;
-        }
-        if (face == BlockFace.EAST || face == BlockFace.WEST) {
-            return Rail.Shape.EAST_WEST;
-        }
-        return null;
-    }
-
-    private static Rail.Shape ascendingRailShape(BlockFace face, Rail.Shape fallback) {
-        if (face == null) {
-            return fallback;
-        }
-        switch(face) {
-            case NORTH:
-                return Rail.Shape.ASCENDING_NORTH;
-            case SOUTH:
-                return Rail.Shape.ASCENDING_SOUTH;
-            case EAST:
-                return Rail.Shape.ASCENDING_EAST;
-            case WEST:
-                return Rail.Shape.ASCENDING_WEST;
-            default:
-                return fallback;
-        }
-    }
-
-    private static Rail.Shape curvedRailShape(BlockFace a, BlockFace b) {
-        if (a == null || b == null) {
-            return null;
-        }
-        boolean north = a == BlockFace.NORTH || b == BlockFace.NORTH;
-        boolean south = a == BlockFace.SOUTH || b == BlockFace.SOUTH;
-        boolean east = a == BlockFace.EAST || b == BlockFace.EAST;
-        boolean west = a == BlockFace.WEST || b == BlockFace.WEST;
-        if (south && east) {
-            return Rail.Shape.SOUTH_EAST;
-        }
-        if (south && west) {
-            return Rail.Shape.SOUTH_WEST;
-        }
-        if (north && west) {
-            return Rail.Shape.NORTH_WEST;
-        }
-        if (north && east) {
-            return Rail.Shape.NORTH_EAST;
-        }
-        return null;
-    }
-
     static Direction mirrorDirection(Direction source, PortalFrame frame, int quarterTurns, double[] scratch3) {
         PortalCoordMap.mirrorSourceToDisplayVectorInto(source.x(), source.y(), source.z(), frame, quarterTurns, scratch3);
         return Direction.closest(scratch3[0], scratch3[1], scratch3[2]);
-    }
-
-    private static final class DirectionMapping {
-        private static final int HANDEDNESS_UNCOMPUTED = Integer.MIN_VALUE;
-
-        private final PortalFrame fromFrame;
-        private final PortalFrame toFrame;
-        private final PortalFrame mirrorFrame;
-        private final int quarterTurns;
-        private final double[] scratch3;
-        private int imageQuarterTurns;
-        private boolean reflects;
-
-        private DirectionMapping(PortalFrame fromFrame, PortalFrame toFrame, PortalFrame mirrorFrame, int quarterTurns, double[] scratch3) {
-            this.fromFrame = fromFrame;
-            this.toFrame = toFrame;
-            this.mirrorFrame = mirrorFrame;
-            this.quarterTurns = quarterTurns;
-            this.scratch3 = scratch3;
-            this.imageQuarterTurns = HANDEDNESS_UNCOMPUTED;
-            this.reflects = false;
-        }
-
-        /** Quarter turns clockwise from above that this mapping applies to the horizontal plane. */
-        private int quarterTurnsClockwise() {
-            if (imageQuarterTurns == HANDEDNESS_UNCOMPUTED) {
-                computeHandedness();
-            }
-            return imageQuarterTurns;
-        }
-
-        /** True when the mapping mirrors the horizontal plane, so handed block states must swap sides. */
-        private boolean reflects() {
-            if (imageQuarterTurns == HANDEDNESS_UNCOMPUTED) {
-                computeHandedness();
-            }
-            return reflects;
-        }
-
-        /** Maps a 16-step rotation index through the mapping, reflecting first and then turning. */
-        private int mapRotation(int index) {
-            int reflected = reflects() ? BlockRotation16.reflect(index, Direction.E) : index;
-            return BlockRotation16.rotate(reflected, quarterTurnsClockwise());
-        }
-
-        private void computeHandedness() {
-            int southIndex = BlockRotation16.index(toBlockFace(map(Direction.S)));
-            int eastIndex = BlockRotation16.index(toBlockFace(map(Direction.E)));
-            if (southIndex < 0 || eastIndex < 0) {
-                imageQuarterTurns = 0;
-                reflects = false;
-                return;
-            }
-            imageQuarterTurns = southIndex / 4;
-            reflects = eastIndex != BlockRotation16.rotate(BlockRotation16.index(BlockFace.EAST), imageQuarterTurns);
-        }
-
-        private static DirectionMapping between(PortalFrame fromFrame, PortalFrame toFrame, double[] scratch3) {
-            return new DirectionMapping(fromFrame, toFrame, null, 0, scratch3);
-        }
-
-        private static DirectionMapping mirror(PortalFrame frame, int quarterTurns, double[] scratch3) {
-            return new DirectionMapping(null, null, frame, quarterTurns, scratch3);
-        }
-
-        private Direction map(Direction source) {
-            if(mirrorFrame != null) {
-                return mirrorDirection(source, mirrorFrame, quarterTurns, scratch3);
-            }
-            return fromFrame.transformDirection(source, toFrame, scratch3);
-        }
     }
 
     private static Direction directionForAxis(Axis axis) {

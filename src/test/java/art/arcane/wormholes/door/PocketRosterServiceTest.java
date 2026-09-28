@@ -1,5 +1,7 @@
 package art.arcane.wormholes.door;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -56,7 +58,7 @@ final class PocketRosterServiceTest {
 
     @Test
     void rosterChangesPersistAndSurviveRestart() throws IOException {
-        DoorStateService state = DoorStateService.under(temporaryDirectory);
+        DoorStateService state = DoorStateService.under(temporaryDirectory, BukkitJsonDocuments.INSTANCE);
         UUID owner = new UUID(0, 980);
         UUID builder = new UUID(0, 981);
         PocketSpace allocated = state.getOrAllocatePocket(PocketBinding.personal(owner));
@@ -66,7 +68,7 @@ final class PocketRosterServiceTest {
         assertFalse(roster.assign(allocated.spaceId(), builder, PocketRole.BUILDER), "an unchanged role is not a write");
 
         DoorStateService restarted = DoorStateService.load(
-            new DimensionalDoorRepository(state.repository().stateFile()));
+            new DimensionalDoorRepository(state.repository().stateFile(), BukkitJsonDocuments.INSTANCE));
         PocketSpace reloaded = restarted.findPocketById(allocated.spaceId()).orElseThrow();
         assertEquals(PocketRole.BUILDER, reloaded.roster().role(builder));
 
@@ -74,13 +76,13 @@ final class PocketRosterServiceTest {
         assertTrue(restartedRoster.remove(allocated.spaceId(), builder));
         assertFalse(restartedRoster.remove(allocated.spaceId(), builder));
         assertEquals(PocketRole.VISITOR,
-            DoorStateService.load(new DimensionalDoorRepository(state.repository().stateFile()))
+            DoorStateService.load(new DimensionalDoorRepository(state.repository().stateFile(), BukkitJsonDocuments.INSTANCE))
                 .findPocketById(allocated.spaceId()).orElseThrow().roster().role(builder));
     }
 
     @Test
     void anUnknownPocketIsNeverWrittenTo() throws IOException {
-        DoorStateService state = DoorStateService.under(temporaryDirectory);
+        DoorStateService state = DoorStateService.under(temporaryDirectory, BukkitJsonDocuments.INSTANCE);
         PocketRosterService roster = new PocketRosterService(() -> state, itemId -> Optional.empty());
 
         assertFalse(roster.assign(new UUID(0, 990), new UUID(0, 991), PocketRole.BUILDER));

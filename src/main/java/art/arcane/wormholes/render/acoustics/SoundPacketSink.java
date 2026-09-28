@@ -15,21 +15,20 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.service.WormholesTelemetry;
 
 /** Plays relayed sounds through the sound-effect packet, positioned at the local aperture. */
-public final class SoundPacketSink implements AcousticsBridge.SoundSink {
+public final class SoundPacketSink implements AcousticsBridge.SoundSink<Player> {
     private static final String FAILURE_REASON = "ACOUSTICS_SOUND_PACKET_FAILED";
 
     private volatile boolean failureLogged;
 
     @Override
-    public void play(Player observer, String soundKey, AcousticsProfile.SoundClass soundClass,
-                     double x, double y, double z, float volume, float pitch) {
-        if (observer == null || soundKey == null) {
+    public void play(Player observer, AcousticsBridge.Playback playback) {
+        if (observer == null || playback.soundKey() == null) {
             return;
         }
         try {
-            Sound sound = Sounds.getByNameOrCreate(soundKey);
+            Sound sound = Sounds.getByNameOrCreate(playback.soundKey());
             PacketEvents.getAPI().getPlayerManager().sendPacket(observer,
-                new WrapperPlayServerSoundEffect(sound, category(soundClass), new Vector3d(x, y, z), volume, pitch));
+                new WrapperPlayServerSoundEffect(sound, category(playback.soundClass()), new Vector3d(playback.x(), playback.y(), playback.z()), playback.volume(), playback.pitch()));
             WormholesTelemetry.countPacket();
         } catch (RuntimeException failure) {
             WormholesTelemetry.countFailure(FAILURE_REASON);
@@ -39,7 +38,7 @@ public final class SoundPacketSink implements AcousticsBridge.SoundSink {
             failureLogged = true;
             Wormholes plugin = Wormholes.instance;
             if (plugin != null) {
-                plugin.getLogger().log(Level.WARNING, "[acoustics] sound packet failed for " + soundKey, failure);
+                plugin.getLogger().log(Level.WARNING, "[acoustics] sound packet failed for " + playback.soundKey(), failure);
             }
         }
     }

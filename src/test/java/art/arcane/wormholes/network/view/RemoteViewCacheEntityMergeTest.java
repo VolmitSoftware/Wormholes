@@ -1,5 +1,11 @@
 package art.arcane.wormholes.network.view;
 
+import com.github.retrooper.packetevents.protocol.player.Equipment;
+
+import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
+
+import org.bukkit.block.data.BlockData;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -32,17 +38,17 @@ class RemoteViewCacheEntityMergeTest {
             1);
     }
 
-    private static Set<UUID> idsOf(RemoteViewCache.RemoteView view) {
+    private static Set<UUID> idsOf(RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> view) {
         return view.getEntities().stream().map(EntityVisual::id).collect(Collectors.toSet());
     }
 
     @Test
     void rateLimitedSubsetDoesNotPruneEntitiesStillPresent() {
-        RemoteViewCache cache = new RemoteViewCache();
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         UUID portalId = UUID.randomUUID();
         UUID a = UUID.randomUUID();
         UUID b = UUID.randomUUID();
-        RemoteViewCache.RemoteView view = cache.getOrCreate(PEER, portalId);
+        RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> view = cache.getOrCreate(PEER, portalId);
 
         cache.applyEntities(PEER, portalId, List.of(fullEntity(a, 1.0D), fullEntity(b, 2.0D)), List.of(a, b));
         assertEquals(Set.of(a, b), idsOf(view));
@@ -54,11 +60,11 @@ class RemoteViewCacheEntityMergeTest {
 
     @Test
     void entityAbsentFromPresentSetIsPruned() {
-        RemoteViewCache cache = new RemoteViewCache();
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         UUID portalId = UUID.randomUUID();
         UUID a = UUID.randomUUID();
         UUID b = UUID.randomUUID();
-        RemoteViewCache.RemoteView view = cache.getOrCreate(PEER, portalId);
+        RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> view = cache.getOrCreate(PEER, portalId);
 
         cache.applyEntities(PEER, portalId, List.of(fullEntity(a, 1.0D), fullEntity(b, 2.0D)), List.of(a, b));
         assertEquals(Set.of(a, b), idsOf(view));
@@ -70,10 +76,10 @@ class RemoteViewCacheEntityMergeTest {
 
     @Test
     void emptyPresentSetClearsAllEntities() {
-        RemoteViewCache cache = new RemoteViewCache();
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         UUID portalId = UUID.randomUUID();
         UUID a = UUID.randomUUID();
-        RemoteViewCache.RemoteView view = cache.getOrCreate(PEER, portalId);
+        RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> view = cache.getOrCreate(PEER, portalId);
 
         cache.applyEntities(PEER, portalId, List.of(fullEntity(a, 1.0D)), List.of(a));
         assertTrue(idsOf(view).contains(a));
@@ -100,10 +106,10 @@ class RemoteViewCacheEntityMergeTest {
 
     @Test
     void emptyBlobsNeverBumpStateVersion() {
-        RemoteViewCache cache = new RemoteViewCache();
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         UUID portalId = UUID.randomUUID();
         UUID a = UUID.randomUUID();
-        RemoteViewCache.RemoteView view = cache.getOrCreate(PEER, portalId);
+        RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> view = cache.getOrCreate(PEER, portalId);
 
         cache.applyEntities(PEER, portalId, List.of(fullEntity(a, 1.0D)), List.of(a));
         cache.applyEntities(PEER, portalId, List.of(fullEntity(a, 1.5D)), List.of(a));
@@ -112,10 +118,10 @@ class RemoteViewCacheEntityMergeTest {
 
     @Test
     void mapPixelChangesAndRemovalBumpStateVersion() {
-        RemoteViewCache cache = new RemoteViewCache();
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         UUID portalId = UUID.randomUUID();
         UUID entityId = UUID.randomUUID();
-        RemoteViewCache.RemoteView view = cache.getOrCreate(PEER, portalId);
+        RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> view = cache.getOrCreate(PEER, portalId);
 
         cache.applyEntities(PEER, portalId,
             List.of(fullEntity(entityId, 1.0D, new byte[]{1})), List.of(entityId));

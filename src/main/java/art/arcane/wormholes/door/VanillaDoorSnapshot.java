@@ -59,7 +59,7 @@ public record VanillaDoorSnapshot(
 		Objects.requireNonNull(door, "door");
 		return new VanillaDoorSnapshot(
 			worldId,
-			DoorwayPlane.fromBlockData(blockX, blockY, blockZ, door, openState),
+			BukkitDoorGeometry.plane(blockX, blockY, blockZ, door, openState),
 			door.getHinge(),
 			door.isOpen(),
 			door.isPowered());
@@ -77,7 +77,7 @@ public record VanillaDoorSnapshot(
 		Objects.requireNonNull(openState, "openState");
 		return new VanillaDoorSnapshot(
 			worldId,
-			DoorwayPlane.fromBlockData(blockX, blockY, blockZ, trapDoor, openState),
+			BukkitDoorGeometry.plane(blockX, blockY, blockZ, trapDoor, openState),
 			Door.Hinge.LEFT,
 			trapDoor.isOpen(),
 			trapDoor.isPowered());
@@ -129,7 +129,7 @@ public record VanillaDoorSnapshot(
 			return Optional.empty();
 		}
 
-		DoorwayPlane plane = DoorwayPlane.fromBlockData(
+		DoorwayPlane plane = BukkitDoorGeometry.plane(
 			lowerBlock.getX(),
 			lowerBlock.getY(),
 			lowerBlock.getZ(),

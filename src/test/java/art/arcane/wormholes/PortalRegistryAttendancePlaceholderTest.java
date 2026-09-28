@@ -1,5 +1,6 @@
 package art.arcane.wormholes;
 
+import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.volmlib.util.bukkit.papi.PlaceholderValues;
 import art.arcane.wormholes.papi.WormholesPlaceholders;
 import art.arcane.wormholes.papi.WormholesPortalSnapshot;
@@ -227,7 +228,7 @@ class PortalRegistryAttendancePlaceholderTest {
     private static ITunnel tunnel(String destinationName) {
         IPortal destination = (IPortal) Proxy.newProxyInstance(IPortal.class.getClassLoader(), new Class<?>[]{IPortal.class}, (proxy, method, args) -> switch (method.getName()) {
             case "getName" -> destinationName;
-            case "getOrigin" -> new Vector(-12.5D, 80.0D, 31.5D);
+            case "getOrigin" -> new GeometryVector(-12.5D, 80.0D, 31.5D);
             case "hashCode" -> destinationName.hashCode();
             case "equals" -> proxy == args[0];
             case "toString" -> "IPortal[" + destinationName + "]";

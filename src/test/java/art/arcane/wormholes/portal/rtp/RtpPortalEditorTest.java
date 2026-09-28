@@ -22,6 +22,9 @@ import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.volmlib.util.inventorygui.Element;
+import art.arcane.volmlib.util.localization.TextKey;
+import art.arcane.volmlib.util.localization.MessageArgs;
+import art.arcane.wormholes.Wormholes;
 import art.arcane.volmlib.util.inventorygui.ElementEvent;
 import art.arcane.volmlib.util.inventorygui.UIPaneDecorator;
 import art.arcane.volmlib.util.inventorygui.Window;
@@ -182,7 +185,7 @@ public final class RtpPortalEditorTest
 	@Test
 	public void destinationSummaryUsesTheCurrentCatalogDisplayName()
 	{
-		SettingsSnapshot selected = SettingsSnapshot.from(RtpSettings.builder(world("overworld", -64, 320, 63))
+		SettingsSnapshot selected = SettingsSnapshot.from(RtpSettings.builder(BukkitRtpRuntime.worldSettings(world("overworld", -64, 320, 63)))
 				.targetBiomeKey("tropical/highlands").build());
 		FakeHost host = new FakeHost(snapshot(selected, status()));
 		host.biomeOptions = List.of(new RtpPortalEditorModel.BiomeOption("tropical/highlands", "Tropical Highlands", true));
@@ -207,7 +210,7 @@ public final class RtpPortalEditorTest
 	public void destinationSummaryHidesUnavailableRegistryIdentifiers()
 	{
 		String biomeKey = "iris:11111111-1111-1111-1111-111111111111";
-		SettingsSnapshot selected = SettingsSnapshot.from(RtpSettings.builder(world("overworld", -64, 320, 63))
+		SettingsSnapshot selected = SettingsSnapshot.from(RtpSettings.builder(BukkitRtpRuntime.worldSettings(world("overworld", -64, 320, 63)))
 				.targetBiomeKey(biomeKey).build());
 		FakeHost host = new FakeHost(snapshot(selected, status()));
 		Rendered rendered = render(host);
@@ -262,16 +265,16 @@ public final class RtpPortalEditorTest
 	public void settingsSnapshotAndMutationPreserveSoundPolicy()
 	{
 		World source = world("overworld", -64, 320, 63);
-		SettingsSnapshot defaults = SettingsSnapshot.from(RtpSettings.defaults(source));
+		SettingsSnapshot defaults = SettingsSnapshot.from(RtpSettings.defaults(BukkitRtpRuntime.worldSettings(source)));
 
 		assertTrue(defaults.rimEnabled());
 		assertTrue(defaults.soundEnabled());
 		assertEquals(RtpSafetyMode.SAFE, defaults.safetyMode());
 		RtpSettings muted = RtpPortalEditorModel.applyMutation(
-				RtpSettings.defaults(source),
+				RtpSettings.defaults(BukkitRtpRuntime.worldSettings(source)),
 				new RtpPortalEditorModel.SoundMutation(false),
-				source,
-				key -> source);
+				BukkitRtpRuntime.worldSettings(source),
+				key -> BukkitRtpRuntime.worldSettings(source));
 		assertFalse(muted.isSoundEnabled());
 	}
 
@@ -280,8 +283,8 @@ public final class RtpPortalEditorTest
 	{
 		World source = world("overworld", -64, 320, 63);
 		World target = world("the_nether", 0, 256, 32);
-		RtpSettings.WorldResolver resolver = key -> "minecraft:the_nether".equals(key) ? target : source;
-		RtpSettings settings = RtpSettings.defaults(source);
+		BukkitRtpRuntime.WorldResolver resolver = key -> "minecraft:the_nether".equals(key) ? target : source;
+		RtpSettings settings = RtpSettings.defaults(BukkitRtpRuntime.worldSettings(source));
 
 		settings = apply(settings, new RtpPortalEditorModel.TargetWorldMutation("minecraft:the_nether"), source, resolver);
 		settings = apply(settings, new RtpPortalEditorModel.CenterModeMutation(RtpCenterMode.CUSTOM, 12.5D, -7.25D), source, resolver);
@@ -327,7 +330,7 @@ public final class RtpPortalEditorTest
 	public void settingsSnapshotAcceptsRuntimeCoordinateAndRadiusBoundaries()
 	{
 		World source = world("overworld", -64, 320, 63);
-		RtpSettings settings = RtpSettings.builder(source)
+		RtpSettings settings = RtpSettings.builder(BukkitRtpRuntime.worldSettings(source))
 				.centerMode(RtpCenterMode.CUSTOM)
 				.customCenter(RtpSettings.MINIMUM_COORDINATE, RtpSettings.MAXIMUM_COORDINATE)
 				.radii(RtpSettings.MAXIMUM_RADIUS - 1, RtpSettings.MAXIMUM_RADIUS)
@@ -340,16 +343,19 @@ public final class RtpPortalEditorTest
 		assertEquals(RtpSettings.MAXIMUM_RADIUS, snapshot.maximumRadius());
 	}
 
-	private static RtpSettings apply(RtpSettings settings, Mutation mutation, World source, RtpSettings.WorldResolver resolver)
+	private static RtpSettings apply(RtpSettings settings, Mutation mutation, World source, BukkitRtpRuntime.WorldResolver resolver)
 	{
-		return RtpPortalEditorModel.applyMutation(settings, mutation, source, resolver);
+		return RtpPortalEditorModel.applyMutation(settings, mutation, BukkitRtpRuntime.worldSettings(source), key -> {
+            World target = resolver.resolve(key);
+            return target == null ? null : BukkitRtpRuntime.worldSettings(target);
+        });
 	}
 
 	private static Rendered render(FakeHost host)
 	{
 		FakeWindow window = new FakeWindow();
 		RtpPortalEditor editor = new RtpPortalEditor(host);
-		editor.populate(window, VIEWER_ID);
+		editor.populate(new BukkitRtpMenuView(window), VIEWER_ID);
 		return new Rendered(editor, window);
 	}
 
@@ -446,6 +452,11 @@ public final class RtpPortalEditorTest
 			assertEquals(1, mutations.size());
 			return mutations.getFirst().mutation();
 		}
+
+		@Override
+        public String text(TextKey key, MessageArgs arguments) {
+            return Wormholes.text().plain(key, arguments);
+        }
 
 		@Override
 		public EditorSnapshot snapshot(UUID viewerId)
@@ -704,7 +715,6 @@ public final class RtpPortalEditorTest
 			return this;
 		}
 
-		@Override
 		public Window updateElement(int position, int row, Element element)
 		{
 			if (!visible)

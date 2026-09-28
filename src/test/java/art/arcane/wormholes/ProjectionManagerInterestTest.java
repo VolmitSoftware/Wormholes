@@ -40,7 +40,7 @@ public final class ProjectionManagerInterestTest {
 
     @Test
     public void sideGraceRejectsEdgeOnViews() {
-        assertFalse(ProjectionManager.hasStablePortalSide(8.0D, 64.0D, 0.0D,
+        assertFalse(ProjectionObserverGeometry.hasStablePortalSide(8.0D, 64.0D, 0.0D,
                 0.0D, 64.0D, 0.0D,
                 0.0D, 0.0D, -1.0D,
                 0.12D));
@@ -48,12 +48,12 @@ public final class ProjectionManagerInterestTest {
 
     @Test
     public void sideGraceAllowsFrontAndBackViews() {
-        assertTrue(ProjectionManager.hasStablePortalSide(0.0D, 64.0D, -8.0D,
+        assertTrue(ProjectionObserverGeometry.hasStablePortalSide(0.0D, 64.0D, -8.0D,
                 0.0D, 64.0D, 0.0D,
                 0.0D, 0.0D, -1.0D,
                 0.12D));
 
-        assertTrue(ProjectionManager.hasStablePortalSide(0.0D, 64.0D, 8.0D,
+        assertTrue(ProjectionObserverGeometry.hasStablePortalSide(0.0D, 64.0D, 8.0D,
                 0.0D, 64.0D, 0.0D,
                 0.0D, 0.0D, -1.0D,
                 0.12D));

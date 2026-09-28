@@ -230,7 +230,7 @@ public final class DoorItemService
 	{
 		return pairKit(kit).map(stamp ->
 		{
-			DoorPairIdentity pair = pairIdentityForKit(stamp.kitId());
+			DoorPairIdentity pair = DoorPairIdentity.forKit(stamp.kitId());
 			return new PairKitContents(
 				stamp.kitId(),
 				pair,
@@ -244,14 +244,6 @@ public final class DoorItemService
 		return DoorItemIdentity.paired(pair.itemId(endpoint), pair.pairId(), endpoint, form);
 	}
 
-	public static DoorPairIdentity pairIdentityForKit(UUID kitId)
-	{
-		Objects.requireNonNull(kitId, "kitId");
-		return new DoorPairIdentity(
-			derivedId(kitId, "pair"),
-			derivedId(kitId, "endpoint-a"),
-			derivedId(kitId, "endpoint-b"));
-	}
 
 	/**
 	 * Registers exactly the recipes the operator has enabled, on the grids they
@@ -625,11 +617,6 @@ public final class DoorItemService
 		};
 	}
 
-	private static UUID derivedId(UUID kitId, String role)
-	{
-		String seed = "wormholes:door-pair:v1:" + kitId + ':' + role;
-		return UUID.nameUUIDFromBytes(seed.getBytes(StandardCharsets.UTF_8));
-	}
 
 	public NamespacedKey pairKitRecipeKey()
 	{

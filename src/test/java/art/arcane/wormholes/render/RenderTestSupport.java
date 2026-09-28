@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.util.BukkitGeometry;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -184,7 +185,7 @@ final class RenderTestSupport {
         Map<String, Object> state = new HashMap<String, Object>();
         state.put("id", UUID.randomUUID());
         state.put("world", world);
-        state.put("origin", origin);
+        state.put("origin", BukkitGeometry.vector(origin));
         state.put("frame", frame);
         state.put("center", new Location(world, origin.getX(), origin.getY(), origin.getZ()));
         state.put("name", "portal");

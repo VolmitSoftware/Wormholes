@@ -1,5 +1,6 @@
 package art.arcane.wormholes.nexus;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.hook.WormholesHooks;
 import art.arcane.wormholes.hook.WormholesRegistrar;
@@ -42,7 +43,7 @@ class LinkDoctorTest {
         overworld = NexusTestSupport.world("doctor");
         unloaded = NexusTestSupport.world("doctor_attic");
         loadedWorlds.add(overworld);
-        registry = new NetworkRegistry(tempDir);
+        registry = new NetworkRegistry(tempDir, BukkitJsonDocuments.INSTANCE);
         registry.load();
     }
 

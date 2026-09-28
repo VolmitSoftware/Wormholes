@@ -215,7 +215,7 @@ public class CommandRules {
     }
 
     private static RuleTemplates templates() {
-        return new RuleTemplates(Wormholes.instance.getDataFolder().toPath());
+        return new RuleTemplates(Wormholes.instance.getDataFolder().toPath(), Wormholes.settings.getRules());
     }
 
     private static boolean allowed(CommandSender sender) {

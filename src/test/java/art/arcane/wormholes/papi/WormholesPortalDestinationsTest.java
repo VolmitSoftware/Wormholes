@@ -1,5 +1,7 @@
 package art.arcane.wormholes.papi;
 
+import art.arcane.wormholes.util.BukkitGeometry;
+import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
 import art.arcane.wormholes.network.PortalInfo;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
@@ -44,7 +46,7 @@ class WormholesPortalDestinationsTest {
                 if (rejectLiveReads.get() || !method.getName().equals("getOrigin")) {
                     throw new AssertionError("Unexpected live destination access: " + method.getName());
                 }
-                return origin;
+                return BukkitGeometry.vector(origin);
             });
         WormholesPortalDestinations captured = WormholesPortalDestinations.capture(portal(PortalType.PORTAL, destination), null);
         origin.setX(9.0D).setY(9.0D).setZ(9.0D);
@@ -177,13 +179,14 @@ class WormholesPortalDestinationsTest {
         World world = (World) Proxy.newProxyInstance(World.class.getClassLoader(), new Class<?>[] { World.class },
             (proxy, method, arguments) -> switch (method.getName()) {
                 case "getName" -> "overworld";
+                case "getUID" -> new UUID(0L, 7L);
                 case "getKey" -> NamespacedKey.minecraft("overworld");
                 case "getMinHeight" -> -64;
                 case "getMaxHeight" -> 320;
                 case "getSeaLevel" -> 63;
                 default -> throw new AssertionError("Unexpected world access: " + method.getName());
             });
-        return new RtpService.Snapshot(PORTAL_ID, 1L, 1L, 0L, true, RtpSettings.defaults(world), runtime.snapshot(),
+        return new RtpService.Snapshot(PORTAL_ID, 1L, 1L, 0L, true, RtpSettings.defaults(BukkitRtpRuntime.worldSettings(world)), runtime.snapshot(),
             runtime.playerDestinations(), Set.of(), views);
     }
 

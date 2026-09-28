@@ -1,11 +1,11 @@
 package art.arcane.wormholes.render.view;
 
+import art.arcane.wormholes.network.replication.BlockChange;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.data.BlockData;
 
 public final class OccludedMarker {
-    public static final String STATE_STRING = "wormholes:occluded";
     private static final String STAND_IN_STATE = "minecraft:stone";
 
     private static volatile BlockData standIn;
@@ -31,7 +31,7 @@ public final class OccludedMarker {
     }
 
     public static boolean isSentinelState(String stateString) {
-        return STATE_STRING.equals(stateString);
+        return BlockChange.OCCLUDED_STATE.equals(stateString);
     }
 
     public static boolean isOccluding(BlockData data) {

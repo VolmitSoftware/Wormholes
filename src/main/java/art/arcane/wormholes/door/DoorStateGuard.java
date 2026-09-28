@@ -1,5 +1,7 @@
 package art.arcane.wormholes.door;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Objects;
@@ -34,7 +36,7 @@ final class DoorStateGuard
 
 	DoorStateService open(Path pluginDataDirectory) throws IOException
 	{
-		DoorStateService opened = DoorStateService.under(pluginDataDirectory);
+		DoorStateService opened = DoorStateService.under(pluginDataDirectory, BukkitJsonDocuments.INSTANCE);
 		state = opened;
 		return opened;
 	}

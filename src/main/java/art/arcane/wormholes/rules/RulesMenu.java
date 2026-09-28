@@ -262,7 +262,7 @@ public final class RulesMenu {
         add.onLeftClick(event -> prompt(viewer, RulesMessages.PROMPT_LINE, input -> {
             try {
                 extension.setDocument(RulesMenuModel.replaceRule(extension.document(),
-                    RulesMenuModel.addLine(rule, input)));
+                    RulesMenuModel.addLine(rule, input, RulesLimits.config())));
             } catch (RuleValidationException invalid) {
                 notice(viewer, RulesMessages.NOTICE_INVALID,
                     RulesMenuText.arguments("reason", String.join("; ", invalid.problems())));
@@ -290,7 +290,7 @@ public final class RulesMenu {
     }
 
     private void populateTemplates(UIWindow window, Player viewer, int requestedPage) {
-        RuleTemplates templates = new RuleTemplates(Wormholes.instance.getDataFolder().toPath());
+        RuleTemplates templates = new RuleTemplates(Wormholes.instance.getDataFolder().toPath(), RulesLimits.config());
         List<String> names = templates.list();
         int page = RulesMenuModel.clampPage(requestedPage, names.size());
         List<String> visible = RulesMenuModel.page(names, page);

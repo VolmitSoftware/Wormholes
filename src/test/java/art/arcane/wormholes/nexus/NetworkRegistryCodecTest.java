@@ -1,5 +1,6 @@
 package art.arcane.wormholes.nexus;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.volmlib.util.json.JSONObject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -60,7 +61,7 @@ class NetworkRegistryCodecTest {
         minimal.put("id", networkId.toString());
         minimal.put("name", "plain");
 
-        PortalNetwork decoded = NetworkRegistryCodec.decode(minimal);
+        PortalNetwork decoded = NetworkRegistryCodec.decode(BukkitJsonDocuments.values(minimal));
 
         assertEquals(networkId, decoded.id());
         assertEquals("plain", decoded.name());
@@ -75,7 +76,7 @@ class NetworkRegistryCodecTest {
     void savedNetworksReloadFromDiskWithAWorkingReverseIndex() throws IOException {
         UUID firstPortal = UUID.randomUUID();
         UUID secondPortal = UUID.randomUUID();
-        NetworkRegistry registry = new NetworkRegistry(tempDir);
+        NetworkRegistry registry = new NetworkRegistry(tempDir, BukkitJsonDocuments.INSTANCE);
         registry.load();
 
         PortalNetwork network = PortalNetwork.create(UUID.randomUUID(), "Mines", UUID.randomUUID())
@@ -87,7 +88,7 @@ class NetworkRegistryCodecTest {
         assertEquals("BBBB", registry.resolve(network.id(), "bbbb").address());
         assertEquals(secondPortal, registry.resolve(network.id(), "BBBB").portalId());
 
-        NetworkRegistry reloaded = new NetworkRegistry(tempDir);
+        NetworkRegistry reloaded = new NetworkRegistry(tempDir, BukkitJsonDocuments.INSTANCE);
         reloaded.load();
 
         assertEquals(1, reloaded.all().size());
@@ -100,7 +101,7 @@ class NetworkRegistryCodecTest {
     void removingAMemberAndDeletingANetworkClearTheReverseIndexAndTheFile() throws IOException {
         UUID portalId = UUID.randomUUID();
         UUID strandedId = UUID.randomUUID();
-        NetworkRegistry registry = new NetworkRegistry(tempDir);
+        NetworkRegistry registry = new NetworkRegistry(tempDir, BukkitJsonDocuments.INSTANCE);
         registry.load();
 
         PortalNetwork network = PortalNetwork.create(UUID.randomUUID(), "Docks", UUID.randomUUID())
@@ -119,7 +120,7 @@ class NetworkRegistryCodecTest {
         assertNull(registry.byName("docks"));
         assertTrue(registry.all().isEmpty());
 
-        NetworkRegistry reloaded = new NetworkRegistry(tempDir);
+        NetworkRegistry reloaded = new NetworkRegistry(tempDir, BukkitJsonDocuments.INSTANCE);
         reloaded.load();
         assertTrue(reloaded.all().isEmpty());
     }

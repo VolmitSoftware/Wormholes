@@ -1,0 +1,27 @@
+modLoader = "javafml"
+loaderVersion = "[3,)"
+license = "GPL-3.0"
+
+[[mods]]
+modId = "wormholes"
+version = "${version}"
+displayName = "Wormholes GameTest"
+description = "Through-portal projection and traversal."
+authors = "Volmit Software"
+
+[[dependencies.wormholes]]
+modId = "neoforge"
+type = "required"
+versionRange = "[26.2,26.3)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.wormholes]]
+modId = "minecraft"
+type = "required"
+versionRange = "[${minecraftVersion}]"
+ordering = "NONE"
+side = "BOTH"
+
+[[mixins]]
+config = "wormholes.mixins.json"

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.util.BukkitGeometry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -31,7 +32,7 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.render.PortalSkinRenderer.SkinRenderMode;
-import art.arcane.wormholes.render.PortalSkinRenderer.SkinTransform;
+import art.arcane.wormholes.render.PortalSkinGeometry.SkinTransform;
 import art.arcane.wormholes.util.Axis;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Cuboid;
@@ -82,7 +83,7 @@ public final class PortalSkinRendererTest
     public void zNormalPaneScalesTheApertureAndThinsAlongTheNormal()
     {
         AxisAlignedBB area = new AxisAlignedBB(10.0D, 12.0D, 64.0D, 67.0D, 8.0D, 8.0D);
-        SkinTransform transform = PortalSkinRenderer.skinTransforms(area, Axis.Z, 8.5D, 0.2D);
+        SkinTransform transform = PortalSkinGeometry.skinTransforms(area, Axis.Z, 8.5D, 0.2D);
 
         assertEquals(2.0D, transform.scaleX(), EPSILON);
         assertEquals(3.0D, transform.scaleY(), EPSILON);
@@ -100,7 +101,7 @@ public final class PortalSkinRendererTest
     public void xNormalPaneThinsAlongXAndCoversTheYzAperture()
     {
         AxisAlignedBB area = new AxisAlignedBB(8.0D, 8.0D, 64.0D, 67.0D, 10.0D, 12.0D);
-        SkinTransform transform = PortalSkinRenderer.skinTransforms(area, Axis.X, 8.5D, 0.4D);
+        SkinTransform transform = PortalSkinGeometry.skinTransforms(area, Axis.X, 8.5D, 0.4D);
 
         assertEquals(0.4D, transform.scaleX(), EPSILON);
         assertEquals(3.0D, transform.scaleY(), EPSILON);
@@ -118,7 +119,7 @@ public final class PortalSkinRendererTest
     public void yNormalPaneThinsAlongYAndCoversTheXzAperture()
     {
         AxisAlignedBB area = new AxisAlignedBB(10.0D, 12.0D, 64.0D, 64.0D, 8.0D, 11.0D);
-        SkinTransform transform = PortalSkinRenderer.skinTransforms(area, Axis.Y, 64.5D, 1.0D);
+        SkinTransform transform = PortalSkinGeometry.skinTransforms(area, Axis.Y, 64.5D, 1.0D);
 
         assertEquals(2.0D, transform.scaleX(), EPSILON);
         assertEquals(1.0D, transform.scaleY(), EPSILON);
@@ -135,8 +136,8 @@ public final class PortalSkinRendererTest
     @Test
     public void everySkinPaneIsExactlyOneBlockThickAlongTheNormal()
     {
-        List<SkinTransform> squarePanes = PortalSkinRenderer.buildPanes(portal(0, 0, 64, 66, 0, 2));
-        List<SkinTransform> singleCellPanes = PortalSkinRenderer.buildPanes(portal(0, 0, 64, 64, 0, 0));
+        List<SkinTransform> squarePanes = panes(portal(0, 0, 64, 66, 0, 2));
+        List<SkinTransform> singleCellPanes = panes(portal(0, 0, 64, 64, 0, 0));
 
         assertFalse(squarePanes.isEmpty());
         assertFalse(singleCellPanes.isEmpty());
@@ -392,7 +393,7 @@ public final class PortalSkinRendererTest
             {
                 case "getStructure" -> structure;
                 case "getFrame" -> frame;
-                case "getOrigin" -> origin;
+                case "getOrigin" -> BukkitGeometry.vector(origin);
                 case "toString" -> "PortalSkinRendererTestPortal";
                 case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
                 case "equals" -> Boolean.valueOf(proxy == arguments[0]);
@@ -411,6 +412,10 @@ public final class PortalSkinRendererTest
                 case "toString" -> "observer(" + observerId + ")";
                 default -> throw new UnsupportedOperationException(method.getName());
             });
+    }
+
+    private static List<SkinTransform> panes(ILocalPortal portal) {
+        return PortalSkinGeometry.panes(portal.getStructure().geometry(), portal.getFrame(), portal.getOrigin());
     }
 
     private static SkinTransform transform(double x)

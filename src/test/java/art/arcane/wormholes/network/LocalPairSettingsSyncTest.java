@@ -105,9 +105,9 @@ public final class LocalPairSettingsSyncTest {
     }
 
     private static void withService(List<ILocalPortal> portals, Runnable body) {
-        PortalSyncService previous = Wormholes.portalSyncService;
+        PortalSyncService<ILocalPortal> previous = Wormholes.portalSyncService;
         try {
-            Wormholes.portalSyncService = new PortalSyncService(null, () -> portals, Runnable::run);
+            Wormholes.portalSyncService = BukkitPortalSyncAccess.create(null, () -> portals, Runnable::run);
             body.run();
         } finally {
             Wormholes.portalSyncService = previous;

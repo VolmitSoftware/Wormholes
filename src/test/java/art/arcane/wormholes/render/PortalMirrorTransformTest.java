@@ -1,5 +1,7 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.util.BukkitGeometry;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -110,9 +112,9 @@ public final class PortalMirrorTransformTest {
     }
 
     private static Vector compose(PortalFrame frame, double right, double up, double normal) {
-        return frame.getRight().toVector().multiply(right)
-            .add(frame.getUp().toVector().multiply(up))
-            .add(frame.getNormal().toVector().multiply(normal));
+        return BukkitGeometry.bukkit(frame.getRight()).multiply(right)
+            .add(BukkitGeometry.bukkit(frame.getUp()).multiply(up))
+            .add(BukkitGeometry.bukkit(frame.getNormal()).multiply(normal));
     }
 
     private static void assertComponents(PortalFrame frame, double[] actual, double right, double up, double normal) {

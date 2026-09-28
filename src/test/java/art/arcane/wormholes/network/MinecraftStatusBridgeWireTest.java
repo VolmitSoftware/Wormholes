@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 import org.junit.jupiter.api.AfterEach;
@@ -63,7 +64,7 @@ class MinecraftStatusBridgeWireTest {
     }
 
     private NetworkManager manager(NetworkConfig config, int gamePort, String identityName) {
-        NetworkManager manager = new NetworkManager(LOGGER, config, "26.2", "test", gamePort, tempDir.resolve(identityName));
+        NetworkManager manager = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", gamePort, tempDir.resolve(identityName), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         managers.add(manager);
         return manager;
     }
@@ -112,7 +113,7 @@ class MinecraftStatusBridgeWireTest {
     void requestBytesEncodeTwoValidVarintPrefixedPackets() throws IOException {
         String host = HOST_PREFIX + "canned-status-bridge-request";
         int port = 25565;
-        byte[] bytes = MinecraftStatusBridge.requestBytes(host, port);
+        byte[] bytes = MinecraftStatusBridge.requestBytes(host, port, ClientVersion.getLatest().getProtocolVersion());
 
         int[] cursor = {0};
         int handshakeLength = readVarInt(bytes, cursor);

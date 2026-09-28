@@ -5,6 +5,7 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.WireCapability;
 import art.arcane.wormholes.network.WireMessage;
 import art.arcane.wormholes.network.replication.ChunkBulkBuilder;
+import art.arcane.wormholes.network.replication.BukkitChunkSnapshotReader;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.network.replication.ChunkResyncRequest;
 import art.arcane.wormholes.network.replication.ReplicationStreamKey;
@@ -13,6 +14,7 @@ import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 
 import org.bukkit.ChunkSnapshot;
+import org.bukkit.block.Biome;
 import org.bukkit.block.data.BlockData;
 
 import java.io.IOException;
@@ -29,7 +31,7 @@ final class ViewBulkPipeline {
     private final ViewSessionRegistry registry;
     private final ViewTimeDelivery timeDelivery;
     private final Map<BlockData, String> blockDataStrings = new ConcurrentHashMap<>();
-    private final ChunkBulkBuilder chunkBulkBuilder;
+    private final ChunkBulkBuilder<ChunkSnapshot, BlockData, Biome> chunkBulkBuilder;
     private final BulkRetryCoordinator<ViewServer.BulkRetryKey> bulkRetryCoordinator =
         new BulkRetryCoordinator<>(ViewServer.MAX_BULK_RETRY_DELAY_TICKS);
     private final Set<BulkCompleteKey> bulkCompleteRetries = ConcurrentHashMap.newKeySet();
@@ -37,7 +39,7 @@ final class ViewBulkPipeline {
     ViewBulkPipeline(ViewSessionRegistry registry, ViewTimeDelivery timeDelivery) {
         this.registry = registry;
         this.timeDelivery = timeDelivery;
-        this.chunkBulkBuilder = new ChunkBulkBuilder(blockDataStrings);
+        this.chunkBulkBuilder = new ChunkBulkBuilder<>(blockDataStrings, BukkitChunkSnapshotReader.INSTANCE);
     }
 
     void clear() {

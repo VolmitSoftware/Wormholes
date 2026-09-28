@@ -1,0 +1,51 @@
+package art.arcane.wormholes.network;
+
+import art.arcane.wormholes.portal.AmbientParticleStyle;
+import art.arcane.wormholes.portal.BlackoutColor;
+import art.arcane.wormholes.portal.MirrorRotation;
+import art.arcane.wormholes.portal.PortalPermissionMode;
+import art.arcane.wormholes.portal.ProjectionMode;
+import art.arcane.wormholes.portal.ProjectionRenderMode;
+
+public interface PortalSettingsTarget extends TraversalAdmissionPolicy.InboundPortal {
+    int getActivationRange();
+    int getAmbientColor();
+    AmbientParticleStyle getAmbientStyle();
+    BlackoutColor getBlackoutColor();
+    MirrorRotation getMirrorRotation();
+    int getNetworkViewDepth();
+    int getNetworkViewEntityIntervalTicks();
+    String getNetworkViewFallbackBlock();
+    int getNetworkViewHeartbeatTicks();
+    int getNetworkViewLateralPad();
+    int getNetworkViewUnsubscribeGraceSeconds();
+    PortalPermissionMode getPermissionMode();
+    ProjectionMode getProjectionMode();
+    ProjectionRenderMode getRenderMode();
+    String getSurfaceSkin();
+    boolean isBlackoutBackground();
+    boolean isIncomingTraversalsEnabled();
+    boolean isMirrorMode();
+    boolean isOutgoingTraversalsEnabled();
+    boolean isSettingsSyncEnabled();
+    void setActivationRange(int rangeBlocks);
+    void setAmbientColor(int color);
+    void setAmbientStyle(AmbientParticleStyle style);
+    void setBlackoutBackground(boolean enabled);
+    void setBlackoutColor(BlackoutColor color);
+    void setIncomingTraversalsEnabled(boolean enabled);
+    void setMirrorMode(boolean mirrorMode);
+    void setMirrorRotation(MirrorRotation rotation);
+    void setNetworkViewDepth(int depth);
+    void setNetworkViewEntityIntervalTicks(int ticks);
+    void setNetworkViewFallbackBlock(String blockState);
+    void setNetworkViewHeartbeatTicks(int ticks);
+    void setNetworkViewLateralPad(int lateralPad);
+    void setNetworkViewUnsubscribeGraceSeconds(int seconds);
+    void setOutgoingTraversalsEnabled(boolean enabled);
+    void setPermissionMode(PortalPermissionMode mode);
+    void setProjectionMode(ProjectionMode mode);
+    void setRenderMode(ProjectionRenderMode mode);
+    void setSettingsSyncEnabled(boolean enabled);
+    void setSurfaceSkin(String skin);
+}

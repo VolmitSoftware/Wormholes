@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render.view;
 
+import art.arcane.wormholes.network.replication.BlockChange;
 import org.bukkit.block.data.BlockData;
 import org.junit.jupiter.api.Test;
 
@@ -12,8 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class OccludedMarkerTest {
     @Test
     void sentinelStateStringIsTheReservedWireToken() {
-        assertEquals("wormholes:occluded", OccludedMarker.STATE_STRING);
-        assertTrue(OccludedMarker.isSentinelState(OccludedMarker.STATE_STRING));
+        assertEquals("wormholes:occluded", BlockChange.OCCLUDED_STATE);
+        assertTrue(OccludedMarker.isSentinelState(BlockChange.OCCLUDED_STATE));
         assertFalse(OccludedMarker.isSentinelState("minecraft:stone"));
         assertFalse(OccludedMarker.isSentinelState(null));
     }

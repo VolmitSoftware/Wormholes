@@ -155,7 +155,6 @@ public final class Settings {
         MAX_SPOOFED_ENTITIES = clampInt(render.maxSpoofedEntities, 0, 256);
         CAPTURE_ZONE_RADIUS = clampDouble(render.captureZoneRadius, 1.0D, 64.0D);
 
-        applyVisualQualityProfile();
         rebuildLocalPortalCaptureZones();
     }
 
@@ -165,39 +164,6 @@ public final class Settings {
 
     public static float portalSoundVolume(float baseVolume) {
         return (float) (baseVolume * PORTAL_SOUND_VOLUME_MULTIPLIER);
-    }
-
-    private static void applyVisualQualityProfile() {
-        switch (VISUAL_QUALITY_PROFILE) {
-            case AUTO -> {
-            }
-            case PERFORMANCE -> {
-                LIGHTING_FIDELITY = false;
-                ENTITY_SPOOFING = false;
-                PROJECTION_RANGE = Math.min(PROJECTION_RANGE, 32.0D);
-                PROJECTION_DEPTH_BLOCKS = Math.min(PROJECTION_DEPTH_BLOCKS, 48);
-                PROJECTION_MAX_PROJECTORS_PER_TICK = Math.min(PROJECTION_MAX_PROJECTORS_PER_TICK, 12);
-                PROJECTION_MAX_PORTALS_PER_OBSERVER_TICK = Math.min(PROJECTION_MAX_PORTALS_PER_OBSERVER_TICK, 2);
-                PROJECTION_MAX_NEW_OBSERVER_SCANS_PER_TICK = Math.min(PROJECTION_MAX_NEW_OBSERVER_SCANS_PER_TICK, 32);
-            }
-            case BALANCED -> {
-                LIGHTING_REFRESH_INTERVAL_TICKS = Math.max(LIGHTING_REFRESH_INTERVAL_TICKS, 6);
-                ENTITY_UPDATE_INTERVAL_TICKS = Math.max(ENTITY_UPDATE_INTERVAL_TICKS, 2);
-                MAX_SPOOFED_ENTITIES = Math.min(MAX_SPOOFED_ENTITIES, 16);
-                PROJECTION_MAX_PROJECTORS_PER_TICK = Math.min(PROJECTION_MAX_PROJECTORS_PER_TICK, 20);
-                PROJECTION_MAX_NEW_OBSERVER_SCANS_PER_TICK = Math.min(PROJECTION_MAX_NEW_OBSERVER_SCANS_PER_TICK, 64);
-            }
-            case CINEMATIC -> {
-                PROJECTION_RANGE = Math.max(PROJECTION_RANGE, 64.0D);
-                PROJECTION_DEPTH_BLOCKS = Math.max(PROJECTION_DEPTH_BLOCKS, 96);
-                PROJECTION_MAX_PROJECTORS_PER_TICK = Math.max(PROJECTION_MAX_PROJECTORS_PER_TICK, 32);
-                PROJECTION_MAX_NEW_OBSERVER_SCANS_PER_TICK = Math.max(PROJECTION_MAX_NEW_OBSERVER_SCANS_PER_TICK, 128);
-                LIGHTING_REFRESH_INTERVAL_TICKS = Math.min(LIGHTING_REFRESH_INTERVAL_TICKS, 2);
-                LIGHTING_MAX_SECTIONS_PER_PASS = Math.max(LIGHTING_MAX_SECTIONS_PER_PASS, 4);
-                ENTITY_SPOOF_RANGE = Math.max(ENTITY_SPOOF_RANGE, 64.0D);
-                MAX_SPOOFED_ENTITIES = Math.max(MAX_SPOOFED_ENTITIES, 48);
-            }
-        }
     }
 
     private static void rebuildLocalPortalCaptureZones() {

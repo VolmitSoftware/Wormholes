@@ -1,5 +1,13 @@
 package art.arcane.wormholes;
 
+import art.arcane.wormholes.network.view.BukkitRemoteViewCodec;
+
+import com.github.retrooper.packetevents.protocol.player.Equipment;
+
+import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
+
+import org.bukkit.block.data.BlockData;
+
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.network.replication.RemoteChunkStore;
 import art.arcane.wormholes.network.view.RemoteViewCache;
@@ -15,7 +23,7 @@ class WormholesNetworkRuntimeTest {
         network.replication.diffWindowSize = 9;
         network.replication.resyncTimeoutSec = 13;
 
-        RemoteViewCache cache = WormholesNetworkRuntime.createRemoteViewCache(network);
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = WormholesNetworkRuntime.createRemoteViewCache(network);
         RemoteChunkStore store = cache.chunkStore("hub");
 
         assertEquals(9, store.diffWindowSize());
@@ -35,7 +43,7 @@ class WormholesNetworkRuntimeTest {
 
     @Test
     void replicationSettingsApplyToExistingAndFuturePeerStores() {
-        RemoteViewCache cache = new RemoteViewCache(3, 4_000L);
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, new RemoteViewCache.Options(3, 4_000L));
         RemoteChunkStore existing = cache.chunkStore("hub");
 
         cache.applyReplicationSettings(11, 17_000L);

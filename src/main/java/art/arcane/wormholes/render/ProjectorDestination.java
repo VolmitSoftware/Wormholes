@@ -1,5 +1,9 @@
 package art.arcane.wormholes.render;
 
+import com.github.retrooper.packetevents.protocol.player.Equipment;
+
+import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
+
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -21,7 +25,7 @@ import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.render.view.RemoteWorldView;
 
-final class ProjectorDestination {
+final class ProjectorDestination implements ProjectorScanDestination<ILocalPortal, ProjectionWorldView> {
     enum Outcome {
         READY,
         CLOSE,
@@ -34,7 +38,7 @@ final class ProjectorDestination {
     private BlockData remoteFallback;
     private String remoteFallbackState;
     private RemoteWorldView cachedRemoteWorldView;
-    private RemoteViewCache.RemoteView cachedRemoteViewSource;
+    private RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> cachedRemoteViewSource;
 
     ILocalPortal dest;
     IPortal destAnchor;
@@ -48,6 +52,51 @@ final class ProjectorDestination {
     double originZ;
     boolean mirrorMode;
     int mirrorRotationQuarterTurns;
+
+    @Override
+    public ProjectionWorldView localView() {
+        return localView;
+    }
+
+    @Override
+    public ProjectionWorldView destView() {
+        return destView;
+    }
+
+    @Override
+    public ILocalPortal dest() {
+        return dest;
+    }
+
+    @Override
+    public IPortal destAnchor() {
+        return destAnchor;
+    }
+
+    @Override
+    public double originX() {
+        return originX;
+    }
+
+    @Override
+    public double originY() {
+        return originY;
+    }
+
+    @Override
+    public double originZ() {
+        return originZ;
+    }
+
+    @Override
+    public boolean mirrorMode() {
+        return mirrorMode;
+    }
+
+    @Override
+    public int mirrorRotationQuarterTurns() {
+        return mirrorRotationQuarterTurns;
+    }
 
     ProjectorDestination(ILocalPortal portal, ProjectionWorldViewProvider viewProvider) {
         this.portal = portal;
@@ -154,11 +203,11 @@ final class ProjectorDestination {
     }
 
     private ProjectionWorldView remoteWorldView(String peerName, UUID portalId) {
-        ViewSubscriptionManager subscriptions = Wormholes.viewSubscriptions;
+        ViewSubscriptionManager<BlockData, EntityData<?>, Equipment> subscriptions = Wormholes.viewSubscriptions;
         if (subscriptions == null || peerName == null || portalId == null) {
             return null;
         }
-        RemoteViewCache.RemoteView view = subscriptions.touch(peerName, portalId, portal.getNetworkViewUnsubscribeGraceSeconds());
+        RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> view = subscriptions.touch(peerName, portalId, portal.getNetworkViewUnsubscribeGraceSeconds());
         String fallbackState = portal.getNetworkViewFallbackBlock();
         boolean fallbackChanged = remoteFallback == null || !fallbackState.equals(remoteFallbackState);
         if (fallbackChanged) {

@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network.replication.capture;
 
+import org.bukkit.block.data.BlockData;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.network.replication.BlockChange;
 import art.arcane.wormholes.network.replication.LightDiff;
@@ -22,11 +23,11 @@ public final class LightDiffCapture {
     private static final ThreadLocal<byte[]> BLOCK_SCRATCH = ThreadLocal.withInitial(() -> new byte[LightDiff.DATA_LENGTH]);
     private static final ThreadLocal<byte[]> SKY_SCRATCH = ThreadLocal.withInitial(() -> new byte[LightDiff.DATA_LENGTH]);
 
-    private final RegionalDiffAccumulator accumulator;
+    private final RegionalDiffAccumulator<World, BlockData> accumulator;
     private final AtomicLong sectionsSampled = new AtomicLong();
     private final AtomicLong diffsEmitted = new AtomicLong();
 
-    public LightDiffCapture(RegionalDiffAccumulator accumulator) {
+    public LightDiffCapture(RegionalDiffAccumulator<World, BlockData> accumulator) {
         this.accumulator = accumulator;
     }
 

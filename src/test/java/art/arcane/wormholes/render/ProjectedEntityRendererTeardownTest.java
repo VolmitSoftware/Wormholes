@@ -1,5 +1,10 @@
 package art.arcane.wormholes.render;
 
+import com.github.retrooper.packetevents.util.Vector3d;
+
+import art.arcane.wormholes.render.view.ProjectionWorldView;
+import org.bukkit.block.data.BlockData;
+import art.arcane.wormholes.geometry.GeometryVector;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -38,7 +43,7 @@ public final class ProjectedEntityRendererTeardownTest {
         try {
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-            EntityRenderSpoofRegistry registry = new EntityRenderSpoofRegistry(channel, identity);
+            EntityRenderSpoofRegistry<Player, Vector3d> registry = new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
 
             renderer.close(ProjectedEntityPacketRecorder.player(true));
@@ -59,7 +64,7 @@ public final class ProjectedEntityRendererTeardownTest {
             Player observer = ProjectedEntityPacketRecorder.player(true);
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-            EntityRenderSpoofRegistry registry = new EntityRenderSpoofRegistry(channel, identity);
+            EntityRenderSpoofRegistry<Player, Vector3d> registry = new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
             channel.begin(observer);
             identity.sendRemotePlayerInfo(observer, null,
@@ -84,7 +89,7 @@ public final class ProjectedEntityRendererTeardownTest {
         try {
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-            EntityRenderSpoofRegistry registry = new EntityRenderSpoofRegistry(channel, identity);
+            EntityRenderSpoofRegistry<Player, Vector3d> registry = new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
             EntityRenderSpoofedEntity ghost = EntityRenderSpoofedEntity.create(false, false, true);
             UUID sourceId = UUID.randomUUID();
             registry.track(sourceId, ghost);
@@ -108,7 +113,7 @@ public final class ProjectedEntityRendererTeardownTest {
         try {
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-            EntityRenderSpoofRegistry registry = new EntityRenderSpoofRegistry(channel, identity);
+            EntityRenderSpoofRegistry<Player, Vector3d> registry = new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
             UUID sourceId = UUID.randomUUID();
             registry.track(sourceId, EntityRenderSpoofedEntity.create(false, false, true));
             ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
@@ -130,7 +135,7 @@ public final class ProjectedEntityRendererTeardownTest {
         try {
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-            EntityRenderSpoofRegistry registry = new EntityRenderSpoofRegistry(channel, identity);
+            EntityRenderSpoofRegistry<Player, Vector3d> registry = new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
             EntityRenderSpoofedEntity ghost = EntityRenderSpoofedEntity.create(false, false, true);
             UUID sourceId = UUID.randomUUID();
             registry.track(sourceId, ghost);
@@ -162,7 +167,7 @@ public final class ProjectedEntityRendererTeardownTest {
         try {
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-            EntityRenderSpoofRegistry registry = new EntityRenderSpoofRegistry(channel, identity);
+            EntityRenderSpoofRegistry<Player, Vector3d> registry = new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
             UUID sourceId = UUID.randomUUID();
             EntityRenderSpoofedEntity item = EntityRenderSpoofedEntity.create(false, false, false);
             registry.track(sourceId, item);
@@ -176,7 +181,7 @@ public final class ProjectedEntityRendererTeardownTest {
             PortalFrame frame = PortalFrame.canonical(Direction.N);
 
             renderer.applySnapshot(observer, null, portalAt(0.0D, 64.0D, 0.0D), false, 0, view,
-                null, 32.0D, frame, frame, new ProjectedEntityOcclusion());
+                null, 32.0D, frame, frame, BukkitEntityOcclusion.create());
 
             assertFalse(renderer.hasProjectedEntity(sourceId));
             assertArrayEquals(new int[] {item.fakeId},
@@ -196,7 +201,7 @@ public final class ProjectedEntityRendererTeardownTest {
             Settings.MAX_SPOOFED_ENTITIES = 24;
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-            EntityRenderSpoofRegistry registry = new EntityRenderSpoofRegistry(channel, identity);
+            EntityRenderSpoofRegistry<Player, Vector3d> registry = new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
             EntityRenderSpoofedEntity vehicle = EntityRenderSpoofedEntity.create(false, false, true);
             vehicle.lastPassengers = new int[] { vehicle.fakeId + 1 };
             registry.track(UUID.randomUUID(), vehicle);
@@ -205,7 +210,7 @@ public final class ProjectedEntityRendererTeardownTest {
             Player observer = ProjectedEntityPacketRecorder.player(true);
 
             renderer.applySnapshot(observer, null, portalAt(0.0D, 64.0D, 0.0D), false, 0, emptyEntityView(),
-                null, 32.0D, frame, frame, new ProjectedEntityOcclusion());
+                null, 32.0D, frame, frame, BukkitEntityOcclusion.create());
 
             assertTrue(recorder.sentOfType(WrapperPlayServerSetPassengers.class).isEmpty());
             assertEquals(1, recorder.sentOfType(WrapperPlayServerDestroyEntities.class).size());
@@ -256,7 +261,7 @@ public final class ProjectedEntityRendererTeardownTest {
         InvocationHandler handler = (proxy, method, args) -> {
             String name = method.getName();
             if ("getOrigin".equals(name)) {
-                return new Vector(x, y, z);
+                return new GeometryVector(x, y, z);
             }
             if ("getId".equals(name)) {
                 return id;

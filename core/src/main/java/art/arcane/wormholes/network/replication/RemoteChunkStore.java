@@ -1,0 +1,409 @@
+package art.arcane.wormholes.network.replication;
+
+import art.arcane.wormholes.network.view.ViewSlice;
+import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+
+import java.util.function.Predicate;
+
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
+
+public final class RemoteChunkStore {
+    public static final int DEFAULT_DIFF_WINDOW_SIZE = 32;
+    public static final long DEFAULT_RESYNC_TIMEOUT_MS = 5_000L;
+
+    public static final class ReplicatedChunk {
+        private final ReplicationStreamKey stream;
+        private volatile ViewSlice slice;
+        private volatile long lastAppliedSeq;
+        private volatile long firstGapMillis;
+        private final TreeMap<Long, ChunkDiffBatch> pending = new TreeMap<>();
+        private final HashMap<String, Integer> paletteLookup = new HashMap<>(32);
+        private long cachedContentHash;
+        private boolean contentHashValid;
+
+        private ReplicatedChunk(ReplicationStreamKey stream) {
+            this.stream = stream;
+        }
+
+        public ReplicationStreamKey stream() {
+            return stream;
+        }
+
+        public ViewSlice slice() {
+            return slice;
+        }
+
+        public long lastAppliedSeq() {
+            return lastAppliedSeq;
+        }
+    }
+
+    private volatile int diffWindowSize;
+    private volatile long resyncTimeoutMillis;
+    private final Map<ReplicationStreamKey, ReplicatedChunk> chunks = new ConcurrentHashMap<>();
+    private final Predicate<String> blockEntityClassifier;
+    private final Map<String, Boolean> blockEntityStates = new ConcurrentHashMap<>();
+
+    public RemoteChunkStore(Predicate<String> blockEntityClassifier, Options options) {
+        this.blockEntityClassifier = blockEntityClassifier;
+        applySettings(options.diffWindowSize(), options.resyncTimeoutMillis());
+    }
+
+    public void applySettings(int diffWindowSize, long resyncTimeoutMillis) {
+        this.diffWindowSize = Math.max(1, diffWindowSize);
+        this.resyncTimeoutMillis = Math.max(0L, resyncTimeoutMillis);
+    }
+
+    public int diffWindowSize() {
+        return diffWindowSize;
+    }
+
+    public long resyncTimeoutMillis() {
+        return resyncTimeoutMillis;
+    }
+
+    public ReplicatedChunk get(ReplicationStreamKey stream) {
+        return chunks.get(stream);
+    }
+
+    public List<ReplicationStreamKey> streams() {
+        return new ArrayList<>(chunks.keySet());
+    }
+
+    /** The slice declares its own layout, so the sender's capability set does not have to be re-derived here. */
+    public ReplicatedChunk applyBulk(ChunkBulk bulk) throws IOException {
+        ViewSlice decoded = ViewSlice.read(new DataInputStream(new ByteArrayInputStream(bulk.bulkPayload())));
+        validateSliceStream(decoded, bulk.stream());
+        ReplicatedChunk chunk = chunks.computeIfAbsent(bulk.stream(), ReplicatedChunk::new);
+        synchronized (chunk) {
+            if (chunk.slice != null && bulk.sequence() < chunk.lastAppliedSeq) {
+                // A stale re-bulk that arrived after newer diffs were already applied; ignore it so it
+                // cannot rewind the chunk to an older state.
+                return chunk;
+            }
+            chunk.slice = decoded;
+            chunk.paletteLookup.clear();
+            List<String> palette = decoded.palette();
+            for (int i = 0; i < palette.size(); i++) {
+                chunk.paletteLookup.putIfAbsent(palette.get(i), i);
+            }
+            chunk.contentHashValid = false;
+            chunk.lastAppliedSeq = bulk.sequence();
+            chunk.firstGapMillis = 0L;
+            // Drop diffs this bulk already supersedes, but KEEP any buffered diffs newer than the bulk
+            // and re-apply them, so an in-flight change (e.g. a block break) survives a re-bulk instead
+            // of being silently cleared.
+            chunk.pending.headMap(bulk.sequence() + 1L).clear();
+            drainBuffered(chunk);
+        }
+        return chunk;
+    }
+
+    public ApplyOutcome applyDiff(ChunkDiffBatch batch) {
+        ReplicatedChunk chunk = chunks.get(batch.stream());
+        if (chunk == null) {
+            return new ApplyOutcome(false, true, batch.stream(), 0L);
+        }
+        synchronized (chunk) {
+            long expected = chunk.lastAppliedSeq + 1L;
+            if (batch.sequence() < expected) {
+                return new ApplyOutcome(true, false, batch.stream(), chunk.lastAppliedSeq);
+            }
+            if (batch.sequence() == expected) {
+                applyBatchToSlice(chunk, batch);
+                chunk.lastAppliedSeq = batch.sequence();
+                drainBuffered(chunk);
+                if (chunk.pending.isEmpty()) {
+                    chunk.firstGapMillis = 0L;
+                }
+                return new ApplyOutcome(true, false, batch.stream(), chunk.lastAppliedSeq);
+            }
+            chunk.pending.put(batch.sequence(), batch);
+            if (chunk.firstGapMillis == 0L) {
+                chunk.firstGapMillis = System.currentTimeMillis();
+            }
+            if (chunk.pending.size() > diffWindowSize) {
+                long expectedSequence = chunk.lastAppliedSeq + 1L;
+                chunk.pending.clear();
+                chunk.firstGapMillis = 0L;
+                return new ApplyOutcome(false, true, batch.stream(), expectedSequence);
+            }
+            return new ApplyOutcome(true, false, batch.stream(), chunk.lastAppliedSeq);
+        }
+    }
+
+    public List<ChunkResyncRequest> collectTimeouts(long nowMillis) {
+        List<ChunkResyncRequest> requests = new ArrayList<>();
+        for (ReplicatedChunk chunk : chunks.values()) {
+            synchronized (chunk) {
+                if (chunk.firstGapMillis == 0L || chunk.pending.isEmpty()) {
+                    continue;
+                }
+                if (nowMillis - chunk.firstGapMillis < resyncTimeoutMillis) {
+                    continue;
+                }
+                long expectedSequence = chunk.lastAppliedSeq + 1L;
+                chunk.pending.clear();
+                chunk.firstGapMillis = 0L;
+                requests.add(new ChunkResyncRequest(chunk.stream(), expectedSequence));
+            }
+        }
+        return requests;
+    }
+
+    public long hashAt(ReplicationStreamKey stream) {
+        ReplicatedChunk chunk = chunks.get(stream);
+        if (chunk == null) {
+            return 0L;
+        }
+        synchronized (chunk) {
+            ViewSlice slice = chunk.slice;
+            if (slice == null) {
+                return 0L;
+            }
+            if (!chunk.contentHashValid) {
+                chunk.cachedContentHash = slice.contentHash();
+                chunk.contentHashValid = true;
+            }
+            return chunk.cachedContentHash;
+        }
+    }
+
+    public void remove(ReplicationStreamKey stream) {
+        chunks.remove(stream);
+    }
+
+    public void clear() {
+        chunks.clear();
+    }
+
+    public int chunkCount() {
+        return chunks.size();
+    }
+
+    public List<ReplicationStreamKey> mismatches(List<ChunkHashProbe.ChunkHashEntry> entries) {
+        List<ReplicationStreamKey> mismatchKeys = new ArrayList<>();
+        for (ChunkHashProbe.ChunkHashEntry entry : entries) {
+            ReplicatedChunk chunk = chunks.get(entry.stream());
+            if (chunk == null) {
+                mismatchKeys.add(entry.stream());
+                continue;
+            }
+            if (chunk.lastAppliedSeq < entry.sequence()) {
+                mismatchKeys.add(entry.stream());
+                continue;
+            }
+            if (entry.hash() == 0L) {
+                continue;
+            }
+            long localHash = hashAt(entry.stream());
+            if (localHash != entry.hash()) {
+                mismatchKeys.add(entry.stream());
+            }
+        }
+        return Collections.unmodifiableList(mismatchKeys);
+    }
+
+    public record ApplyOutcome(boolean applied, boolean resyncRequested, ReplicationStreamKey stream,
+                               long expectedSequenceOrLastApplied) {
+    }
+
+    private static void validateSliceStream(ViewSlice slice, ReplicationStreamKey stream) throws IOException {
+        int expectedChunkX = (int) (stream.chunkKey() >> 32);
+        int expectedChunkZ = (int) stream.chunkKey();
+        long maxX = (long) slice.minX() + slice.sizeX() - 1L;
+        long maxZ = (long) slice.minZ() + slice.sizeZ() - 1L;
+        if ((slice.minX() >> 4) != expectedChunkX || (slice.minZ() >> 4) != expectedChunkZ
+            || (maxX >> 4) != expectedChunkX || (maxZ >> 4) != expectedChunkZ) {
+            throw new IOException("View slice coordinates do not match replication stream chunk");
+        }
+    }
+
+    private void drainBuffered(ReplicatedChunk chunk) {
+        while (!chunk.pending.isEmpty()) {
+            Map.Entry<Long, ChunkDiffBatch> head = chunk.pending.firstEntry();
+            long expected = chunk.lastAppliedSeq + 1L;
+            if (head.getKey() < expected) {
+                chunk.pending.pollFirstEntry();
+                continue;
+            }
+            if (head.getKey() > expected) {
+                return;
+            }
+            chunk.pending.pollFirstEntry();
+            applyBatchToSlice(chunk, head.getValue());
+            chunk.lastAppliedSeq = head.getKey();
+        }
+    }
+
+    private void applyBatchToSlice(ReplicatedChunk chunk, ChunkDiffBatch batch) {
+        ViewSlice current = chunk.slice;
+        if (current == null) {
+            return;
+        }
+        if (!batch.blocks().isEmpty() || !batch.entities().isEmpty()) {
+            chunk.contentHashValid = false;
+        }
+        int chunkMinX = ((int) (chunk.stream().chunkKey() >> 32)) << 4;
+        int chunkMinZ = ((int) chunk.stream().chunkKey()) << 4;
+        for (BlockChange change : batch.blocks()) {
+            int worldX = chunkMinX + BlockChange.unpackX(change.packedXyz());
+            int worldZ = chunkMinZ + BlockChange.unpackZ(change.packedXyz());
+            int worldY = BlockChange.unpackY(change.packedXyz());
+            if (!current.contains(worldX, worldY, worldZ)) {
+                continue;
+            }
+            int cellIndex = current.cellIndex(worldX, worldY, worldZ);
+            int paletteIndex = resolvePaletteIndex(chunk, current, change.state());
+            if (paletteIndex < 0) {
+                continue;
+            }
+            current.indices()[cellIndex] = (short) paletteIndex;
+            if (!current.blockEntities().isEmpty()) {
+                if (!blockEntityCandidate(change.state())) {
+                    current.blockEntities().remove(Long.valueOf(ProjectionCellKey.pack(worldX, worldY, worldZ)));
+                }
+            }
+        }
+        for (LightDiff diff : batch.lights()) {
+            applyLightDiff(current, diff);
+        }
+        for (BlockEntityDiff diff : batch.entities()) {
+            int worldX = chunkMinX + BlockChange.unpackX(diff.packedXyz());
+            int worldZ = chunkMinZ + BlockChange.unpackZ(diff.packedXyz());
+            int worldY = BlockChange.unpackY(diff.packedXyz());
+            if (!current.contains(worldX, worldY, worldZ)) {
+                continue;
+            }
+            BlockEntitySample sample;
+            try {
+                sample = BlockEntitySample.decode(diff.nbt());
+            } catch (IOException | RuntimeException unreadable) {
+                continue;
+            }
+            current.blockEntities().put(Long.valueOf(ProjectionCellKey.pack(worldX, worldY, worldZ)), sample);
+        }
+    }
+
+    private boolean blockEntityCandidate(String state) {
+        if (state == null) {
+            return false;
+        }
+        Boolean cached = blockEntityStates.get(state);
+        if (cached != null) {
+            return cached;
+        }
+        boolean candidate = blockEntityClassifier.test(state);
+        if (blockEntityStates.size() < 65536) {
+            blockEntityStates.put(state, candidate);
+        }
+        return candidate;
+    }
+
+    private static int resolvePaletteIndex(ReplicatedChunk chunk, ViewSlice slice, String state) {
+        if (state == null) {
+            return -1;
+        }
+        Integer existing = chunk.paletteLookup.get(state);
+        if (existing != null) {
+            return existing.intValue();
+        }
+        List<String> palette = slice.palette();
+        if (palette.size() > 65535) {
+            return -1;
+        }
+        palette.add(state);
+        int index = palette.size() - 1;
+        chunk.paletteLookup.put(state, index);
+        return index;
+    }
+
+    private void applyLightDiff(ViewSlice slice, LightDiff diff) {
+        int sectionMinY = diff.sectionY() * 16;
+        int sectionMaxY = sectionMinY + 15;
+        if (sectionMaxY < slice.minY() || sectionMinY >= slice.minY() + slice.sizeY()) {
+            return;
+        }
+        if (diff.data() != null) {
+            applyFullLight(slice, diff, sectionMinY);
+        } else if (diff.sparseCells() != null && diff.sparseLevels() != null) {
+            applySparseLight(slice, diff, sectionMinY);
+        }
+    }
+
+    private static void applyFullLight(ViewSlice slice, LightDiff diff, int sectionMinY) {
+        int minY = slice.minY();
+        int lyStart = Math.max(0, minY - sectionMinY);
+        int lyEnd = Math.min(15, minY + slice.sizeY() - 1 - sectionMinY);
+        int lxEnd = Math.min(15, slice.sizeX() - 1);
+        int lzEnd = Math.min(15, slice.sizeZ() - 1);
+        byte[] target = slice.light();
+        byte[] source = diff.data();
+        boolean sky = diff.lightType() == LightDiff.TYPE_SKYLIGHT;
+        for (int ly = lyStart; ly <= lyEnd; ly++) {
+            int yBase = (sectionMinY + ly - minY) * slice.sizeZ();
+            int sourceYBase = ly << 8;
+            for (int lz = 0; lz <= lzEnd; lz++) {
+                int rowBase = (yBase + lz) * slice.sizeX();
+                int sourceRow = sourceYBase | (lz << 4);
+                for (int lx = 0; lx <= lxEnd; lx++) {
+                    int sourceIndex = sourceRow | lx;
+                    if ((sourceIndex >> 1) >= source.length) {
+                        continue;
+                    }
+                    int nibble = (sourceIndex & 1) == 0 ? (source[sourceIndex >> 1] & 0x0F) : ((source[sourceIndex >> 1] >> 4) & 0x0F);
+                    applyLightCell(target, rowBase + lx, sky, nibble);
+                }
+            }
+        }
+    }
+
+    private static void applySparseLight(ViewSlice slice, LightDiff diff, int sectionMinY) {
+        int minY = slice.minY();
+        int maxYExclusive = minY + slice.sizeY();
+        int[] cells = diff.sparseCells();
+        byte[] levels = diff.sparseLevels();
+        byte[] target = slice.light();
+        boolean sky = diff.lightType() == LightDiff.TYPE_SKYLIGHT;
+        for (int i = 0; i < cells.length; i++) {
+            int cell = cells[i];
+            int lx = cell & 0xF;
+            int lz = (cell >> 4) & 0xF;
+            int ly = (cell >> 8) & 0xF;
+            int worldY = sectionMinY + ly;
+            if (worldY < minY || worldY >= maxYExclusive || lx >= slice.sizeX() || lz >= slice.sizeZ()) {
+                continue;
+            }
+            if ((i >> 1) >= levels.length) {
+                continue;
+            }
+            int nibble = (i & 1) == 0 ? (levels[i >> 1] & 0x0F) : ((levels[i >> 1] >> 4) & 0x0F);
+            int cellIndex = ((worldY - minY) * slice.sizeZ() + lz) * slice.sizeX() + lx;
+            applyLightCell(target, cellIndex, sky, nibble);
+        }
+    }
+
+    private static void applyLightCell(byte[] target, int cellIndex, boolean sky, int nibble) {
+        byte existing = target[cellIndex];
+        if (sky) {
+            target[cellIndex] = (byte) (((nibble & 0x0F) << 4) | (existing & 0x0F));
+        } else {
+            target[cellIndex] = (byte) ((existing & 0xF0) | (nibble & 0x0F));
+        }
+    }
+    public record Options(int diffWindowSize, long resyncTimeoutMillis) {
+        public static Options defaults() {
+            return new Options(DEFAULT_DIFF_WINDOW_SIZE, DEFAULT_RESYNC_TIMEOUT_MS);
+        }
+    }
+}

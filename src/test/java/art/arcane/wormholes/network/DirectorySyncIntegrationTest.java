@@ -1,5 +1,19 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.network.view.BukkitRemoteViewCodec;
+
+import art.arcane.wormholes.network.view.RemoteViewCache;
+
+import com.github.retrooper.packetevents.protocol.player.Equipment;
+
+import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
+
+import org.bukkit.block.data.BlockData;
+
+import art.arcane.wormholes.portal.ILocalPortal;
+
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.portal.RemotePortal;
 import org.junit.jupiter.api.AfterEach;
@@ -75,15 +89,15 @@ class DirectorySyncIntegrationTest {
     }
 
     private static NetworkRouter router(NetworkManager manager, RemotePortalRegistry registry) {
-        PortalSyncService sync = new PortalSyncService(manager, List::of, Runnable::run);
-        art.arcane.wormholes.network.view.RemoteViewCache viewCache = new art.arcane.wormholes.network.view.RemoteViewCache();
+        PortalSyncService<ILocalPortal> sync = BukkitPortalSyncAccess.create(manager, List::of, Runnable::run);
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> viewCache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         return new NetworkRouter(
             registry,
             sync,
             new TraversalService(manager),
             new art.arcane.wormholes.network.view.ViewServer(manager),
             viewCache,
-            new art.arcane.wormholes.network.view.ViewSubscriptionManager(manager, viewCache),
+            new art.arcane.wormholes.network.view.ViewSubscriptionManager<BlockData, EntityData<?>, Equipment>(manager, viewCache),
             manager.getReplicationManager(),
             manager
         );
@@ -101,8 +115,8 @@ class DirectorySyncIntegrationTest {
         int portA = freePort();
         int portB = freePort();
 
-        NetworkManager alpha = new NetworkManager(LOGGER, config(portA, ALPHA_NAME), "26.2", "test", 25565, tempDir.resolve("alpha"));
-        NetworkManager beta = new NetworkManager(LOGGER, config(portB, BETA_NAME), "26.2", "test", 25566, tempDir.resolve("beta"));
+        NetworkManager alpha = new NetworkManager(LOGGER, new NetworkManager.Options( config(portA, ALPHA_NAME), "26.2", "test", 25565, tempDir.resolve("alpha"), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
+        NetworkManager beta = new NetworkManager(LOGGER, new NetworkManager.Options( config(portB, BETA_NAME), "26.2", "test", 25566, tempDir.resolve("beta"), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         alpha.savePeer(route(BETA_NAME, portB));
         beta.savePeer(route(ALPHA_NAME, portA));
         managers.add(alpha);

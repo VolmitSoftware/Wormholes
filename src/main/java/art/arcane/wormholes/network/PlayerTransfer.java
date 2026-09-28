@@ -14,47 +14,32 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Locale;
 import java.util.logging.Level;
 
 public final class PlayerTransfer {
-    public enum Method {
-        DIRECT,
-        PROXY
-    }
-
     public static final String PROXY_CHANNEL = "BungeeCord";
 
     private PlayerTransfer() {
     }
 
     public static boolean send(Player player, NetworkConfig.PeerEntry peer, String transferMode) {
-        return send(player, peer, resolveMethod(peer, transferMode));
+        return send(player, peer, PlayerTransferMethod.resolve(peer, transferMode));
     }
 
-    public static boolean send(Player player, NetworkConfig.PeerEntry peer, Method method) {
+    public static boolean send(Player player, NetworkConfig.PeerEntry peer, PlayerTransferMethod method) {
         return send(player, peer, method, PeerEndpointResolver.playerTransferEndpoint(peer, player.getAddress(), null));
     }
 
-    static boolean send(Player player, NetworkConfig.PeerEntry peer, Method method,
+    static boolean send(Player player, NetworkConfig.PeerEntry peer, PlayerTransferMethod method,
                         GameEndpoint endpoint) {
-        if (method == Method.PROXY) {
+        if (method == PlayerTransferMethod.PROXY) {
             return sendViaProxy(player, peer);
         }
         return sendViaTransferPacket(player, peer, endpoint);
     }
 
     static boolean usesProxy(NetworkConfig.PeerEntry peer, String transferMode) {
-        return resolveMethod(peer, transferMode) == Method.PROXY;
-    }
-
-    static Method resolveMethod(NetworkConfig.PeerEntry peer, String transferMode) {
-        String mode = transferMode == null ? "auto" : transferMode.toLowerCase(Locale.ROOT);
-        return mode.equals("proxy") || mode.equals("auto") && peer.useProxy ? Method.PROXY : Method.DIRECT;
-    }
-
-    static boolean hasDirectHost(NetworkConfig.PeerEntry peer) {
-        return !PeerEndpointResolver.gameEndpoints(peer).isEmpty();
+        return PlayerTransferMethod.resolve(peer, transferMode) == PlayerTransferMethod.PROXY;
     }
 
     static boolean supportsClientTransfer(Player player) {

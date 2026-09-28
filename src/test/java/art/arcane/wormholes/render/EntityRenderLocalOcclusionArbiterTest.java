@@ -27,7 +27,7 @@ import art.arcane.wormholes.Wormholes;
 public final class EntityRenderLocalOcclusionArbiterTest {
     @Test
     public void releasingDefaultHiddenItemNeverAddsAVisibilityGrant() {
-        EntityRenderLocalOcclusionArbiter arbiter = new EntityRenderLocalOcclusionArbiter();
+        EntityRenderLocalOcclusionArbiter<Player, Entity> arbiter = new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create());
         Player observer = mockPlayer();
         Item item = item(false);
         UUID portalId = UUID.randomUUID();
@@ -42,7 +42,7 @@ public final class EntityRenderLocalOcclusionArbiterTest {
 
     @Test
     public void releasingDefaultVisibleItemClearsTheOcclusionHide() {
-        EntityRenderLocalOcclusionArbiter arbiter = new EntityRenderLocalOcclusionArbiter();
+        EntityRenderLocalOcclusionArbiter<Player, Entity> arbiter = new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create());
         Player observer = mockPlayer();
         Item item = item(true);
         UUID portalId = UUID.randomUUID();
@@ -57,7 +57,7 @@ public final class EntityRenderLocalOcclusionArbiterTest {
 
     @Test
     public void releasingItemUsesDefaultVisibilityAtReleaseTime() {
-        EntityRenderLocalOcclusionArbiter arbiter = new EntityRenderLocalOcclusionArbiter();
+        EntityRenderLocalOcclusionArbiter<Player, Entity> arbiter = new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create());
         Player observer = mockPlayer();
         Item item = item(true);
         UUID portalId = UUID.randomUUID();
@@ -79,7 +79,7 @@ public final class EntityRenderLocalOcclusionArbiterTest {
 
     @Test
     public void releasingDefaultHiddenDisplayPreservesItsExistingRestoreBehavior() {
-        EntityRenderLocalOcclusionArbiter arbiter = new EntityRenderLocalOcclusionArbiter();
+        EntityRenderLocalOcclusionArbiter<Player, Entity> arbiter = new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create());
         Player observer = mockPlayer();
         BlockDisplay display = mock(BlockDisplay.class);
         when(display.getUniqueId()).thenReturn(UUID.randomUUID());
@@ -97,7 +97,7 @@ public final class EntityRenderLocalOcclusionArbiterTest {
     @Test
     public void entityRemainsHiddenUntilItsLastPortalClaimIsReleased() {
         VisibilityRecorder visibility = new VisibilityRecorder();
-        EntityRenderLocalOcclusionArbiter arbiter = new EntityRenderLocalOcclusionArbiter(visibility);
+        EntityRenderLocalOcclusionArbiter<Player, Entity> arbiter = new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create(visibility));
         Player observer = player(UUID.randomUUID());
         Entity entity = entity(UUID.randomUUID());
         UUID firstPortal = UUID.randomUUID();
@@ -124,7 +124,7 @@ public final class EntityRenderLocalOcclusionArbiterTest {
     @Test
     public void frameHandoffBetweenPortalsDoesNotFlickerVisibility() {
         VisibilityRecorder visibility = new VisibilityRecorder();
-        EntityRenderLocalOcclusionArbiter arbiter = new EntityRenderLocalOcclusionArbiter(visibility);
+        EntityRenderLocalOcclusionArbiter<Player, Entity> arbiter = new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create(visibility));
         Player observer = player(UUID.randomUUID());
         Entity entity = entity(UUID.randomUUID());
         UUID firstPortal = UUID.randomUUID();
@@ -148,7 +148,7 @@ public final class EntityRenderLocalOcclusionArbiterTest {
     @Test
     public void untouchedPortalClaimsPersistAcrossObserverFrames() {
         VisibilityRecorder visibility = new VisibilityRecorder();
-        EntityRenderLocalOcclusionArbiter arbiter = new EntityRenderLocalOcclusionArbiter(visibility);
+        EntityRenderLocalOcclusionArbiter<Player, Entity> arbiter = new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create(visibility));
         Player observer = player(UUID.randomUUID());
         Entity first = entity(UUID.randomUUID());
         Entity second = entity(UUID.randomUUID());
@@ -229,7 +229,7 @@ public final class EntityRenderLocalOcclusionArbiterTest {
         return null;
     }
 
-    private static final class VisibilityRecorder implements EntityRenderLocalOcclusionArbiter.VisibilityController {
+    private static final class VisibilityRecorder implements BukkitEntityVisibility.Controller {
         private final AtomicInteger hides = new AtomicInteger();
         private final AtomicInteger shows = new AtomicInteger();
 

@@ -17,7 +17,7 @@
 #   {address}  Địa chỉ nút mạng đối tác
 #   {after}  Giá trị thông báo sau khi sửa
 #   {allocation}  Phân bổ không gian túi
-#   {amount}  Phí di chuyển bằng tiền Vault
+#  {amount} Phí di chuyển bằng tiền
 #   {argument}  Đối số lệnh không mong đợi
 #   {before}  Giá trị thông báo trước khi sửa
 #   {biome}  Mã định danh quần xã
@@ -357,7 +357,7 @@ transfer_blocked_retry = "&cChuyển qua cổng bị chặn: {reason} (thử l�
 
 [portal.prompt]
 cost_item = "&bCầm đúng vật phẩm chi phí trên tay chính, sau đó nhấn phím vứt đồ. Vật phẩm sẽ không rời khỏi túi đồ của bạn."
-cost_vault = "&bNhập số tiền Vault cho mỗi lượt đi qua (hoặc '{cancel}'):"
+cost_vault = "&bNhập số tiền mỗi lần đi qua (hoặc '{cancel}'):"
 invite = "&bDán lời mời cổng vào trò chuyện (hoặc '{cancel}'):"
 block_state = "&bNhập trạng thái khối cho rìa khung nhìn mạng của cổng này, hoặc '{cancel}':"
 name = "&bNhập tên cổng mới trong chat (hoặc '{cancel}'):"
@@ -368,9 +368,9 @@ cost_item_set = "Di chuyển giờ yêu cầu {item}."
 cost_item_invalid = "Không thể lưu vật phẩm đó làm chi phí di chuyển."
 cost_cleared = "Đã xóa chi phí di chuyển."
 cost_quantity_changed = "Số lượng chi phí di chuyển: {quantity}"
-cost_vault_changed = "Chi phí di chuyển Vault: {amount}"
+cost_vault_changed = "Phí di chuyển: {amount}"
 cost_vault_invalid = "Nhập số tiền dương không vượt quá {maximum}."
-cost_vault_unavailable = "Vault và một plugin kinh tế phải khả dụng trước khi chọn chi phí này."
+cost_vault_unavailable = "Phải có nhà cung cấp kinh tế trước khi chọn loại phí này."
 dimensional_link_managed = "Cổng chiều không gian này duy trì liên kết được tạo tự động."
 not_rtp = "Cổng này không còn ở chế độ dịch chuyển ngẫu nhiên."
 region_unavailable = "Khu vực của cổng không khả dụng; hãy thử lại."
@@ -397,7 +397,7 @@ public_look_label = "Nhãn công khai khi nhìn vào"
 [portal.label.cost]
 free = "Miễn phí"
 vanilla = "Vật phẩm gốc"
-vault = "Kinh tế Vault"
+vault = "Kinh tế"
 
 [portal.label.ambient]
 red = "Đỏ"
@@ -552,12 +552,12 @@ available = ["&e&lGương&r", "&7Phản chiếu thế giới cục bộ về ph�
 flip = ["&7Gương trên tường lật theo bước 180 độ", "&7để các thực thể phản chiếu vẫn thẳng hàng.", "&8Nhấp phải: lật hình ảnh phản chiếu."]
 
 [portal.menu.cost]
-opener = ["&6&lChi phí di chuyển&r", "&7Yêu cầu đúng vật phẩm hoặc tiền Vault", "&7khi người chơi sử dụng cổng này.", "", "&7Chế độ: &f{mode}", "&7Chi phí: &f{cost}", "", "&8Nhấp để cấu hình."]
+opener = ["&6&lChi phí di chuyển&r", "&7Yêu cầu đúng vật phẩm hoặc tiền", "&7khi người chơi sử dụng cổng này.", "", "&7Chế độ: &f{mode}", "&7Chi phí: &f{cost}", "", "&8Nhấp để cấu hình."]
 placard = ["&6&lChi phí di chuyển&r", "&7Người chơi phải trả phí trước khi", "&7cổng này cho phép họ di chuyển.", "", "&7Chế độ: &f{mode}", "&7Chi phí: &f{cost}"]
 mode_free = ["&a&lMiễn phí&r", "&7Không yêu cầu thanh toán.", "", "&8Nhấp để miễn phí di chuyển."]
 mode_vanilla = ["&b&lVật phẩm gốc&r", "&7Tiêu hao một vật phẩm khớp chính xác.", "", "&8Nhấp, cầm vật phẩm, rồi nhấn phím vứt đồ."]
-mode_vault = ["&a&lKinh tế Vault&r", "&7Trừ tiền thông qua Vault.", "", "&8Nhấp để nhập số tiền."]
-mode_vault_unavailable = ["&c&lKinh tế Vault không khả dụng&r", "&7Cần có Vault và một plugin kinh tế.", "", "&8Cài đặt hoặc bật cả hai để dùng chế độ này."]
+mode_vault = ["&a&lKinh tế&r", "&7Trừ tiền qua nhà cung cấp kinh tế.", "", "&8Nhấp để nhập số tiền."]
+mode_vault_unavailable = ["&c&lKhông có dịch vụ kinh tế&r", "&7Cần có nhà cung cấp kinh tế.", "", "&8Bật nhà cung cấp kinh tế để dùng chế độ này."]
 free_detail = ["&a&lKhông chi phí&r", "&7Di chuyển qua cổng này là miễn phí."]
 secondary_empty = ["&8&lKhông có cài đặt bổ sung&r"]
 item = ["&b&l{item}&r", "&7Cần đúng vật phẩm này để di chuyển.", "&7Vật phẩm dùng để chọn không bao giờ bị tiêu hao.", "", "&8Nhấp trái: chọn vật phẩm khác đang cầm.", "&8Nhấp phải: xóa chi phí."]
@@ -687,7 +687,7 @@ execution_failed = "Không thể thực thi lệnh {command}: {reason}"
 not_initialized = "&8[&6Wormholes&8] &cMạng chưa được khởi tạo."
 
 [network.status]
-disabled = "&8[&6Wormholes&8] &7Mạng đang &ctắt&7 (plugins/Wormholes/wormholes.toml)."
+disabled = "&8[&6Wormholes&8] &7Mạng đang &ctắt&7 (wormholes.toml)."
 not_running = "&8[&6Wormholes&8] &cMạng đã bật nhưng không chạy. Hãy kiểm tra kho danh tính và cổng mạng."
 listening = "&8[&6Wormholes&8] &7Máy chủ này: &f{server}&7 đang lắng nghe tại &f{address}"
 outbound_only = "&8[&6Wormholes&8] &7Máy chủ này: &f{server}&7 chế độ Boat chỉ kết nối ra ngoài"

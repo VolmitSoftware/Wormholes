@@ -1,0 +1,89 @@
+plugins {
+    id 'java-library'
+}
+
+Properties wormholesProperties = new Properties()
+file('../gradle.properties').withInputStream { InputStream stream -> wormholesProperties.load(stream) }
+group = 'art.arcane'
+version = wormholesProperties.getProperty('wormholesVersion')
+
+base {
+    archivesName = 'wormholes-core'
+}
+
+repositories {
+    mavenCentral()
+    maven { url = uri('https://jitpack.io') }
+}
+
+dependencies {
+    api('com.github.VolmitSoftware.VolmLib:volmlib-localization:master-SNAPSHOT')
+    implementation('net.kyori:adventure-text-minimessage:4.26.1')
+    implementation('net.kyori:adventure-text-serializer-legacy:4.26.1')
+    implementation('net.kyori:adventure-text-serializer-plain:4.26.1')
+    api('net.kyori:adventure-text-serializer-gson:4.26.1')
+    api('it.unimi.dsi:fastutil:8.5.15')
+    implementation('com.github.luben:zstd-jni:1.5.7-11')
+    implementation('com.electronwill.night-config:toml:3.9.0')
+    implementation('org.yaml:snakeyaml:2.7')
+    testImplementation('org.junit.jupiter:junit-jupiter:5.10.2')
+    testImplementation('org.mockito:mockito-core:5.23.0')
+    testRuntimeOnly('org.junit.platform:junit-platform-launcher:1.10.2')
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release.set(25)
+    options.encoding = 'UTF-8'
+    options.compilerArgs.add('-parameters')
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+}
+
+Provider<RegularFile> bundledLocalesFile = layout.buildDirectory.file('generated/locales/wormholes/bundled-locales.txt')
+FileTree bundledLanguageFiles = fileTree('../src/main/resources/languages') {
+    include('*.toml')
+}
+
+tasks.register('generateBundledLocales') {
+    inputs.files(bundledLanguageFiles)
+    outputs.file(bundledLocalesFile)
+    doLast {
+        List<String> locales = ['en_US']
+        bundledLanguageFiles.files.each { File languageFile ->
+            locales.add(languageFile.name.substring(0, languageFile.name.length() - '.toml'.length()))
+        }
+        File output = bundledLocalesFile.get().asFile
+        output.parentFile.mkdirs()
+        output.setText(locales.unique().sort().join('\n') + '\n', 'UTF-8')
+    }
+}
+
+tasks.named('processResources').configure {
+    dependsOn(tasks.named('generateBundledLocales'))
+    from(layout.buildDirectory.dir('generated/locales'))
+    from('../src/main/resources') {
+        include('languages/*.toml')
+    }
+}
+
+tasks.register('generateLanguageSourceManifest', WriteProperties) {
+    destinationFile.set(layout.buildDirectory.file('generated/language-source/wormholes-language-source.properties'))
+    inputs.files(bundledLanguageFiles)
+    property('revision', 'main')
+    property('locales', bundledLanguageFiles.files.collect { File languageFile ->
+        languageFile.name.substring(0, languageFile.name.length() - '.toml'.length())
+    }.sort().join(','))
+}
+
+tasks.named('processResources').configure {
+    from(tasks.named('generateLanguageSourceManifest'))
+}

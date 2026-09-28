@@ -1,5 +1,7 @@
 package art.arcane.wormholes.transit;
 
+import art.arcane.wormholes.util.BukkitGeometry;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -98,14 +100,14 @@ final class TransitGateTest {
         portal.extension(TransitPortalExtension.class).setBounce(true);
         AtomicReference<Vector> velocity = new AtomicReference<Vector>();
         Entity traveler = entity(velocity);
-        Traversive crossing = new Traversive(traveler, portal.getFrame().view(true), portal.getOrigin(),
+        Traversive crossing = new Traversive(traveler, portal.getFrame().view(true), BukkitGeometry.bukkit(portal.getOrigin()),
             new Vector(0.5D, 65.0D, 1.0D), new Vector(-0.4D, 0.1D, 0.3D), new Vector(-1.0D, 0.0D, 0.0D), true);
         TraversalAttempt attempt = new TraversalAttempt(TraversalPhase.DEPART, portal, traveler, null, crossing, 1L);
         TraversalVerdict.Deny deny = assertInstanceOf(TraversalVerdict.Deny.class, new TransitGate().evaluate(attempt));
 
         new TransitObserver().onRejected(attempt, deny);
 
-        Vector normal = portal.getFrame().getNormal().toVector();
+        Vector normal = BukkitGeometry.bukkit(portal.getFrame().getNormal());
         Vector expected = new Vector(-0.4D, 0.1D, 0.3D);
         expected.subtract(normal.clone().multiply(2.0D * expected.dot(normal)));
         assertVector(expected, velocity.get());
@@ -246,12 +248,12 @@ final class TransitGateTest {
     }
 
     private static Traversive crossing(LocalPortal portal, Entity traveler) {
-        return new Traversive(traveler, portal.getFrame().view(true), portal.getOrigin(),
+        return new Traversive(traveler, portal.getFrame().view(true), BukkitGeometry.bukkit(portal.getOrigin()),
             traveler.getLocation().toVector(), new Vector(-0.4D, 0.0D, 0.0D), new Vector(-1.0D, 0.0D, 0.0D), true, portal.getId());
     }
 
     private static TraversalAttempt depart(LocalPortal portal, Entity traveler, boolean frontSide) {
-        Traversive crossing = new Traversive(traveler, portal.getFrame().view(frontSide), portal.getOrigin(),
+        Traversive crossing = new Traversive(traveler, portal.getFrame().view(frontSide), BukkitGeometry.bukkit(portal.getOrigin()),
             new Vector(0.5D, 65.0D, 1.0D), new Vector(-0.4D, 0.0D, 0.0D), new Vector(-1.0D, 0.0D, 0.0D), frontSide);
         return new TraversalAttempt(TraversalPhase.DEPART, portal, traveler, null, crossing, 1L);
     }

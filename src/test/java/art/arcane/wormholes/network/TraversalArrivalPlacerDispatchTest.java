@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.TraversableType;
 import art.arcane.wormholes.portal.Traversive;
@@ -25,7 +27,7 @@ class TraversalArrivalPlacerDispatchTest {
         TraversalArrivalPlacer placer = new TraversalArrivalPlacer(new TraversalArrivalPlacer.Services(
             null,
             admissions,
-            new TraversalFailureLedger(),
+            new TraversalFailureLedger(new TraversalFailureLedger.Options(() -> Settings.DEBUG, Wormholes::v, Wormholes::w)),
             new TraversalNotices(),
             (entity, task, retired, delayTicks) -> {
                 delays.add(Long.valueOf(delayTicks));
@@ -49,7 +51,7 @@ class TraversalArrivalPlacerDispatchTest {
     void queuedArrivalDoesNothingAfterItsLifecycleCloses() {
         List<Runnable> tasks = new ArrayList<Runnable>();
         AtomicBoolean active = new AtomicBoolean(true);
-        TraversalFailureLedger failures = new TraversalFailureLedger();
+        TraversalFailureLedger failures = new TraversalFailureLedger(new TraversalFailureLedger.Options(() -> Settings.DEBUG, Wormholes::v, Wormholes::w));
         PlayerHandoffAdmission admissions = new PlayerHandoffAdmission();
         TraversalArrivalPlacer placer = new TraversalArrivalPlacer(new TraversalArrivalPlacer.Services(
             null,
@@ -87,7 +89,7 @@ class TraversalArrivalPlacerDispatchTest {
             "beta",
             UUID.randomUUID(),
             false, false,
-            WireTraversive.fromTraversive(traversive())
+            Traversive.toWire(traversive())
         );
         long now = System.currentTimeMillis();
         admissions.decide(new PlayerHandoffAdmission.Attempt(request, null, now, 60_000L, 1_000L));

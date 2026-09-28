@@ -1,5 +1,6 @@
 package art.arcane.wormholes.nexus;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NexusConfig;
 import art.arcane.wormholes.hook.TraversalAttempt;
 import art.arcane.wormholes.hook.TraversalPhase;
@@ -33,7 +34,7 @@ final class RedstoneIoCounterTest {
     void install() {
         WormholesHooks.install(new WormholesRegistrar().portalExtension(new NexusExtensionFactory(null)));
         world = NexusTestSupport.world("redstone-counter");
-        NetworkRegistry registry = new NetworkRegistry(java.nio.file.Path.of("build", "tmp", "redstone-counter"));
+        NetworkRegistry registry = new NetworkRegistry(java.nio.file.Path.of("build", "tmp", "redstone-counter"), BukkitJsonDocuments.INSTANCE);
         Dialer dialer = new Dialer(registry, (portal, member) -> true, NexusConfig::new);
         io = new RedstoneIo(new RedstoneIoIndex(), dialer, NexusConfig::new, List::of);
     }

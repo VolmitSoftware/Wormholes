@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.mesh;
 
+import art.arcane.wormholes.network.BukkitPortalSyncAccess;
+
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.NetworkConfig;
@@ -142,8 +144,8 @@ public final class MeshSubsystem implements WormholesSubsystem {
             return infos;
         }
         for (ILocalPortal portal : Wormholes.portalManager.getLocalPortals()) {
-            if (PortalSyncService.isShareable(portal)) {
-                infos.add(PortalSyncService.toInfo(portal));
+            if (BukkitPortalSyncAccess.INSTANCE.shareable(portal)) {
+                infos.add(BukkitPortalSyncAccess.INSTANCE.describe(portal));
             }
         }
         return infos;

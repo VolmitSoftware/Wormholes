@@ -1,5 +1,8 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
+import art.arcane.wormholes.util.BukkitGeometry;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -177,7 +180,7 @@ public final class LocalPortalDepartureHoldRecoveryTest
 		List<Runnable> pending = new ArrayList<Runnable>();
 		LocalPortalDepartureHold hold = new LocalPortalDepartureHold(portal, LocalPortalTestSupport.deferringRuntime(pending, true));
 		hold.startPlayerDepartureHold(traveler.player(), traversive, now + 12_000L, () -> { });
-		Location retreat = anchor(world).add(traversive.getInFrame().getNormal().toVector().multiply(3.0D));
+		Location retreat = anchor(world).add(BukkitGeometry.bukkit(traversive.getInFrame().getNormal()).multiply(3.0D));
 
 		assertFalse(hold.canCompleteDeparture(traveler.player(), traversive, retreat));
 		LocalPortal.clearTeleportInFlight(traveler.id());
@@ -246,7 +249,7 @@ public final class LocalPortalDepartureHoldRecoveryTest
 	private static LocalPortal rtpPortal(World world)
 	{
 		LocalPortal portal = LocalPortalTestSupport.portal(world, PortalType.RTP);
-		portal.setRtpSettings(RtpSettings.builder(world).radii(16, 64).soundEnabled(false).build());
+		portal.setRtpSettings(RtpSettings.builder(BukkitRtpRuntime.worldSettings(world)).radii(16, 64).soundEnabled(false).build());
 		return portal;
 	}
 

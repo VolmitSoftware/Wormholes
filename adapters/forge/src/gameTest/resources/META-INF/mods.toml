@@ -1,0 +1,24 @@
+modLoader = "javafml"
+loaderVersion = "[65,66)"
+license = "GPL-3.0"
+
+[[mods]]
+modId = "wormholes"
+version = "${version}"
+displayName = "Wormholes GameTest"
+description = "Through-portal projection and traversal."
+authors = "Volmit Software"
+
+[[dependencies.wormholes]]
+modId = "forge"
+mandatory = true
+versionRange = "[65,66)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.wormholes]]
+modId = "minecraft"
+mandatory = true
+versionRange = "[${minecraftVersion}]"
+ordering = "NONE"
+side = "BOTH"

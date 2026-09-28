@@ -4,7 +4,6 @@ import art.arcane.volmlib.util.director.DirectorTextResolver;
 import art.arcane.volmlib.util.localization.PluginLanguageService;
 import art.arcane.volmlib.util.localization.PluginLanguageEditor;
 import art.arcane.volmlib.util.localization.VolmitLocales;
-import art.arcane.volmlib.util.plugin.ComponentText;
 import art.arcane.volmlib.util.localization.LanguageAudience;
 import art.arcane.wormholes.Wormholes;
 import org.bukkit.command.CommandSender;
@@ -17,15 +16,11 @@ import art.arcane.volmlib.util.localization.LocalizationReloadResult;
 import art.arcane.volmlib.util.localization.LocalizationSnapshot;
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.MessageArgument;
-import art.arcane.volmlib.util.localization.MessageArgumentKind;
 import art.arcane.volmlib.util.localization.MessageKey;
 import art.arcane.volmlib.util.localization.PluralKey;
 import art.arcane.volmlib.util.localization.PluralSelector;
-import art.arcane.volmlib.util.localization.ResolvedLines;
-import art.arcane.volmlib.util.localization.ResolvedText;
 import art.arcane.volmlib.util.localization.TextKey;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
@@ -36,7 +31,6 @@ import java.util.List;
 import java.util.function.Supplier;
 
 public final class WormholesLocalization {
-    private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacySection();
     private static final PlainTextComponentSerializer PLAIN = PlainTextComponentSerializer.plainText();
     private static final WormholesLocalization ENGLISH = new WormholesLocalization();
@@ -134,11 +128,11 @@ public final class WormholesLocalization {
     }
 
     public Component component(TextKey key, MessageArgs arguments) {
-        return deserialize(snapshot().resolve(key, arguments));
+        return WormholesMessageRenderer.render(snapshot().resolve(key, arguments));
     }
 
     public Component component(PluralKey key, MessageArgs arguments) {
-        return deserialize(snapshot().resolve(key, arguments));
+        return WormholesMessageRenderer.render(snapshot().resolve(key, arguments));
     }
 
     public String legacy(TextKey key) {
@@ -175,21 +169,11 @@ public final class WormholesLocalization {
     }
 
     public List<Component> components(LinesKey key, MessageArgs arguments) {
-        ResolvedLines resolved = snapshot().resolve(key, arguments);
-        List<Component> components = new ArrayList<>(resolved.lines().size());
-        for (String line : resolved.lines()) {
-            components.add(MINI_MESSAGE.deserialize(substitute(ComponentText.normalizeMarkup(line), resolved.arguments())));
-        }
-        return List.copyOf(components);
+        return WormholesMessageRenderer.components(snapshot().resolve(key, arguments));
     }
 
     public List<String> miniMessageLines(LinesKey key) {
-        ResolvedLines resolved = snapshot().resolve(key, MessageArgs.empty());
-        List<String> lines = new ArrayList<>(resolved.lines().size());
-        for (String line : resolved.lines()) {
-            lines.add(substitute(ComponentText.normalizeMarkup(line), resolved.arguments()));
-        }
-        return List.copyOf(lines);
+        return WormholesMessageRenderer.miniMessageLines(snapshot().resolve(key, MessageArgs.empty()));
     }
 
     public List<String> legacyLines(LinesKey key) {
@@ -230,39 +214,4 @@ public final class WormholesLocalization {
         return plain(textKey, arguments);
     }
 
-    private Component deserialize(ResolvedText resolved) {
-        return MINI_MESSAGE.deserialize(substitute(ComponentText.normalizeMarkup(resolved.template()), resolved.arguments()));
-    }
-
-    private String substitute(String template, MessageArgs arguments) {
-        StringBuilder rendered = new StringBuilder(template.length() + arguments.size() * 8);
-        for (int index = 0; index < template.length(); index++) {
-            char current = template.charAt(index);
-            if (current == '{' && index + 1 < template.length() && template.charAt(index + 1) == '{') {
-                rendered.append('{');
-                index++;
-                continue;
-            }
-            if (current == '}' && index + 1 < template.length() && template.charAt(index + 1) == '}') {
-                rendered.append('}');
-                index++;
-                continue;
-            }
-            if (current != '{') {
-                rendered.append(current);
-                continue;
-            }
-            int end = template.indexOf('}', index + 1);
-            String name = template.substring(index + 1, end);
-            MessageArgument argument = arguments.require(name);
-            String value = String.valueOf(argument.value());
-            rendered.append(argument.kind() == MessageArgumentKind.UNTRUSTED ? escapeUntrusted(value) : value);
-            index = end;
-        }
-        return rendered.toString();
-    }
-
-    private String escapeUntrusted(String value) {
-        return MINI_MESSAGE.escapeTags(PLAIN.serialize(LEGACY.deserialize(value)));
-    }
 }

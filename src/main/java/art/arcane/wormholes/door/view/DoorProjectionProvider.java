@@ -1,5 +1,6 @@
 package art.arcane.wormholes.door.view;
 
+import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.wormholes.ProjectionManager;
 import art.arcane.wormholes.portal.ILocalPortal;
@@ -96,7 +97,7 @@ public final class DoorProjectionProvider implements ProjectionManager.RtpProjec
     }
 
     private static RtpProjectionView.SourceFrame sourceFrame(DoorProjectionAdapter adapter, long revision) {
-        Vector origin = adapter.getOrigin();
+        GeometryVector origin = adapter.getOrigin();
         PortalFrame frame = adapter.getFrame();
         return new RtpProjectionView.SourceFrame(
             WorldIdentity.serialize(adapter.getWorld()),
@@ -110,7 +111,7 @@ public final class DoorProjectionProvider implements ProjectionManager.RtpProjec
     }
 
     private static RtpProjectionView.Target target(DoorProjectionDestination destination) {
-        Vector origin = destination.origin();
+        GeometryVector origin = destination.origin();
         PortalFrame frame = destination.frame();
         return new RtpProjectionView.Target(
             destination.worldKey(),

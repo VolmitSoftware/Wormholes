@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.util.BukkitGeometry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -67,8 +68,8 @@ public final class PortalProjectorSharedPlateTest {
         ILocalPortal portal = portal(structure, frame);
         StoneView destinationView = new StoneView();
 
-        List<ViewPlateBuilder.Job> scheduled = new ArrayList<>();
-        ViewPlateCache cache = new ViewPlateCache(4_000_000L, scheduled::add);
+        List<ViewPlateBuilder.Job<BlockData, World>> scheduled = new ArrayList<>();
+        ViewPlateCache<BlockData, World> cache = new ViewPlateCache<BlockData, World>(4_000_000L, scheduled::add);
         PortalProjector first = projector(portal, structure, destinationView, cache, 32);
         PortalProjector second = projector(portal, structure, destinationView, cache, 4);
 
@@ -79,10 +80,10 @@ public final class PortalProjectorSharedPlateTest {
 
         assertNull(acquirePlate(first, eye(structure, 4.0D)), "the first observer misses and schedules the build");
         assertEquals(1, scheduled.size());
-        ViewPlate built = run(scheduled.get(0));
+        ViewPlate<BlockData> built = run(scheduled.get(0));
         cache.publish(built);
 
-        ViewPlate shared = acquirePlate(second, eye(structure, 4.0D));
+        ViewPlate<BlockData> shared = acquirePlate(second, eye(structure, 4.0D));
         assertSame(built, shared, "the second observer must hit the plate the first one built");
         assertEquals(1, scheduled.size(), "a differing per-observer fit must not schedule a second build");
         assertEquals(1L, cache.buildsCompleted());
@@ -90,16 +91,16 @@ public final class PortalProjectorSharedPlateTest {
         assertEquals(1, scheduled.size());
     }
 
-    private static ViewPlate run(ViewPlateBuilder.Job job) {
+    private static ViewPlate<BlockData> run(ViewPlateBuilder.Job<BlockData, World> job) {
         while (!job.step(Integer.MAX_VALUE)) {
         }
         return job.result();
     }
 
-    private static ViewPlate acquirePlate(PortalProjector projector, Location eye) throws Exception {
+    private static ViewPlate<BlockData> acquirePlate(PortalProjector projector, Location eye) throws Exception {
         Method method = PortalProjector.class.getDeclaredMethod("acquirePlate", Location.class, boolean.class, long.class);
         method.setAccessible(true);
-        return (ViewPlate) method.invoke(projector, eye, Boolean.FALSE, Long.valueOf(7L));
+        return (ViewPlate<BlockData>) method.invoke(projector, eye, Boolean.FALSE, Long.valueOf(7L));
     }
 
     /** Runs this projector's own frustum fit the way a projection pass does, and reports its coarsening. */
@@ -108,7 +109,7 @@ public final class PortalProjectorSharedPlateTest {
         Field frustumField = PortalProjector.class.getDeclaredField("viewFrustum");
         frustumField.setAccessible(true);
         ProjectorViewFrustum frustum = (ProjectorViewFrustum) frustumField.get(projector);
-        frustum.setLodPolicy(LodPolicy.current(null));
+        frustum.setLodPolicy(FidelitySettings.lodPolicy(null));
         frustum.fit(projector.getObserver(), structure, frame, eye, 100.0D, 24.0D);
         return frustum.fittedCoarse();
     }
@@ -118,10 +119,10 @@ public final class PortalProjectorSharedPlateTest {
     }
 
     private static PortalProjector projector(ILocalPortal portal, PortalStructure structure,
-                                             ProjectionWorldView destinationView, ViewPlateCache cache,
+                                             ProjectionWorldView destinationView, ViewPlateCache<BlockData, World> cache,
                                              int clientViewDistance) throws Exception {
         PortalProjector projector = withBukkitServer(() -> new PortalProjector(portal, viewer(clientViewDistance), null,
-            world -> destinationView, () -> true, new EntityRenderLocalOcclusionArbiter(), cache));
+            world -> destinationView, () -> true, new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create()), cache));
         Field field = PortalProjector.class.getDeclaredField("destination");
         field.setAccessible(true);
         ProjectorDestination destination = (ProjectorDestination) field.get(projector);
@@ -172,7 +173,7 @@ public final class PortalProjectorSharedPlateTest {
             (proxy, method, args) -> switch (method.getName()) {
                 case "getStructure" -> structure;
                 case "getFrame" -> frame;
-                case "getOrigin" -> origin;
+                case "getOrigin" -> BukkitGeometry.vector(origin);
                 case "getId" -> PORTAL_ID;
                 case "getWorld" -> null;
                 case "getNetworkViewDepth" -> Integer.valueOf(100);

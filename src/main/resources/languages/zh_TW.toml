@@ -17,7 +17,7 @@
 #   {address}  網路對端位址
 #   {after}  編輯後的訊息值
 #   {allocation}  口袋空間配置
-#   {amount}  Vault 貨幣傳送費用
+#  {amount}  貨幣傳送費用
 #   {argument}  非預期的指令引數
 #   {before}  編輯前的訊息值
 #   {biome}  生態域識別碼
@@ -357,7 +357,7 @@ transfer_blocked_retry = "&c傳送門傳送被阻止：{reason}({seconds}s 後�
 
 [portal.prompt]
 cost_item = "&b將作為費用的物品拿在主手，然後按丟棄鍵。該物品不會離開你的物品欄。"
-cost_vault = "&b請輸入每次通過的 Vault 貨幣金額(或輸入 '{cancel}')："
+cost_vault = "&b輸入每次穿越的金額（或輸入 '{cancel}'）："
 invite = "&b請將傳送門邀請貼上到聊天中(或輸入 '{cancel}')："
 block_state = "&b請輸入此傳送門網路檢視邊緣使用的方塊狀態，或輸入 '{cancel}'："
 name = "&b請在聊天中輸入新的傳送門名稱(或輸入 '{cancel}')："
@@ -368,9 +368,9 @@ cost_item_set = "現在通行需要 {item}。"
 cost_item_invalid = "該物品無法儲存為通行費用。"
 cost_cleared = "已清除通行費用。"
 cost_quantity_changed = "通行費用數量：{quantity}"
-cost_vault_changed = "Vault 通行費用：{amount}"
+cost_vault_changed = "穿越費用：{amount}"
 cost_vault_invalid = "請輸入不超過 {maximum} 的正數貨幣金額。"
-cost_vault_unavailable = "選擇此費用前，Vault 和經濟插件必須可用。"
+cost_vault_unavailable = "選擇此費用前必須有可用的經濟服務。"
 dimensional_link_managed = "此維度傳送門會保留自動產生的連結。"
 not_rtp = "此傳送門已不再使用隨機傳送模式。"
 region_unavailable = "傳送門區域不可用；請重試。"
@@ -397,7 +397,7 @@ public_look_label = "注視時的公開標籤"
 [portal.label.cost]
 free = "免費"
 vanilla = "原版物品"
-vault = "Vault 經濟"
+vault = "經濟"
 
 [portal.label.ambient]
 red = "紅色"
@@ -552,12 +552,12 @@ available = ["&e&l鏡像&r", "&7將本地世界反射回來。", "&7透過框架
 flip = ["&7牆面鏡像以 180 度為步長翻轉", "&7以保持反射實體方向正確。", "&8右鍵點擊：翻轉反射影像。"]
 
 [portal.menu.cost]
-opener = ["&6&l通行費用&r", "&7要求玩家使用此傳送門時", "&7支付指定物品或 Vault 貨幣。", "", "&7模式：&f{mode}", "&7費用：&f{cost}", "", "&8點擊進行設定。"]
+opener = ["&6&l通行費用&r", "&7要求玩家使用此傳送門時", "&7支付指定物品或 貨幣。", "", "&7模式：&f{mode}", "&7費用：&f{cost}", "", "&8點擊進行設定。"]
 placard = ["&6&l通行費用&r", "&7玩家必須先付費", "&7才能通過此傳送門。", "", "&7模式：&f{mode}", "&7費用：&f{cost}"]
 mode_free = ["&a&l免費&r", "&7無需任何支付。", "", "&8點擊將通行設為免費。"]
 mode_vanilla = ["&b&l原版物品&r", "&7消耗一個完全相符的物品。", "", "&8點擊後手持物品，再按丟棄鍵。"]
-mode_vault = ["&a&lVault 經濟&r", "&7透過 Vault 扣除貨幣。", "", "&8點擊輸入金額。"]
-mode_vault_unavailable = ["&c&lVault 經濟不可用&r", "&7需要 Vault 和經濟插件。", "", "&8安裝或啟用兩者後才能使用此模式。"]
+mode_vault = ["&a&l經濟&r", "&7透過經濟服務扣除貨幣。", "", "&8點擊輸入金額。"]
+mode_vault_unavailable = ["&c&l經濟無法使用&r", "&7需要經濟服務。", "", "&8啟用經濟服務後才能使用此模式。"]
 free_detail = ["&a&l無費用&r", "&7通過此傳送門完全免費。"]
 secondary_empty = ["&8&l無額外設定&r"]
 item = ["&b&l{item}&r", "&7通行需要這個完全一致的物品。", "&7用於選擇的物品不會被消耗。", "", "&8左鍵：選擇另一個手持物品。", "&8右鍵：清除費用。"]
@@ -687,7 +687,7 @@ execution_failed = "執行命令 {command} 失敗：{reason}"
 not_initialized = "&8[&6Wormholes&8] &c網路尚未初始化。"
 
 [network.status]
-disabled = "&8[&6Wormholes&8] &7網路已&c停用&7 (plugins/Wormholes/wormholes.toml)。"
+disabled = "&8[&6Wormholes&8] &7網路已&c停用&7 (wormholes.toml)。"
 not_running = "&8[&6Wormholes&8] &c網路已啟用但未執行。請檢查身分儲存和網路連接埠。"
 listening = "&8[&6Wormholes&8] &7目前伺服器：&f{server}&7，監聽位址：&f{address}"
 outbound_only = "&8[&6Wormholes&8] &7目前伺服器：&f{server}&7，僅出站 Boat 模式"

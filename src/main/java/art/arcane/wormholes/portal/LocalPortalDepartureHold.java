@@ -1,5 +1,7 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.wormholes.util.BukkitGeometry;
+
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -189,7 +191,7 @@ final class LocalPortalDepartureHold {
         Location current = entity.getLocation();
         boolean sameWorld = hold.anchor.getWorld().equals(current.getWorld());
         double drift = sameWorld ? current.distanceSquared(hold.anchor) : Double.MAX_VALUE;
-        double side = sameWorld ? LocalPortalTraversal.sourceSideDistance(hold.traversive, current.toVector()) : 0.0D;
+        double side = sameWorld ? hold.traversive.crossing().sourceSideDistance(BukkitGeometry.vector(current.toVector())) : 0.0D;
         boolean inFlight = hold.claim != null
             && LocalPortalTransitRegistry.teleportClaim(entity.getUniqueId()) == hold.claim;
         if (hold.rtp) {
@@ -288,7 +290,7 @@ final class LocalPortalDepartureHold {
     private boolean validDeparture(Hold hold, Location location, long now) {
         boolean sameWorld = hold.anchor.getWorld().equals(location.getWorld());
         double drift = sameWorld ? location.distanceSquared(hold.anchor) : Double.MAX_VALUE;
-        double side = sameWorld ? LocalPortalTraversal.sourceSideDistance(hold.traversive, location.toVector()) : 0.0D;
+        double side = sameWorld ? hold.traversive.crossing().sourceSideDistance(BukkitGeometry.vector(location.toVector())) : 0.0D;
         boolean inFlight = hold.claim != null
             && LocalPortalTransitRegistry.teleportClaim(hold.entity.getUniqueId()) == hold.claim;
         return DepartureHoldPolicy.decide(inFlight, sameWorld, side, drift, hold.deadlineMillis - now)

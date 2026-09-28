@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render.view;
 
+import art.arcane.wormholes.render.view.ProjectionContentView;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
 import art.arcane.wormholes.render.blockentity.BlockEntityMaterials;
@@ -65,7 +66,7 @@ public final class LiveWorldView implements ProjectionWorldView {
             return null;
         }
         Block block = world.getBlockAt(x, y, z);
-        if (!BlockEntityMaterials.isCandidate(block.getType())) {
+        if (!BlockEntityMaterials.isCandidate(block.getType().name())) {
             return null;
         }
         BlockState state;
@@ -83,12 +84,12 @@ public final class LiveWorldView implements ProjectionWorldView {
             return LIGHT_UNAVAILABLE;
         }
         Block block = world.getBlockAt(x, y, z);
-        return ProjectionWorldView.packLight(block.getLightFromSky(), block.getLightFromBlocks());
+        return ProjectionContentView.packLight(block.getLightFromSky(), block.getLightFromBlocks());
     }
 
     @Override
     public int getSkyDarken() {
-        return ProjectionWorldView.computeSkyDarken(world.getTime(), world.hasStorm(), world.isThundering());
+        return ProjectionSkyMath.computeSkyDarken(world.getTime(), world.hasStorm(), world.isThundering());
     }
 
     @Override

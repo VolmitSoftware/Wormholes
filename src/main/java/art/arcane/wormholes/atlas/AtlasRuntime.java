@@ -1,5 +1,7 @@
 package art.arcane.wormholes.atlas;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
+
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.toml.AtlasConfig;
 import art.arcane.wormholes.nexus.DialMenu;
@@ -25,7 +27,7 @@ public final class AtlasRuntime {
     private volatile int flushTask = -1;
 
     public AtlasRuntime(Path playersDirectory, NetworkRegistry registry, DialMenu dialMenu) {
-        store = new AtlasPlayerStore(playersDirectory);
+        store = new AtlasPlayerStore(playersDirectory, BukkitJsonDocuments.INSTANCE);
         service = new AtlasService(store, registry, AtlasRuntime::config, AtlasRuntime::loadedPortals);
         menu = new AtlasMenu(service, dialMenu);
         command = new CommandAtlas(service, menu);

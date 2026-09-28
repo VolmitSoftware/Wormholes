@@ -30,19 +30,19 @@ class ChunkReplicationManagerVenticularDiffTest {
         UUID portalId = UUID.randomUUID();
         long chunkKey = ViewSlice.columnKey(0, 0);
         ReplicationStreamKey stream = ReplicationTestStream.stream(portalId, world, chunkKey, renderMode);
-        manager.subscribe(PEER, portalId, world, stream);
+        manager.subscribe(PEER, portalId, world.getUID(), stream);
         byte[] payload = bulkPayload();
         manager.sendBulk(PEER, portalId, stream, payload, contentHashOf(payload));
         sink.clear();
 
         BlockChange occluded = new BlockChange(BlockChange.pack(3, 80, 7), "minecraft:stone", BlockChange.FLAG_OCCLUDED);
         BlockChange exposed = new BlockChange(BlockChange.pack(4, 81, 7), "minecraft:dirt", BlockChange.FLAG_NONE);
-        manager.onChunkDrain(world, chunkKey, List.of(occluded, exposed), List.of(), List.of());
+        manager.onChunkDrain(world.getUID(), chunkKey, List.of(occluded, exposed), List.of(), List.of());
         manager.flushTick();
 
         List<BlockChange> sent = sentBlocks(sink);
         assertEquals(2, sent.size());
-        assertEquals(OccludedMarker.STATE_STRING, sent.get(0).state(), "occluded cell must be substituted with the sentinel");
+        assertEquals(BlockChange.OCCLUDED_STATE, sent.get(0).state(), "occluded cell must be substituted with the sentinel");
         assertEquals(BlockChange.FLAG_NONE, sent.get(0).flags(), "the capture-only occluded flag must never reach the wire");
         assertEquals("minecraft:dirt", sent.get(1).state(), "exposed cell must keep its real state");
         assertEquals(BlockChange.FLAG_NONE, sent.get(1).flags());
@@ -56,13 +56,13 @@ class ChunkReplicationManagerVenticularDiffTest {
         UUID portalId = UUID.randomUUID();
         long chunkKey = ViewSlice.columnKey(0, 0);
         ReplicationStreamKey stream = ReplicationTestStream.stream(portalId, world, chunkKey);
-        manager.subscribe(PEER, portalId, world, stream);
+        manager.subscribe(PEER, portalId, world.getUID(), stream);
         byte[] payload = bulkPayload();
         manager.sendBulk(PEER, portalId, stream, payload, contentHashOf(payload));
         sink.clear();
 
         BlockChange occluded = new BlockChange(BlockChange.pack(3, 80, 7), "minecraft:stone", BlockChange.FLAG_OCCLUDED);
-        manager.onChunkDrain(world, chunkKey, List.of(occluded), List.of(), List.of());
+        manager.onChunkDrain(world.getUID(), chunkKey, List.of(occluded), List.of(), List.of());
         manager.flushTick();
 
         List<BlockChange> sent = sentBlocks(sink);

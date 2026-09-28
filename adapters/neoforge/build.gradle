@@ -1,0 +1,139 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+
+plugins {
+    id 'java'
+    id 'net.neoforged.moddev' version '2.0.141'
+    id 'com.gradleup.shadow' version '9.5.1'
+}
+
+Properties rootProperties = new Properties()
+file('../../gradle.properties').withInputStream { InputStream stream -> rootProperties.load(stream) }
+String minecraftVersion = providers.gradleProperty('minecraftVersion').getOrElse(rootProperties.getProperty('minecraftVersion'))
+String loaderVersion = providers.gradleProperty('neoForgeVersion').getOrElse(rootProperties.getProperty('neoForgeVersion'))
+project(':core') {
+    layout.buildDirectory.set(rootProject.layout.buildDirectory.dir('core'))
+}
+
+group = 'art.arcane'
+version = providers.gradleProperty('wormholesVersion').getOrElse(rootProperties.getProperty('wormholesVersion'))
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+sourceSets {
+    main {
+        java.srcDir('../modded-common/src/main/java')
+        resources.srcDir('../modded-common/src/main/resources')
+    }
+    test {
+        java.srcDir('../modded-common/src/test/java')
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = uri('https://maven.neoforged.net/releases/') }
+}
+
+configurations {
+    bundle {
+        canBeConsumed = false
+        canBeResolved = true
+        exclude(group: 'it.unimi.dsi', module: 'fastutil')
+    }
+}
+
+dependencies {
+    implementation(project(':core'))
+    bundle(project(':core'))
+    implementation('com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
+    bundle('com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
+    testImplementation('junit:junit:4.13.2')
+    testImplementation('org.mockito:mockito-core:5.23.0')
+    testRuntimeOnly('org.junit.platform:junit-platform-launcher:6.1.2')
+    testRuntimeOnly('org.junit.vintage:junit-vintage-engine:6.1.2')
+}
+
+evaluationDependsOn(':core')
+
+neoForge {
+    version = loaderVersion
+    runs {
+        server {
+            server()
+            programArgument('nogui')
+        }
+    }
+    mods {
+        wormholes {
+            sourceSet(sourceSets.main)
+            sourceSet(project(':core').sourceSets.main)
+        }
+    }
+    unitTest {
+        enable()
+        testedMod = mods.wormholes
+    }
+}
+
+tasks.named('test').configure {
+    useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release.set(25)
+    options.compilerArgs.add('-parameters')
+}
+
+processResources {
+    filesMatching('wormholes-build.properties') {
+        expand('version': project.version)
+    }
+    inputs.property('version', project.version)
+    inputs.property('minecraftVersion', minecraftVersion)
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand('version': project.version, 'minecraftVersion': minecraftVersion)
+    }
+}
+
+tasks.named('shadowJar', ShadowJar).configure {
+    archiveFileName.set("Wormholes v${project.version} [NeoForge] ${minecraftVersion}+${loaderVersion}.jar")
+    configurations = [project.configurations.bundle]
+    filesMatching('META-INF/services/**') {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+    mergeServiceFiles()
+    relocate('net.kyori', 'art.arcane.wormholes.shadow.kyori')
+    relocate('org.yaml.snakeyaml', 'art.arcane.wormholes.shadow.snakeyaml')
+    relocate('com.electronwill.nightconfig', 'art.arcane.wormholes.shadow.nightconfig')
+    relocate('com.moandjiezana.toml', 'art.arcane.wormholes.shadow.toml')
+    dependencies {
+        exclude(dependency('com.google.code.gson:gson:.*'))
+    }
+    exclude('META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA')
+    exclude('META-INF/versions/**', 'module-info.class')
+    from('../../LICENSE.md')
+    addMultiReleaseAttribute.set(false)
+}
+
+tasks.named('jar').configure {
+    enabled = false
+}
+
+tasks.named('assemble').configure {
+    dependsOn(tasks.named('shadowJar'))
+}
+
+tasks.named('processResources').configure {
+    from('../../src/main/resources/wormholes-pockets-pack') {
+        include('data/**')
+    }
+}
+
+apply from: '../game-test.gradle'

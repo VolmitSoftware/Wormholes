@@ -1,5 +1,6 @@
 package art.arcane.wormholes.door;
 
+import org.bukkit.structure.Structure;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -41,12 +42,12 @@ final class PocketInstancesTest {
         UUID first = new UUID(0, 1100);
         UUID second = new UUID(0, 1101);
 
-        PocketBinding firstBinding = PocketInstances.bindingFor("dungeon", first);
-        PocketBinding secondBinding = PocketInstances.bindingFor("dungeon", second);
+        PocketBinding firstBinding = PocketBinding.instance("dungeon", first);
+        PocketBinding secondBinding = PocketBinding.instance("dungeon", second);
 
-        assertEquals(firstBinding, PocketInstances.bindingFor("dungeon", first), "returning is not a new copy");
+        assertEquals(firstBinding, PocketBinding.instance("dungeon", first), "returning is not a new copy");
         assertNotEquals(firstBinding, secondBinding);
-        assertNotEquals(firstBinding, PocketInstances.bindingFor("arena", first));
+        assertNotEquals(firstBinding, PocketBinding.instance("arena", first));
         assertEquals(PocketBindingKind.PERSONAL, firstBinding.kind());
     }
 
@@ -141,7 +142,7 @@ final class PocketInstancesTest {
 
     @Test
     void aSnapshotNameNeverEscapesItsPocketFolder() {
-        PocketSnapshots snapshots = new PocketSnapshots(temporaryDirectory, new RecordingStructureIo());
+        PocketSnapshots<Structure> snapshots = new PocketSnapshots<>(temporaryDirectory, new RecordingStructureIo());
         UUID spaceId = new UUID(0, 1120);
 
         assertTrue(snapshots.file(spaceId, "latest").startsWith(snapshots.directory(spaceId)));
@@ -152,7 +153,7 @@ final class PocketInstancesTest {
 
     private PocketInstances instances() {
         return new PocketInstances(
-            new PocketTemplateService(temporaryDirectory, () -> "pockets/templates", new RecordingStructureIo()));
+            new PocketTemplateService<>(temporaryDirectory, () -> "pockets/templates", new RecordingStructureIo()));
     }
 
     private static PocketInstanceInfo info(String policy, long createdAt, long lastOccupied) {
@@ -171,7 +172,7 @@ final class PocketInstancesTest {
     }
 
     /** A structure store that never has anything; the instancing decisions never read one. */
-    private static final class RecordingStructureIo implements StructureIo {
+    private static final class RecordingStructureIo implements StructureIo<Structure> {
         @Override
         public java.util.Optional<org.bukkit.structure.Structure> load(Path file) {
             return java.util.Optional.empty();

@@ -1,5 +1,6 @@
 package art.arcane.wormholes;
 
+import art.arcane.wormholes.render.BukkitEntityVisibility;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -78,7 +79,7 @@ final class ProjectionInterestSetTest {
     }
 
     private static ProjectionInterestSet newSet() {
-        return new ProjectionInterestSet(null, new EntityRenderLocalOcclusionArbiter(), null, null, () -> true);
+        return new ProjectionInterestSet(null, new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create()), null, null, () -> true);
     }
 
     private static ILocalPortal only(List<ILocalPortal> slice) {

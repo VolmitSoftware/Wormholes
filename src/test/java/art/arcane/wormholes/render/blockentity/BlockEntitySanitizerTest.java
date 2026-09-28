@@ -38,7 +38,7 @@ final class BlockEntitySanitizerTest {
         chest.setTag("Items", items);
         chest.setTag("CustomName", new NBTString("{\"text\":\"Loot\"}"));
 
-        BlockEntitySample sample = BlockEntitySanitizer.sanitize("minecraft:chest", chest, WHITELIST, true);
+        BlockEntitySample sample = BlockEntitySanitizer.sanitize("minecraft:chest", chest, new BlockEntitySanitizer.Options<>(WHITELIST, true, BukkitBlockEntityTags.INSTANCE));
         assertNotNull(sample);
         NBTCompound decoded = BlockEntityNbt.decode(sample.nbt());
         assertFalse(decoded.contains("Items"));
@@ -49,10 +49,10 @@ final class BlockEntitySanitizerTest {
         assertFalse(decoded.contains("x"));
         assertEquals("{\"text\":\"Loot\"}", decoded.getStringTagValueOrThrow("CustomName"));
 
-        assertNull(BlockEntitySanitizer.sanitize("minecraft:chest", chest, WHITELIST, false),
+        assertNull(BlockEntitySanitizer.sanitize("minecraft:chest", chest, new BlockEntitySanitizer.Options<>(WHITELIST, false, BukkitBlockEntityTags.INSTANCE)),
             "container types are refused entirely while block-entity-containers is off");
         NBTCompound withContainers = BlockEntityNbt.decode(
-            BlockEntitySanitizer.sanitize("minecraft:chest", chest, WHITELIST, true).nbt());
+            BlockEntitySanitizer.sanitize("minecraft:chest", chest, new BlockEntitySanitizer.Options<>(WHITELIST, true, BukkitBlockEntityTags.INSTANCE)).nbt());
         assertFalse(withContainers.contains("Items"), "contents never cross even when container types are admitted");
     }
 
@@ -67,24 +67,24 @@ final class BlockEntitySanitizerTest {
         sign.setTag("front_text", front);
         sign.setTag("is_waxed", new NBTByte((byte) 0));
 
-        BlockEntitySample sample = BlockEntitySanitizer.sanitize("minecraft:sign", sign, WHITELIST, false);
+        BlockEntitySample sample = BlockEntitySanitizer.sanitize("minecraft:sign", sign, new BlockEntitySanitizer.Options<>(WHITELIST, false, BukkitBlockEntityTags.INSTANCE));
         assertNotNull(sample);
         assertEquals("minecraft:sign", sample.typeKey());
         NBTCompound decoded = BlockEntityNbt.decode(sample.nbt());
         assertEquals("{\"text\":\"hello\"}", decoded.getCompoundTagOrThrow("front_text").getStringListTagOrThrow("messages").getTag(0).getValue());
 
-        assertNull(BlockEntitySanitizer.sanitize("minecraft:bell", sign, WHITELIST, false), "types outside the whitelist are dropped");
-        assertNull(BlockEntitySanitizer.sanitize(null, sign, WHITELIST, false));
+        assertNull(BlockEntitySanitizer.sanitize("minecraft:bell", sign, new BlockEntitySanitizer.Options<>(WHITELIST, false, BukkitBlockEntityTags.INSTANCE)), "types outside the whitelist are dropped");
+        assertNull(BlockEntitySanitizer.sanitize(null, sign, new BlockEntitySanitizer.Options<>(WHITELIST, false, BukkitBlockEntityTags.INSTANCE)));
     }
 
     @Test
     void oversizedTagsAreDropped() {
         NBTCompound skull = new NBTCompound();
         skull.setTag("profile", new NBTString("x".repeat(BlockEntitySample.MAX_NBT_BYTES + 16)));
-        assertNull(BlockEntitySanitizer.sanitize("minecraft:skull", skull, WHITELIST, false));
+        assertNull(BlockEntitySanitizer.sanitize("minecraft:skull", skull, new BlockEntitySanitizer.Options<>(WHITELIST, false, BukkitBlockEntityTags.INSTANCE)));
         NBTCompound small = new NBTCompound();
         small.setTag("profile", new NBTString("x".repeat(64)));
-        BlockEntitySample sample = BlockEntitySanitizer.sanitize("minecraft:skull", small, WHITELIST, false);
+        BlockEntitySample sample = BlockEntitySanitizer.sanitize("minecraft:skull", small, new BlockEntitySanitizer.Options<>(WHITELIST, false, BukkitBlockEntityTags.INSTANCE));
         assertNotNull(sample);
         assertTrue(sample.nbt().length <= BlockEntitySample.MAX_NBT_BYTES);
     }

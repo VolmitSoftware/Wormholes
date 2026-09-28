@@ -1,5 +1,6 @@
 package art.arcane.wormholes.door;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -142,7 +143,7 @@ final class PocketResizeWorkflowTest {
 
     @Test
     void nonEmptyContainersAreRefusedEvenWhenDestructionIsConfirmed() {
-        PocketResizeService.Impact containers = new PocketResizeService.Impact(3L, 2L, 0L, 0L);
+        PocketResizeImpact containers = new PocketResizeImpact(3L, 2L, 0L, 0L);
 
         assertEquals(PocketResizePolicy.Decision.NON_EMPTY_CONTAINERS,
             PocketResizePolicy.decide(containers, false));
@@ -154,14 +155,14 @@ final class PocketResizeWorkflowTest {
 
     @Test
     void confirmationStillControlsDestructiveResizesWithoutStoredItems() {
-        PocketResizeService.Impact destructive = new PocketResizeService.Impact(3L, 0L, 1L, 0L);
+        PocketResizeImpact destructive = new PocketResizeImpact(3L, 0L, 1L, 0L);
 
         assertEquals(PocketResizePolicy.Decision.NEEDS_CONFIRMATION,
             PocketResizePolicy.decide(destructive, false));
         assertEquals(PocketResizePolicy.Decision.PROCEED,
             PocketResizePolicy.decide(destructive, true));
         assertEquals(PocketResizePolicy.Decision.PROCEED,
-            PocketResizePolicy.decide(PocketResizeService.Impact.none(), false));
+            PocketResizePolicy.decide(PocketResizeImpact.none(), false));
     }
 
     @Test
@@ -329,7 +330,7 @@ final class PocketResizeWorkflowTest {
         Path mismatched = directory.resolve(UUID.randomUUID() + ".json");
         Files.move(expected, mismatched);
 
-        IOException failure = assertThrows(IOException.class, () -> new PocketMutationJournal(directory).load());
+        IOException failure = assertThrows(IOException.class, () -> new PocketMutationJournal(directory, BukkitJsonDocuments.INSTANCE).load());
 
         assertTrue(failure.getMessage().contains("filename does not match"));
     }
@@ -428,7 +429,7 @@ final class PocketResizeWorkflowTest {
     }
 
     private static PocketMutationJournal loadedJournal(Path directory) throws IOException {
-        PocketMutationJournal journal = new PocketMutationJournal(directory);
+        PocketMutationJournal journal = new PocketMutationJournal(directory, BukkitJsonDocuments.INSTANCE);
         journal.load();
         return journal;
     }

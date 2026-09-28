@@ -1,5 +1,7 @@
 package art.arcane.wormholes.door;
 
+import art.arcane.wormholes.util.Direction;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -84,8 +86,8 @@ final class RuntimeDoorTest
 	private static DoorwayPlane plane(DoorForm form, DoorOpenState openState)
 	{
 		return form == DoorForm.TRAPDOOR
-			? DoorwayPlane.trapdoor(1, 64, 2, BlockFace.NORTH, Bisected.Half.BOTTOM, openState)
-			: new DoorwayPlane(1, 64, 2, BlockFace.NORTH, form, Bisected.Half.BOTTOM, openState);
+			? DoorwayPlane.trapdoor(1, 64, 2, Direction.N, DoorHalf.BOTTOM, openState)
+			: new DoorwayPlane(1, 64, 2, Direction.N, form, DoorHalf.BOTTOM, openState);
 	}
 
 	private static VanillaDoorSnapshot snapshot(DoorwayPlane plane, boolean open)

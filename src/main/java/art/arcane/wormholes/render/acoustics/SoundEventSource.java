@@ -6,6 +6,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.SoundGroup;
 import org.bukkit.World;
+import org.bukkit.entity.Player;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Openable;
@@ -32,9 +33,9 @@ import art.arcane.wormholes.network.view.ViewServer;
  * worlds no projecting portal looks into.
  */
 public final class SoundEventSource implements Listener {
-    private final Supplier<AcousticsBridge> bridge;
+    private final Supplier<AcousticsBridge<Player>> bridge;
 
-    public SoundEventSource(Supplier<AcousticsBridge> bridge) {
+    public SoundEventSource(Supplier<AcousticsBridge<Player>> bridge) {
         this.bridge = bridge;
     }
 
@@ -137,7 +138,7 @@ public final class SoundEventSource implements Listener {
         if (viewServer != null) {
             viewServer.forwardSound(world, x, y, z, soundKey, volume, pitch, soundClass);
         }
-        AcousticsBridge active = bridge.get();
+        AcousticsBridge<Player> active = bridge.get();
         if (active == null || !active.hasDestinationWorld(world.getUID())) {
             return;
         }

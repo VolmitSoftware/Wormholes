@@ -1,5 +1,7 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.render.view.ProjectionWorldView;
+import org.bukkit.block.data.BlockData;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,7 +28,7 @@ public final class ProjectionCellKeyOwnershipTest {
             positions.add(new Vector(cell[0], cell[1], cell[2]));
         }
 
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = PortalSkinRenderer.fluidClaims(positions, null);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = PortalSkinRenderer.fluidClaims(positions, null);
 
         assertEquals(cells.length, claims.size(), "every skinned cell must produce exactly one distinct claim key");
         for (int[] cell : cells) {

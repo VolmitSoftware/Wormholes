@@ -1,5 +1,9 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.wormholes.access.PortalAdmission;
+import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.util.BukkitGeometry;
+
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
@@ -165,7 +169,7 @@ final class LocalPortalTraversal
 		long now = System.currentTimeMillis();
 		LocalPortalTransitRegistry.pruneTeleportCooldowns(now);
 		captureHistory.beginPass();
-		for(Entity entity : portal.getStructure().getCaptureZone().getEntities(portal.getStructure().getWorld()))
+		for(Entity entity : BukkitGeometry.entities(portal.getStructure().getCaptureZone(), portal.getStructure().getWorld()))
 		{
 			Location start = null;
 			Location location = entity.getLocation();
@@ -671,33 +675,21 @@ final class LocalPortalTraversal
 		Location start = sweepStart == null ? end.clone().subtract(velocity) : sweepStart;
 		start.setYaw(end.getYaw());
 		start.setPitch(end.getPitch());
-		Vector origin = portal.getOrigin();
-		Vector normal = portal.getFrame().getNormal().toVector();
-		double startDistance = start.toVector().subtract(origin).dot(normal);
-		double endDistance = end.toVector().subtract(origin).dot(normal);
-		if(startDistance == endDistance || startDistance > 0.0D && endDistance > 0.0D
-			|| startDistance < 0.0D && endDistance < 0.0D)
-		{
-			return null;
-		}
-		double fraction = startDistance / (startDistance - endDistance);
-		Location intersection = start.clone().add(end.toVector().subtract(start.toVector()).multiply(fraction));
-		if(!portal.getStructure().contains(intersection))
-		{
-			return null;
-		}
+        GeometryVector intersection = PortalCrossing.intersection(portal.getFrame(), portal.getOrigin(),
+            BukkitGeometry.vector(start), BukkitGeometry.vector(end));
+        if(intersection == null || !portal.getStructure().contains(BukkitGeometry.location(intersection, start.getWorld()))) {
+            return null;
+        }
 		return buildCrossing(i, start, end.toVector(), velocity);
 	}
 
 	private Traversive buildCrossing(Entity i, Location start, Vector inPoint, Vector velocity)
 	{
-		double relX = start.getX() - portal.getOrigin().getX();
-		double relY = start.getY() - portal.getOrigin().getY();
-		double relZ = start.getZ() - portal.getOrigin().getZ();
-		PortalFrame frame = portal.getFrame();
-		double startDistance = (relX * frame.getNormal().x()) + (relY * frame.getNormal().y()) + (relZ * frame.getNormal().z());
-		boolean frontSide = startDistance == 0.0D ? velocity.dot(frame.getNormal().toVector()) <= 0.0D : startDistance > 0.0D;
-		return new Traversive(i, frame.view(frontSide), portal.getOrigin(), inPoint, velocity, start.getDirection(), frontSide, portal.getId());
+        PortalCrossing crossing = PortalCrossing.create(portal.getFrame(), portal.getOrigin(),
+            new PortalCrossing.Motion(BukkitGeometry.vector(start), BukkitGeometry.vector(inPoint),
+                BukkitGeometry.vector(velocity), BukkitGeometry.vector(start.getDirection())));
+        return new Traversive(i, crossing.frame(), BukkitGeometry.bukkit(crossing.origin()), inPoint, velocity,
+            start.getDirection(), crossing.frontSide(), portal.getId());
 	}
 
 	/** Arrival mask length: a source profile override wins, then the adaptive size from the pre-send, then the fixed setting. */
@@ -716,7 +708,8 @@ final class LocalPortalTraversal
 				reloadExpected,
 				preSend == null ? null : preSend.outcome(),
 				preSend == null ? 0 : preSend.sentChunks(),
-				preSend == null ? 0 : preSend.plannedChunks());
+				preSend == null ? 0 : preSend.plannedChunks(),
+                TransitSubsystem.config().arrivalMaskMinTicks, Settings.ARRIVAL_TRANSITION_MASK_TICKS);
 	}
 
 	/** Exit geometry for a crossing: the source portal's momentum and orientation policies applied to the frame transform. */
@@ -732,10 +725,10 @@ final class LocalPortalTraversal
 		MomentumPolicy momentum = source == null ? TransitPortalExtension.defaultMomentum(transit) : source.effectiveMomentum(transit);
 		OrientationPolicy orientation = source == null ? TransitPortalExtension.defaultOrientation(transit) : source.effectiveOrientation(transit);
 		Vector frameVelocity = t.getOutVelocity(frame);
-		Vector outVelocity = MomentumTransform.apply(frameVelocity, momentum, transit.momentumMaxSpeed);
-		Location exit = t.getOutPoint(frame, portal.getOrigin()).toLocation(portal.getStructure().getWorld());
+		Vector outVelocity = BukkitGeometry.bukkit(MomentumTransform.apply(BukkitGeometry.vector(frameVelocity), momentum, transit.momentumMaxSpeed));
+		Location exit = t.getOutPoint(frame, BukkitGeometry.bukkit(portal.getOrigin())).toLocation(portal.getStructure().getWorld());
 		Location target = exit.clone();
-		OrientationTransform.Look look = OrientationTransform.apply(t, frame, orientation, transit.gravityFlipEnabled);
+		OrientationTransform.Look look = OrientationTransform.apply(t.crossing(), frame, orientation, transit.gravityFlipEnabled);
 		target.setYaw(look.yaw());
 		target.setPitch(look.pitch());
 		return new ExitPlacement(target, exit, outVelocity);
@@ -771,7 +764,7 @@ final class LocalPortalTraversal
 		}
 		if(destination instanceof RemotePortal remoteDestination)
 		{
-			boolean allowed = remoteDestination.acceptsInboundTraversal(entity);
+			boolean allowed = remoteDestination.acceptsInboundTraversal(PortalAdmission.bypassesAccess(entity));
 			if(!allowed && reportDenial)
 			{
 				PortalAccessDiagnostics.frameDenied("REMOTE_PREFLIGHT", remoteDestination, entity);
@@ -1594,7 +1587,7 @@ final class LocalPortalTraversal
 		armRejectedReentry(entity);
 		LocalPortalTransitRegistry.markTeleportCooldown(entity.getUniqueId(), System.currentTimeMillis());
 		Location current = entity.getLocation();
-		Location target = sourceRejectionPoint(t).toLocation(world);
+		Location target = BukkitGeometry.bukkit(t.crossing().rejectionPoint()).toLocation(world);
 		target.setYaw(current.getYaw());
 		target.setPitch(current.getPitch());
 		playRejectedDepartureEffect(t, world);
@@ -1639,19 +1632,6 @@ final class LocalPortalTraversal
 		}
 	}
 
-	static Vector sourceRejectionPoint(Traversive traversive)
-	{
-		Vector normal = traversive.getInFrame().getNormal().toVector();
-		double sourceDistance = traversive.getInOffset().dot(normal);
-		return traversive.getInPoint().clone().add(normal.multiply(1.25D - Math.min(0.0D, sourceDistance)));
-	}
-
-	static double sourceSideDistance(Traversive traversive, Vector point)
-	{
-		Vector normal = traversive.getInFrame().getNormal().toVector().normalize();
-		return point.clone().subtract(traversive.getInPoint()).dot(normal);
-	}
-
 	static boolean withinDepartureCommitmentRadius(double distanceSquared)
 	{
 		return distanceSquared <= DEPARTURE_COMMITMENT_RADIUS_SQUARED;
@@ -1659,7 +1639,7 @@ final class LocalPortalTraversal
 
 	static Vector sourceRejectionVelocity(Traversive traversive)
 	{
-		return traversive.getInFrame().getNormal().toVector().normalize().multiply(Settings.portalPushback(3.0D));
+		return BukkitGeometry.bukkit(traversive.getInFrame().getNormal()).normalize().multiply(Settings.portalPushback(3.0D));
 	}
 
 	void rejectRemoteArrival(Entity entity, Traversive t)
@@ -1690,7 +1670,7 @@ final class LocalPortalTraversal
 		Vector outVelocity = t.getOutVelocity(portal.getFrame());
 		if(outVelocity.lengthSquared() < 0.01D)
 		{
-			outVelocity = portal.getFrame().getNormal().toVector().normalize();
+			outVelocity = BukkitGeometry.bukkit(portal.getFrame().getNormal()).normalize();
 		}
 		entity.setVelocity(outVelocity.multiply(Settings.portalPushback(2.0D)));
 		LocalPortalTransitRegistry.markTeleportCooldown(entity.getUniqueId(), System.currentTimeMillis());

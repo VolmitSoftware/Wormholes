@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.MainConfig;
@@ -200,37 +202,37 @@ class TraversalServiceFailureAccountingTest {
 
     @Test
     void entityArrivalIsAcceptedWhenTheExitPortalStillTakesInboundTravelers() {
-        assertEquals(true, TraversalAdmissionPolicy.acceptsEntityArrival(
+        assertEquals(true, BukkitTraversalAdmissionPolicy.acceptsEntityArrival(
             fakeExit(true, false, true, true), fakeEntity(UUID.randomUUID())));
     }
 
     @Test
     void entityArrivalIsRefusedWhenTheExitPortalClosedMidFlight() {
-        assertEquals(false, TraversalAdmissionPolicy.acceptsEntityArrival(
+        assertEquals(false, BukkitTraversalAdmissionPolicy.acceptsEntityArrival(
             fakeExit(false, false, true, true), fakeEntity(UUID.randomUUID())));
     }
 
     @Test
     void entityArrivalIsRefusedWhenIncomingTraversalsWereDisabledMidFlight() {
-        assertEquals(false, TraversalAdmissionPolicy.acceptsEntityArrival(
+        assertEquals(false, BukkitTraversalAdmissionPolicy.acceptsEntityArrival(
             fakeExit(true, false, false, true), fakeEntity(UUID.randomUUID())));
     }
 
     @Test
     void entityArrivalIsRefusedWhenTheExitPortalFlippedToMirrorMode() {
-        assertEquals(false, TraversalAdmissionPolicy.acceptsEntityArrival(
+        assertEquals(false, BukkitTraversalAdmissionPolicy.acceptsEntityArrival(
             fakeExit(true, true, true, true), fakeEntity(UUID.randomUUID())));
     }
 
     @Test
     void entityArrivalIsRefusedWhenThePortalWillNotAdmitTheEntity() {
-        assertEquals(false, TraversalAdmissionPolicy.acceptsEntityArrival(
+        assertEquals(false, BukkitTraversalAdmissionPolicy.acceptsEntityArrival(
             fakeExit(true, false, true, false), fakeEntity(UUID.randomUUID())));
     }
 
     @Test
     void entityArrivalIsRefusedWhenTheSnapshotProducedNoEntity() {
-        assertEquals(false, TraversalAdmissionPolicy.acceptsEntityArrival(fakeExit(true, false, true, true), null));
+        assertEquals(false, BukkitTraversalAdmissionPolicy.acceptsEntityArrival(fakeExit(true, false, true, true), null));
     }
 
     @Test
@@ -250,7 +252,7 @@ class TraversalServiceFailureAccountingTest {
         config.enabled = true;
         config.serverName = "alpha";
         config.listenPort = 0;
-        network = new NetworkManager(LOGGER, config, "26.2", "test", 25565, tempDir.resolve("alpha"));
+        network = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", 25565, tempDir.resolve("alpha"), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         return new TraversalService(network);
     }
 

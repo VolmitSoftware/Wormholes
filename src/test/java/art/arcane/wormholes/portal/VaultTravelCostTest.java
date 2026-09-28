@@ -150,7 +150,7 @@ public final class VaultTravelCostTest
 		throw new IllegalStateException("Unsupported primitive return type " + type);
 	}
 
-	private static final class RecordingRefundExecutor implements OwnerRefundSettlement.Executor
+	private static final class RecordingRefundExecutor implements OwnerRefundSettlement.Executor<Player>
 	{
 		private boolean owned;
 		private int dispatches;

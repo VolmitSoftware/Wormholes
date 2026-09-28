@@ -1,5 +1,9 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.Wormholes;
+
+import art.arcane.wormholes.portal.ILocalPortal;
+
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.PortalType;
@@ -32,20 +36,16 @@ class PortalSettingsApplyQueueTest {
         Queue<Runnable> regionTasks = new ArrayDeque<Runnable>();
         Queue<ScheduledRetry> retries = new ArrayDeque<ScheduledRetry>();
         List<String> failures = new ArrayList<String>();
-        PortalSettingsApplyQueue queue = new PortalSettingsApplyQueue(
-            (target, task, retired) -> regionTasks.offer(task),
-            (task, delayTicks) -> retries.offer(new ScheduledRetry(task, delayTicks)),
-            (reason, target, failure) -> failures.add(reason)
-        );
-        PortalSyncService sync = new PortalSyncService(null, () -> List.of(portal), Runnable::run, queue);
+        PortalSettingsApplyQueue<ILocalPortal> queue = new PortalSettingsApplyQueue<>(BukkitPortalSyncAccess.INSTANCE, new PortalSettingsApplyQueue.Dispatch<>((target, task, retired) -> regionTasks.offer(task), (task, delayTicks) -> retries.offer(new ScheduledRetry(task, delayTicks)), (reason, target, failure) -> failures.add(reason)));
+        PortalSyncService<ILocalPortal> sync = new PortalSyncService<>(null, new PortalSyncService.Options<>(() -> List.of(portal), Runnable::run, () -> Wormholes.remotePortalRegistry, BukkitPortalSyncAccess.INSTANCE, queue));
 
         sync.applySettingsUpdate("alpha", update(senderPortalId, Map.of(
-            PortalSyncService.KEY_VIEW_DEPTH, "24",
-            PortalSyncService.KEY_SURFACE_SKIN, "minecraft:glass"
+            PortalSettingsCodec.KEY_VIEW_DEPTH, "24",
+            PortalSettingsCodec.KEY_SURFACE_SKIN, "minecraft:glass"
         )));
         sync.applySettingsUpdate("alpha", update(senderPortalId, Map.of(
-            PortalSyncService.KEY_VIEW_DEPTH, "48",
-            PortalSyncService.KEY_BLACKOUT_BACKGROUND, "false"
+            PortalSettingsCodec.KEY_VIEW_DEPTH, "48",
+            PortalSettingsCodec.KEY_BLACKOUT_BACKGROUND, "false"
         )));
 
         assertEquals(initialDepth, portal.getNetworkViewDepth());
@@ -73,15 +73,11 @@ class PortalSettingsApplyQueueTest {
         Queue<ScheduledRetry> retries = new ArrayDeque<ScheduledRetry>();
         List<FailureRecord> failures = new ArrayList<FailureRecord>();
         AtomicInteger attempts = new AtomicInteger();
-        PortalSettingsApplyQueue queue = new PortalSettingsApplyQueue(
-            (target, task, retired) -> attempts.incrementAndGet() > 1 && regionTasks.offer(task),
-            (task, delayTicks) -> retries.offer(new ScheduledRetry(task, delayTicks)),
-            (reason, target, failure) -> failures.add(new FailureRecord(reason, target, failure))
-        );
-        PortalSyncService sync = new PortalSyncService(null, () -> List.of(portal), Runnable::run, queue);
+        PortalSettingsApplyQueue<ILocalPortal> queue = new PortalSettingsApplyQueue<>(BukkitPortalSyncAccess.INSTANCE, new PortalSettingsApplyQueue.Dispatch<>((target, task, retired) -> attempts.incrementAndGet() > 1 && regionTasks.offer(task), (task, delayTicks) -> retries.offer(new ScheduledRetry(task, delayTicks)), (reason, target, failure) -> failures.add(new FailureRecord(reason, target, failure))));
+        PortalSyncService<ILocalPortal> sync = new PortalSyncService<>(null, new PortalSyncService.Options<>(() -> List.of(portal), Runnable::run, () -> Wormholes.remotePortalRegistry, BukkitPortalSyncAccess.INSTANCE, queue));
 
         sync.applySettingsUpdate("alpha", update(senderPortalId,
-            Map.of(PortalSyncService.KEY_VIEW_DEPTH, "72")));
+            Map.of(PortalSettingsCodec.KEY_VIEW_DEPTH, "72")));
 
         assertEquals(1, attempts.get());
         assertEquals(1, retries.size());
@@ -110,21 +106,17 @@ class PortalSettingsApplyQueueTest {
         Queue<Runnable> retirements = new ArrayDeque<Runnable>();
         Queue<ScheduledRetry> retries = new ArrayDeque<ScheduledRetry>();
         List<String> failures = new ArrayList<String>();
-        PortalSettingsApplyQueue queue = new PortalSettingsApplyQueue(
-            (target, task, retired) -> {
+        PortalSettingsApplyQueue<ILocalPortal> queue = new PortalSettingsApplyQueue<>(BukkitPortalSyncAccess.INSTANCE, new PortalSettingsApplyQueue.Dispatch<>((target, task, retired) -> {
                 regionTasks.offer(task);
                 retirements.offer(retired);
                 return true;
-            },
-            (task, delayTicks) -> retries.offer(new ScheduledRetry(task, delayTicks)),
-            (reason, target, failure) -> failures.add(reason)
-        );
-        PortalSyncService sync = new PortalSyncService(null, () -> List.of(portal), Runnable::run, queue);
+            }, (task, delayTicks) -> retries.offer(new ScheduledRetry(task, delayTicks)), (reason, target, failure) -> failures.add(reason)));
+        PortalSyncService<ILocalPortal> sync = new PortalSyncService<>(null, new PortalSyncService.Options<>(() -> List.of(portal), Runnable::run, () -> Wormholes.remotePortalRegistry, BukkitPortalSyncAccess.INSTANCE, queue));
 
         sync.applySettingsUpdate("alpha", update(senderPortalId,
-            Map.of(PortalSyncService.KEY_VIEW_DEPTH, "80")));
+            Map.of(PortalSettingsCodec.KEY_VIEW_DEPTH, "80")));
         sync.applySettingsUpdate("alpha", update(senderPortalId,
-            Map.of(PortalSyncService.KEY_VIEW_DEPTH, "96")));
+            Map.of(PortalSettingsCodec.KEY_VIEW_DEPTH, "96")));
 
         retirements.remove().run();
 
@@ -148,21 +140,17 @@ class PortalSettingsApplyQueueTest {
         Queue<Runnable> regionTasks = new ArrayDeque<Runnable>();
         Queue<Runnable> retirements = new ArrayDeque<Runnable>();
         Queue<ScheduledRetry> retries = new ArrayDeque<ScheduledRetry>();
-        PortalSettingsApplyQueue queue = new PortalSettingsApplyQueue(
-            (target, task, retired) -> {
+        PortalSettingsApplyQueue<ILocalPortal> queue = new PortalSettingsApplyQueue<>(BukkitPortalSyncAccess.INSTANCE, new PortalSettingsApplyQueue.Dispatch<>((target, task, retired) -> {
                 regionTasks.offer(task);
                 retirements.offer(retired);
                 return true;
-            },
-            (task, delayTicks) -> retries.offer(new ScheduledRetry(task, delayTicks)),
-            (reason, target, failure) -> { }
-        );
+            }, (task, delayTicks) -> retries.offer(new ScheduledRetry(task, delayTicks)), (reason, target, failure) -> { }));
 
-        queue.enqueue(portal, Map.of(PortalSyncService.KEY_VIEW_DEPTH, "88"));
+        queue.enqueue(portal, Map.of(PortalSettingsCodec.KEY_VIEW_DEPTH, "88"));
         queue.shutdown();
         retirements.remove().run();
         regionTasks.remove().run();
-        queue.enqueue(portal, Map.of(PortalSyncService.KEY_VIEW_DEPTH, "104"));
+        queue.enqueue(portal, Map.of(PortalSettingsCodec.KEY_VIEW_DEPTH, "104"));
 
         assertEquals(0, queue.trackedPortalCount());
         assertTrue(retries.isEmpty());
@@ -178,8 +166,7 @@ class PortalSettingsApplyQueueTest {
         Queue<ScheduledRetry> retries = new ArrayDeque<ScheduledRetry>();
         AtomicBoolean worldAvailable = new AtomicBoolean(false);
         AtomicInteger attempts = new AtomicInteger();
-        PortalSettingsApplyQueue queue = new PortalSettingsApplyQueue(
-            (target, task, retired) -> {
+        PortalSettingsApplyQueue<ILocalPortal> queue = new PortalSettingsApplyQueue<>(BukkitPortalSyncAccess.INSTANCE, new PortalSettingsApplyQueue.Dispatch<>((target, task, retired) -> {
                 attempts.incrementAndGet();
                 if (!worldAvailable.get()) {
                     retired.run();
@@ -188,14 +175,11 @@ class PortalSettingsApplyQueueTest {
                 regionTasks.offer(task);
                 retirements.offer(retired);
                 return true;
-            },
-            (task, delayTicks) -> retries.offer(new ScheduledRetry(task, delayTicks)),
-            (reason, target, failure) -> { }
-        );
+            }, (task, delayTicks) -> retries.offer(new ScheduledRetry(task, delayTicks)), (reason, target, failure) -> { }));
 
-        queue.enqueue(portal, Map.of(PortalSyncService.KEY_VIEW_DEPTH, "72"));
-        queue.enqueue(portal, Map.of(PortalSyncService.KEY_VIEW_DEPTH, "88"));
-        queue.enqueue(portal, Map.of(PortalSyncService.KEY_VIEW_DEPTH, "96"));
+        queue.enqueue(portal, Map.of(PortalSettingsCodec.KEY_VIEW_DEPTH, "72"));
+        queue.enqueue(portal, Map.of(PortalSettingsCodec.KEY_VIEW_DEPTH, "88"));
+        queue.enqueue(portal, Map.of(PortalSettingsCodec.KEY_VIEW_DEPTH, "96"));
 
         assertEquals(1, attempts.get());
         assertEquals(1, retries.size());
@@ -223,7 +207,7 @@ class PortalSettingsApplyQueueTest {
         assertTrue(resetRetry.delayTicks() >= PortalSettingsApplyQueue.RETRY_BASE_TICKS);
         assertTrue(resetRetry.delayTicks() <= PortalSettingsApplyQueue.RETRY_BASE_TICKS * 2L);
 
-        queue.enqueue(portal, Map.of(PortalSyncService.KEY_VIEW_DEPTH, "104"));
+        queue.enqueue(portal, Map.of(PortalSettingsCodec.KEY_VIEW_DEPTH, "104"));
         assertEquals(9, attempts.get());
         assertTrue(retries.isEmpty());
 
@@ -242,17 +226,13 @@ class PortalSettingsApplyQueueTest {
         RecordingLocalPortal portal = localPortal();
         Queue<ScheduledRetry> retries = new ArrayDeque<ScheduledRetry>();
         AtomicInteger attempts = new AtomicInteger();
-        PortalSettingsApplyQueue queue = new PortalSettingsApplyQueue(
-            (target, task, retired) -> {
+        PortalSettingsApplyQueue<ILocalPortal> queue = new PortalSettingsApplyQueue<>(BukkitPortalSyncAccess.INSTANCE, new PortalSettingsApplyQueue.Dispatch<>((target, task, retired) -> {
                 attempts.incrementAndGet();
                 retired.run();
                 return false;
-            },
-            (task, delayTicks) -> retries.offer(new ScheduledRetry(task, delayTicks)),
-            (reason, target, failure) -> { }
-        );
+            }, (task, delayTicks) -> retries.offer(new ScheduledRetry(task, delayTicks)), (reason, target, failure) -> { }));
 
-        queue.enqueue(portal, Map.of(PortalSyncService.KEY_VIEW_DEPTH, "72"));
+        queue.enqueue(portal, Map.of(PortalSettingsCodec.KEY_VIEW_DEPTH, "72"));
         ScheduledRetry retry = retries.remove();
         queue.shutdown();
         retry.task().run();
@@ -280,7 +260,7 @@ class PortalSettingsApplyQueueTest {
         return new RecordingLocalPortal(UUID.randomUUID(), structure);
     }
 
-    private record FailureRecord(String reason, LocalPortal portal, Throwable failure) {
+    private record FailureRecord(String reason, ILocalPortal portal, Throwable failure) {
     }
 
     private record ScheduledRetry(Runnable task, long delayTicks) {

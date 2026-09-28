@@ -1,5 +1,8 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.wormholes.network.PortalSettingsTarget;
+import java.util.Map;
+
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
@@ -16,6 +19,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
 import art.arcane.wormholes.hook.PortalExtension;
+import art.arcane.wormholes.util.BukkitGeometry;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.volmlib.util.inventorygui.Window;
 import art.arcane.wormholes.util.AxisAlignedBB;
@@ -24,7 +28,7 @@ import art.arcane.wormholes.api.traversal.internal.TraversalCostGateway;
 import art.arcane.wormholes.util.F;
 import art.arcane.volmlib.util.json.JSONObject;
 
-public class LocalPortal extends Portal implements ILocalPortal, Listener
+public class LocalPortal extends Portal implements ILocalPortal, Listener, PortalSettingsTarget
 {
 	private final LocalPortalLinking linking = new LocalPortalLinking(this);
 	private final LocalPortalSettings settings = new LocalPortalSettings(this);
@@ -43,7 +47,7 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener
 
 	public LocalPortal(UUID id, PortalType type, PortalStructure structure)
 	{
-		super(id, structure.getCenter().toVector());
+		super(id, BukkitGeometry.vector(structure.getCenter()));
 		this.owner = id;
 		this.type = type;
 		this.structure = structure;
@@ -103,14 +107,12 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener
 	@Override
 	public void saveJSON(JSONObject j)
 	{
-		super.saveJSON(j);
 		persistence.writeState(j);
 	}
 
 	@Override
 	public void loadJSON(JSONObject j)
 	{
-		super.loadJSON(j);
 		persistence.readState(j);
 	}
 

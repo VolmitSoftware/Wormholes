@@ -1,5 +1,7 @@
 package art.arcane.wormholes.portal;
 
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.MainConfig;
@@ -113,7 +115,7 @@ class TraversalServiceInFlightReleaseTest {
         config.enabled = true;
         config.serverName = "alpha";
         config.listenPort = 0;
-        network = new NetworkManager(LOGGER, config, "26.2", "test", 25565, tempDir.resolve("alpha"));
+        network = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", 25565, tempDir.resolve("alpha"), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         return new TraversalService(network);
     }
 

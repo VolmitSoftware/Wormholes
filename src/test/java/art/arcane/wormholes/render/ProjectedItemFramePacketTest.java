@@ -1,5 +1,9 @@
 package art.arcane.wormholes.render;
 
+import com.github.retrooper.packetevents.util.Vector3d;
+
+import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.util.BukkitGeometry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -9,6 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
@@ -16,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
+import com.github.retrooper.packetevents.protocol.entity.type.EntityType;
 import com.github.retrooper.packetevents.protocol.component.ComponentTypes;
 import com.github.retrooper.packetevents.protocol.item.ItemStack;
 import com.github.retrooper.packetevents.protocol.item.type.ItemTypes;
@@ -27,7 +33,6 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMa
 
 import art.arcane.volmlib.util.collection.KList;
 import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.network.view.PacketBlobs;
 import art.arcane.wormholes.network.view.ProjectedMapData;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.portal.ILocalPortal;
@@ -44,15 +49,13 @@ public final class ProjectedItemFramePacketTest {
         try {
             EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
             EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-            EntityRenderSpoofRegistry registry = new EntityRenderSpoofRegistry(channel, identity);
+            EntityRenderSpoofRegistry<Player, Vector3d> registry = new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
             EntityRenderMetadataBridge metadataBridge = new EntityRenderMetadataBridge(channel);
-            EntityRenderVisualProjector projector = new EntityRenderVisualProjector(
-                channel, registry, identity, metadataBridge);
+            EntityRenderVisualProjector<Player, World, ILocalPortal, Vector3d, EntityType, ProjectionEntityView> projector = new EntityRenderVisualProjector<>(registry, new BukkitEntityVisualHost(channel, new BukkitEntityVisualHost.Options(identity, metadataBridge)));
             PortalFrame localFrame = PortalFrame.canonical(Direction.N);
             PortalFrame remoteFrame = PortalFrame.canonical(Direction.U);
             ILocalPortal localPortal = localPortal(new Vector(1.5D, 1.5D, 5.0D), localFrame);
-            Frustum4D frustum = new Frustum4D(
-                new Location(null, 1.5D, 1.5D, 0.0D), new TestStructure(), 16.0D, 16.0D);
+            Frustum4D frustum = new Frustum4D(BukkitGeometry.vector(new Location(null, 1.5D, 1.5D, 0.0D)), new TestStructure(), new Frustum4D.Options(16.0D, 16.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
             Player observer = ProjectedEntityPacketRecorder.player(true);
 
             assertTrue(project(projector, observer, localPortal, localFrame, remoteFrame,
@@ -92,7 +95,7 @@ public final class ProjectedItemFramePacketTest {
         }
     }
 
-    private static boolean project(EntityRenderVisualProjector projector,
+    private static boolean project(EntityRenderVisualProjector<Player, World, ILocalPortal, Vector3d, EntityType, ProjectionEntityView> projector,
                                    Player observer,
                                    ILocalPortal localPortal,
                                    PortalFrame localFrame,
@@ -103,7 +106,7 @@ public final class ProjectedItemFramePacketTest {
         UUID entityId = UUID.randomUUID();
         byte[] mapData = filledMap
             ? new ProjectedMapData(1, (byte) 0, true, false, mapPixels()).encode()
-            : PacketBlobs.EMPTY;
+            : EntityVisual.EMPTY;
         EntityVisual visual = EntityVisual.full(
             entityId,
             typeKey,
@@ -115,7 +118,7 @@ public final class ProjectedItemFramePacketTest {
             false,
             "", "", "",
             null, null,
-            PacketBlobs.EMPTY, PacketBlobs.EMPTY, mapData,
+            EntityVisual.EMPTY, EntityVisual.EMPTY, mapData,
             0);
         ProjectionEntityView view = entityView(entityId, filledMap);
         return projector.projectSnapshotVisual(
@@ -186,7 +189,7 @@ public final class ProjectedItemFramePacketTest {
         InvocationHandler handler = (proxy, method, args) -> {
             String name = method.getName();
             if ("getOrigin".equals(name)) {
-                return origin;
+                return BukkitGeometry.vector(origin);
             }
             if ("getFrame".equals(name)) {
                 return frame;

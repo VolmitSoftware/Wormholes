@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.wormholes.render.view.ProjectionSkyMath;
+
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
@@ -97,12 +99,12 @@ final class ViewSubscriptions {
         session.sendStates.remove(peerName);
         session.lastSentPresentIds.remove(peerName);
         session.lastPeerSideband.remove(peerName);
-        int initialSkyDarken = art.arcane.wormholes.render.view.ProjectionWorldView.computeSkyDarken(session.world.getTime());
+        int initialSkyDarken = art.arcane.wormholes.render.view.ProjectionSkyMath.computeSkyDarken(session.world.getTime());
         session.timeDeliveryStates.put(peerName, new ViewServer.TimeDeliveryState(initialSkyDarken));
         timeDelivery.queue(session, peerName, initialSkyDarken, session.world.hasStorm(), session.world.isThundering());
         for (long[] column : session.columns) {
             long chunkKey = ViewSlice.columnKey((int) column[0], (int) column[1]);
-            replication.subscribe(peerName, session.subscriptionId, session.world, session.streamFor(chunkKey));
+            replication.subscribe(peerName, session.subscriptionId, session.world.getUID(), session.streamFor(chunkKey));
         }
         if (!isCurrent(session, peerName, progress)) {
             replication.unsubscribeAll(peerName, session.subscriptionId, session.streamKeys);

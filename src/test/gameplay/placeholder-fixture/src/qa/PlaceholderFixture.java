@@ -1,5 +1,6 @@
 package qa;
 
+import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
@@ -140,7 +141,7 @@ public final class PlaceholderFixture extends JavaPlugin {
     }
 
     private RtpSettings timedSettings(World world) {
-        return RtpSettings.builder(world)
+        return RtpSettings.builder(BukkitRtpRuntime.worldSettings(world))
             .centerMode(RtpCenterMode.CUSTOM)
             .customCenter(-8.0D, -9.0D)
             .radii(0, 2)

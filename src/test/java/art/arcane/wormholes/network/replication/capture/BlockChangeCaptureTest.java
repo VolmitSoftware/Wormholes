@@ -34,10 +34,10 @@ class BlockChangeCaptureTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
 
         CapturingFeed feed = new CapturingFeed();
-        RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, CaptureSettings.defaults());
+        RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, CaptureSettings.defaults(), BukkitCaptureAccess.INSTANCE));
 
         accumulator.recordBlockChange(world, 5, 70, 5, fakeBlockData("minecraft:stone"), BlockChange.FLAG_NONE);
         accumulator.recordBlockChange(world, 6, -20, 5, fakeBlockData("minecraft:deepslate"), BlockChange.FLAG_NONE);
@@ -66,13 +66,13 @@ class BlockChangeCaptureTest {
         ChunkReplicationManager replication = sink.getReplicationManager();
         World world = StubWorld.create(UUID.randomUUID());
         long chunkKey = ViewSlice.columnKey(0, 0);
-        replication.subscribe(PEER, world.getUID(), world, ReplicationTestStream.stream(world.getUID(), world, chunkKey));
+        replication.subscribe(PEER, world.getUID(), world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey));
         assertTrue(replication.sendBulk(PEER, world.getUID(), ReplicationTestStream.stream(world.getUID(), world, chunkKey), new byte[]{1}, 1L));
         List<Long> retries = new ArrayList<>();
         replication.setBulkRetryListener((peerName, key) -> retries.add(key.chunkKey()));
         CapturingFeed feed = new CapturingFeed();
         CaptureSettings tight = new CaptureSettings(100, 4, true, true);
-        RegionalDiffAccumulator accumulator = new RegionalDiffAccumulator(replication, feed, tight);
+        RegionalDiffAccumulator<World, BlockData> accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, tight, BukkitCaptureAccess.INSTANCE));
         for (int i = 0; i < 10; i++) {
             accumulator.recordBlockChange(world, i, 60, 0, fakeBlockData("minecraft:stone"), BlockChange.FLAG_NONE);
         }
@@ -83,7 +83,7 @@ class BlockChangeCaptureTest {
         assertTrue(retries.contains(chunkKey));
     }
 
-    private static void drainAllSafely(RegionalDiffAccumulator accumulator, World world) {
+    private static void drainAllSafely(RegionalDiffAccumulator<World, BlockData> accumulator, World world) {
         java.util.Map<Long, ChunkDirtySet> chunkMap = accumulator.dirtyWorlds().get(world.getUID());
         if (chunkMap == null) {
             return;
@@ -97,7 +97,7 @@ class BlockChangeCaptureTest {
         private final List<BlockChange> blocks = new ArrayList<>();
 
         @Override
-        public void onChunkDrain(World world, long chunkKey, List<BlockChange> drainedBlocks, List<LightDiff> drainedLights, List<BlockEntityDiff> drainedEntities) {
+        public void onChunkDrain(UUID world, long chunkKey, List<BlockChange> drainedBlocks, List<LightDiff> drainedLights, List<BlockEntityDiff> drainedEntities) {
             blocks.addAll(drainedBlocks);
         }
 

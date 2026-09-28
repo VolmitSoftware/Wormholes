@@ -17,7 +17,7 @@
 #   {address}  Uzak düğümün ağ adresi
 #   {after}  Düzenlemeden sonraki ileti değeri
 #   {allocation}  Cep alanı tahsisi
-#   {amount}  Vault para biriminde yolculuk ücreti
+#  {amount}  para biriminde yolculuk ücreti
 #   {argument}  Beklenmeyen komut argümanı
 #   {before}  Düzenlemeden önceki ileti değeri
 #   {biome}  Biyom kimliği
@@ -357,7 +357,7 @@ transfer_blocked_retry = "&cPortal aktarımı engellendi: {reason} ({seconds}s s
 
 [portal.prompt]
 cost_item = "&bMaliyet olarak istenen tam eşyayı ana elinizde tutun, ardından bırakma tuşuna basın. Eşya envanterinizden çıkmaz."
-cost_vault = "&bHer geçiş için Vault para miktarını girin (veya '{cancel}'):"
+cost_vault = "&bGeçiş başına tutarı gir (veya '{cancel}'):"
 invite = "&bPortal davetini sohbette yapıştırın (veya '{cancel}'):"
 block_state = "&bBu portalın ağ görünümünün kenarı için bir blok durumu girin veya '{cancel}':"
 name = "&bYeni portal adını sohbette girin (veya '{cancel}'):"
@@ -368,9 +368,9 @@ cost_item_set = "Seyahat artık {item} gerektiriyor."
 cost_item_invalid = "Bu eşya seyahat maliyeti olarak kaydedilemedi."
 cost_cleared = "Seyahat maliyeti temizlendi."
 cost_quantity_changed = "Seyahat maliyeti adedi: {quantity}"
-cost_vault_changed = "Vault seyahat maliyeti: {amount}"
+cost_vault_changed = "Seyahat ücreti: {amount}"
 cost_vault_invalid = "{maximum} değerini aşmayan pozitif bir para miktarı girin."
-cost_vault_unavailable = "Bu maliyeti seçmeden önce Vault ve bir ekonomi sağlayıcısı kullanılabilir olmalıdır."
+cost_vault_unavailable = "Bu ücreti seçmeden önce bir ekonomi sağlayıcısı kullanılabilir olmalıdır."
 dimensional_link_managed = "Bu boyutsal portal, oluşturulan bağlantısını korur."
 not_rtp = "Bu portal artık rastgele ışınlanma modunda değil."
 region_unavailable = "Portal bölgesi kullanılamıyor; tekrar deneyin."
@@ -397,7 +397,7 @@ public_look_label = "Bakıldığında Görünen Genel Etiket"
 [portal.label.cost]
 free = "Ücretsiz"
 vanilla = "Vanilya Eşyası"
-vault = "Vault Ekonomisi"
+vault = "Ekonomi"
 
 [portal.label.ambient]
 red = "Kırmızı"
@@ -552,12 +552,12 @@ available = ["&e&lAyna&r", "&7Yerel dünyayı geri yansıtır.", "&7Çerçeveden
 flip = ["&7Duvar aynaları 180 derecelik adımlarla döner", "&7Böylece yansıtılan varlıklar birbiriyle uyumlu kalır.", "&8Sağ tıklayın: yansıtılan görüntüyü çevirin."]
 
 [portal.menu.cost]
-opener = ["&6&lSeyahat Maliyeti&r", "&7Bir oyuncu bu portalı kullandığında", "&7tam bir eşya veya Vault parası isteyin.", "", "&7Mod: &f{mode}", "&7Maliyet: &f{cost}", "", "&8Yapılandırmak için tıklayın."]
+opener = ["&6&lSeyahat Maliyeti&r", "&7Bir oyuncu bu portalı kullandığında", "&7tam bir eşya veya parası isteyin.", "", "&7Mod: &f{mode}", "&7Maliyet: &f{cost}", "", "&8Yapılandırmak için tıklayın."]
 placard = ["&6&lSeyahat Maliyeti&r", "&7Bu portal seyahate izin vermeden önce", "&7oyuncular ödeme yapmalıdır.", "", "&7Mod: &f{mode}", "&7Maliyet: &f{cost}"]
 mode_free = ["&a&lÜcretsiz&r", "&7Ödeme gerekmez.", "", "&8Seyahati ücretsiz yapmak için tıklayın."]
 mode_vanilla = ["&b&lVanilya Eşyası&r", "&7Tam eşleşen bir eşyayı tüketir.", "", "&8Tıklayın, eşyayı tutun, ardından bırakma tuşuna basın."]
-mode_vault = ["&a&lVault Ekonomisi&r", "&7Vault üzerinden para çeker.", "", "&8Bir miktar girmek için tıklayın."]
-mode_vault_unavailable = ["&c&lVault Ekonomisi Kullanılamıyor&r", "&7Vault ve bir ekonomi sağlayıcısı gereklidir.", "", "&8Bu modu kullanmak için ikisini de kurun veya etkinleştirin."]
+mode_vault = ["&a&lEkonomi&r", "&7Ekonomi sağlayıcısı üzerinden para çeker.", "", "&8Bir miktar girmek için tıklayın."]
+mode_vault_unavailable = ["&c&lEkonomi kullanılamıyor&r", "&7Bir ekonomi sağlayıcısı gereklidir.", "", "&8Bu mod için bir ekonomi sağlayıcısını etkinleştir."]
 free_detail = ["&a&lMaliyet Yok&r", "&7Bu portaldan seyahat ücretsizdir."]
 secondary_empty = ["&8&lEk Ayar Yok&r"]
 item = ["&b&l{item}&r", "&7Seyahat için tam olarak bu eşya gereklidir.", "&7Seçim eşyası asla tüketilmez.", "", "&8Sol tıklama: elde tutulan başka bir eşyayı seçin.", "&8Sağ tıklama: maliyeti temizleyin."]
@@ -687,7 +687,7 @@ execution_failed = "{command} komutu çalıştırılamadı: {reason}"
 not_initialized = "&8[&6Wormholes&8] &cAğ henüz başlatılmadı."
 
 [network.status]
-disabled = "&8[&6Wormholes&8] &7Ağ &cdevre dışı&7 (plugins/Wormholes/wormholes.toml)."
+disabled = "&8[&6Wormholes&8] &7Ağ &cdevre dışı&7 (wormholes.toml)."
 not_running = "&8[&6Wormholes&8] &cAğ etkin ancak çalışmıyor. Kimlik deposunu ve ağ bağlantı noktasını kontrol edin."
 listening = "&8[&6Wormholes&8] &7Mevcut sunucu: &f{server}&7, dinleme adresi: &f{address}"
 outbound_only = "&8[&6Wormholes&8] &7Mevcut sunucu: &f{server}&7, yalnızca giden Boat modu"

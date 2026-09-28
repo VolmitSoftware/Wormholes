@@ -1,5 +1,7 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.util.BukkitGeometry;
+import art.arcane.wormholes.geometry.GeometryVector;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -22,10 +24,10 @@ public final class EntityRenderLocalOccluderEnvelopeTest {
         SettingsSnapshot settings = applyExactFrustumSettings();
         try {
             Frustum4D frustum = frustum();
-            assertTrue(EntityRenderLocalOccluder.envelopeFullyProjected(
+            assertTrue(ProjectorLocalEntityEnvelope.envelopeFullyProjected(
                 1.0D, 0.75D, 6.5D,
                 2.0D, 2.5D, 7.5D,
-                new Vector(1.5D, 1.5D, 5.0D), PortalFrame.canonical(Direction.N), frustum,
+                new GeometryVector(1.5D, 1.5D, 5.0D), PortalFrame.canonical(Direction.N), frustum,
                 true, 0.01D, 16.0D));
         } finally {
             settings.restore();
@@ -37,10 +39,10 @@ public final class EntityRenderLocalOccluderEnvelopeTest {
         SettingsSnapshot settings = applyExactFrustumSettings();
         try {
             Frustum4D frustum = frustum();
-            assertFalse(EntityRenderLocalOccluder.envelopeFullyProjected(
+            assertFalse(ProjectorLocalEntityEnvelope.envelopeFullyProjected(
                 2.5D, 0.75D, 6.5D,
                 4.0D, 2.5D, 7.5D,
-                new Vector(1.5D, 1.5D, 5.0D), PortalFrame.canonical(Direction.N), frustum,
+                new GeometryVector(1.5D, 1.5D, 5.0D), PortalFrame.canonical(Direction.N), frustum,
                 true, 0.01D, 16.0D));
         } finally {
             settings.restore();
@@ -54,23 +56,21 @@ public final class EntityRenderLocalOccluderEnvelopeTest {
             Frustum4D frustum = frustum();
             Vector origin = new Vector(1.5D, 1.5D, 5.0D);
             PortalFrame frame = PortalFrame.canonical(Direction.N);
-            assertFalse(EntityRenderLocalOccluder.envelopeFullyProjected(
+            assertFalse(ProjectorLocalEntityEnvelope.envelopeFullyProjected(
                 1.0D, 0.75D, 4.9D,
                 2.0D, 2.5D, 5.5D,
-                origin, frame, frustum, true, 0.01D, 16.0D));
-            assertFalse(EntityRenderLocalOccluder.envelopeFullyProjected(
+                BukkitGeometry.vector(origin), frame, frustum, true, 0.01D, 16.0D));
+            assertFalse(ProjectorLocalEntityEnvelope.envelopeFullyProjected(
                 1.0D, 0.75D, 20.5D,
                 2.0D, 2.5D, 21.5D,
-                origin, frame, frustum, true, 0.01D, 16.0D));
+                BukkitGeometry.vector(origin), frame, frustum, true, 0.01D, 16.0D));
         } finally {
             settings.restore();
         }
     }
 
     private static Frustum4D frustum() {
-        return new Frustum4D(
-            new Location(null, 1.5D, 1.5D, 0.0D),
-            new TestStructure(), 16.0D, 16.0D);
+        return new Frustum4D(BukkitGeometry.vector(new Location(null, 1.5D, 1.5D, 0.0D)), new TestStructure(), new Frustum4D.Options(16.0D, 16.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
     }
 
     private static SettingsSnapshot applyExactFrustumSettings() {

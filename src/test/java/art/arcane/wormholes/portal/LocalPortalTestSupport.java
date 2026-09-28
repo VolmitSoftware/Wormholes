@@ -1,5 +1,6 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.wormholes.util.BukkitGeometry;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -58,7 +59,7 @@ final class LocalPortalTestSupport
 
 	static Traversive traversive(LocalPortal portal, Entity entity, Vector inPoint)
 	{
-		return new Traversive(entity, portal.getFrame().view(true), portal.getOrigin(), inPoint,
+		return new Traversive(entity, portal.getFrame().view(true), BukkitGeometry.bukkit(portal.getOrigin()), inPoint,
 				new Vector(0.0D, 0.0D, -0.4D), new Vector(0.0D, 0.0D, -1.0D), true);
 	}
 

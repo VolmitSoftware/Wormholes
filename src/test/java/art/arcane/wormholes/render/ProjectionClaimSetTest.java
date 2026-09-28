@@ -1,5 +1,8 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.portal.ILocalPortal;
+import org.bukkit.World;
+import org.bukkit.Material;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -24,7 +27,7 @@ public final class ProjectionClaimSetTest {
 
     @Test
     public void nearestPortalClaimWinsSharedCell() {
-        ProjectionClaimSet set = new ProjectionClaimSet();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         UUID farPortal = UUID.fromString("00000000-0000-0000-0000-000000000002");
         UUID nearPortal = UUID.fromString("00000000-0000-0000-0000-000000000001");
         BlockData farData = blockData("far");
@@ -41,7 +44,7 @@ public final class ProjectionClaimSetTest {
 
     @Test
     public void losingPortalUpdateDoesNotOverwriteWinner() {
-        ProjectionClaimSet set = new ProjectionClaimSet();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         UUID farPortal = UUID.fromString("00000000-0000-0000-0000-000000000002");
         UUID nearPortal = UUID.fromString("00000000-0000-0000-0000-000000000001");
         BlockData nearData = blockData("near");
@@ -58,7 +61,7 @@ public final class ProjectionClaimSetTest {
 
     @Test
     public void releasingWinnerFallsBackToNextClaimBeforeRealBlock() {
-        ProjectionClaimSet set = new ProjectionClaimSet();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         UUID farPortal = UUID.fromString("00000000-0000-0000-0000-000000000002");
         UUID nearPortal = UUID.fromString("00000000-0000-0000-0000-000000000001");
         BlockData farData = blockData("far");
@@ -80,7 +83,7 @@ public final class ProjectionClaimSetTest {
 
     @Test
     public void equalDistanceTieBreaksByPortalId() {
-        ProjectionClaimSet set = new ProjectionClaimSet();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         UUID highPortal = UUID.fromString("00000000-0000-0000-0000-000000000009");
         UUID lowPortal = UUID.fromString("00000000-0000-0000-0000-000000000001");
         BlockData lowData = blockData("low");
@@ -94,7 +97,7 @@ public final class ProjectionClaimSetTest {
 
     @Test
     public void realProjectionBeatsNearerMaskAirClaim() {
-        ProjectionClaimSet set = new ProjectionClaimSet();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         UUID maskPortal = UUID.fromString("00000000-0000-0000-0000-000000000001");
         UUID blockPortal = UUID.fromString("00000000-0000-0000-0000-000000000002");
         BlockData blockData = blockData("block");
@@ -109,7 +112,7 @@ public final class ProjectionClaimSetTest {
 
     @Test
     public void stableResubmitsDoNotProducePacketChanges() {
-        ProjectionClaimSet set = new ProjectionClaimSet();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         UUID portal = UUID.fromString("00000000-0000-0000-0000-000000000001");
         BlockData data = blockData("stable");
 
@@ -123,12 +126,12 @@ public final class ProjectionClaimSetTest {
 
     @Test
     public void fullBrightPolicyChangesOnlyLightingAndTracksRelease() {
-        ProjectionClaimSet set = new ProjectionClaimSet();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         UUID portal = UUID.fromString("00000000-0000-0000-0000-000000000001");
         BlockData data = blockData("stable");
         set.replacePortalClaims(portal, portal.toString(), 2.0D, singleClaim(data));
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> fullBright = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(1);
-        fullBright.put(CELL_KEY, new ProjectedBlockClaim(
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> fullBright = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(1);
+        fullBright.put(CELL_KEY, new ProjectedBlockClaim<BlockData, ProjectionWorldView>(
             data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false,
             ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT));
 
@@ -152,10 +155,10 @@ public final class ProjectionClaimSetTest {
             ProjectionWorldView.class.getClassLoader(), new Class<?>[] { ProjectionWorldView.class },
             (proxy, method, args) -> primitiveDefault(method.getReturnType()));
         BlockData data = blockData("retained");
-        ProjectedBlockClaim source = new ProjectedBlockClaim(data, sourceView, 91L, false);
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> source = new ProjectedBlockClaim<BlockData, ProjectionWorldView>(data, sourceView, 91L, false);
         source.setGlobalId(27);
 
-        ProjectedBlockClaim fullBright = source.withFullBright(true);
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> fullBright = source.withFullBright(true);
 
         assertTrue(fullBright.isFullBright());
         assertSame(data, fullBright.getData());
@@ -163,14 +166,14 @@ public final class ProjectionClaimSetTest {
         assertEquals(91L, fullBright.getLightRemoteKey());
         assertEquals(27, fullBright.getGlobalId());
 
-        ProjectedBlockClaim restored = fullBright.withFullBright(false);
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> restored = fullBright.withFullBright(false);
 
         assertEquals(ProjectedBlockClaim.LightingPolicy.SOURCE, restored.getLightingPolicy());
         assertSame(sourceView, restored.getLightView());
         assertEquals(91L, restored.getLightRemoteKey());
         assertEquals(27, restored.getGlobalId());
 
-        ProjectedBlockClaim local = new ProjectedBlockClaim(
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> local = new ProjectedBlockClaim<BlockData, ProjectionWorldView>(
             data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false,
             ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT);
         assertEquals(ProjectedBlockClaim.LightingPolicy.LOCAL,
@@ -179,7 +182,7 @@ public final class ProjectionClaimSetTest {
 
     @Test
     public void fluidSkinOwnerDoesNotReplaceOrReleaseProjectionClaims() {
-        ProjectionClaimSet set = new ProjectionClaimSet();
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         UUID projectionOwner = UUID.fromString("00000000-0000-0000-0000-000000000001");
         UUID fluidOwner = UUID.fromString("00000000-0000-0000-0000-000000000002");
         long projectedCell = 42L;
@@ -202,43 +205,43 @@ public final class ProjectionClaimSetTest {
 
     @Test
     public void recursivePortalFallbackPolicyMasksOnlyBlockedApertures() {
-        assertTrue(PortalProjector.shouldMaskRecursivePortalAperture(true, false, 0));
-        assertTrue(PortalProjector.shouldMaskRecursivePortalAperture(true, true, 3));
-        assertTrue(PortalProjector.shouldMaskRecursivePortalAperture(false, false, 3));
-        assertFalse(PortalProjector.shouldMaskRecursivePortalAperture(true, false, 1));
+        assertTrue(ProjectorSampler.shouldMaskRecursivePortalAperture(true, false, 0));
+        assertTrue(ProjectorSampler.shouldMaskRecursivePortalAperture(true, true, 3));
+        assertTrue(ProjectorSampler.shouldMaskRecursivePortalAperture(false, false, 3));
+        assertFalse(ProjectorSampler.shouldMaskRecursivePortalAperture(true, false, 1));
     }
 
     @Test
     public void maskAirAlwaysProjectsWhileRemoteAirSkipsLocalAir() {
-        assertTrue(PortalProjector.shouldProjectAirSample(ProjectorSample.Kind.MASK_AIR, true));
-        assertTrue(PortalProjector.shouldProjectAirSample(ProjectorSample.Kind.MASK_AIR, false));
-        assertFalse(PortalProjector.shouldProjectAirSample(ProjectorSample.Kind.REMOTE_AIR, true));
-        assertTrue(PortalProjector.shouldProjectAirSample(ProjectorSample.Kind.REMOTE_AIR, false));
-        assertFalse(PortalProjector.shouldProjectAirSample(ProjectorSample.Kind.NO_SAMPLE, false));
+        assertTrue(ProjectorCellScan.shouldProjectAirSample(ProjectorSample.Kind.MASK_AIR, true));
+        assertTrue(ProjectorCellScan.shouldProjectAirSample(ProjectorSample.Kind.MASK_AIR, false));
+        assertFalse(ProjectorCellScan.shouldProjectAirSample(ProjectorSample.Kind.REMOTE_AIR, true));
+        assertTrue(ProjectorCellScan.shouldProjectAirSample(ProjectorSample.Kind.REMOTE_AIR, false));
+        assertFalse(ProjectorCellScan.shouldProjectAirSample(ProjectorSample.Kind.NO_SAMPLE, false));
     }
 
-    private static Long2ObjectOpenHashMap<ProjectedBlockClaim> singleClaim(BlockData data) {
+    private static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> singleClaim(BlockData data) {
         return singleClaim(CELL_KEY, data);
     }
 
-    private static Long2ObjectOpenHashMap<ProjectedBlockClaim> singleClaim(long key, BlockData data) {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(1);
+    private static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> singleClaim(long key, BlockData data) {
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(1);
         claims.put(key, singleClaimValue(data));
         return claims;
     }
 
-    private static Long2ObjectOpenHashMap<ProjectedBlockClaim> singleMaskClaim(BlockData data) {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(1);
+    private static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> singleMaskClaim(BlockData data) {
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(1);
         claims.put(CELL_KEY, singleMaskClaimValue(data));
         return claims;
     }
 
-    private static ProjectedBlockClaim singleClaimValue(BlockData data) {
-        return new ProjectedBlockClaim(data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+    private static ProjectedBlockClaim<BlockData, ProjectionWorldView> singleClaimValue(BlockData data) {
+        return new ProjectedBlockClaim<BlockData, ProjectionWorldView>(data, null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
     }
 
-    private static ProjectedBlockClaim singleMaskClaimValue(BlockData data) {
-        return new ProjectedBlockClaim(data, null, ProjectedBlockClaim.NO_REMOTE_KEY, true);
+    private static ProjectedBlockClaim<BlockData, ProjectionWorldView> singleMaskClaimValue(BlockData data) {
+        return new ProjectedBlockClaim<BlockData, ProjectionWorldView>(data, null, ProjectedBlockClaim.NO_REMOTE_KEY, true);
     }
 
     private static BlockData blockData(String name) {

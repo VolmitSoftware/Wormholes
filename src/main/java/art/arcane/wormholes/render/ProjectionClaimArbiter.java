@@ -73,7 +73,7 @@ public final class ProjectionClaimArbiter {
     }
 
     public ProjectionClaimArbiter(ProjectionWorldViewProvider viewProvider, ProjectionChunkVisibility chunkVisibility) {
-        this(viewProvider, chunkVisibility, () -> new ProjectorLighting(chunkVisibility));
+        this(viewProvider, chunkVisibility, () -> BukkitProjectorLighting.create(chunkVisibility));
     }
 
     ProjectionClaimArbiter(ProjectionWorldViewProvider viewProvider,
@@ -155,7 +155,7 @@ public final class ProjectionClaimArbiter {
     public ClaimUpdateResult submit(Player observer,
                                     ILocalPortal portal,
                                     World localWorld,
-                                    Long2ObjectMap<ProjectedBlockClaim> claims,
+                                    Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims,
                                     double priorityDistance,
                                     boolean allowLightingUpdate) {
         return submit(observer, portal, localWorld, claims, priorityDistance, allowLightingUpdate, false);
@@ -164,7 +164,7 @@ public final class ProjectionClaimArbiter {
     public ClaimUpdateResult submit(Player observer,
                                     ILocalPortal portal,
                                     World localWorld,
-                                    Long2ObjectMap<ProjectedBlockClaim> claims,
+                                    Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims,
                                     double priorityDistance,
                                     boolean allowLightingUpdate,
                                     boolean sourceLighting) {
@@ -177,7 +177,7 @@ public final class ProjectionClaimArbiter {
     public ClaimUpdateResult submit(Player observer,
                                     UUID claimOwnerId,
                                     World localWorld,
-                                    Long2ObjectMap<ProjectedBlockClaim> claims,
+                                    Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims,
                                     double priorityDistance,
                                     boolean allowLightingUpdate) {
         return submit(observer, claimOwnerId, localWorld, claims, priorityDistance, allowLightingUpdate, false);
@@ -190,7 +190,7 @@ public final class ProjectionClaimArbiter {
     public ClaimUpdateResult submit(Player observer,
                                     UUID claimOwnerId,
                                     World localWorld,
-                                    Long2ObjectMap<ProjectedBlockClaim> claims,
+                                    Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims,
                                     double priorityDistance,
                                     boolean allowLightingUpdate,
                                     boolean sourceLighting) {
@@ -199,7 +199,7 @@ public final class ProjectionClaimArbiter {
     }
 
     ClaimUpdateResult submitDelta(Player observer, ILocalPortal portal, World localWorld,
-                                   ProjectionClaimSet.ClaimDelta delta, double priorityDistance,
+                                   ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>> delta, double priorityDistance,
                                    boolean allowLightingUpdate, boolean sourceLighting) {
         if (portal == null || delta == null) {
             return ClaimUpdateResult.empty();
@@ -209,9 +209,9 @@ public final class ProjectionClaimArbiter {
     }
 
     private ClaimUpdateResult submitClaims(Player observer, UUID claimOwnerId, World localWorld,
-                                           Long2ObjectMap<ProjectedBlockClaim> claims, double priorityDistance,
+                                           Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims, double priorityDistance,
                                            boolean allowLightingUpdate, boolean sourceLighting,
-                                           ProjectionClaimSet.ClaimDelta delta) {
+                                           ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>> delta) {
         if (observer == null || claimOwnerId == null || claims == null) {
             return ClaimUpdateResult.empty();
         }
@@ -533,7 +533,7 @@ public final class ProjectionClaimArbiter {
                 LongIterator packetIterator = packetKeys.iterator();
                 while (packetIterator.hasNext()) {
                     long key = packetIterator.nextLong();
-                    ProjectedBlockClaim winner = observerClaims.claimSet.getWinningClaim(key);
+                    ProjectedBlockClaim<BlockData, ProjectionWorldView> winner = observerClaims.claimSet.getWinningClaim(key);
                     int x = ProjectionCellKey.unpackX(key);
                     int y = ProjectionCellKey.unpackY(key);
                     int z = ProjectionCellKey.unpackZ(key);
@@ -851,7 +851,7 @@ public final class ProjectionClaimArbiter {
         }
     }
 
-    private int claimGlobalId(ProjectedBlockClaim claim, BlockData data) {
+    private int claimGlobalId(ProjectedBlockClaim<BlockData, ProjectionWorldView> claim, BlockData data) {
         int cached = claim.getGlobalId();
         if (cached != ProjectedBlockClaim.UNRESOLVED_GLOBAL_ID) {
             return cached;
@@ -1008,7 +1008,7 @@ public final class ProjectionClaimArbiter {
 
     private static final class ObserverClaims {
         private final UUID worldId;
-        private final ProjectionClaimSet claimSet;
+        private final ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claimSet;
         private final LongOpenHashSet pendingLightingKeys;
         private final LongOpenHashSet pendingRevertKeys;
         private final LongOpenHashSet pendingSendKeys;
@@ -1017,7 +1017,7 @@ public final class ProjectionClaimArbiter {
         private final Long2ByteOpenHashMap chunkSentMemo;
         private final Long2LongOpenHashMap chunkRevisionMemo;
         private final LongOpenHashSet discardedLightingChunks;
-        private final ProjectorLighting lighting;
+        private final ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting;
         private final Set<UUID> sourceLightingPortals;
         private BiomeClaimSet biomes;
         private ObserverFrame frame;
@@ -1026,9 +1026,9 @@ public final class ProjectionClaimArbiter {
         private long chunkMemoRevision;
         private boolean retired;
 
-        private ObserverClaims(UUID worldId, ProjectorLighting lighting) {
+        private ObserverClaims(UUID worldId, ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting) {
             this.worldId = worldId;
-            this.claimSet = new ProjectionClaimSet();
+            this.claimSet = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
             this.pendingLightingKeys = new LongOpenHashSet();
             this.pendingRevertKeys = new LongOpenHashSet();
             this.pendingSendKeys = new LongOpenHashSet();
@@ -1085,6 +1085,6 @@ public final class ProjectionClaimArbiter {
 
     @FunctionalInterface
     interface LightingFactory {
-        ProjectorLighting create();
+        ProjectorLighting<Player, BlockData, ProjectionWorldView> create();
     }
 }

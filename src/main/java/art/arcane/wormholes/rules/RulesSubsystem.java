@@ -122,7 +122,7 @@ public final class RulesSubsystem implements WormholesSubsystem {
                     return;
                 }
                 long nowMillis = System.currentTimeMillis();
-                if (warmups.cancelOnMove(playerId, player.getLocation(), RulesLimits.config().warmupCancelMoveBlocks, nowMillis)
+                if (warmups.cancelOnMove(playerId, RuleContext.anchor(player.getLocation()), RulesLimits.config().warmupCancelMoveBlocks, nowMillis)
                     || !warmups.tick(playerId, nowMillis)) {
                     return;
                 }

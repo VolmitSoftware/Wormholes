@@ -4,6 +4,7 @@ import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 
 import org.bukkit.World;
+import org.bukkit.entity.Pose;
 import org.bukkit.util.BoundingBox;
 
 import java.util.ArrayList;
@@ -15,34 +16,21 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-final class ViewSession {
-    final UUID portalId;
+final class ViewSession extends ViewEntityState<Pose> {
     final UUID subscriptionId;
     final World world;
     final ViewBox box;
     final ProjectionRenderMode renderMode;
     final int centerChunkX;
     final int centerChunkZ;
-    final double portalCenterX;
-    final double portalCenterY;
-    final double portalCenterZ;
     final List<long[]> columns;
     final List<Long> chunkKeys;
     final List<ReplicationStreamKey> streamKeys;
     final BoundingBox bounds;
-    final Set<String> peers = ConcurrentHashMap.newKeySet();
-    final Set<UUID> sentProfiles = ConcurrentHashMap.newKeySet();
-    final Map<String, Map<UUID, EntitySendState>> sendStates = new ConcurrentHashMap<>();
-    final Map<String, Set<UUID>> lastSentPresentIds = new ConcurrentHashMap<>();
-    final Map<String, Long> sidebandEntityNextTick = new ConcurrentHashMap<>();
-    final Map<String, Boolean> lastPeerSideband = new ConcurrentHashMap<>();
     final Map<String, ViewServer.TimeDeliveryState> timeDeliveryStates = new ConcurrentHashMap<>();
     final Map<String, InitialSubscriptionProgress> initialSubscriptionProgress = new ConcurrentHashMap<>();
-    final Map<UUID, EntityVisual> lastCapturedSnapshots = new ConcurrentHashMap<>();
-    final Map<UUID, ViewServer.BlobCaptureState> blobCaptureStates = new ConcurrentHashMap<>();
     final AtomicBoolean entityCaptureRunning = new AtomicBoolean(false);
     final AtomicLong entityCaptureGeneration = new AtomicLong();
-    final AtomicBoolean captureFailureLogged = new AtomicBoolean(false);
     volatile ViewServer.TicketLease ticketLease;
     volatile ViewServer.EntityCaptureToken activeEntityCapture;
     volatile int lastSkyDarken = -1;
@@ -50,25 +38,18 @@ final class ViewSession {
 
     ViewSession(UUID portalId, World world, ViewBox box, ProjectionRenderMode renderMode, int centerChunkX, int centerChunkZ,
                 double portalCenterX, double portalCenterY, double portalCenterZ) {
-        this.portalId = portalId;
+        super(portalId, new Center(portalCenterX, portalCenterY, portalCenterZ));
         this.subscriptionId = UUID.randomUUID();
         this.world = world;
         this.box = box;
         this.renderMode = renderMode == null ? ProjectionRenderMode.VENTICULAR : renderMode;
         this.centerChunkX = centerChunkX;
         this.centerChunkZ = centerChunkZ;
-        this.portalCenterX = portalCenterX;
-        this.portalCenterY = portalCenterY;
-        this.portalCenterZ = portalCenterZ;
         this.columns = columnsFor(box);
         this.chunkKeys = chunkKeysFor(columns);
         this.streamKeys = streamKeysFor(portalId, world.getUID(), chunkKeys, this.renderMode);
         this.bounds = new BoundingBox(box.minX(), box.minY(), box.minZ(),
             box.maxX() + 1, box.maxY() + 1, box.maxZ() + 1);
-    }
-
-    Map<UUID, EntitySendState> sendStatesFor(String peerName) {
-        return sendStates.computeIfAbsent(peerName, name -> new ConcurrentHashMap<>());
     }
 
     boolean containsChunk(int chunkX, int chunkZ) {

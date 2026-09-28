@@ -1,5 +1,11 @@
 package art.arcane.wormholes;
 
+import art.arcane.wormholes.portal.PortalAnimationPlan;
+
+import com.github.retrooper.packetevents.protocol.player.Equipment;
+
+import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
+
 import art.arcane.volmlib.util.event.ProtectionProbe;
 
 import java.util.ArrayList;
@@ -276,7 +282,7 @@ public class EffectManager implements Listener
 
 	private void sweepRemoteSync()
 	{
-		RemoteViewCache cache = Wormholes.remoteViewCache;
+		RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = Wormholes.remoteViewCache;
 		if(cache == null || Wormholes.portalManager == null || Wormholes.instance == null)
 		{
 			portalSyncActive.clear();
@@ -711,7 +717,7 @@ public class EffectManager implements Listener
 		{
 			if(audible.getAsBoolean())
 			{
-				world.playSound(center, Sound.BLOCK_END_PORTAL_SPAWN, SoundCategory.BLOCKS, openingSoundPlan().frameVolume(), 0.35f);
+				world.playSound(center, Sound.BLOCK_END_PORTAL_SPAWN, SoundCategory.BLOCKS, PortalAnimationPlan.openingSoundPlan(Settings.PORTAL_SOUND_VOLUME_MULTIPLIER).frameVolume(), 0.35f);
 			}
 			animator.playKawooshSounds(world, center, active, audible);
 			return;
@@ -722,7 +728,7 @@ public class EffectManager implements Listener
 		}
 		if(audible.getAsBoolean())
 		{
-			world.playSound(center, Sound.BLOCK_END_PORTAL_SPAWN, SoundCategory.BLOCKS, openingSoundPlan().frameVolume(), 0.35f);
+			world.playSound(center, Sound.BLOCK_END_PORTAL_SPAWN, SoundCategory.BLOCKS, PortalAnimationPlan.openingSoundPlan(Settings.PORTAL_SOUND_VOLUME_MULTIPLIER).frameVolume(), 0.35f);
 		}
 		animator.playOpenPrelude(world, center, sx, sy, sz, active, audible);
 	}
@@ -730,75 +736,6 @@ public class EffectManager implements Listener
 	public void playPortalDeletion(World world, Location corner, double sx, double sy, double sz)
 	{
 		playPortalClose(world, corner, sx, sy, sz, () -> true);
-	}
-
-	static int formationDisplayCap(VisualQualityProfile profile)
-	{
-		return switch(profile)
-		{
-			case PERFORMANCE -> 8;
-			case BALANCED -> 16;
-			case AUTO -> 18;
-			case CINEMATIC -> 24;
-		};
-	}
-
-	static CloseEffectPlan closeEffectPlan(VisualQualityProfile profile)
-	{
-		return switch(profile)
-		{
-			case PERFORMANCE -> new CloseEffectPlan(4, 3, 14);
-			case BALANCED -> new CloseEffectPlan(6, 4, 22);
-			case AUTO -> new CloseEffectPlan(6, 4, 26);
-			case CINEMATIC -> new CloseEffectPlan(8, 5, 30);
-		};
-	}
-
-	static KawooshPlan kawooshPlan(VisualQualityProfile profile)
-	{
-		return switch(profile)
-		{
-			case PERFORMANCE -> new KawooshPlan(2, 6, 20, 8, 2);
-			case BALANCED -> new KawooshPlan(3, 9, 40, 18, 4);
-			case AUTO -> new KawooshPlan(3, 11, 44, 20, 5);
-			case CINEMATIC -> new KawooshPlan(3, 14, 48, 24, 6);
-		};
-	}
-
-	static int openingRingPoints(VisualQualityProfile profile)
-	{
-		return switch(profile)
-		{
-			case PERFORMANCE -> 6;
-			case BALANCED -> 10;
-			case AUTO -> 12;
-			case CINEMATIC -> 16;
-		};
-	}
-
-	static OpeningSoundPlan openingSoundPlan()
-	{
-		return new OpeningSoundPlan(
-				Settings.portalSoundVolume(0.2f),
-				Settings.portalSoundVolume(0.225f),
-				Settings.portalSoundVolume(0.2f),
-				Settings.portalSoundVolume(0.075f));
-	}
-
-	static double ellipseRadius(double halfA, double halfB, double angle)
-	{
-		double cos = Math.cos(angle);
-		double sin = Math.sin(angle);
-		return 1.0D / Math.sqrt((cos * cos) / (halfA * halfA) + (sin * sin) / (halfB * halfB));
-	}
-
-	static double[] outwardShardVelocity(int normalAxis, int planeA, int planeB, double radialA, double radialB, double normalDirection)
-	{
-		double[] velocity = new double[3];
-		velocity[normalAxis] = normalDirection * 0.65D;
-		velocity[planeA] = radialA;
-		velocity[planeB] = radialB;
-		return velocity;
 	}
 
 	static boolean vortexMarkerMatches(UUID markerWorldId, double markerX, double markerY, double markerZ, long expiresAtMillis, long nowMillis, UUID worldId, double x, double y, double z)
@@ -821,15 +758,4 @@ public class EffectManager implements Listener
 	{
 	}
 
-	record CloseEffectPlan(int branches, int segments, int shards)
-	{
-	}
-
-	record KawooshPlan(int arms, int armPoints, int impactReverse, int impactEndRod, int surgeCount)
-	{
-	}
-
-	record OpeningSoundPlan(float frameVolume, float portalImpactVolume, float beaconImpactVolume, float sonicBoomVolume)
-	{
-	}
 }

@@ -1,5 +1,7 @@
 package art.arcane.wormholes.render.lod;
 
+import art.arcane.wormholes.render.view.ProjectionWorldView;
+import org.bukkit.block.data.BlockData;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
@@ -86,13 +88,13 @@ public final class DissolveSchedule {
     }
 
     /** Removes claims deeper than {@code fraction * maxDepth} from the plane, keeping the nearest first. */
-    public static void filter(Long2ObjectMap<ProjectedBlockClaim> claims, double fraction, double maxDepth, DepthFunction depth) {
+    public static void filter(Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims, double fraction, double maxDepth, DepthFunction depth) {
         if (fraction >= 1.0D || claims.isEmpty()) {
             return;
         }
         double limit = fraction * maxDepth;
         LongArrayList removed = new LongArrayList();
-        ObjectIterator<Long2ObjectMap.Entry<ProjectedBlockClaim>> iterator = claims.long2ObjectEntrySet().iterator();
+        ObjectIterator<Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>>> iterator = claims.long2ObjectEntrySet().iterator();
         while (iterator.hasNext()) {
             long key = iterator.next().getLongKey();
             if (fraction <= 0.0D || depth.depth(key) > limit) {

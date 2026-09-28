@@ -37,10 +37,10 @@ public final class RtpSettingsTest
 	{
 		World world = world("overworld", -64, 320, 63);
 
-		RtpSettings settings = RtpSettings.defaults(world);
+		RtpSettings settings = RtpSettings.defaults(BukkitRtpRuntime.worldSettings(world));
 
 		assertEquals("minecraft:overworld", settings.getSourceWorldKey());
-		assertSame(world, settings.getTargetWorld());
+		assertEquals(BukkitRtpRuntime.worldSettings(world), settings.getTargetWorld());
 		assertEquals("minecraft:overworld", settings.getTargetWorldKey());
 		assertEquals(RtpCenterMode.PORTAL_RELATIVE, settings.getCenterMode());
 		assertNull(settings.getCustomCenterX());
@@ -59,28 +59,28 @@ public final class RtpSettingsTest
 		assertEquals(15_000L, settings.getPrivateReleaseMillis());
 		assertTrue(settings.isRimEnabled());
 		assertTrue(settings.isSoundEnabled());
-		assertEquals("SAFE", settings.toJson().getString("safetyMode"));
-		assertFalse(settings.toJson().has("targetWorldKey"));
+		assertEquals("SAFE", BukkitRtpRuntime.writeSettings(settings).getString("safetyMode"));
+		assertFalse(BukkitRtpRuntime.writeSettings(settings).has("targetWorldKey"));
 	}
 
 	@Test
 	public void explicitSourceWorldKeyNormalizesToImplicitSourceWorld()
 	{
 		World source = world("overworld", -64, 320, 63);
-		JSONObject json = RtpSettings.defaults(source).toJson();
+		JSONObject json = BukkitRtpRuntime.writeSettings(RtpSettings.defaults(BukkitRtpRuntime.worldSettings(source)));
 		json.put("targetWorldKey", "minecraft:overworld");
 
-		RtpSettings restored = RtpSettings.fromJson(json, key -> source);
+		RtpSettings restored = BukkitRtpRuntime.readSettings(json, key -> source);
 
 		assertTrue(restored.isSourceWorldTarget());
-		assertFalse(restored.toJson().has("targetWorldKey"));
+		assertFalse(BukkitRtpRuntime.writeSettings(restored).has("targetWorldKey"));
 	}
 
 	@Test
 	public void presentationChangesDoNotChangeRouteIdentity()
 	{
 		World source = world("overworld", -64, 320, 63);
-		RtpSettings original = RtpSettings.defaults(source);
+		RtpSettings original = RtpSettings.defaults(BukkitRtpRuntime.worldSettings(source));
 		RtpSettings presentationOnly = original.toBuilder()
 				.rimEnabled(false)
 				.soundEnabled(false)
@@ -98,7 +98,7 @@ public final class RtpSettingsTest
 	public void targetBiomeKeyNormalizesPersistsAndChangesRouteIdentity()
 	{
 		World source = world("overworld", -64, 320, 63);
-		RtpSettings anyBiome = RtpSettings.defaults(source);
+		RtpSettings anyBiome = RtpSettings.defaults(BukkitRtpRuntime.worldSettings(source));
 		RtpSettings swamp = anyBiome.toBuilder().targetBiomeKey(" Minecraft:Swamp ").build();
 		RtpSettings cleared = swamp.toBuilder().targetBiomeKey("   ").build();
 
@@ -106,10 +106,10 @@ public final class RtpSettingsTest
 		assertEquals("minecraft:swamp", swamp.getTargetBiomeKey());
 		assertNull(cleared.getTargetBiomeKey());
 		assertFalse(anyBiome.hasSameRouteAs(swamp));
-		assertFalse(anyBiome.toJson().has("targetBiomeKey"));
-		assertEquals("minecraft:swamp", swamp.toJson().getString("targetBiomeKey"));
+		assertFalse(BukkitRtpRuntime.writeSettings(anyBiome).has("targetBiomeKey"));
+		assertEquals("minecraft:swamp", BukkitRtpRuntime.writeSettings(swamp).getString("targetBiomeKey"));
 
-		RtpSettings restored = RtpSettings.fromJson(swamp.toJson(), key -> source);
+		RtpSettings restored = BukkitRtpRuntime.readSettings(BukkitRtpRuntime.writeSettings(swamp), key -> source);
 		assertEquals("minecraft:swamp", restored.getTargetBiomeKey());
 		assertEquals(swamp, restored);
 	}
@@ -119,16 +119,16 @@ public final class RtpSettingsTest
 	{
 		World world = world("overworld", -64, 320, 63);
 
-		assertThrows(IllegalArgumentException.class, () -> RtpSettings.builder(world).radii(-1, 100).build());
-		assertThrows(IllegalArgumentException.class, () -> RtpSettings.builder(world).radii(100, 100).build());
+		assertThrows(IllegalArgumentException.class, () -> RtpSettings.builder(BukkitRtpRuntime.worldSettings(world)).radii(-1, 100).build());
+		assertThrows(IllegalArgumentException.class, () -> RtpSettings.builder(BukkitRtpRuntime.worldSettings(world)).radii(100, 100).build());
 		assertThrows(IllegalArgumentException.class,
-				() -> RtpSettings.builder(world).radii(100, RtpSettings.MAXIMUM_RADIUS + 1).build());
-		assertThrows(IllegalArgumentException.class, () -> RtpSettings.builder(world).centerMode(RtpCenterMode.CUSTOM).build());
-		assertThrows(IllegalArgumentException.class, () -> RtpSettings.builder(world).customCenter(Double.NaN, 4.0D).build());
+				() -> RtpSettings.builder(BukkitRtpRuntime.worldSettings(world)).radii(100, RtpSettings.MAXIMUM_RADIUS + 1).build());
+		assertThrows(IllegalArgumentException.class, () -> RtpSettings.builder(BukkitRtpRuntime.worldSettings(world)).centerMode(RtpCenterMode.CUSTOM).build());
+		assertThrows(IllegalArgumentException.class, () -> RtpSettings.builder(BukkitRtpRuntime.worldSettings(world)).customCenter(Double.NaN, 4.0D).build());
 		assertThrows(IllegalArgumentException.class,
-				() -> RtpSettings.builder(world).customCenter(RtpSettings.MAXIMUM_COORDINATE + 1.0D, 4.0D).build());
+				() -> RtpSettings.builder(BukkitRtpRuntime.worldSettings(world)).customCenter(RtpSettings.MAXIMUM_COORDINATE + 1.0D, 4.0D).build());
 
-		RtpSettings settings = RtpSettings.builder(world)
+		RtpSettings settings = RtpSettings.builder(BukkitRtpRuntime.worldSettings(world))
 				.yBounds(-500, 500)
 				.preferredY(500)
 				.cycleDurationMillis(1L)
@@ -148,7 +148,7 @@ public final class RtpSettingsTest
 	public void builderAcceptsExactCoordinateAndRadiusBoundaries()
 	{
 		World world = world("overworld", -64, 320, 63);
-		RtpSettings settings = RtpSettings.builder(world)
+		RtpSettings settings = RtpSettings.builder(BukkitRtpRuntime.worldSettings(world))
 				.centerMode(RtpCenterMode.CUSTOM)
 				.customCenter(RtpSettings.MINIMUM_COORDINATE, RtpSettings.MAXIMUM_COORDINATE)
 				.radii(RtpSettings.MAXIMUM_RADIUS - 1, RtpSettings.MAXIMUM_RADIUS)
@@ -165,8 +165,8 @@ public final class RtpSettingsTest
 	{
 		World source = world("overworld", -64, 320, 63);
 		World target = world("the_nether", 0, 256, 32);
-		RtpSettings settings = RtpSettings.builder(source)
-				.targetWorld(target)
+		RtpSettings settings = RtpSettings.builder(BukkitRtpRuntime.worldSettings(source))
+				.targetWorld(BukkitRtpRuntime.worldSettings(target))
 				.centerMode(RtpCenterMode.CUSTOM)
 				.customCenter(12.25D, -42.75D)
 				.radii(100, 900)
@@ -182,13 +182,13 @@ public final class RtpSettingsTest
 				.rimEnabled(false)
 				.soundEnabled(false)
 				.build();
-		JSONObject json = settings.toJson();
+		JSONObject json = BukkitRtpRuntime.writeSettings(settings);
 		json.put("playerId", UUID.randomUUID().toString());
 		json.put("runtimeState", "READY");
 		json.put("futureState", "pending");
 
-		RtpSettings restored = RtpSettings.fromJson(json, key -> resolveWorld(key, source, target));
-		JSONObject persisted = restored.toJson();
+		RtpSettings restored = BukkitRtpRuntime.readSettings(json, key -> resolveWorld(key, source, target));
+		JSONObject persisted = BukkitRtpRuntime.writeSettings(restored);
 
 		assertEquals(settings, restored);
 		assertEquals("minecraft:the_nether", persisted.getString("targetWorldKey"));
@@ -213,7 +213,7 @@ public final class RtpSettingsTest
 		json.put("leaseIdleMillis", 1L);
 		json.put("privateReleaseMillis", Long.MAX_VALUE);
 
-		RtpSettings settings = RtpSettings.fromJson(json, key -> source);
+		RtpSettings settings = BukkitRtpRuntime.readSettings(json, key -> source);
 
 		assertEquals(RtpCenterMode.PORTAL_RELATIVE, settings.getCenterMode());
 		assertEquals(512, settings.getMinimumRadius());
@@ -231,14 +231,14 @@ public final class RtpSettingsTest
 	public void storedJsonOutsideMinecraftBoundsNormalizesToApprovedDefaults()
 	{
 		World source = world("overworld", -64, 320, 63);
-		JSONObject json = RtpSettings.defaults(source).toJson();
+		JSONObject json = BukkitRtpRuntime.writeSettings(RtpSettings.defaults(BukkitRtpRuntime.worldSettings(source)));
 		json.put("centerMode", "CUSTOM");
 		json.put("customCenterX", RtpSettings.MINIMUM_COORDINATE - 1.0D);
 		json.put("customCenterZ", 0.0D);
 		json.put("minimumRadius", 100);
 		json.put("maximumRadius", RtpSettings.MAXIMUM_RADIUS + 1);
 
-		RtpSettings settings = RtpSettings.fromJson(json, key -> source);
+		RtpSettings settings = BukkitRtpRuntime.readSettings(json, key -> source);
 
 		assertEquals(RtpCenterMode.PORTAL_RELATIVE, settings.getCenterMode());
 		assertNull(settings.getCustomCenterX());
@@ -251,11 +251,11 @@ public final class RtpSettingsTest
 	public void storedJsonRadiusOverflowCannotWrapIntoTheAcceptedRange()
 	{
 		World source = world("overworld", -64, 320, 63);
-		JSONObject json = RtpSettings.defaults(source).toJson();
+		JSONObject json = BukkitRtpRuntime.writeSettings(RtpSettings.defaults(BukkitRtpRuntime.worldSettings(source)));
 		json.put("minimumRadius", 4_294_967_396L);
 		json.put("maximumRadius", 4_294_968_196L);
 
-		RtpSettings settings = RtpSettings.fromJson(json, key -> source);
+		RtpSettings settings = BukkitRtpRuntime.readSettings(json, key -> source);
 
 		assertEquals(512, settings.getMinimumRadius());
 		assertEquals(4096, settings.getMaximumRadius());
@@ -265,11 +265,11 @@ public final class RtpSettingsTest
 	public void storedJsonFractionalRadiusCannotTruncateIntoTheAcceptedRange()
 	{
 		World source = world("overworld", -64, 320, 63);
-		JSONObject json = RtpSettings.defaults(source).toJson();
+		JSONObject json = BukkitRtpRuntime.writeSettings(RtpSettings.defaults(BukkitRtpRuntime.worldSettings(source)));
 		json.put("minimumRadius", 100.5D);
 		json.put("maximumRadius", 900.5D);
 
-		RtpSettings settings = RtpSettings.fromJson(json, key -> source);
+		RtpSettings settings = BukkitRtpRuntime.readSettings(json, key -> source);
 
 		assertEquals(512, settings.getMinimumRadius());
 		assertEquals(4096, settings.getMaximumRadius());
@@ -386,9 +386,9 @@ public final class RtpSettingsTest
 		rtp.put("runtimeState", "READY");
 
 		LocalPortal loaded = loadPortal(stored, world);
-		JSONObject canonical = loaded.getRtpSettings().toJson();
+		JSONObject canonical = BukkitRtpRuntime.writeSettings(loaded.getRtpSettings());
 
-		assertEquals(RtpSettings.defaults(world), loaded.getRtpSettings());
+		assertEquals(RtpSettings.defaults(BukkitRtpRuntime.worldSettings(world)), loaded.getRtpSettings());
 		assertTrue(loaded.needsSaving());
 		assertTrue(canonical.similar(loaded.toJSON().getJSONObject("rtp")));
 		assertFalse(canonical.has("targetWorldKey"));
@@ -403,7 +403,7 @@ public final class RtpSettingsTest
 
 		LocalPortal loaded = loadPortal(stored, world);
 
-		assertEquals(RtpSettings.defaults(world), loaded.getRtpSettings());
+		assertEquals(RtpSettings.defaults(BukkitRtpRuntime.worldSettings(world)), loaded.getRtpSettings());
 		assertFalse(loaded.needsSaving());
 	}
 
@@ -426,7 +426,7 @@ public final class RtpSettingsTest
 	{
 		World world = world("overworld", -64, 320, 63);
 		LocalPortal original = portal(PortalType.RTP, world);
-		RtpSettings settings = RtpSettings.builder(world).radii(300, 1800).build();
+		RtpSettings settings = RtpSettings.builder(BukkitRtpRuntime.worldSettings(world)).radii(300, 1800).build();
 		original.setRtpSettings(settings);
 		original.setType(PortalType.PORTAL);
 		JSONObject stored = original.toJSON();
@@ -446,7 +446,7 @@ public final class RtpSettingsTest
 		LocalPortal portal = portal(PortalType.RTP, source);
 		RtpSettings original = portal.getRtpSettings();
 
-		assertThrows(IllegalArgumentException.class, () -> portal.setRtpSettings(RtpSettings.defaults(otherSource)));
+		assertThrows(IllegalArgumentException.class, () -> portal.setRtpSettings(RtpSettings.defaults(BukkitRtpRuntime.worldSettings(otherSource))));
 		assertEquals(original, portal.getRtpSettings());
 	}
 
@@ -455,7 +455,7 @@ public final class RtpSettingsTest
 	{
 		World world = world("overworld", -64, 320, 63);
 		LocalPortal portal = portal(PortalType.RTP, world);
-		RtpSettings settings = RtpSettings.builder(world)
+		RtpSettings settings = RtpSettings.builder(BukkitRtpRuntime.worldSettings(world))
 				.centerMode(RtpCenterMode.CUSTOM)
 				.customCenter(18.5D, -22.5D)
 				.radii(256, 2048)
@@ -465,7 +465,7 @@ public final class RtpSettingsTest
 		JSONObject stored = portal.toJSON();
 		JSONObject rtp = stored.getJSONObject("rtp");
 
-		assertEquals(settings.toJson().toString(), rtp.toString());
+		assertEquals(BukkitRtpRuntime.writeSettings(settings).toString(), rtp.toString());
 		assertFalse(rtp.has("playerId"));
 		assertFalse(rtp.has("runtimeState"));
 		assertFalse(rtp.has("futureState"));

@@ -1,6 +1,7 @@
 package art.arcane.wormholes;
 
-import java.util.ArrayDeque;
+import art.arcane.wormholes.portal.PortalConstruction;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -31,9 +32,6 @@ import art.arcane.wormholes.util.M;
 final class BlockOpsRuneIndex
 {
 	private static final int MAX_ANIMATION_TASKS_PER_PASS = 64;
-	private static final int[][] ADJACENT_OFFSETS = new int[][] {
-			{ 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 0, -1, 0 }, { 0, 0, 1 }, { 0, 0, -1 }
-	};
 	private final Map<GChunk, Set<PortalBlock>> blocks = new ConcurrentHashMap<GChunk, Set<PortalBlock>>();
 	private final Object runeMutationLock = new Object();
 	private final Set<RuneCell> reservedRuneCells = ConcurrentHashMap.newKeySet();
@@ -221,29 +219,15 @@ final class BlockOpsRuneIndex
 
 	private Set<PortalBlock> connectedRunes(String worldKey, RuneCoordinate start, PortalType type)
 	{
-		Set<PortalBlock> connected = new HashSet<PortalBlock>();
-		Set<RuneCoordinate> visited = new HashSet<RuneCoordinate>();
-		ArrayDeque<RuneCoordinate> search = new ArrayDeque<RuneCoordinate>();
-		search.add(start);
-		while(!search.isEmpty())
-		{
-			RuneCoordinate coordinate = search.removeFirst();
-			if(!visited.add(coordinate))
-			{
-				continue;
-			}
-			PortalBlock portalBlock = findTrackedBlock(worldKey, coordinate.x(), coordinate.y(), coordinate.z());
-			if(portalBlock == null || portalBlock.getType() != type)
-			{
-				continue;
-			}
-			connected.add(portalBlock);
-			for(int[] offset : ADJACENT_OFFSETS)
-			{
-				search.addLast(new RuneCoordinate(coordinate.x() + offset[0], coordinate.y() + offset[1], coordinate.z() + offset[2]));
-			}
-		}
-		return connected;
+        Set<PortalConstruction.Cell> cells = PortalConstruction.connectedCells(new PortalConstruction.Cell(start.x(), start.y(), start.z()), type, cell -> {
+            PortalBlock rune = findTrackedBlock(worldKey, cell.x(), cell.y(), cell.z());
+            return rune == null ? null : rune.getType();
+        });
+        Set<PortalBlock> connected = new HashSet<>();
+        for (PortalConstruction.Cell cell : cells) {
+            connected.add(findTrackedBlock(worldKey, cell.x(), cell.y(), cell.z()));
+        }
+        return connected;
 	}
 
 	private static boolean isCoplanar(Set<PortalBlock> connected)
@@ -264,7 +248,7 @@ final class BlockOpsRuneIndex
 			minZ = Math.min(minZ, location.getBlockZ());
 			maxZ = Math.max(maxZ, location.getBlockZ());
 		}
-		return ConstructionManager.isCoplanarPortalArea(maxX - minX, maxY - minY, maxZ - minZ);
+		return PortalConstruction.isCoplanarPortalArea(maxX - minX, maxY - minY, maxZ - minZ);
 	}
 
 	boolean isReservedRuneCell(Block block)

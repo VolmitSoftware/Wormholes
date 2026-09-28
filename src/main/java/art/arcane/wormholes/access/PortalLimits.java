@@ -8,7 +8,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.permissions.PermissionAttachmentInfo;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,7 +17,6 @@ import java.util.UUID;
  * unlimited, and {@code wormholes.admin} is never capped.
  */
 public final class PortalLimits {
-    public static final String LIMIT_NODE_PREFIX = "wormholes.limit.";
     private static final String ADMIN_NODE = "wormholes.admin";
 
     private PortalLimits() {
@@ -26,11 +24,8 @@ public final class PortalLimits {
 
     /** The cap for this player, or 0 for unlimited. */
     public static int maximum(Player player, int configuredDefault) {
-        if (player == null || player.isOp() || player.hasPermission(ADMIN_NODE)) {
-            return 0;
-        }
-        int fromNodes = highestLimitNode(grantedNodes(player));
-        return fromNodes >= 0 ? fromNodes : Math.max(0, configuredDefault);
+        return PortalOwnershipLimits.maximum(player == null || player.isOp() || player.hasPermission(ADMIN_NODE),
+            configuredDefault, player == null ? List.of() : grantedNodes(player));
     }
 
     /** How many more portals the player may build, or -1 when they are unlimited. */
@@ -65,34 +60,6 @@ public final class PortalLimits {
             }
         }
         return owned;
-    }
-
-    /** -1 when the player holds no usable {@code wormholes.limit.<n>} node. */
-    static int highestLimitNode(Collection<String> nodes) {
-        int highest = -1;
-        for (String node : nodes) {
-            if (node == null || !node.startsWith(LIMIT_NODE_PREFIX)) {
-                continue;
-            }
-            String tail = node.substring(LIMIT_NODE_PREFIX.length());
-            if (tail.isEmpty() || tail.length() > 9) {
-                continue;
-            }
-            int value = 0;
-            boolean numeric = true;
-            for (int index = 0; index < tail.length(); index++) {
-                char digit = tail.charAt(index);
-                if (digit < '0' || digit > '9') {
-                    numeric = false;
-                    break;
-                }
-                value = value * 10 + (digit - '0');
-            }
-            if (numeric && value > highest) {
-                highest = value;
-            }
-        }
-        return highest;
     }
 
     private static List<String> grantedNodes(Player player) {

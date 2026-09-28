@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.replication;
 
+import art.arcane.wormholes.network.view.BukkitRemoteViewCodec;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -32,14 +34,14 @@ final class RemoteChunkStoreBlockEntityTest {
         Map<Long, BlockEntitySample> entities = new HashMap<Long, BlockEntitySample>();
         entities.put(Long.valueOf(ProjectionCellKey.pack(3, 64, 5)), sign);
         ViewSlice slice = slice(entities);
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
 
         RemoteChunkStore.ReplicatedChunk chunk = store.applyBulk(new ChunkBulk(STREAM, 1L, encode(slice, true)));
         assertEquals(sign, chunk.slice().blockEntityAt(3, 64, 5));
         long hashWithSign = store.hashAt(STREAM);
 
         BlockEntitySample banner = new BlockEntitySample("minecraft:banner", new byte[] {11, 0, 0, 0});
-        BlockEntityDiff diff = new BlockEntityDiff(BlockChange.pack(4, 64, 6), BlockEntityCapturer.encode(banner));
+        BlockEntityDiff diff = new BlockEntityDiff(BlockChange.pack(4, 64, 6), BlockEntitySample.encode(banner));
         store.applyDiff(new ChunkDiffBatch(STREAM, 2L, List.of(), List.of(), List.of(diff)));
         assertEquals(banner, chunk.slice().blockEntityAt(4, 64, 6));
         assertNotEquals(hashWithSign, store.hashAt(STREAM), "block entities are part of the content hash");
@@ -55,7 +57,7 @@ final class RemoteChunkStoreBlockEntityTest {
         Map<Long, BlockEntitySample> entities = new HashMap<Long, BlockEntitySample>();
         entities.put(Long.valueOf(ProjectionCellKey.pack(3, 64, 5)), new BlockEntitySample("minecraft:sign", new byte[] {1}));
         ViewSlice slice = slice(entities);
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
 
         RemoteChunkStore.ReplicatedChunk chunk = store.applyBulk(new ChunkBulk(STREAM, 1L, encode(slice, false)));
         assertTrue(chunk.slice().blockEntities().isEmpty());

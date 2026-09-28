@@ -1,5 +1,6 @@
 package art.arcane.wormholes.door;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.volmlib.util.event.ProtectionProbe;
 
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
@@ -92,8 +93,6 @@ import java.util.logging.Level;
  */
 public final class DimensionalDoorManager implements Listener, AutoCloseable
 {
-	private static final double ARRIVAL_OFFSET = 1.0D;
-	static final int[] DOOR_ARRIVAL_Y_OFFSETS = {0, -1, 1, -2, 2};
 	private static final String ADMINISTRATOR_NODE = "wormholes.admin";
 	private static final String ENTITY_MOVE_EVENT_CLASS = "io.papermc.paper.event.entity.EntityMoveEvent";
 	private static final boolean ENTITY_MOVE_EVENT_AVAILABLE =
@@ -105,9 +104,9 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	private final PocketWorldService pocketWorldService;
 	private final DoorStateGuard guard;
 	private final PocketStructureService pocketStructures;
-	private final PocketTemplateService templates;
+	private final BukkitPocketTemplates templates;
 	private final PocketInstances instances;
-	private final PocketSnapshots snapshots;
+	private final PocketSnapshots<Structure> snapshots;
 	private final PocketSpaceIndex pockets;
 	private final DoorRuntimeIndex runtimes;
 	private final DoorTransitLedger ledger;
@@ -137,9 +136,9 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		this.pocketWorldService = Objects.requireNonNull(pocketWorldService, "pocketWorldService");
 		guard = new DoorStateGuard();
 		pocketStructures = new PocketStructureService();
-		templates = PocketTemplateService.under(plugin.getDataFolder().toPath());
+		templates = BukkitPocketTemplates.under(plugin.getDataFolder().toPath());
 		instances = new PocketInstances(templates);
-		snapshots = new PocketSnapshots(plugin.getDataFolder().toPath(), StructureIo.server());
+		snapshots = new PocketSnapshots<>(plugin.getDataFolder().toPath(), BukkitStructureIo.INSTANCE);
 		pockets = new PocketSpaceIndex(pocketStructures);
 		runtimes = new DoorRuntimeIndex(plugin, guard, pocketWorldService);
 		ledger = new DoorTransitLedger(plugin);
@@ -188,7 +187,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			transitFailures);
 		rescues = new PocketRescueService(plugin, guard, ledger, chunkLoader, arrivals, tickets, travelers);
 		resizes = new PocketResizeService(plugin, pocketStructures);
-		mutationJournal = PocketMutationJournal.under(plugin.getDataFolder().toPath());
+		mutationJournal = PocketMutationJournal.under(plugin.getDataFolder().toPath(), BukkitJsonDocuments.INSTANCE);
 		resizeWorkflow = new PocketResizeWorkflow(mutationJournal);
 		resizingPockets = ConcurrentHashMap.newKeySet();
 		protection = new DoorBlockProtection(guard, pockets);
@@ -260,7 +259,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			return;
 		}
 		DoorStateService state = guard.open(plugin.getDataFolder().toPath());
-		state.attachInstances(instances);
+		state.attachInstances(instances::isInstanced);
 		List<PocketMutationIntent> pendingResizes = mutationJournal.load();
 		for(PocketMutationIntent intent : pendingResizes)
 		{
@@ -405,7 +404,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			return;
 		}
 		DoorRecipeBook.Plan plan = DoorRecipeBook.plan(
-			activeItems.registeredRecipeKeys(), DoorAccessPolicy.canCraft(player));
+			activeItems.registeredRecipeKeys(), BukkitDoorAccess.canCraft(player));
 		if(plan.isEmpty())
 		{
 			return;
@@ -529,7 +528,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		snapshots.save(space.spaceId(), name, templates.capture(world, space));
 	}
 
-	public PocketSnapshots snapshots()
+	public PocketSnapshots<Structure> snapshots()
 	{
 		return snapshots;
 	}
@@ -684,7 +683,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		return guard.mutate(() -> roster().remove(spaceId, playerId));
 	}
 
-	public PocketTemplateService templates()
+	public BukkitPocketTemplates templates()
 	{
 		return templates;
 	}
@@ -790,7 +789,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		PocketSpace source = current;
 		try
 		{
-			PocketResizeService.Impact impact = resizes.assess(world, source, target);
+			PocketResizeImpact impact = resizes.assess(world, source, target);
 			PocketResizePolicy.Decision decision = PocketResizePolicy.decide(impact, confirmed);
 			if(decision == PocketResizePolicy.Decision.NON_EMPTY_CONTAINERS)
 			{
@@ -946,7 +945,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		try
 		{
 			PocketSpace operationSource = intent.operationSource(current);
-			PocketResizeService.Impact impact = resizes.assess(world, operationSource, intent.target());
+			PocketResizeImpact impact = resizes.assess(world, operationSource, intent.target());
 			if(PocketResizePolicy.decide(impact, true)
 				== PocketResizePolicy.Decision.NON_EMPTY_CONTAINERS)
 			{
@@ -1135,7 +1134,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	public void onCraft(CraftItemEvent event)
 	{
 		if(items().isDoorRecipe(event.getRecipe())
-			&& (!(event.getWhoClicked() instanceof Player player) || !DoorAccessPolicy.canCraft(player)))
+			&& (!(event.getWhoClicked() instanceof Player player) || !BukkitDoorAccess.canCraft(player)))
 		{
 			event.setCancelled(true);
 			event.setCurrentItem(null);
@@ -1157,7 +1156,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	public void onPrepareCraft(PrepareItemCraftEvent event)
 	{
 		if(items().isDoorRecipe(event.getRecipe())
-			&& (!(event.getView().getPlayer() instanceof Player player) || !DoorAccessPolicy.canCraft(player)))
+			&& (!(event.getView().getPlayer() instanceof Player player) || !BukkitDoorAccess.canCraft(player)))
 		{
 			event.getInventory().setResult(null);
 			return;
@@ -1237,7 +1236,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			event.setCancelled(true);
 			return;
 		}
-		if(!DoorAccessPolicy.canPlace(event.getPlayer()))
+		if(!BukkitDoorAccess.canPlace(event.getPlayer()))
 		{
 			event.setCancelled(true);
 			WormholesAudience.sendMessage(event.getPlayer(), Wormholes.text().component(WormholesMessages.COMMAND_NO_PERMISSION));
@@ -1326,7 +1325,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			return false;
 		}
 		PocketRoom parent = PocketRooms.roomAt(space, placed.position().x(), placed.position().z()).orElse(null);
-		BlockFace wall = wallBehind(space, parent, placed.position(), plane);
+		BlockFace wall = PocketRooms.wallBehind(space, parent, placed.position(), plane).map(BukkitDoorGeometry::facing).orElse(null);
 		if(parent == null || wall == null)
 		{
 			deny(placer, PocketsMessages.ROOM_BLOCKED);
@@ -1338,7 +1337,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			return false;
 		}
 		int maximumRooms = PocketSettings.current().roomsPerPocketMax;
-		Optional<PocketRoom> allocated = PocketRooms.allocate(space, wall, maximumRooms);
+		Optional<PocketRoom> allocated = PocketRooms.allocate(space, BukkitDoorGeometry.direction(wall), maximumRooms);
 		if(allocated.isEmpty())
 		{
 			WormholesAudience.sendMessage(placer, Wormholes.text().component(placer, PocketsMessages.ROOM_LIMIT,
@@ -1398,17 +1397,10 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		DoorItemIdentity identity)
 	{
 		BlockFace inward = wall.getOppositeFace();
-		int x = layout.minX() + (layout.size() / 2);
-		int z = layout.minZ() + (layout.size() / 2);
-		switch(wall)
-		{
-			case NORTH -> z = layout.maxZ() - 1;
-			case SOUTH -> z = layout.minZ() + 1;
-			case EAST -> x = layout.minX() + 1;
-			case WEST -> x = layout.maxX() - 1;
-			default -> throw new IllegalArgumentException("A pocket only grows through a cardinal wall: " + wall);
-		}
-		int y = layout.minY() + 1;
+        PocketBlockPosition point = PocketRooms.matePosition(layout, BukkitDoorGeometry.direction(wall));
+        int x = point.x();
+        int y = point.y();
+        int z = point.z();
 		Material doorMaterial = DoorItemService.PAIR_DOOR_MATERIAL;
 		Door lower = (Door) doorMaterial.createBlockData();
 		lower.setHalf(Bisected.Half.BOTTOM);
@@ -1429,29 +1421,6 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			new DoorPosition(world.getUID(), WorldIdentity.serialize(world), x, y, z), identity);
 	}
 
-	/** The cardinal direction from a placed door to the room shell it is built against. */
-	private static BlockFace wallBehind(
-		PocketSpace space,
-		PocketRoom room,
-		DoorPosition position,
-		DoorwayPlane plane)
-	{
-		if(room == null || plane.form() != DoorForm.DOOR)
-		{
-			return null;
-		}
-		PocketLayout layout = PocketRooms.layout(space, room);
-		for(BlockFace candidate : new BlockFace[]{plane.facing(), plane.facing().getOppositeFace()})
-		{
-			int x = position.x() + candidate.getModX();
-			int z = position.z() + candidate.getModZ();
-			if(layout.isShellBlock(x, position.y(), z))
-			{
-				return candidate;
-			}
-		}
-		return null;
-	}
 
 	private void deny(Player player, TextKey message)
 	{
@@ -1864,99 +1833,6 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		{
 			openAccessMenu(player, endpoint);
 		}
-	}
-
-	static DoorVec3 arrivalPoint(DoorwayPlane plane, DoorTransit transit)
-	{
-		Objects.requireNonNull(plane, "plane");
-		Objects.requireNonNull(transit, "transit");
-		return arrivalPoint(
-			plane,
-			transit,
-			DoorPlanePairing.arrivalSideSign(transit.sourcePlane(), plane, transit.direction()));
-	}
-
-	/**
-	 * The nominal landing point one side off a plane. A vertical plane pushes the
-	 * traveler a stride clear of the doorway; a horizontal one places its feet on
-	 * the plate for an upward exit and a full body below it for a downward one, so
-	 * a fall keeps falling.
-	 */
-	static DoorVec3 arrivalPoint(DoorwayPlane plane, DoorTransit transit, int sideSign)
-	{
-		Objects.requireNonNull(plane, "plane");
-		Objects.requireNonNull(transit, "transit");
-		if(transit.travelerClass() == DoorTravelerClass.OBJECT)
-		{
-			DoorVec3 aperturePoint = plane.equals(transit.sourcePlane())
-				? transit.crossing().point()
-				: DoorPlanePairing.mapAperturePoint(transit.sourcePlane(), plane, transit.crossing());
-			if(plane.horizontal())
-			{
-				double y = horizontalArrivalY(plane, transit, sideSign);
-				return new DoorVec3(aperturePoint.x(), y, aperturePoint.z());
-			}
-			double offset = arrivalOffset(transit) * sideSign;
-			return new DoorVec3(
-				aperturePoint.x() + (plane.normalX() * offset),
-				aperturePoint.y(),
-				aperturePoint.z() + (plane.normalZ() * offset));
-		}
-		if(plane.horizontal())
-		{
-			double y = horizontalArrivalY(plane, transit, sideSign);
-			return new DoorVec3(plane.blockX() + 0.5D, y, plane.blockZ() + 0.5D);
-		}
-		return plane.sidePoint(sideSign, arrivalOffset(transit));
-	}
-
-	private static double horizontalArrivalY(DoorwayPlane plane, DoorTransit transit, int sideSign)
-	{
-		if(plane.contactSurface())
-		{
-			double surfaceY = plane.exposedSurfaceY(sideSign);
-			return sideSign > 0 ? surfaceY : surfaceY - transit.height();
-		}
-		return sideSign > 0 ? plane.planeY() : plane.planeY() - transit.height();
-	}
-
-	static float arrivalYaw(DoorwayPlane source, DoorwayPlane destination, DoorTransit transit)
-	{
-		Objects.requireNonNull(source, "source");
-		Objects.requireNonNull(destination, "destination");
-		Objects.requireNonNull(transit, "transit");
-		return DoorPlanePairing.arrivalYaw(source, destination, transit.yaw());
-	}
-
-	static Optional<DoorVec3> findSafeVerticalDoorStanding(
-		DoorVec3 nominal,
-		Predicate<DoorVec3> isSafe)
-	{
-		return findSafeVerticalDoorStanding(nominal, DOOR_ARRIVAL_Y_OFFSETS, isSafe);
-	}
-
-	static Optional<DoorVec3> findSafeVerticalDoorStanding(
-		DoorVec3 nominal,
-		int[] verticalOffsets,
-		Predicate<DoorVec3> isSafe)
-	{
-		Objects.requireNonNull(nominal, "nominal");
-		Objects.requireNonNull(verticalOffsets, "verticalOffsets");
-		Objects.requireNonNull(isSafe, "isSafe");
-		for(int yOffset : verticalOffsets)
-		{
-			DoorVec3 candidate = new DoorVec3(nominal.x(), nominal.y() + yOffset, nominal.z());
-			if(isSafe.test(candidate))
-			{
-				return Optional.of(candidate);
-			}
-		}
-		return Optional.empty();
-	}
-
-	private static double arrivalOffset(DoorTransit transit)
-	{
-		return Math.max(ARRIVAL_OFFSET, 0.5D + transit.halfWidth() + DoorwayPlane.PORTAL_RECESS);
 	}
 
 	private static DoorPosition position(Block block, int lowerY)

@@ -15,16 +15,16 @@ import net.kyori.adventure.text.event.HoverEvent;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
-import java.util.List;
 
 public final class ImportExportService {
     private static final int CHAT_SAFE_CODE_LENGTH = 250;
 
     private final NetworkManager network;
+    private final NetworkPairingService pairing;
 
     public ImportExportService(NetworkManager network) {
         this.network = network;
+        this.pairing = new NetworkPairingService(network);
     }
 
     public void exportToChat(Player player, ILocalPortal portal) {
@@ -43,7 +43,7 @@ public final class ImportExportService {
 
     private void exportNow(Player player, ILocalPortal portal) {
         NetworkConfig config = Wormholes.settings.getNetwork();
-        String advertiseHost = resolveAdvertiseHost(player, config);
+        resolveAdvertiseHost(player, config);
         boolean configChanged = false;
         if (!config.enabled) {
             config.enabled = true;
@@ -56,17 +56,7 @@ public final class ImportExportService {
             network.start();
         }
 
-        PortalCode code = new PortalCode(
-            network.getLocalName(),
-            advertiseHost,
-            alternateHosts(advertiseHost),
-            network.getBoundListenPort(),
-            network.gameEndpoint(),
-            network.localPrivateGameEndpoint(),
-            network.getPublicKey(),
-            portal.getId(),
-            portal.getName()
-        );
+        PortalCode code = pairing.portalCode(portal.getId(), portal.getName());
         String encoded = code.encode();
 
         Component message = Wormholes.text().component(
@@ -85,7 +75,7 @@ public final class ImportExportService {
 
     private void exportServerNow(CommandSender sender) {
         NetworkConfig config = Wormholes.settings.getNetwork();
-        String advertiseHost = resolveAdvertiseHost(sender, config);
+        resolveAdvertiseHost(sender, config);
         if (!config.enabled) {
             config.enabled = true;
             persistConfig(config);
@@ -94,7 +84,7 @@ public final class ImportExportService {
             network.start();
         }
 
-        ServerCode code = serverCode(advertiseHost);
+        ServerCode code = pairing.serverCode();
         String encoded = code.encode();
 
         if (sender instanceof Player) {
@@ -143,8 +133,7 @@ public final class ImportExportService {
             return;
         }
 
-        network.trustPeer(code.serverName(), code.publicKey());
-        saveRoute(code.serverName(), code.advertiseHost(), code.fallbackHosts(), code.wormholePort(), code.gameEndpoint(), code.privateGameEndpoint());
+        pairing.importPortal(code);
         enableAndStart();
 
         if (portal != null) {
@@ -174,8 +163,7 @@ public final class ImportExportService {
             return;
         }
 
-        network.trustPeer(code.serverName(), code.publicKey());
-        saveRoute(code.serverName(), code.advertiseHost(), code.fallbackHosts(), code.wormholePort(), code.gameEndpoint(), code.privateGameEndpoint());
+        pairing.importServer(code);
         enableAndStart();
 
         WormholesAudience.sendMessage(sender, Wormholes.text().component(sender,
@@ -188,58 +176,11 @@ public final class ImportExportService {
 
     /** This server's pairing code without chat output; used by the proxy bridge to enroll. */
     public ServerCode localServerCode() {
-        NetworkConfig config = Wormholes.settings.getNetwork();
-        String advertiseHost = config.advertiseHostOverride != null && !config.advertiseHostOverride.isBlank()
-            ? config.advertiseHostOverride : network.getAdvertiseHost();
-        return serverCode(advertiseHost);
+        return pairing.serverCode();
     }
 
-    /**
-     * Trusts and routes a code the proxy handed us, without chat output. Weaker than an operator
-     * import on purpose: it never clears a tombstone, never replaces an already-trusted key and never
-     * turns the network on, so the worst a bad roster entry can do is add a route for a name nobody
-     * removed. Returns false when the entry was refused or names this server.
-     */
     public boolean importProxyServerCode(ServerCode code) {
-        if (code == null || code.serverName().equals(network.getLocalName())) {
-            return false;
-        }
-        if (!network.trustIntroducedPeer(code.serverName(), code.publicKey())) {
-            return false;
-        }
-        NetworkConfig.PeerEntry entry = routeEntry(code.serverName(), code.advertiseHost(), code.fallbackHosts(), code.wormholePort(), code.gameEndpoint(), code.privateGameEndpoint());
-        entry.useProxy = true;
-        network.savePeer(entry);
-        return true;
-    }
-
-    private ServerCode serverCode(String advertiseHost) {
-        return new ServerCode(
-            network.getLocalName(),
-            advertiseHost,
-            alternateHosts(advertiseHost),
-            network.getBoundListenPort(),
-            network.gameEndpoint(),
-            network.localPrivateGameEndpoint(),
-            network.getPublicKey()
-        );
-    }
-
-    private void saveRoute(String serverName, String advertiseHost, List<String> fallbackHosts, int wormholePort, GameEndpoint gameEndpoint, GameEndpoint privateGameEndpoint) {
-        network.savePeer(routeEntry(serverName, advertiseHost, fallbackHosts, wormholePort, gameEndpoint, privateGameEndpoint));
-    }
-
-    private static NetworkConfig.PeerEntry routeEntry(String serverName, String advertiseHost, List<String> fallbackHosts, int wormholePort, GameEndpoint gameEndpoint, GameEndpoint privateGameEndpoint) {
-        NetworkConfig.PeerEntry entry = new NetworkConfig.PeerEntry();
-        entry.name = serverName;
-        entry.host = advertiseHost;
-        entry.fallbackHosts = joinFallbacks(advertiseHost, fallbackHosts);
-        entry.port = wormholePort;
-        entry.publicHost = gameEndpoint.host();
-        entry.publicPort = gameEndpoint.port();
-        entry.privateHost = privateGameEndpoint == null ? "" : privateGameEndpoint.host();
-        entry.privatePort = privateGameEndpoint == null ? 0 : privateGameEndpoint.port();
-        return entry;
+        return pairing.importProxyServerCode(code);
     }
 
     private void enableAndStart() {
@@ -262,29 +203,6 @@ public final class ImportExportService {
                 WormholesMessages.NETWORK_USING_ADDRESS,
                 WormholesLocalization.args(MessageArgument.untrusted("address", resolved))));
         return resolved;
-    }
-
-    private List<String> alternateHosts(String identityHost) {
-        List<String> alternates = new ArrayList<>(2);
-        String publicIp = network.getResolvedPublicHost();
-        if (publicIp != null && !publicIp.equals(identityHost)) {
-            alternates.add(publicIp);
-        }
-        String lan = LanAddressResolver.detectLanAddress();
-        if (lan != null && !lan.equals(identityHost) && !alternates.contains(lan)) {
-            alternates.add(lan);
-        }
-        return alternates;
-    }
-
-    private static String joinFallbacks(String primaryHost, List<String> fallbacks) {
-        List<String> filtered = new ArrayList<>(fallbacks.size());
-        for (String host : fallbacks) {
-            if (host != null && !host.isBlank() && !host.equals(primaryHost) && !filtered.contains(host)) {
-                filtered.add(host);
-            }
-        }
-        return String.join(",", filtered);
     }
 
     private void persistConfig(NetworkConfig config) {

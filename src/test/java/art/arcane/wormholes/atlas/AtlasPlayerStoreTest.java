@@ -1,5 +1,7 @@
 package art.arcane.wormholes.atlas;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -23,7 +25,7 @@ class AtlasPlayerStoreTest {
         UUID playerId = UUID.randomUUID();
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();
-        AtlasPlayerStore store = new AtlasPlayerStore(tempDir);
+        AtlasPlayerStore store = new AtlasPlayerStore(tempDir, BukkitJsonDocuments.INSTANCE);
 
         AtlasPlayerState state = store.load(playerId);
         assertTrue(state.discover(first));
@@ -36,7 +38,7 @@ class AtlasPlayerStoreTest {
 
         assertTrue(Files.isRegularFile(tempDir.resolve(playerId + ".json")));
 
-        AtlasPlayerState reloaded = new AtlasPlayerStore(tempDir).load(playerId);
+        AtlasPlayerState reloaded = new AtlasPlayerStore(tempDir, BukkitJsonDocuments.INSTANCE).load(playerId);
         assertTrue(reloaded.isDiscovered(first));
         assertTrue(reloaded.isDiscovered(second));
         assertEquals(List.of(first), reloaded.favorites());
@@ -47,7 +49,7 @@ class AtlasPlayerStoreTest {
     @Test
     void aPlayerWithNoFileStartsEmptyAndIsNotWrittenUntilSomethingChanges() {
         UUID playerId = UUID.randomUUID();
-        AtlasPlayerStore store = new AtlasPlayerStore(tempDir);
+        AtlasPlayerStore store = new AtlasPlayerStore(tempDir, BukkitJsonDocuments.INSTANCE);
 
         AtlasPlayerState state = store.load(playerId);
 
@@ -95,7 +97,7 @@ class AtlasPlayerStoreTest {
     @Test
     void unloadingWritesPendingChangesAndDropsTheCachedState() throws IOException {
         UUID playerId = UUID.randomUUID();
-        AtlasPlayerStore store = new AtlasPlayerStore(tempDir);
+        AtlasPlayerStore store = new AtlasPlayerStore(tempDir, BukkitJsonDocuments.INSTANCE);
         store.load(playerId).discover(UUID.randomUUID());
 
         store.unload(playerId);
@@ -108,7 +110,7 @@ class AtlasPlayerStoreTest {
     void flushingWritesOnlyThePlayersWhoChangedSomething() throws IOException {
         UUID changed = UUID.randomUUID();
         UUID untouched = UUID.randomUUID();
-        AtlasPlayerStore store = new AtlasPlayerStore(tempDir);
+        AtlasPlayerStore store = new AtlasPlayerStore(tempDir, BukkitJsonDocuments.INSTANCE);
         store.load(changed).discover(UUID.randomUUID());
         store.load(untouched);
 

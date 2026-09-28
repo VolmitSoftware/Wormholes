@@ -1,5 +1,8 @@
 package art.arcane.wormholes.nexus;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
+import art.arcane.wormholes.util.BukkitGeometry;
+import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.hook.TraversalAttempt;
 import art.arcane.wormholes.hook.TraversalPhase;
 import art.arcane.wormholes.hook.WormholesHooks;
@@ -43,7 +46,7 @@ class NexusDestinationResolverTest {
     void setUp() {
         WormholesHooks.install(new WormholesRegistrar().portalExtension(new NexusExtensionFactory(null)));
         world = NexusTestSupport.world("resolver");
-        registry = new NetworkRegistry(tempDir);
+        registry = new NetworkRegistry(tempDir, BukkitJsonDocuments.INSTANCE);
         registry.load();
         clock = 1_000L;
         returns = new ReturnAddresses(() -> clock);
@@ -148,12 +151,12 @@ class NexusDestinationResolverTest {
     @Test
     void entrySideIsDecidedFromTheEntityPositionRelativeToTheFramePlane() {
         LocalPortal portal = NexusTestSupport.portal(world, "sided");
-        Vector origin = portal.getOrigin();
+        GeometryVector origin = portal.getOrigin();
         Vector normal = new Vector(portal.getFrame().getNormal().x(), portal.getFrame().getNormal().y(),
                 portal.getFrame().getNormal().z());
 
-        assertTrue(NexusDestinationResolver.isFrontSide(portal, origin.clone().add(normal.clone().multiply(2.0D))));
-        assertTrue(!NexusDestinationResolver.isFrontSide(portal, origin.clone().subtract(normal.clone().multiply(2.0D))));
+        assertTrue(NexusDestinationResolver.isFrontSide(portal, BukkitGeometry.bukkit(origin).add(normal.clone().multiply(2.0D))));
+        assertTrue(!NexusDestinationResolver.isFrontSide(portal, BukkitGeometry.bukkit(origin).subtract(normal.clone().multiply(2.0D))));
     }
 
     private void join(LocalPortal first, String firstAddress, LocalPortal second, String secondAddress) throws IOException {

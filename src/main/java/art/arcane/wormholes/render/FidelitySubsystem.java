@@ -19,7 +19,7 @@ import art.arcane.wormholes.render.bedrock.ClientProfileService;
 
 /** Lifecycle entry point for the view lane: per-portal fidelity extension, menu, channels and wire handlers. */
 public final class FidelitySubsystem implements WormholesSubsystem {
-    private static volatile AcousticsBridge acoustics;
+    private static volatile AcousticsBridge<Player> acoustics;
 
     private SoundEventSource soundSource;
 
@@ -28,7 +28,7 @@ public final class FidelitySubsystem implements WormholesSubsystem {
         return "fidelity";
     }
 
-    public static AcousticsBridge acoustics() {
+    public static AcousticsBridge<Player> acoustics() {
         return acoustics;
     }
 
@@ -49,7 +49,7 @@ public final class FidelitySubsystem implements WormholesSubsystem {
             if (!(message instanceof WireMessage.ViewSound sound)) {
                 return false;
             }
-            AcousticsBridge bridge = acoustics;
+            AcousticsBridge<Player> bridge = acoustics;
             if (bridge != null) {
                 AcousticsProfile.SoundClass[] classes = AcousticsProfile.SoundClass.values();
                 int ordinal = sound.soundClass();
@@ -65,7 +65,7 @@ public final class FidelitySubsystem implements WormholesSubsystem {
     public void start(Wormholes plugin) {
         FidelitySettings.refresh(Wormholes.settings);
         ClientProfileService.install(ClientProfileService.detectFloodgateAndBrand(plugin));
-        acoustics = new AcousticsBridge(new SoundPacketSink(), FidelitySubsystem::observersOf);
+        acoustics = new AcousticsBridge<>(new AcousticsBridge.Options<>(new SoundPacketSink(), FidelitySubsystem::observersOf, Player::getUniqueId));
         soundSource = new SoundEventSource(FidelitySubsystem::acoustics);
         plugin.registerListener(soundSource);
     }
@@ -78,7 +78,7 @@ public final class FidelitySubsystem implements WormholesSubsystem {
         }
         soundSource = null;
         ClientProfileService.install(null);
-        AcousticsBridge bridge = acoustics;
+        AcousticsBridge<Player> bridge = acoustics;
         acoustics = null;
         if (bridge != null) {
             bridge.clear();

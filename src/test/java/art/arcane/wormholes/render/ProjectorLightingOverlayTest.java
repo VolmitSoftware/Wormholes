@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.render.view.ProjectionContentView;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,12 +25,12 @@ import art.arcane.wormholes.render.view.ProjectionWorldView;
 public final class ProjectorLightingOverlayTest {
     @Test
     public void overlayWritesOnlyClaimedRemoteLitCellsInTargetSection() {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(4);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(4);
         ProjectionWorldView view = stubView(12, 7, 0);
-        claims.put(packKey(3, 70, 5), new ProjectedBlockClaim(null, view, packKey(100, 40, 100), false));
-        claims.put(packKey(3, 90, 5), new ProjectedBlockClaim(null, view, packKey(100, 41, 100), false));
-        claims.put(packKey(35, 70, 5), new ProjectedBlockClaim(null, view, packKey(100, 42, 100), false));
-        claims.put(packKey(4, 70, 5), new ProjectedBlockClaim(null, null, ProjectedBlockClaim.NO_REMOTE_KEY, true));
+        claims.put(packKey(3, 70, 5), new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, view, packKey(100, 40, 100), false));
+        claims.put(packKey(3, 90, 5), new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, view, packKey(100, 41, 100), false));
+        claims.put(packKey(35, 70, 5), new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, view, packKey(100, 42, 100), false));
+        claims.put(packKey(4, 70, 5), new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, null, ProjectedBlockClaim.NO_REMOTE_KEY, true));
 
         LightData data = apply(claims, stubView(3, 4, 0), true).get(0L);
         byte[] skyArr = data.getSkyLightArray()[0];
@@ -55,9 +56,9 @@ public final class ProjectorLightingOverlayTest {
 
     @Test
     public void overlayMixesSourceDarkenIntoLocalSkyExactlyLikeTheFullScan() {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(1);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(1);
         ProjectionWorldView view = stubView(15, 0, 11);
-        claims.put(packKey(0, 64, 0), new ProjectedBlockClaim(null, view, packKey(200, 40, 200), false));
+        claims.put(packKey(0, 64, 0), new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, view, packKey(200, 40, 200), false));
 
         LightData data = apply(claims, stubView(0, 0, 11), true).get(0L);
         byte[] skyArr = data.getSkyLightArray()[0];
@@ -75,11 +76,11 @@ public final class ProjectorLightingOverlayTest {
 
     @Test
     public void overlaySkipsUnavailableLightAndOutOfRangeRemoteY() {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(2);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(2);
         ProjectionWorldView unavailableView = stubView(-1, -1, 0);
         ProjectionWorldView normalView = stubView(5, 5, 0);
-        claims.put(packKey(0, 64, 0), new ProjectedBlockClaim(null, unavailableView, packKey(0, 40, 0), false));
-        claims.put(packKey(1, 64, 0), new ProjectedBlockClaim(null, normalView, packKey(0, 5000, 0), false));
+        claims.put(packKey(0, 64, 0), new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, unavailableView, packKey(0, 40, 0), false));
+        claims.put(packKey(1, 64, 0), new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, normalView, packKey(0, 5000, 0), false));
 
         LightData data = apply(claims, stubView(9, 9, 0), true).get(0L);
         byte[] skyArr = data.getSkyLightArray()[0];
@@ -94,10 +95,10 @@ public final class ProjectorLightingOverlayTest {
     @Test
     public void fullBrightClaimsOverrideBothChannelsWithoutSourceLighting() {
         ProjectionWorldView view = stubView(8, 7, 0);
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(2);
-        claims.put(packKey(0, 64, 0), new ProjectedBlockClaim(
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(2);
+        claims.put(packKey(0, 64, 0), new ProjectedBlockClaim<BlockData, ProjectionWorldView>(
             null, view, packKey(20, 64, 20), false, ProjectedBlockClaim.LightingPolicy.SOURCE));
-        claims.put(packKey(1, 64, 0), new ProjectedBlockClaim(
+        claims.put(packKey(1, 64, 0), new ProjectedBlockClaim<BlockData, ProjectionWorldView>(
             null, null, ProjectedBlockClaim.NO_REMOTE_KEY, false,
             ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT));
 
@@ -138,19 +139,19 @@ public final class ProjectorLightingOverlayTest {
                     int x = (chunk << 4) + (offset & 15);
                     int y = (section << 4) + (offset >> 4);
                     int z = (chunk << 4) + 5;
-                    ProjectedBlockClaim claim = switch (offset % 4) {
-                        case 0 -> new ProjectedBlockClaim(null, source, packKey(100, 80, 100), false);
-                        case 1 -> new ProjectedBlockClaim(null, null, ProjectedBlockClaim.NO_REMOTE_KEY,
+                    ProjectedBlockClaim<BlockData, ProjectionWorldView> claim = switch (offset % 4) {
+                        case 0 -> new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, source, packKey(100, 80, 100), false);
+                        case 1 -> new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, null, ProjectedBlockClaim.NO_REMOTE_KEY,
                             false, ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT);
-                        case 2 -> new ProjectedBlockClaim(null, unavailable, packKey(100, 80, 100), false);
-                        default -> new ProjectedBlockClaim(null, source, packKey(100, 400, 100), false);
+                        case 2 -> new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, unavailable, packKey(100, 80, 100), false);
+                        default -> new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, source, packKey(100, 400, 100), false);
                     };
                     claims.put(packKey(x, y, z), claim);
                 }
             }
         }
-        claims.put(packKey(0, -65, 0), new ProjectedBlockClaim(null, source, packKey(100, 80, 100), false));
-        claims.put(packKey(0, 320, 0), new ProjectedBlockClaim(null, source, packKey(100, 80, 100), false));
+        claims.put(packKey(0, -65, 0), new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, source, packKey(100, 80, 100), false));
+        claims.put(packKey(0, 320, 0), new ProjectedBlockClaim<BlockData, ProjectionWorldView>(null, source, packKey(100, 80, 100), false));
 
         Map<Long, LightData> packets = apply(claims, stubView(3, 4, 6), true);
 
@@ -188,14 +189,14 @@ public final class ProjectorLightingOverlayTest {
         }
     }
 
-    private static Map<Long, LightData> apply(Long2ObjectMap<ProjectedBlockClaim> claims,
+    private static Map<Long, LightData> apply(Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims,
                                              ProjectionWorldView localView,
                                              boolean sourceLightingEnabled) {
         boolean adaptiveLighting = Settings.ADAPTIVE_LIGHTING;
         Settings.ADAPTIVE_LIGHTING = false;
         try {
             Map<Long, LightData> packets = new HashMap<Long, LightData>();
-            ProjectorLighting lighting = new ProjectorLighting(
+            ProjectorLighting<Player, BlockData, ProjectionWorldView> lighting = BukkitProjectorLighting.create(
                 (observer, chunkX, chunkZ) -> true,
                 (observer, chunkX, chunkZ, data) -> packets.put(chunkKey(chunkX, chunkZ), data));
             Player observer = (Player) Proxy.newProxyInstance(Player.class.getClassLoader(), new Class<?>[] {Player.class},
@@ -211,11 +212,11 @@ public final class ProjectorLightingOverlayTest {
         return ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
     }
 
-    private static final class CountingClaims extends Long2ObjectOpenHashMap<ProjectedBlockClaim> {
+    private static final class CountingClaims extends Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> {
         private int entryScans;
 
         @Override
-        public Long2ObjectMap.FastEntrySet<ProjectedBlockClaim> long2ObjectEntrySet() {
+        public Long2ObjectMap.FastEntrySet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> long2ObjectEntrySet() {
             entryScans++;
             return super.long2ObjectEntrySet();
         }
@@ -261,7 +262,7 @@ public final class ProjectorLightingOverlayTest {
                 if (sky < 0 || block < 0) {
                     return ProjectionWorldView.LIGHT_UNAVAILABLE;
                 }
-                return ProjectionWorldView.packLight(sky, block);
+                return ProjectionContentView.packLight(sky, block);
             }
 
             @Override

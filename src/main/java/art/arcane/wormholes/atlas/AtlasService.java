@@ -38,7 +38,7 @@ public final class AtlasService implements Listener, TraversalObserver {
     private final NetworkRegistry registry;
     private final Supplier<AtlasConfig> config;
     private final Supplier<List<ILocalPortal>> portals;
-    private final AtlasProximityIndex index = new AtlasProximityIndex();
+    private final AtlasProximityIndex<UUID> index = new AtlasProximityIndex<>();
     private int ticksSinceRebuild = INDEX_REBUILD_INTERVAL;
 
     public AtlasService(AtlasPlayerStore store, NetworkRegistry registry, Supplier<AtlasConfig> config,
@@ -88,7 +88,7 @@ public final class AtlasService implements Listener, TraversalObserver {
         }
         if (++ticksSinceRebuild >= INDEX_REBUILD_INTERVAL) {
             ticksSinceRebuild = 0;
-            index.rebuild(portals.get());
+            index.rebuild(indexAnchors(portals.get()));
         }
         for (Player player : online) {
             discoverNearby(player, settings);
@@ -157,6 +157,21 @@ public final class AtlasService implements Listener, TraversalObserver {
         ITunnel tunnel = portal.getTunnel();
         IPortal destination = tunnel == null ? null : tunnel.getDestination();
         return destination == null ? "" : destination.getName();
+    }
+
+    static List<AtlasProximityIndex.Anchor<UUID>> indexAnchors(List<ILocalPortal> portals) {
+        List<AtlasProximityIndex.Anchor<UUID>> anchors = new ArrayList<>(portals.size());
+        for (ILocalPortal portal : portals) {
+            if (portal == null || portal.isDestroyed() || portal.getDimensionalPortalKind().isManagedPortal()) {
+                continue;
+            }
+            Location center = portal.getCenter();
+            if (center != null && center.getWorld() != null) {
+                anchors.add(new AtlasProximityIndex.Anchor<>(portal.getId(), center.getWorld().getUID(),
+                    center.getX(), center.getY(), center.getZ()));
+            }
+        }
+        return anchors;
     }
 
     private void discoverNearby(Player player, AtlasConfig settings) {

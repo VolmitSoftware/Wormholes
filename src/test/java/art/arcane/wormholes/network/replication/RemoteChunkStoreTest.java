@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.replication;
 
+import art.arcane.wormholes.network.view.BukkitRemoteViewCodec;
+
 import art.arcane.wormholes.network.view.ViewSlice;
 
 import org.junit.jupiter.api.Test;
@@ -17,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RemoteChunkStoreTest {
     @Test
     void applyBulkInstallsSlice() throws IOException {
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         byte[] payload = synthesizeBulkPayload(0, 0);
         long chunkKey = ViewSlice.columnKey(0, 0);
         RemoteChunkStore.ReplicatedChunk chunk = store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(chunkKey), 1L, payload));
@@ -28,7 +30,7 @@ class RemoteChunkStoreTest {
 
     @Test
     void bulkPayloadCoordinatesMustMatchTheStreamChunk() {
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         long mismatchedChunkKey = ViewSlice.columnKey(1, 0);
         byte[] payload = synthesizeBulkPayload(0, 0);
 
@@ -39,7 +41,7 @@ class RemoteChunkStoreTest {
 
     @Test
     void applyInOrderDiffUpdatesState() throws IOException {
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         long chunkKey = ViewSlice.columnKey(0, 0);
         store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(chunkKey), 1L, synthesizeBulkPayload(0, 0)));
         ChunkDiffBatch batch = new ChunkDiffBatch(ReplicationTestStream.stream(chunkKey), 2L,
@@ -54,7 +56,7 @@ class RemoteChunkStoreTest {
 
     @Test
     void diffIntroducingNewBlockExtendsPaletteAndResolvesToThatState() throws IOException {
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         long chunkKey = ViewSlice.columnKey(0, 0);
         store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(chunkKey), 1L, synthesizeBulkPayload(0, 0)));
         String fence = "minecraft:oak_fence[east=false,north=true,south=false,waterlogged=false,west=false]";
@@ -73,7 +75,7 @@ class RemoteChunkStoreTest {
 
     @Test
     void reBulkPreservesBufferedNewerDiff() throws IOException {
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         long chunkKey = ViewSlice.columnKey(0, 0);
         store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(chunkKey), 1L, synthesizeBulkPayload(0, 0)));
         String air = "minecraft:air";
@@ -94,7 +96,7 @@ class RemoteChunkStoreTest {
 
     @Test
     void applyOutOfOrderDiffIsBuffered() throws IOException {
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         long chunkKey = ViewSlice.columnKey(0, 0);
         store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(chunkKey), 1L, synthesizeBulkPayload(0, 0)));
         ChunkDiffBatch outOfOrder = new ChunkDiffBatch(ReplicationTestStream.stream(chunkKey), 5L,
@@ -115,7 +117,7 @@ class RemoteChunkStoreTest {
 
     @Test
     void gapExceedingWindowRequestsResync() throws IOException {
-        RemoteChunkStore store = new RemoteChunkStore(2, 1_000L);
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, new RemoteChunkStore.Options(2, 1_000L));
         long chunkKey = ViewSlice.columnKey(0, 0);
         store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(chunkKey), 1L, synthesizeBulkPayload(0, 0)));
         store.applyDiff(diff(chunkKey, 5L));
@@ -126,7 +128,7 @@ class RemoteChunkStoreTest {
 
     @Test
     void timeoutOnBufferedGapEmitsResyncRequest() throws IOException {
-        RemoteChunkStore store = new RemoteChunkStore(32, 50L);
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, new RemoteChunkStore.Options(32, 50L));
         long chunkKey = ViewSlice.columnKey(0, 0);
         store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(chunkKey), 1L, synthesizeBulkPayload(0, 0)));
         store.applyDiff(diff(chunkKey, 5L));
@@ -142,7 +144,7 @@ class RemoteChunkStoreTest {
 
     @Test
     void diffForUnknownChunkSignalsResync() {
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         long chunkKey = ViewSlice.columnKey(7, 7);
         RemoteChunkStore.ApplyOutcome outcome = store.applyDiff(diff(chunkKey, 2L));
         assertFalse(outcome.applied());
@@ -151,7 +153,7 @@ class RemoteChunkStoreTest {
 
     @Test
     void mismatchesIncludeUnknownChunks() {
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         long chunkKey = ViewSlice.columnKey(3, 4);
         List<ReplicationStreamKey> mismatches = store.mismatches(List.of(new ChunkHashProbe.ChunkHashEntry(ReplicationTestStream.stream(chunkKey), 1L, 1234L)));
         assertEquals(1, mismatches.size());
@@ -160,7 +162,7 @@ class RemoteChunkStoreTest {
 
     @Test
     void hashAtReflectsLatestPayload() throws IOException {
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         long chunkKey = ViewSlice.columnKey(0, 0);
         byte[] payload = synthesizeBulkPayload(0, 0);
         store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(chunkKey), 1L, payload));
@@ -178,7 +180,7 @@ class RemoteChunkStoreTest {
 
     @Test
     void sparseLightDiffPatchesOnlyListedCells() throws IOException {
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         long chunkKey = ViewSlice.columnKey(0, 0);
         store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(chunkKey), 1L, synthesizeBulkPayload(0, 0)));
         int cellA = (0 << 8) | (2 << 4) | 3;
@@ -212,7 +214,7 @@ class RemoteChunkStoreTest {
 
     @Test
     void sparseLightDiffForOutOfRangeSectionIsNoOp() throws IOException {
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         long chunkKey = ViewSlice.columnKey(0, 0);
         store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(chunkKey), 1L, synthesizeBulkPayload(0, 0)));
         ChunkDiffBatch batch = new ChunkDiffBatch(ReplicationTestStream.stream(chunkKey), 2L,
@@ -228,7 +230,7 @@ class RemoteChunkStoreTest {
 
     @Test
     void fullLightDiffAppliesOnlyToOverlappingRows() throws IOException {
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         long chunkKey = ViewSlice.columnKey(0, 0);
         store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(chunkKey), 1L, synthesizeBulkPayload(0, 0)));
         byte[] data = new byte[LightDiff.DATA_LENGTH];
@@ -257,7 +259,7 @@ class RemoteChunkStoreTest {
 
     @Test
     void hashAtCacheInvalidatesOnBlockDiff() throws IOException {
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         long chunkKey = ViewSlice.columnKey(0, 0);
         store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(chunkKey), 1L, synthesizeBulkPayload(0, 0)));
         long before = store.hashAt(ReplicationTestStream.stream(chunkKey));
@@ -274,7 +276,7 @@ class RemoteChunkStoreTest {
 
     @Test
     void lightOnlyDiffKeepsHashAtAndProbeMatch() throws IOException {
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         long chunkKey = ViewSlice.columnKey(0, 0);
         store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(chunkKey), 1L, synthesizeBulkPayload(0, 0)));
         long before = store.hashAt(ReplicationTestStream.stream(chunkKey));
@@ -291,7 +293,7 @@ class RemoteChunkStoreTest {
 
     @Test
     void removeWipesChunk() throws IOException {
-        RemoteChunkStore store = new RemoteChunkStore();
+        RemoteChunkStore store = new RemoteChunkStore(BukkitRemoteViewCodec.INSTANCE::blockEntityCandidate, RemoteChunkStore.Options.defaults());
         long chunkKey = ViewSlice.columnKey(0, 0);
         store.applyBulk(new ChunkBulk(ReplicationTestStream.stream(chunkKey), 1L, synthesizeBulkPayload(0, 0)));
         store.remove(ReplicationTestStream.stream(chunkKey));

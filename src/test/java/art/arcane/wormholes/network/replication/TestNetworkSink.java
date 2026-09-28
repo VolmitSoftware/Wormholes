@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.replication;
 
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.WireMessage;
@@ -16,7 +18,7 @@ public final class TestNetworkSink extends NetworkManager {
     private volatile boolean accepting = true;
 
     public TestNetworkSink(Path dataDirectory) {
-        super(Logger.getLogger("Wormholes-test"), new NetworkConfig(), "26.2", "test", 25565, dataDirectory);
+        super(Logger.getLogger("Wormholes-test"), new NetworkManager.Options( new NetworkConfig(), "26.2", "test", 25565, dataDirectory, BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
     }
 
     private final List<NetworkManager.PeerSnapshot> fakePeers = new ArrayList<>();

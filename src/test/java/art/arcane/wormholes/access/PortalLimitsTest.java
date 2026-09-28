@@ -23,16 +23,16 @@ final class PortalLimitsTest {
 
     @Test
     void theHighestLimitNodeWins() {
-        assertEquals(12, PortalLimits.highestLimitNode(List.of(
+        assertEquals(12, PortalOwnershipLimits.highestLimitNode(List.of(
             "wormholes.limit.3", "wormholes.limit.12", "wormholes.limit.7", "wormholes.admin")));
-        assertEquals(-1, PortalLimits.highestLimitNode(List.of("wormholes.admin", "essentials.home")));
+        assertEquals(-1, PortalOwnershipLimits.highestLimitNode(List.of("wormholes.admin", "essentials.home")));
     }
 
     @Test
     void malformedLimitNodesAreIgnored() {
-        assertEquals(4, PortalLimits.highestLimitNode(List.of(
+        assertEquals(4, PortalOwnershipLimits.highestLimitNode(List.of(
             "wormholes.limit.", "wormholes.limit.many", "wormholes.limit.-2", "wormholes.limit.4")));
-        assertEquals(-1, PortalLimits.highestLimitNode(List.of("wormholes.limit.nine")));
+        assertEquals(-1, PortalOwnershipLimits.highestLimitNode(List.of("wormholes.limit.nine")));
     }
 
     @Test

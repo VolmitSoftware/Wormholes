@@ -12,9 +12,9 @@ import art.arcane.wormholes.portal.TransitBridge;
 
 /** A sound matched to the destination dimension, played to the arriving player on their own thread. */
 public final class ArrivalCue {
-    public static final String OVERWORLD_SOUND = "minecraft:block.amethyst_block.chime";
-    public static final String NETHER_SOUND = "minecraft:block.respawn_anchor.deplete";
-    public static final String END_SOUND = "minecraft:entity.shulker.teleport";
+    public static final String OVERWORLD_SOUND = TraversalCues.OVERWORLD_SOUND;
+    public static final String NETHER_SOUND = TraversalCues.NETHER_SOUND;
+    public static final String END_SOUND = TraversalCues.END_SOUND;
 
     private ArrivalCue() {
     }
@@ -34,21 +34,21 @@ public final class ArrivalCue {
     }
 
     static String soundFor(World.Environment environment) {
-        return switch (environment) {
-            case NETHER -> NETHER_SOUND;
-            case THE_END -> END_SOUND;
-            default -> OVERWORLD_SOUND;
-        };
+        return TraversalCues.arrivalSound(dimension(environment), "");
     }
 
     private static float pitchFor(World world) {
         if (world == null) {
             return 1.0F;
         }
-        return switch (world.getEnvironment()) {
-            case NETHER -> 0.8F;
-            case THE_END -> 1.2F;
-            default -> 1.0F;
+        return TraversalCues.arrivalPitch(dimension(world.getEnvironment()));
+    }
+
+    private static String dimension(World.Environment environment) {
+        return switch (environment) {
+            case NETHER -> "minecraft:the_nether";
+            case THE_END -> "minecraft:the_end";
+            default -> "minecraft:overworld";
         };
     }
 }

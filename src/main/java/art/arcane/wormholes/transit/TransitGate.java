@@ -1,5 +1,7 @@
 package art.arcane.wormholes.transit;
 
+import art.arcane.wormholes.util.BukkitGeometry;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -144,7 +146,7 @@ public final class TransitGate implements TraversalGate {
         if (structure == null || structure.getWorld() == null || structure.getCaptureZone() == null) {
             return List.of();
         }
-        Collection<Entity> entities = structure.getCaptureZone().getEntities(structure.getWorld());
+        Collection<Entity> entities = BukkitGeometry.entities(structure.getCaptureZone(), structure.getWorld());
         return entities == null ? List.of() : entities;
     }
 

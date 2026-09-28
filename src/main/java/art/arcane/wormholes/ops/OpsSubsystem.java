@@ -13,6 +13,14 @@ import art.arcane.wormholes.ops.console.MetricsHistory;
 import art.arcane.wormholes.ops.console.MetricsSource;
 import art.arcane.wormholes.ops.console.RuntimeMetricsSource;
 import art.arcane.wormholes.ops.backup.BackupService;
+import art.arcane.wormholes.ops.backup.BackupManifest;
+import art.arcane.wormholes.ops.backup.BundleSigner;
+import art.arcane.wormholes.config.toml.WormholesConfigFile;
+import art.arcane.wormholes.door.DoorStoreSnapshot;
+import art.arcane.wormholes.network.NetworkManager;
+import org.bukkit.World;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import art.arcane.wormholes.ops.webmap.BlueMapMarkers;
 import art.arcane.wormholes.ops.webmap.DynmapMarkers;
 import art.arcane.wormholes.ops.webmap.Pl3xMapMarkers;
@@ -130,8 +138,8 @@ public final class OpsSubsystem implements WormholesSubsystem {
             return;
         }
         MetricsHistory started = new MetricsHistory(wanted.historyMinutes());
-        MetricsEndpoint listener = new MetricsEndpoint(wanted.bind(), wanted.port(), wanted.token(),
-            metricsSource, started);
+        MetricsEndpoint listener = new MetricsEndpoint(new MetricsEndpoint.Options(wanted.bind(), wanted.port(), wanted.token(),
+            metricsSource, started));
         try {
             listener.start();
         } catch (IOException | IllegalStateException failure) {
@@ -160,6 +168,30 @@ public final class OpsSubsystem implements WormholesSubsystem {
         backupTaskId = J.ar(this::runScheduledBackup, wanted.intervalMinutes() * 60 * 20);
     }
 
+    public static BackupService backupService(Path dataFolder) {
+        return new BackupService(dataFolder, () -> backupManifest(dataFolder));
+    }
+
+    private static BackupManifest backupManifest(Path dataFolder) {
+        BundleSigner signer = BundleSigner.forDataFolder(dataFolder);
+        NetworkManager network = Wormholes.networkManager;
+        Wormholes plugin = Wormholes.instance;
+        Map<String, String> worldKeys = new LinkedHashMap<>();
+        if (plugin != null) {
+            for (World world : plugin.getServer().getWorlds()) {
+                worldKeys.put(world.getName(), world.getKey().toString());
+            }
+        }
+        return new BackupManifest(
+            plugin == null ? "unknown" : plugin.getDescription().getVersion(),
+            WormholesConfigFile.CURRENT_SCHEMA,
+            DoorStoreSnapshot.CURRENT_SCHEMA,
+            System.currentTimeMillis(),
+            worldKeys,
+            network == null ? "" : network.getLocalName(),
+            signer == null ? "unsigned" : signer.fingerprint());
+    }
+
     private void runScheduledBackup() {
         Wormholes plugin = Wormholes.instance;
         BackupSettings settings = appliedBackup;
@@ -168,7 +200,7 @@ public final class OpsSubsystem implements WormholesSubsystem {
         }
         Path dataFolder = plugin.getDataFolder().toPath();
         try {
-            BackupService service = BackupService.forRuntime(dataFolder);
+            BackupService service = backupService(dataFolder);
             BackupService.BackupEntry entry = service.now();
             int removed = service.rotate(settings.retain());
             Wormholes.v(() -> "[ops] backup " + entry.id() + " portals=" + entry.portalCount()

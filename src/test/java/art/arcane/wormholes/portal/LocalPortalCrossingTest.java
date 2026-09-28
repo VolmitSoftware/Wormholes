@@ -1,5 +1,7 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.wormholes.util.BukkitGeometry;
+
 import art.arcane.wormholes.TraversableManager;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.util.Cuboid;
@@ -40,11 +42,11 @@ class LocalPortalCrossingTest {
             LocalPortal source = portal(world, direction);
             for (boolean frontSide : List.of(Boolean.TRUE, Boolean.FALSE)) {
                 double sign = frontSide ? -1.0D : 1.0D;
-                Vector normal = source.getFrame().getNormal().toVector();
+                Vector normal = BukkitGeometry.bukkit(source.getFrame().getNormal());
                 Vector velocity = normal.clone().multiply(sign * 0.8D)
-                    .add(source.getFrame().getRight().toVector().multiply(0.31D))
-                    .add(source.getFrame().getUp().toVector().multiply(-0.27D));
-                Vector start = source.getOrigin().clone().subtract(normal.clone().multiply(sign * 0.1D));
+                    .add(BukkitGeometry.bukkit(source.getFrame().getRight()).multiply(0.31D))
+                    .add(BukkitGeometry.bukkit(source.getFrame().getUp()).multiply(-0.27D));
+                Vector start = BukkitGeometry.bukkit(source.getOrigin()).subtract(normal.clone().multiply(sign * 0.1D));
                 Vector end = start.clone().add(velocity);
                 LocalPortalTestSupport.FakeEntity entity = LocalPortalTestSupport.FakeEntity.entity("crossing", end.toLocation(world));
                 entity.entity().setVelocity(velocity);
@@ -56,9 +58,9 @@ class LocalPortalCrossingTest {
                 assertVector(end, crossing.getInPoint());
                 assertVector(velocity, crossing.getInVelocity());
                 LocalPortal destination = portal(world, direction.reverse());
-                Vector expected = source.getFrame().transformPoint(end, source.getOrigin(), destination.getOrigin(), destination.getFrame());
+                Vector expected = BukkitGeometry.bukkit(source.getFrame().transformPoint(BukkitGeometry.vector(end), source.getOrigin(), destination.getOrigin(), destination.getFrame()));
                 assertVector(expected, destination.computeExitTarget(crossing).toVector());
-                assertVector(source.getFrame().transformVector(velocity, destination.getFrame()), crossing.getOutVelocity(destination.getFrame()));
+                assertVector(BukkitGeometry.bukkit(source.getFrame().transformVector(BukkitGeometry.vector(velocity), destination.getFrame())), crossing.getOutVelocity(destination.getFrame()));
             }
         }
     }
@@ -68,7 +70,7 @@ class LocalPortalCrossingTest {
         World world = LocalPortalTestSupport.world("slow-crossing");
         LocalPortal source = portal(world, Direction.E);
         Vector velocity = new Vector(-0.004D, 0.002D, 0.001D);
-        Vector end = source.getOrigin().clone().add(new Vector(-0.001D, 0.0D, 0.0D));
+        Vector end = BukkitGeometry.bukkit(source.getOrigin()).add(new Vector(-0.001D, 0.0D, 0.0D));
         LocalPortalTestSupport.FakeEntity entity = LocalPortalTestSupport.FakeEntity.entity("slow", end.toLocation(world));
         entity.entity().setVelocity(velocity);
 
@@ -83,7 +85,7 @@ class LocalPortalCrossingTest {
     void occupyingTheApertureWithoutCrossingItsPlaneDoesNotTeleport() {
         World world = LocalPortalTestSupport.world("uncrossed-aperture");
         LocalPortal source = portal(world, Direction.E);
-        Vector end = source.getOrigin().clone().add(new Vector(0.1D, 0.0D, 0.0D));
+        Vector end = BukkitGeometry.bukkit(source.getOrigin()).add(new Vector(0.1D, 0.0D, 0.0D));
         LocalPortalTestSupport.FakeEntity entity = LocalPortalTestSupport.FakeEntity.entity("uncrossed", end.toLocation(world));
         for (Vector velocity : List.of(new Vector(), new Vector(-0.1D, 0.0D, 0.0D), new Vector(0.0D, 0.1D, 0.0D))) {
             entity.entity().setVelocity(velocity);
@@ -95,7 +97,7 @@ class LocalPortalCrossingTest {
     void crossingOutsideTheApertureDoesNotTeleport() {
         World world = LocalPortalTestSupport.world("outside-aperture");
         LocalPortal source = portal(world, Direction.E);
-        Vector end = source.getOrigin().clone().add(new Vector(-0.1D, 8.0D, 0.0D));
+        Vector end = BukkitGeometry.bukkit(source.getOrigin()).add(new Vector(-0.1D, 8.0D, 0.0D));
         LocalPortalTestSupport.FakeEntity entity = LocalPortalTestSupport.FakeEntity.entity("outside", end.toLocation(world));
         entity.entity().setVelocity(new Vector(-0.4D, 0.0D, 0.0D));
         assertNull(source.traversal().rayTeleport(entity.entity(), null));
@@ -105,7 +107,7 @@ class LocalPortalCrossingTest {
     void startingOnThePlanePreservesTheDepartureSide() {
         World world = LocalPortalTestSupport.world("plane-start");
         LocalPortal source = portal(world, Direction.E);
-        Vector start = source.getOrigin().clone();
+        Vector start = BukkitGeometry.bukkit(source.getOrigin());
         for (double speed : List.of(-0.1D, 0.1D)) {
             Vector velocity = new Vector(speed, 0.0D, 0.0D);
             Vector end = start.clone().add(velocity);
@@ -121,7 +123,7 @@ class LocalPortalCrossingTest {
     void previousEntityPositionClosesTheGapLeftByVelocityDrag() {
         World world = LocalPortalTestSupport.world("entity-drag");
         LocalPortal source = portal(world, Direction.E);
-        Vector start = source.getOrigin().clone().add(new Vector(0.001D, 0.0D, 0.0D));
+        Vector start = BukkitGeometry.bukkit(source.getOrigin()).add(new Vector(0.001D, 0.0D, 0.0D));
         Vector end = start.clone().add(new Vector(-0.1D, 0.0D, 0.0D));
         LocalPortalTestSupport.FakeEntity entity = LocalPortalTestSupport.FakeEntity.entity("drag", start.toLocation(world));
         PortalCaptureHistory history = new PortalCaptureHistory();
@@ -145,7 +147,7 @@ class LocalPortalCrossingTest {
     void externalEntityTeleportInvalidatesThePreviousSweep() {
         World world = LocalPortalTestSupport.world("entity-teleport");
         LocalPortal source = portal(world, Direction.E);
-        Location start = source.getOrigin().clone().add(new Vector(0.2D, 0.0D, 0.0D)).toLocation(world);
+        Location start = BukkitGeometry.bukkit(source.getOrigin()).add(new Vector(0.2D, 0.0D, 0.0D)).toLocation(world);
         Location end = start.clone().subtract(0.4D, 0.0D, 0.0D);
         LocalPortalTestSupport.FakeEntity entity = LocalPortalTestSupport.FakeEntity.entity("teleported", start);
         PortalCaptureHistory history = new PortalCaptureHistory();
@@ -165,7 +167,7 @@ class LocalPortalCrossingTest {
     void entityCaptureExpiresAfterLeavingTheCaptureZone() {
         World world = LocalPortalTestSupport.world("entity-capture-expiry");
         LocalPortal source = portal(world, Direction.E);
-        Location location = source.getOrigin().toLocation(world);
+        Location location = BukkitGeometry.location(source.getOrigin(), world);
         LocalPortalTestSupport.FakeEntity entity = LocalPortalTestSupport.FakeEntity.entity("expired", location);
         PortalCaptureHistory history = new PortalCaptureHistory();
         history.beginPass();

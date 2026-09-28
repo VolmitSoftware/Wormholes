@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network.mesh;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.network.PortalInfo;
 import art.arcane.wormholes.network.RemotePortalRegistry;
 
@@ -32,13 +33,13 @@ class DirectoryCacheTest {
     void restartHydratesLastKnownPortalsAsStaleUntilAFreshDirectoryArrives() throws IOException {
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();
-        DirectoryCache cache = DirectoryCache.loadOrCreate(tempDir);
+        DirectoryCache cache = DirectoryCache.loadOrCreate(tempDir, BukkitJsonDocuments.INSTANCE);
         cache.record("beta", List.of(info(first, "Hub", true), info(second, "Mine", false)));
         assertTrue(Files.isRegularFile(tempDir.resolve("mesh").resolve("directory.json")));
         assertTrue(Files.readString(tempDir.resolve("mesh").resolve("directory.json"), StandardCharsets.UTF_8).contains("Hub"));
 
         RemotePortalRegistry registry = new RemotePortalRegistry();
-        DirectoryCache.loadOrCreate(tempDir).hydrate(registry);
+        DirectoryCache.loadOrCreate(tempDir, BukkitJsonDocuments.INSTANCE).hydrate(registry);
         assertTrue(registry.isStale("beta"));
         assertNotNull(registry.get("beta", first));
         assertTrue(registry.get("beta", first).isOpen());
@@ -55,18 +56,18 @@ class DirectoryCacheTest {
     void tombstonedPortalsDoNotResurrectOnHydrateUntilTheyAreRecreated() throws IOException {
         UUID kept = UUID.randomUUID();
         UUID removed = UUID.randomUUID();
-        DirectoryCache cache = DirectoryCache.loadOrCreate(tempDir);
+        DirectoryCache cache = DirectoryCache.loadOrCreate(tempDir, BukkitJsonDocuments.INSTANCE);
         cache.record("beta", List.of(info(kept, "Hub", true), info(removed, "Old", true)));
         cache.tombstone("beta", removed);
 
         RemotePortalRegistry registry = new RemotePortalRegistry();
-        DirectoryCache.loadOrCreate(tempDir).hydrate(registry);
+        DirectoryCache.loadOrCreate(tempDir, BukkitJsonDocuments.INSTANCE).hydrate(registry);
         assertNotNull(registry.get("beta", kept));
         assertNull(registry.get("beta", removed));
 
         cache.record("beta", List.of(info(kept, "Hub", true), info(removed, "Old", true)));
         RemotePortalRegistry again = new RemotePortalRegistry();
-        DirectoryCache.loadOrCreate(tempDir).hydrate(again);
+        DirectoryCache.loadOrCreate(tempDir, BukkitJsonDocuments.INSTANCE).hydrate(again);
         assertNotNull(again.get("beta", removed));
     }
 
@@ -74,7 +75,7 @@ class DirectoryCacheTest {
     void registryChangesFlowIntoTheCacheThroughTheListener() throws IOException {
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();
-        DirectoryCache cache = DirectoryCache.loadOrCreate(tempDir);
+        DirectoryCache cache = DirectoryCache.loadOrCreate(tempDir, BukkitJsonDocuments.INSTANCE);
         RemotePortalRegistry registry = new RemotePortalRegistry();
         registry.setListener(cache);
 
@@ -87,7 +88,7 @@ class DirectoryCacheTest {
         assertTrue(cache.portals("beta").isEmpty());
 
         RemotePortalRegistry hydrated = new RemotePortalRegistry();
-        DirectoryCache.loadOrCreate(tempDir).hydrate(hydrated);
+        DirectoryCache.loadOrCreate(tempDir, BukkitJsonDocuments.INSTANCE).hydrate(hydrated);
         assertFalse(hydrated.hasPeer("beta"));
     }
 
@@ -95,7 +96,7 @@ class DirectoryCacheTest {
     void hydrateNeverOverwritesAPeerThatAlreadyReportedLive() throws IOException {
         UUID live = UUID.randomUUID();
         UUID cached = UUID.randomUUID();
-        DirectoryCache cache = DirectoryCache.loadOrCreate(tempDir);
+        DirectoryCache cache = DirectoryCache.loadOrCreate(tempDir, BukkitJsonDocuments.INSTANCE);
         cache.record("beta", List.of(info(cached, "Cached", true)));
         RemotePortalRegistry registry = new RemotePortalRegistry();
         registry.applyDirectory("beta", List.of(info(live, "Live", true)));

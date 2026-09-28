@@ -103,21 +103,21 @@ class DoorAccessPolicyTest {
 
     @Test
     void onlyOperatorsOrPlayersWithTheCraftNodeCanCraftDoors() {
-        assertTrue(DoorAccessPolicy.canCraft(player(true, Set.of())));
-        assertTrue(DoorAccessPolicy.canCraft(player(false, Set.of("wormholes.admin"))));
-        assertTrue(DoorAccessPolicy.canCraft(player(false, Set.of(DoorAccessPolicy.CRAFT_NODE))));
-        assertFalse(DoorAccessPolicy.canCraft(player(false, Set.of())));
-        assertFalse(DoorAccessPolicy.canCraft(null));
+        assertTrue(BukkitDoorAccess.canCraft(player(true, Set.of())));
+        assertTrue(BukkitDoorAccess.canCraft(player(false, Set.of("wormholes.admin"))));
+        assertTrue(BukkitDoorAccess.canCraft(player(false, Set.of(DoorAccessPolicy.CRAFT_NODE))));
+        assertFalse(BukkitDoorAccess.canCraft(player(false, Set.of())));
+        assertFalse(BukkitDoorAccess.canCraft(null));
     }
 
     @Test
     void onlyOperatorsAdministratorsOrPlayersWithThePlaceNodeCanPlaceDoors() {
-        assertTrue(DoorAccessPolicy.canPlace(player(true, Set.of())));
-        assertTrue(DoorAccessPolicy.canPlace(player(false, Set.of("wormholes.admin"))));
-        assertTrue(DoorAccessPolicy.canPlace(player(false, Set.of(DoorAccessPolicy.PLACE_NODE))));
-        assertFalse(DoorAccessPolicy.canPlace(player(false, Set.of(DoorAccessPolicy.CRAFT_NODE))));
-        assertFalse(DoorAccessPolicy.canPlace(player(false, Set.of())));
-        assertFalse(DoorAccessPolicy.canPlace(null));
+        assertTrue(BukkitDoorAccess.canPlace(player(true, Set.of())));
+        assertTrue(BukkitDoorAccess.canPlace(player(false, Set.of("wormholes.admin"))));
+        assertTrue(BukkitDoorAccess.canPlace(player(false, Set.of(DoorAccessPolicy.PLACE_NODE))));
+        assertFalse(BukkitDoorAccess.canPlace(player(false, Set.of(DoorAccessPolicy.CRAFT_NODE))));
+        assertFalse(BukkitDoorAccess.canPlace(player(false, Set.of())));
+        assertFalse(BukkitDoorAccess.canPlace(null));
     }
 
     private static DoorAccessRecord record(UUID playerId, DoorAccessState state) {

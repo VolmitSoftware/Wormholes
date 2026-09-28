@@ -1,5 +1,7 @@
 package art.arcane.wormholes.door;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -40,7 +42,7 @@ class DoorStateServiceTest {
         DimensionalDoorRepository repository = repository();
         repository.save(persisted);
 
-        DoorStateService service = DoorStateService.load(new DimensionalDoorRepository(repository.stateFile()));
+        DoorStateService service = DoorStateService.load(new DimensionalDoorRepository(repository.stateFile(), BukkitJsonDocuments.INSTANCE));
 
         assertEquals(pair, service.findPair(pair.pairId()).orElseThrow());
         assertEquals(endpointA, service.findEndpoint(endpointA.position()).orElseThrow());
@@ -70,7 +72,7 @@ class DoorStateServiceTest {
         assertEquals(endpointA, service.removeEndpoint(endpointA.position()).orElseThrow());
         assertEquals(pair, service.removePair(pair.pairId()).orElseThrow());
 
-        DoorStateService restarted = DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile()));
+        DoorStateService restarted = DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile(), BukkitJsonDocuments.INSTANCE));
         assertTrue(restarted.pairs().isEmpty());
         assertTrue(restarted.endpoints().isEmpty());
         assertEquals(service.snapshot(), restarted.snapshot());
@@ -138,7 +140,7 @@ class DoorStateServiceTest {
 
         assertFalse(service.removeAccessRecord(identity.itemId()));
         assertTrue(service.accessRecord(identity.itemId()).isEmpty());
-        assertTrue(DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile()))
+        assertTrue(DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile(), BukkitJsonDocuments.INSTANCE))
             .accessRecord(identity.itemId()).isEmpty());
     }
 
@@ -181,7 +183,7 @@ class DoorStateServiceTest {
         assertFalse(service.removeAccessPlayer(unknownItem, guest));
 
         DoorStateService restarted = DoorStateService.load(
-            new DimensionalDoorRepository(service.repository().stateFile()));
+            new DimensionalDoorRepository(service.repository().stateFile(), BukkitJsonDocuments.INSTANCE));
         assertEquals(
             DoorAccessRecord.unrestricted(identity.itemId(), owner)
                 .withPlayerState(guest, DoorAccessState.WHITELIST),
@@ -189,7 +191,7 @@ class DoorStateServiceTest {
         assertEquals(service.snapshot(), restarted.snapshot());
 
         assertTrue(restarted.removeAccessPlayer(identity.itemId(), guest));
-        assertTrue(DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile()))
+        assertTrue(DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile(), BukkitJsonDocuments.INSTANCE))
             .accessRecord(identity.itemId()).orElseThrow().players().isEmpty());
     }
 
@@ -211,7 +213,7 @@ class DoorStateServiceTest {
         assertTrue(service.setAccessState(identity.itemId(), blacklisted, DoorAccessState.BLACKLIST));
 
         DoorAccessRecord reloaded = DoorStateService
-            .load(new DimensionalDoorRepository(service.repository().stateFile()))
+            .load(new DimensionalDoorRepository(service.repository().stateFile(), BukkitJsonDocuments.INSTANCE))
             .accessRecord(identity.itemId())
             .orElseThrow();
 
@@ -237,7 +239,7 @@ class DoorStateServiceTest {
         DoorAccessRecord expected = DoorAccessRecord.unrestricted(identity.itemId(), id(232))
             .withPlayerState(id(233), DoorAccessState.BLACKLIST);
         assertEquals(expected, service.accessRecord(identity.itemId()).orElseThrow());
-        assertEquals(expected, DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile()))
+        assertEquals(expected, DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile(), BukkitJsonDocuments.INSTANCE))
             .accessRecord(identity.itemId()).orElseThrow());
     }
 
@@ -271,7 +273,7 @@ class DoorStateServiceTest {
         assertThrows(IllegalArgumentException.class,
             () -> service.getOrAllocatePocket(pair(56).endpoint(PairEndpoint.A), traveler));
 
-        DoorStateService restarted = DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile()));
+        DoorStateService restarted = DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile(), BukkitJsonDocuments.INSTANCE));
         assertEquals(personal, restarted.getOrAllocatePocket(personalA, traveler));
         assertEquals(publicPocket, restarted.getOrAllocatePocket(publicDoor, id(57)));
         assertEquals(16, restarted.getOrAllocatePocket(personalA, traveler).shell().size());
@@ -296,14 +298,14 @@ class DoorStateServiceTest {
         );
         DimensionalDoorRepository repository = repository();
         repository.save(stateWithRetiredGap);
-        DoorStateService service = DoorStateService.load(new DimensionalDoorRepository(repository.stateFile()));
+        DoorStateService service = DoorStateService.load(new DimensionalDoorRepository(repository.stateFile(), BukkitJsonDocuments.INSTANCE));
 
         PocketSpace allocated = service.getOrAllocatePocket(PocketBinding.publicDoor(id(61)));
 
         assertEquals(4, allocated.slot());
         assertEquals(5, service.snapshot().nextPocketSlot());
         assertEquals(5,
-            DoorStateService.load(new DimensionalDoorRepository(repository.stateFile())).snapshot().nextPocketSlot());
+            DoorStateService.load(new DimensionalDoorRepository(repository.stateFile(), BukkitJsonDocuments.INSTANCE)).snapshot().nextPocketSlot());
     }
 
     @Test
@@ -318,12 +320,12 @@ class DoorStateServiceTest {
         service.putReturnTicket(replacement);
         assertEquals(List.of(replacement), service.returnTickets());
         assertEquals(replacement,
-            DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile()))
+            DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile(), BukkitJsonDocuments.INSTANCE))
                 .getReturnTicket(first.playerId()).orElseThrow());
 
         assertEquals(replacement, service.removeReturnTicket(first.playerId()).orElseThrow());
         assertTrue(service.removeReturnTicket(first.playerId()).isEmpty());
-        assertTrue(DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile()))
+        assertTrue(DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile(), BukkitJsonDocuments.INSTANCE))
             .returnTickets().isEmpty());
     }
 
@@ -345,7 +347,7 @@ class DoorStateServiceTest {
     void persistenceFailureDoesNotPublishCandidateMutation() throws Exception {
         Path parentThatIsAFile = temporaryDirectory.resolve("not-a-directory");
         Files.writeString(parentThatIsAFile, "occupied");
-        DimensionalDoorRepository repository = new DimensionalDoorRepository(parentThatIsAFile.resolve("state.json"));
+        DimensionalDoorRepository repository = new DimensionalDoorRepository(parentThatIsAFile.resolve("state.json"), BukkitJsonDocuments.INSTANCE);
         DoorStateService service = DoorStateService.load(repository);
         DoorPairIdentity pair = pair(90);
 
@@ -364,7 +366,7 @@ class DoorStateServiceTest {
         assertThrows(IllegalStateException.class, () -> service.registerEndpoint(conflicting));
         assertEquals(List.of(first), service.endpoints());
         assertEquals(List.of(first),
-            DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile())).endpoints());
+            DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile(), BukkitJsonDocuments.INSTANCE)).endpoints());
     }
 
     @Test
@@ -381,7 +383,7 @@ class DoorStateServiceTest {
         assertEquals(replacement, service.findEndpointByItem(identity.itemId()).orElseThrow());
 
         DoorStateService restarted = DoorStateService.load(
-            new DimensionalDoorRepository(service.repository().stateFile()));
+            new DimensionalDoorRepository(service.repository().stateFile(), BukkitJsonDocuments.INSTANCE));
         assertEquals(List.of(replacement), restarted.endpoints());
         assertFalse(restarted.relocateEndpoint(replacement, replacement));
     }
@@ -401,7 +403,7 @@ class DoorStateServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.relocateEndpoint(previous, occupied));
         assertEquals(List.of(previous, occupied), service.endpoints());
         assertEquals(List.of(previous, occupied),
-            DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile())).endpoints());
+            DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile(), BukkitJsonDocuments.INSTANCE)).endpoints());
     }
 
     @Test
@@ -420,12 +422,12 @@ class DoorStateServiceTest {
         assertTrue(service.setEndpointOpenState(trapdoor.position(), DoorOpenState.CLOSED));
 
         DoorStateService restarted = DoorStateService.load(
-            new DimensionalDoorRepository(service.repository().stateFile()));
+            new DimensionalDoorRepository(service.repository().stateFile(), BukkitJsonDocuments.INSTANCE));
         assertEquals(DoorOpenState.CLOSED, restarted.findEndpoint(door.position()).orElseThrow().openState());
         assertEquals(DoorOpenState.CLOSED, restarted.findEndpoint(trapdoor.position()).orElseThrow().openState());
         assertTrue(restarted.setEndpointOpenState(door.position(), DoorOpenState.OPEN));
         assertEquals(DoorOpenState.OPEN,
-            DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile()))
+            DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile(), BukkitJsonDocuments.INSTANCE))
                 .findEndpoint(door.position()).orElseThrow().openState());
     }
 
@@ -456,13 +458,13 @@ class DoorStateServiceTest {
         assertTrue(service.setEndpointProjection(door.position(), DoorProjectionState.OFF));
 
         DoorStateService restarted = DoorStateService.load(
-            new DimensionalDoorRepository(service.repository().stateFile()));
+            new DimensionalDoorRepository(service.repository().stateFile(), BukkitJsonDocuments.INSTANCE));
         PlacedDoorEndpoint reloaded = restarted.findEndpoint(door.position()).orElseThrow();
         assertEquals(DoorProjectionState.OFF, reloaded.projection());
         assertEquals(DoorOpenState.OPEN, reloaded.openState(), "the projection toggle never moves the open state");
         assertTrue(restarted.setEndpointProjection(door.position(), DoorProjectionState.ON));
         assertEquals(DoorProjectionState.ON,
-            DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile()))
+            DoorStateService.load(new DimensionalDoorRepository(service.repository().stateFile(), BukkitJsonDocuments.INSTANCE))
                 .findEndpoint(door.position()).orElseThrow().projection());
     }
 
@@ -498,7 +500,7 @@ class DoorStateServiceTest {
         assertEquals(reshaped, service.findPocket(binding).orElseThrow());
         assertEquals(reshaped, service.findPocketById(original.spaceId()).orElseThrow());
 
-        DoorStateService restarted = DoorStateService.load(new DimensionalDoorRepository(repository.stateFile()));
+        DoorStateService restarted = DoorStateService.load(new DimensionalDoorRepository(repository.stateFile(), BukkitJsonDocuments.INSTANCE));
         assertEquals(reshaped, restarted.findPocket(binding).orElseThrow());
         assertEquals(64, new PocketLayout(restarted.findPocket(binding).orElseThrow()).size());
         assertThrows(IllegalStateException.class,
@@ -522,7 +524,7 @@ class DoorStateServiceTest {
     }
 
     private DimensionalDoorRepository repository() {
-        return new DimensionalDoorRepository(temporaryDirectory.resolve("state.json"));
+        return new DimensionalDoorRepository(temporaryDirectory.resolve("state.json"), BukkitJsonDocuments.INSTANCE);
     }
 
     private static DoorPairIdentity pair(long base) {

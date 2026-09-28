@@ -1,5 +1,6 @@
 package art.arcane.wormholes.papi;
 
+import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.volmlib.util.bukkit.papi.PlaceholderValues;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
@@ -36,7 +37,7 @@ public final class WormholesPortalDestinations {
         }
         ITunnel tunnel = portal.hasTunnel() ? portal.getTunnel() : null;
         IPortal destination = tunnel == null ? null : tunnel.getDestination();
-        Vector origin = destination == null ? null : destination.getOrigin();
+        GeometryVector origin = destination == null ? null : destination.getOrigin();
         if (origin == null || !Double.isFinite(origin.getX()) || !Double.isFinite(origin.getY()) || !Double.isFinite(origin.getZ())) {
             return EMPTY;
         }

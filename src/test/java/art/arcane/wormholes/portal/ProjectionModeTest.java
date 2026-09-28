@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import net.md_5.bungee.api.ChatColor;
+import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.localization.WormholesMessages;
 import org.junit.jupiter.api.Test;
 
 public final class ProjectionModeTest
@@ -21,9 +23,9 @@ public final class ProjectionModeTest
 	@Test
 	public void primaryProjectionStatesUseBlackAndGoldTheme()
 	{
-		assertTrue(ProjectionMode.OFF.getDisplayName().startsWith(ChatColor.DARK_GRAY.toString()));
-		assertTrue(ProjectionMode.ON.getDisplayName().startsWith(ChatColor.GOLD.toString()));
-		assertFalse(ProjectionMode.OFF.getDisplayName().contains(ChatColor.DARK_PURPLE.toString()));
-		assertFalse(ProjectionMode.ON.getDisplayName().contains(ChatColor.LIGHT_PURPLE.toString()));
+		assertTrue(Wormholes.text().legacyLines(WormholesMessages.PORTAL_MENU_PROJECTION_OFF).getFirst().startsWith(ChatColor.DARK_GRAY.toString()));
+		assertTrue(Wormholes.text().legacyLines(WormholesMessages.PORTAL_MENU_PROJECTION_ON).getFirst().startsWith(ChatColor.GOLD.toString()));
+		assertFalse(Wormholes.text().legacyLines(WormholesMessages.PORTAL_MENU_PROJECTION_OFF).getFirst().contains(ChatColor.DARK_PURPLE.toString()));
+		assertFalse(Wormholes.text().legacyLines(WormholesMessages.PORTAL_MENU_PROJECTION_ON).getFirst().contains(ChatColor.LIGHT_PURPLE.toString()));
 	}
 }

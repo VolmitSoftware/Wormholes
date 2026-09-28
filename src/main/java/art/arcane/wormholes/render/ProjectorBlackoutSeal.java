@@ -7,12 +7,13 @@ import org.bukkit.block.data.BlockData;
 import art.arcane.wormholes.portal.BlackoutColor;
 import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
 import art.arcane.wormholes.render.atmosphere.FogPlatePolicy;
+import art.arcane.wormholes.render.atmosphere.BukkitFogPlateShells;
 
 /**
  * The block the blackout shell is built from for the current pass: the portal's concrete colour, or
  * the destination dimension's fog plate when the atmosphere mode asks for one.
  */
-final class ProjectorBlackoutSeal {
+final class ProjectorBlackoutSeal implements ProjectionBlackout<BlockData> {
     private BlockData blackoutData;
     private BlockData colorData;
     private BlackoutColor blackoutColorCache;
@@ -29,7 +30,7 @@ final class ProjectorBlackoutSeal {
             blackoutColorCache = blackoutColor;
         }
         blackoutData = FogPlatePolicy.applies(FidelitySettings.fogPlate, mode)
-            ? FogPlatePolicy.shell(destination, colorData)
+            ? BukkitFogPlateShells.shell(destination, colorData)
             : colorData;
     }
 
@@ -37,12 +38,12 @@ final class ProjectorBlackoutSeal {
         enabled = false;
     }
 
-    boolean isEnabled() {
+    public boolean isEnabled() {
         return enabled;
     }
 
     /** The shell block for this pass, or null when the colour has no usable block state. */
-    BlockData data() {
+    public BlockData data() {
         return blackoutData;
     }
 

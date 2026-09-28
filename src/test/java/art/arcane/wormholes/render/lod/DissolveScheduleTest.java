@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render.lod;
 
+import art.arcane.wormholes.render.view.ProjectionWorldView;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -56,7 +57,7 @@ final class DissolveScheduleTest {
 
     @Test
     void filterKeepsTheNearestCellsFirst() {
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>();
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         for (int depth = 1; depth <= 8; depth++) {
             claims.put(ProjectionCellKey.pack(0, 64, -depth), claim());
         }
@@ -71,8 +72,8 @@ final class DissolveScheduleTest {
         assertTrue(claims.isEmpty());
     }
 
-    private static ProjectedBlockClaim claim() {
-        return new ProjectedBlockClaim(blockData(), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
+    private static ProjectedBlockClaim<BlockData, ProjectionWorldView> claim() {
+        return new ProjectedBlockClaim<BlockData, ProjectionWorldView>(blockData(), null, ProjectedBlockClaim.NO_REMOTE_KEY, false);
     }
 
     private static BlockData blockData() {

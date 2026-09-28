@@ -1,5 +1,6 @@
 package art.arcane.wormholes.nexus;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NexusConfig;
 import art.arcane.wormholes.hook.WormholesHooks;
 import art.arcane.wormholes.hook.WormholesRegistrar;
@@ -36,7 +37,7 @@ class DialerTest {
     void setUp() {
         WormholesHooks.install(new WormholesRegistrar().portalExtension(new NexusExtensionFactory(null)));
         world = NexusTestSupport.world("dialer");
-        registry = new NetworkRegistry(tempDir);
+        registry = new NetworkRegistry(tempDir, BukkitJsonDocuments.INSTANCE);
         registry.load();
         config = new NexusConfig();
         applier = new RecordingApplier();

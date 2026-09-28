@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.util.BukkitGeometry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -168,7 +169,7 @@ final class PortalProjectorStagedScanTest {
             when(portal.getWorld()).thenReturn(world);
             when(portal.getName()).thenReturn("staged projection");
             when(portal.getFrame()).thenReturn(PortalFrame.canonical(Direction.N));
-            when(portal.getOrigin()).thenReturn(structure.getCenter().toVector());
+            when(portal.getOrigin()).thenReturn(BukkitGeometry.vector(structure.getCenter()));
             when(portal.getStructure()).thenReturn(structure);
             when(portal.isOpen()).thenReturn(true);
             when(portal.isMirrorMode()).thenReturn(true);

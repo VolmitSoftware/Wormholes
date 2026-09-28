@@ -79,7 +79,7 @@ class RegionalDiffAccumulatorVenticularTest {
     private static final class Harness {
         private final World world;
         private final long chunkKey;
-        private final RegionalDiffAccumulator accumulator;
+        private final RegionalDiffAccumulator<World, BlockData> accumulator;
         private final CapturingFeed feed;
 
         private Harness(Path dir) {
@@ -88,10 +88,10 @@ class RegionalDiffAccumulatorVenticularTest {
             this.world = fakeWorld(UUID.randomUUID());
             UUID portalId = UUID.randomUUID();
             this.chunkKey = ViewSlice.columnKey(0, 0);
-            replication.subscribe(PEER, portalId, world,
+            replication.subscribe(PEER, portalId, world.getUID(),
                 ReplicationTestStream.stream(portalId, world, chunkKey, ProjectionRenderMode.VENTICULAR));
             this.feed = new CapturingFeed();
-            this.accumulator = new RegionalDiffAccumulator(replication, feed, CaptureSettings.defaults());
+            this.accumulator = new RegionalDiffAccumulator<>(replication, new RegionalDiffAccumulator.Options<>(feed, CaptureSettings.defaults(), BukkitCaptureAccess.INSTANCE));
             this.accumulator.setCaptureOcclusionModel((w, x, y, z) -> SOLID, data -> data == SOLID);
         }
     }
@@ -100,7 +100,7 @@ class RegionalDiffAccumulatorVenticularTest {
         private final List<BlockChange> blocks = new ArrayList<>();
 
         @Override
-        public void onChunkDrain(World world, long chunkKey, List<BlockChange> drainedBlocks, List<LightDiff> drainedLights, List<BlockEntityDiff> drainedEntities) {
+        public void onChunkDrain(UUID world, long chunkKey, List<BlockChange> drainedBlocks, List<LightDiff> drainedLights, List<BlockEntityDiff> drainedEntities) {
             blocks.addAll(drainedBlocks);
         }
 

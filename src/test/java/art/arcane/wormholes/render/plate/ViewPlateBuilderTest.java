@@ -1,5 +1,7 @@
 package art.arcane.wormholes.render.plate;
 
+import art.arcane.wormholes.render.BukkitProjectorBlocks;
+import art.arcane.wormholes.util.BukkitGeometry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -39,10 +41,10 @@ final class ViewPlateBuilderTest {
         ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
         FakeWorldView destination = new FakeWorldView(blockData(Material.STONE), 7L);
         destination.put(0, 64, -3, blockData(Material.GLASS));
-        ViewPlateBuilder.Request request = request(portal, structure, destination, true);
+        ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request = request(portal, structure, destination, true);
 
-        ViewPlate first = ViewPlateBuilder.build(request);
-        ViewPlate second = ViewPlateBuilder.build(request);
+        ViewPlate<BlockData> first = ViewPlateBuilder.build(request);
+        ViewPlate<BlockData> second = ViewPlateBuilder.build(request);
 
         assertFalse(first.isEmpty());
         assertEquals(first.cellCount(), second.cellCount());
@@ -52,8 +54,8 @@ final class ViewPlateBuilderTest {
         LongOpenHashSet keys = new LongOpenHashSet(first.cellKeys());
         assertEquals(keys, new LongOpenHashSet(second.cellKeys()));
         for (long key : keys) {
-            PlateCell left = first.cell(key);
-            PlateCell right = second.cell(key);
+            PlateCell<BlockData> left = first.cell(key);
+            PlateCell<BlockData> right = second.cell(key);
             assertNotNull(left);
             assertEquals(left.kind(), right.kind());
             assertSame(left.data(), right.data());
@@ -75,11 +77,11 @@ final class ViewPlateBuilderTest {
         PortalStructure structure = structure();
         ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
         FakeWorldView destination = new FakeWorldView(blockData(Material.STONE), 1L);
-        ViewPlate before = ViewPlateBuilder.build(request(portal, structure, destination, true));
+        ViewPlate<BlockData> before = ViewPlateBuilder.build(request(portal, structure, destination, true));
 
         destination.put(0, 64, -2, blockData(Material.GLASS));
         destination.revision = 2L;
-        ViewPlate after = ViewPlateBuilder.build(request(portal, structure, destination, true));
+        ViewPlate<BlockData> after = ViewPlateBuilder.build(request(portal, structure, destination, true));
 
         assertNotEquals(before.destinationRevision(), after.destinationRevision());
         long changedKey = ProjectionCellKey.pack(0, 64, -2);
@@ -94,7 +96,7 @@ final class ViewPlateBuilderTest {
         FakeWorldView destination = new FakeWorldView(blockData(Material.AIR), 3L);
         destination.put(0, 64, -1, blockData(Material.STONE));
         destination.unknown(1, 64, -1);
-        ViewPlate plate = ViewPlateBuilder.build(request(portal, structure, destination, true));
+        ViewPlate<BlockData> plate = ViewPlateBuilder.build(request(portal, structure, destination, true));
 
         assertEquals(ProjectorSample.Kind.REMOTE_AIR, plate.cell(ProjectionCellKey.pack(0, 65, -1)).kind());
         assertEquals(ProjectorSample.Kind.BLOCK, plate.cell(ProjectionCellKey.pack(0, 64, -1)).kind());
@@ -106,7 +108,7 @@ final class ViewPlateBuilderTest {
         PortalStructure structure = structure();
         ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
         FakeWorldView destination = new FakeWorldView(blockData(Material.STONE), 1L);
-        ViewPlate plate = ViewPlateBuilder.build(request(portal, structure, destination, false));
+        ViewPlate<BlockData> plate = ViewPlateBuilder.build(request(portal, structure, destination, false));
 
         assertFalse(plate.isEmpty());
         for (long key : plate.cellKeys()) {
@@ -119,27 +121,27 @@ final class ViewPlateBuilderTest {
         PortalStructure structure = structure();
         ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
         FakeWorldView destination = new FakeWorldView(blockData(Material.STONE), 9L);
-        ViewPlateBuilder.Request request = request(portal, structure, destination, true);
-        ViewPlateBuilder.Job job = ViewPlateBuilder.job(request);
+        ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request = request(portal, structure, destination, true);
+        ViewPlateBuilder.Job<BlockData, World> job = ViewPlateBuilder.job(request);
         int steps = 0;
         while (!job.step(4)) {
             steps++;
             assertTrue(steps < 100_000);
         }
-        ViewPlate stepped = job.result();
-        ViewPlate direct = ViewPlateBuilder.build(request);
+        ViewPlate<BlockData> stepped = job.result();
+        ViewPlate<BlockData> direct = ViewPlateBuilder.build(request);
         assertTrue(steps > 1, "a tiny cell budget must take several steps");
         assertEquals(new LongOpenHashSet(direct.cellKeys()), new LongOpenHashSet(stepped.cellKeys()));
     }
 
-    static ViewPlateBuilder.Request request(ILocalPortal portal, PortalStructure structure, ProjectionWorldView destination, boolean frontSide) {
+    static ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request(ILocalPortal portal, PortalStructure structure, ProjectionWorldView destination, boolean frontSide) {
         PortalFrame frame = portal.getFrame();
         ViewPlateKey key = new ViewPlateKey(PORTAL_ID, destination, frontSide, 0);
-        return new ViewPlateBuilder.Request(key, portal, destination, frame, frame,
+        return new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(key, portal.getStructure(), destination, frame, frame,
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
             false, 0, 4.0D, 2.0D, 0.75D, false, blockData(Material.AIR), LodPolicy.NONE, false,
-            destination.getRevision(), 42L, 0L, material -> material == Material.STONE);
+            destination.getRevision(), 42L, 0L, new BukkitProjectorBlocks(material -> material == Material.STONE));
     }
 
     static PortalStructure structure() {
@@ -163,7 +165,7 @@ final class ViewPlateBuilderTest {
             (proxy, method, args) -> switch (method.getName()) {
                 case "getStructure" -> structure;
                 case "getFrame" -> frame;
-                case "getOrigin" -> origin;
+                case "getOrigin" -> BukkitGeometry.vector(origin);
                 case "getId" -> PORTAL_ID;
                 case "getName", "toString" -> "plate-portal";
                 case "getWorld" -> null;

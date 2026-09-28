@@ -1,5 +1,13 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.network.view.BukkitRemoteViewCodec;
+
+import com.github.retrooper.packetevents.protocol.player.Equipment;
+
+import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
+
+import org.bukkit.block.data.BlockData;
+
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.view.RemoteWorldView;
@@ -16,7 +24,7 @@ class ProjectorResampleScheduleTest {
     void unchangedRemoteRevisionDoesNotTriggerPeriodicResamples() {
         ILocalPortal portal = proxy(ILocalPortal.class);
         ProjectorResampleSchedule schedule = new ProjectorResampleSchedule(portal);
-        RemoteViewCache cache = new RemoteViewCache();
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         RemoteWorldView view = new RemoteWorldView(cache.getOrCreate("peer", UUID.randomUUID()), null);
 
         assertTrue(schedule.stableResample(false, view, null, 0.0D, 0.0D));

@@ -27,7 +27,6 @@ import java.util.logging.Level;
 
 final class DoorRuntimeIndex implements AutoCloseable
 {
-	private static final long ARRIVAL_AUTO_CLOSE_TICKS = 30L;
 
 	private final Plugin plugin;
 	private final DoorStateGuard guard;
@@ -375,7 +374,7 @@ final class DoorRuntimeIndex implements AutoCloseable
 		World world = world(endpoint.position());
 		if(world == null || !FoliaScheduler.runRegion(plugin, world,
 			endpoint.position().x() >> 4, endpoint.position().z() >> 4,
-			() -> runAutoClose(endpoint, token, deferrals), ARRIVAL_AUTO_CLOSE_TICKS))
+			() -> runAutoClose(endpoint, token, deferrals), DoorAutoCloseBook.ARRIVAL_AUTO_CLOSE_TICKS))
 		{
 			autoClose.forget(doorId);
 		}
@@ -434,8 +433,8 @@ final class DoorRuntimeIndex implements AutoCloseable
 		try
 		{
 			String sound = open
-				? DimensionalDoorSounds.openSound(material)
-				: DimensionalDoorSounds.closeSound(material);
+				? DimensionalDoorSounds.openSound(material.name())
+				: DimensionalDoorSounds.closeSound(material.name());
 			world.playSound(
 				new Location(world, plane.blockX() + 0.5D, plane.blockY() + 1.0D, plane.blockZ() + 0.5D),
 				sound,

@@ -1,5 +1,10 @@
 package art.arcane.wormholes.render;
 
+import com.github.retrooper.packetevents.util.Vector3d;
+
+import art.arcane.wormholes.render.view.ProjectionWorldView;
+import org.bukkit.block.data.BlockData;
+import art.arcane.wormholes.util.BukkitGeometry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.ArrayList;
@@ -63,15 +68,14 @@ final class ProjectedPaintingAnchorTest {
         PortalFrame localFrame = PortalFrame.canonical(Direction.E);
         ILocalPortal localPortal = RenderTestSupport.portal(world, new Vector(0.0D, 0.0D, 0.0D), localFrame);
         ILocalPortal remotePortal = RenderTestSupport.portal(world, new Vector(0.0D, 0.0D, 0.0D), remoteFrame);
-        Frustum4D frustum = new Frustum4D(
-            new Location(null, 1.5D, 1.5D, 0.0D), new RenderTestSupport.ApertureStructure(), 16.0D, 16.0D);
+        Frustum4D frustum = new Frustum4D(BukkitGeometry.vector(new Location(null, 1.5D, 1.5D, 0.0D)), new RenderTestSupport.ApertureStructure(), new Frustum4D.Options(16.0D, 16.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
         EntityRenderPacketChannel channel = new EntityRenderPacketChannel();
         EntityRenderPlayerIdentity identity = new EntityRenderPlayerIdentity(channel);
-        EntityRenderSpoofRegistry registry = new EntityRenderSpoofRegistry(channel, identity);
+        EntityRenderSpoofRegistry<Player, Vector3d> registry = new EntityRenderSpoofRegistry<>(new BukkitEntityRegistryHost(channel, identity));
         ProjectedEntityRenderer renderer = new ProjectedEntityRenderer(channel, identity, registry);
         Player observer = ProjectedEntityPacketRecorder.player(true);
 
         RenderTestSupport.withBukkitServer(() -> renderer.apply(observer, localPortal, remotePortal, frustum, 32.0D,
-            localFrame, remoteFrame, 0, new ProjectedEntityOcclusion()));
+            localFrame, remoteFrame, 0, BukkitEntityOcclusion.create()));
     }
 }

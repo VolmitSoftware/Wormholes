@@ -188,10 +188,10 @@ public final class PortalProjectorCellBudgetTest {
         PortalStructure structure = structure(Direction.S, 3, 3);
         Location eye = eye(structure, frame, 0.5D, 1.0D, 0.0D);
         ProjectorViewFrustum viewFrustum = new ProjectorViewFrustum(null);
-        viewFrustum.setLodPolicy(LodPolicy.current(null));
+        viewFrustum.setLodPolicy(FidelitySettings.lodPolicy(null));
         Frustum4D first = viewFrustum.fit(null, structure, frame, eye, DEPTH_BLOCKS, LATERAL_PAD);
 
-        viewFrustum.setLodPolicy(LodPolicy.current(null));
+        viewFrustum.setLodPolicy(FidelitySettings.lodPolicy(null));
         Frustum4D second = viewFrustum.fit(null, structure, frame, eye, DEPTH_BLOCKS, LATERAL_PAD);
 
         assertSame(first, second);
@@ -235,14 +235,14 @@ public final class PortalProjectorCellBudgetTest {
                                            double depthBlocks) {
         AxisAlignedBB region = frustum.getRegion();
         int[] axisMin = new int[] {
-            PortalProjector.minBlockForCenter(region.getXa()),
-            PortalProjector.minBlockForCenter(region.getYa()),
-            PortalProjector.minBlockForCenter(region.getZa())
+            ProjectorFrameTransform.minBlockForCenter(region.getXa()),
+            ProjectorFrameTransform.minBlockForCenter(region.getYa()),
+            ProjectorFrameTransform.minBlockForCenter(region.getZa())
         };
         int[] axisMax = new int[] {
-            PortalProjector.maxBlockForCenter(region.getXb()),
-            PortalProjector.maxBlockForCenter(region.getYb()),
-            PortalProjector.maxBlockForCenter(region.getZb())
+            ProjectorFrameTransform.maxBlockForCenter(region.getXb()),
+            ProjectorFrameTransform.maxBlockForCenter(region.getYb()),
+            ProjectorFrameTransform.maxBlockForCenter(region.getZb())
         };
         Location center = structure.getCenter();
         double originX = center.getX();
@@ -254,7 +254,7 @@ public final class PortalProjectorCellBudgetTest {
         double eyeRelZ = eye.getZ() - originZ;
         boolean eyeFrontSide = dot(eyeRelX, eyeRelY, eyeRelZ, normal) >= 0.0D;
         PortalFrame projectionFrame = frame.view(eyeFrontSide);
-        double clearance = PortalProjector.portalPlaneClearance(structure.getArea(), frame);
+        double clearance = ProjectorFrameTransform.portalPlaneClearance(structure.getArea(), frame);
         double maximumDepth = depthBlocks + clearance;
         double signedMinimum = eyeFrontSide ? -maximumDepth : clearance;
         double signedMaximum = eyeFrontSide ? -clearance : maximumDepth;
@@ -264,9 +264,9 @@ public final class PortalProjectorCellBudgetTest {
         double centerA = normalOrigin + (signedMinimum / normalComponent);
         double centerB = normalOrigin + (signedMaximum / normalComponent);
         axisMin[normalAxis] = Math.max(axisMin[normalAxis],
-            PortalProjector.minBlockForCenter(Math.min(centerA, centerB)));
+            ProjectorFrameTransform.minBlockForCenter(Math.min(centerA, centerB)));
         axisMax[normalAxis] = Math.min(axisMax[normalAxis],
-            PortalProjector.maxBlockForCenter(Math.max(centerA, centerB)));
+            ProjectorFrameTransform.maxBlockForCenter(Math.max(centerA, centerB)));
 
         Direction projectionNormal = projectionFrame.getNormal();
         Direction projectionRight = projectionFrame.getRight();

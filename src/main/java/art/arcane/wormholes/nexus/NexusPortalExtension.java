@@ -1,5 +1,6 @@
 package art.arcane.wormholes.nexus;
 
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.volmlib.util.json.JSONObject;
 import art.arcane.wormholes.hook.PortalExtension;
 import art.arcane.wormholes.portal.ITunnel;
@@ -148,16 +149,16 @@ public final class NexusPortalExtension implements PortalExtension {
             portalJson.put(SYNC_LABEL, label);
         }
         if (dial.isDialed()) {
-            portalJson.put(KEY + ".dial", dial.toJSON());
+            portalJson.put(KEY + ".dial", new JSONObject(dial.toMap()));
         }
         if (policy.isActive()) {
-            portalJson.put(KEY + ".policy", policy.toJSON());
+            portalJson.put(KEY + ".policy", new JSONObject(policy.toMap()));
         }
         if (reciprocal) {
             portalJson.put(KEY + ".reciprocal", true);
         }
         if (frameIo.isWired()) {
-            portalJson.put(KEY + ".frameIo", frameIo.toJSON());
+            portalJson.put(KEY + ".frameIo", new JSONObject(frameIo.toMap()));
         }
     }
 
@@ -167,10 +168,10 @@ public final class NexusPortalExtension implements PortalExtension {
         networkId = encodedNetwork.isBlank() ? null : parseUuid(encodedNetwork);
         setAddress(portalJson.optString(SYNC_ADDRESS, ""));
         setLabel(portalJson.optString(SYNC_LABEL, ""));
-        dial = DialState.fromJSON(portalJson.optJSONObject(KEY + ".dial"));
-        policy = DestinationPolicy.fromJSON(portalJson.optJSONObject(KEY + ".policy"));
+        dial = DialState.fromMap(portalJson.optJSONObject(KEY + ".dial") == null ? null : BukkitJsonDocuments.values(portalJson.getJSONObject(KEY + ".dial")));
+        policy = DestinationPolicy.fromMap(portalJson.optJSONObject(KEY + ".policy") == null ? null : BukkitJsonDocuments.values(portalJson.getJSONObject(KEY + ".policy")));
         reciprocal = portalJson.optBoolean(KEY + ".reciprocal", false);
-        frameIo = FrameIo.fromJSON(portalJson.optJSONObject(KEY + ".frameIo"));
+        frameIo = FrameIo.fromMap(portalJson.optJSONObject(KEY + ".frameIo") == null ? null : BukkitJsonDocuments.values(portalJson.getJSONObject(KEY + ".frameIo")));
     }
 
     @Override

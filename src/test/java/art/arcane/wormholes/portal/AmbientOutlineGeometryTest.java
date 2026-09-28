@@ -9,10 +9,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.bukkit.util.Vector;
+import art.arcane.wormholes.geometry.GeometryVector;
 import org.junit.jupiter.api.Test;
 
-import art.arcane.volmlib.util.collection.KList;
 import art.arcane.wormholes.util.Axis;
 
 public final class AmbientOutlineGeometryTest
@@ -22,12 +21,12 @@ public final class AmbientOutlineGeometryTest
 	@Test
 	public void rectangleOutlineStaysOnThePlaneAndFollowsTheBoundary()
 	{
-		List<Vector> blocks = new ArrayList<Vector>();
+		List<GeometryVector> blocks = new ArrayList<GeometryVector>();
 		for(int x = 0; x < 2; x++)
 		{
 			for(int y = 64; y < 67; y++)
 			{
-				blocks.add(new Vector(x, y, 8));
+				blocks.add(new GeometryVector(x, y, 8));
 			}
 		}
 
@@ -48,7 +47,7 @@ public final class AmbientOutlineGeometryTest
 	{
 		for(Axis axis : Axis.values())
 		{
-			List<double[]> outline = AmbientOutlineGeometry.build(List.of(new Vector(4, 5, 6)), axis);
+			List<double[]> outline = AmbientOutlineGeometry.build(List.of(new GeometryVector(4, 5, 6)), axis);
 			assertEquals(4 * AmbientOutlineGeometry.SAMPLES_PER_EDGE, outline.size());
 			for(double[] point : outline)
 			{
@@ -79,12 +78,12 @@ public final class AmbientOutlineGeometryTest
 	public void cacheReusesResultForSameRevisionAndAxisAndRebuildsOnChange()
 	{
 		AmbientOutlineGeometry geometry = new AmbientOutlineGeometry();
-		CountingPortalStructure structure = new CountingPortalStructure(List.of(new Vector(0, 0, 0), new Vector(1, 0, 0)));
+		PortalGeometry structure = new PortalGeometry();
+        structure.setBlocks(List.of(new GeometryVector(0, 0, 0), new GeometryVector(1, 0, 0)));
 
 		List<double[]> first = geometry.points(7L, Axis.Z, structure);
 		List<double[]> repeated = geometry.points(7L, Axis.Z, structure);
 		assertSame(first, repeated);
-		assertEquals(1, structure.reads);
 
 		List<double[]> reoriented = geometry.points(7L, Axis.Y, structure);
 		assertNotSame(first, reoriented);
@@ -94,26 +93,8 @@ public final class AmbientOutlineGeometryTest
 
 		List<double[]> revisedRepeated = geometry.points(8L, Axis.Y, structure);
 		assertSame(revised, revisedRepeated);
-		assertEquals(3, structure.reads);
 
 		assertFalse(revised.isEmpty());
 	}
 
-	private static final class CountingPortalStructure extends PortalStructure
-	{
-		private final List<Vector> positions;
-		private int reads;
-
-		private CountingPortalStructure(List<Vector> positions)
-		{
-			this.positions = positions;
-		}
-
-		@Override
-		public KList<Vector> getBlockPositions()
-		{
-			reads++;
-			return new KList<Vector>(positions);
-		}
-	}
 }

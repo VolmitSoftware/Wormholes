@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.access.PortalAdmission;
+import art.arcane.wormholes.geometry.GeometryVector;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -52,12 +54,12 @@ public final class MirrorInboundGateTest {
 		Player denied = player(false, false);
 
 		remote.setMirroredPermissionMode(PortalPermissionMode.WHITELIST);
-		assertTrue(remote.acceptsInboundTraversal(allowed));
-		assertTrue(remote.acceptsInboundTraversal(denied));
+		assertTrue(remote.acceptsInboundTraversal(PortalAdmission.bypassesAccess(allowed)));
+		assertTrue(remote.acceptsInboundTraversal(PortalAdmission.bypassesAccess(denied)));
 
 		remote.setMirroredPermissionMode(PortalPermissionMode.BLACKLIST);
-		assertTrue(remote.acceptsInboundTraversal(allowed));
-		assertTrue(remote.acceptsInboundTraversal(denied));
+		assertTrue(remote.acceptsInboundTraversal(PortalAdmission.bypassesAccess(allowed)));
+		assertTrue(remote.acceptsInboundTraversal(PortalAdmission.bypassesAccess(denied)));
 	}
 
 	@Test
@@ -66,14 +68,14 @@ public final class MirrorInboundGateTest {
 		RemotePortal remote = remotePortal(true);
 		remote.setMirroredIncomingTraversalsEnabled(false);
 
-		assertTrue(remote.acceptsInboundTraversal(operator));
+		assertTrue(remote.acceptsInboundTraversal(PortalAdmission.bypassesAccess(operator)));
 		assertTrue(TraversalAdmissionPolicy.acceptsInbound(portal(false, false), true));
 		assertFalse(TraversalAdmissionPolicy.acceptsInbound(portal(false, false), false));
 
 		remote.setMirroredMirrorMode(true);
-		assertFalse(remote.acceptsInboundTraversal(operator));
+		assertFalse(remote.acceptsInboundTraversal(PortalAdmission.bypassesAccess(operator)));
 		assertFalse(TraversalAdmissionPolicy.acceptsInbound(portal(true, false), true));
-		assertFalse(remotePortal(false).acceptsInboundTraversal(operator));
+		assertFalse(remotePortal(false).acceptsInboundTraversal(PortalAdmission.bypassesAccess(operator)));
 	}
 
     private static ILocalPortal portal(boolean mirror, boolean incoming) {
@@ -94,7 +96,7 @@ public final class MirrorInboundGateTest {
         return new RemotePortal(
             UUID.randomUUID(),
             new RemoteWorld("beta", "world"),
-            new Vector(0.0D, 64.0D, 0.0D),
+            new GeometryVector(0.0D, 64.0D, 0.0D),
             PortalType.GATEWAY,
             open,
             new AxisAlignedBB(0.0D, 1.0D, 64.0D, 67.0D, 0.0D, 1.0D)

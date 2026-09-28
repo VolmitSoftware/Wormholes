@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -181,7 +183,7 @@ class PeerHandshakeAdmissionTest {
         config.listenEnabled = false;
         config.serverName = "admission-test";
         config.advertiseHostOverride = "127.0.0.1";
-        return new NetworkManager(LOGGER, config, "26.2", "test", 25565, tempDir.resolve("network"));
+        return new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", 25565, tempDir.resolve("network"), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
     }
 
     private static PeerConnection connection(PeerTransport.PeerChannel channel, boolean dialer, PeerConnection.Listener listener) {

@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -174,7 +176,7 @@ class RoutedOriginAuthenticationTest {
         config.serverName = "destination";
         config.listenEnabled = false;
         config.mesh.autoAcceptIntroductions = true;
-        NetworkManager destination = new NetworkManager(LOGGER, config, "26.2", "test", 25565, tempDir.resolve("destination"));
+        NetworkManager destination = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", 25565, tempDir.resolve("destination"), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         managers.add(destination);
         destination.trustPeer("trusted-relay", relay.getPublicKey());
         WireMessage.Routed routed = origin.relay().createRouted(
@@ -252,7 +254,7 @@ class RoutedOriginAuthenticationTest {
         config.enabled = true;
         config.serverName = name;
         config.listenEnabled = false;
-        NetworkManager manager = new NetworkManager(LOGGER, config, "26.2", "test", 25565, tempDir.resolve(name));
+        NetworkManager manager = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", 25565, tempDir.resolve(name), BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         managers.add(manager);
         return manager;
     }

@@ -9,6 +9,8 @@ import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.access.AccessPortalExtension;
 import art.arcane.wormholes.access.PortalLimits;
+import art.arcane.wormholes.access.PortalLookup;
+import java.util.stream.StreamSupport;
 import art.arcane.wormholes.localization.AccessMessages;
 import art.arcane.wormholes.localization.WormholesLocalization;
 import art.arcane.wormholes.localization.WormholesMessages;
@@ -28,7 +30,6 @@ import java.util.UUID;
 @Director(name = "access", descriptionKey = "access.command.help.access", description = "Portal access lists, ownership, and limits")
 public class CommandAccess {
     private static final String ADMIN_NODE = "wormholes.admin.access";
-    private static final int ID_PREFIX_LENGTH = 4;
 
     @Director(name = "transfer", sync = true, descriptionKey = "access.command.help.transfer", description = "Give a portal to another player")
     public void transfer(@Param(name = "sender", contextual = true) CommandSender sender,
@@ -105,39 +106,12 @@ public class CommandAccess {
         send(sender, AccessMessages.LIMITS_REPORT, args("name", subject.getName(), "count", owned, "maximum", maximum));
     }
 
-    /**
-     * Exact id first, then an exact name, then an id prefix. Two portals sharing a name report as
-     * ambiguous so the operator falls back to the id.
-     */
     static PortalMatch findPortal(String token, Iterable<? extends ILocalPortal> portals) {
-        String requested = token == null ? "" : token.trim();
-        if (requested.isEmpty()) {
-            return new PortalMatch(null, 0);
-        }
-        LocalPortal named = null;
-        LocalPortal prefixed = null;
-        int namedMatches = 0;
-        int prefixedMatches = 0;
-        for (ILocalPortal candidate : portals) {
-            if (!(candidate instanceof LocalPortal local)) {
-                continue;
-            }
-            String id = local.getId().toString();
-            if (id.equalsIgnoreCase(requested)) {
-                return new PortalMatch(local, 1);
-            }
-            if (requested.equalsIgnoreCase(local.getName())) {
-                named = local;
-                namedMatches++;
-            } else if (requested.length() >= ID_PREFIX_LENGTH && id.regionMatches(true, 0, requested, 0, requested.length())) {
-                prefixed = local;
-                prefixedMatches++;
-            }
-        }
-        if (namedMatches > 0) {
-            return new PortalMatch(namedMatches == 1 ? named : null, namedMatches);
-        }
-        return new PortalMatch(prefixedMatches == 1 ? prefixed : null, prefixedMatches);
+        PortalLookup.Match<LocalPortal> match = PortalLookup.find(token,
+            () -> StreamSupport.stream(portals.spliterator(), false)
+                .filter(LocalPortal.class::isInstance).map(LocalPortal.class::cast).iterator(),
+            LocalPortal::getId, LocalPortal::getName);
+        return new PortalMatch(match.portal(), match.matches());
     }
 
     private LocalPortal requirePortal(CommandSender sender, String token) {

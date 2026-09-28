@@ -1,5 +1,8 @@
 package art.arcane.wormholes.render;
 
+import art.arcane.wormholes.render.BukkitProjectorBlocks;
+import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.util.BukkitGeometry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -46,24 +49,24 @@ public final class PortalProjectorPlateFallbackTest {
             ILocalPortal portal = portal(structure, frame);
             LayeredWorldView remoteView = new LayeredWorldView();
             Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
-            Frustum4D frustum = new Frustum4D(eye, structure, 4.0D, 2.0D);
+            Frustum4D frustum = new Frustum4D(BukkitGeometry.vector(eye), structure, new Frustum4D.Options(4.0D, 2.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
             boolean buried = renderMode.usesBuriedCellCulling();
 
-            ProjectorCellScan samplerScan = scan(portal, remoteView);
-            ProjectorSampler samplerPath = samplerOf(samplerScan);
+            ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> samplerScan = scan(portal, remoteView);
+            ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> samplerPath = samplerOf(samplerScan);
             samplerPath.setBuriedCellCullingPass(buried);
-            samplerScan.run(destination(portal, structure, new StoneView(), remoteView), null, eye, frustum, 4.0D,
+            samplerScan.run(destination(portal, structure, new StoneView(), remoteView), null, BukkitGeometry.vector(eye), frustum, 4.0D,
                 true, false, false, buried, renderMode, null, false, LodPolicy.NONE);
-            Long2ObjectOpenHashMap<ProjectedBlockClaim> samplerClaims = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(samplerScan.claims());
+            Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> samplerClaims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(samplerScan.claims());
             assertFalse(samplerClaims.isEmpty(), renderMode.name());
             assertTrue(samplerPath.remoteSampleCount() > 0, renderMode.name());
 
-            ViewPlate plate = ViewPlateBuilder.build(request(portal, structure, remoteView, buried));
-            ProjectorCellScan plateScan = scan(portal, remoteView);
-            ProjectorSampler platePath = samplerOf(plateScan);
+            ViewPlate<BlockData> plate = ViewPlateBuilder.build(request(portal, structure, remoteView, buried));
+            ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> plateScan = scan(portal, remoteView);
+            ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> platePath = samplerOf(plateScan);
             platePath.setBuriedCellCullingPass(buried);
             remoteView.reads = 0;
-            plateScan.run(destination(portal, structure, new StoneView(), remoteView), null, eye, frustum, 4.0D,
+            plateScan.run(destination(portal, structure, new StoneView(), remoteView), null, BukkitGeometry.vector(eye), frustum, 4.0D,
                 true, false, false, buried, renderMode, plate, false, LodPolicy.NONE);
 
             assertSameClaims(samplerClaims, plateScan.claims(), renderMode.name());
@@ -79,22 +82,21 @@ public final class PortalProjectorPlateFallbackTest {
         ILocalPortal portal = portal(structure, frame);
         LayeredWorldView remoteView = new LayeredWorldView();
         Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
-        Frustum4D frustum = new Frustum4D(eye, structure, 4.0D, 2.0D);
+        Frustum4D frustum = new Frustum4D(BukkitGeometry.vector(eye), structure, new Frustum4D.Options(4.0D, 2.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
 
-        ProjectorCellScan samplerScan = scan(portal, remoteView);
-        samplerScan.run(destination(portal, structure, new StoneView(), remoteView), null, eye, frustum, 4.0D,
+        ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> samplerScan = scan(portal, remoteView);
+        samplerScan.run(destination(portal, structure, new StoneView(), remoteView), null, BukkitGeometry.vector(eye), frustum, 4.0D,
             true, false, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> expected = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(samplerScan.claims());
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> expected = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(samplerScan.claims());
 
-        ViewPlate partial = ViewPlateBuilder.build(new ViewPlateBuilder.Request(
-            new ViewPlateKey(PORTAL_ID, remoteView, true, 0), portal, remoteView, frame, frame,
+        ViewPlate<BlockData> partial = ViewPlateBuilder.build(new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(
+            new ViewPlateKey(PORTAL_ID, remoteView, true, 0), portal.getStructure(), remoteView, frame, frame,
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
-            false, 0, 1.0D, 2.0D, 0.75D, false, blockData(Material.AIR), LodPolicy.NONE, false, 0L, 1L, 0L,
-            PortalProjectorPlateFallbackTest::testMaterialOccluding));
-        ProjectorCellScan plateScan = scan(portal, remoteView);
-        ProjectorSampler platePath = samplerOf(plateScan);
-        plateScan.run(destination(portal, structure, new StoneView(), remoteView), null, eye, frustum, 4.0D,
+            false, 0, 1.0D, 2.0D, 0.75D, false, blockData(Material.AIR), LodPolicy.NONE, false, 0L, 1L, 0L, new BukkitProjectorBlocks(PortalProjectorPlateFallbackTest::testMaterialOccluding)));
+        ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> plateScan = scan(portal, remoteView);
+        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> platePath = samplerOf(plateScan);
+        plateScan.run(destination(portal, structure, new StoneView(), remoteView), null, BukkitGeometry.vector(eye), frustum, 4.0D,
             true, false, false, false, ProjectionRenderMode.PANOPTIC, partial, false, LodPolicy.NONE);
 
         assertSameClaims(expected, plateScan.claims(), "partial plate");
@@ -109,44 +111,43 @@ public final class PortalProjectorPlateFallbackTest {
         ILocalPortal portal = portal(structure, frame);
         LayeredWorldView remoteView = new LayeredWorldView();
         Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
-        Frustum4D frustum = new Frustum4D(eye, structure, 6.0D, 2.0D);
+        Frustum4D frustum = new Frustum4D(BukkitGeometry.vector(eye), structure, new Frustum4D.Options(6.0D, 2.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
         LodPolicy lod = new LodPolicy(true, 1, 3);
 
-        ProjectorCellScan samplerScan = scan(portal, remoteView);
-        ProjectorSampler samplerPath = samplerOf(samplerScan);
-        samplerScan.run(destination(portal, structure, new StoneView(), remoteView), null, eye, frustum, 6.0D,
+        ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> samplerScan = scan(portal, remoteView);
+        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> samplerPath = samplerOf(samplerScan);
+        samplerScan.run(destination(portal, structure, new StoneView(), remoteView), null, BukkitGeometry.vector(eye), frustum, 6.0D,
             true, false, false, false, ProjectionRenderMode.PANOPTIC, null, false, lod);
-        Long2ObjectOpenHashMap<ProjectedBlockClaim> coarse = new Long2ObjectOpenHashMap<ProjectedBlockClaim>(samplerScan.claims());
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> coarse = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(samplerScan.claims());
         int coarseReads = remoteView.reads;
 
-        ProjectorCellScan denseScan = scan(portal, remoteView);
+        ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> denseScan = scan(portal, remoteView);
         remoteView.reads = 0;
-        denseScan.run(destination(portal, structure, new StoneView(), remoteView), null, eye, frustum, 6.0D,
+        denseScan.run(destination(portal, structure, new StoneView(), remoteView), null, BukkitGeometry.vector(eye), frustum, 6.0D,
             true, false, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
         assertTrue(coarseReads < remoteView.reads, "run merging must read fewer destination cells than the dense scan");
         assertTrue(samplerPath.remoteSampleCount() > 0);
 
-        ViewPlateBuilder.Request request = new ViewPlateBuilder.Request(new ViewPlateKey(PORTAL_ID, remoteView, true, 0),
-            portal, remoteView, frame, frame,
+        ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request = new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(new ViewPlateKey(PORTAL_ID, remoteView, true, 0),
+            portal.getStructure(), remoteView, frame, frame,
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
-            false, 0, 6.0D, 2.0D, 0.75D, false, blockData(Material.AIR), lod, false, 0L, 1L, 0L,
-            PortalProjectorPlateFallbackTest::testMaterialOccluding);
-        ViewPlate plate = ViewPlateBuilder.build(request);
-        ProjectorCellScan plateScan = scan(portal, remoteView);
-        plateScan.run(destination(portal, structure, new StoneView(), remoteView), null, eye, frustum, 6.0D,
+            false, 0, 6.0D, 2.0D, 0.75D, false, blockData(Material.AIR), lod, false, 0L, 1L, 0L, new BukkitProjectorBlocks(PortalProjectorPlateFallbackTest::testMaterialOccluding));
+        ViewPlate<BlockData> plate = ViewPlateBuilder.build(request);
+        ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> plateScan = scan(portal, remoteView);
+        plateScan.run(destination(portal, structure, new StoneView(), remoteView), null, BukkitGeometry.vector(eye), frustum, 6.0D,
             true, false, false, false, ProjectionRenderMode.PANOPTIC, plate, false, lod);
         assertSameClaims(coarse, plateScan.claims(), "lod plate");
         assertEquals(0, samplerOf(plateScan).remoteSampleCount());
     }
 
-    private static void assertSameClaims(Long2ObjectMap<ProjectedBlockClaim> expected,
-                                         Long2ObjectMap<ProjectedBlockClaim> actual,
+    private static void assertSameClaims(Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> expected,
+                                         Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> actual,
                                          String label) {
         assertEquals(new LongOpenHashSet(expected.keySet()), new LongOpenHashSet(actual.keySet()), label);
-        for (Long2ObjectMap.Entry<ProjectedBlockClaim> entry : expected.long2ObjectEntrySet()) {
-            ProjectedBlockClaim left = entry.getValue();
-            ProjectedBlockClaim right = actual.get(entry.getLongKey());
+        for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : expected.long2ObjectEntrySet()) {
+            ProjectedBlockClaim<BlockData, ProjectionWorldView> left = entry.getValue();
+            ProjectedBlockClaim<BlockData, ProjectionWorldView> right = actual.get(entry.getLongKey());
             assertEquals(left.getData().getMaterial(), right.getData().getMaterial(), label);
             assertEquals(left.getLightRemoteKey(), right.getLightRemoteKey(), label);
             assertEquals(left.isMaskAir(), right.isMaskAir(), label);
@@ -154,31 +155,30 @@ public final class PortalProjectorPlateFallbackTest {
         }
     }
 
-    private static ViewPlateBuilder.Request request(ILocalPortal portal, PortalStructure structure,
+    private static ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request(ILocalPortal portal, PortalStructure structure,
                                                     ProjectionWorldView remoteView, boolean buried) {
         PortalFrame frame = portal.getFrame();
-        return new ViewPlateBuilder.Request(new ViewPlateKey(PORTAL_ID, remoteView, true, 0), portal, remoteView, frame, frame,
+        return new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(new ViewPlateKey(PORTAL_ID, remoteView, true, 0), portal.getStructure(), remoteView, frame, frame,
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
-            false, 0, 4.0D, 2.0D, 0.75D, buried, blockData(Material.AIR), LodPolicy.NONE, false, 0L, 1L, 0L,
-            PortalProjectorPlateFallbackTest::testMaterialOccluding);
+            false, 0, 4.0D, 2.0D, 0.75D, buried, blockData(Material.AIR), LodPolicy.NONE, false, 0L, 1L, 0L, new BukkitProjectorBlocks(PortalProjectorPlateFallbackTest::testMaterialOccluding));
     }
 
-    private static ProjectorCellScan scan(ILocalPortal portal, ProjectionWorldView remoteView) throws ReflectiveOperationException {
-        ProjectorSampleMemo memo = new ProjectorSampleMemo(PortalProjectorPlateFallbackTest::testMaterialOccluding);
-        ProjectorSampler sampler = withBukkitServer(
-            () -> new ProjectorSampler(memo, new ProjectorRecursivePortals(), world -> remoteView));
-        ProjectorCellScan scan = new ProjectorCellScan(portal, sampler, memo, new ProjectorBlackoutSeal());
+    private static ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan(ILocalPortal portal, ProjectionWorldView remoteView) throws ReflectiveOperationException {
+        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(PortalProjectorPlateFallbackTest::testMaterialOccluding);
+        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+            () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
+        ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
         Field field = ProjectorCellScan.class.getDeclaredField("viewOcclusion");
         field.setAccessible(true);
-        field.set(scan, new ProjectorViewOcclusion(PortalProjectorPlateFallbackTest::testOccluding));
+        field.set(scan, new ProjectorViewOcclusion<BlockData>(PortalProjectorPlateFallbackTest::testOccluding));
         return scan;
     }
 
-    private static ProjectorSampler samplerOf(ProjectorCellScan scan) throws ReflectiveOperationException {
+    private static ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> samplerOf(ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan) throws ReflectiveOperationException {
         Field field = ProjectorCellScan.class.getDeclaredField("sampler");
         field.setAccessible(true);
-        return (ProjectorSampler) field.get(scan);
+        return (ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView>) field.get(scan);
     }
 
     private static boolean testOccluding(BlockData data) {
@@ -226,7 +226,7 @@ public final class PortalProjectorPlateFallbackTest {
             (proxy, method, args) -> switch (method.getName()) {
                 case "getStructure" -> structure;
                 case "getFrame" -> frame;
-                case "getOrigin" -> origin;
+                case "getOrigin" -> BukkitGeometry.vector(origin);
                 case "getId" -> PORTAL_ID;
                 case "getWorld" -> null;
                 case "getName", "toString" -> "fallback-portal";
@@ -252,7 +252,7 @@ public final class PortalProjectorPlateFallbackTest {
         return null;
     }
 
-    private static ProjectorSampler withBukkitServer(SamplerFactory factory) throws ReflectiveOperationException {
+    private static ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> withBukkitServer(SamplerFactory factory) throws ReflectiveOperationException {
         synchronized (Bukkit.class) {
             Field serverField = Bukkit.class.getDeclaredField("server");
             serverField.setAccessible(true);
@@ -297,7 +297,7 @@ public final class PortalProjectorPlateFallbackTest {
     }
 
     private interface SamplerFactory {
-        ProjectorSampler create();
+        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> create();
     }
 
     private static final class StoneView implements ProjectionWorldView {

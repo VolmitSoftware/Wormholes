@@ -1,52 +1,21 @@
 package art.arcane.wormholes.render.view;
 
-import art.arcane.wormholes.platform.WormholesPlatform;
-
-import art.arcane.wormholes.network.view.EntityVisual;
-import art.arcane.wormholes.network.view.RemoteViewCache;
-import art.arcane.wormholes.network.view.ViewBox;
 import art.arcane.wormholes.Wormholes;
-
+import art.arcane.wormholes.network.view.RemoteViewCache;
+import art.arcane.wormholes.platform.WormholesPlatform;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.player.Equipment;
-
+import org.bukkit.Material;
 import org.bukkit.World;
-import org.bukkit.entity.Player;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.Player;
 
-import art.arcane.wormholes.render.blockentity.BlockEntitySample;
-
-import java.util.List;
 import java.util.UUID;
 
-public final class RemoteWorldView implements ProjectionWorldView, ProjectionEntityView {
-    private final RemoteViewCache.RemoteView view;
-    private final BlockData fallback;
-    private int cachedChunkX = Integer.MIN_VALUE;
-    private int cachedChunkZ = Integer.MIN_VALUE;
-    private RemoteViewCache.DecodedSlice cachedSlice;
-    private boolean cachedSliceValid;
-    private long cachedSliceRevision;
-
-    public RemoteWorldView(RemoteViewCache.RemoteView view, BlockData fallback) {
-        this.view = view;
-        this.fallback = fallback;
-    }
-
-    private RemoteViewCache.DecodedSlice decodedSliceAt(int x, int z) {
-        int chunkX = x >> 4;
-        int chunkZ = z >> 4;
-        long revision = view.getRevision();
-        if (cachedSliceValid && chunkX == cachedChunkX && chunkZ == cachedChunkZ && cachedSliceRevision == revision) {
-            return cachedSlice;
-        }
-        RemoteViewCache.DecodedSlice slice = view.sliceAt(x, z);
-        cachedChunkX = chunkX;
-        cachedChunkZ = chunkZ;
-        cachedSlice = slice;
-        cachedSliceValid = true;
-        cachedSliceRevision = revision;
-        return slice;
+public final class RemoteWorldView extends RemoteProjectionView<BlockData, Material, EntityData<?>, Equipment>
+    implements ProjectionWorldView, ProjectionEntityView {
+    public RemoteWorldView(RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> view, BlockData fallback) {
+        super(view, new Options<>(fallback, BlockData::getMaterial));
     }
 
     @Override
@@ -55,130 +24,7 @@ public final class RemoteWorldView implements ProjectionWorldView, ProjectionEnt
     }
 
     @Override
-    public int getMinHeight() {
-        ViewBox box = view.getBox();
-        return box == null ? 0 : box.minY();
-    }
-
-    @Override
-    public int getMaxHeight() {
-        ViewBox box = view.getBox();
-        return box == null ? 0 : box.maxY() + 1;
-    }
-
-    @Override
-    public BlockData sampleBlockData(int x, int y, int z) {
-        ViewBox box = view.getBox();
-        if (box == null) {
-            return null;
-        }
-        if (!box.contains(x, y, z)) {
-            return fallback;
-        }
-        RemoteViewCache.DecodedSlice slice = decodedSliceAt(x, z);
-        if (slice == null) {
-            return null;
-        }
-        return slice.blockAt(x, y, z);
-    }
-
-    @Override
-    public BlockEntitySample sampleBlockEntity(int x, int y, int z) {
-        ViewBox box = view.getBox();
-        if (box == null || !box.contains(x, y, z)) {
-            return null;
-        }
-        RemoteViewCache.DecodedSlice slice = decodedSliceAt(x, z);
-        return slice == null ? null : slice.blockEntityAt(x, y, z);
-    }
-
-    @Override
-    public String sampleBiome(int x, int y, int z) {
-        ViewBox box = view.getBox();
-        if (box == null || !box.contains(x, y, z)) {
-            return null;
-        }
-        RemoteViewCache.DecodedSlice slice = decodedSliceAt(x, z);
-        if (slice == null) {
-            return null;
-        }
-        return slice.biomeAt(x, y, z);
-    }
-
-    @Override
-    public int getLight(int x, int y, int z) {
-        ViewBox box = view.getBox();
-        if (box == null || !box.contains(x, y, z)) {
-            return LIGHT_UNAVAILABLE;
-        }
-        RemoteViewCache.DecodedSlice slice = decodedSliceAt(x, z);
-        if (slice == null) {
-            return LIGHT_UNAVAILABLE;
-        }
-        return slice.lightAt(x, y, z);
-    }
-
-    public List<EntityVisual> getEntities() {
-        return view.getEntities();
-    }
-
-    @Override
-    public List<EntityVisual> getEntities(double centerX, double centerY, double centerZ, double range) {
-        return view.getEntities();
-    }
-
-    @Override
     public boolean isVisibleTo(Player observer, UUID entityId) {
         return WormholesPlatform.isEntityVisible(observer, entityId, true, Wormholes.instance);
-    }
-
-    public RemoteViewCache.RemoteProfile getProfile(UUID entityId) {
-        return view.getProfile(entityId);
-    }
-
-    public List<EntityData<?>> getMetadata(UUID entityId) {
-        return view.getMetadata(entityId);
-    }
-
-    public List<Equipment> getEquipment(UUID entityId) {
-        return view.getEquipment(entityId);
-    }
-
-    @Override
-    public int getSkyDarken() {
-        return view.getSkyDarken();
-    }
-
-    public boolean hasStorm() {
-        return view.hasStorm();
-    }
-
-    public boolean isThundering() {
-        return view.isThundering();
-    }
-
-    @Override
-    public long getRevision() {
-        return view.getRevision();
-    }
-
-    public int getStateVersion(UUID entityId) {
-        return view.getStateVersion(entityId);
-    }
-
-    @Override
-    public boolean equals(Object other) {
-        if (this == other) {
-            return true;
-        }
-        if (!(other instanceof RemoteWorldView remote)) {
-            return false;
-        }
-        return view.equals(remote.view);
-    }
-
-    @Override
-    public int hashCode() {
-        return view.hashCode();
     }
 }

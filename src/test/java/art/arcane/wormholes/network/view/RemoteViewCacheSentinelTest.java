@@ -1,5 +1,10 @@
 package art.arcane.wormholes.network.view;
 
+import com.github.retrooper.packetevents.protocol.player.Equipment;
+
+import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
+
+import art.arcane.wormholes.network.replication.BlockChange;
 import art.arcane.wormholes.network.replication.ChunkBulk;
 import art.arcane.wormholes.network.replication.ChunkBulkBuilder;
 import art.arcane.wormholes.network.replication.ReplicationStreamKey;
@@ -27,11 +32,11 @@ class RemoteViewCacheSentinelTest {
 
     @Test
     void sentinelDecodesToTheOccludingStandInInsteadOfAir() throws Exception {
-        RemoteViewCache cache = new RemoteViewCache();
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         UUID portalId = UUID.randomUUID();
         cache.getOrCreate(PEER, portalId);
 
-        List<String> palette = List.of(OccludedMarker.STATE_STRING);
+        List<String> palette = List.of(BlockChange.OCCLUDED_STATE);
         short[] indices = new short[]{0};
         int gridLength = ViewSlice.biomeGridSpan(0, 1) * ViewSlice.biomeGridSpan(0, 1) * ViewSlice.biomeGridSpan(0, 1);
         ViewSlice slice = new ViewSlice(0, 0, 0, 1, 1, 1, palette, indices, new byte[1], List.of("minecraft:plains"), new short[gridLength]);
@@ -42,9 +47,9 @@ class RemoteViewCacheSentinelTest {
 
         BlockData decoded = withBukkitServer(() -> {
             cache.applyChunkBulk(PEER, List.of(bulk));
-            RemoteViewCache.RemoteView view = cache.get(PEER, portalId);
+            RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> view = cache.get(PEER, portalId);
             assertNotNull(view, "the subscribed view must receive the published slice");
-            RemoteViewCache.DecodedSlice decodedSlice = view.sliceAt(0, 0);
+            RemoteViewCache.DecodedSlice<BlockData> decodedSlice = view.sliceAt(0, 0);
             assertNotNull(decodedSlice, "the chunk slice must be present after bulk apply");
             return decodedSlice.blockAt(0, 0, 0);
         });
@@ -56,7 +61,7 @@ class RemoteViewCacheSentinelTest {
 
     @Test
     void samePeerAndChunkRemainIsolatedByPortalWorldAndRenderSemantics() throws Exception {
-        RemoteViewCache cache = new RemoteViewCache();
+        RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         UUID firstPortal = UUID.randomUUID();
         UUID secondPortal = UUID.randomUUID();
         UUID firstWorld = UUID.randomUUID();
@@ -81,8 +86,8 @@ class RemoteViewCacheSentinelTest {
 
         withBukkitServer(() -> {
             cache.applyChunkBulk(PEER, List.of(firstBulk, secondBulk));
-            RemoteViewCache.RemoteView firstView = cache.get(PEER, firstPortal);
-            RemoteViewCache.RemoteView secondView = cache.get(PEER, secondPortal);
+            RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> firstView = cache.get(PEER, firstPortal);
+            RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> secondView = cache.get(PEER, secondPortal);
             assertNotNull(firstView);
             assertNotNull(secondView);
             assertEquals(firstWorld, firstView.getSourceWorldId());

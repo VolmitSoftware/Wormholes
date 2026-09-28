@@ -34,22 +34,22 @@ public final class PortalSurfaceSkinsTest
 	@Test
 	public void transparencyIsNameBased()
 	{
-		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:glass"));
-		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:blue_stained_glass"));
-		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:tinted_glass"));
-		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:ice"));
-		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:packed_ice"));
-		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:blue_ice"));
-		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:frosted_ice"));
-		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:slime_block"));
-		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:honey_block"));
-		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:barrier"));
-		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:water"));
-		assertTrue(PortalSurfaceSkins.isTransparentSkin("minecraft:water[level=0]"));
+		assertTrue(BukkitPortalSurfaces.isTransparentSkin("minecraft:glass"));
+		assertTrue(BukkitPortalSurfaces.isTransparentSkin("minecraft:blue_stained_glass"));
+		assertTrue(BukkitPortalSurfaces.isTransparentSkin("minecraft:tinted_glass"));
+		assertTrue(BukkitPortalSurfaces.isTransparentSkin("minecraft:ice"));
+		assertTrue(BukkitPortalSurfaces.isTransparentSkin("minecraft:packed_ice"));
+		assertTrue(BukkitPortalSurfaces.isTransparentSkin("minecraft:blue_ice"));
+		assertTrue(BukkitPortalSurfaces.isTransparentSkin("minecraft:frosted_ice"));
+		assertTrue(BukkitPortalSurfaces.isTransparentSkin("minecraft:slime_block"));
+		assertTrue(BukkitPortalSurfaces.isTransparentSkin("minecraft:honey_block"));
+		assertTrue(BukkitPortalSurfaces.isTransparentSkin("minecraft:barrier"));
+		assertTrue(BukkitPortalSurfaces.isTransparentSkin("minecraft:water"));
+		assertTrue(BukkitPortalSurfaces.isTransparentSkin("minecraft:water[level=0]"));
 
-		assertFalse(PortalSurfaceSkins.isTransparentSkin("minecraft:lava"));
-		assertFalse(PortalSurfaceSkins.isTransparentSkin("minecraft:lava[level=0]"));
-		assertFalse(PortalSurfaceSkins.isTransparentSkin(""));
+		assertFalse(BukkitPortalSurfaces.isTransparentSkin("minecraft:lava"));
+		assertFalse(BukkitPortalSurfaces.isTransparentSkin("minecraft:lava[level=0]"));
+		assertFalse(BukkitPortalSurfaces.isTransparentSkin(""));
 	}
 
 	@Test

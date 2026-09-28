@@ -2,10 +2,8 @@ package art.arcane.wormholes.rules;
 
 import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
-import art.arcane.volmlib.util.localization.MessageKey;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.localization.RulesMessages;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.service.WormholesAudience;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -33,22 +31,7 @@ final class EffectRunner {
     }
 
     static void run(LocalPortal destination, Entity traveler, Location arrival, List<Effect> effects) {
-        Player player = traveler instanceof Player value ? value : null;
-        for (Effect effect : effects) {
-            apply(destination, traveler, player, arrival, effect);
-        }
-    }
-
-    private static void apply(LocalPortal destination, Entity traveler, Player player, Location arrival, Effect effect) {
-        switch (effect) {
-            case Effect.Velocity value -> traveler.setVelocity(traveler.getVelocity().multiply(value.multiplier()));
-            case Effect.Potion value -> potion(player, value);
-            case Effect.Command value -> command(player, value);
-            case Effect.Message value -> message(player, value);
-            case Effect.Sound value -> sound(arrival, value);
-            case Effect.StampCooldown value -> PortalCooldowns.stamp(traveler.getUniqueId(), destination.getId(),
-                value.group(), value.millis(), System.currentTimeMillis());
-        }
+        RuleEffects.run(new Host(destination, traveler, arrival), effects);
     }
 
     private static void potion(Player player, Effect.Potion effect) {
@@ -64,22 +47,6 @@ final class EffectRunner {
             return;
         }
         player.addPotionEffect(new PotionEffect(type, effect.ticks(), effect.amplifier()));
-    }
-
-    private static void command(Player player, Effect.Command effect) {
-        if (player == null || effect.line().isEmpty()) {
-            return;
-        }
-        String line = effect.line().replace("{player}", player.getName());
-        if (!effect.asConsole()) {
-            player.performCommand(line);
-            return;
-        }
-        if (!RulesLimits.config().commandEffectsConsoleAllowed || !authorMayRunConsoleCommands(effect.authorId())) {
-            Wormholes.w("rules console command refused: author " + effect.authorId() + " is no longer an administrator");
-            return;
-        }
-        dispatchAsConsole(line);
     }
 
     /**
@@ -105,33 +72,52 @@ final class EffectRunner {
         return offline.isOp();
     }
 
-    private static void message(Player player, Effect.Message effect) {
-        if (player == null || effect.message().isEmpty()) {
-            return;
-        }
-        TextKey key = catalogKey(effect.message());
-        if (key != null) {
-            WormholesAudience.sendMessage(player, Wormholes.text().component(player, key, MessageArgs.empty()));
-            return;
-        }
-        WormholesAudience.sendMessage(player, LegacyComponentSerializer.legacyAmpersand().deserialize(effect.message()));
-    }
-
-    /** The rules-lane message this literal names, or null when it is ordinary text. */
-    private static TextKey catalogKey(String message) {
-        for (MessageKey key : RulesMessages.keys()) {
-            if (key instanceof TextKey text && text.id().equals(message) && text.placeholders().isEmpty()) {
-                return text;
-            }
-        }
-        return null;
-    }
-
     private static void sound(Location arrival, Effect.Sound effect) {
         World world = arrival == null ? null : arrival.getWorld();
         if (world == null || effect.key().isEmpty()) {
             return;
         }
         world.playSound(arrival, effect.key(), effect.volume(), effect.pitch());
+    }
+    private record Host(LocalPortal destination, Entity traveler, Location arrival) implements RuleEffects.Host {
+        @Override
+        public UUID travelerId() { return traveler.getUniqueId(); }
+        @Override
+        public UUID destinationId() { return destination.getId(); }
+        @Override
+        public long nowMillis() { return System.currentTimeMillis(); }
+        @Override
+        public boolean isPlayer() { return traveler instanceof Player; }
+        @Override
+        public String playerName() { return traveler.getName(); }
+        @Override
+        public void scaleVelocity(double multiplier) { traveler.setVelocity(traveler.getVelocity().multiply(multiplier)); }
+        @Override
+        public void potion(Effect.Potion effect) { EffectRunner.potion((Player) traveler, effect); }
+        @Override
+        public void message(String literal, TextKey key) {
+            Player player = (Player) traveler;
+            WormholesAudience.sendMessage(player, key == null
+                ? LegacyComponentSerializer.legacyAmpersand().deserialize(literal)
+                : Wormholes.text().component(player, key, MessageArgs.empty()));
+        }
+        @Override
+        public void sound(Effect.Sound effect) { EffectRunner.sound(arrival, effect); }
+        @Override
+        public boolean consoleCommandsEnabled() { return RulesLimits.config().commandEffectsConsoleAllowed; }
+        @Override
+        public boolean authorMayRunConsoleCommands(UUID authorId) { return EffectRunner.authorMayRunConsoleCommands(authorId); }
+        @Override
+        public void consoleCommandRefused(UUID authorId) {
+            Wormholes.w("rules console command refused: author " + authorId + " is no longer an administrator");
+        }
+        @Override
+        public void command(String line, boolean console) {
+            if (console) {
+                dispatchAsConsole(line);
+            } else {
+                ((Player) traveler).performCommand(line);
+            }
+        }
     }
 }

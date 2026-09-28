@@ -1,5 +1,7 @@
 package art.arcane.wormholes.render;
 
+import org.bukkit.block.data.BlockData;
+import art.arcane.wormholes.util.BukkitGeometry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -175,8 +177,7 @@ final class ProjectedEntityRecursionTest {
             when(entities.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(visual));
             when(entities.isVisibleTo(any(), any())).thenReturn(true);
             fixture.finalEntities.clear();
-            fixture.renderer.prepareRecursiveProjection(new EntityProjectionPath.Root(fixture.local, fixture.remote,
-                fixture.frame, fixture.frame, false, 0, fixture.eye, fixture.frustum), fixture.recursive);
+            fixture.renderer.prepareRecursiveProjection(new EntityProjectionPath.Root<>(fixture.local, fixture.remote, fixture.frame, fixture.frame, false, 0, BukkitGeometry.vector(fixture.eye.toVector()), fixture.frustum, fixture.remote.getWorld(), Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH), fixture.recursive);
             fixture.renderer.applyRecursive(fixture.observer, new ProjectedEntityRenderer.RecursiveRender(
                 fixture.local, fixture.frame, fixture.frustum, 32.0D, true, ignored -> snapshot, fixture.occlusion));
             assertEquals(1, fixture.renderer.getSpoofedCount());
@@ -232,16 +233,16 @@ final class ProjectedEntityRecursionTest {
             new Vector(1.5D, 1.5D, 100.0D), frame);
         private final ILocalPortal destination = RenderTestSupport.portal(destinationState);
         private final List<ILocalPortal> portals = new ArrayList<ILocalPortal>();
-        private final ProjectorRecursivePortals recursive = new ProjectorRecursivePortals(() -> portals);
+        private final ProjectorRecursivePortals<World, ILocalPortal> recursive = BukkitProjectorPortalAccess.create(() -> portals);
         private final Location eye = new Location(localWorld, 1.5D, 1.5D, 0.0D);
-        private final Frustum4D frustum = new Frustum4D(eye, new RenderTestSupport.ApertureStructure(), 32.0D, 32.0D);
+        private final Frustum4D frustum = new Frustum4D(BukkitGeometry.vector(eye), new RenderTestSupport.ApertureStructure(), new Frustum4D.Options(32.0D, 32.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
         private final ProjectedEntityPacketRecorder recorder = ProjectedEntityPacketRecorder.install();
         private final ProjectedEntityRenderer renderer = new ProjectedEntityRenderer();
         private final Player observer = ProjectedEntityPacketRecorder.player(true);
         private final UUID entityId = UUID.randomUUID();
         private final Map<String, Object> entityState = RenderTestSupport.entityState(entityId, finalWorld,
             EntityType.ZOMBIE, 1.5D, 1.0D, 103.0D, 1.0D);
-        private final ProjectedEntityOcclusion occlusion = new ProjectedEntityOcclusion();
+        private final ProjectedEntityOcclusion<BlockData, ProjectionWorldView> occlusion = BukkitEntityOcclusion.create();
 
         private Fixture() {
             finalEntities.add(RenderTestSupport.entity(LivingEntity.class, entityState));
@@ -260,8 +261,7 @@ final class ProjectedEntityRecursionTest {
         }
 
         private void render() {
-            renderer.prepareRecursiveProjection(new EntityProjectionPath.Root(local, remote, frame, frame,
-                false, 0, eye, frustum), recursive);
+            renderer.prepareRecursiveProjection(new EntityProjectionPath.Root<>(local, remote, frame, frame, false, 0, BukkitGeometry.vector(eye.toVector()), frustum, remote.getWorld(), Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH), recursive);
             renderer.apply(observer, local, remote, frustum, 32.0D, frame, frame, 0, occlusion);
             renderer.applyRecursive(observer, new ProjectedEntityRenderer.RecursiveRender(local, frame, frustum,
                 32.0D, false, ignored -> null, occlusion));

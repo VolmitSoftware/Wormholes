@@ -1,5 +1,6 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.wormholes.portal.rtp.BukkitRtpRuntime;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -46,7 +47,7 @@ public final class LocalPortalRtpRefusalTest
 	private static LocalPortal rtpPortal(World world)
 	{
 		LocalPortal portal = LocalPortalTestSupport.portal(world, PortalType.RTP);
-		portal.setRtpSettings(RtpSettings.builder(world).radii(16, 64).soundEnabled(false).build());
+		portal.setRtpSettings(RtpSettings.builder(BukkitRtpRuntime.worldSettings(world)).radii(16, 64).soundEnabled(false).build());
 		return portal;
 	}
 

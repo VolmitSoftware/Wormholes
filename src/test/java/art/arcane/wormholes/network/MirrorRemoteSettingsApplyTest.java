@@ -33,7 +33,7 @@ class MirrorRemoteSettingsApplyTest {
         UUID remoteId = UUID.randomUUID();
         assertTrue(portal.linkRemote("beta", remoteId));
 
-        PortalSyncService.applyToLocal(portal, mirrorEnablePayload());
+        PortalSettingsCodec.applyToLocal(portal, mirrorEnablePayload());
 
         assertNotNull(portal.getTunnel(), "remote settings update deleted the local operator's cross-server link");
         UniversalTunnel universal = assertInstanceOf(UniversalTunnel.class, portal.getTunnel());
@@ -49,7 +49,7 @@ class MirrorRemoteSettingsApplyTest {
         LocalPortal destination = portal(world, PortalType.PORTAL);
         assertTrue(portal.setDestination(destination));
 
-        PortalSyncService.applyToLocal(portal, mirrorEnablePayload());
+        PortalSettingsCodec.applyToLocal(portal, mirrorEnablePayload());
 
         assertNotNull(portal.getTunnel(), "linked-local settings sync deleted the counterpart's link");
         assertEquals(destination.getId(), portal.getTunnel().getDestinationId());
@@ -61,7 +61,7 @@ class MirrorRemoteSettingsApplyTest {
         LocalPortal portal = portal(world("overworld"), PortalType.GATEWAY);
         assertTrue(portal.linkRemote("beta", UUID.randomUUID()));
 
-        PortalSyncService.applyToLocal(portal, mirrorEnablePayload());
+        PortalSettingsCodec.applyToLocal(portal, mirrorEnablePayload());
 
         assertFalse(portal.isMirrorMode() && portal.getTunnel() != null,
             "mirror plus tunnel is the state the load-time normalizer destroys on the next restart");
@@ -72,7 +72,7 @@ class MirrorRemoteSettingsApplyTest {
         LocalPortal portal = portal(world("overworld"), PortalType.GATEWAY);
         assertNull(portal.getTunnel());
 
-        PortalSyncService.applyToLocal(portal, mirrorEnablePayload());
+        PortalSettingsCodec.applyToLocal(portal, mirrorEnablePayload());
 
         assertTrue(portal.isMirrorMode());
         assertNull(portal.getTunnel());
@@ -85,10 +85,10 @@ class MirrorRemoteSettingsApplyTest {
         assertTrue(portal.isMirrorMode());
 
         Map<String, String> settings = new LinkedHashMap<>();
-        settings.put(PortalSyncService.KEY_PROJECTION_MODE, ProjectionMode.ON.name());
-        settings.put(PortalSyncService.KEY_PROJECTION_ENABLED, "true");
-        settings.put(PortalSyncService.KEY_MIRROR_MODE, "false");
-        PortalSyncService.applyToLocal(portal, settings);
+        settings.put(PortalSettingsCodec.KEY_PROJECTION_MODE, ProjectionMode.ON.name());
+        settings.put(PortalSettingsCodec.KEY_PROJECTION_ENABLED, "true");
+        settings.put(PortalSettingsCodec.KEY_MIRROR_MODE, "false");
+        PortalSettingsCodec.applyToLocal(portal, settings);
 
         assertFalse(portal.isMirrorMode());
     }
@@ -106,9 +106,9 @@ class MirrorRemoteSettingsApplyTest {
 
     private static Map<String, String> mirrorEnablePayload() {
         Map<String, String> settings = new LinkedHashMap<>();
-        settings.put(PortalSyncService.KEY_PROJECTION_MODE, "MIRROR");
-        settings.put(PortalSyncService.KEY_PROJECTION_ENABLED, "true");
-        settings.put(PortalSyncService.KEY_MIRROR_MODE, "true");
+        settings.put(PortalSettingsCodec.KEY_PROJECTION_MODE, "MIRROR");
+        settings.put(PortalSettingsCodec.KEY_PROJECTION_ENABLED, "true");
+        settings.put(PortalSettingsCodec.KEY_MIRROR_MODE, "true");
         return settings;
     }
 

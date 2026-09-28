@@ -1,5 +1,8 @@
 package art.arcane.wormholes.door.view;
 
+import art.arcane.wormholes.util.Direction;
+
+
 import art.arcane.wormholes.door.DoorItemIdentity;
 import art.arcane.wormholes.door.DoorPosition;
 import art.arcane.wormholes.door.DoorProjectionState;
@@ -51,7 +54,7 @@ final class DoorProjectionRegistryTest {
         DoorProjectionRegistry registry = new DoorProjectionRegistry(8, 1, everyoneNearby());
         RuntimeDoor door = liveDoor(2);
         DoorProjectionAdapter first = registry.install(door, plane(2), WORLD);
-        DoorProjectionAdapter second = registry.install(door, new DoorwayPlane(2, 70, 9, BlockFace.SOUTH), WORLD);
+        DoorProjectionAdapter second = registry.install(door, new DoorwayPlane(2, 70, 9, Direction.S), WORLD);
 
         assertSame(first, second);
         assertEquals(1, registry.size());
@@ -172,7 +175,7 @@ final class DoorProjectionRegistryTest {
     }
 
     private static DoorwayPlane plane(int seed) {
-        return new DoorwayPlane(seed, 64, seed, BlockFace.NORTH);
+        return new DoorwayPlane(seed, 64, seed, Direction.N);
     }
 
     private static World world() {

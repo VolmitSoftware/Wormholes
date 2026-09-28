@@ -40,7 +40,7 @@ public final class PocketResizeService {
     }
 
     /** What reshaping {@code space} into {@code target} would destroy or displace. */
-    public Impact assess(World world, PocketSpace space, PocketShell target) {
+    public PocketResizeImpact assess(World world, PocketSpace space, PocketShell target) {
         Objects.requireNonNull(world, "world");
         Objects.requireNonNull(space, "space");
         Objects.requireNonNull(target, "target");
@@ -50,7 +50,7 @@ public final class PocketResizeService {
         Material previousShell = structures.shellMaterial(space);
 
         long[] counts = {0L, 0L};
-        forEachDisplacedBlock(previous, updated, (x, y, z) -> {
+        PocketResizeGeometry.forEachDisplacedBlock(previous, updated, (x, y, z) -> {
             Block block = world.getBlockAt(x, y, z);
             Material type = block.getType();
             if (type.isAir() || type == previousShell) {
@@ -70,7 +70,7 @@ public final class PocketResizeService {
                 players++;
             }
         }
-        return new Impact(counts[0], counts[1], entities, players);
+        return new PocketResizeImpact(counts[0], counts[1], entities, players);
     }
 
     public CompletableFuture<Void> apply(World world, PocketSpace space, PocketShell target) {
@@ -90,7 +90,7 @@ public final class PocketResizeService {
         requireNoStoredItems(world, previous, updated, previousShell);
         clearReturnDoor(world, previous);
         List<Entity> displaced = displacedEntities(world, previous, updated);
-        forEachDisplacedBlock(previous, updated, (x, y, z) -> {
+        PocketResizeGeometry.forEachDisplacedBlock(previous, updated, (x, y, z) -> {
             Block block = world.getBlockAt(x, y, z);
             if (block.getType().isAir()) {
                 return;
@@ -128,77 +128,6 @@ public final class PocketResizeService {
             structures.layout(space),
             structures.layout(space.withShell(target))
         );
-    }
-
-    /**
-     * Blocks the reshape destroys: everything left outside the new room, plus the
-     * interior blocks the new walls are laid through.
-     */
-    static void forEachDisplacedBlock(
-        PocketLayout previous,
-        PocketLayout updated,
-        PocketLayout.BlockVisitor visitor
-    ) {
-        if (updated.size() >= previous.size()) {
-            return;
-        }
-        visitBox(
-            updated.maxX() + 1, previous.maxX(),
-            previous.minY(), previous.maxY(),
-            previous.minZ(), previous.maxZ(),
-            visitor
-        );
-        visitBox(
-            previous.minX(), updated.maxX(),
-            updated.maxY() + 1, previous.maxY(),
-            previous.minZ(), previous.maxZ(),
-            visitor
-        );
-        visitBox(
-            previous.minX(), updated.maxX(),
-            previous.minY(), updated.maxY(),
-            updated.maxZ() + 1, previous.maxZ(),
-            visitor
-        );
-        visitBox(
-            updated.maxX(), updated.maxX(),
-            updated.minY() + 1, updated.maxY(),
-            updated.minZ() + 1, updated.maxZ(),
-            visitor
-        );
-        visitBox(
-            updated.minX() + 1, updated.maxX() - 1,
-            updated.maxY(), updated.maxY(),
-            updated.minZ() + 1, updated.maxZ(),
-            visitor
-        );
-        visitBox(
-            updated.minX() + 1, updated.maxX() - 1,
-            updated.minY() + 1, updated.maxY() - 1,
-            updated.maxZ(), updated.maxZ(),
-            visitor
-        );
-    }
-
-    private static void visitBox(
-        int minX,
-        int maxX,
-        int minY,
-        int maxY,
-        int minZ,
-        int maxZ,
-        PocketLayout.BlockVisitor visitor
-    ) {
-        if (minX > maxX || minY > maxY || minZ > maxZ) {
-            return;
-        }
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    visitor.visit(x, y, z);
-                }
-            }
-        }
     }
 
     /** Old walls and ceiling that a larger room now encloses are cleared back to open space. */
@@ -264,7 +193,7 @@ public final class PocketResizeService {
         PocketLayout updated,
         Material previousShell
     ) {
-        forEachDisplacedBlock(previous, updated, (x, y, z) -> {
+        PocketResizeGeometry.forEachDisplacedBlock(previous, updated, (x, y, z) -> {
             Block block = world.getBlockAt(x, y, z);
             Material type = block.getType();
             if (!type.isAir() && type != previousShell && hasStoredItems(block)) {
@@ -285,21 +214,4 @@ public final class PocketResizeService {
         }
     }
 
-    /** Everything a reshape would destroy or move, counted before anything is touched. */
-    public record Impact(long blocks, long containers, long entities, long players) {
-        public Impact {
-            if (blocks < 0 || containers < 0 || entities < 0 || players < 0) {
-                throw new IllegalArgumentException("impact counts cannot be negative");
-            }
-        }
-
-        public static Impact none() {
-            return new Impact(0L, 0L, 0L, 0L);
-        }
-
-        /** True when the reshape takes nothing away and moves nobody. */
-        public boolean isHarmless() {
-            return blocks == 0L && containers == 0L && entities == 0L;
-        }
-    }
 }

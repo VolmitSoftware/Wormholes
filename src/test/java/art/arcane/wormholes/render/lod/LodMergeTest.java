@@ -1,5 +1,7 @@
 package art.arcane.wormholes.render.lod;
 
+import art.arcane.wormholes.render.BukkitProjectorBlocks;
+import art.arcane.wormholes.util.BukkitGeometry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -38,13 +40,13 @@ final class LodMergeTest {
         ILocalPortal portal = portal(structure);
         StripedView destination = new StripedView();
         LodPolicy lod = new LodPolicy(true, 1, 100);
-        ViewPlate plate = ViewPlateBuilder.build(request(portal, structure, destination, lod, 8.0D));
+        ViewPlate<BlockData> plate = ViewPlateBuilder.build(request(portal, structure, destination, lod, 8.0D));
 
-        PlateCell slab0 = plate.cell(ProjectionCellKey.pack(0, 64, -1));
-        PlateCell slab1 = plate.cell(ProjectionCellKey.pack(0, 64, -2));
-        PlateCell slab2 = plate.cell(ProjectionCellKey.pack(0, 64, -3));
-        PlateCell slab3 = plate.cell(ProjectionCellKey.pack(0, 64, -4));
-        PlateCell slab4 = plate.cell(ProjectionCellKey.pack(0, 64, -5));
+        PlateCell<BlockData> slab0 = plate.cell(ProjectionCellKey.pack(0, 64, -1));
+        PlateCell<BlockData> slab1 = plate.cell(ProjectionCellKey.pack(0, 64, -2));
+        PlateCell<BlockData> slab2 = plate.cell(ProjectionCellKey.pack(0, 64, -3));
+        PlateCell<BlockData> slab3 = plate.cell(ProjectionCellKey.pack(0, 64, -4));
+        PlateCell<BlockData> slab4 = plate.cell(ProjectionCellKey.pack(0, 64, -5));
         assertNotSame(slab0.data(), slab1.data(), "slabs inside the distance keep their own samples");
         assertSame(slab1, slab2, "the first odd slab past the distance reuses the previous slab cell");
         assertNotSame(slab2, slab3, "even slabs are sampled again");
@@ -59,14 +61,14 @@ final class LodMergeTest {
         PortalStructure structure = structure();
         ILocalPortal portal = portal(structure);
         FlowerView destination = new FlowerView();
-        ViewPlate cut = ViewPlateBuilder.build(request(portal, structure, destination, new LodPolicy(false, 100, 2), 8.0D));
+        ViewPlate<BlockData> cut = ViewPlateBuilder.build(request(portal, structure, destination, new LodPolicy(false, 100, 2), 8.0D));
         assertEquals(ProjectorSample.Kind.BLOCK, cut.cell(ProjectionCellKey.pack(0, 64, -1)).kind());
         assertEquals(ProjectorSample.Kind.BLOCK, cut.cell(ProjectionCellKey.pack(0, 64, -2)).kind());
         assertEquals(ProjectorSample.Kind.REMOTE_AIR, cut.cell(ProjectionCellKey.pack(0, 64, -4)).kind());
         assertEquals(Material.STONE, cut.cell(ProjectionCellKey.pack(0, 63, -4)).data().getMaterial(),
             "full blocks past the cutoff stay");
 
-        ViewPlate none = ViewPlateBuilder.build(request(portal, structure, destination, LodPolicy.NONE, 8.0D));
+        ViewPlate<BlockData> none = ViewPlateBuilder.build(request(portal, structure, destination, LodPolicy.NONE, 8.0D));
         assertEquals(ProjectorSample.Kind.BLOCK, none.cell(ProjectionCellKey.pack(0, 64, -4)).kind());
         assertTrue(LodPolicy.NONE.isNone());
         assertFalse(new LodPolicy(true, 32, 48).isNone());
@@ -81,23 +83,22 @@ final class LodMergeTest {
         assertTrue(balanced.mergesSlab(33));
         assertFalse(balanced.mergesSlab(34));
         assertFalse(balanced.mergesSlab(32));
-        assertTrue(LodPolicy.isDetail(Material.POPPY));
-        assertTrue(LodPolicy.isDetail(Material.OAK_FENCE));
-        assertTrue(LodPolicy.isDetail(Material.GLASS_PANE));
-        assertTrue(LodPolicy.isDetail(Material.SHORT_GRASS));
-        assertFalse(LodPolicy.isDetail(Material.STONE));
+        assertTrue(LodPolicy.isDetail(Material.POPPY.name()));
+        assertTrue(LodPolicy.isDetail(Material.OAK_FENCE.name()));
+        assertTrue(LodPolicy.isDetail(Material.GLASS_PANE.name()));
+        assertTrue(LodPolicy.isDetail(Material.SHORT_GRASS.name()));
+        assertFalse(LodPolicy.isDetail(Material.STONE.name()));
         assertEquals(0.5D, LodProfile.NEAR.distanceScale());
         assertEquals(1.5D, LodProfile.FAR.distanceScale());
     }
 
-    private static ViewPlateBuilder.Request request(ILocalPortal portal, PortalStructure structure,
+    private static ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request(ILocalPortal portal, PortalStructure structure,
                                                     ProjectionWorldView destination, LodPolicy lod, double depth) {
         PortalFrame frame = portal.getFrame();
-        return new ViewPlateBuilder.Request(new ViewPlateKey(PORTAL_ID, destination, true, 0), portal, destination, frame, frame,
+        return new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(new ViewPlateKey(PORTAL_ID, destination, true, 0), portal.getStructure(), destination, frame, frame,
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
-            false, 0, depth, 0.0D, 0.0D, false, blockData(Material.AIR), lod, false, 1L, 1L, 0L,
-            material -> material == Material.STONE);
+            false, 0, depth, 0.0D, 0.0D, false, blockData(Material.AIR), lod, false, 1L, 1L, 0L, new BukkitProjectorBlocks(material -> material == Material.STONE));
     }
 
     private static PortalStructure structure() {
@@ -121,7 +122,7 @@ final class LodMergeTest {
             (proxy, method, args) -> switch (method.getName()) {
                 case "getStructure" -> structure;
                 case "getFrame" -> frame;
-                case "getOrigin" -> origin;
+                case "getOrigin" -> BukkitGeometry.vector(origin);
                 case "getId" -> PORTAL_ID;
                 case "getWorld" -> null;
                 case "getName", "toString" -> "lod-portal";

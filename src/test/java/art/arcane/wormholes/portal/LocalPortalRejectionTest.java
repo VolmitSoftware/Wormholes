@@ -1,5 +1,7 @@
 package art.arcane.wormholes.portal;
 
+import art.arcane.wormholes.util.BukkitGeometry;
+
 import art.arcane.wormholes.util.Direction;
 import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
@@ -13,7 +15,7 @@ class LocalPortalRejectionTest {
     void frontSideRejectionReturnsTravelerAlongViewedNormal() {
         Traversive traversive = traversive(true);
 
-        assertVector(new Vector(2.0D, 65.0D, 1.75D), LocalPortalTraversal.sourceRejectionPoint(traversive));
+        assertVector(new Vector(2.0D, 65.0D, 1.75D), BukkitGeometry.bukkit(traversive.crossing().rejectionPoint()));
         assertVector(new Vector(0.0D, 0.0D, -3.0D), LocalPortalTraversal.sourceRejectionVelocity(traversive));
     }
 
@@ -21,7 +23,7 @@ class LocalPortalRejectionTest {
     void backSideRejectionReturnsTravelerToOppositeSourceSide() {
         Traversive traversive = traversive(false);
 
-        assertVector(new Vector(2.0D, 65.0D, 4.25D), LocalPortalTraversal.sourceRejectionPoint(traversive));
+        assertVector(new Vector(2.0D, 65.0D, 4.25D), BukkitGeometry.bukkit(traversive.crossing().rejectionPoint()));
         assertVector(new Vector(0.0D, 0.0D, 3.0D), LocalPortalTraversal.sourceRejectionVelocity(traversive));
     }
 
@@ -37,11 +39,11 @@ class LocalPortalRejectionTest {
     void rejectedFastCrossingReturnsBeyondTheSourcePlane() {
         for (boolean frontSide : new boolean[] {true, false}) {
             Traversive surface = traversive(frontSide);
-            Vector normal = surface.getInFrame().getNormal().toVector();
+            Vector normal = BukkitGeometry.bukkit(surface.getInFrame().getNormal());
             Vector endpoint = surface.getInOrigin().clone().subtract(normal.clone().multiply(8.0D))
                 .add(new Vector(0.4D, 0.2D, 0.0D));
             Traversive crossing = surface.forMember(new Object(), endpoint);
-            Vector rejection = LocalPortalTraversal.sourceRejectionPoint(crossing);
+            Vector rejection = BukkitGeometry.bukkit(crossing.crossing().rejectionPoint());
 
             assertEquals(1.25D, rejection.clone().subtract(surface.getInOrigin()).dot(normal), 1.0E-9D);
             assertEquals(endpoint.getX(), rejection.getX(), 1.0E-9D);

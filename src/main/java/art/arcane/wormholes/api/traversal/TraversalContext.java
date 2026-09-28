@@ -1,6 +1,7 @@
 package art.arcane.wormholes.api.traversal;
 
 import org.bukkit.Location;
+import art.arcane.wormholes.api.traversal.internal.TraversalCostEngine;
 import org.bukkit.entity.Player;
 
 import java.util.Objects;
@@ -8,7 +9,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public record TraversalContext(UUID traversalId, TraversalKind kind, Player traveler, UUID portalId,
-                               String portalName, Location origin, Optional<TraversalDestination> destination) {
+                               String portalName, Location origin, Optional<TraversalDestination> destination) implements TraversalCostEngine.Context<Player> {
     public TraversalContext {
         Objects.requireNonNull(traversalId, "traversalId");
         Objects.requireNonNull(kind, "kind");

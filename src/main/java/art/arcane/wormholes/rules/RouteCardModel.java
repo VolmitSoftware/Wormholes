@@ -123,7 +123,7 @@ public final class RouteCardModel {
         if (builtIn != null && builtIn.status(viewer) != PortalTravelCost.Status.AVAILABLE) {
             return false;
         }
-        return RuleCostReservation.canAfford(viewer, withoutCharges(costs), charges);
+        return RuleCostReservation.canAfford(new BukkitRuleCostSubject(viewer), withoutCharges(costs), charges);
     }
 
     /** The charge pool is reported as a refusal, not as something the viewer failed to afford. */

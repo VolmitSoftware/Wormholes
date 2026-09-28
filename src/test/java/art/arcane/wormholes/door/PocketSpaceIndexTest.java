@@ -1,6 +1,6 @@
 package art.arcane.wormholes.door;
 
-import org.bukkit.block.BlockFace;
+import art.arcane.wormholes.util.Direction;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -17,7 +17,7 @@ final class PocketSpaceIndexTest {
     @Test
     void aGrownRoomIsFoundByColumnJustLikeTheBaseRoom() {
         PocketSpace base = space();
-        PocketRoom room = PocketRooms.allocate(base, BlockFace.NORTH, 9).orElseThrow();
+        PocketRoom room = PocketRooms.allocate(base, Direction.N, 9).orElseThrow();
         PocketSpace grown = base.withRooms(List.of(room));
         PocketLayout roomLayout = PocketRooms.layout(grown, room);
         PocketSpaceIndex index = new PocketSpaceIndex(structures);
@@ -33,7 +33,7 @@ final class PocketSpaceIndexTest {
     @Test
     void aGrownRoomShellIsProtectedTheSameWayTheBaseRoomShellIs() {
         PocketSpace base = space();
-        PocketRoom room = PocketRooms.allocate(base, BlockFace.EAST, 9).orElseThrow();
+        PocketRoom room = PocketRooms.allocate(base, Direction.E, 9).orElseThrow();
         PocketSpace grown = base.withRooms(List.of(room));
         PocketLayout roomLayout = PocketRooms.layout(grown, room);
 
@@ -49,7 +49,7 @@ final class PocketSpaceIndexTest {
     @Test
     void reindexingDropsTheOldRoomsAndPicksUpTheNewOnes() {
         PocketSpace base = space();
-        PocketRoom room = PocketRooms.allocate(base, BlockFace.SOUTH, 9).orElseThrow();
+        PocketRoom room = PocketRooms.allocate(base, Direction.S, 9).orElseThrow();
         PocketSpace grown = base.withRooms(List.of(room));
         PocketLayout roomLayout = PocketRooms.layout(grown, room);
         PocketSpaceIndex index = new PocketSpaceIndex(structures);

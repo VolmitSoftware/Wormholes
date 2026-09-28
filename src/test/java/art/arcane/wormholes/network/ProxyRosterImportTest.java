@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network;
 
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import art.arcane.wormholes.util.BukkitJsonDocuments;
 import art.arcane.wormholes.config.toml.NetworkConfig;
 
 import org.junit.jupiter.api.Test;
@@ -30,7 +32,7 @@ class ProxyRosterImportTest {
     @Test
     void aProxyImportAddsTrustAndARouteWithoutTurningTheNetworkOn() throws Exception {
         NetworkConfig config = config();
-        NetworkManager network = new NetworkManager(LOGGER, config, "26.2", "test", 25565, dataDirectory);
+        NetworkManager network = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", 25565, dataDirectory, BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         ImportExportService importExport = new ImportExportService(network);
 
         assertTrue(importExport.importProxyServerCode(code("creative", key())));
@@ -46,7 +48,7 @@ class ProxyRosterImportTest {
     @Test
     void aTombstonedPeerIsNotReAdmittedByTheProxyAndAKeyIsNeverReplaced() throws Exception {
         NetworkConfig config = config();
-        NetworkManager network = new NetworkManager(LOGGER, config, "26.2", "test", 25565, dataDirectory);
+        NetworkManager network = new NetworkManager(LOGGER, new NetworkManager.Options( config, "26.2", "test", 25565, dataDirectory, BukkitJsonDocuments.INSTANCE, ClientVersion.getLatest().getProtocolVersion()));
         ImportExportService importExport = new ImportExportService(network);
         String removedKey = key();
 

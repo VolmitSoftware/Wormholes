@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network.replication.capture;
 
+import org.bukkit.block.data.BlockData;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.platform.BukkitRegionTaskProvider;
 
@@ -22,7 +23,7 @@ public final class CaptureRegionScheduler {
     static final int MAX_REGION_DRAINS_PER_TICK = 64;
 
     private final Plugin plugin;
-    private final RegionalDiffAccumulator accumulator;
+    private final RegionalDiffAccumulator<World, BlockData> accumulator;
     private final LightDiffCapture lightDiffCapture;
     private final boolean folia;
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -31,7 +32,7 @@ public final class CaptureRegionScheduler {
     private final CaptureCycleLoop foliaCycle;
     private int globalTaskId = -1;
 
-    public CaptureRegionScheduler(Plugin plugin, RegionalDiffAccumulator accumulator, LightDiffCapture lightDiffCapture) {
+    public CaptureRegionScheduler(Plugin plugin, RegionalDiffAccumulator<World, BlockData> accumulator, LightDiffCapture lightDiffCapture) {
         this.plugin = plugin;
         this.accumulator = accumulator;
         this.lightDiffCapture = lightDiffCapture;
@@ -87,7 +88,7 @@ public final class CaptureRegionScheduler {
         return running.get();
     }
 
-    private RegionalDiffAccumulator.PreDrainHook makeHook() {
+    private RegionalDiffAccumulator.PreDrainHook<World> makeHook() {
         if (lightDiffCapture == null) {
             return null;
         }
@@ -95,7 +96,7 @@ public final class CaptureRegionScheduler {
     }
 
     private void runPaperDrain() {
-        RegionalDiffAccumulator.PreDrainHook hook = makeHook();
+        RegionalDiffAccumulator.PreDrainHook<World> hook = makeHook();
         for (DrainKey key : selectDrainCandidates()) {
             World world = Bukkit.getWorld(key.worldId());
             if (world != null) {
@@ -108,7 +109,7 @@ public final class CaptureRegionScheduler {
         if (!running.get()) {
             return;
         }
-        RegionalDiffAccumulator.PreDrainHook hook = makeHook();
+        RegionalDiffAccumulator.PreDrainHook<World> hook = makeHook();
         for (DrainKey key : selectDrainCandidates()) {
             dispatchRegionalDrain(key, hook);
         }
@@ -131,7 +132,7 @@ public final class CaptureRegionScheduler {
         return drainBudget.select(candidates, drainsInFlight, MAX_REGION_DRAINS_PER_TICK);
     }
 
-    private void dispatchRegionalDrain(DrainKey key, RegionalDiffAccumulator.PreDrainHook hook) {
+    private void dispatchRegionalDrain(DrainKey key, RegionalDiffAccumulator.PreDrainHook<World> hook) {
         World world = Bukkit.getWorld(key.worldId());
         if (world == null || !drainsInFlight.add(key)) {
             return;
