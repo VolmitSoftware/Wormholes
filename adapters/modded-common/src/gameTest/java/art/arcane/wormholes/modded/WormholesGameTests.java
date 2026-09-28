@@ -50,6 +50,7 @@ public final class WormholesGameTests {
     public static final Identifier HANDOFF_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "handoff_runtime");
     public static final Identifier NEXUS_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "nexus_runtime");
     public static final Identifier ENTITY_TRANSFERS_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "entity_transfers_runtime");
+    public static final Identifier LANGUAGE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "language_runtime");
     private static final Set<CompletableFuture<?>> REPORTED_FAILURES = new HashSet<>();
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesGameTest");
 
@@ -96,6 +97,10 @@ public final class WormholesGameTests {
 
     public static void rulesRuntime(GameTestHelper helper) {
         MinecraftRulesGameTest.run(helper);
+    }
+
+    public static void languageRuntime(GameTestHelper helper) {
+        MinecraftLanguageGameTest.run(helper);
     }
 
     public static void costsRuntime(GameTestHelper helper) {

@@ -27,6 +27,8 @@ public final class ForgeGameTests {
         RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.RULES_RUNTIME, () -> WormholesGameTests::rulesRuntime));
         RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
+            event.register(Registries.TEST_FUNCTION, WormholesGameTests.LANGUAGE_RUNTIME, () -> WormholesGameTests::languageRuntime));
+        RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.ENTITY_TRANSFERS_RUNTIME, () -> WormholesGameTests::entityTransfersRuntime));
         RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.NEXUS_RUNTIME, () -> WormholesGameTests::nexusRuntime));

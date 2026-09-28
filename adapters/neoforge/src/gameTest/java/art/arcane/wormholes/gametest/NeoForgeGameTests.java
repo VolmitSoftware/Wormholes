@@ -35,6 +35,8 @@ public final class NeoForgeGameTests {
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
             WormholesGameTests.RULES_RUNTIME, () -> WormholesGameTests::rulesRuntime));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
+            WormholesGameTests.LANGUAGE_RUNTIME, () -> WormholesGameTests::languageRuntime));
+        bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
             WormholesGameTests.ENTITY_TRANSFERS_RUNTIME, () -> WormholesGameTests::entityTransfersRuntime));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION, WormholesGameTests.NEXUS_RUNTIME, () -> WormholesGameTests::nexusRuntime));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION, WormholesGameTests.OPS_RUNTIME, () -> WormholesGameTests::opsRuntime));

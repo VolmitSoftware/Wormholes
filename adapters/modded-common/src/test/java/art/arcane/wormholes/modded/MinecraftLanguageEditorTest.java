@@ -1,126 +1,131 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.volmlib.util.format.ColorFormatter;
+import art.arcane.volmlib.util.localization.BukkitLanguageMessages;
 import art.arcane.volmlib.util.localization.LinesValue;
+import art.arcane.volmlib.util.localization.LocaleOverlay;
+import art.arcane.volmlib.util.localization.LocalizationCandidate;
+import art.arcane.volmlib.util.localization.LocalizationSnapshot;
+import art.arcane.volmlib.util.localization.MessageArgs;
+import art.arcane.volmlib.util.localization.MessageCatalog;
+import art.arcane.volmlib.util.localization.MessageKey;
+import art.arcane.volmlib.util.localization.MessageValue;
+import art.arcane.volmlib.util.localization.PluginLanguageEditor;
+import art.arcane.volmlib.util.localization.PluginLanguageService;
+import art.arcane.volmlib.util.localization.PluralKey;
+import art.arcane.volmlib.util.localization.PluralSelector;
 import art.arcane.volmlib.util.localization.PluralValue;
+import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.volmlib.util.localization.TextValue;
-import art.arcane.wormholes.config.WormholesSettings;
-import art.arcane.wormholes.localization.WormholesMessages;
-import com.mojang.brigadier.CommandDispatcher;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import java.util.UUID;
+import net.minecraft.world.item.Items;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
+import java.util.Set;
+import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class MinecraftLanguageEditorTest {
-    @Rule
-    public TemporaryFolder temporary = new TemporaryFolder();
-
     @BeforeClass
     public static void bootstrap() {
         MinecraftPortalToolsTest.bootstrap();
     }
 
     @Test
-    public void textLinesAndPluralJsonPreserveTheirMessageShapes() {
-        assertEquals(new TextValue("Hello {name}"), MinecraftLanguageEditor.parseValue("\"Hello {name}\""));
-        assertEquals(new LinesValue(List.of("First", "Second")), MinecraftLanguageEditor.parseValue("[\"First\",\"Second\"]"));
-        assertEquals(new PluralValue(Map.of("one", "One", "other", "Many")),
-            MinecraftLanguageEditor.parseValue("{\"one\":\"One\",\"other\":\"Many\"}"));
-        assertThrows(IllegalArgumentException.class, () -> MinecraftLanguageEditor.parseValue("[2]"));
+    public void inputDecodesNewlinesAndLiteralBackslashesWithoutChangingOtherEscapes() {
+        assertEquals("first\nsecond", MinecraftLanguageEditor.decodeInput("first\\nsecond"));
+        assertEquals("path\\name\\tvalue", MinecraftLanguageEditor.decodeInput("path\\\\name\\tvalue"));
+        assertEquals("trailing\\", MinecraftLanguageEditor.decodeInput("trailing\\"));
     }
 
     @Test
-    public void consoleEditorSavesLiveResetsAndRejectsConcurrentChanges() throws Exception {
-        Path directory = temporary.getRoot().toPath();
-        Path language = directory.resolve("languages/en_US.toml");
-        Files.createDirectories(language.getParent());
-        Files.writeString(language, "[portal.edit]\ndenied = 'Original'\n");
-        WormholesModRuntime runtime = mock(WormholesModRuntime.class);
-        MinecraftServer server = mock(MinecraftServer.class);
-        MinecraftAccessService access = mock(MinecraftAccessService.class);
-        CommandSourceStack source = mock(CommandSourceStack.class);
-        when(runtime.server()).thenReturn(server);
-        when(runtime.access()).thenReturn(access);
-        when(access.permission(any(CommandSourceStack.class), anyString())).thenReturn(true);
-        when(source.getTextName()).thenReturn("Console");
-        when(access.permission(source, "wormholes.admin")).thenReturn(false);
-        doAnswer(invocation -> {
-            invocation.<Runnable>getArgument(0).run();
-            return null;
-        }).when(server).execute(any(Runnable.class));
-        BlockingQueue<String> messages = new LinkedBlockingQueue<>();
-        doAnswer(invocation -> {
-            messages.add(invocation.<Supplier<Component>>getArgument(0).get().getString());
-            return null;
-        }).when(source).sendSuccess(any(), anyBoolean());
-        doAnswer(invocation -> {
-            messages.add(invocation.<Component>getArgument(0).getString());
-            return null;
-        }).when(source).sendFailure(any());
-        MinecraftLocalization localization = new MinecraftLocalization(runtime);
-        localization.start(directory, WormholesSettings.loadAll(directory));
-        CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
-        localization.registerCommands(dispatcher);
-        String command = "wormholes language server edit en_US portal.edit.denied";
-        try {
-            assertEquals(0, dispatcher.execute(command + " set \"Edited\"", source));
-            messages.clear();
-            dispatcher.execute(command, source);
-            await(messages, "Append set");
-            dispatcher.execute(command + " set \"Edited\"", source);
-            await(messages, "Saved");
-            assertEquals("Edited", localization.text(null, WormholesMessages.PORTAL_EDIT_DENIED, Map.of()).getString());
-            assertTrue(Files.readString(language).contains("Edited"));
-            dispatcher.execute(command + " reset", source);
-            await(messages, "Saved");
-            assertEquals(MinecraftMenuText.format(WormholesMessages.PORTAL_EDIT_DENIED.english(), Map.of()).getString(), localization.text(null, WormholesMessages.PORTAL_EDIT_DENIED, Map.of()).getString());
-            Files.writeString(language, "[portal.edit]\ndenied = 'External'\n");
-            dispatcher.execute(command + " set \"Stale\"", source);
-            await(messages, "Language edit failed:");
-            assertTrue(Files.readString(language).contains("External"));
-            ServerPlayer player = mock(ServerPlayer.class);
-            when(player.getUUID()).thenReturn(UUID.randomUUID());
-            when(source.getPlayer()).thenReturn(player);
-            when(source.getEntity()).thenReturn(player);
-            dispatcher.execute("wormholes language self reset", source);
-            await(messages, "Wormholes: your language now uses the server default.");
-        } finally {
-            localization.close();
-        }
+    public void editsPreserveEveryMessageShape() {
+        MessageValue lines = MinecraftLanguageEditor.replacement(new LinesValue(List.of("first", "old", "last")), "1", "");
+        assertEquals(new LinesValue(List.of("first", "", "last")), lines);
+        assertEquals("first\n\nlast", MinecraftLanguageEditor.rawValue(lines, null));
+        PluralValue plural = new PluralValue(Map.of("one", "One {name}", "other", "{count} {name}"));
+        MessageValue changed = MinecraftLanguageEditor.replacement(plural, "one", "Single {name}");
+        assertEquals(new PluralValue(Map.of("one", "Single {name}", "other", "{count} {name}")), changed);
+        assertEquals("{count} {name}", MinecraftLanguageEditor.rawValue(plural, "few"));
+        assertEquals(new TextValue(""), MinecraftLanguageEditor.replacement(new TextValue("old"), null, ""));
+        assertEquals("{count} {name}", MinecraftLanguageEditor.variableNames(PluralKey.of("test.plural", "count", Map.of("other", "Hello {name}"))));
+        assertEquals("", MinecraftLanguageEditor.variableNames(TextKey.of("test.text", "Hello")));
     }
 
-    private static void await(BlockingQueue<String> messages, String prefix) throws InterruptedException {
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-        while (System.nanoTime() < deadline) {
-            String message = messages.poll(100, TimeUnit.MILLISECONDS);
-            if (message != null && message.startsWith(prefix)) {
-                return;
-            }
-        }
-        throw new AssertionError("Missing editor feedback: " + prefix);
+    @Test
+    public void formattedPreviewsWrapKeepColorsAndTruncate() {
+        List<String> lines = MinecraftLanguageEditor.preview("<light_purple>1234567890abcdef</light_purple>\n<green>next</green>", 10, 6, "(empty)");
+        assertEquals(3, lines.size());
+        assertTrue(lines.get(1).startsWith("§d"));
+        assertEquals("next", ColorFormatter.stripColor(lines.get(2)));
+        List<String> truncated = MinecraftLanguageEditor.preview("x".repeat(200), 10, 3, "(empty)");
+        assertEquals(3, truncated.size());
+        assertTrue(truncated.get(2).endsWith("§8..."));
+        assertEquals(List.of("(empty)"), MinecraftLanguageEditor.preview("", 10, 3, "(empty)"));
+        assertEquals("§c§l", MinecraftLanguageEditor.lastColors("§aOld §cRed §lBold"));
+        assertEquals("§x§1§2§3§4§5§6§o", MinecraftLanguageEditor.lastColors("§x§1§2§3§4§5§6Hex §oItalic"));
+        assertEquals("§r", MinecraftLanguageEditor.lastColors("§aGreen§r"));
+        assertEquals("", MinecraftLanguageEditor.lastColors("plain §"));
+    }
+
+    @Test
+    public void catalogsGroupAndSearchLikeTheBukkitEditor() {
+        MessageCatalog catalog = MessageCatalog.of("en_US",
+            TextKey.of("gui.prompt.cancel", "Cancel"),
+            TextKey.of("portal.created", "Portal created"),
+            TextKey.of("command.create", "Create a portal"),
+            TextKey.of("runtime.prefix", "Prefix"),
+            TextKey.of("custom", "Custom"));
+        PluginLanguageEditor.Document document = new PluginLanguageEditor.Document("en_US",
+            LocalizationSnapshot.create(LocalizationCandidate.english(catalog, PluralSelector.oneOther())));
+        assertEquals(List.of("command", "custom", "gui", "portal", "runtime"), MinecraftLanguageEditor.groups(document));
+        assertEquals("director", MinecraftLanguageEditor.group("director.help.page"));
+        assertEquals("GUI", MinecraftLanguageEditor.groupName("gui"));
+        assertEquals("Hot reload", MinecraftLanguageEditor.groupName("hot_reload"));
+        assertEquals(Items.OBSIDIAN, MinecraftLanguageEditor.groupMaterial("portal"));
+        assertEquals(Items.PAPER, MinecraftLanguageEditor.groupMaterial("custom"));
+        assertEquals(List.of("command.create", "portal.created"),
+            MinecraftLanguageEditor.matchingKeys(document, null, "portal").stream().map(MessageKey::id).toList());
+        assertEquals(List.of("portal.created"),
+            MinecraftLanguageEditor.matchingKeys(document, "portal", "created").stream().map(MessageKey::id).toList());
+    }
+
+    @Test
+    public void tilesAndSlotsMatchTheBukkitLayout() {
+        assertEquals("§a✔§r §ffr_FR§r §8—§r §7French (France)",
+            MinecraftLanguageEditor.localeTitle("fr_FR", "French (France)", true).legacy());
+        assertEquals("§8•§r §fde_DE§r §8—§r §7German (Germany)",
+            MinecraftLanguageEditor.localeTitle("de_DE", "German (Germany)", false).legacy());
+        assertTrue(MinecraftLanguageEditor.categoryTitle("Command").legacy().contains("§dCommand"));
+        assertEquals(List.of(20, 21, 22, 23, 24), MinecraftLanguageEditor.categorySlots(5));
+        assertEquals(List.of(11, 12, 13, 14, 20, 21, 22, 23), MinecraftLanguageEditor.categorySlots(8));
+        assertEquals(16, MinecraftLanguageEditor.categorySlots(40).size());
+        assertEquals(Set.of(45, 48, 49, 50, 53), MinecraftLanguageEditor.navigationSlots());
+    }
+
+    @Test
+    public void localizedTextUsesThePlayersSnapshotAndEscapesUntrustedArguments() {
+        TextKey title = BukkitLanguageMessages.EDITOR_TITLE;
+        TextKey languages = BukkitLanguageMessages.EDITOR_LANGUAGES;
+        LocalizationSnapshot snapshot = LocalizationSnapshot.create(new LocalizationCandidate(
+            MessageCatalog.of("en_US", title, languages),
+            List.of(LocaleOverlay.builder("fr_FR").text(languages.id(), "<gold>Langues</gold>").build()),
+            PluralSelector.oneOther()));
+        PluginLanguageService service = mock(PluginLanguageService.class);
+        ServerPlayer player = mock(ServerPlayer.class);
+        UUID playerId = UUID.randomUUID();
+        when(player.getUUID()).thenReturn(playerId);
+        when(service.snapshot(playerId)).thenReturn(snapshot);
+        String section = MinecraftLanguageEditor.localized(service, player, languages, MessageArgs.empty()).plain();
+        assertTrue(MinecraftLanguageEditor.localized(service, player, languages, MessageArgs.empty()).legacy().contains("§6Langues"));
+        assertEquals("Test<green>&c[ff0000] › Langues", MinecraftLanguageEditor.localized(service, player, title,
+            MessageArgs.builder().untrusted("plugin", "Test<green>&c[ff0000]§c").untrusted("section", section).build()).plain());
     }
 }
