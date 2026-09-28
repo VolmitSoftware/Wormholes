@@ -14,7 +14,6 @@ import art.arcane.wormholes.transit.OrientationPolicy;
 import art.arcane.wormholes.transit.TransitionProfile;
 import java.util.List;
 import art.arcane.wormholes.util.AxisAlignedBB;
-import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Map;
 import java.util.UUID;
@@ -139,10 +138,6 @@ public final class MinecraftPortalSyncAccess implements PortalSyncAccess<Minecra
 
     @Override
     public void refreshMenus(MinecraftPortal portal) {
-        for (ServerPlayer player : runtime.server().getPlayerList().getPlayers()) {
-            if (player.containerMenu instanceof MinecraftInventoryMenu menu) {
-                menu.refresh();
-            }
-        }
+        runtime.menus().refresh(portal.getId());
     }
 }

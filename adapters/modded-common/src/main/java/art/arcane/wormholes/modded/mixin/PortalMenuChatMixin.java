@@ -1,7 +1,6 @@
 package art.arcane.wormholes.modded.mixin;
 
 import art.arcane.wormholes.modded.MinecraftChatInput;
-import art.arcane.wormholes.modded.MinecraftPortalMenus;
 import art.arcane.wormholes.modded.MinecraftDoorMenus;
 import net.minecraft.network.chat.PlayerChatMessage;
 import net.minecraft.server.level.ServerPlayer;
@@ -19,8 +18,7 @@ public abstract class PortalMenuChatMixin {
 
     @Inject(method = "broadcastChatMessage", at = @At("HEAD"), cancellable = true)
     private void wormholesMenuInput(PlayerChatMessage message, CallbackInfo callback) {
-        if (MinecraftChatInput.chat(player, message.signedContent()) || MinecraftDoorMenus.chat(player, message.signedContent())
-            || MinecraftPortalMenus.chat(player, message.signedContent())) {
+        if (MinecraftChatInput.chat(player, message.signedContent()) || MinecraftDoorMenus.chat(player, message.signedContent())) {
             detectChatRateSpam();
             callback.cancel();
         }

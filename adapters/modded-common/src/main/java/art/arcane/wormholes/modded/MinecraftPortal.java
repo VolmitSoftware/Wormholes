@@ -443,6 +443,14 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
         values.put("surfaceSkin", PortalSurfaceSkins.normalizeSkin(skin));
     }
 
+    public boolean isPublicLookLabel() {
+        return flag("publicLookLabel", false);
+    }
+
+    public void setPublicLookLabel(boolean enabled) {
+        values.put("publicLookLabel", enabled);
+    }
+
     public String getDestinationServer() {
         return values.get("tunnel") instanceof Map<?, ?> tunnel && tunnel.get("server") instanceof String server ? server : null;
     }

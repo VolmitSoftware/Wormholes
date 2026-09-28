@@ -121,19 +121,17 @@ public final class MinecraftRulesGameTest {
     }
 
     private void editor() {
-        helper.assertTrue(runtime.menus().open(player, source.getId()) == 1, "Rule owner could not open portal menu");
-        click(15);
-        click(30);
+        runtime.menus().rules().open(player, source.getId());
         click(10);
         click(12);
         helper.assertTrue(runtime.rules().document(source).profile().cooldownMillis() == 1000L
             && runtime.rules().document(source).profile().warmupMillis() == 1000L, "Rule profile editor did not persist");
         click(30);
         click(47);
-        helper.assertTrue(runtime.menus().acceptChat(player, "toll"), "Rule id prompt did not consume native chat");
+        helper.assertTrue(runtime.menus().rules().acceptChat(player, "toll"), "Rule id prompt did not consume native chat");
         click(0);
         click(47);
-        helper.assertTrue(runtime.menus().acceptChat(player, "kind=ITEM;matcher.material=EMERALD;quantity=3"), "Rule line prompt did not consume native chat");
+        helper.assertTrue(runtime.menus().rules().acceptChat(player, "kind=ITEM;matcher.material=EMERALD;quantity=3"), "Rule line prompt did not consume native chat");
         helper.assertTrue(runtime.rules().document(source).rules().size() == 1
             && !runtime.rules().document(source).rules().getFirst().costs().isEmpty(), "Native rule line editor did not persist cost");
         player.closeContainer();
