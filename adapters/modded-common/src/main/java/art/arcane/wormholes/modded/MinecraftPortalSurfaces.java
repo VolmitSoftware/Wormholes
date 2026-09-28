@@ -83,7 +83,7 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
             }
             for (double distance = 0; distance < 16; distance += 0.25) {
                 if (portal.getGeometry().contains(new GeometryVector(eye.x + look.x * distance, eye.y + look.y * distance, eye.z + look.z * distance))) {
-                    return runtime.portals().update(player, portal.getId(), target -> target.setSurfaceSkin(skin));
+                    return runtime.menus().cosmetics().applySurfaceSkinFromInteraction(player, portal, skin);
                 }
             }
         }

@@ -173,10 +173,13 @@ public final class WormholesGameTests {
             helper.assertTrue(RUNTIME.portals().remove(actor, destination.getId()), "Destination removal rejected owner");
             traveler.discard();
             LOGGER.info("WORMHOLES_GAME_TEST_PASS portal_runtime creation link traversal persistence world_view packet_codec unlink removal");
-            MinecraftPortalMenuGameTest.run(helper);
-            CompletableFuture<Boolean> construction = new MinecraftConstructionGameTest(helper).run();
-            helper.startSequence().thenWaitUntil(() -> helper.assertTrue(completed(helper, construction, "construction"),
-                "Native construction did not complete")).thenExecute(() -> new MinecraftDoorGameTest(helper).start());
+            CompletableFuture<Boolean> menus = MinecraftPortalMenuGameTest.run(helper);
+            helper.startSequence().thenWaitUntil(() -> helper.assertTrue(completed(helper, menus, "portal menus"),
+                "Native portal menus did not complete")).thenExecute(() -> {
+                    CompletableFuture<Boolean> construction = new MinecraftConstructionGameTest(helper).run();
+                    helper.startSequence().thenWaitUntil(() -> helper.assertTrue(completed(helper, construction, "construction"),
+                        "Native construction did not complete")).thenExecute(() -> new MinecraftDoorGameTest(helper).start());
+                });
         });
     }
 

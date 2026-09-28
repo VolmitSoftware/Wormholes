@@ -32,6 +32,8 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class MinecraftCostGameTest {
+    private static final int MENU_TICKS = 4;
+
     private final GameTestHelper helper;
     private final WormholesModRuntime runtime;
     private final ServerPlayer player;
@@ -76,10 +78,40 @@ public final class MinecraftCostGameTest {
                 helper.setBlock(new BlockPos(x, 1, z), Blocks.STONE);
             }
         }
-        menu();
-        helper.getLevel().addNewPlayer(player);
-        approach();
+        ItemStack selected = new ItemStack(Items.DIAMOND, 20);
+        selected.set(DataComponents.CUSTOM_NAME, Component.literal("Exact toll"));
+        CompoundTag data = new CompoundTag();
+        data.putByte("byte", (byte) 4);
+        data.putInt("integer", 7);
+        selected.set(DataComponents.CUSTOM_DATA, CustomData.of(data));
+        player.setItemInHand(InteractionHand.MAIN_HAND, selected);
+        helper.assertTrue(runtime.menus().open(player, source.getId()) == 1, "Cost owner could not open editor");
         helper.startSequence()
+            .thenIdle(MENU_TICKS)
+            .thenExecute(() -> click(15))
+            .thenIdle(MENU_TICKS)
+            .thenExecute(() -> click(32))
+            .thenIdle(MENU_TICKS)
+            .thenExecute(() -> {
+                costWindow();
+                helper.assertTrue(item(13).is(Items.HOPPER), "Vanilla cost mode did not show the hopper");
+                click(13);
+            })
+            .thenIdle(MENU_TICKS)
+            .thenExecute(() -> capture(selected))
+            .thenIdle(MENU_TICKS)
+            .thenExecute(() -> click(23))
+            .thenIdle(MENU_TICKS)
+            .thenExecute(() -> click(23))
+            .thenIdle(MENU_TICKS)
+            .thenExecute(() -> {
+                helper.assertTrue(((Number) ((Map<?, ?>) source.setting("travelCost")).get("quantity")).intValue() == 3,
+                    "Cost quantity controls did not persist changes");
+                helper.assertTrue(item(23).is(Items.CHEST) && item(23).getCount() == 3, "Cost quantity element did not show the quantity");
+                player.closeContainer();
+                helper.getLevel().addNewPlayer(player);
+                approach();
+            })
             .thenIdle(3)
             .thenExecute(this::cross)
             .thenIdle(15)
@@ -98,10 +130,17 @@ public final class MinecraftCostGameTest {
                 helper.assertTrue(provider.reserved == 1 && provider.committed == 1 && provider.refunded == 0,
                     "Successful native traversal did not settle provider exactly once");
                 helper.assertTrue(runtime.menus().open(player, source.getId()) == 1, "Cost owner could not reopen editor");
-                click(15);
-                click(24);
-                click(11);
+            })
+            .thenIdle(MENU_TICKS)
+            .thenExecute(() -> click(15))
+            .thenIdle(MENU_TICKS)
+            .thenExecute(() -> click(32))
+            .thenIdle(MENU_TICKS)
+            .thenExecute(() -> click(11))
+            .thenIdle(MENU_TICKS)
+            .thenExecute(() -> {
                 helper.assertTrue(source.setting("travelCost") == null, "Free mode did not clear persisted price");
+                helper.assertTrue(item(11).is(Items.FEATHER) && item(11).hasFoil(), "Free mode was not marked active");
                 channel.runPendingTasks();
                 helper.assertTrue(!channel.outboundMessages().isEmpty(), "Cost editor emitted no inventory packets");
                 LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS costs_runtime drop_capture exact_nbt quantity provider_denial paid_traversal commit_once free_mode");
@@ -110,18 +149,8 @@ public final class MinecraftCostGameTest {
             .thenSucceed();
     }
 
-    private void menu() {
-        ItemStack selected = new ItemStack(Items.DIAMOND, 20);
-        selected.set(DataComponents.CUSTOM_NAME, Component.literal("Exact toll"));
-        CompoundTag data = new CompoundTag();
-        data.putByte("byte", (byte) 4);
-        data.putInt("integer", 7);
-        selected.set(DataComponents.CUSTOM_DATA, CustomData.of(data));
-        player.setItemInHand(InteractionHand.MAIN_HAND, selected);
-        helper.assertTrue(runtime.menus().open(player, source.getId()) == 1, "Cost owner could not open editor");
-        click(15);
-        click(24);
-        click(13);
+    private void capture(ItemStack selected) {
+        helper.assertTrue(player.containerMenu == player.inventoryMenu, "Item capture did not close the cost window");
         player.drop(false);
         helper.assertTrue(player.getMainHandItem().getCount() == 20, "Drop capture removed the selected item");
         helper.assertTrue(source.setting("travelCost") instanceof Map<?, ?>, "Drop capture did not install exact item price");
@@ -129,15 +158,23 @@ public final class MinecraftCostGameTest {
         ItemStack stored = MinecraftItemEncoding.decode((String) price.get("item"), runtime.server().registryAccess());
         helper.assertTrue(ItemStack.isSameItemSameComponents(selected, stored) && stored.getCount() == 1,
             "Drop capture changed exact item components or stored stack count");
-        click(23);
-        click(23);
-        helper.assertTrue(((Number) ((Map<?, ?>) source.setting("travelCost")).get("quantity")).intValue() == 3,
-            "Cost quantity controls did not persist changes");
-        player.closeContainer();
+        costWindow();
+        helper.assertTrue(item(13).is(Items.DIAMOND) && item(13).hasFoil(), "Vanilla cost mode was not marked active");
+        helper.assertTrue(item(21).is(Items.DIAMOND) && item(23).is(Items.CHEST) && item(23).getCount() == 1, "Captured item details were not shown");
+    }
+
+    private void costWindow() {
+        helper.assertTrue(player.containerMenu instanceof MinecraftWindowMenu menu && menu.getRowCount() == 4, "Cost window was not a four-row window");
+        helper.assertTrue(item(0).is(Items.STAINED_GLASS_PANE.brown()), "Cost window did not use the brown pane");
+        helper.assertTrue(item(4).is(Items.CHEST) && item(31).is(Items.ARROW), "Cost window placard or back control missing");
+    }
+
+    private ItemStack item(int slot) {
+        return player.containerMenu.getSlot(slot).getItem();
     }
 
     private void click(int slot) {
-        helper.assertTrue(player.containerMenu instanceof MinecraftInventoryMenu, "Cost editor menu was not open");
+        helper.assertTrue(player.containerMenu instanceof MinecraftWindowMenu, "Cost editor window was not open");
         player.containerMenu.clicked(slot, 0, ContainerInput.PICKUP, player);
     }
 
