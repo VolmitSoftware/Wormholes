@@ -106,7 +106,6 @@ public final class MinecraftPortalMenus implements AutoCloseable {
     }
 
     public void playerDisconnected(ServerPlayer player) {
-        runtime.localization().disconnected(player);
         rtpEditor.disconnected(player);
         costMenu.disconnected(player);
         directions.remove(player.getUUID());
