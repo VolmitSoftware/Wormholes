@@ -57,7 +57,7 @@ public final class MinecraftLookLabelGameTest {
         previousParticles = runtime.configuration().settings().getMain().enableParticles;
         runtime.configuration().settings().getMain().enableParticles = true;
         place(front, 0.0F);
-        player.setItemInHand(InteractionHand.MAIN_HAND, MinecraftPortalTools.wand());
+        player.setItemInHand(InteractionHand.MAIN_HAND, MinecraftPortalItems.of(runtime).wand());
         drain();
         reset();
     }

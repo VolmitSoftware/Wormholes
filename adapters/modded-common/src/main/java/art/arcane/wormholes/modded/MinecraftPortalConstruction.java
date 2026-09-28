@@ -6,7 +6,6 @@ import art.arcane.wormholes.portal.PortalType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -167,7 +166,7 @@ public final class MinecraftPortalConstruction implements AutoCloseable {
         if (player.level().getBlockState(position).is(material(rune.type))) {
             player.level().setBlock(position, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
             if (player.gameMode() == GameType.SURVIVAL) {
-                Block.popResource(player.level(), position, rune(rune.type));
+                Block.popResource(player.level(), position, MinecraftPortalItems.of(runtime).rune(rune.type));
             }
             particles(player.level(), position, 12);
         }
@@ -212,21 +211,6 @@ public final class MinecraftPortalConstruction implements AutoCloseable {
         SERVICES.remove(server, this);
         server = null;
         runes.clear();
-    }
-
-    static ItemStack rune(PortalType type) {
-        if (type == PortalType.WORMHOLE) {
-            return MinecraftDoorItems.wormholeRune();
-        }
-        if (type != PortalType.PORTAL) {
-            throw new IllegalArgumentException("Only portal and wormhole runes can be placed");
-        }
-        ItemStack item = new ItemStack(Items.PRISMARINE);
-        CompoundTag identity = new CompoundTag();
-        identity.putString("wormholes:rune", type.name());
-        item.set(DataComponents.CUSTOM_DATA, CustomData.of(identity));
-        item.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
-        return item;
     }
 
     static Optional<PortalType> runeType(ItemStack item) {

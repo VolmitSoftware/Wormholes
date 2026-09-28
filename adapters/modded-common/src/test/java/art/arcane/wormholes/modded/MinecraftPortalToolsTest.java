@@ -35,7 +35,7 @@ public class MinecraftPortalToolsTest {
 
     @Test
     public void wandIdentitySurvivesCopyAndRejectsOrdinaryRenamedItems() {
-        ItemStack wand = MinecraftPortalTools.wand();
+        ItemStack wand = MinecraftPortalItemsTest.english().wand();
         assertTrue(MinecraftPortalTools.isWand(wand));
         assertTrue(MinecraftPortalTools.isWand(wand.copy()));
         ItemStack ordinary = new ItemStack(Items.BLAZE_ROD);
@@ -53,7 +53,7 @@ public class MinecraftPortalToolsTest {
         ServerPlayer player = mock(ServerPlayer.class);
         MinecraftPortalTools tools = new MinecraftPortalTools(runtime);
         ItemStack ordinary = new ItemStack(Items.BLAZE_ROD);
-        ItemStack wand = MinecraftPortalTools.wand();
+        ItemStack wand = MinecraftPortalItemsTest.english().wand();
         when(player.getMainHandItem()).thenReturn(ordinary);
         assertFalse(tools.attackBlock(player, BlockPos.ZERO));
         assertFalse(tools.useBlock(player, InteractionHand.MAIN_HAND, mock(BlockHitResult.class)));

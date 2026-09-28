@@ -62,7 +62,7 @@ public class MinecraftDoorRecipeTest {
 
     @Test
     public void shapedRecipesAcceptMirrorAndRequireExactEmptyCells() {
-        MinecraftDoorRecipes.Grid recipe = MinecraftDoorRecipes.resolve(DoorRecipeSpec.parse("AB| C", "A=STONE, B=DIRT, C=GLOWSTONE_DUST"));
+        MinecraftDoorRecipes.Grid recipe = MinecraftDoorRecipes.resolve(DoorRecipeSpec.parse("AB| C", "A=STONE, B=DIRT, C=GLOWSTONE_DUST"), MinecraftPortalItemsTest.english());
         assertTrue(recipe.matches(CraftingInput.of(2, 2, List.of(new ItemStack(Items.STONE), new ItemStack(Items.DIRT),
             ItemStack.EMPTY, new ItemStack(Items.GLOWSTONE_DUST)))));
         assertTrue(recipe.matches(CraftingInput.of(2, 2, List.of(new ItemStack(Items.DIRT), new ItemStack(Items.STONE),
@@ -73,8 +73,8 @@ public class MinecraftDoorRecipeTest {
 
     @Test
     public void wormholeRuneIngredientRejectsOrdinaryDarkPrismarine() {
-        MinecraftDoorRecipes.Grid recipe = MinecraftDoorRecipes.resolve(DoorRecipeSpec.parse("R", "R=#wormhole-rune"));
-        assertTrue(recipe.matches(CraftingInput.of(1, 1, List.of(MinecraftDoorItems.wormholeRune()))));
+        MinecraftDoorRecipes.Grid recipe = MinecraftDoorRecipes.resolve(DoorRecipeSpec.parse("R", "R=#wormhole-rune"), MinecraftPortalItemsTest.english());
+        assertTrue(recipe.matches(CraftingInput.of(1, 1, List.of(MinecraftPortalItemsTest.english().wormholeRune()))));
         assertFalse(recipe.matches(CraftingInput.of(1, 1, List.of(new ItemStack(Items.DARK_PRISMARINE)))));
     }
 
@@ -98,7 +98,7 @@ public class MinecraftDoorRecipeTest {
         List<ResourceKey<Recipe<?>>> doorKeys = List.of(MinecraftDoorRecipes.key(DoorCraftProduct.PAIR_KIT),
             MinecraftDoorRecipes.key(DoorCraftProduct.PERSONAL_DOOR), MinecraftDoorRecipes.key(DoorCraftProduct.PUBLIC_DOOR),
             MinecraftDoorRecipes.skinKey(DoorForm.DOOR));
-        List<RecipeHolder<?>> built = MinecraftDoorRecipes.build(first);
+        List<RecipeHolder<?>> built = MinecraftDoorRecipes.build(first, MinecraftPortalItemsTest.english());
         assertEquals(doorKeys, built.stream().<ResourceKey<Recipe<?>>>map(RecipeHolder::id).toList());
         RecipeHolder<?> personal = built.get(1);
         assertTrue(((CraftingRecipe) personal.value()).matches(CraftingInput.of(1, 1, List.of(new ItemStack(Items.STONE))), null));
@@ -108,19 +108,19 @@ public class MinecraftDoorRecipeTest {
         second.personalDoor.enabled = false;
         second.doorSkin.enabled = false;
         assertEquals(List.of(MinecraftDoorRecipes.key(DoorCraftProduct.PAIR_KIT), MinecraftDoorRecipes.key(DoorCraftProduct.PUBLIC_DOOR)),
-            MinecraftDoorRecipes.build(second).stream().<ResourceKey<Recipe<?>>>map(RecipeHolder::id).toList());
+            MinecraftDoorRecipes.build(second, MinecraftPortalItemsTest.english()).stream().<ResourceKey<Recipe<?>>>map(RecipeHolder::id).toList());
     }
 
     @Test
     public void wandRecipeCraftsTheCommandWand() {
-        RecipeHolder<ShapedRecipe> recipe = MinecraftPortalTools.wandRecipe();
+        RecipeHolder<ShapedRecipe> recipe = MinecraftPortalTools.wandRecipe(MinecraftPortalItemsTest.english());
         assertEquals(MinecraftPortalTools.WAND_RECIPE, recipe.id());
         CraftingInput input = CraftingInput.of(3, 3, List.of(new ItemStack(Items.GLOWSTONE_DUST), ItemStack.EMPTY, new ItemStack(Items.GLOWSTONE_DUST),
             ItemStack.EMPTY, new ItemStack(Items.BLAZE_ROD), ItemStack.EMPTY, ItemStack.EMPTY, new ItemStack(Items.GLOWSTONE_DUST), ItemStack.EMPTY));
         assertTrue(recipe.value().matches(input, null));
         ItemStack crafted = recipe.value().assemble(input);
         assertTrue(MinecraftPortalTools.isWand(crafted));
-        assertTrue(ItemStack.isSameItemSameComponents(crafted, MinecraftPortalTools.wand()));
+        assertTrue(ItemStack.isSameItemSameComponents(crafted, MinecraftPortalItemsTest.english().wand()));
         assertFalse(recipe.value().isSpecial());
     }
 

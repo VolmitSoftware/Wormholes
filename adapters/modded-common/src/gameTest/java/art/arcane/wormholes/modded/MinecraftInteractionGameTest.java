@@ -104,7 +104,7 @@ public final class MinecraftInteractionGameTest {
     }
 
     private void select(ServerPlayer player) {
-        player.setItemInHand(InteractionHand.MAIN_HAND, MinecraftPortalTools.wand());
+        player.setItemInHand(InteractionHand.MAIN_HAND, MinecraftPortalItems.of(runtime).wand());
         player.level().setBlock(first, Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS);
         player.level().setBlock(last, Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS);
         attack(player, first);
@@ -162,7 +162,7 @@ public final class MinecraftInteractionGameTest {
 
     private void deniedAndOccluded(ServerPlayer player) {
         MinecraftPortal portal = runtime.portals().get(portalId);
-        player.setItemInHand(InteractionHand.MAIN_HAND, MinecraftPortalTools.wand());
+        player.setItemInHand(InteractionHand.MAIN_HAND, MinecraftPortalItems.of(runtime).wand());
         portal.setOwner(UUID.randomUUID());
         useAir(player, InteractionHand.MAIN_HAND);
         helper.assertTrue(player.containerMenu == player.inventoryMenu, "Unauthorized wand click opened management menu");

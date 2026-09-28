@@ -23,7 +23,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -47,7 +46,7 @@ import java.util.UUID;
 
 public final class MinecraftPortalTools implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
-    private static final CompoundTag WAND_IDENTITY = wandIdentity();
+    static final CompoundTag WAND_IDENTITY = wandIdentity();
     public static final ResourceKey<Recipe<?>> WAND_RECIPE = ResourceKey.create(Registries.RECIPE, Identifier.fromNamespaceAndPath("wormholes", "portal_wand"));
 
     private final WormholesModRuntime runtime;
@@ -180,21 +179,11 @@ public final class MinecraftPortalTools implements AutoCloseable {
         blockInputs.clear();
     }
 
-    static ItemStack wand() {
-        ItemStack item = new ItemStack(Items.BLAZE_ROD);
-        item.set(DataComponents.CUSTOM_DATA, CustomData.of(WAND_IDENTITY));
-        item.set(DataComponents.CUSTOM_NAME, Component.literal("Wormholes Wand"));
-        item.set(DataComponents.LORE, new ItemLore(List.of(
-            Component.literal("Left click: first corner. Right click: second corner."),
-            Component.literal("Left click the selection to open a portal."))));
-        return item;
-    }
-
-    static RecipeHolder<ShapedRecipe> wandRecipe() {
+    static RecipeHolder<ShapedRecipe> wandRecipe(MinecraftPortalItems items) {
         ShapedRecipePattern pattern = ShapedRecipePattern.of(Map.of('d', Ingredient.of(Items.GLOWSTONE_DUST), 'r', Ingredient.of(Items.BLAZE_ROD)),
             "d d", " r ", " d ");
         return new RecipeHolder<>(WAND_RECIPE, new ShapedRecipe(new Recipe.CommonInfo(true),
-            new CraftingRecipe.CraftingBookInfo(CraftingBookCategory.MISC, ""), pattern, ItemStackTemplate.fromNonEmptyStack(wand())));
+            new CraftingRecipe.CraftingBookInfo(CraftingBookCategory.MISC, ""), pattern, ItemStackTemplate.fromNonEmptyStack(items.wand())));
     }
 
     static boolean isWand(ItemStack item) {
@@ -227,12 +216,13 @@ public final class MinecraftPortalTools implements AutoCloseable {
 
     private int giveWand(CommandSourceStack source, boolean rune) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        if (!player.getInventory().add(wand())) {
+        MinecraftPortalItems items = MinecraftPortalItems.of(runtime);
+        if (!player.getInventory().add(items.wand())) {
             source.sendFailure(Component.literal("Your inventory is full."));
             return 0;
         }
         if (rune) {
-            ItemStack item = MinecraftDoorItems.wormholeRune();
+            ItemStack item = items.wormholeRune();
             if (!player.getInventory().add(item)) {
                 player.drop(item, false);
             }
