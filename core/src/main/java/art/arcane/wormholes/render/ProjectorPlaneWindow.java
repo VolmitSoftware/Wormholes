@@ -241,6 +241,47 @@ public final class ProjectorPlaneWindow {
         return false;
     }
 
+    public boolean intersectsBlockSilhouette(double eyeX,
+                                             double eyeY,
+                                             double eyeZ,
+                                             double cellX,
+                                             double cellY,
+                                             double cellZ,
+                                             double cellSignedDistance) {
+        if (Math.abs(eyeSignedDistance) <= EPSILON) {
+            return true;
+        }
+        double firstDenom = cellSignedDistance - 0.5D - eyeSignedDistance;
+        double secondDenom = cellSignedDistance + 0.5D - eyeSignedDistance;
+        if (Math.abs(firstDenom) <= EPSILON || Math.abs(secondDenom) <= EPSILON
+            || Math.signum(firstDenom) != Math.signum(secondDenom)) {
+            return true;
+        }
+        double firstT = -eyeSignedDistance / firstDenom;
+        double secondT = -eyeSignedDistance / secondDenom;
+        if (firstT <= 0.0D || secondT <= 0.0D || firstT > 1.0D || secondT > 1.0D) {
+            return true;
+        }
+        double eyeRight = ((eyeX - originX) * rightX) + ((eyeY - originY) * rightY)
+            + ((eyeZ - originZ) * rightZ);
+        double eyeUp = ((eyeX - originX) * upX) + ((eyeY - originY) * upY)
+            + ((eyeZ - originZ) * upZ);
+        double deltaRight = ((cellX - eyeX) * rightX) + ((cellY - eyeY) * rightY)
+            + ((cellZ - eyeZ) * rightZ);
+        double deltaUp = ((cellX - eyeX) * upX) + ((cellY - eyeY) * upY)
+            + ((cellZ - eyeZ) * upZ);
+        double projectedRightMin = eyeRight + Math.min((deltaRight - 0.5D) * firstT,
+            (deltaRight - 0.5D) * secondT);
+        double projectedRightMax = eyeRight + Math.max((deltaRight + 0.5D) * firstT,
+            (deltaRight + 0.5D) * secondT);
+        double projectedUpMin = eyeUp + Math.min((deltaUp - 0.5D) * firstT,
+            (deltaUp - 0.5D) * secondT);
+        double projectedUpMax = eyeUp + Math.max((deltaUp + 0.5D) * firstT,
+            (deltaUp + 0.5D) * secondT);
+        return projectedRightMax >= rightMin - EPSILON && projectedRightMin <= rightMax + EPSILON
+            && projectedUpMax >= upMin - EPSILON && projectedUpMin <= upMax + EPSILON;
+    }
+
     public boolean containsRow(int axis, double eyeX, double eyeY, double eyeZ,
                         double x, double y, double z, double end, double cellSignedDistance) {
         return !perCell && normalAxis != axis
