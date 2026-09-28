@@ -41,6 +41,7 @@ public final class WormholesModRuntime {
     private final MinecraftProjectionService projections = new MinecraftProjectionService(this);
     private final MinecraftChatInput chatInput = new MinecraftChatInput(this);
     private final MinecraftPortalMenus menus = new MinecraftPortalMenus(this);
+    private final MinecraftPortalLookLabels lookLabels = new MinecraftPortalLookLabels(this);
     private final MinecraftLocalization localization = new MinecraftLocalization(this);
     private final MinecraftRtpRuntime rtp = new MinecraftRtpRuntime(this);
     private final MinecraftAccessService access = new MinecraftAccessService(this);
@@ -125,6 +126,7 @@ public final class WormholesModRuntime {
         tools.tick();
         atlas.tick();
         menus.tick();
+        lookLabels.tick();
         network.tick();
         projections.tick();
         operations.tick();
@@ -257,6 +259,7 @@ public final class WormholesModRuntime {
         network.handoffs().disconnected(player);
         chatInput.disconnected(player);
         menus.playerDisconnected(player);
+        lookLabels.playerDisconnected(player);
         projections.playerDisconnected(player);
         tools.playerDisconnected(player);
         doors.playerDisconnected(player);
@@ -376,6 +379,7 @@ public final class WormholesModRuntime {
             construction::close,
             MinecraftWindow::closeAll,
             menus::close,
+            lookLabels::close,
             chatInput::close,
             projections::close,
             networkTools::close,

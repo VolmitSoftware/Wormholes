@@ -76,6 +76,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     private final Map<UUID, Position> previousPositions = new HashMap<>();
     private final ExecutorService storage = Executors.newSingleThreadExecutor(Thread.ofPlatform().name("Wormholes-portal-storage").factory());
     private final Set<UUID> visited = new HashSet<>();
+    private long revision;
     private boolean closed;
 
     public MinecraftPortalRegistry(WormholesModRuntime runtime, Options options) {
@@ -94,6 +95,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                     if (previous != null) {
                         throw new IllegalArgumentException("Duplicate portal " + portal.getId());
                     }
+                    revision++;
                 } catch (IOException | RuntimeException exception) {
                     LOGGER.error("Could not load Wormholes portal {}", path, exception);
                 }
@@ -104,6 +106,11 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     public List<MinecraftPortal> snapshot() {
         runtime.requireServerThread();
         return List.copyOf(portals.values());
+    }
+
+    public long revision() {
+        runtime.requireServerThread();
+        return revision;
     }
 
     public MinecraftPortal get(UUID id) {
@@ -174,6 +181,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             new Portal.State(id, geometry.getApertureCenter(), name, frame, true), geometry,
             level.dimension().identifier().toString(), properties));
         portals.put(id, portal);
+        revision++;
         save(portal);
         return portal;
     }
@@ -244,6 +252,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         if (removed == null) {
             return false;
         }
+        revision++;
         UUID counterpart = removed.getCounterpartId();
         if (counterpart != null) {
             MinecraftPortal paired = portals.get(counterpart);
@@ -400,6 +409,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         arrivals.clear();
         storage.close();
         portals.clear();
+        revision++;
     }
 
     public CompletableFuture<Void> flushWrites() {

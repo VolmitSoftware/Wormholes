@@ -183,6 +183,10 @@ public final class MinecraftPortalTools implements AutoCloseable {
             && item.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).matchedBy(WAND_IDENTITY);
     }
 
+    static boolean isPortalTool(ItemStack item) {
+        return isWand(item) || MinecraftPortalConstruction.runeType(item).isPresent();
+    }
+
     private static CompoundTag wandIdentity() {
         CompoundTag tag = new CompoundTag();
         tag.putBoolean("wormholes:wand", true);

@@ -44,6 +44,7 @@ public final class WormholesGameTests {
     public static final Identifier ENTITY_PROJECTION_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "entity_projection_runtime");
     public static final Identifier RTP_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "rtp_runtime");
     public static final Identifier EFFECTS_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "effects_runtime");
+    public static final Identifier LOOK_LABEL_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "look_label_runtime");
     public static final Identifier OPS_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "ops_runtime");
     public static final Identifier RULES_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "rules_runtime");
     public static final Identifier COSTS_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "costs_runtime");
@@ -88,6 +89,10 @@ public final class WormholesGameTests {
 
     public static void effectsRuntime(GameTestHelper helper) {
         MinecraftPortalEffectsGameTest.run(helper);
+    }
+
+    public static void lookLabelRuntime(GameTestHelper helper) {
+        MinecraftLookLabelGameTest.run(helper);
     }
 
     public static void opsRuntime(GameTestHelper helper) {
