@@ -9,6 +9,7 @@ import art.arcane.volmlib.util.plugin.ComponentText;
 import com.google.gson.JsonElement;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -43,6 +44,23 @@ public final class WormholesMessageRenderer {
             components.add(MINI_MESSAGE.deserialize(substitute(ComponentText.normalizeMarkup(line), resolved.arguments())));
         }
         return List.copyOf(components);
+    }
+
+    public static JsonElement noticeJson(String legacy, boolean success) {
+        return JSON.serializeToTree(LEGACY.deserialize(legacy).colorIfAbsent(success ? NamedTextColor.GREEN : NamedTextColor.RED));
+    }
+
+    public static String legacy(ResolvedText resolved) {
+        return LEGACY.serialize(render(resolved));
+    }
+
+    public static List<String> legacyLines(ResolvedLines resolved) {
+        List<Component> components = components(resolved);
+        List<String> lines = new ArrayList<>(components.size());
+        for (Component component : components) {
+            lines.add(LEGACY.serialize(component));
+        }
+        return List.copyOf(lines);
     }
 
     public static List<String> miniMessageLines(ResolvedLines resolved) {

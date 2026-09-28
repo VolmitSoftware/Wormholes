@@ -33,6 +33,22 @@ public final class MinecraftMenuText {
         return nativeComponent(WormholesMessageRenderer.json(snapshot.resolve(message, arguments(arguments))));
     }
 
+    public static Component text(ServerPlayer viewer, TextKey message, MessageArgs arguments) {
+        return nativeComponent(WormholesMessageRenderer.json(MinecraftLocalization.forPlayer(viewer).snapshot(viewer).resolve(message, arguments)));
+    }
+
+    public static void notice(ServerPlayer viewer, Component message) {
+        viewer.sendSystemMessage(message, true);
+    }
+
+    public static void notifySuccess(ServerPlayer viewer, String legacy) {
+        notice(viewer, nativeComponent(WormholesMessageRenderer.noticeJson(legacy, true)));
+    }
+
+    public static void notifyFailure(ServerPlayer viewer, String legacy) {
+        notice(viewer, nativeComponent(WormholesMessageRenderer.noticeJson(legacy, false)));
+    }
+
     public static ItemStack item(ServerPlayer viewer, Item material, LinesKey message, Map<String, ?> arguments) {
         List<Component> lines = lines(MinecraftLocalization.forPlayer(viewer).snapshot(viewer), message, arguments);
         ItemStack item = new ItemStack(material);
