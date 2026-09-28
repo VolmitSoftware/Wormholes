@@ -127,6 +127,7 @@ shadowJarTask.configure {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     minimize {
         exclude(dependency('com.github.VolmitSoftware.VolmLib:.*:.*'))
+        exclude(dependency('com.github.retrooper:packetevents-.*:.*'))
     }
     relocate('io.github.slimjar', "${lib}.slimjar")
     relocate('org.bstats', "${lib}.bstats")
@@ -244,8 +245,6 @@ tasks.register('bandwidthHarness', JavaExec) {
 
 slimJar {
     relocate('org.bstats', "${lib}.bstats")
-    relocate('com.github.retrooper.packetevents', "${lib}.packetevents.api")
-    relocate('io.github.retrooper.packetevents', "${lib}.packetevents.impl")
     relocate('com.electronwill.nightconfig', "${lib}.nightconfig")
     relocate('com.moandjiezana.toml', "${lib}.toml4j")
     relocate('net.kyori', "${lib}.kyori")
@@ -322,11 +321,11 @@ dependencies {
         transitive = false
     }
     implementation(project(':wormholes-proxy-protocol'))
-    slim(libs.bstats)
-    slim('com.github.luben:zstd-jni:1.5.7-11')
-    slim(libs.packetevents) {
+    implementation(libs.packetevents) {
         exclude(group: 'net.kyori')
     }
+    slim(libs.bstats)
+    slim('com.github.luben:zstd-jni:1.5.7-11')
     slim(libs.nightConfigToml)
     slim(libs.toml4j)
     slim(libs.adventureApi)
@@ -394,8 +393,37 @@ tasks.register('verifyLanguagePackaging') {
     }
 }
 
+tasks.register('verifyPacketEventsPackaging') {
+    dependsOn(shadowJarTask)
+    inputs.file(shadowJarTask.flatMap { it.archiveFile })
+    doLast {
+        File artifact = shadowJarTask.get().archiveFile.get().asFile
+        new java.util.jar.JarFile(artifact).withCloseable { java.util.jar.JarFile archive ->
+            for (String entry : ['api/PacketEvents.class', 'api/protocol/player/ClientVersion.class',
+                                 'impl/factory/spigot/SpigotPacketEventsBuilder.class',
+                                 'impl/impl/netty/channel/ChannelOperatorImpl.class']) {
+                if (archive.getJarEntry("art/arcane/wormholes/libs/packetevents/${entry}") == null) {
+                    throw new GradleException("Wormholes must bundle PacketEvents: ${entry}")
+                }
+            }
+            for (String mapping : ['assets/mappings/data/block_state/V_26_1.nbt', 'assets/mappings/data/block_state/V_26_2.nbt',
+                                   'assets/mappings/data/block_state/V_26_3.nbt', 'assets/mappings/registries/item.nbt']) {
+                if (archive.getJarEntry(mapping) == null) {
+                    throw new GradleException("Wormholes must bundle PacketEvents mappings: ${mapping}")
+                }
+            }
+            for (String manifest : ['slimjar.dat', 'slimjar-resolutions.dat']) {
+                String contents = new String(archive.getInputStream(archive.getJarEntry(manifest)).readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1)
+                if (contents.contains('com.github.retrooper')) {
+                    throw new GradleException("Wormholes must not download PacketEvents at runtime: ${manifest}")
+                }
+            }
+        }
+    }
+}
+
 tasks.named('check').configure {
-    dependsOn(tasks.named('verifyLanguagePackaging'))
+    dependsOn(tasks.named('verifyLanguagePackaging'), tasks.named('verifyPacketEventsPackaging'))
 }
 
 pluginPackaging {
@@ -404,6 +432,16 @@ pluginPackaging {
             packed = true
             taskName = 'shadowJar'
             policyName = 'Wormholes'
+            maximumBytes = 6_800_000L
+            forbiddenPrefixes = forbiddenPrefixes - ['art/arcane/wormholes/libs/packetevents/']
+            requiredEntries = requiredEntries + [
+                'art/arcane/wormholes/libs/packetevents/api/PacketEvents.class',
+                'art/arcane/wormholes/libs/packetevents/impl/factory/spigot/SpigotPacketEventsBuilder.class'
+            ]
+            shrinkDontwarn = shrinkDontwarn + [
+                'art.arcane.wormholes.libs.packetevents.impl.util.BukkitLogManager',
+                'com.viaversion.viaversion.**'
+            ]
             prunePrefixes = ['art/arcane/volmlib/']
             keepPrefixes = ['art/arcane/volmlib/util/matter/slices/', 'art/arcane/volmlib/nativelib/']
             shrinkRules = [file('packaging/shrink.pro')]

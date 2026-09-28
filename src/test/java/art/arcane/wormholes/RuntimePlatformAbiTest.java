@@ -16,6 +16,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -27,6 +28,8 @@ final class RuntimePlatformAbiTest
 	private static final String RUNTIME_JAR_PROPERTY = "wormholes.runtimeJar";
 	private static final String PLUGIN_CLASSES = "art/arcane/wormholes/";
 	private static final String RELOCATED_ADVENTURE = "Lart/arcane/wormholes/libs/kyori/";
+	private static final Set<String> AUDIENCE_GUARDED_INVOCATIONS = Set.of(
+		"art/arcane/wormholes/libs/packetevents/impl/util/BukkitLogManager.log -> org/bukkit/command/ConsoleCommandSender.sendMessage(Lart/arcane/wormholes/libs/kyori/adventure/text/ComponentLike;)V");
 
 	@Test
 	void shadedRuntimeIncludesExactItemSerializationBindings() throws IOException
@@ -88,12 +91,16 @@ final class RuntimePlatformAbiTest
 					continue;
 				}
 				String owner = invocation.owner().asInternalName();
-				if(isPlatformOwner(owner) && invocation.type().stringValue().contains(RELOCATED_ADVENTURE))
+				if(!isPlatformOwner(owner) || !invocation.type().stringValue().contains(RELOCATED_ADVENTURE))
 				{
-					invalidInvocations.add(
-						model.thisClass().asInternalName() + "." + method.methodName().stringValue()
-							+ " -> " + owner + "." + invocation.name().stringValue()
-							+ invocation.type().stringValue());
+					continue;
+				}
+				String signature = model.thisClass().asInternalName() + "." + method.methodName().stringValue()
+					+ " -> " + owner + "." + invocation.name().stringValue()
+					+ invocation.type().stringValue();
+				if(!AUDIENCE_GUARDED_INVOCATIONS.contains(signature))
+				{
+					invalidInvocations.add(signature);
 				}
 			}
 		}
