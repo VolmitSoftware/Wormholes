@@ -29,7 +29,6 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket;
 import net.minecraft.network.protocol.game.GameProtocols;
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
-import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.RegistryOps;
 import net.minecraft.server.level.ServerPlayer;
@@ -41,7 +40,6 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
-import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
@@ -86,12 +84,12 @@ public final class MinecraftMenuParityGameTest {
     private final ProtocolInfo<ClientGamePacketListener> clientbound;
     private final JsonArray paths;
     private final List<String> report = new ArrayList<>();
+    private final List<MinecraftGameTestPlayer> peers = new ArrayList<>();
     private MinecraftGameTestPlayer connection;
     private int pathIndex;
     private int stepIndex;
     private Phase phase = Phase.SETUP;
     private long resumeTick;
-    private int sequence;
     private int containerBefore;
     private int messagesBefore;
     private int opened;
@@ -158,6 +156,9 @@ public final class MinecraftMenuParityGameTest {
         stepIndex = 0;
         JsonObject state = path().getAsJsonObject("setup");
         connection = MinecraftGameTestPlayer.connect(runtime, helper.getLevel(), golden.get("player").getAsString());
+        for (JsonElement name : state.getAsJsonArray("players")) {
+            peers.add(MinecraftGameTestPlayer.connect(runtime, helper.getLevel(), name.getAsString()));
+        }
         ServerPlayer player = connection.player();
         runtime.server().getPlayerList().op(new NameAndId(player.getGameProfile()));
         player.setGameMode(GameType.valueOf(state.get("gameMode").getAsString().toUpperCase(Locale.ROOT)));
@@ -280,7 +281,7 @@ public final class MinecraftMenuParityGameTest {
     private void use(ServerPlayer player, BlockPos position, Direction face) {
         Vec3 hit = Vec3.atCenterOf(position).add(face.getStepX() * 0.5, face.getStepY() * 0.5, face.getStepZ() * 0.5);
         player.lookAt(EntityAnchorArgument.Anchor.EYES, hit);
-        player.connection.handleUseItemOn(new ServerboundUseItemOnPacket(InteractionHand.MAIN_HAND, new BlockHitResult(hit, face, position, false), ++sequence));
+        runtime.useBlock(player, InteractionHand.MAIN_HAND, new BlockHitResult(hit, face, position, false));
     }
 
     private static void chat(ServerPlayer player, String message) {
@@ -445,10 +446,7 @@ public final class MinecraftMenuParityGameTest {
         Component customName = patched(patch, DataComponents.CUSTOM_NAME);
         Component itemName = patched(patch, DataComponents.ITEM_NAME);
         ItemLore lore = patched(patch, DataComponents.LORE);
-        ItemEnchantments enchantments = patched(patch, DataComponents.ENCHANTMENTS);
-        Boolean glintOverride = patched(patch, DataComponents.ENCHANTMENT_GLINT_OVERRIDE);
-        boolean glint = glintOverride != null ? glintOverride : enchantments != null && !enchantments.isEmpty();
-        result.addProperty("glint", glint);
+        result.addProperty("glint", stack.hasFoil());
         if (customName != null) {
             result.add("name", text(customName, Context.NAME));
         } else if (itemName != null) {
@@ -680,6 +678,10 @@ public final class MinecraftMenuParityGameTest {
     }
 
     private void teardown() {
+        for (MinecraftGameTestPlayer peer : peers) {
+            peer.close();
+        }
+        peers.clear();
         if (connection != null) {
             ServerPlayer player = connection.player();
             player.closeContainer();

@@ -15,6 +15,13 @@ const SETTLE_TICKS = 6
 const SETTLE_QUIET_MS = 250
 const SETTLE_MAX_MS = 8000
 
+const LEVEL_NAME = 'minecraft:overworld'
+const PEER = 'GoldenPeer'
+const DEFAULT_GLINT_ITEMS = new Set([
+  'minecraft:enchanted_golden_apple', 'minecraft:experience_bottle', 'minecraft:written_book', 'minecraft:nether_star',
+  'minecraft:enchanted_book', 'minecraft:end_crystal', 'minecraft:debug_stick'
+])
+
 const NORMALIZATIONS = [
   {
     id: 'uuid',
@@ -23,22 +30,16 @@ const NORMALIZATIONS = [
     reason: 'Portal, network and door identifiers are random per run'
   },
   {
-    id: 'overworld-name',
-    pattern: '(^|\\bin )(?:world|minecraft:overworld)(?=$|[\\s,])',
-    replacement: '$1<overworld>',
-    reason: 'Paper names the overworld "world" while native servers identify it as minecraft:overworld'
-  },
-  {
     id: 'nether-name',
-    pattern: '(^|\\bin )(?:world_nether|minecraft:the_nether)(?=$|[\\s,])',
-    replacement: '$1<nether>',
-    reason: 'Paper names the nether "world_nether" while native servers identify it as minecraft:the_nether'
+    pattern: '^(?:minecraft:overworld_nether|minecraft:the_nether)$',
+    replacement: '<nether>',
+    reason: 'Paper names the nether world after the level name while native servers identify it as minecraft:the_nether'
   },
   {
     id: 'end-name',
-    pattern: '(^|\\bin )(?:world_the_end|minecraft:the_end)(?=$|[\\s,])',
-    replacement: '$1<end>',
-    reason: 'Paper names the end "world_the_end" while native servers identify it as minecraft:the_end'
+    pattern: '^(?:minecraft:overworld_the_end|minecraft:the_end)$',
+    replacement: '<end>',
+    reason: 'Paper names the end world after the level name while native servers identify it as minecraft:the_end'
   }
 ]
 
@@ -245,6 +246,40 @@ const PATHS = [
     ]
   },
   {
+    name: 'access-roles',
+    setup: { commands: [both('wormholes access key Alpha alpha')], players: [PEER] },
+    steps: [
+      { id: 'home', action: HOME },
+      { id: 'settings', action: click(15) },
+      { id: 'extensions', action: click(34) },
+      { id: 'access', action: click(9) },
+      { id: 'access-add-prompt', action: click(3) },
+      { id: 'access-with-peer', action: chat(PEER) },
+      { id: 'access-peer-denied', action: click(9) },
+      { id: 'access-peer-owner', action: click(9) },
+      { id: 'access-peer-denied-again', action: click(9, RIGHT) },
+      { id: 'access-peer-removed', action: click(9, SHIFT_LEFT) }
+    ]
+  },
+  {
+    name: 'rules-rule-page',
+    steps: [
+      { id: 'home', action: HOME },
+      { id: 'settings', action: click(15) },
+      { id: 'extensions', action: click(34) },
+      { id: 'rules-profile', action: click(10) },
+      { id: 'rules-list', action: click(21) },
+      { id: 'rules-add-rule-prompt', action: click(47) },
+      { id: 'rules-list-with-rule', action: chat('golden') },
+      { id: 'rules-rule-page', action: click(0) },
+      { id: 'rules-add-line-prompt', action: click(47) },
+      { id: 'rules-rule-page-with-line', action: chat('kind=PERMISSION;node=group.vip') },
+      { id: 'rules-rule-page-line-removed', action: click(0, SHIFT_LEFT) },
+      { id: 'rules-list-from-rule-back', action: click(51) },
+      { id: 'rules-list-rule-removed', action: click(0, SHIFT_LEFT) }
+    ]
+  },
+  {
     name: 'nexus-join',
     steps: [
       { id: 'home', action: HOME },
@@ -339,6 +374,32 @@ const PATHS = [
       { id: 'rtp-effects', action: click(25) },
       { id: 'rtp-overview-from-effects', action: click(49) },
       { id: 'home-from-rtp-back', action: click(49) }
+    ]
+  },
+  {
+    name: 'rtp-pages',
+    steps: [
+      { id: 'home', action: HOME },
+      { id: 'mode', action: click(24) },
+      { id: 'mode-rtp-selected', action: click(15) },
+      { id: 'home-rtp', action: HOME },
+      { id: 'rtp-overview', action: click(11) },
+      { id: 'rtp-destination', action: click(19), unordered: [[10, 12, 14, 16, 19, 21, 23, 25]] },
+      { id: 'rtp-min-radius', action: click(41) },
+      { id: 'rtp-min-radius-up', action: click(24) },
+      { id: 'rtp-min-radius-down-large', action: click(18) },
+      { id: 'rtp-destination-from-numeric', action: click(49), unordered: [[10, 12, 14, 16, 19, 21, 23, 25]] },
+      { id: 'rtp-biomes', action: click(52) },
+      { id: 'rtp-destination-from-biomes', action: click(49), unordered: [[10, 12, 14, 16, 19, 21, 23, 25]] },
+      { id: 'rtp-overview-from-destination', action: click(49) },
+      { id: 'rtp-landing', action: click(21) },
+      { id: 'rtp-lower-y', action: click(29) },
+      { id: 'rtp-landing-from-numeric', action: click(49) },
+      { id: 'rtp-overview-from-landing', action: click(49) },
+      { id: 'rtp-routing', action: click(23) },
+      { id: 'rtp-reroll-confirm', action: click(40) },
+      { id: 'rtp-routing-from-confirm-cancel', action: click(24) },
+      { id: 'rtp-overview-from-routing', action: click(49) }
     ]
   },
   {
@@ -500,7 +561,8 @@ function canonicalSlot(slot, item) {
   const enchanted = enchantments !== undefined && JSON.stringify(nbtToJson(enchantments)) !== '{}' &&
     !(Array.isArray(enchantments?.enchantments) && enchantments.enchantments.length === 0) &&
     !(Array.isArray(enchantments) && enchantments.length === 0)
-  result.glint = override !== undefined ? Boolean(override) : enchanted
+  const tracked = item.name === 'compass' && component(item, 'lodestone_tracker') !== undefined
+  result.glint = override !== undefined ? Boolean(override) : enchanted || tracked || DEFAULT_GLINT_ITEMS.has(result.item)
   const customName = component(item, 'custom_name')
   const itemName = component(item, 'item_name')
   if (customName !== undefined) result.name = canonicalText(nbtToJson(customName), 'name')
@@ -651,6 +713,9 @@ export default {
       }
       for (const portal of PORTALS) await buildPortal(portal)
       await teleport(STAND)
+      for (const name of setup.players) {
+        if (!peers.has(name)) peers.set(name, await context.connectActor(name))
+      }
       for (const entry of setup.commands) {
         bot.chat(`/${entry.bukkit}`)
         await context.sleep(600)
@@ -723,17 +788,19 @@ export default {
     }
 
     const captured = []
+    const peers = new Map()
     const write = () => {
       const output = process.env.WORMHOLES_MENU_PARITY_OUT
       if (!output) return
       const golden = {
         format: 'wormholes-menu-parity/1',
-        capturedFrom: { platform: 'paper', minecraft: context.server.minecraftVersion ?? bot.version, scenario: 'src/gameplay/menu-parity.mjs' },
+        capturedFrom: { platform: 'paper', minecraft: context.server.minecraftVersion ?? bot.version, levelName: LEVEL_NAME, scenario: 'src/gameplay/menu-parity.mjs' },
         player: PLAYER,
         canonicalForm: {
           segment: 'text plus color and style flags after resolving inherited style; unset flags and colors resolve to the vanilla default of the context',
           contexts: CONTEXTS,
-          glint: 'enchantment_glint_override from the item patch, otherwise true when the patch carries enchantments',
+          glint: 'visible foil: enchantment_glint_override when present, otherwise enchantments, a lodestone-tracked compass, or an item whose default components carry the glint override',
+        defaultGlintItems: [...DEFAULT_GLINT_ITEMS],
           name: 'custom_name from the item patch, otherwise item_name from the item patch, otherwise absent',
           transition: 'opened when a new container was sent after the action, updated when the same container was refreshed, closed when no container is open',
         unordered: 'slot groups whose listing order follows platform world registration order; compared as a sorted multiset'
@@ -746,7 +813,7 @@ export default {
     }
     const only = process.env.WORMHOLES_MENU_PARITY_PATHS ? process.env.WORMHOLES_MENU_PARITY_PATHS.split(',') : null
     for (const path of PATHS.filter(candidate => !only || only.includes(candidate.name))) {
-      const setup = { commands: path.setup?.commands ?? [], actions: path.setup?.actions ?? [], idleTicks: path.setup?.idleTicks ?? 0 }
+      const setup = { commands: path.setup?.commands ?? [], actions: path.setup?.actions ?? [], players: path.setup?.players ?? [], idleTicks: path.setup?.idleTicks ?? 0 }
       await context.step(`path ${path.name}`, async () => {
         await resetWorld(setup)
         const steps = []
@@ -767,6 +834,7 @@ export default {
             platforms: PLATFORMS,
             portals: PORTALS.map(portal => ({ name: portal.name, from: portal.from, to: portal.to, type: portal.type, look: portal.look })),
             player: STAND,
+            players: setup.players,
             commands: setup.commands,
             actions: setup.actions,
             idleTicks: setup.idleTicks

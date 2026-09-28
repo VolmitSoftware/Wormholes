@@ -489,7 +489,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
             return null;
         }
         String key = level.dimension().identifier().toString();
-        return new RtpWorld(UUID.nameUUIDFromBytes(key.getBytes(StandardCharsets.UTF_8)), key, level.getMinY(), level.getMaxY(), level.getSeaLevel());
+        return new RtpWorld(UUID.nameUUIDFromBytes(key.getBytes(StandardCharsets.UTF_8)), key, level.getMinY(), level.getMaxY() + 1, level.getSeaLevel());
     }
 
     private static RtpValidationRequest.EntityEnvelope envelope(Entity entity) {
