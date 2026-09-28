@@ -31,7 +31,15 @@ public final class MinecraftTransitMenuEntry implements MinecraftPortalMenuEntry
     }
 
     @Override
+    public boolean enchanted(MinecraftPortal portal, ServerPlayer viewer) {
+        return MinecraftTransitMenu.momentum(portal) != null || MinecraftTransitMenu.orientation(portal) != null
+            || MinecraftTransitMenu.membrane(portal) || MinecraftTransitMenu.bounce(portal)
+            || !MinecraftTransitMenu.profile(portal).isNone();
+    }
+
+    @Override
     public void onLeftClick(MinecraftPortal portal, ServerPlayer viewer, MinecraftWindow window) {
         window.close();
+        new MinecraftTransitMenu(runtime, portal).open(viewer);
     }
 }

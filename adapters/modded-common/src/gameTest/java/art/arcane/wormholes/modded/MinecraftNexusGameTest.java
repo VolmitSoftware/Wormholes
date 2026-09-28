@@ -12,7 +12,13 @@ import art.arcane.wormholes.nexus.SelectionRule;
 import art.arcane.wormholes.portal.PortalCrossing;
 import art.arcane.wormholes.portal.PortalType;
 import net.minecraft.core.BlockPos;
+import art.arcane.volmlib.util.localization.MessageArgs;
+import art.arcane.wormholes.localization.NexusMessages;
+import art.arcane.wormholes.localization.WormholesMessages;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.gametest.framework.GameTestSequence;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.block.Blocks;
@@ -34,6 +40,7 @@ public final class MinecraftNexusGameTest {
     private final long deadline = System.currentTimeMillis() + 20_000L;
     private MinecraftGameTestPlayer actor;
     private PortalNetwork network;
+    private PortalNetwork menuNetwork;
     private MinecraftPortal source;
     private MinecraftPortal destination;
     private ArmorStand traveler;
@@ -76,9 +83,16 @@ public final class MinecraftNexusGameTest {
             NetworkRegistry loaded = new NetworkRegistry(nexus.networks().directory(), MinecraftJsonDocuments.INSTANCE);
             loaded.load();
             assertThat(loaded.byId(network.id()).members().size() == 3, "Native network members did not persist");
-            new MinecraftNexusMenus(runtime).open(actor.player(), source, 0);
-            assertThat(actor.player().containerMenu instanceof MinecraftInventoryMenu, "Native dial menu did not open");
-            actor.player().closeContainer();
+            dialLayout(projected, destination);
+            menus();
+        } catch (Throwable failure) {
+            finish(failure);
+        }
+    }
+
+    private void traverse() {
+        try {
+            MinecraftNexus nexus = runtime.nexus();
             nexus.policy(actor.player(), source, new DestinationPolicy(DestinationMode.PER_PLAYER,
                 List.of(new DestinationEntry(DestinationEntry.TargetKind.ADDRESS, "CCCC", 1, 0, 0, "")), SelectionRule.ROUND_ROBIN));
             traveler = helper.spawn(EntityTypes.ARMOR_STAND, new Vec3(3, 2, 3.5));
@@ -154,6 +168,172 @@ public final class MinecraftNexusGameTest {
         }
     }
 
+    private void dialLayout(MinecraftPortal projected, MinecraftPortal destination) {
+        ServerPlayer viewer = actor.player();
+        runtime.nexus().menus().open(viewer, source, 0);
+        MinecraftSubsystemMenuProbe.assertWindow(helper, viewer, MinecraftPortalText.router(runtime, source, true), 6,
+            Items.STAINED_GLASS_PANE.cyan(), MinecraftSubsystemMenuProbe.slot(-4, 5), "Dial window");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, -4, 0, Items.ENDER_PEARL, dialEntry(viewer, "BBBB", projected), true, "Dialed address");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, -3, 0, Items.ENDER_PEARL, dialEntry(viewer, "CCCC", destination), false, "Dial address");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 0, 5, Items.PAPER, MinecraftSubsystemMenuProbe.name(viewer,
+            WormholesMessages.PORTAL_MENU_DESTINATION_PAGE, MinecraftPortalText.arguments("page", 1, "pages", 1, "count", 2)), false, "Dial page");
+        viewer.closeContainer();
+    }
+
+    private String dialEntry(ServerPlayer viewer, String address, MinecraftPortal portal) {
+        return MinecraftSubsystemMenuProbe.name(viewer, NexusMessages.MENU_DIAL_ENTRY, MinecraftPortalText.arguments("address", address,
+            "portal", portal.getName(), "world", portal.getWorldKey(), "state",
+            MinecraftSubsystemMenuProbe.text(viewer, WormholesMessages.LABEL_OPEN, MessageArgs.empty())));
+    }
+
+    private void menus() {
+        ServerPlayer viewer = actor.player();
+        MinecraftPortal menuSource = portal(20);
+        MinecraftPortal menuPeer = portal(26);
+        String name = "menu-" + UUID.randomUUID();
+        MinecraftNetworkMenuEntry entry = new MinecraftNetworkMenuEntry(runtime);
+        GameTestSequence sequence = helper.startSequence();
+        step(sequence, () -> {
+            assertThat(entry.id().equals("nexus-network") && entry.icon() == Items.COMPASS && entry.label() == NexusMessages.MENU_ENTRY,
+                "Network entry identity differs from Bukkit");
+            assertThat(!entry.enchanted(menuSource, viewer), "Network entry glowed off network");
+            entry.onLeftClick(menuSource, viewer, new MinecraftWindow(runtime, viewer));
+            assertJoinLayout(viewer, menuSource);
+            MinecraftSubsystemMenuProbe.left(viewer, 1, 1);
+        });
+        idle(sequence, 3, () -> {
+            MinecraftSubsystemMenuProbe.assertClosed(helper, viewer, "Network create prompt");
+            assertThat(MinecraftChatInput.chat(viewer, name), "Network create prompt did not consume chat");
+        });
+        idle(sequence, 2, () -> {
+            menuNetwork = runtime.nexus().networks().byName(name);
+            assertThat(menuNetwork != null && menuNetwork.member(menuSource.getId()) != null, "Network create prompt did not create and join");
+            assertThat(entry.enchanted(menuSource, viewer), "Network entry did not glow on a network");
+            assertThat(MinecraftSubsystemMenuProbe.messaged(actor.messages(), MinecraftSubsystemMenuProbe.text(viewer, NexusMessages.CREATED,
+                MinecraftPortalText.arguments("name", name))), "Network create notice was not sent");
+            MinecraftSubsystemMenuProbe.assertClosed(helper, viewer, "Network create completion");
+            runtime.nexus().menus().openManagement(viewer, menuSource);
+            assertNetworkLayout(viewer, menuSource, "false", "SINGLE", "NONE/NONE");
+            MinecraftSubsystemMenuProbe.left(viewer, -3, 2);
+        });
+        idle(sequence, 3, () -> {
+            assertThat(Boolean.TRUE.equals(menuSource.setting("nexus.reciprocal")), "Reciprocal toggle did not persist");
+            assertNetworkLayout(viewer, menuSource, "true", "SINGLE", "NONE/NONE");
+            MinecraftSubsystemMenuProbe.left(viewer, -1, 2);
+        });
+        idle(sequence, 3, () -> {
+            assertNetworkLayout(viewer, menuSource, "true", DestinationMode.SINGLE.next().name(), "NONE/NONE");
+            MinecraftSubsystemMenuProbe.right(viewer, -1, 2);
+        });
+        idle(sequence, 2, () -> {
+            assertNetworkLayout(viewer, menuSource, "true", "SINGLE", "NONE/NONE");
+            MinecraftSubsystemMenuProbe.right(viewer, 1, 2);
+        });
+        idle(sequence, 2, () -> {
+            assertNetworkLayout(viewer, menuSource, "true", "SINGLE", "NONE/" + FrameIo.ComparatorOutput.NONE.next().name());
+            MinecraftSubsystemMenuProbe.left(viewer, -1, 1);
+        });
+        idle(sequence, 3, () -> {
+            assertThat(runtime.nexus().networks().byId(menuNetwork.id()).visibility() == menuNetwork.visibility().next(),
+                "Network visibility click did not cycle");
+            MinecraftSubsystemMenuProbe.left(viewer, -3, 1);
+        });
+        idle(sequence, 3, () -> {
+            MinecraftSubsystemMenuProbe.assertClosed(helper, viewer, "Network address prompt");
+            assertThat(MinecraftChatInput.chat(viewer, "ZZZZ"), "Network address prompt did not consume chat");
+        });
+        idle(sequence, 2, () -> {
+            assertThat("ZZZZ".equals(menuSource.setting("nexus.address")), "Network address prompt did not apply");
+            assertThat(MinecraftSubsystemMenuProbe.messaged(actor.messages(), MinecraftSubsystemMenuProbe.text(viewer, NexusMessages.ADDRESS_SET,
+                MinecraftPortalText.arguments("portal", menuSource.getName(), "address", "ZZZZ"))), "Network address notice was not sent");
+            runtime.nexus().menus().openManagement(viewer, menuPeer);
+            MinecraftSubsystemMenuProbe.left(viewer, -1, 1);
+        });
+        idle(sequence, 3, () -> assertThat(MinecraftChatInput.chat(viewer, name), "Network join prompt did not consume chat"));
+        idle(sequence, 2, () -> {
+            assertThat(runtime.nexus().networks().byName(name).member(menuPeer.getId()) != null, "Network join prompt did not join");
+            runtime.nexus().menus().openManagement(viewer, menuSource);
+            MinecraftSubsystemMenuProbe.left(viewer, 3, 1);
+        });
+        idle(sequence, 3, () -> {
+            MinecraftSubsystemMenuProbe.assertWindow(helper, viewer, MinecraftPortalText.router(runtime, menuSource, true), 6,
+                Items.STAINED_GLASS_PANE.cyan(), MinecraftSubsystemMenuProbe.slot(4, 4), "Network dial window");
+            String peerAddress = String.valueOf(menuPeer.setting("nexus.address"));
+            MinecraftSubsystemMenuProbe.assertElement(helper, viewer, -4, 0, Items.ENDER_PEARL, dialEntry(viewer, peerAddress, menuPeer), false,
+                "Network dial entry");
+            MinecraftSubsystemMenuProbe.left(viewer, -4, 0);
+        });
+        idle(sequence, 3, () -> {
+            MinecraftSubsystemMenuProbe.assertClosed(helper, viewer, "Network dial");
+            assertThat(menuPeer.getId().equals(menuSource.getDestinationId()), "Network dial click did not link the portal");
+            runtime.nexus().menus().openManagement(viewer, menuSource);
+            MinecraftSubsystemMenuProbe.left(viewer, 3, 2);
+        });
+        idle(sequence, 3, () -> {
+            assertThat(menuSource.setting("nexus.networkId") == null, "Network leave did not clear the portal");
+            assertJoinLayout(viewer, menuSource);
+            viewer.closeContainer();
+            LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS nexus_menus dial_layout network_layout create_prompt join_prompt reciprocal policy redstone visibility address_prompt dial_click leave");
+            traverse();
+        });
+    }
+
+    private void assertJoinLayout(ServerPlayer viewer, MinecraftPortal portal) {
+        MinecraftSubsystemMenuProbe.assertWindow(helper, viewer, MinecraftPortalText.router(runtime, portal, true), 4,
+            Items.STAINED_GLASS_PANE.cyan(), MinecraftSubsystemMenuProbe.slot(-3, 1), "Network join window");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 0, 0, Items.COMPASS, MinecraftSubsystemMenuProbe.name(viewer,
+            NexusMessages.MENU_PLACARD, MinecraftPortalText.arguments("name", "", "address", "", "count", 0)), false, "Network placard");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, -1, 1, Items.ENDER_EYE,
+            MinecraftSubsystemMenuProbe.name(viewer, NexusMessages.MENU_JOIN, MessageArgs.empty()), false, "Network join");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 1, 1, Items.NETHER_STAR,
+            MinecraftSubsystemMenuProbe.name(viewer, NexusMessages.MENU_CREATE, MessageArgs.empty()), true, "Network create");
+    }
+
+    private void assertNetworkLayout(ServerPlayer viewer, MinecraftPortal portal, String reciprocal, String policy, String redstone) {
+        PortalNetwork network = runtime.nexus().networks().byId(menuNetwork.id());
+        String address = String.valueOf(portal.setting("nexus.address"));
+        MinecraftSubsystemMenuProbe.assertWindow(helper, viewer, MinecraftPortalText.router(runtime, portal, true), 4,
+            Items.STAINED_GLASS_PANE.cyan(), MinecraftSubsystemMenuProbe.slot(0, 2), "Network window");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 0, 0, Items.COMPASS, MinecraftSubsystemMenuProbe.name(viewer,
+            NexusMessages.MENU_PLACARD, MinecraftPortalText.arguments("name", network.name(), "address", address, "count",
+                network.members().size())), false, "Network placard");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, -3, 1, Items.NAME_TAG, MinecraftSubsystemMenuProbe.name(viewer,
+            NexusMessages.MENU_ADDRESS, MinecraftPortalText.arguments("address", address)), false, "Network address");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, -1, 1, Items.ITEM_FRAME, MinecraftSubsystemMenuProbe.name(viewer,
+            NexusMessages.MENU_VISIBILITY, MinecraftPortalText.arguments("value", network.visibility().name())), false, "Network visibility");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 1, 1, Items.IRON_BARS, MinecraftSubsystemMenuProbe.name(viewer,
+            NexusMessages.MENU_TOPOLOGY, MinecraftPortalText.arguments("value", network.topology().name())), false, "Network topology");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 3, 1, Items.LEVER,
+            MinecraftSubsystemMenuProbe.name(viewer, NexusMessages.MENU_DIAL, MessageArgs.empty()), false, "Network dial");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, -3, 2, Items.ENDER_CHEST, MinecraftSubsystemMenuProbe.name(viewer,
+            NexusMessages.MENU_RECIPROCAL, MinecraftPortalText.arguments("state", reciprocal)), false, "Network reciprocal");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, -1, 2, Items.TARGET, MinecraftSubsystemMenuProbe.name(viewer,
+            NexusMessages.MENU_POLICY, MinecraftPortalText.arguments("mode", policy, "count", 0)), false, "Network policy");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 1, 2, Items.REDSTONE_TORCH, MinecraftSubsystemMenuProbe.name(viewer,
+            NexusMessages.MENU_REDSTONE, MinecraftPortalText.arguments("value", redstone)), false, "Network redstone");
+        MinecraftSubsystemMenuProbe.assertElement(helper, viewer, 3, 2, Items.BARRIER, MinecraftSubsystemMenuProbe.name(viewer,
+            NexusMessages.MENU_LEAVE, MinecraftPortalText.arguments("name", network.name())), false, "Network leave");
+    }
+
+    private void step(GameTestSequence sequence, Runnable body) {
+        sequence.thenExecute(() -> guarded(body));
+    }
+
+    private void idle(GameTestSequence sequence, int ticks, Runnable body) {
+        sequence.thenIdle(ticks).thenExecute(() -> guarded(body));
+    }
+
+    private void guarded(Runnable body) {
+        if (result.isDone()) {
+            return;
+        }
+        try {
+            body.run();
+        } catch (Throwable failure) {
+            finish(failure);
+        }
+    }
+
     private MinecraftPortal portal(int x) {
         BlockPos position = helper.absolutePos(new BlockPos(x, 2, 4));
         MinecraftPortal portal = runtime.portals().create(actor.player().getUUID(), helper.getLevel(),
@@ -178,6 +358,9 @@ public final class MinecraftNexusGameTest {
             if (network != null) {
                 runtime.nexus().delete(actor.player(), runtime.nexus().networks().byId(network.id()));
             }
+            if (menuNetwork != null && runtime.nexus().networks().byId(menuNetwork.id()) != null) {
+                runtime.nexus().delete(actor.player(), runtime.nexus().networks().byId(menuNetwork.id()));
+            }
             for (MinecraftPortal portal : portals) {
                 runtime.portals().remove(portal.getId());
             }
@@ -192,7 +375,7 @@ public final class MinecraftNexusGameTest {
             }
         }
         if (failure == null) {
-            LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS nexus network_persistence dial debounce menu per_traveler_actual_traversal return_address redstone reciprocal api_snapshot api_mutation api_resolver_traversal api_lifecycle");
+            LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS nexus network_persistence dial debounce dial_menu network_menu per_traveler_actual_traversal return_address redstone reciprocal api_snapshot api_mutation api_resolver_traversal api_lifecycle");
             result.complete(true);
         } else {
             result.completeExceptionally(failure);

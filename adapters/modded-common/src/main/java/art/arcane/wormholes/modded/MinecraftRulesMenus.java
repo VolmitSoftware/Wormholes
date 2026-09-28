@@ -1,357 +1,415 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.volmlib.util.localization.LinesKey;
+import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.localization.RulesMessages;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.rules.Rule;
 import art.arcane.wormholes.rules.RuleDocument;
-import art.arcane.wormholes.rules.RuleValidationException;
 import art.arcane.wormholes.rules.RuleOutcome;
 import art.arcane.wormholes.rules.RuleTemplates;
+import art.arcane.wormholes.rules.RuleValidationException;
 import art.arcane.wormholes.rules.RulesMenuModel;
 import art.arcane.wormholes.rules.TraversalProfile;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
 public final class MinecraftRulesMenus implements AutoCloseable {
-    private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
+    private static final int ROW_WIDTH = 9;
+    private static final long SECOND = 1000L;
+    private static final long SHIFT_STEP = 10L;
+
     private final WormholesModRuntime runtime;
-    private final Map<UUID, Session> sessions = new HashMap<>();
-    private final Map<UUID, Prompt> prompts = new HashMap<>();
 
     public MinecraftRulesMenus(WormholesModRuntime runtime) {
-        this.runtime = Objects.requireNonNull(runtime);
+        this.runtime = Objects.requireNonNull(runtime, "runtime");
     }
 
-    public void open(ServerPlayer player, UUID portalId) {
-        new Session(player, portalId, Page.PROFILE, "").open();
-    }
-
-    public void tick() {
-        prompts.entrySet().removeIf(entry -> entry.getValue().expiresAt < System.nanoTime());
-        for (Session session : List.copyOf(sessions.values())) {
-            if (session.viewer.containerMenu != session.menu) {
-                sessions.remove(session.viewer.getUUID());
-            } else if (!session.valid()) {
-                sessions.remove(session.viewer.getUUID());
-                session.viewer.closeContainer();
-            }
+    public void open(ServerPlayer viewer, UUID portalId) {
+        MinecraftPortal portal = runtime.portals().get(portalId);
+        if (portal != null) {
+            new PortalRules(portal).open(viewer);
         }
     }
 
+    public void tick() {
+    }
+
     public void disconnected(ServerPlayer player) {
-        sessions.remove(player.getUUID());
-        prompts.remove(player.getUUID());
+    }
+
+    public boolean acceptChat(ServerPlayer player, String message) {
+        return false;
     }
 
     @Override
     public void close() {
-        for (Session session : sessions.values()) {
-            if (session.viewer.containerMenu == session.menu) {
-                session.viewer.closeContainer();
-            }
-        }
-        sessions.clear();
-        prompts.clear();
     }
 
-    public boolean acceptChat(ServerPlayer player, String message) {
-        Prompt prompt = prompts.remove(player.getUUID());
-        if (prompt == null || prompt.expiresAt < System.nanoTime()) {
-            return false;
+    private final class PortalRules {
+        private final MinecraftPortal portal;
+
+        private PortalRules(MinecraftPortal portal) {
+            this.portal = portal;
         }
-        Session session = prompt.session;
-        if (!session.valid()) {
-            return true;
+
+        private void open(ServerPlayer viewer) {
+            MinecraftWindow window = window(viewer, Items.STAINED_GLASS_PANE.brown(), 4);
+            populateProfile(window, viewer);
+            window.setVisible(true);
         }
-        String value = message.trim();
-        String cancel = MinecraftMenuText.text(player, WormholesMessages.PORTAL_INPUT_CANCEL, Map.of()).getString();
-        if (!value.equalsIgnoreCase(cancel)) {
-            try {
-                RuleDocument document = runtime.rules().document(session.portal());
-                RuleDocument changed = switch (prompt.kind) {
-                    case GROUP -> document.withProfile(new TraversalProfile(document.profile().cooldownMillis(), value,
-                        document.profile().warmupMillis(), document.profile().pushbackScale(), document.profile().soundVolume(),
-                        document.profile().chargeCapacity(), document.profile().chargeRegenPerInterval()));
-                    case RULE -> RulesMenuModel.addRule(document, value);
-                    case LINE -> {
-                        int index = RulesMenuModel.indexOf(document, session.ruleId);
-                        yield index < 0 ? document : RulesMenuModel.replaceRule(document,
-                            RulesMenuModel.addLine(document.rules().get(index), value, runtime.configuration().settings().getRules()));
-                    }
-                };
-                runtime.rules().setDocument(session.portal(), runtime.rules().authorDocument(player, changed));
-            } catch (IllegalArgumentException | RuleValidationException invalid) {
-                notice(player, RulesMessages.NOTICE_INVALID, Map.of("reason", invalid.getMessage()));
+
+        private MinecraftWindow window(ServerPlayer viewer, Item pane, int viewportHeight) {
+            MinecraftWindow window = new MinecraftWindow(runtime, viewer);
+            window.setTitle(MinecraftPortalText.router(runtime, portal, true));
+            window.setDecorator(pane);
+            window.setViewportHeight(viewportHeight);
+            return window;
+        }
+
+        private RuleDocument document() {
+            return runtime.rules().document(portal);
+        }
+
+        private void populateProfile(MinecraftWindow window, ServerPlayer viewer) {
+            TraversalProfile profile = document().profile();
+            window.setElement(-3, 0, seconds(window, viewer, RulesMessages.MENU_COOLDOWN, Items.CLOCK,
+                profile.cooldownMillis(), millis -> reprofile(viewer, current -> new TraversalProfile(millis,
+                    current.cooldownGroup(), current.warmupMillis(), current.pushbackScale(), current.soundVolume(),
+                    current.chargeCapacity(), current.chargeRegenPerInterval()))));
+            window.setElement(-1, 0, seconds(window, viewer, RulesMessages.MENU_WARMUP, Items.COMPASS,
+                profile.warmupMillis(), millis -> reprofile(viewer, current -> new TraversalProfile(current.cooldownMillis(),
+                    current.cooldownGroup(), millis, current.pushbackScale(), current.soundVolume(),
+                    current.chargeCapacity(), current.chargeRegenPerInterval()))));
+            window.setElement(1, 0, groupElement(viewer, profile));
+            window.setElement(3, 0, chargesElement(window, viewer, profile));
+            window.setElement(-2, 1, scaleElement(window, viewer, RulesMessages.MENU_PUSHBACK, Items.PISTON,
+                profile.pushbackScale(), value -> reprofile(viewer, current -> new TraversalProfile(current.cooldownMillis(),
+                    current.cooldownGroup(), current.warmupMillis(), value, current.soundVolume(),
+                    current.chargeCapacity(), current.chargeRegenPerInterval()))));
+            window.setElement(0, 1, scaleElement(window, viewer, RulesMessages.MENU_SOUND, Items.NOTE_BLOCK,
+                profile.soundVolume(), value -> reprofile(viewer, current -> new TraversalProfile(current.cooldownMillis(),
+                    current.cooldownGroup(), current.warmupMillis(), current.pushbackScale(), value,
+                    current.chargeCapacity(), current.chargeRegenPerInterval()))));
+            window.setElement(2, 1, defaultOutcomeElement(window, viewer));
+            window.setElement(-1, 2, rulesElement(viewer));
+            window.setElement(1, 2, templatesElement(viewer));
+        }
+
+        private MinecraftElement seconds(MinecraftWindow window, ServerPlayer viewer, LinesKey key, Item material, long currentMillis,
+                                         Consumer<Long> apply) {
+            MinecraftElement element = element(viewer, "rules-" + key.id(), key,
+                MinecraftPortalText.arguments("seconds", currentMillis / SECOND), material);
+            element.onLeftClick(event -> step(window, viewer, currentMillis, SECOND, apply));
+            element.onRightClick(event -> step(window, viewer, currentMillis, -SECOND, apply));
+            element.onShiftLeftClick(event -> step(window, viewer, currentMillis, SECOND * SHIFT_STEP, apply));
+            element.onShiftRightClick(event -> step(window, viewer, currentMillis, -SECOND * SHIFT_STEP, apply));
+            return element;
+        }
+
+        private void step(MinecraftWindow window, ServerPlayer viewer, long currentMillis, long deltaMillis, Consumer<Long> apply) {
+            apply.accept(Math.max(0L, currentMillis + deltaMillis));
+            refresh(window, viewer);
+        }
+
+        private MinecraftElement scaleElement(MinecraftWindow window, ServerPlayer viewer, LinesKey key, Item material, double current,
+                                              Consumer<Double> apply) {
+            MinecraftElement element = element(viewer, "rules-" + key.id(), key,
+                MinecraftPortalText.arguments("value", String.format(Locale.ROOT, "%.2f", current)), material);
+            element.onLeftClick(event -> {
+                apply.accept(Math.min(10.0D, current + 0.25D));
+                refresh(window, viewer);
+            });
+            element.onRightClick(event -> {
+                apply.accept(Math.max(0.0D, current - 0.25D));
+                refresh(window, viewer);
+            });
+            return element;
+        }
+
+        private MinecraftElement chargesElement(MinecraftWindow window, ServerPlayer viewer, TraversalProfile profile) {
+            MinecraftElement element = element(viewer, "rules-charges", RulesMessages.MENU_CHARGES,
+                MinecraftPortalText.arguments("count", profile.chargeCapacity()), Items.AMETHYST_SHARD);
+            element.onLeftClick(event -> {
+                reprofile(viewer, current -> withCharges(current, current.chargeCapacity() + 1));
+                refresh(window, viewer);
+            });
+            element.onRightClick(event -> {
+                reprofile(viewer, current -> withCharges(current, Math.max(0, current.chargeCapacity() - 1)));
+                refresh(window, viewer);
+            });
+            return element;
+        }
+
+        private MinecraftElement defaultOutcomeElement(MinecraftWindow window, ServerPlayer viewer) {
+            RuleOutcome outcome = document().defaultOutcome();
+            MinecraftElement element = element(viewer, "rules-default", RulesMessages.MENU_DEFAULT_OUTCOME,
+                MinecraftPortalText.arguments("mode", outcome.kind().name()), Items.LEVER);
+            element.setEnchanted(!outcome.allowed());
+            element.onLeftClick(event -> {
+                store(viewer, document().withDefaultOutcome(outcome.allowed()
+                    ? RuleOutcome.deny(RulesMessages.DENIED_DEFAULT.id())
+                    : RuleOutcome.allow()));
+                refresh(window, viewer);
+            });
+            return element;
+        }
+
+        private MinecraftElement groupElement(ServerPlayer viewer, TraversalProfile profile) {
+            MinecraftElement element = element(viewer, "rules-group", RulesMessages.MENU_GROUP,
+                MinecraftPortalText.arguments("value", profile.cooldownGroup().isEmpty() ? "-" : profile.cooldownGroup()),
+                Items.NAME_TAG);
+            element.onLeftClick(event -> prompt(viewer, RulesMessages.PROMPT_GROUP, input -> {
+                reprofile(viewer, current -> new TraversalProfile(current.cooldownMillis(), input, current.warmupMillis(),
+                    current.pushbackScale(), current.soundVolume(), current.chargeCapacity(), current.chargeRegenPerInterval()));
+                open(viewer);
+            }));
+            return element;
+        }
+
+        private MinecraftElement rulesElement(ServerPlayer viewer) {
+            MinecraftElement element = element(viewer, "rules-list", RulesMessages.MENU_RULES,
+                MinecraftPortalText.arguments("count", document().rules().size()), Items.BOOK);
+            element.onLeftClick(event -> openRules(viewer, 0));
+            return element;
+        }
+
+        private MinecraftElement templatesElement(ServerPlayer viewer) {
+            MinecraftElement element = element(viewer, "rules-templates", RulesMessages.MENU_TEMPLATES,
+                MessageArgs.empty(), Items.WRITABLE_BOOK);
+            element.onLeftClick(event -> openTemplates(viewer, 0));
+            return element;
+        }
+
+        private void refresh(MinecraftWindow window, ServerPlayer viewer) {
+            window.batch(() -> {
+                window.clearElements();
+                populateProfile(window, viewer);
+            });
+            window.updateInventory();
+        }
+
+        private void openRules(ServerPlayer viewer, int page) {
+            MinecraftWindow window = window(viewer, Items.STAINED_GLASS_PANE.gray(), 6);
+            populateRules(window, viewer, page);
+            window.setVisible(true);
+        }
+
+        private void populateRules(MinecraftWindow window, ServerPlayer viewer, int requestedPage) {
+            List<Rule> rules = document().rules();
+            int page = RulesMenuModel.clampPage(requestedPage, rules.size());
+            List<Rule> visible = RulesMenuModel.page(rules, page);
+            for (int slot = 0; slot < visible.size(); slot++) {
+                Rule rule = visible.get(slot);
+                MinecraftElement element = element(viewer, "rules-rule-" + rule.id(), RulesMessages.MENU_RULE,
+                    MinecraftPortalText.arguments("name", rule.id(), "value", RulesMenuModel.summary(rule)), Items.PAPER);
+                element.onLeftClick(event -> openRule(viewer, rule.id(), 0));
+                element.onShiftLeftClick(event -> {
+                    store(viewer, RulesMenuModel.removeRule(document(), rule.id()));
+                    notice(viewer, RulesMessages.NOTICE_RULE_REMOVED, MinecraftPortalText.arguments("name", rule.id()));
+                    reopenRules(window, viewer, page);
+                });
+                window.setElement(slot % ROW_WIDTH - ROW_WIDTH / 2, slot / ROW_WIDTH, element);
             }
-        }
-        session.open();
-        return true;
-    }
-
-    private RuleTemplates templates() {
-        return new RuleTemplates(runtime.server().getServerDirectory().resolve("config/wormholes"),
-            runtime.configuration().settings().getRules());
-    }
-
-    private static void notice(ServerPlayer player, TextKey key, Map<String, ?> values) {
-        player.sendSystemMessage(MinecraftMenuText.text(player, key, values));
-    }
-
-    private enum Page { PROFILE, RULES, LINES, TEMPLATES }
-    private enum Input { GROUP, RULE, LINE }
-    private record Prompt(Session session, Input kind, long expiresAt) { }
-
-    private final class Session {
-        private final ServerPlayer viewer;
-        private final UUID portalId;
-        private final Page page;
-        private final String ruleId;
-        private MinecraftInventoryMenu menu;
-        private int index;
-        private List<String> templateNames = List.of();
-
-        private Session(ServerPlayer viewer, UUID portalId, Page page, String ruleId) {
-            this.viewer = viewer;
-            this.portalId = portalId;
-            this.page = page;
-            this.ruleId = ruleId;
+            MinecraftElement add = element(viewer, "rules-add-rule", RulesMessages.MENU_ADD_RULE, MessageArgs.empty(), Items.DYE.lime());
+            add.onLeftClick(event -> prompt(viewer, RulesMessages.PROMPT_RULE_ID, input -> {
+                store(viewer, RulesMenuModel.addRule(document(), input));
+                notice(viewer, RulesMessages.NOTICE_RULE_ADDED, MinecraftPortalText.arguments("name", input));
+                openRules(viewer, page);
+            }));
+            window.setElement(-2, 5, add);
+            window.setElement(0, 5, pageElement(viewer, page, RulesMenuModel.pageCount(rules.size()),
+                next -> reopenRules(window, viewer, next)));
+            window.setElement(2, 5, backElement(viewer, () -> open(viewer)));
         }
 
-        private MinecraftPortal portal() { return runtime.portals().get(portalId); }
-
-        private boolean valid() {
-            return runtime.running() && !viewer.hasDisconnected() && runtime.portals().canManage(viewer, portal());
+        private void reopenRules(MinecraftWindow window, ServerPlayer viewer, int page) {
+            window.batch(() -> {
+                window.clearElements();
+                populateRules(window, viewer, page);
+            });
+            window.updateInventory();
         }
 
-        private void open() {
-            if (!valid()) {
+        private void openRule(ServerPlayer viewer, String ruleId, int page) {
+            if (RulesMenuModel.indexOf(document(), ruleId) < 0) {
                 return;
             }
-            prompts.remove(viewer.getUUID());
-            sessions.put(viewer.getUUID(), this);
-            MinecraftInventoryMenu.open(viewer, Component.literal(portal().getName()), new MinecraftInventoryMenu.Actions(this::valid, this::render, this::click));
-            if (page == Page.TEMPLATES) {
-                loadTemplates();
-            }
+            MinecraftWindow window = window(viewer, Items.STAINED_GLASS_PANE.cyan(), 6);
+            populateRule(window, viewer, ruleId, page);
+            window.setVisible(true);
         }
 
-        private void render(MinecraftInventoryMenu target) {
-            menu = target;
-            RuleDocument document = runtime.rules().document(portal());
-            if (page == Page.PROFILE) {
-                profile(document);
+        private void populateRule(MinecraftWindow window, ServerPlayer viewer, String ruleId, int requestedPage) {
+            int index = RulesMenuModel.indexOf(document(), ruleId);
+            if (index < 0) {
                 return;
             }
-            int count = switch (page) {
-                case RULES -> document.rules().size();
-                case LINES -> lines(document).size();
-                case TEMPLATES -> templateNames.size();
-                default -> 0;
-            };
-            index = RulesMenuModel.clampPage(index, count);
-            int first = index * RulesMenuModel.ENTRIES_PER_PAGE;
-            for (int slot = 0; slot < Math.min(RulesMenuModel.ENTRIES_PER_PAGE, count - first); slot++) {
-                int selected = first + slot;
-                switch (page) {
-                    case RULES -> {
-                        Rule rule = document.rules().get(selected);
-                        put(slot, Items.PAPER, RulesMessages.MENU_RULE, Map.of("name", rule.id(), "value", RulesMenuModel.summary(rule)));
-                    }
-                    case LINES -> put(slot, Items.STRING, RulesMessages.MENU_LINE, Map.of("value", lines(document).get(selected)));
-                    case TEMPLATES -> put(slot, Items.WRITTEN_BOOK, RulesMessages.MENU_TEMPLATE, Map.of("name", templateNames.get(selected)));
-                    default -> { }
-                }
+            Rule rule = document().rules().get(index);
+            List<String> lines = RulesMenuModel.lines(rule);
+            int page = RulesMenuModel.clampPage(requestedPage, lines.size());
+            List<String> visible = RulesMenuModel.page(lines, page);
+            for (int slot = 0; slot < visible.size(); slot++) {
+                int lineIndex = page * RulesMenuModel.ENTRIES_PER_PAGE + slot;
+                MinecraftElement element = element(viewer, "rules-line-" + lineIndex, RulesMessages.MENU_LINE,
+                    MinecraftPortalText.arguments("value", visible.get(slot)), Items.STRING);
+                element.onShiftLeftClick(event -> {
+                    store(viewer, RulesMenuModel.replaceRule(document(), RulesMenuModel.removeLine(rule, lineIndex)));
+                    reopenRule(window, viewer, ruleId, page);
+                });
+                window.setElement(slot % ROW_WIDTH - ROW_WIDTH / 2, slot / ROW_WIDTH, element);
             }
-            if (page != Page.TEMPLATES) {
-                put(47, Items.DYE.lime(), page == Page.RULES ? RulesMessages.MENU_ADD_RULE : RulesMessages.MENU_ADD_LINE, Map.of());
-            }
-            if (page == Page.LINES && rule(document) != null) {
-                put(45, Items.LEVER, RulesMessages.MENU_DEFAULT_OUTCOME, Map.of("mode", rule(document).outcome().kind().name()));
-            }
-            put(49, Items.PAPER, RulesMessages.MENU_PAGE, Map.of("page", index + 1, "pages", RulesMenuModel.pageCount(count)));
-            put(51, Items.ARROW, RulesMessages.MENU_BACK, Map.of());
-        }
-
-        private void profile(RuleDocument document) {
-            TraversalProfile profile = document.profile();
-            put(10, Items.CLOCK, RulesMessages.MENU_COOLDOWN, Map.of("seconds", profile.cooldownMillis() / 1000L));
-            put(12, Items.COMPASS, RulesMessages.MENU_WARMUP, Map.of("seconds", profile.warmupMillis() / 1000L));
-            put(14, Items.NAME_TAG, RulesMessages.MENU_GROUP, Map.of("value", profile.cooldownGroup().isEmpty() ? "-" : profile.cooldownGroup()));
-            put(16, Items.AMETHYST_SHARD, RulesMessages.MENU_CHARGES, Map.of("count", profile.chargeCapacity()));
-            put(20, Items.PISTON, RulesMessages.MENU_PUSHBACK, Map.of("value", profile.pushbackScale()));
-            put(22, Items.NOTE_BLOCK, RulesMessages.MENU_SOUND, Map.of("value", profile.soundVolume()));
-            put(24, Items.LEVER, RulesMessages.MENU_DEFAULT_OUTCOME, Map.of("mode", document.defaultOutcome().kind().name()));
-            put(30, Items.BOOK, RulesMessages.MENU_RULES, Map.of("count", document.rules().size()));
-            put(32, Items.WRITABLE_BOOK, RulesMessages.MENU_TEMPLATES, Map.of());
-            put(49, Items.ARROW, RulesMessages.MENU_BACK, Map.of());
-        }
-
-        private List<String> lines(RuleDocument document) {
-            Rule rule = rule(document);
-            return rule == null ? List.of() : RulesMenuModel.lines(rule);
-        }
-
-        private Rule rule(RuleDocument document) {
-            int selected = RulesMenuModel.indexOf(document, ruleId);
-            return selected < 0 ? null : document.rules().get(selected);
-        }
-
-        private void click(MinecraftInventoryMenu.Click click) {
-            if (!valid() || viewer.containerMenu != menu || click.menu() != menu) {
-                return;
-            }
-            try {
-                if (page == Page.PROFILE) {
-                    profileClick(click);
-                } else {
-                    listClick(click);
-                }
-            } catch (IllegalArgumentException | RuleValidationException invalid) {
-                notice(viewer, RulesMessages.NOTICE_INVALID, Map.of("reason", invalid.getMessage()));
-            }
-        }
-
-        private void profileClick(MinecraftInventoryMenu.Click click) {
-            RuleDocument document = runtime.rules().document(portal());
-            TraversalProfile profile = document.profile();
-            int step = (click.right() ? -1 : 1) * (click.shift() ? 10 : 1);
-            long cooldown = profile.cooldownMillis();
-            long warmup = profile.warmupMillis();
-            double pushback = profile.pushbackScale();
-            double volume = profile.soundVolume();
-            int charges = profile.chargeCapacity();
-            switch (click.slot()) {
-                case 10 -> cooldown = Math.clamp(cooldown + step * 1000L, 0L, runtime.configuration().settings().getRules().cooldownMaxSeconds * 1000L);
-                case 12 -> warmup = Math.clamp(warmup + step * 1000L, 0L, runtime.configuration().settings().getRules().warmupMaxSeconds * 1000L);
-                case 14 -> { prompt(Input.GROUP); return; }
-                case 16 -> charges = Math.max(0, charges + step);
-                case 20 -> pushback = Math.clamp(pushback + (click.right() ? -0.25D : 0.25D), 0D, 10D);
-                case 22 -> volume = Math.clamp(volume + (click.right() ? -0.25D : 0.25D), 0D, 10D);
-                case 24 -> { change(current -> current.withDefaultOutcome(toggled(current.defaultOutcome()))); return; }
-                case 30 -> { new Session(viewer, portalId, Page.RULES, "").open(); return; }
-                case 32 -> { new Session(viewer, portalId, Page.TEMPLATES, "").open(); return; }
-                case 49 -> { runtime.menus().open(viewer, portalId); return; }
-                default -> { return; }
-            }
-            runtime.rules().setDocument(portal(), document.withProfile(new TraversalProfile(cooldown, profile.cooldownGroup(),
-                warmup, pushback, volume, charges, Math.min(charges, profile.chargeRegenPerInterval()))));
-            menu.refresh();
-        }
-
-        private void listClick(MinecraftInventoryMenu.Click click) {
-            RuleDocument document = runtime.rules().document(portal());
-            int selected = index * RulesMenuModel.ENTRIES_PER_PAGE + click.slot();
-            if (click.slot() < RulesMenuModel.ENTRIES_PER_PAGE) {
-                if (page == Page.RULES && selected < document.rules().size()) {
-                    Rule chosen = document.rules().get(selected);
-                    if (click.shift() && !click.right()) {
-                        change(current -> RulesMenuModel.removeRule(current, chosen.id()));
-                    } else {
-                        new Session(viewer, portalId, Page.LINES, chosen.id()).open();
-                    }
-                } else if (page == Page.LINES && selected < lines(document).size() && click.shift() && !click.right()) {
-                    change(current -> RulesMenuModel.replaceRule(current, RulesMenuModel.removeLine(rule(current), selected)));
-                } else if (page == Page.TEMPLATES && selected < templateNames.size()) {
-                    applyTemplate(templateNames.get(selected));
-                }
-                return;
-            }
-            switch (click.slot()) {
-                case 45 -> {
-                    if (page == Page.LINES && rule(document) != null) {
-                        Rule current = rule(document);
-                        change(existing -> RulesMenuModel.replaceRule(existing, new Rule(current.id(), current.conditions(),
-                            toggled(current.outcome()), current.costs(), current.effects())));
-                    }
-                }
-                case 47 -> { if (page != Page.TEMPLATES) { prompt(page == Page.RULES ? Input.RULE : Input.LINE); } }
-                case 49 -> { index = Math.max(0, index + (click.right() ? -1 : 1)); menu.refresh(); }
-                case 51 -> new Session(viewer, portalId, page == Page.LINES ? Page.RULES : Page.PROFILE, "").open();
-                default -> { }
-            }
-        }
-
-        private void change(UnaryOperator<RuleDocument> edit) {
-            runtime.rules().setDocument(portal(), edit.apply(runtime.rules().document(portal())));
-            menu.refresh();
-        }
-
-        private void prompt(Input input) {
-            viewer.closeContainer();
-            sessions.remove(viewer.getUUID());
-            prompts.put(viewer.getUUID(), new Prompt(this, input, System.nanoTime() + 60_000_000_000L));
-            TextKey key = switch (input) {
-                case GROUP -> RulesMessages.PROMPT_GROUP;
-                case RULE -> RulesMessages.PROMPT_RULE_ID;
-                case LINE -> RulesMessages.PROMPT_LINE;
-            };
-            notice(viewer, key, Map.of("cancel", MinecraftMenuText.text(viewer, WormholesMessages.PORTAL_INPUT_CANCEL, Map.of()).getString()));
-        }
-
-        private void loadTemplates() {
-            RuleTemplates templates = templates();
-            CompletableFuture.supplyAsync(templates::list).whenCompleteAsync((names, failure) -> {
-                if (!valid() || viewer.containerMenu != menu) {
-                    return;
-                }
-                if (failure != null) {
-                    failed(failure);
-                    return;
-                }
-                templateNames = names;
-                menu.refresh();
-            }, runtime.server());
-        }
-
-        private void applyTemplate(String name) {
-            RuleTemplates templates = templates();
-            CompletableFuture.supplyAsync(() -> templates.load(name)).whenCompleteAsync((document, failure) -> {
-                if (!valid() || viewer.containerMenu != menu) {
-                    return;
-                }
-                if (failure != null) {
-                    failed(failure);
-                    return;
-                }
-                if (document == null) {
-                    notice(viewer, RulesMessages.COMMAND_TEMPLATE_MISSING, Map.of("name", name));
-                    return;
-                }
+            MinecraftElement add = element(viewer, "rules-add-line", RulesMessages.MENU_ADD_LINE, MessageArgs.empty(), Items.DYE.lime());
+            add.onLeftClick(event -> prompt(viewer, RulesMessages.PROMPT_LINE, input -> {
                 try {
-                    runtime.rules().setDocument(portal(), runtime.rules().authorDocument(viewer, document));
-                    notice(viewer, RulesMessages.NOTICE_APPLIED, Map.of("name", name));
-                    new Session(viewer, portalId, Page.PROFILE, "").open();
-                } catch (IllegalArgumentException | RuleValidationException invalid) {
-                    notice(viewer, RulesMessages.NOTICE_INVALID, Map.of("reason", invalid.getMessage()));
+                    store(viewer, runtime.rules().authorDocument(viewer, RulesMenuModel.replaceRule(document(),
+                        RulesMenuModel.addLine(rule, input, runtime.configuration().settings().getRules()))));
+                } catch (RuleValidationException invalid) {
+                    invalid(viewer, invalid);
+                } catch (IllegalArgumentException invalid) {
+                    invalid(viewer, invalid);
                 }
-            }, runtime.server());
+                openRule(viewer, ruleId, page);
+            }));
+            window.setElement(-2, 5, add);
+            window.setElement(0, 5, pageElement(viewer, page, RulesMenuModel.pageCount(lines.size()),
+                next -> reopenRule(window, viewer, ruleId, next)));
+            window.setElement(2, 5, backElement(viewer, () -> openRules(viewer, 0)));
         }
 
-        private void failed(Throwable failure) {
-            LOGGER.error("Could not read traversal rule templates for portal {}", portalId, failure);
-            notice(viewer, RulesMessages.COMMAND_FAILED, Map.of("reason", failure.getMessage()));
+        private void reopenRule(MinecraftWindow window, ServerPlayer viewer, String ruleId, int page) {
+            window.batch(() -> {
+                window.clearElements();
+                populateRule(window, viewer, ruleId, page);
+            });
+            window.updateInventory();
         }
 
-        private void put(int slot, Item item, LinesKey key, Map<String, ?> values) {
-            menu.set(slot, MinecraftMenuText.item(viewer, item, key, values));
+        private void openTemplates(ServerPlayer viewer, int page) {
+            MinecraftWindow window = window(viewer, Items.STAINED_GLASS_PANE.lightBlue(), 6);
+            populateTemplates(window, viewer, page);
+            window.setVisible(true);
+        }
+
+        private void populateTemplates(MinecraftWindow window, ServerPlayer viewer, int requestedPage) {
+            RuleTemplates templates = new RuleTemplates(runtime.server().getServerDirectory().resolve("config/wormholes"),
+                runtime.configuration().settings().getRules());
+            List<String> names = templates.list();
+            int page = RulesMenuModel.clampPage(requestedPage, names.size());
+            List<String> visible = RulesMenuModel.page(names, page);
+            for (int slot = 0; slot < visible.size(); slot++) {
+                String name = visible.get(slot);
+                MinecraftElement element = element(viewer, "rules-template-" + name, RulesMessages.MENU_TEMPLATE,
+                    MinecraftPortalText.arguments("name", name), Items.WRITTEN_BOOK);
+                element.onLeftClick(event -> applyTemplate(viewer, templates, name));
+                window.setElement(slot % ROW_WIDTH - ROW_WIDTH / 2, slot / ROW_WIDTH, element);
+            }
+            window.setElement(0, 5, pageElement(viewer, page, RulesMenuModel.pageCount(names.size()), next -> {
+                window.batch(() -> {
+                    window.clearElements();
+                    populateTemplates(window, viewer, next);
+                });
+                window.updateInventory();
+            }));
+            window.setElement(2, 5, backElement(viewer, () -> open(viewer)));
+        }
+
+        private void applyTemplate(ServerPlayer viewer, RuleTemplates templates, String name) {
+            try {
+                RuleDocument document = templates.load(name);
+                if (document == null) {
+                    notice(viewer, RulesMessages.COMMAND_TEMPLATE_MISSING, MinecraftPortalText.arguments("name", name));
+                    return;
+                }
+                if (store(viewer, runtime.rules().authorDocument(viewer, document))) {
+                    notice(viewer, RulesMessages.NOTICE_APPLIED, MinecraftPortalText.arguments("name", name));
+                }
+            } catch (RuleValidationException invalid) {
+                invalid(viewer, invalid);
+            } catch (IllegalArgumentException invalid) {
+                invalid(viewer, invalid);
+            }
+        }
+
+        private MinecraftElement pageElement(ServerPlayer viewer, int page, int pageCount, Consumer<Integer> open) {
+            MinecraftElement element = element(viewer, "rules-page", RulesMessages.MENU_PAGE,
+                MinecraftPortalText.arguments("page", page + 1, "pages", pageCount), Items.PAPER);
+            element.onLeftClick(event -> open.accept(Math.min(pageCount - 1, page + 1)));
+            element.onRightClick(event -> open.accept(Math.max(0, page - 1)));
+            return element;
+        }
+
+        private MinecraftElement backElement(ServerPlayer viewer, Runnable back) {
+            MinecraftElement element = element(viewer, "rules-back", RulesMessages.MENU_BACK, MessageArgs.empty(), Items.ARROW);
+            element.onLeftClick(event -> back.run());
+            return element;
+        }
+
+        private void reprofile(ServerPlayer viewer, UnaryOperator<TraversalProfile> change) {
+            RuleDocument document = document();
+            store(viewer, document.withProfile(change.apply(document.profile())));
+        }
+
+        private boolean store(ServerPlayer viewer, RuleDocument document) {
+            try {
+                runtime.rules().setDocument(portal, document);
+                return true;
+            } catch (RuleValidationException invalid) {
+                invalid(viewer, invalid);
+                return false;
+            }
+        }
+
+        private void prompt(ServerPlayer viewer, TextKey key, Consumer<String> accept) {
+            viewer.closeContainer();
+            viewer.sendSystemMessage(MinecraftMenuText.text(viewer, key,
+                MinecraftPortalText.arguments("cancel", localized(viewer, WormholesMessages.PORTAL_INPUT_CANCEL))));
+            runtime.chatInput().await(viewer, input -> runtime.schedule(() -> {
+                String trimmed = input.trim();
+                if (trimmed.equalsIgnoreCase(localized(viewer, WormholesMessages.PORTAL_INPUT_CANCEL))) {
+                    open(viewer);
+                    return;
+                }
+                accept.accept(trimmed);
+            }, 1L));
         }
     }
 
-    private static RuleOutcome toggled(RuleOutcome current) {
-        return current.allowed() ? RuleOutcome.deny(RulesMessages.DENIED_DEFAULT.id()) : RuleOutcome.allow();
+    private static TraversalProfile withCharges(TraversalProfile current, int capacity) {
+        return new TraversalProfile(current.cooldownMillis(), current.cooldownGroup(), current.warmupMillis(),
+            current.pushbackScale(), current.soundVolume(), capacity,
+            Math.min(current.chargeRegenPerInterval(), Math.max(0, capacity)));
+    }
+
+    private static void invalid(ServerPlayer viewer, RuleValidationException invalid) {
+        notice(viewer, RulesMessages.NOTICE_INVALID, MinecraftPortalText.arguments("reason", String.join("; ", invalid.problems())));
+    }
+
+    private static void invalid(ServerPlayer viewer, IllegalArgumentException invalid) {
+        notice(viewer, RulesMessages.NOTICE_INVALID, MinecraftPortalText.arguments("reason", Objects.toString(invalid.getMessage(), "")));
+    }
+
+    private static String localized(ServerPlayer viewer, TextKey key) {
+        return MinecraftMenuText.text(viewer, key, MessageArgs.empty()).getString();
+    }
+
+    private static MinecraftElement element(ServerPlayer viewer, String id, LinesKey key, MessageArgs arguments, Item material) {
+        MinecraftElement element = new MinecraftElement(id);
+        element.setMaterial(material);
+        MinecraftLegacyText.apply(viewer, element, key, arguments);
+        return element;
+    }
+
+    private static void notice(ServerPlayer viewer, TextKey key, MessageArgs arguments) {
+        MinecraftMenuText.notice(viewer, MinecraftMenuText.text(viewer, key, arguments));
     }
 }
