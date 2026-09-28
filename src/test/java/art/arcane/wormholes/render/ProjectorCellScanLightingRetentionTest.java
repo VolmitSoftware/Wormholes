@@ -974,6 +974,79 @@ public final class ProjectorCellScanLightingRetentionTest {
     }
 
     @Test
+    public void lateralBlackoutKeepsTheWholeApertureClearWhileMoving() throws ReflectiveOperationException {
+        double originalPadding = Settings.PROJECTION_APERTURE_PADDING_BLOCKS;
+        int lateralClaims = 0;
+        try {
+            for (double padding : new double[] {0.0D, 0.75D}) {
+                Settings.PROJECTION_APERTURE_PADDING_BLOCKS = padding;
+                for (Direction normal : Direction.values()) {
+                    PortalFrame frame = PortalFrame.canonical(normal);
+                    ScanFixture fixture = scanFixture(frame, false);
+                    enableBlackout(fixture.blackout());
+                    Location origin = fixture.structure().getCenter();
+                    for (double offset : new double[] {0.0D, 2.75D, -2.75D, 0.0D}) {
+                        Direction right = frame.getRight();
+                        Location eye = origin.clone().add(normal.x() * 1.5D + right.x() * offset,
+                            normal.y() * 1.5D + right.y() * offset,
+                            normal.z() * 1.5D + right.z() * offset);
+                        Frustum4D frustum = new Frustum4D(eye, fixture.structure(), 6.0D, 4.0D);
+                        ProjectorCellScan scan = fixture.scan();
+                        scan.run(fixture.destination(), null, eye, frustum, 6.0D,
+                            false, false, true, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
+                        ProjectorPlaneWindow window = ProjectorPlaneWindow.create(fixture.structure(),
+                            fixture.structure().getArea(), scan.localFrame(),
+                            origin.getX(), origin.getY(), origin.getZ(), 0.0D, scan.eyeDot());
+                        int farCoordinate = 0;
+                        double farDistance = 0.0D;
+                        for (long key : scan.claims().keySet()) {
+                            double x = ProjectionCellKey.unpackX(key) + 0.5D;
+                            double y = ProjectionCellKey.unpackY(key) + 0.5D;
+                            double z = ProjectionCellKey.unpackZ(key) + 0.5D;
+                            double distance = (x - origin.getX()) * normal.x()
+                                + (y - origin.getY()) * normal.y() + (z - origin.getZ()) * normal.z();
+                            if (distance < farDistance && window.containsRayIntersection(
+                                eye.getX(), eye.getY(), eye.getZ(), x, y, z, distance)) {
+                                farDistance = distance;
+                                farCoordinate = coordinate(key, normal);
+                            }
+                        }
+                        boolean farClaim = false;
+                        for (Long2ObjectMap.Entry<ProjectedBlockClaim> entry : scan.claims().long2ObjectEntrySet()) {
+                            if (!entry.getValue().isBlackout()) {
+                                continue;
+                            }
+                            long key = entry.getLongKey();
+                            if (coordinate(key, normal) == farCoordinate) {
+                                farClaim = true;
+                                continue;
+                            }
+                            lateralClaims++;
+                            double x = ProjectionCellKey.unpackX(key) + 0.5D;
+                            double y = ProjectionCellKey.unpackY(key) + 0.5D;
+                            double z = ProjectionCellKey.unpackZ(key) + 0.5D;
+                            double distance = (x - origin.getX()) * normal.x()
+                                + (y - origin.getY()) * normal.y() + (z - origin.getZ()) * normal.z();
+                            assertFalse(window.intersectsBlockSilhouette(eye.getX(), eye.getY(), eye.getZ(),
+                                x, y, z, distance), normal + " offset=" + offset + " padding=" + padding);
+                        }
+                        assertTrue(farClaim, normal + " offset=" + offset + " padding=" + padding);
+                        Long2ObjectOpenHashMap<ProjectedBlockClaim> moved =
+                            new Long2ObjectOpenHashMap<ProjectedBlockClaim>(scan.claims());
+                        scan.run(fixture.destination(), null, eye, frustum, 6.0D,
+                            true, false, false, false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
+                        assertEquivalentClaims(moved, scan.claims());
+                        scan.commit();
+                    }
+                }
+            }
+        } finally {
+            Settings.PROJECTION_APERTURE_PADDING_BLOCKS = originalPadding;
+        }
+        assertTrue(lateralClaims > 0);
+    }
+
+    @Test
     public void blackoutIncludesFarAirWhenTheLocalCellIsAlreadyAir() throws ReflectiveOperationException {
         PortalFrame frame = PortalFrame.canonical(Direction.S);
         PortalStructure structure = structure();
@@ -1148,6 +1221,49 @@ public final class ProjectorCellScanLightingRetentionTest {
             ProjectedBlockClaim previous = delta.previousClaims().get(key);
             ProjectedBlockClaim next = delta.claims().get(key);
             assertTrue(previous == null || next == null || previous != next);
+        }
+    }
+
+    @Test
+    public void unavailableChunksDoNotRetainAnInteriorBlackoutCap() throws ReflectiveOperationException {
+        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        PortalStructure structure = structure();
+        ILocalPortal portal = portal(structure, frame);
+        Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
+        Frustum4D shallow = new Frustum4D(eye, structure, 4.0D, 2.0D);
+        Frustum4D deep = new Frustum4D(eye, structure, 6.0D, 2.0D);
+        long oldCap = ProjectionCellKey.pack(structure.getCenter().getBlockX(),
+            structure.getCenter().getBlockY(), PortalProjector.minBlockForCenter(shallow.getRegion().getZa()));
+        for (boolean localUnavailable : new boolean[] {true, false}) {
+            MutableWorldView local = new MutableWorldView(blockData(Material.AIR));
+            MutableWorldView remote = new MutableWorldView(blockData(Material.AIR));
+            ProjectorSampleMemo memo = new ProjectorSampleMemo();
+            ProjectorSampler sampler = withBukkitServer(
+                () -> new ProjectorSampler(memo, new ProjectorRecursivePortals(), world -> remote));
+            ProjectorBlackoutSeal blackout = new ProjectorBlackoutSeal();
+            enableBlackout(blackout);
+            ProjectorCellScan scan = new ProjectorCellScan(portal, sampler, memo, blackout);
+            useOcclusion(scan, ProjectorCellScanLightingRetentionTest::testOccluding);
+            ProjectorDestination destination = destination(portal, structure, local, remote);
+            scan.run(destination, null, eye, shallow, 4.0D, true, false, false,
+                false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
+            assertTrue(scan.claims().get(oldCap).isBlackout());
+            scan.commit();
+            if (localUnavailable) {
+                local.ready = false;
+            } else {
+                remote.ready = false;
+                remote.data = null;
+                memo.clearDestinationSamples();
+            }
+            scan.run(destination, null, eye, deep, 6.0D, false, false, false,
+                false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
+            assertFalse(blackoutGeometry(scan).contains(oldCap));
+            assertFalse(scan.claims().containsKey(oldCap), "localUnavailable=" + localUnavailable);
+            assertTrue(scan.claimDelta().removedKeys().contains(oldCap), "localUnavailable=" + localUnavailable);
+            assertFalse(scan.claims().isEmpty(), "safe lateral shell cells must remain while chunks load");
+            assertEquals(blackoutGeometry(scan), scan.claims().keySet());
+            assertAllBlackout(scan);
         }
     }
 

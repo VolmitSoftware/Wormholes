@@ -705,6 +705,25 @@ public final class RtpPortalEditorTest
 		}
 
 		@Override
+		public Window updateElement(int position, int row, Element element)
+		{
+			if (!visible)
+			{
+				return this;
+			}
+			Slot slot = new Slot(position, row);
+			if (element == null)
+			{
+				elements.remove(slot);
+			}
+			else
+			{
+				elements.put(slot, element);
+			}
+			return this;
+		}
+
+		@Override
 		public Element getElement(int position, int row)
 		{
 			return elements.get(new Slot(position, row));

@@ -43,7 +43,6 @@ final class ProjectorCellScan {
     private final int[] scratchAxisMax;
     private final double[] scratchAxisOrigin;
     private final double[] scratchSlabWindowBounds;
-    private final double[] scratchBlackoutSlabWindowBounds;
     private final int[] scratchCellCoords;
     private final Long2ByteOpenHashMap localChunkReadiness;
     private final ProjectorEmptyCellRuns emptyCells;
@@ -126,7 +125,6 @@ final class ProjectorCellScan {
         this.scratchAxisMax = new int[3];
         this.scratchAxisOrigin = new double[3];
         this.scratchSlabWindowBounds = new double[4];
-        this.scratchBlackoutSlabWindowBounds = new double[4];
         this.scratchCellCoords = new int[3];
         this.localChunkReadiness = new Long2ByteOpenHashMap(16);
         this.emptyCells = new ProjectorEmptyCellRuns();
@@ -771,7 +769,6 @@ final class ProjectorCellScan {
         private int[] cellCoords;
         private double[] axisOrigin;
         private double[] slabWindowBounds;
-        private double[] blackoutSlabWindowBounds;
         private boolean mirrorMode;
         private boolean forceStableCellResample;
         private boolean forceFullSend;
@@ -788,7 +785,6 @@ final class ProjectorCellScan {
         private boolean blackoutFarSliceFound;
         private boolean lodActive;
         private boolean reuseMappedClaims;
-        private boolean blackoutSlab;
         private boolean mergedSlab;
         private boolean windowContainsRow;
         private boolean frustumContainsRow;
@@ -809,10 +805,6 @@ final class ProjectorCellScan {
         private int rightBlockMax;
         private int upBlockMin;
         private int upBlockMax;
-        private int blackoutRightBlockMin;
-        private int blackoutRightBlockMax;
-        private int blackoutUpBlockMin;
-        private int blackoutUpBlockMax;
         private int slabIndex;
         private int rightStart;
         private int rightEnd;
@@ -1035,7 +1027,6 @@ final class ProjectorCellScan {
             axisOrigin[2] = localOriginZ;
             projectionFacingNormal = normalAxis == 0 ? projectionFacingX : (normalAxis == 1 ? projectionFacingY : projectionFacingZ);
             slabWindowBounds = scratchSlabWindowBounds;
-            blackoutSlabWindowBounds = scratchBlackoutSlabWindowBounds;
             cellCoords = scratchCellCoords;
             observerOcclusion = renderMode.usesObserverOcclusion();
             localFacingNormal = normalAxis == 0 ? facingX : normalAxis == 1 ? facingY : facingZ;
@@ -1067,28 +1058,6 @@ final class ProjectorCellScan {
                     rightBlockMax = ProjectorPlaneWindow.slabBlockMax(slabWindowBounds[0], slabWindowBounds[1], rightSign, axisOrigin[rightAxis], axisMax[rightAxis]);
                     upBlockMin = ProjectorPlaneWindow.slabBlockMin(slabWindowBounds[2], slabWindowBounds[3], upSign, axisOrigin[upAxis], axisMin[upAxis]);
                     upBlockMax = ProjectorPlaneWindow.slabBlockMax(slabWindowBounds[2], slabWindowBounds[3], upSign, axisOrigin[upAxis], axisMax[upAxis]);
-                    blackoutSlab = blackoutEnabled
-                        && blackoutWindow.slabWindow(eyeX, eyeY, eyeZ, slabSignedDistance, blackoutSlabWindowBounds);
-                    blackoutRightBlockMin = blackoutSlab
-                        ? ProjectorPlaneWindow.slabBlockMin(
-                            blackoutSlabWindowBounds[0], blackoutSlabWindowBounds[1], rightSign,
-                            axisOrigin[rightAxis], axisMin[rightAxis])
-                        : 0;
-                    blackoutRightBlockMax = blackoutSlab
-                        ? ProjectorPlaneWindow.slabBlockMax(
-                            blackoutSlabWindowBounds[0], blackoutSlabWindowBounds[1], rightSign,
-                            axisOrigin[rightAxis], axisMax[rightAxis])
-                        : -1;
-                    blackoutUpBlockMin = blackoutSlab
-                        ? ProjectorPlaneWindow.slabBlockMin(
-                            blackoutSlabWindowBounds[2], blackoutSlabWindowBounds[3], upSign,
-                            axisOrigin[upAxis], axisMin[upAxis])
-                        : 0;
-                    blackoutUpBlockMax = blackoutSlab
-                        ? ProjectorPlaneWindow.slabBlockMax(
-                            blackoutSlabWindowBounds[2], blackoutSlabWindowBounds[3], upSign,
-                            axisOrigin[upAxis], axisMax[upAxis])
-                        : -1;
                     cellDot = localFacingNormal * ((n + 0.5D) - axisOrigin[normalAxis]);
                     if (!PortalProjector.projectsBehindPortalPlane(cellDot, eyeFrontSide, portalPlaneClearance)
                         || Math.abs(cellDot) > maxProjectionDepth) {
@@ -1128,7 +1097,7 @@ final class ProjectorCellScan {
                         } else if (!frustumContainsRow) {
                             frustumScalarRows++;
                         }
-                        blackoutContainsRow = blackoutSlab
+                        blackoutContainsRow = blackoutEnabled
                             && blackoutWindow.containsRow(upAxis, eyeX, eyeY, eyeZ,
                                 rowX, rowY, rowZ, rowEnd, slabSignedDistance);
                         if (cacheEmptyCells) {
@@ -1173,23 +1142,26 @@ final class ProjectorCellScan {
 
                         long key = ProjectionCellKey.pack(x, y, z);
                         ProjectedBlockClaim previousCell = projected.get(key);
-                        boolean blackoutCell = blackoutSlab
+                        boolean blackoutFarCell = blackoutEnabled
                             && (blackoutContainsRow || blackoutWindow.containsRayIntersection(
                                 eyeX, eyeY, eyeZ, cx, cy, cz, slabSignedDistance));
-                        int blackoutBoundaryMask = 0;
-                        if (blackoutCell && (!blackoutFarSliceFound || blackoutFarCoordinate != n)) {
+                        int blackoutBoundaryMask = blackoutEnabled
+                            ? lateralBlackoutBoundaryMask(r, u, rightBlockMin, rightBlockMax,
+                                upBlockMin, upBlockMax, rightAxis, upAxis)
+                            : 0;
+                        if (blackoutBoundaryMask != 0 && blackoutWindow.intersectsBlockSilhouette(
+                            eyeX, eyeY, eyeZ, cx, cy, cz, slabSignedDistance)) {
+                            blackoutBoundaryMask = 0;
+                        }
+                        if (blackoutFarCell && (!blackoutFarSliceFound || blackoutFarCoordinate != n)) {
                             clearBlackoutFarFace(normalAxis, blackoutFarSign);
                             blackoutFarCoordinate = n;
                             blackoutFarSliceFound = true;
                         }
-                        if (blackoutCell) {
-                            blackoutBoundaryMask = lateralBlackoutBoundaryMask(
-                                r, u,
-                                blackoutRightBlockMin, blackoutRightBlockMax,
-                                blackoutUpBlockMin, blackoutUpBlockMax,
-                                rightAxis, upAxis);
+                        if (blackoutFarCell) {
                             blackoutBoundaryMask |= ProjectorBlackoutBoundary.faceMask(normalAxis, blackoutFarSign);
                         }
+                        boolean blackoutCell = blackoutBoundaryMask != 0;
                         if (reuseMappedClaims && previousCell != null && !previousCell.isBlackout()
                             && previousCell.getLightView() == destView
                             && previousCell.isFullBright() == blackoutEnabled) {
@@ -1241,7 +1213,7 @@ final class ProjectorCellScan {
                                     rememberBlackoutCell(key, remoteKey, blackoutBoundaryMask, retained);
                                 }
                             } else if (blackoutCell && previousShellMatches(previousCell, destView, remoteKey)) {
-                                retainShellClaim(key, remoteKey, blackoutBoundaryMask, previousCell);
+                                addBlackoutCell(key, remoteKey, blackoutBoundaryMask);
                             }
                             continue;
                         }
@@ -1314,7 +1286,7 @@ final class ProjectorCellScan {
                                     rememberBlackoutCell(key, remoteKey, blackoutBoundaryMask, retained);
                                 }
                             } else if (blackoutCell && previousShellMatches(previousCell, destView, remoteKey)) {
-                                retainShellClaim(key, remoteKey, blackoutBoundaryMask, previousCell);
+                                addBlackoutCell(key, remoteKey, blackoutBoundaryMask);
                             }
                             continue;
                         }
@@ -1425,10 +1397,6 @@ final class ProjectorCellScan {
             while (iterator.hasNext()) {
                 long key = iterator.nextLong();
                 ProjectedBlockClaim existing = nextProjected.get(key);
-                if (existing != null && existing.isBlackout() && existing.getData().equals(blackoutData)) {
-                    blackoutClaims++;
-                    continue;
-                }
                 long remoteKey = blackoutRemoteKeys.get(key);
                 ProjectedBlockClaim previous = projected.get(key);
                 ProjectedBlockClaim claim = previousShellMatches(previous, destView, remoteKey)
@@ -1439,6 +1407,7 @@ final class ProjectorCellScan {
                 blackoutClaims++;
                 if (existing == null && previous != null) {
                     retainedClaimCount++;
+                    retainUnresolvedOcclusion(key, observerOcclusion);
                 }
                 if (deltaBaseline != null) {
                     if (claim != previous) {
@@ -1448,14 +1417,6 @@ final class ProjectorCellScan {
                     }
                 }
             }
-        }
-
-        /** Keeps a committed shell claim over a cell whose chunks are still loading. */
-        private void retainShellClaim(long key, long remoteKey, int boundaryMask, ProjectedBlockClaim previousCell) {
-            nextProjected.put(key, previousCell);
-            retainedClaimCount++;
-            retainUnresolvedOcclusion(key, observerOcclusion);
-            addBlackoutCell(key, remoteKey, boundaryMask);
         }
     }
 
