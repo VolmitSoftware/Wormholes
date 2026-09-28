@@ -308,7 +308,6 @@ public final class MinecraftNexus implements AutoCloseable {
     }
 
     public void tick() {
-        menus.tick();
         if (networks == null) {
             return;
         }
@@ -362,7 +361,7 @@ public final class MinecraftNexus implements AutoCloseable {
         if (portal == null) {
             return false;
         }
-        menus.open(player, portal, 0);
+        menus.open(player, portal);
         return true;
     }
 
@@ -408,7 +407,6 @@ public final class MinecraftNexus implements AutoCloseable {
 
     @Override
     public void close() {
-        menus.close();
         SERVICES.values().removeIf(service -> service == this);
         for (UUID id : states.keySet()) {
             controls.remove(id);

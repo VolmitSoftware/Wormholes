@@ -43,11 +43,11 @@ public final class MinecraftRtpMenus implements AutoCloseable {
 
     public void open(ServerPlayer viewer, UUID portalId) {
         MinecraftPortal portal = runtime.portals().get(portalId);
-        if (portal == null || !ensureCanManage(viewer, portal)) {
+        if (portal == null || !runtime.menus().ensureCanManage(viewer, portal)) {
             return;
         }
         if (portal.getType() != PortalType.RTP) {
-            notifySetting(viewer, portal, WormholesMessages.PORTAL_NOT_RTP, MessageArgs.empty());
+            MinecraftPortalText.notifySetting(viewer, portal, WormholesMessages.PORTAL_NOT_RTP, MessageArgs.empty());
             runtime.menus().open(viewer, portal.getId());
             return;
         }
@@ -88,20 +88,6 @@ public final class MinecraftRtpMenus implements AutoCloseable {
             .comparing(RtpPortalEditorModel.BiomeOption::displayName, String.CASE_INSENSITIVE_ORDER)
             .thenComparing(RtpPortalEditorModel.BiomeOption::key));
         return List.copyOf(sorted);
-    }
-
-    private boolean ensureCanManage(ServerPlayer viewer, MinecraftPortal portal) {
-        if (runtime.portals().canManage(viewer, portal)) {
-            return true;
-        }
-        MinecraftMenuText.notice(viewer, MinecraftMenuText.text(viewer, WormholesMessages.PORTAL_EDIT_DENIED, MessageArgs.empty()));
-        viewer.closeContainer();
-        return false;
-    }
-
-    private void notifySetting(ServerPlayer viewer, MinecraftPortal portal, TextKey message, MessageArgs arguments) {
-        MinecraftMenuText.notifySuccess(viewer, MinecraftLegacyText.text(viewer, WormholesMessages.PORTAL_SETTING_NOTIFICATION,
-            MinecraftPortalText.arguments("portal", portal.getName(), "message", MinecraftMenuText.text(viewer, message, arguments).getString())));
     }
 
     private ServerLevel level(String key) {
@@ -260,7 +246,7 @@ public final class MinecraftRtpMenus implements AutoCloseable {
         }
 
         private void mutateForViewer(long expectedRevision, RtpPortalEditorModel.Mutation mutation) {
-            if (!ensureCanManage(viewer, portal)) {
+            if (!runtime.menus().ensureCanManage(viewer, portal)) {
                 close();
                 return;
             }
@@ -291,7 +277,7 @@ public final class MinecraftRtpMenus implements AutoCloseable {
         }
 
         private void resetForViewer(long expectedRevision) {
-            if (!ensureCanManage(viewer, portal)) {
+            if (!runtime.menus().ensureCanManage(viewer, portal)) {
                 close();
                 return;
             }
@@ -316,7 +302,7 @@ public final class MinecraftRtpMenus implements AutoCloseable {
         }
 
         private void manualForViewer(long expectedRevision, RtpPortalEditorModel.ManualAction action) {
-            if (!ensureCanManage(viewer, portal)) {
+            if (!runtime.menus().ensureCanManage(viewer, portal)) {
                 close();
                 return;
             }
@@ -353,7 +339,7 @@ public final class MinecraftRtpMenus implements AutoCloseable {
                     sessions.remove(viewerId, this);
                     return;
                 }
-                notifySetting(viewer, portal, message, arguments);
+                MinecraftPortalText.notifySetting(viewer, portal, message, arguments);
                 if (!active()) {
                     close();
                     if (runtime.portals().get(portal.getId()) == portal) {

@@ -101,16 +101,13 @@ public final class MinecraftPortalMenus implements AutoCloseable {
     public void tick() {
         runtime.requireServerThread();
         ticks++;
-        rules.tick();
         rtpEditor.tick();
         closeRevokedWindows();
         showDirectionTitles();
     }
 
     public void playerDisconnected(ServerPlayer player) {
-        rules.disconnected(player);
         runtime.localization().disconnected(player);
-        runtime.nexus().menus().disconnected(player);
         rtpEditor.disconnected(player);
         costMenu.disconnected(player);
         directions.remove(player.getUUID());
@@ -122,7 +119,6 @@ public final class MinecraftPortalMenus implements AutoCloseable {
     public void close() {
         runtime.requireServerThread();
         SERVICES.remove(server, this);
-        rules.close();
         rtpEditor.close();
         costMenu.close();
         directions.clear();

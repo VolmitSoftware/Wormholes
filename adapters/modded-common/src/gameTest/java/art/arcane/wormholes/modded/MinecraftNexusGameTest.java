@@ -170,7 +170,7 @@ public final class MinecraftNexusGameTest {
 
     private void dialLayout(MinecraftPortal projected, MinecraftPortal destination) {
         ServerPlayer viewer = actor.player();
-        runtime.nexus().menus().open(viewer, source, 0);
+        runtime.nexus().menus().open(viewer, source);
         MinecraftSubsystemMenuProbe.assertWindow(helper, viewer, MinecraftPortalText.router(runtime, source, true), 6,
             Items.STAINED_GLASS_PANE.cyan(), MinecraftSubsystemMenuProbe.slot(-4, 5), "Dial window");
         MinecraftSubsystemMenuProbe.assertElement(helper, viewer, -4, 0, Items.ENDER_PEARL, dialEntry(viewer, "BBBB", projected), true, "Dialed address");

@@ -29,7 +29,7 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-public final class MinecraftNexusMenus implements AutoCloseable {
+public final class MinecraftNexusMenus {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private static final int ROW_WIDTH = 9;
 
@@ -40,7 +40,7 @@ public final class MinecraftNexusMenus implements AutoCloseable {
         this.runtime = Objects.requireNonNull(runtime, "runtime");
     }
 
-    public void open(ServerPlayer viewer, MinecraftPortal portal, int page) {
+    public void open(ServerPlayer viewer, MinecraftPortal portal) {
         UUID networkId = networkId(portal);
         if (networkId == null) {
             send(viewer, NexusMessages.DIAL_NONE, MinecraftPortalText.arguments("portal", portal.getName()));
@@ -55,20 +55,6 @@ public final class MinecraftNexusMenus implements AutoCloseable {
 
     public void openManagement(ServerPlayer viewer, MinecraftPortal portal) {
         new NetworkSession(portal, viewer).open();
-    }
-
-    public void tick() {
-    }
-
-    public boolean chat(ServerPlayer player, String message) {
-        return false;
-    }
-
-    public void disconnected(ServerPlayer player) {
-    }
-
-    @Override
-    public void close() {
     }
 
     static UUID networkId(MinecraftPortal portal) {
@@ -207,7 +193,7 @@ public final class MinecraftNexusMenus implements AutoCloseable {
             window.setElement(3, 1, action("nexus-dial", NexusMessages.MENU_DIAL, MessageArgs.empty(),
                 Items.LEVER, () -> {
                     window.close();
-                    MinecraftNexusMenus.this.open(viewer, portal, 0);
+                    MinecraftNexusMenus.this.open(viewer, portal);
                 }));
 
             DestinationPolicy policy = policy(portal);

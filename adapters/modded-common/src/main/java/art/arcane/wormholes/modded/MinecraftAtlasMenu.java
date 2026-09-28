@@ -171,7 +171,7 @@ final class MinecraftAtlasMenu {
                 return;
             }
             window.close();
-            runtime.nexus().menus().open(viewer, portal, 0);
+            runtime.nexus().menus().open(viewer, portal);
         }
 
         private void pin(AtlasModel.Row row) {

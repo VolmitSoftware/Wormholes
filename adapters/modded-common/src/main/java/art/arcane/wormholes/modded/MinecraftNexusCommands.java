@@ -165,12 +165,12 @@ public final class MinecraftNexusCommands {
                     if (runtime.portals().canManage(actor, portal)) {
                         nexus.menus().openManagement(actor, portal);
                     } else {
-                        nexus.menus().open(actor, portal, 0);
+                        nexus.menus().open(actor, portal);
                     }
                 }
                 case "dial" -> {
                     if (value.isBlank()) {
-                        nexus.menus().open(actor, portal, 0);
+                        nexus.menus().open(actor, portal);
                     } else if (!nexus.dial(actor, portal, value)) {
                         throw new IllegalArgumentException("Address is unavailable or dialing is still cooling down");
                     }

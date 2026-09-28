@@ -23,7 +23,7 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
-public final class MinecraftRulesMenus implements AutoCloseable {
+public final class MinecraftRulesMenus {
     private static final int ROW_WIDTH = 9;
     private static final long SECOND = 1000L;
     private static final long SHIFT_STEP = 10L;
@@ -39,20 +39,6 @@ public final class MinecraftRulesMenus implements AutoCloseable {
         if (portal != null) {
             new PortalRules(portal).open(viewer);
         }
-    }
-
-    public void tick() {
-    }
-
-    public void disconnected(ServerPlayer player) {
-    }
-
-    public boolean acceptChat(ServerPlayer player, String message) {
-        return false;
-    }
-
-    @Override
-    public void close() {
     }
 
     private final class PortalRules {
