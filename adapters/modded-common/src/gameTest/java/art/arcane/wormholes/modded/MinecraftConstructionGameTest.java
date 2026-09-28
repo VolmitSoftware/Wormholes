@@ -67,13 +67,13 @@ public final class MinecraftConstructionGameTest {
                 level.setBlock(cell, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS);
                 BlockPos support = cell.south();
                 level.setBlock(support, Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS);
-                player.setItemInHand(InteractionHand.MAIN_HAND, MinecraftPortalConstruction.rune(PortalType.PORTAL));
+                player.setItemInHand(InteractionHand.MAIN_HAND, MinecraftPortalItems.of(runtime).rune(PortalType.PORTAL));
                 helper.assertTrue(runtime.useBlock(player, InteractionHand.MAIN_HAND,
                     new BlockHitResult(Vec3.atCenterOf(support).add(0, 0, -0.5), Direction.NORTH, support, false)), "Rune placement was not consumed");
                 helper.assertTrue(level.getBlockState(cell).is(Blocks.PRISMARINE), "Rune item did not place its block");
             }
         }
-        player.setItemInHand(InteractionHand.MAIN_HAND, MinecraftPortalTools.wand());
+        player.setItemInHand(InteractionHand.MAIN_HAND, MinecraftPortalItems.of(runtime).wand());
         try (AutoCloseable denied = runtime.access().registerPlacement(placement -> placement.kind() != MinecraftAccessService.PlacementKind.RUNE)) {
             helper.assertTrue(runtime.attackBlock(player, first), "Rune activation was not consumed");
             helper.assertTrue(runtime.portals().at(level, first) == null && level.getBlockState(first).is(Blocks.PRISMARINE), "Denied rune placement consumed blocks");

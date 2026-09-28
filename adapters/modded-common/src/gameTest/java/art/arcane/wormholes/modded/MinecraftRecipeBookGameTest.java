@@ -1,14 +1,20 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.volmlib.util.localization.LinesKey;
+import art.arcane.volmlib.util.localization.MessageArgs;
 import art.arcane.wormholes.door.DoorAccessPolicy;
 import art.arcane.wormholes.door.DoorCraftProduct;
 import art.arcane.wormholes.door.DoorForm;
 import art.arcane.wormholes.door.DoorItemIdentity;
 import art.arcane.wormholes.door.DoorRecipeSpec;
+import art.arcane.wormholes.localization.WormholesMessageRenderer;
+import art.arcane.wormholes.localization.WormholesMessages;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundPlaceGhostRecipePacket;
@@ -30,14 +36,24 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.component.TooltipDisplay;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
+import net.minecraft.world.item.crafting.display.SlotDisplay;
 import net.minecraft.world.level.block.Blocks;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -53,6 +69,9 @@ import java.util.function.Predicate;
 
 public final class MinecraftRecipeBookGameTest {
     private static final String NAME = "recipe-book";
+    private static final String ITEMS_NODE = "wormholes.admin.items";
+    private static final String TEST_LOCALE = "de_DE";
+    private static final String TEST_WAND_NAME = "Testwand";
 
     private final GameTestHelper helper;
     private final WormholesModRuntime runtime;
@@ -66,6 +85,9 @@ public final class MinecraftRecipeBookGameTest {
     private ServerPlayer player;
     private CompletableFuture<Void> persisted;
     private RecipeManager loadedRecipes;
+    private String originalLanguage;
+    private Path languageFile;
+    private String originalLanguageFile;
     private boolean cleaned;
 
     private MinecraftRecipeBookGameTest(GameTestHelper helper) {
@@ -88,8 +110,10 @@ public final class MinecraftRecipeBookGameTest {
 
     private void start() {
         runtime.schedule(this::cleanup, 1150);
-        permissions = runtime.access().register((actor, node) -> !actor.getUUID().equals(playerId) || !node.equals(DoorAccessPolicy.CRAFT_NODE)
-            ? MinecraftAccessService.Decision.UNSET : permitted ? MinecraftAccessService.Decision.ALLOW : MinecraftAccessService.Decision.DENY);
+        permissions = runtime.access().register((actor, node) -> !actor.getUUID().equals(playerId) ? MinecraftAccessService.Decision.UNSET
+            : node.equals(ITEMS_NODE) ? MinecraftAccessService.Decision.ALLOW
+            : !node.equals(DoorAccessPolicy.CRAFT_NODE) ? MinecraftAccessService.Decision.UNSET
+            : permitted ? MinecraftAccessService.Decision.ALLOW : MinecraftAccessService.Decision.DENY);
         for (DoorCraftProduct product : DoorCraftProduct.values()) {
             RecipeHolder<?> holder = registered(MinecraftDoorRecipes.key(product));
             helper.assertTrue(holder.value() instanceof MinecraftDoorRecipes.DoorRecipe, "Door recipe has the wrong type: " + holder.id());
@@ -182,6 +206,47 @@ public final class MinecraftRecipeBookGameTest {
                 autofillProduct(DoorCraftProduct.PERSONAL_TRAPDOOR);
                 autofillWand(openTable());
                 LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS recipe_book_runtime permission_resync disabled_absent reenabled_unlocked datapack_reload");
+                originalLanguage = runtime.configuration().settings().getLanguage();
+                installTestLanguage();
+                persisted = runtime.configuration().setLanguage(TEST_LOCALE);
+            })
+            .thenWaitUntil(() -> helper.assertTrue(persisted.isDone(), "Test language setting was not saved"))
+            .thenExecute(() -> {
+                persisted.join();
+                connection.drainPackets();
+                command("wormholes reload");
+            })
+            .thenWaitUntil(() -> helper.assertTrue(TEST_WAND_NAME.equals(wandResult().getHoverName().getString()),
+                "Language reload did not rebuild the Portal Wand recipe result"))
+            .thenExecute(() -> {
+                ItemStack resent = ItemStack.EMPTY;
+                for (Object packet : connection.drainPackets()) {
+                    if (packet instanceof ClientboundRecipeBookAddPacket add) {
+                        for (ClientboundRecipeBookAddPacket.Entry entry : add.entries()) {
+                            if (entry.contents().display().result() instanceof SlotDisplay.ItemStackSlotDisplay result
+                                && MinecraftPortalTools.isWand(result.stack().create())) {
+                                resent = result.stack().create();
+                            }
+                        }
+                    }
+                }
+                helper.assertTrue(TEST_WAND_NAME.equals(resent.getHoverName().getString()),
+                    "Language reload did not resend the localized Portal Wand to the client recipe book");
+                ItemStack localized = autofillWand(openTable());
+                helper.assertTrue(TEST_WAND_NAME.equals(localized.getHoverName().getString()), "The /wormholes wand item ignored the server language");
+                persisted = runtime.configuration().setLanguage(originalLanguage);
+            })
+            .thenWaitUntil(() -> helper.assertTrue(persisted.isDone(), "Original language setting was not saved"))
+            .thenExecute(() -> {
+                persisted.join();
+                command("wormholes reload");
+            })
+            .thenWaitUntil(() -> helper.assertTrue(!TEST_WAND_NAME.equals(wandResult().getHoverName().getString()),
+                "Restoring the language did not rebuild the Portal Wand recipe result"))
+            .thenExecute(() -> {
+                restoreTestLanguage();
+                autofillWand(openTable());
+                LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS recipe_book_runtime bukkit_tool_items language_rebuild command_wand_matches_recipe");
                 cleanup();
             })
             .thenSucceed();
@@ -211,16 +276,22 @@ public final class MinecraftRecipeBookGameTest {
         player.closeContainer();
     }
 
-    private void autofillWand(CraftingMenu menu) {
+    private ItemStack autofillWand(CraftingMenu menu) {
         clearInventory();
-        give(List.of(new ItemStack(Items.GLOWSTONE_DUST, 3), new ItemStack(Items.BLAZE_ROD), MinecraftPortalTools.wand()));
+        playerCommand("wormholes wand true");
+        ItemStack commanded = only(MinecraftPortalTools::isWand);
+        assertBukkitTool(commanded, Items.BLAZE_ROD, WormholesMessages.ITEM_PORTAL_WAND);
+        assertBukkitTool(only(MinecraftDoorItems::isWormholeRune), Items.DARK_PRISMARINE, WormholesMessages.ITEM_WORMHOLE_RUNE);
+        clearInventory();
+        give(List.of(new ItemStack(Items.GLOWSTONE_DUST, 3), new ItemStack(Items.BLAZE_ROD), commanded));
         place(menu, MinecraftPortalTools.WAND_RECIPE, false);
         helper.assertTrue(gridCount(menu, item -> item.is(Items.GLOWSTONE_DUST)) == 3
             && gridCount(menu, item -> item.is(Items.BLAZE_ROD) && !MinecraftPortalTools.isWand(item)) == 1
             && gridCount(menu, MinecraftPortalTools::isWand) == 0, "Autofill did not place the Portal Wand ingredients");
         ItemStack autofilled = take(menu);
-        helper.assertTrue(MinecraftPortalTools.isWand(autofilled) && ItemStack.isSameItemSameComponents(autofilled, MinecraftPortalTools.wand()),
+        helper.assertTrue(MinecraftPortalTools.isWand(autofilled) && ItemStack.isSameItemSameComponents(autofilled, commanded),
             "Autofilled Portal Wand differs from the /wormholes wand item");
+        helper.assertTrue(ItemStack.isSameItemSameComponents(autofilled, wandResult()), "Autofilled Portal Wand differs from the recipe-book result");
         helper.assertTrue(gridCount(menu, item -> !item.isEmpty()) == 0 && inventoryCount(MinecraftPortalTools::isWand) == 1,
             "Portal Wand autofill consumed the wrong items");
         menu.getInputGridSlots().get(0).set(new ItemStack(Items.GLOWSTONE_DUST));
@@ -231,6 +302,75 @@ public final class MinecraftRecipeBookGameTest {
         clearGrid(menu);
         helper.assertTrue(ItemStack.isSameItemSameComponents(autofilled, manual), "Autofilled Portal Wand differs from manual crafting");
         player.closeContainer();
+        return autofilled;
+    }
+
+    private void assertBukkitTool(ItemStack item, Item material, LinesKey name) {
+        String legacy = WormholesMessageRenderer.legacyLines(runtime.localization().snapshot(null).resolve(name, MessageArgs.empty())).getFirst();
+        Holder<Enchantment> infinity = server.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.INFINITY);
+        helper.assertTrue(item.is(material) && item.getCount() == 1, "Wormholes tool has the wrong item: " + item);
+        helper.assertTrue(MinecraftLegacyText.component(legacy).equals(item.get(DataComponents.CUSTOM_NAME)),
+            "Wormholes tool name differs from the server language: " + item.get(DataComponents.CUSTOM_NAME));
+        helper.assertTrue(item.getEnchantments().size() == 1 && item.getEnchantments().getLevel(infinity) == 1
+            && item.getOrDefault(DataComponents.TOOLTIP_DISPLAY, TooltipDisplay.DEFAULT).shows(DataComponents.ENCHANTMENTS)
+            && !item.has(DataComponents.ENCHANTMENT_GLINT_OVERRIDE), "Wormholes tool does not carry a visible Infinity enchantment: " + item);
+        helper.assertTrue(item.getOrDefault(DataComponents.LORE, ItemLore.EMPTY).lines().isEmpty(), "Wormholes tool has lore: " + item);
+        List<String> tooltip = new ArrayList<>(2);
+        for (Component line : item.getTooltipLines(Item.TooltipContext.of(server.registryAccess()), player, TooltipFlag.NORMAL)) {
+            tooltip.add(line.getString());
+        }
+        helper.assertTrue(tooltip.equals(List.of(item.getHoverName().getString(), Enchantment.getFullname(infinity, 1).getString())),
+            "Wormholes tool tooltip differs from the Bukkit item: " + tooltip);
+    }
+
+    private ItemStack wandResult() {
+        List<ItemStack> results = new ArrayList<>(1);
+        server.getRecipeManager().listDisplaysForRecipe(MinecraftPortalTools.WAND_RECIPE, entry -> {
+            if (entry.display().result() instanceof SlotDisplay.ItemStackSlotDisplay result) {
+                results.add(result.stack().create());
+            }
+        });
+        helper.assertTrue(results.size() == 1, "Portal Wand recipe has no item result");
+        return results.getFirst();
+    }
+
+    private ItemStack only(Predicate<ItemStack> filter) {
+        ItemStack found = ItemStack.EMPTY;
+        for (ItemStack item : player.getInventory().getNonEquipmentItems()) {
+            if (!item.isEmpty() && filter.test(item)) {
+                helper.assertTrue(found.isEmpty(), "The /wormholes wand command gave duplicate items");
+                found = item.copy();
+            }
+        }
+        helper.assertTrue(!found.isEmpty(), "The /wormholes wand command did not give the expected item");
+        return found;
+    }
+
+    private void installTestLanguage() {
+        languageFile = server.getServerDirectory().resolve("config/wormholes/languages/" + TEST_LOCALE + ".toml");
+        try {
+            originalLanguageFile = Files.exists(languageFile) ? Files.readString(languageFile) : null;
+            Files.createDirectories(languageFile.getParent());
+            Files.writeString(languageFile, "[item]\nportal_wand = [\"&b&l" + TEST_WAND_NAME + "&r\"]\n");
+        } catch (IOException failure) {
+            throw new UncheckedIOException("Could not write the test language file", failure);
+        }
+    }
+
+    private void restoreTestLanguage() {
+        if (languageFile == null) {
+            return;
+        }
+        try {
+            if (originalLanguageFile == null) {
+                Files.deleteIfExists(languageFile);
+            } else {
+                Files.writeString(languageFile, originalLanguageFile);
+            }
+        } catch (IOException failure) {
+            throw new UncheckedIOException("Could not restore the test language file", failure);
+        }
+        languageFile = null;
     }
 
     private void disableDoorsKeepsWand() {
@@ -454,7 +594,7 @@ public final class MinecraftRecipeBookGameTest {
         menu.getResultSlot().set(ItemStack.EMPTY);
     }
 
-    private static List<ItemStack> ingredients(DoorRecipeSpec spec, int sets) {
+    private List<ItemStack> ingredients(DoorRecipeSpec spec, int sets) {
         Map<Character, Integer> counts = new LinkedHashMap<>();
         for (String row : spec.shape().rows()) {
             for (int x = 0; x < row.length(); x++) {
@@ -483,9 +623,9 @@ public final class MinecraftRecipeBookGameTest {
         return count;
     }
 
-    private static ItemStack sample(String token) {
+    private ItemStack sample(String token) {
         return switch (token) {
-            case "#wormhole-rune" -> MinecraftDoorItems.wormholeRune();
+            case "#wormhole-rune" -> MinecraftPortalItems.of(runtime).wormholeRune();
             case "#doors" -> new ItemStack(Items.OAK_DOOR);
             case "#trapdoors" -> new ItemStack(Items.OAK_TRAPDOOR);
             default -> new ItemStack(BuiltInRegistries.ITEM.getOptional(Identifier.fromNamespaceAndPath("minecraft", token.toLowerCase(Locale.ROOT)))
@@ -531,12 +671,26 @@ public final class MinecraftRecipeBookGameTest {
         }
     }
 
+    private void playerCommand(String input) {
+        try {
+            helper.assertTrue(server.getCommands().getDispatcher().execute(input, player.createCommandSourceStack()) == 1,
+                "Player command failed: " + input);
+        } catch (CommandSyntaxException failure) {
+            throw new IllegalStateException("Could not run player command: " + input, failure);
+        }
+    }
+
     private void cleanup() {
         if (cleaned) {
             return;
         }
         cleaned = true;
         runtime.configuration().settings().getRecipes().pairKit.enabled = true;
+        if (languageFile != null) {
+            restoreTestLanguage();
+            runtime.configuration().setLanguage(originalLanguage);
+            command("wormholes reload");
+        }
         if (player != null) {
             player.closeContainer();
             player.getInventory().clearContent();

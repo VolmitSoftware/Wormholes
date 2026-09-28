@@ -74,12 +74,12 @@ public final class MinecraftDoorRecipes {
         return List.copyOf(keys);
     }
 
-    static List<RecipeHolder<?>> build(RecipesConfig configured) {
+    static List<RecipeHolder<?>> build(RecipesConfig configured, MinecraftPortalItems items) {
         List<RecipeHolder<?>> holders = new ArrayList<>(DoorCraftProduct.values().length + DoorForm.values().length);
         for (DoorCraftProduct product : DoorCraftProduct.values()) {
             RecipeConfig recipe = configured.forProduct(product);
             if (recipe == null || recipe.enabled) {
-                holders.add(new RecipeHolder<>(key(product), product(product, recipe)));
+                holders.add(new RecipeHolder<>(key(product), product(product, recipe, items)));
             }
         }
         if (configured.doorSkin.enabled) {
@@ -129,10 +129,10 @@ public final class MinecraftDoorRecipes {
         return MinecraftDoorItems.door(identity, target.getItem());
     }
 
-    static Grid resolve(DoorRecipeSpec spec) {
+    static Grid resolve(DoorRecipeSpec spec, MinecraftPortalItems items) {
         Map<Character, Cell> cells = new LinkedHashMap<>();
         for (Map.Entry<Character, String> entry : spec.ingredients().entrySet()) {
-            cells.put(entry.getKey(), cell(entry.getValue()));
+            cells.put(entry.getKey(), cell(entry.getValue(), items));
         }
         List<String> rows = spec.shape().rows();
         int minX = rows.getFirst().length();
@@ -163,25 +163,26 @@ public final class MinecraftDoorRecipes {
         return ResourceKey.create(Registries.RECIPE, Identifier.fromNamespaceAndPath("wormholes", name));
     }
 
-    private static ProductRecipe product(DoorCraftProduct product, RecipeConfig recipe) {
+    private static ProductRecipe product(DoorCraftProduct product, RecipeConfig recipe, MinecraftPortalItems items) {
         if (recipe != null) {
             try {
-                return new ProductRecipe(product, resolve(DoorRecipeSpec.parse(recipe.shape, recipe.ingredients)));
+                return new ProductRecipe(product, resolve(DoorRecipeSpec.parse(recipe.shape, recipe.ingredients), items));
             } catch (IllegalArgumentException exception) {
                 LOGGER.warn("Invalid dimensional-door recipe {}; using its shipped recipe", product.recipeName(), exception);
             }
         }
-        return new ProductRecipe(product, resolve(product.defaultSpec()));
+        return new ProductRecipe(product, resolve(product.defaultSpec(), items));
     }
 
-    private static Cell cell(String token) {
+    private static Cell cell(String token, MinecraftPortalItems items) {
         String normalized = token.trim().toLowerCase(Locale.ROOT).replace('_', '-');
         if (normalized.startsWith("#")) {
             return switch (normalized) {
                 case "#doors" -> group(token, item -> formOf(item) == DoorForm.DOOR);
                 case "#trapdoors" -> group(token, item -> item.builtInRegistryHolder().is(ItemTags.WOODEN_TRAPDOORS));
                 case "#any-trapdoors" -> group(token, item -> formOf(item) == DoorForm.TRAPDOOR);
-                case "#wormhole-rune" -> new Cell(Ingredient.of(Items.DARK_PRISMARINE), MinecraftDoorItems::isWormholeRune, true);
+                case "#wormhole-rune" -> new Cell(Ingredient.of(Items.DARK_PRISMARINE), MinecraftDoorItems::isWormholeRune, true,
+                    new SlotDisplay.ItemStackSlotDisplay(ItemStackTemplate.fromNonEmptyStack(items.wormholeRune())));
                 default -> throw new IllegalArgumentException("Unknown door ingredient group " + token);
             };
         }
@@ -217,7 +218,7 @@ public final class MinecraftDoorRecipes {
     }
 
     private static Cell plain(Ingredient ingredient) {
-        return new Cell(ingredient, ingredient, false);
+        return new Cell(ingredient, ingredient, false, ingredient.display());
     }
 
     private static DoorForm formOf(Item item) {
@@ -326,10 +327,7 @@ public final class MinecraftDoorRecipes {
         }
     }
 
-    record Cell(Ingredient ingredient, Predicate<ItemStack> accepts, boolean exact) {
-        SlotDisplay display() {
-            return exact ? new SlotDisplay.ItemStackSlotDisplay(ItemStackTemplate.fromNonEmptyStack(MinecraftDoorItems.wormholeRune())) : ingredient.display();
-        }
+    record Cell(Ingredient ingredient, Predicate<ItemStack> accepts, boolean exact, SlotDisplay display) {
     }
 
     record Grid(List<String> rows, Map<Character, Cell> cells) {

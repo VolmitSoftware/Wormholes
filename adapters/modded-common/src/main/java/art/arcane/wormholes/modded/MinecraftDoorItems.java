@@ -21,16 +21,6 @@ public final class MinecraftDoorItems {
     private MinecraftDoorItems() {
     }
 
-    public static ItemStack wormholeRune() {
-        ItemStack item = new ItemStack(Items.DARK_PRISMARINE);
-        CompoundTag data = new CompoundTag();
-        data.putString("wormholes:rune", "WORMHOLE");
-        item.set(DataComponents.CUSTOM_DATA, CustomData.of(data));
-        item.set(DataComponents.CUSTOM_NAME, Component.literal("Wormhole Rune"));
-        item.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
-        return item;
-    }
-
     public static boolean isWormholeRune(ItemStack item) {
         return item.is(Items.DARK_PRISMARINE) && "WORMHOLE".equals(item.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY)
             .copyTag().getStringOr("wormholes:rune", ""));

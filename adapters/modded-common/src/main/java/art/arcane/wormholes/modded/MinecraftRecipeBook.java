@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.volmlib.util.localization.LocalizationSnapshot;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -31,6 +32,7 @@ public final class MinecraftRecipeBook implements AutoCloseable {
     private boolean open;
     private List<RecipeHolder<?>> shared = List.of();
     private List<RecipeHolder<?>> doors = List.of();
+    private LocalizationSnapshot language;
 
     public MinecraftRecipeBook(WormholesModRuntime runtime) {
         this.runtime = runtime;
@@ -74,6 +76,12 @@ public final class MinecraftRecipeBook implements AutoCloseable {
         server = null;
     }
 
+    public void tick() {
+        if (open && runtime.localization().snapshot(null) != language) {
+            refresh();
+        }
+    }
+
     public List<RecipeHolder<?>> sharedRecipes() {
         return shared;
     }
@@ -84,6 +92,7 @@ public final class MinecraftRecipeBook implements AutoCloseable {
 
     public void refresh() {
         runtime.requireServerThread();
+        language = runtime.localization().snapshot(null);
         server.getRecipeManager().finalizeRecipeLoading(server.getWorldData().enabledFeatures());
         List<ResourceKey<Recipe<?>>> retired = new ArrayList<>(keys());
         for (RecipeHolder<?> holder : shared) {
@@ -151,9 +160,10 @@ public final class MinecraftRecipeBook implements AutoCloseable {
             doors = List.of();
             return;
         }
-        shared = List.of(MinecraftPortalTools.wandRecipe());
+        MinecraftPortalItems items = new MinecraftPortalItems(server.registryAccess(), language);
+        shared = List.of(MinecraftPortalTools.wandRecipe(items));
         try {
-            doors = runtime.doors().enabled() ? MinecraftDoorRecipes.build(runtime.configuration().settings().getRecipes()) : List.of();
+            doors = runtime.doors().enabled() ? MinecraftDoorRecipes.build(runtime.configuration().settings().getRecipes(), items) : List.of();
         } catch (RuntimeException failure) {
             LOGGER.error("Could not build the dimensional-door recipes; they are unavailable until the next reload", failure);
             doors = List.of();

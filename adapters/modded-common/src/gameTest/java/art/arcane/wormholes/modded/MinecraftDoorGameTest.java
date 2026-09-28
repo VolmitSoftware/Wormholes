@@ -219,7 +219,7 @@ public final class MinecraftDoorGameTest {
     }
 
     private void crafting() {
-        ItemStack rune = MinecraftDoorItems.wormholeRune();
+        ItemStack rune = MinecraftPortalItems.of(runtime).wormholeRune();
         rune.setCount(2);
         List<ItemStack> ingredients = List.of(new ItemStack(Items.ENDER_EYE, 2), new ItemStack(Items.OAK_DOOR, 2),
             new ItemStack(Items.ENDER_EYE, 2), new ItemStack(Items.OBSIDIAN, 2), rune, new ItemStack(Items.OBSIDIAN, 2),
@@ -255,7 +255,7 @@ public final class MinecraftDoorGameTest {
         BlockPos last = helper.absolutePos(new BlockPos(11, 4, 4));
         player.setPos(Vec3.atBottomCenterOf(first).add(0, 0, -3));
         player.setYRot(0);
-        player.setItemInHand(InteractionHand.MAIN_HAND, MinecraftPortalTools.wand());
+        player.setItemInHand(InteractionHand.MAIN_HAND, MinecraftPortalItems.of(runtime).wand());
         helper.assertTrue(runtime.attackBlock(player, first), "Wand first corner was not consumed");
         helper.assertTrue(runtime.useBlock(player, InteractionHand.MAIN_HAND,
             new BlockHitResult(Vec3.atCenterOf(last), Direction.NORTH, last, false)), "Wand second corner was not consumed");

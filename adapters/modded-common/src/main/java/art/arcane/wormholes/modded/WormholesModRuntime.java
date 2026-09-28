@@ -117,6 +117,7 @@ public final class WormholesModRuntime {
             tick++;
         }
         nexus.tick();
+        recipeBook.tick();
         rules.tick();
         construction.tick();
         costs.tick();
