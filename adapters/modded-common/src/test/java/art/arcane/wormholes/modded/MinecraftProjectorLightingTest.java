@@ -32,14 +32,14 @@ public class MinecraftProjectorLightingTest {
 
         ClientboundLightUpdatePacket packet = MinecraftProjectorLighting.packet(light);
 
-        assertEquals(-17, packet.getX());
-        assertEquals(65, packet.getZ());
-        assertEquals(skyMask, packet.getLightData().getSkyYMask());
-        assertEquals(blockMask, packet.getLightData().getBlockYMask());
-        assertEquals(emptySky, packet.getLightData().getEmptySkyYMask());
-        assertEquals(emptyBlock, packet.getLightData().getEmptyBlockYMask());
-        assertArrayEquals(sky, packet.getLightData().getSkyUpdates().get(0));
-        assertArrayEquals(secondSky, packet.getLightData().getSkyUpdates().get(1));
-        assertArrayEquals(block, packet.getLightData().getBlockUpdates().get(0));
+        assertEquals(-17, packet.x());
+        assertEquals(65, packet.z());
+        assertEquals(skyMask, packet.lightData().skyYMask());
+        assertEquals(blockMask, packet.lightData().blockYMask());
+        assertEquals(emptySky, packet.lightData().emptySkyYMask());
+        assertEquals(emptyBlock, packet.lightData().emptyBlockYMask());
+        assertArrayEquals(sky, packet.lightData().skyUpdates().get(0));
+        assertArrayEquals(secondSky, packet.lightData().skyUpdates().get(1));
+        assertArrayEquals(block, packet.lightData().blockUpdates().get(0));
     }
 }

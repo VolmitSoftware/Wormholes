@@ -58,6 +58,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityTypes;
@@ -1367,7 +1368,7 @@ public final class MinecraftDoorService implements AutoCloseable {
 
     private static void give(ServerPlayer player, ItemStack item) {
         if (!player.getInventory().add(item)) {
-            player.drop(item, false);
+            player.drop(item, false, Prediction.SERVER_ONLY);
         }
     }
 

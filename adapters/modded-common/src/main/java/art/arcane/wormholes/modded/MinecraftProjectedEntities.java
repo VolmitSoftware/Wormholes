@@ -104,7 +104,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
         }
         if (event.hurt()) {
             MinecraftEntityPackets.send(observer, new ClientboundHurtAnimationPacket(fakeId, event.yaw()));
-        } else if (event.animation() >= 0 && event.animation() <= 5 && event.animation() != 1) {
+        } else if (MinecraftEntityPackets.projectsAnimation(event.animation())) {
             MinecraftEntityPackets.send(observer, MinecraftEntityPackets.animation(fakeId, event.animation()));
         }
     }

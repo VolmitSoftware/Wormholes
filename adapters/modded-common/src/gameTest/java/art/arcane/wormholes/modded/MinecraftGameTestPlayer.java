@@ -84,7 +84,8 @@ public record MinecraftGameTestPlayer(WormholesModRuntime runtime, ServerPlayer 
         if (latest == null) {
             return false;
         }
-        player.connection.handleAcceptTeleportPacket(new ServerboundAcceptTeleportationPacket(latest.id()));
+        player.connection.handleAcceptTeleportPacket(new ServerboundAcceptTeleportationPacket(latest.id(),
+            player.getX(), player.getY(), player.getZ(), player.getYRot(), player.getXRot()));
         return true;
     }
 

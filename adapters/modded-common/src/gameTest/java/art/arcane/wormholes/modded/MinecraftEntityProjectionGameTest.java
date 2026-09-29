@@ -12,6 +12,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
+import net.minecraft.network.protocol.game.ClientboundSwingAnimationPacket;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import java.util.UUID;
@@ -19,12 +20,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
-import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
 import net.minecraft.network.protocol.game.ClientboundHurtAnimationPacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.decoration.ArmorStand;
@@ -138,11 +139,11 @@ public final class MinecraftEntityProjectionGameTest {
             options.helper().assertTrue(options.channel().outboundMessages().stream().anyMatch(packet -> packet instanceof ClientboundMoveEntityPacket),
                 "Projected entity movement did not reach the observer");
             clearPackets();
-            renderer.event(ProjectedEntityEvent.animation(remote.getUUID(), ClientboundAnimatePacket.SWING_MAIN_HAND));
+            renderer.event(ProjectedEntityEvent.animation(remote.getUUID(), MinecraftEntityPackets.ANIMATION_SWING_MAIN_HAND));
             renderer.event(ProjectedEntityEvent.hurt(remote.getUUID(), 27.0F));
             options.channel().runPendingTasks();
             options.helper().assertTrue(options.channel().outboundMessages().stream().anyMatch(packet ->
-                packet instanceof ClientboundAnimatePacket animation && animation.getId() == fakeId && animation.getAction() == 0),
+                packet instanceof ClientboundSwingAnimationPacket swing && swing.entityId() == fakeId && swing.hand() == InteractionHand.MAIN_HAND),
                 "Projected entity swing did not reach the fake id");
             options.helper().assertTrue(options.channel().outboundMessages().stream().anyMatch(packet ->
                 packet instanceof ClientboundHurtAnimationPacket hurt && hurt.id() == fakeId && hurt.yaw() == 27.0F),
@@ -153,7 +154,7 @@ public final class MinecraftEntityProjectionGameTest {
             options.channel().runPendingTasks();
             boolean removed = false;
             for (Object packet : options.channel().outboundMessages()) {
-                if (packet instanceof ClientboundRemoveEntitiesPacket destroy && destroy.getEntityIds().contains(fakeId)) {
+                if (packet instanceof ClientboundRemoveEntitiesPacket destroy && destroy.entityIds().contains(fakeId)) {
                     removed = true;
                 }
             }

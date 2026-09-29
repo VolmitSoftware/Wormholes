@@ -114,7 +114,7 @@ public final class MinecraftPortalEffectsGameTest {
                         interpolation.add(data.id());
                     }
                 } else if (packet instanceof ClientboundRemoveEntitiesPacket removal) {
-                    for (int id : removal.getEntityIds()) {
+                    for (int id : removal.entityIds()) {
                         removed.add(id);
                     }
                 } else if (packet instanceof ClientboundSoundPacket) {

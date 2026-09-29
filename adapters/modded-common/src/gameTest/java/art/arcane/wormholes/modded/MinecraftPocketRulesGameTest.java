@@ -58,7 +58,7 @@ public final class MinecraftPocketRulesGameTest {
             player.hasChangedDimension();
             player.connection.handleAcceptPlayerLoad(new ServerboundPlayerLoadedPacket());
             player.getAbilities().invulnerable = false;
-            player.invulnerableTime = 0;
+            player.setInvulnerableTime(0);
             player.setHealth(player.getMaxHealth());
             player.hurtServer(player.level(), player.damageSources().genericKill(), 1000);
             options.helper().assertTrue(player.isAlive() && player.getHealth() == 2.0F,
@@ -145,7 +145,7 @@ public final class MinecraftPocketRulesGameTest {
         player.hasChangedDimension();
         player.connection.handleAcceptPlayerLoad(new ServerboundPlayerLoadedPacket());
         player.getAbilities().invulnerable = false;
-        player.invulnerableTime = 0;
+        player.setInvulnerableTime(0);
         return player;
     }
 

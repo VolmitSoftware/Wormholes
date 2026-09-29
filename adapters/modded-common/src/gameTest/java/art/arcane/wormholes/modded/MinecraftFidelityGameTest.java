@@ -103,7 +103,7 @@ final class MinecraftFidelityGameTest {
         try {
             connection.channel().runPendingTasks();
             boolean rainPacket = packets.stream().anyMatch(packet -> packet instanceof ClientboundLevelParticlesPacket particles
-                && (particles.getParticle().getType() == ParticleTypes.RAIN || particles.getParticle().getType() == ParticleTypes.SNOWFLAKE));
+                && (particles.particle().getType() == ParticleTypes.RAIN || particles.particle().getType() == ParticleTypes.SNOWFLAKE));
             if (!rainPacket && attempts++ < 80) {
                 helper.runAfterDelay(2, this::verifyWeather);
                 return;

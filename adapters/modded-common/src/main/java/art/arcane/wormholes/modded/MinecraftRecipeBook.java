@@ -1,6 +1,9 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.volmlib.util.localization.LocalizationSnapshot;
+import art.arcane.wormholes.modded.mixin.RecipeMapAccess;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMultimap;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -56,6 +59,16 @@ public final class MinecraftRecipeBook implements AutoCloseable {
             }
         }
         return loaded;
+    }
+
+    public static Collection<RecipeHolder<?>> learnable(RecipeMap recipes) {
+        List<RecipeHolder<?>> learnable = new ArrayList<>(recipes.values().size());
+        for (RecipeHolder<?> holder : recipes.values()) {
+            if (!holder.value().isSpecial()) {
+                learnable.add(holder);
+            }
+        }
+        return Collections.unmodifiableList(learnable);
     }
 
     public void open(MinecraftServer server) {
@@ -151,7 +164,7 @@ public final class MinecraftRecipeBook implements AutoCloseable {
             return loaded;
         }
         merged.addAll(injected);
-        return RecipeMap.create(merged);
+        return recipeMap(merged);
     }
 
     private void rebuild() {
@@ -168,6 +181,16 @@ public final class MinecraftRecipeBook implements AutoCloseable {
             LOGGER.error("Could not build the dimensional-door recipes; they are unavailable until the next reload", failure);
             doors = List.of();
         }
+    }
+
+    private static RecipeMap recipeMap(List<RecipeHolder<?>> holders) {
+        ImmutableMultimap.Builder<RecipeType<?>, RecipeHolder<?>> byType = ImmutableMultimap.builder();
+        ImmutableMap.Builder<ResourceKey<Recipe<?>>, RecipeHolder<?>> byKey = ImmutableMap.builderWithExpectedSize(holders.size());
+        for (RecipeHolder<?> holder : holders) {
+            byType.put(holder.value().getType(), holder);
+            byKey.put(holder.id(), holder);
+        }
+        return RecipeMapAccess.wormholesCreate(byType.build(), byKey.build());
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

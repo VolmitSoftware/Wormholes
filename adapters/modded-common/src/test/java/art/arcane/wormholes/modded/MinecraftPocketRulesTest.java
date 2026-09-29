@@ -126,7 +126,7 @@ public class MinecraftPocketRulesTest {
         assertTrue(fixture.rules.retainHealth(fixture.player, -4F));
         verify(fixture.player).setHealth(2F);
         verify(fixture.player).clearFire();
-        assertEquals(40, fixture.player.invulnerableTime);
+        verify(fixture.player).setInvulnerableTime(40);
         assertTrue(fixture.rules.rescuing(fixture.player.getUUID()));
         verify(fixture.runtime).schedule(any(Runnable.class), eq(1L));
         fixture.rules.close();

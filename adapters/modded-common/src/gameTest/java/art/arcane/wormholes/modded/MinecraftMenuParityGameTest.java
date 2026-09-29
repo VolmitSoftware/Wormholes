@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.portal.rtp.RtpService;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
@@ -61,12 +62,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 public final class MinecraftMenuParityGameTest {
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesGameTest");
     private static final String GOLDEN = "/menu-parity/bukkit-menus.json";
     private static final int SETTLE_TICKS = 10;
+    private static final int SETTLE_MAX_TICKS = 160;
     private static final int SETUP_TICKS = 4;
     private static final List<String> FLAGS = List.of("bold", "italic", "underlined", "strikethrough", "obfuscated");
     private static final Map<String, String> HEX_COLORS = Map.ofEntries(
@@ -90,6 +93,7 @@ public final class MinecraftMenuParityGameTest {
     private int stepIndex;
     private Phase phase = Phase.SETUP;
     private long resumeTick;
+    private long settleDeadline;
     private int containerBefore;
     private int messagesBefore;
     private int opened;
@@ -172,7 +176,7 @@ public final class MinecraftMenuParityGameTest {
             createPortal(player, entry.getAsJsonObject());
         }
         Vec3 standing = vector(state.getAsJsonArray("player"));
-        player.teleportTo(standing.x, standing.y, standing.z);
+        player.teleportTo(helper.getLevel(), standing.x, standing.y, standing.z, Set.of(), player.getYRot(), player.getXRot(), true);
         connection.acknowledgePosition();
         for (JsonElement entry : state.getAsJsonArray("commands")) {
             runtime.server().getCommands().performPrefixedCommand(player.createCommandSourceStack(),
@@ -215,10 +219,15 @@ public final class MinecraftMenuParityGameTest {
         }
         phase = Phase.SETTLE;
         resumeTick = helper.getTick() + SETTLE_TICKS;
+        settleDeadline = helper.getTick() + SETTLE_MAX_TICKS;
     }
 
     private void settle() {
         drainPackets();
+        if (helper.getTick() < settleDeadline && rtpPreparing()) {
+            resumeTick = helper.getTick() + 1;
+            return;
+        }
         JsonObject step = path().getAsJsonArray("steps").get(stepIndex).getAsJsonObject();
         JsonObject actual = snapshot(connection.player());
         compare(step, actual);
@@ -232,6 +241,19 @@ public final class MinecraftMenuParityGameTest {
             skip(steps.get(stepIndex).getAsJsonObject());
             stepIndex++;
         }
+    }
+
+    private boolean rtpPreparing() {
+        for (MinecraftPortal portal : runtime.portals().snapshot()) {
+            if (portal.getType() != PortalType.RTP) {
+                continue;
+            }
+            Optional<RtpService.Snapshot> state = runtime.rtp().snapshot(portal.getId());
+            if (state.isEmpty() || state.get().runtime().active() == null || state.get().runtime().standby() == null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean needsWindow(JsonObject step) {
@@ -462,14 +484,8 @@ public final class MinecraftMenuParityGameTest {
         return result;
     }
 
-    @SuppressWarnings("unchecked")
     private static <T> T patched(DataComponentPatch patch, DataComponentType<T> type) {
-        for (Map.Entry<DataComponentType<?>, Optional<?>> entry : patch.entrySet()) {
-            if (entry.getKey() == type) {
-                return entry.getValue().map(value -> (T) value).orElse(null);
-            }
-        }
-        return null;
+        return patch.split().added().get(type);
     }
 
     private JsonArray text(Component component, Context context) {

@@ -28,7 +28,7 @@ public abstract class PortalDirectionMixin {
         }
     }
 
-    @Inject(method = "handleAnimate", at = @At("TAIL"))
+    @Inject(method = "handlePunch", at = @At("TAIL"))
     private void wormholesApplyDirection(CallbackInfo callback) {
         MinecraftPortalMenus.directionInput(player, false);
     }

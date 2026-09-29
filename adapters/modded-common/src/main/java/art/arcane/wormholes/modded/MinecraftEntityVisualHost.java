@@ -143,7 +143,7 @@ public final class MinecraftEntityVisualHost implements EntityRenderVisualProjec
         EntityRenderSpoofedEntity.Move move = state.updateLabelPosition(position.x, position.y, position.z);
         if (move.moved) {
             MinecraftEntityPackets.send(observer, move.relative
-                ? new ClientboundMoveEntityPacket.Pos(state.labelFakeId, MinecraftEntityPackets.delta(move.deltaX), MinecraftEntityPackets.delta(move.deltaY), MinecraftEntityPackets.delta(move.deltaZ), false)
+                ? new ClientboundMoveEntityPacket.Pos(state.labelFakeId, MinecraftEntityPackets.delta(move.deltaX, move.deltaY, move.deltaZ), false)
                 : MinecraftEntityPackets.teleport(state.labelFakeId, position, 0, 0, false));
         }
         String text = ProjectedPlayerNames.playerLabelText(label.profile() == null ? null : label.profile().name());

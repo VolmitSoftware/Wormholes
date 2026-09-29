@@ -9,7 +9,7 @@ import art.arcane.wormholes.portal.PortalType;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponentType;
+import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.data.registries.VanillaRegistries;
@@ -28,9 +28,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -54,7 +52,7 @@ public class MinecraftPortalItemsTest {
             for (Item item : List.of(Items.PRISMARINE, Items.DARK_PRISMARINE)) {
                 item.builtInRegistryHolder().bindComponents(DataComponents.COMMON_ITEM_COMPONENTS);
             }
-            registries = VanillaRegistries.createLookup();
+            registries = VanillaRegistries.createWorldLookup();
             english = new MinecraftPortalItems(registries, snapshot(List.of()));
         }
         return english;
@@ -132,12 +130,9 @@ public class MinecraftPortalItemsTest {
     private static void assertTemplate(ItemStack item, Item material, String name, ChatFormatting color) {
         assertTrue(item.is(material));
         assertEquals(1, item.getCount());
-        Set<DataComponentType<?>> patched = new HashSet<>();
-        for (Map.Entry<DataComponentType<?>, Optional<?>> entry : item.getComponentsPatch().entrySet()) {
-            assertTrue(entry.getValue().isPresent());
-            patched.add(entry.getKey());
-        }
-        assertEquals(Set.of(DataComponents.CUSTOM_DATA, DataComponents.CUSTOM_NAME, DataComponents.ENCHANTMENTS), patched);
+        DataComponentPatch.SplitResult patched = item.getComponentsPatch().split();
+        assertTrue(patched.removed().isEmpty());
+        assertEquals(Set.of(DataComponents.CUSTOM_DATA, DataComponents.CUSTOM_NAME, DataComponents.ENCHANTMENTS), patched.added().keySet());
         Component customName = item.get(DataComponents.CUSTOM_NAME);
         assertEquals(name, customName.getString());
         List<Style> styles = new ArrayList<>();

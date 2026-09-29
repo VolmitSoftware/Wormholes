@@ -13,6 +13,7 @@
     "DoorCraftingMenuMixin",
     "DoorCrafterMixin",
     "RecipeBookManagerMixin",
+    "RecipeMapAccess",
     "DoorRecipePlacementMixin",
     "RecipeBookJoinMixin",
     "PocketSpawnMixin",

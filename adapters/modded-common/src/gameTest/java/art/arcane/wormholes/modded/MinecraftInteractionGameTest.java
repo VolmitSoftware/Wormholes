@@ -8,7 +8,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
-import net.minecraft.network.protocol.game.ServerboundSwingPacket;
+import net.minecraft.network.protocol.game.ServerboundPunchPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -92,7 +92,7 @@ public final class MinecraftInteractionGameTest {
                         .filter(entity -> MinecraftDoorItems.identity(entity.getItem()).filter(boundDoor::equals).isPresent()).count();
                     helper.assertTrue(drops == 1, "Creative break did not return exactly one identity-preserving door");
                     helper.assertTrue(player.level().getBlockState(door).isAir() && player.level().getBlockState(door.above()).isAir(), "Creative door break retained a physical half");
-                    LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS interaction_runtime production_callbacks packet_selection creative_cancel swing_dedup air_build air_menu entity_menu frame_menu offhand_guard permission_guard obstruction_guard creative_bound_item");
+                    LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS interaction_runtime production_callbacks packet_selection creative_cancel punch_dedup air_build air_menu entity_menu frame_menu offhand_guard permission_guard obstruction_guard creative_bound_item");
                     result.complete(true);
                 });
             runtime.schedule(() -> result.completeExceptionally(new IllegalStateException("Packet interaction test timed out")), 1150);
@@ -108,12 +108,12 @@ public final class MinecraftInteractionGameTest {
         player.level().setBlock(first, Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS);
         player.level().setBlock(last, Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS);
         attack(player, first);
-        player.connection.handleAnimate(new ServerboundSwingPacket(InteractionHand.MAIN_HAND));
+        player.connection.handlePunch(ServerboundPunchPacket.INSTANCE);
         helper.assertTrue(player.level().getBlockState(first).is(Blocks.STONE), "Creative wand selection broke the first corner");
-        helper.assertTrue(runtime.portals().at(player.level(), first) == null, "Block attack plus swing built before second corner");
+        helper.assertTrue(runtime.portals().at(player.level(), first) == null, "Block attack plus punch built before second corner");
         useBlock(player, last, Direction.NORTH);
-        player.connection.handleAnimate(new ServerboundSwingPacket(InteractionHand.MAIN_HAND));
-        helper.assertTrue(runtime.portals().at(player.level(), first) == null, "Second-corner swing prematurely built selection");
+        player.connection.handlePunch(ServerboundPunchPacket.INSTANCE);
+        helper.assertTrue(runtime.portals().at(player.level(), first) == null, "Second-corner punch prematurely built selection");
         helper.assertTrue(connection.messages().stream().anyMatch(message -> message.getString().startsWith("Selected 6 blocks.")),
             "Packet selection did not complete: " + connection.messages().stream().map(message -> message.getString()).toList()
                 + "; outbound=" + connection.channel().outboundMessages().stream().map(packet -> packet.getClass().getSimpleName()).distinct().toList());
@@ -123,18 +123,16 @@ public final class MinecraftInteractionGameTest {
 
     private void airBuild(ServerPlayer player) {
         aim(player, first);
-        player.connection.handleAnimate(new ServerboundSwingPacket(InteractionHand.MAIN_HAND));
+        player.connection.handlePunch(ServerboundPunchPacket.INSTANCE);
         MinecraftPortal portal = runtime.portals().at(player.level(), first);
-        helper.assertTrue(portal != null, "Air swing at private selection did not construct portal");
+        helper.assertTrue(portal != null, "Air punch at private selection did not construct portal");
         portalId = portal.getId();
         helper.assertTrue(portal.getGeometry().getBlockPositions().size() == 6, "Packet selection lost aperture cells");
     }
 
     private void leftMenu(ServerPlayer player) {
         aim(player, first);
-        player.connection.handleAnimate(new ServerboundSwingPacket(InteractionHand.OFF_HAND));
-        helper.assertTrue(player.containerMenu == player.inventoryMenu, "Offhand swing opened portal menu");
-        player.connection.handleAnimate(new ServerboundSwingPacket(InteractionHand.MAIN_HAND));
+        player.connection.handlePunch(ServerboundPunchPacket.INSTANCE);
         menu(player, "Air left click");
     }
 
@@ -143,8 +141,8 @@ public final class MinecraftInteractionGameTest {
         helper.assertTrue(player.containerMenu == player.inventoryMenu, "Offhand use opened portal menu");
         useAir(player, InteractionHand.MAIN_HAND);
         menu(player, "Air right click");
-        player.connection.handleAnimate(new ServerboundSwingPacket(InteractionHand.MAIN_HAND));
-        helper.assertTrue(player.containerMenu == player.inventoryMenu, "Right-click followup swing reopened portal menu");
+        player.connection.handlePunch(ServerboundPunchPacket.INSTANCE);
+        helper.assertTrue(player.containerMenu == player.inventoryMenu, "Right-click followup punch reopened portal menu");
     }
 
     private void entityMenu(ServerPlayer player) {

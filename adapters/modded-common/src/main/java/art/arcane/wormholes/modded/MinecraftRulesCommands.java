@@ -16,6 +16,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,7 +112,7 @@ public final class MinecraftRulesCommands {
         ItemStack key = MinecraftRuleCostSubject.mintKey(portal.getId(), uses);
         player.getInventory().add(key);
         if (!key.isEmpty()) {
-            player.drop(key, false);
+            player.drop(key, false, Prediction.SERVER_ONLY);
         }
         send(source, RulesMessages.COMMAND_KEY_GIVEN, Map.of("portal", portal.getName()));
         return 1;

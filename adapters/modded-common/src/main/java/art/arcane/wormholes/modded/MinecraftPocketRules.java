@@ -113,7 +113,7 @@ public final class MinecraftPocketRules implements AutoCloseable {
         player.setHealth((float) decision.retainedHealth());
         player.fallDistance = 0.0D;
         player.clearFire();
-        player.invulnerableTime = Math.max(player.invulnerableTime, 40);
+        player.setInvulnerableTime(Math.max(player.getInvulnerableTime(), 40));
         if (decision.startsEjection() && !doors.travelling(player.getUUID())) {
             rescue(player);
         }
