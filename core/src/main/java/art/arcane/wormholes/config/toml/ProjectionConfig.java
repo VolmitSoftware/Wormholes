@@ -114,6 +114,14 @@ public class ProjectionConfig {
     public int plateLateralClampBlocks = 40;
     @ConfigDescription("Destination chunks copied per tick while a shared view plate is captured for building off the main thread.")
     public int plateCaptureChunksPerTick = 8;
+    @ConfigDescription({
+        "Server tick time, in milliseconds, that projections try to leave free. 0 turns the governor off and max-frame-micros alone limits projection work each tick.",
+        "When on (Paper and Purpur only), the per-tick projection budget shrinks while the previous tick left less free time than this and grows back while it left more.",
+        "A chunk load that a projection pass triggers cannot be interrupted, so a single tick can still exceed the budget."
+    })
+    public int tickHeadroomTargetMillis = 0;
+    @ConfigDescription("Smallest per-tick projection budget, in microseconds, the tick headroom governor may shrink to. Never above max-frame-micros.")
+    public int tickHeadroomMinFrameMicros = 5000;
 
     public ProjectionConfig copy() {
         ProjectionConfig copy = new ProjectionConfig();
@@ -153,6 +161,8 @@ public class ProjectionConfig {
         copy.rtpPlates = rtpPlates;
         copy.plateLateralClampBlocks = plateLateralClampBlocks;
         copy.plateCaptureChunksPerTick = plateCaptureChunksPerTick;
+        copy.tickHeadroomTargetMillis = tickHeadroomTargetMillis;
+        copy.tickHeadroomMinFrameMicros = tickHeadroomMinFrameMicros;
         return copy;
     }
 }

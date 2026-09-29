@@ -22,6 +22,7 @@ import java.util.function.BooleanSupplier;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
@@ -75,6 +76,7 @@ public class ProjectionManager implements Listener {
     private static final String OBSERVER_FRAME_DROPPED = "PROJECTION_OBSERVER_FRAME_DROPPED";
     private static final String ENTITY_UPDATE_DROPPED = "PROJECTION_ENTITY_UPDATE_DROPPED";
     private static final int TICK_INTERVAL_TICKS = 1;
+    private static final String TICK_END_EVENT_CLASS = "com.destroystokyo.paper.event.server.ServerTickEndEvent";
     private static final long PLATE_INVALIDATION_INTERVAL_TICKS = 4L;
     private static final long ACOUSTICS_AMBIENT_INTERVAL_TICKS = 20L;
     private static final long OBSERVER_FRAME_SHUTDOWN_WAIT_MILLIS = 2_000L;
@@ -93,6 +95,7 @@ public class ProjectionManager implements Listener {
     private final ProjectionInterestCloseQueue closeQueue;
     private final ProjectionInterestSet interestSet;
     private final ProjectionBudgetLedger budgetLedger;
+    private final ProjectionTickHeadroom tickHeadroom = new ProjectionTickHeadroom();
     private final ProjectionInterestFrame observerFrame;
     private final ProjectedEntityUpdateBatcher projectedEntityUpdates;
     private final ViewPlateCache<BlockData, World> plateCache;
@@ -296,7 +299,9 @@ public class ProjectionManager implements Listener {
         List<ILocalPortal> skinnedPortals = collectSkinnedPortals();
         boolean skinWork = !skinnedPortals.isEmpty() || skinRenderer.isActive();
         PortalCandidateSnapshot skinSnapshot = skinRenderer.capture(skinnedPortals);
-        ProjectionBudgetLedger.FrameBudget frameBudget = budgetLedger.beginFrame(Settings.PROJECTION_MAX_FRAME_MICROS);
+        ProjectionBudgetLedger.FrameBudget frameBudget = budgetLedger.beginFrame(tickHeadroom.frameMicros(
+            Settings.PROJECTION_TICK_HEADROOM_TARGET_MILLIS, Settings.PROJECTION_TICK_HEADROOM_MIN_FRAME_MICROS,
+            Settings.PROJECTION_MAX_FRAME_MICROS));
         List<ILocalPortal> active = collectActiveProjectors();
         PortalCandidateSnapshot activeSnapshot = PortalCandidateSnapshot.captureProjection(active);
         interestSet.retainPortals(active);
@@ -304,7 +309,7 @@ public class ProjectionManager implements Listener {
         if (!skinWork && active.isEmpty() && interestSet.isEmpty() && closeQueue.isEmpty() && claimArbiter.isIdle()) {
             interestSet.pruneGrace(frameTick);
             WormholesTelemetry.setProjectionGauges(0, observerTasksInFlight.size(), countSpoofedEntities());
-            budgetLedger.emitDiagnostics(tickCount, active, interestSet);
+            budgetLedger.emitDiagnostics(tickCount, active, interestSet, tickHeadroom.governedFrameMicros());
             return;
         }
         boolean updateBlocks = shouldUpdateBlocks();
@@ -344,7 +349,7 @@ public class ProjectionManager implements Listener {
         }
         interestSet.pruneGrace(frameTick);
         WormholesTelemetry.setProjectionGauges(active.size(), observerTasksInFlight.size(), countSpoofedEntities());
-        budgetLedger.emitDiagnostics(tickCount, active, interestSet);
+        budgetLedger.emitDiagnostics(tickCount, active, interestSet, tickHeadroom.governedFrameMicros());
     }
 
     static boolean dispatchObserverFrame(Set<UUID> inFlight,
@@ -694,6 +699,22 @@ public class ProjectionManager implements Listener {
                 Thread.currentThread().interrupt();
                 return;
             }
+        }
+    }
+
+    public void registerTickHeadroom(Plugin plugin) {
+        if (FoliaScheduler.isFoliaThreading(Bukkit.getServer()) || !tickEndEventAvailable()) {
+            return;
+        }
+        Bukkit.getPluginManager().registerEvents(new ProjectionTickHeadroomListener(tickHeadroom), plugin);
+    }
+
+    private static boolean tickEndEventAvailable() {
+        try {
+            Class.forName(TICK_END_EVENT_CLASS, false, ProjectionManager.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException ignored) {
+            return false;
         }
     }
 
