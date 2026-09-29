@@ -64,7 +64,7 @@ public final class Settings {
     public static volatile boolean PROJECTION_SECTION_CACHE = true;
     public static volatile int PROJECTION_SECTION_CACHE_MAX_MB = 64;
     public static volatile int PROJECTION_SECTION_CACHE_CHUNKS_PER_TICK = 16;
-    public static volatile int PROJECTION_SECTION_CACHE_TTL_TICKS = 600;
+    public static volatile int PROJECTION_SECTION_CACHE_TTL_TICKS = 200;
     public static volatile long TELEPORT_COOLDOWN_MILLIS = 1000L;
     public static volatile double PORTAL_PUSHBACK_MULTIPLIER = 1.0D;
     public static volatile double PORTAL_SOUND_VOLUME_MULTIPLIER = 1.0D;

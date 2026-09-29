@@ -101,7 +101,7 @@ public class ProjectionConfig {
         "Ticks before a cached section is captured again on its next read.",
         "Tracked block changes refresh sections immediately; this interval bounds how long changes that raise no block event stay stale."
     })
-    public int sectionCacheTtlTicks = 600;
+    public int sectionCacheTtlTicks = 200;
 
     public ProjectionConfig copy() {
         ProjectionConfig copy = new ProjectionConfig();
