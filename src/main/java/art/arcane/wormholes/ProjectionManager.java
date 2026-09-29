@@ -447,19 +447,6 @@ public class ProjectionManager implements Listener {
         return allocations;
     }
 
-    static <T> List<T> selectRoundRobin(List<T> values, int limit, int cursor) {
-        if (values == null || values.isEmpty() || limit <= 0) {
-            return List.of();
-        }
-        int selected = Math.min(limit, values.size());
-        int start = Math.floorMod(cursor, values.size());
-        List<T> result = new ArrayList<T>(selected);
-        for (int offset = 0; offset < selected; offset++) {
-            result.add(values.get((start + offset) % values.size()));
-        }
-        return result;
-    }
-
     static ProjectionResolution resolveProjection(RtpProjectionProvider provider, ILocalPortal portal,
                                                   Player observer, RtpRimRenderer rimRenderer) {
         Objects.requireNonNull(portal, "portal");

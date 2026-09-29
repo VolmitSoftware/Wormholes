@@ -32,7 +32,7 @@ final class ProjectionInterestSet {
     private final Map<UUID, Map<UUID, PortalProjector>> projectors;
     private final Map<UUID, Set<UUID>> retiring;
     private final Map<UUID, Map<UUID, Long>> interestGraceUntil;
-    private final Map<UUID, Integer> observerPortalCursors;
+    private final ProjectionGazeScheduler gazeScheduler;
     private final ProjectedEntityInterestIndex<PortalProjector> projectedEntityInterests;
 
     ProjectionInterestSet(ProjectionClaimArbiter claimArbiter,
@@ -58,7 +58,7 @@ final class ProjectionInterestSet {
         this.projectors = new ConcurrentHashMap<UUID, Map<UUID, PortalProjector>>();
         this.retiring = new ConcurrentHashMap<UUID, Set<UUID>>();
         this.interestGraceUntil = new ConcurrentHashMap<UUID, Map<UUID, Long>>();
-        this.observerPortalCursors = new ConcurrentHashMap<UUID, Integer>();
+        this.gazeScheduler = new ProjectionGazeScheduler();
         this.projectedEntityInterests = new ProjectedEntityInterestIndex<PortalProjector>();
     }
 
@@ -170,9 +170,7 @@ final class ProjectionInterestSet {
         if (retiringPortals != null && retiringPortals.isEmpty()) {
             retiring.remove(observerId, retiringPortals);
         }
-        if (interestedPortalIds.isEmpty()) {
-            observerPortalCursors.remove(observerId);
-        }
+        gazeScheduler.retain(observerId, interestedPortalIds);
     }
 
     List<PortalProjector> retiringProjectors(UUID observerId) {
@@ -311,7 +309,7 @@ final class ProjectionInterestSet {
     }
 
     void forgetObserver(UUID observerId) {
-        observerPortalCursors.remove(observerId);
+        gazeScheduler.forget(observerId);
         retiring.remove(observerId);
         for (Map.Entry<UUID, Map<UUID, Long>> graceEntry : interestGraceUntil.entrySet()) {
             Map<UUID, Long> byObserver = graceEntry.getValue();
@@ -411,11 +409,12 @@ final class ProjectionInterestSet {
         }
     }
 
-    List<ILocalPortal> nextSlice(UUID observerId, List<ILocalPortal> interested, int limit) {
-        int cursor = observerPortalCursors.getOrDefault(observerId, Integer.valueOf(0)).intValue();
-        List<ILocalPortal> scheduledPortals = ProjectionManager.selectRoundRobin(interested, limit, cursor);
-        observerPortalCursors.put(observerId, Integer.valueOf((cursor + scheduledPortals.size()) % interested.size()));
-        return scheduledPortals;
+    List<ILocalPortal> scheduleBlocks(UUID observerId,
+                                      ProjectionGazeScheduler.Eye eye,
+                                      List<ProjectionGazeScheduler.Candidate<ILocalPortal>> candidates,
+                                      int limit,
+                                      long frameTick) {
+        return gazeScheduler.select(observerId, eye, candidates, limit, frameTick, ProjectionGazeScheduler.Options.current());
     }
 
     void clear() {
@@ -423,7 +422,7 @@ final class ProjectionInterestSet {
         projectors.clear();
         retiring.clear();
         interestGraceUntil.clear();
-        observerPortalCursors.clear();
+        gazeScheduler.clear();
     }
 
     record Census(int observers, int renderedBlocks) {

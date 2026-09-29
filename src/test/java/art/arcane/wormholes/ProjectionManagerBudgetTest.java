@@ -137,15 +137,4 @@ class ProjectionManagerBudgetTest {
         assertTrue(inFlight.contains(observerId));
         assertEquals(2, remaining.get());
     }
-
-    @Test
-    void rotatesScarcePortalBudgetInsteadOfStarvingSecondProjection() {
-        List<String> portals = List.of("nearest", "overlapping", "farther");
-
-        assertEquals(List.of("nearest"), ProjectionManager.selectRoundRobin(portals, 1, 0));
-        assertEquals(List.of("overlapping"), ProjectionManager.selectRoundRobin(portals, 1, 1));
-        assertEquals(List.of("farther"), ProjectionManager.selectRoundRobin(portals, 1, 2));
-        assertEquals(List.of("nearest"), ProjectionManager.selectRoundRobin(portals, 1, 3));
-        assertEquals(List.of("overlapping", "farther"), ProjectionManager.selectRoundRobin(portals, 2, 1));
-    }
 }

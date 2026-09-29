@@ -66,6 +66,17 @@ public class ProjectionConfig {
     public long plateMaxBytes = 33_554_432L;
     @ConfigDescription("Worker threads that build shared view plates from region snapshots and remote views.")
     public int plateWorkers = 2;
+    @ConfigDescription({
+        "Horizontal camera field of view, in degrees, that gives a portal full refresh priority when the per-observer portal budget is scarce; the vertical extent follows a 16:9 screen.",
+        "Portals just outside the view and portals already scanned from the observer's current position refresh at reduced priority; portals behind the camera keep what they already show and refresh only when starved."
+    })
+    public double gazeFovDegrees = 110.0;
+    @ConfigDescription("Ticks of head-turn prediction: a portal about to enter the camera cone at the current turn speed is treated as already in view.")
+    public int gazeLookaheadTicks = 3;
+    @ConfigDescription("A portal that has not refreshed for this many ticks is refreshed next regardless of where the observer looks.")
+    public int gazeMaxStarveTicks = 20;
+    @ConfigDescription("Finish a projection pass (occlusion filtering and commit) in the same tick its geometry scan completes when frame budget remains.")
+    public boolean finishInSlot = true;
 
     public ProjectionConfig copy() {
         ProjectionConfig copy = new ProjectionConfig();
@@ -92,6 +103,10 @@ public class ProjectionConfig {
         copy.sharedPlate = sharedPlate;
         copy.plateMaxBytes = plateMaxBytes;
         copy.plateWorkers = plateWorkers;
+        copy.gazeFovDegrees = gazeFovDegrees;
+        copy.gazeLookaheadTicks = gazeLookaheadTicks;
+        copy.gazeMaxStarveTicks = gazeMaxStarveTicks;
+        copy.finishInSlot = finishInSlot;
         return copy;
     }
 }
