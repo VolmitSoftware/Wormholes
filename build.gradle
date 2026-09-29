@@ -46,24 +46,16 @@ def languageSourceManifestTask = tasks.register('generateLanguageSourceManifest'
 def shadowJarTask = tasks.named('shadowJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar)
 apply from: 'gradle/runtime-test.gradle'
 tasks.named('slimJar').get()
-File pluginOutDirectory = layout.projectDirectory.dir('../PluginOuts').asFile
 
 tasks.register('buildPsychoLT', Copy) {
     group = 'development'
     description = 'Builds and deploys Wormholes to the managed Minecraft test-server dropins.'
     outputs.upToDateWhen { false }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    dependsOn(tasks.named('check'), 'packedJar')
+    dependsOn(tasks.named('check'), 'packedJar', 'buildBukkit')
     from({ tasks.named('packedJar').get().outputJar })
     into(layout.projectDirectory.dir('../../[Minecraft Server]/consumers/plugin-consumers/dropins/plugins'))
     rename { String ignored -> 'Wormholes.jar' }
-    doLast {
-        project.copy {
-            from(tasks.named('packedJar').get().outputJar.get().asFile)
-            into(pluginOutDirectory)
-            rename { String fileName -> fileName.replaceFirst(/-packed\.jar$/, '.jar') }
-        }
-    }
 }
 
 tasks.register('buildSwiftSwamp', Copy) {

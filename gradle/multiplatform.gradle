@@ -7,6 +7,14 @@ File outputDirectory = providers.gradleProperty('pluginOutDirectory')
 Map<String, FileTree> previousArtifacts = ['CraftBukkit', 'Fabric', 'Forge', 'NeoForge'].collectEntries { String platform ->
     [(platform): fileTree(outputDirectory) { include("Wormholes v* [${platform}] *.jar") }]
 }
+File multiplexorConsumerLocation = new File(rootDir, '../../[Minecraft Server]/consumers').canonicalFile
+String consumerLocation = providers.gradleProperty('location')
+    .getOrElse(multiplexorConsumerLocation.isDirectory()
+        ? multiplexorConsumerLocation.absolutePath
+        : layout.buildDirectory.dir('consumers').get().asFile.absolutePath)
+String useLocalVolmLib = providers.gradleProperty('useLocalVolmLib').getOrElse('true')
+File localVolmLibCheckout = gradle.includedBuilds.find { IncludedBuild included -> included.name == 'VolmLib' }?.projectDir
+Map<String, File> moddedArtifacts = [:]
 
 tasks.register('buildBukkit', Copy) {
     group = 'distribution'
@@ -28,12 +36,16 @@ loaders.each { String loader, String display ->
         ? loaderVersion.substring(minecraftVersion.length() + 1)
         : loaderVersion
     String artifactName = "Wormholes v${project.version} [${display}] ${minecraftVersion}+${displayVersion}.jar"
+    moddedArtifacts[display] = file("adapters/${loader}/build/libs/${artifactName}")
     TaskProvider<Exec> jarTask = tasks.register("${loader}Jar", Exec) {
         group = 'build'
         workingDir(file("adapters/${loader}"))
         commandLine(file(wrapper).absolutePath, 'build', '--console=plain',
             "-PwormholesVersion=${project.version}", "-PminecraftVersion=${minecraftVersion}",
-            "-P${versionKey}=${loaderVersion}")
+            "-P${versionKey}=${loaderVersion}", "-PuseLocalVolmLib=${useLocalVolmLib}")
+        if (localVolmLibCheckout != null) {
+            environment('ORG_GRADLE_PROJECT_localVolmLibDirectory', localVolmLibCheckout.absolutePath)
+        }
         inputs.files(fileTree('core/src'), file('core/build.gradle'), fileTree('adapters/modded-common/src'),
             fileTree("adapters/${loader}/src"), file("adapters/${loader}/build.gradle"),
             file("adapters/${loader}/settings.gradle"), file("adapters/game-test.gradle"), file("adapters/${loader}/gradle.properties"),
@@ -123,5 +135,26 @@ tasks.register('buildAllToOut') {
 
 tasks.register('buildAll') {
     group = 'distribution'
+    outputs.upToDateWhen { false }
     dependsOn('buildAllToOut')
+    Map<String, List<Object>> consumerDrops = [
+        ("${consumerLocation}/plugin-consumers/dropins/plugins".toString()) : ['Wormholes.jar', tasks.named('packedJar').flatMap { task -> task.outputJar }],
+        ("${consumerLocation}/fabric-mod-consumers/dropins/mods".toString()) : ['Wormholes-Fabric.jar', moddedArtifacts['Fabric']],
+        ("${consumerLocation}/forge-mod-consumers/dropins/mods".toString()) : ['Wormholes-Forge.jar', moddedArtifacts['Forge']],
+        ("${consumerLocation}/neoforge-mod-consumers/dropins/mods".toString()) : ['Wormholes-Neoforge.jar', moddedArtifacts['NeoForge']]
+    ]
+    doLast {
+        consumerDrops.each { String consumerPath, List<Object> drop ->
+            String keep = (String) drop.get(0)
+            delete(consumerDrops.values().collect { List<Object> other -> (String) other.get(0) }
+                .findAll { String name -> name != keep }
+                .collect { String name -> new File(consumerPath, name) })
+            copy {
+                from(drop.get(1))
+                into(consumerPath)
+                rename { String ignored -> keep }
+            }
+            logger.lifecycle("  ${consumerPath}/${keep}")
+        }
+    }
 }
