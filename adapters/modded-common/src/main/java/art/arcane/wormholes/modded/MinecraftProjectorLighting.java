@@ -3,10 +3,11 @@ package art.arcane.wormholes.modded;
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.render.ProjectorLighting;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
-import io.netty.buffer.Unpooled;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacket;
+import net.minecraft.network.protocol.game.ClientboundLightUpdatePacketData;
 import net.minecraft.server.level.ServerPlayer;
+
+import java.util.List;
 
 public final class MinecraftProjectorLighting implements ProjectorLighting.Host<ServerPlayer> {
     private final WormholesModRuntime runtime;
@@ -44,25 +45,7 @@ public final class MinecraftProjectorLighting implements ProjectorLighting.Host<
     }
 
     static ClientboundLightUpdatePacket packet(ProjectorLighting.ChunkLight light) {
-        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-        try {
-            buffer.writeVarInt(light.chunkX());
-            buffer.writeVarInt(light.chunkZ());
-            buffer.writeBitSet(light.skyMask());
-            buffer.writeBitSet(light.blockMask());
-            buffer.writeBitSet(light.emptySkyMask());
-            buffer.writeBitSet(light.emptyBlockMask());
-            buffer.writeVarInt(light.skyArrays().length);
-            for (byte[] sky : light.skyArrays()) {
-                buffer.writeByteArray(sky);
-            }
-            buffer.writeVarInt(light.blockArrays().length);
-            for (byte[] block : light.blockArrays()) {
-                buffer.writeByteArray(block);
-            }
-            return ClientboundLightUpdatePacket.STREAM_CODEC.decode(buffer);
-        } finally {
-            buffer.release();
-        }
+        return new ClientboundLightUpdatePacket(light.chunkX(), light.chunkZ(), new ClientboundLightUpdatePacketData(light.skyMask(),
+            light.blockMask(), light.emptySkyMask(), light.emptyBlockMask(), List.of(light.skyArrays()), List.of(light.blockArrays())));
     }
 }

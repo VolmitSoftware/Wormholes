@@ -68,12 +68,14 @@ public final class MinecraftPortalMenus implements AutoCloseable {
         shortTitles = new MinecraftShortTitles(() -> runtime.server().getTickCount());
     }
 
-    public static boolean packetInteraction(ServerPlayer player, InteractionHand hand, boolean attack) {
-        MinecraftPortalMenus service = SERVICES.get(player.level().getServer());
-        if (service == null || !service.runtime.running() || player.isSpectator() || service.directions.containsKey(player.getUUID())) {
-            return false;
-        }
-        return attack ? service.runtime.attackAir(player, hand) : service.runtime.useItem(player, hand);
+    public static boolean packetPunch(ServerPlayer player) {
+        MinecraftPortalMenus service = packetService(player);
+        return service != null && service.runtime.attackAir(player);
+    }
+
+    public static boolean packetUse(ServerPlayer player, InteractionHand hand) {
+        MinecraftPortalMenus service = packetService(player);
+        return service != null && service.runtime.useItem(player, hand);
     }
 
     public static void directionInput(ServerPlayer player, boolean cancel) {
@@ -749,6 +751,14 @@ public final class MinecraftPortalMenus implements AutoCloseable {
                 tracked.window().close();
             }
         }
+    }
+
+    private static MinecraftPortalMenus packetService(ServerPlayer player) {
+        MinecraftPortalMenus service = SERVICES.get(player.level().getServer());
+        if (service == null || !service.runtime.running() || player.isSpectator() || service.directions.containsKey(player.getUUID())) {
+            return null;
+        }
+        return service;
     }
 
     private enum FrameControl {

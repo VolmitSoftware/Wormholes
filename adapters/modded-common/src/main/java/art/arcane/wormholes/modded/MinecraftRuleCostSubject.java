@@ -7,6 +7,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
@@ -217,7 +218,7 @@ public record MinecraftRuleCostSubject(ServerPlayer player, Currency currency)
             ItemStack remaining = stack.copy();
             player.getInventory().add(remaining);
             if (!remaining.isEmpty()) {
-                player.drop(remaining, false);
+                player.drop(remaining, false, Prediction.SERVER_ONLY);
             }
         }
         player.getInventory().setChanged();

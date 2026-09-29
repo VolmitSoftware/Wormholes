@@ -188,6 +188,7 @@ final class MinecraftConvoys implements AutoCloseable {
         arrivals.expire();
         for (Hold hold : held.values()) {
             if (!hold.entity().isRemoved()) {
+                hold.entity().setInvisible(true);
                 hold.entity().setDeltaMovement(Vec3.ZERO);
                 hold.entity().setPos(hold.position());
             }
@@ -402,7 +403,7 @@ final class MinecraftConvoys implements AutoCloseable {
             held.put(entity.getUUID(), new Hold(entity, entity.position(), entities.captureState(entity), entity.isInvisible()));
             held(entity, true);
             entity.setInvisible(true);
-            entity.setInvulnerable(true);
+            entity.setPermanentlyInvulnerable(true);
             entity.setSilent(true);
             entity.setNoGravity(true);
             entity.setDeltaMovement(Vec3.ZERO);
@@ -412,7 +413,7 @@ final class MinecraftConvoys implements AutoCloseable {
             if (hold != null) {
                 held(entity, false);
                 entity.setInvisible(hold.invisible());
-                entity.setInvulnerable(hold.state().invulnerable());
+                entity.setPermanentlyInvulnerable(hold.state().invulnerable());
                 entity.setSilent(hold.state().silent());
                 entity.setNoGravity(!hold.state().gravity());
             }

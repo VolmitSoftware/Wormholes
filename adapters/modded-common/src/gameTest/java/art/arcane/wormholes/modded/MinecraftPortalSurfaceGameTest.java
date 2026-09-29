@@ -89,7 +89,7 @@ final class MinecraftPortalSurfaceGameTest {
                 "Water skin did not claim aperture cells");
             channel.runPendingTasks();
             helper.assertTrue(channel.outboundMessages().stream().anyMatch(packet -> packet instanceof ClientboundRemoveEntitiesPacket removed
-                && removed.getEntityIds().contains(display)), "Changing to fluid did not remove skin display");
+                && removed.entityIds().contains(display)), "Changing to fluid did not remove skin display");
             Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockState, ProjectionContentView<BlockState, BlockState>>> behind = new Long2ObjectOpenHashMap<>();
             behind.put(key, new ProjectedBlockClaim<>(Blocks.STONE.defaultBlockState(), null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
             UUID background = UUID.randomUUID();

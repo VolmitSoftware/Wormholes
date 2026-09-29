@@ -24,7 +24,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.BlockHitResult;
 import art.arcane.wormholes.util.AxisAlignedBB;
-import net.minecraft.world.level.block.RedStoneWireBlock;
+import net.minecraft.world.level.block.RedstoneWireBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.io.IOException;
@@ -345,8 +345,8 @@ public final class MinecraftNexus implements AutoCloseable {
             return;
         }
         BlockState block = level.getBlockState(position);
-        boolean signal = level.hasNeighborSignal(position) || block.hasProperty(RedStoneWireBlock.POWER)
-            && block.getValue(RedStoneWireBlock.POWER) > 0;
+        boolean signal = level.hasNeighborSignal(position) || block.hasProperty(RedstoneWireBlock.POWER)
+            && block.getValue(RedstoneWireBlock.POWER) > 0;
         Boolean previous = powered.put(id, signal);
         if (signal && !Boolean.TRUE.equals(previous)) {
             runtime.schedule(() -> redstone(portal, state(portal).io().action()), 1L);
@@ -477,8 +477,8 @@ public final class MinecraftNexus implements AutoCloseable {
         int signal = io.comparator() == FrameIo.ComparatorOutput.STATE ? (portal.isOpen() ? 15 : 0)
             : stamps == null ? 0 : Math.min(15, stamps.size());
         BlockState block = level.getBlockState(position);
-        if (block.getBlock() instanceof RedStoneWireBlock && block.getValue(RedStoneWireBlock.POWER) != signal) {
-            level.setBlock(position, block.setValue(RedStoneWireBlock.POWER, signal), 2);
+        if (block.getBlock() instanceof RedstoneWireBlock && block.getValue(RedstoneWireBlock.POWER) != signal) {
+            level.setBlock(position, block.setValue(RedstoneWireBlock.POWER, signal), 2);
         }
     }
 

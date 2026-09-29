@@ -324,12 +324,12 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
             reject(entity, rejection.sourcePortalId(), rejection.traversive());
         }
         public TraversalEntityTransit.TransitState capture(Entity entity) {
-            return new TraversalEntityTransit.TransitState(entity.isInvulnerable(), entity.isSilent(), !entity.isNoGravity(), geometry(entity.getDeltaMovement()));
+            return new TraversalEntityTransit.TransitState(entity.isPermanentlyInvulnerable(), entity.isSilent(), !entity.isNoGravity(), geometry(entity.getDeltaMovement()));
         }
         public void freeze(Entity entity, byte flags) {
             pinned.put(entity.getUUID(), new Pin(entity, entity.position()));
             MinecraftEntityTransfers.stamp(entity, Byte.valueOf(flags));
-            entity.setInvulnerable(true);
+            entity.setPermanentlyInvulnerable(true);
             entity.setSilent(true);
             entity.setNoGravity(true);
             entity.setDeltaMovement(Vec3.ZERO);
@@ -338,7 +338,7 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
             pinned.remove(entity.getUUID());
             ruleSources.remove(entity.getUUID());
             runtime.rules().failed(entity);
-            entity.setInvulnerable(state.invulnerable());
+            entity.setPermanentlyInvulnerable(state.invulnerable());
             entity.setSilent(state.silent());
             entity.setNoGravity(!state.gravity());
             entity.setDeltaMovement(vector(state.velocity()));
@@ -346,7 +346,7 @@ public final class MinecraftEntityTransfers implements AutoCloseable {
         }
         public Byte stamp(Entity entity) { return data(entity).getByte(STAMP_KEY).orElse(null); }
         public void restoreStamp(Entity entity, byte flags) {
-            entity.setInvulnerable(TraversalEntityTransit.stampInvulnerable(flags));
+            entity.setPermanentlyInvulnerable(TraversalEntityTransit.stampInvulnerable(flags));
             entity.setSilent(TraversalEntityTransit.stampSilent(flags));
             entity.setNoGravity(!TraversalEntityTransit.stampGravity(flags));
             MinecraftEntityTransfers.stamp(entity, null);

@@ -17,7 +17,6 @@ import art.arcane.wormholes.portal.IPortal;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
 import net.minecraft.network.protocol.game.ClientboundHurtAnimationPacket;
 import net.minecraft.world.entity.Entity;
 import java.util.concurrent.ConcurrentHashMap;
@@ -129,8 +128,9 @@ public final class MinecraftProjectionService implements AutoCloseable {
     }
 
     public void entityEvent(Entity entity, Packet<? super ClientGamePacketListener> packet) {
-        if (packet instanceof ClientboundAnimatePacket animation) {
-            publishEntityEvent(ProjectedEntityEvent.animation(entity.getUUID(), animation.getAction()));
+        int animation = MinecraftEntityPackets.animationId(packet);
+        if (animation != MinecraftEntityPackets.NO_ANIMATION) {
+            publishEntityEvent(ProjectedEntityEvent.animation(entity.getUUID(), animation));
         } else if (packet instanceof ClientboundHurtAnimationPacket hurt) {
             publishEntityEvent(ProjectedEntityEvent.hurt(entity.getUUID(), hurt.yaw()));
         }

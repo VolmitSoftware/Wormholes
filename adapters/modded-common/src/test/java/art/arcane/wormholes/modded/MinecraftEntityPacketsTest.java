@@ -11,10 +11,13 @@ import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityLinkPacket;
 import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
+import net.minecraft.network.protocol.game.ClientboundSwingAnimationPacket;
 import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
+import net.minecraft.network.protocol.game.VecDelta;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.Bootstrap;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.Vec3;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -35,9 +38,15 @@ public class MinecraftEntityPacketsTest {
 
     @Test
     public void projectedSwingUsesTheNativeAnimationActionAndFakeId() {
-        ClientboundAnimatePacket packet = MinecraftEntityPackets.animation(1_900_000_001, ClientboundAnimatePacket.SWING_OFF_HAND);
-        assertEquals(1_900_000_001, packet.getId());
-        assertEquals(3, packet.getAction());
+        ClientboundSwingAnimationPacket packet = (ClientboundSwingAnimationPacket) MinecraftEntityPackets.animation(1_900_000_001,
+            MinecraftEntityPackets.ANIMATION_SWING_OFF_HAND);
+        assertEquals(1_900_000_001, packet.entityId());
+        assertEquals(InteractionHand.OFF_HAND, packet.hand());
+        assertEquals(MinecraftEntityPackets.ANIMATION_SWING_OFF_HAND, MinecraftEntityPackets.animationId(packet));
+        ClientboundAnimatePacket critical = (ClientboundAnimatePacket) MinecraftEntityPackets.animation(1_900_000_001,
+            MinecraftEntityPackets.ANIMATION_CRITICAL_HIT);
+        assertEquals(ClientboundAnimatePacket.CRITICAL_HIT, critical.getAction());
+        assertEquals(MinecraftEntityPackets.ANIMATION_CRITICAL_HIT, MinecraftEntityPackets.animationId(critical));
     }
 
     @Test
@@ -67,7 +76,7 @@ public class MinecraftEntityPacketsTest {
         assertEquals(position, teleport.change().position());
         assertTrue(teleport.relatives().isEmpty());
         assertTrue(teleport.onGround());
-        assertEquals(-6144, MinecraftEntityPackets.delta(-1.5D));
+        assertEquals(new VecDelta.Linear((short) -6144, (short) 0, (short) 4096), MinecraftEntityPackets.delta(-1.5D, 0.0D, 1.0D));
     }
 
     @Test

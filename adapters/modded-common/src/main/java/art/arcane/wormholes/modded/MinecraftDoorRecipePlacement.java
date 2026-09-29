@@ -4,6 +4,7 @@ import art.arcane.wormholes.door.DoorForm;
 import net.minecraft.core.NonNullList;
 import net.minecraft.recipebook.PlaceRecipeHelper;
 import net.minecraft.recipebook.ServerPlaceRecipe;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.StackedContents;
 import net.minecraft.world.inventory.RecipeBookMenu;
@@ -203,7 +204,7 @@ public final class MinecraftDoorRecipePlacement {
         private void clear() {
             for (Slot slot : slotsToClear) {
                 ItemStack item = slot.getItem().copy();
-                inventory.placeItemBackInInventory(item, false);
+                inventory.placeItemBackInInventory(item, false, Prediction.SERVER_ONLY);
                 slot.set(item);
             }
             menu.clearCraftingContent();

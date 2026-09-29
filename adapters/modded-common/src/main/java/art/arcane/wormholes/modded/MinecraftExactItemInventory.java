@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.portal.ExactItemPayment;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
@@ -50,7 +51,7 @@ public record MinecraftExactItemInventory(ServerPlayer player) implements ExactI
     public void give(ItemStack item) {
         player.getInventory().add(item);
         if (!item.isEmpty()) {
-            player.drop(item, false);
+            player.drop(item, false, Prediction.SERVER_ONLY);
         }
     }
 }

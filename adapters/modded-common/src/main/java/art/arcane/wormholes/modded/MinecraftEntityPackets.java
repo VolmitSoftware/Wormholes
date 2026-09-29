@@ -22,10 +22,14 @@ import net.minecraft.network.protocol.game.ClientboundRotateHeadPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityLinkPacket;
 import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
 import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
+import net.minecraft.network.protocol.game.ClientboundSwingAnimationPacket;
 import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
+import net.minecraft.network.protocol.game.VecDelta;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.PositionMoveRotation;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
@@ -37,6 +41,13 @@ import java.util.Set;
 import java.util.UUID;
 
 public final class MinecraftEntityPackets implements EntityRenderSpoofRegistry.Host<ServerPlayer, Vec3>, ProjectedPlayerNames.Host<ServerPlayer> {
+    public static final int NO_ANIMATION = -1;
+    public static final int ANIMATION_SWING_MAIN_HAND = 0;
+    public static final int ANIMATION_WAKE_UP = 2;
+    public static final int ANIMATION_SWING_OFF_HAND = 3;
+    public static final int ANIMATION_CRITICAL_HIT = 4;
+    public static final int ANIMATION_MAGIC_CRITICAL_HIT = 5;
+
     private final ProjectedPlayerNames<ServerPlayer> names = new ProjectedPlayerNames<>(this);
     private final Scoreboard teams = new Scoreboard();
 
@@ -93,15 +104,35 @@ public final class MinecraftEntityPackets implements EntityRenderSpoofRegistry.H
         }
     }
 
-    public static ClientboundAnimatePacket animation(int entityId, int action) {
-        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-        try {
-            buffer.writeVarInt(entityId);
-            buffer.writeByte(action);
-            return ClientboundAnimatePacket.STREAM_CODEC.decode(buffer);
-        } finally {
-            buffer.release();
+    public static int animationId(Packet<?> packet) {
+        if (packet instanceof ClientboundSwingAnimationPacket swing) {
+            return swing.hand() == InteractionHand.OFF_HAND ? ANIMATION_SWING_OFF_HAND : ANIMATION_SWING_MAIN_HAND;
         }
+        if (packet instanceof ClientboundAnimatePacket animate) {
+            return switch (animate.getAction()) {
+                case ClientboundAnimatePacket.WAKE_UP -> ANIMATION_WAKE_UP;
+                case ClientboundAnimatePacket.CRITICAL_HIT -> ANIMATION_CRITICAL_HIT;
+                case ClientboundAnimatePacket.MAGIC_CRITICAL_HIT -> ANIMATION_MAGIC_CRITICAL_HIT;
+                default -> NO_ANIMATION;
+            };
+        }
+        return NO_ANIMATION;
+    }
+
+    public static boolean projectsAnimation(int animation) {
+        return animation == ANIMATION_SWING_MAIN_HAND || animation == ANIMATION_SWING_OFF_HAND || animation == ANIMATION_WAKE_UP
+            || animation == ANIMATION_CRITICAL_HIT || animation == ANIMATION_MAGIC_CRITICAL_HIT;
+    }
+
+    public static Packet<? super ClientGamePacketListener> animation(int entityId, int animation) {
+        return switch (animation) {
+            case ANIMATION_SWING_MAIN_HAND -> new ClientboundSwingAnimationPacket(entityId, InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT);
+            case ANIMATION_SWING_OFF_HAND -> new ClientboundSwingAnimationPacket(entityId, InteractionHand.OFF_HAND, SwingAnimation.DEFAULT);
+            case ANIMATION_WAKE_UP -> animatePacket(entityId, ClientboundAnimatePacket.WAKE_UP);
+            case ANIMATION_CRITICAL_HIT -> animatePacket(entityId, ClientboundAnimatePacket.CRITICAL_HIT);
+            case ANIMATION_MAGIC_CRITICAL_HIT -> animatePacket(entityId, ClientboundAnimatePacket.MAGIC_CRITICAL_HIT);
+            default -> throw new IllegalArgumentException("Unsupported projected entity animation " + animation);
+        };
     }
 
     public static void send(ServerPlayer observer, Packet<? super ClientGamePacketListener> packet) {
@@ -117,8 +148,8 @@ public final class MinecraftEntityPackets implements EntityRenderSpoofRegistry.H
     @Override
     public void motion(ServerPlayer observer, EntityRenderSpoofRegistry.Motion<Vec3> motion) {
         Packet<? super ClientGamePacketListener> packet = switch (motion.kind()) {
-            case RELATIVE -> new ClientboundMoveEntityPacket.Pos(motion.entityId(), delta(motion.deltaX()), delta(motion.deltaY()), delta(motion.deltaZ()), motion.onGround());
-            case RELATIVE_ROTATION -> new ClientboundMoveEntityPacket.PosRot(motion.entityId(), delta(motion.deltaX()), delta(motion.deltaY()), delta(motion.deltaZ()), Mth.packDegrees(motion.yaw()), Mth.packDegrees(motion.pitch()), motion.onGround());
+            case RELATIVE -> new ClientboundMoveEntityPacket.Pos(motion.entityId(), delta(motion.deltaX(), motion.deltaY(), motion.deltaZ()), motion.onGround());
+            case RELATIVE_ROTATION -> new ClientboundMoveEntityPacket.PosRot(motion.entityId(), delta(motion.deltaX(), motion.deltaY(), motion.deltaZ()), Mth.packDegrees(motion.yaw()), Mth.packDegrees(motion.pitch()), motion.onGround());
             case TELEPORT -> teleport(motion.entityId(), motion.position(), motion.yaw(), motion.pitch(), motion.onGround());
             case ROTATION -> new ClientboundMoveEntityPacket.Rot(motion.entityId(), Mth.packDegrees(motion.yaw()), Mth.packDegrees(motion.pitch()), motion.onGround());
         };
@@ -129,8 +160,8 @@ public final class MinecraftEntityPackets implements EntityRenderSpoofRegistry.H
         return new ClientboundTeleportEntityPacket(entityId, new PositionMoveRotation(position, Vec3.ZERO, yaw, pitch), Set.of(), onGround);
     }
 
-    public static short delta(double value) {
-        return (short) (value * 4096.0D);
+    public static VecDelta delta(double x, double y, double z) {
+        return new VecDelta.Linear(encodeDelta(x), encodeDelta(y), encodeDelta(z));
     }
 
     public static ClientboundRotateHeadPacket headPacket(int entityId, float yaw) {
@@ -224,5 +255,20 @@ public final class MinecraftEntityPackets implements EntityRenderSpoofRegistry.H
         PlayerTeam team = teams.getPlayerTeam(teamName);
         send(observer, ClientboundSetPlayerTeamPacket.createRemovePacket(team));
         teams.removePlayerTeam(team);
+    }
+
+    private static ClientboundAnimatePacket animatePacket(int entityId, int action) {
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            buffer.writeVarInt(entityId);
+            buffer.writeByte(action);
+            return ClientboundAnimatePacket.STREAM_CODEC.decode(buffer);
+        } finally {
+            buffer.release();
+        }
+    }
+
+    private static short encodeDelta(double value) {
+        return (short) (value * 4096.0D);
     }
 }

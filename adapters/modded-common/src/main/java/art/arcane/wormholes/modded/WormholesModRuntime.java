@@ -219,9 +219,9 @@ public final class WormholesModRuntime {
         return handled;
     }
 
-    public boolean attackAir(ServerPlayer player, InteractionHand hand) {
+    public boolean attackAir(ServerPlayer player) {
         requireServerThread();
-        return hand == InteractionHand.MAIN_HAND && tools.attackAir(player);
+        return tools.attackAir(player);
     }
 
     public boolean beforeBreak(ServerPlayer player, BlockPos position) {

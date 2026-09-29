@@ -148,7 +148,7 @@ public final class MinecraftLookLabelGameTest {
                     subtitles.add(json(subtitle.text()));
                 } else if (packet instanceof ClientboundSetTitlesAnimationPacket animation) {
                     fades.add(animation.getFadeIn());
-                } else if (packet instanceof ClientboundLevelParticlesPacket particle && particle.getParticle() instanceof DustParticleOptions dust
+                } else if (packet instanceof ClientboundLevelParticlesPacket particle && particle.particle() instanceof DustParticleOptions dust
                     && dust.getColor().equals(PREVIEW_OUTLINE.getColor()) && dust.getScale() == PREVIEW_OUTLINE.getScale()) {
                     outlineParticles++;
                 }

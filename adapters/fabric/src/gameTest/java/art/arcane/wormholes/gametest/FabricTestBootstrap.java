@@ -10,7 +10,7 @@ import net.minecraft.resources.ResourceKey;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-public final class FabricTestBootstrap extends TestFunctionLoader implements PreLaunchEntrypoint {
+public final class FabricTestBootstrap implements TestFunctionLoader, PreLaunchEntrypoint {
     @Override
     public void onPreLaunch() {
         TestFunctionLoader.registerLoader(this);
