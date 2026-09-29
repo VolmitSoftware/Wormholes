@@ -275,14 +275,38 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
                                     double currentDistance,
                                     String currentTieKey,
                                     C currentClaim) {
-        if (candidateClaim != null && currentClaim != null) {
-            if (candidateClaim.isMaskAir() && !currentClaim.isMaskAir()) {
-                return false;
-            }
-            if (!candidateClaim.isMaskAir() && currentClaim.isMaskAir()) {
-                return true;
-            }
+        int maskTier = compareMaskTier(candidateClaim, currentClaim);
+        if (maskTier != 0) {
+            return maskTier > 0;
         }
+        int heldTier = compareHeldTier(candidateClaim, currentClaim);
+        if (heldTier != 0) {
+            return heldTier > 0;
+        }
+        return isNearer(candidateDistance, candidateTieKey, currentDistance, currentTieKey);
+    }
+
+    private static <C extends BlockProjectionClaim<C>> int compareMaskTier(C candidateClaim, C currentClaim) {
+        if (candidateClaim == null || currentClaim == null) {
+            return 0;
+        }
+        if (candidateClaim.isMaskAir() == currentClaim.isMaskAir()) {
+            return 0;
+        }
+        return candidateClaim.isMaskAir() ? -1 : 1;
+    }
+
+    private static <C extends BlockProjectionClaim<C>> int compareHeldTier(C candidateClaim, C currentClaim) {
+        if (candidateClaim == null || currentClaim == null) {
+            return 0;
+        }
+        if (candidateClaim.isHeld() == currentClaim.isHeld()) {
+            return 0;
+        }
+        return candidateClaim.isHeld() ? -1 : 1;
+    }
+
+    private static boolean isNearer(double candidateDistance, String candidateTieKey, double currentDistance, String currentTieKey) {
         if (candidateDistance < currentDistance - PRIORITY_EPSILON) {
             return true;
         }
@@ -455,6 +479,7 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
             return false;
         }
         return previous.isMaskAir() == next.isMaskAir()
+            && previous.isHeld() == next.isHeld()
             && previous.sameBlock(next)
             && previous.sameLightSource(next);
     }

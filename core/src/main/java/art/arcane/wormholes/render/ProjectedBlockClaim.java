@@ -10,6 +10,7 @@ public final class ProjectedBlockClaim<B, V> implements BlockProjectionClaim<Pro
     private final boolean maskAir;
     private final LightingPolicy lightingPolicy;
     private final boolean blackout;
+    private final boolean held;
     private int globalId;
 
     public ProjectedBlockClaim(B data, V lightView, long lightRemoteKey, boolean maskAir) {
@@ -22,7 +23,7 @@ public final class ProjectedBlockClaim<B, V> implements BlockProjectionClaim<Pro
                         long lightRemoteKey,
                         boolean maskAir,
                         LightingPolicy lightingPolicy) {
-        this(data, lightView, lightRemoteKey, maskAir, lightingPolicy, false);
+        this(data, lightView, lightRemoteKey, maskAir, lightingPolicy, false, false);
     }
 
     private ProjectedBlockClaim(B data,
@@ -30,19 +31,21 @@ public final class ProjectedBlockClaim<B, V> implements BlockProjectionClaim<Pro
                                 long lightRemoteKey,
                                 boolean maskAir,
                                 LightingPolicy lightingPolicy,
-                                boolean blackout) {
+                                boolean blackout,
+                                boolean held) {
         this.data = data;
         this.lightView = lightView;
         this.lightRemoteKey = lightRemoteKey;
         this.maskAir = maskAir;
         this.lightingPolicy = lightingPolicy;
         this.blackout = blackout;
+        this.held = held;
         this.globalId = UNRESOLVED_GLOBAL_ID;
     }
 
     /** A blackout shell cell: the seal block, full bright, never a mask, keyed to the destination cell it covers. */
     public static <B, V> ProjectedBlockClaim<B, V> blackout(B data, V lightView, long lightRemoteKey) {
-        return new ProjectedBlockClaim<B, V>(data, lightView, lightRemoteKey, false, LightingPolicy.FULL_BRIGHT, true);
+        return new ProjectedBlockClaim<B, V>(data, lightView, lightRemoteKey, false, LightingPolicy.FULL_BRIGHT, true, false);
     }
 
     public B getData() {
@@ -74,6 +77,11 @@ public final class ProjectedBlockClaim<B, V> implements BlockProjectionClaim<Pro
         return blackout;
     }
 
+    @Override
+    public boolean isHeld() {
+        return held;
+    }
+
     public int getGlobalId() {
         return globalId;
     }
@@ -96,7 +104,7 @@ public final class ProjectedBlockClaim<B, V> implements BlockProjectionClaim<Pro
             return this;
         }
         ProjectedBlockClaim<B, V> updated = new ProjectedBlockClaim<B, V>(
-            data, lightView, lightRemoteKey, maskAir, nextPolicy, blackout);
+            data, lightView, lightRemoteKey, maskAir, nextPolicy, blackout, held);
         updated.globalId = globalId;
         return updated;
     }
@@ -106,6 +114,16 @@ public final class ProjectedBlockClaim<B, V> implements BlockProjectionClaim<Pro
             ? LightingPolicy.FULL_BRIGHT
             : hasRemoteLight() ? LightingPolicy.SOURCE : LightingPolicy.LOCAL;
         return withLightingPolicy(nextPolicy);
+    }
+
+    public ProjectedBlockClaim<B, V> withHeld(boolean nextHeld) {
+        if (held == nextHeld) {
+            return this;
+        }
+        ProjectedBlockClaim<B, V> updated = new ProjectedBlockClaim<B, V>(
+            data, lightView, lightRemoteKey, maskAir, lightingPolicy, blackout, nextHeld);
+        updated.globalId = globalId;
+        return updated;
     }
 
     @Override
