@@ -47,6 +47,8 @@ public final class NeoForgeGameTests {
             WormholesGameTests.ENTITY_PROJECTION_RUNTIME, () -> WormholesGameTests::entityProjectionRuntime));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
             WormholesGameTests.MENU_PARITY_RUNTIME, () -> WormholesGameTests::menuParityRuntime));
+        bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
+            WormholesGameTests.OCCLUSION_SKIN_RUNTIME, () -> WormholesGameTests::occlusionSkinRuntime));
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> WormholesGameTests.RUNTIME.registerCommands(event.getDispatcher()));
         NeoForge.EVENT_BUS.addListener((ServerStartedEvent event) -> WormholesGameTests.start(event.getServer()));
         NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post event) -> tick());

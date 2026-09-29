@@ -134,7 +134,7 @@ public final class PortalSkinRendererTest
     }
 
     @Test
-    public void everySkinPaneIsExactlyOneBlockThickAlongTheNormal()
+    public void everySkinPaneIsAThinFaceCenteredOnThePortalPlane()
     {
         List<SkinTransform> squarePanes = panes(portal(0, 0, 64, 66, 0, 2));
         List<SkinTransform> singleCellPanes = panes(portal(0, 0, 64, 64, 0, 0));
@@ -143,13 +143,13 @@ public final class PortalSkinRendererTest
         assertFalse(singleCellPanes.isEmpty());
         for (SkinTransform pane : squarePanes)
         {
-            assertEquals(1.0D, pane.scaleX(), EPSILON);
-            assertNormalSlabCenteredOnPlane(pane.anchorX(), pane.translationX(), pane.scaleX(), 0.0D, 1.0D);
+            assertEquals(0.125D, pane.scaleX(), EPSILON);
+            assertNormalSlabCenteredOnPlane(pane.anchorX(), pane.translationX(), pane.scaleX(), 0.0D, 0.125D);
         }
         for (SkinTransform pane : singleCellPanes)
         {
-            assertEquals(1.0D, pane.scaleX(), EPSILON);
-            assertNormalSlabCenteredOnPlane(pane.anchorX(), pane.translationX(), pane.scaleX(), 0.0D, 1.0D);
+            assertEquals(0.125D, pane.scaleX(), EPSILON);
+            assertNormalSlabCenteredOnPlane(pane.anchorX(), pane.translationX(), pane.scaleX(), 0.0D, 0.125D);
         }
     }
 

@@ -54,6 +54,7 @@ public final class WormholesGameTests {
     public static final Identifier RECIPE_BOOK_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "recipe_book_runtime");
     public static final Identifier MENU_PARITY_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "menu_parity_runtime");
     public static final Identifier LANGUAGE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "language_runtime");
+    public static final Identifier OCCLUSION_SKIN_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "occlusion_skin_runtime");
     private static final Set<CompletableFuture<?>> REPORTED_FAILURES = new HashSet<>();
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesGameTest");
 
@@ -116,6 +117,10 @@ public final class WormholesGameTests {
 
     public static void languageRuntime(GameTestHelper helper) {
         MinecraftLanguageGameTest.run(helper);
+    }
+
+    public static void occlusionSkinRuntime(GameTestHelper helper) {
+        MinecraftOcclusionSkinGameTest.run(helper);
     }
 
     public static void costsRuntime(GameTestHelper helper) {

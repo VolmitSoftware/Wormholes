@@ -43,6 +43,8 @@ public final class ForgeGameTests {
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.ENTITY_PROJECTION_RUNTIME, () -> WormholesGameTests::entityProjectionRuntime));
         RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
             event.register(Registries.TEST_FUNCTION, WormholesGameTests.MENU_PARITY_RUNTIME, () -> WormholesGameTests::menuParityRuntime));
+        RegisterEvent.getBus(context.getModBusGroup()).addListener(event ->
+            event.register(Registries.TEST_FUNCTION, WormholesGameTests.OCCLUSION_SKIN_RUNTIME, () -> WormholesGameTests::occlusionSkinRuntime));
         RegisterCommandsEvent.BUS.addListener(event -> WormholesGameTests.RUNTIME.registerCommands(event.getDispatcher()));
         ServerStartedEvent.BUS.addListener(event -> WormholesGameTests.start(event.getServer()));
         TickEvent.ServerTickEvent.Post.BUS.addListener(event -> tick());

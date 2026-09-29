@@ -127,7 +127,7 @@ public final class MinecraftProjectorPortalAccess implements ProjectorRecursiveP
     private static boolean isNonOccludingBlock(String id) {
         Identifier key = Identifier.tryParse(id);
         return key != null && BuiltInRegistries.BLOCK.getOptional(key)
-            .map(block -> !block.defaultBlockState().canOcclude()).orElse(false);
+            .map(block -> !MinecraftProjectorBlocks.occluding(block)).orElse(false);
     }
 
     private record ViewBounds(long revision, double range, AxisAlignedBB bounds) {
