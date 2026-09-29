@@ -61,6 +61,7 @@ import java.util.UUID;
 public final class MinecraftProjectionService implements AutoCloseable {
     private static final Map<MinecraftServer, MinecraftProjectionService> ACTIVE = new ConcurrentHashMap<>();
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
+    private static final int SERVER_PLATE_CELLS_PER_TICK = 6144;
 
     private final WormholesModRuntime runtime;
     private final MinecraftProjectorPortalAccess portals;
@@ -163,22 +164,17 @@ public final class MinecraftProjectionService implements AutoCloseable {
         long startedGeneration = ++generation;
         plateWorkers = new PlateWorkers<>(FidelitySettings.plateWorkers, new PlateWorkers.Host<>() {
             @Override
-            public void publish(ViewPlate<BlockState> plate) {
+            public void publish(ViewPlateBuilder.Job<BlockState, ServerLevel> job, ViewPlate<BlockState> plate) {
                 if (!closed && generation == startedGeneration) {
-                    plates.publish(plate);
+                    plates.publish(job, plate);
                 }
             }
 
             @Override
-            public void failed(ViewPlateKey key) {
+            public void failed(ViewPlateBuilder.Job<BlockState, ServerLevel> job) {
                 if (generation == startedGeneration) {
-                    plates.buildFailed(key);
+                    plates.buildFailed(job);
                 }
-            }
-
-            @Override
-            public boolean schedule(ViewPlateBuilder.Execution<ServerLevel> execution, Runnable task, long delayTicks) {
-                return runtime.schedule(task, delayTicks);
             }
 
             @Override
@@ -195,7 +191,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         }
         tick++;
         plates.recap(FidelitySettings.plateMaxBytes);
-        plates.invalidateDirty(changes);
+        plates.refreshDirt(changes);
         plateWorkers.resize(FidelitySettings.plateWorkers);
         ProjectionConfig config = config();
         List<ServerPlayer> players = runtime.server().getPlayerList().getPlayers();
@@ -358,11 +354,38 @@ public final class MinecraftProjectionService implements AutoCloseable {
 
     private void schedulePlate(ViewPlateBuilder.Job<BlockState, ServerLevel> job) {
         if (closed || plateWorkers == null) {
-            plates.buildFailed(job.key());
-        } else if (job.execution().offThread()) {
+            plates.buildFailed(job);
+            return;
+        }
+        if (!(job.key().destinationViewIdentity() instanceof MinecraftProjectionWorldView)) {
             plateWorkers.submitAsync(job);
-        } else {
-            plateWorkers.submitRegion(job);
+            return;
+        }
+        long startedGeneration = generation;
+        if (!runtime.schedule(() -> stepPlateOnServer(job, startedGeneration), 0L)) {
+            plates.buildFailed(job);
+        }
+    }
+
+    private void stepPlateOnServer(ViewPlateBuilder.Job<BlockState, ServerLevel> job, long startedGeneration) {
+        if (closed || generation != startedGeneration || !plates.isBuilding(job)) {
+            plates.buildFailed(job);
+            return;
+        }
+        boolean finished;
+        try {
+            finished = job.step(SERVER_PLATE_CELLS_PER_TICK);
+        } catch (RuntimeException failure) {
+            plates.buildFailed(job);
+            LOGGER.error("Wormholes plate build failed for portal {}", job.key().portalId(), failure);
+            return;
+        }
+        if (finished) {
+            plates.publish(job, job.result());
+            return;
+        }
+        if (!runtime.schedule(() -> stepPlateOnServer(job, startedGeneration), 1L)) {
+            plates.buildFailed(job);
         }
     }
 

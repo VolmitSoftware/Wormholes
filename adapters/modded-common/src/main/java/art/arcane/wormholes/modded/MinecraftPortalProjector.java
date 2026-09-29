@@ -34,6 +34,7 @@ import art.arcane.wormholes.render.ProjectorPassRevision;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.util.Direction;
 import art.arcane.wormholes.render.ProjectorSampleMemo;
+import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.render.ProjectorSampler;
 import art.arcane.wormholes.render.ProjectorScanDestination;
 import art.arcane.wormholes.render.lod.LodPolicy;
@@ -50,6 +51,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -317,23 +320,21 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         transform = ProjectorPassRevision.mix(transform, portal.getGeometry().getRevision());
         long transformRevision = ProjectorPassRevision.mix(transform, Objects.hashCode(portal.getNetworkViewFallbackBlock()));
         long destinationRevision = destination.destView().getRevision();
-        ViewPlateKey key = new ViewPlateKey(portal.getId(), destination.destView(), front, destination.mirrorRotationQuarterTurns());
-        return plates.current(key, destinationRevision, transformRevision, () -> {
+        ViewPlateKey key = new ViewPlateKey(portal.getId(), destination.destView(), front, destination.mirrorRotationQuarterTurns(), 0L);
+        ProjectionWorldChangeTracker tracker = runtime.projections().changes();
+        return plates.current(key, destinationRevision, transformRevision, tracker, previous -> {
             ProjectionContentView<BlockState, BlockState> plateView = destination.destView();
-            ViewPlateBuilder.Execution<ServerLevel> execution;
-            if (plateView instanceof MinecraftProjectionWorldView local) {
-                execution = ViewPlateBuilder.Execution.region(local.getWorld(), (int) Math.floor(destination.originX()) >> 4,
-                    (int) Math.floor(destination.originZ()) >> 4);
-            } else {
+            if (!(plateView instanceof MinecraftProjectionWorldView)) {
                 plateView = new RemoteProjectionView<>(remoteSource, new RemoteProjectionView.Options<>(parseFallback(remoteFallbackState), state -> state));
-                execution = ViewPlateBuilder.Execution.async();
             }
             ViewPlateBuilder.Request<BlockState, BlockState, ProjectionContentView<BlockState, BlockState>> request = new ViewPlateBuilder.Request<>(
                 key, portal.getGeometry(), plateView, localFrame, remoteFrame, origin.x(), origin.y(), origin.z(),
                 destination.originX(), destination.originY(), destination.originZ(), destination.mirrorMode(), destination.mirrorRotationQuarterTurns(),
                 depth, lateral, padding, culling, sampler.air(), lod, blockEntities, destinationRevision, transformRevision,
-                runtime.projections().changes().currentVersion(), MinecraftProjectorBlocks.INSTANCE);
-            return ViewPlateBuilder.job(request, execution);
+                tracker.currentVersion(), MinecraftProjectorBlocks.INSTANCE);
+            LongOpenHashSet dirtyChunks = new LongOpenHashSet();
+            boolean patch = previous != null && previous.collectDirt(tracker, dirtyChunks) && !dirtyChunks.isEmpty();
+            return patch ? ViewPlateBuilder.patch(request, previous, dirtyChunks) : ViewPlateBuilder.job(request);
         });
     }
 
