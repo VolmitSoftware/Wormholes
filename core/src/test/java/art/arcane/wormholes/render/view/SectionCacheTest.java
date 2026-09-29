@@ -243,6 +243,37 @@ public final class SectionCacheTest {
     }
 
     @Test
+    public void arrivalCaptureIgnoresTheChunkBudgetAndServesAfterUnload() {
+        FakeWorld world = new FakeWorld();
+        world.set(3, 3, 3, STONE);
+        SectionCache<Block, Kind> cache = new SectionCache<Block, Kind>(new Blocks(),
+            new SectionCache.Limits(true, 1L << 30, 1, 600));
+        SectionCache<Block, Kind>.WorldSections sections = cache.world(world, MIN_SECTION_Y, MAX_SECTION_Y);
+        cache.tick(1);
+        assertNotNull(sections.section(2, 0, 2));
+
+        sections.capture(0, 0, 0);
+        world.unloaded.add(columnKey(0, 0));
+
+        assertTrue(sections.hasColumn(0, 0));
+        assertSame(STONE, sections.section(0, 0, 0).data(CachedSection.index(3, 3, 3)));
+    }
+
+    @Test
+    public void arrivalCaptureOfAnUnavailableColumnCachesNothing() {
+        FakeWorld world = new FakeWorld();
+        world.unloaded.add(columnKey(0, 0));
+        SectionCache<Block, Kind> cache = new SectionCache<Block, Kind>(new Blocks(), OPEN_LIMITS);
+        SectionCache<Block, Kind>.WorldSections sections = cache.world(world, MIN_SECTION_Y, MAX_SECTION_Y);
+        cache.tick(1);
+
+        sections.capture(0, 0, 0);
+
+        assertFalse(sections.hasColumn(0, 0));
+        assertEquals(0, sections.size());
+    }
+
+    @Test
     public void expiredSectionsAreCapturedAgainOnTheirNextRead() {
         FakeWorld world = new FakeWorld();
         world.set(3, 3, 3, STONE);

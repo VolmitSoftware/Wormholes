@@ -1,6 +1,9 @@
 package art.arcane.wormholes.render.view;
 
+import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
@@ -8,6 +11,8 @@ import org.bukkit.block.data.BlockData;
 import java.util.Objects;
 
 public final class SectionCachedWorldView implements ProjectionWorldView {
+    private static final int MAX_WANTED_SECTIONS = 4096;
+
     private final World world;
     private final ProjectionWorldView live;
     private final SectionCache<BlockData, Material>.WorldSections sections;
@@ -15,6 +20,7 @@ public final class SectionCachedWorldView implements ProjectionWorldView {
     private final Thread owner;
     private final int minHeight;
     private final int maxHeight;
+    private final LongOpenHashSet wantedSections;
 
     public SectionCachedWorldView(World world, ProjectionWorldView live,
                                   SectionCache<BlockData, Material>.WorldSections sections,
@@ -26,6 +32,7 @@ public final class SectionCachedWorldView implements ProjectionWorldView {
         this.owner = Objects.requireNonNull(owner);
         this.minHeight = world.getMinHeight();
         this.maxHeight = world.getMaxHeight();
+        this.wantedSections = new LongOpenHashSet(16);
     }
 
     public ProjectionWorldView live() {
@@ -64,6 +71,7 @@ public final class SectionCachedWorldView implements ProjectionWorldView {
             return section.data(CachedSection.index(x & 15, y & 15, z & 15));
         }
         if (!loaded(x, z)) {
+            want(x, y, z);
             return null;
         }
         return live.sampleBlockData(x, y, z);
@@ -82,6 +90,7 @@ public final class SectionCachedWorldView implements ProjectionWorldView {
             return section.material(CachedSection.index(x & 15, y & 15, z & 15));
         }
         if (!loaded(x, z)) {
+            want(x, y, z);
             return null;
         }
         return live.sampleMaterial(x, y, z);
@@ -140,6 +149,20 @@ public final class SectionCachedWorldView implements ProjectionWorldView {
         chunkRequests.request(world, x >> 4, z >> 4);
     }
 
+    public void chunkArrived(int chunkX, int chunkZ) {
+        if (!cached() || wantedSections.isEmpty()) {
+            return;
+        }
+        LongIterator iterator = wantedSections.iterator();
+        while (iterator.hasNext()) {
+            long wanted = iterator.nextLong();
+            if (ProjectionCellKey.unpackX(wanted) == chunkX && ProjectionCellKey.unpackZ(wanted) == chunkZ) {
+                sections.capture(chunkX, ProjectionCellKey.unpackY(wanted), chunkZ);
+                iterator.remove();
+            }
+        }
+    }
+
     @Override
     public boolean equals(Object other) {
         if (this == other) {
@@ -158,6 +181,13 @@ public final class SectionCachedWorldView implements ProjectionWorldView {
 
     private boolean cached() {
         return Thread.currentThread() == owner && sections.enabled();
+    }
+
+    private void want(int x, int y, int z) {
+        if (wantedSections.size() >= MAX_WANTED_SECTIONS) {
+            wantedSections.clear();
+        }
+        wantedSections.add(ProjectionCellKey.pack(x >> 4, y >> 4, z >> 4));
     }
 
     private boolean loaded(int x, int z) {

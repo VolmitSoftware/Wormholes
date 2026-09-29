@@ -175,6 +175,27 @@ public final class SectionCache<B, M> {
             return section.buriedDepth(CachedSection.index(x & 15, y & 15, z & 15));
         }
 
+        public void capture(int sectionX, int sectionY, int sectionZ) {
+            if (!limits.enabled() || sectionY < minSectionY || sectionY > maxSectionY) {
+                return;
+            }
+            long column = columnKey(sectionX, sectionZ);
+            if (!openedColumns.contains(column)) {
+                if (!source.columnAvailable(sectionX, sectionZ)) {
+                    return;
+                }
+                columnsOpened++;
+                openedColumns.add(column);
+            }
+            long key = key(sectionX, sectionY, sectionZ);
+            builder.reset();
+            if (!source.capture(sectionX, sectionY, sectionZ, builder)) {
+                return;
+            }
+            install(key, builder.build(sectionX, sectionY, sectionZ, tick), sections.get(key));
+            recent[slot(sectionX, sectionY, sectionZ)] = null;
+        }
+
         public boolean hasColumn(int chunkX, int chunkZ) {
             return columns.containsKey(columnKey(chunkX, chunkZ));
         }

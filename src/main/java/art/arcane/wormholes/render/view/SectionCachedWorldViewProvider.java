@@ -165,8 +165,8 @@ final class SectionCachedWorldViewProvider implements ProjectionWorldViewProvide
                         + " " + chunkX + "," + chunkZ, error);
                     return;
                 }
-                if (chunk != null && tracker != null) {
-                    tracker.markChanged(world.getUID(), chunkX << 4, chunkZ << 4);
+                if (chunk != null) {
+                    onOwner(() -> chunkArrived(world, chunkX, chunkZ));
                 }
             });
         } catch (RuntimeException failure) {
@@ -174,6 +174,24 @@ final class SectionCachedWorldViewProvider implements ProjectionWorldViewProvide
             plugin.getLogger().log(Level.WARNING, "Projection chunk load request failed at " + world.getName()
                 + " " + chunkX + "," + chunkZ, failure);
         }
+    }
+
+    private void chunkArrived(World world, int chunkX, int chunkZ) {
+        if (tracker != null) {
+            tracker.markChanged(world.getUID(), chunkX << 4, chunkZ << 4);
+        }
+        SectionCachedWorldView view = viewsById.get(world.getUID());
+        if (view != null) {
+            view.chunkArrived(chunkX, chunkZ);
+        }
+    }
+
+    private void onOwner(Runnable task) {
+        if (Thread.currentThread() == owner) {
+            task.run();
+            return;
+        }
+        deferredChanges.add(task);
     }
 
     private static SectionCache.Limits limits() {

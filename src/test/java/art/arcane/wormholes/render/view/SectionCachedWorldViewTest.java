@@ -69,6 +69,26 @@ class SectionCachedWorldViewTest {
     }
 
     @Test
+    void anArrivedChunkCapturesTheSectionsItsReadersWanted() {
+        Fixture fixture = new Fixture(new SectionCache.Limits(true, 1L << 30, 0, 600));
+        fixture.source.fill = fixture.stone;
+        when(fixture.world.isChunkLoaded(0, -1)).thenReturn(false);
+        assertNull(fixture.view.sampleBlockData(3, 70, -5));
+        assertNull(fixture.view.sampleMaterial(3, 90, -5));
+        assertFalse(fixture.view.isChunkReady(3, -5));
+
+        when(fixture.world.isChunkLoaded(0, -1)).thenReturn(true);
+        fixture.view.chunkArrived(0, -1);
+        when(fixture.world.isChunkLoaded(0, -1)).thenReturn(false);
+
+        assertTrue(fixture.view.isChunkReady(3, -5));
+        assertSame(fixture.stone, fixture.view.sampleBlockData(3, 70, -5));
+        assertEquals(Material.STONE, fixture.view.sampleMaterial(3, 90, -5));
+        assertNull(fixture.view.sampleBlockData(3, 20, -5));
+        verify(fixture.live, never()).sampleBlockData(anyInt(), anyInt(), anyInt());
+    }
+
+    @Test
     void cachedColumnsStayReadyAfterTheirChunkUnloads() {
         Fixture fixture = new Fixture(LIMITS);
         fixture.source.fill = fixture.stone;
