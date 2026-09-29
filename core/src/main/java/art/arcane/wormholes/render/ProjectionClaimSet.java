@@ -169,7 +169,6 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
         portalClaims.tieKey = tieKey;
         portalClaims.priorityDistance = priorityDistance;
         portalClaims.submittedClaims = claims;
-        exposeMovedLosingPortal(portalClaims, priorityChanged);
 
         if (priorityChanged && !contestedKeys.isEmpty()) {
             appendContestedKeys(portalClaims, passGeneration, affected);
@@ -224,7 +223,6 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
         portalClaims.tieKey = tieKey;
         portalClaims.priorityDistance = priorityDistance;
         portalClaims.submittedClaims = delta.claims();
-        exposeMovedLosingPortal(portalClaims, priorityChanged);
         if (priorityChanged && !contestedKeys.isEmpty()) {
             appendContestedKeys(portalClaims, passGeneration, affected);
         }
@@ -260,13 +258,22 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
         return winners.isEmpty();
     }
 
-    public boolean consumeHoldExposure(UUID portalId) {
+    public boolean drainLosingTransitions(UUID portalId, LongSet displaced, LongSet restored, boolean resync) {
         PortalClaims<C> portalClaims = portals.get(portalId);
-        if (portalClaims == null || !portalClaims.holdExposure) {
+        if (portalClaims == null) {
             return false;
         }
-        portalClaims.holdExposure = false;
-        return true;
+        boolean drained;
+        if (resync) {
+            drained = collectLosingKeys(portalClaims, displaced);
+        } else {
+            drained = !portalClaims.displacedKeys.isEmpty() || !portalClaims.restoredKeys.isEmpty();
+            displaced.addAll(portalClaims.displacedKeys);
+            restored.addAll(portalClaims.restoredKeys);
+        }
+        portalClaims.displacedKeys.clear();
+        portalClaims.restoredKeys.clear();
+        return drained;
     }
 
     public boolean hasFullBrightClaims() {
@@ -450,24 +457,31 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
         }
         slot.losing = losing;
         if (losing) {
-            portalClaims.losingSlots++;
-            portalClaims.holdExposure = true;
+            portalClaims.displacedKeys.add(slot.key);
+            portalClaims.restoredKeys.remove(slot.key);
         } else {
-            portalClaims.losingSlots--;
+            portalClaims.restoredKeys.add(slot.key);
+            portalClaims.displacedKeys.remove(slot.key);
         }
     }
 
     private static <C> void forgetLosingSlot(PortalClaims<C> portalClaims, ClaimSlot<C> slot) {
         if (slot != null && slot.losing) {
-            slot.losing = false;
-            portalClaims.losingSlots--;
+            updateLosing(portalClaims, slot, false);
         }
     }
 
-    private static <C> void exposeMovedLosingPortal(PortalClaims<C> portalClaims, boolean priorityChanged) {
-        if (priorityChanged && portalClaims.losingSlots > 0) {
-            portalClaims.holdExposure = true;
+    private static <C> boolean collectLosingKeys(PortalClaims<C> portalClaims, LongSet out) {
+        boolean any = false;
+        ObjectIterator<ClaimSlot<C>> slots = portalClaims.claims.values().iterator();
+        while (slots.hasNext()) {
+            ClaimSlot<C> slot = slots.next();
+            if (slot.losing) {
+                out.add(slot.key);
+                any = true;
+            }
         }
+        return any;
     }
 
     private static void appendAffectedKeys(LongArrayList affected, LongOpenHashSet stagedKeys) {
@@ -662,14 +676,16 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
         private Long2ObjectMap<C> submittedClaims;
         private String tieKey;
         private double priorityDistance;
-        private int losingSlots;
-        private boolean holdExposure;
+        private final LongOpenHashSet displacedKeys;
+        private final LongOpenHashSet restoredKeys;
 
         private PortalClaims(UUID portalId) {
             this.portalId = portalId;
             this.claims = new Long2ObjectOpenHashMap<ClaimSlot<C>>(256);
             this.tieKey = portalId.toString();
             this.priorityDistance = 0.0D;
+            this.displacedKeys = new LongOpenHashSet(8);
+            this.restoredKeys = new LongOpenHashSet(8);
         }
     }
 

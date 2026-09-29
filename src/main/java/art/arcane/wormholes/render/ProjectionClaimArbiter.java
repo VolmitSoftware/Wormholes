@@ -9,6 +9,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 import java.util.ArrayList;
@@ -356,7 +357,7 @@ public final class ProjectionClaimArbiter {
         }
     }
 
-    boolean consumeHoldExposure(Player observer, UUID claimOwnerId) {
+    boolean drainLosingTransitions(Player observer, UUID claimOwnerId, LongSet displaced, LongSet restored, boolean resync) {
         if (observer == null || claimOwnerId == null) {
             return false;
         }
@@ -365,7 +366,7 @@ public final class ProjectionClaimArbiter {
             return false;
         }
         synchronized (state) {
-            return !state.retired && state.claimSet.consumeHoldExposure(claimOwnerId);
+            return !state.retired && state.claimSet.drainLosingTransitions(claimOwnerId, displaced, restored, resync);
         }
     }
 

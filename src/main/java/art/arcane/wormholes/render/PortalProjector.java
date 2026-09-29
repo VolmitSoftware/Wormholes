@@ -87,6 +87,8 @@ public final class PortalProjector {
     private final DissolveSchedule dissolve = new DissolveSchedule();
     private final ProjectorCommitLatency commitLatency = new ProjectorCommitLatency();
     private final ProjectorResampleReasons resampleReasons = new ProjectorResampleReasons();
+    private final LongOpenHashSet displacedClaimKeys = new LongOpenHashSet(16);
+    private final LongOpenHashSet restoredClaimKeys = new LongOpenHashSet(16);
     private long blockPasses;
 
     private volatile World claimWorld;
@@ -303,6 +305,7 @@ public final class PortalProjector {
             + " hiddenHolds=" + cellScan.hiddenHolds()
             + " coneHolds=" + cellScan.coneHolds()
             + " heldEvictions=" + cellScan.heldEvictions()
+            + " losingClaims=" + cellScan.losingClaims()
             + " remoteSections=" + cellScan.remoteFootprint().size()
             + " claimConflicts=" + lastClaimConflicts
             + " winnerChanges=" + lastWinnerChanges
@@ -396,10 +399,7 @@ public final class PortalProjector {
         if (localDirty) {
             cellScan.revokeConeHolds();
         }
-        boolean holdsExposed = claimArbiter.consumeHoldExposure(observer, portal.getId());
-        if (holdsExposed) {
-            cellScan.revokeHiddenHolds();
-        }
+        boolean holdsExposed = exposeLosingClaims();
         if (!renderModeChanged && !dissolve.isActive() && canReuseProjection(eye, stableResample, localDirty || holdsExposed)) {
             lastReuseSkips++;
             lastBlockChanges = 0;
@@ -1051,6 +1051,15 @@ public final class PortalProjector {
         double originNormal = axisValueOf(portal.getOrigin().getX(), portal.getOrigin().getY(), portal.getOrigin().getZ(), normal);
         return (axisValueOf(eye.getX(), eye.getY(), eye.getZ(), normal) >= originNormal)
             != (axisValueOf(lastEyeX, lastEyeY, lastEyeZ, normal) >= originNormal);
+    }
+
+    private boolean exposeLosingClaims() {
+        boolean resync = cellScan.losingClaimsUnsynced();
+        claimArbiter.drainLosingTransitions(observer, portal.getId(), displacedClaimKeys, restoredClaimKeys, resync);
+        boolean exposed = cellScan.exposeLosingClaims(displacedClaimKeys, restoredClaimKeys, resync);
+        displacedClaimKeys.clear();
+        restoredClaimKeys.clear();
+        return exposed;
     }
 
     private boolean canReuseProjection(Location eye, boolean stableResample, boolean localDirty) {

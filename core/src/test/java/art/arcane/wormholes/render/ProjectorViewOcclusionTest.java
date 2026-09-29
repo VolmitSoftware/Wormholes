@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.HashMap;
 import java.util.Map;
 
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import org.junit.jupiter.api.Test;
@@ -96,6 +97,42 @@ public final class ProjectorViewOcclusionTest {
                 assertFalse(bounded.budgetExhausted());
             }
         }
+    }
+
+    @Test
+    public void hiddenVerdictsReportTheBlockersThatProveThem() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(3, 1, 1));
+        ProjectorViewOcclusion<FakeBlock> occlusion = occlusion();
+        occlusion.setRevealMarginDegrees(1.0D);
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+
+        assertEquals(ProjectorViewOcclusion.Visibility.HIDDEN, occlusion.visibility(view, 8, 1, 1, 0.5D, 1.5D, 1.5D));
+        assertEquals(LongArrayList.of(ProjectionCellKey.pack(3, 1, 1)), occlusion.hiddenBlockers(), "a single blocker proves the target");
+        assertEquals(ProjectorViewOcclusion.Visibility.HIDDEN, occlusion.visibility(view, 8, 1, 1, 0.5D, 1.5D, 1.5D));
+        assertEquals(LongArrayList.of(ProjectionCellKey.pack(3, 1, 1)), occlusion.hiddenBlockers(), "a cached verdict keeps its proof");
+        assertEquals(ProjectorViewOcclusion.Visibility.VISIBLE, occlusion.visibility(view, 8, 4, 4, 0.5D, 1.5D, 1.5D));
+        assertTrue(occlusion.hiddenBlockers().isEmpty());
+
+        LongOpenHashSet wall = new LongOpenHashSet();
+        for (int y = -2; y <= 6; y++) {
+            for (int z = -2; z <= 6; z++) {
+                wall.add(ProjectionCellKey.pack(3, y, z));
+            }
+        }
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, wall);
+        assertEquals(ProjectorViewOcclusion.Visibility.HIDDEN, occlusion.visibility(view, 9, 3, 3, 0.5D, 1.5D, 1.5D));
+        LongArrayList plane = occlusion.hiddenBlockers();
+        assertTrue(plane.size() > 1, "an oblique target is proven by several wall cells");
+        for (int index = 0; index < plane.size(); index++) {
+            assertTrue(wall.contains(plane.getLong(index)));
+        }
+        LongArrayList firstProof = new LongArrayList(plane);
+        assertEquals(ProjectorViewOcclusion.Visibility.HIDDEN, occlusion.visibility(view, 9, 3, 3, 0.5D, 1.5D, 1.5D));
+        assertEquals(firstProof, occlusion.hiddenBlockers(), "a cached multi-cell proof keeps its blockers");
+        assertEquals(ProjectorViewOcclusion.Visibility.HIDDEN, occlusion.visibility(view, 9, 3, 3, 0.5D, 1.6D, 1.5D));
+        assertFalse(occlusion.hiddenBlockers().isEmpty(), "a moved eye traces the proof again");
     }
 
     @Test

@@ -301,74 +301,103 @@ public final class ProjectionClaimSetTest {
     }
 
     @Test
-    public void aClaimThatStartsLosingToAnotherPortalsLiveClaimExposesItsOwnersHoldsOnce() {
+    public void onlyTheKeysThatStartLosingToAnotherPortalsLiveClaimAreReportedDisplaced() {
         ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         UUID nearPortal = UUID.fromString("00000000-0000-0000-0000-000000000001");
         UUID farPortal = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        long ownCell = 84L;
+        LongOpenHashSet displaced = new LongOpenHashSet();
+        LongOpenHashSet restored = new LongOpenHashSet();
 
-        set.replacePortalClaims(farPortal, farPortal.toString(), 8.0D, singleClaim(blockData("far-a")));
-        assertFalse(set.consumeHoldExposure(farPortal), "an uncontested claim exposes nothing");
+        set.replacePortalClaims(farPortal, farPortal.toString(), 8.0D, twoClaims(CELL_KEY, blockData("far"), ownCell, blockData("own")));
+        assertFalse(set.drainLosingTransitions(farPortal, displaced, restored, false), "uncontested claims report nothing");
+        assertTrue(displaced.isEmpty());
 
-        set.replacePortalClaims(nearPortal, nearPortal.toString(), 2.0D, singleClaim(blockData("near-a")));
-        assertTrue(set.consumeHoldExposure(farPortal), "the far blocker is now displaced by the near live claim");
-        assertFalse(set.consumeHoldExposure(farPortal), "exposure is consumed once");
-        assertFalse(set.consumeHoldExposure(nearPortal), "the winner is never exposed");
+        set.replacePortalClaims(nearPortal, nearPortal.toString(), 2.0D, singleClaim(blockData("near")));
+        assertTrue(set.drainLosingTransitions(farPortal, displaced, restored, false));
+        assertEquals(LongOpenHashSet.of(CELL_KEY), displaced, "only the contested key is displaced");
+        assertTrue(restored.isEmpty());
+        displaced.clear();
+        assertFalse(set.drainLosingTransitions(farPortal, displaced, restored, false), "a transition drains once");
+        assertFalse(set.drainLosingTransitions(nearPortal, displaced, restored, false), "the winner never loses");
 
         set.replacePortalClaims(nearPortal, nearPortal.toString(), 2.0D, singleClaim(blockData("near-b")));
-        set.replacePortalClaims(farPortal, farPortal.toString(), 8.0D, singleClaim(blockData("far-b")));
-        assertFalse(set.consumeHoldExposure(farPortal), "content changes on an already displaced cell do not repeat the exposure");
+        set.replacePortalClaims(farPortal, farPortal.toString(), 8.0D, twoClaims(CELL_KEY, blockData("far-b"), ownCell, blockData("own")));
+        assertFalse(set.drainLosingTransitions(farPortal, displaced, restored, false), "content changes on a losing key are not transitions");
 
-        set.replacePortalClaims(farPortal, farPortal.toString(), 9.0D, singleClaim(blockData("far-b")));
-        assertTrue(set.consumeHoldExposure(farPortal), "a moved eye can hide new cells behind a displaced blocker");
+        set.replacePortalClaims(farPortal, farPortal.toString(), 9.0D, twoClaims(CELL_KEY, blockData("far-b"), ownCell, blockData("own")));
+        assertFalse(set.drainLosingTransitions(farPortal, displaced, restored, false), "an eye move alone is not a transition");
 
         set.releasePortal(nearPortal);
-        set.replacePortalClaims(farPortal, farPortal.toString(), 10.0D, singleClaim(blockData("far-b")));
-        assertFalse(set.consumeHoldExposure(farPortal), "a claim that wins again stops exposing holds");
+        set.replacePortalClaims(farPortal, farPortal.toString(), 10.0D, twoClaims(CELL_KEY, blockData("far-b"), ownCell, blockData("own")));
+        assertTrue(set.drainLosingTransitions(farPortal, displaced, restored, false));
+        assertTrue(displaced.isEmpty());
+        assertEquals(LongOpenHashSet.of(CELL_KEY), restored, "a key that wins again is restored");
     }
 
     @Test
-    public void newClaimsBehindALiveWinnerExposeHoldsButHeldWinnersDoNot() {
+    public void newClaimsBehindALiveWinnerAreDisplacedButHeldWinnersDisplaceNothing() {
         ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         UUID nearPortal = UUID.fromString("00000000-0000-0000-0000-000000000001");
         UUID farPortal = UUID.fromString("00000000-0000-0000-0000-000000000002");
         UUID heldPortal = UUID.fromString("00000000-0000-0000-0000-000000000003");
         long heldCell = 84L;
+        LongOpenHashSet displaced = new LongOpenHashSet();
+        LongOpenHashSet restored = new LongOpenHashSet();
 
         set.replacePortalClaims(nearPortal, nearPortal.toString(), 2.0D, singleClaim(blockData("near")));
         set.replacePortalClaims(farPortal, farPortal.toString(), 8.0D, singleClaim(blockData("far")));
-        assertTrue(set.consumeHoldExposure(farPortal), "a new claim that never wins is displaced from the start");
+        assertTrue(set.drainLosingTransitions(farPortal, displaced, restored, false));
+        assertEquals(LongOpenHashSet.of(CELL_KEY), displaced, "a new claim that never wins is displaced from the start");
+        displaced.clear();
 
         set.replacePortalClaims(heldPortal, heldPortal.toString(), 1.0D, singleHeldClaim(heldCell, blockData("held-near")));
         Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> farHeld = singleClaim(blockData("far"));
         farHeld.put(heldCell, heldClaimValue(blockData("held-far")));
         set.replacePortalClaims(farPortal, farPortal.toString(), 8.0D, farHeld);
-        assertFalse(set.consumeHoldExposure(farPortal), "losing to another held claim exposes nothing");
-        assertFalse(set.consumeHoldExposure(heldPortal));
+        assertFalse(set.drainLosingTransitions(farPortal, displaced, restored, false), "losing to another held claim is not a transition");
+        assertFalse(set.drainLosingTransitions(heldPortal, displaced, restored, false));
 
         LongOpenHashSet staged = new LongOpenHashSet();
         set.stagePortalClaims(nearPortal, nearPortal.toString(), 2.0D, twoClaims(CELL_KEY, blockData("near"), heldCell, blockData("near-live")), staged);
         set.resolveStaged(staged);
-        assertTrue(set.consumeHoldExposure(heldPortal), "a held claim displaced by a staged live claim is exposed");
-        assertTrue(set.consumeHoldExposure(farPortal));
+        assertTrue(set.drainLosingTransitions(heldPortal, displaced, restored, false));
+        assertEquals(LongOpenHashSet.of(heldCell), displaced, "a held claim displaced by a staged live claim is reported");
+        displaced.clear();
+        assertTrue(set.drainLosingTransitions(farPortal, displaced, restored, false));
+        assertEquals(LongOpenHashSet.of(heldCell), displaced, "the far portal's cell already lost, only its held cell is new");
     }
 
     @Test
-    public void droppedLosingClaimsStopEyeMovesFromExposingHolds() {
+    public void removedLosingClaimsAreRestoredAndAResyncReportsEveryLosingKey() {
         ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
         UUID nearPortal = UUID.fromString("00000000-0000-0000-0000-000000000001");
         UUID farPortal = UUID.fromString("00000000-0000-0000-0000-000000000002");
         long ownCell = 84L;
+        LongOpenHashSet displaced = new LongOpenHashSet();
+        LongOpenHashSet restored = new LongOpenHashSet();
 
-        set.replacePortalClaims(nearPortal, nearPortal.toString(), 2.0D, singleClaim(blockData("near")));
+        set.replacePortalClaims(nearPortal, nearPortal.toString(), 2.0D, twoClaims(CELL_KEY, blockData("near"), ownCell, blockData("near-own")));
         set.replacePortalClaims(farPortal, farPortal.toString(), 8.0D, twoClaims(CELL_KEY, blockData("far"), ownCell, blockData("own")));
-        assertTrue(set.consumeHoldExposure(farPortal));
+        assertTrue(set.drainLosingTransitions(farPortal, displaced, restored, false));
+        assertEquals(LongOpenHashSet.of(CELL_KEY, ownCell), displaced);
+        displaced.clear();
 
         set.replacePortalClaims(farPortal, farPortal.toString(), 8.0D, singleClaim(ownCell, blockData("own")));
-        set.replacePortalClaims(farPortal, farPortal.toString(), 9.0D, singleClaim(ownCell, blockData("own")));
-        assertFalse(set.consumeHoldExposure(farPortal), "an eye move without displaced claims exposes nothing");
+        assertTrue(set.drainLosingTransitions(farPortal, displaced, restored, false));
+        assertTrue(displaced.isEmpty());
+        assertEquals(LongOpenHashSet.of(CELL_KEY), restored, "a losing claim the portal dropped is restored");
+        restored.clear();
+
+        assertTrue(set.drainLosingTransitions(farPortal, displaced, restored, true));
+        assertEquals(LongOpenHashSet.of(ownCell), displaced, "a resync lists the keys still losing");
+        assertTrue(restored.isEmpty());
+        displaced.clear();
+        assertFalse(set.drainLosingTransitions(farPortal, displaced, restored, false), "a resync drains pending transitions too");
 
         set.releasePortal(farPortal);
-        assertFalse(set.consumeHoldExposure(farPortal));
+        assertFalse(set.drainLosingTransitions(farPortal, displaced, restored, false));
+        assertFalse(set.drainLosingTransitions(farPortal, displaced, restored, true));
     }
 
     @Test

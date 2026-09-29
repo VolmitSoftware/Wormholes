@@ -432,6 +432,8 @@ public final class MinecraftProjectionService implements AutoCloseable {
         private final Map<UUID, Long> grace = new HashMap<>();
         private final ProjectionClaimSet<ProjectedBlockClaim<BlockState, ProjectionContentView<BlockState, BlockState>>> claims = new ProjectionClaimSet<>();
         private final LongOpenHashSet staged = new LongOpenHashSet();
+        private final LongOpenHashSet displacedClaimKeys = new LongOpenHashSet();
+        private final LongOpenHashSet restoredClaimKeys = new LongOpenHashSet();
         private final LongOpenHashSet pending = new LongOpenHashSet();
         private final Long2ObjectMap<LongOpenHashSet> sentChunks = new Long2ObjectOpenHashMap<>();
         private final ProjectedBlockEntityLayer<ServerPlayer> blockEntities =
@@ -498,8 +500,11 @@ public final class MinecraftProjectionService implements AutoCloseable {
                     MinecraftPortalProjector projector = projectors.computeIfAbsent(portal.getId(), ignored ->
                         new MinecraftPortalProjector(runtime, new MinecraftPortalProjector.Context(player, portal,
                             MinecraftProjectionService.this::view, portals, plates)));
-                    if (claims.consumeHoldExposure(portal.getId())) {
-                        projector.scan().revokeHiddenHolds();
+                    boolean losingResync = projector.scan().losingClaimsUnsynced();
+                    if (claims.drainLosingTransitions(portal.getId(), displacedClaimKeys, restoredClaimKeys, losingResync) || losingResync) {
+                        projector.scan().exposeLosingClaims(displacedClaimKeys, restoredClaimKeys, losingResync);
+                        displacedClaimKeys.clear();
+                        restoredClaimKeys.clear();
                     }
                     MinecraftPortalProjector.Result result = projector.update(tick, deadline);
                     if (result == MinecraftPortalProjector.Result.READY) {

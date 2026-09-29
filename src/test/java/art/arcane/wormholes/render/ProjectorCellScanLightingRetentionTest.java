@@ -937,36 +937,230 @@ public final class ProjectorCellScanLightingRetentionTest {
     }
 
     @Test
-    public void revokedHiddenHoldsReleaseHiddenCellsAndKeepWallProvenHolds() throws ReflectiveOperationException {
+    public void displacedBlockersReleaseOnlyTheHiddenHoldsTheyProveAndReleasedCellsResample() throws ReflectiveOperationException {
         boolean originalHold = Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS;
         Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = true;
         try {
-            HiddenFixture hidden = hiddenFixture();
-            hidden.runSide(true);
-            long targetLocalKey = remoteClaimKey(hidden.scan(), hidden.targetKey());
-            hidden.scan().commit();
-            hidden.runCenter(false);
-            assertTrue(hidden.scan().claims().get(targetLocalKey).isHeld());
-            hidden.scan().commit();
+            WallFixture wall = wallFixture();
+            wall.runCenter(true);
+            long nearLocalKey = remoteClaimKey(wall.scan(), wall.nearTarget());
+            long farLocalKey = remoteClaimKey(wall.scan(), wall.farTarget());
+            assertFalse(wall.scan().claims().get(nearLocalKey).isHeld());
+            assertFalse(wall.scan().claims().get(farLocalKey).isHeld());
+            wall.scan().commit();
 
-            hidden.scan().revokeHiddenHolds();
-            hidden.runCenter(false);
-            assertFalse(hidden.scan().claims().containsKey(targetLocalKey), "a revoked hidden hold is released");
-            assertTrue(hidden.scan().claimDelta().removedKeys().contains(targetLocalKey));
-            assertEquals(0, hidden.scan().hiddenHolds());
-            hidden.scan().commit();
+            wall.buildWall();
+            wall.memo().clearDestinationSamples();
+            wall.runCenter(true);
+            assertTrue(wall.scan().claims().get(nearLocalKey).isHeld(), "the near target hides behind the wall");
+            assertTrue(wall.scan().claims().get(farLocalKey).isHeld(), "the far target hides behind the wall");
+            assertEquals(2, wall.scan().hiddenHolds());
+            wall.scan().commit();
+            LongOpenHashSet nearBlockers = heldBlockers(wall.scan(), nearLocalKey);
+            LongOpenHashSet farBlockers = heldBlockers(wall.scan(), farLocalKey);
+            assertFalse(nearBlockers.isEmpty());
+            assertFalse(farBlockers.isEmpty());
+            for (long blocker : nearBlockers) {
+                assertTrue(wall.wallKeys().contains(blocker), "hidden holds are proven by wall cells");
+                assertFalse(farBlockers.contains(blocker), "the two targets hide behind different wall cells");
+            }
+
+            LongOpenHashSet displaced = new LongOpenHashSet();
+            displaced.add(nearBlockers.iterator().nextLong());
+            LongOpenHashSet restored = new LongOpenHashSet();
+            assertTrue(wall.scan().exposeLosingClaims(displaced, restored, false), "a displaced blocker with dependents needs a pass");
+            wall.runCenter(false);
+            assertFalse(wall.scan().claims().containsKey(nearLocalKey), "the hold behind the displaced blocker is released");
+            assertTrue(wall.scan().claimDelta().removedKeys().contains(nearLocalKey));
+            assertTrue(wall.scan().claims().get(farLocalKey).isHeld(), "holds behind other blockers stay");
+            assertEquals(1, wall.scan().hiddenHolds());
+            wall.scan().commit();
+            assertFalse(wall.scan().exposeLosingClaims(new LongOpenHashSet(), restored, false), "nothing else is pending");
+
+            wall.runCenter(false);
+            assertFalse(wall.scan().claims().containsKey(nearLocalKey), "a released cell behind a losing blocker is not re-held");
+            assertTrue(wall.scan().claims().get(farLocalKey).isHeld());
+            wall.scan().commit();
+
+            restored.addAll(displaced);
+            assertFalse(wall.scan().exposeLosingClaims(new LongOpenHashSet(), restored, false));
+            for (long blocker : nearBlockers) {
+                wall.remote().blocks.remove(blocker);
+            }
+            wall.memo().clearDestinationSamples();
+            wall.runCenter(true);
+            ProjectedBlockClaim<BlockData, ProjectionWorldView> resampled = wall.scan().claims().get(nearLocalKey);
+            assertTrue(resampled != null && !resampled.isHeld(), "a released cell is resampled live once its blockers open");
+            assertTrue(wall.scan().claimDelta().changedKeys().contains(nearLocalKey));
+            assertTrue(wall.scan().claims().get(farLocalKey).isHeld());
+            wall.scan().commit();
+        } finally {
+            Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = originalHold;
+        }
+    }
+
+    @Test
+    public void hiddenHoldsAreNeverProvenByBlockersWhoseClaimsAlreadyLose() throws ReflectiveOperationException {
+        boolean originalHold = Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS;
+        Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = true;
+        try {
+            WallFixture reference = wallFixture();
+            reference.runCenter(true);
+            long nearLocalKey = remoteClaimKey(reference.scan(), reference.nearTarget());
+            long farLocalKey = remoteClaimKey(reference.scan(), reference.farTarget());
+            reference.scan().commit();
+            reference.buildWall();
+            reference.memo().clearDestinationSamples();
+            reference.runCenter(true);
+            reference.scan().commit();
+            LongOpenHashSet farBlockers = heldBlockers(reference.scan(), farLocalKey);
+            assertFalse(farBlockers.isEmpty());
+
+            WallFixture wall = wallFixture();
+            wall.runCenter(true);
+            wall.scan().commit();
+            LongOpenHashSet restored = new LongOpenHashSet();
+            assertFalse(wall.scan().exposeLosingClaims(farBlockers, restored, false), "losing cells without holds behind them need no pass");
+
+            wall.buildWall();
+            wall.memo().clearDestinationSamples();
+            wall.runAt(0.25D, true);
+            assertTrue(wall.scan().claims().get(nearLocalKey).isHeld(), "a hold behind winning blockers is taken");
+            assertFalse(wall.scan().claims().containsKey(farLocalKey), "a cell hidden only by losing blockers is released");
+            assertEquals(1, wall.scan().hiddenHolds());
+            wall.scan().commit();
+
+            assertFalse(wall.scan().exposeLosingClaims(new LongOpenHashSet(), farBlockers, false));
+            wall.runAt(0.25D, false);
+            assertFalse(wall.scan().claims().containsKey(farLocalKey), "a released cell has nothing to re-hold");
+            assertTrue(wall.scan().claims().get(nearLocalKey).isHeld());
+            wall.scan().commit();
 
             HoldFixture cone = holdFixture(true);
             cone.run(cone.eye(3.0D), true);
             cone.scan().commit();
-            cone.scan().revokeHiddenHolds();
+            LongOpenHashSet allCommitted = new LongOpenHashSet(cone.scan().claims().keySet());
+            assertFalse(cone.scan().exposeLosingClaims(allCommitted, restored, false), "wall-proven holds depend on no blocker claim");
             cone.run(cone.eye(-3.0D), false);
-            assertTrue(cone.scan().coneHolds() > 0, "wall-proven holds do not depend on other portals' claims");
+            assertTrue(cone.scan().coneHolds() > 0);
             assertEquals(0, cone.scan().hiddenHolds());
             cone.scan().commit();
         } finally {
             Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = originalHold;
         }
+    }
+
+    @Test
+    public void claimSetTransitionsReleaseTheHoldsBehindTheDisplacedClaim() throws ReflectiveOperationException {
+        boolean originalHold = Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS;
+        Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = true;
+        try {
+            WallFixture wall = wallFixture();
+            wall.runCenter(true);
+            long nearLocalKey = remoteClaimKey(wall.scan(), wall.nearTarget());
+            long farLocalKey = remoteClaimKey(wall.scan(), wall.farTarget());
+            wall.scan().commit();
+            wall.buildWall();
+            wall.memo().clearDestinationSamples();
+            wall.runCenter(true);
+            wall.scan().commit();
+            long nearBlocker = heldBlockers(wall.scan(), nearLocalKey).iterator().nextLong();
+
+            ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+            UUID owner = new UUID(0L, 7L);
+            UUID other = new UUID(0L, 8L);
+            set.replacePortalClaims(owner, owner.toString(), 5.0D, wall.scan().claims());
+            LongOpenHashSet displaced = new LongOpenHashSet();
+            LongOpenHashSet restored = new LongOpenHashSet();
+            assertFalse(set.drainLosingTransitions(owner, displaced, restored, true), "an uncontested portal has no losing keys");
+            assertTrue(displaced.isEmpty() && restored.isEmpty());
+            assertFalse(wall.scan().exposeLosingClaims(displaced, restored, true));
+
+            Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> otherClaims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+            otherClaims.put(nearBlocker, new ProjectedBlockClaim<BlockData, ProjectionWorldView>(blockData(Material.AIR), null, ProjectedBlockClaim.NO_REMOTE_KEY, false));
+            set.replacePortalClaims(other, other.toString(), 1.0D, otherClaims);
+            assertTrue(set.drainLosingTransitions(owner, displaced, restored, false));
+            assertEquals(LongOpenHashSet.of(nearBlocker), displaced);
+            assertTrue(wall.scan().exposeLosingClaims(displaced, restored, false));
+            wall.runCenter(false);
+            assertFalse(wall.scan().claims().containsKey(nearLocalKey));
+            assertTrue(wall.scan().claims().get(farLocalKey).isHeld());
+            set.replacePortalDelta(owner, owner.toString(), 5.0D, wall.scan().claimDelta());
+            wall.scan().commit();
+            assertTrue(set.getWinningClaim(farLocalKey).isHeld());
+            assertFalse(set.getWinningClaim(nearBlocker).isHeld());
+        } finally {
+            Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = originalHold;
+        }
+    }
+
+    private static WallFixture wallFixture() throws ReflectiveOperationException {
+        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        PortalStructure structure = structure();
+        Map<String, Object> area = new HashMap<String, Object>();
+        area.put("worldKey", "minecraft:overworld");
+        area.put("x1", Integer.valueOf(-2));
+        area.put("x2", Integer.valueOf(2));
+        area.put("y1", Integer.valueOf(64));
+        area.put("y2", Integer.valueOf(66));
+        area.put("z1", Integer.valueOf(0));
+        area.put("z2", Integer.valueOf(0));
+        structure.setArea(new Cuboid(area));
+        ILocalPortal portal = portal(structure, frame);
+        MutableWorldView localView = new MutableWorldView(blockData(Material.AIR));
+        MutableWorldView remoteView = new MutableWorldView(blockData(Material.AIR));
+        long nearTarget = ProjectionCellKey.pack(0, 65, -5);
+        long farTarget = ProjectionCellKey.pack(3, 65, -5);
+        remoteView.blocks.put(nearTarget, blockData(Material.GOLD_BLOCK));
+        remoteView.blocks.put(farTarget, blockData(Material.GOLD_BLOCK));
+        LongOpenHashSet wallKeys = new LongOpenHashSet();
+        for (int x = -4; x <= 6; x++) {
+            for (int y = 63; y <= 67; y++) {
+                wallKeys.add(ProjectionCellKey.pack(x, y, -2));
+            }
+        }
+        ProjectorDestination destination = destination(portal, structure, localView, remoteView);
+        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
+            ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
+        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+            () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
+        ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
+        useOcclusion(scan, ProjectorCellScanLightingRetentionTest::testOccluding);
+        return new WallFixture(scan, destination, structure, remoteView, memo, nearTarget, farTarget, wallKeys);
+    }
+
+    private record WallFixture(ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan,
+                               ProjectorDestination destination, PortalStructure structure, MutableWorldView remote,
+                               ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo, long nearTarget, long farTarget,
+                               LongOpenHashSet wallKeys) {
+        private void buildWall() {
+            BlockData stone = blockData(Material.STONE);
+            for (long key : wallKeys) {
+                remote.blocks.put(key, stone);
+            }
+        }
+
+        private void runCenter(boolean forceResample) {
+            runAt(0.0D, forceResample);
+        }
+
+        private void runAt(double lateral, boolean forceResample) {
+            Location eye = structure.getCenter().add(lateral, 0.0D, 1.5D);
+            Frustum4D frustum = new Frustum4D(BukkitGeometry.vector(eye), structure, new Frustum4D.Options(6.0D, 2.0D,
+                Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
+            scan.run(destination, null, BukkitGeometry.vector(eye), frustum, 6.0D, forceResample, false, true,
+                false, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
+        }
+    }
+
+    private static LongOpenHashSet heldBlockers(ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan, long key)
+        throws ReflectiveOperationException {
+        Field field = ProjectorCellScan.class.getDeclaredField("heldBlockers");
+        field.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Long2ObjectOpenHashMap<long[]> blockers = (Long2ObjectOpenHashMap<long[]>) field.get(scan);
+        long[] recorded = blockers.get(key);
+        return recorded == null ? new LongOpenHashSet() : new LongOpenHashSet(recorded);
     }
 
     @Test
