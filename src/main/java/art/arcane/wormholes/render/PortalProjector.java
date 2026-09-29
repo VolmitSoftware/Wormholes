@@ -376,10 +376,10 @@ public final class PortalProjector {
         if (!renderModeChanged && !dissolve.isActive() && canReuseProjection(eye, stableResample, localDirty)) {
             lastReuseSkips++;
             lastBlockChanges = 0;
-            lastProjectNanos = System.nanoTime() - startNanos;
-            WormholesTelemetry.addRenderNanos(lastProjectNanos);
             if (updateEntities) {
                 updateEntitiesOnly(startNanos, eye);
+            } else {
+                recordProjectTime(startNanos);
             }
             return;
         }
@@ -394,6 +394,7 @@ public final class PortalProjector {
                 portal.getNetworkViewLateralPad());
         } catch (RuntimeException ex) {
             noteFrustumFailure("block", ex);
+            recordProjectTime(startNanos);
             return;
         }
         frustumFailures.recordSuccess();
@@ -650,6 +651,7 @@ public final class PortalProjector {
                 portal.getNetworkViewLateralPad());
         } catch (RuntimeException ex) {
             noteFrustumFailure("entity", ex);
+            recordProjectTime(startNanos);
             return;
         }
         frustumFailures.recordSuccess();

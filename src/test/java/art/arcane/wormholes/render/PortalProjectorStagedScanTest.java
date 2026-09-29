@@ -32,6 +32,7 @@ import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
+import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.MirrorRotation;
 import art.arcane.wormholes.portal.PortalFrame;
@@ -39,6 +40,7 @@ import art.arcane.wormholes.portal.PortalStructure;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
+import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.wormholes.util.Direction;
 
@@ -128,6 +130,31 @@ final class PortalProjectorStagedScanTest {
         }
     }
 
+    @Test
+    void aReusedFrameWithEntityUpdatesRecordsItsRenderTimeOnce() throws Exception {
+        ProjectionWorldChangeTracker previousTracker = Wormholes.projectionChangeTracker;
+        Wormholes.projectionChangeTracker = new ProjectionWorldChangeTracker();
+        try (Fixture fixture = new Fixture()) {
+            when(fixture.portal.getNetworkViewHeartbeatTicks()).thenReturn(1_200);
+            fixture.projector.project(true, false);
+            assertFalse(fixture.projector.hasPendingScan());
+            int reuseSkips = (int) field(fixture.projector, "lastReuseSkips");
+            WormholesTelemetry.clear();
+            WormholesTelemetry.renderMsPerSecond(1_000L);
+
+            fixture.projector.project(true, true);
+
+            assertEquals(reuseSkips + 1, (int) field(fixture.projector, "lastReuseSkips"),
+                "the second pass must take the reuse path");
+            long frameNanos = (long) field(fixture.projector, "lastProjectNanos");
+            assertEquals(frameNanos / 1.0E6D, WormholesTelemetry.renderMsPerSecond(2_000L), 1.0E-9D,
+                "a reused frame that also refreshes entities must add its elapsed time to the render total once");
+        } finally {
+            Wormholes.projectionChangeTracker = previousTracker;
+            WormholesTelemetry.clear();
+        }
+    }
+
     private static Object field(PortalProjector projector, String name) throws ReflectiveOperationException {
         Field field = PortalProjector.class.getDeclaredField(name);
         field.setAccessible(true);
@@ -145,6 +172,7 @@ final class PortalProjectorStagedScanTest {
         private final AtomicLong revision = new AtomicLong();
         private final AtomicInteger samples = new AtomicInteger();
         private final ProjectionClaimArbiter arbiter = mock(ProjectionClaimArbiter.class);
+        private final ILocalPortal portal = mock(ILocalPortal.class);
         private final PortalProjector projector;
 
         private Fixture() {
@@ -164,7 +192,6 @@ final class PortalProjectorStagedScanTest {
             PortalStructure structure = new PortalStructure();
             structure.setArea(new Cuboid(Map.of("worldKey", "minecraft:overworld", "x1", 0, "x2", 2,
                 "y1", 64, "y2", 66, "z1", 0, "z2", 0)));
-            ILocalPortal portal = mock(ILocalPortal.class);
             when(portal.getId()).thenReturn(UUID.randomUUID());
             when(portal.getWorld()).thenReturn(world);
             when(portal.getName()).thenReturn("staged projection");

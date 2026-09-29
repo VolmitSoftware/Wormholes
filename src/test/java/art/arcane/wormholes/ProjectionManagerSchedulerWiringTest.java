@@ -160,6 +160,25 @@ class ProjectionManagerSchedulerWiringTest {
     }
 
     @Test
+    void theObserversGaugeCountsInterestedObserversRatherThanFramesStillInFlight() throws IOException {
+        ClassModel manager = parse(PROJECTION_MANAGER);
+        List<Instruction> tick = body(manager, "tick");
+
+        for (int index = 0; index + 1 < tick.size(); index++) {
+            boolean inFlightRead = tick.get(index) instanceof FieldInstruction field
+                && "observerTasksInFlight".equals(field.name().stringValue());
+            boolean sizeCall = tick.get(index + 1) instanceof InvokeInstruction invoke
+                && "size".equals(invoke.name().stringValue());
+            assertFalse(inFlightRead && sizeCall,
+                "tick() must not publish observerTasksInFlight.size(): on Paper each frame runs inline and removes "
+                    + "itself before the gauge is read, so the observers metric reads zero while players watch");
+        }
+        Set<String> invoked = invokedMethods(manager, "tick");
+        assertTrue(invoked.contains("art/arcane/wormholes/ProjectionInterestSet.observerIds"));
+        assertTrue(invoked.contains("art/arcane/wormholes/service/WormholesTelemetry.setProjectionGauges"));
+    }
+
+    @Test
     void theProjectionTickIsScheduledOnceAndIsNeverCancelledAndRescheduled() throws IOException {
         ClassModel manager = parse(PROJECTION_MANAGER);
         Set<String> scheduling = invokedMethods(manager, "scheduleTick");

@@ -12,6 +12,7 @@ import java.lang.classfile.CodeElement;
 import java.lang.classfile.CodeModel;
 import java.lang.classfile.Instruction;
 import java.lang.classfile.MethodModel;
+import java.lang.classfile.instruction.ConstantInstruction;
 import java.lang.classfile.instruction.InvokeInstruction;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -50,6 +51,52 @@ class WormholesIntegrationServiceTest {
         assertNotNull(sample);
         assertFalse(sample.available());
         assertEquals("network-manager-not-ready", sample.message());
+    }
+
+    @Test
+    void projectionPlateCostIsPublishedThroughTheSharedSchema() {
+        WormholesIntegrationService service = new WormholesIntegrationService();
+        Set<String> plateKeys = Set.of(
+            IntegrationMetricSchema.WORMHOLES_PLATE_BUILDS_PER_SECOND,
+            IntegrationMetricSchema.WORMHOLES_PLATE_BYTES,
+            IntegrationMetricSchema.WORMHOLES_BLOCK_ENTITIES_PER_SECOND);
+
+        Set<String> advertised = new LinkedHashSet<String>();
+        service.metricDescriptors().forEach(descriptor -> advertised.add(descriptor.key()));
+        Map<String, IntegrationMetricSample> defaults = service.sampleMetrics(Set.of());
+        Map<String, IntegrationMetricSample> plates = service.sampleMetrics(plateKeys);
+
+        assertTrue(advertised.containsAll(plateKeys), "React only requests keys the provider advertises");
+        assertEquals(IntegrationMetricSchema.wormholesKeys(), defaults.keySet());
+        assertEquals("projection-manager-not-ready",
+            plates.get(IntegrationMetricSchema.WORMHOLES_PLATE_BUILDS_PER_SECOND).message());
+        assertEquals("projection-manager-not-ready",
+            plates.get(IntegrationMetricSchema.WORMHOLES_PLATE_BYTES).message());
+        assertTrue(plates.get(IntegrationMetricSchema.WORMHOLES_BLOCK_ENTITIES_PER_SECOND).available());
+    }
+
+    @Test
+    void peerRttIsUnavailableRatherThanZeroWithoutAHandshakenPeer() throws IOException {
+        List<Instruction> body = body(parse(SERVICE), "samplePeerRttMax");
+        boolean reportsNoPeers = false;
+        for (Instruction instruction : body) {
+            if (instruction instanceof ConstantInstruction constant && "no-connected-peers".equals(constant.constantValue())) {
+                reportsNoPeers = true;
+            }
+        }
+
+        assertTrue(invoked(body).contains(NETWORK + "$PeerSnapshot.handshakeComplete"));
+        assertTrue(reportsNoPeers, "an idle mesh must publish an unavailable RTT, not a healthy-looking 0 ms");
+    }
+
+    @Test
+    void compressionRatioIsWindowedInsteadOfTheLifetimeRatio() throws IOException {
+        ClassModel model = parse(SERVICE);
+        Set<String> invocations = invoked(body(model, "sampleCompressionRatioOut"));
+
+        assertTrue(invocations.contains("art/arcane/wormholes/service/RatioWindow.ratio"));
+        assertFalse(invocations.contains("art/arcane/wormholes/network/WireCompression$Stats.ratioOut"),
+            "the lifetime ratio hides a dictionary that went stale after hours of efficient traffic");
     }
 
     private static Set<String> invoked(List<Instruction> body) {
