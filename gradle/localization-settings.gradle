@@ -1,14 +1,56 @@
-Properties localBuildProperties = new Properties()
-File localBuildFile = new File(settingsDir, '../../.gradle/local.properties')
-if (localBuildFile.isFile()) {
-    localBuildFile.withInputStream { InputStream input -> localBuildProperties.load(input) }
+File wormholesRoot = new File(settingsDir, '../..').canonicalFile
+
+boolean hasVolmLibSettings(File directory) {
+    new File(directory, 'settings.gradle.kts').exists() || new File(directory, 'settings.gradle').exists()
 }
-String localDirectory = providers.gradleProperty('localVolmLibDirectory')
-    .orElse(providers.environmentVariable('VOLMLIB_DIR'))
-    .orElse(localBuildProperties.getProperty('localVolmLibDirectory', ''))
+
+File resolveLocalVolmLibDirectory(File wormholesRoot) {
+    Properties localBuildProperties = new Properties()
+    File localBuildFile = new File(wormholesRoot, '.gradle/local.properties')
+    if (localBuildFile.isFile()) {
+        localBuildFile.withInputStream { InputStream input -> localBuildProperties.load(input) }
+    }
+    String configuredPath = providers.gradleProperty('localVolmLibDirectory')
+        .orElse(providers.environmentVariable('VOLMLIB_DIR'))
+        .orElse(localBuildProperties.getProperty('localVolmLibDirectory', ''))
+        .orNull
+    if (configuredPath != null && !configuredPath.isBlank()) {
+        File configuredDirectory = file(configuredPath)
+        if (hasVolmLibSettings(configuredDirectory)) {
+            return configuredDirectory
+        }
+    }
+
+    List<File> roots = [wormholesRoot]
+    File gitPointer = new File(wormholesRoot, '.git')
+    if (gitPointer.isFile()) {
+        String pointer = gitPointer.text.trim()
+        if (pointer.startsWith('gitdir: ')) {
+            File gitDirectory = new File(pointer.substring(8))
+            roots.add((gitDirectory.isAbsolute() ? gitDirectory : new File(wormholesRoot, gitDirectory.path)).canonicalFile)
+        }
+    }
+    for (File root : roots) {
+        File currentDirectory = root
+        while (currentDirectory != null) {
+            File candidate = new File(currentDirectory, 'VolmLib')
+            if (hasVolmLibSettings(candidate)) {
+                return candidate
+            }
+            currentDirectory = currentDirectory.parentFile
+        }
+    }
+    null
+}
+
+boolean useLocalVolmLib = providers.gradleProperty('useLocalVolmLib')
+    .orElse('true')
+    .map { String value -> value.equalsIgnoreCase('true') }
     .get()
-if (!localDirectory.isBlank()) {
-    includeBuild(file(localDirectory)) {
+File localVolmLibDirectory = resolveLocalVolmLibDirectory(wormholesRoot)
+
+if (useLocalVolmLib && localVolmLibDirectory != null) {
+    includeBuild(localVolmLibDirectory) {
         name = 'VolmLib'
         dependencySubstitution {
             substitute(module('com.github.VolmitSoftware.VolmLib:volmlib-localization')).using(project(':localization'))
