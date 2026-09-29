@@ -356,6 +356,19 @@ public final class ProjectionClaimArbiter {
         }
     }
 
+    boolean consumeHoldExposure(Player observer, UUID claimOwnerId) {
+        if (observer == null || claimOwnerId == null) {
+            return false;
+        }
+        ObserverClaims state = observers.get(observer.getUniqueId());
+        if (state == null) {
+            return false;
+        }
+        synchronized (state) {
+            return !state.retired && state.claimSet.consumeHoldExposure(claimOwnerId);
+        }
+    }
+
     public void discardObserver(UUID observerId) {
         discardObserver(observerId, null);
     }

@@ -129,7 +129,13 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     private Long2LongOpenHashMap nextHeldSince;
     private boolean holdClaims;
     private boolean holdConeClaims;
+    private boolean holdHiddenClaims;
     private boolean coneHoldsRevoked;
+    private boolean hiddenHoldsRevoked;
+    private boolean dropHoldsRequested;
+    private boolean passRevokesConeHolds;
+    private boolean passRevokesHiddenHolds;
+    private boolean passDropsHolds;
     private int maxHeldClaims;
     private long holdGeneration;
     private boolean removedClaimsResolved;
@@ -374,6 +380,14 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         coneHoldsRevoked = true;
     }
 
+    public void revokeHiddenHolds() {
+        hiddenHoldsRevoked = true;
+    }
+
+    public void dropHolds() {
+        dropHoldsRequested = true;
+    }
+
     public void invalidateContent() {
         emptyCells.clear();
     }
@@ -416,7 +430,11 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         nextHeldSince.clear();
         holdClaims = false;
         holdConeClaims = false;
+        holdHiddenClaims = false;
         coneHoldsRevoked = false;
+        hiddenHoldsRevoked = false;
+        dropHoldsRequested = false;
+        clearPassHoldRequests();
         removedClaimsResolved = false;
         remoteFootprint.clear();
         nextRemoteFootprint.clear();
@@ -460,12 +478,15 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         nextHeldSince.clear();
         holdClaims = false;
         holdConeClaims = false;
+        holdHiddenClaims = false;
+        clearPassHoldRequests();
         removedClaimsResolved = false;
         scanCommitted = true;
     }
 
     public boolean canResumeOcclusion(ProjectorScanDestination<P, V> destination, GeometryVector eye, Frustum4D frustum) {
         return scanCommitted && completeGeometry && hasUnresolvedOcclusion()
+            && !dropHoldsRequested && !hiddenHoldsRevoked
             && frustum == scannedFrustum
             && destination.localView() == scannedLocalView && destination.destView() == scannedDestinationView
             && scannedLocalRevision == destination.localView().getRevision()
@@ -596,6 +617,10 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             remoteFootprint.addAll(nextRemoteFootprint);
             nextRemoteFootprint.clear();
         }
+        coneHoldsRevoked |= passRevokesConeHolds;
+        hiddenHoldsRevoked |= passRevokesHiddenHolds;
+        dropHoldsRequested |= passDropsHolds;
+        clearPassHoldRequests();
         pending = null;
         preparedResult = false;
         reuseCommittedEntityOcclusion = false;
@@ -610,6 +635,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         nextHeldSince.clear();
         holdClaims = false;
         holdConeClaims = false;
+        holdHiddenClaims = false;
         removedClaimsResolved = false;
         entityOcclusion.disable();
     }
@@ -841,7 +867,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     }
 
     private void keepCommittedHold(long localKey) {
-        if (!holdClaims) {
+        if (!holdHiddenClaims) {
             return;
         }
         ProjectedBlockClaim<B, V> current = nextProjected.get(localKey);
@@ -849,8 +875,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             return;
         }
         ProjectedBlockClaim<B, V> previous = projected.get(localKey);
-        if (previous != null && previous.isHeld() && current.sameBlock(previous) && current.sameLightSource(previous)
-            && current.getLightRemoteKey() == previous.getLightRemoteKey()) {
+        if (previous != null && previous.isHeld() && sameCommittedContent(previous, current)) {
             holdClaim(localKey, previous);
         }
     }
@@ -860,16 +885,34 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         if (hidden != null && hidden.isBlackout()) {
             return;
         }
-        if (hidden != null && holdClaims) {
+        if (hidden != null && holdHiddenClaims) {
             ProjectedBlockClaim<B, V> previous = projected.get(localKey);
             if (previous != null && !previous.isBlackout()) {
-                holdClaim(localKey, previous);
+                if (sameCommittedContent(previous, hidden)) {
+                    holdClaim(localKey, previous);
+                } else {
+                    holdFreshClaim(localKey, hidden);
+                }
                 hiddenHolds++;
                 return;
             }
         }
         nextProjected.remove(localKey);
         occlusionRejected++;
+    }
+
+    private static <B, V> boolean sameCommittedContent(ProjectedBlockClaim<B, V> previous, ProjectedBlockClaim<B, V> current) {
+        return current.sameBlock(previous) && current.sameLightSource(previous)
+            && current.getLightRemoteKey() == previous.getLightRemoteKey();
+    }
+
+    private void holdFreshClaim(long key, ProjectedBlockClaim<B, V> fresh) {
+        nextProjected.put(key, fresh.withHeld(true));
+        long since = heldSince.get(key);
+        nextHeldSince.put(key, since == Long.MIN_VALUE ? holdGeneration : since);
+        if (deltaBaseline != null) {
+            changedClaimKeys.add(key);
+        }
     }
 
     private void holdClaim(long key, ProjectedBlockClaim<B, V> previous) {
@@ -890,8 +933,12 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     }
 
     private boolean beginHolding(boolean committed) {
-        boolean revoked = coneHoldsRevoked;
+        passRevokesConeHolds = coneHoldsRevoked;
+        passRevokesHiddenHolds = hiddenHoldsRevoked;
+        passDropsHolds = dropHoldsRequested;
         coneHoldsRevoked = false;
+        hiddenHoldsRevoked = false;
+        dropHoldsRequested = false;
         ScanSettings current = settings.get();
         maxHeldClaims = current.maxHeldClaims();
         holdGeneration++;
@@ -899,9 +946,16 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         coneHolds = 0;
         heldEvictions = 0;
         removedClaimsResolved = false;
-        boolean enabled = committed && current.holdInvisibleClaims() && maxHeldClaims > 0;
-        holdConeClaims = enabled && !revoked;
+        boolean enabled = committed && current.holdInvisibleClaims() && maxHeldClaims > 0 && !passDropsHolds;
+        holdConeClaims = enabled && !passRevokesConeHolds;
+        holdHiddenClaims = enabled && !passRevokesHiddenHolds;
         return enabled;
+    }
+
+    private void clearPassHoldRequests() {
+        passRevokesConeHolds = false;
+        passRevokesHiddenHolds = false;
+        passDropsHolds = false;
     }
 
     private void evictOverflowHeldClaims() {

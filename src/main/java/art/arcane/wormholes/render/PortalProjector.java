@@ -396,7 +396,11 @@ public final class PortalProjector {
         if (localDirty) {
             cellScan.revokeConeHolds();
         }
-        if (!renderModeChanged && !dissolve.isActive() && canReuseProjection(eye, stableResample, localDirty)) {
+        boolean holdsExposed = claimArbiter.consumeHoldExposure(observer, portal.getId());
+        if (holdsExposed) {
+            cellScan.revokeHiddenHolds();
+        }
+        if (!renderModeChanged && !dissolve.isActive() && canReuseProjection(eye, stableResample, localDirty || holdsExposed)) {
             lastReuseSkips++;
             lastBlockChanges = 0;
             lastProjectNanos = System.nanoTime() - startNanos;
@@ -408,6 +412,9 @@ public final class PortalProjector {
             return;
         }
         int resampleReasonMask = reuseBlockers(eye, projectionInvalidated, stableResample, localDirty, renderModeChanged);
+        if (holdsExposed) {
+            resampleReasonMask |= ProjectorResampleReasons.HOLDS_EXPOSED;
+        }
 
         double portalDepth = portal.getNetworkViewDepth();
         FidelityPortalExtension fidelity = fidelityExtension();
@@ -455,6 +462,9 @@ public final class PortalProjector {
         boolean destinationOverBudget = !destinationContentStale && !destinationDirty
             && sampleMemo.destinationOverBudget(sampleMemoBudget(viewFrustum.fittedCandidateWork()));
         boolean destinationSamplesStale = destinationContentStale || destinationDirty || destinationOverBudget;
+        if (destinationContentStale) {
+            cellScan.dropHolds();
+        }
         if (destinationContentStale && recursiveSamplesCached) {
             resampleReasonMask |= ProjectorResampleReasons.DEST_STALE_RECURSIVE;
         }
@@ -1143,6 +1153,7 @@ public final class PortalProjector {
 
     private void invalidateRtpDestinationState() {
         cancelPendingProjection();
+        cellScan.dropHolds();
         schedule.invalidateDestination();
         sampler.resetRecursiveSamplesCached();
         sampleMemo.discard();

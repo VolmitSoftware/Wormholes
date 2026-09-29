@@ -67,8 +67,8 @@ public class ProjectionConfig {
     @ConfigDescription("Worker threads that build shared view plates from region snapshots and remote views.")
     public int plateWorkers = 2;
     @ConfigDescription({
-        "Keep already-sent projected cells in place when they leave the projection cone or turn hidden while the local wall at the eye-to-cell crossing proves nobody can see them.",
-        "Held cells cost no packets; they revert to the real blocks when the portal closes, the local wall changes, the destination changes, or the observer crosses the portal plane."
+        "Keep already-sent projected cells in place when they leave the projection cone behind a local wall or turn hidden behind nearer destination blocks, so nobody can see them.",
+        "Held cells cost no packets; they revert to the real blocks when the portal closes, the local wall changes, the destination changes, another portal's projection covers the cells in front of them, or the observer crosses the portal plane."
     })
     public boolean holdInvisibleClaims = true;
     @ConfigDescription("Upper bound on held cells per portal and observer; the oldest held cells revert first once it is exceeded.")

@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -300,6 +301,77 @@ public final class ProjectionClaimSetTest {
     }
 
     @Test
+    public void aClaimThatStartsLosingToAnotherPortalsLiveClaimExposesItsOwnersHoldsOnce() {
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+        UUID nearPortal = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID farPortal = UUID.fromString("00000000-0000-0000-0000-000000000002");
+
+        set.replacePortalClaims(farPortal, farPortal.toString(), 8.0D, singleClaim(blockData("far-a")));
+        assertFalse(set.consumeHoldExposure(farPortal), "an uncontested claim exposes nothing");
+
+        set.replacePortalClaims(nearPortal, nearPortal.toString(), 2.0D, singleClaim(blockData("near-a")));
+        assertTrue(set.consumeHoldExposure(farPortal), "the far blocker is now displaced by the near live claim");
+        assertFalse(set.consumeHoldExposure(farPortal), "exposure is consumed once");
+        assertFalse(set.consumeHoldExposure(nearPortal), "the winner is never exposed");
+
+        set.replacePortalClaims(nearPortal, nearPortal.toString(), 2.0D, singleClaim(blockData("near-b")));
+        set.replacePortalClaims(farPortal, farPortal.toString(), 8.0D, singleClaim(blockData("far-b")));
+        assertFalse(set.consumeHoldExposure(farPortal), "content changes on an already displaced cell do not repeat the exposure");
+
+        set.replacePortalClaims(farPortal, farPortal.toString(), 9.0D, singleClaim(blockData("far-b")));
+        assertTrue(set.consumeHoldExposure(farPortal), "a moved eye can hide new cells behind a displaced blocker");
+
+        set.releasePortal(nearPortal);
+        set.replacePortalClaims(farPortal, farPortal.toString(), 10.0D, singleClaim(blockData("far-b")));
+        assertFalse(set.consumeHoldExposure(farPortal), "a claim that wins again stops exposing holds");
+    }
+
+    @Test
+    public void newClaimsBehindALiveWinnerExposeHoldsButHeldWinnersDoNot() {
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+        UUID nearPortal = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID farPortal = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        UUID heldPortal = UUID.fromString("00000000-0000-0000-0000-000000000003");
+        long heldCell = 84L;
+
+        set.replacePortalClaims(nearPortal, nearPortal.toString(), 2.0D, singleClaim(blockData("near")));
+        set.replacePortalClaims(farPortal, farPortal.toString(), 8.0D, singleClaim(blockData("far")));
+        assertTrue(set.consumeHoldExposure(farPortal), "a new claim that never wins is displaced from the start");
+
+        set.replacePortalClaims(heldPortal, heldPortal.toString(), 1.0D, singleHeldClaim(heldCell, blockData("held-near")));
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> farHeld = singleClaim(blockData("far"));
+        farHeld.put(heldCell, heldClaimValue(blockData("held-far")));
+        set.replacePortalClaims(farPortal, farPortal.toString(), 8.0D, farHeld);
+        assertFalse(set.consumeHoldExposure(farPortal), "losing to another held claim exposes nothing");
+        assertFalse(set.consumeHoldExposure(heldPortal));
+
+        LongOpenHashSet staged = new LongOpenHashSet();
+        set.stagePortalClaims(nearPortal, nearPortal.toString(), 2.0D, twoClaims(CELL_KEY, blockData("near"), heldCell, blockData("near-live")), staged);
+        set.resolveStaged(staged);
+        assertTrue(set.consumeHoldExposure(heldPortal), "a held claim displaced by a staged live claim is exposed");
+        assertTrue(set.consumeHoldExposure(farPortal));
+    }
+
+    @Test
+    public void droppedLosingClaimsStopEyeMovesFromExposingHolds() {
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+        UUID nearPortal = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID farPortal = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        long ownCell = 84L;
+
+        set.replacePortalClaims(nearPortal, nearPortal.toString(), 2.0D, singleClaim(blockData("near")));
+        set.replacePortalClaims(farPortal, farPortal.toString(), 8.0D, twoClaims(CELL_KEY, blockData("far"), ownCell, blockData("own")));
+        assertTrue(set.consumeHoldExposure(farPortal));
+
+        set.replacePortalClaims(farPortal, farPortal.toString(), 8.0D, singleClaim(ownCell, blockData("own")));
+        set.replacePortalClaims(farPortal, farPortal.toString(), 9.0D, singleClaim(ownCell, blockData("own")));
+        assertFalse(set.consumeHoldExposure(farPortal), "an eye move without displaced claims exposes nothing");
+
+        set.releasePortal(farPortal);
+        assertFalse(set.consumeHoldExposure(farPortal));
+    }
+
+    @Test
     public void maskTierOutranksHeldTierAndHeldPairsFallThroughToDistance() {
         BlockData data = blockData("block");
         assertTrue(ProjectionClaimSet.isHigherPriority(8.0D, "b", heldClaimValue(data),
@@ -332,6 +404,13 @@ public final class ProjectionClaimSetTest {
         assertSame(held, held.withHeld(true));
         assertFalse(held.withHeld(false).isHeld());
         assertTrue(held.withFullBright(true).withFullBright(false).isHeld());
+    }
+
+    private static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> twoClaims(long firstKey, BlockData first,
+                                                                                                      long secondKey, BlockData second) {
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = singleClaim(firstKey, first);
+        claims.put(secondKey, singleClaimValue(second));
+        return claims;
     }
 
     private static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> singleHeldClaim(BlockData data) {

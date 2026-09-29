@@ -498,6 +498,9 @@ public final class MinecraftProjectionService implements AutoCloseable {
                     MinecraftPortalProjector projector = projectors.computeIfAbsent(portal.getId(), ignored ->
                         new MinecraftPortalProjector(runtime, new MinecraftPortalProjector.Context(player, portal,
                             MinecraftProjectionService.this::view, portals, plates)));
+                    if (claims.consumeHoldExposure(portal.getId())) {
+                        projector.scan().revokeHiddenHolds();
+                    }
                     MinecraftPortalProjector.Result result = projector.update(tick, deadline);
                     if (result == MinecraftPortalProjector.Result.READY) {
                         claims.stagePortalDelta(portal.getId(), portal.getId().toString(), Math.abs(projector.scan().eyeDot()),

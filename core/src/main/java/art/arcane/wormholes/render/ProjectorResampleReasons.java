@@ -13,11 +13,12 @@ public final class ProjectorResampleReasons {
     public static final int UNRESOLVED_OCCLUSION = 1 << 9;
     public static final int CAMERA = 1 << 10;
     public static final int FULL_SEND = 1 << 11;
-    public static final int REASON_COUNT = 12;
+    public static final int HOLDS_EXPOSED = 1 << 12;
+    public static final int REASON_COUNT = 13;
 
     private static final String[] NAMES = {
         "invalidated", "destStaleRecursive", "destStaleDirty", "destOverBudget", "localDirty", "stableCadence",
-        "presentation", "remotePending", "lighting", "unresolvedOcclusion", "camera", "fullSend"
+        "presentation", "remotePending", "lighting", "unresolvedOcclusion", "camera", "fullSend", "holdsExposed"
     };
 
     private final int[] counts = new int[REASON_COUNT];

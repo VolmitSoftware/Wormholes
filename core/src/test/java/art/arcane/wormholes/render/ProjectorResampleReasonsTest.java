@@ -59,6 +59,6 @@ public final class ProjectorResampleReasonsTest {
 
         assertEquals(all, reasons.mask());
         assertEquals("invalidated:1,destStaleRecursive:1,destStaleDirty:1,destOverBudget:1,localDirty:1,stableCadence:1,"
-            + "presentation:1,remotePending:1,lighting:1,unresolvedOcclusion:1,camera:1,fullSend:1", reasons.describe());
+            + "presentation:1,remotePending:1,lighting:1,unresolvedOcclusion:1,camera:1,fullSend:1,holdsExposed:1", reasons.describe());
     }
 }

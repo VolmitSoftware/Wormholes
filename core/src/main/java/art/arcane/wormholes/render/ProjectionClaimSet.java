@@ -160,7 +160,7 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
             int staleCount = staleScratch.size();
             for (int i = 0; i < staleCount; i++) {
                 long key = staleScratch.getLong(i);
-                portalClaims.claims.remove(key);
+                forgetLosingSlot(portalClaims, portalClaims.claims.remove(key));
                 decrementClaimCount(key, portalClaims);
                 affected.add(key);
             }
@@ -169,6 +169,7 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
         portalClaims.tieKey = tieKey;
         portalClaims.priorityDistance = priorityDistance;
         portalClaims.submittedClaims = claims;
+        exposeMovedLosingPortal(portalClaims, priorityChanged);
 
         if (priorityChanged && !contestedKeys.isEmpty()) {
             appendContestedKeys(portalClaims, passGeneration, affected);
@@ -192,7 +193,12 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
         LongIterator removed = delta.removedKeys().iterator();
         while (removed.hasNext()) {
             long key = removed.nextLong();
-            if (!delta.claims().containsKey(key) && portalClaims.claims.remove(key) != null) {
+            if (delta.claims().containsKey(key)) {
+                continue;
+            }
+            ClaimSlot<C> removedSlot = portalClaims.claims.remove(key);
+            if (removedSlot != null) {
+                forgetLosingSlot(portalClaims, removedSlot);
                 decrementClaimCount(key, portalClaims);
                 affected.add(key);
             }
@@ -218,6 +224,7 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
         portalClaims.tieKey = tieKey;
         portalClaims.priorityDistance = priorityDistance;
         portalClaims.submittedClaims = delta.claims();
+        exposeMovedLosingPortal(portalClaims, priorityChanged);
         if (priorityChanged && !contestedKeys.isEmpty()) {
             appendContestedKeys(portalClaims, passGeneration, affected);
         }
@@ -251,6 +258,15 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
 
     public boolean isEmpty() {
         return winners.isEmpty();
+    }
+
+    public boolean consumeHoldExposure(UUID portalId) {
+        PortalClaims<C> portalClaims = portals.get(portalId);
+        if (portalClaims == null || !portalClaims.holdExposure) {
+            return false;
+        }
+        portalClaims.holdExposure = false;
+        return true;
     }
 
     public boolean hasFullBrightClaims() {
@@ -355,6 +371,9 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
         WinnerChoice<C> choice = chooseWinner(key);
         if (choice.claimCount > 1) {
             result.conflicts++;
+            markLosingClaimants(key, choice.owner, choice.claim);
+        } else if (choice.owner != null) {
+            updateLosing(choice.owner, choice.owner.claims.get(key), false);
         }
         PortalClaims<C> nextOwner = choice.owner;
         if (nextOwner == null) {
@@ -410,6 +429,44 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
         }
         if (lightChanged) {
             result.addDirtyLighting(key);
+        }
+    }
+
+    private void markLosingClaimants(long key, PortalClaims<C> winner, C winningClaim) {
+        boolean liveWinner = !winningClaim.isHeld();
+        Iterator<PortalClaims<C>> iterator = portals.values().iterator();
+        while (iterator.hasNext()) {
+            PortalClaims<C> portalClaims = iterator.next();
+            ClaimSlot<C> slot = portalClaims.claims.get(key);
+            if (slot != null && slot.claim != null) {
+                updateLosing(portalClaims, slot, liveWinner && portalClaims != winner);
+            }
+        }
+    }
+
+    private static <C> void updateLosing(PortalClaims<C> portalClaims, ClaimSlot<C> slot, boolean losing) {
+        if (slot == null || slot.losing == losing) {
+            return;
+        }
+        slot.losing = losing;
+        if (losing) {
+            portalClaims.losingSlots++;
+            portalClaims.holdExposure = true;
+        } else {
+            portalClaims.losingSlots--;
+        }
+    }
+
+    private static <C> void forgetLosingSlot(PortalClaims<C> portalClaims, ClaimSlot<C> slot) {
+        if (slot != null && slot.losing) {
+            slot.losing = false;
+            portalClaims.losingSlots--;
+        }
+    }
+
+    private static <C> void exposeMovedLosingPortal(PortalClaims<C> portalClaims, boolean priorityChanged) {
+        if (priorityChanged && portalClaims.losingSlots > 0) {
+            portalClaims.holdExposure = true;
         }
     }
 
@@ -605,6 +662,8 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
         private Long2ObjectMap<C> submittedClaims;
         private String tieKey;
         private double priorityDistance;
+        private int losingSlots;
+        private boolean holdExposure;
 
         private PortalClaims(UUID portalId) {
             this.portalId = portalId;
@@ -619,6 +678,7 @@ public final class ProjectionClaimSet<C extends BlockProjectionClaim<C>> {
         private C claim;
         private long generation;
         private long affectedGeneration;
+        private boolean losing;
 
         private ClaimSlot(long key, C claim, long generation) {
             this.key = key;
