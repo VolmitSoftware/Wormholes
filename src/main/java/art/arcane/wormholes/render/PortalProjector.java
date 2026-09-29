@@ -303,6 +303,7 @@ public final class PortalProjector {
             + " hiddenHolds=" + cellScan.hiddenHolds()
             + " coneHolds=" + cellScan.coneHolds()
             + " heldEvictions=" + cellScan.heldEvictions()
+            + " remoteSections=" + cellScan.remoteFootprint().size()
             + " claimConflicts=" + lastClaimConflicts
             + " winnerChanges=" + lastWinnerChanges
             + " claimReverts=" + lastClaimReverts
@@ -383,15 +384,15 @@ public final class PortalProjector {
             maybeForceRemoteResend(remoteResendView);
         }
         World destWorld = destination.destWorld;
-        double destinationOriginX = destination.originX;
-        double destinationOriginZ = destination.originZ;
         ProjectionRenderMode renderMode = portal.getRenderMode();
         boolean renderModeChanged = renderMode != lastRenderMode;
         boolean viewCameraMoved = requiresViewCellResample(renderMode, hasCameraSnapshot,
             eye.getX(), eye.getY(), eye.getZ(), lastEyeX, lastEyeY, lastEyeZ);
+        double destinationOriginX = destination.originX;
+        double destinationOriginZ = destination.originZ;
         boolean stableResample = schedule.stableResample(firstProjectionDone, destination.destView,
-            destWorld, destinationOriginX, destinationOriginZ);
-        boolean localDirty = sampleMemo.localRegionDirty(localWorldId);
+            destWorld, destinationOriginX, destinationOriginZ, cellScan.remoteFootprint());
+        boolean localDirty = sampleMemo.localRegionDirty(destination.localView, localWorldId);
         if (localDirty) {
             cellScan.revokeConeHolds();
         }
@@ -449,7 +450,8 @@ public final class PortalProjector {
         boolean destinationContentStale = shouldInvalidateDestinationContentSamples(
             scheduledContentResample, renderModeChanged, buriedCellCullingChanged, recursiveSamplesCached);
         boolean destinationDirty = !destinationContentStale && sampleMemo.destinationStale(destinationRevision, destWorld != null,
-            sinceVersion -> schedule.destinationDirty(destWorld, destinationOriginX, destinationOriginZ, sinceVersion));
+            sinceVersion -> schedule.destinationUnaffectedThrough(destWorld, destinationOriginX, destinationOriginZ, sinceVersion,
+                cellScan.remoteFootprint()));
         boolean destinationOverBudget = !destinationContentStale && !destinationDirty
             && sampleMemo.destinationOverBudget(sampleMemoBudget(viewFrustum.fittedCandidateWork()));
         boolean destinationSamplesStale = destinationContentStale || destinationDirty || destinationOverBudget;
@@ -463,6 +465,7 @@ public final class PortalProjector {
             resampleReasonMask |= ProjectorResampleReasons.DEST_OVER_BUDGET;
         }
         if (destinationSamplesStale) {
+            cellScan.restartRemoteFootprint();
             sampler.clearRecursivePortals();
             sampleMemo.clearDestinationSamples();
             sampleMemo.refreshDestination(destinationRevision);

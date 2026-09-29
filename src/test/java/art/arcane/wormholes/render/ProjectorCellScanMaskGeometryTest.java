@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
@@ -74,6 +75,22 @@ final class ProjectorCellScanMaskGeometryTest {
                 assertTrue(emptySkips > 0, mode + " mask-only recursion must keep the empty-cell cache on");
             }
         }
+    }
+
+    @Test
+    void onlyTraversableRecursionMarksTheRemoteFootprintNested() throws ReflectiveOperationException {
+        Scene scene = new Scene();
+        Vector eye = new Vector(0.5D, 64.62D, 0.5D);
+        ScanRig recursive = scene.rig(true);
+        recursive.run(scene, eye, scene.frustum(eye), true, ProjectionRenderMode.PANOPTIC);
+        recursive.scan.commit();
+        ScanRig masked = scene.rig(false);
+        masked.run(scene, eye, scene.frustum(eye), true, ProjectionRenderMode.PANOPTIC);
+        masked.scan.commit();
+
+        assertTrue(recursive.scan.remoteFootprint().nested());
+        assertFalse(masked.scan.remoteFootprint().nested());
+        assertTrue(masked.scan.remoteFootprint().size() > 0);
     }
 
     private static void assertEquivalentClaims(Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> expected,

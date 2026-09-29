@@ -254,7 +254,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         long revision = destination.destView().getRevision();
         int memoBudget = ProjectorSampleMemo.budgetFor(scan.claims().size(), fit.fittedCandidateWork());
         boolean destinationStale = cullingChanged || sampler.recursiveSamplesCached()
-            || memo.destinationStale(revision, false, ignored -> false) || memo.destinationOverBudget(memoBudget);
+            || memo.destinationStale(revision, false, since -> ProjectionWorldChangeTracker.AFFECTED) || memo.destinationOverBudget(memoBudget);
         if (destinationStale) {
             sampler.clearRecursivePortals();
             memo.clearDestinationSamples();

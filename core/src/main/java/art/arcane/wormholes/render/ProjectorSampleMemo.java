@@ -6,8 +6,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.util.HashMap;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.function.BooleanSupplier;
-import java.util.function.LongPredicate;
+import java.util.function.LongUnaryOperator;
 
 import art.arcane.wormholes.render.view.ProjectionMaterialView;
 import java.util.function.Supplier;
@@ -25,6 +24,7 @@ public final class ProjectorSampleMemo<B, M, V extends ProjectionMaterialView<B,
     private final Long2ByteOpenHashMap localOccupancy;
     private final ProjectionBlockTypes<B, M> blocks;
     private final Supplier<ProjectionWorldChangeTracker> changeTracker;
+    private final LocalChangeFilter localChangeFilter;
     private V lastSampleView;
     private Long2ObjectOpenHashMap<ProjectorSample<B, V>> lastSampleMap;
     private V lastOcclusionView;
@@ -51,6 +51,7 @@ public final class ProjectorSampleMemo<B, M, V extends ProjectionMaterialView<B,
         this.localRevision = Long.MIN_VALUE;
         this.localChangeVersion = -1L;
         this.hasLocalRegionRect = false;
+        this.localChangeFilter = new LocalChangeFilter();
     }
 
     public ProjectionBlockTypes<B, M> blocks() {
@@ -195,9 +196,19 @@ public final class ProjectorSampleMemo<B, M, V extends ProjectionMaterialView<B,
         return occluding;
     }
 
-    public boolean destinationStale(long viewRevision, boolean hasDestinationWorld, LongPredicate dirtySince) {
-        return destinationMemosStale(viewRevision, destinationRevision, hasDestinationWorld,
-            () -> dirtySince.test(destinationVersion));
+    public boolean destinationStale(long viewRevision, boolean hasDestinationWorld, LongUnaryOperator unaffectedThrough) {
+        if (viewRevision != destinationRevision) {
+            return true;
+        }
+        if (!hasDestinationWorld) {
+            return false;
+        }
+        long through = unaffectedThrough.applyAsLong(destinationVersion);
+        if (through == ProjectionWorldChangeTracker.AFFECTED) {
+            return true;
+        }
+        destinationVersion = through;
+        return false;
     }
 
     public boolean destinationOverBudget(int budget) {
@@ -249,13 +260,20 @@ public final class ProjectorSampleMemo<B, M, V extends ProjectionMaterialView<B,
         }
     }
 
-    public boolean localRegionDirty(UUID localWorldId) {
+    public boolean localRegionDirty(V localView, UUID localWorldId) {
         ProjectionWorldChangeTracker tracker = changeTracker.get();
-        if (tracker == null || localWorldId == null || !hasLocalRegionRect) {
+        if (tracker == null || localView == null || localWorldId == null || !hasLocalRegionRect) {
             return true;
         }
-        return tracker.dirtySince(localWorldId, localRegionChunkMinX, localRegionChunkMinZ,
-            localRegionChunkMaxX, localRegionChunkMaxZ, localChangeVersion);
+        localChangeFilter.view = localView;
+        long through = tracker.unaffectedThrough(localWorldId, localRegionChunkMinX, localRegionChunkMinZ,
+            localRegionChunkMaxX, localRegionChunkMaxZ, localChangeVersion, localChangeFilter);
+        localChangeFilter.view = null;
+        if (through == ProjectionWorldChangeTracker.AFFECTED) {
+            return true;
+        }
+        localChangeVersion = through;
+        return false;
     }
 
     public void expandLocalRegionRect(AxisAlignedBB region) {
@@ -293,6 +311,36 @@ public final class ProjectorSampleMemo<B, M, V extends ProjectionMaterialView<B,
     }
 
 
+    private final class LocalChangeFilter implements ProjectionWorldChangeTracker.ChangeFilter {
+        private V view;
+
+        @Override
+        public boolean affectsBlock(int x, int y, int z) {
+            long key = ProjectionCellKey.pack(x, y, z);
+            byte air = localAir.get(key);
+            byte occupancy = localOccupancy.get(key);
+            if (air == 0 && occupancy == 0) {
+                return false;
+            }
+            if (!view.isChunkReady(x, z)) {
+                return true;
+            }
+            M material = view.sampleMaterial(x, y, z);
+            if (material == null) {
+                return true;
+            }
+            if (air != 0 && (air == 1) != blocks.isAir(material)) {
+                return true;
+            }
+            return occupancy != 0 && (occupancy == 1) != blocks.isOccluding(material);
+        }
+
+        @Override
+        public boolean affectsColumn(int chunkX, int chunkZ) {
+            return true;
+        }
+    }
+
     public static boolean localSampleMemoStale(boolean forceStableCellResample,
                                         boolean localDirty,
                                         long viewRevision,
@@ -300,18 +348,5 @@ public final class ProjectorSampleMemo<B, M, V extends ProjectionMaterialView<B,
                                         int memoSize,
                                         int memoBudget) {
         return forceStableCellResample || localDirty || viewRevision != memoRevision || memoSize > memoBudget;
-    }
-
-    public static boolean destinationMemosStale(long viewRevision,
-                                         long memoRevision,
-                                         boolean hasDestinationWorld,
-                                         BooleanSupplier destinationDirty) {
-        if (viewRevision != memoRevision) {
-            return true;
-        }
-        if (!hasDestinationWorld) {
-            return false;
-        }
-        return destinationDirty.getAsBoolean();
     }
 }

@@ -11,6 +11,17 @@ import art.arcane.wormholes.render.view.RemoteWorldView;
 
 final class ProjectorResampleSchedule {
     private static final int STABLE_RESAMPLE_BACKSTOP_TICKS = 1_200;
+    private static final ProjectionWorldChangeTracker.ChangeFilter ANY_CHANGE = new ProjectionWorldChangeTracker.ChangeFilter() {
+        @Override
+        public boolean affectsBlock(int x, int y, int z) {
+            return true;
+        }
+
+        @Override
+        public boolean affectsColumn(int chunkX, int chunkZ) {
+            return true;
+        }
+    };
 
     private final ILocalPortal portal;
     private long projectCallCount;
@@ -92,7 +103,8 @@ final class ProjectorResampleSchedule {
                            ProjectionWorldView sourceView,
                            World destWorld,
                            double destinationOriginX,
-                           double destinationOriginZ) {
+                           double destinationOriginZ,
+                           ProjectorRemoteFootprint footprint) {
         if (!firstProjectionDone) {
             return true;
         }
@@ -110,19 +122,28 @@ final class ProjectorResampleSchedule {
         if ((projectCallCount % cadence) != 0L) {
             return false;
         }
-        return destinationDirty(destWorld, destinationOriginX, destinationOriginZ, lastResampleVersion);
-    }
-
-    boolean destinationDirty(World destWorld, double originX, double originZ, long sinceVersion) {
-        if (destWorld == null || Wormholes.projectionChangeTracker == null) {
+        long through = destinationUnaffectedThrough(destWorld, destinationOriginX, destinationOriginZ, lastResampleVersion, footprint);
+        if (through == ProjectionWorldChangeTracker.AFFECTED) {
             return true;
         }
+        lastResampleVersion = through;
+        return false;
+    }
+
+    long destinationUnaffectedThrough(World destWorld, double originX, double originZ, long sinceVersion,
+                                      ProjectorRemoteFootprint footprint) {
+        ProjectionWorldChangeTracker tracker = Wormholes.projectionChangeTracker;
+        if (destWorld == null || tracker == null) {
+            return ProjectionWorldChangeTracker.AFFECTED;
+        }
+        if (!footprint.nested()) {
+            return tracker.unaffectedThrough(destWorld.getUID(), footprint.queryMinChunkX(), footprint.queryMinChunkZ(),
+                footprint.queryMaxChunkX(), footprint.queryMaxChunkZ(), sinceVersion, footprint);
+        }
         double depth = portal.getNetworkViewDepth() + 2.0D;
-        int minChunkX = ((int) Math.floor(originX - depth)) >> 4;
-        int maxChunkX = ((int) Math.floor(originX + depth)) >> 4;
-        int minChunkZ = ((int) Math.floor(originZ - depth)) >> 4;
-        int maxChunkZ = ((int) Math.floor(originZ + depth)) >> 4;
-        return Wormholes.projectionChangeTracker.dirtySince(destWorld.getUID(), minChunkX, minChunkZ, maxChunkX, maxChunkZ, sinceVersion);
+        return tracker.unaffectedThrough(destWorld.getUID(), ((int) Math.floor(originX - depth)) >> 4,
+            ((int) Math.floor(originZ - depth)) >> 4, ((int) Math.floor(originX + depth)) >> 4,
+            ((int) Math.floor(originZ + depth)) >> 4, sinceVersion, ANY_CHANGE);
     }
 
     boolean lightingUpdatePass(boolean firstProjectionDone) {

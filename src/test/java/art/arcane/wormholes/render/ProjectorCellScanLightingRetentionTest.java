@@ -1008,6 +1008,55 @@ public final class ProjectorCellScanLightingRetentionTest {
     }
 
     @Test
+    public void remoteFootprintCoversScannedCellsAndRestartsOnlyOnFreshPasses() throws ReflectiveOperationException {
+        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        PortalStructure structure = structure();
+        ILocalPortal portal = portal(structure, frame);
+        MutableWorldView localView = new MutableWorldView(blockData(Material.STONE));
+        MutableWorldView remoteView = new MutableWorldView(blockData(Material.GLASS));
+        ProjectorDestination destination = destination(portal, structure, localView, remoteView);
+        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+            () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
+        ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
+        useOcclusion(scan, ProjectorCellScanLightingRetentionTest::testOccluding);
+        Location eye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
+        Frustum4D frustum = new Frustum4D(BukkitGeometry.vector(eye), structure, new Frustum4D.Options(4.0D, 2.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
+        scan.restartRemoteFootprint();
+        scan.run(destination, null, BukkitGeometry.vector(eye), frustum, 4.0D, true, false, false,
+            false, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
+        scan.commit();
+        long firstCell = scan.claims().values().iterator().next().getLightRemoteKey();
+        for (ProjectedBlockClaim<BlockData, ProjectionWorldView> claim : scan.claims().values()) {
+            assertTrue(affects(scan.remoteFootprint(), claim.getLightRemoteKey()));
+        }
+        assertFalse(scan.remoteFootprint().affectsBlock(ProjectionCellKey.unpackX(firstCell) + 400,
+            ProjectionCellKey.unpackY(firstCell), ProjectionCellKey.unpackZ(firstCell)));
+
+        destination.originX += 512.0D;
+        memo.clearDestinationSamples();
+        scan.run(destination, null, BukkitGeometry.vector(eye), frustum, 4.0D, true, false, false,
+            false, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
+        scan.commit();
+        long movedCell = scan.claims().values().iterator().next().getLightRemoteKey();
+        assertTrue(affects(scan.remoteFootprint(), firstCell), "a pass without a restart keeps earlier reads");
+        assertTrue(affects(scan.remoteFootprint(), movedCell));
+
+        scan.restartRemoteFootprint();
+        scan.run(destination, null, BukkitGeometry.vector(eye), frustum, 4.0D, true, false, false,
+            false, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
+        scan.commit();
+        assertFalse(affects(scan.remoteFootprint(), firstCell), "a fresh pass replaces the footprint");
+        assertTrue(affects(scan.remoteFootprint(), movedCell));
+        assertFalse(scan.remoteFootprint().nested());
+    }
+
+    private static boolean affects(ProjectorRemoteFootprint footprint, long cellKey) {
+        return footprint.affectsBlock(ProjectionCellKey.unpackX(cellKey), ProjectionCellKey.unpackY(cellKey),
+            ProjectionCellKey.unpackZ(cellKey));
+    }
+
+    @Test
     public void changedRemoteRevisionResamplesRetainedClaims() throws ReflectiveOperationException {
         PortalFrame frame = PortalFrame.canonical(Direction.S);
         PortalStructure structure = structure();
@@ -1030,7 +1079,7 @@ public final class ProjectorCellScanLightingRetentionTest {
         remoteView.data = blockData(Material.GOLD_BLOCK);
         remoteView.revision++;
 
-        boolean destinationStale = memo.destinationStale(remoteView.getRevision(), false, ignored -> false);
+        boolean destinationStale = memo.destinationStale(remoteView.getRevision(), false, since -> ProjectionWorldChangeTracker.AFFECTED);
         assertTrue(destinationStale);
         memo.clearDestinationSamples();
         scan.run(destination, null, BukkitGeometry.vector(eye), frustum, 4.0D, destinationStale, false, true,

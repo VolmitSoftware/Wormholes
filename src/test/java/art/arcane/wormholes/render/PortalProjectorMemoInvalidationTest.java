@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.lang.reflect.Proxy;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.LongUnaryOperator;
 
 import org.junit.jupiter.api.Test;
 
@@ -33,28 +34,37 @@ public final class PortalProjectorMemoInvalidationTest {
 
     @Test
     public void aChangedSourceViewRevisionAlwaysDropsTheDestinationMemos() {
+        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        memo.refreshDestination(6L);
         AtomicInteger dirtyProbes = new AtomicInteger();
-        assertTrue(ProjectorSampleMemo.destinationMemosStale(7L, 6L, true, () -> {
+
+        assertTrue(memo.destinationStale(7L, true, since -> {
             dirtyProbes.incrementAndGet();
-            return false;
+            return since;
         }));
-        assertTrue(ProjectorSampleMemo.destinationMemosStale(0L, Long.MIN_VALUE, false, () -> {
+        assertTrue(memo.destinationStale(7L, false, since -> {
             dirtyProbes.incrementAndGet();
-            return false;
+            return since;
         }));
-        assertTrue(dirtyProbes.get() == 0, "a revision change must short-circuit before the chunk scan");
+        assertTrue(dirtyProbes.get() == 0, "a revision change must short-circuit before the change scan");
     }
 
     @Test
     public void crossServerDestinationsRelyOnTheViewRevisionAlone() {
-        assertFalse(ProjectorSampleMemo.destinationMemosStale(11L, 11L, false, () -> true));
-        assertTrue(ProjectorSampleMemo.destinationMemosStale(12L, 11L, false, () -> false));
+        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        memo.refreshDestination(11L);
+
+        assertFalse(memo.destinationStale(11L, false, since -> ProjectionWorldChangeTracker.AFFECTED));
+        assertTrue(memo.destinationStale(12L, false, since -> since));
     }
 
     @Test
-    public void localDestinationsDropTheMemosWhenTheDestinationChunksChange() {
-        assertTrue(ProjectorSampleMemo.destinationMemosStale(0L, 0L, true, () -> true));
-        assertFalse(ProjectorSampleMemo.destinationMemosStale(0L, 0L, true, () -> false));
+    public void localDestinationsDropTheMemosWhenAChangeAffectsThem() {
+        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo();
+        memo.refreshDestination(0L);
+
+        assertTrue(memo.destinationStale(0L, true, since -> ProjectionWorldChangeTracker.AFFECTED));
+        assertFalse(memo.destinationStale(0L, true, since -> since));
     }
 
     @Test
@@ -100,21 +110,29 @@ public final class PortalProjectorMemoInvalidationTest {
     }
 
     @Test
-    public void aBlockChangeInsideTheDestinationRectDropsTheMemosOnTheVeryNextPass() {
+    public void aBlockChangeInsideTheScannedFootprintDropsTheMemosOnTheVeryNextPass() {
         ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
-        long memoVersion = tracker.currentVersion();
+        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = new ProjectorSampleMemo<BlockData, Material, ProjectionWorldView>(
+            BukkitProjectorBlocks.defaults(), () -> tracker);
+        ProjectorRemoteFootprint footprint = new ProjectorRemoteFootprint();
+        footprint.record(33, 70, -17);
+        LongUnaryOperator unaffectedThrough = since -> tracker.unaffectedThrough(DESTINATION_WORLD,
+            footprint.queryMinChunkX(), footprint.queryMinChunkZ(), footprint.queryMaxChunkX(), footprint.queryMaxChunkZ(),
+            since, footprint);
+        memo.refreshDestination(0L);
 
-        assertFalse(ProjectorSampleMemo.destinationMemosStale(0L, 0L, true,
-            () -> tracker.dirtySince(DESTINATION_WORLD, -4, -4, 4, 4, memoVersion)));
+        assertFalse(memo.destinationStale(0L, true, unaffectedThrough));
 
-        tracker.markChanged(DESTINATION_WORLD, 33, -17);
+        tracker.markChanged(DESTINATION_WORLD, 33, -40, -17);
+        tracker.markChanged(DESTINATION_WORLD, 90, 70, -17);
+        assertFalse(memo.destinationStale(0L, true, unaffectedThrough),
+            "changes outside every scanned section cannot alter the projection");
 
-        assertTrue(ProjectorSampleMemo.destinationMemosStale(0L, 0L, true,
-            () -> tracker.dirtySince(DESTINATION_WORLD, -4, -4, 4, 4, memoVersion)));
+        tracker.markChanged(DESTINATION_WORLD, 40, 72, -20);
+        assertTrue(memo.destinationStale(0L, true, unaffectedThrough));
 
-        long refreshedVersion = tracker.currentVersion();
-        assertFalse(ProjectorSampleMemo.destinationMemosStale(0L, 0L, true,
-            () -> tracker.dirtySince(DESTINATION_WORLD, -4, -4, 4, 4, refreshedVersion)));
+        memo.refreshDestination(0L);
+        assertFalse(memo.destinationStale(0L, true, unaffectedThrough));
     }
 
     @Test

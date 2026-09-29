@@ -27,12 +27,12 @@ class ProjectorResampleScheduleTest {
         RemoteViewCache<BlockData, EntityData<?>, Equipment> cache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         RemoteWorldView view = new RemoteWorldView(cache.getOrCreate("peer", UUID.randomUUID()), null);
 
-        assertTrue(schedule.stableResample(false, view, null, 0.0D, 0.0D));
+        assertTrue(schedule.stableResample(false, view, null, 0.0D, 0.0D, new ProjectorRemoteFootprint()));
         schedule.noteSourceViewRevision(view.getRevision());
 
         for (int pass = 0; pass < 2_000; pass++) {
             schedule.beginBlockPass();
-            assertFalse(schedule.stableResample(true, view, null, 0.0D, 0.0D));
+            assertFalse(schedule.stableResample(true, view, null, 0.0D, 0.0D, new ProjectorRemoteFootprint()));
         }
     }
 

@@ -137,6 +137,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     private int hiddenHolds;
     private int coneHolds;
     private int heldEvictions;
+    private ProjectorRemoteFootprint remoteFootprint;
+    private ProjectorRemoteFootprint nextRemoteFootprint;
+    private boolean restartRemoteFootprint;
 
     public ProjectorCellScan(Context<B, M, W, P, V> context) {
         this.portal = context.portal();
@@ -189,6 +192,8 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         this.nextHeldSince = new Long2LongOpenHashMap(64);
         this.heldSince.defaultReturnValue(Long.MIN_VALUE);
         this.nextHeldSince.defaultReturnValue(Long.MIN_VALUE);
+        this.remoteFootprint = new ProjectorRemoteFootprint();
+        this.nextRemoteFootprint = new ProjectorRemoteFootprint();
     }
 
     public Long2ObjectOpenHashMap<ProjectedBlockClaim<B, V>> claims() {
@@ -357,6 +362,14 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         return heldEvictions;
     }
 
+    public ProjectorRemoteFootprint remoteFootprint() {
+        return remoteFootprint;
+    }
+
+    public void restartRemoteFootprint() {
+        restartRemoteFootprint = true;
+    }
+
     public void revokeConeHolds() {
         coneHoldsRevoked = true;
     }
@@ -405,6 +418,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         holdConeClaims = false;
         coneHoldsRevoked = false;
         removedClaimsResolved = false;
+        remoteFootprint.clear();
+        nextRemoteFootprint.clear();
+        restartRemoteFootprint = false;
         entityOcclusion.disable();
     }
 
@@ -423,6 +439,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         committedLocalFrame = projectionLocalFrame;
         committedRemoteFrame = projectionRemoteFrame;
         committedEyeDot = projectionEyeDot;
+        if (pending != null) {
+            commitRemoteFootprint(pending.freshRemoteFootprint);
+        }
         pending = null;
         preparedResult = false;
         reuseCommittedEntityOcclusion = false;
@@ -573,6 +592,10 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     }
 
     public void cancelPending() {
+        if (pending != null) {
+            remoteFootprint.addAll(nextRemoteFootprint);
+            nextRemoteFootprint.clear();
+        }
         pending = null;
         preparedResult = false;
         reuseCommittedEntityOcclusion = false;
@@ -593,6 +616,17 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
 
     public static boolean scanContinues(int coordinate, int end, int step) {
         return step > 0 ? coordinate <= end : coordinate >= end;
+    }
+
+    private void commitRemoteFootprint(boolean fresh) {
+        if (fresh) {
+            ProjectorRemoteFootprint swap = remoteFootprint;
+            remoteFootprint = nextRemoteFootprint;
+            nextRemoteFootprint = swap;
+        } else {
+            remoteFootprint.addAll(nextRemoteFootprint);
+        }
+        nextRemoteFootprint.clear();
     }
 
     private boolean finishesInSlot(long deadlineNanos) {
@@ -1052,6 +1086,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         private int finishStage;
         private int finishTargetIndex;
         private int finishDeadlineTargets;
+        private final boolean freshRemoteFootprint;
 
         private ScanPass(ScanRequest<B, P, V> request) {
             ProjectorScanDestination<P, V> destination = request.destination();
@@ -1074,6 +1109,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             dest = destination.dest();
             mirrorMode = destination.mirrorMode();
             mirrorRotationQuarterTurns = destination.mirrorRotationQuarterTurns();
+            freshRemoteFootprint = restartRemoteFootprint;
+            restartRemoteFootprint = false;
+            nextRemoteFootprint.clear();
 
             boolean reuseCommittedContent = scanCommitted && completeGeometry
                 && !forceStableCellResample && !forceFullSend
@@ -1177,6 +1215,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             scannedRemoteEyeY = scratchRemoteEye[1];
             scannedRemoteEyeZ = scratchRemoteEye[2];
             prepareRecursiveGeometry(area);
+            if (recursiveGeometry) {
+                nextRemoteFootprint.markNested();
+            }
             cacheEmptyCells = !blackout.isEnabled() && !recursiveGeometry;
             if (!cacheEmptyCells) {
                 emptyCells.clear();
@@ -1508,6 +1549,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                             && previousCell.getLightView() == destView
                             && previousCell.isFullBright() == blackoutEnabled) {
                             long remoteKey = previousCell.getLightRemoteKey();
+                            if (remoteKey != ProjectedBlockClaim.NO_REMOTE_KEY) {
+                                nextRemoteFootprint.recordCell(remoteKey);
+                            }
                             nextProjected.put(key, previousCell);
                             retainedClaimCount++;
                             retainBlockEntity(key);
@@ -1530,6 +1574,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                         int ry = (int) Math.floor(scratchRemotePoint[1]);
                         int rz = (int) Math.floor(scratchRemotePoint[2]);
                         long remoteKey = ProjectionCellKey.pack(rx, ry, rz);
+                        nextRemoteFootprint.record(rx, ry, rz);
                         long previousRemoteKey = previousCell == null
                             ? ProjectedBlockClaim.NO_REMOTE_KEY
                             : previousCell.getLightRemoteKey();
