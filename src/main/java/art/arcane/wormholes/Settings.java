@@ -55,6 +55,8 @@ public final class Settings {
     public static volatile int PROJECTION_INTEREST_GRACE_TICKS = 5;
     public static volatile int PROJECTION_INITIAL_RESEND_PASSES = 1;
     public static volatile int PROJECTION_MAX_PROJECTED_CELLS = 250000;
+    public static volatile boolean PROJECTION_HOLD_INVISIBLE_CLAIMS = true;
+    public static volatile int PROJECTION_MAX_HELD_CELLS_PER_PORTAL = 65536;
     public static volatile long TELEPORT_COOLDOWN_MILLIS = 1000L;
     public static volatile double PORTAL_PUSHBACK_MULTIPLIER = 1.0D;
     public static volatile double PORTAL_SOUND_VOLUME_MULTIPLIER = 1.0D;
@@ -144,6 +146,8 @@ public final class Settings {
         PROJECTION_INTEREST_GRACE_TICKS = clampInt(projection.interestGraceTicks, 0, 100);
         PROJECTION_INITIAL_RESEND_PASSES = clampInt(projection.initialResendPasses, 0, 20);
         PROJECTION_MAX_PROJECTED_CELLS = clampInt(projection.maxProjectedCells, 0, 50000000);
+        PROJECTION_HOLD_INVISIBLE_CLAIMS = projection.holdInvisibleClaims;
+        PROJECTION_MAX_HELD_CELLS_PER_PORTAL = clampInt(projection.maxHeldCellsPerPortal, 0, 50000000);
 
         LIGHTING_FIDELITY = render.lightingFidelity;
         LIGHTING_REFRESH_INTERVAL_TICKS = clampInt(render.lightingRefreshIntervalTicks, 1, 40);

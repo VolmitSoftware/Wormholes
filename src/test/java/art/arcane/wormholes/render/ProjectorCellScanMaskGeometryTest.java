@@ -79,7 +79,15 @@ final class ProjectorCellScanMaskGeometryTest {
     private static void assertEquivalentClaims(Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> expected,
                                                Long2ObjectMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> actual,
                                                String context) {
-        assertEquals(expected.keySet(), actual.keySet(), context);
+        LongOpenHashSet liveKeys = new LongOpenHashSet(actual.size());
+        for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : actual.long2ObjectEntrySet()) {
+            if (entry.getValue().isHeld()) {
+                assertTrue(!expected.containsKey(entry.getLongKey()), context + " held claim must be invisible from the eye");
+                continue;
+            }
+            liveKeys.add(entry.getLongKey());
+        }
+        assertEquals(expected.keySet(), liveKeys, context);
         for (long key : expected.keySet()) {
             ProjectedBlockClaim<BlockData, ProjectionWorldView> expectedClaim = expected.get(key);
             ProjectedBlockClaim<BlockData, ProjectionWorldView> actualClaim = actual.get(key);

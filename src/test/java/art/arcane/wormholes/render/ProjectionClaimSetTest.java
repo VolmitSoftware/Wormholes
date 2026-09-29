@@ -220,6 +220,134 @@ public final class ProjectionClaimSetTest {
         assertFalse(ProjectorCellScan.shouldProjectAirSample(ProjectorSample.Kind.NO_SAMPLE, false));
     }
 
+    @Test
+    public void liveClaimBeatsNearerHeldClaim() {
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+        UUID heldPortal = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID livePortal = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        BlockData heldData = blockData("held");
+        BlockData liveData = blockData("live");
+
+        set.replacePortalClaims(heldPortal, heldPortal.toString(), 1.0D, singleHeldClaim(heldData));
+        ProjectionClaimSet.ProjectionClaimSetResult result = set.replacePortalClaims(livePortal, livePortal.toString(), 8.0D, singleClaim(liveData));
+
+        assertSame(liveData, set.getWinningClaim(CELL_KEY).getData());
+        assertFalse(set.getWinningClaim(CELL_KEY).isHeld());
+        assertEquals(1, result.getConflicts());
+        assertEquals(1, result.getWinnerChanges());
+        assertTrue(result.getPacketChangeKeys().contains(CELL_KEY));
+        assertTrue(ProjectionClaimSet.isHigherPriority(8.0D, livePortal.toString(), singleClaimValue(liveData),
+            1.0D, heldPortal.toString(), heldClaimValue(heldData)));
+        assertFalse(ProjectionClaimSet.isHigherPriority(1.0D, heldPortal.toString(), heldClaimValue(heldData),
+            8.0D, livePortal.toString(), singleClaimValue(liveData)));
+    }
+
+    @Test
+    public void heldClaimWinsAgainstNoClaimAndRevertsOnRelease() {
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+        UUID portal = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        BlockData heldData = blockData("held");
+
+        ProjectionClaimSet.ProjectionClaimSetResult claimed = set.replacePortalClaims(portal, portal.toString(), 2.0D, singleHeldClaim(heldData));
+
+        assertSame(heldData, set.getWinningClaim(CELL_KEY).getData());
+        assertTrue(set.getWinningClaim(CELL_KEY).isHeld());
+        assertTrue(claimed.getPacketChangeKeys().contains(CELL_KEY));
+        assertEquals(0, claimed.getReverts());
+
+        ProjectionClaimSet.ProjectionClaimSetResult released = set.releasePortal(portal);
+
+        assertNull(set.getWinningClaim(CELL_KEY));
+        assertEquals(1, released.getReverts());
+        assertTrue(released.getPacketChangeKeys().contains(CELL_KEY));
+    }
+
+    @Test
+    public void heldTransitionsRecomputeContestedWinnersWithoutResendingUncontestedCells() {
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> set = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+        UUID nearPortal = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID farPortal = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        UUID lonePortal = UUID.fromString("00000000-0000-0000-0000-000000000003");
+        long loneCell = 84L;
+        BlockData nearData = blockData("near");
+        BlockData farData = blockData("far");
+        BlockData loneData = blockData("lone");
+
+        set.replacePortalClaims(nearPortal, nearPortal.toString(), 2.0D, singleClaim(nearData));
+        set.replacePortalClaims(farPortal, farPortal.toString(), 8.0D, singleClaim(farData));
+        assertSame(nearData, set.getWinningClaim(CELL_KEY).getData());
+
+        ProjectionClaimSet.ProjectionClaimSetResult nearHeld = set.replacePortalClaims(nearPortal, nearPortal.toString(), 2.0D, singleHeldClaim(nearData));
+
+        assertSame(farData, set.getWinningClaim(CELL_KEY).getData());
+        assertEquals(1, nearHeld.getWinnerChanges());
+        assertTrue(nearHeld.getPacketChangeKeys().contains(CELL_KEY));
+
+        ProjectionClaimSet.ProjectionClaimSetResult nearLive = set.replacePortalClaims(nearPortal, nearPortal.toString(), 2.0D, singleClaim(nearData));
+
+        assertSame(nearData, set.getWinningClaim(CELL_KEY).getData());
+        assertEquals(1, nearLive.getWinnerChanges());
+        assertTrue(nearLive.getPacketChangeKeys().contains(CELL_KEY));
+
+        set.replacePortalClaims(lonePortal, lonePortal.toString(), 2.0D, singleClaim(loneCell, loneData));
+        ProjectionClaimSet.ProjectionClaimSetResult loneHeld = set.replacePortalClaims(lonePortal, lonePortal.toString(), 2.0D, singleHeldClaim(loneCell, loneData));
+
+        assertSame(loneData, set.getWinningClaim(loneCell).getData());
+        assertTrue(set.getWinningClaim(loneCell).isHeld());
+        assertEquals(0, loneHeld.getWinnerChanges());
+        assertFalse(loneHeld.getPacketChangeKeys().contains(loneCell));
+        assertFalse(loneHeld.getDirtyLightingKeys().contains(loneCell));
+    }
+
+    @Test
+    public void maskTierOutranksHeldTierAndHeldPairsFallThroughToDistance() {
+        BlockData data = blockData("block");
+        assertTrue(ProjectionClaimSet.isHigherPriority(8.0D, "b", heldClaimValue(data),
+            1.0D, "a", singleMaskClaimValue(blockData("mask"))));
+        assertFalse(ProjectionClaimSet.isHigherPriority(1.0D, "a", singleMaskClaimValue(blockData("mask")),
+            8.0D, "b", heldClaimValue(data)));
+        assertTrue(ProjectionClaimSet.isHigherPriority(2.0D, "b", heldClaimValue(data),
+            8.0D, "a", heldClaimValue(blockData("other"))));
+        assertFalse(ProjectionClaimSet.isHigherPriority(8.0D, "a", heldClaimValue(data),
+            2.0D, "b", heldClaimValue(blockData("other"))));
+        assertTrue(ProjectionClaimSet.isHigherPriority(4.0D, "a", heldClaimValue(data),
+            4.0D, "b", heldClaimValue(blockData("other"))));
+    }
+
+    @Test
+    public void withHeldPreservesDataLightingAndGlobalId() {
+        BlockData data = blockData("held");
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> live = singleClaimValue(data);
+        live.setGlobalId(19);
+
+        ProjectedBlockClaim<BlockData, ProjectionWorldView> held = live.withHeld(true);
+
+        assertTrue(held.isHeld());
+        assertFalse(live.isHeld());
+        assertSame(data, held.getData());
+        assertEquals(19, held.getGlobalId());
+        assertEquals(live.getLightingPolicy(), held.getLightingPolicy());
+        assertTrue(held.sameBlock(live));
+        assertTrue(held.sameLightSource(live));
+        assertSame(held, held.withHeld(true));
+        assertFalse(held.withHeld(false).isHeld());
+        assertTrue(held.withFullBright(true).withFullBright(false).isHeld());
+    }
+
+    private static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> singleHeldClaim(BlockData data) {
+        return singleHeldClaim(CELL_KEY, data);
+    }
+
+    private static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> singleHeldClaim(long key, BlockData data) {
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> claims = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(1);
+        claims.put(key, heldClaimValue(data));
+        return claims;
+    }
+
+    private static ProjectedBlockClaim<BlockData, ProjectionWorldView> heldClaimValue(BlockData data) {
+        return singleClaimValue(data).withHeld(true);
+    }
+
     private static Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> singleClaim(BlockData data) {
         return singleClaim(CELL_KEY, data);
     }

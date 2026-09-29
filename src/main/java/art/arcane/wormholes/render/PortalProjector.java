@@ -284,6 +284,10 @@ public final class PortalProjector {
             + " plate=" + lastPassUsedPlate
             + " plateHits=" + cellScan.plateHits()
             + " blackoutClaims=" + cellScan.blackoutClaims()
+            + " heldClaims=" + cellScan.heldClaims()
+            + " hiddenHolds=" + cellScan.hiddenHolds()
+            + " coneHolds=" + cellScan.coneHolds()
+            + " heldEvictions=" + cellScan.heldEvictions()
             + " claimConflicts=" + lastClaimConflicts
             + " winnerChanges=" + lastWinnerChanges
             + " claimReverts=" + lastClaimReverts
@@ -373,6 +377,9 @@ public final class PortalProjector {
         boolean stableResample = schedule.stableResample(firstProjectionDone, destination.destView,
             destWorld, destinationOriginX, destinationOriginZ);
         boolean localDirty = sampleMemo.localRegionDirty(localWorldId);
+        if (localDirty) {
+            cellScan.revokeConeHolds();
+        }
         if (!renderModeChanged && !dissolve.isActive() && canReuseProjection(eye, stableResample, localDirty)) {
             lastReuseSkips++;
             lastBlockChanges = 0;

@@ -5,6 +5,8 @@ public interface BlockProjectionClaim<C> {
 
     boolean isFullBright();
 
+    boolean isHeld();
+
     boolean sameBlock(C other);
 
     boolean sameLightSource(C other);
