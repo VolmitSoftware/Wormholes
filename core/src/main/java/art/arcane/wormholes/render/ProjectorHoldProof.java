@@ -6,6 +6,7 @@ import art.arcane.wormholes.util.Direction;
 
 public final class ProjectorHoldProof {
     private static final double EPSILON = 1.0E-7D;
+    private static final double MIN_PROOF_PADDING = 0.5D;
 
     public enum Verdict {
         HOLD,
@@ -118,12 +119,12 @@ public final class ProjectorHoldProof {
         int normalAxis = normal.x() != 0 ? 0 : normal.y() != 0 ? 1 : 2;
         int normalSign = normal.x() + normal.y() + normal.z();
         double normalOrigin = normalAxis == 0 ? originX : normalAxis == 1 ? originY : originZ;
-        double clampedPadding = Math.max(0.0D, padding);
+        double proofPadding = Math.max(MIN_PROOF_PADDING, padding);
         return new ProjectorHoldProof(normalAxis, normalSign, (int) Math.floor(normalOrigin),
             originX, originY, originZ, right, up,
-            rightMin - clampedPadding, rightMax + clampedPadding, upMin - clampedPadding, upMax + clampedPadding,
+            rightMin - proofPadding, rightMax + proofPadding, upMin - proofPadding, upMax + proofPadding,
             ProjectorFrameTransform.portalPlaneClearance(apertureArea, projectionFrame),
-            Math.min(clampedPadding, 1.0D - EPSILON));
+            Math.min(proofPadding, 1.0D - EPSILON));
     }
 
     public boolean beginEye(double eyeX, double eyeY, double eyeZ) {

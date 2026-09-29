@@ -19,6 +19,7 @@ final class ProjectorHoldProofTest {
     private static final double PADDING = 0.75D;
     private static final int SAMPLES_PER_FRAME = 400;
     private static final double BOUNDARY_MARGIN = 1.0E-3D;
+    private static final double[] CELL_SAMPLE_OFFSETS = {0.002D, 0.25D, 0.5D, 0.75D, 0.998D};
 
     @Test
     void holdIsNeverGivenWhenABruteForceRayMarchReachesTheCell() {
@@ -27,7 +28,7 @@ final class ProjectorHoldProofTest {
         int samples = 0;
         for (PortalFrame frame : frames()) {
             for (int sample = 0; sample < SAMPLES_PER_FRAME; sample++) {
-                Scene scene = Scene.random(random, frame, false, true, true);
+                Scene scene = Scene.random(random, frame, PADDING, false, true, true);
                 ProjectorHoldProof.Verdict verdict = scene.verdict();
                 boolean hidden = scene.rayMarchHidden();
                 if (verdict == ProjectorHoldProof.Verdict.HOLD) {
@@ -45,13 +46,32 @@ final class ProjectorHoldProofTest {
     }
 
     @Test
+    void holdHidesEveryRayToTheCellAtEveryAperturePadding() {
+        Random random = new Random(29L);
+        for (double padding : new double[] {0.0D, 0.25D, 0.5D, 0.75D, 1.5D}) {
+            int holds = 0;
+            for (PortalFrame frame : frames()) {
+                for (int sample = 0; sample < SAMPLES_PER_FRAME; sample++) {
+                    Scene scene = Scene.random(random, frame, padding, sample % 2 == 0, true, true);
+                    ProjectorHoldProof.Verdict verdict = scene.verdict();
+                    if (verdict == ProjectorHoldProof.Verdict.HOLD) {
+                        assertTrue(scene.everyCellRayHidden(), scene.describe(verdict));
+                        holds++;
+                    }
+                }
+            }
+            assertTrue(holds > 0, "padding=" + padding + " holds=" + holds);
+        }
+    }
+
+    @Test
     void solidWallHoldsExactlyTheCellsWhoseCrossingLeavesThePaddedWindow() {
         Random random = new Random(11L);
         int holds = 0;
         int inWindow = 0;
         for (PortalFrame frame : frames()) {
             for (int sample = 0; sample < SAMPLES_PER_FRAME; sample++) {
-                Scene scene = Scene.random(random, frame, true, true, true);
+                Scene scene = Scene.random(random, frame, PADDING, true, true, true);
                 ProjectorHoldProof.Verdict verdict = scene.verdict();
                 if (scene.crossingMarginFromPaddedWindow() < BOUNDARY_MARGIN) {
                     continue;
@@ -75,15 +95,15 @@ final class ProjectorHoldProofTest {
         Random random = new Random(23L);
         for (PortalFrame frame : frames()) {
             for (int sample = 0; sample < SAMPLES_PER_FRAME / 4; sample++) {
-                Scene eyeBehind = Scene.random(random, frame, true, false, true);
+                Scene eyeBehind = Scene.random(random, frame, PADDING, true, false, true);
                 assertFalse(eyeBehind.proof.beginEye(eyeBehind.eyeX, eyeBehind.eyeY, eyeBehind.eyeZ));
                 assertEquals(ProjectorHoldProof.Verdict.BACK_SIDE, eyeBehind.verdict(), eyeBehind.describe(null));
 
-                Scene cellInFront = Scene.random(random, frame, true, true, false);
+                Scene cellInFront = Scene.random(random, frame, PADDING, true, true, false);
                 assertTrue(cellInFront.proof.beginEye(cellInFront.eyeX, cellInFront.eyeY, cellInFront.eyeZ));
                 assertEquals(ProjectorHoldProof.Verdict.BACK_SIDE, cellInFront.verdict(), cellInFront.describe(null));
 
-                Scene onPlane = Scene.random(random, frame, true, true, true);
+                Scene onPlane = Scene.random(random, frame, PADDING, true, true, true);
                 double[] eye = {onPlane.eyeX, onPlane.eyeY, onPlane.eyeZ};
                 eye[onPlane.normalAxis] = onPlane.planeCoord + 0.5D;
                 assertFalse(onPlane.proof.beginEye(eye[0], eye[1], eye[2]));
@@ -129,7 +149,7 @@ final class ProjectorHoldProofTest {
         assertTrue(unpadded.beginEye(4.5D, 1.5D, 1.5D));
         wall.set(0, 2, 6, ProjectorHoldProof.Occupancy.OPEN);
         assertEquals(ProjectorHoldProof.Verdict.HOLD, unpadded.verdict(-3, 1, 8, wall));
-        assertEquals(ProjectorHoldProof.Verdict.HOLD, unpadded.verdict(-3, 1, 4, wall));
+        assertEquals(ProjectorHoldProof.Verdict.IN_WINDOW, unpadded.verdict(-3, 1, 4, wall));
     }
 
     private static List<PortalFrame> frames() {
@@ -199,6 +219,7 @@ final class ProjectorHoldProofTest {
         private final int secondMin;
         private final int secondMax;
         private final double[] origin;
+        private final double padding;
         private final boolean solid;
         private final long wallSeed;
         private final ProjectorHoldProof proof;
@@ -209,9 +230,10 @@ final class ProjectorHoldProofTest {
         private final int cellY;
         private final int cellZ;
 
-        private Scene(PortalFrame frame, int planeCoord, int firstMin, int firstMax, int secondMin, int secondMax,
+        private Scene(PortalFrame frame, double padding, int planeCoord, int firstMin, int firstMax, int secondMin, int secondMax,
                       boolean solid, long wallSeed, double[] eye, int[] cell) {
             this.frame = frame;
+            this.padding = padding;
             Direction normal = frame.getNormal();
             this.normalAxis = normal.x() != 0 ? 0 : normal.y() != 0 ? 1 : 2;
             this.normalSign = normal.x() + normal.y() + normal.z();
@@ -234,7 +256,7 @@ final class ProjectorHoldProofTest {
             max[secondAxis] = secondMax + 1;
             this.origin = new double[] {(min[0] + max[0]) * 0.5D, (min[1] + max[1]) * 0.5D, (min[2] + max[2]) * 0.5D};
             AxisAlignedBB area = new AxisAlignedBB(min[0], max[0], min[1], max[1], min[2], max[2]);
-            this.proof = ProjectorHoldProof.create(area, frame, origin[0], origin[1], origin[2], PADDING);
+            this.proof = ProjectorHoldProof.create(area, frame, origin[0], origin[1], origin[2], padding);
             this.eyeX = eye[0];
             this.eyeY = eye[1];
             this.eyeZ = eye[2];
@@ -243,7 +265,7 @@ final class ProjectorHoldProofTest {
             this.cellZ = cell[2];
         }
 
-        private static Scene random(Random random, PortalFrame frame, boolean solid, boolean eyeInFront, boolean cellBehind) {
+        private static Scene random(Random random, PortalFrame frame, double padding, boolean solid, boolean eyeInFront, boolean cellBehind) {
             Direction normal = frame.getNormal();
             int normalAxis = normal.x() != 0 ? 0 : normal.y() != 0 ? 1 : 2;
             int normalSign = normal.x() + normal.y() + normal.z();
@@ -266,7 +288,7 @@ final class ProjectorHoldProofTest {
             cell[normalAxis] = cellBehind ? planeCoord - (normalSign * depth) : planeCoord + (normalSign * depth);
             cell[firstAxis] = (int) Math.floor(firstCenter) + random.nextInt(61) - 30;
             cell[secondAxis] = (int) Math.floor(secondCenter) + random.nextInt(61) - 30;
-            return new Scene(frame, planeCoord, firstMin, firstMax, secondMin, secondMax, solid, random.nextLong(), eye, cell);
+            return new Scene(frame, padding, planeCoord, firstMin, firstMax, secondMin, secondMax, solid, random.nextLong(), eye, cell);
         }
 
         private ProjectorHoldProof.Verdict verdict() {
@@ -314,16 +336,16 @@ final class ProjectorHoldProofTest {
 
         private boolean crossingInsidePaddedWindow() {
             double[] hit = crossing();
-            return hit[firstAxis] >= firstMin - PADDING && hit[firstAxis] <= firstMax + 1 + PADDING
-                && hit[secondAxis] >= secondMin - PADDING && hit[secondAxis] <= secondMax + 1 + PADDING;
+            return hit[firstAxis] >= firstMin - padding && hit[firstAxis] <= firstMax + 1 + padding
+                && hit[secondAxis] >= secondMin - padding && hit[secondAxis] <= secondMax + 1 + padding;
         }
 
         private double crossingMarginFromPaddedWindow() {
             double[] hit = crossing();
-            double firstMargin = Math.min(Math.abs(hit[firstAxis] - (firstMin - PADDING)),
-                Math.abs(hit[firstAxis] - (firstMax + 1 + PADDING)));
-            double secondMargin = Math.min(Math.abs(hit[secondAxis] - (secondMin - PADDING)),
-                Math.abs(hit[secondAxis] - (secondMax + 1 + PADDING)));
+            double firstMargin = Math.min(Math.abs(hit[firstAxis] - (firstMin - padding)),
+                Math.abs(hit[firstAxis] - (firstMax + 1 + padding)));
+            double secondMargin = Math.min(Math.abs(hit[secondAxis] - (secondMin - padding)),
+                Math.abs(hit[secondAxis] - (secondMax + 1 + padding)));
             return Math.min(firstMargin, secondMargin);
         }
 
@@ -335,12 +357,29 @@ final class ProjectorHoldProofTest {
         }
 
         private boolean rayMarchHidden() {
+            return rayMarchHidden(cellX + 0.5D, cellY + 0.5D, cellZ + 0.5D);
+        }
+
+        private boolean everyCellRayHidden() {
+            for (double offsetX : CELL_SAMPLE_OFFSETS) {
+                for (double offsetY : CELL_SAMPLE_OFFSETS) {
+                    for (double offsetZ : CELL_SAMPLE_OFFSETS) {
+                        if (!rayMarchHidden(cellX + offsetX, cellY + offsetY, cellZ + offsetZ)) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
+        private boolean rayMarchHidden(double targetX, double targetY, double targetZ) {
             double startX = eyeX;
             double startY = eyeY;
             double startZ = eyeZ;
-            double deltaX = (cellX + 0.5D) - startX;
-            double deltaY = (cellY + 0.5D) - startY;
-            double deltaZ = (cellZ + 0.5D) - startZ;
+            double deltaX = targetX - startX;
+            double deltaY = targetY - startY;
+            double deltaZ = targetZ - startZ;
             int x = (int) Math.floor(startX);
             int y = (int) Math.floor(startY);
             int z = (int) Math.floor(startZ);
@@ -386,7 +425,7 @@ final class ProjectorHoldProofTest {
                 + " eye=(" + eyeX + "," + eyeY + "," + eyeZ + ")"
                 + " cell=(" + cellX + "," + cellY + "," + cellZ + ")"
                 + " crossing=(" + hit[0] + "," + hit[1] + "," + hit[2] + ")"
-                + " solid=" + solid + " verdict=" + verdict;
+                + " padding=" + padding + " solid=" + solid + " verdict=" + verdict;
         }
     }
 }
