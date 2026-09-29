@@ -30,6 +30,7 @@ final class ProjectorResampleSchedule {
     private long lastResampleVersion;
     private long lastRemoteRevision;
     private boolean pendingRemoteResample;
+    private boolean pendingDestinationChange;
     private int remoteResendStage;
 
     ProjectorResampleSchedule(ILocalPortal portal) {
@@ -40,6 +41,7 @@ final class ProjectorResampleSchedule {
         this.lastResampleVersion = -1L;
         this.lastRemoteRevision = -1L;
         this.pendingRemoteResample = false;
+        this.pendingDestinationChange = false;
         this.remoteResendStage = 0;
     }
 
@@ -93,8 +95,11 @@ final class ProjectorResampleSchedule {
     boolean consumeForcedResample(boolean stableResample) {
         boolean forced = stableResample || pendingRemoteResample;
         pendingRemoteResample = false;
-        if (forced && Wormholes.projectionChangeTracker != null) {
-            lastResampleVersion = Wormholes.projectionChangeTracker.currentVersion();
+        if (forced) {
+            pendingDestinationChange = false;
+            if (Wormholes.projectionChangeTracker != null) {
+                lastResampleVersion = Wormholes.projectionChangeTracker.currentVersion();
+            }
         }
         return forced;
     }
@@ -114,20 +119,20 @@ final class ProjectorResampleSchedule {
         if (sourceView instanceof RemoteWorldView) {
             return false;
         }
-        int cadence = stablePassInterval(stableResampleCadenceTicks());
+        if (!pendingDestinationChange) {
+            long through = destinationUnaffectedThrough(destWorld, destinationOriginX, destinationOriginZ, lastResampleVersion, footprint);
+            if (through == ProjectionWorldChangeTracker.AFFECTED) {
+                pendingDestinationChange = true;
+            } else {
+                lastResampleVersion = through;
+            }
+        }
         int backstop = stablePassInterval(fullRefreshBackstopTicks());
         if ((projectCallCount % backstop) == 0L) {
             return true;
         }
-        if ((projectCallCount % cadence) != 0L) {
-            return false;
-        }
-        long through = destinationUnaffectedThrough(destWorld, destinationOriginX, destinationOriginZ, lastResampleVersion, footprint);
-        if (through == ProjectionWorldChangeTracker.AFFECTED) {
-            return true;
-        }
-        lastResampleVersion = through;
-        return false;
+        int cadence = stablePassInterval(stableResampleCadenceTicks());
+        return pendingDestinationChange && (projectCallCount % cadence) == 0L;
     }
 
     long destinationUnaffectedThrough(World destWorld, double originX, double originZ, long sinceVersion,
@@ -163,6 +168,7 @@ final class ProjectorResampleSchedule {
 
     void invalidateDestination() {
         pendingRemoteResample = true;
+        pendingDestinationChange = false;
         lastSourceViewRevision = -1L;
         lastResampleVersion = -1L;
     }
