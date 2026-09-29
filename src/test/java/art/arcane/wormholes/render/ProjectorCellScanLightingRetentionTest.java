@@ -652,6 +652,65 @@ public final class ProjectorCellScanLightingRetentionTest {
         }
     }
 
+    @Test
+    public void starvedOcclusionBudgetKeepsCommittedHiddenHoldsInsteadOfFlippingThemLive() throws ReflectiveOperationException {
+        boolean originalHold = Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS;
+        Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = true;
+        try {
+            PortalFrame frame = PortalFrame.canonical(Direction.S);
+            PortalStructure structure = structure();
+            Map<String, Object> area = new HashMap<String, Object>();
+            area.put("worldKey", "minecraft:overworld");
+            area.put("x1", Integer.valueOf(-2));
+            area.put("x2", Integer.valueOf(2));
+            area.put("y1", Integer.valueOf(64));
+            area.put("y2", Integer.valueOf(66));
+            area.put("z1", Integer.valueOf(0));
+            area.put("z2", Integer.valueOf(0));
+            structure.setArea(new Cuboid(area));
+            ILocalPortal portal = portal(structure, frame);
+            MutableWorldView localView = new MutableWorldView(blockData(Material.AIR));
+            MutableWorldView remoteView = new MutableWorldView(blockData(Material.AIR));
+            long targetKey = ProjectionCellKey.pack(0, 65, -5);
+            remoteView.blocks.put(ProjectionCellKey.pack(0, 65, -2), blockData(Material.STONE));
+            remoteView.blocks.put(targetKey, blockData(Material.GOLD_BLOCK));
+            ProjectorDestination destination = destination(portal, structure, localView, remoteView);
+            ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
+                ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
+            ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+                () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
+            ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
+            useOcclusion(scan, ProjectorCellScanLightingRetentionTest::testOccluding);
+            Location sideEye = structure.getCenter().add(2.5D, 0.0D, 1.5D);
+            Location centerEye = structure.getCenter().add(0.0D, 0.0D, 1.5D);
+            Frustum4D sideFrustum = new Frustum4D(BukkitGeometry.vector(sideEye), structure, new Frustum4D.Options(6.0D, 2.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
+            Frustum4D centerFrustum = new Frustum4D(BukkitGeometry.vector(centerEye), structure, new Frustum4D.Options(6.0D, 2.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
+            scan.run(destination, null, BukkitGeometry.vector(sideEye), sideFrustum, 6.0D, true, false, false,
+                false, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
+            long targetLocalKey = remoteClaimKey(scan, targetKey);
+            scan.commit();
+            scan.run(destination, null, BukkitGeometry.vector(centerEye), centerFrustum, 6.0D, false, false, true,
+                false, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
+            assertTrue(scan.claims().get(targetLocalKey).isHeld());
+            scan.commit();
+
+            Field field = ProjectorCellScan.class.getDeclaredField("viewOcclusion");
+            field.setAccessible(true);
+            field.set(scan, new ProjectorViewOcclusion<BlockData>(ProjectorCellScanLightingRetentionTest::testOccluding, 1));
+            memo.clearDestinationSamples();
+            scan.run(destination, null, BukkitGeometry.vector(centerEye), centerFrustum, 6.0D, true, false, true,
+                false, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
+
+            ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>> delta = scan.claimDelta();
+            assertTrue(scan.unresolvedOcclusionCells() > 0, "the starved pass must leave cells unresolved");
+            assertTrue(scan.claims().get(targetLocalKey).isHeld(), "an unresolved committed hold stays held");
+            assertFalse(delta.changedKeys().contains(targetLocalKey));
+            assertFalse(delta.removedKeys().contains(targetLocalKey));
+        } finally {
+            Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = originalHold;
+        }
+    }
+
     private static void assertHiddenTargetRechecked(boolean hold) throws ReflectiveOperationException {
         PortalFrame frame = PortalFrame.canonical(Direction.S);
         PortalStructure structure = structure();

@@ -75,6 +75,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     private final LongArrayList unresolvedTargetRemoteKeys;
     private LongOpenHashSet projectedUnresolvedOcclusion;
     private LongOpenHashSet nextUnresolvedOcclusion;
+    private int resumeTraced;
+    private int resumeResolved;
+    private int resumeUnresolvedBefore;
     private Long2ObjectOpenHashMap<ProjectedBlockClaim<B, V>> projected;
     private Long2ObjectOpenHashMap<ProjectedBlockClaim<B, V>> nextProjected;
     private final LongOpenHashSet changedClaimKeys;
@@ -306,6 +309,22 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         return nextUnresolvedOcclusion.size();
     }
 
+    public int resumeTraced() {
+        return resumeTraced;
+    }
+
+    public int resumeResolved() {
+        return resumeResolved;
+    }
+
+    public int resumeUnresolvedBefore() {
+        return resumeUnresolvedBefore;
+    }
+
+    public int occlusionVerdictHits() {
+        return viewOcclusion.verdictHits();
+    }
+
     public boolean hasUnresolvedOcclusion() {
         return !projectedUnresolvedOcclusion.isEmpty();
     }
@@ -470,8 +489,11 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         maskedCells = 0;
         plateHits = 0;
         viewOcclusion.restartTraceBudget();
+        resumeUnresolvedBefore = projectedUnresolvedOcclusion.size();
+        resumeTraced = 0;
         filterUnresolvedTargets(unresolvedTargetCells, unresolvedTargetRemoteKeys);
         filterUnresolvedTargets(observerTargetCells, observerTargetRemoteKeys);
+        resumeResolved = resumeTraced - nextUnresolvedOcclusion.size();
         evictOverflowHeldClaims();
         projectedEntityOcclusion.updateEye(scannedRemoteEyeX, scannedRemoteEyeY, scannedRemoteEyeZ);
         if (settings.get().debug()) {
@@ -760,6 +782,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         for (int index = 0; index < targetCells.size(); index++) {
             long localKey = targetCells.getLong(index);
             if (projectedUnresolvedOcclusion.contains(localKey)) {
+                resumeTraced++;
                 filterObserverTarget(scannedDestinationView,
                     scannedRemoteEyeX, scannedRemoteEyeY, scannedRemoteEyeZ,
                     localKey, targetRemoteKeys.getLong(index));
@@ -774,9 +797,27 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             ProjectionCellKey.unpackZ(remoteKey), eyeX, eyeY, eyeZ);
         switch (visibility) {
             case HIDDEN -> hideTarget(localKey);
-            case UNRESOLVED -> nextUnresolvedOcclusion.add(localKey);
+            case UNRESOLVED -> {
+                nextUnresolvedOcclusion.add(localKey);
+                keepCommittedHold(localKey);
+            }
             case VISIBLE -> {
             }
+        }
+    }
+
+    private void keepCommittedHold(long localKey) {
+        if (!holdClaims) {
+            return;
+        }
+        ProjectedBlockClaim<B, V> current = nextProjected.get(localKey);
+        if (current == null || current.isHeld()) {
+            return;
+        }
+        ProjectedBlockClaim<B, V> previous = projected.get(localKey);
+        if (previous != null && previous.isHeld() && current.sameBlock(previous) && current.sameLightSource(previous)
+            && current.getLightRemoteKey() == previous.getLightRemoteKey()) {
+            holdClaim(localKey, previous);
         }
     }
 
