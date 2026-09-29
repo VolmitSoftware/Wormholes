@@ -81,6 +81,16 @@ final class SectionCachedWorldViewProvider implements ProjectionWorldViewProvide
     }
 
     @Override
+    public long cachedBytes() {
+        return cache.bytes();
+    }
+
+    @Override
+    public int cachedSections() {
+        return cache.sectionCount();
+    }
+
+    @Override
     public void close() {
         if (tracker != null) {
             tracker.removeListener(this);

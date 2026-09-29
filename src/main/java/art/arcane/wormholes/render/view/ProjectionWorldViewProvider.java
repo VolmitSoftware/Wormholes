@@ -24,6 +24,14 @@ public interface ProjectionWorldViewProvider {
     default void close() {
     }
 
+    default long cachedBytes() {
+        return 0L;
+    }
+
+    default int cachedSections() {
+        return 0;
+    }
+
     static ProjectionWorldViewProvider sectionCached(Plugin plugin, ProjectionWorldChangeTracker tracker) {
         return new SectionCachedWorldViewProvider(plugin, tracker);
     }

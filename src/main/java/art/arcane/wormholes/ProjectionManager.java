@@ -309,7 +309,7 @@ public class ProjectionManager implements Listener {
         if (!skinWork && active.isEmpty() && interestSet.isEmpty() && closeQueue.isEmpty() && claimArbiter.isIdle()) {
             interestSet.pruneGrace(frameTick);
             WormholesTelemetry.setProjectionGauges(0, observerTasksInFlight.size(), countSpoofedEntities());
-            budgetLedger.emitDiagnostics(tickCount, active, interestSet, tickHeadroom.governedFrameMicros());
+            emitDiagnostics(active);
             return;
         }
         boolean updateBlocks = shouldUpdateBlocks();
@@ -349,7 +349,17 @@ public class ProjectionManager implements Listener {
         }
         interestSet.pruneGrace(frameTick);
         WormholesTelemetry.setProjectionGauges(active.size(), observerTasksInFlight.size(), countSpoofedEntities());
-        budgetLedger.emitDiagnostics(tickCount, active, interestSet, tickHeadroom.governedFrameMicros());
+        emitDiagnostics(active);
+    }
+
+    private void emitDiagnostics(List<ILocalPortal> active) {
+        if (!budgetLedger.emitDiagnostics(tickCount, active, interestSet, tickHeadroom.governedFrameMicros()) || !Settings.DEBUG) {
+            return;
+        }
+        Wormholes.v("[ProjectionManager] caches sectionBytes=" + viewProvider.cachedBytes()
+            + " sections=" + viewProvider.cachedSections() + " plates=" + plateCache.size()
+            + " plateBytes=" + plateCache.bytes() + " plateBuilds=" + plateCache.buildsCompleted()
+            + " plateCapturesQueued=" + plateCaptures.size());
     }
 
     static boolean dispatchObserverFrame(Set<UUID> inFlight,

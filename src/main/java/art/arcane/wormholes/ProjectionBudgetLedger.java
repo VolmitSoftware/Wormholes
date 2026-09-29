@@ -177,10 +177,10 @@ final class ProjectionBudgetLedger {
         return (Math.floorMod(cursor, size) + selected) % size;
     }
 
-    void emitDiagnostics(long tickCount, List<ILocalPortal> active, ProjectionInterestSet interestSet, int governedFrameMicros) {
+    boolean emitDiagnostics(long tickCount, List<ILocalPortal> active, ProjectionInterestSet interestSet, int governedFrameMicros) {
         long now = System.currentTimeMillis();
         if (now - lastDiagnostic < DIAGNOSTIC_INTERVAL_MS) {
-            return;
+            return false;
         }
         lastDiagnostic = now;
 
@@ -198,6 +198,7 @@ final class ProjectionBudgetLedger {
                 Wormholes.v("[ProjectionManager]   inactive portal: " + describePortal(portal));
             }
         }
+        return true;
     }
 
     private static String describePortal(ILocalPortal portal) {
