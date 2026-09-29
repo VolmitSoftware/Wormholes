@@ -61,6 +61,10 @@ public final class Settings {
     public static volatile int PROJECTION_GAZE_LOOKAHEAD_TICKS = 3;
     public static volatile int PROJECTION_GAZE_MAX_STARVE_TICKS = 20;
     public static volatile boolean PROJECTION_FINISH_IN_SLOT = true;
+    public static volatile boolean PROJECTION_SECTION_CACHE = true;
+    public static volatile int PROJECTION_SECTION_CACHE_MAX_MB = 64;
+    public static volatile int PROJECTION_SECTION_CACHE_CHUNKS_PER_TICK = 16;
+    public static volatile int PROJECTION_SECTION_CACHE_TTL_TICKS = 600;
     public static volatile long TELEPORT_COOLDOWN_MILLIS = 1000L;
     public static volatile double PORTAL_PUSHBACK_MULTIPLIER = 1.0D;
     public static volatile double PORTAL_SOUND_VOLUME_MULTIPLIER = 1.0D;
@@ -156,6 +160,10 @@ public final class Settings {
         PROJECTION_GAZE_LOOKAHEAD_TICKS = clampInt(projection.gazeLookaheadTicks, 0, 20);
         PROJECTION_GAZE_MAX_STARVE_TICKS = clampInt(projection.gazeMaxStarveTicks, 1, 200);
         PROJECTION_FINISH_IN_SLOT = projection.finishInSlot;
+        PROJECTION_SECTION_CACHE = projection.sectionCache;
+        PROJECTION_SECTION_CACHE_MAX_MB = clampInt(projection.sectionCacheMaxMb, 1, 4096);
+        PROJECTION_SECTION_CACHE_CHUNKS_PER_TICK = clampInt(projection.sectionCacheChunksPerTick, 1, 1024);
+        PROJECTION_SECTION_CACHE_TTL_TICKS = clampInt(projection.sectionCacheTtlTicks, 20, 72_000);
 
         LIGHTING_FIDELITY = render.lightingFidelity;
         LIGHTING_REFRESH_INTERVAL_TICKS = clampInt(render.lightingRefreshIntervalTicks, 1, 40);

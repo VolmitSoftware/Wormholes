@@ -84,6 +84,24 @@ public class ProjectionConfig {
     public int gazeMaxStarveTicks = 20;
     @ConfigDescription("Finish a projection pass (occlusion filtering and commit) in the same tick its geometry scan completes when frame budget remains.")
     public boolean finishInSlot = true;
+    @ConfigDescription({
+        "Keep a world-level cache of 16x16x16 block sections that every projector reads instead of querying the world block by block.",
+        "Buried-cell culling is computed once per cached section, and unloaded chunks load asynchronously instead of on the server thread.",
+        "Off reads the live world for every sample. Folia servers always use region snapshots instead."
+    })
+    public boolean sectionCache = true;
+    @ConfigDescription("Memory the section cache may hold, in megabytes; the least recently read sections are evicted first.")
+    public int sectionCacheMaxMb = 64;
+    @ConfigDescription({
+        "Chunks the section cache may capture per server tick.",
+        "Sections that do not fit the budget are read from the live world until a later tick captures them."
+    })
+    public int sectionCacheChunksPerTick = 16;
+    @ConfigDescription({
+        "Ticks before a cached section is captured again on its next read.",
+        "Tracked block changes refresh sections immediately; this interval bounds how long changes that raise no block event stay stale."
+    })
+    public int sectionCacheTtlTicks = 600;
 
     public ProjectionConfig copy() {
         ProjectionConfig copy = new ProjectionConfig();
@@ -116,6 +134,10 @@ public class ProjectionConfig {
         copy.gazeLookaheadTicks = gazeLookaheadTicks;
         copy.gazeMaxStarveTicks = gazeMaxStarveTicks;
         copy.finishInSlot = finishInSlot;
+        copy.sectionCache = sectionCache;
+        copy.sectionCacheMaxMb = sectionCacheMaxMb;
+        copy.sectionCacheChunksPerTick = sectionCacheChunksPerTick;
+        copy.sectionCacheTtlTicks = sectionCacheTtlTicks;
         return copy;
     }
 }

@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -55,11 +57,51 @@ public final class ProjectionWorldChangeTrackerTest {
     }
 
     @Test
+    public void blockChangesStampTheChunkAndNotifyListenersWithTheBlockPosition() {
+        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        List<String> events = new ArrayList<String>();
+        ProjectionWorldChangeTracker.ChangeListener listener = recording(events);
+        tracker.addListener(listener);
+        tracker.addListener(listener);
+
+        tracker.markChanged(WORLD, 35, -70, -18);
+        tracker.markChanged(WORLD, 100, 100);
+        tracker.clearWorld(OTHER_WORLD);
+
+        assertTrue(tracker.dirtySince(WORLD, 2, -2, 2, -2, 0L));
+        assertEquals(List.of("block 35,-70,-18", "column 6,6", "cleared " + OTHER_WORLD), events);
+
+        tracker.removeListener(listener);
+        tracker.markChanged(WORLD, 1, 2, 3);
+        assertEquals(3, events.size());
+    }
+
+    @Test
     public void clearWorldResetsTracking() {
         ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
         tracker.markChanged(WORLD, 35, -18);
         tracker.clearWorld(WORLD);
 
         assertFalse(tracker.dirtySince(WORLD, 0, -4, 4, 0, 0L));
+    }
+
+    private static ProjectionWorldChangeTracker.ChangeListener recording(List<String> events) {
+        return new ProjectionWorldChangeTracker.ChangeListener() {
+            @Override
+            public void blockChanged(UUID worldId, long blockKey) {
+                events.add("block " + ProjectionCellKey.unpackX(blockKey) + "," + ProjectionCellKey.unpackY(blockKey)
+                    + "," + ProjectionCellKey.unpackZ(blockKey));
+            }
+
+            @Override
+            public void columnChanged(UUID worldId, int chunkX, int chunkZ) {
+                events.add("column " + chunkX + "," + chunkZ);
+            }
+
+            @Override
+            public void worldCleared(UUID worldId) {
+                events.add("cleared " + worldId);
+            }
+        };
     }
 }

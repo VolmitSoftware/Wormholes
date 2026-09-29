@@ -64,10 +64,6 @@ public final class ProjectionClaimArbiter {
     private final BiomeSink biomeSink;
     private final BiomeIdResolver biomeIds;
 
-    public ProjectionClaimArbiter() {
-        this(ProjectionWorldViewProvider.live());
-    }
-
     public ProjectionClaimArbiter(ProjectionWorldViewProvider viewProvider) {
         this(viewProvider, WormholesPlatform::isChunkSent);
     }
@@ -270,7 +266,7 @@ public final class ProjectionClaimArbiter {
                     if (overrides.isEmpty()) {
                         return;
                     }
-                    ProjectionWorldView localView = viewProvider.view(localWorld);
+                    ProjectionWorldView localView = viewProvider.authoritativeView(localWorld);
                     if (localView == null) {
                         return;
                     }
@@ -563,7 +559,7 @@ public final class ProjectionClaimArbiter {
                             continue;
                         }
                         if (!localViewResolved) {
-                            localView = viewProvider.view(localWorld);
+                            localView = viewProvider.authoritativeView(localWorld);
                             localViewResolved = true;
                         }
                         BlockData localData = localView == null ? null : localView.sampleBlockData(x, y, z);
@@ -642,12 +638,12 @@ public final class ProjectionClaimArbiter {
         boolean sourceLightingEnabled = sourceLightingEnabled(observerClaims);
         boolean fullBrightEnabled = observerClaims.claimSet.hasFullBrightClaims();
         if (!sourceLightingEnabled && !fullBrightEnabled) {
-            observerClaims.lighting.revert(observer, viewProvider.view(localWorld));
+            observerClaims.lighting.revert(observer, viewProvider.authoritativeView(localWorld));
             observerClaims.pendingLightingKeys.clear();
             return;
         }
         if (observerClaims.claimSet.isEmpty()) {
-            observerClaims.lighting.revert(observer, viewProvider.view(localWorld));
+            observerClaims.lighting.revert(observer, viewProvider.authoritativeView(localWorld));
             observerClaims.pendingLightingKeys.clear();
             return;
         }
@@ -655,7 +651,7 @@ public final class ProjectionClaimArbiter {
             || (observerClaims.pendingLightingKeys.isEmpty() && !observerClaims.lighting.hasPendingUpdates())) {
             return;
         }
-        ProjectionWorldView localView = viewProvider.view(localWorld);
+        ProjectionWorldView localView = viewProvider.authoritativeView(localWorld);
         if (localView == null) {
             return;
         }

@@ -34,7 +34,7 @@ public final class ProjectionChangeListener implements Listener {
 
     private void mark(Block block) {
         if (block != null) {
-            tracker.markChanged(block.getWorld().getUID(), block.getX(), block.getZ());
+            tracker.markChanged(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ());
         }
     }
 

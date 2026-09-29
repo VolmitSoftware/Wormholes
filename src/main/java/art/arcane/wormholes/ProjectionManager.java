@@ -108,7 +108,7 @@ public class ProjectionManager implements Listener {
     public ProjectionManager(ProjectionClientChunkTracker clientChunkTracker) {
         this.viewProvider = FoliaScheduler.isFoliaThreading(Bukkit.getServer())
             ? new RegionSnapshotWorldViewProvider(Wormholes.instance)
-            : ProjectionWorldViewProvider.live();
+            : ProjectionWorldViewProvider.sectionCached(Wormholes.instance, Wormholes.projectionChangeTracker);
         this.clientChunkTracker = clientChunkTracker;
         this.claimArbiter = new ProjectionClaimArbiter(viewProvider, clientChunkTracker);
         this.localEntityOcclusion = new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create());
@@ -245,6 +245,7 @@ public class ProjectionManager implements Listener {
             return;
         }
         tickCount++;
+        viewProvider.tick();
         closeQueue.retryPending();
         if (tickCount % PLATE_INVALIDATION_INTERVAL_TICKS == 0L) {
             plateCache.invalidateDirty(Wormholes.projectionChangeTracker);
@@ -673,6 +674,7 @@ public class ProjectionManager implements Listener {
     }
 
     public void onSettingsReloaded() {
+        viewProvider.reconfigure();
         interestSet.invalidateProjectionReuse();
         scheduleTick();
     }

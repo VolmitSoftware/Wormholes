@@ -134,6 +134,32 @@ public final class ProjectorSampleMemoTest {
     }
 
     @Test
+    public void occlusionDepthPrefersTheViewAnswerWithoutProbing() {
+        TestBlock stone = blockData(TestMaterial.STONE);
+        ShellWorldView view = new ShellWorldView(stone, blockData(TestMaterial.AIR));
+        view.knownDepth = 1;
+        ProjectorSampleMemo<TestBlock, TestMaterial, TestView> memo = memo(material -> material == TestMaterial.STONE);
+
+        assertEquals(1, memo.occlusionDepthInView(view, 0, 0, 0, stone));
+        assertEquals(0, view.reads, "a view that knows the buried depth must not be probed");
+
+        view.knownDepth = -1;
+        assertEquals(0, memo.occlusionDepthInView(view, 0, 0, 0, stone));
+        assertEquals(1, view.reads, "an unknown view depth falls back to neighbour probing");
+    }
+
+    @Test
+    public void nonOccludingSelfNeverAsksTheView() {
+        TestBlock air = blockData(TestMaterial.AIR);
+        ShellWorldView view = new ShellWorldView(blockData(TestMaterial.STONE), air);
+        view.knownDepth = 2;
+        ProjectorSampleMemo<TestBlock, TestMaterial, TestView> memo = memo(material -> material == TestMaterial.STONE);
+
+        assertEquals(0, memo.occlusionDepthInView(view, 0, 0, 0, air));
+        assertEquals(0, view.depthQueries);
+    }
+
+    @Test
     public void fullBrightClaimMatchingStillRequiresCurrentRemoteCorrespondence() {
         TestBlock stone = blockData(TestMaterial.STONE);
         FakeWorldView first = new FakeWorldView(stone);
@@ -283,12 +309,22 @@ public final class ProjectorSampleMemoTest {
         private final TestBlock openData;
         private final boolean[][][] occluding;
         private int reads;
+        private int knownDepth;
+        private int depthQueries;
 
         private ShellWorldView(TestBlock occludingData, TestBlock openData) {
             this.occludingData = occludingData;
             this.openData = openData;
             this.occluding = new boolean[5][5][5];
             this.occluding[2][2][2] = true;
+            this.knownDepth = -1;
+            this.depthQueries = 0;
+        }
+
+        @Override
+        public int buriedDepth(int x, int y, int z) {
+            depthQueries++;
+            return knownDepth;
         }
 
         private void setOccluding(int x, int y, int z, boolean value) {

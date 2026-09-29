@@ -136,6 +136,10 @@ public final class ProjectorSampleMemo<B, M, V extends ProjectionMaterialView<B,
         if (!blocks.isOccluding(blocks.material(selfData))) {
             return 0;
         }
+        int viewDepth = view.buriedDepth(x, y, z);
+        if (viewDepth >= 0) {
+            return viewDepth;
+        }
         Long2ByteOpenHashMap memo;
         if (view == lastOcclusionView && lastOcclusionMap != null) {
             memo = lastOcclusionMap;
