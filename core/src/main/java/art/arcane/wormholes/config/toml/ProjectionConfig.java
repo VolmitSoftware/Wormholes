@@ -66,6 +66,24 @@ public class ProjectionConfig {
     public long plateMaxBytes = 33_554_432L;
     @ConfigDescription("Worker threads that build shared view plates from region snapshots and remote views.")
     public int plateWorkers = 2;
+    @ConfigDescription({
+        "Keep a world-level cache of 16x16x16 block sections that every projector reads instead of querying the world block by block.",
+        "Buried-cell culling is computed once per cached section, and unloaded chunks load asynchronously instead of on the server thread.",
+        "Off reads the live world for every sample. Folia servers always use region snapshots instead."
+    })
+    public boolean sectionCache = true;
+    @ConfigDescription("Memory the section cache may hold, in megabytes; the least recently read sections are evicted first.")
+    public int sectionCacheMaxMb = 64;
+    @ConfigDescription({
+        "Chunks the section cache may capture per server tick.",
+        "Sections that do not fit the budget are read from the live world until a later tick captures them."
+    })
+    public int sectionCacheChunksPerTick = 16;
+    @ConfigDescription({
+        "Ticks before a cached section is captured again on its next read.",
+        "Tracked block changes refresh sections immediately; this interval bounds how long changes that raise no block event stay stale."
+    })
+    public int sectionCacheTtlTicks = 600;
 
     public ProjectionConfig copy() {
         ProjectionConfig copy = new ProjectionConfig();
@@ -92,6 +110,10 @@ public class ProjectionConfig {
         copy.sharedPlate = sharedPlate;
         copy.plateMaxBytes = plateMaxBytes;
         copy.plateWorkers = plateWorkers;
+        copy.sectionCache = sectionCache;
+        copy.sectionCacheMaxMb = sectionCacheMaxMb;
+        copy.sectionCacheChunksPerTick = sectionCacheChunksPerTick;
+        copy.sectionCacheTtlTicks = sectionCacheTtlTicks;
         return copy;
     }
 }
