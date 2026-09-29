@@ -4,6 +4,7 @@ import org.bukkit.entity.Entity;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -65,7 +66,7 @@ final class ProjectionInterestFrameBudgetTest {
         when(portal.isOpen()).thenReturn(true);
         when(portal.hasTunnel()).thenReturn(true);
         when(interestSet.obtain(portal, observer)).thenReturn(projector);
-        when(interestSet.nextSlice(eq(observerId), anyList(), eq(1))).thenReturn(List.of(portal));
+        when(interestSet.scheduleBlocks(eq(observerId), any(), anyList(), eq(1), anyLong())).thenReturn(List.of(portal));
         active = PortalCandidateSnapshot.captureProjection(List.of(portal));
     }
 
@@ -219,7 +220,7 @@ final class ProjectionInterestFrameBudgetTest {
         when(retired.getPortal()).thenReturn(retiredPortal);
         when(retired.hasPendingScan()).thenReturn(true);
         when(interestSet.retiringProjectors(observerId)).thenReturn(List.of(retired));
-        when(interestSet.nextSlice(eq(observerId), anyList(), eq(1))).thenReturn(List.of(retiredPortal));
+        when(interestSet.scheduleBlocks(eq(observerId), any(), anyList(), eq(1), anyLong())).thenReturn(List.of(retiredPortal));
         AtomicInteger remaining = new AtomicInteger();
 
         interestFrame.project(observer, active, remaining, 2, false, true, 2L,

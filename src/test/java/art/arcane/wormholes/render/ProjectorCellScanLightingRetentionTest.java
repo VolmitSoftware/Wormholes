@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
@@ -228,6 +229,89 @@ public final class ProjectorCellScanLightingRetentionTest {
     private record ScanFixture(ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan, ProjectorDestination destination,
                                PortalStructure structure, ProjectorBlackoutSeal blackout,
                                MutableWorldView local, MutableWorldView remote) {
+    }
+
+    @Test
+    public void completedGeometryFinishesInTheSameSlotOnlyWhileTimeRemains() throws ReflectiveOperationException {
+        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        boolean previous = Settings.PROJECTION_FINISH_IN_SLOT;
+        try {
+            Settings.PROJECTION_FINISH_IN_SLOT = true;
+            assertEquals(1, advancesToFinish(scanFixture(frame, true), frame, System.nanoTime() + 3_600_000_000_000L));
+            assertEquals(2, advancesToFinish(scanFixture(frame, true), frame, 0L));
+            Settings.PROJECTION_FINISH_IN_SLOT = false;
+            assertEquals(2, advancesToFinish(scanFixture(frame, true), frame, System.nanoTime() + 3_600_000_000_000L));
+        } finally {
+            Settings.PROJECTION_FINISH_IN_SLOT = previous;
+        }
+    }
+
+    @Test
+    public void occlusionFinishResumesAcrossSlotsWithTheUninterruptedClaimSet() throws ReflectiveOperationException {
+        for (Direction normal : Direction.values()) {
+            PortalFrame frame = PortalFrame.canonical(normal);
+            ScanFixture unlimited = scanFixture(frame, true);
+            ScanFixture staged = scanFixture(frame, true);
+            Location eye = unlimited.structure().getCenter().add(normal.x() * 1.5D, normal.y() * 1.5D, normal.z() * 1.5D);
+            Frustum4D frustum = new Frustum4D(BukkitGeometry.vector(eye), unlimited.structure(), new Frustum4D.Options(12.0D, 4.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
+            unlimited.scan().run(unlimited.destination(), null, BukkitGeometry.vector(eye), frustum, 12.0D,
+                true, false, false, false, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
+            staged.scan().begin(staged.destination(), null, BukkitGeometry.vector(eye), frustum, 12.0D,
+                true, false, false, false, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
+            int targets = -1;
+            int finishSlots = 0;
+            boolean ready = false;
+            while (!ready) {
+                boolean finishing = geometryComplete(staged.scan());
+                if (finishing && targets < 0) {
+                    targets = listSize(staged.scan(), "observerTargetCells") + listSize(staged.scan(), "unresolvedTargetCells");
+                }
+                ready = staged.scan().advance(0L);
+                if (finishing) {
+                    finishSlots++;
+                }
+                assertTrue(finishSlots < 1_000, normal.name());
+            }
+            assertTrue(targets > 256, normal.name() + " targets=" + targets);
+            assertEquals((targets + 127) / 128, finishSlots, normal.name());
+            assertTrue(finishSlots >= 3, normal.name());
+            assertTrue(staged.scan().occlusionRejected() > 0, normal.name());
+            assertEquals(unlimited.scan().occlusionRejected(), staged.scan().occlusionRejected(), normal.name());
+            assertEquals(unlimited.scan().unresolvedOcclusionCells(), staged.scan().unresolvedOcclusionCells(), normal.name());
+            assertEquivalentClaims(unlimited.scan().claims(), staged.scan().claims());
+        }
+    }
+
+    private static int advancesToFinish(ScanFixture fixture, PortalFrame frame, long deadlineNanos) {
+        Direction normal = frame.getNormal();
+        Location eye = fixture.structure().getCenter().add(normal.x() * 1.5D, normal.y() * 1.5D, normal.z() * 1.5D);
+        Frustum4D frustum = new Frustum4D(BukkitGeometry.vector(eye), fixture.structure(), new Frustum4D.Options(3.0D, 1.0D, Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
+        fixture.scan().begin(fixture.destination(), null, BukkitGeometry.vector(eye), frustum, 3.0D,
+            true, false, false, false, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
+        int advances = 1;
+        while (!fixture.scan().advance(deadlineNanos)) {
+            advances++;
+            assertTrue(advances < 1_000);
+        }
+        assertFalse(fixture.scan().claims().isEmpty());
+        return advances;
+    }
+
+    private static boolean geometryComplete(ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan)
+        throws ReflectiveOperationException {
+        Field pendingField = ProjectorCellScan.class.getDeclaredField("pending");
+        pendingField.setAccessible(true);
+        Object pass = pendingField.get(scan);
+        Field geometryField = pass.getClass().getDeclaredField("geometryComplete");
+        geometryField.setAccessible(true);
+        return geometryField.getBoolean(pass);
+    }
+
+    private static int listSize(ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan, String name)
+        throws ReflectiveOperationException {
+        Field field = ProjectorCellScan.class.getDeclaredField(name);
+        field.setAccessible(true);
+        return ((LongArrayList) field.get(scan)).size();
     }
 
     @Test

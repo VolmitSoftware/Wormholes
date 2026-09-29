@@ -20,53 +20,61 @@ final class ProjectionInterestSetTest {
     private static final ILocalPortal NEAREST = portal("nearest");
     private static final ILocalPortal OVERLAPPING = portal("overlapping");
     private static final ILocalPortal FARTHER = portal("farther");
-    private static final List<ILocalPortal> INTERESTED = List.of(NEAREST, OVERLAPPING, FARTHER);
+    private static final List<ProjectionGazeScheduler.Candidate<ILocalPortal>> INTERESTED = List.of(
+        candidate(NEAREST), candidate(OVERLAPPING), candidate(FARTHER));
 
     @Test
-    void scarcePerObserverBudgetRotatesAcrossThatObserversPortals() {
+    void scarcePerObserverBudgetRotatesAcrossEquallyVisiblePortals() {
         ProjectionInterestSet set = newSet();
         UUID observer = UUID.randomUUID();
 
-        assertSame(NEAREST, only(set.nextSlice(observer, INTERESTED, 1)));
-        assertSame(OVERLAPPING, only(set.nextSlice(observer, INTERESTED, 1)));
-        assertSame(FARTHER, only(set.nextSlice(observer, INTERESTED, 1)));
-        assertSame(NEAREST, only(set.nextSlice(observer, INTERESTED, 1)));
+        assertSame(NEAREST, only(set.scheduleBlocks(observer, eye(1L), INTERESTED, 1, 1L)));
+        assertSame(OVERLAPPING, only(set.scheduleBlocks(observer, eye(2L), INTERESTED, 1, 2L)));
+        assertSame(FARTHER, only(set.scheduleBlocks(observer, eye(3L), INTERESTED, 1, 3L)));
+        assertSame(NEAREST, only(set.scheduleBlocks(observer, eye(4L), INTERESTED, 1, 4L)));
     }
 
     @Test
-    void cursorsAreTrackedPerObserver() {
+    void scheduleStateIsTrackedPerObserver() {
         ProjectionInterestSet set = newSet();
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();
 
-        assertSame(NEAREST, only(set.nextSlice(first, INTERESTED, 1)));
-        assertSame(NEAREST, only(set.nextSlice(second, INTERESTED, 1)));
-        assertSame(OVERLAPPING, only(set.nextSlice(first, INTERESTED, 1)));
-        assertSame(OVERLAPPING, only(set.nextSlice(second, INTERESTED, 1)));
+        assertSame(NEAREST, only(set.scheduleBlocks(first, eye(1L), INTERESTED, 1, 1L)));
+        assertSame(NEAREST, only(set.scheduleBlocks(second, eye(1L), INTERESTED, 1, 1L)));
+        assertSame(OVERLAPPING, only(set.scheduleBlocks(first, eye(2L), INTERESTED, 1, 2L)));
+        assertSame(OVERLAPPING, only(set.scheduleBlocks(second, eye(2L), INTERESTED, 1, 2L)));
     }
 
     @Test
-    void forgettingAnObserverResetsItsCursor() {
+    void forgettingAnObserverResetsItsScheduleHistory() {
         ProjectionInterestSet set = newSet();
         UUID observer = UUID.randomUUID();
 
-        assertSame(NEAREST, only(set.nextSlice(observer, INTERESTED, 1)));
+        assertSame(NEAREST, only(set.scheduleBlocks(observer, eye(1L), INTERESTED, 1, 1L)));
         set.forgetObserver(observer);
 
-        assertSame(NEAREST, only(set.nextSlice(observer, INTERESTED, 1)));
+        assertSame(NEAREST, only(set.scheduleBlocks(observer, eye(2L), INTERESTED, 1, 2L)));
     }
 
     @Test
-    void wideBudgetAdvancesTheCursorByTheNumberOfPortalsServed() {
+    void wideBudgetServesTheLeastRecentlyRefreshedPortalNext() {
         ProjectionInterestSet set = newSet();
         UUID observer = UUID.randomUUID();
 
-        List<ILocalPortal> first = set.nextSlice(observer, INTERESTED, 2);
+        List<ILocalPortal> first = set.scheduleBlocks(observer, eye(1L), INTERESTED, 2, 1L);
         assertEquals(2, first.size());
         assertSame(NEAREST, first.get(0));
         assertSame(OVERLAPPING, first.get(1));
 
-        assertSame(FARTHER, only(set.nextSlice(observer, INTERESTED, 1)));
+        assertSame(FARTHER, only(set.scheduleBlocks(observer, eye(2L), INTERESTED, 1, 2L)));
+    }
+
+    @Test
+    void zeroBudgetSchedulesNothing() {
+        ProjectionInterestSet set = newSet();
+
+        assertTrue(set.scheduleBlocks(UUID.randomUUID(), eye(1L), INTERESTED, 0, 1L).isEmpty());
     }
 
     @Test
@@ -80,6 +88,15 @@ final class ProjectionInterestSetTest {
 
     private static ProjectionInterestSet newSet() {
         return new ProjectionInterestSet(null, new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create()), null, null, () -> true);
+    }
+
+    private static ProjectionGazeScheduler.Eye eye(long tick) {
+        return new ProjectionGazeScheduler.Eye((tick & 1L) * 0.3D, 65.0D, 0.0D, 0.0F, 0.0F);
+    }
+
+    private static ProjectionGazeScheduler.Candidate<ILocalPortal> candidate(ILocalPortal portal) {
+        return new ProjectionGazeScheduler.Candidate<ILocalPortal>(portal, UUID.nameUUIDFromBytes(portal.getName().getBytes()),
+            -1.0D, 64.0D, 5.0D, 1.0D, 66.0D, 7.0D, false, false);
     }
 
     private static ILocalPortal only(List<ILocalPortal> slice) {

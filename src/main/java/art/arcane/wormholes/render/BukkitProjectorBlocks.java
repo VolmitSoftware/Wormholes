@@ -50,7 +50,7 @@ public final class BukkitProjectorBlocks implements ProjectionBlockTypes<BlockDa
         return new ProjectorCellScan<>(new ProjectorCellScan.Context<>(portal, portal.getStructure(), sampler, memo, blackout,
             OccludedMarker::isOccluding, () -> new ProjectorCellScan.ScanSettings(Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH,
                 Settings.PROJECTION_OCCLUSION_REVEAL_MARGIN_DEGREES, Settings.PROJECTION_APERTURE_PADDING_BLOCKS, Settings.DEBUG,
-                Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS, Settings.PROJECTION_MAX_HELD_CELLS_PER_PORTAL)));
+                Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS, Settings.PROJECTION_MAX_HELD_CELLS_PER_PORTAL, Settings.PROJECTION_FINISH_IN_SLOT)));
     }
 
     @Override

@@ -55,7 +55,7 @@ import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 
 public final class PortalProjector {
-    static final double REUSE_EYE_EPSILON_SQUARED = 0.0625D;
+    public static final double REUSE_EYE_EPSILON_SQUARED = 0.0625D;
 
     private final ILocalPortal portal;
     private final Player observer;
@@ -80,6 +80,7 @@ public final class PortalProjector {
     private final Random weatherRandom = new Random();
     private final ProjectedBlockEntityLayer<Player> blockEntityLayer = new ProjectedBlockEntityLayer<Player>(new BlockEntityPacketSink());
     private final DissolveSchedule dissolve = new DissolveSchedule();
+    private final ProjectorCommitLatency commitLatency = new ProjectorCommitLatency();
     private long blockPasses;
 
     private volatile World claimWorld;
@@ -277,6 +278,7 @@ public final class PortalProjector {
             + " reuseSkips=" + lastReuseSkips
             + " scanSlices=" + scanSlices
             + " completedScans=" + completedScans
+            + " commitLatencyTicks=" + commitLatency.describe()
             + " scanPending=" + hasPendingScan()
             + " scanNanos=" + lastScanNanos
             + " finalizeNanos=" + lastFinalizeNanos
@@ -481,6 +483,7 @@ public final class PortalProjector {
             cellScan.begin(destination, rtpTarget == null ? null : rtpTarget.frame(), BukkitGeometry.vector(eye), next, depthBlocks, forceStableCellResample, forceFullSend,
                 viewCameraMoved, buriedCellCulling, renderMode, plate, blockEntities, observerLod);
             pendingProjection = frame;
+            commitLatency.begin(startNanos);
             advanceProjection(frame, startNanos, eye, updateEntities, deadlineNanos);
         }
     }
@@ -582,6 +585,7 @@ public final class PortalProjector {
         }
 
         cellScan.commit();
+        commitLatency.commit(System.nanoTime());
         completedScans++;
         pendingProjection = null;
         lastFinalizeNanos = System.nanoTime() - finalizeStarted;
@@ -625,6 +629,7 @@ public final class PortalProjector {
 
     private void cancelPendingProjection() {
         cellScan.cancelPending();
+        commitLatency.cancel();
         pendingProjection = null;
         reuseInvalidated = true;
         schedule.invalidateDestination();

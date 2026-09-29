@@ -30,6 +30,11 @@ import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 
 public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends ProjectionContentView<B, M>> {
+    private static final int FINISH_SEAL = 0;
+    private static final int FINISH_UNRESOLVED_TARGETS = 1;
+    private static final int FINISH_OBSERVER_TARGETS = 2;
+    private static final int FINISH_DEADLINE_STRIDE = 128;
+
     private final P portal;
     private final PortalCellAperture aperture;
     private final Supplier<ScanSettings> settings;
@@ -529,11 +534,13 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                 return false;
             }
             pass.geometryComplete = true;
-            if (deadlineNanos != Long.MAX_VALUE) {
+            if (!finishesInSlot(deadlineNanos)) {
                 return false;
             }
         }
-        pass.finishGeometry();
+        if (!pass.finishGeometry(deadlineNanos)) {
+            return false;
+        }
         pass.ready = true;
         preparedResult = true;
         return true;
@@ -564,6 +571,11 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
 
     public static boolean scanContinues(int coordinate, int end, int step) {
         return step > 0 ? coordinate <= end : coordinate >= end;
+    }
+
+    private boolean finishesInSlot(long deadlineNanos) {
+        return deadlineNanos == Long.MAX_VALUE
+            || (settings.get().finishInSlot() && System.nanoTime() < deadlineNanos);
     }
 
     private static int frameCode(PortalFrame frame) {
@@ -742,19 +754,6 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             && previous.isBlackout()
             && previous.getLightRemoteKey() == remoteKey
             && previous.getLightView() == destView;
-    }
-
-    private void filterObserverTargets(V view,
-                                       double eyeX,
-                                       double eyeY,
-                                       double eyeZ,
-                                       LongArrayList targetCells,
-                                       LongArrayList targetRemoteKeys) {
-        for (int index = 0; index < targetCells.size(); index++) {
-            long localKey = targetCells.getLong(index);
-            long remoteKey = targetRemoteKeys.getLong(index);
-            filterObserverTarget(view, eyeX, eyeY, eyeZ, localKey, remoteKey);
-        }
     }
 
     private void filterUnresolvedTargets(LongArrayList targetCells, LongArrayList targetRemoteKeys) {
@@ -1008,6 +1007,10 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         private boolean rowReady;
         private boolean geometryComplete;
         private boolean ready;
+        private boolean filterTargets;
+        private int finishStage;
+        private int finishTargetIndex;
+        private int finishDeadlineTargets;
 
         private ScanPass(ScanRequest<B, P, V> request) {
             ProjectorScanDestination<P, V> destination = request.destination();
@@ -1645,28 +1648,61 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             return true;
         }
 
-        private void finishGeometry() {
+        private boolean finishGeometry(long deadlineNanos) {
+            if (finishStage == FINISH_SEAL) {
+                beginFinish();
+            }
+            if (finishStage == FINISH_UNRESOLVED_TARGETS) {
+                if (filterTargets && !filterObserverTargets(unresolvedTargetCells, unresolvedTargetRemoteKeys, deadlineNanos)) {
+                    return false;
+                }
+                finishStage = FINISH_OBSERVER_TARGETS;
+                finishTargetIndex = 0;
+            }
+            if (filterTargets && !filterObserverTargets(observerTargetCells, observerTargetRemoteKeys, deadlineNanos)) {
+                return false;
+            }
+            finishEntityOcclusion();
+            return true;
+        }
+
+        private void beginFinish() {
             blackoutClaims = 0;
             if (blackoutEnabled && blackoutFarSliceFound && !blackoutGeometry.isEmpty()) {
                 sealBlackoutGeometry();
             }
             unfilteredClaimCount = nextProjected.size();
+            filterTargets = false;
             if (observerOcclusion && (!unresolvedTargetCells.isEmpty() || !observerTargetCells.isEmpty())) {
                 viewOcclusion.setRevealMarginDegrees(scannedRevealMargin);
                 viewOcclusion.beginPass(
                     remoteOriginX, remoteOriginY, remoteOriginZ, projectionRemoteFrame.getNormal(),
                     occlusionGeometry);
-                if (!occlusionGeometry.isEmpty()) {
-                    filterObserverTargets(destView, scannedRemoteEyeX, scannedRemoteEyeY, scannedRemoteEyeZ,
-                        unresolvedTargetCells, unresolvedTargetRemoteKeys);
-                    filterObserverTargets(destView, scannedRemoteEyeX, scannedRemoteEyeY, scannedRemoteEyeZ,
-                        observerTargetCells, observerTargetRemoteKeys);
-                }
+                filterTargets = !occlusionGeometry.isEmpty();
             }
+            finishStage = FINISH_UNRESOLVED_TARGETS;
+            finishTargetIndex = 0;
+        }
+
+        private boolean filterObserverTargets(LongArrayList targetCells, LongArrayList targetRemoteKeys, long deadlineNanos) {
+            int size = targetCells.size();
+            for (; finishTargetIndex < size; finishTargetIndex++) {
+                if (++finishDeadlineTargets > FINISH_DEADLINE_STRIDE) {
+                    finishDeadlineTargets = 1;
+                    if (deadlineNanos != Long.MAX_VALUE && System.nanoTime() >= deadlineNanos) {
+                        return false;
+                    }
+                }
+                filterObserverTarget(destView, scannedRemoteEyeX, scannedRemoteEyeY, scannedRemoteEyeZ,
+                    targetCells.getLong(finishTargetIndex), targetRemoteKeys.getLong(finishTargetIndex));
+            }
+            return true;
+        }
+
+        private void finishEntityOcclusion() {
             if (holdClaims) {
                 holdReleasedClaims();
             }
-
             entityOcclusion.beginPass(
                 destView,
                 remoteOriginX,
@@ -1765,7 +1801,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     }
 
     public record ScanSettings(int recursiveDepth, double revealMarginDegrees, double aperturePadding, boolean debug,
-                               boolean holdInvisibleClaims, int maxHeldClaims) {
+                               boolean holdInvisibleClaims, int maxHeldClaims, boolean finishInSlot) {
     }
 
     public record Context<B, M, W, P extends IPortal, V extends ProjectionContentView<B, M>>(

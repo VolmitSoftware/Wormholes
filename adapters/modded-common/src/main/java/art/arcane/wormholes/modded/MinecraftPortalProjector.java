@@ -453,7 +453,8 @@ public final class MinecraftPortalProjector implements AutoCloseable {
     private ProjectorCellScan.ScanSettings scanSettings() {
         ProjectionConfig settings = config();
         return new ProjectorCellScan.ScanSettings(settings.recursivePortalDepth, settings.occlusionRevealMarginDegrees,
-            settings.aperturePaddingBlocks, false, settings.holdInvisibleClaims, Math.max(0, settings.maxHeldCellsPerPortal));
+            settings.aperturePaddingBlocks, false, settings.holdInvisibleClaims, Math.max(0, settings.maxHeldCellsPerPortal),
+            settings.finishInSlot);
     }
 
     public record Context(ServerPlayer observer, MinecraftPortal portal,

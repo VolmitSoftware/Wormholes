@@ -57,6 +57,10 @@ public final class Settings {
     public static volatile int PROJECTION_MAX_PROJECTED_CELLS = 250000;
     public static volatile boolean PROJECTION_HOLD_INVISIBLE_CLAIMS = true;
     public static volatile int PROJECTION_MAX_HELD_CELLS_PER_PORTAL = 65536;
+    public static volatile double PROJECTION_GAZE_FOV_DEGREES = 110.0D;
+    public static volatile int PROJECTION_GAZE_LOOKAHEAD_TICKS = 3;
+    public static volatile int PROJECTION_GAZE_MAX_STARVE_TICKS = 20;
+    public static volatile boolean PROJECTION_FINISH_IN_SLOT = true;
     public static volatile long TELEPORT_COOLDOWN_MILLIS = 1000L;
     public static volatile double PORTAL_PUSHBACK_MULTIPLIER = 1.0D;
     public static volatile double PORTAL_SOUND_VOLUME_MULTIPLIER = 1.0D;
@@ -148,6 +152,10 @@ public final class Settings {
         PROJECTION_MAX_PROJECTED_CELLS = clampInt(projection.maxProjectedCells, 0, 50000000);
         PROJECTION_HOLD_INVISIBLE_CLAIMS = projection.holdInvisibleClaims;
         PROJECTION_MAX_HELD_CELLS_PER_PORTAL = clampInt(projection.maxHeldCellsPerPortal, 0, 50000000);
+        PROJECTION_GAZE_FOV_DEGREES = clampFiniteDouble(projection.gazeFovDegrees, 30.0D, 170.0D, 110.0D);
+        PROJECTION_GAZE_LOOKAHEAD_TICKS = clampInt(projection.gazeLookaheadTicks, 0, 20);
+        PROJECTION_GAZE_MAX_STARVE_TICKS = clampInt(projection.gazeMaxStarveTicks, 1, 200);
+        PROJECTION_FINISH_IN_SLOT = projection.finishInSlot;
 
         LIGHTING_FIDELITY = render.lightingFidelity;
         LIGHTING_REFRESH_INTERVAL_TICKS = clampInt(render.lightingRefreshIntervalTicks, 1, 40);
