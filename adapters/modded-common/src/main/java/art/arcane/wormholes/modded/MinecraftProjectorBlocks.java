@@ -3,15 +3,21 @@ package art.arcane.wormholes.modded;
 import art.arcane.wormholes.render.DirectionMapping;
 import art.arcane.wormholes.render.blockentity.BlockEntityMaterials;
 import art.arcane.wormholes.render.ProjectionBlockTypes;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.EmptyBlockGetter;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.core.registries.BuiltInRegistries;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 
 public enum MinecraftProjectorBlocks implements ProjectionBlockTypes<BlockState, BlockState> {
     INSTANCE;
 
+    private static final Map<Block, Boolean> OCCLUDING = new ConcurrentHashMap<>();
     private static volatile BlockState occluded;
 
     @Override
@@ -60,7 +66,17 @@ public enum MinecraftProjectorBlocks implements ProjectionBlockTypes<BlockState,
 
     @Override
     public boolean isOccluding(BlockState block) {
-        return block != null && !block.isAir() && block.canOcclude();
+        return block != null && !block.isAir() && occluding(block.getBlock());
+    }
+
+    static boolean occluding(Block block) {
+        Boolean cached = OCCLUDING.get(block);
+        if (cached != null) {
+            return cached;
+        }
+        boolean occluding = block.defaultBlockState().isRedstoneConductor(EmptyBlockGetter.INSTANCE, BlockPos.ZERO);
+        OCCLUDING.put(block, occluding);
+        return occluding;
     }
 
     @Override

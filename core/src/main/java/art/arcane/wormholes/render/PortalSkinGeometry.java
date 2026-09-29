@@ -10,8 +10,8 @@ import java.util.List;
 
 public final class PortalSkinGeometry {
     private static final int MAX_PER_CELL_PANES = 128;
-    // Skin panes are always a full block deep so they never thin out at grazing view angles.
-    private static final double SURFACE_THICKNESS_BLOCKS = 1.0D;
+    // Skin panes are a thin face centered on the portal plane, as deep as a glass pane.
+    private static final double SURFACE_THICKNESS_BLOCKS = 0.125D;
     private PortalSkinGeometry() { }
     public static List<SkinTransform> panes(PortalGeometry structure, PortalFrame frame, GeometryVector origin) {
         Axis normalAxis = frame.getNormal().getAxis();
