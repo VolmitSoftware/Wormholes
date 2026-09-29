@@ -90,7 +90,7 @@ public final class PortalProjectorPlateFallbackTest {
         Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> expected = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(samplerScan.claims());
 
         ViewPlate<BlockData> partial = ViewPlateBuilder.build(new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(
-            new ViewPlateKey(PORTAL_ID, remoteView, true, 0), portal.getStructure(), remoteView, frame, frame,
+            new ViewPlateKey(PORTAL_ID, remoteView, true, 0, 0L), portal.getStructure(), remoteView, frame, frame,
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
             false, 0, 1.0D, 2.0D, 0.75D, false, blockData(Material.AIR), LodPolicy.NONE, false, 0L, 1L, 0L, new BukkitProjectorBlocks(PortalProjectorPlateFallbackTest::testMaterialOccluding)));
@@ -128,7 +128,7 @@ public final class PortalProjectorPlateFallbackTest {
         assertTrue(coarseReads < remoteView.reads, "run merging must read fewer destination cells than the dense scan");
         assertTrue(samplerPath.remoteSampleCount() > 0);
 
-        ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request = new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(new ViewPlateKey(PORTAL_ID, remoteView, true, 0),
+        ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request = new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(new ViewPlateKey(PORTAL_ID, remoteView, true, 0, 0L),
             portal.getStructure(), remoteView, frame, frame,
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
@@ -158,7 +158,7 @@ public final class PortalProjectorPlateFallbackTest {
     private static ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request(ILocalPortal portal, PortalStructure structure,
                                                     ProjectionWorldView remoteView, boolean buried) {
         PortalFrame frame = portal.getFrame();
-        return new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(new ViewPlateKey(PORTAL_ID, remoteView, true, 0), portal.getStructure(), remoteView, frame, frame,
+        return new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(new ViewPlateKey(PORTAL_ID, remoteView, true, 0, 0L), portal.getStructure(), remoteView, frame, frame,
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
             false, 0, 4.0D, 2.0D, 0.75D, buried, blockData(Material.AIR), LodPolicy.NONE, false, 0L, 1L, 0L, new BukkitProjectorBlocks(PortalProjectorPlateFallbackTest::testMaterialOccluding));

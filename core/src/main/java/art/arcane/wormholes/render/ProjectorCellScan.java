@@ -1243,11 +1243,11 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                             ? null
                             : rootRecursiveIndex.find(scratchRemotePoint[0], scratchRemotePoint[1], scratchRemotePoint[2],
                                 recursiveDepth);
-                        PlateCell<B> plateCell = plate == null || recursiveHit != null ? null : plate.cell(key);
+                        PlateCell<B> plateCell = plate == null || recursiveHit != null ? null : plate.cleanCell(key, rx, rz);
                         ProjectorSample<B, V> sample;
                         if (plateCell != null) {
                             plateHits++;
-                            sample = plateCell.sample(destView);
+                            sample = plateCell.sample(destView, remoteKey);
                         } else {
                             sample = sampler.resolve(destView,
                                 scratchRemotePoint[0], scratchRemotePoint[1], scratchRemotePoint[2],

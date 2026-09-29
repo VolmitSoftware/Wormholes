@@ -4,6 +4,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+import it.unimi.dsi.fastutil.longs.LongCollection;
+
 public final class ProjectionWorldChangeTracker {
     private static final int MAX_TRACKED_CHUNKS_PER_WORLD = 8192;
 
@@ -58,6 +60,35 @@ public final class ProjectionWorldChangeTracker {
         return false;
     }
 
+    public boolean collectDirtySince(UUID worldId, int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ, long sinceVersion,
+                                     LongCollection out) {
+        if (worldId == null) {
+            return false;
+        }
+        Long floor = clearFloor.get(worldId);
+        if (floor != null && floor.longValue() > sinceVersion) {
+            return false;
+        }
+        AtomicLong maxStamp = worldMaxStamp.get(worldId);
+        if (maxStamp == null || maxStamp.get() <= sinceVersion) {
+            return true;
+        }
+        ConcurrentHashMap<Long, Long> chunks = worldChunks.get(worldId);
+        if (chunks == null || chunks.isEmpty()) {
+            return true;
+        }
+        for (int cx = minChunkX; cx <= maxChunkX; cx++) {
+            for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
+                long key = chunkKey(cx, cz);
+                Long stamp = chunks.get(Long.valueOf(key));
+                if (stamp != null && stamp.longValue() > sinceVersion) {
+                    out.add(key);
+                }
+            }
+        }
+        return true;
+    }
+
     public void clearWorld(UUID worldId) {
         if (worldId == null) {
             return;
@@ -67,7 +98,7 @@ public final class ProjectionWorldChangeTracker {
         worldMaxStamp.remove(worldId);
     }
 
-    private static long chunkKey(int chunkX, int chunkZ) {
+    public static long chunkKey(int chunkX, int chunkZ) {
         return (((long) chunkX) << 32) | (chunkZ & 0xFFFFFFFFL);
     }
 }

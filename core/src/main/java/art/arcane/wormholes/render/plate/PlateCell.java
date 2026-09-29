@@ -5,24 +5,23 @@ import art.arcane.wormholes.render.ProjectorSample;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 
 /**
- * One local cell of a shared view plate: the sampler classification, the untransformed destination
- * sample, the block state after the frame transform, the remote cell it was sampled from and, when
- * the destination carries one, the sanitized block-entity snapshot.
+ * One palette entry of a shared view plate: the sampler classification, the untransformed destination
+ * sample, the block state after the frame transform and, when the destination carries one, the
+ * sanitized block-entity snapshot. Cells without a block entity are shared by every plate position
+ * with the same classification and source state.
  */
 public final class PlateCell<B> {
-    static final int BYTES = 72;
+    static final int BYTES = 40;
 
     private final ProjectorSample.Kind kind;
     private final B sourceData;
     private final B data;
-    private final long remoteKey;
     private final BlockEntitySample blockEntity;
 
-    public PlateCell(ProjectorSample.Kind kind, B sourceData, B data, long remoteKey, BlockEntitySample blockEntity) {
+    public PlateCell(ProjectorSample.Kind kind, B sourceData, B data, BlockEntitySample blockEntity) {
         this.kind = kind;
         this.sourceData = sourceData;
         this.data = data;
-        this.remoteKey = remoteKey;
         this.blockEntity = blockEntity;
     }
 
@@ -38,10 +37,6 @@ public final class PlateCell<B> {
         return data;
     }
 
-    public long remoteKey() {
-        return remoteKey;
-    }
-
     public BlockEntitySample blockEntity() {
         return blockEntity;
     }
@@ -50,7 +45,7 @@ public final class PlateCell<B> {
         return kind == ProjectorSample.Kind.REMOTE_AIR || kind == ProjectorSample.Kind.MASK_AIR;
     }
 
-    public <V> ProjectorSample<B, V> sample(V lightView) {
+    public <V> ProjectorSample<B, V> sample(V lightView, long remoteKey) {
         return new ProjectorSample<B, V>(kind, sourceData, lightView, remoteKey);
     }
 

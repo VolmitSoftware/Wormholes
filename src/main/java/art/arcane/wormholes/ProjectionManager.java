@@ -58,6 +58,8 @@ import art.arcane.wormholes.render.FidelitySubsystem;
 import art.arcane.wormholes.render.ProjectionClientChunkTracker;
 import art.arcane.wormholes.render.acoustics.AcousticsBridge;
 import art.arcane.wormholes.render.bedrock.ClientProfileService;
+import art.arcane.wormholes.render.plate.PlateCaptureJob;
+import art.arcane.wormholes.render.plate.PlateCaptureQueue;
 import art.arcane.wormholes.render.plate.PlateWorkers;
 import art.arcane.wormholes.render.plate.ViewPlate;
 import art.arcane.wormholes.render.plate.ViewPlateBuilder;
@@ -95,6 +97,7 @@ public class ProjectionManager implements Listener {
     private final ProjectedEntityUpdateBatcher projectedEntityUpdates;
     private final ViewPlateCache<BlockData, World> plateCache;
     private final PlateWorkers<BlockData, World> plateWorkers;
+    private final PlateCaptureQueue<BlockData, World> plateCaptures;
     private final Set<UUID> observerTasksInFlight;
     private final AtomicBoolean shutdownFinalized;
     private final AtomicBoolean shutdownStarted;
@@ -131,13 +134,28 @@ public class ProjectionManager implements Listener {
             }
 
             @Override
-            public boolean schedule(ViewPlateBuilder.Execution<World> execution, Runnable task, long delayTicks) {
-                return FoliaScheduler.runRegion(Wormholes.instance, execution.world(), execution.chunkX(), execution.chunkZ(), task, delayTicks);
+            public void warning(ViewPlateKey key, RuntimeException failure) {
+                Wormholes.instance.getLogger().log(Level.WARNING, "[plate] build failed for portal " + key.portalId(), failure);
+            }
+        });
+        this.plateCaptures = new PlateCaptureQueue<BlockData, World>(new PlateCaptureQueue.Host<>() {
+            @Override
+            public void build(ViewPlateBuilder.Job<BlockData, World> job) {
+                if (closed) {
+                    plateCache.buildFailed(job.key());
+                    return;
+                }
+                plateWorkers.submitAsync(job);
+            }
+
+            @Override
+            public void failed(ViewPlateKey key) {
+                plateCache.buildFailed(key);
             }
 
             @Override
             public void warning(ViewPlateKey key, RuntimeException failure) {
-                Wormholes.instance.getLogger().log(Level.WARNING, "[plate] build failed for portal " + key.portalId(), failure);
+                Wormholes.instance.getLogger().log(Level.WARNING, "[plate] capture failed for portal " + key.portalId(), failure);
             }
         });
         this.interestSet = new ProjectionInterestSet(claimArbiter, localEntityOcclusion, viewProvider, closeQueue, alive,
@@ -175,12 +193,11 @@ public class ProjectionManager implements Listener {
             plateCache.buildFailed(job.key());
             return;
         }
-        ViewPlateBuilder.Execution<World> execution = job.execution();
-        if (execution.offThread()) {
-            plateWorkers.submitAsync(job);
+        if (job instanceof PlateCaptureJob<BlockData, World, ?> capture) {
+            plateCaptures.submit(capture);
             return;
         }
-        plateWorkers.submitRegion(job);
+        plateWorkers.submitAsync(job);
     }
 
     @EventHandler
@@ -247,8 +264,9 @@ public class ProjectionManager implements Listener {
         tickCount++;
         closeQueue.retryPending();
         if (tickCount % PLATE_INVALIDATION_INTERVAL_TICKS == 0L) {
-            plateCache.invalidateDirty(Wormholes.projectionChangeTracker);
+            plateCache.markDirty(Wormholes.projectionChangeTracker);
         }
+        plateCaptures.tick(FidelitySettings.plateCaptureChunksPerTick);
         if (tickCount % ACOUSTICS_AMBIENT_INTERVAL_TICKS == 0L) {
             AcousticsBridge<Player> acoustics = FidelitySubsystem.acoustics();
             if (acoustics != null) {
@@ -632,6 +650,7 @@ public class ProjectionManager implements Listener {
         }
         closed = true;
         projectedEntityUpdates.close();
+        plateCaptures.clear();
         plateWorkers.shutdown();
         plateCache.clear();
         if (taskId >= 0) {
@@ -691,6 +710,7 @@ public class ProjectionManager implements Listener {
         plateCache.recap(FidelitySettings.plateMaxBytes);
         plateWorkers.resize(FidelitySettings.plateWorkers);
         if (!FidelitySettings.sharedPlate) {
+            plateCaptures.clear();
             plateCache.clear();
         }
         interestSet.invalidateProjectionReuse();

@@ -3,6 +3,7 @@ package art.arcane.wormholes.render;
 import art.arcane.wormholes.util.BukkitGeometry;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -91,6 +92,123 @@ public final class PortalProjectorSharedPlateTest {
         assertEquals(1, scheduled.size());
     }
 
+    @Test
+    public void observersOfOneRtpRouteShareOnePlateAndAnotherRouteGetsItsOwn() throws Exception {
+        PortalStructure structure = structure();
+        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        ILocalPortal portal = portal(structure, frame);
+        StoneView destinationView = new StoneView();
+        World targetWorld = world(UUID.fromString("00000000-0000-0000-0000-0000000000e1"));
+        PortalProjector.RtpProjectionTarget route = new PortalProjector.RtpProjectionTarget(targetWorld, 900.5D, 70.0D, -1200.5D,
+            PortalFrame.canonical(Direction.N), 3L);
+        PortalProjector.RtpProjectionTarget sameRoute = new PortalProjector.RtpProjectionTarget(targetWorld, 900.5D, 70.0D, -1200.5D,
+            PortalFrame.canonical(Direction.N), 3L);
+        PortalProjector.RtpProjectionTarget nextRoute = new PortalProjector.RtpProjectionTarget(targetWorld, 1400.5D, 64.0D, 300.5D,
+            PortalFrame.canonical(Direction.E), 4L);
+
+        List<ViewPlateBuilder.Job<BlockData, World>> scheduled = new ArrayList<>();
+        ViewPlateCache<BlockData, World> cache = new ViewPlateCache<BlockData, World>(4_000_000L, scheduled::add);
+        PortalProjector first = rtpProjector(portal, destinationView, cache, route);
+        PortalProjector second = rtpProjector(portal, destinationView, cache, sameRoute);
+        Location eye = eye(structure, 4.0D);
+
+        assertNull(acquirePlate(first, eye, route), "the first observer of a route schedules its plate");
+        assertEquals(1, scheduled.size());
+        ViewPlate<BlockData> built = run(scheduled.get(0));
+        assertFalse(built.isEmpty());
+        cache.publish(built);
+        assertSame(built, acquirePlate(second, eye, sameRoute), "a second observer of the same route shares the plate");
+        assertEquals(1, scheduled.size());
+
+        PortalProjector third = rtpProjector(portal, destinationView, cache, nextRoute);
+        assertNull(acquirePlate(third, eye, nextRoute), "another route never reuses the first route's plate");
+        assertEquals(2, scheduled.size());
+        assertNotEquals(route.plateIdentity(), nextRoute.plateIdentity());
+        assertEquals(route.plateIdentity(), sameRoute.plateIdentity());
+    }
+
+    @Test
+    public void rtpPlatesCanBeSwitchedOff() throws Exception {
+        boolean rtpPlates = FidelitySettings.rtpPlates;
+        FidelitySettings.rtpPlates = false;
+        try {
+            PortalStructure structure = structure();
+            ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+            StoneView destinationView = new StoneView();
+            PortalProjector.RtpProjectionTarget route = new PortalProjector.RtpProjectionTarget(
+                world(UUID.fromString("00000000-0000-0000-0000-0000000000e2")), 10.5D, 70.0D, 10.5D,
+                PortalFrame.canonical(Direction.N), 1L);
+            List<ViewPlateBuilder.Job<BlockData, World>> scheduled = new ArrayList<>();
+            ViewPlateCache<BlockData, World> cache = new ViewPlateCache<BlockData, World>(4_000_000L, scheduled::add);
+            PortalProjector projector = rtpProjector(portal, destinationView, cache, route);
+
+            assertNull(acquirePlate(projector, eye(structure, 4.0D), route));
+            assertTrue(scheduled.isEmpty());
+        } finally {
+            FidelitySettings.rtpPlates = rtpPlates;
+        }
+    }
+
+    @Test
+    public void theLateralClampShrinksThePlateButNeverWidensPastThePortalPad() throws Exception {
+        int clamp = FidelitySettings.plateLateralClampBlocks;
+        try {
+            PortalStructure structure = structure();
+            ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+            StoneView destinationView = new StoneView();
+            FidelitySettings.plateLateralClampBlocks = 64;
+            long wide = predictedPlateBytes(portal, structure, destinationView);
+            FidelitySettings.plateLateralClampBlocks = 1;
+            long narrow = predictedPlateBytes(portal, structure, destinationView);
+
+            assertTrue(narrow < wide, "a clamp below the portal pad shrinks the plate");
+            FidelitySettings.plateLateralClampBlocks = 2;
+            assertEquals(wide, predictedPlateBytes(portal, structure, destinationView), "the portal pad of 2 already bounds the plate");
+        } finally {
+            FidelitySettings.plateLateralClampBlocks = clamp;
+        }
+    }
+
+    private static long predictedPlateBytes(ILocalPortal portal, PortalStructure structure, StoneView destinationView) throws Exception {
+        List<ViewPlateBuilder.Job<BlockData, World>> scheduled = new ArrayList<>();
+        ViewPlateCache<BlockData, World> cache = new ViewPlateCache<BlockData, World>(400_000_000L, scheduled::add);
+        PortalProjector projector = projector(portal, structure, destinationView, cache, 8);
+        acquirePlate(projector, eye(structure, 4.0D));
+        assertEquals(1, scheduled.size());
+        return scheduled.get(0).predictedBytes();
+    }
+
+    private static PortalProjector rtpProjector(ILocalPortal portal, ProjectionWorldView destinationView,
+                                                ViewPlateCache<BlockData, World> cache,
+                                                PortalProjector.RtpProjectionTarget target) throws Exception {
+        PortalProjector projector = withBukkitServer(() -> new PortalProjector(portal, viewer(8), null,
+            world -> destinationView, () -> true, new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create()), cache));
+        Field field = PortalProjector.class.getDeclaredField("destination");
+        field.setAccessible(true);
+        ProjectorDestination destination = (ProjectorDestination) field.get(projector);
+        destination.dest = null;
+        destination.destAnchor = null;
+        destination.destView = destinationView;
+        destination.localView = destinationView;
+        destination.originX = target.originX();
+        destination.originY = target.originY();
+        destination.originZ = target.originZ();
+        destination.mirrorMode = false;
+        destination.mirrorRotationQuarterTurns = 0;
+        return projector;
+    }
+
+    private static World world(UUID id) {
+        return (World) Proxy.newProxyInstance(World.class.getClassLoader(), new Class<?>[] {World.class},
+            (proxy, method, args) -> switch (method.getName()) {
+                case "getUID" -> id;
+                case "getName", "toString" -> "rtp-target";
+                case "hashCode" -> Integer.valueOf(System.identityHashCode(proxy));
+                case "equals" -> Boolean.valueOf(proxy == args[0]);
+                default -> primitiveDefault(method.getReturnType());
+            });
+    }
+
     private static ViewPlate<BlockData> run(ViewPlateBuilder.Job<BlockData, World> job) {
         while (!job.step(Integer.MAX_VALUE)) {
         }
@@ -98,9 +216,15 @@ public final class PortalProjectorSharedPlateTest {
     }
 
     private static ViewPlate<BlockData> acquirePlate(PortalProjector projector, Location eye) throws Exception {
-        Method method = PortalProjector.class.getDeclaredMethod("acquirePlate", Location.class, boolean.class, long.class);
+        return acquirePlate(projector, eye, null);
+    }
+
+    private static ViewPlate<BlockData> acquirePlate(PortalProjector projector, Location eye,
+                                                     PortalProjector.RtpProjectionTarget target) throws Exception {
+        Method method = PortalProjector.class.getDeclaredMethod("acquirePlate", Location.class, boolean.class, long.class,
+            PortalProjector.RtpProjectionTarget.class);
         method.setAccessible(true);
-        return (ViewPlate<BlockData>) method.invoke(projector, eye, Boolean.FALSE, Long.valueOf(7L));
+        return (ViewPlate<BlockData>) method.invoke(projector, eye, Boolean.FALSE, Long.valueOf(7L), target);
     }
 
     /** Runs this projector's own frustum fit the way a projection pass does, and reports its coarsening. */
