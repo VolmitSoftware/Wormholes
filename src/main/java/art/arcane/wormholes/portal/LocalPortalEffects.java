@@ -15,6 +15,7 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.wormholes.util.BukkitGeometry;
 
 final class LocalPortalEffects
 {
@@ -27,6 +28,7 @@ final class LocalPortalEffects
 	private final AtomicLong effectSequence = new AtomicLong();
 	private final AmbientOutlineGeometry ambientOutline = new AmbientOutlineGeometry();
 	private long ambientCursor;
+	private long ambientSparkSequence;
 
 	LocalPortalEffects(LocalPortal portal)
 	{
@@ -144,15 +146,23 @@ final class LocalPortalEffects
 
 	private void renderAmbientSparks(boolean open)
 	{
-		int count = open ? 4 : 1;
-		for(int i = 0; i < count; i++)
+		int count = AmbientSparkCadence.burst(ambientSparkSequence++, Settings.AMBIENT_PARTICLE_INTERVAL_TICKS, open);
+		if(count == 0)
 		{
-			Location location = portal.getStructure().randomLocation();
-			if(location != null && location.getWorld() != null)
-			{
-				location.getWorld().spawnParticle(Particle.MYCELIUM, location, 1, 0.0D, 0.0D, 0.0D, 0.0D);
-			}
+			return;
 		}
+		PortalStructure structure = portal.getStructure();
+		AxisAlignedBB area = structure.getArea();
+		World world = structure.getWorld();
+		if(area == null || world == null)
+		{
+			return;
+		}
+		Location centre = BukkitGeometry.location(area.center(), world);
+		world.spawnParticle(Particle.MYCELIUM, centre, count,
+				AmbientSparkCadence.spread(area.getXb() - area.getXa()),
+				AmbientSparkCadence.spread(area.getYb() - area.getYa()),
+				AmbientSparkCadence.spread(area.getZb() - area.getZa()), 0.0D);
 	}
 
 	private void spawnSimpleParticle(Location location, Particle particle, int amount, double extra)

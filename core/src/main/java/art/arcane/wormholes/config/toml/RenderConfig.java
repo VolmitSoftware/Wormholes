@@ -34,6 +34,11 @@ public class RenderConfig {
     public int rtpRimIntervalTicks = 5;
     @ConfigDescription("Smallest per-axis change in a projected entity's velocity that sends a new velocity packet. Stopping always sends.")
     public double entityVelocityEpsilon = 0.005;
+    @ConfigDescription({
+        "Ticks between ambient spark bursts on portals using the sparks style. Each burst carries the sparks of every skipped tick, so the average density stays the same.",
+        "1 sends a burst every tick; higher values send fewer particle packets."
+    })
+    public int ambientParticleIntervalTicks = 1;
 
     public static final List<String> DEFAULT_BLOCK_ENTITY_TYPES = List.of(
         "sign", "hanging_sign", "banner", "skull", "decorated_pot", "bell", "spawner");
@@ -56,6 +61,7 @@ public class RenderConfig {
         copy.blockEntityContainers = blockEntityContainers;
         copy.rtpRimIntervalTicks = rtpRimIntervalTicks;
         copy.entityVelocityEpsilon = entityVelocityEpsilon;
+        copy.ambientParticleIntervalTicks = ambientParticleIntervalTicks;
         return copy;
     }
 }
