@@ -20,7 +20,7 @@ public final class PlateCaptureSource implements PlateCaptureJob.Source<World, P
         this.blockEntities = blockEntities;
     }
 
-    public record CapturedChunk(ChunkSnapshot snapshot, Map<Long, BlockEntitySample> blockEntities) {
+    public record CapturedChunk(ChunkSnapshot snapshot, Map<Long, BlockEntitySample> blockEntities, boolean blockEntitiesComplete) {
     }
 
     @Override
@@ -37,8 +37,10 @@ public final class PlateCaptureSource implements PlateCaptureJob.Source<World, P
     public CapturedChunk capture(World world, int chunkX, int chunkZ) {
         Chunk chunk = world.getChunkAt(chunkX, chunkZ);
         ChunkSnapshot snapshot = WormholesPlatform.chunkSnapshot(chunk, false, false, false, false);
-        Map<Long, BlockEntitySample> captured = blockEntities ? BlockEntityCapturer.captureChunk(chunk, Integer.MAX_VALUE) : Map.of();
-        return new CapturedChunk(snapshot, captured);
+        Map<Long, BlockEntitySample> captured = blockEntities
+            ? BlockEntityCapturer.captureChunk(chunk, BlockEntityCapturer.MAX_PER_CHUNK)
+            : Map.of();
+        return new CapturedChunk(snapshot, captured, captured.size() < BlockEntityCapturer.MAX_PER_CHUNK);
     }
 
     private record LeaseHold(ChunkLease lease) implements PlateCaptureJob.Hold {

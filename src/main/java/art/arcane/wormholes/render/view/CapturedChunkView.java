@@ -83,6 +83,12 @@ public final class CapturedChunkView implements ProjectionWorldView {
     }
 
     @Override
+    public boolean blockEntitiesComplete(int x, int z) {
+        PlateCaptureSource.CapturedChunk chunk = chunk(x, z);
+        return chunk == null || chunk.blockEntitiesComplete();
+    }
+
+    @Override
     public String sampleBiome(int x, int y, int z) {
         return null;
     }

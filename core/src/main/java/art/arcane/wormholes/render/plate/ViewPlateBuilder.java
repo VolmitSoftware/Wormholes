@@ -430,6 +430,10 @@ public final class ViewPlateBuilder {
             BlockEntitySample blockEntity = null;
             if (request.blockEntities() && request.blocks().blockEntityCandidate(material)) {
                 blockEntity = view.sampleBlockEntity(rx, ry, rz);
+                if (blockEntity == null && !view.blockEntitiesComplete(rx, rz)) {
+                    grid.clear(index, localKey);
+                    return;
+                }
             }
             grid.put(index, localKey, kind, remote, projected, blockEntity);
         }

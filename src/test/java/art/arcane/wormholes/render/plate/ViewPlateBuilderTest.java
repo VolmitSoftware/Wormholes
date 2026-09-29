@@ -110,6 +110,34 @@ final class ViewPlateBuilderTest {
     }
 
     @Test
+    void blockEntityCellsOfAnIncompleteCaptureStayAbsentSoTheScanSamplesThemLive() {
+        PortalStructure structure = structure();
+        ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+        FakeWorldView destination = new FakeWorldView(blockData(Material.STONE), 3L);
+        destination.put(0, 64, -2, blockData(Material.OAK_SIGN));
+        destination.put(0, 64, -1, blockData(Material.GLASS));
+
+        ViewPlate<BlockData> complete = ViewPlateBuilder.build(blockEntityRequest(portal, structure, destination));
+        assertNotNull(complete.cell(ProjectionCellKey.pack(0, 64, -2)), "a complete capture keeps the sign cell on the plate");
+
+        destination.blockEntitiesComplete = false;
+        ViewPlate<BlockData> capped = ViewPlateBuilder.build(blockEntityRequest(portal, structure, destination));
+        assertNull(capped.cell(ProjectionCellKey.pack(0, 64, -2)), "a sign whose block entity was not captured is sampled live");
+        assertNotNull(capped.cell(ProjectionCellKey.pack(0, 64, -1)), "cells without block entities stay on the plate");
+    }
+
+    private static ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> blockEntityRequest(ILocalPortal portal, PortalStructure structure,
+                                                                                                      ProjectionWorldView destination) {
+        PortalFrame frame = portal.getFrame();
+        ViewPlateKey key = new ViewPlateKey(PORTAL_ID, destination, true, 0, 0L);
+        return new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(key, portal.getStructure(), destination, frame, frame,
+            structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
+            structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
+            false, 0, 4.0D, 2.0D, 0.75D, false, blockData(Material.AIR), LodPolicy.NONE, true,
+            destination.getRevision(), 42L, 0L, new BukkitProjectorBlocks(material -> material == Material.STONE));
+    }
+
+    @Test
     void theBackSideBuildsBehindTheOppositeFace() {
         PortalStructure structure = structure();
         ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
@@ -464,6 +492,7 @@ final class ViewPlateBuilderTest {
         private final BlockData defaultData;
         long revision;
         int reads;
+        boolean blockEntitiesComplete = true;
 
         FakeWorldView(BlockData defaultData, long revision) {
             this.defaultData = defaultData;
@@ -521,6 +550,11 @@ final class ViewPlateBuilderTest {
         @Override
         public long getRevision() {
             return revision;
+        }
+
+        @Override
+        public boolean blockEntitiesComplete(int x, int z) {
+            return blockEntitiesComplete;
         }
 
         private static String key(int x, int y, int z) {

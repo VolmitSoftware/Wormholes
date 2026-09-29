@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render.view;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Proxy;
@@ -22,7 +23,7 @@ import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
 
 final class PlateCaptureSourceTest {
     @Test
-    void aPlateCaptureKeepsEveryBlockEntityOfTheChunkLikeLiveSampling() {
+    void aBusyChunkCapsItsBlockEntitiesAndReportsTheCaptureIncomplete() {
         boolean blockEntities = FidelitySettings.blockEntities;
         List<String> types = FidelitySettings.blockEntityTypes;
         FidelitySettings.blockEntities = true;
@@ -33,12 +34,17 @@ final class PlateCaptureSourceTest {
             for (int i = 0; i < count; i++) {
                 signs[i] = sign(i & 15, 64 + (i >> 4), 3);
             }
-            World world = world(chunk(signs));
 
-            PlateCaptureSource.CapturedChunk captured = new PlateCaptureSource(true).capture(world, 0, 0);
+            PlateCaptureSource.CapturedChunk busy = new PlateCaptureSource(true).capture(world(chunk(signs)), 0, 0);
 
-            assertEquals(count, captured.blockEntities().size(), "a busy chunk loses no block entities to the plate");
-            assertTrue(captured.blockEntities().containsKey(Long.valueOf(ProjectionCellKey.pack(15, 68, 3))));
+            assertEquals(BlockEntityCapturer.MAX_PER_CHUNK, busy.blockEntities().size(), "one chunk never serialises more than the per-chunk cap");
+            assertFalse(busy.blockEntitiesComplete(), "a capped chunk leaves its missing block entities to live sampling");
+
+            BlockState[] few = new BlockState[] {sign(1, 64, 3), sign(2, 64, 3)};
+            PlateCaptureSource.CapturedChunk quiet = new PlateCaptureSource(true).capture(world(chunk(few)), 0, 0);
+
+            assertEquals(2, quiet.blockEntities().size());
+            assertTrue(quiet.blockEntitiesComplete());
         } finally {
             FidelitySettings.blockEntities = blockEntities;
             FidelitySettings.blockEntityTypes = types;
