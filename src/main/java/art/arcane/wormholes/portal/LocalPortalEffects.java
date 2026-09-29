@@ -15,7 +15,6 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.util.AxisAlignedBB;
-import art.arcane.wormholes.util.BukkitGeometry;
 
 final class LocalPortalEffects
 {
@@ -152,17 +151,14 @@ final class LocalPortalEffects
 			return;
 		}
 		PortalStructure structure = portal.getStructure();
-		AxisAlignedBB area = structure.getArea();
 		World world = structure.getWorld();
-		if(area == null || world == null)
+		Location cell = world == null ? null : structure.randomCellCentre();
+		if(cell == null)
 		{
 			return;
 		}
-		Location centre = BukkitGeometry.location(area.center(), world);
-		world.spawnParticle(Particle.MYCELIUM, centre, count,
-				AmbientSparkCadence.spread(area.getXb() - area.getXa()),
-				AmbientSparkCadence.spread(area.getYb() - area.getYa()),
-				AmbientSparkCadence.spread(area.getZb() - area.getZa()), 0.0D);
+		world.spawnParticle(Particle.MYCELIUM, cell, count,
+				AmbientSparkCadence.CELL_SPREAD, AmbientSparkCadence.CELL_SPREAD, AmbientSparkCadence.CELL_SPREAD, 0.0D);
 	}
 
 	private void spawnSimpleParticle(Location location, Particle particle, int amount, double extra)

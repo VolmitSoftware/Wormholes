@@ -8,6 +8,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class PortalGeometry implements PortalCellAperture {
@@ -86,6 +87,11 @@ public final class PortalGeometry implements PortalCellAperture {
 
     public List<GeometryVector> getBlockPositions() {
         return List.copyOf(blockPositions);
+    }
+
+    public GeometryVector randomBlockPosition() {
+        int size = blockPositions.size();
+        return size == 0 ? null : blockPositions.get(ThreadLocalRandom.current().nextInt(size));
     }
 
     public boolean contains(GeometryVector point) {

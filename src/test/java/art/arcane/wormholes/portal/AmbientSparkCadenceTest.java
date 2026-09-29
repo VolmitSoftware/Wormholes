@@ -52,10 +52,8 @@ public final class AmbientSparkCadenceTest
 	}
 
 	@Test
-	public void spreadIsHalfOfTheHalfExtent()
+	public void cellSpreadMatchesTheVarianceOfUniformPlacementInsideOneBlock()
 	{
-		assertEquals(0.75D, AmbientSparkCadence.spread(3.0D), 1.0E-9D);
-		assertEquals(0.25D, AmbientSparkCadence.spread(-1.0D), 1.0E-9D);
-		assertEquals(0.0D, AmbientSparkCadence.spread(0.0D), 1.0E-9D);
+		assertEquals(Math.sqrt(1.0D / 12.0D), AmbientSparkCadence.CELL_SPREAD, 1.0E-12D);
 	}
 }

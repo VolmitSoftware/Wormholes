@@ -2,6 +2,7 @@ package art.arcane.wormholes.portal;
 
 final class AmbientSparkCadence
 {
+	static final double CELL_SPREAD = Math.sqrt(1.0D / 12.0D);
 	private static final int OPEN_SPARKS_PER_TICK = 4;
 	private static final int CLOSED_SPARKS_PER_TICK = 1;
 
@@ -17,10 +18,5 @@ final class AmbientSparkCadence
 			return 0;
 		}
 		return (open ? OPEN_SPARKS_PER_TICK : CLOSED_SPARKS_PER_TICK) * interval;
-	}
-
-	static double spread(double extent)
-	{
-		return Math.abs(extent) * 0.25D;
 	}
 }
