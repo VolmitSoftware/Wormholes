@@ -75,6 +75,40 @@ public final class ProjectionClaimArbiterConcurrencyTest {
     }
 
     @Test
+    public void heldClaimsSendNothingLoseToLiveClaimsAndRevertOnRelease() throws Exception {
+        ProjectionClaimArbiter arbiter = arbiter();
+        UUID observerId = new UUID(0L, 301L);
+        Player observer = player(observerId, new AtomicReference<World>(world()), new AtomicBoolean(true));
+        World world = world();
+        ILocalPortal holder = portal(new UUID(0L, 302L));
+        ILocalPortal other = portal(new UUID(0L, 303L));
+        BlockData heldData = blockData("held");
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> live = singleClaim(heldData);
+        Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> held = new Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(1);
+        held.put(CELL_KEY, live.get(CELL_KEY).withHeld(true));
+        LongOpenHashSet changed = new LongOpenHashSet(new long[] {CELL_KEY});
+        LongOpenHashSet empty = new LongOpenHashSet();
+
+        assertEquals(1, arbiter.submitDelta(observer, holder, world,
+            new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(null, live, empty, empty), 1.0D, false, false).getBlockChanges());
+        assertEquals(0, arbiter.submitDelta(observer, holder, world,
+            new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>>(live, held, changed, empty), 1.0D, false, false).getBlockChanges());
+        assertSame(heldData, sentBlocks(observersMap(arbiter).get(observerId)).get(CELL_KEY));
+
+        BlockData liveData = blockData("live");
+        assertEquals(1, arbiter.submit(observer, other, world, singleClaim(liveData), 5.0D, false).getBlockChanges());
+        assertSame(liveData, sentBlocks(observersMap(arbiter).get(observerId)).get(CELL_KEY));
+        assertEquals(1, arbiter.release(observer, other, world, false).getBlockChanges());
+        assertSame(heldData, sentBlocks(observersMap(arbiter).get(observerId)).get(CELL_KEY));
+
+        ProjectionClaimArbiter.ClaimUpdateResult closed = arbiter.release(observer, holder, world, false);
+        assertEquals(1, closed.getReverts());
+        assertEquals(1, closed.getBlockChanges());
+        assertTrue(arbiter.isIdle());
+        assertTrue(observersMap(arbiter).isEmpty());
+    }
+
+    @Test
     public void emptyFrameFlushesWithoutChangesAndReleasesObserverState() throws Exception {
         ProjectionClaimArbiter arbiter = arbiter();
         Player observer = player(UUID.fromString("00000000-0000-0000-0000-000000000010"));

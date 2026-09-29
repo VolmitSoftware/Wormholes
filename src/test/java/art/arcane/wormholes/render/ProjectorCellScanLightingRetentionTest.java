@@ -408,7 +408,12 @@ public final class ProjectorCellScanLightingRetentionTest {
                 assertEquals(0, sampler.remoteSampleCount(), normal.name());
                 assertEquals(0, localView.readinessQueries, normal.name());
                 scan.resumeOcclusion();
-                assertEquals(expected.keySet(), scan.claims().keySet(), normal.name());
+                assertEquals(expected.keySet(), liveKeys(scan), normal.name());
+                for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
+                    if (entry.getValue().isHeld()) {
+                        assertFalse(expected.containsKey(entry.getLongKey()), normal.name());
+                    }
+                }
                 for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : expected.long2ObjectEntrySet()) {
                     ProjectedBlockClaim<BlockData, ProjectionWorldView> actual = scan.claims().get(entry.getLongKey());
                     assertEquals(entry.getValue().getData(), actual.getData(), normal.name());
@@ -543,6 +548,27 @@ public final class ProjectorCellScanLightingRetentionTest {
     @Test
     public void cameraMovementRechecksRetainedVisibilityAndRevealsHiddenRemoteCells()
         throws ReflectiveOperationException {
+        boolean originalHold = Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS;
+        Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = false;
+        try {
+            assertHiddenTargetRechecked(false);
+        } finally {
+            Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = originalHold;
+        }
+    }
+
+    @Test
+    public void committedHiddenCellsStayHeldAndReturnLiveWhenRevealed() throws ReflectiveOperationException {
+        boolean originalHold = Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS;
+        Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = true;
+        try {
+            assertHiddenTargetRechecked(true);
+        } finally {
+            Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = originalHold;
+        }
+    }
+
+    private static void assertHiddenTargetRechecked(boolean hold) throws ReflectiveOperationException {
         PortalFrame frame = PortalFrame.canonical(Direction.S);
         PortalStructure structure = structure();
         Map<String, Object> area = new HashMap<String, Object>();
@@ -575,23 +601,267 @@ public final class ProjectorCellScanLightingRetentionTest {
             false, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
 
         assertTrue(hasRemoteClaim(scan, targetKey));
+        long targetLocalKey = remoteClaimKey(scan, targetKey);
         scan.commit();
         memo.clearDestinationSamples();
         remoteView.readKeys.clear();
         scan.run(destination, null, BukkitGeometry.vector(centerEye), centerFrustum, 6.0D, false, false, true,
             false, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
 
-        assertFalse(hasRemoteClaim(scan, targetKey));
-        assertTrue(scan.occlusionRejected() > 0);
         assertFalse(remoteView.readKeys.contains(targetKey), "camera-only refresh must reuse the retained target sample");
+        ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>> hiddenDelta = scan.claimDelta();
+        if (hold) {
+            ProjectedBlockClaim<BlockData, ProjectionWorldView> held = scan.claims().get(targetLocalKey);
+            assertTrue(held != null && held.isHeld(), "a committed cell turning hidden stays claimed as held");
+            assertTrue(scan.hiddenHolds() > 0);
+            assertFalse(hiddenDelta.removedKeys().contains(targetLocalKey));
+            assertTrue(hiddenDelta.changedKeys().contains(targetLocalKey));
+        } else {
+            assertFalse(hasRemoteClaim(scan, targetKey));
+            assertTrue(scan.occlusionRejected() > 0);
+            assertTrue(hiddenDelta.removedKeys().contains(targetLocalKey));
+        }
         scan.commit();
+        if (hold) {
+            scan.revokeConeHolds();
+            scan.run(destination, null, BukkitGeometry.vector(centerEye), centerFrustum, 6.0D, false, false, true,
+                false, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
+            assertTrue(scan.claims().get(targetLocalKey).isHeld(), "a local change keeps holds proven by remote occlusion");
+            assertFalse(scan.claimDelta().removedKeys().contains(targetLocalKey));
+            scan.commit();
+        }
         memo.clearDestinationSamples();
         remoteView.readKeys.clear();
         scan.run(destination, null, BukkitGeometry.vector(sideEye), sideFrustum, 6.0D, false, false, true,
             false, ProjectionRenderMode.VENTICULAR, null, false, LodPolicy.NONE);
 
         assertTrue(hasRemoteClaim(scan, targetKey));
+        assertFalse(scan.claims().get(targetLocalKey).isHeld(), "a revealed cell is live again");
         assertTrue(remoteView.readKeys.contains(targetKey), "a previously hidden target must be sampled again");
+    }
+
+    @Test
+    public void claimsLeavingTheConeAreHeldOnlyBehindAnOccludingLocalWall() throws ReflectiveOperationException {
+        boolean originalHold = Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS;
+        Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = true;
+        try {
+            for (boolean wall : new boolean[] {true, false}) {
+                HoldFixture fixture = holdFixture(wall);
+                ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> incremental = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+                ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> full = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+                Location first = fixture.eye(3.0D);
+                fixture.run(first, true);
+                assertDeltaMatchesFull(fixture.scan(), incremental, full, "wall=" + wall + " first");
+                LongOpenHashSet firstKeys = new LongOpenHashSet(fixture.scan().claims().keySet());
+                fixture.scan().commit();
+
+                Location second = fixture.eye(-3.0D);
+                fixture.run(second, false);
+                ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>> delta = fixture.scan().claimDelta();
+                LongOpenHashSet removed = new LongOpenHashSet(delta.removedKeys());
+                LongOpenHashSet held = heldKeys(fixture.scan());
+                ProjectionClaimSet.ProjectionClaimSetResult result = assertDeltaMatchesFull(fixture.scan(), incremental, full, "wall=" + wall + " second");
+                ProjectorHoldProof proof = ProjectorHoldProof.create(fixture.structure().getArea(), fixture.scan().localFrame(),
+                    fixture.structure().getCenter().getX(), fixture.structure().getCenter().getY(), fixture.structure().getCenter().getZ(),
+                    Settings.PROJECTION_APERTURE_PADDING_BLOCKS);
+                assertTrue(proof.beginEye(second.getX(), second.getY(), second.getZ()));
+                LongOpenHashSet live = liveKeys(fixture.scan());
+                int left = 0;
+                for (long key : firstKeys) {
+                    if (live.contains(key)) {
+                        continue;
+                    }
+                    left++;
+                    ProjectorHoldProof.Verdict verdict = proof.verdict(ProjectionCellKey.unpackX(key), ProjectionCellKey.unpackY(key),
+                        ProjectionCellKey.unpackZ(key), fixture::occupancy);
+                    if (held.contains(key)) {
+                        assertEquals(ProjectorHoldProof.Verdict.HOLD, verdict, "wall=" + wall);
+                        assertFalse(removed.contains(key), "wall=" + wall);
+                        assertFalse(result.getPacketChangeKeys().contains(key), "a held cell sends nothing");
+                    } else {
+                        assertFalse(verdict.holds(), "wall=" + wall);
+                        assertTrue(removed.contains(key), "wall=" + wall);
+                    }
+                }
+                assertTrue(left > 0, "wall=" + wall);
+                if (wall) {
+                    assertFalse(held.isEmpty());
+                    assertEquals(held.size(), fixture.scan().coneHolds());
+                    assertEquals(held.size(), fixture.scan().heldClaims());
+                } else {
+                    assertTrue(held.isEmpty());
+                    assertEquals(0, fixture.scan().coneHolds());
+                }
+                fixture.scan().commit();
+            }
+        } finally {
+            Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = originalHold;
+        }
+    }
+
+    @Test
+    public void sideFlipAndLocalChangesRevertEveryHeldClaim() throws ReflectiveOperationException {
+        boolean originalHold = Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS;
+        Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = true;
+        try {
+            for (boolean sideFlip : new boolean[] {true, false}) {
+                HoldFixture fixture = holdFixture(true);
+                ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> incremental = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+                ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> full = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+                fixture.run(fixture.eye(3.0D), true);
+                assertDeltaMatchesFull(fixture.scan(), incremental, full, "first");
+                fixture.scan().commit();
+                Location second = fixture.eye(-3.0D);
+                fixture.run(second, false);
+                assertDeltaMatchesFull(fixture.scan(), incremental, full, "second");
+                LongOpenHashSet held = heldKeys(fixture.scan());
+                assertFalse(held.isEmpty());
+                fixture.scan().commit();
+
+                Location third;
+                if (sideFlip) {
+                    third = second.clone().add(0.0D, 0.0D, -5.0D);
+                } else {
+                    fixture.scan().revokeConeHolds();
+                    third = second;
+                }
+                fixture.run(third, false);
+                ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<BlockData, ProjectionWorldView>> delta = fixture.scan().claimDelta();
+                assertTrue(heldKeys(fixture.scan()).isEmpty(), "sideFlip=" + sideFlip);
+                assertEquals(0, fixture.scan().heldClaims(), "sideFlip=" + sideFlip);
+                for (long key : held) {
+                    assertTrue(delta.removedKeys().contains(key), "sideFlip=" + sideFlip);
+                }
+                assertDeltaMatchesFull(fixture.scan(), incremental, full, "third sideFlip=" + sideFlip);
+                fixture.scan().commit();
+            }
+        } finally {
+            Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = originalHold;
+        }
+    }
+
+    @Test
+    public void heldCapEvictsTheOldestHeldCellsFirst() throws ReflectiveOperationException {
+        boolean originalHold = Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS;
+        int originalCap = Settings.PROJECTION_MAX_HELD_CELLS_PER_PORTAL;
+        Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = true;
+        try {
+            double[] offsets = new double[] {3.0D, 0.0D, -3.0D};
+            Settings.PROJECTION_MAX_HELD_CELLS_PER_PORTAL = Integer.MAX_VALUE;
+            HoldFixture reference = holdFixture(true);
+            LongOpenHashSet previousHeld = new LongOpenHashSet();
+            LongOpenHashSet newest = new LongOpenHashSet();
+            LongOpenHashSet older = new LongOpenHashSet();
+            for (int pass = 0; pass < offsets.length; pass++) {
+                reference.run(reference.eye(offsets[pass]), pass == 0);
+                LongOpenHashSet held = heldKeys(reference.scan());
+                if (pass == offsets.length - 1) {
+                    for (long key : held) {
+                        if (previousHeld.contains(key)) {
+                            older.add(key);
+                        } else {
+                            newest.add(key);
+                        }
+                    }
+                }
+                previousHeld = held;
+                reference.scan().commit();
+            }
+            assertFalse(newest.isEmpty());
+            assertFalse(older.isEmpty());
+
+            Settings.PROJECTION_MAX_HELD_CELLS_PER_PORTAL = newest.size();
+            HoldFixture capped = holdFixture(true);
+            ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> incremental = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+            ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> full = new ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>>();
+            for (int pass = 0; pass < offsets.length; pass++) {
+                capped.run(capped.eye(offsets[pass]), pass == 0);
+                assertTrue(capped.scan().heldClaims() <= newest.size(), "pass=" + pass);
+                assertDeltaMatchesFull(capped.scan(), incremental, full, "capped pass=" + pass);
+                if (pass == offsets.length - 1) {
+                    assertEquals(newest, heldKeys(capped.scan()));
+                    assertTrue(capped.scan().heldEvictions() > 0);
+                }
+                capped.scan().commit();
+            }
+        } finally {
+            Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = originalHold;
+            Settings.PROJECTION_MAX_HELD_CELLS_PER_PORTAL = originalCap;
+        }
+    }
+
+    private static ProjectionClaimSet.ProjectionClaimSetResult assertDeltaMatchesFull(
+        ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan,
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> incremental,
+        ProjectionClaimSet<ProjectedBlockClaim<BlockData, ProjectionWorldView>> full,
+        String label) {
+        UUID owner = new UUID(0L, 7L);
+        ProjectionClaimSet.ProjectionClaimSetResult actual =
+            incremental.replacePortalDelta(owner, owner.toString(), 2.0D, scan.claimDelta());
+        ProjectionClaimSet.ProjectionClaimSetResult expected =
+            full.replacePortalClaims(owner, owner.toString(), 2.0D, scan.claims());
+        assertEquals(expected.getPacketChangeKeys(), actual.getPacketChangeKeys(), label);
+        assertEquals(expected.getReverts(), actual.getReverts(), label);
+        assertEquals(full.getWinningClaims().keySet(), incremental.getWinningClaims().keySet(), label);
+        for (long key : full.getWinningClaims().keySet()) {
+            assertSame(full.getWinningClaim(key), incremental.getWinningClaim(key), label);
+        }
+        return actual;
+    }
+
+    private static HoldFixture holdFixture(boolean wall) throws ReflectiveOperationException {
+        PortalFrame frame = PortalFrame.canonical(Direction.S);
+        PortalStructure structure = structure();
+        Map<String, Object> area = new HashMap<String, Object>();
+        area.put("worldKey", "minecraft:overworld");
+        area.put("x1", Integer.valueOf(-1));
+        area.put("x2", Integer.valueOf(1));
+        area.put("y1", Integer.valueOf(64));
+        area.put("y2", Integer.valueOf(66));
+        area.put("z1", Integer.valueOf(0));
+        area.put("z2", Integer.valueOf(0));
+        structure.setArea(new Cuboid(area));
+        ILocalPortal portal = portal(structure, frame);
+        MutableWorldView localView = new MutableWorldView(blockData(Material.AIR));
+        if (wall) {
+            BlockData stone = blockData(Material.STONE);
+            for (int x = -32; x <= 32; x++) {
+                for (int y = 32; y <= 96; y++) {
+                    if (x >= -1 && x <= 1 && y >= 64 && y <= 66) {
+                        continue;
+                    }
+                    localView.blocks.put(ProjectionCellKey.pack(x, y, 0), stone);
+                }
+            }
+        }
+        MutableWorldView remoteView = new MutableWorldView(blockData(Material.STONE));
+        ProjectorDestination destination = destination(portal, structure, localView, remoteView);
+        ProjectorSampleMemo<BlockData, Material, ProjectionWorldView> memo = BukkitProjectorBlocks.memo(
+            ProjectorCellScanLightingRetentionTest::testMaterialOccluding);
+        ProjectorSampler<BlockData, Material, World, ILocalPortal, ProjectionWorldView> sampler = withBukkitServer(
+            () -> BukkitProjectorBlocks.sampler(memo, BukkitProjectorPortalAccess.create(), world -> remoteView));
+        ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan = BukkitProjectorBlocks.scan(portal, sampler, memo, new ProjectorBlackoutSeal());
+        useOcclusion(scan, ProjectorCellScanLightingRetentionTest::testOccluding);
+        return new HoldFixture(scan, destination, structure, localView);
+    }
+
+    private record HoldFixture(ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan,
+                               ProjectorDestination destination, PortalStructure structure, MutableWorldView local) {
+        private Location eye(double lateral) {
+            return structure.getCenter().add(lateral, 0.0D, 2.0D);
+        }
+
+        private void run(Location eye, boolean forceResample) {
+            Frustum4D frustum = new Frustum4D(BukkitGeometry.vector(eye), structure, new Frustum4D.Options(8.0D, 4.0D,
+                Settings.NEAR_PLANE_PADDING, Settings.FRUSTUM_CULLING_RATIO, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
+            scan.run(destination, null, BukkitGeometry.vector(eye), frustum, 8.0D, forceResample, false, true,
+                false, ProjectionRenderMode.PANOPTIC, null, false, LodPolicy.NONE);
+        }
+
+        private ProjectorHoldProof.Occupancy occupancy(int x, int y, int z) {
+            return testMaterialOccluding(local.sampleBlockData(x, y, z).getMaterial())
+                ? ProjectorHoldProof.Occupancy.OCCLUDING : ProjectorHoldProof.Occupancy.OPEN;
+        }
     }
 
     @Test
@@ -978,6 +1248,8 @@ public final class ProjectorCellScanLightingRetentionTest {
     @Test
     public void lateralBlackoutKeepsTheWholeApertureClearWhileMoving() throws ReflectiveOperationException {
         double originalPadding = Settings.PROJECTION_APERTURE_PADDING_BLOCKS;
+        boolean originalHold = Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS;
+        Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = false;
         int lateralClaims = 0;
         try {
             for (double padding : new double[] {0.0D, 0.75D}) {
@@ -1044,6 +1316,7 @@ public final class ProjectorCellScanLightingRetentionTest {
             }
         } finally {
             Settings.PROJECTION_APERTURE_PADDING_BLOCKS = originalPadding;
+            Settings.PROJECTION_HOLD_INVISIBLE_CLAIMS = originalHold;
         }
         assertTrue(lateralClaims > 0);
     }
@@ -1411,6 +1684,35 @@ public final class ProjectorCellScanLightingRetentionTest {
         Field field = ProjectorCellScan.class.getDeclaredField("viewOcclusion");
         field.setAccessible(true);
         field.set(scan, new ProjectorViewOcclusion<BlockData>(blockOcclusion));
+    }
+
+    private static long remoteClaimKey(ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan, long remoteKey) {
+        for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
+            if (entry.getValue().getLightRemoteKey() == remoteKey) {
+                return entry.getLongKey();
+            }
+        }
+        throw new AssertionError("no claim for remote cell " + remoteKey);
+    }
+
+    private static LongOpenHashSet liveKeys(ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan) {
+        LongOpenHashSet keys = new LongOpenHashSet();
+        for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
+            if (!entry.getValue().isHeld()) {
+                keys.add(entry.getLongKey());
+            }
+        }
+        return keys;
+    }
+
+    private static LongOpenHashSet heldKeys(ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan) {
+        LongOpenHashSet keys = new LongOpenHashSet();
+        for (Long2ObjectMap.Entry<ProjectedBlockClaim<BlockData, ProjectionWorldView>> entry : scan.claims().long2ObjectEntrySet()) {
+            if (entry.getValue().isHeld()) {
+                keys.add(entry.getLongKey());
+            }
+        }
+        return keys;
     }
 
     private static boolean hasRemoteClaim(ProjectorCellScan<BlockData, Material, World, ILocalPortal, ProjectionWorldView> scan, long remoteKey) {

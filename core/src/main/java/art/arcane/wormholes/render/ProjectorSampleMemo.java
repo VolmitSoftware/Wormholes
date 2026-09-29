@@ -22,6 +22,7 @@ public final class ProjectorSampleMemo<B, M, V extends ProjectionMaterialView<B,
     private final HashMap<V, Long2ObjectOpenHashMap<ProjectorSample<B, V>>> remoteSamples;
     private final HashMap<V, Long2ByteOpenHashMap> occlusion;
     private final Long2ByteOpenHashMap localAir;
+    private final Long2ByteOpenHashMap localOccupancy;
     private final ProjectionBlockTypes<B, M> blocks;
     private final Supplier<ProjectionWorldChangeTracker> changeTracker;
     private V lastSampleView;
@@ -42,6 +43,7 @@ public final class ProjectorSampleMemo<B, M, V extends ProjectionMaterialView<B,
         this.remoteSamples = new HashMap<V, Long2ObjectOpenHashMap<ProjectorSample<B, V>>>(4);
         this.occlusion = new HashMap<V, Long2ByteOpenHashMap>(4);
         this.localAir = new Long2ByteOpenHashMap(1024);
+        this.localOccupancy = new Long2ByteOpenHashMap(256);
         this.blocks = Objects.requireNonNull(blocks);
         this.changeTracker = Objects.requireNonNull(changeTracker);
         this.destinationVersion = -1L;
@@ -96,6 +98,35 @@ public final class ProjectorSampleMemo<B, M, V extends ProjectionMaterialView<B,
         boolean air = material != null && blocks.isAir(material);
         localAir.put(key, air ? (byte) 1 : (byte) 2);
         return air;
+    }
+
+    public ProjectorHoldProof.Occupancy localOccupancy(V view, int x, int y, int z) {
+        long key = ProjectionCellKey.pack(x, y, z);
+        byte known = localOccupancy.get(key);
+        if (known != 0) {
+            return known == 1 ? ProjectorHoldProof.Occupancy.OCCLUDING : ProjectorHoldProof.Occupancy.OPEN;
+        }
+        M material = view.sampleMaterial(x, y, z);
+        if (material == null) {
+            return ProjectorHoldProof.Occupancy.UNKNOWN;
+        }
+        if (!blocks.isOccluding(material)) {
+            localOccupancy.put(key, (byte) 2);
+            return ProjectorHoldProof.Occupancy.OPEN;
+        }
+        localOccupancy.put(key, (byte) 1);
+        includeLocalChunk(x >> 4, z >> 4);
+        return ProjectorHoldProof.Occupancy.OCCLUDING;
+    }
+
+    private void includeLocalChunk(int chunkX, int chunkZ) {
+        if (!hasLocalRegionRect) {
+            return;
+        }
+        localRegionChunkMinX = Math.min(localRegionChunkMinX, chunkX);
+        localRegionChunkMaxX = Math.max(localRegionChunkMaxX, chunkX);
+        localRegionChunkMinZ = Math.min(localRegionChunkMinZ, chunkZ);
+        localRegionChunkMaxZ = Math.max(localRegionChunkMaxZ, chunkZ);
     }
 
     public int occlusionDepthInView(V view, int x, int y, int z, B selfData) {
@@ -199,6 +230,7 @@ public final class ProjectorSampleMemo<B, M, V extends ProjectionMaterialView<B,
     public boolean refreshLocal(boolean forceStableCellResample, boolean localDirty, long viewRevision, int budget) {
         if (localSampleMemoStale(forceStableCellResample, localDirty, viewRevision, localRevision, localAir.size(), budget)) {
             localAir.clear();
+            localOccupancy.clear();
             localRevision = viewRevision;
             hasLocalRegionRect = false;
             return true;
@@ -248,6 +280,7 @@ public final class ProjectorSampleMemo<B, M, V extends ProjectionMaterialView<B,
         remoteSamples.clear();
         occlusion.clear();
         localAir.clear();
+        localOccupancy.clear();
         hasLocalRegionRect = false;
         lastSampleView = null;
         lastSampleMap = null;
