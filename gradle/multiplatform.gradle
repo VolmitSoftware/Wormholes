@@ -87,12 +87,18 @@ loaders.each { String loader, String display ->
                         || entry.name.startsWith('org/bukkit/') || entry.name.startsWith('io/papermc/')) {
                         throw new GradleException("${artifact.name} contains Bukkit runtime entry ${entry.name}")
                     }
+                    if (entry.name.startsWith('art/arcane/volmlib/') || entry.name.startsWith('net/kyori/')) {
+                        throw new GradleException("${artifact.name} bundles unrelocated shared library entry ${entry.name}")
+                    }
                     if (entry.name.startsWith('art/arcane/wormholes/') && entry.name.endsWith('.class')) {
                         String constants = archive.getInputStream(entry).withCloseable { InputStream stream ->
                             new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1)
                         }
                         if (constants.contains('org/bukkit/') || constants.contains('io/papermc/')) {
                             throw new GradleException("${artifact.name} references a Bukkit API in ${entry.name}")
+                        }
+                        if (constants.contains('art/arcane/volmlib/') || constants.contains('net/kyori/')) {
+                            throw new GradleException("${artifact.name} references an unrelocated shared library in ${entry.name}")
                         }
                     }
                 }

@@ -97,6 +97,7 @@ tasks.named('shadowJar', ShadowJar).configure {
     }
     mergeServiceFiles()
     relocate('net.kyori', 'art.arcane.wormholes.shadow.kyori')
+    relocate('art.arcane.volmlib', 'art.arcane.wormholes.shadow.volmlib')
     relocate('org.yaml.snakeyaml', 'art.arcane.wormholes.shadow.snakeyaml')
     relocate('com.electronwill.nightconfig', 'art.arcane.wormholes.shadow.nightconfig')
     relocate('com.moandjiezana.toml', 'art.arcane.wormholes.shadow.toml')
@@ -123,4 +124,5 @@ tasks.named('processResources').configure {
     }
 }
 
+ext.shadowJarType = ShadowJar
 apply from: '../game-test.gradle'

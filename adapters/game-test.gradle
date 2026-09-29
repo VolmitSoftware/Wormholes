@@ -18,10 +18,13 @@ tasks.named('processGameTestResources').configure {
     }
 }
 
-tasks.register('gameTestJar', Jar) {
+tasks.register('gameTestJar', project.ext.shadowJarType) {
     group = 'verification'
     dependsOn(tasks.named('shadowJar'), tasks.named('gameTestClasses'))
     archiveFileName.set('Wormholes-GameTest.jar')
+    configurations = []
+    relocate('net.kyori', 'art.arcane.wormholes.shadow.kyori')
+    relocate('art.arcane.volmlib', 'art.arcane.wormholes.shadow.volmlib')
     if (project.name == 'wormholes-forge') {
         manifest.attributes('MixinConfigs': 'wormholes.mixins.json')
     }
