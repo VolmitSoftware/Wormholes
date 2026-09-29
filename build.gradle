@@ -432,16 +432,6 @@ pluginPackaging {
             packed = true
             taskName = 'shadowJar'
             policyName = 'Wormholes'
-            maximumBytes = 6_800_000L
-            forbiddenPrefixes = forbiddenPrefixes - ['art/arcane/wormholes/libs/packetevents/']
-            requiredEntries = requiredEntries + [
-                'art/arcane/wormholes/libs/packetevents/api/PacketEvents.class',
-                'art/arcane/wormholes/libs/packetevents/impl/factory/spigot/SpigotPacketEventsBuilder.class'
-            ]
-            shrinkDontwarn = shrinkDontwarn + [
-                'art.arcane.wormholes.libs.packetevents.impl.util.BukkitLogManager',
-                'com.viaversion.viaversion.**'
-            ]
             prunePrefixes = ['art/arcane/volmlib/']
             keepPrefixes = ['art/arcane/volmlib/util/matter/slices/', 'art/arcane/volmlib/nativelib/']
             shrinkRules = [file('packaging/shrink.pro')]
