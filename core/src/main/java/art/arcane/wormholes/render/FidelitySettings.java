@@ -46,6 +46,7 @@ public final class FidelitySettings {
     public static volatile boolean bedrockDisplayEntities = false;
     public static volatile boolean bedrockLightingFidelity = false;
     public static volatile int bedrockEntityCap = 8;
+    public static volatile double entityVelocityEpsilon = 0.005D;
 
     private FidelitySettings() {
     }
@@ -85,6 +86,7 @@ public final class FidelitySettings {
         bedrockDisplayEntities = bedrock.displayEntities;
         bedrockLightingFidelity = bedrock.lightingFidelity;
         bedrockEntityCap = clamp(bedrock.entityCap, 0, 256);
+        entityVelocityEpsilon = clamp(render.entityVelocityEpsilon, 0.0D, 1.0D);
     }
 
     static List<String> normalizeTypes(List<String> configured) {

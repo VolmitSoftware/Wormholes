@@ -35,7 +35,7 @@ public final class RtpProjectionIntegrationTest {
         RecordingProvider provider = new RecordingProvider(events, ignored -> readyResult(viewerId, true), world("target"));
 
         ProjectionManager.ProjectionResolution resolution = ProjectionManager.resolveProjection(
-                provider, portal, viewer, new RtpRimRenderer());
+                provider, portal, viewer, new RtpRimRenderer(), 0L);
 
         assertFalse(resolution.projectable());
         assertEquals(1, provider.touchCount);
@@ -51,7 +51,7 @@ public final class RtpProjectionIntegrationTest {
         RecordingProvider provider = new RecordingProvider(events, ignored -> readyResult(viewerId, false), world("target"));
 
         ProjectionManager.ProjectionResolution resolution = ProjectionManager.resolveProjection(
-                provider, portal, viewer, new RtpRimRenderer());
+                provider, portal, viewer, new RtpRimRenderer(), 0L);
 
         assertEquals(1, provider.touchCount);
         assertFalse(resolution.projectable());
@@ -68,7 +68,7 @@ public final class RtpProjectionIntegrationTest {
         RecordingProvider provider = new RecordingProvider(events, ignored -> readyResult(viewerId, true), targetWorld);
 
         ProjectionManager.ProjectionResolution resolution = ProjectionManager.resolveProjection(
-                provider, portal, viewer, new RtpRimRenderer());
+                provider, portal, viewer, new RtpRimRenderer(), 0L);
 
         assertTrue(resolution.projectable());
         assertTrue(resolution.rtp());
@@ -91,13 +91,13 @@ public final class RtpProjectionIntegrationTest {
 
         ProjectionManager.ProjectionResolution glass = ProjectionManager.resolveProjection(
                 provider, portal(uuid("glass-portal"), true, true, true, false, "minecraft:glass",
-                        new ArrayList<String>()), viewer, new RtpRimRenderer());
+                        new ArrayList<String>()), viewer, new RtpRimRenderer(), 0L);
         ProjectionManager.ProjectionResolution water = ProjectionManager.resolveProjection(
                 provider, portal(uuid("water-portal"), true, true, true, false, "minecraft:water",
-                        new ArrayList<String>()), viewer, new RtpRimRenderer());
+                        new ArrayList<String>()), viewer, new RtpRimRenderer(), 0L);
         ProjectionManager.ProjectionResolution lava = ProjectionManager.resolveProjection(
                 provider, portal(uuid("lava-portal"), true, true, true, false, "minecraft:lava",
-                        new ArrayList<String>()), viewer, new RtpRimRenderer());
+                        new ArrayList<String>()), viewer, new RtpRimRenderer(), 0L);
 
         assertTrue(glass.projectable());
         assertTrue(water.projectable());
@@ -115,9 +115,9 @@ public final class RtpProjectionIntegrationTest {
                 : warmingResult(warmingViewerId, true), world("target"));
 
         ProjectionManager.ProjectionResolution ready = ProjectionManager.resolveProjection(
-                provider, portal, player(readyViewerId), new RtpRimRenderer());
+                provider, portal, player(readyViewerId), new RtpRimRenderer(), 0L);
         ProjectionManager.ProjectionResolution warming = ProjectionManager.resolveProjection(
-                provider, portal, player(warmingViewerId), new RtpRimRenderer());
+                provider, portal, player(warmingViewerId), new RtpRimRenderer(), 0L);
 
         assertTrue(ready.projectable());
         assertFalse(warming.projectable());
@@ -133,7 +133,7 @@ public final class RtpProjectionIntegrationTest {
         RecordingProvider provider = new RecordingProvider(events, ignored -> warmingResult(viewerId, true), world("target"));
 
         ProjectionManager.ProjectionResolution resolution = ProjectionManager.resolveProjection(
-                provider, portal, viewer, new RtpRimRenderer());
+                provider, portal, viewer, new RtpRimRenderer(), 0L);
 
         assertFalse(resolution.projectable());
         assertSame(portal, provider.rimPortal);

@@ -26,9 +26,26 @@ final class EntityRenderSpoofedMotionTest {
         assertTrue(state.updateRotation(359.9F, 0.0F));
         assertFalse(state.updateRotation(0.1F, 0.1F));
         assertTrue(state.updateRotation(1.0F, 0.1F));
-        assertTrue(state.updateVelocity(0.1D, 0.2D, 0.3D));
-        assertFalse(state.updateVelocity(0.1001D, 0.2D, 0.3D));
-        assertTrue(state.updateVelocity(0.2D, 0.2D, 0.3D));
+        assertTrue(state.updateVelocity(0.1D, 0.2D, 0.3D, 0.001D));
+        assertFalse(state.updateVelocity(0.1001D, 0.2D, 0.3D, 0.001D));
+        assertTrue(state.updateVelocity(0.2D, 0.2D, 0.3D, 0.001D));
         assertTrue(state.labelFakeId != state.fakeId);
+    }
+
+    @Test
+    void velocityChangesInsideTheEpsilonAreSkippedAgainstTheLastSentValue() {
+        EntityRenderSpoofedEntity state = EntityRenderSpoofedEntity.create(false, false, true);
+        assertTrue(state.updateVelocity(0.1D, -0.0784D, 0.0D, 0.005D));
+        assertFalse(state.updateVelocity(0.104D, -0.0784D, 0.003D, 0.005D));
+        assertFalse(state.updateVelocity(0.1049D, -0.08D, 0.0049D, 0.005D));
+        assertTrue(state.updateVelocity(0.106D, -0.0784D, 0.0D, 0.005D));
+    }
+
+    @Test
+    void stoppingAlwaysSendsTheZeroVelocity() {
+        EntityRenderSpoofedEntity state = EntityRenderSpoofedEntity.create(false, false, true);
+        assertTrue(state.updateVelocity(0.002D, 0.0D, -0.001D, 0.005D));
+        assertTrue(state.updateVelocity(0.0D, 0.0D, 0.0D, 0.005D));
+        assertFalse(state.updateVelocity(0.0D, 0.0D, 0.0D, 0.005D));
     }
 }

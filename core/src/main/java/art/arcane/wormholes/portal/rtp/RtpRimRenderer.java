@@ -3,10 +3,20 @@ package art.arcane.wormholes.portal.rtp;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class RtpRimRenderer
 {
 	private static final long FAILURE_PULSE_MILLIS = 2_000L;
+	private static final int PROGRESS_STEPS = 16;
+	private static final int CHANNEL_STEP_SHIFT = 4;
+
+	private final ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, DispatchMark>> dispatched;
+
+	public RtpRimRenderer()
+	{
+		dispatched = new ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, DispatchMark>>();
+	}
 
 	public Optional<Sample> calculate(Input input)
 	{
@@ -22,6 +32,65 @@ public final class RtpRimRenderer
 			case FAILED -> failedSample(requiredInput.elapsedMillis());
 			case READY -> Optional.of(readySample(requiredInput));
 		};
+	}
+
+	public Optional<Sample> nextDispatch(UUID portalId, Input input, long frameTick, int intervalTicks)
+	{
+		UUID requiredPortalId = Objects.requireNonNull(portalId, "portalId");
+		Optional<Sample> sample = calculate(input);
+		if(sample.isEmpty())
+		{
+			forget(input.viewerId(), requiredPortalId);
+			return sample;
+		}
+		int key = dispatchKey(sample.get());
+		ConcurrentHashMap<UUID, DispatchMark> marks = dispatched.computeIfAbsent(input.viewerId(),
+				ignored -> new ConcurrentHashMap<UUID, DispatchMark>(8));
+		DispatchMark mark = marks.get(requiredPortalId);
+		if(mark == null)
+		{
+			marks.put(requiredPortalId, new DispatchMark(frameTick, key));
+			return sample;
+		}
+		if(!mark.due(frameTick, key, Math.max(1, intervalTicks)))
+		{
+			return Optional.empty();
+		}
+		mark.record(frameTick, key);
+		return sample;
+	}
+
+	public void forgetViewer(UUID viewerId)
+	{
+		dispatched.remove(Objects.requireNonNull(viewerId, "viewerId"));
+	}
+
+	public void forgetPortal(UUID portalId)
+	{
+		UUID requiredPortalId = Objects.requireNonNull(portalId, "portalId");
+		for(ConcurrentHashMap<UUID, DispatchMark> marks : dispatched.values())
+		{
+			marks.remove(requiredPortalId);
+		}
+	}
+
+	private void forget(UUID viewerId, UUID portalId)
+	{
+		ConcurrentHashMap<UUID, DispatchMark> marks = dispatched.get(viewerId);
+		if(marks != null)
+		{
+			marks.remove(portalId);
+		}
+	}
+
+	private static int dispatchKey(Sample sample)
+	{
+		Color color = sample.color();
+		int progressStep = (int) Math.floor(sample.progress() * PROGRESS_STEPS);
+		return (progressStep << 12)
+				| ((color.red() >> CHANNEL_STEP_SHIFT) << 8)
+				| ((color.green() >> CHANNEL_STEP_SHIFT) << 4)
+				| (color.blue() >> CHANNEL_STEP_SHIFT);
 	}
 
 	private Optional<Sample> failedSample(long elapsedMillis)
@@ -133,6 +202,29 @@ public final class RtpRimRenderer
 			{
 				throw new IllegalArgumentException(name + " must be between zero and 255");
 			}
+		}
+	}
+
+	private static final class DispatchMark
+	{
+		private long tick;
+		private int key;
+
+		private DispatchMark(long tick, int key)
+		{
+			this.tick = tick;
+			this.key = key;
+		}
+
+		private boolean due(long frameTick, int nextKey, int intervalTicks)
+		{
+			return nextKey != key || frameTick < tick || frameTick - tick >= intervalTicks;
+		}
+
+		private void record(long frameTick, int nextKey)
+		{
+			tick = frameTick;
+			key = nextKey;
 		}
 	}
 }
