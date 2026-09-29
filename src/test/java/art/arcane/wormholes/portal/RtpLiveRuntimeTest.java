@@ -116,6 +116,21 @@ public final class RtpLiveRuntimeTest
 	}
 
 	@Test
+	public void equalReplacementSettingsKeepTheRegisteredRoute()
+	{
+		Harness harness = new Harness(RtpRotationMode.STATIC);
+		harness.runtime.synchronize(harness.portal);
+		long originalGeneration = harness.service.snapshot(harness.portal.getId()).orElseThrow().generation();
+
+		harness.portal.setRtpSettings(harness.portal.getRtpSettings().toBuilder().build());
+		harness.runtime.synchronize(harness.portal);
+		harness.runtime.synchronize(harness.portal);
+
+		assertEquals(1, harness.environment.sourceRegistrations.get());
+		assertEquals(originalGeneration, harness.service.snapshot(harness.portal.getId()).orElseThrow().generation());
+	}
+
+	@Test
 	public void movedSourceAnchorRefreshesWithoutReplacingTheRoute()
 	{
 		Harness harness = new Harness(RtpRotationMode.STATIC);

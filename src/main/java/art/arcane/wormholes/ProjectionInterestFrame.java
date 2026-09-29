@@ -136,7 +136,7 @@ final class ProjectionInterestFrame {
             }
             Location center = portal.getCenter();
             ProjectionManager.ProjectionResolution resolution =
-                ProjectionManager.resolveProjection(provider, portal, observer, rtpRimRenderer);
+                ProjectionManager.resolveProjection(provider, portal, observer, rtpRimRenderer, frameTick);
             if (!resolution.projectable()) {
                 continue;
             }

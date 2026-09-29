@@ -125,6 +125,111 @@ public final class RtpRimRendererTest
 				RtpRotationMode.TIMED, RtpRimRenderer.Phase.READY, 1L, 0L)));
 	}
 
+	@Test
+	public void unchangedRimDispatchesOncePerInterval()
+	{
+		UUID viewerId = uuid("viewer");
+		UUID portalId = uuid("portal");
+		RtpRimRenderer.Input ready = input(viewerId, view(RtpProjectionView.State.READY, viewerId), true, true,
+				RtpRotationMode.ON_TRAVERSAL, RtpRimRenderer.Phase.READY, 0L, 0L);
+
+		assertTrue(renderer.nextDispatch(portalId, ready, 100L, 5).isPresent());
+		for(long tick = 101L; tick < 105L; tick++)
+		{
+			assertTrue(renderer.nextDispatch(portalId, ready, tick, 5).isEmpty());
+		}
+		assertEquals(RtpRimRenderer.Color.GREEN, renderer.nextDispatch(portalId, ready, 105L, 5).orElseThrow().color());
+		assertTrue(renderer.nextDispatch(portalId, ready, 106L, 5).isEmpty());
+	}
+
+	@Test
+	public void phaseChangeDispatchesWithoutWaitingForTheInterval()
+	{
+		UUID viewerId = uuid("viewer");
+		UUID portalId = uuid("portal");
+		RtpProjectionView ready = view(RtpProjectionView.State.READY, viewerId);
+
+		assertTrue(renderer.nextDispatch(portalId, input(viewerId, ready, true, true, RtpRotationMode.ON_TRAVERSAL,
+				RtpRimRenderer.Phase.READY, 0L, 0L), 10L, 5).isPresent());
+		RtpRimRenderer.Sample closing = renderer.nextDispatch(portalId, input(viewerId, ready, true, true,
+				RtpRotationMode.ON_TRAVERSAL, RtpRimRenderer.Phase.CLOSING, 0L, 0L), 11L, 5).orElseThrow();
+
+		assertEquals(RtpRimRenderer.Color.RED, closing.color());
+	}
+
+	@Test
+	public void timedProgressHoldsWithinAStepAndDispatchesWhenItCrossesOne()
+	{
+		UUID viewerId = uuid("viewer");
+		UUID portalId = uuid("portal");
+		RtpProjectionView ready = view(RtpProjectionView.State.READY, viewerId);
+
+		assertTrue(renderer.nextDispatch(portalId, input(viewerId, ready, true, true, RtpRotationMode.TIMED,
+				RtpRimRenderer.Phase.READY, 0L, 16_000L), 0L, 5).isPresent());
+		assertTrue(renderer.nextDispatch(portalId, input(viewerId, ready, true, true, RtpRotationMode.TIMED,
+				RtpRimRenderer.Phase.READY, 100L, 16_000L), 1L, 5).isEmpty());
+		RtpRimRenderer.Sample stepped = renderer.nextDispatch(portalId, input(viewerId, ready, true, true,
+				RtpRotationMode.TIMED, RtpRimRenderer.Phase.READY, 1_000L, 16_000L), 2L, 5).orElseThrow();
+
+		assertEquals(0.0625D, stepped.progress());
+	}
+
+	@Test
+	public void hiddenRimDispatchesImmediatelyWhenItReturns()
+	{
+		UUID viewerId = uuid("viewer");
+		UUID portalId = uuid("portal");
+		RtpProjectionView ready = view(RtpProjectionView.State.READY, viewerId);
+		RtpRimRenderer.Input attended = input(viewerId, ready, true, true, RtpRotationMode.STATIC,
+				RtpRimRenderer.Phase.READY, 0L, 0L);
+
+		assertTrue(renderer.nextDispatch(portalId, attended, 0L, 5).isPresent());
+		assertTrue(renderer.nextDispatch(portalId, input(viewerId, ready, true, false, RtpRotationMode.STATIC,
+				RtpRimRenderer.Phase.READY, 0L, 0L), 1L, 5).isEmpty());
+		assertTrue(renderer.nextDispatch(portalId, attended, 2L, 5).isPresent());
+	}
+
+	@Test
+	public void cadenceIsTrackedPerPortalAndViewerAndResetByForgetting()
+	{
+		UUID viewerId = uuid("viewer");
+		UUID otherViewerId = uuid("other-viewer");
+		UUID portalId = uuid("portal");
+		UUID otherPortalId = uuid("other-portal");
+		RtpRimRenderer.Input ready = input(viewerId, view(RtpProjectionView.State.READY, viewerId), true, true,
+				RtpRotationMode.STATIC, RtpRimRenderer.Phase.READY, 0L, 0L);
+		RtpRimRenderer.Input otherReady = input(otherViewerId, view(RtpProjectionView.State.READY, otherViewerId), true,
+				true, RtpRotationMode.STATIC, RtpRimRenderer.Phase.READY, 0L, 0L);
+
+		assertTrue(renderer.nextDispatch(portalId, ready, 0L, 5).isPresent());
+		assertTrue(renderer.nextDispatch(otherPortalId, ready, 1L, 5).isPresent());
+		assertTrue(renderer.nextDispatch(portalId, otherReady, 1L, 5).isPresent());
+		assertTrue(renderer.nextDispatch(otherPortalId, otherReady, 1L, 5).isPresent());
+		assertTrue(renderer.nextDispatch(portalId, ready, 1L, 5).isEmpty());
+
+		renderer.forgetPortal(portalId);
+		assertTrue(renderer.nextDispatch(portalId, ready, 2L, 5).isPresent());
+		assertTrue(renderer.nextDispatch(portalId, otherReady, 2L, 5).isPresent());
+		renderer.forgetViewer(viewerId);
+		assertTrue(renderer.nextDispatch(portalId, ready, 3L, 5).isPresent());
+		assertTrue(renderer.nextDispatch(otherPortalId, ready, 3L, 5).isPresent());
+		assertTrue(renderer.nextDispatch(otherPortalId, otherReady, 3L, 5).isEmpty());
+	}
+
+	@Test
+	public void singleTickIntervalDispatchesEveryTick()
+	{
+		UUID viewerId = uuid("viewer");
+		UUID portalId = uuid("portal");
+		RtpRimRenderer.Input ready = input(viewerId, view(RtpProjectionView.State.READY, viewerId), true, true,
+				RtpRotationMode.STATIC, RtpRimRenderer.Phase.READY, 0L, 0L);
+
+		for(long tick = 0L; tick < 4L; tick++)
+		{
+			assertTrue(renderer.nextDispatch(portalId, ready, tick, 1).isPresent());
+		}
+	}
+
 	private void assertTimedSample(UUID viewerId, RtpProjectionView ready, long elapsedMillis,
 			RtpRimRenderer.Color expectedColor, double expectedProgress)
 	{

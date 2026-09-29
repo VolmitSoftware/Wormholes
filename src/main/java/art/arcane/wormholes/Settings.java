@@ -39,6 +39,7 @@ public final class Settings {
     public static volatile double ENTITY_SPOOF_RANGE = 48.0D;
     public static volatile int ENTITY_CANDIDATE_CACHE_TICKS = 3;
     public static volatile int MAX_SPOOFED_ENTITIES = 24;
+    public static volatile int RTP_RIM_INTERVAL_TICKS = 5;
     public static volatile int PROJECTION_REFRESH_INTERVAL_TICKS = 1;
     public static volatile int PROJECTION_DEPTH_BLOCKS = 64;
     public static volatile int PROJECTION_RECURSIVE_PORTAL_DEPTH = 3;
@@ -154,6 +155,7 @@ public final class Settings {
         ENTITY_CANDIDATE_CACHE_TICKS = clampInt(render.entityCandidateCacheTicks, 1, 40);
         MAX_SPOOFED_ENTITIES = clampInt(render.maxSpoofedEntities, 0, 256);
         CAPTURE_ZONE_RADIUS = clampDouble(render.captureZoneRadius, 1.0D, 64.0D);
+        RTP_RIM_INTERVAL_TICKS = clampInt(render.rtpRimIntervalTicks, 1, 100);
 
         rebuildLocalPortalCaptureZones();
     }

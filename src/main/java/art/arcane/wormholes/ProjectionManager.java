@@ -461,7 +461,7 @@ public class ProjectionManager implements Listener {
     }
 
     static ProjectionResolution resolveProjection(RtpProjectionProvider provider, ILocalPortal portal,
-                                                  Player observer, RtpRimRenderer rimRenderer) {
+                                                  Player observer, RtpRimRenderer rimRenderer, long frameTick) {
         Objects.requireNonNull(portal, "portal");
         Objects.requireNonNull(observer, "observer");
         boolean rtp = provider != null && provider.supports(portal);
@@ -478,7 +478,8 @@ public class ProjectionManager implements Listener {
                     result.phase(),
                     result.elapsedMillis(),
                     result.durationMillis());
-            Optional<RtpRimRenderer.Sample> sample = requiredRimRenderer.calculate(input);
+            Optional<RtpRimRenderer.Sample> sample = requiredRimRenderer.nextDispatch(portal.getId(), input, frameTick,
+                    Settings.RTP_RIM_INTERVAL_TICKS);
             if (sample.isPresent()) {
                 provider.dispatchRim(portal, observer, sample.get());
             }
@@ -556,6 +557,7 @@ public class ProjectionManager implements Listener {
         interestSet.retirePortal(portal.getId());
         if (portal.getId() != null) {
             plateCache.invalidatePortal(portal.getId());
+            rtpRimRenderer.forgetPortal(portal.getId());
             AcousticsBridge<Player> acoustics = FidelitySubsystem.acoustics();
             if (acoustics != null) {
                 acoustics.forgetPortal(portal.getId());
@@ -569,11 +571,13 @@ public class ProjectionManager implements Listener {
         interestSet.closeObserver(id);
         interestSet.forgetObserver(id);
         projectedEntityUpdates.discard(id);
+        rtpRimRenderer.forgetViewer(id);
     }
 
     private void discardObserverProjectors(Player player) {
         UUID id = player.getUniqueId();
         budgetLedger.forgetObserver(id);
+        rtpRimRenderer.forgetViewer(id);
         interestSet.discardObserver(id);
         localEntityOcclusion.discardObserver(id);
         claimArbiter.discardObserver(id);
