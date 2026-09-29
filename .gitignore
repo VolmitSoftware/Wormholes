@@ -32,3 +32,5 @@ AGENTS.md
 build-lt.sh
 BUILDS/
 .run/
+
+.worktrees/
