@@ -70,8 +70,8 @@ public final class BlockEntityCapturer {
         return BlockEntitySanitizer.sanitize(typeKey, tag, new BlockEntitySanitizer.Options<>(whitelist, containers, BukkitBlockEntityTags.INSTANCE));
     }
 
-    /** Whitelisted block entities of a loaded chunk keyed by world cell; call on the chunk's region thread. */
-    public static Map<Long, BlockEntitySample> captureChunk(Chunk chunk) {
+    /** Whitelisted block entities of a loaded chunk keyed by world cell, up to {@code maxSamples}; call on the chunk's region thread. */
+    public static Map<Long, BlockEntitySample> captureChunk(Chunk chunk, int maxSamples) {
         Map<Long, BlockEntitySample> samples = new HashMap<Long, BlockEntitySample>(8);
         if (chunk == null || !FidelitySettings.blockEntities) {
             return samples;
@@ -86,7 +86,7 @@ public final class BlockEntityCapturer {
             return samples;
         }
         for (BlockState state : states) {
-            if (samples.size() >= MAX_PER_CHUNK) {
+            if (samples.size() >= maxSamples) {
                 break;
             }
             if (state == null || !BlockEntityMaterials.isCandidate(state.getType().name())) {

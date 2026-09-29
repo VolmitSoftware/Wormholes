@@ -2,18 +2,25 @@ package art.arcane.wormholes.render.plate;
 
 import java.util.UUID;
 
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongCollection;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.longs.LongSets;
 
 /**
- * Immutable, versioned result of one portal-scoped build. Cells are keyed by local cell key; the
- * map is frozen after construction and shared read-only between every observer of the portal.
+ * Immutable, versioned result of one portal-scoped build. Cells are addressed by local cell key; the
+ * grid is frozen after construction and shared read-only between every observer of the portal. Chunks
+ * that changed after the build are recorded as dirty so observers sample those cells live until a
+ * patched plate replaces this one.
  */
 public final class ViewPlate<B> {
+    static final int DIRTY_MARGIN = 2;
     private static final long BASE_BYTES = 256L;
 
     private final ViewPlateKey key;
-    private final Long2ObjectOpenHashMap<PlateCell<B>> cells;
+    private final PlateGrid<B> grid;
     private final long destinationRevision;
     private final long transformRevision;
     private final UUID destinationWorldId;
@@ -23,10 +30,13 @@ public final class ViewPlate<B> {
     private final int maxChunkX;
     private final int maxChunkZ;
     private final long bytes;
+    private final long builtNanos;
     private volatile long lastUsedNanos;
+    private volatile long dirtCheckedVersion;
+    private volatile LongOpenHashSet dirtyChunks;
 
     public ViewPlate(ViewPlateKey key,
-                     Long2ObjectOpenHashMap<PlateCell<B>> cells,
+                     PlateGrid<B> grid,
                      long destinationRevision,
                      long transformRevision,
                      UUID destinationWorldId,
@@ -37,7 +47,7 @@ public final class ViewPlate<B> {
                      int maxChunkZ,
                      long bytes) {
         this.key = key;
-        this.cells = cells;
+        this.grid = grid;
         this.destinationRevision = destinationRevision;
         this.transformRevision = transformRevision;
         this.destinationWorldId = destinationWorldId;
@@ -47,15 +57,17 @@ public final class ViewPlate<B> {
         this.maxChunkX = maxChunkX;
         this.maxChunkZ = maxChunkZ;
         this.bytes = Math.max(BASE_BYTES, bytes);
-        this.lastUsedNanos = System.nanoTime();
+        this.builtNanos = System.nanoTime();
+        this.lastUsedNanos = builtNanos;
+        this.dirtCheckedVersion = trackerVersion;
     }
 
-    public static <B> long estimateBytes(Long2ObjectOpenHashMap<PlateCell<B>> cells) {
-        long total = BASE_BYTES + ((long) cells.size() * 24L);
-        for (PlateCell<B> cell : cells.values()) {
-            total += cell.bytes();
-        }
-        return total;
+    public static long predictBytes(PlateBox box) {
+        return BASE_BYTES + PlateGrid.predictBytes(box);
+    }
+
+    public static <B> long estimateBytes(PlateGrid<B> grid) {
+        return BASE_BYTES + grid.bytes();
     }
 
     public ViewPlateKey key() {
@@ -63,19 +75,64 @@ public final class ViewPlate<B> {
     }
 
     public PlateCell<B> cell(long localKey) {
-        return cells.get(localKey);
+        return grid.cell(localKey);
+    }
+
+    public PlateCell<B> cleanCell(long localKey, int remoteX, int remoteZ) {
+        LongOpenHashSet dirty = dirtyChunks;
+        if (dirty != null && touches(dirty, remoteX, remoteZ)) {
+            return null;
+        }
+        return grid.cell(localKey);
+    }
+
+    public boolean dirty() {
+        return dirtyChunks != null;
+    }
+
+    public LongSet dirtyChunks() {
+        LongOpenHashSet dirty = dirtyChunks;
+        return dirty == null ? LongSets.EMPTY_SET : LongSets.unmodifiable(dirty);
+    }
+
+    public boolean builtBefore(long nanos) {
+        return builtNanos - nanos < 0L;
+    }
+
+    public boolean collectDirt(ProjectionWorldChangeTracker tracker, LongCollection out) {
+        LongOpenHashSet dirty = dirtyChunks;
+        if (dirty != null) {
+            out.addAll(dirty);
+        }
+        return collectTracked(tracker, out);
+    }
+
+    public boolean refreshDirt(ProjectionWorldChangeTracker tracker) {
+        long version = tracker.currentVersion();
+        if (version == dirtCheckedVersion) {
+            return true;
+        }
+        LongArrayList changed = new LongArrayList();
+        if (!collectTracked(tracker, changed)) {
+            return false;
+        }
+        if (!changed.isEmpty()) {
+            markDirty(changed);
+        }
+        dirtCheckedVersion = version;
+        return true;
     }
 
     public LongSet cellKeys() {
-        return cells.keySet();
+        return grid.cellKeys();
     }
 
     public int cellCount() {
-        return cells.size();
+        return grid.cellCount();
     }
 
     public boolean isEmpty() {
-        return cells.isEmpty();
+        return grid.cellCount() == 0;
     }
 
     public long destinationRevision() {
@@ -124,5 +181,42 @@ public final class ViewPlate<B> {
 
     boolean matches(long expectedDestinationRevision, long expectedTransformRevision) {
         return destinationRevision == expectedDestinationRevision && transformRevision == expectedTransformRevision;
+    }
+
+    PlateGrid<B> grid() {
+        return grid;
+    }
+
+    synchronized void markDirty(LongCollection chunks) {
+        LongOpenHashSet current = dirtyChunks;
+        if (current != null && current.containsAll(chunks)) {
+            return;
+        }
+        LongOpenHashSet merged = current == null ? new LongOpenHashSet(chunks) : new LongOpenHashSet(current);
+        merged.addAll(chunks);
+        dirtyChunks = merged;
+    }
+
+    private boolean collectTracked(ProjectionWorldChangeTracker tracker, LongCollection out) {
+        if (destinationWorldId == null || trackerVersion == Long.MIN_VALUE || minChunkX > maxChunkX) {
+            return true;
+        }
+        return tracker.collectDirtySince(destinationWorldId, minChunkX - 1, minChunkZ - 1, maxChunkX + 1, maxChunkZ + 1,
+            trackerVersion, out);
+    }
+
+    static boolean touches(LongSet dirty, int remoteX, int remoteZ) {
+        int minChunkX = (remoteX - DIRTY_MARGIN) >> 4;
+        int maxChunkX = (remoteX + DIRTY_MARGIN) >> 4;
+        int minChunkZ = (remoteZ - DIRTY_MARGIN) >> 4;
+        int maxChunkZ = (remoteZ + DIRTY_MARGIN) >> 4;
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                if (dirty.contains(ProjectionWorldChangeTracker.chunkKey(chunkX, chunkZ))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

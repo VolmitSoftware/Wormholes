@@ -51,7 +51,6 @@ final class LodMergeTest {
         assertSame(slab1, slab2, "the first odd slab past the distance reuses the previous slab cell");
         assertNotSame(slab2, slab3, "even slabs are sampled again");
         assertSame(slab3, slab4);
-        assertEquals(slab1.remoteKey(), slab2.remoteKey(), "a merged cell keeps the remote key it was copied from");
         assertTrue(plate.cellKeys().contains(ProjectionCellKey.pack(0, 64, -3)),
             "merged cells keep their own local key so the arbiter restores the real local block");
     }
@@ -95,7 +94,7 @@ final class LodMergeTest {
     private static ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request(ILocalPortal portal, PortalStructure structure,
                                                     ProjectionWorldView destination, LodPolicy lod, double depth) {
         PortalFrame frame = portal.getFrame();
-        return new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(new ViewPlateKey(PORTAL_ID, destination, true, 0), portal.getStructure(), destination, frame, frame,
+        return new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(new ViewPlateKey(PORTAL_ID, destination, true, 0, 0L), portal.getStructure(), destination, frame, frame,
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
             false, 0, depth, 0.0D, 0.0D, false, blockData(Material.AIR), lod, false, 1L, 1L, 0L, new BukkitProjectorBlocks(material -> material == Material.STONE));

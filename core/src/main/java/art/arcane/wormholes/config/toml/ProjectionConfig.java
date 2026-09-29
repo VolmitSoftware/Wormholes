@@ -102,6 +102,18 @@ public class ProjectionConfig {
         "Tracked block changes refresh sections immediately; this interval bounds how long changes that raise no block event stay stale."
     })
     public int sectionCacheTtlTicks = 200;
+    @ConfigDescription({
+        "Build shared view plates for random-teleport portals, keyed by the destination route.",
+        "Off samples random-teleport destinations per observer for every cell."
+    })
+    public boolean rtpPlates = true;
+    @ConfigDescription({
+        "Most blocks a shared view plate extends past the aperture sideways, capped by each portal's own lateral pad.",
+        "Cells outside the plate are sampled per observer."
+    })
+    public int plateLateralClampBlocks = 40;
+    @ConfigDescription("Destination chunks copied per tick while a shared view plate is captured for building off the main thread.")
+    public int plateCaptureChunksPerTick = 8;
 
     public ProjectionConfig copy() {
         ProjectionConfig copy = new ProjectionConfig();
@@ -138,6 +150,9 @@ public class ProjectionConfig {
         copy.sectionCacheMaxMb = sectionCacheMaxMb;
         copy.sectionCacheChunksPerTick = sectionCacheChunksPerTick;
         copy.sectionCacheTtlTicks = sectionCacheTtlTicks;
+        copy.rtpPlates = rtpPlates;
+        copy.plateLateralClampBlocks = plateLateralClampBlocks;
+        copy.plateCaptureChunksPerTick = plateCaptureChunksPerTick;
         return copy;
     }
 }

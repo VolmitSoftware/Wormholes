@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+
 import org.junit.jupiter.api.Test;
 
 public final class ProjectionWorldChangeTrackerTest {
@@ -74,6 +76,31 @@ public final class ProjectionWorldChangeTrackerTest {
         tracker.removeListener(listener);
         tracker.markChanged(WORLD, 1, 2, 3);
         assertEquals(3, events.size());
+    }
+
+    @Test
+    public void collectingDirtyChunksReportsOnlyNewerChangesInsideTheRect() {
+        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        tracker.markChanged(WORLD, 35, -18);
+        long since = tracker.currentVersion();
+        tracker.markChanged(WORLD, 20, 5);
+        tracker.markChanged(WORLD, 400, 400);
+        tracker.markChanged(OTHER_WORLD, 20, 5);
+        LongArrayList collected = new LongArrayList();
+
+        assertTrue(tracker.collectDirtySince(WORLD, -2, -2, 4, 4, since, collected));
+
+        assertEquals(List.of(Long.valueOf(ProjectionWorldChangeTracker.chunkKey(1, 0))), collected);
+    }
+
+    @Test
+    public void collectingAfterAnOverflowReportsTheWholeRectDirty() {
+        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        for (int i = 0; i <= 8200; i++) {
+            tracker.markChanged(WORLD, i << 4, 0);
+        }
+
+        assertFalse(tracker.collectDirtySince(WORLD, 500_000, 500_000, 500_001, 500_001, 1L, new LongArrayList()));
     }
 
     @Test

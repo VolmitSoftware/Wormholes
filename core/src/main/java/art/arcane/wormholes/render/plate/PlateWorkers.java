@@ -7,26 +7,20 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-
-
 /**
- * Runs plate builds either on the bounded {@code Wormholes-Plate-N} pool (snapshot and remote views,
- * which are safe to read off-thread) or, for live Paper views, on the destination region thread in
- * time slices of {@link #REGION_CELLS_PER_TICK} cells per tick.
+ * Runs plate builds on the bounded {@code Wormholes-Plate-N} pool. Every view a build reads is safe
+ * off-thread: region snapshots, remote views and chunk snapshots captured for the plate.
  */
 public final class PlateWorkers<B, W> {
     public interface Host<B, W> {
-        void publish(ViewPlate<B> plate);
+        void publish(ViewPlateBuilder.Job<B, W> job, ViewPlate<B> plate);
 
-        void failed(ViewPlateKey key);
-
-        boolean schedule(ViewPlateBuilder.Execution<W> execution, Runnable task, long delayTicks);
+        void failed(ViewPlateBuilder.Job<B, W> job);
 
         void warning(ViewPlateKey key, RuntimeException failure);
     }
 
     static final int ASYNC_CELLS_PER_STEP = 8192;
-    static final int REGION_CELLS_PER_TICK = 6144;
     private static final int QUEUE_CAPACITY = 256;
     private static final AtomicInteger THREAD_SEQUENCE = new AtomicInteger();
 
@@ -41,19 +35,13 @@ public final class PlateWorkers<B, W> {
     public void submitAsync(ViewPlateBuilder.Job<B, W> job) {
         ThreadPoolExecutor active = executor;
         if (active == null) {
-            host.failed(job.key());
+            host.failed(job);
             return;
         }
         try {
             active.execute(() -> runToCompletion(job));
         } catch (RejectedExecutionException rejected) {
-            host.failed(job.key());
-        }
-    }
-
-    public void submitRegion(ViewPlateBuilder.Job<B, W> job) {
-        if (executor == null || !host.schedule(job.execution(), () -> stepOnRegion(job), 0L)) {
-            host.failed(job.key());
+            host.failed(job);
         }
     }
 
@@ -89,36 +77,14 @@ public final class PlateWorkers<B, W> {
         try {
             while (!job.step(ASYNC_CELLS_PER_STEP)) {
                 if (Thread.currentThread().isInterrupted()) {
-                    host.failed(job.key());
+                    host.failed(job);
                     return;
                 }
             }
-            host.publish(job.result());
+            host.publish(job, job.result());
         } catch (RuntimeException failure) {
-            host.failed(job.key());
+            host.failed(job);
             host.warning(job.key(), failure);
-        }
-    }
-
-    private void stepOnRegion(ViewPlateBuilder.Job<B, W> job) {
-        if (executor == null) {
-            host.failed(job.key());
-            return;
-        }
-        boolean finished;
-        try {
-            finished = job.step(REGION_CELLS_PER_TICK);
-        } catch (RuntimeException failure) {
-            host.failed(job.key());
-            host.warning(job.key(), failure);
-            return;
-        }
-        if (finished) {
-            host.publish(job.result());
-            return;
-        }
-        if (!host.schedule(job.execution(), () -> stepOnRegion(job), 1L)) {
-            host.failed(job.key());
         }
     }
 
