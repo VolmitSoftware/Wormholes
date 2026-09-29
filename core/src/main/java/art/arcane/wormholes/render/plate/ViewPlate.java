@@ -3,6 +3,7 @@ package art.arcane.wormholes.render.plate;
 import java.util.UUID;
 
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongCollection;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -31,6 +32,7 @@ public final class ViewPlate<B> {
     private final long bytes;
     private final long builtNanos;
     private volatile long lastUsedNanos;
+    private volatile long dirtCheckedVersion;
     private volatile LongOpenHashSet dirtyChunks;
 
     public ViewPlate(ViewPlateKey key,
@@ -57,6 +59,7 @@ public final class ViewPlate<B> {
         this.bytes = Math.max(BASE_BYTES, bytes);
         this.builtNanos = System.nanoTime();
         this.lastUsedNanos = builtNanos;
+        this.dirtCheckedVersion = trackerVersion;
     }
 
     public static long predictBytes(PlateBox box) {
@@ -101,11 +104,23 @@ public final class ViewPlate<B> {
         if (dirty != null) {
             out.addAll(dirty);
         }
-        if (destinationWorldId == null || trackerVersion == Long.MIN_VALUE || minChunkX > maxChunkX) {
+        return collectTracked(tracker, out);
+    }
+
+    public boolean refreshDirt(ProjectionWorldChangeTracker tracker) {
+        long version = tracker.currentVersion();
+        if (version == dirtCheckedVersion) {
             return true;
         }
-        return tracker.collectDirtySince(destinationWorldId, minChunkX - 1, minChunkZ - 1, maxChunkX + 1, maxChunkZ + 1,
-            trackerVersion, out);
+        LongArrayList changed = new LongArrayList();
+        if (!collectTracked(tracker, changed)) {
+            return false;
+        }
+        if (!changed.isEmpty()) {
+            markDirty(changed);
+        }
+        dirtCheckedVersion = version;
+        return true;
     }
 
     public LongSet cellKeys() {
@@ -180,6 +195,14 @@ public final class ViewPlate<B> {
         LongOpenHashSet merged = current == null ? new LongOpenHashSet(chunks) : new LongOpenHashSet(current);
         merged.addAll(chunks);
         dirtyChunks = merged;
+    }
+
+    private boolean collectTracked(ProjectionWorldChangeTracker tracker, LongCollection out) {
+        if (destinationWorldId == null || trackerVersion == Long.MIN_VALUE || minChunkX > maxChunkX) {
+            return true;
+        }
+        return tracker.collectDirtySince(destinationWorldId, minChunkX - 1, minChunkZ - 1, maxChunkX + 1, maxChunkZ + 1,
+            trackerVersion, out);
     }
 
     static boolean touches(LongSet dirty, int remoteX, int remoteZ) {

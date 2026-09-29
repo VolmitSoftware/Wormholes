@@ -13,9 +13,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class PlateWorkers<B, W> {
     public interface Host<B, W> {
-        void publish(ViewPlate<B> plate);
+        void publish(ViewPlateBuilder.Job<B, W> job, ViewPlate<B> plate);
 
-        void failed(ViewPlateKey key);
+        void failed(ViewPlateBuilder.Job<B, W> job);
 
         void warning(ViewPlateKey key, RuntimeException failure);
     }
@@ -35,13 +35,13 @@ public final class PlateWorkers<B, W> {
     public void submitAsync(ViewPlateBuilder.Job<B, W> job) {
         ThreadPoolExecutor active = executor;
         if (active == null) {
-            host.failed(job.key());
+            host.failed(job);
             return;
         }
         try {
             active.execute(() -> runToCompletion(job));
         } catch (RejectedExecutionException rejected) {
-            host.failed(job.key());
+            host.failed(job);
         }
     }
 
@@ -77,13 +77,13 @@ public final class PlateWorkers<B, W> {
         try {
             while (!job.step(ASYNC_CELLS_PER_STEP)) {
                 if (Thread.currentThread().isInterrupted()) {
-                    host.failed(job.key());
+                    host.failed(job);
                     return;
                 }
             }
-            host.publish(job.result());
+            host.publish(job, job.result());
         } catch (RuntimeException failure) {
-            host.failed(job.key());
+            host.failed(job);
             host.warning(job.key(), failure);
         }
     }

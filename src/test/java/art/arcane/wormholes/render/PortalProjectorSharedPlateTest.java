@@ -82,7 +82,7 @@ public final class PortalProjectorSharedPlateTest {
         assertNull(acquirePlate(first, eye(structure, 4.0D)), "the first observer misses and schedules the build");
         assertEquals(1, scheduled.size());
         ViewPlate<BlockData> built = run(scheduled.get(0));
-        cache.publish(built);
+        cache.publish(scheduled.get(0), built);
 
         ViewPlate<BlockData> shared = acquirePlate(second, eye(structure, 4.0D));
         assertSame(built, shared, "the second observer must hit the plate the first one built");
@@ -116,7 +116,7 @@ public final class PortalProjectorSharedPlateTest {
         assertEquals(1, scheduled.size());
         ViewPlate<BlockData> built = run(scheduled.get(0));
         assertFalse(built.isEmpty());
-        cache.publish(built);
+        cache.publish(scheduled.get(0), built);
         assertSame(built, acquirePlate(second, eye, sameRoute), "a second observer of the same route shares the plate");
         assertEquals(1, scheduled.size());
 
@@ -125,6 +125,27 @@ public final class PortalProjectorSharedPlateTest {
         assertEquals(2, scheduled.size());
         assertNotEquals(route.plateIdentity(), nextRoute.plateIdentity());
         assertEquals(route.plateIdentity(), sameRoute.plateIdentity());
+    }
+
+    @Test
+    public void losingTheRtpRouteRetiresThatRoutesPlates() throws Exception {
+        PortalStructure structure = structure();
+        ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+        StoneView destinationView = new StoneView();
+        PortalProjector.RtpProjectionTarget route = new PortalProjector.RtpProjectionTarget(
+            world(UUID.fromString("00000000-0000-0000-0000-0000000000e3")), 30.5D, 70.0D, 30.5D,
+            PortalFrame.canonical(Direction.N), 2L);
+        List<ViewPlateBuilder.Job<BlockData, World>> scheduled = new ArrayList<>();
+        ViewPlateCache<BlockData, World> cache = new ViewPlateCache<BlockData, World>(4_000_000L, scheduled::add);
+        PortalProjector projector = rtpProjector(portal, destinationView, cache, route);
+        projector.setRtpProjectionTarget(route);
+        assertNull(acquirePlate(projector, eye(structure, 4.0D), route));
+        cache.publish(scheduled.get(0), run(scheduled.get(0)));
+        assertEquals(1, cache.size());
+
+        projector.setRtpProjectionTarget(null);
+
+        assertEquals(0, cache.size(), "a route the observer lost no longer holds a plate");
     }
 
     @Test

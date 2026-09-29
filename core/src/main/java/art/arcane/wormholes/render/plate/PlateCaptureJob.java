@@ -92,7 +92,7 @@ public final class PlateCaptureJob<B, W, S> extends ViewPlateBuilder.Job<B, W> {
         if (phase != Phase.CAPTURING) {
             return 0;
         }
-        if (++ticks > MAX_CAPTURE_TICKS) {
+        if (budget > 0 && ++ticks > MAX_CAPTURE_TICKS) {
             abort();
             return 0;
         }

@@ -7,9 +7,11 @@ public final class PlateCaptureQueue<B, W> {
     public interface Host<B, W> {
         void build(ViewPlateBuilder.Job<B, W> job);
 
-        void failed(ViewPlateKey key);
+        void failed(ViewPlateBuilder.Job<B, W> job);
 
         void warning(ViewPlateKey key, RuntimeException failure);
+
+        boolean wanted(ViewPlateBuilder.Job<B, W> job);
     }
 
     private final Host<B, W> host;
@@ -40,19 +42,23 @@ public final class PlateCaptureQueue<B, W> {
         int count = active.size();
         for (int i = 0; i < count; i++) {
             PlateCaptureJob<B, W, ?> job = active.pollFirst();
+            if (!host.wanted(job)) {
+                job.abort();
+                continue;
+            }
             int taken;
             try {
                 taken = job.capture(budget);
             } catch (RuntimeException failure) {
                 job.abort();
-                host.failed(job.key());
+                host.failed(job);
                 host.warning(job.key(), failure);
                 continue;
             }
             budget = Math.max(0, budget - taken);
             switch (job.phase()) {
                 case CAPTURED -> host.build(job);
-                case FAILED -> host.failed(job.key());
+                case FAILED -> host.failed(job);
                 case CAPTURING -> active.addLast(job);
             }
         }
@@ -66,7 +72,7 @@ public final class PlateCaptureQueue<B, W> {
         }
         for (PlateCaptureJob<B, W, ?> job : active) {
             job.abort();
-            host.failed(job.key());
+            host.failed(job);
         }
         active.clear();
     }

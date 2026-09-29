@@ -122,15 +122,15 @@ public class ProjectionManager implements Listener {
         this.plateCache = new ViewPlateCache<BlockData, World>(FidelitySettings.plateMaxBytes, this::schedulePlateBuild);
         this.plateWorkers = new PlateWorkers<>(FidelitySettings.plateWorkers, new PlateWorkers.Host<>() {
             @Override
-            public void publish(ViewPlate<BlockData> plate) {
+            public void publish(ViewPlateBuilder.Job<BlockData, World> job, ViewPlate<BlockData> plate) {
                 if (!closed) {
-                    plateCache.publish(plate);
+                    plateCache.publish(job, plate);
                 }
             }
 
             @Override
-            public void failed(ViewPlateKey key) {
-                plateCache.buildFailed(key);
+            public void failed(ViewPlateBuilder.Job<BlockData, World> job) {
+                plateCache.buildFailed(job);
             }
 
             @Override
@@ -142,20 +142,25 @@ public class ProjectionManager implements Listener {
             @Override
             public void build(ViewPlateBuilder.Job<BlockData, World> job) {
                 if (closed) {
-                    plateCache.buildFailed(job.key());
+                    plateCache.buildFailed(job);
                     return;
                 }
                 plateWorkers.submitAsync(job);
             }
 
             @Override
-            public void failed(ViewPlateKey key) {
-                plateCache.buildFailed(key);
+            public void failed(ViewPlateBuilder.Job<BlockData, World> job) {
+                plateCache.buildFailed(job);
             }
 
             @Override
             public void warning(ViewPlateKey key, RuntimeException failure) {
                 Wormholes.instance.getLogger().log(Level.WARNING, "[plate] capture failed for portal " + key.portalId(), failure);
+            }
+
+            @Override
+            public boolean wanted(ViewPlateBuilder.Job<BlockData, World> job) {
+                return !closed && plateCache.isBuilding(job);
             }
         });
         this.interestSet = new ProjectionInterestSet(claimArbiter, localEntityOcclusion, viewProvider, closeQueue, alive,
@@ -190,7 +195,7 @@ public class ProjectionManager implements Listener {
 
     private void schedulePlateBuild(ViewPlateBuilder.Job<BlockData, World> job) {
         if (closed) {
-            plateCache.buildFailed(job.key());
+            plateCache.buildFailed(job);
             return;
         }
         if (job instanceof PlateCaptureJob<BlockData, World, ?> capture) {
@@ -264,7 +269,7 @@ public class ProjectionManager implements Listener {
         tickCount++;
         closeQueue.retryPending();
         if (tickCount % PLATE_INVALIDATION_INTERVAL_TICKS == 0L) {
-            plateCache.markDirty(Wormholes.projectionChangeTracker);
+            plateCache.refreshDirt(Wormholes.projectionChangeTracker);
         }
         plateCaptures.tick(FidelitySettings.plateCaptureChunksPerTick);
         if (tickCount % ACOUSTICS_AMBIENT_INTERVAL_TICKS == 0L) {

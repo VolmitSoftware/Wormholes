@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class PlateWorkersTest {
@@ -49,14 +50,15 @@ final class PlateWorkersTest {
         private final CountDownLatch done = new CountDownLatch(1);
 
         @Override
-        public void publish(ViewPlate<String> plate) {
+        public void publish(ViewPlateBuilder.Job<String, String> job, ViewPlate<String> plate) {
+            assertSame(job.key(), plate.key());
             published.add(plate);
             threads.add(Thread.currentThread().getName());
             done.countDown();
         }
 
         @Override
-        public void failed(ViewPlateKey key) {
+        public void failed(ViewPlateBuilder.Job<String, String> job) {
             failed.incrementAndGet();
             done.countDown();
         }

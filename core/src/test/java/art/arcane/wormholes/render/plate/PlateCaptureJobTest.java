@@ -163,6 +163,58 @@ final class PlateCaptureJobTest {
         assertFalse(host.built.contains(job));
     }
 
+    @Test
+    void aCaptureTheCacheNoLongerWantsIsAbortedAndReleasesItsLeases() {
+        FakeSource source = new FakeSource();
+        RecordingHost host = new RecordingHost();
+        PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
+        PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 1, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
+        queue.submit(job);
+        queue.tick(8);
+        assertEquals(2, source.holds.size());
+
+        host.unwanted.add(job.key());
+        source.loadAll(0, 0, 1, 0);
+        queue.tick(8);
+
+        assertEquals(PlateCaptureJob.Phase.FAILED, job.phase());
+        assertTrue(source.captures.isEmpty(), "a retired capture takes no more snapshots");
+        for (FakeHold hold : source.holds.values()) {
+            assertTrue(hold.released);
+        }
+        assertTrue(host.built.isEmpty());
+        assertTrue(host.failed.isEmpty(), "a cancelled capture is not reported as a failure");
+        assertEquals(0, queue.size());
+    }
+
+    @Test
+    void aCaptureStarvedOfTheSharedBudgetDoesNotTimeOut() {
+        FakeSource source = new FakeSource();
+        int hogChunks = (PlateCaptureJob.MAX_CAPTURE_TICKS / 2) + 100;
+        int starvedTicks = hogChunks * 2;
+        source.loadAll(0, 0, starvedTicks, 0);
+        RecordingHost host = new RecordingHost();
+        PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
+        PlateCaptureJob<String, String, String> first = job(source, new ViewPlateBuilder.Footprint(0, 0, hogChunks - 1, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
+        PlateCaptureJob<String, String, String> second = job(source, new ViewPlateBuilder.Footprint(hogChunks, 0, starvedTicks - 1, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
+        PlateCaptureJob<String, String, String> starved = job(source, new ViewPlateBuilder.Footprint(starvedTicks, 0, starvedTicks, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
+        queue.submit(first);
+        queue.submit(second);
+        queue.submit(starved);
+
+        for (int tick = 0; tick < starvedTicks; tick++) {
+            queue.tick(1);
+        }
+        assertTrue(starvedTicks > PlateCaptureJob.MAX_CAPTURE_TICKS);
+        assertEquals(List.of(first, second), host.built, "each capture only counts the ticks it had budget for");
+        assertEquals(PlateCaptureJob.Phase.CAPTURING, starved.phase(), "ticks without budget do not count toward the timeout");
+
+        queue.tick(1);
+
+        assertEquals(PlateCaptureJob.Phase.CAPTURED, starved.phase());
+        assertTrue(host.failed.isEmpty());
+    }
+
     private static PlateCaptureJob<String, String, String> job(FakeSource source, ViewPlateBuilder.Footprint footprint,
                                                                List<PlateCaptureJob.Captured<String>> handedOff) {
         ViewPlateKey key = new ViewPlateKey(UUID.randomUUID(), WORLD, true, 0, 7L);
@@ -259,9 +311,16 @@ final class PlateCaptureJobTest {
             built.add(job);
         }
 
+        private final Set<ViewPlateKey> unwanted = new HashSet<ViewPlateKey>();
+
         @Override
-        public void failed(ViewPlateKey key) {
-            failed.add(key);
+        public void failed(ViewPlateBuilder.Job<String, String> job) {
+            failed.add(job.key());
+        }
+
+        @Override
+        public boolean wanted(ViewPlateBuilder.Job<String, String> job) {
+            return !unwanted.contains(job.key());
         }
 
         @Override

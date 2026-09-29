@@ -184,6 +184,7 @@ public final class PortalProjector {
         if (target == null) {
             if (previous != null) {
                 invalidateRtpDestinationState();
+                retirePreviousTargetPlates(previous, null);
             }
             return;
         }
@@ -833,9 +834,9 @@ public final class PortalProjector {
             localOriginX, localOriginY, localOriginZ, remoteOriginX, remoteOriginY, remoteOriginZ, depth, lateral,
             aperturePadding, buriedCellCulling, lod, blockEntities), targetIdentity);
         ViewPlateKey key = new ViewPlateKey(portal.getId(), destination.destView, eyeFrontSide, quarterTurns, targetIdentity);
-        return cache.current(key, destinationRevision, transformRevision, previous -> {
+        ProjectionWorldChangeTracker tracker = Wormholes.projectionChangeTracker;
+        return cache.current(key, destinationRevision, transformRevision, tracker, previous -> {
             ProjectionWorldView plateView = destination.plateView();
-            ProjectionWorldChangeTracker tracker = Wormholes.projectionChangeTracker;
             long trackerVersion = tracker == null ? Long.MIN_VALUE : tracker.currentVersion();
             ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request = new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(key, portal.getStructure(), plateView, localFrame, remoteFrame,
                 localOriginX, localOriginY, localOriginZ, remoteOriginX, remoteOriginY, remoteOriginZ,
@@ -870,7 +871,7 @@ public final class PortalProjector {
             return;
         }
         long previousIdentity = previous.plateIdentity();
-        if (previousIdentity != target.plateIdentity()) {
+        if (target == null || previousIdentity != target.plateIdentity()) {
             cache.invalidateTarget(portal.getId(), previousIdentity);
         }
     }
