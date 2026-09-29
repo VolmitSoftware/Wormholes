@@ -9,6 +9,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 
+import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.PortalCellAperture;
@@ -17,6 +18,7 @@ import art.arcane.wormholes.util.AxisAlignedBB;
 public final class ProjectorRecursivePortals<W, P extends IPortal> {
     private static final int BUCKET_SHIFT = 4;
     private static final int MAX_INDEXES_PER_PASS = 256;
+    private static final int MAX_RETAINED_INDEXES = 16;
     private static final double CLIP_MARGIN = 1.0E-4D;
     private static final double CLIP_SLOPE_EPSILON = 1.0E-12D;
 
@@ -28,6 +30,7 @@ public final class ProjectorRecursivePortals<W, P extends IPortal> {
     private final Index emptyIndex;
     private final Hit<W, P> maskHit;
     private Index lastIndex;
+    private long portalSignature;
 
     public ProjectorRecursivePortals(PortalAccess<W, P> portalAccess, Supplier<Options> options) {
         this.portalAccess = portalAccess;
@@ -38,12 +41,85 @@ public final class ProjectorRecursivePortals<W, P extends IPortal> {
         this.emptyIndex = new Index();
         this.maskHit = Hit.mask(1.0D, false);
         this.lastIndex = null;
+        this.portalSignature = 0L;
     }
 
     public void clear() {
         candidatesByWorld.clear();
         indexes.clear();
         lastIndex = null;
+    }
+
+    public void revalidate() {
+        long signature = portalSignature();
+        if (signature != portalSignature || indexes.size() > MAX_RETAINED_INDEXES) {
+            clear();
+            portalSignature = signature;
+        }
+    }
+
+    private long portalSignature() {
+        Options current = options.get();
+        long hash = ProjectorPassRevision.mix(0x9E3779B97F4A7C15L, Double.doubleToLongBits(current.aperturePadding()));
+        hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(current.depthBlocks()));
+        List<P> portals = portalAccess.portals();
+        hash = ProjectorPassRevision.mix(hash, portals.size());
+        for (P portal : portals) {
+            hash = mixPortal(hash, portal);
+        }
+        return hash == 0L ? 1L : hash;
+    }
+
+    private long mixPortal(long hash, P portal) {
+        if (portal == null) {
+            return ProjectorPassRevision.mix(hash, 0L);
+        }
+        long mixed = mixIdentity(hash, portal);
+        mixed = ProjectorPassRevision.mix(mixed, portalAccess.eligible(portal) ? 1L : 2L);
+        W world = portalAccess.world(portal);
+        mixed = ProjectorPassRevision.mix(mixed, world == null ? 0L : System.identityHashCode(world));
+        PortalCellAperture structure = portalAccess.structure(portal);
+        if (structure != null) {
+            mixed = ProjectorPassRevision.mix(mixed, structure.getRevision());
+            mixed = mixBox(mixed, structure.getArea());
+        }
+        mixed = mixBox(mixed, portalAccess.view(portal));
+        boolean mirror = portalAccess.mirror(portal);
+        mixed = ProjectorPassRevision.mix(mixed, mirror ? 1L + portalAccess.mirrorQuarterTurns(portal) : 0L);
+        P destination = portalAccess.destination(portal);
+        if (destination == null) {
+            return ProjectorPassRevision.mix(mixed, 0L);
+        }
+        mixed = mixIdentity(mixed, destination);
+        W destinationWorld = portalAccess.world(destination);
+        return ProjectorPassRevision.mix(mixed, destinationWorld == null ? 0L : System.identityHashCode(destinationWorld));
+    }
+
+    private static long mixIdentity(long hash, IPortal portal) {
+        UUID id = portal.getId();
+        long mixed = ProjectorPassRevision.mix(hash, id == null ? 0L : id.getMostSignificantBits());
+        mixed = ProjectorPassRevision.mix(mixed, id == null ? 0L : id.getLeastSignificantBits());
+        GeometryVector origin = portal.getOrigin();
+        if (origin != null) {
+            mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(origin.getX()));
+            mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(origin.getY()));
+            mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(origin.getZ()));
+        }
+        PortalFrame frame = portal.getFrame();
+        return ProjectorPassRevision.mix(mixed, frame == null ? -1L
+            : frame.getNormal().ordinal() | (frame.getRight().ordinal() << 3) | (frame.getUp().ordinal() << 6));
+    }
+
+    private static long mixBox(long hash, AxisAlignedBB box) {
+        if (box == null) {
+            return ProjectorPassRevision.mix(hash, -1L);
+        }
+        long mixed = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(box.getXa()));
+        mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(box.getXb()));
+        mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(box.getYa()));
+        mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(box.getYb()));
+        mixed = ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(box.getZa()));
+        return ProjectorPassRevision.mix(mixed, Double.doubleToLongBits(box.getZb()));
     }
 
     public Index indexFor(W world, double eyeX, double eyeY, double eyeZ, P excludedPortal) {

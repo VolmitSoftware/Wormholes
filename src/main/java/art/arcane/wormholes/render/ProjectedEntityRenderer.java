@@ -157,7 +157,7 @@ public final class ProjectedEntityRenderer {
 
     void prepareRecursiveProjection(EntityProjectionPath.Root<World, ILocalPortal> root, ProjectorRecursivePortals<World, ILocalPortal> portals) {
         recursivePortals = portals;
-        portals.clear();
+        portals.revalidate();
         projectionPath = root == null ? null : new EntityProjectionPath<>(root, portals);
     }
 
