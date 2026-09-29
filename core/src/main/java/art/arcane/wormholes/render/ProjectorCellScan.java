@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render;
 
 
+import java.util.ArrayList;
 import java.util.function.Supplier;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.IPortal;
@@ -41,6 +42,14 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     private final double[] scratchRot;
     private final double[] scratchRemotePoint;
     private final double[] scratchRemoteEye;
+    private final double[] scratchRemoteBounds;
+    private final double[] scratchMaskRowStart;
+    private final double[] scratchMaskRowNext;
+    private final double[] scratchMaskRange;
+    private final ArrayList<ProjectorRecursivePortals<W, P>.Candidate> maskCandidates;
+    private int[] maskRowCandidates;
+    private int[] maskRowLows;
+    private int[] maskRowHighs;
     private final int[] scratchAxisMin;
     private final int[] scratchAxisMax;
     private final double[] scratchAxisOrigin;
@@ -122,6 +131,14 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         this.scratchRot = new double[3];
         this.scratchRemotePoint = new double[3];
         this.scratchRemoteEye = new double[3];
+        this.scratchRemoteBounds = new double[6];
+        this.scratchMaskRowStart = new double[3];
+        this.scratchMaskRowNext = new double[3];
+        this.scratchMaskRange = new double[2];
+        this.maskCandidates = new ArrayList<ProjectorRecursivePortals<W, P>.Candidate>(4);
+        this.maskRowCandidates = new int[4];
+        this.maskRowLows = new int[4];
+        this.maskRowHighs = new int[4];
         this.scratchAxisMin = new int[3];
         this.scratchAxisMax = new int[3];
         this.scratchAxisOrigin = new double[3];
@@ -491,28 +508,26 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         return frame.getNormal().ordinal() | (frame.getRight().ordinal() << 3) | (frame.getUp().ordinal() << 6);
     }
 
-    private boolean recursiveGeometryIntersects(ProjectorRecursivePortals<W, P>.Index index, AxisAlignedBB area) {
-        if (index == null || index.isEmpty()) {
-            return false;
-        }
-        double minX = Double.POSITIVE_INFINITY;
-        double minY = Double.POSITIVE_INFINITY;
-        double minZ = Double.POSITIVE_INFINITY;
-        double maxX = Double.NEGATIVE_INFINITY;
-        double maxY = Double.NEGATIVE_INFINITY;
-        double maxZ = Double.NEGATIVE_INFINITY;
+    private double[] remoteScanBounds(AxisAlignedBB area) {
+        double[] bounds = scratchRemoteBounds;
+        bounds[0] = Double.POSITIVE_INFINITY;
+        bounds[1] = Double.POSITIVE_INFINITY;
+        bounds[2] = Double.POSITIVE_INFINITY;
+        bounds[3] = Double.NEGATIVE_INFINITY;
+        bounds[4] = Double.NEGATIVE_INFINITY;
+        bounds[5] = Double.NEGATIVE_INFINITY;
         for (int corner = 0; corner < 8; corner++) {
             cellTransform.apply((corner & 1) == 0 ? area.getXa() - 1.0D : area.getXb() + 1.0D,
                 (corner & 2) == 0 ? area.getYa() - 1.0D : area.getYb() + 1.0D,
                 (corner & 4) == 0 ? area.getZa() - 1.0D : area.getZb() + 1.0D, scratchRemotePoint);
-            minX = Math.min(minX, scratchRemotePoint[0]);
-            minY = Math.min(minY, scratchRemotePoint[1]);
-            minZ = Math.min(minZ, scratchRemotePoint[2]);
-            maxX = Math.max(maxX, scratchRemotePoint[0]);
-            maxY = Math.max(maxY, scratchRemotePoint[1]);
-            maxZ = Math.max(maxZ, scratchRemotePoint[2]);
+            bounds[0] = Math.min(bounds[0], scratchRemotePoint[0]);
+            bounds[1] = Math.min(bounds[1], scratchRemotePoint[1]);
+            bounds[2] = Math.min(bounds[2], scratchRemotePoint[2]);
+            bounds[3] = Math.max(bounds[3], scratchRemotePoint[0]);
+            bounds[4] = Math.max(bounds[4], scratchRemotePoint[1]);
+            bounds[5] = Math.max(bounds[5], scratchRemotePoint[2]);
         }
-        return index.intersects(minX, minY, minZ, maxX, maxY, maxZ);
+        return bounds;
     }
 
     private boolean localChunkReady(V view, int x, int z) {
@@ -762,6 +777,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         private ViewPlate<B> plate;
         private PortalFrame localFrame;
         private ProjectorRecursivePortals<W, P>.Index rootRecursiveIndex;
+        private ProjectorRecursivePortals.Hit<W, P> maskHit;
         private ProjectorPlaneWindow planeWindow;
         private ProjectorPlaneWindow blackoutWindow;
         private LodPolicy lodPolicy;
@@ -778,6 +794,11 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         private boolean blockEntities;
         private boolean eyeFrontSide;
         private boolean recursiveGeometry;
+        private boolean maskGeometry;
+        private boolean maskRow;
+        private int maskLow;
+        private int maskHigh;
+        private int maskRowCandidateCount;
         private boolean cacheEmptyCells;
         private boolean skipKnownEmptyCells;
         private boolean blackoutEnabled;
@@ -952,11 +973,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             scannedRemoteEyeX = scratchRemoteEye[0];
             scannedRemoteEyeY = scratchRemoteEye[1];
             scannedRemoteEyeZ = scratchRemoteEye[2];
-            W destSampleW = sampler.world(destView);
-            rootRecursiveIndex = destSampleW == null || recursiveDepth < 0
-                ? null
-                : sampler.recursiveIndex(destSampleW, scratchRemoteEye[0], scratchRemoteEye[1], scratchRemoteEye[2], dest);
-            recursiveGeometry = recursiveGeometryIntersects(rootRecursiveIndex, area);
+            prepareRecursiveGeometry(area);
             cacheEmptyCells = !blackout.isEnabled() && !recursiveGeometry;
             if (!cacheEmptyCells) {
                 emptyCells.clear();
@@ -1048,6 +1065,111 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             n = normalStart;
         }
 
+        private void prepareRecursiveGeometry(AxisAlignedBB area) {
+            recursiveGeometry = false;
+            maskGeometry = false;
+            maskRow = false;
+            maskCandidates.clear();
+            W destSampleW = sampler.world(destView);
+            if (destSampleW == null || recursiveDepth < 0) {
+                rootRecursiveIndex = null;
+                maskHit = null;
+                return;
+            }
+            double[] bounds = remoteScanBounds(area);
+            if (!sampler.recursivePortalsReach(destSampleW, dest, bounds)) {
+                rootRecursiveIndex = sampler.emptyRecursiveIndex();
+                maskHit = null;
+                return;
+            }
+            rootRecursiveIndex = sampler.recursiveIndex(destSampleW, scratchRemoteEye[0], scratchRemoteEye[1], scratchRemoteEye[2], dest);
+            maskHit = rootRecursiveIndex.maskHit();
+            ProjectorRecursivePortals.Reach reach = rootRecursiveIndex.reach(bounds[0], bounds[1], bounds[2],
+                bounds[3], bounds[4], bounds[5], recursiveDepth, maskCandidates);
+            recursiveGeometry = reach == ProjectorRecursivePortals.Reach.RECURSIVE;
+            maskGeometry = reach == ProjectorRecursivePortals.Reach.MASK;
+            if (maskGeometry && maskRowCandidates.length < maskCandidates.size()) {
+                maskRowCandidates = new int[maskCandidates.size()];
+                maskRowLows = new int[maskCandidates.size()];
+                maskRowHighs = new int[maskCandidates.size()];
+            }
+        }
+
+        private void prepareMaskRow() {
+            maskRow = false;
+            maskRowCandidateCount = 0;
+            rowSamplePoint(upStart, scratchMaskRowStart);
+            rowSamplePoint(upStart + 1, scratchMaskRowNext);
+            double directionX = scratchMaskRowNext[0] - scratchMaskRowStart[0];
+            double directionY = scratchMaskRowNext[1] - scratchMaskRowStart[1];
+            double directionZ = scratchMaskRowNext[2] - scratchMaskRowStart[2];
+            double baseX = scratchMaskRowStart[0] - (upStart * directionX);
+            double baseY = scratchMaskRowStart[1] - (upStart * directionY);
+            double baseZ = scratchMaskRowStart[2] - (upStart * directionZ);
+            int rowLow = Math.min(upStart, upEnd);
+            int rowHigh = Math.max(upStart, upEnd);
+            maskLow = Integer.MAX_VALUE;
+            maskHigh = Integer.MIN_VALUE;
+            for (int candidateIndex = 0; candidateIndex < maskCandidates.size(); candidateIndex++) {
+                scratchMaskRange[0] = rowLow - 1.0D;
+                scratchMaskRange[1] = rowHigh + 1.0D;
+                if (!maskCandidates.get(candidateIndex).clipLine(baseX, baseY, baseZ, directionX, directionY, directionZ, scratchMaskRange)) {
+                    continue;
+                }
+                int low = Math.max(rowLow, (int) Math.floor(scratchMaskRange[0]) - 1);
+                int high = Math.min(rowHigh, (int) Math.ceil(scratchMaskRange[1]) + 1);
+                if (low > high) {
+                    continue;
+                }
+                maskRowCandidates[maskRowCandidateCount] = candidateIndex;
+                maskRowLows[maskRowCandidateCount] = low;
+                maskRowHighs[maskRowCandidateCount] = high;
+                maskRowCandidateCount++;
+                maskLow = Math.min(maskLow, low);
+                maskHigh = Math.max(maskHigh, high);
+            }
+            maskRow = maskRowCandidateCount > 0;
+        }
+
+        private void rowSamplePoint(int upCoordinate, double[] out) {
+            double normalCenter = sampleNormalCenter;
+            double rightCenter = r + 0.5D;
+            double upCenter = upCoordinate + 0.5D;
+            cellTransform.apply(normalAxis == 0 ? normalCenter : rightAxis == 0 ? rightCenter : upCenter,
+                normalAxis == 1 ? normalCenter : rightAxis == 1 ? rightCenter : upCenter,
+                normalAxis == 2 ? normalCenter : rightAxis == 2 ? rightCenter : upCenter, out);
+        }
+
+        private int maskSkipLimit(int coordinate, int candidate) {
+            if (coordinate >= maskLow && coordinate <= maskHigh) {
+                return coordinate;
+            }
+            if (upSign > 0) {
+                return coordinate < maskLow && candidate > maskLow ? maskLow : candidate;
+            }
+            return coordinate > maskHigh && candidate < maskHigh ? maskHigh : candidate;
+        }
+
+        private boolean masksRemotePoint(int coordinate) {
+            for (int index = 0; index < maskRowCandidateCount; index++) {
+                if (coordinate >= maskRowLows[index] && coordinate <= maskRowHighs[index]
+                    && maskCandidates.get(maskRowCandidates[index]).covers(scratchRemotePoint[0], scratchRemotePoint[1], scratchRemotePoint[2])) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void applyRemotePoint(double cx, double cy, double cz) {
+            if (mergedSlab) {
+                cellTransform.apply(normalAxis == 0 ? sampleNormalCenter : cx,
+                    normalAxis == 1 ? sampleNormalCenter : cy,
+                    normalAxis == 2 ? sampleNormalCenter : cz, scratchRemotePoint);
+            } else {
+                cellTransform.apply(cx, cy, cz, scratchRemotePoint);
+            }
+        }
+
         private boolean advanceGeometry(long deadlineNanos) {
             for (; scanContinues(n, normalEnd, normalStep); n += normalStep, slabReady = false, rowReady = false) {
                 if (!slabReady) {
@@ -1104,6 +1226,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                         if (cacheEmptyCells) {
                             emptyCells.beginRow(upAxis, cellCoords);
                         }
+                        if (maskGeometry) {
+                            prepareMaskRow();
+                        }
                         u = upStart;
                         rowReady = true;
                     }
@@ -1116,6 +1241,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                         }
                         if (skipKnownEmptyCells) {
                             int candidate = emptyCells.nextCandidate(u, upEnd, upSign);
+                            if (maskRow) {
+                                candidate = maskSkipLimit(u, candidate);
+                            }
                             emptyCellSkips += Math.min(Math.abs(candidate - u), Math.abs(upEnd - u) + 1);
                             u = candidate;
                             if (!scanContinues(u, upEnd, upSign)) {
@@ -1141,6 +1269,12 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                             continue;
                         }
 
+                        boolean masked = false;
+                        if (maskRow && u >= maskLow && u <= maskHigh) {
+                            applyRemotePoint(cx, cy, cz);
+                            masked = masksRemotePoint(u);
+                        }
+
                         long key = ProjectionCellKey.pack(x, y, z);
                         ProjectedBlockClaim<B, V> previousCell = projected.get(key);
                         boolean blackoutFarCell = blackoutEnabled
@@ -1163,7 +1297,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                             blackoutBoundaryMask |= ProjectorBlackoutBoundary.faceMask(normalAxis, blackoutFarSign);
                         }
                         boolean blackoutCell = blackoutBoundaryMask != 0;
-                        if (reuseMappedClaims && previousCell != null && !previousCell.isBlackout()
+                        if (reuseMappedClaims && !masked && previousCell != null && !previousCell.isBlackout()
                             && previousCell.getLightView() == destView
                             && previousCell.isFullBright() == blackoutEnabled) {
                             long remoteKey = previousCell.getLightRemoteKey();
@@ -1183,13 +1317,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                             }
                             continue;
                         }
-                        if (mergedSlab) {
-                            cellTransform.apply(normalAxis == 0 ? sampleNormalCenter : cx,
-                                normalAxis == 1 ? sampleNormalCenter : cy,
-                                normalAxis == 2 ? sampleNormalCenter : cz, scratchRemotePoint);
-                        } else {
-                            cellTransform.apply(cx, cy, cz, scratchRemotePoint);
-                        }
+                        applyRemotePoint(cx, cy, cz);
 
                         int rx = (int) Math.floor(scratchRemotePoint[0]);
                         int ry = (int) Math.floor(scratchRemotePoint[1]);
@@ -1223,7 +1351,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                             && previousCell.isFullBright() == blackoutEnabled;
                         if (previousLightingMatches && previousRemoteKey == remoteKey
                             && previousCell.getLightView() == destView) {
-                            if (!forceStableCellResample && !forceFullSend
+                            if (!forceStableCellResample && !forceFullSend && !masked
                                 && (!refreshObserverVisibility || !recursiveGeometry)) {
                                 nextProjected.put(key, previousCell);
                                 retainedClaimCount++;
@@ -1239,10 +1367,10 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                             }
                         }
 
-                        ProjectorRecursivePortals.Hit<W, P> recursiveHit = !recursiveGeometry
-                            ? null
-                            : rootRecursiveIndex.find(scratchRemotePoint[0], scratchRemotePoint[1], scratchRemotePoint[2],
-                                recursiveDepth);
+                        ProjectorRecursivePortals.Hit<W, P> recursiveHit = recursiveGeometry
+                            ? rootRecursiveIndex.find(scratchRemotePoint[0], scratchRemotePoint[1], scratchRemotePoint[2],
+                                recursiveDepth)
+                            : masked ? maskHit : null;
                         PlateCell<B> plateCell = plate == null || recursiveHit != null ? null : plate.cell(key);
                         ProjectorSample<B, V> sample;
                         if (plateCell != null) {
@@ -1296,9 +1424,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                         }
                         boolean maskAir = sample.kind == ProjectorSample.Kind.MASK_AIR;
                         boolean remoteAir = sample.kind == ProjectorSample.Kind.REMOTE_AIR;
-                        boolean localAir = remoteAir && memo.isLocalAir(localView, x, y, z);
+                        boolean localAir = (maskAir || remoteAir) && memo.isLocalAir(localView, x, y, z);
                         if ((maskAir || remoteAir) && !shouldProjectAirSample(sample.kind, localAir)) {
-                            if (cacheEmptyCells) {
+                            if (cacheEmptyCells && !maskAir) {
                                 emptyCells.markEmpty(u);
                             }
                             continue;
@@ -1429,7 +1557,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     }
 
     public static boolean shouldProjectAirSample(ProjectorSample.Kind kind, boolean localAir) {
-        return kind == ProjectorSample.Kind.MASK_AIR || (kind == ProjectorSample.Kind.REMOTE_AIR && !localAir);
+        return (kind == ProjectorSample.Kind.MASK_AIR || kind == ProjectorSample.Kind.REMOTE_AIR) && !localAir;
     }
 
     public record ScanSettings(int recursiveDepth, double revealMarginDegrees, double aperturePadding, boolean debug) {

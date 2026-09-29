@@ -241,6 +241,37 @@ public final class ProjectorPlaneWindow {
         return false;
     }
 
+    public boolean clipRay(double eyeX,
+                           double eyeY,
+                           double eyeZ,
+                           double baseX,
+                           double baseY,
+                           double baseZ,
+                           double directionX,
+                           double directionY,
+                           double directionZ,
+                           double signedBase,
+                           double signedSlope,
+                           double margin,
+                           double[] range) {
+        double eyeRelX = eyeX - originX;
+        double eyeRelY = eyeY - originY;
+        double eyeRelZ = eyeZ - originZ;
+        double baseRelX = baseX - originX;
+        double baseRelY = baseY - originY;
+        double baseRelZ = baseZ - originZ;
+        double reachBase = eyeSignedDistance - signedBase;
+        double reachSlope = -signedSlope;
+        return clipWindowAxis((eyeRelX * rightX) + (eyeRelY * rightY) + (eyeRelZ * rightZ),
+                (baseRelX * rightX) + (baseRelY * rightY) + (baseRelZ * rightZ),
+                (directionX * rightX) + (directionY * rightY) + (directionZ * rightZ),
+                rightMin - margin, rightMax + margin, reachBase, reachSlope, range)
+            && clipWindowAxis((eyeRelX * upX) + (eyeRelY * upY) + (eyeRelZ * upZ),
+                (baseRelX * upX) + (baseRelY * upY) + (baseRelZ * upZ),
+                (directionX * upX) + (directionY * upY) + (directionZ * upZ),
+                upMin - margin, upMax + margin, reachBase, reachSlope, range);
+    }
+
     public boolean intersectsBlockSilhouette(double eyeX,
                                              double eyeY,
                                              double eyeZ,
@@ -369,6 +400,23 @@ public final class ProjectorPlaneWindow {
             }
         }
         return false;
+    }
+
+    private boolean clipWindowAxis(double eyeCoordinate,
+                                   double pointBase,
+                                   double pointSlope,
+                                   double low,
+                                   double high,
+                                   double reachBase,
+                                   double reachSlope,
+                                   double[] range) {
+        double lowOffset = low - eyeCoordinate;
+        double highOffset = high - eyeCoordinate;
+        double pointOffset = pointBase - eyeCoordinate;
+        return ProjectorRecursivePortals.clipLinear((eyeSignedDistance * pointOffset) - (lowOffset * reachBase),
+                (eyeSignedDistance * pointSlope) - (lowOffset * reachSlope), range)
+            && ProjectorRecursivePortals.clipLinear((highOffset * reachBase) - (eyeSignedDistance * pointOffset),
+                (highOffset * reachSlope) - (eyeSignedDistance * pointSlope), range);
     }
 
     private static int lateralLowOffset(double coordinate, double tolerance) {

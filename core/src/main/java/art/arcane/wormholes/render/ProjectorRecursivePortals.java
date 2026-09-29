@@ -17,12 +17,16 @@ import art.arcane.wormholes.util.AxisAlignedBB;
 public final class ProjectorRecursivePortals<W, P extends IPortal> {
     private static final int BUCKET_SHIFT = 4;
     private static final int MAX_INDEXES_PER_PASS = 256;
+    private static final double CLIP_MARGIN = 1.0E-4D;
+    private static final double CLIP_SLOPE_EPSILON = 1.0E-12D;
 
     private final PortalAccess<W, P> portalAccess;
     private final Supplier<Options> options;
     private final HashMap<W, List<P>> candidatesByWorld;
     private final ArrayList<Index> indexes;
     private final double[] scratchRot;
+    private final Index emptyIndex;
+    private final Hit<W, P> maskHit;
     private Index lastIndex;
 
     public ProjectorRecursivePortals(PortalAccess<W, P> portalAccess, Supplier<Options> options) {
@@ -31,6 +35,8 @@ public final class ProjectorRecursivePortals<W, P extends IPortal> {
         this.candidatesByWorld = new HashMap<W, List<P>>(4);
         this.indexes = new ArrayList<Index>(4);
         this.scratchRot = new double[3];
+        this.emptyIndex = new Index();
+        this.maskHit = Hit.mask(1.0D, false);
         this.lastIndex = null;
     }
 
@@ -58,6 +64,25 @@ public final class ProjectorRecursivePortals<W, P extends IPortal> {
         indexes.add(created);
         lastIndex = created;
         return created;
+    }
+
+    public Index emptyIndex() {
+        return emptyIndex;
+    }
+
+    public boolean reaches(W world, P excludedPortal, double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        if (world == null) {
+            return false;
+        }
+        for (P candidate : candidates(world)) {
+            if (isExcluded(candidate, excludedPortal)) {
+                continue;
+            }
+            if (overlaps(portalAccess.view(candidate), minX, minY, minZ, maxX, maxY, maxZ)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<P> candidates(W world) {
@@ -98,6 +123,29 @@ public final class ProjectorRecursivePortals<W, P extends IPortal> {
             && candidate.getId().equals(excludedPortal.getId());
     }
 
+    private static boolean overlaps(AxisAlignedBB view, double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        return view != null
+            && view.getXb() >= minX && view.getXa() <= maxX
+            && view.getYb() >= minY && view.getYa() <= maxY
+            && view.getZb() >= minZ && view.getZa() <= maxZ;
+    }
+
+    static boolean clipLinear(double constant, double slope, double[] range) {
+        if (slope > CLIP_SLOPE_EPSILON) {
+            range[0] = Math.max(range[0], -constant / slope);
+        } else if (slope < -CLIP_SLOPE_EPSILON) {
+            range[1] = Math.min(range[1], -constant / slope);
+        } else if (constant < -CLIP_MARGIN) {
+            return false;
+        }
+        return range[0] <= range[1];
+    }
+
+    private static boolean clipAxis(double base, double direction, double low, double high, double[] range) {
+        return clipLinear(base - low + CLIP_MARGIN, direction, range)
+            && clipLinear(high + CLIP_MARGIN - base, -direction, range);
+    }
+
     private static double rayPlaneT(double eyeSignedDistance, double pointSignedDistance) {
         double denominator = pointSignedDistance - eyeSignedDistance;
         if (Math.abs(denominator) < 1.0E-7D) {
@@ -113,14 +161,18 @@ public final class ProjectorRecursivePortals<W, P extends IPortal> {
         private final double eyeX;
         private final double eyeY;
         private final double eyeZ;
-        private final Long2ObjectOpenHashMap<ArrayList<Candidate>> buckets;
-        private final ArrayList<Candidate> paths = new ArrayList<Candidate>();
-        private int minimumX = Integer.MAX_VALUE;
-        private int minimumY = Integer.MAX_VALUE;
-        private int minimumZ = Integer.MAX_VALUE;
-        private int maximumX = Integer.MIN_VALUE;
-        private int maximumY = Integer.MIN_VALUE;
-        private int maximumZ = Integer.MIN_VALUE;
+        private final ArrayList<Candidate> paths;
+        private Long2ObjectOpenHashMap<ArrayList<Candidate>> buckets;
+
+        private Index() {
+            this.world = null;
+            this.excludedPortalId = null;
+            this.eyeX = Double.NaN;
+            this.eyeY = Double.NaN;
+            this.eyeZ = Double.NaN;
+            this.paths = new ArrayList<Candidate>(0);
+            this.buckets = null;
+        }
 
         private Index(W world, double eyeX, double eyeY, double eyeZ, P excludedPortal) {
             this.world = world;
@@ -128,14 +180,14 @@ public final class ProjectorRecursivePortals<W, P extends IPortal> {
             this.eyeX = eyeX;
             this.eyeY = eyeY;
             this.eyeZ = eyeZ;
-            this.buckets = new Long2ObjectOpenHashMap<ArrayList<Candidate>>();
+            this.paths = new ArrayList<Candidate>();
+            this.buckets = null;
             for (P candidate : candidates(world)) {
                 if (isExcluded(candidate, excludedPortal)) {
                     continue;
                 }
                 Candidate indexed = new Candidate(candidate, eyeX, eyeY, eyeZ);
                 if (indexed.valid) {
-                    index(indexed);
                     paths.add(indexed);
                 }
             }
@@ -159,13 +211,27 @@ public final class ProjectorRecursivePortals<W, P extends IPortal> {
         }
 
         public boolean isEmpty() {
-            return buckets.isEmpty();
+            return paths.isEmpty();
         }
 
-        public boolean intersects(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
-            return !isEmpty() && bucket(maxX) >= minimumX && bucket(minX) <= maximumX
-                && bucket(maxY) >= minimumY && bucket(minY) <= maximumY
-                && bucket(maxZ) >= minimumZ && bucket(minZ) <= maximumZ;
+        public Hit<W, P> maskHit() {
+            return maskHit;
+        }
+
+        public Reach reach(double minX, double minY, double minZ, double maxX, double maxY, double maxZ,
+                           int remainingDepth, List<Candidate> maskCandidates) {
+            maskCandidates.clear();
+            for (Candidate candidate : paths) {
+                if (!overlaps(candidate.view, minX, minY, minZ, maxX, maxY, maxZ)) {
+                    continue;
+                }
+                if (candidate.traversable && remainingDepth > 0) {
+                    maskCandidates.clear();
+                    return Reach.RECURSIVE;
+                }
+                maskCandidates.add(candidate);
+            }
+            return maskCandidates.isEmpty() ? Reach.NONE : Reach.MASK;
         }
 
         public Hit<W, P> find(double pointX, double pointY, double pointZ, int remainingDepth) {
@@ -173,10 +239,10 @@ public final class ProjectorRecursivePortals<W, P extends IPortal> {
         }
 
         public Hit<W, P> find(double pointX, double pointY, double pointZ, int remainingDepth, RecursionPath visited) {
-            int bucketX = bucket(pointX);
-            int bucketY = bucket(pointY);
-            int bucketZ = bucket(pointZ);
-            ArrayList<Candidate> bucketCandidates = buckets.get(ProjectionCellKey.pack(bucketX, bucketY, bucketZ));
+            if (paths.isEmpty()) {
+                return null;
+            }
+            ArrayList<Candidate> bucketCandidates = buckets().get(ProjectionCellKey.pack(bucket(pointX), bucket(pointY), bucket(pointZ)));
             if (bucketCandidates == null) {
                 return null;
             }
@@ -193,27 +259,34 @@ public final class ProjectorRecursivePortals<W, P extends IPortal> {
             return best;
         }
 
-        private void index(Candidate candidate) {
+        private Long2ObjectOpenHashMap<ArrayList<Candidate>> buckets() {
+            Long2ObjectOpenHashMap<ArrayList<Candidate>> built = buckets;
+            if (built != null) {
+                return built;
+            }
+            built = new Long2ObjectOpenHashMap<ArrayList<Candidate>>();
+            for (Candidate candidate : paths) {
+                index(built, candidate);
+            }
+            buckets = built;
+            return built;
+        }
+
+        private void index(Long2ObjectOpenHashMap<ArrayList<Candidate>> target, Candidate candidate) {
             int minX = bucket(candidate.view.getXa());
             int maxX = bucket(candidate.view.getXb());
             int minY = bucket(candidate.view.getYa());
             int maxY = bucket(candidate.view.getYb());
             int minZ = bucket(candidate.view.getZa());
             int maxZ = bucket(candidate.view.getZb());
-            minimumX = Math.min(minimumX, minX);
-            minimumY = Math.min(minimumY, minY);
-            minimumZ = Math.min(minimumZ, minZ);
-            maximumX = Math.max(maximumX, maxX);
-            maximumY = Math.max(maximumY, maxY);
-            maximumZ = Math.max(maximumZ, maxZ);
             for (int x = minX; x <= maxX; x++) {
                 for (int y = minY; y <= maxY; y++) {
                     for (int z = minZ; z <= maxZ; z++) {
                         long key = ProjectionCellKey.pack(x, y, z);
-                        ArrayList<Candidate> bucketCandidates = buckets.get(key);
+                        ArrayList<Candidate> bucketCandidates = target.get(key);
                         if (bucketCandidates == null) {
                             bucketCandidates = new ArrayList<Candidate>(2);
-                            buckets.put(key, bucketCandidates);
+                            target.put(key, bucketCandidates);
                         }
                         bucketCandidates.add(candidate);
                     }
@@ -498,28 +571,55 @@ public final class ProjectorRecursivePortals<W, P extends IPortal> {
             out[2] = x * transformXZ + y * transformYZ + z * transformZZ;
         }
 
-        private Hit<W, P> hit(double pointX, double pointY, double pointZ, int remainingDepth, RecursionPath visited) {
-            if (!valid || !view.containsPrimitive(pointX, pointY, pointZ)) {
-                return null;
-            }
+        public boolean covers(double pointX, double pointY, double pointZ) {
+            return rayT(pointX, pointY, pointZ) > 0.0D;
+        }
 
+        public boolean clipLine(double baseX, double baseY, double baseZ,
+                                double directionX, double directionY, double directionZ, double[] range) {
+            if (!valid
+                || !clipAxis(baseX, directionX, view.getXa(), view.getXb(), range)
+                || !clipAxis(baseY, directionY, view.getYa(), view.getYb(), range)
+                || !clipAxis(baseZ, directionZ, view.getZa(), view.getZb(), range)) {
+                return false;
+            }
+            double signedBase = ((baseX - originX) * projectionNormalX) + ((baseY - originY) * projectionNormalY)
+                + ((baseZ - originZ) * projectionNormalZ);
+            double signedSlope = (directionX * projectionNormalX) + (directionY * projectionNormalY) + (directionZ * projectionNormalZ);
+            return clipLinear(signedBase + maxDepth + CLIP_MARGIN, signedSlope, range)
+                && clipLinear(CLIP_MARGIN - clearance - signedBase, -signedSlope, range)
+                && planeWindow.clipRay(eyeX, eyeY, eyeZ, baseX, baseY, baseZ, directionX, directionY, directionZ,
+                    signedBase, signedSlope, CLIP_MARGIN, range);
+        }
+
+        private double rayT(double pointX, double pointY, double pointZ) {
+            if (!valid || !view.containsPrimitive(pointX, pointY, pointZ)) {
+                return -1.0D;
+            }
             double pointRelX = pointX - originX;
             double pointRelY = pointY - originY;
             double pointRelZ = pointZ - originZ;
             double pointDot = (pointRelX * normalX) + (pointRelY * normalY) + (pointRelZ * normalZ);
             if (!ProjectorFrameTransform.projectsBehindPortalPlane(pointDot, eyeFrontSide, clearance)) {
-                return null;
+                return -1.0D;
             }
             if (Math.abs(pointDot) > maxDepth) {
-                return null;
+                return -1.0D;
             }
-
             double pointSignedDistance = (pointRelX * projectionNormalX) + (pointRelY * projectionNormalY) + (pointRelZ * projectionNormalZ);
             double rayT = rayPlaneT(eyeSignedDistance, pointSignedDistance);
             if (rayT <= 0.0D) {
-                return null;
+                return -1.0D;
             }
             if (!planeWindow.containsRayIntersection(eyeX, eyeY, eyeZ, pointX, pointY, pointZ, pointSignedDistance)) {
+                return -1.0D;
+            }
+            return rayT;
+        }
+
+        private Hit<W, P> hit(double pointX, double pointY, double pointZ, int remainingDepth, RecursionPath visited) {
+            double rayT = rayT(pointX, pointY, pointZ);
+            if (rayT <= 0.0D) {
                 return null;
             }
             if (visited != null && visited.contains(portalId)) {
@@ -529,6 +629,9 @@ public final class ProjectorRecursivePortals<W, P extends IPortal> {
                 return Hit.mask(rayT, false);
             }
 
+            double pointRelX = pointX - originX;
+            double pointRelY = pointY - originY;
+            double pointRelZ = pointZ - originZ;
             double nextPointX = remoteOriginX + (pointRelX * transformXX) + (pointRelY * transformXY) + (pointRelZ * transformXZ);
             double nextPointY = remoteOriginY + (pointRelX * transformYX) + (pointRelY * transformYY) + (pointRelZ * transformYZ);
             double nextPointZ = remoteOriginZ + (pointRelX * transformZX) + (pointRelY * transformZY) + (pointRelZ * transformZZ);
@@ -646,6 +749,12 @@ public final class ProjectorRecursivePortals<W, P extends IPortal> {
         }
     }
     public record Options(double aperturePadding, double depthBlocks) {
+    }
+
+    public enum Reach {
+        NONE,
+        MASK,
+        RECURSIVE
     }
 
     public interface PortalAccess<W, P extends IPortal> {

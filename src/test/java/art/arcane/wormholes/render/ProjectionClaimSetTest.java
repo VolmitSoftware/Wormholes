@@ -212,8 +212,8 @@ public final class ProjectionClaimSetTest {
     }
 
     @Test
-    public void maskAirAlwaysProjectsWhileRemoteAirSkipsLocalAir() {
-        assertTrue(ProjectorCellScan.shouldProjectAirSample(ProjectorSample.Kind.MASK_AIR, true));
+    public void maskAndRemoteAirSkipCellsThatAreAlreadyLocalAir() {
+        assertFalse(ProjectorCellScan.shouldProjectAirSample(ProjectorSample.Kind.MASK_AIR, true));
         assertTrue(ProjectorCellScan.shouldProjectAirSample(ProjectorSample.Kind.MASK_AIR, false));
         assertFalse(ProjectorCellScan.shouldProjectAirSample(ProjectorSample.Kind.REMOTE_AIR, true));
         assertTrue(ProjectorCellScan.shouldProjectAirSample(ProjectorSample.Kind.REMOTE_AIR, false));
