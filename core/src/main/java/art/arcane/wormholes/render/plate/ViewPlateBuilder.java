@@ -7,7 +7,8 @@ import art.arcane.wormholes.render.DirectionMapping;
 import art.arcane.wormholes.render.view.ProjectionContentView;
 import java.util.UUID;
 
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
 
@@ -15,7 +16,6 @@ import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.ProjectorFrameTransform;
 import art.arcane.wormholes.render.ProjectorSample;
-import art.arcane.wormholes.render.ProjectorSampleMemo;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 import art.arcane.wormholes.render.lod.LodPolicy;
 import art.arcane.wormholes.util.AxisAlignedBB;
@@ -23,12 +23,13 @@ import art.arcane.wormholes.util.Direction;
 
 /**
  * Samples the portal-scoped volume behind one face of a portal through the destination view and
- * produces an immutable {@link ViewPlate}. The build is resumable so the Paper path can spread it over
- * several region ticks; the classification of every cell matches {@code ProjectorSampler.resolve}
- * without recursion, so the per-observer scan can substitute plate cells for sampler calls.
+ * produces an immutable {@link ViewPlate}. The build is resumable so it can be spread over several
+ * steps; the classification of every cell matches {@code ProjectorSampler.resolve} without recursion,
+ * so the per-observer scan can substitute plate cells for sampler calls.
  */
 public final class ViewPlateBuilder {
     private static final int TRANSFORM_CACHE_LIMIT = 4096;
+    private static final int BURIED_PROBE_MARGIN = 2;
 
     private ViewPlateBuilder() {
     }
@@ -67,41 +68,39 @@ public final class ViewPlateBuilder {
             Objects.requireNonNull(air, "air");
             lod = lod == null ? LodPolicy.NONE : lod;
         }
+
+        public Request<B, M, V> withDestView(V view) {
+            return new Request<B, M, V>(key, aperture, view, localFrame, remoteFrame,
+                localOriginX, localOriginY, localOriginZ, remoteOriginX, remoteOriginY, remoteOriginZ,
+                mirrorMode, mirrorRotationQuarterTurns, depthBlocks, lateralBlocks, aperturePadding, buriedCellCulling,
+                air, lod, blockEntities, destinationRevision, transformRevision, trackerVersion, blocks);
+        }
     }
 
-    /** Where a build may run: off-thread for snapshot and remote views, otherwise on the destination region thread. */
-    public record Execution<W>(boolean offThread, W world, int chunkX, int chunkZ) {
-        public static <W> Execution<W> async() {
-            return new Execution<W>(true, null, 0, 0);
-        }
-
-        public static <W> Execution<W> region(W world, int chunkX, int chunkZ) {
-            return new Execution<W>(false, Objects.requireNonNull(world, "world"), chunkX, chunkZ);
+    public record Footprint(int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ, long predictedBytes) {
+        public int chunkCount() {
+            if (maxChunkX < minChunkX || maxChunkZ < minChunkZ) {
+                return 0;
+            }
+            return ((maxChunkX - minChunkX) + 1) * ((maxChunkZ - minChunkZ) + 1);
         }
     }
 
     public abstract static class Job<B, W> {
         private final ViewPlateKey key;
-        private final Execution<W> execution;
 
         protected Job(ViewPlateKey key) {
-            this(key, Execution.async());
-        }
-
-        protected Job(ViewPlateKey key, Execution<W> execution) {
             this.key = Objects.requireNonNull(key, "key");
-            this.execution = Objects.requireNonNull(execution, "execution");
         }
 
         public ViewPlateKey key() {
             return key;
         }
 
-        public Execution<W> execution() {
-            return execution;
+        public long predictedBytes() {
+            return 0L;
         }
 
-        /** Advances the build by up to {@code cellBudget} cells; returns true once the plate is complete. */
         public abstract boolean step(int cellBudget);
 
         public abstract ViewPlate<B> result();
@@ -115,29 +114,44 @@ public final class ViewPlateBuilder {
     }
 
     public static <B, M, W, V extends ProjectionContentView<B, M>> Job<B, W> job(Request<B, M, V> request) {
-        return new BuildJob<B, M, W, V>(request, Execution.async());
+        return new BuildJob<B, M, W, V>(request, null, null);
     }
 
-    public static <B, M, W, V extends ProjectionContentView<B, M>> Job<B, W> job(Request<B, M, V> request, Execution<W> execution) {
-        return new BuildJob<B, M, W, V>(request, execution);
+    public static <B, M, W, V extends ProjectionContentView<B, M>> Job<B, W> patch(Request<B, M, V> request, ViewPlate<B> previous,
+                                                                                LongSet dirtyChunks) {
+        return new BuildJob<B, M, W, V>(request, Objects.requireNonNull(previous, "previous"),
+            new LongOpenHashSet(Objects.requireNonNull(dirtyChunks, "dirtyChunks")));
     }
 
-    private static final class BuildJob<B, M, W, V extends ProjectionContentView<B, M>> extends Job<B, W> {
-        private final Request<B, M, V> request;
-        private final V view;
+    public static <B, M, V extends ProjectionContentView<B, M>> Footprint footprint(Request<B, M, V> request) {
+        Geometry geometry = new Geometry(request);
+        return geometry.footprint(request.buriedCellCulling() ? BURIED_PROBE_MARGIN : 0);
+    }
+
+    public static <B, M, V extends ProjectionContentView<B, M>> Footprint patchFootprint(Request<B, M, V> request, LongSet dirtyChunks) {
+        Footprint full = footprint(request);
+        int minChunkX = Integer.MAX_VALUE;
+        int minChunkZ = Integer.MAX_VALUE;
+        int maxChunkX = Integer.MIN_VALUE;
+        int maxChunkZ = Integer.MIN_VALUE;
+        for (long chunk : dirtyChunks) {
+            int chunkX = (int) (chunk >> 32);
+            int chunkZ = (int) chunk;
+            minChunkX = Math.min(minChunkX, chunkX - 1);
+            minChunkZ = Math.min(minChunkZ, chunkZ - 1);
+            maxChunkX = Math.max(maxChunkX, chunkX + 1);
+            maxChunkZ = Math.max(maxChunkZ, chunkZ + 1);
+        }
+        return new Footprint(Math.max(minChunkX, full.minChunkX()), Math.max(minChunkZ, full.minChunkZ()),
+            Math.min(maxChunkX, full.maxChunkX()), Math.min(maxChunkZ, full.maxChunkZ()), full.predictedBytes());
+    }
+
+    private static final class Geometry {
         private final ProjectorFrameTransform transform;
-        private final ProjectorSampleMemo<B, M, V> memo;
-        private final Object2ObjectOpenHashMap<B, B> transformed;
-        private final Long2ObjectOpenHashMap<PlateCell<B>> cells;
-        private final Long2ObjectOpenHashMap<PlateCell<B>> previousSlab;
-        private final Long2ObjectOpenHashMap<PlateCell<B>> currentSlab;
-        private final double[] scratchRot;
-        private final double[] scratchRemote;
-        private final int[] axisMin;
-        private final int[] axisMax;
-        private final int[] cellCoords;
         private final PortalFrame projectionLocalFrame;
         private final PortalFrame projectionRemoteFrame;
+        private final int[] axisMin;
+        private final int[] axisMax;
         private final int normalAxis;
         private final int rightAxis;
         private final int upAxis;
@@ -148,41 +162,19 @@ public final class ViewPlateBuilder {
         private final double maxDepth;
         private final double facingNormal;
         private final double originNormal;
-        private int n;
-        private int r;
-        private int u;
-        private int slabIndex;
-        private boolean started;
-        private boolean done;
-        private int minChunkX = Integer.MAX_VALUE;
-        private int minChunkZ = Integer.MAX_VALUE;
-        private int maxChunkX = Integer.MIN_VALUE;
-        private int maxChunkZ = Integer.MIN_VALUE;
-        private ViewPlate<B> result;
+        private final PlateBox box;
 
-        private BuildJob(Request<B, M, V> request, Execution<W> execution) {
-            super(request.key(), execution);
-            this.request = request;
-            this.view = request.destView();
+        private Geometry(Request<?, ?, ?> request) {
             this.transform = new ProjectorFrameTransform();
-            this.memo = new ProjectorSampleMemo<B, M, V>(request.blocks(), () -> null);
-            this.transformed = new Object2ObjectOpenHashMap<B, B>(64);
-            this.cells = new Long2ObjectOpenHashMap<PlateCell<B>>(1024);
-            this.previousSlab = new Long2ObjectOpenHashMap<PlateCell<B>>(256);
-            this.currentSlab = new Long2ObjectOpenHashMap<PlateCell<B>>(256);
-            this.scratchRot = new double[3];
-            this.scratchRemote = new double[3];
             this.axisMin = new int[3];
             this.axisMax = new int[3];
-            this.cellCoords = new int[3];
-
             boolean frontSide = request.key().frontSide();
             PortalFrame localFrame = request.localFrame();
             this.projectionLocalFrame = localFrame.view(frontSide);
             this.projectionRemoteFrame = request.remoteFrame().view(frontSide);
             if (request.mirrorMode()) {
                 transform.configureMirror(localFrame, request.mirrorRotationQuarterTurns(),
-                    request.localOriginX(), request.localOriginY(), request.localOriginZ(), scratchRot);
+                    request.localOriginX(), request.localOriginY(), request.localOriginZ(), new double[3]);
             } else {
                 transform.configure(projectionLocalFrame, projectionRemoteFrame,
                     request.localOriginX(), request.localOriginY(), request.localOriginZ(),
@@ -210,6 +202,43 @@ public final class ViewPlateBuilder {
             this.normalStep = towardPositive ? 1 : -1;
             this.normalStart = towardPositive ? axisMin[normalAxis] : axisMax[normalAxis];
             this.normalEnd = towardPositive ? axisMax[normalAxis] : axisMin[normalAxis];
+            this.box = PlateBox.spanning(axisMin[0], axisMin[1], axisMin[2], axisMax[0], axisMax[1], axisMax[2]);
+        }
+
+        private boolean empty() {
+            return box.cells() == 0L;
+        }
+
+        private Footprint footprint(int margin) {
+            PlateBox remote = remoteBox(margin);
+            if (remote.cells() == 0L) {
+                return new Footprint(0, 0, -1, -1, ViewPlate.predictBytes(box));
+            }
+            return new Footprint(remote.minX() >> 4, remote.minZ() >> 4,
+                (remote.minX() + remote.sizeX() - 1) >> 4, (remote.minZ() + remote.sizeZ() - 1) >> 4,
+                ViewPlate.predictBytes(box));
+        }
+
+        private PlateBox remoteBox(int margin) {
+            if (empty()) {
+                return PlateBox.EMPTY;
+            }
+            double[] remote = new double[3];
+            double[] min = {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY};
+            double[] max = {Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY};
+            for (int corner = 0; corner < 8; corner++) {
+                double x = ((corner & 1) == 0 ? axisMin[0] : axisMax[0]) + 0.5D;
+                double y = ((corner & 2) == 0 ? axisMin[1] : axisMax[1]) + 0.5D;
+                double z = ((corner & 4) == 0 ? axisMin[2] : axisMax[2]) + 0.5D;
+                transform.apply(x, y, z, remote);
+                for (int axis = 0; axis < 3; axis++) {
+                    min[axis] = Math.min(min[axis], remote[axis]);
+                    max[axis] = Math.max(max[axis], remote[axis]);
+                }
+            }
+            return PlateBox.spanning(
+                ((int) Math.floor(min[0])) - margin, ((int) Math.floor(min[1])) - margin, ((int) Math.floor(min[2])) - margin,
+                ((int) Math.floor(max[0])) + margin, ((int) Math.floor(max[1])) + margin, ((int) Math.floor(max[2])) + margin);
         }
 
         private void lateralBounds(AxisAlignedBB area, int axis, double pad) {
@@ -219,6 +248,67 @@ public final class ViewPlateBuilder {
             axisMax[axis] = ProjectorFrameTransform.maxBlockForCenter(areaMax + pad);
         }
 
+        private static int axisOf(Direction direction) {
+            return direction.x() != 0 ? 0 : direction.y() != 0 ? 1 : 2;
+        }
+
+        private static double component(Direction direction, int axis) {
+            return axis == 0 ? direction.x() : axis == 1 ? direction.y() : direction.z();
+        }
+
+        private static double component(int axis, double x, double y, double z) {
+            return axis == 0 ? x : axis == 1 ? y : z;
+        }
+    }
+
+    private static final class BuildJob<B, M, W, V extends ProjectionContentView<B, M>> extends Job<B, W> {
+        private final Request<B, M, V> request;
+        private final V view;
+        private final Geometry geometry;
+        private final PlateOcclusionField<B, M> occlusion;
+        private final Object2ObjectOpenHashMap<B, B> transformed;
+        private final PlateGrid.Writer<B> grid;
+        private final LongOpenHashSet dirtyChunks;
+        private final double[] scratchRot;
+        private final double[] scratchRemote;
+        private final int[] cellCoords;
+        private int n;
+        private int r;
+        private int u;
+        private int slabIndex;
+        private boolean started;
+        private boolean done;
+        private int minChunkX = Integer.MAX_VALUE;
+        private int minChunkZ = Integer.MAX_VALUE;
+        private int maxChunkX = Integer.MIN_VALUE;
+        private int maxChunkZ = Integer.MIN_VALUE;
+        private ViewPlate<B> result;
+
+        private BuildJob(Request<B, M, V> request, ViewPlate<B> previous, LongOpenHashSet dirtyChunks) {
+            super(request.key());
+            this.request = request;
+            this.view = request.destView();
+            this.geometry = new Geometry(request);
+            this.occlusion = new PlateOcclusionField<B, M>(view, request.blocks(),
+                request.buriedCellCulling() ? geometry.remoteBox(BURIED_PROBE_MARGIN) : PlateBox.EMPTY);
+            this.transformed = new Object2ObjectOpenHashMap<B, B>(64);
+            boolean patching = previous != null && previous.grid().box().equals(geometry.box);
+            this.grid = patching ? new PlateGrid.Writer<B>(previous.grid()) : new PlateGrid.Writer<B>(geometry.box);
+            this.dirtyChunks = patching ? dirtyChunks : null;
+            if (patching && previous.minChunkX() <= previous.maxChunkX()) {
+                noteChunk(previous.minChunkX(), previous.minChunkZ());
+                noteChunk(previous.maxChunkX(), previous.maxChunkZ());
+            }
+            this.scratchRot = new double[3];
+            this.scratchRemote = new double[3];
+            this.cellCoords = new int[3];
+        }
+
+        @Override
+        public long predictedBytes() {
+            return ViewPlate.predictBytes(geometry.box);
+        }
+
         @Override
         public boolean step(int cellBudget) {
             if (done) {
@@ -226,12 +316,10 @@ public final class ViewPlateBuilder {
             }
             if (!started) {
                 started = true;
-                n = normalStart;
-                r = axisMin[rightAxis];
-                u = axisMin[upAxis];
-                if (!scanContinues(n, normalEnd, normalStep)
-                    || axisMin[rightAxis] > axisMax[rightAxis]
-                    || axisMin[upAxis] > axisMax[upAxis]) {
+                n = geometry.normalStart;
+                r = geometry.axisMin[geometry.rightAxis];
+                u = geometry.axisMin[geometry.upAxis];
+                if (geometry.empty() || !scanContinues(n, geometry.normalEnd, geometry.normalStep)) {
                     finish();
                     return true;
                 }
@@ -255,84 +343,99 @@ public final class ViewPlateBuilder {
 
         private boolean advance() {
             u++;
-            if (u <= axisMax[upAxis]) {
+            if (u <= geometry.axisMax[geometry.upAxis]) {
                 return true;
             }
-            u = axisMin[upAxis];
+            u = geometry.axisMin[geometry.upAxis];
             r++;
-            if (r <= axisMax[rightAxis]) {
+            if (r <= geometry.axisMax[geometry.rightAxis]) {
                 return true;
             }
-            r = axisMin[rightAxis];
-            n += normalStep;
-            previousSlab.clear();
-            previousSlab.putAll(currentSlab);
-            currentSlab.clear();
-            return scanContinues(n, normalEnd, normalStep);
+            r = geometry.axisMin[geometry.rightAxis];
+            n += geometry.normalStep;
+            return scanContinues(n, geometry.normalEnd, geometry.normalStep);
         }
 
         private void processCell() {
-            cellCoords[normalAxis] = n;
-            cellCoords[rightAxis] = r;
-            cellCoords[upAxis] = u;
+            cellCoords[geometry.normalAxis] = n;
+            cellCoords[geometry.rightAxis] = r;
+            cellCoords[geometry.upAxis] = u;
             int x = cellCoords[0];
             int y = cellCoords[1];
             int z = cellCoords[2];
-            double cellDot = facingNormal * ((n + 0.5D) - originNormal);
-            if (!ProjectorFrameTransform.projectsBehindPortalPlane(cellDot, request.key().frontSide(), clearance)
-                || Math.abs(cellDot) > maxDepth) {
+            double cellDot = geometry.facingNormal * ((n + 0.5D) - geometry.originNormal);
+            if (!ProjectorFrameTransform.projectsBehindPortalPlane(cellDot, request.key().frontSide(), geometry.clearance)
+                || Math.abs(cellDot) > geometry.maxDepth) {
                 return;
             }
-            slabIndex = LodPolicy.depthIndex(cellDot, clearance);
+            slabIndex = LodPolicy.depthIndex(cellDot, geometry.clearance);
             long localKey = ProjectionCellKey.pack(x, y, z);
-            long slabKey = ProjectionCellKey.pack(r, 0, u);
+            int index = grid.index(x, y, z);
             LodPolicy lod = request.lod();
-            if (lod.mergesSlab(slabIndex)) {
-                PlateCell<B> previous = previousSlab.get(slabKey);
-                if (previous != null) {
-                    cells.put(localKey, previous);
-                    currentSlab.put(slabKey, previous);
-                    return;
-                }
+            boolean merged = lod.mergesSlab(slabIndex);
+            if (merged && copyPreviousSlab(index, localKey)) {
+                return;
             }
-            transform.apply(x + 0.5D, y + 0.5D, z + 0.5D, scratchRemote);
+            geometry.transform.apply(x + 0.5D, y + 0.5D, z + 0.5D, scratchRemote);
             int rx = (int) Math.floor(scratchRemote[0]);
             int ry = (int) Math.floor(scratchRemote[1]);
             int rz = (int) Math.floor(scratchRemote[2]);
+            if (dirtyChunks != null) {
+                if (!merged && !ViewPlate.touches(dirtyChunks, rx, rz)) {
+                    return;
+                }
+                grid.clear(index, localKey);
+            }
             B remote = view.sampleBlockData(rx, ry, rz);
             if (remote == null) {
                 return;
             }
             noteChunk(rx >> 4, rz >> 4);
-            long remoteKey = ProjectionCellKey.pack(rx, ry, rz);
-            PlateCell<B> cell = classify(remote, rx, ry, rz, remoteKey, lod);
-            cells.put(localKey, cell);
-            currentSlab.put(slabKey, cell);
+            classify(index, localKey, remote, rx, ry, rz, lod);
         }
 
-        private PlateCell<B> classify(B remote, int rx, int ry, int rz, long remoteKey, LodPolicy lod) {
+        private boolean copyPreviousSlab(int index, long localKey) {
+            cellCoords[geometry.normalAxis] = n - geometry.normalStep;
+            int previousIndex = grid.index(cellCoords[0], cellCoords[1], cellCoords[2]);
+            long previousKey = ProjectionCellKey.pack(cellCoords[0], cellCoords[1], cellCoords[2]);
+            cellCoords[geometry.normalAxis] = n;
+            if (previousIndex < 0 || !grid.present(previousIndex)) {
+                return false;
+            }
+            grid.copy(previousIndex, previousKey, index, localKey);
+            return true;
+        }
+
+        private void classify(int index, long localKey, B remote, int rx, int ry, int rz, LodPolicy lod) {
             if (request.blocks().isOccluded(remote)) {
-                return new PlateCell<B>(ProjectorSample.Kind.OCCLUDED, remote, remote, remoteKey, null);
+                grid.put(index, localKey, ProjectorSample.Kind.OCCLUDED, remote, remote, null);
+                return;
             }
             M material = request.blocks().material(remote);
             if (request.blocks().isAir(material) || lod.dropsDetail(slabIndex, request.blocks().materialName(material))) {
-                return new PlateCell<B>(ProjectorSample.Kind.REMOTE_AIR, request.air(), request.air(), remoteKey, null);
+                grid.put(index, localKey, ProjectorSample.Kind.REMOTE_AIR, request.air(), request.air(), null);
+                return;
             }
-            int occlusionDepth = request.buriedCellCulling() ? memo.occlusionDepthInView(view, rx, ry, rz, remote) : 0;
+            int occlusionDepth = request.buriedCellCulling() ? occlusion.depth(rx, ry, rz, remote) : 0;
             ProjectorSample.Kind kind = switch (occlusionDepth) {
                 case 1 -> ProjectorSample.Kind.BACKING_BLOCK;
                 case 2 -> ProjectorSample.Kind.OCCLUDED;
                 default -> ProjectorSample.Kind.BLOCK;
             };
             if (kind == ProjectorSample.Kind.OCCLUDED) {
-                return new PlateCell<B>(kind, remote, remote, remoteKey, null);
+                grid.put(index, localKey, kind, remote, remote, null);
+                return;
             }
             B projected = transformBlockData(remote);
             BlockEntitySample blockEntity = null;
             if (request.blockEntities() && request.blocks().blockEntityCandidate(material)) {
                 blockEntity = view.sampleBlockEntity(rx, ry, rz);
+                if (blockEntity == null && !view.blockEntitiesComplete(rx, rz)) {
+                    grid.clear(index, localKey);
+                    return;
+                }
             }
-            return new PlateCell<B>(kind, remote, projected, remoteKey, blockEntity);
+            grid.put(index, localKey, kind, remote, projected, blockEntity);
         }
 
         private B transformBlockData(B source) {
@@ -345,7 +448,7 @@ public final class ViewPlateBuilder {
             }
             B projected = request.mirrorMode()
                 ? request.blocks().transform(source, DirectionMapping.mirror(request.localFrame(), request.mirrorRotationQuarterTurns(), scratchRot))
-                : request.blocks().transform(source, DirectionMapping.between(projectionRemoteFrame, projectionLocalFrame, scratchRot));
+                : request.blocks().transform(source, DirectionMapping.between(geometry.projectionRemoteFrame, geometry.projectionLocalFrame, scratchRot));
             if (transformed.size() >= TRANSFORM_CACHE_LIMIT) {
                 transformed.clear();
             }
@@ -362,30 +465,17 @@ public final class ViewPlateBuilder {
 
         private void finish() {
             done = true;
-            previousSlab.clear();
-            currentSlab.clear();
             UUID worldId = view.worldId();
             boolean sampled = minChunkX != Integer.MAX_VALUE;
-            result = new ViewPlate<B>(request.key(), cells, request.destinationRevision(), request.transformRevision(),
+            PlateGrid<B> built = grid.finish();
+            result = new ViewPlate<B>(request.key(), built, request.destinationRevision(), request.transformRevision(),
                 worldId, request.trackerVersion(),
                 sampled ? minChunkX : 0, sampled ? minChunkZ : 0, sampled ? maxChunkX : -1, sampled ? maxChunkZ : -1,
-                ViewPlate.estimateBytes(cells));
+                ViewPlate.estimateBytes(built));
         }
 
         private static boolean scanContinues(int coordinate, int end, int step) {
             return step > 0 ? coordinate <= end : coordinate >= end;
-        }
-
-        private static int axisOf(Direction direction) {
-            return direction.x() != 0 ? 0 : direction.y() != 0 ? 1 : 2;
-        }
-
-        private static double component(Direction direction, int axis) {
-            return axis == 0 ? direction.x() : axis == 1 ? direction.y() : direction.z();
-        }
-
-        private static double component(int axis, double x, double y, double z) {
-            return axis == 0 ? x : axis == 1 ? y : z;
         }
     }
 }

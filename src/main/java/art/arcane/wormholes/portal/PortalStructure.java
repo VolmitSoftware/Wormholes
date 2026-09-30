@@ -11,7 +11,6 @@ import art.arcane.wormholes.util.BukkitGeometry;
 import java.util.List;
 import java.util.Set;
 import java.util.ArrayList;
-import java.util.concurrent.ThreadLocalRandom;
 
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -105,16 +104,19 @@ public class PortalStructure implements IWritable, PortalCellAperture
 		return BukkitGeometry.vector(getCenter());
 	}
 
-	public Location randomLocation()
+	public Location randomCellCentre()
 	{
-		if(!geometry.getBlockPositions().isEmpty())
+		GeometryVector block = geometry.randomBlockPosition();
+		if(block == null)
 		{
-			List<GeometryVector> cells = geometry.getBlockPositions();
-            GeometryVector block = cells.get(ThreadLocalRandom.current().nextInt(cells.size()));
-			return new Location(getWorld(), block.getBlockX() + Math.random(), block.getBlockY() + Math.random(), block.getBlockZ() + Math.random());
+			AxisAlignedBB area = getArea();
+			if(area == null)
+			{
+				return null;
+			}
+			block = area.random();
 		}
-
-		return BukkitGeometry.location(getArea().random(), getWorld());
+		return new Location(getWorld(), Math.floor(block.x()) + 0.5D, Math.floor(block.y()) + 0.5D, Math.floor(block.z()) + 0.5D);
 	}
 
 	public void setWorld(World world)

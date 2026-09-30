@@ -25,6 +25,9 @@ public final class FidelitySettings {
     public static volatile boolean sharedPlate = true;
     public static volatile long plateMaxBytes = 33_554_432L;
     public static volatile int plateWorkers = 2;
+    public static volatile boolean rtpPlates = true;
+    public static volatile int plateLateralClampBlocks = 40;
+    public static volatile int plateCaptureChunksPerTick = 8;
     public static volatile boolean blockEntities = true;
     public static volatile int blockEntityBudgetPerTick = 64;
     public static volatile List<String> blockEntityTypes = RenderConfig.DEFAULT_BLOCK_ENTITY_TYPES;
@@ -46,6 +49,7 @@ public final class FidelitySettings {
     public static volatile boolean bedrockDisplayEntities = false;
     public static volatile boolean bedrockLightingFidelity = false;
     public static volatile int bedrockEntityCap = 8;
+    public static volatile double entityVelocityEpsilon = 0.005D;
 
     private FidelitySettings() {
     }
@@ -64,6 +68,9 @@ public final class FidelitySettings {
         sharedPlate = projection.sharedPlate;
         plateMaxBytes = Math.max(1_048_576L, Math.min(1_073_741_824L, projection.plateMaxBytes));
         plateWorkers = clamp(projection.plateWorkers, 1, 16);
+        rtpPlates = projection.rtpPlates;
+        plateLateralClampBlocks = clamp(projection.plateLateralClampBlocks, 0, 64);
+        plateCaptureChunksPerTick = clamp(projection.plateCaptureChunksPerTick, 1, 256);
         blockEntities = render.blockEntities;
         blockEntityBudgetPerTick = clamp(render.blockEntityBudgetPerTick, 1, 1024);
         blockEntityTypes = normalizeTypes(render.blockEntityTypes);
@@ -85,6 +92,7 @@ public final class FidelitySettings {
         bedrockDisplayEntities = bedrock.displayEntities;
         bedrockLightingFidelity = bedrock.lightingFidelity;
         bedrockEntityCap = clamp(bedrock.entityCap, 0, 256);
+        entityVelocityEpsilon = clamp(render.entityVelocityEpsilon, 0.0D, 1.0D);
     }
 
     static List<String> normalizeTypes(List<String> configured) {

@@ -94,6 +94,7 @@ public class MinecraftProjectorSamplerTest {
         MinecraftProjectionWorldView view = mock(MinecraftProjectionWorldView.class);
         ServerLevel level = mock(ServerLevel.class);
         when(view.getWorld()).thenReturn(level);
+        when(view.buriedDepth(anyInt(), anyInt(), anyInt())).thenReturn(-1);
         ProjectorRecursivePortals.PortalAccess<ServerLevel, MinecraftPortal> access = mock(ProjectorRecursivePortals.PortalAccess.class);
         when(access.portals()).thenReturn(List.of());
         ProjectorRecursivePortals<ServerLevel, MinecraftPortal> portals = new ProjectorRecursivePortals<>(access,

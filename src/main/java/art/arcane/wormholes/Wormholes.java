@@ -201,8 +201,8 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             vanillaTravelCostCapture = new VanillaTravelCostCapture();
             portalManager = new PortalManager();
             traversableManager = new TraversableManager();
-            projectionManager = new ProjectionManager(packetEvents().projectionChunkTracker());
             projectionChangeTracker = new art.arcane.wormholes.render.ProjectionWorldChangeTracker();
+            projectionManager = new ProjectionManager(packetEvents().projectionChunkTracker());
             arrivalWarmer = new ArrivalWarmer();
             rtpRuntime = new BukkitRtpEnvironment(this, portalManager).createRuntime();
             projectionManager.setRtpProjectionProvider(rtpRuntime);
@@ -217,6 +217,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             getServer().getPluginManager().registerEvents(portalManager, this);
             getServer().getPluginManager().registerEvents(traversableManager, this);
             getServer().getPluginManager().registerEvents(projectionManager, this);
+            projectionManager.registerTickHeadroom(this);
             if (getServer().getPluginManager().isPluginEnabled("Citizens")) {
                 getServer().getPluginManager().registerEvents(
                     new CitizensLocalEntityOcclusionListener(projectionManager), this);

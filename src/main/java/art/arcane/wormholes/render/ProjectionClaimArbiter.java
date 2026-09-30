@@ -9,6 +9,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 import java.util.ArrayList;
@@ -63,10 +64,6 @@ public final class ProjectionClaimArbiter {
     private final LightingFactory lightingFactory;
     private final BiomeSink biomeSink;
     private final BiomeIdResolver biomeIds;
-
-    public ProjectionClaimArbiter() {
-        this(ProjectionWorldViewProvider.live());
-    }
 
     public ProjectionClaimArbiter(ProjectionWorldViewProvider viewProvider) {
         this(viewProvider, WormholesPlatform::isChunkSent);
@@ -270,7 +267,7 @@ public final class ProjectionClaimArbiter {
                     if (overrides.isEmpty()) {
                         return;
                     }
-                    ProjectionWorldView localView = viewProvider.view(localWorld);
+                    ProjectionWorldView localView = viewProvider.authoritativeView(localWorld);
                     if (localView == null) {
                         return;
                     }
@@ -357,6 +354,19 @@ public final class ProjectionClaimArbiter {
             ClaimUpdateResult result = applyResult(observer, localWorld, state, setResult, allowLightingUpdate, false);
             removeObserverIfEmpty(observerId, state);
             return result;
+        }
+    }
+
+    boolean drainLosingTransitions(Player observer, UUID claimOwnerId, LongSet displaced, LongSet restored, boolean resync) {
+        if (observer == null || claimOwnerId == null) {
+            return false;
+        }
+        ObserverClaims state = observers.get(observer.getUniqueId());
+        if (state == null) {
+            return false;
+        }
+        synchronized (state) {
+            return !state.retired && state.claimSet.drainLosingTransitions(claimOwnerId, displaced, restored, resync);
         }
     }
 
@@ -563,7 +573,7 @@ public final class ProjectionClaimArbiter {
                             continue;
                         }
                         if (!localViewResolved) {
-                            localView = viewProvider.view(localWorld);
+                            localView = viewProvider.authoritativeView(localWorld);
                             localViewResolved = true;
                         }
                         BlockData localData = localView == null ? null : localView.sampleBlockData(x, y, z);
@@ -642,12 +652,12 @@ public final class ProjectionClaimArbiter {
         boolean sourceLightingEnabled = sourceLightingEnabled(observerClaims);
         boolean fullBrightEnabled = observerClaims.claimSet.hasFullBrightClaims();
         if (!sourceLightingEnabled && !fullBrightEnabled) {
-            observerClaims.lighting.revert(observer, viewProvider.view(localWorld));
+            observerClaims.lighting.revert(observer, viewProvider.authoritativeView(localWorld));
             observerClaims.pendingLightingKeys.clear();
             return;
         }
         if (observerClaims.claimSet.isEmpty()) {
-            observerClaims.lighting.revert(observer, viewProvider.view(localWorld));
+            observerClaims.lighting.revert(observer, viewProvider.authoritativeView(localWorld));
             observerClaims.pendingLightingKeys.clear();
             return;
         }
@@ -655,7 +665,7 @@ public final class ProjectionClaimArbiter {
             || (observerClaims.pendingLightingKeys.isEmpty() && !observerClaims.lighting.hasPendingUpdates())) {
             return;
         }
-        ProjectionWorldView localView = viewProvider.view(localWorld);
+        ProjectionWorldView localView = viewProvider.authoritativeView(localWorld);
         if (localView == null) {
             return;
         }

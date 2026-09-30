@@ -136,7 +136,7 @@ final class ProjectionInterestFrame {
             }
             Location center = portal.getCenter();
             ProjectionManager.ProjectionResolution resolution =
-                ProjectionManager.resolveProjection(provider, portal, observer, rtpRimRenderer);
+                ProjectionManager.resolveProjection(provider, portal, observer, rtpRimRenderer, frameTick);
             if (!resolution.projectable()) {
                 continue;
             }
@@ -166,16 +166,19 @@ final class ProjectionInterestFrame {
         }
         interestSet.closeUnplanned(observerId, interestedIds, frameTick, FidelitySettings.dissolveTicks);
         interestSet.setRtpTargets(observerId, resolvedRtpTargets);
-        List<ILocalPortal> blockCandidates = new ArrayList<ILocalPortal>(interested.size());
+        List<PortalProjector> retiring = interestSet.retiringProjectors(observerId);
+        List<ProjectionGazeScheduler.Candidate<ILocalPortal>> blockCandidates =
+            new ArrayList<ProjectionGazeScheduler.Candidate<ILocalPortal>>(interested.size() + retiring.size());
         for (ILocalPortal portal : interested) {
-            if (updateBlocks || interestSet.hasPendingScan(portal.getId(), observerId)) {
-                blockCandidates.add(portal);
+            boolean pendingScan = interestSet.hasPendingScan(portal.getId(), observerId);
+            if (updateBlocks || pendingScan) {
+                blockCandidates.add(gazeCandidate(portal, eye, pendingScan, false));
             }
         }
-        List<PortalProjector> retiring = interestSet.retiringProjectors(observerId);
         for (PortalProjector projector : retiring) {
-            if (updateBlocks || projector.hasPendingScan()) {
-                blockCandidates.add(projector.getPortal());
+            boolean pendingScan = projector.hasPendingScan();
+            if (updateBlocks || pendingScan) {
+                blockCandidates.add(gazeCandidate(projector.getPortal(), eye, pendingScan, true));
             }
         }
         int desiredBlocks = observerBudget.admitsBlocks()
@@ -186,29 +189,73 @@ final class ProjectionInterestFrame {
         if (reservedBudget > reservedUsed) {
             remainingProjectors.addAndGet(reservedBudget - reservedUsed);
         }
-        List<ILocalPortal> scheduledBlocks = claimedBlocks > 0
-            ? interestSet.nextSlice(observerId, blockCandidates, claimedBlocks) : List.of();
+        List<ILocalPortal> scheduledBlocks = interestSet.scheduleBlocks(observerId, gazeEye(eye), blockCandidates,
+            claimedBlocks, frameTick);
+        if (scheduledBlocks.size() < claimedBlocks) {
+            remainingProjectors.addAndGet(claimedBlocks - scheduledBlocks.size());
+        }
         Set<UUID> blockPortalIds = new HashSet<UUID>(scheduledBlocks.size());
         for (ILocalPortal portal : scheduledBlocks) {
             blockPortalIds.add(portal.getId());
         }
         ledger.recordScheduled(scheduledBlocks.size());
         ledger.recordDeferred(Math.max(0, blockCandidates.size() - scheduledBlocks.size()));
-        projectRetiring(observer, retiring, blockPortalIds, projected, observerBudget);
-        projectActiveObserver(observer, interested, resolvedRtpTargets, blockPortalIds, updateEntities,
-            projected, observerBudget);
+        BlockSlices slices = new BlockSlices(scheduledBlocks.size());
+        projectRetiring(observer, retiring, blockPortalIds, projected, observerBudget, slices);
+        projectActiveObserver(observer, priorityOrder(interested, interestedIds, scheduledBlocks, blockPortalIds),
+            resolvedRtpTargets, blockPortalIds, updateEntities, projected, observerBudget, slices);
+    }
+
+    private static List<ILocalPortal> priorityOrder(List<ILocalPortal> interested, Set<UUID> interestedIds,
+                                                    List<ILocalPortal> scheduledBlocks, Set<UUID> blockPortalIds) {
+        if (scheduledBlocks.isEmpty()) {
+            return interested;
+        }
+        List<ILocalPortal> ordered = new ArrayList<ILocalPortal>(interested.size());
+        for (ILocalPortal portal : scheduledBlocks) {
+            if (interestedIds.contains(portal.getId())) {
+                ordered.add(portal);
+            }
+        }
+        for (ILocalPortal portal : interested) {
+            if (!blockPortalIds.contains(portal.getId())) {
+                ordered.add(portal);
+            }
+        }
+        return ordered;
+    }
+
+    private static ProjectionGazeScheduler.Eye gazeEye(Location eye) {
+        return new ProjectionGazeScheduler.Eye(eye.getX(), eye.getY(), eye.getZ(), eye.getYaw(), eye.getPitch());
+    }
+
+    private static ProjectionGazeScheduler.Candidate<ILocalPortal> gazeCandidate(ILocalPortal portal, Location eye,
+                                                                               boolean pendingScan, boolean retiring) {
+        AxisAlignedBB area = portal.getArea();
+        if (area != null) {
+            return new ProjectionGazeScheduler.Candidate<ILocalPortal>(portal, portal.getId(),
+                area.getXa(), area.getYa(), area.getZa(), area.getXb(), area.getYb(), area.getZb(),
+                pendingScan, retiring);
+        }
+        Location center = portal.getCenter();
+        double x = center == null ? eye.getX() : center.getX();
+        double y = center == null ? eye.getY() : center.getY();
+        double z = center == null ? eye.getZ() : center.getZ();
+        return new ProjectionGazeScheduler.Candidate<ILocalPortal>(portal, portal.getId(),
+            x - 0.5D, y - 0.5D, z - 0.5D, x + 0.5D, y + 0.5D, z + 0.5D, pendingScan, retiring);
     }
 
     private void projectRetiring(Player observer, List<PortalProjector> retiring, Set<UUID> blockPortalIds,
                                  List<PortalProjector> projected,
-                                 ProjectionBudgetLedger.ObserverFrame observerBudget) {
+                                 ProjectionBudgetLedger.ObserverFrame observerBudget, BlockSlices slices) {
         for (PortalProjector projector : retiring) {
             if (!blockPortalIds.contains(projector.getPortal().getId())) {
                 continue;
             }
+            long deadlineNanos = slices.next(observerBudget.deadlineNanos());
             try {
                 observerBudget.recordBlockWork();
-                projector.project(true, false, observerBudget.deadlineNanos());
+                projector.project(true, false, deadlineNanos);
                 if (!projector.isClosed()) {
                     projected.add(projector);
                 }
@@ -223,7 +270,7 @@ final class ProjectionInterestFrame {
                                        Map<UUID, PortalProjector.RtpProjectionTarget> rtpTargets,
                                        Set<UUID> blockPortalIds, boolean updateEntities,
                                        List<PortalProjector> projected,
-                                       ProjectionBudgetLedger.ObserverFrame observerBudget) {
+                                       ProjectionBudgetLedger.ObserverFrame observerBudget, BlockSlices slices) {
         if (!alive.getAsBoolean() || observer == null || !observer.isOnline()) {
             return;
         }
@@ -232,6 +279,7 @@ final class ProjectionInterestFrame {
             if (!updateBlocks && !updateEntities) {
                 continue;
             }
+            long deadlineNanos = updateBlocks ? slices.next(observerBudget.deadlineNanos()) : observerBudget.deadlineNanos();
             PortalProjector.RtpProjectionTarget rtpTarget = rtpTargets.get(portal.getId());
             if (!isPortalStillProjectable(portal, rtpTarget != null)) {
                 continue;
@@ -246,7 +294,7 @@ final class ProjectionInterestFrame {
                 if (updateBlocks) {
                     observerBudget.recordBlockWork();
                 }
-                projector.project(updateBlocks, updateEntities, observerBudget.deadlineNanos());
+                projector.project(updateBlocks, updateEntities, deadlineNanos);
                 projected.add(projector);
             } catch (Throwable ex) {
                 Wormholes.instance.getLogger().log(Level.WARNING,
@@ -273,5 +321,26 @@ final class ProjectionInterestFrame {
             return Double.MAX_VALUE;
         }
         return center.distanceSquared(eye);
+    }
+
+    private static final class BlockSlices {
+        private int remaining;
+
+        private BlockSlices(int scheduled) {
+            this.remaining = scheduled;
+        }
+
+        private long next(long frameDeadlineNanos) {
+            int share = Math.max(1, remaining);
+            remaining = Math.max(0, remaining - 1);
+            if (share == 1 || frameDeadlineNanos == Long.MAX_VALUE) {
+                return frameDeadlineNanos;
+            }
+            long now = System.nanoTime();
+            if (now >= frameDeadlineNanos) {
+                return frameDeadlineNanos;
+            }
+            return now + (frameDeadlineNanos - now) / share;
+        }
     }
 }

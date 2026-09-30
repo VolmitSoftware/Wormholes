@@ -1,76 +1,66 @@
 package art.arcane.wormholes.render.plate;
 
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class PlateWorkersTest {
     @Test
-    void regionJobsYieldBetweenBudgetsAndPublishOnce() {
+    void jobsRunToCompletionOnThePlatePoolAndPublishOnce() throws InterruptedException {
         Host host = new Host();
         PlateWorkers<String, String> workers = new PlateWorkers<>(1, host);
-        Job job = new Job();
+        Job job = new Job(3);
         try {
-            workers.submitRegion(job);
-            assertEquals(0, job.steps);
-            host.tasks.removeFirst().run();
-            assertEquals(1, job.steps);
-            assertTrue(host.published.isEmpty());
-            host.tasks.removeFirst().run();
-            assertEquals(List.of(0L, 1L), host.delays);
-            assertEquals(2, job.steps);
+            workers.submitAsync(job);
+            assertTrue(host.done.await(5L, TimeUnit.SECONDS), "the pool must finish the build");
+            assertEquals(3, job.steps.get());
             assertEquals(1, host.published.size());
-            assertEquals(0, host.failed);
-            assertTrue(host.tasks.isEmpty());
+            assertTrue(host.threads.get(0).startsWith("Wormholes-Plate-"), host.threads.get(0));
+            assertEquals(0, host.failed.get());
         } finally {
             workers.shutdown();
         }
     }
 
     @Test
-    void shutdownCancelsAlreadyScheduledRegionWorkAndRejectedJobsLeaveNoBuild() {
+    void shutdownRejectsNewJobsWithoutABuild() {
         Host host = new Host();
         PlateWorkers<String, String> workers = new PlateWorkers<>(1, host);
-        Job job = new Job();
-        workers.submitRegion(job);
         workers.shutdown();
-        host.tasks.removeFirst().run();
-        assertEquals(0, job.steps);
-        assertEquals(1, host.failed);
-        workers.submitRegion(new Job());
-        assertEquals(2, host.failed);
+        Job job = new Job(1);
+        workers.submitAsync(job);
+        assertEquals(1, host.failed.get());
+        assertEquals(0, job.steps.get());
         assertTrue(host.published.isEmpty());
     }
 
     private static final class Host implements PlateWorkers.Host<String, String> {
-        private final ArrayDeque<Runnable> tasks = new ArrayDeque<>();
-        private final List<Long> delays = new ArrayList<>();
-        private final List<ViewPlate<String>> published = new ArrayList<>();
-        private int failed;
+        private final List<ViewPlate<String>> published = new CopyOnWriteArrayList<>();
+        private final List<String> threads = new CopyOnWriteArrayList<>();
+        private final AtomicInteger failed = new AtomicInteger();
+        private final CountDownLatch done = new CountDownLatch(1);
 
         @Override
-        public void publish(ViewPlate<String> plate) {
+        public void publish(ViewPlateBuilder.Job<String, String> job, ViewPlate<String> plate) {
+            assertSame(job.key(), plate.key());
             published.add(plate);
+            threads.add(Thread.currentThread().getName());
+            done.countDown();
         }
 
         @Override
-        public void failed(ViewPlateKey key) {
-            failed++;
-        }
-
-        @Override
-        public boolean schedule(ViewPlateBuilder.Execution<String> execution, Runnable task, long delayTicks) {
-            assertEquals("world", execution.world());
-            delays.add(delayTicks);
-            tasks.add(task);
-            return true;
+        public void failed(ViewPlateBuilder.Job<String, String> job) {
+            failed.incrementAndGet();
+            done.countDown();
         }
 
         @Override
@@ -80,21 +70,23 @@ final class PlateWorkersTest {
     }
 
     private static final class Job extends ViewPlateBuilder.Job<String, String> {
-        private int steps;
+        private final AtomicInteger steps = new AtomicInteger();
+        private final int requiredSteps;
 
-        private Job() {
-            super(new ViewPlateKey(UUID.randomUUID(), "destination", true, 0), ViewPlateBuilder.Execution.region("world", 2, 4));
+        private Job(int requiredSteps) {
+            super(new ViewPlateKey(UUID.randomUUID(), "destination", true, 0, 0L));
+            this.requiredSteps = requiredSteps;
         }
 
         @Override
         public boolean step(int cellBudget) {
-            assertEquals(6144, cellBudget);
-            return ++steps == 2;
+            assertEquals(PlateWorkers.ASYNC_CELLS_PER_STEP, cellBudget);
+            return steps.incrementAndGet() == requiredSteps;
         }
 
         @Override
         public ViewPlate<String> result() {
-            return new ViewPlate<>(key(), new Long2ObjectOpenHashMap<>(), 1L, 2L, null, 0L, 0, 0, 0, 0, 0L);
+            return new ViewPlate<>(key(), PlateGrid.empty(), 1L, 2L, null, 0L, 0, 0, 0, 0, 0L);
         }
     }
 }

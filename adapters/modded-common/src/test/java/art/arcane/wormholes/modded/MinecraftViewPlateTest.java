@@ -49,13 +49,12 @@ public class MinecraftViewPlateTest {
         geometry.setArea(new AxisAlignedBB(0, 2, 64, 67, 0, 1));
         PortalFrame frame = PortalFrame.canonical(Direction.S);
         ViewPlateBuilder.Request<BlockState, BlockState, MinecraftProjectionWorldView> request = new ViewPlateBuilder.Request<>(
-            new ViewPlateKey(UUID.randomUUID(), view, true, 0), geometry, view, frame, frame,
+            new ViewPlateKey(UUID.randomUUID(), view, true, 0, 0L), geometry, view, frame, frame,
             1.0D, 65.0D, 0.0D, 1.0D, 65.0D, 0.0D, false, 0,
             4.0D, 0.0D, 0.0D, false, Blocks.AIR.defaultBlockState(), LodPolicy.NONE,
             false, 7L, 3L, 2L, MinecraftProjectorBlocks.INSTANCE);
         ViewPlate<BlockState> full = ViewPlateBuilder.build(request);
-        ViewPlateBuilder.Job<BlockState, ServerLevel> sliced = ViewPlateBuilder.job(request,
-            ViewPlateBuilder.Execution.region(mock(ServerLevel.class), 0, 0));
+        ViewPlateBuilder.Job<BlockState, ServerLevel> sliced = ViewPlateBuilder.job(request);
         int ticks = 0;
         while (!sliced.step(1)) {
             assertTrue(++ticks < 1000);
@@ -71,7 +70,7 @@ public class MinecraftViewPlateTest {
             PlateCell<BlockState> second = resumed.cell(key);
             assertEquals(ProjectorSample.Kind.BLOCK, second.kind());
             assertSame(first.data(), second.data());
-            assertEquals(first.remoteKey(), second.remoteKey());
+            assertSame(first.sourceData(), second.sourceData());
         }
     }
 }

@@ -157,7 +157,7 @@ public final class ProjectedEntityRenderer {
 
     void prepareRecursiveProjection(EntityProjectionPath.Root<World, ILocalPortal> root, ProjectorRecursivePortals<World, ILocalPortal> portals) {
         recursivePortals = portals;
-        portals.clear();
+        portals.revalidate();
         projectionPath = root == null ? null : new EntityProjectionPath<>(root, portals);
     }
 
@@ -681,7 +681,8 @@ public final class ProjectedEntityRenderer {
         if (rotationChanged) {
             registry.syncHeadLook(observer, state, yaw);
         }
-        if (state.updateVelocity(velocity.getX(), velocity.getY(), velocity.getZ())) {
+        if (state.updateVelocity(velocity.getX(), velocity.getY(), velocity.getZ(),
+            FidelitySettings.entityVelocityEpsilon)) {
             channel.send(observer, new WrapperPlayServerEntityVelocity(state.fakeId, velocity));
         }
         boolean metadataRefreshDue = state.shouldRefreshMetadata();

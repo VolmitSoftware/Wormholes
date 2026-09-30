@@ -27,6 +27,7 @@ final class LocalPortalEffects
 	private final AtomicLong effectSequence = new AtomicLong();
 	private final AmbientOutlineGeometry ambientOutline = new AmbientOutlineGeometry();
 	private long ambientCursor;
+	private long ambientSparkSequence;
 
 	LocalPortalEffects(LocalPortal portal)
 	{
@@ -144,15 +145,20 @@ final class LocalPortalEffects
 
 	private void renderAmbientSparks(boolean open)
 	{
-		int count = open ? 4 : 1;
-		for(int i = 0; i < count; i++)
+		int count = AmbientSparkCadence.burst(ambientSparkSequence++, Settings.AMBIENT_PARTICLE_INTERVAL_TICKS, open);
+		if(count == 0)
 		{
-			Location location = portal.getStructure().randomLocation();
-			if(location != null && location.getWorld() != null)
-			{
-				location.getWorld().spawnParticle(Particle.MYCELIUM, location, 1, 0.0D, 0.0D, 0.0D, 0.0D);
-			}
+			return;
 		}
+		PortalStructure structure = portal.getStructure();
+		World world = structure.getWorld();
+		Location cell = world == null ? null : structure.randomCellCentre();
+		if(cell == null)
+		{
+			return;
+		}
+		world.spawnParticle(Particle.MYCELIUM, cell, count,
+				AmbientSparkCadence.CELL_SPREAD, AmbientSparkCadence.CELL_SPREAD, AmbientSparkCadence.CELL_SPREAD, 0.0D);
 	}
 
 	private void spawnSimpleParticle(Location location, Particle particle, int amount, double extra)

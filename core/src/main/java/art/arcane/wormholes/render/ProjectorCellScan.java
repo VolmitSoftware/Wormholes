@@ -1,6 +1,8 @@
 package art.arcane.wormholes.render;
 
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.function.Supplier;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.IPortal;
@@ -8,12 +10,14 @@ import art.arcane.wormholes.portal.PortalCellAperture;
 import art.arcane.wormholes.render.view.ProjectionContentView;
 
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2LongMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 
@@ -27,6 +31,11 @@ import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 
 public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends ProjectionContentView<B, M>> {
+    private static final int FINISH_SEAL = 0;
+    private static final int FINISH_UNRESOLVED_TARGETS = 1;
+    private static final int FINISH_OBSERVER_TARGETS = 2;
+    private static final int FINISH_DEADLINE_STRIDE = 128;
+
     private final P portal;
     private final PortalCellAperture aperture;
     private final Supplier<ScanSettings> settings;
@@ -41,6 +50,14 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     private final double[] scratchRot;
     private final double[] scratchRemotePoint;
     private final double[] scratchRemoteEye;
+    private final double[] scratchRemoteBounds;
+    private final double[] scratchMaskRowStart;
+    private final double[] scratchMaskRowNext;
+    private final double[] scratchMaskRange;
+    private final ArrayList<ProjectorRecursivePortals<W, P>.Candidate> maskCandidates;
+    private int[] maskRowCandidates;
+    private int[] maskRowLows;
+    private int[] maskRowHighs;
     private final int[] scratchAxisMin;
     private final int[] scratchAxisMax;
     private final double[] scratchAxisOrigin;
@@ -59,6 +76,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     private final LongArrayList unresolvedTargetRemoteKeys;
     private LongOpenHashSet projectedUnresolvedOcclusion;
     private LongOpenHashSet nextUnresolvedOcclusion;
+    private int resumeTraced;
+    private int resumeResolved;
+    private int resumeUnresolvedBefore;
     private Long2ObjectOpenHashMap<ProjectedBlockClaim<B, V>> projected;
     private Long2ObjectOpenHashMap<ProjectedBlockClaim<B, V>> nextProjected;
     private final LongOpenHashSet changedClaimKeys;
@@ -106,6 +126,31 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     private PortalFrame committedLocalFrame;
     private PortalFrame committedRemoteFrame;
     private double committedEyeDot;
+    private Long2LongOpenHashMap heldSince;
+    private Long2LongOpenHashMap nextHeldSince;
+    private Long2ObjectOpenHashMap<long[]> heldBlockers;
+    private Long2ObjectOpenHashMap<long[]> nextHeldBlockers;
+    private final LongOpenHashSet losingClaimKeys;
+    private final LongOpenHashSet losingBlockers;
+    private boolean losingClaimsUnsynced;
+    private boolean holdClaims;
+    private boolean holdConeClaims;
+    private boolean coneHoldsRevoked;
+    private boolean holdsExposed;
+    private boolean dropHoldsRequested;
+    private boolean passRevokesConeHolds;
+    private boolean passExposesHolds;
+    private boolean passDropsHolds;
+    private int maxHeldClaims;
+    private long holdGeneration;
+    private boolean removedClaimsResolved;
+    private int resolvedClaimCount;
+    private int hiddenHolds;
+    private int coneHolds;
+    private int heldEvictions;
+    private ProjectorRemoteFootprint remoteFootprint;
+    private ProjectorRemoteFootprint nextRemoteFootprint;
+    private boolean restartRemoteFootprint;
 
     public ProjectorCellScan(Context<B, M, W, P, V> context) {
         this.portal = context.portal();
@@ -122,6 +167,14 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         this.scratchRot = new double[3];
         this.scratchRemotePoint = new double[3];
         this.scratchRemoteEye = new double[3];
+        this.scratchRemoteBounds = new double[6];
+        this.scratchMaskRowStart = new double[3];
+        this.scratchMaskRowNext = new double[3];
+        this.scratchMaskRange = new double[2];
+        this.maskCandidates = new ArrayList<ProjectorRecursivePortals<W, P>.Candidate>(4);
+        this.maskRowCandidates = new int[4];
+        this.maskRowLows = new int[4];
+        this.maskRowHighs = new int[4];
         this.scratchAxisMin = new int[3];
         this.scratchAxisMax = new int[3];
         this.scratchAxisOrigin = new double[3];
@@ -146,6 +199,17 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         this.removedClaimKeys = new LongOpenHashSet(64);
         this.projectedBlockEntities = new Long2ObjectOpenHashMap<BlockEntitySample>(16);
         this.nextBlockEntities = new Long2ObjectOpenHashMap<BlockEntitySample>(16);
+        this.heldSince = new Long2LongOpenHashMap(64);
+        this.nextHeldSince = new Long2LongOpenHashMap(64);
+        this.heldSince.defaultReturnValue(Long.MIN_VALUE);
+        this.nextHeldSince.defaultReturnValue(Long.MIN_VALUE);
+        this.heldBlockers = new Long2ObjectOpenHashMap<long[]>(64);
+        this.nextHeldBlockers = new Long2ObjectOpenHashMap<long[]>(64);
+        this.losingClaimKeys = new LongOpenHashSet(16);
+        this.losingBlockers = new LongOpenHashSet(16);
+        this.losingClaimsUnsynced = true;
+        this.remoteFootprint = new ProjectorRemoteFootprint();
+        this.nextRemoteFootprint = new ProjectorRemoteFootprint();
     }
 
     public Long2ObjectOpenHashMap<ProjectedBlockClaim<B, V>> claims() {
@@ -155,6 +219,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     public ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<B, V>> claimDelta() {
         if (!preparedResult) {
             throw new IllegalStateException("Projection scan is not complete");
+        }
+        if (removedClaimsResolved && nextProjected.size() == resolvedClaimCount) {
+            return new ProjectionClaimSet.ClaimDelta<ProjectedBlockClaim<B, V>>(deltaBaseline, nextProjected, changedClaimKeys, removedClaimKeys);
         }
         removedClaimKeys.clear();
         if (deltaBaseline != null
@@ -263,6 +330,22 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         return nextUnresolvedOcclusion.size();
     }
 
+    public int resumeTraced() {
+        return resumeTraced;
+    }
+
+    public int resumeResolved() {
+        return resumeResolved;
+    }
+
+    public int resumeUnresolvedBefore() {
+        return resumeUnresolvedBefore;
+    }
+
+    public int occlusionVerdictHits() {
+        return viewOcclusion.verdictHits();
+    }
+
     public boolean hasUnresolvedOcclusion() {
         return !projectedUnresolvedOcclusion.isEmpty();
     }
@@ -277,6 +360,70 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
 
     public int emptyCellSkips() {
         return emptyCellSkips;
+    }
+
+    public int heldClaims() {
+        return preparedResult ? nextHeldSince.size() : heldSince.size();
+    }
+
+    public int hiddenHolds() {
+        return hiddenHolds;
+    }
+
+    public int coneHolds() {
+        return coneHolds;
+    }
+
+    public int heldEvictions() {
+        return heldEvictions;
+    }
+
+    public int losingClaims() {
+        return losingClaimKeys.size();
+    }
+
+    public boolean losingClaimsUnsynced() {
+        return losingClaimsUnsynced;
+    }
+
+    public ProjectorRemoteFootprint remoteFootprint() {
+        return remoteFootprint;
+    }
+
+    public void restartRemoteFootprint() {
+        restartRemoteFootprint = true;
+    }
+
+    public void revokeConeHolds() {
+        coneHoldsRevoked = true;
+    }
+
+    public boolean exposeLosingClaims(LongSet displacedKeys, LongSet restoredKeys, boolean resync) {
+        if (resync) {
+            losingClaimKeys.clear();
+            losingClaimsUnsynced = false;
+        } else if (!restoredKeys.isEmpty()) {
+            losingClaimKeys.removeAll(restoredKeys);
+        }
+        LongIterator displaced = displacedKeys.iterator();
+        while (displaced.hasNext()) {
+            long key = displaced.nextLong();
+            losingClaimKeys.add(key);
+            ProjectedBlockClaim<B, V> claim = projected.get(key);
+            if (claim == null || claim.getLightRemoteKey() == ProjectedBlockClaim.NO_REMOTE_KEY) {
+                continue;
+            }
+            long remoteKey = claim.getLightRemoteKey();
+            losingBlockers.add(remoteKey);
+            if (!heldBlockers.isEmpty() && projectedOcclusionGeometry.contains(remoteKey)) {
+                holdsExposed = true;
+            }
+        }
+        return holdsExposed;
+    }
+
+    public void dropHolds() {
+        dropHoldsRequested = true;
     }
 
     public void invalidateContent() {
@@ -317,6 +464,23 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         unresolvedTargetRemoteKeys.clear();
         projectedUnresolvedOcclusion.clear();
         nextUnresolvedOcclusion.clear();
+        heldSince.clear();
+        nextHeldSince.clear();
+        heldBlockers.clear();
+        nextHeldBlockers.clear();
+        losingClaimKeys.clear();
+        losingBlockers.clear();
+        losingClaimsUnsynced = true;
+        holdClaims = false;
+        holdConeClaims = false;
+        coneHoldsRevoked = false;
+        holdsExposed = false;
+        dropHoldsRequested = false;
+        clearPassHoldRequests();
+        removedClaimsResolved = false;
+        remoteFootprint.clear();
+        nextRemoteFootprint.clear();
+        restartRemoteFootprint = false;
         entityOcclusion.disable();
     }
 
@@ -335,6 +499,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         committedLocalFrame = projectionLocalFrame;
         committedRemoteFrame = projectionRemoteFrame;
         committedEyeDot = projectionEyeDot;
+        if (pending != null) {
+            commitRemoteFootprint(pending.freshRemoteFootprint);
+        }
         pending = null;
         preparedResult = false;
         reuseCommittedEntityOcclusion = false;
@@ -347,11 +514,24 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         LongOpenHashSet unresolvedSwap = projectedUnresolvedOcclusion;
         projectedUnresolvedOcclusion = nextUnresolvedOcclusion;
         nextUnresolvedOcclusion = unresolvedSwap;
+        Long2LongOpenHashMap heldSwap = heldSince;
+        heldSince = nextHeldSince;
+        nextHeldSince = heldSwap;
+        nextHeldSince.clear();
+        Long2ObjectOpenHashMap<long[]> blockersSwap = heldBlockers;
+        heldBlockers = nextHeldBlockers;
+        nextHeldBlockers = blockersSwap;
+        nextHeldBlockers.clear();
+        holdClaims = false;
+        holdConeClaims = false;
+        clearPassHoldRequests();
+        removedClaimsResolved = false;
         scanCommitted = true;
     }
 
     public boolean canResumeOcclusion(ProjectorScanDestination<P, V> destination, GeometryVector eye, Frustum4D frustum) {
         return scanCommitted && completeGeometry && hasUnresolvedOcclusion()
+            && !dropHoldsRequested && !holdsExposed
             && frustum == scannedFrustum
             && destination.localView() == scannedLocalView && destination.destView() == scannedDestinationView
             && scannedLocalRevision == destination.localView().getRevision()
@@ -368,6 +548,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     public void resumeOcclusion() {
         preparedResult = true;
         reuseCommittedEntityOcclusion = true;
+        holdClaims = beginHolding(scanCommitted);
         deltaBaseline = scanCommitted ? projected : null;
         retainedClaimCount = projected.size();
         unfilteredClaimCount = projected.size();
@@ -379,6 +560,10 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         nextBlockEntities.clear();
         nextBlockEntities.putAll(projectedBlockEntities);
         nextUnresolvedOcclusion.clear();
+        nextHeldSince.clear();
+        nextHeldSince.putAll(heldSince);
+        nextHeldBlockers.clear();
+        nextHeldBlockers.putAll(heldBlockers);
         enterCount = 0;
         exitCount = 0;
         keptCount = 0;
@@ -391,8 +576,12 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         maskedCells = 0;
         plateHits = 0;
         viewOcclusion.restartTraceBudget();
+        resumeUnresolvedBefore = projectedUnresolvedOcclusion.size();
+        resumeTraced = 0;
         filterUnresolvedTargets(unresolvedTargetCells, unresolvedTargetRemoteKeys);
         filterUnresolvedTargets(observerTargetCells, observerTargetRemoteKeys);
+        resumeResolved = resumeTraced - nextUnresolvedOcclusion.size();
+        evictOverflowHeldClaims();
         projectedEntityOcclusion.updateEye(scannedRemoteEyeX, scannedRemoteEyeY, scannedRemoteEyeZ);
         if (settings.get().debug()) {
             recountProjectionChanges(false);
@@ -454,11 +643,13 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                 return false;
             }
             pass.geometryComplete = true;
-            if (deadlineNanos != Long.MAX_VALUE) {
+            if (!finishesInSlot(deadlineNanos)) {
                 return false;
             }
         }
-        pass.finishGeometry();
+        if (!pass.finishGeometry(deadlineNanos)) {
+            return false;
+        }
         pass.ready = true;
         preparedResult = true;
         return true;
@@ -469,6 +660,14 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     }
 
     public void cancelPending() {
+        if (pending != null) {
+            remoteFootprint.addAll(nextRemoteFootprint);
+            nextRemoteFootprint.clear();
+        }
+        coneHoldsRevoked |= passRevokesConeHolds;
+        holdsExposed |= passExposesHolds;
+        dropHoldsRequested |= passDropsHolds;
+        clearPassHoldRequests();
         pending = null;
         preparedResult = false;
         reuseCommittedEntityOcclusion = false;
@@ -480,6 +679,11 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         removedClaimKeys.clear();
         nextProjected.clear();
         nextBlockEntities.clear();
+        nextHeldSince.clear();
+        nextHeldBlockers.clear();
+        holdClaims = false;
+        holdConeClaims = false;
+        removedClaimsResolved = false;
         entityOcclusion.disable();
     }
 
@@ -487,32 +691,46 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         return step > 0 ? coordinate <= end : coordinate >= end;
     }
 
+    private void commitRemoteFootprint(boolean fresh) {
+        if (fresh) {
+            ProjectorRemoteFootprint swap = remoteFootprint;
+            remoteFootprint = nextRemoteFootprint;
+            nextRemoteFootprint = swap;
+        } else {
+            remoteFootprint.addAll(nextRemoteFootprint);
+        }
+        nextRemoteFootprint.clear();
+    }
+
+    private boolean finishesInSlot(long deadlineNanos) {
+        return deadlineNanos == Long.MAX_VALUE
+            || (settings.get().finishInSlot() && System.nanoTime() < deadlineNanos);
+    }
+
     private static int frameCode(PortalFrame frame) {
         return frame.getNormal().ordinal() | (frame.getRight().ordinal() << 3) | (frame.getUp().ordinal() << 6);
     }
 
-    private boolean recursiveGeometryIntersects(ProjectorRecursivePortals<W, P>.Index index, AxisAlignedBB area) {
-        if (index == null || index.isEmpty()) {
-            return false;
-        }
-        double minX = Double.POSITIVE_INFINITY;
-        double minY = Double.POSITIVE_INFINITY;
-        double minZ = Double.POSITIVE_INFINITY;
-        double maxX = Double.NEGATIVE_INFINITY;
-        double maxY = Double.NEGATIVE_INFINITY;
-        double maxZ = Double.NEGATIVE_INFINITY;
+    private double[] remoteScanBounds(AxisAlignedBB area) {
+        double[] bounds = scratchRemoteBounds;
+        bounds[0] = Double.POSITIVE_INFINITY;
+        bounds[1] = Double.POSITIVE_INFINITY;
+        bounds[2] = Double.POSITIVE_INFINITY;
+        bounds[3] = Double.NEGATIVE_INFINITY;
+        bounds[4] = Double.NEGATIVE_INFINITY;
+        bounds[5] = Double.NEGATIVE_INFINITY;
         for (int corner = 0; corner < 8; corner++) {
             cellTransform.apply((corner & 1) == 0 ? area.getXa() - 1.0D : area.getXb() + 1.0D,
                 (corner & 2) == 0 ? area.getYa() - 1.0D : area.getYb() + 1.0D,
                 (corner & 4) == 0 ? area.getZa() - 1.0D : area.getZb() + 1.0D, scratchRemotePoint);
-            minX = Math.min(minX, scratchRemotePoint[0]);
-            minY = Math.min(minY, scratchRemotePoint[1]);
-            minZ = Math.min(minZ, scratchRemotePoint[2]);
-            maxX = Math.max(maxX, scratchRemotePoint[0]);
-            maxY = Math.max(maxY, scratchRemotePoint[1]);
-            maxZ = Math.max(maxZ, scratchRemotePoint[2]);
+            bounds[0] = Math.min(bounds[0], scratchRemotePoint[0]);
+            bounds[1] = Math.min(bounds[1], scratchRemotePoint[1]);
+            bounds[2] = Math.min(bounds[2], scratchRemotePoint[2]);
+            bounds[3] = Math.max(bounds[3], scratchRemotePoint[0]);
+            bounds[4] = Math.max(bounds[4], scratchRemotePoint[1]);
+            bounds[5] = Math.max(bounds[5], scratchRemotePoint[2]);
         }
-        return index.intersects(minX, minY, minZ, maxX, maxY, maxZ);
+        return bounds;
     }
 
     private boolean localChunkReady(V view, int x, int z) {
@@ -571,13 +789,17 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         }
     }
 
-    private void rememberOcclusionBlocker(ProjectedBlockClaim<B, V> claim, boolean observerOcclusion) {
+    private void rememberOcclusionBlocker(long localKey, ProjectedBlockClaim<B, V> claim, boolean observerOcclusion) {
         if (!observerOcclusion
             || claim.getLightRemoteKey() == ProjectedBlockClaim.NO_REMOTE_KEY
             || !viewOcclusion.isOccluding(claim.getData())) {
             return;
         }
-        occlusionGeometry.add(claim.getLightRemoteKey());
+        long remoteKey = claim.getLightRemoteKey();
+        occlusionGeometry.add(remoteKey);
+        if (!losingClaimKeys.isEmpty() && losingClaimKeys.contains(localKey)) {
+            losingBlockers.add(remoteKey);
+        }
     }
 
     private void addObserverTarget(long localKey, long remoteKey) {
@@ -667,23 +889,11 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             && previous.getLightView() == destView;
     }
 
-    private void filterObserverTargets(V view,
-                                       double eyeX,
-                                       double eyeY,
-                                       double eyeZ,
-                                       LongArrayList targetCells,
-                                       LongArrayList targetRemoteKeys) {
-        for (int index = 0; index < targetCells.size(); index++) {
-            long localKey = targetCells.getLong(index);
-            long remoteKey = targetRemoteKeys.getLong(index);
-            filterObserverTarget(view, eyeX, eyeY, eyeZ, localKey, remoteKey);
-        }
-    }
-
     private void filterUnresolvedTargets(LongArrayList targetCells, LongArrayList targetRemoteKeys) {
         for (int index = 0; index < targetCells.size(); index++) {
             long localKey = targetCells.getLong(index);
             if (projectedUnresolvedOcclusion.contains(localKey)) {
+                resumeTraced++;
                 filterObserverTarget(scannedDestinationView,
                     scannedRemoteEyeX, scannedRemoteEyeY, scannedRemoteEyeZ,
                     localKey, targetRemoteKeys.getLong(index));
@@ -697,17 +907,212 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             ProjectionCellKey.unpackX(remoteKey), ProjectionCellKey.unpackY(remoteKey),
             ProjectionCellKey.unpackZ(remoteKey), eyeX, eyeY, eyeZ);
         switch (visibility) {
-            case HIDDEN -> {
-                ProjectedBlockClaim<B, V> hidden = nextProjected.get(localKey);
-                if (hidden == null || !hidden.isBlackout()) {
-                    nextProjected.remove(localKey);
-                    occlusionRejected++;
-                }
+            case HIDDEN -> hideTarget(localKey);
+            case UNRESOLVED -> {
+                nextUnresolvedOcclusion.add(localKey);
+                keepCommittedHold(localKey);
             }
-            case UNRESOLVED -> nextUnresolvedOcclusion.add(localKey);
             case VISIBLE -> {
             }
         }
+    }
+
+    private void keepCommittedHold(long localKey) {
+        if (!holdClaims) {
+            return;
+        }
+        ProjectedBlockClaim<B, V> current = nextProjected.get(localKey);
+        if (current == null || current.isHeld()) {
+            return;
+        }
+        ProjectedBlockClaim<B, V> previous = projected.get(localKey);
+        if (previous == null || !previous.isHeld() || !sameCommittedContent(previous, current)) {
+            return;
+        }
+        long[] blockers = heldBlockers.get(localKey);
+        if (blockers == null || anyLosingBlocker(blockers)) {
+            return;
+        }
+        holdClaim(localKey, previous);
+        nextHeldBlockers.put(localKey, blockers);
+    }
+
+    private void hideTarget(long localKey) {
+        ProjectedBlockClaim<B, V> hidden = nextProjected.get(localKey);
+        if (hidden != null && hidden.isBlackout()) {
+            return;
+        }
+        if (hidden != null && holdClaims) {
+            ProjectedBlockClaim<B, V> previous = projected.get(localKey);
+            if (previous != null && !previous.isBlackout()) {
+                long[] blockers = hiddenHoldBlockers(localKey);
+                if (blockers != null) {
+                    if (sameCommittedContent(previous, hidden)) {
+                        holdClaim(localKey, previous);
+                    } else {
+                        holdFreshClaim(localKey, hidden);
+                    }
+                    nextHeldBlockers.put(localKey, blockers);
+                    hiddenHolds++;
+                    return;
+                }
+            }
+        }
+        nextProjected.remove(localKey);
+        occlusionRejected++;
+    }
+
+    private long[] hiddenHoldBlockers(long localKey) {
+        LongArrayList traced = viewOcclusion.hiddenBlockers();
+        long[] committed = heldBlockers.get(localKey);
+        if (traced.isEmpty()) {
+            return committed != null && !anyLosingBlocker(committed) ? committed : null;
+        }
+        if (anyLosingBlocker(traced)) {
+            return null;
+        }
+        return committed != null && sameBlockers(committed, traced) ? committed : traced.toLongArray();
+    }
+
+    private boolean anyLosingBlocker(long[] blockers) {
+        if (losingBlockers.isEmpty()) {
+            return false;
+        }
+        for (long blocker : blockers) {
+            if (losingBlockers.contains(blocker)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean anyLosingBlocker(LongArrayList blockers) {
+        if (losingBlockers.isEmpty()) {
+            return false;
+        }
+        int size = blockers.size();
+        for (int i = 0; i < size; i++) {
+            if (losingBlockers.contains(blockers.getLong(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean sameBlockers(long[] committed, LongArrayList traced) {
+        int size = traced.size();
+        if (committed.length != size) {
+            return false;
+        }
+        for (int i = 0; i < size; i++) {
+            if (committed[i] != traced.getLong(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static <B, V> boolean sameCommittedContent(ProjectedBlockClaim<B, V> previous, ProjectedBlockClaim<B, V> current) {
+        return current.sameBlock(previous) && current.sameLightSource(previous)
+            && current.getLightRemoteKey() == previous.getLightRemoteKey();
+    }
+
+    private void holdFreshClaim(long key, ProjectedBlockClaim<B, V> fresh) {
+        nextProjected.put(key, fresh.withHeld(true));
+        long since = heldSince.get(key);
+        nextHeldSince.put(key, since == Long.MIN_VALUE ? holdGeneration : since);
+        if (deltaBaseline != null) {
+            changedClaimKeys.add(key);
+        }
+    }
+
+    private void holdClaim(long key, ProjectedBlockClaim<B, V> previous) {
+        ProjectedBlockClaim<B, V> held = previous.withHeld(true);
+        nextProjected.put(key, held);
+        nextBlockEntities.remove(key);
+        retainBlockEntity(key);
+        long since = heldSince.get(key);
+        nextHeldSince.put(key, since == Long.MIN_VALUE ? holdGeneration : since);
+        if (deltaBaseline == null) {
+            return;
+        }
+        if (held != previous) {
+            changedClaimKeys.add(key);
+        } else {
+            changedClaimKeys.remove(key);
+        }
+    }
+
+    private boolean beginHolding(boolean committed) {
+        passRevokesConeHolds = coneHoldsRevoked;
+        passExposesHolds = holdsExposed;
+        passDropsHolds = dropHoldsRequested;
+        coneHoldsRevoked = false;
+        holdsExposed = false;
+        dropHoldsRequested = false;
+        ScanSettings current = settings.get();
+        maxHeldClaims = current.maxHeldClaims();
+        holdGeneration++;
+        hiddenHolds = 0;
+        coneHolds = 0;
+        heldEvictions = 0;
+        removedClaimsResolved = false;
+        boolean enabled = committed && current.holdInvisibleClaims() && maxHeldClaims > 0 && !passDropsHolds;
+        holdConeClaims = enabled && !passRevokesConeHolds;
+        return enabled;
+    }
+
+    private void clearPassHoldRequests() {
+        passRevokesConeHolds = false;
+        passExposesHolds = false;
+        passDropsHolds = false;
+    }
+
+    private void evictOverflowHeldClaims() {
+        int excess = nextHeldSince.size() - maxHeldClaims;
+        if (excess <= 0) {
+            return;
+        }
+        int size = nextHeldSince.size();
+        long[] keys = new long[size];
+        long[] generations = new long[size];
+        int index = 0;
+        ObjectIterator<Long2LongMap.Entry> iterator = nextHeldSince.long2LongEntrySet().fastIterator();
+        while (iterator.hasNext()) {
+            Long2LongMap.Entry entry = iterator.next();
+            keys[index] = entry.getLongKey();
+            generations[index] = entry.getLongValue();
+            index++;
+        }
+        long[] sorted = generations.clone();
+        Arrays.sort(sorted);
+        long threshold = sorted[excess - 1];
+        int thresholdBudget = excess;
+        for (int i = 0; i < size; i++) {
+            if (generations[i] < threshold) {
+                thresholdBudget--;
+            }
+        }
+        for (int i = 0; i < size; i++) {
+            if (generations[i] < threshold) {
+                evictHeldClaim(keys[i]);
+            } else if (generations[i] == threshold && thresholdBudget > 0) {
+                thresholdBudget--;
+                evictHeldClaim(keys[i]);
+            }
+        }
+    }
+
+    private void evictHeldClaim(long key) {
+        nextProjected.remove(key);
+        nextHeldSince.remove(key);
+        nextHeldBlockers.remove(key);
+        nextBlockEntities.remove(key);
+        changedClaimKeys.remove(key);
+        if (deltaBaseline != null && deltaBaseline.containsKey(key)) {
+            removedClaimKeys.add(key);
+        }
+        heldEvictions++;
     }
 
     private void recountProjectionChanges(boolean forceFullSend) {
@@ -754,7 +1159,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                                LodPolicy lod) {
     }
 
-    private final class ScanPass {
+    private final class ScanPass implements ProjectorHoldProof.LocalOccupancy {
         private V localView;
         private V destView;
         private P dest;
@@ -762,8 +1167,10 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         private ViewPlate<B> plate;
         private PortalFrame localFrame;
         private ProjectorRecursivePortals<W, P>.Index rootRecursiveIndex;
+        private ProjectorRecursivePortals.Hit<W, P> maskHit;
         private ProjectorPlaneWindow planeWindow;
         private ProjectorPlaneWindow blackoutWindow;
+        private ProjectorHoldProof holdProof;
         private LodPolicy lodPolicy;
         private int[] axisMin;
         private int[] axisMax;
@@ -778,6 +1185,11 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         private boolean blockEntities;
         private boolean eyeFrontSide;
         private boolean recursiveGeometry;
+        private boolean maskGeometry;
+        private boolean maskRow;
+        private int maskLow;
+        private int maskHigh;
+        private int maskRowCandidateCount;
         private boolean cacheEmptyCells;
         private boolean skipKnownEmptyCells;
         private boolean blackoutEnabled;
@@ -792,6 +1204,8 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         private boolean frustumRowPrepared;
         private boolean blackoutContainsRow;
         private int mirrorRotationQuarterTurns;
+        private int localMinY;
+        private int localMaxY;
         private int normalAxis;
         private int blackoutFarSign;
         private int rightAxis;
@@ -833,6 +1247,11 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
         private boolean rowReady;
         private boolean geometryComplete;
         private boolean ready;
+        private boolean filterTargets;
+        private int finishStage;
+        private int finishTargetIndex;
+        private int finishDeadlineTargets;
+        private final boolean freshRemoteFootprint;
 
         private ScanPass(ScanRequest<B, P, V> request) {
             ProjectorScanDestination<P, V> destination = request.destination();
@@ -855,6 +1274,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             dest = destination.dest();
             mirrorMode = destination.mirrorMode();
             mirrorRotationQuarterTurns = destination.mirrorRotationQuarterTurns();
+            freshRemoteFootprint = restartRemoteFootprint;
+            restartRemoteFootprint = false;
+            nextRemoteFootprint.clear();
 
             boolean reuseCommittedContent = scanCommitted && completeGeometry
                 && !forceStableCellResample && !forceFullSend
@@ -862,6 +1284,13 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                 && localView.getRevision() == scannedLocalRevision
                 && destView.getRevision() == scannedDestinationRevision;
             deltaBaseline = scanCommitted && !forceFullSend ? projected : null;
+            holdClaims = beginHolding(scanCommitted && destView == scannedDestinationView
+                && destView.getRevision() == scannedDestinationRevision);
+            holdConeClaims = holdConeClaims && localView == scannedLocalView
+                && localView.getRevision() == scannedLocalRevision;
+            nextHeldSince.clear();
+            nextHeldBlockers.clear();
+            losingBlockers.clear();
             retainedClaimCount = 0;
             unfilteredClaimCount = 0;
             changedClaimKeys.clear();
@@ -901,8 +1330,8 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             enterCount = 0;
             keptCount = 0;
 
-            int localMinY = localView.getMinHeight();
-            int localMaxY = localView.getMaxHeight() - 1;
+            localMinY = localView.getMinHeight();
+            localMaxY = localView.getMaxHeight() - 1;
             AxisAlignedBB area = frustum.getRegion();
             int xa = ProjectorFrameTransform.minBlockForCenter(area.getXa());
             int ya = Math.max(ProjectorFrameTransform.minBlockForCenter(area.getYa()), localMinY);
@@ -952,11 +1381,10 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             scannedRemoteEyeX = scratchRemoteEye[0];
             scannedRemoteEyeY = scratchRemoteEye[1];
             scannedRemoteEyeZ = scratchRemoteEye[2];
-            W destSampleW = sampler.world(destView);
-            rootRecursiveIndex = destSampleW == null || recursiveDepth < 0
-                ? null
-                : sampler.recursiveIndex(destSampleW, scratchRemoteEye[0], scratchRemoteEye[1], scratchRemoteEye[2], dest);
-            recursiveGeometry = recursiveGeometryIntersects(rootRecursiveIndex, area);
+            prepareRecursiveGeometry(area);
+            if (recursiveGeometry) {
+                nextRemoteFootprint.markNested();
+            }
             cacheEmptyCells = !blackout.isEnabled() && !recursiveGeometry;
             if (!cacheEmptyCells) {
                 emptyCells.clear();
@@ -977,6 +1405,10 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             blackoutWindow = blackoutEnabled
                 ? ProjectorPlaneWindow.create(aperture, aperture.getArea(), projectionLocalFrame,
                     localOriginX, localOriginY, localOriginZ, 0.0D, projectionEyeDot)
+                : null;
+            holdProof = holdConeClaims
+                ? ProjectorHoldProof.create(aperture.getArea(), projectionLocalFrame,
+                    localOriginX, localOriginY, localOriginZ, settings.get().aperturePadding())
                 : null;
             planeRejected = 0;
             windowRejected = 0;
@@ -1048,6 +1480,111 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             n = normalStart;
         }
 
+        private void prepareRecursiveGeometry(AxisAlignedBB area) {
+            recursiveGeometry = false;
+            maskGeometry = false;
+            maskRow = false;
+            maskCandidates.clear();
+            W destSampleW = sampler.world(destView);
+            if (destSampleW == null || recursiveDepth < 0) {
+                rootRecursiveIndex = null;
+                maskHit = null;
+                return;
+            }
+            double[] bounds = remoteScanBounds(area);
+            if (!sampler.recursivePortalsReach(destSampleW, dest, bounds)) {
+                rootRecursiveIndex = sampler.emptyRecursiveIndex();
+                maskHit = null;
+                return;
+            }
+            rootRecursiveIndex = sampler.recursiveIndex(destSampleW, scratchRemoteEye[0], scratchRemoteEye[1], scratchRemoteEye[2], dest);
+            maskHit = rootRecursiveIndex.maskHit();
+            ProjectorRecursivePortals.Reach reach = rootRecursiveIndex.reach(bounds[0], bounds[1], bounds[2],
+                bounds[3], bounds[4], bounds[5], recursiveDepth, maskCandidates);
+            recursiveGeometry = reach == ProjectorRecursivePortals.Reach.RECURSIVE;
+            maskGeometry = reach == ProjectorRecursivePortals.Reach.MASK;
+            if (maskGeometry && maskRowCandidates.length < maskCandidates.size()) {
+                maskRowCandidates = new int[maskCandidates.size()];
+                maskRowLows = new int[maskCandidates.size()];
+                maskRowHighs = new int[maskCandidates.size()];
+            }
+        }
+
+        private void prepareMaskRow() {
+            maskRow = false;
+            maskRowCandidateCount = 0;
+            rowSamplePoint(upStart, scratchMaskRowStart);
+            rowSamplePoint(upStart + 1, scratchMaskRowNext);
+            double directionX = scratchMaskRowNext[0] - scratchMaskRowStart[0];
+            double directionY = scratchMaskRowNext[1] - scratchMaskRowStart[1];
+            double directionZ = scratchMaskRowNext[2] - scratchMaskRowStart[2];
+            double baseX = scratchMaskRowStart[0] - (upStart * directionX);
+            double baseY = scratchMaskRowStart[1] - (upStart * directionY);
+            double baseZ = scratchMaskRowStart[2] - (upStart * directionZ);
+            int rowLow = Math.min(upStart, upEnd);
+            int rowHigh = Math.max(upStart, upEnd);
+            maskLow = Integer.MAX_VALUE;
+            maskHigh = Integer.MIN_VALUE;
+            for (int candidateIndex = 0; candidateIndex < maskCandidates.size(); candidateIndex++) {
+                scratchMaskRange[0] = rowLow - 1.0D;
+                scratchMaskRange[1] = rowHigh + 1.0D;
+                if (!maskCandidates.get(candidateIndex).clipLine(baseX, baseY, baseZ, directionX, directionY, directionZ, scratchMaskRange)) {
+                    continue;
+                }
+                int low = Math.max(rowLow, (int) Math.floor(scratchMaskRange[0]) - 1);
+                int high = Math.min(rowHigh, (int) Math.ceil(scratchMaskRange[1]) + 1);
+                if (low > high) {
+                    continue;
+                }
+                maskRowCandidates[maskRowCandidateCount] = candidateIndex;
+                maskRowLows[maskRowCandidateCount] = low;
+                maskRowHighs[maskRowCandidateCount] = high;
+                maskRowCandidateCount++;
+                maskLow = Math.min(maskLow, low);
+                maskHigh = Math.max(maskHigh, high);
+            }
+            maskRow = maskRowCandidateCount > 0;
+        }
+
+        private void rowSamplePoint(int upCoordinate, double[] out) {
+            double normalCenter = sampleNormalCenter;
+            double rightCenter = r + 0.5D;
+            double upCenter = upCoordinate + 0.5D;
+            cellTransform.apply(normalAxis == 0 ? normalCenter : rightAxis == 0 ? rightCenter : upCenter,
+                normalAxis == 1 ? normalCenter : rightAxis == 1 ? rightCenter : upCenter,
+                normalAxis == 2 ? normalCenter : rightAxis == 2 ? rightCenter : upCenter, out);
+        }
+
+        private int maskSkipLimit(int coordinate, int candidate) {
+            if (coordinate >= maskLow && coordinate <= maskHigh) {
+                return coordinate;
+            }
+            if (upSign > 0) {
+                return coordinate < maskLow && candidate > maskLow ? maskLow : candidate;
+            }
+            return coordinate > maskHigh && candidate < maskHigh ? maskHigh : candidate;
+        }
+
+        private boolean masksRemotePoint(int coordinate) {
+            for (int index = 0; index < maskRowCandidateCount; index++) {
+                if (coordinate >= maskRowLows[index] && coordinate <= maskRowHighs[index]
+                    && maskCandidates.get(maskRowCandidates[index]).covers(scratchRemotePoint[0], scratchRemotePoint[1], scratchRemotePoint[2])) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void applyRemotePoint(double cx, double cy, double cz) {
+            if (mergedSlab) {
+                cellTransform.apply(normalAxis == 0 ? sampleNormalCenter : cx,
+                    normalAxis == 1 ? sampleNormalCenter : cy,
+                    normalAxis == 2 ? sampleNormalCenter : cz, scratchRemotePoint);
+            } else {
+                cellTransform.apply(cx, cy, cz, scratchRemotePoint);
+            }
+        }
+
         private boolean advanceGeometry(long deadlineNanos) {
             for (; scanContinues(n, normalEnd, normalStep); n += normalStep, slabReady = false, rowReady = false) {
                 if (!slabReady) {
@@ -1104,6 +1641,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                         if (cacheEmptyCells) {
                             emptyCells.beginRow(upAxis, cellCoords);
                         }
+                        if (maskGeometry) {
+                            prepareMaskRow();
+                        }
                         u = upStart;
                         rowReady = true;
                     }
@@ -1116,6 +1656,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                         }
                         if (skipKnownEmptyCells) {
                             int candidate = emptyCells.nextCandidate(u, upEnd, upSign);
+                            if (maskRow) {
+                                candidate = maskSkipLimit(u, candidate);
+                            }
                             emptyCellSkips += Math.min(Math.abs(candidate - u), Math.abs(upEnd - u) + 1);
                             u = candidate;
                             if (!scanContinues(u, upEnd, upSign)) {
@@ -1141,6 +1684,12 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                             continue;
                         }
 
+                        boolean masked = false;
+                        if (maskRow && u >= maskLow && u <= maskHigh) {
+                            applyRemotePoint(cx, cy, cz);
+                            masked = masksRemotePoint(u);
+                        }
+
                         long key = ProjectionCellKey.pack(x, y, z);
                         ProjectedBlockClaim<B, V> previousCell = projected.get(key);
                         boolean blackoutFarCell = blackoutEnabled
@@ -1163,14 +1712,17 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                             blackoutBoundaryMask |= ProjectorBlackoutBoundary.faceMask(normalAxis, blackoutFarSign);
                         }
                         boolean blackoutCell = blackoutBoundaryMask != 0;
-                        if (reuseMappedClaims && previousCell != null && !previousCell.isBlackout()
+                        if (reuseMappedClaims && !masked && previousCell != null && !previousCell.isBlackout() && !previousCell.isHeld()
                             && previousCell.getLightView() == destView
                             && previousCell.isFullBright() == blackoutEnabled) {
                             long remoteKey = previousCell.getLightRemoteKey();
+                            if (remoteKey != ProjectedBlockClaim.NO_REMOTE_KEY) {
+                                nextRemoteFootprint.recordCell(remoteKey);
+                            }
                             nextProjected.put(key, previousCell);
                             retainedClaimCount++;
                             retainBlockEntity(key);
-                            rememberOcclusionBlocker(previousCell, observerOcclusion);
+                            rememberOcclusionBlocker(key, previousCell, observerOcclusion);
                             if (!localChunkReady(localView, x, z)) {
                                 completeGeometry = false;
                                 retainUnresolvedOcclusion(key, observerOcclusion);
@@ -1183,32 +1735,27 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                             }
                             continue;
                         }
-                        if (mergedSlab) {
-                            cellTransform.apply(normalAxis == 0 ? sampleNormalCenter : cx,
-                                normalAxis == 1 ? sampleNormalCenter : cy,
-                                normalAxis == 2 ? sampleNormalCenter : cz, scratchRemotePoint);
-                        } else {
-                            cellTransform.apply(cx, cy, cz, scratchRemotePoint);
-                        }
+                        applyRemotePoint(cx, cy, cz);
 
                         int rx = (int) Math.floor(scratchRemotePoint[0]);
                         int ry = (int) Math.floor(scratchRemotePoint[1]);
                         int rz = (int) Math.floor(scratchRemotePoint[2]);
                         long remoteKey = ProjectionCellKey.pack(rx, ry, rz);
+                        nextRemoteFootprint.record(rx, ry, rz);
                         long previousRemoteKey = previousCell == null
                             ? ProjectedBlockClaim.NO_REMOTE_KEY
                             : previousCell.getLightRemoteKey();
                         if (!localChunkReady(localView, x, z)) {
                             completeGeometry = false;
                             if (previousCell != null && !previousCell.isBlackout()) {
-                                ProjectedBlockClaim<B, V> retained = previousCell.withFullBright(blackoutEnabled);
+                                ProjectedBlockClaim<B, V> retained = previousCell.withFullBright(blackoutEnabled).withHeld(false);
                                 nextProjected.put(key, retained);
                                 retainedClaimCount++;
                                 if (deltaBaseline != null && retained != previousCell) {
                                     changedClaimKeys.add(key);
                                 }
                                 retainBlockEntity(key);
-                                rememberOcclusionBlocker(retained, observerOcclusion);
+                                rememberOcclusionBlocker(key, retained, observerOcclusion);
                                 retainUnresolvedOcclusion(key, observerOcclusion);
                                 if (blackoutCell) {
                                     rememberBlackoutCell(key, remoteKey, blackoutBoundaryMask, retained);
@@ -1220,15 +1767,16 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                         }
                         boolean previousLightingMatches = previousCell != null
                             && !previousCell.isBlackout()
+                            && !previousCell.isHeld()
                             && previousCell.isFullBright() == blackoutEnabled;
                         if (previousLightingMatches && previousRemoteKey == remoteKey
                             && previousCell.getLightView() == destView) {
-                            if (!forceStableCellResample && !forceFullSend
+                            if (!forceStableCellResample && !forceFullSend && !masked
                                 && (!refreshObserverVisibility || !recursiveGeometry)) {
                                 nextProjected.put(key, previousCell);
                                 retainedClaimCount++;
                                 retainBlockEntity(key);
-                                rememberOcclusionBlocker(previousCell, observerOcclusion);
+                                rememberOcclusionBlocker(key, previousCell, observerOcclusion);
                                 if (observerOcclusion && (refreshObserverVisibility || projectedUnresolvedOcclusion.contains(key))) {
                                     addObserverTarget(key, remoteKey);
                                 }
@@ -1239,15 +1787,15 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                             }
                         }
 
-                        ProjectorRecursivePortals.Hit<W, P> recursiveHit = !recursiveGeometry
-                            ? null
-                            : rootRecursiveIndex.find(scratchRemotePoint[0], scratchRemotePoint[1], scratchRemotePoint[2],
-                                recursiveDepth);
-                        PlateCell<B> plateCell = plate == null || recursiveHit != null ? null : plate.cell(key);
+                        ProjectorRecursivePortals.Hit<W, P> recursiveHit = recursiveGeometry
+                            ? rootRecursiveIndex.find(scratchRemotePoint[0], scratchRemotePoint[1], scratchRemotePoint[2],
+                                recursiveDepth)
+                            : masked ? maskHit : null;
+                        PlateCell<B> plateCell = plate == null || recursiveHit != null ? null : plate.cleanCell(key, rx, rz);
                         ProjectorSample<B, V> sample;
                         if (plateCell != null) {
                             plateHits++;
-                            sample = plateCell.sample(destView);
+                            sample = plateCell.sample(destView, remoteKey);
                         } else {
                             sample = sampler.resolve(destView,
                                 scratchRemotePoint[0], scratchRemotePoint[1], scratchRemotePoint[2],
@@ -1274,14 +1822,14 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                                 && previousCell != null
                                 && previousRemoteKey == remoteKey;
                             if (matchingRemoteUnavailable && !previousCell.isBlackout()) {
-                                ProjectedBlockClaim<B, V> retained = previousCell.withFullBright(blackoutEnabled);
+                                ProjectedBlockClaim<B, V> retained = previousCell.withFullBright(blackoutEnabled).withHeld(false);
                                 nextProjected.put(key, retained);
                                 retainedClaimCount++;
                                 if (deltaBaseline != null && retained != previousCell) {
                                     changedClaimKeys.add(key);
                                 }
                                 retainBlockEntity(key);
-                                rememberOcclusionBlocker(retained, observerOcclusion);
+                                rememberOcclusionBlocker(key, retained, observerOcclusion);
                                 retainUnresolvedOcclusion(key, observerOcclusion);
                                 if (blackoutCell) {
                                     rememberBlackoutCell(key, remoteKey, blackoutBoundaryMask, retained);
@@ -1296,9 +1844,9 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                         }
                         boolean maskAir = sample.kind == ProjectorSample.Kind.MASK_AIR;
                         boolean remoteAir = sample.kind == ProjectorSample.Kind.REMOTE_AIR;
-                        boolean localAir = remoteAir && memo.isLocalAir(localView, x, y, z);
+                        boolean localAir = (maskAir || remoteAir) && memo.isLocalAir(localView, x, y, z);
                         if ((maskAir || remoteAir) && !shouldProjectAirSample(sample.kind, localAir)) {
-                            if (cacheEmptyCells) {
+                            if (cacheEmptyCells && !maskAir) {
                                 emptyCells.markEmpty(u);
                             }
                             continue;
@@ -1324,6 +1872,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                                 ? previousCell
                                 : sample.asClaim(projectedHit);
                         }
+                        nextCell = nextCell.withHeld(false);
                         nextProjected.put(key, nextCell);
                         if (previousCell != null) {
                             retainedClaimCount++;
@@ -1343,7 +1892,7 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
                         }
                         if (observerOcclusion && recursiveHit == null) {
                             addObserverTarget(key, remoteKey);
-                            rememberOcclusionBlocker(nextCell, true);
+                            rememberOcclusionBlocker(key, nextCell, true);
                         }
                     }
                 }
@@ -1352,25 +1901,61 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             return true;
         }
 
-        private void finishGeometry() {
+        private boolean finishGeometry(long deadlineNanos) {
+            if (finishStage == FINISH_SEAL) {
+                beginFinish();
+            }
+            if (finishStage == FINISH_UNRESOLVED_TARGETS) {
+                if (filterTargets && !filterObserverTargets(unresolvedTargetCells, unresolvedTargetRemoteKeys, deadlineNanos)) {
+                    return false;
+                }
+                finishStage = FINISH_OBSERVER_TARGETS;
+                finishTargetIndex = 0;
+            }
+            if (filterTargets && !filterObserverTargets(observerTargetCells, observerTargetRemoteKeys, deadlineNanos)) {
+                return false;
+            }
+            finishEntityOcclusion();
+            return true;
+        }
+
+        private void beginFinish() {
             blackoutClaims = 0;
             if (blackoutEnabled && blackoutFarSliceFound && !blackoutGeometry.isEmpty()) {
                 sealBlackoutGeometry();
             }
             unfilteredClaimCount = nextProjected.size();
+            filterTargets = false;
             if (observerOcclusion && (!unresolvedTargetCells.isEmpty() || !observerTargetCells.isEmpty())) {
                 viewOcclusion.setRevealMarginDegrees(scannedRevealMargin);
                 viewOcclusion.beginPass(
                     remoteOriginX, remoteOriginY, remoteOriginZ, projectionRemoteFrame.getNormal(),
                     occlusionGeometry);
-                if (!occlusionGeometry.isEmpty()) {
-                    filterObserverTargets(destView, scannedRemoteEyeX, scannedRemoteEyeY, scannedRemoteEyeZ,
-                        unresolvedTargetCells, unresolvedTargetRemoteKeys);
-                    filterObserverTargets(destView, scannedRemoteEyeX, scannedRemoteEyeY, scannedRemoteEyeZ,
-                        observerTargetCells, observerTargetRemoteKeys);
-                }
+                filterTargets = !occlusionGeometry.isEmpty();
             }
+            finishStage = FINISH_UNRESOLVED_TARGETS;
+            finishTargetIndex = 0;
+        }
 
+        private boolean filterObserverTargets(LongArrayList targetCells, LongArrayList targetRemoteKeys, long deadlineNanos) {
+            int size = targetCells.size();
+            for (; finishTargetIndex < size; finishTargetIndex++) {
+                if (++finishDeadlineTargets > FINISH_DEADLINE_STRIDE) {
+                    finishDeadlineTargets = 1;
+                    if (deadlineNanos != Long.MAX_VALUE && System.nanoTime() >= deadlineNanos) {
+                        return false;
+                    }
+                }
+                filterObserverTarget(destView, scannedRemoteEyeX, scannedRemoteEyeY, scannedRemoteEyeZ,
+                    targetCells.getLong(finishTargetIndex), targetRemoteKeys.getLong(finishTargetIndex));
+            }
+            return true;
+        }
+
+        private void finishEntityOcclusion() {
+            if (holdClaims) {
+                holdReleasedClaims();
+            }
             entityOcclusion.beginPass(
                 destView,
                 remoteOriginX,
@@ -1386,6 +1971,42 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
             if (settings.get().debug()) {
                 recountProjectionChanges(forceFullSend);
             }
+        }
+
+        private void holdReleasedClaims() {
+            if (retainedClaimCount != projected.size() || nextProjected.size() != unfilteredClaimCount) {
+                boolean proving = holdProof != null && holdProof.beginEye(eyeX, eyeY, eyeZ);
+                ObjectIterator<Long2ObjectMap.Entry<ProjectedBlockClaim<B, V>>> iterator = projected.long2ObjectEntrySet().fastIterator();
+                while (iterator.hasNext()) {
+                    Long2ObjectMap.Entry<ProjectedBlockClaim<B, V>> entry = iterator.next();
+                    long key = entry.getLongKey();
+                    if (nextProjected.containsKey(key)) {
+                        continue;
+                    }
+                    ProjectedBlockClaim<B, V> previous = entry.getValue();
+                    if (proving && !previous.isBlackout() && holdProof.verdict(ProjectionCellKey.unpackX(key),
+                        ProjectionCellKey.unpackY(key), ProjectionCellKey.unpackZ(key), this).holds()) {
+                        holdClaim(key, previous);
+                        coneHolds++;
+                    } else if (deltaBaseline != null) {
+                        removedClaimKeys.add(key);
+                    }
+                }
+            }
+            evictOverflowHeldClaims();
+            removedClaimsResolved = deltaBaseline != null;
+            resolvedClaimCount = nextProjected.size();
+        }
+
+        @Override
+        public ProjectorHoldProof.Occupancy occupancy(int x, int y, int z) {
+            if (y < localMinY || y > localMaxY) {
+                return ProjectorHoldProof.Occupancy.OPEN;
+            }
+            if (!localChunkReady(localView, x, z)) {
+                return ProjectorHoldProof.Occupancy.UNKNOWN;
+            }
+            return memo.localOccupancy(localView, x, y, z);
         }
 
         /**
@@ -1429,10 +2050,11 @@ public final class ProjectorCellScan<B, M, W, P extends IPortal, V extends Proje
     }
 
     public static boolean shouldProjectAirSample(ProjectorSample.Kind kind, boolean localAir) {
-        return kind == ProjectorSample.Kind.MASK_AIR || (kind == ProjectorSample.Kind.REMOTE_AIR && !localAir);
+        return (kind == ProjectorSample.Kind.MASK_AIR || kind == ProjectorSample.Kind.REMOTE_AIR) && !localAir;
     }
 
-    public record ScanSettings(int recursiveDepth, double revealMarginDegrees, double aperturePadding, boolean debug) {
+    public record ScanSettings(int recursiveDepth, double revealMarginDegrees, double aperturePadding, boolean debug,
+                               boolean holdInvisibleClaims, int maxHeldClaims, boolean finishInSlot) {
     }
 
     public record Context<B, M, W, P extends IPortal, V extends ProjectionContentView<B, M>>(

@@ -173,8 +173,9 @@ public final class EntityRenderSpoofedEntity {
         return true;
     }
 
-    public boolean updateVelocity(double x, double y, double z) {
-        if (velocityKnown && Math.abs(x - velocityX) < 0.001D && Math.abs(y - velocityY) < 0.001D && Math.abs(z - velocityZ) < 0.001D) {
+    public boolean updateVelocity(double x, double y, double z, double epsilon) {
+        if (velocityKnown && Math.abs(x - velocityX) < epsilon && Math.abs(y - velocityY) < epsilon
+            && Math.abs(z - velocityZ) < epsilon && !stopsMotion(x, y, z)) {
             return false;
         }
         velocityX = x;
@@ -225,6 +226,10 @@ public final class EntityRenderSpoofedEntity {
 
     public void resetMapCooldown() {
         mapRefreshPasses = MAP_REFRESH_PASSES;
+    }
+
+    private boolean stopsMotion(double x, double y, double z) {
+        return x == 0.0D && y == 0.0D && z == 0.0D && (velocityX != 0.0D || velocityY != 0.0D || velocityZ != 0.0D);
     }
 
     private static float angleDelta(float a, float b) {

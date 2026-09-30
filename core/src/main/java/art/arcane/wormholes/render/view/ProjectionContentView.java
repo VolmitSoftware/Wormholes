@@ -9,6 +9,9 @@ public interface ProjectionContentView<B, M> extends ProjectionMaterialView<B, M
     UUID worldId();
     String sampleBiome(int x, int y, int z);
     BlockEntitySample sampleBlockEntity(int x, int y, int z);
+    default boolean blockEntitiesComplete(int x, int z) {
+        return true;
+    }
     int getLight(int x, int y, int z);
     int getSkyDarken();
     static int packLight(int sky, int block) {

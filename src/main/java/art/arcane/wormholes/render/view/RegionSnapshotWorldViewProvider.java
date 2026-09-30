@@ -150,7 +150,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             boolean refreshBlockEntities = FidelitySettings.blockEntities
                 && (refreshBlocks || current == null || now - current.blockEntitiesCapturedAtMillis >= BLOCK_ENTITY_REFRESH_MILLIS);
             Map<Long, BlockEntitySample> blockEntities = refreshBlockEntities
-                ? BlockEntityCapturer.captureChunk(chunk)
+                ? BlockEntityCapturer.captureChunk(chunk, BlockEntityCapturer.MAX_PER_CHUNK)
                 : current.blockEntities;
             int minHeight = current == null ? world.getMinHeight() : current.minHeight;
             int maxHeight = current == null ? world.getMaxHeight() : current.maxHeight;

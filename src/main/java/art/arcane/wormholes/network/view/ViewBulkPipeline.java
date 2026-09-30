@@ -164,7 +164,7 @@ final class ViewBulkPipeline {
                     return;
                 }
                 ChunkSnapshot snapshot = WormholesPlatform.chunkSnapshot(chunk, false, true, false, true);
-                Map<Long, BlockEntitySample> blockEntities = BlockEntityCapturer.captureChunk(chunk);
+                Map<Long, BlockEntitySample> blockEntities = BlockEntityCapturer.captureChunk(chunk, BlockEntityCapturer.MAX_PER_CHUNK);
                 boolean encodeScheduled = FoliaScheduler.runAsync(Wormholes.instance, () -> {
                     try {
                         if (!registry.isSessionChunkActive(session, peerName, chunkKey)) {

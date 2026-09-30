@@ -12,12 +12,16 @@ import art.arcane.wormholes.render.view.ProjectionMaterialView;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import art.arcane.wormholes.util.AxisAlignedBB;
 
 import org.junit.jupiter.api.Test;
 
 
 public final class ProjectorSampleMemoTest {
+    private static final UUID LOCAL_WORLD = UUID.fromString("00000000-0000-0000-0000-0000000000c1");
     private static final int[][] FIRST_OCCLUSION_SHELL = {
         {1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}
     };
@@ -131,6 +135,32 @@ public final class ProjectorSampleMemoTest {
         assertEquals(24, view.reads);
         assertEquals(2, memo.occlusionDepthInView(view, 0, 0, 0, stone));
         assertEquals(24, view.reads);
+    }
+
+    @Test
+    public void occlusionDepthPrefersTheViewAnswerWithoutProbing() {
+        TestBlock stone = blockData(TestMaterial.STONE);
+        ShellWorldView view = new ShellWorldView(stone, blockData(TestMaterial.AIR));
+        view.knownDepth = 1;
+        ProjectorSampleMemo<TestBlock, TestMaterial, TestView> memo = memo(material -> material == TestMaterial.STONE);
+
+        assertEquals(1, memo.occlusionDepthInView(view, 0, 0, 0, stone));
+        assertEquals(0, view.reads, "a view that knows the buried depth must not be probed");
+
+        view.knownDepth = -1;
+        assertEquals(0, memo.occlusionDepthInView(view, 0, 0, 0, stone));
+        assertEquals(1, view.reads, "an unknown view depth falls back to neighbour probing");
+    }
+
+    @Test
+    public void nonOccludingSelfNeverAsksTheView() {
+        TestBlock air = blockData(TestMaterial.AIR);
+        ShellWorldView view = new ShellWorldView(blockData(TestMaterial.STONE), air);
+        view.knownDepth = 2;
+        ProjectorSampleMemo<TestBlock, TestMaterial, TestView> memo = memo(material -> material == TestMaterial.STONE);
+
+        assertEquals(0, memo.occlusionDepthInView(view, 0, 0, 0, air));
+        assertEquals(0, view.depthQueries);
     }
 
     @Test
@@ -283,12 +313,22 @@ public final class ProjectorSampleMemoTest {
         private final TestBlock openData;
         private final boolean[][][] occluding;
         private int reads;
+        private int knownDepth;
+        private int depthQueries;
 
         private ShellWorldView(TestBlock occludingData, TestBlock openData) {
             this.occludingData = occludingData;
             this.openData = openData;
             this.occluding = new boolean[5][5][5];
             this.occluding[2][2][2] = true;
+            this.knownDepth = -1;
+            this.depthQueries = 0;
+        }
+
+        @Override
+        public int buriedDepth(int x, int y, int z) {
+            depthQueries++;
+            return knownDepth;
         }
 
         private void setOccluding(int x, int y, int z, boolean value) {
@@ -327,6 +367,7 @@ public final class ProjectorSampleMemoTest {
         private final Map<String, TestBlock> blocks = new HashMap<String, TestBlock>();
         private final TestBlock defaultData;
         private int reads;
+        private boolean ready = true;
 
         private FakeWorldView() {
             this(null);
@@ -357,12 +398,103 @@ public final class ProjectorSampleMemoTest {
             return blocks.getOrDefault(key(x, y, z), defaultData);
         }
 
+        @Override
+        public boolean isChunkReady(int x, int z) {
+            return ready;
+        }
+
 
 
 
         private static String key(int x, int y, int z) {
             return x + ":" + y + ":" + z;
         }
+    }
+
+    @Test
+    public void localChangeKeepingAirAndOcclusionLeavesTheRegionClean() {
+        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        ProjectorSampleMemo<TestBlock, TestMaterial, TestView> memo = trackedMemo(tracker);
+        FakeWorldView view = new FakeWorldView(blockData(TestMaterial.AIR));
+        view.put(5, 64, 5, blockData(TestMaterial.STONE));
+        view.put(6, 64, 5, blockData(TestMaterial.STONE));
+        scanLocal(memo);
+        assertFalse(memo.isLocalAir(view, 5, 64, 5));
+        assertEquals(ProjectorHoldProof.Occupancy.OCCLUDING, memo.localOccupancy(view, 6, 64, 5));
+
+        view.put(5, 64, 5, blockData(TestMaterial.DIRT));
+        view.put(6, 64, 5, blockData(TestMaterial.DIRT));
+        tracker.markChanged(LOCAL_WORLD, 5, 64, 5);
+        tracker.markChanged(LOCAL_WORLD, 6, 64, 5);
+        tracker.markChanged(LOCAL_WORLD, 7, 64, 5);
+
+        assertFalse(memo.localRegionDirty(view, LOCAL_WORLD));
+        int reads = view.reads;
+        assertFalse(memo.localRegionDirty(view, LOCAL_WORLD));
+        assertEquals(reads, view.reads);
+    }
+
+    @Test
+    public void localChangeFlippingAMemoizedAirCellDirtiesTheRegion() {
+        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        ProjectorSampleMemo<TestBlock, TestMaterial, TestView> memo = trackedMemo(tracker);
+        FakeWorldView view = new FakeWorldView(blockData(TestMaterial.AIR));
+        scanLocal(memo);
+        assertTrue(memo.isLocalAir(view, 5, 64, 5));
+
+        view.put(5, 64, 5, blockData(TestMaterial.GLASS));
+        tracker.markChanged(LOCAL_WORLD, 5, 64, 5);
+
+        assertTrue(memo.localRegionDirty(view, LOCAL_WORLD));
+    }
+
+    @Test
+    public void localChangeFlippingMemoizedOcclusionDirtiesTheRegion() {
+        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        ProjectorSampleMemo<TestBlock, TestMaterial, TestView> memo = trackedMemo(tracker);
+        FakeWorldView view = new FakeWorldView(blockData(TestMaterial.STONE));
+        scanLocal(memo);
+        assertEquals(ProjectorHoldProof.Occupancy.OCCLUDING, memo.localOccupancy(view, 5, 64, 5));
+
+        view.put(5, 64, 5, blockData(TestMaterial.GLASS));
+        tracker.markChanged(LOCAL_WORLD, 5, 64, 5);
+
+        assertTrue(memo.localRegionDirty(view, LOCAL_WORLD));
+    }
+
+    @Test
+    public void localChunkLoadOrUnreadyMemoizedCellDirtiesTheRegion() {
+        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        ProjectorSampleMemo<TestBlock, TestMaterial, TestView> memo = trackedMemo(tracker);
+        FakeWorldView view = new FakeWorldView(blockData(TestMaterial.AIR));
+        scanLocal(memo);
+        assertTrue(memo.isLocalAir(view, 5, 64, 5));
+
+        tracker.markChanged(LOCAL_WORLD, 5, 5);
+        assertTrue(memo.localRegionDirty(view, LOCAL_WORLD));
+
+        scanLocal(memo);
+        tracker.markChanged(LOCAL_WORLD, 5, 64, 5);
+        view.ready = false;
+        assertTrue(memo.localRegionDirty(view, LOCAL_WORLD));
+    }
+
+    @Test
+    public void localRegionWithoutARectIsDirty() {
+        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        ProjectorSampleMemo<TestBlock, TestMaterial, TestView> memo = trackedMemo(tracker);
+
+        assertTrue(memo.localRegionDirty(new FakeWorldView(), LOCAL_WORLD));
+    }
+
+    private static void scanLocal(ProjectorSampleMemo<TestBlock, TestMaterial, TestView> memo) {
+        memo.expandLocalRegionRect(new AxisAlignedBB(0.0D, 16.0D, 60.0D, 70.0D, 0.0D, 16.0D));
+        memo.markLocalScanned();
+    }
+
+    private static ProjectorSampleMemo<TestBlock, TestMaterial, TestView> trackedMemo(ProjectionWorldChangeTracker tracker) {
+        return new ProjectorSampleMemo<>(new TestBlocks(material -> material == TestMaterial.STONE || material == TestMaterial.DIRT),
+            () -> tracker);
     }
 
     private static ProjectorSampleMemo<TestBlock, TestMaterial, TestView> memo() {
@@ -374,7 +506,7 @@ public final class ProjectorSampleMemoTest {
     }
 
     private enum TestMaterial {
-        AIR, STONE
+        AIR, STONE, DIRT, GLASS
     }
 
     private interface TestBlock {

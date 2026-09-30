@@ -97,6 +97,14 @@ public final class ProjectorSampler<B, M, W, P extends IPortal, V extends Projec
         return recursivePortals.indexFor(world, eyeX, eyeY, eyeZ, excludedPortal);
     }
 
+    public ProjectorRecursivePortals<W, P>.Index emptyRecursiveIndex() {
+        return recursivePortals.emptyIndex();
+    }
+
+    public boolean recursivePortalsReach(W world, P excludedPortal, double[] bounds) {
+        return recursivePortals.reaches(world, excludedPortal, bounds[0], bounds[1], bounds[2], bounds[3], bounds[4], bounds[5]);
+    }
+
     public void clearRecursivePortals() {
         recursivePortals.clear();
     }
@@ -143,10 +151,10 @@ public final class ProjectorSampler<B, M, W, P extends IPortal, V extends Projec
             }
         }
         if (hit != null) {
-            recursiveSamplesCached = true;
             if (shouldMaskRecursivePortalAperture(hit.traversable, hit.cycle, remainingDepth)) {
                 return maskAirSample;
             }
+            recursiveSamplesCached = true;
             ProjectorSample<B, V> nested;
             recursionPath.push(hit.portalId);
             try {

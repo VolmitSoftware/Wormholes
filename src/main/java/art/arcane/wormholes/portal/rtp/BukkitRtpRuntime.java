@@ -78,15 +78,22 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 	public void synchronize(LocalPortal portal)
 	{
 		LocalPortal requiredPortal = Objects.requireNonNull(portal, "portal");
-		if(closed.get() || requiredPortal.getType() != PortalType.RTP || requiredPortal.getRtpSettings() == null)
+		RtpSettings settings = requiredPortal.getRtpSettings();
+		if(closed.get() || requiredPortal.getType() != PortalType.RTP || settings == null)
 		{
 			unregister(requiredPortal.getId());
 			return;
 		}
-		PortalRegistration replacement = registration(requiredPortal);
 		PortalRegistration previous = registrations.get(requiredPortal.getId());
+		if(previous != null && previous.registeredFrom(settings, requiredPortal.getStructure().getWorld(), requiredPortal.getCenter()))
+		{
+			reconcileRegistration(requiredPortal.getId());
+			return;
+		}
+		PortalRegistration replacement = registration(requiredPortal);
 		if(previous != null && replacement.hasSameRouteAs(previous) && replacement.hasSameSourceAnchorAs(previous))
 		{
+			registrations.replace(requiredPortal.getId(), previous, replacement);
 			reconcileRegistration(requiredPortal.getId());
 			return;
 		}
@@ -536,6 +543,17 @@ public final class BukkitRtpRuntime implements ProjectionManager.RtpProjectionPr
 					&& registration.settings().hasSameRouteAs(other.registration.settings())
 					&& sourceWorldId.equals(other.sourceWorldId)
 					&& Objects.equals(targetWorldId, other.targetWorldId);
+		}
+
+		private boolean registeredFrom(RtpSettings settings, World sourceWorld, Location center)
+		{
+			return registration.settings() == settings
+					&& sourceWorld != null
+					&& sourceWorldId.equals(sourceWorld.getUID())
+					&& center != null
+					&& Double.compare(sourceX, center.getX()) == 0
+					&& Double.compare(sourceY, center.getY()) == 0
+					&& Double.compare(sourceZ, center.getZ()) == 0;
 		}
 
 		private boolean hasSameSourceAnchorAs(PortalRegistration other)

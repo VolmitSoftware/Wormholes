@@ -30,6 +30,15 @@ public class RenderConfig {
     public List<String> blockEntityTypes = new ArrayList<String>(DEFAULT_BLOCK_ENTITY_TYPES);
     @ConfigDescription("Send container contents with projected block entities. Contents never cross while this is false.")
     public boolean blockEntityContainers = false;
+    @ConfigDescription("Ticks between RTP readiness rim particle refreshes while the rim colour is unchanged. Colour and phase changes refresh at once.")
+    public int rtpRimIntervalTicks = 5;
+    @ConfigDescription("Smallest per-axis change in a projected entity's velocity that sends a new velocity packet. Stopping always sends.")
+    public double entityVelocityEpsilon = 0.005;
+    @ConfigDescription({
+        "Ticks between ambient spark bursts on portals using the sparks style. Each burst carries the sparks of every skipped tick, so the average density stays the same.",
+        "1 sends a burst every tick; higher values send fewer particle packets."
+    })
+    public int ambientParticleIntervalTicks = 1;
 
     public static final List<String> DEFAULT_BLOCK_ENTITY_TYPES = List.of(
         "sign", "hanging_sign", "banner", "skull", "decorated_pot", "bell", "spawner");
@@ -50,6 +59,9 @@ public class RenderConfig {
         copy.blockEntityBudgetPerTick = blockEntityBudgetPerTick;
         copy.blockEntityTypes = new ArrayList<>(blockEntityTypes);
         copy.blockEntityContainers = blockEntityContainers;
+        copy.rtpRimIntervalTicks = rtpRimIntervalTicks;
+        copy.entityVelocityEpsilon = entityVelocityEpsilon;
+        copy.ambientParticleIntervalTicks = ambientParticleIntervalTicks;
         return copy;
     }
 }

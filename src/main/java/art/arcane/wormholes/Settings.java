@@ -39,6 +39,8 @@ public final class Settings {
     public static volatile double ENTITY_SPOOF_RANGE = 48.0D;
     public static volatile int ENTITY_CANDIDATE_CACHE_TICKS = 3;
     public static volatile int MAX_SPOOFED_ENTITIES = 24;
+    public static volatile int RTP_RIM_INTERVAL_TICKS = 5;
+    public static volatile int AMBIENT_PARTICLE_INTERVAL_TICKS = 1;
     public static volatile int PROJECTION_REFRESH_INTERVAL_TICKS = 1;
     public static volatile int PROJECTION_DEPTH_BLOCKS = 64;
     public static volatile int PROJECTION_RECURSIVE_PORTAL_DEPTH = 3;
@@ -54,6 +56,18 @@ public final class Settings {
     public static volatile int PROJECTION_INTEREST_GRACE_TICKS = 5;
     public static volatile int PROJECTION_INITIAL_RESEND_PASSES = 1;
     public static volatile int PROJECTION_MAX_PROJECTED_CELLS = 250000;
+    public static volatile boolean PROJECTION_HOLD_INVISIBLE_CLAIMS = true;
+    public static volatile int PROJECTION_MAX_HELD_CELLS_PER_PORTAL = 65536;
+    public static volatile double PROJECTION_GAZE_FOV_DEGREES = 110.0D;
+    public static volatile int PROJECTION_GAZE_LOOKAHEAD_TICKS = 3;
+    public static volatile int PROJECTION_GAZE_MAX_STARVE_TICKS = 20;
+    public static volatile boolean PROJECTION_FINISH_IN_SLOT = true;
+    public static volatile boolean PROJECTION_SECTION_CACHE = true;
+    public static volatile int PROJECTION_SECTION_CACHE_MAX_MB = 64;
+    public static volatile int PROJECTION_SECTION_CACHE_CHUNKS_PER_TICK = 16;
+    public static volatile int PROJECTION_SECTION_CACHE_TTL_TICKS = 200;
+    public static volatile int PROJECTION_TICK_HEADROOM_TARGET_MILLIS = 0;
+    public static volatile int PROJECTION_TICK_HEADROOM_MIN_FRAME_MICROS = 5000;
     public static volatile long TELEPORT_COOLDOWN_MILLIS = 1000L;
     public static volatile double PORTAL_PUSHBACK_MULTIPLIER = 1.0D;
     public static volatile double PORTAL_SOUND_VOLUME_MULTIPLIER = 1.0D;
@@ -143,6 +157,19 @@ public final class Settings {
         PROJECTION_INTEREST_GRACE_TICKS = clampInt(projection.interestGraceTicks, 0, 100);
         PROJECTION_INITIAL_RESEND_PASSES = clampInt(projection.initialResendPasses, 0, 20);
         PROJECTION_MAX_PROJECTED_CELLS = clampInt(projection.maxProjectedCells, 0, 50000000);
+        PROJECTION_HOLD_INVISIBLE_CLAIMS = projection.holdInvisibleClaims;
+        PROJECTION_MAX_HELD_CELLS_PER_PORTAL = clampInt(projection.maxHeldCellsPerPortal, 0, 50000000);
+        PROJECTION_GAZE_FOV_DEGREES = clampFiniteDouble(projection.gazeFovDegrees, 30.0D, 170.0D, 110.0D);
+        PROJECTION_GAZE_LOOKAHEAD_TICKS = clampInt(projection.gazeLookaheadTicks, 0, 20);
+        PROJECTION_GAZE_MAX_STARVE_TICKS = clampInt(projection.gazeMaxStarveTicks, 1, 200);
+        PROJECTION_FINISH_IN_SLOT = projection.finishInSlot;
+        PROJECTION_SECTION_CACHE = projection.sectionCache;
+        PROJECTION_SECTION_CACHE_MAX_MB = clampInt(projection.sectionCacheMaxMb, 1, 4096);
+        PROJECTION_SECTION_CACHE_CHUNKS_PER_TICK = clampInt(projection.sectionCacheChunksPerTick, 1, 1024);
+        PROJECTION_SECTION_CACHE_TTL_TICKS = clampInt(projection.sectionCacheTtlTicks, 20, 72_000);
+        PROJECTION_TICK_HEADROOM_TARGET_MILLIS = clampInt(projection.tickHeadroomTargetMillis, 0, 50);
+        PROJECTION_TICK_HEADROOM_MIN_FRAME_MICROS = clampInt(projection.tickHeadroomMinFrameMicros, 1000,
+            Math.max(1000, PROJECTION_MAX_FRAME_MICROS));
 
         LIGHTING_FIDELITY = render.lightingFidelity;
         LIGHTING_REFRESH_INTERVAL_TICKS = clampInt(render.lightingRefreshIntervalTicks, 1, 40);
@@ -154,6 +181,8 @@ public final class Settings {
         ENTITY_CANDIDATE_CACHE_TICKS = clampInt(render.entityCandidateCacheTicks, 1, 40);
         MAX_SPOOFED_ENTITIES = clampInt(render.maxSpoofedEntities, 0, 256);
         CAPTURE_ZONE_RADIUS = clampDouble(render.captureZoneRadius, 1.0D, 64.0D);
+        RTP_RIM_INTERVAL_TICKS = clampInt(render.rtpRimIntervalTicks, 1, 100);
+        AMBIENT_PARTICLE_INTERVAL_TICKS = clampInt(render.ambientParticleIntervalTicks, 1, 40);
 
         rebuildLocalPortalCaptureZones();
     }

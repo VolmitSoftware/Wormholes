@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.HashMap;
 import java.util.Map;
 
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import org.junit.jupiter.api.Test;
@@ -96,6 +97,42 @@ public final class ProjectorViewOcclusionTest {
                 assertFalse(bounded.budgetExhausted());
             }
         }
+    }
+
+    @Test
+    public void hiddenVerdictsReportTheBlockersThatProveThem() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(3, 1, 1));
+        ProjectorViewOcclusion<FakeBlock> occlusion = occlusion();
+        occlusion.setRevealMarginDegrees(1.0D);
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+
+        assertEquals(ProjectorViewOcclusion.Visibility.HIDDEN, occlusion.visibility(view, 8, 1, 1, 0.5D, 1.5D, 1.5D));
+        assertEquals(LongArrayList.of(ProjectionCellKey.pack(3, 1, 1)), occlusion.hiddenBlockers(), "a single blocker proves the target");
+        assertEquals(ProjectorViewOcclusion.Visibility.HIDDEN, occlusion.visibility(view, 8, 1, 1, 0.5D, 1.5D, 1.5D));
+        assertEquals(LongArrayList.of(ProjectionCellKey.pack(3, 1, 1)), occlusion.hiddenBlockers(), "a cached verdict keeps its proof");
+        assertEquals(ProjectorViewOcclusion.Visibility.VISIBLE, occlusion.visibility(view, 8, 4, 4, 0.5D, 1.5D, 1.5D));
+        assertTrue(occlusion.hiddenBlockers().isEmpty());
+
+        LongOpenHashSet wall = new LongOpenHashSet();
+        for (int y = -2; y <= 6; y++) {
+            for (int z = -2; z <= 6; z++) {
+                wall.add(ProjectionCellKey.pack(3, y, z));
+            }
+        }
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, wall);
+        assertEquals(ProjectorViewOcclusion.Visibility.HIDDEN, occlusion.visibility(view, 9, 3, 3, 0.5D, 1.5D, 1.5D));
+        LongArrayList plane = occlusion.hiddenBlockers();
+        assertTrue(plane.size() > 1, "an oblique target is proven by several wall cells");
+        for (int index = 0; index < plane.size(); index++) {
+            assertTrue(wall.contains(plane.getLong(index)));
+        }
+        LongArrayList firstProof = new LongArrayList(plane);
+        assertEquals(ProjectorViewOcclusion.Visibility.HIDDEN, occlusion.visibility(view, 9, 3, 3, 0.5D, 1.5D, 1.5D));
+        assertEquals(firstProof, occlusion.hiddenBlockers(), "a cached multi-cell proof keeps its blockers");
+        assertEquals(ProjectorViewOcclusion.Visibility.HIDDEN, occlusion.visibility(view, 9, 3, 3, 0.5D, 1.6D, 1.5D));
+        assertFalse(occlusion.hiddenBlockers().isEmpty(), "a moved eye traces the proof again");
     }
 
     @Test
@@ -586,12 +623,12 @@ public final class ProjectorViewOcclusionTest {
         assertFalse(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
 
         for (int i = 0; i < 100_000 && !occlusion.budgetExhausted(); i++) {
-            assertTrue(occlusion.visible(view, 300, 300, i & 3, 0.5D, 0.5D, 0.5D));
+            assertTrue(occlusion.visible(view, 300, 300 + (i >> 2), i & 3, 0.5D, 0.5D, 0.5D));
         }
 
         assertTrue(occlusion.budgetExhausted());
         assertFalse(occlusion.visible(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
-        assertEquals(1, occlusion.hiddenProofHits());
+        assertEquals(1, occlusion.hiddenProofHits() + occlusion.verdictHits());
     }
 
     @Test
@@ -604,7 +641,7 @@ public final class ProjectorViewOcclusionTest {
         occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
 
         for (int index = 0; index < 100_000 && !occlusion.budgetExhausted(); index++) {
-            assertTrue(occlusion.visible(view, 300, 300, index & 3, 0.5D, 0.5D, 0.5D));
+            assertTrue(occlusion.visible(view, 300, 300 + (index >> 2), index & 3, 0.5D, 0.5D, 0.5D));
         }
         assertTrue(occlusion.budgetExhausted());
 
@@ -755,6 +792,134 @@ public final class ProjectorViewOcclusionTest {
 
         assertEquals(ProjectorViewOcclusion.Visibility.HIDDEN,
             complete.visibility(view, 5, 0, 0, 0.5D, 0.5D, 0.5D));
+    }
+
+    @Test
+    public void stationaryPassesReuseEveryVerdictWithoutTracing() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = wall(6, 3);
+        ProjectorViewOcclusion<FakeBlock> occlusion = occlusion();
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        Map<Long, ProjectorViewOcclusion.Visibility> first = sweep(occlusion, view, 0.5D);
+        assertTrue(occlusion.voxelSteps() > 0);
+        assertTrue(first.containsValue(ProjectorViewOcclusion.Visibility.HIDDEN));
+        assertTrue(first.containsValue(ProjectorViewOcclusion.Visibility.VISIBLE));
+
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, new LongOpenHashSet(blockers));
+        Map<Long, ProjectorViewOcclusion.Visibility> second = sweep(occlusion, view, 0.5D);
+
+        assertEquals(first, second);
+        assertEquals(0, occlusion.voxelSteps());
+        assertEquals(first.size(), occlusion.verdictHits());
+    }
+
+    @Test
+    public void changedBlockersNeverServeAStaleVerdict() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = wall(6, 3);
+        ProjectorViewOcclusion<FakeBlock> occlusion = occlusion();
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        assertEquals(ProjectorViewOcclusion.Visibility.HIDDEN, occlusion.visibility(view, 12, 0, 0, 0.5D, 0.5D, 0.5D));
+
+        LongOpenHashSet opened = new LongOpenHashSet(blockers);
+        for (int y = -1; y <= 1; y++) {
+            for (int z = -1; z <= 1; z++) {
+                opened.remove(ProjectionCellKey.pack(6, y, z));
+            }
+        }
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, opened);
+
+        assertEquals(ProjectorViewOcclusion.Visibility.VISIBLE, occlusion.visibility(view, 12, 0, 0, 0.5D, 0.5D, 0.5D));
+        assertEquals(0, occlusion.verdictHits());
+    }
+
+    @Test
+    public void movedEyeRecomputesInsteadOfReusingVerdicts() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = wall(6, 3);
+        ProjectorViewOcclusion<FakeBlock> occlusion = occlusion();
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        sweep(occlusion, view, 0.5D);
+
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        Map<Long, ProjectorViewOcclusion.Visibility> moved = sweep(occlusion, view, 0.75D);
+
+        ProjectorViewOcclusion<FakeBlock> fresh = occlusion();
+        fresh.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        assertEquals(sweep(fresh, view, 0.75D), moved);
+        assertEquals(0, occlusion.verdictHits());
+    }
+
+    @Test
+    public void budgetStarvedTargetsConvergeAcrossPassesWithoutRetracingResolvedOnes() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = wall(6, 3);
+        ProjectorViewOcclusion<FakeBlock> exact = occlusion();
+        exact.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+        Map<Long, ProjectorViewOcclusion.Visibility> expected = sweep(exact, view, 0.5D);
+        ProjectorViewOcclusion<FakeBlock> limited = new ProjectorViewOcclusion<FakeBlock>(data -> true, 256);
+        Map<Long, ProjectorViewOcclusion.Visibility> resolved = new HashMap<Long, ProjectorViewOcclusion.Visibility>();
+        int passes = 0;
+        int previousUnresolved = Integer.MAX_VALUE;
+
+        while (resolved.size() < expected.size()) {
+            assertTrue(++passes <= expected.size(), "the verdicts must converge");
+            limited.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+            int resolvedBefore = resolved.size();
+            int unresolved = 0;
+            for (Map.Entry<Long, ProjectorViewOcclusion.Visibility> entry : sweep(limited, view, 0.5D).entrySet()) {
+                if (entry.getValue() == ProjectorViewOcclusion.Visibility.UNRESOLVED) {
+                    unresolved++;
+                } else {
+                    resolved.put(entry.getKey(), entry.getValue());
+                }
+            }
+            assertTrue(unresolved < previousUnresolved || unresolved == 0, "every pass must resolve more targets");
+            assertEquals(resolvedBefore, limited.verdictHits(), "targets resolved on earlier passes are never traced again");
+            previousUnresolved = unresolved;
+        }
+
+        assertEquals(expected, resolved);
+        assertTrue(passes > 1);
+    }
+
+    @Test
+    public void verdictMemoNeverRetainsMoreThanItsCap() {
+        FakeWorldView view = new FakeWorldView();
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        blockers.add(ProjectionCellKey.pack(2, 0, 0));
+        ProjectorViewOcclusion<FakeBlock> occlusion = new ProjectorViewOcclusion<FakeBlock>(data -> true, Integer.MAX_VALUE);
+        occlusion.beginPass(0.5D, 0.5D, 0.5D, Direction.W, blockers);
+
+        for (int i = 0; i < ProjectorViewOcclusion.MAX_VERDICT_CELLS + 1_000; i++) {
+            occlusion.visibility(view, 400 + (i & 63), 400 + ((i >> 6) & 63), i >> 12, 0.5D, 0.5D, 0.5D);
+        }
+
+        assertEquals(ProjectorViewOcclusion.MAX_VERDICT_CELLS, occlusion.verdictCacheSize());
+    }
+
+    private static LongOpenHashSet wall(int x, int radius) {
+        LongOpenHashSet blockers = new LongOpenHashSet();
+        for (int y = -radius; y <= radius; y++) {
+            for (int z = -radius; z <= radius; z++) {
+                blockers.add(ProjectionCellKey.pack(x, y, z));
+            }
+        }
+        return blockers;
+    }
+
+    private static Map<Long, ProjectorViewOcclusion.Visibility> sweep(ProjectorViewOcclusion<FakeBlock> occlusion,
+                                                                     FakeWorldView view, double eyeY) {
+        Map<Long, ProjectorViewOcclusion.Visibility> verdicts = new HashMap<Long, ProjectorViewOcclusion.Visibility>();
+        for (int x = 8; x <= 14; x += 2) {
+            for (int y = -6; y <= 6; y += 2) {
+                for (int z = -6; z <= 6; z += 3) {
+                    verdicts.put(Long.valueOf(ProjectionCellKey.pack(x, y, z)),
+                        occlusion.visibility(view, x, y, z, 0.5D, eyeY, 0.5D));
+                }
+            }
+        }
+        return verdicts;
     }
 
     private static void fillPlane(FakeWorldView view, int x, int minY, int maxY, int minZ, int maxZ, FakeBlock material) {

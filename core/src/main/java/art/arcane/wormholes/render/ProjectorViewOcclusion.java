@@ -2,6 +2,9 @@ package art.arcane.wormholes.render;
 
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 
@@ -18,9 +21,14 @@ public final class ProjectorViewOcclusion<B> {
     public static final int MAX_OPACITY_CACHE_CELLS = 4_096;
     public static final int MAX_HIDDEN_PROOF_CELLS = 32_768;
     public static final int MAX_VOXEL_STEPS_PER_PASS = 500_000;
+    public static final int MAX_VERDICT_CELLS = 65_536;
+    public static final int MAX_VERDICT_BLOCKER_LONGS = 1 << 18;
 
     private static final byte OPEN = 0;
     private static final byte BLOCKED = 1;
+    private static final byte NO_VERDICT = 0;
+    private static final byte VISIBLE_VERDICT = 1;
+    private static final byte HIDDEN_VERDICT = 2;
     private static final double MIN_TARGET_BOUND = 0.0D;
     private static final double MAX_TARGET_BOUND = 1.0D;
     private static final double PORTAL_PLANE_EPSILON = 1.0E-6D;
@@ -29,6 +37,10 @@ public final class ProjectorViewOcclusion<B> {
     private final Long2ByteOpenHashMap opacity;
     private final Long2LongOpenHashMap hiddenBlockerProofs;
     private final LongOpenHashSet currentEyeHiddenProofs;
+    private final Long2ByteOpenHashMap verdicts;
+    private final Long2ObjectOpenHashMap<long[]> verdictBlockers;
+    private int verdictBlockerLongs;
+    private final LongArrayList hiddenBlockers;
     private final BlockOcclusion<B> blockOcclusion;
     private final int maxVoxelStepsPerPass;
     private int voxelSteps;
@@ -36,6 +48,8 @@ public final class ProjectorViewOcclusion<B> {
     private int hiddenProofRevalidations;
     private int hiddenProofInvalidations;
     private int adjacentOcclusionHits;
+    private int verdictHits;
+    private long verdictSignature;
     private int blockerX;
     private int blockerY;
     private int blockerZ;
@@ -77,6 +91,11 @@ public final class ProjectorViewOcclusion<B> {
         opacity.defaultReturnValue((byte) -1);
         hiddenBlockerProofs = new Long2LongOpenHashMap(256);
         currentEyeHiddenProofs = new LongOpenHashSet(256);
+        verdicts = new Long2ByteOpenHashMap(256);
+        verdicts.defaultReturnValue(NO_VERDICT);
+        verdictBlockers = new Long2ObjectOpenHashMap<long[]>(256);
+        verdictBlockerLongs = 0;
+        hiddenBlockers = new LongArrayList(8);
         this.blockOcclusion = blockOcclusion;
         this.maxVoxelStepsPerPass = Math.max(1, maxVoxelStepsPerPass);
         this.eligibleOctree = new ProjectionOccupancyOctree();
@@ -104,6 +123,11 @@ public final class ProjectorViewOcclusion<B> {
         this.portalNormalZ = portalNormal.z();
         this.eligibleBlockers = eligibleBlockers;
         eligibleOctree.rebuild(eligibleBlockers);
+        long signature = eligibleBlockers == null ? 0L : signature(eligibleBlockers);
+        if (eligibleBlockers == null || signature != verdictSignature) {
+            clearVerdicts();
+            verdictSignature = signature;
+        }
     }
 
     public void restartTraceBudget() {
@@ -113,6 +137,7 @@ public final class ProjectorViewOcclusion<B> {
         hiddenProofRevalidations = 0;
         hiddenProofInvalidations = 0;
         adjacentOcclusionHits = 0;
+        verdictHits = 0;
         blockerX = 0;
         blockerY = 0;
         blockerZ = 0;
@@ -145,6 +170,7 @@ public final class ProjectorViewOcclusion<B> {
                           double eyeX,
                           double eyeY,
                           double eyeZ) {
+        hiddenBlockers.clear();
         if (!stableRevision(view)) {
             return Visibility.UNRESOLVED;
         }
@@ -153,6 +179,47 @@ public final class ProjectorViewOcclusion<B> {
             return Visibility.VISIBLE;
         }
         long targetKey = ProjectionCellKey.pack(targetX, targetY, targetZ);
+        if (eligibleBlockers == null) {
+            return resolveVisibility(view, targetKey, targetX, targetY, targetZ, eyeX, eyeY, eyeZ);
+        }
+        byte cached = verdicts.get(targetKey);
+        if (cached == VISIBLE_VERDICT) {
+            verdictHits++;
+            return Visibility.VISIBLE;
+        }
+        if (cached == HIDDEN_VERDICT) {
+            if (!stableRevision(view)) {
+                return Visibility.UNRESOLVED;
+            }
+            verdictHits++;
+            if (currentEyeHiddenProofs.contains(targetKey)) {
+                hiddenBlockers.add(hiddenBlockerProofs.get(targetKey));
+            } else {
+                long[] stored = verdictBlockers.get(targetKey);
+                if (stored != null) {
+                    hiddenBlockers.addElements(0, stored);
+                }
+            }
+            return Visibility.HIDDEN;
+        }
+        Visibility resolved = resolveVisibility(view, targetKey, targetX, targetY, targetZ, eyeX, eyeY, eyeZ);
+        if (resolved != Visibility.UNRESOLVED && verdicts.size() < MAX_VERDICT_CELLS) {
+            verdicts.put(targetKey, resolved == Visibility.HIDDEN ? HIDDEN_VERDICT : VISIBLE_VERDICT);
+            if (resolved == Visibility.HIDDEN && !currentEyeHiddenProofs.contains(targetKey)) {
+                rememberVerdictBlockers(targetKey);
+            }
+        }
+        return resolved;
+    }
+
+    private Visibility resolveVisibility(ProjectionBlockView<B> view,
+                                         long targetKey,
+                                         int targetX,
+                                         int targetY,
+                                         int targetZ,
+                                         double eyeX,
+                                         double eyeY,
+                                         double eyeZ) {
         if (hasReusableHiddenProof(targetKey, targetX, targetY, targetZ, eyeX, eyeY, eyeZ)) {
             if (!stableRevision(view)) {
                 return Visibility.UNRESOLVED;
@@ -180,6 +247,7 @@ public final class ProjectorViewOcclusion<B> {
                 return Visibility.UNRESOLVED;
             }
             rememberHiddenProof(targetKey, blockerX, blockerY, blockerZ);
+            hiddenBlockers.add(ProjectionCellKey.pack(blockerX, blockerY, blockerZ));
             return Visibility.HIDDEN;
         }
         boolean hidden = opaquePlaneShadowsTarget(view, eyeX, eyeY, eyeZ, targetX, targetY, targetZ,
@@ -217,6 +285,18 @@ public final class ProjectorViewOcclusion<B> {
         return adjacentOcclusionHits;
     }
 
+    public int verdictHits() {
+        return verdictHits;
+    }
+
+    public int verdictCacheSize() {
+        return verdicts.size();
+    }
+
+    public LongArrayList hiddenBlockers() {
+        return hiddenBlockers;
+    }
+
     public boolean budgetExhausted() {
         return budgetExhausted;
     }
@@ -241,6 +321,7 @@ public final class ProjectorViewOcclusion<B> {
         }
         hiddenBlockerProofs.clear();
         currentEyeHiddenProofs.clear();
+        clearVerdicts();
         proofView = view;
         proofRevision = viewRevision;
         proofEyeX = eyeX;
@@ -266,6 +347,22 @@ public final class ProjectorViewOcclusion<B> {
         proofEyeY = eyeY;
         proofEyeZ = eyeZ;
         currentEyeHiddenProofs.clear();
+        clearVerdicts();
+    }
+
+    private void clearVerdicts() {
+        verdicts.clear();
+        verdictBlockers.clear();
+        verdictBlockerLongs = 0;
+    }
+
+    private void rememberVerdictBlockers(long targetKey) {
+        int size = hiddenBlockers.size();
+        if (size == 0 || verdictBlockerLongs + size > MAX_VERDICT_BLOCKER_LONGS) {
+            return;
+        }
+        verdictBlockers.put(targetKey, hiddenBlockers.toLongArray());
+        verdictBlockerLongs += size;
     }
 
     private boolean hasReusableHiddenProof(long targetKey,
@@ -286,6 +383,7 @@ public final class ProjectorViewOcclusion<B> {
             return false;
         }
         if (currentEyeHiddenProofs.contains(targetKey)) {
+            hiddenBlockers.add(blockerKey);
             return true;
         }
         int blockX = ProjectionCellKey.unpackX(blockerKey);
@@ -300,6 +398,7 @@ public final class ProjectorViewOcclusion<B> {
         }
         currentEyeHiddenProofs.add(targetKey);
         hiddenProofRevalidations++;
+        hiddenBlockers.add(blockerKey);
         return true;
     }
 
@@ -325,43 +424,73 @@ public final class ProjectorViewOcclusion<B> {
         boolean facingNeighbor = false;
         if (eyeX < targetX - TIE_EPSILON) {
             facingNeighbor = true;
-            if (!hasEligibleBlocker(targetX - 1, targetY, targetZ)) {
+            if (!recordEligibleBlocker(targetX - 1, targetY, targetZ)) {
                 return false;
             }
         } else if (eyeX > targetX + 1.0D + TIE_EPSILON) {
             facingNeighbor = true;
-            if (!hasEligibleBlocker(targetX + 1, targetY, targetZ)) {
+            if (!recordEligibleBlocker(targetX + 1, targetY, targetZ)) {
                 return false;
             }
         }
         if (eyeY < targetY - TIE_EPSILON) {
             facingNeighbor = true;
-            if (!hasEligibleBlocker(targetX, targetY - 1, targetZ)) {
+            if (!recordEligibleBlocker(targetX, targetY - 1, targetZ)) {
                 return false;
             }
         } else if (eyeY > targetY + 1.0D + TIE_EPSILON) {
             facingNeighbor = true;
-            if (!hasEligibleBlocker(targetX, targetY + 1, targetZ)) {
+            if (!recordEligibleBlocker(targetX, targetY + 1, targetZ)) {
                 return false;
             }
         }
         if (eyeZ < targetZ - TIE_EPSILON) {
             facingNeighbor = true;
-            if (!hasEligibleBlocker(targetX, targetY, targetZ - 1)) {
+            if (!recordEligibleBlocker(targetX, targetY, targetZ - 1)) {
                 return false;
             }
         } else if (eyeZ > targetZ + 1.0D + TIE_EPSILON) {
             facingNeighbor = true;
-            if (!hasEligibleBlocker(targetX, targetY, targetZ + 1)) {
+            if (!recordEligibleBlocker(targetX, targetY, targetZ + 1)) {
                 return false;
             }
         }
+        if (!facingNeighbor) {
+            hiddenBlockers.clear();
+        }
         return facingNeighbor;
+    }
+
+    private boolean recordEligibleBlocker(int x, int y, int z) {
+        if (!hasEligibleBlocker(x, y, z)) {
+            hiddenBlockers.clear();
+            return false;
+        }
+        hiddenBlockers.add(ProjectionCellKey.pack(x, y, z));
+        return true;
     }
 
     private boolean hasEligibleBlocker(int x, int y, int z) {
         return eligibleOctree.largestEmptyLog(x, y, z) == 0
             && eligibleBlockers.contains(ProjectionCellKey.pack(x, y, z));
+    }
+
+    private static long signature(LongSet blockers) {
+        long sum = 0L;
+        long mixed = 0L;
+        LongIterator iterator = blockers.iterator();
+        while (iterator.hasNext()) {
+            long hash = mix(iterator.nextLong());
+            sum += hash;
+            mixed ^= Long.rotateLeft(hash, 29) * 0x9E3779B97F4A7C15L;
+        }
+        return mix(sum ^ Long.rotateLeft(mixed, 7) ^ blockers.size());
+    }
+
+    private static long mix(long value) {
+        long mixed = (value ^ (value >>> 33)) * 0xFF51AFD7ED558CCDL;
+        mixed = (mixed ^ (mixed >>> 33)) * 0xC4CEB9FE1A85EC53L;
+        return mixed ^ (mixed >>> 33);
     }
 
     private static boolean sameDouble(double first, double second) {
@@ -616,6 +745,7 @@ public final class ProjectorViewOcclusion<B> {
             return false;
         }
         double plane = blockAxis + (direction < 0 ? 1.0D : 0.0D);
+        hiddenBlockers.clear();
         double minFirst = Double.POSITIVE_INFINITY;
         double maxFirst = Double.NEGATIVE_INFINITY;
         double minSecond = Double.POSITIVE_INFINITY;
@@ -662,6 +792,7 @@ public final class ProjectorViewOcclusion<B> {
             for (int second = minSecondCell; second <= maxSecondCell; second++) {
                 if (voxelSteps >= maxVoxelStepsPerPass) {
                     budgetExhausted = true;
+                    hiddenBlockers.clear();
                     return false;
                 }
                 voxelSteps++;
@@ -669,8 +800,10 @@ public final class ProjectorViewOcclusion<B> {
                 int y = axisCoordinate(1, axis, blockAxis, firstOtherAxis, first, second);
                 int z = axisCoordinate(2, axis, blockAxis, firstOtherAxis, first, second);
                 if (!rayBlocked(view, x, y, z)) {
+                    hiddenBlockers.clear();
                     return false;
                 }
+                hiddenBlockers.add(ProjectionCellKey.pack(x, y, z));
             }
         }
         return true;

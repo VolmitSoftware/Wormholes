@@ -93,7 +93,8 @@ public final class EntityRenderVisualProjector<O, W, P extends IPortal, R, T, V>
         if (rotationChanged) {
             registry.syncHeadLook(observer, state, yaw);
         }
-        if (state.updateVelocity(host.x(velocity), host.y(velocity), host.z(velocity))) {
+        if (state.updateVelocity(host.x(velocity), host.y(velocity), host.z(velocity),
+            FidelitySettings.entityVelocityEpsilon)) {
             host.velocity(observer, state.fakeId, velocity);
         }
         int stateVersion = host.stateVersion(entityView, visual.id());

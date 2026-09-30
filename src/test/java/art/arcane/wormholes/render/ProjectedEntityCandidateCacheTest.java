@@ -2,6 +2,7 @@ package art.arcane.wormholes.render;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.lang.ref.Reference;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.List;
@@ -19,7 +20,8 @@ public final class ProjectedEntityCandidateCacheTest {
     @Test
     public void observersAtDifferentDepthsDoNotEvictEachOthersCandidateSnapshots() {
         AtomicInteger worldQueries = new AtomicInteger();
-        Location center = new Location(world(worldQueries), 100.0D, 64.0D, -40.0D);
+        World world = world(worldQueries);
+        Location center = new Location(world, 100.0D, 64.0D, -40.0D);
         ILocalPortal portal = portal();
 
         EntityRenderCaches.nearbyRemoteEntities(portal, center, 32.0D);
@@ -28,6 +30,7 @@ public final class ProjectedEntityCandidateCacheTest {
         EntityRenderCaches.nearbyRemoteEntities(portal, center, 24.0D);
 
         assertEquals(2, worldQueries.get());
+        Reference.reachabilityFence(world);
     }
 
     @Test

@@ -324,7 +324,8 @@ public final class ProjectionClaimSetEquivalenceTest {
             int lightPick = random.nextInt(lightViews.size() + 1);
             ProjectionWorldView lightView = lightPick == lightViews.size() ? null : lightViews.get(lightPick);
             long lightRemoteKey = lightView == null ? ProjectedBlockClaim.NO_REMOTE_KEY : random.nextInt(3);
-            claims.put(Long.valueOf(key), claim(data, lightView, lightRemoteKey, random.nextInt(100) < 25));
+            claims.put(Long.valueOf(key), claim(data, lightView, lightRemoteKey, random.nextInt(100) < 25)
+                .withHeld(random.nextInt(100) < 20));
         }
         return claims;
     }
@@ -618,6 +619,7 @@ public final class ProjectionClaimSetEquivalenceTest {
                 return false;
             }
             return previous.isMaskAir() == next.isMaskAir()
+                && previous.isHeld() == next.isHeld()
                 && previous.getData().equals(next.getData())
                 && previous.sameLightSource(next);
         }
@@ -632,6 +634,12 @@ public final class ProjectionClaimSetEquivalenceTest {
                 return false;
             }
             if (!candidateClaim.isMaskAir() && currentClaim.isMaskAir()) {
+                return true;
+            }
+            if (candidateClaim.isHeld() && !currentClaim.isHeld()) {
+                return false;
+            }
+            if (!candidateClaim.isHeld() && currentClaim.isHeld()) {
                 return true;
             }
             if (candidateDistance < currentDistance - PRIORITY_EPSILON) {

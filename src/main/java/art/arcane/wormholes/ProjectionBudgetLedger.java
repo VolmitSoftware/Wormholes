@@ -177,10 +177,10 @@ final class ProjectionBudgetLedger {
         return (Math.floorMod(cursor, size) + selected) % size;
     }
 
-    void emitDiagnostics(long tickCount, List<ILocalPortal> active, ProjectionInterestSet interestSet) {
+    boolean emitDiagnostics(long tickCount, List<ILocalPortal> active, ProjectionInterestSet interestSet, int governedFrameMicros) {
         long now = System.currentTimeMillis();
         if (now - lastDiagnostic < DIAGNOSTIC_INTERVAL_MS) {
-            return;
+            return false;
         }
         lastDiagnostic = now;
 
@@ -190,13 +190,15 @@ final class ProjectionBudgetLedger {
         Wormholes.v("[ProjectionManager] tick=" + tickCount + " totalPortals=" + totalPortals
                 + " activeProjectingPortals=" + active.size() + " observers=" + census.observers() + " renderedBlocks=" + census.renderedBlocks()
                 + " candidates=" + lastObserverCandidates.get() + " newScans=" + lastNewObserverScans.get()
-                + " interested=" + lastInterestedObservers.get() + " scheduled=" + lastScheduledProjectors.get() + " deferred=" + lastDeferredProjectors.get());
+                + " interested=" + lastInterestedObservers.get() + " scheduled=" + lastScheduledProjectors.get() + " deferred=" + lastDeferredProjectors.get()
+                + " governedFrameMicros=" + governedFrameMicros);
 
         if (active.isEmpty() && totalPortals > 0) {
             for (ILocalPortal portal : Wormholes.portalManager.getLocalPortals()) {
                 Wormholes.v("[ProjectionManager]   inactive portal: " + describePortal(portal));
             }
         }
+        return true;
     }
 
     private static String describePortal(ILocalPortal portal) {
