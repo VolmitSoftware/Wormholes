@@ -57,6 +57,8 @@ public final class WormholesGameTests {
     public static final Identifier OCCLUSION_SKIN_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "occlusion_skin_runtime");
     public static final Identifier PROJECTION_DIRT_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_dirt_runtime");
     public static final Identifier PROJECTION_GAZE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_gaze_runtime");
+    public static final Identifier PROJECTION_SECTION_CACHE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_section_cache_runtime");
+    public static final Identifier PROJECTION_PLATE_CAPTURE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_plate_capture_runtime");
     private static final Set<CompletableFuture<?>> REPORTED_FAILURES = new HashSet<>();
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesGameTest");
 
@@ -137,6 +139,14 @@ public final class WormholesGameTests {
             "Projection gaze scheduling did not complete")).thenSucceed();
     }
 
+    public static void projectionSectionCacheRuntime(GameTestHelper helper) {
+        MinecraftSectionCacheGameTest.run(helper);
+    }
+
+    public static void projectionPlateCaptureRuntime(GameTestHelper helper) {
+        MinecraftPlateCaptureGameTest.run(helper);
+    }
+
     public static void costsRuntime(GameTestHelper helper) {
         MinecraftItemExchangeGameTest.run(helper);
         MinecraftCostGameTest.run(helper);
@@ -172,7 +182,7 @@ public final class WormholesGameTests {
             "Aperture lookup missed constructed portal");
         BlockPos sampled = helper.absolutePos(new BlockPos(8, 2, 8));
         level.setBlockAndUpdate(sampled, Blocks.GOLD_BLOCK.defaultBlockState());
-        try (MinecraftProjectionWorldView view = new MinecraftProjectionWorldView(RUNTIME, level)) {
+        try (MinecraftProjectionWorldView view = MinecraftProjectionWorldView.uncached(RUNTIME, level)) {
             helper.assertTrue(view.sampleBlockData(sampled.getX(), sampled.getY(), sampled.getZ()).is(Blocks.GOLD_BLOCK),
                 "Projection world view did not read the live block");
             helper.assertTrue(view.sampleBlockData(sampled.getX(), level.getMaxY(), sampled.getZ()) == null,

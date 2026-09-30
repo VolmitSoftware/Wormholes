@@ -7,6 +7,12 @@ import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.BlackoutColor;
+import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.portal.rtp.MinecraftRtpRuntime;
+import art.arcane.wormholes.render.FidelitySettings;
+import art.arcane.wormholes.render.plate.PlateCaptureJob;
+import art.arcane.wormholes.render.plate.ViewPlateBuilder;
+import art.arcane.wormholes.render.plate.ViewPlateCache;
 import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.network.view.ViewBox;
@@ -37,11 +43,14 @@ import org.junit.Test;
 import org.mockito.invocation.Invocation;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.intThat;
@@ -50,6 +59,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 
 public class MinecraftPortalProjectorTest {
     private static final UUID LOCAL_WORLD = UUID.nameUUIDFromBytes("projector-local".getBytes(StandardCharsets.UTF_8));
@@ -245,6 +257,90 @@ public class MinecraftPortalProjectorTest {
         }
     }
 
+    @Test
+    public void localDestinationsScheduleCaptureJobsInsteadOfServerSteps() {
+        PlateFixture fixture = plateFixture(PortalType.PORTAL, 48);
+        List<ViewPlateBuilder.Job<BlockState, ServerLevel>> scheduled = new ArrayList<>();
+        ViewPlateCache<BlockState, ServerLevel> cache = new ViewPlateCache<>(FidelitySettings.plateMaxBytes, scheduled::add);
+        try (MinecraftPortalProjector projector = fixture.projector(fixture.player(), cache)) {
+            assertEquals(MinecraftPortalProjector.Result.READY, projector.update(1L, Long.MAX_VALUE));
+        }
+        assertEquals(1, scheduled.size());
+        assertTrue(scheduled.get(0) instanceof PlateCaptureJob<?, ?, ?>);
+        assertEquals(0L, scheduled.get(0).key().targetIdentity());
+        assertSame(fixture.view(), scheduled.get(0).key().destinationViewIdentity());
+        assertTrue(((PlateCaptureJob<?, ?, ?>) scheduled.get(0)).pendingChunks() > 0);
+        assertTrue(scheduled.get(0).predictedBytes() > 0L);
+        verify(fixture.runtime(), never()).schedule(any(), anyLong());
+    }
+
+    @Test
+    public void plateLateralPadIsClampedByTheFidelitySetting() {
+        int clamp = FidelitySettings.plateLateralClampBlocks;
+        try {
+            FidelitySettings.plateLateralClampBlocks = 8;
+            long clamped = predictedPlateBytes(plateFixture(PortalType.PORTAL, 48));
+            FidelitySettings.plateLateralClampBlocks = 64;
+            long padded = predictedPlateBytes(plateFixture(PortalType.PORTAL, 8));
+            long wide = predictedPlateBytes(plateFixture(PortalType.PORTAL, 48));
+            assertEquals(padded, clamped);
+            assertTrue(wide > clamped);
+        } finally {
+            FidelitySettings.plateLateralClampBlocks = clamp;
+        }
+    }
+
+    @Test
+    public void rtpViewersOnOneRouteShareOnePlate() {
+        PlateFixture fixture = plateFixture(PortalType.RTP, 48);
+        when(fixture.rtp().plateIdentity(any(), any())).thenReturn(77L);
+        List<ViewPlateBuilder.Job<BlockState, ServerLevel>> scheduled = new ArrayList<>();
+        ViewPlateCache<BlockState, ServerLevel> cache = new ViewPlateCache<>(FidelitySettings.plateMaxBytes, scheduled::add);
+        try (MinecraftPortalProjector first = fixture.projector(fixture.player(), cache);
+             MinecraftPortalProjector second = fixture.projector(fixture.viewer(), cache)) {
+            assertEquals(MinecraftPortalProjector.Result.READY, first.update(1L, Long.MAX_VALUE));
+            assertEquals(MinecraftPortalProjector.Result.READY, second.update(1L, Long.MAX_VALUE));
+        }
+        assertEquals(1, scheduled.size());
+        assertEquals(77L, scheduled.get(0).key().targetIdentity());
+        assertEquals(fixture.portal().getId(), scheduled.get(0).key().portalId());
+        verify(fixture.rtp()).plateIdentity(fixture.player(), fixture.portal());
+        verify(fixture.rtp()).plateIdentity(fixture.viewer(), fixture.portal());
+    }
+
+    @Test
+    public void rtpRoutesKeepDistinctPlatesAndTheGateDisablesThem() {
+        PlateFixture fixture = plateFixture(PortalType.RTP, 48);
+        when(fixture.rtp().plateIdentity(fixture.player(), fixture.portal())).thenReturn(77L);
+        when(fixture.rtp().plateIdentity(fixture.viewer(), fixture.portal())).thenReturn(78L);
+        List<ViewPlateBuilder.Job<BlockState, ServerLevel>> scheduled = new ArrayList<>();
+        ViewPlateCache<BlockState, ServerLevel> cache = new ViewPlateCache<>(FidelitySettings.plateMaxBytes, scheduled::add);
+        try (MinecraftPortalProjector first = fixture.projector(fixture.player(), cache);
+             MinecraftPortalProjector second = fixture.projector(fixture.viewer(), cache)) {
+            assertEquals(MinecraftPortalProjector.Result.READY, first.update(1L, Long.MAX_VALUE));
+            assertEquals(MinecraftPortalProjector.Result.READY, second.update(1L, Long.MAX_VALUE));
+        }
+        assertEquals(2, scheduled.size());
+        assertEquals(77L, scheduled.get(0).key().targetIdentity());
+        assertEquals(78L, scheduled.get(1).key().targetIdentity());
+        assertNotEquals(scheduled.get(0).key(), scheduled.get(1).key());
+        assertSame(scheduled.get(0).key().destinationViewIdentity(), scheduled.get(1).key().destinationViewIdentity());
+        when(fixture.rtp().plateIdentity(fixture.player(), fixture.portal())).thenReturn(0L);
+        try (MinecraftPortalProjector unresolved = fixture.projector(fixture.player(), cache)) {
+            assertEquals(MinecraftPortalProjector.Result.READY, unresolved.update(1L, Long.MAX_VALUE));
+        }
+        assertEquals(2, scheduled.size());
+        when(fixture.rtp().plateIdentity(fixture.player(), fixture.portal())).thenReturn(79L);
+        boolean gate = FidelitySettings.rtpPlates;
+        FidelitySettings.rtpPlates = false;
+        try (MinecraftPortalProjector gated = fixture.projector(fixture.player(), cache)) {
+            assertEquals(MinecraftPortalProjector.Result.READY, gated.update(1L, Long.MAX_VALUE));
+        } finally {
+            FidelitySettings.rtpPlates = gate;
+        }
+        assertEquals(2, scheduled.size());
+    }
+
     private static int destinationSamples(Scene scene, MinecraftPortalProjector projector, long tick) {
         clearInvocations(scene.destination());
         settle(projector, tick);
@@ -329,6 +425,78 @@ public class MinecraftPortalProjectorTest {
         MinecraftProjectionService projections = mock(MinecraftProjectionService.class);
         when(projections.changes()).thenReturn(changes);
         when(runtime.projections()).thenReturn(projections);
+    }
+
+    private static long predictedPlateBytes(PlateFixture fixture) {
+        List<ViewPlateBuilder.Job<BlockState, ServerLevel>> scheduled = new ArrayList<>();
+        ViewPlateCache<BlockState, ServerLevel> cache = new ViewPlateCache<>(FidelitySettings.plateMaxBytes, scheduled::add);
+        try (MinecraftPortalProjector projector = fixture.projector(fixture.player(), cache)) {
+            assertEquals(MinecraftPortalProjector.Result.READY, projector.update(1L, Long.MAX_VALUE));
+        }
+        assertEquals(1, scheduled.size());
+        return scheduled.get(0).predictedBytes();
+    }
+
+    private static PlateFixture plateFixture(PortalType type, int lateralPad) {
+        WormholesModRuntime runtime = mock(WormholesModRuntime.class);
+        WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
+        MinecraftPortalRegistry registry = mock(MinecraftPortalRegistry.class);
+        MinecraftProjectorPortalAccess access = mock(MinecraftProjectorPortalAccess.class);
+        MinecraftProjectionService projections = mock(MinecraftProjectionService.class);
+        MinecraftRtpRuntime rtp = mock(MinecraftRtpRuntime.class);
+        MinecraftServer server = mock(MinecraftServer.class);
+        PlayerList players = mock(PlayerList.class);
+        ServerLevel world = mock(ServerLevel.class);
+        when(runtime.server()).thenReturn(server);
+        when(server.getPlayerList()).thenReturn(players);
+        when(players.getViewDistance()).thenReturn(8);
+        MinecraftPortal source = portal(0.0D);
+        MinecraftPortal target = portal(10.0D);
+        when(source.getType()).thenReturn(type);
+        when(source.getNetworkViewLateralPad()).thenReturn(lateralPad);
+        MinecraftProjectionWorldView view = mock(MinecraftProjectionWorldView.class);
+        ProjectionConfig projection = new ProjectionConfig();
+        projection.maxProjectedCells = 10_000;
+        when(runtime.configuration()).thenReturn(configuration);
+        when(configuration.settings()).thenReturn(new WormholesSettings(new MainConfig(), projection, new RenderConfig(), new NetworkConfig()));
+        when(runtime.portals()).thenReturn(registry);
+        when(runtime.projections()).thenReturn(projections);
+        when(runtime.rtp()).thenReturn(rtp);
+        when(projections.changes()).thenReturn(new ProjectionWorldChangeTracker());
+        when(registry.get(source.getId())).thenReturn(source);
+        when(access.eligible(source)).thenReturn(true);
+        when(access.current(source)).thenReturn(true);
+        when(access.world(source)).thenReturn(world);
+        when(access.world(target)).thenReturn(world);
+        when(access.projectionDestination(source)).thenReturn(target);
+        when(access.portals()).thenReturn(List.of());
+        when(access.createRecursiveIndex()).thenAnswer(ignored -> new ProjectorRecursivePortals<>(access,
+            () -> new ProjectorRecursivePortals.Options(0.75D, 64.0D)));
+        when(view.getWorld()).thenReturn(world);
+        when(view.worldId()).thenReturn(UUID.randomUUID());
+        when(view.getMinHeight()).thenReturn(-64);
+        when(view.getMaxHeight()).thenReturn(320);
+        when(view.isChunkReady(anyInt(), anyInt())).thenReturn(true);
+        BlockState stone = Blocks.STONE.defaultBlockState();
+        when(view.sampleBlockData(anyInt(), anyInt(), anyInt())).thenReturn(stone);
+        when(view.sampleMaterial(anyInt(), anyInt(), anyInt())).thenReturn(stone);
+        return new PlateFixture(runtime, access, viewer(world), viewer(world), source, view, rtp);
+    }
+
+    private static ServerPlayer viewer(ServerLevel world) {
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.requestedViewDistance()).thenReturn(8);
+        when(player.level()).thenReturn(world);
+        when(player.getEyePosition()).thenReturn(new Vec3(1.0D, 65.0D, 4.0D));
+        when(player.getUUID()).thenReturn(UUID.randomUUID());
+        return player;
+    }
+
+    private record PlateFixture(WormholesModRuntime runtime, MinecraftProjectorPortalAccess access, ServerPlayer player,
+                                ServerPlayer viewer, MinecraftPortal portal, MinecraftProjectionWorldView view, MinecraftRtpRuntime rtp) {
+        MinecraftPortalProjector projector(ServerPlayer observer, ViewPlateCache<BlockState, ServerLevel> cache) {
+            return new MinecraftPortalProjector(runtime, new MinecraftPortalProjector.Context(observer, portal, ignored -> view, access, cache));
+        }
     }
 
     private static MinecraftPortal portal(double x) {

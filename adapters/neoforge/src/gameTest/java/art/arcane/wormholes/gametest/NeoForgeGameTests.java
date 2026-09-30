@@ -53,6 +53,10 @@ public final class NeoForgeGameTests {
             WormholesGameTests.PROJECTION_DIRT_RUNTIME, () -> WormholesGameTests::projectionDirtRuntime));
         bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
             WormholesGameTests.PROJECTION_GAZE_RUNTIME, () -> WormholesGameTests::projectionGazeRuntime));
+        bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
+            WormholesGameTests.PROJECTION_SECTION_CACHE_RUNTIME, () -> WormholesGameTests::projectionSectionCacheRuntime));
+        bus.addListener((RegisterEvent event) -> event.register(Registries.TEST_FUNCTION,
+            WormholesGameTests.PROJECTION_PLATE_CAPTURE_RUNTIME, () -> WormholesGameTests::projectionPlateCaptureRuntime));
         NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> WormholesGameTests.RUNTIME.registerCommands(event.getDispatcher()));
         NeoForge.EVENT_BUS.addListener((ServerStartedEvent event) -> WormholesGameTests.start(event.getServer()));
         NeoForge.EVENT_BUS.addListener((ServerTickEvent.Post event) -> tick());

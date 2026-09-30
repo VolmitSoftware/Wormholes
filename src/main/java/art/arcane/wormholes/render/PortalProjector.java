@@ -33,6 +33,7 @@ import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
+import art.arcane.wormholes.portal.rtp.RtpProjectionGeometry;
 import art.arcane.wormholes.portal.rtp.RtpProjectionView;
 import art.arcane.wormholes.render.atmosphere.AtmosphereChannel;
 import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
@@ -1299,17 +1300,7 @@ public final class PortalProjector {
         }
 
         public long plateIdentity() {
-            UUID worldId = world.getUID();
-            long identity = ProjectorPassRevision.mix(1469598103934665603L, worldId.getMostSignificantBits());
-            identity = ProjectorPassRevision.mix(identity, worldId.getLeastSignificantBits());
-            identity = ProjectorPassRevision.mix(identity, Double.doubleToLongBits(originX));
-            identity = ProjectorPassRevision.mix(identity, Double.doubleToLongBits(originY));
-            identity = ProjectorPassRevision.mix(identity, Double.doubleToLongBits(originZ));
-            identity = ProjectorPassRevision.mix(identity, frame.getNormal().ordinal());
-            identity = ProjectorPassRevision.mix(identity, frame.getRight().ordinal());
-            identity = ProjectorPassRevision.mix(identity, frame.getUp().ordinal());
-            identity = ProjectorPassRevision.mix(identity, routeRevision);
-            return identity == 0L ? 1L : identity;
+            return RtpProjectionGeometry.plateIdentity(world.getUID(), originX, originY, originZ, frame, routeRevision);
         }
 
         private static Direction direction(RtpProjectionView.Vector3 vector, String name) {

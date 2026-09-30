@@ -21,12 +21,15 @@ import net.minecraft.network.protocol.game.ClientboundHurtAnimationPacket;
 import net.minecraft.world.entity.Entity;
 import java.util.concurrent.ConcurrentHashMap;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import art.arcane.wormholes.render.plate.PlateCaptureJob;
+import art.arcane.wormholes.render.plate.PlateCaptureQueue;
 import art.arcane.wormholes.render.plate.PlateWorkers;
 import art.arcane.wormholes.render.plate.ViewPlate;
 import art.arcane.wormholes.render.plate.ViewPlateBuilder;
 import art.arcane.wormholes.render.plate.ViewPlateCache;
 import art.arcane.wormholes.render.plate.ViewPlateKey;
 import art.arcane.wormholes.render.view.ProjectionContentView;
+import art.arcane.wormholes.render.view.SectionCache;
 import art.arcane.wormholes.render.ProjectorLighting;
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
@@ -45,6 +48,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
@@ -63,7 +67,6 @@ import java.util.UUID;
 public final class MinecraftProjectionService implements AutoCloseable {
     private static final Map<MinecraftServer, MinecraftProjectionService> ACTIVE = new ConcurrentHashMap<>();
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
-    private static final int SERVER_PLATE_CELLS_PER_TICK = 6144;
 
     private final WormholesModRuntime runtime;
     private final MinecraftProjectorPortalAccess portals;
@@ -75,6 +78,10 @@ public final class MinecraftProjectionService implements AutoCloseable {
     private final Map<ServerLevel, MinecraftProjectionWorldView> views = new HashMap<>();
     private final Map<UUID, Observer> observers = new HashMap<>();
     private final ViewPlateCache<BlockState, ServerLevel> plates = new ViewPlateCache<>(FidelitySettings.plateMaxBytes, this::schedulePlate);
+    private final PlateCaptureQueue<BlockState, ServerLevel> plateCaptures = new PlateCaptureQueue<>(new CaptureHost());
+    private final SectionCache<BlockState, BlockState> sections = new SectionCache<>(MinecraftProjectorBlocks.INSTANCE, SectionCache.Limits.from(true, 64, 16, 200));
+    private final SectionEviction eviction = new SectionEviction();
+    private SectionCache.Limits limits = SectionCache.Limits.from(true, 64, 16, 200);
     private PlateWorkers<BlockState, ServerLevel> plateWorkers;
     private long generation;
     private long frozenUntil;
@@ -163,6 +170,9 @@ public final class MinecraftProjectionService implements AutoCloseable {
         ACTIVE.put(runtime.server(), this);
         tick = 0;
         observerCursor = 0;
+        limits = limits(config());
+        sections.configure(limits);
+        changes.addListener(eviction);
         long startedGeneration = ++generation;
         plateWorkers = new PlateWorkers<>(FidelitySettings.plateWorkers, new PlateWorkers.Host<>() {
             @Override
@@ -192,10 +202,17 @@ public final class MinecraftProjectionService implements AutoCloseable {
             return;
         }
         tick++;
+        ProjectionConfig config = config();
         plates.recap(FidelitySettings.plateMaxBytes);
         plates.refreshDirt(changes);
+        SectionCache.Limits configured = limits(config);
+        if (!configured.equals(limits)) {
+            limits = configured;
+            sections.configure(configured);
+        }
+        sections.tick((int) tick);
+        plateCaptures.tick(FidelitySettings.plateCaptureChunksPerTick);
         plateWorkers.resize(FidelitySettings.plateWorkers);
-        ProjectionConfig config = config();
         List<ServerPlayer> players = runtime.server().getPlayerList().getPlayers();
         Set<UUID> online = new HashSet<>(players.size());
         for (ServerPlayer player : players) {
@@ -261,7 +278,9 @@ public final class MinecraftProjectionService implements AutoCloseable {
         localEntityCandidates.clear();
         MinecraftClientProfiles.clear();
         entityVisibility.clear();
+        plateCaptures.clear();
         plates.clear();
+        sections.clear();
         return count;
     }
 
@@ -275,6 +294,22 @@ public final class MinecraftProjectionService implements AutoCloseable {
             count += observer.projectors.size();
         }
         return count;
+    }
+
+    public ViewPlateCache<BlockState, ServerLevel> plates() {
+        return plates;
+    }
+
+    public int plateCaptureQueueSize() {
+        return plateCaptures.size();
+    }
+
+    public long sectionCacheBytes() {
+        return sections.bytes();
+    }
+
+    public int sectionCacheSections() {
+        return sections.sectionCount();
     }
 
     public static MinecraftProjectionService forServer(MinecraftServer server) {
@@ -344,16 +379,20 @@ public final class MinecraftProjectionService implements AutoCloseable {
             plateWorkers.shutdown();
             plateWorkers = null;
         }
+        plateCaptures.clear();
         plates.clear();
+        changes.removeListener(eviction);
         for (Observer observer : observers.values()) {
             observer.close();
         }
         observers.clear();
         for (MinecraftProjectionWorldView view : views.values()) {
+            sections.release(view.sections());
             view.close();
             changes.clearWorld(view.worldId());
         }
         views.clear();
+        sections.clear();
         entityScenes.clear();
         localEntityCandidates.clear();
         MinecraftClientProfiles.clear();
@@ -366,40 +405,31 @@ public final class MinecraftProjectionService implements AutoCloseable {
             plates.buildFailed(job);
             return;
         }
-        if (!(job.key().destinationViewIdentity() instanceof MinecraftProjectionWorldView)) {
-            plateWorkers.submitAsync(job);
+        if (job instanceof PlateCaptureJob<BlockState, ServerLevel, ?> capture) {
+            plateCaptures.submit(capture);
             return;
         }
-        long startedGeneration = generation;
-        if (!runtime.schedule(() -> stepPlateOnServer(job, startedGeneration), 0L)) {
-            plates.buildFailed(job);
-        }
+        plateWorkers.submitAsync(job);
     }
 
-    private void stepPlateOnServer(ViewPlateBuilder.Job<BlockState, ServerLevel> job, long startedGeneration) {
-        if (closed || generation != startedGeneration || !plates.isBuilding(job)) {
-            plates.buildFailed(job);
-            return;
-        }
-        boolean finished;
-        try {
-            finished = job.step(SERVER_PLATE_CELLS_PER_TICK);
-        } catch (RuntimeException failure) {
-            plates.buildFailed(job);
-            LOGGER.error("Wormholes plate build failed for portal {}", job.key().portalId(), failure);
-            return;
-        }
-        if (finished) {
-            plates.publish(job, job.result());
-            return;
-        }
-        if (!runtime.schedule(() -> stepPlateOnServer(job, startedGeneration), 1L)) {
-            plates.buildFailed(job);
-        }
+    public MinecraftProjectionWorldView view(ServerLevel world) {
+        runtime.requireServerThread();
+        return views.computeIfAbsent(world, this::createView);
     }
 
-    private MinecraftProjectionWorldView view(ServerLevel world) {
-        return views.computeIfAbsent(world, level -> new MinecraftProjectionWorldView(runtime, level));
+    private MinecraftProjectionWorldView createView(ServerLevel level) {
+        SectionCache<BlockState, BlockState>.WorldSections worldSections = sections.world(
+            new MinecraftSectionSource(level, Blocks.AIR.defaultBlockState()), level.getMinSectionY(), level.getMaxSectionY());
+        return new MinecraftProjectionWorldView(runtime, level, worldSections);
+    }
+
+    private MinecraftProjectionWorldView viewById(UUID worldId) {
+        for (MinecraftProjectionWorldView view : views.values()) {
+            if (view.worldId().equals(worldId)) {
+                return view;
+            }
+        }
+        return null;
     }
 
     private ProjectionConfig config() {
@@ -415,6 +445,10 @@ public final class MinecraftProjectionService implements AutoCloseable {
         GeometryVector origin = portal.getOrigin();
         return new ProjectionGazeScheduler.Candidate<>(portal, portal.getId(), origin.x() - 0.5D, origin.y() - 0.5D, origin.z() - 0.5D,
             origin.x() + 0.5D, origin.y() + 0.5D, origin.z() + 0.5D, pendingScan, false);
+    }
+
+    private static SectionCache.Limits limits(ProjectionConfig config) {
+        return SectionCache.Limits.from(config.sectionCache, config.sectionCacheMaxMb, config.sectionCacheChunksPerTick, config.sectionCacheTtlTicks);
     }
 
     private boolean interested(ServerPlayer player, MinecraftPortal portal, MinecraftProjectorPortalAccess portals) {
@@ -712,6 +746,59 @@ public final class MinecraftProjectionService implements AutoCloseable {
             }
         }
     }
+    private final class SectionEviction implements ProjectionWorldChangeTracker.ChangeListener {
+        @Override
+        public void blockChanged(UUID worldId, long blockKey) {
+            MinecraftProjectionWorldView view = viewById(worldId);
+            if (view != null) {
+                view.sections().blockChanged(ProjectionCellKey.unpackX(blockKey), ProjectionCellKey.unpackY(blockKey),
+                    ProjectionCellKey.unpackZ(blockKey));
+            }
+        }
+
+        @Override
+        public void columnChanged(UUID worldId, int chunkX, int chunkZ) {
+            MinecraftProjectionWorldView view = viewById(worldId);
+            if (view != null) {
+                view.sections().columnChanged(chunkX, chunkZ);
+            }
+        }
+
+        @Override
+        public void worldCleared(UUID worldId) {
+            MinecraftProjectionWorldView view = viewById(worldId);
+            if (view != null) {
+                view.sections().clear();
+            }
+        }
+    }
+
+    private final class CaptureHost implements PlateCaptureQueue.Host<BlockState, ServerLevel> {
+        @Override
+        public void build(ViewPlateBuilder.Job<BlockState, ServerLevel> job) {
+            if (closed || plateWorkers == null) {
+                plates.buildFailed(job);
+                return;
+            }
+            plateWorkers.submitAsync(job);
+        }
+
+        @Override
+        public void failed(ViewPlateBuilder.Job<BlockState, ServerLevel> job) {
+            plates.buildFailed(job);
+        }
+
+        @Override
+        public void warning(ViewPlateKey key, RuntimeException failure) {
+            LOGGER.error("Wormholes plate capture failed for portal {}", key.portalId(), failure);
+        }
+
+        @Override
+        public boolean wanted(ViewPlateBuilder.Job<BlockState, ServerLevel> job) {
+            return !closed && plates.isBuilding(job);
+        }
+    }
+
     private record SceneKey(ServerLevel world, UUID portalId) {
     }
 

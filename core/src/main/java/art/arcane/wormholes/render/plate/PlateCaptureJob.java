@@ -8,6 +8,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 public final class PlateCaptureJob<B, W, S> extends ViewPlateBuilder.Job<B, W> {
+    public static final int MAX_BLOCK_ENTITIES_PER_CHUNK = 64;
     static final int MAX_CAPTURE_TICKS = 1200;
 
     public interface Source<W, S> {
