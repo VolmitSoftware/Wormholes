@@ -160,11 +160,13 @@ public final class RtpService
 		return view == null ? RtpProjectionView.none(requiredViewerId, snapshot.revision()) : view;
 	}
 
-	public Optional<RtpRimRenderer.Sample> rimSample(
+	public Optional<RtpRimRenderer.Sample> rimDispatch(
 			UUID portalId,
 			UUID viewerId,
 			RtpRimRenderer.Phase phase,
-			long elapsedMillis)
+			long elapsedMillis,
+			long frameTick,
+			int intervalTicks)
 	{
 		UUID requiredPortalId = Objects.requireNonNull(portalId, "portalId");
 		UUID requiredViewerId = Objects.requireNonNull(viewerId, "viewerId");
@@ -186,7 +188,7 @@ public final class RtpService
 				requiredPhase,
 				elapsedMillis,
 				snapshot.settings().getCycleDurationMillis());
-		return dependencies.rimRenderer().calculate(input);
+		return dependencies.rimRenderer().nextDispatch(requiredPortalId, input, frameTick, intervalTicks);
 	}
 
 	Dependencies dependencies()

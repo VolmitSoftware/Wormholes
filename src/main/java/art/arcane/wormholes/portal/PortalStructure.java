@@ -106,17 +106,8 @@ public class PortalStructure implements IWritable, PortalCellAperture
 
 	public Location randomCellCentre()
 	{
-		GeometryVector block = geometry.randomBlockPosition();
-		if(block == null)
-		{
-			AxisAlignedBB area = getArea();
-			if(area == null)
-			{
-				return null;
-			}
-			block = area.random();
-		}
-		return new Location(getWorld(), Math.floor(block.x()) + 0.5D, Math.floor(block.y()) + 0.5D, Math.floor(block.z()) + 0.5D);
+		GeometryVector centre = geometry.randomCellCentre();
+		return centre == null ? null : new Location(getWorld(), centre.x(), centre.y(), centre.z());
 	}
 
 	public void setWorld(World world)

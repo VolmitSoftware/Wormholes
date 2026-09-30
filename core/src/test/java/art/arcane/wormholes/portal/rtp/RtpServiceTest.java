@@ -55,12 +55,38 @@ public final class RtpServiceTest
 		assertEquals(2, harness.validator.validationCount());
 		assertThrows(UnsupportedOperationException.class, () -> snapshot.viewers().clear());
 		assertThrows(UnsupportedOperationException.class, () -> snapshot.views().clear());
-		RtpRimRenderer.Sample rim = harness.service.rimSample(
+		RtpRimRenderer.Sample rim = harness.service.rimDispatch(
 				portalId,
 				viewerId,
 				RtpRimRenderer.Phase.READY,
-				0L).orElseThrow();
+				0L,
+				0L,
+				1).orElseThrow();
 		assertEquals(RtpRimRenderer.Color.GREEN, rim.color());
+	}
+
+	@Test
+	public void rimDispatchHoldsAnUnchangedColourForTheIntervalAndSendsChangesAtOnce()
+	{
+		TestHarness harness = new TestHarness(uniqueSampler());
+		UUID portalId = uuid("rim-cadence-portal");
+		UUID viewerId = uuid("rim-cadence-viewer");
+		harness.register(portalId, settings(RtpAllocationMode.SHARED, RtpRotationMode.STATIC));
+		harness.service.touchViewer(portalId, viewerId).join();
+		harness.executor.runAll();
+
+		assertEquals(RtpRimRenderer.Color.GREEN, rimDispatch(harness, portalId, viewerId, RtpRimRenderer.Phase.READY, 100L).orElseThrow().color());
+		assertTrue(rimDispatch(harness, portalId, viewerId, RtpRimRenderer.Phase.READY, 101L).isEmpty());
+		assertEquals(RtpRimRenderer.Color.RED, rimDispatch(harness, portalId, viewerId, RtpRimRenderer.Phase.CLOSING, 101L).orElseThrow().color());
+		assertEquals(RtpRimRenderer.Color.GREEN, rimDispatch(harness, portalId, viewerId, RtpRimRenderer.Phase.READY, 102L).orElseThrow().color());
+		assertTrue(rimDispatch(harness, portalId, viewerId, RtpRimRenderer.Phase.READY, 106L).isEmpty());
+		assertTrue(rimDispatch(harness, portalId, viewerId, RtpRimRenderer.Phase.READY, 107L).isPresent());
+
+		harness.service.leaveViewer(portalId, viewerId).join();
+		assertTrue(rimDispatch(harness, portalId, viewerId, RtpRimRenderer.Phase.READY, 108L).isEmpty());
+		harness.service.touchViewer(portalId, viewerId).join();
+		harness.executor.runAll();
+		assertTrue(rimDispatch(harness, portalId, viewerId, RtpRimRenderer.Phase.READY, 108L).isPresent());
 	}
 
 	@Test
@@ -411,11 +437,13 @@ public final class RtpServiceTest
 		RtpService.Snapshot snapshot = harness.service.snapshot(portalId).orElseThrow();
 		assertEquals(RtpRotationMode.ON_TRAVERSAL, snapshot.settings().getRotationMode());
 		assertEquals(RtpRotationMode.TIMED, snapshot.runtime().rotationMode());
-		RtpRimRenderer.Sample rim = harness.service.rimSample(
+		RtpRimRenderer.Sample rim = harness.service.rimDispatch(
 				portalId,
 				playerId,
 				RtpRimRenderer.Phase.READY,
-				7_500L).orElseThrow();
+				7_500L,
+				0L,
+				1).orElseThrow();
 		assertEquals(new RtpRimRenderer.Color(255, 255, 0), rim.color());
 		assertEquals(0.5D, rim.progress());
 	}
@@ -951,6 +979,16 @@ public final class RtpServiceTest
 
 		assertTrue(claim.join().isEmpty());
 		assertFalse(harness.service.snapshot(portalId).orElseThrow().integrationAvailable());
+	}
+
+	private static Optional<RtpRimRenderer.Sample> rimDispatch(
+			TestHarness harness,
+			UUID portalId,
+			UUID viewerId,
+			RtpRimRenderer.Phase phase,
+			long frameTick)
+	{
+		return harness.service.rimDispatch(portalId, viewerId, phase, 0L, frameTick, 5);
 	}
 
 	private static CountingSampler uniqueSampler()

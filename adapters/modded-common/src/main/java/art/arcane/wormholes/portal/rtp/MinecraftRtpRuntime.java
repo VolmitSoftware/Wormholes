@@ -21,6 +21,7 @@ import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalGeometry;
 import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.MomentumTransform;
 import art.arcane.wormholes.transit.OrientationPolicy;
@@ -59,6 +60,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
     private MinecraftRtpCandidateLoader candidates;
     private ExecutorService searches;
     private RtpService service;
+    private RtpRimRenderer rims;
     private boolean closed = true;
 
     public MinecraftRtpRuntime(WormholesModRuntime runtime) {
@@ -71,9 +73,10 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
         candidates = new MinecraftRtpCandidateLoader(runtime);
         searches = Executors.newFixedThreadPool(2, Thread.ofPlatform().daemon().name("Wormholes-rtp-search-", 0).factory());
         closed = false;
+        rims = new RtpRimRenderer();
         service = new RtpService(new RtpService.Dependencies(new Dispatcher(), searches::execute, System::currentTimeMillis,
             (registration, generation, attempt) -> new RtpSampler(registration.centerX(), registration.centerZ(), registration.seed())
-                .sample(registration.settings(), generation, attempt), candidates, safety::validate, this::access, this::projection, new RtpRimRenderer()));
+                .sample(registration.settings(), generation, attempt), candidates, safety::validate, this::access, this::projection, rims));
     }
 
     public void tick() {
@@ -137,7 +140,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
         view.touched = System.currentTimeMillis();
         observe(service.touchViewer(portal.getId(), viewer.getUUID()), "view", portal.getId());
         RtpProjectionView.ReadyData ready = service.projectionView(portal.getId(), viewer.getUUID()).readyFor(viewer.getUUID()).orElse(null);
-        rim(viewer, portal, view);
+        rim(viewer, portal);
         if (ready == null) {
             view.destination = null;
             view.ready = null;
@@ -148,6 +151,15 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
             view.ready = ready;
         }
         return view.destination;
+    }
+
+    public MinecraftPortal knownDestination(ServerPlayer viewer, MinecraftPortal portal) {
+        runtime.requireServerThread();
+        if (closed || portal.getType() != PortalType.RTP) {
+            return null;
+        }
+        View view = views.get(new ViewKey(portal.getId(), viewer.getUUID()));
+        return view == null ? null : view.destination;
     }
 
     public boolean locked(UUID entity) {
@@ -212,6 +224,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
                 observe(service.leaveViewer(key.portal(), key.viewer()), "disconnect", key.portal());
             }
         }
+        rims.forgetViewer(player.getUUID());
     }
 
     @Override
@@ -260,6 +273,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
     private void unregister(UUID id) {
         registrations.remove(id);
         views.keySet().removeIf(key -> key.portal().equals(id));
+        rims.forgetPortal(id);
         for (Active active : List.copyOf(traversals.values())) {
             if (active.portal.getId().equals(id)) {
                 cancel(active, TraversalRefundReason.TRAVERSAL_ABORTED, true);
@@ -296,12 +310,11 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
             geometry, ready.target().worldKey(), source.write()));
     }
 
-    private void rim(ServerPlayer viewer, MinecraftPortal portal, View view) {
-        long now = System.currentTimeMillis();
-        if (now - view.lastRim < 250L || !runtime.configuration().settings().getMain().enableParticles) {
+    private void rim(ServerPlayer viewer, MinecraftPortal portal) {
+        if (!runtime.configuration().settings().getMain().enableParticles) {
             return;
         }
-        view.lastRim = now;
+        long now = System.currentTimeMillis();
         RtpService.Snapshot snapshot = service.snapshot(portal.getId()).orElse(null);
         if (snapshot == null) {
             return;
@@ -312,7 +325,8 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
         long duration = state.rotationMode() == RtpRotationMode.TIMED ? snapshot.settings().getCycleDurationMillis() : 0L;
         long elapsed = duration == 0L || state.nextRotationAtMillis() <= 0L ? 0L
             : Math.max(0L, duration - Math.max(0L, state.nextRotationAtMillis() - now));
-        RtpRimRenderer.Sample sample = service.rimSample(portal.getId(), viewer.getUUID(), phase, elapsed).orElse(null);
+        RtpRimRenderer.Sample sample = service.rimDispatch(portal.getId(), viewer.getUUID(), phase, elapsed,
+            server.getTickCount(), FidelitySettings.rtpRimIntervalTicks).orElse(null);
         if (sample == null) {
             return;
         }
@@ -541,7 +555,6 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
 
     private static final class View {
         private long touched;
-        private long lastRim;
         private RtpProjectionView.ReadyData ready;
         private MinecraftPortal destination;
     }

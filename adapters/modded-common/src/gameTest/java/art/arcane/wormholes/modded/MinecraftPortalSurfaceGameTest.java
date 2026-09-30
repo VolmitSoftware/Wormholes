@@ -1,6 +1,8 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
+import art.arcane.wormholes.portal.AmbientSparkCadence;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.render.ProjectedBlockClaim;
 import art.arcane.wormholes.render.ProjectionCellKey;
@@ -18,6 +20,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
@@ -30,6 +33,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -80,6 +84,17 @@ final class MinecraftPortalSurfaceGameTest {
             channel.runPendingTasks();
             helper.assertTrue(channel.outboundMessages().stream().noneMatch(packet -> packet instanceof ClientboundAddEntityPacket),
                 "Unchanged skin respawned displays");
+            portal.setAmbientStyle(AmbientParticleStyle.SPARKS);
+            clear(channel);
+            surfaces.update(List.of(portal), access, 10);
+            List<ClientboundLevelParticlesPacket> sparks = particles(channel);
+            helper.assertTrue(sparks.size() == 1 && sparks.get(0).particle() == ParticleTypes.MYCELIUM, "Spark burst was not one particle packet");
+            helper.assertTrue(sparks.get(0).count() == (portal.isOpen() ? 4 : 1) && sparks.get(0).xDist() == (float) AmbientSparkCadence.CELL_SPREAD,
+                "Spark burst lost its count or cell spread");
+            helper.assertTrue(portal.getGeometry().contains(new GeometryVector(sparks.get(0).x(), sparks.get(0).y(), sparks.get(0).z())),
+                "Spark burst left the aperture cells");
+            surfaces.update(List.of(portal), access, 11);
+            helper.assertTrue(particles(channel).isEmpty(), "Sparks were sent between five-tick steps");
             portal.setSurfaceSkin("minecraft:water");
             surfaces.update(List.of(portal), access, 7);
             claims.resolveStaged(staged);
@@ -137,7 +152,7 @@ final class MinecraftPortalSurfaceGameTest {
             player.connection.handleCustomPayload(new ServerboundCustomPayloadPacket(new BrandPayload("vanilla")));
             helper.assertTrue(!MinecraftClientProfiles.profile(player).bedrock(), "Changed native brand retained stale Bedrock profile");
             LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS bedrock_profile native_brand skin_fallback block_batches refresh");
-            LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS portal_surfaces held_skin display metadata ambient fluid_claims competing_claim teardown");
+            LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS portal_surfaces held_skin display metadata ambient spark_batch fluid_claims competing_claim teardown");
         } finally {
             player.connection.handleCustomPayload(new ServerboundCustomPayloadPacket(new BrandPayload("vanilla")));
             player.setPos(previous);
@@ -146,6 +161,18 @@ final class MinecraftPortalSurfaceGameTest {
             player.setItemInHand(InteractionHand.MAIN_HAND, held);
             runtime.portals().remove(player, portal.getId());
         }
+    }
+
+    private static List<ClientboundLevelParticlesPacket> particles(EmbeddedChannel channel) {
+        channel.runPendingTasks();
+        List<ClientboundLevelParticlesPacket> particles = new ArrayList<>();
+        for (Object packet : channel.outboundMessages()) {
+            if (packet instanceof ClientboundLevelParticlesPacket particle) {
+                particles.add(particle);
+            }
+        }
+        channel.outboundMessages().clear();
+        return particles;
     }
 
     private static void clear(EmbeddedChannel channel) {

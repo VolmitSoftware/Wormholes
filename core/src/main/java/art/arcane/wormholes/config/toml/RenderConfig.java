@@ -36,7 +36,7 @@ public class RenderConfig {
     public double entityVelocityEpsilon = 0.005;
     @ConfigDescription({
         "Ticks between ambient spark bursts on portals using the sparks style. Each burst carries the sparks of every skipped tick, so the average density stays the same.",
-        "1 sends a burst every tick; higher values send fewer particle packets."
+        "1 sends a burst every ambient step (every tick on Bukkit, every 5 ticks on Fabric, Forge and NeoForge); higher values send fewer particle packets."
     })
     public int ambientParticleIntervalTicks = 1;
 

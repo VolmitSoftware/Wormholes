@@ -94,6 +94,17 @@ public final class PortalGeometry implements PortalCellAperture {
         return size == 0 ? null : blockPositions.get(ThreadLocalRandom.current().nextInt(size));
     }
 
+    public GeometryVector randomCellCentre() {
+        GeometryVector block = randomBlockPosition();
+        if (block == null) {
+            if (area == null) {
+                return null;
+            }
+            block = area.random();
+        }
+        return new GeometryVector(Math.floor(block.x()) + 0.5D, Math.floor(block.y()) + 0.5D, Math.floor(block.z()) + 0.5D);
+    }
+
     public boolean contains(GeometryVector point) {
         return point != null && area != null && area.containsPrimitive(point.x(), point.y(), point.z())
             && containsBlock(point.getBlockX(), point.getBlockY(), point.getBlockZ());

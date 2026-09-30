@@ -13,9 +13,12 @@ import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.portal.rtp.RtpSafetyMode;
 import art.arcane.wormholes.portal.rtp.RtpVerticalMode;
+import art.arcane.wormholes.util.AxisAlignedBB;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.GameTestSequence;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.world.item.Items;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
@@ -32,6 +35,7 @@ import java.util.UUID;
 public final class MinecraftRtpGameTest {
     private static final int EDITOR_CLICK_TICKS = 2;
     private static final int EDITOR_MUTATION_TICKS = 4;
+    private static final int RIM_WINDOW_TICKS = 5;
 
     private final GameTestHelper helper;
     private final WormholesModRuntime runtime;
@@ -46,6 +50,8 @@ public final class MinecraftRtpGameTest {
     private RtpSettings editorInitial;
     private MinecraftWindow editorWindow;
     private double editorCenterX;
+    private int rimWindowStart;
+    private int rimParticles;
 
     private MinecraftRtpGameTest(GameTestHelper helper) {
         this.helper = helper;
@@ -92,7 +98,14 @@ public final class MinecraftRtpGameTest {
             double dz = snapshot.runtime().active().blockZ() + 0.5D - portal.getOrigin().z();
             helper.assertTrue(dx * dx + dz * dz >= 100 && dx * dx + dz * dz <= 650, "Random candidate is outside configured annulus");
             helper.assertTrue(!runtime.portals().link(connection.player(), portal.getId(), UUID.randomUUID()), "Random portal accepted a fixed link");
-        }).thenIdle(3).thenExecute(this::cross).thenWaitUntil(() -> {
+            connection.drainPackets();
+            rimWindowStart = runtime.server().getTickCount();
+            rimParticles = 0;
+        }).thenExecuteFor(RIM_WINDOW_TICKS, this::attendRim).thenExecute(this::closeRimWindow)
+            .thenExecuteFor(RIM_WINDOW_TICKS, this::attendRim).thenExecute(() -> {
+                closeRimWindow();
+                helper.assertTrue(rimParticles >= 8, "RTP rim sent no refresh across two refresh intervals");
+            }).thenIdle(3).thenExecute(this::cross).thenWaitUntil(() -> {
             helper.assertTrue(connection.player().position().distanceToSqr(portal.getOrigin().x(), portal.getOrigin().y(), portal.getOrigin().z()) > 64,
                 "Random traveler did not reach a sampled destination");
             helper.assertTrue(!runtime.rtp().locked(connection.player().getUUID()), "Random traveler retained a traversal lock");
@@ -165,7 +178,7 @@ public final class MinecraftRtpGameTest {
             helper.assertTrue(second.player().level().dimension() == Level.NETHER, "Cancelled traversal pulled player back from new dimension");
             helper.assertTrue(runtime.rtp().snapshot(portal.getId()).orElseThrow().runtime().playerClaims() == 0,
                 "World change retained a private claim");
-            LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS rtp_runtime sampled_preview annulus safe_arrival claim_release manual_reroll biome_filter timed_rotation private_reservations disconnect_cancellation world_change_cancellation");
+            LoggerFactory.getLogger("WormholesGameTest").info("WORMHOLES_GAME_TEST_PASS rtp_runtime sampled_preview rim_cadence annulus safe_arrival claim_release manual_reroll biome_filter timed_rotation private_reservations disconnect_cancellation world_change_cancellation");
             cleanup();
         }).thenSucceed();
     }
@@ -298,6 +311,32 @@ public final class MinecraftRtpGameTest {
             }
         }
         return false;
+    }
+
+    private void attendRim() {
+        if (runtime.server().getTickCount() != rimWindowStart) {
+            runtime.rtp().projectionDestination(connection.player(), portal);
+        }
+    }
+
+    private void closeRimWindow() {
+        int particles = rimParticles(connection.drainPackets());
+        helper.assertTrue(particles <= 8, "RTP rim sent " + particles + " particles within one refresh interval while its colour held");
+        rimParticles += particles;
+        rimWindowStart = runtime.server().getTickCount();
+    }
+
+    private int rimParticles(List<Object> packets) {
+        AxisAlignedBB area = portal.getGeometry().getArea();
+        int count = 0;
+        for (Object packet : packets) {
+            if (packet instanceof ClientboundLevelParticlesPacket particles && particles.particle() instanceof DustParticleOptions
+                && (particles.x() == area.getXa() || particles.x() == area.getXb()) && (particles.y() == area.getYa() || particles.y() == area.getYb())
+                && (particles.z() == area.getZa() || particles.z() == area.getZb())) {
+                count += particles.count();
+            }
+        }
+        return count;
     }
 
     private void approach() {

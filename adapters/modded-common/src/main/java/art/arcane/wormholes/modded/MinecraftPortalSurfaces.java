@@ -2,9 +2,11 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.AmbientOutlineGeometry;
+import art.arcane.wormholes.portal.AmbientSparkCadence;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.PortalSurfaceSkins;
 import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.PortalSkinGeometry;
 import art.arcane.wormholes.render.PortalSkinGeometry.SkinTransform;
 import art.arcane.wormholes.render.ProjectedBlockClaim;
@@ -183,15 +185,8 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
         if (style == AmbientParticleStyle.OFF) {
             return;
         }
-        List<GeometryVector> cells = portal.getGeometry().getBlockPositions();
         if (style == AmbientParticleStyle.SPARKS) {
-            if (cells.isEmpty()) {
-                return;
-            }
-            for (int index = 0; index < (portal.isOpen() ? 4 : 1); index++) {
-                GeometryVector cell = cells.get(context.player().getRandom().nextInt(cells.size()));
-                particle(ParticleTypes.MYCELIUM, cell.x() + context.player().getRandom().nextDouble(), cell.y() + context.player().getRandom().nextDouble(), cell.z() + context.player().getRandom().nextDouble());
-            }
+            sparks(portal, cursor);
             return;
         }
         DustParticleOptions dust = new DustParticleOptions(portal.getAmbientColor(), 1.0f);
@@ -210,6 +205,20 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
             double[] point = points.get(Math.floorMod(cursor + index, points.size()));
             particle(dust, point[0], point[1], point[2]);
         }
+    }
+
+    private void sparks(MinecraftPortal portal, long cursor) {
+        int count = AmbientSparkCadence.burst(cursor, FidelitySettings.ambientParticleIntervalTicks, portal.isOpen());
+        if (count == 0) {
+            return;
+        }
+        GeometryVector cell = portal.getGeometry().randomCellCentre();
+        if (cell == null) {
+            return;
+        }
+        float spread = (float) AmbientSparkCadence.CELL_SPREAD;
+        context.player().connection.send(new ClientboundLevelParticlesPacket(ParticleTypes.MYCELIUM, false, false,
+            cell.x(), cell.y(), cell.z(), spread, spread, spread, 0.0F, count));
     }
 
     private void particle(ParticleOptions particle, double x, double y, double z) {
