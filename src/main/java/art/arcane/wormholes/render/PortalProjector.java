@@ -404,12 +404,12 @@ public final class PortalProjector {
         if (!renderModeChanged && !dissolve.isActive() && canReuseProjection(eye, stableResample, localDirty || holdsExposed)) {
             lastReuseSkips++;
             lastBlockChanges = 0;
-            lastProjectNanos = System.nanoTime() - startNanos;
-            WormholesTelemetry.addRenderNanos(lastProjectNanos);
-            logDiagnostics(false, 0, 0, cellScan.claims().size());
             if (updateEntities) {
                 updateEntitiesOnly(startNanos, eye);
+            } else {
+                recordProjectTime(startNanos);
             }
+            logDiagnostics(false, 0, 0, cellScan.claims().size());
             return;
         }
         int resampleReasonMask = reuseBlockers(eye, projectionInvalidated, stableResample, localDirty, renderModeChanged);
@@ -427,6 +427,7 @@ public final class PortalProjector {
                 portal.getNetworkViewLateralPad());
         } catch (RuntimeException ex) {
             noteFrustumFailure("block", ex);
+            recordProjectTime(startNanos);
             return;
         }
         frustumFailures.recordSuccess();
@@ -700,6 +701,7 @@ public final class PortalProjector {
                 portal.getNetworkViewLateralPad());
         } catch (RuntimeException ex) {
             noteFrustumFailure("entity", ex);
+            recordProjectTime(startNanos);
             return;
         }
         frustumFailures.recordSuccess();

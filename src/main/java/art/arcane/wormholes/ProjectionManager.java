@@ -308,13 +308,14 @@ public class ProjectionManager implements Listener {
         long frameTick = tickCount;
         if (!skinWork && active.isEmpty() && interestSet.isEmpty() && closeQueue.isEmpty() && claimArbiter.isIdle()) {
             interestSet.pruneGrace(frameTick);
-            WormholesTelemetry.setProjectionGauges(0, observerTasksInFlight.size(), countSpoofedEntities());
+            WormholesTelemetry.setProjectionGauges(0, 0, countSpoofedEntities());
             emitDiagnostics(active);
             return;
         }
         boolean updateBlocks = shouldUpdateBlocks();
         boolean updateEntities = shouldUpdateEntities();
         Set<UUID> priorityObservers = interestSet.observerIds();
+        int projectionObservers = priorityObservers.size();
         priorityObservers.addAll(skinRenderer.observerIds());
         boolean discoveryEnabled = !active.isEmpty() || !skinnedPortals.isEmpty();
         List<Player> observerCandidates = budgetLedger.selectObserverCandidates(onlinePlayers, priorityObservers,
@@ -348,7 +349,7 @@ public class ProjectionManager implements Listener {
             }, ENTITY_FRAME_SCHEDULER);
         }
         interestSet.pruneGrace(frameTick);
-        WormholesTelemetry.setProjectionGauges(active.size(), observerTasksInFlight.size(), countSpoofedEntities());
+        WormholesTelemetry.setProjectionGauges(active.size(), projectionObservers, countSpoofedEntities());
         emitDiagnostics(active);
     }
 

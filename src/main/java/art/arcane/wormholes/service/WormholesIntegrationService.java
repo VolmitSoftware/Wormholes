@@ -22,7 +22,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.ServicePriority;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -41,15 +40,13 @@ public final class WormholesIntegrationService implements IntegrationServiceCont
     );
 
     private volatile IntegrationProtocolVersion negotiatedProtocol = new IntegrationProtocolVersion(1, 1);
-    public static final String PLATE_BUILDS_PER_SECOND = "wormholes.plate-builds-per-second";
-    public static final String PLATE_BYTES = "wormholes.plate-bytes";
-    public static final String BLOCK_ENTITIES_PER_SECOND = "wormholes.block-entities-per-second";
     private final RateWindow wireBytesOutWindow = new RateWindow();
     private final RateWindow wireBytesInWindow = new RateWindow();
     private final RateWindow sidebandDropsWindow = new RateWindow();
     private final RateWindow replicatedBlocksWindow = new RateWindow();
     private final RateWindow plateBuildsWindow = new RateWindow();
     private final RateWindow blockEntitiesWindow = new RateWindow();
+    private final RatioWindow compressionRatioOutWindow = new RatioWindow();
 
     public void register() {
         Bukkit.getServicesManager().register(IntegrationServiceContract.class, this, Wormholes.instance, ServicePriority.Normal);
@@ -63,6 +60,9 @@ public final class WormholesIntegrationService implements IntegrationServiceCont
         wireBytesInWindow.clear();
         sidebandDropsWindow.clear();
         replicatedBlocksWindow.clear();
+        plateBuildsWindow.clear();
+        blockEntitiesWindow.clear();
+        compressionRatioOutWindow.clear();
     }
 
     @Override
@@ -128,7 +128,7 @@ public final class WormholesIntegrationService implements IntegrationServiceCont
     @Override
     public Map<String, IntegrationMetricSample> sampleMetrics(Set<String> metricKeys) {
         Set<String> requested = metricKeys == null || metricKeys.isEmpty()
-            ? defaultMetricKeys()
+            ? IntegrationMetricSchema.wormholesKeys()
             : metricKeys;
         long now = System.currentTimeMillis();
         Map<String, IntegrationMetricSample> out = new HashMap<>();
@@ -179,11 +179,11 @@ public final class WormholesIntegrationService implements IntegrationServiceCont
                     out.put(key, sampleTransfersInFlight(now));
                 case IntegrationMetricSchema.WORMHOLES_TRANSFERS_FAILED_TOTAL ->
                     out.put(key, sampleTransfersFailedTotal(now));
-                case PLATE_BUILDS_PER_SECOND ->
+                case IntegrationMetricSchema.WORMHOLES_PLATE_BUILDS_PER_SECOND ->
                     out.put(key, samplePlateBuildsPerSecond(now));
-                case PLATE_BYTES ->
+                case IntegrationMetricSchema.WORMHOLES_PLATE_BYTES ->
                     out.put(key, samplePlateBytes(now));
-                case BLOCK_ENTITIES_PER_SECOND ->
+                case IntegrationMetricSchema.WORMHOLES_BLOCK_ENTITIES_PER_SECOND ->
                     out.put(key, available(key, blockEntitiesWindow.perSecond(ProjectedBlockEntityLayer.sentTotal(), now), now));
                 default -> out.put(key, IntegrationMetricSample.unavailable(
                     IntegrationMetricSchema.descriptor(key),
@@ -196,28 +196,22 @@ public final class WormholesIntegrationService implements IntegrationServiceCont
         return out;
     }
 
-    private static Set<String> defaultMetricKeys() {
-        Set<String> keys = new HashSet<>(IntegrationMetricSchema.wormholesKeys());
-        keys.add(PLATE_BUILDS_PER_SECOND);
-        keys.add(PLATE_BYTES);
-        keys.add(BLOCK_ENTITIES_PER_SECOND);
-        return keys;
-    }
-
     private IntegrationMetricSample samplePlateBuildsPerSecond(long now) {
+        String key = IntegrationMetricSchema.WORMHOLES_PLATE_BUILDS_PER_SECOND;
         ProjectionManager projection = Wormholes.projectionManager;
         if (projection == null) {
-            return IntegrationMetricSample.unavailable(IntegrationMetricSchema.descriptor(PLATE_BUILDS_PER_SECOND), "projection-manager-not-ready", now);
+            return IntegrationMetricSample.unavailable(IntegrationMetricSchema.descriptor(key), "projection-manager-not-ready", now);
         }
-        return available(PLATE_BUILDS_PER_SECOND, plateBuildsWindow.perSecond(projection.plateCache().buildsCompleted(), now), now);
+        return available(key, plateBuildsWindow.perSecond(projection.plateCache().buildsCompleted(), now), now);
     }
 
     private IntegrationMetricSample samplePlateBytes(long now) {
+        String key = IntegrationMetricSchema.WORMHOLES_PLATE_BYTES;
         ProjectionManager projection = Wormholes.projectionManager;
         if (projection == null) {
-            return IntegrationMetricSample.unavailable(IntegrationMetricSchema.descriptor(PLATE_BYTES), "projection-manager-not-ready", now);
+            return IntegrationMetricSample.unavailable(IntegrationMetricSchema.descriptor(key), "projection-manager-not-ready", now);
         }
-        return available(PLATE_BYTES, projection.plateCache().bytes(), now);
+        return available(key, projection.plateCache().bytes(), now);
     }
 
     private IntegrationMetricSample samplePortals(long now) {
@@ -256,11 +250,14 @@ public final class WormholesIntegrationService implements IntegrationServiceCont
             return IntegrationMetricSample.unavailable(descriptor, "network-manager-not-ready", now);
         }
 
-        long maxRtt = 0L;
+        long maxRtt = -1L;
         for (NetworkManager.PeerSnapshot peer : network.peerSnapshots()) {
             if (peer.handshakeComplete() && !peer.disconnected()) {
                 maxRtt = Math.max(maxRtt, peer.rttMillis());
             }
+        }
+        if (maxRtt < 0L) {
+            return IntegrationMetricSample.unavailable(descriptor, "no-connected-peers", now);
         }
         return IntegrationMetricSample.available(descriptor, maxRtt, now);
     }
@@ -294,9 +291,10 @@ public final class WormholesIntegrationService implements IntegrationServiceCont
             return IntegrationMetricSample.unavailable(descriptor, "network-manager-not-ready", now);
         }
 
-        double ratio = network.wireCompressionMetrics().snapshot().ratioOut();
+        WireCompression.Stats stats = network.wireCompressionMetrics().snapshot();
+        double ratio = compressionRatioOutWindow.ratio(stats.wireBytesOut(), stats.rawBytesOut(), now);
         if (!Double.isFinite(ratio)) {
-            ratio = 0.0D;
+            return IntegrationMetricSample.unavailable(descriptor, "no-outbound-traffic", now);
         }
         return IntegrationMetricSample.available(descriptor, ratio, now);
     }

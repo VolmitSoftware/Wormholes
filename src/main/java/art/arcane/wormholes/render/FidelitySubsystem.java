@@ -64,6 +64,10 @@ public final class FidelitySubsystem implements WormholesSubsystem {
     @Override
     public void start(Wormholes plugin) {
         FidelitySettings.refresh(Wormholes.settings);
+        ProjectionManager projection = Wormholes.projectionManager;
+        if (projection != null) {
+            projection.onFidelitySettingsReloaded();
+        }
         ClientProfileService.install(ClientProfileService.detectFloodgateAndBrand(plugin));
         acoustics = new AcousticsBridge<>(new AcousticsBridge.Options<>(new SoundPacketSink(), FidelitySubsystem::observersOf, Player::getUniqueId));
         soundSource = new SoundEventSource(FidelitySubsystem::acoustics);

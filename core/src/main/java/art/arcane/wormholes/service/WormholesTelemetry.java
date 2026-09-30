@@ -8,9 +8,10 @@ public final class WormholesTelemetry {
     private static final long RATE_WINDOW_MS = 1000L;
     private static final AtomicLong BLOCK_CHANGES = new AtomicLong();
     private static final AtomicLong PACKETS = new AtomicLong();
-    private static final AtomicLong TRAVERSALS = new AtomicLong();
     private static final AtomicLong RENDER_NANOS = new AtomicLong();
     private static final AtomicLong FAILURES = new AtomicLong();
+    private static final RollingMinuteCounter TRAVERSALS_LAST_MINUTE = new RollingMinuteCounter();
+    private static final RollingMinuteCounter FAILURES_LAST_MINUTE = new RollingMinuteCounter();
     private static final AtomicBoolean RATE_GATE = new AtomicBoolean();
     private static volatile int activeProjections;
     private static volatile int projectionObservers;
@@ -18,14 +19,10 @@ public final class WormholesTelemetry {
     private static volatile long windowStartMs;
     private static volatile long windowBlockChanges;
     private static volatile long windowPackets;
-    private static volatile long windowTraversals;
     private static volatile long windowRenderNanos;
-    private static volatile long windowFailures;
     private static volatile double blockChangesPerSecond;
     private static volatile double packetsPerSecond;
-    private static volatile double traversalsPerMinute;
     private static volatile double renderMsPerSecond;
-    private static volatile double failuresPerMinute;
 
     private WormholesTelemetry() {
     }
@@ -39,7 +36,7 @@ public final class WormholesTelemetry {
     }
 
     public static void countTraversal() {
-        TRAVERSALS.incrementAndGet();
+        TRAVERSALS_LAST_MINUTE.add(System.currentTimeMillis(), 1L);
     }
 
     public static void countFailure(String reason) {
@@ -48,6 +45,7 @@ public final class WormholesTelemetry {
 
     public static void countFailure(String reason, String detail) {
         FAILURES.incrementAndGet();
+        FAILURES_LAST_MINUTE.add(System.currentTimeMillis(), 1L);
         FailureRegistry.record(reason, detail);
     }
 
@@ -98,8 +96,7 @@ public final class WormholesTelemetry {
     }
 
     public static double traversalsPerMinute(long now) {
-        refreshRates(now);
-        return traversalsPerMinute;
+        return TRAVERSALS_LAST_MINUTE.sum(now);
     }
 
     public static double renderMsPerSecond(long now) {
@@ -108,8 +105,7 @@ public final class WormholesTelemetry {
     }
 
     public static double failuresPerMinute(long now) {
-        refreshRates(now);
-        return failuresPerMinute;
+        return FAILURES_LAST_MINUTE.sum(now);
     }
 
     public static void clear() {
@@ -120,21 +116,18 @@ public final class WormholesTelemetry {
         try {
             BLOCK_CHANGES.set(0L);
             PACKETS.set(0L);
-            TRAVERSALS.set(0L);
             RENDER_NANOS.set(0L);
             FAILURES.set(0L);
+            TRAVERSALS_LAST_MINUTE.clear();
+            FAILURES_LAST_MINUTE.clear();
             FailureRegistry.clear();
             windowStartMs = 0L;
             windowBlockChanges = 0L;
             windowPackets = 0L;
-            windowTraversals = 0L;
             windowRenderNanos = 0L;
-            windowFailures = 0L;
             blockChangesPerSecond = 0D;
             packetsPerSecond = 0D;
-            traversalsPerMinute = 0D;
             renderMsPerSecond = 0D;
-            failuresPerMinute = 0D;
         } finally {
             RATE_GATE.set(false);
         }
@@ -158,9 +151,7 @@ public final class WormholesTelemetry {
             if (windowStart == 0L) {
                 windowBlockChanges = BLOCK_CHANGES.get();
                 windowPackets = PACKETS.get();
-                windowTraversals = TRAVERSALS.get();
                 windowRenderNanos = RENDER_NANOS.get();
-                windowFailures = FAILURES.get();
                 windowStartMs = now;
                 return;
             }
@@ -172,23 +163,17 @@ public final class WormholesTelemetry {
 
             long blockChanges = BLOCK_CHANGES.get();
             long packets = PACKETS.get();
-            long traversals = TRAVERSALS.get();
             long renderNanos = RENDER_NANOS.get();
-            long failures = FAILURES.get();
             double seconds = elapsed / 1000D;
 
             blockChangesPerSecond = (blockChanges - windowBlockChanges) / seconds;
             packetsPerSecond = (packets - windowPackets) / seconds;
-            traversalsPerMinute = ((traversals - windowTraversals) / seconds) * 60D;
             renderMsPerSecond = ((renderNanos - windowRenderNanos) / 1.0E6D) / seconds;
-            failuresPerMinute = ((failures - windowFailures) / seconds) * 60D;
 
             windowStartMs = now;
             windowBlockChanges = blockChanges;
             windowPackets = packets;
-            windowTraversals = traversals;
             windowRenderNanos = renderNanos;
-            windowFailures = failures;
         } finally {
             RATE_GATE.set(false);
         }

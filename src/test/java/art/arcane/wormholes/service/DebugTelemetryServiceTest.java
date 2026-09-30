@@ -104,13 +104,12 @@ class DebugTelemetryServiceTest {
 
     @Test
     void failureLineAlwaysRendersTheTotalAndTheRate() {
-        WormholesTelemetry.failuresPerMinute(1_000L);
         WormholesTelemetry.countFailure("TRAVERSAL_SOURCE_BOUNCE_SCHEDULE_REJECTED");
         WormholesTelemetry.countFailure("TRAVERSAL_SOURCE_BOUNCE_SCHEDULE_REJECTED");
 
-        String line = DebugTelemetryService.failureLine(2_000L, 4L, 0.5D, 1L, 0.4D);
+        String line = DebugTelemetryService.failureLine(System.currentTimeMillis(), 4L, 0.5D, 1L, 0.4D);
 
-        assertTrue(line.startsWith("[debug/failures] plugin=2 (+120.0/min)"), line);
+        assertTrue(line.startsWith("[debug/failures] plugin=2 (+2.0/min)"), line);
         assertTrue(line.contains("traversal=4 (+0.5/s)"), line);
         assertTrue(line.contains("doors=1 (+0.4/s)"), line);
     }

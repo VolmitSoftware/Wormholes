@@ -63,15 +63,27 @@ class WormholesTelemetryTest {
     }
 
     @Test
-    void failuresPerMinuteReportsTheWindowedFailureRate() {
-        primeRateWindow();
-
+    void failuresPerMinuteCountsTheFailuresOfTheTrailingMinute() {
         WormholesTelemetry.countFailure("TRAVERSAL_SOURCE_BOUNCE_SCHEDULE_REJECTED");
         WormholesTelemetry.countFailure("DOOR_TRANSIT_SCHEDULE_REJECTED");
         WormholesTelemetry.countFailure("DOOR_TRANSIT_SCHEDULE_REJECTED");
+        long now = System.currentTimeMillis();
 
-        assertEquals(180.0D, WormholesTelemetry.failuresPerMinute(2_000L));
+        assertEquals(3.0D, WormholesTelemetry.failuresPerMinute(now));
+        assertEquals(3.0D, WormholesTelemetry.failuresPerMinute(now + 1_000L));
+        assertEquals(0.0D, WormholesTelemetry.failuresPerMinute(now + 61_000L));
         assertEquals(3L, WormholesTelemetry.failures());
+    }
+
+    @Test
+    void oneTraversalReadsAsOnePerMinuteInsteadOfASixtyTimesSpike() {
+        WormholesTelemetry.countTraversal();
+        long now = System.currentTimeMillis();
+
+        assertEquals(1.0D, WormholesTelemetry.traversalsPerMinute(now));
+        assertEquals(1.0D, WormholesTelemetry.traversalsPerMinute(now + 2_000L),
+            "a traversal must stay in the per-minute figure for the rest of the minute, not drop to zero after one sample");
+        assertEquals(0.0D, WormholesTelemetry.traversalsPerMinute(now + 61_000L));
     }
 
     @Test
@@ -104,12 +116,10 @@ class WormholesTelemetryTest {
         assertTrue(done.await(30L, TimeUnit.SECONDS), "concurrent rate readers did not finish");
         assertEquals((long) threads * iterations, WormholesTelemetry.failures());
 
-        long baseline = System.currentTimeMillis() + 10_000L;
-        WormholesTelemetry.failuresPerMinute(baseline);
         WormholesTelemetry.countFailure("AFTERWARDS");
         WormholesTelemetry.countFailure("AFTERWARDS");
 
-        assertEquals(120.0D, WormholesTelemetry.failuresPerMinute(baseline + 1_000L));
+        assertEquals((double) threads * iterations + 2.0D, WormholesTelemetry.failuresPerMinute(System.currentTimeMillis()));
     }
 
     @Test
