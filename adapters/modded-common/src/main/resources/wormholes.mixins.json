@@ -30,7 +30,6 @@
     "MapDataAccess",
     "EntityDataAccess",
     "ViewChunkLifecycleMixin",
-    "ViewChunkUnloadMixin",
     "ProjectionEntityTrackingMixin",
     "ProjectionEntityMapAccess",
     "DoorDisplayDataAccess",

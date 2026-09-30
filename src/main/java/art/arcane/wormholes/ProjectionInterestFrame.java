@@ -24,7 +24,9 @@ import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.PortalSkinRenderer;
+import art.arcane.wormholes.render.ProjectionBlockSlices;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
+import art.arcane.wormholes.render.ProjectionGazeScheduler;
 import art.arcane.wormholes.util.AxisAlignedBB;
 
 final class ProjectionInterestFrame {
@@ -200,7 +202,7 @@ final class ProjectionInterestFrame {
         }
         ledger.recordScheduled(scheduledBlocks.size());
         ledger.recordDeferred(Math.max(0, blockCandidates.size() - scheduledBlocks.size()));
-        BlockSlices slices = new BlockSlices(scheduledBlocks.size());
+        ProjectionBlockSlices slices = new ProjectionBlockSlices(scheduledBlocks.size());
         projectRetiring(observer, retiring, blockPortalIds, projected, observerBudget, slices);
         projectActiveObserver(observer, priorityOrder(interested, interestedIds, scheduledBlocks, blockPortalIds),
             resolvedRtpTargets, blockPortalIds, updateEntities, projected, observerBudget, slices);
@@ -247,7 +249,7 @@ final class ProjectionInterestFrame {
 
     private void projectRetiring(Player observer, List<PortalProjector> retiring, Set<UUID> blockPortalIds,
                                  List<PortalProjector> projected,
-                                 ProjectionBudgetLedger.ObserverFrame observerBudget, BlockSlices slices) {
+                                 ProjectionBudgetLedger.ObserverFrame observerBudget, ProjectionBlockSlices slices) {
         for (PortalProjector projector : retiring) {
             if (!blockPortalIds.contains(projector.getPortal().getId())) {
                 continue;
@@ -270,7 +272,7 @@ final class ProjectionInterestFrame {
                                        Map<UUID, PortalProjector.RtpProjectionTarget> rtpTargets,
                                        Set<UUID> blockPortalIds, boolean updateEntities,
                                        List<PortalProjector> projected,
-                                       ProjectionBudgetLedger.ObserverFrame observerBudget, BlockSlices slices) {
+                                       ProjectionBudgetLedger.ObserverFrame observerBudget, ProjectionBlockSlices slices) {
         if (!alive.getAsBoolean() || observer == null || !observer.isOnline()) {
             return;
         }
@@ -321,26 +323,5 @@ final class ProjectionInterestFrame {
             return Double.MAX_VALUE;
         }
         return center.distanceSquared(eye);
-    }
-
-    private static final class BlockSlices {
-        private int remaining;
-
-        private BlockSlices(int scheduled) {
-            this.remaining = scheduled;
-        }
-
-        private long next(long frameDeadlineNanos) {
-            int share = Math.max(1, remaining);
-            remaining = Math.max(0, remaining - 1);
-            if (share == 1 || frameDeadlineNanos == Long.MAX_VALUE) {
-                return frameDeadlineNanos;
-            }
-            long now = System.nanoTime();
-            if (now >= frameDeadlineNanos) {
-                return frameDeadlineNanos;
-            }
-            return now + (frameDeadlineNanos - now) / share;
-        }
     }
 }

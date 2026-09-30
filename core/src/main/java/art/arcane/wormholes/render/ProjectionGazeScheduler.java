@@ -1,4 +1,4 @@
-package art.arcane.wormholes;
+package art.arcane.wormholes.render;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -9,12 +9,13 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import art.arcane.wormholes.render.PortalProjector;
+import art.arcane.wormholes.config.toml.ProjectionConfig;
 
-final class ProjectionGazeScheduler {
-    static final double IN_VIEW_WEIGHT = 1.0D;
-    static final double PERIPHERAL_WEIGHT = 0.35D;
-    static final double BEHIND_WEIGHT = 0.1D;
+public final class ProjectionGazeScheduler {
+    public static final double REUSE_EYE_EPSILON_SQUARED = 0.0625D;
+    private static final double IN_VIEW_WEIGHT = 1.0D;
+    private static final double PERIPHERAL_WEIGHT = 0.35D;
+    private static final double BEHIND_WEIGHT = 0.1D;
     private static final double PERIPHERAL_BAND_DEGREES = 35.0D;
     private static final double MAX_HALF_ANGLE_DEGREES = 89.0D;
     private static final double SCREEN_ASPECT = 9.0D / 16.0D;
@@ -32,7 +33,7 @@ final class ProjectionGazeScheduler {
 
     private final Map<UUID, ObserverGaze> observers = new ConcurrentHashMap<UUID, ObserverGaze>();
 
-    <T> List<T> select(UUID observerId, Eye eye, List<Candidate<T>> candidates, int limit, long frameTick, Options options) {
+    public <T> List<T> select(UUID observerId, Eye eye, List<Candidate<T>> candidates, int limit, long frameTick, Options options) {
         ObserverGaze gaze = observers.computeIfAbsent(observerId, ignored -> new ObserverGaze());
         gaze.observe(eye.yaw(), frameTick);
         if (candidates.isEmpty() || limit <= 0) {
@@ -78,7 +79,7 @@ final class ProjectionGazeScheduler {
         return selected;
     }
 
-    void retain(UUID observerId, Set<UUID> portalIds) {
+    public void retain(UUID observerId, Set<UUID> portalIds) {
         if (portalIds.isEmpty()) {
             observers.remove(observerId);
             return;
@@ -89,11 +90,11 @@ final class ProjectionGazeScheduler {
         }
     }
 
-    void forget(UUID observerId) {
+    public void forget(UUID observerId) {
         observers.remove(observerId);
     }
 
-    void clear() {
+    public void clear() {
         observers.clear();
     }
 
@@ -126,17 +127,17 @@ final class ProjectionGazeScheduler {
         return wrapped;
     }
 
-    record Eye(double x, double y, double z, float yaw, float pitch) {
+    public record Eye(double x, double y, double z, float yaw, float pitch) {
     }
 
-    record Candidate<T>(T value, UUID id, double minX, double minY, double minZ,
+    public record Candidate<T>(T value, UUID id, double minX, double minY, double minZ,
                         double maxX, double maxY, double maxZ, boolean pendingScan, boolean retiring) {
     }
 
-    record Options(double fovDegrees, int lookaheadTicks, int maxStarveTicks) {
-        static Options current() {
-            return new Options(Settings.PROJECTION_GAZE_FOV_DEGREES, Settings.PROJECTION_GAZE_LOOKAHEAD_TICKS,
-                Settings.PROJECTION_GAZE_MAX_STARVE_TICKS);
+    public record Options(double fovDegrees, int lookaheadTicks, int maxStarveTicks) {
+        public static Options from(ProjectionConfig config) {
+            double fov = Double.isFinite(config.gazeFovDegrees) ? Math.clamp(config.gazeFovDegrees, 30.0D, 170.0D) : 110.0D;
+            return new Options(fov, Math.clamp(config.gazeLookaheadTicks, 0, 20), Math.clamp(config.gazeMaxStarveTicks, 1, 200));
         }
     }
 
@@ -148,7 +149,7 @@ final class ProjectionGazeScheduler {
             double dx = eye.x() - eyeX;
             double dy = eye.y() - eyeY;
             double dz = eye.z() - eyeZ;
-            return dx * dx + dy * dy + dz * dz < PortalProjector.REUSE_EYE_EPSILON_SQUARED;
+            return dx * dx + dy * dy + dz * dz < REUSE_EYE_EPSILON_SQUARED;
         }
     }
 

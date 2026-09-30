@@ -34,7 +34,6 @@ public final class MinecraftProjectionWorldView implements ProjectionContentView
     private final int maximumHeight;
     private final Map<Long, ChunkLease> leases = new HashMap<>();
     private final BlockPos.MutableBlockPos position = new BlockPos.MutableBlockPos();
-    private long revision;
     private boolean closed;
 
     public MinecraftProjectionWorldView(WormholesModRuntime runtime, ServerLevel level) {
@@ -156,7 +155,7 @@ public final class MinecraftProjectionWorldView implements ProjectionContentView
                 LOGGER.error("Could not load Wormholes projection chunk {}, {} in {}", chunkX, chunkZ, level.dimension().identifier(), failure);
             }
             if (!closed && leases.get(key) == lease) {
-                revision++;
+                runtime.projections().columnChanged(level, chunkX, chunkZ);
             }
         }, runtime.server());
         long ticks = Math.max(1L, Math.ceilDiv(runtime.configuration().settings().getMain().arrivalWarmHoldMillis, 50L));
@@ -167,13 +166,7 @@ public final class MinecraftProjectionWorldView implements ProjectionContentView
 
     @Override
     public long getRevision() {
-        runtime.requireServerThread();
-        return revision;
-    }
-
-    public void invalidate() {
-        runtime.requireServerThread();
-        revision++;
+        return 0L;
     }
 
     @Override

@@ -23,6 +23,7 @@ import art.arcane.wormholes.network.PortalSyncService;
 import art.arcane.wormholes.network.WireMessage;
 import art.arcane.wormholes.network.mesh.ServerLoadSource;
 import net.minecraft.SharedConstants;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 
@@ -200,8 +201,12 @@ public final class MinecraftNetworkService implements AutoCloseable {
         }
     }
 
-    public void worldChanged(ServerLevel level, int chunkX, int chunkZ) {
-        runtime.projections().worldChanged(level, chunkX, chunkZ);
+    public void blockChanged(ServerLevel level, BlockPos position) {
+        runtime.projections().blockChanged(level, position);
+    }
+
+    public void columnChanged(ServerLevel level, int chunkX, int chunkZ) {
+        runtime.projections().columnChanged(level, chunkX, chunkZ);
     }
 
     public MinecraftEntityTransfers entityTransfers() {
