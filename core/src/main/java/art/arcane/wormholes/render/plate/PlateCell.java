@@ -10,7 +10,7 @@ import art.arcane.wormholes.render.blockentity.BlockEntitySample;
  * the destination carries one, the sanitized block-entity snapshot.
  */
 public final class PlateCell<B> {
-    static final int BYTES = 72;
+    static final int BYTES = 40;
 
     private final ProjectorSample.Kind kind;
     private final B sourceData;

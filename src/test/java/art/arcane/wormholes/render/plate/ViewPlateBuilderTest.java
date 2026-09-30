@@ -11,8 +11,11 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Proxy;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -41,7 +44,7 @@ final class ViewPlateBuilderTest {
         ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
         FakeWorldView destination = new FakeWorldView(blockData(Material.STONE), 7L);
         destination.put(0, 64, -3, blockData(Material.GLASS));
-        ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request = request(portal, structure, destination, true);
+        ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request = request(portal, structure, destination, true, LodPolicy.NONE);
 
         ViewPlate<BlockData> first = ViewPlateBuilder.build(request);
         ViewPlate<BlockData> second = ViewPlateBuilder.build(request);
@@ -73,15 +76,35 @@ final class ViewPlateBuilderTest {
     }
 
     @Test
+    void cellsSharedByLodMergedSlabsAreChargedOnceInThePlateBytes() {
+        PortalStructure structure = structure();
+        ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
+        FakeWorldView destination = new FakeWorldView(blockData(Material.STONE), 4L);
+        ViewPlate<BlockData> dense = ViewPlateBuilder.build(request(portal, structure, destination, true, LodPolicy.NONE));
+        ViewPlate<BlockData> merged = ViewPlateBuilder.build(request(portal, structure, destination, true,
+            new LodPolicy(true, 0, Integer.MAX_VALUE)));
+        Set<PlateCell<BlockData>> distinct = Collections.newSetFromMap(new IdentityHashMap<PlateCell<BlockData>, Boolean>());
+        for (long key : merged.cellKeys()) {
+            distinct.add(merged.cell(key));
+        }
+        long shared = merged.cellCount() - distinct.size();
+
+        assertEquals(dense.cellCount(), merged.cellCount(), "merging reuses cells without dropping local keys");
+        assertTrue(shared > 0L, "merged slabs must reuse the previous slab's cells");
+        assertEquals(shared * PlateCell.BYTES, dense.bytes() - merged.bytes(),
+            "a cell reused by a merged slab is held once, so it is charged once");
+    }
+
+    @Test
     void aChangedDestinationRevisionYieldsADifferentPlate() {
         PortalStructure structure = structure();
         ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
         FakeWorldView destination = new FakeWorldView(blockData(Material.STONE), 1L);
-        ViewPlate<BlockData> before = ViewPlateBuilder.build(request(portal, structure, destination, true));
+        ViewPlate<BlockData> before = ViewPlateBuilder.build(request(portal, structure, destination, true, LodPolicy.NONE));
 
         destination.put(0, 64, -2, blockData(Material.GLASS));
         destination.revision = 2L;
-        ViewPlate<BlockData> after = ViewPlateBuilder.build(request(portal, structure, destination, true));
+        ViewPlate<BlockData> after = ViewPlateBuilder.build(request(portal, structure, destination, true, LodPolicy.NONE));
 
         assertNotEquals(before.destinationRevision(), after.destinationRevision());
         long changedKey = ProjectionCellKey.pack(0, 64, -2);
@@ -96,7 +119,7 @@ final class ViewPlateBuilderTest {
         FakeWorldView destination = new FakeWorldView(blockData(Material.AIR), 3L);
         destination.put(0, 64, -1, blockData(Material.STONE));
         destination.unknown(1, 64, -1);
-        ViewPlate<BlockData> plate = ViewPlateBuilder.build(request(portal, structure, destination, true));
+        ViewPlate<BlockData> plate = ViewPlateBuilder.build(request(portal, structure, destination, true, LodPolicy.NONE));
 
         assertEquals(ProjectorSample.Kind.REMOTE_AIR, plate.cell(ProjectionCellKey.pack(0, 65, -1)).kind());
         assertEquals(ProjectorSample.Kind.BLOCK, plate.cell(ProjectionCellKey.pack(0, 64, -1)).kind());
@@ -108,7 +131,7 @@ final class ViewPlateBuilderTest {
         PortalStructure structure = structure();
         ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
         FakeWorldView destination = new FakeWorldView(blockData(Material.STONE), 1L);
-        ViewPlate<BlockData> plate = ViewPlateBuilder.build(request(portal, structure, destination, false));
+        ViewPlate<BlockData> plate = ViewPlateBuilder.build(request(portal, structure, destination, false, LodPolicy.NONE));
 
         assertFalse(plate.isEmpty());
         for (long key : plate.cellKeys()) {
@@ -121,7 +144,7 @@ final class ViewPlateBuilderTest {
         PortalStructure structure = structure();
         ILocalPortal portal = portal(structure, PortalFrame.canonical(Direction.S));
         FakeWorldView destination = new FakeWorldView(blockData(Material.STONE), 9L);
-        ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request = request(portal, structure, destination, true);
+        ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request = request(portal, structure, destination, true, LodPolicy.NONE);
         ViewPlateBuilder.Job<BlockData, World> job = ViewPlateBuilder.job(request);
         int steps = 0;
         while (!job.step(4)) {
@@ -134,13 +157,13 @@ final class ViewPlateBuilderTest {
         assertEquals(new LongOpenHashSet(direct.cellKeys()), new LongOpenHashSet(stepped.cellKeys()));
     }
 
-    static ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request(ILocalPortal portal, PortalStructure structure, ProjectionWorldView destination, boolean frontSide) {
+    static ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request(ILocalPortal portal, PortalStructure structure, ProjectionWorldView destination, boolean frontSide, LodPolicy lod) {
         PortalFrame frame = portal.getFrame();
         ViewPlateKey key = new ViewPlateKey(PORTAL_ID, destination, frontSide, 0);
         return new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(key, portal.getStructure(), destination, frame, frame,
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
             structure.getCenter().getX(), structure.getCenter().getY(), structure.getCenter().getZ(),
-            false, 0, 4.0D, 2.0D, 0.75D, false, blockData(Material.AIR), LodPolicy.NONE, false,
+            false, 0, 4.0D, 2.0D, 0.75D, false, blockData(Material.AIR), lod, false,
             destination.getRevision(), 42L, 0L, new BukkitProjectorBlocks(material -> material == Material.STONE));
     }
 

@@ -2,6 +2,8 @@ package art.arcane.wormholes.render.plate;
 
 import java.util.UUID;
 
+import it.unimi.dsi.fastutil.Hash;
+import it.unimi.dsi.fastutil.HashCommon;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongSet;
 
@@ -11,6 +13,7 @@ import it.unimi.dsi.fastutil.longs.LongSet;
  */
 public final class ViewPlate<B> {
     private static final long BASE_BYTES = 256L;
+    private static final long TABLE_SLOT_BYTES = 12L;
 
     private final ViewPlateKey key;
     private final Long2ObjectOpenHashMap<PlateCell<B>> cells;
@@ -50,12 +53,9 @@ public final class ViewPlate<B> {
         this.lastUsedNanos = System.nanoTime();
     }
 
-    public static <B> long estimateBytes(Long2ObjectOpenHashMap<PlateCell<B>> cells) {
-        long total = BASE_BYTES + ((long) cells.size() * 24L);
-        for (PlateCell<B> cell : cells.values()) {
-            total += cell.bytes();
-        }
-        return total;
+    public static long estimateBytes(int tableEntries, long distinctCellBytes) {
+        long slots = HashCommon.arraySize(Math.max(0, tableEntries), Hash.DEFAULT_LOAD_FACTOR) + 1L;
+        return BASE_BYTES + (slots * TABLE_SLOT_BYTES) + Math.max(0L, distinctCellBytes);
     }
 
     public ViewPlateKey key() {

@@ -29,6 +29,7 @@ import art.arcane.wormholes.util.Direction;
  */
 public final class ViewPlateBuilder {
     private static final int TRANSFORM_CACHE_LIMIT = 4096;
+    private static final int INITIAL_CELL_CAPACITY = 1024;
 
     private ViewPlateBuilder() {
     }
@@ -158,6 +159,7 @@ public final class ViewPlateBuilder {
         private int minChunkZ = Integer.MAX_VALUE;
         private int maxChunkX = Integer.MIN_VALUE;
         private int maxChunkZ = Integer.MIN_VALUE;
+        private long distinctCellBytes;
         private ViewPlate<B> result;
 
         private BuildJob(Request<B, M, V> request, Execution<W> execution) {
@@ -167,7 +169,7 @@ public final class ViewPlateBuilder {
             this.transform = new ProjectorFrameTransform();
             this.memo = new ProjectorSampleMemo<B, M, V>(request.blocks(), () -> null);
             this.transformed = new Object2ObjectOpenHashMap<B, B>(64);
-            this.cells = new Long2ObjectOpenHashMap<PlateCell<B>>(1024);
+            this.cells = new Long2ObjectOpenHashMap<PlateCell<B>>(INITIAL_CELL_CAPACITY);
             this.previousSlab = new Long2ObjectOpenHashMap<PlateCell<B>>(256);
             this.currentSlab = new Long2ObjectOpenHashMap<PlateCell<B>>(256);
             this.scratchRot = new double[3];
@@ -306,6 +308,7 @@ public final class ViewPlateBuilder {
             noteChunk(rx >> 4, rz >> 4);
             long remoteKey = ProjectionCellKey.pack(rx, ry, rz);
             PlateCell<B> cell = classify(remote, rx, ry, rz, remoteKey, lod);
+            distinctCellBytes += cell.bytes();
             cells.put(localKey, cell);
             currentSlab.put(slabKey, cell);
         }
@@ -369,7 +372,7 @@ public final class ViewPlateBuilder {
             result = new ViewPlate<B>(request.key(), cells, request.destinationRevision(), request.transformRevision(),
                 worldId, request.trackerVersion(),
                 sampled ? minChunkX : 0, sampled ? minChunkZ : 0, sampled ? maxChunkX : -1, sampled ? maxChunkZ : -1,
-                ViewPlate.estimateBytes(cells));
+                ViewPlate.estimateBytes(Math.max(cells.size(), INITIAL_CELL_CAPACITY), distinctCellBytes));
         }
 
         private static boolean scanContinues(int coordinate, int end, int step) {

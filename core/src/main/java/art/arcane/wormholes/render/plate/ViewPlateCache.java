@@ -21,6 +21,7 @@ public final class ViewPlateCache<B, W> {
 
     private final Map<ViewPlateKey, ViewPlate<B>> plates;
     private final Map<ViewPlateKey, ViewPlateBuilder.Job<B, W>> building;
+    private final Map<ViewPlateKey, Revisions> oversized;
     private final AtomicLong bytes;
     private final AtomicLong builds;
     private final JobScheduler<B, W> scheduler;
@@ -29,6 +30,7 @@ public final class ViewPlateCache<B, W> {
     public ViewPlateCache(long maxBytes, JobScheduler<B, W> scheduler) {
         this.plates = new ConcurrentHashMap<ViewPlateKey, ViewPlate<B>>();
         this.building = new ConcurrentHashMap<ViewPlateKey, ViewPlateBuilder.Job<B, W>>();
+        this.oversized = new ConcurrentHashMap<ViewPlateKey, Revisions>();
         this.bytes = new AtomicLong();
         this.builds = new AtomicLong();
         this.scheduler = scheduler;
@@ -44,7 +46,7 @@ public final class ViewPlateCache<B, W> {
             plate.touch(System.nanoTime());
             return plate;
         }
-        if (jobFactory == null || building.containsKey(key)) {
+        if (jobFactory == null || building.containsKey(key) || refused(key, destinationRevision, transformRevision)) {
             return null;
         }
         ViewPlateBuilder.Job<B, W> job = jobFactory.get();
@@ -69,13 +71,20 @@ public final class ViewPlateCache<B, W> {
         if (plate == null) {
             return;
         }
+        builds.incrementAndGet();
+        if (plate.bytes() > maxBytes) {
+            invalidate(plate.key());
+            oversized.put(plate.key(), new Revisions(plate.destinationRevision(), plate.transformRevision()));
+            building.remove(plate.key());
+            return;
+        }
+        oversized.remove(plate.key());
         building.remove(plate.key());
         ViewPlate<B> previous = plates.put(plate.key(), plate);
         if (previous != null) {
             bytes.addAndGet(-previous.bytes());
         }
         bytes.addAndGet(plate.bytes());
-        builds.incrementAndGet();
         evictToFit();
     }
 
@@ -84,6 +93,7 @@ public final class ViewPlateCache<B, W> {
     }
 
     public void invalidate(ViewPlateKey key) {
+        oversized.remove(key);
         ViewPlate<B> removed = plates.remove(key);
         if (removed != null) {
             bytes.addAndGet(-removed.bytes());
@@ -96,6 +106,7 @@ public final class ViewPlateCache<B, W> {
                 invalidate(key);
             }
         }
+        oversized.keySet().removeIf(key -> key.portalId().equals(portalId));
     }
 
     public void invalidateDirty(ProjectionWorldChangeTracker tracker) {
@@ -116,12 +127,14 @@ public final class ViewPlateCache<B, W> {
 
     public void recap(long newMaxBytes) {
         maxBytes = Math.max(1L, newMaxBytes);
+        oversized.clear();
         evictToFit();
     }
 
     public void clear() {
         plates.clear();
         building.clear();
+        oversized.clear();
         bytes.set(0L);
     }
 
@@ -141,6 +154,12 @@ public final class ViewPlateCache<B, W> {
         return builds.get();
     }
 
+    private boolean refused(ViewPlateKey key, long destinationRevision, long transformRevision) {
+        Revisions refused = oversized.get(key);
+        return refused != null && refused.destinationRevision() == destinationRevision
+            && refused.transformRevision() == transformRevision;
+    }
+
     private synchronized void evictToFit() {
         while (bytes.get() > maxBytes && !plates.isEmpty()) {
             ViewPlate<B> oldest = null;
@@ -154,5 +173,8 @@ public final class ViewPlateCache<B, W> {
             }
             bytes.addAndGet(-oldest.bytes());
         }
+    }
+
+    private record Revisions(long destinationRevision, long transformRevision) {
     }
 }
