@@ -92,7 +92,7 @@ public final class MinecraftOcclusionSkinGameTest {
         for (int x = -1; x <= 1; x++) {
             helper.assertTrue(remoteState(level, coverCell.offset(x, 0, 0)).is(cover.getBlock()), "Occlusion cover row did not stay in place");
         }
-        try (MinecraftProjectionWorldView view = new MinecraftProjectionWorldView(runtime, level);
+        try (MinecraftProjectionWorldView view = MinecraftProjectionWorldView.uncached(runtime, level);
              MinecraftPortalProjector projector = new MinecraftPortalProjector(runtime,
                  new MinecraftPortalProjector.Context(observer.player(), source, ignored -> view, new MinecraftProjectorPortalAccess(runtime), null))) {
             MinecraftPortalProjector.Result result = projector.update(level.getGameTime(), Long.MAX_VALUE);

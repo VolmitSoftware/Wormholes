@@ -141,13 +141,38 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
         if (ready == null) {
             view.destination = null;
             view.ready = null;
+            retirePlate(portal, view, 0L);
             return null;
         }
         if (!ready.equals(view.ready)) {
             view.destination = descriptor(portal, ready);
             view.ready = ready;
+            retirePlate(portal, view, plateIdentity(portal, ready));
         }
         return view.destination;
+    }
+
+    public long plateIdentity(ServerPlayer viewer, MinecraftPortal portal) {
+        runtime.requireServerThread();
+        if (closed) {
+            return 0L;
+        }
+        View view = views.get(new ViewKey(portal.getId(), viewer.getUUID()));
+        return view == null ? 0L : view.plateIdentity;
+    }
+
+    static long plateIdentity(MinecraftPortal source, RtpProjectionView.ReadyData ready) {
+        RtpProjectionView.Point3 feet = ready.target().safeFeet();
+        UUID worldId = UUID.nameUUIDFromBytes(ready.target().worldKey().getBytes(StandardCharsets.UTF_8));
+        return RtpProjectionGeometry.plateIdentity(worldId, feet.x(), feet.y(), feet.z(),
+            RtpProjectionGeometry.targetFrameFor(source.getFrame()), ready.routeRevision());
+    }
+
+    private void retirePlate(MinecraftPortal portal, View view, long identity) {
+        if (view.plateIdentity != 0L && view.plateIdentity != identity) {
+            runtime.projections().plates().invalidateTarget(portal.getId(), view.plateIdentity);
+        }
+        view.plateIdentity = identity;
     }
 
     public boolean locked(UUID entity) {
@@ -542,6 +567,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
     private static final class View {
         private long touched;
         private long lastRim;
+        private long plateIdentity;
         private RtpProjectionView.ReadyData ready;
         private MinecraftPortal destination;
     }

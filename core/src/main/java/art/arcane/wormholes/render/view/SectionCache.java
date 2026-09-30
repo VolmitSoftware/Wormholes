@@ -105,6 +105,11 @@ public final class SectionCache<B, M> {
             chunksPerTick = Math.max(0, chunksPerTick);
             ttlTicks = Math.max(1, ttlTicks);
         }
+
+        public static Limits from(boolean enabled, int maxMb, int chunksPerTick, int ttlTicks) {
+            return new Limits(enabled, ((long) Math.clamp(maxMb, 1, 4096)) << 20,
+                Math.clamp(chunksPerTick, 1, 1024), Math.clamp(ttlTicks, 20, 72_000));
+        }
     }
 
     public interface Source<B, M> {

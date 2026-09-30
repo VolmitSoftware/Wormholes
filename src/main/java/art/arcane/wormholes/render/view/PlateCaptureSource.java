@@ -7,10 +7,10 @@ import org.bukkit.ChunkSnapshot;
 import org.bukkit.World;
 
 import art.arcane.wormholes.chunk.BukkitChunkLeaseProvider;
-import art.arcane.wormholes.chunk.ChunkLease;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.wormholes.render.plate.ChunkLeaseHold;
 import art.arcane.wormholes.render.plate.PlateCaptureJob;
 
 public final class PlateCaptureSource implements PlateCaptureJob.Source<World, PlateCaptureSource.CapturedChunk> {
@@ -30,7 +30,7 @@ public final class PlateCaptureSource implements PlateCaptureJob.Source<World, P
 
     @Override
     public PlateCaptureJob.Hold hold(World world, int chunkX, int chunkZ) {
-        return new LeaseHold(BukkitChunkLeaseProvider.registry().retain(world, world.getUID(), chunkX, chunkZ));
+        return new ChunkLeaseHold(BukkitChunkLeaseProvider.registry().retain(world, world.getUID(), chunkX, chunkZ));
     }
 
     @Override
@@ -38,25 +38,8 @@ public final class PlateCaptureSource implements PlateCaptureJob.Source<World, P
         Chunk chunk = world.getChunkAt(chunkX, chunkZ);
         ChunkSnapshot snapshot = WormholesPlatform.chunkSnapshot(chunk, false, false, false, false);
         Map<Long, BlockEntitySample> captured = blockEntities
-            ? BlockEntityCapturer.captureChunk(chunk, BlockEntityCapturer.MAX_PER_CHUNK)
+            ? BlockEntityCapturer.captureChunk(chunk, PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK)
             : Map.of();
-        return new CapturedChunk(snapshot, captured, captured.size() < BlockEntityCapturer.MAX_PER_CHUNK);
-    }
-
-    private record LeaseHold(ChunkLease lease) implements PlateCaptureJob.Hold {
-        @Override
-        public boolean settled() {
-            return lease.ready().isDone();
-        }
-
-        @Override
-        public boolean ready() {
-            return Boolean.TRUE.equals(lease.ready().getNow(Boolean.FALSE));
-        }
-
-        @Override
-        public void release() {
-            lease.close();
-        }
+        return new CapturedChunk(snapshot, captured, captured.size() < PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK);
     }
 }

@@ -14,6 +14,7 @@ import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.ProjectionEntityFilter;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
+import art.arcane.wormholes.render.plate.PlateCaptureJob;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
@@ -150,7 +151,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             boolean refreshBlockEntities = FidelitySettings.blockEntities
                 && (refreshBlocks || current == null || now - current.blockEntitiesCapturedAtMillis >= BLOCK_ENTITY_REFRESH_MILLIS);
             Map<Long, BlockEntitySample> blockEntities = refreshBlockEntities
-                ? BlockEntityCapturer.captureChunk(chunk, BlockEntityCapturer.MAX_PER_CHUNK)
+                ? BlockEntityCapturer.captureChunk(chunk, PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK)
                 : current.blockEntities;
             int minHeight = current == null ? world.getMinHeight() : current.minHeight;
             int maxHeight = current == null ? world.getMaxHeight() : current.maxHeight;

@@ -2,6 +2,7 @@ package art.arcane.wormholes.portal.rtp;
 
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.wormholes.render.ProjectorPassRevision;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 import java.nio.charset.StandardCharsets;
@@ -21,6 +22,19 @@ public final class RtpProjectionGeometry {
             point(destination.blockX() + 0.5D, destination.feetY() + previewAnchorLift(source.center(), source.area()), destination.blockZ() + 0.5D),
             vector(targetFrame.getRight()), vector(targetFrame.getUp()), vector(targetFrame.getNormal().reverse()));
         return new RtpProjectionView.ReadyData(routeId(source.id(), destination), routeRevision, origin, target);
+    }
+
+    public static long plateIdentity(UUID worldId, double x, double y, double z, PortalFrame frame, long routeRevision) {
+        long identity = ProjectorPassRevision.mix(1469598103934665603L, worldId.getMostSignificantBits());
+        identity = ProjectorPassRevision.mix(identity, worldId.getLeastSignificantBits());
+        identity = ProjectorPassRevision.mix(identity, Double.doubleToLongBits(x));
+        identity = ProjectorPassRevision.mix(identity, Double.doubleToLongBits(y));
+        identity = ProjectorPassRevision.mix(identity, Double.doubleToLongBits(z));
+        identity = ProjectorPassRevision.mix(identity, frame.getNormal().ordinal());
+        identity = ProjectorPassRevision.mix(identity, frame.getRight().ordinal());
+        identity = ProjectorPassRevision.mix(identity, frame.getUp().ordinal());
+        identity = ProjectorPassRevision.mix(identity, routeRevision);
+        return identity == 0L ? 1L : identity;
     }
 
     public static double previewAnchorLift(GeometryVector center, AxisAlignedBB area) {
