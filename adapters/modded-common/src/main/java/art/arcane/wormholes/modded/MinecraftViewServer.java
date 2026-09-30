@@ -549,7 +549,7 @@ public final class MinecraftViewServer implements AutoCloseable {
             this.level = level;
             entities = new ViewEntityState<>(portalId, new ViewEntityState.Center(portal.getOrigin().x(), portal.getOrigin().y(), portal.getOrigin().z()));
             entityInterval = portal.getNetworkViewEntityIntervalTicks();
-            view = new MinecraftProjectionWorldView(runtime, level);
+            view = MinecraftProjectionWorldView.uncached(runtime, level);
             mode = portal.getRenderMode();
             box = ViewCaptureBounds.compute(portal.getGeometry().getArea(), portal.getFrame().getNormal(),
                 new ViewCaptureBounds.Options(portal.getNetworkViewDepth(), portal.getNetworkViewLateralPad(),

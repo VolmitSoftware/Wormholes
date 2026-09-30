@@ -19,8 +19,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
 
 final class SectionCachedWorldViewProvider implements ProjectionWorldViewProvider, ProjectionWorldChangeTracker.ChangeListener {
-    private static final long BYTES_PER_MEGABYTE = 1_048_576L;
-
     private final Plugin plugin;
     private final ProjectionWorldChangeTracker tracker;
     private final SectionCache<BlockData, Material> cache;
@@ -195,9 +193,7 @@ final class SectionCachedWorldViewProvider implements ProjectionWorldViewProvide
     }
 
     private static SectionCache.Limits limits() {
-        return new SectionCache.Limits(Settings.PROJECTION_SECTION_CACHE,
-            Settings.PROJECTION_SECTION_CACHE_MAX_MB * BYTES_PER_MEGABYTE,
-            Settings.PROJECTION_SECTION_CACHE_CHUNKS_PER_TICK,
-            Settings.PROJECTION_SECTION_CACHE_TTL_TICKS);
+        return SectionCache.Limits.from(Settings.PROJECTION_SECTION_CACHE, Settings.PROJECTION_SECTION_CACHE_MAX_MB,
+            Settings.PROJECTION_SECTION_CACHE_CHUNKS_PER_TICK, Settings.PROJECTION_SECTION_CACHE_TTL_TICKS);
     }
 }

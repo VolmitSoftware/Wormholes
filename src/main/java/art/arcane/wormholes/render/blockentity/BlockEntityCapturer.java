@@ -24,7 +24,6 @@ import art.arcane.wormholes.render.ProjectionCellKey;
  * last sample is reported through {@link #activePath()} for the admin telemetry line.
  */
 public final class BlockEntityCapturer {
-    public static final int MAX_PER_CHUNK = 64;
     private static final String PATH_SNAPSHOT = "snapshot-nbt";
     private static final String PATH_BUKKIT = "bukkit-api";
     private static final String PATH_NONE = "none";

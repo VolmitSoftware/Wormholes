@@ -33,6 +33,7 @@ import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
+import art.arcane.wormholes.portal.rtp.RtpProjectionGeometry;
 import art.arcane.wormholes.portal.rtp.RtpProjectionView;
 import art.arcane.wormholes.render.atmosphere.AtmosphereChannel;
 import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
@@ -59,7 +60,6 @@ import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 
 public final class PortalProjector {
-    public static final double REUSE_EYE_EPSILON_SQUARED = 0.0625D;
     private static final long DIAG_LOG_INTERVAL_PASSES = 50L;
 
     private final ILocalPortal portal;
@@ -150,7 +150,7 @@ public final class PortalProjector {
         this.sampler = BukkitProjectorBlocks.sampler(sampleMemo, BukkitProjectorPortalAccess.create(), destination::liveView);
         this.blackout = new ProjectorBlackoutSeal();
         this.viewFrustum = new ProjectorViewFrustum();
-        this.schedule = new ProjectorResampleSchedule(portal);
+        this.schedule = new ProjectorResampleSchedule(portal, () -> Wormholes.projectionChangeTracker, PortalProjector::resampleCadence);
         this.cellScan = BukkitProjectorBlocks.scan(portal, sampler, sampleMemo, blackout);
         this.frustumFailures = new ProjectorFrustumFailures();
         this.claimWorld = constructionWorld;
@@ -393,8 +393,9 @@ public final class PortalProjector {
             eye.getX(), eye.getY(), eye.getZ(), lastEyeX, lastEyeY, lastEyeZ);
         double destinationOriginX = destination.originX;
         double destinationOriginZ = destination.originZ;
-        boolean stableResample = schedule.stableResample(firstProjectionDone, destination.destView,
-            destWorld, destinationOriginX, destinationOriginZ, cellScan.remoteFootprint());
+        UUID destWorldId = destWorld == null ? null : destWorld.getUID();
+        boolean stableResample = schedule.stableResample(firstProjectionDone, destination.destView.getRevision(),
+            destination.destView instanceof RemoteWorldView, destWorldId, destinationOriginX, destinationOriginZ, cellScan.remoteFootprint());
         boolean localDirty = sampleMemo.localRegionDirty(destination.localView, localWorldId);
         if (localDirty) {
             cellScan.revokeConeHolds();
@@ -457,7 +458,7 @@ public final class PortalProjector {
         boolean destinationContentStale = shouldInvalidateDestinationContentSamples(
             scheduledContentResample, renderModeChanged, buriedCellCullingChanged, recursiveSamplesCached);
         boolean destinationDirty = !destinationContentStale && sampleMemo.destinationStale(destinationRevision, destWorld != null,
-            sinceVersion -> schedule.destinationUnaffectedThrough(destWorld, destinationOriginX, destinationOriginZ, sinceVersion,
+            sinceVersion -> schedule.destinationUnaffectedThrough(destWorldId, destinationOriginX, destinationOriginZ, sinceVersion,
                 cellScan.remoteFootprint()));
         boolean destinationOverBudget = !destinationContentStale && !destinationDirty
             && sampleMemo.destinationOverBudget(sampleMemoBudget(viewFrustum.fittedCandidateWork()));
@@ -919,6 +920,12 @@ public final class PortalProjector {
         }
     }
 
+    private static ProjectorResampleSchedule.Cadence resampleCadence() {
+        return new ProjectorResampleSchedule.Cadence(Settings.PROJECTION_REFRESH_INTERVAL_TICKS,
+            Settings.PROJECTION_STABLE_CELL_RESAMPLE_INTERVAL_TICKS, Settings.LIGHTING_REFRESH_INTERVAL_TICKS,
+            Settings.ENTITY_UPDATE_INTERVAL_TICKS);
+    }
+
     /** The portal's own level of detail, before any per-observer coarsening. */
     private static LodPolicy portalLod(FidelityPortalExtension fidelity) {
         return FidelitySettings.lodPolicy(fidelity == null ? null : fidelity.effectiveLodProfile());
@@ -1044,7 +1051,7 @@ public final class PortalProjector {
         double dx = eye.getX() - lastEyeX;
         double dy = eye.getY() - lastEyeY;
         double dz = eye.getZ() - lastEyeZ;
-        if ((dx * dx) + (dy * dy) + (dz * dz) >= REUSE_EYE_EPSILON_SQUARED) {
+        if ((dx * dx) + (dy * dy) + (dz * dz) >= ProjectionGazeScheduler.REUSE_EYE_EPSILON_SQUARED) {
             return true;
         }
         Direction normal = portal.getFrame().getNormal();
@@ -1119,7 +1126,7 @@ public final class PortalProjector {
         double dy = eyeY - lastEyeY;
         double dz = eyeZ - lastEyeZ;
         double movedSquared = (dx * dx) + (dy * dy) + (dz * dz);
-        return movedSquared < REUSE_EYE_EPSILON_SQUARED;
+        return movedSquared < ProjectionGazeScheduler.REUSE_EYE_EPSILON_SQUARED;
     }
 
     static boolean requiresViewCellResample(ProjectionRenderMode renderMode,
@@ -1136,7 +1143,7 @@ public final class PortalProjector {
         double dx = eyeX - lastEyeX;
         double dy = eyeY - lastEyeY;
         double dz = eyeZ - lastEyeZ;
-        return (dx * dx) + (dy * dy) + (dz * dz) >= REUSE_EYE_EPSILON_SQUARED;
+        return (dx * dx) + (dy * dy) + (dz * dz) >= ProjectionGazeScheduler.REUSE_EYE_EPSILON_SQUARED;
     }
 
     static boolean shouldForceCellResample(boolean scheduledContentResample,
@@ -1293,17 +1300,7 @@ public final class PortalProjector {
         }
 
         public long plateIdentity() {
-            UUID worldId = world.getUID();
-            long identity = ProjectorPassRevision.mix(1469598103934665603L, worldId.getMostSignificantBits());
-            identity = ProjectorPassRevision.mix(identity, worldId.getLeastSignificantBits());
-            identity = ProjectorPassRevision.mix(identity, Double.doubleToLongBits(originX));
-            identity = ProjectorPassRevision.mix(identity, Double.doubleToLongBits(originY));
-            identity = ProjectorPassRevision.mix(identity, Double.doubleToLongBits(originZ));
-            identity = ProjectorPassRevision.mix(identity, frame.getNormal().ordinal());
-            identity = ProjectorPassRevision.mix(identity, frame.getRight().ordinal());
-            identity = ProjectorPassRevision.mix(identity, frame.getUp().ordinal());
-            identity = ProjectorPassRevision.mix(identity, routeRevision);
-            return identity == 0L ? 1L : identity;
+            return RtpProjectionGeometry.plateIdentity(world.getUID(), originX, originY, originZ, frame, routeRevision);
         }
 
         private static Direction direction(RtpProjectionView.Vector3 vector, String name) {

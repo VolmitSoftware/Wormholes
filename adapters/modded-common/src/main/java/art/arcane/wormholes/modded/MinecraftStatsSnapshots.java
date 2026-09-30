@@ -69,6 +69,12 @@ final class MinecraftStatsSnapshots implements AutoCloseable {
         text.append("Players: ").append(runtime.server().getPlayerCount()).append('\n');
         text.append("Projection observers: ").append(runtime.projections().observerCount()).append('\n');
         text.append("Projectors: ").append(runtime.projections().projectorCount()).append('\n');
+        text.append("Section cache sections: ").append(runtime.projections().sectionCacheSections()).append('\n');
+        text.append("Section cache bytes: ").append(runtime.projections().sectionCacheBytes()).append('\n');
+        text.append("Plates: ").append(runtime.projections().plates().size()).append('\n');
+        text.append("Plate bytes: ").append(runtime.projections().plates().bytes()).append('\n');
+        text.append("Plate builds: ").append(runtime.projections().plates().buildsCompleted()).append('\n');
+        text.append("Plate capture queue: ").append(runtime.projections().plateCaptureQueueSize()).append('\n');
         text.append("Mean tick milliseconds: ").append(runtime.server().getAverageTickTimeNanos() / 1_000_000.0D).append('\n');
         if (network != null) {
             text.append("Transport queues: ").append(network.debugSnapshot()).append('\n');

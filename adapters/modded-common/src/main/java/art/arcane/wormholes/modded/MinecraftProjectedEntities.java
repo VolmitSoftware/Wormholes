@@ -74,7 +74,7 @@ public final class MinecraftProjectedEntities implements AutoCloseable {
                 return;
             }
         }
-        recursive.clear();
+        recursive.revalidate();
         EntityProjectionPath<ServerLevel, MinecraftPortal> path = view.destination() == null ? null
             : new EntityProjectionPath<>(new EntityProjectionPath.Root<>(source, view.destination(), view.localFrame(), view.remoteFrame(),
                 view.mirror(), view.quarterTurns(), view.eye(), view.frustum(), view.world(),

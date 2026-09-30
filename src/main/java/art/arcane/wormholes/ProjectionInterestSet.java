@@ -19,6 +19,7 @@ import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
+import art.arcane.wormholes.render.ProjectionGazeScheduler;
 import art.arcane.wormholes.render.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 
@@ -414,7 +415,9 @@ final class ProjectionInterestSet {
                                       List<ProjectionGazeScheduler.Candidate<ILocalPortal>> candidates,
                                       int limit,
                                       long frameTick) {
-        return gazeScheduler.select(observerId, eye, candidates, limit, frameTick, ProjectionGazeScheduler.Options.current());
+        ProjectionGazeScheduler.Options options = new ProjectionGazeScheduler.Options(Settings.PROJECTION_GAZE_FOV_DEGREES,
+            Settings.PROJECTION_GAZE_LOOKAHEAD_TICKS, Settings.PROJECTION_GAZE_MAX_STARVE_TICKS);
+        return gazeScheduler.select(observerId, eye, candidates, limit, frameTick, options);
     }
 
     void clear() {

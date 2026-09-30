@@ -6,8 +6,9 @@ import art.arcane.wormholes.portal.MirrorRotation;
 import art.arcane.wormholes.portal.PortalPermissionMode;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
+import art.arcane.wormholes.portal.ProjectorViewSettings;
 
-public interface PortalSettingsTarget extends TraversalAdmissionPolicy.InboundPortal {
+public interface PortalSettingsTarget extends TraversalAdmissionPolicy.InboundPortal, ProjectorViewSettings {
     int getActivationRange();
     int getAmbientColor();
     AmbientParticleStyle getAmbientStyle();

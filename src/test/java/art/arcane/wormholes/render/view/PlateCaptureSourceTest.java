@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.ProjectionCellKey;
-import art.arcane.wormholes.render.blockentity.BlockEntityCapturer;
+import art.arcane.wormholes.render.plate.PlateCaptureJob;
 
 final class PlateCaptureSourceTest {
     @Test
@@ -29,7 +29,7 @@ final class PlateCaptureSourceTest {
         FidelitySettings.blockEntities = true;
         FidelitySettings.blockEntityTypes = List.of("minecraft:sign");
         try {
-            int count = BlockEntityCapturer.MAX_PER_CHUNK + 16;
+            int count = PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK + 16;
             BlockState[] signs = new BlockState[count];
             for (int i = 0; i < count; i++) {
                 signs[i] = sign(i & 15, 64 + (i >> 4), 3);
@@ -37,7 +37,7 @@ final class PlateCaptureSourceTest {
 
             PlateCaptureSource.CapturedChunk busy = new PlateCaptureSource(true).capture(world(chunk(signs)), 0, 0);
 
-            assertEquals(BlockEntityCapturer.MAX_PER_CHUNK, busy.blockEntities().size(), "one chunk never serialises more than the per-chunk cap");
+            assertEquals(PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK, busy.blockEntities().size(), "one chunk never serialises more than the per-chunk cap");
             assertFalse(busy.blockEntitiesComplete(), "a capped chunk leaves its missing block entities to live sampling");
 
             BlockState[] few = new BlockState[] {sign(1, 64, 3), sign(2, 64, 3)};

@@ -55,6 +55,11 @@ public final class WormholesGameTests {
     public static final Identifier MENU_PARITY_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "menu_parity_runtime");
     public static final Identifier LANGUAGE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "language_runtime");
     public static final Identifier OCCLUSION_SKIN_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "occlusion_skin_runtime");
+    public static final Identifier PROJECTION_DIRT_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_dirt_runtime");
+    public static final Identifier PROJECTION_GAZE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_gaze_runtime");
+    public static final Identifier PROJECTION_RETARGET_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_retarget_runtime");
+    public static final Identifier PROJECTION_SECTION_CACHE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_section_cache_runtime");
+    public static final Identifier PROJECTION_PLATE_CAPTURE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_plate_capture_runtime");
     private static final Set<CompletableFuture<?>> REPORTED_FAILURES = new HashSet<>();
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesGameTest");
 
@@ -123,6 +128,32 @@ public final class WormholesGameTests {
         MinecraftOcclusionSkinGameTest.run(helper);
     }
 
+    public static void projectionDirtRuntime(GameTestHelper helper) {
+        CompletableFuture<Boolean> result = MinecraftProjectionScheduleGameTest.dirt(helper, RUNTIME);
+        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(completed(helper, result, "projection dirt"),
+            "Projection dirt checks did not complete")).thenSucceed();
+    }
+
+    public static void projectionGazeRuntime(GameTestHelper helper) {
+        CompletableFuture<Boolean> result = MinecraftProjectionScheduleGameTest.gaze(helper, RUNTIME);
+        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(completed(helper, result, "projection gaze"),
+            "Projection gaze scheduling did not complete")).thenSucceed();
+    }
+
+    public static void projectionRetargetRuntime(GameTestHelper helper) {
+        CompletableFuture<Boolean> result = MinecraftProjectionScheduleGameTest.retarget(helper, RUNTIME);
+        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(completed(helper, result, "projection retarget"),
+            "Projection retarget did not complete")).thenSucceed();
+    }
+
+    public static void projectionSectionCacheRuntime(GameTestHelper helper) {
+        MinecraftSectionCacheGameTest.run(helper);
+    }
+
+    public static void projectionPlateCaptureRuntime(GameTestHelper helper) {
+        MinecraftPlateCaptureGameTest.run(helper);
+    }
+
     public static void costsRuntime(GameTestHelper helper) {
         MinecraftItemExchangeGameTest.run(helper);
         MinecraftCostGameTest.run(helper);
@@ -158,7 +189,7 @@ public final class WormholesGameTests {
             "Aperture lookup missed constructed portal");
         BlockPos sampled = helper.absolutePos(new BlockPos(8, 2, 8));
         level.setBlockAndUpdate(sampled, Blocks.GOLD_BLOCK.defaultBlockState());
-        try (MinecraftProjectionWorldView view = new MinecraftProjectionWorldView(RUNTIME, level)) {
+        try (MinecraftProjectionWorldView view = MinecraftProjectionWorldView.uncached(RUNTIME, level)) {
             helper.assertTrue(view.sampleBlockData(sampled.getX(), sampled.getY(), sampled.getZ()).is(Blocks.GOLD_BLOCK),
                 "Projection world view did not read the live block");
             helper.assertTrue(view.sampleBlockData(sampled.getX(), level.getMaxY(), sampled.getZ()) == null,
