@@ -9,6 +9,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import java.util.Random;
 
 import art.arcane.wormholes.config.toml.ProjectionConfig;
+import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.RemotePortal;
@@ -31,6 +32,7 @@ import art.arcane.wormholes.render.ProjectionClaimSet;
 import art.arcane.wormholes.render.ProjectorCellScan;
 import art.arcane.wormholes.render.ProjectorFrustumFit;
 import art.arcane.wormholes.render.ProjectorPassRevision;
+import art.arcane.wormholes.render.ProjectorResampleSchedule;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.util.Direction;
 import art.arcane.wormholes.render.ProjectorSampleMemo;
@@ -68,6 +70,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
     private final ProjectorSampler<BlockState, BlockState, ServerLevel, MinecraftPortal, ProjectionContentView<BlockState, BlockState>> sampler;
     private final ProjectorCellScan<BlockState, BlockState, ServerLevel, MinecraftPortal, ProjectionContentView<BlockState, BlockState>> scan;
     private final ProjectorFrustumFit fit;
+    private final ProjectorResampleSchedule schedule;
     private final ViewPlateCache<BlockState, ServerLevel> plates;
     private final Blackout blackout = new Blackout();
     private Destination pendingDestination;
@@ -77,6 +80,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
     private long pendingPresentationRevision;
     private long lastPassTick = Long.MIN_VALUE;
     private int fullSendPasses;
+    private boolean firstPassDone;
     private boolean closed;
     private RemoteViewCache.RemoteView<BlockState, SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> remoteSource;
     private RemoteProjectionView<BlockState, BlockState, SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> remoteView;
@@ -92,7 +96,9 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         this.views = Objects.requireNonNull(context.views());
         this.portals = Objects.requireNonNull(context.portals());
         this.plates = context.plates();
-        this.memo = new ProjectorSampleMemo<>(MinecraftProjectorBlocks.INSTANCE, () -> null);
+        ProjectionWorldChangeTracker changes = runtime.projections().changes();
+        this.memo = new ProjectorSampleMemo<>(MinecraftProjectorBlocks.INSTANCE, () -> changes);
+        this.schedule = new ProjectorResampleSchedule(portal, () -> changes, this::cadence);
         this.sampler = new ProjectorSampler<>(new ProjectorSampler.Options<>(memo,
             portals.createRecursiveIndex(), views::apply,
                 view -> view instanceof MinecraftProjectionWorldView local ? local.getWorld() : null));
@@ -115,6 +121,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         GeometryVector eye = eye();
         if (scan.hasPending() && !samePendingDestination(destination, eye)) {
             scan.cancelPending();
+            schedule.invalidateDestination();
         }
         if (scan.hasPending()) {
             return scan.advance(deadlineNanos) ? Result.READY : Result.PENDING;
@@ -215,6 +222,10 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         return portal.getId();
     }
 
+    public long passCount() {
+        return schedule.passCount();
+    }
+
     public double priorityDistance() {
         return portal.getOrigin().distance(eye());
     }
@@ -248,20 +259,10 @@ public final class MinecraftPortalProjector implements AutoCloseable {
     }
 
     private void prepare(Destination destination, GeometryVector eye, long tick) {
+        schedule.beginBlockPass();
         ProjectionRenderMode mode = portal.getRenderMode();
         boolean culling = mode.usesBuriedCellCulling();
         boolean cullingChanged = sampler.setBuriedCellCullingPass(culling);
-        long revision = destination.destView().getRevision();
-        int memoBudget = ProjectorSampleMemo.budgetFor(scan.claims().size(), fit.fittedCandidateWork());
-        boolean destinationStale = cullingChanged || sampler.recursiveSamplesCached()
-            || memo.destinationStale(revision, false, since -> ProjectionWorldChangeTracker.AFFECTED) || memo.destinationOverBudget(memoBudget);
-        if (destinationStale) {
-            sampler.clearRecursivePortals();
-            memo.clearDestinationSamples();
-            memo.refreshDestination(revision);
-        }
-        sampler.resetRecursiveSamplesCached();
-        boolean localStale = memo.refreshLocal(false, false, destination.localView().getRevision(), memoBudget);
         LodProfile profile = LodProfile.parse(stringSetting("fidelity.lod"), LodProfile.BALANCED);
         LodPolicy lod = FidelitySettings.lodPolicy(profile);
         fit.setOptions(fitOptions());
@@ -271,6 +272,35 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         if (fit.fittedCoarse()) {
             lod = lod.withMergeRuns();
         }
+        int memoBudget = ProjectorSampleMemo.budgetFor(scan.claims().size(), fit.fittedCandidateWork());
+        boolean remote = !(destination.destView() instanceof MinecraftProjectionWorldView);
+        UUID destWorldId = remote ? null : destination.destView().worldId();
+        long revision = destination.destView().getRevision();
+        boolean stable = schedule.stableResample(firstPassDone, revision, remote, destWorldId,
+            destination.originX(), destination.originZ(), scan.remoteFootprint());
+        boolean localDirty = memo.localRegionDirty(destination.localView(), destination.localView().worldId());
+        if (localDirty) {
+            scan.revokeConeHolds();
+        }
+        boolean scheduled = schedule.consumeForcedResample(stable);
+        boolean contentStale = scheduled || cullingChanged || sampler.recursiveSamplesCached();
+        if (contentStale) {
+            scan.dropHolds();
+        }
+        boolean dirty = !contentStale && memo.destinationStale(revision, destWorldId != null,
+            since -> schedule.destinationUnaffectedThrough(destWorldId, destination.originX(), destination.originZ(), since,
+                scan.remoteFootprint()));
+        boolean destinationStale = contentStale || dirty || memo.destinationOverBudget(memoBudget);
+        if (destinationStale) {
+            scan.restartRemoteFootprint();
+            sampler.clearRecursivePortals();
+            memo.clearDestinationSamples();
+            memo.refreshDestination(revision);
+        }
+        sampler.resetRecursiveSamplesCached();
+        boolean localStale = memo.refreshLocal(scheduled, localDirty, destination.localView().getRevision(), memoBudget);
+        memo.expandLocalRegionRect(frustum.getRegion());
+        memo.markLocalScanned();
         blackout.enabled = portal.isBlackoutBackground();
         blackout.data = BuiltInRegistries.BLOCK.getOptional(Identifier.parse(portal.getBlackoutColor().blockState()))
             .orElse(Blocks.CONCRETE.pick(DyeColor.BLACK)).defaultBlockState();
@@ -293,6 +323,8 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         pendingTargetGeometryRevision = targetRevision(destination);
         pendingPresentationRevision = presentationRevision(destination, eye);
         lastPassTick = tick;
+        schedule.noteSourceViewRevision(revision);
+        firstPassDone = true;
         if (!destinationStale && !localStale && fullSendPasses == 0 && scan.canResumeOcclusion(destination, eye, frustum)) {
             scan.resumeOcclusion();
             return;
@@ -438,6 +470,14 @@ public final class MinecraftPortalProjector implements AutoCloseable {
 
     private ProjectionConfig config() {
         return runtime.configuration().settings().getProjection();
+    }
+
+    private ProjectorResampleSchedule.Cadence cadence() {
+        ProjectionConfig projection = config();
+        RenderConfig render = runtime.configuration().settings().getRender();
+        return new ProjectorResampleSchedule.Cadence(Math.clamp(projection.refreshIntervalTicks, 1, 20),
+            Math.clamp(projection.stableCellResampleIntervalTicks, 1, 200), Math.clamp(render.lightingRefreshIntervalTicks, 1, 40),
+            Math.clamp(render.entityUpdateIntervalTicks, 1, 20));
     }
 
     private double projectionDepth() {

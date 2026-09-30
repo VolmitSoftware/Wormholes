@@ -75,19 +75,28 @@ public class MinecraftProjectionWorldViewTest {
     }
 
     @Test
-    public void worldEditsAndReadinessInvalidateWhileIdleTicksPreserveSharedProofs() {
+    public void leaseArrivalMarksOnlyItsColumn() {
         Fixture fixture = fixture();
         try (MinecraftProjectionWorldView view = fixture.view()) {
-            long initial = view.getRevision();
-            when(fixture.level().getGameTime()).thenReturn(1L);
-            assertEquals(initial, view.getRevision());
-            view.invalidate();
-            long tick = view.getRevision();
-            assertTrue(tick > initial);
-            view.requestChunk(0, 0);
+            long revision = view.getRevision();
+            view.requestChunk(3, 5);
+            verify(fixture.projections(), never()).columnChanged(any(), anyInt(), anyInt());
             fixture.ready().complete(true);
-            assertTrue(view.getRevision() > tick);
+            verify(fixture.projections(), times(1)).columnChanged(fixture.level(), 0, 0);
+            verify(fixture.projections(), times(1)).columnChanged(any(), anyInt(), anyInt());
+            verify(fixture.projections(), never()).blockChanged(any(), any());
+            assertEquals(revision, view.getRevision());
         }
+    }
+
+    @Test
+    public void leaseArrivalAfterCloseMarksNothing() {
+        Fixture fixture = fixture();
+        MinecraftProjectionWorldView view = fixture.view();
+        view.requestChunk(-20, 40);
+        view.close();
+        fixture.ready().complete(true);
+        verify(fixture.projections(), never()).columnChanged(any(), anyInt(), anyInt());
     }
 
     @SuppressWarnings("unchecked")
@@ -98,10 +107,12 @@ public class MinecraftProjectionWorldViewTest {
         MinecraftServer server = mock(MinecraftServer.class);
         WormholesModConfiguration configuration = mock(WormholesModConfiguration.class);
         ChunkLeaseRegistry<ServerLevel> leases = mock(ChunkLeaseRegistry.class);
+        MinecraftProjectionService projections = mock(MinecraftProjectionService.class);
         ChunkLease lease = mock(ChunkLease.class);
         CompletableFuture<Boolean> ready = new CompletableFuture<>();
         when(runtime.server()).thenReturn(server);
         when(runtime.leases()).thenReturn(leases);
+        when(runtime.projections()).thenReturn(projections);
         when(runtime.configuration()).thenReturn(configuration);
         when(configuration.settings()).thenReturn(new WormholesSettings(new MainConfig(), new ProjectionConfig(), new RenderConfig(), new NetworkConfig()));
         when(level.getChunkSource()).thenReturn(chunks);
@@ -115,10 +126,11 @@ public class MinecraftProjectionWorldViewTest {
             invocation.getArgument(0, Runnable.class).run();
             return null;
         }).when(server).execute(any(Runnable.class));
-        return new Fixture(new MinecraftProjectionWorldView(runtime, level), level, chunks, leases, lease, ready);
+        return new Fixture(new MinecraftProjectionWorldView(runtime, level), level, chunks, leases, lease, ready, projections);
     }
 
     private record Fixture(MinecraftProjectionWorldView view, ServerLevel level, ServerChunkCache chunks,
-                           ChunkLeaseRegistry<ServerLevel> leases, ChunkLease lease, CompletableFuture<Boolean> ready) {
+                           ChunkLeaseRegistry<ServerLevel> leases, ChunkLease lease, CompletableFuture<Boolean> ready,
+                           MinecraftProjectionService projections) {
     }
 }

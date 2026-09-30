@@ -1,15 +1,13 @@
 package art.arcane.wormholes.render;
 
-import org.bukkit.World;
-
-import art.arcane.wormholes.Settings;
-import art.arcane.wormholes.Wormholes;
-import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.NetworkViewQuality;
-import art.arcane.wormholes.render.view.ProjectionWorldView;
-import art.arcane.wormholes.render.view.RemoteWorldView;
+import art.arcane.wormholes.portal.ProjectorViewSettings;
 
-final class ProjectorResampleSchedule {
+import java.util.Objects;
+import java.util.UUID;
+import java.util.function.Supplier;
+
+public final class ProjectorResampleSchedule {
     private static final int STABLE_RESAMPLE_BACKSTOP_TICKS = 1_200;
     private static final ProjectionWorldChangeTracker.ChangeFilter ANY_CHANGE = new ProjectionWorldChangeTracker.ChangeFilter() {
         @Override
@@ -23,7 +21,9 @@ final class ProjectorResampleSchedule {
         }
     };
 
-    private final ILocalPortal portal;
+    private final ProjectorViewSettings portal;
+    private final Supplier<ProjectionWorldChangeTracker> tracker;
+    private final Supplier<Cadence> cadence;
     private long projectCallCount;
     private long entityPassCount;
     private long lastSourceViewRevision;
@@ -33,8 +33,10 @@ final class ProjectorResampleSchedule {
     private boolean pendingDestinationChange;
     private int remoteResendStage;
 
-    ProjectorResampleSchedule(ILocalPortal portal) {
-        this.portal = portal;
+    public ProjectorResampleSchedule(ProjectorViewSettings portal, Supplier<ProjectionWorldChangeTracker> tracker, Supplier<Cadence> cadence) {
+        this.portal = Objects.requireNonNull(portal);
+        this.tracker = Objects.requireNonNull(tracker);
+        this.cadence = Objects.requireNonNull(cadence);
         this.projectCallCount = 0L;
         this.entityPassCount = 0L;
         this.lastSourceViewRevision = -1L;
@@ -45,38 +47,28 @@ final class ProjectorResampleSchedule {
         this.remoteResendStage = 0;
     }
 
-    long passCount() {
+    public long passCount() {
         return projectCallCount;
     }
 
-    void beginBlockPass() {
+    public void beginBlockPass() {
         projectCallCount++;
     }
 
-    boolean entityUpdateDue() {
+    public boolean entityUpdateDue() {
         boolean due = entityUpdateDueNow();
         entityPassCount++;
         return due;
     }
 
-    private boolean entityUpdateDueNow() {
-        if (usesStandardViewQuality()) {
-            return true;
-        }
-        int intervalTicks = Math.max(1, portal.getNetworkViewEntityIntervalTicks());
-        int globalTicks = Math.max(1, Settings.ENTITY_UPDATE_INTERVAL_TICKS);
-        int passInterval = Math.max(1, (intervalTicks + globalTicks - 1) / globalTicks);
-        return (entityPassCount % passInterval) == 0L;
-    }
-
-    void noteRemoteRevision(long revision) {
+    public void noteRemoteRevision(long revision) {
         if (revision != lastRemoteRevision) {
             lastRemoteRevision = revision;
             pendingRemoteResample = true;
         }
     }
 
-    boolean fullRemoteResendDue() {
+    public boolean fullRemoteResendDue() {
         if (remoteResendStage == 0 && projectCallCount >= 20L) {
             remoteResendStage = 1;
             return true;
@@ -88,89 +80,103 @@ final class ProjectorResampleSchedule {
         return false;
     }
 
-    boolean isRemoteResamplePending() {
+    public boolean isRemoteResamplePending() {
         return pendingRemoteResample;
     }
 
-    boolean consumeForcedResample(boolean stableResample) {
+    public boolean consumeForcedResample(boolean stableResample) {
         boolean forced = stableResample || pendingRemoteResample;
         pendingRemoteResample = false;
         if (forced) {
             pendingDestinationChange = false;
-            if (Wormholes.projectionChangeTracker != null) {
-                lastResampleVersion = Wormholes.projectionChangeTracker.currentVersion();
+            ProjectionWorldChangeTracker changes = tracker.get();
+            if (changes != null) {
+                lastResampleVersion = changes.currentVersion();
             }
         }
         return forced;
     }
 
-    boolean stableResample(boolean firstProjectionDone,
-                           ProjectionWorldView sourceView,
-                           World destWorld,
-                           double destinationOriginX,
-                           double destinationOriginZ,
-                           ProjectorRemoteFootprint footprint) {
+    public boolean stableResample(boolean firstProjectionDone,
+                                  long sourceRevision,
+                                  boolean remoteSource,
+                                  UUID destWorldId,
+                                  double destinationOriginX,
+                                  double destinationOriginZ,
+                                  ProjectorRemoteFootprint footprint) {
         if (!firstProjectionDone) {
             return true;
         }
-        if (sourceView.getRevision() != lastSourceViewRevision) {
+        if (sourceRevision != lastSourceViewRevision) {
             return true;
         }
-        if (sourceView instanceof RemoteWorldView) {
+        if (remoteSource) {
             return false;
         }
         if (!pendingDestinationChange) {
-            long through = destinationUnaffectedThrough(destWorld, destinationOriginX, destinationOriginZ, lastResampleVersion, footprint);
+            long through = destinationUnaffectedThrough(destWorldId, destinationOriginX, destinationOriginZ, lastResampleVersion, footprint);
             if (through == ProjectionWorldChangeTracker.AFFECTED) {
                 pendingDestinationChange = true;
             } else {
                 lastResampleVersion = through;
             }
         }
-        int backstop = stablePassInterval(fullRefreshBackstopTicks());
+        int refreshIntervalTicks = cadence.get().refreshIntervalTicks();
+        int backstop = stablePassInterval(fullRefreshBackstopTicks(), refreshIntervalTicks);
         if ((projectCallCount % backstop) == 0L) {
             return true;
         }
-        int cadence = stablePassInterval(stableResampleCadenceTicks());
-        return pendingDestinationChange && (projectCallCount % cadence) == 0L;
+        int stableCadence = stablePassInterval(stableResampleCadenceTicks(), refreshIntervalTicks);
+        return pendingDestinationChange && (projectCallCount % stableCadence) == 0L;
     }
 
-    long destinationUnaffectedThrough(World destWorld, double originX, double originZ, long sinceVersion,
-                                      ProjectorRemoteFootprint footprint) {
-        ProjectionWorldChangeTracker tracker = Wormholes.projectionChangeTracker;
-        if (destWorld == null || tracker == null) {
+    public long destinationUnaffectedThrough(UUID destWorldId, double originX, double originZ, long sinceVersion,
+                                             ProjectorRemoteFootprint footprint) {
+        ProjectionWorldChangeTracker changes = tracker.get();
+        if (destWorldId == null || changes == null) {
             return ProjectionWorldChangeTracker.AFFECTED;
         }
         if (!footprint.nested()) {
-            return tracker.unaffectedThrough(destWorld.getUID(), footprint.queryMinChunkX(), footprint.queryMinChunkZ(),
+            return changes.unaffectedThrough(destWorldId, footprint.queryMinChunkX(), footprint.queryMinChunkZ(),
                 footprint.queryMaxChunkX(), footprint.queryMaxChunkZ(), sinceVersion, footprint);
         }
         double depth = portal.getNetworkViewDepth() + 2.0D;
-        return tracker.unaffectedThrough(destWorld.getUID(), ((int) Math.floor(originX - depth)) >> 4,
+        return changes.unaffectedThrough(destWorldId, ((int) Math.floor(originX - depth)) >> 4,
             ((int) Math.floor(originZ - depth)) >> 4, ((int) Math.floor(originX + depth)) >> 4,
             ((int) Math.floor(originZ + depth)) >> 4, sinceVersion, ANY_CHANGE);
     }
 
-    boolean lightingUpdatePass(boolean firstProjectionDone) {
+    public boolean lightingUpdatePass(boolean firstProjectionDone) {
         if (!firstProjectionDone) {
             return true;
         }
 
-        int projectionInterval = Math.max(1, Settings.PROJECTION_REFRESH_INTERVAL_TICKS);
-        int lightingInterval = Math.max(1, Settings.LIGHTING_REFRESH_INTERVAL_TICKS);
+        Cadence current = cadence.get();
+        int projectionInterval = Math.max(1, current.refreshIntervalTicks());
+        int lightingInterval = Math.max(1, current.lightingRefreshIntervalTicks());
         int projectPassInterval = Math.max(1, (lightingInterval + projectionInterval - 1) / projectionInterval);
         return (projectCallCount % projectPassInterval) == 0L;
     }
 
-    void noteSourceViewRevision(long revision) {
+    public void noteSourceViewRevision(long revision) {
         lastSourceViewRevision = revision;
     }
 
-    void invalidateDestination() {
+    public void invalidateDestination() {
         pendingRemoteResample = true;
         pendingDestinationChange = false;
         lastSourceViewRevision = -1L;
         lastResampleVersion = -1L;
+    }
+
+    private boolean entityUpdateDueNow() {
+        if (usesStandardViewQuality()) {
+            return true;
+        }
+        int intervalTicks = Math.max(1, portal.getNetworkViewEntityIntervalTicks());
+        int globalTicks = Math.max(1, cadence.get().entityUpdateIntervalTicks());
+        int passInterval = Math.max(1, (intervalTicks + globalTicks - 1) / globalTicks);
+        return (entityPassCount % passInterval) == 0L;
     }
 
     private boolean usesStandardViewQuality() {
@@ -183,7 +189,7 @@ final class ProjectorResampleSchedule {
 
     private int stableResampleCadenceTicks() {
         if (usesStandardViewQuality()) {
-            return Settings.PROJECTION_STABLE_CELL_RESAMPLE_INTERVAL_TICKS;
+            return cadence.get().stableCellResampleIntervalTicks();
         }
         return Math.max(1, portal.getNetworkViewHeartbeatTicks());
     }
@@ -195,9 +201,13 @@ final class ProjectorResampleSchedule {
         return Math.max(1, portal.getNetworkViewHeartbeatTicks());
     }
 
-    private static int stablePassInterval(int intervalTicks) {
-        int projectionInterval = Math.max(1, Settings.PROJECTION_REFRESH_INTERVAL_TICKS);
+    private static int stablePassInterval(int intervalTicks, int refreshIntervalTicks) {
+        int projectionInterval = Math.max(1, refreshIntervalTicks);
         int resampleInterval = Math.max(1, intervalTicks);
         return Math.max(1, (resampleInterval + projectionInterval - 1) / projectionInterval);
+    }
+
+    public record Cadence(int refreshIntervalTicks, int stableCellResampleIntervalTicks, int lightingRefreshIntervalTicks,
+                          int entityUpdateIntervalTicks) {
     }
 }

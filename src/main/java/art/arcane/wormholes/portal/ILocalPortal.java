@@ -15,7 +15,7 @@ import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 import art.arcane.volmlib.util.inventorygui.Window;
 
-public interface ILocalPortal extends IPortal, IWritable, Listener, TraversalAdmissionPolicy.InboundPortal
+public interface ILocalPortal extends IPortal, IWritable, Listener, TraversalAdmissionPolicy.InboundPortal, ProjectorViewSettings
 {
 	public void save();
 

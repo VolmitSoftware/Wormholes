@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
+import art.arcane.wormholes.render.ProjectionGazeScheduler;
 
 final class ProjectionInterestSetTest {
     private static final ILocalPortal NEAREST = portal("nearest");

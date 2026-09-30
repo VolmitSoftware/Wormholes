@@ -33,7 +33,10 @@ import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 import art.arcane.wormholes.render.blockentity.ProjectedBlockEntityLayer;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.wormholes.render.ProjectionBlockSlices;
 import art.arcane.wormholes.render.ProjectionClaimSet;
+import art.arcane.wormholes.render.ProjectionGazeScheduler;
+import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -49,7 +52,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -305,11 +307,18 @@ public final class MinecraftProjectionService implements AutoCloseable {
         return scene.view;
     }
 
-    public void worldChanged(ServerLevel world, int chunkX, int chunkZ) {
+    public void blockChanged(ServerLevel world, BlockPos position) {
         runtime.requireServerThread();
         MinecraftProjectionWorldView view = views.get(world);
         if (view != null) {
-            view.invalidate();
+            changes.markChanged(view.worldId(), position.getX(), position.getY(), position.getZ());
+        }
+    }
+
+    public void columnChanged(ServerLevel world, int chunkX, int chunkZ) {
+        runtime.requireServerThread();
+        MinecraftProjectionWorldView view = views.get(world);
+        if (view != null) {
             changes.markChanged(view.worldId(), chunkX << 4, chunkZ << 4);
         }
     }
@@ -397,6 +406,17 @@ public final class MinecraftProjectionService implements AutoCloseable {
         return runtime.configuration().settings().getProjection();
     }
 
+    static ProjectionGazeScheduler.Candidate<MinecraftPortal> gazeCandidate(MinecraftPortal portal, boolean pendingScan) {
+        AxisAlignedBB area = portal.getGeometry().getArea();
+        if (area != null) {
+            return new ProjectionGazeScheduler.Candidate<>(portal, portal.getId(), area.getXa(), area.getYa(), area.getZa(),
+                area.getXb(), area.getYb(), area.getZb(), pendingScan, false);
+        }
+        GeometryVector origin = portal.getOrigin();
+        return new ProjectionGazeScheduler.Candidate<>(portal, portal.getId(), origin.x() - 0.5D, origin.y() - 0.5D, origin.z() - 0.5D,
+            origin.x() + 0.5D, origin.y() + 0.5D, origin.z() + 0.5D, pendingScan, false);
+    }
+
     private boolean interested(ServerPlayer player, MinecraftPortal portal, MinecraftProjectorPortalAccess portals) {
         if (!portals.eligible(portal) || portals.world(portal) != player.level()) {
             return false;
@@ -443,7 +463,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         private final LongOpenHashSet dirtyLight = new LongOpenHashSet();
         private final MinecraftAtmosphere atmosphere;
         private final MinecraftPortalSurfaces surfaces;
-        private int cursor;
+        private final ProjectionGazeScheduler gaze = new ProjectionGazeScheduler();
         private long lastLightTick = Long.MIN_VALUE;
 
         private Observer(ServerPlayer player) {
@@ -484,44 +504,45 @@ public final class MinecraftProjectionService implements AutoCloseable {
                     iterator.remove();
                 }
             }
+            List<ProjectionGazeScheduler.Candidate<MinecraftPortal>> gazeCandidates = new ArrayList<>(active.size());
+            for (MinecraftPortal portal : active) {
+                MinecraftPortalProjector existing = projectors.get(portal.getId());
+                gazeCandidates.add(gazeCandidate(portal, existing != null && existing.scan().hasPending()));
+            }
             Vec3 eye = player.getEyePosition();
-            active.sort(Comparator.comparingDouble(portal -> {
-                GeometryVector center = portal.getGeometry().getApertureCenter();
-                return eye.distanceToSqr(center.x(), center.y(), center.z());
-            }));
+            List<MinecraftPortal> selected = gaze.select(player.getUUID(),
+                new ProjectionGazeScheduler.Eye(eye.x, eye.y, eye.z, player.getYRot(), player.getXRot()),
+                gazeCandidates, budget, tick, ProjectionGazeScheduler.Options.from(config()));
+            gaze.retain(player.getUUID(), activeIds);
+            ProjectionBlockSlices slices = new ProjectionBlockSlices(selected.size());
             int processed = 0;
-            if (!active.isEmpty() && budget > 0) {
-                int start = Math.floorMod(cursor, active.size());
-                for (int offset = 0; offset < active.size() && processed < budget; offset++) {
-                    if (System.nanoTime() >= deadline) {
-                        break;
-                    }
-                    MinecraftPortal portal = active.get((start + offset) % active.size());
-                    MinecraftPortalProjector projector = projectors.computeIfAbsent(portal.getId(), ignored ->
-                        new MinecraftPortalProjector(runtime, new MinecraftPortalProjector.Context(player, portal,
-                            MinecraftProjectionService.this::view, portals, plates)));
-                    boolean losingResync = projector.scan().losingClaimsUnsynced();
-                    if (claims.drainLosingTransitions(portal.getId(), displacedClaimKeys, restoredClaimKeys, losingResync) || losingResync) {
-                        projector.scan().exposeLosingClaims(displacedClaimKeys, restoredClaimKeys, losingResync);
-                        displacedClaimKeys.clear();
-                        restoredClaimKeys.clear();
-                    }
-                    MinecraftPortalProjector.Result result = projector.update(tick, deadline);
-                    if (result == MinecraftPortalProjector.Result.READY) {
-                        claims.stagePortalDelta(portal.getId(), portal.getId().toString(), Math.abs(projector.scan().eyeDot()),
-                            projector.claimDelta(), staged);
-                        projector.commit();
-                        atmosphere.update(projector, true);
-                    } else if (result == MinecraftPortalProjector.Result.CLOSED) {
-                        claims.stagePortalRelease(portal.getId(), staged);
-                        projectors.remove(portal.getId());
-                        atmosphere.remove(portal.getId());
-                        acoustics.forgetPortal(portal.getId());
-                        projector.close();
-                    }
-                    processed++;
+            for (MinecraftPortal portal : selected) {
+                if (System.nanoTime() >= deadline) {
+                    break;
                 }
-                cursor = (start + processed) % active.size();
+                MinecraftPortalProjector projector = projectors.computeIfAbsent(portal.getId(), ignored ->
+                    new MinecraftPortalProjector(runtime, new MinecraftPortalProjector.Context(player, portal,
+                        MinecraftProjectionService.this::view, portals, plates)));
+                boolean losingResync = projector.scan().losingClaimsUnsynced();
+                if (claims.drainLosingTransitions(portal.getId(), displacedClaimKeys, restoredClaimKeys, losingResync) || losingResync) {
+                    projector.scan().exposeLosingClaims(displacedClaimKeys, restoredClaimKeys, losingResync);
+                    displacedClaimKeys.clear();
+                    restoredClaimKeys.clear();
+                }
+                MinecraftPortalProjector.Result result = projector.update(tick, slices.next(deadline));
+                if (result == MinecraftPortalProjector.Result.READY) {
+                    claims.stagePortalDelta(portal.getId(), portal.getId().toString(), Math.abs(projector.scan().eyeDot()),
+                        projector.claimDelta(), staged);
+                    projector.commit();
+                    atmosphere.update(projector, true);
+                } else if (result == MinecraftPortalProjector.Result.CLOSED) {
+                    claims.stagePortalRelease(portal.getId(), staged);
+                    projectors.remove(portal.getId());
+                    atmosphere.remove(portal.getId());
+                    acoustics.forgetPortal(portal.getId());
+                    projector.close();
+                }
+                processed++;
             }
             surfaces.update(candidates, portals, tick);
             if (!staged.isEmpty()) {
