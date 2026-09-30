@@ -47,15 +47,10 @@ def shadowJarTask = tasks.named('shadowJar', com.github.jengelman.gradle.plugins
 apply from: 'gradle/runtime-test.gradle'
 tasks.named('slimJar').get()
 
-tasks.register('buildPsychoLT', Copy) {
+tasks.register('buildPsychoLT') {
     group = 'development'
-    description = 'Builds and deploys Wormholes to the managed Minecraft test-server dropins.'
-    outputs.upToDateWhen { false }
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    dependsOn(tasks.named('check'), 'packedJar', 'buildBukkit')
-    from({ tasks.named('packedJar').get().outputJar })
-    into(layout.projectDirectory.dir('../../[Minecraft Server]/consumers/plugin-consumers/dropins/plugins'))
-    rename { String ignored -> 'Wormholes.jar' }
+    description = 'Builds the CraftBukkit, Fabric, Forge, and NeoForge jars and deploys them to the managed Minecraft test-server dropins.'
+    dependsOn('buildAll')
 }
 
 tasks.register('buildSwiftSwamp', Copy) {
