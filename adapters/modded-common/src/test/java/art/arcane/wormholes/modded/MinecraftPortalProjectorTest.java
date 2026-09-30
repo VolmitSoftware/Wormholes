@@ -300,7 +300,7 @@ public class MinecraftPortalProjectorTest {
         when(access.current(source)).thenReturn(true);
         when(access.world(source)).thenReturn(sourceWorld);
         when(access.world(target)).thenReturn(targetWorld);
-        when(access.destination(source)).thenReturn(target);
+        when(access.projectionDestination(source)).thenReturn(target);
         when(access.portals()).thenReturn(List.of());
         when(access.createRecursiveIndex()).thenReturn(new ProjectorRecursivePortals<>(access,
             () -> new ProjectorRecursivePortals.Options(0.75D, 64.0D)));
