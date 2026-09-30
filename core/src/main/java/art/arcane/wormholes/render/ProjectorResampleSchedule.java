@@ -24,6 +24,7 @@ public final class ProjectorResampleSchedule {
     private final ProjectorViewSettings portal;
     private final Supplier<ProjectionWorldChangeTracker> tracker;
     private final Supplier<Cadence> cadence;
+    private Cadence currentCadence;
     private long projectCallCount;
     private long entityPassCount;
     private long lastSourceViewRevision;
@@ -53,6 +54,7 @@ public final class ProjectorResampleSchedule {
 
     public void beginBlockPass() {
         projectCallCount++;
+        currentCadence = cadence.get();
     }
 
     public boolean entityUpdateDue() {
@@ -121,7 +123,7 @@ public final class ProjectorResampleSchedule {
                 lastResampleVersion = through;
             }
         }
-        int refreshIntervalTicks = cadence.get().refreshIntervalTicks();
+        int refreshIntervalTicks = cadence().refreshIntervalTicks();
         int backstop = stablePassInterval(fullRefreshBackstopTicks(), refreshIntervalTicks);
         if ((projectCallCount % backstop) == 0L) {
             return true;
@@ -151,7 +153,7 @@ public final class ProjectorResampleSchedule {
             return true;
         }
 
-        Cadence current = cadence.get();
+        Cadence current = cadence();
         int projectionInterval = Math.max(1, current.refreshIntervalTicks());
         int lightingInterval = Math.max(1, current.lightingRefreshIntervalTicks());
         int projectPassInterval = Math.max(1, (lightingInterval + projectionInterval - 1) / projectionInterval);
@@ -169,12 +171,19 @@ public final class ProjectorResampleSchedule {
         lastResampleVersion = -1L;
     }
 
+    private Cadence cadence() {
+        if (currentCadence == null) {
+            currentCadence = cadence.get();
+        }
+        return currentCadence;
+    }
+
     private boolean entityUpdateDueNow() {
         if (usesStandardViewQuality()) {
             return true;
         }
         int intervalTicks = Math.max(1, portal.getNetworkViewEntityIntervalTicks());
-        int globalTicks = Math.max(1, cadence.get().entityUpdateIntervalTicks());
+        int globalTicks = Math.max(1, cadence().entityUpdateIntervalTicks());
         int passInterval = Math.max(1, (intervalTicks + globalTicks - 1) / globalTicks);
         return (entityPassCount % passInterval) == 0L;
     }
@@ -189,7 +198,7 @@ public final class ProjectorResampleSchedule {
 
     private int stableResampleCadenceTicks() {
         if (usesStandardViewQuality()) {
-            return cadence.get().stableCellResampleIntervalTicks();
+            return cadence().stableCellResampleIntervalTicks();
         }
         return Math.max(1, portal.getNetworkViewHeartbeatTicks());
     }

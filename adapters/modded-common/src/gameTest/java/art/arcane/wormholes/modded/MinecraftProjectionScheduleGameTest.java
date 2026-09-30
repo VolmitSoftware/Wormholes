@@ -28,6 +28,8 @@ final class MinecraftProjectionScheduleGameTest {
     private static final int FAR_CHANGE_TICKS = 30;
     private static final int NEAR_CHANGE_TICKS = 60;
     private static final int GAZE_TICKS = 40;
+    private static final int RETARGET_SETTLE_TICKS = 40;
+    private static final int RETARGET_TICKS = 100;
     private static final int GAZE_IN_VIEW_MINIMUM = 20;
     private static final int GAZE_BEHIND_MAXIMUM = 4;
     private static final int GAZE_BEHIND_MINIMUM = 1;
@@ -45,6 +47,8 @@ final class MinecraftProjectionScheduleGameTest {
     private Probe ahead;
     private Probe behind;
     private BlockPos far;
+    private MinecraftPortal retargetDestination;
+    private List<BlockState> retargetMarkers;
     private Vec3 standing;
     private int remaining;
     private int aheadUpdates;
@@ -84,6 +88,26 @@ final class MinecraftProjectionScheduleGameTest {
             test.place(test.standing);
             test.remaining = DISCOVERY_TICKS;
             test.helper.runAfterDelay(1, test::discoverForGaze);
+        } catch (Throwable failure) {
+            test.finish(failure);
+        }
+        return test.result;
+    }
+
+    static CompletableFuture<Boolean> retarget(GameTestHelper helper, WormholesModRuntime runtime) {
+        MinecraftProjectionScheduleGameTest test = new MinecraftProjectionScheduleGameTest(helper, runtime);
+        try {
+            test.connect("retarget-probe");
+            test.ahead = test.probe(new Probe.Layout(2, 6, -78, new Vec3(0, 0, -1)), Blocks.GOLD_BLOCK.defaultBlockState(),
+                Blocks.EMERALD_BLOCK.defaultBlockState());
+            test.retargetDestination = test.portal(-78, 86, new Vec3(0, 0, -1));
+            test.retargetMarkers = List.of(Blocks.LAPIS_BLOCK.defaultBlockState(), Blocks.REDSTONE_BLOCK.defaultBlockState());
+            test.mark(new BlockPos(-77, 3, 84), test.retargetMarkers.get(0));
+            test.mark(new BlockPos(-77, 3, 88), test.retargetMarkers.get(1));
+            GeometryVector origin = test.ahead.source().getOrigin();
+            test.place(new Vec3(origin.x(), origin.y() - test.connection.player().getEyeHeight(), origin.z() - 3.0D));
+            test.remaining = DISCOVERY_TICKS;
+            test.helper.runAfterDelay(1, test::discoverForRetarget);
         } catch (Throwable failure) {
             test.finish(failure);
         }
@@ -134,6 +158,53 @@ final class MinecraftProjectionScheduleGameTest {
                 return;
             }
             LOGGER.info("WORMHOLES_GAME_TEST_PASS projection_dirt_runtime far_change_idle near_change_resample");
+            finish(null);
+        } catch (Throwable failure) {
+            finish(failure);
+        }
+    }
+
+    private void discoverForRetarget() {
+        try {
+            drain();
+            if (!ahead.discovered(updates)) {
+                waitFor(this::discoverForRetarget, "First destination never reached the observer through the projection");
+                return;
+            }
+            updates.clear();
+            remaining = RETARGET_SETTLE_TICKS;
+            helper.runAfterDelay(1, this::settleBeforeRetarget);
+        } catch (Throwable failure) {
+            finish(failure);
+        }
+    }
+
+    private void settleBeforeRetarget() {
+        try {
+            drain();
+            updates.clear();
+            if (--remaining > 0) {
+                helper.runAfterDelay(1, this::settleBeforeRetarget);
+                return;
+            }
+            helper.assertTrue(runtime.portals().link(connection.player(), ahead.source().getId(), retargetDestination.getId()),
+                "Retarget fixture did not re-link the source portal");
+            remaining = RETARGET_TICKS;
+            helper.runAfterDelay(1, this::watchRetarget);
+        } catch (Throwable failure) {
+            finish(failure);
+        }
+    }
+
+    private void watchRetarget() {
+        try {
+            drain();
+            if (!showedAny(updates, retargetMarkers)) {
+                updates.clear();
+                waitFor(this::watchRetarget, "Cells that were empty at the previous destination never showed the new destination");
+                return;
+            }
+            LOGGER.info("WORMHOLES_GAME_TEST_PASS projection_retarget_runtime ticks={}", RETARGET_TICKS - remaining);
             finish(null);
         } catch (Throwable failure) {
             finish(failure);
@@ -232,6 +303,24 @@ final class MinecraftProjectionScheduleGameTest {
         connection.player().setPos(position);
         connection.player().setYRot(0.0F);
         connection.player().setXRot(0.0F);
+    }
+
+    private void mark(BlockPos relative, BlockState state) {
+        BlockPos position = helper.absolutePos(relative);
+        track(position);
+        helper.getLevel().setBlockAndUpdate(position, state);
+    }
+
+    private static boolean showedAny(List<ClientboundSectionBlocksUpdatePacket> updates, List<BlockState> states) {
+        boolean[] found = {false};
+        for (ClientboundSectionBlocksUpdatePacket update : updates) {
+            update.runUpdates((position, state) -> {
+                if (states.contains(state)) {
+                    found[0] = true;
+                }
+            });
+        }
+        return found[0];
     }
 
     private void track(BlockPos position) {

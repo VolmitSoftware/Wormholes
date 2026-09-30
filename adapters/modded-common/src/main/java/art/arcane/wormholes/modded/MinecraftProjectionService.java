@@ -63,6 +63,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 public final class MinecraftProjectionService implements AutoCloseable {
     private static final Map<MinecraftServer, MinecraftProjectionService> ACTIVE = new ConcurrentHashMap<>();
@@ -436,6 +437,22 @@ public final class MinecraftProjectionService implements AutoCloseable {
         return runtime.configuration().settings().getProjection();
     }
 
+    static boolean blockPassTick(long tick, int refreshIntervalTicks) {
+        return tick % Math.max(1, refreshIntervalTicks) == 0L;
+    }
+
+    static List<ProjectionGazeScheduler.Candidate<MinecraftPortal>> blockCandidates(List<MinecraftPortal> active,
+                                                                                   Predicate<MinecraftPortal> pendingScan, boolean passTick) {
+        List<ProjectionGazeScheduler.Candidate<MinecraftPortal>> candidates = new ArrayList<>(active.size());
+        for (MinecraftPortal portal : active) {
+            boolean pending = pendingScan.test(portal);
+            if (passTick || pending) {
+                candidates.add(gazeCandidate(portal, pending));
+            }
+        }
+        return candidates;
+    }
+
     static ProjectionGazeScheduler.Candidate<MinecraftPortal> gazeCandidate(MinecraftPortal portal, boolean pendingScan) {
         AxisAlignedBB area = portal.getGeometry().getArea();
         if (area != null) {
@@ -538,11 +555,8 @@ public final class MinecraftProjectionService implements AutoCloseable {
                     iterator.remove();
                 }
             }
-            List<ProjectionGazeScheduler.Candidate<MinecraftPortal>> gazeCandidates = new ArrayList<>(active.size());
-            for (MinecraftPortal portal : active) {
-                MinecraftPortalProjector existing = projectors.get(portal.getId());
-                gazeCandidates.add(gazeCandidate(portal, existing != null && existing.scan().hasPending()));
-            }
+            List<ProjectionGazeScheduler.Candidate<MinecraftPortal>> gazeCandidates = blockCandidates(active, this::pendingScan,
+                blockPassTick(tick, config().refreshIntervalTicks));
             Vec3 eye = player.getEyePosition();
             List<MinecraftPortal> selected = gaze.select(player.getUUID(),
                 new ProjectionGazeScheduler.Eye(eye.x, eye.y, eye.z, player.getYRot(), player.getXRot()),
@@ -606,6 +620,11 @@ public final class MinecraftProjectionService implements AutoCloseable {
                 }
             }
             return processed;
+        }
+
+        private boolean pendingScan(MinecraftPortal portal) {
+            MinecraftPortalProjector existing = projectors.get(portal.getId());
+            return existing != null && existing.scan().hasPending();
         }
 
         private void reconcileSentChunks() {

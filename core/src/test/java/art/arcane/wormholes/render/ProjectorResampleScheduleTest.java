@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -114,6 +116,37 @@ class ProjectorResampleScheduleTest {
         assertTrue(schedule.stableResample(true, 0L, false, worldId, 8.0D, 8.0D, footprint));
         assertTrue(schedule.consumeForcedResample(false));
         assertFalse(schedule.isRemoteResamplePending());
+    }
+
+    @Test
+    void cadenceIsReadOncePerBlockPassAndReloadsTakeEffectOnTheNextPass() {
+        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        UUID worldId = UUID.nameUUIDFromBytes("resample-cadence".getBytes(StandardCharsets.UTF_8));
+        ProjectorRemoteFootprint footprint = new ProjectorRemoteFootprint();
+        footprint.record(8, 64, 8);
+        AtomicInteger reads = new AtomicInteger();
+        AtomicReference<ProjectorResampleSchedule.Cadence> configured = new AtomicReference<>(CADENCE);
+        ProjectorResampleSchedule schedule = new ProjectorResampleSchedule(new ViewSettings(64, 60, 10, 30), () -> tracker, () -> {
+            reads.incrementAndGet();
+            return configured.get();
+        });
+        schedule.stableResample(false, 0L, false, worldId, 8.0D, 8.0D, footprint);
+        schedule.noteSourceViewRevision(0L);
+
+        for (int pass = 0; pass < 10; pass++) {
+            schedule.beginBlockPass();
+            schedule.stableResample(true, 0L, false, worldId, 8.0D, 8.0D, footprint);
+            schedule.lightingUpdatePass(true);
+            schedule.entityUpdateDue();
+        }
+        assertEquals(10, reads.get());
+
+        schedule.beginBlockPass();
+        assertFalse(schedule.lightingUpdatePass(true));
+        configured.set(new ProjectorResampleSchedule.Cadence(4, 8, 4, 1));
+        assertFalse(schedule.lightingUpdatePass(true));
+        schedule.beginBlockPass();
+        assertTrue(schedule.lightingUpdatePass(true));
     }
 
     private record ViewSettings(int getNetworkViewDepth, int getNetworkViewHeartbeatTicks, int getNetworkViewEntityIntervalTicks,

@@ -82,6 +82,44 @@ public class MinecraftProjectionServiceGazeTest {
         assertEquals(List.of(inView), scheduler.select(observer, eye(2L), candidates, 2, 2L, options));
     }
 
+    @Test
+    public void offCadenceTicksOnlyScheduleProjectorsWithPendingScans() {
+        PortalGeometry ahead = new PortalGeometry();
+        ahead.setArea(new AxisAlignedBB(-1.0D, 1.999D, 64.0D, 66.999D, 6.0D, 6.0D));
+        MinecraftPortal inView = portal(ahead, new GeometryVector(0.5D, 65.5D, 6.5D));
+        List<MinecraftPortal> active = List.of(inView);
+
+        assertTrue(MinecraftProjectionService.blockCandidates(active, ignored -> false, false).isEmpty());
+        List<ProjectionGazeScheduler.Candidate<MinecraftPortal>> pending = MinecraftProjectionService.blockCandidates(active, ignored -> true, false);
+        assertEquals(1, pending.size());
+        assertTrue(pending.get(0).pendingScan());
+        assertEquals(1, MinecraftProjectionService.blockCandidates(active, ignored -> false, true).size());
+    }
+
+    @Test
+    public void portalThatMissedItsPassStaysUnsettledUntilTheNextPassTick() {
+        PortalGeometry ahead = new PortalGeometry();
+        ahead.setArea(new AxisAlignedBB(-1.0D, 1.999D, 64.0D, 66.999D, 6.0D, 6.0D));
+        MinecraftPortal inView = portal(ahead, new GeometryVector(0.5D, 65.5D, 6.5D));
+        List<MinecraftPortal> active = List.of(inView);
+        ProjectionGazeScheduler scheduler = new ProjectionGazeScheduler();
+        UUID observer = UUID.randomUUID();
+        ProjectionGazeScheduler.Options options = new ProjectionGazeScheduler.Options(110.0D, 3, 20);
+        ProjectionGazeScheduler.Eye first = new ProjectionGazeScheduler.Eye(0.0D, 65.6D, 0.5D, 0.0F, 0.0F);
+        ProjectionGazeScheduler.Eye moved = new ProjectionGazeScheduler.Eye(1.0D, 65.6D, 0.5D, 0.0F, 0.0F);
+        int refreshIntervalTicks = 4;
+
+        assertEquals(List.of(inView), scheduler.select(observer, first, MinecraftProjectionService.blockCandidates(active, ignored -> false,
+            MinecraftProjectionService.blockPassTick(4L, refreshIntervalTicks)), 1, 4L, options));
+        for (long tick = 5L; tick < 8L; tick++) {
+            scheduler.select(observer, moved, MinecraftProjectionService.blockCandidates(active, ignored -> false,
+                MinecraftProjectionService.blockPassTick(tick, refreshIntervalTicks)), 1, tick, options);
+        }
+
+        assertEquals(List.of(inView), scheduler.select(observer, moved, MinecraftProjectionService.blockCandidates(active, ignored -> false,
+            MinecraftProjectionService.blockPassTick(8L, refreshIntervalTicks)), 1, 8L, options));
+    }
+
     private static ProjectionGazeScheduler.Eye eye(long tick) {
         return new ProjectionGazeScheduler.Eye((tick & 1L) * 0.3D, 65.6D, 0.5D, 0.0F, 0.0F);
     }

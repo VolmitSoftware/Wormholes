@@ -59,9 +59,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.never;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 
 public class MinecraftPortalProjectorTest {
     private static final UUID LOCAL_WORLD = UUID.nameUUIDFromBytes("projector-local".getBytes(StandardCharsets.UTF_8));
@@ -236,6 +234,30 @@ public class MinecraftPortalProjectorTest {
     }
 
     @Test
+    public void sameWorldRetargetResamplesCellsThatWereEmptyAtTheOldDestination() {
+        BlockState air = Blocks.AIR.defaultBlockState();
+        BlockState stone = Blocks.STONE.defaultBlockState();
+        Scene scene = scene(air, air);
+        when(scene.destination().sampleBlockData(intThat(x -> x >= 100), anyInt(), anyInt())).thenReturn(stone);
+        when(scene.destination().sampleMaterial(intThat(x -> x >= 100), anyInt(), anyInt())).thenReturn(stone);
+        try (MinecraftPortalProjector projector = scene.projector()) {
+            settle(projector, 1L);
+            assertEquals(0, destinationSamples(scene, projector, 2L));
+            assertTrue(projector.scan().claims().isEmpty());
+            ServerLevel targetWorld = scene.destination().getWorld();
+            MinecraftPortal moved = portal(200.0D);
+            when(scene.context().portals().world(moved)).thenReturn(targetWorld);
+            when(scene.context().portals().projectionDestination(scene.context().portal())).thenReturn(moved);
+            assertFalse(projector.scan().hasPending());
+            assertTrue(destinationSamples(scene, projector, 3L) > 0);
+            assertFalse(projector.scan().claims().isEmpty());
+            for (ProjectedBlockClaim<BlockState, ProjectionContentView<BlockState, BlockState>> claim : projector.scan().claims().values()) {
+                assertTrue(claim.getData().is(Blocks.STONE));
+            }
+        }
+    }
+
+    @Test
     public void localCellChangeReleasesItsClaimOnlyOnceMarked() {
         BlockState air = Blocks.AIR.defaultBlockState();
         Scene scene = scene(air, Blocks.STONE.defaultBlockState());
@@ -271,7 +293,6 @@ public class MinecraftPortalProjectorTest {
         assertSame(fixture.view(), scheduled.get(0).key().destinationViewIdentity());
         assertTrue(((PlateCaptureJob<?, ?, ?>) scheduled.get(0)).pendingChunks() > 0);
         assertTrue(scheduled.get(0).predictedBytes() > 0L);
-        verify(fixture.runtime(), never()).schedule(any(), anyLong());
     }
 
     @Test

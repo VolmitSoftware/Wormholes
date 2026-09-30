@@ -318,21 +318,27 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         }
         boolean blockEntities = FidelitySettings.blockEntities
             && (!(portal.setting("fidelity.block_entities") instanceof Boolean enabled) || enabled);
+        long presentation = presentationRevision(destination, eye);
+        boolean presentationChanged = firstPassDone && presentation != pendingPresentationRevision;
+        if (presentationChanged) {
+            scan.invalidateContent();
+        }
         pendingDestination = destination;
         boolean cameraMoved = pendingEye == null || !pendingEye.equals(eye);
         pendingEye = eye;
         pendingGeometryRevision = portal.getGeometry().getRevision();
         pendingTargetGeometryRevision = targetRevision(destination);
-        pendingPresentationRevision = presentationRevision(destination, eye);
+        pendingPresentationRevision = presentation;
         lastPassTick = tick;
         schedule.noteSourceViewRevision(revision);
         firstPassDone = true;
-        if (!destinationStale && !localStale && fullSendPasses == 0 && scan.canResumeOcclusion(destination, eye, frustum)) {
+        if (!destinationStale && !localStale && !presentationChanged && fullSendPasses == 0
+            && scan.canResumeOcclusion(destination, eye, frustum)) {
             scan.resumeOcclusion();
             return;
         }
-        scan.begin(destination, null, eye, frustum, fit.fittedDepth(), destinationStale || localStale, fullSendPasses > 0, cameraMoved,
-            culling, mode, acquirePlate(destination, eye, culling, blockEntities), blockEntities, lod);
+        scan.begin(destination, null, eye, frustum, fit.fittedDepth(), destinationStale || localStale || presentationChanged,
+            fullSendPasses > 0, cameraMoved, culling, mode, acquirePlate(destination, eye, culling, blockEntities), blockEntities, lod);
     }
 
     private ViewPlate<BlockState> acquirePlate(Destination destination, GeometryVector eye, boolean culling, boolean blockEntities) {

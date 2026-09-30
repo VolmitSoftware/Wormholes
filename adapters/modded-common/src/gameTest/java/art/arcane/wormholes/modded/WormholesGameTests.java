@@ -57,6 +57,7 @@ public final class WormholesGameTests {
     public static final Identifier OCCLUSION_SKIN_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "occlusion_skin_runtime");
     public static final Identifier PROJECTION_DIRT_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_dirt_runtime");
     public static final Identifier PROJECTION_GAZE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_gaze_runtime");
+    public static final Identifier PROJECTION_RETARGET_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_retarget_runtime");
     public static final Identifier PROJECTION_SECTION_CACHE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_section_cache_runtime");
     public static final Identifier PROJECTION_PLATE_CAPTURE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_plate_capture_runtime");
     private static final Set<CompletableFuture<?>> REPORTED_FAILURES = new HashSet<>();
@@ -137,6 +138,12 @@ public final class WormholesGameTests {
         CompletableFuture<Boolean> result = MinecraftProjectionScheduleGameTest.gaze(helper, RUNTIME);
         helper.startSequence().thenWaitUntil(() -> helper.assertTrue(completed(helper, result, "projection gaze"),
             "Projection gaze scheduling did not complete")).thenSucceed();
+    }
+
+    public static void projectionRetargetRuntime(GameTestHelper helper) {
+        CompletableFuture<Boolean> result = MinecraftProjectionScheduleGameTest.retarget(helper, RUNTIME);
+        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(completed(helper, result, "projection retarget"),
+            "Projection retarget did not complete")).thenSucceed();
     }
 
     public static void projectionSectionCacheRuntime(GameTestHelper helper) {
