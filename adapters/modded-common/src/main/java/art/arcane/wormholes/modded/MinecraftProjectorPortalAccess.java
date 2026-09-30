@@ -106,13 +106,16 @@ public final class MinecraftProjectorPortalAccess implements ProjectorRecursiveP
     @Override
     public MinecraftPortal destination(MinecraftPortal portal) {
         if (portal.getType() == PortalType.RTP) {
+            return observer == null ? null : runtime.rtp().knownDestination(observer, portal);
+        }
+        return linkedDestination(portal);
+    }
+
+    public MinecraftPortal projectionDestination(MinecraftPortal portal) {
+        if (portal.getType() == PortalType.RTP) {
             return observer == null ? null : runtime.rtp().projectionDestination(observer, portal);
         }
-        if (doors != null && doors.current(portal)) {
-            return doors.destination(portal);
-        }
-        return portal.getTunnelType().equals("LOCAL") || portal.getTunnelType().equals("DIMENSIONAL")
-            ? runtime.portals().get(portal.getDestinationId()) : null;
+        return linkedDestination(portal);
     }
 
     public RemotePortal remoteDestination(MinecraftPortal portal) {
@@ -121,7 +124,15 @@ public final class MinecraftProjectorPortalAccess implements ProjectorRecursiveP
     }
 
     public boolean hasDestination(MinecraftPortal portal) {
-        return destination(portal) != null || remoteDestination(portal) != null;
+        return projectionDestination(portal) != null || remoteDestination(portal) != null;
+    }
+
+    private MinecraftPortal linkedDestination(MinecraftPortal portal) {
+        if (doors != null && doors.current(portal)) {
+            return doors.destination(portal);
+        }
+        return portal.getTunnelType().equals("LOCAL") || portal.getTunnelType().equals("DIMENSIONAL")
+            ? runtime.portals().get(portal.getDestinationId()) : null;
     }
 
     private static boolean isNonOccludingBlock(String id) {

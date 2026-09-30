@@ -405,7 +405,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
             return new Destination(views.apply(sourceWorld), remoteView, null, target,
                 origin.x(), origin.y(), origin.z(), false, 0);
         }
-        MinecraftPortal target = portal.isMirrorMode() ? portal : portals.destination(portal);
+        MinecraftPortal target = portal.isMirrorMode() ? portal : portals.projectionDestination(portal);
         if (target == null) {
             return null;
         }

@@ -150,6 +150,15 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
         return view.destination;
     }
 
+    public MinecraftPortal knownDestination(ServerPlayer viewer, MinecraftPortal portal) {
+        runtime.requireServerThread();
+        if (closed || portal.getType() != PortalType.RTP) {
+            return null;
+        }
+        View view = views.get(new ViewKey(portal.getId(), viewer.getUUID()));
+        return view == null ? null : view.destination;
+    }
+
     public boolean locked(UUID entity) {
         return traversals.containsKey(entity);
     }
