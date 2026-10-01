@@ -27,7 +27,10 @@ import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import art.arcane.wormholes.network.client.EncodedPlate;
 import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.wormholes.render.plate.PlateTestFixtures;
 import art.arcane.wormholes.render.plate.ViewPlate;
+import art.arcane.wormholes.render.plate.ViewPlateKey;
 
 final class ClientViewSessionStreamTest {
     private static final String[] DIRT = {"minecraft:stone", "minecraft:glass", "minecraft:gold_block", "minecraft:air",
@@ -120,6 +123,45 @@ final class ClientViewSessionStreamTest {
         assertEquals(begin.brickCount(), bricksIn(harness.client.received));
         assertEquals(0, harness.sent(ClientViewMessageType.BRICK_MISS));
         assertHolds(harness, a.plate);
+    }
+
+    @Test
+    void oversizedHashManifestsStreamEveryBrickWithoutGivingUpThePortal() throws ClientViewProtocolException {
+        int frameBytes = ClientViewProtocol.MIN_MAX_FRAME_BYTES;
+        SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8, frameBytes));
+        SessionWorld world = new SessionWorld(2L);
+        SessionPortal portal = harness.access.add(new SessionPortal("large-manifest", 0));
+        PlateBox box = new PlateBox(0, 0, 0, 1, 1024, 2048);
+        portal.plate = PlateTestFixtures.empty(new ViewPlateKey(portal.id, world, false, 0, 0L), box);
+        harness.handshake(SessionHarness.CLIENT_CAPS);
+
+        harness.session.tick(++harness.serverTick);
+        for (byte[] frame : harness.frames) {
+            assertTrue(frame.length <= frameBytes, "every frame respects the negotiated limit");
+        }
+        harness.pump();
+
+        assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
+        ClientViewMessage.PlateBegin begin = assertInstanceOf(ClientViewMessage.PlateBegin.class,
+            harness.last(ClientViewMessageType.PLATE_BEGIN));
+        assertFalse(begin.hasHashes());
+        assertEquals(box, begin.cells());
+        assertEquals(8192, begin.brickCount());
+        assertEquals(8192, bricksIn(harness.client.received));
+        assertEquals(1, harness.sent(ClientViewMessageType.PLATE_END));
+        assertTrue(ClientViewCapability.BRICK_CACHE.in(harness.session.caps()));
+        assertHolds(harness, portal.plate);
+        harness.tick();
+        assertTrue(harness.session.owns(portal.id));
+        assertEquals(0, harness.sent(ClientViewMessageType.PORTAL_DROP));
+
+        SessionPortal small = harness.access.add(new SessionPortal("small-manifest", 8));
+        small.plate = small.build(world);
+        harness.tick();
+        ClientViewMessage.PlateBegin cached = assertInstanceOf(ClientViewMessage.PlateBegin.class,
+            harness.last(ClientViewMessageType.PLATE_BEGIN));
+        assertTrue(cached.hasHashes());
+        assertHolds(harness, small.plate);
     }
 
     @Test

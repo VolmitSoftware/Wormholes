@@ -156,6 +156,7 @@ describe('ClientView golden vectors', () => {
     const cells = { minX: 595, minY: 22, minZ: -4700, sizeX: 25, sizeY: 16, sizeZ: 20 }
     assert.deepEqual(decodeVector(vector('plate_begin_hashes')), { type: 'PLATE_BEGIN', portalKey: 7, plateRevision: 3, sections, cells, backingState: 3, brickCount: 4, brickHashes: [1n, 2n, 3n, -1n] })
     assert.deepEqual(decodeVector(vector('plate_begin_plain')), { type: 'PLATE_BEGIN', portalKey: 7, plateRevision: 3, sections, cells, backingState: 3, brickCount: 4, brickHashes: null })
+    assert.equal(decodeS2C(vector('plate_begin_plain').bytes, vector('plate_begin_hashes').caps).message.brickHashes, null)
     assert.deepEqual(decodeVector(vector('plate_end')), { type: 'PLATE_END', portalKey: 7, plateRevision: 3 })
     assert.deepEqual(sectionOfBrick(sections, 3), { x: 38, y: 1, z: -293 })
     assert.throws(() => decodeS2C(vector('plate_begin_hashes').bytes, vector('plate_begin_plain').caps), ClientViewProtocolError)

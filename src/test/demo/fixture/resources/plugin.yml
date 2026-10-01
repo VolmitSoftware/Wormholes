@@ -1,0 +1,11 @@
+name: WormholesDemoFixture
+version: 1.0.0
+main: art.arcane.wormholes.demo.WormholesDemoFixture
+api-version: '26.3'
+depend: [Wormholes]
+commands:
+  whdemo:
+    permission: wormholesdemo.use
+permissions:
+  wormholesdemo.use:
+    default: op

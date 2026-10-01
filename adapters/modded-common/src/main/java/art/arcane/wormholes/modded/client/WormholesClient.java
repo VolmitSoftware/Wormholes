@@ -6,6 +6,7 @@ import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import net.minecraft.ChatFormatting;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.Camera;
 import net.minecraft.client.ClientBrandRetriever;
@@ -15,6 +16,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -30,11 +32,14 @@ import java.util.function.Consumer;
 
 public final class WormholesClient {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
+    private static final String CONNECTION_MESSAGE_KEY = "wormholes.clientview.connected";
+    private static final String CONNECTION_MESSAGE = "Wormholes Connection Established";
     private static volatile WormholesClient instance;
 
     private final WormholesClientConfig config;
     private final ClientViewStats stats;
     private final ClientReflectionEntity reflections;
+    private final ClientViewAnnouncer announcer;
     private final Consumer<byte[]> sender;
     private final int dataVersion;
     private final String brandTag;
@@ -51,6 +56,7 @@ public final class WormholesClient {
         this.sender = Objects.requireNonNull(sender, "sender");
         this.stats = new ClientViewStats();
         this.reflections = new ClientReflectionEntity();
+        this.announcer = new ClientViewAnnouncer();
         this.dataVersion = SharedConstants.getCurrentVersion().dataVersion().version();
         this.brandTag = ClientBrandRetriever.getClientModName();
         freshSession();
@@ -139,6 +145,10 @@ public final class WormholesClient {
         tick.tick(eye.x, eye.y, eye.z, velocity.x, velocity.y, velocity.z, System.currentTimeMillis());
         reflections.tick(level, player, minecraft.getConnection(), session, tick,
             config.selfReflection && session.active() && session.has(ClientViewCapability.CLIENT_MIRROR));
+        if (announcer.due(config.connectionMessage, session.active(), session.acceptMessage(), player != null)) {
+            player.sendSystemMessage(Component.translatableWithFallback(CONNECTION_MESSAGE_KEY, CONNECTION_MESSAGE)
+                .withStyle(ChatFormatting.LIGHT_PURPLE));
+        }
     }
 
     public String debugLine() {

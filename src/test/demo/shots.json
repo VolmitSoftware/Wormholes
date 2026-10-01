@@ -1,0 +1,11 @@
+{
+  "minecraft": "26.3",
+  "actorSkin": "Magic_Psycho",
+  "capture": {"width": 1920, "height": 1080, "fps": 30, "audio": false},
+  "variants": ["standard", "clientview"],
+  "shots": [
+    {"id": "wand-creation", "scene": "wand", "aperture": [3, 3], "timeoutSeconds": 90, "assertions": ["real wand corner clicks", "3x3 portal stored", "physical frame retained", "markers cleared"]},
+    {"id": "rune-creation", "scene": "rune", "aperture": [3, 3], "timeoutSeconds": 120, "assertions": ["nine real rune placements", "runes consumed", "3x3 wormhole stored", "physical frame retained"]},
+    {"id": "portal-linking", "scene": "link", "aperture": [3, 3], "timeoutSeconds": 120, "assertions": ["destination menu shown", "reciprocal link stored", "live destination projected", "outbound crossing", "return crossing"]}
+  ]
+}

@@ -854,8 +854,8 @@ export function readBody(reader, type, caps) {
       const brickCount = reader.u16()
       if (brickCount !== sections.sizeX * sections.sizeY * sections.sizeZ) throw new ClientViewProtocolError(`brick count ${brickCount} does not match the section box`)
       let brickHashes = null
-      if (hasCapability(caps, 'BRICK_CACHE')) {
-        reader.require(brickCount * 8)
+      if (hasCapability(caps, 'BRICK_CACHE') && (brickCount === 0 || reader.remaining() > 0)) {
+        if (reader.remaining() !== brickCount * 8) throw new ClientViewProtocolError('brick hash manifest does not match the brick count')
         brickHashes = reader.longs(brickCount)
       }
       return { type, portalKey, plateRevision, sections, cells, backingState, brickCount, brickHashes }

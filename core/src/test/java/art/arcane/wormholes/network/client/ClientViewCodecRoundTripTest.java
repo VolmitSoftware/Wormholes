@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -88,6 +89,9 @@ final class ClientViewCodecRoundTripTest {
         ClientViewMessage.PlateBegin plain = ClientViewFixtures.plateBegin(false);
         byte[] plainFrame = ClientViewCodec.encodeS2C(plain, 5, 0);
         assertEquals(plain, ClientViewCodec.decodeS2C(plainFrame, ClientViewCapability.NONE).message());
+        assertEquals(plain, ClientViewCodec.decodeS2C(plainFrame, ClientViewCapability.ALL).message());
+        byte[] truncatedManifest = Arrays.copyOf(frame, frame.length - 1);
+        assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(truncatedManifest, ClientViewCapability.ALL));
         assertFalse(plain.hasHashes());
         assertNotEquals(frame.length, plainFrame.length);
     }

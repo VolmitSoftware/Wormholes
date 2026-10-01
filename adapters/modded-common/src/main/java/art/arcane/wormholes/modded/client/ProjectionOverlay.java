@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -17,7 +18,7 @@ public final class ProjectionOverlay {
 
     private final Object level;
     private final Long2ObjectOpenHashMap<Entry> entries;
-    private final Long2ObjectOpenHashMap<LongArrayList> byChunk;
+    private final Long2ObjectOpenHashMap<Int2ObjectOpenHashMap<LongArrayList>> byChunk;
     private boolean writing;
     private int pendingCells;
     private long serverStatesIntercepted;
@@ -79,7 +80,9 @@ public final class ProjectionOverlay {
         if (entry == null) {
             entry = new Entry(key, portalKey);
             entries.put(key, entry);
-            chunkKeys(key, true).add(key);
+            LongArrayList keys = sectionKeys(key);
+            entry.sectionIndex = keys.size();
+            keys.add(key);
         } else if (entry.pending) {
             pendingCells--;
         }
@@ -106,11 +109,19 @@ public final class ProjectionOverlay {
         if (entry.pending) {
             pendingCells--;
         }
-        LongArrayList keys = chunkKeys(key, false);
-        if (keys != null) {
-            keys.rem(key);
-            if (keys.isEmpty()) {
-                byChunk.remove(chunkKey(key));
+        long chunk = chunkKey(key);
+        Int2ObjectOpenHashMap<LongArrayList> sections = byChunk.get(chunk);
+        int sectionY = ProjectionCellKey.unpackY(key) >> 4;
+        LongArrayList keys = sections.get(sectionY);
+        long last = keys.removeLong(keys.size() - 1);
+        if (last != key) {
+            keys.set(entry.sectionIndex, last);
+            entries.get(last).sectionIndex = entry.sectionIndex;
+        }
+        if (keys.isEmpty()) {
+            sections.remove(sectionY);
+            if (sections.isEmpty()) {
+                byChunk.remove(chunk);
             }
         }
         return entry;
@@ -153,15 +164,69 @@ public final class ProjectionOverlay {
     }
 
     public LongArrayList keysInChunk(int chunkX, int chunkZ) {
-        LongArrayList keys = byChunk.get(ChunkPos.pack(chunkX, chunkZ));
-        return keys == null ? new LongArrayList() : new LongArrayList(keys);
+        LongArrayList keys = new LongArrayList();
+        Int2ObjectOpenHashMap<LongArrayList> sections = byChunk.get(ChunkPos.pack(chunkX, chunkZ));
+        if (sections != null) {
+            for (LongArrayList section : sections.values()) {
+                keys.addAll(section);
+            }
+        }
+        return keys;
+    }
+
+    public void appendSectionKeys(int sectionX, int sectionY, int sectionZ, LongArrayList out) {
+        Int2ObjectOpenHashMap<LongArrayList> sections = byChunk.get(ChunkPos.pack(sectionX, sectionZ));
+        if (sections == null) {
+            return;
+        }
+        LongArrayList keys = sections.get(sectionY);
+        if (keys != null) {
+            out.addAll(keys);
+        }
     }
 
     public int reapply(int chunkX, int chunkZ, ChunkSections sections) {
-        LongArrayList keys = byChunk.get(ChunkPos.pack(chunkX, chunkZ));
-        if (keys == null || keys.isEmpty()) {
+        Int2ObjectOpenHashMap<LongArrayList> indexed = byChunk.get(ChunkPos.pack(chunkX, chunkZ));
+        if (indexed == null) {
             return 0;
         }
+        int written = 0;
+        for (LongArrayList keys : indexed.values()) {
+            written += reapply(keys, sections);
+        }
+        return written;
+    }
+
+    public int reapplyBlockEntities(int chunkX, int chunkZ, ChunkSections sections) {
+        Int2ObjectOpenHashMap<LongArrayList> indexed = byChunk.get(ChunkPos.pack(chunkX, chunkZ));
+        if (indexed == null) {
+            return 0;
+        }
+        int rebuilt = 0;
+        for (LongArrayList keys : indexed.values()) {
+            rebuilt += reapplyBlockEntities(keys, sections);
+        }
+        return rebuilt;
+    }
+
+    public LongArrayList keys() {
+        LongArrayList keys = new LongArrayList(entries.size());
+        ObjectIterator<Long2ObjectMap.Entry<Entry>> iterator = entries.long2ObjectEntrySet().fastIterator();
+        while (iterator.hasNext()) {
+            keys.add(iterator.next().getLongKey());
+        }
+        return keys;
+    }
+
+    public LongArrayList clear() {
+        LongArrayList keys = keys();
+        entries.clear();
+        byChunk.clear();
+        pendingCells = 0;
+        return keys;
+    }
+
+    private int reapply(LongArrayList keys, ChunkSections sections) {
         int written = 0;
         for (int index = 0; index < keys.size(); index++) {
             long key = keys.getLong(index);
@@ -189,11 +254,7 @@ public final class ProjectionOverlay {
         return written;
     }
 
-    public int reapplyBlockEntities(int chunkX, int chunkZ, ChunkSections sections) {
-        LongArrayList keys = byChunk.get(ChunkPos.pack(chunkX, chunkZ));
-        if (keys == null || keys.isEmpty()) {
-            return 0;
-        }
+    private int reapplyBlockEntities(LongArrayList keys, ChunkSections sections) {
         int rebuilt = 0;
         for (int index = 0; index < keys.size(); index++) {
             long key = keys.getLong(index);
@@ -207,29 +268,18 @@ public final class ProjectionOverlay {
         return rebuilt;
     }
 
-    public LongArrayList keys() {
-        LongArrayList keys = new LongArrayList(entries.size());
-        ObjectIterator<Long2ObjectMap.Entry<Entry>> iterator = entries.long2ObjectEntrySet().fastIterator();
-        while (iterator.hasNext()) {
-            keys.add(iterator.next().getLongKey());
-        }
-        return keys;
-    }
-
-    public LongArrayList clear() {
-        LongArrayList keys = keys();
-        entries.clear();
-        byChunk.clear();
-        pendingCells = 0;
-        return keys;
-    }
-
-    private LongArrayList chunkKeys(long key, boolean create) {
+    private LongArrayList sectionKeys(long key) {
         long chunk = chunkKey(key);
-        LongArrayList keys = byChunk.get(chunk);
-        if (keys == null && create) {
+        Int2ObjectOpenHashMap<LongArrayList> sections = byChunk.get(chunk);
+        if (sections == null) {
+            sections = new Int2ObjectOpenHashMap<>(4);
+            byChunk.put(chunk, sections);
+        }
+        int sectionY = ProjectionCellKey.unpackY(key) >> 4;
+        LongArrayList keys = sections.get(sectionY);
+        if (keys == null) {
             keys = new LongArrayList(64);
-            byChunk.put(chunk, keys);
+            sections.put(sectionY, keys);
         }
         return keys;
     }
@@ -241,6 +291,7 @@ public final class ProjectionOverlay {
     public static final class Entry {
         private final long key;
         private int portalKey;
+        private int sectionIndex;
         private BlockState projected;
         private BlockState shadow;
         private boolean pending;

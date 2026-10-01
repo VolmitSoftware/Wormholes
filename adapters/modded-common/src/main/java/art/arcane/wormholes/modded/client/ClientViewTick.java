@@ -44,6 +44,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
     private final LongOpenHashSet touchedSections;
     private final LongOpenHashSet tickSections;
     private final LongArrayList sectionCells;
+    private final LongArrayList overlaySectionCells;
     private final IntArrayList sectionPortals;
     private final LongOpenHashSet sectionSeen;
     private final List<ClientViewMessage.BrickMiss.Plate> misses;
@@ -79,6 +80,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         this.touchedSections = new LongOpenHashSet(256);
         this.tickSections = new LongOpenHashSet(64);
         this.sectionCells = new LongArrayList(256);
+        this.overlaySectionCells = new LongArrayList(256);
         this.sectionPortals = new IntArrayList(256);
         this.sectionSeen = new LongOpenHashSet(256);
         this.misses = new ArrayList<>(4);
@@ -611,12 +613,10 @@ public final class ClientViewTick implements ClientViewSession.Sink {
             sectionCells.clear();
             sectionPortals.clear();
             sectionSeen.clear();
-            LongArrayList chunkCells = overlay.keysInChunk(sectionX, sectionZ);
-            for (int index = 0; index < chunkCells.size(); index++) {
-                long cell = chunkCells.getLong(index);
-                if (ProjectionCellKey.unpackY(cell) >> 4 != sectionY) {
-                    continue;
-                }
+            overlaySectionCells.clear();
+            overlay.appendSectionKeys(sectionX, sectionY, sectionZ, overlaySectionCells);
+            for (int index = 0; index < overlaySectionCells.size(); index++) {
+                long cell = overlaySectionCells.getLong(index);
                 ProjectionOverlay.Entry entry = overlay.get(cell);
                 if (entry == null || entry.pending()) {
                     continue;

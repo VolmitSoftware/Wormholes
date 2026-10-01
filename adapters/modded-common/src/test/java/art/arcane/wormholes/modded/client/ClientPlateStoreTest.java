@@ -46,6 +46,8 @@ public class ClientPlateStoreTest {
         PlateSectionBox sections = new PlateSectionBox(0, 4, 0, 1, 1, 1);
         PlateBox cells = new PlateBox(0, 64, 0, 16, 16, 16);
         ClientViewMessage.PlateBegin begin = new ClientViewMessage.PlateBegin(7, 1, sections, cells, 3, 1, null);
+        begin = (ClientViewMessage.PlateBegin) ClientViewCodec.decodeS2C(
+            ClientViewCodec.encodeS2C(begin, 1, 0), ClientViewCapability.ALL).message();
         assertNull(store.begin(begin));
         assertTrue(store.pending(7));
         assertEquals(1, store.bricks(new ClientViewMessage.PlateBricks(7, 1, List.of(brick(0, 3, 5)))));

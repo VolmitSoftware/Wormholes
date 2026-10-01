@@ -11,9 +11,42 @@ import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 
+import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.render.plate.ViewPlate;
 
 final class PlatePatchEncoderTest {
+    @Test
+    void aUniformReplacementUsesFewerBytesThanSparseCellEdits() throws ClientViewProtocolException {
+        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        Arrays.fill(cells, 3);
+        Brick target = BrickCodec.pack(0, cells);
+        Arrays.fill(cells, 0, 32, 4);
+        Brick source = BrickCodec.pack(0, cells);
+        ClientViewMessage.PlatePatch patch = PlatePatchEncoder.diff(1, 1, 2, singleBrick(source), singleBrick(target));
+        ClientViewMessage.PlatePatch full = new ClientViewMessage.PlatePatch(1, 1, 2, List.of(new ClientViewMessage.FullOp(target)));
+
+        assertTrue(ClientViewCodec.encodeBody(patch).length <= ClientViewCodec.encodeBody(full).length);
+        assertInstanceOf(ClientViewMessage.FullOp.class, patch.ops().getFirst());
+        assertEquals(List.of(target), List.of(PlatePatchEncoder.apply(new Brick[] {source}, patch)));
+    }
+
+    @Test
+    void anIsolatedEditKeepsTheSmallerSparseRepresentation() throws ClientViewProtocolException {
+        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        for (int index = 0; index < cells.length; index++) {
+            cells[index] = 3 + index % 4;
+        }
+        Brick source = BrickCodec.pack(0, cells);
+        cells[200] = 7;
+        Brick target = BrickCodec.pack(0, cells);
+        ClientViewMessage.PlatePatch patch = PlatePatchEncoder.diff(1, 1, 2, singleBrick(source), singleBrick(target));
+        ClientViewMessage.PlatePatch full = new ClientViewMessage.PlatePatch(1, 1, 2, List.of(new ClientViewMessage.FullOp(target)));
+
+        assertTrue(ClientViewCodec.encodeBody(patch).length < ClientViewCodec.encodeBody(full).length);
+        assertInstanceOf(ClientViewMessage.SparseOp.class, patch.ops().getFirst());
+        assertEquals(List.of(target), List.of(PlatePatchEncoder.apply(new Brick[] {source}, patch)));
+    }
+
     @Test
     void patchAppliedToThePreviousBricksEqualsTheFullReEncodeForRandomDirt() throws ClientViewProtocolException {
         Random random = new Random(0xD127L);
@@ -139,5 +172,11 @@ final class PlatePatchEncoderTest {
         }
         assertTrue(full);
         assertEquals(next.bricks(), List.of(PlatePatchEncoder.apply(encoded.bricks().toArray(new Brick[0]), patch)));
+    }
+
+    private static EncodedPlate singleBrick(Brick brick) throws ClientViewProtocolException {
+        PlateBox cells = new PlateBox(0, 0, 0, 16, 16, 16);
+        return new EncodedPlate(PlateSectionBox.snap(cells), cells, 3, new Brick[] {brick},
+            new byte[][] {BrickCodec.body(brick)}, new int[] {3, 4, 5, 6, 7}, new int[0]);
     }
 }

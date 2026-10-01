@@ -40,6 +40,8 @@ public class WormholesClientConfig {
     public boolean clientRecursion = true;
     @ConfigDescription("Show your own reflection in mirrors drawn by this client.")
     public boolean selfReflection = true;
+    @ConfigDescription("Show a chat line on this client when a server confirms ClientView. Only this client sees it.")
+    public boolean connectionMessage = true;
 
     public static WormholesClientConfig load(Path configDirectory) {
         WormholesClientConfig loaded = TomlCodec.loadOrCreate(configDirectory.resolve(FILE_NAME).toFile(), WormholesClientConfig.class);

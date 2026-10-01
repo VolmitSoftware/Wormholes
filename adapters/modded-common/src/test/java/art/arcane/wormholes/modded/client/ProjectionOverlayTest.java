@@ -4,13 +4,13 @@ import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import org.junit.After;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -21,18 +21,17 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 public class ProjectionOverlayTest {
+    static {
+        SharedConstants.tryDetectVersion();
+        Bootstrap.bootStrap();
+    }
+
     private static final BlockState STONE = Blocks.STONE.defaultBlockState();
     private static final BlockState DIRT = Blocks.DIRT.defaultBlockState();
     private static final BlockState GRASS = Blocks.GRASS_BLOCK.defaultBlockState();
     private static final BlockState GOLD = Blocks.GOLD_BLOCK.defaultBlockState();
     private static final BlockState SIGN = Blocks.OAK_SIGN.defaultBlockState();
     private static final BlockState CHEST = Blocks.CHEST.defaultBlockState();
-
-    @BeforeClass
-    public static void bootstrap() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
-    }
 
     @After
     public void deactivate() {
@@ -153,11 +152,72 @@ public class ProjectionOverlayTest {
     }
 
     @Test
+    public void sectionKeysAppendOnlyTheRequestedSectionAcrossNegativeBoundaries() {
+        ProjectionOverlay overlay = new ProjectionOverlay(new Object());
+        long below = ProjectionCellKey.pack(-1, -1, -1);
+        long floor = ProjectionCellKey.pack(-16, 0, -16);
+        long ceiling = ProjectionCellKey.pack(-1, 15, -1);
+        long above = ProjectionCellKey.pack(-1, 16, -1);
+        long adjacent = ProjectionCellKey.pack(0, 0, -1);
+        for (long key : new long[] {below, floor, ceiling, above, adjacent}) {
+            overlay.enter(key, STONE, DIRT, 1, false);
+        }
+        LongArrayList keys = LongArrayList.of(below);
+        overlay.appendSectionKeys(-1, 0, -1, keys);
+        assertEquals(3, keys.size());
+        assertEquals(new LongOpenHashSet(LongArrayList.of(below, floor, ceiling)), new LongOpenHashSet(keys));
+        overlay.appendSectionKeys(-1, 9, -1, keys);
+        overlay.appendSectionKeys(9, 0, 9, keys);
+        assertEquals(3, keys.size());
+        keys.clear();
+        overlay.appendSectionKeys(-1, -1, -1, keys);
+        assertEquals(LongArrayList.of(below), keys);
+        assertEquals(4, overlay.keysInChunk(-1, -1).size());
+    }
+
+    @Test
+    public void mixedRemovalsAndReentryPreserveSectionMembershipAndPendingCount() {
+        ProjectionOverlay overlay = new ProjectionOverlay(new Object());
+        long first = ProjectionCellKey.pack(1, 0, 1);
+        long middle = ProjectionCellKey.pack(2, 0, 1);
+        long last = ProjectionCellKey.pack(3, 0, 1);
+        long upper = ProjectionCellKey.pack(1, 16, 1);
+        for (long key : new long[] {first, middle, last, upper}) {
+            overlay.enter(key, STONE, null, 1, true);
+        }
+        overlay.exit(middle);
+        overlay.exit(last);
+        overlay.enter(first, GOLD, DIRT, 2, false);
+        overlay.enter(middle, GRASS, null, 3, true);
+        LongArrayList keys = new LongArrayList();
+        overlay.appendSectionKeys(0, 0, 0, keys);
+        assertEquals(2, keys.size());
+        assertEquals(new LongOpenHashSet(LongArrayList.of(first, middle)), new LongOpenHashSet(keys));
+        assertEquals(2, overlay.pendingCells());
+        assertEquals(3, overlay.keysInChunk(0, 0).size());
+        overlay.exit(first);
+        overlay.exit(middle);
+        keys.clear();
+        overlay.appendSectionKeys(0, 0, 0, keys);
+        assertTrue(keys.isEmpty());
+        assertEquals(LongArrayList.of(upper), overlay.keysInChunk(0, 0));
+        overlay.exit(upper);
+        assertTrue(overlay.keysInChunk(0, 0).isEmpty());
+        assertEquals(0, overlay.pendingCells());
+        overlay.enter(last, STONE, null, 4, true);
+        overlay.clear();
+        overlay.appendSectionKeys(0, 0, 0, keys);
+        assertTrue(keys.isEmpty());
+        assertTrue(overlay.keysInChunk(0, 0).isEmpty());
+        assertEquals(0, overlay.pendingCells());
+    }
+
+    @Test
     public void projectedBlockEntitiesAreRebuiltAfterTheChunkPacketWithTheirSamples() {
         ProjectionOverlay overlay = new ProjectionOverlay(new Object());
         BlockEntitySample sample = new BlockEntitySample("minecraft:sign", new byte[] {10, 0, 0, 0});
         long sign = ProjectionCellKey.pack(1, 64, 1);
-        long chest = ProjectionCellKey.pack(2, 64, 1);
+        long chest = ProjectionCellKey.pack(2, 80, 1);
         long stone = ProjectionCellKey.pack(3, 64, 1);
         long elsewhere = ProjectionCellKey.pack(40, 64, 1);
         overlay.enter(sign, SIGN, DIRT, 1, false).blockEntity(sample);

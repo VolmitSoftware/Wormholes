@@ -36,15 +36,18 @@ public final class PlatePatchEncoder {
             BrickCodec.unpackInto(source, before);
             BrickCodec.unpackInto(target, after);
             int changed = 0;
+            int sparseBytes = 2;
+            int fullBytes = 2 + next.body(index).length;
             for (int cell = 0; cell < ClientViewProtocol.BRICK_CELLS; cell++) {
                 if (before[cell] != after[cell]) {
                     changed++;
-                    if (changed >= ClientViewProtocol.SPARSE_PATCH_MAX_CELLS) {
+                    sparseBytes += 2 + ClientViewWriter.varintSize(after[cell]);
+                    if (changed >= ClientViewProtocol.SPARSE_PATCH_MAX_CELLS || sparseBytes >= fullBytes) {
                         break;
                     }
                 }
             }
-            if (changed >= ClientViewProtocol.SPARSE_PATCH_MAX_CELLS) {
+            if (changed >= ClientViewProtocol.SPARSE_PATCH_MAX_CELLS || sparseBytes >= fullBytes) {
                 ops.add(new ClientViewMessage.FullOp(target));
                 continue;
             }

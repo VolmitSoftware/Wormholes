@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "instance-automator",
+  "version": "1.0.0",
+  "name": "Instance Automator",
+  "description": "Local demonstration controls and game-window recording.",
+  "environment": "client",
+  "mixins": ["instance-automator.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "26.3",
+    "java": ">=25"
+  }
+}

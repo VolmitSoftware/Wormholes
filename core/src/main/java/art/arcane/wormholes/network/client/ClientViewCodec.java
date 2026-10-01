@@ -362,8 +362,10 @@ public final class ClientViewCodec {
                     throw new ClientViewProtocolException("brick count " + brickCount + " does not match the section box");
                 }
                 long[] hashes = null;
-                if (ClientViewCapability.BRICK_CACHE.in(caps)) {
-                    in.require(brickCount * 8);
+                if (ClientViewCapability.BRICK_CACHE.in(caps) && (brickCount == 0 || in.remaining() > 0)) {
+                    if (in.remaining() != brickCount * Long.BYTES) {
+                        throw new ClientViewProtocolException("brick hash manifest does not match the brick count");
+                    }
                     hashes = in.longs(brickCount);
                 }
                 yield new ClientViewMessage.PlateBegin(portalKey, revision, sections, cells, backingState, brickCount, hashes);

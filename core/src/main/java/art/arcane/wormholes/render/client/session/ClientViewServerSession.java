@@ -962,7 +962,7 @@ public final class ClientViewServerSession<P, B> {
                     } else {
                         group.add(patch);
                     }
-                } else if (ClientViewCapability.BRICK_CACHE.in(laneCaps)) {
+                } else if (ClientViewCapability.BRICK_CACHE.in(laneCaps) && hashManifestFits(slot.key, encoded)) {
                     group.add(encoded.begin(slot.key, plateRevision, true, registry.hashSalt()));
                     close = false;
                 } else {
@@ -1002,6 +1002,12 @@ public final class ClientViewServerSession<P, B> {
                 slot.missDeadlineNanos = now + BRICK_MISS_TIMEOUT_NANOS;
             }
         }
+    }
+
+    private boolean hashManifestFits(int portalKey, EncodedPlate encoded) throws ClientViewProtocolException {
+        int headerBytes = ClientViewCodec.encodeBody(encoded.begin(portalKey, 0, false, 0L)).length;
+        long frameBytes = ClientViewProtocol.S2C_HEADER_BYTES + headerBytes + (long) Long.BYTES * encoded.brickCount();
+        return frameBytes <= splitter.maxFrameBytes();
     }
 
     private void answerMiss(ClientViewMessage.BrickMiss.Plate miss, long now) {
