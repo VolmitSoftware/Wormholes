@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "wormholes_clientgametest",
+  "version": "${version}",
+  "name": "Wormholes Client GameTest",
+  "description": "Through-portal projection and traversal.",
+  "authors": [
+    "Volmit Software"
+  ],
+  "license": "GPL-3.0",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": [
+      "art.arcane.wormholes.clientgametest.ClientViewClientGameTest",
+      "art.arcane.wormholes.clientgametest.ClientViewSceneClientGameTest",
+      "art.arcane.wormholes.clientgametest.ClientViewLightClientGameTest",
+      "art.arcane.wormholes.clientgametest.ClientViewMirrorClientGameTest"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "${minecraftVersion}",
+    "java": ">=25",
+    "wormholes": "${version}",
+    "fabric-client-gametest-api-v1": "*"
+  }
+}

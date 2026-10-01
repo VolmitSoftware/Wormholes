@@ -13,6 +13,7 @@ import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.rtp.MinecraftRtpRuntime;
 import art.arcane.wormholes.network.MinecraftPlayerHandoffs;
 import art.arcane.wormholes.network.MinecraftEntityTransfers;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.Bootstrap;
@@ -240,6 +241,7 @@ public class MinecraftPortalRegistryTest {
         MinecraftNetworkService network = mock(MinecraftNetworkService.class);
         when(runtime.network()).thenReturn(network);
         when(runtime.rtp()).thenReturn(mock(MinecraftRtpRuntime.class));
+        when(runtime.clientViews()).thenReturn(new MinecraftClientViewService(runtime));
         when(network.handoffs()).thenReturn(mock(MinecraftPlayerHandoffs.class));
         when(network.entityTransfers()).thenReturn(mock(MinecraftEntityTransfers.class));
         MinecraftRules rules = mock(MinecraftRules.class);

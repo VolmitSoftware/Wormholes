@@ -1,9 +1,15 @@
 package art.arcane.wormholes.neoforge;
 
 import art.arcane.wormholes.modded.MinecraftProxyPayload;
+import art.arcane.wormholes.modded.clientview.ClientViewPayload;
+import net.neoforged.neoforge.network.event.RegisterConfigurationTasksEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.minecraft.network.protocol.PacketFlow;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.ConfigurationTask;
+import net.minecraft.server.network.ServerConfigurationPacketListenerImpl;
 import net.neoforged.bus.api.IEventBus;
 import net.minecraft.world.InteractionResult;
 import net.neoforged.fml.common.Mod;
@@ -16,13 +22,18 @@ import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
+import java.util.Objects;
+import java.util.function.BiConsumer;
+
 @Mod("wormholes")
 public final class WormholesNeoForge {
+    private static volatile BiConsumer<ClientViewPayload, IPayloadContext> clientReceiver = (payload, context) -> { };
+
     private final WormholesModRuntime runtime = new WormholesModRuntime();
 
     public WormholesNeoForge(IEventBus bus) {
-        bus.addListener((RegisterPayloadHandlersEvent event) -> event.registrar("1").optional()
-            .playToClient(MinecraftProxyPayload.TYPE, MinecraftProxyPayload.CODEC, (payload, context) -> { }));
+        bus.addListener(this::registerPayloads);
+        bus.addListener(this::configurationTasks);
         NeoForge.EVENT_BUS.addListener(this::registerCommands);
         NeoForge.EVENT_BUS.addListener(this::start);
         NeoForge.EVENT_BUS.addListener(this::tick);
@@ -30,6 +41,7 @@ public final class WormholesNeoForge {
         NeoForge.EVENT_BUS.addListener(this::attackBlock);
         NeoForge.EVENT_BUS.addListener(this::useBlock);
         NeoForge.EVENT_BUS.addListener(this::playerDisconnected);
+        NeoForge.EVENT_BUS.addListener(this::playerJoined);
         NeoForge.EVENT_BUS.addListener(this::useItem);
         NeoForge.EVENT_BUS.addListener(this::beforeBreak);
     }
@@ -71,6 +83,40 @@ public final class WormholesNeoForge {
     private void playerDisconnected(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player && runtime.running()) {
             runtime.playerDisconnected(player);
+        }
+    }
+
+    private void registerPayloads(RegisterPayloadHandlersEvent event) {
+        event.registrar("1").optional()
+            .playToClient(MinecraftProxyPayload.TYPE, MinecraftProxyPayload.CODEC, (payload, context) -> { })
+            .commonBidirectional(ClientViewPayload.TYPE, ClientViewPayload.CODEC, this::clientViewPayload);
+    }
+
+    public static void clientReceiver(BiConsumer<ClientViewPayload, IPayloadContext> receiver) {
+        clientReceiver = Objects.requireNonNull(receiver, "receiver");
+    }
+
+    private void clientViewPayload(ClientViewPayload payload, IPayloadContext context) {
+        if (context.flow() == PacketFlow.CLIENTBOUND) {
+            clientReceiver.accept(payload, context);
+        } else {
+            runtime.clientViews().receive(context.connection(), payload.data());
+        }
+    }
+
+    private void configurationTasks(RegisterConfigurationTasksEvent event) {
+        if (!runtime.running() || !(event.getListener() instanceof ServerConfigurationPacketListenerImpl listener)) {
+            return;
+        }
+        ConfigurationTask task = runtime.clientViews().configurationTask(listener, () -> listener.hasChannel(ClientViewPayload.TYPE));
+        if (task != null) {
+            event.register(task);
+        }
+    }
+
+    private void playerJoined(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && runtime.running()) {
+            runtime.clientViews().joined(player, player.connection.hasChannel(ClientViewPayload.TYPE));
         }
     }
 

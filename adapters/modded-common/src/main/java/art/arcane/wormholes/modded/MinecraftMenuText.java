@@ -30,11 +30,15 @@ public final class MinecraftMenuText {
     }
 
     public static Component text(LocalizationSnapshot snapshot, TextKey message, Map<String, ?> arguments) {
-        return nativeComponent(WormholesMessageRenderer.json(snapshot.resolve(message, arguments(arguments))));
+        return text(snapshot, message, arguments(arguments));
     }
 
     public static Component text(ServerPlayer viewer, TextKey message, MessageArgs arguments) {
-        return nativeComponent(WormholesMessageRenderer.json(MinecraftLocalization.forPlayer(viewer).snapshot(viewer).resolve(message, arguments)));
+        return text(MinecraftLocalization.forPlayer(viewer).snapshot(viewer), message, arguments);
+    }
+
+    public static Component text(LocalizationSnapshot snapshot, TextKey message, MessageArgs arguments) {
+        return nativeComponent(WormholesMessageRenderer.json(snapshot.resolve(message, arguments)));
     }
 
     public static void notice(ServerPlayer viewer, Component message) {

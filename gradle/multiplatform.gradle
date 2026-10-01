@@ -15,6 +15,8 @@ String consumerLocation = providers.gradleProperty('location')
 String useLocalVolmLib = providers.gradleProperty('useLocalVolmLib').getOrElse('true')
 File localVolmLibCheckout = gradle.includedBuilds.find { IncludedBuild included -> included.name == 'VolmLib' }?.projectDir
 Map<String, File> moddedArtifacts = [:]
+List<String> renderHooks = ['net/minecraft/client/renderer/chunk/', 'SectionRenderDispatcher', 'SectionCompiler',
+                            'net/minecraft/client/renderer/LevelRenderer', 'RenderRegionCache']
 
 tasks.register('buildBukkit', Copy) {
     group = 'distribution'
@@ -100,6 +102,30 @@ loaders.each { String loader, String display ->
                         if (constants.contains('art/arcane/volmlib/') || constants.contains('net/kyori/')) {
                             throw new GradleException("${artifact.name} references an unrelocated shared library in ${entry.name}")
                         }
+                        for (String renderHook : renderHooks) {
+                            if (constants.contains(renderHook)) {
+                                throw new GradleException("${artifact.name} references the render pipeline (${renderHook}) in ${entry.name}")
+                            }
+                        }
+                    }
+                }
+                java.util.jar.JarEntry mixinConfig = archive.getJarEntry('wormholes.mixins.json')
+                if (mixinConfig == null) {
+                    throw new GradleException("${artifact.name} is missing wormholes.mixins.json")
+                }
+                Map<String, Object> mixins = (Map<String, Object>) new groovy.json.JsonSlurper().parse(archive.getInputStream(mixinConfig))
+                String mixinPackage = ((String) mixins['package']).replace('.', '/')
+                for (String clientMixin : (List<String>) (mixins['client'] ?: [])) {
+                    String mixinPath = "${mixinPackage}/${clientMixin.replace('.', '/')}.class"
+                    java.util.jar.JarEntry mixinEntry = archive.getJarEntry(mixinPath)
+                    if (mixinEntry == null) {
+                        throw new GradleException("${artifact.name} is missing client mixin ${mixinPath}")
+                    }
+                    String mixinConstants = archive.getInputStream(mixinEntry).withCloseable { InputStream stream ->
+                        new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1)
+                    }
+                    if (mixinConstants.contains('Lnet/minecraft/client/renderer/')) {
+                        throw new GradleException("${artifact.name} client mixin ${clientMixin} targets net.minecraft.client.renderer")
                     }
                 }
             }

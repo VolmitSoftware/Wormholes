@@ -9,6 +9,7 @@ import java.util.Collection;
 import net.minecraft.world.phys.AABB;
 
 import art.arcane.wormholes.ProjectionObserverGeometry;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.render.ProjectedBlockClaim;
@@ -63,6 +64,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Predicate;
 
 public final class MinecraftProjectionService implements AutoCloseable {
@@ -83,7 +86,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
     private final SectionCache<BlockState, BlockState> sections = new SectionCache<>(MinecraftProjectorBlocks.INSTANCE, SectionCache.Limits.from(true, 64, 16, 200));
     private final SectionEviction eviction = new SectionEviction();
     private SectionCache.Limits limits = SectionCache.Limits.from(true, 64, 16, 200);
-    private PlateWorkers<BlockState, ServerLevel> plateWorkers;
+    private volatile PlateWorkers<BlockState, ServerLevel> plateWorkers;
     private long generation;
     private long frozenUntil;
     private long tick;
@@ -124,6 +127,21 @@ public final class MinecraftProjectionService implements AutoCloseable {
             }
         }
         runtime.network().forwardSound(level, sound);
+    }
+
+    public void noteClientViewAcoustics(ServerPlayer player, UUID portalId, ServerLevel destination, double destinationX, double destinationY,
+                                        double destinationZ, GeometryVector aperture, AcousticsProfile profile) {
+        Observer observer = observers.get(player.getUUID());
+        if (observer == null || destination == null) {
+            return;
+        }
+        observer.acoustics.noteDestination(portalId, view(destination).worldId(), destinationX, destinationY, destinationZ, aperture.x(), aperture.y(),
+            aperture.z(), profile, MinecraftAcoustics.environment(destination), destination.isRaining(), System.currentTimeMillis());
+    }
+
+    public AcousticsBridge.Playback ambientBed(ServerPlayer player, UUID portalId) {
+        Observer observer = observers.get(player.getUUID());
+        return observer == null ? null : observer.acoustics.ambientBed(portalId);
     }
 
     public void remoteSound(String peer, WireMessage.ViewSound sound) {
@@ -212,7 +230,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
             sections.configure(configured);
         }
         sections.tick((int) tick);
-        plateCaptures.tick(FidelitySettings.plateCaptureChunksPerTick);
+        plateCaptures.tick(FidelitySettings.plateCaptureChunksPerTick, FidelitySettings.plateUrgentCaptureChunksPerTick);
         plateWorkers.resize(FidelitySettings.plateWorkers);
         List<ServerPlayer> players = runtime.server().getPlayerList().getPlayers();
         Set<UUID> online = new HashSet<>(players.size());
@@ -233,12 +251,17 @@ public final class MinecraftProjectionService implements AutoCloseable {
         }
         List<MinecraftPortal> candidates = portals.portals();
         doorViews = runtime.configuration().settings().getDoors().projectionEnabled ? runtime.doors().projectableViews() : List.of();
+        MinecraftClientViewService clientViews = runtime.clientViews();
+        clientViews.tick(tick, players, candidates);
         long deadline = config.maxFrameMicros <= 0 ? Long.MAX_VALUE : System.nanoTime() + config.maxFrameMicros * 1_000L;
         int projectorBudget = Math.max(1, config.maxProjectorsPerTick);
         int discoveryBudget = Math.max(1, config.maxNewObserverScansPerTick);
         int start = Math.floorMod(observerCursor++, players.size());
         for (int offset = 0; offset < players.size(); offset++) {
             ServerPlayer player = players.get((start + offset) % players.size());
+            if (clientViews.holdsVanilla(player.getUUID())) {
+                continue;
+            }
             Observer observer = observers.get(player.getUUID());
             if (observer == null) {
                 if (discoveryBudget-- <= 0) {
@@ -301,6 +324,16 @@ public final class MinecraftProjectionService implements AutoCloseable {
         return plates;
     }
 
+    public Executor lanes() {
+        return task -> {
+            PlateWorkers<BlockState, ServerLevel> workers = plateWorkers;
+            if (workers == null) {
+                throw new RejectedExecutionException("Wormholes plate workers are not running");
+            }
+            workers.execute(task);
+        };
+    }
+
     public int plateCaptureQueueSize() {
         return plateCaptures.size();
     }
@@ -334,7 +367,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         return entityVisibility;
     }
 
-    MinecraftLocalEntityView scene(ServerLevel world, IPortal portal, double range) {
+    public MinecraftLocalEntityView scene(ServerLevel world, IPortal portal, double range) {
         SceneKey key = new SceneKey(world, portal.getId());
         Scene scene = entityScenes.computeIfAbsent(key, ignored -> new Scene(new MinecraftLocalEntityView(world, portal.getId())));
         scene.touched = tick;
@@ -365,6 +398,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
 
     public void playerDisconnected(ServerPlayer player) {
         runtime.requireServerThread();
+        runtime.clientViews().disconnected(player);
         Observer observer = observers.remove(player.getUUID());
         if (observer != null) {
             observer.close();
@@ -468,7 +502,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         return SectionCache.Limits.from(config.sectionCache, config.sectionCacheMaxMb, config.sectionCacheChunksPerTick, config.sectionCacheTtlTicks);
     }
 
-    private boolean interested(ServerPlayer player, MinecraftPortal portal, MinecraftProjectorPortalAccess portals) {
+    public boolean attendable(ServerPlayer player, MinecraftPortal portal, MinecraftProjectorPortalAccess portals) {
         if (!portals.eligible(portal) || portals.world(portal) != player.level()) {
             return false;
         }
@@ -476,7 +510,11 @@ public final class MinecraftProjectionService implements AutoCloseable {
         if (!portals.view(portal).containsPrimitive(position.x, position.y, position.z)) {
             return false;
         }
-        if (!portal.isMirrorMode() && !portals.hasDestination(portal)) {
+        return portal.isMirrorMode() || portals.hasDestination(portal);
+    }
+
+    public boolean interested(ServerPlayer player, MinecraftPortal portal, MinecraftProjectorPortalAccess portals) {
+        if (!attendable(player, portal, portals)) {
             return false;
         }
         if (!config().foveatedUnrendering) {
@@ -520,7 +558,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         private Observer(ServerPlayer player) {
             this.player = player;
             this.world = player.level();
-            this.acoustics = new AcousticsBridge<>(new AcousticsBridge.Options<>(MinecraftAcoustics::play,
+            this.acoustics = new AcousticsBridge<>(new AcousticsBridge.Options<>(new MinecraftAcoustics.Sink(runtime.clientViews()),
                 ignored -> List.of(player), ServerPlayer::getUUID));
             this.portals.setDoorViews(doorwayViews);
             this.portals.observer(player);
@@ -533,7 +571,11 @@ public final class MinecraftProjectionService implements AutoCloseable {
             available.addAll(doorwayViews.update(player, doorViews));
             ArrayList<MinecraftPortal> active = new ArrayList<>();
             Set<UUID> activeIds = new HashSet<>();
+            MinecraftClientViewService clientViews = runtime.clientViews();
             for (MinecraftPortal portal : available) {
+                if (clientViews.owns(player.getUUID(), portal.getId())) {
+                    continue;
+                }
                 boolean interested = interested(player, portal, portals);
                 if (interested) {
                     grace.put(portal.getId(), tick + Math.max(0, config().interestGraceTicks));

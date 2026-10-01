@@ -35,7 +35,7 @@ public final class MinecraftTraversalCues {
             Identifier key = Identifier.tryParse(TraversalCues.particleKey(profile(source).thresholdEffect()));
             ParticleType<?> selected = key == null ? null : BuiltInRegistries.PARTICLE_TYPE.getOptional(key).orElse(null);
             SimpleParticleType particle = selected instanceof SimpleParticleType simple ? simple : ParticleTypes.REVERSE_PORTAL;
-            level.sendParticles(particle, point.x(), point.y(), point.z(), TraversalCues.THRESHOLD_PARTICLES,
+            runtime.clientViews().burst(level, particle, point.x(), point.y(), point.z(), TraversalCues.THRESHOLD_PARTICLES,
                 TraversalCues.THRESHOLD_SPREAD, TraversalCues.THRESHOLD_SPREAD, TraversalCues.THRESHOLD_SPREAD,
                 TraversalCues.THRESHOLD_SPEED);
         }
@@ -70,7 +70,7 @@ public final class MinecraftTraversalCues {
         }
         ServerLevel level = (ServerLevel) traveler.level();
         if (runtime.configuration().settings().getMain().enableParticles) {
-            level.sendParticles(ParticleTypes.SMOKE, traveler.getX(), traveler.getY(), traveler.getZ(), 24,
+            runtime.clientViews().burst(level, ParticleTypes.SMOKE, traveler.getX(), traveler.getY(), traveler.getZ(), 24,
                 0.2D, 0.2D, 0.2D, 0.08D);
         }
         float volume = volume(runtime, portal);

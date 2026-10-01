@@ -1,21 +1,19 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.config.VisualQualityProfile;
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.wormholes.modded.mixin.DoorDisplayDataAccess;
 import art.arcane.wormholes.network.MinecraftGatewayPolicies;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
 import art.arcane.wormholes.portal.rtp.RtpService;
+import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import com.mojang.math.Transformation;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.BlockParticleOption;
-import net.minecraft.core.particles.ColorParticleOption;
-import net.minecraft.core.particles.DustColorTransitionOptions;
-import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
@@ -29,7 +27,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.EntityTypes;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.phys.Vec3;
@@ -143,12 +140,17 @@ public final class MinecraftPortalEffects implements AutoCloseable {
         GeometryVector center = portal.getGeometry().getApertureCenter();
         GeometryVector size = new GeometryVector(Math.abs(bounds.getXb() - bounds.getXa()), Math.abs(bounds.getYb() - bounds.getYa()), Math.abs(bounds.getZb() - bounds.getZa()));
         Active active = new Active(mode == PortalAnimation.Mode.FORMATION || !states.containsKey(portal.getId()));
-        PortalAnimation.Options options = new PortalAnimation.Options(mode, center, size,
-            runtime.configuration().settings().getVisualQualityProfile(), runtime.configuration().settings().getMain().enableParticles,
+        VisualQualityProfile quality = runtime.configuration().settings().getVisualQualityProfile();
+        boolean particles = runtime.configuration().settings().getMain().enableParticles;
+        PortalAnimation.Options options = new PortalAnimation.Options(mode, center, size, quality, particles,
             runtime.configuration().settings().getMain().portalSoundVolumeMultiplier, runtime::running,
             () -> portal.getType() != PortalType.RTP || runtime.rtp().settings(portal).isSoundEnabled(), blocks);
-        active.animation = new PortalAnimation<>(options, new Host(level, center));
+        MinecraftClientViewService clientViews = runtime.clientViews();
+        active.animation = new PortalAnimation<>(options, new Host(level, center, clientViews));
         animations.put(portal.getId(), active);
+        if (particles && mode != PortalAnimation.Mode.SOUNDS) {
+            clientViews.oneShotNear(level, center.x(), center.y(), center.z(), ClientViewEmitters.animation(mode, center, size, quality));
+        }
     }
 
     private static final class Active {
@@ -165,29 +167,24 @@ public final class MinecraftPortalEffects implements AutoCloseable {
     private static final class Host implements PortalAnimation.Host<DisplayHandle> {
         private final ServerLevel level;
         private final GeometryVector anchor;
+        private final MinecraftClientViewService clientViews;
 
-        private Host(ServerLevel level, GeometryVector anchor) {
+        private Host(ServerLevel level, GeometryVector anchor, MinecraftClientViewService clientViews) {
             this.level = level;
             this.anchor = anchor;
+            this.clientViews = clientViews;
         }
 
         @Override
         public void particle(PortalAnimation.ParticleEmission emission) {
-            ParticleOptions particle = switch (emission.type()) {
-                case PORTAL -> ParticleTypes.PORTAL;
-                case REVERSE_PORTAL -> ParticleTypes.REVERSE_PORTAL;
-                case STREAM_DUST, ARM_DUST -> new DustColorTransitionOptions(0xb969ff, 0x140523, emission.type() == PortalAnimation.Particle.STREAM_DUST ? .8f : .9f);
-                case END_ROD -> ParticleTypes.END_ROD;
-                case ENCHANT -> ParticleTypes.ENCHANT;
-                case GLASS_SHARD -> new BlockParticleOption(ParticleTypes.BLOCK, Blocks.GLASS.defaultBlockState());
-                case SCULK_SOUL -> ParticleTypes.SCULK_SOUL;
-                case PALE_FLASH -> ColorParticleOption.create(ParticleTypes.FLASH, 0xffdcebff);
-                case PURPLE_FLASH -> ColorParticleOption.create(ParticleTypes.FLASH, 0xffbe82ff);
-                case BRANCHLET_DUST -> new DustParticleOptions(0xd2e6ff, .55f);
-                case CRACK_DUST -> new DustParticleOptions(0xebf5ff, .75f);
-            };
-            level.sendParticles(particle, emission.position().x(), emission.position().y(), emission.position().z(), emission.count(),
-                emission.spread().x(), emission.spread().y(), emission.spread().z(), emission.speed());
+            ParticleOptions particle = MinecraftAnimationParticles.options(emission.type());
+            GeometryVector position = emission.position();
+            GeometryVector spread = emission.spread();
+            if (!clientViews.particles(level, particle, position.x(), position.y(), position.z(), emission.count(), spread.x(), spread.y(), spread.z(),
+                emission.speed(), null)) {
+                level.sendParticles(particle, position.x(), position.y(), position.z(), emission.count(), spread.x(), spread.y(), spread.z(),
+                    emission.speed());
+            }
         }
 
         @Override

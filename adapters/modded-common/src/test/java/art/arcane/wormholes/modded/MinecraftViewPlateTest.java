@@ -115,7 +115,7 @@ public class MinecraftViewPlateTest {
             PlateCaptureJob<BlockState, ServerLevel, MinecraftPlateCaptureSource.CapturedChunk> job = new PlateCaptureJob<>(new PlateCaptureJob.Plan<>(
                 key, level, ViewPlateBuilder.footprint(request), new MinecraftPlateCaptureSource(runtime, worldId, false),
                 captured -> ViewPlateBuilder.job(request.withDestView(new MinecraftCapturedChunkView(worldId, -64, 320, 7L, captured)))));
-            assertNull(service.plates().current(key, 7L, 3L, new ProjectionWorldChangeTracker(), previous -> job));
+            assertNull(service.plates().current(key, 7L, 3L, new ProjectionWorldChangeTracker(), false, previous -> job));
             assertEquals(1, service.plateCaptureQueueSize());
             assertTrue(service.plates().isBuilding(job));
             int ticks = 0;

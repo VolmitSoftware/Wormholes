@@ -12,7 +12,6 @@ import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.IPortal;
-import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.render.view.ProjectionContentView;
@@ -24,8 +23,6 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
-import art.arcane.wormholes.render.atmosphere.FogPlatePolicy;
-import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
 import art.arcane.wormholes.render.Frustum4D;
 import art.arcane.wormholes.render.ProjectedBlockClaim;
 import art.arcane.wormholes.render.ProjectionBlackout;
@@ -41,22 +38,15 @@ import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.render.ProjectorSampler;
 import art.arcane.wormholes.render.ProjectorScanDestination;
 import art.arcane.wormholes.render.lod.LodPolicy;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
 import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
 import art.arcane.wormholes.render.plate.ViewPlateCache;
-import art.arcane.wormholes.render.plate.ViewPlateKey;
 import art.arcane.wormholes.render.lod.LodProfile;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -213,7 +203,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
     }
 
     public AtmosphereMode atmosphereMode() {
-        return AtmosphereMode.parse(stringSetting("fidelity.atmosphere"), FidelitySettings.atmosphereModeDefault);
+        return MinecraftViewPlates.atmosphereMode(portal);
     }
 
     public ProjectionContentView<BlockState, BlockState> destinationView() {
@@ -304,20 +294,8 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         memo.expandLocalRegionRect(frustum.getRegion());
         memo.markLocalScanned();
         blackout.enabled = portal.isBlackoutBackground();
-        blackout.data = BuiltInRegistries.BLOCK.getOptional(Identifier.parse(portal.getBlackoutColor().blockState()))
-            .orElse(Blocks.CONCRETE.pick(DyeColor.BLACK)).defaultBlockState();
-        if (FogPlatePolicy.applies(FidelitySettings.fogPlate, atmosphereMode())
-            && destination.destView() instanceof MinecraftProjectionWorldView local) {
-            FogPlatePolicy.Dimension dimension = local.getWorld().dimensionTypeRegistration().is(BuiltinDimensionTypes.OVERWORLD) ? FogPlatePolicy.Dimension.OVERWORLD
-                : local.getWorld().dimensionTypeRegistration().is(BuiltinDimensionTypes.NETHER) ? FogPlatePolicy.Dimension.NETHER
-                : local.getWorld().dimensionTypeRegistration().is(BuiltinDimensionTypes.END) ? FogPlatePolicy.Dimension.END : FogPlatePolicy.Dimension.CUSTOM;
-            String shell = FogPlatePolicy.shellState(dimension);
-            if (shell != null) {
-                blackout.data = BuiltInRegistries.BLOCK.getValue(Identifier.parse(shell)).defaultBlockState();
-            }
-        }
-        boolean blockEntities = FidelitySettings.blockEntities
-            && (!(portal.setting("fidelity.block_entities") instanceof Boolean enabled) || enabled);
+        blackout.data = MinecraftViewPlates.blackoutState(portal, destination.destView());
+        boolean blockEntities = MinecraftViewPlates.blockEntities(portal);
         long presentation = presentationRevision(destination, eye);
         boolean presentationChanged = firstPassDone && presentation != pendingPresentationRevision;
         if (presentationChanged) {
@@ -342,15 +320,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
     }
 
     private ViewPlate<BlockState> acquirePlate(Destination destination, GeometryVector eye, boolean culling, boolean blockEntities) {
-        if (plates == null || !FidelitySettings.sharedPlate) {
-            return null;
-        }
-        boolean rtp = portal.getType() == PortalType.RTP;
-        if (rtp && !FidelitySettings.rtpPlates) {
-            return null;
-        }
-        long targetIdentity = rtp ? runtime.rtp().plateIdentity(observer, portal) : 0L;
-        if (rtp && targetIdentity == 0L) {
+        if (plates == null) {
             return null;
         }
         PortalFrame localFrame = portal.getFrame();
@@ -359,48 +329,17 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         Direction normal = localFrame.getNormal();
         boolean front = (eye.x() - origin.x()) * normal.x() + (eye.y() - origin.y()) * normal.y()
             + (eye.z() - origin.z()) * normal.z() >= 0.0D;
-        LodPolicy lod = FidelitySettings.lodPolicy(LodProfile.parse(stringSetting("fidelity.lod"), LodProfile.BALANCED));
-        int depth = portal.getNetworkViewDepth();
-        int lateral = Math.min(portal.getNetworkViewLateralPad(), FidelitySettings.plateLateralClampBlocks);
-        double padding = config().aperturePaddingBlocks;
-        long transform = ProjectorPassRevision.transform(localFrame, remoteFrame, origin.x(), origin.y(), origin.z(),
-            destination.originX(), destination.originY(), destination.originZ(), depth, lateral, padding, culling, lod, blockEntities);
-        transform = ProjectorPassRevision.mix(transform, targetIdentity);
-        transform = ProjectorPassRevision.mix(transform, portal.getGeometry().getRevision());
-        long transformRevision = ProjectorPassRevision.mix(transform, Objects.hashCode(portal.getNetworkViewFallbackBlock()));
-        long destinationRevision = destination.destView() instanceof MinecraftProjectionWorldView ? 0L : destination.destView().getRevision();
-        ViewPlateKey key = new ViewPlateKey(portal.getId(), destination.destView(), front, destination.mirrorRotationQuarterTurns(), targetIdentity);
-        ProjectionWorldChangeTracker tracker = runtime.projections().changes();
-        return plates.current(key, destinationRevision, transformRevision, tracker, previous -> {
-            ProjectionContentView<BlockState, BlockState> plateView = destination.destView();
-            if (!(plateView instanceof MinecraftProjectionWorldView)) {
-                plateView = new RemoteProjectionView<>(remoteSource, new RemoteProjectionView.Options<>(parseFallback(remoteFallbackState), state -> state));
-            }
-            ViewPlateBuilder.Request<BlockState, BlockState, ProjectionContentView<BlockState, BlockState>> request = new ViewPlateBuilder.Request<>(
-                key, portal.getGeometry(), plateView, localFrame, remoteFrame, origin.x(), origin.y(), origin.z(),
-                destination.originX(), destination.originY(), destination.originZ(), destination.mirrorMode(), destination.mirrorRotationQuarterTurns(),
-                depth, lateral, padding, culling, sampler.air(), lod, blockEntities, destinationRevision, transformRevision,
-                tracker.currentVersion(), MinecraftProjectorBlocks.INSTANCE);
-            LongOpenHashSet dirtyChunks = new LongOpenHashSet();
-            boolean patch = previous != null && previous.collectDirt(tracker, dirtyChunks) && !dirtyChunks.isEmpty();
-            return plateJob(request, blockEntities, patch ? previous : null, dirtyChunks);
-        });
+        return MinecraftViewPlates.acquire(runtime, plates, new MinecraftViewPlates.Target(observer, portal, destination.destView(),
+            () -> plateView(destination), remoteFrame, destination.originX(), destination.originY(), destination.originZ(),
+            destination.mirrorMode(), destination.mirrorRotationQuarterTurns(), front, culling, blockEntities, sampler.air()));
     }
 
-    private ViewPlateBuilder.Job<BlockState, ServerLevel> plateJob(ViewPlateBuilder.Request<BlockState, BlockState, ProjectionContentView<BlockState, BlockState>> request,
-                                                                   boolean blockEntities, ViewPlate<BlockState> previous, LongOpenHashSet dirtyChunks) {
-        if (!(request.destView() instanceof MinecraftProjectionWorldView local)) {
-            return previous == null ? ViewPlateBuilder.job(request) : ViewPlateBuilder.patch(request, previous, dirtyChunks);
+    private ProjectionContentView<BlockState, BlockState> plateView(Destination destination) {
+        ProjectionContentView<BlockState, BlockState> plateView = destination.destView();
+        if (plateView instanceof MinecraftProjectionWorldView) {
+            return plateView;
         }
-        ViewPlateBuilder.Footprint footprint = previous == null
-            ? ViewPlateBuilder.footprint(request)
-            : ViewPlateBuilder.patchFootprint(request, dirtyChunks);
-        return new PlateCaptureJob<>(new PlateCaptureJob.Plan<>(request.key(), local.getWorld(), footprint,
-            new MinecraftPlateCaptureSource(runtime, local.worldId(), blockEntities), captured -> {
-                ViewPlateBuilder.Request<BlockState, BlockState, ProjectionContentView<BlockState, BlockState>> captureRequest = request.withDestView(
-                    new MinecraftCapturedChunkView(local.worldId(), local.getMinHeight(), local.getMaxHeight(), request.destinationRevision(), captured));
-                return previous == null ? ViewPlateBuilder.job(captureRequest) : ViewPlateBuilder.patch(captureRequest, previous, dirtyChunks);
-            }));
+        return new RemoteProjectionView<>(remoteSource, new RemoteProjectionView.Options<>(parseFallback(remoteFallbackState), state -> state));
     }
 
     private boolean samePendingDestination(Destination destination, GeometryVector eye) {
@@ -426,8 +365,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
         if (fit.fittedCoarse()) {
             lod = lod.withMergeRuns();
         }
-        boolean blockEntities = FidelitySettings.blockEntities
-            && (!(portal.setting("fidelity.block_entities") instanceof Boolean enabled) || enabled);
+        boolean blockEntities = MinecraftViewPlates.blockEntities(portal);
         long revision = ProjectorPassRevision.transform(frame, remoteFrame, origin.x(), origin.y(), origin.z(),
             destination.originX(), destination.originY(), destination.originZ(), portal.getNetworkViewDepth(),
             portal.getNetworkViewLateralPad(), config().aperturePaddingBlocks, portal.getRenderMode().usesBuriedCellCulling(), lod, blockEntities);
@@ -497,8 +435,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
     }
 
     private String stringSetting(String name) {
-        Object value = portal.setting(name);
-        return value instanceof String text ? text : "";
+        return MinecraftViewPlates.stringSetting(portal, name);
     }
 
     private ProjectionConfig config() {

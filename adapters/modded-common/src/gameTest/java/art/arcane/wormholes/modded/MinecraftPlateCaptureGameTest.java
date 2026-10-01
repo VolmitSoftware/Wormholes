@@ -52,7 +52,7 @@ final class MinecraftPlateCaptureGameTest {
                 capturedView.set(built);
                 return ViewPlateBuilder.job(request.withDestView(built));
             }));
-        ViewPlate<BlockState> immediate = projections.plates().current(key, 0L, 1L, projections.changes(), previous -> job);
+        ViewPlate<BlockState> immediate = projections.plates().current(key, 0L, 1L, projections.changes(), false, previous -> job);
         helper.assertTrue(immediate == null, "Plate cache returned a plate before its capture ran");
         helper.assertTrue(projections.plateCaptureQueueSize() >= 1, "Plate capture job was not queued for the server thread");
         helper.startSequence().thenWaitUntil(() -> helper.assertTrue(projections.plateCaptureQueueSize() == 0

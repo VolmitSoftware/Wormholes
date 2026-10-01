@@ -1,6 +1,8 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewCommands;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.wormholes.portal.rtp.MinecraftRtpRuntime;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendService;
@@ -39,6 +41,7 @@ public final class WormholesModRuntime {
     private final MinecraftDoorService doors = new MinecraftDoorService(this);
     private final MinecraftNetworkService network = new MinecraftNetworkService(this);
     private final MinecraftProjectionService projections = new MinecraftProjectionService(this);
+    private final MinecraftClientViewService clientViews = new MinecraftClientViewService(this);
     private final MinecraftChatInput chatInput = new MinecraftChatInput(this);
     private final MinecraftPortalMenus menus = new MinecraftPortalMenus(this);
     private final MinecraftPortalLookLabels lookLabels = new MinecraftPortalLookLabels(this);
@@ -94,6 +97,7 @@ public final class WormholesModRuntime {
             network.start();
             networkTools.start();
             projections.start();
+            clientViews.start();
             recipeBook.open(server);
             running = true;
             api.start();
@@ -184,6 +188,7 @@ public final class WormholesModRuntime {
         access.registerCommands(dispatcher);
         new MinecraftRulesCommands(this).register(dispatcher);
         new MinecraftNexusCommands(this).register(dispatcher);
+        new MinecraftClientViewCommands(this).register(dispatcher);
         dispatcher.register(Commands.literal("wh").redirect(dispatcher.getRoot().getChild("wormholes")));
         dispatcher.register(Commands.literal("wormhole").redirect(dispatcher.getRoot().getChild("wormholes")));
     }
@@ -318,6 +323,10 @@ public final class WormholesModRuntime {
         return projections;
     }
 
+    public MinecraftClientViewService clientViews() {
+        return clientViews;
+    }
+
     public MinecraftChatInput chatInput() {
         requireServerThread();
         return chatInput;
@@ -390,6 +399,7 @@ public final class WormholesModRuntime {
             menus::close,
             lookLabels::close,
             chatInput::close,
+            clientViews::close,
             projections::close,
             networkTools::close,
             rtp::close,

@@ -101,7 +101,8 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
                 continue;
             }
             attended.add(portal.getId());
-            if (tick % 5L == 0 && runtime.configuration().settings().getMain().enableParticles) {
+            if (tick % 5L == 0 && runtime.configuration().settings().getMain().enableParticles
+                && !runtime.clientViews().receiver(player)) {
                 particles(portal, tick / 5L);
             }
             String skin = portal.getSurfaceSkin();

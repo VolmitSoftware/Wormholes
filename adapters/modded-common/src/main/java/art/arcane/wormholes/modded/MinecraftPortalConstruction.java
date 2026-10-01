@@ -236,7 +236,7 @@ public final class MinecraftPortalConstruction implements AutoCloseable {
 
     private void particles(ServerLevel level, BlockPos position, int count) {
         if (runtime.configuration().settings().getMain().enableParticles) {
-            level.sendParticles(ParticleTypes.PORTAL, position.getX() + 0.5, position.getY() + 0.5, position.getZ() + 0.5,
+            runtime.clientViews().burst(level, ParticleTypes.PORTAL, position.getX() + 0.5, position.getY() + 0.5, position.getZ() + 0.5,
                 count, 0.35, 0.35, 0.35, 0.05);
         }
     }

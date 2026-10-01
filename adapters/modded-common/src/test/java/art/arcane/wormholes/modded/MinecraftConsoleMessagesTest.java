@@ -15,6 +15,7 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -55,7 +56,7 @@ public class MinecraftConsoleMessagesTest {
         new MinecraftAccessService(runtime).registerCommands(dispatcher);
         new MinecraftOperations(runtime).registerCommands(dispatcher);
         when(localization.text(any(), any(), any())).thenAnswer(invocation -> MinecraftMenuText.text(localization.snapshot(null),
-            invocation.getArgument(1), invocation.getArgument(2)));
+            invocation.getArgument(1), invocation.<Map<String, ?>>getArgument(2)));
         doAnswer(invocation -> {
             source.sendSystemMessage(invocation.<Supplier<Component>>getArgument(0).get());
             return null;

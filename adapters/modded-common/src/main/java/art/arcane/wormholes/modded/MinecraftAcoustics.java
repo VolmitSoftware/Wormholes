@@ -1,7 +1,9 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.wormholes.render.acoustics.AcousticsBridge;
 import art.arcane.wormholes.render.acoustics.AcousticsProfile;
+import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import net.minecraft.core.Holder;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
@@ -23,13 +25,16 @@ public final class MinecraftAcoustics {
     }
 
     public static ClientboundSoundPacket packet(AcousticsBridge.Playback sound, long seed) {
-        SoundSource category = switch (sound.soundClass()) {
+        return new ClientboundSoundPacket(Holder.direct(SoundEvent.createVariableRangeEvent(Identifier.parse(sound.soundKey()))),
+            source(sound.soundClass()), sound.x(), sound.y(), sound.z(), sound.volume(), sound.pitch(), seed);
+    }
+
+    public static SoundSource source(AcousticsProfile.SoundClass soundClass) {
+        return switch (soundClass) {
             case AMBIENT -> SoundSource.AMBIENT;
             case WORLD -> SoundSource.BLOCKS;
             case ENTITY -> SoundSource.NEUTRAL;
         };
-        return new ClientboundSoundPacket(Holder.direct(SoundEvent.createVariableRangeEvent(Identifier.parse(sound.soundKey()))),
-            category, sound.x(), sound.y(), sound.z(), sound.volume(), sound.pitch(), seed);
     }
 
     public static AcousticsBridge.Playback capture(ServerLevel level, Packet<?> packet) {
@@ -64,5 +69,27 @@ public final class MinecraftAcoustics {
             case AMBIENT, WEATHER -> AcousticsProfile.SoundClass.AMBIENT;
             default -> null;
         };
+    }
+
+    public static final class Sink implements AcousticsBridge.SoundSink<ServerPlayer> {
+        private final MinecraftClientViewService clientViews;
+
+        public Sink(MinecraftClientViewService clientViews) {
+            this.clientViews = clientViews;
+        }
+
+        @Override
+        public void play(ServerPlayer observer, AcousticsBridge.Playback sound) {
+            if (clientViews.receiver(observer)) {
+                clientViews.oneShot(observer, ClientViewEmitters.sound(sound, 0));
+                return;
+            }
+            MinecraftAcoustics.play(observer, sound);
+        }
+
+        @Override
+        public boolean clientAmbient(ServerPlayer observer) {
+            return clientViews.receiver(observer);
+        }
     }
 }

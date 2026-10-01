@@ -39,11 +39,14 @@ public final class MinecraftClientProfiles {
         }
     }
 
-    private static String brand(ServerPlayer player) {
-        if (!(player.connection instanceof ServerConnectionAccess listener)) { return null; }
-        Connection connection = listener.wormholesConnection();
+    public static String brand(Connection connection) {
         Channel channel = connection instanceof ConnectionChannelAccess access ? access.wormholesChannel() : null;
         return channel == null ? null : channel.attr(BRAND).get();
+    }
+
+    private static String brand(ServerPlayer player) {
+        if (!(player.connection instanceof ServerConnectionAccess listener)) { return null; }
+        return brand(listener.wormholesConnection());
     }
 
     private static Predicate<ServerPlayer> floodgate() {

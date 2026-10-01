@@ -12,6 +12,9 @@
   "entrypoints": {
     "main": [
       "art.arcane.wormholes.fabric.WormholesFabric"
+    ],
+    "client": [
+      "art.arcane.wormholes.fabric.WormholesFabricClient"
     ]
   },
   "jars": [

@@ -40,6 +40,18 @@
     "VanillaPortalTransitMixin",
     "ClientBrandMixin"
   ],
+  "client": [
+    "client.ClientLevelMixin",
+    "client.ClientReconfigurationMixin",
+    "client.ChunkSkyLightSourcesMixin",
+    "client.LevelChunkMixin",
+    "client.LevelLightEngineMixin",
+    "client.LightEngineMixin",
+    "client.DebugScreenEntriesAccessor",
+    "client.ReflectionDataAccessor",
+    "client.AvatarDataAccessor",
+    "client.WalkAnimationAccessor"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

@@ -335,22 +335,38 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
             geometry, ready.target().worldKey(), source.write()));
     }
 
-    private void rim(ServerPlayer viewer, MinecraftPortal portal) {
-        if (!runtime.configuration().settings().getMain().enableParticles) {
-            return;
+    public RtpRimRenderer.Sample rimSample(ServerPlayer viewer, MinecraftPortal portal) {
+        runtime.requireServerThread();
+        if (closed || portal.getType() != PortalType.RTP || !runtime.configuration().settings().getMain().enableParticles) {
+            return null;
         }
-        long now = System.currentTimeMillis();
+        RimState state = rimState(portal);
+        return state == null ? null : service.rimSample(portal.getId(), viewer.getUUID(), state.phase(), state.elapsed()).orElse(null);
+    }
+
+    private RimState rimState(MinecraftPortal portal) {
         RtpService.Snapshot snapshot = service.snapshot(portal.getId()).orElse(null);
         if (snapshot == null) {
-            return;
+            return null;
         }
         RtpRuntimeSnapshot state = snapshot.runtime();
         RtpRimRenderer.Phase phase = state.ready() ? RtpRimRenderer.Phase.READY
             : state.sharedClaims() + state.playerClaims() + state.anonymousClaims() > 0 ? RtpRimRenderer.Phase.CLOSING : RtpRimRenderer.Phase.PREPARING;
         long duration = state.rotationMode() == RtpRotationMode.TIMED ? snapshot.settings().getCycleDurationMillis() : 0L;
         long elapsed = duration == 0L || state.nextRotationAtMillis() <= 0L ? 0L
-            : Math.max(0L, duration - Math.max(0L, state.nextRotationAtMillis() - now));
-        RtpRimRenderer.Sample sample = service.rimDispatch(portal.getId(), viewer.getUUID(), phase, elapsed,
+            : Math.max(0L, duration - Math.max(0L, state.nextRotationAtMillis() - System.currentTimeMillis()));
+        return new RimState(phase, elapsed);
+    }
+
+    private void rim(ServerPlayer viewer, MinecraftPortal portal) {
+        if (!runtime.configuration().settings().getMain().enableParticles || runtime.clientViews().receiver(viewer)) {
+            return;
+        }
+        RimState state = rimState(portal);
+        if (state == null) {
+            return;
+        }
+        RtpRimRenderer.Sample sample = service.rimDispatch(portal.getId(), viewer.getUUID(), state.phase(), state.elapsed(),
             server.getTickCount(), FidelitySettings.rtpRimIntervalTicks).orElse(null);
         if (sample == null) {
             return;
@@ -573,6 +589,9 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
     }
 
     private record Registration(MinecraftPortal portal, Object stored, RtpSettings settings) {
+    }
+
+    private record RimState(RtpRimRenderer.Phase phase, long elapsed) {
     }
 
     private record ViewKey(UUID portal, UUID viewer) {

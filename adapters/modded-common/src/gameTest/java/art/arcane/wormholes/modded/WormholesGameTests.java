@@ -1,5 +1,6 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewGameTest;
 import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.network.NativeHandoffProbe;
 import art.arcane.wormholes.network.NativeGatewayPolicyProbe;
@@ -60,6 +61,8 @@ public final class WormholesGameTests {
     public static final Identifier PROJECTION_RETARGET_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_retarget_runtime");
     public static final Identifier PROJECTION_SECTION_CACHE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_section_cache_runtime");
     public static final Identifier PROJECTION_PLATE_CAPTURE_RUNTIME = Identifier.fromNamespaceAndPath("wormholes", "projection_plate_capture_runtime");
+    public static final Identifier CLIENTVIEW_NEGOTIATION = Identifier.fromNamespaceAndPath("wormholes", "clientview_negotiation");
+    public static final Identifier CLIENTVIEW_STREAM = Identifier.fromNamespaceAndPath("wormholes", "clientview_stream");
     private static final Set<CompletableFuture<?>> REPORTED_FAILURES = new HashSet<>();
     private static final Logger LOGGER = LoggerFactory.getLogger("WormholesGameTest");
 
@@ -152,6 +155,18 @@ public final class WormholesGameTests {
 
     public static void projectionPlateCaptureRuntime(GameTestHelper helper) {
         MinecraftPlateCaptureGameTest.run(helper);
+    }
+
+    public static void clientViewNegotiation(GameTestHelper helper) {
+        CompletableFuture<Boolean> result = MinecraftClientViewGameTest.negotiation(helper, RUNTIME);
+        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(completed(helper, result, "clientview negotiation"),
+            "ClientView negotiation did not complete")).thenSucceed();
+    }
+
+    public static void clientViewStream(GameTestHelper helper) {
+        CompletableFuture<Boolean> result = MinecraftClientViewGameTest.stream(helper, RUNTIME);
+        helper.startSequence().thenWaitUntil(() -> helper.assertTrue(completed(helper, result, "clientview stream"),
+            "ClientView stream did not complete")).thenSucceed();
     }
 
     public static void costsRuntime(GameTestHelper helper) {
