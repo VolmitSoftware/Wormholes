@@ -1518,3 +1518,23 @@ portals = "Liet ke, xem va sua cong hang loat"
 "portals.rename_server.new" = "Ten may chu se luu thay the"
 "portals.rename_server.confirm" = "Bat buoc de viet lai cac lien ket"
 # ---- end lane:ops ----
+
+# ---- lane:clientview (clientview.*) ----
+[clientview.command]
+header = "&6ClientView &7đang chạy {state}, cấu hình {mode}, {count} phiên"
+row = "&e{name} &7{state} &8| &7{value}"
+none = "&7Không người chơi nào có phiên ClientView."
+enabled = "&aClientView được cung cấp lại. Cấu hình: {mode}."
+disabled = "&cClientView đã tắt. Mọi phiên đã trở về phép chiếu vanilla."
+reset = "&aĐang khởi động lại luồng ClientView của {name}."
+no_session = "&c{name} không có phiên ClientView đang hoạt động."
+player_missing = "&cKhông có người chơi trực tuyến nào tên {name}."
+
+[clientview.command.help]
+clientview = "Phiên ClientView cho người chơi dùng mod Wormholes"
+status = "Liệt kê mọi phiên ClientView"
+on = "Cung cấp lại ClientView cho client có mod"
+off = "Đưa mọi người chơi ClientView về phép chiếu vanilla"
+reset = "Khởi động lại luồng ClientView của một người chơi"
+"reset.player" = "Tên người chơi trực tuyến"
+# ---- end lane:clientview ----

@@ -1518,3 +1518,23 @@ portals = "Portallari listele, incele ve toplu duzenle"
 "portals.rename_server.new" = "Onun yerine kaydedilecek sunucu adi"
 "portals.rename_server.confirm" = "Baglari yeniden yazmak icin gerekli"
 # ---- end lane:ops ----
+
+# ---- lane:clientview (clientview.*) ----
+[clientview.command]
+header = "&6ClientView &7çalışma {state}, yapılandırma {mode}, {count} oturum"
+row = "&e{name} &7{state} &8| &7{value}"
+none = "&7Hiçbir oyuncunun ClientView oturumu yok."
+enabled = "&aClientView yeniden sunuluyor. Yapılandırma: {mode}."
+disabled = "&cClientView kapalı. Tüm oturumlar vanilla projeksiyona döndü."
+reset = "&a{name} için ClientView akışı yeniden başlatılıyor."
+no_session = "&c{name} için etkin bir ClientView oturumu yok."
+player_missing = "&c{name} adında çevrimiçi bir oyuncu yok."
+
+[clientview.command.help]
+clientview = "Wormholes modunu kullanan oyuncuların ClientView oturumları"
+status = "Tüm ClientView oturumlarını listele"
+on = "ClientView'i modlu istemcilere yeniden sun"
+off = "Tüm ClientView oyuncularını vanilla projeksiyona döndür"
+reset = "Bir oyuncunun ClientView akışını yeniden başlat"
+"reset.player" = "Çevrimiçi oyuncu adı"
+# ---- end lane:clientview ----

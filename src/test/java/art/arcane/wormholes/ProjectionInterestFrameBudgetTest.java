@@ -32,6 +32,7 @@ import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
 import art.arcane.wormholes.render.PortalProjector;
 import art.arcane.wormholes.render.PortalSkinRenderer;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
+import art.arcane.wormholes.render.clientview.ClientViewRouting;
 import art.arcane.wormholes.util.AxisAlignedBB;
 
 final class ProjectionInterestFrameBudgetTest {
@@ -46,7 +47,7 @@ final class ProjectionInterestFrameBudgetTest {
     private final UUID observerId = UUID.randomUUID();
     private final ILocalPortal portal = mock(ILocalPortal.class);
     private final ProjectionInterestFrame interestFrame = new ProjectionInterestFrame(interestSet, ledger,
-        claimArbiter, localEntityOcclusion, skinRenderer, mock(RtpRimRenderer.class), () -> null, () -> true);
+        claimArbiter, localEntityOcclusion, skinRenderer, mock(RtpRimRenderer.class), () -> null, () -> true, ClientViewRouting.none());
     private PortalCandidateSnapshot active;
 
     @BeforeEach

@@ -1518,3 +1518,23 @@ portals = "ポータルの一覧、確認、一括編集"
 "portals.rename_server.new" = "代わりに保存するサーバー名"
 "portals.rename_server.confirm" = "リンクを書き換えるために必要"
 # ---- end lane:ops ----
+
+# ---- lane:clientview (clientview.*) ----
+[clientview.command]
+header = "&6ClientView &7実行時 {state}、設定 {mode}、セッション {count} 件"
+row = "&e{name} &7{state} &8| &7{value}"
+none = "&7ClientView セッションを持つプレイヤーはいません。"
+enabled = "&aClientView を再び提供します。設定: {mode}。"
+disabled = "&cClientView はオフです。すべてのセッションがバニラ投影に戻りました。"
+reset = "&a{name} の ClientView ストリームを再開します。"
+no_session = "&c{name} には有効な ClientView セッションがありません。"
+player_missing = "&c{name} という名前のオンラインプレイヤーはいません。"
+
+[clientview.command.help]
+clientview = "Wormholes MOD を使うプレイヤーの ClientView セッション"
+status = "すべての ClientView セッションを一覧表示"
+on = "MOD 導入クライアントに ClientView を再び提供"
+off = "すべての ClientView プレイヤーをバニラ投影に戻す"
+reset = "プレイヤー 1 人の ClientView ストリームを再開"
+"reset.player" = "オンラインプレイヤー名"
+# ---- end lane:clientview ----

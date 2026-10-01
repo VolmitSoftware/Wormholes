@@ -28,7 +28,6 @@ import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.service.WormholesTelemetry;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
-import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.portal.PortalFrame;
@@ -45,13 +44,8 @@ import art.arcane.wormholes.render.blockentity.BlockEntityPacketSink;
 import art.arcane.wormholes.render.blockentity.ProjectedBlockEntityLayer;
 import art.arcane.wormholes.render.lod.DissolveSchedule;
 import art.arcane.wormholes.render.lod.LodPolicy;
-import art.arcane.wormholes.render.plate.PlateCaptureJob;
 import art.arcane.wormholes.render.plate.ViewPlate;
-import art.arcane.wormholes.render.plate.ViewPlateBuilder;
 import art.arcane.wormholes.render.plate.ViewPlateCache;
-import art.arcane.wormholes.render.plate.ViewPlateKey;
-import art.arcane.wormholes.render.view.CapturedChunkView;
-import art.arcane.wormholes.render.view.PlateCaptureSource;
 import art.arcane.wormholes.render.view.ProjectionEntityView;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
@@ -189,13 +183,13 @@ public final class PortalProjector {
         if (target == null) {
             if (previous != null) {
                 invalidateRtpDestinationState();
-                retirePreviousTargetPlates(previous, null);
+                ProjectorPlates.retireTarget(plateCache, portal, previous, null);
             }
             return;
         }
         if (target.requiresDestinationInvalidation(previous)) {
             invalidateRtpDestinationState();
-            retirePreviousTargetPlates(previous, target);
+            ProjectorPlates.retireTarget(plateCache, portal, previous, target);
         }
     }
 
@@ -849,77 +843,12 @@ public final class PortalProjector {
      */
     private ViewPlate<BlockData> acquirePlate(Location eye, boolean buriedCellCulling, long destinationRevision,
                                               RtpProjectionTarget rtpTarget) {
-        ViewPlateCache<BlockData, World> cache = plateCache;
-        if (cache == null || !FidelitySettings.sharedPlate || portal.getId() == null
-            || (rtpTarget != null && !FidelitySettings.rtpPlates)) {
+        if (!ProjectorPlates.enabled(plateCache, portal, rtpTarget)) {
             return null;
         }
-        PortalFrame localFrame = portal.getFrame();
-        double localOriginX = portal.getOrigin().getX();
-        double localOriginY = portal.getOrigin().getY();
-        double localOriginZ = portal.getOrigin().getZ();
-        Direction facing = localFrame.getNormal();
-        boolean eyeFrontSide = ((eye.getX() - localOriginX) * facing.x()
-            + (eye.getY() - localOriginY) * facing.y()
-            + (eye.getZ() - localOriginZ) * facing.z()) >= 0.0D;
-        boolean mirrorMode = destination.mirrorMode;
-        int quarterTurns = destination.mirrorRotationQuarterTurns;
-        PortalFrame remoteFrame = rtpTarget != null ? rtpTarget.frame()
-            : mirrorMode ? localFrame.flipNormal() : destination.destAnchor.getFrame();
-        double remoteOriginX = mirrorMode ? localOriginX : destination.originX;
-        double remoteOriginY = mirrorMode ? localOriginY : destination.originY;
-        double remoteOriginZ = mirrorMode ? localOriginZ : destination.originZ;
-        int depth = portal.getNetworkViewDepth();
-        int lateral = Math.min(portal.getNetworkViewLateralPad(), FidelitySettings.plateLateralClampBlocks);
-        double aperturePadding = Settings.PROJECTION_APERTURE_PADDING_BLOCKS;
-        FidelityPortalExtension fidelity = fidelityExtension();
-        LodPolicy lod = portalLod(fidelity);
-        boolean blockEntities = FidelitySettings.blockEntities && (fidelity == null || fidelity.effectiveBlockEntities());
-        long targetIdentity = rtpTarget == null ? 0L : rtpTarget.plateIdentity();
-        long transformRevision = ProjectorPassRevision.mix(ProjectorPassRevision.transform(localFrame, remoteFrame,
-            localOriginX, localOriginY, localOriginZ, remoteOriginX, remoteOriginY, remoteOriginZ, depth, lateral,
-            aperturePadding, buriedCellCulling, lod, blockEntities), targetIdentity);
-        ViewPlateKey key = new ViewPlateKey(portal.getId(), destination.destView, eyeFrontSide, quarterTurns, targetIdentity);
-        ProjectionWorldChangeTracker tracker = Wormholes.projectionChangeTracker;
-        return cache.current(key, destinationRevision, transformRevision, tracker, previous -> {
-            ProjectionWorldView plateView = destination.plateView();
-            long trackerVersion = tracker == null ? Long.MIN_VALUE : tracker.currentVersion();
-            ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request = new ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView>(key, portal.getStructure(), plateView, localFrame, remoteFrame,
-                localOriginX, localOriginY, localOriginZ, remoteOriginX, remoteOriginY, remoteOriginZ,
-                mirrorMode, quarterTurns, depth, lateral, aperturePadding, buriedCellCulling, sampler.air(), lod,
-                blockEntities, destinationRevision, transformRevision, trackerVersion, BukkitProjectorBlocks.defaults());
-            LongOpenHashSet dirtyChunks = new LongOpenHashSet();
-            boolean patch = previous != null && tracker != null && previous.collectDirt(tracker, dirtyChunks) && !dirtyChunks.isEmpty();
-            return plateJob(request, plateView.getWorld(), blockEntities, patch ? previous : null, dirtyChunks);
-        });
-    }
-
-    private ViewPlateBuilder.Job<BlockData, World> plateJob(ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request,
-                                                            World destWorld, boolean blockEntities, ViewPlate<BlockData> previous,
-                                                            LongOpenHashSet dirtyChunks) {
-        if (destWorld == null || viewProvider.usesRegionSnapshots()) {
-            return previous == null ? ViewPlateBuilder.job(request) : ViewPlateBuilder.patch(request, previous, dirtyChunks);
-        }
-        ViewPlateBuilder.Footprint footprint = previous == null
-            ? ViewPlateBuilder.footprint(request)
-            : ViewPlateBuilder.patchFootprint(request, dirtyChunks);
-        return new PlateCaptureJob<BlockData, World, PlateCaptureSource.CapturedChunk>(new PlateCaptureJob.Plan<BlockData, World, PlateCaptureSource.CapturedChunk>(
-            request.key(), destWorld, footprint, new PlateCaptureSource(blockEntities),
-            captured -> {
-                ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> captureRequest = request.withDestView(new CapturedChunkView(destWorld, captured));
-                return previous == null ? ViewPlateBuilder.job(captureRequest) : ViewPlateBuilder.patch(captureRequest, previous, dirtyChunks);
-            }));
-    }
-
-    private void retirePreviousTargetPlates(RtpProjectionTarget previous, RtpProjectionTarget target) {
-        ViewPlateCache<BlockData, World> cache = plateCache;
-        if (cache == null || previous == null || portal.getId() == null) {
-            return;
-        }
-        long previousIdentity = previous.plateIdentity();
-        if (target == null || previousIdentity != target.plateIdentity()) {
-            cache.invalidateTarget(portal.getId(), previousIdentity);
-        }
+        ProjectorPlates.Target target = ProjectorPlates.target(portal, destination, ProjectorPlates.frontSide(portal, eye),
+            buriedCellCulling, rtpTarget, fidelityExtension());
+        return ProjectorPlates.acquire(plateCache, viewProvider, portal, destination, sampler.air(), target, destinationRevision, false);
     }
 
     private static ProjectorResampleSchedule.Cadence resampleCadence() {
@@ -930,7 +859,7 @@ public final class PortalProjector {
 
     /** The portal's own level of detail, before any per-observer coarsening. */
     private static LodPolicy portalLod(FidelityPortalExtension fidelity) {
-        return FidelitySettings.lodPolicy(fidelity == null ? null : fidelity.effectiveLodProfile());
+        return ProjectorPlates.portalLod(fidelity);
     }
 
     private long presentationRevision(Location eye, RtpProjectionTarget rtpTarget, boolean buriedCellCulling,
@@ -956,10 +885,7 @@ public final class PortalProjector {
     }
 
     FidelityPortalExtension fidelityExtension() {
-        if (portal instanceof LocalPortal local) {
-            return local.extension(FidelityPortalExtension.class);
-        }
-        return null;
+        return ProjectorPlates.fidelity(portal);
     }
 
     private int sampleMemoBudget(long fittedCandidateWork) {

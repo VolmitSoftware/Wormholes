@@ -177,8 +177,12 @@ final class EntityRenderMetadataBridge {
         return METADATA.upsideDownEntity(metadata, ProjectedPlayerNames.isFlipName(entity.getCustomName()));
     }
 
-    private List<EntityData<?>> withUpsideDownMetadataRemote(boolean isPlayer, List<EntityData<?>> metadata) {
+    private static List<EntityData<?>> withUpsideDownMetadataRemote(boolean isPlayer, List<EntityData<?>> metadata) {
         return isPlayer ? withUpsideDownPlayerMetadata(metadata) : METADATA.upsideDownEntity(metadata, false);
+    }
+
+    static List<EntityData<?>> upsideDown(boolean player, List<EntityData<?>> metadata) {
+        return withUpsideDownMetadataRemote(player, metadata);
     }
 
     static List<EntityData<?>> withUpsideDownPlayerMetadata(List<EntityData<?>> metadata) {

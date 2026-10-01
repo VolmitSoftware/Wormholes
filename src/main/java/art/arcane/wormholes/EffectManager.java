@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -63,6 +62,7 @@ import art.arcane.wormholes.portal.UniversalTunnel;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.config.VisualQualityProfile;
 import art.arcane.wormholes.render.PortalToolPreviewRenderer;
+import art.arcane.wormholes.render.clientview.ClientViewEffects;
 import art.arcane.wormholes.service.WormholesHud;
 import art.arcane.volmlib.util.scheduling.AR;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
@@ -350,8 +350,8 @@ public class EffectManager implements Listener
 		}
 		if(Settings.ENABLE_PARTICLES)
 		{
-			world.spawnParticle(Particle.PORTAL, center, 4, 0.45, 0.65, 0.45, 0.18);
-			world.spawnParticle(Particle.REVERSE_PORTAL, center, 1, 0.2, 0.35, 0.2, 0.01);
+			ClientViewEffects.burst(world, Particle.PORTAL, center.getX(), center.getY(), center.getZ(), 4, 0.45, 0.65, 0.45, 0.18);
+			ClientViewEffects.burst(world, Particle.REVERSE_PORTAL, center.getX(), center.getY(), center.getZ(), 1, 0.2, 0.35, 0.2, 0.01);
 		}
 	}
 
@@ -364,7 +364,7 @@ public class EffectManager implements Listener
 		}
 		if(Settings.ENABLE_PARTICLES)
 		{
-			world.spawnParticle(Particle.REVERSE_PORTAL, center, 12, 0.4, 0.6, 0.4, 0.4);
+			ClientViewEffects.burst(world, Particle.REVERSE_PORTAL, center.getX(), center.getY(), center.getZ(), 12, 0.4, 0.6, 0.4, 0.4);
 		}
 	}
 
@@ -633,10 +633,7 @@ public class EffectManager implements Listener
 		Location center = location.clone().add(0.0, 1.0, 0.0);
 		if(Settings.ENABLE_PARTICLES)
 		{
-			world.spawnParticle(Particle.FLASH, center, 1, 0.0, 0.0, 0.0, 0.0, Color.WHITE);
-			world.spawnParticle(Particle.REVERSE_PORTAL, center, 40, 0.35, 0.7, 0.35, 0.25);
-			world.spawnParticle(Particle.PORTAL, center, 24, 0.3, 0.6, 0.3, 0.5);
-			world.spawnParticle(Particle.ELECTRIC_SPARK, center, 18, 0.4, 0.8, 0.4, 0.15);
+			animator.playGlitch(world, center);
 		}
 		world.playSound(center, Sound.BLOCK_GLASS_BREAK, SoundCategory.PLAYERS, Settings.portalSoundVolume(0.18f), 0.5f + ((float) (Math.random() * 0.15)));
 		world.playSound(center, Sound.BLOCK_AMETHYST_BLOCK_HIT, SoundCategory.PLAYERS, Settings.portalSoundVolume(0.3f), 0.5f);
@@ -667,7 +664,7 @@ public class EffectManager implements Listener
 	{
 		if(Settings.ENABLE_PARTICLES)
 		{
-			block.getWorld().spawnParticle(Particle.EXPLOSION, block.getLocation().clone().add(0.5, 0.5, 0.5), 1, 0.0D, 0.0D, 0.0D, 0.0D);
+			ClientViewEffects.burst(block.getWorld(), Particle.EXPLOSION, block.getX() + 0.5D, block.getY() + 0.5D, block.getZ() + 0.5D, 1, 0.0D, 0.0D, 0.0D, 0.0D);
 		}
 		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.ENTITY_GENERIC_EXPLODE, Settings.portalSoundVolume(0.21f), (float) (1.6 + ((float) (Math.random() * 0.35))));
 		block.getWorld().playSound(block.getLocation().clone().add(0.5, 0.5, 0.5), Sound.BLOCK_GLASS_BREAK, Settings.portalSoundVolume(0.36f), (float) (0.25 + ((float) (Math.random() * 0.95))));

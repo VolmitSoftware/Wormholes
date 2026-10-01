@@ -1518,3 +1518,23 @@ portals = "列出、查看并批量编辑传送门"
 "portals.rename_server.new" = "要改存的服务器名"
 "portals.rename_server.confirm" = "改写链接所必需"
 # ---- end lane:ops ----
+
+# ---- lane:clientview (clientview.*) ----
+[clientview.command]
+header = "&6ClientView &7运行时 {state}，配置 {mode}，{count} 个会话"
+row = "&e{name} &7{state} &8| &7{value}"
+none = "&7没有玩家拥有 ClientView 会话。"
+enabled = "&a已重新提供 ClientView。配置：{mode}。"
+disabled = "&cClientView 已关闭。所有会话已恢复为原版投影。"
+reset = "&a正在重新启动 {name} 的 ClientView 数据流。"
+no_session = "&c{name} 没有活动的 ClientView 会话。"
+player_missing = "&c没有名为 {name} 的在线玩家。"
+
+[clientview.command.help]
+clientview = "运行 Wormholes 模组的玩家的 ClientView 会话"
+status = "列出所有 ClientView 会话"
+on = "重新向模组客户端提供 ClientView"
+off = "让所有 ClientView 玩家恢复原版投影"
+reset = "重新启动某个玩家的 ClientView 数据流"
+"reset.player" = "在线玩家名称"
+# ---- end lane:clientview ----

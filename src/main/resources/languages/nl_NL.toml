@@ -1518,3 +1518,23 @@ portals = "Portalen tonen, bekijken en in bulk bewerken"
 "portals.rename_server.new" = "Servernaam die in plaats daarvan wordt opgeslagen"
 "portals.rename_server.confirm" = "Nodig om de koppelingen te herschrijven"
 # ---- end lane:ops ----
+
+# ---- lane:clientview (clientview.*) ----
+[clientview.command]
+header = "&6ClientView &7runtime {state}, ingesteld {mode}, {count} sessies"
+row = "&e{name} &7{state} &8| &7{value}"
+none = "&7Geen enkele speler heeft een ClientView-sessie."
+enabled = "&aClientView wordt weer aangeboden. Ingesteld: {mode}."
+disabled = "&cClientView staat uit. Alle sessies gebruiken weer de vanilla-projectie."
+reset = "&aDe ClientView-stream van {name} wordt opnieuw gestart."
+no_session = "&c{name} heeft geen actieve ClientView-sessie."
+player_missing = "&cGeen online speler heet {name}."
+
+[clientview.command.help]
+clientview = "ClientView-sessies voor spelers met de Wormholes-mod"
+status = "Alle ClientView-sessies tonen"
+on = "ClientView weer aanbieden aan gemodde clients"
+off = "Alle ClientView-spelers terugzetten naar de vanilla-projectie"
+reset = "De ClientView-stream van één speler opnieuw starten"
+"reset.player" = "Naam van de online speler"
+# ---- end lane:clientview ----

@@ -1518,3 +1518,23 @@ portals = "포털 나열, 확인, 일괄 편집"
 "portals.rename_server.new" = "대신 저장할 서버 이름"
 "portals.rename_server.confirm" = "연결을 다시 쓰려면 필요"
 # ---- end lane:ops ----
+
+# ---- lane:clientview (clientview.*) ----
+[clientview.command]
+header = "&6ClientView &7런타임 {state}, 설정 {mode}, 세션 {count}개"
+row = "&e{name} &7{state} &8| &7{value}"
+none = "&7ClientView 세션이 있는 플레이어가 없습니다."
+enabled = "&aClientView를 다시 제공합니다. 설정: {mode}."
+disabled = "&cClientView가 꺼졌습니다. 모든 세션이 바닐라 투영으로 돌아갔습니다."
+reset = "&a{name}의 ClientView 스트림을 다시 시작합니다."
+no_session = "&c{name}에게 활성 ClientView 세션이 없습니다."
+player_missing = "&c{name}(이)라는 온라인 플레이어가 없습니다."
+
+[clientview.command.help]
+clientview = "Wormholes 모드를 사용하는 플레이어의 ClientView 세션"
+status = "모든 ClientView 세션 나열"
+on = "모드 클라이언트에 ClientView를 다시 제공"
+off = "모든 ClientView 플레이어를 바닐라 투영으로 되돌리기"
+reset = "플레이어 한 명의 ClientView 스트림 다시 시작"
+"reset.player" = "온라인 플레이어 이름"
+# ---- end lane:clientview ----

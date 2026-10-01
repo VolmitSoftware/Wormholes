@@ -1518,3 +1518,23 @@ portals = "Список, просмотр и массовое редактиро
 "portals.rename_server.new" = "Имя сервера, которое записать вместо него"
 "portals.rename_server.confirm" = "Требуется для перезаписи связей"
 # ---- end lane:ops ----
+
+# ---- lane:clientview (clientview.*) ----
+[clientview.command]
+header = "&6ClientView &7сейчас {state}, в настройках {mode}, сессий: {count}"
+row = "&e{name} &7{state} &8| &7{value}"
+none = "&7Ни у одного игрока нет сессии ClientView."
+enabled = "&aClientView снова предлагается. В настройках: {mode}."
+disabled = "&cClientView выключен. Все сессии вернулись к обычной проекции."
+reset = "&aПерезапуск потока ClientView для {name}."
+no_session = "&cУ {name} нет активной сессии ClientView."
+player_missing = "&cНет игрока в сети с именем {name}."
+
+[clientview.command.help]
+clientview = "Сессии ClientView для игроков с модом Wormholes"
+status = "Показать все сессии ClientView"
+on = "Снова предлагать ClientView клиентам с модами"
+off = "Вернуть всех игроков ClientView к обычной проекции"
+reset = "Перезапустить поток ClientView одного игрока"
+"reset.player" = "Имя игрока в сети"
+# ---- end lane:clientview ----

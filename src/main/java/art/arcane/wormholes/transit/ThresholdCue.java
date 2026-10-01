@@ -12,6 +12,7 @@ import art.arcane.wormholes.hook.TraversalAttempt;
 import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.TransitBridge;
 import art.arcane.wormholes.portal.Traversive;
+import art.arcane.wormholes.render.clientview.ClientViewEffects;
 
 /** Particle burst and sound at the commit point, played on the source region thread when a crossing departs. */
 public final class ThresholdCue {
@@ -37,7 +38,8 @@ public final class ThresholdCue {
         TransitPortalExtension transit = portal.extension(TransitPortalExtension.class);
         Particle particle = particle(transit == null ? "" : transit.profile().thresholdEffect());
         Location point = traversive.getInPoint().toLocation(world);
-        world.spawnParticle(particle, point, PARTICLE_COUNT, PARTICLE_SPREAD, PARTICLE_SPREAD, PARTICLE_SPREAD, PARTICLE_SPEED);
+        ClientViewEffects.burst(world, particle, point.getX(), point.getY(), point.getZ(), PARTICLE_COUNT, PARTICLE_SPREAD, PARTICLE_SPREAD,
+            PARTICLE_SPREAD, PARTICLE_SPEED);
         if (TransitBridge.portalSoundEnabled(portal)) {
             world.playSound(point, SOUND, Settings.portalSoundVolume(0.6F), 1.3F);
         }

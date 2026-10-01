@@ -12,6 +12,9 @@ import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSoundEffect;
 
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.render.client.session.ClientViewEmitters;
+import art.arcane.wormholes.render.clientview.BukkitClientView;
+import art.arcane.wormholes.render.clientview.ClientViewEffects;
 import art.arcane.wormholes.service.WormholesTelemetry;
 
 /** Plays relayed sounds through the sound-effect packet, positioned at the local aperture. */
@@ -23,6 +26,11 @@ public final class SoundPacketSink implements AcousticsBridge.SoundSink<Player> 
     @Override
     public void play(Player observer, AcousticsBridge.Playback playback) {
         if (observer == null || playback.soundKey() == null) {
+            return;
+        }
+        BukkitClientView clientView = ClientViewEffects.active();
+        if (clientView != null && clientView.receiver(observer)) {
+            clientView.oneShot(observer, ClientViewEmitters.sound(playback, 0));
             return;
         }
         try {
@@ -41,6 +49,12 @@ public final class SoundPacketSink implements AcousticsBridge.SoundSink<Player> 
                 plugin.getLogger().log(Level.WARNING, "[acoustics] sound packet failed for " + playback.soundKey(), failure);
             }
         }
+    }
+
+    @Override
+    public boolean clientAmbient(Player observer) {
+        BukkitClientView clientView = ClientViewEffects.active();
+        return clientView != null && observer != null && clientView.receiver(observer);
     }
 
     static SoundCategory category(AcousticsProfile.SoundClass soundClass) {

@@ -27,6 +27,7 @@ import art.arcane.wormholes.render.PortalSkinRenderer;
 import art.arcane.wormholes.render.ProjectionBlockSlices;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
 import art.arcane.wormholes.render.ProjectionGazeScheduler;
+import art.arcane.wormholes.render.clientview.ClientViewRouting;
 import art.arcane.wormholes.util.AxisAlignedBB;
 
 final class ProjectionInterestFrame {
@@ -38,6 +39,7 @@ final class ProjectionInterestFrame {
     private final RtpRimRenderer rtpRimRenderer;
     private final Supplier<ProjectionManager.RtpProjectionProvider> rtpProjectionProvider;
     private final BooleanSupplier alive;
+    private final ClientViewRouting clientView;
 
     ProjectionInterestFrame(ProjectionInterestSet interestSet,
                             ProjectionBudgetLedger ledger,
@@ -46,7 +48,8 @@ final class ProjectionInterestFrame {
                             PortalSkinRenderer skinRenderer,
                             RtpRimRenderer rtpRimRenderer,
                             Supplier<ProjectionManager.RtpProjectionProvider> rtpProjectionProvider,
-                            BooleanSupplier alive) {
+                            BooleanSupplier alive,
+                            ClientViewRouting clientView) {
         this.interestSet = interestSet;
         this.ledger = ledger;
         this.claimArbiter = claimArbiter;
@@ -55,6 +58,7 @@ final class ProjectionInterestFrame {
         this.rtpRimRenderer = rtpRimRenderer;
         this.rtpProjectionProvider = rtpProjectionProvider;
         this.alive = alive;
+        this.clientView = clientView;
     }
 
     void project(Player observer,
@@ -67,7 +71,7 @@ final class ProjectionInterestFrame {
                  boolean skinWork,
                  PortalCandidateSnapshot skinSnapshot,
                  ProjectionBudgetLedger.FrameBudget frameBudget) {
-        if (!observer.isOnline()) {
+        if (!observer.isOnline() || clientView.holdsVanilla(observer, frameTick)) {
             remainingProjectors.addAndGet(reservedBudget);
             return;
         }
@@ -130,6 +134,7 @@ final class ProjectionInterestFrame {
         candidates.sort(Comparator.comparingDouble(portal -> distanceSquared(eye, portal)));
 
         List<ILocalPortal> interested = new ArrayList<ILocalPortal>(candidates.size());
+        List<ILocalPortal> projectable = new ArrayList<ILocalPortal>(candidates.size());
         Map<UUID, PortalProjector.RtpProjectionTarget> rtpTargets = null;
         ProjectionManager.RtpProjectionProvider provider = rtpProjectionProvider.get();
         for (ILocalPortal portal : candidates) {
@@ -138,7 +143,7 @@ final class ProjectionInterestFrame {
             }
             Location center = portal.getCenter();
             ProjectionManager.ProjectionResolution resolution =
-                ProjectionManager.resolveProjection(provider, portal, observer, rtpRimRenderer, frameTick);
+                ProjectionManager.resolveProjection(provider, portal, observer, rtpRimRenderer, frameTick, clientView);
             if (!resolution.projectable()) {
                 continue;
             }
@@ -148,6 +153,7 @@ final class ProjectionInterestFrame {
                 }
                 rtpTargets.put(portal.getId(), resolution.target());
             }
+            projectable.add(portal);
             boolean liveInterest = ProjectionManager.isObserverProjectionInterested(eye, center, portal);
             if (!liveInterest && !interestSet.isInsideGrace(portal.getId(), observerId, frameTick)) {
                 continue;
@@ -162,6 +168,7 @@ final class ProjectionInterestFrame {
             ledger.recordInterested();
         }
         Map<UUID, PortalProjector.RtpProjectionTarget> resolvedRtpTargets = rtpTargets == null ? Map.of() : rtpTargets;
+        clientView.route(observer, eye, interested, projectable, resolvedRtpTargets, frameTick);
         Set<UUID> interestedIds = new HashSet<UUID>(interested.size());
         for (ILocalPortal portal : interested) {
             interestedIds.add(portal.getId());

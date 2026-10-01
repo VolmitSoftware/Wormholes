@@ -4,6 +4,7 @@ import art.arcane.wormholes.render.BukkitEntityVisibility;
 import org.bukkit.block.data.BlockData;
 import art.arcane.wormholes.hook.ProjectionSource;
 import art.arcane.wormholes.hook.WormholesHooks;
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -42,9 +43,11 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.projectiles.ProjectileSource;
 import org.bukkit.util.Vector;
 
+import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityAnimation.EntityAnimationType;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
+import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.rtp.RtpProjectionView;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
@@ -59,6 +62,9 @@ import art.arcane.wormholes.render.FidelitySubsystem;
 import art.arcane.wormholes.render.ProjectionClientChunkTracker;
 import art.arcane.wormholes.render.acoustics.AcousticsBridge;
 import art.arcane.wormholes.render.bedrock.ClientProfileService;
+import art.arcane.wormholes.render.client.session.ClientViewOptions;
+import art.arcane.wormholes.render.clientview.BukkitClientView;
+import art.arcane.wormholes.render.clientview.ClientViewRouting;
 import art.arcane.wormholes.render.plate.PlateCaptureJob;
 import art.arcane.wormholes.render.plate.PlateCaptureQueue;
 import art.arcane.wormholes.render.plate.PlateWorkers;
@@ -77,6 +83,7 @@ public class ProjectionManager implements Listener {
     private static final String ENTITY_UPDATE_DROPPED = "PROJECTION_ENTITY_UPDATE_DROPPED";
     private static final int TICK_INTERVAL_TICKS = 1;
     private static final String TICK_END_EVENT_CLASS = "com.destroystokyo.paper.event.server.ServerTickEndEvent";
+    private static final String TICK_HEADROOM_LISTENER_CLASS = "art.arcane.wormholes.ProjectionTickHeadroomListener";
     private static final long PLATE_INVALIDATION_INTERVAL_TICKS = 4L;
     private static final long ACOUSTICS_AMBIENT_INTERVAL_TICKS = 20L;
     private static final long OBSERVER_FRAME_SHUTDOWN_WAIT_MILLIS = 2_000L;
@@ -102,6 +109,7 @@ public class ProjectionManager implements Listener {
     private final PlateWorkers<BlockData, World> plateWorkers;
     private final PlateCaptureQueue<BlockData, World> plateCaptures;
     private final Set<UUID> observerTasksInFlight;
+    private final BukkitClientView clientView;
     private final AtomicBoolean shutdownFinalized;
     private final AtomicBoolean shutdownStarted;
     private long tickCount;
@@ -169,9 +177,14 @@ public class ProjectionManager implements Listener {
         this.interestSet = new ProjectionInterestSet(claimArbiter, localEntityOcclusion, viewProvider, closeQueue, alive,
             plateCache);
         this.budgetLedger = new ProjectionBudgetLedger();
+        this.clientView = new BukkitClientView(new BukkitClientView.Options(viewProvider, plateCache, ProjectionManager::localPortal,
+            (observerId, portalId) -> interestSet.retire(portalId, observerId), plateWorkers::execute,
+            Bukkit.getUnsafe().getDataVersion(), clientViewOptions(), observer -> PacketEvents.getAPI().getPlayerManager().getUser(observer),
+            (observer, task, delayTicks) -> FoliaScheduler.runEntity(Wormholes.instance, observer, task, delayTicks),
+            Wormholes.instance.getLogger(), Wormholes::v, FoliaScheduler.isFoliaThreading(Bukkit.getServer())));
         this.observerFrame = new ProjectionInterestFrame(interestSet, budgetLedger, claimArbiter,
             localEntityOcclusion, skinRenderer, rtpRimRenderer,
-            () -> rtpProjectionProvider, alive);
+            () -> rtpProjectionProvider, alive, clientView);
         this.projectedEntityUpdates = new ProjectedEntityUpdateBatcher();
         this.observerTasksInFlight = ConcurrentHashMap.newKeySet();
         this.shutdownFinalized = new AtomicBoolean();
@@ -193,7 +206,24 @@ public class ProjectionManager implements Listener {
     }
 
     public List<Player> observersOf(UUID portalId) {
-        return portalId == null || closed ? List.of() : interestSet.observersOf(portalId);
+        if (portalId == null || closed) {
+            return List.of();
+        }
+        List<Player> observers = interestSet.observersOf(portalId);
+        if (!clientView.attending()) {
+            return observers;
+        }
+        List<Player> merged = new ArrayList<Player>(observers);
+        clientView.observersOf(portalId, merged);
+        return merged;
+    }
+
+    public BukkitClientView clientView() {
+        return clientView;
+    }
+
+    public void registerClientView(Plugin plugin) {
+        clientView.start(plugin);
     }
 
     private void schedulePlateBuild(ViewPlateBuilder.Job<BlockData, World> job) {
@@ -275,7 +305,7 @@ public class ProjectionManager implements Listener {
         if (tickCount % PLATE_INVALIDATION_INTERVAL_TICKS == 0L) {
             plateCache.refreshDirt(Wormholes.projectionChangeTracker);
         }
-        plateCaptures.tick(FidelitySettings.plateCaptureChunksPerTick);
+        plateCaptures.tick(FidelitySettings.plateCaptureChunksPerTick, FidelitySettings.plateUrgentCaptureChunksPerTick);
         if (tickCount % ACOUSTICS_AMBIENT_INTERVAL_TICKS == 0L) {
             AcousticsBridge<Player> acoustics = FidelitySubsystem.acoustics();
             if (acoustics != null) {
@@ -306,7 +336,8 @@ public class ProjectionManager implements Listener {
         PortalCandidateSnapshot activeSnapshot = PortalCandidateSnapshot.captureProjection(active);
         interestSet.retainPortals(active);
         long frameTick = tickCount;
-        if (!skinWork && active.isEmpty() && interestSet.isEmpty() && closeQueue.isEmpty() && claimArbiter.isIdle()) {
+        if (!skinWork && active.isEmpty() && interestSet.isEmpty() && closeQueue.isEmpty() && claimArbiter.isIdle()
+            && !clientView.attending()) {
             interestSet.pruneGrace(frameTick);
             WormholesTelemetry.setProjectionGauges(0, 0, countSpoofedEntities());
             emitDiagnostics(active);
@@ -315,8 +346,10 @@ public class ProjectionManager implements Listener {
         boolean updateBlocks = shouldUpdateBlocks();
         boolean updateEntities = shouldUpdateEntities();
         Set<UUID> priorityObservers = interestSet.observerIds();
+        clientView.projectingObservers(priorityObservers);
         int projectionObservers = priorityObservers.size();
         priorityObservers.addAll(skinRenderer.observerIds());
+        clientView.attendingObservers(priorityObservers);
         boolean discoveryEnabled = !active.isEmpty() || !skinnedPortals.isEmpty();
         List<Player> observerCandidates = budgetLedger.selectObserverCandidates(onlinePlayers, priorityObservers,
             observerTasksInFlight, frameTick, Settings.PROJECTION_MAX_NEW_OBSERVER_SCANS_PER_TICK, discoveryEnabled);
@@ -488,7 +521,7 @@ public class ProjectionManager implements Listener {
     }
 
     static ProjectionResolution resolveProjection(RtpProjectionProvider provider, ILocalPortal portal,
-                                                  Player observer, RtpRimRenderer rimRenderer, long frameTick) {
+                                                  Player observer, RtpRimRenderer rimRenderer, long frameTick, ClientViewRouting clientView) {
         Objects.requireNonNull(portal, "portal");
         Objects.requireNonNull(observer, "observer");
         boolean rtp = provider != null && provider.supports(portal);
@@ -505,10 +538,14 @@ public class ProjectionManager implements Listener {
                     result.phase(),
                     result.elapsedMillis(),
                     result.durationMillis());
-            Optional<RtpRimRenderer.Sample> sample = requiredRimRenderer.nextDispatch(portal.getId(), input, frameTick,
-                    Settings.RTP_RIM_INTERVAL_TICKS);
-            if (sample.isPresent()) {
-                provider.dispatchRim(portal, observer, sample.get());
+            if (clientView.receiver(observer)) {
+                clientView.rim(observer, portal.getId(), requiredRimRenderer.calculate(input).orElse(null));
+            } else {
+                Optional<RtpRimRenderer.Sample> sample = requiredRimRenderer.nextDispatch(portal.getId(), input, frameTick,
+                        Settings.RTP_RIM_INTERVAL_TICKS);
+                if (sample.isPresent()) {
+                    provider.dispatchRim(portal, observer, sample.get());
+                }
             }
         }
         if (!portal.supportsProjections() || !portal.isProjecting() || !portal.isOpen() || portal.blocksProjection()) {
@@ -662,6 +699,7 @@ public class ProjectionManager implements Listener {
             return;
         }
         closed = true;
+        clientView.stop();
         projectedEntityUpdates.close();
         plateCaptures.clear();
         plateWorkers.shutdown();
@@ -717,7 +755,26 @@ public class ProjectionManager implements Listener {
         if (FoliaScheduler.isFoliaThreading(Bukkit.getServer()) || !tickEndEventAvailable()) {
             return;
         }
-        Bukkit.getPluginManager().registerEvents(new ProjectionTickHeadroomListener(tickHeadroom), plugin);
+        try {
+            Class<?> listenerType = Class.forName(TICK_HEADROOM_LISTENER_CLASS);
+            Constructor<?> constructor = listenerType.getDeclaredConstructor(ProjectionTickHeadroom.class);
+            constructor.setAccessible(true);
+            Bukkit.getPluginManager().registerEvents((Listener) constructor.newInstance(tickHeadroom), plugin);
+        } catch (ReflectiveOperationException | LinkageError | ClassCastException error) {
+            plugin.getLogger().log(Level.WARNING, "Could not register the Paper tick headroom listener", error);
+        }
+    }
+
+    private static ClientViewOptions clientViewOptions() {
+        WormholesSettings settings = Wormholes.settings;
+        return settings == null
+            ? ClientViewOptions.defaults()
+            : ClientViewOptions.from(settings.getClientView(), Settings.PROJECTION_INTEREST_GRACE_TICKS);
+    }
+
+    private static ILocalPortal localPortal(UUID portalId) {
+        PortalManager portals = Wormholes.portalManager;
+        return portals == null ? null : portals.getLocalPortal(portalId);
     }
 
     private static boolean tickEndEventAvailable() {
@@ -730,6 +787,7 @@ public class ProjectionManager implements Listener {
     }
 
     public void onSettingsReloaded() {
+        clientView.configure(clientViewOptions());
         viewProvider.reconfigure();
         interestSet.invalidateProjectionReuse();
         scheduleTick();

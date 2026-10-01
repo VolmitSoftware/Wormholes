@@ -1518,3 +1518,23 @@ portals = "Listaa, tarkastele ja muokkaa portaaleja joukolla"
 "portals.rename_server.new" = "Tilalle tallennettava palvelinnimi"
 "portals.rename_server.confirm" = "Vaaditaan linkkien uudelleenkirjoittamiseen"
 # ---- end lane:ops ----
+
+# ---- lane:clientview (clientview.*) ----
+[clientview.command]
+header = "&6ClientView &7ajossa {state}, määritetty {mode}, {count} istuntoa"
+row = "&e{name} &7{state} &8| &7{value}"
+none = "&7Kenelläkään pelaajalla ei ole ClientView-istuntoa."
+enabled = "&aClientViewia tarjotaan taas. Määritetty: {mode}."
+disabled = "&cClientView on pois päältä. Kaikki istunnot palasivat vanilla-projektioon."
+reset = "&aKäynnistetään pelaajan {name} ClientView-virta uudelleen."
+no_session = "&cPelaajalla {name} ei ole aktiivista ClientView-istuntoa."
+player_missing = "&cYksikään paikalla oleva pelaaja ei ole nimeltään {name}."
+
+[clientview.command.help]
+clientview = "ClientView-istunnot pelaajille, joilla on Wormholes-modi"
+status = "Luettele kaikki ClientView-istunnot"
+on = "Tarjoa ClientViewia taas modatuille asiakkaille"
+off = "Palauta kaikki ClientView-pelaajat vanilla-projektioon"
+reset = "Käynnistä yhden pelaajan ClientView-virta uudelleen"
+"reset.player" = "Paikalla olevan pelaajan nimi"
+# ---- end lane:clientview ----

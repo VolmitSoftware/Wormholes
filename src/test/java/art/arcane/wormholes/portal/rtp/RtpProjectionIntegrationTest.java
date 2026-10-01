@@ -11,9 +11,11 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
@@ -23,6 +25,7 @@ import art.arcane.wormholes.portal.rtp.RtpProjectionView;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
 import art.arcane.wormholes.portal.rtp.RtpRotationMode;
 import art.arcane.wormholes.render.PortalProjector;
+import art.arcane.wormholes.render.clientview.ClientViewRouting;
 import art.arcane.wormholes.util.Direction;
 
 public final class RtpProjectionIntegrationTest {
@@ -35,7 +38,7 @@ public final class RtpProjectionIntegrationTest {
         RecordingProvider provider = new RecordingProvider(events, ignored -> readyResult(viewerId, true), world("target"));
 
         ProjectionManager.ProjectionResolution resolution = ProjectionManager.resolveProjection(
-                provider, portal, viewer, new RtpRimRenderer(), 0L);
+                provider, portal, viewer, new RtpRimRenderer(), 0L, ClientViewRouting.none());
 
         assertFalse(resolution.projectable());
         assertEquals(1, provider.touchCount);
@@ -51,7 +54,7 @@ public final class RtpProjectionIntegrationTest {
         RecordingProvider provider = new RecordingProvider(events, ignored -> readyResult(viewerId, false), world("target"));
 
         ProjectionManager.ProjectionResolution resolution = ProjectionManager.resolveProjection(
-                provider, portal, viewer, new RtpRimRenderer(), 0L);
+                provider, portal, viewer, new RtpRimRenderer(), 0L, ClientViewRouting.none());
 
         assertEquals(1, provider.touchCount);
         assertFalse(resolution.projectable());
@@ -68,7 +71,7 @@ public final class RtpProjectionIntegrationTest {
         RecordingProvider provider = new RecordingProvider(events, ignored -> readyResult(viewerId, true), targetWorld);
 
         ProjectionManager.ProjectionResolution resolution = ProjectionManager.resolveProjection(
-                provider, portal, viewer, new RtpRimRenderer(), 0L);
+                provider, portal, viewer, new RtpRimRenderer(), 0L, ClientViewRouting.none());
 
         assertTrue(resolution.projectable());
         assertTrue(resolution.rtp());
@@ -91,13 +94,13 @@ public final class RtpProjectionIntegrationTest {
 
         ProjectionManager.ProjectionResolution glass = ProjectionManager.resolveProjection(
                 provider, portal(uuid("glass-portal"), true, true, true, false, "minecraft:glass",
-                        new ArrayList<String>()), viewer, new RtpRimRenderer(), 0L);
+                        new ArrayList<String>()), viewer, new RtpRimRenderer(), 0L, ClientViewRouting.none());
         ProjectionManager.ProjectionResolution water = ProjectionManager.resolveProjection(
                 provider, portal(uuid("water-portal"), true, true, true, false, "minecraft:water",
-                        new ArrayList<String>()), viewer, new RtpRimRenderer(), 0L);
+                        new ArrayList<String>()), viewer, new RtpRimRenderer(), 0L, ClientViewRouting.none());
         ProjectionManager.ProjectionResolution lava = ProjectionManager.resolveProjection(
                 provider, portal(uuid("lava-portal"), true, true, true, false, "minecraft:lava",
-                        new ArrayList<String>()), viewer, new RtpRimRenderer(), 0L);
+                        new ArrayList<String>()), viewer, new RtpRimRenderer(), 0L, ClientViewRouting.none());
 
         assertTrue(glass.projectable());
         assertTrue(water.projectable());
@@ -115,9 +118,9 @@ public final class RtpProjectionIntegrationTest {
                 : warmingResult(warmingViewerId, true), world("target"));
 
         ProjectionManager.ProjectionResolution ready = ProjectionManager.resolveProjection(
-                provider, portal, player(readyViewerId), new RtpRimRenderer(), 0L);
+                provider, portal, player(readyViewerId), new RtpRimRenderer(), 0L, ClientViewRouting.none());
         ProjectionManager.ProjectionResolution warming = ProjectionManager.resolveProjection(
-                provider, portal, player(warmingViewerId), new RtpRimRenderer(), 0L);
+                provider, portal, player(warmingViewerId), new RtpRimRenderer(), 0L, ClientViewRouting.none());
 
         assertTrue(ready.projectable());
         assertFalse(warming.projectable());
@@ -133,12 +136,50 @@ public final class RtpProjectionIntegrationTest {
         RecordingProvider provider = new RecordingProvider(events, ignored -> warmingResult(viewerId, true), world("target"));
 
         ProjectionManager.ProjectionResolution resolution = ProjectionManager.resolveProjection(
-                provider, portal, viewer, new RtpRimRenderer(), 0L);
+                provider, portal, viewer, new RtpRimRenderer(), 0L, ClientViewRouting.none());
 
         assertFalse(resolution.projectable());
         assertSame(portal, provider.rimPortal);
         assertSame(viewer, provider.rimViewer);
         assertEquals(RtpRimRenderer.Color.YELLOW, provider.rimSample.color());
+    }
+
+    @Test
+    public void clientViewReceiversGetTheRimInsteadOfDust() {
+        List<String> events = new ArrayList<String>();
+        UUID viewerId = uuid("viewer-owned-rim");
+        Player viewer = player(viewerId);
+        ILocalPortal portal = portal(uuid("owned-rim-portal"), true, false, true, false, events);
+        RecordingProvider provider = new RecordingProvider(events, ignored -> warmingResult(viewerId, true), world("target"));
+        List<RtpRimRenderer.Sample> handed = new ArrayList<RtpRimRenderer.Sample>();
+        ClientViewRouting owning = new ClientViewRouting() {
+            @Override
+            public boolean holdsVanilla(Player observer, long frameTick) {
+                return false;
+            }
+
+            @Override
+            public void route(Player observer, Location eye, List<ILocalPortal> interested, List<ILocalPortal> projectable,
+                              Map<UUID, PortalProjector.RtpProjectionTarget> rtpTargets, long frameTick) {
+            }
+
+            @Override
+            public boolean receiver(Player observer) {
+                return observer == viewer;
+            }
+
+            @Override
+            public void rim(Player observer, UUID portalId, RtpRimRenderer.Sample sample) {
+                handed.add(sample);
+            }
+        };
+
+        ProjectionManager.resolveProjection(provider, portal, viewer, new RtpRimRenderer(), 0L, owning);
+        ProjectionManager.resolveProjection(provider, portal, viewer, new RtpRimRenderer(), 1L, owning);
+
+        assertNull(provider.rimPortal, "ClientView receivers must not get rim dust packets");
+        assertEquals(2, handed.size(), "the rim colour is handed over every frame without dispatch cadence");
+        assertEquals(RtpRimRenderer.Color.YELLOW, handed.get(0).color());
     }
 
     @Test

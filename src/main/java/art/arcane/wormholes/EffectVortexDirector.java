@@ -23,6 +23,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
+import art.arcane.wormholes.render.clientview.ClientViewEffects;
 
 final class EffectVortexDirector
 {
@@ -116,7 +117,7 @@ final class EffectVortexDirector
 					Math.random() * Math.PI * 2.0D, 0.2D + (Math.random() * 0.25D)));
 		}
 
-		world.spawnParticle(Particle.PORTAL, center, 12, 0.65, 0.8, 0.65, 0.35);
+		ClientViewEffects.burst(world, Particle.PORTAL, center.getX(), center.getY(), center.getZ(), 12, 0.65, 0.8, 0.65, 0.35);
 		world.playSound(center, Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.BLOCKS, Settings.portalSoundVolume(0.165f), 0.55f);
 		world.playSound(center, Sound.BLOCK_END_PORTAL_SPAWN, SoundCategory.BLOCKS, PortalAnimationPlan.openingSoundPlan(Settings.PORTAL_SOUND_VOLUME_MULTIPLIER).frameVolume(), 0.35f);
 
@@ -174,7 +175,7 @@ final class EffectVortexDirector
 				if((t & 1) == 0)
 				{
 					Particle trail = (index & 1) == 0 ? Particle.PORTAL : Particle.REVERSE_PORTAL;
-					world.spawnParticle(trail, target[0], target[1], target[2], 1, 0.04, 0.04, 0.04, 0.02);
+					ClientViewEffects.burst(world, trail, target[0], target[1], target[2], 1, 0.04, 0.04, 0.04, 0.02);
 				}
 			}
 			if(!FoliaScheduler.runRegion(Wormholes.instance, center, holder[0], 1L))

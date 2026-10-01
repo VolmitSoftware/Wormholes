@@ -3,16 +3,21 @@ package art.arcane.wormholes.portal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.portal.rtp.RtpSettings;
+import art.arcane.wormholes.render.client.session.ClientViewEmitters;
+import art.arcane.wormholes.render.clientview.BukkitClientView;
+import art.arcane.wormholes.render.clientview.ClientViewEffects;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.util.AxisAlignedBB;
 
@@ -132,11 +137,15 @@ final class LocalPortalEffects
 			return;
 		}
 
-		switch(portal.getAmbientStyle())
+		AmbientParticleStyle style = portal.getAmbientStyle();
+		if(style == AmbientParticleStyle.OFF)
 		{
-			case OFF ->
-			{
-			}
+			return;
+		}
+
+		touchClientViews();
+		switch(style)
+		{
 			case SPARKS -> renderAmbientSparks(open);
 			case CORNERS -> renderAmbientCorners(open);
 			case OUTLINE -> renderAmbientOutline(open);
@@ -157,8 +166,11 @@ final class LocalPortalEffects
 		{
 			return;
 		}
-		world.spawnParticle(Particle.MYCELIUM, cell, count,
-				AmbientSparkCadence.CELL_SPREAD, AmbientSparkCadence.CELL_SPREAD, AmbientSparkCadence.CELL_SPREAD, 0.0D);
+		ambient(world, cell.getX(), cell.getY(), cell.getZ(),
+				everyone -> everyone.spawnParticle(Particle.MYCELIUM, cell, count,
+						AmbientSparkCadence.CELL_SPREAD, AmbientSparkCadence.CELL_SPREAD, AmbientSparkCadence.CELL_SPREAD, 0.0D),
+				viewer -> viewer.spawnParticle(Particle.MYCELIUM, cell, count,
+						AmbientSparkCadence.CELL_SPREAD, AmbientSparkCadence.CELL_SPREAD, AmbientSparkCadence.CELL_SPREAD, 0.0D));
 	}
 
 	private void spawnSimpleParticle(Location location, Particle particle, int amount, double extra)
@@ -167,7 +179,7 @@ final class LocalPortalEffects
 		{
 			return;
 		}
-		location.getWorld().spawnParticle(particle, location, amount, 0.0D, 0.0D, 0.0D, extra);
+		ClientViewEffects.burst(location.getWorld(), particle, location.getX(), location.getY(), location.getZ(), amount, 0.0D, 0.0D, 0.0D, extra);
 	}
 
 	private void spawnRejectDust(Location location)
@@ -177,7 +189,10 @@ final class LocalPortalEffects
 			return;
 		}
 		Particle.DustOptions options = new Particle.DustOptions(Color.fromRGB(255, 70, 70), 1.0F);
-		location.getWorld().spawnParticle(Particle.DUST, location, 1, options);
+		ClientViewEffects.spawn(location.getWorld(), location.getX(), location.getY(), location.getZ(),
+				world -> world.spawnParticle(Particle.DUST, location, 1, options),
+				viewer -> viewer.spawnParticle(Particle.DUST, location, 1, options),
+				ClientViewEmitters.dust(location.getX(), location.getY(), location.getZ(), 255, 70, 70));
 	}
 
 	private void renderAmbientCorners(boolean open)
@@ -200,7 +215,9 @@ final class LocalPortalEffects
 		{
 			for(Location corner : corners)
 			{
-				world.spawnParticle(Particle.DUST, corner, 1, dust);
+				ambient(world, corner.getX(), corner.getY(), corner.getZ(),
+						everyone -> everyone.spawnParticle(Particle.DUST, corner, 1, dust),
+						viewer -> viewer.spawnParticle(Particle.DUST, corner, 1, dust));
 			}
 			return;
 		}
@@ -209,7 +226,10 @@ final class LocalPortalEffects
 		int window = Math.min(AMBIENT_CORNERS_CLOSED_WINDOW, corners.size());
 		for(int i = 0; i < window; i++)
 		{
-			world.spawnParticle(Particle.DUST, corners.get((start + i) % corners.size()), 1, dust);
+			Location corner = corners.get((start + i) % corners.size());
+			ambient(world, corner.getX(), corner.getY(), corner.getZ(),
+					everyone -> everyone.spawnParticle(Particle.DUST, corner, 1, dust),
+					viewer -> viewer.spawnParticle(Particle.DUST, corner, 1, dust));
 		}
 	}
 
@@ -236,7 +256,24 @@ final class LocalPortalEffects
 		for(int i = 0; i < window; i++)
 		{
 			double[] point = points.get((start + i) % points.size());
-			world.spawnParticle(Particle.DUST, point[0], point[1], point[2], 1, 0.0D, 0.0D, 0.0D, 0.0D, dust);
+			ambient(world, point[0], point[1], point[2],
+					everyone -> everyone.spawnParticle(Particle.DUST, point[0], point[1], point[2], 1, 0.0D, 0.0D, 0.0D, 0.0D, dust),
+					viewer -> viewer.spawnParticle(Particle.DUST, point[0], point[1], point[2], 1, 0.0D, 0.0D, 0.0D, 0.0D, dust));
+		}
+	}
+
+	private static void ambient(World world, double x, double y, double z, Consumer<World> everyone, Consumer<Player> viewer)
+	{
+		ClientViewEffects.spawn(world, x, y, z, everyone, viewer, null);
+	}
+
+	private void touchClientViews()
+	{
+		BukkitClientView clientView = ClientViewEffects.active();
+		Location center = clientView == null ? null : portal.getCenter();
+		if(center != null && center.getWorld() != null)
+		{
+			clientView.touchNear(center.getWorld(), center.getX(), center.getY(), center.getZ(), portal.getId());
 		}
 	}
 }

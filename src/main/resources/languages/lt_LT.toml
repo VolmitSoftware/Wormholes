@@ -1518,3 +1518,23 @@ portals = "Isvardyti, perziureti ir masiskai keisti portalus"
 "portals.rename_server.new" = "Serverio pavadinimas, kuri irasyti vietoje jo"
 "portals.rename_server.confirm" = "Butinas sasajoms perrasyti"
 # ---- end lane:ops ----
+
+# ---- lane:clientview (clientview.*) ----
+[clientview.command]
+header = "&6ClientView &7vykdymas {state}, nustatyta {mode}, {count} sesijos"
+row = "&e{name} &7{state} &8| &7{value}"
+none = "&7Nė vienas žaidėjas neturi ClientView sesijos."
+enabled = "&aClientView vėl siūlomas. Nustatyta: {mode}."
+disabled = "&cClientView išjungtas. Visos sesijos grįžo prie įprastos projekcijos."
+reset = "&aIš naujo paleidžiamas žaidėjo {name} ClientView srautas."
+no_session = "&c{name} neturi aktyvios ClientView sesijos."
+player_missing = "&cNėra prisijungusio žaidėjo vardu {name}."
+
+[clientview.command.help]
+clientview = "ClientView sesijos žaidėjams, naudojantiems Wormholes modifikaciją"
+status = "Išvardyti visas ClientView sesijas"
+on = "Vėl siūlyti ClientView modifikuotiems klientams"
+off = "Grąžinti visus ClientView žaidėjus prie įprastos projekcijos"
+reset = "Iš naujo paleisti vieno žaidėjo ClientView srautą"
+"reset.player" = "Prisijungusio žaidėjo vardas"
+# ---- end lane:clientview ----

@@ -175,6 +175,8 @@ class ProjectionManagerSchedulerWiringTest {
         }
         Set<String> invoked = invokedMethods(manager, "tick");
         assertTrue(invoked.contains("art/arcane/wormholes/ProjectionInterestSet.observerIds"));
+        assertTrue(invoked.contains("art/arcane/wormholes/render/clientview/BukkitClientView.projectingObservers"),
+            "ClientView observers leave the interest set when their portals are released, so tick() must count them separately");
         assertTrue(invoked.contains("art/arcane/wormholes/service/WormholesTelemetry.setProjectionGauges"));
     }
 

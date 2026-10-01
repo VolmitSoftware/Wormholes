@@ -218,6 +218,7 @@ public final class Wormholes extends JavaPlugin implements ReloadAware {
             getServer().getPluginManager().registerEvents(traversableManager, this);
             getServer().getPluginManager().registerEvents(projectionManager, this);
             projectionManager.registerTickHeadroom(this);
+            projectionManager.registerClientView(this);
             if (getServer().getPluginManager().isPluginEnabled("Citizens")) {
                 getServer().getPluginManager().registerEvents(
                     new CitizensLocalEntityOcclusionListener(projectionManager), this);

@@ -3,6 +3,9 @@ package art.arcane.wormholes;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
+import art.arcane.wormholes.render.client.session.ClientViewEmitters;
+import art.arcane.wormholes.render.clientview.BukkitClientView;
+import art.arcane.wormholes.render.clientview.ClientViewEffects;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -45,6 +48,12 @@ final class EffectPortalAnimator {
         start(world, center, options(PortalAnimation.Mode.SOUNDS, center, new GeometryVector(1, 1, 1), active, audible));
     }
 
+    void playGlitch(World world, Location center) {
+        start(world, center, new PortalAnimation.Options(PortalAnimation.Mode.GLITCH, new GeometryVector(center.getX(), center.getY(), center.getZ()),
+            new GeometryVector(1, 1, 1), Settings.VISUAL_QUALITY_PROFILE, Settings.ENABLE_PARTICLES, Settings.PORTAL_SOUND_VOLUME_MULTIPLIER,
+            () -> true, () -> false, List.of()));
+    }
+
     private PortalAnimation.Options options(PortalAnimation.Mode mode, Location center, GeometryVector size, BooleanSupplier active, BooleanSupplier audible) {
         return new PortalAnimation.Options(mode, new GeometryVector(center.getX(), center.getY(), center.getZ()), size,
             Settings.VISUAL_QUALITY_PROFILE, Settings.ENABLE_PARTICLES, Settings.PORTAL_SOUND_VOLUME_MULTIPLIER,
@@ -57,6 +66,13 @@ final class EffectPortalAnimator {
         }
         AnimationHost host = new AnimationHost(world, center);
         host.animation = new PortalAnimation<>(options, host);
+        if (options.particles() && options.mode() != PortalAnimation.Mode.SOUNDS) {
+            BukkitClientView clientView = ClientViewEffects.active();
+            if (clientView != null) {
+                clientView.oneShotNear(world, options.center().x(), options.center().y(), options.center().z(),
+                    ClientViewEmitters.animation(options.mode(), options.center(), options.size(), options.quality()));
+            }
+        }
         host.run();
     }
 
@@ -87,20 +103,28 @@ final class EffectPortalAnimator {
                 case ENCHANT -> Particle.ENCHANT;
                 case GLASS_SHARD -> Particle.BLOCK;
                 case SCULK_SOUL -> Particle.SCULK_SOUL;
-                case PALE_FLASH, PURPLE_FLASH -> Particle.FLASH;
+                case PALE_FLASH, PURPLE_FLASH, WHITE_FLASH -> Particle.FLASH;
                 case CRACK_DUST, BRANCHLET_DUST -> Particle.DUST;
+                case ELECTRIC_SPARK -> Particle.ELECTRIC_SPARK;
             };
             Object data = switch (emission.type()) {
                 case STREAM_DUST, ARM_DUST -> new Particle.DustTransition(Color.fromRGB(185, 105, 255), Color.fromRGB(20, 5, 35), emission.type() == PortalAnimation.Particle.STREAM_DUST ? .8f : .9f);
                 case GLASS_SHARD -> Material.GLASS.createBlockData();
                 case PALE_FLASH -> Color.fromRGB(220, 235, 255);
                 case PURPLE_FLASH -> Color.fromRGB(190, 130, 255);
+                case WHITE_FLASH -> Color.WHITE;
                 case BRANCHLET_DUST -> new Particle.DustOptions(Color.fromRGB(210, 230, 255), .55f);
                 case CRACK_DUST -> new Particle.DustOptions(Color.fromRGB(235, 245, 255), .75f);
                 default -> null;
             };
-            world.spawnParticle(particle, emission.position().x(), emission.position().y(), emission.position().z(), emission.count(),
-                emission.spread().x(), emission.spread().y(), emission.spread().z(), emission.speed(), data);
+            GeometryVector position = emission.position();
+            GeometryVector spread = emission.spread();
+            ClientViewEffects.spawn(world, position.x(), position.y(), position.z(),
+                target -> target.spawnParticle(particle, position.x(), position.y(), position.z(), emission.count(), spread.x(), spread.y(), spread.z(),
+                    emission.speed(), data),
+                viewer -> viewer.spawnParticle(particle, position.x(), position.y(), position.z(), emission.count(), spread.x(), spread.y(), spread.z(),
+                    emission.speed(), data),
+                null);
         }
 
         @Override

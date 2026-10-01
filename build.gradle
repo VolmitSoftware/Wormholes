@@ -194,6 +194,8 @@ tasks.register('compileSpigotCompatibility', JavaCompile) {
         exclude '**/PaperCommandRegistrar.java'
         exclude '**/PaperLivingEntityMoveListener.java'
         exclude '**/PaperAsyncChatListener.java'
+        exclude '**/ProjectionTickHeadroomListener.java'
+        exclude '**/PaperClientViewConfigureListener.java'
     }
     classpath = files(sourceSets.main.compileClasspath.filter { File dependency ->
         !dependency.name.startsWith('paper-api-')

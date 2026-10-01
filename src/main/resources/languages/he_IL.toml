@@ -1518,3 +1518,23 @@ portals = "הצגה, בדיקה ועריכה מרוכזת של שערים"
 "portals.rename_server.new" = "שם השרת שיישמר במקומו"
 "portals.rename_server.confirm" = "נדרש כדי לכתוב מחדש את הקישורים"
 # ---- end lane:ops ----
+
+# ---- lane:clientview (clientview.*) ----
+[clientview.command]
+header = "&6ClientView &7בזמן ריצה {state}, מוגדר {mode}, {count} הפעלות"
+row = "&e{name} &7{state} &8| &7{value}"
+none = "&7לאף שחקן אין הפעלת ClientView."
+enabled = "&aClientView מוצע שוב. מוגדר: {mode}."
+disabled = "&cClientView כבוי. כל ההפעלות חזרו להקרנה הרגילה."
+reset = "&aמפעיל מחדש את זרם ה-ClientView של {name}."
+no_session = "&cל-{name} אין הפעלת ClientView פעילה."
+player_missing = "&cאין שחקן מחובר בשם {name}."
+
+[clientview.command.help]
+clientview = "הפעלות ClientView לשחקנים שמריצים את המוד Wormholes"
+status = "הצג את כל הפעלות ה-ClientView"
+on = "הצע שוב ClientView ללקוחות עם מודים"
+off = "החזר את כל שחקני ClientView להקרנה הרגילה"
+reset = "הפעל מחדש את זרם ה-ClientView של שחקן"
+"reset.player" = "שם השחקן המחובר"
+# ---- end lane:clientview ----

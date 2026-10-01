@@ -1518,3 +1518,23 @@ portals = "Listar, inspeccionar y editar portales en masa"
 "portals.rename_server.new" = "Nombre de servidor a guardar en su lugar"
 "portals.rename_server.confirm" = "Necesario para reescribir los enlaces"
 # ---- end lane:ops ----
+
+# ---- lane:clientview (clientview.*) ----
+[clientview.command]
+header = "&6ClientView &7en ejecución {state}, configurado {mode}, {count} sesiones"
+row = "&e{name} &7{state} &8| &7{value}"
+none = "&7Ningún jugador tiene una sesión de ClientView."
+enabled = "&aClientView se vuelve a ofrecer. Configurado: {mode}."
+disabled = "&cClientView está desactivado. Todas las sesiones vuelven a la proyección vanilla."
+reset = "&aReiniciando el flujo de ClientView de {name}."
+no_session = "&c{name} no tiene una sesión de ClientView activa."
+player_missing = "&cNingún jugador conectado se llama {name}."
+
+[clientview.command.help]
+clientview = "Sesiones de ClientView para jugadores con el mod Wormholes"
+status = "Listar todas las sesiones de ClientView"
+on = "Volver a ofrecer ClientView a los clientes con mods"
+off = "Devolver a todos los jugadores de ClientView a la proyección vanilla"
+reset = "Reiniciar el flujo de ClientView de un jugador"
+"reset.player" = "Nombre del jugador conectado"
+# ---- end lane:clientview ----

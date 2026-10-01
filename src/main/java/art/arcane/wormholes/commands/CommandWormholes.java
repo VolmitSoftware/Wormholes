@@ -48,6 +48,8 @@ public class CommandWormholes {
 
     private CommandNexus nexus = new CommandNexus();
 
+    private CommandClientView clientview = new CommandClientView();
+
     // slot:doors
 
     // slot:transit
