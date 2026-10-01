@@ -45,6 +45,14 @@ public final class PlateWorkers<B, W> {
         }
     }
 
+    public void execute(Runnable task) {
+        ThreadPoolExecutor active = executor;
+        if (active == null) {
+            throw new RejectedExecutionException("plate workers are shut down");
+        }
+        active.execute(task);
+    }
+
     public void resize(int threads) {
         ThreadPoolExecutor active = executor;
         int target = Math.max(1, threads);

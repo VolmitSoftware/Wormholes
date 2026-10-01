@@ -31,12 +31,12 @@ final class PlateCaptureJobTest {
         PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 2, 0, 64L), handedOff);
         queue.submit(job);
 
-        queue.tick(2);
+        queue.tick(2, 2);
         assertEquals(2, source.captures.size());
         assertEquals(PlateCaptureJob.Phase.CAPTURING, job.phase());
         assertTrue(host.built.isEmpty());
 
-        queue.tick(2);
+        queue.tick(2, 2);
         assertEquals(3, source.captures.size());
         assertEquals(PlateCaptureJob.Phase.CAPTURED, job.phase());
         assertEquals(List.of(job), host.built);
@@ -44,7 +44,7 @@ final class PlateCaptureJobTest {
         assertEquals("snapshot:1,0", handedOff.get(0).chunk(1, 0));
         assertEquals(0, queue.size());
 
-        queue.tick(2);
+        queue.tick(2, 2);
         assertEquals(3, source.captures.size(), "a finished capture is never snapshotted again");
         assertEquals(1, host.built.size());
         assertTrue(job.step(Integer.MAX_VALUE));
@@ -61,11 +61,11 @@ final class PlateCaptureJobTest {
         PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 1, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
         queue.submit(job);
 
-        queue.tick(8);
+        queue.tick(8, 8);
         assertEquals(List.of("0,0"), source.captures);
         assertEquals(1, source.holds.size(), "the unloaded chunk is leased");
         assertEquals(1, job.heldChunks());
-        queue.tick(8);
+        queue.tick(8, 8);
         assertEquals(1, source.holds.size(), "a pending lease is not requested twice");
         assertEquals(PlateCaptureJob.Phase.CAPTURING, job.phase());
 
@@ -73,7 +73,7 @@ final class PlateCaptureJobTest {
         hold.settled = true;
         hold.ready = true;
         source.loaded.add("1,0");
-        queue.tick(8);
+        queue.tick(8, 8);
 
         assertEquals(List.of("0,0", "1,0"), source.captures);
         assertTrue(hold.released, "the lease is released as soon as the snapshot is taken");
@@ -88,13 +88,13 @@ final class PlateCaptureJobTest {
         PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
         PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 1, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
         queue.submit(job);
-        queue.tick(8);
+        queue.tick(8, 8);
         assertEquals(2, source.holds.size());
 
         FakeHold failed = source.holds.get("0,0");
         failed.settled = true;
         failed.ready = false;
-        queue.tick(8);
+        queue.tick(8, 8);
 
         assertEquals(PlateCaptureJob.Phase.FAILED, job.phase());
         assertEquals(List.of(job.key()), host.failed);
@@ -118,14 +118,47 @@ final class PlateCaptureJobTest {
         queue.submit(first);
         queue.submit(second);
 
-        queue.tick(2);
+        queue.tick(2, 2);
         assertEquals(PlateCaptureJob.Phase.CAPTURED, first.phase());
         assertEquals(PlateCaptureJob.Phase.CAPTURING, second.phase());
         assertEquals(2, source.captures.size());
 
-        queue.tick(2);
+        queue.tick(2, 2);
         assertEquals(PlateCaptureJob.Phase.CAPTURED, second.phase());
         assertEquals(List.of(first, second), host.built);
+    }
+
+    @Test
+    void urgentCapturesDrawFromTheirOwnBoundedBudgetWithoutSpendingTheSharedOne() {
+        FakeSource source = new FakeSource();
+        source.loadAll(0, 0, 13, 0);
+        RecordingHost host = new RecordingHost();
+        PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
+        PlateCaptureJob<String, String, String> first = job(source, new ViewPlateBuilder.Footprint(0, 0, 3, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
+        PlateCaptureJob<String, String, String> urgent = job(source, new ViewPlateBuilder.Footprint(4, 0, 9, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
+        PlateCaptureJob<String, String, String> promoted = job(source, new ViewPlateBuilder.Footprint(10, 0, 13, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
+        urgent.markUrgent();
+        queue.submit(first);
+        queue.submit(urgent);
+        queue.submit(promoted);
+
+        queue.tick(2, 4);
+
+        assertEquals(2, urgent.pendingChunks(), "an urgent capture takes at most the urgent budget in one tick");
+        assertEquals(2, first.pendingChunks(), "the shared budget is untouched by the urgent capture");
+        assertEquals(4, promoted.pendingChunks(), "the shared budget was spent by the capture ahead of it");
+        assertEquals(6, source.captures.size());
+        assertTrue(host.built.isEmpty());
+
+        promoted.markUrgent();
+        queue.tick(2, 4);
+
+        assertEquals(List.of(first, urgent), host.built);
+        assertEquals(2, promoted.pendingChunks(), "a promoted capture shares what is left of the urgent budget");
+
+        queue.tick(2, 4);
+        assertEquals(List.of(first, urgent, promoted), host.built);
+        assertTrue(host.failed.isEmpty());
     }
 
     @Test
@@ -135,7 +168,7 @@ final class PlateCaptureJobTest {
         PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
         PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 0, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
         queue.submit(job);
-        queue.tick(8);
+        queue.tick(8, 8);
 
         queue.clear();
 
@@ -155,7 +188,7 @@ final class PlateCaptureJobTest {
         PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 0, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
         queue.submit(job);
 
-        queue.tick(8);
+        queue.tick(8, 8);
 
         assertEquals(PlateCaptureJob.Phase.FAILED, job.phase());
         assertEquals(List.of(job.key()), host.failed);
@@ -170,12 +203,12 @@ final class PlateCaptureJobTest {
         PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
         PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 1, 0, 64L), new ArrayList<PlateCaptureJob.Captured<String>>());
         queue.submit(job);
-        queue.tick(8);
+        queue.tick(8, 8);
         assertEquals(2, source.holds.size());
 
         host.unwanted.add(job.key());
         source.loadAll(0, 0, 1, 0);
-        queue.tick(8);
+        queue.tick(8, 8);
 
         assertEquals(PlateCaptureJob.Phase.FAILED, job.phase());
         assertTrue(source.captures.isEmpty(), "a retired capture takes no more snapshots");
@@ -203,13 +236,13 @@ final class PlateCaptureJobTest {
         queue.submit(starved);
 
         for (int tick = 0; tick < starvedTicks; tick++) {
-            queue.tick(1);
+            queue.tick(1, 1);
         }
         assertTrue(starvedTicks > PlateCaptureJob.MAX_CAPTURE_TICKS);
         assertEquals(List.of(first, second), host.built, "each capture only counts the ticks it had budget for");
         assertEquals(PlateCaptureJob.Phase.CAPTURING, starved.phase(), "ticks without budget do not count toward the timeout");
 
-        queue.tick(1);
+        queue.tick(1, 1);
 
         assertEquals(PlateCaptureJob.Phase.CAPTURED, starved.phase());
         assertTrue(host.failed.isEmpty());

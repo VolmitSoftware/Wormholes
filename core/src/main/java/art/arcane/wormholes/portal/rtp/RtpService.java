@@ -169,17 +169,37 @@ public final class RtpService
 			int intervalTicks)
 	{
 		UUID requiredPortalId = Objects.requireNonNull(portalId, "portalId");
-		UUID requiredViewerId = Objects.requireNonNull(viewerId, "viewerId");
-		RtpRimRenderer.Phase requiredPhase = Objects.requireNonNull(phase, "phase");
-		Snapshot snapshot = published.get(requiredPortalId);
-		if(snapshot == null)
+		RtpRimRenderer.Input input = rimInput(requiredPortalId, viewerId, phase, elapsedMillis);
+		if(input == null)
 		{
 			return Optional.empty();
+		}
+		return dependencies.rimRenderer().nextDispatch(requiredPortalId, input, frameTick, intervalTicks);
+	}
+
+	public Optional<RtpRimRenderer.Sample> rimSample(
+			UUID portalId,
+			UUID viewerId,
+			RtpRimRenderer.Phase phase,
+			long elapsedMillis)
+	{
+		RtpRimRenderer.Input input = rimInput(Objects.requireNonNull(portalId, "portalId"), viewerId, phase, elapsedMillis);
+		return input == null ? Optional.empty() : dependencies.rimRenderer().calculate(input);
+	}
+
+	private RtpRimRenderer.Input rimInput(UUID portalId, UUID viewerId, RtpRimRenderer.Phase phase, long elapsedMillis)
+	{
+		UUID requiredViewerId = Objects.requireNonNull(viewerId, "viewerId");
+		RtpRimRenderer.Phase requiredPhase = Objects.requireNonNull(phase, "phase");
+		Snapshot snapshot = published.get(portalId);
+		if(snapshot == null)
+		{
+			return null;
 		}
 		RtpProjectionView view = snapshot.views().getOrDefault(
 				requiredViewerId,
 				RtpProjectionView.none(requiredViewerId, snapshot.revision()));
-		RtpRimRenderer.Input input = new RtpRimRenderer.Input(
+		return new RtpRimRenderer.Input(
 				requiredViewerId,
 				view,
 				snapshot.settings().isRimEnabled(),
@@ -188,7 +208,6 @@ public final class RtpService
 				requiredPhase,
 				elapsedMillis,
 				snapshot.settings().getCycleDurationMillis());
-		return dependencies.rimRenderer().nextDispatch(requiredPortalId, input, frameTick, intervalTicks);
 	}
 
 	Dependencies dependencies()

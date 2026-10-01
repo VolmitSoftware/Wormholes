@@ -126,6 +126,36 @@ final class AcousticsBridgeTest {
         assertFalse(bridge.hasDestinationWorld(DEST_WORLD));
     }
 
+    @Test
+    void clientRunBedsSkipThePacketBedAndExposeTheBedToTheSession() {
+        AcousticsBridge<UUID> bridge = new AcousticsBridge<>(new AcousticsBridge.Options<>(new AcousticsBridge.SoundSink<UUID>() {
+            @Override
+            public void play(UUID viewer, AcousticsBridge.Playback sound) {
+                played.add(new Played(viewer, sound.soundKey(), sound.soundClass(), sound.x(), sound.y(), sound.z(), sound.volume(), sound.pitch()));
+            }
+
+            @Override
+            public boolean clientAmbient(UUID viewer) {
+                return true;
+            }
+        }, portalId -> List.of(observer), viewer -> viewer));
+        assertEquals(null, bridge.ambientBed(PORTAL));
+        note(bridge, AcousticsProfile.AMBIENT, AcousticsBridge.Environment.THE_END, 0L);
+
+        assertEquals(0, bridge.tickAmbient(5_000L), "clients that run the bed get no packet bed");
+        assertTrue(played.isEmpty());
+        AcousticsBridge.Playback bed = bridge.ambientBed(PORTAL);
+        assertEquals("minecraft:ambient.cave", bed.soundKey());
+        assertEquals(AcousticsProfile.SoundClass.AMBIENT, bed.soundClass());
+        assertEquals(10.5D, bed.x());
+        assertEquals(AcousticsBridge.AMBIENT_VOLUME, bed.volume());
+
+        note(bridge, AcousticsProfile.OFF, AcousticsBridge.Environment.THE_END, 6_000L);
+        assertEquals(null, bridge.ambientBed(PORTAL), "a profile without the ambient bed exposes none");
+        note(bridge, AcousticsProfile.AMBIENT, AcousticsBridge.Environment.NORMAL, 7_000L);
+        assertEquals(null, bridge.ambientBed(PORTAL), "a calm overworld has no bed");
+    }
+
     private AcousticsBridge<UUID> bridge() {
         return new AcousticsBridge<>(new AcousticsBridge.Options<>((viewer, sound) ->
             played.add(new Played(viewer, sound.soundKey(), sound.soundClass(), sound.x(), sound.y(), sound.z(), sound.volume(), sound.pitch())),

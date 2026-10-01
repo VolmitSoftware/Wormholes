@@ -1,0 +1,208 @@
+package art.arcane.wormholes.render.client.session;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+
+import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.wormholes.network.client.ClientViewMessageType;
+import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.wormholes.render.client.ClientPortalGeometry;
+
+final class ClientViewSessionNestedTest {
+    private static final long WITHOUT_MIRROR = SessionHarness.CLIENT_CAPS & ~ClientViewCapability.CLIENT_MIRROR.mask();
+    private static final long WITHOUT_RECURSION = SessionHarness.CLIENT_CAPS & ~ClientViewCapability.CLIENT_RECURSION.mask();
+
+    @Test
+    void clientMirrorSessionsNeverAskForTheMirrorPlate() throws ClientViewProtocolException {
+        SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
+        SessionWorld world = new SessionWorld(21L);
+        SessionPortal mirror = mirror(harness, world, 0);
+        mirror.refused = true;
+        harness.handshake(SessionHarness.CLIENT_CAPS);
+        for (int i = 0; i < 4; i++) {
+            harness.tick();
+        }
+        assertTrue(harness.session.owns(mirror.id), "a client mirror is owned even when its plate would be refused");
+        assertEquals(List.of("release " + mirror.id), releases(harness));
+        assertFalse(harness.access.plateRequested.contains(mirror.id), "the mirror plate was requested");
+        assertFalse(harness.access.refusalChecked.contains(mirror.id), "the mirror plate refusal was consulted");
+        assertEquals(1, harness.sent(ClientViewMessageType.PORTAL));
+        assertEquals(0, harness.sent(ClientViewMessageType.PLATE_BEGIN));
+        assertEquals(0, harness.sent(ClientViewMessageType.PLATE_BRICKS));
+        ClientPortalGeometry geometry = harness.client.portals.values().iterator().next();
+        assertTrue(geometry.mirror());
+    }
+
+    @Test
+    void withoutTheClientMirrorCapabilityTheMirrorPlateStreams() throws ClientViewProtocolException {
+        SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
+        SessionWorld world = new SessionWorld(22L);
+        SessionPortal mirror = mirror(harness, world, 0);
+        harness.handshake(WITHOUT_MIRROR);
+        harness.tick();
+        assertTrue(harness.session.owns(mirror.id));
+        assertEquals(1, harness.sent(ClientViewMessageType.PLATE_BEGIN));
+        assertTrue(harness.access.plateRequested.contains(mirror.id));
+    }
+
+    @Test
+    void nestedPortalsStreamAsChildrenOfTheirAttendedParent() throws ClientViewProtocolException {
+        SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
+        SessionWorld world = new SessionWorld(23L);
+        SessionPortal mirror = mirror(harness, world, 0);
+        SessionPortal child = child(harness, world, mirror, "child", 8);
+        harness.handshake(SessionHarness.CLIENT_CAPS);
+        harness.tick();
+        assertTrue(harness.session.owns(mirror.id));
+        assertFalse(harness.session.owns(child.id), "a nested child is never owned as a top-level portal");
+        assertEquals(2, harness.client.portals.size());
+        int parentKey = keyOf(harness, 0);
+        int childKey = keyOf(harness, parentKey);
+        ClientPortalGeometry parent = harness.client.portals.get(parentKey);
+        ClientPortalGeometry nested = harness.client.portals.get(childKey);
+        assertEquals(1, parent.nested().size());
+        assertEquals(nested, parent.nested().get(0), "the nested entry equals the child PORTAL");
+        assertEquals(parentKey, nested.parentPortalKey());
+        assertNotNull(harness.client.plates.get(childKey), "the child plate streamed");
+        assertNull(harness.client.plates.get(parentKey), "the client mirror has no plate");
+        assertEquals(List.of("release " + mirror.id), releases(harness));
+
+        harness.access.interest.clear();
+        for (int i = 0; i < ClientViewOptions.DEFAULT_INTEREST_GRACE_TICKS + 2; i++) {
+            harness.tick();
+        }
+        assertTrue(harness.client.portals.isEmpty(), "dropping the parent drops its children");
+        assertEquals(2, harness.sent(ClientViewMessageType.PORTAL_DROP));
+    }
+
+    @Test
+    void aChildThatLeavesTheParentIsDroppedAndTheParentResent() throws ClientViewProtocolException {
+        SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
+        SessionWorld world = new SessionWorld(24L);
+        SessionPortal mirror = mirror(harness, world, 0);
+        child(harness, world, mirror, "child", 8);
+        harness.handshake(SessionHarness.CLIENT_CAPS);
+        harness.tick();
+        int parentKey = keyOf(harness, 0);
+        harness.access.nested.get(mirror.id).clear();
+        harness.tick();
+        assertEquals(1, harness.sent(ClientViewMessageType.PORTAL_DROP));
+        assertEquals(1, harness.client.portals.size());
+        assertTrue(harness.client.portals.get(parentKey).nested().isEmpty());
+        assertEquals(3, harness.sent(ClientViewMessageType.PORTAL));
+    }
+
+    @Test
+    void childGeometryChangesResendBothTheChildAndItsParent() throws ClientViewProtocolException {
+        SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
+        SessionWorld world = new SessionWorld(25L);
+        SessionPortal mirror = mirror(harness, world, 0);
+        SessionPortal child = child(harness, world, mirror, "child", 8);
+        harness.handshake(SessionHarness.CLIENT_CAPS);
+        harness.tick();
+        harness.tick();
+        assertEquals(2, harness.sent(ClientViewMessageType.PORTAL));
+        child.geometryRevision++;
+        harness.tick();
+        assertEquals(4, harness.sent(ClientViewMessageType.PORTAL));
+        int parentKey = keyOf(harness, 0);
+        int childKey = keyOf(harness, parentKey);
+        assertEquals(harness.client.portals.get(childKey), harness.client.portals.get(parentKey).nested().get(0));
+    }
+
+    @Test
+    void nestedChildrenNeedTheRecursionCapability() throws ClientViewProtocolException {
+        SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
+        SessionWorld world = new SessionWorld(26L);
+        SessionPortal mirror = mirror(harness, world, 0);
+        child(harness, world, mirror, "child", 8);
+        harness.handshake(WITHOUT_RECURSION);
+        harness.tick();
+        assertEquals(1, harness.client.portals.size());
+        assertTrue(harness.client.portals.values().iterator().next().nested().isEmpty());
+        assertEquals(0, harness.access.nestedCalls);
+    }
+
+    @Test
+    void aSessionResetReattachesChildrenUnderTheNewParentKey() throws ClientViewProtocolException {
+        SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
+        SessionWorld world = new SessionWorld(27L);
+        SessionPortal mirror = mirror(harness, world, 0);
+        child(harness, world, mirror, "child", 8);
+        harness.handshake(SessionHarness.CLIENT_CAPS);
+        harness.tick();
+        int before = keyOf(harness, 0);
+        harness.session.reset(ClientViewMessage.ResetReason.TELEPORT);
+        harness.pump();
+        harness.tick();
+        assertEquals(2, harness.client.portals.size());
+        int parentKey = keyOf(harness, 0);
+        assertTrue(parentKey != before);
+        int childKey = keyOf(harness, parentKey);
+        assertEquals(parentKey, harness.client.portals.get(childKey).parentPortalKey());
+        assertEquals(1, harness.client.portals.get(parentKey).nested().size());
+    }
+
+    @Test
+    void clientMirrorEntityFramesHideTheObserverWhileServerMirrorsKeepIt() throws ClientViewProtocolException {
+        assertEquals(List.of(true), hideObserverCalls(SessionHarness.CLIENT_CAPS), "the client draws its own reflection");
+        assertEquals(List.of(false), hideObserverCalls(WITHOUT_MIRROR), "a streamed mirror plate needs the projected observer");
+    }
+
+    private static List<Boolean> hideObserverCalls(long clientCaps) throws ClientViewProtocolException {
+        SessionHarness harness = new SessionHarness(SessionHarness.options(true, 8));
+        List<Boolean> calls = new ArrayList<Boolean>();
+        harness.entities = (observer, portal, key, tick, full, hideObserver) -> {
+            calls.add(hideObserver);
+            return null;
+        };
+        mirror(harness, new SessionWorld(28L), 0);
+        harness.handshake(clientCaps);
+        harness.tick();
+        return calls;
+    }
+
+    private static SessionPortal mirror(SessionHarness harness, SessionWorld world, int offsetX) {
+        SessionPortal mirror = harness.access.add(new SessionPortal("mirror", offsetX));
+        mirror.mirror = true;
+        mirror.recursionDepth = 2;
+        mirror.plate = mirror.build(world);
+        return mirror;
+    }
+
+    private static SessionPortal child(SessionHarness harness, SessionWorld world, SessionPortal parent, String name, int offsetX) {
+        SessionPortal child = new SessionPortal(name, offsetX);
+        child.plate = child.build(world);
+        harness.access.nested.computeIfAbsent(parent.id, id -> new ArrayList<SessionPortal>()).add(child);
+        return child;
+    }
+
+    private static int keyOf(SessionHarness harness, int parentKey) {
+        for (Map.Entry<Integer, ClientPortalGeometry> entry : harness.client.portals.entrySet()) {
+            if (entry.getValue().parentPortalKey() == parentKey) {
+                return entry.getKey();
+            }
+        }
+        throw new AssertionError("no portal with parent key " + parentKey);
+    }
+
+    private static List<String> releases(SessionHarness harness) {
+        List<String> releases = new ArrayList<String>();
+        for (String event : harness.events) {
+            if (event.startsWith("release ")) {
+                releases.add(event);
+            }
+        }
+        return releases;
+    }
+}

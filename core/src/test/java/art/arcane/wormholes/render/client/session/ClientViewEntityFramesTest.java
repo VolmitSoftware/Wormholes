@@ -1,0 +1,193 @@
+package art.arcane.wormholes.render.client.session;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.junit.jupiter.api.Test;
+
+import art.arcane.wormholes.network.client.ClientViewCodec;
+import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.wormholes.network.client.ClientViewProtocol;
+import art.arcane.wormholes.network.client.ClientViewProtocolException;
+import art.arcane.wormholes.network.view.EntityDeltaCodec;
+import art.arcane.wormholes.network.view.EntityVisual;
+
+class ClientViewEntityFramesTest {
+    private static final UUID PORTAL = UUID.nameUUIDFromBytes("portal".getBytes());
+
+    @Test
+    void firstFrameIsFullThenOnlyChangesAndPresenceTravel() {
+        List<EntityVisual> scene = new ArrayList<EntityVisual>();
+        UUID stand = UUID.randomUUID();
+        UUID pig = UUID.randomUUID();
+        scene.add(visual(stand, 10.5D, 0.0D));
+        scene.add(visual(pig, 12.5D, 0.0D));
+        ClientViewEntityFrames<String> frames = new ClientViewEntityFrames<String>(scenes(scene, new AtomicInteger()));
+        ClientViewMessage.EntityFrame first = frames.frame("observer", PORTAL, 3, 1L, true, false);
+        assertNotNull(first);
+        assertEquals(3, first.portalKey());
+        assertEquals(2, first.entities().size());
+        assertTrue(first.entities().stream().allMatch(EntityVisual::isFull));
+        assertEquals(List.of(stand, pig), first.presentIds());
+        assertTrue(first.presence());
+        assertNull(frames.frame("observer", PORTAL, 3, 2L, false, false), "an unchanged scene sends nothing");
+        scene.set(1, visual(pig, 13.0D, 0.0D));
+        ClientViewMessage.EntityFrame moved = frames.frame("observer", PORTAL, 3, 3L, false, false);
+        assertEquals(1, moved.entities().size());
+        EntityVisual delta = moved.entities().get(0);
+        assertFalse(delta.isFull());
+        assertEquals(pig, delta.id());
+        assertTrue((delta.presentMask() & EntityVisual.FIELD_POSITION) != 0);
+        assertEquals(13.0D, EntityDeltaCodec.applyDelta(delta, first.entities().get(1)).x(), 1.0E-3D);
+        assertFalse(moved.presence(), "movement alone does not resend the presence set");
+        assertTrue(moved.presentIds().isEmpty());
+        scene.remove(0);
+        ClientViewMessage.EntityFrame left = frames.frame("observer", PORTAL, 3, 4L, false, false);
+        assertTrue(left.entities().isEmpty());
+        assertTrue(left.presence());
+        assertEquals(List.of(pig), left.presentIds());
+        assertTrue(moved.entitySeq() > first.entitySeq() && left.entitySeq() > moved.entitySeq());
+    }
+
+    @Test
+    void oneCapturePerTickIsSharedByObserversOfTheSameScene() {
+        AtomicInteger captures = new AtomicInteger();
+        List<EntityVisual> scene = List.of(visual(UUID.randomUUID(), 10.5D, 0.0D));
+        ClientViewEntityFrames<String> frames = new ClientViewEntityFrames<String>(scenes(scene, captures));
+        assertNotNull(frames.frame("a", PORTAL, 1, 7L, true, false));
+        assertNotNull(frames.frame("b", PORTAL, 4, 7L, true, false));
+        assertEquals(1, captures.get());
+        assertEquals(2, frames.observerStates());
+        frames.frame("a", PORTAL, 1, 8L, false, false);
+        assertEquals(2, captures.get());
+    }
+
+    @Test
+    void fullRequestAndNewPortalKeyResendEverything() {
+        UUID stand = UUID.randomUUID();
+        ClientViewEntityFrames<String> frames = new ClientViewEntityFrames<String>(scenes(List.of(visual(stand, 10.5D, 0.0D)), new AtomicInteger()));
+        frames.frame("observer", PORTAL, 1, 1L, true, false);
+        ClientViewMessage.EntityFrame full = frames.frame("observer", PORTAL, 1, 2L, true, false);
+        assertEquals(1, full.entities().size());
+        assertTrue(full.entities().get(0).isFull());
+        ClientViewMessage.EntityFrame successor = frames.frame("observer", PORTAL, 9, 3L, false, false);
+        assertEquals(9, successor.portalKey());
+        assertTrue(successor.entities().get(0).isFull());
+    }
+
+    @Test
+    void emptyScenesSendNothingUntilEntitiesAppearAndStaleFullRequestsClearTheClient() {
+        List<EntityVisual> scene = new ArrayList<EntityVisual>();
+        ClientViewEntityFrames<String> frames = new ClientViewEntityFrames<String>(scenes(scene, new AtomicInteger()));
+        assertNull(frames.frame("observer", PORTAL, 1, 1L, true, false), "an empty first scene needs no frame");
+        assertNull(frames.frame("observer", PORTAL, 1, 2L, true, false));
+        UUID stand = UUID.randomUUID();
+        scene.add(visual(stand, 10.5D, 0.0D));
+        assertTrue(frames.frame("observer", PORTAL, 1, 3L, true, false).entities().get(0).isFull());
+        scene.clear();
+        ClientViewMessage.EntityFrame cleared = frames.frame("observer", PORTAL, 1, 4L, true, false);
+        assertNotNull(cleared, "a full request over a populated client clears it even when the scene is empty");
+        assertTrue(cleared.presentIds().isEmpty());
+    }
+
+    @Test
+    void lostSceneClearsPresenceOnce() {
+        List<EntityVisual> scene = List.of(visual(UUID.randomUUID(), 10.5D, 0.0D));
+        boolean[] visible = {true};
+        ClientViewEntityFrames<String> frames = new ClientViewEntityFrames<String>(new ClientViewEntityFrames.Scenes<String>() {
+            @Override
+            public Object sceneKey(String observer, UUID portal) {
+                return visible[0] ? portal : null;
+            }
+
+            @Override
+            public List<EntityVisual> capture(String observer, UUID portal, long tick) {
+                return scene;
+            }
+        });
+        frames.frame("observer", PORTAL, 1, 1L, true, false);
+        visible[0] = false;
+        ClientViewMessage.EntityFrame cleared = frames.frame("observer", PORTAL, 1, 2L, false, false);
+        assertTrue(cleared.entities().isEmpty());
+        assertTrue(cleared.presentIds().isEmpty());
+        assertNull(frames.frame("observer", PORTAL, 1, 3L, false, false));
+    }
+
+    @Test
+    void framesStayInsideTheProtocolCaps() throws ClientViewProtocolException {
+        List<EntityVisual> crowd = new ArrayList<EntityVisual>();
+        for (int i = 0; i < 400; i++) {
+            crowd.add(visual(UUID.randomUUID(), i, 0.0D));
+        }
+        ClientViewEntityFrames<String> frames = new ClientViewEntityFrames<String>(scenes(crowd, new AtomicInteger()));
+        ClientViewMessage.EntityFrame first = frames.frame("observer", PORTAL, 1, 1L, true, false);
+        assertEquals(ClientViewProtocol.MAX_ENTITIES_PER_FRAME, first.entities().size());
+        assertEquals(ClientViewProtocol.MAX_ENTITIES_PER_FRAME, first.presentIds().size());
+        ClientViewMessage.EntityFrame second = frames.frame("observer", PORTAL, 1, 2L, false, false);
+        assertEquals(400 - ClientViewProtocol.MAX_ENTITIES_PER_FRAME, second.entities().size());
+        assertEquals(400, second.presentIds().size());
+        byte[] encoded = ClientViewCodec.encodeS2C(second, 1, ClientViewProtocol.FLAG_LAST);
+        assertTrue(encoded.length <= ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES);
+        ClientViewMessage.EntityFrame decoded = (ClientViewMessage.EntityFrame) ClientViewCodec.decodeS2C(encoded, -1L).message();
+        assertEquals(second.entities().size(), decoded.entities().size());
+        assertEquals(second.presentIds(), decoded.presentIds());
+    }
+
+    @Test
+    void hiddenObserversLeaveTheFrameWhileOtherObserversStillSeeThem() {
+        UUID self = UUID.randomUUID();
+        UUID pig = UUID.randomUUID();
+        List<EntityVisual> scene = List.of(visual(self, 10.5D, 0.0D), visual(pig, 12.5D, 0.0D));
+        ClientViewEntityFrames<String> frames = new ClientViewEntityFrames<String>(new ClientViewEntityFrames.Scenes<String>() {
+            @Override
+            public Object sceneKey(String observer, UUID portal) {
+                return portal;
+            }
+
+            @Override
+            public List<EntityVisual> capture(String observer, UUID portal, long tick) {
+                return scene;
+            }
+
+            @Override
+            public boolean isObserver(String observer, EntityVisual visual) {
+                return observer.equals("mirror") && visual.id().equals(self);
+            }
+        });
+        ClientViewMessage.EntityFrame hidden = frames.frame("mirror", PORTAL, 1, 1L, true, true);
+        assertEquals(List.of(pig), hidden.presentIds(), "the observer is left out of its own client-drawn mirror");
+        ClientViewMessage.EntityFrame shown = frames.frame("mirror", PORTAL, 2, 1L, true, false);
+        assertEquals(2, shown.presentIds().size(), "a server-drawn mirror still carries the observer");
+        ClientViewMessage.EntityFrame other = frames.frame("other", PORTAL, 1, 1L, true, true);
+        assertEquals(2, other.presentIds().size(), "only the observer itself is hidden");
+    }
+
+    private static ClientViewEntityFrames.Scenes<String> scenes(List<EntityVisual> scene, AtomicInteger captures) {
+        return new ClientViewEntityFrames.Scenes<String>() {
+            @Override
+            public Object sceneKey(String observer, UUID portal) {
+                return portal;
+            }
+
+            @Override
+            public List<EntityVisual> capture(String observer, UUID portal, long tick) {
+                captures.incrementAndGet();
+                return scene;
+            }
+        };
+    }
+
+    private static EntityVisual visual(UUID id, double x, double velocityX) {
+        return new EntityVisual(EntityVisual.MODE_FULL, 0, EntityVisual.FIELD_ALL_FULL, id, "minecraft:armor_stand", x, 64.0D, 16.5D, 1.975D,
+            0.0D, 0.0D, -1.0D, 180.0F, 0.0F, velocityX, 0.0D, 0.0D, true, "", "", "", null, null, new byte[] {1}, EntityVisual.EMPTY,
+            EntityVisual.EMPTY);
+    }
+}

@@ -25,6 +25,7 @@ public final class WormholesMessageGroups {
         keys.addAll(TransitMessages.keys());
         keys.addAll(FidelityMessages.keys());
         keys.addAll(OpsMessages.keys());
+        keys.addAll(ClientViewMessages.keys());
         return keys;
     }
 }

@@ -88,6 +88,7 @@ public final class ViewPlateBuilder {
 
     public abstract static class Job<B, W> {
         private final ViewPlateKey key;
+        private volatile boolean urgent;
 
         protected Job(ViewPlateKey key) {
             this.key = Objects.requireNonNull(key, "key");
@@ -95,6 +96,14 @@ public final class ViewPlateBuilder {
 
         public ViewPlateKey key() {
             return key;
+        }
+
+        public boolean urgent() {
+            return urgent;
+        }
+
+        public void markUrgent() {
+            urgent = true;
         }
 
         public long predictedBytes() {

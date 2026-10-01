@@ -32,13 +32,14 @@ public final class PlateCaptureQueue<B, W> {
         return active.size() + submitted.size();
     }
 
-    public void tick(int chunkBudget) {
+    public void tick(int chunkBudget, int urgentChunkBudget) {
         PlateCaptureJob<B, W, ?> incoming = submitted.poll();
         while (incoming != null) {
             active.addLast(incoming);
             incoming = submitted.poll();
         }
         int budget = Math.max(1, chunkBudget);
+        int urgentBudget = Math.max(1, urgentChunkBudget);
         int count = active.size();
         for (int i = 0; i < count; i++) {
             PlateCaptureJob<B, W, ?> job = active.pollFirst();
@@ -46,16 +47,21 @@ public final class PlateCaptureQueue<B, W> {
                 job.abort();
                 continue;
             }
+            boolean urgent = job.urgent();
             int taken;
             try {
-                taken = job.capture(budget);
+                taken = job.capture(urgent ? urgentBudget : budget);
             } catch (RuntimeException failure) {
                 job.abort();
                 host.failed(job);
                 host.warning(job.key(), failure);
                 continue;
             }
-            budget = Math.max(0, budget - taken);
+            if (urgent) {
+                urgentBudget = Math.max(0, urgentBudget - taken);
+            } else {
+                budget = Math.max(0, budget - taken);
+            }
             switch (job.phase()) {
                 case CAPTURED -> host.build(job);
                 case FAILED -> host.failed(job);

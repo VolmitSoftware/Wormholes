@@ -6,11 +6,13 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class PlateWorkersTest {
@@ -41,6 +43,21 @@ final class PlateWorkersTest {
         assertEquals(1, host.failed.get());
         assertEquals(0, job.steps.get());
         assertTrue(host.published.isEmpty());
+    }
+
+    @Test
+    void lanesRunOnThePlatePoolAndAreRejectedAfterShutdown() throws InterruptedException {
+        PlateWorkers<String, String> workers = new PlateWorkers<>(1, new Host());
+        CountDownLatch ran = new CountDownLatch(1);
+        List<String> threads = new CopyOnWriteArrayList<>();
+        workers.execute(() -> {
+            threads.add(Thread.currentThread().getName());
+            ran.countDown();
+        });
+        assertTrue(ran.await(5L, TimeUnit.SECONDS));
+        assertTrue(threads.get(0).startsWith("Wormholes-Plate-"), threads.get(0));
+        workers.shutdown();
+        assertThrows(RejectedExecutionException.class, () -> workers.execute(() -> { }));
     }
 
     private static final class Host implements PlateWorkers.Host<String, String> {

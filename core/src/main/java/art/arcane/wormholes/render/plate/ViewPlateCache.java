@@ -52,6 +52,7 @@ public final class ViewPlateCache<B, W> {
                                 long destinationRevision,
                                 long transformRevision,
                                 ProjectionWorldChangeTracker tracker,
+                                boolean urgent,
                                 Function<ViewPlate<B>, ViewPlateBuilder.Job<B, W>> jobFactory) {
         long now = System.nanoTime();
         ViewPlate<B> plate = plates.get(key);
@@ -60,14 +61,16 @@ public final class ViewPlateCache<B, W> {
                 plate.touch(now);
                 boolean expired = plate.builtBefore(now - REFRESH_NANOS);
                 if ((expired || plate.dirty()) && canSchedule(key, transformRevision, jobFactory, now)) {
-                    schedule(key, transformRevision, jobFactory.apply(expired ? null : plate));
+                    schedule(key, transformRevision, jobFactory.apply(expired ? null : plate), urgent);
                 }
                 return plate;
             }
             drop(plate);
         }
         if (canSchedule(key, transformRevision, jobFactory, now)) {
-            schedule(key, transformRevision, jobFactory.apply(null));
+            schedule(key, transformRevision, jobFactory.apply(null), urgent);
+        } else if (urgent) {
+            promote(key);
         }
         return null;
     }
@@ -202,7 +205,7 @@ public final class ViewPlateCache<B, W> {
         return backoff == null || backoff.untilNanos() - now <= 0L;
     }
 
-    private void schedule(ViewPlateKey key, long transformRevision, ViewPlateBuilder.Job<B, W> job) {
+    private void schedule(ViewPlateKey key, long transformRevision, ViewPlateBuilder.Job<B, W> job, boolean urgent) {
         if (job == null) {
             return;
         }
@@ -210,8 +213,18 @@ public final class ViewPlateCache<B, W> {
             refused.put(key, Long.valueOf(transformRevision));
             return;
         }
+        if (urgent) {
+            job.markUrgent();
+        }
         if (building.putIfAbsent(key, job) == null) {
             scheduler.schedule(job);
+        }
+    }
+
+    private void promote(ViewPlateKey key) {
+        ViewPlateBuilder.Job<B, W> inFlight = building.get(key);
+        if (inFlight != null) {
+            inFlight.markUrgent();
         }
     }
 

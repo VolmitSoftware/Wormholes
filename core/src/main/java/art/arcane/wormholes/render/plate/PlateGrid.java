@@ -12,6 +12,7 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
 public final class PlateGrid<B> {
+    public static final int NO_CELL = 0;
     static final char ABSENT = 0;
     static final char BLOCK_ENTITY = Character.MAX_VALUE;
     static final int MAX_PALETTE = Character.MAX_VALUE - 1;
@@ -48,6 +49,19 @@ public final class PlateGrid<B> {
 
     public PlateBox box() {
         return box;
+    }
+
+    public int ref(int x, int y, int z) {
+        int index = box.index(x, y, z);
+        return index < 0 ? ABSENT : cells[index];
+    }
+
+    public static boolean blockEntityRef(int ref) {
+        return ref == BLOCK_ENTITY;
+    }
+
+    public PlateCell<B> paletteCell(int ref) {
+        return palette.get(ref - 1);
     }
 
     public PlateCell<B> cell(long localKey) {

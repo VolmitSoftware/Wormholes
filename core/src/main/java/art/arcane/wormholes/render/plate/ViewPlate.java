@@ -74,8 +74,24 @@ public final class ViewPlate<B> {
         return key;
     }
 
+    public PlateBox box() {
+        return grid.box();
+    }
+
     public PlateCell<B> cell(long localKey) {
         return grid.cell(localKey);
+    }
+
+    public int cellRef(int x, int y, int z) {
+        return grid.ref(x, y, z);
+    }
+
+    public PlateCell<B> paletteCell(int ref) {
+        return grid.paletteCell(ref);
+    }
+
+    public int paletteSize() {
+        return grid.paletteSize();
     }
 
     public PlateCell<B> cleanCell(long localKey, int remoteX, int remoteZ) {

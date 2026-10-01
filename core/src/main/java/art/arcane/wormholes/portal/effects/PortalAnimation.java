@@ -12,6 +12,7 @@ import java.util.random.RandomGenerator;
 
 public final class PortalAnimation<D> {
     private static final GeometryVector ZERO = new GeometryVector(0, 0, 0);
+    private static final double MIN_PLANE_EXTENT = 1.0E-3;
     private final Options options;
     private final Host<D> host;
     private final RandomGenerator random;
@@ -38,9 +39,9 @@ public final class PortalAnimation<D> {
         this.host = host;
         random = RandomGenerator.getDefault();
         extent = new double[] { options.size().x(), options.size().y(), options.size().z() };
-        normal = extent[0] <= extent[1] && extent[0] <= extent[2] ? 0 : extent[1] <= extent[2] ? 1 : 2;
-        planeA = normal == 0 ? 1 : 0;
-        planeB = normal == 2 ? 1 : 2;
+        normal = normalAxis(options.size());
+        planeA = planeA(normal);
+        planeB = planeB(normal);
         halfA = Math.max(0.6, extent[planeA] / 2 + 0.35);
         halfB = Math.max(0.6, extent[planeB] / 2 + 0.35);
         int count = options.mode() == Mode.CLOSE ? PortalAnimationPlan.closeEffectPlan(options.quality()).branches()
@@ -83,6 +84,7 @@ public final class PortalAnimation<D> {
             case SOUNDS -> impactSounds(tick);
             case CLOSE -> closing(tick);
             case FORMATION -> formation(tick);
+            case GLITCH -> glitch();
         };
         if (!running) {
             close();
@@ -95,7 +97,7 @@ public final class PortalAnimation<D> {
             if (options.particles() && (options.mode() == Mode.OPEN || options.mode() == Mode.PRELUDE) && age <= 18) {
                 impact(0);
             }
-            if (options.mode() != Mode.CLOSE && options.mode() != Mode.FORMATION && !boomPlayed) {
+            if (options.mode() != Mode.CLOSE && options.mode() != Mode.FORMATION && options.mode() != Mode.GLITCH && !boomPlayed) {
                 impactSounds(5);
             }
         }
@@ -304,6 +306,16 @@ public final class PortalAnimation<D> {
         return true;
     }
 
+    private boolean glitch() {
+        if (options.particles()) {
+            particle(Particle.WHITE_FLASH, options.center(), 1, ZERO, 0);
+            particle(Particle.REVERSE_PORTAL, options.center(), 40, new GeometryVector(.35, .7, .35), .25);
+            particle(Particle.PORTAL, options.center(), 24, new GeometryVector(.3, .6, .3), .5);
+            particle(Particle.ELECTRIC_SPARK, options.center(), 18, new GeometryVector(.4, .8, .4), .15);
+        }
+        return false;
+    }
+
     private List<Block> selectedBlocks(List<Block> blocks, int cap) {
         if (blocks.size() <= cap) {
             return blocks;
@@ -340,6 +352,28 @@ public final class PortalAnimation<D> {
         return result;
     }
 
+    public static int normalAxis(GeometryVector size) {
+        double x = size.x();
+        double y = size.y();
+        double z = size.z();
+        return x <= y && x <= z ? 0 : y <= z ? 1 : 2;
+    }
+
+    public static int planeA(int normal) {
+        return normal == 0 ? 1 : 0;
+    }
+
+    public static int planeB(int normal) {
+        return normal == 2 ? 1 : 2;
+    }
+
+    public static GeometryVector planeSize(int normal, double extentA, double extentB) {
+        double[] size = new double[3];
+        size[planeA(normal)] = Math.max(MIN_PLANE_EXTENT, extentA);
+        size[planeB(normal)] = Math.max(MIN_PLANE_EXTENT, extentB);
+        return vector(size);
+    }
+
     private GeometryVector point(double a, double b) {
         double[] position = { options.center().x(), options.center().y(), options.center().z() };
         position[planeA] += a;
@@ -361,8 +395,8 @@ public final class PortalAnimation<D> {
         }
     }
 
-    public enum Mode { OPEN, PRELUDE, IMPACT, SOUNDS, CLOSE, FORMATION }
-    public enum Particle { PORTAL, REVERSE_PORTAL, STREAM_DUST, ARM_DUST, END_ROD, ENCHANT, GLASS_SHARD, SCULK_SOUL, PALE_FLASH, PURPLE_FLASH, CRACK_DUST, BRANCHLET_DUST }
+    public enum Mode { OPEN, PRELUDE, IMPACT, SOUNDS, CLOSE, FORMATION, GLITCH }
+    public enum Particle { PORTAL, REVERSE_PORTAL, STREAM_DUST, ARM_DUST, END_ROD, ENCHANT, GLASS_SHARD, SCULK_SOUL, PALE_FLASH, PURPLE_FLASH, CRACK_DUST, BRANCHLET_DUST, WHITE_FLASH, ELECTRIC_SPARK }
     public record Block(GeometryVector center, String state) { }
     public record Options(Mode mode, GeometryVector center, GeometryVector size, VisualQualityProfile quality,
                           boolean particles, double volume, BooleanSupplier active, BooleanSupplier audible, List<Block> blocks) { }

@@ -28,12 +28,33 @@ final class ViewPlateCacheTest {
         publish(cache, plate);
         scheduled.set(0);
 
-        assertSame(plate, cache.current(key, 5L, 1L, null, previous -> null));
-        assertNull(cache.current(key, 6L, 1L, null, previous -> stubJob(key)));
+        assertSame(plate, cache.current(key, 5L, 1L, null, false, previous -> null));
+        assertNull(cache.current(key, 6L, 1L, null, false, previous -> stubJob(key)));
         assertEquals(1, scheduled.get());
-        assertNull(cache.current(key, 6L, 1L, null, previous -> stubJob(key)));
+        assertNull(cache.current(key, 6L, 1L, null, false, previous -> stubJob(key)));
         assertEquals(1, scheduled.get(), "a rebuild already in flight is not scheduled twice");
-        assertNull(cache.current(key, 5L, 2L, null, previous -> null), "a transform change invalidates the plate");
+        assertNull(cache.current(key, 5L, 2L, null, false, previous -> null), "a transform change invalidates the plate");
+    }
+
+    @Test
+    void anUrgentRequestMarksTheScheduledJobAndPromotesOneAlreadyInFlight() {
+        ViewPlateCache<String, String> cache = new ViewPlateCache<String, String>(1_000_000L, job -> { });
+        ViewPlateKey key = key("a");
+        ViewPlateBuilder.Job<String, String> job = stubJob(key);
+        assertNull(cache.current(key, 1L, 1L, null, false, previous -> job));
+        assertFalse(job.urgent());
+
+        assertNull(cache.current(key, 1L, 1L, null, true, previous -> stubJob(key)));
+        assertTrue(job.urgent(), "a first attendance promotes the build already in flight");
+
+        ViewPlateKey other = key("b");
+        ViewPlateBuilder.Job<String, String> urgent = stubJob(other);
+        assertNull(cache.current(other, 1L, 1L, null, true, previous -> urgent));
+        assertTrue(urgent.urgent(), "a first attendance schedules its build as urgent");
+        ViewPlateKey plain = key("c");
+        ViewPlateBuilder.Job<String, String> budgeted = stubJob(plain);
+        assertNull(cache.current(plain, 1L, 1L, null, false, previous -> budgeted));
+        assertFalse(budgeted.urgent());
     }
 
     @Test
@@ -44,10 +65,10 @@ final class ViewPlateCacheTest {
         ViewPlateKey c = key("c");
         publish(cache, plate(a, 1L, 1L, 400L));
         publish(cache, plate(b, 1L, 1L, 400L));
-        assertNotNull(cache.current(a, 1L, 1L, null, previous -> null));
+        assertNotNull(cache.current(a, 1L, 1L, null, false, previous -> null));
         publish(cache, plate(c, 1L, 1L, 400L));
 
-        assertNotNull(cache.current(a, 1L, 1L, null, previous -> null), "a was touched after b and survives");
+        assertNotNull(cache.current(a, 1L, 1L, null, false, previous -> null), "a was touched after b and survives");
         assertNull(cache.peek(b), "b was the least recently used plate");
         assertNotNull(cache.peek(c));
         assertTrue(cache.bytes() <= 1_000L);
@@ -94,13 +115,13 @@ final class ViewPlateCacheTest {
         assertFalse(ViewPlate.touches(plate.dirtyChunks(), 3, 3));
 
         List<ViewPlate<String>> patchedFrom = new ArrayList<ViewPlate<String>>();
-        assertSame(plate, cache.current(key, 1L, 1L, null, previous -> {
+        assertSame(plate, cache.current(key, 1L, 1L, null, false, previous -> {
             patchedFrom.add(previous);
             return stubJob(key);
         }));
         assertEquals(List.of(plate), patchedFrom, "the patch is built from the dirty plate");
         assertEquals(1, scheduled.size());
-        assertSame(plate, cache.current(key, 1L, 1L, null, previous -> stubJob(key)));
+        assertSame(plate, cache.current(key, 1L, 1L, null, false, previous -> stubJob(key)));
         assertEquals(1, scheduled.size(), "one patch at a time");
 
         tracker.markChanged(WORLD, 40, 40);
@@ -116,19 +137,19 @@ final class ViewPlateCacheTest {
         ViewPlateCache<String, String> cache = new ViewPlateCache<String, String>(1_000L, job -> scheduled.incrementAndGet());
         ViewPlateKey key = key("mirror");
 
-        assertNull(cache.current(key, 1L, 9L, null, previous -> {
+        assertNull(cache.current(key, 1L, 9L, null, false, previous -> {
             created.incrementAndGet();
             return predictedJob(key, 5_000L);
         }));
         assertEquals(0, scheduled.get(), "an over-cap plate is never built");
         assertTrue(cache.isRefused(key, 9L));
-        assertNull(cache.current(key, 1L, 9L, null, previous -> {
+        assertNull(cache.current(key, 1L, 9L, null, false, previous -> {
             created.incrementAndGet();
             return predictedJob(key, 5_000L);
         }));
         assertEquals(1, created.get(), "the refusal holds until the transform changes");
 
-        assertNull(cache.current(key, 1L, 10L, null, previous -> predictedJob(key, 500L)));
+        assertNull(cache.current(key, 1L, 10L, null, false, previous -> predictedJob(key, 500L)));
         assertEquals(1, scheduled.get(), "a new transform is evaluated again and fits");
         assertFalse(cache.isRefused(key, 10L));
     }
@@ -138,12 +159,12 @@ final class ViewPlateCacheTest {
         AtomicInteger scheduled = new AtomicInteger();
         ViewPlateCache<String, String> cache = new ViewPlateCache<String, String>(1_000L, job -> scheduled.incrementAndGet());
         ViewPlateKey key = key("mirror");
-        assertNull(cache.current(key, 1L, 9L, null, previous -> predictedJob(key, 5_000L)));
+        assertNull(cache.current(key, 1L, 9L, null, false, previous -> predictedJob(key, 5_000L)));
         assertEquals(0, scheduled.get());
 
         cache.recap(10_000L);
 
-        assertNull(cache.current(key, 1L, 9L, null, previous -> predictedJob(key, 5_000L)));
+        assertNull(cache.current(key, 1L, 9L, null, false, previous -> predictedJob(key, 5_000L)));
         assertEquals(1, scheduled.get());
     }
 
@@ -193,13 +214,13 @@ final class ViewPlateCacheTest {
             0, 0, 1, 1, 100L);
         publish(cache, plate);
         scheduled.clear();
-        assertSame(plate, cache.current(key, 1L, 1L, tracker, previous -> stubJob(key)));
+        assertSame(plate, cache.current(key, 1L, 1L, tracker, false, previous -> stubJob(key)));
         assertTrue(scheduled.isEmpty(), "a clean plate is served without a rebuild");
 
         tracker.markChanged(WORLD, 20, 20);
         List<ViewPlate<String>> patchedFrom = new ArrayList<ViewPlate<String>>();
 
-        assertSame(plate, cache.current(key, 1L, 1L, tracker, previous -> {
+        assertSame(plate, cache.current(key, 1L, 1L, tracker, false, previous -> {
             patchedFrom.add(previous);
             return stubJob(key);
         }));
@@ -223,7 +244,7 @@ final class ViewPlateCacheTest {
         }
         List<ViewPlate<String>> rebuiltFrom = new ArrayList<ViewPlate<String>>();
 
-        assertNull(cache.current(key, 1L, 1L, tracker, previous -> {
+        assertNull(cache.current(key, 1L, 1L, tracker, false, previous -> {
             rebuiltFrom.add(previous);
             return stubJob(key);
         }));
@@ -246,12 +267,12 @@ final class ViewPlateCacheTest {
         scheduled.set(0);
         tracker.markChanged(WORLD, 5, 5);
 
-        assertSame(plate, cache.current(key, 1L, 9L, tracker, previous -> {
+        assertSame(plate, cache.current(key, 1L, 9L, tracker, false, previous -> {
             created.incrementAndGet();
             return predictedJob(key, 5_000L);
         }));
         assertTrue(cache.isRefused(key, 9L));
-        assertSame(plate, cache.current(key, 1L, 9L, tracker, previous -> {
+        assertSame(plate, cache.current(key, 1L, 9L, tracker, false, previous -> {
             created.incrementAndGet();
             return predictedJob(key, 5_000L);
         }));
@@ -265,13 +286,13 @@ final class ViewPlateCacheTest {
         List<ViewPlateBuilder.Job<String, String>> scheduled = new ArrayList<ViewPlateBuilder.Job<String, String>>();
         ViewPlateCache<String, String> cache = new ViewPlateCache<String, String>(1_000_000L, scheduled::add);
         ViewPlateKey key = key("rtp");
-        assertNull(cache.current(key, 1L, 1L, null, previous -> stubJob(key)));
+        assertNull(cache.current(key, 1L, 1L, null, false, previous -> stubJob(key)));
         assertEquals(1, scheduled.size());
 
         cache.buildFailed(scheduled.get(0));
 
         assertFalse(cache.isBuilding(scheduled.get(0)));
-        assertNull(cache.current(key, 1L, 1L, null, previous -> stubJob(key)));
+        assertNull(cache.current(key, 1L, 1L, null, false, previous -> stubJob(key)));
         assertEquals(1, scheduled.size(), "the failed capture is not re-leased on the very next pass");
     }
 
@@ -281,12 +302,12 @@ final class ViewPlateCacheTest {
         ViewPlateCache<String, String> cache = new ViewPlateCache<String, String>(1_000_000L, scheduled::add);
         UUID portal = UUID.randomUUID();
         ViewPlateKey key = new ViewPlateKey(portal, "overworld", true, 0, 5L);
-        assertNull(cache.current(key, 1L, 1L, null, previous -> stubJob(key)));
+        assertNull(cache.current(key, 1L, 1L, null, false, previous -> stubJob(key)));
         cache.buildFailed(scheduled.get(0));
 
         cache.invalidatePortal(portal);
 
-        assertNull(cache.current(key, 1L, 1L, null, previous -> stubJob(key)));
+        assertNull(cache.current(key, 1L, 1L, null, false, previous -> stubJob(key)));
         assertEquals(2, scheduled.size(), "a reconfigured portal builds again right away");
     }
 
@@ -297,8 +318,8 @@ final class ViewPlateCacheTest {
         UUID portal = UUID.randomUUID();
         ViewPlateKey retired = new ViewPlateKey(portal, "overworld", true, 0, 11L);
         ViewPlateKey live = new ViewPlateKey(portal, "overworld", true, 0, 12L);
-        assertNull(cache.current(retired, 1L, 1L, null, previous -> stubJob(retired)));
-        assertNull(cache.current(live, 1L, 1L, null, previous -> stubJob(live)));
+        assertNull(cache.current(retired, 1L, 1L, null, false, previous -> stubJob(retired)));
+        assertNull(cache.current(live, 1L, 1L, null, false, previous -> stubJob(live)));
         ViewPlateBuilder.Job<String, String> retiredJob = scheduled.get(0);
         ViewPlateBuilder.Job<String, String> liveJob = scheduled.get(1);
 
@@ -317,12 +338,12 @@ final class ViewPlateCacheTest {
         ViewPlateCache<String, String> cache = new ViewPlateCache<String, String>(1_000_000L, scheduled::add);
         UUID portal = UUID.randomUUID();
         ViewPlateKey front = new ViewPlateKey(portal, "overworld", true, 0, 0L);
-        assertNull(cache.current(front, 1L, 1L, null, previous -> stubJob(front)));
+        assertNull(cache.current(front, 1L, 1L, null, false, previous -> stubJob(front)));
 
         cache.invalidatePortal(portal);
 
         assertFalse(cache.isBuilding(scheduled.get(0)));
-        assertNull(cache.current(front, 1L, 1L, null, previous -> stubJob(front)));
+        assertNull(cache.current(front, 1L, 1L, null, false, previous -> stubJob(front)));
         assertEquals(2, scheduled.size(), "the portal's next pass schedules a fresh build");
     }
 
@@ -332,10 +353,10 @@ final class ViewPlateCacheTest {
         ViewPlateCache<String, String> cache = new ViewPlateCache<String, String>(1_000_000L, scheduled::add);
         UUID portal = UUID.randomUUID();
         ViewPlateKey key = new ViewPlateKey(portal, "overworld", true, 0, 0L);
-        assertNull(cache.current(key, 1L, 1L, null, previous -> stubJob(key)));
+        assertNull(cache.current(key, 1L, 1L, null, false, previous -> stubJob(key)));
         ViewPlateBuilder.Job<String, String> stale = scheduled.get(0);
         cache.invalidatePortal(portal);
-        assertNull(cache.current(key, 1L, 2L, null, previous -> stubJob(key)));
+        assertNull(cache.current(key, 1L, 2L, null, false, previous -> stubJob(key)));
         ViewPlateBuilder.Job<String, String> replacement = scheduled.get(1);
 
         cache.buildFailed(stale);
@@ -345,13 +366,13 @@ final class ViewPlateCacheTest {
         assertTrue(cache.isBuilding(replacement), "the stale build's outcome leaves the replacement in flight");
         ViewPlate<String> fresh = plate(key, 1L, 2L, 100L);
         cache.publish(replacement, fresh);
-        assertSame(fresh, cache.current(key, 1L, 2L, null, previous -> stubJob(key)));
+        assertSame(fresh, cache.current(key, 1L, 2L, null, false, previous -> stubJob(key)));
         assertEquals(2, scheduled.size());
     }
 
     private static <W> void publish(ViewPlateCache<String, W> cache, ViewPlate<String> plate) {
         ViewPlateBuilder.Job<String, W> job = resultJob(plate);
-        cache.current(plate.key(), plate.destinationRevision(), plate.transformRevision(), null, previous -> job);
+        cache.current(plate.key(), plate.destinationRevision(), plate.transformRevision(), null, false, previous -> job);
         cache.publish(job, plate);
     }
 

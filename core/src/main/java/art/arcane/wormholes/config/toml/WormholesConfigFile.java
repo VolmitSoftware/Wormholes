@@ -42,4 +42,5 @@ public class WormholesConfigFile {
     public BedrockConfig bedrock = new BedrockConfig();
     public OpsConfig ops = new OpsConfig();
     public DimensionalConfig dimensional = new DimensionalConfig();
+    public ClientViewConfig clientView = new ClientViewConfig();
 }

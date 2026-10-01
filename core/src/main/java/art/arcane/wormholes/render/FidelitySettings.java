@@ -28,6 +28,7 @@ public final class FidelitySettings {
     public static volatile boolean rtpPlates = true;
     public static volatile int plateLateralClampBlocks = 40;
     public static volatile int plateCaptureChunksPerTick = 8;
+    public static volatile int plateUrgentCaptureChunksPerTick = 32;
     public static volatile boolean blockEntities = true;
     public static volatile int blockEntityBudgetPerTick = 64;
     public static volatile List<String> blockEntityTypes = RenderConfig.DEFAULT_BLOCK_ENTITY_TYPES;
@@ -73,6 +74,7 @@ public final class FidelitySettings {
         rtpPlates = projection.rtpPlates;
         plateLateralClampBlocks = clamp(projection.plateLateralClampBlocks, 0, 64);
         plateCaptureChunksPerTick = clamp(projection.plateCaptureChunksPerTick, 1, 256);
+        plateUrgentCaptureChunksPerTick = clamp(projection.plateUrgentCaptureChunksPerTick, 1, 256);
         blockEntities = render.blockEntities;
         blockEntityBudgetPerTick = clamp(render.blockEntityBudgetPerTick, 1, 1024);
         blockEntityTypes = normalizeTypes(render.blockEntityTypes);

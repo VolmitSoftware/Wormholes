@@ -17,13 +17,18 @@ import art.arcane.wormholes.render.FidelitySettings;
  */
 public final class AcousticsBridge<O> {
     public static final long APERTURE_TTL_MILLIS = 10_000L;
-    static final long AMBIENT_INTERVAL_MILLIS = 4_000L;
+    public static final int AMBIENT_INTERVAL_TICKS = 80;
+    static final long AMBIENT_INTERVAL_MILLIS = AMBIENT_INTERVAL_TICKS * 50L;
     static final float AMBIENT_VOLUME = 0.25F;
     private static final long RATE_WINDOW_MILLIS = 1_000L;
 
     @FunctionalInterface
     public interface SoundSink<O> {
         void play(O observer, Playback sound);
+
+        default boolean clientAmbient(O observer) {
+            return false;
+        }
     }
 
     @FunctionalInterface
@@ -198,7 +203,7 @@ public final class AcousticsBridge<O> {
                 continue;
             }
             for (O observer : observers.observersOf(entry.getKey())) {
-                if (!admit(observer, nowMillis)) {
+                if (sink.clientAmbient(observer) || !admit(observer, nowMillis)) {
                     continue;
                 }
                 sink.play(observer, new Playback(key, AcousticsProfile.SoundClass.AMBIENT,
@@ -207,6 +212,16 @@ public final class AcousticsBridge<O> {
             }
         }
         return played;
+    }
+
+    public Playback ambientBed(UUID portalId) {
+        Aperture aperture = portalId == null ? null : apertures.get(portalId);
+        if (aperture == null || !aperture.profile.admitsAmbient()) {
+            return null;
+        }
+        String key = ambientKey(aperture.environment, aperture.storm);
+        return key == null ? null : new Playback(key, AcousticsProfile.SoundClass.AMBIENT, aperture.apertureX, aperture.apertureY,
+            aperture.apertureZ, AMBIENT_VOLUME, 1.0F);
     }
 
     static String ambientKey(Environment environment, boolean storm) {

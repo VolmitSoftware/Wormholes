@@ -74,6 +74,43 @@ class WormholesSettingsTest {
     }
 
     @Test
+    void clientViewSectionDefaultsOnAndRoundTripsThroughTheCanonicalSnapshot() {
+        WormholesSettings defaults = WormholesSettings.loadSnapshot("schema = 3\n".getBytes(StandardCharsets.UTF_8));
+        assertTrue(defaults.getClientView().enabled);
+        String canonical = new String(defaults.canonicalSnapshot(), StandardCharsets.UTF_8);
+        assertTrue(canonical.contains("[client-view]"));
+        assertTrue(canonical.contains("hello-grace-millis = 100"));
+        assertTrue(canonical.contains("ack-window-frames = 8"));
+
+        String source = "schema = 3\n[client-view]\nenabled = false\nhello-grace-millis = 250\nmax-frame-kb = 256\n"
+            + "ack-window-frames = 0\nstandby-prestream = true\n";
+        WormholesSettings settings = WormholesSettings.loadSnapshot(source.getBytes(StandardCharsets.UTF_8));
+        assertFalse(settings.getClientView().enabled);
+        assertEquals(250, settings.getClientView().helloGraceMillis);
+        assertEquals(256, settings.getClientView().maxFrameKb);
+        assertEquals(0, settings.getClientView().ackWindowFrames);
+        assertTrue(settings.getClientView().standbyPrestream);
+        WormholesSettings restored = WormholesSettings.loadSnapshot(settings.withLanguage("fr_FR").canonicalSnapshot());
+        assertFalse(restored.getClientView().enabled);
+        assertEquals(250, restored.getClientView().helloGraceMillis);
+        assertEquals(256, restored.getClientView().maxFrameKb);
+        assertTrue(restored.getClientView().standbyPrestream);
+    }
+
+    @Test
+    void clientViewValuesAreClampedAtLoad() {
+        String source = "schema = 3\n[client-view]\nhello-grace-millis = -5\nmax-frame-kb = 9000\nack-window-frames = 900\n";
+        WormholesSettings settings = WormholesSettings.loadSnapshot(source.getBytes(StandardCharsets.UTF_8));
+        assertEquals(0, settings.getClientView().helloGraceMillis);
+        assertEquals(1024, settings.getClientView().maxFrameKb);
+        assertEquals(255, settings.getClientView().ackWindowFrames);
+        WormholesSettings small = WormholesSettings.loadSnapshot("schema = 3\n[client-view]\nmax-frame-kb = 1\nhello-grace-millis = 99999\n"
+            .getBytes(StandardCharsets.UTF_8));
+        assertEquals(64, small.getClientView().maxFrameKb);
+        assertEquals(5000, small.getClientView().helloGraceMillis);
+    }
+
+    @Test
     void invalidCurrentConfigurationIsNotRewritten() throws Exception {
         Path file = directory.resolve(WormholesSettings.CONFIG_FILE_NAME);
         String invalid = "schema = 3\nquality = \"unknown\"\n";

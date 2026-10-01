@@ -39,6 +39,32 @@ class PortalAnimationTest {
     }
 
     @Test
+    void glitchIsASingleTickBurstWithoutSounds() {
+        Recorder host = new Recorder();
+        PortalAnimation<Integer> animation = new PortalAnimation<>(options(PortalAnimation.Mode.GLITCH, true, () -> true), host);
+        assertFalse(animation.tick());
+        assertEquals(List.of(PortalAnimation.Particle.WHITE_FLASH, PortalAnimation.Particle.REVERSE_PORTAL, PortalAnimation.Particle.PORTAL,
+            PortalAnimation.Particle.ELECTRIC_SPARK), host.particles);
+        assertEquals(40, host.emissions.get(1).count());
+        assertTrue(host.sounds.isEmpty());
+        Recorder rejected = new Recorder();
+        new PortalAnimation<>(options(PortalAnimation.Mode.GLITCH, true, () -> true), rejected).schedulingRejected();
+        assertTrue(rejected.sounds.isEmpty(), "a rejected glitch never plays the kawoosh boom");
+        Recorder quiet = new Recorder();
+        assertFalse(new PortalAnimation<>(options(PortalAnimation.Mode.GLITCH, false, () -> true), quiet).tick());
+        assertTrue(quiet.particles.isEmpty());
+    }
+
+    @Test
+    void planeSizeKeepsTheNormalOfEverySize() {
+        for (int normal = 0; normal < 3; normal++) {
+            GeometryVector size = PortalAnimation.planeSize(normal, 0.0D, 0.0D);
+            assertEquals(normal, PortalAnimation.normalAxis(size));
+            assertEquals(normal, PortalAnimation.normalAxis(PortalAnimation.planeSize(normal, 3.0D, 1.0D)));
+        }
+    }
+
+    @Test
     void reversalCancelsDisplayAndPendingSounds() {
         AtomicBoolean active = new AtomicBoolean(true);
         Recorder host = new Recorder();
