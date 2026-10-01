@@ -20,6 +20,9 @@ import java.util.function.IntSupplier;
 public final class ClientLightPatches {
     public static final int NO_LIGHT = -1;
     private static final int WORDS = ClientViewProtocol.BRICK_CELLS / 64;
+    private static final int ALL_BORDERS = ClientViewSurface.BORDER_WEST | ClientViewSurface.BORDER_EAST
+        | ClientViewSurface.BORDER_DOWN | ClientViewSurface.BORDER_UP | ClientViewSurface.BORDER_NORTH | ClientViewSurface.BORDER_SOUTH;
+    private static final long[] BOUNDARY_CELLS = boundaryCells();
     private static volatile Binding binding;
 
     private final ClientViewSurface surface;
@@ -104,6 +107,7 @@ public final class ClientLightPatches {
         byte[] target = new byte[ClientViewProtocol.BRICK_CELLS];
         IntOpenHashSet portals = new IntOpenHashSet(2);
         boolean any = false;
+        int borders = 0;
         for (int index = 0; index < cellKeys.size(); index++) {
             long cell = cellKeys.getLong(index);
             int y = ProjectionCellKey.unpackY(cell);
@@ -118,6 +122,9 @@ public final class ClientLightPatches {
             int cellIndex = ClientViewProtocol.brickCellIndex(ProjectionCellKey.unpackX(cell), y, ProjectionCellKey.unpackZ(cell));
             mask[cellIndex >>> 6] |= 1L << (cellIndex & 63);
             target[cellIndex] = (byte) (packed & 0xFF);
+            if (borders != ALL_BORDERS) {
+                borders |= cellBorders(cellIndex);
+            }
             portals.add(portalKey);
             any = true;
         }
@@ -125,17 +132,17 @@ public final class ClientLightPatches {
         if (!any) {
             if (previous != null) {
                 sections.remove(key);
-                changed(sectionX, sectionY, sectionZ);
+                changed(sectionX, sectionY, sectionZ, previous.borders);
             }
             return;
         }
-        Section next = new Section(mask, target, portals);
+        Section next = new Section(mask, target, portals, borders);
         if (previous != null && previous.sameLight(next)) {
             previous.portals = portals;
             return;
         }
         sections.put(key, next);
-        changed(sectionX, sectionY, sectionZ);
+        changed(sectionX, sectionY, sectionZ, changedBorders(previous, next));
     }
 
     public LongOpenHashSet sectionsOf(int portalKey) {
@@ -156,8 +163,9 @@ public final class ClientLightPatches {
             skyDarken = darken;
             ObjectIterator<Long2ObjectMap.Entry<Section>> iterator = sections.long2ObjectEntrySet().fastIterator();
             while (iterator.hasNext()) {
-                long key = iterator.next().getLongKey();
-                surface.lightChanged(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key));
+                Long2ObjectMap.Entry<Section> entry = iterator.next();
+                long key = entry.getLongKey();
+                surface.lightChanged(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key), entry.getValue().borders);
             }
         }
         if (dirty) {
@@ -168,8 +176,9 @@ public final class ClientLightPatches {
     public void clear() {
         ObjectIterator<Long2ObjectMap.Entry<Section>> iterator = sections.long2ObjectEntrySet().fastIterator();
         while (iterator.hasNext()) {
-            long key = iterator.next().getLongKey();
-            surface.lightChanged(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key));
+            Long2ObjectMap.Entry<Section> entry = iterator.next();
+            long key = entry.getLongKey();
+            surface.lightChanged(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key), entry.getValue().borders);
         }
         sections.clear();
         publish();
@@ -200,10 +209,53 @@ public final class ClientLightPatches {
         return count;
     }
 
-    private void changed(int sectionX, int sectionY, int sectionZ) {
+    private void changed(int sectionX, int sectionY, int sectionZ, int borders) {
         dirty = true;
         refreshes++;
-        surface.lightChanged(sectionX, sectionY, sectionZ);
+        surface.lightChanged(sectionX, sectionY, sectionZ, borders);
+    }
+
+    private static int changedBorders(Section previous, Section next) {
+        if (previous == null) {
+            return next.borders;
+        }
+        int borders = 0;
+        for (int word = 0; word < WORDS; word++) {
+            long cells = (previous.mask[word] | next.mask[word]) & BOUNDARY_CELLS[word];
+            long maskChanges = previous.mask[word] ^ next.mask[word];
+            while (cells != 0L) {
+                int bit = Long.numberOfTrailingZeros(cells);
+                cells &= cells - 1L;
+                int cell = (word << 6) + bit;
+                if ((maskChanges & (1L << bit)) == 0L && previous.target[cell] == next.target[cell]) {
+                    continue;
+                }
+                borders |= cellBorders(cell);
+                if (borders == ALL_BORDERS) {
+                    return borders;
+                }
+            }
+        }
+        return borders;
+    }
+
+    private static long[] boundaryCells() {
+        long[] cells = new long[WORDS];
+        for (int cell = 0; cell < ClientViewProtocol.BRICK_CELLS; cell++) {
+            if (cellBorders(cell) != 0) {
+                cells[cell >>> 6] |= 1L << (cell & 63);
+            }
+        }
+        return cells;
+    }
+
+    private static int cellBorders(int cell) {
+        int x = cell & 15;
+        int y = cell >>> 8;
+        int z = (cell >>> 4) & 15;
+        return (x == 0 ? ClientViewSurface.BORDER_WEST : 0) | (x == 15 ? ClientViewSurface.BORDER_EAST : 0)
+            | (y == 0 ? ClientViewSurface.BORDER_DOWN : 0) | (y == 15 ? ClientViewSurface.BORDER_UP : 0)
+            | (z == 0 ? ClientViewSurface.BORDER_NORTH : 0) | (z == 15 ? ClientViewSurface.BORDER_SOUTH : 0);
     }
 
     private void publish() {
@@ -218,12 +270,14 @@ public final class ClientLightPatches {
     private static final class Section {
         private final long[] mask;
         private final byte[] target;
+        private final int borders;
         private IntOpenHashSet portals;
 
-        private Section(long[] mask, byte[] target, IntOpenHashSet portals) {
+        private Section(long[] mask, byte[] target, IntOpenHashSet portals, int borders) {
             this.mask = mask;
             this.target = target;
             this.portals = portals;
+            this.borders = borders;
         }
 
         private boolean sameLight(Section other) {

@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render.client;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,23 +9,127 @@ import java.util.Random;
 
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.wormholes.portal.PortalGeometry;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.render.Frustum4D;
 import art.arcane.wormholes.render.ProjectedBlockClaim;
 import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.ProjectorFrameTransform;
 import art.arcane.wormholes.render.ProjectorPlaneWindow;
+import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.junit.jupiter.api.Test;
 
 final class ClientViewSweepParityTest {
     private static final int EYES = 200;
     private static final double HYSTERESIS = ClientViewSweep.DEFAULT_HYSTERESIS_BLOCKS;
     private static final ProjectionRenderMode[] MODES = {ProjectionRenderMode.PANOPTIC, ProjectionRenderMode.VENTICULAR};
+
+    @Test
+    void irregularAperturesMatchPerCellRaysAcrossFramesPaddingAndHysteresis() {
+        for (Direction normal : Direction.values()) {
+            PortalFrame frame = PortalFrame.canonical(normal);
+            for (int rotation = 0; rotation < 4; rotation++, frame = frame.rotateClockwise()) {
+                PortalGeometry aperture = irregularAperture(frame);
+                GeometryVector origin = aperture.getArea().center();
+                for (boolean front : new boolean[] {false, true}) {
+                    for (double padding : new double[] {0.0D, 0.75D}) {
+                        for (double hysteresis : new double[] {0.0D, HYSTERESIS}) {
+                            ClientPortalGeometry geometry = ClientPortalGeometry.fromPortal(new ClientPortalGeometry.Source(aperture,
+                                frame, front, false, 0, 2.0D, padding, 0.2D, 8, 0, ClientPortalGeometry.BLACKOUT_OFF, 0,
+                                ClientPortalGeometry.MASK_AIR_PROJECT, ProjectedBlockClaim.LightingPolicy.LOCAL, 0,
+                                ClientPortalGeometry.KIND_FRAME, 0, 0L, List.of())).orElseThrow();
+                            PlateBox bounds = new PlateBox(-31, -34, -29, 25, 25, 25);
+                            ClientViewSweep sweep = new ClientViewSweep(geometry, bounds, hysteresis);
+                            LongOpenHashSet previous = new LongOpenHashSet();
+                            for (int step = 0; step < 3; step++) {
+                                double distance = (front ? 1.0D : -1.0D) * (1.0D + step * 3.0D);
+                                double lateral = step * 0.45D - 0.35D;
+                                GeometryVector eye = quantized(origin.getX() + normal.x() * distance + frame.getRight().x() * lateral,
+                                    origin.getY() + normal.y() * distance + frame.getRight().y() * lateral,
+                                    origin.getZ() + normal.z() * distance + frame.getRight().z() * lateral);
+                                LongOpenHashSet expected = perCellMask(geometry, bounds, eye, padding + hysteresis);
+                                assertTrue(!expected.isEmpty(), "the reference cone must include visible cells");
+                                if (hysteresis > 0.0D && !previous.isEmpty()) {
+                                    LongOpenHashSet retained = perCellMask(geometry, bounds, eye, padding + hysteresis * 2.0D);
+                                    retained.retainAll(previous);
+                                    expected.addAll(retained);
+                                }
+                                sweep.sweep(eye.getX(), eye.getY(), eye.getZ(), 0.0D, 0.0D, 0.0D);
+                                LongArrayList actual = new LongArrayList();
+                                sweep.appliedKeys(actual);
+                                assertEquals(expected, new LongOpenHashSet(actual), normal + " rotation=" + rotation + " front=" + front
+                                    + " padding=" + padding + " hysteresis=" + hysteresis + " step=" + step);
+                                previous = expected;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static PortalGeometry irregularAperture(PortalFrame frame) {
+        List<GeometryVector> cells = new ArrayList<GeometryVector>();
+        for (int right = -2; right <= 2; right++) {
+            for (int up = -2; up <= 2; up++) {
+                if ((right == 0 && up == 0) || (up == 2 && Math.abs(right) == 2)) {
+                    continue;
+                }
+                cells.add(new GeometryVector(-19 + frame.getRight().x() * right + frame.getUp().x() * up,
+                    -22 + frame.getRight().y() * right + frame.getUp().y() * up,
+                    -17 + frame.getRight().z() * right + frame.getUp().z() * up));
+            }
+        }
+        PortalGeometry aperture = new PortalGeometry();
+        aperture.setBlocks(cells);
+        return aperture;
+    }
+
+    private static LongOpenHashSet perCellMask(ClientPortalGeometry geometry, PlateBox bounds, GeometryVector eye, double padding) {
+        PortalGeometry aperture = geometry.aperture();
+        AxisAlignedBB area = aperture.getArea();
+        GeometryVector origin = area.center();
+        PortalFrame frame = geometry.frame();
+        Direction localNormal = frame.getNormal();
+        PortalFrame projectionFrame = frame.view(geometry.frontSide());
+        Direction normal = projectionFrame.getNormal();
+        double eyeDot = dot(eye.getX() - origin.getX(), eye.getY() - origin.getY(), eye.getZ() - origin.getZ(), normal);
+        double clearance = ProjectorFrameTransform.portalPlaneClearance(area, frame);
+        ProjectorPlaneWindow window = ProjectorPlaneWindow.create(aperture, area, projectionFrame,
+            origin.getX(), origin.getY(), origin.getZ(), padding, eyeDot);
+        Frustum4D frustum = new Frustum4D(eye, aperture, new Frustum4D.Options(geometry.depthBlocks(), geometry.depthBlocks(),
+            geometry.nearPlanePadding(), geometry.frustumCullingRatio(), padding));
+        AxisAlignedBB region = frustum.getRegion();
+        int minX = Math.max(bounds.minX(), ProjectorFrameTransform.minBlockForCenter(region.getXa()));
+        int minY = Math.max(bounds.minY(), ProjectorFrameTransform.minBlockForCenter(region.getYa()));
+        int minZ = Math.max(bounds.minZ(), ProjectorFrameTransform.minBlockForCenter(region.getZa()));
+        int maxX = Math.min(bounds.minX() + bounds.sizeX() - 1, ProjectorFrameTransform.maxBlockForCenter(region.getXb()));
+        int maxY = Math.min(bounds.minY() + bounds.sizeY() - 1, ProjectorFrameTransform.maxBlockForCenter(region.getYb()));
+        int maxZ = Math.min(bounds.minZ() + bounds.sizeZ() - 1, ProjectorFrameTransform.maxBlockForCenter(region.getZb()));
+        LongOpenHashSet expected = new LongOpenHashSet();
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    double cellDot = dot(x + 0.5D - origin.getX(), y + 0.5D - origin.getY(), z + 0.5D - origin.getZ(), localNormal);
+                    if (!ProjectorFrameTransform.projectsBehindPortalPlane(cellDot, geometry.frontSide(), clearance)
+                        || Math.abs(cellDot) > geometry.depthBlocks() + clearance) {
+                        continue;
+                    }
+                    double signed = dot(x + 0.5D - origin.getX(), y + 0.5D - origin.getY(), z + 0.5D - origin.getZ(), normal);
+                    if (window.containsRayIntersection(eye.getX(), eye.getY(), eye.getZ(), x + 0.5D, y + 0.5D, z + 0.5D, signed)) {
+                        expected.add(ProjectionCellKey.pack(x, y, z));
+                    }
+                }
+            }
+        }
+        return expected;
+    }
 
     @Test
     void theSweepCoversEveryServerClaimAndStaysInsideTheFrustumDepthBox() {

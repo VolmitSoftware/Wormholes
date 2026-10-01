@@ -214,7 +214,7 @@ final class ClientViewHarness {
         }
 
         @Override
-        public void lightChanged(int sectionX, int sectionY, int sectionZ) {
+        public void lightChanged(int sectionX, int sectionY, int sectionZ, int boundaryMask) {
             lightSections++;
         }
 

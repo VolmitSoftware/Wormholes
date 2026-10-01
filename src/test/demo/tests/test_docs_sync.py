@@ -81,8 +81,8 @@ class DocsSyncTest(unittest.TestCase):
             self.assertIn('date: 2026-10-01T12:00:00.000Z', text)
             self.assertIn('dateCreated: 2026-01-01T00:00:00.000Z', text)
             self.assertEqual(text.count('<video '), 4 * len(demos))
-            self.assertEqual(text.count('WITHOUT Wormholes mod</p>'), len(demos))
-            self.assertEqual(text.count('WITH Wormholes mod</p>'), len(demos))
+            self.assertEqual(text.count('No client mod</p>'), len(demos))
+            self.assertEqual(text.count('Client mod</p>'), len(demos))
             for demo in demos:
                 for client in ('standard', 'clientview'):
                     for perspective in ('pov', 'observer'):

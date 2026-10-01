@@ -35,12 +35,6 @@ import java.util.Objects;
 public final class ClientLevelSurface implements ClientViewSurface {
     public static final int WRITE_FLAGS = Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
     private static final long BLOCK_ENTITY_NBT_QUOTA = BlockEntitySample.MAX_NBT_BYTES * 16L;
-    private static final int BORDER_WEST = 1;
-    private static final int BORDER_EAST = 1 << 1;
-    private static final int BORDER_DOWN = 1 << 2;
-    private static final int BORDER_UP = 1 << 3;
-    private static final int BORDER_NORTH = 1 << 4;
-    private static final int BORDER_SOUTH = 1 << 5;
 
     private final ClientLevel level;
     private final LevelLightEngine lightEngine;
@@ -129,8 +123,20 @@ public final class ClientLevelSurface implements ClientViewSurface {
     }
 
     @Override
-    public void lightChanged(int sectionX, int sectionY, int sectionZ) {
-        level.setSectionDirtyWithNeighbors(sectionX, sectionY, sectionZ);
+    public void lightChanged(int sectionX, int sectionY, int sectionZ, int boundaryMask) {
+        int minX = (boundaryMask & BORDER_WEST) != 0 ? -1 : 0;
+        int maxX = (boundaryMask & BORDER_EAST) != 0 ? 1 : 0;
+        int minY = (boundaryMask & BORDER_DOWN) != 0 ? -1 : 0;
+        int maxY = (boundaryMask & BORDER_UP) != 0 ? 1 : 0;
+        int minZ = (boundaryMask & BORDER_NORTH) != 0 ? -1 : 0;
+        int maxZ = (boundaryMask & BORDER_SOUTH) != 0 ? 1 : 0;
+        for (int dx = minX; dx <= maxX; dx++) {
+            for (int dy = minY; dy <= maxY; dy++) {
+                for (int dz = minZ; dz <= maxZ; dz++) {
+                    Minecraft.getInstance().levelExtractor.setSectionDirty(sectionX + dx, sectionY + dy, sectionZ + dz);
+                }
+            }
+        }
     }
 
     @Override
@@ -197,23 +203,33 @@ public final class ClientLevelSurface implements ClientViewSurface {
         int localX = x & 15;
         int localY = y & 15;
         int localZ = z & 15;
-        BlockState previous = section.setBlockState(localX, localY, localZ, state, false);
-        if (previous == state) {
+        BlockState previous = writeSection(chunk, section, x, y, z, state);
+        if (previous == null || previous == state) {
             return;
-        }
-        for (Map.Entry<Heightmap.Types, Heightmap> heightmap : chunk.getHeightmaps()) {
-            heightmap.getValue().update(localX, y, localZ, state);
-        }
-        BlockPos position = new BlockPos(x, y, z);
-        if (previous.hasBlockEntity() && !state.is(previous.getBlock())) {
-            chunk.removeBlockEntity(position);
-        }
-        if (state.hasBlockEntity()) {
-            chunk.getBlockEntity(position, LevelChunk.EntityCreationType.IMMEDIATE);
         }
         tracked.borders |= (localX == 0 ? BORDER_WEST : 0) | (localX == 15 ? BORDER_EAST : 0)
             | (localY == 0 ? BORDER_DOWN : 0) | (localY == 15 ? BORDER_UP : 0)
             | (localZ == 0 ? BORDER_NORTH : 0) | (localZ == 15 ? BORDER_SOUTH : 0);
+    }
+
+    private BlockState writeSection(LevelChunk chunk, LevelChunkSection section, int x, int y, int z, BlockState state) {
+        if (state.hasBlockEntity()) {
+            return chunk.setBlockState(new BlockPos(x, y, z), state, WRITE_FLAGS);
+        }
+        int localX = x & 15;
+        int localY = y & 15;
+        int localZ = z & 15;
+        BlockState previous = section.setBlockState(localX, localY, localZ, state, false);
+        if (previous == state) {
+            return previous;
+        }
+        for (Map.Entry<Heightmap.Types, Heightmap> heightmap : chunk.getHeightmaps()) {
+            heightmap.getValue().update(localX, y, localZ, state);
+        }
+        if (previous.hasBlockEntity()) {
+            chunk.removeBlockEntity(new BlockPos(x, y, z));
+        }
+        return previous;
     }
 
     private void dilate(TouchedSection section) {

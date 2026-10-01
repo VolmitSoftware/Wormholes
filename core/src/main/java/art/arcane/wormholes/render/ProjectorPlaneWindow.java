@@ -321,7 +321,7 @@ public final class ProjectorPlaneWindow {
                 axis == 0 ? end : x, axis == 1 ? end : y, axis == 2 ? end : z, cellSignedDistance);
     }
 
-    void prepareRow(int axis, double eyeX, double eyeY, double eyeZ,
+    public void prepareRow(int axis, double eyeX, double eyeY, double eyeZ,
                     double x, double y, double z, double cellSignedDistance) {
         row.axis = axis;
         row.valid = false;

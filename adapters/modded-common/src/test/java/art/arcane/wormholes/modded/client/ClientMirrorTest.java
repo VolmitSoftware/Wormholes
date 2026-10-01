@@ -453,7 +453,7 @@ public class ClientMirrorTest {
         }
 
         @Override
-        public void lightChanged(int sectionX, int sectionY, int sectionZ) {
+        public void lightChanged(int sectionX, int sectionY, int sectionZ, int boundaryMask) {
         }
 
         @Override

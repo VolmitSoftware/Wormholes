@@ -358,10 +358,11 @@ public final class ClientViewSweep {
                                double slabSignedDistance, double eyeX, double eyeY, double eyeZ) {
         for (int r = rightMin; r <= rightMax; r++) {
             int start = layout.slabIndex(n, r, upMin);
+            layout.coordinates(n, r, upMin, cell);
+            window.prepareRow(layout.upAxis, eyeX, eyeY, eyeZ, cell[0] + 0.5D, cell[1] + 0.5D, cell[2] + 0.5D,
+                slabSignedDistance);
             for (int u = upMin; u <= upMax; u++) {
-                layout.coordinates(n, r, u, cell);
-                if (window.containsRayIntersection(eyeX, eyeY, eyeZ, cell[0] + 0.5D, cell[1] + 0.5D, cell[2] + 0.5D,
-                    slabSignedDistance)) {
+                if (window.containsRowCell(u)) {
                     int index = start + (u - upMin);
                     mask[index >>> 6] |= 1L << index;
                 }

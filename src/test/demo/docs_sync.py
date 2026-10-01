@@ -10,7 +10,7 @@ DEMOS: dict[str, tuple[tuple[str, str], ...]] = {
     '03-building-portals.md': (('Wand box construction', 'wand-creation'), ('Rune construction', 'rune-creation')),
     '04-portal-types-menus-settings.md': (('Destination menu', 'portal-linking'),),
 }
-CLIENTS: tuple[tuple[str, str], ...] = (('standard', 'WITHOUT Wormholes mod'), ('clientview', 'WITH Wormholes mod'))
+CLIENTS: tuple[tuple[str, str], ...] = (('standard', 'No client mod'), ('clientview', 'Client mod'))
 PERSPECTIVES: tuple[tuple[str, str], ...] = (('pov', 'First person'), ('observer', 'Third person'))
 FRONTMATTER: re.Pattern[str] = re.compile(r'\A---\n.*?\n---\n', re.DOTALL)
 DATE: re.Pattern[str] = re.compile(r'^date: .*$', re.MULTILINE)

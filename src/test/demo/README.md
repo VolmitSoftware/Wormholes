@@ -53,7 +53,7 @@ PY
 python3 src/test/demo/docs_sync.py
 ```
 
-Intentional wiki assets live in `../docs/wormholes-assets/demos/`. `docs_sync.py` requires all twelve nonempty clips, inserts construction demonstrations in `03-building-portals.md` and linking in `04-portal-types-menus-settings.md`, and preserves existing prose. Repeating synchronization leaves unchanged pages untouched. Visible clips autoplay muted and loop. Each demo selects its client variant independently; First person and Third person tabs synchronize with Adapt's demos and remember the selection across pages.
+Intentional wiki assets live in `../docs/wormholes-assets/demos/`. `docs_sync.py` requires all twelve nonempty clips, inserts construction demonstrations in `03-building-portals.md` and linking in `04-portal-types-menus-settings.md`, and preserves existing prose. Repeating synchronization leaves unchanged pages untouched. Visible clips autoplay muted and loop. Each demo has No client mod and Client mod tabs with an independent client selection. A separate Camera dropdown selects First person or Third person, synchronizes with Adapt's demos, and remembers the selection across pages.
 
 ## Automator bridge
 
