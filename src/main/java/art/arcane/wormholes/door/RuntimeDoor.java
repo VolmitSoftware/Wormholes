@@ -9,6 +9,7 @@ public final class RuntimeDoor
 	private final DoorOpenCycle cycle;
 
 	private volatile DoorwayPlane plane;
+	private volatile DoorwayPlane projectionPlane;
 
 	public RuntimeDoor(PlacedDoorEndpoint endpoint)
 	{
@@ -31,14 +32,26 @@ public final class RuntimeDoor
 		return plane;
 	}
 
+	public DoorwayPlane projectionPlane()
+	{
+		return projectionPlane;
+	}
+
 	void update(VanillaDoorSnapshot snapshot)
 	{
 		plane = snapshot.plane();
+		projectionPlane = plane;
 		// The cycle tracks portal-active, which may be the inverse of the raw open bit.
 		cycle.observe(snapshot.portalLive());
 	}
 
 	void invalidate()
+	{
+		projectionPlane = null;
+		unload();
+	}
+
+	void unload()
 	{
 		plane = null;
 		cycle.observe(false);

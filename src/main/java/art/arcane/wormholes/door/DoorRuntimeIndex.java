@@ -264,7 +264,10 @@ final class DoorRuntimeIndex implements AutoCloseable
 		for(DoorSpatialIndex.Entry<RuntimeDoor> entry : spatialIndex.nearby(
 			chunk.getWorld().getUID(), chunk.getX() << 4, chunk.getZ() << 4, 0))
 		{
-			invalidate(entry.value());
+			RuntimeDoor runtime = entry.value();
+			runtime.unload();
+			sweep.stop(runtime.endpoint().identity().itemId());
+			removeProjection(runtime.endpoint().identity().itemId());
 		}
 	}
 

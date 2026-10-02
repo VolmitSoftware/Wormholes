@@ -71,7 +71,7 @@ final class DoorApertureDestinationService implements DoorApertureDestinations {
 
     private Optional<DoorProjectionDestination> endpoint(DoorProjectionAdapter adapter, PlacedDoorEndpoint placed) {
         RuntimeDoor runtime = runtimes.runtime(placed.identity().itemId());
-        DoorwayPlane plane = runtime == null ? null : runtime.plane();
+        DoorwayPlane plane = runtime == null ? null : runtime.projectionPlane();
         World world = runtimes.world(placed.position());
         if (plane == null || world == null) {
             return Optional.empty();

@@ -57,6 +57,30 @@ final class DoorApertureDestinationServiceTest {
     }
 
     @Test
+    void unloadedPocketKeepsItsCapturedPhysicalApertureWithoutReprovisioning() {
+        Harness harness = new Harness();
+        UUID observer = UUID.randomUUID();
+        DoorItemIdentity identity = DoorItemIdentity.newPublic();
+        DoorProjectionAdapter source = harness.adapter(identity, new DoorwayPlane(12, 64, 8, Direction.W));
+        PocketBinding binding = PocketBinding.publicDoor(identity.itemId());
+        PocketSpace space = harness.space(binding, 8192);
+        when(harness.state.resolveDestination(identity, observer)).thenReturn(new PocketDoorDestination(binding));
+        when(harness.state.findPocket(binding)).thenReturn(Optional.of(space));
+        PlacedDoorEndpoint target = harness.pocketEndpoint(space);
+        RuntimeDoor runtime = harness.runtimes.runtime(target.identity().itemId());
+        DoorwayPlane captured = runtime.plane();
+        runtime.unload();
+
+        DoorProjectionDestination destination = harness.service.destinationOf(source, observer, false).orElseThrow();
+        assertEquals(captured.center().x(), destination.origin().getX());
+        assertEquals(captured.center().y(), destination.origin().getY());
+        assertEquals(captured.center().z(), destination.origin().getZ());
+        assertEquals(DoorApertureFrames.destinationFrame(source.plane(), captured), destination.frame());
+        assertTrue(runtime.plane() == null);
+        verify(harness.transits, never()).prepareProjection(source.endpoint(), observer);
+    }
+
+    @Test
     void publicInstancedViewsUseResolvedObserverBindingAndNeverShareThePublicRoom() {
         Harness harness = new Harness();
         DoorItemIdentity identity = DoorItemIdentity.newPublic();

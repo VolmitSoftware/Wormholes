@@ -71,8 +71,27 @@ final class RuntimeDoorTest
 		runtime.invalidate();
 
 		assertNull(runtime.plane());
+		assertNull(runtime.projectionPlane());
 		assertFalse(runtime.cycle().portalActive());
 		assertEquals(DoorOpenCycle.Phase.CLOSED, runtime.cycle().phase());
+	}
+
+	@Test
+	void unloadingRetainsOnlyTheCameraAndRefreshesItOnReload()
+	{
+		RuntimeDoor runtime = new RuntimeDoor(endpoint(DoorForm.DOOR, DoorOpenState.OPEN));
+		DoorwayPlane initial = plane(DoorForm.DOOR, DoorOpenState.OPEN);
+		runtime.update(snapshot(initial, true));
+		runtime.unload();
+
+		assertNull(runtime.plane());
+		assertFalse(runtime.cycle().portalActive());
+		assertEquals(initial, runtime.projectionPlane());
+
+		DoorwayPlane rotated = new DoorwayPlane(1, 64, 2, Direction.E);
+		runtime.update(snapshot(rotated, true));
+		assertEquals(rotated, runtime.projectionPlane());
+		assertTrue(runtime.cycle().portalActive());
 	}
 
 	private static PlacedDoorEndpoint endpoint(DoorForm form, DoorOpenState openState)
