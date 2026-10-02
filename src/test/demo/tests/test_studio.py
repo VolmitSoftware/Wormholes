@@ -5,7 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 MODULE = Path(__file__).resolve().parents[1] / 'studio.py'
 
@@ -23,6 +23,30 @@ class StudioTests(unittest.TestCase):
         self.assertEqual(self.studio.client_numbers('clientview'), (3, 4))
         with self.assertRaises(ValueError):
             self.studio.client_numbers('unknown')
+
+    def test_existing_recording_profile_is_preserved(self) -> None:
+        bridge: Mock = Mock()
+        bridge.state.return_value = {'capturing': True}
+        with patch.object(self.studio, 'client_credentials', return_value=(12345, 'private')), \
+                patch.object(self.studio, 'Bridge', return_value=bridge), \
+                patch.object(self.studio, 'prepare_client') as prepare:
+            with self.assertRaisesRegex(RuntimeError, 'already recording'):
+                self.studio.Studio().open_clients('standard')
+        bridge.command.assert_not_called()
+        prepare.assert_not_called()
+
+    def test_disconnected_profiles_quit_before_relaunch(self) -> None:
+        bridges: dict[int, Mock] = {11111: Mock(), 22222: Mock()}
+        for bridge in bridges.values():
+            bridge.state.return_value = {'capturing': False, 'connected': False}
+        with patch.object(self.studio, 'client_credentials', side_effect=[(11111, 'first'), (22222, 'second')]), \
+                patch.object(self.studio, 'Bridge', side_effect=lambda port, token: bridges[port]), \
+                patch.object(self.studio.time, 'sleep'), \
+                patch.object(self.studio, 'prepare_client', side_effect=RuntimeError('before launch')):
+            with self.assertRaisesRegex(RuntimeError, 'before launch'):
+                self.studio.Studio().open_clients('standard')
+        for bridge in bridges.values():
+            bridge.command.assert_called_once_with('quit')
 
     def test_rcon_rejects_optional_argument_syntax_error(self) -> None:
         rcon = self.studio.Rcon.__new__(self.studio.Rcon)

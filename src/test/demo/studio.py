@@ -12,6 +12,7 @@ import socket
 import struct
 import subprocess
 import time
+import tempfile
 import traceback
 import urllib.request
 from pathlib import Path
@@ -388,6 +389,16 @@ class Studio:
     def open_clients(self, variant: str) -> tuple[Bridge, Bridge]:
         credentials: dict[int, tuple[int, str]] = {number: client_credentials(number) for number in client_numbers(variant)}
         self.close_clients()
+        for number, (port, token) in credentials.items():
+            bridge: Bridge = Bridge(port, token)
+            try:
+                existing: dict = bridge.state(timeout=1)
+            except OSError:
+                continue
+            if existing.get('capturing'):
+                raise RuntimeError('Client profile is already recording: ' + str(number))
+            self.clients.append((PRISM / 'instances' / (PROFILE_PREFIX + ' - ' + str(number)), bridge))
+        self.close_clients()
         sessions: list[dict[str, object]] = []
         for number, player in zip(client_numbers(variant), (ACTOR, OBSERVER)):
             port, token = credentials[number]
@@ -594,16 +605,28 @@ def export(identifier: str, variant: str) -> list[Path]:
     def encode(view: str) -> Path:
         source: Path = OUTPUT / 'intermediate' / (identifier + '-' + variant + '-' + view + '.mp4')
         target: Path = DOCS / (identifier + '-' + variant + '-' + view + '.webm')
-        start_quality: int = 30 if target.is_file() and target.stat().st_size > 25 * 1024 * 1024 else 27
-        for quality in range(start_quality, 43, 3):
-            result: subprocess.CompletedProcess[str] = subprocess.run([str(FFMPEG), '-y', '-i', str(source),
-                '-vf', filters[view], '-r', '30', '-c:v', 'libvpx-vp9', '-crf', str(quality), '-b:v', '0',
-                '-row-mt', '1', '-threads', '4', '-deadline', 'good', '-cpu-used', '4', '-pix_fmt', 'yuv420p', '-an', str(target)],
-                capture_output=True, text=True)
+        limit: int = 25 * 1024 * 1024
+        command: list[str] = [str(FFMPEG), '-y', '-i', str(source), '-vf', filters[view], '-r', '30',
+            '-c:v', 'libvpx-vp9', '-row-mt', '1', '-threads', '4', '-deadline', 'good', '-cpu-used', '4',
+            '-pix_fmt', 'yuv420p', '-an']
+        if not target.is_file() or target.stat().st_size <= limit:
+            result: subprocess.CompletedProcess[str] = subprocess.run(
+                [*command, '-crf', '27', '-b:v', '0', str(target)], capture_output=True, text=True)
             if result.returncode:
                 raise RuntimeError('Export failed: ' + result.stderr[-2000:])
-            if target.stat().st_size <= 25 * 1024 * 1024:
-                return target
-        raise AssertionError('Clip exceeds 25 MB: ' + str(target))
+        if target.stat().st_size > limit:
+            capture: dict = next(entry for entry in matches[0]['capture'] if entry['view'] == view)
+            bitrate: int = int(22 * 1024 * 1024 * 8 / capture['trimmedSeconds'])
+            with tempfile.TemporaryDirectory(prefix='vp9-', dir=OUTPUT / 'intermediate') as temporary:
+                passlog: str = str(Path(temporary) / 'pass')
+                for pass_number in (1, 2):
+                    destination: list[str] = ['-f', 'null', os.devnull] if pass_number == 1 else [str(target)]
+                    result = subprocess.run([*command, '-b:v', str(bitrate), '-pass', str(pass_number),
+                        '-passlogfile', passlog, *destination], capture_output=True, text=True)
+                    if result.returncode:
+                        raise RuntimeError('Bounded export failed: ' + result.stderr[-2000:])
+        if target.stat().st_size > limit:
+            raise AssertionError('Clip exceeds 25 MB: ' + str(target))
+        return target
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         return list(executor.map(encode, ('pov', 'observer')))
