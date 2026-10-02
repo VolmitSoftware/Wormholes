@@ -5,19 +5,20 @@ import re
 import time
 from pathlib import Path
 
-from studio import ACTOR, OBSERVER, OUTPUT, FFMPEG, Bridge, Rcon, Studio, claim_studio, export, look, verify_capture
+import gateway_studio
+from studio import ACTOR, OBSERVER, OUTPUT, FFMPEG, Bridge, Rcon, Studio, capture_metrics, claim_studio, export, fit_hidden_renderer, look, verify_capture, verify_hidden_renderer, verify_sessions
 
 
 def menu(bridge: Bridge) -> dict:
     return bridge.wait(lambda state: state.get('container') is not None, 'portal menu')['container']
 
 
-def click_menu(bridge: Bridge, label: str, pause: float = 0.7) -> None:
+def click_menu(bridge: Bridge, label: str, pause: float = 0.7, button: int = 0, shift: bool = False) -> None:
     container: dict = menu(bridge)
     target: dict | None = next((slot for slot in container['slots'] if re.fullmatch(label, slot.get('name', ''), re.I)), None)
     if target is None:
         raise AssertionError('Missing menu control ' + label + ': ' + json.dumps(container))
-    bridge.command('window', action='click', slot=target['index'], containerId=container['id'])
+    bridge.command('window', action='shift' if shift else 'click', slot=target['index'], containerId=container['id'], button=button)
     time.sleep(0.5)
     state: dict = bridge.wait(lambda state: not state.get('windowPending', False), 'menu cursor and click')
     if state.get('windowError'):
@@ -188,25 +189,30 @@ def linking(actor: Bridge, observer: Bridge, rcon: Rcon, identifier: str) -> str
 def record(studio: Studio, actor: Bridge, observer: Bridge, shot: dict, variant: str) -> dict:
     identifier: str = shot['id'] + '-' + variant
     print('Preparing ' + identifier, flush=True)
-    studio.rcon.command('whdemo scene ' + shot['scene'])
-    studio.rcon.command('gamemode survival ' + ACTOR)
-    studio.rcon.command('tp ' + ACTOR + ' 0.5 70 3.8 180 0')
-    studio.rcon.command('whdemo pose observer')
-    time.sleep(2)
-    if shot['id'] == 'portal-linking':
-        linking_setup(actor, studio.rcon)
+    if shot.get('group') == 'doors':
+        import door_shots
+        door_shots.prepare(shot['id'], actor, observer, studio.rcon)
+    elif shot.get('group') == 'features':
+        import feature_shots
+        feature_shots.prepare(shot['id'], actor, observer, studio.rcon)
     else:
-        studio.rcon.command('whdemo equip-' + ('runes' if shot['id'] == 'rune-creation' else 'wand'))
-    look(observer, (0.5, 71.5, 0.5), ticks=1)
+        studio.rcon.command('whdemo scene ' + shot['scene'])
+        studio.rcon.command('gamemode survival ' + ACTOR)
+        studio.rcon.command('tp ' + ACTOR + ' 0.5 70 3.8 180 0')
+        studio.rcon.command('whdemo pose observer')
+        time.sleep(2)
+        if shot['id'] == 'portal-linking':
+            linking_setup(actor, studio.rcon)
+        else:
+            studio.rcon.command('whdemo equip-' + ('runes' if shot['id'] == 'rune-creation' else 'wand'))
+        look(observer, (0.5, 71.5, 0.5), ticks=1)
     actor.command('release')
     observer.command('release')
     actor.command('hud', visible=True)
     observer.command('hud', visible=False)
     time.sleep(2)
     for bridge in (actor, observer):
-        bridge.command('fit-window', width=1920, height=1080)
-        bridge.wait(lambda state: state.get('frameWidth') == 1920 and state.get('frameHeight') == 1080,
-                    'native 1920x1080 render target')
+        fit_hidden_renderer(bridge)
     time.sleep(1)
     captures: list[Bridge] = []
     started: float = time.monotonic()
@@ -222,7 +228,11 @@ def record(studio: Studio, actor: Bridge, observer: Bridge, shot: dict, variant:
         time.sleep(1.5)
         screenshot(actor, identifier + '-start')
         screenshot(observer, identifier + '-observer-start')
-        if shot['id'] == 'wand-creation':
+        if shot.get('group') == 'doors':
+            proof = door_shots.perform(shot['id'], actor, observer, studio.rcon, identifier)
+        elif shot.get('group') == 'features':
+            proof = feature_shots.perform(shot['id'], actor, observer, studio.rcon, identifier)
+        elif shot['id'] == 'wand-creation':
             proof: str = wand(actor, studio.rcon, photographed=identifier)
         elif shot['id'] == 'rune-creation':
             proof = rune(actor, studio.rcon, identifier)
@@ -237,30 +247,80 @@ def record(studio: Studio, actor: Bridge, observer: Bridge, shot: dict, variant:
         actor.command('release')
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
             list(executor.map(lambda bridge: bridge.command('capture', action='stop'), captures))
-    states: list[dict] = [bridge.state() for bridge in captures]
-    for state in states:
-        verify_capture(state)
+        states: list[dict] = [bridge.state() for bridge in captures]
+        reports: Path = OUTPUT / 'capture-reports'
+        reports.mkdir(parents=True, exist_ok=True)
+        (reports / (identifier + '.json')).write_text(json.dumps({
+            'id': shot['id'], 'variant': variant,
+            'capture': [{'view': view, 'raw': capture_metrics(state)} for view, state in zip(('pov', 'observer'), states)],
+        }, indent=2))
+    accepted: list[dict] = [{'view': view, **verify_capture(state, shot['id'])}
+                            for view, state in zip(('pov', 'observer'), states)]
     return {'id': shot['id'], 'variant': variant, 'seconds': time.monotonic() - started, 'proof': proof,
             'skin': studio.rcon.command('whdemo skin-status'), 'sessions': studio.rcon.command('wh clientview status'),
-            'capture': [{key: state.get(key) for key in ('captureFrames', 'captureSeconds', 'captureDroppedFrames', 'captureSource')} for state in states]}
+            'capture': accepted}
+
+
+def disconnect_gateway_clients(studio: Studio, actor: Bridge, observer: Bridge) -> None:
+    for bridge in (actor, observer):
+        if bridge.state().get('capturing'):
+            raise RuntimeError('Cannot restart the gateway studio while a capture is active')
+    for bridge in (actor, observer):
+        bridge.command('release')
+        bridge.command('disconnect')
+    for bridge in (actor, observer):
+        bridge.wait(lambda state: not state.get('connected'), 'client disconnected before gateway setup', timeout=15)
+    deadline: float = time.monotonic() + 45
+    while time.monotonic() < deadline:
+        if all(not gateway_studio.network_report(studio, player)['player']['online'] for player in (ACTOR, OBSERVER)):
+            return
+        time.sleep(0.25)
+    raise TimeoutError('Primary server did not release the demonstration client sessions')
+
+
+def reconnect_gateway_clients(studio: Studio, actor: Bridge, observer: Bridge, variant: str) -> None:
+    for bridge in (actor, observer):
+        bridge.command('connect', address='127.0.0.1:' + str(studio.port))
+    for player, bridge in ((ACTOR, actor), (OBSERVER, observer)):
+        state: dict = bridge.wait(lambda value: value.get('connected') and value.get('player') == player,
+                                  player + ' reconnected after gateway setup', timeout=60)
+        verify_hidden_renderer(state)
+    actor.wait(lambda state: state.get('skinLoaded', False), 'actor skin after gateway setup', timeout=45)
+    if studio.rcon is None:
+        raise RuntimeError('Primary RCON is unavailable after gateway setup')
+    studio.rcon.command('gamemode creative ' + ACTOR)
+    studio.rcon.command('gamemode spectator ' + OBSERVER)
+    observer.command('hud', visible=False)
+    deadline: float = time.monotonic() + 20
+    while True:
+        status: str = studio.rcon.command('wh clientview status')
+        try:
+            verify_sessions(status, variant, (ACTOR, OBSERVER))
+            return
+        except AssertionError:
+            if time.monotonic() >= deadline:
+                raise
+        time.sleep(0.25)
 
 
 def main() -> None:
     parser: argparse.ArgumentParser = argparse.ArgumentParser(description='Record Wormholes construction and linking in real Minecraft clients.')
     parser.add_argument('--variant', choices=('standard', 'clientview', 'all'), default='all')
-    parser.add_argument('--only', choices=('wand-creation', 'rune-creation', 'portal-linking'))
+    sheet: dict = json.loads((Path(__file__).parent / 'shots.json').read_text())
+    parser.add_argument('--only', choices=tuple(shot['id'] for shot in sheet['shots']), action='append')
     parser.add_argument('--reuse-server', action='store_true')
     parser.add_argument('--reuse-clients', action='store_true')
     parser.add_argument('--keep-open', action='store_true')
     parser.add_argument('--record-only', action='store_true')
     args: argparse.Namespace = parser.parse_args()
     studio: Studio = Studio()
-    sheet: dict = json.loads((Path(__file__).parent / 'shots.json').read_text())
-    shots: list[dict] = [shot for shot in sheet['shots'] if args.only is None or shot['id'] == args.only]
+    shots: list[dict] = [shot for shot in sheet['shots'] if args.only is None or shot['id'] in args.only]
     variants: list[str] = sheet['variants'] if args.variant == 'all' else [args.variant]
     manifest_path: Path = OUTPUT / 'manifest.json'
     manifest: dict = json.loads(manifest_path.read_text()) if manifest_path.is_file() else {'takes': []}
     exports: list[tuple[str, str]] = []
+    secondary: Studio | None = None
+    gateway_requested: bool = any(shot['id'] == 'cross-server-gateways' for shot in shots)
     try:
         if args.reuse_server:
             info: dict = json.loads((OUTPUT / 'server.json').read_text())
@@ -283,6 +343,10 @@ def main() -> None:
             else:
                 actor, observer = studio.open_clients(variant)
             for shot in shots:
+                if shot['id'] == 'cross-server-gateways':
+                    disconnect_gateway_clients(studio, actor, observer)
+                    secondary = gateway_studio.prepare_network(studio)
+                    reconnect_gateway_clients(studio, actor, observer, variant)
                 take: dict = record(studio, actor, observer, shot, variant)
                 manifest['takes'] = [entry for entry in manifest['takes'] if (entry['id'], entry['variant']) != (shot['id'], variant)]
                 manifest['takes'].append(take)
@@ -291,7 +355,14 @@ def main() -> None:
                 print('Recorded ' + shot['id'] + '-' + variant, flush=True)
     finally:
         if not args.keep_open:
-            studio.close()
+            try:
+                if gateway_requested:
+                    if secondary is None:
+                        secondary = gateway_studio.reuse_secondary(studio, connect=False)
+                    if secondary is not None:
+                        gateway_studio.close_secondary(secondary)
+            finally:
+                studio.close()
     if not args.record_only:
         for identifier, variant in exports:
             print('Exporting ' + identifier + '-' + variant, flush=True)

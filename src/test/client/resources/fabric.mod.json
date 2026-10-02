@@ -3,7 +3,7 @@
   "id": "instance-automator",
   "version": "1.0.0",
   "name": "Instance Automator",
-  "description": "Local demonstration controls and game-window recording.",
+  "description": "Local demonstration controls and hidden framebuffer recording.",
   "environment": "client",
   "mixins": [
     "instance-automator.mixins.json"

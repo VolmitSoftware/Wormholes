@@ -1,4 +1,7 @@
 import importlib.util
+import json
+import subprocess
+import sys
 from html.parser import HTMLParser
 import tempfile
 import unittest
@@ -9,6 +12,18 @@ SCRIPT: Path = Path(__file__).resolve().parents[1] / 'docs_sync.py'
 FRONT: str = '---\ntitle: Portals\ndate: 2026-09-30T00:00:00.000Z\ndateCreated: 2026-01-01T00:00:00.000Z\n---\n'
 BUILD: str = FRONT + '\n## Wand box construction\n\nSelect the corners.\n\n## Rune construction\n\nPlace matching runes.\n\n## Surface skin\n\nKeep the opening clear.\n'
 LINK: str = FRONT + '\n## Destination menu\n\nChoose a destination.\n\n## Type menu\n\nChoose a type.\n'
+ORIGINAL_BLOCK: str = '''<div class="wormholes-demo" data-demo="{id}">
+<div class="wormholes-demo-variant" data-client="standard">
+<p>No client mod</p>
+<video src="/wormholes-assets/demos/{id}-standard-pov.webm" aria-label="No client mod, first person demonstration" autoplay muted loop playsinline controls preload="metadata"></video>
+<video src="/wormholes-assets/demos/{id}-standard-observer.webm" aria-label="No client mod, third person demonstration" autoplay muted loop playsinline controls preload="metadata"></video>
+</div>
+<div class="wormholes-demo-variant" data-client="clientview">
+<p>Client mod</p>
+<video src="/wormholes-assets/demos/{id}-clientview-pov.webm" aria-label="Client mod, first person demonstration" autoplay muted loop playsinline controls preload="metadata"></video>
+<video src="/wormholes-assets/demos/{id}-clientview-observer.webm" aria-label="Client mod, third person demonstration" autoplay muted loop playsinline controls preload="metadata"></video>
+</div>
+</div>'''
 
 
 class DocsSyncTest(unittest.TestCase):
@@ -29,17 +44,130 @@ class DocsSyncTest(unittest.TestCase):
         self.assets: Path = self.docs / 'wormholes-assets' / 'demos'
         self.assets.mkdir(parents=True)
 
-    def clips(self) -> None:
-        for demo in ('wand-creation', 'rune-creation', 'portal-linking'):
+    def sync(self, now: str) -> int:
+        return self.module.sync(self.docs, now, ('wand-creation', 'rune-creation', 'portal-linking'))
+
+    def clips(self, demos: tuple[str, ...] = ('wand-creation', 'rune-creation', 'portal-linking')) -> None:
+        for demo in demos:
             for client in ('standard', 'clientview'):
                 for perspective in ('pov', 'observer'):
                     (self.assets / f'{demo}-{client}-{perspective}.webm').write_bytes(b'clip')
+
+    def test_selected_cli_demos_do_not_require_unselected_assets_or_pages(self) -> None:
+        self.clips(('wand-creation', 'portal-linking'))
+        result: subprocess.CompletedProcess[str] = subprocess.run(
+            [sys.executable, str(SCRIPT), '--docs', str(self.docs), '--only', 'wand-creation',
+             '--only', 'portal-linking', '--only', 'wand-creation'], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('Updated 2 demonstration block(s).', result.stdout)
+        self.assertNotIn('data-demo="rune-creation"', self.build.read_text())
+        self.assertIn('Place matching runes.', self.build.read_text())
+
+    def test_two_demos_share_a_section_without_duplicate_blocks(self) -> None:
+        demonstrations: tuple[tuple[str, str], ...] = (
+            ('Destination menu', 'portal-linking'), ('Destination menu', 'network-dialing'))
+        updated, count = self.module.render_page(self.link, demonstrations, '2026-10-01T12:00:00.000Z')
+        self.assertEqual(count, 2)
+        self.link.write_text(updated, encoding='utf-8')
+        rerendered, count = self.module.render_page(self.link, demonstrations, '2026-10-02T12:00:00.000Z')
+        self.assertEqual(count, 0)
+        self.assertEqual(rerendered, updated)
+        self.assertEqual(updated.count('class="wormholes-demo"'), 2)
+        self.assertLess(updated.index('data-demo="portal-linking"'), updated.index('data-demo="network-dialing"'))
+        self.assertIn('Choose a destination.', updated)
+
+    def test_original_demonstrations_keep_exact_markup(self) -> None:
+        for identifier in ('wand-creation', 'rune-creation', 'portal-linking'):
+            with self.subTest(identifier=identifier):
+                self.assertEqual(self.module.block(identifier), ORIGINAL_BLOCK.replace('{id}', identifier))
+
+    def test_loading_caption_requires_actual_manifest_edits(self) -> None:
+        manifest: Path = self.docs / 'manifest.json'
+        manifest.write_text(json.dumps({'takes': [
+            {'id': 'personal-pockets', 'capture': [{'view': 'pov', 'edits': [{'startFrame': 40, 'endFrame': 60}]}]},
+            {'id': 'public-pockets', 'capture': [{'view': 'pov', 'edits': []}]},
+        ]}))
+        shortened: frozenset[str] = self.module.shortened_demos(manifest)
+        self.assertEqual(shortened, frozenset(('personal-pockets',)))
+        self.assertIn('Loading pauses shortened.', self.module.block('personal-pockets', True))
+        self.assertNotIn('Loading pauses shortened.', self.module.block('public-pockets'))
+        self.clips(('gateways',))
+        self.assertEqual(self.module.sync(self.docs, '2026-10-01T12:00:00.000Z', ('gateways',),
+                                         frozenset(('gateways',))), 1)
+        self.assertIn('Loading pauses shortened.', self.link.read_text())
+        self.assertEqual(self.module.sync(self.docs, '2026-10-02T12:00:00.000Z', ('gateways',),
+                                         frozenset(('gateways',))), 0)
+
+    def test_every_new_demo_has_a_caption_before_its_variants(self) -> None:
+        original: set[str] = {'wand-creation', 'rune-creation', 'portal-linking'}
+        known: set[str] = {identifier for entries in self.module.DEMOS.values() for _, identifier in entries}
+        self.assertEqual(set(self.module.CAPTIONS), known - original)
+        for identifier in known - original:
+            with self.subTest(identifier=identifier):
+                rendered: str = self.module.block(identifier)
+                self.assertLess(rendered.index('<p><strong>'), rendered.index('class="wormholes-demo-variant"'))
+                self.assertEqual(rendered.count('<strong>'), 1)
+
+    def test_render_captions_distinguish_frozen_standard_geometry_from_clientview(self) -> None:
+        for identifier in ('render-panoptic', 'render-venticular'):
+            rendered: str = self.module.block(identifier)
+            self.assertIn('Standard projection is frozen for the rear comparison.', rendered)
+            self.assertIn('ClientView remains clipped to the aperture and does not expose the block volume.', rendered)
+
+    def test_traveler_observer_is_labeled_as_second_player(self) -> None:
+        for identifier in ('personal-pockets', 'public-pockets', 'rtp-personal'):
+            rendered: str = self.module.block(identifier)
+            self.assertIn('data-observer-label="Second player"', rendered)
+            self.assertIn('Client mod, second player demonstration', rendered)
+            self.assertNotIn('third person', rendered)
+        self.assertNotIn('data-observer-label', self.module.block('mirrors'))
+
+    def test_live_observer_is_labeled_as_destination_view(self) -> None:
+        rendered: str = self.module.block('live-views')
+        self.assertIn('data-observer-label="Destination view"', rendered)
+        self.assertIn('No client mod, destination view demonstration', rendered)
+        self.assertIn('Client mod, destination view demonstration', rendered)
+        self.assertIn('lures a sheep with wheat', rendered)
+        self.assertNotIn('third person', rendered)
+
+    def test_selective_update_preserves_neighboring_demo_and_assets(self) -> None:
+        self.clips(('render-panoptic', 'render-venticular'))
+        page: Path = self.docs / 'wormholes' / '05-projection-modes-settings.md'
+        page.write_text(FRONT + '\n## ProjectionRenderMode\n\nCompare the render modes.\n', encoding='utf-8')
+        self.module.sync(self.docs, '2026-10-01T12:00:00.000Z', ('render-panoptic', 'render-venticular'))
+        page.write_text(page.read_text().replace('preload="metadata"', 'preload="none"'), encoding='utf-8')
+        self.assertEqual(self.module.sync(self.docs, '2026-10-02T12:00:00.000Z', ('render-panoptic',)), 1)
+        updated: str = page.read_text()
+        self.assertEqual(updated.count('class="wormholes-demo"'), 2)
+        self.assertEqual(updated.count('preload="none"'), 4)
+        self.assertEqual(updated.count('preload="metadata"'), 4)
+        self.assertIn('Compare the render modes.', updated)
+        self.assertTrue(all(path.read_bytes() == b'clip' for path in self.assets.iterdir()))
+
+    def test_unknown_cli_demo_refuses_page_writes(self) -> None:
+        self.clips()
+        result: subprocess.CompletedProcess[str] = subprocess.run(
+            [sys.executable, str(SCRIPT), '--docs', str(self.docs), '--only', 'not-a-demo'],
+            capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(self.build.read_text(), BUILD)
+        self.assertEqual(self.link.read_text(), LINK)
+
+    def test_selected_clip_requires_each_client_and_camera(self) -> None:
+        self.clips(('wand-creation',))
+        (self.assets / 'wand-creation-clientview-observer.webm').write_bytes(b'')
+        result: subprocess.CompletedProcess[str] = subprocess.run(
+            [sys.executable, str(SCRIPT), '--docs', str(self.docs), '--only', 'wand-creation'],
+            capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('wand-creation-clientview-observer.webm', result.stderr)
+        self.assertEqual(self.build.read_text(), BUILD)
 
     def test_missing_clips_refuse_all_page_writes(self) -> None:
         self.clips()
         (self.assets / 'portal-linking-clientview-observer.webm').unlink()
         with self.assertRaisesRegex(self.module.MissingClips, 'portal-linking-clientview-observer.webm'):
-            self.module.sync(self.docs, '2026-10-01T12:00:00.000Z')
+            self.sync('2026-10-01T12:00:00.000Z')
         self.assertEqual(self.build.read_text(), BUILD)
         self.assertEqual(self.link.read_text(), LINK)
 
@@ -47,7 +175,7 @@ class DocsSyncTest(unittest.TestCase):
         self.clips()
         (self.assets / 'rune-creation-standard-pov.webm').write_bytes(b'')
         with self.assertRaisesRegex(self.module.MissingClips, 'rune-creation-standard-pov.webm'):
-            self.module.sync(self.docs, '2026-10-01T12:00:00.000Z')
+            self.sync('2026-10-01T12:00:00.000Z')
 
     def test_generated_clips_autoplay_like_adapt(self) -> None:
         class Videos(HTMLParser):
@@ -60,7 +188,7 @@ class DocsSyncTest(unittest.TestCase):
                     self.attributes.append(dict(attrs))
 
         self.clips()
-        self.module.sync(self.docs, '2026-10-01T12:00:00.000Z')
+        self.sync('2026-10-01T12:00:00.000Z')
         videos: Videos = Videos()
         videos.feed(self.build.read_text() + self.link.read_text())
         self.assertEqual(len(videos.attributes), 12)
@@ -71,7 +199,7 @@ class DocsSyncTest(unittest.TestCase):
 
     def test_exact_sections_and_all_paired_views_preserve_prose(self) -> None:
         self.clips()
-        self.assertEqual(self.module.sync(self.docs, '2026-10-01T12:00:00.000Z'), 3)
+        self.assertEqual(self.sync('2026-10-01T12:00:00.000Z'), 3)
         build: str = self.build.read_text()
         link: str = self.link.read_text()
         for section, demo in [('Wand box construction', 'wand-creation'), ('Rune construction', 'rune-creation')]:
@@ -95,23 +223,23 @@ class DocsSyncTest(unittest.TestCase):
 
     def test_second_run_preserves_content_and_date(self) -> None:
         self.clips()
-        self.module.sync(self.docs, '2026-10-01T12:00:00.000Z')
+        self.sync('2026-10-01T12:00:00.000Z')
         before: tuple[str, str] = (self.build.read_text(), self.link.read_text())
-        self.assertEqual(self.module.sync(self.docs, '2026-10-02T12:00:00.000Z'), 0)
+        self.assertEqual(self.sync('2026-10-02T12:00:00.000Z'), 0)
         self.assertEqual(before, (self.build.read_text(), self.link.read_text()))
 
     def test_invalid_later_page_does_not_modify_first_page(self) -> None:
         self.clips()
         self.link.write_text(LINK.replace('## Destination menu', '## Destinations'), encoding='utf-8')
         with self.assertRaisesRegex(self.module.InvalidPage, 'Destination menu'):
-            self.module.sync(self.docs, '2026-10-01T12:00:00.000Z')
+            self.sync('2026-10-01T12:00:00.000Z')
         self.assertEqual(self.build.read_text(), BUILD)
 
     def test_existing_demo_updates_in_place_without_duplicates(self) -> None:
         self.clips()
-        self.module.sync(self.docs, '2026-10-01T12:00:00.000Z')
+        self.sync('2026-10-01T12:00:00.000Z')
         self.build.write_text(self.build.read_text().replace('preload="metadata"', 'preload="none"'), encoding='utf-8')
-        self.assertEqual(self.module.sync(self.docs, '2026-10-02T12:00:00.000Z'), 2)
+        self.assertEqual(self.sync('2026-10-02T12:00:00.000Z'), 2)
         self.assertEqual(self.build.read_text().count('class="wormholes-demo"'), 2)
         self.assertNotIn('preload="none"', self.build.read_text())
 

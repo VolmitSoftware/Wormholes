@@ -83,6 +83,8 @@ public final class WormholesDemoFixture extends JavaPlugin implements Listener {
         String operation = arguments[0].toLowerCase(Locale.ROOT);
         switch (operation) {
             case "scene" -> reset(sender, arguments);
+            case "feature" -> new FeatureScenes(world()).execute(sender, arguments);
+            case "doors" -> new DoorDemoScenes(world()).execute(sender, arguments);
             case "equip-runes" -> equip(sender, arguments, true);
             case "equip-wand" -> equip(sender, arguments, false);
             case "clear-markers" -> clearMarkers(sender, arguments);
@@ -156,10 +158,15 @@ public final class WormholesDemoFixture extends JavaPlugin implements Listener {
         boolean observer = arguments[1].equals("observer");
         int offset = arguments.length > 2 && arguments[2].equals("destination") ? 200 : 0;
         Player player = player(observer ? observerName : actorName);
+        if (player.isDead()) {
+            player.spigot().respawn();
+        }
         player.closeInventory();
         player.setGameMode(observer ? GameMode.SPECTATOR : GameMode.CREATIVE);
         player.setHealth(20.0);
         player.setFoodLevel(20);
+        player.setFallDistance(0);
+        player.setFireTicks(0);
         Location position = observer
                 ? new Location(world(), 7.5, 73.0, offset + 10.5, 145.0F, 12.0F)
                 : new Location(world(), 0.5, 70.0, offset + 5.5, 180.0F, 0.0F);

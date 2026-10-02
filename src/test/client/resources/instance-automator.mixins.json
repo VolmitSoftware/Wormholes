@@ -11,7 +11,8 @@
     "DefaultPlayerSkinAccessor",
     "WindowMixin",
     "InputConstantsMixin",
-    "FramerateLimitTrackerMixin"
+    "FramerateLimitTrackerMixin",
+    "RenderSystemMixin"
   ],
   "injectors": {
     "defaultRequire": 1

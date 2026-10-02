@@ -21,6 +21,13 @@ public final class LiveCaptureSettingsTest {
         Path output = directory.resolve("capture.mp4");
         try {
             LiveCapture.validate(new LiveCapture.Settings(output, executable, 1920, 1080, 30));
+            LiveCapture.Settings settings = new LiveCapture.Settings(output, executable, 1920, 1080, 30);
+            LiveCapture.validateSource(1920, 1080, settings);
+            try {
+                LiveCapture.validateSource(1504, 818, settings);
+                throw new AssertionError("A smaller live framebuffer was accepted");
+            } catch (IllegalStateException expected) {
+            }
             expectInvalid(new LiveCapture.Settings(output, executable, 1919, 1080, 30));
             expectInvalid(new LiveCapture.Settings(output, executable, 1920, 1080, 0));
             expectInvalid(new LiveCapture.Settings(output, executable, 1920, 1080, 61));

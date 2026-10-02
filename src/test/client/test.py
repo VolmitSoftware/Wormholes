@@ -24,6 +24,7 @@ def main() -> int:
     test_classpath: str = str(classes) + os.pathsep + classpath
     subprocess.run([java, '-cp', test_classpath, 'art.arcane.automator.LoopbackServerTest'], check=True)
     subprocess.run([java, '-cp', test_classpath, 'art.arcane.automator.LiveCaptureSettingsTest', str(BUILD / 'validation')], check=True)
+    subprocess.run([java, '-cp', test_classpath, 'art.arcane.automator.LiveCaptureTimelineTest'], check=True)
     subprocess.run([java, '-cp', test_classpath, 'art.arcane.automator.HiddenRendererSettingsTest'], check=True)
     subprocess.run([java, '-cp', test_classpath, 'art.arcane.automator.WormholesStatusTest'], check=True)
     subprocess.run([java, '-cp', test_classpath, 'art.arcane.automator.PortalBlockStatusTest'], check=True)

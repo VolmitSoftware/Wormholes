@@ -76,6 +76,10 @@ public final class ClientBridge {
     private static PendingWindow pendingWindow;
     private static LiveCapture capture;
     private static long captureFrames;
+    private static long captureEncodedFrames;
+    private static long captureRepeatedFrames;
+    private static long captureMaxGapFrames;
+    private static List<LiveCapture.HoldRange> captureHolds = List.of();
     private static long captureDroppedFrames;
     private static double captureSeconds;
     private static String captureSource;
@@ -544,6 +548,10 @@ public final class ClientBridge {
                 capture = LiveCapture.start(client, new LiveCapture.Settings(path, Path.of(text(input, "ffmpeg")),
                         integer(input, "width"), integer(input, "height"), integer(input, "fps")));
                 captureFrames = 0;
+                captureEncodedFrames = 0;
+                captureRepeatedFrames = 0;
+                captureMaxGapFrames = 0;
+                captureHolds = List.of();
                 captureSeconds = 0;
                 captureDroppedFrames = 0;
                 captureSource = capture.source();
@@ -558,6 +566,10 @@ public final class ClientBridge {
                     finished.stop(client);
                 } finally {
                     captureFrames = finished.frames();
+                    captureEncodedFrames = finished.encodedFrames();
+                    captureRepeatedFrames = finished.repeatedFrames();
+                    captureMaxGapFrames = finished.maxGapFrames();
+                    captureHolds = finished.holds();
                     captureSeconds = finished.seconds();
                     captureDroppedFrames = finished.droppedFrames();
                 }
@@ -575,14 +587,17 @@ public final class ClientBridge {
         result.addProperty("frameWidth", client.gameRenderer.mainRenderTarget().width);
         result.addProperty("frameHeight", client.gameRenderer.mainRenderTarget().height);
         result.addProperty("paused", client.isPaused());
-        long windowFlags = SDLVideo.SDL_GetWindowFlags(client.getWindow().handle());
+        long window = client.getWindow().handle();
+        long flags = SDLVideo.SDL_GetWindowFlags(window);
         result.addProperty("hiddenRenderer", HiddenRenderer.enabled());
-        result.addProperty("windowVisible", (windowFlags & SDLVideo.SDL_WINDOW_HIDDEN) == 0);
-        result.addProperty("windowFocused", (windowFlags & SDLVideo.SDL_WINDOW_INPUT_FOCUS) != 0);
+        result.addProperty("windowVisible", (flags & SDLVideo.SDL_WINDOW_HIDDEN) == 0);
+        result.addProperty("windowFocused", (flags & SDLVideo.SDL_WINDOW_INPUT_FOCUS) != 0);
         result.addProperty("windowActive", client.isWindowActive());
+        result.addProperty("windowMouseGrabbed", SDLVideo.SDL_GetWindowMouseGrab(window));
+        result.addProperty("relativeMouseMode", SDLMouse.SDL_GetWindowRelativeMouseMode(window));
         result.addProperty("hudVisible", !client.gui.hud.isHidden());
-        result.addProperty("mouseGrabbed", client.mouseHandler.isMouseGrabbed() || SDLMouse.SDL_GetWindowRelativeMouseMode(client.getWindow().handle())
-            || SDLVideo.SDL_GetWindowMouseGrab(client.getWindow().handle()));
+        result.addProperty("mouseGrabbed", client.mouseHandler.isMouseGrabbed() || SDLMouse.SDL_GetWindowRelativeMouseMode(window)
+            || SDLVideo.SDL_GetWindowMouseGrab(window));
         result.addProperty("bridgeAttackActive", hasActiveAttackLease());
         result.addProperty("turning", turningPlayer != null);
         result.addProperty("cursorMoving", hasCursor() && System.nanoTime() - cursorStarted < cursorDuration);
@@ -603,6 +618,17 @@ public final class ClientBridge {
         result.addProperty("connected", player != null && client.getConnection() != null);
         result.addProperty("capturing", capture != null);
         result.addProperty("captureFrames", capture != null ? capture.frames() : captureFrames);
+        result.addProperty("captureEncodedFrames", capture != null ? capture.encodedFrames() : captureEncodedFrames);
+        result.addProperty("captureRepeatedFrames", capture != null ? capture.repeatedFrames() : captureRepeatedFrames);
+        result.addProperty("captureMaxGapFrames", capture != null ? capture.maxGapFrames() : captureMaxGapFrames);
+        JsonArray holds = new JsonArray();
+        for (LiveCapture.HoldRange hold : capture != null ? capture.holds() : captureHolds) {
+            JsonObject range = new JsonObject();
+            range.addProperty("startFrame", hold.startFrame());
+            range.addProperty("endFrame", hold.endFrame());
+            holds.add(range);
+        }
+        result.add("captureHolds", holds);
         result.addProperty("captureSeconds", capture != null ? capture.seconds() : captureSeconds);
         result.addProperty("captureDroppedFrames", capture != null ? capture.droppedFrames() : captureDroppedFrames);
         result.addProperty("captureSource", captureSource);

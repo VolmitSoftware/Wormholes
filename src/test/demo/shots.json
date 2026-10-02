@@ -1,11 +1,425 @@
 {
   "minecraft": "26.3",
   "actorSkin": "Magic_Psycho",
-  "capture": {"width": 1920, "height": 1080, "fps": 30, "audio": false},
-  "variants": ["standard", "clientview"],
+  "capture": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "audio": false
+  },
+  "variants": [
+    "standard",
+    "clientview"
+  ],
   "shots": [
-    {"id": "wand-creation", "scene": "wand", "aperture": [3, 3], "timeoutSeconds": 90, "assertions": ["real wand corner clicks", "3x3 portal stored", "physical frame retained", "markers cleared"]},
-    {"id": "rune-creation", "scene": "rune", "aperture": [3, 3], "timeoutSeconds": 120, "assertions": ["nine real rune placements", "runes consumed", "3x3 wormhole stored", "physical frame retained"]},
-    {"id": "portal-linking", "scene": "link", "aperture": [3, 3], "timeoutSeconds": 120, "assertions": ["destination menu shown", "reciprocal link stored", "live destination projected", "outbound crossing", "return crossing"]}
+    {
+      "id": "wand-creation",
+      "scene": "wand",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 90,
+      "assertions": [
+        "real wand corner clicks",
+        "3x3 portal stored",
+        "physical frame retained",
+        "markers cleared"
+      ]
+    },
+    {
+      "id": "rune-creation",
+      "scene": "rune",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 120,
+      "assertions": [
+        "nine real rune placements",
+        "runes consumed",
+        "3x3 wormhole stored",
+        "physical frame retained"
+      ]
+    },
+    {
+      "id": "portal-linking",
+      "scene": "link",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 120,
+      "assertions": [
+        "destination menu shown",
+        "reciprocal link stored",
+        "live destination projected",
+        "outbound crossing",
+        "return crossing"
+      ]
+    },
+    {
+      "id": "mirrors",
+      "group": "features",
+      "scene": "linked",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 110,
+      "assertions": [
+        "mode menu selects Mirror",
+        "player reflection",
+        "mirror image rotation"
+      ]
+    },
+    {
+      "id": "portal-orientation",
+      "group": "features",
+      "scene": "linked",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 130,
+      "assertions": [
+        "flip changes face",
+        "clockwise and counterclockwise change up vector",
+        "visible mapped destination"
+      ]
+    },
+    {
+      "id": "ambient-particles",
+      "group": "features",
+      "scene": "linked",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 150,
+      "assertions": [
+        "four ambient styles",
+        "dye color changes",
+        "custom RGB channel change"
+      ]
+    },
+    {
+      "id": "render-panoptic",
+      "group": "features",
+      "scene": "hills",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 130,
+      "assertions": [
+        "PanOptic selected",
+        "complex hilly destination rendered",
+        "freeze before rear camera move",
+        "frozen volume rear view"
+      ]
+    },
+    {
+      "id": "render-venticular",
+      "group": "features",
+      "scene": "hills",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 130,
+      "assertions": [
+        "Venticular selected",
+        "matching hilly destination rendered",
+        "freeze before rear camera move",
+        "frozen culled surfaces rear view"
+      ]
+    },
+    {
+      "id": "projection-toggle",
+      "group": "features",
+      "scene": "linked",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 80,
+      "assertions": [
+        "projection disabled",
+        "projection restored"
+      ]
+    },
+    {
+      "id": "door-crafting",
+      "group": "doors",
+      "scene": "door-crafting",
+      "aperture": [
+        1,
+        2
+      ],
+      "timeoutSeconds": 240,
+      "assertions": [
+        "real crafting table and three recipes",
+        "four genuine runes consumed",
+        "one pair kit and two distinct pocket door identities"
+      ]
+    },
+    {
+      "id": "pair-doors",
+      "group": "doors",
+      "scene": "pair-doors",
+      "aperture": [
+        1,
+        2
+      ],
+      "timeoutSeconds": 180,
+      "assertions": [
+        "real pair kit unpacked",
+        "placed endpoints linked",
+        "outbound and return traversal",
+        "relocated endpoint keeps link"
+      ]
+    },
+    {
+      "id": "personal-pockets",
+      "group": "doors",
+      "scene": "personal-pockets",
+      "aperture": [
+        1,
+        2
+      ],
+      "timeoutSeconds": 240,
+      "assertions": [
+        "different travelers receive different pockets",
+        "same traveler retains pocket through another entry",
+        "working return door"
+      ]
+    },
+    {
+      "id": "public-pockets",
+      "group": "doors",
+      "scene": "public-pockets",
+      "aperture": [
+        1,
+        2
+      ],
+      "timeoutSeconds": 240,
+      "assertions": [
+        "travelers share one pocket",
+        "room marker persists after door relocation",
+        "working return door"
+      ]
+    },
+    {
+      "id": "door-open-state",
+      "group": "doors",
+      "scene": "door-open-state",
+      "aperture": [
+        1,
+        2
+      ],
+      "timeoutSeconds": 180,
+      "assertions": [
+        "OpenState changed in UI",
+        "open cycle traversal",
+        "closed contact pad traversal"
+      ]
+    },
+    {
+      "id": "trapdoor-travel",
+      "group": "doors",
+      "scene": "trapdoor-travel",
+      "aperture": [
+        1,
+        1
+      ],
+      "timeoutSeconds": 120,
+      "assertions": [
+        "real paired trapdoors",
+        "falling entry",
+        "falling exit"
+      ]
+    },
+    {
+      "id": "atmosphere",
+      "group": "features",
+      "scene": "atmosphere",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 160,
+      "assertions": [
+        "real fidelity menu",
+        "four atmosphere modes",
+        "destination colors lighting and weather"
+      ]
+    },
+    {
+      "id": "arrival-orientation",
+      "group": "features",
+      "scene": "arrival",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 240,
+      "assertions": [
+        "four arrival policies",
+        "different destination orientation",
+        "actual yaw and pitch at arrival"
+      ]
+    },
+    {
+      "id": "momentum",
+      "group": "features",
+      "scene": "transit",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 200,
+      "assertions": [
+        "momentum policies selected in UI",
+        "scale factor entered",
+        "real traversal velocity"
+      ]
+    },
+    {
+      "id": "membrane-bounce",
+      "group": "features",
+      "scene": "transit",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 220,
+      "assertions": [
+        "front entry allowed",
+        "rear entry repelled",
+        "bounce reflects traveler"
+      ]
+    },
+    {
+      "id": "rtp-routing",
+      "group": "features",
+      "scene": "rtp",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 200,
+      "assertions": [
+        "real RTP destination preview",
+        "routing options",
+        "manual reroll",
+        "actual landing"
+      ]
+    },
+    {
+      "id": "rtp-personal",
+      "group": "features",
+      "scene": "rtp",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 160,
+      "assertions": [
+        "per-player allocation in UI",
+        "two travelers distinct destination reservations"
+      ]
+    },
+    {
+      "id": "network-dialing",
+      "group": "features",
+      "scene": "nexus",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 220,
+      "assertions": [
+        "real dial menu",
+        "two destination previews",
+        "actual routed round trips"
+      ]
+    },
+    {
+      "id": "redstone-control",
+      "group": "features",
+      "scene": "nexus",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 160,
+      "assertions": [
+        "redstone action selected in UI",
+        "physical lever changes projected destination"
+      ]
+    },
+    {
+      "id": "live-views",
+      "group": "features",
+      "scene": "live",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 120,
+      "assertions": [
+        "destination entity movement",
+        "real flowing water",
+        "projection toggle",
+        "destination arrival"
+      ]
+    },
+    {
+      "id": "nested-views",
+      "group": "features",
+      "scene": "nested",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 130,
+      "assertions": [
+        "destination portal visible through primary",
+        "two successive traversals"
+      ]
+    },
+    {
+      "id": "gateways",
+      "group": "features",
+      "scene": "gateway",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 130,
+      "assertions": [
+        "gateway menu",
+        "distinct source/destination worlds",
+        "actual world transition"
+      ]
+    },
+    {
+      "id": "cross-server-gateways",
+      "group": "features",
+      "scene": "remote-gateway",
+      "aperture": [
+        3,
+        3
+      ],
+      "timeoutSeconds": 180,
+      "assertions": [
+        "remote destination selected by actual peer lore",
+        "remote courtyard projected before traversal",
+        "native outbound and return server transfers",
+        "player UUID preserved and arrival receipts confirmed",
+        "observer remains connected to source"
+      ]
+    }
   ]
 }
