@@ -289,7 +289,7 @@ def network_dialing(actor: Bridge, observer: Bridge, rcon: Rcon, capture_id: str
     for address, offset in (('SUN', 200.5), ('AMBER', 400.5)):
         dial(actor, address)
         reports.append(wait_report(rcon, 'nexusPortal', lambda value: 'dial=' + address in value, 'dial ' + address))
-        open_path(actor, 'Pair & Destination')
+        open_path(actor, 'Destination')
         click_menu(actor, 'Link and return')
         source: str = source_report(rcon)
         source_id: str = source.split(',', 1)[0].split('=', 1)[1]
@@ -494,7 +494,7 @@ def gateways(actor: Bridge, observer: Bridge, rcon: Rcon, capture_id: str) -> st
         raise RuntimeError('Gateway footage requires a verified second world fixture. A same-world local gateway '
                            'does not demonstrate cross-world travel; cross-server recording additionally needs a second server and transport setup.')
     before: str = rcon.command('data get entity ' + ACTOR + ' Dimension')
-    open_path(actor, 'Pair & Destination')
+    open_path(actor, 'Destination')
     screenshot(actor, capture_id + '-destination-ui')
     view(actor, observer, capture_id, 'cross-world-view', 6)
     cross(actor, (0.5, 71.5, 0.5), lambda state: state['position']['z'] > 180, 'gateway arrival')
@@ -516,7 +516,7 @@ def network_snapshot(rcon: Rcon, player: str = ACTOR) -> dict:
 def remote_destination(actor: Bridge, peer: str, capture_id: str) -> None:
     from demo import menu, screenshot
     from feature_shots import open_path
-    open_path(actor, 'Pair & Destination')
+    open_path(actor, 'Destination')
     container: dict = menu(actor)
     matches: list[dict] = [slot for slot in container['slots'] if slot.get('name') == 'Sun Court'
                           and slot.get('item') == 'minecraft:end_crystal'
