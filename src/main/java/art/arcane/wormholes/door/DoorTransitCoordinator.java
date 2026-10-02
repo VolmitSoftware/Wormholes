@@ -472,8 +472,11 @@ final class DoorTransitCoordinator
 			}
 
 			Location arrival = pocketStructures.entryLocation(pocketWorld, space);
-			arrival.setYaw(transit.yaw());
-			arrival.setPitch(transit.pitch());
+			DoorwayPlane pocketPlane = pocketStructures.layout(space).returnDoorPlane();
+			DoorArrivals.Facing facing = DoorArrivals.arrivalFacing(pocketPlane, transit, -1);
+			context = context.at(pocketPlane);
+			arrival.setYaw(facing.yaw());
+			arrival.setPitch(facing.pitch());
 			if(!DoorArrivalResolver.isSafeArrival(arrival, transit))
 			{
 				if(pendingTicket != null)
@@ -1389,10 +1392,10 @@ final class DoorTransitCoordinator
 			return null;
 		}
 		DoorwayPlane destination = context.destinationPlane();
-		if(destination != null && (transit.sourcePlane().horizontal() || destination.horizontal()))
+		if(destination != null)
 		{
-			// The planes are no longer parallel, so a yaw delta cannot express the turn.
-			return DoorVelocityTransform.map(transit.sourcePlane(), destination, transit.velocity());
+			int side = destination.signedDistance(new DoorVec3(target.getX(), target.getY(), target.getZ())) < 0 ? -1 : 1;
+			return DoorVelocityTransform.mapToSide(destination, transit, transit.velocity(), side);
 		}
 		// The arrival yaw already encodes the source-to-destination rotation, so the
 		// same delta turns the momentum with it.
@@ -1426,7 +1429,6 @@ final class DoorTransitCoordinator
 			}
 		}
 
-		/** A pocket arrival has no far plane, so the destination stays null there. */
 		private TransitContext at(DoorwayPlane plane)
 		{
 			return new TransitContext(

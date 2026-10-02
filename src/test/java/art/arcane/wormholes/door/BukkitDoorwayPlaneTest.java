@@ -73,7 +73,7 @@ public final class BukkitDoorwayPlaneTest
 							assertEquals(destination.entrySidePoint(direction, 1.0D), arrival, scenario);
 							assertEquals(direction.entrySideSign(), physicalNormalOffset(destination, arrival), 1.0E-9D, scenario);
 							assertTrue(destination.signedDistance(arrival) * direction.entrySideSign() > 0.0D, scenario);
-							assertEquals(expectedYaw, DoorArrivals.arrivalYaw(source, destination, transit), 1.0E-6F, scenario);
+							assertEquals(expectedYaw, DoorArrivals.arrivalFacing(destination, transit, DoorPlanePairing.arrivalSideSign(source, destination, direction)).yaw(), 1.0E-6F, scenario);
 						}
 					}
 				}

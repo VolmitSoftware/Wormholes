@@ -68,13 +68,30 @@ public final class DoorArrivals
 		return sideSign > 0 ? plane.planeY() : plane.planeY() - transit.height();
 	}
 
-	public static float arrivalYaw(DoorwayPlane source, DoorwayPlane destination, DoorTransit transit)
-	{
-		Objects.requireNonNull(source, "source");
-		Objects.requireNonNull(destination, "destination");
-		Objects.requireNonNull(transit, "transit");
-		return DoorPlanePairing.arrivalYaw(source, destination, transit.yaw());
-	}
+    public static Facing arrivalFacing(DoorwayPlane destination, DoorTransit transit, int sideSign) {
+        Objects.requireNonNull(destination, "destination");
+        Objects.requireNonNull(transit, "transit");
+        if (sideSign != -1 && sideSign != 1) {
+            throw new IllegalArgumentException("Arrival side must be -1 or 1");
+        }
+        DoorwayPlane source = transit.sourcePlane();
+        double yaw = Math.toRadians(transit.yaw());
+        double pitch = Math.toRadians(transit.pitch());
+        double horizontal = Math.cos(pitch);
+        DoorVec3 look = DoorVelocityTransform.mapToSide(destination, transit,
+            new DoorVec3(-Math.sin(yaw) * horizontal, -Math.sin(pitch), Math.cos(yaw) * horizontal), sideSign);
+        double projectedHorizontal = Math.hypot(look.x(), look.z());
+        float targetYaw = projectedHorizontal < 1.0E-10D
+            ? source.rotateYawTo(destination, transit.yaw())
+            : (float) Math.toDegrees(Math.atan2(-look.x(), look.z()));
+        if (targetYaw >= 180.0F) {
+            targetYaw -= 360.0F;
+        }
+        return new Facing(targetYaw, (float) Math.toDegrees(Math.atan2(-look.y(), projectedHorizontal)));
+    }
+
+    public record Facing(float yaw, float pitch) {
+    }
 
 	public static Optional<DoorVec3> findSafeVerticalDoorStanding(
 		DoorVec3 nominal,

@@ -32,6 +32,7 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.clock.ClockNetworkState;
 import net.minecraft.world.clock.WorldClock;
+import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntityTypes;
@@ -112,6 +113,10 @@ public final class ClientLevelScene implements ClientSceneWorld {
         Entity entity = level.getEntity(entityId);
         if (nativeMesh && entity != null) {
             entity.noPhysics = true;
+            if (entity instanceof Display display) {
+                display.commonTick();
+                display.tick();
+            }
         }
         if (!nativeMesh || !(entity instanceof ItemEntity item)) {
             itemMotion.remove(entityId);

@@ -5,6 +5,7 @@ import net.minecraft.SharedConstants;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.core.PositionAndRotation;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -33,6 +34,25 @@ public class ClientEntityMotionTest {
     public static void bootstrap() {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
+    }
+
+    @Test
+    public void nativeDisplaysAdvanceWithoutLoadedDestinationChunks() {
+        ClientLevel level = mock(ClientLevel.class);
+        Display[] displays = {mock(Display.ItemDisplay.class), mock(Display.BlockDisplay.class), mock(Display.TextDisplay.class)};
+        ClientLevelScene scene = new ClientLevelScene(level, () -> null);
+        for (int i = 0; i < displays.length; i++) {
+            Display display = displays[i];
+            when(level.getEntity(i)).thenReturn(display);
+            scene.tick(i, false);
+            verify(display, never()).commonTick();
+            verify(display, never()).tick();
+            scene.tick(i, true);
+            verify(display).commonTick();
+            verify(display).tick();
+        }
+        verify(level, never()).getBlockState(any());
+        verify(level, never()).getFluidState(any());
     }
 
     @Test

@@ -53,13 +53,24 @@ public final class DoorVelocityTransform
 	 */
 	public static DoorVec3 map(DoorwayPlane source, DoorwayPlane destination, DoorVec3 velocity)
 	{
+		return mapOriented(source, destination, velocity, DoorPlanePairing.mirrored(source, destination) ? -1 : 1);
+	}
+
+    public static DoorVec3 mapToSide(DoorwayPlane destination, DoorTransit transit, DoorVec3 vector, int sideSign) {
+        if (sideSign != -1 && sideSign != 1) {
+            throw new IllegalArgumentException("Arrival side must be -1 or 1");
+        }
+        return mapOriented(transit.sourcePlane(), destination, vector, sideSign * transit.direction().exitSideSign());
+    }
+
+	private static DoorVec3 mapOriented(DoorwayPlane source, DoorwayPlane destination, DoorVec3 velocity, int sign)
+	{
 		Objects.requireNonNull(source, "source");
 		Objects.requireNonNull(destination, "destination");
 		if(velocity == null)
 		{
 			return null;
 		}
-		int sign = DoorPlanePairing.mirrored(source, destination) ? -1 : 1;
 		double normal = dot(velocity, source.normalX(), source.normalY(), source.normalZ()) * sign;
 		double lateral = dot(velocity, lateralX(source), 0.0D, lateralZ(source)) * sign;
 		double third = dot(velocity, thirdX(source), thirdY(source), thirdZ(source));

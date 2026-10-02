@@ -47,13 +47,6 @@ public final class DoorPlanePairing
 		return mirrored(source, destination) ? direction.entrySideSign() : direction.exitSideSign();
 	}
 
-	public static float arrivalYaw(DoorwayPlane source, DoorwayPlane destination, float yaw)
-	{
-		return mirrored(source, destination)
-			? source.rotateYawToMatchingSide(destination, yaw)
-			: source.rotateYawTo(destination, yaw);
-	}
-
 	public static DoorVec3 mapAperturePoint(
 		DoorwayPlane source,
 		DoorwayPlane destination,

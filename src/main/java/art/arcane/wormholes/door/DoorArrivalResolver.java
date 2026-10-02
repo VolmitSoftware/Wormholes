@@ -65,8 +65,8 @@ final class DoorArrivalResolver
 		DoorwayPlane plane = transit.sourcePlane();
 		int sideSign = transit.direction().entrySideSign();
 		DoorVec3 point = DoorArrivals.arrivalPoint(plane, transit, sideSign);
-		float yaw = DoorArrivals.arrivalYaw(plane, plane, transit);
-		return safeArrivalLocation(world, point, yaw, transit, plane, sideSign);
+		DoorArrivals.Facing facing = DoorArrivals.arrivalFacing(plane, transit, sideSign);
+		return safeArrivalLocation(world, point, facing, transit, plane, sideSign);
 	}
 
 	Optional<Location> safeDestinationDoorArrival(
@@ -77,8 +77,8 @@ final class DoorArrivalResolver
 		int sideSign = DoorPlanePairing.arrivalSideSign(
 			transit.sourcePlane(), destinationPlane, transit.direction());
 		DoorVec3 point = DoorArrivals.arrivalPoint(destinationPlane, transit, sideSign);
-		float yaw = DoorArrivals.arrivalYaw(transit.sourcePlane(), destinationPlane, transit);
-		return safeArrivalLocation(world, point, yaw, transit, destinationPlane, sideSign);
+		DoorArrivals.Facing facing = DoorArrivals.arrivalFacing(destinationPlane, transit, sideSign);
+		return safeArrivalLocation(world, point, facing, transit, destinationPlane, sideSign);
 	}
 
 	Optional<Location> findSafeNear(Location stored, int radius)
@@ -122,7 +122,7 @@ final class DoorArrivalResolver
 	private Optional<Location> safeArrivalLocation(
 		World world,
 		DoorVec3 nominal,
-		float yaw,
+		DoorArrivals.Facing facing,
 		DoorTransit transit,
 		DoorwayPlane destination,
 		int sideSign)
@@ -130,7 +130,7 @@ final class DoorArrivalResolver
 		boolean closedTrapdoorSurface = destination.horizontal() && destination.contactSurface();
 		if(transit.travelerClass() == DoorTravelerClass.OBJECT || closedTrapdoorSurface)
 		{
-			Location candidate = new Location(world, nominal.x(), nominal.y(), nominal.z(), yaw, transit.pitch());
+			Location candidate = new Location(world, nominal.x(), nominal.y(), nominal.z(), facing.yaw(), facing.pitch());
 			boolean fits = closedTrapdoorSurface
 				? fitsClosedTrapdoorSurface(candidate, transit, destination, sideSign)
 				: isPassableVolume(candidate, transit.halfWidth(), transit.height());
@@ -145,10 +145,10 @@ final class DoorArrivalResolver
 			nominal,
 			DoorPlanePairing.arrivalYOffsets(destination, sideSign),
 			candidate -> fitsArrival(
-				new Location(world, candidate.x(), candidate.y(), candidate.z(), yaw, transit.pitch()),
+				new Location(world, candidate.x(), candidate.y(), candidate.z(), facing.yaw(), facing.pitch()),
 				transit,
 				throughAperture))
-			.map(candidate -> new Location(world, candidate.x(), candidate.y(), candidate.z(), yaw, transit.pitch()));
+			.map(candidate -> new Location(world, candidate.x(), candidate.y(), candidate.z(), facing.yaw(), facing.pitch()));
 	}
 
 	private static boolean fitsArrival(Location candidate, DoorTransit transit, boolean throughAperture)
