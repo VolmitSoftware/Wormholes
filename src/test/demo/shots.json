@@ -25,6 +25,9 @@
         "3x3 portal stored",
         "physical frame retained",
         "markers cleared"
+      ],
+      "perspectives": [
+        "pov"
       ]
     },
     {
@@ -40,6 +43,9 @@
         "runes consumed",
         "3x3 wormhole stored",
         "physical frame retained"
+      ],
+      "perspectives": [
+        "pov"
       ]
     },
     {
@@ -56,6 +62,10 @@
         "live destination projected",
         "outbound crossing",
         "return crossing"
+      ],
+      "perspectives": [
+        "pov",
+        "observer"
       ]
     },
     {
@@ -71,6 +81,10 @@
         "mode menu selects Mirror",
         "player reflection",
         "mirror image rotation"
+      ],
+      "perspectives": [
+        "pov",
+        "observer"
       ]
     },
     {
@@ -86,6 +100,9 @@
         "flip changes face",
         "clockwise and counterclockwise change up vector",
         "visible mapped destination"
+      ],
+      "perspectives": [
+        "pov"
       ]
     },
     {
@@ -101,6 +118,9 @@
         "four ambient styles",
         "dye color changes",
         "custom RGB channel change"
+      ],
+      "perspectives": [
+        "pov"
       ]
     },
     {
@@ -117,6 +137,10 @@
         "complex hilly destination rendered",
         "freeze before rear camera move",
         "frozen volume rear view"
+      ],
+      "perspectives": [
+        "pov",
+        "observer"
       ]
     },
     {
@@ -133,6 +157,10 @@
         "matching hilly destination rendered",
         "freeze before rear camera move",
         "frozen culled surfaces rear view"
+      ],
+      "perspectives": [
+        "pov",
+        "observer"
       ]
     },
     {
@@ -147,6 +175,9 @@
       "assertions": [
         "projection disabled",
         "projection restored"
+      ],
+      "perspectives": [
+        "pov"
       ]
     },
     {
@@ -162,6 +193,9 @@
         "real crafting table and three recipes",
         "four genuine runes consumed",
         "one pair kit and two distinct pocket door identities"
+      ],
+      "perspectives": [
+        "pov"
       ]
     },
     {
@@ -178,6 +212,10 @@
         "placed endpoints linked",
         "outbound and return traversal",
         "relocated endpoint keeps link"
+      ],
+      "perspectives": [
+        "pov",
+        "observer"
       ]
     },
     {
@@ -193,6 +231,10 @@
         "different travelers receive different pockets",
         "same traveler retains pocket through another entry",
         "working return door"
+      ],
+      "perspectives": [
+        "pov",
+        "observer"
       ]
     },
     {
@@ -208,6 +250,10 @@
         "travelers share one pocket",
         "room marker persists after door relocation",
         "working return door"
+      ],
+      "perspectives": [
+        "pov",
+        "observer"
       ]
     },
     {
@@ -223,6 +269,10 @@
         "OpenState changed in UI",
         "open cycle traversal",
         "closed contact pad traversal"
+      ],
+      "perspectives": [
+        "pov",
+        "observer"
       ]
     },
     {
@@ -238,6 +288,10 @@
         "real paired trapdoors",
         "falling entry",
         "falling exit"
+      ],
+      "perspectives": [
+        "pov",
+        "observer"
       ]
     },
     {
@@ -253,6 +307,9 @@
         "real fidelity menu",
         "four atmosphere modes",
         "destination colors lighting and weather"
+      ],
+      "perspectives": [
+        "pov"
       ]
     },
     {
@@ -268,6 +325,9 @@
         "four arrival policies",
         "different destination orientation",
         "actual yaw and pitch at arrival"
+      ],
+      "perspectives": [
+        "pov"
       ]
     },
     {
@@ -283,6 +343,9 @@
         "momentum policies selected in UI",
         "scale factor entered",
         "real traversal velocity"
+      ],
+      "perspectives": [
+        "pov"
       ]
     },
     {
@@ -298,6 +361,10 @@
         "front entry allowed",
         "rear entry repelled",
         "bounce reflects traveler"
+      ],
+      "perspectives": [
+        "pov",
+        "observer"
       ]
     },
     {
@@ -314,6 +381,9 @@
         "routing options",
         "manual reroll",
         "actual landing"
+      ],
+      "perspectives": [
+        "pov"
       ]
     },
     {
@@ -328,6 +398,10 @@
       "assertions": [
         "per-player allocation in UI",
         "two travelers distinct destination reservations"
+      ],
+      "perspectives": [
+        "pov",
+        "observer"
       ]
     },
     {
@@ -343,6 +417,10 @@
         "real dial menu",
         "two destination previews",
         "actual routed round trips"
+      ],
+      "perspectives": [
+        "pov",
+        "observer"
       ]
     },
     {
@@ -357,6 +435,9 @@
       "assertions": [
         "redstone action selected in UI",
         "physical lever changes projected destination"
+      ],
+      "perspectives": [
+        "pov"
       ]
     },
     {
@@ -373,6 +454,10 @@
         "real flowing water",
         "projection toggle",
         "destination arrival"
+      ],
+      "perspectives": [
+        "pov",
+        "observer"
       ]
     },
     {
@@ -387,6 +472,10 @@
       "assertions": [
         "destination portal visible through primary",
         "two successive traversals"
+      ],
+      "perspectives": [
+        "pov",
+        "observer"
       ]
     },
     {
@@ -402,6 +491,10 @@
         "gateway menu",
         "distinct source/destination worlds",
         "actual world transition"
+      ],
+      "perspectives": [
+        "pov",
+        "observer"
       ]
     },
     {
@@ -419,6 +512,10 @@
         "native outbound and return server transfers",
         "player UUID preserved and arrival receipts confirmed",
         "observer remains connected to source"
+      ],
+      "perspectives": [
+        "pov",
+        "observer"
       ]
     }
   ]

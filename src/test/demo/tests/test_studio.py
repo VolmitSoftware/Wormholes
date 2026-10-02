@@ -280,6 +280,30 @@ class StudioTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.studio.verify_capture(metrics, 'mirrors')
 
+    def test_first_person_export_accepts_missing_observer_and_ignores_old_observer(self) -> None:
+        metrics: dict = {'captureFrames': 600, 'captureSeconds': 20.0,
+                         'captureDroppedFrames': 0, 'captureSource': '1920x1080'}
+        evidence: dict = self.studio.capture_evidence(metrics, 'door-crafting')
+        capture: dict = {'view': 'pov', **evidence}
+        for captures in ([capture], [capture, {'view': 'observer'}]):
+            self.assertEqual(self.studio.export_filters('door-crafting', {'capture': captures}),
+                             {'pov': 'scale=1920:1080:flags=lanczos'})
+        with self.assertRaises(AssertionError):
+            self.studio.export_filters('door-crafting', {'capture': [capture, capture]})
+
+    def test_editorial_cuts_are_separate_from_capture_quality_and_keep_visible_frames(self) -> None:
+        evidence: dict = self.studio.capture_evidence({'captureFrames': 600, 'captureSeconds': 20.0,
+            'captureDroppedFrames': 0, 'captureSource': '1920x1080'}, 'mirrors')
+        capture: dict = {'view': 'observer', **evidence, 'editorialEdits': [{'startFrame': 0, 'endFrame': 150}]}
+        take: dict = {'capture': [{'view': 'pov', **evidence}, capture]}
+        self.assertIn("select='not(between(n,0,149))'", self.studio.export_filters('mirrors', take)['observer'])
+        for edits in ([{'startFrame': 0, 'endFrame': 601}], [{'startFrame': 0, 'endFrame': 600}],
+                      [{'startFrame': 5, 'endFrame': 4}], [{'startFrame': True, 'endFrame': 30}],
+                      [{'startFrame': 50, 'endFrame': 100}, {'startFrame': 90, 'endFrame': 150}]):
+            capture['editorialEdits'] = edits
+            with self.assertRaises(AssertionError):
+                self.studio.export_filters('mirrors', take)
+
     def test_hidden_renderer_rejects_unsafe_or_missing_native_state(self) -> None:
         safe = {'hiddenRenderer': True, 'windowVisible': False, 'windowFocused': False,
                 'mouseGrabbed': False, 'relativeMouseMode': False, 'windowMouseGrabbed': False,

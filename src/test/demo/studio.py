@@ -576,31 +576,66 @@ def capture_evidence(state: dict, identifier: str | None = None) -> dict:
     return {'raw': raw, 'edits': edits, 'removedSeconds': removed_seconds, 'trimmedSeconds': trimmed_seconds}
 
 
+def perspectives(identifier: str) -> tuple[str, ...]:
+    sheet: dict = json.loads((ROOT / 'src/test/demo/shots.json').read_text())
+    return tuple(next(shot['perspectives'] for shot in sheet['shots'] if shot['id'] == identifier))
+
+
+def export_edits(capture: dict) -> list[dict]:
+    cuts: list[dict] = capture.get('editorialEdits', [])
+    previous_end: int = 0
+    for cut in cuts:
+        start: int = cut.get('startFrame')
+        end: int = cut.get('endFrame')
+        if (type(start) is not int or type(end) is not int or start < previous_end
+                or end <= start or end > round(float(capture['raw']['captureSeconds']) * 30)):
+            raise AssertionError('Editorial cuts must be ordered nonoverlapping frame ranges within the raw take')
+        previous_end = end
+    edits: list[dict] = sorted([*capture['edits'], *cuts], key=lambda edit: edit['startFrame'])
+    merged: list[dict] = []
+    for edit in edits:
+        if merged and edit['startFrame'] <= merged[-1]['endFrame']:
+            merged[-1]['endFrame'] = max(merged[-1]['endFrame'], edit['endFrame'])
+        else:
+            merged.append(dict(edit))
+    if sum(edit['endFrame'] - edit['startFrame'] for edit in merged) >= round(float(capture['raw']['captureSeconds']) * 30):
+        raise AssertionError('Editorial cuts must retain visible footage')
+    return merged
+
+
 def export_filters(identifier: str, take: dict) -> dict[str, str]:
     captures: list[dict] = take.get('capture', [])
-    if len(captures) != 2 or {entry.get('view') for entry in captures} != {'pov', 'observer'}:
-        raise AssertionError('Export requires both validated capture views')
+    required: tuple[str, ...] = perspectives(identifier)
+    views: list[str] = [entry.get('view') for entry in captures]
+    if len(set(views)) != len(views) or not set(required).issubset(views):
+        raise AssertionError('Export requires each selected validated capture view')
     filters: dict[str, str] = {}
     for capture in captures:
+        if capture['view'] not in required:
+            continue
         verified: dict = capture_evidence(capture['raw'], identifier)
         if any(capture.get(key) != verified[key] for key in ('edits', 'removedSeconds', 'trimmedSeconds')):
             raise AssertionError('Export edits do not match accepted capture evidence')
-        edits: list[dict[str, int]] = verified['edits']
+        merged: list[dict] = export_edits(capture)
         prefix: str = ''
-        if edits:
+        if merged:
             removed: str = '+'.join('between(n,' + str(edit['startFrame']) + ',' + str(edit['endFrame'] - 1) + ')'
-                                   for edit in edits)
+                                   for edit in merged)
             prefix = "select='not(" + removed + ")',setpts=N/(30*TB),"
         filters[capture['view']] = prefix + 'scale=1920:1080:flags=lanczos'
     return filters
 
 
-def export(identifier: str, variant: str) -> list[Path]:
+def export(identifier: str, variant: str, only_views: tuple[str, ...] | None = None) -> list[Path]:
     manifest: dict = json.loads((OUTPUT / 'manifest.json').read_text())
     matches: list[dict] = [take for take in manifest['takes'] if take['id'] == identifier and take['variant'] == variant]
     if len(matches) != 1:
         raise AssertionError('Export requires exactly one accepted take for ' + identifier + '-' + variant)
     filters: dict[str, str] = export_filters(identifier, matches[0])
+    if only_views is not None:
+        if not only_views or not set(only_views).issubset(filters):
+            raise ValueError('Select only published perspectives for this demonstration')
+        filters = {view: filters[view] for view in only_views}
     DOCS.mkdir(parents=True, exist_ok=True)
     def encode(view: str) -> Path:
         source: Path = OUTPUT / 'intermediate' / (identifier + '-' + variant + '-' + view + '.mp4')
@@ -616,7 +651,8 @@ def export(identifier: str, variant: str) -> list[Path]:
                 raise RuntimeError('Export failed: ' + result.stderr[-2000:])
         if target.stat().st_size > limit:
             capture: dict = next(entry for entry in matches[0]['capture'] if entry['view'] == view)
-            bitrate: int = int(22 * 1024 * 1024 * 8 / capture['trimmedSeconds'])
+            bitrate: int = int(22 * 1024 * 1024 * 8 / (float(capture['raw']['captureSeconds']) - sum(
+                cut['endFrame'] - cut['startFrame'] for cut in export_edits(capture)) / 30.0))
             with tempfile.TemporaryDirectory(prefix='vp9-', dir=OUTPUT / 'intermediate') as temporary:
                 passlog: str = str(Path(temporary) / 'pass')
                 for pass_number in (1, 2):
@@ -629,4 +665,4 @@ def export(identifier: str, variant: str) -> list[Path]:
             raise AssertionError('Clip exceeds 25 MB: ' + str(target))
         return target
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        return list(executor.map(encode, ('pov', 'observer')))
+        return list(executor.map(encode, filters))

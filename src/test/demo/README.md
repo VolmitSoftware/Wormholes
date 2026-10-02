@@ -1,6 +1,6 @@
 # Wormholes demonstration studio
 
-Records Wormholes construction, menus, projection, travel and dimensional doors in real Minecraft 26.3 clients. Each selected demonstration requires four wiki clips: first person and observer, each with and without the Wormholes Fabric mod. Available scenarios and their assertions live in `shots.json`; a scenario entry does not establish that footage has been recorded or accepted.
+Records Wormholes construction, menus, projection, travel and dimensional doors in real Minecraft 26.3 clients. Each demonstration has first-person clips with and without the Wormholes Fabric mod. The shot sheet selects an additional observer view when it shows useful world action; crafting and settings demonstrations use first person only. Available scenarios and their assertions live in `shots.json`; a scenario entry does not establish that footage has been recorded or accepted.
 
 ## Preparation
 
@@ -40,9 +40,9 @@ python3 src/test/demo/demo.py --only door-crafting --only pair-doors
 python3 src/test/demo/docs_sync.py --only door-crafting --only pair-doors
 ```
 
-Without `--only`, the director selects the entire shot sheet. By default it records both client variants, exports the selected 1920×1080/30 fps VP9 WebM clips, and stops/deletes its disposable Multiplexor instance. The clients remain installed in Prism. The output-directory lock prevents two runs from using that same studio output.
+Without `--only`, the director selects the entire shot sheet. By default it records both client variants, exports the shot sheet’s selected perspectives as 1920×1080/30 fps VP9 WebM clips, and stops/deletes its disposable Multiplexor instance. The clients remain installed in Prism. The output-directory lock prevents two runs from using that same studio output.
 
-Use `--variant standard` or `--variant clientview` for one pair of clients. Repeat `--only <id>` to select multiple demonstrations; the director uses shot-sheet order. The synchronizer also accepts repeated `--only`, and requires all four nonempty clips for every selected ID before changing any page. A single-variant recording is not sufficient for synchronization. `--record-only` preserves raw MP4 captures without exporting. `--keep-open` leaves the owned server and clients running for inspection; subsequent `--reuse-server --reuse-clients` runs must select the same single variant. Stop and delete that owned instance when inspection ends.
+Use `--variant standard` or `--variant clientview` for one pair of clients. Repeat `--only <id>` to select multiple demonstrations; the director uses shot-sheet order. The synchronizer also accepts repeated `--only`, and requires both client variants and the perspectives selected in `shots.json` for every selected ID before changing any page. A single-variant recording is not sufficient for synchronization. `--record-only` preserves raw MP4 captures without exporting. `--keep-open` leaves the owned server and clients running for inspection; subsequent `--reuse-server --reuse-clients` runs must select the same single variant. Stop and delete that owned instance when inspection ends.
 
 | Subject | Demonstration IDs |
 |---|---|
@@ -68,6 +68,10 @@ The recorder preserves elapsed time during shader rebuilds and other render stal
 
 Before capture, each client has five seconds to report a native 1920×1080 framebuffer and safe hidden state: `hiddenRenderer=true`, with `windowVisible`, `windowFocused`, `mouseGrabbed`, `windowMouseGrabbed` and `relativeMouseMode` all false. Missing or unsafe state aborts preparation. The recorder also rejects a source framebuffer whose dimensions differ from the requested output; export scaling cannot substitute for native render size.
 
+Observer footage should show world action rather than menu navigation or waiting. Before export, review each mixed take and add `editorialEdits` to its observer capture in the local manifest: ordered, nonoverlapping half-open `startFrame`/`endFrame` ranges in the original 30 fps timeline. These cuts remain separate from capture-quality evidence and are applied on every export. Keep crossings, placement, reflections and second-player visits; omit menu intervals and idle holds. First-person clips retain the instructions.
+
+Pass `only_views=('observer',)` to `export` when replacing an observer edit while retaining the accepted first-person clip.
+
 To export accepted raw takes again without recording, run:
 
 ```sh
@@ -82,7 +86,7 @@ PY
 python3 src/test/demo/docs_sync.py --only wand-creation --only rune-creation --only portal-linking
 ```
 
-Intentional wiki assets live in `../docs/wormholes-assets/demos/`. `docs_sync.py` maps each selected demonstration into its matching reference section and preserves existing prose and unselected demonstrations. Without `--only`, it requires all four clips for every mapped ID. Repeating synchronization leaves unchanged pages untouched. Visible clips autoplay muted and loop. Each demo has No client mod and Client mod tabs with an independent client selection. A separate Camera dropdown selects First person or Third person (Second player for the traveler comparisons), synchronizes with Adapt's demos, and remembers the selection across pages.
+Intentional wiki assets live in `../docs/wormholes-assets/demos/`. `docs_sync.py` maps each selected demonstration into its matching reference section and preserves existing prose and unselected demonstrations. Without `--only`, it requires both client variants and the shot sheet’s selected perspectives for every mapped ID. Repeating synchronization leaves unchanged pages untouched. Visible clips autoplay muted and loop. Each demo has No client mod and Client mod tabs with an independent client selection. Where an observer clip is available, a separate Camera dropdown selects First person or Third person (Second player for the traveler comparisons), synchronizes with Adapt's demos, and remembers the selection across pages. First-person-only demos omit the dropdown and remain visible even when the saved preference is Third person.
 
 ## Automator bridge
 

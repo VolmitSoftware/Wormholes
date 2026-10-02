@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 
 import gateway_studio
-from studio import ACTOR, OBSERVER, OUTPUT, FFMPEG, Bridge, Rcon, Studio, capture_metrics, claim_studio, export, fit_hidden_renderer, look, verify_capture, verify_hidden_renderer, verify_sessions
+from studio import ACTOR, OBSERVER, OUTPUT, FFMPEG, Bridge, Rcon, Studio, capture_metrics, claim_studio, export, perspectives, fit_hidden_renderer, look, verify_capture, verify_hidden_renderer, verify_sessions
 
 
 def menu(bridge: Bridge) -> dict:
@@ -216,10 +216,13 @@ def record(studio: Studio, actor: Bridge, observer: Bridge, shot: dict, variant:
         fit_hidden_renderer(bridge)
     time.sleep(1)
     captures: list[Bridge] = []
+    views: tuple[str, ...] = perspectives(shot['id'])
     started: float = time.monotonic()
     (OUTPUT / 'intermediate').mkdir(exist_ok=True)
     try:
         for view, bridge in (('pov', actor), ('observer', observer)):
+            if view not in views:
+                continue
             bridge.command('capture', action='start', path=str(OUTPUT / 'intermediate' / (identifier + '-' + view + '.mp4')),
                            ffmpeg=str(FFMPEG), width=1920, height=1080, fps=30)
             captures.append(bridge)
@@ -253,10 +256,10 @@ def record(studio: Studio, actor: Bridge, observer: Bridge, shot: dict, variant:
         reports.mkdir(parents=True, exist_ok=True)
         (reports / (identifier + '.json')).write_text(json.dumps({
             'id': shot['id'], 'variant': variant,
-            'capture': [{'view': view, 'raw': capture_metrics(state)} for view, state in zip(('pov', 'observer'), states)],
+            'capture': [{'view': view, 'raw': capture_metrics(state)} for view, state in zip(views, states)],
         }, indent=2))
     accepted: list[dict] = [{'view': view, **verify_capture(state, shot['id'])}
-                            for view, state in zip(('pov', 'observer'), states)]
+                            for view, state in zip(views, states)]
     return {'id': shot['id'], 'variant': variant, 'seconds': time.monotonic() - started, 'proof': proof,
             'skin': studio.rcon.command('whdemo skin-status'), 'sessions': studio.rcon.command('wh clientview status'),
             'capture': accepted}

@@ -49,7 +49,9 @@ DEMOS: dict[str, tuple[tuple[str, str], ...]] = {
     '10-cross-server-networking.md': (('Transfer mode', 'cross-server-gateways'),),
 }
 CLIENTS: tuple[tuple[str, str], ...] = (('standard', 'No client mod'), ('clientview', 'Client mod'))
-PERSPECTIVES: tuple[tuple[str, str], ...] = (('pov', 'First person'), ('observer', 'Third person'))
+PERSPECTIVES: dict[str, str] = {'pov': 'First person', 'observer': 'Third person'}
+SHOT_VIEWS: dict[str, tuple[str, ...]] = {shot['id']: tuple(shot['perspectives']) for shot in
+    json.loads((ROOT / 'src/test/demo/shots.json').read_text())['shots']}
 OBSERVER_LABELS: dict[str, str] = {'personal-pockets': 'Second player', 'public-pockets': 'Second player',
                                    'rtp-personal': 'Second player', 'live-views': 'Destination view'}
 RENDER_CAPTION: str = ('Standard projection is frozen for the rear comparison. '
@@ -110,7 +112,7 @@ def select_demos(only: tuple[str, ...] | list[str] | None) -> dict[str, tuple[tu
 
 def block(identifier: str, loading_pauses_shortened: bool = False) -> str:
     observer_label: str = OBSERVER_LABELS.get(identifier, 'Third person')
-    observer_attribute: str = ' data-observer-label="' + observer_label + '"' if identifier in OBSERVER_LABELS else ''
+    observer_attribute: str = ' data-observer-label="' + observer_label + '"' if identifier in OBSERVER_LABELS and 'observer' in SHOT_VIEWS[identifier] else ''
     lines: list[str] = ['<div class="wormholes-demo" data-demo="' + identifier + '"' + observer_attribute + '>']
     caption: tuple[str, str] | None = CAPTIONS.get(identifier)
     if caption is not None:
@@ -118,7 +120,8 @@ def block(identifier: str, loading_pauses_shortened: bool = False) -> str:
         lines.append('<p><strong>' + escape(caption[0]) + '</strong> ' + escape(description) + '</p>')
     for client, label in CLIENTS:
         lines.extend(['<div class="wormholes-demo-variant" data-client="' + client + '">', '<p>' + label + '</p>'])
-        for perspective, name in PERSPECTIVES:
+        for perspective in SHOT_VIEWS[identifier]:
+            name: str = PERSPECTIVES[perspective]
             if perspective == 'observer':
                 name = observer_label
             source: str = '/wormholes-assets/demos/' + identifier + '-' + client + '-' + perspective + '.webm'
@@ -135,7 +138,7 @@ def require_clips(docs: Path, demos: dict[str, tuple[tuple[str, str], ...]]) -> 
     for demonstrations in demos.values():
         for _, identifier in demonstrations:
             for client, _ in CLIENTS:
-                for perspective, _ in PERSPECTIVES:
+                for perspective in SHOT_VIEWS[identifier]:
                     clip: Path = directory / (identifier + '-' + client + '-' + perspective + '.webm')
                     if not clip.is_file() or clip.stat().st_size == 0:
                         missing.append(str(clip))

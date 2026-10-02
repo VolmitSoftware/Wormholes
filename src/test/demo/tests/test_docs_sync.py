@@ -79,7 +79,10 @@ class DocsSyncTest(unittest.TestCase):
     def test_original_demonstrations_keep_exact_markup(self) -> None:
         for identifier in ('wand-creation', 'rune-creation', 'portal-linking'):
             with self.subTest(identifier=identifier):
-                self.assertEqual(self.module.block(identifier), ORIGINAL_BLOCK.replace('{id}', identifier))
+                expected: str = ORIGINAL_BLOCK.replace('{id}', identifier)
+                if identifier != 'portal-linking':
+                    expected = '\n'.join(line for line in expected.splitlines() if '-observer.webm' not in line)
+                self.assertEqual(self.module.block(identifier), expected)
 
     def test_loading_caption_requires_actual_manifest_edits(self) -> None:
         manifest: Path = self.docs / 'manifest.json'
@@ -155,12 +158,12 @@ class DocsSyncTest(unittest.TestCase):
 
     def test_selected_clip_requires_each_client_and_camera(self) -> None:
         self.clips(('wand-creation',))
-        (self.assets / 'wand-creation-clientview-observer.webm').write_bytes(b'')
+        (self.assets / 'wand-creation-clientview-pov.webm').write_bytes(b'')
         result: subprocess.CompletedProcess[str] = subprocess.run(
             [sys.executable, str(SCRIPT), '--docs', str(self.docs), '--only', 'wand-creation'],
             capture_output=True, text=True)
         self.assertEqual(result.returncode, 2)
-        self.assertIn('wand-creation-clientview-observer.webm', result.stderr)
+        self.assertIn('wand-creation-clientview-pov.webm', result.stderr)
         self.assertEqual(self.build.read_text(), BUILD)
 
     def test_missing_clips_refuse_all_page_writes(self) -> None:
@@ -191,7 +194,7 @@ class DocsSyncTest(unittest.TestCase):
         self.sync('2026-10-01T12:00:00.000Z')
         videos: Videos = Videos()
         videos.feed(self.build.read_text() + self.link.read_text())
-        self.assertEqual(len(videos.attributes), 12)
+        self.assertEqual(len(videos.attributes), 8)
         for attributes in videos.attributes:
             for attribute in ('autoplay', 'muted', 'loop', 'playsinline', 'controls'):
                 self.assertIn(attribute, attributes)
@@ -208,18 +211,28 @@ class DocsSyncTest(unittest.TestCase):
         for text, demos in [(build, ('wand-creation', 'rune-creation')), (link, ('portal-linking',))]:
             self.assertIn('date: 2026-10-01T12:00:00.000Z', text)
             self.assertIn('dateCreated: 2026-01-01T00:00:00.000Z', text)
-            self.assertEqual(text.count('<video '), 4 * len(demos))
+            self.assertEqual(text.count('<video '), sum(2 * len(self.module.SHOT_VIEWS[demo]) for demo in demos))
             self.assertEqual(text.count('No client mod</p>'), len(demos))
             self.assertEqual(text.count('Client mod</p>'), len(demos))
             for demo in demos:
                 for client in ('standard', 'clientview'):
-                    for perspective in ('pov', 'observer'):
+                    for perspective in self.module.SHOT_VIEWS[demo]:
                         self.assertIn(f'/wormholes-assets/demos/{demo}-{client}-{perspective}.webm', text)
         self.assertIn('Select the corners.', build)
         self.assertIn('Place matching runes.', build)
         self.assertIn('Choose a destination.', link)
         self.assertTrue(build.endswith('## Surface skin\n\nKeep the opening clear.\n'))
         self.assertTrue(link.endswith('## Type menu\n\nChoose a type.\n'))
+
+    def test_single_camera_sync_removes_observer_embeds_and_accepts_missing_observer_files(self) -> None:
+        self.clips(('wand-creation',))
+        for clip in self.assets.glob('*-observer.webm'):
+            clip.unlink()
+        self.build.write_text(BUILD.replace('## Wand box construction', '## Wand box construction\n\n' +
+            ORIGINAL_BLOCK.replace('{id}', 'wand-creation')))
+        self.assertEqual(self.module.sync(self.docs, '2026-10-02T12:00:00.000Z', ('wand-creation',)), 1)
+        self.assertNotIn('-observer.webm', self.build.read_text())
+        self.assertEqual(self.build.read_text().count('class="wormholes-demo"'), 1)
 
     def test_second_run_preserves_content_and_date(self) -> None:
         self.clips()
