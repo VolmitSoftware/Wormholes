@@ -137,6 +137,11 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
 
 
     @Override
+    public UUID projectedId(UUID sourceId) {
+        return ClientViewEntityTransform.opaque(secret, sourceId);
+    }
+
+    @Override
     public boolean visible(MinecraftClientViewPeer peer, EntityVisual visual) {
         if (!spectators.containsKey(visual.id())) {
             return true;

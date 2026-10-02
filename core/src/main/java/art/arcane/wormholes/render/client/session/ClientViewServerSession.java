@@ -825,6 +825,12 @@ public final class ClientViewServerSession<P, B> {
                 inbox.add(new Scene<B>(slot, frame));
                 queued = true;
             }
+            if (ClientViewCapability.ENTITY_EVENTS.in(sessionCaps)) {
+                for (ClientViewMessage.EntityEvent event : platform.entities().events(player, slot.portalId, slot.key)) {
+                    inbox.add(new Scene<B>(slot, event));
+                    queued = true;
+                }
+            }
         }
         boolean fullScene = slot.needFullScene;
         if (!slot.effects && meshEnabled()) {
@@ -999,6 +1005,12 @@ public final class ClientViewServerSession<P, B> {
                     child.needFullEntities = false;
                     inbox.add(new Scene<>(child, entities));
                     flags |= NESTED_PLATE;
+                }
+                if (ClientViewCapability.ENTITY_EVENTS.in(caps)) {
+                    for (ClientViewMessage.EntityEvent event : platform.entities().events(player, child.contextId, child.key)) {
+                        inbox.add(new Scene<B>(child, event));
+                        flags |= NESTED_PLATE;
+                    }
                 }
             }
             ClientViewMessage.Environment environment = platform.fx().nestedEnvironment(player, slot.contextId, childId, child.key,

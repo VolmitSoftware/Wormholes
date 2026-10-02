@@ -1,22 +1,31 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.wormholes.network.client.ClientViewMessage;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Display;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.core.PositionAndRotation;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.UUID;
+import java.util.List;
+import java.lang.reflect.Field;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyFloat;
@@ -25,6 +34,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -44,13 +55,37 @@ public class ClientEntityMotionTest {
         for (int i = 0; i < displays.length; i++) {
             Display display = displays[i];
             when(level.getEntity(i)).thenReturn(display);
-            scene.tick(i, false);
+            scene.tick(i, 7, false);
             verify(display, never()).commonTick();
             verify(display, never()).tick();
-            scene.tick(i, true);
+            scene.tick(i, 7, true);
             verify(display).commonTick();
             verify(display).tick();
         }
+        verify(level, never()).getBlockState(any());
+        verify(level, never()).getFluidState(any());
+    }
+
+    @Test
+    public void nativeLivingEntitiesUseOneExplicitClockWithoutConsultingDestinationChunks() {
+        ClientLevel level = mock(ClientLevel.class);
+        when(level.isClientSide()).thenReturn(true);
+        LivingEntity living = mock(LivingEntity.class);
+        when(living.level()).thenReturn(level);
+        when(living.getInterpolation()).thenReturn(InterpolationHandler.NO_OP);
+        doCallRealMethod().when(living).commonTick();
+        when(level.getEntity(42)).thenReturn(living);
+        ClientLevelScene scene = new ClientLevelScene(level, () -> null);
+        for (int i = 0; i < 20; i++) {
+            scene.tick(42, 7, true);
+        }
+        assertEquals(20, living.tickCount);
+        assertTrue(living.noPhysics);
+        verify(living, times(20)).commonTick();
+        verify(living, times(20)).tick();
+        scene.tick(42, 7, false);
+        assertEquals(20, living.tickCount);
+        verify(living, times(20)).tick();
         verify(level, never()).getBlockState(any());
         verify(level, never()).getFluidState(any());
     }
@@ -121,6 +156,77 @@ public class ClientEntityMotionTest {
         ClientLevelScene.move(unchanged, headTurn, headTurn);
         verifyNoInteractions(unchanged);
         assertEquals(-1, ClientLevelScene.headYaw(visual(0, 64, 25, 359)), 0.0001F);
+    }
+
+    @Test
+    public void initialHandUseFindsTheAuthoritativeEquipmentForBothHands() throws ReflectiveOperationException {
+        for (InteractionHand hand : InteractionHand.values()) {
+            assertHandUseInitialized(hand, false);
+        }
+    }
+
+    @Test
+    public void simultaneousEquipmentAndUseMetadataInitializeTheNewItem() throws ReflectiveOperationException {
+        for (InteractionHand hand : InteractionHand.values()) {
+            assertHandUseInitialized(hand, true);
+        }
+    }
+
+    private static void assertHandUseInitialized(InteractionHand hand, boolean update) throws ReflectiveOperationException {
+        ClientLevel level = mock(ClientLevel.class);
+        when(level.isClientSide()).thenReturn(true);
+        LivingEntity living = mock(LivingEntity.class);
+        when(living.level()).thenReturn(level);
+        when(living.getUsedItemHand()).thenReturn(hand);
+        AtomicBoolean using = new AtomicBoolean();
+        when(living.isUsingItem()).thenAnswer(ignored -> using.get());
+        AtomicReference<ItemStack> held = new AtomicReference<>(ItemStack.EMPTY);
+        when(living.getItemInHand(hand)).thenAnswer(ignored -> held.get());
+        doCallRealMethod().when(living).stopUsingItem();
+        doCallRealMethod().when(living).onSyncedDataUpdated(any(EntityDataAccessor.class));
+        doCallRealMethod().when(living).getUseItem();
+        doCallRealMethod().when(living).getUseItemRemainingTicks();
+        living.stopUsingItem();
+        ItemStack apple = mock(ItemStack.class);
+        when(apple.getUseDuration(living)).thenReturn(32);
+        Field flagsField = LivingEntity.class.getDeclaredField("DATA_LIVING_ENTITY_FLAGS");
+        flagsField.setAccessible(true);
+        EntityDataAccessor<?> flags = (EntityDataAccessor<?>) flagsField.get(null);
+        ClientSceneWorld world = mock(ClientSceneWorld.class);
+        when(world.spawn(anyInt(), any(UUID.class), any(EntityVisual.class))).thenReturn(true);
+        doAnswer(call -> {
+            byte[] equipment = call.getArgument(1);
+            held.set(equipment[0] == 0 ? ItemStack.EMPTY : apple);
+            return null;
+        }).when(world).equipment(anyInt(), any(byte[].class));
+        doAnswer(call -> {
+            byte[] metadata = call.getArgument(1);
+            using.set(metadata[0] != 0);
+            living.onSyncedDataUpdated(flags);
+            return null;
+        }).when(world).metadata(anyInt(), any(byte[].class));
+        ClientProjectedEntities entities = new ClientProjectedEntities(world);
+        ClientPortal portal = mock(ClientPortal.class);
+        UUID id = UUID.randomUUID();
+        if (update) {
+            entities.apply(new ClientViewMessage.EntityFrame(1, 1, List.of(usingVisual(id, 0)), List.of(id), true));
+            entities.tick(ignored -> portal, ignored -> true);
+        }
+        entities.apply(new ClientViewMessage.EntityFrame(1, 2, List.of(usingVisual(id, hand == InteractionHand.MAIN_HAND ? 1 : 3)),
+            List.of(id), true));
+        entities.tick(ignored -> portal, ignored -> true);
+        assertSame(apple, living.getUseItem());
+        assertEquals(32, living.getUseItemRemainingTicks());
+        assertEquals(hand, living.getUsedItemHand());
+        entities.apply(new ClientViewMessage.EntityFrame(1, 3, List.of(usingVisual(id, hand == InteractionHand.MAIN_HAND ? 1 : 3)),
+            List.of(id), true));
+        entities.tick(ignored -> portal, ignored -> true);
+        verify(living, times(update ? 2 : 1)).onSyncedDataUpdated(flags);
+    }
+
+    private static EntityVisual usingVisual(UUID id, int flags) {
+        return EntityVisual.full(id, "minecraft:zombie", 0, 64, 0, 1.95D, 0, 0, 1, 0, 0, 0, 0, 0, true,
+            "", "", "", null, null, new byte[] {(byte) flags}, new byte[] {(byte) (flags == 0 ? 0 : 1)}, 0);
     }
 
     private static ItemEntity item(ClientLevel level) {

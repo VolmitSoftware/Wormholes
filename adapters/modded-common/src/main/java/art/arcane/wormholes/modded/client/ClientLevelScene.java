@@ -2,6 +2,8 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.modded.MinecraftAcoustics;
+import art.arcane.wormholes.modded.MinecraftEntityPackets;
+import art.arcane.wormholes.render.ProjectedEntityEvent;
 import art.arcane.wormholes.modded.MinecraftAnimationParticles;
 import art.arcane.wormholes.modded.MinecraftPacketBlobs;
 import art.arcane.wormholes.network.view.EntityVisual;
@@ -37,6 +39,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -109,13 +112,18 @@ public final class ClientLevelScene implements ClientSceneWorld {
     }
 
     @Override
-    public void tick(int entityId, boolean nativeMesh) {
+    public void tick(int entityId, int portalKey, boolean nativeMesh) {
         Entity entity = level.getEntity(entityId);
         if (nativeMesh && entity != null) {
             entity.noPhysics = true;
-            if (entity instanceof Display display) {
-                display.commonTick();
-                display.tick();
+            if (entity instanceof Display || entity instanceof LivingEntity) {
+                WormholesClient client = WormholesClient.instance();
+                if (client == null || !client.meshViews().tickEntity(portalKey, entity)) {
+                    entity.commonTick();
+                    entity.tick();
+                }
+            } else if (!(entity instanceof ItemEntity)) {
+                entity.commonTick();
             }
         }
         if (!nativeMesh || !(entity instanceof ItemEntity item)) {
@@ -150,6 +158,22 @@ public final class ClientLevelScene implements ClientSceneWorld {
     static float headYaw(EntityVisual visual) {
         return visual.lookX() * visual.lookX() + visual.lookZ() * visual.lookZ() < 1.0E-12D
             ? visual.yaw() : EntityVisualProjection.yaw(visual.lookX(), visual.lookZ());
+    }
+
+    @Override
+    public void event(int entityId, ProjectedEntityEvent event) {
+        Entity entity = level.getEntity(entityId);
+        if (entity == null) {
+            return;
+        }
+        if (event.hurt()) {
+            entity.animateHurt(event.yaw());
+        } else {
+            ClientPacketListener connection = listener.get();
+            if (connection != null) {
+                MinecraftEntityPackets.animation(entityId, event.animation()).handle(connection);
+            }
+        }
     }
 
     @Override

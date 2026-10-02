@@ -2,7 +2,6 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.mixin.client.AvatarDataAccessor;
 import art.arcane.wormholes.modded.mixin.client.ReflectionDataAccessor;
-import art.arcane.wormholes.modded.mixin.client.WalkAnimationAccessor;
 import art.arcane.wormholes.render.EntityVisualProjection;
 import art.arcane.wormholes.render.PortalCoordMap;
 import art.arcane.wormholes.render.client.ClientPortalGeometry;
@@ -21,6 +20,7 @@ import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -171,6 +171,8 @@ public final class ClientReflectionEntity {
     private void follow(Reflection reflection, LocalPlayer player, ClientSpace space, boolean upsideDown, boolean nativeMesh) {
         Mannequin entity = reflection.entity;
         if (nativeMesh) {
+            entity.commonTick();
+            entity.tick();
             followNativePose(entity, player);
         } else {
             float height = player.getBbHeight();
@@ -210,12 +212,23 @@ public final class ClientReflectionEntity {
                 entity.setItemSlot(slot, worn.copy());
             }
         }
-        copyWalk((WalkAnimationAccessor) player.walkAnimation, (WalkAnimationAccessor) entity.walkAnimation);
+        followAnimation(entity, player, ((LivingEntityUseState) entity).wormholesLivingFlags());
+        copyWalk((WalkAnimationView) player.walkAnimation, (WalkAnimationView) entity.walkAnimation);
         LivingEntity.SwingDescription swing = player.getCurrentSwing();
         if (swing != null && swing != reflection.swing) {
             entity.swing(swing.hand(), swing.animation(), false);
         }
         reflection.swing = swing;
+    }
+
+    static void followAnimation(Mannequin entity, LocalPlayer player, EntityDataAccessor<Byte> flags) {
+        entity.getEntityData().set(flags, player.getEntityData().get(flags));
+        LivingEntityUseState use = (LivingEntityUseState) entity;
+        use.wormholesUseItem(player.isUsingItem() ? entity.getItemInHand(player.getUsedItemHand()) : ItemStack.EMPTY);
+        use.wormholesUseItemRemaining(player.getUseItemRemainingTicks());
+        entity.hurtTime = player.hurtTime;
+        entity.hurtDuration = player.hurtDuration;
+        entity.deathTime = player.deathTime;
     }
 
     static void followNativePose(Mannequin entity, LocalPlayer player) {
@@ -230,7 +243,7 @@ public final class ClientReflectionEntity {
         entity.setMainArm(player.getMainArm());
     }
 
-    private static void copyWalk(WalkAnimationAccessor source, WalkAnimationAccessor target) {
+    private static void copyWalk(WalkAnimationView source, WalkAnimationView target) {
         target.wormholesSpeedOld(source.wormholesSpeedOld());
         target.wormholesSpeed(source.wormholesSpeed());
         target.wormholesPosition(source.wormholesPosition());

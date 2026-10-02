@@ -112,6 +112,8 @@ shadowJarTask.configure {
             return !segments.last().startsWith('EntityVisibilityAccess')
                     && !segments.last().startsWith('ReflectiveEntityVisibilityAccess')
                     && !segments.last().startsWith('NativeEntityVisibilityAccess')
+                    && !segments.last().startsWith('EntityMetadataAccess')
+                    && !segments.last().startsWith('NativeEntityMetadataAccess')
         }
         return false
     }
@@ -427,9 +429,14 @@ pluginPackaging {
             taskName = 'shadowJar'
             policyName = 'Wormholes'
             requiredEntries = requiredEntries + [
+                'art/arcane/volmlib/nativelib/entity/EntityMetadataAccess.class',
+                'art/arcane/volmlib/nativelib/common/entity/NativeEntityMetadataAccess.class',
+                'art/arcane/volmlib/nativelib/v26_2_R1/entity/NativeEntityMetadataAccess.class',
+                'art/arcane/volmlib/nativelib/v26_3_R1/entity/NativeEntityMetadataAccess.class',
                 'art/arcane/volmlib/nativelib/environment/WorldEnvironmentAccess.class',
                 'art/arcane/volmlib/nativelib/environment/WorldEnvironmentAccess$Position.class',
                 'art/arcane/volmlib/nativelib/environment/WorldEnvironment.class',
+                'art/arcane/volmlib/nativelib/environment/WorldEnvironment$EyeMedium.class',
                 'art/arcane/volmlib/nativelib/v26_3_R1/environment/NativeWorldEnvironmentAccess.class'
             ]
             prunePrefixes = ['art/arcane/volmlib/']

@@ -41,6 +41,49 @@ public class ClientViewSceneTest {
     }
 
     @Test
+    public void entityActionsWaitForSpawnAndDoNotReplayAcrossFullSnapshots() throws ClientViewProtocolException {
+        ClientViewHarness harness = new ClientViewHarness();
+        harness.stream();
+        UUID id = UUID.randomUUID();
+        ClientViewMessage.EntityEvent swing = new ClientViewMessage.EntityEvent(1, 1, id, false, 3, 0);
+        harness.receive(swing, 0);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        assertTrue(harness.scene.entityActions.isEmpty());
+        EntityVisual visual = stand(id, 1.5D, 64, 3);
+        harness.receive(new ClientViewMessage.EntityFrame(1, 1, List.of(visual), List.of(id), true), 0);
+        harness.receive(new ClientViewMessage.EntityEvent(1, 2, id, true, 0, 179), 0);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        assertEquals(2, harness.scene.entityActions.size());
+        assertEquals(3, harness.scene.entityActions.getFirst().animation());
+        assertTrue(harness.scene.entityActions.getLast().hurt());
+        harness.receive(swing, 0);
+        harness.receive(new ClientViewMessage.EntityFrame(1, 2, List.of(visual), List.of(id), true), 0);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        assertEquals(2, harness.scene.entityActions.size());
+    }
+
+    @Test
+    public void staleOrRemovedEntityActionsExpireWithoutReplay() throws ClientViewProtocolException {
+        ClientViewHarness harness = new ClientViewHarness();
+        harness.stream();
+        UUID id = UUID.randomUUID();
+        harness.receive(new ClientViewMessage.EntityEvent(1, 1, id, false, 0, 0), 0);
+        for (int index = 0; index < 21; index++) {
+            harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        }
+        EntityVisual visual = stand(id, 1.5D, 64, 3);
+        harness.receive(new ClientViewMessage.EntityFrame(1, 1, List.of(visual), List.of(id), true), 0);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        assertTrue(harness.scene.entityActions.isEmpty());
+        harness.receive(new ClientViewMessage.EntityEvent(1, 2, id, true, 0, 0), 0);
+        harness.receive(new ClientViewMessage.EntityFrame(1, 2, List.of(), List.of(), true), 0);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        harness.receive(new ClientViewMessage.EntityFrame(1, 3, List.of(visual), List.of(id), true), 0);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        assertTrue(harness.scene.entityActions.isEmpty());
+    }
+
+    @Test
     public void destinationLightLandsOnOverlaidCellsAndLeavesWithThem() throws ClientViewProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();

@@ -6,6 +6,8 @@ import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexSorting;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import java.util.Objects;
 import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
@@ -29,26 +31,38 @@ final class PortalSectionMesh implements AutoCloseable {
     private final EnumMap<ChunkSectionLayer, ByteBufferBuilder> allocations = new EnumMap<>(ChunkSectionLayer.class);
     private final EnumMap<ChunkSectionLayer, BufferBuilder> builders = new EnumMap<>(ChunkSectionLayer.class);
     private final EnumMap<ChunkSectionLayer, MeshData> meshes = new EnumMap<>(ChunkSectionLayer.class);
+    private final EnumMap<ChunkSectionLayer, PortalTerrainVertices> terrain = new EnumMap<>(ChunkSectionLayer.class);
+    private final PortalTerrainMaterials materials;
+    private BlockState materialState;
+    private boolean materialFluid;
+    private int materialEmission;
+    private float centerX;
+    private float centerY;
+    private float centerZ;
     private MeshData.SortState translucentSort;
 
+    private PortalSectionMesh(PortalTerrainMaterials materials) {
+        this.materials = Objects.requireNonNull(materials, "materials");
+    }
+
     static PortalSectionMesh compile(long sectionKey, BlockAndTintGetter world, BlockStateModelSet models,
-                                     FluidStateModelSet fluids, BlockColors colors, boolean ambientOcclusion) {
-        PortalSectionMesh result = new PortalSectionMesh();
+                                     FluidStateModelSet fluids, BlockColors colors, boolean ambientOcclusion, PortalTerrainMaterials materials) {
+        PortalSectionMesh result = new PortalSectionMesh(materials);
         ClientMeshWorld source = world instanceof ClientMeshWorld snapshot ? snapshot : null;
         BlockAndTintGetter destination = source == null ? world : source.destination();
         PortalVertexTransform vertices = source == null ? null : new PortalVertexTransform(source.transform());
         ModelBlockRenderer renderer = new ModelBlockRenderer(ambientOcclusion, true, colors);
         FluidRenderer fluidRenderer = new FluidRenderer(fluids);
         BlockQuadOutput output = vertices == null
-            ? (x, y, z, quad, instance) -> result.builder(quad.materialInfo().layer()).putBlockBakedQuad(x, y, z, quad, instance)
-            : (x, y, z, quad, instance) -> vertices.target(result.builder(quad.materialInfo().layer())).putBlockBakedQuad(x, y, z, quad, instance);
-        FluidRenderer.Output fluidOutput = vertices == null ? result::builder : layer -> vertices.target(result.builder(layer));
+            ? (x, y, z, quad, instance) -> result.consumer(quad.materialInfo().layer()).putBlockBakedQuad(x, y, z, quad, instance)
+            : (x, y, z, quad, instance) -> vertices.target(result.consumer(quad.materialInfo().layer())).putBlockBakedQuad(x, y, z, quad, instance);
+        FluidRenderer.Output fluidOutput = vertices == null ? result::consumer : layer -> vertices.target(result.consumer(layer));
         BlockPos.MutableBlockPos position = new BlockPos.MutableBlockPos();
         int baseX = SectionPos.x(sectionKey) << 4;
         int baseY = SectionPos.y(sectionKey) << 4;
         int baseZ = SectionPos.z(sectionKey) << 4;
         BlockModelLighter.enableCaching();
-        try (PortalShaderScope scope = PortalShaderScope.vertices()) {
+        try (PortalShaderScope scope = PortalShaderScope.vertices(); PortalTerrainLighting lighting = new PortalTerrainLighting(materials.lighting())) {
             for (int y = 0; y < 16; y++) {
                 for (int z = 0; z < 16; z++) {
                     for (int x = 0; x < 16; x++) {
@@ -61,14 +75,22 @@ final class PortalSectionMesh implements AutoCloseable {
                         if (state.isAir()) {
                             continue;
                         }
+                        result.centerX = vertices == null ? x + 0.5F : vertices.centerX();
+                        result.centerY = vertices == null ? y + 0.5F : vertices.centerY();
+                        result.centerZ = vertices == null ? z + 0.5F : vertices.centerZ();
+                        result.materialEmission = state.getLightEmission();
                         FluidState fluid = state.getFluidState();
                         if (!fluid.isEmpty()) {
+                            result.materialState = fluid.createLegacyBlock();
+                            result.materialFluid = true;
                             if (vertices != null) {
                                 vertices.inputOrigin(position.getX() & 15, position.getY() & 15, position.getZ() & 15);
                             }
                             fluidRenderer.tesselate(destination, position, fluidOutput, state, fluid);
                         }
                         if (state.getRenderShape() == RenderShape.MODEL) {
+                            result.materialState = state;
+                            result.materialFluid = false;
                             if (vertices != null) {
                                 vertices.inputOrigin(0, 0, 0);
                             }
@@ -83,6 +105,9 @@ final class PortalSectionMesh implements AutoCloseable {
                 if (mesh != null) {
                     if (vertices != null) {
                         vertices.winding(mesh);
+                    }
+                    if (materials.enabled()) {
+                        mesh = result.extend(entry.getKey(), mesh);
                     }
                     result.meshes.put(entry.getKey(), mesh);
                     if (entry.getKey() == ChunkSectionLayer.TRANSLUCENT) {
@@ -105,6 +130,30 @@ final class PortalSectionMesh implements AutoCloseable {
 
     MeshData.SortState translucentSort() {
         return translucentSort;
+    }
+
+    private VertexConsumer consumer(ChunkSectionLayer layer) {
+        BufferBuilder builder = builder(layer);
+        if (!materials.enabled()) {
+            return builder;
+        }
+        PortalTerrainVertices vertices = terrain.computeIfAbsent(layer, ignored -> new PortalTerrainVertices(builder));
+        vertices.block(materials.blockId(materialState), materialFluid, materialEmission, centerX, centerY, centerZ);
+        return vertices;
+    }
+
+    private MeshData extend(ChunkSectionLayer layer, MeshData source) {
+        ByteBufferBuilder allocation = new ByteBufferBuilder(Math.multiplyExact(source.drawState().vertexCount(), materials.format().getVertexSize()));
+        try {
+            MeshData extended = terrain.get(layer).expand(source, allocation);
+            source.close();
+            allocations.put(layer, allocation).close();
+            return extended;
+        } catch (RuntimeException | Error failure) {
+            source.close();
+            allocation.close();
+            throw failure;
+        }
     }
 
     private BufferBuilder builder(ChunkSectionLayer layer) {

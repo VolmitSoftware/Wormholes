@@ -16,6 +16,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.DoubleBlockCombiner;
@@ -42,6 +43,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -87,6 +90,39 @@ public class ClientMeshEntitiesTest {
                 assertEquals(7, scene.brightness(LightLayer.BLOCK, BlockPos.ZERO));
             });
         }
+    }
+
+    @Test
+    public void visualTicksReadCapturedDestinationFluidsAndRestoreScopeAfterFailure() throws Exception {
+        ClientPalette palette = new ClientPalette(BuiltInRegistries.BLOCK);
+        palette.apply(new ClientViewMessage.Palette(List.of(new ClientViewMessage.PaletteEntry(3, "minecraft:water[level=0]"))));
+        BlockState water = palette.state(3);
+        assertSame(Blocks.WATER, water.getBlock());
+        water.initCache();
+        assertFalse(water.getFluidState().isEmpty());
+        ClientMeshSections store = new ClientMeshSections(palette, 1_048_576);
+        store.begin(7, 1, new PlateBox(0, 0, 0, 16, 16, 16), 1);
+        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, oneBlock(3), SectionBiomes.NONE));
+        ClientLevel level = mock(ClientLevel.class);
+        ClientMeshEntities scene = new ClientMeshEntities(store.view(7), level);
+        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.W, Direction.U, Direction.S,
+            new GeometryVector(101, 0, 0));
+        Entity entity = mock(Entity.class);
+        doAnswer(ignored -> {
+            assertSame(scene, ClientMeshEntities.active(level));
+            assertFalse(scene.blockState(new BlockPos(100, 0, 0)).getFluidState().isEmpty());
+            assertTrue(scene.blockState(new BlockPos(200, 0, 0)).getFluidState().isEmpty());
+            return null;
+        }).when(entity).tick();
+        scene.tickEntity(entity, transform);
+        verify(entity).commonTick();
+        verify(entity).tick();
+        assertNull(ClientMeshEntities.active());
+        verifyNoInteractions(level);
+        doThrow(new IllegalStateException("failed species tick")).when(entity).tick();
+        assertThrows(IllegalStateException.class, () -> scene.tickEntity(entity, transform));
+        assertNull(ClientMeshEntities.active());
+        assertFalse(scene.blockState(BlockPos.ZERO).getFluidState().isEmpty());
     }
 
     @Test

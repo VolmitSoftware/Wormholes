@@ -183,7 +183,9 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
     private CapturedEntity captureEntity(SnapshotWorldView view, Entity entity, long chunkKey, long capturedAtMillis) {
         EntityState previousState = view.entityStates.get(entity.getUniqueId());
         CapturedEntity previous = previousState == null ? null : previousState.entity;
+        long metadataRevision = WormholesPlatform.entityMetadataFingerprint(entity);
         boolean reuseState = previous != null
+            && previous.metadataRevision == metadataRevision
             && capturedAtMillis - previous.stateCapturedAtMillis < ENTITY_STATE_REFRESH_MILLIS;
         Location location = entity.getLocation();
         Vector look = entityLook(entity, location);
@@ -230,7 +232,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             : null;
         return new CapturedEntity(chunkKey, visual, profile, metadata, equipment, mapView,
             entity.isVisibleByDefault(), capturedAtMillis,
-            reuseState ? previous.stateCapturedAtMillis : capturedAtMillis);
+            reuseState ? previous.stateCapturedAtMillis : capturedAtMillis, metadataRevision);
     }
 
     private static String[] playerTextures(Player player) {
@@ -649,10 +651,11 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         private final boolean visibleByDefault;
         private final long capturedAtMillis;
         private final long stateCapturedAtMillis;
+        private final long metadataRevision;
 
         private CapturedEntity(long chunkKey, EntityVisual visual, RemoteViewCache.RemoteProfile profile,
                                List<EntityData<?>> metadata, List<Equipment> equipment, MapView mapView,
-                               boolean visibleByDefault, long capturedAtMillis, long stateCapturedAtMillis) {
+                               boolean visibleByDefault, long capturedAtMillis, long stateCapturedAtMillis, long metadataRevision) {
             this.chunkKey = chunkKey;
             this.visual = visual;
             this.profile = profile;
@@ -662,6 +665,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             this.visibleByDefault = visibleByDefault;
             this.capturedAtMillis = capturedAtMillis;
             this.stateCapturedAtMillis = stateCapturedAtMillis;
+            this.metadataRevision = metadataRevision;
         }
     }
 

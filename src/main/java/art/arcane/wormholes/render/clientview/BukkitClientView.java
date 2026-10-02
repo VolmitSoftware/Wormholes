@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import art.arcane.wormholes.render.ProjectedEntityEvent;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
@@ -54,7 +55,7 @@ import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 
 public final class BukkitClientView implements ClientViewRouting {
     public static final long PLATFORM_CAPS = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE,
-        ClientViewCapability.DEST_LIGHT, ClientViewCapability.ENTITY_FRAMES, ClientViewCapability.FX_EMITTERS, ClientViewCapability.ATMOSPHERE,
+        ClientViewCapability.DEST_LIGHT, ClientViewCapability.ENTITY_FRAMES, ClientViewCapability.ENTITY_EVENTS, ClientViewCapability.FX_EMITTERS, ClientViewCapability.ATMOSPHERE,
         ClientViewCapability.CONFIG_PHASE, ClientViewCapability.LINK_UNCOMPRESSED, ClientViewCapability.VIEW_STATS,
         ClientViewCapability.CLIENT_MIRROR, ClientViewCapability.CLIENT_RECURSION, ClientViewCapability.MESH_RENDER);
     private static final long SOURCE_STALE_TICKS = 40L;
@@ -242,6 +243,10 @@ public final class BukkitClientView implements ClientViewRouting {
     @Override
     public boolean receiver(Player player) {
         return registry.effectsReceiver(player.getUniqueId());
+    }
+
+    public void entityEvent(ProjectedEntityEvent event) {
+        registry.entityEvent(event);
     }
 
     public boolean oneShot(Player player, ClientViewMessage.FxEmitter emitter) {

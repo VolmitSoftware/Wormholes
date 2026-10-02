@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render.client.session;
 
 import java.security.SecureRandom;
+import art.arcane.wormholes.render.ProjectedEntityEvent;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -63,6 +64,10 @@ public final class ClientViewSessionRegistry<P, B> {
     public boolean oneShot(UUID playerId, ClientViewMessage.FxEmitter emitter) {
         ClientViewServerSession<P, B> session = sessions.get(playerId);
         return session != null && session.oneShot(emitter);
+    }
+
+    public void entityEvent(ProjectedEntityEvent event) {
+        platform.entities().event(event);
     }
 
     public void forget(UUID playerId) {

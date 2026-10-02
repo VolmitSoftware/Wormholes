@@ -47,7 +47,7 @@ public record ClientViewOptions(boolean enabled,
             caps |= ClientViewCapability.DEST_LIGHT.mask();
         }
         if (entityFrames) {
-            caps |= ClientViewCapability.ENTITY_FRAMES.mask();
+            caps |= ClientViewCapability.ENTITY_FRAMES.mask() | ClientViewCapability.ENTITY_EVENTS.mask();
         }
         if (zeroCopy) {
             caps |= ClientViewCapability.ZERO_COPY.mask();

@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 public class PortalViewportTest {
@@ -39,6 +40,40 @@ public class PortalViewportTest {
         PortalViewport child = new PortalViewport(960, 320, 384, 256).intersect(parent);
         assertEquals(new PortalViewport(960, 320, 192, 256), child);
         assertNull(new PortalViewport(0, 0, 64, 64).intersect(parent));
+    }
+
+    @Test
+    public void mixedResolutionNestedCoverageUsesNormalizedParentBounds() {
+        PortalViewport parent = new PortalViewport(640, 256, 512, 512);
+        PortalViewport scaled = parent.rescale(1920, 1080, 960, 540);
+        assertEquals(new PortalViewport(320, 128, 256, 256), scaled);
+        assertEquals(new PortalViewport(480, 160, 96, 128),
+            new PortalViewport(480, 160, 192, 128).intersect(scaled));
+        assertNull(new PortalViewport(0, 0, 64, 64).intersect(scaled));
+        assertEquals(parent, scaled.rescale(960, 540, 1920, 1080));
+        assertSame(parent, parent.rescale(1920, 1080, 1920, 1080));
+    }
+
+    @Test
+    public void fractionalEdgesRoundOutwardAndScaleEachAxisIndependently() {
+        PortalViewport viewport = new PortalViewport(1, 2, 1, 1);
+        assertEquals(new PortalViewport(0, 1, 2, 1), viewport.rescale(3, 4, 2, 2));
+        assertEquals(new PortalViewport(2, 3, 3, 3), viewport.rescale(3, 4, 7, 7));
+        assertEquals(new PortalViewport(0, 0, 1920, 1080),
+            new PortalViewport(0, 0, 960, 540).rescale(960, 540, 1920, 1080));
+    }
+
+    @Test
+    public void rescaleClipsOffscreenBoundsAndAvoidsIntegerOverflow() {
+        assertEquals(new PortalViewport(0, 0, 50, 25),
+            new PortalViewport(-10, -10, 110, 60).rescale(100, 100, 50, 50));
+        assertNull(new PortalViewport(100, 0, 10, 10).rescale(100, 100, 50, 50));
+        assertNull(new PortalViewport(0, 0, 0, 10).rescale(100, 100, 50, 50));
+        assertEquals(new PortalViewport(1, 1, Integer.MAX_VALUE - 1, Integer.MAX_VALUE - 1),
+            new PortalViewport(1, 1, Integer.MAX_VALUE, Integer.MAX_VALUE)
+                .rescale(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE));
+        assertThrows(IllegalArgumentException.class, () ->
+            new PortalViewport(0, 0, 10, 10).rescale(0, 100, 50, 50));
     }
 
     @Test

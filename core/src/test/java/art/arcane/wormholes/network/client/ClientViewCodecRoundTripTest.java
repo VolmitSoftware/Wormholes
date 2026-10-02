@@ -7,14 +7,45 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import art.arcane.wormholes.render.plate.PlateBox;
 
 final class ClientViewCodecRoundTripTest {
+    @Test
+    void malformedEntityEventsThrowProtocolErrors() throws ClientViewProtocolException {
+        byte[] swing = ClientViewCodec.encodeS2C(new ClientViewMessage.EntityEvent(7, 3, new UUID(12, 34), false, 3, 0), 0, 0);
+        for (int animation : new int[]{0, 2, 3, 4, 5}) {
+            ClientViewMessage.EntityEvent valid = new ClientViewMessage.EntityEvent(7, 3, new UUID(12, 34), false, animation, 179.5F);
+            byte[] encoded = ClientViewCodec.encodeS2C(valid, 0, 0);
+            assertEquals(valid, ClientViewCodec.decodeS2C(encoded, ClientViewCapability.ALL).message());
+        }
+        for (int animation : new int[]{1, 6, 255}) {
+            byte[] invalid = swing.clone();
+            invalid[invalid.length - 5] = (byte) animation;
+            assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(invalid, ClientViewCapability.ALL));
+        }
+        for (int flag : new int[]{2, 255}) {
+            byte[] invalid = swing.clone();
+            invalid[invalid.length - 6] = (byte) flag;
+            assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(invalid, ClientViewCapability.ALL));
+        }
+        for (boolean hurt : new boolean[]{false, true}) {
+            for (float yaw : new float[]{Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY}) {
+                byte[] invalid = swing.clone();
+                invalid[invalid.length - 6] = (byte) (hurt ? 1 : 0);
+                ByteBuffer.wrap(invalid).order(ByteOrder.LITTLE_ENDIAN).putFloat(invalid.length - 4, yaw);
+                assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(invalid, ClientViewCapability.ALL));
+            }
+        }
+    }
+
     @Test
     void malformedMeshControlsThrowProtocolErrors() throws ClientViewProtocolException {
         ClientViewMessage.MeshBegin begin = new ClientViewMessage.MeshBegin(7, 1,

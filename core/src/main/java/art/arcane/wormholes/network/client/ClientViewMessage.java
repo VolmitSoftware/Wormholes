@@ -351,6 +351,20 @@ public sealed interface ClientViewMessage {
         }
     }
 
+    record EntityEvent(int portalKey, int eventSeq, UUID entityId, boolean hurt, int animation, float yaw) implements ClientViewMessage {
+        public EntityEvent {
+            Objects.requireNonNull(entityId, "entityId");
+            if (!Float.isFinite(yaw) || !hurt && animation != 0 && animation != 2 && animation != 3 && animation != 4 && animation != 5) {
+                throw new IllegalArgumentException("entity event");
+            }
+        }
+
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.ENTITY_EVENT;
+        }
+    }
+
     record EntityFrame(int portalKey, int entitySeq, List<EntityVisual> entities, List<UUID> presentIds, boolean presence)
         implements ClientViewMessage {
         public EntityFrame {

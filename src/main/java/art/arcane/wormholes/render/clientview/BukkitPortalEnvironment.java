@@ -6,6 +6,7 @@ import art.arcane.volmlib.nativelib.environment.WorldEnvironmentAccess;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 
 public final class BukkitPortalEnvironment {
     private static volatile WorldEnvironmentAccess access;
@@ -19,10 +20,16 @@ public final class BukkitPortalEnvironment {
             current = NativeAdapters.require(WorldEnvironmentAccess.class);
             access = current;
         }
-        return convert(current.sample(world, new WorldEnvironmentAccess.Position(eye.x(), eye.y(), eye.z())), transform);
+        Block block = world.getBlockAt((int) Math.floor(eye.x()), (int) Math.floor(eye.y()), (int) Math.floor(eye.z()));
+        WorldEnvironment environment = current.sample(world, new WorldEnvironmentAccess.Position(eye.x(), eye.y(), eye.z()));
+        return convert(environment, transform,
+            new ClientViewEnvironment.World(world.getKey().toString(), world.getFullTime(), block.getBiome().getKey().toString(),
+                world.getSeaLevel(), block.getLightFromBlocks(), block.getLightFromSky(), environment.dimension().logicalHeight(),
+                environment.dimension().hasCeiling(), environment.dimension().ambientLight(), ClientViewEnvironment.EyeMedium.valueOf(environment.eyeMedium().name()), environment.dimension().hasFixedTime()));
     }
 
-    static ClientViewEnvironment convert(WorldEnvironment environment, ClientViewEnvironment.Transform transform) {
+    static ClientViewEnvironment convert(WorldEnvironment environment, ClientViewEnvironment.Transform transform,
+                                         ClientViewEnvironment.World world) {
         WorldEnvironment.Sky sourceSky = environment.sky();
         ClientViewEnvironment.Sky sky = new ClientViewEnvironment.Sky(ClientViewEnvironment.Skybox.valueOf(sourceSky.skybox().name()),
             (float) Math.toRadians(sourceSky.sunAngleDegrees()), (float) Math.toRadians(sourceSky.moonAngleDegrees()),
@@ -39,7 +46,7 @@ public final class BukkitPortalEnvironment {
         ClientViewEnvironment.Dimension dimension = new ClientViewEnvironment.Dimension(sourceDimension.minY(), sourceDimension.height(),
             sourceDimension.hasSkyLight(), ClientViewEnvironment.CardinalLighting.valueOf(sourceDimension.cardinalLighting().name()),
             sourceDimension.horizonHeight(), sourceDimension.hasEndFlashes());
-        return new ClientViewEnvironment(environment.gameTime(), sky, fog, lighting, clouds, transform, dimension);
+        return new ClientViewEnvironment(environment.gameTime(), sky, fog, lighting, clouds, transform, dimension, world);
     }
 
     private static ClientViewEnvironment.Color rgb(WorldEnvironment.Color color) {

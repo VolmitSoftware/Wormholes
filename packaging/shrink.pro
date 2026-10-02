@@ -21,6 +21,9 @@
 -keep class art.arcane.volmlib.nativelib.v26_3_R1.chunk.NativeChunkPacketAccess { public <init>(); }
 -keep class art.arcane.volmlib.nativelib.v26_2_R1.entity.NativeEntityVisibilityAccess { public <init>(); }
 -keep class art.arcane.volmlib.nativelib.v26_3_R1.entity.NativeEntityVisibilityAccess { public <init>(); }
+-keep class art.arcane.volmlib.nativelib.v26_2_R1.entity.NativeEntityMetadataAccess { public <init>(); }
+-keep class art.arcane.volmlib.nativelib.v26_3_R1.entity.NativeEntityMetadataAccess { public <init>(); }
+-dontwarn art.arcane.volmlib.nativelib.common.entity.NativeEntityMetadataAccess
 -keep class art.arcane.volmlib.nativelib.v26_2_R1.map.NativeMapPixelsAccess { public <init>(); }
 -keep class art.arcane.volmlib.nativelib.v26_3_R1.map.NativeMapPixelsAccess { public <init>(); }
 

@@ -19,6 +19,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundHurtAnimationPacket;
+import net.minecraft.network.protocol.game.ClientboundDamageEventPacket;
 import net.minecraft.world.entity.Entity;
 import java.util.concurrent.ConcurrentHashMap;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
@@ -73,6 +74,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
 
     private final WormholesModRuntime runtime;
+    private final HashMap<UUID, Long> hurtEventTicks = new HashMap<>();
     private final MinecraftProjectorPortalAccess portals;
     private final MinecraftProjectionPackets packets;
     private final EntityRenderLocalOcclusionArbiter<ServerPlayer, Entity> entityVisibility;
@@ -160,8 +162,13 @@ public final class MinecraftProjectionService implements AutoCloseable {
         int animation = MinecraftEntityPackets.animationId(packet);
         if (animation != MinecraftEntityPackets.NO_ANIMATION) {
             publishEntityEvent(ProjectedEntityEvent.animation(entity.getUUID(), animation));
-        } else if (packet instanceof ClientboundHurtAnimationPacket hurt) {
-            publishEntityEvent(ProjectedEntityEvent.hurt(entity.getUUID(), hurt.yaw()));
+        } else if (packet instanceof ClientboundHurtAnimationPacket || packet instanceof ClientboundDamageEventPacket) {
+            Long previous = hurtEventTicks.put(entity.getUUID(), (long) tick);
+            if (previous != null && previous == tick) {
+                return;
+            }
+            float yaw = packet instanceof ClientboundHurtAnimationPacket hurt ? hurt.yaw() : entity.getYRot();
+            publishEntityEvent(ProjectedEntityEvent.hurt(entity.getUUID(), yaw));
         }
     }
 
@@ -170,6 +177,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         if (closed) {
             return;
         }
+        runtime.clientViews().entityEvent(event);
         for (Observer observer : observers.values()) {
             for (MinecraftPortalProjector projector : observer.projectors.values()) {
                 projector.entityEvent(event);
@@ -188,6 +196,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         frozenUntil = 0L;
         ACTIVE.put(runtime.server(), this);
         tick = 0;
+        hurtEventTicks.clear();
         observerCursor = 0;
         limits = limits(config());
         sections.configure(limits);
@@ -221,6 +230,9 @@ public final class MinecraftProjectionService implements AutoCloseable {
             return;
         }
         tick++;
+        if (tick % 100 == 0) {
+            hurtEventTicks.values().removeIf(eventTick -> tick - eventTick > 100);
+        }
         ProjectionConfig config = config();
         plates.recap(FidelitySettings.plateMaxBytes);
         plates.refreshDirt(changes);

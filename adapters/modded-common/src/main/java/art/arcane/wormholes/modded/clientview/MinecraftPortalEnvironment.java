@@ -3,9 +3,14 @@ package art.arcane.wormholes.modded.clientview;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.attribute.EnvironmentAttributeSystem;
 import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.level.dimension.DimensionType;
+import net.minecraft.world.level.LightLayer;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3fc;
 import org.joml.Vector4fc;
@@ -16,6 +21,7 @@ public final class MinecraftPortalEnvironment {
 
     public static ClientViewEnvironment capture(ServerLevel world, GeometryVector destinationEye, ClientViewEnvironment.Transform transform) {
         Vec3 eye = new Vec3(destinationEye.x(), destinationEye.y(), destinationEye.z());
+        BlockPos eyeBlock = BlockPos.containing(eye);
         EnvironmentAttributeSystem attributes = world.environmentAttributes();
         DimensionType dimension = world.dimensionType();
         ClientViewEnvironment.Sky sky = new ClientViewEnvironment.Sky(ClientViewEnvironment.Skybox.valueOf(dimension.skybox().name()),
@@ -36,7 +42,23 @@ public final class MinecraftPortalEnvironment {
         return new ClientViewEnvironment(world.getGameTime(), sky, fog, lighting, clouds, transform,
             new ClientViewEnvironment.Dimension(dimension.minY(), dimension.height(), dimension.hasSkyLight(),
                 ClientViewEnvironment.CardinalLighting.valueOf(dimension.cardinalLightType().name()),
-                world.isFlat() ? dimension.minY() : 63.0D, dimension.hasEndFlashes()));
+                world.isFlat() ? dimension.minY() : 63.0D, dimension.hasEndFlashes()),
+            new ClientViewEnvironment.World(world.dimension().identifier().toString(), world.getDefaultClockTime(),
+                world.getBiome(eyeBlock).unwrapKey().orElseThrow().identifier().toString(), world.getSeaLevel(),
+                world.getBrightness(LightLayer.BLOCK, eyeBlock), world.getBrightness(LightLayer.SKY, eyeBlock), dimension.logicalHeight(), dimension.hasCeiling(), dimension.ambientLight(),
+                eyeMedium(world, eye, eyeBlock), dimension.hasFixedTime()));
+    }
+
+    private static ClientViewEnvironment.EyeMedium eyeMedium(ServerLevel world, Vec3 eye, BlockPos position) {
+        FluidState fluid = world.getFluidState(position);
+        if (fluid.is(FluidTags.WATER) && eye.y < position.getY() + fluid.getHeightForCamera(world, position)) {
+            return ClientViewEnvironment.EyeMedium.WATER;
+        }
+        if (fluid.is(FluidTags.LAVA) && eye.y < position.getY() + fluid.getHeight(world, position)) {
+            return ClientViewEnvironment.EyeMedium.LAVA;
+        }
+        return world.getBlockState(position).is(Blocks.POWDER_SNOW)
+            ? ClientViewEnvironment.EyeMedium.POWDER_SNOW : ClientViewEnvironment.EyeMedium.NONE;
     }
 
     private static float radians(float degrees) {

@@ -43,6 +43,10 @@ final class ClientViewFixtures {
         out.add(new Vector("brick_miss", new ClientViewMessage.BrickMiss(List.of(
             new ClientViewMessage.BrickMiss.Plate(7, 3, new long[] {0x8000000000000005L, 0x3L}),
             new ClientViewMessage.BrickMiss.Plate(8, 1, new long[] {0x1L}))), ClientViewCapability.ALL, 0, 0));
+        out.add(new Vector("entity_swing", new ClientViewMessage.EntityEvent(7, 3, new UUID(12, 34), false, 3, 0),
+            ClientViewCapability.ALL, 10, ClientViewProtocol.FLAG_LAST));
+        out.add(new Vector("entity_hurt", new ClientViewMessage.EntityEvent(7, 4, new UUID(12, 34), true, 0, 179.5F),
+            ClientViewCapability.ALL, 10, ClientViewProtocol.FLAG_LAST));
         out.add(new Vector("entity_frame", entityFrame(), ClientViewCapability.ALL, 10, ClientViewProtocol.FLAG_LAST));
         out.add(new Vector("entity_frame_delta", entityFrameDelta(), ClientViewCapability.ALL, 10, ClientViewProtocol.FLAG_LAST));
         out.add(new Vector("fx", fx(), ClientViewCapability.ALL, 11, ClientViewProtocol.FLAG_LAST));
@@ -82,7 +86,8 @@ final class ClientViewFixtures {
             new ClientViewEnvironment.Fog(color, -8.0F, 96.0F, 512.0F, 256.0F, color, 0.0F, 32.0F),
             new ClientViewEnvironment.Lighting(color, 0.75F, color, color), new ClientViewEnvironment.Clouds(alpha, 192.0F),
             new ClientViewEnvironment.Transform(Direction.N, Direction.U, Direction.E, new GeometryVector(-128.5D, 96.0D, 33.25D)),
-            new ClientViewEnvironment.Dimension(-64, 384, true, ClientViewEnvironment.CardinalLighting.DEFAULT, 63.0D, false));
+            new ClientViewEnvironment.Dimension(-64, 384, true, ClientViewEnvironment.CardinalLighting.DEFAULT, 63.0D, false),
+            new ClientViewEnvironment.World("test:destination", 72000L, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ClientViewEnvironment.EyeMedium.WATER, true));
     }
 
     static ClientViewMessage.Offer offer() {

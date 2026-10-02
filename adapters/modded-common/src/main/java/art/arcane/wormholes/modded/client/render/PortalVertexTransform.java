@@ -41,6 +41,18 @@ final class PortalVertexTransform implements VertexConsumer {
         z = (float) (sx * xAxis.z() + sy * yAxis.z() + sz * zAxis.z() + transform.translation().z() - sectionZ);
     }
 
+    float centerX() {
+        return x;
+    }
+
+    float centerY() {
+        return y;
+    }
+
+    float centerZ() {
+        return z;
+    }
+
     void inputOrigin(int x, int y, int z) {
         inputX = x + 0.5F;
         inputY = y + 0.5F;

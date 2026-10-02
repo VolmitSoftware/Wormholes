@@ -1,11 +1,12 @@
 package art.arcane.wormholes.modded.mixin.client;
 
+import art.arcane.wormholes.modded.client.WalkAnimationView;
 import net.minecraft.world.entity.WalkAnimationState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(WalkAnimationState.class)
-public interface WalkAnimationAccessor {
+public interface WalkAnimationAccessor extends WalkAnimationView {
     @Accessor("speedOld")
     float wormholesSpeedOld();
 

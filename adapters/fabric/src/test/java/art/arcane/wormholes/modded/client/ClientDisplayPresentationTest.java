@@ -45,12 +45,12 @@ public class ClientDisplayPresentationTest {
             display.getEntityData().assignValues(List.of(new SynchedEntityData.DataValue<>(11,
                 EntityDataSerializers.VECTOR3, new Vector3f(0, 0.25F, 0))));
             assertNull(display.renderState());
-            scene.tick(i, false);
+            scene.tick(i, 7, false);
             assertNull(display.renderState());
-            scene.tick(i, true);
+            scene.tick(i, 7, true);
             assertNotNull(display.renderState());
             assertEquals(1, display.tickCount);
-            scene.tick(i, true);
+            scene.tick(i, 7, true);
             assertEquals(2, display.tickCount);
         }
         verify(level, never()).getBlockState(any());

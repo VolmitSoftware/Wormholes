@@ -10,6 +10,7 @@ import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import art.arcane.wormholes.network.client.PlateSectionBox;
 import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.wormholes.render.ProjectedEntityEvent;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
 import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.acoustics.AcousticsProfile;
@@ -292,6 +293,7 @@ final class ClientViewHarness {
         final Map<Integer, EntityVisual> entities = new HashMap<>();
         final Map<Integer, byte[]> metadata = new HashMap<>();
         final List<String> events = new ArrayList<>();
+        final List<ProjectedEntityEvent> entityActions = new ArrayList<>();
         final List<String> particles = new ArrayList<>();
         int moves;
         float rain;
@@ -313,13 +315,19 @@ final class ClientViewHarness {
         }
 
         @Override
-        public void tick(int entityId, boolean nativeMesh) {
+        public void tick(int entityId, int portalKey, boolean nativeMesh) {
         }
 
         @Override
         public void move(int entityId, EntityVisual visual, EntityVisual previous) {
             entities.put(entityId, visual);
             moves++;
+        }
+
+        @Override
+        public void event(int entityId, ProjectedEntityEvent event) {
+            assertTrue(entities.containsKey(entityId));
+            entityActions.add(event);
         }
 
         @Override

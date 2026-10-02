@@ -40,15 +40,16 @@ public final class MinecraftEntityVisualCapture {
         EntityVisual previous = state.lastCapturedSnapshots().get(id);
         ViewEntityState.BlobCaptureState<Pose> previousBlob = state.blobCaptureStates().get(id);
         int signature = signature(entity);
+        long metadataRevision = ((EntityDataRevision) entity.getEntityData()).wormholesRevision();
         long interval = entity instanceof ItemFrame ? 10L : 40L;
         boolean capture = previous == null || previousBlob == null || tick - previousBlob.lastCaptureTick() >= interval
             || previousBlob.pose() != entity.getPose() || previousBlob.onFire() != entity.isOnFire()
-            || previousBlob.stateSignature() != signature;
+            || previousBlob.stateSignature() != signature || previousBlob.metadataRevision() != metadataRevision;
         byte[] metadata = capture ? metadata(entity) : previous.metadata();
         byte[] equipment = capture ? equipment(entity) : previous.equipment();
         byte[] map = capture ? map(entity) : previous.mapData();
         if (capture) {
-            state.blobCaptureStates().put(id, new ViewEntityState.BlobCaptureState<>(tick, entity.getPose(), entity.isOnFire(), signature));
+            state.blobCaptureStates().put(id, new ViewEntityState.BlobCaptureState<>(tick, entity.getPose(), entity.isOnFire(), signature, metadataRevision));
         }
         String name = "";
         String texture = "";

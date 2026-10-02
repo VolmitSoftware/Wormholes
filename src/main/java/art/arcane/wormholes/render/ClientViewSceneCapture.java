@@ -105,6 +105,10 @@ public final class ClientViewSceneCapture {
         return out;
     }
 
+    public UUID projectedId(UUID sourceId) {
+        return ClientViewEntityTransform.opaque(secret, sourceId);
+    }
+
     public boolean visible(Player observer, UUID opaqueId) {
         Source source = sources.get(opaqueId);
         if (source == null || observer == null) {
@@ -186,15 +190,16 @@ public final class ClientViewSceneCapture {
         Vector look = look(entity, location);
         Vector velocity = entity.getVelocity();
         int signature = signature(entity);
+        long metadataRevision = WormholesPlatform.entityMetadataFingerprint(entity);
         boolean onFire = entity.getFireTicks() > 0;
         Blobs previous = blobs.get(id);
         long interval = entity instanceof ItemFrame ? FRAME_RECAPTURE_TICKS : BLOB_RECAPTURE_TICKS;
         Blobs current = previous;
         if (previous == null || tick - previous.tick >= interval || previous.pose != entity.getPose() || previous.onFire != onFire
-            || previous.signature != signature) {
+            || previous.signature != signature || previous.metadataRevision != metadataRevision) {
             String[] textures = entity instanceof Player player ? textures(player) : new String[] {"", ""};
             current = new Blobs(PacketBlobs.captureMetadata(entity), PacketBlobs.captureEquipment(entity), textures, entity.getPose(), onFire,
-                signature, tick);
+                signature, metadataRevision, tick);
             blobs.put(id, current);
         }
         current.touched = tick;
@@ -342,16 +347,18 @@ public final class ClientViewSceneCapture {
         private final Pose pose;
         private final boolean onFire;
         private final int signature;
+        private final long metadataRevision;
         private final long tick;
         private long touched;
 
-        private Blobs(byte[] metadata, byte[] equipment, String[] textures, Pose pose, boolean onFire, int signature, long tick) {
+        private Blobs(byte[] metadata, byte[] equipment, String[] textures, Pose pose, boolean onFire, int signature, long metadataRevision, long tick) {
             this.metadata = metadata;
             this.equipment = equipment;
             this.textures = textures;
             this.pose = pose;
             this.onFire = onFire;
             this.signature = signature;
+            this.metadataRevision = metadataRevision;
             this.tick = tick;
             this.touched = tick;
         }

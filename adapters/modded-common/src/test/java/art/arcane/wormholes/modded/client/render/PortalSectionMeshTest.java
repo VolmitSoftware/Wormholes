@@ -52,7 +52,7 @@ public class PortalSectionMeshTest {
         BlockStateModel model = new EastFaceModel();
         BlockStateModelSet models = new BlockStateModelSet(Map.of(Blocks.STONE.defaultBlockState(), model), model);
         try (PortalSectionMesh result = PortalSectionMesh.compile(SectionPos.asLong(-1, 0, 0), world, models,
-            new FluidStateModelSet(Map.of(), null), new BlockColors(), true)) {
+            new FluidStateModelSet(Map.of(), null), new BlockColors(), true, PortalTerrainMaterials.VANILLA)) {
             MeshData mesh = result.meshes().get(ChunkSectionLayer.SOLID);
             assertEquals(4, mesh.drawState().vertexCount());
             assertEquals(6, mesh.drawState().indexCount());
@@ -61,11 +61,34 @@ public class PortalSectionMeshTest {
     }
 
     @Test
+    public void shaderTerrainCarriesDestinationMaterialIdentityThroughNativeModelTessellation() {
+        BlockAndTintGetter world = world();
+        when(world.getBlockState(any())).thenAnswer(call -> BlockPos.ZERO.equals(call.getArgument(0))
+            ? Blocks.STONE.defaultBlockState() : Blocks.AIR.defaultBlockState());
+        BlockStateModel model = new EastFaceModel();
+        BlockStateModelSet models = new BlockStateModelSet(Map.of(Blocks.STONE.defaultBlockState(), model), model);
+        PortalTerrainMaterials materials = new PortalTerrainMaterials(true, Map.of(Blocks.STONE.defaultBlockState(), 31000), 2,
+            PortalTerrainMaterials.Lighting.VANILLA);
+        try (PortalSectionMesh result = PortalSectionMesh.compile(SectionPos.asLong(0, 0, 0), world, models,
+            new FluidStateModelSet(Map.of(), null), new BlockColors(), true, materials)) {
+            MeshData mesh = result.meshes().get(ChunkSectionLayer.SOLID);
+            assertEquals(materials.format(), mesh.drawState().format());
+            assertEquals(4, mesh.drawState().vertexCount());
+            for (int vertex = 0; vertex < 4; vertex++) {
+                int offset = vertex * mesh.drawState().format().getVertexSize();
+                assertEquals(31000, mesh.vertexBuffer().getShort(offset + 32));
+                assertEquals(0, mesh.vertexBuffer().getShort(offset + 34));
+                assertEquals(-32, mesh.vertexBuffer().get(offset + 48));
+            }
+        }
+    }
+
+    @Test
     public void emptySnapshotProducesNoGpuGeometry() {
         BlockAndTintGetter world = world();
         when(world.getBlockState(any())).thenReturn(Blocks.AIR.defaultBlockState());
         try (PortalSectionMesh result = PortalSectionMesh.compile(SectionPos.asLong(8, -4, -2), world,
-            new BlockStateModelSet(Map.of(), null), new FluidStateModelSet(Map.of(), null), new BlockColors(), true)) {
+            new BlockStateModelSet(Map.of(), null), new FluidStateModelSet(Map.of(), null), new BlockColors(), true, PortalTerrainMaterials.VANILLA)) {
             assertTrue(result.meshes().isEmpty());
         }
     }

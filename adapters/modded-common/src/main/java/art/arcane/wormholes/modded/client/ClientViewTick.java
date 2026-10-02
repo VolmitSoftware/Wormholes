@@ -360,6 +360,13 @@ public final class ClientViewTick implements ClientViewSession.Sink {
     }
 
     @Override
+    public void entityEvent(ClientViewMessage.EntityEvent event) {
+        if (entities != null) {
+            entities.apply(event);
+        }
+    }
+
+    @Override
     public void fx(ClientViewMessage.Fx message) {
         if (fx != null) {
             fx.apply(message, portals, frameEffectsActive);

@@ -19,7 +19,8 @@ List<String> renderHooks = ['net/minecraft/client/renderer/chunk/', 'SectionRend
                             'net/minecraft/client/renderer/LevelRenderer', 'RenderRegionCache']
 Set<String> portalRenderMixins = ['client.PortalLevelRendererMixin', 'client.PortalProjectionMixin', 'client.PortalLightmapMixin',
                                  'client.MeshLevelExtractorMixin', 'client.MeshEntityRendererMixin', 'client.MeshFeatureWindingMixin',
-                                 'client.EndPortalSurfaceMixin'] as Set
+                                 'client.EndPortalSurfaceMixin', 'client.MeshBlockModelLighterMixin', 'client.MeshFluidLightingMixin',
+                                 'client.PortalShaderGameRendererMixin'] as Set
 
 tasks.register('buildBukkit', Copy) {
     group = 'distribution'

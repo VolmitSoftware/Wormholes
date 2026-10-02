@@ -14,6 +14,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.network.client.ClientViewCodec;
+import art.arcane.wormholes.render.ProjectedEntityEvent;
+import art.arcane.wormholes.render.client.ClientViewEntityTransform;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.network.client.ClientViewProtocolException;
@@ -55,6 +57,75 @@ class ClientViewEntityFramesTest {
         assertTrue(left.presence());
         assertEquals(List.of(pig), left.presentIds());
         assertTrue(moved.entitySeq() > first.entitySeq() && left.entitySeq() > moved.entitySeq());
+    }
+
+    @Test
+    void eventsUseOpaqueIdentityAndOnlyCurrentVisibleEntitiesReceiveThemOnce() {
+        UUID source = UUID.randomUUID();
+        UUID opaque = ClientViewEntityTransform.opaque(123, source);
+        List<EntityVisual> scene = new ArrayList<>(List.of(visual(opaque, 10.5D, 0)));
+        boolean[] visible = {true};
+        ClientViewEntityFrames<String> frames = new ClientViewEntityFrames<>(new ClientViewEntityFrames.Scenes<String>() {
+            @Override
+            public Object sceneKey(String observer, UUID portal) {
+                return portal;
+            }
+
+            @Override
+            public List<EntityVisual> capture(String observer, UUID portal, long tick) {
+                return scene;
+            }
+
+            @Override
+            public UUID projectedId(UUID id) {
+                return ClientViewEntityTransform.opaque(123, id);
+            }
+
+            @Override
+            public boolean visible(String observer, EntityVisual visual) {
+                return visible[0];
+            }
+        });
+        frames.frame("observer", PORTAL, 7, 1, true, false);
+        frames.event(ProjectedEntityEvent.animation(source, 3));
+        frames.event(ProjectedEntityEvent.hurt(source, 179));
+        frames.event(ProjectedEntityEvent.animation(UUID.randomUUID(), 0));
+        frames.frame("observer", PORTAL, 7, 2, true, false);
+        List<ClientViewMessage.EntityEvent> events = frames.events("observer", PORTAL, 7);
+        assertEquals(2, events.size());
+        assertEquals(opaque, events.getFirst().entityId());
+        assertEquals(3, events.getFirst().animation());
+        assertTrue(events.getLast().hurt());
+        assertEquals(179, events.getLast().yaw());
+        assertTrue(frames.events("observer", PORTAL, 7).isEmpty());
+        frames.frame("observer", PORTAL, 7, 3, true, false);
+        frames.event(ProjectedEntityEvent.animation(source, 0));
+        assertTrue(frames.events("observer", PORTAL, 7).getFirst().eventSeq() > events.getLast().eventSeq());
+        frames.event(ProjectedEntityEvent.hurt(source, 0));
+        visible[0] = false;
+        assertTrue(frames.events("observer", PORTAL, 7).isEmpty());
+        visible[0] = true;
+        frames.event(ProjectedEntityEvent.animation(source, 0));
+        scene.clear();
+        frames.frame("observer", PORTAL, 7, 4, false, false);
+        assertTrue(frames.events("observer", PORTAL, 7).isEmpty());
+    }
+
+    @Test
+    void observerCopiesReceiveOneEventEachAndLostScenesNeverReplayEvents() {
+        UUID source = UUID.randomUUID();
+        List<EntityVisual> scene = new ArrayList<>(List.of(visual(source, 10.5D, 0)));
+        ClientViewEntityFrames<String> frames = new ClientViewEntityFrames<>(scenes(scene, new AtomicInteger()));
+        frames.frame("a", PORTAL, 1, 1, true, false);
+        frames.frame("b", PORTAL, 2, 1, true, false);
+        frames.event(ProjectedEntityEvent.animation(source, 0));
+        assertEquals(1, frames.events("a", PORTAL, 1).size());
+        assertEquals(1, frames.events("b", PORTAL, 2).size());
+        assertTrue(frames.events("a", PORTAL, 1).isEmpty());
+        frames.event(ProjectedEntityEvent.hurt(source, 0));
+        frames.frame("a", PORTAL, 8, 2, false, false);
+        assertTrue(frames.events("a", PORTAL, 8).isEmpty());
+        assertEquals(1, frames.events("b", PORTAL, 2).size());
     }
 
     @Test

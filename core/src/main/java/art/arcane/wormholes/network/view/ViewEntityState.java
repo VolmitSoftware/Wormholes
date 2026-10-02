@@ -66,6 +66,6 @@ public class ViewEntityState<P> {
     public record Center(double x, double y, double z) {
     }
 
-    public record BlobCaptureState<P>(long lastCaptureTick, P pose, boolean onFire, int stateSignature) {
+    public record BlobCaptureState<P>(long lastCaptureTick, P pose, boolean onFire, int stateSignature, long metadataRevision) {
     }
 }

@@ -418,13 +418,14 @@ public final class ViewServer implements Listener {
     }
 
     static boolean shouldRecaptureBlobs(EntityVisual previousVisual, ViewEntityState.BlobCaptureState<Pose> previousBlobState, long entityTick, long intervalTicks,
-                                        Pose pose, boolean onFire, int stateSignature) {
+                                        Pose pose, boolean onFire, int stateSignature, long metadataRevision) {
         return previousVisual == null
             || previousBlobState == null
             || entityTick - previousBlobState.lastCaptureTick() >= intervalTicks
             || previousBlobState.pose() != pose
             || previousBlobState.onFire() != onFire
-            || previousBlobState.stateSignature() != stateSignature;
+            || previousBlobState.stateSignature() != stateSignature
+            || previousBlobState.metadataRevision() != metadataRevision;
     }
 
     private void startTask() {

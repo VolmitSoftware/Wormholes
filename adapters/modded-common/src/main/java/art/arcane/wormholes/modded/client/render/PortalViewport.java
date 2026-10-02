@@ -46,6 +46,28 @@ record PortalViewport(int x, int y, int width, int height) {
         return right > left && top > bottom ? new PortalViewport(left, bottom, right - left, top - bottom) : null;
     }
 
+    PortalViewport rescale(int sourceWidth, int sourceHeight, int targetWidth, int targetHeight) {
+        if (sourceWidth <= 0 || sourceHeight <= 0 || targetWidth <= 0 || targetHeight <= 0) {
+            throw new IllegalArgumentException("viewport dimensions");
+        }
+        long left = Math.clamp((long) x, 0L, sourceWidth);
+        long bottom = Math.clamp((long) y, 0L, sourceHeight);
+        long right = Math.clamp((long) x + width, 0L, sourceWidth);
+        long top = Math.clamp((long) y + height, 0L, sourceHeight);
+        if (right <= left || top <= bottom) {
+            return null;
+        }
+        if (sourceWidth == targetWidth && sourceHeight == targetHeight
+            && left == x && bottom == y && right - left == width && top - bottom == height) {
+            return this;
+        }
+        int targetLeft = (int) (left * targetWidth / sourceWidth);
+        int targetBottom = (int) (bottom * targetHeight / sourceHeight);
+        int targetRight = (int) ((right * targetWidth + sourceWidth - 1L) / sourceWidth);
+        int targetTop = (int) ((top * targetHeight + sourceHeight - 1L) / sourceHeight);
+        return new PortalViewport(targetLeft, targetBottom, targetRight - targetLeft, targetTop - targetBottom);
+    }
+
     Frustum frustum(CameraRenderState camera, Matrix4fc projection, int targetWidth, int targetHeight) {
         float left = Math.max(0, x - 1);
         float bottom = Math.max(0, y - 1);

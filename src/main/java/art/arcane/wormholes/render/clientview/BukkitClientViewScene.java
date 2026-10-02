@@ -78,6 +78,11 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
     }
 
     @Override
+    public UUID projectedId(UUID sourceId) {
+        return capture.projectedId(sourceId);
+    }
+
+    @Override
     public boolean visible(ClientViewObserver observer, EntityVisual visual) {
         return capture.visible(observer.player(), visual.id());
     }

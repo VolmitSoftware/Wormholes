@@ -119,8 +119,8 @@ public class ClientProjectedEntityIdentityTest {
         when(level.getEntity(-100)).thenReturn(projected);
         when(level.getEntity(10)).thenReturn(original);
         ClientLevelScene scene = new ClientLevelScene(level, () -> null);
-        scene.tick(-100, true);
-        scene.tick(10, false);
+        scene.tick(-100, 7, true);
+        scene.tick(10, 7, false);
         assertTrue(projected.noPhysics);
         assertFalse(original.noPhysics);
         doCallRealMethod().when(projected).push(original);

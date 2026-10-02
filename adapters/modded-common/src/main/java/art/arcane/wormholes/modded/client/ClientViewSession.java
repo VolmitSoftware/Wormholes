@@ -63,7 +63,7 @@ public final class ClientViewSession {
             return 0;
         }
         long capabilities = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE, ClientViewCapability.DEST_LIGHT,
-            ClientViewCapability.ENTITY_FRAMES, ClientViewCapability.FX_EMITTERS, ClientViewCapability.ATMOSPHERE, ClientViewCapability.ZERO_COPY,
+            ClientViewCapability.ENTITY_FRAMES, ClientViewCapability.ENTITY_EVENTS, ClientViewCapability.FX_EMITTERS, ClientViewCapability.ATMOSPHERE, ClientViewCapability.ZERO_COPY,
             ClientViewCapability.CONFIG_PHASE, ClientViewCapability.LINK_UNCOMPRESSED, ClientViewCapability.VIEW_STATS, ClientViewCapability.MESH_RENDER);
         if (config.clientMirror) {
             capabilities |= ClientViewCapability.CLIENT_MIRROR.mask();
@@ -189,6 +189,13 @@ public final class ClientViewSession {
                 case ClientViewMessage.PlatePatch patch -> patch(patch);
                 case ClientViewMessage.PlateHandle handle -> handle(handle);
                 case ClientViewMessage.SessionReset reset -> reset(reset.reason(), sink);
+                case ClientViewMessage.EntityEvent event -> {
+                    if (portals.containsKey(event.portalKey())) {
+                        sink.entityEvent(event);
+                    } else {
+                        ignoredSceneMessages++;
+                    }
+                }
                 case ClientViewMessage.EntityFrame frame -> {
                     if (portals.containsKey(frame.portalKey())) {
                         sink.entities(frame);
@@ -485,6 +492,9 @@ public final class ClientViewSession {
         void restarted();
 
         void entities(ClientViewMessage.EntityFrame frame);
+
+        default void entityEvent(ClientViewMessage.EntityEvent event) {
+        }
 
         void fx(ClientViewMessage.Fx fx);
 

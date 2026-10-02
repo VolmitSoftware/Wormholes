@@ -2,6 +2,7 @@ package art.arcane.wormholes.render.view;
 
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.wormholes.network.view.PacketBlobs;
 import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 
@@ -38,9 +39,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 
 final class RegionSnapshotRefreshTest {
     @Test
@@ -135,6 +138,47 @@ final class RegionSnapshotRefreshTest {
             fixture.now.set(2_000L);
             fixture.capture();
             assertEquals(3, fixture.equipmentCaptures.get());
+            assertEquals(1, fixture.snapshotCaptures.get());
+        }
+    }
+
+    @Test
+    void shortMetadataTransitionsRefreshRegionVisualsBeforeTheStateBackstop() throws ReflectiveOperationException {
+        try (Fixture fixture = new Fixture();
+             MockedStatic<WormholesPlatform> platform = mockStatic(WormholesPlatform.class, CALLS_REAL_METHODS);
+             MockedStatic<PacketBlobs> blobs = mockStatic(PacketBlobs.class)) {
+            AtomicLong revision = new AtomicLong();
+            AtomicInteger captures = new AtomicInteger();
+            AtomicReference<byte[]> values = new AtomicReference<>(new byte[] {0, 0, 0});
+            platform.when(() -> WormholesPlatform.entityMetadataFingerprint(fixture.entities.get()[0]))
+                .thenAnswer(call -> revision.get());
+            blobs.when(() -> PacketBlobs.captureMetadata(fixture.entities.get()[0])).thenAnswer(call -> {
+                captures.incrementAndGet();
+                return values.get();
+            });
+            blobs.when(() -> PacketBlobs.captureEquipment(fixture.entities.get()[0])).thenReturn(EntityVisual.EMPTY);
+            blobs.when(() -> PacketBlobs.readMetadata(any(byte[].class))).thenReturn(List.of());
+            blobs.when(() -> PacketBlobs.readEquipment(any(byte[].class))).thenReturn(List.of());
+            fixture.capture();
+            ProjectionEntityView view = (ProjectionEntityView) fixture.view;
+            int version = view.getStateVersion(fixture.entityId);
+            byte[][] transitions = {{1, 0, 0}, {0, 0, 0}, {0, 1, 0}, {0, 1, 4}};
+            for (byte[] transition : transitions) {
+                revision.incrementAndGet();
+                values.set(transition);
+                fixture.now.addAndGet(250L);
+                fixture.capture();
+                EntityVisual visual = view.getEntities(1, 64, 8, 1).getFirst();
+                assertEquals(transition[0], visual.metadata()[0]);
+                assertEquals(transition[1], visual.metadata()[1]);
+                assertEquals(transition[2], visual.metadata()[2]);
+                assertTrue(view.getStateVersion(fixture.entityId) > version);
+                version = view.getStateVersion(fixture.entityId);
+            }
+            fixture.now.addAndGet(250L);
+            fixture.capture();
+            assertEquals(5, captures.get());
+            assertEquals(version, view.getStateVersion(fixture.entityId));
             assertEquals(1, fixture.snapshotCaptures.get());
         }
     }

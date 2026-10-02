@@ -7,7 +7,7 @@ public final class ClientViewEnvironmentCodec {
     private ClientViewEnvironmentCodec() {
     }
 
-    public static void write(ClientViewWriter out, ClientViewEnvironment value) {
+    public static void write(ClientViewWriter out, ClientViewEnvironment value) throws ClientViewProtocolException {
         out.i64(value.gameTime());
         ClientViewEnvironment.Sky sky = value.sky();
         out.u8(sky.skybox().ordinal());
@@ -50,6 +50,17 @@ public final class ClientViewEnvironmentCodec {
         out.u8(dimension.cardinalLighting().ordinal());
         out.f64(dimension.horizonHeight());
         out.u8(dimension.endFlashes() ? 1 : 0);
+        out.string(value.world().dimensionKey());
+        out.i64(value.world().clockTime());
+        out.string(value.world().biomeKey());
+        out.i32(value.world().seaLevel());
+        out.u8(value.world().blockLight());
+        out.u8(value.world().skyLight());
+        out.i32(value.world().logicalHeight());
+        out.u8(value.world().hasCeiling() ? 1 : 0);
+        out.f32(value.world().ambientLight());
+        out.u8(value.world().eyeMedium().ordinal());
+        out.u8(value.world().hasFixedTime() ? 1 : 0);
     }
 
     public static ClientViewEnvironment read(ClientViewReader in) throws ClientViewProtocolException {
@@ -66,7 +77,9 @@ public final class ClientViewEnvironmentCodec {
                 new GeometryVector(in.f64(), in.f64(), in.f64()));
             ClientViewEnvironment.Dimension dimension = new ClientViewEnvironment.Dimension(in.i32(), in.i32(), bool(in),
                 enumValue(ClientViewEnvironment.CardinalLighting.values(), in.u8()), in.f64(), bool(in));
-            return new ClientViewEnvironment(gameTime, sky, fog, lighting, clouds, transform, dimension);
+            ClientViewEnvironment.World world = new ClientViewEnvironment.World(in.string(), in.i64(), in.string(), in.i32(), in.u8(), in.u8(), in.i32(), bool(in), in.f32(),
+                enumValue(ClientViewEnvironment.EyeMedium.values(), in.u8()), bool(in));
+            return new ClientViewEnvironment(gameTime, sky, fog, lighting, clouds, transform, dimension, world);
         } catch (IllegalArgumentException exception) {
             throw new ClientViewProtocolException("Invalid destination environment", exception);
         }

@@ -23,6 +23,7 @@ import org.joml.Matrix4d;
 import org.joml.Matrix4fStack;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 
 public final class PortalFeatureRenderer implements AutoCloseable {
     private static final ThreadLocal<StagedVertexBuffer> REFLECTED_BUFFER = new ThreadLocal<>();
@@ -33,6 +34,10 @@ public final class PortalFeatureRenderer implements AutoCloseable {
     private FeatureRenderDispatcher.PreparedFrame frame;
 
     public void prepare(PortalScene scene, CameraRenderState camera) {
+        prepare(scene, camera, true, true);
+    }
+
+    public void prepare(PortalScene scene, CameraRenderState camera, boolean entities, boolean blockEntities) {
         closeFrame();
         if (scene.entities().isEmpty() && scene.blockEntities().isEmpty()) {
             return;
@@ -47,7 +52,7 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         modelView.pushMatrix();
         modelView.set(camera.viewRotationMatrix);
         try {
-            submit(scene, camera, minecraft);
+            submit(scene, camera, minecraft, entities, blockEntities);
             try (WindingScope scope = new WindingScope(buffers.stagedVertexBuffer(), scene.environment() == null ? null : scene.environment().transform())) {
                 frame = dispatcher.prepareFrame(submits);
             }
@@ -139,7 +144,7 @@ public final class PortalFeatureRenderer implements AutoCloseable {
         }
     }
 
-    private void submit(PortalScene scene, CameraRenderState camera, Minecraft minecraft) {
+    private void submit(PortalScene scene, CameraRenderState camera, Minecraft minecraft, boolean includeEntities, boolean includeBlockEntities) {
         PoseStack pose = new PoseStack();
         Vec3 eye = camera.pos;
         ClientViewEnvironment environment = scene.environment();
@@ -147,7 +152,7 @@ public final class PortalFeatureRenderer implements AutoCloseable {
             new Matrix4d(PortalEnvironment.rotation(environment.transform())).setTranslation(environment.transform().translation().x(),
                 environment.transform().translation().y(), environment.transform().translation().z()), camera.projectionMatrix);
         EntityRenderDispatcher entities = minecraft.getEntityRenderDispatcher();
-        for (EntityRenderState state : scene.entities()) {
+        for (EntityRenderState state : includeEntities ? scene.entities() : List.<EntityRenderState>of()) {
             if (environment == null) {
                 entities.submit(state, camera, state.x - eye.x, state.y - eye.y, state.z - eye.z, pose, submits);
             } else {
@@ -158,7 +163,7 @@ public final class PortalFeatureRenderer implements AutoCloseable {
             }
         }
         BlockEntityRenderDispatcher blocks = minecraft.getBlockEntityRenderDispatcher();
-        for (BlockEntityRenderState state : scene.blockEntities()) {
+        for (BlockEntityRenderState state : includeBlockEntities ? scene.blockEntities() : List.<BlockEntityRenderState>of()) {
             BlockPos position = state.blockPos;
             pose.pushPose();
             if (scene.environment() != null) {

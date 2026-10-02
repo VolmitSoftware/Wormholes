@@ -46,6 +46,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.function.Consumer;
 
 public final class ClientMeshEntities {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -100,6 +101,22 @@ public final class ClientMeshEntities {
             return entity -> false;
         }
         return entity -> !hiddenFromWorld(entity) && selector.test(entity);
+    }
+
+    public static Consumer<Entity> worldEntityTick(Consumer<Entity> ticker) {
+        WormholesClient client = WormholesClient.instance();
+        if (client == null) {
+            return ticker;
+        }
+        ClientProjectedEntities projected = client.tickState().entities();
+        if ((projected == null || !projected.hasMeshEntities()) && !client.reflections().hasMeshEntities()) {
+            return ticker;
+        }
+        return entity -> {
+            if (!hiddenFromWorld(entity)) {
+                ticker.accept(entity);
+            }
+        };
     }
 
     public static boolean interactionTarget(Entity entity) {
@@ -241,6 +258,25 @@ public final class ClientMeshEntities {
                 ChestBlockEntity.lidAnimateTick(level, position, state, chest);
             } else if (entity instanceof EnderChestBlockEntity chest) {
                 EnderChestBlockEntity.lidAnimateTick(level, position, state, chest);
+            }
+        }
+    }
+
+    public void tickEntity(Entity entity, ClientViewEnvironment.Transform transform) {
+        synchronize(transform);
+        ClientMeshEntities previous = ACTIVE.get();
+        boolean previousQueries = destinationQueries;
+        ACTIVE.set(this);
+        destinationQueries = true;
+        try {
+            entity.commonTick();
+            entity.tick();
+        } finally {
+            destinationQueries = previousQueries;
+            if (previous == null) {
+                ACTIVE.remove();
+            } else {
+                ACTIVE.set(previous);
             }
         }
     }

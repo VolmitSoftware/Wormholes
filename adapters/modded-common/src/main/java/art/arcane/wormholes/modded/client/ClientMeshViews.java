@@ -9,6 +9,7 @@ import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.longs.LongIterable;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.Registries;
@@ -60,6 +61,19 @@ public final class ClientMeshViews {
             }
             view.changed().clear();
         }
+    }
+
+    public boolean tickEntity(int portalKey, Entity entity) {
+        Scene scene = scenes.get(portalKey);
+        if (scene == null || scene.level != entity.level() || scene.session.meshes().view(portalKey) != scene.view) {
+            return false;
+        }
+        ClientViewEnvironment environment = scene.environment();
+        if (environment == null) {
+            return false;
+        }
+        scene.features.tickEntity(entity, environment.transform());
+        return true;
     }
 
     public void extract(Camera camera, float partialTick) {

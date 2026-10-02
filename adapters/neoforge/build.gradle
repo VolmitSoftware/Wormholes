@@ -1,5 +1,6 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
@@ -37,10 +38,16 @@ sourceSets {
 
 repositories {
     mavenCentral()
+    maven { url = uri('https://api.modrinth.com/maven') }
+    maven { url = uri('https://maven.fabricmc.net/') }
     maven { url = uri('https://maven.neoforged.net/releases/') }
 }
 
 configurations {
+    sodiumApi {
+        canBeConsumed = false
+        canBeResolved = true
+    }
     bundle {
         canBeConsumed = false
         canBeResolved = true
@@ -48,7 +55,21 @@ configurations {
     }
 }
 
+TaskProvider<Sync> extractSodiumApi = tasks.register('extractSodiumApi', Sync) {
+    from({ zipTree(configurations.sodiumApi.singleFile) })
+    include('META-INF/jarjar/net.caffeinemc.sodium-neoforge-0.9.2+mc26.3-mod.jar')
+    into(layout.buildDirectory.dir('sodium-api'))
+}
+FileCollection sodiumApiClasses = files(layout.buildDirectory.file(
+    'sodium-api/META-INF/jarjar/net.caffeinemc.sodium-neoforge-0.9.2+mc26.3-mod.jar')).builtBy(extractSodiumApi)
+
 dependencies {
+    compileOnly('maven.modrinth:iris:Ag5S66CF') { transitive = false }
+    sodiumApi('maven.modrinth:sodium:VHtnT9Q4') { transitive = false }
+    compileOnly(sodiumApiClasses)
+    testCompileOnly(sodiumApiClasses)
+    testImplementation('maven.modrinth:iris:Ag5S66CF') { transitive = false }
+    testImplementation('maven.modrinth:sodium:VHtnT9Q4') { transitive = false }
     implementation(project(':core'))
     bundle(project(':core'))
     implementation('com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')

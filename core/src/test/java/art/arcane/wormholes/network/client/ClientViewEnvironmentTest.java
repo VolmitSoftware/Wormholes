@@ -45,6 +45,7 @@ class ClientViewEnvironmentTest {
         assertEquals(destination.fog(), projected.fog());
         assertEquals(destination.dimension(), projected.dimension());
         assertEquals(destination.gameTime(), projected.gameTime());
+        assertEquals(destination.world(), projected.world());
         assertEquals(ClientViewEnvironment.Transform.IDENTITY, projected.transform());
         cache.remove("peer", portal);
         assertNull(cache.getOrCreate("peer", portal).environment());
@@ -55,6 +56,7 @@ class ClientViewEnvironmentTest {
         ClientViewMessage.Environment message = new ClientViewMessage.Environment(71, ClientViewFixtures.environment());
         assertEquals(message, ClientViewCodec.decodeS2C(ClientViewCodec.encodeS2C(message, 3, 0), ClientViewCapability.ALL).message());
         assertEquals(1.25F, message.environment().lighting().blockTint().blue());
+        assertEquals(new ClientViewEnvironment.World("test:destination", 72000L, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ClientViewEnvironment.EyeMedium.WATER, true), message.environment().world());
     }
 
     @Test
@@ -64,7 +66,19 @@ class ClientViewEnvironmentTest {
         byte[] invalidSky = out.toByteArray();
         invalidSky[8] = 3;
         assertThrows(ClientViewProtocolException.class, () -> ClientViewEnvironmentCodec.read(new ClientViewReader(invalidSky)));
+        byte[] invalidMedium = out.toByteArray();
+        invalidMedium[invalidMedium.length - 2] = 4;
+        assertThrows(ClientViewProtocolException.class, () -> ClientViewEnvironmentCodec.read(new ClientViewReader(invalidMedium)));
+        byte[] invalidCeiling = out.toByteArray();
+        invalidCeiling[invalidCeiling.length - 7] = 2;
+        assertThrows(ClientViewProtocolException.class, () -> ClientViewEnvironmentCodec.read(new ClientViewReader(invalidCeiling)));
+        byte[] invalidFixedTime = out.toByteArray();
+        invalidFixedTime[invalidFixedTime.length - 1] = 2;
+        assertThrows(ClientViewProtocolException.class, () -> ClientViewEnvironmentCodec.read(new ClientViewReader(invalidFixedTime)));
         assertThrows(IllegalArgumentException.class, () -> new ClientViewEnvironment.Color(Float.NaN, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ClientViewEnvironment.World("test:destination", 0, "minecraft:plains", 63, 7, 15, 256, true, Float.NaN, ClientViewEnvironment.EyeMedium.NONE, false));
+        assertThrows(IllegalArgumentException.class, () -> new ClientViewEnvironment.World("missing_namespace", 0, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ClientViewEnvironment.EyeMedium.NONE, false));
+        assertThrows(IllegalArgumentException.class, () -> new ClientViewEnvironment.World("test:../ world", 0, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ClientViewEnvironment.EyeMedium.NONE, false));
         assertThrows(IllegalArgumentException.class, () -> new ClientViewEnvironment.Transform(Direction.N, Direction.S, Direction.U,
             new GeometryVector(0, 0, 0)));
     }

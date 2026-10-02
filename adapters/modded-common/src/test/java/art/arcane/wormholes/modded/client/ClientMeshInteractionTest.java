@@ -7,6 +7,8 @@ import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.InterpolationHandler;
+import net.minecraft.world.level.entity.EntityTickList;
 import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.phys.AABB;
@@ -36,6 +38,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mockStatic;
@@ -46,6 +51,45 @@ public class ClientMeshInteractionTest {
     public static void bootstrap() {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
+    }
+
+    @Test
+    public void loadedNativeCopiesNeverReachWorldTickHandlersWhileRealEntitiesTickNormally() {
+        Entity nativeCopy = entity(-100, new AABB(0, 0, 0, 1, 2, 1));
+        Entity real = entity(100, new AABB(2, 0, 0, 3, 2, 1));
+        ClientLevel level = mock(ClientLevel.class);
+        when(level.isClientSide()).thenReturn(true);
+        when(level.getEntity(-100)).thenReturn(nativeCopy);
+        when(nativeCopy.level()).thenReturn(level);
+        when(nativeCopy.getInterpolation()).thenReturn(InterpolationHandler.NO_OP);
+        doCallRealMethod().when(nativeCopy).commonTick();
+        ClientLevelScene scene = new ClientLevelScene(level, () -> null);
+        EntityTickList list = new EntityTickList();
+        list.add(nativeCopy);
+        list.add(real);
+        WormholesClient client = mock(WormholesClient.class);
+        ClientViewTick tick = mock(ClientViewTick.class);
+        ClientProjectedEntities projected = mock(ClientProjectedEntities.class);
+        ClientReflectionEntity reflections = mock(ClientReflectionEntity.class);
+        when(client.tickState()).thenReturn(tick);
+        when(tick.entities()).thenReturn(projected);
+        when(client.reflections()).thenReturn(reflections);
+        when(projected.hasMeshEntities()).thenReturn(true);
+        when(projected.meshEntity(-100)).thenReturn(true);
+        try (MockedStatic<WormholesClient> clients = mockStatic(WormholesClient.class)) {
+            clients.when(WormholesClient::instance).thenReturn(client);
+            for (int index = 0; index < 20; index++) {
+                list.forEach(ClientMeshEntities.worldEntityTick(entity -> {
+                    entity.tickCount++;
+                    entity.tick();
+                }));
+                scene.tick(-100, 7, true);
+            }
+            assertEquals(20, real.tickCount);
+            assertEquals(20, nativeCopy.tickCount);
+            verify(nativeCopy, never()).tick();
+            verify(real, times(20)).tick();
+        }
     }
 
     @Test
@@ -199,7 +243,7 @@ public class ClientMeshInteractionTest {
         doAnswer(call -> {
             check.run();
             return null;
-        }).when(world).tick(anyInt(), eq(true));
+        }).when(world).tick(anyInt(), anyInt(), eq(true));
         doAnswer(call -> {
             check.run();
             copies.remove(call.<Integer>getArgument(0));

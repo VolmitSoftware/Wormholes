@@ -442,6 +442,7 @@ final class ViewEntityPipeline {
         Pose pose = entity.getPose();
         boolean onFire = entity.getFireTicks() > 0;
         int stateSignature = stateSignature(entity);
+        long metadataRevision = WormholesPlatform.entityMetadataFingerprint(entity);
         byte[] metadata;
         byte[] equipment;
         byte[] mapData;
@@ -449,12 +450,12 @@ final class ViewEntityPipeline {
             ? ViewServer.MAP_RECAPTURE_INTERVAL_TICKS
             : ViewServer.BLOB_RECAPTURE_INTERVAL_TICKS;
         if (ViewServer.shouldRecaptureBlobs(previousVisual, previousBlobState, entityTick,
-            recaptureInterval, pose, onFire, stateSignature)) {
+            recaptureInterval, pose, onFire, stateSignature, metadataRevision)) {
             metadata = PacketBlobs.captureMetadata(entity);
             equipment = PacketBlobs.captureEquipment(entity);
             mapData = captureMapData(entity);
             context.blobStateUpdates.put(entity.getUniqueId(),
-                new ViewEntityState.BlobCaptureState<>(entityTick, pose, onFire, stateSignature));
+                new ViewEntityState.BlobCaptureState<>(entityTick, pose, onFire, stateSignature, metadataRevision));
         } else {
             metadata = previousVisual.metadata();
             equipment = previousVisual.equipment();

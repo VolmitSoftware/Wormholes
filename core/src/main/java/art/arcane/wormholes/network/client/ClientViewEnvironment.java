@@ -4,9 +4,12 @@ import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.util.Direction;
 
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 public record ClientViewEnvironment(long gameTime, Sky sky, Fog fog, Lighting lighting, Clouds clouds,
-                                    Transform transform, Dimension dimension) {
+                                    Transform transform, Dimension dimension, World world) {
+    private static final Pattern DIMENSION_KEY = Pattern.compile("[a-z0-9_.-]+:[a-z0-9_./-]+");
+
     public ClientViewEnvironment {
         Objects.requireNonNull(sky, "sky");
         Objects.requireNonNull(fog, "fog");
@@ -14,10 +17,11 @@ public record ClientViewEnvironment(long gameTime, Sky sky, Fog fog, Lighting li
         Objects.requireNonNull(clouds, "clouds");
         Objects.requireNonNull(transform, "transform");
         Objects.requireNonNull(dimension, "dimension");
+        Objects.requireNonNull(world, "world");
     }
 
     public ClientViewEnvironment withTransform(Transform value) {
-        return new ClientViewEnvironment(gameTime, sky, fog, lighting, clouds, value, dimension);
+        return new ClientViewEnvironment(gameTime, sky, fog, lighting, clouds, value, dimension, world);
     }
 
     private static void finite(float... values) {
@@ -108,6 +112,32 @@ public record ClientViewEnvironment(long gameTime, Sky sky, Fog fog, Lighting li
                 throw new IllegalArgumentException("Invalid environment dimension");
             }
         }
+    }
+
+    public record World(String dimensionKey, long clockTime, String biomeKey, int seaLevel, int blockLight, int skyLight, int logicalHeight, boolean hasCeiling, float ambientLight,
+                        EyeMedium eyeMedium, boolean hasFixedTime) {
+        public World {
+            Objects.requireNonNull(dimensionKey, "dimensionKey");
+            Objects.requireNonNull(biomeKey, "biomeKey");
+            Objects.requireNonNull(eyeMedium, "eyeMedium");
+            if (dimensionKey.length() > ClientViewProtocol.MAX_STRING_BYTES || !DIMENSION_KEY.matcher(dimensionKey).matches()) {
+                throw new IllegalArgumentException("Invalid destination dimension identifier");
+            }
+            if (biomeKey.length() > ClientViewProtocol.MAX_STRING_BYTES || !DIMENSION_KEY.matcher(biomeKey).matches()) {
+                throw new IllegalArgumentException("Invalid destination biome identifier");
+            }
+            if (blockLight < 0 || blockLight > 15 || skyLight < 0 || skyLight > 15) {
+                throw new IllegalArgumentException("Invalid destination eye brightness");
+            }
+            finite(ambientLight);
+            if (logicalHeight < 0) {
+                throw new IllegalArgumentException("Invalid destination logical height");
+            }
+        }
+    }
+
+    public enum EyeMedium {
+        NONE, WATER, LAVA, POWDER_SNOW
     }
 
     public enum Skybox {

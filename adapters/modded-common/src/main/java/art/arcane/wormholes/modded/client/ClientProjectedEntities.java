@@ -9,6 +9,8 @@ import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.ArrayList;
+import art.arcane.wormholes.render.ProjectedEntityEvent;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -27,6 +29,7 @@ public final class ClientProjectedEntities {
     private final Int2ObjectOpenHashMap<PortalEntities> portals;
     private final IntOpenHashSet meshIds = new IntOpenHashSet();
     private int nextId;
+    private int clientTick;
     private long framesApplied;
     private long deltasWithoutBase;
     private long spawnFailures;
@@ -60,6 +63,7 @@ public final class ClientProjectedEntities {
             List<UUID> present = frame.presentIds();
             Set<UUID> keep = new HashSet<>(Math.max(4, present.size() * 2));
             keep.addAll(present);
+            state.events.removeIf(event -> !keep.contains(event.event.entityId()));
             Iterator<Map.Entry<UUID, Tracked>> iterator = state.tracked.entrySet().iterator();
             while (iterator.hasNext()) {
                 Tracked tracked = iterator.next().getValue();
@@ -72,7 +76,19 @@ public final class ClientProjectedEntities {
         framesApplied++;
     }
 
+    public void apply(ClientViewMessage.EntityEvent event) {
+        PortalEntities state = portals.computeIfAbsent(event.portalKey(), ignored -> new PortalEntities());
+        if (event.eventSeq() - state.eventSequence <= 0) {
+            return;
+        }
+        state.eventSequence = event.eventSeq();
+        if (state.events.size() < 128) {
+            state.events.add(new PendingEvent(event, clientTick + 20));
+        }
+    }
+
     public void tick(IntFunction<ClientPortal> lookup, IntPredicate meshPortal) {
+        clientTick++;
         ObjectIterator<Int2ObjectMap.Entry<PortalEntities>> portalIterator = portals.int2ObjectEntrySet().fastIterator();
         while (portalIterator.hasNext()) {
             Int2ObjectMap.Entry<PortalEntities> entry = portalIterator.next();
@@ -95,8 +111,24 @@ public final class ClientProjectedEntities {
                     sync(tracked);
                 }
                 if (tracked.entityId != 0) {
-                    world.tick(tracked.entityId, mesh);
+                    deliverEvents(entry.getValue(), tracked);
+                    world.tick(tracked.entityId, entry.getIntKey(), mesh);
                 }
+            }
+            entry.getValue().events.removeIf(event -> event.expires < clientTick);
+        }
+    }
+
+    private void deliverEvents(PortalEntities state, Tracked tracked) {
+        Iterator<PendingEvent> iterator = state.events.iterator();
+        while (iterator.hasNext()) {
+            PendingEvent pending = iterator.next();
+            ClientViewMessage.EntityEvent event = pending.event;
+            if (pending.expires < clientTick) {
+                iterator.remove();
+            } else if (event.entityId().equals(tracked.visual.id())) {
+                world.event(tracked.entityId, new ProjectedEntityEvent(event.entityId(), event.hurt(), event.animation(), event.yaw()));
+                iterator.remove();
             }
         }
     }
@@ -207,13 +239,13 @@ public final class ClientProjectedEntities {
             return;
         }
         tracked.entityId = id;
-        byte[] metadata = tracked.visual.metadata();
-        if (metadata != null && metadata.length > 0) {
-            world.metadata(id, metadata);
-        }
         byte[] equipment = tracked.visual.equipment();
         if (equipment != null && equipment.length > 0) {
             world.equipment(id, equipment);
+        }
+        byte[] metadata = tracked.visual.metadata();
+        if (metadata != null && metadata.length > 0) {
+            world.metadata(id, metadata);
         }
         tracked.syncedMetadata = metadata;
         tracked.syncedEquipment = equipment;
@@ -226,13 +258,13 @@ public final class ClientProjectedEntities {
             return;
         }
         world.move(tracked.entityId, visual, tracked.synced);
-        if (!Arrays.equals(visual.metadata(), tracked.syncedMetadata)) {
-            world.metadata(tracked.entityId, visual.metadata());
-            tracked.syncedMetadata = visual.metadata();
-        }
         if (!Arrays.equals(visual.equipment(), tracked.syncedEquipment)) {
             world.equipment(tracked.entityId, visual.equipment());
             tracked.syncedEquipment = visual.equipment();
+        }
+        if (!Arrays.equals(visual.metadata(), tracked.syncedMetadata)) {
+            world.metadata(tracked.entityId, visual.metadata());
+            tracked.syncedMetadata = visual.metadata();
         }
         tracked.synced = visual;
     }
@@ -251,6 +283,11 @@ public final class ClientProjectedEntities {
 
     private static final class PortalEntities {
         private final HashMap<UUID, Tracked> tracked = new HashMap<>();
+        private final ArrayList<PendingEvent> events = new ArrayList<>();
+        private int eventSequence;
+    }
+
+    private record PendingEvent(ClientViewMessage.EntityEvent event, int expires) {
     }
 
     private static final class Tracked {

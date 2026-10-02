@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.wormholes.render.ProjectedEntityEvent;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
 import art.arcane.wormholes.render.acoustics.AcousticsProfile;
 
@@ -11,7 +12,10 @@ public interface ClientSceneWorld {
 
     void move(int entityId, EntityVisual visual, EntityVisual previous);
 
-    void tick(int entityId, boolean nativeMesh);
+    void tick(int entityId, int portalKey, boolean nativeMesh);
+
+    default void event(int entityId, ProjectedEntityEvent event) {
+    }
 
     void metadata(int entityId, byte[] metadata);
 

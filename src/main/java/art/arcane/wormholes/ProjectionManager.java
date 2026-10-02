@@ -57,6 +57,7 @@ import art.arcane.wormholes.portal.rtp.RtpRotationMode;
 import art.arcane.wormholes.network.view.ViewServer;
 import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
 import art.arcane.wormholes.render.PortalProjector;
+import art.arcane.wormholes.render.ProjectedEntityEvent;
 import art.arcane.wormholes.render.PortalSkinRenderer;
 import art.arcane.wormholes.render.ProjectionClaimArbiter;
 import art.arcane.wormholes.render.FidelitySettings;
@@ -848,6 +849,17 @@ public class ProjectionManager implements Listener {
         if (closed || entityId == null || type == null) {
             return;
         }
+        int animation = switch (type) {
+            case SWING_MAIN_ARM -> 0;
+            case WAKE_UP -> 2;
+            case SWING_OFF_HAND -> 3;
+            case CRITICAL_HIT -> 4;
+            case MAGIC_CRITICAL_HIT -> 5;
+            default -> -1;
+        };
+        if (animation >= 0) {
+            clientView.entityEvent(ProjectedEntityEvent.animation(entityId, animation));
+        }
         for (Player observer : interestSet.projectedEntityObservers(entityId)) {
             UUID observerId = observer.getUniqueId();
             ProjectedEntityUpdateBatcher.ScheduleLease lease =
@@ -879,6 +891,7 @@ public class ProjectionManager implements Listener {
         if (closed || entityId == null) {
             return;
         }
+        clientView.entityEvent(ProjectedEntityEvent.hurt(entityId, yaw));
         for (Player observer : interestSet.projectedEntityObservers(entityId)) {
             UUID observerId = observer.getUniqueId();
             ProjectedEntityUpdateBatcher.ScheduleLease lease =

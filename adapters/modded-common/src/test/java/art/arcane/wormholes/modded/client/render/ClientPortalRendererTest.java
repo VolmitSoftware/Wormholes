@@ -1,6 +1,8 @@
 package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 import art.arcane.wormholes.portal.PortalGeometry;
 import art.arcane.wormholes.render.ProjectedBlockClaim;
 import art.arcane.wormholes.render.client.ClientPortalGeometry;
@@ -13,6 +15,7 @@ import com.mojang.renderpearl.api.device.GpuDevice;
 import net.minecraft.client.renderer.DynamicGpuData;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.core.SectionPos;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.AABB;
 import org.joml.Matrix4d;
@@ -22,6 +25,10 @@ import org.junit.Test;
 import org.mockito.MockedStatic;
 
 import java.nio.ByteBuffer;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Constructor;
+import java.util.Map;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -31,6 +38,8 @@ import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -45,21 +54,15 @@ public class ClientPortalRendererTest {
         renderer.clear();
         CameraRenderState camera = new CameraRenderState();
         RenderPass pass = mock(RenderPass.class);
-        PortalScene scene = mock(PortalScene.class);
-        PortalGeometry aperture = new PortalGeometry();
-        aperture.setArea(new AxisAlignedBB(0, 1.999, 0, 1.999, 0, 0.999));
-        ClientPortalGeometry geometry = ClientPortalGeometry.fromPortal(new ClientPortalGeometry.Source(aperture,
-            PortalFrame.canonical(Direction.S), true, false, 0, 0, 0, 0, 64, 0,
-            ClientPortalGeometry.BLACKOUT_OFF, 0, ClientPortalGeometry.MASK_AIR_PROJECT,
-            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, ClientPortalGeometry.KIND_FRAME, 0, 0, List.of())).orElseThrow();
-        when(scene.geometry()).thenReturn(geometry);
+        PortalScene scene = scene();
 
         try (MockedStatic<RenderSystem> system = mockStatic(RenderSystem.class);
              MockedStatic<PortalShaderScope> shaders = mockStatic(PortalShaderScope.class)) {
             shaders.when(PortalShaderScope::rendering).thenThrow(new IllegalStateException("Shader binding unavailable"));
             renderer.prepare(camera, null);
             renderer.composite(pass);
-            shaders.verifyNoInteractions();
+            shaders.verify(PortalShaderScope::rendering, never());
+            shaders.verify(PortalShaderScope::vertices, never());
 
             renderer.replaceScene(1, scene);
             renderer.prepare(camera, null);
@@ -98,6 +101,73 @@ public class ClientPortalRendererTest {
     }
 
     @Test
+    public void failedDestinationDisposesItsInterruptedPipelineBeforeTheCooldownRetry() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        PortalShaderRenderer shaders = mock(PortalShaderRenderer.class);
+        Field pool = ClientPortalRenderer.class.getDeclaredField("shaderRenderer");
+        pool.setAccessible(true);
+        pool.set(renderer, shaders);
+        try {
+            renderer.replaceScene(1, scene());
+            renderer.replaceScene(2, scene());
+            clearInvocations(shaders);
+            renderer.featureFailed(1, new IllegalStateException("Destination draw interrupted"));
+            verify(shaders).remove(1);
+            verify(shaders, never()).remove(2);
+            assertFalse(renderer.available(1));
+            assertTrue(renderer.available(2));
+            renderer.featureFailed(1, new IllegalStateException("Repeated stale callback"));
+            verify(shaders).remove(1);
+            renderer.retryUnavailable(System.nanoTime() + ClientPortalRenderer.RETRY_NANOS + 1L);
+            assertTrue(renderer.available(1));
+            verify(shaders).remove(1);
+        } finally {
+            renderer.clear();
+        }
+    }
+
+    @Test
+    public void readyShaderPrewarmInitializesCullingBeforeMaintainingUnseenSections() throws ReflectiveOperationException {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        renderer.clear();
+        PortalScene scene = scene();
+        when(scene.environment()).thenReturn(PortalEnvironmentTest.environment(ClientViewEnvironment.Transform.IDENTITY));
+        long behindCamera = SectionPos.asLong(0, 0, 1000);
+        when(scene.sectionKeys()).thenReturn(LongArrayList.of(behindCamera));
+        PortalShaderRenderer shaders = mock(PortalShaderRenderer.class);
+        PortalShaderRenderer.Session session = mock(PortalShaderRenderer.Session.class);
+        when(shaders.acquire(anyInt(), any(), anyInt(), anyInt())).thenReturn(session);
+        when(session.ready()).thenReturn(true);
+        when(session.materials()).thenReturn(PortalTerrainMaterials.VANILLA);
+        renderer.replaceScene(1, scene);
+        CameraRenderState camera = new CameraRenderState();
+        camera.pos = Vec3.ZERO;
+        camera.blockPos = BlockPos.ZERO;
+        Field pool = ClientPortalRenderer.class.getDeclaredField("shaderRenderer");
+        pool.setAccessible(true);
+        pool.set(renderer, shaders);
+        Field root = ClientPortalRenderer.class.getDeclaredField("rootCamera");
+        root.setAccessible(true);
+        root.set(renderer, camera);
+        Field portals = ClientPortalRenderer.class.getDeclaredField("portals");
+        portals.setAccessible(true);
+        Object portal = ((Map<?, ?>) portals.get(renderer)).get(1);
+        Class<?> dimensions = Class.forName(ClientPortalRenderer.class.getName() + "$RenderDimensions");
+        Constructor<?> dimensionsConstructor = dimensions.getDeclaredConstructor(int.class, int.class, int.class);
+        dimensionsConstructor.setAccessible(true);
+        Method prewarm = ClientPortalRenderer.class.getDeclaredMethod("prewarmTree", portal.getClass(), Matrix4d.class, dimensions);
+        prewarm.setAccessible(true);
+        try {
+            assertEquals(false, prewarm.invoke(renderer, portal, new Matrix4d(), dimensionsConstructor.newInstance(512, 256, 0)));
+            assertTrue(renderer.available(1));
+            verify(shaders, never()).remove(1);
+        } finally {
+            renderer.clear();
+        }
+    }
+
+    @Test
     public void reflectedCameraCullsInItsTransformedWorldSpace() {
         CameraRenderState root = new CameraRenderState();
         root.pos = new Vec3(778, 192, 12);
@@ -130,6 +200,23 @@ public class ClientPortalRendererTest {
     }
 
     @Test
+    public void shaderTerrainSectionTranslationIsPartOfTheModelViewMatrix() {
+        CameraRenderState camera = new CameraRenderState();
+        camera.pos = new Vec3(520.5, 81, 14.5);
+        camera.viewRotationMatrix = new Matrix4f().rotateY((float) Math.PI / 2);
+        long section = SectionPos.asLong(32, 5, 0);
+        DynamicGpuData.Transform vanilla = ClientPortalRenderer.terrainTransform(camera, section);
+        DynamicGpuData.Transform shader = ClientPortalRenderer.shaderTerrainTransform(camera, section);
+        Vector3f vertex = new Vector3f(8, 1, 4);
+        Vector3f expected = vanilla.modelView().transformPosition(new Vector3f(vertex).add(vanilla.modelOffset()));
+        Vector3f actual = shader.modelView().transformPosition(new Vector3f(vertex));
+        assertEquals(expected.x, actual.x, 0.0001f);
+        assertEquals(expected.y, actual.y, 0.0001f);
+        assertEquals(expected.z, actual.z, 0.0001f);
+        assertEquals(new Vector3f(), shader.modelOffset());
+    }
+
+    @Test
     public void rootCompositeUploadsDisabledClipPlaneAndNativePixelViewport() {
         GpuDevice device = mock(GpuDevice.class, RETURNS_DEEP_STUBS);
         GpuBuffer buffer = mock(GpuBuffer.class);
@@ -154,4 +241,16 @@ public class ClientPortalRendererTest {
             assertSame(buffer, ClientPortalRenderer.compositeUniform(new PortalViewport(576, 0, 768, 1080)));
         }
     }
+    private static PortalScene scene() {
+        PortalScene scene = mock(PortalScene.class);
+        PortalGeometry aperture = new PortalGeometry();
+        aperture.setArea(new AxisAlignedBB(0, 1.999, 0, 1.999, 0, 0.999));
+        ClientPortalGeometry geometry = ClientPortalGeometry.fromPortal(new ClientPortalGeometry.Source(aperture,
+            PortalFrame.canonical(Direction.S), true, false, 0, 0, 0, 0, 64, 0,
+            ClientPortalGeometry.BLACKOUT_OFF, 0, ClientPortalGeometry.MASK_AIR_PROJECT,
+            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, ClientPortalGeometry.KIND_FRAME, 0, 0, List.of())).orElseThrow();
+        when(scene.geometry()).thenReturn(geometry);
+        return scene;
+    }
+
 }

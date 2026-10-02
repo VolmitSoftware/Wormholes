@@ -10,6 +10,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
+import art.arcane.wormholes.render.ProjectedEntityEvent;
 import java.util.function.Predicate;
 
 import art.arcane.wormholes.network.client.ClientViewMessage;
@@ -48,12 +51,53 @@ public final class ClientViewEntityFrames<P> implements ClientViewEntitySource<P
         ObserverState state = states.get(stateKey);
         if (state == null || state.portalKey != portalKey || full && !state.empty()) {
             boolean stale = state != null && state.portalKey == portalKey && !state.empty();
+            ObserverState previous = state;
             state = new ObserverState(portalKey);
+            if (previous != null && previous.portalKey == portalKey) {
+                state.events = previous.events;
+                state.pendingEvents = previous.pendingEvents;
+                state.eventSequence = previous.eventSequence;
+            }
             state.forcePresence = stale;
             states.put(stateKey, state);
         }
         state.touched = tick;
         return state.next(visuals, visual -> scenes.visible(observer, visual) && !(hideObserver && scenes.isObserver(observer, visual)));
+    }
+
+    @Override
+    public void event(ProjectedEntityEvent event) {
+        Objects.requireNonNull(event, "event");
+        UUID id = scenes.projectedId(event.entityId());
+        for (ObserverState state : states.values()) {
+            if (!state.present.contains(id)) {
+                continue;
+            }
+            if (state.pendingEvents.incrementAndGet() <= ClientViewProtocol.MAX_ENTITIES_PER_FRAME) {
+                state.events.add(event);
+            } else {
+                state.pendingEvents.decrementAndGet();
+            }
+        }
+    }
+
+    @Override
+    public List<ClientViewMessage.EntityEvent> events(P observer, UUID portal, int portalKey) {
+        ObserverState state = states.get(new StateKey(observer, portal));
+        if (state == null || state.portalKey != portalKey || state.events.isEmpty()) {
+            return List.of();
+        }
+        List<ClientViewMessage.EntityEvent> outbound = new ArrayList<>();
+        ProjectedEntityEvent event;
+        while ((event = state.events.poll()) != null) {
+            state.pendingEvents.decrementAndGet();
+            UUID id = scenes.projectedId(event.entityId());
+            EntityVisual visual = state.sent.get(id);
+            if (visual != null && state.present.contains(id) && scenes.visible(observer, visual)) {
+                outbound.add(new ClientViewMessage.EntityEvent(portalKey, ++state.eventSequence, id, event.hurt(), event.animation(), event.yaw()));
+            }
+        }
+        return outbound;
     }
 
     public int observedScenes() {
@@ -93,6 +137,10 @@ public final class ClientViewEntityFrames<P> implements ClientViewEntitySource<P
 
         List<EntityVisual> capture(P observer, UUID portal, long tick);
 
+        default UUID projectedId(UUID sourceId) {
+            return sourceId;
+        }
+
         default boolean visible(P observer, EntityVisual visual) {
             return true;
         }
@@ -120,10 +168,13 @@ public final class ClientViewEntityFrames<P> implements ClientViewEntitySource<P
     static final class ObserverState {
         final int portalKey;
         final HashMap<UUID, EntityVisual> sent;
-        Set<UUID> present;
+        volatile Set<UUID> present;
         boolean forcePresence;
         int sequence;
         long touched;
+        int eventSequence;
+        ConcurrentLinkedQueue<ProjectedEntityEvent> events = new ConcurrentLinkedQueue<>();
+        AtomicInteger pendingEvents = new AtomicInteger();
 
         ObserverState(int portalKey) {
             this.portalKey = portalKey;

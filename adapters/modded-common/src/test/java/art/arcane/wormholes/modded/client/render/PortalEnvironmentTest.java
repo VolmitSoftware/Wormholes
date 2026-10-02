@@ -86,6 +86,7 @@ public class PortalEnvironmentTest {
             new ClientViewEnvironment.Lighting(white, 0.85f, new ClientViewEnvironment.Color(0.7f, 0.8f, 1),
                 new ClientViewEnvironment.Color(0, 0, 0)),
             new ClientViewEnvironment.Clouds(new ClientViewEnvironment.ColorAlpha(1, 1, 1, 1), 192), transform,
-            new ClientViewEnvironment.Dimension(-64, 384, true, ClientViewEnvironment.CardinalLighting.DEFAULT, 63, false));
+            new ClientViewEnvironment.Dimension(-64, 384, true, ClientViewEnvironment.CardinalLighting.DEFAULT, 63, false),
+            new ClientViewEnvironment.World("minecraft:overworld", 6000, "minecraft:plains", 63, 7, 15, 256, true, 0.1F, ClientViewEnvironment.EyeMedium.NONE, false));
     }
 }

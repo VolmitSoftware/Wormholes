@@ -294,6 +294,15 @@ public final class ClientViewCodec {
                 out.varint(m.portalKey());
                 out.i32(m.plateRevision());
             }
+            case ClientViewMessage.EntityEvent m -> {
+                out.varint(m.portalKey());
+                out.i32(m.eventSeq());
+                out.i64(m.entityId().getMostSignificantBits());
+                out.i64(m.entityId().getLeastSignificantBits());
+                out.u8(m.hurt() ? 1 : 0);
+                out.u8(m.animation());
+                out.f32(m.yaw());
+            }
             case ClientViewMessage.EntityFrame m -> {
                 out.varint(m.portalKey());
                 out.i32(m.entitySeq());
@@ -481,6 +490,18 @@ public final class ClientViewCodec {
                     plates.add(new ClientViewMessage.BrickMiss.Plate(portalKey, revision, in.longs(words)));
                 }
                 yield new ClientViewMessage.BrickMiss(plates);
+            }
+            case ENTITY_EVENT -> {
+                int portalKey = in.varint();
+                int eventSeq = in.i32();
+                UUID entityId = new UUID(in.i64(), in.i64());
+                boolean hurt = readFlag(in);
+                int animation = in.u8();
+                float yaw = in.f32();
+                if (!Float.isFinite(yaw) || !hurt && animation != 0 && animation != 2 && animation != 3 && animation != 4 && animation != 5) {
+                    throw new ClientViewProtocolException("invalid entity event");
+                }
+                yield new ClientViewMessage.EntityEvent(portalKey, eventSeq, entityId, hurt, animation, yaw);
             }
             case ENTITY_FRAME -> {
                 int portalKey = in.varint();

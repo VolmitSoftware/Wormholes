@@ -34,12 +34,13 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import art.arcane.wormholes.render.ProjectedEntityEvent;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
 public final class MinecraftClientViewService implements AutoCloseable {
     public static final long PLATFORM_CAPS = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE,
-        ClientViewCapability.DEST_LIGHT, ClientViewCapability.ENTITY_FRAMES, ClientViewCapability.FX_EMITTERS, ClientViewCapability.ATMOSPHERE,
+        ClientViewCapability.DEST_LIGHT, ClientViewCapability.ENTITY_FRAMES, ClientViewCapability.ENTITY_EVENTS, ClientViewCapability.FX_EMITTERS, ClientViewCapability.ATMOSPHERE,
         ClientViewCapability.ZERO_COPY, ClientViewCapability.CONFIG_PHASE, ClientViewCapability.LINK_UNCOMPRESSED,
         ClientViewCapability.VIEW_STATS, ClientViewCapability.CLIENT_MIRROR, ClientViewCapability.CLIENT_RECURSION, ClientViewCapability.MESH_RENDER);
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
@@ -138,6 +139,13 @@ public final class MinecraftClientViewService implements AutoCloseable {
     public boolean receiver(ServerPlayer player) {
         ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         return active != null && !active.sessions().isEmpty() && active.effectsReceiver(player.getUUID());
+    }
+
+    public void entityEvent(ProjectedEntityEvent event) {
+        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
+        if (active != null) {
+            active.entityEvent(event);
+        }
     }
 
     public boolean oneShot(ServerPlayer player, ClientViewMessage.FxEmitter emitter) {

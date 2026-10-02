@@ -4,6 +4,7 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.volmlib.nativelib.NativeAdapters;
 import art.arcane.volmlib.nativelib.entity.EntityVisibilityAccess;
+import art.arcane.volmlib.nativelib.entity.EntityMetadataAccess;
 import art.arcane.volmlib.nativelib.block.BlockEntityAccess;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -381,6 +382,22 @@ public final class WormholesPlatform {
         } catch (InvocationTargetException exception) {
             throw propagate("Chunk snapshot capture failed", exception.getCause());
         }
+    }
+
+    private static volatile EntityMetadataAccess nativeMetadata;
+    private static volatile boolean metadataResolved;
+
+    public static long entityMetadataFingerprint(Entity entity) {
+        if (!metadataResolved && Bukkit.getServer() != null) {
+            synchronized (WormholesPlatform.class) {
+                if (!metadataResolved) {
+                    nativeMetadata = NativeAdapters.find(EntityMetadataAccess.class).orElse(null);
+                    metadataResolved = true;
+                }
+            }
+        }
+        EntityMetadataAccess metadata = nativeMetadata;
+        return metadata == null ? 0L : metadata.fingerprint(entity);
     }
 
     private static volatile EntityVisibilityAccess nativeVisibility;
