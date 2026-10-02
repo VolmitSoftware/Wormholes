@@ -134,7 +134,7 @@ def atmosphere(actor: Bridge, observer: Bridge, rcon: Rcon, capture_id: str) -> 
             try:
                 for bridge in (actor, observer):
                     bridge.command('keys', leaseTicks=12, **{direction: True})
-                time.sleep(0.35)
+                time.sleep(0.7)
             finally:
                 actor.command('release')
                 observer.command('release')
