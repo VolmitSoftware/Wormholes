@@ -594,14 +594,16 @@ def export(identifier: str, variant: str) -> list[Path]:
     def encode(view: str) -> Path:
         source: Path = OUTPUT / 'intermediate' / (identifier + '-' + variant + '-' + view + '.mp4')
         target: Path = DOCS / (identifier + '-' + variant + '-' + view + '.webm')
-        result: subprocess.CompletedProcess[str] = subprocess.run([str(FFMPEG), '-y', '-i', str(source),
-            '-vf', filters[view], '-r', '30', '-c:v', 'libvpx-vp9', '-crf', '27', '-b:v', '0',
-            '-row-mt', '1', '-threads', '4', '-deadline', 'good', '-cpu-used', '4', '-pix_fmt', 'yuv420p', '-an', str(target)],
-            capture_output=True, text=True)
-        if result.returncode:
-            raise RuntimeError('Export failed: ' + result.stderr[-2000:])
-        if target.stat().st_size > 25 * 1024 * 1024:
-            raise AssertionError('Clip exceeds 25 MB: ' + str(target))
-        return target
+        start_quality: int = 30 if target.is_file() and target.stat().st_size > 25 * 1024 * 1024 else 27
+        for quality in range(start_quality, 43, 3):
+            result: subprocess.CompletedProcess[str] = subprocess.run([str(FFMPEG), '-y', '-i', str(source),
+                '-vf', filters[view], '-r', '30', '-c:v', 'libvpx-vp9', '-crf', str(quality), '-b:v', '0',
+                '-row-mt', '1', '-threads', '4', '-deadline', 'good', '-cpu-used', '4', '-pix_fmt', 'yuv420p', '-an', str(target)],
+                capture_output=True, text=True)
+            if result.returncode:
+                raise RuntimeError('Export failed: ' + result.stderr[-2000:])
+            if target.stat().st_size <= 25 * 1024 * 1024:
+                return target
+        raise AssertionError('Clip exceeds 25 MB: ' + str(target))
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         return list(executor.map(encode, ('pov', 'observer')))

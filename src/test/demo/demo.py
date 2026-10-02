@@ -212,6 +212,7 @@ def record(studio: Studio, actor: Bridge, observer: Bridge, shot: dict, variant:
     observer.command('hud', visible=False)
     time.sleep(2)
     for bridge in (actor, observer):
+        bridge.command('clear-errors')
         fit_hidden_renderer(bridge)
     time.sleep(1)
     captures: list[Bridge] = []
