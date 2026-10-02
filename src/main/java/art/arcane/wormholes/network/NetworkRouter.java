@@ -90,7 +90,7 @@ public final class NetworkRouter {
             case WireMessage.HandoffStatus status -> traversal.onHandoffStatus(peerName, status);
             case WireMessage.EntityTransfer transfer -> traversal.onEntityTransfer(peerName, transfer);
             case WireMessage.EntityTransferAck ack -> traversal.onEntityTransferAck(peerName, ack);
-            case WireMessage.ViewSubscribe subscribe -> viewServer.onSubscribe(peerName, subscribe.portalId());
+            case WireMessage.ViewSubscribe subscribe -> viewServer.onSubscribe(peerName, subscribe.portalId(), subscribe.meshDistance());
             case WireMessage.ViewUnsubscribe unsubscribe -> viewServer.onUnsubscribe(peerName, unsubscribe.portalId());
             case WireMessage.ChunkBulkBatch bulk -> viewCache.applyChunkBulk(peerName, bulk.chunks());
             case WireMessage.ChunkDiff diff -> handleChunkDiff(peerName, diff);
@@ -99,6 +99,7 @@ public final class NetworkRouter {
             case WireMessage.ViewBulkComplete complete -> viewCache.markViewReady(peerName, complete.portalId());
             case WireMessage.PortalSettingsUpdate settingsUpdate -> portalSync.applySettingsUpdate(peerName, settingsUpdate);
             case WireMessage.ViewEntities entities -> viewCache.applyEntities(peerName, entities.portalId(), entities.entities(), entities.presentIds());
+            case WireMessage.ViewEnvironment environment -> viewCache.applyEnvironment(peerName, environment.portalId(), environment.environment());
             case WireMessage.ViewTime time -> viewCache.applyTime(peerName, time.portalId(), time.skyDarken());
             case WireMessage.ViewEntityAnimation animation -> {
                 art.arcane.wormholes.ProjectionManager projectionManager = art.arcane.wormholes.Wormholes.projectionManager;

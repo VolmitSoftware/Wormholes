@@ -1,5 +1,7 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import static org.mockito.Mockito.mock;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -7,6 +9,21 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ViewServerDeliveryStateTest {
+    @Test
+    void pendingEnvironmentRetainsTheLatestSnapshotUntilThatSnapshotIsAccepted() {
+        ViewServer.TimeDeliveryState state = new ViewServer.TimeDeliveryState(3);
+        ClientViewEnvironment first = mock(ClientViewEnvironment.class);
+        ClientViewEnvironment latest = mock(ClientViewEnvironment.class);
+        assertFalse(state.needsEnvironmentDelivery());
+        state.desiredEnvironment = first;
+        assertTrue(state.needsEnvironmentDelivery());
+        state.desiredEnvironment = latest;
+        state.acceptedEnvironment = first;
+        assertTrue(state.needsEnvironmentDelivery());
+        state.acceptedEnvironment = latest;
+        assertFalse(state.needsEnvironmentDelivery());
+    }
+
     @Test
     void timeDeliveryRequiresAnAcceptedInitialValueAndCoalescesToTheLatestValue() {
         ViewServer.TimeDeliveryState state = new ViewServer.TimeDeliveryState(3);

@@ -118,7 +118,7 @@ class NetworkManagerMeshIntegrationTest {
         PortalSyncService<ILocalPortal> sync = BukkitPortalSyncAccess.create(manager, List::of, Runnable::run);
         RemoteViewCache<BlockData, EntityData<?>, Equipment> viewCache = new RemoteViewCache<>(BukkitRemoteViewCodec.INSTANCE, RemoteViewCache.Options.defaults());
         NetworkRouter router = new NetworkRouter(registry, sync, new TraversalService(manager), new ViewServer(manager), viewCache,
-            new ViewSubscriptionManager<>(manager, viewCache), manager.getReplicationManager(), manager);
+            new ViewSubscriptionManager<>(manager, viewCache, System::currentTimeMillis), manager.getReplicationManager(), manager);
         manager.setMessageSink(router::onMessage);
         manager.setPeerStateSink(router::onPeerState);
         return registry;

@@ -517,7 +517,7 @@ class NetworkManagerTest {
         assertEquals("boat-a:PORTAL_DIRECTORY", boatBMessages.poll(10L, TimeUnit.SECONDS));
 
         UUID portalId = UUID.randomUUID();
-        assertTrue(boatB.send("boat-a", new WireMessage.ViewSubscribe(portalId)));
+        assertTrue(boatB.send("boat-a", new WireMessage.ViewSubscribe(portalId, 0)));
         assertEquals("boat-b:" + portalId, boatAMessages.poll(10L, TimeUnit.SECONDS));
     }
 
@@ -571,7 +571,7 @@ class NetworkManagerTest {
 
         alpha.statusPollInFlight.add(BETA_NAME);
         alpha.nextStatusAttempt.put(BETA_NAME, Long.MAX_VALUE);
-        assertTrue(alpha.send("gamma", new WireMessage.ViewSubscribe(UUID.randomUUID())));
+        assertTrue(alpha.send("gamma", new WireMessage.ViewSubscribe(UUID.randomUUID(), 0)));
         assertEquals(0L, alpha.nextStatusAttempt.get(BETA_NAME));
 
         UUID portalId = UUID.randomUUID();

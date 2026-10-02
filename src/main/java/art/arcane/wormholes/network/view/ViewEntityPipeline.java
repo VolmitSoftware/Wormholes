@@ -1,5 +1,8 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.wormholes.render.clientview.BukkitPortalEnvironment;
 import art.arcane.wormholes.render.view.ProjectionSkyMath;
 
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
@@ -172,6 +175,13 @@ final class ViewEntityPipeline {
                 for (String peerName : session.peers) {
                     timeDelivery.queue(session, peerName, skyDarken, (weather & 1) != 0, (weather & 2) != 0);
                 }
+            }
+            if (session.meshDistance > 0 && tickCounter >= session.nextEnvironmentTick) {
+                ViewEntityState.Center center = session.center();
+                ClientViewEnvironment environment = BukkitPortalEnvironment.capture(session.world,
+                    new GeometryVector(center.x(), center.y(), center.z()), ClientViewEnvironment.Transform.IDENTITY);
+                timeDelivery.queueEnvironment(session, environment);
+                session.nextEnvironmentTick = tickCounter + 20;
             }
             long entityTick = tickCounter;
             NetworkConfig.ViewConfig viewConfig = activeViewConfig();

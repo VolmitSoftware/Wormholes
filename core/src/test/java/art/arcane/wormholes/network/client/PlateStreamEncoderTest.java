@@ -104,6 +104,8 @@ final class PlateStreamEncoderTest {
         ProjectionContentView<String, String> capturedAir = mock(ProjectionContentView.class);
         when(capturedAir.isEmpty(any())).thenReturn(true);
         when(capturedAir.worldId()).thenReturn(UUID.randomUUID());
+        when(capturedAir.sampleBiome(anyInt(), anyInt(), anyInt())).thenReturn("test:destination");
+        when(capturedAir.getLight(anyInt(), anyInt(), anyInt())).thenReturn(ProjectionContentView.packLight(15, 0));
         ViewPlateBuilder.Job<String, Object> empty = ViewPlateBuilder.sectionJob(request.withDestView(capturedAir), clip);
         assertTrue(empty.step(1));
         verify(capturedAir, never()).sampleBlockData(anyInt(), anyInt(), anyInt());

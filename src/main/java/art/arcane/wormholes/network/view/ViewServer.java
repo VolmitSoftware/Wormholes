@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 
 import art.arcane.wormholes.Settings;
@@ -74,6 +75,8 @@ public final class ViewServer implements Listener {
     static final class TimeDeliveryState {
         private final AtomicBoolean deliveryRunning = new AtomicBoolean(false);
         private final AtomicBoolean initialAccepted = new AtomicBoolean(false);
+        volatile ClientViewEnvironment desiredEnvironment;
+        volatile ClientViewEnvironment acceptedEnvironment;
         private volatile int desiredSkyDarken;
         private volatile int acceptedSkyDarken = -1;
         private volatile boolean desiredStorm;
@@ -105,6 +108,10 @@ public final class ViewServer implements Listener {
 
         boolean desiredThunder() {
             return desiredThunder;
+        }
+
+        boolean needsEnvironmentDelivery() {
+            return desiredEnvironment != null && !desiredEnvironment.equals(acceptedEnvironment);
         }
 
         boolean needsDelivery() {
@@ -257,8 +264,8 @@ public final class ViewServer implements Listener {
         return (int) Math.ceil(Math.max(0.0D, Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
     }
 
-    public void onSubscribe(String peerName, UUID portalId) {
-        subscriptions.onSubscribe(peerName, portalId);
+    public void onSubscribe(String peerName, UUID portalId, int meshDistance) {
+        subscriptions.onSubscribe(peerName, portalId, meshDistance);
     }
 
     public void onUnsubscribe(String peerName, UUID portalId) {

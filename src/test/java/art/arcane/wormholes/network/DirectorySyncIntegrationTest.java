@@ -97,7 +97,7 @@ class DirectorySyncIntegrationTest {
             new TraversalService(manager),
             new art.arcane.wormholes.network.view.ViewServer(manager),
             viewCache,
-            new art.arcane.wormholes.network.view.ViewSubscriptionManager<BlockData, EntityData<?>, Equipment>(manager, viewCache),
+            new art.arcane.wormholes.network.view.ViewSubscriptionManager<BlockData, EntityData<?>, Equipment>(manager, viewCache, System::currentTimeMillis),
             manager.getReplicationManager(),
             manager
         );

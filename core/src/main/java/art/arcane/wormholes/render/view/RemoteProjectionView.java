@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render.view;
 
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.network.view.RemoteViewCache;
 import art.arcane.wormholes.network.view.ViewBox;
@@ -23,6 +24,11 @@ public class RemoteProjectionView<B, T, M, E> implements ProjectionContentView<B
         this.view = view;
         this.fallback = options.fallback();
         this.materials = options.materials();
+    }
+
+    public ClientViewEnvironment environment(ClientViewEnvironment.Transform transform) {
+        ClientViewEnvironment captured = view.environment();
+        return captured == null ? null : captured.withTransform(transform);
     }
 
     private RemoteViewCache.DecodedSlice<B> decodedSliceAt(int x, int z) {
@@ -87,27 +93,28 @@ public class RemoteProjectionView<B, T, M, E> implements ProjectionContentView<B
     @Override
     public String sampleBiome(int x, int y, int z) {
         ViewBox box = view.getBox();
-        if (box == null || !box.contains(x, y, z)) {
+        if (box == null || x < box.minX() || x > box.maxX() || z < box.minZ() || z > box.maxZ()) {
             return null;
         }
         RemoteViewCache.DecodedSlice<B> slice = decodedSliceAt(x, z);
-        if (slice == null) {
-            return null;
-        }
-        return slice.biomeAt(x, y, z);
+        return slice == null ? null : slice.biomeAt(x, Math.clamp(y, box.minY(), box.maxY()), z);
     }
 
     @Override
     public int getLight(int x, int y, int z) {
         ViewBox box = view.getBox();
-        if (box == null || !box.contains(x, y, z)) {
-            return -1;
+        if (box == null || x < box.minX() || x > box.maxX() || z < box.minZ() || z > box.maxZ()) {
+            return LIGHT_UNAVAILABLE;
         }
         RemoteViewCache.DecodedSlice<B> slice = decodedSliceAt(x, z);
         if (slice == null) {
-            return -1;
+            return LIGHT_UNAVAILABLE;
         }
-        return slice.lightAt(x, y, z);
+        int light = slice.lightAt(x, Math.clamp(y, box.minY(), box.maxY()), z);
+        if (light == LIGHT_UNAVAILABLE || y >= box.minY() && y <= box.maxY()) {
+            return light;
+        }
+        return ProjectionContentView.packLight(y > box.maxY() ? ProjectionContentView.unpackSkyLight(light) : 0, 0);
     }
 
     public List<EntityVisual> getEntities() {

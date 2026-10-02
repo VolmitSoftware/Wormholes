@@ -148,7 +148,7 @@ public final class NativeViewProbe {
             client.savePeer(route);
             client.statusPollInFlight.add(target.getLocalName());
             client.start();
-            outgoing.add(new WireMessage.ViewSubscribe(probe.portal()));
+            outgoing.add(new WireMessage.ViewSubscribe(probe.portal(), 0));
             NetworkManager source = client;
             await(() -> ready(probe, target.getLocalName(), Blocks.GOLD_BLOCK.defaultBlockState(), Items.GOLDEN_HELMET, true),
                 () -> poll(source, route, outgoing), "initial remote scene");

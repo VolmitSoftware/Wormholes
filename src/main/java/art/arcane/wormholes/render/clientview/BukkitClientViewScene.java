@@ -1,5 +1,6 @@
 package art.arcane.wormholes.render.clientview;
 
+import art.arcane.wormholes.render.view.RemoteWorldView;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -121,10 +122,25 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
         ClientViewPortalSource source = portals.source(observer, portalId);
         World world = source == null ? null : source.destinationWorld();
         ProjectionWorldView view = source == null ? null : source.destinationView();
-        if (world == null || view == null) {
+        if (view == null) {
             return null;
         }
         int darken = view.getSkyDarken();
+        if (world == null && view instanceof RemoteWorldView remote) {
+            ClientViewEnvironment environment = remote.environment(ClientViewEnvironment.Transform.IDENTITY);
+            if (environment == null) {
+                return null;
+            }
+            boolean weather = source.relaysWeather();
+            boolean clock = weather && environment.sky().skybox() == ClientViewEnvironment.Skybox.OVERWORLD;
+            int flags = (weather ? ClientViewMessage.Atmosphere.FLAG_WEATHER : 0) | (clock ? ClientViewMessage.Atmosphere.FLAG_TIME : 0);
+            return new ClientViewSceneFx.Sample(clock ? environment.gameTime() : 0L, clock,
+                weather ? environment.sky().rain() : 0.0F, weather ? environment.sky().thunder() : 0.0F,
+                ClientViewMessage.Atmosphere.withSkyDarken(flags, darken));
+        }
+        if (world == null) {
+            return null;
+        }
         if (!source.relaysWeather()) {
             return new ClientViewSceneFx.Sample(0L, false, 0.0F, 0.0F, ClientViewMessage.Atmosphere.withSkyDarken(0, darken));
         }
@@ -151,10 +167,16 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
 
     private ClientViewEnvironment environment(ClientViewObserver observer, UUID parent, UUID portalId, ClientViewPortalSource source,
                                                Location eye, long tick) {
-        if (source == null || eye == null || source.destinationWorld() == null || source.transformFrame() == null) {
+        if (source == null || eye == null || source.transformFrame() == null) {
             return null;
         }
         ClientViewEnvironment.Transform transform = ClientViewEnvironmentTransform.of(source.transformFrame());
+        if (source.destinationView() instanceof RemoteWorldView remote) {
+            return remote.environment(transform);
+        }
+        if (source.destinationWorld() == null) {
+            return null;
+        }
         GeometryVector destinationEye = transform.destinationPoint(eye.getX(), eye.getY(), eye.getZ());
         return environments.capture(new BukkitEnvironmentCapture.Request(observer.id(), parent, portalId, source.destinationWorld(),
             destinationEye, transform, tick));

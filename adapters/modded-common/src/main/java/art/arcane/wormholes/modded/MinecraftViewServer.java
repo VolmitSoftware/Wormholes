@@ -1,5 +1,8 @@
 package art.arcane.wormholes.modded;
 
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.modded.clientview.MinecraftPortalEnvironment;
 import art.arcane.wormholes.chunk.ChunkLease;
 import art.arcane.wormholes.render.ProjectedEntityEvent;
 import art.arcane.wormholes.render.acoustics.AcousticsBridge;
@@ -139,7 +142,7 @@ public final class MinecraftViewServer implements AutoCloseable {
         }
     }
 
-    public void subscribe(String peer, UUID portalId) {
+    public void subscribe(String peer, UUID portalId, int meshDistance) {
         runtime.requireServerThread();
         if (closed) {
             return;
@@ -149,7 +152,27 @@ public final class MinecraftViewServer implements AutoCloseable {
         if (level == null) {
             return;
         }
-        Session session = sessions.computeIfAbsent(portalId, ignored -> new Session(portal, level));
+        Session previous = sessions.get(portalId);
+        Map<String, Integer> demands = previous == null ? new HashMap<>() : new HashMap<>(previous.peerMeshDistances);
+        demands.put(peer, meshDistance);
+        int maximum = 0;
+        for (int requested : demands.values()) {
+            maximum = Math.max(maximum, requested);
+        }
+        List<String> retainedPeers = List.of();
+        if (previous != null && maximum != previous.meshDistance) {
+            retainedPeers = List.copyOf(previous.peers.keySet());
+            retire(previous);
+        }
+        Session session = sessions.get(portalId);
+        if (session == null) {
+            session = new Session(portal, level, maximum);
+            sessions.put(portalId, session);
+        }
+        session.peerMeshDistances.putAll(demands);
+        for (String retained : retainedPeers) {
+            subscribe(retained, portalId, demands.get(retained));
+        }
         entityInterests.activate(session);
         Peer existing = session.peers.get(peer);
         if (existing != null) {
@@ -172,6 +195,7 @@ public final class MinecraftViewServer implements AutoCloseable {
             return;
         }
         Peer state = session.peers.remove(peer);
+        session.peerMeshDistances.remove(peer);
         if (state == null) {
             return;
         }
@@ -183,6 +207,9 @@ public final class MinecraftViewServer implements AutoCloseable {
             sessions.remove(portalId);
             entityInterests.retire(session);
             session.close();
+        } else {
+            Map.Entry<String, Integer> remaining = session.peerMeshDistances.entrySet().iterator().next();
+            subscribe(remaining.getKey(), portalId, remaining.getValue());
         }
     }
 
@@ -198,12 +225,10 @@ public final class MinecraftViewServer implements AutoCloseable {
         if (session == null) {
             return;
         }
-        List<String> peers = List.copyOf(session.peers.keySet());
-        for (String peer : peers) {
-            unsubscribe(peer, portalId);
-        }
-        for (String peer : peers) {
-            subscribe(peer, portalId);
+        Map<String, Integer> demands = Map.copyOf(session.peerMeshDistances);
+        retire(session);
+        for (Map.Entry<String, Integer> entry : demands.entrySet()) {
+            subscribe(entry.getKey(), portalId, entry.getValue());
         }
     }
 
@@ -328,6 +353,16 @@ public final class MinecraftViewServer implements AutoCloseable {
         sessions.clear();
         entityInterests.close();
         encoder.shutdownNow();
+    }
+
+    private void retire(Session session) {
+        sessions.remove(session.portalId, session);
+        for (Map.Entry<String, Peer> entry : session.peers.entrySet()) {
+            entry.getValue().close();
+            replication.unsubscribeAll(entry.getKey(), session.id, session.streams);
+        }
+        entityInterests.retire(session);
+        session.close();
     }
 
     private boolean isEntitySessionCurrent(ViewEntityState<Pose> state) {
@@ -502,6 +537,14 @@ public final class MinecraftViewServer implements AutoCloseable {
     }
 
     private void deliverTime(Session session, String peer, Peer state) {
+        if (session.meshDistance > 0 && ticks >= state.nextEnvironmentTick) {
+            ViewEntityState.Center center = session.entities.center();
+            ClientViewEnvironment environment = MinecraftPortalEnvironment.capture(session.level,
+                new GeometryVector(center.x(), center.y(), center.z()), ClientViewEnvironment.Transform.IDENTITY);
+            if (network.send(peer, new WireMessage.ViewEnvironment(session.portalId, environment))) {
+                state.nextEnvironmentTick = ticks + 20;
+            }
+        }
         int sky = session.level.getSkyDarken();
         if (state.sky != sky && network.send(peer, new WireMessage.ViewTime(session.portalId, sky))) {
             state.sky = sky;
@@ -535,6 +578,8 @@ public final class MinecraftViewServer implements AutoCloseable {
         private final ServerLevel level;
         private final MinecraftProjectionWorldView view;
         private final ViewBox box;
+        private final int meshDistance;
+        private final Map<String, Integer> peerMeshDistances = new HashMap<>();
         private final ProjectionRenderMode mode;
         private final ViewEntityState<Pose> entities;
         private final AABB bounds;
@@ -544,14 +589,15 @@ public final class MinecraftViewServer implements AutoCloseable {
         private final Map<Long, ChunkLease> leases = new HashMap<>();
         private final Map<String, Peer> peers = new HashMap<>();
 
-        private Session(MinecraftPortal portal, ServerLevel level) {
+        private Session(MinecraftPortal portal, ServerLevel level, int meshDistance) {
+            this.meshDistance = meshDistance;
             portalId = portal.getId();
             this.level = level;
             entities = new ViewEntityState<>(portalId, new ViewEntityState.Center(portal.getOrigin().x(), portal.getOrigin().y(), portal.getOrigin().z()));
             entityInterval = portal.getNetworkViewEntityIntervalTicks();
             view = MinecraftProjectionWorldView.uncached(runtime, level);
-            mode = portal.getRenderMode();
-            box = ViewCaptureBounds.compute(portal.getGeometry().getArea(), portal.getFrame().getNormal(),
+            mode = meshDistance > 0 ? ProjectionRenderMode.PANOPTIC : portal.getRenderMode();
+            box = meshDistance > 0 ? ViewCaptureBounds.computeMesh(portal.getGeometry().getArea(), meshDistance, level.getMinY(), level.getMaxY()) : ViewCaptureBounds.compute(portal.getGeometry().getArea(), portal.getFrame().getNormal(),
                 new ViewCaptureBounds.Options(portal.getNetworkViewDepth(), portal.getNetworkViewLateralPad(),
                     runtime.configuration().settings().getProjection().aperturePaddingBlocks,
                     level.getMinY(), level.getMaxY()));
@@ -585,6 +631,7 @@ public final class MinecraftViewServer implements AutoCloseable {
     private final class Peer {
         private InitialSubscriptionProgress progress;
         private InitialBulkWorkPump.WorkHandle work;
+        private long nextEnvironmentTick;
         private int sky = -1;
         private int weather = -1;
         private boolean complete;

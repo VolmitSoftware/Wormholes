@@ -1,5 +1,9 @@
 package art.arcane.wormholes.network;
 
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.wormholes.network.client.ClientViewEnvironmentCodec;
+import art.arcane.wormholes.network.client.ClientViewReader;
+import art.arcane.wormholes.network.client.ClientViewWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -753,7 +757,7 @@ public sealed interface WireMessage {
         }
     }
 
-    record ViewSubscribe(UUID portalId) implements WireMessage {
+    record ViewSubscribe(UUID portalId, int meshDistance) implements WireMessage {
         @Override
         public WireMessageType type() {
             return WireMessageType.VIEW_SUBSCRIBE;
@@ -762,10 +766,11 @@ public sealed interface WireMessage {
         @Override
         public void write(DataOutputStream out) throws IOException {
             writeUuid(out, portalId);
+            out.writeInt(meshDistance);
         }
 
         public static ViewSubscribe read(DataInputStream in) throws IOException {
-            return new ViewSubscribe(readUuid(in));
+            return new ViewSubscribe(readUuid(in), Math.clamp(in.readInt(), 0, 512));
         }
     }
 
@@ -846,6 +851,29 @@ public sealed interface WireMessage {
 
         public static ViewEntityAnimation read(DataInputStream in) throws IOException {
             return new ViewEntityAnimation(readUuid(in), readUuid(in), in.readBoolean(), in.readUnsignedByte(), in.readFloat());
+        }
+    }
+
+    record ViewEnvironment(UUID portalId, ClientViewEnvironment environment) implements WireMessage {
+        @Override
+        public WireMessageType type() {
+            return WireMessageType.VIEW_ENVIRONMENT;
+        }
+
+        @Override
+        public void write(DataOutputStream out) throws IOException {
+            writeUuid(out, portalId);
+            ClientViewWriter encoded = new ClientViewWriter();
+            ClientViewEnvironmentCodec.write(encoded, environment);
+            WireCodec.writeByteArray(out, encoded.toByteArray(), 1024);
+        }
+
+        public static ViewEnvironment read(DataInputStream in) throws IOException {
+            UUID portal = readUuid(in);
+            ClientViewReader encoded = new ClientViewReader(WireCodec.readByteArray(in, 1024));
+            ClientViewEnvironment environment = ClientViewEnvironmentCodec.read(encoded);
+            encoded.expectEnd();
+            return new ViewEnvironment(portal, environment);
         }
     }
 

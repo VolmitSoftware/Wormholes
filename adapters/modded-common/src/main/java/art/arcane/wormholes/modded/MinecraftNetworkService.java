@@ -81,7 +81,7 @@ public final class MinecraftNetworkService implements AutoCloseable {
         views = new RemoteViewCache<>(new MinecraftRemoteViewCodec(server.registryAccess()),
             replication == null ? RemoteViewCache.Options.defaults()
                 : new RemoteViewCache.Options(replication.diffWindowSize, replication.resyncTimeoutSec * 1000L));
-        subscriptions = new ViewSubscriptionManager<>(network, views);
+        subscriptions = new ViewSubscriptionManager<>(network, views, System::currentTimeMillis);
         viewServer = new MinecraftViewServer(runtime, network);
         handoffs = new MinecraftPlayerHandoffs(runtime, network);
         entityTransfers = new MinecraftEntityTransfers(runtime, network);
@@ -293,9 +293,10 @@ public final class MinecraftNetworkService implements AutoCloseable {
                     runtime.projections().remoteSound(peer, sound);
                 }
             }
+            case WireMessage.ViewEnvironment environment -> views.applyEnvironment(peer, environment.portalId(), environment.environment());
             case WireMessage.ViewTime time -> views.applyTime(peer, time.portalId(), time.skyDarken());
             case WireMessage.ViewWeather weather -> views.applyWeather(peer, weather.portalId(), weather.storm(), weather.thunder());
-            case WireMessage.ViewSubscribe subscribe -> viewServer.subscribe(peer, subscribe.portalId());
+            case WireMessage.ViewSubscribe subscribe -> viewServer.subscribe(peer, subscribe.portalId(), subscribe.meshDistance());
             case WireMessage.ViewUnsubscribe unsubscribe -> viewServer.unsubscribe(peer, unsubscribe.portalId());
             case WireMessage.ChunkResyncRequestMessage resync -> viewServer.resync(peer, resync.request());
             case WireMessage.ConvoyTransfer transfer -> entityTransfers.receive(peer, transfer);

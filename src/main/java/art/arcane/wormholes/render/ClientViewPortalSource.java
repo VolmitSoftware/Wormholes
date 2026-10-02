@@ -97,7 +97,7 @@ public final class ClientViewPortalSource {
             geometryRevision = 0L;
             return;
         }
-        outcome = destination.resolve(observer, rtpTarget);
+        outcome = destination.resolve(observer, rtpTarget, nativeMesh ? Math.clamp(observer.getClientViewDistance(), 2, 32) * 16 : 0);
         if (nativeMesh && destination.mirrorMode) {
             destination.mirrorRotationQuarterTurns = portal.getMirrorRotation().getQuarterTurns();
         }

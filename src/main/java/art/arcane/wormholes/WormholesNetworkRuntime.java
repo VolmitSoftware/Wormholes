@@ -82,7 +82,7 @@ final class WormholesNetworkRuntime {
         Wormholes.portalSyncService = BukkitPortalSyncAccess.create(Wormholes.networkManager, () -> Wormholes.portalManager.getLocalPortals(), this::runPortalSyncTask);
         Wormholes.traversalService = new TraversalService(Wormholes.networkManager);
         Wormholes.remoteViewCache = createRemoteViewCache(activeSettings.getNetwork());
-        Wormholes.viewSubscriptions = new ViewSubscriptionManager<>(Wormholes.networkManager, Wormholes.remoteViewCache);
+        Wormholes.viewSubscriptions = new ViewSubscriptionManager<>(Wormholes.networkManager, Wormholes.remoteViewCache, System::currentTimeMillis);
         Wormholes.viewServer = new ViewServer(Wormholes.networkManager);
         NetworkRouter networkRouter = new NetworkRouter(Wormholes.remotePortalRegistry, Wormholes.portalSyncService, Wormholes.traversalService, Wormholes.viewServer, Wormholes.remoteViewCache, Wormholes.viewSubscriptions, Wormholes.networkManager.getReplicationManager(), Wormholes.networkManager);
         Wormholes.networkManager.setMessageSink(networkRouter::onMessage);

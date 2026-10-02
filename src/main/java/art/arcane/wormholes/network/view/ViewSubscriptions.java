@@ -9,6 +9,7 @@ import art.arcane.wormholes.network.replication.ReplicationStreamKey;
 import art.arcane.wormholes.portal.ILocalPortal;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -52,7 +53,7 @@ final class ViewSubscriptions {
         this.initialBulkWorkHandles = new ConcurrentHashMap<InitialSubscriptionProgress, InitialBulkWorkPump.WorkHandle>();
     }
 
-    void onSubscribe(String peerName, UUID portalId) {
+    void onSubscribe(String peerName, UUID portalId, int meshDistance) {
         if (!registry.isActive()) {
             return;
         }
@@ -60,8 +61,28 @@ final class ViewSubscriptions {
         if (portal == null || portal.getStructure() == null || portal.getStructure().getWorld() == null) {
             return;
         }
-        ViewSession session = registry.openSession(portal);
+        ViewSession previous = registry.get(portalId);
+        Map<String, Integer> demands = previous == null ? new HashMap<>() : new HashMap<>(previous.peerMeshDistances);
+        demands.put(peerName, meshDistance);
+        int maximum = 0;
+        for (int requested : demands.values()) {
+            maximum = Math.max(maximum, requested);
+        }
+        List<String> retainedPeers = List.of();
+        if (previous != null && maximum != previous.meshDistance) {
+            retainedPeers = List.copyOf(previous.peers);
+            cancelInitialSubscriptions(previous);
+            registry.unsubscribeSessionReplication(previous);
+            registry.remove(portalId, previous);
+            tickets.releaseSessionTickets(previous);
+        }
+        ViewSession session = registry.openSession(portal, maximum);
+        session.peerMeshDistances.putAll(demands);
         tickets.retainSessionTickets(session);
+        for (String retained : retainedPeers) {
+            session.peers.add(retained);
+            startInitialSubscription(session, retained);
+        }
         boolean peerAdded = session.peers.add(peerName);
         if (!peerAdded && session.initialSubscriptionProgress.containsKey(peerName)) {
             startTask.run();
@@ -132,6 +153,7 @@ final class ViewSubscriptions {
         ChunkReplicationManager replication = registry.replication();
         replication.unsubscribeAll(peerName, session.subscriptionId, session.streamKeys);
         session.peers.remove(peerName);
+        session.peerMeshDistances.remove(peerName);
         session.sendStates.remove(peerName);
         session.lastSentPresentIds.remove(peerName);
         session.lastPeerSideband.remove(peerName);
@@ -139,6 +161,9 @@ final class ViewSubscriptions {
         if (session.peers.isEmpty()) {
             registry.remove(portalId);
             tickets.releaseSessionTickets(session);
+        } else {
+            Map.Entry<String, Integer> remaining = session.peerMeshDistances.entrySet().iterator().next();
+            onSubscribe(remaining.getKey(), portalId, remaining.getValue());
         }
     }
 
@@ -153,6 +178,7 @@ final class ViewSubscriptions {
             return;
         }
         ViewSession removed = registry.get(portal.getId());
+        Map<String, Integer> demands = removed == null ? Map.of() : Map.copyOf(removed.peerMeshDistances);
         List<String> peers = new ArrayList<>();
         if (removed != null) {
             peers.addAll(removed.peers);
@@ -166,7 +192,7 @@ final class ViewSubscriptions {
             tickets.retainGatewayTickets(portal);
         }
         for (String peer : peers) {
-            onSubscribe(peer, portal.getId());
+            onSubscribe(peer, portal.getId(), demands.getOrDefault(peer, 0));
         }
     }
 

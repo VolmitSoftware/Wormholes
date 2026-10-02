@@ -7,13 +7,13 @@ import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import org.bukkit.World;
 
-final class BukkitPortalEnvironment {
+public final class BukkitPortalEnvironment {
     private static volatile WorldEnvironmentAccess access;
 
     private BukkitPortalEnvironment() {
     }
 
-    static ClientViewEnvironment capture(World world, GeometryVector eye, ClientViewEnvironment.Transform transform) {
+    public static ClientViewEnvironment capture(World world, GeometryVector eye, ClientViewEnvironment.Transform transform) {
         WorldEnvironmentAccess current = access;
         if (current == null) {
             current = NativeAdapters.require(WorldEnvironmentAccess.class);

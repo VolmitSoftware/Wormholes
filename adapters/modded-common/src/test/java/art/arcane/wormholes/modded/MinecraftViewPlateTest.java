@@ -68,6 +68,8 @@ public class MinecraftViewPlateTest {
         when(view.sampleBlockData(anyInt(), anyInt(), anyInt())).thenReturn(source);
         when(view.sampleMaterial(anyInt(), anyInt(), anyInt())).thenReturn(source);
         when(view.worldId()).thenReturn(UUID.randomUUID());
+        when(view.sampleBiome(anyInt(), anyInt(), anyInt())).thenReturn("minecraft:plains");
+        when(view.getLight(anyInt(), anyInt(), anyInt())).thenReturn(ProjectionContentView.packLight(15, 0));
         PortalGeometry geometry = new PortalGeometry();
         geometry.setArea(new AxisAlignedBB(0, 0.999D, 64, 64.999D, 0, 0.999D));
         ViewPlateKey key = new ViewPlateKey(UUID.randomUUID(), view, true, 0, 0L);

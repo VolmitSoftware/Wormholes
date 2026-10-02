@@ -344,7 +344,7 @@ public final class PortalProjector {
         }
 
         RtpProjectionTarget rtpTarget = rtpProjectionTarget;
-        ProjectorDestination.Outcome outcome = destination.resolve(observer, rtpTarget);
+        ProjectorDestination.Outcome outcome = destination.resolve(observer, rtpTarget, 0);
         if (outcome == ProjectorDestination.Outcome.CLOSE) {
             close();
             return;

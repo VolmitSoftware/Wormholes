@@ -14,6 +14,7 @@ import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.RemotePortal;
 import art.arcane.wormholes.network.view.RemoteViewCache;
+import art.arcane.wormholes.network.view.ViewSubscriptionManager;
 import art.arcane.wormholes.render.view.ProjectionContentView;
 import art.arcane.wormholes.render.view.ProjectionEntityData;
 import art.arcane.wormholes.render.view.RemoteProjectionView;
@@ -396,7 +397,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
                 return null;
             }
             RemoteViewCache.RemoteView<BlockState, SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> source =
-                runtime.network().subscriptions().touch(portal.getDestinationServer(), target.getId(), portal.getNetworkViewUnsubscribeGraceSeconds());
+                runtime.network().subscriptions().touch(portal.getDestinationServer(), target.getId(), new ViewSubscriptionManager.Request(portal.getNetworkViewUnsubscribeGraceSeconds(), 0));
             String fallback = portal.getNetworkViewFallbackBlock();
             if (source != remoteSource || !Objects.equals(remoteFallbackState, fallback)) {
                 remoteSource = source;

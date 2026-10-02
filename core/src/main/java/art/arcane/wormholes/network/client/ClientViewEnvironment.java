@@ -16,6 +16,10 @@ public record ClientViewEnvironment(long gameTime, Sky sky, Fog fog, Lighting li
         Objects.requireNonNull(dimension, "dimension");
     }
 
+    public ClientViewEnvironment withTransform(Transform value) {
+        return new ClientViewEnvironment(gameTime, sky, fog, lighting, clouds, value, dimension);
+    }
+
     private static void finite(float... values) {
         for (float value : values) {
             if (!Float.isFinite(value)) {
@@ -75,6 +79,7 @@ public record ClientViewEnvironment(long gameTime, Sky sky, Fog fog, Lighting li
     }
 
     public record Transform(Direction xAxis, Direction yAxis, Direction zAxis, GeometryVector translation) {
+        public static final Transform IDENTITY = new Transform(Direction.E, Direction.U, Direction.S, new GeometryVector(0, 0, 0));
         public Transform {
             Objects.requireNonNull(xAxis, "xAxis");
             Objects.requireNonNull(yAxis, "yAxis");

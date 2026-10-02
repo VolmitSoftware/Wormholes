@@ -121,7 +121,7 @@ final class ProjectorDestination implements ProjectorScanDestination<ILocalPorta
         return view;
     }
 
-    Outcome resolve(Player observer, PortalProjector.RtpProjectionTarget rtpTarget) {
+    Outcome resolve(Player observer, PortalProjector.RtpProjectionTarget rtpTarget, int meshDistance) {
         boolean rtpMode = rtpTarget != null;
         mirrorMode = !rtpMode && portal.isMirrorMode();
         mirrorRotationQuarterTurns = mirrorMode ? portal.getMirrorRotation().coherentFor(portal.getFrame()).getQuarterTurns() : 0;
@@ -152,7 +152,7 @@ final class ProjectorDestination implements ProjectorScanDestination<ILocalPorta
                 dest = null;
                 destAnchor = remotePortal;
                 destWorld = null;
-                remoteView = remoteWorldView(universal.getServerName(), remotePortal.getId());
+                remoteView = remoteWorldView(universal.getServerName(), remotePortal.getId(), meshDistance);
                 if (remoteView == null) {
                     Wormholes.v("[Projector] portal " + portal.getName() + " remote view unavailable, closing projector");
                     return Outcome.CLOSE;
@@ -202,12 +202,12 @@ final class ProjectorDestination implements ProjectorScanDestination<ILocalPorta
         return Outcome.READY;
     }
 
-    private ProjectionWorldView remoteWorldView(String peerName, UUID portalId) {
+    private ProjectionWorldView remoteWorldView(String peerName, UUID portalId, int meshDistance) {
         ViewSubscriptionManager<BlockData, EntityData<?>, Equipment> subscriptions = Wormholes.viewSubscriptions;
         if (subscriptions == null || peerName == null || portalId == null) {
             return null;
         }
-        RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> view = subscriptions.touch(peerName, portalId, portal.getNetworkViewUnsubscribeGraceSeconds());
+        RemoteViewCache.RemoteView<BlockData, EntityData<?>, Equipment> view = subscriptions.touch(peerName, portalId, new ViewSubscriptionManager.Request(portal.getNetworkViewUnsubscribeGraceSeconds(), meshDistance));
         String fallbackState = portal.getNetworkViewFallbackBlock();
         boolean fallbackChanged = remoteFallback == null || !fallbackState.equals(remoteFallbackState);
         if (fallbackChanged) {

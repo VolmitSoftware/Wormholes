@@ -336,6 +336,7 @@ public final class ViewPlateBuilder {
         private int maxChunkX = Integer.MIN_VALUE;
         private int maxChunkZ = Integer.MIN_VALUE;
         private ViewPlate<B> result;
+        private PlateEnvironment environment;
 
         private BuildJob(Request<B, M, V> request, ViewPlate<B> previous, LongOpenHashSet dirtyChunks, PlateBox clip) {
             super(request.key());
@@ -369,6 +370,12 @@ public final class ViewPlateBuilder {
                 return true;
             }
             if (!started) {
+                if (section != null) {
+                    environment = PlateEnvironment.capture(section, geometry.transform, view);
+                    if (environment == null) {
+                        return false;
+                    }
+                }
                 started = true;
                 n = geometry.normalStart;
                 r = geometry.axisMin[geometry.rightAxis];
@@ -552,7 +559,7 @@ public final class ViewPlateBuilder {
             result = new ViewPlate<B>(request.key(), built, request.destinationRevision(), request.transformRevision(),
                 worldId, request.trackerVersion(),
                 sampled ? minChunkX : 0, sampled ? minChunkZ : 0, sampled ? maxChunkX : -1, sampled ? maxChunkZ : -1,
-                ViewPlate.estimateBytes(built), section != null ? PlateEnvironment.capture(section, geometry.transform, view) : null);
+                ViewPlate.estimateBytes(built), environment);
         }
 
         private static boolean scanContinues(int coordinate, int end, int step) {

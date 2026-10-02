@@ -3,11 +3,11 @@ package art.arcane.wormholes.network.client;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.util.Direction;
 
-final class ClientViewEnvironmentCodec {
+public final class ClientViewEnvironmentCodec {
     private ClientViewEnvironmentCodec() {
     }
 
-    static void write(ClientViewWriter out, ClientViewEnvironment value) {
+    public static void write(ClientViewWriter out, ClientViewEnvironment value) {
         out.i64(value.gameTime());
         ClientViewEnvironment.Sky sky = value.sky();
         out.u8(sky.skybox().ordinal());
@@ -52,7 +52,7 @@ final class ClientViewEnvironmentCodec {
         out.u8(dimension.endFlashes() ? 1 : 0);
     }
 
-    static ClientViewEnvironment read(ClientViewReader in) throws ClientViewProtocolException {
+    public static ClientViewEnvironment read(ClientViewReader in) throws ClientViewProtocolException {
         try {
             long gameTime = in.i64();
             ClientViewEnvironment.Sky sky = new ClientViewEnvironment.Sky(enumValue(ClientViewEnvironment.Skybox.values(), in.u8()),

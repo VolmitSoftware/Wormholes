@@ -20,6 +20,9 @@ final class ViewSession extends ViewEntityState<Pose> {
     final UUID subscriptionId;
     final World world;
     final ViewBox box;
+    int meshDistance;
+    long nextEnvironmentTick;
+    final Map<String, Integer> peerMeshDistances = new ConcurrentHashMap<>();
     final ProjectionRenderMode renderMode;
     final int centerChunkX;
     final int centerChunkZ;

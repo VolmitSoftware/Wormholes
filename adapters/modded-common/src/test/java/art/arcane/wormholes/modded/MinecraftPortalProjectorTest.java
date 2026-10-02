@@ -176,7 +176,7 @@ public class MinecraftPortalProjectorTest {
         RemoteViewCache.RemoteView<BlockState, SynchedEntityData.DataValue<?>, MinecraftPacketBlobs.Equipment> remote = mock(RemoteViewCache.RemoteView.class);
         RemoteViewCache.DecodedSlice<BlockState> slice = mock(RemoteViewCache.DecodedSlice.class);
         when(network.subscriptions()).thenReturn(subscriptions);
-        when(subscriptions.touch("example-peer", targetId, 30)).thenReturn(remote);
+        when(subscriptions.touch("example-peer", targetId, new ViewSubscriptionManager.Request(30, 0))).thenReturn(remote);
         when(remote.getBox()).thenReturn(new ViewBox(-128, -64, -128, 128, 319, 128));
         when(remote.getRevision()).thenReturn(1L);
         when(remote.sliceAt(anyInt(), anyInt())).thenReturn(slice);
@@ -193,7 +193,7 @@ public class MinecraftPortalProjectorTest {
                 }
             }
             assertTrue(remoteClaim);
-            verify(subscriptions).touch("example-peer", targetId, 30);
+            verify(subscriptions).touch("example-peer", targetId, new ViewSubscriptionManager.Request(30, 0));
             projector.commit();
             assertEquals(MinecraftPortalProjector.Result.IDLE, projector.update(1L, Long.MAX_VALUE));
         }

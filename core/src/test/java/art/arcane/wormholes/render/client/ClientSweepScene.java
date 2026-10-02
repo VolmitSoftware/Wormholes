@@ -266,7 +266,7 @@ public final class ClientSweepScene {
 
         @Override
         public String sampleBiome(int x, int y, int z) {
-            return null;
+            return "minecraft:plains";
         }
 
         @Override
@@ -276,7 +276,7 @@ public final class ClientSweepScene {
 
         @Override
         public int getLight(int x, int y, int z) {
-            return LIGHT_UNAVAILABLE;
+            return ProjectionContentView.packLight(15, 0);
         }
 
         @Override

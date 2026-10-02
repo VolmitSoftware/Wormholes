@@ -59,6 +59,10 @@ public class ViewEntityState<P> {
         return sendStates.computeIfAbsent(peerName, name -> new ConcurrentHashMap<>());
     }
 
+    public Center center() {
+        return new Center(portalCenterX, portalCenterY, portalCenterZ);
+    }
+
     public record Center(double x, double y, double z) {
     }
 

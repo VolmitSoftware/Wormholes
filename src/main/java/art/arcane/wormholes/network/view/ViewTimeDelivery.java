@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.network.NetworkManager;
@@ -39,10 +40,17 @@ final class ViewTimeDelivery {
         start(session, peerName, state);
     }
 
+    void queueEnvironment(ViewSession session, ClientViewEnvironment environment) {
+        for (Map.Entry<String, ViewServer.TimeDeliveryState> entry : session.timeDeliveryStates.entrySet()) {
+            entry.getValue().desiredEnvironment = environment;
+            start(session, entry.getKey(), entry.getValue());
+        }
+    }
+
     void retryPending(ViewSession session) {
         for (Map.Entry<String, ViewServer.TimeDeliveryState> entry : session.timeDeliveryStates.entrySet()) {
             ViewServer.TimeDeliveryState state = entry.getValue();
-            if (state.needsDelivery() || weatherPending(entry.getKey(), state)) {
+            if (state.needsDelivery() || state.needsEnvironmentDelivery() || weatherPending(entry.getKey(), state)) {
                 start(session, entry.getKey(), state);
             }
         }
@@ -59,7 +67,7 @@ final class ViewTimeDelivery {
             state.finishDelivery();
             return;
         }
-        if (!state.needsDelivery() && !weatherPending(peerName, state)) {
+        if (!state.needsDelivery() && !state.needsEnvironmentDelivery() && !weatherPending(peerName, state)) {
             finish(session, peerName, state);
             return;
         }
@@ -71,6 +79,12 @@ final class ViewTimeDelivery {
                 sendCount.incrementAndGet();
             }
         }
+        if (state.needsEnvironmentDelivery()) {
+            ClientViewEnvironment environment = state.desiredEnvironment;
+            if (network.send(peerName, new WireMessage.ViewEnvironment(session.portalId, environment))) {
+                state.acceptedEnvironment = environment;
+            }
+        }
         if (weatherPending(peerName, state)) {
             boolean storm = state.desiredStorm();
             boolean thunder = state.desiredThunder();
@@ -78,7 +92,7 @@ final class ViewTimeDelivery {
                 state.markWeatherAccepted(storm, thunder);
             }
         }
-        if (!state.needsDelivery() && !weatherPending(peerName, state)) {
+        if (!state.needsDelivery() && !state.needsEnvironmentDelivery() && !weatherPending(peerName, state)) {
             finish(session, peerName, state);
             return;
         }
@@ -95,7 +109,7 @@ final class ViewTimeDelivery {
 
     private void finish(ViewSession session, String peerName, ViewServer.TimeDeliveryState state) {
         state.finishDelivery();
-        if (isActive(session, peerName, state) && (state.needsDelivery() || weatherPending(peerName, state))) {
+        if (isActive(session, peerName, state) && (state.needsDelivery() || state.needsEnvironmentDelivery() || weatherPending(peerName, state))) {
             start(session, peerName, state);
         }
     }

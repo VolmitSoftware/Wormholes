@@ -1,5 +1,13 @@
 package art.arcane.wormholes.network.client;
 
+import art.arcane.wormholes.network.WireCodec;
+import art.arcane.wormholes.network.WireMessage;
+import art.arcane.wormholes.network.view.RemoteViewCache;
+import art.arcane.wormholes.network.view.RemoteViewCodec;
+import art.arcane.wormholes.render.view.RemoteProjectionView;
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import static org.mockito.Mockito.mock;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
 import art.arcane.wormholes.util.Direction;
@@ -14,6 +22,34 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ClientViewEnvironmentTest {
+    @Test
+    void peerEnvironmentRoundTripRetainsDestinationSkyWeatherAndDimension() throws Exception {
+        WireMessage.ViewEnvironment sent = new WireMessage.ViewEnvironment(UUID.randomUUID(), ClientViewFixtures.environment());
+        WireMessage received = WireCodec.readFrame(new DataInputStream(new ByteArrayInputStream(WireCodec.encodeFrame(sent))));
+        assertEquals(sent, received);
+    }
+
+    @Test
+    void peerEnvironmentUsesTheViewingPortalTransformAndExpiresWithItsSubscription() {
+        RemoteViewCache<String, Object, Object> cache = new RemoteViewCache<>(mock(RemoteViewCodec.class), RemoteViewCache.Options.defaults());
+        UUID portal = UUID.randomUUID();
+        RemoteViewCache.RemoteView<String, Object, Object> remote = cache.getOrCreate("peer", portal);
+        RemoteProjectionView<String, String, Object, Object> view = new RemoteProjectionView<>(remote,
+            new RemoteProjectionView.Options<>("minecraft:air", value -> value));
+        assertNull(view.environment(ClientViewEnvironment.Transform.IDENTITY));
+        ClientViewEnvironment destination = ClientViewFixtures.environment();
+        cache.applyEnvironment("peer", portal, destination);
+        ClientViewEnvironment projected = view.environment(ClientViewEnvironment.Transform.IDENTITY);
+        assertEquals(destination.sky(), projected.sky());
+        assertEquals(destination.lighting(), projected.lighting());
+        assertEquals(destination.fog(), projected.fog());
+        assertEquals(destination.dimension(), projected.dimension());
+        assertEquals(destination.gameTime(), projected.gameTime());
+        assertEquals(ClientViewEnvironment.Transform.IDENTITY, projected.transform());
+        cache.remove("peer", portal);
+        assertNull(cache.getOrCreate("peer", portal).environment());
+    }
+
     @Test
     void completeSnapshotPreservesFloatColorsAndNegativeTransform() throws Exception {
         ClientViewMessage.Environment message = new ClientViewMessage.Environment(71, ClientViewFixtures.environment());

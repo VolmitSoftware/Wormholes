@@ -23,6 +23,11 @@ public final class ViewCaptureBounds {
             maxX, Math.min(maxY, options.maxHeight() - 1), maxZ);
     }
 
+    public static ViewBox computeMesh(AxisAlignedBB area, int distance, int minHeight, int maxHeight) {
+        int radius = Math.clamp(distance, 32, 512) + 32;
+        return compute(area, Direction.N, new Options(radius, radius, 0.0D, minHeight, maxHeight));
+    }
+
     public record Options(int depth, int lateralPad, double aperturePadding, int minHeight, int maxHeight) {
     }
 }

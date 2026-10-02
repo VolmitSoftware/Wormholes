@@ -1,5 +1,6 @@
 package art.arcane.wormholes.network.view;
 
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.render.view.ProjectionSkyMath;
 
 import art.arcane.wormholes.network.replication.ChunkBulk;
@@ -105,6 +106,7 @@ public final class RemoteViewCache<B, M, E> {
         private volatile long lastUpdateMillis;
         private volatile long revision;
         private volatile int skyDarken;
+        private volatile ClientViewEnvironment environment;
         private volatile boolean storm;
         private volatile boolean thunder;
         private volatile boolean viewReady;
@@ -168,6 +170,10 @@ public final class RemoteViewCache<B, M, E> {
 
         public long getRevision() {
             return revision;
+        }
+
+        public ClientViewEnvironment environment() {
+            return environment;
         }
 
         public int getSkyDarken() {
@@ -443,6 +449,14 @@ public final class RemoteViewCache<B, M, E> {
             view.storm = storm;
             view.thunder = thunder;
             view.revision++;
+        }
+    }
+
+    public void applyEnvironment(String peerName, UUID portalId, ClientViewEnvironment environment) {
+        RemoteView<B, M, E> view = views.get(key(peerName, portalId));
+        if (view != null) {
+            view.environment = environment;
+            view.lastUpdateMillis = System.currentTimeMillis();
         }
     }
 

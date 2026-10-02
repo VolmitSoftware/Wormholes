@@ -3,6 +3,7 @@ package art.arcane.wormholes.network.view;
 import art.arcane.wormholes.network.NetworkManager;
 import art.arcane.wormholes.network.replication.ChunkReplicationManager;
 import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.wormholes.portal.ProjectionRenderMode;
 
 import java.util.Collection;
 import java.util.Map;
@@ -82,18 +83,22 @@ final class ViewSessionRegistry {
         }
     }
 
-    ViewSession openSession(ILocalPortal portal) {
-        return sessions.computeIfAbsent(portal.getId(), id -> new ViewSession(
+    ViewSession openSession(ILocalPortal portal, int meshDistance) {
+        ViewSession session = sessions.computeIfAbsent(portal.getId(), id -> new ViewSession(
             id,
             portal.getStructure().getWorld(),
-            ViewServer.computeBox(portal, portal.getNetworkViewDepth()),
-            portal.getRenderMode(),
+            meshDistance > 0 ? ViewCaptureBounds.computeMesh(portal.getStructure().getArea(), meshDistance,
+                portal.getStructure().getWorld().getMinHeight(), portal.getStructure().getWorld().getMaxHeight())
+                : ViewServer.computeBox(portal, portal.getNetworkViewDepth()),
+            meshDistance > 0 ? ProjectionRenderMode.PANOPTIC : portal.getRenderMode(),
             ((int) Math.floor(portal.getOrigin().getX())) >> 4,
             ((int) Math.floor(portal.getOrigin().getZ())) >> 4,
             portal.getOrigin().getX(),
             portal.getOrigin().getY(),
             portal.getOrigin().getZ()
         ));
+        session.meshDistance = Math.max(session.meshDistance, meshDistance);
+        return session;
     }
 
     boolean isSessionPeerActive(ViewSession session, String peerName) {

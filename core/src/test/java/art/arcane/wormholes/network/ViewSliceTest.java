@@ -195,9 +195,10 @@ class ViewSliceTest {
     void viewMessagesRoundTrip() throws IOException {
         UUID portalId = UUID.randomUUID();
 
-        byte[] subscribeFrame = WireCodec.encodeFrame(new WireMessage.ViewSubscribe(portalId));
+        byte[] subscribeFrame = WireCodec.encodeFrame(new WireMessage.ViewSubscribe(portalId, 160));
         WireMessage.ViewSubscribe subscribe = assertInstanceOf(WireMessage.ViewSubscribe.class, WireCodec.readFrame(new DataInputStream(new ByteArrayInputStream(subscribeFrame))));
         assertEquals(portalId, subscribe.portalId());
+        assertEquals(160, subscribe.meshDistance());
 
         byte[] unsubscribeFrame = WireCodec.encodeFrame(new WireMessage.ViewUnsubscribe(portalId));
         WireMessage.ViewUnsubscribe unsubscribe = assertInstanceOf(WireMessage.ViewUnsubscribe.class, WireCodec.readFrame(new DataInputStream(new ByteArrayInputStream(unsubscribeFrame))));

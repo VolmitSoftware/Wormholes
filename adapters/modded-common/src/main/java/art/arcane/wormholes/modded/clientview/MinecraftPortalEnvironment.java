@@ -10,11 +10,11 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3fc;
 import org.joml.Vector4fc;
 
-final class MinecraftPortalEnvironment {
+public final class MinecraftPortalEnvironment {
     private MinecraftPortalEnvironment() {
     }
 
-    static ClientViewEnvironment capture(ServerLevel world, GeometryVector destinationEye, ClientViewEnvironment.Transform transform) {
+    public static ClientViewEnvironment capture(ServerLevel world, GeometryVector destinationEye, ClientViewEnvironment.Transform transform) {
         Vec3 eye = new Vec3(destinationEye.x(), destinationEye.y(), destinationEye.z());
         EnvironmentAttributeSystem attributes = world.environmentAttributes();
         DimensionType dimension = world.dimensionType();
