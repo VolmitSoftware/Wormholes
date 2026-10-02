@@ -1,7 +1,7 @@
 import { deflateSync, inflateSync } from 'node:zlib'
 
-export const CHANNEL = 'wormholes:v3'
-export const WIRE_VERSION = 3
+export const CHANNEL = 'wormholes:v4'
+export const WIRE_VERSION = 4
 export const S2C_HEADER_BYTES = 6
 export const FLAG_DEFLATED = 1
 export const FLAG_LAST = 2
@@ -918,11 +918,13 @@ export function readBody(reader, type, caps) {
     case 'MESH_SECTION': {
       const message = { type, portalKey: reader.varint(), generation: reader.u32(), sectionX: reader.i32(), sectionY: reader.i32(), sectionZ: reader.i32(), revision: reader.u32(), backingState: reader.varint(MAX_SESSION_PALETTE_SIZE - 1), brick: readBrick(reader) }
       if (message.brick.brickIndex !== 0) throw new ClientViewProtocolError('mesh section brick index must be zero')
-      const biomeCount = reader.u8()
-      if (biomeCount > 64) throw new ClientViewProtocolError('section biome palette exceeds 64 entries')
+      const biomeCount = reader.u16()
+      if (biomeCount > 512) throw new ClientViewProtocolError('section biome palette exceeds 512 entries')
       const palette = Array.from({ length: biomeCount }, () => reader.string())
-      const indices = biomeCount > 1 ? reader.bytes(64) : Buffer.alloc(0)
-      if ([...indices].some(index => index >= biomeCount)) throw new ClientViewProtocolError('biome index exceeds palette')
+      const indices = biomeCount > 1 ? reader.bytes(1024) : Buffer.alloc(0)
+      for (let offset = 0; offset < indices.length; offset += 2) {
+        if (indices.readUInt16LE(offset) >= biomeCount) throw new ClientViewProtocolError('biome index exceeds palette')
+      }
       message.biomes = { palette, indices }
       return message
     }
@@ -1100,7 +1102,13 @@ export function writeBody(writer, message) {
         writer.varint(message.backingState)
         writeBrick(writer, message.brick)
         const biomes = message.biomes ?? { palette: [], indices: Buffer.alloc(0) }
-        writer.u8(biomes.palette.length)
+        if (biomes.palette.length > 512 || biomes.indices.length !== (biomes.palette.length > 1 ? 1024 : 0)) {
+          throw new ClientViewProtocolError('invalid section biome palette or indices')
+        }
+        for (let offset = 0; offset < biomes.indices.length; offset += 2) {
+          if (biomes.indices.readUInt16LE(offset) >= biomes.palette.length) throw new ClientViewProtocolError('biome index exceeds palette')
+        }
+        writer.u16(biomes.palette.length)
         for (const biome of biomes.palette) writer.string(biome)
         writer.bytes(biomes.indices)
       }

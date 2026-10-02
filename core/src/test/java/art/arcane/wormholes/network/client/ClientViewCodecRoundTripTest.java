@@ -24,8 +24,32 @@ final class ClientViewCodecRoundTripTest {
         assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(badBudget, ClientViewCapability.ALL));
         ClientViewMessage.MeshSection section = new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, Brick.empty(0), SectionBiomes.NONE);
         byte[] badIndex = ClientViewCodec.encodeS2C(section, 0, 0);
-        badIndex[badIndex.length - 5] = 1;
+        badIndex[badIndex.length - 6] = 1;
         assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(badIndex, ClientViewCapability.ALL));
+    }
+
+    @Test
+    void biomeHaloUsesUnsignedShortPaletteAndIndicesAndRejectsOutOfRangeValues() throws ClientViewProtocolException {
+        ClientViewMessage.MeshSection section = new ClientViewMessage.MeshSection(7, 12, -32, 4, -10, 1, 3,
+            Brick.empty(0), ClientViewFixtures.biomeHalo());
+        byte[] encoded = ClientViewCodec.encodeS2C(section, 15, 0);
+        ClientViewMessage.MeshSection decoded = (ClientViewMessage.MeshSection)
+            ClientViewCodec.decodeS2C(encoded, ClientViewCapability.ALL).message();
+        assertEquals(512, decoded.biomes().palette().size());
+        assertEquals("test:biome_256", decoded.biomes().biome(256));
+        assertEquals("test:biome_511", decoded.biomes().biome(511));
+        assertEquals(255, Byte.toUnsignedInt(encoded[encoded.length - 2]));
+        assertEquals(1, Byte.toUnsignedInt(encoded[encoded.length - 1]));
+        byte[] invalidIndex = encoded.clone();
+        invalidIndex[invalidIndex.length - 1] = 2;
+        assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(invalidIndex, ClientViewCapability.ALL));
+        byte[] truncated = Arrays.copyOf(encoded, encoded.length - 1);
+        assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(truncated, ClientViewCapability.ALL));
+        ClientViewMessage.MeshSection empty = new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, Brick.empty(0), SectionBiomes.NONE);
+        byte[] invalidPalette = ClientViewCodec.encodeS2C(empty, 0, 0);
+        invalidPalette[invalidPalette.length - 2] = 1;
+        invalidPalette[invalidPalette.length - 1] = 2;
+        assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(invalidPalette, ClientViewCapability.ALL));
     }
 
     @Test

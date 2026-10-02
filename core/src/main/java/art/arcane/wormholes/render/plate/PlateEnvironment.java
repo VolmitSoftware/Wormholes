@@ -31,10 +31,11 @@ public final class PlateEnvironment implements BrickLightSource {
         }
         double[] remote = new double[3];
         ArrayList<String> palette = new ArrayList<String>();
-        byte[] indices = new byte[64];
-        for (int cell = 0; cell < 64; cell++) {
-            transform.apply(box.minX() + (cell & 3) * 4 + 2.0D, box.minY() + (cell >> 4) * 4 + 2.0D,
-                box.minZ() + (cell >> 2 & 3) * 4 + 2.0D, remote);
+        byte[] indices = new byte[SectionBiomes.INDEX_BYTES];
+        for (int cell = 0; cell < SectionBiomes.CELLS; cell++) {
+            transform.apply(box.minX() + (cell % SectionBiomes.WIDTH) * 4 - SectionBiomes.PADDING + 2.0D,
+                box.minY() + (cell / (SectionBiomes.WIDTH * SectionBiomes.WIDTH)) * 4 - SectionBiomes.PADDING + 2.0D,
+                box.minZ() + (cell / SectionBiomes.WIDTH % SectionBiomes.WIDTH) * 4 - SectionBiomes.PADDING + 2.0D, remote);
             String biome = view.sampleBiome((int) Math.floor(remote[0]), (int) Math.floor(remote[1]), (int) Math.floor(remote[2]));
             if (biome == null) {
                 return null;
@@ -44,7 +45,8 @@ public final class PlateEnvironment implements BrickLightSource {
                 index = palette.size();
                 palette.add(biome);
             }
-            indices[cell] = (byte) index;
+            indices[cell * 2] = (byte) index;
+            indices[cell * 2 + 1] = (byte) (index >>> 8);
         }
         byte[] block = new byte[2048];
         byte[] sky = new byte[2048];

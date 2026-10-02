@@ -200,7 +200,7 @@ public final class ClientViewCodec {
                 out.i32(m.revision());
                 out.varint(m.backingState());
                 BrickCodec.write(out, m.brick());
-                out.u8(m.biomes().palette().size());
+                out.u16(m.biomes().palette().size());
                 for (String biome : m.biomes().palette()) {
                     out.string(biome);
                 }
@@ -740,16 +740,16 @@ public final class ClientViewCodec {
     }
 
     private static SectionBiomes readSectionBiomes(ClientViewReader in) throws ClientViewProtocolException {
-        int count = in.u8();
+        int count = in.u16();
         if (count > SectionBiomes.CELLS) {
-            throw new ClientViewProtocolException("section biome palette exceeds 64 entries");
+            throw new ClientViewProtocolException("section biome palette exceeds " + SectionBiomes.CELLS + " entries");
         }
         List<String> palette = new ArrayList<String>(count);
         for (int i = 0; i < count; i++) {
             palette.add(in.string());
         }
         try {
-            return new SectionBiomes(palette, in.bytes(count > 1 ? SectionBiomes.CELLS : 0));
+            return new SectionBiomes(palette, in.bytes(count > 1 ? SectionBiomes.INDEX_BYTES : 0));
         } catch (IllegalArgumentException invalid) {
             throw new ClientViewProtocolException("invalid section biomes", invalid);
         }

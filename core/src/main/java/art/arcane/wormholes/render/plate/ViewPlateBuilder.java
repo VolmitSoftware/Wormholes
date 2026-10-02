@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render.plate;
 
 import java.util.Objects;
+import art.arcane.wormholes.network.client.SectionBiomes;
 import art.arcane.wormholes.portal.PortalCellAperture;
 import art.arcane.wormholes.render.ProjectionBlockTypes;
 import art.arcane.wormholes.render.DirectionMapping;
@@ -151,7 +152,7 @@ public final class ViewPlateBuilder {
 
     public static <B, M, V extends ProjectionContentView<B, M>> PlateBox sectionDestinationBox(Request<B, M, V> request, PlateBox clip) {
         requireSection(clip);
-        return new Geometry(request, clip).remoteBox(clip, 0);
+        return new Geometry(request, clip).remoteBox(clip, SectionBiomes.PADDING);
     }
 
     private static void requireSection(PlateBox clip) {
@@ -541,6 +542,11 @@ public final class ViewPlateBuilder {
         private void finish() {
             done = true;
             UUID worldId = view.worldId();
+            if (section != null) {
+                PlateBox metadata = geometry.remoteBox(section, SectionBiomes.PADDING);
+                noteChunk(metadata.minX() >> 4, metadata.minZ() >> 4);
+                noteChunk((metadata.minX() + metadata.sizeX() - 1) >> 4, (metadata.minZ() + metadata.sizeZ() - 1) >> 4);
+            }
             boolean sampled = minChunkX != Integer.MAX_VALUE;
             PlateGrid<B> built = grid.finish();
             result = new ViewPlate<B>(request.key(), built, request.destinationRevision(), request.transformRevision(),

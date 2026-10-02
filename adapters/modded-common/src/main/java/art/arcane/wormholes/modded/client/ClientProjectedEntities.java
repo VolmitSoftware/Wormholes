@@ -7,6 +7,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -49,7 +50,7 @@ public final class ClientProjectedEntities {
             }
             EntityVisual merged = EntityDeltaCodec.applyDelta(incoming, tracked == null ? null : tracked.visual);
             if (tracked == null) {
-                tracked = new Tracked(merged);
+                tracked = new Tracked(frame.portalKey(), merged);
                 state.tracked.put(merged.id(), tracked);
             } else {
                 tracked.update(merged);
@@ -192,7 +193,7 @@ public final class ClientProjectedEntities {
     private void spawn(Tracked tracked) {
         int id = nextId;
         nextId = ClientEntityIds.nextProjected(id);
-        if (!world.spawn(id, tracked.visual)) {
+        if (!world.spawn(id, tracked.projectionId, tracked.visual)) {
             spawnFailures++;
             return;
         }
@@ -244,13 +245,16 @@ public final class ClientProjectedEntities {
     }
 
     private static final class Tracked {
+        private final UUID projectionId;
         private EntityVisual visual;
         private EntityVisual synced;
         private byte[] syncedMetadata;
         private byte[] syncedEquipment;
         private int entityId;
 
-        private Tracked(EntityVisual visual) {
+        private Tracked(int portalKey, EntityVisual visual) {
+            this.projectionId = UUID.nameUUIDFromBytes(("wormholes:projection:" + portalKey + ":" + visual.id())
+                .getBytes(StandardCharsets.UTF_8));
             this.visual = visual;
         }
 

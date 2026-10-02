@@ -5,6 +5,8 @@ import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.plate.PlateCaptureJob;
+import art.arcane.wormholes.render.plate.ViewPlateBuilder;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -49,6 +51,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -71,6 +74,9 @@ public class MinecraftPlateCaptureSourceTest {
         Holder.Reference<Biome> biome = mock(Holder.Reference.class);
         when(biome.unwrapKey()).thenReturn(Optional.of(Biomes.PLAINS));
         when(section.getNoiseBiome(anyInt(), anyInt(), anyInt())).thenReturn(biome);
+        Holder.Reference<Biome> topBiome = mock(Holder.Reference.class);
+        when(topBiome.unwrapKey()).thenReturn(Optional.of(Biomes.DESERT));
+        when(section.getNoiseBiome(anyInt(), eq(3), anyInt())).thenReturn(topBiome);
         when(section.hasOnlyAir()).thenReturn(true);
         when(fixture.chunk().getMinSectionY()).thenReturn(0);
         when(fixture.chunk().getSectionsCount()).thenReturn(1);
@@ -91,7 +97,7 @@ public class MinecraftPlateCaptureSourceTest {
         when(dimension.hasSkyLight()).thenReturn(true);
         when(fixture.level().dimensionType()).thenReturn(dimension);
         MinecraftPlateCaptureSource source = new MinecraftPlateCaptureSource(fixture.runtime(),
-            new MinecraftPlateCaptureSource.Options(fixture.worldId(), false, 0, 31, true));
+            new MinecraftPlateCaptureSource.Options(fixture.worldId(), false, -8, 31, true));
         MinecraftPlateCaptureSource.CapturedChunk captured = source.capture(fixture.level(), 0, 0);
         when(fixture.level().getChunkSource().getChunkNow(0, 0)).thenReturn(null);
         blockLayer.set(1, 2, 3, 0);
@@ -99,6 +105,13 @@ public class MinecraftPlateCaptureSourceTest {
         assertEquals("minecraft:plains", captured.biomes()[0][0]);
         assertEquals(ProjectionContentView.packLight(13, 4), captured.light().light(1, 2, 3));
         assertEquals(ProjectionContentView.packLight(15, 0), captured.light().light(1, 25, 3));
+        Long2ObjectOpenHashMap<MinecraftPlateCaptureSource.CapturedChunk> chunks = new Long2ObjectOpenHashMap<>();
+        chunks.put(0L, captured);
+        MinecraftCapturedChunkView view = new MinecraftCapturedChunkView(fixture.worldId(), 0, 16, 1,
+            new PlateCaptureJob.Captured<>(new ViewPlateBuilder.Footprint(0, 0, 0, 0, 0), chunks));
+        assertEquals("minecraft:plains", view.sampleBiome(1, -8, 3));
+        assertEquals("minecraft:desert", view.sampleBiome(1, 23, 3));
+        verify(fixture.runtime()).requireServerThread();
     }
 
     @Test

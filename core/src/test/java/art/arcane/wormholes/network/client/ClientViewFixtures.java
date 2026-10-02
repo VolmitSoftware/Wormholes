@@ -55,10 +55,23 @@ final class ClientViewFixtures {
         out.add(new Vector("plate_refused", new ClientViewMessage.PlateRefused(7, 3), ClientViewCapability.NONE, 0, 0));
         out.add(new Vector("mesh_begin", new ClientViewMessage.MeshBegin(7, 12, new PlateBox(-512, -64, -512, 1024, 512, 512), 1024), ClientViewCapability.ALL, 14, 0));
         out.add(new Vector("mesh_section", new ClientViewMessage.MeshSection(7, 12, -32, 4, -10, 1, 3, litBrick(0), new SectionBiomes(List.of("minecraft:plains"), new byte[0])), ClientViewCapability.ALL, 15, 0));
+        out.add(new Vector("mesh_section_biomes", new ClientViewMessage.MeshSection(7, 12, -32, 4, -10, 1, 3,
+            Brick.empty(0), biomeHalo()), ClientViewCapability.ALL, 15, 0));
         out.add(new Vector("mesh_drop", new ClientViewMessage.MeshDrop(7, 12, -32, 4, -10), ClientViewCapability.ALL, 16, 0));
         out.add(new Vector("mesh_ack", new ClientViewMessage.MeshAck(7, 12, -32, 4, -10, 1), ClientViewCapability.NONE, 0, 0));
         out.add(new Vector("environment", new ClientViewMessage.Environment(7, environment()), ClientViewCapability.ALL, 17, 0));
         return out;
+    }
+
+    static SectionBiomes biomeHalo() {
+        List<String> palette = new ArrayList<>(SectionBiomes.CELLS);
+        byte[] indices = new byte[SectionBiomes.INDEX_BYTES];
+        for (int cell = 0; cell < SectionBiomes.CELLS; cell++) {
+            palette.add("test:biome_" + cell);
+            indices[cell * 2] = (byte) cell;
+            indices[cell * 2 + 1] = (byte) (cell >>> 8);
+        }
+        return new SectionBiomes(palette, indices);
     }
 
     static ClientViewEnvironment environment() {

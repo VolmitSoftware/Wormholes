@@ -4,9 +4,9 @@ import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 
 public final class ClientViewProtocol {
     public static final String CHANNEL_NAMESPACE = "wormholes";
-    public static final String CHANNEL_PATH = "v3";
+    public static final String CHANNEL_PATH = "v4";
     public static final String CHANNEL = CHANNEL_NAMESPACE + ":" + CHANNEL_PATH;
-    public static final int WIRE_VERSION = 3;
+    public static final int WIRE_VERSION = 4;
 
     public static final int S2C_HEADER_BYTES = 6;
     public static final int C2S_HEADER_BYTES = 1;

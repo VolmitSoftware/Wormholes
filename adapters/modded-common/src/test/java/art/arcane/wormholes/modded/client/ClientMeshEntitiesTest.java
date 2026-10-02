@@ -240,7 +240,7 @@ public class ClientMeshEntitiesTest {
     @Test
     public void meshEntitiesSpawnWithoutVoxelSweepsAndLoseTheirHiddenOwnershipOnDrop() {
         ClientSceneWorld world = mock(ClientSceneWorld.class);
-        when(world.spawn(anyInt(), any())).thenReturn(true);
+        when(world.spawn(anyInt(), any(), any())).thenReturn(true);
         ClientProjectedEntities entities = new ClientProjectedEntities(world);
         UUID id = UUID.randomUUID();
         EntityVisual stand = EntityVisual.full(id, "minecraft:armor_stand", -20.5D, 64.0D, -40.5D, 1.975D,

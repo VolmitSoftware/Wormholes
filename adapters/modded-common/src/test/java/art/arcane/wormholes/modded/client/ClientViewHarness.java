@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -287,6 +288,7 @@ final class ClientViewHarness {
     }
 
     static final class FakeScene implements ClientSceneWorld {
+        final Map<Integer, UUID> identities = new HashMap<>();
         final Map<Integer, EntityVisual> entities = new HashMap<>();
         final Map<Integer, byte[]> metadata = new HashMap<>();
         final List<String> events = new ArrayList<>();
@@ -300,7 +302,11 @@ final class ClientViewHarness {
         boolean failGameTime;
 
         @Override
-        public boolean spawn(int entityId, EntityVisual visual) {
+        public boolean spawn(int entityId, UUID projectionId, EntityVisual visual) {
+            if (identities.containsValue(projectionId)) {
+                return false;
+            }
+            identities.put(entityId, projectionId);
             entities.put(entityId, visual);
             events.add("spawn " + entityId);
             return true;
@@ -327,6 +333,7 @@ final class ClientViewHarness {
 
         @Override
         public void remove(int entityId, EntityVisual visual) {
+            identities.remove(entityId);
             entities.remove(entityId);
             events.add("remove " + entityId);
         }

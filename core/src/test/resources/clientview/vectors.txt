@@ -23,6 +23,7 @@ view_stats C2S 0 0 0
 plate_refused C2S 0 0 0
 mesh_begin S2C 1fff 14 0
 mesh_section S2C 1fff 15 0
+mesh_section_biomes S2C 1fff 15 0
 mesh_drop S2C 1fff 16 0
 mesh_ack C2S 0 0 0
 environment S2C 1fff 17 0

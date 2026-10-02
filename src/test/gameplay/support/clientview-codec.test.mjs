@@ -99,7 +99,7 @@ describe('ClientView golden vectors', () => {
     for (const entry of manifest()) {
       if (entry.direction === 'S2C') {
         const frame = decodeS2C(entry.bytes, entry.caps)
-        assert.equal(frame.type, entry.name.startsWith('plate_begin') ? 'PLATE_BEGIN' : entry.name.startsWith('portal_nested') ? 'PORTAL' : entry.name.startsWith('entity_frame') ? 'ENTITY_FRAME' : entry.name.toUpperCase(), entry.name)
+        assert.equal(frame.type, entry.name.startsWith('plate_begin') ? 'PLATE_BEGIN' : entry.name.startsWith('portal_nested') ? 'PORTAL' : entry.name.startsWith('entity_frame') ? 'ENTITY_FRAME' : entry.name.startsWith('mesh_section') ? 'MESH_SECTION' : entry.name.toUpperCase(), entry.name)
         assert.equal(frame.seq, entry.seq, `${entry.name} seq`)
         assert.equal(frame.flags, entry.flags, `${entry.name} flags`)
         assert.equal(frame.last, (entry.flags & FLAG_LAST) !== 0, `${entry.name} last`)
@@ -113,10 +113,30 @@ describe('ClientView golden vectors', () => {
     }
   })
 
+  it('preserves all 512 biome halo samples and rejects malformed unsigned indices', () => {
+    const entry = vector('mesh_section_biomes')
+    const message = decodeVector(entry)
+    assert.equal(message.biomes.palette.length, 512)
+    assert.equal(message.biomes.indices.length, 1024)
+    for (let cell = 0; cell < 512; cell++) {
+      assert.equal(message.biomes.indices.readUInt16LE(cell * 2), cell)
+      assert.equal(message.biomes.palette[cell], `test:biome_${cell}`)
+    }
+    const invalid = Buffer.from(entry.bytes)
+    invalid.writeUInt16LE(512, invalid.length - 2)
+    assert.throws(() => decodeS2C(invalid, ALL_CAPS), ClientViewProtocolError)
+    assert.throws(() => decodeS2C(entry.bytes.subarray(0, entry.bytes.length - 1), ALL_CAPS), ClientViewProtocolError)
+    const empty = decodeVector(vector('mesh_section'))
+    empty.biomes = { palette: [], indices: Buffer.alloc(0) }
+    const badCount = encodeS2C(empty, 0, 0)
+    badCount.writeUInt16LE(513, badCount.length - 2)
+    assert.throws(() => decodeS2C(badCount, ALL_CAPS), ClientViewProtocolError)
+  })
+
   it('decodes the handshake fields', () => {
     const offer = decodeVector(vector('offer'))
-    assert.deepEqual(offer, { type: 'OFFER', wire: 3, mcDataVersion: 4325, serverCaps: ALL_CAPS, maxFrameBytes: 524288, zeroCopyNonce: 0x1122334455667788n })
-    assert.deepEqual(decodeVector(vector('hello')), { type: 'HELLO', wire: 3, mcDataVersion: 4325, clientCaps: HELLO_CAPS, maxFrameBytes: 524288, plateMemoryMb: 256, zeroCopyNonceEcho: 0x1122334455667788n, brandTag: 'fabric' })
+    assert.deepEqual(offer, { type: 'OFFER', wire: 4, mcDataVersion: 4325, serverCaps: ALL_CAPS, maxFrameBytes: 524288, zeroCopyNonce: 0x1122334455667788n })
+    assert.deepEqual(decodeVector(vector('hello')), { type: 'HELLO', wire: 4, mcDataVersion: 4325, clientCaps: HELLO_CAPS, maxFrameBytes: 524288, plateMemoryMb: 256, zeroCopyNonceEcho: 0x1122334455667788n, brandTag: 'fabric' })
     assert.deepEqual(decodeVector(vector('accept')), { type: 'ACCEPT', sessionId: 42, caps: HELLO_CAPS, tickRate: 20, maxFrameBytes: 524288, hashSalt: 0x0f1e2d3c4b5a6978n, ackWindowFrames: 8 })
     assert.deepEqual(decodeVector(vector('decline')), { type: 'DECLINE', reason: 'DATA_VERSION_MISMATCH' })
     assert.deepEqual(capabilityNames(HELLO_CAPS), ['PLATES', 'BRICK_CACHE', 'DEST_LIGHT', 'ENTITY_FRAMES', 'VIEW_STATS'])

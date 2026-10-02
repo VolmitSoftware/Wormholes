@@ -27,6 +27,8 @@ import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.DoublePlantBlock;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -37,6 +39,7 @@ import java.util.Optional;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyDouble;
 
 public class ClientMeshWorldTest {
     @BeforeClass
@@ -126,8 +129,8 @@ public class ClientMeshWorldTest {
     @Test
     public void quartBiomesAndTintCoordinatesFollowNegativeDestinationCoordinates() throws Exception {
         ClientMeshSections store = store();
-        byte[] indices = new byte[64];
-        indices[63] = 1;
+        byte[] indices = new byte[SectionBiomes.INDEX_BYTES];
+        indices[SectionBiomes.cell(15, 15, 15) * 2] = 1;
         store.put(new ClientViewMessage.MeshSection(7, 1, -1, -1, -1, 1, 3, Brick.single(0, 3),
             new SectionBiomes(List.of("minecraft:plains", "minecraft:desert"), indices)));
         ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.S,
@@ -145,8 +148,14 @@ public class ClientMeshWorldTest {
     @Test
     public void rotatedBiomeBlendAndFaceShadeUseDestinationAxes() throws Exception {
         ClientMeshSections store = store();
-        byte[] indices = new byte[64];
-        Arrays.fill(indices, 16, 64, (byte) 1);
+        byte[] indices = new byte[SectionBiomes.INDEX_BYTES];
+        for (int y = 4; y < 24; y += 4) {
+            for (int z = -8; z < 24; z += 4) {
+                for (int x = -8; x < 24; x += 4) {
+                    indices[SectionBiomes.cell(x, y, z) * 2] = 1;
+                }
+            }
+        }
         store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3),
             new SectionBiomes(List.of("minecraft:plains", "minecraft:desert"), indices)));
         ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.U, Direction.E, Direction.S,
@@ -156,6 +165,42 @@ public class ClientMeshWorldTest {
         assertEquals(0xFF555555, snapshot.getBlockTint(new BlockPos(8, 3, 8), resolver));
         assertEquals(CardinalLighting.DEFAULT.up(), snapshot.cardinalLighting().east(), 0);
         assertEquals(CardinalLighting.DEFAULT.west(), snapshot.cardinalLighting().down(), 0);
+    }
+
+    @Test
+    public void upperPlantsAtSectionEdgesUseCapturedDestinationHaloWithoutNeighborSections() throws Exception {
+        byte[] indices = new byte[SectionBiomes.INDEX_BYTES];
+        for (int y = -8; y < 24; y += 4) {
+            for (int z = -8; z < 24; z += 4) {
+                for (int x = -8; x < 24; x += 4) {
+                    if (x < 0 || x >= 16 || y < 0 || y >= 16 || z < 0 || z >= 16) {
+                        indices[SectionBiomes.cell(x, y, z) * 2] = 1;
+                    }
+                }
+            }
+        }
+        ClientMeshSections store = store();
+        store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3, Brick.single(0, 3),
+            new SectionBiomes(List.of("minecraft:plains", "minecraft:desert"), indices)));
+        BlockColors colors = BlockColors.createDefault();
+        for (Direction[] axes : new Direction[][] {{Direction.E, Direction.U, Direction.S},
+            {Direction.U, Direction.W, Direction.S}, {Direction.D, Direction.E, Direction.S},
+            {Direction.W, Direction.D, Direction.S}, {Direction.E, Direction.N, Direction.U}}) {
+            ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(axes[0], axes[1], axes[2],
+                new GeometryVector(-100.5, 63.5, -200.5));
+            ClientMeshWorld snapshot = snapshot(store, 0L, transform, 7);
+            int x = axes[1].x() < 0 ? 15 : 0;
+            int y = axes[1].y() < 0 ? 15 : 0;
+            int z = axes[1].z() < 0 ? 15 : 0;
+            BlockPos.MutableBlockPos nativePosition = new BlockPos.MutableBlockPos();
+            snapshot.destinationBlock(x, y, z, nativePosition);
+            assertEquals(Blocks.AIR.defaultBlockState(), snapshot.destination().getBlockState(nativePosition.below()));
+            for (BlockState plant : List.of(Blocks.TALL_GRASS.defaultBlockState(), Blocks.LARGE_FERN.defaultBlockState())) {
+                BlockState upper = plant.setValue(DoublePlantBlock.HALF, DoubleBlockHalf.UPPER);
+                int tint = colors.getTintSource(upper, 0).colorInWorld(upper, snapshot.destination(), nativePosition);
+                assertEquals(0xFF445566, tint);
+            }
+        }
     }
 
     @Test
@@ -188,7 +233,9 @@ public class ClientMeshWorldTest {
         Biome desert = mock(Biome.class);
         when(plains.getWaterColor()).thenReturn(0x112233);
         when(plains.getFoliageColor()).thenReturn(0xFF228844);
+        when(plains.getGrassColor(anyDouble(), anyDouble())).thenReturn(0x112233);
         when(desert.getWaterColor()).thenReturn(0x445566);
+        when(desert.getGrassColor(anyDouble(), anyDouble())).thenReturn(0x445566);
         when(registry.getOptional(Identifier.parse("minecraft:plains"))).thenReturn(Optional.of(plains));
         when(registry.getOptional(Identifier.parse("minecraft:desert"))).thenReturn(Optional.of(desert));
         return new ClientMeshWorld(new ClientMeshWorld.Snapshot(store.view(7), center, registry,

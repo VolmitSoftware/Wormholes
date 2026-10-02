@@ -86,7 +86,7 @@ public class ClientViewFailureTest {
     public void aSenderThatThrowsKeepsNativeSelectionUnavailableForRecovery() throws ClientViewProtocolException {
         ClientViewHarness harness = new ClientViewHarness(ClientViewCapability.ALL);
         harness.tick.sender(message -> {
-            throw new UnsupportedOperationException("Payload wormholes:v3 may not be sent to the server!");
+            throw new UnsupportedOperationException("Payload wormholes:v4 may not be sent to the server!");
         });
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -134,7 +134,7 @@ public class ClientViewFailureTest {
         byte[] offer = ClientViewCodec.encodeS2C(offer(), 1, ClientViewProtocol.FLAG_LAST);
 
         harness.receiver.receive(offer, bytes -> {
-            throw new UnsupportedOperationException("Payload wormholes:v3 may not be sent to the server!");
+            throw new UnsupportedOperationException("Payload wormholes:v4 may not be sent to the server!");
         });
 
         assertEquals(ClientViewSession.State.NATIVE_RECOVERING, harness.session.state());

@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 public final class ClientLevelScene implements ClientSceneWorld {
@@ -56,6 +57,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
     private final MinecraftPacketBlobs blobs;
     private final RandomSource random;
     private final Int2ObjectOpenHashMap<ClientItemMotion> itemMotion = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<UUID> playerProfiles = new Int2ObjectOpenHashMap<>();
     private long failures;
 
     public ClientLevelScene(ClientLevel level, Supplier<ClientPacketListener> listener) {
@@ -66,7 +68,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
     }
 
     @Override
-    public boolean spawn(int entityId, EntityVisual visual) {
+    public boolean spawn(int entityId, UUID projectionId, EntityVisual visual) {
         ClientPacketListener connection = listener.get();
         EntityType<?> type = type(visual.typeKey());
         if (connection == null || type == null) {
@@ -74,17 +76,21 @@ public final class ClientLevelScene implements ClientSceneWorld {
         }
         try {
             if (type == EntityTypes.PLAYER) {
-                playerInfo(visual).handle(connection);
+                playerInfo(projectionId, visual).handle(connection);
+                playerProfiles.put(entityId, projectionId);
             }
             Vec3 velocity = new Vec3(visual.velocityX(), visual.velocityY(), visual.velocityZ());
             int data = hanging(type) ? Direction.getApproximateNearest(visual.lookX(), visual.lookY(), visual.lookZ()).get3DDataValue() : 0;
-            new ClientboundAddEntityPacket(entityId, visual.id(), visual.x(), visual.y(), visual.z(), visual.pitch(), visual.yaw(), type, data,
+            new ClientboundAddEntityPacket(entityId, projectionId, visual.x(), visual.y(), visual.z(), visual.pitch(), visual.yaw(), type, data,
                 velocity, headYaw(visual)).handle(connection);
-            return level.getEntity(entityId) != null;
+            if (level.getEntity(entityId) != null) {
+                return true;
+            }
         } catch (RuntimeException failure) {
             failures++;
-            return false;
         }
+        removePlayerInfo(entityId, connection);
+        return false;
     }
 
     @Override
@@ -180,10 +186,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
         if (level.getEntity(entityId) != null) {
             level.removeEntity(entityId, Entity.RemovalReason.DISCARDED);
         }
-        ClientPacketListener connection = listener.get();
-        if (connection != null && visual.isPlayer()) {
-            new ClientboundPlayerInfoRemovePacket(List.of(visual.id())).handle(connection);
-        }
+        removePlayerInfo(entityId, listener.get());
     }
 
     @Override
@@ -280,14 +283,21 @@ public final class ClientLevelScene implements ClientSceneWorld {
         return level.dimensionType().defaultClock();
     }
 
-    private ClientboundPlayerInfoUpdatePacket playerInfo(EntityVisual visual) {
+    private void removePlayerInfo(int entityId, ClientPacketListener connection) {
+        UUID projectionId = playerProfiles.remove(entityId);
+        if (connection != null && projectionId != null) {
+            new ClientboundPlayerInfoRemovePacket(List.of(projectionId)).handle(connection);
+        }
+    }
+
+    private ClientboundPlayerInfoUpdatePacket playerInfo(UUID projectionId, EntityVisual visual) {
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), level.registryAccess());
         try {
             buffer.writeEnumSet(EnumSet.of(ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER, ClientboundPlayerInfoUpdatePacket.Action.UPDATE_GAME_MODE,
                 ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LISTED, ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LATENCY,
                 ClientboundPlayerInfoUpdatePacket.Action.UPDATE_HAT), ClientboundPlayerInfoUpdatePacket.Action.class);
             buffer.writeVarInt(1);
-            buffer.writeUUID(visual.id());
+            buffer.writeUUID(projectionId);
             buffer.writeUtf(ProjectedPlayerNames.playerLabelText(visual.playerName()), 16);
             boolean texture = visual.textureValue() != null && !visual.textureValue().isEmpty();
             buffer.writeVarInt(texture ? 1 : 0);

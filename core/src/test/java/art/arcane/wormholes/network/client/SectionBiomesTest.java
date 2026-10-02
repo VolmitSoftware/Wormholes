@@ -1,6 +1,5 @@
 package art.arcane.wormholes.network.client;
 
-import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,7 +25,7 @@ final class SectionBiomesTest {
             keys.add(prefix + "a".repeat(256 - prefix.length()));
         }
         ClientViewMessage.MeshSection section = new ClientViewMessage.MeshSection(1, 2, 0, 0, 0, 3, 3, brick,
-            new SectionBiomes(keys, new byte[64]));
+            new SectionBiomes(keys, new byte[SectionBiomes.INDEX_BYTES]));
         assertTrue(ClientViewCodec.encodeBody(section).length > ClientViewProtocol.MIN_MAX_FRAME_BYTES);
         FrameSplitter splitter = new FrameSplitter(ClientViewProtocol.MIN_MAX_FRAME_BYTES, false);
         ClientViewProtocolException error = assertThrows(ClientViewProtocolException.class, () -> splitter.split(List.of(section), () -> 0));
@@ -35,13 +34,15 @@ final class SectionBiomesTest {
 
     @Test
     void quartPaletteRoundTripsAndOwnsItsIndices() throws ClientViewProtocolException {
-        byte[] indices = new byte[64];
-        Arrays.fill(indices, 32, 64, (byte) 1);
+        byte[] indices = new byte[SectionBiomes.INDEX_BYTES];
+        for (int cell = SectionBiomes.CELLS / 2; cell < SectionBiomes.CELLS; cell++) {
+            indices[cell * 2] = 1;
+        }
         SectionBiomes biomes = new SectionBiomes(List.of("minecraft:plains", "minecraft:swamp"), indices);
         indices[0] = 1;
         biomes.indices()[0] = 1;
         assertEquals("minecraft:plains", biomes.biome(0));
-        assertEquals("minecraft:swamp", biomes.biome(63));
+        assertEquals("minecraft:swamp", biomes.biome(SectionBiomes.CELLS - 1));
         ClientViewMessage.MeshSection section = new ClientViewMessage.MeshSection(1, 2, -1, 4, 0, 3, 0, Brick.empty(0), biomes);
         assertEquals(section, ClientViewCodec.decodeS2C(ClientViewCodec.encodeS2C(section, 1, 0), ClientViewCapability.ALL).message());
     }
@@ -54,12 +55,31 @@ final class SectionBiomesTest {
 
     @Test
     void malformedIndicesAndOversizedPalettesAreRejected() throws ClientViewProtocolException {
-        byte[] indices = new byte[64];
+        byte[] indices = new byte[SectionBiomes.INDEX_BYTES];
         indices[4] = 2;
         assertThrows(IllegalArgumentException.class, () -> new SectionBiomes(List.of("a:b", "c:d"), indices));
         ClientViewMessage.MeshSection section = new ClientViewMessage.MeshSection(1, 2, 0, 0, 0, 3, 0, Brick.empty(0), SectionBiomes.NONE);
         byte[] encoded = ClientViewCodec.encodeS2C(section, 1, 0);
-        encoded[encoded.length - 1] = 65;
+        encoded[encoded.length - 2] = (byte) 0xFF;
+        encoded[encoded.length - 1] = (byte) 0xFF;
         assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(encoded, ClientViewCapability.ALL));
+    }
+
+    @Test
+    void haloSupportsEveryDistinctQuartBiomeAndUnsignedShortIndices() throws ClientViewProtocolException {
+        ArrayList<String> palette = new ArrayList<String>(SectionBiomes.CELLS);
+        byte[] indices = new byte[SectionBiomes.INDEX_BYTES];
+        for (int cell = 0; cell < SectionBiomes.CELLS; cell++) {
+            palette.add("test:biome_" + cell);
+            indices[cell * 2] = (byte) cell;
+            indices[cell * 2 + 1] = (byte) (cell >>> 8);
+        }
+        SectionBiomes biomes = new SectionBiomes(palette, indices);
+        assertEquals("test:biome_0", biomes.biome(SectionBiomes.cell(-8, -8, -8)));
+        assertEquals("test:biome_511", biomes.biome(SectionBiomes.cell(23, 23, 23)));
+        assertEquals(-1, SectionBiomes.cell(-9, 0, 0));
+        assertEquals(-1, SectionBiomes.cell(0, 24, 0));
+        ClientViewMessage.MeshSection section = new ClientViewMessage.MeshSection(1, 2, 0, 0, 0, 3, 0, Brick.empty(0), biomes);
+        assertEquals(section, ClientViewCodec.decodeS2C(ClientViewCodec.encodeS2C(section, 1, 0), ClientViewCapability.ALL).message());
     }
 }

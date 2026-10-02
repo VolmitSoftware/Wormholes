@@ -29,7 +29,10 @@ import java.util.Objects;
 
 public final class ClientMeshWorld implements BlockAndTintGetter {
     private final Long2ObjectOpenHashMap<ClientMeshSections.Section> sections = new Long2ObjectOpenHashMap<>(27);
-    private final Long2ObjectOpenHashMap<Biomes> biomes = new Long2ObjectOpenHashMap<>(27);
+    private final Biomes biomes;
+    private final int biomeX;
+    private final int biomeY;
+    private final int biomeZ;
     private final Map<ColorResolver, Long2IntOpenHashMap> colors = new IdentityHashMap<>();
     private final ClientViewEnvironment.Transform transform;
     private final ClientViewBlockTransform cells;
@@ -45,6 +48,9 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
         int sectionX = SectionPos.x(snapshot.center());
         int sectionY = SectionPos.y(snapshot.center());
         int sectionZ = SectionPos.z(snapshot.center());
+        biomeX = sectionX << 4;
+        biomeY = sectionY << 4;
+        biomeZ = sectionZ << 4;
         minY = snapshot.view().bounds().minY();
         height = snapshot.view().bounds().sizeY();
         transform = environment.transform();
@@ -64,16 +70,17 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
                         continue;
                     }
                     sections.put(key, section);
-                    SectionBiomes sourceBiomes = section.biomes();
-                    Biome[] palette = new Biome[sourceBiomes.palette().size()];
-                    for (int index = 0; index < palette.length; index++) {
-                        Identifier id = Identifier.parse(sourceBiomes.palette().get(index));
-                        palette[index] = snapshot.biomes().getOptional(id).orElseThrow(() -> new IllegalArgumentException("Unknown destination biome " + id));
-                    }
-                    biomes.put(key, new Biomes(palette, sourceBiomes.indices()));
                 }
             }
         }
+        ClientMeshSections.Section center = Objects.requireNonNull(sections.get(snapshot.center()), "Missing mesh section");
+        SectionBiomes sourceBiomes = center.biomes();
+        Biome[] palette = new Biome[sourceBiomes.palette().size()];
+        for (int index = 0; index < palette.length; index++) {
+            Identifier id = Identifier.parse(sourceBiomes.palette().get(index));
+            palette[index] = snapshot.biomes().getOptional(id).orElseThrow(() -> new IllegalArgumentException("Unknown destination biome " + id));
+        }
+        biomes = new Biomes(palette, sourceBiomes.indices());
     }
 
     public ClientViewEnvironment.Transform transform() {
@@ -166,7 +173,10 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
                 Biome biome = biome(position.getX() + x * transform.xAxis().x() + z * transform.zAxis().x(),
                     position.getY() + x * transform.xAxis().y() + z * transform.zAxis().y(),
                     position.getZ() + x * transform.xAxis().z() + z * transform.zAxis().z());
-                int color = resolver.getColor(biome == null ? center : biome, Math.floor(destination.x()) + x, Math.floor(destination.z()) + z);
+                if (biome == null) {
+                    throw new IllegalStateException("Destination biome blend exceeds captured halo at " + position);
+                }
+                int color = resolver.getColor(biome, Math.floor(destination.x()) + x, Math.floor(destination.z()) + z);
                 red += color >> 16 & 255;
                 green += color >> 8 & 255;
                 blue += color & 255;
@@ -177,12 +187,12 @@ public final class ClientMeshWorld implements BlockAndTintGetter {
     }
 
     private Biome biome(int x, int y, int z) {
-        Biomes section = biomes.get(SectionPos.asLong(x >> 4, y >> 4, z >> 4));
-        if (section == null || section.palette().length == 0) {
+        int cell = SectionBiomes.cell(x - biomeX, y - biomeY, z - biomeZ);
+        if (cell < 0 || biomes.palette().length == 0) {
             return null;
         }
-        int cell = ((y & 15) >> 2) << 4 | ((z & 15) >> 2) << 2 | ((x & 15) >> 2);
-        return section.palette()[section.indices().length == 0 ? 0 : Byte.toUnsignedInt(section.indices()[cell])];
+        return biomes.palette()[biomes.indices().length == 0 ? 0
+            : Byte.toUnsignedInt(biomes.indices()[cell * 2]) | Byte.toUnsignedInt(biomes.indices()[cell * 2 + 1]) << 8];
     }
 
     private float shade(CardinalLighting source, Direction direction) {

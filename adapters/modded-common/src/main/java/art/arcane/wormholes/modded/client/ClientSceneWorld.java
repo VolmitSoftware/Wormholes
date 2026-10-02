@@ -4,8 +4,10 @@ import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
 import art.arcane.wormholes.render.acoustics.AcousticsProfile;
 
+import java.util.UUID;
+
 public interface ClientSceneWorld {
-    boolean spawn(int entityId, EntityVisual visual);
+    boolean spawn(int entityId, UUID projectionId, EntityVisual visual);
 
     void move(int entityId, EntityVisual visual, EntityVisual previous);
 

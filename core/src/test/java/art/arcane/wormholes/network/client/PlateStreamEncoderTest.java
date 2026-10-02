@@ -90,7 +90,16 @@ final class PlateStreamEncoderTest {
         while (!job.step(128)) {
         }
         assertEquals(clip, job.result().box());
-        assertTrue(ViewPlateBuilder.sectionFootprint(request, clip).chunkCount() <= 4);
+        ViewPlateBuilder.Footprint footprint = ViewPlateBuilder.sectionFootprint(request, clip);
+        assertTrue(footprint.chunkCount() <= 9);
+        PlateBox metadata = ViewPlateBuilder.sectionDestinationBox(request, clip);
+        assertEquals(32, metadata.sizeX());
+        assertEquals(32, metadata.sizeY());
+        assertEquals(32, metadata.sizeZ());
+        assertEquals(footprint.minChunkX(), job.result().minChunkX());
+        assertEquals(footprint.minChunkZ(), job.result().minChunkZ());
+        assertEquals(footprint.maxChunkX(), job.result().maxChunkX());
+        assertEquals(footprint.maxChunkZ(), job.result().maxChunkZ());
         assertEquals(1, new PlateStreamEncoder<String>(new SessionPalette(), state -> state).encode(job.result(), null, false).brickCount());
         ProjectionContentView<String, String> capturedAir = mock(ProjectionContentView.class);
         when(capturedAir.isEmpty(any())).thenReturn(true);

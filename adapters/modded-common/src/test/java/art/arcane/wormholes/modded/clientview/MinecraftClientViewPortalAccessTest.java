@@ -251,7 +251,7 @@ public class MinecraftClientViewPortalAccessTest {
         assertEquals(1, fixture.scheduled().size());
         ViewPlateBuilder.Job<BlockState, ServerLevel> firstJob = fixture.scheduled().get(0);
         assertTrue(firstJob instanceof PlateCaptureJob<?, ?, ?>);
-        assertTrue(((PlateCaptureJob<?, ?, ?>) firstJob).pendingChunks() <= 4);
+        assertTrue(((PlateCaptureJob<?, ?, ?>) firstJob).pendingChunks() <= 9);
         assertTrue(firstJob.predictedBytes() < 32_768L);
         assertNull(portals.meshSection(fixture.peer(), fixture.source().getId(), first, 512));
         assertEquals(1, fixture.scheduled().size());
