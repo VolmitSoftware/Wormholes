@@ -112,6 +112,10 @@ public final class ViewPlate<B> {
         return dirtyChunks != null;
     }
 
+    public ChangeRegion changeRegion() {
+        return new ChangeRegion(destinationWorldId, trackerVersion, minChunkX, minChunkZ, maxChunkX, maxChunkZ);
+    }
+
     public LongSet dirtyChunks() {
         LongOpenHashSet dirty = dirtyChunks;
         return dirty == null ? LongSets.EMPTY_SET : LongSets.unmodifiable(dirty);
@@ -240,5 +244,12 @@ public final class ViewPlate<B> {
             }
         }
         return false;
+    }
+
+    public record ChangeRegion(UUID worldId, long version, int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ) {
+        public boolean dirty(ProjectionWorldChangeTracker tracker) {
+            return worldId != null && version != Long.MIN_VALUE && minChunkX <= maxChunkX
+                && tracker.dirtySince(worldId, minChunkX - 1, minChunkZ - 1, maxChunkX + 1, maxChunkZ + 1, version);
+        }
     }
 }

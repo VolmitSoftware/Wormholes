@@ -61,7 +61,9 @@ public final class ViewPlateCache<B, W> {
                 plate.touch(now);
                 boolean expired = plate.builtBefore(now - REFRESH_NANOS);
                 if ((expired || plate.dirty()) && canSchedule(key, transformRevision, jobFactory, now)) {
-                    schedule(key, transformRevision, jobFactory.apply(expired ? null : plate), urgent);
+                    schedule(key, transformRevision, jobFactory.apply(expired ? null : plate), urgent || plate.dirty());
+                } else if (plate.dirty()) {
+                    promote(key);
                 }
                 return plate;
             }

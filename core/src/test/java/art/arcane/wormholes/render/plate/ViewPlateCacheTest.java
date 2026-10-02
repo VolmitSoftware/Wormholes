@@ -121,6 +121,7 @@ final class ViewPlateCacheTest {
         }));
         assertEquals(List.of(plate), patchedFrom, "the patch is built from the dirty plate");
         assertEquals(1, scheduled.size());
+        assertTrue(scheduled.getFirst().urgent(), "changed content uses the bounded urgent capture budget");
         assertSame(plate, cache.current(key, 1L, 1L, null, false, previous -> stubJob(key)));
         assertEquals(1, scheduled.size(), "one patch at a time");
 

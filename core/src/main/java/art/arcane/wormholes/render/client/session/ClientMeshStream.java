@@ -111,7 +111,7 @@ final class ClientMeshStream<B> {
             ViewPlate<B> plate = slot.nestedChild()
                 ? portals.nestedMeshSection(player, slot.portalId, slot.childId, section.clip(), geometry.depthBlocks())
                 : portals.meshSection(player, slot.portalId, section.clip(), geometry.depthBlocks());
-            if (plate == null || entry.previous.get() == plate && plate.dirty()) {
+            if (plate == null || plate.dirty()) {
                 if (now - entry.started >= TIMEOUT_NANOS) {
                     throw new IllegalStateException("mesh capture timeout, generation " + state.generation + ", section " + coordinate);
                 }
@@ -127,6 +127,7 @@ final class ClientMeshStream<B> {
             entry.queued = true;
             entry.revision = ++state.revision;
             entry.previous = new WeakReference<ViewPlate<B>>(plate);
+            entry.changeRegion = plate.changeRegion();
             BrickLightSource light = destinationLight ? portals.lightBaseline(player, slot.nestedChild() ? slot.childId : slot.portalId, plate) : BrickLightSource.NONE;
             ready.add(new Ready<B>(slot, state.generation, coordinate, entry.revision, plate, light == null ? BrickLightSource.NONE : light,
                 portals.meshBiomes(player, slot.nestedChild() ? slot.childId : slot.portalId, plate)));
@@ -276,16 +277,28 @@ final class ClientMeshStream<B> {
 
     private Entry<B> refreshEntry(State<B> state, long tick, ProjectionWorldChangeTracker changes) {
         if (changes != null) {
+            if (++state.refreshSequence % 2 == 0) {
+                int count = Math.min(16, state.order.size());
+                for (int visited = 0; visited < count; visited++) {
+                    if (state.priorityCursor >= count) {
+                        state.priorityCursor = 0;
+                    }
+                    Entry<B> entry = state.entries.get(state.order.get(state.priorityCursor++).coordinate());
+                    if (dirty(entry, changes)) {
+                        return entry;
+                    }
+                }
+            }
             for (int visited = 0; visited < Math.min(64, state.residents.size()); visited++) {
-                if (state.dirtyCursor >= state.residents.size()) {
+                if (state.dirtyLimit == 0 || state.dirtyCursor >= state.dirtyLimit) {
                     state.dirtyCursor = 0;
+                    state.dirtyLimit = state.residents.size();
                 }
                 Entry<B> entry = state.residents.get(state.dirtyCursor++);
                 if (!state.wanted.contains(entry.coordinate) || entry.awaiting || entry.queued || entry.pending) {
                     continue;
                 }
-                ViewPlate<B> previous = entry.previous.get();
-                if (previous != null && (!previous.refreshDirt(changes) || previous.dirty())) {
+                if (dirty(entry, changes)) {
                     return entry;
                 }
             }
@@ -300,6 +313,15 @@ final class ClientMeshStream<B> {
             }
         }
         return null;
+    }
+
+    private boolean dirty(Entry<B> entry, ProjectionWorldChangeTracker changes) {
+        if (entry == null || entry.awaiting || entry.queued || entry.pending) {
+            return false;
+        }
+        ViewPlate<B> previous = entry.previous.get();
+        return previous != null && (!previous.refreshDirt(changes) || previous.dirty())
+            || previous == null && entry.changeRegion != null && entry.changeRegion.dirty(changes);
     }
 
     private void release(Entry<B> entry) {
@@ -336,6 +358,9 @@ final class ClientMeshStream<B> {
         private long plannedTick;
         private int cursor;
         private int dirtyCursor;
+        private int dirtyLimit;
+        private int priorityCursor;
+        private int refreshSequence;
         private int initialCursor;
         private int captureCursor;
         private int captureSequence;
@@ -352,6 +377,7 @@ final class ClientMeshStream<B> {
     private static final class Entry<B> {
         private final ClientMeshPlan.Coordinate coordinate;
         private WeakReference<ViewPlate<B>> previous = new WeakReference<ViewPlate<B>>(null);
+        private ViewPlate.ChangeRegion changeRegion;
         private int revision;
         private long checkedTick;
         private long started;

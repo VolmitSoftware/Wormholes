@@ -14,6 +14,11 @@ import art.arcane.wormholes.network.client.ClientViewMessageType;
 import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import java.lang.ref.WeakReference;
+import java.lang.reflect.Field;
+import java.util.Map;
 import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
@@ -121,8 +126,9 @@ final class ClientMeshStreamTest {
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
     }
 
-    @Test
-    void dirtyResidentRefreshesDuringInitialCoverageAndWaitsForReplacement() {
+    @ParameterizedTest
+    @CsvSource({"false, 0", "true, 0", "false, 128", "true, 128"})
+    void dirtyResidentRefreshesDuringInitialCoverageAndWaitsForReplacement(boolean reclaimed, int targetIndex) throws ReflectiveOperationException {
         FakePortalAccess access = new FakePortalAccess(new ArrayList<String>());
         access.meshChanges = new ProjectionWorldChangeTracker();
         SessionPortal portal = access.add(new SessionPortal("dirty-refresh", 0));
@@ -133,14 +139,14 @@ final class ClientMeshStreamTest {
         slot.laneAttached = true;
         GeometryVector eye = new GeometryVector(11, 67, 15);
         List<ClientMeshPlan.Section> visible = ClientMeshPlan.visible(slot.geometry, eye);
-        ClientMeshPlan.Section target = visible.get(128);
+        ClientMeshPlan.Section target = visible.get(targetIndex);
         PlateBox clip = target.clip();
-        UUID unchangedWorld = UUID.randomUUID();
+        UUID world = UUID.randomUUID();
+        UUID unchangedWorld = targetIndex == 0 ? world : UUID.randomUUID();
         for (int index = 0; index < Math.min(512, visible.size()); index++) {
             PlateBox resident = visible.get(index).clip();
             access.meshPlates.put(resident, PlateTestFixtures.tracked(portal.id, resident, unchangedWorld, 0));
         }
-        UUID world = UUID.randomUUID();
         ViewPlate<String> previous = PlateTestFixtures.tracked(portal.id, clip, world, 0);
         access.meshPlates.put(clip, previous);
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
@@ -156,8 +162,38 @@ final class ClientMeshStreamTest {
         }
         assertTrue(received.contains(target.coordinate()));
         assertTrue(received.size() < visible.size(), "initial coverage must still be loading");
+        if (reclaimed || targetIndex == 0) {
+            Field statesField = ClientMeshStream.class.getDeclaredField("states");
+            statesField.setAccessible(true);
+            Map<?, ?> states = (Map<?, ?>) statesField.get(stream);
+            Object state = states.get(slot.key);
+            if (targetIndex == 0) {
+                Field cursorField = state.getClass().getDeclaredField("dirtyCursor");
+                cursorField.setAccessible(true);
+                cursorField.setInt(state, 100);
+                Field limitField = state.getClass().getDeclaredField("dirtyLimit");
+                limitField.setAccessible(true);
+                limitField.setInt(state, received.size());
+            }
+            Field entriesField = state.getClass().getDeclaredField("entries");
+            entriesField.setAccessible(true);
+            Map<?, ?> entries = (Map<?, ?>) entriesField.get(state);
+            Object entry = entries.get(target.coordinate());
+            Field previousField = entry.getClass().getDeclaredField("previous");
+            previousField.setAccessible(true);
+            WeakReference<?> reference = (WeakReference<?>) previousField.get(entry);
+            if (reclaimed) {
+                reference.clear();
+            }
+        }
         access.meshRequests.clear();
         access.meshChanges.markChanged(world, clip.minX(), clip.minY(), clip.minZ());
+        if (targetIndex == 0) {
+            for (PlateBox resident : access.meshPlates.keySet()) {
+                access.meshChanges.markChanged(world, resident.minX(), resident.minY(), resident.minZ());
+            }
+        }
+        previous.refreshDirt(access.meshChanges);
         int dirtyTick = tick;
         while (!access.meshRequests.contains(clip) && tick < dirtyTick + 12) {
             ClientMeshStream.Ready<String> section = capture(stream, slot, access, eye, tick);
