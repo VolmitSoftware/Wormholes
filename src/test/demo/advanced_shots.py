@@ -427,7 +427,7 @@ def live_views(actor: Bridge, observer: Bridge, rcon: Rcon, capture_id: str) -> 
             if state.get('heldItem', {}).get('item') != 'minecraft:wheat':
                 raise AssertionError('Destination observer stopped holding wheat')
             positions.append(state['position'])
-            screenshot(observer, capture_id + '-observer-lure-' + str(x))
+            screenshot(observer, capture_id + '-observer-lure-' + str(int(x * 10)))
         return positions
 
     before: str = rcon.command('whdemo feature report')
