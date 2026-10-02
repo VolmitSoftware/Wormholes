@@ -60,7 +60,7 @@ CAPTIONS: dict[str, tuple[str, str]] = {
     'ambient-particles': ('Ambient particles and color', 'Choose a particle style, dye color, and custom RGB color.'),
     'render-panoptic': ('PanOptic: full volume', RENDER_CAPTION),
     'render-venticular': ('Venticular: culled surfaces', RENDER_CAPTION),
-    'projection-toggle': ('Projection on and off', 'Hide the destination view and restore it.'),
+    'projection-toggle': ('Projection on and off', 'Toggle standard projection; native client views remain active.'),
     'atmosphere': ('Destination atmosphere', 'Compare atmosphere modes with different destination colors, lighting, and weather.'),
     'arrival-orientation': ('Arrival orientation', 'Compare frame, look, snap, and mirror policies at a rotated exit.'),
     'momentum': ('Traversal momentum', 'Compare preserved, scaled, and zero velocity on arrival.'),
