@@ -33,11 +33,11 @@ public final class DoorsSubsystem implements WormholesSubsystem {
     private volatile int sweepTaskId = -1;
 
     public DoorsSubsystem() {
-        doorProvider = new DoorProjectionProvider(new DoorProjectionProvider.Options((adapter, observerId) -> {
+        doorProvider = new DoorProjectionProvider(new DoorProjectionProvider.Options((adapter, observerId, bypass) -> {
             DimensionalDoorManager manager = manager();
             return manager == null
                 ? Optional.empty()
-                : manager.apertureDestinations().destinationOf(adapter, observerId);
+                : manager.apertureDestinations().destinationOf(adapter, observerId, bypass);
         }, observer -> Wormholes.projectionManager != null && Wormholes.projectionManager.clientView().nativeMesh(observer),
             DoorsSubsystem::projectionEnabled));
     }

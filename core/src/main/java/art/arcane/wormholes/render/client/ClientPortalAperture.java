@@ -11,6 +11,7 @@ import java.util.Objects;
 public final class ClientPortalAperture {
     private final int[] origin;
     private final int normalAxis;
+    private final double planeCoordinate;
     private final int columnAxis;
     private final int width;
     private final int height;
@@ -25,6 +26,7 @@ public final class ClientPortalAperture {
         Direction normal = geometry.facingDirection();
         PortalFrame canonical = PortalFrame.canonical(normal);
         normalAxis = ClientPortalGeometry.axisOf(normal);
+        planeCoordinate = geometry.planeCoordinate();
         columnAxis = ClientPortalGeometry.axisOf(canonical.getRight());
         width = geometry.apertureWidth();
         height = geometry.apertureHeight();
@@ -37,7 +39,7 @@ public final class ClientPortalAperture {
         };
         reverseWinding = (frontSide ? orientation : -orientation) < 0;
         plane = new Plane(normal.x(), normal.y(), normal.z(),
-            -(normal.x() * (origin[0] + 0.5) + normal.y() * (origin[1] + 0.5) + normal.z() * (origin[2] + 0.5)));
+            -(normal.x() + normal.y() + normal.z()) * planeCoordinate);
         rectangles = mergeRows();
     }
 
@@ -155,7 +157,7 @@ public final class ClientPortalAperture {
     }
 
     private double coordinate(int axis, double column, double row) {
-        return origin[axis] + (axis == normalAxis ? 0.5 : axis == columnAxis ? column : row);
+        return axis == normalAxis ? planeCoordinate : origin[axis] + (axis == columnAxis ? column : row);
     }
 
     private static ClipVertex transform(Point point, double[] matrix) {

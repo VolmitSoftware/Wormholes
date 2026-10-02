@@ -25,6 +25,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -106,6 +109,26 @@ public class ClientProjectedEntityIdentityTest {
         ArgumentCaptor<ClientboundPlayerInfoRemovePacket> remove = ArgumentCaptor.forClass(ClientboundPlayerInfoRemovePacket.class);
         verify(connection).handlePlayerInfoRemove(remove.capture());
         assertEquals(List.of(projection), remove.getValue().profileIds());
+    }
+
+    @Test
+    public void nativeCopiesHaveNoPhysicsAndCannotExchangePushImpulses() {
+        ClientLevel level = mock(ClientLevel.class);
+        Entity projected = mock(Entity.class);
+        Entity original = mock(Entity.class);
+        when(level.getEntity(-100)).thenReturn(projected);
+        when(level.getEntity(10)).thenReturn(original);
+        ClientLevelScene scene = new ClientLevelScene(level, () -> null);
+        scene.tick(-100, true);
+        scene.tick(10, false);
+        assertTrue(projected.noPhysics);
+        assertFalse(original.noPhysics);
+        doCallRealMethod().when(projected).push(original);
+        doCallRealMethod().when(original).push(projected);
+        projected.push(original);
+        original.push(projected);
+        verify(projected, never()).push(anyDouble(), anyDouble(), anyDouble());
+        verify(original, never()).push(anyDouble(), anyDouble(), anyDouble());
     }
 
     @Test

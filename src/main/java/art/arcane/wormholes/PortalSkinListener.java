@@ -51,12 +51,13 @@ public class PortalSkinListener implements Listener
 		Player player = e.getPlayer();
 		ItemStack hand = player.getInventory().getItemInMainHand();
 		boolean empty = hand == null || hand.getType() == Material.AIR;
-		if(!PortalInteractionGestures.appliesSurfaceSkin(Wormholes.blockManager.isPortalTool(hand), empty))
+		boolean clearing = empty && player.isSneaking();
+		if(!clearing && !PortalInteractionGestures.appliesSurfaceSkin(Wormholes.blockManager.isPortalTool(hand), empty))
 		{
 			return;
 		}
 
-		String skin = skinForItem(hand.getType());
+		String skin = clearing ? "" : skinForItem(hand.getType());
 		if(skin == null)
 		{
 			return;
@@ -71,6 +72,10 @@ public class PortalSkinListener implements Listener
 			if(!local.isLookingAt(player))
 			{
 				continue;
+			}
+			if(clearing && !local.hasSurfaceSkin())
+			{
+				return;
 			}
 			if(local.applySurfaceSkinFromInteraction(player, skin))
 			{

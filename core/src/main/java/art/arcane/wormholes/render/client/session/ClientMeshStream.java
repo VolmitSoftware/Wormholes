@@ -6,9 +6,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Iterator;
 import java.util.function.IntPredicate;
 
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.BrickLightSource;
 import art.arcane.wormholes.network.client.SectionBiomes;
@@ -76,6 +78,7 @@ final class ClientMeshStream<B> {
         if (quota <= 0) {
             return changed;
         }
+        ProjectionWorldChangeTracker changes = portals.meshChanges(player);
         ArrayList<Entry<B>> captures = new ArrayList<Entry<B>>(quota);
         boolean canStart = pending < MAX_PENDING_CAPTURES && pending + inFlight < MAX_IN_FLIGHT;
         int polls = Math.min(state.capturing.size(), canStart ? Math.max(1, quota / 2) : quota);
@@ -88,9 +91,9 @@ final class ClientMeshStream<B> {
         while (captures.size() < quota && pending + inFlight < MAX_IN_FLIGHT && pending < MAX_PENDING_CAPTURES
             && !state.order.isEmpty()) {
             boolean refresh = ++state.captureSequence % 4 == 0;
-            Entry<B> entry = refresh ? refreshEntry(state, tick) : initialEntry(state);
+            Entry<B> entry = refresh ? refreshEntry(state, tick, changes) : initialEntry(state);
             if (entry == null) {
-                entry = refresh ? initialEntry(state) : refreshEntry(state, tick);
+                entry = refresh ? initialEntry(state) : refreshEntry(state, tick, changes);
             }
             if (entry == null) {
                 break;
@@ -108,7 +111,7 @@ final class ClientMeshStream<B> {
             ViewPlate<B> plate = slot.nestedChild()
                 ? portals.nestedMeshSection(player, slot.portalId, slot.childId, section.clip(), geometry.depthBlocks())
                 : portals.meshSection(player, slot.portalId, section.clip(), geometry.depthBlocks());
-            if (plate == null) {
+            if (plate == null || entry.previous.get() == plate && plate.dirty()) {
                 if (now - entry.started >= TIMEOUT_NANOS) {
                     throw new IllegalStateException("mesh capture timeout, generation " + state.generation + ", section " + coordinate);
                 }
@@ -133,23 +136,37 @@ final class ClientMeshStream<B> {
     }
 
     synchronized ClientViewMessage pollControl(IntPredicate announced) {
-        ClientViewMessage next = control.peek();
-        return next != null && announced.test(portalKey(next)) ? control.poll() : null;
+        Iterator<ClientViewMessage> messages = control.iterator();
+        while (messages.hasNext()) {
+            ClientViewMessage next = messages.next();
+            if (!announced.test(portalKey(next))) {
+                continue;
+            }
+            messages.remove();
+            if (next instanceof ClientViewMessage.MeshBegin begin) {
+                State<B> state = states.get(begin.portalKey());
+                if (state != null && state.generation == begin.generation()) {
+                    state.begun = true;
+                }
+            }
+            return next;
+        }
+        return null;
     }
 
     synchronized Ready<B> poll(long now) {
-        if (!control.isEmpty() || inFlight >= MAX_IN_FLIGHT) {
+        if (inFlight >= MAX_IN_FLIGHT) {
             return null;
         }
-        Ready<B> next;
-        while ((next = ready.peek()) != null) {
-            if (!next.slot.announced || next.slot.sentGeometry != next.slot.geometry) {
-                return null;
-            }
-            ready.remove();
+        for (int waiting = ready.size(); waiting > 0; waiting--) {
+            Ready<B> next = ready.remove();
             State<B> state = states.get(next.slot.key);
             Entry<B> entry = state == null ? null : state.entries.get(next.coordinate);
             if (state == null || state.generation != next.generation || entry == null || entry.revision != next.revision) {
+                continue;
+            }
+            if (!state.begun || !next.slot.announced || next.slot.sentGeometry != next.slot.geometry) {
+                ready.add(next);
                 continue;
             }
             entry.pending = false;
@@ -257,7 +274,22 @@ final class ClientMeshStream<B> {
         return null;
     }
 
-    private Entry<B> refreshEntry(State<B> state, long tick) {
+    private Entry<B> refreshEntry(State<B> state, long tick, ProjectionWorldChangeTracker changes) {
+        if (changes != null) {
+            for (int visited = 0; visited < Math.min(64, state.residents.size()); visited++) {
+                if (state.dirtyCursor >= state.residents.size()) {
+                    state.dirtyCursor = 0;
+                }
+                Entry<B> entry = state.residents.get(state.dirtyCursor++);
+                if (!state.wanted.contains(entry.coordinate) || entry.awaiting || entry.queued || entry.pending) {
+                    continue;
+                }
+                ViewPlate<B> previous = entry.previous.get();
+                if (previous != null && (!previous.refreshDirt(changes) || previous.dirty())) {
+                    return entry;
+                }
+            }
+        }
         for (int visited = 0; visited < Math.min(64, state.residents.size()); visited++) {
             if (state.cursor >= state.residents.size()) {
                 state.cursor = 0;
@@ -303,10 +335,12 @@ final class ClientMeshStream<B> {
         private GeometryVector eye;
         private long plannedTick;
         private int cursor;
+        private int dirtyCursor;
         private int initialCursor;
         private int captureCursor;
         private int captureSequence;
         private int revision;
+        private boolean begun;
 
         private State(ClientViewPortalSlot<B> slot, int generation, ClientPortalGeometry geometry) {
             this.slot = slot;

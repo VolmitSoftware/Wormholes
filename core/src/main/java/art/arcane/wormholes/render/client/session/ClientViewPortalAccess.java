@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.network.client.BrickLightSource;
 import art.arcane.wormholes.network.client.SectionBiomes;
@@ -35,6 +36,10 @@ public interface ClientViewPortalAccess<P, B> {
     }
 
     default GeometryVector nestedEye(P observer, UUID context) {
+        return null;
+    }
+
+    default ProjectionWorldChangeTracker meshChanges(P observer) {
         return null;
     }
 

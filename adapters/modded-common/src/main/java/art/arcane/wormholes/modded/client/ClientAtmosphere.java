@@ -82,9 +82,7 @@ public final class ClientAtmosphere {
             if ((atmosphere.flags() & (ClientViewMessage.Atmosphere.FLAG_TIME | ClientViewMessage.Atmosphere.FLAG_WEATHER)) == 0) {
                 continue;
             }
-            Direction normal = portal.geometry().facingDirection();
-            double distance = Math.abs(normal.x() * (eyeX - portal.geometry().originX() - 0.5)
-                + normal.y() * (eyeY - portal.geometry().originY() - 0.5) + normal.z() * (eyeZ - portal.geometry().originZ() - 0.5));
+            double distance = Math.abs(portal.geometry().signedDistance(eyeX, eyeY, eyeZ));
             if (distance <= dominanceBlocks && distance < best && inside(portal, eyeX, eyeY, eyeZ)) {
                 best = distance;
                 next = entry.getIntKey();
@@ -218,8 +216,7 @@ public final class ClientAtmosphere {
         int particles = atmosphere.thunder() > RAIN_THRESHOLD ? STORM_PARTICLES : RAIN_PARTICLES;
         PortalFrame frame = PortalFrame.canonical(geometry.facingDirection());
         Direction normal = geometry.facingDirection();
-        double eyeDot = normal.x() * (eyeX - geometry.originX() - 0.5) + normal.y() * (eyeY - geometry.originY() - 0.5)
-            + normal.z() * (eyeZ - geometry.originZ() - 0.5);
+        double eyeDot = geometry.signedDistance(eyeX, eyeY, eyeZ);
         for (int attempt = 0; attempt < particles * SAMPLE_ATTEMPTS && particles > 0; attempt++) {
             long key = sections[random.nextInt(sections.length)];
             int cell = random.nextInt(4096);

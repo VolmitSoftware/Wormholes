@@ -67,10 +67,11 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
 
     static boolean interact(WormholesModRuntime runtime, ServerPlayer player, InteractionHand hand) {
         ItemStack item = player.getItemInHand(hand);
-        if (hand != InteractionHand.MAIN_HAND || item.isEmpty() || MinecraftPortalTools.isWand(item)) {
+        boolean clearing = item.isEmpty() && player.isShiftKeyDown();
+        if (hand != InteractionHand.MAIN_HAND || !clearing && (item.isEmpty() || MinecraftPortalTools.isWand(item))) {
             return false;
         }
-        String skin = item.is(Items.WATER_BUCKET) ? "minecraft:water" : item.is(Items.LAVA_BUCKET) ? "minecraft:lava"
+        String skin = clearing ? "" : item.is(Items.WATER_BUCKET) ? "minecraft:water" : item.is(Items.LAVA_BUCKET) ? "minecraft:lava"
             : item.getItem() instanceof BlockItem block ? BlockStateParser.serialize(block.getBlock().defaultBlockState()) : null;
         if (skin == null) {
             return false;
@@ -79,7 +80,7 @@ final class MinecraftPortalSurfaces implements AutoCloseable {
         Vec3 look = player.getLookAngle();
         for (MinecraftPortal portal : runtime.portals().snapshot()) {
             GeometryVector center = portal.getGeometry().getApertureCenter();
-            if (runtime.portals().resolveLevel(portal) != player.level()
+            if (clearing && portal.getSurfaceSkin().isEmpty() || runtime.portals().resolveLevel(portal) != player.level()
                 || player.position().distanceToSqr(center.x(), center.y(), center.z()) >= 64) {
                 continue;
             }

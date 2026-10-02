@@ -19,11 +19,31 @@ import org.bukkit.block.data.type.Door;
 import org.bukkit.block.data.type.Switch;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockRedstoneEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.junit.jupiter.api.Test;
 
 public final class ProjectionChangeListenerTest {
     private static final UUID WORLD_ID = UUID.fromString("5f2e7d8c-3a54-4f7b-9d3e-1b2c3d4e5f60");
+
+    @Test
+    public void redstoneChangesInvalidatePoweredNeighborsAcrossChunkBoundaries() {
+        ProjectionWorldChangeTracker tracker = new ProjectionWorldChangeTracker();
+        List<Long> blocks = recordBlocks(tracker);
+        World world = world();
+        Block source = block(world, 15, 64, 15, mock(BlockData.class));
+        for (BlockFace face : List.of(BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST, BlockFace.UP, BlockFace.DOWN)) {
+            Block neighbor = block(world, 15 + face.getModX(), 64 + face.getModY(), 15 + face.getModZ(), mock(BlockData.class));
+            when(source.getRelative(face)).thenReturn(neighbor);
+        }
+        ProjectionChangeListener listener = new ProjectionChangeListener(tracker);
+        listener.on(new BlockRedstoneEvent(source, 0, 15));
+        assertEquals(7, blocks.size());
+        assertTrue(tracker.dirtySince(WORLD_ID, 1, 0, 1, 0, 0L));
+        assertTrue(tracker.dirtySince(WORLD_ID, 0, 1, 0, 1, 0L));
+        listener.on(new BlockRedstoneEvent(source, 15, 15));
+        assertEquals(7, blocks.size());
+    }
 
     @Test
     public void openingADoorMarksBothHalves() {

@@ -1,6 +1,7 @@
 package art.arcane.wormholes.door;
 
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
+import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
@@ -25,8 +26,10 @@ import org.bukkit.structure.Structure;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 
@@ -48,6 +51,8 @@ final class DoorTransitCoordinator
 	private final PocketWorldService pocketWorldService;
 	private final BukkitPocketTemplates templates;
 	private final DoorTransitFailures failures;
+	private final ConcurrentHashMap<PocketBinding, Long> projectionPreparation = new ConcurrentHashMap<>();
+	private final Set<UUID> projectionEndpoints = ConcurrentHashMap.newKeySet();
 
 	DoorTransitCoordinator(
 		Plugin plugin,
@@ -79,6 +84,131 @@ final class DoorTransitCoordinator
 		this.pocketWorldService = Objects.requireNonNull(pocketWorldService, "pocketWorldService");
 		this.templates = Objects.requireNonNull(templates, "templates");
 		this.failures = Objects.requireNonNull(failures, "failures");
+	}
+
+	void prepareEndpointProjection(PlacedDoorEndpoint endpoint)
+	{
+		World world = runtimes.world(endpoint.position());
+		UUID id = endpoint.identity().itemId();
+		if(guard.closed() || world == null || !projectionEndpoints.add(id))
+		{
+			return;
+		}
+		chunkLoader.loadChunk(world, endpoint.position().x(), endpoint.position().z(), () ->
+		{
+			try
+			{
+				if(guard.state().findEndpointByItem(id).filter(endpoint::equals).isPresent())
+				{
+					runtimes.reconcile(runtimes.install(endpoint));
+				}
+			}
+			finally
+			{
+				projectionEndpoints.remove(id);
+			}
+		}, () -> projectionEndpoints.remove(id));
+	}
+
+	boolean allowsPocketProjection(PlacedDoorEndpoint source, PocketSpace destination)
+	{
+		World world = pocketWorldService.world().orElse(null);
+		return world != null && PocketRooms.allowsPocketEntry(source.position().worldId().equals(world.getUID()),
+			pockets.spaceAt(source.position().x(), source.position().z()), destination);
+	}
+
+	boolean preparingProjection(PocketBinding binding)
+	{
+		Long retry = projectionPreparation.get(binding);
+		return retry != null && retry > System.nanoTime();
+	}
+
+	void prepareProjection(PlacedDoorEndpoint source, UUID observerId)
+	{
+		if(guard.closed() || !guard.acceptingEntries())
+		{
+			return;
+		}
+		DoorDestination resolved = guard.state().resolveDestination(source.identity(), observerId);
+		if(!(resolved instanceof PocketDoorDestination destination))
+		{
+			return;
+		}
+		World world = pocketWorldService.world().orElse(null);
+		if(world == null)
+		{
+			return;
+		}
+		PocketBinding binding = destination.binding();
+		Long previous = projectionPreparation.putIfAbsent(binding, Long.MAX_VALUE);
+		if(previous != null && (previous > System.nanoTime()
+			|| !projectionPreparation.replace(binding, previous, Long.MAX_VALUE)))
+		{
+			return;
+		}
+		if(!FoliaScheduler.runAsync(plugin, () -> prepareProjection(source, observerId, destination, world)))
+		{
+			projectionPreparation.remove(binding);
+		}
+	}
+
+	private void prepareProjection(PlacedDoorEndpoint source, UUID observerId, PocketDoorDestination destination, World world)
+	{
+		PocketBinding binding = destination.binding();
+		try
+		{
+			if(guard.closed() || !guard.acceptingEntries()
+				|| guard.state().findEndpointByItem(source.identity().itemId()).filter(source::equals).isEmpty())
+			{
+				projectionPreparation.remove(binding);
+				return;
+			}
+			PocketSpace existing = guard.state().findPocket(binding).orElse(null);
+			if(!allowsPocketProjection(source, existing))
+			{
+				projectionPreparation.put(binding, System.nanoTime() + 1_000_000_000L);
+				return;
+			}
+			PocketSpace space = guard.mutate(() ->
+			{
+				PocketSpace allocated = guard.state().getOrAllocatePocket(binding, Settings.POCKET_SHELL);
+				if(destination.isInstanced() && allocated.instance() == null)
+				{
+					return guard.state().replacePocket(allocated.withTemplateName(destination.instancedTemplate())
+						.withInstance(PocketInstances.newInstance(destination.instancedTemplate(), observerId,
+							PocketSettings.current().instanceReset, System.currentTimeMillis()).withLastOccupied(0L)));
+				}
+				return allocated;
+			});
+			if(guard.pocketQuarantined(space.spaceId()))
+			{
+				projectionPreparation.put(binding, System.nanoTime() + 1_000_000_000L);
+				return;
+			}
+			pockets.index(space);
+			chunkLoader.loadPocket(world, space, pocketStructures.layout(space), () ->
+			{
+				try
+				{
+					if(!guard.closed() && !guard.pocketQuarantined(space.spaceId())
+						&& guard.state().findPocket(binding).filter(current -> current.equals(space)).isPresent())
+					{
+						provisionPocket(world, space);
+					}
+					projectionPreparation.remove(binding);
+				}
+				catch(IOException | RuntimeException ex)
+				{
+					plugin.getLogger().log(Level.SEVERE, "Could not prepare pocket projection " + space.spaceId(), ex);
+					projectionPreparation.put(binding, System.nanoTime() + 1_000_000_000L);
+				}
+			}, () -> projectionPreparation.put(binding, System.nanoTime() + 1_000_000_000L));
+		}
+		catch(IOException | RuntimeException ex)
+		{
+			plugin.getLogger().log(Level.SEVERE, "Could not allocate pocket projection", ex);
+			projectionPreparation.put(binding, System.nanoTime() + 1_000_000_000L);
+		}
 	}
 
 	void begin(
@@ -316,31 +446,7 @@ final class DoorTransitCoordinator
 		{
 			try
 			{
-				PocketLayout layout = pocketStructures.layout(space);
-				Optional<PlacedDoorEndpoint> existingReturn = guard.state().findEndpointByItem(
-					layout.returnDoorIdentity().itemId());
-				boolean initialize = existingReturn.isEmpty()
-					|| !pocketStructures.isInitialized(pocketWorld, space);
-				PlacedDoorEndpoint returnEndpoint;
-				returnEndpoint = pocketStructures.provision(pocketWorld, space, initialize);
-				PlacedDoorEndpoint previous = existingReturn
-					.filter(endpoint -> !endpoint.equals(returnEndpoint))
-					.orElse(null);
-				if(previous != null)
-				{
-					guard.mutate(() -> guard.state().relocateEndpoint(previous, returnEndpoint));
-					runtimes.remove(previous);
-				}
-				else
-				{
-					guard.mutate(() -> guard.state().registerEndpoint(returnEndpoint));
-				}
-				runtimes.reconcile(runtimes.install(returnEndpoint));
-				retirePreviousReturnDoor(pocketWorld, space, previous);
-				if(initialize)
-				{
-					applyFirstTemplate(pocketWorld, space);
-				}
+				provisionPocket(pocketWorld, space);
 			}
 			catch(IOException | RuntimeException ex)
 			{
@@ -379,6 +485,35 @@ final class DoorTransitCoordinator
 			}
 			closeAndTeleport(traveler, source, arrival, context);
 		}, () -> abortTransit(traveler, source, WormholesMessages.DOOR_POCKET_ENTRY_CHUNK_FAILED, ticketless));
+	}
+
+	private void provisionPocket(World pocketWorld, PocketSpace space) throws IOException
+	{
+		PocketLayout layout = pocketStructures.layout(space);
+		Optional<PlacedDoorEndpoint> existingReturn = guard.state().findEndpointByItem(
+			layout.returnDoorIdentity().itemId());
+		boolean initialize = existingReturn.isEmpty()
+			|| !pocketStructures.isInitialized(pocketWorld, space);
+		PlacedDoorEndpoint returnEndpoint;
+		returnEndpoint = pocketStructures.provision(pocketWorld, space, initialize);
+		if(initialize)
+		{
+			applyFirstTemplate(pocketWorld, space);
+		}
+		PlacedDoorEndpoint previous = existingReturn
+			.filter(endpoint -> !endpoint.equals(returnEndpoint))
+			.orElse(null);
+		if(previous != null)
+		{
+			guard.mutate(() -> guard.state().relocateEndpoint(previous, returnEndpoint));
+			runtimes.remove(previous);
+		}
+		else
+		{
+			guard.mutate(() -> guard.state().registerEndpoint(returnEndpoint));
+		}
+		runtimes.reconcile(runtimes.install(returnEndpoint));
+		retirePreviousReturnDoor(pocketWorld, space, previous);
 	}
 
 	/**

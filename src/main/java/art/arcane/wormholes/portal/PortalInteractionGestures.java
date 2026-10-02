@@ -24,6 +24,11 @@ public final class PortalInteractionGestures
 		return !portalToolHeld && !mainHandEmpty;
 	}
 
+	public static boolean removesSurfaceSkin(boolean sneaking, boolean mainHandEmpty, boolean hasSurfaceSkin)
+	{
+		return sneaking && mainHandEmpty && hasSurfaceSkin;
+	}
+
 	private static boolean matchesMenuGesture(boolean sneaking, boolean mainHandEmpty, Action action)
 	{
 		return sneaking && mainHandEmpty && action == Action.RIGHT_CLICK_BLOCK;

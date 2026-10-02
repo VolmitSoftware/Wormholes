@@ -64,10 +64,14 @@ final class DoorProjectionAdapterTest {
         assertEquals(1, adapter.getStructure().getBlockPositions().size());
         assertTrue(adapter.getStructure().containsBlock(4, 70, -6));
         assertEquals(Direction.D, adapter.getFrame().getNormal());
+        assertEquals(Direction.S, adapter.getFrame().getUp());
+        assertEquals(bottom.planeY(), adapter.getOrigin().y(), TOLERANCE);
 
         DoorwayPlane top = DoorwayPlane.trapdoor(4, 70, -6, Direction.S, DoorHalf.TOP, DoorOpenState.OPEN);
         adapter.refresh(top);
         assertEquals(Direction.U, adapter.getFrame().getNormal());
+        assertEquals(Direction.N, adapter.getFrame().getUp());
+        assertEquals(top.planeY(), adapter.getOrigin().y(), TOLERANCE);
         assertEquals(1, adapter.getStructure().getBlockPositions().size());
     }
 

@@ -199,7 +199,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			new PocketRosterService(
 				() -> guard.state(),
 				itemId -> guard.state().accessRecord(itemId)));
-		apertureDestinations = new DoorApertureDestinationService(guard, runtimes, pocketStructures, pocketWorldService);
+		apertureDestinations = new DoorApertureDestinationService(guard, runtimes, pocketStructures, pocketWorldService, transits);
 		DoorsConfig doorsConfig = doorsConfig();
 		projectionRegistry = new DoorProjectionRegistry(
 			doorsConfig.projectionMaxActive,

@@ -12,6 +12,7 @@ import art.arcane.wormholes.door.DoorPosition;
 import art.arcane.wormholes.door.DoorProjectionState;
 import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.wormholes.door.PlacedDoorEndpoint;
+import art.arcane.wormholes.door.view.DoorApertureFrames;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalType;
@@ -118,6 +119,30 @@ public class MinecraftDoorProjectionViewsTest {
             assertEquals(!trapdoor, source.getGeometry().containsBlock(2, 65, 3));
             assertTrue(views.update(fixture.player, List.of(disabled), false).isEmpty());
             assertFalse(views.contains(source.getId()));
+        }
+    }
+
+    @Test
+    public void nativeTrapdoorDescriptorsRetainTheirFacingAndPhysicalHorizontalPlane() {
+        Fixture fixture = new Fixture();
+        fixture.settings.getDoors().projectionEnabled = false;
+        Optional<MinecraftDoorService.ProjectionDestination> route = fixture.doors.projectionDestination(fixture.door, fixture.observerId);
+        for (Direction facing : new Direction[]{Direction.N, Direction.E, Direction.S, Direction.W}) {
+            for (DoorHalf half : DoorHalf.values()) {
+                DoorwayPlane plane = DoorwayPlane.trapdoor(2, 64, 3, facing, half, DoorOpenState.OPEN);
+                MinecraftDoorService.DoorView disabled = new MinecraftDoorService.DoorView(
+                    fixture.door.endpoint().withProjection(DoorProjectionState.OFF), fixture.level, plane, true);
+                when(fixture.doors.projectionDestination(disabled, fixture.observerId)).thenReturn(route);
+                MinecraftDoorProjectionViews views = new MinecraftDoorProjectionViews(fixture.runtime);
+                assertTrue(views.update(fixture.player, List.of(disabled), false).isEmpty());
+                MinecraftPortal source = views.update(fixture.player, List.of(disabled), true).getFirst();
+                assertEquals(DoorApertureFrames.of(plane), source.getFrame());
+                assertEquals(plane.center().x(), source.getOrigin().x(), 0.0D);
+                assertEquals(plane.planeY(), source.getOrigin().y(), 0.0D);
+                assertEquals(plane.center().z(), source.getOrigin().z(), 0.0D);
+                assertTrue(source.getGeometry().containsBlock(2, 64, 3));
+                assertFalse(source.getGeometry().containsBlock(2, 65, 3));
+            }
         }
     }
 

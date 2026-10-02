@@ -56,7 +56,7 @@ final class ClientMeshPlan {
         int axis = normal.x() != 0 ? 0 : normal.y() != 0 ? 1 : 2;
         int right = (axis + 1) % 3;
         int up = (axis + 2) % 3;
-        double plane = (apertureMin[axis] + apertureMax[axis]) * 0.5;
+        double plane = geometry.planeCoordinate();
         double denominator = plane - eyeAt[axis];
         ArrayList<Section> selected = new ArrayList<Section>();
         HashSet<Coordinate> coordinates = new HashSet<Coordinate>();

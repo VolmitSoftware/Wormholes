@@ -77,6 +77,13 @@ public record DoorwayPlane(
 		return form == DoorForm.TRAPDOOR;
 	}
 
+	public static double planeOffset(Direction normal)
+	{
+		return Objects.requireNonNull(normal, "normal").isVertical()
+			? 0.5D - TRAPDOOR_PLATE_THICKNESS / 2.0D
+			: PORTAL_THRESHOLD_OFFSET;
+	}
+
 	/** True when the plane lies flat, which is exactly the trapdoor case. */
 	public boolean horizontal()
 	{

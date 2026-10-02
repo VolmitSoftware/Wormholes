@@ -7,6 +7,7 @@ import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.vanilla.DimensionalRouting;
 import art.arcane.wormholes.portal.vanilla.NetherSitePlan;
+import art.arcane.wormholes.portal.vanilla.NetherSiteSearch;
 import art.arcane.wormholes.geometry.GeometryVector;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -32,6 +33,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -241,65 +243,95 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
     }
 
     private Build build(ServerLevel target, Shape source, BlockPos center) {
-        for (int offset : new int[] {0, 8, -8, 16, -16}) {
-            int x = center.getX() + offset;
-            int z = center.getZ();
-            int highest = source.end() ? Math.min(180, target.getMaxY() - 4) : Math.min(target.getMaxY() - source.height() - 3,
-                target.dimension() == Level.NETHER ? 120 : target.getMaxY());
-            int y = Math.max(target.getMinY() + 5, Math.min(highest, center.getY()));
-            if (source.end()) {
-                y = target.getMinY() + 50;
-                for (int scan = highest; scan > target.getMinY(); scan--) {
-                    if (!target.getBlockState(new BlockPos(x, scan, z)).isAir()) {
-                        y = scan;
+        for (int pass = 0; pass < (source.end() ? 1 : 2); pass++) {
+            for (int offset : new int[] {0, 8, -8, 16, -16}) {
+                int x = center.getX() + offset;
+                int z = center.getZ();
+                int highest = source.end() ? Math.min(180, target.getMaxY() - 4) : Math.min(NetherSiteSearch.maximumBaseY(target.getMaxY(), source.height(), target.dimension() == Level.NETHER),
+                    target.dimension() == Level.NETHER ? 120 : target.getMaxY());
+                int y = Math.max(target.getMinY() + 5, Math.min(highest, center.getY()));
+                if (source.end()) {
+                    y = target.getMinY() + 50;
+                    for (int scan = highest; scan > target.getMinY(); scan--) {
+                        if (!target.getBlockState(new BlockPos(x, scan, z)).isAir()) {
+                            y = scan;
+                            break;
+                        }
+                    }
+                    y = Math.min(target.getMaxY() - 4, y + 10);
+                }
+                if (!source.end() && pass == 0) {
+                    OptionalInt grounded = NetherSiteSearch.findBaseY(new NetherSiteSearch.Options(x, z, source.alongX(), source.width(),
+                        Math.clamp(source.height(), 2, 21), y, target.getMinY() + 5, highest),
+                        (blockX, blockY, blockZ) -> siteCell(target, blockX, blockY, blockZ));
+                    if (grounded.isEmpty()) {
+                        continue;
+                    }
+                    y = grounded.getAsInt();
+                }
+                Map<BlockPos, BlockState> changes = new LinkedHashMap<>();
+                List<BlockPos> cells = new ArrayList<>();
+                if (source.end()) {
+                    for (int dx = -1; dx <= 1; dx++) {
+                        for (int dz = -1; dz <= 1; dz++) {
+                            BlockPos cell = new BlockPos(x + dx, y, z + dz);
+                            cells.add(cell);
+                            changes.put(cell, Blocks.AIR.defaultBlockState());
+                        }
+                    }
+                } else {
+                    List<NetherSitePlan.Mutation> planned = NetherSitePlan.plan(new NetherSitePlan.Options(x, y, z,
+                        source.alongX(), source.width(), source.height()));
+                    for (NetherSitePlan.Mutation mutation : planned) {
+                        BlockPos cell = new BlockPos(mutation.x(), mutation.y(), mutation.z());
+                        if (!mutation.preserveObsidian() || !target.getBlockState(cell).is(Blocks.OBSIDIAN)) {
+                            BlockState state = switch (mutation.material()) {
+                                case AIR -> Blocks.AIR.defaultBlockState();
+                                case OBSIDIAN -> Blocks.OBSIDIAN.defaultBlockState();
+                                case NETHERRACK -> Blocks.NETHERRACK.defaultBlockState();
+                            };
+                            changes.put(cell, state);
+                        }
+                        if (mutation.interior()) {
+                            cells.add(cell);
+                        }
+                    }
+                }
+                boolean blocked = false;
+                for (BlockPos cell : changes.keySet()) {
+                    if (!target.getWorldBorder().isWithinBounds(cell) || !target.hasChunk(cell.getX() >> 4, cell.getZ() >> 4)
+                        || runtime.portals().at(target, cell) != null || target.getBlockEntity(cell) != null
+                        || target.getBlockState(cell).is(Blocks.BEDROCK) || target.getBlockState(cell).is(Blocks.NETHER_PORTAL)
+                        || target.getBlockState(cell).is(Blocks.END_PORTAL_FRAME)) {
+                        blocked = true;
                         break;
                     }
                 }
-                y = Math.min(target.getMaxY() - 4, y + 10);
-            }
-            Map<BlockPos, BlockState> changes = new LinkedHashMap<>();
-            List<BlockPos> cells = new ArrayList<>();
-            if (source.end()) {
-                for (int dx = -1; dx <= 1; dx++) {
-                    for (int dz = -1; dz <= 1; dz++) {
-                        BlockPos cell = new BlockPos(x + dx, y, z + dz);
-                        cells.add(cell);
-                        changes.put(cell, Blocks.AIR.defaultBlockState());
-                    }
+                if (!blocked) {
+                    return new Build(List.copyOf(cells), changes);
                 }
-            } else {
-                List<NetherSitePlan.Mutation> planned = NetherSitePlan.plan(new NetherSitePlan.Options(x, y, z,
-                    source.alongX(), source.width(), source.height()));
-                for (NetherSitePlan.Mutation mutation : planned) {
-                    BlockPos cell = new BlockPos(mutation.x(), mutation.y(), mutation.z());
-                    if (!mutation.preserveObsidian() || !target.getBlockState(cell).is(Blocks.OBSIDIAN)) {
-                        BlockState state = switch (mutation.material()) {
-                            case AIR -> Blocks.AIR.defaultBlockState();
-                            case OBSIDIAN -> Blocks.OBSIDIAN.defaultBlockState();
-                            case NETHERRACK -> Blocks.NETHERRACK.defaultBlockState();
-                        };
-                        changes.put(cell, state);
-                    }
-                    if (mutation.interior()) {
-                        cells.add(cell);
-                    }
-                }
-            }
-            boolean blocked = false;
-            for (BlockPos cell : changes.keySet()) {
-                if (!target.getWorldBorder().isWithinBounds(cell) || !target.hasChunk(cell.getX() >> 4, cell.getZ() >> 4)
-                    || runtime.portals().at(target, cell) != null || target.getBlockEntity(cell) != null
-                    || target.getBlockState(cell).is(Blocks.BEDROCK) || target.getBlockState(cell).is(Blocks.NETHER_PORTAL)
-                    || target.getBlockState(cell).is(Blocks.END_PORTAL_FRAME)) {
-                    blocked = true;
-                    break;
-                }
-            }
-            if (!blocked) {
-                return new Build(List.copyOf(cells), changes);
             }
         }
         return null;
+    }
+
+    private static NetherSiteSearch.Cell siteCell(ServerLevel level, int x, int y, int z) {
+        BlockPos position = new BlockPos(x, y, z);
+        if (!level.hasChunk(x >> 4, z >> 4) || !level.getWorldBorder().isWithinBounds(position)) {
+            return NetherSiteSearch.Cell.BLOCKED;
+        }
+        BlockState state = level.getBlockState(position);
+        if (state.is(Blocks.LAVA) || state.is(Blocks.WATER) || !state.getFluidState().isEmpty()
+            || state.is(Blocks.FIRE) || state.is(Blocks.SOUL_FIRE)
+            || state.is(Blocks.MAGMA_BLOCK) || state.is(Blocks.CAMPFIRE) || state.is(Blocks.SOUL_CAMPFIRE)
+            || state.is(Blocks.CACTUS) || state.is(Blocks.POWDER_SNOW) || state.is(Blocks.SWEET_BERRY_BUSH)
+            || state.is(Blocks.WITHER_ROSE) || state.is(Blocks.BEDROCK)) {
+            return NetherSiteSearch.Cell.BLOCKED;
+        }
+        if (state.isCollisionShapeFullBlock(level, position)) {
+            return NetherSiteSearch.Cell.FLOOR;
+        }
+        return state.getCollisionShape(level, position).isEmpty() ? NetherSiteSearch.Cell.CLEAR : NetherSiteSearch.Cell.BLOCKED;
     }
 
     private MinecraftPortal reusable(ServerLevel target, BlockPos center, boolean end) {

@@ -478,13 +478,25 @@ public final class ClientPortalRenderer {
     private void finish(Portal portal, long key, long revision, int generation, PortalSectionMesh mesh, Throwable failure) {
         pendingBuilds--;
         portal.building.remove(key);
-        if (!portal.active || portal.generation != generation || portal.scene.revision(key) != revision || portal.dirty.contains(key)) {
+        long currentRevision = portal.scene.revision(key);
+        Section displayed = portal.sections.get(key);
+        if (!portal.active || portal.generation != generation || currentRevision < 0
+            || displayed != null && displayed.revision > revision) {
             if (mesh != null) {
                 mesh.close();
             }
             return;
         }
+        if (currentRevision != revision) {
+            portal.dirty.add(key);
+        }
         if (failure != null) {
+            if (portal.dirty.contains(key)) {
+                if (mesh != null) {
+                    mesh.close();
+                }
+                return;
+            }
             Throwable cause = failure.getCause() == null ? failure : failure.getCause();
             if (cause instanceof Error error) {
                 throw error;
@@ -493,7 +505,7 @@ public final class ClientPortalRenderer {
             return;
         }
         try (mesh) {
-            Section section = new Section(key);
+            Section section = new Section(key, revision);
             Section previous = portal.sections.put(key, section);
             portal.orderDirty = true;
             if (previous != null) {
@@ -912,12 +924,14 @@ public final class ClientPortalRenderer {
 
     private static final class Section {
         private final long key;
+        private final long revision;
         private final AABB bounds;
         private final EnumMap<ChunkSectionLayer, PortalGpuMesh> layers = new EnumMap<>(ChunkSectionLayer.class);
         private GpuBuffer clip;
 
-        private Section(long key) {
+        private Section(long key, long revision) {
             this.key = key;
+            this.revision = revision;
             int x = SectionPos.x(key) << 4;
             int y = SectionPos.y(key) << 4;
             int z = SectionPos.z(key) << 4;

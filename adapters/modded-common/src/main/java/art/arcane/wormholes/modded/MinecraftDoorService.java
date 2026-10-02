@@ -143,6 +143,11 @@ public final class MinecraftDoorService implements AutoCloseable {
     private MinecraftPocketService pocketOperations;
     private MinecraftDoorPresentation presentation;
     private final Map<UUID, PocketTrip> pocketTrips = new HashMap<>();
+    private final Map<UUID, CompletableFuture<PocketSpace>> pocketPreparations = new HashMap<>();
+    private final Set<PocketBinding> pocketPreviews = new HashSet<>();
+    private final Map<PocketBinding, Long> pocketPreviewRetries = new HashMap<>();
+    private final Map<UUID, EndpointProjection> endpointProjections = new HashMap<>();
+    private final Map<UUID, Long> endpointProjectionRetries = new HashMap<>();
     private final Map<Long, PocketSpace> pocketChunks = new HashMap<>();
     private volatile boolean closed;
 
@@ -209,7 +214,7 @@ public final class MinecraftDoorService implements AutoCloseable {
 
     public boolean resetAllowed() {
         runtime.requireServerThread();
-        if (!flights.isEmpty() || !pocketTrips.isEmpty()) {
+        if (!flights.isEmpty() || !pocketTrips.isEmpty() || !pocketPreviews.isEmpty() || !pocketPreparations.isEmpty()) {
             return false;
         }
         for (PocketSpace space : state.spaces()) {
@@ -483,6 +488,8 @@ public final class MinecraftDoorService implements AutoCloseable {
 
     public void tick() {
         runtime.requireServerThread();
+        long now = System.currentTimeMillis();
+        expireEndpointProjections(now);
         if (!enabled()) {
             presentation.clear();
             return;
@@ -490,7 +497,6 @@ public final class MinecraftDoorService implements AutoCloseable {
         presentation.tick();
         rules.tick();
         pocketOperations.tick();
-        long now = System.currentTimeMillis();
         cooldowns.entrySet().removeIf(entry -> entry.getValue() <= now);
         Set<UUID> visited = new HashSet<>();
         for (ActiveDoor door : List.copyOf(doors.values())) {
@@ -582,6 +588,14 @@ public final class MinecraftDoorService implements AutoCloseable {
         if (closed) {
             return;
         }
+        endpointProjections.values().removeIf(preparation -> {
+            preparation.observers.remove(player.getUUID());
+            if (!preparation.observers.isEmpty()) {
+                return false;
+            }
+            preparation.lease.close();
+            return true;
+        });
         rules.playerDisconnected(player);
         presentation.disconnected(player);
         Flight flight = flights.remove(player.getUUID());
@@ -607,6 +621,17 @@ public final class MinecraftDoorService implements AutoCloseable {
         }
         flights.clear();
         pocketTrips.clear();
+        pocketPreviews.clear();
+        pocketPreviewRetries.clear();
+        for (EndpointProjection preparation : endpointProjections.values()) {
+            preparation.lease.close();
+        }
+        endpointProjections.clear();
+        endpointProjectionRetries.clear();
+        for (CompletableFuture<PocketSpace> preparation : List.copyOf(pocketPreparations.values())) {
+            preparation.completeExceptionally(new IllegalStateException("Pocket preparation was stopped"));
+        }
+        pocketPreparations.clear();
         pocketChunks.clear();
         if (presentation != null) {
             presentation.close();
@@ -765,7 +790,12 @@ public final class MinecraftDoorService implements AutoCloseable {
                 return;
             }
             index(space);
-            pockets.prepare(space).whenCompleteAsync((room, error) -> {
+            preparePocket(space).thenComposeAsync(prepared -> {
+                if (!valid(entity, trip)) {
+                    return CompletableFuture.failedFuture(new IllegalStateException("Pocket traversal expired"));
+                }
+                return pockets.load(prepared);
+            }, server).whenCompleteAsync((room, error) -> {
                 if (error != null) {
                     LOGGER.error("Could not provision pocket {}", space.spaceId(), error);
                     finishPocket(entity, trip, false);
@@ -776,25 +806,92 @@ public final class MinecraftDoorService implements AutoCloseable {
                     finishPocket(entity, trip, false);
                     return;
                 }
-                pocketOperations.furnish(space).whenCompleteAsync((furnished, failure) -> {
-                    if (failure != null || !valid(entity, trip)) {
-                        if (failure != null) {
-                            LOGGER.error("Could not furnish pocket {}", space.spaceId(), failure);
-                        }
-                        room.close();
-                        finishPocket(entity, trip, false);
-                        return;
-                    }
-                    persistPocketEntry(entity, trip, room);
-                }, server);
+                persistPocketEntry(entity, trip, room);
             }, server);
         }, () -> finishPocket(entity, trip, false));
+    }
+
+    private CompletableFuture<PocketSpace> preparePocket(PocketSpace space) {
+        runtime.requireServerThread();
+        CompletableFuture<PocketSpace> pending = pocketPreparations.get(space.spaceId());
+        if (pending != null) {
+            return pending;
+        }
+        if (!enabled() || pocketOperations.busy(space.spaceId())) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Pocket is unavailable"));
+        }
+        long startedGeneration = generation;
+        MinecraftServer owner = server;
+        DoorStateService persistentState = state;
+        ExecutorService persistence = storage;
+        CompletableFuture<PocketSpace> result = new CompletableFuture<>();
+        pocketPreparations.put(space.spaceId(), result);
+        boolean provision = persistentState.findEndpointByItem(new PocketLayout(space).returnDoorIdentity().itemId()).isEmpty();
+        CompletableFuture<MinecraftPocketRooms.Prepared> loading;
+        try {
+            loading = provision ? pockets.prepare(space) : pockets.load(space);
+        } catch (RuntimeException failure) {
+            pocketPreparations.remove(space.spaceId(), result);
+            result.completeExceptionally(failure);
+            return result;
+        }
+        loading.whenCompleteAsync((room, loadError) -> {
+            if (loadError != null) {
+                finishPreparation(space, result, null, loadError, startedGeneration);
+                return;
+            }
+            if (closed || generation != startedGeneration) {
+                room.close();
+                result.completeExceptionally(new IllegalStateException("Pocket preparation was stopped"));
+                return;
+            }
+            CompletableFuture<PocketSpace> furnished;
+            try {
+                furnished = pocketOperations.furnish(space);
+            } catch (RuntimeException failure) {
+                room.close();
+                finishPreparation(space, result, null, failure, startedGeneration);
+                return;
+            }
+            furnished.thenApplyAsync(prepared -> {
+                try {
+                    persistentState.registerEndpoint(room.endpoint());
+                    return prepared;
+                } catch (IOException failure) {
+                    throw new CompletionException(failure);
+                }
+            }, persistence).whenCompleteAsync((prepared, error) -> {
+                try {
+                    if (!closed && generation == startedGeneration && error == null) {
+                        doors.put(room.endpoint().identity().itemId(), new ActiveDoor(room.endpoint()));
+                        index(prepared);
+                    }
+                    finishPreparation(space, result, prepared, error, startedGeneration);
+                } finally {
+                    room.close();
+                }
+            }, owner);
+        }, owner);
+        return result;
+    }
+
+    private void finishPreparation(PocketSpace space, CompletableFuture<PocketSpace> result, PocketSpace prepared,
+                                   Throwable failure, long startedGeneration) {
+        if (closed || generation != startedGeneration) {
+            result.completeExceptionally(new IllegalStateException("Pocket preparation was stopped", failure));
+            return;
+        }
+        pocketPreparations.remove(space.spaceId(), result);
+        if (failure == null) {
+            result.complete(prepared);
+        } else {
+            result.completeExceptionally(failure);
+        }
     }
 
     private void persistPocketEntry(Entity entity, PocketTrip trip, MinecraftPocketRooms.Prepared room) {
         PlacedDoorEndpoint endpoint = room.endpoint();
         mutate(entity, activeState -> {
-            activeState.registerEndpoint(endpoint);
             if (trip.ticket() != null) {
                 activeState.putReturnTicket(trip.ticket());
             }
@@ -1129,9 +1226,24 @@ public final class MinecraftDoorService implements AutoCloseable {
                 return Optional.of(new ProjectionDestination(endpoint.identity().itemId(), mate.level(),
                     new GeometryVector(center.x(), center.y(), center.z()), DoorApertureFrames.destinationFrame(source.plane(), mate.plane())));
             });
-            case PERSONAL -> pocketView(PocketBinding.personal(observerId));
-            case PUBLIC -> pocketView(((PocketDoorDestination) state.resolveDestination(source.endpoint().identity(), observerId)).binding());
+            case PERSONAL, PUBLIC -> pocketView(source, observerId);
             case RETURN -> state.getReturnTicket(observerId).flatMap(ticket -> {
+                PlacedDoorEndpoint endpoint = state.findEndpointByItem(ticket.sourceEndpointId()).orElse(null);
+                if (endpoint != null) {
+                    ServerLevel currentLevel = level(endpoint.position().worldKey());
+                    if (endpoint.identity().kind() == DoorKind.RETURN || currentLevel == null || isPocketLevel(currentLevel)) {
+                        return Optional.empty();
+                    }
+                    EndpointProjection preparation = endpointProjections.get(endpoint.identity().itemId());
+                    if (preparation != null) {
+                        preparation.observers.add(observerId);
+                    }
+                    if (!currentLevel.hasChunk(endpoint.position().x() >> 4, endpoint.position().z() >> 4)) {
+                        prepareEndpointProjection(endpoint, currentLevel, observerId);
+                        return Optional.empty();
+                    }
+                    return endpointView(source, endpoint);
+                }
                 ServerLevel destination = level(ticket.sourceWorldKey());
                 if (destination == null) {
                     return Optional.empty();
@@ -1139,20 +1251,174 @@ public final class MinecraftDoorService implements AutoCloseable {
                 double yaw = Math.toRadians(ticket.yaw());
                 Direction direction = Direction.closest(-Math.sin(yaw), 0, Math.cos(yaw)).reverse();
                 return Optional.of(new ProjectionDestination(ticket.sourceEndpointId(), destination,
-                    new GeometryVector(ticket.x(), ticket.y(), ticket.z()), PortalFrame.fromNormalUp(direction, Direction.U)));
+                    new GeometryVector(ticket.x(), ticket.y() + 1.0D, ticket.z()), PortalFrame.fromNormalUp(direction, Direction.U)));
             });
         };
     }
 
-    private Optional<ProjectionDestination> pocketView(PocketBinding binding) {
-        ServerLevel destination = level("wormholes:pockets");
-        PocketSpace space = state.findPocket(binding).orElse(null);
-        if (destination == null || space == null || pocketOperations.busy(space.spaceId())) {
+    private void prepareEndpointProjection(PlacedDoorEndpoint endpoint, ServerLevel level, UUID observer) {
+        UUID id = endpoint.identity().itemId();
+        EndpointProjection existing = endpointProjections.get(id);
+        if (existing != null) {
+            if (existing.endpoint.equals(endpoint)) {
+                existing.observers.add(observer);
+                return;
+            }
+            endpointProjections.remove(id, existing);
+            existing.lease.close();
+        }
+        long now = System.currentTimeMillis();
+        if (endpointProjections.size() >= 128 || now < endpointProjectionRetries.getOrDefault(id, 0L)) {
+            return;
+        }
+        ChunkLease lease;
+        try {
+            lease = runtime.leases().retain(level, worldId(level), endpoint.position().x() >> 4, endpoint.position().z() >> 4);
+        } catch (RuntimeException failure) {
+            endpointProjectionRetries.put(id, now + 5_000L);
+            LOGGER.error("Could not prepare dimensional-door projection {}", id, failure);
+            return;
+        }
+        EndpointProjection preparation = new EndpointProjection(lease, endpoint);
+        preparation.observers.add(observer);
+        endpointProjections.put(id, preparation);
+        long startedGeneration = generation;
+        lease.ready().whenCompleteAsync((ready, failure) -> {
+            if (closed || generation != startedGeneration || endpointProjections.get(id) != preparation) {
+                lease.close();
+                return;
+            }
+            if (failure != null || !Boolean.TRUE.equals(ready)) {
+                endpointProjections.remove(id, preparation);
+                endpointProjectionRetries.put(id, System.currentTimeMillis() + 5_000L);
+                lease.close();
+                if (failure != null) {
+                    LOGGER.error("Could not prepare dimensional-door projection {}", id, failure);
+                }
+                return;
+            }
+            preparation.expiresAt = System.currentTimeMillis() + 5_000L;
+        }, server);
+    }
+
+    private void expireEndpointProjections(long now) {
+        endpointProjections.entrySet().removeIf(entry -> {
+            EndpointProjection preparation = entry.getValue();
+            if (now < preparation.expiresAt) {
+                return false;
+            }
+            endpointProjectionRetries.put(entry.getKey(), now + 5_000L);
+            preparation.lease.close();
+            return true;
+        });
+        endpointProjectionRetries.entrySet().removeIf(entry -> entry.getValue() <= now);
+    }
+
+    private Optional<ProjectionDestination> endpointView(DoorView source, PlacedDoorEndpoint endpoint) {
+        Snapshot target = capture(endpoint);
+        if (target == null) {
             return Optional.empty();
         }
-        PocketEntryCoordinates entry = new PocketLayout(space).entry();
-        return Optional.of(new ProjectionDestination(space.spaceId(), destination,
-            new GeometryVector(entry.x(), entry.y(), entry.z()), PortalFrame.fromNormalUp(Direction.S, Direction.U)));
+        DoorVec3 center = target.plane().center();
+        return Optional.of(new ProjectionDestination(endpoint.identity().itemId(), target.level(),
+            new GeometryVector(center.x(), center.y(), center.z()), DoorApertureFrames.destinationFrame(source.plane(), target.plane())));
+    }
+
+    private Optional<ProjectionDestination> pocketView(DoorView source, UUID observerId) {
+        PocketDoorDestination route = (PocketDoorDestination) state.resolveDestination(source.endpoint().identity(), observerId);
+        ServerPlayer observer = server.getPlayerList().getPlayer(observerId);
+        if (observer == null || observer.hasDisconnected() || !source.active() || !canAccess(observer, source.endpoint())) {
+            return Optional.empty();
+        }
+        PocketBinding binding = route.binding();
+        PocketSpace space = state.findPocket(binding).orElse(null);
+        DoorPosition sourcePosition = source.endpoint().position();
+        PocketSpace standingIn = spaceAt(source.level(), new BlockPos(sourcePosition.x(), sourcePosition.y(), sourcePosition.z()));
+        if (!PocketRooms.allowsPocketEntry(isPocketLevel(source.level()), standingIn, space)) {
+            return Optional.empty();
+        }
+        if (pocketPreviews.contains(binding) || space != null && (pocketOperations.busy(space.spaceId()) || pocketPreparations.containsKey(space.spaceId()))) {
+            return Optional.empty();
+        }
+        if (space != null) {
+            PlacedDoorEndpoint endpoint = state.findEndpointByItem(new PocketLayout(space).returnDoorIdentity().itemId()).orElse(null);
+            if (endpoint != null) {
+                Optional<ProjectionDestination> view = endpointView(source, endpoint);
+                if (view.isPresent()) {
+                    return view;
+                }
+            }
+        }
+        requestPocketPreview(source, observerId, route);
+        return Optional.empty();
+    }
+
+    private void requestPocketPreview(DoorView source, UUID observerId, PocketDoorDestination route) {
+        PocketBinding binding = route.binding();
+        if (!enabled() || pocketPreviews.contains(binding)
+            || System.currentTimeMillis() < pocketPreviewRetries.getOrDefault(binding, 0L)) {
+            return;
+        }
+        MainConfig main = configuration.settings().getMain();
+        PocketsConfig config = configuration.settings().getPockets();
+        DoorPosition position = source.endpoint().position();
+        PreviewAllocation allocation = new PreviewAllocation(observerId,
+            new PocketShell(main.pocketRoomSize, main.pocketShellMaterial, main.pocketReturnDoorMaterial),
+            new PocketRules(config.rulesDefaultMobs, config.rulesDefaultPvp, config.rulesDefaultKeepInventory,
+                config.rulesDefaultFixedTime, PocketRules.BuildPolicy.parse(config.rulesDefaultBuild)), config.instanceReset,
+            isPocketLevel(source.level()), spaceAt(source.level(), new BlockPos(position.x(), position.y(), position.z())));
+        long startedGeneration = generation;
+        DoorStateService persistentState = state;
+        MinecraftServer owner = server;
+        pocketPreviews.add(binding);
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                return allocatePreview(persistentState, route, allocation);
+            } catch (IOException failure) {
+                throw new CompletionException(failure);
+            }
+        }, storage).thenComposeAsync(space -> {
+            if (closed || generation != startedGeneration) {
+                return CompletableFuture.failedFuture(new IllegalStateException("Pocket preview was stopped"));
+            }
+            if (space == null) {
+                return CompletableFuture.completedFuture(null);
+            }
+            index(space);
+            return preparePocket(space);
+        }, owner).whenCompleteAsync((space, error) -> {
+            if (closed || generation != startedGeneration) {
+                return;
+            }
+            pocketPreviews.remove(binding);
+            if (error != null || space == null) {
+                pocketPreviewRetries.put(binding, System.currentTimeMillis() + 5_000L);
+                if (error != null) {
+                    LOGGER.error("Could not prepare pocket preview for {}", binding, error);
+                }
+            } else {
+                pocketPreviewRetries.remove(binding);
+            }
+        }, owner);
+    }
+
+    private static PocketSpace allocatePreview(DoorStateService store, PocketDoorDestination route, PreviewAllocation allocation) throws IOException {
+        PocketSpace existing = store.findPocket(route.binding()).orElse(null);
+        if (!PocketRooms.allowsPocketEntry(allocation.insidePocketWorld(), allocation.standingIn(), existing)) {
+            return null;
+        }
+        PocketSpace space = existing == null
+            ? store.replacePocket(store.getOrAllocatePocket(route.binding(), allocation.shell()).withRules(allocation.rules())) : existing;
+        if (route.isInstanced() && space.instance() == null) {
+            space = store.replacePocket(space.withTemplateName(route.instancedTemplate()).withInstance(
+                PocketInstances.newInstance(route.instancedTemplate(), allocation.observerId(), allocation.instanceReset(), System.currentTimeMillis())
+                    .withLastOccupied(0L)));
+        }
+        return space;
+    }
+
+    private record PreviewAllocation(UUID observerId, PocketShell shell, PocketRules rules, String instanceReset,
+                                     boolean insidePocketWorld, PocketSpace standingIn) {
     }
 
     public record DoorView(PlacedDoorEndpoint endpoint, ServerLevel level, DoorwayPlane plane, boolean active) {
@@ -1441,5 +1707,17 @@ public final class MinecraftDoorService implements AutoCloseable {
     private record PocketTrip(ActiveDoor source, DoorTransit transit, Level level, Vec3 point, long generation,
                               long deadline, ReturnTicket ticket) { }
     private record Position(ServerLevel level, Vec3 point) { }
+    private static final class EndpointProjection {
+        private final ChunkLease lease;
+        private final PlacedDoorEndpoint endpoint;
+        private final Set<UUID> observers = new HashSet<>();
+        private long expiresAt = System.currentTimeMillis() + 30_000L;
+
+        private EndpointProjection(ChunkLease lease, PlacedDoorEndpoint endpoint) {
+            this.lease = lease;
+            this.endpoint = endpoint;
+        }
+    }
+
     private record Flight(ChunkLease lease, Level level, Vec3 point, long expiresAt) { }
 }

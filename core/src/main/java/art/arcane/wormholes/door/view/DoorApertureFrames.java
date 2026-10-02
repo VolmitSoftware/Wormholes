@@ -21,7 +21,7 @@ public final class DoorApertureFrames {
     public static PortalFrame of(DoorwayPlane plane) {
         Objects.requireNonNull(plane, "plane");
         if (plane.form() == DoorForm.TRAPDOOR) {
-            return PortalFrame.canonical(plane.half() == DoorHalf.TOP ? Direction.U : Direction.D);
+            return horizontalFrame(plane.half() == DoorHalf.TOP ? Direction.U : Direction.D, plane.facing());
         }
         return PortalFrame.fromNormalUp(plane.facing(), Direction.U);
     }
@@ -35,7 +35,11 @@ public final class DoorApertureFrames {
      */
     public static PortalFrame destinationFrame(DoorwayPlane source, DoorwayPlane mate) {
         PortalFrame frame = of(Objects.requireNonNull(mate, "mate"));
-        return DoorPlanePairing.mirrored(Objects.requireNonNull(source, "source"), mate)
+        Objects.requireNonNull(source, "source");
+        if (source.horizontal() && mate.horizontal()) {
+            return horizontalFrame(of(source).getNormal(), mate.facing());
+        }
+        return DoorPlanePairing.mirrored(source, mate)
             ? frame.flipNormal()
             : frame;
     }
@@ -43,6 +47,10 @@ public final class DoorApertureFrames {
     /** How tall the aperture is, in blocks. */
     public static double height(DoorwayPlane plane) {
         return Objects.requireNonNull(plane, "plane").form() == DoorForm.TRAPDOOR ? 1.0D : 2.0D;
+    }
+
+    private static PortalFrame horizontalFrame(Direction normal, Direction facing) {
+        return PortalFrame.fromNormalUp(normal, normal == Direction.U ? facing.reverse() : facing);
     }
 
 }

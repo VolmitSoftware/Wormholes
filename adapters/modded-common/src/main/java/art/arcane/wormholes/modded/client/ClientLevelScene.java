@@ -110,6 +110,9 @@ public final class ClientLevelScene implements ClientSceneWorld {
     @Override
     public void tick(int entityId, boolean nativeMesh) {
         Entity entity = level.getEntity(entityId);
+        if (nativeMesh && entity != null) {
+            entity.noPhysics = true;
+        }
         if (!nativeMesh || !(entity instanceof ItemEntity item)) {
             itemMotion.remove(entityId);
             return;

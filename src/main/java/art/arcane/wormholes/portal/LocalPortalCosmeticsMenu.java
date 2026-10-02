@@ -364,6 +364,10 @@ final class LocalPortalCosmeticsMenu
 			{
 				return;
 			}
+			if(!menus.ensureCanEditSurfaceSkin(viewer))
+			{
+				return;
+			}
 			portal.setSurfaceSkin("");
 			applySurfaceSkinElement(element);
 			window.updateInventory();
@@ -420,6 +424,10 @@ final class LocalPortalCosmeticsMenu
 		element.setEnchanted("minecraft:glass".equals(portal.getSurfaceSkin()));
 		element.onLeftClick((e) ->
 		{
+			if(!menus.ensureCanEditSurfaceSkin(viewer))
+			{
+				return;
+			}
 			portal.setSurfaceSkin("minecraft:glass");
 			refreshSurfaceSkinMenu(window, viewer);
 			window.updateInventory();
@@ -437,6 +445,10 @@ final class LocalPortalCosmeticsMenu
 		element.onLeftClick((e) ->
 		{
 			if(!portal.hasSurfaceSkin())
+			{
+				return;
+			}
+			if(!menus.ensureCanEditSurfaceSkin(viewer))
 			{
 				return;
 			}
@@ -487,7 +499,7 @@ final class LocalPortalCosmeticsMenu
 
 	boolean applySurfaceSkinFromInteraction(Player player, String skin)
 	{
-		if(!menus.ensureCanManage(player))
+		if(!menus.ensureCanEditSurfaceSkin(player))
 		{
 			return false;
 		}

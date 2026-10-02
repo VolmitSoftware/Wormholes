@@ -264,6 +264,9 @@ final class MinecraftPortalCosmeticsMenu {
             if (!hasSurfaceSkin(portal)) {
                 return;
             }
+            if (!menus.ensureCanEditSurfaceSkin(viewer, portal)) {
+                return;
+            }
             menus.update(viewer, portal, target -> target.setSurfaceSkin(""));
             applySurfaceSkinElement(viewer, element, portal);
             window.updateInventory();
@@ -306,6 +309,9 @@ final class MinecraftPortalCosmeticsMenu {
             WormholesMessages.PORTAL_MENU_SURFACE_SKIN_GLASS, MessageArgs.empty(), Items.GLASS);
         element.setEnchanted(GLASS_SKIN.equals(portal.getSurfaceSkin()));
         element.onLeftClick(clicked -> {
+            if (!menus.ensureCanEditSurfaceSkin(viewer, portal)) {
+                return;
+            }
             menus.update(viewer, portal, target -> target.setSurfaceSkin(GLASS_SKIN));
             refreshSurfaceSkinMenu(window, viewer, portal);
             window.updateInventory();
@@ -321,6 +327,9 @@ final class MinecraftPortalCosmeticsMenu {
             if (!hasSurfaceSkin(portal)) {
                 return;
             }
+            if (!menus.ensureCanEditSurfaceSkin(viewer, portal)) {
+                return;
+            }
             menus.update(viewer, portal, target -> target.setSurfaceSkin(""));
             refreshSurfaceSkinMenu(window, viewer, portal);
             window.updateInventory();
@@ -330,7 +339,7 @@ final class MinecraftPortalCosmeticsMenu {
     }
 
     boolean applySurfaceSkinFromInteraction(ServerPlayer player, MinecraftPortal portal, String skin) {
-        if (!menus.ensureCanManage(player, portal)) {
+        if (!menus.ensureCanEditSurfaceSkin(player, portal)) {
             return false;
         }
         String previous = portal.getSurfaceSkin();

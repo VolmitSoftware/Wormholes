@@ -21,8 +21,54 @@ import java.util.ArrayList;
 import java.util.ArrayDeque;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.client.SessionPalette;
+import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
+import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.wormholes.render.plate.PlateTestFixtures;
+import art.arcane.wormholes.render.plate.ViewPlate;
+import java.util.UUID;
 
 final class ClientMeshStreamTest {
+    @Test
+    void unannouncedBranchDoesNotHoldReadyRootSectionsBehindItsBegin() {
+        FakePortalAccess access = new FakePortalAccess(new ArrayList<String>());
+        SessionPortal blockedPortal = access.add(new SessionPortal("blocked", 0));
+        SessionPortal readyPortal = access.add(new SessionPortal("ready", 0));
+        ClientViewPortalSlot<String> blocked = new ClientViewPortalSlot<String>(blockedPortal.id, 1, false);
+        blocked.geometry = blockedPortal.geometry(new SessionPalette());
+        blocked.sentGeometry = blocked.geometry;
+        blocked.laneAttached = true;
+        ClientViewPortalSlot<String> root = new ClientViewPortalSlot<String>(readyPortal.id, 2, false);
+        root.geometry = readyPortal.geometry(new SessionPalette());
+        root.sentGeometry = root.geometry;
+        root.laneAttached = true;
+        root.announced = true;
+        GeometryVector eye = new GeometryVector(11, 67, 15);
+        ClientMeshStream<String> stream = new ClientMeshStream<String>();
+        stream.beginTick();
+        stream.refresh(blocked, access, "observer", 1, SessionHarness.TICK_NANOS, false, eye);
+        stream.refresh(root, access, "observer", 1, SessionHarness.TICK_NANOS, false, eye);
+        assertTrue(stream.pollControl(key -> key == root.key) instanceof ClientViewMessage.MeshBegin begin && begin.portalKey() == root.key);
+        stream.beginTick();
+        stream.refresh(root, access, "observer", 2, SessionHarness.TICK_NANOS * 2, false, eye);
+        ClientMeshStream.Ready<String> first = stream.poll(SessionHarness.TICK_NANOS * 2);
+        assertTrue(first != null);
+        assertEquals(root.key, first.slot().key);
+        assertEquals(ClientMeshPlan.visible(root.geometry, eye).getFirst().coordinate(), first.coordinate());
+        acknowledge(stream, first);
+        ClientMeshStream.Ready<String> next;
+        while ((next = stream.poll(SessionHarness.TICK_NANOS * 2)) != null) {
+            assertEquals(root.key, next.slot().key);
+            acknowledge(stream, next);
+        }
+        blocked.announced = true;
+        assertTrue(stream.poll(SessionHarness.TICK_NANOS * 2) == null, "section must wait for its own MeshBegin");
+        assertTrue(stream.pollControl(key -> true) instanceof ClientViewMessage.MeshBegin begin && begin.portalKey() == blocked.key);
+        next = stream.poll(SessionHarness.TICK_NANOS * 2);
+        assertTrue(next != null);
+        assertEquals(blocked.key, next.slot().key);
+        assertTrue(access.meshCalls <= 2 * ClientMeshStream.CAPTURES_PER_TICK);
+    }
+
     @Test
     void nativeMirrorUsesSectionStreamingWithoutLegacyMirrorCapabilityOrPlate() throws ClientViewProtocolException {
         SessionHarness harness = new SessionHarness(SessionHarness.options(false, 0));
@@ -73,6 +119,73 @@ final class ClientMeshStreamTest {
         assertTrue(acknowledged >= 32 * ClientMeshStream.CAPTURES_PER_TICK, "section streaming must sustain its capture budget");
         assertEquals(0, harness.session.stats().outstandingGroups());
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
+    }
+
+    @Test
+    void dirtyResidentRefreshesDuringInitialCoverageAndWaitsForReplacement() {
+        FakePortalAccess access = new FakePortalAccess(new ArrayList<String>());
+        access.meshChanges = new ProjectionWorldChangeTracker();
+        SessionPortal portal = access.add(new SessionPortal("dirty-refresh", 0));
+        ClientViewPortalSlot<String> slot = new ClientViewPortalSlot<String>(portal.id, 1, false);
+        slot.geometry = portal.geometry(new SessionPalette()).withDepth(512);
+        slot.sentGeometry = slot.geometry;
+        slot.announced = true;
+        slot.laneAttached = true;
+        GeometryVector eye = new GeometryVector(11, 67, 15);
+        List<ClientMeshPlan.Section> visible = ClientMeshPlan.visible(slot.geometry, eye);
+        ClientMeshPlan.Section target = visible.get(128);
+        PlateBox clip = target.clip();
+        UUID unchangedWorld = UUID.randomUUID();
+        for (int index = 0; index < Math.min(512, visible.size()); index++) {
+            PlateBox resident = visible.get(index).clip();
+            access.meshPlates.put(resident, PlateTestFixtures.tracked(portal.id, resident, unchangedWorld, 0));
+        }
+        UUID world = UUID.randomUUID();
+        ViewPlate<String> previous = PlateTestFixtures.tracked(portal.id, clip, world, 0);
+        access.meshPlates.put(clip, previous);
+        ClientMeshStream<String> stream = new ClientMeshStream<String>();
+        Set<ClientMeshPlan.Coordinate> received = new HashSet<ClientMeshPlan.Coordinate>();
+        int tick = 1;
+        for (; tick <= 40; tick++) {
+            ClientMeshStream.Ready<String> section = capture(stream, slot, access, eye, tick);
+            while (section != null) {
+                received.add(section.coordinate());
+                acknowledge(stream, section);
+                section = stream.poll(tick * SessionHarness.TICK_NANOS);
+            }
+        }
+        assertTrue(received.contains(target.coordinate()));
+        assertTrue(received.size() < visible.size(), "initial coverage must still be loading");
+        access.meshRequests.clear();
+        access.meshChanges.markChanged(world, clip.minX(), clip.minY(), clip.minZ());
+        int dirtyTick = tick;
+        while (!access.meshRequests.contains(clip) && tick < dirtyTick + 12) {
+            ClientMeshStream.Ready<String> section = capture(stream, slot, access, eye, tick);
+            while (section != null) {
+                assertFalse(section.coordinate().equals(target.coordinate()), "the dirty cached snapshot must not be resent");
+                acknowledge(stream, section);
+                section = stream.poll(tick * SessionHarness.TICK_NANOS);
+            }
+            tick++;
+        }
+        assertTrue(access.meshRequests.contains(clip), "dirty resident must bypass the long ordinary refresh sweep");
+        ViewPlate<String> replacement = PlateTestFixtures.tracked(portal.id, clip, world, access.meshChanges.currentVersion());
+        access.meshPlates.put(clip, replacement);
+        boolean updated = false;
+        for (int deadline = tick + 4; tick < deadline && !updated; tick++) {
+            int calls = access.meshCalls;
+            ClientMeshStream.Ready<String> section = capture(stream, slot, access, eye, tick);
+            while (section != null) {
+                if (section.coordinate().equals(target.coordinate())) {
+                    assertTrue(section.plate() == replacement);
+                    updated = true;
+                }
+                acknowledge(stream, section);
+                section = stream.poll(tick * SessionHarness.TICK_NANOS);
+            }
+            assertTrue(access.meshCalls - calls <= ClientMeshStream.CAPTURES_PER_TICK);
+        }
+        assertTrue(updated, "replacement must stay on the pending capture path");
     }
 
     @Test

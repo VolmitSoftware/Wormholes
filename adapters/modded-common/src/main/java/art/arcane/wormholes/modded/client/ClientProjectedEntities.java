@@ -100,6 +100,10 @@ public final class ClientProjectedEntities {
         }
     }
 
+    public boolean hasMeshEntities() {
+        return !meshIds.isEmpty();
+    }
+
     public boolean meshEntity(int entityId) {
         return meshIds.contains(entityId);
     }

@@ -533,6 +533,12 @@ public class EffectManager implements Listener
 		{
 			return;
 		}
+		if(PortalInteractionGestures.removesSurfaceSkin(player.isSneaking(), mainHandEmpty, target.hasSurfaceSkin())
+				&& player.hasPermission("wormholes.admin"))
+		{
+			target.applySurfaceSkinFromInteraction(player, "");
+			return;
+		}
 
 		Wormholes.v("QA_EVT {\"event\":\"portal_menu_open\",\"status\":\"info\",\"details\":\"sneak_gesture\",\"context\":{\"portal\":\""
 				+ target.getId() + "\"}}");

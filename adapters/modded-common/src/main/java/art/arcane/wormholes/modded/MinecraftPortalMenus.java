@@ -221,6 +221,17 @@ public final class MinecraftPortalMenus implements AutoCloseable {
         return changed;
     }
 
+    boolean ensureCanEditSurfaceSkin(ServerPlayer player, MinecraftPortal portal) {
+        if (player == null) {
+            return false;
+        }
+        if (!runtime.access().permission(player, "wormholes.admin")) {
+            MinecraftMenuText.notice(player, MinecraftMenuText.text(player, WormholesMessages.PORTAL_EDIT_DENIED, MessageArgs.empty()));
+            return false;
+        }
+        return ensureCanManage(player, portal);
+    }
+
     void runEntity(ServerPlayer viewer, Runnable task) {
         runtime.schedule(() -> {
             if (!viewer.hasDisconnected()) {

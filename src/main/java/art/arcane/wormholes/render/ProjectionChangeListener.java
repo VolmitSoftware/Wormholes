@@ -23,6 +23,7 @@ import org.bukkit.event.block.BlockGrowEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.BlockRedstoneEvent;
 import org.bukkit.event.block.BlockSpreadEvent;
 import org.bukkit.event.block.FluidLevelChangeEvent;
 import org.bukkit.event.block.LeavesDecayEvent;
@@ -33,6 +34,8 @@ import org.bukkit.event.world.StructureGrowEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 
 public final class ProjectionChangeListener implements Listener {
+    private static final BlockFace[] NEIGHBORS = {BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST, BlockFace.UP, BlockFace.DOWN};
+
     private final ProjectionWorldChangeTracker tracker;
 
     public ProjectionChangeListener(ProjectionWorldChangeTracker tracker) {
@@ -154,6 +157,16 @@ public final class ProjectionChangeListener implements Listener {
         for (Block block : e.getBlocks()) {
             mark(block);
             mark(block.getRelative(direction));
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void on(BlockRedstoneEvent event) {
+        if (event.getOldCurrent() != event.getNewCurrent()) {
+            mark(event.getBlock());
+            for (BlockFace face : NEIGHBORS) {
+                mark(event.getBlock().getRelative(face));
+            }
         }
     }
 

@@ -4,6 +4,7 @@ import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftProjectionService;
 import art.arcane.wormholes.modded.MinecraftProjectionWorldView;
@@ -146,6 +147,11 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
         }
         Vec3 eye = player.getEyePosition();
         return new GeometryVector(eye.x, eye.y, eye.z);
+    }
+
+    @Override
+    public ProjectionWorldChangeTracker meshChanges(MinecraftClientViewPeer observer) {
+        return runtime.projections().changes();
     }
 
     @Override

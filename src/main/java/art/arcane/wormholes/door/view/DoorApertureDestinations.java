@@ -9,5 +9,5 @@ import java.util.UUID;
  */
 @FunctionalInterface
 public interface DoorApertureDestinations {
-    Optional<DoorProjectionDestination> destinationOf(DoorProjectionAdapter adapter, UUID observerId);
+    Optional<DoorProjectionDestination> destinationOf(DoorProjectionAdapter adapter, UUID observerId, boolean bypass);
 }

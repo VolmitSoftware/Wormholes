@@ -5,10 +5,23 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PortalInteractionGesturesTest
 {
+	@Test
+	void skinRemovalRequiresSneakingAnEmptyHandAndAnExistingSkin()
+	{
+		for(int mask = 0; mask < 8; mask++)
+		{
+			boolean sneaking = (mask & 1) != 0;
+			boolean empty = (mask & 2) != 0;
+			boolean skin = (mask & 4) != 0;
+			assertEquals(mask == 7,
+				PortalInteractionGestures.removesSurfaceSkin(sneaking, empty, skin));
+		}
+	}
 	@Test
 	void sneakingRightClickWithEmptyMainHandOpensTheMenu()
 	{

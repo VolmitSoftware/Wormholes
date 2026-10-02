@@ -108,6 +108,20 @@ final class LocalPortalMenus
 		return false;
 	}
 
+	boolean ensureCanEditSurfaceSkin(Player player)
+	{
+		if(player == null)
+		{
+			return false;
+		}
+		if(!player.hasPermission("wormholes.admin"))
+		{
+			WormholesHud.notice(player, Wormholes.text().component(WormholesMessages.PORTAL_EDIT_DENIED));
+			return false;
+		}
+		return ensureCanManage(player);
+	}
+
 	void uiOpenPortalMenu(Player p)
 	{
 		if(!ensureCanManage(p))

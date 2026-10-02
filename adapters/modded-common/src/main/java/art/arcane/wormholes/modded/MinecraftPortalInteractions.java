@@ -37,7 +37,11 @@ final class MinecraftPortalInteractions {
                 && portal.getGeometry().containsOrAdjoinsBlock(position.getX(), position.getY(), position.getZ())
                 && runtime.portals().canManage(player, portal)) {
                 if (hand == InteractionHand.MAIN_HAND) {
-                    runtime.menus().open(player, portal.getId());
+                    if (!portal.getSurfaceSkin().isEmpty() && runtime.access().permission(player, "wormholes.admin")) {
+                        runtime.menus().cosmetics().applySurfaceSkinFromInteraction(player, portal, "");
+                    } else {
+                        runtime.menus().open(player, portal.getId());
+                    }
                 }
                 return true;
             }

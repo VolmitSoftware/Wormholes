@@ -8,9 +8,7 @@ import art.arcane.wormholes.door.view.DoorProjectionDestination;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.survival.doors.dimension.PocketWorldService;
 import art.arcane.wormholes.util.Direction;
-import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.util.Vector;
 import art.arcane.wormholes.geometry.GeometryVector;
 
 import java.util.Objects;
@@ -28,32 +26,38 @@ final class DoorApertureDestinationService implements DoorApertureDestinations {
     private final DoorRuntimeIndex runtimes;
     private final PocketStructureService pocketStructures;
     private final PocketWorldService pocketWorldService;
+    private final DoorTransitCoordinator transits;
 
     DoorApertureDestinationService(
         DoorStateGuard guard,
         DoorRuntimeIndex runtimes,
         PocketStructureService pocketStructures,
-        PocketWorldService pocketWorldService
+        PocketWorldService pocketWorldService,
+        DoorTransitCoordinator transits
     ) {
         this.guard = Objects.requireNonNull(guard, "guard");
         this.runtimes = Objects.requireNonNull(runtimes, "runtimes");
         this.pocketStructures = Objects.requireNonNull(pocketStructures, "pocketStructures");
         this.pocketWorldService = Objects.requireNonNull(pocketWorldService, "pocketWorldService");
+        this.transits = Objects.requireNonNull(transits, "transits");
     }
 
     @Override
-    public Optional<DoorProjectionDestination> destinationOf(DoorProjectionAdapter adapter, UUID observerId) {
+    public Optional<DoorProjectionDestination> destinationOf(DoorProjectionAdapter adapter, UUID observerId, boolean bypass) {
         Objects.requireNonNull(adapter, "adapter");
         Objects.requireNonNull(observerId, "observerId");
         if (guard.closed()) {
             return Optional.empty();
         }
         PlacedDoorEndpoint endpoint = adapter.endpoint();
+        if (endpoint.identity().kind() != DoorKind.RETURN
+            && !DoorAccessPolicy.canUse(guard.state().accessRecord(endpoint.identity().itemId()).orElse(null), observerId, bypass)) {
+            return Optional.empty();
+        }
         return switch (endpoint.identity().kind()) {
             case PAIR -> mate(adapter, endpoint);
-            case PERSONAL -> pocketEntry(PocketBinding.personal(observerId));
-            case PUBLIC -> pocketEntry(PocketBinding.publicDoor(endpoint.identity().itemId()));
-            case RETURN -> ticket(observerId);
+            case PERSONAL, PUBLIC -> pocketEntry(adapter, observerId);
+            case RETURN -> ticket(adapter, observerId);
         };
     }
 
@@ -62,50 +66,63 @@ final class DoorApertureDestinationService implements DoorApertureDestinations {
         if (mate.isEmpty()) {
             return Optional.empty();
         }
-        PlacedDoorEndpoint placed = mate.get();
-        RuntimeDoor runtime = runtimes.runtime(placed.identity().itemId());
-        DoorwayPlane matePlane = runtime == null ? null : runtime.plane();
-        World world = runtimes.world(placed.position());
-        if (matePlane == null || world == null) {
-            return Optional.empty();
-        }
-        DoorVec3 center = matePlane.center();
-        return Optional.of(new DoorProjectionDestination(
-            placed.identity().itemId(),
-            WorldIdentity.serialize(world),
-            new GeometryVector(center.x(), center.y(), center.z()),
-            DoorApertureFrames.destinationFrame(adapter.plane(), matePlane)));
+        return endpoint(adapter, mate.get());
     }
 
-    private Optional<DoorProjectionDestination> pocketEntry(PocketBinding binding) {
-        Optional<World> world = pocketWorldService.world();
-        Optional<PocketSpace> space = guard.state().findPocket(binding);
-        if (world.isEmpty() || space.isEmpty()) {
+    private Optional<DoorProjectionDestination> endpoint(DoorProjectionAdapter adapter, PlacedDoorEndpoint placed) {
+        RuntimeDoor runtime = runtimes.runtime(placed.identity().itemId());
+        DoorwayPlane plane = runtime == null ? null : runtime.plane();
+        World world = runtimes.world(placed.position());
+        if (plane == null || world == null) {
             return Optional.empty();
         }
-        Location entry = pocketStructures.entryLocation(world.get(), space.get());
-        return Optional.of(new DoorProjectionDestination(
-            space.get().spaceId(),
-            WorldIdentity.serialize(world.get()),
-            new GeometryVector(entry.getX(), entry.getY(), entry.getZ()),
-            PortalFrame.fromNormalUp(
-                BukkitDoorGeometry.direction(PocketStructureService.RETURN_DOOR_FACING), Direction.U)));
+        DoorVec3 center = plane.center();
+        return Optional.of(new DoorProjectionDestination(placed.identity().itemId(), WorldIdentity.serialize(world),
+            new GeometryVector(center.x(), center.y(), center.z()), DoorApertureFrames.destinationFrame(adapter.plane(), plane)));
+    }
+
+    private Optional<DoorProjectionDestination> pocketEntry(DoorProjectionAdapter adapter, UUID observerId) {
+        PocketDoorDestination destination = (PocketDoorDestination) guard.state().resolveDestination(adapter.endpoint().identity(), observerId);
+        PocketBinding binding = destination.binding();
+        PocketSpace space = guard.state().findPocket(binding).orElse(null);
+        if (pocketWorldService.world().isEmpty() || !transits.allowsPocketProjection(adapter.endpoint(), space)
+            || space != null && guard.pocketQuarantined(space.spaceId())) {
+            return Optional.empty();
+        }
+        if (transits.preparingProjection(binding)) {
+            return Optional.empty();
+        }
+        if (space != null) {
+            UUID returnId = pocketStructures.layout(space).returnDoorIdentity().itemId();
+            Optional<DoorProjectionDestination> resolved = guard.state().findEndpointByItem(returnId)
+                .flatMap(placed -> endpoint(adapter, placed));
+            if (resolved.isPresent()) {
+                return resolved;
+            }
+        }
+        transits.prepareProjection(adapter.endpoint(), observerId);
+        return Optional.empty();
     }
 
     /**
      * A return door shows where its own traveler will land, looking the way they will be facing, so
      * two players standing at one return door see their own way home.
      */
-    private Optional<DoorProjectionDestination> ticket(UUID observerId) {
-        Optional<ReturnTicket> ticket = guard.state().getReturnTicket(observerId);
-        if (ticket.isEmpty()) {
+    private Optional<DoorProjectionDestination> ticket(DoorProjectionAdapter adapter, UUID observerId) {
+        ReturnTicket found = guard.state().getReturnTicket(observerId).orElse(null);
+        if (found == null) {
             return Optional.empty();
         }
-        ReturnTicket found = ticket.get();
-        return Optional.of(new DoorProjectionDestination(
-            found.sourceEndpointId(),
-            found.sourceWorldKey(),
-            new GeometryVector(found.x(), found.y(), found.z()),
+        PlacedDoorEndpoint current = guard.state().findEndpointByItem(found.sourceEndpointId()).orElse(null);
+        if (current != null && DoorTransitCoordinator.canRouteReturnToCurrentEndpoint(current, runtimes.world(current.position()))) {
+            Optional<DoorProjectionDestination> resolved = endpoint(adapter, current);
+            if (resolved.isEmpty()) {
+                transits.prepareEndpointProjection(current);
+            }
+            return resolved;
+        }
+        return Optional.of(new DoorProjectionDestination(found.sourceEndpointId(), found.sourceWorldKey(),
+            new GeometryVector(found.x(), found.y() + DoorApertureFrames.height(adapter.plane()) * 0.5D, found.z()),
             PortalFrame.fromNormalUp(lookDirection(found.yaw()).reverse(), Direction.U)));
     }
 

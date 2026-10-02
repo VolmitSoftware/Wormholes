@@ -43,7 +43,7 @@ public final class ClientRecursionPlanner {
         Direction normal = frame.getNormal();
         int normalAxis = ClientPortalGeometry.axisOf(normal);
         double facing = normalAxis == 0 ? normal.x() : normalAxis == 1 ? normal.y() : normal.z();
-        double origin = center(aperture, normalAxis);
+        double origin = mirror.planeCoordinate();
         double clearance = ProjectorFrameTransform.portalPlaneClearance(aperture, frame);
         double depth = mirror.depthBlocks() + clearance;
         double signedA = (low(area, normalAxis) - origin) * facing;
@@ -87,7 +87,7 @@ public final class ClientRecursionPlanner {
         Direction normal = parent.frame().getNormal();
         int normalAxis = ClientPortalGeometry.axisOf(normal);
         double facing = normalAxis == 0 ? normal.x() : normalAxis == 1 ? normal.y() : normal.z();
-        double origin = center(aperture, normalAxis);
+        double origin = parent.planeCoordinate();
         double clearance = ProjectorFrameTransform.portalPlaneClearance(aperture, parent.frame());
         double distance = parent.depthBlocks() + clearance;
         double signedA = (low(area, normalAxis) - origin) * facing;
@@ -157,10 +157,6 @@ public final class ClientRecursionPlanner {
 
     private static double high(AxisAlignedBB box, int axis) {
         return axis == 0 ? box.getXb() : axis == 1 ? box.getYb() : box.getZb();
-    }
-
-    private static double center(AxisAlignedBB box, int axis) {
-        return (low(box, axis) + high(box, axis)) * 0.5D;
     }
 
     private static boolean visible(List<Window> chain, double x, double y, double z) {
@@ -244,9 +240,9 @@ public final class ClientRecursionPlanner {
             this.area = aperture.getArea();
             PortalFrame frame = geometry.frame();
             GeometryVector center = area.center();
-            this.originX = center.getX();
-            this.originY = center.getY();
-            this.originZ = center.getZ();
+            this.originX = frame.getNormal().x() != 0 ? geometry.planeCoordinate() : center.getX();
+            this.originY = frame.getNormal().y() != 0 ? geometry.planeCoordinate() : center.getY();
+            this.originZ = frame.getNormal().z() != 0 ? geometry.planeCoordinate() : center.getZ();
             this.scratch = new double[3];
             space.toContent(displayEyeX, displayEyeY, displayEyeZ, scratch);
             this.eyeX = scratch[0];

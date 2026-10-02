@@ -1,6 +1,7 @@
 package art.arcane.wormholes.door.view;
 
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.door.DoorAccessPolicy;
 import art.arcane.volmlib.util.bukkit.WorldIdentity;
 import art.arcane.wormholes.ProjectionManager;
 import art.arcane.wormholes.portal.ILocalPortal;
@@ -60,7 +61,7 @@ public final class DoorProjectionProvider implements ProjectionManager.RtpProjec
             forget(adapter.getId(), observerId);
             return suppressed(observerId);
         }
-        Optional<DoorProjectionDestination> resolved = destinations.destinationOf(adapter, observerId);
+        Optional<DoorProjectionDestination> resolved = destinations.destinationOf(adapter, observerId, observer.hasPermission(DoorAccessPolicy.BYPASS_NODE));
         if (resolved.isEmpty()) {
             forget(adapter.getId(), observerId);
             return suppressed(observerId);

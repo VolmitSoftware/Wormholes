@@ -24,7 +24,6 @@ public final class PortalSiteBuilder
 {
 	private static final int MIN_INTERIOR_HEIGHT = 2;
 	private static final int MAX_INTERIOR = 21;
-	private static final int OPENING_CLEARANCE_HEIGHT = 3;
 
 	private PortalSiteBuilder()
 	{
@@ -35,11 +34,11 @@ public final class PortalSiteBuilder
 		CompletableFuture<Set<Block>> result = new CompletableFuture<Set<Block>>();
 		int width = netherInteriorWidth(interiorWidth);
 		int height = Math.max(MIN_INTERIOR_HEIGHT, Math.min(MAX_INTERIOR, interiorHeight));
-		WormholesPlatform.loadChunk(Wormholes.instance, world, centerX >> 4, centerZ >> 4).whenComplete((chunk, loadError) ->
+		loadNetherFootprint(world, centerX, centerZ, alongX, width, height).whenComplete((ignored, loadError) ->
 		{
-			if(loadError != null || chunk == null)
+			if(loadError != null)
 			{
-				result.completeExceptionally(loadError == null ? new IllegalStateException("Nether target chunk did not load") : loadError);
+				result.completeExceptionally(loadError);
 				return;
 			}
 			boolean scheduled = FoliaScheduler.runRegion(Wormholes.instance, world, centerX >> 4, centerZ >> 4, () ->
@@ -60,6 +59,33 @@ public final class PortalSiteBuilder
 			}
 		});
 		return result;
+	}
+
+	private static CompletableFuture<Void> loadNetherFootprint(World world, int centerX, int centerZ,
+			boolean alongX, int width, int height)
+	{
+		int padding = netherPlatformPadding(width, height);
+		int startX = centerX - (alongX ? width / 2 : 0);
+		int startZ = centerZ - (alongX ? 0 : width / 2);
+		int minX = alongX ? startX - 1 - padding : centerX - padding;
+		int maxX = alongX ? startX + width + padding : centerX + padding;
+		int minZ = alongX ? centerZ - padding : startZ - 1 - padding;
+		int maxZ = alongX ? centerZ + padding : startZ + width + padding;
+		List<CompletableFuture<?>> loads = new ArrayList<>();
+		for(int x = minX >> 4; x <= maxX >> 4; x++)
+		{
+			for(int z = minZ >> 4; z <= maxZ >> 4; z++)
+			{
+				loads.add(WormholesPlatform.loadChunk(Wormholes.instance, world, x, z).thenAccept(chunk ->
+				{
+					if(chunk == null)
+					{
+						throw new IllegalStateException("Nether target chunk did not load");
+					}
+				}));
+			}
+		}
+		return CompletableFuture.allOf(loads.toArray(CompletableFuture[]::new));
 	}
 
 	private static void scheduleNetherMutations(World world, int centerX, int baseY, int centerZ, boolean alongX, int width, int height,
@@ -304,102 +330,31 @@ public final class PortalSiteBuilder
 	private static int findSafeY(World world, int x, int startY, int z, boolean alongX, int width, int height)
 	{
 		int min = world.getMinHeight() + 5;
-		int max = Math.min(world.getMaxHeight() - (height + 3), world.getEnvironment() == World.Environment.NETHER ? 122 : world.getMaxHeight());
-		int y = Math.max(min, Math.min(max, startY));
-		int padding = netherPlatformPadding(width, height);
-		for(int distance = 0; distance <= max - min; distance++)
-		{
-			int below = y - distance;
-			if(below >= min && isOpenSite(world, x, below, z, alongX, width, padding))
-			{
-				return below + 1;
-			}
-			int above = y + distance;
-			if(distance > 0 && above <= max && isOpenSite(world, x, above, z, alongX, width, padding))
-			{
-				return above + 1;
-			}
-		}
-		for(int distance = 0; distance <= max - min; distance++)
-		{
-			int below = y - distance;
-			if(below >= min && isFloor(world, x, below, z, height))
-			{
-				return below + 1;
-			}
-			int above = y + distance;
-			if(distance > 0 && above <= max && isFloor(world, x, above, z, height))
-			{
-				return above + 1;
-			}
-		}
-		return y;
+		int max = NetherSiteSearch.maximumBaseY(world.getMaxHeight(), height, world.getEnvironment() == World.Environment.NETHER);
+		int preferred = Math.clamp(startY, min, max);
+		return NetherSiteSearch.findBaseY(new NetherSiteSearch.Options(x, z, alongX, width, height, preferred, min, max),
+			(blockX, blockY, blockZ) -> siteCell(world, blockX, blockY, blockZ)).orElse(preferred);
 	}
 
-	private static boolean isOpenSite(World world, int centerX, int floorY, int centerZ, boolean alongX, int width, int padding)
+	private static NetherSiteSearch.Cell siteCell(World world, int x, int y, int z)
 	{
-		int bx = centerX - (alongX ? width / 2 : 0);
-		int bz = centerZ - (alongX ? 0 : width / 2);
-		int minX = alongX ? bx - 1 - padding : centerX - padding;
-		int maxX = alongX ? bx + width + padding : centerX + padding;
-		int minZ = alongX ? centerZ - padding : bz - 1 - padding;
-		int maxZ = alongX ? centerZ + padding : bz + width + padding;
-		for(int chunkX = minX >> 4; chunkX <= maxX >> 4; chunkX++)
+		if(!world.isChunkLoaded(x >> 4, z >> 4)
+			|| !WormholesPlatform.isOwnedByCurrentRegion(world, x >> 4, z >> 4, x >> 4, z >> 4))
 		{
-			for(int chunkZ = minZ >> 4; chunkZ <= maxZ >> 4; chunkZ++)
-			{
-				if(!world.isChunkLoaded(chunkX, chunkZ))
-				{
-					return false;
-				}
-			}
+			return NetherSiteSearch.Cell.BLOCKED;
 		}
-		if(!WormholesPlatform.isOwnedByCurrentRegion(world, minX >> 4, minZ >> 4, maxX >> 4, maxZ >> 4))
+		Block block = world.getBlockAt(x, y, z);
+		Material material = block.getType();
+		if(block.isLiquid() || switch(material)
 		{
-			return false;
-		}
-		for(int x = minX; x <= maxX; x++)
+			case LAVA, WATER, FIRE, SOUL_FIRE, MAGMA_BLOCK, CAMPFIRE, SOUL_CAMPFIRE, CACTUS,
+				POWDER_SNOW, SWEET_BERRY_BUSH, WITHER_ROSE, BEDROCK -> true;
+			default -> false;
+		})
 		{
-			for(int z = minZ; z <= maxZ; z++)
-			{
-				Material floor = world.getBlockAt(x, floorY, z).getType();
-				if(!floor.isSolid() || isLiquid(floor))
-				{
-					return false;
-				}
-				for(int dy = 1; dy <= OPENING_CLEARANCE_HEIGHT; dy++)
-				{
-					Material above = world.getBlockAt(x, floorY + dy, z).getType();
-					if(above.isSolid() || isLiquid(above))
-					{
-						return false;
-					}
-				}
-			}
+			return NetherSiteSearch.Cell.BLOCKED;
 		}
-		return true;
-	}
-
-	private static boolean isFloor(World world, int x, int y, int z, int height)
-	{
-		Block floor = world.getBlockAt(x, y, z);
-		if(!floor.getType().isSolid() || isLiquid(floor.getType()))
-		{
-			return false;
-		}
-		for(int i = 1; i <= height + 1; i++)
-		{
-			Block above = world.getBlockAt(x, y + i, z);
-			if(above.getType().isSolid() || isLiquid(above.getType()))
-			{
-				return false;
-			}
-		}
-		return true;
-	}
-
-	private static boolean isLiquid(Material material)
-	{
-		return material == Material.LAVA || material == Material.WATER;
+		return material.isSolid() ? NetherSiteSearch.Cell.FLOOR
+			: block.isPassable() ? NetherSiteSearch.Cell.CLEAR : NetherSiteSearch.Cell.BLOCKED;
 	}
 }

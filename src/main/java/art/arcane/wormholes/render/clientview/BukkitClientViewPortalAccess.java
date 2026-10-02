@@ -16,6 +16,7 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.ProjectionManager;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
@@ -123,6 +124,11 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
     public GeometryVector meshEye(ClientViewObserver observer) {
         Location eye = observer.eye();
         return eye == null ? null : new GeometryVector(eye.getX(), eye.getY(), eye.getZ());
+    }
+
+    @Override
+    public ProjectionWorldChangeTracker meshChanges(ClientViewObserver observer) {
+        return Wormholes.projectionChangeTracker;
     }
 
     @Override

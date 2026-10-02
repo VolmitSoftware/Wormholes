@@ -1,6 +1,10 @@
 package art.arcane.wormholes.render.client;
 
 import art.arcane.wormholes.util.Direction;
+import art.arcane.wormholes.door.DoorHalf;
+import art.arcane.wormholes.door.DoorOpenState;
+import art.arcane.wormholes.door.DoorVec3;
+import art.arcane.wormholes.door.DoorwayPlane;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -10,6 +14,35 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ClientPortalApertureTest {
+    @Test
+    void dimensionalDoorAperturesUseThePhysicalThresholdRatherThanTheBlockCenter() {
+        for (Direction normal : Direction.values()) {
+            for (boolean front : new boolean[]{true, false}) {
+                DoorwayPlane doorway = normal.isVertical()
+                    ? DoorwayPlane.trapdoor(-4, 16, -8, Direction.E, normal == Direction.U ? DoorHalf.TOP : DoorHalf.BOTTOM,
+                        DoorOpenState.OPEN)
+                    : new DoorwayPlane(-4, 16, -8, normal);
+                int height = normal.isVertical() ? 1 : 2;
+                ClientPortalGeometry geometry = new ClientPortalGeometry(-4, 16, -8, normal.ordinal(), front, 0, false, 1, height,
+                    new long[]{height == 1 ? 1 : 3}, 0, 0, 1, 64, 0, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_DOOR, 0, 0, List.of());
+                ClientPortalAperture aperture = ClientPortalAperture.from(geometry);
+                DoorVec3 center = doorway.center();
+                ClientPortalAperture.Point physicalCenter = new ClientPortalAperture.Point(center.x(), center.y(), center.z());
+                assertEquals(0, aperture.plane().signedDistance(physicalCenter), 1.0E-12);
+                assertEquals(0, geometry.signedDistance(center.x(), center.y(), center.z()), 1.0E-12);
+                assertEquals(physicalCenter, aperture.point(0.5D, height * 0.5D));
+                int sign = front ? 1 : -1;
+                ClientPortalAperture.Point eye = new ClientPortalAperture.Point(center.x() + normal.x() * sign * 0.01,
+                    center.y() + normal.y() * sign * 0.01, center.z() + normal.z() * sign * 0.01);
+                assertTrue(aperture.servesEye(eye));
+                assertEquals(0.01 * sign, geometry.signedDistance(eye.x(), eye.y(), eye.z()), 1.0E-12);
+                for (ClientPortalAperture.Point vertex : aperture.vertices(aperture.rectangles().getFirst())) {
+                    assertEquals(0, aperture.plane().signedDistance(vertex), 1.0E-12);
+                }
+            }
+        }
+    }
+
     @Test
     void fullOpeningMergesIntoOneExactRectangle() {
         ClientPortalAperture aperture = aperture("111", "111");

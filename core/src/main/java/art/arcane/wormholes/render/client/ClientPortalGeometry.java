@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.wormholes.portal.PortalCellAperture;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalGeometry;
@@ -185,6 +186,18 @@ public record ClientPortalGeometry(int originX,
 
     public Direction facingDirection() {
         return DIRECTIONS[facing];
+    }
+
+    public double planeCoordinate() {
+        Direction normal = facingDirection();
+        int origin = normal.x() != 0 ? originX : normal.y() != 0 ? originY : originZ;
+        return origin + 0.5D + (kind == KIND_DOOR ? (normal.x() + normal.y() + normal.z()) * DoorwayPlane.planeOffset(normal) : 0.0D);
+    }
+
+    public double signedDistance(double x, double y, double z) {
+        Direction normal = facingDirection();
+        return normal.x() * x + normal.y() * y + normal.z() * z
+            - (normal.x() + normal.y() + normal.z()) * planeCoordinate();
     }
 
     public int frameQuarterTurns() {

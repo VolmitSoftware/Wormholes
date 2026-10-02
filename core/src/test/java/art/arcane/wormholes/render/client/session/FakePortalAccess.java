@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.render.plate.PlateTestFixtures;
 import art.arcane.wormholes.render.plate.ViewPlateKey;
@@ -30,6 +31,7 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     final List<String> events;
     final Map<UUID, UUID> contexts = new HashMap<>();
     int meshDistance;
+    ProjectionWorldChangeTracker meshChanges;
     int meshCalls;
     final List<PlateBox> meshRequests = new ArrayList<PlateBox>();
     boolean meshReady = true;
@@ -87,6 +89,11 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     @Override
     public GeometryVector meshEye(String observer) {
         return eye;
+    }
+
+    @Override
+    public ProjectionWorldChangeTracker meshChanges(String observer) {
+        return meshChanges;
     }
 
     @Override

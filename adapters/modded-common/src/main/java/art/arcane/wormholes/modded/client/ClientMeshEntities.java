@@ -45,6 +45,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 
 public final class ClientMeshEntities {
     private static final Logger LOGGER = LogUtils.getLogger();
@@ -84,6 +85,21 @@ public final class ClientMeshEntities {
         }
         ClientProjectedEntities projected = client.tickState().entities();
         return projected != null && projected.meshEntity(entity.getId()) || client.reflections().meshEntity(entity.getId());
+    }
+
+    public static Predicate<? super Entity> worldEntityPredicate(Entity source, Predicate<? super Entity> selector) {
+        WormholesClient client = WormholesClient.instance();
+        if (client == null) {
+            return selector;
+        }
+        ClientProjectedEntities projected = client.tickState().entities();
+        if ((projected == null || !projected.hasMeshEntities()) && !client.reflections().hasMeshEntities()) {
+            return selector;
+        }
+        if (source != null && hiddenFromWorld(source)) {
+            return entity -> false;
+        }
+        return entity -> !hiddenFromWorld(entity) && selector.test(entity);
     }
 
     public static boolean interactionTarget(Entity entity) {
