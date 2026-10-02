@@ -855,7 +855,7 @@ public final class ClientViewServerSession<P, B> {
     private int refreshNested(ClientViewPortalSlot<B> slot, ClientViewPortalAccess<P, B> portals, ClientViewOptions options, long serverTick) {
         if (meshEnabled()) {
             portals.prepareNested(player, slot.contextId, null, slot.portalId);
-            int depth = Math.min(slot.baseGeometry.recursionDepth(), ClientViewProtocol.MAX_GEOMETRY_DEPTH - 1);
+            int depth = nativeRecursionDepth(slot.baseGeometry);
             return refreshNativeNested(slot, portals, serverTick, 0, depth, new int[]{ClientViewProtocol.MAX_NESTED_GEOMETRY});
         }
         if (!clientRecursion(slot.baseGeometry)) {
@@ -979,7 +979,7 @@ public final class ClientViewServerSession<P, B> {
             }
             remaining[0]--;
             int descendants = refreshNativeNested(child, portals, serverTick, depth + 1,
-                Math.min(depthLimit, depth + 1 + child.baseGeometry.recursionDepth()), remaining);
+                Math.min(depthLimit, depth + 1 + nativeRecursionDepth(child.baseGeometry)), remaining);
             ClientPortalGeometry composed = compose(child).withParent(slot.key);
             if (!composed.equals(child.geometry)) {
                 child.geometry = composed;
@@ -1053,6 +1053,14 @@ public final class ClientViewServerSession<P, B> {
 
     private boolean clientMirror(ClientPortalGeometry geometry) {
         return geometry != null && geometry.mirror() && ClientViewCapability.CLIENT_MIRROR.in(caps) && registry.options().clientMirror();
+    }
+
+    private static int nativeRecursionDepth(ClientPortalGeometry geometry) {
+        if (geometry.recursionDepth() <= 0) {
+            return 0;
+        }
+        return geometry.mirror() ? ClientViewProtocol.MAX_MIRROR_REFLECTIONS - 1
+            : Math.min(geometry.recursionDepth(), ClientViewProtocol.MAX_LINKED_GEOMETRY_DEPTH - 1);
     }
 
     private boolean clientRecursion(ClientPortalGeometry geometry) {

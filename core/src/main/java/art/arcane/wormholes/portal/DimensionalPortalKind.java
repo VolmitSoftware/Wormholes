@@ -8,7 +8,8 @@ public enum DimensionalPortalKind
 	NETHER,
 	SHAPED_NETHER,
 	END_SOURCE,
-	END_ARRIVAL;
+	END_ARRIVAL,
+	END_EXIT;
 
 	public boolean isNetherPortal()
 	{
@@ -17,7 +18,7 @@ public enum DimensionalPortalKind
 
 	public boolean isManagedEndPortal()
 	{
-		return this == END_SOURCE || this == END_ARRIVAL;
+		return this == END_SOURCE || this == END_ARRIVAL || this == END_EXIT;
 	}
 
 	public boolean isManagedPortal()

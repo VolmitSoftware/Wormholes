@@ -17,6 +17,7 @@ import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalGeometry;
 import art.arcane.wormholes.portal.PortalStateCodec;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.transit.MomentumPolicy;
 import art.arcane.wormholes.transit.MomentumTransform;
 import art.arcane.wormholes.transit.OrientationPolicy;
@@ -298,7 +299,8 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         double radius = runtime.configuration().settings().getRender().captureZoneRadius;
         for (MinecraftPortal source : portals.values()) {
             boolean random = source.getType() == PortalType.RTP;
-            if (!source.isOpen() || source.isMirrorMode() || !random && !resolving && !runtime.nexus().perTraveler(source) && !MinecraftGatewayPolicies.active(source) && (source.getDestinationId() == null
+            if (source.getDimensionalKind().isReceiverOnly() || source.getDimensionalKind() == DimensionalPortalKind.END_EXIT
+                || !source.isOpen() || source.isMirrorMode() || !random && !resolving && !runtime.nexus().perTraveler(source) && !MinecraftGatewayPolicies.active(source) && (source.getDestinationId() == null
                 || !(source.getTunnelType().equals("LOCAL") || source.getTunnelType().equals("DIMENSIONAL")
                     || source.getTunnelType().equals("UNIVERSAL")))) {
                 continue;

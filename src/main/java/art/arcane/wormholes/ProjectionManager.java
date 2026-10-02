@@ -49,6 +49,8 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEn
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.config.WormholesSettings;
 import art.arcane.wormholes.portal.ILocalPortal;
+import art.arcane.wormholes.portal.DimensionalPortalKind;
+import art.arcane.wormholes.portal.vanilla.BukkitEndReturnPreview;
 import art.arcane.wormholes.portal.rtp.RtpProjectionView;
 import art.arcane.wormholes.portal.rtp.RtpRimRenderer;
 import art.arcane.wormholes.portal.rtp.RtpRotationMode;
@@ -110,6 +112,7 @@ public class ProjectionManager implements Listener {
     private final PlateCaptureQueue<BlockData, World> plateCaptures;
     private final Set<UUID> observerTasksInFlight;
     private final BukkitClientView clientView;
+    private final BukkitEndReturnPreview endReturnPreview;
     private final AtomicBoolean shutdownFinalized;
     private final AtomicBoolean shutdownStarted;
     private long tickCount;
@@ -120,6 +123,7 @@ public class ProjectionManager implements Listener {
     private int taskId;
 
     public ProjectionManager(ProjectionClientChunkTracker clientChunkTracker) {
+        this.endReturnPreview = BukkitEndReturnPreview.create(Wormholes.instance);
         this.viewProvider = FoliaScheduler.isFoliaThreading(Bukkit.getServer())
             ? new RegionSnapshotWorldViewProvider(Wormholes.instance)
             : ProjectionWorldViewProvider.sectionCached(Wormholes.instance, Wormholes.projectionChangeTracker);
@@ -240,6 +244,7 @@ public class ProjectionManager implements Listener {
 
     @EventHandler
     public void on(PlayerQuitEvent e) {
+        endReturnPreview.forget(e.getPlayer().getUniqueId());
         observerTasksInFlight.remove(e.getPlayer().getUniqueId());
         ClientProfileService.forgetPlayer(e.getPlayer().getUniqueId());
         skinRenderer.discardObserver(e.getPlayer().getUniqueId());
@@ -464,7 +469,7 @@ public class ProjectionManager implements Listener {
             if (!portal.isOpen()) {
                 continue;
             }
-            if (!portal.isMirrorMode() && !portal.hasTunnel()) {
+            if (portal.getDimensionalPortalKind() != DimensionalPortalKind.END_EXIT && !portal.isMirrorMode() && !portal.hasTunnel()) {
                 continue;
             }
             active.add(portal);
@@ -524,6 +529,10 @@ public class ProjectionManager implements Listener {
         return resolveProjection(rtpProjectionProvider, portal, observer, rtpRimRenderer, frameTick, clientView);
     }
 
+    public PortalProjector.RtpProjectionTarget endReturnTarget(Player observer, long frameTick) {
+        return endReturnPreview.target(observer, frameTick);
+    }
+
     static ProjectionResolution resolveProjection(RtpProjectionProvider provider, ILocalPortal portal,
                                                   Player observer, RtpRimRenderer rimRenderer, long frameTick, ClientViewRouting clientView) {
         Objects.requireNonNull(portal, "portal");
@@ -554,6 +563,11 @@ public class ProjectionManager implements Listener {
         }
         if (!portal.supportsProjections() || !portal.isProjecting() || !portal.isOpen() || portal.blocksProjection()) {
             return ProjectionResolution.suppressed(rtp);
+        }
+        if (portal.getDimensionalPortalKind() == DimensionalPortalKind.END_EXIT) {
+            ProjectionManager manager = Wormholes.projectionManager;
+            PortalProjector.RtpProjectionTarget target = manager == null ? null : manager.endReturnTarget(observer, frameTick);
+            return target == null ? ProjectionResolution.suppressed(false) : new ProjectionResolution(true, false, target);
         }
         if (!rtp) {
             if (!portal.isMirrorMode() && !portal.hasTunnel()) {
@@ -703,6 +717,7 @@ public class ProjectionManager implements Listener {
             return;
         }
         closed = true;
+        endReturnPreview.close();
         clientView.stop();
         projectedEntityUpdates.close();
         plateCaptures.clear();

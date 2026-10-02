@@ -2,10 +2,12 @@ package art.arcane.wormholes.render;
 
 import org.bukkit.entity.Entity;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import art.arcane.wormholes.util.BukkitGeometry;
 import art.arcane.wormholes.render.BukkitProjectorBlocks;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import java.util.Objects;
@@ -26,6 +28,7 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.service.WormholesTelemetry;
+import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.ILocalPortal;
 import art.arcane.wormholes.portal.IPortal;
 import art.arcane.wormholes.portal.RemotePortal;
@@ -52,6 +55,7 @@ import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
 import art.arcane.wormholes.render.view.RemoteWorldView;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
+import art.arcane.wormholes.geometry.GeometryVector;
 
 public final class PortalProjector {
     private static final long DIAG_LOG_INTERVAL_PASSES = 50L;
@@ -61,6 +65,10 @@ public final class PortalProjector {
     private final UUID observerId;
     private final UUID localWorldId;
     private final ProjectionClaimArbiter claimArbiter;
+    private final UUID endSurfaceOwner;
+    private final Long2ObjectOpenHashMap<ProjectedBlockClaim<BlockData, ProjectionWorldView>> endSurfaceClaims;
+    private ProjectedBlockClaim<BlockData, ProjectionWorldView> endSurfaceAir;
+    private boolean endSurfaceActive;
     private final ProjectionWorldViewProvider viewProvider;
     private final BooleanSupplier activeGuard;
     private final ProjectorDestination destination;
@@ -136,6 +144,9 @@ public final class PortalProjector {
         World constructionWorld = portal.getWorld();
         this.localWorldId = constructionWorld == null ? null : constructionWorld.getUID();
         this.claimArbiter = claimArbiter;
+        boolean endExit = portal.getDimensionalPortalKind() == DimensionalPortalKind.END_EXIT;
+        this.endSurfaceOwner = endExit ? UUID.randomUUID() : null;
+        this.endSurfaceClaims = endExit ? new Long2ObjectOpenHashMap<>(32) : null;
         this.viewProvider = viewProvider;
         this.activeGuard = activeGuard;
         this.entityRenderer = new ProjectedEntityRenderer(localEntityOcclusion, portal.getId());
@@ -317,6 +328,18 @@ public final class PortalProjector {
     }
 
     public void project(boolean updateBlocks, boolean updateEntities, long deadlineNanos) {
+        try {
+            projectPass(updateBlocks, updateEntities, deadlineNanos);
+        } catch (RuntimeException failure) {
+            releaseEndSurface();
+            if (endSurfaceOwner != null) {
+                cancelPendingProjection();
+            }
+            throw failure;
+        }
+    }
+
+    private void projectPass(boolean updateBlocks, boolean updateEntities, long deadlineNanos) {
         if (!activeGuard.getAsBoolean()) {
             close();
             return;
@@ -350,6 +373,7 @@ public final class PortalProjector {
             return;
         }
         if (outcome == ProjectorDestination.Outcome.WAIT) {
+            releaseEndSurface();
             return;
         }
 
@@ -617,6 +641,7 @@ public final class PortalProjector {
         logDiagnostics(cellScan.enterCount() > 0 || cellScan.exitCount() > 0,
             cellScan.enterCount(), cellScan.exitCount(), cellScan.keptCount());
 
+        updateEndSurface(destination.localView, submitWorld, Math.abs(cellScan.eyeDot()));
         cellScan.commit();
         commitLatency.commit(System.nanoTime());
         completedScans++;
@@ -1096,6 +1121,7 @@ public final class PortalProjector {
     }
 
     private void invalidateRtpDestinationState() {
+        releaseEndSurface();
         cancelPendingProjection();
         cellScan.dropHolds();
         schedule.invalidateDestination();
@@ -1141,6 +1167,42 @@ public final class PortalProjector {
         }
     }
 
+    void updateEndSurface(ProjectionWorldView localView, World localWorld, double priorityDistance) {
+        if (endSurfaceOwner == null) {
+            return;
+        }
+        endSurfaceClaims.clear();
+        for (GeometryVector cell : portal.getStructure().geometry().getBlockPositions()) {
+            int x = cell.getBlockX();
+            int y = cell.getBlockY();
+            int z = cell.getBlockZ();
+            if (!localView.isChunkReady(x, z) || localView.sampleMaterial(x, y, z) != Material.END_PORTAL) {
+                continue;
+            }
+            if (endSurfaceAir == null) {
+                endSurfaceAir = new ProjectedBlockClaim<>(Bukkit.createBlockData(Material.AIR), null,
+                    ProjectedBlockClaim.NO_REMOTE_KEY, true);
+            }
+            endSurfaceClaims.put(ProjectionCellKey.pack(x, y, z), endSurfaceAir);
+        }
+        endSurfaceActive |= !endSurfaceClaims.isEmpty();
+        claimArbiter.submit(observer, endSurfaceOwner, localWorld, endSurfaceClaims, priorityDistance, false);
+        endSurfaceActive = !endSurfaceClaims.isEmpty();
+    }
+
+    private void releaseEndSurface() {
+        if (endSurfaceOwner == null || !endSurfaceActive) {
+            return;
+        }
+        World world = claimWorld;
+        if (observer.isOnline() && world != null && world.equals(observer.getWorld())) {
+            claimArbiter.release(observer, endSurfaceOwner, world, false);
+        }
+        endSurfaceClaims.clear();
+        endSurfaceActive = false;
+        reuseInvalidated = true;
+    }
+
     boolean releaseClaims() {
         World releaseWorld = claimWorld;
         UUID releaseWorldId = claimWorldId;
@@ -1156,6 +1218,7 @@ public final class PortalProjector {
             return false;
         }
 
+        releaseEndSurface();
         ProjectionClaimArbiter.ClaimUpdateResult result = claimArbiter.release(observer, portal, releaseWorld, true);
         if (result.getBlockChanges() > 0) {
             Wormholes.v("[Projector] portal=" + portal.getName() + " observer=" + observer.getName()

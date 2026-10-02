@@ -38,6 +38,8 @@
     "RuneChunkUnloadMixin",
     "VanillaPortalUseMixin",
     "VanillaPortalTransitMixin",
+    "ServerPlayerRespawnInvoker",
+    "EndRespawnPositionAccessor",
     "ClientBrandMixin"
   ],
   "client": [
@@ -50,6 +52,7 @@
     "client.MeshLevelExtractorMixin",
     "client.MeshInteractionMixin",
     "client.MeshEntityRendererMixin",
+    "client.EndPortalSurfaceMixin",
     "client.MeshFeatureWindingMixin",
     "client.ClientReconfigurationMixin",
     "client.ChunkSkyLightSourcesMixin",

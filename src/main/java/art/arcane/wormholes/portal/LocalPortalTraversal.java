@@ -83,6 +83,15 @@ final class LocalPortalTraversal
 
 	void update()
 	{
+		if(portal.getDimensionalPortalKind() == DimensionalPortalKind.END_EXIT)
+		{
+			captureHistory.clear();
+			if(!portal.isOpen())
+			{
+				portal.open();
+			}
+			return;
+		}
 		if(portal.getType() == PortalType.RTP)
 		{
 			portal.rtp().updateTick();
@@ -148,6 +157,11 @@ final class LocalPortalTraversal
 
 	void updateCaptures(ITunnel activeTunnel, boolean tunnelPresent)
 	{
+		if(portal.getDimensionalPortalKind().isReceiverOnly() || portal.getDimensionalPortalKind() == DimensionalPortalKind.END_EXIT)
+		{
+			captureHistory.clear();
+			return;
+		}
 		if(captureTunnel != activeTunnel)
 		{
 			captureHistory.clear();

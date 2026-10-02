@@ -14,6 +14,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.entity.ai.village.poi.PoiManager;
 import net.minecraft.world.entity.ai.village.poi.PoiRecord;
 import net.minecraft.world.entity.ai.village.poi.PoiTypes;
@@ -68,7 +69,7 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
             return false;
         }
         MinecraftPortal portal = runtime.portals().at(level, position);
-        if (portal != null && portal.isManaged()) {
+        if (portal != null && portal.isManaged() && portal.getDimensionalKind() != DimensionalPortalKind.END_EXIT) {
             return true;
         }
         for (Map.Entry<Site, Shape> entry : pending.entrySet()) {
@@ -100,7 +101,7 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
         DimensionalConfig config = runtime.configuration().settings().getDimensional();
         String sourceKey = source.dimension().identifier().toString();
         String targetKey = target.dimension().identifier().toString();
-        int[] mapped = shape.end() ? new int[] {100, 0} : DimensionalRouting.map(anchor.getX(), anchor.getZ(),
+        int[] mapped = shape.end() ? new int[] {12, 9} : DimensionalRouting.map(anchor.getX(), anchor.getZ(),
             DimensionalRouting.scaleOf(sourceKey, config.scales), DimensionalRouting.scaleOf(targetKey, config.scales));
         BlockPos center = target.getWorldBorder().clampToBounds(mapped[0], anchor.getY(), mapped[1]);
         List<ChunkLease> leases = new ArrayList<>();
@@ -132,8 +133,16 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
         if (!enabled() || ++ticks % 40 != 0) {
             return;
         }
+        discoverEndExit();
         for (MinecraftPortal portal : runtime.portals().snapshot()) {
             DimensionalPortalKind kind = portal.getDimensionalKind();
+            if (kind == DimensionalPortalKind.END_EXIT) {
+                ServerLevel level = runtime.portals().resolveLevel(portal);
+                if (level != null && !exitActive(level, geometry(portal).cells())) {
+                    runtime.portals().remove(portal.getId());
+                }
+                continue;
+            }
             if (!kind.isNetherPortal() && kind != DimensionalPortalKind.END_SOURCE) {
                 continue;
             }
@@ -191,10 +200,16 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
             origin = runtime.portals().create(null, source, shape.cells(), PortalType.PORTAL, shape.normal());
             origin.setDimensionalKind(shape.end() ? DimensionalPortalKind.END_SOURCE : DimensionalPortalKind.NETHER);
             origin.link(destination);
-            destination.link(origin);
+            if (!shape.end()) {
+                destination.link(origin);
+            }
             origin.setCounterpartId(destination.getId());
             destination.setCounterpartId(origin.getId());
             if (shape.end()) {
+                origin.setIncomingTraversalsEnabled(false);
+                destination.unlink();
+                destination.setOutgoingTraversalsEnabled(false);
+                destination.setIncomingTraversalsEnabled(true);
                 destination.setProjectionMode(ProjectionMode.OFF);
             }
             runtime.portals().save(origin);
@@ -334,6 +349,41 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
         return state.getCollisionShape(level, position).isEmpty() ? NetherSiteSearch.Cell.CLEAR : NetherSiteSearch.Cell.BLOCKED;
     }
 
+    private void discoverEndExit() {
+        ServerLevel level = runtime.server().getLevel(Level.END);
+        if (level == null || DimensionalRouting.isDisabled(level.dimension().identifier().toString(), runtime.configuration().settings().getDimensional().groups)
+            || !level.hasChunk(-1, -1) || !level.hasChunk(-1, 0)
+            || !level.hasChunk(0, -1) || !level.hasChunk(0, 0)) {
+            return;
+        }
+        int surface = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, 1, 0);
+        for (int y = Math.max(level.getMinY(), surface - 8); y <= Math.min(level.getMaxY() - 1, surface + 8); y++) {
+            BlockPos anchor = new BlockPos(1, y, 0);
+            if (!level.getBlockState(anchor).is(Blocks.END_PORTAL) || runtime.portals().at(level, anchor) != null) {
+                continue;
+            }
+            Shape shape = shape(level, anchor);
+            if (shape == null || !unoccupied(level, shape.cells())) {
+                continue;
+            }
+            MinecraftPortal exit = runtime.portals().create(null, level, shape.cells(), PortalType.PORTAL, new Vec3(0, 1, 0));
+            exit.setDimensionalKind(DimensionalPortalKind.END_EXIT);
+            exit.setOutgoingTraversalsEnabled(false);
+            exit.setIncomingTraversalsEnabled(false);
+            exit.setProjectionMode(ProjectionMode.ON);
+            runtime.portals().save(exit);
+        }
+    }
+
+    private static boolean exitActive(ServerLevel level, List<BlockPos> cells) {
+        for (BlockPos cell : cells) {
+            if (level.hasChunk(cell.getX() >> 4, cell.getZ() >> 4) && !level.getBlockState(cell).is(Blocks.END_PORTAL)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private MinecraftPortal reusable(ServerLevel target, BlockPos center, boolean end) {
         MinecraftPortal nearest = null;
         double nearestDistance = 128D * 128D;
@@ -442,6 +492,11 @@ public final class MinecraftVanillaPortals implements AutoCloseable {
             }
         }
         Shape shape = bounds(List.copyOf(cells), end, alongX);
+        if (end && level.dimension() == Level.END) {
+            return shape.minimum().getY() == shape.maximum().getY() && shape.cells().size() <= 24
+                && shape.minimum().getX() >= -3 && shape.maximum().getX() <= 3
+                && shape.minimum().getZ() >= -3 && shape.maximum().getZ() <= 3 ? shape : null;
+        }
         return end ? shape.cells().size() == 9 && shape.width() == 3 && shape.maximum().getZ() - shape.minimum().getZ() == 2 ? shape : null
             : shape.width() >= 2 && shape.width() <= 21 && shape.height() >= 3 && shape.height() <= 21
                 && shape.cells().size() == shape.width() * shape.height() ? shape : null;

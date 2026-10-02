@@ -13,6 +13,8 @@
 -keep class art.arcane.volmlib.nativelib.**.item.ItemStackAccessImpl { public <init>(); public *; }
 -dontwarn art.arcane.volmlib.nativelib.**.item.ItemStackAccessImpl
 -dontwarn art.arcane.volmlib.nativelib.v26_3_R1.environment.NativeWorldEnvironmentAccess
+-keep class art.arcane.volmlib.nativelib.**.player.PlayerRespawnAccessImpl { public <init>(); public *; }
+-dontwarn art.arcane.volmlib.nativelib.**.player.PlayerRespawnAccessImpl
 -keep class art.arcane.volmlib.nativelib.v26_2_R1.block.NativeBlockEntityAccess { public <init>(); }
 -keep class art.arcane.volmlib.nativelib.v26_3_R1.block.NativeBlockEntityAccess { public <init>(); }
 -keep class art.arcane.volmlib.nativelib.v26_2_R1.chunk.NativeChunkPacketAccess { public <init>(); }

@@ -274,6 +274,16 @@ public record ClientPortalGeometry(int originX,
         if (!(other instanceof ClientPortalGeometry that)) {
             return false;
         }
+        return sameSurface(that) && nested.equals(that.nested);
+    }
+
+    public boolean sameSurface(ClientPortalGeometry that) {
+        if (this == that) {
+            return true;
+        }
+        if (that == null) {
+            return false;
+        }
         return originX == that.originX && originY == that.originY && originZ == that.originZ
             && facing == that.facing && frontSide == that.frontSide && quarterTurns == that.quarterTurns && mirror == that.mirror
             && apertureWidth == that.apertureWidth && apertureHeight == that.apertureHeight
@@ -284,8 +294,7 @@ public record ClientPortalGeometry(int originX,
             && depthBlocks == that.depthBlocks && recursionDepth == that.recursionDepth
             && blackoutPolicy == that.blackoutPolicy && blackoutState == that.blackoutState && maskAirPolicy == that.maskAirPolicy
             && lightingPolicy == that.lightingPolicy && fidelityFlags == that.fidelityFlags && kind == that.kind
-            && parentPortalKey == that.parentPortalKey && targetIdentity == that.targetIdentity
-            && nested.equals(that.nested);
+            && parentPortalKey == that.parentPortalKey && targetIdentity == that.targetIdentity;
     }
 
     @Override

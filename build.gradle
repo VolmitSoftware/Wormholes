@@ -100,8 +100,13 @@ shadowJarTask.configure {
         }
         List<String> segments = relative.tokenize('/')
         String capability = segments[0] == 'common' || segments[0].startsWith('v') ? segments[1] : segments[0]
-        if (!['block', 'chunk', 'map', 'entity', 'item', 'environment'].contains(capability)) {
+        if (!['block', 'chunk', 'map', 'entity', 'item', 'environment', 'player'].contains(capability)) {
             return true
+        }
+        if (capability == 'player') {
+            return !segments.last().startsWith('PlayerRespawnAccess')
+                    && !segments.last().startsWith('RespawnPoint')
+                    && !segments.last().startsWith('RespawnPolicy')
         }
         if (capability == 'entity') {
             return !segments.last().startsWith('EntityVisibilityAccess')

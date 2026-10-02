@@ -467,6 +467,25 @@ final class LocalPortalLinking
 			}
 			return changed;
 		}
+		if(dimensionalPortalKind == DimensionalPortalKind.END_EXIT)
+		{
+			if(settings.getProjectionMode() != ProjectionMode.ON)
+			{
+				settings.assignProjectionMode(ProjectionMode.ON);
+				changed = true;
+			}
+			if(settings.isOutgoingTraversalsEnabled())
+			{
+				settings.assignOutgoingTraversalsEnabled(false);
+				changed = true;
+			}
+			if(settings.isIncomingTraversalsEnabled())
+			{
+				settings.assignIncomingTraversalsEnabled(false);
+				changed = true;
+			}
+			return changed;
+		}
 		if(dimensionalPortalKind == DimensionalPortalKind.END_SOURCE)
 		{
 			if(settings.getProjectionMode() != ProjectionMode.ON)

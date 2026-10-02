@@ -18,7 +18,8 @@ Map<String, File> moddedArtifacts = [:]
 List<String> renderHooks = ['net/minecraft/client/renderer/chunk/', 'SectionRenderDispatcher', 'SectionCompiler',
                             'net/minecraft/client/renderer/LevelRenderer', 'RenderRegionCache']
 Set<String> portalRenderMixins = ['client.PortalLevelRendererMixin', 'client.PortalProjectionMixin', 'client.PortalLightmapMixin',
-                                 'client.MeshLevelExtractorMixin', 'client.MeshEntityRendererMixin', 'client.MeshFeatureWindingMixin'] as Set
+                                 'client.MeshLevelExtractorMixin', 'client.MeshEntityRendererMixin', 'client.MeshFeatureWindingMixin',
+                                 'client.EndPortalSurfaceMixin'] as Set
 
 tasks.register('buildBukkit', Copy) {
     group = 'distribution'

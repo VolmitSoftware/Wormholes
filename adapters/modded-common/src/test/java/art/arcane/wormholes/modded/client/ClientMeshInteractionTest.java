@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.wormholes.network.view.EntityVisual;
 import net.minecraft.SharedConstants;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -19,7 +21,10 @@ import org.mockito.MockedStatic;
 
 import java.util.ArrayList;
 import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.function.Predicate;
 
 import static org.junit.Assert.assertFalse;
@@ -28,9 +33,11 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
@@ -144,6 +151,88 @@ public class ClientMeshInteractionTest {
             clients.when(WormholesClient::instance).thenReturn(null);
             assertSame(real, pick(List.of(real), ClientMeshEntities::interactionTarget).getEntity());
         }
+    }
+
+    @Test
+    public void twoNativeScenesStayNonphysicalThroughoutSpawnUpdateAndRemoval() {
+        ClientSceneWorld world = mock(ClientSceneWorld.class);
+        ClientProjectedEntities projected = new ClientProjectedEntities(world);
+        WormholesClient client = mock(WormholesClient.class);
+        ClientViewTick tick = mock(ClientViewTick.class);
+        when(client.tickState()).thenReturn(tick);
+        when(tick.entities()).thenReturn(projected);
+        when(client.reflections()).thenReturn(new ClientReflectionEntity());
+        ClientLevel level = mock(ClientLevel.class);
+        Map<Integer, Entity> copies = new HashMap<>();
+        Entity source = entity(21, new AABB(-0.3, 0, -0.3, 0.3, 2, 0.3));
+        Entity real = entity(20, new AABB(-0.3, 0, 2, 0.3, 2, 2.5));
+        when(source.canCollideWith(any())).thenReturn(true);
+        when(level.getEntities(eq(source), any(AABB.class), any())).thenAnswer(call -> {
+            Predicate<? super Entity> selector = ClientMeshEntities.worldEntityPredicate(source, call.getArgument(2));
+            ArrayList<Entity> matches = new ArrayList<>();
+            for (Entity candidate : copies.values()) {
+                if (selector.test(candidate)) {
+                    matches.add(candidate);
+                }
+            }
+            if (selector.test(real)) {
+                matches.add(real);
+            }
+            return matches;
+        });
+        doCallRealMethod().when(level).getEntityCollisions(eq(source), any(AABB.class));
+        Runnable check = () -> assertOnlyRealCollision(level, source, real);
+        when(world.spawn(anyInt(), any(), any())).thenAnswer(call -> {
+            int id = call.getArgument(0);
+            copies.put(id, entity(id, new AABB(-0.3, 0, 0.5, 0.3, 2, 1)));
+            check.run();
+            return true;
+        });
+        doAnswer(call -> {
+            check.run();
+            return null;
+        }).when(world).move(anyInt(), any(), any());
+        doAnswer(call -> {
+            check.run();
+            return null;
+        }).when(world).metadata(anyInt(), any());
+        doAnswer(call -> {
+            check.run();
+            return null;
+        }).when(world).tick(anyInt(), eq(true));
+        doAnswer(call -> {
+            check.run();
+            copies.remove(call.<Integer>getArgument(0));
+            return null;
+        }).when(world).remove(anyInt(), any());
+        UUID visualId = UUID.randomUUID();
+        ClientPortal portal = new ClientPortal(1, ClientViewHarness.geometry(), 1, 0);
+        try (MockedStatic<WormholesClient> clients = mockStatic(WormholesClient.class)) {
+            clients.when(WormholesClient::instance).thenReturn(client);
+            for (int revision = 1; revision <= 40; revision++) {
+                EntityVisual visual = EntityVisual.full(visualId, "minecraft:pig", revision, 0, 0.5, 1, 0, 0,
+                    1, 0, 0, 0, 0, 0, true, "", "", "", null, null, new byte[] {(byte) revision}, EntityVisual.EMPTY, revision);
+                for (int key = 1; key <= 2; key++) {
+                    projected.apply(new ClientViewMessage.EntityFrame(key, revision, List.of(visual), List.of(visualId), true));
+                }
+                projected.tick(key -> portal, key -> true);
+                assertEquals(2, copies.size());
+                assertTrue(projected.hasMeshEntities());
+                projected.drop(1);
+                assertEquals(1, copies.size());
+            }
+            projected.clear();
+            assertTrue(copies.isEmpty());
+            assertFalse(projected.hasMeshEntities());
+            check.run();
+        }
+    }
+
+    private static void assertOnlyRealCollision(ClientLevel level, Entity source, Entity real) {
+        List<VoxelShape> shapes = level.getEntityCollisions(source, source.getBoundingBox().expandTowards(0, 0, 4));
+        assertEquals(1, shapes.size());
+        assertEquals(real.getBoundingBox(), shapes.getFirst().bounds());
+        assertEquals(1.7, Shapes.collide(Direction.Axis.Z, source.getBoundingBox(), shapes, 4), 1.0E-9);
     }
 
     private static Entity entity(int id, AABB bounds) {

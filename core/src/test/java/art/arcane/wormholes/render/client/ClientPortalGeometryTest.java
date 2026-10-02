@@ -112,6 +112,31 @@ final class ClientPortalGeometryTest {
     }
 
     @Test
+    void surfaceEqualityExcludesOnlyDescendantsAndKeepsDestinationAndApertureIdentity() {
+        ClientPortalGeometry base = ClientPortalGeometry.fromPortal(source(flatAperture(Direction.N, 4, 4),
+            PortalFrame.canonical(Direction.N), true, 0)).orElseThrow();
+        ClientPortalGeometry child = base.withParent(7);
+        ClientPortalGeometry nested = base.withNested(List.of(child));
+        assertNotEquals(base, nested);
+        assertTrue(base.sameSurface(nested));
+        assertTrue(nested.sameSurface(base));
+        assertFalse(base.sameSurface(null));
+        assertFalse(base.sameSurface(base.withDepth(32)));
+        assertFalse(base.sameSurface(base.withParent(9)));
+        assertFalse(base.sameSurface(copy(base, Direction.S.ordinal(), base.apertureMask(), 0)));
+        assertFalse(base.sameSurface(copy(base, base.facing(), new long[]{0x7FFEL}, 0)));
+        ClientPortalGeometry rotated = ClientPortalGeometry.fromPortal(source(flatAperture(Direction.N, 4, 4),
+            PortalFrame.canonical(Direction.N), true, 1)).orElseThrow();
+        assertFalse(base.sameSurface(rotated));
+        ClientPortalGeometry retargeted = new ClientPortalGeometry(base.originX(), base.originY(), base.originZ(), base.facing(),
+            base.frontSide(), base.quarterTurns(), base.mirror(), base.apertureWidth(), base.apertureHeight(), base.apertureMask(),
+            base.nearPlanePadding(), base.aperturePadding(), base.frustumCullingRatio(), base.depthBlocks(), base.recursionDepth(),
+            base.blackoutPolicy(), base.blackoutState(), base.maskAirPolicy(), base.lightingPolicy(), base.fidelityFlags(),
+            base.kind(), base.parentPortalKey(), 123L, base.nested());
+        assertFalse(base.sameSurface(retargeted));
+    }
+
+    @Test
     void validityGuardsEveryDecodedField() {
         ClientPortalGeometry valid = ClientPortalGeometry.fromPortal(source(flatAperture(Direction.S, 2, 2),
             PortalFrame.canonical(Direction.S), false, 0)).orElseThrow();

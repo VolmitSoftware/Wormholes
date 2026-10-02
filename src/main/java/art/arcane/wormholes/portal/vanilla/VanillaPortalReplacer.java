@@ -47,6 +47,7 @@ public final class VanillaPortalReplacer implements Listener, NetherPortalShapes
 	private final VanillaPortalNetherPairing netherPairing = new VanillaPortalNetherPairing(index, new VanillaPortalNetherSites());
 	private final VanillaPortalEndPairing endPairing = new VanillaPortalEndPairing(index, new VanillaPortalEndSites(index));
 	private final VanillaPortalFrameIntegrity frames = new VanillaPortalFrameIntegrity();
+	private final VanillaPortalEndExit endExit = new VanillaPortalEndExit();
 
 	@Override
 	public Result submit(World world, Set<BlockVector> positions, Axis axis, Entity creator)
@@ -292,6 +293,7 @@ public final class VanillaPortalReplacer implements Listener, NetherPortalShapes
 	public void validateDimensionalFrames()
 	{
 		frames.validate();
+		endExit.discover();
 	}
 
 	private boolean allowShapeProposal(World world, Set<Block> cells, Axis axis, Entity creator)

@@ -52,7 +52,7 @@ final class ClientMeshStream<B> {
         }
         State<B> state = states.get(slot.key);
         ClientPortalGeometry geometry = slot.geometry;
-        if (state == null || !state.geometry.equals(geometry)) {
+        if (state == null || !state.geometry.sameSurface(geometry)) {
             remove(slot.key);
             state = new State<B>(slot, ++generation, geometry);
             states.put(slot.key, state);

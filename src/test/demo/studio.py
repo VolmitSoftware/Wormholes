@@ -328,7 +328,7 @@ def prepare_client(number: int, port: int, token: str, variant: str) -> Path:
             installed.unlink()
     shutil.copy2(ROOT / 'build/client-automator/InstanceAutomator.jar', mods / 'InstanceAutomator.jar')
     if variant == 'clientview':
-        source_mod: Path = ROOT / 'adapters/fabric/build/libs/Wormholes v2.1.1 [Fabric] 26.3+0.19.5.jar'
+        source_mod: Path = ROOT / 'adapters/fabric/build/libs/Wormholes v2.2.0 [Fabric] 26.3+0.19.5.jar'
         shutil.copy2(source_mod, mods / source_mod.name)
     return instance
 
@@ -359,7 +359,7 @@ class Studio:
                 {'block': 'minecraft:dirt', 'height': 4}, {'block': 'minecraft:grass_block', 'height': 1}]}, separators=(',', ':'))})
         (self.server / 'server.properties').write_text(''.join(key + '=' + value + '\n' for key, value in properties.items()))
         plugins: Path = self.server / 'plugins'
-        shutil.copy2(ROOT / 'build/libs/Wormholes-2.1.1-packed.jar', plugins / 'Wormholes.jar')
+        shutil.copy2(ROOT / 'build/libs/Wormholes-2.2.0-packed.jar', plugins / 'Wormholes.jar')
         shutil.copy2(ROOT / 'build/demo-fixture/WormholesDemoFixture.jar', plugins / 'WormholesDemoFixture.jar')
         (plugins / 'Wormholes').mkdir(exist_ok=True)
         (plugins / 'Wormholes/wormholes.toml').write_text('schema = 3\n\n[atmosphere]\nbiome-tint = true\nsky-light = true\n')

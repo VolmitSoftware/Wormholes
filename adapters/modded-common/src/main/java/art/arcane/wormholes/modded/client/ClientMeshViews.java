@@ -42,7 +42,7 @@ public final class ClientMeshViews {
             Scene scene = scenes.get(portal.portalKey());
             ClientViewEnvironment environment = session.environment(portal.portalKey());
             ClientViewEnvironment.Transform transform = environment == null ? null : environment.transform();
-            if (scene == null || scene.view != view || !scene.geometry.equals(portal.geometry()) || !Objects.equals(scene.transform, transform)) {
+            if (scene == null || scene.view != view || scene.level != level || !scene.surfaceGeometry.sameSurface(portal.geometry()) || !Objects.equals(scene.transform, transform)) {
                 scene = new Scene(portal.portalKey(), portal.geometry(), view, level, new ClientMeshEntities(view, level), session, transform);
                 scenes.put(portal.portalKey(), scene);
                 renderer.replaceScene(portal.portalKey(), scene);
@@ -85,8 +85,13 @@ public final class ClientMeshViews {
         ClientPortalRenderer.instance().clear();
     }
 
-    private record Scene(int portalKey, ClientPortalGeometry geometry, ClientMeshSections.View view, ClientLevel level,
+    private record Scene(int portalKey, ClientPortalGeometry surfaceGeometry, ClientMeshSections.View view, ClientLevel level,
                          ClientMeshEntities features, ClientViewSession session, ClientViewEnvironment.Transform transform) implements PortalScene {
+        @Override
+        public ClientPortalGeometry geometry() {
+            return session.portal(portalKey).geometry();
+        }
+
         @Override
         public ClientViewEnvironment environment() {
             return session.environment(portalKey);

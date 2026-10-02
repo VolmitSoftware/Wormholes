@@ -549,7 +549,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
                 MinecraftPortalText.notifySetting(viewer, portal, WormholesMessages.PORTAL_PROJECTION_RECEIVER_INACTIVE);
                 return;
             }
-            ProjectionMode next = kind == DimensionalPortalKind.END_SOURCE ? ProjectionMode.ON : previous.next();
+            ProjectionMode next = kind == DimensionalPortalKind.END_SOURCE || kind == DimensionalPortalKind.END_EXIT ? ProjectionMode.ON : previous.next();
             update(viewer, portal, target -> target.setProjectionMode(next));
             applyProjectionMode(viewer, element, portal);
             window.updateInventory();

@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.portal.MirrorRotation;
+import art.arcane.wormholes.portal.DimensionalPortalKind;
 import art.arcane.wormholes.portal.PortalType;
 import net.minecraft.server.level.ServerPlayer;
 import art.arcane.wormholes.portal.RemotePortal;
@@ -22,12 +23,14 @@ import java.util.UUID;
 
 public final class MinecraftProjectorPortalAccess implements ProjectorRecursivePortals.PortalAccess<ServerLevel, MinecraftPortal> {
     private final WormholesModRuntime runtime;
+    private final MinecraftEndReturnPreview endReturns;
     private MinecraftDoorProjectionViews doors;
     private ServerPlayer observer;
     private final Map<UUID, ViewBounds> views = new HashMap<>();
 
     public MinecraftProjectorPortalAccess(WormholesModRuntime runtime) {
         this.runtime = runtime;
+        this.endReturns = new MinecraftEndReturnPreview(runtime);
     }
 
     public void observer(ServerPlayer observer) {
@@ -39,6 +42,10 @@ public final class MinecraftProjectorPortalAccess implements ProjectorRecursiveP
     }
 
     public long routeIdentity(MinecraftPortal portal) {
+        if (portal.getDimensionalKind() == DimensionalPortalKind.END_EXIT) {
+            MinecraftPortal destination = endReturns.destination(observer, portal);
+            return destination == null ? 0L : destination.getId().getMostSignificantBits() ^ destination.getId().getLeastSignificantBits();
+        }
         return doors == null ? 0L : doors.routeIdentity(portal);
     }
 
@@ -109,6 +116,9 @@ public final class MinecraftProjectorPortalAccess implements ProjectorRecursiveP
 
     @Override
     public MinecraftPortal destination(MinecraftPortal portal) {
+        if (portal.getDimensionalKind() == DimensionalPortalKind.END_EXIT) {
+            return endReturns.destination(observer, portal);
+        }
         if (portal.getType() == PortalType.RTP) {
             return observer == null ? null : runtime.rtp().knownDestination(observer, portal);
         }
@@ -116,6 +126,9 @@ public final class MinecraftProjectorPortalAccess implements ProjectorRecursiveP
     }
 
     public MinecraftPortal projectionDestination(MinecraftPortal portal) {
+        if (portal.getDimensionalKind() == DimensionalPortalKind.END_EXIT) {
+            return endReturns.destination(observer, portal);
+        }
         if (portal.getType() == PortalType.RTP) {
             return observer == null ? null : runtime.rtp().projectionDestination(observer, portal);
         }

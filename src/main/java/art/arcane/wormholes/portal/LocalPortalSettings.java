@@ -176,7 +176,7 @@ final class LocalPortalSettings
 	{
 		ProjectionMode normalized = mode == null ? ProjectionMode.ON : mode;
 		DimensionalPortalKind kind = portal.getDimensionalPortalKind();
-		if(kind == DimensionalPortalKind.END_SOURCE)
+		if(kind == DimensionalPortalKind.END_SOURCE || kind == DimensionalPortalKind.END_EXIT)
 		{
 			normalized = ProjectionMode.ON;
 		}
@@ -321,7 +321,7 @@ final class LocalPortalSettings
 		DimensionalPortalKind kind = portal.getDimensionalPortalKind();
 		boolean normalized = kind.isNetherPortal()
 				|| kind == DimensionalPortalKind.END_SOURCE
-				|| (!kind.isReceiverOnly() && enabled);
+				|| (!kind.isReceiverOnly() && kind != DimensionalPortalKind.END_EXIT && enabled);
 		if(outgoingTraversalsEnabled == normalized)
 		{
 			return;
@@ -390,7 +390,7 @@ final class LocalPortalSettings
 		DimensionalPortalKind kind = portal.getDimensionalPortalKind();
 		boolean normalized = kind.isNetherPortal()
 				|| kind.isReceiverOnly()
-				|| (kind != DimensionalPortalKind.END_SOURCE && enabled);
+				|| (kind != DimensionalPortalKind.END_SOURCE && kind != DimensionalPortalKind.END_EXIT && enabled);
 		if(incomingTraversalsEnabled == normalized)
 		{
 			return;

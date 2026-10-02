@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.ArrayList;
 import java.util.ArrayDeque;
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.render.plate.PlateBox;
@@ -495,6 +496,46 @@ final class ClientMeshStreamTest {
         assertEquals(2, harness.client.portals.size());
         assertEquals(0, harness.sent(ClientViewMessageType.PLATE_BEGIN));
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
+    }
+
+    @Test
+    void descendantTopologyChangesRetainTheParentsMeshGenerationAndPendingSections() {
+        FakePortalAccess access = new FakePortalAccess(new ArrayList<String>());
+        SessionPortal portal = access.add(new SessionPortal("stable parent", 0));
+        ClientViewPortalSlot<String> slot = new ClientViewPortalSlot<String>(portal.id, 1, false);
+        ClientPortalGeometry base = portal.geometry(new SessionPalette()).withDepth(512);
+        slot.geometry = base;
+        slot.sentGeometry = slot.geometry;
+        slot.announced = true;
+        slot.laneAttached = true;
+        ClientMeshStream<String> stream = new ClientMeshStream<String>();
+        ClientMeshStream.Ready<String> retained = removableCapture(stream, slot, access);
+        ClientPortalGeometry first = base.withParent(1);
+        ClientPortalGeometry second = base.withParent(2);
+        List<ClientPortalGeometry> changes = List.of(base.withNested(List.of(first)),
+            base.withNested(List.of(first.withNested(List.of(second)), second)),
+            base.withNested(List.of(second, first)), base);
+        for (int index = 0; index < changes.size(); index++) {
+            slot.geometry = changes.get(index);
+            slot.sentGeometry = slot.geometry;
+            stream.beginTick();
+            stream.refresh(slot, access, "observer", 1000 + index, (1000 + index) * SessionHarness.TICK_NANOS,
+                false, new GeometryVector(11, 67, 15));
+            assertTrue(stream.current(retained));
+            ClientViewMessage control;
+            while ((control = stream.pollControl(key -> true)) != null) {
+                assertFalse(control instanceof ClientViewMessage.MeshBegin);
+                assertFalse(control instanceof ClientViewMessage.MeshDrop);
+            }
+        }
+        slot.geometry = base.withDepth(256);
+        slot.sentGeometry = slot.geometry;
+        stream.beginTick();
+        stream.refresh(slot, access, "observer", 1004, 1004 * SessionHarness.TICK_NANOS,
+            false, new GeometryVector(11, 67, 15));
+        assertFalse(stream.current(retained));
+        assertTrue(stream.pollControl(key -> true) instanceof ClientViewMessage.MeshBegin begin
+            && begin.generation() > retained.generation());
     }
 
     @Test

@@ -5,7 +5,6 @@ import art.arcane.wormholes.modded.clientview.ClientViewPayload;
 import net.neoforged.neoforge.network.event.RegisterConfigurationTasksEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import net.minecraft.network.protocol.PacketFlow;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ConfigurationTask;
@@ -22,13 +21,8 @@ import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
-import java.util.Objects;
-import java.util.function.BiConsumer;
-
 @Mod("wormholes")
 public final class WormholesNeoForge {
-    private static volatile BiConsumer<ClientViewPayload, IPayloadContext> clientReceiver = (payload, context) -> { };
-
     private final WormholesModRuntime runtime = new WormholesModRuntime();
 
     public WormholesNeoForge(IEventBus bus) {
@@ -92,16 +86,8 @@ public final class WormholesNeoForge {
             .commonBidirectional(ClientViewPayload.TYPE, ClientViewPayload.CODEC, this::clientViewPayload);
     }
 
-    public static void clientReceiver(BiConsumer<ClientViewPayload, IPayloadContext> receiver) {
-        clientReceiver = Objects.requireNonNull(receiver, "receiver");
-    }
-
     private void clientViewPayload(ClientViewPayload payload, IPayloadContext context) {
-        if (context.flow() == PacketFlow.CLIENTBOUND) {
-            clientReceiver.accept(payload, context);
-        } else {
-            runtime.clientViews().receive(context.connection(), payload.data());
-        }
+        runtime.clientViews().receive(context.connection(), payload.data());
     }
 
     private void configurationTasks(RegisterConfigurationTasksEvent event) {

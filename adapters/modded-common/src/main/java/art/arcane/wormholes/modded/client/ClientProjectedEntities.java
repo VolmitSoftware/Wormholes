@@ -73,25 +73,26 @@ public final class ClientProjectedEntities {
     }
 
     public void tick(IntFunction<ClientPortal> lookup, IntPredicate meshPortal) {
-        meshIds.clear();
         ObjectIterator<Int2ObjectMap.Entry<PortalEntities>> portalIterator = portals.int2ObjectEntrySet().fastIterator();
         while (portalIterator.hasNext()) {
             Int2ObjectMap.Entry<PortalEntities> entry = portalIterator.next();
             ClientPortal portal = lookup.apply(entry.getIntKey());
+            boolean mesh = meshPortal.test(entry.getIntKey());
             for (Tracked tracked : entry.getValue().tracked.values()) {
-                boolean mesh = meshPortal.test(entry.getIntKey());
                 boolean visible = portal != null && (mesh || portal.ready() && inCone(portal, tracked.visual));
                 if (!visible) {
                     despawn(tracked);
                     continue;
                 }
                 if (tracked.entityId == 0) {
-                    spawn(tracked);
+                    spawn(tracked, mesh);
                 } else {
+                    if (mesh) {
+                        meshIds.add(tracked.entityId);
+                    } else {
+                        meshIds.remove(tracked.entityId);
+                    }
                     sync(tracked);
-                }
-                if (mesh && tracked.entityId != 0) {
-                    meshIds.add(tracked.entityId);
                 }
                 if (tracked.entityId != 0) {
                     world.tick(tracked.entityId, mesh);
@@ -194,10 +195,14 @@ public final class ClientProjectedEntities {
         return portal.sweep().applied(x, y, z) || portal.sweep().applied(x, (int) Math.floor(visual.y()), z);
     }
 
-    private void spawn(Tracked tracked) {
+    private void spawn(Tracked tracked, boolean mesh) {
         int id = nextId;
         nextId = ClientEntityIds.nextProjected(id);
+        if (mesh) {
+            meshIds.add(id);
+        }
         if (!world.spawn(id, tracked.projectionId, tracked.visual)) {
+            meshIds.remove(id);
             spawnFailures++;
             return;
         }
@@ -233,11 +238,11 @@ public final class ClientProjectedEntities {
     }
 
     private void despawn(Tracked tracked) {
-        meshIds.remove(tracked.entityId);
         if (tracked.entityId == 0) {
             return;
         }
         world.remove(tracked.entityId, tracked.visual);
+        meshIds.remove(tracked.entityId);
         tracked.entityId = 0;
         tracked.synced = null;
         tracked.syncedMetadata = null;

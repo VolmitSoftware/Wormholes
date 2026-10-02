@@ -71,6 +71,7 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
         setNetworkViewUnsubscribeGraceSeconds(getNetworkViewUnsubscribeGraceSeconds());
         setActivationRange(getActivationRange());
         setAmbientColor(getAmbientColor());
+        setDimensionalKind(getDimensionalKind());
     }
 
     public static MinecraftPortal read(Map<String, Object> values) {
@@ -205,7 +206,8 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
     }
 
     public boolean isOutgoingTraversalsEnabled() {
-        return flag("outgoingTraversalsEnabled", true);
+        return !getDimensionalKind().isReceiverOnly() && getDimensionalKind() != DimensionalPortalKind.END_EXIT
+            && flag("outgoingTraversalsEnabled", true);
     }
 
     public void setOutgoingTraversalsEnabled(boolean enabled) {
@@ -213,7 +215,8 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
     }
 
     public boolean isIncomingTraversalsEnabled() {
-        return flag("incomingTraversalsEnabled", true);
+        return getDimensionalKind() != DimensionalPortalKind.END_SOURCE && getDimensionalKind() != DimensionalPortalKind.END_EXIT
+            && flag("incomingTraversalsEnabled", true);
     }
 
     public void setIncomingTraversalsEnabled(boolean enabled) {
@@ -230,6 +233,16 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
 
     public void setDimensionalKind(DimensionalPortalKind kind) {
         values.put("dimensionalPortalKind", Objects.requireNonNull(kind).name());
+        if (kind.isReceiverOnly()) {
+            unlink();
+            setProjectionMode(ProjectionMode.OFF);
+            setOutgoingTraversalsEnabled(false);
+            setIncomingTraversalsEnabled(true);
+        } else if (kind == DimensionalPortalKind.END_SOURCE || kind == DimensionalPortalKind.END_EXIT) {
+            setProjectionMode(ProjectionMode.ON);
+            setOutgoingTraversalsEnabled(kind == DimensionalPortalKind.END_SOURCE);
+            setIncomingTraversalsEnabled(false);
+        }
     }
 
     public UUID getCounterpartId() {

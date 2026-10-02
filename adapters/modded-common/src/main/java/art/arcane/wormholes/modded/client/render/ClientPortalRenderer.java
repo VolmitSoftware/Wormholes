@@ -114,6 +114,19 @@ public final class ClientPortalRenderer {
         return portal.active;
     }
 
+    public boolean coversEndPortalSurface(BlockPos position) {
+        for (Portal portal : portals.values()) {
+            ClientPortalGeometry geometry = portal.scene.geometry();
+            if (portal.active && portal.rendered && geometry.parentPortalKey() == 0
+                && geometry.kind() == ClientPortalGeometry.KIND_VANILLA_REPLACEMENT
+                && geometry.facingDirection().y() != 0 && position.getY() == geometry.originY()
+                && geometry.apertureOpen(position.getX() - geometry.originX(), position.getZ() - geometry.originZ())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void featureFailed(int portalKey, Throwable failure) {
         Portal portal = portals.get(portalKey);
         if (portal != null) {

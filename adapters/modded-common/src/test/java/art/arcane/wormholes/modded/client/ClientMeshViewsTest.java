@@ -16,6 +16,10 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 import org.mockito.MockedConstruction;
+import org.mockito.ArgumentCaptor;
+import java.util.List;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertEquals;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -53,6 +57,7 @@ public class ClientMeshViewsTest {
         when(view.changed()).thenReturn(new LongOpenHashSet());
         when(portal.portalKey()).thenReturn(7);
         when(portal.geometry()).thenReturn(geometry);
+        when(geometry.sameSurface(geometry)).thenReturn(true);
         when(session.portal(7)).thenReturn(portal);
         Int2ObjectOpenHashMap<ClientPortal> portals = new Int2ObjectOpenHashMap<>();
         portals.put(7, portal);
@@ -80,6 +85,56 @@ public class ClientMeshViewsTest {
     }
 
     @Test
+    public void descendantChangesKeepTheGpuSceneAndPublishCurrentTopology() {
+        ClientViewSession session = mock(ClientViewSession.class);
+        ClientMeshSections meshes = mock(ClientMeshSections.class);
+        ClientMeshSections.View view = mock(ClientMeshSections.View.class);
+        ClientPortal portal = mock(ClientPortal.class);
+        ClientPortalRenderer renderer = mock(ClientPortalRenderer.class);
+        ClientLevel level = mock(ClientLevel.class);
+        ClientPortalGeometry base = new ClientPortalGeometry(0, 64, 0, Direction.S.ordinal(), true, 0, true,
+            1, 2, new long[]{3}, 0, 0, 1, 64, 3, 0, 0, 0, 0, 0, ClientPortalGeometry.KIND_FRAME, 0, 1, List.of());
+        when(session.active()).thenReturn(true);
+        when(session.meshes()).thenReturn(meshes);
+        when(meshes.view(7)).thenReturn(view);
+        when(view.changed()).thenReturn(new LongOpenHashSet());
+        when(portal.portalKey()).thenReturn(7);
+        when(portal.geometry()).thenReturn(base);
+        when(session.portal(7)).thenReturn(portal);
+        Int2ObjectOpenHashMap<ClientPortal> portals = new Int2ObjectOpenHashMap<>();
+        portals.put(7, portal);
+        when(session.portals()).thenReturn(portals);
+        try (MockedStatic<ClientPortalRenderer> renderers = mockStatic(ClientPortalRenderer.class);
+             MockedConstruction<ClientMeshEntities> features = mockConstruction(ClientMeshEntities.class)) {
+            renderers.when(ClientPortalRenderer::instance).thenReturn(renderer);
+            ClientMeshViews views = new ClientMeshViews();
+            views.update(session, level);
+            ArgumentCaptor<PortalScene> scene = ArgumentCaptor.forClass(PortalScene.class);
+            verify(renderer).replaceScene(eq(7), scene.capture());
+            ClientPortalGeometry first = base.withParent(7);
+            ClientPortalGeometry second = base.withParent(8);
+            List<ClientPortalGeometry> changes = List.of(base.withNested(List.of(first)),
+                base.withNested(List.of(first.withNested(List.of(second)), second)),
+                base.withNested(List.of(second, first)), base);
+            for (ClientPortalGeometry geometry : changes) {
+                when(portal.geometry()).thenReturn(geometry);
+                views.update(session, level);
+                assertSame(geometry, scene.getValue().geometry());
+            }
+            verify(renderer, times(1)).replaceScene(eq(7), any(PortalScene.class));
+            assertEquals(1, features.constructed().size());
+            when(portal.geometry()).thenReturn(surface(base, 1, base.targetIdentity()));
+            views.update(session, level);
+            verify(renderer, times(2)).replaceScene(eq(7), any(PortalScene.class));
+            when(portal.geometry()).thenReturn(surface(base, 1, 99L));
+            views.update(session, level);
+            verify(renderer, times(3)).replaceScene(eq(7), any(PortalScene.class));
+            views.update(session, mock(ClientLevel.class));
+            verify(renderer, times(4)).replaceScene(eq(7), any(PortalScene.class));
+        }
+    }
+
+    @Test
     public void changedDestinationTransformReplacesTheSceneEvenWithIdenticalGeometryAndSectionGeneration() {
         ClientViewSession session = mock(ClientViewSession.class);
         ClientMeshSections meshes = mock(ClientMeshSections.class);
@@ -95,6 +150,7 @@ public class ClientMeshViewsTest {
         when(view.changed()).thenReturn(new LongOpenHashSet());
         when(portal.portalKey()).thenReturn(7);
         when(portal.geometry()).thenReturn(geometry);
+        when(geometry.sameSurface(geometry)).thenReturn(true);
         when(session.portal(7)).thenReturn(portal);
         Int2ObjectOpenHashMap<ClientPortal> portals = new Int2ObjectOpenHashMap<>();
         portals.put(7, portal);
@@ -117,5 +173,13 @@ public class ClientMeshViewsTest {
             views.update(session, level);
             verify(renderer, times(3)).replaceScene(eq(7), any(PortalScene.class));
         }
+    }
+
+    private static ClientPortalGeometry surface(ClientPortalGeometry base, int quarterTurns, long targetIdentity) {
+        return new ClientPortalGeometry(base.originX(), base.originY(), base.originZ(), base.facing(), base.frontSide(), quarterTurns,
+            base.mirror(), base.apertureWidth(), base.apertureHeight(), base.apertureMask(), base.nearPlanePadding(),
+            base.aperturePadding(), base.frustumCullingRatio(), base.depthBlocks(), base.recursionDepth(), base.blackoutPolicy(),
+            base.blackoutState(), base.maskAirPolicy(), base.lightingPolicy(), base.fidelityFlags(), base.kind(),
+            base.parentPortalKey(), targetIdentity, base.nested());
     }
 }

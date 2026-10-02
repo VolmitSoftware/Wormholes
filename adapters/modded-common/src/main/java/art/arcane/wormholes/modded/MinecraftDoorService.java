@@ -363,8 +363,8 @@ public final class MinecraftDoorService implements AutoCloseable {
                 if (player.level() == level && !player.hasDisconnected()
                     && MinecraftDoorItems.identity(player.getItemInHand(hand)).filter(identity::equals).isPresent()
                     && new BlockPlaceContext(player, hand, player.getItemInHand(hand), hit).canPlace()) {
-                    blockItem.useOn(new UseOnContext(player, hand, hit));
-                    placed = capture(endpoint) != null;
+                    placed = completeDoorPlacement(player, hand,
+                        blockItem.useOn(new UseOnContext(player, hand, hit)).consumesAction() && capture(endpoint) != null);
                 }
                 if (placed) {
                     doors.put(identity.itemId(), new ActiveDoor(endpoint));
@@ -384,6 +384,19 @@ public final class MinecraftDoorService implements AutoCloseable {
         return true;
     }
 
+    static boolean completeDoorPlacement(ServerPlayer player, InteractionHand hand, boolean placed) {
+        if (!placed) {
+            return false;
+        }
+        ItemStack held = player.getItemInHand(hand);
+        if (player.hasInfiniteMaterials() && MinecraftDoorItems.identity(held).isPresent()) {
+            held.shrink(1);
+        }
+        player.getInventory().setChanged();
+        player.containerMenu.broadcastFullState();
+        return true;
+    }
+
     private void growRoom(ServerPlayer player, InteractionHand hand, BlockHitResult hit, BlockItem item, PlacedDoorEndpoint endpoint) {
         ServerLevel level = player.level();
         BlockPos block = new BlockPos(endpoint.position().x(), endpoint.position().y(), endpoint.position().z());
@@ -396,7 +409,7 @@ public final class MinecraftDoorService implements AutoCloseable {
             direction(predicted.getValue(BlockStateProperties.HORIZONTAL_FACING)));
         BlockState beforeLower = level.getBlockState(block);
         BlockState beforeUpper = level.getBlockState(block.above());
-        ItemStack refund = player.getItemInHand(hand).copyWithCount(player.hasInfiniteMaterials() ? 0 : 1);
+        ItemStack refund = player.getItemInHand(hand).copyWithCount(1);
         boolean[] placed = {false};
         pocketOperations.grow(player, endpoint, plane, () -> {
             if (closed || player.hasDisconnected() || player.level() != level
@@ -404,8 +417,8 @@ public final class MinecraftDoorService implements AutoCloseable {
                 || !new BlockPlaceContext(player, hand, player.getItemInHand(hand), hit).canPlace()) {
                 return false;
             }
-            item.useOn(new UseOnContext(player, hand, hit));
-            placed[0] = capture(endpoint) != null;
+            placed[0] = completeDoorPlacement(player, hand,
+                item.useOn(new UseOnContext(player, hand, hit)).consumesAction() && capture(endpoint) != null);
             return placed[0];
         }).whenCompleteAsync((updated, failure) -> {
             pendingItems.remove(endpoint.identity().itemId());

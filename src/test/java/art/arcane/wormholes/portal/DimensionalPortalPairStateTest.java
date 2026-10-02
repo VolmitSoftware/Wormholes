@@ -110,6 +110,22 @@ public final class DimensionalPortalPairStateTest
 	}
 
 	@Test
+	public void dragonExitProjectsWithoutReplacingVanillaTravel()
+	{
+		LocalPortal exit = portal();
+		exit.setDimensionalPortalKind(DimensionalPortalKind.END_EXIT);
+		exit.setProjectionMode(ProjectionMode.OFF);
+		exit.setOutgoingTraversalsEnabled(true);
+		exit.setIncomingTraversalsEnabled(true);
+		assertEquals(ProjectionMode.ON, exit.getProjectionMode());
+		assertFalse(exit.isOutgoingTraversalsEnabled());
+		assertFalse(exit.isIncomingTraversalsEnabled());
+		assertNull(exit.getTunnel());
+		assertTrue(exit.getDimensionalPortalKind().isManagedEndPortal());
+		assertFalse(exit.getDimensionalPortalKind().isGenericDestination());
+	}
+
+	@Test
 	public void endSourceAlwaysKeepsItsProjectionVisible()
 	{
 		LocalPortal source = portal();

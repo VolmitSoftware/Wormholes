@@ -90,6 +90,10 @@ final class VanillaPortalIndex
 		}
 		for(ILocalPortal portal : Wormholes.portalManager.getLocalPortals())
 		{
+			if(portal.getDimensionalPortalKind() == DimensionalPortalKind.END_EXIT)
+			{
+				continue;
+			}
 			PortalStructure structure = portal.getStructure();
 			if(structure == null || !location.getWorld().equals(structure.getWorld()))
 			{
