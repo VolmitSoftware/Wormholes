@@ -1,14 +1,21 @@
 package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.wormholes.modded.MinecraftProjectorPortalAccess;
+import art.arcane.wormholes.modded.MinecraftDoorProjectionViews;
+import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import net.minecraft.network.Connection;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Objects;
+import java.util.List;
 import java.util.UUID;
+import java.util.HashMap;
+import java.util.Map;
 
 public final class MinecraftClientViewPeer {
     private final UUID id;
@@ -17,12 +24,35 @@ public final class MinecraftClientViewPeer {
     private volatile ServerPlayer player;
     private ServerLevel world;
     private MinecraftProjectorPortalAccess portals;
+    private MinecraftDoorProjectionViews doors;
     private volatile boolean offered;
+    private int meshDepth;
+    private final Map<UUID, NestedContext> nestedContexts = new HashMap<>();
 
     public MinecraftClientViewPeer(UUID id, String name, Connection connection) {
         this.id = Objects.requireNonNull(id, "id");
         this.name = name == null ? id.toString() : name;
         this.connection = Objects.requireNonNull(connection, "connection");
+    }
+
+    NestedContext nestedContext(UUID context) {
+        return nestedContexts.get(context);
+    }
+
+    void nestedContext(UUID context, NestedContext value) {
+        if (value == null) {
+            nestedContexts.remove(context);
+        } else {
+            nestedContexts.put(context, value);
+        }
+    }
+
+    int meshDepth() {
+        return meshDepth;
+    }
+
+    void meshDepth(int depth) {
+        meshDepth = depth;
     }
 
     public UUID id() {
@@ -49,6 +79,22 @@ public final class MinecraftClientViewPeer {
         return portals;
     }
 
+    List<MinecraftPortal> updateDoors(WormholesModRuntime runtime) {
+        if (doors == null) {
+            doors = new MinecraftDoorProjectionViews(runtime);
+            portals.setDoorViews(doors);
+        }
+        return doors.update(player, runtime.projections().projectableDoors(), meshDepth > 0);
+    }
+
+    MinecraftPortal door(UUID id) {
+        return doors == null ? null : doors.source(id);
+    }
+
+    List<MinecraftPortal> doors() {
+        return doors == null ? List.of() : doors.sources();
+    }
+
     public boolean offered() {
         return offered;
     }
@@ -71,10 +117,17 @@ public final class MinecraftClientViewPeer {
     }
 
     void attach(ServerPlayer next, MinecraftProjectorPortalAccess access) {
+        doors = null;
+        nestedContexts.clear();
         player = Objects.requireNonNull(next, "next");
         world = next.level();
         portals = Objects.requireNonNull(access, "access");
+        access.setDoorViews(null);
         access.observer(next);
+    }
+
+    record NestedContext(UUID portal, GeometryVector sourceEye, GeometryVector destinationEye, ServerLevel destinationWorld,
+                         ClientViewEnvironment.Transform transform) {
     }
 
     boolean connected() {

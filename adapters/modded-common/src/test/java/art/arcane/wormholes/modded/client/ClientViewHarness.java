@@ -37,6 +37,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 final class ClientViewHarness {
+    static final long PLATE_CAPS = ClientViewCapability.ALL & ~ClientViewCapability.MESH_RENDER.mask();
     static final BlockState STONE = Blocks.STONE.defaultBlockState();
     static final BlockState DIRT = Blocks.DIRT.defaultBlockState();
     static final BlockState AIR = Blocks.AIR.defaultBlockState();
@@ -66,10 +67,14 @@ final class ClientViewHarness {
     int lastSeq;
 
     ClientViewHarness() {
+        this(PLATE_CAPS);
+    }
+
+    ClientViewHarness(long caps) {
         config = new WormholesClientConfig();
         config.normalize();
         session = new ClientViewSession(config, new ClientPalette(BuiltInRegistries.BLOCK), 1, "test");
-        session.accept(new ClientViewMessage.Accept(1, ClientViewCapability.ALL, 20, ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 7L, 8));
+        session.accept(new ClientViewMessage.Accept(1, caps, 20, ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 7L, 8));
         receiver = new ClientViewReceiver(session);
         stats = new ClientViewStats();
         tick = new ClientViewTick(session, receiver, config, stats);
@@ -98,8 +103,9 @@ final class ClientViewHarness {
 
     void receive(ClientViewMessage message, int flags) throws ClientViewProtocolException {
         lastSeq = ++seq;
+        long previousFailures = receiver.decodeFailures();
         receiver.receive(ClientViewCodec.encodeS2C(message, lastSeq, flags), null);
-        assertEquals("decode failed for " + message.type(), 0L, receiver.decodeFailures());
+        assertEquals("decode failed for " + message.type(), previousFailures, receiver.decodeFailures());
     }
 
     void tick(double eyeX, double eyeY, double eyeZ) {
@@ -301,7 +307,11 @@ final class ClientViewHarness {
         }
 
         @Override
-        public void move(int entityId, EntityVisual visual) {
+        public void tick(int entityId, boolean nativeMesh) {
+        }
+
+        @Override
+        public void move(int entityId, EntityVisual visual, EntityVisual previous) {
             entities.put(entityId, visual);
             moves++;
         }

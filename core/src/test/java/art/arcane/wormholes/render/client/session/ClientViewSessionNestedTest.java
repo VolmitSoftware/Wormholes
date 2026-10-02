@@ -9,6 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.HashMap;
+import java.util.HashSet;
+import art.arcane.wormholes.network.client.ClientViewProtocol;
 
 import org.junit.jupiter.api.Test;
 
@@ -21,6 +25,79 @@ import art.arcane.wormholes.render.client.ClientPortalGeometry;
 final class ClientViewSessionNestedTest {
     private static final long WITHOUT_MIRROR = SessionHarness.CLIENT_CAPS & ~ClientViewCapability.CLIENT_MIRROR.mask();
     private static final long WITHOUT_RECURSION = SessionHarness.CLIENT_CAPS & ~ClientViewCapability.CLIENT_RECURSION.mask();
+
+    @Test
+    void nativeMirrorCyclesUseDistinctBranchKeysUpToTheWireDepthLimit() throws ClientViewProtocolException {
+        SessionHarness harness = new SessionHarness(SessionHarness.options(false, 0));
+        harness.access.meshDistance = 64;
+        SessionPortal first = harness.access.add(new SessionPortal("first mirror", 0));
+        SessionPortal second = new SessionPortal("second mirror", 8);
+        first.mirror = true;
+        second.mirror = true;
+        first.recursionDepth = 64;
+        second.recursionDepth = 64;
+        harness.access.nested.put(first.id, List.of(second));
+        harness.access.nested.put(second.id, List.of(first));
+        Map<Integer, UUID> entityContexts = new HashMap<>();
+        harness.entities = (observer, portal, key, tick, full, hideObserver) -> {
+            entityContexts.put(key, portal);
+            return new ClientViewMessage.EntityFrame(key, 1, List.of(), List.of(), true);
+        };
+        harness.handshake(SessionHarness.NATIVE_CAPS);
+        harness.tick();
+        assertEquals(ClientViewProtocol.MAX_GEOMETRY_DEPTH, harness.client.portals.size());
+        assertEquals(ClientViewProtocol.MAX_GEOMETRY_DEPTH, harness.access.contexts.size());
+        assertEquals(2, new HashSet<>(harness.access.contexts.values()).size());
+        assertEquals(ClientViewProtocol.MAX_GEOMETRY_DEPTH, entityContexts.size());
+        assertEquals(harness.access.contexts.keySet(), new HashSet<>(entityContexts.values()));
+        int parentKey = 0;
+        for (int depth = 0; depth < ClientViewProtocol.MAX_GEOMETRY_DEPTH; depth++) {
+            int key = keyOf(harness, parentKey);
+            ClientPortalGeometry geometry = harness.client.portals.get(key);
+            assertEquals(depth == ClientViewProtocol.MAX_GEOMETRY_DEPTH - 1 ? 0 : 1, geometry.nested().size());
+            parentKey = key;
+        }
+        harness.access.nested.put(first.id, List.of());
+        harness.tick();
+        assertEquals(1, harness.client.portals.size());
+        assertEquals(Map.of(first.id, first.id), harness.access.contexts);
+        assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
+    }
+
+    @Test
+    void nativeLinkedBranchesRespectEachAperturesDepthAndDetachWhenBudgetMoves() throws ClientViewProtocolException {
+        SessionHarness harness = new SessionHarness(SessionHarness.options(false, 0));
+        harness.access.meshDistance = 64;
+        SessionPortal root = harness.access.add(new SessionPortal("linked root", 0));
+        root.recursionDepth = 3;
+        List<SessionPortal> children = new ArrayList<>();
+        for (int index = 0; index < ClientViewProtocol.MAX_NESTED_GEOMETRY; index++) {
+            children.add(new SessionPortal("branch " + index, index * 4));
+        }
+        harness.access.nested.put(root.id, children);
+        harness.handshake(SessionHarness.NATIVE_CAPS);
+        harness.tick();
+        assertEquals(1 + ClientViewProtocol.MAX_NESTED_GEOMETRY, harness.client.portals.size());
+        SessionPortal first = children.getFirst();
+        first.recursionDepth = 2;
+        first.geometryRevision++;
+        SessionPortal grandchild = new SessionPortal("grandchild", 40);
+        grandchild.recursionDepth = 0;
+        harness.access.nested.put(first.id, List.of(grandchild));
+        harness.access.nested.put(grandchild.id, List.of(root));
+        harness.tick();
+        assertEquals(1 + ClientViewProtocol.MAX_NESTED_GEOMETRY, harness.client.portals.size());
+        assertEquals(1 + ClientViewProtocol.MAX_NESTED_GEOMETRY, harness.access.contexts.size());
+        assertTrue(harness.access.contexts.containsValue(grandchild.id));
+        assertFalse(harness.access.contexts.containsValue(children.getLast().id));
+        assertEquals(1, harness.access.contexts.values().stream().filter(root.id::equals).count());
+        root.recursionDepth = 0;
+        root.geometryRevision++;
+        harness.tick();
+        assertEquals(1, harness.client.portals.size());
+        assertEquals(Map.of(root.id, root.id), harness.access.contexts);
+        assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
+    }
 
     @Test
     void clientMirrorSessionsNeverAskForTheMirrorPlate() throws ClientViewProtocolException {

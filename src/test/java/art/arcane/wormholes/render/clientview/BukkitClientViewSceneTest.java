@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,10 +35,12 @@ import art.arcane.wormholes.render.view.ProjectionEntityView;
 
 final class BukkitClientViewSceneTest {
     private final boolean oldLighting = Settings.LIGHTING_FIDELITY;
+    private final double oldEntityRange = Settings.ENTITY_SPOOF_RANGE;
 
     @AfterEach
     void restore() {
         Settings.LIGHTING_FIDELITY = oldLighting;
+        Settings.ENTITY_SPOOF_RANGE = oldEntityRange;
     }
 
     @Test
@@ -100,6 +103,31 @@ final class BukkitClientViewSceneTest {
         assertEquals(1, mirrorPresence(ClientViewFixture.CLIENT_CAPS | ClientViewCapability.CLIENT_MIRROR.mask()),
             "the client draws its own reflection");
         assertEquals(2, mirrorPresence(ClientViewFixture.CLIENT_CAPS), "a streamed mirror plate keeps the projected observer");
+    }
+
+    @Test
+    void meshEntitiesUseClientDepthWhileLegacyEntitiesKeepPortalDepth() throws ClientViewProtocolException {
+        Settings.ENTITY_SPOOF_RANGE = 128;
+        try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS | ClientViewCapability.MESH_RENDER.mask())) {
+            when(fixture.player.getClientViewDistance()).thenReturn(10);
+            ProjectionEntityView entities = (ProjectionEntityView) fixture.view;
+            EntityVisual stand = EntityVisual.full(UUID.randomUUID(), "minecraft:armor_stand", 1.5D, 64.0D, 111.0D, 1.975D,
+                0.0D, 0.0D, 1.0D, 0.0F, 0.0F, 0.0D, 0.0D, 0.0D, true, "", "", "", null, null,
+                EntityVisual.EMPTY, EntityVisual.EMPTY, 0);
+            when(entities.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(stand));
+            when(entities.isVisibleTo(any(Player.class), any(UUID.class))).thenReturn(true);
+            fixture.route();
+            ClientViewMessage.EntityFrame frame = lastFrame(fixture.messages());
+            assertNotNull(frame);
+            assertEquals(1, frame.presentIds().size(), "entities deeper than the legacy portal depth must reach mesh clients");
+            verify(entities).getEntities(anyDouble(), anyDouble(), anyDouble(), eq(128.0D));
+        }
+        try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS)) {
+            when(fixture.player.getClientViewDistance()).thenReturn(10);
+            ProjectionEntityView entities = (ProjectionEntityView) fixture.view;
+            fixture.route();
+            verify(entities).getEntities(anyDouble(), anyDouble(), anyDouble(), eq(8.0D));
+        }
     }
 
     private static int mirrorPresence(long clientCaps) throws ClientViewProtocolException {

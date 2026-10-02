@@ -21,6 +21,7 @@ import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 
@@ -121,6 +122,12 @@ public class PortalManager implements Listener
 		{
 			runtime.viewerMoved(e.getPlayer(), destination);
 		}
+	}
+
+	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+	public void on(PlayerTeleportEvent e)
+	{
+		attendance.record(e.getPlayer(), e.getTo());
 	}
 
 	@EventHandler

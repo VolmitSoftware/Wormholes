@@ -17,10 +17,14 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.IntFunction;
+import java.util.function.IntPredicate;
+import java.util.function.IntConsumer;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 
 public final class ClientProjectedEntities {
     private final ClientSceneWorld world;
     private final Int2ObjectOpenHashMap<PortalEntities> portals;
+    private final IntOpenHashSet meshIds = new IntOpenHashSet();
     private int nextId;
     private long framesApplied;
     private long deltasWithoutBase;
@@ -67,22 +71,45 @@ public final class ClientProjectedEntities {
         framesApplied++;
     }
 
-    public void tick(IntFunction<ClientPortal> lookup) {
+    public void tick(IntFunction<ClientPortal> lookup, IntPredicate meshPortal) {
+        meshIds.clear();
         ObjectIterator<Int2ObjectMap.Entry<PortalEntities>> portalIterator = portals.int2ObjectEntrySet().fastIterator();
         while (portalIterator.hasNext()) {
             Int2ObjectMap.Entry<PortalEntities> entry = portalIterator.next();
             ClientPortal portal = lookup.apply(entry.getIntKey());
             for (Tracked tracked : entry.getValue().tracked.values()) {
-                boolean visible = portal != null && portal.ready() && inCone(portal, tracked.visual);
+                boolean mesh = meshPortal.test(entry.getIntKey());
+                boolean visible = portal != null && (mesh || portal.ready() && inCone(portal, tracked.visual));
                 if (!visible) {
                     despawn(tracked);
                     continue;
                 }
                 if (tracked.entityId == 0) {
                     spawn(tracked);
-                    continue;
+                } else {
+                    sync(tracked);
                 }
-                sync(tracked);
+                if (mesh && tracked.entityId != 0) {
+                    meshIds.add(tracked.entityId);
+                }
+                if (tracked.entityId != 0) {
+                    world.tick(tracked.entityId, mesh);
+                }
+            }
+        }
+    }
+
+    public boolean meshEntity(int entityId) {
+        return meshIds.contains(entityId);
+    }
+
+    public void forEachEntity(int portalKey, IntConsumer consumer) {
+        PortalEntities state = portals.get(portalKey);
+        if (state != null) {
+            for (Tracked tracked : state.tracked.values()) {
+                if (tracked.entityId != 0) {
+                    consumer.accept(tracked.entityId);
+                }
             }
         }
     }
@@ -107,6 +134,7 @@ public final class ClientProjectedEntities {
     }
 
     public void discard() {
+        meshIds.clear();
         portals.clear();
     }
 
@@ -187,7 +215,7 @@ public final class ClientProjectedEntities {
         if (visual == tracked.synced) {
             return;
         }
-        world.move(tracked.entityId, visual);
+        world.move(tracked.entityId, visual, tracked.synced);
         if (!Arrays.equals(visual.metadata(), tracked.syncedMetadata)) {
             world.metadata(tracked.entityId, visual.metadata());
             tracked.syncedMetadata = visual.metadata();
@@ -200,6 +228,7 @@ public final class ClientProjectedEntities {
     }
 
     private void despawn(Tracked tracked) {
+        meshIds.remove(tracked.entityId);
         if (tracked.entityId == 0) {
             return;
         }

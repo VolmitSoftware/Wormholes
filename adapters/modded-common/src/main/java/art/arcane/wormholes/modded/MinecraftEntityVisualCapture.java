@@ -66,12 +66,13 @@ public final class MinecraftEntityVisualCapture {
         Vec3 position = entity.position();
         Vec3 velocity = entity.getDeltaMovement();
         Vec3 look = entity instanceof HangingEntity hanging
-            ? Vec3.atLowerCornerOf(hanging.getDirection().getUnitVec3i()) : entity.getLookAngle();
+            ? Vec3.atLowerCornerOf(hanging.getDirection().getUnitVec3i())
+            : entity instanceof LivingEntity ? entity.getHeadLookAngle() : entity.getLookAngle();
         Entity vehicle = entity.getVehicle();
         Entity leash = entity instanceof Leashable leashable ? leashable.getLeashHolder() : null;
         EntityVisual visual = EntityVisual.full(id, BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString(),
             position.x, position.y, position.z, entity.getBbHeight(), look.x, look.y, look.z,
-            entity.getYRot(), entity.getXRot(), velocity.x, velocity.y, velocity.z, entity.onGround(),
+            entity instanceof LivingEntity living ? living.yBodyRot : entity.getYRot(), entity.getXRot(), velocity.x, velocity.y, velocity.z, entity.onGround(),
             name, texture, textureSignature, vehicle == null ? null : vehicle.getUUID(), leash == null ? null : leash.getUUID(),
             metadata, equipment, map, 0);
         state.lastCapturedSnapshots().put(id, visual);

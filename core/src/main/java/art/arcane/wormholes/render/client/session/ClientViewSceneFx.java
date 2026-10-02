@@ -6,6 +6,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 
 public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
@@ -65,6 +66,46 @@ public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
         return new ClientViewMessage.Atmosphere(portalKey, sample.dayTime(), sample.rain(), sample.thunder(), sample.flags());
     }
 
+    @Override
+    public ClientViewMessage.Environment environment(P observer, UUID portal, int portalKey, long tick, boolean full) {
+        prune(tick);
+        PortalState state = state(observer, portal, portalKey, tick);
+        if (!full && tick < state.nextEnvironmentTick) {
+            return null;
+        }
+        if (full) {
+            state.environment = null;
+        }
+        return environment(state, effects.environment(observer, portal, tick), tick);
+    }
+
+    @Override
+    public ClientViewMessage.Environment nestedEnvironment(P observer, UUID parent, UUID portal, int portalKey, long tick, boolean full) {
+        prune(tick);
+        PortalState state = state(observer, portal, portalKey, tick);
+        if (!full && tick < state.nextEnvironmentTick) {
+            return null;
+        }
+        if (full) {
+            state.environment = null;
+        }
+        return environment(state, effects.nestedEnvironment(observer, parent, portal, tick), tick);
+    }
+
+    private static ClientViewMessage.Environment environment(PortalState state, ClientViewEnvironment sample, long tick) {
+        state.nextEnvironmentTick = tick + 5L;
+        if (sample == null || sample.equals(state.environment)) {
+            return null;
+        }
+        state.environment = sample;
+        return new ClientViewMessage.Environment(state.portalKey, sample);
+    }
+
+    @Override
+    public boolean environmentUnavailable(P observer, UUID parent, UUID portal) {
+        return effects.environmentUnavailable(observer, parent, portal);
+    }
+
     public int states() {
         return states.size();
     }
@@ -86,7 +127,7 @@ public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
     }
 
     private PortalState state(P observer, UUID portal, int portalKey, long tick) {
-        StateKey key = new StateKey(observer, portal);
+        StateKey key = new StateKey(observer, portal, portalKey);
         PortalState state = states.get(key);
         if (state == null || state.portalKey != portalKey) {
             state = new PortalState(portalKey);
@@ -108,20 +149,32 @@ public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
         List<ClientViewMessage.FxEmitter> emitters(P observer, UUID portal, long tick);
 
         Sample atmosphere(P observer, UUID portal, long tick);
+
+        default boolean environmentUnavailable(P observer, UUID parent, UUID portal) {
+            return false;
+        }
+
+        default ClientViewEnvironment environment(P observer, UUID portal, long tick) {
+            return null;
+        }
+
+        default ClientViewEnvironment nestedEnvironment(P observer, UUID parent, UUID portal, long tick) {
+            return null;
+        }
     }
 
     public record Sample(long dayTime, boolean clockRunning, float rain, float thunder, int flags) {
     }
 
-    private record StateKey(Object observer, UUID portal) {
+    private record StateKey(Object observer, UUID portal, int portalKey) {
         @Override
         public boolean equals(Object other) {
-            return other instanceof StateKey key && key.observer == observer && key.portal.equals(portal);
+            return other instanceof StateKey key && key.observer == observer && key.portal.equals(portal) && key.portalKey == portalKey;
         }
 
         @Override
         public int hashCode() {
-            return System.identityHashCode(observer) * 31 + portal.hashCode();
+            return (System.identityHashCode(observer) * 31 + portal.hashCode()) * 31 + portalKey;
         }
     }
 
@@ -129,6 +182,8 @@ public final class ClientViewSceneFx<P> implements ClientViewFxSource<P> {
         private final int portalKey;
         private List<ClientViewMessage.FxEmitter> emitters;
         private Sample atmosphere;
+        private ClientViewEnvironment environment;
+        private long nextEnvironmentTick;
         private long atmosphereTick;
         private long touched;
 

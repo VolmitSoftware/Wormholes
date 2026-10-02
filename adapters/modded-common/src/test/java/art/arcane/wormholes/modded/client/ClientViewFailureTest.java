@@ -66,7 +66,7 @@ public class ClientViewFailureTest {
 
     @Test
     public void aRuntimeFailureWhileHandlingOneMessageCountsAsAProtocolFailure() throws ClientViewProtocolException {
-        ClientViewHarness harness = new ClientViewHarness();
+        ClientViewHarness harness = new ClientViewHarness(ClientViewCapability.ALL);
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         harness.scene.failGameTime = true;
@@ -78,15 +78,15 @@ public class ClientViewFailureTest {
         harness.scene.failGameTime = false;
         assertEquals(1L, harness.tick.protocolFailures());
         assertEquals(1L, harness.session.protocolFailures());
-        assertTrue(harness.session.active());
-        assertTrue(harness.tick.overlay().size() > 0);
+        assertEquals(ClientViewSession.State.NATIVE_RECOVERING, harness.session.state());
+        assertEquals(0, harness.tick.overlay().size());
     }
 
     @Test
-    public void aSenderThatThrowsFallsBackToVanillaInsteadOfCrashingTheTick() throws ClientViewProtocolException {
-        ClientViewHarness harness = new ClientViewHarness();
+    public void aSenderThatThrowsKeepsNativeSelectionUnavailableForRecovery() throws ClientViewProtocolException {
+        ClientViewHarness harness = new ClientViewHarness(ClientViewCapability.ALL);
         harness.tick.sender(message -> {
-            throw new UnsupportedOperationException("Payload wormholes:v1 may not be sent to the server!");
+            throw new UnsupportedOperationException("Payload wormholes:v3 may not be sent to the server!");
         });
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
@@ -94,7 +94,7 @@ public class ClientViewFailureTest {
 
         harness.tick(EYE_X, EYE_Y, EYE_Z);
 
-        assertEquals(ClientViewSession.State.VANILLA, harness.session.state());
+        assertEquals(ClientViewSession.State.NATIVE_RECOVERING, harness.session.state());
         assertEquals(0, harness.tick.overlay().size());
         assertEquals(0, harness.surface.changedCells());
         assertTrue(harness.session.portals().isEmpty());
@@ -102,7 +102,7 @@ public class ClientViewFailureTest {
 
     @Test
     public void aLaterOfferNegotiatesAgainAfterASendFailure() throws ClientViewProtocolException {
-        ClientViewHarness harness = new ClientViewHarness();
+        ClientViewHarness harness = new ClientViewHarness(ClientViewCapability.ALL);
         boolean[] blocked = {true};
         harness.tick.sender(message -> {
             if (blocked[0]) {
@@ -113,7 +113,7 @@ public class ClientViewFailureTest {
         harness.stream();
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
-        assertEquals(ClientViewSession.State.VANILLA, harness.session.state());
+        assertEquals(ClientViewSession.State.NATIVE_RECOVERING, harness.session.state());
 
         blocked[0] = false;
         harness.receive(offer(), ClientViewProtocol.FLAG_LAST);
@@ -124,20 +124,20 @@ public class ClientViewFailureTest {
 
         assertEquals(ClientViewSession.State.CLIENT_VIEW, harness.session.state());
         assertEquals(0L, harness.tick.sendFailures());
-        assertTrue(harness.surface.changedCells() > 0);
+        assertEquals(0, harness.surface.changedCells());
         assertFalse(harness.acks().isEmpty());
     }
 
     @Test
-    public void anOfferReplyThatCannotBeSentLeavesTheClientOnVanilla() throws ClientViewProtocolException {
-        ClientViewHarness harness = new ClientViewHarness();
+    public void anOfferReplyThatCannotBeSentKeepsAcceptedNativeSelection() throws ClientViewProtocolException {
+        ClientViewHarness harness = new ClientViewHarness(ClientViewCapability.ALL);
         byte[] offer = ClientViewCodec.encodeS2C(offer(), 1, ClientViewProtocol.FLAG_LAST);
 
         harness.receiver.receive(offer, bytes -> {
-            throw new UnsupportedOperationException("Payload wormholes:v1 may not be sent to the server!");
+            throw new UnsupportedOperationException("Payload wormholes:v3 may not be sent to the server!");
         });
 
-        assertEquals(ClientViewSession.State.VANILLA, harness.session.state());
+        assertEquals(ClientViewSession.State.NATIVE_RECOVERING, harness.session.state());
     }
 
     @Test
@@ -150,7 +150,7 @@ public class ClientViewFailureTest {
         int acks = harness.acks().size();
 
         harness.receive(offer(), ClientViewProtocol.FLAG_LAST);
-        harness.receive(new ClientViewMessage.Accept(2, ClientViewCapability.ALL, 20, ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 9L, 8),
+        harness.receive(new ClientViewMessage.Accept(2, ClientViewHarness.PLATE_CAPS, 20, ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 9L, 8),
             ClientViewProtocol.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
 
@@ -167,6 +167,33 @@ public class ClientViewFailureTest {
 
         assertTrue(harness.surface.changedCells() > 0);
         assertNotSame(previous, harness.session.portal(ClientViewHarness.PORTAL_KEY));
+    }
+
+    @Test
+    public void malformedNativeStreamRetriesHelloAtBoundedCadenceThenAcceptsFreshMesh() throws ClientViewProtocolException {
+        ClientViewHarness harness = new ClientViewHarness(ClientViewCapability.ALL);
+        harness.receive(offer(), 0);
+        harness.receive(new ClientViewMessage.Accept(2, ClientViewCapability.ALL, 20, ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 9L, 8), 0);
+        harness.tick(EYE_X, EYE_Y, EYE_Z);
+        harness.sent.clear();
+        harness.receiver.receive(new byte[] {(byte) 255}, null);
+        for (int i = 0; i < 40; i++) {
+            harness.tick(EYE_X, EYE_Y, EYE_Z);
+            assertEquals(ClientViewSession.State.NATIVE_RECOVERING, harness.session.state());
+            assertTrue(harness.session.nativeSelected());
+        }
+        assertEquals(2L, harness.sent.stream().filter(message -> message instanceof ClientViewMessage.Hello).count());
+        harness.receive(new ClientViewMessage.SessionReset(ClientViewMessage.ResetReason.PROTOCOL), 0);
+        harness.receive(new ClientViewMessage.Portal(ClientViewHarness.PORTAL_KEY, 2, ClientViewHarness.geometry()), 0);
+        harness.receive(new ClientViewMessage.MeshBegin(ClientViewHarness.PORTAL_KEY, 2, new PlateBox(-16, 48, -16, 48, 48, 48), 27), 0);
+        harness.tick(EYE_X, EYE_Y, EYE_Z);
+        assertEquals(ClientViewSession.State.CLIENT_VIEW, harness.session.state());
+        assertTrue(harness.session.meshes().view(ClientViewHarness.PORTAL_KEY) != null);
+        assertEquals(0, harness.surface.changedCells());
+        harness.receive(new ClientViewMessage.SessionReset(ClientViewMessage.ResetReason.OVERLOAD), 0);
+        harness.tick(EYE_X, EYE_Y, EYE_Z);
+        assertEquals(ClientViewSession.State.CLIENT_VIEW, harness.session.state());
+        assertTrue(harness.session.nativeSelected());
     }
 
     private static ClientViewMessage.Offer offer() {

@@ -1,0 +1,133 @@
+package art.arcane.wormholes.render.client.session;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+
+import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.wormholes.util.AxisAlignedBB;
+import art.arcane.wormholes.util.Direction;
+
+final class ClientMeshPlan {
+    private ClientMeshPlan() {
+    }
+
+    static PlateBox bounds(ClientPortalGeometry geometry) {
+        AxisAlignedBB area = geometry.apertureArea();
+        int[] min = {(int) Math.floor(area.getXa()), (int) Math.floor(area.getYa()), (int) Math.floor(area.getZa())};
+        int[] max = {(int) Math.floor(area.getXb()), (int) Math.floor(area.getYb()), (int) Math.floor(area.getZb())};
+        Direction normal = geometry.facingDirection();
+        int axis = normal.x() != 0 ? 0 : normal.y() != 0 ? 1 : 2;
+        int step = (normal.x() + normal.y() + normal.z()) * (geometry.frontSide() ? -1 : 1);
+        for (int i = 0; i < 3; i++) {
+            if (i != axis) {
+                min[i] -= geometry.depthBlocks();
+                max[i] += geometry.depthBlocks();
+            } else if (step > 0) {
+                max[i] += geometry.depthBlocks();
+            } else {
+                min[i] -= geometry.depthBlocks();
+            }
+        }
+        return PlateBox.spanning(min[0], min[1], min[2], max[0], max[1], max[2]);
+    }
+
+    static int capacity(ClientPortalGeometry geometry) {
+        PlateBox box = bounds(geometry);
+        long x = (((long) box.minX() + box.sizeX() - 1) >> 4) - (box.minX() >> 4) + 1;
+        long y = (((long) box.minY() + box.sizeY() - 1) >> 4) - (box.minY() >> 4) + 1;
+        long z = (((long) box.minZ() + box.sizeZ() - 1) >> 4) - (box.minZ() >> 4) + 1;
+        return Math.toIntExact(x * y * z);
+    }
+
+    static List<Section> visible(ClientPortalGeometry geometry, GeometryVector eye) {
+        PlateBox bounds = bounds(geometry);
+        AxisAlignedBB area = geometry.apertureArea();
+        double[] eyeAt = {eye.x(), eye.y(), eye.z()};
+        double[] apertureMin = {area.getXa(), area.getYa(), area.getZa()};
+        double[] apertureMax = {area.getXb(), area.getYb(), area.getZb()};
+        int[] min = {bounds.minX() >> 4, bounds.minY() >> 4, bounds.minZ() >> 4};
+        int[] max = {(bounds.minX() + bounds.sizeX() - 1) >> 4, (bounds.minY() + bounds.sizeY() - 1) >> 4,
+            (bounds.minZ() + bounds.sizeZ() - 1) >> 4};
+        Direction normal = geometry.facingDirection();
+        int axis = normal.x() != 0 ? 0 : normal.y() != 0 ? 1 : 2;
+        int right = (axis + 1) % 3;
+        int up = (axis + 2) % 3;
+        double plane = (apertureMin[axis] + apertureMax[axis]) * 0.5;
+        double denominator = plane - eyeAt[axis];
+        ArrayList<Section> selected = new ArrayList<Section>();
+        HashSet<Coordinate> coordinates = new HashSet<Coordinate>();
+        for (int n = min[axis]; n <= max[axis]; n++) {
+
+            int[] rowMin = min.clone();
+            int[] rowMax = max.clone();
+            if (Math.abs(denominator) > 0.05) {
+                double scaleA = ((n << 4) - eyeAt[axis]) / denominator;
+                double scaleB = ((n << 4) + 16 - eyeAt[axis]) / denominator;
+                for (int lateral : new int[] {right, up}) {
+                    double pad = geometry.aperturePadding() + 1;
+                    double low = Double.POSITIVE_INFINITY;
+                    double high = Double.NEGATIVE_INFINITY;
+                    for (double scale : new double[] {scaleA, scaleB}) {
+                        double a = eyeAt[lateral] + (apertureMin[lateral] - pad - eyeAt[lateral]) * scale;
+                        double b = eyeAt[lateral] + (apertureMax[lateral] + pad - eyeAt[lateral]) * scale;
+                        low = Math.min(low, Math.min(a, b));
+                        high = Math.max(high, Math.max(a, b));
+                    }
+                    rowMin[lateral] = Math.max(min[lateral], ((int) Math.floor(low) >> 4) - 1);
+                    rowMax[lateral] = Math.min(max[lateral], ((int) Math.floor(high) >> 4) + 1);
+                }
+            }
+            int[] coordinate = new int[3];
+            coordinate[axis] = n;
+            for (int r = rowMin[right]; r <= rowMax[right]; r++) {
+                coordinate[right] = r;
+                for (int u = rowMin[up]; u <= rowMax[up]; u++) {
+                    coordinate[up] = u;
+                    double dx = (coordinate[0] << 4) + 8 - eye.x();
+                    double dy = (coordinate[1] << 4) + 8 - eye.y();
+                    double dz = (coordinate[2] << 4) + 8 - eye.z();
+                    double distance = dx * dx + dy * dy + dz * dz;
+                    selected.add(new Section(coordinate[0], coordinate[1], coordinate[2], distance));
+                    coordinates.add(new Coordinate(coordinate[0], coordinate[1], coordinate[2]));
+                }
+            }
+        }
+        int[] nearbyMin = new int[3];
+        int[] nearbyMax = new int[3];
+        for (int i = 0; i < 3; i++) {
+            nearbyMin[i] = Math.max(min[i], ((int) Math.floor(apertureMin[i]) - 32) >> 4);
+            nearbyMax[i] = Math.min(max[i], ((int) Math.floor(apertureMax[i]) + 32) >> 4);
+        }
+        for (int x = nearbyMin[0]; x <= nearbyMax[0]; x++) {
+            for (int y = nearbyMin[1]; y <= nearbyMax[1]; y++) {
+                for (int z = nearbyMin[2]; z <= nearbyMax[2]; z++) {
+                    if (coordinates.add(new Coordinate(x, y, z))) {
+                        double dx = (x << 4) + 8 - eye.x();
+                        double dy = (y << 4) + 8 - eye.y();
+                        double dz = (z << 4) + 8 - eye.z();
+                        selected.add(new Section(x, y, z, dx * dx + dy * dy + dz * dz));
+                    }
+                }
+            }
+        }
+        selected.sort(Comparator.comparingDouble(Section::distance));
+        return selected;
+    }
+
+    record Section(int x, int y, int z, double distance) {
+        PlateBox clip() {
+            return new PlateBox(x << 4, y << 4, z << 4, 16, 16, 16);
+        }
+
+        Coordinate coordinate() {
+            return new Coordinate(x, y, z);
+        }
+    }
+
+    record Coordinate(int x, int y, int z) {
+    }
+}

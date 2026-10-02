@@ -1,10 +1,15 @@
 package art.arcane.wormholes.render.view;
 
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
+import art.arcane.wormholes.render.plate.PlateBox;
 import java.util.UUID;
 
 public interface ProjectionContentView<B, M> extends ProjectionMaterialView<B, M> {
     int LIGHT_UNAVAILABLE = -1;
+
+    default boolean isEmpty(PlateBox box) {
+        return false;
+    }
 
     UUID worldId();
     String sampleBiome(int x, int y, int z);

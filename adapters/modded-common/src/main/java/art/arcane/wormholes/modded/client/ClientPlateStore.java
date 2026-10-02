@@ -14,6 +14,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.LongSupplier;
 
 public final class ClientPlateStore {
     private final ClientPalette palette;
@@ -21,6 +22,7 @@ public final class ClientPlateStore {
     private final Int2ObjectOpenHashMap<ClientPlate> plates;
     private final Int2ObjectOpenHashMap<PendingPlate> pending;
     private final Long2ObjectLinkedOpenHashMap<Brick> brickCache;
+    private LongSupplier otherMemory = () -> 0L;
     private long plateBytes;
     private long pendingBytes;
     private long cacheBytes;
@@ -36,6 +38,10 @@ public final class ClientPlateStore {
         this.plates = new Int2ObjectOpenHashMap<>();
         this.pending = new Int2ObjectOpenHashMap<>();
         this.brickCache = new Long2ObjectLinkedOpenHashMap<>(1024);
+    }
+
+    public void otherMemory(LongSupplier usage) {
+        otherMemory = Objects.requireNonNull(usage);
     }
 
     public ClientViewMessage.BrickMiss.Plate begin(ClientViewMessage.PlateBegin begin) throws ClientViewProtocolException {
@@ -245,7 +251,7 @@ public final class ClientPlateStore {
         ClientPlate resident = plates.get(plate.portalKey);
         long projected = plateBytes - (resident == null ? 0L : resident.bytes()) + pendingBytes + size;
         trimCache(projected);
-        if (projected + cacheBytes > budgetBytes) {
+        if (projected + cacheBytes > budgetBytes - otherMemory.getAsLong()) {
             return false;
         }
         plate.bytes += size;
@@ -270,7 +276,7 @@ public final class ClientPlateStore {
         long previousBytes = previous == null ? 0L : previous.bytes();
         long projected = plateBytes - previousBytes + built.bytes();
         trimCache(projected + pendingBytes);
-        if (projected + pendingBytes + cacheBytes > budgetBytes) {
+        if (projected + pendingBytes + cacheBytes > budgetBytes - otherMemory.getAsLong()) {
             refuse(built.portalKey(), built.revision());
             return false;
         }
@@ -290,9 +296,9 @@ public final class ClientPlateStore {
             }
             long size = ClientPlate.brickBytes(brick);
             long reserved = plateBytes + pendingBytes + size;
-            if (reserved + cacheBytes > budgetBytes) {
+            if (reserved + cacheBytes > budgetBytes - otherMemory.getAsLong()) {
                 trimCache(reserved);
-                if (reserved + cacheBytes > budgetBytes) {
+                if (reserved + cacheBytes > budgetBytes - otherMemory.getAsLong()) {
                     continue;
                 }
             }
@@ -303,7 +309,7 @@ public final class ClientPlateStore {
     }
 
     private void trimCache(long reservedBytes) {
-        while (!brickCache.isEmpty() && reservedBytes + cacheBytes > budgetBytes) {
+        while (!brickCache.isEmpty() && reservedBytes + cacheBytes > budgetBytes - otherMemory.getAsLong()) {
             Brick evicted = brickCache.removeFirst();
             cacheBytes -= ClientPlate.brickBytes(evicted);
         }

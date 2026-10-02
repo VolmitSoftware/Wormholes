@@ -331,7 +331,7 @@ public final class MinecraftPortalProjector implements AutoCloseable {
             + (eye.z() - origin.z()) * normal.z() >= 0.0D;
         return MinecraftViewPlates.acquire(runtime, plates, new MinecraftViewPlates.Target(observer, portal, destination.destView(),
             () -> plateView(destination), remoteFrame, destination.originX(), destination.originY(), destination.originZ(),
-            destination.mirrorMode(), destination.mirrorRotationQuarterTurns(), front, culling, blockEntities, sampler.air()));
+            destination.mirrorMode(), destination.mirrorRotationQuarterTurns(), front, culling, blockEntities, sampler.air(), portals.routeIdentity(portal)));
     }
 
     private ProjectionContentView<BlockState, BlockState> plateView(Destination destination) {

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.util.UUID;
 
@@ -18,6 +19,49 @@ import art.arcane.wormholes.util.Direction;
 
 class ClientViewEntityTransformTest {
     private static final long SECRET = 0x5EC12E7L;
+
+    @Test
+    void nativeModelsKeepSourceFeetLookAndMetadataForEveryRollWhilePacketModelsStayProjected() {
+        ClientViewEntityTransform transform = new ClientViewEntityTransform();
+        EntityVisual source = visual(UUID.randomUUID(), 200.5D, 64.0D, 196.5D, 0.0D, 0.0D, -1.0D);
+        for (Direction up : new Direction[] {Direction.U, Direction.E, Direction.D, Direction.W}) {
+            ClientViewEntityTransform.Frame frame = new ClientViewEntityTransform.Frame(10.5D, 64, 20.5D, PortalFrame.canonical(Direction.S),
+                200.5D, 64, 200.5D, PortalFrame.fromNormalUp(Direction.S, up), false, 0, true, 24);
+            EntityVisual nativeModel = transform.nativeModel(source, frame, false, SECRET).visual();
+            EntityVisual packet = transform.project(source, frame, false, false, SECRET).visual();
+            assertEquals(source.x(), nativeModel.x());
+            assertEquals(source.y(), nativeModel.y());
+            assertEquals(source.z(), nativeModel.z());
+            assertEquals(source.yaw(), nativeModel.yaw());
+            assertEquals(source.pitch(), nativeModel.pitch());
+            assertEquals(source.lookX(), nativeModel.lookX());
+            assertEquals(source.lookY(), nativeModel.lookY());
+            assertEquals(source.lookZ(), nativeModel.lookZ());
+            assertSame(source.metadata(), nativeModel.metadata());
+            assertSame(source.equipment(), nativeModel.equipment());
+            assertEquals(packet.id(), nativeModel.id());
+            assertNotEquals(source.id(), nativeModel.id());
+            assertNotEquals(nativeModel.z(), packet.z());
+        }
+    }
+
+    @Test
+    void nativeMirrorModelsKeepSourceAnchorsAndCullUsingTheProjectedVolume() {
+        ClientViewEntityTransform transform = new ClientViewEntityTransform();
+        for (int quarter = 0; quarter < 4; quarter++) {
+            ClientViewEntityTransform.Frame mirror = new ClientViewEntityTransform.Frame(10.5D, 64, 20.5D, PortalFrame.canonical(Direction.S),
+                10.5D, 64, 20.5D, PortalFrame.canonical(Direction.S), true, quarter, true, 24);
+            EntityVisual source = visual(UUID.randomUUID(), 10.5D, 64.25D, 24.5D, 0, 0, -1);
+            ClientViewEntityTransform.Projected result = transform.nativeModel(source, mirror, true, SECRET);
+            assertNotNull(result);
+            assertEquals(source.x(), result.visual().x());
+            assertEquals(source.y(), result.visual().y());
+            assertEquals(source.z(), result.visual().z());
+            assertEquals(ProjectedItemFrameTransform.NONE, result.metadataTransform());
+            EntityVisual wrongSide = visual(UUID.randomUUID(), 10.5D, 64.25D, 16.5D, 0, 0, -1);
+            assertNull(transform.nativeModel(wrongSide, mirror, true, SECRET));
+        }
+    }
 
     @Test
     void entityBehindTheDestinationLandsBehindTheLocalPortalInLocalSpace() {

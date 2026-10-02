@@ -103,7 +103,7 @@ final class PlateWorkersTest {
 
         @Override
         public ViewPlate<String> result() {
-            return new ViewPlate<>(key(), PlateGrid.empty(), 1L, 2L, null, 0L, 0, 0, 0, 0, 0L);
+            return new ViewPlate<>(key(), PlateGrid.empty(), 1L, 2L, null, 0L, 0, 0, 0, 0, 0L, null);
         }
     }
 }

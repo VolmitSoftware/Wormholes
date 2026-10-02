@@ -4,12 +4,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntSupplier;
 
 import art.arcane.wormholes.network.client.BrickLightSource;
@@ -25,6 +27,7 @@ import art.arcane.wormholes.network.client.FrameSplitter;
 import art.arcane.wormholes.network.client.PlatePatchEncoder;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.render.plate.ViewPlate;
 
 public final class ClientViewServerSession<P, B> {
@@ -34,6 +37,7 @@ public final class ClientViewServerSession<P, B> {
     private static final int NESTED_GEOMETRY = 1;
     private static final int NESTED_PLATE = 1 << 1;
     private static final int MAX_PENDING_BURSTS = 1024;
+    static final int NATIVE_RETRY_TICKS = 20;
 
     private final ClientViewSessionRegistry<P, B> registry;
     private final ClientViewPlatform<P, B> platform;
@@ -41,6 +45,7 @@ public final class ClientViewServerSession<P, B> {
     private final P player;
     private final long zeroCopyNonce;
     private final ClientViewLane lane;
+    private final ClientMeshStream<B> mesh = new ClientMeshStream<B>();
     private final ConcurrentLinkedQueue<Command<B>> inbox;
     private final Object handshakeLock;
     private final ClientViewRateLimiter limiter;
@@ -51,6 +56,9 @@ public final class ClientViewServerSession<P, B> {
     private final ArrayList<UUID> interest;
     private final ArrayList<UUID> effectInterest;
     private final HashSet<UUID> rejected;
+    private final HashMap<UUID, Long> retryAfter = new HashMap<>();
+    private final AtomicReference<ClientViewMessage.ResetReason> recovery = new AtomicReference<>();
+    private long serverTick;
     private final ArrayList<UUID> nestedScratch;
     private final ArrayList<ClientViewPortalSlot<B>> laneSlots;
     private final ArrayList<Scene<B>> laneScene;
@@ -135,7 +143,14 @@ public final class ClientViewServerSession<P, B> {
         return caps;
     }
 
+    public boolean nativeRendererSelected() {
+        return !closed && state == ClientViewSessionState.CLIENT_VIEW && ClientViewCapability.MESH_RENDER.in(caps);
+    }
+
     public boolean owns(UUID portal) {
+        if (nativeRendererSelected()) {
+            return true;
+        }
         ClientViewPortalSlot<B> slot = state == ClientViewSessionState.CLIENT_VIEW ? slots.get(portal) : null;
         return slot != null && !slot.effects;
     }
@@ -228,6 +243,7 @@ public final class ClientViewServerSession<P, B> {
     }
 
     public void tick(long serverTick) {
+        this.serverTick = serverTick;
         ClientViewSessionState current = state;
         if (current == ClientViewSessionState.PENDING) {
             expire();
@@ -239,7 +255,22 @@ public final class ClientViewServerSession<P, B> {
             }
             return;
         }
+        ClientViewMessage.ResetReason recoveryReason = recovery.getAndSet(null);
+        if (recoveryReason != null) {
+            inbox.add(new Reset<>(recoveryReason, false));
+            forgetOwned();
+        }
+        if (!retryAfter.isEmpty()) {
+            retryAfter.entrySet().removeIf(entry -> {
+                if (serverTick < entry.getValue()) {
+                    return false;
+                }
+                rejected.remove(entry.getKey());
+                return true;
+            });
+        }
         ClientViewOptions options = registry.options();
+        mesh.beginTick();
         ClientViewPortalAccess<P, B> portals = platform.portals();
         interest.clear();
         if (ClientViewCapability.PLATES.in(caps)) {
@@ -266,7 +297,7 @@ public final class ClientViewServerSession<P, B> {
         if (ClientViewCapability.FX_EMITTERS.in(caps)) {
             attachEffects(portals, serverTick);
         }
-        boolean signal = plateless || lane.stalled();
+        boolean signal = recoveryReason != null || plateless || lane.stalled();
         long now = platform.nanoClock().getAsLong();
         int grace = options.interestGraceTicks();
         int owned = 0;
@@ -275,7 +306,7 @@ public final class ClientViewServerSession<P, B> {
             long seen = slot.effects ? slot.lastEffectTick : slot.lastInterestTick;
             if (slot.failed || serverTick - seen > grace) {
                 if (slot.failed && !slot.effects) {
-                    rejected.add(slot.portalId);
+                    reject(slot.portalId);
                 }
                 detach(i, slot);
                 signal = true;
@@ -283,7 +314,7 @@ public final class ClientViewServerSession<P, B> {
             }
             Refresh outcome = refresh(slot, portals, options, serverTick);
             if (outcome == Refresh.REJECT) {
-                rejected.add(slot.portalId);
+                reject(slot.portalId);
             }
             if (outcome == Refresh.REJECT || outcome == Refresh.DETACH) {
                 detach(i, slot);
@@ -315,6 +346,7 @@ public final class ClientViewServerSession<P, B> {
         }
         inbox.add(new Reset<B>(reason, false));
         if (reason == ClientViewMessage.ResetReason.TELEPORT) {
+            mesh.clear();
             restream();
         } else {
             forgetOwned();
@@ -324,6 +356,11 @@ public final class ClientViewServerSession<P, B> {
 
     public void end(ClientViewMessage.ResetReason reason) {
         Objects.requireNonNull(reason, "reason");
+        if (nativeRendererSelected() && reason != ClientViewMessage.ResetReason.DISABLED) {
+            recovery.compareAndSet(null, reason);
+            return;
+        }
+        recovery.set(null);
         synchronized (handshakeLock) {
             ClientViewSessionState previous = state;
             if (previous == ClientViewSessionState.VANILLA) {
@@ -335,6 +372,7 @@ public final class ClientViewServerSession<P, B> {
                 return;
             }
         }
+        mesh.clear();
         inbox.add(new Reset<B>(reason, true));
         lane.submit();
     }
@@ -358,6 +396,7 @@ public final class ClientViewServerSession<P, B> {
             case ClientViewMessage.Hello hello -> onHello(hello, now);
             case ClientViewMessage.BrickMiss misses -> onMiss(misses);
             case ClientViewMessage.Ack ack -> onAck(ack);
+            case ClientViewMessage.MeshAck ack -> onMeshAck(ack);
             case ClientViewMessage.ViewStats stats -> onViewStats(stats, now);
             case ClientViewMessage.PlateRefused refused -> onRefused(refused);
             default -> rejectInbound(limiter.violation(now));
@@ -394,7 +433,7 @@ public final class ClientViewServerSession<P, B> {
                 case Attach<B> attach -> attachLane(attach.slot());
                 case Detach<B> detach -> detachLane(detach.slot());
                 case Miss<B> miss -> answerMiss(miss.miss(), now);
-                case Refused<B> refused -> refuseLane(refused.portalKey());
+                case Refused<B> refused -> refuseLane(refused.portalKey(), refused.revision());
                 case Scene<B> scene -> laneScene.add(scene);
                 case Burst<B> burst -> {
                     pendingBursts.decrementAndGet();
@@ -409,6 +448,7 @@ public final class ClientViewServerSession<P, B> {
                     break;
                 }
             }
+            sendMesh();
             sendScene();
             sendBursts();
         } else {
@@ -438,6 +478,11 @@ public final class ClientViewServerSession<P, B> {
     }
 
     private ClientViewInbound onHello(ClientViewMessage.Hello hello, long now) {
+        if (nativeRendererSelected() && hello.wire() == ClientViewProtocol.WIRE_VERSION
+            && hello.mcDataVersion() == platform.mcDataVersion() && ClientViewCapability.MESH_RENDER.in(hello.clientCaps())) {
+            recovery.compareAndSet(null, ClientViewMessage.ResetReason.PROTOCOL);
+            return ClientViewInbound.HANDLED;
+        }
         ClientViewHandshake.Result result;
         synchronized (handshakeLock) {
             if (handshake == null || state == ClientViewSessionState.CLIENT_VIEW) {
@@ -484,9 +529,19 @@ public final class ClientViewServerSession<P, B> {
         if (state != ClientViewSessionState.CLIENT_VIEW) {
             return stale();
         }
-        inbox.add(new Refused<B>(refused.portalKey()));
+        if (ClientViewCapability.MESH_RENDER.in(caps) && mesh.staleRefusal(refused.portalKey(), refused.plateRevision())) {
+            return stale();
+        }
+        inbox.add(new Refused<B>(refused.portalKey(), refused.plateRevision()));
         lane.submit();
         return ClientViewInbound.HANDLED;
+    }
+
+    private ClientViewInbound onMeshAck(ClientViewMessage.MeshAck ack) {
+        if (state != ClientViewSessionState.CLIENT_VIEW || !ClientViewCapability.MESH_RENDER.in(caps)) {
+            return stale();
+        }
+        return mesh.acknowledge(ack) ? ClientViewInbound.HANDLED : stale();
     }
 
     private ClientViewInbound onAck(ClientViewMessage.Ack ack) {
@@ -525,6 +580,13 @@ public final class ClientViewServerSession<P, B> {
         return ClientViewInbound.DROPPED;
     }
 
+    private void reject(UUID portal) {
+        rejected.add(portal);
+        if (nativeRendererSelected()) {
+            retryAfter.put(portal, serverTick + NATIVE_RETRY_TICKS);
+        }
+    }
+
     private ClientViewPortalSlot<B> attach(UUID portal, ClientViewPortalAccess<P, B> portals) {
         if (rejected.contains(portal)) {
             return null;
@@ -556,12 +618,12 @@ public final class ClientViewServerSession<P, B> {
     }
 
     private ClientPortalGeometry ownable(UUID portal, ClientViewPortalAccess<P, B> portals) {
-        ClientPortalGeometry geometry = portals.geometry(player, portal, registry.palette());
+        ClientPortalGeometry geometry = meshGeometry(portals.geometry(player, portal, registry.palette()), portals);
         if (geometry == null) {
-            rejected.add(portal);
+            reject(portal);
             return null;
         }
-        return clientMirror(geometry) || !portals.refused(player, portal) ? geometry : null;
+        return meshEnabled() || clientMirror(geometry) || !portals.refused(player, portal) ? geometry : null;
     }
 
     private void own(ClientViewPortalSlot<B> slot, long stamp, ClientPortalGeometry geometry, ClientViewPortalAccess<P, B> portals) {
@@ -601,10 +663,12 @@ public final class ClientViewServerSession<P, B> {
     }
 
     private void detach(int index, ClientViewPortalSlot<B> slot) {
+        mesh.remove(slot.key);
         slotList.remove(index);
         slots.remove(slot.portalId);
         inbox.add(new Detach<B>(slot));
         detachChildren(slot);
+        platform.portals().releaseNested(player, slot.contextId);
         if (slot.standbySlot != null) {
             inbox.add(new Detach<B>(slot.standbySlot));
             slot.standbySlot = null;
@@ -613,13 +677,21 @@ public final class ClientViewServerSession<P, B> {
 
     private void detachChildren(ClientViewPortalSlot<B> slot) {
         for (int i = 0; i < slot.children.size(); i++) {
-            inbox.add(new Detach<B>(slot.children.get(i)));
+            detachChild(slot.children.get(i));
         }
         slot.children.clear();
     }
 
+    private void detachChild(ClientViewPortalSlot<B> child) {
+        detachChildren(child);
+        platform.portals().releaseNested(player, child.contextId);
+        mesh.remove(child.key);
+        inbox.add(new Detach<B>(child));
+    }
+
     private void restream() {
         for (int i = 0; i < slotList.size(); i++) {
+            detachChildren(slotList.get(i));
             ClientViewPortalSlot<B> successor = slotList.get(i).successor(nextPortalKey++);
             slotList.set(i, successor);
             slots.put(successor.portalId, successor);
@@ -628,10 +700,22 @@ public final class ClientViewServerSession<P, B> {
     }
 
     private void forgetOwned() {
+        for (ClientViewPortalSlot<B> slot : slotList) {
+            releaseContexts(slot);
+        }
+        mesh.clear();
         slots.clear();
         slotList.clear();
         rejected.clear();
+        retryAfter.clear();
         attended = 0;
+    }
+
+    private void releaseContexts(ClientViewPortalSlot<B> slot) {
+        for (ClientViewPortalSlot<B> child : slot.children) {
+            releaseContexts(child);
+        }
+        platform.portals().releaseNested(player, slot.contextId);
     }
 
     private Refresh refresh(ClientViewPortalSlot<B> slot, ClientViewPortalAccess<P, B> portals, ClientViewOptions options, long serverTick) {
@@ -641,8 +725,9 @@ public final class ClientViewServerSession<P, B> {
         boolean changed = false;
         boolean geometryChanged = false;
         long stamp = portals.geometryRevision(player, slot.portalId);
-        if (stamp != slot.geometryStamp) {
-            ClientPortalGeometry geometry = portals.geometry(player, slot.portalId, registry.palette());
+        int meshDepth = meshEnabled() ? portals.meshDistanceBlocks(player) : 0;
+        if (stamp != slot.geometryStamp || meshDepth > 0 && slot.baseGeometry.depthBlocks() != meshDepth) {
+            ClientPortalGeometry geometry = meshGeometry(portals.geometry(player, slot.portalId, registry.palette()), portals);
             if (geometry == null) {
                 return Refresh.REJECT;
             }
@@ -650,7 +735,7 @@ public final class ClientViewServerSession<P, B> {
             slot.baseGeometry = geometry;
             geometryChanged = true;
         }
-        if (!clientMirror(slot.baseGeometry)) {
+        if (!meshEnabled() && !clientMirror(slot.baseGeometry)) {
             ViewPlate<B> plate = portals.plate(player, slot.portalId, slot.observedPlate == null);
             if (plate == null) {
                 if (portals.refused(player, slot.portalId)) {
@@ -662,12 +747,27 @@ public final class ClientViewServerSession<P, B> {
                 changed = true;
             }
         }
-        int nested = refreshNested(slot, portals, options);
+        int nested = refreshNested(slot, portals, options, serverTick);
         if (geometryChanged || (nested & NESTED_GEOMETRY) != 0) {
             slot.geometry = compose(slot);
         }
         changed |= geometryChanged || nested != 0;
-        changed |= refreshStandby(slot, portals, options);
+        if (!meshEnabled()) {
+            changed |= refreshStandby(slot, portals, options);
+        } else {
+            if (platform.fx().environmentUnavailable(player, null, slot.portalId)) {
+                mesh.remove(slot.key);
+                return Refresh.REJECT;
+            }
+            try {
+                changed |= mesh.refresh(slot, portals, player, serverTick, platform.nanoClock().getAsLong(),
+                    true, portals.meshEye(player));
+            } catch (IllegalStateException failure) {
+                platform.warnings().accept("ClientView mesh failed for portal " + slot.portalId + " and player " + playerId, failure);
+                mesh.remove(slot.key);
+                return Refresh.REJECT;
+            }
+        }
         changed |= refreshScene(slot, options, serverTick);
         return changed ? Refresh.CHANGED : Refresh.UNCHANGED;
     }
@@ -727,6 +827,13 @@ public final class ClientViewServerSession<P, B> {
             }
         }
         boolean fullScene = slot.needFullScene;
+        if (!slot.effects && meshEnabled()) {
+            ClientViewMessage.Environment environment = platform.fx().environment(player, slot.portalId, slot.key, serverTick, fullScene);
+            if (environment != null) {
+                inbox.add(new Scene<B>(slot, environment));
+                queued = true;
+            }
+        }
         slot.needFullScene = false;
         if (ClientViewCapability.FX_EMITTERS.in(sessionCaps)) {
             ClientViewMessage.Fx fx = platform.fx().fx(player, slot.portalId, slot.key, serverTick, fullScene);
@@ -745,7 +852,12 @@ public final class ClientViewServerSession<P, B> {
         return queued;
     }
 
-    private int refreshNested(ClientViewPortalSlot<B> slot, ClientViewPortalAccess<P, B> portals, ClientViewOptions options) {
+    private int refreshNested(ClientViewPortalSlot<B> slot, ClientViewPortalAccess<P, B> portals, ClientViewOptions options, long serverTick) {
+        if (meshEnabled()) {
+            portals.prepareNested(player, slot.contextId, null, slot.portalId);
+            int depth = Math.min(slot.baseGeometry.recursionDepth(), ClientViewProtocol.MAX_GEOMETRY_DEPTH - 1);
+            return refreshNativeNested(slot, portals, serverTick, 0, depth, new int[]{ClientViewProtocol.MAX_NESTED_GEOMETRY});
+        }
         if (!clientRecursion(slot.baseGeometry)) {
             if (slot.children.isEmpty()) {
                 return 0;
@@ -762,6 +874,7 @@ public final class ClientViewServerSession<P, B> {
             int index = nestedScratch.indexOf(child.childId);
             if (child.failed || index < 0 || index >= limit) {
                 slot.children.remove(i);
+                mesh.remove(child.key);
                 inbox.add(new Detach<B>(child));
                 flags |= NESTED_GEOMETRY;
             }
@@ -771,10 +884,11 @@ public final class ClientViewServerSession<P, B> {
             ClientViewPortalSlot<B> child = slot.child(childId);
             long stamp = portals.nestedGeometryRevision(player, slot.portalId, childId);
             if (child == null || stamp != child.geometryStamp) {
-                ClientPortalGeometry geometry = portals.nestedGeometry(player, slot.portalId, childId, registry.palette());
+                ClientPortalGeometry geometry = meshGeometry(portals.nestedGeometry(player, slot.portalId, childId, registry.palette()), portals);
                 if (geometry == null || !geometry.nested().isEmpty()) {
                     if (child != null) {
                         slot.children.remove(child);
+                        mesh.remove(child.key);
                         inbox.add(new Detach<B>(child));
                         flags |= NESTED_GEOMETRY;
                     }
@@ -800,6 +914,124 @@ public final class ClientViewServerSession<P, B> {
         return flags;
     }
 
+    private int refreshNativeNested(ClientViewPortalSlot<B> slot, ClientViewPortalAccess<P, B> portals, long serverTick,
+                                    int depth, int depthLimit, int[] remaining) {
+        if (depth >= depthLimit || !clientRecursion(slot.baseGeometry) || remaining[0] <= 0) {
+            boolean changed = !slot.children.isEmpty();
+            detachChildren(slot);
+            return changed ? NESTED_GEOMETRY : 0;
+        }
+        List<UUID> candidates = new ArrayList<>(4);
+        portals.nested(player, slot.contextId, slot.baseGeometry, candidates);
+        UUID actualParent = slot.nestedChild() ? slot.childId : slot.portalId;
+        candidates.removeIf(actualParent::equals);
+        int limit = Math.min(candidates.size(), remaining[0]);
+        int flags = 0;
+        for (int index = slot.children.size() - 1; index >= 0; index--) {
+            ClientViewPortalSlot<B> child = slot.children.get(index);
+            int position = candidates.indexOf(child.childId);
+            if (child.failed || position < 0 || position >= limit) {
+                if (child.failed) {
+                    retryAfter.put(child.contextId, serverTick + NATIVE_RETRY_TICKS);
+                }
+                slot.children.remove(index);
+                detachChild(child);
+                flags |= NESTED_GEOMETRY;
+            }
+        }
+        Set<UUID> visited = new HashSet<>();
+        for (int index = 0; index < limit && remaining[0] > 0; index++) {
+            UUID childId = candidates.get(index);
+            if (retryAfter.containsKey(ClientViewPortalSlot.contextId(slot.contextId, childId))) {
+                continue;
+            }
+            ClientViewPortalSlot<B> child = slot.child(childId);
+            boolean created = child == null;
+            if (created) {
+                child = new ClientViewPortalSlot<>(slot.contextId, nextPortalKey++, false, childId);
+                child.needFullEntities = true;
+                child.needFullScene = true;
+            }
+            portals.prepareNested(player, child.contextId, slot.contextId, childId);
+            long stamp = portals.nestedGeometryRevision(player, slot.contextId, childId);
+            if (child.baseGeometry == null || child.geometryStamp != stamp
+                || child.baseGeometry.depthBlocks() != portals.meshDistanceBlocks(player)) {
+                ClientPortalGeometry geometry = meshGeometry(portals.nestedGeometry(player, slot.contextId, childId, registry.palette()), portals);
+                if (geometry == null) {
+                    slot.children.remove(child);
+                    if (created) {
+                        portals.releaseNested(player, child.contextId);
+                    } else {
+                        detachChild(child);
+                    }
+                    flags |= NESTED_GEOMETRY;
+                    continue;
+                }
+                child.geometryStamp = stamp;
+                child.baseGeometry = geometry;
+                flags |= NESTED_GEOMETRY;
+            }
+            visited.add(childId);
+            if (created) {
+                child.geometry = child.baseGeometry.withParent(slot.key);
+                slot.children.add(child);
+                inbox.add(new Attach<>(child));
+            }
+            remaining[0]--;
+            int descendants = refreshNativeNested(child, portals, serverTick, depth + 1,
+                Math.min(depthLimit, depth + 1 + child.baseGeometry.recursionDepth()), remaining);
+            ClientPortalGeometry composed = compose(child).withParent(slot.key);
+            if (!composed.equals(child.geometry)) {
+                child.geometry = composed;
+                flags |= NESTED_GEOMETRY;
+            }
+            flags |= descendants;
+            if (platform.fx().environmentUnavailable(player, slot.contextId, childId)) {
+                child.failed = true;
+                mesh.remove(child.key);
+                flags |= NESTED_PLATE;
+                continue;
+            }
+            if (registry.options().entityFrames() && ClientViewCapability.ENTITY_FRAMES.in(caps)) {
+                ClientViewMessage.EntityFrame entities = platform.entities().frame(player, child.contextId, child.key, serverTick,
+                    child.needFullEntities, clientMirror(child.baseGeometry));
+                if (entities != null) {
+                    child.needFullEntities = false;
+                    inbox.add(new Scene<>(child, entities));
+                    flags |= NESTED_PLATE;
+                }
+            }
+            ClientViewMessage.Environment environment = platform.fx().nestedEnvironment(player, slot.contextId, childId, child.key,
+                serverTick, child.needFullScene);
+            if (environment != null) {
+                inbox.add(new Scene<>(child, environment));
+                flags |= NESTED_PLATE;
+            }
+            child.needFullScene = false;
+            GeometryVector eye = portals.nestedEye(player, slot.contextId);
+            if (eye != null) {
+                try {
+                    if (mesh.refresh(child, portals, player, serverTick, platform.nanoClock().getAsLong(), true, eye)) {
+                        flags |= NESTED_PLATE;
+                    }
+                } catch (IllegalStateException failure) {
+                    child.failed = true;
+                    mesh.remove(child.key);
+                    platform.warnings().accept("ClientView nested mesh failed for portal " + childId + " and player " + playerId, failure);
+                }
+            }
+        }
+        for (int index = slot.children.size() - 1; index >= 0; index--) {
+            ClientViewPortalSlot<B> child = slot.children.get(index);
+            if (!visited.contains(child.childId)) {
+                slot.children.remove(index);
+                detachChild(child);
+                flags |= NESTED_GEOMETRY;
+            }
+        }
+        return flags;
+    }
+
     private static <B> ClientPortalGeometry compose(ClientViewPortalSlot<B> slot) {
         if (slot.children.isEmpty()) {
             return slot.baseGeometry;
@@ -809,6 +1041,14 @@ public final class ClientViewServerSession<P, B> {
             nested.add(slot.children.get(i).geometry);
         }
         return slot.baseGeometry.withNested(nested);
+    }
+
+    private boolean meshEnabled() {
+        return ClientViewCapability.MESH_RENDER.in(caps) && platform.portals().meshDistanceBlocks(player) > 0;
+    }
+
+    private ClientPortalGeometry meshGeometry(ClientPortalGeometry geometry, ClientViewPortalAccess<P, B> portals) {
+        return geometry != null && meshEnabled() ? geometry.withDepth(portals.meshDistanceBlocks(player)) : geometry;
     }
 
     private boolean clientMirror(ClientPortalGeometry geometry) {
@@ -1021,13 +1261,18 @@ public final class ClientViewServerSession<P, B> {
         staleMisses.incrementAndGet();
     }
 
-    private void refuseLane(int portalKey) {
+    private void refuseLane(int portalKey, int revision) {
+        if (ClientViewCapability.MESH_RENDER.in(laneCaps) && mesh.staleRefusal(portalKey, revision)) {
+            return;
+        }
         for (int i = 0; i < laneSlots.size(); i++) {
             ClientViewPortalSlot<B> slot = laneSlots.get(i);
             if (slot.key == portalKey) {
                 slot.awaitingEncoded = null;
                 slot.missDeadlineNanos = 0L;
                 slot.failed = true;
+                mesh.remove(slot.key);
+                detachLane(slot);
                 return;
             }
         }
@@ -1112,6 +1357,70 @@ public final class ClientViewServerSession<P, B> {
             slot.needFullEntities = true;
         } else {
             slot.needFullScene = true;
+        }
+    }
+
+    private boolean meshAnnounced(int key) {
+        for (ClientViewPortalSlot<B> slot : laneSlots) {
+            if (slot.key == key) {
+                return slot.announced && slot.sentGeometry == slot.geometry;
+            }
+        }
+        return false;
+    }
+
+    private void sendMesh() {
+        for (int sent = 0; sent < 256; sent++) {
+            ClientViewMessage control = mesh.pollControl(this::meshAnnounced);
+            if (control == null) {
+                break;
+            }
+            emitQuietly(List.of(control));
+        }
+        ClientMeshStream.Ready<B> ready;
+        while ((ready = mesh.poll(platform.nanoClock().getAsLong())) != null) {
+            if (!mesh.current(ready)) {
+                continue;
+            }
+            try {
+                EncodedPlate encoded = registry.encoderFor(ready.light()).encode(ready.plate(), ready.light(), true);
+                if (encoded.brickCount() != 1) {
+                    throw new IllegalStateException("mesh section encoded " + encoded.brickCount() + " bricks");
+                }
+                if (mesh.unchanged(ready, encoded.hashes(registry.hashSalt())[0] ^ Integer.toUnsignedLong(ready.biomes().hashCode()), encoded.backingState())) {
+                    continue;
+                }
+                ClientMeshPlan.Coordinate coordinate = ready.coordinate();
+                ClientViewMessage.MeshSection section = new ClientViewMessage.MeshSection(ready.slot().key, ready.generation(),
+                    coordinate.x(), coordinate.y(), coordinate.z(), ready.revision(), encoded.backingState(), encoded.brick(0), ready.biomes());
+                List<ClientViewMessage> group = new ArrayList<ClientViewMessage>(2);
+                List<ClientViewMessage.PaletteEntry> entries = cursor.pending(encoded.referencedIds());
+                if (!entries.isEmpty()) {
+                    group.add(new ClientViewMessage.Palette(entries));
+                }
+                group.add(section);
+                int bytes = 0;
+                for (ClientViewMessage message : group) {
+                    bytes += ClientViewCodec.encodeBody(message).length + ClientViewProtocol.S2C_HEADER_BYTES;
+                }
+                if (bytes > ClientMeshStream.SECTION_RESERVATION_BYTES) {
+                    throw new ClientViewProtocolException("mesh section plus palette needs " + bytes + " bytes; reservation is "
+                        + ClientMeshStream.SECTION_RESERVATION_BYTES);
+                }
+                if (mesh.current(ready)) {
+                    emit(group, false);
+                }
+            } catch (ClientViewProtocolException | IllegalArgumentException | IllegalStateException failure) {
+                if (!mesh.current(ready)) {
+                    continue;
+                }
+                ready.slot().failed = true;
+                mesh.remove(ready.slot().key);
+                detachLane(ready.slot());
+                cursor.reset();
+                platform.warnings().accept("ClientView mesh transfer failed for player " + playerId + ", portal " + ready.slot().portalId
+                    + ", generation " + ready.generation() + ", section " + ready.coordinate() + ", frame limit " + splitter.maxFrameBytes(), failure);
+            }
         }
     }
 
@@ -1208,7 +1517,7 @@ public final class ClientViewServerSession<P, B> {
     private record Miss<B>(ClientViewMessage.BrickMiss.Plate miss) implements Command<B> {
     }
 
-    private record Refused<B>(int portalKey) implements Command<B> {
+    private record Refused<B>(int portalKey, int revision) implements Command<B> {
     }
 
     private record Scene<B>(ClientViewPortalSlot<B> slot, ClientViewMessage message) implements Command<B> {

@@ -151,7 +151,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
             boolean refreshBlockEntities = FidelitySettings.blockEntities
                 && (refreshBlocks || current == null || now - current.blockEntitiesCapturedAtMillis >= BLOCK_ENTITY_REFRESH_MILLIS);
             Map<Long, BlockEntitySample> blockEntities = refreshBlockEntities
-                ? BlockEntityCapturer.captureChunk(chunk, PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK)
+                ? BlockEntityCapturer.captureChunk(chunk, BlockEntityCapturer.Limits.column(PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK))
                 : current.blockEntities;
             int minHeight = current == null ? world.getMinHeight() : current.minHeight;
             int maxHeight = current == null ? world.getMaxHeight() : current.maxHeight;
@@ -220,7 +220,7 @@ public final class RegionSnapshotWorldViewProvider implements ProjectionWorldVie
         List<Equipment> equipment = reuseState ? previous.equipment : List.copyOf(PacketBlobs.readEquipment(equipmentBlob));
         EntityVisual visual = EntityVisual.full(entity.getUniqueId(), entity.getType().getKey().toString(),
             location.getX(), location.getY(), location.getZ(), entity.getHeight(),
-            look.getX(), look.getY(), look.getZ(), location.getYaw(), location.getPitch(),
+            look.getX(), look.getY(), look.getZ(), entity instanceof LivingEntity living ? WormholesPlatform.bodyYaw(living, location.getYaw()) : location.getYaw(), location.getPitch(),
             velocity.getX(), velocity.getY(), velocity.getZ(), entity.isOnGround(),
             playerName, textureValue, textureSignature, passengerOf, leashHolder,
             metadataBlob, equipmentBlob, mapData, 0);

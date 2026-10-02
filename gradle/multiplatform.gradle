@@ -17,6 +17,8 @@ File localVolmLibCheckout = gradle.includedBuilds.find { IncludedBuild included 
 Map<String, File> moddedArtifacts = [:]
 List<String> renderHooks = ['net/minecraft/client/renderer/chunk/', 'SectionRenderDispatcher', 'SectionCompiler',
                             'net/minecraft/client/renderer/LevelRenderer', 'RenderRegionCache']
+Set<String> portalRenderMixins = ['client.PortalLevelRendererMixin', 'client.PortalProjectionMixin', 'client.PortalLightmapMixin',
+                                 'client.MeshLevelExtractorMixin', 'client.MeshEntityRendererMixin', 'client.MeshFeatureWindingMixin'] as Set
 
 tasks.register('buildBukkit', Copy) {
     group = 'distribution'
@@ -103,7 +105,9 @@ loaders.each { String loader, String display ->
                             throw new GradleException("${artifact.name} references an unrelocated shared library in ${entry.name}")
                         }
                         for (String renderHook : renderHooks) {
-                            if (constants.contains(renderHook)) {
+                            if (constants.contains(renderHook)
+                                && !entry.name.startsWith('art/arcane/wormholes/modded/client/render/')
+                                && !portalRenderMixins.any { String name -> entry.name == "art/arcane/wormholes/modded/mixin/${name.replace('.', '/')}.class" }) {
                                 throw new GradleException("${artifact.name} references the render pipeline (${renderHook}) in ${entry.name}")
                             }
                         }
@@ -124,7 +128,7 @@ loaders.each { String loader, String display ->
                     String mixinConstants = archive.getInputStream(mixinEntry).withCloseable { InputStream stream ->
                         new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1)
                     }
-                    if (mixinConstants.contains('Lnet/minecraft/client/renderer/')) {
+                    if (mixinConstants.contains('Lnet/minecraft/client/renderer/') && !portalRenderMixins.contains(clientMixin)) {
                         throw new GradleException("${artifact.name} client mixin ${clientMixin} targets net.minecraft.client.renderer")
                     }
                 }

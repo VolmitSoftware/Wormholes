@@ -1,6 +1,8 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.render.FidelitySettings;
+import art.arcane.wormholes.modded.clientview.MinecraftLightSnapshot;
+import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.blockentity.BlockEntityMaterials;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
@@ -25,15 +27,27 @@ final class MinecraftPlateCaptureSource implements PlateCaptureJob.Source<Server
     private final WormholesModRuntime runtime;
     private final UUID worldId;
     private final boolean blockEntities;
+    private final int minY;
+    private final int maxY;
+    private final boolean environment;
 
-    MinecraftPlateCaptureSource(WormholesModRuntime runtime, UUID worldId, boolean blockEntities) {
+    MinecraftPlateCaptureSource(WormholesModRuntime runtime, Options options) {
         this.runtime = Objects.requireNonNull(runtime);
-        this.worldId = Objects.requireNonNull(worldId);
-        this.blockEntities = blockEntities;
+        this.worldId = Objects.requireNonNull(options.worldId());
+        this.blockEntities = options.blockEntities();
+        this.minY = options.minY();
+        this.maxY = options.maxY();
+        this.environment = options.environment();
+    }
+
+    record Options(UUID worldId, boolean blockEntities, int minY, int maxY, boolean environment) {
+        static Options column(UUID worldId, boolean blockEntities) {
+            return new Options(worldId, blockEntities, Integer.MIN_VALUE, Integer.MAX_VALUE, false);
+        }
     }
 
     record CapturedChunk(int minSectionY, PalettedContainer<BlockState>[] sections, Map<Long, BlockEntitySample> blockEntities,
-                         boolean blockEntitiesComplete) {
+                         boolean blockEntitiesComplete, MinecraftLightSnapshot light, int minBiomeSection, String[][] biomes) {
     }
 
     @Override
@@ -54,19 +68,37 @@ final class MinecraftPlateCaptureSource implements PlateCaptureJob.Source<Server
         if (chunk == null) {
             throw new IllegalStateException("Plate capture chunk " + chunkX + ", " + chunkZ + " unloaded in " + worldId);
         }
-        int count = chunk.getSectionsCount();
+        int minSection = Math.max(chunk.getMinSectionY(), minY >> 4);
+        int maxSection = Math.min(chunk.getMinSectionY() + chunk.getSectionsCount(), (maxY >> 4) + 1);
+        int count = Math.max(0, maxSection - minSection);
         PalettedContainer<BlockState>[] sections = new PalettedContainer[count];
         for (int index = 0; index < count; index++) {
-            LevelChunkSection section = chunk.getSection(index);
+            LevelChunkSection section = chunk.getSection(minSection - chunk.getMinSectionY() + index);
             sections[index] = section.hasOnlyAir() ? null : section.getStates().copy();
         }
         Map<Long, BlockEntitySample> samples = blockEntities ? captureBlockEntities(world, chunk) : Map.of();
-        return new CapturedChunk(chunk.getMinSectionY(), sections, samples, samples.size() < PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK);
+        int biomeMin = environment ? Math.clamp(minY >> 4, chunk.getMinSectionY(), chunk.getMinSectionY() + chunk.getSectionsCount() - 1) : 0;
+        int biomeMax = environment ? Math.clamp(maxY >> 4, chunk.getMinSectionY(), chunk.getMinSectionY() + chunk.getSectionsCount() - 1) : 0;
+        String[][] biomes = environment ? new String[biomeMax - biomeMin + 1][64] : new String[0][];
+        for (int section = 0; section < biomes.length; section++) {
+            LevelChunkSection source = chunk.getSection(biomeMin + section - chunk.getMinSectionY());
+            for (int cell = 0; cell < 64; cell++) {
+                biomes[section][cell] = source.getNoiseBiome(cell & 3, cell >> 4, cell >> 2 & 3)
+                    .unwrapKey().orElseThrow().identifier().toString();
+            }
+        }
+        MinecraftLightSnapshot light = environment ? MinecraftLightSnapshot.capture(world,
+            new PlateBox(chunkX << 4, minY, chunkZ << 4, 16, maxY - minY + 1, 16)) : null;
+        return new CapturedChunk(minSection, sections, samples, samples.size() < PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK,
+            light, biomeMin, biomes);
     }
 
-    private static Map<Long, BlockEntitySample> captureBlockEntities(ServerLevel world, LevelChunk chunk) {
+    private Map<Long, BlockEntitySample> captureBlockEntities(ServerLevel world, LevelChunk chunk) {
         Map<Long, BlockEntitySample> samples = new HashMap<>(8);
         for (Map.Entry<BlockPos, BlockEntity> entry : chunk.getBlockEntities().entrySet()) {
+            if (entry.getKey().getY() < minY || entry.getKey().getY() > maxY) {
+                continue;
+            }
             if (samples.size() >= PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK) {
                 break;
             }

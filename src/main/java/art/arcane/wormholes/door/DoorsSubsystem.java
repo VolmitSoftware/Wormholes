@@ -33,12 +33,13 @@ public final class DoorsSubsystem implements WormholesSubsystem {
     private volatile int sweepTaskId = -1;
 
     public DoorsSubsystem() {
-        doorProvider = new DoorProjectionProvider((adapter, observerId) -> {
+        doorProvider = new DoorProjectionProvider(new DoorProjectionProvider.Options((adapter, observerId) -> {
             DimensionalDoorManager manager = manager();
             return manager == null
                 ? Optional.empty()
                 : manager.apertureDestinations().destinationOf(adapter, observerId);
-        });
+        }, observer -> Wormholes.projectionManager != null && Wormholes.projectionManager.clientView().nativeMesh(observer),
+            DoorsSubsystem::projectionEnabled));
     }
 
     @Override
@@ -48,13 +49,12 @@ public final class DoorsSubsystem implements WormholesSubsystem {
 
     @Override
     public void register(WormholesRegistrar registrar) {
-        registrar.projectionSource(new DoorProjectionSource(
-            DoorsSubsystem::activeRegistry, DoorsSubsystem::projectionEnabled));
+        registrar.projectionSource(new DoorProjectionSource(DoorsSubsystem::activeRegistry));
     }
 
     @Override
     public void start(Wormholes plugin) {
-        installProvider(projectionEnabled());
+        installProvider(true);
         sweepTaskId = J.sr(() -> {
             DimensionalDoorManager manager = manager();
             if (manager != null) {
@@ -81,10 +81,7 @@ public final class DoorsSubsystem implements WormholesSubsystem {
         if (manager != null) {
             manager.applyProjectionSettings(doors);
         }
-        if (!doors.projectionEnabled) {
-            doorProvider.clear();
-        }
-        installProvider(doors.projectionEnabled);
+        installProvider(true);
     }
 
     /**

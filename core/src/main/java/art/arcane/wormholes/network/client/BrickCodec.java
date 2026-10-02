@@ -94,6 +94,7 @@ public final class BrickCodec {
     }
 
     public static void writeBody(ClientViewWriter out, Brick brick) throws ClientViewProtocolException {
+        int start = out.size();
         out.u8(brick.encoding().id());
         out.u8(brick.bitsPerIndex());
         out.u8(brick.flags());
@@ -125,6 +126,9 @@ public final class BrickCodec {
                 out.varint(cell.payload().length);
                 out.bytes(cell.payload());
             }
+        }
+        if (out.size() - start > ClientViewProtocol.MAX_BRICK_BYTES) {
+            throw new ClientViewProtocolException("brick body exceeds " + ClientViewProtocol.MAX_BRICK_BYTES + " bytes");
         }
     }
 

@@ -12,8 +12,22 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import art.arcane.wormholes.render.plate.PlateBox;
 
 final class ClientViewCodecRoundTripTest {
+    @Test
+    void malformedMeshControlsThrowProtocolErrors() throws ClientViewProtocolException {
+        ClientViewMessage.MeshBegin begin = new ClientViewMessage.MeshBegin(7, 1,
+            new PlateBox(0, 0, 0, 16, 16, 16), 1);
+        byte[] badBudget = ClientViewCodec.encodeS2C(begin, 0, 0);
+        badBudget[badBudget.length - 1] = 0;
+        assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(badBudget, ClientViewCapability.ALL));
+        ClientViewMessage.MeshSection section = new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 0, Brick.empty(0), SectionBiomes.NONE);
+        byte[] badIndex = ClientViewCodec.encodeS2C(section, 0, 0);
+        badIndex[badIndex.length - 5] = 1;
+        assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.decodeS2C(badIndex, ClientViewCapability.ALL));
+    }
+
     @Test
     void everyMessageTypeHasAFixtureAndRoundTrips() throws ClientViewProtocolException {
         List<ClientViewFixtures.Vector> vectors = ClientViewFixtures.vectors();

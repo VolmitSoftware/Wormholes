@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 import java.util.ArrayList;
@@ -34,6 +35,28 @@ import art.arcane.wormholes.render.client.session.ClientViewInbound;
 import art.arcane.wormholes.render.client.session.ClientViewSessionState;
 
 final class BukkitClientViewRoutingTest {
+    @Test
+    void nativeGeometryFailureAndAutomaticResetsNeverReturnThePortalToPacketProjection() throws ClientViewProtocolException {
+        try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY)) {
+            fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
+            assertTrue(fixture.negotiator.offerPlay(fixture.player));
+            fixture.hello(ClientViewFixture.CLIENT_CAPS | ClientViewCapability.MESH_RENDER.mask());
+            when(fixture.portal.getFrame()).thenReturn(null);
+            assertTrue(fixture.route().isEmpty());
+            assertTrue(fixture.clientView.nativeMesh(fixture.player));
+            assertTrue(fixture.session().owns(fixture.portal.getId()));
+            for (ClientViewMessage.ResetReason reason : List.of(ClientViewMessage.ResetReason.PROTOCOL, ClientViewMessage.ResetReason.OVERLOAD)) {
+                fixture.session().end(reason);
+                assertTrue(fixture.route().isEmpty());
+                assertTrue(fixture.clientView.nativeMesh(fixture.player));
+                assertTrue(fixture.session().owns(fixture.portal.getId()));
+            }
+            fixture.clientView.runtimeEnabled(false);
+            assertEquals(List.of(fixture.portal), fixture.route());
+            assertFalse(fixture.clientView.nativeMesh(fixture.player));
+        }
+    }
+
     @Test
     void vanillaObserverKeepsEveryPortalOnTheVanillaProjector() throws ClientViewProtocolException {
         try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY)) {

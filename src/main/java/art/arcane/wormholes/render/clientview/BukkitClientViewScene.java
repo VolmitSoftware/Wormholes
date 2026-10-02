@@ -9,10 +9,14 @@ import java.util.UUID;
 import java.util.WeakHashMap;
 
 import org.bukkit.World;
+import org.bukkit.Location;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.wormholes.render.client.ClientViewEnvironmentTransform;
 import art.arcane.wormholes.network.client.BrickLightSource;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
@@ -38,6 +42,7 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
 
     private final BukkitClientViewPortalAccess portals;
     private final ClientViewSceneCapture capture;
+    private final BukkitEnvironmentCapture environments = new BukkitEnvironmentCapture();
     private final Map<PortalStructure, AmbientOutlineGeometry> outlines;
 
     BukkitClientViewScene(BukkitClientViewPortalAccess portals) {
@@ -46,23 +51,29 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
         this.outlines = Collections.synchronizedMap(new WeakHashMap<PortalStructure, AmbientOutlineGeometry>());
     }
 
+    void removeObserver(UUID observer) {
+        environments.removeObserver(observer);
+    }
+
+    void close() {
+        environments.close();
+    }
+
     @Override
     public Object sceneKey(ClientViewObserver observer, UUID portalId) {
         ClientViewPortalSource source = portals.source(observer, portalId);
-        ClientViewEntityTransform.Frame frame = source == null ? null : source.transformFrame();
+        ClientViewEntityTransform.Frame frame = frame(observer, source);
         if (frame == null || !Settings.ENTITY_SPOOFING) {
             return null;
         }
         IPortal anchor = source.destinationAnchor();
-        return new SceneKey(portalId, source.destinationView(), anchor == null ? null : anchor.getId(), frame.frontSide(), frame.mirror(),
-            frame.quarterTurns(), Double.doubleToLongBits(frame.remoteOriginX()), Double.doubleToLongBits(frame.remoteOriginY()),
-            Double.doubleToLongBits(frame.remoteOriginZ()));
+        return new SceneKey(portalId, source.destinationView(), anchor == null ? null : anchor.getId(), frame, observer.meshDepth() > 0);
     }
 
     @Override
     public List<EntityVisual> capture(ClientViewObserver observer, UUID portalId, long tick) {
         ClientViewPortalSource source = portals.source(observer, portalId);
-        return source == null ? List.of() : capture.entities(source.portal(), source, tick);
+        return source == null ? List.of() : capture.entities(source, frame(observer, source), tick, observer.meshDepth() > 0);
     }
 
     @Override
@@ -123,6 +134,37 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
             world.isThundering() ? 1.0F : 0.0F, ClientViewMessage.Atmosphere.withSkyDarken(flags, darken));
     }
 
+    @Override
+    public boolean environmentUnavailable(ClientViewObserver observer, UUID parent, UUID portal) {
+        return environments.unavailable(observer.id(), parent, portal);
+    }
+
+    @Override
+    public ClientViewEnvironment environment(ClientViewObserver observer, UUID portalId, long tick) {
+        return environment(observer, null, portalId, portals.source(observer, portalId), observer.eye(), tick);
+    }
+
+    @Override
+    public ClientViewEnvironment nestedEnvironment(ClientViewObserver observer, UUID parent, UUID portalId, long tick) {
+        return environment(observer, parent, portalId, portals.nestedSource(observer, parent, portalId), observer.reflectedEye(parent), tick);
+    }
+
+    private ClientViewEnvironment environment(ClientViewObserver observer, UUID parent, UUID portalId, ClientViewPortalSource source,
+                                               Location eye, long tick) {
+        if (source == null || eye == null || source.destinationWorld() == null || source.transformFrame() == null) {
+            return null;
+        }
+        ClientViewEnvironment.Transform transform = ClientViewEnvironmentTransform.of(source.transformFrame());
+        GeometryVector destinationEye = transform.destinationPoint(eye.getX(), eye.getY(), eye.getZ());
+        return environments.capture(new BukkitEnvironmentCapture.Request(observer.id(), parent, portalId, source.destinationWorld(),
+            destinationEye, transform, tick));
+    }
+
+    private static ClientViewEntityTransform.Frame frame(ClientViewObserver observer, ClientViewPortalSource source) {
+        ClientViewEntityTransform.Frame frame = source == null ? null : source.transformFrame();
+        return frame != null && observer.meshDepth() > 0 ? frame.withDepth(observer.meshDepth()) : frame;
+    }
+
     private static AcousticsBridge.Playback bed(ClientViewObserver observer, ILocalPortal portal) {
         AcousticsBridge<Player> bridge = FidelitySubsystem.acoustics();
         if (bridge == null) {
@@ -137,10 +179,9 @@ final class BukkitClientViewScene implements ClientViewEntityFrames.Scenes<Clien
 
     BrickLightSource light(ClientViewObserver observer, UUID portalId, ViewPlate<BlockData> plate) {
         ClientViewPortalSource source = portals.source(observer, portalId);
-        return source == null ? BrickLightSource.NONE : capture.light(source, plate);
+        return source == null ? BrickLightSource.NONE : capture.light(source, plate, observer.meshDepth() > 0);
     }
 
-    private record SceneKey(UUID portal, Object view, UUID anchor, boolean front, boolean mirror, int quarterTurns, long originX, long originY,
-                            long originZ) {
+    private record SceneKey(UUID portal, Object view, UUID anchor, ClientViewEntityTransform.Frame frame, boolean nativeMesh) {
     }
 }

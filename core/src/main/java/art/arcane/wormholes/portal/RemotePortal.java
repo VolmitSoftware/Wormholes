@@ -123,7 +123,7 @@ public class RemotePortal extends Portal implements IRemotePortal {
     }
 
     public void setMirroredProjectionRotation(MirrorRotation rotation) {
-        this.mirroredProjectionRotation = (rotation == null ? MirrorRotation.DEGREES_0 : rotation).coherentFor(getFrame());
+        this.mirroredProjectionRotation = rotation == null ? MirrorRotation.DEGREES_0 : rotation;
     }
 
     public PortalPermissionMode getMirroredPermissionMode() {

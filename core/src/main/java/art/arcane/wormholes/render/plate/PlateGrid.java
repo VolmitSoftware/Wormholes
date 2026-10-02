@@ -1,6 +1,7 @@
 package art.arcane.wormholes.render.plate;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import art.arcane.wormholes.render.ProjectionCellKey;
@@ -201,6 +202,11 @@ public final class PlateGrid<B> {
             }
             cells[index] = ABSENT;
             cellCount--;
+        }
+
+        void fillAir(B air) {
+            Arrays.fill(cells, entry(ProjectorSample.Kind.REMOTE_AIR, air, air));
+            cellCount = cells.length;
         }
 
         PlateGrid<B> finish() {

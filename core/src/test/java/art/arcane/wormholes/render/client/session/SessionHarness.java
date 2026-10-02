@@ -17,7 +17,8 @@ import art.arcane.wormholes.network.client.ClientViewTransport;
 final class SessionHarness {
     static final int DATA_VERSION = 4325;
     static final long CLIENT_CAPS = ClientViewCapability.ALL & ~ClientViewCapability.of(ClientViewCapability.LINK_UNCOMPRESSED,
-        ClientViewCapability.ZERO_COPY);
+        ClientViewCapability.ZERO_COPY, ClientViewCapability.MESH_RENDER);
+    static final long NATIVE_CAPS = CLIENT_CAPS | ClientViewCapability.MESH_RENDER.mask();
     static final long TICK_NANOS = 50_000_000L;
     static final long C2S_SPACING_NANOS = 60_000_000L;
 

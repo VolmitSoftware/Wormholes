@@ -11,6 +11,7 @@ import art.arcane.wormholes.modded.MinecraftViewPlates;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.network.client.BrickLightSource;
 import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.network.view.RemoteViewCache.RemoteProfile;
@@ -22,6 +23,7 @@ import art.arcane.wormholes.render.ProjectedItemFrameTransform;
 import art.arcane.wormholes.render.acoustics.AcousticsBridge;
 import art.arcane.wormholes.render.acoustics.AcousticsProfile;
 import art.arcane.wormholes.render.client.ClientViewEntityTransform;
+import art.arcane.wormholes.render.client.ClientViewEnvironmentTransform;
 import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.wormholes.render.client.session.ClientViewEntityFrames;
 import art.arcane.wormholes.render.client.session.ClientViewPlateLight;
@@ -56,6 +58,7 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
     private final long secret;
     private final ClientViewEntityTransform transform;
     private final ClientViewPlateLight.Cache<BlockState> lights;
+    private final MinecraftEnvironmentCapture environments;
     private final Map<UUID, AmbientOutlineGeometry> outlines;
     private final Map<UUID, PatchedMetadata> metadata;
     private final Map<UUID, Long> spectators;
@@ -68,6 +71,7 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
         this.secret = new SecureRandom().nextLong();
         this.transform = new ClientViewEntityTransform();
         this.lights = new ClientViewPlateLight.Cache<BlockState>();
+        this.environments = new MinecraftEnvironmentCapture(runtime);
         this.outlines = new HashMap<UUID, AmbientOutlineGeometry>();
         this.metadata = new HashMap<UUID, PatchedMetadata>();
         this.spectators = new ConcurrentHashMap<UUID, Long>();
@@ -84,7 +88,8 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
             return null;
         }
         ClientViewEntityTransform.Frame frame = destination.frame();
-        return new SceneKey(portalId, destination.world(), destination.anchor().getId(), frame.frontSide(), frame.mirror(), frame.quarterTurns());
+        return new SceneKey(portalId, destination.world(), destination.anchor().getId(), frame, peer.meshDepth() > 0,
+            peer.portals().routeIdentity(portals.portal(peer, portalId)));
     }
 
     @Override
@@ -100,7 +105,8 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
         MinecraftLocalEntityView view = runtime.projections().scene(destination.world(), destination.anchor(), range);
         List<EntityVisual> source = view.getEntities(frame.remoteOriginX(), frame.remoteOriginY(), frame.remoteOriginZ(), range);
         List<EntityVisual> ordered = nearest(source, frame, render.maxSpoofedEntities);
-        boolean upsideDown = transform.upsideDown(frame);
+        boolean nativeMesh = peer.meshDepth() > 0;
+        boolean upsideDown = !nativeMesh && transform.upsideDown(frame);
         MinecraftPacketBlobs blobs = new MinecraftPacketBlobs(destination.world().registryAccess());
         List<EntityVisual> local = new ArrayList<EntityVisual>(ordered.size());
         for (int i = 0; i < ordered.size(); i++) {
@@ -111,8 +117,9 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
             }
             boolean itemFrame = type == EntityTypes.ITEM_FRAME || type == EntityTypes.GLOW_ITEM_FRAME;
             boolean hanging = itemFrame || type == EntityTypes.PAINTING;
-            ClientViewEntityTransform.Projected projected = transform.project(withProfile(visual, view.getProfile(visual.id())), frame, hanging,
-                itemFrame, secret);
+            EntityVisual profiled = withProfile(visual, view.getProfile(visual.id()));
+            ClientViewEntityTransform.Projected projected = nativeMesh ? transform.nativeModel(profiled, frame, hanging, secret)
+                : transform.project(profiled, frame, hanging, itemFrame, secret);
             if (projected == null) {
                 continue;
             }
@@ -145,7 +152,7 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
 
     @Override
     public List<ClientViewMessage.FxEmitter> emitters(MinecraftClientViewPeer peer, UUID portalId, long tick) {
-        MinecraftPortal portal = runtime.portals().get(portalId);
+        MinecraftPortal portal = portals.portal(peer, portalId);
         ServerPlayer player = peer.player();
         if (portal == null || player == null) {
             return List.of();
@@ -179,7 +186,7 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
 
     @Override
     public ClientViewSceneFx.Sample atmosphere(MinecraftClientViewPeer peer, UUID portalId, long tick) {
-        MinecraftPortal portal = runtime.portals().get(portalId);
+        MinecraftPortal portal = portals.portal(peer, portalId);
         Destination destination = portal == null ? null : destination(peer, portalId);
         if (destination == null) {
             return null;
@@ -194,8 +201,54 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
             ClientViewMessage.Atmosphere.withSkyDarken(flags, world.getSkyDarken()));
     }
 
+    @Override
+    public boolean environmentUnavailable(MinecraftClientViewPeer peer, UUID parent, UUID portal) {
+        return environments.unavailable(peer.id(), parent, portal);
+    }
+
+    void removeObserver(UUID observer) {
+        environments.removeObserver(observer);
+    }
+
+    void close() {
+        environments.close();
+    }
+
+    @Override
+    public ClientViewEnvironment environment(MinecraftClientViewPeer peer, UUID portalId, long tick) {
+        Destination destination = destination(peer, portalId);
+        ServerPlayer player = peer.player();
+        if (destination == null || player == null) {
+            return null;
+        }
+        ClientViewEnvironment.Transform affine = ClientViewEnvironmentTransform.of(destination.frame());
+        return environments.capture(new MinecraftEnvironmentCapture.Request(peer.id(), null, portalId, destination.world(),
+            affine.destinationPoint(player.getX(), player.getEyeY(), player.getZ()), affine, tick));
+    }
+
+    @Override
+    public ClientViewEnvironment nestedEnvironment(MinecraftClientViewPeer peer, UUID parent, UUID portalId, long tick) {
+        ServerPlayer player = peer.player();
+        MinecraftPortal portal = portals.portal(peer, portalId);
+        Destination mirror = destination(peer, parent);
+        if (player == null || portal == null || mirror == null) {
+            return null;
+        }
+        Destination destination = destination(peer, portalId, portals.reflectedFront(peer, player, parent, portal));
+        if (destination == null) {
+            return null;
+        }
+        MinecraftClientViewPeer.NestedContext context = peer.nestedContext(parent);
+        GeometryVector eye = context == null
+            ? ClientViewEnvironmentTransform.of(mirror.frame()).destinationPoint(player.getX(), player.getEyeY(), player.getZ())
+            : context.destinationEye();
+        ClientViewEnvironment.Transform affine = ClientViewEnvironmentTransform.of(destination.frame());
+        return environments.capture(new MinecraftEnvironmentCapture.Request(peer.id(), parent, portalId, destination.world(),
+            affine.destinationPoint(eye.x(), eye.y(), eye.z()), affine, tick));
+    }
+
     public BrickLightSource light(MinecraftClientViewPeer peer, UUID portalId, ViewPlate<BlockState> plate) {
-        if (plate == null || !runtime.configuration().settings().getRender().lightingFidelity) {
+        if (plate == null || peer.meshDepth() == 0 && !runtime.configuration().settings().getRender().lightingFidelity) {
             return BrickLightSource.NONE;
         }
         return lights.light(plate, () -> {
@@ -224,12 +277,24 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
     }
 
     private Destination destination(MinecraftClientViewPeer peer, UUID portalId) {
-        MinecraftPortal portal = runtime.portals().get(portalId);
+        MinecraftPortal portal = portals.portal(peer, portalId);
         ServerPlayer player = peer.player();
         if (portal == null || player == null) {
             return null;
         }
-        MinecraftViewPlates.Target target = portals.target(peer, portal, MinecraftClientViewPortalAccess.front(player, portal));
+        MinecraftClientViewPeer.NestedContext context = peer.nestedContext(portalId);
+        GeometryVector eye = context == null ? null : context.sourceEye();
+        boolean front = eye == null ? MinecraftClientViewPortalAccess.front(player, portal)
+            : MinecraftClientViewPortalAccess.front(eye.x(), eye.y(), eye.z(), portal);
+        return destination(peer, portalId, front);
+    }
+
+    Destination destination(MinecraftClientViewPeer peer, UUID portalId, boolean front) {
+        MinecraftPortal portal = portals.portal(peer, portalId);
+        if (portal == null) {
+            return null;
+        }
+        MinecraftViewPlates.Target target = portals.target(peer, portal, front);
         if (target == null || !(target.destView() instanceof MinecraftProjectionWorldView view)) {
             return null;
         }
@@ -240,7 +305,7 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
         GeometryVector origin = portal.getOrigin();
         ClientViewEntityTransform.Frame frame = new ClientViewEntityTransform.Frame(origin.x(), origin.y(), origin.z(), portal.getFrame(),
             target.originX(), target.originY(), target.originZ(), target.remoteFrame(), target.mirrorMode(), target.mirrorQuarterTurns(),
-            target.front(), portal.getNetworkViewDepth());
+            target.front(), peer.meshDepth() > 0 ? peer.meshDepth() : portal.getNetworkViewDepth());
         return new Destination(view.getWorld(), anchor, frame);
     }
 
@@ -321,10 +386,10 @@ public final class MinecraftClientViewScene implements ClientViewEntityFrames.Sc
         return id == null ? null : BuiltInRegistries.ENTITY_TYPE.getOptional(id).orElse(null);
     }
 
-    private record Destination(ServerLevel world, MinecraftPortal anchor, ClientViewEntityTransform.Frame frame) {
+    record Destination(ServerLevel world, MinecraftPortal anchor, ClientViewEntityTransform.Frame frame) {
     }
 
-    private record SceneKey(UUID portal, ServerLevel world, UUID anchor, boolean front, boolean mirror, int quarterTurns) {
+    private record SceneKey(UUID portal, ServerLevel world, UUID anchor, ClientViewEntityTransform.Frame frame, boolean nativeMesh, long routeIdentity) {
     }
 
     private static final class PatchedMetadata {

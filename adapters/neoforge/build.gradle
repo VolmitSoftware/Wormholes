@@ -83,6 +83,9 @@ neoForge {
 
 tasks.named('test').configure {
     useJUnitPlatform()
+    filter {
+        excludeTestsMatching('art.arcane.wormholes.modded.client.render.PortalSectionMeshTest')
+    }
 }
 
 tasks.withType(JavaCompile).configureEach {

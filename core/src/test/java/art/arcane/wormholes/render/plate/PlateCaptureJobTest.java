@@ -221,6 +221,29 @@ final class PlateCaptureJobTest {
     }
 
     @Test
+    void aHeldLeaseExpiresWhileTheSnapshotBudgetIsStarved() {
+        FakeSource source = new FakeSource();
+        PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 0, 0, 64L),
+            new ArrayList<PlateCaptureJob.Captured<String>>());
+        job.capture(1);
+        FakeHold hold = source.holds.get("0,0");
+        assertNotNull(hold);
+
+        for (int tick = 1; tick < PlateCaptureJob.MAX_CAPTURE_TICKS; tick++) {
+            job.capture(0);
+        }
+        assertEquals(PlateCaptureJob.Phase.CAPTURING, job.phase());
+        assertFalse(hold.released);
+
+        job.capture(0);
+
+        assertEquals(PlateCaptureJob.Phase.FAILED, job.phase());
+        assertTrue(hold.released);
+        assertEquals(0, job.heldChunks());
+        assertTrue(source.captures.isEmpty());
+    }
+
+    @Test
     void aCaptureStarvedOfTheSharedBudgetDoesNotTimeOut() {
         FakeSource source = new FakeSource();
         int hogChunks = (PlateCaptureJob.MAX_CAPTURE_TICKS / 2) + 100;
@@ -270,7 +293,7 @@ final class PlateCaptureJobTest {
 
         @Override
         public ViewPlate<String> result() {
-            return new ViewPlate<String>(key(), PlateGrid.empty(), 0L, 0L, null, Long.MIN_VALUE, 0, 0, 0, 0, 0L);
+            return new ViewPlate<String>(key(), PlateGrid.empty(), 0L, 0L, null, Long.MIN_VALUE, 0, 0, 0, 0, 0L, null);
         }
     }
 

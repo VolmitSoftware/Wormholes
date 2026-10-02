@@ -123,18 +123,42 @@ public final class ViewPlateBuilder {
     }
 
     public static <B, M, W, V extends ProjectionContentView<B, M>> Job<B, W> job(Request<B, M, V> request) {
-        return new BuildJob<B, M, W, V>(request, null, null);
+        return new BuildJob<B, M, W, V>(request, null, null, null);
     }
 
     public static <B, M, W, V extends ProjectionContentView<B, M>> Job<B, W> patch(Request<B, M, V> request, ViewPlate<B> previous,
                                                                                 LongSet dirtyChunks) {
         return new BuildJob<B, M, W, V>(request, Objects.requireNonNull(previous, "previous"),
-            new LongOpenHashSet(Objects.requireNonNull(dirtyChunks, "dirtyChunks")));
+            new LongOpenHashSet(Objects.requireNonNull(dirtyChunks, "dirtyChunks")), null);
     }
 
     public static <B, M, V extends ProjectionContentView<B, M>> Footprint footprint(Request<B, M, V> request) {
-        Geometry geometry = new Geometry(request);
+        Geometry geometry = new Geometry(request, null);
         return geometry.footprint(request.buriedCellCulling() ? BURIED_PROBE_MARGIN : 0);
+    }
+
+    public static <B, M, W, V extends ProjectionContentView<B, M>> Job<B, W> sectionJob(Request<B, M, V> request, PlateBox clip) {
+        requireSection(clip);
+        return new BuildJob<B, M, W, V>(request, null, null, clip);
+    }
+
+    public static <B, M, V extends ProjectionContentView<B, M>> Footprint sectionFootprint(Request<B, M, V> request, PlateBox clip) {
+        requireSection(clip);
+        PlateBox remote = sectionDestinationBox(request, clip);
+        return new Footprint(remote.minX() >> 4, remote.minZ() >> 4, (remote.minX() + remote.sizeX() - 1) >> 4,
+            (remote.minZ() + remote.sizeZ() - 1) >> 4, ViewPlate.predictBytes(clip) + 8192);
+    }
+
+    public static <B, M, V extends ProjectionContentView<B, M>> PlateBox sectionDestinationBox(Request<B, M, V> request, PlateBox clip) {
+        requireSection(clip);
+        return new Geometry(request, clip).remoteBox(clip, 0);
+    }
+
+    private static void requireSection(PlateBox clip) {
+        Objects.requireNonNull(clip, "clip");
+        if (clip.sizeX() > 16 || clip.sizeY() > 16 || clip.sizeZ() > 16) {
+            throw new IllegalArgumentException("section clip exceeds 16 blocks: " + clip);
+        }
     }
 
     public static <B, M, V extends ProjectionContentView<B, M>> Footprint patchFootprint(Request<B, M, V> request, LongSet dirtyChunks) {
@@ -173,7 +197,7 @@ public final class ViewPlateBuilder {
         private final double originNormal;
         private final PlateBox box;
 
-        private Geometry(Request<?, ?, ?> request) {
+        private Geometry(Request<?, ?, ?> request, PlateBox clip) {
             this.transform = new ProjectorFrameTransform();
             this.axisMin = new int[3];
             this.axisMax = new int[3];
@@ -208,6 +232,20 @@ public final class ViewPlateBuilder {
             lateralBounds(area, rightAxis, pad);
             lateralBounds(area, upAxis, pad);
             boolean towardPositive = frontSide ? facingNormal < 0.0D : facingNormal > 0.0D;
+            if (clip != null) {
+                int planeBlock = (int) Math.floor(originNormal);
+                if (towardPositive) {
+                    axisMin[normalAxis] = planeBlock;
+                } else {
+                    axisMax[normalAxis] = planeBlock;
+                }
+                axisMin[0] = Math.max(axisMin[0], clip.minX());
+                axisMin[1] = Math.max(axisMin[1], clip.minY());
+                axisMin[2] = Math.max(axisMin[2], clip.minZ());
+                axisMax[0] = Math.min(axisMax[0], clip.minX() + clip.sizeX() - 1);
+                axisMax[1] = Math.min(axisMax[1], clip.minY() + clip.sizeY() - 1);
+                axisMax[2] = Math.min(axisMax[2], clip.minZ() + clip.sizeZ() - 1);
+            }
             this.normalStep = towardPositive ? 1 : -1;
             this.normalStart = towardPositive ? axisMin[normalAxis] : axisMax[normalAxis];
             this.normalEnd = towardPositive ? axisMax[normalAxis] : axisMin[normalAxis];
@@ -229,16 +267,20 @@ public final class ViewPlateBuilder {
         }
 
         private PlateBox remoteBox(int margin) {
-            if (empty()) {
+            return remoteBox(box, margin);
+        }
+
+        private PlateBox remoteBox(PlateBox source, int margin) {
+            if (source.cells() == 0) {
                 return PlateBox.EMPTY;
             }
             double[] remote = new double[3];
             double[] min = {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY};
             double[] max = {Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY};
             for (int corner = 0; corner < 8; corner++) {
-                double x = ((corner & 1) == 0 ? axisMin[0] : axisMax[0]) + 0.5D;
-                double y = ((corner & 2) == 0 ? axisMin[1] : axisMax[1]) + 0.5D;
-                double z = ((corner & 4) == 0 ? axisMin[2] : axisMax[2]) + 0.5D;
+                double x = ((corner & 1) == 0 ? source.minX() : source.minX() + source.sizeX() - 1) + 0.5D;
+                double y = ((corner & 2) == 0 ? source.minY() : source.minY() + source.sizeY() - 1) + 0.5D;
+                double z = ((corner & 4) == 0 ? source.minZ() : source.minZ() + source.sizeZ() - 1) + 0.5D;
                 transform.apply(x, y, z, remote);
                 for (int axis = 0; axis < 3; axis++) {
                     min[axis] = Math.min(min[axis], remote[axis]);
@@ -277,6 +319,7 @@ public final class ViewPlateBuilder {
         private final PlateOcclusionField<B, M> occlusion;
         private final Object2ObjectOpenHashMap<B, B> transformed;
         private final PlateGrid.Writer<B> grid;
+        private final PlateBox section;
         private final LongOpenHashSet dirtyChunks;
         private final double[] scratchRot;
         private final double[] scratchRemote;
@@ -293,11 +336,12 @@ public final class ViewPlateBuilder {
         private int maxChunkZ = Integer.MIN_VALUE;
         private ViewPlate<B> result;
 
-        private BuildJob(Request<B, M, V> request, ViewPlate<B> previous, LongOpenHashSet dirtyChunks) {
+        private BuildJob(Request<B, M, V> request, ViewPlate<B> previous, LongOpenHashSet dirtyChunks, PlateBox clip) {
             super(request.key());
             this.request = request;
+            this.section = clip;
             this.view = request.destView();
-            this.geometry = new Geometry(request);
+            this.geometry = new Geometry(request, clip);
             this.occlusion = new PlateOcclusionField<B, M>(view, request.blocks(),
                 request.buriedCellCulling() ? geometry.remoteBox(BURIED_PROBE_MARGIN) : PlateBox.EMPTY);
             this.transformed = new Object2ObjectOpenHashMap<B, B>(64);
@@ -315,7 +359,7 @@ public final class ViewPlateBuilder {
 
         @Override
         public long predictedBytes() {
-            return ViewPlate.predictBytes(geometry.box);
+            return ViewPlate.predictBytes(geometry.box) + (section == null ? 0 : 8192);
         }
 
         @Override
@@ -329,6 +373,14 @@ public final class ViewPlateBuilder {
                 r = geometry.axisMin[geometry.rightAxis];
                 u = geometry.axisMin[geometry.upAxis];
                 if (geometry.empty() || !scanContinues(n, geometry.normalEnd, geometry.normalStep)) {
+                    finish();
+                    return true;
+                }
+                if (section != null && fullyWithinDepth() && view.isEmpty(geometry.remoteBox(0))) {
+                    Footprint footprint = geometry.footprint(0);
+                    noteChunk(footprint.minChunkX(), footprint.minChunkZ());
+                    noteChunk(footprint.maxChunkX(), footprint.maxChunkZ());
+                    grid.fillAir(request.air());
                     finish();
                     return true;
                 }
@@ -348,6 +400,21 @@ public final class ViewPlateBuilder {
         @Override
         public ViewPlate<B> result() {
             return result;
+        }
+
+        private boolean fullyWithinDepth() {
+            for (int coordinate : new int[] {geometry.normalStart, geometry.normalEnd}) {
+                double distance = geometry.facingNormal * ((coordinate + 0.5D) - geometry.originNormal);
+                if (!includesCell(distance)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private boolean includesCell(double distance) {
+            return Math.abs(distance) <= geometry.maxDepth && (section != null
+                || ProjectorFrameTransform.projectsBehindPortalPlane(distance, request.key().frontSide(), geometry.clearance));
         }
 
         private boolean advance() {
@@ -373,8 +440,7 @@ public final class ViewPlateBuilder {
             int y = cellCoords[1];
             int z = cellCoords[2];
             double cellDot = geometry.facingNormal * ((n + 0.5D) - geometry.originNormal);
-            if (!ProjectorFrameTransform.projectsBehindPortalPlane(cellDot, request.key().frontSide(), geometry.clearance)
-                || Math.abs(cellDot) > geometry.maxDepth) {
+            if (!includesCell(cellDot)) {
                 return;
             }
             slabIndex = LodPolicy.depthIndex(cellDot, geometry.clearance);
@@ -435,7 +501,7 @@ public final class ViewPlateBuilder {
                 grid.put(index, localKey, kind, remote, remote, null);
                 return;
             }
-            B projected = transformBlockData(remote);
+            B projected = section != null ? remote : transformBlockData(remote);
             BlockEntitySample blockEntity = null;
             if (request.blockEntities() && request.blocks().blockEntityCandidate(material)) {
                 blockEntity = view.sampleBlockEntity(rx, ry, rz);
@@ -480,7 +546,7 @@ public final class ViewPlateBuilder {
             result = new ViewPlate<B>(request.key(), built, request.destinationRevision(), request.transformRevision(),
                 worldId, request.trackerVersion(),
                 sampled ? minChunkX : 0, sampled ? minChunkZ : 0, sampled ? maxChunkX : -1, sampled ? maxChunkZ : -1,
-                ViewPlate.estimateBytes(built));
+                ViewPlate.estimateBytes(built), section != null ? PlateEnvironment.capture(section, geometry.transform, view) : null);
         }
 
         private static boolean scanContinues(int coordinate, int end, int step) {

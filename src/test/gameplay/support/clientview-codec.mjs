@@ -1,7 +1,7 @@
 import { deflateSync, inflateSync } from 'node:zlib'
 
-export const CHANNEL = 'wormholes:v1'
-export const WIRE_VERSION = 1
+export const CHANNEL = 'wormholes:v3'
+export const WIRE_VERSION = 3
 export const S2C_HEADER_BYTES = 6
 export const FLAG_DEFLATED = 1
 export const FLAG_LAST = 2
@@ -11,7 +11,7 @@ export const DEFAULT_MAX_FRAME_BYTES = 512 * 1024
 export const MIN_MAX_FRAME_BYTES = 64 * 1024
 export const HARD_MAX_FRAME_BYTES = 1024 * 1024
 export const MAX_C2S_BYTES = 32767
-export const MAX_C2S_MESSAGES_PER_SECOND = 20
+export const MAX_C2S_MESSAGES_PER_SECOND = 512
 export const DEFLATE_THRESHOLD_BYTES = 256
 export const MAX_STRING_BYTES = 256
 export const BRICK_EDGE = 16
@@ -72,11 +72,16 @@ export const MESSAGE_TYPES = Object.freeze({
   FX: { id: 13, direction: 'S2C' },
   ATMOSPHERE: { id: 14, direction: 'S2C' },
   SESSION_RESET: { id: 15, direction: 'S2C' },
+  MESH_BEGIN: { id: 16, direction: 'S2C' },
+  MESH_SECTION: { id: 17, direction: 'S2C' },
+  MESH_DROP: { id: 18, direction: 'S2C' },
+  ENVIRONMENT: { id: 19, direction: 'S2C' },
   HELLO: { id: 32, direction: 'C2S' },
   BRICK_MISS: { id: 33, direction: 'C2S' },
   ACK: { id: 34, direction: 'C2S' },
   VIEW_STATS: { id: 35, direction: 'C2S' },
-  PLATE_REFUSED: { id: 36, direction: 'C2S' }
+  PLATE_REFUSED: { id: 36, direction: 'C2S' },
+  MESH_ACK: { id: 37, direction: 'C2S' }
 })
 
 const TYPE_BY_ID = new Map(Object.entries(MESSAGE_TYPES).map(([name, type]) => [type.id, name]))
@@ -93,7 +98,8 @@ export const CAPABILITIES = Object.freeze({
   CLIENT_MIRROR: 8,
   CONFIG_PHASE: 9,
   LINK_UNCOMPRESSED: 10,
-  VIEW_STATS: 11
+  VIEW_STATS: 11,
+  MESH_RENDER: 12
 })
 
 export const ALL_CAPS = Object.values(CAPABILITIES).reduce((set, bit) => set | (1n << BigInt(bit)), 0n)
@@ -756,6 +762,66 @@ function writeGeometry(writer, geometry, depth) {
   for (const child of nested) writeGeometry(writer, child, depth + 1)
 }
 
+function readEnvironment(reader) {
+  const rgb = () => ({ red: reader.f32(), green: reader.f32(), blue: reader.f32() })
+  const rgba = () => ({ ...rgb(), alpha: reader.f32() })
+  const gameTime = reader.i64()
+  const sky = { skybox: reader.u8(), sunAngle: reader.f32(), moonAngle: reader.f32(), starAngle: reader.f32(), starBrightness: reader.f32(),
+    sunrise: rgba(), color: rgb(), moonPhase: reader.u8(), rain: reader.f32(), thunder: reader.f32() }
+  const fog = { color: rgb(), start: reader.f32(), end: reader.f32(), skyEnd: reader.f32(), cloudEnd: reader.f32(),
+    waterColor: rgb(), waterStart: reader.f32(), waterEnd: reader.f32() }
+  const lighting = { blockTint: rgb(), skyFactor: reader.f32(), skyColor: rgb(), ambient: rgb() }
+  const clouds = { color: rgba(), height: reader.f32() }
+  const transform = { xAxis: reader.u8(), yAxis: reader.u8(), zAxis: reader.u8(), translation: { x: reader.f64(), y: reader.f64(), z: reader.f64() } }
+  const dimension = { minY: reader.i32(), height: reader.i32(), hasSkyLight: reader.u8(), cardinalLighting: reader.u8(), horizonHeight: reader.f64(), endFlashes: reader.u8() }
+  if (sky.skybox > 2 || sky.moonPhase > 7 || dimension.hasSkyLight > 1 || dimension.cardinalLighting > 1 || dimension.endFlashes > 1
+    || dimension.height <= 0 || [transform.xAxis, transform.yAxis, transform.zAxis].some(axis => axis > 5)
+    || new Set([transform.xAxis, transform.yAxis, transform.zAxis].map(axis => Math.floor(axis / 2))).size !== 3) {
+    throw new ClientViewProtocolError('invalid destination environment')
+  }
+  return { gameTime, sky, fog, lighting, clouds, transform, dimension }
+}
+
+function writeEnvironment(writer, environment) {
+  const rgb = color => { writer.f32(color.red); writer.f32(color.green); writer.f32(color.blue) }
+  const rgba = color => { rgb(color); writer.f32(color.alpha) }
+  const { sky, fog, lighting, clouds, transform, dimension } = environment
+  writer.i64(environment.gameTime)
+  writer.u8(sky.skybox)
+  writer.f32(sky.sunAngle)
+  writer.f32(sky.moonAngle)
+  writer.f32(sky.starAngle)
+  writer.f32(sky.starBrightness)
+  rgba(sky.sunrise)
+  rgb(sky.color)
+  writer.u8(sky.moonPhase)
+  writer.f32(sky.rain)
+  writer.f32(sky.thunder)
+  rgb(fog.color)
+  for (const key of ['start', 'end', 'skyEnd', 'cloudEnd']) writer.f32(fog[key])
+  rgb(fog.waterColor)
+  writer.f32(fog.waterStart)
+  writer.f32(fog.waterEnd)
+  rgb(lighting.blockTint)
+  writer.f32(lighting.skyFactor)
+  rgb(lighting.skyColor)
+  rgb(lighting.ambient)
+  rgba(clouds.color)
+  writer.f32(clouds.height)
+  writer.u8(transform.xAxis)
+  writer.u8(transform.yAxis)
+  writer.u8(transform.zAxis)
+  writer.f64(transform.translation.x)
+  writer.f64(transform.translation.y)
+  writer.f64(transform.translation.z)
+  writer.i32(dimension.minY)
+  writer.i32(dimension.height)
+  writer.u8(dimension.hasSkyLight)
+  writer.u8(dimension.cardinalLighting)
+  writer.f64(dimension.horizonHeight)
+  writer.u8(dimension.endFlashes)
+}
+
 function readPatchOp(reader) {
   const brickIndex = reader.u16()
   const op = reader.u8()
@@ -844,6 +910,26 @@ export function readBody(reader, type, caps) {
       return { type, portalKey: reader.varint(), geometryRevision: reader.u32(), geometry: readGeometry(reader, 0) }
     case 'PORTAL_DROP':
       return { type, portalKey: reader.varint() }
+    case 'MESH_BEGIN': {
+      const message = { type, portalKey: reader.varint(), generation: reader.u32(), bounds: { minX: reader.i32(), minY: reader.i32(), minZ: reader.i32(), sizeX: reader.u16(), sizeY: reader.u16(), sizeZ: reader.u16() }, maxResidentSections: reader.varint() }
+      if (!message.maxResidentSections || !message.bounds.sizeX || !message.bounds.sizeY || !message.bounds.sizeZ) throw new ClientViewProtocolError('mesh view requires nonempty bounds and a resident budget')
+      return message
+    }
+    case 'MESH_SECTION': {
+      const message = { type, portalKey: reader.varint(), generation: reader.u32(), sectionX: reader.i32(), sectionY: reader.i32(), sectionZ: reader.i32(), revision: reader.u32(), backingState: reader.varint(MAX_SESSION_PALETTE_SIZE - 1), brick: readBrick(reader) }
+      if (message.brick.brickIndex !== 0) throw new ClientViewProtocolError('mesh section brick index must be zero')
+      const biomeCount = reader.u8()
+      if (biomeCount > 64) throw new ClientViewProtocolError('section biome palette exceeds 64 entries')
+      const palette = Array.from({ length: biomeCount }, () => reader.string())
+      const indices = biomeCount > 1 ? reader.bytes(64) : Buffer.alloc(0)
+      if ([...indices].some(index => index >= biomeCount)) throw new ClientViewProtocolError('biome index exceeds palette')
+      message.biomes = { palette, indices }
+      return message
+    }
+    case 'MESH_DROP':
+      return { type, portalKey: reader.varint(), generation: reader.u32(), sectionX: reader.i32(), sectionY: reader.i32(), sectionZ: reader.i32() }
+    case 'MESH_ACK':
+      return { type, portalKey: reader.varint(), generation: reader.u32(), sectionX: reader.i32(), sectionY: reader.i32(), sectionZ: reader.i32(), revision: reader.u32() }
     case 'PLATE_BEGIN': {
       const portalKey = reader.varint()
       const plateRevision = reader.u32()
@@ -928,6 +1014,8 @@ export function readBody(reader, type, caps) {
       }
       return { type, portalKey, emitters }
     }
+    case 'ENVIRONMENT':
+      return { type, portalKey: reader.varint(), environment: readEnvironment(reader) }
     case 'ATMOSPHERE':
       return { type, portalKey: reader.varint(), dayTime: reader.i64(), rain: reader.f32(), thunder: reader.f32(), flags: reader.u8() }
     case 'SESSION_RESET':
@@ -987,6 +1075,35 @@ export function writeBody(writer, message) {
       return
     case 'PORTAL_DROP':
       writer.varint(message.portalKey)
+      return
+    case 'MESH_BEGIN':
+      writer.varint(message.portalKey)
+      writer.u32(message.generation)
+      writer.i32(message.bounds.minX)
+      writer.i32(message.bounds.minY)
+      writer.i32(message.bounds.minZ)
+      writer.u16(message.bounds.sizeX)
+      writer.u16(message.bounds.sizeY)
+      writer.u16(message.bounds.sizeZ)
+      writer.varint(message.maxResidentSections)
+      return
+    case 'MESH_SECTION':
+    case 'MESH_DROP':
+    case 'MESH_ACK':
+      writer.varint(message.portalKey)
+      writer.u32(message.generation)
+      writer.i32(message.sectionX)
+      writer.i32(message.sectionY)
+      writer.i32(message.sectionZ)
+      if (message.type !== 'MESH_DROP') writer.u32(message.revision)
+      if (message.type === 'MESH_SECTION') {
+        writer.varint(message.backingState)
+        writeBrick(writer, message.brick)
+        const biomes = message.biomes ?? { palette: [], indices: Buffer.alloc(0) }
+        writer.u8(biomes.palette.length)
+        for (const biome of biomes.palette) writer.string(biome)
+        writer.bytes(biomes.indices)
+      }
       return
     case 'PLATE_BEGIN': {
       const { sections, cells } = message
@@ -1076,6 +1193,10 @@ export function writeBody(writer, message) {
         writer.u16(emitter.ticks)
         writer.u8(emitter.flags)
       }
+      return
+    case 'ENVIRONMENT':
+      writer.varint(message.portalKey)
+      writeEnvironment(writer, message.environment)
       return
     case 'ATMOSPHERE':
       writer.varint(message.portalKey)
@@ -1256,6 +1377,8 @@ export function summarize(message) {
       return { portalKey: message.portalKey, entitySeq: message.entitySeq, entities: message.entities.length, present: message.presentIds.length, presence: message.presence }
     case 'FX':
       return { portalKey: message.portalKey, emitters: message.emitters.map((emitter) => emitter.kind) }
+    case 'ENVIRONMENT':
+      return { portalKey: message.portalKey, skybox: message.environment.sky.skybox, gameTime: Number(message.environment.gameTime) }
     case 'ATMOSPHERE':
       return { portalKey: message.portalKey, dayTime: Number(message.dayTime), rain: message.rain, thunder: message.thunder, flags: message.flags }
     case 'ACK':

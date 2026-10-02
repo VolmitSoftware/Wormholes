@@ -2,6 +2,7 @@ package art.arcane.wormholes.render.client.session;
 
 import java.util.ArrayList;
 import java.util.UUID;
+import java.nio.ByteBuffer;
 
 import art.arcane.wormholes.network.client.BrickLightSource;
 import art.arcane.wormholes.network.client.EncodedPlate;
@@ -13,6 +14,7 @@ final class ClientViewPortalSlot<B> {
     final int key;
     final boolean standby;
     final UUID childId;
+    final UUID contextId;
     final ArrayList<ClientViewPortalSlot<B>> children;
 
     boolean effects;
@@ -51,7 +53,14 @@ final class ClientViewPortalSlot<B> {
         this.key = key;
         this.standby = standby;
         this.childId = childId;
+        this.contextId = childId == null ? portalId : contextId(portalId, childId);
         this.children = new ArrayList<ClientViewPortalSlot<B>>(0);
+    }
+
+    static UUID contextId(UUID parent, UUID child) {
+        return UUID.nameUUIDFromBytes(ByteBuffer.allocate(32)
+            .putLong(parent.getMostSignificantBits()).putLong(parent.getLeastSignificantBits())
+            .putLong(child.getMostSignificantBits()).putLong(child.getLeastSignificantBits()).array());
     }
 
     ClientViewPortalSlot<B> successor(int newKey) {

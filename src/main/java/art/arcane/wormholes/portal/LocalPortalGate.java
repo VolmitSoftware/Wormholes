@@ -120,28 +120,18 @@ final class LocalPortalGate
 	void setDirection(Direction d)
 	{
 		portal.applyFrame(portal.getFrame().withNormal(d));
-		boolean mirrorRotationChanged = portal.settings().normalizeMirrorRotationForFrame();
 		invalidateProjection();
 		portal.save();
-		if(mirrorRotationChanged)
-		{
-			portal.settings().broadcastSettingsIfEnabled();
-			portal.settings().refreshOpenMenusUnlessApplyingRemote();
-		}
+		portal.settings().refreshOpenMenusUnlessApplyingRemote();
 		syncGatewayTickets();
 	}
 
 	void setFrame(PortalFrame frame)
 	{
 		portal.applyFrame(frame);
-		boolean mirrorRotationChanged = portal.settings().normalizeMirrorRotationForFrame();
 		invalidateProjection();
 		portal.save();
-		if(mirrorRotationChanged)
-		{
-			portal.settings().broadcastSettingsIfEnabled();
-			portal.settings().refreshOpenMenusUnlessApplyingRemote();
-		}
+		portal.settings().refreshOpenMenusUnlessApplyingRemote();
 		syncGatewayTickets();
 	}
 

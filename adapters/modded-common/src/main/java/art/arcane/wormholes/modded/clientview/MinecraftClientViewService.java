@@ -12,6 +12,7 @@ import art.arcane.wormholes.render.client.session.ClientViewOptions;
 import art.arcane.wormholes.render.client.session.ClientViewPlatform;
 import art.arcane.wormholes.render.client.session.ClientViewSceneFx;
 import art.arcane.wormholes.render.client.session.ClientViewServerSession;
+import art.arcane.wormholes.render.client.session.ClientViewSessionState;
 import art.arcane.wormholes.render.client.session.ClientViewSessionRegistry;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.SharedConstants;
@@ -40,7 +41,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
     public static final long PLATFORM_CAPS = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE,
         ClientViewCapability.DEST_LIGHT, ClientViewCapability.ENTITY_FRAMES, ClientViewCapability.FX_EMITTERS, ClientViewCapability.ATMOSPHERE,
         ClientViewCapability.ZERO_COPY, ClientViewCapability.CONFIG_PHASE, ClientViewCapability.LINK_UNCOMPRESSED,
-        ClientViewCapability.VIEW_STATS, ClientViewCapability.CLIENT_MIRROR, ClientViewCapability.CLIENT_RECURSION);
+        ClientViewCapability.VIEW_STATS, ClientViewCapability.CLIENT_MIRROR, ClientViewCapability.CLIENT_RECURSION, ClientViewCapability.MESH_RENDER);
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private static final long HANDLE_PURGE_INTERVAL_TICKS = 20L;
     private static final double PARTICLE_RANGE_SQUARED = 32.0D * 32.0D;
@@ -105,6 +106,8 @@ public final class MinecraftClientViewService implements AutoCloseable {
             }
             try {
                 follow(session, player);
+                session.player().meshDepth(ClientViewCapability.MESH_RENDER.in(session.caps())
+                    ? Math.clamp(player.requestedViewDistance(), 2, 32) * 16 : 0);
                 session.tick(serverTick);
             } catch (RuntimeException failure) {
                 LOGGER.error("Wormholes ClientView tick failed for {}", player.getUUID(), failure);
@@ -124,6 +127,12 @@ public final class MinecraftClientViewService implements AutoCloseable {
     public boolean owns(UUID player, UUID portal) {
         ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         return active != null && active.owns(player, portal);
+    }
+
+    public boolean nativeMesh(ServerPlayer player) {
+        ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
+        ClientViewServerSession<MinecraftClientViewPeer, BlockState> session = active == null ? null : active.session(player.getUUID());
+        return session != null && session.state() == ClientViewSessionState.CLIENT_VIEW && ClientViewCapability.MESH_RENDER.in(session.caps());
     }
 
     public boolean receiver(ServerPlayer player) {
@@ -240,6 +249,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
     }
 
     public void disconnected(ServerPlayer player) {
+        portals.scene().removeObserver(player.getUUID());
         MinecraftClientViewNegotiator current = negotiator;
         if (current == null || !(player.connection instanceof ServerConnectionAccess listener)) {
             return;
@@ -253,6 +263,7 @@ public final class MinecraftClientViewService implements AutoCloseable {
 
     @Override
     public void close() {
+        portals.scene().close();
         ClientViewSessionRegistry<MinecraftClientViewPeer, BlockState> active = registry;
         MinecraftClientViewNegotiator current = negotiator;
         registry = null;

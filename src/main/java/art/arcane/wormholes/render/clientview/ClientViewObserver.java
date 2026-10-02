@@ -32,6 +32,7 @@ public final class ClientViewObserver {
     private final HashMap<UUID, ClientViewPortalSource> sources;
     private final HashMap<UUID, HashMap<UUID, ClientViewPortalSource>> nestedSources;
     private final HashMap<UUID, Location> reflectedEyes;
+    private final HashMap<UUID, NestedContext> nestedContexts = new HashMap<>();
     private final HashSet<UUID> ownedScratch;
     private final ConcurrentHashMap<UUID, RtpRimRenderer.Sample> rims;
     private final ConcurrentHashMap<UUID, Long> effectTouches;
@@ -42,6 +43,7 @@ public final class ClientViewObserver {
     private volatile Set<UUID> ownedPortals;
     private Location eye;
     private long frameTick;
+    private int meshDepth;
 
     public ClientViewObserver(UUID id, User user) {
         this.id = Objects.requireNonNull(id, "id");
@@ -57,6 +59,14 @@ public final class ClientViewObserver {
         this.rims = new ConcurrentHashMap<UUID, RtpRimRenderer.Sample>(4);
         this.effectTouches = new ConcurrentHashMap<UUID, Long>(8);
         this.ownedPortals = Set.of();
+    }
+
+    int meshDepth() {
+        return meshDepth;
+    }
+
+    void meshDepth(int depth) {
+        meshDepth = depth;
     }
 
     public UUID id() {
@@ -207,6 +217,7 @@ public final class ClientViewObserver {
         sources.clear();
         nestedSources.clear();
         reflectedEyes.clear();
+        nestedContexts.clear();
         portals.clear();
         ownedPortals = Set.of();
     }
@@ -242,6 +253,32 @@ public final class ClientViewObserver {
 
     void reflectedEye(UUID parentId, Location reflected) {
         reflectedEyes.put(parentId, reflected);
+    }
+
+    NestedContext nestedContext(UUID context) {
+        return nestedContexts.get(context);
+    }
+
+    void nestedContext(UUID context, ClientViewPortalSource source, Location sourceEye) {
+        nestedContexts.put(context, new NestedContext(source, sourceEye));
+    }
+
+    void releaseNested(UUID context) {
+        nestedContexts.remove(context);
+        nestedSources.remove(context);
+        reflectedEyes.remove(context);
+    }
+
+    void nestedPortal(ILocalPortal portal, PortalProjector.RtpProjectionTarget target) {
+        portals.put(portal.getId(), portal);
+        if (target == null) {
+            targets.remove(portal.getId());
+        } else {
+            targets.put(portal.getId(), target);
+        }
+    }
+
+    record NestedContext(ClientViewPortalSource source, Location sourceEye) {
     }
 
     private boolean nestedChild(UUID portalId) {

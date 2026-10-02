@@ -222,7 +222,7 @@ class PortalSettingsSyncTest {
 
         assertEquals(ProjectionMode.OFF, remote.getMirroredProjectionMode());
         assertTrue(remote.isMirroredMirrorMode());
-        assertEquals(MirrorRotation.DEGREES_180, remote.getMirroredProjectionRotation());
+        assertEquals(MirrorRotation.DEGREES_270, remote.getMirroredProjectionRotation());
         assertEquals(PortalPermissionMode.WHITELIST, remote.getMirroredPermissionMode());
         assertFalse(remote.isMirroredOutgoingTraversalsEnabled());
         assertFalse(remote.isMirroredIncomingTraversalsEnabled());

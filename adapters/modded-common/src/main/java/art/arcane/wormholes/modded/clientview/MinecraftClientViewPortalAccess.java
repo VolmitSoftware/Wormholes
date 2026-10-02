@@ -12,6 +12,9 @@ import art.arcane.wormholes.modded.MinecraftProjectorPortalAccess;
 import art.arcane.wormholes.modded.MinecraftViewPlates;
 import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.network.client.BrickLightSource;
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.wormholes.render.client.ClientViewEnvironmentTransform;
+import art.arcane.wormholes.network.client.SectionBiomes;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
@@ -26,6 +29,7 @@ import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import art.arcane.wormholes.render.client.ClientRecursionPlanner;
 import art.arcane.wormholes.render.client.session.ClientViewPortalAccess;
 import art.arcane.wormholes.render.plate.ViewPlate;
+import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.render.view.ProjectionContentView;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
@@ -37,6 +41,7 @@ import net.minecraft.world.phys.Vec3;
 
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -67,6 +72,24 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
         return portal.isMirrorMode() || !UNIVERSAL_TUNNEL.equals(portal.getTunnelType());
     }
 
+    MinecraftPortal portal(MinecraftClientViewPeer peer, UUID id) {
+        MinecraftClientViewPeer.NestedContext context = peer.nestedContext(id);
+        id = context == null ? id : context.portal();
+        MinecraftPortal portal = runtime.portals().get(id);
+        return portal == null ? peer.door(id) : portal;
+    }
+
+    private List<MinecraftPortal> candidates(MinecraftClientViewPeer peer) {
+        List<MinecraftPortal> doors = peer.doors();
+        if (doors.isEmpty()) {
+            return candidates;
+        }
+        ArrayList<MinecraftPortal> frame = new ArrayList<>(candidates.size() + doors.size());
+        frame.addAll(candidates);
+        frame.addAll(doors);
+        return frame;
+    }
+
     @Override
     public void interested(MinecraftClientViewPeer peer, List<UUID> out) {
         ServerPlayer player = peer.player();
@@ -75,7 +98,8 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
             return;
         }
         MinecraftProjectionService projections = runtime.projections();
-        List<MinecraftPortal> frame = candidates;
+        peer.updateDoors(runtime);
+        List<MinecraftPortal> frame = candidates(peer);
         for (int i = 0; i < frame.size(); i++) {
             MinecraftPortal portal = frame.get(i);
             if (ownable(portal) && projections.attendable(player, portal, portals)) {
@@ -86,7 +110,7 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
 
     @Override
     public long geometryRevision(MinecraftClientViewPeer peer, UUID portalId) {
-        MinecraftPortal portal = runtime.portals().get(portalId);
+        MinecraftPortal portal = portal(peer, portalId);
         ServerPlayer player = peer.player();
         if (portal == null || player == null) {
             return 0L;
@@ -96,27 +120,86 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
 
     @Override
     public ClientPortalGeometry geometry(MinecraftClientViewPeer peer, UUID portalId, SessionPalette palette) {
-        MinecraftPortal portal = runtime.portals().get(portalId);
+        MinecraftPortal portal = portal(peer, portalId);
         ServerPlayer player = peer.player();
         return portal == null || player == null ? null : geometry(peer, player, portal, palette, front(player, portal));
     }
 
     @Override
     public ViewPlate<BlockState> plate(MinecraftClientViewPeer peer, UUID portalId, boolean firstAttendance) {
-        MinecraftPortal portal = runtime.portals().get(portalId);
+        MinecraftPortal portal = portal(peer, portalId);
         ServerPlayer player = peer.player();
         return portal == null || player == null ? null : plate(peer, portal, front(player, portal), firstAttendance);
     }
 
     @Override
+    public int meshDistanceBlocks(MinecraftClientViewPeer peer) {
+        ServerPlayer player = peer.player();
+        return player == null ? 0 : Math.clamp(player.requestedViewDistance(), 2, 32) * 16;
+    }
+
+    @Override
+    public GeometryVector meshEye(MinecraftClientViewPeer peer) {
+        ServerPlayer player = peer.player();
+        if (player == null) {
+            return null;
+        }
+        Vec3 eye = player.getEyePosition();
+        return new GeometryVector(eye.x, eye.y, eye.z);
+    }
+
+    @Override
+    public ViewPlate<BlockState> meshSection(MinecraftClientViewPeer peer, UUID portalId, PlateBox clip, int distance) {
+        MinecraftPortal portal = portal(peer, portalId);
+        ServerPlayer player = peer.player();
+        MinecraftViewPlates.Target target = portal == null || player == null ? null : target(peer, portal, front(player, portal));
+        MinecraftViewPlates.Resolved resolved = target == null ? null : MinecraftViewPlates.resolve(runtime, target);
+        return resolved == null ? null : MinecraftViewPlates.acquireSection(runtime, runtime.projections().plates(), target, resolved, clip, distance);
+    }
+
+    @Override
+    public void prepareNested(MinecraftClientViewPeer peer, UUID context, UUID parentContext, UUID portalId) {
+        MinecraftClientViewPeer.NestedContext parent = parentContext == null ? null : peer.nestedContext(parentContext);
+        GeometryVector eye = parentContext == null ? meshEye(peer) : parent == null ? null : parent.destinationEye();
+        MinecraftPortal portal = portal(peer, portalId);
+        if (eye == null || portal == null || parent != null && peer.portals().world(portal) != parent.destinationWorld()) {
+            peer.nestedContext(context, null);
+            return;
+        }
+        MinecraftClientViewScene.Destination destination = scene.destination(peer, portalId, front(eye.x(), eye.y(), eye.z(), portal));
+        if (destination == null) {
+            peer.nestedContext(context, null);
+            return;
+        }
+        ClientViewEnvironment.Transform affine = ClientViewEnvironmentTransform.of(destination.frame());
+        peer.nestedContext(context, new MinecraftClientViewPeer.NestedContext(portalId, eye,
+            affine.destinationPoint(eye.x(), eye.y(), eye.z()), destination.world(), affine));
+    }
+
+    @Override
+    public void releaseNested(MinecraftClientViewPeer peer, UUID context) {
+        peer.nestedContext(context, null);
+    }
+
+    @Override
+    public GeometryVector nestedEye(MinecraftClientViewPeer peer, UUID context) {
+        MinecraftClientViewPeer.NestedContext branch = peer.nestedContext(context);
+        return branch == null ? null : branch.destinationEye();
+    }
+
+    @Override
     public void nested(MinecraftClientViewPeer peer, UUID parent, ClientPortalGeometry parentGeometry, List<UUID> out) {
-        MinecraftPortal mirror = runtime.portals().get(parent);
+        MinecraftPortal mirror = portal(peer, parent);
         ServerPlayer player = peer.player();
         MinecraftProjectorPortalAccess portals = peer.portals();
+        if (peer.meshDepth() > 0) {
+            nestedMesh(peer, parent, parentGeometry, out);
+            return;
+        }
         if (!parentGeometry.mirror() || mirror == null || player == null || portals == null) {
             return;
         }
-        List<MinecraftPortal> frame = candidates;
+        List<MinecraftPortal> frame = candidates(peer);
         for (int i = 0; i < frame.size(); i++) {
             MinecraftPortal portal = frame.get(i);
             if (portal == mirror || portal.isMirrorMode() || !ownable(portal) || !portals.eligible(portal) || portals.world(portal) != player.level()
@@ -130,9 +213,27 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
         }
     }
 
+    private void nestedMesh(MinecraftClientViewPeer peer, UUID parent, ClientPortalGeometry parentGeometry, List<UUID> out) {
+        MinecraftClientViewPeer.NestedContext context = peer.nestedContext(parent);
+        if (context == null) {
+            return;
+        }
+        MinecraftProjectorPortalAccess portals = peer.portals();
+        for (MinecraftPortal child : candidates(peer)) {
+            if (child.getId().equals(context.portal()) || !ownable(child) || !portals.eligible(child)
+                || portals.world(child) != context.destinationWorld()
+                || !child.isMirrorMode() && child.getType() != PortalType.RTP && !portals.hasDestination(child)) {
+                continue;
+            }
+            if (ClientRecursionPlanner.destinationReaches(parentGeometry, context.transform(), child.getGeometry().getArea())) {
+                out.add(child.getId());
+            }
+        }
+    }
+
     @Override
     public long nestedGeometryRevision(MinecraftClientViewPeer peer, UUID parent, UUID child) {
-        MinecraftPortal portal = runtime.portals().get(child);
+        MinecraftPortal portal = portal(peer, child);
         ServerPlayer player = peer.player();
         if (portal == null || player == null) {
             return 0L;
@@ -142,7 +243,7 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
 
     @Override
     public ClientPortalGeometry nestedGeometry(MinecraftClientViewPeer peer, UUID parent, UUID child, SessionPalette palette) {
-        MinecraftPortal portal = runtime.portals().get(child);
+        MinecraftPortal portal = portal(peer, child);
         ServerPlayer player = peer.player();
         if (portal == null || player == null) {
             return null;
@@ -157,16 +258,32 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
 
     @Override
     public ViewPlate<BlockState> nestedPlate(MinecraftClientViewPeer peer, UUID parent, UUID child) {
-        MinecraftPortal portal = runtime.portals().get(child);
+        MinecraftPortal portal = portal(peer, child);
         ServerPlayer player = peer.player();
         return portal == null || player == null ? null : plate(peer, portal, reflectedFront(peer, player, parent, portal), false);
     }
 
+    @Override
+    public ViewPlate<BlockState> nestedMeshSection(MinecraftClientViewPeer peer, UUID parent, UUID child, PlateBox clip, int distance) {
+        MinecraftPortal portal = portal(peer, child);
+        ServerPlayer player = peer.player();
+        MinecraftViewPlates.Target target = portal == null || player == null ? null
+            : target(peer, portal, reflectedFront(peer, player, parent, portal));
+        MinecraftViewPlates.Resolved resolved = target == null ? null : MinecraftViewPlates.resolve(runtime, target);
+        return resolved == null ? null : MinecraftViewPlates.acquireSection(runtime, runtime.projections().plates(), target, resolved, clip, distance);
+    }
+
     private long revision(MinecraftClientViewPeer peer, ServerPlayer player, MinecraftPortal portal, boolean front) {
         long stamp = ProjectorPassRevision.mix(portal.getGeometry().getRevision(), front ? 1L : 2L);
-        stamp = ProjectorPassRevision.mix(stamp, portal.isMirrorMode() ? peer.portals().mirrorQuarterTurns(portal) + 1L : 0L);
-        stamp = ProjectorPassRevision.mix(stamp, portal.isBlackoutBackground() ? 1L : 0L);
-        stamp = ProjectorPassRevision.mix(stamp, portal.getBlackoutColor().ordinal());
+        stamp = ProjectorPassRevision.mix(stamp, peer.portals().routeIdentity(portal));
+        if (peer.meshDepth() > 0) {
+            stamp = ProjectorPassRevision.mix(stamp, meshTargetRevision(peer, portal, front));
+        }
+        stamp = ProjectorPassRevision.mix(stamp, portal.isMirrorMode() ? mirrorQuarterTurns(peer, portal) + 1L : 0L);
+        if (peer.meshDepth() == 0) {
+            stamp = ProjectorPassRevision.mix(stamp, portal.isBlackoutBackground() ? 1L : 0L);
+            stamp = ProjectorPassRevision.mix(stamp, portal.getBlackoutColor().ordinal());
+        }
         stamp = ProjectorPassRevision.mix(stamp, portal.getNetworkViewDepth());
         stamp = ProjectorPassRevision.mix(stamp, portal.isOpen() ? 1L : 0L);
         stamp = ProjectorPassRevision.mix(stamp, MinecraftViewPlates.atmosphereMode(portal).ordinal());
@@ -180,20 +297,27 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
     private ClientPortalGeometry geometry(MinecraftClientViewPeer peer, ServerPlayer player, MinecraftPortal portal, SessionPalette palette,
                                           boolean front) {
         MinecraftProjectorPortalAccess portals = peer.portals();
-        if (portals == null || !ownable(portal) || portals.world(portal) != player.level()) {
+        if (portals == null || !ownable(portal) || peer.meshDepth() == 0 && portals.world(portal) != player.level()) {
             return null;
         }
         WormholesSettings settings = runtime.configuration().settings();
         ProjectionConfig projection = settings.getProjection();
         RenderConfig render = settings.getRender();
-        BlockState blackout = MinecraftViewPlates.blackoutState(portal, geometryDestination(peer, player, portal));
-        long targetIdentity = portal.getType() == PortalType.RTP ? opaque(runtime.rtp().plateIdentity(player, portal)) : 0L;
-        ProjectedBlockClaim.LightingPolicy lighting = render.lightingFidelity ? ProjectedBlockClaim.LightingPolicy.SOURCE : ProjectedBlockClaim.LightingPolicy.LOCAL;
+        boolean blackout = peer.meshDepth() == 0 && portal.isBlackoutBackground();
+        int blackoutState = blackout
+            ? palette.id(BlockStateParser.serialize(MinecraftViewPlates.blackoutState(portal, geometryDestination(peer, player, portal))))
+            : ClientViewProtocol.PALETTE_AIR;
+        long targetIdentity = opaque(portal.getType() == PortalType.RTP ? runtime.rtp().plateIdentity(player, portal) : portals.routeIdentity(portal));
+        if (peer.meshDepth() > 0) {
+            targetIdentity = opaque(ProjectorPassRevision.mix(targetIdentity, meshTargetRevision(peer, portal, front)));
+        }
+        ProjectedBlockClaim.LightingPolicy lighting = peer.meshDepth() > 0 || render.lightingFidelity
+            ? ProjectedBlockClaim.LightingPolicy.SOURCE : ProjectedBlockClaim.LightingPolicy.LOCAL;
         ClientPortalGeometry.Source source = new ClientPortalGeometry.Source(portal.getGeometry(), portal.getFrame(), front,
-            portal.isMirrorMode(), portal.isMirrorMode() ? portals.mirrorQuarterTurns(portal) : 0, projection.nearPlanePadding,
+            portal.isMirrorMode(), portal.isMirrorMode() ? mirrorQuarterTurns(peer, portal) : 0, projection.nearPlanePadding,
             projection.aperturePaddingBlocks, projection.frustumCullingRatio, portal.getNetworkViewDepth(), Math.max(0, projection.recursivePortalDepth),
-            portal.isBlackoutBackground() ? ClientPortalGeometry.BLACKOUT_SHELL : ClientPortalGeometry.BLACKOUT_OFF,
-            palette.id(BlockStateParser.serialize(blackout)), ClientPortalGeometry.MASK_AIR_PROJECT, lighting, fidelity(portal, render), kind(portal), 0,
+            blackout ? ClientPortalGeometry.BLACKOUT_SHELL : ClientPortalGeometry.BLACKOUT_OFF,
+            blackoutState, ClientPortalGeometry.MASK_AIR_PROJECT, lighting, fidelity(portal, render), kind(peer, portal), 0,
             targetIdentity, List.of());
         return ClientPortalGeometry.fromPortal(source).orElse(null);
     }
@@ -226,21 +350,21 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
 
     @Override
     public long effectGeometryRevision(MinecraftClientViewPeer peer, UUID portalId) {
-        MinecraftPortal portal = runtime.portals().get(portalId);
+        MinecraftPortal portal = portal(peer, portalId);
         ServerPlayer player = peer.player();
         if (portal == null || player == null) {
             return 0L;
         }
         long stamp = ProjectorPassRevision.mix(portal.getGeometry().getRevision(), front(player, portal) ? 1L : 2L);
         stamp = ProjectorPassRevision.mix(stamp, portal.getNetworkViewDepth());
-        stamp = ProjectorPassRevision.mix(stamp, kind(portal));
+        stamp = ProjectorPassRevision.mix(stamp, kind(peer, portal));
         stamp = ProjectorPassRevision.mix(stamp, System.identityHashCode(player.level()));
         return ProjectorPassRevision.mix(stamp, System.identityHashCode(runtime.configuration().settings()));
     }
 
     @Override
     public ClientPortalGeometry effectGeometry(MinecraftClientViewPeer peer, UUID portalId, SessionPalette palette) {
-        MinecraftPortal portal = runtime.portals().get(portalId);
+        MinecraftPortal portal = portal(peer, portalId);
         ServerPlayer player = peer.player();
         MinecraftProjectorPortalAccess portals = peer.portals();
         if (portal == null || player == null || portals == null || portals.world(portal) != player.level()) {
@@ -250,13 +374,13 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
         ClientPortalGeometry.Source source = new ClientPortalGeometry.Source(portal.getGeometry(), portal.getFrame(), front(player, portal), false, 0,
             projection.nearPlanePadding, projection.aperturePaddingBlocks, projection.frustumCullingRatio, portal.getNetworkViewDepth(), 0,
             ClientPortalGeometry.BLACKOUT_OFF, ClientViewProtocol.PALETTE_AIR, ClientPortalGeometry.MASK_AIR_PROJECT,
-            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, kind(portal), 0, 0L, List.of());
+            ProjectedBlockClaim.LightingPolicy.LOCAL, 0, kind(peer, portal), 0, 0L, List.of());
         return ClientPortalGeometry.fromPortal(source).orElse(null);
     }
 
     @Override
     public boolean refused(MinecraftClientViewPeer peer, UUID portalId) {
-        MinecraftPortal portal = runtime.portals().get(portalId);
+        MinecraftPortal portal = portal(peer, portalId);
         if (portal == null || !ownable(portal) || !FidelitySettings.sharedPlate
             || portal.getType() == PortalType.RTP && !FidelitySettings.rtpPlates) {
             return true;
@@ -273,8 +397,16 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
     }
 
     @Override
+    public SectionBiomes meshBiomes(MinecraftClientViewPeer peer, UUID portalId, ViewPlate<BlockState> plate) {
+        if (plate.environment() == null) {
+            throw new IllegalStateException("native mesh section has no captured destination light and biomes for " + portalId);
+        }
+        return plate.environment().biomes();
+    }
+
+    @Override
     public BrickLightSource lightBaseline(MinecraftClientViewPeer peer, UUID portalId, ViewPlate<BlockState> plate) {
-        return scene.light(peer, portalId, plate);
+        return peer.meshDepth() > 0 && plate.environment() != null ? plate.environment() : scene.light(peer, portalId, plate);
     }
 
     @Override
@@ -288,7 +420,7 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
             return null;
         }
         ServerLevel sourceWorld = portals.world(portal);
-        if (sourceWorld == null || sourceWorld != player.level()) {
+        if (sourceWorld == null || peer.meshDepth() == 0 && sourceWorld != player.level()) {
             return null;
         }
         MinecraftPortal destination = portal.isMirrorMode() ? portal : portals.projectionDestination(portal);
@@ -301,8 +433,8 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
         PortalFrame localFrame = portal.getFrame();
         PortalFrame remoteFrame = portal.isMirrorMode() ? localFrame.flipNormal() : destination.getFrame();
         return new MinecraftViewPlates.Target(player, portal, destinationView, () -> destinationView, remoteFrame, origin.x(), origin.y(),
-            origin.z(), portal.isMirrorMode(), portals.mirrorQuarterTurns(portal), front,
-            portal.getRenderMode().usesBuriedCellCulling(), MinecraftViewPlates.blockEntities(portal), MinecraftProjectorBlocks.INSTANCE.air());
+            origin.z(), portal.isMirrorMode(), mirrorQuarterTurns(peer, portal), front,
+            portal.getRenderMode().usesBuriedCellCulling(), MinecraftViewPlates.blockEntities(portal), MinecraftProjectorBlocks.INSTANCE.air(), portals.routeIdentity(portal));
     }
 
     private ProjectionContentView<BlockState, BlockState> geometryDestination(MinecraftClientViewPeer peer, ServerPlayer player, MinecraftPortal portal) {
@@ -317,7 +449,10 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
         return identity == 0L ? 0L : ProjectorPassRevision.mix(ProjectorPassRevision.mix(identitySecret, identity), identitySecret);
     }
 
-    private static int kind(MinecraftPortal portal) {
+    private static int kind(MinecraftClientViewPeer peer, MinecraftPortal portal) {
+        if (peer.door(portal.getId()) == portal) {
+            return ClientPortalGeometry.KIND_DOOR;
+        }
         if (portal.getType() == PortalType.RTP) {
             return ClientPortalGeometry.KIND_RTP;
         }
@@ -339,8 +474,13 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
         return flags;
     }
 
-    private boolean reflectedFront(MinecraftClientViewPeer peer, ServerPlayer player, UUID parent, MinecraftPortal portal) {
-        MinecraftPortal mirror = runtime.portals().get(parent);
+    boolean reflectedFront(MinecraftClientViewPeer peer, ServerPlayer player, UUID parent, MinecraftPortal portal) {
+        MinecraftClientViewPeer.NestedContext context = peer.nestedContext(parent);
+        if (peer.meshDepth() > 0 && context != null) {
+            GeometryVector eye = context.destinationEye();
+            return front(eye.x(), eye.y(), eye.z(), portal);
+        }
+        MinecraftPortal mirror = portal(peer, parent);
         MinecraftProjectorPortalAccess portals = peer.portals();
         Vec3 eye = player.getEyePosition();
         if (mirror == null || portals == null) {
@@ -349,8 +489,21 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
         GeometryVector origin = mirror.getOrigin();
         double[] reflected = new double[3];
         PortalCoordMap.mirrorDisplayToSourcePointInto(eye.x, eye.y, eye.z, origin.x(), origin.y(), origin.z(), mirror.getFrame(),
-            portals.mirrorQuarterTurns(mirror), reflected);
+            mirrorQuarterTurns(peer, mirror), reflected);
         return front(reflected[0], reflected[1], reflected[2], portal);
+    }
+
+    private long meshTargetRevision(MinecraftClientViewPeer peer, MinecraftPortal portal, boolean front) {
+        MinecraftViewPlates.Target target = target(peer, portal, front);
+        MinecraftViewPlates.Resolved resolved = target == null ? null : MinecraftViewPlates.resolve(runtime, target);
+        return resolved == null ? 0L : ProjectorPassRevision.mix(resolved.transformRevision(), System.identityHashCode(target.destView()));
+    }
+
+    private static int mirrorQuarterTurns(MinecraftClientViewPeer peer, MinecraftPortal portal) {
+        if (!portal.isMirrorMode()) {
+            return 0;
+        }
+        return peer.meshDepth() > 0 ? portal.getMirrorRotation().getQuarterTurns() : peer.portals().mirrorQuarterTurns(portal);
     }
 
     static boolean front(ServerPlayer player, MinecraftPortal portal) {
@@ -358,7 +511,7 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
         return front(eye.x, eye.y, eye.z, portal);
     }
 
-    private static boolean front(double eyeX, double eyeY, double eyeZ, MinecraftPortal portal) {
+    static boolean front(double eyeX, double eyeY, double eyeZ, MinecraftPortal portal) {
         GeometryVector origin = portal.getOrigin();
         Direction normal = portal.getFrame().getNormal();
         return (eyeX - origin.x()) * normal.x() + (eyeY - origin.y()) * normal.y() + (eyeZ - origin.z()) * normal.z() >= 0.0D;

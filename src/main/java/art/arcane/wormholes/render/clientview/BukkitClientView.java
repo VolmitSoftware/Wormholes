@@ -56,7 +56,7 @@ public final class BukkitClientView implements ClientViewRouting {
     public static final long PLATFORM_CAPS = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE,
         ClientViewCapability.DEST_LIGHT, ClientViewCapability.ENTITY_FRAMES, ClientViewCapability.FX_EMITTERS, ClientViewCapability.ATMOSPHERE,
         ClientViewCapability.CONFIG_PHASE, ClientViewCapability.LINK_UNCOMPRESSED, ClientViewCapability.VIEW_STATS,
-        ClientViewCapability.CLIENT_MIRROR, ClientViewCapability.CLIENT_RECURSION);
+        ClientViewCapability.CLIENT_MIRROR, ClientViewCapability.CLIENT_RECURSION, ClientViewCapability.MESH_RENDER);
     private static final long SOURCE_STALE_TICKS = 40L;
     private static final double PARTICLE_RANGE_SQUARED = 32.0D * 32.0D;
     private static final String CONFIGURE_EVENT_CLASS = "io.papermc.paper.event.connection.configuration.AsyncPlayerConnectionConfigureEvent";
@@ -69,6 +69,7 @@ public final class BukkitClientView implements ClientViewRouting {
     private final Logger logger;
     private final Consumer<String> verbose;
     private final BukkitClientViewNegotiator negotiator;
+    private final BukkitClientViewScene scene;
     private final boolean folia;
     private Plugin plugin;
     private PacketListenerCommon packetListener;
@@ -82,6 +83,7 @@ public final class BukkitClientView implements ClientViewRouting {
         long identitySalt = new SecureRandom().nextLong();
         BukkitClientViewPortalAccess portals = new BukkitClientViewPortalAccess(options.views(), options.plates(), options.lookup(),
             options.releaseVanilla(), () -> identitySalt);
+        this.scene = portals.scene();
         ClientViewPlatform<ClientViewObserver, BlockData> platform = new ClientViewPlatform<ClientViewObserver, BlockData>(transport, portals,
             new ClientViewEntityFrames<ClientViewObserver>(portals.scene()), new ClientViewSceneFx<ClientViewObserver>(portals.scene()), null, lanes,
             BlockData::getAsString, options.mcDataVersion(), PLATFORM_CAPS, null, this::warn);
@@ -232,6 +234,11 @@ public final class BukkitClientView implements ClientViewRouting {
         return !registry.sessions().isEmpty();
     }
 
+    public boolean nativeMesh(Player player) {
+        ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(player.getUniqueId());
+        return session != null && session.nativeRendererSelected();
+    }
+
     @Override
     public boolean receiver(Player player) {
         return registry.effectsReceiver(player.getUniqueId());
@@ -320,16 +327,20 @@ public final class BukkitClientView implements ClientViewRouting {
                       Map<UUID, PortalProjector.RtpProjectionTarget> rtpTargets, long frameTick) {
         ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(player.getUniqueId());
         if (session == null) {
+            updateDoorVisibility(player, Set.of());
             return;
         }
         ClientViewObserver observer = session.player();
         if (session.state() != ClientViewSessionState.CLIENT_VIEW) {
+            updateDoorVisibility(player, Set.of());
             if (observer.attending()) {
                 session.tick(frameTick);
                 observer.clearFrame();
             }
             return;
         }
+        observer.meshDepth(ClientViewCapability.MESH_RENDER.in(session.caps())
+            ? Math.clamp(player.getClientViewDistance(), 2, 32) * 16 : 0);
         observer.beginFrame(player, eye, interested, projectable, rtpTargets, frameTick);
         ArrivalWarmer warmer = Wormholes.arrivalWarmer;
         if (warmer != null) {
@@ -350,10 +361,15 @@ public final class BukkitClientView implements ClientViewRouting {
             }
         }
         observer.publishOwned();
+        updateDoorVisibility(player, observer.meshDepth() > 0 ? observer.ownedPortals() : Set.of());
         observer.prune(frameTick - SOURCE_STALE_TICKS);
     }
 
     public void shutdown() {
+        for (ClientViewObserver observer : observers.values()) {
+            updateDoorVisibility(observer.player(), Set.of());
+        }
+        scene.close();
         lanes.inline();
         registry.runtimeEnabled(false);
         registry.shutdown();
@@ -361,9 +377,17 @@ public final class BukkitClientView implements ClientViewRouting {
     }
 
     private void retire(UUID playerId, ClientViewObserver observer) {
+        updateDoorVisibility(observer.player(), Set.of());
+        scene.removeObserver(playerId);
         ClientViewServerSession<ClientViewObserver, BlockData> session = registry.session(playerId);
         if (session != null && session.player() == observer) {
             registry.forget(playerId);
+        }
+    }
+
+    private static void updateDoorVisibility(Player player, Set<UUID> ownedPortals) {
+        if (player != null && Wormholes.dimensionalDoorManager != null) {
+            Wormholes.dimensionalDoorManager.updateNativeProjectionVisibility(player, ownedPortals);
         }
     }
 

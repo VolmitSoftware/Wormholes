@@ -84,6 +84,56 @@ public sealed interface ClientViewMessage {
         }
     }
 
+    record MeshBegin(int portalKey, int generation, PlateBox bounds, int maxResidentSections) implements ClientViewMessage {
+        public MeshBegin {
+            Objects.requireNonNull(bounds, "bounds");
+            if (bounds.cells() == 0 || bounds.sizeX() > 65535 || bounds.sizeY() > 65535 || bounds.sizeZ() > 65535) {
+                throw new IllegalArgumentException("mesh bounds " + bounds);
+            }
+            long x = (((long) bounds.minX() + bounds.sizeX() - 1) >> 4) - (bounds.minX() >> 4) + 1;
+            long y = (((long) bounds.minY() + bounds.sizeY() - 1) >> 4) - (bounds.minY() >> 4) + 1;
+            long z = (((long) bounds.minZ() + bounds.sizeZ() - 1) >> 4) - (bounds.minZ() >> 4) + 1;
+            if (maxResidentSections < 1 || maxResidentSections > x * y * z) {
+                throw new IllegalArgumentException("resident sections " + maxResidentSections);
+            }
+        }
+
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.MESH_BEGIN;
+        }
+    }
+
+    record MeshSection(int portalKey, int generation, int sectionX, int sectionY, int sectionZ, int revision,
+                       int backingState, Brick brick, SectionBiomes biomes) implements ClientViewMessage {
+        public MeshSection {
+            Objects.requireNonNull(brick, "brick");
+            Objects.requireNonNull(biomes, "biomes");
+            if (brick.brickIndex() != 0) {
+                throw new IllegalArgumentException("mesh section brick index " + brick.brickIndex());
+            }
+        }
+
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.MESH_SECTION;
+        }
+    }
+
+    record MeshDrop(int portalKey, int generation, int sectionX, int sectionY, int sectionZ) implements ClientViewMessage {
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.MESH_DROP;
+        }
+    }
+
+    record MeshAck(int portalKey, int generation, int sectionX, int sectionY, int sectionZ, int revision) implements ClientViewMessage {
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.MESH_ACK;
+        }
+    }
+
     record PlateBegin(int portalKey, int plateRevision, PlateSectionBox sections, PlateBox cells, int backingState, int brickCount,
                       long[] brickHashes) implements ClientViewMessage {
         public PlateBegin {
@@ -341,6 +391,17 @@ public sealed interface ClientViewMessage {
         public FxEmitter {
             Objects.requireNonNull(kind, "kind");
             Objects.requireNonNull(key, "key");
+        }
+    }
+
+    record Environment(int portalKey, ClientViewEnvironment environment) implements ClientViewMessage {
+        public Environment {
+            Objects.requireNonNull(environment, "environment");
+        }
+
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.ENVIRONMENT;
         }
     }
 

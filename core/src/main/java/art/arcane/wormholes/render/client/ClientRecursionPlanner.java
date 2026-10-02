@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalGeometry;
 import art.arcane.wormholes.render.ProjectorFrameTransform;
@@ -57,6 +58,48 @@ public final class ClientRecursionPlanner {
                 continue;
             }
             if (high(area, axis) < low(aperture, axis) - mirror.depthBlocks() || low(area, axis) > high(aperture, axis) + mirror.depthBlocks()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static boolean destinationReaches(ClientPortalGeometry parent, ClientViewEnvironment.Transform transform,
+                                             AxisAlignedBB destinationArea) {
+        if (destinationArea == null || transform == null) {
+            return false;
+        }
+        GeometryVector center = destinationArea.center();
+        double ex = (destinationArea.getXb() - destinationArea.getXa()) * 0.5D;
+        double ey = (destinationArea.getYb() - destinationArea.getYa()) * 0.5D;
+        double ez = (destinationArea.getZb() - destinationArea.getZa()) * 0.5D;
+        Direction x = transform.xAxis();
+        Direction y = transform.yAxis();
+        Direction z = transform.zAxis();
+        double cx = center.x() * x.x() + center.y() * y.x() + center.z() * z.x() + transform.translation().x();
+        double cy = center.x() * x.y() + center.y() * y.y() + center.z() * z.y() + transform.translation().y();
+        double cz = center.x() * x.z() + center.y() * y.z() + center.z() * z.z() + transform.translation().z();
+        double dx = ex * Math.abs(x.x()) + ey * Math.abs(y.x()) + ez * Math.abs(z.x());
+        double dy = ex * Math.abs(x.y()) + ey * Math.abs(y.y()) + ez * Math.abs(z.y());
+        double dz = ex * Math.abs(x.z()) + ey * Math.abs(y.z()) + ez * Math.abs(z.z());
+        AxisAlignedBB area = new AxisAlignedBB(cx - dx, cx + dx, cy - dy, cy + dy, cz - dz, cz + dz);
+        AxisAlignedBB aperture = parent.apertureArea();
+        Direction normal = parent.frame().getNormal();
+        int normalAxis = ClientPortalGeometry.axisOf(normal);
+        double facing = normalAxis == 0 ? normal.x() : normalAxis == 1 ? normal.y() : normal.z();
+        double origin = center(aperture, normalAxis);
+        double clearance = ProjectorFrameTransform.portalPlaneClearance(aperture, parent.frame());
+        double distance = parent.depthBlocks() + clearance;
+        double signedA = (low(area, normalAxis) - origin) * facing;
+        double signedB = (high(area, normalAxis) - origin) * facing;
+        double near = parent.frontSide() ? -distance : clearance;
+        double far = parent.frontSide() ? -clearance : distance;
+        if (Math.max(signedA, signedB) < near || Math.min(signedA, signedB) > far) {
+            return false;
+        }
+        for (int axis = 0; axis < 3; axis++) {
+            if (axis != normalAxis && (high(area, axis) < low(aperture, axis) - distance
+                || low(area, axis) > high(aperture, axis) + distance)) {
                 return false;
             }
         }

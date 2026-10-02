@@ -135,6 +135,16 @@ public final class ClientPortal {
         contentDirty = true;
     }
 
+    public void clearContent() {
+        plate = null;
+        content = null;
+        sweep = null;
+        policy = null;
+        contentDirty = false;
+        pendingEnters.clear();
+        touchedBricks.clear();
+    }
+
     public void hysteresis(double value) {
         hysteresis = value;
     }

@@ -144,6 +144,16 @@ public final class PortalFrame {
 		return Direction.closest(scratch3[0], scratch3[1], scratch3[2]);
 	}
 
+	@Override
+	public boolean equals(Object other) {
+		return other instanceof PortalFrame frame && normal == frame.normal && right == frame.right && up == frame.up;
+	}
+
+	@Override
+	public int hashCode() {
+		return (normal.ordinal() * 31 + right.ordinal()) * 31 + up.ordinal();
+	}
+
 	private static Direction requireDirection(Direction direction) {
 		if (direction == null) {
 			throw new IllegalArgumentException("Portal frame direction cannot be null");

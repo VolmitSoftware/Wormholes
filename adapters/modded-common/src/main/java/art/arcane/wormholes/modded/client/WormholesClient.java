@@ -1,5 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
+import art.arcane.wormholes.modded.client.render.ClientPortalRenderer;
+
 import art.arcane.wormholes.modded.mixin.client.DebugScreenEntriesAccessor;
 import art.arcane.wormholes.network.client.ClientViewCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
@@ -38,6 +40,7 @@ public final class WormholesClient {
 
     private final WormholesClientConfig config;
     private final ClientViewStats stats;
+    private final ClientMeshViews meshViews = new ClientMeshViews();
     private final ClientReflectionEntity reflections;
     private final ClientViewAnnouncer announcer;
     private final Consumer<byte[]> sender;
@@ -65,8 +68,8 @@ public final class WormholesClient {
     public static WormholesClient initialize(Path configDirectory, Consumer<byte[]> sender) {
         WormholesClient client = new WormholesClient(WormholesClientConfig.load(configDirectory), sender);
         instance = client;
-        LOGGER.info("Wormholes ClientView client ready (enabled={}, plate budget {} MiB, bulk writes {})",
-            client.config.enabled, client.config.maxPlateMemoryMb, client.config.bulkWrite);
+        LOGGER.info("Wormholes ClientView client ready (renderer={}, plate budget {} MiB, bulk writes {})",
+            client.config.renderer, client.config.maxPlateMemoryMb, client.config.bulkWrite);
         return client;
     }
 
@@ -122,6 +125,7 @@ public final class WormholesClient {
     }
 
     public void tick(Minecraft minecraft) {
+        tick.effectsActive(!minecraft.isPaused() && minecraft.isWindowActive());
         ClientLevel level = minecraft.level;
         if (level == null) {
             reflections.clear(null, null);
@@ -143,6 +147,7 @@ public final class WormholesClient {
         Vec3 eye = camera.isInitialized() ? camera.position() : player == null ? Vec3.ZERO : player.getEyePosition();
         Vec3 velocity = player == null ? Vec3.ZERO : player.getDeltaMovement();
         tick.tick(eye.x, eye.y, eye.z, velocity.x, velocity.y, velocity.z, System.currentTimeMillis());
+        meshViews.update(session, level);
         reflections.tick(level, player, minecraft.getConnection(), session, tick,
             config.selfReflection && session.active() && session.has(ClientViewCapability.CLIENT_MIRROR));
         if (announcer.due(config.connectionMessage, session.active(), session.acceptMessage(), player != null)) {
@@ -156,14 +161,15 @@ public final class WormholesClient {
         ClientViewTick state = tick;
         ProjectionOverlay overlay = state == null ? null : state.overlay();
         return "Wormholes ClientView: " + current.state()
-            + " portals=" + current.portals().size()
+            + " portals=" + current.portals().size() + " memoryUnavailable=" + current.unavailableMeshes()
             + " overlay=" + (overlay == null ? 0 : overlay.size())
-            + " plates=" + current.plates().plateMb() + "MiB"
+            + " plates=" + current.memoryMb() + "MiB"
             + " sweep=" + stats.sweepMicrosP50() + "us apply=" + stats.applyMicrosP50() + "us"
             + " frames=" + stats.framesReceived() + " bytes=" + stats.bytesReceived()
             + " unknown=" + current.palette().unknownStates()
             + " entities=" + (state == null || state.entities() == null ? 0 : state.entities().spawned())
-            + " fx=" + (state == null || state.fx() == null ? 0 : state.fx().emitters());
+            + " fx=" + (state == null || state.fx() == null ? 0 : state.fx().emitters())
+            + " " + ClientPortalRenderer.instance().debugLine();
     }
 
     public WormholesClientConfig config() {
@@ -186,11 +192,16 @@ public final class WormholesClient {
         return stats;
     }
 
+    public ClientMeshViews meshViews() {
+        return meshViews;
+    }
+
     public ClientReflectionEntity reflections() {
         return reflections;
     }
 
     private void detach() {
+        meshViews.clear();
         tick.detach();
         attachedLevel = null;
         attachedSurface = null;

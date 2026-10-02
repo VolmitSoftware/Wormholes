@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.modded.clientview.MinecraftClientViewService;
 import art.arcane.wormholes.portal.PortalGeometry;
 import art.arcane.wormholes.render.ProjectionGazeScheduler;
 import art.arcane.wormholes.util.AxisAlignedBB;
@@ -26,6 +27,22 @@ public class MinecraftProjectionServiceGazeTest {
     public static void bootstrap() {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
+    }
+
+    @Test
+    public void nativeDoorOwnershipHidesTheVeilOnlyWhileThatObserverOwnsTheView() {
+        WormholesModRuntime runtime = mock(WormholesModRuntime.class);
+        MinecraftClientViewService clientViews = mock(MinecraftClientViewService.class);
+        when(runtime.clientViews()).thenReturn(clientViews);
+        MinecraftProjectionService service = new MinecraftProjectionService(runtime);
+        UUID observer = UUID.randomUUID();
+        UUID door = UUID.randomUUID();
+        assertFalse(service.isDoorProjected(observer, door));
+        when(clientViews.owns(observer, door)).thenReturn(true);
+        assertTrue(service.isDoorProjected(observer, door));
+        assertFalse(service.isDoorProjected(UUID.randomUUID(), door));
+        when(clientViews.owns(observer, door)).thenReturn(false);
+        assertFalse(service.isDoorProjected(observer, door));
     }
 
     @Test

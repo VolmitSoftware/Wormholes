@@ -15,6 +15,26 @@ import art.arcane.wormholes.network.replication.XxHash64;
 
 final class BrickCodecTest {
     @Test
+    void senderRejectsBrickBodiesThatFitAFrameButExceedTheDecoderLimit() {
+        int[] cells = new int[ClientViewProtocol.BRICK_CELLS];
+        for (int cell = 0; cell < cells.length; cell++) {
+            cells[cell] = cell + 3;
+        }
+        byte[] light = new byte[ClientViewProtocol.LIGHT_NIBBLE_BYTES];
+        new Random(42L).nextBytes(light);
+        Brick.BlockEntityCell[] entities = new Brick.BlockEntityCell[512];
+        for (int cell = 0; cell < entities.length; cell++) {
+            entities[cell] = new Brick.BlockEntityCell(cell, new byte[64]);
+        }
+        Brick brick = BrickCodec.pack(0, cells).withLight(light, light).withBlockEntities(entities);
+        int bodyBytes = BrickCodec.encodedSize(brick);
+        assertTrue(bodyBytes > ClientViewProtocol.MAX_BRICK_BYTES);
+        assertTrue(bodyBytes + 32 < ClientViewProtocol.MIN_MAX_FRAME_BYTES);
+        ClientViewMessage.MeshSection section = new ClientViewMessage.MeshSection(1, 1, 0, 0, 0, 1, 3, brick, SectionBiomes.NONE);
+        assertThrows(ClientViewProtocolException.class, () -> ClientViewCodec.encodeS2C(section, 0, 0));
+    }
+
+    @Test
     void uniformBricksCollapseToEmptyOrSingle() {
         int[] air = new int[ClientViewProtocol.BRICK_CELLS];
         Brick empty = BrickCodec.pack(3, air);

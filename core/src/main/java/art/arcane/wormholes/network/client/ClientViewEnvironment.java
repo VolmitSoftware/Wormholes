@@ -1,0 +1,115 @@
+package art.arcane.wormholes.network.client;
+
+import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.util.Direction;
+
+import java.util.Objects;
+
+public record ClientViewEnvironment(long gameTime, Sky sky, Fog fog, Lighting lighting, Clouds clouds,
+                                    Transform transform, Dimension dimension) {
+    public ClientViewEnvironment {
+        Objects.requireNonNull(sky, "sky");
+        Objects.requireNonNull(fog, "fog");
+        Objects.requireNonNull(lighting, "lighting");
+        Objects.requireNonNull(clouds, "clouds");
+        Objects.requireNonNull(transform, "transform");
+        Objects.requireNonNull(dimension, "dimension");
+    }
+
+    private static void finite(float... values) {
+        for (float value : values) {
+            if (!Float.isFinite(value)) {
+                throw new IllegalArgumentException("Environment values must be finite");
+            }
+        }
+    }
+
+    public record Color(float red, float green, float blue) {
+        public Color {
+            finite(red, green, blue);
+        }
+    }
+
+    public record ColorAlpha(float red, float green, float blue, float alpha) {
+        public ColorAlpha {
+            finite(red, green, blue, alpha);
+        }
+    }
+
+    public record Sky(Skybox skybox, float sunAngle, float moonAngle, float starAngle, float starBrightness,
+                      ColorAlpha sunrise, Color color, int moonPhase, float rain, float thunder) {
+        public Sky {
+            Objects.requireNonNull(skybox, "skybox");
+            Objects.requireNonNull(sunrise, "sunrise");
+            Objects.requireNonNull(color, "color");
+            finite(sunAngle, moonAngle, starAngle, starBrightness, rain, thunder);
+            if (moonPhase < 0 || moonPhase > 7) {
+                throw new IllegalArgumentException("Invalid moon phase");
+            }
+        }
+    }
+
+    public record Fog(Color color, float start, float end, float skyEnd, float cloudEnd,
+                      Color waterColor, float waterStart, float waterEnd) {
+        public Fog {
+            Objects.requireNonNull(color, "color");
+            Objects.requireNonNull(waterColor, "waterColor");
+            finite(start, end, skyEnd, cloudEnd, waterStart, waterEnd);
+        }
+    }
+
+    public record Lighting(Color blockTint, float skyFactor, Color skyColor, Color ambient) {
+        public Lighting {
+            Objects.requireNonNull(blockTint, "blockTint");
+            Objects.requireNonNull(skyColor, "skyColor");
+            Objects.requireNonNull(ambient, "ambient");
+            finite(skyFactor);
+        }
+    }
+
+    public record Clouds(ColorAlpha color, float height) {
+        public Clouds {
+            Objects.requireNonNull(color, "color");
+            finite(height);
+        }
+    }
+
+    public record Transform(Direction xAxis, Direction yAxis, Direction zAxis, GeometryVector translation) {
+        public Transform {
+            Objects.requireNonNull(xAxis, "xAxis");
+            Objects.requireNonNull(yAxis, "yAxis");
+            Objects.requireNonNull(zAxis, "zAxis");
+            Objects.requireNonNull(translation, "translation");
+            if (xAxis.getAxis() == yAxis.getAxis() || xAxis.getAxis() == zAxis.getAxis() || yAxis.getAxis() == zAxis.getAxis()
+                || !Double.isFinite(translation.x()) || !Double.isFinite(translation.y()) || !Double.isFinite(translation.z())) {
+                throw new IllegalArgumentException("Invalid environment transform");
+            }
+        }
+
+        public GeometryVector destinationPoint(double x, double y, double z) {
+            double dx = x - translation.x();
+            double dy = y - translation.y();
+            double dz = z - translation.z();
+            return new GeometryVector(dx * xAxis.x() + dy * xAxis.y() + dz * xAxis.z(),
+                dx * yAxis.x() + dy * yAxis.y() + dz * yAxis.z(), dx * zAxis.x() + dy * zAxis.y() + dz * zAxis.z());
+        }
+    }
+
+    public record Dimension(int minY, int height, boolean hasSkyLight, CardinalLighting cardinalLighting,
+                            double horizonHeight, boolean endFlashes) {
+        public Dimension {
+            Objects.requireNonNull(cardinalLighting, "cardinalLighting");
+            if (height <= 0 || !Double.isFinite(horizonHeight)) {
+                throw new IllegalArgumentException("Invalid environment dimension");
+            }
+        }
+    }
+
+    public enum Skybox {
+        NONE, OVERWORLD, END
+    }
+
+    public enum CardinalLighting {
+        DEFAULT, NETHER
+    }
+}

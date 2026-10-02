@@ -3,7 +3,10 @@ package art.arcane.wormholes.render.client.session;
 import java.util.List;
 import java.util.UUID;
 
+import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.network.client.BrickLightSource;
+import art.arcane.wormholes.network.client.SectionBiomes;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import art.arcane.wormholes.render.plate.ViewPlate;
@@ -16,6 +19,36 @@ public interface ClientViewPortalAccess<P, B> {
     ClientPortalGeometry geometry(P observer, UUID portal, SessionPalette palette);
 
     ViewPlate<B> plate(P observer, UUID portal, boolean firstAttendance);
+
+    default int meshDistanceBlocks(P observer) {
+        return 0;
+    }
+
+    default GeometryVector meshEye(P observer) {
+        return null;
+    }
+
+    default void prepareNested(P observer, UUID context, UUID parentContext, UUID portal) {
+    }
+
+    default void releaseNested(P observer, UUID context) {
+    }
+
+    default GeometryVector nestedEye(P observer, UUID context) {
+        return null;
+    }
+
+    default ViewPlate<B> meshSection(P observer, UUID portal, PlateBox clip, int distance) {
+        return null;
+    }
+
+    default ViewPlate<B> nestedMeshSection(P observer, UUID parent, UUID child, PlateBox clip, int distance) {
+        return null;
+    }
+
+    default SectionBiomes meshBiomes(P observer, UUID portal, ViewPlate<B> plate) {
+        return SectionBiomes.NONE;
+    }
 
     boolean refused(P observer, UUID portal);
 

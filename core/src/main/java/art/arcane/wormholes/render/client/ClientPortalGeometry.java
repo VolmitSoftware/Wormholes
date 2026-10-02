@@ -195,6 +195,12 @@ public record ClientPortalGeometry(int originX,
         return (quarterTurns >> 2) & 3;
     }
 
+    public ClientPortalGeometry withDepth(int depth) {
+        return new ClientPortalGeometry(originX, originY, originZ, facing, frontSide, quarterTurns, mirror, apertureWidth,
+            apertureHeight, apertureMask, nearPlanePadding, aperturePadding, frustumCullingRatio, depth, recursionDepth,
+            blackoutPolicy, blackoutState, maskAirPolicy, lightingPolicy, fidelityFlags, kind, parentPortalKey, targetIdentity, nested);
+    }
+
     public PortalFrame frame() {
         PortalFrame frame = PortalFrame.canonical(facingDirection());
         for (int turn = 0; turn < frameQuarterTurns(); turn++) {

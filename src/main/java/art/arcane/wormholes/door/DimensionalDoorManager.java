@@ -218,6 +218,11 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 		return projectionRegistry;
 	}
 
+	public void updateNativeProjectionVisibility(Player observer, Set<UUID> ownedDoors)
+	{
+		runtimes.updateNativeProjectionVisibility(observer, ownedDoors);
+	}
+
 	/**
 	 * Applies the {@code [doors]} projection knobs and re-reads every placed door so apertures appear
 	 * or disappear and the backing panes follow.
@@ -230,10 +235,6 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 			return;
 		}
 		projectionRegistry.reconfigure(doorsConfig.projectionMaxActive, doorsConfig.projectionAttendanceSlots);
-		if(!doorsConfig.projectionEnabled)
-		{
-			projectionRegistry.clear();
-		}
 		runtimes.attachProjection(projectionRegistry, doorsConfig.projectionEnabled, doorsConfig.projectionHideBacking);
 		for(PlacedDoorEndpoint endpoint : guard.state().endpoints())
 		{
@@ -1587,6 +1588,7 @@ public final class DimensionalDoorManager implements Listener, AutoCloseable
 	@EventHandler(priority = EventPriority.MONITOR)
 	public void onQuit(PlayerQuitEvent event)
 	{
+		runtimes.forgetNativeObserver(event.getPlayer().getUniqueId());
 		ledger.forget(event.getPlayer());
 		accessFeedback.forget(event.getPlayer().getUniqueId());
 	}

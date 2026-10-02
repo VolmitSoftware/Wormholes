@@ -6,6 +6,7 @@ import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 
 import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.wormholes.platform.WormholesPlatform;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 import art.arcane.wormholes.render.plate.PlateCaptureJob;
 import art.arcane.wormholes.render.plate.ViewPlateBuilder;
@@ -90,12 +91,21 @@ public final class CapturedChunkView implements ProjectionWorldView {
 
     @Override
     public String sampleBiome(int x, int y, int z) {
-        return null;
+        ChunkSnapshot snapshot = snapshot(x, Math.clamp(y, minHeight, maxHeight - 1), z);
+        return snapshot == null ? null : WormholesPlatform.keyString(snapshot.getBiome(x & 15,
+            Math.clamp(y, minHeight, maxHeight - 1), z & 15).getKey());
     }
 
     @Override
     public int getLight(int x, int y, int z) {
-        return LIGHT_UNAVAILABLE;
+        ChunkSnapshot snapshot = snapshot(x, Math.clamp(y, minHeight, maxHeight - 1), z);
+        if (snapshot == null) {
+            return LIGHT_UNAVAILABLE;
+        }
+        if (y < minHeight || y >= maxHeight) {
+            return ProjectionContentView.packLight(y >= maxHeight ? snapshot.getBlockSkyLight(x & 15, maxHeight - 1, z & 15) : 0, 0);
+        }
+        return ProjectionContentView.packLight(snapshot.getBlockSkyLight(x & 15, y, z & 15), snapshot.getBlockEmittedLight(x & 15, y, z & 15));
     }
 
     @Override

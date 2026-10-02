@@ -18,6 +18,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
+import java.util.function.Predicate;
 
 /**
  * Feeds door apertures through the RTP projection shape, which is the one path that already lets a
@@ -29,11 +31,15 @@ public final class DoorProjectionProvider implements ProjectionManager.RtpProjec
     private static final double APERTURE_WIDTH = 1.0D;
 
     private final DoorApertureDestinations destinations;
+    private final Predicate<Player> nativeView;
+    private final BooleanSupplier enabled;
     private final ConcurrentHashMap<RouteKey, Route> routes;
     private final AtomicLong revisions;
 
-    public DoorProjectionProvider(DoorApertureDestinations destinations) {
-        this.destinations = Objects.requireNonNull(destinations, "destinations");
+    public DoorProjectionProvider(Options options) {
+        this.destinations = Objects.requireNonNull(options.destinations(), "destinations");
+        nativeView = Objects.requireNonNull(options.nativeView(), "nativeView");
+        enabled = Objects.requireNonNull(options.enabled(), "enabled");
         routes = new ConcurrentHashMap<>();
         revisions = new AtomicLong();
     }
@@ -48,6 +54,10 @@ public final class DoorProjectionProvider implements ProjectionManager.RtpProjec
         Objects.requireNonNull(portal, "portal");
         UUID observerId = Objects.requireNonNull(observer, "observer").getUniqueId();
         if (!(portal instanceof DoorProjectionAdapter adapter)) {
+            return suppressed(observerId);
+        }
+        if (!adapter.isOpen() || !nativeView.test(observer) && (!enabled.getAsBoolean() || !adapter.projectionState().projects(true))) {
+            forget(adapter.getId(), observerId);
             return suppressed(observerId);
         }
         Optional<DoorProjectionDestination> resolved = destinations.destinationOf(adapter, observerId);
@@ -135,5 +145,8 @@ public final class DoorProjectionProvider implements ProjectionManager.RtpProjec
     }
 
     private record Route(String signature, long revision) {
+    }
+
+    public record Options(DoorApertureDestinations destinations, Predicate<Player> nativeView, BooleanSupplier enabled) {
     }
 }

@@ -38,6 +38,10 @@ public final class MinecraftProjectorPortalAccess implements ProjectorRecursiveP
         this.doors = doors;
     }
 
+    public long routeIdentity(MinecraftPortal portal) {
+        return doors == null ? 0L : doors.routeIdentity(portal);
+    }
+
     public boolean current(MinecraftPortal portal) {
         return runtime.portals().get(portal.getId()) == portal || doors != null && doors.current(portal);
     }

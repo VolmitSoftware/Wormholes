@@ -9,6 +9,13 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -64,6 +71,35 @@ final class PlateStreamEncoderTest {
                 200.4995, 67.4995, 200.4995, false, 0, 24.0D, 8.0D, 0.75D, true, SyntheticWorld.AIR, LodPolicy.NONE, blockEntities,
                 0L, 0L, 0L, SyntheticBlocks.INSTANCE);
         return ViewPlateBuilder.build(request);
+    }
+
+    @Test
+    void sectionCaptureClipsBeforeAllocatingTheRenderDistanceVolume() {
+        SyntheticWorld world = new SyntheticWorld(41L);
+        PortalGeometry geometry = new PortalGeometry();
+        geometry.setArea(new AxisAlignedBB(10, 12.999, 66, 68.999, 20, 20.999));
+        ViewPlateKey key = new ViewPlateKey(UUID.randomUUID(), world, false, 0, 0L);
+        ViewPlateBuilder.Request<String, String, ProjectionContentView<String, String>> request =
+            new ViewPlateBuilder.Request<String, String, ProjectionContentView<String, String>>(key, geometry, world,
+                PortalFrame.canonical(Direction.S), PortalFrame.canonical(Direction.N), 11.4995, 67.4995, 20.5005,
+                200.4995, 67.4995, 200.4995, false, 0, 512, 512, 0, false, SyntheticWorld.AIR, LodPolicy.NONE, false,
+                0L, 0L, 0L, SyntheticBlocks.INSTANCE);
+        PlateBox clip = new PlateBox(0, 64, 32, 16, 16, 16);
+        ViewPlateBuilder.Job<String, Object> job = ViewPlateBuilder.sectionJob(request, clip);
+        assertTrue(job.predictedBytes() < 32 * 1024);
+        while (!job.step(128)) {
+        }
+        assertEquals(clip, job.result().box());
+        assertTrue(ViewPlateBuilder.sectionFootprint(request, clip).chunkCount() <= 4);
+        assertEquals(1, new PlateStreamEncoder<String>(new SessionPalette(), state -> state).encode(job.result(), null, false).brickCount());
+        ProjectionContentView<String, String> capturedAir = mock(ProjectionContentView.class);
+        when(capturedAir.isEmpty(any())).thenReturn(true);
+        when(capturedAir.worldId()).thenReturn(UUID.randomUUID());
+        ViewPlateBuilder.Job<String, Object> empty = ViewPlateBuilder.sectionJob(request.withDestView(capturedAir), clip);
+        assertTrue(empty.step(1));
+        verify(capturedAir, never()).sampleBlockData(anyInt(), anyInt(), anyInt());
+        assertEquals(4096, empty.result().cellCount());
+        assertEquals(ProjectorSample.Kind.REMOTE_AIR, empty.result().paletteCell(1).kind());
     }
 
     @Test
@@ -251,7 +287,7 @@ final class PlateStreamEncoderTest {
     @Test
     void emptyPlateEncodesToNoBricks() {
         ViewPlate<String> empty = new ViewPlate<String>(new ViewPlateKey(UUID.randomUUID(), "view", true, 0, 0L),
-            PlateGrid.<String>empty(), 0L, 0L, null, Long.MIN_VALUE, 0, 0, -1, -1, 0L);
+            PlateGrid.<String>empty(), 0L, 0L, null, Long.MIN_VALUE, 0, 0, -1, -1, 0L, null);
         SessionPalette palette = new SessionPalette();
         PlateStreamEncoder<String> encoder = new PlateStreamEncoder<String>(palette, state -> state);
         EncodedPlate encoded = encoder.encode(empty, null, true);

@@ -97,7 +97,7 @@ final class ViewPlateCacheTest {
         ViewPlateKey key = key("a");
         long version = tracker.currentVersion();
         ViewPlate<String> plate = new ViewPlate<String>(key, PlateGrid.<String>empty(), 1L, 1L, WORLD, version,
-            0, 0, 1, 1, 100L);
+            0, 0, 1, 1, 100L, null);
         publish(cache, plate);
         scheduled.clear();
 
@@ -211,7 +211,7 @@ final class ViewPlateCacheTest {
         ViewPlateCache<String, String> cache = new ViewPlateCache<String, String>(1_000_000L, scheduled::add);
         ViewPlateKey key = key("rtp");
         ViewPlate<String> plate = new ViewPlate<String>(key, PlateGrid.<String>empty(), 1L, 1L, WORLD, tracker.currentVersion(),
-            0, 0, 1, 1, 100L);
+            0, 0, 1, 1, 100L, null);
         publish(cache, plate);
         scheduled.clear();
         assertSame(plate, cache.current(key, 1L, 1L, tracker, false, previous -> stubJob(key)));
@@ -237,7 +237,7 @@ final class ViewPlateCacheTest {
         ViewPlateCache<String, String> cache = new ViewPlateCache<String, String>(1_000_000L, scheduled::add);
         ViewPlateKey key = key("mirror");
         publish(cache, new ViewPlate<String>(key, PlateGrid.<String>empty(), 1L, 1L, WORLD, tracker.currentVersion(),
-            0, 0, 1, 1, 100L));
+            0, 0, 1, 1, 100L, null));
         scheduled.clear();
         for (int chunk = 0; chunk <= 8192; chunk++) {
             tracker.markChanged(WORLD, 10_000 + (chunk << 4), 0);
@@ -262,7 +262,7 @@ final class ViewPlateCacheTest {
         ViewPlateCache<String, String> cache = new ViewPlateCache<String, String>(1_000L, job -> scheduled.incrementAndGet());
         ViewPlateKey key = key("mirror");
         ViewPlate<String> plate = new ViewPlate<String>(key, PlateGrid.<String>empty(), 1L, 9L, WORLD, tracker.currentVersion(),
-            0, 0, 1, 1, 100L);
+            0, 0, 1, 1, 100L, null);
         publish(cache, plate);
         scheduled.set(0);
         tracker.markChanged(WORLD, 5, 5);
@@ -396,7 +396,7 @@ final class ViewPlateCacheTest {
 
     private static ViewPlate<String> plate(ViewPlateKey key, long destinationRevision, long transformRevision, long bytes) {
         return new ViewPlate<String>(key, PlateGrid.<String>empty(), destinationRevision, transformRevision, null,
-            Long.MIN_VALUE, 0, 0, 0, 0, bytes);
+            Long.MIN_VALUE, 0, 0, 0, 0, bytes, null);
     }
 
     private static ViewPlateBuilder.Job<String, String> predictedJob(ViewPlateKey key, long predictedBytes) {

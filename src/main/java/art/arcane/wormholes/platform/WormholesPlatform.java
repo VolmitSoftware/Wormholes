@@ -33,6 +33,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -92,6 +93,7 @@ public final class WormholesPlatform {
         "canUseEquipmentSlot",
         EquipmentSlot.class
     );
+    private static final MethodHandle LIVING_BODY_YAW = unreflectNoThrow(resolveMethod(LivingEntity.class, "getBodyYaw"));
     private static final Method LIVING_IS_LEASHED = resolveMethod(LivingEntity.class, "isLeashed");
     private static final Method ENTITY_GET_SCHEDULER = resolveMethod(Entity.class, "getScheduler");
     private static final Method ENTITY_SCHEDULER_EXECUTE = ENTITY_GET_SCHEDULER == null
@@ -317,6 +319,17 @@ public final class WormholesPlatform {
             return java.lang.invoke.MethodHandles.lookup().unreflect(method);
         } catch (IllegalAccessException e) {
             return null;
+        }
+    }
+
+    public static float bodyYaw(LivingEntity entity, float fallback) {
+        if (LIVING_BODY_YAW == null) {
+            return fallback;
+        }
+        try {
+            return (float) LIVING_BODY_YAW.invokeExact(entity);
+        } catch (Throwable failure) {
+            throw propagate("Entity body rotation capture failed", failure);
         }
     }
 

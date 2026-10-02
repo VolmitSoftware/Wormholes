@@ -4,16 +4,20 @@ import art.arcane.wormholes.util.Direction;
 
 import art.arcane.wormholes.util.Axis;
 import org.bukkit.Material;
+import org.bukkit.Location;
 import org.bukkit.Server;
 import org.bukkit.World;
-import art.arcane.wormholes.util.Direction;
 import org.bukkit.entity.BlockDisplay;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
+import org.mockito.ArgumentMatchers;
 
 import java.lang.reflect.Proxy;
 import java.util.UUID;
+import java.util.Set;
+import java.util.function.Consumer;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,6 +29,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 class DoorPortalVisualServiceTest
 {
@@ -328,6 +338,93 @@ class DoorPortalVisualServiceTest
 		assertEquals(64.5D, query.get()[1]);
 		assertEquals(-3.75D, query.get()[2]);
 		assertEquals(DoorPortalAnimation.ATTENDANCE_RANGE_SQUARED, query.get()[3]);
+	}
+
+	@Test
+	void nativeOwnershipHidesBothSurfacesForOnlyItsObserverAndRestoresThemOnRelease()
+	{
+		UUID worldId = UUID.randomUUID();
+		Plugin plugin = mock(Plugin.class);
+		Server server = mock(Server.class);
+		World world = mock(World.class);
+		when(plugin.namespace()).thenReturn("test");
+		when(plugin.getServer()).thenReturn(server);
+		when(server.getWorld(worldId)).thenReturn(world);
+		BlockDisplay backing = mock(BlockDisplay.class);
+		BlockDisplay overlay = mock(BlockDisplay.class);
+		when(backing.getUniqueId()).thenReturn(UUID.randomUUID());
+		when(overlay.getUniqueId()).thenReturn(UUID.randomUUID());
+		when(backing.isValid()).thenReturn(true);
+		when(overlay.isValid()).thenReturn(true);
+		when(world.spawn(any(Location.class), eq(BlockDisplay.class), ArgumentMatchers.<Consumer<BlockDisplay>>any())).thenReturn(backing, overlay);
+		DoorPortalVisualService service = new DoorPortalVisualService(plugin);
+		PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(new DoorPosition(worldId, "minecraft:overworld", 1, 2, 3),
+			DoorItemIdentity.personal(UUID.randomUUID()), DoorOpenState.OPEN, DoorProjectionState.OFF);
+		VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(worldId, new DoorwayPlane(1, 2, 3, Direction.N),
+			org.bukkit.block.data.type.Door.Hinge.LEFT, true, false);
+		service.show(endpoint, snapshot, false);
+		Player nativeObserver = mock(Player.class);
+		Player ordinaryObserver = mock(Player.class);
+		when(nativeObserver.getUniqueId()).thenReturn(UUID.randomUUID());
+		when(ordinaryObserver.getUniqueId()).thenReturn(UUID.randomUUID());
+		when(nativeObserver.isOnline()).thenReturn(true);
+		when(ordinaryObserver.isOnline()).thenReturn(true);
+
+		service.updateNativeProjectionVisibility(nativeObserver, Set.of(endpoint.identity().itemId()));
+		service.updateNativeProjectionVisibility(ordinaryObserver, Set.of());
+		verify(nativeObserver).hideEntity(plugin, backing);
+		verify(nativeObserver).hideEntity(plugin, overlay);
+		verify(ordinaryObserver, never()).hideEntity(eq(plugin), any());
+		service.updateNativeProjectionVisibility(nativeObserver, Set.of());
+		verify(nativeObserver).showEntity(plugin, backing);
+		verify(nativeObserver).showEntity(plugin, overlay);
+		service.updateNativeProjectionVisibility(nativeObserver, Set.of());
+		verify(nativeObserver, times(1)).showEntity(plugin, backing);
+		service.hide(endpoint.identity().itemId());
+		verify(backing).remove();
+		verify(overlay).remove();
+	}
+
+	@Test
+	void projectingHidesBothSurfacesAndDisablingProjectionRestoresBoth()
+	{
+		UUID worldId = UUID.randomUUID();
+		Plugin plugin = mock(Plugin.class);
+		Server server = mock(Server.class);
+		World world = mock(World.class);
+		when(plugin.namespace()).thenReturn("test");
+		when(plugin.getServer()).thenReturn(server);
+		when(server.getWorld(worldId)).thenReturn(world);
+		AtomicBoolean backingRemoved = new AtomicBoolean();
+		AtomicBoolean overlayRemoved = new AtomicBoolean();
+		AtomicBoolean restoredBackingRemoved = new AtomicBoolean();
+		AtomicBoolean restoredOverlayRemoved = new AtomicBoolean();
+		BlockDisplay backing = display(backingRemoved);
+		BlockDisplay overlay = display(overlayRemoved);
+		BlockDisplay restoredBacking = display(restoredBackingRemoved);
+		BlockDisplay restoredOverlay = display(restoredOverlayRemoved);
+		when(world.spawn(any(Location.class), eq(BlockDisplay.class), ArgumentMatchers.<Consumer<BlockDisplay>>any())).thenReturn(backing, overlay, restoredBacking, restoredOverlay);
+		DoorPortalVisualService service = new DoorPortalVisualService(plugin);
+		PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(new DoorPosition(worldId, "minecraft:overworld", 1, 2, 3),
+			DoorItemIdentity.personal(UUID.randomUUID()));
+		VanillaDoorSnapshot snapshot = new VanillaDoorSnapshot(worldId, new DoorwayPlane(1, 2, 3, Direction.N),
+			org.bukkit.block.data.type.Door.Hinge.LEFT, true, false);
+
+		service.show(endpoint, snapshot, false);
+		verify(world, times(2)).spawn(any(Location.class), eq(BlockDisplay.class), ArgumentMatchers.<Consumer<BlockDisplay>>any());
+		service.show(endpoint, snapshot, true);
+		assertTrue(backingRemoved.get());
+		assertTrue(overlayRemoved.get());
+		service.show(endpoint, snapshot, true);
+		verify(world, times(2)).spawn(any(Location.class), eq(BlockDisplay.class), ArgumentMatchers.<Consumer<BlockDisplay>>any());
+
+		service.show(endpoint, snapshot, false);
+		verify(world, times(4)).spawn(any(Location.class), eq(BlockDisplay.class), ArgumentMatchers.<Consumer<BlockDisplay>>any());
+		assertTrue(!restoredBackingRemoved.get());
+		assertTrue(!restoredOverlayRemoved.get());
+		service.hide(endpoint.identity().itemId());
+		assertTrue(restoredBackingRemoved.get());
+		assertTrue(restoredOverlayRemoved.get());
 	}
 
 	@Test

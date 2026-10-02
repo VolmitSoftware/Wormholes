@@ -112,8 +112,7 @@ final class LocalPortalSettings
 		String storedProjectionMode = j.optString("projectionMode", ProjectionMode.ON.name());
 		projectionMode = resolveProjectionMode(j);
 		mirrorMode = resolveMirrorMode(j);
-		MirrorRotation storedMirrorRotation = resolveMirrorRotation(j);
-		mirrorRotation = storedMirrorRotation.coherentFor(portal.getFrame());
+		mirrorRotation = resolveMirrorRotation(j);
 		permissionMode = resolvePermissionMode(j);
 		outgoingTraversalsEnabled = !j.has("outgoingTraversalsEnabled") || j.getBoolean("outgoingTraversalsEnabled");
 		incomingTraversalsEnabled = !j.has("incomingTraversalsEnabled") || j.getBoolean("incomingTraversalsEnabled");
@@ -160,7 +159,7 @@ final class LocalPortalSettings
 		}
 		settingsSyncEnabled = !j.has("settingsSyncEnabled") || j.getBoolean("settingsSyncEnabled");
 		boolean projectionStateNormalized = !j.has("mirrorMode") || !storedProjectionMode.equals(projectionMode.name());
-		return storedMirrorRotation != mirrorRotation || projectionStateNormalized || invalidTravelCost;
+		return projectionStateNormalized || invalidTravelCost;
 	}
 
 	boolean isProjecting()
@@ -248,7 +247,7 @@ final class LocalPortalSettings
 
 	void setMirrorRotation(MirrorRotation rotation)
 	{
-		MirrorRotation normalized = (rotation == null ? MirrorRotation.DEGREES_0 : rotation).coherentFor(portal.getFrame());
+		MirrorRotation normalized = rotation == null ? MirrorRotation.DEGREES_0 : rotation;
 		if(mirrorRotation == normalized)
 		{
 			return;
@@ -258,17 +257,6 @@ final class LocalPortalSettings
 		portal.save();
 		broadcastSettingsIfEnabled();
 		refreshOpenMenusUnlessApplyingRemote();
-	}
-
-	boolean normalizeMirrorRotationForFrame()
-	{
-		MirrorRotation normalized = (mirrorRotation == null ? MirrorRotation.DEGREES_0 : mirrorRotation).coherentFor(portal.getFrame());
-		if(mirrorRotation == normalized)
-		{
-			return false;
-		}
-		mirrorRotation = normalized;
-		return true;
 	}
 
 	static ProjectionMode resolveProjectionMode(JSONObject j)

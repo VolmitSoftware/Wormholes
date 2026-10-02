@@ -43,6 +43,7 @@ public final class ClientReflectionEntity {
 
     private final Int2ObjectOpenHashMap<Reflection> reflections;
     private final IntOpenHashSet seen;
+    private final IntOpenHashSet meshIds = new IntOpenHashSet();
     private final IntArrayList keys;
     private final double[] point;
     private final double[] direction;
@@ -59,6 +60,10 @@ public final class ClientReflectionEntity {
         return reflections.size();
     }
 
+    public boolean meshEntity(int entityId) {
+        return meshIds.contains(entityId);
+    }
+
     public Entity entity(int portalKey) {
         Reflection reflection = reflections.get(portalKey);
         return reflection == null ? null : reflection.entity;
@@ -71,26 +76,37 @@ public final class ClientReflectionEntity {
             return;
         }
         seen.clear();
+        meshIds.clear();
         keys.clear();
         tick.mirrorKeys(keys);
+        for (ClientPortal portal : session.portals().values()) {
+            if (portal.geometry().mirror() && session.meshes().view(portal.portalKey()) != null && !keys.contains(portal.portalKey())) {
+                keys.add(portal.portalKey());
+            }
+        }
         for (int index = 0; index < keys.size(); index++) {
             int portalKey = keys.getInt(index);
             ClientPortal portal = session.portal(portalKey);
             ClientMirrorBuilder mirror = tick.mirror(portalKey);
-            if (portal == null || mirror == null || !portal.ready() || !visible(portal, mirror.space(), player)) {
+            boolean mesh = session.meshes().view(portalKey) != null;
+            if (portal == null || !mesh && (mirror == null || !portal.ready() || !visible(portal, mirror.space(), player))) {
                 continue;
             }
+            ClientSpace space = mesh ? ClientSpace.mirror(portal.geometry()) : mirror.space();
             Reflection reflection = reflections.get(portalKey);
             if (reflection == null || reflection.entity.isRemoved() || reflection.entity.level() != level) {
                 reflections.remove(portalKey);
-                reflection = spawn(level, player, connection, mirror.space());
+                reflection = spawn(level, player, connection, space);
                 if (reflection == null) {
                     continue;
                 }
                 reflections.put(portalKey, reflection);
             }
             seen.add(portalKey);
-            follow(reflection, player, mirror.space(), upsideDown(mirror.geometry()));
+            if (mesh) {
+                meshIds.add(reflection.entity.getId());
+            }
+            follow(reflection, player, mesh ? ClientSpace.IDENTITY : space, !mesh && upsideDown(portal.geometry()), mesh);
         }
         ObjectIterator<Int2ObjectMap.Entry<Reflection>> iterator = reflections.int2ObjectEntrySet().fastIterator();
         while (iterator.hasNext()) {
@@ -103,6 +119,7 @@ public final class ClientReflectionEntity {
     }
 
     public void clear(ClientLevel level, ClientPacketListener connection) {
+        meshIds.clear();
         ObjectIterator<Reflection> iterator = reflections.values().iterator();
         while (iterator.hasNext()) {
             remove(level, connection, iterator.next());
@@ -147,26 +164,32 @@ public final class ClientReflectionEntity {
         return new Reflection(mannequin);
     }
 
-    private void follow(Reflection reflection, LocalPlayer player, ClientSpace space, boolean upsideDown) {
+    private void follow(Reflection reflection, LocalPlayer player, ClientSpace space, boolean upsideDown, boolean nativeMesh) {
         Mannequin entity = reflection.entity;
-        float height = player.getBbHeight();
-        space.entityToDisplay(player.xOld, player.yOld, player.zOld, height, point);
-        Vec3 previous = new Vec3(point[0], point[1], point[2]);
-        entity.setOldPosAndRot(previous, mirroredYaw(space, player.yRotO, player.xRotO), mirroredPitch(space, player.yRotO, player.xRotO));
-        space.entityToDisplay(player.getX(), player.getY(), player.getZ(), height, point);
-        entity.setPos(point[0], point[1], point[2]);
-        entity.setYRot(mirroredYaw(space, player.getYRot(), player.getXRot()));
-        entity.setXRot(mirroredPitch(space, player.getYRot(), player.getXRot()));
-        entity.yHeadRotO = mirroredYaw(space, player.yHeadRotO, 0.0F);
-        entity.yHeadRot = mirroredYaw(space, player.yHeadRot, 0.0F);
-        entity.yBodyRotO = mirroredYaw(space, player.yBodyRotO, 0.0F);
-        entity.yBodyRot = mirroredYaw(space, player.yBodyRot, 0.0F);
+        if (nativeMesh) {
+            followNativePose(entity, player);
+        } else {
+            float height = player.getBbHeight();
+            space.entityToDisplay(player.xOld, player.yOld, player.zOld, height, point);
+            Vec3 previous = new Vec3(point[0], point[1], point[2]);
+            entity.setOldPosAndRot(previous, mirroredYaw(space, player.yRotO, player.xRotO), mirroredPitch(space, player.yRotO, player.xRotO));
+            space.entityToDisplay(player.getX(), player.getY(), player.getZ(), height, point);
+            entity.setPos(point[0], point[1], point[2]);
+            entity.setYRot(mirroredYaw(space, player.getYRot(), player.getXRot()));
+            entity.setXRot(mirroredPitch(space, player.getYRot(), player.getXRot()));
+            entity.yHeadRotO = mirroredYaw(space, player.yHeadRotO, 0.0F);
+            entity.yHeadRot = mirroredYaw(space, player.yHeadRot, 0.0F);
+            entity.yBodyRotO = mirroredYaw(space, player.yBodyRotO, 0.0F);
+            entity.yBodyRot = mirroredYaw(space, player.yBodyRot, 0.0F);
+        }
         entity.noPhysics = true;
         entity.setDeltaMovement(Vec3.ZERO);
         entity.setPose(player.getPose());
         entity.setShiftKeyDown(player.isShiftKeyDown());
         entity.setInvisible(player.isInvisible());
-        entity.setMainArm(player.getMainArm().getOpposite());
+        if (!nativeMesh) {
+            entity.setMainArm(player.getMainArm().getOpposite());
+        }
         byte parts = player.getEntityData().get(AvatarDataAccessor.wormholesModelParts());
         if (upsideDown) {
             parts = (byte) (parts | PlayerModelPart.CAPE.getMask());
@@ -189,6 +212,18 @@ public final class ClientReflectionEntity {
             entity.swing(swing.hand(), swing.animation(), false);
         }
         reflection.swing = swing;
+    }
+
+    static void followNativePose(Mannequin entity, LocalPlayer player) {
+        entity.setOldPosAndRot(new Vec3(player.xOld, player.yOld, player.zOld), player.yRotO, player.xRotO);
+        entity.setPos(player.getX(), player.getY(), player.getZ());
+        entity.setYRot(player.getYRot());
+        entity.setXRot(player.getXRot());
+        entity.yHeadRotO = player.yHeadRotO;
+        entity.yHeadRot = player.yHeadRot;
+        entity.yBodyRotO = player.yBodyRotO;
+        entity.yBodyRot = player.yBodyRot;
+        entity.setMainArm(player.getMainArm());
     }
 
     private static void copyWalk(WalkAnimationAccessor source, WalkAnimationAccessor target) {

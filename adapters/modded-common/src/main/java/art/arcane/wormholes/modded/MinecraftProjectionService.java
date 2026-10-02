@@ -250,7 +250,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
             return;
         }
         List<MinecraftPortal> candidates = portals.portals();
-        doorViews = runtime.configuration().settings().getDoors().projectionEnabled ? runtime.doors().projectableViews() : List.of();
+        doorViews = runtime.doors().projectableViews();
         MinecraftClientViewService clientViews = runtime.clientViews();
         clientViews.tick(tick, players, candidates);
         long deadline = config.maxFrameMicros <= 0 ? Long.MAX_VALUE : System.nanoTime() + config.maxFrameMicros * 1_000L;
@@ -351,6 +351,9 @@ public final class MinecraftProjectionService implements AutoCloseable {
     }
 
     public boolean isDoorProjected(UUID observerId, UUID endpointId) {
+        if (runtime.clientViews().owns(observerId, endpointId)) {
+            return true;
+        }
         Observer observer = observers.get(observerId);
         if (observer == null || !observer.doorwayViews.contains(endpointId)) {
             return false;
@@ -394,6 +397,10 @@ public final class MinecraftProjectionService implements AutoCloseable {
 
     public ProjectionWorldChangeTracker changes() {
         return changes;
+    }
+
+    public List<MinecraftDoorService.DoorView> projectableDoors() {
+        return doorViews;
     }
 
     public void playerDisconnected(ServerPlayer player) {
@@ -568,7 +575,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
 
         private int update(List<MinecraftPortal> candidates, int budget, long deadline) {
             List<MinecraftPortal> available = new ArrayList<>(candidates);
-            available.addAll(doorwayViews.update(player, doorViews));
+            available.addAll(doorwayViews.update(player, doorViews, false));
             ArrayList<MinecraftPortal> active = new ArrayList<>();
             Set<UUID> activeIds = new HashSet<>();
             MinecraftClientViewService clientViews = runtime.clientViews();

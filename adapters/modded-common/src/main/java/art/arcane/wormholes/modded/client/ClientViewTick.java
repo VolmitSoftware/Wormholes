@@ -62,11 +62,18 @@ public final class ClientViewTick implements ClientViewSession.Sink {
     private ClientAtmosphere atmosphere;
     private int clientTick;
     private long protocolFailures;
+    private boolean nativeModeApplied;
     private boolean ackDue;
     private int ackSequence;
     private long appliedSinceAck;
     private long sendFailures;
+    private long handledSendFailures;
+    private long handledDecodeFailures;
+    private int nextRecoveryTick;
     private boolean handleFailureLogged;
+    private boolean effectsActive = true;
+    private boolean frameEffectsActive = true;
+    private long effectsResumedAtNanos;
 
     public ClientViewTick(ClientViewSession session, ClientViewReceiver receiver, WormholesClientConfig config, ClientViewStats stats) {
         this.session = Objects.requireNonNull(session, "session");
@@ -89,6 +96,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         this.nested = new ClientNestedViews(session, ClientViewProtocol.MAX_GEOMETRY_DEPTH, touchedSections);
         this.mirrors = new Int2ObjectOpenHashMap<>(4);
         this.sender = message -> { };
+        this.effectsResumedAtNanos = System.nanoTime();
     }
 
     public void sender(Consumer<ClientViewMessage> value) {
@@ -110,9 +118,11 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         surface.attachLight(light);
         entities = new ClientProjectedEntities(scene);
         fx = new ClientFxRunner(scene);
+        fx.particlesActive(effectsActive);
         atmosphere = new ClientAtmosphere(scene, config.atmosphereDominanceBlocks);
         nested.bind(applier, overlay);
         mirrors.clear();
+        nativeModeApplied = false;
         ProjectionOverlay.activate(overlay);
         ObjectIterator<ClientPortal> portals = session.portals().values().iterator();
         while (portals.hasNext()) {
@@ -185,11 +195,36 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         return sendFailures;
     }
 
+    public void effectsActive(boolean active) {
+        if (effectsActive == active) {
+            return;
+        }
+        effectsActive = active;
+        if (active) {
+            effectsResumedAtNanos = System.nanoTime();
+        }
+        if (fx != null) {
+            fx.particlesActive(active);
+        }
+    }
+
     public void tick(double eyeX, double eyeY, double eyeZ, double velocityX, double velocityY, double velocityZ, long nowMillis) {
         clientTick++;
+        syncRendererSelection();
         drainFrames();
-        if (sendFailures > 0L) {
+        syncRendererSelection();
+        long decodeFailures = receiver.decodeFailures();
+        if (sendFailures > handledSendFailures || session.nativeSelected() && decodeFailures > handledDecodeFailures) {
+            handledSendFailures = sendFailures;
+            handledDecodeFailures = decodeFailures;
             session.abandon(this);
+        }
+        if (session.state() == ClientViewSession.State.NATIVE_RECOVERING && clientTick >= nextRecoveryTick) {
+            nextRecoveryTick = clientTick + 20;
+            ClientViewMessage.Hello hello = session.recoveryHello();
+            if (hello != null) {
+                sender.accept(hello);
+            }
         }
         if (!session.active()) {
             misses.clear();
@@ -202,18 +237,21 @@ public final class ClientViewTick implements ClientViewSession.Sink {
             sendAck(0L);
             return;
         }
-        long applied = sweepAll(eyeX, eyeY, eyeZ, velocityX, velocityY, velocityZ);
-        assertLight();
-        applier.flush();
-        light.tick();
-        entities.tick(portals);
+        long applied = 0L;
+        if (!session.nativeSelected()) {
+            applied = sweepAll(eyeX, eyeY, eyeZ, velocityX, velocityY, velocityZ);
+            assertLight();
+            applier.flush();
+            light.tick();
+        }
+        entities.tick(portals, key -> session.nativeSelected() || session.meshes().view(key) != null);
         fx.tick(portals);
-        atmosphere.tick(eyeX, eyeY, eyeZ, portals);
+        atmosphere.tick(eyeX, eyeY, eyeZ, portals, session.meshes(), effectsActive);
         sendMisses();
         sendAck(applied);
         if (session.has(ClientViewCapability.VIEW_STATS) && stats.reportDue(nowMillis)) {
             sender.accept(stats.report(nowMillis, clientTick, session.portals().size(), overlay.size(), session.palette().unknownStates(),
-                session.plates().plateMb()));
+                session.memoryMb()));
         }
     }
 
@@ -276,6 +314,20 @@ public final class ClientViewTick implements ClientViewSession.Sink {
     }
 
     @Override
+    public void meshStarted(ClientPortal portal) {
+        if (applier != null) {
+            touchedSections.addAll(light.sectionsOf(portal.portalKey()));
+            applier.revertPortal(portal.portalKey());
+            nested.drop(portal.portalKey());
+        }
+    }
+
+    @Override
+    public void meshAck(ClientViewMessage.MeshAck ack) {
+        sender.accept(ack);
+    }
+
+    @Override
     public void brickMiss(ClientViewMessage.BrickMiss.Plate plate) {
         misses.add(plate);
     }
@@ -310,7 +362,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
     @Override
     public void fx(ClientViewMessage.Fx message) {
         if (fx != null) {
-            fx.apply(message, portals);
+            fx.apply(message, portals, frameEffectsActive);
         }
     }
 
@@ -336,25 +388,54 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         revertEverything();
         stats.reset();
         sendFailures = 0L;
+        handledSendFailures = 0L;
+        handledDecodeFailures = receiver.decodeFailures();
+        nextRecoveryTick = 0;
         handleFailureLogged = false;
+    }
+
+    private void syncRendererSelection() {
+        if (!session.nativeSelected()) {
+            nativeModeApplied = false;
+            return;
+        }
+        if (nativeModeApplied) {
+            return;
+        }
+        revertEverything();
+        session.clearPlateContent();
+        touchedSections.clear();
+        misses.clear();
+        appliedSinceAck = 0L;
+        nativeModeApplied = true;
     }
 
     private void drainFrames() {
         drained.clear();
         receiver.drain(drained, MAX_FRAMES_PER_TICK);
         for (int index = 0; index < drained.size(); index++) {
+            syncRendererSelection();
             ClientViewReceiver.Queued queued = drained.get(index);
             stats.frame(queued.bytes());
+            frameEffectsActive = queued.receivedNanos() - effectsResumedAtNanos >= 0L;
             try {
                 session.handle(queued.frame().message(), this);
             } catch (ClientViewProtocolException failure) {
                 protocolFailures++;
+                if (session.nativeSelected()) {
+                    session.abandon(this);
+                }
             } catch (RuntimeException failure) {
                 protocolFailures++;
+                if (session.nativeSelected()) {
+                    session.abandon(this);
+                }
                 if (!handleFailureLogged) {
                     handleFailureLogged = true;
                     LOGGER.warn("Wormholes ClientView dropped a {} message it could not apply", queued.frame().message().type(), failure);
                 }
+            } finally {
+                frameEffectsActive = true;
             }
             if (queued.frame().last() && session.active()) {
                 int seq = queued.frame().seq();
@@ -373,7 +454,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         } catch (RuntimeException failure) {
             sendFailures++;
             if (sendFailures == 1L) {
-                LOGGER.warn("Wormholes ClientView could not send {} to the server; this connection falls back to vanilla projection",
+                LOGGER.warn("Wormholes ClientView could not send {} to the server; native views will retry when the connection is available",
                     message.type(), failure);
             }
         }
@@ -385,7 +466,7 @@ public final class ClientViewTick implements ClientViewSession.Sink {
         ObjectIterator<ClientPortal> portals = session.portals().values().iterator();
         while (portals.hasNext()) {
             ClientPortal portal = portals.next();
-            if (portal.ready() && !portal.nested()) {
+            if (portal.ready() && !portal.nested() && session.meshes().view(portal.portalKey()) == null) {
                 order.add(portal);
             }
         }

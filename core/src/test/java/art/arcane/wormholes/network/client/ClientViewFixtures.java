@@ -1,5 +1,8 @@
 package art.arcane.wormholes.network.client;
 
+import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.util.Direction;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -50,7 +53,23 @@ final class ClientViewFixtures {
         out.add(new Vector("ack", new ClientViewMessage.Ack(13, 400, 12345), ClientViewCapability.NONE, 0, 0));
         out.add(new Vector("view_stats", new ClientViewMessage.ViewStats(500, 3, 250000, 2, 640, 1900, 96), ClientViewCapability.NONE, 0, 0));
         out.add(new Vector("plate_refused", new ClientViewMessage.PlateRefused(7, 3), ClientViewCapability.NONE, 0, 0));
+        out.add(new Vector("mesh_begin", new ClientViewMessage.MeshBegin(7, 12, new PlateBox(-512, -64, -512, 1024, 512, 512), 1024), ClientViewCapability.ALL, 14, 0));
+        out.add(new Vector("mesh_section", new ClientViewMessage.MeshSection(7, 12, -32, 4, -10, 1, 3, litBrick(0), new SectionBiomes(List.of("minecraft:plains"), new byte[0])), ClientViewCapability.ALL, 15, 0));
+        out.add(new Vector("mesh_drop", new ClientViewMessage.MeshDrop(7, 12, -32, 4, -10), ClientViewCapability.ALL, 16, 0));
+        out.add(new Vector("mesh_ack", new ClientViewMessage.MeshAck(7, 12, -32, 4, -10, 1), ClientViewCapability.NONE, 0, 0));
+        out.add(new Vector("environment", new ClientViewMessage.Environment(7, environment()), ClientViewCapability.ALL, 17, 0));
         return out;
+    }
+
+    static ClientViewEnvironment environment() {
+        ClientViewEnvironment.Color color = new ClientViewEnvironment.Color(0.125F, 0.5F, 1.25F);
+        ClientViewEnvironment.ColorAlpha alpha = new ClientViewEnvironment.ColorAlpha(0.75F, 0.5F, 0.25F, 0.5F);
+        return new ClientViewEnvironment(18000L,
+            new ClientViewEnvironment.Sky(ClientViewEnvironment.Skybox.OVERWORLD, 1.5F, 2.5F, 3.5F, 0.8F, alpha, color, 5, 0.25F, 0.5F),
+            new ClientViewEnvironment.Fog(color, -8.0F, 96.0F, 512.0F, 256.0F, color, 0.0F, 32.0F),
+            new ClientViewEnvironment.Lighting(color, 0.75F, color, color), new ClientViewEnvironment.Clouds(alpha, 192.0F),
+            new ClientViewEnvironment.Transform(Direction.N, Direction.U, Direction.E, new GeometryVector(-128.5D, 96.0D, 33.25D)),
+            new ClientViewEnvironment.Dimension(-64, 384, true, ClientViewEnvironment.CardinalLighting.DEFAULT, 63.0D, false));
     }
 
     static ClientViewMessage.Offer offer() {

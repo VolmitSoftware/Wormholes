@@ -94,6 +94,21 @@ public final class ClientViewEntityTransform {
         return new Projected(local, metadataTransform);
     }
 
+    public Projected nativeModel(EntityVisual visual, Frame frame, boolean hanging, long secret) {
+        Objects.requireNonNull(visual, "visual");
+        Objects.requireNonNull(frame, "frame");
+        mapPoint(visual.x(), hanging ? visual.y() : visual.y() + visual.height() * 0.5D, visual.z(), frame, point);
+        if (!inVolume(point[0], point[1], point[2], frame)) {
+            return null;
+        }
+        EntityVisual source = new EntityVisual(EntityVisual.MODE_FULL, 0, EntityVisual.FIELD_ALL_FULL, opaque(secret, visual.id()),
+            visual.typeKey(), visual.x(), visual.y(), visual.z(), visual.height(), visual.lookX(), visual.lookY(), visual.lookZ(),
+            visual.yaw(), visual.pitch(), visual.velocityX(), visual.velocityY(), visual.velocityZ(), visual.onGround(), visual.playerName(),
+            visual.textureValue(), visual.textureSignature(), opaque(secret, visual.passengerOf()), opaque(secret, visual.leashHolder()),
+            visual.metadata(), visual.equipment(), EntityVisual.EMPTY);
+        return new Projected(source, ProjectedItemFrameTransform.NONE);
+    }
+
     private boolean inVolume(double x, double y, double z, Frame frame) {
         PortalFrame local = frame.localFrame();
         Direction normal = local.getNormal();
@@ -139,6 +154,11 @@ public final class ClientViewEntityTransform {
         public Frame {
             Objects.requireNonNull(localFrame, "localFrame");
             Objects.requireNonNull(remoteFrame, "remoteFrame");
+        }
+
+        public Frame withDepth(double value) {
+            return new Frame(localOriginX, localOriginY, localOriginZ, localFrame, remoteOriginX, remoteOriginY, remoteOriginZ,
+                remoteFrame, mirror, quarterTurns, frontSide, value);
         }
 
         public PortalFrame localViewFrame() {

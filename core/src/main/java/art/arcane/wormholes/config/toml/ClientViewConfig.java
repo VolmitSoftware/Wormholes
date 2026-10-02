@@ -36,7 +36,7 @@ public class ClientViewConfig {
     public boolean viewStats = true;
     @ConfigDescription("Let modded clients draw mirror portals from their own loaded chunks, so mirror plates are never built or streamed for them.")
     public boolean clientMirror = true;
-    @ConfigDescription("Stream the portals visible inside an attended mirror as nested geometry with their own plates, so modded clients show their destination instead of an empty aperture.")
+    @ConfigDescription("Stream nested mirror and portal destination views. Native rendering supports up to three nested steps and sixteen nested views per primary view.")
     public boolean clientRecursion = true;
 
     public void normalizeRuntimeBounds() {

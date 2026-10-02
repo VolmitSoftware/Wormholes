@@ -48,14 +48,14 @@ public final class ClientViewReceiver {
         switch (frame.message()) {
             case ClientViewMessage.Offer offer -> {
                 ClientViewMessage.Hello hello = session.offer(offer);
-                enqueue(new Queued(new ClientViewCodec.S2CFrame(frame.seq(), 0, offer), payload.length));
+                enqueue(new Queued(new ClientViewCodec.S2CFrame(frame.seq(), 0, offer), payload.length, System.nanoTime()));
                 if (hello != null && reply != null && !send(reply, hello)) {
                     session.unanswered();
                 }
             }
             case ClientViewMessage.Accept accept -> session.accept(accept);
             case ClientViewMessage.Decline decline -> session.decline(decline);
-            default -> enqueue(new Queued(frame, payload.length));
+            default -> enqueue(new Queued(frame, payload.length, System.nanoTime()));
         }
     }
 
@@ -109,11 +109,11 @@ public final class ClientViewReceiver {
             return true;
         } catch (ClientViewProtocolException | RuntimeException failure) {
             replyFailures.incrementAndGet();
-            LOGGER.warn("Wormholes ClientView could not answer the server offer with {}; staying on vanilla projection", message.type(), failure);
+            LOGGER.warn("Wormholes ClientView could not answer the server offer with {}; awaiting connection recovery", message.type(), failure);
             return false;
         }
     }
 
-    public record Queued(ClientViewCodec.S2CFrame frame, int bytes) {
+    public record Queued(ClientViewCodec.S2CFrame frame, int bytes, long receivedNanos) {
     }
 }

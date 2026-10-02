@@ -30,6 +30,7 @@ public final class ViewPlate<B> {
     private final int maxChunkX;
     private final int maxChunkZ;
     private final long bytes;
+    private final PlateEnvironment environment;
     private final long builtNanos;
     private volatile long lastUsedNanos;
     private volatile long dirtCheckedVersion;
@@ -45,7 +46,7 @@ public final class ViewPlate<B> {
                      int minChunkZ,
                      int maxChunkX,
                      int maxChunkZ,
-                     long bytes) {
+                     long bytes, PlateEnvironment environment) {
         this.key = key;
         this.grid = grid;
         this.destinationRevision = destinationRevision;
@@ -56,7 +57,8 @@ public final class ViewPlate<B> {
         this.minChunkZ = minChunkZ;
         this.maxChunkX = maxChunkX;
         this.maxChunkZ = maxChunkZ;
-        this.bytes = Math.max(BASE_BYTES, bytes);
+        this.bytes = Math.max(BASE_BYTES, bytes) + (environment == null ? 0 : environment.bytes());
+        this.environment = environment;
         this.builtNanos = System.nanoTime();
         this.lastUsedNanos = builtNanos;
         this.dirtCheckedVersion = trackerVersion;
@@ -68,6 +70,10 @@ public final class ViewPlate<B> {
 
     public static <B> long estimateBytes(PlateGrid<B> grid) {
         return BASE_BYTES + grid.bytes();
+    }
+
+    public PlateEnvironment environment() {
+        return environment;
     }
 
     public ViewPlateKey key() {

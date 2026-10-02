@@ -71,26 +71,25 @@ public final class ClientViewSceneCapture {
         this.sources = new ConcurrentHashMap<UUID, Source>();
     }
 
-    public synchronized List<EntityVisual> entities(ILocalPortal portal, ClientViewPortalSource source, long tick) {
-        ClientViewEntityTransform.Frame frame = source.transformFrame();
+    public synchronized List<EntityVisual> entities(ClientViewPortalSource source, ClientViewEntityTransform.Frame frame, long tick, boolean nativeMesh) {
         ProjectionWorldView view = source.destinationView();
         if (frame == null || view == null || !Settings.ENTITY_SPOOFING || Settings.MAX_SPOOFED_ENTITIES <= 0) {
             return List.of();
         }
         double range = Math.min(Settings.ENTITY_SPOOF_RANGE, frame.depth());
-        boolean upsideDown = transform.upsideDown(frame);
+        boolean upsideDown = !nativeMesh && transform.upsideDown(frame);
         List<EntityVisual> out = new ArrayList<EntityVisual>();
         if (view instanceof ProjectionEntityView entityView && (source.regionSnapshots() || source.destinationWorld() == null)) {
             List<EntityVisual> visuals = entityView.getEntities(frame.remoteOriginX(), frame.remoteOriginY(), frame.remoteOriginZ(), range);
             for (int i = 0; i < visuals.size() && out.size() < Settings.MAX_SPOOFED_ENTITIES; i++) {
                 EntityVisual visual = visuals.get(i);
-                project(withProfile(visual, entityView.getProfile(visual.id())), frame, upsideDown, tick, new Source(entityView, visual.id(), true), out);
+                project(withProfile(visual, entityView.getProfile(visual.id())), frame, upsideDown, tick, new Source(entityView, visual.id(), true), out, nativeMesh);
             }
         } else if (source.destinationWorld() != null) {
             World world = source.destinationWorld();
             Location center = new Location(world, frame.remoteOriginX(), frame.remoteOriginY(), frame.remoteOriginZ());
             IPortal anchor = source.destinationAnchor();
-            ILocalPortal key = anchor instanceof ILocalPortal local ? local : portal;
+            ILocalPortal key = anchor instanceof ILocalPortal local ? local : source.portal();
             Collection<Entity> nearby = EntityRenderCaches.nearbyRemoteEntities(key, center, range);
             for (Entity entity : nearby) {
                 if (out.size() >= Settings.MAX_SPOOFED_ENTITIES) {
@@ -99,7 +98,7 @@ public final class ClientViewSceneCapture {
                 if (!ProjectionEntityFilter.canCapture(entity)) {
                     continue;
                 }
-                project(capture(entity, tick), frame, upsideDown, tick, new Source(null, entity.getUniqueId(), entity.isVisibleByDefault()), out);
+                project(capture(entity, tick), frame, upsideDown, tick, new Source(null, entity.getUniqueId(), entity.isVisibleByDefault()), out, nativeMesh);
             }
         }
         sweep(tick);
@@ -121,12 +120,12 @@ public final class ClientViewSceneCapture {
         return observer != null && ClientViewEntityTransform.opaque(secret, observer.getUniqueId()).equals(opaqueId);
     }
 
-    public BrickLightSource light(ClientViewPortalSource source, ViewPlate<BlockData> plate) {
+    public BrickLightSource light(ClientViewPortalSource source, ViewPlate<BlockData> plate, boolean mesh) {
         if (plate == null) {
             return BrickLightSource.NONE;
         }
         ProjectedBlockClaim.LightingPolicy policy = source.lightingPolicy();
-        if (policy == ProjectedBlockClaim.LightingPolicy.LOCAL) {
+        if (!mesh && policy == ProjectedBlockClaim.LightingPolicy.LOCAL) {
             return BrickLightSource.NONE;
         }
         ClientViewEntityTransform.Frame frame = source.transformFrame();
@@ -135,7 +134,7 @@ public final class ClientViewSceneCapture {
         if (frame == null || world == null || view == null) {
             return BrickLightSource.NONE;
         }
-        boolean fullBright = policy == ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT;
+        boolean fullBright = !mesh && policy == ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT;
         return lights.light(plate, () -> {
             ClientViewPlateLight.Sampler sampler = fullBright ? (x, y, z) -> ProjectionContentView.packLight(15, 15)
                 : source.regionSnapshots() ? view::getLight : snapshot(world, ClientViewPlateLight.remoteBox(plate.box(), frame));
@@ -144,11 +143,12 @@ public final class ClientViewSceneCapture {
     }
 
     private void project(EntityVisual visual, ClientViewEntityTransform.Frame frame, boolean upsideDown, long tick, Source source,
-                         List<EntityVisual> out) {
+                         List<EntityVisual> out, boolean nativeMesh) {
         String type = visual.typeKey();
         boolean itemFrame = ITEM_FRAME.equals(type) || GLOW_ITEM_FRAME.equals(type);
         boolean hanging = itemFrame || PAINTING.equals(type);
-        ClientViewEntityTransform.Projected projected = transform.project(visual, frame, hanging, itemFrame, secret);
+        ClientViewEntityTransform.Projected projected = nativeMesh ? transform.nativeModel(visual, frame, hanging, secret)
+            : transform.project(visual, frame, hanging, itemFrame, secret);
         if (projected == null) {
             return;
         }
@@ -210,7 +210,7 @@ public final class ClientViewSceneCapture {
         }
         String name = entity instanceof Player player ? player.getName() : "";
         return EntityVisual.full(id, entity.getType().getKey().toString(), location.getX(), location.getY(), location.getZ(), entity.getHeight(),
-            look.getX(), look.getY(), look.getZ(), location.getYaw(), location.getPitch(), velocity.getX(), velocity.getY(), velocity.getZ(),
+            look.getX(), look.getY(), look.getZ(), entity instanceof LivingEntity living ? WormholesPlatform.bodyYaw(living, location.getYaw()) : location.getYaw(), location.getPitch(), velocity.getX(), velocity.getY(), velocity.getZ(),
             entity.isOnGround(), name, current.textures[0], current.textures[1], vehicle, leash, current.metadata, current.equipment,
             EntityVisual.EMPTY, 0);
     }

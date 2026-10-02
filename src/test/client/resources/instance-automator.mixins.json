@@ -2,6 +2,18 @@
   "required": true,
   "package": "art.arcane.automator.mixin",
   "compatibilityLevel": "JAVA_25",
-  "client": ["MinecraftMixin", "MouseHandlerMixin", "ScreenMixin", "ContainerScreenAccessor", "KeyMappingAccessor", "DefaultPlayerSkinAccessor"],
-  "injectors": {"defaultRequire": 1}
+  "client": [
+    "MinecraftMixin",
+    "MouseHandlerMixin",
+    "ScreenMixin",
+    "ContainerScreenAccessor",
+    "KeyMappingAccessor",
+    "DefaultPlayerSkinAccessor",
+    "WindowMixin",
+    "InputConstantsMixin",
+    "FramerateLimitTrackerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
 }

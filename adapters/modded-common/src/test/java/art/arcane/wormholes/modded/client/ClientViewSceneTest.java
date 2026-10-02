@@ -217,6 +217,89 @@ public class ClientViewSceneTest {
     }
 
     @Test
+    public void suspendedParticlesKeepEmitterCadenceAndSoundsWithoutAccumulatingAnimations() throws ClientViewProtocolException {
+        ClientViewHarness harness = new ClientViewHarness();
+        harness.stream();
+        ClientViewMessage.FxEmitter rim = new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.RIM_DUST, "", 0.0D, 64.0D, 10.0D,
+            0x00FF00, 1.0F, 5, 1);
+        ClientViewMessage.FxEmitter open = ClientViewEmitters.animation(PortalAnimation.Mode.OPEN, new GeometryVector(1.5D, 65.0D, 10.5D),
+            new GeometryVector(3.0D, 4.0D, 0.0D), VisualQualityProfile.BALANCED);
+        ClientViewMessage.FxEmitter chime = ClientViewEmitters.sound(new AcousticsBridge.Playback("minecraft:block.stone.break",
+            AcousticsProfile.SoundClass.WORLD, 1.5D, 65.0D, 10.5D, 1.0F, 0.8F), 0);
+        harness.receive(new ClientViewMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of(rim)), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.Fx(ClientViewProtocol.WORLD_FX_KEY, List.of(open)), ClientViewProtocol.FLAG_LAST);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        assertEquals(1, harness.tick.fx().animations());
+        harness.tick.effectsActive(false);
+        assertEquals(0, harness.tick.fx().animations());
+        int particles = harness.scene.particles.size();
+        for (int index = 0; index < 201; index++) {
+            harness.receive(new ClientViewMessage.Fx(ClientViewProtocol.WORLD_FX_KEY, List.of(open, chime)), ClientViewProtocol.FLAG_LAST);
+            harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        }
+        assertEquals(particles, harness.scene.particles.size());
+        assertEquals(0, harness.tick.fx().animations());
+        assertEquals(201L, harness.scene.events.stream().filter(entry -> entry.startsWith("sound ")).count());
+        assertEquals(0, harness.receiver.pending());
+        harness.tick.effectsActive(true);
+        for (int index = 0; index < 2; index++) {
+            harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+            assertEquals(particles, harness.scene.particles.size());
+        }
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        assertEquals(particles + 1, harness.scene.particles.size());
+        assertEquals(0, harness.tick.fx().animations());
+    }
+
+    @Test
+    public void resumeDiscardsQueuedOneShotsButAppliesCurrentContinuousEmitters() throws ClientViewProtocolException {
+        ClientViewHarness harness = new ClientViewHarness();
+        harness.stream();
+        harness.tick.effectsActive(false);
+        ClientViewMessage.FxEmitter rim = new ClientViewMessage.FxEmitter(ClientViewMessage.FxKind.RIM_DUST, "", 0.0D, 64.0D, 10.0D,
+            0x00FF00, 1.0F, 1, 1);
+        ClientViewMessage.FxEmitter burst = ClientViewEmitters.burst("minecraft:reverse_portal", 1.5D, 65.0D, 10.5D, 12, 0.4D, 0.6D, 0.4D);
+        ClientViewMessage.FxEmitter sound = ClientViewEmitters.sound(new AcousticsBridge.Playback("minecraft:block.stone.break",
+            AcousticsProfile.SoundClass.WORLD, 1.5D, 65.0D, 10.5D, 1.0F, 0.8F), 0);
+        harness.receive(new ClientViewMessage.Fx(ClientViewProtocol.WORLD_FX_KEY, List.of(sound)), ClientViewProtocol.FLAG_LAST);
+        harness.receive(new ClientViewMessage.Fx(ClientViewHarness.PORTAL_KEY, List.of(rim, burst)), ClientViewProtocol.FLAG_LAST);
+        for (int index = 0; index < 4100; index++) {
+            harness.receive(new ClientViewMessage.Fx(ClientViewProtocol.WORLD_FX_KEY, List.of(burst)), ClientViewProtocol.FLAG_LAST);
+        }
+        harness.tick.effectsActive(true);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        assertTrue(harness.receiver.pending() > 0);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        assertEquals(0, harness.receiver.pending());
+        assertEquals(List.of("dust ff00", "dust ff00"), harness.scene.particles);
+        assertEquals(1L, harness.scene.events.stream().filter(entry -> entry.startsWith("sound ")).count());
+        assertEquals(1, harness.tick.fx().emitters());
+        harness.receive(new ClientViewMessage.Fx(ClientViewProtocol.WORLD_FX_KEY, List.of(burst)), ClientViewProtocol.FLAG_LAST);
+        harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, ClientViewHarness.EYE_Z);
+        assertEquals(1L, harness.scene.particles.stream().filter(entry -> entry.equals("burst minecraft:reverse_portal x12")).count());
+    }
+
+    @Test
+    public void suspendedDestinationWeatherDoesNotEmitParticles() throws ClientViewProtocolException {
+        ClientViewHarness harness = new ClientViewHarness();
+        harness.stream();
+        harness.receive(new ClientViewMessage.Atmosphere(ClientViewHarness.PORTAL_KEY, 18000L, 0.8F, 0.5F,
+            ClientViewMessage.Atmosphere.FLAG_TIME | ClientViewMessage.Atmosphere.FLAG_WEATHER), ClientViewProtocol.FLAG_LAST);
+        harness.tick.effectsActive(false);
+        for (int index = 0; index < 200; index++) {
+            harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
+        }
+        assertEquals(0L, harness.tick.atmosphere().weatherParticles());
+        assertTrue(harness.scene.particles.isEmpty());
+        assertEquals(0.8F, harness.scene.rain, 0.0F);
+        harness.tick.effectsActive(true);
+        for (int index = 0; index < 200 && harness.tick.atmosphere().weatherParticles() == 0L; index++) {
+            harness.tick(ClientViewHarness.EYE_X, ClientViewHarness.EYE_Y, 11.0D);
+        }
+        assertTrue(harness.tick.atmosphere().weatherParticles() > 0L);
+    }
+
+    @Test
     public void worldOneShotsRunAnimationsAndBurstsWithoutAPortal() throws ClientViewProtocolException {
         ClientViewHarness harness = new ClientViewHarness();
         harness.stream();

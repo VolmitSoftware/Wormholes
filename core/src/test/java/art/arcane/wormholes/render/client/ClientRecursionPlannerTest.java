@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 
 import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.portal.PortalGeometry;
 import art.arcane.wormholes.render.ProjectedBlockClaim;
 import art.arcane.wormholes.util.AxisAlignedBB;
@@ -15,6 +17,20 @@ import art.arcane.wormholes.util.Direction;
 import org.junit.jupiter.api.Test;
 
 final class ClientRecursionPlannerTest {
+    @Test
+    void nativeReachUsesRotatedDestinationSpaceAndTheFullMeshDistance() {
+        ClientPortalGeometry root = wall(0, 0, 3, List.of()).withDepth(128);
+        ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.S, Direction.U, Direction.W,
+            new GeometryVector(100, 0, -20));
+        assertTrue(ClientRecursionPlanner.destinationReaches(root, transform, new AxisAlignedBB(19, 21, 64, 67, 180, 181)));
+        assertFalse(ClientRecursionPlanner.destinationReaches(root, transform, new AxisAlignedBB(19, 21, 64, 67, 20, 21)));
+        assertFalse(ClientRecursionPlanner.destinationReaches(root, transform, new AxisAlignedBB(19, 21, 64, 67, 260, 261)));
+        ClientViewEnvironment.Transform reflection = new ClientViewEnvironment.Transform(Direction.W, Direction.U, Direction.S,
+            new GeometryVector(1, 0, 0));
+        assertTrue(ClientRecursionPlanner.destinationReaches(root, reflection, new AxisAlignedBB(4, 5, 64, 67, 0, 1)));
+        assertFalse(ClientRecursionPlanner.destinationReaches(root, reflection, new AxisAlignedBB(-5, -4, 64, 67, 0, 1)));
+    }
+
     @Test
     void aRootWithoutNestedPortalsPlansNothing() {
         ClientPortalGeometry root = wall(0, 0, 3, List.of());

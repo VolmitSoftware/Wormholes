@@ -6,6 +6,7 @@ import art.arcane.automator.mixin.KeyMappingAccessor;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
@@ -16,6 +17,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -29,6 +31,8 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.phys.Vec3;
+import org.lwjgl.sdl.SDLMouse;
+import org.lwjgl.sdl.SDLVideo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -193,6 +197,19 @@ public final class ClientBridge {
         return value;
     }
 
+    private static void openWorld(Minecraft client, String name) {
+        if (client.level != null || client.getConnection() != null) {
+            throw new IllegalStateException("Disconnect before opening a singleplayer world");
+        }
+        if (name.isBlank() || name.equals(".") || name.equals("..") || name.contains("/") || name.contains("\\")) {
+            throw new IllegalArgumentException("World name must identify one save directory");
+        }
+        if (!client.getLevelSource().levelExists(name)) {
+            throw new IllegalArgumentException("World does not exist: " + name);
+        }
+        client.createWorldOpenFlows().openWorld(name, () -> client.gui.setScreen(new TitleScreen()));
+    }
+
     private static JsonObject execute(Minecraft client, JsonObject input) {
         String operation = text(input, "op");
         if (!operation.equals("state")) {
@@ -201,6 +218,15 @@ public final class ClientBridge {
         switch (operation) {
             case "state" -> { }
             case "connect" -> connect(client, text(input, "address"));
+            case "open-world" -> openWorld(client, text(input, "name"));
+            case "server-command" -> {
+                IntegratedServer integrated = client.getSingleplayerServer();
+                if (integrated == null) {
+                    throw new IllegalStateException("An integrated server must be running");
+                }
+                String command = text(input, "command");
+                integrated.execute(() -> integrated.getCommands().performPrefixedCommand(integrated.createCommandSourceStack(), command));
+            }
             case "disconnect" -> {
                 turningPlayer = null;
                 pendingWindow = null;
@@ -231,8 +257,16 @@ public final class ClientBridge {
                 pendingWindow = null;
                 client.gui.setScreen(null);
             }
-            case "screenshot" -> screenshot(client, text(input, "name"));
+            case "screenshot" -> screenshot(client.gameRenderer.mainRenderTarget(), text(input, "name"));
+            case "portal-screenshot" -> screenshot(WormholesStatus.portalTarget(integer(input, "portalKey")), text(input, "name"));
+            case "portal-block" -> {
+                JsonObject result = snapshot(client);
+                result.add("portalBlock", WormholesStatus.portalBlock(integer(input, "portalKey"), integer(input, "x"),
+                    integer(input, "y"), integer(input, "z")));
+                return result;
+            }
             case "capture" -> capture(client, input);
+            case "shader" -> IrisStatus.configure(input);
             case "clear-errors" -> {
                 lastError = null;
                 windowError = null;
@@ -486,12 +520,12 @@ public final class ClientBridge {
         }
     }
 
-    private static void screenshot(Minecraft client, String name) {
+    private static void screenshot(RenderTarget target, String name) {
         if (!name.matches("[A-Za-z0-9_-]{1,80}")) {
             throw new IllegalArgumentException("Screenshot name must contain 1-80 letters, digits, dashes or underscores");
         }
         screenshotPath = null;
-        Screenshot.grab(output.toFile(), name + ".png", client.gameRenderer.mainRenderTarget(), 1, message -> {
+        Screenshot.grab(output.toFile(), name + ".png", target, 1, message -> {
             screenshotPath = output.resolve("screenshots").resolve(name + ".png").toString();
             LOGGER.info("Screenshot saved: {} ({})", screenshotPath, message.getString());
         });
@@ -541,9 +575,14 @@ public final class ClientBridge {
         result.addProperty("frameWidth", client.gameRenderer.mainRenderTarget().width);
         result.addProperty("frameHeight", client.gameRenderer.mainRenderTarget().height);
         result.addProperty("paused", client.isPaused());
+        long windowFlags = SDLVideo.SDL_GetWindowFlags(client.getWindow().handle());
+        result.addProperty("hiddenRenderer", HiddenRenderer.enabled());
+        result.addProperty("windowVisible", (windowFlags & SDLVideo.SDL_WINDOW_HIDDEN) == 0);
+        result.addProperty("windowFocused", (windowFlags & SDLVideo.SDL_WINDOW_INPUT_FOCUS) != 0);
         result.addProperty("windowActive", client.isWindowActive());
         result.addProperty("hudVisible", !client.gui.hud.isHidden());
-        result.addProperty("mouseGrabbed", client.mouseHandler.isMouseGrabbed());
+        result.addProperty("mouseGrabbed", client.mouseHandler.isMouseGrabbed() || SDLMouse.SDL_GetWindowRelativeMouseMode(client.getWindow().handle())
+            || SDLVideo.SDL_GetWindowMouseGrab(client.getWindow().handle()));
         result.addProperty("bridgeAttackActive", hasActiveAttackLease());
         result.addProperty("turning", turningPlayer != null);
         result.addProperty("cursorMoving", hasCursor() && System.nanoTime() - cursorStarted < cursorDuration);
@@ -551,6 +590,8 @@ public final class ClientBridge {
         result.addProperty("windowError", windowError);
         result.addProperty("lastError", lastError);
         result.addProperty("screenshotPath", screenshotPath);
+        WormholesStatus.append(result);
+        IrisStatus.append(result);
         JsonObject cursor = new JsonObject();
         cursor.addProperty("x", client.mouseHandler.getScaledXPos(client.getWindow()));
         cursor.addProperty("y", client.mouseHandler.getScaledYPos(client.getWindow()));

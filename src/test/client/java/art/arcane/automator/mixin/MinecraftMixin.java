@@ -1,6 +1,7 @@
 package art.arcane.automator.mixin;
 
 import art.arcane.automator.ClientBridge;
+import art.arcane.automator.HiddenRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,6 +15,13 @@ public abstract class MinecraftMixin {
     @Redirect(method = "handleKeybinds", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/MouseHandler;isMouseGrabbed()Z"))
     private boolean attackMouseGrabbed(MouseHandler mouse) {
         return mouse.isMouseGrabbed() || ClientBridge.hasActiveAttackLease();
+    }
+
+    @Inject(method = "pauseIfInactive", at = @At("HEAD"), cancellable = true)
+    private void keepSimulationRunning(CallbackInfo callback) {
+        if (HiddenRenderer.enabled()) {
+            callback.cancel();
+        }
     }
 
     @Inject(method = "tick", at = @At("HEAD"))

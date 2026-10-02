@@ -5,6 +5,8 @@ import art.arcane.wormholes.modded.MinecraftAcoustics;
 import art.arcane.wormholes.modded.MinecraftAnimationParticles;
 import art.arcane.wormholes.modded.MinecraftPacketBlobs;
 import art.arcane.wormholes.network.view.EntityVisual;
+import art.arcane.wormholes.render.EntityVisualProjection;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import art.arcane.wormholes.portal.effects.PortalAnimation;
 import art.arcane.wormholes.render.acoustics.AcousticsProfile;
 import art.arcane.wormholes.render.ProjectedPlayerNames;
@@ -34,6 +36,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
@@ -52,6 +55,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
     private final Supplier<ClientPacketListener> listener;
     private final MinecraftPacketBlobs blobs;
     private final RandomSource random;
+    private final Int2ObjectOpenHashMap<ClientItemMotion> itemMotion = new Int2ObjectOpenHashMap<>();
     private long failures;
 
     public ClientLevelScene(ClientLevel level, Supplier<ClientPacketListener> listener) {
@@ -75,7 +79,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
             Vec3 velocity = new Vec3(visual.velocityX(), visual.velocityY(), visual.velocityZ());
             int data = hanging(type) ? Direction.getApproximateNearest(visual.lookX(), visual.lookY(), visual.lookZ()).get3DDataValue() : 0;
             new ClientboundAddEntityPacket(entityId, visual.id(), visual.x(), visual.y(), visual.z(), visual.pitch(), visual.yaw(), type, data,
-                velocity, visual.yaw()).handle(connection);
+                velocity, headYaw(visual)).handle(connection);
             return level.getEntity(entityId) != null;
         } catch (RuntimeException failure) {
             failures++;
@@ -84,15 +88,54 @@ public final class ClientLevelScene implements ClientSceneWorld {
     }
 
     @Override
-    public void move(int entityId, EntityVisual visual) {
+    public void move(int entityId, EntityVisual visual, EntityVisual previous) {
         Entity entity = level.getEntity(entityId);
         if (entity == null) {
             return;
         }
-        entity.moveOrInterpolateTo(new Vec3(visual.x(), visual.y(), visual.z()), visual.yaw(), visual.pitch());
-        entity.lerpHeadTo(visual.yaw(), HEAD_LERP_STEPS);
-        entity.lerpMotion(new Vec3(visual.velocityX(), visual.velocityY(), visual.velocityZ()));
-        entity.setOnGround(visual.onGround());
+        ClientItemMotion motion = itemMotion.get(entityId);
+        if (motion != null) {
+            motion.move(visual, previous);
+        } else {
+            move(entity, visual, previous);
+        }
+    }
+
+    @Override
+    public void tick(int entityId, boolean nativeMesh) {
+        Entity entity = level.getEntity(entityId);
+        if (!nativeMesh || !(entity instanceof ItemEntity item)) {
+            itemMotion.remove(entityId);
+            return;
+        }
+        ClientItemMotion motion = itemMotion.get(entityId);
+        if (motion == null) {
+            motion = new ClientItemMotion(item);
+            itemMotion.put(entityId, motion);
+        }
+        motion.tick();
+    }
+
+    static void move(Entity entity, EntityVisual visual, EntityVisual previous) {
+        if (visual.x() != previous.x() || visual.y() != previous.y() || visual.z() != previous.z()
+            || visual.yaw() != previous.yaw() || visual.pitch() != previous.pitch()) {
+            entity.moveOrInterpolateTo(new Vec3(visual.x(), visual.y(), visual.z()), visual.yaw(), visual.pitch());
+        }
+        if (visual.lookX() != previous.lookX() || visual.lookY() != previous.lookY() || visual.lookZ() != previous.lookZ()) {
+            entity.lerpHeadTo(headYaw(visual), HEAD_LERP_STEPS);
+        }
+        if (visual.velocityX() != previous.velocityX() || visual.velocityY() != previous.velocityY()
+            || visual.velocityZ() != previous.velocityZ()) {
+            entity.lerpMotion(new Vec3(visual.velocityX(), visual.velocityY(), visual.velocityZ()));
+        }
+        if (visual.onGround() != previous.onGround()) {
+            entity.setOnGround(visual.onGround());
+        }
+    }
+
+    static float headYaw(EntityVisual visual) {
+        return visual.lookX() * visual.lookX() + visual.lookZ() * visual.lookZ() < 1.0E-12D
+            ? visual.yaw() : EntityVisualProjection.yaw(visual.lookX(), visual.lookZ());
     }
 
     @Override
@@ -133,6 +176,7 @@ public final class ClientLevelScene implements ClientSceneWorld {
 
     @Override
     public void remove(int entityId, EntityVisual visual) {
+        itemMotion.remove(entityId);
         if (level.getEntity(entityId) != null) {
             level.removeEntity(entityId, Entity.RemovalReason.DISCARDED);
         }

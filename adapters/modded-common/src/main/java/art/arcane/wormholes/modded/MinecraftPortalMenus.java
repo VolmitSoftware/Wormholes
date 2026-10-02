@@ -631,9 +631,9 @@ public final class MinecraftPortalMenus implements AutoCloseable {
             window.close();
         }));
         element.onRightClick(clicked -> rotateMirrorImage(element, window, viewer, portal,
-            portal.getMirrorRotation().clockwiseFor(portal.getFrame())));
+            runtime.clientViews().nativeMesh(viewer) ? portal.getMirrorRotation().clockwise() : portal.getMirrorRotation().clockwiseFor(portal.getFrame())));
         element.onShiftRightClick(clicked -> rotateMirrorImage(element, window, viewer, portal,
-            portal.getMirrorRotation().counterClockwiseFor(portal.getFrame())));
+            runtime.clientViews().nativeMesh(viewer) ? portal.getMirrorRotation().counterClockwise() : portal.getMirrorRotation().counterClockwiseFor(portal.getFrame())));
         applyMirrorModeOption(viewer, element, portal);
         return element;
     }
@@ -649,13 +649,17 @@ public final class MinecraftPortalMenus implements AutoCloseable {
         }
         List<String> lore = element.getLore();
         lore.add(MinecraftLegacyText.text(viewer, WormholesMessages.PORTAL_MENU_MIRROR_ROTATION,
-            MinecraftPortalText.arguments("degrees", portal.getMirrorRotation().getDegrees())));
-        if (MirrorRotation.supportsQuarterTurns(portal.getFrame())) {
+            MinecraftPortalText.arguments("degrees", mirrorRotation(viewer, portal).getDegrees())));
+        if (runtime.clientViews().nativeMesh(viewer) || MirrorRotation.supportsQuarterTurns(portal.getFrame())) {
             lore.add(MinecraftLegacyText.text(viewer, WormholesMessages.PORTAL_MENU_MIRROR_ROTATE_CLOCKWISE));
             lore.add(MinecraftLegacyText.text(viewer, WormholesMessages.PORTAL_MENU_MIRROR_ROTATE_COUNTERCLOCKWISE));
             return;
         }
         lore.addAll(MinecraftLegacyText.lines(viewer, WormholesMessages.PORTAL_MENU_MIRROR_FLIP, MessageArgs.empty()));
+    }
+
+    private MirrorRotation mirrorRotation(ServerPlayer viewer, MinecraftPortal portal) {
+        return runtime.clientViews().nativeMesh(viewer) ? portal.getMirrorRotation() : portal.getMirrorRotation().coherentFor(portal.getFrame());
     }
 
     private void rotateMirrorImage(MinecraftElement element, MinecraftWindow window, ServerPlayer viewer, MinecraftPortal portal,
@@ -668,7 +672,7 @@ public final class MinecraftPortalMenus implements AutoCloseable {
         applyMirrorModeOption(viewer, element, portal);
         window.updateInventory();
         MinecraftPortalText.notifySetting(viewer, portal, WormholesMessages.PORTAL_MIRROR_ROTATION_CHANGED,
-            MinecraftPortalText.arguments("degrees", portal.getMirrorRotation().getDegrees()));
+            MinecraftPortalText.arguments("degrees", mirrorRotation(viewer, portal).getDegrees()));
     }
 
     private MinecraftElement directionElement(MinecraftWindow window, ServerPlayer viewer, MinecraftPortal portal) {

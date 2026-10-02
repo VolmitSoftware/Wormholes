@@ -152,7 +152,7 @@ public class ClientMirrorTest {
 
     @Test
     public void withoutTheClientMirrorCapabilityNothingIsDrawnLocally() throws ClientViewProtocolException {
-        Harness harness = new Harness(ClientViewCapability.ALL & ~ClientViewCapability.CLIENT_MIRROR.mask());
+        Harness harness = new Harness(ClientViewHarness.PLATE_CAPS & ~ClientViewCapability.CLIENT_MIRROR.mask());
         harness.receive(new ClientViewMessage.Portal(MIRROR_KEY, 1, mirror(0, List.of())), ClientViewProtocol.FLAG_LAST);
         harness.tick(EYE_X, EYE_Y, EYE_Z);
         assertNull(harness.tick.mirror(MIRROR_KEY));
@@ -288,7 +288,7 @@ public class ClientMirrorTest {
         private int seq;
 
         private Harness() {
-            this(ClientViewCapability.ALL);
+            this(ClientViewHarness.PLATE_CAPS);
         }
 
         private Harness(long acceptedCaps) {

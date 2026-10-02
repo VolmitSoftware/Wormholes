@@ -59,7 +59,7 @@ public final class BukkitProjectorPortalAccess implements ProjectorRecursivePort
 
     @Override
     public int mirrorQuarterTurns(ILocalPortal portal) {
-        return portal.getMirrorRotation().getQuarterTurns();
+        return portal.getMirrorRotation().coherentFor(portal.getFrame()).getQuarterTurns();
     }
 
     @Override

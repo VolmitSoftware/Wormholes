@@ -11,6 +11,7 @@ import art.arcane.wormholes.render.atmosphere.FogPlatePolicy;
 import art.arcane.wormholes.render.lod.LodPolicy;
 import art.arcane.wormholes.render.lod.LodProfile;
 import art.arcane.wormholes.render.plate.PlateCaptureJob;
+import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.render.plate.ViewPlate;
 import art.arcane.wormholes.render.plate.ViewPlateBuilder;
 import art.arcane.wormholes.render.plate.ViewPlateCache;
@@ -39,7 +40,7 @@ public final class MinecraftViewPlates {
         if (!FidelitySettings.sharedPlate || rtp && !FidelitySettings.rtpPlates) {
             return null;
         }
-        long targetIdentity = rtp ? runtime.rtp().plateIdentity(target.observer(), portal) : 0L;
+        long targetIdentity = rtp ? runtime.rtp().plateIdentity(target.observer(), portal) : target.routeIdentity();
         if (rtp && targetIdentity == 0L) {
             return null;
         }
@@ -81,6 +82,35 @@ public final class MinecraftViewPlates {
         });
     }
 
+    public static ViewPlate<BlockState> acquireSection(WormholesModRuntime runtime, ViewPlateCache<BlockState, ServerLevel> plates,
+                                                       Target target, Resolved resolved, PlateBox clip, int distance) {
+        int boundedDistance = Math.clamp(distance, 32, 512);
+        ViewPlateKey original = resolved.key();
+        ViewPlateKey key = new ViewPlateKey(original.portalId(), new MeshSection(original.destinationViewIdentity(), clip),
+            original.frontSide(), original.mirrorQuarterTurns(), original.targetIdentity());
+        long transform = ProjectorPassRevision.mix(resolved.transformRevision(), boundedDistance);
+        ProjectionWorldChangeTracker tracker = runtime.projections().changes();
+        MinecraftPortal portal = target.portal();
+        GeometryVector origin = portal.getOrigin();
+        return plates.current(key, resolved.destinationRevision(), transform, tracker, false, previous -> {
+            ViewPlateBuilder.Request<BlockState, BlockState, ProjectionContentView<BlockState, BlockState>> request = new ViewPlateBuilder.Request<>(
+                key, portal.getGeometry(), target.plateView().get(), portal.getFrame(), target.remoteFrame(), origin.x(), origin.y(),
+                origin.z(), target.originX(), target.originY(), target.originZ(), target.mirrorMode(), target.mirrorQuarterTurns(),
+                boundedDistance, boundedDistance, resolved.padding(), false, target.air(), LodPolicy.NONE, target.blockEntities(),
+                resolved.destinationRevision(), transform, tracker.currentVersion(), MinecraftProjectorBlocks.INSTANCE);
+            if (!(request.destView() instanceof MinecraftProjectionWorldView local)) {
+                return ViewPlateBuilder.sectionJob(request, clip);
+            }
+            PlateBox remote = ViewPlateBuilder.sectionDestinationBox(request, clip);
+            MinecraftPlateCaptureSource.Options capture = new MinecraftPlateCaptureSource.Options(local.worldId(), target.blockEntities(),
+                remote.minY(), remote.minY() + remote.sizeY() - 1, true);
+            return new PlateCaptureJob<>(new PlateCaptureJob.Plan<>(key, local.getWorld(), ViewPlateBuilder.sectionFootprint(request, clip),
+                new MinecraftPlateCaptureSource(runtime, capture), captured -> ViewPlateBuilder.sectionJob(
+                    request.withDestView(new MinecraftCapturedChunkView(local.worldId(), local.getMinHeight(), local.getWorld().getMaxY() + 1,
+                        request.destinationRevision(), captured)), clip)));
+        });
+    }
+
     public static boolean blockEntities(MinecraftPortal portal) {
         return FidelitySettings.blockEntities && (!(portal.setting("fidelity.block_entities") instanceof Boolean enabled) || enabled);
     }
@@ -118,11 +148,14 @@ public final class MinecraftViewPlates {
             ? ViewPlateBuilder.footprint(request)
             : ViewPlateBuilder.patchFootprint(request, dirtyChunks);
         return new PlateCaptureJob<>(new PlateCaptureJob.Plan<>(request.key(), local.getWorld(), footprint,
-            new MinecraftPlateCaptureSource(runtime, local.worldId(), blockEntities), captured -> {
+            new MinecraftPlateCaptureSource(runtime, MinecraftPlateCaptureSource.Options.column(local.worldId(), blockEntities)), captured -> {
                 ViewPlateBuilder.Request<BlockState, BlockState, ProjectionContentView<BlockState, BlockState>> captureRequest = request.withDestView(
                     new MinecraftCapturedChunkView(local.worldId(), local.getMinHeight(), local.getMaxHeight(), request.destinationRevision(), captured));
                 return previous == null ? ViewPlateBuilder.job(captureRequest) : ViewPlateBuilder.patch(captureRequest, previous, dirtyChunks);
             }));
+    }
+
+    private record MeshSection(Object destination, PlateBox clip) {
     }
 
     public record Target(ServerPlayer observer,
@@ -138,7 +171,8 @@ public final class MinecraftViewPlates {
                          boolean front,
                          boolean culling,
                          boolean blockEntities,
-                         BlockState air) {
+                         BlockState air,
+                         long routeIdentity) {
         public Target {
             Objects.requireNonNull(portal, "portal");
             Objects.requireNonNull(destView, "destView");

@@ -40,7 +40,7 @@ public class MinecraftCapturedChunkViewTest {
         sections[8].set(5, 4, 7, stone());
         BlockEntitySample sample = new BlockEntitySample("minecraft:sign", new byte[] {1, 2, 3});
         MinecraftPlateCaptureSource.CapturedChunk chunk = new MinecraftPlateCaptureSource.CapturedChunk(-4, sections,
-            Map.of(ProjectionCellKey.pack(5, 68, 7), sample), false);
+            Map.of(ProjectionCellKey.pack(5, 68, 7), sample), false, null, 0, new String[0][]);
         Long2ObjectOpenHashMap<MinecraftPlateCaptureSource.CapturedChunk> chunks = new Long2ObjectOpenHashMap<>();
         chunks.put(ProjectionWorldChangeTracker.chunkKey(0, 0), chunk);
         MinecraftCapturedChunkView view = new MinecraftCapturedChunkView(worldId, -64, 320, 9L,

@@ -15,7 +15,7 @@ final class ClientViewRateLimiterTest {
         ClientViewRateLimiter limiter = new ClientViewRateLimiter();
         int cap = ClientViewProtocol.MAX_C2S_MESSAGES_PER_SECOND;
         for (int i = 0; i < cap; i++) {
-            assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(1000L + i * 5L, 16), "message " + i);
+            assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(1000L, 16), "message " + i);
         }
         assertEquals(ClientViewRateLimiter.Verdict.DROP, limiter.admit(1600L, 16));
         assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(2001L, 16));
@@ -36,6 +36,18 @@ final class ClientViewRateLimiterTest {
         }
         assertTrue(ClientViewProtocol.MAX_C2S_MESSAGES_PER_SECOND >= (CLIENT_TICKS_PER_SECOND + CATCH_UP_TICKS) * MESSAGES_PER_CLIENT_TICK);
         assertEquals(0L, limiter.dropped());
+    }
+
+    @Test
+    void meshAndFrameAcknowledgementsWithAnInFlightBurstStayWithinTheBound() {
+        ClientViewRateLimiter limiter = new ClientViewRateLimiter();
+        for (int tick = 0; tick < 40; tick++) {
+            int messages = 16 + (tick == 19 ? 64 : 0);
+            for (int message = 0; message < messages; message++) {
+                assertEquals(ClientViewRateLimiter.Verdict.ACCEPT, limiter.admit(tick * 50L, 32));
+            }
+        }
+        assertEquals(0, limiter.dropped());
     }
 
     @Test

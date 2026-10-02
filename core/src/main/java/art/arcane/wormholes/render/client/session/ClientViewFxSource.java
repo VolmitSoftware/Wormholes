@@ -9,6 +9,18 @@ public interface ClientViewFxSource<P> {
 
     ClientViewMessage.Atmosphere atmosphere(P observer, UUID portal, int portalKey, long tick, boolean full);
 
+    default ClientViewMessage.Environment environment(P observer, UUID portal, int portalKey, long tick, boolean full) {
+        return null;
+    }
+
+    default ClientViewMessage.Environment nestedEnvironment(P observer, UUID parent, UUID portal, int portalKey, long tick, boolean full) {
+        return null;
+    }
+
+    default boolean environmentUnavailable(P observer, UUID parent, UUID portal) {
+        return false;
+    }
+
     static <P> ClientViewFxSource<P> none() {
         return new ClientViewFxSource<P>() {
             @Override

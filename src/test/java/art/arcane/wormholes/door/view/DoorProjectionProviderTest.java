@@ -8,6 +8,7 @@ import art.arcane.wormholes.door.DoorForm;
 import art.arcane.wormholes.door.DoorItemIdentity;
 import art.arcane.wormholes.door.DoorOpenState;
 import art.arcane.wormholes.door.DoorPosition;
+import art.arcane.wormholes.door.DoorProjectionState;
 import art.arcane.wormholes.door.DoorwayPlane;
 import art.arcane.wormholes.door.PlacedDoorEndpoint;
 import art.arcane.wormholes.door.RuntimeDoor;
@@ -26,6 +27,7 @@ import java.lang.reflect.Proxy;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -64,11 +66,46 @@ final class DoorProjectionProviderTest {
     }
 
     @Test
+    void nativeObserversIgnoreProjectionSwitchesButStillRequireActiveDoorsAndResolvedRoutes() {
+        for (DoorForm form : DoorForm.values()) {
+            DoorwayPlane plane = form == DoorForm.DOOR ? new DoorwayPlane(10, 64, 10, Direction.N)
+                : DoorwayPlane.trapdoor(10, 64, 10, Direction.N, DoorHalf.BOTTOM, DoorOpenState.OPEN);
+            DoorProjectionAdapter inherited = adapter(plane, form);
+            RuntimeDoor runtime = new RuntimeDoor(inherited.endpoint().withProjection(DoorProjectionState.OFF));
+            runtime.cycle().observe(true);
+            DoorProjectionAdapter disabled = new DoorProjectionAdapter(runtime, plane, WORLD);
+            AtomicBoolean nativeView = new AtomicBoolean();
+            AtomicBoolean globalEnabled = new AtomicBoolean();
+            AtomicReference<DoorProjectionDestination> route = new AtomicReference<>(new DoorProjectionDestination(
+                UUID.randomUUID(), "minecraft:overworld", new GeometryVector(40.5, 65, 40.5), PortalFrame.canonical(Direction.S)));
+            DoorProjectionProvider provider = new DoorProjectionProvider(new DoorProjectionProvider.Options(
+                (source, observerId) -> Optional.ofNullable(route.get()), observer -> nativeView.get(), globalEnabled::get));
+
+            assertFalse(provider.touch(inherited, observer()).projectionEnabled());
+            assertFalse(provider.touch(disabled, observer()).projectionEnabled());
+            nativeView.set(true);
+            assertTrue(provider.touch(inherited, observer()).projectionEnabled());
+            assertTrue(provider.touch(disabled, observer()).projectionEnabled());
+            runtime.cycle().observe(false);
+            assertFalse(provider.touch(disabled, observer()).projectionEnabled());
+            runtime.cycle().observe(true);
+            route.set(null);
+            assertFalse(provider.touch(disabled, observer()).projectionEnabled());
+            route.set(new DoorProjectionDestination(UUID.randomUUID(), "minecraft:overworld", new GeometryVector(40.5, 65, 40.5),
+                PortalFrame.canonical(Direction.S)));
+            nativeView.set(false);
+            globalEnabled.set(true);
+            assertTrue(provider.touch(inherited, observer()).projectionEnabled());
+            assertFalse(provider.touch(disabled, observer()).projectionEnabled());
+        }
+    }
+
+    @Test
     void aResolvedDestinationBecomesAReadyTargetTheProjectorCanAimAt() {
         DoorProjectionAdapter adapter = adapter(new DoorwayPlane(10, 64, 10, Direction.N), DoorForm.DOOR);
         PortalFrame destinationFrame = PortalFrame.fromNormalUp(Direction.W, Direction.U);
         UUID routeId = new UUID(0, 702);
-        DoorProjectionProvider provider = new DoorProjectionProvider((requested, observerId) ->
+        DoorProjectionProvider provider = provider((requested, observerId) ->
             Optional.of(new DoorProjectionDestination(
                 routeId, "minecraft:the_nether", new GeometryVector(40.5D, 65.0D, 40.92D), destinationFrame)));
 
@@ -92,7 +129,7 @@ final class DoorProjectionProviderTest {
     void theRouteRevisionOnlyMovesWhenTheDestinationDoes() {
         DoorProjectionAdapter adapter = adapter(new DoorwayPlane(10, 64, 10, Direction.N), DoorForm.DOOR);
         AtomicReference<GeometryVector> origin = new AtomicReference<>(new GeometryVector(40.5D, 65.0D, 40.92D));
-        DoorProjectionProvider provider = new DoorProjectionProvider((requested, observerId) ->
+        DoorProjectionProvider provider = provider((requested, observerId) ->
             Optional.of(new DoorProjectionDestination(
                 new UUID(0, 703), "minecraft:overworld", origin.get(),
                 PortalFrame.fromNormalUp(Direction.W, Direction.U))));
@@ -107,7 +144,7 @@ final class DoorProjectionProviderTest {
     @Test
     void anUnresolvableDestinationSuppressesTheProjectionInsteadOfGuessing() {
         DoorProjectionAdapter adapter = adapter(new DoorwayPlane(10, 64, 10, Direction.N), DoorForm.DOOR);
-        DoorProjectionProvider provider = new DoorProjectionProvider((requested, observerId) -> Optional.empty());
+        DoorProjectionProvider provider = provider((requested, observerId) -> Optional.empty());
 
         ProjectionManager.RtpProjectionResult result = provider.touch(adapter, observer());
 
@@ -126,6 +163,10 @@ final class DoorProjectionProviderTest {
         RuntimeDoor door = new RuntimeDoor(endpoint);
         door.cycle().observe(true);
         return new DoorProjectionAdapter(door, plane, WORLD);
+    }
+
+    private static DoorProjectionProvider provider(DoorApertureDestinations destinations) {
+        return new DoorProjectionProvider(new DoorProjectionProvider.Options(destinations, observer -> false, () -> true));
     }
 
     private static Player observer() {

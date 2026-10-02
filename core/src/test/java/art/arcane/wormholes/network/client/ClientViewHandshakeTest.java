@@ -84,13 +84,13 @@ final class ClientViewHandshakeTest {
     void mismatchesAndPolicyProduceTheRightDecline() {
         ClientViewHandshake wire = handshake(true, 0L);
         ClientViewMessage.Offer offer = wire.offer(0L);
-        ClientViewMessage.Hello badWire = new ClientViewMessage.Hello(2, DATA_VERSION, ClientViewCapability.ALL, 1, 1, 0L, "fabric");
+        ClientViewMessage.Hello badWire = new ClientViewMessage.Hello(ClientViewProtocol.WIRE_VERSION + 1, DATA_VERSION, ClientViewCapability.ALL, 1, 1, 0L, "fabric");
         assertEquals(ClientViewMessage.DeclineReason.WIRE_MISMATCH, ((ClientViewMessage.Decline) wire.onHello(badWire, 1L, true).reply()).reason());
         assertEquals(ClientViewHandshake.State.DECLINED, wire.state());
 
         ClientViewHandshake data = handshake(true, 0L);
         data.offer(0L);
-        ClientViewMessage.Hello badData = new ClientViewMessage.Hello(1, DATA_VERSION + 1, ClientViewCapability.ALL, 1, 1, 0L, "fabric");
+        ClientViewMessage.Hello badData = new ClientViewMessage.Hello(ClientViewProtocol.WIRE_VERSION, DATA_VERSION + 1, ClientViewCapability.ALL, 1, 1, 0L, "fabric");
         assertEquals(ClientViewMessage.DeclineReason.DATA_VERSION_MISMATCH, ((ClientViewMessage.Decline) data.onHello(badData, 1L, true).reply()).reason());
 
         ClientViewHandshake disabled = handshake(false, 0L);

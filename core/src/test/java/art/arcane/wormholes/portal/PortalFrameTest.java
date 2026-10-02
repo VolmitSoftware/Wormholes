@@ -1,6 +1,10 @@
 package art.arcane.wormholes.portal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+
+import java.util.HashSet;
+import java.util.Set;
 
 import art.arcane.wormholes.geometry.GeometryVector;
 import org.junit.jupiter.api.Test;
@@ -10,6 +14,26 @@ import art.arcane.wormholes.util.Direction;
 
 public final class PortalFrameTest {
 	private static final double EPSILON = 1e-9D;
+
+	@Test
+	public void equivalentAxesShareAValueKeyAndDifferentRollsRemainDistinct() {
+		Set<PortalFrame> frames = new HashSet<>();
+		for (Direction normal : Direction.values()) {
+			for (Direction up : Direction.values()) {
+				if (normal.getAxis() == up.getAxis()) {
+					continue;
+				}
+				PortalFrame first = PortalFrame.fromNormalUp(normal, up);
+				PortalFrame second = PortalFrame.fromNormalUp(normal, up);
+				assertEquals(first, second);
+				assertEquals(first.hashCode(), second.hashCode());
+				frames.add(first);
+				frames.add(second);
+			}
+		}
+		assertEquals(24, frames.size());
+		assertNotEquals(PortalFrame.fromNormalUp(Direction.S, Direction.U), PortalFrame.fromNormalUp(Direction.S, Direction.E));
+	}
 
 	@Test
 	public void canonicalDirectionPairsAreInvertible() {

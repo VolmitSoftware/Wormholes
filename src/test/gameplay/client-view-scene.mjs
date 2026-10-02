@@ -96,7 +96,7 @@ function sceneCounter(bot, center, lightRadius) {
 
 export default {
   name: 'client-view-scene',
-  description: 'Glide a negotiated ClientView bot and a vanilla bot through a portal scene and prove the negotiated bot receives no Wormholes entity motion, particle or light packets while the scene frames arrive over wormholes:v1.',
+  description: 'Glide a negotiated ClientView bot and a vanilla bot through a portal scene and prove the negotiated bot receives no Wormholes entity motion, particle or light packets while the scene frames arrive over wormholes:v3.',
   async run(context) {
     const vanilla = context.bot
     const username = process.env.WORMHOLES_SCENE_BOT || 'WhCvScene'

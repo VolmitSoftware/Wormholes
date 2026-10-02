@@ -520,6 +520,10 @@ public class ProjectionManager implements Listener {
         return allocations;
     }
 
+    public ProjectionResolution resolveProjection(ILocalPortal portal, Player observer, long frameTick) {
+        return resolveProjection(rtpProjectionProvider, portal, observer, rtpRimRenderer, frameTick, clientView);
+    }
+
     static ProjectionResolution resolveProjection(RtpProjectionProvider provider, ILocalPortal portal,
                                                   Player observer, RtpRimRenderer rimRenderer, long frameTick, ClientViewRouting clientView) {
         Objects.requireNonNull(portal, "portal");
@@ -992,7 +996,7 @@ public class ProjectionManager implements Listener {
         }
     }
 
-    record ProjectionResolution(boolean projectable, boolean rtp, PortalProjector.RtpProjectionTarget target) {
+    public record ProjectionResolution(boolean projectable, boolean rtp, PortalProjector.RtpProjectionTarget target) {
         private static ProjectionResolution standard() {
             return new ProjectionResolution(true, false, null);
         }

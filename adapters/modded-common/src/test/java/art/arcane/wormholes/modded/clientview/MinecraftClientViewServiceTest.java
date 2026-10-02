@@ -1,5 +1,10 @@
 package art.arcane.wormholes.modded.clientview;
 
+import art.arcane.wormholes.config.WormholesSettings;
+import art.arcane.wormholes.config.toml.MainConfig;
+import art.arcane.wormholes.config.toml.NetworkConfig;
+import art.arcane.wormholes.config.toml.ProjectionConfig;
+import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.modded.MinecraftProjectionService;
 import art.arcane.wormholes.modded.WormholesModConfiguration;
 import art.arcane.wormholes.modded.WormholesModRuntime;
@@ -64,6 +69,7 @@ public class MinecraftClientViewServiceTest {
         Executor lanes = Runnable::run;
         options = options(true);
         when(runtime.configuration()).thenReturn(configuration);
+        when(configuration.settings()).thenReturn(new WormholesSettings(new MainConfig(), new ProjectionConfig(), new RenderConfig(), new NetworkConfig()));
         when(configuration.clientViewOptions()).thenAnswer(ignored -> options);
         when(runtime.projections()).thenReturn(projections);
         when(projections.lanes()).thenReturn(lanes);

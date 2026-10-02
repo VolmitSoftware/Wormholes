@@ -24,6 +24,7 @@ import art.arcane.wormholes.render.atmosphere.AtmosphereMode;
 import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import art.arcane.wormholes.render.client.ClientViewEntityTransform;
 import art.arcane.wormholes.render.plate.ViewPlate;
+import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.render.plate.ViewPlateCache;
 import art.arcane.wormholes.render.view.ProjectionWorldView;
 import art.arcane.wormholes.render.view.ProjectionWorldViewProvider;
@@ -47,6 +48,7 @@ public final class ClientViewPortalSource {
     private ProjectorPlates.Target plateTarget;
     private boolean plateResolved;
     private boolean refused;
+    private boolean nativeMesh;
     private String blackoutState;
     private long geometryRevision;
 
@@ -73,10 +75,11 @@ public final class ClientViewPortalSource {
         touchedTick = tick;
     }
 
-    public void update(Player observer, Location eye, PortalProjector.RtpProjectionTarget rtpTarget, long tick) {
-        if (tick == updatedTick) {
+    public void update(Player observer, Location eye, PortalProjector.RtpProjectionTarget rtpTarget, long tick, boolean nativeMesh) {
+        if (tick == updatedTick && this.nativeMesh == nativeMesh) {
             return;
         }
+        this.nativeMesh = nativeMesh;
         updatedTick = tick;
         touchedTick = tick;
         PortalProjector.RtpProjectionTarget previous = target;
@@ -95,9 +98,12 @@ public final class ClientViewPortalSource {
             return;
         }
         outcome = destination.resolve(observer, rtpTarget);
+        if (nativeMesh && destination.mirrorMode) {
+            destination.mirrorRotationQuarterTurns = portal.getMirrorRotation().getQuarterTurns();
+        }
         frontSide = ProjectorPlates.frontSide(portal, eye);
         FidelityPortalExtension fidelity = ProjectorPlates.fidelity(portal);
-        if (portal.isBlackoutBackground()) {
+        if (!nativeMesh && portal.isBlackoutBackground()) {
             World destinationWorld = outcome == ProjectorDestination.Outcome.READY ? destination.destWorld : null;
             blackout.beginPass(portal.getBlackoutColor(), destinationWorld == null ? null : destinationWorld.getEnvironment(),
                 atmosphereMode(fidelity));
@@ -111,6 +117,9 @@ public final class ClientViewPortalSource {
             return;
         }
         plateTarget = ProjectorPlates.target(portal, destination, frontSide, portal.getRenderMode().usesBuriedCellCulling(), rtpTarget, fidelity);
+        if (nativeMesh) {
+            geometryRevision = ProjectorPassRevision.mix(geometryRevision, meshTargetRevision());
+        }
         if (!ProjectorPlates.enabled(plates, portal, rtpTarget)) {
             refused = true;
             return;
@@ -140,6 +149,13 @@ public final class ClientViewPortalSource {
         return plate;
     }
 
+
+    public ViewPlate<BlockData> meshSection(PlateBox clip, int distance) {
+        if (plateTarget == null || !ProjectorPlates.enabled(plates, portal, target)) {
+            return null;
+        }
+        return ProjectorPlates.acquireSection(plates, views, portal, destination, air, plateTarget, clip, distance);
+    }
 
     public long geometryRevision() {
         return geometryRevision;
@@ -189,11 +205,11 @@ public final class ClientViewPortalSource {
         int blackoutId = blackoutState == null ? ClientViewProtocol.PALETTE_AIR : palette.id(blackoutState);
         FidelityPortalExtension fidelity = ProjectorPlates.fidelity(portal);
         return ClientPortalGeometry.fromPortal(new ClientPortalGeometry.Source(portal.getStructure(), portal.getFrame(), frontSide,
-            mirror, mirror ? portal.getMirrorRotation().getQuarterTurns() : 0, Settings.NEAR_PLANE_PADDING,
+            mirror, mirror ? destination.mirrorRotationQuarterTurns : 0, Settings.NEAR_PLANE_PADDING,
             Settings.PROJECTION_APERTURE_PADDING_BLOCKS, Settings.FRUSTUM_CULLING_RATIO, portal.getNetworkViewDepth(),
             Settings.PROJECTION_RECURSIVE_PORTAL_DEPTH,
             blackoutPolicy, blackoutId, ClientPortalGeometry.MASK_AIR_PROJECT, lightingPolicy(fidelity), fidelityFlags(fidelity),
-            kind(), 0, targetIdentity(rtpTarget, identitySalt), List.of())).orElse(null);
+            kind(), 0, nativeMesh ? ProjectorPassRevision.mix(identitySalt, meshTargetRevision()) : targetIdentity(rtpTarget, identitySalt), List.of())).orElse(null);
     }
 
     public void noteAcoustics(AcousticsBridge<Player> bridge, long nowMillis) {
@@ -250,6 +266,11 @@ public final class ClientViewPortalSource {
             : ClientPortalGeometry.KIND_FRAME;
     }
 
+    private long meshTargetRevision() {
+        return plateTarget == null ? 0L : ProjectorPassRevision.mix(plateTarget.transformRevision(),
+            System.identityHashCode(plateTarget.key().destinationViewIdentity()));
+    }
+
     private static long targetIdentity(PortalProjector.RtpProjectionTarget rtpTarget, long identitySalt) {
         if (rtpTarget == null) {
             return 0L;
@@ -275,7 +296,7 @@ public final class ClientViewPortalSource {
         hash = ProjectorPassRevision.mix(hash, frame.getRight().ordinal());
         hash = ProjectorPassRevision.mix(hash, frame.getUp().ordinal());
         hash = ProjectorPassRevision.mix(hash, frontSide ? 1L : 2L);
-        hash = ProjectorPassRevision.mix(hash, target == null && portal.isMirrorMode() ? 3L + portal.getMirrorRotation().getQuarterTurns() : 0L);
+        hash = ProjectorPassRevision.mix(hash, target == null && portal.isMirrorMode() ? 3L + destination.mirrorRotationQuarterTurns : 0L);
         hash = ProjectorPassRevision.mix(hash, portal.getNetworkViewDepth());
         hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(Settings.NEAR_PLANE_PADDING));
         hash = ProjectorPassRevision.mix(hash, Double.doubleToLongBits(Settings.PROJECTION_APERTURE_PADDING_BLOCKS));
@@ -288,6 +309,9 @@ public final class ClientViewPortalSource {
     }
 
     private ProjectedBlockClaim.LightingPolicy lightingPolicy(FidelityPortalExtension fidelity) {
+        if (nativeMesh) {
+            return ProjectedBlockClaim.LightingPolicy.SOURCE;
+        }
         if (blackoutState != null) {
             return ProjectedBlockClaim.LightingPolicy.FULL_BRIGHT;
         }
@@ -316,11 +340,11 @@ public final class ClientViewPortalSource {
     }
 
     private int kind() {
-        if (target != null) {
-            return ClientPortalGeometry.KIND_RTP;
-        }
         if (portal instanceof AbstractApertureFacade) {
             return ClientPortalGeometry.KIND_DOOR;
+        }
+        if (target != null) {
+            return ClientPortalGeometry.KIND_RTP;
         }
         DimensionalPortalKind dimensional = portal.getDimensionalPortalKind();
         return dimensional != null && dimensional.isManagedPortal()

@@ -3,6 +3,9 @@ package art.arcane.wormholes.modded.client;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.render.client.ClientViewSweep;
+import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.wormholes.portal.PortalFrame;
+import net.minecraft.core.SectionPos;
 import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
@@ -55,7 +58,7 @@ public final class ClientAtmosphere {
         return received == null ? 0 : received.atmosphere.skyDarken();
     }
 
-    public void tick(double eyeX, double eyeY, double eyeZ, IntFunction<ClientPortal> lookup) {
+    public void tick(double eyeX, double eyeY, double eyeZ, IntFunction<ClientPortal> lookup, ClientMeshSections meshes, boolean particles) {
         clientTick++;
         observeLocalWeather();
         int next = 0;
@@ -64,15 +67,24 @@ public final class ClientAtmosphere {
         while (iterator.hasNext()) {
             Int2ObjectMap.Entry<Received> entry = iterator.next();
             ClientPortal portal = lookup.apply(entry.getIntKey());
-            if (portal == null || !portal.ready()) {
+            ClientMeshSections.View mesh = meshes.view(entry.getIntKey());
+            if (portal == null || !portal.ready() && mesh == null) {
                 continue;
             }
             ClientViewMessage.Atmosphere atmosphere = entry.getValue().atmosphere;
-            weather(portal, atmosphere);
+            if (particles) {
+                if (mesh == null) {
+                    weather(portal, atmosphere);
+                } else {
+                    meshWeather(portal.geometry(), mesh, atmosphere, eyeX, eyeY, eyeZ);
+                }
+            }
             if ((atmosphere.flags() & (ClientViewMessage.Atmosphere.FLAG_TIME | ClientViewMessage.Atmosphere.FLAG_WEATHER)) == 0) {
                 continue;
             }
-            double distance = Math.abs(portal.sweep().eyeDot());
+            Direction normal = portal.geometry().facingDirection();
+            double distance = Math.abs(normal.x() * (eyeX - portal.geometry().originX() - 0.5)
+                + normal.y() * (eyeY - portal.geometry().originY() - 0.5) + normal.z() * (eyeZ - portal.geometry().originZ() - 0.5));
             if (distance <= dominanceBlocks && distance < best && inside(portal, eyeX, eyeY, eyeZ)) {
                 best = distance;
                 next = entry.getIntKey();
@@ -193,6 +205,47 @@ public final class ClientAtmosphere {
             world.particle(RAIN_PARTICLE, x + 0.5D, y + 0.5D, z + 0.5D, 0.4D, 0.0D, 1);
             weatherParticles++;
             particles--;
+        }
+    }
+
+    private void meshWeather(ClientPortalGeometry geometry, ClientMeshSections.View mesh, ClientViewMessage.Atmosphere atmosphere,
+                             double eyeX, double eyeY, double eyeZ) {
+        if ((atmosphere.flags() & ClientViewMessage.Atmosphere.FLAG_WEATHER) == 0 || atmosphere.rain() < RAIN_THRESHOLD
+            || clientTick % WEATHER_BURST_TICKS != 0 || mesh.sectionKeys().isEmpty()) {
+            return;
+        }
+        long[] sections = mesh.sectionKeys().toLongArray();
+        int particles = atmosphere.thunder() > RAIN_THRESHOLD ? STORM_PARTICLES : RAIN_PARTICLES;
+        PortalFrame frame = PortalFrame.canonical(geometry.facingDirection());
+        Direction normal = geometry.facingDirection();
+        double eyeDot = normal.x() * (eyeX - geometry.originX() - 0.5) + normal.y() * (eyeY - geometry.originY() - 0.5)
+            + normal.z() * (eyeZ - geometry.originZ() - 0.5);
+        for (int attempt = 0; attempt < particles * SAMPLE_ATTEMPTS && particles > 0; attempt++) {
+            long key = sections[random.nextInt(sections.length)];
+            int cell = random.nextInt(4096);
+            if (!mesh.section(key).state(cell).isAir()) {
+                continue;
+            }
+            double x = (SectionPos.x(key) << 4) + (cell & 15) + 0.5;
+            double y = (SectionPos.y(key) << 4) + (cell >> 8) + 0.5;
+            double z = (SectionPos.z(key) << 4) + ((cell >> 4) & 15) + 0.5;
+            double denominator = normal.x() * (x - eyeX) + normal.y() * (y - eyeY) + normal.z() * (z - eyeZ);
+            double along = -eyeDot / denominator;
+            if (!Double.isFinite(along) || along <= 0 || along >= 1) {
+                continue;
+            }
+            double hitX = eyeX + (x - eyeX) * along - geometry.originX();
+            double hitY = eyeY + (y - eyeY) * along - geometry.originY();
+            double hitZ = eyeZ + (z - eyeZ) * along - geometry.originZ();
+            int column = (int) Math.floor(Math.abs(frame.getRight().x()) * hitX + Math.abs(frame.getRight().y()) * hitY
+                + Math.abs(frame.getRight().z()) * hitZ);
+            int row = (int) Math.floor(Math.abs(frame.getUp().x()) * hitX + Math.abs(frame.getUp().y()) * hitY
+                + Math.abs(frame.getUp().z()) * hitZ);
+            if (geometry.apertureOpen(column, row)) {
+                world.particle(RAIN_PARTICLE, x, y, z, 0.4D, 0.0D, 1);
+                weatherParticles++;
+                particles--;
+            }
         }
     }
 

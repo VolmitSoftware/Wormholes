@@ -20,7 +20,7 @@ function harness(t, peerOptions = {}) {
     t.mock.timers.tick(millis)
   }
   const accept = (caps = CAPS) => {
-    frame({ type: 'OFFER', wire: 1, mcDataVersion: 4325, serverCaps: ALL_CAPS, maxFrameBytes: 524288, zeroCopyNonce: 0n }, FLAG_LAST, 'configuration')
+    frame({ type: 'OFFER', wire: 3, mcDataVersion: 4325, serverCaps: ALL_CAPS, maxFrameBytes: 524288, zeroCopyNonce: 0n }, FLAG_LAST, 'configuration')
     frame({ type: 'ACCEPT', sessionId: 1, caps, tickRate: 20, maxFrameBytes: 524288, hashSalt: 9n, ackWindowFrames: 8 }, FLAG_LAST, 'configuration')
   }
   return { peer, sent, frame, advance, accept, setSeq: (value) => { seq = value } }

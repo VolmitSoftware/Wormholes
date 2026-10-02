@@ -6,6 +6,8 @@ import art.arcane.wormholes.PortalManager;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
 import art.arcane.wormholes.platform.WormholesPlatform;
+import art.arcane.wormholes.render.BukkitEntityVisibility;
+import art.arcane.wormholes.render.EntityRenderLocalOcclusionArbiter;
 import org.bukkit.Axis;
 import org.bukkit.Chunk;
 import org.bukkit.Color;
@@ -20,6 +22,7 @@ import org.bukkit.block.data.Orientable;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Transformation;
@@ -27,7 +30,9 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Objects;
+import java.util.Set;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -63,6 +68,7 @@ final class DoorPortalVisualService implements AutoCloseable
 	private final AtomicBoolean closed;
 	private final AtomicBoolean animationLoopRunning;
 	private final AtomicBoolean animationLoopRetryScheduled;
+	private final EntityRenderLocalOcclusionArbiter<Player, Entity> nativeVisibility;
 
 	DoorPortalVisualService(Plugin plugin)
 	{
@@ -72,6 +78,20 @@ final class DoorPortalVisualService implements AutoCloseable
 	DoorPortalVisualService(Plugin plugin, ViewerLookup viewerLookup)
 	{
 		this.plugin = Objects.requireNonNull(plugin, "plugin");
+		nativeVisibility = new EntityRenderLocalOcclusionArbiter<>(BukkitEntityVisibility.create(new BukkitEntityVisibility.Controller()
+		{
+			@Override
+			public void hide(Player observer, Entity entity)
+			{
+				observer.hideEntity(plugin, entity);
+			}
+
+			@Override
+			public void show(Player observer, Entity entity)
+			{
+				observer.showEntity(plugin, entity);
+			}
+		}));
 		markerKey = new NamespacedKey(plugin, "dimensional_door_visual");
 		this.viewerLookup = Objects.requireNonNull(viewerLookup, "viewerLookup");
 		visuals = new ConcurrentHashMap<>();
@@ -95,8 +115,8 @@ final class DoorPortalVisualService implements AutoCloseable
 	/**
 	 * Draws the veil for one door.
 	 *
-	 * <p>With {@code hideBacking} the opaque pane is left out entirely: it is exactly what a
-	 * projection through the doorway would be painted over, so drawing it would hide the view.</p>
+	 * <p>With {@code hideBacking} both surface displays are removed so their depth cannot obscure
+	 * the projected destination.</p>
 	 */
 	void show(PlacedDoorEndpoint endpoint, VanillaDoorSnapshot snapshot, boolean hideBacking)
 	{
@@ -107,8 +127,13 @@ final class DoorPortalVisualService implements AutoCloseable
 			return;
 		}
 		UUID doorId = endpoint.identity().itemId();
+		if(hideBacking)
+		{
+			hide(doorId);
+			return;
+		}
 		Visual current = visuals.get(doorId);
-		if(current != null && current.isValid() && (current.backing() == null) == hideBacking)
+		if(current != null && current.isValid())
 		{
 			return;
 		}
@@ -131,7 +156,7 @@ final class DoorPortalVisualService implements AutoCloseable
 		{
 			return;
 		}
-		BlockDisplay backing = hideBacking ? null : spawnBacking(world, anchor, doorId, geometry);
+		BlockDisplay backing = spawnBacking(world, anchor, doorId, geometry);
 		if(closed.get())
 		{
 			remove(backing);
@@ -550,6 +575,35 @@ final class DoorPortalVisualService implements AutoCloseable
 		}
 	}
 
+	void updateNativeProjectionVisibility(Player observer, Set<UUID> ownedDoors)
+	{
+		if(ownedDoors.isEmpty() || visuals.isEmpty())
+		{
+			nativeVisibility.release(observer, observer.getUniqueId());
+			return;
+		}
+		Map<UUID, Entity> hidden = new HashMap<>(ownedDoors.size() * 2);
+		for(UUID doorId : ownedDoors)
+		{
+			Visual visual = visuals.get(doorId);
+			if(visual == null)
+			{
+				continue;
+			}
+			if(visual.backing() != null)
+			{
+				hidden.put(visual.backing().getUniqueId(), visual.backing());
+			}
+			hidden.put(visual.overlay().getUniqueId(), visual.overlay());
+		}
+		nativeVisibility.replace(observer, observer.getUniqueId(), hidden);
+	}
+
+	void forgetNativeObserver(UUID observerId)
+	{
+		nativeVisibility.discardObserver(observerId);
+	}
+
 	void cleanChunk(Chunk chunk)
 	{
 		Objects.requireNonNull(chunk, "chunk");
@@ -632,6 +686,7 @@ final class DoorPortalVisualService implements AutoCloseable
 			}
 		}
 		visuals.clear();
+		nativeVisibility.clear();
 		cleanedChunks.clear();
 	}
 

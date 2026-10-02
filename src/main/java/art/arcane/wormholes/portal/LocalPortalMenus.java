@@ -613,13 +613,13 @@ final class LocalPortalMenus
 			}
 			window.close();
 		}));
-		element.onRightClick((e) -> rotateMirrorImage(element, window, p, portal.getMirrorRotation().clockwiseFor(portal.getFrame())));
-		element.onShiftRightClick((e) -> rotateMirrorImage(element, window, p, portal.getMirrorRotation().counterClockwiseFor(portal.getFrame())));
-		applyMirrorModeOption(element);
+		element.onRightClick((e) -> rotateMirrorImage(element, window, p, nativeMirror(p) ? portal.getMirrorRotation().clockwise() : portal.getMirrorRotation().clockwiseFor(portal.getFrame())));
+		element.onShiftRightClick((e) -> rotateMirrorImage(element, window, p, nativeMirror(p) ? portal.getMirrorRotation().counterClockwise() : portal.getMirrorRotation().counterClockwiseFor(portal.getFrame())));
+		applyMirrorModeOption(element, p);
 		return element;
 	}
 
-	private void applyMirrorModeOption(Element element)
+	private void applyMirrorModeOption(Element element, Player viewer)
 	{
 		boolean current = portal.isMirrorMode();
 		Wormholes.text().apply(element,
@@ -632,14 +632,24 @@ final class LocalPortalMenus
 		}
 		KList<String> lore = element.getLore();
 		lore.add(Wormholes.text().legacy(WormholesMessages.PORTAL_MENU_MIRROR_ROTATION,
-				LocalPortalText.arguments("degrees", portal.getMirrorRotation().getDegrees())));
-		if(MirrorRotation.supportsQuarterTurns(portal.getFrame()))
+				LocalPortalText.arguments("degrees", mirrorRotation(viewer).getDegrees())));
+		if(nativeMirror(viewer) || MirrorRotation.supportsQuarterTurns(portal.getFrame()))
 		{
 			lore.add(Wormholes.text().legacy(WormholesMessages.PORTAL_MENU_MIRROR_ROTATE_CLOCKWISE));
 			lore.add(Wormholes.text().legacy(WormholesMessages.PORTAL_MENU_MIRROR_ROTATE_COUNTERCLOCKWISE));
 			return;
 		}
 		lore.addAll(Wormholes.text().legacyLines(WormholesMessages.PORTAL_MENU_MIRROR_FLIP));
+	}
+
+	private boolean nativeMirror(Player viewer)
+	{
+		return Wormholes.projectionManager != null && Wormholes.projectionManager.clientView().nativeMesh(viewer);
+	}
+
+	private MirrorRotation mirrorRotation(Player viewer)
+	{
+		return nativeMirror(viewer) ? portal.getMirrorRotation() : portal.getMirrorRotation().coherentFor(portal.getFrame());
 	}
 
 	private void rotateMirrorImage(Element element, Window window, Player viewer, MirrorRotation rotation)
@@ -650,10 +660,10 @@ final class LocalPortalMenus
 			return;
 		}
 		portal.setMirrorRotation(rotation);
-		applyMirrorModeOption(element);
+		applyMirrorModeOption(element, viewer);
 		window.updateInventory();
 		text.notifySetting(viewer, WormholesMessages.PORTAL_MIRROR_ROTATION_CHANGED,
-				LocalPortalText.arguments("degrees", portal.getMirrorRotation().getDegrees()));
+				LocalPortalText.arguments("degrees", mirrorRotation(viewer).getDegrees()));
 	}
 
 	private Element directionElement(Window window, Player viewer)

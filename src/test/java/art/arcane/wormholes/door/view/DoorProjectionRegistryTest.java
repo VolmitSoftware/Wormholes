@@ -41,12 +41,12 @@ final class DoorProjectionRegistryTest {
         assertNotNull(adapter);
         assertSame(adapter, registry.adapter(adapter.getId()));
         assertEquals(1, registry.size());
-        assertEquals(List.of(adapter), registry.advance(true));
+        assertEquals(List.of(adapter), registry.advance());
 
         registry.remove(adapter.getId());
         assertEquals(0, registry.size());
         assertNull(registry.adapter(adapter.getId()));
-        assertEquals(List.of(), registry.advance(true));
+        assertEquals(List.of(), registry.advance());
     }
 
     @Test
@@ -62,6 +62,26 @@ final class DoorProjectionRegistryTest {
     }
 
     @Test
+    void replacingEndpointSettingsRetiresTheOldApertureAndUsesTheCurrentProjectionState() {
+        DoorProjectionRegistry registry = new DoorProjectionRegistry(8, 1, everyoneNearby());
+        DoorProjectionAdapter enabled = registry.install(liveDoor(3, DoorProjectionState.ON), plane(3), WORLD);
+        assertEquals(List.of(enabled), registry.advance());
+
+        DoorProjectionAdapter disabled = registry.install(liveDoor(3, DoorProjectionState.OFF), plane(3), WORLD);
+        assertTrue(enabled.isDestroyed());
+        assertSame(disabled, registry.adapter(enabled.getId()));
+        assertEquals(DoorProjectionState.OFF, disabled.projectionState());
+        assertEquals(List.of(disabled), registry.advance());
+        assertEquals(false, registry.hidesBacking(disabled.getId(), true, true));
+
+        DoorProjectionAdapter restored = registry.install(liveDoor(3, DoorProjectionState.ON), plane(3), WORLD);
+        assertTrue(disabled.isDestroyed());
+        assertEquals(1, registry.size());
+        assertEquals(List.of(restored), registry.advance());
+        assertTrue(registry.hidesBacking(restored.getId(), true, true));
+    }
+
+    @Test
     void theBudgetCapsHowManyAperturesProjectAndRotatesThroughTheRest() {
         DoorProjectionRegistry registry = new DoorProjectionRegistry(2, 1, everyoneNearby());
         List<UUID> installed = new ArrayList<>();
@@ -71,7 +91,7 @@ final class DoorProjectionRegistryTest {
 
         Set<UUID> seen = new HashSet<>();
         for (int pass = 0; pass < 5; pass++) {
-            List<ILocalPortal> active = registry.advance(true);
+            List<ILocalPortal> active = registry.advance();
             assertTrue(active.size() <= 2, "pass " + pass + " admitted " + active.size());
             for (ILocalPortal portal : active) {
                 seen.add(portal.getId());
@@ -82,20 +102,18 @@ final class DoorProjectionRegistryTest {
     }
 
     @Test
-    void nothingProjectsWhileTheGlobalFlagIsOffOrTheDoorOptedOut() {
+    void activeAperturesRemainAvailableForNativeObserversWhenOrdinaryProjectionIsOff() {
         DoorProjectionRegistry registry = new DoorProjectionRegistry(8, 1, everyoneNearby());
         RuntimeDoor optedOut = liveDoor(20, DoorProjectionState.OFF);
         RuntimeDoor inherited = liveDoor(21, DoorProjectionState.INHERIT);
         registry.install(optedOut, plane(20), WORLD);
         DoorProjectionAdapter kept = registry.install(inherited, plane(21), WORLD);
 
-        assertEquals(List.of(), registry.advance(false));
-
-        DoorProjectionSource source = new DoorProjectionSource(() -> registry, () -> false);
-        assertEquals(List.of(), source.activeProjectionPortals());
-
-        DoorProjectionSource enabled = new DoorProjectionSource(() -> registry, () -> true);
-        assertEquals(List.of(kept), new ArrayList<>(enabled.activeProjectionPortals()));
+        DoorProjectionSource source = new DoorProjectionSource(() -> registry);
+        assertEquals(Set.of(optedOut.endpoint().identity().itemId(), inherited.endpoint().identity().itemId()),
+            new HashSet<>(source.activeProjectionPortals().stream().map(ILocalPortal::getId).toList()));
+        assertEquals(false, registry.hidesBacking(kept.getId(), false, true));
+        assertEquals(false, registry.hidesBacking(optedOut.endpoint().identity().itemId(), true, true));
     }
 
     @Test
@@ -104,11 +122,11 @@ final class DoorProjectionRegistryTest {
         RuntimeDoor shut = new RuntimeDoor(endpoint(30, DoorProjectionState.INHERIT));
         attended.install(shut, plane(30), WORLD);
         assertEquals(1, attended.size());
-        assertEquals(List.of(), attended.advance(true), "a shut door has no live aperture");
+        assertEquals(List.of(), attended.advance(), "a shut door has no live aperture");
 
         DoorProjectionRegistry empty = new DoorProjectionRegistry(8, 1, (worldId, x, y, z, r2) -> false);
         empty.install(liveDoor(31), plane(31), WORLD);
-        assertEquals(List.of(), empty.advance(true), "nobody is near enough to project for");
+        assertEquals(List.of(), empty.advance(), "nobody is near enough to project for");
     }
 
     @Test
@@ -136,7 +154,7 @@ final class DoorProjectionRegistryTest {
         assertEquals(0, registry.size());
         DoorProjectionAdapter second = registry.install(liveDoor(61), plane(61), WORLD);
         assertNotNull(second, "a cleared registry still accepts apertures");
-        assertEquals(List.of(second), registry.advance(true));
+        assertEquals(List.of(second), registry.advance());
     }
 
     @Test
@@ -148,7 +166,7 @@ final class DoorProjectionRegistryTest {
 
         assertTrue(adapter.isDestroyed());
         assertEquals(0, registry.size());
-        assertEquals(List.of(), registry.advance(true));
+        assertEquals(List.of(), registry.advance());
         assertNull(registry.install(liveDoor(51), plane(51), WORLD));
     }
 

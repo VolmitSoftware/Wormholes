@@ -9,6 +9,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.wormholes.render.plate.PlateTestFixtures;
+import art.arcane.wormholes.render.plate.ViewPlateKey;
 import art.arcane.wormholes.network.client.BrickLightSource;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.wormholes.render.client.ClientPortalGeometry;
@@ -24,6 +28,14 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     final List<UUID> urgentRequests = new ArrayList<UUID>();
     final Set<UUID> refusalChecked = new HashSet<UUID>();
     final List<String> events;
+    final Map<UUID, UUID> contexts = new HashMap<>();
+    int meshDistance;
+    int meshCalls;
+    final List<PlateBox> meshRequests = new ArrayList<PlateBox>();
+    boolean meshReady = true;
+    final Set<PlateBox> unavailableMesh = new HashSet<PlateBox>();
+    GeometryVector eye = new GeometryVector(11, 67, 15);
+    final Map<PlateBox, ViewPlate<String>> meshPlates = new HashMap<PlateBox, ViewPlate<String>>();
     int standbyCalls;
     int geometryCalls;
     int nestedCalls;
@@ -68,6 +80,31 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     }
 
     @Override
+    public int meshDistanceBlocks(String observer) {
+        return meshDistance;
+    }
+
+    @Override
+    public GeometryVector meshEye(String observer) {
+        return eye;
+    }
+
+    @Override
+    public ViewPlate<String> meshSection(String observer, UUID portal, PlateBox clip, int distance) {
+        meshCalls++;
+        meshRequests.add(clip);
+        if (!meshReady || unavailableMesh.contains(clip)) {
+            return null;
+        }
+        return meshPlates.computeIfAbsent(clip, box -> PlateTestFixtures.empty(new ViewPlateKey(portal, box, false, 0, 0), box));
+    }
+
+    @Override
+    public ViewPlate<String> nestedMeshSection(String observer, UUID parent, UUID child, PlateBox clip, int distance) {
+        return meshSection(observer, child, clip, distance);
+    }
+
+    @Override
     public boolean refused(String observer, UUID portal) {
         refusalChecked.add(portal);
         return portals.get(portal).refused;
@@ -90,9 +127,24 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     }
 
     @Override
+    public void prepareNested(String observer, UUID context, UUID parentContext, UUID portal) {
+        contexts.put(context, portal);
+    }
+
+    @Override
+    public void releaseNested(String observer, UUID context) {
+        contexts.remove(context);
+    }
+
+    @Override
+    public GeometryVector nestedEye(String observer, UUID context) {
+        return eye;
+    }
+
+    @Override
     public void nested(String observer, UUID parent, ClientPortalGeometry parentGeometry, List<UUID> out) {
         nestedCalls++;
-        List<SessionPortal> children = nested.get(parent);
+        List<SessionPortal> children = nested.get(contexts.getOrDefault(parent, parent));
         if (children == null) {
             return;
         }
@@ -143,7 +195,7 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     }
 
     private SessionPortal child(UUID parent, UUID child) {
-        for (SessionPortal candidate : nested.get(parent)) {
+        for (SessionPortal candidate : nested.get(contexts.getOrDefault(parent, parent))) {
             if (candidate.id.equals(child)) {
                 return candidate;
             }

@@ -100,7 +100,7 @@ shadowJarTask.configure {
         }
         List<String> segments = relative.tokenize('/')
         String capability = segments[0] == 'common' || segments[0].startsWith('v') ? segments[1] : segments[0]
-        if (!['block', 'chunk', 'map', 'entity', 'item'].contains(capability)) {
+        if (!['block', 'chunk', 'map', 'entity', 'item', 'environment'].contains(capability)) {
             return true
         }
         if (capability == 'entity') {
@@ -421,6 +421,12 @@ pluginPackaging {
             packed = true
             taskName = 'shadowJar'
             policyName = 'Wormholes'
+            requiredEntries = requiredEntries + [
+                'art/arcane/volmlib/nativelib/environment/WorldEnvironmentAccess.class',
+                'art/arcane/volmlib/nativelib/environment/WorldEnvironmentAccess$Position.class',
+                'art/arcane/volmlib/nativelib/environment/WorldEnvironment.class',
+                'art/arcane/volmlib/nativelib/v26_3_R1/environment/NativeWorldEnvironmentAccess.class'
+            ]
             prunePrefixes = ['art/arcane/volmlib/']
             keepPrefixes = ['art/arcane/volmlib/util/matter/slices/', 'art/arcane/volmlib/nativelib/']
             shrinkRules = [file('packaging/shrink.pro')]

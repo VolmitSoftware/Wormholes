@@ -180,6 +180,47 @@ public final class ClientViewCodec {
                 writeGeometry(out, m.geometry(), 0);
             }
             case ClientViewMessage.PortalDrop m -> out.varint(m.portalKey());
+            case ClientViewMessage.MeshBegin m -> {
+                out.varint(m.portalKey());
+                out.i32(m.generation());
+                out.i32(m.bounds().minX());
+                out.i32(m.bounds().minY());
+                out.i32(m.bounds().minZ());
+                out.u16(m.bounds().sizeX());
+                out.u16(m.bounds().sizeY());
+                out.u16(m.bounds().sizeZ());
+                out.varint(m.maxResidentSections());
+            }
+            case ClientViewMessage.MeshSection m -> {
+                out.varint(m.portalKey());
+                out.i32(m.generation());
+                out.i32(m.sectionX());
+                out.i32(m.sectionY());
+                out.i32(m.sectionZ());
+                out.i32(m.revision());
+                out.varint(m.backingState());
+                BrickCodec.write(out, m.brick());
+                out.u8(m.biomes().palette().size());
+                for (String biome : m.biomes().palette()) {
+                    out.string(biome);
+                }
+                out.bytes(m.biomes().indices());
+            }
+            case ClientViewMessage.MeshDrop m -> {
+                out.varint(m.portalKey());
+                out.i32(m.generation());
+                out.i32(m.sectionX());
+                out.i32(m.sectionY());
+                out.i32(m.sectionZ());
+            }
+            case ClientViewMessage.MeshAck m -> {
+                out.varint(m.portalKey());
+                out.i32(m.generation());
+                out.i32(m.sectionX());
+                out.i32(m.sectionY());
+                out.i32(m.sectionZ());
+                out.i32(m.revision());
+            }
             case ClientViewMessage.PlateBegin m -> {
                 out.varint(m.portalKey());
                 out.i32(m.plateRevision());
@@ -287,6 +328,10 @@ public final class ClientViewCodec {
                     out.u8(emitter.flags());
                 }
             }
+            case ClientViewMessage.Environment m -> {
+                out.varint(m.portalKey());
+                ClientViewEnvironmentCodec.write(out, m.environment());
+            }
             case ClientViewMessage.Atmosphere m -> {
                 out.varint(m.portalKey());
                 out.i64(m.dayTime());
@@ -339,6 +384,36 @@ public final class ClientViewCodec {
                 yield new ClientViewMessage.Portal(portalKey, revision, readGeometry(in, 0));
             }
             case PORTAL_DROP -> new ClientViewMessage.PortalDrop(in.varint());
+            case MESH_BEGIN -> {
+                int portalKey = in.varint();
+                int generation = in.i32();
+                PlateBox bounds = new PlateBox(in.i32(), in.i32(), in.i32(), in.u16(), in.u16(), in.u16());
+                int limit = in.varint(Integer.MAX_VALUE);
+                if (limit == 0 || bounds.cells() == 0) {
+                    throw new ClientViewProtocolException("mesh view requires nonempty bounds and a resident budget");
+                }
+                try {
+                    yield new ClientViewMessage.MeshBegin(portalKey, generation, bounds, limit);
+                } catch (IllegalArgumentException invalid) {
+                    throw new ClientViewProtocolException("invalid mesh section capacity", invalid);
+                }
+            }
+            case MESH_SECTION -> {
+                int portalKey = in.varint();
+                int generation = in.i32();
+                int sectionX = in.i32();
+                int sectionY = in.i32();
+                int sectionZ = in.i32();
+                int revision = in.i32();
+                int backing = in.varint(ClientViewProtocol.MAX_SESSION_PALETTE_SIZE - 1);
+                Brick brick = BrickCodec.read(in);
+                if (brick.brickIndex() != 0) {
+                    throw new ClientViewProtocolException("mesh section brick index must be zero");
+                }
+                yield new ClientViewMessage.MeshSection(portalKey, generation, sectionX, sectionY, sectionZ, revision, backing, brick, readSectionBiomes(in));
+            }
+            case MESH_DROP -> new ClientViewMessage.MeshDrop(in.varint(), in.i32(), in.i32(), in.i32(), in.i32());
+            case MESH_ACK -> new ClientViewMessage.MeshAck(in.varint(), in.i32(), in.i32(), in.i32(), in.i32(), in.i32());
             case PLATE_BEGIN -> {
                 int portalKey = in.varint();
                 int revision = in.i32();
@@ -448,6 +523,7 @@ public final class ClientViewCodec {
                 }
                 yield new ClientViewMessage.Fx(portalKey, emitters);
             }
+            case ENVIRONMENT -> new ClientViewMessage.Environment(in.varint(), ClientViewEnvironmentCodec.read(in));
             case ATMOSPHERE -> new ClientViewMessage.Atmosphere(in.varint(), in.i64(), in.f32(), in.f32(), in.u8());
             case SESSION_RESET -> {
                 ClientViewMessage.ResetReason reason = ClientViewMessage.ResetReason.byId(in.u8());
@@ -660,6 +736,22 @@ public final class ClientViewCodec {
             return visual;
         } catch (IOException | RuntimeException e) {
             throw new ClientViewProtocolException("corrupt entity visual", e);
+        }
+    }
+
+    private static SectionBiomes readSectionBiomes(ClientViewReader in) throws ClientViewProtocolException {
+        int count = in.u8();
+        if (count > SectionBiomes.CELLS) {
+            throw new ClientViewProtocolException("section biome palette exceeds 64 entries");
+        }
+        List<String> palette = new ArrayList<String>(count);
+        for (int i = 0; i < count; i++) {
+            palette.add(in.string());
+        }
+        try {
+            return new SectionBiomes(palette, in.bytes(count > 1 ? SectionBiomes.CELLS : 0));
+        } catch (IllegalArgumentException invalid) {
+            throw new ClientViewProtocolException("invalid section biomes", invalid);
         }
     }
 

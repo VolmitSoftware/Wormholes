@@ -6,6 +6,13 @@ import art.arcane.wormholes.config.toml.NetworkConfig;
 import art.arcane.wormholes.config.toml.ProjectionConfig;
 import art.arcane.wormholes.config.toml.RenderConfig;
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.door.DoorItemIdentity;
+import art.arcane.wormholes.door.DoorOpenState;
+import art.arcane.wormholes.door.DoorPosition;
+import art.arcane.wormholes.door.DoorProjectionState;
+import art.arcane.wormholes.door.DoorwayPlane;
+import art.arcane.wormholes.door.PlacedDoorEndpoint;
+import art.arcane.wormholes.modded.MinecraftDoorService;
 import art.arcane.wormholes.modded.MinecraftLocalEntityView;
 import art.arcane.wormholes.modded.MinecraftPortal;
 import art.arcane.wormholes.modded.MinecraftPortalProjector;
@@ -18,16 +25,20 @@ import art.arcane.wormholes.modded.WormholesModRuntime;
 import art.arcane.wormholes.network.client.SessionPalette;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.portal.BlackoutColor;
+import art.arcane.wormholes.portal.MirrorRotation;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalGeometry;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
 import art.arcane.wormholes.portal.rtp.MinecraftRtpRuntime;
 import art.arcane.wormholes.render.FidelitySettings;
+import art.arcane.wormholes.render.ProjectedBlockClaim;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.render.ProjectorRecursivePortals;
 import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import art.arcane.wormholes.render.plate.ViewPlateBuilder;
+import art.arcane.wormholes.render.plate.PlateBox;
+import art.arcane.wormholes.render.plate.PlateCaptureJob;
 import art.arcane.wormholes.render.plate.ViewPlateCache;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
@@ -44,12 +55,14 @@ import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.Level;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -60,14 +73,208 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 public class MinecraftClientViewPortalAccessTest {
     @BeforeClass
     public static void bootstrap() {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
+    }
+
+    @Test
+    public void nativeMeshBlackoutChangesDoNotChangeGeometryOrLighting() {
+        Fixture fixture = fixture(PortalType.PORTAL);
+        fixture.peer().meshDepth(208);
+        when(fixture.source().isBlackoutBackground()).thenReturn(true);
+        MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+        SessionPalette palette = new SessionPalette();
+        ClientPortalGeometry geometry = portals.geometry(fixture.peer(), fixture.source().getId(), palette);
+        long revision = portals.geometryRevision(fixture.peer(), fixture.source().getId());
+        assertEquals(ClientPortalGeometry.BLACKOUT_OFF, geometry.blackoutPolicy());
+        assertEquals(0, geometry.blackoutState());
+        assertEquals(ProjectedBlockClaim.LightingPolicy.SOURCE.ordinal(), geometry.lightingPolicy());
+        when(fixture.source().isBlackoutBackground()).thenReturn(false);
+        when(fixture.source().getBlackoutColor()).thenReturn(BlackoutColor.WHITE);
+        assertEquals(revision, portals.geometryRevision(fixture.peer(), fixture.source().getId()));
+        assertEquals(geometry, portals.geometry(fixture.peer(), fixture.source().getId(), palette));
+    }
+
+    @Test
+    public void nativeMirrorUsesItsOwnDestinationAndNativeLightingWithoutLink() {
+        Fixture fixture = fixture(PortalType.PORTAL);
+        fixture.peer().meshDepth(208);
+        when(fixture.source().isMirrorMode()).thenReturn(true);
+        when(fixture.source().isBlackoutBackground()).thenReturn(true);
+        MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+        ClientPortalGeometry geometry = portals.geometry(fixture.peer(), fixture.source().getId(), new SessionPalette());
+        assertTrue(geometry.mirror());
+        assertEquals(ClientPortalGeometry.BLACKOUT_OFF, geometry.blackoutPolicy());
+        assertNotNull(portals.target(fixture.peer(), fixture.source(), true));
+        assertTrue(portals.target(fixture.peer(), fixture.source(), true).mirrorMode());
+        assertEquals(fixture.source().getOrigin().x(), portals.target(fixture.peer(), fixture.source(), true).originX(), 0);
+    }
+
+    @Test
+    public void rotatingEitherLinkedFrameChangesTheNativeStreamIdentity() {
+        Fixture fixture = fixture(PortalType.PORTAL);
+        fixture.peer().meshDepth(208);
+        MinecraftPortal destination = fixture.access().projectionDestination(fixture.source());
+        MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+        SessionPalette palette = new SessionPalette();
+        ClientPortalGeometry before = portals.geometry(fixture.peer(), fixture.source().getId(), palette);
+        long revision = portals.geometryRevision(fixture.peer(), fixture.source().getId());
+        PortalFrame rotated = destination.getFrame().rotateClockwise();
+        when(destination.getFrame()).thenReturn(rotated);
+        ClientPortalGeometry destinationRotated = portals.geometry(fixture.peer(), fixture.source().getId(), palette);
+        assertNotEquals(before.targetIdentity(), destinationRotated.targetIdentity());
+        assertNotEquals(revision, portals.geometryRevision(fixture.peer(), fixture.source().getId()));
+        revision = portals.geometryRevision(fixture.peer(), fixture.source().getId());
+        rotated = fixture.source().getFrame().rotateCounterClockwise();
+        when(fixture.source().getFrame()).thenReturn(rotated);
+        assertNotEquals(destinationRotated.targetIdentity(), portals.geometry(fixture.peer(), fixture.source().getId(), palette).targetIdentity());
+        assertNotEquals(revision, portals.geometryRevision(fixture.peer(), fixture.source().getId()));
+    }
+
+    @Test
+    public void wallMirrorRotationUsesRawMeshGeometryAndClampedPacketGeometry() {
+        Fixture fixture = fixture(PortalType.PORTAL);
+        when(fixture.source().isMirrorMode()).thenReturn(true);
+        MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+        for (MirrorRotation rotation : List.of(MirrorRotation.DEGREES_90, MirrorRotation.DEGREES_270)) {
+            when(fixture.source().getMirrorRotation()).thenReturn(rotation);
+            int ordinary = rotation.coherentFor(fixture.source().getFrame()).getQuarterTurns();
+            when(fixture.access().mirrorQuarterTurns(fixture.source())).thenReturn(ordinary);
+            fixture.peer().meshDepth(208);
+            ClientPortalGeometry geometry = portals.geometry(fixture.peer(), fixture.source().getId(), new SessionPalette());
+            assertEquals(rotation.getQuarterTurns(), geometry.mirrorQuarterTurns());
+            assertEquals(rotation.getQuarterTurns(), portals.target(fixture.peer(), fixture.source(), true).mirrorQuarterTurns());
+            fixture.peer().meshDepth(0);
+            assertEquals(ordinary, portals.geometry(fixture.peer(), fixture.source().getId(), new SessionPalette()).mirrorQuarterTurns());
+            assertEquals(ordinary, portals.target(fixture.peer(), fixture.source(), true).mirrorQuarterTurns());
+        }
+    }
+
+    @Test
+    public void projectedDoorUsesNativeMeshAndRetargetsItsGeometryAndCapture() {
+        Fixture fixture = fixture(PortalType.PORTAL);
+        MinecraftDoorService doors = mock(MinecraftDoorService.class);
+        when(fixture.runtime().doors()).thenReturn(doors);
+        fixture.runtime().configuration().settings().getDoors().projectionEnabled = true;
+        when(fixture.player().level().dimension()).thenReturn(Level.OVERWORLD);
+        MinecraftProjectorPortalAccess access = new MinecraftProjectorPortalAccess(fixture.runtime());
+        fixture.peer().attach(fixture.player(), access);
+        DoorItemIdentity identity = DoorItemIdentity.newPersonal();
+        PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(new DoorPosition(UUID.randomUUID(), "minecraft:overworld", 2, 64, 3),
+            identity, DoorOpenState.OPEN, DoorProjectionState.INHERIT);
+        MinecraftDoorService.DoorView door = new MinecraftDoorService.DoorView(endpoint, fixture.player().level(),
+            new DoorwayPlane(2, 64, 3, Direction.N), true);
+        when(fixture.runtime().projections().projectableDoors()).thenReturn(List.of(door));
+        UUID destination = UUID.randomUUID();
+        ServerLevel destinationWorld = fixture.player().level();
+        when(doors.projectionDestination(door, fixture.player().getUUID())).thenReturn(Optional.of(
+            new MinecraftDoorService.ProjectionDestination(destination, destinationWorld, new GeometryVector(20.5, 65, 30.5),
+                PortalFrame.canonical(Direction.S))));
+        when(fixture.runtime().projections().attendable(eq(fixture.player()), any(), eq(access))).thenAnswer(call -> {
+            MinecraftPortal source = call.getArgument(1);
+            return access.eligible(source) && access.hasDestination(source);
+        });
+        MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+        List<UUID> interest = new ArrayList<>();
+        portals.interested(fixture.peer(), interest);
+        assertEquals(List.of(identity.itemId()), interest);
+        ClientPortalGeometry geometry = portals.geometry(fixture.peer(), identity.itemId(), new SessionPalette());
+        assertNotNull(geometry);
+        assertEquals(ClientPortalGeometry.KIND_DOOR, geometry.kind());
+        assertEquals(2, geometry.openCellCount());
+        assertEquals(ClientPortalGeometry.BLACKOUT_OFF, geometry.blackoutPolicy());
+        assertNotEquals(0L, geometry.targetIdentity());
+        assertFalse(portals.refused(fixture.peer(), identity.itemId()));
+        long revision = portals.geometryRevision(fixture.peer(), identity.itemId());
+        Object scene = portals.scene().sceneKey(fixture.peer(), identity.itemId());
+        assertNotNull(scene);
+        PlateBox clip = new PlateBox(0, 64, 0, 16, 16, 16);
+        assertNull(portals.meshSection(fixture.peer(), identity.itemId(), clip, 208));
+        assertEquals(1, fixture.scheduled().size());
+        long routeIdentity = fixture.scheduled().getFirst().key().targetIdentity();
+        assertNotEquals(0L, routeIdentity);
+
+        when(doors.projectionDestination(door, fixture.player().getUUID())).thenReturn(Optional.of(
+            new MinecraftDoorService.ProjectionDestination(destination, destinationWorld, new GeometryVector(120.5, 65, 30.5),
+                PortalFrame.canonical(Direction.S))));
+        portals.interested(fixture.peer(), new ArrayList<UUID>());
+        assertNotEquals(revision, portals.geometryRevision(fixture.peer(), identity.itemId()));
+        assertNotEquals(geometry.targetIdentity(), portals.geometry(fixture.peer(), identity.itemId(), new SessionPalette()).targetIdentity());
+        assertNotEquals(scene, portals.scene().sceneKey(fixture.peer(), identity.itemId()));
+        assertNull(portals.meshSection(fixture.peer(), identity.itemId(), clip, 208));
+        assertEquals(2, fixture.scheduled().size());
+        assertNotEquals(routeIdentity, fixture.scheduled().getLast().key().targetIdentity());
+
+        MinecraftDoorService.DoorView disabled = new MinecraftDoorService.DoorView(endpoint.withProjection(DoorProjectionState.OFF),
+            fixture.player().level(), door.plane(), true);
+        when(fixture.runtime().projections().projectableDoors()).thenReturn(List.of(disabled));
+        interest.clear();
+        portals.interested(fixture.peer(), interest);
+        assertTrue(interest.isEmpty());
+        assertNull(portals.geometry(fixture.peer(), identity.itemId(), new SessionPalette()));
+        assertNull(portals.meshSection(fixture.peer(), identity.itemId(), clip, 208));
+        assertNull(portals.scene().sceneKey(fixture.peer(), identity.itemId()));
+
+        when(fixture.runtime().projections().projectableDoors()).thenReturn(List.of(door));
+        fixture.runtime().configuration().settings().getDoors().projectionEnabled = false;
+        portals.interested(fixture.peer(), interest);
+        assertTrue(interest.isEmpty());
+    }
+
+    @Test
+    public void meshDistanceUsesTheClientsRequestedDistanceAndEye() {
+        Fixture fixture = fixture(PortalType.PORTAL);
+        MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+        assertEquals(128, portals.meshDistanceBlocks(fixture.peer()));
+        when(fixture.player().requestedViewDistance()).thenReturn(1);
+        assertEquals(32, portals.meshDistanceBlocks(fixture.peer()));
+        when(fixture.player().requestedViewDistance()).thenReturn(64);
+        assertEquals(512, portals.meshDistanceBlocks(fixture.peer()));
+        when(fixture.player().getEyePosition()).thenReturn(new Vec3(-35.5D, 75.25D, -0.25D));
+        assertEquals(new GeometryVector(-35.5D, 75.25D, -0.25D), portals.meshEye(fixture.peer()));
+    }
+
+    @Test
+    public void meshCaptureIsBoundedAndDoesNotShareTheVanillaPlateOrAdjacentSections() {
+        Fixture fixture = fixture(PortalType.PORTAL);
+        MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+        PlateBox first = new PlateBox(-16, 64, -16, 16, 16, 16);
+        assertNull(portals.meshSection(fixture.peer(), fixture.source().getId(), first, 512));
+        assertEquals(1, fixture.scheduled().size());
+        ViewPlateBuilder.Job<BlockState, ServerLevel> firstJob = fixture.scheduled().get(0);
+        assertTrue(firstJob instanceof PlateCaptureJob<?, ?, ?>);
+        assertTrue(((PlateCaptureJob<?, ?, ?>) firstJob).pendingChunks() <= 4);
+        assertTrue(firstJob.predictedBytes() < 32_768L);
+        assertNull(portals.meshSection(fixture.peer(), fixture.source().getId(), first, 512));
+        assertEquals(1, fixture.scheduled().size());
+        assertNull(portals.meshSection(fixture.peer(), fixture.source().getId(), new PlateBox(0, 64, -16, 16, 16, 16), 512));
+        assertEquals(2, fixture.scheduled().size());
+        assertNotEquals(firstJob.key(), fixture.scheduled().get(1).key());
+        assertNull(portals.plate(fixture.peer(), fixture.source().getId(), false));
+        assertEquals(3, fixture.scheduled().size());
+        assertNotEquals(firstJob.key(), fixture.scheduled().get(2).key());
+    }
+
+    @Test
+    public void meshCapturePreservesRtpRouteIdentity() {
+        Fixture fixture = fixture(PortalType.RTP);
+        MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+        PlateBox clip = new PlateBox(0, 64, -16, 16, 16, 16);
+        when(fixture.rtp().plateIdentity(any(), any())).thenReturn(91L);
+        assertNull(portals.meshSection(fixture.peer(), fixture.source().getId(), clip, 128));
+        assertEquals(91L, fixture.scheduled().get(0).key().targetIdentity());
+        when(fixture.rtp().plateIdentity(any(), any())).thenReturn(92L);
+        assertNull(portals.meshSection(fixture.peer(), fixture.source().getId(), clip, 128));
+        assertEquals(2, fixture.scheduled().size());
+        assertEquals(92L, fixture.scheduled().get(1).key().targetIdentity());
     }
 
     @Test
@@ -186,6 +393,72 @@ public class MinecraftClientViewPortalAccessTest {
         assertEquals(1, observers);
     }
 
+    @Test
+    public void meshEntityDepthExtendsLegacyVolumeAndSeparatesSceneCaches() {
+        Fixture fixture = fixture(PortalType.PORTAL);
+        fixture.runtime().configuration().settings().getRender().entitySpoofRange = 128;
+        MinecraftLocalEntityView entities = mock(MinecraftLocalEntityView.class);
+        when(fixture.runtime().projections().scene(any(), any(), anyDouble())).thenReturn(entities);
+        EntityVisual stand = EntityVisual.full(UUID.randomUUID(), "minecraft:armor_stand", 11.5D, 65.0D, -110.0D, 1.975D,
+            0.0D, 0.0D, 1.0D, 0.0F, 0.0F, 0.0D, 0.0D, 0.0D, true, "", "", "", null, null,
+            EntityVisual.EMPTY, EntityVisual.EMPTY, 0);
+        when(entities.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(stand));
+        MinecraftClientViewScene scene = new MinecraftClientViewPortalAccess(fixture.runtime()).scene();
+        Object legacyKey = scene.sceneKey(fixture.peer(), fixture.source().getId());
+        assertTrue(scene.capture(fixture.peer(), fixture.source().getId(), 1L).isEmpty());
+        verify(entities).getEntities(anyDouble(), anyDouble(), anyDouble(), eq(8.0D));
+        fixture.peer().meshDepth(160);
+        assertNotEquals(legacyKey, scene.sceneKey(fixture.peer(), fixture.source().getId()));
+        assertEquals(1, scene.capture(fixture.peer(), fixture.source().getId(), 2L).size());
+        verify(entities).getEntities(anyDouble(), anyDouble(), anyDouble(), eq(128.0D));
+    }
+
+    @Test
+    public void nativeBranchesResolveMirrorsInTheLinkedWorldWithIndependentEyes() {
+        Fixture fixture = fixture(PortalType.PORTAL);
+        fixture.peer().meshDepth(128);
+        MinecraftPortal destination = fixture.access().projectionDestination(fixture.source());
+        ServerLevel remoteWorld = mock(ServerLevel.class);
+        MinecraftProjectionWorldView remoteView = mock(MinecraftProjectionWorldView.class);
+        when(remoteView.getWorld()).thenReturn(remoteWorld);
+        when(fixture.access().world(destination)).thenReturn(remoteWorld);
+        when(fixture.runtime().projections().view(remoteWorld)).thenReturn(remoteView);
+        MinecraftPortal mirror = portal(12);
+        mirror.getGeometry().setArea(new AxisAlignedBB(12, 14.999D, 64, 66.999D, -4, -3.001D));
+        when(mirror.getOrigin()).thenReturn(new GeometryVector(13.5D, 65.5D, -3.5D));
+        when(mirror.isMirrorMode()).thenReturn(true);
+        when(fixture.runtime().portals().get(mirror.getId())).thenReturn(mirror);
+        when(fixture.access().world(mirror)).thenReturn(remoteWorld);
+        when(fixture.access().eligible(mirror)).thenReturn(true);
+        MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+        portals.frame(List.of(fixture.source(), mirror));
+        UUID root = fixture.source().getId();
+        UUID branch = UUID.randomUUID();
+        UUID secondBranch = UUID.randomUUID();
+        portals.prepareNested(fixture.peer(), root, null, root);
+        ClientPortalGeometry rootGeometry = portals.geometry(fixture.peer(), root, new SessionPalette()).withDepth(128);
+        ArrayList<UUID> discovered = new ArrayList<>();
+        portals.nested(fixture.peer(), root, rootGeometry, discovered);
+        assertEquals(List.of(mirror.getId()), discovered);
+        GeometryVector parentEye = portals.nestedEye(fixture.peer(), root);
+        assertNotEquals(portals.meshEye(fixture.peer()), parentEye);
+        portals.prepareNested(fixture.peer(), branch, root, mirror.getId());
+        assertEquals(parentEye, fixture.peer().nestedContext(branch).sourceEye());
+        assertEquals(mirror, portals.portal(fixture.peer(), branch));
+        assertNotNull(portals.nestedGeometry(fixture.peer(), root, mirror.getId(), new SessionPalette()));
+        GeometryVector firstEye = portals.nestedEye(fixture.peer(), branch);
+        portals.prepareNested(fixture.peer(), secondBranch, branch, mirror.getId());
+        assertEquals(firstEye, fixture.peer().nestedContext(secondBranch).sourceEye());
+        assertNotEquals(firstEye, portals.nestedEye(fixture.peer(), secondBranch));
+        portals.releaseNested(fixture.peer(), branch);
+        assertNull(fixture.peer().nestedContext(branch));
+        assertNotNull(fixture.peer().nestedContext(secondBranch));
+        fixture.peer().attach(fixture.player(), fixture.access());
+        assertNull(fixture.peer().nestedContext(secondBranch));
+        fixture.peer().meshDepth(0);
+        assertNull(portals.nestedGeometry(fixture.peer(), root, mirror.getId(), new SessionPalette()));
+    }
+
     private static EntityVisual stand(UUID id, double x) {
         return EntityVisual.full(id, "minecraft:armor_stand", x, 65.0D, -2.5D, 1.975D, 0.0D, 0.0D, 1.0D, 0.0F, 0.0F, 0.0D, 0.0D, 0.0D, true, "",
             "", "", null, null, EntityVisual.EMPTY, EntityVisual.EMPTY, 0);
@@ -267,6 +540,7 @@ public class MinecraftClientViewPortalAccessTest {
         when(portal.getOrigin()).thenReturn(new GeometryVector(x + 1.5D, 65.5D, 0.5D));
         when(portal.getNetworkViewDepth()).thenReturn(8);
         when(portal.getBlackoutColor()).thenReturn(BlackoutColor.BLACK);
+        when(portal.getMirrorRotation()).thenReturn(MirrorRotation.DEGREES_0);
         when(portal.getRenderMode()).thenReturn(ProjectionRenderMode.PANOPTIC);
         when(portal.getType()).thenReturn(PortalType.PORTAL);
         when(portal.isOpen()).thenReturn(true);

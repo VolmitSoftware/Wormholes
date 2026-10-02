@@ -26,6 +26,7 @@ public final class ClientFxRunner {
     private final AnimationHost host;
     private int clientTick;
     private long fired;
+    private boolean particlesActive = true;
 
     public ClientFxRunner(ClientSceneWorld world) {
         this.world = Objects.requireNonNull(world, "world");
@@ -34,7 +35,7 @@ public final class ClientFxRunner {
         this.host = new AnimationHost(world);
     }
 
-    public void apply(ClientViewMessage.Fx fx, IntFunction<ClientPortal> lookup) {
+    public void apply(ClientViewMessage.Fx fx, IntFunction<ClientPortal> lookup, boolean oneShots) {
         Objects.requireNonNull(fx, "fx");
         List<ClientViewMessage.FxEmitter> emitters = fx.emitters();
         List<ClientViewMessage.FxEmitter> continuous = new ArrayList<>(emitters.size());
@@ -44,6 +45,9 @@ public final class ClientFxRunner {
             ClientViewMessage.FxEmitter emitter = emitters.get(index);
             if (!ClientViewEmitters.oneShot(emitter)) {
                 continuous.add(emitter);
+                continue;
+            }
+            if (!oneShots && emitter.kind() != ClientViewMessage.FxKind.SOUND) {
                 continue;
             }
             if (!resolved) {
@@ -87,10 +91,14 @@ public final class ClientFxRunner {
 
     public void clear() {
         portals.clear();
-        for (int index = 0; index < animations.size(); index++) {
-            animations.get(index).close();
+        clearAnimations();
+    }
+
+    public void particlesActive(boolean active) {
+        particlesActive = active;
+        if (!active) {
+            clearAnimations();
         }
-        animations.clear();
     }
 
     public int animations() {
@@ -116,6 +124,12 @@ public final class ClientFxRunner {
 
     private void fire(Active active, ClientPortal portal) {
         ClientViewMessage.FxEmitter emitter = active.emitter;
+        if (!particlesActive && emitter.kind() != ClientViewMessage.FxKind.SOUND) {
+            if (emitter.kind() == ClientViewMessage.FxKind.SURFACE) {
+                active.cursor++;
+            }
+            return;
+        }
         switch (emitter.kind()) {
             case RIM_DUST -> {
                 int count = Math.max(1, emitter.flags());
@@ -133,6 +147,13 @@ public final class ClientFxRunner {
                 ClientViewEmitters.burstSpeed(emitter), Math.max(1, emitter.ticks()));
         }
         fired++;
+    }
+
+    private void clearAnimations() {
+        for (int index = 0; index < animations.size(); index++) {
+            animations.get(index).close();
+        }
+        animations.clear();
     }
 
     private void replace(int portalKey, List<ClientViewMessage.FxEmitter> emitters) {

@@ -11,7 +11,7 @@ import net.minecraft.world.level.lighting.LayerLightEventListener;
 
 import java.util.Objects;
 
-final class MinecraftLightSnapshot implements ClientViewPlateLight.Sampler {
+public final class MinecraftLightSnapshot implements ClientViewPlateLight.Sampler {
     private static final DataLayer OPEN_SKY = new DataLayer(15);
     private static final DataLayer DARK = new DataLayer(0);
 
@@ -25,6 +25,9 @@ final class MinecraftLightSnapshot implements ClientViewPlateLight.Sampler {
     private final DataLayer[] sky;
     private final boolean[] skyFromAbove;
     private final boolean[] loaded;
+    private int worldMinY;
+    private int worldMaxY;
+    private boolean hasSkyLight;
 
     private MinecraftLightSnapshot(int minSectionX, int minSectionY, int minSectionZ, int sizeX, int sizeY, int sizeZ) {
         this.minSectionX = minSectionX;
@@ -40,7 +43,7 @@ final class MinecraftLightSnapshot implements ClientViewPlateLight.Sampler {
         this.loaded = new boolean[sizeX * sizeZ];
     }
 
-    static MinecraftLightSnapshot capture(ServerLevel level, PlateBox box) {
+    public static MinecraftLightSnapshot capture(ServerLevel level, PlateBox box) {
         Objects.requireNonNull(level, "level");
         Objects.requireNonNull(box, "box");
         if (box.cells() == 0L) {
@@ -57,6 +60,9 @@ final class MinecraftLightSnapshot implements ClientViewPlateLight.Sampler {
         LayerLightEventListener blockLight = level.getLightEngine().getLayerListener(LightLayer.BLOCK);
         LayerLightEventListener skyLight = level.getLightEngine().getLayerListener(LightLayer.SKY);
         boolean hasSky = level.dimensionType().hasSkyLight();
+        snapshot.worldMinY = level.getMinSectionY() << 4;
+        snapshot.worldMaxY = (level.getMaxSectionY() + 1) << 4;
+        snapshot.hasSkyLight = hasSky;
         int worldTop = level.getMaxSectionY();
         for (int dx = 0; dx < sizeX; dx++) {
             for (int dz = 0; dz < sizeZ; dz++) {
@@ -102,7 +108,13 @@ final class MinecraftLightSnapshot implements ClientViewPlateLight.Sampler {
         int dx = (x >> 4) - minSectionX;
         int dy = (y >> 4) - minSectionY;
         int dz = (z >> 4) - minSectionZ;
-        if (dx < 0 || dy < 0 || dz < 0 || dx >= sizeX || dy >= sizeY || dz >= sizeZ || !loaded[dx * sizeZ + dz]) {
+        if (dx < 0 || dz < 0 || dx >= sizeX || dz >= sizeZ || !loaded[dx * sizeZ + dz]) {
+            return ClientViewPlateLight.UNAVAILABLE;
+        }
+        if (y < worldMinY || y >= worldMaxY) {
+            return ProjectionContentView.packLight(y >= worldMaxY && hasSkyLight ? 15 : 0, 0);
+        }
+        if (dy < 0 || dy >= sizeY) {
             return ClientViewPlateLight.UNAVAILABLE;
         }
         int index = index(dx, dy, dz);

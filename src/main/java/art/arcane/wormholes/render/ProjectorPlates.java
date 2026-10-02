@@ -12,6 +12,7 @@ import art.arcane.wormholes.portal.LocalPortal;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.render.lod.LodPolicy;
 import art.arcane.wormholes.render.plate.PlateCaptureJob;
+import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.render.plate.ViewPlate;
 import art.arcane.wormholes.render.plate.ViewPlateBuilder;
 import art.arcane.wormholes.render.plate.ViewPlateCache;
@@ -94,6 +95,37 @@ final class ProjectorPlates {
         });
     }
 
+    static ViewPlate<BlockData> acquireSection(ViewPlateCache<BlockData, World> cache, ProjectionWorldViewProvider viewProvider,
+                                               ILocalPortal portal, ProjectorDestination destination, BlockData air, Target target,
+                                               PlateBox clip, int distance) {
+        int boundedDistance = Math.clamp(distance, 32, 512);
+        ViewPlateKey original = target.key();
+        ViewPlateKey key = new ViewPlateKey(original.portalId(), new MeshSection(original.destinationViewIdentity(), clip),
+            original.frontSide(), original.mirrorQuarterTurns(), original.targetIdentity());
+        long transform = ProjectorPassRevision.mix(target.transformRevision(), boundedDistance);
+        ProjectionWorldChangeTracker tracker = Wormholes.projectionChangeTracker;
+        long revision = destination.destView.getRevision();
+        return cache.current(key, revision, transform, tracker, false, previous -> {
+            ProjectionWorldView view = destination.plateView();
+            ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> request = new ViewPlateBuilder.Request<>(key,
+                portal.getStructure(), view, target.localFrame(), target.remoteFrame(), target.localOriginX(), target.localOriginY(),
+                target.localOriginZ(), target.remoteOriginX(), target.remoteOriginY(), target.remoteOriginZ(), target.mirrorMode(),
+                target.quarterTurns(), boundedDistance, boundedDistance, target.aperturePadding(), false, air, LodPolicy.NONE,
+                target.blockEntities(), revision, transform, tracker == null ? Long.MIN_VALUE : tracker.currentVersion(),
+                BukkitProjectorBlocks.defaults());
+            World world = view.getWorld();
+            if (world == null || viewProvider.usesRegionSnapshots()) {
+                return ViewPlateBuilder.sectionJob(request, clip);
+            }
+            PlateBox remote = ViewPlateBuilder.sectionDestinationBox(request, clip);
+            PlateCaptureSource.Options capture = new PlateCaptureSource.Options(target.blockEntities(), remote.minY(),
+                remote.minY() + remote.sizeY() - 1, true);
+            return new PlateCaptureJob<>(new PlateCaptureJob.Plan<>(key, world, ViewPlateBuilder.sectionFootprint(request, clip),
+                new PlateCaptureSource(capture), captured -> ViewPlateBuilder.sectionJob(
+                    request.withDestView(new CapturedChunkView(world, captured)), clip)));
+        });
+    }
+
     static void retireTarget(ViewPlateCache<BlockData, World> cache, ILocalPortal portal, PortalProjector.RtpProjectionTarget previous,
                              PortalProjector.RtpProjectionTarget target) {
         if (cache == null || previous == null || portal.getId() == null) {
@@ -116,11 +148,14 @@ final class ProjectorPlates {
             ? ViewPlateBuilder.footprint(request)
             : ViewPlateBuilder.patchFootprint(request, dirtyChunks);
         return new PlateCaptureJob<BlockData, World, PlateCaptureSource.CapturedChunk>(new PlateCaptureJob.Plan<BlockData, World, PlateCaptureSource.CapturedChunk>(
-            request.key(), destWorld, footprint, new PlateCaptureSource(blockEntities),
+            request.key(), destWorld, footprint, new PlateCaptureSource(PlateCaptureSource.Options.column(blockEntities)),
             captured -> {
                 ViewPlateBuilder.Request<BlockData, Material, ProjectionWorldView> captureRequest = request.withDestView(new CapturedChunkView(destWorld, captured));
                 return previous == null ? ViewPlateBuilder.job(captureRequest) : ViewPlateBuilder.patch(captureRequest, previous, dirtyChunks);
             }));
+    }
+
+    private record MeshSection(Object destination, PlateBox clip) {
     }
 
     record Target(ViewPlateKey key,

@@ -16,11 +16,16 @@ public enum ClientViewMessageType {
     FX(13, Direction.S2C),
     ATMOSPHERE(14, Direction.S2C),
     SESSION_RESET(15, Direction.S2C),
+    MESH_BEGIN(16, Direction.S2C),
+    MESH_SECTION(17, Direction.S2C),
+    MESH_DROP(18, Direction.S2C),
+    ENVIRONMENT(19, Direction.S2C),
     HELLO(32, Direction.C2S),
     BRICK_MISS(33, Direction.C2S),
     ACK(34, Direction.C2S),
     VIEW_STATS(35, Direction.C2S),
-    PLATE_REFUSED(36, Direction.C2S);
+    PLATE_REFUSED(36, Direction.C2S),
+    MESH_ACK(37, Direction.C2S);
 
     private static final ClientViewMessageType[] BY_ID = index();
 

@@ -50,7 +50,8 @@ public final class DoorProjectionRegistry {
         }
         UUID doorItemId = door.endpoint().identity().itemId();
         DoorProjectionAdapter existing = adapters.get(doorItemId);
-        if (existing != null && existing.getWorld().equals(world)) {
+        if (existing != null && existing.getWorld().equals(world)
+            && existing.endpoint().equals(door.endpoint())) {
             existing.refresh(plane);
             return existing;
         }
@@ -77,6 +78,10 @@ public final class DoorProjectionRegistry {
         return adapters.get(Objects.requireNonNull(doorItemId, "doorItemId"));
     }
 
+    public List<ILocalPortal> apertures() {
+        return List.copyOf(adapters.values());
+    }
+
     public int size() {
         return adapters.size();
     }
@@ -96,8 +101,8 @@ public final class DoorProjectionRegistry {
     }
 
     /** Runs one admission pass and answers with the apertures that earned a projector. */
-    public List<ILocalPortal> advance(boolean globalEnabled) {
-        if (closed.get() || !globalEnabled || adapters.isEmpty()) {
+    public List<ILocalPortal> advance() {
+        if (closed.get() || adapters.isEmpty()) {
             releaseInFlight();
             admitted = List.of();
             return List.of();
@@ -113,7 +118,7 @@ public final class DoorProjectionRegistry {
         List<ILocalPortal> active = new ArrayList<>(acquired.size());
         for (DoorVisualAnimationBudget.Admission<UUID> admission : acquired) {
             DoorProjectionAdapter adapter = adapters.get(admission.key());
-            if (adapter == null || !adapter.projectionState().projects(true) || !adapter.isOpen()) {
+            if (adapter == null || !adapter.isOpen()) {
                 continue;
             }
             keys.add(admission.key());
@@ -142,8 +147,7 @@ public final class DoorProjectionRegistry {
     }
 
     /**
-     * Drops every aperture but stays usable, which is what turning the global flag off does. A door
-     * that comes back is installed again on its next reconcile.
+     * Drops every aperture but stays usable for later registrations.
      */
     public void clear() {
         for (DoorProjectionAdapter adapter : adapters.values()) {
@@ -181,7 +185,7 @@ public final class DoorProjectionRegistry {
 
     private boolean attended(UUID doorItemId) {
         DoorProjectionAdapter adapter = adapters.get(doorItemId);
-        if (adapter == null || adapter.isDestroyed() || !adapter.projectionState().projects(true)) {
+        if (adapter == null || adapter.isDestroyed() || !adapter.isOpen()) {
             return false;
         }
         GeometryVector origin = adapter.getOrigin();

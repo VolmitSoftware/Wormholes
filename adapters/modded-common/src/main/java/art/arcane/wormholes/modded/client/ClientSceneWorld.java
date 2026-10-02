@@ -7,7 +7,9 @@ import art.arcane.wormholes.render.acoustics.AcousticsProfile;
 public interface ClientSceneWorld {
     boolean spawn(int entityId, EntityVisual visual);
 
-    void move(int entityId, EntityVisual visual);
+    void move(int entityId, EntityVisual visual, EntityVisual previous);
+
+    void tick(int entityId, boolean nativeMesh);
 
     void metadata(int entityId, byte[] metadata);
 

@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.modded.clientview.LocalPlateHandles;
 import art.arcane.wormholes.network.client.ClientViewCapability;
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.network.client.ClientViewHandshake;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
@@ -13,17 +14,24 @@ import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class ClientViewSession {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
     private final WormholesClientConfig config;
     private final ClientPalette palette;
     private final ClientPlateStore plates;
+    private final ClientMeshSections meshes;
     private final Int2ObjectOpenHashMap<ClientPortal> portals;
+    private final Int2ObjectOpenHashMap<ClientViewEnvironment> environments = new Int2ObjectOpenHashMap<>();
     private final IntOpenHashSet dirtyPortals;
     private final IntArrayList patchedBricks;
     private final int dataVersion;
     private final String brandTag;
     private volatile State state;
+    private volatile boolean nativeSelected;
+    private final Int2ObjectOpenHashMap<MeshFailure> meshFailures = new Int2ObjectOpenHashMap<>();
     private volatile long caps;
     private volatile ClientViewMessage.Offer offer;
     private volatile ClientViewMessage.Accept accept;
@@ -32,11 +40,15 @@ public final class ClientViewSession {
     private int resets;
     private long ignoredSceneMessages;
     private long protocolFailures;
+    private boolean memoryFailureReported;
 
     public ClientViewSession(WormholesClientConfig config, ClientPalette palette, int dataVersion, String brandTag) {
         this.config = Objects.requireNonNull(config, "config");
         this.palette = Objects.requireNonNull(palette, "palette");
         this.plates = new ClientPlateStore(palette, config.plateMemoryBytes());
+        this.meshes = new ClientMeshSections(palette, config.plateMemoryBytes());
+        this.plates.otherMemory(meshes::bytes);
+        this.meshes.otherMemory(plates::bytes);
         this.portals = new Int2ObjectOpenHashMap<>();
         this.dirtyPortals = new IntOpenHashSet();
         this.patchedBricks = new IntArrayList();
@@ -47,9 +59,12 @@ public final class ClientViewSession {
     }
 
     public long clientCapabilities() {
+        if (config.rendererMode() == WormholesClientConfig.Renderer.BLOCK_PACKETS) {
+            return 0;
+        }
         long capabilities = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE, ClientViewCapability.DEST_LIGHT,
             ClientViewCapability.ENTITY_FRAMES, ClientViewCapability.FX_EMITTERS, ClientViewCapability.ATMOSPHERE, ClientViewCapability.ZERO_COPY,
-            ClientViewCapability.CONFIG_PHASE, ClientViewCapability.LINK_UNCOMPRESSED, ClientViewCapability.VIEW_STATS);
+            ClientViewCapability.CONFIG_PHASE, ClientViewCapability.LINK_UNCOMPRESSED, ClientViewCapability.VIEW_STATS, ClientViewCapability.MESH_RENDER);
         if (config.clientMirror) {
             capabilities |= ClientViewCapability.CLIENT_MIRROR.mask();
         }
@@ -61,7 +76,8 @@ public final class ClientViewSession {
 
     public ClientViewMessage.Hello offer(ClientViewMessage.Offer received) {
         Objects.requireNonNull(received, "received");
-        if (!config.enabled) {
+        if (config.rendererMode() == WormholesClientConfig.Renderer.BLOCK_PACKETS) {
+            nativeSelected = false;
             state = State.VANILLA;
             return null;
         }
@@ -73,20 +89,26 @@ public final class ClientViewSession {
 
     public void accept(ClientViewMessage.Accept received) {
         Objects.requireNonNull(received, "received");
+        if (config.rendererMode() == WormholesClientConfig.Renderer.BLOCK_PACKETS) {
+            nativeSelected = false;
+            state = State.VANILLA;
+            return;
+        }
         accept = received;
         caps = ClientViewCapability.intersection(received.caps(), clientCapabilities());
-        state = State.CLIENT_VIEW;
+        nativeSelected |= ClientViewCapability.MESH_RENDER.in(caps);
+        state = nativeSelected && !ClientViewCapability.MESH_RENDER.in(caps) ? State.NATIVE_RECOVERING : State.CLIENT_VIEW;
     }
 
     public void decline(ClientViewMessage.Decline received) {
         Objects.requireNonNull(received, "received");
         declineReason = received.reason();
-        state = State.DECLINED;
+        state = nativeSelected ? State.NATIVE_RECOVERING : State.DECLINED;
     }
 
     public void unanswered() {
         if (state == State.OFFERED) {
-            state = State.VANILLA;
+            state = nativeSelected ? State.NATIVE_RECOVERING : State.VANILLA;
         }
     }
 
@@ -95,9 +117,28 @@ public final class ClientViewSession {
         if (state != State.CLIENT_VIEW && state != State.OFFERED) {
             return;
         }
-        state = State.VANILLA;
+        state = nativeSelected ? State.NATIVE_RECOVERING : State.VANILLA;
         sink.reset(ClientViewMessage.ResetReason.PROTOCOL);
         clearPortals();
+    }
+
+    public boolean nativeSelected() {
+        return nativeSelected;
+    }
+
+    public ClientViewMessage.Hello recoveryHello() {
+        return state == State.NATIVE_RECOVERING && offer != null
+            ? ClientViewHandshake.clientHello(offer, dataVersion, clientCapabilities(), config.maxFrameBytes(),
+                config.plateMemoryMbForHello(), LocalPlateHandles.nonce(), brandTag)
+            : null;
+    }
+
+    public MeshFailure meshFailure(int portalKey) {
+        return meshFailures.get(portalKey);
+    }
+
+    public int unavailableMeshes() {
+        return meshFailures.size();
     }
 
     public boolean handle(ClientViewMessage message, Sink sink) throws ClientViewProtocolException {
@@ -107,14 +148,41 @@ public final class ClientViewSession {
             restart(sink);
             return true;
         }
+        if (state == State.NATIVE_RECOVERING && message instanceof ClientViewMessage.SessionReset reset) {
+            reset(reset.reason(), sink);
+            return true;
+        }
         if (state != State.CLIENT_VIEW) {
             return false;
+        }
+        if (nativeSelected && switch (message) {
+            case ClientViewMessage.PlateBegin ignored -> true;
+            case ClientViewMessage.PlateBricks ignored -> true;
+            case ClientViewMessage.PlateEnd ignored -> true;
+            case ClientViewMessage.PlatePatch ignored -> true;
+            case ClientViewMessage.PlateHandle handle -> {
+                LocalPlateHandles.take(handle.handle());
+                yield true;
+            }
+            default -> false;
+        }) {
+            return true;
         }
         try {
             switch (message) {
                 case ClientViewMessage.Palette paletteMessage -> palette.apply(paletteMessage);
                 case ClientViewMessage.Portal portal -> portal(portal);
                 case ClientViewMessage.PortalDrop drop -> drop(drop.portalKey(), sink);
+                case ClientViewMessage.MeshBegin begin -> meshBegin(begin, sink);
+                case ClientViewMessage.MeshSection section -> meshSection(section, sink);
+                case ClientViewMessage.MeshDrop drop -> meshes.drop(drop.portalKey(), drop.generation(), drop.sectionX(), drop.sectionY(), drop.sectionZ());
+                case ClientViewMessage.Environment environment -> {
+                    if (portals.containsKey(environment.portalKey())) {
+                        environments.put(environment.portalKey(), environment.environment());
+                    } else {
+                        ignoredSceneMessages++;
+                    }
+                }
                 case ClientViewMessage.PlateBegin begin -> begin(begin, sink);
                 case ClientViewMessage.PlateBricks bricks -> plates.bricks(bricks);
                 case ClientViewMessage.PlateEnd end -> attach(plates.end(end));
@@ -155,9 +223,40 @@ public final class ClientViewSession {
         return true;
     }
 
+    public void refuseMesh(int portalKey, int generation, Sink sink) {
+        Objects.requireNonNull(sink, "sink");
+        ClientMeshSections.View view = meshes.view(portalKey);
+        if (view == null || view.generation() != generation) {
+            return;
+        }
+        meshes.remove(portalKey);
+        meshFailures.put(portalKey, MeshFailure.MEMORY);
+        if (!memoryFailureReported) {
+            memoryFailureReported = true;
+            LOGGER.warn("Native portal {} is unavailable because the section memory budget is exhausted; native streaming will retry", portalKey);
+        }
+        ClientPortal portal = portals.get(portalKey);
+        if (portal != null) {
+            sink.dropped(portal);
+        }
+        sink.refused(new ClientViewMessage.PlateRefused(portalKey, generation));
+    }
+
+    public void clearPlateContent() {
+        plates.clear();
+        dirtyPortals.clear();
+        patchedBricks.clear();
+        for (ClientPortal portal : portals.values()) {
+            portal.clearContent();
+        }
+    }
+
     public void clearPortals() {
+        meshFailures.clear();
+        environments.clear();
         portals.clear();
         plates.clear();
+        meshes.clear();
         dirtyPortals.clear();
     }
 
@@ -209,6 +308,18 @@ public final class ClientViewSession {
         return palette;
     }
 
+    public int memoryMb() {
+        return (int) Math.min(65535L, (plates.bytes() + meshes.bytes() + 1048575L) / 1048576L);
+    }
+
+    public ClientMeshSections meshes() {
+        return meshes;
+    }
+
+    public ClientViewEnvironment environment(int portalKey) {
+        return environments.get(portalKey);
+    }
+
     public ClientPlateStore plates() {
         return plates;
     }
@@ -250,11 +361,38 @@ public final class ClientViewSession {
     }
 
     private void drop(int portalKey, Sink sink) {
+        meshFailures.remove(portalKey);
+        environments.remove(portalKey);
         ClientPortal portal = portals.remove(portalKey);
         plates.drop(portalKey);
+        meshes.remove(portalKey);
         dirtyPortals.remove(portalKey);
         if (portal != null) {
             sink.dropped(portal);
+        }
+    }
+
+    private void meshBegin(ClientViewMessage.MeshBegin message, Sink sink) throws ClientViewProtocolException {
+        ClientPortal portal = portals.get(message.portalKey());
+        if (portal == null) {
+            ignoredSceneMessages++;
+            return;
+        }
+        if (meshes.begin(message.portalKey(), message.generation(), message.bounds(), message.maxResidentSections())) {
+            meshFailures.remove(message.portalKey());
+            environments.remove(message.portalKey());
+            sink.meshStarted(portal);
+            plates.drop(message.portalKey());
+        }
+    }
+
+    private void meshSection(ClientViewMessage.MeshSection message, Sink sink) throws ClientViewProtocolException {
+        ClientMeshSections.Result result = meshes.put(message);
+        if (result == ClientMeshSections.Result.REFUSED) {
+            refuseMesh(message.portalKey(), message.generation(), sink);
+        } else if (result == ClientMeshSections.Result.APPLIED || result == ClientMeshSections.Result.DUPLICATE) {
+            sink.meshAck(new ClientViewMessage.MeshAck(message.portalKey(), message.generation(), message.sectionX(), message.sectionY(),
+                message.sectionZ(), message.revision()));
         }
     }
 
@@ -310,21 +448,32 @@ public final class ClientViewSession {
         resets++;
         sink.reset(reason);
         clearPortals();
-        if (reason == ClientViewMessage.ResetReason.DISABLED || reason == ClientViewMessage.ResetReason.PROTOCOL
-            || reason == ClientViewMessage.ResetReason.OVERLOAD) {
+        if (reason == ClientViewMessage.ResetReason.DISABLED) {
+            nativeSelected = false;
             state = State.VANILLA;
+        } else if (reason == ClientViewMessage.ResetReason.PROTOCOL || reason == ClientViewMessage.ResetReason.OVERLOAD) {
+            state = nativeSelected ? State.CLIENT_VIEW : State.VANILLA;
         }
+    }
+
+    public enum MeshFailure {
+        MEMORY
     }
 
     public enum State {
         INIT,
         OFFERED,
         CLIENT_VIEW,
+        NATIVE_RECOVERING,
         VANILLA,
         DECLINED
     }
 
     public interface Sink {
+        void meshStarted(ClientPortal portal);
+
+        void meshAck(ClientViewMessage.MeshAck ack);
+
         void brickMiss(ClientViewMessage.BrickMiss.Plate plate);
 
         void refused(ClientViewMessage.PlateRefused refused);

@@ -9,9 +9,11 @@ import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalGeometry;
 import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.render.ProjectorSample;
+import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.lod.LodPolicy;
 import art.arcane.wormholes.render.plate.PlateCaptureJob;
 import art.arcane.wormholes.render.plate.PlateCell;
+import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.render.plate.ViewPlate;
 import art.arcane.wormholes.render.plate.ViewPlateBuilder;
 import art.arcane.wormholes.render.plate.ViewPlateKey;
@@ -39,6 +41,7 @@ import java.util.function.Supplier;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -56,6 +59,28 @@ public class MinecraftViewPlateTest {
     public static void bootstrap() {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
+    }
+
+    @Test
+    public void meshSectionsKeepDestinationModelStatesWhilePacketPlatesRotateStates() {
+        BlockState source = Blocks.OAK_STAIRS.defaultBlockState();
+        ProjectionContentView<BlockState, BlockState> view = mock(ProjectionContentView.class);
+        when(view.sampleBlockData(anyInt(), anyInt(), anyInt())).thenReturn(source);
+        when(view.sampleMaterial(anyInt(), anyInt(), anyInt())).thenReturn(source);
+        when(view.worldId()).thenReturn(UUID.randomUUID());
+        PortalGeometry geometry = new PortalGeometry();
+        geometry.setArea(new AxisAlignedBB(0, 0.999D, 64, 64.999D, 0, 0.999D));
+        ViewPlateKey key = new ViewPlateKey(UUID.randomUUID(), view, true, 0, 0L);
+        ViewPlateBuilder.Request<BlockState, BlockState, ProjectionContentView<BlockState, BlockState>> request = new ViewPlateBuilder.Request<>(
+            key, geometry, view, PortalFrame.canonical(Direction.E), PortalFrame.canonical(Direction.S),
+            0.4995D, 64.4995D, 0.4995D, 20.4995D, 64.4995D, 20.4995D, false, 0,
+            4, 0, 0, false, Blocks.AIR.defaultBlockState(), LodPolicy.NONE, false, 0L, 0L, 0L, MinecraftProjectorBlocks.INSTANCE);
+        ViewPlateBuilder.Job<BlockState, Object> section = ViewPlateBuilder.sectionJob(request, new PlateBox(-16, 64, 0, 16, 16, 16));
+        assertTrue(section.step(Integer.MAX_VALUE));
+        long cell = ProjectionCellKey.pack(-1, 64, 0);
+        assertSame(source, section.result().cell(cell).data());
+        assertSame(source, section.result().cell(cell).sourceData());
+        assertNotEquals(source, ViewPlateBuilder.build(request).cell(cell).data());
     }
 
     @Test
@@ -113,7 +138,7 @@ public class MinecraftViewPlateTest {
         service.start();
         try {
             PlateCaptureJob<BlockState, ServerLevel, MinecraftPlateCaptureSource.CapturedChunk> job = new PlateCaptureJob<>(new PlateCaptureJob.Plan<>(
-                key, level, ViewPlateBuilder.footprint(request), new MinecraftPlateCaptureSource(runtime, worldId, false),
+                key, level, ViewPlateBuilder.footprint(request), new MinecraftPlateCaptureSource(runtime, MinecraftPlateCaptureSource.Options.column(worldId, false)),
                 captured -> ViewPlateBuilder.job(request.withDestView(new MinecraftCapturedChunkView(worldId, -64, 320, 7L, captured)))));
             assertNull(service.plates().current(key, 7L, 3L, new ProjectionWorldChangeTracker(), false, previous -> job));
             assertEquals(1, service.plateCaptureQueueSize());

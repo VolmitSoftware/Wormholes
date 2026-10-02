@@ -70,7 +70,7 @@ public final class BlockEntityCapturer {
     }
 
     /** Whitelisted block entities of a loaded chunk keyed by world cell, up to {@code maxSamples}; call on the chunk's region thread. */
-    public static Map<Long, BlockEntitySample> captureChunk(Chunk chunk, int maxSamples) {
+    public static Map<Long, BlockEntitySample> captureChunk(Chunk chunk, Limits limits) {
         Map<Long, BlockEntitySample> samples = new HashMap<Long, BlockEntitySample>(8);
         if (chunk == null || !FidelitySettings.blockEntities) {
             return samples;
@@ -85,10 +85,11 @@ public final class BlockEntityCapturer {
             return samples;
         }
         for (BlockState state : states) {
-            if (samples.size() >= maxSamples) {
+            if (samples.size() >= limits.maxSamples()) {
                 break;
             }
-            if (state == null || !BlockEntityMaterials.isCandidate(state.getType().name())) {
+            if (state == null || state.getY() < limits.minY() || state.getY() > limits.maxY()
+                || !BlockEntityMaterials.isCandidate(state.getType().name())) {
                 continue;
             }
             BlockEntitySample sample = capture(state);
@@ -99,4 +100,9 @@ public final class BlockEntityCapturer {
         return samples;
     }
 
+    public record Limits(int maxSamples, int minY, int maxY) {
+        public static Limits column(int maxSamples) {
+            return new Limits(maxSamples, Integer.MIN_VALUE, Integer.MAX_VALUE);
+        }
+    }
 }

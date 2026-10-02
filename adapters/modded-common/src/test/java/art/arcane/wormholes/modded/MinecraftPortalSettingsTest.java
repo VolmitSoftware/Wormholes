@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.NetworkViewQuality;
+import art.arcane.wormholes.portal.MirrorRotation;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalGeometry;
@@ -77,6 +78,25 @@ public class MinecraftPortalSettingsTest {
         source.setMirrorMode(true);
         assertEquals(PortalType.PORTAL, source.getType());
         assertTrue(source.isMirrorMode());
+    }
+
+    @Test
+    public void wallMirrorQuarterTurnsSurvivePersistenceAndSettingsSync() {
+        WormholesModRuntime runtime = mock(WormholesModRuntime.class);
+        when(runtime.portals()).thenReturn(mock(MinecraftPortalRegistry.class));
+        MinecraftPortalSyncAccess sync = new MinecraftPortalSyncAccess(runtime);
+        MinecraftProjectorPortalAccess packets = new MinecraftProjectorPortalAccess(runtime);
+        for (MirrorRotation rotation : List.of(MirrorRotation.DEGREES_90, MirrorRotation.DEGREES_270)) {
+            MinecraftPortal source = portal();
+            source.setMirrorMode(true);
+            source.setMirrorRotation(rotation);
+            MinecraftPortal loaded = MinecraftPortal.read(source.write());
+            assertEquals(rotation, loaded.getMirrorRotation());
+            MinecraftPortal destination = portal();
+            sync.applySettings(destination, sync.collectSettings(loaded));
+            assertEquals(rotation, destination.getMirrorRotation());
+            assertEquals(rotation.coherentFor(destination.getFrame()).getQuarterTurns(), packets.mirrorQuarterTurns(destination));
+        }
     }
 
     @Test

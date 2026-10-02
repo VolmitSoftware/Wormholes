@@ -1,6 +1,8 @@
 package art.arcane.wormholes.door;
 
 import art.arcane.wormholes.Settings;
+import org.bukkit.entity.Player;
+import java.util.Set;
 import art.arcane.wormholes.door.view.DoorProjectionRegistry;
 import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.wormholes.Wormholes;
@@ -58,6 +60,16 @@ final class DoorRuntimeIndex implements AutoCloseable
 	void attachMovementSink(DoorEntitySweep.MovementSink sink)
 	{
 		sweep.attach(sink);
+	}
+
+	void updateNativeProjectionVisibility(Player observer, Set<UUID> ownedDoors)
+	{
+		visuals.updateNativeProjectionVisibility(observer, ownedDoors);
+	}
+
+	void forgetNativeObserver(UUID observerId)
+	{
+		visuals.forgetNativeObserver(observerId);
 	}
 
 	void attachProjection(DoorProjectionRegistry registry, boolean enabled, boolean hideBackingPane)
@@ -184,12 +196,12 @@ final class DoorRuntimeIndex implements AutoCloseable
 	{
 		DoorProjectionRegistry registry = projection;
 		UUID doorId = runtime.endpoint().identity().itemId();
-		if(registry == null || !projectionEnabled)
+		if(registry == null)
 		{
 			return false;
 		}
 		registry.install(runtime, snapshot.plane(), world);
-		return registry.hidesBacking(doorId, true, hideBacking);
+		return registry.hidesBacking(doorId, projectionEnabled, hideBacking);
 	}
 
 	private void removeProjection(UUID doorId)

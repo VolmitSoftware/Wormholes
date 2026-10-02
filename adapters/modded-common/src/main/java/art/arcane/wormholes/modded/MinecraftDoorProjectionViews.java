@@ -12,7 +12,9 @@ import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalGeometry;
+import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
+import art.arcane.wormholes.render.ProjectorPassRevision;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
@@ -22,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.nio.charset.StandardCharsets;
 
 public final class MinecraftDoorProjectionViews {
     private final WormholesModRuntime runtime;
@@ -31,12 +34,13 @@ public final class MinecraftDoorProjectionViews {
         this.runtime = runtime;
     }
 
-    public List<MinecraftPortal> update(ServerPlayer observer, List<MinecraftDoorService.DoorView> doors) {
+    public List<MinecraftPortal> update(ServerPlayer observer, List<MinecraftDoorService.DoorView> doors, boolean nativeMesh) {
         DoorsConfig settings = runtime.configuration().settings().getDoors();
         List<MinecraftPortal> sources = new ArrayList<>();
         Set<UUID> retained = new HashSet<>();
         for (MinecraftDoorService.DoorView door : doors) {
-            if (door.level() != observer.level() || !door.active() || !door.endpoint().projection().projects(settings.projectionEnabled)) {
+            if (!door.active() || !nativeMesh && (door.level() != observer.level()
+                || !settings.projectionEnabled || !door.endpoint().projection().projects(true))) {
                 continue;
             }
             MinecraftDoorService.ProjectionDestination destination = runtime.doors().projectionDestination(door, observer.getUUID()).orElse(null);
@@ -67,6 +71,16 @@ public final class MinecraftDoorProjectionViews {
 
     public boolean contains(UUID endpointId) {
         return apertures.containsKey(endpointId);
+    }
+
+    public MinecraftPortal source(UUID endpointId) {
+        Aperture aperture = apertures.get(endpointId);
+        return aperture == null ? null : aperture.source();
+    }
+
+    public long routeIdentity(MinecraftPortal source) {
+        Aperture aperture = apertures.get(source.getId());
+        return aperture != null && aperture.source() == source ? aperture.identity() : 0L;
     }
 
     public MinecraftPortal destination(MinecraftPortal source) {
@@ -102,13 +116,16 @@ public final class MinecraftDoorProjectionViews {
         source.setRenderMode(ProjectionRenderMode.VENTICULAR);
         source.setBlackoutBackground(false);
         MinecraftPortal anchor = descriptor(destination.routeId(), destination.origin(), destination.frame(), new PortalGeometry(), destination.worldKey());
-        return new Aperture(plane, destination, source, anchor);
+        UUID route = UUID.nameUUIDFromBytes(destination.signature().getBytes(StandardCharsets.UTF_8));
+        long identity = ProjectorPassRevision.mix(route.getMostSignificantBits(), route.getLeastSignificantBits());
+        return new Aperture(plane, destination, source, anchor, identity == 0L ? 1L : identity);
     }
 
     private static MinecraftPortal descriptor(UUID id, GeometryVector origin, PortalFrame frame, PortalGeometry geometry, String worldKey) {
-        return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id, origin, id.toString(), frame, true), geometry, worldKey, Map.of()));
+        return new MinecraftPortal(new MinecraftPortal.Definition(new Portal.State(id, origin, id.toString(), frame, true), geometry, worldKey,
+            Map.of("type", PortalType.PORTAL.name())));
     }
 
-    private record Aperture(DoorwayPlane plane, DoorProjectionDestination destination, MinecraftPortal source, MinecraftPortal anchor) {
+    private record Aperture(DoorwayPlane plane, DoorProjectionDestination destination, MinecraftPortal source, MinecraftPortal anchor, long identity) {
     }
 }

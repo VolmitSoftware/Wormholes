@@ -72,6 +72,11 @@ final class MinecraftDoorPresentation implements AutoCloseable {
         configuration = runtime.configuration();
     }
 
+    boolean hideBacking(ServerPlayer player, UUID door) {
+        return runtime.clientViews().nativeMesh(player) && runtime.clientViews().owns(player.getUUID(), door)
+            || configuration.settings().getDoors().projectionHideBacking && runtime.projections().isDoorProjected(player.getUUID(), door);
+    }
+
     void tick() {
         if (++tick % DoorPortalAnimation.FRAME_PERIOD_TICKS != 0) {
             return;
@@ -90,14 +95,15 @@ final class MinecraftDoorPresentation implements AutoCloseable {
                     continue;
                 }
                 Key key = new Key(player.getUUID(), door.endpoint().identity().itemId());
-                boolean hideBacking = configuration.settings().getDoors().projectionHideBacking
-                    && runtime.projections().isDoorProjected(key.observer(), key.door());
+                if (hideBacking(player, key.door())) {
+                    continue;
+                }
                 Visual visual = visuals.get(key);
-                if (visual == null || !visual.matches(door, geometry, hideBacking)) {
+                if (visual == null || !visual.matches(door, geometry)) {
                     if (visual != null) {
                         retire(visual);
                     }
-                    visual = new Visual(player, door, geometry, hideBacking);
+                    visual = new Visual(player, door, geometry);
                     visuals.put(key, visual);
                     animations.register(visual);
                 }
@@ -219,9 +225,7 @@ final class MinecraftDoorPresentation implements AutoCloseable {
     private void retire(Visual visual) {
         animations.retire(visual);
         if (!visual.player.hasDisconnected()) {
-            visual.player.connection.send(visual.backing == null
-                ? new ClientboundRemoveEntitiesPacket(visual.overlay.getId())
-                : new ClientboundRemoveEntitiesPacket(visual.overlay.getId(), visual.backing.getId()));
+            visual.player.connection.send(new ClientboundRemoveEntitiesPacket(visual.overlay.getId(), visual.backing.getId()));
         }
     }
 
@@ -235,28 +239,27 @@ final class MinecraftDoorPresentation implements AutoCloseable {
         private final PortalPlaneGeometry overlayGeometry;
         private long seen;
 
-        private Visual(ServerPlayer player, MinecraftDoorService.DoorView door, PortalPlaneGeometry geometry, boolean hideBacking) {
+        private Visual(ServerPlayer player, MinecraftDoorService.DoorView door, PortalPlaneGeometry geometry) {
             this.player = player;
             this.door = door;
             this.geometry = geometry;
             facing = DoorPortalGeometry.panelFace(door.plane());
-            backing = hideBacking ? null : display(Blocks.CRYING_OBSIDIAN.defaultBlockState(), geometry);
+            backing = display(Blocks.CRYING_OBSIDIAN.defaultBlockState(), geometry);
             overlayGeometry = DoorPortalGeometry.overlayGeometry(geometry, facing);
             BlockState portal = Blocks.NETHER_PORTAL.defaultBlockState().setValue(NetherPortalBlock.AXIS,
                 facing == Direction.E || facing == Direction.W ? Z : X);
             try {
                 overlay = display(portal, overlayGeometry);
             } catch (RuntimeException failure) {
-                if (backing != null && !player.hasDisconnected()) {
+                if (!player.hasDisconnected()) {
                     player.connection.send(new ClientboundRemoveEntitiesPacket(backing.getId()));
                 }
                 throw failure;
             }
         }
 
-        private boolean matches(MinecraftDoorService.DoorView current, PortalPlaneGeometry geometry, boolean hideBacking) {
-            return door.level() == current.level() && door.plane().equals(current.plane()) && this.geometry.equals(geometry)
-                && (backing == null) == hideBacking;
+        private boolean matches(MinecraftDoorService.DoorView current, PortalPlaneGeometry geometry) {
+            return door.level() == current.level() && door.plane().equals(current.plane()) && this.geometry.equals(geometry);
         }
 
         private Display.BlockDisplay display(BlockState block, PortalPlaneGeometry geometry) {

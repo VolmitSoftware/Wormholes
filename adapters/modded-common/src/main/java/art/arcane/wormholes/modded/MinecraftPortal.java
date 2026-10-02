@@ -400,12 +400,12 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
 
     @Override
     public MirrorRotation getMirrorRotation() {
-        return MirrorRotation.fromDegrees(intValue("mirrorRotationDegrees", 0)).coherentFor(getFrame());
+        return MirrorRotation.fromDegrees(intValue("mirrorRotationDegrees", 0));
     }
 
     @Override
     public void setMirrorRotation(MirrorRotation rotation) {
-        values.put("mirrorRotationDegrees", (rotation == null ? MirrorRotation.DEGREES_0 : rotation).coherentFor(getFrame()).getDegrees());
+        values.put("mirrorRotationDegrees", (rotation == null ? MirrorRotation.DEGREES_0 : rotation).getDegrees());
     }
 
     @Override

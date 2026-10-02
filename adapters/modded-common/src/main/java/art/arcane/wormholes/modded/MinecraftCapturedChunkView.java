@@ -4,6 +4,7 @@ import art.arcane.wormholes.render.ProjectionCellKey;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 import art.arcane.wormholes.render.plate.PlateCaptureJob;
 import art.arcane.wormholes.render.plate.ViewPlateBuilder;
+import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.render.view.ProjectionContentView;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -42,6 +43,27 @@ final class MinecraftCapturedChunkView implements ProjectionContentView<BlockSta
             }
         }
         this.air = Blocks.AIR.defaultBlockState();
+    }
+
+    @Override
+    public boolean isEmpty(PlateBox box) {
+        for (int x = box.minX() >> 4; x <= (box.minX() + box.sizeX() - 1) >> 4; x++) {
+            for (int z = box.minZ() >> 4; z <= (box.minZ() + box.sizeZ() - 1) >> 4; z++) {
+                MinecraftPlateCaptureSource.CapturedChunk captured = chunk(x << 4, z << 4);
+                if (captured == null) {
+                    return false;
+                }
+                int min = Math.max(box.minY(), minHeight) >> 4;
+                int max = Math.min(box.minY() + box.sizeY() - 1, maxHeight - 1) >> 4;
+                for (int y = min; y <= max; y++) {
+                    int index = y - captured.minSectionY();
+                    if (index < 0 || index >= captured.sections().length || captured.sections()[index] != null) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
     }
 
     @Override
@@ -99,12 +121,19 @@ final class MinecraftCapturedChunkView implements ProjectionContentView<BlockSta
 
     @Override
     public String sampleBiome(int x, int y, int z) {
-        return null;
+        MinecraftPlateCaptureSource.CapturedChunk chunk = chunk(x, z);
+        if (chunk == null || chunk.biomes().length == 0) {
+            return null;
+        }
+        int section = Math.clamp((y >> 4) - chunk.minBiomeSection(), 0, chunk.biomes().length - 1);
+        int sampledY = Math.clamp(y, minHeight, maxHeight - 1);
+        return chunk.biomes()[section][((sampledY & 15) >> 2) << 4 | ((z & 15) >> 2) << 2 | (x & 15) >> 2];
     }
 
     @Override
     public int getLight(int x, int y, int z) {
-        return LIGHT_UNAVAILABLE;
+        MinecraftPlateCaptureSource.CapturedChunk chunk = chunk(x, z);
+        return chunk == null || chunk.light() == null ? LIGHT_UNAVAILABLE : chunk.light().light(x, y, z);
     }
 
     @Override

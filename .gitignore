@@ -36,3 +36,5 @@ BUILDS/
 .run/
 
 .worktrees/
+
+/handoff-worktree.md

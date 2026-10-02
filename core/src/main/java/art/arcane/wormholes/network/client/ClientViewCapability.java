@@ -15,7 +15,8 @@ public enum ClientViewCapability {
     CLIENT_MIRROR(8),
     CONFIG_PHASE(9),
     LINK_UNCOMPRESSED(10),
-    VIEW_STATS(11);
+    VIEW_STATS(11),
+    MESH_RENDER(12);
 
     public static final long NONE = 0L;
     public static final long ALL = allMask();

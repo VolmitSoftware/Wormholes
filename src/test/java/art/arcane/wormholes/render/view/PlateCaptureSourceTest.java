@@ -35,16 +35,39 @@ final class PlateCaptureSourceTest {
                 signs[i] = sign(i & 15, 64 + (i >> 4), 3);
             }
 
-            PlateCaptureSource.CapturedChunk busy = new PlateCaptureSource(true).capture(world(chunk(signs)), 0, 0);
+            PlateCaptureSource.CapturedChunk busy = new PlateCaptureSource(PlateCaptureSource.Options.column(true)).capture(world(chunk(signs)), 0, 0);
 
             assertEquals(PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK, busy.blockEntities().size(), "one chunk never serialises more than the per-chunk cap");
             assertFalse(busy.blockEntitiesComplete(), "a capped chunk leaves its missing block entities to live sampling");
 
             BlockState[] few = new BlockState[] {sign(1, 64, 3), sign(2, 64, 3)};
-            PlateCaptureSource.CapturedChunk quiet = new PlateCaptureSource(true).capture(world(chunk(few)), 0, 0);
+            PlateCaptureSource.CapturedChunk quiet = new PlateCaptureSource(PlateCaptureSource.Options.column(true)).capture(world(chunk(few)), 0, 0);
 
             assertEquals(2, quiet.blockEntities().size());
             assertTrue(quiet.blockEntitiesComplete());
+        } finally {
+            FidelitySettings.blockEntities = blockEntities;
+            FidelitySettings.blockEntityTypes = types;
+        }
+    }
+
+    @Test
+    void sectionCaptureFiltersOtherHeightsBeforeApplyingBlockEntityCap() {
+        boolean blockEntities = FidelitySettings.blockEntities;
+        List<String> types = FidelitySettings.blockEntityTypes;
+        FidelitySettings.blockEntities = true;
+        FidelitySettings.blockEntityTypes = List.of("minecraft:sign");
+        try {
+            BlockState[] signs = new BlockState[PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK + 2];
+            for (int i = 0; i < signs.length - 1; i++) {
+                signs[i] = sign(i & 15, 64 + (i >> 4), 3);
+            }
+            signs[signs.length - 1] = sign(2, -17, 3);
+            PlateCaptureSource source = new PlateCaptureSource(new PlateCaptureSource.Options(true, -32, -17, false));
+            PlateCaptureSource.CapturedChunk captured = source.capture(world(chunk(signs)), 0, 0);
+            assertEquals(1, captured.blockEntities().size());
+            assertTrue(captured.blockEntities().containsKey(ProjectionCellKey.pack(2, -17, 3)));
+            assertTrue(captured.blockEntitiesComplete());
         } finally {
             FidelitySettings.blockEntities = blockEntities;
             FidelitySettings.blockEntityTypes = types;

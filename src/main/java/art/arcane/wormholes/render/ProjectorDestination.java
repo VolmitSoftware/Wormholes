@@ -124,7 +124,7 @@ final class ProjectorDestination implements ProjectorScanDestination<ILocalPorta
     Outcome resolve(Player observer, PortalProjector.RtpProjectionTarget rtpTarget) {
         boolean rtpMode = rtpTarget != null;
         mirrorMode = !rtpMode && portal.isMirrorMode();
-        mirrorRotationQuarterTurns = mirrorMode ? portal.getMirrorRotation().getQuarterTurns() : 0;
+        mirrorRotationQuarterTurns = mirrorMode ? portal.getMirrorRotation().coherentFor(portal.getFrame()).getQuarterTurns() : 0;
         ITunnel activeTunnel = portal.getTunnel();
         IPortal linkedDestination = activeTunnel == null ? null : activeTunnel.getDestination();
         if (!rtpMode && !mirrorMode && linkedDestination == null) {
