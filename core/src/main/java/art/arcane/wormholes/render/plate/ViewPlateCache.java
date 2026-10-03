@@ -90,6 +90,11 @@ public final class ViewPlateCache<B, W> {
         return building.get(job.key()) == job;
     }
 
+    public boolean captureQueued(ViewPlateKey key) {
+        ViewPlateBuilder.Job<B, W> job = building.get(key);
+        return job instanceof PlateCaptureJob<B, W, ?> capture && capture.waitingForBudget();
+    }
+
     public void publish(ViewPlateBuilder.Job<B, W> job, ViewPlate<B> plate) {
         if (plate == null) {
             buildFailed(job);

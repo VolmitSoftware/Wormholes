@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class IrisPortalBiomeMixin {
     @Inject(method = "addBiomeUniforms", at = @At("HEAD"), cancellable = true)
     private static void wormholes$uniforms(UniformHolder uniforms, CallbackInfo callback) {
-        if (PortalShaderContext.current() == null) {
+        if (PortalShaderContext.target() == null) {
             return;
         }
         uniforms.uniform1i(UniformUpdateFrequency.PER_TICK, "biome", () ->

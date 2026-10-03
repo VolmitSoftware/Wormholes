@@ -32,6 +32,23 @@ import art.arcane.wormholes.render.client.session.ClientViewSessionState;
 
 final class BukkitClientViewNegotiatorTest {
     @Test
+    void paperGreetingAdvertisesAndNegotiatesLocalMesh() throws Exception {
+        try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY)) {
+            fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
+            assertTrue(fixture.negotiator.offerPlay(fixture.player));
+            assertEquals(ClientViewInbound.HELLO_ACCEPTED, fixture.hello(ClientViewCapability.ALL));
+
+            List<ClientViewMessage> messages = fixture.messages();
+            assertEquals(List.of(ClientViewMessageType.OFFER, ClientViewMessageType.ACCEPT), types(messages));
+            ClientViewMessage.Offer offer = (ClientViewMessage.Offer) messages.get(0);
+            ClientViewMessage.Accept accept = (ClientViewMessage.Accept) messages.get(1);
+            assertTrue(ClientViewCapability.LOCAL_MESH.in(offer.serverCaps()));
+            assertTrue(ClientViewCapability.LOCAL_MESH.in(accept.caps()));
+            assertTrue(ClientViewCapability.MESH_RENDER.in(accept.caps()));
+        }
+    }
+
+    @Test
     void vanillaBrandIsNeverOffered() throws Exception {
         try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, true, 5000), ConnectionState.CONFIGURATION)) {
             fixture.clientView.observer(fixture.playerId, fixture.user).brand("vanilla");

@@ -18,6 +18,11 @@ final class PortalProjection {
             .m30(transform.translation().x()).m31(transform.translation().y()).m32(transform.translation().z());
     }
 
+    static Vector4f clipDistance(Matrix4fc projection, Matrix4fc viewRotation, Vector4fc cameraPlane) {
+        return new Matrix4f(projection).mul(viewRotation).invert().transpose()
+            .transform(new Vector4f(cameraPlane)).negate();
+    }
+
     static Matrix4f clip(Matrix4fc projection, Matrix4fc viewRotation, Vector4fc cameraPlane, boolean zeroToOne) {
         Vector4f plane = new Matrix4f(viewRotation).invert().transpose().transform(new Vector4f(cameraPlane));
         float farClip = zeroToOne ? 0.0f : -1.0f;

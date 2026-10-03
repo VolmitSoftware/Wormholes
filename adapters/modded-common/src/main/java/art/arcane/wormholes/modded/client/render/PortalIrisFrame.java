@@ -6,6 +6,7 @@ import net.irisshaders.iris.gl.program.ProgramUniforms;
 import net.irisshaders.iris.gl.program.ProgramSamplers;
 import art.arcane.wormholes.modded.mixin.client.IrisPortalSettingsAccess;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.helpers.MatrixUtils;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
@@ -26,6 +27,14 @@ final class PortalIrisFrame implements PortalShaderRenderer.Frame {
     private final PortalFramebufferScope framebuffer;
 
     PortalIrisFrame(PortalShaderContext.View view) {
+        this(view, view.target());
+    }
+
+    static PortalIrisFrame building(RenderTarget target) {
+        return new PortalIrisFrame(null, target);
+    }
+
+    private PortalIrisFrame(PortalShaderContext.View view, RenderTarget target) {
         previousDhIncompatible = IrisPortalDhAccess.wormholes$incompatible();
         textures = new PortalTextureScope();
         previousPipeline = Iris.getPipelineManager().getPipelineNullable();
@@ -33,16 +42,21 @@ final class PortalIrisFrame implements PortalShaderRenderer.Frame {
         previousState = PortalIrisState.capture();
         previousImmediate = Immediate.capture();
         framebuffer = PortalFramebufferScope.capture();
-        context = new PortalShaderContext(view);
+        context = view == null ? new PortalShaderContext(target) : new PortalShaderContext(view);
         boolean pushed = false;
         try {
-            RenderSystem.getModelViewStack().pushMatrix().set(view.modelView());
+            RenderSystem.getModelViewStack().pushMatrix();
+            if (view != null) {
+                RenderSystem.getModelViewStack().set(view.modelView());
+            }
             pushed = true;
-            CapturedRenderingState state = CapturedRenderingState.INSTANCE;
-            state.setGbufferModelView(view.modelView());
-            state.setGbufferProjection(MatrixUtils.undoRevZ(new Matrix4f(view.projection())));
-            state.setFogColor(view.environment().fog().color().red(), view.environment().fog().color().green(),
-                view.environment().fog().color().blue());
+            if (view != null) {
+                CapturedRenderingState state = CapturedRenderingState.INSTANCE;
+                state.setGbufferModelView(view.modelView());
+                state.setGbufferProjection(MatrixUtils.undoRevZ(new Matrix4f(view.projection())));
+                state.setFogColor(view.environment().fog().color().red(), view.environment().fog().color().green(),
+                    view.environment().fog().color().blue());
+            }
             ImmediateState.skipExtension.set(false);
             ImmediateState.bypass = false;
             ImmediateState.isRenderingLevel = true;

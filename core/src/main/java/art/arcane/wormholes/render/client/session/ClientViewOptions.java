@@ -39,7 +39,8 @@ public record ClientViewOptions(boolean enabled,
 
     public long serverCaps(ClientViewPhase phase) {
         long caps = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.FX_EMITTERS,
-            ClientViewCapability.ATMOSPHERE, ClientViewCapability.LINK_UNCOMPRESSED, ClientViewCapability.MESH_RENDER);
+            ClientViewCapability.ATMOSPHERE, ClientViewCapability.LINK_UNCOMPRESSED, ClientViewCapability.MESH_RENDER,
+            ClientViewCapability.LOCAL_MESH, ClientViewCapability.MESH_REUSE);
         if (brickCache) {
             caps |= ClientViewCapability.BRICK_CACHE.mask();
         }

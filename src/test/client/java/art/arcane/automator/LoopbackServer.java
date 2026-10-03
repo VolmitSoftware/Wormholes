@@ -24,7 +24,7 @@ public final class LoopbackServer implements AutoCloseable {
     private static final Gson GSON = new Gson();
     private static final int REQUEST_LIMIT = 8192;
     private static final Set<String> INPUT_KEYS = Set.of("forward", "back", "left", "right", "jump", "sneak", "sprint", "attack", "use",
-            "swapHands", "drop", "inventory");
+            "swapHands", "drop", "inventory", "playerList");
     private static final Set<String> KEY_OPTIONS = Set.of("op", "leaseTicks", "hold");
 
     private final HttpServer server;

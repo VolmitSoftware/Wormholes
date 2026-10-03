@@ -63,6 +63,11 @@ final class ClientViewFixtures {
             Brick.empty(0), biomeHalo()), ClientViewCapability.ALL, 15, 0));
         out.add(new Vector("mesh_drop", new ClientViewMessage.MeshDrop(7, 12, -32, 4, -10), ClientViewCapability.ALL, 16, 0));
         out.add(new Vector("mesh_ack", new ClientViewMessage.MeshAck(7, 12, -32, 4, -10, 1), ClientViewCapability.NONE, 0, 0));
+        out.add(new Vector("mesh_local", new ClientViewMessage.MeshLocal(7, 12, 1, true,
+            List.of(new ClientViewMessage.MeshCoordinate(-32, 4, -10)), List.of(new UUID(12, 34))), ClientViewCapability.NONE, 0, 0));
+        out.add(new Vector("mesh_cached", new ClientViewMessage.MeshCached(7, 12, 1, true,
+            List.of(new ClientViewMessage.MeshClaim(-32, 4, -10, 0x1122334455667788L))), ClientViewCapability.NONE, 0, 0));
+        out.add(new Vector("mesh_reuse", new ClientViewMessage.MeshReuse(7, 12, -32, 4, -10, 2, 0x1122334455667788L), ClientViewCapability.ALL, 16, 0));
         out.add(new Vector("environment", new ClientViewMessage.Environment(7, environment()), ClientViewCapability.ALL, 17, 0));
         return out;
     }

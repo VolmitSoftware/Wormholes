@@ -57,24 +57,19 @@ final class PortalIrisResolution {
         }
         int minimum = Math.min(256, demand.width());
         Collections.fill(widths, minimum);
-        if (bytes(demand, widths) > limit) {
-            minimum = Math.min(STEP, demand.width());
-            Collections.fill(widths, minimum);
-        }
-        if (bytes(demand, widths) > limit) {
-            throw new IllegalStateException("Destination shader resources exceed the 1 GiB pool limit");
-        }
+        widths.set(0, demand.width());
+        long activeLimit = Math.max(limit, bytes(demand, widths));
         for (int depth = 0; depth < widths.size(); depth++) {
             int lower = Math.max(1, minimum / STEP);
             int upper = Math.max(1, demand.width() / STEP);
             widths.set(depth, demand.width());
-            if (bytes(demand, widths) <= limit) {
+            if (bytes(demand, widths) <= activeLimit) {
                 continue;
             }
             while (lower < upper) {
                 int midpoint = (lower + upper + 1) / 2;
                 widths.set(depth, midpoint * STEP);
-                if (bytes(demand, widths) <= limit) {
+                if (bytes(demand, widths) <= activeLimit) {
                     lower = midpoint;
                 } else {
                     upper = midpoint - 1;
@@ -86,7 +81,7 @@ final class PortalIrisResolution {
     }
 
     private static long bytes(Demand demand, List<Integer> widths) {
-        long bytes = 0;
+        long bytes = demand.retainedBytes();
         for (Dimension entry : demand.programs().values()) {
             ProgramSet programs = entry.programs();
             for (int depth : entry.depths()) {
@@ -120,7 +115,7 @@ final class PortalIrisResolution {
         }
     }
 
-    record Demand(int width, int height, Map<NamespacedId, Dimension> programs, long resourceRevision) {
+    record Demand(int width, int height, Map<NamespacedId, Dimension> programs, long resourceRevision, long retainedBytes) {
         Demand {
             programs = Map.copyOf(programs);
         }

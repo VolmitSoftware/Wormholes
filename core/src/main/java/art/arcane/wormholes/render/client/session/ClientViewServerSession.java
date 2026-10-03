@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntSupplier;
 
 import art.arcane.wormholes.network.client.BrickLightSource;
+import art.arcane.wormholes.network.client.ClientMeshHash;
 import art.arcane.wormholes.network.client.ClientViewCapability;
 import art.arcane.wormholes.network.client.ClientViewCodec;
 import art.arcane.wormholes.network.client.ClientViewHandshake;
@@ -397,6 +398,8 @@ public final class ClientViewServerSession<P, B> {
             case ClientViewMessage.BrickMiss misses -> onMiss(misses);
             case ClientViewMessage.Ack ack -> onAck(ack);
             case ClientViewMessage.MeshAck ack -> onMeshAck(ack);
+            case ClientViewMessage.MeshLocal local -> onMeshLocal(local);
+            case ClientViewMessage.MeshCached cached -> onMeshCached(cached);
             case ClientViewMessage.ViewStats stats -> onViewStats(stats, now);
             case ClientViewMessage.PlateRefused refused -> onRefused(refused);
             default -> rejectInbound(limiter.violation(now));
@@ -542,6 +545,28 @@ public final class ClientViewServerSession<P, B> {
             return stale();
         }
         return mesh.acknowledge(ack) ? ClientViewInbound.HANDLED : stale();
+    }
+
+    private ClientViewInbound onMeshLocal(ClientViewMessage.MeshLocal local) {
+        if (state != ClientViewSessionState.CLIENT_VIEW || !ClientViewCapability.LOCAL_MESH.in(caps)
+            || !ClientViewCapability.MESH_RENDER.in(caps)) {
+            return stale();
+        }
+        List<UUID> entities = new ArrayList<>(local.entities().size());
+        for (UUID source : local.entities()) {
+            entities.add(platform.entities().projectedId(source));
+        }
+        ClientViewMessage.MeshLocal projected = new ClientViewMessage.MeshLocal(local.portalKey(), local.generation(), local.sequence(),
+            local.available(), local.sections(), entities);
+        return mesh.local(projected) ? ClientViewInbound.HANDLED : stale();
+    }
+
+    private ClientViewInbound onMeshCached(ClientViewMessage.MeshCached cached) {
+        if (state != ClientViewSessionState.CLIENT_VIEW || !ClientViewCapability.MESH_REUSE.in(caps)
+            || !ClientViewCapability.MESH_RENDER.in(caps)) {
+            return stale();
+        }
+        return mesh.cached(cached) ? ClientViewInbound.HANDLED : stale();
     }
 
     private ClientViewInbound onAck(ClientViewMessage.Ack ack) {
@@ -732,8 +757,10 @@ public final class ClientViewServerSession<P, B> {
                 return Refresh.REJECT;
             }
             slot.geometryStamp = stamp;
-            slot.baseGeometry = geometry;
-            geometryChanged = true;
+            if (!geometry.equals(slot.baseGeometry)) {
+                slot.baseGeometry = geometry;
+                geometryChanged = true;
+            }
         }
         if (!meshEnabled() && !clientMirror(slot.baseGeometry)) {
             ViewPlate<B> plate = portals.plate(player, slot.portalId, slot.observedPlate == null);
@@ -749,7 +776,10 @@ public final class ClientViewServerSession<P, B> {
         }
         int nested = refreshNested(slot, portals, options, serverTick);
         if (geometryChanged || (nested & NESTED_GEOMETRY) != 0) {
-            slot.geometry = compose(slot);
+            ClientPortalGeometry composed = compose(slot);
+            if (!composed.equals(slot.geometry)) {
+                slot.geometry = composed;
+            }
         }
         changed |= geometryChanged || nested != 0;
         if (!meshEnabled()) {
@@ -822,12 +852,16 @@ public final class ClientViewServerSession<P, B> {
                 clientMirror(slot.baseGeometry));
             if (frame != null) {
                 slot.needFullEntities = false;
-                inbox.add(new Scene<B>(slot, frame));
+                inbox.add(new Scene<B>(slot, mesh.localEntities(frame)));
                 queued = true;
             }
             if (ClientViewCapability.ENTITY_EVENTS.in(sessionCaps)) {
-                for (ClientViewMessage.EntityEvent event : platform.entities().events(player, slot.portalId, slot.key)) {
-                    inbox.add(new Scene<B>(slot, event));
+                List<ClientViewMessage.EntityEvent> events = platform.entities().events(player, slot.portalId, slot.key);
+                for (int eventIndex = 0; eventIndex < events.size(); eventIndex++) {
+                    if (mesh.localEntity(slot.key, events.get(eventIndex).entityId())) {
+                        continue;
+                    }
+                    inbox.add(new Scene<B>(slot, events.get(eventIndex)));
                     queued = true;
                 }
             }
@@ -862,7 +896,7 @@ public final class ClientViewServerSession<P, B> {
         if (meshEnabled()) {
             portals.prepareNested(player, slot.contextId, null, slot.portalId);
             int depth = nativeRecursionDepth(slot.baseGeometry);
-            return refreshNativeNested(slot, portals, serverTick, 0, depth, new int[]{ClientViewProtocol.MAX_NESTED_GEOMETRY});
+            return refreshNativeNested(slot, portals, serverTick, 0, depth, slot.baseGeometry.mirror() ? 1 : 0, new int[]{ClientViewProtocol.MAX_NESTED_GEOMETRY});
         }
         if (!clientRecursion(slot.baseGeometry)) {
             if (slot.children.isEmpty()) {
@@ -921,7 +955,7 @@ public final class ClientViewServerSession<P, B> {
     }
 
     private int refreshNativeNested(ClientViewPortalSlot<B> slot, ClientViewPortalAccess<P, B> portals, long serverTick,
-                                    int depth, int depthLimit, int[] remaining) {
+                                    int depth, int depthLimit, int mirrors, int[] remaining) {
         if (depth >= depthLimit || !clientRecursion(slot.baseGeometry) || remaining[0] <= 0) {
             boolean changed = !slot.children.isEmpty();
             detachChildren(slot);
@@ -974,8 +1008,21 @@ public final class ClientViewServerSession<P, B> {
                     continue;
                 }
                 child.geometryStamp = stamp;
-                child.baseGeometry = geometry;
+                if (!geometry.equals(child.baseGeometry)) {
+                    child.baseGeometry = geometry;
+                    flags |= NESTED_GEOMETRY;
+                }
+            }
+            int childMirrors = mirrors + (child.baseGeometry.mirror() ? 1 : 0);
+            if (childMirrors > ClientViewProtocol.MAX_MIRROR_REFLECTIONS) {
+                slot.children.remove(child);
+                if (created) {
+                    portals.releaseNested(player, child.contextId);
+                } else {
+                    detachChild(child);
+                }
                 flags |= NESTED_GEOMETRY;
+                continue;
             }
             visited.add(childId);
             if (created) {
@@ -985,7 +1032,7 @@ public final class ClientViewServerSession<P, B> {
             }
             remaining[0]--;
             int descendants = refreshNativeNested(child, portals, serverTick, depth + 1,
-                Math.min(depthLimit, depth + 1 + nativeRecursionDepth(child.baseGeometry)), remaining);
+                Math.min(depthLimit, depth + 1 + nativeRecursionDepth(child.baseGeometry)), childMirrors, remaining);
             ClientPortalGeometry composed = compose(child).withParent(slot.key);
             if (!composed.equals(child.geometry)) {
                 child.geometry = composed;
@@ -1003,12 +1050,16 @@ public final class ClientViewServerSession<P, B> {
                     child.needFullEntities, clientMirror(child.baseGeometry));
                 if (entities != null) {
                     child.needFullEntities = false;
-                    inbox.add(new Scene<>(child, entities));
+                    inbox.add(new Scene<>(child, mesh.localEntities(entities)));
                     flags |= NESTED_PLATE;
                 }
                 if (ClientViewCapability.ENTITY_EVENTS.in(caps)) {
-                    for (ClientViewMessage.EntityEvent event : platform.entities().events(player, child.contextId, child.key)) {
-                        inbox.add(new Scene<B>(child, event));
+                    List<ClientViewMessage.EntityEvent> events = platform.entities().events(player, child.contextId, child.key);
+                    for (int eventIndex = 0; eventIndex < events.size(); eventIndex++) {
+                        if (mesh.localEntity(child.key, events.get(eventIndex).entityId())) {
+                            continue;
+                        }
+                        inbox.add(new Scene<B>(child, events.get(eventIndex)));
                         flags |= NESTED_PLATE;
                     }
                 }
@@ -1071,7 +1122,7 @@ public final class ClientViewServerSession<P, B> {
         if (geometry.recursionDepth() <= 0) {
             return 0;
         }
-        return geometry.mirror() ? ClientViewProtocol.MAX_MIRROR_REFLECTIONS - 1
+        return geometry.mirror() ? ClientViewProtocol.MAX_GEOMETRY_DEPTH - 1
             : Math.min(geometry.recursionDepth(), ClientViewProtocol.MAX_LINKED_GEOMETRY_DEPTH - 1);
     }
 
@@ -1414,11 +1465,18 @@ public final class ClientViewServerSession<P, B> {
                 ClientViewMessage.MeshSection section = new ClientViewMessage.MeshSection(ready.slot().key, ready.generation(),
                     coordinate.x(), coordinate.y(), coordinate.z(), ready.revision(), encoded.backingState(), encoded.brick(0), ready.biomes());
                 List<ClientViewMessage> group = new ArrayList<ClientViewMessage>(2);
-                List<ClientViewMessage.PaletteEntry> entries = cursor.pending(encoded.referencedIds());
-                if (!entries.isEmpty()) {
-                    group.add(new ClientViewMessage.Palette(entries));
+                long reuseHash = ClientViewCapability.MESH_REUSE.in(caps)
+                    ? ClientMeshHash.resolved(section, registry.hashSalt(), registry.palette()::state) : 0L;
+                if (ClientViewCapability.MESH_REUSE.in(caps) && mesh.reuse(ready, reuseHash)) {
+                    group.add(new ClientViewMessage.MeshReuse(section.portalKey(), section.generation(), section.sectionX(), section.sectionY(),
+                        section.sectionZ(), section.revision(), reuseHash));
+                } else {
+                    List<ClientViewMessage.PaletteEntry> entries = cursor.pending(encoded.referencedIds());
+                    if (!entries.isEmpty()) {
+                        group.add(new ClientViewMessage.Palette(entries));
+                    }
+                    group.add(section);
                 }
-                group.add(section);
                 int bytes = 0;
                 for (ClientViewMessage message : group) {
                     bytes += ClientViewCodec.encodeBody(message).length + ClientViewProtocol.S2C_HEADER_BYTES;

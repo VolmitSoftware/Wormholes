@@ -68,6 +68,7 @@ public class ClientMeshInteractionTest {
         list.add(nativeCopy);
         list.add(real);
         WormholesClient client = mock(WormholesClient.class);
+        when(client.localMeshes()).thenReturn(new ClientLocalMeshSources(ignored -> {}));
         ClientViewTick tick = mock(ClientViewTick.class);
         ClientProjectedEntities projected = mock(ClientProjectedEntities.class);
         ClientReflectionEntity reflections = mock(ClientReflectionEntity.class);
@@ -95,6 +96,7 @@ public class ClientMeshInteractionTest {
     @Test
     public void unchangedWorldEntityQueriesReuseTheOriginalPredicate() {
         WormholesClient client = mock(WormholesClient.class);
+        when(client.localMeshes()).thenReturn(new ClientLocalMeshSources(ignored -> {}));
         ClientViewTick tick = mock(ClientViewTick.class);
         ClientProjectedEntities projected = mock(ClientProjectedEntities.class);
         when(client.tickState()).thenReturn(tick);
@@ -110,6 +112,7 @@ public class ClientMeshInteractionTest {
     @Test
     public void mirrorAndProjectedHitboxesDoNotReplaceWorldClickTargets() throws ReflectiveOperationException {
         WormholesClient client = mock(WormholesClient.class);
+        when(client.localMeshes()).thenReturn(new ClientLocalMeshSources(ignored -> {}));
         ClientViewTick tick = mock(ClientViewTick.class);
         ClientProjectedEntities projected = mock(ClientProjectedEntities.class);
         ClientReflectionEntity reflections = new ClientReflectionEntity();
@@ -142,6 +145,7 @@ public class ClientMeshInteractionTest {
     @Test
     public void nativeCopiesCannotContributeCollisionShapesOrPushTheWorld() throws ReflectiveOperationException {
         WormholesClient client = mock(WormholesClient.class);
+        when(client.localMeshes()).thenReturn(new ClientLocalMeshSources(ignored -> {}));
         ClientViewTick tick = mock(ClientViewTick.class);
         ClientProjectedEntities projected = mock(ClientProjectedEntities.class);
         ClientReflectionEntity reflections = new ClientReflectionEntity();
@@ -202,6 +206,7 @@ public class ClientMeshInteractionTest {
         ClientSceneWorld world = mock(ClientSceneWorld.class);
         ClientProjectedEntities projected = new ClientProjectedEntities(world);
         WormholesClient client = mock(WormholesClient.class);
+        when(client.localMeshes()).thenReturn(new ClientLocalMeshSources(ignored -> {}));
         ClientViewTick tick = mock(ClientViewTick.class);
         when(client.tickState()).thenReturn(tick);
         when(tick.entities()).thenReturn(projected);

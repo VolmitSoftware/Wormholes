@@ -117,10 +117,14 @@ public final class ClientLevelScene implements ClientSceneWorld {
         if (nativeMesh && entity != null) {
             entity.noPhysics = true;
             if (entity instanceof Display || entity instanceof LivingEntity) {
-                WormholesClient client = WormholesClient.instance();
-                if (client == null || !client.meshViews().tickEntity(portalKey, entity)) {
-                    entity.commonTick();
-                    entity.tick();
+                try {
+                    WormholesClient client = WormholesClient.instance();
+                    if (client == null || !client.meshViews().tickEntity(portalKey, entity)) {
+                        entity.commonTick();
+                        entity.tick();
+                    }
+                } finally {
+                    entity.noPhysics = true;
                 }
             } else if (!(entity instanceof ItemEntity)) {
                 entity.commonTick();

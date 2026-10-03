@@ -37,6 +37,7 @@ public abstract class ViewChunkChangesMixin {
         if (network != null && !level.getServer().isStopped()) {
             level.getServer().execute(() -> {
                 if (!level.getServer().isStopped() && MinecraftNetworkService.forServer(level.getServer()) == network) {
+                    network.columnChanged(level, section.x(), section.z());
                     network.viewServer().lightChanged(level, layer, section);
                 }
             });

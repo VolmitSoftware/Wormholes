@@ -132,6 +132,14 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
     }
 
     @Override
+    public boolean localMeshWorld(ClientViewObserver observer, UUID contextId) {
+        ClientViewPortalSource source = source(observer, contextId);
+        Location eye = observer.eye();
+        return source != null && source.portal().isMirrorMode() && eye != null
+            && eye.getWorld().equals(source.destinationWorld());
+    }
+
+    @Override
     public ViewPlate<BlockData> meshSection(ClientViewObserver observer, UUID portal, PlateBox clip, int distance) {
         ClientViewPortalSource source = source(observer, portal);
         return source == null ? null : source.meshSection(clip, distance);

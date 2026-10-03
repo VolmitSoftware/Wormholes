@@ -29,6 +29,7 @@ def main() -> int:
     subprocess.run([java, '-cp', test_classpath, 'art.arcane.automator.WormholesStatusTest'], check=True)
     subprocess.run([java, '-cp', test_classpath, 'art.arcane.automator.PortalBlockStatusTest'], check=True)
     subprocess.run([java, '-cp', test_classpath, 'art.arcane.automator.IrisStatusTest'], check=True)
+    subprocess.run([java, '-cp', test_classpath, 'art.arcane.automator.TextInputPlanTest'], check=True)
     return 0
 
 

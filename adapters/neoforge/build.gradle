@@ -13,6 +13,7 @@ Properties rootProperties = new Properties()
 file('../../gradle.properties').withInputStream { InputStream stream -> rootProperties.load(stream) }
 String minecraftVersion = providers.gradleProperty('minecraftVersion').getOrElse(rootProperties.getProperty('minecraftVersion'))
 String loaderVersion = providers.gradleProperty('neoForgeVersion').getOrElse(rootProperties.getProperty('neoForgeVersion'))
+String artifactLoaderVersion = loaderVersion.replaceFirst(/-beta$/, '')
 project(':core') {
     layout.buildDirectory.set(rootProject.layout.buildDirectory.dir('core'))
 }
@@ -44,6 +45,11 @@ repositories {
 }
 
 configurations {
+    irisParserApi {
+        canBeConsumed = false
+        canBeResolved = true
+        transitive = false
+    }
     sodiumApi {
         canBeConsumed = false
         canBeResolved = true
@@ -63,11 +69,25 @@ TaskProvider<Sync> extractSodiumApi = tasks.register('extractSodiumApi', Sync) {
 FileCollection sodiumApiClasses = files(layout.buildDirectory.file(
     'sodium-api/META-INF/jarjar/net.caffeinemc.sodium-neoforge-0.9.2+mc26.3-mod.jar')).builtBy(extractSodiumApi)
 
+TaskProvider<Sync> extractIrisParserApi = tasks.register('extractIrisParserApi', Sync) {
+    from({ zipTree(configurations.irisParserApi.singleFile) })
+    include('META-INF/jarjar/glsl-transformer-3.0.0-pre3.jar')
+    include('META-INF/jarjar/antlr4-runtime-4.13.1.jar')
+    into(layout.buildDirectory.dir('iris-parser-api'))
+}
+FileCollection irisParserClasses = files(
+    layout.buildDirectory.file('iris-parser-api/META-INF/jarjar/glsl-transformer-3.0.0-pre3.jar'),
+    layout.buildDirectory.file('iris-parser-api/META-INF/jarjar/antlr4-runtime-4.13.1.jar')).builtBy(extractIrisParserApi)
+
 dependencies {
+    irisParserApi('maven.modrinth:iris:Ag5S66CF')
+    compileOnly(irisParserClasses)
+    testCompileOnly(irisParserClasses)
     compileOnly('maven.modrinth:iris:Ag5S66CF') { transitive = false }
     sodiumApi('maven.modrinth:sodium:VHtnT9Q4') { transitive = false }
     compileOnly(sodiumApiClasses)
     testCompileOnly(sodiumApiClasses)
+    testRuntimeOnly(sodiumApiClasses)
     testImplementation('maven.modrinth:iris:Ag5S66CF') { transitive = false }
     testImplementation('maven.modrinth:sodium:VHtnT9Q4') { transitive = false }
     implementation(project(':core'))
@@ -127,7 +147,7 @@ processResources {
 }
 
 tasks.named('shadowJar', ShadowJar).configure {
-    archiveFileName.set("Wormholes v${project.version} [NeoForge] ${minecraftVersion}+${loaderVersion}.jar")
+    archiveFileName.set("Wormholes v${project.version} [NeoForge] ${minecraftVersion}+${artifactLoaderVersion}.jar")
     configurations = [project.configurations.bundle]
     filesMatching('META-INF/services/**') {
         duplicatesStrategy = DuplicatesStrategy.INCLUDE

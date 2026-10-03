@@ -4,6 +4,7 @@ import art.arcane.wormholes.chunk.ChunkLease;
 import art.arcane.wormholes.chunk.ChunkLeaseRegistry;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.ProjectionCellKey;
+import art.arcane.wormholes.render.ProjectionWorldChangeTracker;
 import art.arcane.wormholes.render.plate.PlateCaptureJob;
 import art.arcane.wormholes.render.plate.ViewPlateBuilder;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -45,6 +46,7 @@ import java.util.concurrent.CompletableFuture;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
@@ -65,6 +67,34 @@ public class MinecraftPlateCaptureSourceTest {
     public static void bootstrap() {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
+    }
+
+    @Test
+    public void metadataOnlyChangeRecapturesCurrentBlockEntityWithinTheRetentionWindow() {
+        List<String> types = FidelitySettings.blockEntityTypes;
+        FidelitySettings.blockEntityTypes = List.of("minecraft:sign");
+        try {
+            Fixture fixture = fixture();
+            BlockPos position = new BlockPos(1, 64, 3);
+            BlockEntity entity = sign(position);
+            when(fixture.chunk().getBlockEntities()).thenReturn(Map.of(position, entity));
+            MinecraftPlateCaptureSource source = new MinecraftPlateCaptureSource(fixture.runtime(),
+                new MinecraftPlateCaptureSource.Options(fixture.worldId(), true, 64, 79, false));
+            MinecraftPlateCaptureSource.CapturedChunk before = source.capture(fixture.level(), 0, 0);
+            when(fixture.level().getGameTime()).thenReturn(1000L);
+            assertSame(before, source.cached(fixture.level(), 0, 0));
+            CompoundTag changed = new CompoundTag();
+            changed.putString("front_text", "changed");
+            when(entity.saveWithFullMetadata(nullable(HolderLookup.Provider.class))).thenReturn(changed);
+            fixture.changes().markChanged(fixture.worldId(), position.getX(), position.getY(), position.getZ());
+            assertNull(source.cached(fixture.level(), 0, 0));
+            MinecraftPlateCaptureSource.CapturedChunk after = source.capture(fixture.level(), 0, 0);
+            long cell = ProjectionCellKey.pack(1, 64, 3);
+            assertNotEquals(before.blockEntities().get(cell), after.blockEntities().get(cell));
+            assertSame(after, source.cached(fixture.level(), 0, 0));
+        } finally {
+            FidelitySettings.blockEntityTypes = types;
+        }
     }
 
     @Test
@@ -263,6 +293,11 @@ public class MinecraftPlateCaptureSourceTest {
     @SuppressWarnings("unchecked")
     private static Fixture fixture() {
         WormholesModRuntime runtime = mock(WormholesModRuntime.class);
+        MinecraftProjectionService projections = mock(MinecraftProjectionService.class);
+        ProjectionWorldChangeTracker changes = new ProjectionWorldChangeTracker();
+        MinecraftPlateSnapshotCache snapshots = new MinecraftPlateSnapshotCache(changes, MinecraftPlateSnapshotCache.VIEW_LIMITS);
+        when(runtime.projections()).thenReturn(projections);
+        when(projections.plateSnapshots()).thenReturn(snapshots);
         ServerLevel level = mock(ServerLevel.class);
         ServerChunkCache chunks = mock(ServerChunkCache.class);
         LevelChunk chunk = mock(LevelChunk.class);
@@ -276,11 +311,11 @@ public class MinecraftPlateCaptureSourceTest {
         when(chunk.getBlockEntities()).thenReturn(Map.of());
         when(leases.retain(any(), any(), anyInt(), anyInt())).thenReturn(lease);
         when(lease.ready()).thenReturn(ready);
-        return new Fixture(runtime, level, chunk, leases, lease, ready, worldId);
+        return new Fixture(runtime, level, chunk, leases, lease, ready, worldId, changes);
     }
 
     private record Fixture(WormholesModRuntime runtime, ServerLevel level, LevelChunk chunk, ChunkLeaseRegistry<ServerLevel> leases,
-                           ChunkLease lease, CompletableFuture<Boolean> ready, UUID worldId) {
+                           ChunkLease lease, CompletableFuture<Boolean> ready, UUID worldId, ProjectionWorldChangeTracker changes) {
     }
 
     private static BlockState air() {

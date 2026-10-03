@@ -12,12 +12,26 @@ public final class PortalShaderContext implements AutoCloseable {
 
     private final PortalShaderContext previous;
     private final View view;
+    private final RenderTarget target;
     private boolean drawing;
 
     PortalShaderContext(View view) {
         previous = CURRENT.get();
         this.view = Objects.requireNonNull(view);
+        target = view.target();
         CURRENT.set(this);
+    }
+
+    PortalShaderContext(RenderTarget target) {
+        previous = CURRENT.get();
+        view = null;
+        this.target = Objects.requireNonNull(target);
+        CURRENT.set(this);
+    }
+
+    public static RenderTarget target() {
+        PortalShaderContext context = CURRENT.get();
+        return context == null ? null : context.target;
     }
 
     public static View current() {

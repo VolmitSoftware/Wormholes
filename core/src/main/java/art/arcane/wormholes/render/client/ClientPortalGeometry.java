@@ -278,6 +278,14 @@ public record ClientPortalGeometry(int originX,
     }
 
     public boolean sameSurface(ClientPortalGeometry that) {
+        return sameSurface(that, false);
+    }
+
+    public boolean sameContentSurface(ClientPortalGeometry that) {
+        return sameSurface(that, true);
+    }
+
+    private boolean sameSurface(ClientPortalGeometry that, boolean ignoreSide) {
         if (this == that) {
             return true;
         }
@@ -285,7 +293,7 @@ public record ClientPortalGeometry(int originX,
             return false;
         }
         return originX == that.originX && originY == that.originY && originZ == that.originZ
-            && facing == that.facing && frontSide == that.frontSide && quarterTurns == that.quarterTurns && mirror == that.mirror
+            && facing == that.facing && (ignoreSide || frontSide == that.frontSide) && quarterTurns == that.quarterTurns && mirror == that.mirror
             && apertureWidth == that.apertureWidth && apertureHeight == that.apertureHeight
             && Arrays.equals(apertureMask, that.apertureMask)
             && Float.floatToIntBits(nearPlanePadding) == Float.floatToIntBits(that.nearPlanePadding)

@@ -11,10 +11,12 @@ public final class DirectionMapping {
     private final PortalFrame mirrorFrame;
     private final int quarterTurns;
     private final double[] scratch3;
+    private final Direction[] axes;
     private int imageQuarterTurns;
     private boolean reflects;
 
     private DirectionMapping(PortalFrame fromFrame, PortalFrame toFrame, PortalFrame mirrorFrame, int quarterTurns, double[] scratch3) {
+        this.axes = null;
         this.fromFrame = fromFrame;
         this.toFrame = toFrame;
         this.mirrorFrame = mirrorFrame;
@@ -22,6 +24,23 @@ public final class DirectionMapping {
         this.scratch3 = scratch3;
         this.imageQuarterTurns = HANDEDNESS_UNCOMPUTED;
         this.reflects = false;
+    }
+
+    private DirectionMapping(Direction[] axes) {
+        this.axes = axes;
+        this.fromFrame = null;
+        this.toFrame = null;
+        this.mirrorFrame = null;
+        this.quarterTurns = 0;
+        this.scratch3 = null;
+        this.imageQuarterTurns = HANDEDNESS_UNCOMPUTED;
+    }
+
+    public static DirectionMapping axes(Direction x, Direction y, Direction z) {
+        if (x.getAxis() == y.getAxis() || x.getAxis() == z.getAxis() || y.getAxis() == z.getAxis()) {
+            throw new IllegalArgumentException("Mapped axes must be perpendicular");
+        }
+        return new DirectionMapping(new Direction[] {x, y, z});
     }
 
     /** Quarter turns clockwise from above that this mapping applies to the horizontal plane. */
@@ -67,6 +86,11 @@ public final class DirectionMapping {
     }
 
     public Direction map(Direction source) {
+        if (axes != null) {
+            return Direction.closest(source.x() * axes[0].x() + source.y() * axes[1].x() + source.z() * axes[2].x(),
+                source.x() * axes[0].y() + source.y() * axes[1].y() + source.z() * axes[2].y(),
+                source.x() * axes[0].z() + source.y() * axes[1].z() + source.z() * axes[2].z());
+        }
         if(mirrorFrame != null) {
             PortalCoordMap.mirrorSourceToDisplayVectorInto(source.x(), source.y(), source.z(), mirrorFrame, quarterTurns, scratch3);
             return Direction.closest(scratch3[0], scratch3[1], scratch3[2]);

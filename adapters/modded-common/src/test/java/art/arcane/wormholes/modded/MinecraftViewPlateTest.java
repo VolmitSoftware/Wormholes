@@ -137,6 +137,7 @@ public class MinecraftViewPlateTest {
         assertFalse(live.isEmpty());
         clearInvocations(view);
         MinecraftProjectionService service = new MinecraftProjectionService(runtime);
+        when(runtime.projections()).thenReturn(service);
         service.start();
         try {
             PlateCaptureJob<BlockState, ServerLevel, MinecraftPlateCaptureSource.CapturedChunk> job = new PlateCaptureJob<>(new PlateCaptureJob.Plan<>(

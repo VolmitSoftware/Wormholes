@@ -51,6 +51,45 @@ public class ClientMeshSectionsTest {
     }
 
     @Test
+    public void authoritativeLocalSectionsKeepTheirViewAndRendererRevisionAcrossSideGenerations() throws Exception {
+        ClientMeshSections store = store(1024 * 1024);
+        store.begin(7, 1, BOUNDS, 64);
+        ClientMeshSections.Section local = store.localSection(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3,
+            Brick.single(0, 3), SectionBiomes.NONE));
+        assertTrue(store.local(7, 0L, local));
+        ClientMeshSections.View view = store.view(7);
+        int revision = local.revision();
+        assertTrue(store.retainLocal(7, 2, BOUNDS, 64));
+        assertSame(view, store.view(7));
+        assertSame(local, view.section(0L));
+        assertEquals(revision, view.section(0L).revision());
+        assertEquals(ClientMeshSections.Result.STALE, store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 999, 3,
+            Brick.empty(0), SectionBiomes.NONE)));
+        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ClientViewMessage.MeshSection(7, 2, 0, 0, 0, 1, 3,
+            Brick.empty(0), SectionBiomes.NONE)));
+        assertSame(local, view.section(0L));
+        assertTrue(store.local(7, 0L, null));
+        assertSame(Blocks.AIR.defaultBlockState(), view.section(0L).state(0));
+        assertTrue(view.section(0L).revision() > revision);
+    }
+
+    @Test
+    public void remotePacketsDoNotDirtyAnAuthoritativeLocalOverride() throws Exception {
+        ClientMeshSections store = store(1024 * 1024);
+        store.begin(7, 1, BOUNDS, 64);
+        ClientMeshSections.Section local = store.localSection(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 1, 3,
+            Brick.single(0, 3), SectionBiomes.NONE));
+        store.local(7, 0L, local);
+        store.view(7).changed().clear();
+        long revision = store.view(7).contentRevision();
+        assertEquals(ClientMeshSections.Result.APPLIED, store.put(new ClientViewMessage.MeshSection(7, 1, 0, 0, 0, 3, 3,
+            Brick.empty(0), SectionBiomes.NONE)));
+        assertTrue(store.view(7).changed().isEmpty());
+        assertEquals(revision, store.view(7).contentRevision());
+        assertSame(local, store.view(7).section(0L));
+    }
+
+    @Test
     public void newGenerationDiscardsOldSectionsAndLateUpdates() throws Exception {
         ClientMeshSections store = store(1024 * 1024);
         store.begin(7, 1, BOUNDS, 64);

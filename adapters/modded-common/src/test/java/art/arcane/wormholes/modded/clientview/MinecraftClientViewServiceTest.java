@@ -38,6 +38,7 @@ import java.util.UUID;
 import java.util.concurrent.Executor;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
@@ -87,6 +88,20 @@ public class MinecraftClientViewServiceTest {
     public void tearDown() {
         service.close();
         channel.finishAndReleaseAll();
+    }
+
+    @Test
+    public void nativeGreetingAdvertisesAndNegotiatesLocalMesh() throws ClientViewProtocolException {
+        service.channelRegistered(player(overworld));
+        ClientViewMessage.Offer offer = (ClientViewMessage.Offer) message(sent.get(sent.size() - 1));
+        assertTrue(ClientViewCapability.LOCAL_MESH.in(offer.serverCaps()));
+
+        byte[] hello = ClientViewCodec.encodeC2S(ClientViewHandshake.clientHello(offer, offer.mcDataVersion(),
+            ClientViewCapability.ALL, 512 * 1024, 256, 0L, "fabric"));
+        assertEquals(ClientViewInbound.HELLO_ACCEPTED, service.receive(connection, hello));
+        ClientViewMessage.Accept accept = (ClientViewMessage.Accept) message(sent.get(sent.size() - 1));
+        assertTrue(ClientViewCapability.LOCAL_MESH.in(accept.caps()));
+        assertTrue(ClientViewCapability.MESH_RENDER.in(accept.caps()));
     }
 
     @Test

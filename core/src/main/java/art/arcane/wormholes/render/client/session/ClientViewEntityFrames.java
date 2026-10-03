@@ -66,6 +66,11 @@ public final class ClientViewEntityFrames<P> implements ClientViewEntitySource<P
     }
 
     @Override
+    public UUID projectedId(UUID sourceId) {
+        return scenes.projectedId(sourceId);
+    }
+
+    @Override
     public void event(ProjectedEntityEvent event) {
         Objects.requireNonNull(event, "event");
         UUID id = scenes.projectedId(event.entityId());

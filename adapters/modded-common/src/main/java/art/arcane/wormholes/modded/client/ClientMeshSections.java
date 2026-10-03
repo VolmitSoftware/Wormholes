@@ -1,6 +1,8 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.network.client.Brick;
+import art.arcane.wormholes.network.client.ClientMeshHash;
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.SectionBiomes;
@@ -9,14 +11,20 @@ import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 import art.arcane.wormholes.render.plate.PlateBox;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSets;
 import net.minecraft.core.SectionPos;
+import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.io.IOException;
 import java.util.Objects;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.function.LongSupplier;
 
 public final class ClientMeshSections {
@@ -25,6 +33,11 @@ public final class ClientMeshSections {
     private final Int2ObjectOpenHashMap<View> views = new Int2ObjectOpenHashMap<>();
     private LongSupplier otherMemory = () -> 0L;
     private long bytes;
+    private int revision;
+    private final LinkedHashMap<CachedKey, Section> history = new LinkedHashMap<>(128, 0.75F, true);
+    private long historyBytes;
+    private long epoch;
+    private boolean epochKnown;
 
     public ClientMeshSections(ClientPalette palette, long budget) {
         this.palette = Objects.requireNonNull(palette);
@@ -54,6 +67,23 @@ public final class ClientMeshSections {
         return true;
     }
 
+    public boolean retainLocal(int portalKey, int generation, PlateBox bounds, int maxSections) throws ClientViewProtocolException {
+        View view = views.get(portalKey);
+        if (view == null || generation <= view.generation || view.localSections.isEmpty() && view.sections.isEmpty()) {
+            return begin(portalKey, generation, bounds, maxSections);
+        }
+        if (generation <= 0 || maxSections <= 0 || bounds.cells() <= 0) {
+            throw new ClientViewProtocolException("Invalid retained mesh view");
+        }
+        view.wireRevisions.clear();
+        view.claimed.clear();
+        view.needsClaims = true;
+        view.generation = generation;
+        view.bounds = bounds;
+        view.maxSections = maxSections;
+        return true;
+    }
+
     public Result put(ClientViewMessage.MeshSection message) throws ClientViewProtocolException {
         int portalKey = message.portalKey();
         int generation = message.generation();
@@ -71,22 +101,33 @@ public final class ClientMeshSections {
             throw new ClientViewProtocolException("Mesh section outside its view or invalid revision/index");
         }
         Section previous = view.sections.get(key);
-        if (previous != null && revision <= previous.revision) {
-            return revision == previous.revision ? Result.DUPLICATE : Result.STALE;
+        int currentRevision = view.wireRevisions.get(key);
+        if (currentRevision != 0 && revision <= currentRevision) {
+            return revision == currentRevision ? Result.DUPLICATE : Result.STALE;
         }
         if (previous == null && view.sections.size() >= view.maxSections) {
             return Result.REFUSED;
         }
-        Section next = new Section(message, palette);
+        Section next = new Section(message, palette, ++this.revision, epoch);
+        if (previous != null && previous.hash == next.hash && epochKnown) {
+            view.wireRevisions.put(key, revision);
+            remember(view, key, previous);
+            return Result.DUPLICATE;
+        }
         long delta = next.bytes - (previous == null ? 0 : previous.bytes);
-        if (delta > budget - bytes - otherMemory.getAsLong()) {
+        if (delta > budget - bytes - historyBytes - otherMemory.getAsLong()) {
             return Result.REFUSED;
         }
         view.sections.put(key, next);
-        view.contentRevision++;
-        view.changed.add(key);
+        view.wireRevisions.put(key, revision);
+        view.keys.add(key);
+        if (!view.localSections.containsKey(key)) {
+            view.contentRevision++;
+            view.changed.add(key);
+        }
         view.bytes += delta;
         bytes += delta;
+        remember(view, key, next);
         return Result.APPLIED;
     }
 
@@ -95,15 +136,108 @@ public final class ClientMeshSections {
         if (view == null || view.generation != generation) {
             return false;
         }
-        Section removed = view.sections.remove(sectionKey(sectionX, sectionY, sectionZ));
+        long key = sectionKey(sectionX, sectionY, sectionZ);
+        view.wireRevisions.remove(key);
+        view.claimed.remove(key);
+        Section removed = view.sections.remove(key);
         if (removed == null) {
             return false;
         }
-        view.contentRevision++;
-        view.changed.add(SectionPos.asLong(sectionX, sectionY, sectionZ));
+        if (!view.localSections.containsKey(key)) {
+            view.keys.remove(key);
+            view.contentRevision++;
+            view.changed.add(key);
+        }
         view.bytes -= removed.bytes;
         bytes -= removed.bytes;
         return true;
+    }
+
+    public Section localSection(ClientViewMessage.MeshSection message) throws ClientViewProtocolException {
+        return new Section(message, palette, ++revision, epoch);
+    }
+
+    public boolean local(int portalKey, long key, Section section) {
+        View view = views.get(portalKey);
+        if (view == null || section != null && !view.intersects(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key))) {
+            return false;
+        }
+        Section previous = view.localSections.get(key);
+        if (previous == section) {
+            return true;
+        }
+        Section visible = view.section(key);
+        if (section != null && epochKnown && visible != null && visible.hash == section.hash) {
+            section = visible;
+        }
+        if (previous == section) {
+            return true;
+        }
+        if (section == null) {
+            if (view.identity == null) {
+                view.localSections.remove(key);
+                if (!view.sections.containsKey(key)) {
+                    view.keys.remove(key);
+                }
+                view.changed.add(key);
+                view.contentRevision++;
+                view.bytes -= previous.bytes;
+                bytes -= previous.bytes;
+                return true;
+            }
+            Section replaced = view.sections.put(key, previous);
+            view.localSections.remove(key);
+            view.wireRevisions.remove(key);
+            view.claimed.remove(key);
+            long delta = -(replaced == null ? 0 : replaced.bytes);
+            view.bytes += delta;
+            bytes += delta;
+            remember(view, key, previous);
+            return true;
+        }
+        long delta = section.bytes - (previous == null ? 0 : previous.bytes);
+        trimPreviews(view, delta, key);
+        if (delta > budget - bytes - historyBytes - otherMemory.getAsLong()
+            || !view.keys.contains(key) && view.keys.size() >= view.maxSections) {
+            return false;
+        }
+        view.localSections.put(key, section);
+        view.keys.add(key);
+        if (visible != section) {
+            view.changed.add(key);
+            view.contentRevision++;
+        }
+        view.bytes += delta;
+        bytes += delta;
+        remember(view, key, section);
+        return true;
+    }
+
+    private void trimPreviews(View view, long required, long protectedKey) {
+        boolean adding = !view.keys.contains(protectedKey);
+        while (required > budget - bytes - historyBytes - otherMemory.getAsLong()
+            || adding && view.keys.size() >= view.maxSections) {
+            Long candidate = null;
+            for (long key : view.sections.keySet()) {
+                if (key == protectedKey || view.wireRevisions.get(key) != 0 || view.localSections.containsKey(key)) {
+                    continue;
+                }
+                candidate = key;
+                if (!view.intersects(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key))) {
+                    break;
+                }
+            }
+            if (candidate == null) {
+                return;
+            }
+            Section removed = view.sections.remove(candidate.longValue());
+            view.claimed.remove(candidate.longValue());
+            view.keys.remove(candidate.longValue());
+            view.changed.add(candidate.longValue());
+            view.contentRevision++;
+            view.bytes -= removed.bytes;
+            bytes -= removed.bytes;
+        }
     }
 
     public void remove(int portalKey) {
@@ -123,7 +257,142 @@ public final class ClientMeshSections {
     }
 
     public long bytes() {
-        return bytes;
+        return bytes + historyBytes;
+    }
+
+    public void epoch(long value) {
+        if (epochKnown && epoch != value) {
+            history.clear();
+            historyBytes = 0;
+            clear();
+        }
+        epoch = value;
+        epochKnown = true;
+    }
+
+    public List<ClientViewMessage.MeshClaim> bind(int portalKey, ClientViewEnvironment environment, long epoch, long targetIdentity) {
+        epoch(epoch);
+        View view = views.get(portalKey);
+        if (view == null) {
+            return List.of();
+        }
+        Identity identity = new Identity(environment.world().dimensionKey(), environment.transform(), epoch, targetIdentity);
+        if (identity.equals(view.identity) && !view.needsClaims) {
+            return List.of();
+        }
+        if (view.identity != null && !identity.equals(view.identity)) {
+            for (long key : view.sections.keySet()) {
+                Section removed = view.sections.get(key);
+                view.bytes -= removed.bytes;
+                bytes -= removed.bytes;
+                if (!view.localSections.containsKey(key)) {
+                    view.keys.remove(key);
+                }
+                view.changed.add(key);
+            }
+            for (long key : view.localSections.keySet()) {
+                Section removed = view.localSections.get(key);
+                view.bytes -= removed.bytes;
+                bytes -= removed.bytes;
+                view.keys.remove(key);
+                view.changed.add(key);
+            }
+            view.localSections.clear();
+            view.sections.clear();
+            view.wireRevisions.clear();
+            view.claimed.clear();
+            view.contentRevision++;
+        }
+        view.identity = identity;
+        view.needsClaims = false;
+        List<ClientViewMessage.MeshClaim> claims = new ArrayList<>();
+        for (Map.Entry<CachedKey, Section> entry : history.entrySet()) {
+            CachedKey key = entry.getKey();
+            if (!identity.equals(key.identity) || !view.intersects(SectionPos.x(key.section), SectionPos.y(key.section), SectionPos.z(key.section))
+                || view.sections.containsKey(key.section) || view.sections.size() >= view.maxSections) {
+                continue;
+            }
+            Section section = entry.getValue();
+            if (section.bytes > budget - bytes - historyBytes - otherMemory.getAsLong()) {
+                break;
+            }
+            view.sections.put(key.section, section);
+            view.keys.add(key.section);
+            if (!view.localSections.containsKey(key.section)) {
+                view.changed.add(key.section);
+                view.contentRevision++;
+            }
+            view.bytes += section.bytes;
+            bytes += section.bytes;
+            view.claimed.put(key.section, Long.valueOf(section.hash));
+            claims.add(new ClientViewMessage.MeshClaim(SectionPos.x(key.section), SectionPos.y(key.section), SectionPos.z(key.section), section.hash));
+        }
+        for (long key : view.sections.keySet()) {
+            Section section = view.sections.get(key);
+            if (view.wireRevisions.get(key) == 0 && !view.claimed.containsKey(key)
+                && view.intersects(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key))) {
+                view.claimed.put(key, Long.valueOf(section.hash));
+                claims.add(new ClientViewMessage.MeshClaim(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key), section.hash));
+            }
+            remember(view, key, section);
+        }
+        return claims;
+    }
+
+    public ClientViewMessage.MeshClaim preview(int portalKey, long key, Section section) {
+        View view = views.get(portalKey);
+        if (view == null || view.identity == null || view.sections.containsKey(key)
+            || !view.intersects(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key)) || view.sections.size() >= view.maxSections
+            || section.bytes > budget - bytes - historyBytes - otherMemory.getAsLong()) {
+            return null;
+        }
+        view.sections.put(key, section);
+        view.keys.add(key);
+        view.changed.add(key);
+        view.contentRevision++;
+        view.bytes += section.bytes;
+        bytes += section.bytes;
+        view.claimed.put(key, Long.valueOf(section.hash));
+        remember(view, key, section);
+        return new ClientViewMessage.MeshClaim(SectionPos.x(key), SectionPos.y(key), SectionPos.z(key), section.hash);
+    }
+
+    public Result reuse(ClientViewMessage.MeshReuse message) throws ClientViewProtocolException {
+        View view = views.get(message.portalKey());
+        if (view == null || view.generation != message.generation()) {
+            return Result.STALE;
+        }
+        long key = sectionKey(message.sectionX(), message.sectionY(), message.sectionZ());
+        Section section = view.sections.get(key);
+        if (section == null || !view.claimed.containsKey(key) || view.claimed.get(key) != message.hash() || section.hash != message.hash()) {
+            return Result.STALE;
+        }
+        int current = view.wireRevisions.get(key);
+        if (message.revision() <= current) {
+            return message.revision() == current ? Result.DUPLICATE : Result.STALE;
+        }
+        view.wireRevisions.put(key, message.revision());
+        return Result.DUPLICATE;
+    }
+
+    private void remember(View view, long key, Section section) {
+        if (view.identity == null || !epochKnown) {
+            return;
+        }
+        CachedKey identity = new CachedKey(view.identity, key);
+        Section previous = history.put(identity, section);
+        historyBytes += section.bytes - (previous == null ? 0 : previous.bytes);
+        long limit = Math.min(Math.min(128 * 1024 * 1024L, budget / 3), Math.max(0, budget - bytes - otherMemory.getAsLong()));
+        while (historyBytes > limit && !history.isEmpty()) {
+            Section removed = history.remove(history.keySet().iterator().next());
+            historyBytes -= removed.bytes;
+        }
+    }
+
+    private record Identity(String world, ClientViewEnvironment.Transform transform, long epoch, long targetIdentity) {
+    }
+
+    private record CachedKey(Identity identity, long section) {
     }
 
     private static long sectionKey(int x, int y, int z) throws ClientViewProtocolException {
@@ -139,13 +408,19 @@ public final class ClientMeshSections {
     }
 
     public static final class View {
-        private final int generation;
-        private final PlateBox bounds;
-        private final int maxSections;
+        private int generation;
+        private PlateBox bounds;
+        private int maxSections;
         private final Long2ObjectOpenHashMap<Section> sections = new Long2ObjectOpenHashMap<>();
+        private final Long2ObjectOpenHashMap<Section> localSections = new Long2ObjectOpenHashMap<>();
+        private final LongOpenHashSet keys = new LongOpenHashSet();
         private final LongOpenHashSet changed = new LongOpenHashSet();
         private long bytes;
         private long contentRevision;
+        private Identity identity;
+        private boolean needsClaims;
+        private final Long2IntOpenHashMap wireRevisions = new Long2IntOpenHashMap();
+        private final Long2ObjectOpenHashMap<Long> claimed = new Long2ObjectOpenHashMap<>();
 
         private View(int generation, PlateBox bounds, int maxSections) {
             this.generation = generation;
@@ -170,11 +445,12 @@ public final class ClientMeshSections {
         }
 
         public LongSet sectionKeys() {
-            return LongSets.unmodifiable(sections.keySet());
+            return LongSets.unmodifiable(keys);
         }
 
         public Section section(long key) {
-            return sections.get(key);
+            Section local = localSections.get(key);
+            return local == null ? sections.get(key) : local;
         }
 
         private boolean intersects(int x, int y, int z) {
@@ -189,6 +465,7 @@ public final class ClientMeshSections {
 
     public static final class Section {
         private final int revision;
+        private final long hash;
         private final int bitsPerIndex;
         private final long[] indices;
         private final BlockState[] states;
@@ -198,9 +475,10 @@ public final class ClientMeshSections {
         private final long bytes;
         private final SectionBiomes biomes;
 
-        private Section(ClientViewMessage.MeshSection message, ClientPalette palette) throws ClientViewProtocolException {
+        private Section(ClientViewMessage.MeshSection message, ClientPalette palette, int revision, long epoch) throws ClientViewProtocolException {
             Brick brick = message.brick();
-            this.revision = message.revision();
+            this.revision = revision;
+            this.hash = ClientMeshHash.resolved(message, epoch, id -> BlockStateParser.serialize(palette.state(id)));
             this.biomes = message.biomes();
             this.bitsPerIndex = brick.bitsPerIndex();
             this.indices = brick.packedIndices().clone();

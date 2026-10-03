@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class IrisPortalWorldInfoMixin {
     @Inject(method = "addWorldInfoUniforms", at = @At("HEAD"), cancellable = true)
     private static void wormholes$world(UniformHolder uniforms, CallbackInfo callback) {
-        if (PortalShaderContext.current() == null) {
+        if (PortalShaderContext.target() == null) {
             return;
         }
         uniforms.uniform1i(UniformUpdateFrequency.PER_FRAME, "bedrockLevel", () -> PortalShaderContext.current().environment().dimension().minY())

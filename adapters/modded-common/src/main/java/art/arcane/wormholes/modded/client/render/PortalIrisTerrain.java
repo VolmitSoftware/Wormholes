@@ -4,11 +4,14 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
 import com.mojang.renderpearl.api.pipeline.ColorTargetState;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.textures.GpuSampler;
 import com.mojang.renderpearl.api.vertex.VertexFormat;
 import net.irisshaders.iris.api.v0.IrisApi;
 import net.irisshaders.iris.api.v0.IrisProgram;
 import net.irisshaders.iris.pipeline.IrisPipelines;
+import net.irisshaders.iris.pipeline.WorldRenderingPhase;
 import net.irisshaders.iris.pipeline.programs.ShaderKey;
+import net.irisshaders.iris.samplers.IrisSamplers;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 
@@ -25,6 +28,18 @@ final class PortalIrisTerrain {
     static CompiledRenderPipeline get(ChunkSectionLayer layer, boolean reflected) {
         RenderPipeline pipeline = (reflected ? REFLECTED : NORMAL).computeIfAbsent(layer, selected -> create(selected, reflected));
         return RenderSystem.getCompiledPipelineNullable(pipeline);
+    }
+
+    static GpuSampler sampler(int anisotropy) {
+        return IrisSamplers.getTerrainCache(anisotropy);
+    }
+
+    static WorldRenderingPhase phase(ChunkSectionLayer layer) {
+        return switch (layer) {
+            case SOLID -> WorldRenderingPhase.TERRAIN_SOLID;
+            case CUTOUT -> WorldRenderingPhase.TERRAIN_CUTOUT;
+            case TRANSLUCENT -> WorldRenderingPhase.TERRAIN_TRANSLUCENT;
+        };
     }
 
     private static RenderPipeline create(ChunkSectionLayer layer, boolean reflected) {

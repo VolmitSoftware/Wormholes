@@ -11,11 +11,11 @@ import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
 
-final class ClientMeshPlan {
+public final class ClientMeshPlan {
     private ClientMeshPlan() {
     }
 
-    static PlateBox bounds(ClientPortalGeometry geometry) {
+    public static PlateBox bounds(ClientPortalGeometry geometry) {
         AxisAlignedBB area = geometry.apertureArea();
         int[] min = {(int) Math.floor(area.getXa()), (int) Math.floor(area.getYa()), (int) Math.floor(area.getZa())};
         int[] max = {(int) Math.floor(area.getXb()), (int) Math.floor(area.getYb()), (int) Math.floor(area.getZb())};
@@ -35,7 +35,7 @@ final class ClientMeshPlan {
         return PlateBox.spanning(min[0], min[1], min[2], max[0], max[1], max[2]);
     }
 
-    static int capacity(ClientPortalGeometry geometry) {
+    public static int capacity(ClientPortalGeometry geometry) {
         PlateBox box = bounds(geometry);
         long x = (((long) box.minX() + box.sizeX() - 1) >> 4) - (box.minX() >> 4) + 1;
         long y = (((long) box.minY() + box.sizeY() - 1) >> 4) - (box.minY() >> 4) + 1;
@@ -43,7 +43,7 @@ final class ClientMeshPlan {
         return Math.toIntExact(x * y * z);
     }
 
-    static List<Section> visible(ClientPortalGeometry geometry, GeometryVector eye) {
+    public static List<Section> visible(ClientPortalGeometry geometry, GeometryVector eye) {
         PlateBox bounds = bounds(geometry);
         AxisAlignedBB area = geometry.apertureArea();
         double[] eyeAt = {eye.x(), eye.y(), eye.z()};
@@ -118,7 +118,7 @@ final class ClientMeshPlan {
         return selected;
     }
 
-    record Section(int x, int y, int z, double distance) {
+    public record Section(int x, int y, int z, double distance) {
         PlateBox clip() {
             return new PlateBox(x << 4, y << 4, z << 4, 16, 16, 16);
         }

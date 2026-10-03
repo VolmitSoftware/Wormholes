@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.ArrayList;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -47,8 +46,8 @@ public class PortalIrisResolutionTest {
             }
             resources.when(() -> PortalIrisResources.shareShadows(programs)).thenReturn(false);
             List<PortalShaderRenderer.Resolution> privateSizes = new PortalIrisResolution(40 * MIB).select(demand);
-            assertTrue(privateSizes.getFirst().width() < sizes.getFirst().width());
-            assertTrue(bytes(privateSizes) + 12 * MIB <= 40 * MIB);
+            assertEquals(sizes.getFirst(), privateSizes.getFirst());
+            assertTrue(privateSizes.get(1).width() <= sizes.get(1).width());
         }
     }
 
@@ -58,8 +57,8 @@ public class PortalIrisResolutionTest {
         try (MockedStatic<PortalIrisResources> resources = resources(programs, true, 10 * MIB)) {
             PortalIrisResolution.Demand demand = new PortalIrisResolution.Demand(1920, 1080, Map.of(
                 OVERWORLD, new PortalIrisResolution.Dimension(programs, List.of(0)),
-                NETHER, new PortalIrisResolution.Dimension(programs, List.of(0))), PortalIrisResources.revision());
-            assertEquals(new PortalShaderRenderer.Resolution(1344, 756), new PortalIrisResolution(52 * MIB).select(demand).getFirst());
+                NETHER, new PortalIrisResolution.Dimension(programs, List.of(0))), PortalIrisResources.revision(), 0);
+            assertEquals(new PortalShaderRenderer.Resolution(1920, 1080), new PortalIrisResolution(52 * MIB).select(demand).getFirst());
         }
     }
 
@@ -75,7 +74,7 @@ public class PortalIrisResolutionTest {
                 assertEquals(reduced, planner.select(one));
             }
             assertEquals(reduced, planner.select(six));
-            assertEquals(reduced, planner.select(new PortalIrisResolution.Demand(1920, 1080, Map.of(), PortalIrisResources.revision())));
+            assertEquals(reduced, planner.select(new PortalIrisResolution.Demand(1920, 1080, Map.of(), PortalIrisResources.revision(), 0)));
             for (int frame = 0; frame < 119; frame++) {
                 assertEquals(reduced, planner.select(one));
             }
@@ -91,9 +90,9 @@ public class PortalIrisResolutionTest {
             PortalIrisResolution planner = new PortalIrisResolution(40 * MIB);
             planner.select(demand(programs, 6));
             assertEquals(new PortalShaderRenderer.Resolution(1280, 1024), planner.select(
-                new PortalIrisResolution.Demand(1280, 1024, demand(programs, 6).programs(), PortalIrisResources.revision())).getFirst());
+                new PortalIrisResolution.Demand(1280, 1024, demand(programs, 6).programs(), PortalIrisResources.revision(), 0)).getFirst());
             assertEquals(new PortalShaderRenderer.Resolution(640, 360), planner.select(
-                new PortalIrisResolution.Demand(640, 360, demand(programs, 6).programs(), PortalIrisResources.revision())).getFirst());
+                new PortalIrisResolution.Demand(640, 360, demand(programs, 6).programs(), PortalIrisResources.revision(), 0)).getFirst());
         }
     }
 
@@ -106,10 +105,20 @@ public class PortalIrisResolutionTest {
     }
 
     @Test
-    public void fixedResourcesCannotBeMadeToFitByShrinkingViews() {
+    public void activeRootsAndRequiredPrivateResourcesMayExceedCacheTarget() {
         ProgramSet programs = mock(ProgramSet.class);
         try (MockedStatic<PortalIrisResources> resources = resources(programs, false, 8 * MIB)) {
-            assertThrows(IllegalStateException.class, () -> new PortalIrisResolution(40 * MIB).select(demand(programs, 6)));
+            List<Integer> roots = new ArrayList<>();
+            for (int index = 0; index < 100; index++) {
+                roots.add(0);
+            }
+            PortalIrisResolution.Demand active = new PortalIrisResolution.Demand(1920, 1080,
+                Map.of(OVERWORLD, new PortalIrisResolution.Dimension(programs, roots)), PortalIrisResources.revision(), 0);
+            assertEquals(new PortalShaderRenderer.Resolution(1920, 1080),
+                new PortalIrisResolution(40 * MIB).select(active).getFirst());
+            List<PortalShaderRenderer.Resolution> nested = new PortalIrisResolution(40 * MIB).select(demand(programs, 6));
+            assertEquals(new PortalShaderRenderer.Resolution(1920, 1080), nested.getFirst());
+            assertTrue(bytes(nested) + 48 * MIB > 40 * MIB);
         }
     }
 
@@ -118,7 +127,7 @@ public class PortalIrisResolutionTest {
         for (int depth = 0; depth < views; depth++) {
             depths.add(depth);
         }
-        return new PortalIrisResolution.Demand(1920, 1080, Map.of(OVERWORLD, new PortalIrisResolution.Dimension(programs, depths)), PortalIrisResources.revision());
+        return new PortalIrisResolution.Demand(1920, 1080, Map.of(OVERWORLD, new PortalIrisResolution.Dimension(programs, depths)), PortalIrisResources.revision(), 0);
     }
 
     private static long bytes(List<PortalShaderRenderer.Resolution> sizes) {

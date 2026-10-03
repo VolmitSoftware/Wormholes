@@ -26,7 +26,10 @@ public enum ClientViewMessageType {
     ACK(34, Direction.C2S),
     VIEW_STATS(35, Direction.C2S),
     PLATE_REFUSED(36, Direction.C2S),
-    MESH_ACK(37, Direction.C2S);
+    MESH_ACK(37, Direction.C2S),
+    MESH_LOCAL(38, Direction.C2S),
+    MESH_CACHED(39, Direction.C2S),
+    MESH_REUSE(40, Direction.S2C);
 
     private static final ClientViewMessageType[] BY_ID = index();
 

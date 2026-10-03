@@ -44,9 +44,16 @@ public final class ClientMeshViews {
             ClientViewEnvironment environment = session.environment(portal.portalKey());
             ClientViewEnvironment.Transform transform = environment == null ? null : environment.transform();
             if (scene == null || scene.view != view || scene.level != level || !scene.surfaceGeometry.sameSurface(portal.geometry()) || !Objects.equals(scene.transform, transform)) {
-                scene = new Scene(portal.portalKey(), portal.geometry(), view, level, new ClientMeshEntities(view, level), session, transform);
+                boolean retain = scene != null && scene.view == view && scene.level == level
+                    && scene.surfaceGeometry.sameContentSurface(portal.geometry()) && Objects.equals(scene.transform, transform);
+                ClientMeshEntities features = retain ? scene.features : new ClientMeshEntities(view, level);
+                scene = new Scene(portal.portalKey(), portal.geometry(), view, level, features, session, transform);
                 scenes.put(portal.portalKey(), scene);
-                renderer.replaceScene(portal.portalKey(), scene);
+                if (retain) {
+                    renderer.refreshScene(portal.portalKey(), scene);
+                } else {
+                    renderer.replaceScene(portal.portalKey(), scene);
+                }
             }
             for (LongIterator iterator = view.changed().iterator(); iterator.hasNext();) {
                 long section = iterator.nextLong();
@@ -92,6 +99,14 @@ public final class ClientMeshViews {
                 renderer.featureFailed(scene.portalKey, failure);
             }
         }
+    }
+
+    public void detach() {
+        ClientPortalRenderer renderer = ClientPortalRenderer.instance();
+        for (int key : scenes.keySet()) {
+            renderer.remove(key);
+        }
+        scenes.clear();
     }
 
     public void clear() {

@@ -12,7 +12,8 @@
     "WindowMixin",
     "InputConstantsMixin",
     "FramerateLimitTrackerMixin",
-    "RenderSystemMixin"
+    "RenderSystemMixin",
+    "SignEditScreenAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

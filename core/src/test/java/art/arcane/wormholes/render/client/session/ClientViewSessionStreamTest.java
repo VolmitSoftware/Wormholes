@@ -429,6 +429,7 @@ final class ClientViewSessionStreamTest {
         harness.tick();
         ClientViewMessage.Portal first = (ClientViewMessage.Portal) harness.last(ClientViewMessageType.PORTAL);
         a.geometryRevision++;
+        a.frontSide = true;
         goldCube(world, 199, 67, 188);
         a.plate = a.build(world);
         int mark = harness.client.received.size();

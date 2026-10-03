@@ -46,17 +46,17 @@ final class ClientViewSessionNestedTest {
         };
         harness.handshake(SessionHarness.NATIVE_CAPS);
         harness.tick();
-        assertEquals(6, ClientViewProtocol.MAX_MIRROR_REFLECTIONS);
+        assertEquals(4, ClientViewProtocol.MAX_MIRROR_REFLECTIONS);
         assertEquals(ClientViewProtocol.MAX_MIRROR_REFLECTIONS, harness.client.portals.size());
-        assertEquals(ClientViewProtocol.MAX_GEOMETRY_DEPTH, harness.access.contexts.size());
+        assertEquals(ClientViewProtocol.MAX_MIRROR_REFLECTIONS, harness.access.contexts.size());
         assertEquals(2, new HashSet<>(harness.access.contexts.values()).size());
-        assertEquals(ClientViewProtocol.MAX_GEOMETRY_DEPTH, entityContexts.size());
+        assertEquals(ClientViewProtocol.MAX_MIRROR_REFLECTIONS, entityContexts.size());
         assertEquals(harness.access.contexts.keySet(), new HashSet<>(entityContexts.values()));
         int parentKey = 0;
-        for (int depth = 0; depth < ClientViewProtocol.MAX_GEOMETRY_DEPTH; depth++) {
+        for (int depth = 0; depth < ClientViewProtocol.MAX_MIRROR_REFLECTIONS; depth++) {
             int key = keyOf(harness, parentKey);
             ClientPortalGeometry geometry = harness.client.portals.get(key);
-            assertEquals(depth == ClientViewProtocol.MAX_GEOMETRY_DEPTH - 1 ? 0 : 1, geometry.nested().size());
+            assertEquals(depth == ClientViewProtocol.MAX_MIRROR_REFLECTIONS - 1 ? 0 : 1, geometry.nested().size());
             parentKey = key;
         }
         Map<Integer, ClientPortalGeometry> initial = Map.copyOf(harness.client.portals);
@@ -216,6 +216,7 @@ final class ClientViewSessionNestedTest {
         harness.tick();
         assertEquals(2, harness.sent(ClientViewMessageType.PORTAL));
         child.geometryRevision++;
+        child.frontSide = !child.frontSide;
         harness.tick();
         assertEquals(4, harness.sent(ClientViewMessageType.PORTAL));
         int parentKey = keyOf(harness, 0);

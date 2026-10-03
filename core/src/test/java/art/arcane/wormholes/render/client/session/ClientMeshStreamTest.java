@@ -35,6 +35,43 @@ import java.util.UUID;
 
 final class ClientMeshStreamTest {
     @Test
+    void cachedViewsShareReadyReservationsWithoutChargingThePhysicalCaptureBudget() {
+        FakePortalAccess access = new FakePortalAccess(new ArrayList<String>());
+        ArrayList<ClientViewPortalSlot<String>> slots = new ArrayList<ClientViewPortalSlot<String>>();
+        for (int key = 1; key <= 2; key++) {
+            SessionPortal portal = access.add(new SessionPortal("cached-" + key, key * 32));
+            ClientViewPortalSlot<String> slot = new ClientViewPortalSlot<String>(portal.id, key, false);
+            slot.geometry = portal.geometry(new SessionPalette()).withDepth(512);
+            slot.sentGeometry = slot.geometry;
+            slot.announced = true;
+            slot.laneAttached = true;
+            slots.add(slot);
+        }
+        ClientMeshStream<String> stream = new ClientMeshStream<String>();
+        GeometryVector eye = new GeometryVector(11, 67, 15);
+        int[] received = new int[3];
+        for (int tick = 1; tick <= 11; tick++) {
+            int calls = access.meshCalls;
+            stream.beginTick();
+            for (ClientViewPortalSlot<String> slot : slots) {
+                stream.refresh(slot, access, "observer", tick, tick * SessionHarness.TICK_NANOS, false, eye);
+            }
+            while (stream.pollControl(key -> true) != null) {
+            }
+            ClientMeshStream.Ready<String> section;
+            while ((section = stream.poll(tick * SessionHarness.TICK_NANOS)) != null) {
+                if (tick > 1) {
+                    received[section.slot().key]++;
+                }
+                acknowledge(stream, section);
+            }
+            assertTrue(access.meshCalls - calls <= ClientMeshStream.SECTION_CHECKS_PER_TICK);
+        }
+        assertTrue(received[1] >= 80, "the first view must continue delivering cached sections");
+        assertTrue(received[2] >= 80, "the second view must receive its fair reservation share");
+    }
+
+    @Test
     void unannouncedBranchDoesNotHoldReadyRootSectionsBehindItsBegin() {
         FakePortalAccess access = new FakePortalAccess(new ArrayList<String>());
         SessionPortal blockedPortal = access.add(new SessionPortal("blocked", 0));
@@ -72,7 +109,7 @@ final class ClientMeshStreamTest {
         next = stream.poll(SessionHarness.TICK_NANOS * 2);
         assertTrue(next != null);
         assertEquals(blocked.key, next.slot().key);
-        assertTrue(access.meshCalls <= 2 * ClientMeshStream.CAPTURES_PER_TICK);
+        assertTrue(access.meshCalls <= 2 * ClientMeshStream.SECTION_CHECKS_PER_TICK);
     }
 
     @Test
@@ -122,7 +159,7 @@ final class ClientMeshStreamTest {
             assertEquals(ClientViewSessionState.CLIENT_VIEW, harness.session.state(), "session reset on tick " + tick);
             assertEquals(0L, harness.session.stats().c2sDropped());
         }
-        assertTrue(acknowledged >= 32 * ClientMeshStream.CAPTURES_PER_TICK, "section streaming must sustain its capture budget");
+        assertTrue(acknowledged >= 32 * ClientMeshStream.MAX_PENDING_CAPTURES, "cached section streaming must sustain its bounded reservations");
         assertEquals(0, harness.session.stats().outstandingGroups());
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
     }
@@ -220,7 +257,7 @@ final class ClientMeshStreamTest {
                 acknowledge(stream, section);
                 section = stream.poll(tick * SessionHarness.TICK_NANOS);
             }
-            assertTrue(access.meshCalls - calls <= ClientMeshStream.CAPTURES_PER_TICK);
+            assertTrue(access.meshCalls - calls <= ClientMeshStream.SECTION_CHECKS_PER_TICK);
         }
         assertTrue(updated, "replacement must stay on the pending capture path");
     }
@@ -237,7 +274,7 @@ final class ClientMeshStreamTest {
         ClientMeshStream<String> stream = new ClientMeshStream<String>();
         GeometryVector eye = new GeometryVector(11, 67, 15);
         int sectionCount = ClientMeshPlan.visible(slot.geometry, eye).size();
-        assertTrue(sectionCount > ClientMeshStream.CAPTURES_PER_TICK);
+        assertTrue(sectionCount > ClientMeshStream.MAX_PENDING_CAPTURES);
 
         for (int step = 1; step <= sectionCount * 3; step++) {
             int callsBefore = access.meshCalls;
@@ -247,7 +284,7 @@ final class ClientMeshStreamTest {
                 acknowledge(stream, section);
                 section = stream.poll(tick * SessionHarness.TICK_NANOS);
             }
-            assertEquals(ClientMeshStream.CAPTURES_PER_TICK, access.meshCalls - callsBefore,
+            assertEquals(ClientMeshStream.MAX_PENDING_CAPTURES, access.meshCalls - callsBefore,
                 "eligible refresh work must continue when the cursor wraps");
         }
     }
@@ -330,7 +367,7 @@ final class ClientMeshStreamTest {
             }
         }
         assertFalse(received.isEmpty());
-        assertEquals(100 * ClientMeshStream.CAPTURES_PER_TICK, access.meshCalls);
+        assertEquals(100 * ClientMeshStream.MAX_PENDING_CAPTURES, access.meshCalls);
     }
 
     @Test
@@ -395,10 +432,10 @@ final class ClientMeshStreamTest {
             harness.tick();
         }
         assertEquals(0, harness.sent(ClientViewMessageType.MESH_SECTION));
-        assertTrue(harness.access.meshCalls <= 5 * ClientMeshStream.CAPTURES_PER_TICK);
+        assertTrue(harness.access.meshCalls <= 5 * ClientMeshStream.SECTION_CHECKS_PER_TICK);
         harness.access.meshReady = true;
         harness.tick();
-        assertEquals(ClientMeshStream.CAPTURES_PER_TICK, harness.sent(ClientViewMessageType.MESH_SECTION));
+        assertEquals(ClientMeshStream.MAX_PENDING_CAPTURES, harness.sent(ClientViewMessageType.MESH_SECTION));
         assertFalse(harness.access.meshPlates.isEmpty());
     }
 
@@ -412,7 +449,7 @@ final class ClientMeshStreamTest {
         for (int tick = 0; tick < 8; tick++) {
             int before = harness.access.meshCalls;
             harness.tick();
-            assertTrue(harness.access.meshCalls - before <= ClientMeshStream.CAPTURES_PER_TICK);
+            assertTrue(harness.access.meshCalls - before <= ClientMeshStream.SECTION_CHECKS_PER_TICK);
         }
         assertTrue(harness.sent(ClientViewMessageType.MESH_SECTION) > 4);
         assertTrue(harness.warnings.isEmpty(), harness.warnings.toString());
@@ -670,6 +707,24 @@ final class ClientMeshStreamTest {
         assertEquals(1, harness.sent(ClientViewMessageType.PORTAL_DROP));
         assertEquals(0, harness.sent(ClientViewMessageType.MESH_SECTION));
         assertEquals(1, harness.warnings.size());
+        assertTrue(harness.warnings.getFirst().getCause().getMessage().contains("capture timeout"));
+    }
+
+    @Test
+    void validBudgetQueuedCapturesKeepTheirPortalButLoadingFailuresStillExpire() throws ClientViewProtocolException {
+        SessionHarness harness = meshHarness();
+        harness.access.meshReady = false;
+        harness.access.meshQueued = true;
+        harness.tick();
+        for (int tick = 0; tick < 32; tick++) {
+            harness.clock.addAndGet(ClientMeshStream.TIMEOUT_NANOS);
+            harness.tick();
+            assertEquals(0, harness.sent(ClientViewMessageType.PORTAL_DROP));
+        }
+        harness.access.meshQueued = false;
+        harness.clock.addAndGet(ClientMeshStream.TIMEOUT_NANOS);
+        harness.tick();
+        assertEquals(1, harness.sent(ClientViewMessageType.PORTAL_DROP));
         assertTrue(harness.warnings.getFirst().getCause().getMessage().contains("capture timeout"));
     }
 

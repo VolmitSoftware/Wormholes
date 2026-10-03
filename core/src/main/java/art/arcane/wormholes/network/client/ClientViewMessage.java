@@ -134,6 +134,54 @@ public sealed interface ClientViewMessage {
         }
     }
 
+    record MeshLocal(int portalKey, int generation, int sequence, boolean available,
+                     List<MeshCoordinate> sections, List<UUID> entities) implements ClientViewMessage {
+        public static final int MAX_SECTIONS = 512;
+        public static final int MAX_ENTITIES = 256;
+
+        public MeshLocal {
+            sections = List.copyOf(sections);
+            entities = List.copyOf(entities);
+            if (generation <= 0 || sequence <= 0 || sections.size() > MAX_SECTIONS || entities.size() > MAX_ENTITIES) {
+                throw new IllegalArgumentException("Invalid local mesh availability");
+            }
+        }
+
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.MESH_LOCAL;
+        }
+    }
+
+    record MeshCached(int portalKey, int generation, int sequence, boolean available, List<MeshClaim> claims) implements ClientViewMessage {
+        public static final int MAX_CLAIMS = 512;
+
+        public MeshCached {
+            claims = List.copyOf(claims);
+            if (generation <= 0 || sequence <= 0 || claims.size() > MAX_CLAIMS) {
+                throw new IllegalArgumentException("mesh cache claims");
+            }
+        }
+
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.MESH_CACHED;
+        }
+    }
+
+    record MeshClaim(int x, int y, int z, long hash) {
+    }
+
+    record MeshReuse(int portalKey, int generation, int sectionX, int sectionY, int sectionZ, int revision, long hash) implements ClientViewMessage {
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.MESH_REUSE;
+        }
+    }
+
+    record MeshCoordinate(int x, int y, int z) {
+    }
+
     record PlateBegin(int portalKey, int plateRevision, PlateSectionBox sections, PlateBox cells, int backingState, int brickCount,
                       long[] brickHashes) implements ClientViewMessage {
         public PlateBegin {

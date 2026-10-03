@@ -6,6 +6,8 @@ import com.mojang.renderpearl.api.GpuFormat;
 import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
 import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.shaderpack.ShaderPack;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import net.irisshaders.iris.shaderpack.materialmap.NamespacedId;
 import net.irisshaders.iris.shaderpack.programs.ProgramSet;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
@@ -17,13 +19,18 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.List;
+import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.function.Supplier;
 
 final class PortalIrisRenderer implements PortalShaderRenderer {
-    private static final long MAX_BYTES = 1024L * 1024L * 1024L;
+    private static final long MAX_BYTES = 1536L * 1024L * 1024L;
 
     private final Supplier<ShaderPack> packs;
+    private final List<Entry> idle = new ArrayList<>();
+    private long constructed;
+    private long leased;
+    private long recycled;
     private final LinkedHashMap<Integer, Entry> entries = new LinkedHashMap<>(16, 0.75f, true);
     private final Map<NamespacedId, Shared> shared = new HashMap<>();
     private final Map<NamespacedId, Long> materialRevisions = new HashMap<>();
@@ -33,7 +40,6 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
     private ShaderPack pack;
     private long reserved;
     private long revision;
-    private long frame;
 
     PortalIrisRenderer(Supplier<ShaderPack> packs) {
         this.packs = packs;
@@ -43,9 +49,12 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
         return new PortalIrisRenderer(() -> Iris.getCurrentPack().orElseThrow());
     }
 
+    private NamespacedId dimension(ClientViewEnvironment environment) {
+        return PortalIrisPipeline.dimension(pack, environment);
+    }
+
     @Override
     public void beginFrame() {
-        frame++;
         warmups.beginFrame();
     }
 
@@ -54,18 +63,17 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
         updatePack();
         Map<NamespacedId, List<Integer>> depths = new HashMap<>();
         for (DemandView view : sizing.views()) {
-            NamespacedId dimension = PortalIrisPipeline.dimension(pack, view.environment());
+            NamespacedId dimension = dimension(view.environment());
             depths.computeIfAbsent(dimension, ignored -> new ArrayList<>()).add(view.depth());
         }
         Map<NamespacedId, PortalIrisResolution.Dimension> demand = new HashMap<>();
         for (Map.Entry<NamespacedId, List<Integer>> entry : depths.entrySet()) {
             demand.put(entry.getKey(), new PortalIrisResolution.Dimension(pack.getProgramSet(entry.getKey()), entry.getValue()));
         }
-        List<Resolution> sizes = resolution.select(new PortalIrisResolution.Demand(sizing.width(), sizing.height(), demand, PortalIrisResources.revision()));
+        List<Resolution> sizes = resolution.select(new PortalIrisResolution.Demand(sizing.width(), sizing.height(), demand, PortalIrisResources.revision(), retained(demand, sizing.views())));
         for (DemandView view : sizing.views()) {
             Entry entry = entries.get(view.key());
-            if (entry != null && entry.matches(view.environment())) {
-                entry.frame = frame;
+            if (entry != null && entry.dimension.equals(dimension(view.environment()))) {
                 Resolution size = sizes.get(view.depth());
                 long bytes = entryBytes(entry, view.environment(), size.width(), size.height());
                 if (bytes < entry.bytes) {
@@ -76,17 +84,84 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
         return sizes;
     }
 
+    private long retained(Map<NamespacedId, PortalIrisResolution.Dimension> demand, List<DemandView> views) {
+        long bytes = 0;
+        Map<NamespacedId, Integer> uses = new HashMap<>();
+        for (Map.Entry<NamespacedId, PortalIrisResolution.Dimension> requested : demand.entrySet()) {
+            uses.put(requested.getKey(), requested.getValue().depths().size());
+        }
+        for (DemandView view : views) {
+            Entry entry = entries.get(view.key());
+            if (entry != null && entry.dimension.equals(dimension(view.environment()))) {
+                uses.computeIfPresent(entry.dimension, (key, count) -> Math.max(0, count - 1));
+            }
+        }
+        for (Entry entry : idle) {
+            bytes += entry.bytes;
+        }
+        for (Map.Entry<NamespacedId, Integer> requested : uses.entrySet()) {
+            List<Entry> reusable = reusableEntries(requested.getKey());
+            int count = Math.min(requested.getValue(), reusable.size());
+            for (int index = 0; index < count; index++) {
+                Entry entry = reusable.get(index);
+                if (idle.contains(entry)) {
+                    bytes -= entry.bytes;
+                }
+            }
+        }
+        for (Map.Entry<NamespacedId, Shared> entry : shared.entrySet()) {
+            if (!demand.containsKey(entry.getKey())) {
+                bytes += entry.getValue().bytes;
+            }
+        }
+        return bytes;
+    }
+
     @Override
     public Session acquire(int key, ClientViewEnvironment environment, int width, int height) {
         updatePack();
         Entry existing = entries.get(key);
-        if (existing != null && existing.matches(environment)) {
-            existing.frame = frame;
+        if (existing != null && existing.dimension.equals(dimension(environment))) {
             resize(existing, entryBytes(existing, environment, width, height), width, height);
             return existing;
         }
         remove(key);
-        NamespacedId dimension = PortalIrisPipeline.dimension(pack, environment);
+        NamespacedId dimension = dimension(environment);
+        Entry reusable = reusable(dimension);
+        if (reusable != null) {
+            entries.put(key, reusable);
+            leased++;
+            resize(reusable, entryBytes(reusable, environment, width, height), width, height);
+            return reusable;
+        }
+        Entry entry = create(key, dimension, width, height);
+        entries.put(key, entry);
+        return entry;
+    }
+
+    private Entry reusable(NamespacedId dimension) {
+        List<Entry> candidates = reusableEntries(dimension);
+        if (candidates.isEmpty()) {
+            return null;
+        }
+        Entry entry = candidates.getFirst();
+        idle.remove(entry);
+        return entry;
+    }
+
+    private List<Entry> reusableEntries(NamespacedId dimension) {
+        List<Entry> candidates = new ArrayList<>();
+        for (Entry entry : idle) {
+            if (entry.dimension.equals(dimension) && entry.ready()) {
+                candidates.add(entry);
+            }
+        }
+        candidates.sort(Comparator.comparingLong((Entry entry) -> (long) entry.target.width * entry.target.height)
+            .thenComparingLong(entry -> entry.bytes).reversed());
+        return candidates;
+    }
+
+    private Entry create(int key, NamespacedId dimension, int width, int height) {
         ProgramSet programs = pack.getProgramSet(dimension);
         long bytes = PortalIrisResources.targets(programs, width, height);
         boolean share = PortalIrisResources.shareShadows(programs);
@@ -96,7 +171,7 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
             shadow.users++;
         }
         try {
-            reserve(Math.addExact(bytes, shadowBytes));
+            reserve();
             if (share && shadow == null) {
                 shadow = new Shared(new PortalSharedShadows(), shadowBytes);
                 shadow.users = 1;
@@ -104,10 +179,9 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
                 reserved += shadowBytes;
             }
             long materialRevision = materialRevisions.computeIfAbsent(dimension, ignored -> ++revision);
-            Entry entry = new Entry(new EntryRequest(key, environment, width, height, materialRevision,
+            Entry entry = new Entry(new EntryRequest(key, dimension, width, height, materialRevision,
                 bytes + (share ? 0 : shadowBytes), share ? 0 : shadowBytes, shadow, materials, warmups));
-            entry.frame = frame;
-            entries.put(key, entry);
+            constructed++;
             reserved += entry.bytes;
             return entry;
         } catch (RuntimeException | Error failure) {
@@ -121,12 +195,12 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
     }
 
     private long entryBytes(Entry entry, ClientViewEnvironment environment, int width, int height) {
-        return PortalIrisResources.targets(pack.getProgramSet(PortalIrisPipeline.dimension(pack, environment)), width, height)
+        return PortalIrisResources.targets(pack.getProgramSet(dimension(environment)), width, height)
             + (entry.shadows == null ? entry.shadowBytes : 0);
     }
 
     private void resize(Entry entry, long bytes, int width, int height) {
-        reserve(Math.max(0, bytes - entry.bytes));
+        reserve();
         if (entry.target.width != width || entry.target.height != height) {
             try (PortalTextureScope textures = new PortalTextureScope();
                  PortalFramebufferScope framebuffer = PortalFramebufferScope.capture()) {
@@ -140,32 +214,70 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
         entry.bytes = bytes;
     }
 
-    private void reserve(long bytes) {
-        while (reserved + bytes > MAX_BYTES) {
-            Integer candidate = null;
-            for (Map.Entry<Integer, Entry> entry : entries.entrySet()) {
-                if (entry.getValue().active == 0 && entry.getValue().frame != frame) {
-                    candidate = entry.getKey();
-                    break;
-                }
-            }
-            if (candidate == null) {
-                throw new IllegalStateException("Destination shader resources exceed the 1 GiB pool limit");
-            }
-            remove(candidate);
+    private long cachedBytes() {
+        long bytes = 0;
+        Set<Shared> retainedShadows = new LinkedHashSet<>(shared.values());
+        for (Entry entry : idle) {
+            bytes += entry.bytes;
+        }
+        for (Entry entry : entries.values()) {
+            retainedShadows.remove(entry.shadows);
+        }
+        for (Shared shadow : retainedShadows) {
+            bytes += shadow.bytes;
+        }
+        return bytes;
+    }
+
+    private void reserve() {
+        while (cachedBytes() > MAX_BYTES && !idle.isEmpty()) {
+            destroy(idle.removeLast());
         }
     }
 
     @Override
     public void remove(int key) {
         Entry entry = entries.remove(key);
+        if (entry == null) {
+            return;
+        }
+        if (entry.ready() && entry.active == 0) {
+            entry.pipeline.released();
+            idle.addFirst(entry);
+            recycled++;
+            reserve();
+        } else {
+            destroy(entry);
+        }
+    }
+
+    @Override
+    public void discard(int key) {
+        Entry entry = entries.remove(key);
         if (entry != null) {
-            try {
-                entry.close();
-            } finally {
-                reserved -= entry.bytes;
-                release(entry.shadows);
-            }
+            destroy(entry);
+        }
+    }
+
+    @Override
+    public void resetHistory(int key) {
+        Entry entry = entries.get(key);
+        if (entry != null && entry.pipeline != null) {
+            entry.pipeline.released();
+        }
+    }
+
+    @Override
+    public boolean usesPack(Object shaderPack) {
+        return pack != null && pack == shaderPack;
+    }
+
+    private void destroy(Entry entry) {
+        try {
+            entry.close();
+        } finally {
+            reserved -= entry.bytes;
+            release(entry.shadows);
         }
     }
 
@@ -189,7 +301,18 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
         while (!entries.isEmpty()) {
             int key = entries.keySet().iterator().next();
             try {
-                remove(key);
+                discard(key);
+            } catch (RuntimeException | Error cleanup) {
+                if (failure == null) {
+                    failure = cleanup;
+                } else {
+                    failure.addSuppressed(cleanup);
+                }
+            }
+        }
+        while (!idle.isEmpty()) {
+            try {
+                destroy(idle.removeLast());
             } catch (RuntimeException | Error cleanup) {
                 if (failure == null) {
                     failure = cleanup;
@@ -242,14 +365,14 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
         }
     }
 
-    private record EntryRequest(int key, ClientViewEnvironment environment, int width, int height,
+    private record EntryRequest(int key, NamespacedId dimension, int width, int height,
                                 long materialRevision, long bytes, long shadowBytes, Shared shadows, PortalIrisMaterials materials,
                                 PortalShaderWarmup warmups) {
     }
 
     private static final class Entry implements Session, AutoCloseable {
         private final TextureTarget target;
-        private final ClientViewEnvironment environment;
+        private final NamespacedId dimension;
         private final long materialRevision;
         private long bytes;
         private final long shadowBytes;
@@ -259,10 +382,9 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
         private PortalIrisPipeline pipeline;
         private SkyRenderer sky;
         private int active;
-        private long frame;
 
         private Entry(EntryRequest request) {
-            environment = request.environment();
+            dimension = request.dimension();
             materialRevision = request.materialRevision();
             bytes = request.bytes();
             shadowBytes = request.shadowBytes();
@@ -273,10 +395,6 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
                 GpuFormat.RGBA8_UNORM, GpuFormat.D32_FLOAT);
         }
 
-        private boolean matches(ClientViewEnvironment updated) {
-            return environment.world().dimensionKey().equals(updated.world().dimensionKey());
-        }
-
         @Override
         public TextureTarget target() {
             return target;
@@ -284,29 +402,37 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
 
         @Override
         public PortalTerrainMaterials materials() {
-            return pipeline == null ? PortalTerrainMaterials.VANILLA : pipeline.materials();
+            return ready() ? pipeline.materials() : PortalTerrainMaterials.VANILLA;
         }
 
         @Override
         public boolean ready() {
-            return pipeline != null;
+            return pipeline != null && pipeline.ready();
         }
 
         @Override
         public boolean warm(PortalShaderContext.View view) {
-            if (pipeline == null) {
-                if (!warmups.permit()) {
-                    return false;
-                }
-                pipeline = new PortalIrisPipeline(new PortalIrisPipeline.Request(view, materialRevision,
-                    shadows == null ? null : shadows.targets, mappings));
+            if (ready()) {
+                return true;
             }
-            return true;
+            if (!warmups.permit()) {
+                return false;
+            }
+            if (pipeline == null) {
+                construct();
+                return ready();
+            }
+            return pipeline.warm(view);
+        }
+
+        private void construct() {
+            pipeline = new PortalIrisPipeline(new PortalIrisPipeline.Request(dimension, target, materialRevision,
+                shadows == null ? null : shadows.targets, mappings));
         }
 
         @Override
         public Frame begin(PortalShaderContext.View view) {
-            if (pipeline == null) {
+            if (!ready()) {
                 throw new IllegalStateException("Destination shader pipeline has not been warmed");
             }
             PortalIrisFrame frame = pipeline.begin(view);
@@ -322,7 +448,12 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
 
         @Override
         public CompiledRenderPipeline terrain(ChunkSectionLayer layer, boolean reflected) {
-            return PortalIrisTerrain.get(layer, reflected);
+            return pipeline.terrain(layer, reflected);
+        }
+
+        @Override
+        public void endTerrain() {
+            pipeline.endTerrain();
         }
 
         @Override

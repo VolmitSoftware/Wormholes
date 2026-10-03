@@ -1,3 +1,4 @@
+import org.gradle.api.tasks.TaskProvider
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.jvm.toolchain.JavaLanguageVersion
@@ -42,6 +43,11 @@ repositories {
 }
 
 configurations {
+    irisParserApi {
+        canBeConsumed = false
+        canBeResolved = true
+        transitive = false
+    }
     bundle {
         canBeConsumed = false
         canBeResolved = true
@@ -65,7 +71,20 @@ Map<String, String> fabricApi = [
     'fabric-registry-sync-v0': '8.0.1+fcdff87f5d'
 ]
 
+TaskProvider<Sync> extractIrisParserApi = tasks.register('extractIrisParserApi', Sync) {
+    from({ zipTree(configurations.irisParserApi.singleFile) })
+    include('META-INF/jars/glsl-transformer-3.0.0-pre3.jar')
+    include('META-INF/jars/antlr4-runtime-4.13.1.jar')
+    into(layout.buildDirectory.dir('iris-parser-api'))
+}
+FileCollection irisParserClasses = files(
+    layout.buildDirectory.file('iris-parser-api/META-INF/jars/glsl-transformer-3.0.0-pre3.jar'),
+    layout.buildDirectory.file('iris-parser-api/META-INF/jars/antlr4-runtime-4.13.1.jar')).builtBy(extractIrisParserApi)
+
 dependencies {
+    irisParserApi('maven.modrinth:iris:vTN4NRGW')
+    compileOnly(irisParserClasses)
+    testImplementation(irisParserClasses)
     compileOnly('maven.modrinth:iris:vTN4NRGW') { transitive = false }
     compileOnly('maven.modrinth:sodium:v4PSXean') { transitive = false }
     testImplementation('maven.modrinth:iris:vTN4NRGW') { transitive = false }

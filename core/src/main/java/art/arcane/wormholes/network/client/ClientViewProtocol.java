@@ -53,8 +53,8 @@ public final class ClientViewProtocol {
     public static final int MAX_APERTURE_MASK_WORDS = 1024;
     public static final int MAX_NESTED_GEOMETRY = 16;
     public static final int MAX_LINKED_GEOMETRY_DEPTH = 4;
-    public static final int MAX_MIRROR_REFLECTIONS = 6;
-    public static final int MAX_GEOMETRY_DEPTH = MAX_MIRROR_REFLECTIONS;
+    public static final int MAX_MIRROR_REFLECTIONS = 4;
+    public static final int MAX_GEOMETRY_DEPTH = 6;
     public static final int MAX_BRICK_MISS_WORDS = (MAX_BRICKS_PER_PLATE + 63) / 64;
     public static final int MAX_BRICK_MISS_PLATES = 255;
 

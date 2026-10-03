@@ -4,7 +4,9 @@ import art.arcane.wormholes.render.client.session.ClientViewPlateLight;
 import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.render.view.ProjectionContentView;
 import net.minecraft.core.SectionPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.lighting.LayerLightEventListener;
@@ -43,7 +45,7 @@ public final class MinecraftLightSnapshot implements ClientViewPlateLight.Sample
         this.loaded = new boolean[sizeX * sizeZ];
     }
 
-    public static MinecraftLightSnapshot capture(ServerLevel level, PlateBox box) {
+    public static MinecraftLightSnapshot capture(Level level, PlateBox box) {
         Objects.requireNonNull(level, "level");
         Objects.requireNonNull(box, "box");
         if (box.cells() == 0L) {
@@ -68,7 +70,8 @@ public final class MinecraftLightSnapshot implements ClientViewPlateLight.Sample
             for (int dz = 0; dz < sizeZ; dz++) {
                 int chunkX = minSectionX + dx;
                 int chunkZ = minSectionZ + dz;
-                if (level.getChunkSource().getChunkNow(chunkX, chunkZ) == null) {
+                if ((level instanceof ServerLevel serverLevel ? serverLevel.getChunkSource().getChunkNow(chunkX, chunkZ)
+                    : level.getChunkSource().getChunk(chunkX, chunkZ, ChunkStatus.FULL, false)) == null) {
                     continue;
                 }
                 snapshot.loaded[dx * sizeZ + dz] = true;

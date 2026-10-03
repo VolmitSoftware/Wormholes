@@ -13,6 +13,7 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewMessageType;
 import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import art.arcane.wormholes.network.client.ClientViewTransport;
+import art.arcane.wormholes.render.ProjectedEntityEvent;
 
 final class SessionHarness {
     static final int DATA_VERSION = 4325;
@@ -58,7 +59,27 @@ final class SessionHarness {
             }
         };
         ClientViewPlatform<String, String> platform = new ClientViewPlatform<String, String>(transport, access,
-            (observer, portal, key, tick, full, hideObserver) -> entities.frame(observer, portal, key, tick, full, hideObserver), new ClientViewFxSource<String>() {
+            new ClientViewEntitySource<String>() {
+                @Override
+                public ClientViewMessage.EntityFrame frame(String observer, UUID portal, int key, long tick, boolean full, boolean hideObserver) {
+                    return entities.frame(observer, portal, key, tick, full, hideObserver);
+                }
+
+                @Override
+                public UUID projectedId(UUID sourceId) {
+                    return entities.projectedId(sourceId);
+                }
+
+                @Override
+                public void event(ProjectedEntityEvent event) {
+                    entities.event(event);
+                }
+
+                @Override
+                public List<ClientViewMessage.EntityEvent> events(String observer, UUID portal, int key) {
+                    return entities.events(observer, portal, key);
+                }
+            }, new ClientViewFxSource<String>() {
                 @Override
                 public ClientViewMessage.Fx fx(String observer, UUID portal, int portalKey, long tick, boolean full) {
                     return fx.fx(observer, portal, portalKey, tick, full);

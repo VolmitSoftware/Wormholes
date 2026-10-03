@@ -30,6 +30,7 @@ final class MinecraftPlateCaptureSource implements PlateCaptureJob.Source<Server
     private final int minY;
     private final int maxY;
     private final boolean environment;
+    private final Options options;
 
     MinecraftPlateCaptureSource(WormholesModRuntime runtime, Options options) {
         this.runtime = Objects.requireNonNull(runtime);
@@ -38,6 +39,7 @@ final class MinecraftPlateCaptureSource implements PlateCaptureJob.Source<Server
         this.minY = options.minY();
         this.maxY = options.maxY();
         this.environment = options.environment();
+        this.options = options;
     }
 
     record Options(UUID worldId, boolean blockEntities, int minY, int maxY, boolean environment) {
@@ -58,6 +60,14 @@ final class MinecraftPlateCaptureSource implements PlateCaptureJob.Source<Server
     @Override
     public PlateCaptureJob.Hold hold(ServerLevel world, int chunkX, int chunkZ) {
         return new ChunkLeaseHold(runtime.leases().retain(world, worldId, chunkX, chunkZ));
+    }
+
+    @Override
+    public CapturedChunk cached(ServerLevel world, int chunkX, int chunkZ) {
+        runtime.requireServerThread();
+        LevelChunk chunk = world.getChunkSource().getChunkNow(chunkX, chunkZ);
+        return chunk == null ? null : runtime.projections().plateSnapshots().get(
+            new MinecraftPlateSnapshotCache.Key(chunkX, chunkZ, options), chunk, world.getGameTime());
     }
 
     @Override
@@ -89,8 +99,10 @@ final class MinecraftPlateCaptureSource implements PlateCaptureJob.Source<Server
         }
         MinecraftLightSnapshot light = environment ? MinecraftLightSnapshot.capture(world,
             new PlateBox(chunkX << 4, minY, chunkZ << 4, 16, maxY - minY + 1, 16)) : null;
-        return new CapturedChunk(minSection, sections, samples, samples.size() < PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK,
+        CapturedChunk captured = new CapturedChunk(minSection, sections, samples, samples.size() < PlateCaptureJob.MAX_BLOCK_ENTITIES_PER_CHUNK,
             light, biomeMin, biomes);
+        runtime.projections().plateSnapshots().put(new MinecraftPlateSnapshotCache.Key(chunkX, chunkZ, options), chunk, world.getGameTime(), captured);
+        return captured;
     }
 
     private Map<Long, BlockEntitySample> captureBlockEntities(ServerLevel world, LevelChunk chunk) {

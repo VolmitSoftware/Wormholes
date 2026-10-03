@@ -46,6 +46,10 @@ public final class ClientProjectedEntities {
         List<EntityVisual> visuals = frame.entities();
         for (int index = 0; index < visuals.size(); index++) {
             EntityVisual incoming = visuals.get(index);
+            WormholesClient client = WormholesClient.instance();
+            if (client != null && client.localMeshes().localEntity(frame.portalKey(), incoming.id())) {
+                continue;
+            }
             Tracked tracked = state.tracked.get(incoming.id());
             if (!incoming.isFull() && tracked == null) {
                 deltasWithoutBase++;
@@ -77,6 +81,10 @@ public final class ClientProjectedEntities {
     }
 
     public void apply(ClientViewMessage.EntityEvent event) {
+        WormholesClient client = WormholesClient.instance();
+        if (client != null && client.localMeshes().localEntity(event.portalKey(), event.entityId())) {
+            return;
+        }
         PortalEntities state = portals.computeIfAbsent(event.portalKey(), ignored -> new PortalEntities());
         if (event.eventSeq() - state.eventSequence <= 0) {
             return;
@@ -150,6 +158,18 @@ public final class ClientProjectedEntities {
                 }
             }
         }
+    }
+
+    public void suppress(int portalKey, UUID source) {
+        PortalEntities state = portals.get(portalKey);
+        if (state == null) {
+            return;
+        }
+        Tracked tracked = state.tracked.remove(source);
+        if (tracked != null) {
+            despawn(tracked);
+        }
+        state.events.removeIf(event -> event.event.entityId().equals(source));
     }
 
     public void drop(int portalKey) {

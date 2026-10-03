@@ -33,6 +33,40 @@ public final class LoopbackServerTest {
             if (server.poll() != null) {
                 throw new AssertionError("Invalid movement input reached the game-thread queue");
             }
+            for (String body : new String[]{"{\"op\":\"keys\",\"playerList\":true}", "{\"op\":\"keys\",\"hold\":[\"playerList\"]}", "{\"op\":\"keys\",\"playerList\":false}"}) {
+                HttpRequest playerList = request(base + "/command").POST(HttpRequest.BodyPublishers.ofString(body)).build();
+                CompletableFuture<HttpResponse<String>> playerListResult = client.sendAsync(playerList, HttpResponse.BodyHandlers.ofString());
+                LoopbackServer.Request playerListRequest = awaitRequest(server);
+                if (!playerListRequest.input().get("op").getAsString().equals("keys")) {
+                    throw new AssertionError("Player list input changed before dispatch");
+                }
+                JsonObject playerListReply = new JsonObject();
+                playerListReply.addProperty("ok", true);
+                playerListRequest.result().complete(playerListReply);
+                assertStatus(playerListResult.get(3, TimeUnit.SECONDS), 200, "player list key and hold validation");
+            }
+            HttpRequest pauseScreen = request(base + "/command")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"op\":\"pause-screen\"}")).build();
+            CompletableFuture<HttpResponse<String>> paused = client.sendAsync(pauseScreen, HttpResponse.BodyHandlers.ofString());
+            LoopbackServer.Request pauseRequest = awaitRequest(server);
+            if (!pauseRequest.input().get("op").getAsString().equals("pause-screen") || paused.isDone()) {
+                throw new AssertionError("Pause screen must wait for native game-thread dispatch");
+            }
+            JsonObject pauseReply = new JsonObject();
+            pauseReply.addProperty("ok", true);
+            pauseRequest.result().complete(pauseReply);
+            assertStatus(paused.get(3, TimeUnit.SECONDS), 200, "native pause screen dispatch");
+            HttpRequest clearChat = request(base + "/command")
+                .POST(HttpRequest.BodyPublishers.ofString("{\"op\":\"clear-chat\"}")).build();
+            CompletableFuture<HttpResponse<String>> cleared = client.sendAsync(clearChat, HttpResponse.BodyHandlers.ofString());
+            LoopbackServer.Request clearRequest = awaitRequest(server);
+            if (!clearRequest.input().get("op").getAsString().equals("clear-chat") || cleared.isDone()) {
+                throw new AssertionError("Chat clearing must wait for native game-thread dispatch");
+            }
+            JsonObject clearReply = new JsonObject();
+            clearReply.addProperty("ok", true);
+            clearRequest.result().complete(clearReply);
+            assertStatus(cleared.get(3, TimeUnit.SECONDS), 200, "native chat clear dispatch");
             HttpRequest input = request(base + "/command").POST(HttpRequest.BodyPublishers.ofString("{\"op\":\"chat\",\"text\":\"Garden\"}")).build();
             CompletableFuture<HttpResponse<String>> result = client.sendAsync(input, HttpResponse.BodyHandlers.ofString());
             LoopbackServer.Request received = awaitRequest(server);

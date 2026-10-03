@@ -41,7 +41,7 @@ final class PortalTerrainVertices implements VertexConsumer {
     }
 
     void block(int id, boolean fluid, int emission, float x, float y, float z) {
-        material = (id & 0xFFFFL) | ((fluid ? 1L : 0L) << 16) | ((emission & 0xFFL) << 32);
+        material = (id & 0xFFFFL) | ((fluid ? 1L : 0xFFFFL) << 16) | ((emission & 0xFFL) << 32);
         centerX = x;
         centerY = y;
         centerZ = z;

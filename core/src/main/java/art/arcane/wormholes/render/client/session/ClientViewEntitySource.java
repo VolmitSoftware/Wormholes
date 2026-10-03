@@ -11,6 +11,10 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 public interface ClientViewEntitySource<P> {
     ClientViewMessage.EntityFrame frame(P observer, UUID portal, int portalKey, long tick, boolean full, boolean hideObserver);
 
+    default UUID projectedId(UUID sourceId) {
+        return sourceId;
+    }
+
     default void event(ProjectedEntityEvent event) {
     }
 

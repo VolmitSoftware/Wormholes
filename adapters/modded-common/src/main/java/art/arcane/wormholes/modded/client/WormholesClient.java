@@ -40,6 +40,7 @@ public final class WormholesClient {
 
     private final WormholesClientConfig config;
     private final ClientViewStats stats;
+    private final ClientLocalMeshSources localMeshes = new ClientLocalMeshSources(this::send);
     private final ClientMeshViews meshViews = new ClientMeshViews();
     private final ClientReflectionEntity reflections;
     private final ClientViewAnnouncer announcer;
@@ -102,7 +103,31 @@ public final class WormholesClient {
         WormholesClient client = instance;
         if (client != null) {
             client.tick.blockChanged(level, position.getX(), position.getY(), position.getZ());
+            client.localMeshes.blockChanged(level, position);
         }
+    }
+
+    public static void localChunkChanged(ClientLevel level, int x, int z) {
+        WormholesClient client = instance;
+        if (client != null) {
+            client.localMeshes.chunkChanged(level, x, z);
+        }
+    }
+
+    public static void localSectionChanged(ClientLevel level, int x, int y, int z) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (!minecraft.isSameThread()) {
+            minecraft.execute(() -> localSectionChanged(level, x, y, z));
+            return;
+        }
+        WormholesClient client = instance;
+        if (client != null) {
+            client.localMeshes.blockChanged(level, new BlockPos(x << 4, y << 4, z << 4));
+        }
+    }
+
+    public ClientLocalMeshSources localMeshes() {
+        return localMeshes;
     }
 
     public void receive(byte[] payload, Consumer<byte[]> reply) {
@@ -121,6 +146,7 @@ public final class WormholesClient {
     public void disconnected() {
         reflections.clear(null, null);
         detach();
+        meshViews.clear();
         freshSession();
     }
 
@@ -147,6 +173,11 @@ public final class WormholesClient {
         Vec3 eye = camera.isInitialized() ? camera.position() : player == null ? Vec3.ZERO : player.getEyePosition();
         Vec3 velocity = player == null ? Vec3.ZERO : player.getDeltaMovement();
         tick.tick(eye.x, eye.y, eye.z, velocity.x, velocity.y, velocity.z, System.currentTimeMillis());
+        try {
+            localMeshes.update(session, level, eye.x, eye.y, eye.z);
+        } catch (ClientViewProtocolException failure) {
+            LOGGER.warn("Unable to capture local mirror sections", failure);
+        }
         meshViews.update(session, level);
         reflections.tick(level, player, minecraft.getConnection(), session, tick,
             config.selfReflection && session.active() && session.has(ClientViewCapability.CLIENT_MIRROR));
@@ -201,14 +232,16 @@ public final class WormholesClient {
     }
 
     private void detach() {
-        meshViews.clear();
+        meshViews.detach();
         tick.detach();
         attachedLevel = null;
         attachedSurface = null;
     }
 
     private void freshSession() {
+        localMeshes.clear();
         ClientViewSession next = new ClientViewSession(config, new ClientPalette(BuiltInRegistries.BLOCK), dataVersion, brandTag);
+        next.meshes().otherMemory(() -> next.plates().bytes() + localMeshes.bytes());
         ClientViewReceiver nextReceiver = new ClientViewReceiver(next);
         ClientViewTick nextTick = new ClientViewTick(next, nextReceiver, config, stats);
         nextTick.sender(this::send);

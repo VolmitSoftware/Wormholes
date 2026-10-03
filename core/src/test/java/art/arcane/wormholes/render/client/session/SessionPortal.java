@@ -27,6 +27,7 @@ final class SessionPortal {
     volatile boolean geometryAvailable = true;
     volatile long geometryRevision = 1L;
     volatile boolean mirror;
+    volatile boolean frontSide;
     volatile int recursionDepth;
     volatile double depthBlocks = 24.0D;
     volatile double lateralBlocks = 8.0D;
@@ -55,7 +56,7 @@ final class SessionPortal {
     ClientPortalGeometry geometry(SessionPalette palette) {
         boolean[] open = new boolean[9];
         Arrays.fill(open, true);
-        return new ClientPortalGeometry(10 + offsetX, 66, 20, Direction.S.ordinal(), false, 0, mirror, 3, 3,
+        return new ClientPortalGeometry(10 + offsetX, 66, 20, Direction.S.ordinal(), frontSide, 0, mirror, 3, 3,
             ClientPortalGeometry.apertureMask(3, 3, open), 2.0F, 0.75F, 0.2F, 24, recursionDepth, ClientPortalGeometry.BLACKOUT_SHELL,
             palette.id(BLACKOUT), ClientPortalGeometry.MASK_AIR_PROJECT, 0, 0, ClientPortalGeometry.KIND_FRAME, 0, 0L, List.of());
     }

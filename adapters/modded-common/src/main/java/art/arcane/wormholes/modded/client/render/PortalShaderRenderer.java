@@ -21,6 +21,12 @@ interface PortalShaderRenderer extends AutoCloseable {
 
     void remove(int key);
 
+    void discard(int key);
+
+    void resetHistory(int key);
+
+    boolean usesPack(Object shaderPack);
+
     long bytes();
 
     void disconnect();
@@ -53,6 +59,8 @@ interface PortalShaderRenderer extends AutoCloseable {
 
         boolean blockEntities();
 
+        Frame features();
+
         void translucentDepth();
     }
 
@@ -68,6 +76,8 @@ interface PortalShaderRenderer extends AutoCloseable {
         Frame begin(PortalShaderContext.View view);
 
         CompiledRenderPipeline terrain(ChunkSectionLayer layer, boolean reflected);
+
+        void endTerrain();
 
         ShadowFrame shadows(CameraRenderState camera);
 

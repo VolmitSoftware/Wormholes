@@ -17,6 +17,10 @@ public final class PlateCaptureJob<B, W, S> extends ViewPlateBuilder.Job<B, W> {
         Hold hold(W world, int chunkX, int chunkZ);
 
         S capture(W world, int chunkX, int chunkZ);
+
+        default S cached(W world, int chunkX, int chunkZ) {
+            return null;
+        }
     }
 
     public interface Hold {
@@ -60,6 +64,7 @@ public final class PlateCaptureJob<B, W, S> extends ViewPlateBuilder.Job<B, W> {
     private ViewPlateBuilder.Job<B, W> build;
     private Phase phase;
     private int ticks;
+    private boolean budgetBlocked = true;
 
     public PlateCaptureJob(Plan<B, W, S> plan) {
         super(plan.key());
@@ -89,6 +94,10 @@ public final class PlateCaptureJob<B, W, S> extends ViewPlateBuilder.Job<B, W> {
         return holds.size();
     }
 
+    public boolean waitingForBudget() {
+        return phase == Phase.CAPTURING && budgetBlocked && holds.isEmpty();
+    }
+
     public int capture(int budget) {
         if (phase != Phase.CAPTURING) {
             return 0;
@@ -99,12 +108,21 @@ public final class PlateCaptureJob<B, W, S> extends ViewPlateBuilder.Job<B, W> {
         }
         int taken = 0;
         int index = 0;
+        budgetBlocked = false;
         while (index < pending.size()) {
             long chunk = pending.getLong(index);
             int chunkX = (int) (chunk >> 32);
             int chunkZ = (int) chunk;
             if (plan.source().loaded(plan.world(), chunkX, chunkZ)) {
+                S snapshot = plan.source().cached(plan.world(), chunkX, chunkZ);
+                if (snapshot != null) {
+                    captured.put(chunk, snapshot);
+                    releaseHold(chunk);
+                    removePending(index);
+                    continue;
+                }
                 if (taken >= budget) {
+                    budgetBlocked = true;
                     index++;
                     continue;
                 }

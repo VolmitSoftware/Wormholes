@@ -115,6 +115,12 @@ public final class MinecraftViewPlates {
         return FidelitySettings.blockEntities && (!(portal.setting("fidelity.block_entities") instanceof Boolean enabled) || enabled);
     }
 
+    public static boolean sectionQueued(ViewPlateCache<BlockState, ServerLevel> plates, Resolved resolved, PlateBox clip) {
+        ViewPlateKey original = resolved.key();
+        return plates.captureQueued(new ViewPlateKey(original.portalId(), new MeshSection(original.destinationViewIdentity(), clip),
+            original.frontSide(), original.mirrorQuarterTurns(), original.targetIdentity()));
+    }
+
     public static AtmosphereMode atmosphereMode(MinecraftPortal portal) {
         return AtmosphereMode.parse(stringSetting(portal, "fidelity.atmosphere"), FidelitySettings.atmosphereModeDefault);
     }

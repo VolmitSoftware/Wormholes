@@ -8,8 +8,12 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.renderpearl.api.commands.RenderPass;
+import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
 import org.joml.Vector4f;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
 import net.irisshaders.iris.pipeline.WorldRenderingPhase;
@@ -21,6 +25,7 @@ import net.irisshaders.iris.shadows.ShadowRenderer;
 import net.irisshaders.iris.shadows.ShadowRenderTargets;
 import net.minecraft.client.renderer.ProjectionMatrixBuffer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 
 public final class PortalIrisPipeline implements AutoCloseable {
     private final ProgramSet programs;
@@ -30,27 +35,38 @@ public final class PortalIrisPipeline implements AutoCloseable {
     private final ShaderPack pack;
     private final NamespacedId dimension;
     private final IrisRenderingPipeline pipeline;
+    private final Supplier<WorldRenderingPhase> phaseGetter;
+    private final Consumer<WorldRenderingPhase> phaseSetter;
     private final PortalIrisSettings settings;
     private final PortalTerrainMaterials materials;
+    private final PortalIrisShaderLoading loading;
+    private final long constructionNanos;
     private PortalShaderContext.View lastView;
+    private final PortalIrisHistory history = new PortalIrisHistory();
+    private boolean initialized;
 
     PortalIrisPipeline(Request request) {
-        lastView = request.view();
+        long started = System.nanoTime();
         sharedShadows = request.shadows();
         pack = Iris.getCurrentPack().orElseThrow();
-        dimension = dimension(pack, request.view().environment());
+        dimension = request.dimension();
         programs = pack.getProgramSet(dimension);
         IrisRenderingPipeline created = null;
-        try (PortalIrisFrame frame = new PortalIrisFrame(request.view());
+        try (PortalIrisFrame frame = PortalIrisFrame.building(request.target());
+             PortalIrisHistory.Scope histories = history.constructing();
+             PortalIrisShaderLoading.Scope deferred = PortalIrisShaderLoading.constructing();
              PortalSharedShadows.Construction shadows = sharedShadows == null ? null : sharedShadows.constructing()) {
             try {
                 try (PortalIrisShaderStages.Scope stages = PortalIrisShaderStages.destination()) {
                     created = new IrisRenderingPipeline(programs);
                 }
                 pipeline = created;
+                phaseGetter = pipeline::getPhase;
+                phaseSetter = pipeline::setPhase;
+                loading = deferred.loading();
+                loading.attach(pipeline, programs);
                 request.materials().apply(pack);
                 ((IrisPortalRenderingAccess) pipeline).wormholes$initializedBlockIds(true);
-                PortalIrisResources.allocated(programs, ((IrisPortalRenderingAccess) pipeline).wormholes$renderTargets());
                 settings = PortalIrisSettings.capture();
                 materials = new PortalTerrainMaterials(true, request.materials().terrain(), request.materialRevision(),
                     new PortalTerrainMaterials.Lighting(settings.ambientOcclusion(), settings.directionalShading(), settings.separateAo()));
@@ -78,8 +94,14 @@ public final class PortalIrisPipeline implements AutoCloseable {
             } catch (RuntimeException | Error cleanup) {
                 failure.addSuppressed(cleanup);
             }
+            try {
+                history.close();
+            } catch (RuntimeException | Error cleanup) {
+                failure.addSuppressed(cleanup);
+            }
             throw failure;
         }
+        constructionNanos = System.nanoTime() - started;
     }
 
     public static NamespacedId dimension(ShaderPack pack, ClientViewEnvironment environment) {
@@ -96,6 +118,35 @@ public final class PortalIrisPipeline implements AutoCloseable {
 
     PortalTerrainMaterials materials() {
         return materials;
+    }
+
+    boolean ready() {
+        return loading.ready();
+    }
+
+    boolean warm(PortalShaderContext.View view) {
+        lastView = view;
+        try (PortalIrisFrame frame = new PortalIrisFrame(view);
+             PortalIrisHistory.Scope histories = history.constructing();
+             PortalIrisShaderStages.Scope stages = PortalIrisShaderStages.destination();
+             PortalSharedShadows.Construction shadows = sharedShadows == null ? null : sharedShadows.constructing()) {
+            try {
+                frame.pipeline(pipeline, settings);
+                boolean ready = loading.advance();
+                if (ready) {
+                    PortalIrisResources.allocated(programs, ((IrisPortalRenderingAccess) pipeline).wormholes$renderTargets());
+                }
+                return ready;
+            } finally {
+                if (shadows != null) {
+                    sharedFramebuffers.addAll(shadows.framebuffers());
+                }
+            }
+        }
+    }
+
+    void released() {
+        initialized = false;
     }
 
     boolean matches(ClientViewEnvironment environment) {
@@ -120,7 +171,14 @@ public final class PortalIrisPipeline implements AutoCloseable {
                     }
                 }
             }
-            PortalIrisResources.allocated(programs, ((IrisPortalRenderingAccess) pipeline).wormholes$renderTargets());
+            if (ready()) {
+                PortalIrisResources.allocated(programs, ((IrisPortalRenderingAccess) pipeline).wormholes$renderTargets());
+            }
+            if (ready() && !initialized) {
+                history.reset();
+                ((PortalDeferredShaderPipeline) pipeline).wormholes$resetShaders();
+                initialized = true;
+            }
             pipeline.setPhase(WorldRenderingPhase.NONE);
             return frame;
         } catch (RuntimeException | Error failure) {
@@ -130,9 +188,16 @@ public final class PortalIrisPipeline implements AutoCloseable {
     }
 
     void resize() {
+        if (lastView == null) {
+            return;
+        }
+        boolean previousInitialization = initialized;
+        initialized = true;
         try (PortalIrisFrame frame = begin(lastView)) {
             prepare();
             finish();
+        } finally {
+            initialized = previousInitialization;
         }
     }
 
@@ -144,7 +209,7 @@ public final class PortalIrisPipeline implements AutoCloseable {
             return null;
         }
         return new PortalIrisShadowFrame(new PortalIrisShadowFrame.Request(pipeline, renderer, targets,
-            programs.getPackDirectives().getShadowDirectives(), shadowProjection, camera));
+            programs.getPackDirectives().getShadowDirectives(), shadowProjection, camera, phaseGetter, phaseSetter));
     }
 
     void prepare() {
@@ -152,8 +217,13 @@ public final class PortalIrisPipeline implements AutoCloseable {
         pipeline.setPhase(WorldRenderingPhase.SKY);
     }
 
-    void phase(WorldRenderingPhase phase) {
-        pipeline.setPhase(phase);
+    CompiledRenderPipeline terrain(ChunkSectionLayer layer, boolean reflected) {
+        pipeline.setPhase(PortalIrisTerrain.phase(layer));
+        return PortalIrisTerrain.get(layer, reflected);
+    }
+
+    void endTerrain() {
+        pipeline.setPhase(WorldRenderingPhase.NONE);
     }
 
     void translucents() {
@@ -163,7 +233,9 @@ public final class PortalIrisPipeline implements AutoCloseable {
 
     void finish() {
         pipeline.finalizeLevelRendering();
-        PortalIrisResources.allocated(programs, ((IrisPortalRenderingAccess) pipeline).wormholes$renderTargets());
+        if (ready()) {
+            PortalIrisResources.allocated(programs, ((IrisPortalRenderingAccess) pipeline).wormholes$renderTargets());
+        }
     }
 
     IrisRenderingPipeline pipeline() {
@@ -172,6 +244,8 @@ public final class PortalIrisPipeline implements AutoCloseable {
 
     @Override
     public void close() {
+        loading.close();
+        history.close();
         try (PortalShaderScope scope = PortalShaderScope.rendering();
              PortalFramebufferScope framebuffer = PortalFramebufferScope.capture();
              PortalTextureScope textures = new PortalTextureScope()) {
@@ -193,6 +267,6 @@ public final class PortalIrisPipeline implements AutoCloseable {
         }
     }
 
-    record Request(PortalShaderContext.View view, long materialRevision, PortalSharedShadows shadows, PortalIrisMaterials materials) {
+    record Request(NamespacedId dimension, TextureTarget target, long materialRevision, PortalSharedShadows shadows, PortalIrisMaterials materials) {
     }
 }

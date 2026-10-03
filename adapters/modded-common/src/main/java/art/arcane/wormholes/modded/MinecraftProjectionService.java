@@ -81,6 +81,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
     private final EntityCandidateCache<ServerLevel, Entity> localEntityCandidates = new EntityCandidateCache<>(MinecraftProjectionService::queryLocalEntities);
     private final Map<SceneKey, Scene> entityScenes = new HashMap<>();
     private final ProjectionWorldChangeTracker changes = new ProjectionWorldChangeTracker();
+    private final MinecraftPlateSnapshotCache plateSnapshots = new MinecraftPlateSnapshotCache(changes, MinecraftPlateSnapshotCache.VIEW_LIMITS);
     private final Map<ServerLevel, MinecraftProjectionWorldView> views = new HashMap<>();
     private final Map<UUID, Observer> observers = new HashMap<>();
     private final ViewPlateCache<BlockState, ServerLevel> plates = new ViewPlateCache<>(FidelitySettings.plateMaxBytes, this::schedulePlate);
@@ -315,6 +316,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
         MinecraftClientProfiles.clear();
         entityVisibility.clear();
         plateCaptures.clear();
+        plateSnapshots.clear();
         plates.clear();
         sections.clear();
         return count;
@@ -334,6 +336,11 @@ public final class MinecraftProjectionService implements AutoCloseable {
 
     public ViewPlateCache<BlockState, ServerLevel> plates() {
         return plates;
+    }
+
+    MinecraftPlateSnapshotCache plateSnapshots() {
+        runtime.requireServerThread();
+        return plateSnapshots;
     }
 
     public Executor lanes() {
@@ -434,6 +441,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
             plateWorkers = null;
         }
         plateCaptures.clear();
+        plateSnapshots.clear();
         plates.clear();
         changes.removeListener(eviction);
         for (Observer observer : observers.values()) {
@@ -846,6 +854,7 @@ public final class MinecraftProjectionService implements AutoCloseable {
 
         @Override
         public void worldCleared(UUID worldId) {
+            plateSnapshots.clearWorld(worldId);
             MinecraftProjectionWorldView view = viewById(worldId);
             if (view != null) {
                 view.sections().clear();

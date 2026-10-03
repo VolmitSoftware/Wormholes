@@ -13,9 +13,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class PortalShaderGameRendererMixin {
     @Inject(method = "mainRenderTarget", at = @At("HEAD"), cancellable = true)
     private void wormholes$destinationTarget(CallbackInfoReturnable<RenderTarget> callback) {
-        PortalShaderContext.View view = PortalShaderContext.current();
-        if (view != null) {
-            callback.setReturnValue(view.target());
+        RenderTarget target = PortalShaderContext.target();
+        if (target != null) {
+            callback.setReturnValue(target);
         }
     }
 

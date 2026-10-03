@@ -111,6 +111,30 @@ public class PortalProjectionTest {
     }
 
     @Test
+    public void hardwarePlaneKeepsPerspectiveDepthAndMatchesObliqueFrontBackAndReflection() {
+        for (boolean zeroToOne : new boolean[] {false, true}) {
+            Matrix4f projection = new Matrix4f().setPerspective(1.1f, 1.7f, 256.0f, 0.05f, zeroToOne);
+            for (Matrix4f view : new Matrix4f[] {new Matrix4f(), new Matrix4f().rotateY(0.4f).rotateX(-0.2f),
+                new Matrix4f().rotateY(-0.6f).scale(-1, 1, 1)}) {
+                for (float side : new float[] {-1, 1}) {
+                    Vector4f plane = new Vector4f(0, 0, side, 2 * side);
+                    Vector4f distance = PortalProjection.clipDistance(projection, view, plane);
+                    for (Vector4f point : new Vector4f[] {new Vector4f(0.3f, 0.8f, -1, 1),
+                        new Vector4f(-1, 2, -2, 1), new Vector4f(-0.3f, -0.8f, -3, 1)}) {
+                        Vector4f clip = projection.transform(view.transform(new Vector4f(point)));
+                        assertEquals(-plane.dot(point), distance.dot(clip), 0.0001f);
+                        Vector4f reconstructed = new Matrix4f(projection).invert().transform(new Vector4f(clip));
+                        Vector4f eye = view.transform(new Vector4f(point));
+                        assertEquals(eye.x, reconstructed.x, 0.0001f);
+                        assertEquals(eye.y, reconstructed.y, 0.0001f);
+                        assertEquals(eye.z, reconstructed.z, 0.0001f);
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     public void reversedDepthClipsAtPortalForBothBackendRanges() {
         for (boolean zeroToOne : new boolean[] {false, true}) {
             Matrix4f original = new Matrix4f().setPerspective(1.1f, 1.7f, 256.0f, 0.05f, zeroToOne);

@@ -3,6 +3,7 @@ package art.arcane.automator;
 import art.arcane.automator.mixin.ContainerScreenAccessor;
 import art.arcane.automator.mixin.DefaultPlayerSkinAccessor;
 import art.arcane.automator.mixin.KeyMappingAccessor;
+import art.arcane.automator.mixin.SignEditScreenAccessor;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -11,6 +12,18 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.ConnectScreen;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen;
+import net.minecraft.client.gui.screens.inventory.AnvilScreen;
+import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
+import net.minecraft.client.gui.screens.multiplayer.ServerSelectionList;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -32,6 +45,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.sdl.SDLMouse;
+import org.lwjgl.sdl.SDLKeycode;
+import org.lwjgl.sdl.SDLScancode;
 import org.lwjgl.sdl.SDLVideo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +64,7 @@ public final class ClientBridge {
     private static final Logger LOGGER = LoggerFactory.getLogger("InstanceAutomator");
     private static final long TICK_NANOS = 50_000_000L;
     private static final List<String> INPUT_KEYS = List.of("forward", "back", "left", "right", "jump", "sneak", "sprint", "attack", "use",
-            "swapHands", "drop", "inventory");
+            "swapHands", "drop", "inventory", "playerList");
     private static final Set<String> CLICK_DRIVEN_KEYS = Set.of("swapHands", "drop", "inventory");
     private static final Set<Identifier> DEFAULT_SKIN_TEXTURES = defaultSkinTextures();
     private static final Map<String, Boolean> HELD_KEYS = new HashMap<>();
@@ -74,6 +89,8 @@ public final class ClientBridge {
     private static long cursorStarted;
     private static long cursorDuration = TICK_NANOS;
     private static PendingWindow pendingWindow;
+    private static PendingGui pendingGui;
+    private static PendingText pendingText;
     private static LiveCapture capture;
     private static long captureFrames;
     private static long captureEncodedFrames;
@@ -103,6 +120,8 @@ public final class ClientBridge {
             key(client, key.getKey()).setDown(key.getValue());
         }
         applyWindow(client);
+        applyGui(client);
+        applyText(client);
         for (int processed = 0; processed < 16; processed++) {
             LoopbackServer.Request request = server.poll();
             if (request == null) {
@@ -157,7 +176,7 @@ public final class ClientBridge {
 
     public static boolean hasCursor() {
         Screen screen = Minecraft.getInstance().gui.screen();
-        return cursorScreen != null && screen == cursorScreen && screen instanceof AbstractContainerScreen<?>;
+        return cursorScreen != null && screen == cursorScreen;
     }
 
     public static double cursorX() {
@@ -234,6 +253,8 @@ public final class ClientBridge {
             case "disconnect" -> {
                 turningPlayer = null;
                 pendingWindow = null;
+                pendingGui = null;
+                pendingText = null;
                 release(client);
                 client.disconnectWithSavingScreen();
                 client.gui.setScreen(new TitleScreen());
@@ -255,10 +276,25 @@ public final class ClientBridge {
             case "click" -> click(client, text(input, "key"));
             case "slot" -> selectSlot(client, integer(input, "index"));
             case "chat" -> chat(client, input);
+            case "clear-chat" -> client.gui.hud.getChat().clearMessages(false);
+            case "pause-screen" -> {
+                requirePlayer(client);
+                client.pauseGame(false);
+            }
+            case "chat-screen" -> {
+                requirePlayer(client);
+                client.gui.setScreen(new ChatScreen(input.has("text") ? text(input, "text") : "", true));
+            }
+            case "gui" -> gui(client, input);
+            case "sign-text" -> signText(client, input);
+            case "anvil-name" -> anvilName(client, input);
+            case "server-list" -> serverList(client, input);
             case "cursor" -> cursor(client, input);
             case "window" -> window(client, input);
             case "dismiss" -> {
                 pendingWindow = null;
+                pendingGui = null;
+                pendingText = null;
                 client.gui.setScreen(null);
             }
             case "screenshot" -> screenshot(client.gameRenderer.mainRenderTarget(), text(input, "name"));
@@ -374,6 +410,7 @@ public final class ClientBridge {
             case "swapHands" -> client.options.keySwapOffhand;
             case "drop" -> client.options.keyDrop;
             case "inventory" -> client.options.keyInventory;
+            case "playerList" -> client.options.keyPlayerList;
             default -> throw new IllegalArgumentException("Unknown input key " + name);
         };
     }
@@ -421,7 +458,7 @@ public final class ClientBridge {
     }
 
     private static void cursor(Minecraft client, JsonObject input) {
-        AbstractContainerScreen<?> screen = requireContainer(client, input);
+        Screen screen = requireScreen(client, input);
         double x = input.get("x").getAsDouble();
         double y = input.get("y").getAsDouble();
         int duration = optionalInt(input, "ticks", 1);
@@ -434,7 +471,7 @@ public final class ClientBridge {
         moveCursor(client, screen, x, y, duration);
     }
 
-    private static void moveCursor(Minecraft client, AbstractContainerScreen<?> screen, double x, double y, int duration) {
+    private static void moveCursor(Minecraft client, Screen screen, double x, double y, int duration) {
         double startX = client.mouseHandler.getScaledXPos(client.getWindow());
         double startY = client.mouseHandler.getScaledYPos(client.getWindow());
         cursorStartX = startX;
@@ -444,6 +481,202 @@ public final class ClientBridge {
         cursorStarted = System.nanoTime();
         cursorDuration = duration * TICK_NANOS;
         cursorScreen = screen;
+    }
+
+    private static void requireIdleGui() {
+        if (pendingText != null || pendingGui != null || pendingWindow != null) {
+            throw new IllegalStateException("Wait for pending GUI input before sending another");
+        }
+    }
+
+    private static Screen requireScreen(Minecraft client, JsonObject input) {
+        Screen screen = client.gui.screen();
+        if (screen == null) {
+            throw new IllegalStateException("No GUI screen is open");
+        }
+        if (input.has("screen") && !screen.getClass().getName().equals(text(input, "screen"))) {
+            throw new IllegalStateException("GUI screen changed before input");
+        }
+        if (input.has("containerId")) {
+            requireContainer(client, input);
+        }
+        return screen;
+    }
+
+    private static void gui(Minecraft client, JsonObject input) {
+        Screen screen = requireScreen(client, input);
+        if (pendingGui != null || pendingText != null || pendingWindow != null) {
+            throw new IllegalStateException("Wait for pending GUI input before sending another");
+        }
+        switch (text(input, "action")) {
+            case "list" -> { }
+            case "close" -> screen.onClose();
+            case "click" -> {
+                int button = optionalInt(input, "button", 0);
+                if (button != 0 && button != 1) {
+                    throw new IllegalArgumentException("button must be 0 or 1");
+                }
+                cursor(client, input);
+                pendingGui = new PendingGui(screen, button, cursorStarted + cursorDuration + TICK_NANOS);
+            }
+            case "key" -> pressGuiKey(screen, text(input, "key"));
+            case "text" -> beginText(screen, input);
+            default -> throw new IllegalArgumentException("GUI action must be list, close, click, key or text");
+        }
+    }
+
+    private static void applyGui(Minecraft client) {
+        PendingGui pending = pendingGui;
+        if (pending == null || System.nanoTime() < pending.due()) {
+            return;
+        }
+        pendingGui = null;
+        try {
+            if (client.gui.screen() != pending.screen()) {
+                throw new IllegalStateException("GUI changed during cursor travel");
+            }
+            MouseButtonEvent event = new MouseButtonEvent(cursorX(), cursorY(), new MouseButtonInfo(GuiMouseButton.fromProtocol(pending.button()), 0));
+            pending.screen().mouseMoved(event.x(), event.y());
+            pending.screen().mouseClicked(event, false);
+            pending.screen().mouseReleased(event);
+        } catch (RuntimeException failure) {
+            lastError = failure.toString();
+            LOGGER.error("GUI input failed after cursor travel", failure);
+        }
+    }
+
+    private static void pressGuiKey(Screen screen, String key) {
+        KeyEvent event = switch (key) {
+            case "enter" -> new KeyEvent(SDLScancode.SDL_SCANCODE_RETURN, SDLKeycode.SDLK_RETURN, 0);
+            case "escape" -> new KeyEvent(SDLScancode.SDL_SCANCODE_ESCAPE, SDLKeycode.SDLK_ESCAPE, 0);
+            case "tab" -> new KeyEvent(SDLScancode.SDL_SCANCODE_TAB, SDLKeycode.SDLK_TAB, 0);
+            case "up" -> new KeyEvent(SDLScancode.SDL_SCANCODE_UP, SDLKeycode.SDLK_UP, 0);
+            case "down" -> new KeyEvent(SDLScancode.SDL_SCANCODE_DOWN, SDLKeycode.SDLK_DOWN, 0);
+            case "home" -> new KeyEvent(SDLScancode.SDL_SCANCODE_HOME, SDLKeycode.SDLK_HOME, 0);
+            case "end" -> new KeyEvent(SDLScancode.SDL_SCANCODE_END, SDLKeycode.SDLK_END, 0);
+            case "backspace" -> new KeyEvent(SDLScancode.SDL_SCANCODE_BACKSPACE, SDLKeycode.SDLK_BACKSPACE, 0);
+            case "select-all" -> new KeyEvent(SDLScancode.SDL_SCANCODE_A, SDLKeycode.SDLK_A,
+                    SDLKeycode.SDL_KMOD_CTRL | SDLKeycode.SDL_KMOD_GUI);
+            default -> throw new IllegalArgumentException("Unsupported GUI key " + key);
+        };
+        screen.keyPressed(event);
+        screen.keyReleased(event);
+    }
+
+    private static void beginText(Screen screen, JsonObject input) {
+        if (pendingText != null || pendingGui != null || pendingWindow != null) {
+            throw new IllegalStateException("Wait for pending GUI input before typing");
+        }
+        TextInputPlan plan = TextInputPlan.fromJson(input);
+        if (!(screen instanceof AbstractSignEditScreen) && !(screen.getFocused() instanceof EditBox)) {
+            throw new IllegalStateException("A sign or focused text field is required");
+        }
+        if (!input.has("replace") || input.get("replace").getAsBoolean()) {
+            pressGuiKey(screen, "select-all");
+            pressGuiKey(screen, "backspace");
+        }
+        pendingText = new PendingText(screen, plan, ticks);
+    }
+
+    private static void applyText(Minecraft client) {
+        PendingText pending = pendingText;
+        if (pending == null || ticks < pending.nextTick) {
+            return;
+        }
+        try {
+            if (client.gui.screen() != pending.screen) {
+                throw new IllegalStateException("GUI changed during text input");
+            }
+            if (pending.index >= pending.plan.text().length()) {
+                pendingText = null;
+                return;
+            }
+            int codepoint = pending.plan.text().codePointAt(pending.index);
+            pending.screen.charTyped(new CharacterEvent(codepoint));
+            pending.index += Character.charCount(codepoint);
+            pending.nextTick = ticks + pending.plan.ticksPerChar();
+        } catch (RuntimeException failure) {
+            pendingText = null;
+            lastError = failure.toString();
+            LOGGER.error("GUI text input failed", failure);
+        }
+    }
+
+    private static void signText(Minecraft client, JsonObject input) {
+        requireIdleGui();
+        Screen screen = requireScreen(client, input);
+        if (!(screen instanceof AbstractSignEditScreen)) {
+            throw new IllegalStateException("No sign editor is open");
+        }
+        int line = optionalInt(input, "line", 0);
+        if (line < 0 || line > 3) {
+            throw new IllegalArgumentException("Sign line must be between 0 and 3");
+        }
+        SignEditScreenAccessor sign = (SignEditScreenAccessor) screen;
+        for (int step = 0; step < 4 && sign.automatorLine() != line; step++) {
+            pressGuiKey(screen, "down");
+        }
+        beginText(screen, input);
+    }
+
+    private static void anvilName(Minecraft client, JsonObject input) {
+        requireIdleGui();
+        Screen screen = requireScreen(client, input);
+        if (!(screen instanceof AnvilScreen)) {
+            throw new IllegalStateException("No anvil is open");
+        }
+        for (GuiEventListener child : screen.children()) {
+            if (child instanceof EditBox box && box.visible && box.active) {
+                screen.setFocused(box);
+                beginText(screen, input);
+                return;
+            }
+        }
+        throw new IllegalStateException("The anvil name field is unavailable");
+    }
+
+    private static void serverList(Minecraft client, JsonObject input) {
+        if (client.level != null || client.getConnection() != null) {
+            throw new IllegalStateException("Disconnect before opening the server list");
+        }
+        String address = text(input, "address");
+        if (!address.matches("127\\.0\\.0\\.1:[0-9]{1,5}")) {
+            throw new IllegalArgumentException("Only explicit IPv4 loopback servers are accepted");
+        }
+        JoinMultiplayerScreen screen = new JoinMultiplayerScreen(new TitleScreen());
+        client.gui.setScreen(screen);
+        while (screen.getServers().size() > 0) {
+            screen.getServers().remove(screen.getServers().get(0));
+        }
+        screen.getServers().add(new ServerData(input.has("name") ? text(input, "name") : "Demo server", address,
+                ServerData.Type.OTHER), false);
+        for (GuiEventListener child : screen.children()) {
+            if (child instanceof ServerSelectionList list) {
+                list.updateOnlineServers(screen.getServers());
+            }
+        }
+    }
+
+    private static JsonArray guiWidgets(Screen screen) {
+        JsonArray widgets = new JsonArray();
+        for (GuiEventListener child : screen.children()) {
+            if (!(child instanceof AbstractWidget widget) || !widget.visible) {
+                continue;
+            }
+            JsonObject entry = new JsonObject();
+            entry.addProperty("type", widget.getClass().getSimpleName());
+            entry.addProperty("label", widget.getMessage().getString());
+            entry.addProperty("active", widget.active);
+            entry.addProperty("x", widget.getX());
+            entry.addProperty("y", widget.getY());
+            entry.addProperty("width", widget.getWidth());
+            entry.addProperty("height", widget.getHeight());
+            if (widget instanceof EditBox box) {
+                entry.addProperty("value", box.getValue());
+            }
+            widgets.add(entry);
+        }
+        return widgets;
     }
 
     private static AbstractContainerScreen<?> requireContainer(Minecraft client, JsonObject input) {
@@ -602,6 +835,8 @@ public final class ClientBridge {
         result.addProperty("turning", turningPlayer != null);
         result.addProperty("cursorMoving", hasCursor() && System.nanoTime() - cursorStarted < cursorDuration);
         result.addProperty("windowPending", pendingWindow != null);
+        result.addProperty("guiPending", pendingGui != null);
+        result.addProperty("textPending", pendingText != null);
         result.addProperty("windowError", windowError);
         result.addProperty("lastError", lastError);
         result.addProperty("screenshotPath", screenshotPath);
@@ -614,6 +849,11 @@ public final class ClientBridge {
         Screen screen = client.gui.screen();
         result.addProperty("screen", screen == null ? null : screen.getClass().getName());
         result.addProperty("screenTitle", screen == null ? null : screen.getTitle().getString());
+        if (screen != null) {
+            result.addProperty("guiWidth", screen.width);
+            result.addProperty("guiHeight", screen.height);
+            result.add("guiWidgets", guiWidgets(screen));
+        }
         LocalPlayer player = client.player;
         result.addProperty("connected", player != null && client.getConnection() != null);
         result.addProperty("capturing", capture != null);
@@ -736,6 +976,22 @@ public final class ClientBridge {
 
     private static int optionalInt(JsonObject input, String name, int fallback) {
         return input.has(name) && !input.get(name).isJsonNull() ? input.get(name).getAsInt() : fallback;
+    }
+
+    private record PendingGui(Screen screen, int button, long due) {
+    }
+
+    private static final class PendingText {
+        private final Screen screen;
+        private final TextInputPlan plan;
+        private int index;
+        private long nextTick;
+
+        private PendingText(Screen screen, TextInputPlan plan, long nextTick) {
+            this.screen = screen;
+            this.plan = plan;
+            this.nextTick = nextTick;
+        }
     }
 
     private record PendingWindow(AbstractContainerScreen<?> screen, int containerId, String action, int slot, int button, long due) {

@@ -12,6 +12,8 @@ import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.render.plate.PlateBox;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.Bootstrap;
@@ -27,8 +29,11 @@ import net.minecraft.world.level.block.state.properties.ChestType;
 import net.minecraft.world.level.block.entity.SkullBlockEntity;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.mockito.MockedStatic;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
@@ -43,11 +48,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 public class ClientMeshEntitiesTest {
@@ -55,6 +63,102 @@ public class ClientMeshEntitiesTest {
     public static void bootstrap() {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
+    }
+
+    @Test
+    public void localEntitiesUseIndependentRenderStatesWithoutTickingOrMutatingSourceEntities() {
+        ClientLevel level = mock(ClientLevel.class);
+        ClientMeshEntities first = new ClientMeshEntities(mock(ClientMeshSections.View.class), level);
+        ClientMeshEntities second = new ClientMeshEntities(mock(ClientMeshSections.View.class), level);
+        Entity entity = mock(Entity.class);
+        UUID id = UUID.randomUUID();
+        when(entity.getUUID()).thenReturn(id);
+        when(level.entitiesForRendering()).thenReturn(List.of(entity));
+        EntityRenderDispatcher renderer = mock(EntityRenderDispatcher.class);
+        EntityRenderState firstState = new EntityRenderState();
+        EntityRenderState secondState = new EntityRenderState();
+        when(renderer.extractEntity(entity, 0.5F)).thenAnswer(call -> {
+            assertNull(ClientMeshEntities.active());
+            return firstState;
+        }).thenAnswer(call -> {
+            assertNull(ClientMeshEntities.active());
+            return secondState;
+        });
+        List<EntityRenderState> firstStates = new ArrayList<>();
+        List<EntityRenderState> secondStates = new ArrayList<>();
+        try (MockedStatic<ClientMeshEntities> ownership = mockStatic(ClientMeshEntities.class, CALLS_REAL_METHODS)) {
+            ownership.when(() -> ClientMeshEntities.hiddenFromWorld(entity)).thenReturn(false);
+            first.inDestinationWorld(() -> {
+                first.extractLocalEntities(Set.of(id), renderer, 0.5F, firstStates);
+                assertSame(first, ClientMeshEntities.active(level));
+            });
+            second.inDestinationWorld(() -> {
+                second.extractLocalEntities(Set.of(id), renderer, 0.5F, secondStates);
+                assertSame(second, ClientMeshEntities.active(level));
+            });
+        }
+        assertEquals(List.of(firstState), firstStates);
+        assertEquals(List.of(secondState), secondStates);
+        assertNotSame(firstStates.getFirst(), secondStates.getFirst());
+        assertNull(ClientMeshEntities.active());
+        verify(entity, times(2)).getUUID();
+        verify(entity, times(2)).isRemoved();
+        verifyNoMoreInteractions(entity);
+    }
+
+    @Test
+    public void localEntityExtractionSkipsUncoveredRemovedAndOwnedCopies() {
+        ClientLevel level = mock(ClientLevel.class);
+        ClientMeshEntities scene = new ClientMeshEntities(mock(ClientMeshSections.View.class), level);
+        Entity uncovered = mock(Entity.class);
+        Entity removed = mock(Entity.class);
+        Entity owned = mock(Entity.class);
+        UUID removedId = UUID.randomUUID();
+        UUID ownedId = UUID.randomUUID();
+        when(uncovered.getUUID()).thenReturn(UUID.randomUUID());
+        when(removed.getUUID()).thenReturn(removedId);
+        when(owned.getUUID()).thenReturn(ownedId);
+        when(removed.isRemoved()).thenReturn(true);
+        when(level.entitiesForRendering()).thenReturn(List.of(uncovered, removed, owned));
+        EntityRenderDispatcher renderer = mock(EntityRenderDispatcher.class);
+        List<EntityRenderState> states = new ArrayList<>();
+        try (MockedStatic<ClientMeshEntities> ownership = mockStatic(ClientMeshEntities.class, CALLS_REAL_METHODS)) {
+            ownership.when(() -> ClientMeshEntities.hiddenFromWorld(removed)).thenReturn(false);
+            ownership.when(() -> ClientMeshEntities.hiddenFromWorld(owned)).thenReturn(true);
+            scene.extractLocalEntities(Set.of(removedId, ownedId), renderer, 0.25F, states);
+        }
+        assertTrue(states.isEmpty());
+        assertNull(ClientMeshEntities.active());
+        verifyNoInteractions(renderer);
+        verify(uncovered).getUUID();
+        verifyNoMoreInteractions(uncovered);
+    }
+
+    @Test
+    public void localEntityExtractionRestoresDestinationScopeAfterRenderFailure() {
+        ClientLevel level = mock(ClientLevel.class);
+        ClientMeshEntities scene = new ClientMeshEntities(mock(ClientMeshSections.View.class), level);
+        Entity entity = mock(Entity.class);
+        UUID id = UUID.randomUUID();
+        when(entity.getUUID()).thenReturn(id);
+        when(level.entitiesForRendering()).thenReturn(List.of(entity));
+        EntityRenderDispatcher renderer = mock(EntityRenderDispatcher.class);
+        when(renderer.extractEntity(entity, 0.5F)).thenAnswer(call -> {
+            assertNull(ClientMeshEntities.active());
+            throw new IllegalStateException("local render failed");
+        });
+        try (MockedStatic<ClientMeshEntities> ownership = mockStatic(ClientMeshEntities.class, CALLS_REAL_METHODS)) {
+            ownership.when(() -> ClientMeshEntities.hiddenFromWorld(entity)).thenReturn(false);
+            scene.inDestinationWorld(() -> {
+                assertThrows(IllegalStateException.class,
+                    () -> scene.extractLocalEntities(Set.of(id), renderer, 0.5F, new ArrayList<>()));
+                assertSame(scene, ClientMeshEntities.active(level));
+            });
+            assertNull(ClientMeshEntities.active());
+            assertThrows(IllegalStateException.class,
+                () -> scene.extractLocalEntities(Set.of(id), renderer, 0.5F, new ArrayList<>()));
+            assertNull(ClientMeshEntities.active());
+        }
     }
 
     @Test

@@ -2,6 +2,7 @@ package art.arcane.wormholes.modded.mixin.client;
 
 import art.arcane.wormholes.modded.client.WormholesClient;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkPacketData;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -18,6 +19,10 @@ public abstract class LevelChunkMixin {
 
     @Inject(method = "replaceWithPacketData", at = @At("RETURN"))
     private void wormholesRebuildProjectedBlockEntities(int chunkX, int chunkZ, ClientboundLevelChunkPacketData data, CallbackInfo callback) {
-        WormholesClient.chunkBlockEntitiesReplaced((LevelChunk) (Object) this);
+        LevelChunk chunk = (LevelChunk) (Object) this;
+        WormholesClient.chunkBlockEntitiesReplaced(chunk);
+        if (chunk.getLevel() instanceof ClientLevel level) {
+            WormholesClient.localChunkChanged(level, chunk.getPos().x(), chunk.getPos().z());
+        }
     }
 }

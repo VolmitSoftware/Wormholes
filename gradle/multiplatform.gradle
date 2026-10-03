@@ -41,6 +41,9 @@ loaders.each { String loader, String display ->
     String displayVersion = loaderVersion.startsWith("${minecraftVersion}-")
         ? loaderVersion.substring(minecraftVersion.length() + 1)
         : loaderVersion
+    if (loader == 'neoforge') {
+        displayVersion = displayVersion.replaceFirst(/-beta$/, '')
+    }
     String artifactName = "Wormholes v${project.version} [${display}] ${minecraftVersion}+${displayVersion}.jar"
     moddedArtifacts[display] = file("adapters/${loader}/build/libs/${artifactName}")
     TaskProvider<Exec> jarTask = tasks.register("${loader}Jar", Exec) {

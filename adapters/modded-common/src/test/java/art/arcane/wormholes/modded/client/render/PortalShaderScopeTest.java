@@ -171,7 +171,7 @@ public class PortalShaderScopeTest {
     public void actualMissingIrisClassesDoNotPreventNativeRendererScopeInitialization() throws Exception {
         ClassLoader isolated = new AbsentIrisLoader(getClass().getClassLoader());
         Class<?> scope = Class.forName(AbsentIrisLoader.ISOLATED, true, isolated);
-        for (String name : new String[] {"shaders", "shadowPass"}) {
+        for (String name : new String[] {"shaders", "shadowPass", "irisPresent"}) {
             Method method = scope.getDeclaredMethod(name);
             method.setAccessible(true);
             assertFalse((Boolean) method.invoke(null));

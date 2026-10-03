@@ -22,6 +22,44 @@ final class PlateCaptureJobTest {
     private static final String WORLD = "destination";
 
     @Test
+    void cachedSiblingFootprintsCompleteWithoutSpendingTheFreshCaptureBudget() {
+        FakeSource source = new FakeSource();
+        source.reuse = true;
+        source.loadAll(0, 0, 2, 0);
+        RecordingHost host = new RecordingHost();
+        PlateCaptureQueue<String, String> queue = new PlateCaptureQueue<String, String>(host);
+        List<PlateCaptureJob<String, String, String>> jobs = new ArrayList<>();
+        for (int index = 0; index < 100; index++) {
+            PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 2, 0, 64L),
+                new ArrayList<PlateCaptureJob.Captured<String>>());
+            queue.submit(job);
+            jobs.add(job);
+        }
+        queue.tick(3, 3);
+        assertEquals(3, source.captures.size());
+        assertEquals(jobs, host.built);
+        assertEquals(0, queue.size());
+    }
+
+    @Test
+    void partiallyCapturedWorkRemainsBudgetQueuedButUnsettledLoadsDoNot() {
+        FakeSource source = new FakeSource();
+        source.loadAll(0, 0, 1, 0);
+        PlateCaptureJob<String, String, String> job = job(source, new ViewPlateBuilder.Footprint(0, 0, 1, 0, 64L),
+            new ArrayList<PlateCaptureJob.Captured<String>>());
+        assertEquals(1, job.capture(1));
+        assertTrue(job.waitingForBudget());
+        for (int tick = 0; tick < PlateCaptureJob.MAX_CAPTURE_TICKS + 1; tick++) {
+            assertEquals(0, job.capture(0));
+            assertTrue(job.waitingForBudget());
+        }
+        source.loaded.remove("1,0");
+        job.capture(0);
+        assertFalse(job.waitingForBudget());
+        assertEquals(1, job.heldChunks());
+    }
+
+    @Test
     void loadedChunksAreSnapshottedWithinTheTickBudgetAndHandedToTheBuildOnce() {
         FakeSource source = new FakeSource();
         source.loadAll(0, 0, 2, 0);
@@ -322,7 +360,14 @@ final class PlateCaptureJobTest {
         private final Set<String> loaded = new HashSet<String>();
         private final Map<String, FakeHold> holds = new HashMap<String, FakeHold>();
         private final List<String> captures = new ArrayList<String>();
+        private final Map<String, String> cached = new HashMap<>();
+        private boolean reuse;
         private boolean explode;
+
+        @Override
+        public String cached(String world, int chunkX, int chunkZ) {
+            return reuse ? cached.get(chunkX + "," + chunkZ) : null;
+        }
 
         void loadAll(int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ) {
             for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
@@ -353,6 +398,7 @@ final class PlateCaptureJobTest {
                 throw new IllegalStateException("snapshot failed");
             }
             captures.add(chunk);
+            cached.put(chunk, "snapshot:" + chunk);
             return "snapshot:" + chunk;
         }
     }

@@ -3,8 +3,9 @@ package art.arcane.wormholes.modded.clientview;
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.attribute.EnvironmentAttributeSystem;
+import net.minecraft.world.attribute.EnvironmentAttributeReader;
 import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.LightLayer;
@@ -22,7 +23,7 @@ public final class MinecraftPortalEnvironment {
     public static ClientViewEnvironment capture(ServerLevel world, GeometryVector destinationEye, ClientViewEnvironment.Transform transform) {
         Vec3 eye = new Vec3(destinationEye.x(), destinationEye.y(), destinationEye.z());
         BlockPos eyeBlock = BlockPos.containing(eye);
-        EnvironmentAttributeSystem attributes = world.environmentAttributes();
+        EnvironmentAttributeReader attributes = world.environmentAttributes();
         DimensionType dimension = world.dimensionType();
         ClientViewEnvironment.Sky sky = new ClientViewEnvironment.Sky(ClientViewEnvironment.Skybox.valueOf(dimension.skybox().name()),
             radians(attributes.getValue(EnvironmentAttributes.SUN_ANGLE, eye)), radians(attributes.getValue(EnvironmentAttributes.MOON_ANGLE, eye)),
@@ -49,7 +50,7 @@ public final class MinecraftPortalEnvironment {
                 eyeMedium(world, eye, eyeBlock), dimension.hasFixedTime()));
     }
 
-    private static ClientViewEnvironment.EyeMedium eyeMedium(ServerLevel world, Vec3 eye, BlockPos position) {
+    private static ClientViewEnvironment.EyeMedium eyeMedium(Level world, Vec3 eye, BlockPos position) {
         FluidState fluid = world.getFluidState(position);
         if (fluid.is(FluidTags.WATER) && eye.y < position.getY() + fluid.getHeightForCamera(world, position)) {
             return ClientViewEnvironment.EyeMedium.WATER;

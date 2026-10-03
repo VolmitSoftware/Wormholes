@@ -35,6 +35,8 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     int meshCalls;
     final List<PlateBox> meshRequests = new ArrayList<PlateBox>();
     boolean meshReady = true;
+    boolean meshQueued;
+    boolean localWorld;
     final Set<PlateBox> unavailableMesh = new HashSet<PlateBox>();
     GeometryVector eye = new GeometryVector(11, 67, 15);
     final Map<PlateBox, ViewPlate<String>> meshPlates = new HashMap<PlateBox, ViewPlate<String>>();
@@ -97,6 +99,11 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     }
 
     @Override
+    public boolean localMeshWorld(String observer, UUID context) {
+        return localWorld;
+    }
+
+    @Override
     public ViewPlate<String> meshSection(String observer, UUID portal, PlateBox clip, int distance) {
         meshCalls++;
         meshRequests.add(clip);
@@ -109,6 +116,11 @@ final class FakePortalAccess implements ClientViewPortalAccess<String, String> {
     @Override
     public ViewPlate<String> nestedMeshSection(String observer, UUID parent, UUID child, PlateBox clip, int distance) {
         return meshSection(observer, child, clip, distance);
+    }
+
+    @Override
+    public boolean meshSectionQueued(String observer, UUID portal, PlateBox clip) {
+        return meshQueued;
     }
 
     @Override

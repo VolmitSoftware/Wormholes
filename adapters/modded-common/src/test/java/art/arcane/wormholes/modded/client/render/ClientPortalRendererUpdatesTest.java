@@ -5,6 +5,7 @@ import art.arcane.wormholes.util.Direction;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.core.SectionPos;
 import org.junit.Test;
 
@@ -33,7 +34,7 @@ public class ClientPortalRendererUpdatesTest {
             renderer.replaceScene(7, scene);
             Object portal = ((Int2ObjectMap<?>) field(renderer, "portals")).get(7);
             Long2ObjectMap<?> sections = (Long2ObjectMap<?>) field(portal, "sections");
-            LongOpenHashSet dirty = (LongOpenHashSet) field(portal, "dirty");
+            LongSet dirty = (LongSet) field(portal, "dirty");
             Object previous = null;
             for (long compiled = 1; compiled <= 12; compiled++) {
                 dirty.remove(SECTION);

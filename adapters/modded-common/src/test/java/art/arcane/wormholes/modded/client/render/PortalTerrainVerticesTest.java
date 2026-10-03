@@ -77,7 +77,7 @@ public class PortalTerrainVerticesTest {
                         for (int index = 0; index < 8; index++) {
                             int offset = index * stride;
                             assertEquals(index < 4 ? 31000 : 42, vertices.getShort(offset + 32));
-                            assertEquals(index < 4 ? 0 : 1, vertices.getShort(offset + 34));
+                            assertEquals(index < 4 ? -1 : 1, vertices.getShort(offset + 34));
                             assertEquals(0.5F, vertices.getFloat(offset + 36), 0);
                             assertEquals(0.5F, vertices.getFloat(offset + 40), 0);
                             assertEquals(axes[0].x() * 127, vertices.get(offset + 44));

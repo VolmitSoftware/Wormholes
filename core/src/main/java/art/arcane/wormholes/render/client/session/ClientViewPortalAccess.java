@@ -43,12 +43,24 @@ public interface ClientViewPortalAccess<P, B> {
         return null;
     }
 
+    default boolean localMeshWorld(P observer, UUID context) {
+        return false;
+    }
+
     default ViewPlate<B> meshSection(P observer, UUID portal, PlateBox clip, int distance) {
         return null;
     }
 
     default ViewPlate<B> nestedMeshSection(P observer, UUID parent, UUID child, PlateBox clip, int distance) {
         return null;
+    }
+
+    default boolean meshSectionQueued(P observer, UUID portal, PlateBox clip) {
+        return false;
+    }
+
+    default boolean nestedMeshSectionQueued(P observer, UUID parent, UUID child, PlateBox clip) {
+        return meshSectionQueued(observer, child, clip);
     }
 
     default SectionBiomes meshBiomes(P observer, UUID portal, ViewPlate<B> plate) {

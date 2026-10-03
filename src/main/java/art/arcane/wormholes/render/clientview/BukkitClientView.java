@@ -57,7 +57,7 @@ public final class BukkitClientView implements ClientViewRouting {
     public static final long PLATFORM_CAPS = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE,
         ClientViewCapability.DEST_LIGHT, ClientViewCapability.ENTITY_FRAMES, ClientViewCapability.ENTITY_EVENTS, ClientViewCapability.FX_EMITTERS, ClientViewCapability.ATMOSPHERE,
         ClientViewCapability.CONFIG_PHASE, ClientViewCapability.LINK_UNCOMPRESSED, ClientViewCapability.VIEW_STATS,
-        ClientViewCapability.CLIENT_MIRROR, ClientViewCapability.CLIENT_RECURSION, ClientViewCapability.MESH_RENDER);
+        ClientViewCapability.CLIENT_MIRROR, ClientViewCapability.CLIENT_RECURSION, ClientViewCapability.MESH_RENDER, ClientViewCapability.LOCAL_MESH, ClientViewCapability.MESH_REUSE);
     private static final long SOURCE_STALE_TICKS = 40L;
     private static final double PARTICLE_RANGE_SQUARED = 32.0D * 32.0D;
     private static final String CONFIGURE_EVENT_CLASS = "io.papermc.paper.event.connection.configuration.AsyncPlayerConnectionConfigureEvent";

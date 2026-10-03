@@ -7,6 +7,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import com.mojang.renderpearl.backend.opengl.GlStateManager;
 import net.irisshaders.iris.pipeline.IrisRenderingPipeline;
+import net.irisshaders.iris.pipeline.WorldRenderingPhase;
 import net.irisshaders.iris.compat.dh.DHCompat;
 import net.minecraft.util.Mth;
 import net.irisshaders.iris.shaderpack.properties.PackShadowDirectives;
@@ -20,18 +21,24 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import org.joml.Matrix4f;
 
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 final class PortalIrisShadowFrame implements PortalShaderRenderer.ShadowFrame {
     private final Globals globals = Globals.capture();
     private final PortalFramebufferScope framebuffer = PortalFramebufferScope.capture();
     private final GpuBufferSlice projection = RenderSystem.getProjectionMatrixBuffer();
     private final ProjectionType projectionType = RenderSystem.getProjectionType();
+    private final Supplier<WorldRenderingPhase> phaseGetter;
+    private final Consumer<WorldRenderingPhase> phaseSetter;
     private final ShadowRenderTargets targets;
     private final ShadowRenderer renderer;
     private final PackShadowDirectives directives;
     private final CameraRenderState camera;
 
     PortalIrisShadowFrame(Request request) {
+        phaseGetter = request.phaseGetter();
+        phaseSetter = request.phaseSetter();
         targets = request.targets();
         renderer = request.renderer();
         directives = request.directives();
@@ -125,6 +132,17 @@ final class PortalIrisShadowFrame implements PortalShaderRenderer.ShadowFrame {
     }
 
     @Override
+    public PortalShaderRenderer.Frame features() {
+        return features(phaseGetter, phaseSetter);
+    }
+
+    static PortalShaderRenderer.Frame features(Supplier<WorldRenderingPhase> getter, Consumer<WorldRenderingPhase> setter) {
+        WorldRenderingPhase previous = getter.get();
+        setter.accept(WorldRenderingPhase.ENTITIES);
+        return () -> setter.accept(previous);
+    }
+
+    @Override
     public void translucentDepth() {
         targets.copyPreTranslucentDepth();
     }
@@ -154,7 +172,8 @@ final class PortalIrisShadowFrame implements PortalShaderRenderer.ShadowFrame {
     }
 
     record Request(IrisRenderingPipeline pipeline, ShadowRenderer renderer, ShadowRenderTargets targets,
-                   PackShadowDirectives directives, ProjectionMatrixBuffer projection, CameraRenderState display) {
+                   PackShadowDirectives directives, ProjectionMatrixBuffer projection, CameraRenderState display,
+                   Supplier<WorldRenderingPhase> phaseGetter, Consumer<WorldRenderingPhase> phaseSetter) {
     }
 
     private record Globals(boolean active, int resolution, Matrix4f modelView, Matrix4f projection,

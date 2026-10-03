@@ -155,12 +155,46 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
     }
 
     @Override
+    public boolean localMeshWorld(MinecraftClientViewPeer peer, UUID contextId) {
+        ServerPlayer player = peer.player();
+        if (player == null) {
+            return false;
+        }
+        MinecraftClientViewPeer.NestedContext context = peer.nestedContext(contextId);
+        if (context != null) {
+            return context.destinationWorld() == player.level();
+        }
+        MinecraftPortal portal = portal(peer, contextId);
+        return portal != null && portal.isMirrorMode() && peer.portals().world(portal) == player.level();
+    }
+
+    @Override
     public ViewPlate<BlockState> meshSection(MinecraftClientViewPeer peer, UUID portalId, PlateBox clip, int distance) {
         MinecraftPortal portal = portal(peer, portalId);
         ServerPlayer player = peer.player();
         MinecraftViewPlates.Target target = portal == null || player == null ? null : target(peer, portal, front(player, portal));
         MinecraftViewPlates.Resolved resolved = target == null ? null : MinecraftViewPlates.resolve(runtime, target);
         return resolved == null ? null : MinecraftViewPlates.acquireSection(runtime, runtime.projections().plates(), target, resolved, clip, distance);
+    }
+
+    @Override
+    public boolean meshSectionQueued(MinecraftClientViewPeer peer, UUID portalId, PlateBox clip) {
+        MinecraftPortal portal = portal(peer, portalId);
+        ServerPlayer player = peer.player();
+        return portal != null && player != null && sectionQueued(peer, portal, clip, front(player, portal));
+    }
+
+    @Override
+    public boolean nestedMeshSectionQueued(MinecraftClientViewPeer peer, UUID parent, UUID child, PlateBox clip) {
+        MinecraftPortal portal = portal(peer, child);
+        ServerPlayer player = peer.player();
+        return portal != null && player != null && sectionQueued(peer, portal, clip, reflectedFront(peer, player, parent, portal));
+    }
+
+    private boolean sectionQueued(MinecraftClientViewPeer peer, MinecraftPortal portal, PlateBox clip, boolean front) {
+        MinecraftViewPlates.Target target = target(peer, portal, front);
+        MinecraftViewPlates.Resolved resolved = target == null ? null : MinecraftViewPlates.resolve(runtime, target);
+        return resolved != null && MinecraftViewPlates.sectionQueued(runtime.projections().plates(), resolved, clip);
     }
 
     @Override

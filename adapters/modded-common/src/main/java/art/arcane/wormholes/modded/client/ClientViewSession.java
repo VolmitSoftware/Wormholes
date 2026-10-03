@@ -8,12 +8,17 @@ import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocol;
 import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import art.arcane.wormholes.network.client.PlateHandoff;
+import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.Objects;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,8 +29,12 @@ public final class ClientViewSession {
     private final ClientPlateStore plates;
     private final ClientMeshSections meshes;
     private final Int2ObjectOpenHashMap<ClientPortal> portals;
+    private final Int2ObjectOpenHashMap<ClientPortalGeometry> meshGeometry = new Int2ObjectOpenHashMap<>();
     private final Int2ObjectOpenHashMap<ClientViewEnvironment> environments = new Int2ObjectOpenHashMap<>();
     private final IntOpenHashSet dirtyPortals;
+    private final Int2ObjectOpenHashMap<List<ClientViewMessage.MeshClaim>> pendingClaims = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectOpenHashMap<CacheBinding> cacheBindings = new Int2ObjectOpenHashMap<>();
+    private final Int2IntOpenHashMap cacheSequences = new Int2IntOpenHashMap();
     private final IntArrayList patchedBricks;
     private final int dataVersion;
     private final String brandTag;
@@ -64,7 +73,8 @@ public final class ClientViewSession {
         }
         long capabilities = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE, ClientViewCapability.DEST_LIGHT,
             ClientViewCapability.ENTITY_FRAMES, ClientViewCapability.ENTITY_EVENTS, ClientViewCapability.FX_EMITTERS, ClientViewCapability.ATMOSPHERE, ClientViewCapability.ZERO_COPY,
-            ClientViewCapability.CONFIG_PHASE, ClientViewCapability.LINK_UNCOMPRESSED, ClientViewCapability.VIEW_STATS, ClientViewCapability.MESH_RENDER);
+            ClientViewCapability.CONFIG_PHASE, ClientViewCapability.LINK_UNCOMPRESSED, ClientViewCapability.VIEW_STATS, ClientViewCapability.MESH_RENDER,
+            ClientViewCapability.LOCAL_MESH, ClientViewCapability.MESH_REUSE);
         if (config.clientMirror) {
             capabilities |= ClientViewCapability.CLIENT_MIRROR.mask();
         }
@@ -155,6 +165,7 @@ public final class ClientViewSession {
         if (state != State.CLIENT_VIEW) {
             return false;
         }
+        meshes.epoch(accept.hashSalt());
         if (nativeSelected && switch (message) {
             case ClientViewMessage.PlateBegin ignored -> true;
             case ClientViewMessage.PlateBricks ignored -> true;
@@ -175,10 +186,28 @@ public final class ClientViewSession {
                 case ClientViewMessage.PortalDrop drop -> drop(drop.portalKey(), sink);
                 case ClientViewMessage.MeshBegin begin -> meshBegin(begin, sink);
                 case ClientViewMessage.MeshSection section -> meshSection(section, sink);
+                case ClientViewMessage.MeshReuse reuse -> {
+                    if (has(ClientViewCapability.MESH_REUSE)) {
+                        ClientMeshSections.Result result = meshes.reuse(reuse);
+                        if (result == ClientMeshSections.Result.DUPLICATE) {
+                            sink.meshAck(new ClientViewMessage.MeshAck(reuse.portalKey(), reuse.generation(), reuse.sectionX(), reuse.sectionY(), reuse.sectionZ(), reuse.revision()));
+                        }
+                    }
+                }
                 case ClientViewMessage.MeshDrop drop -> meshes.drop(drop.portalKey(), drop.generation(), drop.sectionX(), drop.sectionY(), drop.sectionZ());
                 case ClientViewMessage.Environment environment -> {
                     if (portals.containsKey(environment.portalKey())) {
                         environments.put(environment.portalKey(), environment.environment());
+                        if (has(ClientViewCapability.MESH_REUSE)) {
+                            long target = portals.get(environment.portalKey()).geometry().targetIdentity();
+                            CacheBinding binding = new CacheBinding(environment.environment().world().dimensionKey(), environment.environment().transform(), accept.hashSalt(), target);
+                            CacheBinding previous = cacheBindings.put(environment.portalKey(), binding);
+                            if (previous != null && !previous.equals(binding)) {
+                                pendingClaims.remove(environment.portalKey());
+                            }
+                            List<ClientViewMessage.MeshClaim> claims = meshes.bind(environment.portalKey(), environment.environment(), accept.hashSalt(), target);
+                            cacheClaims(environment.portalKey(), claims);
+                        }
                     } else {
                         ignoredSceneMessages++;
                     }
@@ -260,6 +289,10 @@ public final class ClientViewSession {
 
     public void clearPortals() {
         meshFailures.clear();
+        cacheSequences.clear();
+        pendingClaims.clear();
+        cacheBindings.clear();
+        meshGeometry.clear();
         environments.clear();
         portals.clear();
         plates.clear();
@@ -319,6 +352,42 @@ public final class ClientViewSession {
         return (int) Math.min(65535L, (plates.bytes() + meshes.bytes() + 1048575L) / 1048576L);
     }
 
+    public void cacheClaims(int portalKey, List<ClientViewMessage.MeshClaim> claims) {
+        if (!claims.isEmpty() && meshes.view(portalKey) != null && has(ClientViewCapability.MESH_REUSE)) {
+            pendingClaims.computeIfAbsent(portalKey, ignored -> new ArrayList<>()).addAll(claims);
+        }
+    }
+
+    public void flushCached(Consumer<ClientViewMessage> sender) {
+        if (!active() || !has(ClientViewCapability.MESH_REUSE)) {
+            return;
+        }
+        int remaining = 4;
+        for (int key : pendingClaims.keySet().toIntArray()) {
+            ClientMeshSections.View view = meshes.view(key);
+            List<ClientViewMessage.MeshClaim> claims = pendingClaims.get(key);
+            if (view == null) {
+                pendingClaims.remove(key);
+                continue;
+            }
+            if (remaining-- == 0) {
+                break;
+            }
+            int count = Math.min(claims.size(), ClientViewMessage.MeshCached.MAX_CLAIMS);
+            sender.accept(new ClientViewMessage.MeshCached(key, view.generation(), nextCacheSequence(key), true, claims.subList(0, count)));
+            claims.subList(0, count).clear();
+            if (claims.isEmpty()) {
+                pendingClaims.remove(key);
+            }
+        }
+    }
+
+    private int nextCacheSequence(int portalKey) {
+        int sequence = cacheSequences.get(portalKey) + 1;
+        cacheSequences.put(portalKey, sequence);
+        return sequence;
+    }
+
     public ClientMeshSections meshes() {
         return meshes;
     }
@@ -368,7 +437,11 @@ public final class ClientViewSession {
     }
 
     private void drop(int portalKey, Sink sink) {
+        cacheSequences.remove(portalKey);
+        pendingClaims.remove(portalKey);
+        cacheBindings.remove(portalKey);
         meshFailures.remove(portalKey);
+        meshGeometry.remove(portalKey);
         environments.remove(portalKey);
         ClientPortal portal = portals.remove(portalKey);
         plates.drop(portalKey);
@@ -385,9 +458,21 @@ public final class ClientViewSession {
             ignoredSceneMessages++;
             return;
         }
-        if (meshes.begin(message.portalKey(), message.generation(), message.bounds(), message.maxResidentSections())) {
+        ClientPortalGeometry previous = meshGeometry.get(message.portalKey());
+        boolean retain = previous != null && previous.sameContentSurface(portal.geometry()) && portal.geometry().mirror()
+            && has(ClientViewCapability.LOCAL_MESH) && environments.containsKey(message.portalKey());
+        boolean begun = retain
+            ? meshes.retainLocal(message.portalKey(), message.generation(), message.bounds(), message.maxResidentSections())
+            : meshes.begin(message.portalKey(), message.generation(), message.bounds(), message.maxResidentSections());
+        if (begun) {
+            cacheSequences.remove(message.portalKey());
+            pendingClaims.remove(message.portalKey());
+            cacheBindings.remove(message.portalKey());
+            meshGeometry.put(message.portalKey(), portal.geometry());
             meshFailures.remove(message.portalKey());
-            environments.remove(message.portalKey());
+            if (!retain) {
+                environments.remove(message.portalKey());
+            }
             sink.meshStarted(portal);
             plates.drop(message.portalKey());
         }
@@ -463,6 +548,9 @@ public final class ClientViewSession {
         }
     }
 
+    private record CacheBinding(String world, ClientViewEnvironment.Transform transform, long epoch, long target) {
+    }
+
     public enum MeshFailure {
         MEMORY
     }
@@ -480,6 +568,7 @@ public final class ClientViewSession {
         void meshStarted(ClientPortal portal);
 
         void meshAck(ClientViewMessage.MeshAck ack);
+
 
         void brickMiss(ClientViewMessage.BrickMiss.Plate plate);
 

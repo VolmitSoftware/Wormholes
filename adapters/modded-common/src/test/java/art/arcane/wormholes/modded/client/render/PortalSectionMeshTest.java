@@ -77,7 +77,7 @@ public class PortalSectionMeshTest {
             for (int vertex = 0; vertex < 4; vertex++) {
                 int offset = vertex * mesh.drawState().format().getVertexSize();
                 assertEquals(31000, mesh.vertexBuffer().getShort(offset + 32));
-                assertEquals(0, mesh.vertexBuffer().getShort(offset + 34));
+                assertEquals(-1, mesh.vertexBuffer().getShort(offset + 34));
                 assertEquals(-32, mesh.vertexBuffer().get(offset + 48));
             }
         }

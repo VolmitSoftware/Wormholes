@@ -221,6 +221,45 @@ public final class ClientViewCodec {
                 out.i32(m.sectionZ());
                 out.i32(m.revision());
             }
+            case ClientViewMessage.MeshCached m -> {
+                out.varint(m.portalKey());
+                out.i32(m.generation());
+                out.i32(m.sequence());
+                out.u8(m.available() ? 1 : 0);
+                out.u16(m.claims().size());
+                for (ClientViewMessage.MeshClaim claim : m.claims()) {
+                    out.i32(claim.x());
+                    out.i32(claim.y());
+                    out.i32(claim.z());
+                    out.i64(claim.hash());
+                }
+            }
+            case ClientViewMessage.MeshReuse m -> {
+                out.varint(m.portalKey());
+                out.i32(m.generation());
+                out.i32(m.sectionX());
+                out.i32(m.sectionY());
+                out.i32(m.sectionZ());
+                out.i32(m.revision());
+                out.i64(m.hash());
+            }
+            case ClientViewMessage.MeshLocal m -> {
+                out.varint(m.portalKey());
+                out.i32(m.generation());
+                out.i32(m.sequence());
+                out.u8(m.available() ? 1 : 0);
+                out.u16(m.sections().size());
+                for (ClientViewMessage.MeshCoordinate section : m.sections()) {
+                    out.i32(section.x());
+                    out.i32(section.y());
+                    out.i32(section.z());
+                }
+                out.u16(m.entities().size());
+                for (UUID entity : m.entities()) {
+                    out.i64(entity.getMostSignificantBits());
+                    out.i64(entity.getLeastSignificantBits());
+                }
+            }
             case ClientViewMessage.PlateBegin m -> {
                 out.varint(m.portalKey());
                 out.i32(m.plateRevision());
@@ -423,6 +462,57 @@ public final class ClientViewCodec {
             }
             case MESH_DROP -> new ClientViewMessage.MeshDrop(in.varint(), in.i32(), in.i32(), in.i32(), in.i32());
             case MESH_ACK -> new ClientViewMessage.MeshAck(in.varint(), in.i32(), in.i32(), in.i32(), in.i32(), in.i32());
+            case MESH_CACHED -> {
+                int portalKey = in.varint();
+                int generation = in.i32();
+                int sequence = in.i32();
+                int available = in.u8();
+                int count = in.u16();
+                if (generation <= 0 || sequence <= 0 || available > 1 || count > ClientViewMessage.MeshCached.MAX_CLAIMS) {
+                    throw new ClientViewProtocolException("Invalid mesh cache claims");
+                }
+                List<ClientViewMessage.MeshClaim> claims = new ArrayList<>(count);
+                for (int index = 0; index < count; index++) {
+                    claims.add(new ClientViewMessage.MeshClaim(in.i32(), in.i32(), in.i32(), in.i64()));
+                }
+                yield new ClientViewMessage.MeshCached(portalKey, generation, sequence, available == 1, claims);
+            }
+            case MESH_REUSE -> {
+                int portalKey = in.varint();
+                int generation = in.i32();
+                int x = in.i32();
+                int y = in.i32();
+                int z = in.i32();
+                int revision = in.i32();
+                long hash = in.i64();
+                if (generation <= 0 || revision <= 0) {
+                    throw new ClientViewProtocolException("Invalid mesh reuse acknowledgment");
+                }
+                yield new ClientViewMessage.MeshReuse(portalKey, generation, x, y, z, revision, hash);
+            }
+            case MESH_LOCAL -> {
+                int portalKey = in.varint();
+                int generation = in.i32();
+                int sequence = in.i32();
+                int available = in.u8();
+                int sectionCount = in.u16();
+                if (generation <= 0 || sequence <= 0 || available > 1 || sectionCount > ClientViewMessage.MeshLocal.MAX_SECTIONS) {
+                    throw new ClientViewProtocolException("Invalid local mesh availability");
+                }
+                List<ClientViewMessage.MeshCoordinate> sections = new ArrayList<>(sectionCount);
+                for (int index = 0; index < sectionCount; index++) {
+                    sections.add(new ClientViewMessage.MeshCoordinate(in.i32(), in.i32(), in.i32()));
+                }
+                int entityCount = in.u16();
+                if (entityCount > ClientViewMessage.MeshLocal.MAX_ENTITIES) {
+                    throw new ClientViewProtocolException("Too many local mesh entities");
+                }
+                List<UUID> entities = new ArrayList<>(entityCount);
+                for (int index = 0; index < entityCount; index++) {
+                    entities.add(new UUID(in.i64(), in.i64()));
+                }
+                yield new ClientViewMessage.MeshLocal(portalKey, generation, sequence, available == 1, sections, entities);
+            }
             case PLATE_BEGIN -> {
                 int portalKey = in.varint();
                 int revision = in.i32();

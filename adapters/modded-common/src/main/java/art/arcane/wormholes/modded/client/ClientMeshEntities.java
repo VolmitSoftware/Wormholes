@@ -45,6 +45,8 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.function.Consumer;
 
@@ -117,6 +119,10 @@ public final class ClientMeshEntities {
                 ticker.accept(entity);
             }
         };
+    }
+
+    public static List<Entity> worldPushableEntities(Entity source, List<Entity> entities) {
+        return hiddenFromWorld(source) ? List.of() : entities;
     }
 
     public static boolean interactionTarget(Entity entity) {
@@ -343,7 +349,29 @@ public final class ClientMeshEntities {
         if (projected != null) {
             projected.forEachEntity(portalKey, id -> extractEntity(level.getEntity(id), renderer, partialTick, states));
         }
+        extractLocalEntities(client.localMeshes().entities(portalKey), renderer, partialTick, states);
         extractEntity(client.reflections().entity(portalKey), renderer, partialTick, states);
+    }
+
+    void extractLocalEntities(Set<UUID> local, EntityRenderDispatcher renderer, float partialTick, List<EntityRenderState> states) {
+        if (local.isEmpty()) {
+            return;
+        }
+        ClientMeshEntities previous = ACTIVE.get();
+        ACTIVE.remove();
+        try {
+            for (Entity entity : level.entitiesForRendering()) {
+                if (local.contains(entity.getUUID()) && !hiddenFromWorld(entity)) {
+                    extractEntity(entity, renderer, partialTick, states);
+                }
+            }
+        } finally {
+            if (previous == null) {
+                ACTIVE.remove();
+            } else {
+                ACTIVE.set(previous);
+            }
+        }
     }
 
     private static void extractEntity(Entity entity, EntityRenderDispatcher renderer, float partialTick, List<EntityRenderState> states) {
