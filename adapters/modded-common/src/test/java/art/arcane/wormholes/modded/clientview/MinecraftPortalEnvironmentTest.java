@@ -81,7 +81,7 @@ public class MinecraftPortalEnvironmentTest {
         when(attributes.getValue(eq(EnvironmentAttributes.SUN_ANGLE), eq(point))).thenReturn(90.0F);
         ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.S,
             new GeometryVector(-128, 0, 0));
-        ClientViewEnvironment result = MinecraftPortalEnvironment.capture(world, new GeometryVector(point.x, point.y, point.z), transform);
+        ClientViewEnvironment result = MinecraftPortalEnvironment.capture(world, new GeometryVector(point.x, point.y, point.z), transform, world.isFlat());
         assertEquals(ClientViewEnvironment.Skybox.END, result.sky().skybox());
         assertEquals(1.25F, result.sky().color().red(), 0.0001F);
         assertEquals((float) (Math.PI / 2), result.sky().sunAngle(), 0.0001F);
@@ -119,7 +119,7 @@ public class MinecraftPortalEnvironmentTest {
     }
 
     private static ClientViewEnvironment sample(ServerLevel world, double y) {
-        return MinecraftPortalEnvironment.capture(world, new GeometryVector(3.5, y, -4.5), ClientViewEnvironment.Transform.IDENTITY);
+        return MinecraftPortalEnvironment.capture(world, new GeometryVector(3.5, y, -4.5), ClientViewEnvironment.Transform.IDENTITY, world.isFlat());
     }
 
     @SuppressWarnings("unchecked")

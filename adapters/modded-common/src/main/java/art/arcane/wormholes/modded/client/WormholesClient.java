@@ -40,6 +40,7 @@ public final class WormholesClient {
 
     private final WormholesClientConfig config;
     private final ClientViewStats stats;
+    private final ClientPreparedTravel preparedTravel;
     private final ClientLocalMeshSources localMeshes = new ClientLocalMeshSources(this::send);
     private final ClientMeshViews meshViews = new ClientMeshViews();
     private final ClientReflectionEntity reflections;
@@ -59,6 +60,7 @@ public final class WormholesClient {
         this.config = Objects.requireNonNull(config, "config");
         this.sender = Objects.requireNonNull(sender, "sender");
         this.stats = new ClientViewStats();
+        this.preparedTravel = new ClientPreparedTravel(this::send);
         this.reflections = new ClientReflectionEntity();
         this.announcer = new ClientViewAnnouncer();
         this.dataVersion = SharedConstants.getCurrentVersion().dataVersion().version();
@@ -102,6 +104,7 @@ public final class WormholesClient {
     public static void blockChanged(Object level, BlockPos position) {
         WormholesClient client = instance;
         if (client != null) {
+            client.preparedTravel.blockChanged(level, position);
             client.tick.blockChanged(level, position.getX(), position.getY(), position.getZ());
             client.localMeshes.blockChanged(level, position);
         }
@@ -126,6 +129,10 @@ public final class WormholesClient {
         }
     }
 
+    public ClientPreparedTravel preparedTravel() {
+        return preparedTravel;
+    }
+
     public ClientLocalMeshSources localMeshes() {
         return localMeshes;
     }
@@ -144,6 +151,7 @@ public final class WormholesClient {
     }
 
     public void disconnected() {
+        preparedTravel.clear();
         reflections.clear(null, null);
         detach();
         meshViews.clear();
@@ -151,6 +159,11 @@ public final class WormholesClient {
     }
 
     public void tick(Minecraft minecraft) {
+        ClientPortalRenderer.instance().finishBuilds();
+        preparedTravel.tick();
+        if (preparedTravel.pendingCrossing()) {
+            return;
+        }
         tick.effectsActive(!minecraft.isPaused() && minecraft.isWindowActive());
         ClientLevel level = minecraft.level;
         if (level == null) {
@@ -243,6 +256,7 @@ public final class WormholesClient {
         ClientViewSession next = new ClientViewSession(config, new ClientPalette(BuiltInRegistries.BLOCK), dataVersion, brandTag);
         next.meshes().otherMemory(() -> next.plates().bytes() + localMeshes.bytes());
         ClientViewReceiver nextReceiver = new ClientViewReceiver(next);
+        nextReceiver.travel(preparedTravel::receive);
         ClientViewTick nextTick = new ClientViewTick(next, nextReceiver, config, stats);
         nextTick.sender(this::send);
         session = next;

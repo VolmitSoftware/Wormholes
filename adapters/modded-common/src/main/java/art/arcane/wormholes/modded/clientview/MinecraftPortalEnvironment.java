@@ -2,7 +2,6 @@ package art.arcane.wormholes.modded.clientview;
 
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.attribute.EnvironmentAttributeReader;
@@ -20,7 +19,7 @@ public final class MinecraftPortalEnvironment {
     private MinecraftPortalEnvironment() {
     }
 
-    public static ClientViewEnvironment capture(ServerLevel world, GeometryVector destinationEye, ClientViewEnvironment.Transform transform) {
+    public static ClientViewEnvironment capture(Level world, GeometryVector destinationEye, ClientViewEnvironment.Transform transform, boolean flat) {
         Vec3 eye = new Vec3(destinationEye.x(), destinationEye.y(), destinationEye.z());
         BlockPos eyeBlock = BlockPos.containing(eye);
         EnvironmentAttributeReader attributes = world.environmentAttributes();
@@ -43,7 +42,7 @@ public final class MinecraftPortalEnvironment {
         return new ClientViewEnvironment(world.getGameTime(), sky, fog, lighting, clouds, transform,
             new ClientViewEnvironment.Dimension(dimension.minY(), dimension.height(), dimension.hasSkyLight(),
                 ClientViewEnvironment.CardinalLighting.valueOf(dimension.cardinalLightType().name()),
-                world.isFlat() ? dimension.minY() : 63.0D, dimension.hasEndFlashes()),
+                flat ? dimension.minY() : 63.0D, dimension.hasEndFlashes()),
             new ClientViewEnvironment.World(world.dimension().identifier().toString(), world.getDefaultClockTime(),
                 world.getBiome(eyeBlock).unwrapKey().orElseThrow().identifier().toString(), world.getSeaLevel(),
                 world.getBrightness(LightLayer.BLOCK, eyeBlock), world.getBrightness(LightLayer.SKY, eyeBlock), dimension.logicalHeight(), dimension.hasCeiling(), dimension.ambientLight(),

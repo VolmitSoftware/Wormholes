@@ -5,6 +5,8 @@ import java.util.Locale;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.World;
+import org.bukkit.SoundCategory;
+import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
@@ -38,10 +40,13 @@ public final class ThresholdCue {
         TransitPortalExtension transit = portal.extension(TransitPortalExtension.class);
         Particle particle = particle(transit == null ? "" : transit.profile().thresholdEffect());
         Location point = traversive.getInPoint().toLocation(world);
+        Player excluded = attempt.traveler() instanceof Player player && ClientViewEffects.seamless(player, portal.getId())
+            ? player : null;
         ClientViewEffects.burst(world, particle, point.getX(), point.getY(), point.getZ(), PARTICLE_COUNT, PARTICLE_SPREAD, PARTICLE_SPREAD,
-            PARTICLE_SPREAD, PARTICLE_SPEED);
+            PARTICLE_SPREAD, PARTICLE_SPEED, excluded == null ? null : excluded.getUniqueId());
         if (TransitBridge.portalSoundEnabled(portal)) {
-            world.playSound(point, SOUND, Settings.portalSoundVolume(0.6F), 1.3F);
+            ClientViewEffects.sound(point, SOUND, SoundCategory.MASTER, Settings.portalSoundVolume(0.6F), 1.3F,
+                excluded == null ? null : excluded.getUniqueId());
         }
     }
 

@@ -27,6 +27,16 @@ java {
     }
 }
 
+List<String> sharedClientTestClasses = [
+    'art.arcane.wormholes.modded.client.render.PortalIrisProgramLoadingTest',
+    'art.arcane.wormholes.modded.client.render.PortalIrisShaderLoadingTest',
+    'art.arcane.wormholes.modded.client.render.PortalIrisTerrainTest',
+    'art.arcane.wormholes.modded.client.render.PortalIrisMainPipelinesTest',
+    'art.arcane.wormholes.modded.client.ClientPreparedTravelRollbackTest',
+    'art.arcane.wormholes.modded.client.ClientPreparedTravelPacketBudgetTest',
+    'art.arcane.wormholes.modded.client.PreparedTravelChunkCacheTest'
+]
+
 sourceSets {
     main {
         java.srcDir('../modded-common/src/main/java')
@@ -34,6 +44,9 @@ sourceSets {
     }
     test {
         java.srcDir('../modded-common/src/test/java')
+        for (String testClass : sharedClientTestClasses) {
+            java.exclude(testClass.replace('.', '/') + '.java')
+        }
     }
 }
 
@@ -127,6 +140,25 @@ tasks.named('test').configure {
     filter {
         excludeTestsMatching('art.arcane.wormholes.modded.client.render.PortalSectionMeshTest')
     }
+}
+
+evaluationDependsOn(':clientTestHost')
+Project clientTestHost = project(':clientTestHost')
+TaskProvider<Test> sharedClientTest = tasks.register('sharedClientTest', Test) {
+    group = 'verification'
+    dependsOn(clientTestHost.tasks.named('testClasses'))
+    testClassesDirs = clientTestHost.sourceSets.test.output.classesDirs
+    classpath = clientTestHost.sourceSets.test.runtimeClasspath
+    filter {
+        for (String testClass : sharedClientTestClasses) {
+            includeTestsMatching(testClass)
+        }
+    }
+    shouldRunAfter(tasks.named('test'))
+}
+
+tasks.named('check').configure {
+    dependsOn(sharedClientTest)
 }
 
 tasks.withType(JavaCompile).configureEach {

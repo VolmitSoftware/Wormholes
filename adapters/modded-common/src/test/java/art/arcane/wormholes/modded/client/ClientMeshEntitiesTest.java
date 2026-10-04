@@ -47,6 +47,7 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.AdditionalAnswers.delegatesTo;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
@@ -88,6 +89,7 @@ public class ClientMeshEntitiesTest {
         List<EntityRenderState> secondStates = new ArrayList<>();
         try (MockedStatic<ClientMeshEntities> ownership = mockStatic(ClientMeshEntities.class, CALLS_REAL_METHODS)) {
             ownership.when(() -> ClientMeshEntities.hiddenFromWorld(entity)).thenReturn(false);
+            clearInvocations(entity);
             first.inDestinationWorld(() -> {
                 first.extractLocalEntities(Set.of(id), renderer, 0.5F, firstStates);
                 assertSame(first, ClientMeshEntities.active(level));

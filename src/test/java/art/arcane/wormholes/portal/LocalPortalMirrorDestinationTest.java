@@ -30,6 +30,7 @@ import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.MenuType;
+import org.bukkit.potion.PotionEffectType;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
@@ -271,9 +272,10 @@ public final class LocalPortalMirrorDestinationTest
 	private static Registry<?> menuRegistry(Object key)
 	{
 		boolean menu = key == MenuType.class || key == RegistryKey.MENU;
+		boolean effect = key == PotionEffectType.class || key == RegistryKey.MOB_EFFECT;
 		return mock(Registry.class, invocation -> switch(invocation.getMethod().getName())
 		{
-			case "get", "getOrThrow" -> menu ? mock(MenuType.Typed.class, RETURNS_SELF) : null;
+			case "get", "getOrThrow" -> menu ? mock(MenuType.Typed.class, RETURNS_SELF) : effect ? mock(PotionEffectType.class) : null;
 			default -> RETURNS_DEFAULTS.answer(invocation);
 		});
 	}

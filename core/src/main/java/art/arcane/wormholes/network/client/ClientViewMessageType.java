@@ -29,7 +29,17 @@ public enum ClientViewMessageType {
     MESH_ACK(37, Direction.C2S),
     MESH_LOCAL(38, Direction.C2S),
     MESH_CACHED(39, Direction.C2S),
-    MESH_REUSE(40, Direction.S2C);
+    MESH_REUSE(40, Direction.S2C),
+    TRAVEL_BEGIN(41, Direction.S2C),
+    TRAVEL_CHUNK(42, Direction.S2C),
+    TRAVEL_END(43, Direction.S2C),
+    TRAVEL_READY(44, Direction.C2S),
+    TRAVEL_COMMIT(45, Direction.S2C),
+    TRAVEL_CANCEL(46, Direction.BOTH),
+    TRAVEL_CROSS(47, Direction.C2S),
+    TRAVEL_REUSE(48, Direction.S2C),
+    TRAVEL_CACHED(49, Direction.C2S),
+    ENTITY_SELF(50, Direction.S2C);
 
     private static final ClientViewMessageType[] BY_ID = index();
 
@@ -57,11 +67,11 @@ public enum ClientViewMessageType {
     }
 
     public boolean isServerbound() {
-        return direction == Direction.C2S;
+        return direction != Direction.S2C;
     }
 
     public boolean isClientbound() {
-        return direction == Direction.S2C;
+        return direction != Direction.C2S;
     }
 
     private static ClientViewMessageType[] index() {
@@ -74,6 +84,7 @@ public enum ClientViewMessageType {
 
     public enum Direction {
         S2C,
-        C2S
+        C2S,
+        BOTH
     }
 }

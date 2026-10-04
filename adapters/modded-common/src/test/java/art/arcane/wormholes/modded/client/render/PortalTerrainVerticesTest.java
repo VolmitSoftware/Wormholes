@@ -143,6 +143,46 @@ public class PortalTerrainVerticesTest {
         }
     }
 
+    @Test
+    public void nonplanarFluidNormalsAndTangentsUseEveryCornerAndPreserveMirrorSlope() {
+        for (Direction[] axes : new Direction[][] {{Direction.E, Direction.U, Direction.S}, {Direction.W, Direction.U, Direction.S},
+            {Direction.S, Direction.U, Direction.W}}) {
+            ClientViewEnvironment.Transform mapping = new ClientViewEnvironment.Transform(axes[0], axes[1], axes[2],
+                new GeometryVector(0, 0, 0));
+            PortalVertexTransform transform = new PortalVertexTransform(mapping);
+            try (ByteBufferBuilder base = new ByteBufferBuilder(512); ByteBufferBuilder extended = new ByteBufferBuilder(512)) {
+                BufferBuilder builder = new BufferBuilder(base, PrimitiveTopology.QUADS, DefaultVertexFormat.BLOCK);
+                PortalTerrainVertices attributes = new PortalTerrainVertices(builder);
+                transform.target(attributes);
+                transform.destinationBlock(BlockPos.ZERO, 0, 0, 0);
+                transform.inputOrigin(0, 0, 0);
+                attributes.block(32000, true, 0, transform.centerX(), transform.centerY(), transform.centerZ());
+                transform.addVertex(0, 0, 0).setColor(-1).setUv(0, 0).setUv2(0, 0);
+                transform.addVertex(0, 0, 1).setColor(-1).setUv(0, 1).setUv2(0, 0);
+                transform.addVertex(1, 0, 1).setColor(-1).setUv(1, 1).setUv2(0, 0);
+                transform.addVertex(1, 0.5F, 0).setColor(-1).setUv(1, 0).setUv2(0, 0);
+                try (MeshData nativeMesh = builder.buildOrThrow()) {
+                    transform.winding(nativeMesh);
+                    try (MeshData mesh = attributes.expand(nativeMesh, extended)) {
+                        ByteBuffer vertices = mesh.vertexBuffer();
+                        for (int vertex = 0; vertex < 4; vertex++) {
+                            int offset = vertex * PortalTerrainVertices.FORMAT.getVertexSize();
+                            assertEquals(-30 * axes[0].x() + 120 * axes[1].x() + 30 * axes[2].x(), vertices.get(offset + 28));
+                            assertEquals(-30 * axes[0].y() + 120 * axes[1].y() + 30 * axes[2].y(), vertices.get(offset + 29));
+                            assertEquals(-30 * axes[0].z() + 120 * axes[1].z() + 30 * axes[2].z(), vertices.get(offset + 30));
+                            assertEquals(32000, vertices.getShort(offset + 32));
+                            assertEquals(1, vertices.getShort(offset + 34));
+                            assertEquals(123 * axes[0].x() + 31 * axes[1].x(), vertices.get(offset + 44));
+                            assertEquals(123 * axes[0].y() + 31 * axes[1].y(), vertices.get(offset + 45));
+                            assertEquals(123 * axes[0].z() + 31 * axes[1].z(), vertices.get(offset + 46));
+                            assertEquals(axes[0] == Direction.W ? -127 : 127, vertices.get(offset + 47));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private static void quad(VertexConsumer vertices, boolean degenerate) {
         vertex(vertices, 0, 0, 0, 0);
         vertex(vertices, 1, 0, degenerate ? 0 : 1, 0);

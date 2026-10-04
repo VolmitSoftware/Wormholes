@@ -38,6 +38,11 @@ public final class DoorAutoCloseBook
 		return token.longValue();
 	}
 
+    public boolean isCurrent(UUID doorId, long token) {
+        Long current = armed.get(Objects.requireNonNull(doorId, "doorId"));
+        return current != null && current.longValue() == token;
+    }
+
 	public boolean isArmed(UUID doorId)
 	{
 		return armed.containsKey(Objects.requireNonNull(doorId, "doorId"));

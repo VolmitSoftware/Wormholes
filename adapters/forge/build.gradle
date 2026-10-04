@@ -39,6 +39,10 @@ sourceSets {
 repositories {
     mavenCentral()
     maven { url = uri('https://api.modrinth.com/maven') }
+    maven {
+        url = uri('https://maven.fabricmc.net/')
+        content { includeGroup('net.fabricmc') }
+    }
     maven { url = uri('https://maven.minecraftforge.net/') }
     minecraft.mavenizer(it)
     maven fg.forgeMaven
@@ -82,6 +86,8 @@ dependencies {
     bundle('com.github.VolmitSoftware.VolmLib:volmlib-web:master-SNAPSHOT')
     testImplementation('junit:junit:4.13.2')
     testImplementation('org.mockito:mockito-core:5.23.0')
+    testRuntimeOnly('io.github.llamalad7:mixinextras-common:0.5.4')
+    testRuntimeOnly("net.fabricmc:fabric-loader:${rootProperties.getProperty('fabricLoaderVersion')}")
     implementation minecraft.dependency("net.minecraftforge:forge:${loaderVersion}")
 }
 

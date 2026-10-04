@@ -18,6 +18,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class PortalGeometryStateTest {
     @Test
+    void geometricCenterUsesFullCellsWhileCollisionBoundsRemainInset() {
+        PortalGeometry geometry = new PortalGeometry();
+        geometry.setBlocks(List.of(new GeometryVector(-1, -64, 0)));
+        assertEquals(new GeometryVector(-0.5D, -63.5D, 0.5D), geometry.getApertureCenter());
+        assertEquals(-0.001D, geometry.getArea().getXb(), 1e-15D);
+        geometry.setBlocks(List.of(new GeometryVector(-4, 80, 7), new GeometryVector(2, 80, 13)));
+        assertEquals(new GeometryVector(-0.5D, 80.5D, 10.5D), geometry.getApertureCenter());
+        geometry.setBlocks(List.of(new GeometryVector(1001, 200, 0), new GeometryVector(1001, 205, 0)));
+        assertEquals(new GeometryVector(1001.5D, 203.0D, 0.5D), geometry.getApertureCenter());
+        assertEquals(205.999D, geometry.getArea().getYb(), 0.0D);
+        PortalGeometry restored = new PortalGeometry();
+        PortalStateCodec.readGeometry(PortalStateCodec.writeGeometry("minecraft:overworld", geometry), restored);
+        assertEquals(geometry.getApertureCenter(), restored.getApertureCenter());
+        assertEquals(geometry.getArea().getYb(), restored.getArea().getYb(), 0.0D);
+    }
+
+    @Test
     void sparseApertureRoundTripPreservesHolesAndBounds() {
         PortalGeometry original = new PortalGeometry();
         original.setBlocks(List.of(new GeometryVector(-8, -64, 30), new GeometryVector(-8, -62, 30)));

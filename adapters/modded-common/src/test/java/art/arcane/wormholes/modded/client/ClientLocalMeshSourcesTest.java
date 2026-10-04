@@ -10,6 +10,7 @@ import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import art.arcane.wormholes.render.client.session.ClientMeshPlan;
 import art.arcane.wormholes.render.plate.PlateBox;
 import art.arcane.wormholes.util.Direction;
+import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.multiplayer.ClientChunkCache;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -214,6 +215,29 @@ public class ClientLocalMeshSourcesTest {
     }
 
     @Test
+    public void blockPlacementPromotesItsExistingQueuedSectionAheadOfPendingRefreshes() throws Exception {
+        Fixture fixture = new Fixture();
+        fixture.awaitSection();
+        Field routesField = ClientLocalMeshSources.class.getDeclaredField("routes");
+        routesField.setAccessible(true);
+        Object route = ((Map<?, ?>) routesField.get(fixture.sources)).get(1);
+        Field dirtyField = route.getClass().getDeclaredField("dirty");
+        dirtyField.setAccessible(true);
+        LongLinkedOpenHashSet dirty = (LongLinkedOpenHashSet) dirtyField.get(route);
+        for (int section = 1; section <= 32; section++) {
+            dirty.add(SectionPos.asLong(section, 0, 0));
+        }
+        dirty.add(0L);
+        fixture.marker.set(Blocks.GOLD_BLOCK.defaultBlockState());
+        fixture.sources.blockChanged(fixture.level, new BlockPos(2, 1, 3));
+        fixture.sources.blockChanged(fixture.level, new BlockPos(2, 1, 3));
+        assertEquals(33, dirty.size());
+        fixture.update();
+        ClientMeshSections.Section changed = fixture.session.meshes().view(1).section(0L);
+        assertSame(Blocks.GOLD_BLOCK.defaultBlockState(), changed.state(1 << 8 | 3 << 4 | 2));
+    }
+
+    @Test
     public void rotatedTranslatedMirrorUsesCellCentersForContentAndDirtyUpdates() throws Exception {
         Fixture fixture = new Fixture();
         fixture.marker.set(Blocks.DIRT.defaultBlockState());
@@ -309,17 +333,17 @@ public class ClientLocalMeshSourcesTest {
         assertFalse(fixture.sources.localEntity(1, java.util.UUID.randomUUID()));
     }
 
-    private static final class Fixture {
+    static final class Fixture {
         private final ClientLevel level = mock(ClientLevel.class);
         private final Map<Long, LevelChunk> chunks = new HashMap<>();
-        private final AtomicReference<BlockState> state = new AtomicReference<>(Blocks.STONE.defaultBlockState());
+        final AtomicReference<BlockState> state = new AtomicReference<>(Blocks.STONE.defaultBlockState());
         private final AtomicReference<BlockState> marker = new AtomicReference<>();
         private final List<ClientViewMessage> messages = new ArrayList<>();
-        private final ClientLocalMeshSources sources = new ClientLocalMeshSources(messages::add);
-        private final ClientViewSession session;
-        private final ClientViewSession.Sink sink = mock(ClientViewSession.Sink.class);
+        final ClientLocalMeshSources sources = new ClientLocalMeshSources(messages::add);
+        final ClientViewSession session;
+        final ClientViewSession.Sink sink = mock(ClientViewSession.Sink.class);
 
-        private Fixture() throws Exception {
+        Fixture() throws Exception {
             WormholesClientConfig config = new WormholesClientConfig();
             config.normalize();
             session = new ClientViewSession(config, new ClientPalette(BuiltInRegistries.BLOCK), 1, "test");
@@ -380,7 +404,7 @@ public class ClientLocalMeshSourcesTest {
             sources.update(session, level, 0, 0, 0);
         }
 
-        private void awaitSection() throws Exception {
+        void awaitSection() throws Exception {
             for (int tick = 0; tick < 100 && session.meshes().view(1).section(SectionPos.asLong(0, 0, 0)) == null; tick++) {
                 update();
             }

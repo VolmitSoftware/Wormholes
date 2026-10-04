@@ -40,7 +40,8 @@ public record ClientViewOptions(boolean enabled,
     public long serverCaps(ClientViewPhase phase) {
         long caps = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.FX_EMITTERS,
             ClientViewCapability.ATMOSPHERE, ClientViewCapability.LINK_UNCOMPRESSED, ClientViewCapability.MESH_RENDER,
-            ClientViewCapability.LOCAL_MESH, ClientViewCapability.MESH_REUSE);
+            ClientViewCapability.LOCAL_MESH, ClientViewCapability.MESH_REUSE, ClientViewCapability.PREPARED_TRAVEL,
+            ClientViewCapability.PREPARED_TRAVEL_CACHE);
         if (brickCache) {
             caps |= ClientViewCapability.BRICK_CACHE.mask();
         }
@@ -48,7 +49,8 @@ public record ClientViewOptions(boolean enabled,
             caps |= ClientViewCapability.DEST_LIGHT.mask();
         }
         if (entityFrames) {
-            caps |= ClientViewCapability.ENTITY_FRAMES.mask() | ClientViewCapability.ENTITY_EVENTS.mask();
+            caps |= ClientViewCapability.ENTITY_FRAMES.mask() | ClientViewCapability.ENTITY_EVENTS.mask()
+                | ClientViewCapability.ENTITY_SELF.mask();
         }
         if (zeroCopy) {
             caps |= ClientViewCapability.ZERO_COPY.mask();

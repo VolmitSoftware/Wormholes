@@ -1,8 +1,11 @@
 package art.arcane.wormholes.modded.client.render;
 
+import art.arcane.wormholes.modded.client.WormholesClient;
+
 import art.arcane.wormholes.render.client.ClientPortalAperture;
 import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.wormholes.network.client.ClientViewMessage;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.PipelineCache;
@@ -26,6 +29,8 @@ import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Camera;
+import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.TextureFilteringMethod;
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.renderer.DynamicGpuData;
@@ -35,11 +40,13 @@ import net.minecraft.client.renderer.block.BlockStateModelSet;
 import net.minecraft.client.renderer.block.FluidStateModelSet;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.client.renderer.SkyRenderer;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
+import net.minecraft.util.Util;
 import net.minecraft.world.phys.AABB;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -59,9 +66,12 @@ import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.IdentityHashMap;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -69,11 +79,14 @@ public final class ClientPortalRenderer {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final long MAX_GPU_BYTES = 128L * 1024L * 1024L;
     static final long RETRY_NANOS = 5_000_000_000L;
+    private static final long BUILD_DISPATCH_NANOS = 2_000_000L;
+    private static final int MAX_EMPTY_COMPLETIONS = 64;
     private static final Vector4fc WHITE = new Vector4f(1.0f);
     private static final Matrix4fc IDENTITY_TEXTURE = new Matrix4f();
     private static final ClientPortalRenderer INSTANCE = new ClientPortalRenderer();
     private final Int2ObjectOpenHashMap<Portal> portals = new Int2ObjectOpenHashMap<>();
     private final ExecutorService compiler = Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name("Wormholes portal mesher").factory());
+    private final ConcurrentLinkedQueue<MeshCompletion> meshCompletions = new ConcurrentLinkedQueue<>();
     private final List<Portal> visible = new ArrayList<>();
     private final List<PortalShaderRenderer.DemandView> shaderDemand = new ArrayList<>();
     private final List<Portal> shaderRoots = new ArrayList<>();
@@ -90,10 +103,24 @@ public final class ClientPortalRenderer {
     private TextureTarget portalLayer;
     private PortalGpuMesh layerMesh;
     private final Matrix4f frameProjection = new Matrix4f();
+    private Portal travel;
+    private Portal arrival;
+    private Portal travelSource;
+    private CameraRenderState travelCamera;
+    private final CameraRenderState travelDisplayCamera = new CameraRenderState();
+    private final LongOpenHashSet travelDrawSections = new LongOpenHashSet();
+    private boolean travelTransition;
+    private boolean travelDrawn;
+    private long travelMeshEpoch;
+    private long travelDrawEpoch;
+    private boolean travelMainReady;
     private int pendingBuilds;
     private int residentBuilds;
     private int lastBuildPortal;
     private long gpuBytes;
+    private final LinkedHashMap<TravelMeshKey, Section> travelMeshes = new LinkedHashMap<>();
+    private final IdentityHashMap<byte[], Integer> travelProofReferences = new IdentityHashMap<>();
+    private long travelProofBytes;
     private GpuSampler terrainSampler;
     private boolean rgss;
     private int anisotropy;
@@ -124,6 +151,218 @@ public final class ClientPortalRenderer {
         }
         retry(portal, System.nanoTime());
         return portal.active;
+    }
+
+    public void prepareTravel(PortalScene scene, CameraRenderState arrivalCamera) {
+        cancelTravel();
+        travel = new Portal(arrival != null && arrival.key == -1 ? -2 : -1, scene);
+        travelCamera = arrivalCamera;
+        portals.put(travel.key, travel);
+    }
+
+    public void prepareTravelSource(ClientTravelScene scene) {
+        retireTravelSource();
+        travelSource = new Portal(-3, scene);
+        portals.put(travelSource.key, travelSource);
+    }
+
+    public void retireTravelSource() {
+        if (travelSource != null) {
+            remove(travelSource.key);
+            travelSource = null;
+        }
+    }
+
+    public void updateTravelCamera(Camera source, ClientViewEnvironment.Transform destinationToSource) {
+        if (travel == null || travelTransition || !source.isInitialized()) {
+            return;
+        }
+        travelDisplayCamera.pos = source.position();
+        travelDisplayCamera.blockPos = source.blockPosition();
+        source.getViewRotationMatrix(travelDisplayCamera.viewRotationMatrix);
+        source.getViewRotationProjectionMatrix(travelDisplayCamera.projectionMatrix);
+        travelDisplayCamera.projectionMatrix.mul(new Matrix4f(travelDisplayCamera.viewRotationMatrix).invert());
+        travelDisplayCamera.orientation.set(source.rotation());
+        travelDisplayCamera.xRot = source.xRot();
+        travelDisplayCamera.yRot = source.yRot();
+        travelDisplayCamera.hudFov = source.getFov();
+        travelDisplayCamera.isFirstPerson = !source.isDetached();
+        travelDisplayCamera.initialized = true;
+        travelCamera = transformedCamera(travelDisplayCamera, PortalProjection.destinationToSource(destinationToSource), travelDisplayCamera.projectionMatrix);
+        travel.cullFrustum = new Frustum(travelCamera.viewRotationMatrix, travelCamera.projectionMatrix);
+        travel.cullFrustum.prepare(travelCamera.pos.x, travelCamera.pos.y, travelCamera.pos.z);
+    }
+
+    public boolean travelReady() {
+        if (travel == null || !travel.active || !travelDrawn || travelDrawEpoch != travelMeshEpoch
+            || travel.shader == null && shaderRenderer != null) {
+            return false;
+        }
+        for (LongIterator iterator = travel.scene.sectionKeys().iterator(); iterator.hasNext();) {
+            long key = iterator.nextLong();
+            if (!inTravelFrustum(travel, key)) {
+                continue;
+            }
+            long revision = travel.scene.revision(key);
+            if (revision < 0) {
+                return false;
+            }
+            if (travel.scene.empty(key)) {
+                continue;
+            }
+            Section section = travel.sections.get(key);
+            if (section == null || section.revision != revision || travel.dirty.contains(key) || travel.building.contains(key)
+                || !section.layers.isEmpty() && !travelDrawSections.contains(key)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public boolean travelMainReady() {
+        return travelTransition && travelMainReady;
+    }
+
+    public boolean travelDrawable() {
+        if (travel == null || !travel.active || !travelDrawn) {
+            return false;
+        }
+        if (shaderRenderer == null) {
+            TextureTarget target = targets.travel(travel.key);
+            return target != null && target.getColorTexture() != null && target.getDepthTexture() != null;
+        }
+        if (travel.shader == null || !travel.shader.ready()) {
+            return false;
+        }
+        RenderTarget target = travel.shader.target();
+        return target != null && target.getColorTexture() != null && target.getDepthTexture() != null;
+    }
+
+    public void invalidateTravel(long sectionKey) {
+        if (travel == null) {
+            return;
+        }
+        Section removed = travel.sections.remove(sectionKey);
+        if (removed != null) {
+            closeSection(removed);
+            travel.orderDirty = true;
+        }
+        invalidate(travel.key, sectionKey, true);
+    }
+
+    public void transitionTravel(boolean value) {
+        if (value) {
+            retireArrival();
+        }
+        travelTransition = value;
+        travelMainReady = false;
+    }
+
+    public void cancelTravel() {
+        if (travel != null) {
+            targets.releaseTravel(travel.key);
+            remove(travel.key);
+        }
+        travel = null;
+        travelCamera = null;
+        travelTransition = false;
+        travelDrawn = false;
+        travelDrawSections.clear();
+        travelMeshEpoch = 0;
+        travelDrawEpoch = 0;
+        travelMainReady = false;
+    }
+
+    public void retainArrival() {
+        retireArrival();
+        arrival = travel;
+        travel = null;
+        travelCamera = null;
+        travelTransition = false;
+        travelDrawn = false;
+        travelDrawSections.clear();
+        travelMeshEpoch = 0;
+        travelDrawEpoch = 0;
+        travelMainReady = false;
+    }
+
+    public void retireArrival() {
+        if (arrival != null) {
+            targets.releaseTravel(arrival.key);
+            remove(arrival.key);
+            arrival = null;
+        }
+        travelMainReady = false;
+    }
+
+    public boolean arrivalMainReady() {
+        return arrival != null && travelMainReady;
+    }
+
+    public boolean arrivalDrawable() {
+        if (arrival == null || !arrival.active) {
+            return false;
+        }
+        RenderTarget target = arrival.shader == null ? targets.travel(arrival.key) : arrival.shader.target();
+        return target != null && target.getColorTexture() != null && target.getDepthTexture() != null;
+    }
+
+    public void invalidateArrival(long key) {
+        if (arrival == null) {
+            return;
+        }
+        Section removed = arrival.sections.remove(key);
+        if (removed != null) {
+            closeSection(removed);
+            arrival.orderDirty = true;
+        }
+        invalidate(arrival.key, key, true);
+    }
+
+    public boolean coversLocalPlayer(Entity entity) {
+        Minecraft minecraft = Minecraft.getInstance();
+        Portal cover = arrival == null ? travelTransition ? travel : null : arrival;
+        if (entity != minecraft.player || minecraft.level == null || entity.level() != minecraft.level
+            || cover == null || !cover.active || !cover.rendered || cover.target == null
+            || cover.target.getColorTexture() == null || cover.target.getDepthTexture() == null
+            || !(cover.scene instanceof ClientTravelScene scene) || !scene.inLevel(minecraft.level)) {
+            return false;
+        }
+        BlockPos position = entity.blockPosition();
+        if (minecraft.level.getChunkSource().getChunk(position.getX() >> 4, position.getZ() >> 4, ChunkStatus.FULL, false) == null) {
+            return false;
+        }
+        long key = SectionPos.asLong(position);
+        long revision = scene.revision(key);
+        if (revision < 0 || cover.dirty.contains(key) || cover.building.contains(key)) {
+            return false;
+        }
+        Section section = cover.sections.get(key);
+        return scene.empty(key) || section != null && section.revision == revision;
+    }
+
+    public boolean coversMainSection(long key) {
+        Minecraft minecraft = Minecraft.getInstance();
+        Portal cover = arrival == null ? travelTransition ? travel : null : arrival;
+        if (minecraft.level == null || cover == null || !cover.active || cover.target == null
+            || cover.target.getColorTexture() == null || cover.target.getDepthTexture() == null
+            || !(cover.scene instanceof ClientTravelScene scene) || !scene.inLevel(minecraft.level)) {
+            return false;
+        }
+        if (minecraft.level.getChunkSource().getChunk(SectionPos.x(key), SectionPos.z(key), ChunkStatus.FULL, false) == null) {
+            return false;
+        }
+        long revision = scene.revision(key);
+        Section section = cover.sections.get(key);
+        return revision >= 0 && section != null && section.revision == revision
+            && !cover.dirty.contains(key) && !cover.building.contains(key);
+    }
+
+    private boolean mainOwnsTravelSection(Portal portal, long key) {
+        Portal cover = arrival == null ? travelTransition ? travel : null : arrival;
+        return portal == cover && camera == portal.camera && coversMainSection(key)
+            && Minecraft.getInstance().levelRenderer.isSectionCompiledAndVisible(new BlockPos(
+                (SectionPos.x(key) << 4) + 8, (SectionPos.y(key) << 4) + 8, (SectionPos.z(key) << 4) + 8), 0);
     }
 
     public boolean coversEndPortalSurface(BlockPos position) {
@@ -211,6 +450,13 @@ public final class ClientPortalRenderer {
     }
 
     public void clear() {
+        clearTravelMeshes();
+        arrival = null;
+        travelSource = null;
+        travel = null;
+        travelCamera = null;
+        travelTransition = false;
+        travelDrawn = false;
         releaseFrameTargets();
         if (shaderRenderer != null) {
             shaderRenderer.disconnect();
@@ -221,6 +467,8 @@ public final class ClientPortalRenderer {
             release(portal);
         }
         portals.clear();
+        clearTravelMeshes();
+        finishBuilds();
         visible.clear();
         buildDemand.clear();
         residentBuilds = 0;
@@ -235,15 +483,25 @@ public final class ClientPortalRenderer {
         }
     }
 
-    public void invalidate(int portalKey, long sectionKey) {
+    public void invalidate(int portalKey, long sectionKey, boolean changed) {
         Portal portal = portals.get(portalKey);
         if (portal != null) {
+            travelMeshesChanged(portal);
             portal.evicted.remove(sectionKey);
-            portal.dirty.add(sectionKey);
+            if (changed) {
+                portal.dirty.addAndMoveToFirst(sectionKey);
+            } else {
+                portal.dirty.add(sectionKey);
+            }
         }
     }
 
     public void resourceReload() {
+        WormholesClient client = WormholesClient.instance();
+        if (client != null) {
+            client.preparedTravel().discardSourcePreparation();
+        }
+        clearTravelMeshes();
         buildDemand.clear();
         releaseFrameTargets();
         if (shaderRenderer != null) {
@@ -259,6 +517,7 @@ public final class ClientPortalRenderer {
                 portal.dirty.add(iterator.nextLong());
             }
         }
+        clearTravelMeshes();
         if (pipelines != null) {
             pipelines.close();
             pipelines = null;
@@ -266,10 +525,18 @@ public final class ClientPortalRenderer {
         models = null;
     }
 
+    public void finishBuilds() {
+        MeshCompletion completion;
+        while ((completion = meshCompletions.poll()) != null) {
+            finish(completion.portal(), completion.key(), completion.revision(), completion.generation(), completion.mesh(), completion.failure());
+        }
+    }
+
     public void prepare(CameraRenderState camera, GpuBufferSlice fog) {
         if (PortalShaderScope.shadowPass()) {
             return;
         }
+        finishBuilds();
         this.camera = camera;
         this.rootCamera = camera;
         visible.clear();
@@ -309,6 +576,7 @@ public final class ClientPortalRenderer {
         boolean shaders = PortalShaderScope.shaders();
         boolean currentAmbientOcclusion = minecraft.options.ambientOcclusion().get();
         if (models != currentModels || currentAmbientOcclusion != ambientOcclusion || shaders != (shaderRenderer != null)) {
+            clearTravelMeshes();
             resourceReload();
             models = currentModels;
             ambientOcclusion = currentAmbientOcclusion;
@@ -360,7 +628,7 @@ public final class ClientPortalRenderer {
             portal.target = null;
         }
         for (Portal portal : portals.values()) {
-            if (portal.scene.geometry().parentPortalKey() == 0 && renderTree(portal, new Matrix4d(), null, dimensions)) {
+            if (!portal.scene.fullWorld() && portal.scene.geometry().parentPortalKey() == 0 && renderTree(portal, new Matrix4d(), null, dimensions)) {
                 visible.add(portal);
                 try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(() -> "Wormholes aperture layer",
                     portalLayer.getColorTextureView(), Optional.empty(), portalLayer.getDepthTextureView(), OptionalDouble.empty())) {
@@ -368,6 +636,11 @@ public final class ClientPortalRenderer {
                 }
             }
         }
+        renderTravel(dimensions);
+        if (arrival != null && arrival.active) {
+            renderTravelView(arrival, rootCamera, true, dimensions);
+        }
+        warmTravelSource(dimensions);
         dispatchBuilds();
         for (Portal portal : portals.values()) {
             if (!portal.rendered) {
@@ -378,6 +651,89 @@ public final class ClientPortalRenderer {
         this.camera = rootCamera;
     }
 
+    private void warmTravelSource(RenderDimensions dimensions) {
+        Portal source = travelSource;
+        if (source == null || !source.active) {
+            return;
+        }
+        CameraRenderState previous = camera;
+        camera = rootCamera;
+        source.camera = rootCamera;
+        source.cullFrustum = rootCamera.cullFrustum;
+        try {
+            if (shaderRenderer == null) {
+                materialContext(source, PortalTerrainMaterials.VANILLA);
+            } else {
+                PortalShaderRenderer.Session session = shaderRenderer.acquire(source.key, source.scene.environment(), dimensions.width(), dimensions.height());
+                source.destination = session;
+                source.shader = session.ready() ? session : null;
+                if (!session.ready()) {
+                    PortalShaderCamera shaderCamera = new PortalShaderCamera(source.scene.environment(), camera);
+                    session.warm(new PortalShaderContext.View(source.scene.environment(), shaderCamera, session.target(),
+                        shaderCamera.getViewRotationMatrix(new Matrix4f()), frameProjection));
+                }
+                materialContext(source, session.materials());
+            }
+            maintain(source);
+        } finally {
+            camera = previous;
+        }
+    }
+
+    private void renderTravel(RenderDimensions dimensions) {
+        if (travel == null || !travel.active) {
+            return;
+        }
+        if (!travelTransition && travelReady()) {
+            travel.target = travel.shader == null ? targets.travel(travel.key) : travel.shader.target();
+            travel.rendered = true;
+            return;
+        }
+        renderTravelView(travel, travelTransition ? rootCamera : travelCamera, travelTransition, dimensions);
+    }
+
+    private void renderTravelView(Portal portal, CameraRenderState arrival, boolean transition, RenderDimensions dimensions) {
+        CameraRenderState previous = camera;
+        if (!transition) {
+            arrival.projectionMatrix.set(frameProjection);
+            arrival.cameraEntityPartialTicks = rootCamera.cameraEntityPartialTicks;
+            arrival.depthFar = rootCamera.depthFar;
+        }
+        portal.camera = transformedCamera(arrival, new Matrix4d(), frameProjection);
+        camera = portal.camera;
+        portal.cullFrustum = new Frustum(camera.viewRotationMatrix, frameProjection);
+        portal.cullFrustum.prepare(camera.pos.x, camera.pos.y, camera.pos.z);
+        if (!transition) {
+            arrival.cullFrustum = portal.cullFrustum;
+        }
+        portal.viewport = new PortalViewport(0, 0, frameWidth, frameHeight);
+        portal.toRoot.identity();
+        try {
+            if (shaderRenderer != null) {
+                PortalShaderRenderer.Session session = shaderRenderer.acquire(portal.key, portal.scene.environment(), frameWidth, frameHeight);
+                if (!session.ready()) {
+                    PortalShaderCamera shaderCamera = new PortalShaderCamera(portal.scene.environment(), camera);
+                    session.warm(new PortalShaderContext.View(portal.scene.environment(), shaderCamera, session.target(),
+                        shaderCamera.getViewRotationMatrix(new Matrix4f()), frameProjection));
+                }
+            }
+            if (!renderPortal(portal, dimensions)) {
+                return;
+            }
+            portal.rendered = true;
+            if (portal == travel) {
+                travelDrawn = true;
+                travelDrawEpoch = travelMeshEpoch;
+                travelDrawSections.clear();
+                for (Section section : portal.drawSections) {
+                    travelDrawSections.add(section.key);
+                }
+            }
+        } finally {
+            camera = previous;
+        }
+    }
+
     private void collectShaderDemand() {
         shaderDemand.clear();
         shaderRoots.clear();
@@ -386,7 +742,7 @@ public final class ClientPortalRenderer {
             .translate(-rootCamera.pos.x, -rootCamera.pos.y, -rootCamera.pos.z);
         boolean zeroToOne = RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
         for (Portal portal : portals.values()) {
-            if (portal.scene.geometry().parentPortalKey() == 0 && portal.active && portal.scene.environment() != null
+            if (!portal.scene.fullWorld() && portal.scene.geometry().parentPortalKey() == 0 && portal.active && portal.scene.environment() != null
                 && portal.aperture.servesEye(eye) && visiblePortal(portal, eye)
                 && PortalViewport.coverage(portal.aperture, viewProjection, frameWidth, frameHeight, zeroToOne) != null) {
                 shaderRoots.add(portal);
@@ -399,7 +755,7 @@ public final class ClientPortalRenderer {
         Portal closest = null;
         double distance = 64.0 * 64.0;
         for (Portal portal : portals.values()) {
-            if (portal.scene.geometry().parentPortalKey() != 0 || !portal.active || portal.scene.environment() == null
+            if (portal.scene.fullWorld() || portal.scene.geometry().parentPortalKey() != 0 || !portal.active || portal.scene.environment() == null
                 || !portal.aperture.servesEye(eye)) {
                 continue;
             }
@@ -495,20 +851,53 @@ public final class ClientPortalRenderer {
 
     private void compositeLayer(RenderPass pass) {
         try {
-            if (visible.isEmpty() || portalLayer == null || layerMesh == null) {
+            if (layerMesh == null) {
                 return;
             }
             try (PortalShaderScope scope = PortalShaderScope.rendering()) {
-                pass.setPipeline(pipelines.layer());
-                pass.setUniform("Sampler0", portalLayer.getColorTextureView(), sampler());
-                pass.setUniform("Sampler1", portalLayer.getDepthTextureView(), sampler());
-                layerMesh.draw(pass);
+                Portal cover = arrival == null ? travelTransition ? travel : null : arrival;
+                if (cover != null && cover.rendered && cover.target != null) {
+                    drawLayer(pass, cover.target);
+                }
+                if (!visible.isEmpty() && portalLayer != null) {
+                    drawLayer(pass, portalLayer);
+                }
+                travelMainReady = mainTravelCoverageReady();
             }
         } catch (RuntimeException failure) {
             failFrame(failure);
         } finally {
             camera = rootCamera;
         }
+    }
+
+    private boolean mainTravelCoverageReady() {
+        Portal cover = arrival == null ? travelTransition ? travel : null : arrival;
+        if (cover == null || !cover.rendered || cover.cullFrustum == null) {
+            return false;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (cover.scene instanceof ClientTravelScene scene && !scene.inLevel(minecraft.level)) {
+            return false;
+        }
+        LevelRenderer renderer = minecraft.levelRenderer;
+        long fade = Util.toMillis(minecraft.options.chunkSectionFadeInTime().get());
+        for (LongIterator iterator = cover.scene.sectionKeys().iterator(); iterator.hasNext();) {
+            long key = iterator.nextLong();
+            if (!cover.scene.empty(key) && visibleSection(cover, key)
+                && !renderer.isSectionCompiledAndVisible(new BlockPos((SectionPos.x(key) << 4) + 8,
+                    (SectionPos.y(key) << 4) + 8, (SectionPos.z(key) << 4) + 8), fade)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void drawLayer(RenderPass pass, RenderTarget layer) {
+        pass.setPipeline(pipelines.layer());
+        pass.setUniform("Sampler0", layer.getColorTextureView(), sampler());
+        pass.setUniform("Sampler1", layer.getDepthTextureView(), sampler());
+        layerMesh.draw(pass);
     }
 
     private void failFrame(RuntimeException failure) {
@@ -560,7 +949,9 @@ public final class ClientPortalRenderer {
         portal.viewport = viewport;
         portal.cullFrustum = viewport.frustum(camera, frameProjection, dimensions.width(), dimensions.height());
         portal.rendering = true;
-        renderPortal(portal, dimensions);
+        if (!renderPortal(portal, dimensions)) {
+            return false;
+        }
         portal.rendering = false;
         portal.rendered = true;
         recovered(portal, Failure.FRAME);
@@ -654,6 +1045,7 @@ public final class ClientPortalRenderer {
                 closeSection(portal.sections.get(key));
                 existing.remove();
                 portal.orderDirty = true;
+                travelMeshesChanged(portal);
             }
         }
         if (selectNextSection(portal)) {
@@ -703,21 +1095,37 @@ public final class ClientPortalRenderer {
     }
 
     private void dispatchBuilds() {
+        dispatchBuilds(System.nanoTime() + BUILD_DISPATCH_NANOS);
+    }
+
+    private void dispatchBuilds(long deadline) {
         CameraRenderState previous = camera;
         try {
-            while (pendingBuilds < 2) {
+            int submissions = 0;
+            int completedEmpty = 0;
+            while (completedEmpty < MAX_EMPTY_COMPLETIONS) {
+                if (completedEmpty > 0 && System.nanoTime() >= deadline) {
+                    break;
+                }
+                boolean canCompile = pendingBuilds < 2 && submissions < 2;
                 boolean resident = residentBuilds < 3;
-                Portal portal = nextBuildPortal(resident);
+                Portal portal = nextBuildPortal(resident, canCompile, deadline);
                 if (portal == null) {
                     resident = !resident;
-                    portal = nextBuildPortal(resident);
+                    portal = nextBuildPortal(resident, canCompile, deadline);
                 }
                 if (portal == null) {
                     return;
                 }
                 camera = portal.camera;
                 portal.nextSection = resident ? portal.residentSection : portal.initialSection;
+                int before = pendingBuilds;
                 schedule(portal, portal.nextSection);
+                if (pendingBuilds == before) {
+                    completedEmpty++;
+                } else {
+                    submissions++;
+                }
                 selectNextSection(portal);
             }
         } finally {
@@ -725,7 +1133,8 @@ public final class ClientPortalRenderer {
         }
     }
 
-    private Portal nextBuildPortal(boolean resident) {
+    private Portal nextBuildPortal(boolean resident, boolean canCompile, long deadline) {
+        boolean preparationPending = travel != null && travel.active && !travelTransition && !travelReady();
         int start = 0;
         for (int index = 0; index < buildDemand.size(); index++) {
             if (buildDemand.get(index).key == lastBuildPortal) {
@@ -735,15 +1144,68 @@ public final class ClientPortalRenderer {
         }
         for (int checked = 0; checked < buildDemand.size(); checked++) {
             Portal portal = buildDemand.get((start + checked) % buildDemand.size());
-            if (portal.active && portal.rendered && (resident ? portal.hasResidentBuild : portal.hasInitialBuild)) {
+            if (portal == travelSource && preparationPending) {
+                continue;
+            }
+            if (portal.active && (canCompile ? resident ? portal.hasResidentBuild : portal.hasInitialBuild
+                : selectCheapSection(portal, resident, deadline))) {
                 return portal;
             }
         }
         return null;
     }
 
+    private boolean selectCheapSection(Portal portal, boolean resident, long deadline) {
+        for (LongIterator iterator = portal.dirty.iterator(); iterator.hasNext();) {
+            if (System.nanoTime() >= deadline) {
+                return false;
+            }
+            long key = iterator.nextLong();
+            if (portal.scene.revision(key) < 0 || portal.building.contains(key)
+                || portal.sections.containsKey(key) != resident || !visibleSection(portal, key)) {
+                continue;
+            }
+            if (portal.scene.empty(key) || reusableTravelMesh(portal, key)) {
+                if (resident) {
+                    portal.residentSection = key;
+                } else {
+                    portal.initialSection = key;
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean reusableTravelMesh(Portal portal, long key) {
+        if (!(portal.scene instanceof ClientTravelScene scene)) {
+            return false;
+        }
+        ClientTravelScene.MeshIdentity identity = scene.meshIdentity(key);
+        if (identity == null) {
+            return false;
+        }
+        Section cached = travelMeshes.get(new TravelMeshKey(identity.world(), key, portal.materials));
+        return cached != null && cached.identity.same(identity);
+    }
+
     private void schedule(Portal portal, long key) {
         Minecraft minecraft = Minecraft.getInstance();
+        if (portal.scene.empty(key)) {
+            portal.dirty.remove(key);
+            Section previous = portal.sections.put(key, new Section(key, portal.scene.revision(key)));
+            if (previous != null) {
+                closeSection(previous);
+            }
+            portal.orderDirty = true;
+            travelMeshesChanged(portal);
+            residentBuilds = previous == null ? 0 : Math.min(3, residentBuilds + 1);
+            lastBuildPortal = portal.key;
+            return;
+        }
+        if (reuseTravelMesh(portal, key)) {
+            return;
+        }
         BlockAndTintGetter world = portal.scene.world(key);
         BlockStateModelSet blockModels = models;
         FluidStateModelSet fluidModels = minecraft.getModelManager().getFluidStateModelSet();
@@ -759,7 +1221,7 @@ public final class ClientPortalRenderer {
         lastBuildPortal = portal.key;
         CompletableFuture.supplyAsync(() -> PortalSectionMesh.compile(key, world, blockModels, fluidModels, colors, smoothLighting,
             materials), compiler)
-            .whenComplete((mesh, failure) -> minecraft.execute(() -> finish(portal, key, revision, generation, mesh, failure)));
+            .whenComplete((mesh, failure) -> meshCompletions.add(new MeshCompletion(portal, key, revision, generation, mesh, failure)));
     }
 
     private void finish(Portal portal, long key, long revision, int generation, PortalSectionMesh mesh, Throwable failure) {
@@ -793,8 +1255,12 @@ public final class ClientPortalRenderer {
         }
         try (mesh) {
             Section section = new Section(key, revision);
+            if (currentRevision == revision && portal.scene instanceof ClientTravelScene scene) {
+                section.identity = scene.meshIdentity(key);
+            }
             Section previous = portal.sections.put(key, section);
             portal.orderDirty = true;
+            travelMeshesChanged(portal);
             if (previous != null) {
                 closeSection(previous);
             }
@@ -812,6 +1278,10 @@ public final class ClientPortalRenderer {
 
     private void trim() {
         while (gpuBytes > MAX_GPU_BYTES) {
+            if (!travelMeshes.isEmpty()) {
+                evictTravelMesh();
+                continue;
+            }
             Portal owner = null;
             Section farthest = null;
             double distance = -1.0;
@@ -833,18 +1303,26 @@ public final class ClientPortalRenderer {
             }
             owner.sections.remove(farthest.key);
             owner.orderDirty = true;
+            travelMeshesChanged(owner);
             owner.evicted.add(farthest.key);
             closeSection(farthest);
         }
     }
 
-    private void renderPortal(Portal portal, RenderDimensions dimensions) {
+    private boolean renderPortal(Portal portal, RenderDimensions dimensions) {
         prepareDestination(portal, dimensions);
-        if (portal.shader != null && portal.shader.ready()) {
-            renderShaderPortal(portal, dimensions);
-            return;
+        if (portal.destination != null && portal.shader == null) {
+            try {
+                maintain(portal);
+            } finally {
+                portal.environment.endFrame();
+            }
+            return false;
         }
-        materialContext(portal, PortalTerrainMaterials.VANILLA);
+        if (portal.shader != null) {
+            renderShaderPortal(portal, dimensions);
+            return true;
+        }
         maintain(portal);
         GpuBufferSlice previousProjection = RenderSystem.getProjectionMatrixBuffer();
         GpuBufferSlice previousFog = RenderSystem.getShaderFog();
@@ -876,6 +1354,7 @@ public final class ClientPortalRenderer {
                 camera = portal.camera;
             }
         }
+        return true;
     }
 
     private void renderShaderPortal(Portal portal, RenderDimensions dimensions) {
@@ -893,7 +1372,6 @@ public final class ClientPortalRenderer {
         PortalFeatureRenderer features = targets.features(dimensions.depth());
         try (PortalLightmapScope lightmap = new PortalLightmapScope(portal.environment.lightmap());
              PortalShaderRenderer.Frame frame = portal.shader.begin(view)) {
-            materialContext(portal, portal.shader.materials());
             maintain(portal);
             renderDestinationShadows(portal, features);
             camera = portal.camera;
@@ -1011,11 +1489,14 @@ public final class ClientPortalRenderer {
         if (portal.materials.revision() == materials.revision() && portal.materials.enabled() == materials.enabled()) {
             return;
         }
-        portal.materials = materials;
         portal.generation++;
+        travelMeshesChanged(portal);
         for (Section section : portal.sections.values()) {
-            closeSection(section);
+            if (!retainTravelMesh(portal, section)) {
+                closeSection(section);
+            }
         }
+        portal.materials = materials;
         portal.sections.clear();
         portal.sortedSections.clear();
         portal.drawSections.clear();
@@ -1035,14 +1516,16 @@ public final class ClientPortalRenderer {
         if (shaderRenderer == null) {
             portal.destination = null;
             portal.shader = null;
-            portal.target = targets.scratch(dimensions.depth(), dimensions.width(), dimensions.height());
+            portal.target = portal.scene.fullWorld() ? targets.travel(portal.key, dimensions.width(), dimensions.height())
+                : targets.scratch(dimensions.depth(), dimensions.width(), dimensions.height());
         } else {
             PortalShaderRenderer.Session session = shaderRenderer.acquire(portal.key, portal.scene.environment(), dimensions.width(), dimensions.height());
             portal.destination = session;
             portal.shader = session.ready() ? session : null;
             portal.target = session.target();
         }
-        if (portal.compositeUniform == null) {
+        materialContext(portal, portal.destination == null ? PortalTerrainMaterials.VANILLA : portal.destination.materials());
+        if (portal.compositeUniform == null && (portal.destination == null || portal.shader != null)) {
             portal.compositeUniform = compositeUniform(new PortalViewport(0, 0,
                 portal.scene.geometry().parentPortalKey() == 0 ? frameWidth : dimensions.width(),
                 portal.scene.geometry().parentPortalKey() == 0 ? frameHeight : dimensions.height()));
@@ -1071,19 +1554,21 @@ public final class ClientPortalRenderer {
         try (RenderPass clear = destinationPass(portal, Optional.of(portal.environment.fogData().color))) {
         }
         RenderSystem.setProjectionMatrix(targets.projection(dimensions.depth()).getBuffer(frameProjection), projectionType);
-        portal.environment.renderSky(destinationSky(portal, dimensions));
-    }
-
-    private SkyRenderer destinationSky(Portal portal, RenderDimensions dimensions) {
-        return portal.destination == null ? targets.sky(dimensions.depth()) : portal.destination.sky();
+        portal.environment.renderSky(portal.scene.fullWorld() ? targets.travelSky(portal.key) : targets.sky(dimensions.depth()));
     }
 
     private Matrix4f clippedProjection(Portal portal) {
+        if (portal.scene.fullWorld()) {
+            return new Matrix4f(frameProjection);
+        }
         return PortalProjection.clip(frameProjection, camera.viewRotationMatrix, cameraPlane(portal),
             RenderSystem.getDevice().getDeviceInfo().isZZeroToOne());
     }
 
     private Vector4f cameraPlane(Portal portal) {
+        if (portal.scene.fullWorld()) {
+            return new Vector4f(0.0f);
+        }
         ClientPortalAperture.Plane plane = portal.aperture.plane();
         float side = portal.scene.geometry().frontSide() ? 1 : -1;
         return new Vector4f(side * (float) plane.x(), side * (float) plane.y(), side * (float) plane.z(),
@@ -1146,13 +1631,13 @@ public final class ClientPortalRenderer {
             pass.setUniform("Sampler2", portal.environment.lightmap(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
             for (Section section : portal.drawSections) {
                 PortalGpuMesh mesh = section.layers.get(layer);
-                if (mesh == null) {
+                if (mesh == null || mainOwnsTravelSection(portal, section.key)) {
                     continue;
                 }
-                if (section.clip == null) {
+                if (portal.shader == null && section.clip == null) {
                     ClientPortalAperture.Plane plane = portal.aperture.plane();
                     float side = portal.scene.geometry().frontSide() ? 1.0f : -1.0f;
-                    section.clip = uniform(new Vector4f(side * (float) plane.x(), side * (float) plane.y(), side * (float) plane.z(),
+                    section.clip = uniform(portal.scene.fullWorld() ? new Vector4f(0.0f) : new Vector4f(side * (float) plane.x(), side * (float) plane.y(), side * (float) plane.z(),
                         side * (float) (plane.offset() + plane.x() * (SectionPos.x(section.key) << 4)
                             + plane.y() * (SectionPos.y(section.key) << 4) + plane.z() * (SectionPos.z(section.key) << 4))), portal.viewport);
                 }
@@ -1274,7 +1759,20 @@ public final class ClientPortalRenderer {
             || camera.cullFrustum.isVisible(portal.bounds);
     }
 
+    private boolean inTravelFrustum(Portal portal, long key) {
+        if (portal.cullFrustum == null) {
+            return true;
+        }
+        int x = SectionPos.x(key) << 4;
+        int y = SectionPos.y(key) << 4;
+        int z = SectionPos.z(key) << 4;
+        return portal.cullFrustum.isVisible(new AABB(x - 1, y - 1, z - 1, x + 17, y + 17, z + 17));
+    }
+
     private boolean visibleSection(Portal portal, long key) {
+        if (portal == travelSource || portal == travel && !travelTransition) {
+            return true;
+        }
         int x = SectionPos.x(key) << 4;
         int y = SectionPos.y(key) << 4;
         int z = SectionPos.z(key) << 4;
@@ -1282,8 +1780,11 @@ public final class ClientPortalRenderer {
     }
 
     private void release(Portal portal) {
+        travelMeshesChanged(portal);
         for (Section section : portal.sections.values()) {
-            closeSection(section);
+            if (!retainTravelMesh(portal, section)) {
+                closeSection(section);
+            }
         }
         portal.sections.clear();
         portal.sortedSections.clear();
@@ -1297,6 +1798,12 @@ public final class ClientPortalRenderer {
         if (portal.apertureMesh != null) {
             portal.apertureMesh.close();
             portal.apertureMesh = null;
+        }
+    }
+
+    private void travelMeshesChanged(Portal portal) {
+        if (portal == travel) {
+            travelMeshEpoch++;
         }
     }
 
@@ -1357,6 +1864,93 @@ public final class ClientPortalRenderer {
         }
     }
 
+    private boolean retainTravelMesh(Portal portal, Section section) {
+        if (!(portal.scene instanceof ClientTravelScene) || section.identity == null
+            || section.revision != portal.scene.revision(section.key)) {
+            return false;
+        }
+        TravelMeshKey key = new TravelMeshKey(section.identity.world(), section.key, portal.materials);
+        Section previous = travelMeshes.remove(key);
+        if (previous != null) {
+            removeTravelProof(previous.identity);
+            closeSection(previous);
+        }
+        if (section.clip != null) {
+            section.clip.close();
+            section.clip = null;
+        }
+        for (byte[] data : section.identity.columns()) {
+            int references = travelProofReferences.getOrDefault(data, 0);
+            if (references == 0) {
+                travelProofBytes += data.length;
+            }
+            travelProofReferences.put(data, references + 1);
+        }
+        travelMeshes.put(key, section);
+        while (!travelMeshes.isEmpty() && (travelProofBytes > 32L * 1024 * 1024 || travelMeshes.size() > 2048 || gpuBytes > MAX_GPU_BYTES)) {
+            evictTravelMesh();
+        }
+        return true;
+    }
+
+    private boolean reuseTravelMesh(Portal portal, long sectionKey) {
+        if (!(portal.scene instanceof ClientTravelScene scene)) {
+            return false;
+        }
+        ClientTravelScene.MeshIdentity identity = scene.meshIdentity(sectionKey);
+        if (identity == null) {
+            return false;
+        }
+        TravelMeshKey key = new TravelMeshKey(identity.world(), sectionKey, portal.materials);
+        Section cached = travelMeshes.remove(key);
+        if (cached == null) {
+            return false;
+        }
+        removeTravelProof(cached.identity);
+        if (!cached.identity.same(identity)) {
+            closeSection(cached);
+            return false;
+        }
+        cached.revision = portal.scene.revision(sectionKey);
+        cached.identity = identity;
+        Section previous = portal.sections.put(sectionKey, cached);
+        if (previous != null) {
+            closeSection(previous);
+        }
+        portal.dirty.remove(sectionKey);
+        portal.orderDirty = true;
+        travelMeshesChanged(portal);
+        lastBuildPortal = portal.key;
+        return true;
+    }
+
+    private void removeTravelProof(ClientTravelScene.MeshIdentity identity) {
+        for (byte[] data : identity.columns()) {
+            int references = travelProofReferences.get(data);
+            if (references == 1) {
+                travelProofReferences.remove(data);
+                travelProofBytes -= data.length;
+            } else {
+                travelProofReferences.put(data, references - 1);
+            }
+        }
+    }
+
+    private void evictTravelMesh() {
+        Map.Entry<TravelMeshKey, Section> entry = travelMeshes.entrySet().iterator().next();
+        travelMeshes.remove(entry.getKey());
+        removeTravelProof(entry.getValue().identity);
+        closeSection(entry.getValue());
+    }
+
+    private void clearTravelMeshes() {
+        while (!travelMeshes.isEmpty()) {
+            evictTravelMesh();
+        }
+    }
+
+    private record TravelMeshKey(ClientViewMessage.TravelWorld world, long section, PortalTerrainMaterials materials) { }
+
     private void closeSection(Section section) {
         for (PortalGpuMesh mesh : section.layers.values()) {
             gpuBytes -= mesh.bytes();
@@ -1365,6 +1959,9 @@ public final class ClientPortalRenderer {
         if (section.clip != null) {
             section.clip.close();
         }
+    }
+
+    private record MeshCompletion(Portal portal, long key, long revision, int generation, PortalSectionMesh mesh, Throwable failure) {
     }
 
     private record RenderDimensions(int width, int height, int depth) {
@@ -1438,7 +2035,8 @@ public final class ClientPortalRenderer {
 
     private static final class Section {
         private final long key;
-        private final long revision;
+        private long revision;
+        private ClientTravelScene.MeshIdentity identity;
         private final AABB bounds;
         private final EnumMap<ChunkSectionLayer, PortalGpuMesh> layers = new EnumMap<>(ChunkSectionLayer.class);
         private GpuBuffer clip;

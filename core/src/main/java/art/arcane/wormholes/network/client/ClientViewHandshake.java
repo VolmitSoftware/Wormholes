@@ -111,6 +111,12 @@ public final class ClientViewHandshake {
             return new Result(state, new ClientViewMessage.Decline(reason), late);
         }
         long caps = ClientViewCapability.intersection(policy.serverCaps(), hello.clientCaps());
+        if (!ClientViewCapability.PREPARED_TRAVEL.in(caps) || !ClientViewCapability.MESH_RENDER.in(caps)) {
+            caps &= ~ClientViewCapability.PREPARED_TRAVEL_CACHE.mask();
+        }
+        if (!ClientViewCapability.ENTITY_FRAMES.in(caps)) {
+            caps &= ~ClientViewCapability.ENTITY_SELF.mask();
+        }
         boolean zeroCopy = policy.zeroCopy() && zeroCopyNonce != 0L && hello.zeroCopyNonceEcho() == zeroCopyNonce;
         if (!zeroCopy) {
             caps &= ~ClientViewCapability.ZERO_COPY.mask();

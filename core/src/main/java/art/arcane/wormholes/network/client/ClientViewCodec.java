@@ -243,6 +243,15 @@ public final class ClientViewCodec {
                 out.i32(m.revision());
                 out.i64(m.hash());
             }
+            case ClientViewMessage.TravelBegin m -> ClientViewTravelCodec.write(out, m);
+            case ClientViewMessage.TravelChunk m -> ClientViewTravelCodec.write(out, m);
+            case ClientViewMessage.TravelEnd m -> ClientViewTravelCodec.write(out, m);
+            case ClientViewMessage.TravelReady m -> ClientViewTravelCodec.write(out, m);
+            case ClientViewMessage.TravelCommit m -> ClientViewTravelCodec.write(out, m);
+            case ClientViewMessage.TravelCancel m -> ClientViewTravelCodec.write(out, m);
+            case ClientViewMessage.TravelCross m -> ClientViewTravelCodec.write(out, m);
+            case ClientViewMessage.TravelReuse m -> ClientViewTravelCodec.write(out, m);
+            case ClientViewMessage.TravelCached m -> ClientViewTravelCodec.write(out, m);
             case ClientViewMessage.MeshLocal m -> {
                 out.varint(m.portalKey());
                 out.i32(m.generation());
@@ -341,6 +350,10 @@ public final class ClientViewCodec {
                 out.u8(m.hurt() ? 1 : 0);
                 out.u8(m.animation());
                 out.f32(m.yaw());
+            }
+            case ClientViewMessage.EntitySelf m -> {
+                out.i64(m.projectedId().getMostSignificantBits());
+                out.i64(m.projectedId().getLeastSignificantBits());
             }
             case ClientViewMessage.EntityFrame m -> {
                 out.varint(m.portalKey());
@@ -593,6 +606,7 @@ public final class ClientViewCodec {
                 }
                 yield new ClientViewMessage.EntityEvent(portalKey, eventSeq, entityId, hurt, animation, yaw);
             }
+            case ENTITY_SELF -> new ClientViewMessage.EntitySelf(new UUID(in.i64(), in.i64()));
             case ENTITY_FRAME -> {
                 int portalKey = in.varint();
                 int seq = in.i32();
@@ -634,6 +648,7 @@ public final class ClientViewCodec {
                 }
                 yield new ClientViewMessage.Fx(portalKey, emitters);
             }
+            case TRAVEL_BEGIN, TRAVEL_CHUNK, TRAVEL_END, TRAVEL_READY, TRAVEL_COMMIT, TRAVEL_CANCEL, TRAVEL_CROSS, TRAVEL_REUSE, TRAVEL_CACHED -> ClientViewTravelCodec.read(in, type);
             case ENVIRONMENT -> new ClientViewMessage.Environment(in.varint(), ClientViewEnvironmentCodec.read(in));
             case ATMOSPHERE -> new ClientViewMessage.Atmosphere(in.varint(), in.i64(), in.f32(), in.f32(), in.u8());
             case SESSION_RESET -> {

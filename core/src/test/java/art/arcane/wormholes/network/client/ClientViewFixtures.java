@@ -69,7 +69,49 @@ final class ClientViewFixtures {
             List.of(new ClientViewMessage.MeshClaim(-32, 4, -10, 0x1122334455667788L))), ClientViewCapability.NONE, 0, 0));
         out.add(new Vector("mesh_reuse", new ClientViewMessage.MeshReuse(7, 12, -32, 4, -10, 2, 0x1122334455667788L), ClientViewCapability.ALL, 16, 0));
         out.add(new Vector("environment", new ClientViewMessage.Environment(7, environment()), ClientViewCapability.ALL, 17, 0));
+        out.add(new Vector("travel_begin", travelBegin(), ClientViewCapability.ALL, 18, 0));
+        out.add(new Vector("travel_chunk", new ClientViewMessage.TravelChunk(new UUID(12, 34), 3L, -32, -10, 2, 0, 1,
+            4, new byte[] {1, 2, 3, 4}), ClientViewCapability.ALL, 19, 0));
+        out.add(new Vector("travel_end", new ClientViewMessage.TravelEnd(new UUID(12, 34), 3L, 9L,
+            List.of(new ClientViewMessage.TravelChunkRevision(-32, -10, 2))), ClientViewCapability.ALL, 20,
+            ClientViewProtocol.FLAG_LAST));
+        out.add(new Vector("travel_ready", new ClientViewMessage.TravelReady(new UUID(12, 34), 3L, 9L),
+            ClientViewCapability.NONE, 0, 0));
+        out.add(new Vector("travel_commit", new ClientViewMessage.TravelCommit(new UUID(12, 34), 3L, 9L,
+            "minecraft:the_nether", "minecraft:overworld", travelBegin().arrival(), new GeometryVector(0.25D, -0.5D, 1.0D)), ClientViewCapability.ALL, 21,
+            ClientViewProtocol.FLAG_LAST));
+        out.add(new Vector("travel_cancel", new ClientViewMessage.TravelCancel(new UUID(12, 34), 3L),
+            ClientViewCapability.ALL, 22, ClientViewProtocol.FLAG_LAST));
+        out.add(new Vector("travel_cross", new ClientViewMessage.TravelCross(new UUID(12, 34), 3L, 9L,
+            new ClientViewMessage.TravelPose(635.5D, 65.0D, -4681.4D, 90.0F, -12.0F),
+            new GeometryVector(635.5D, 66.62D, -4681.6D), new GeometryVector(635.5D, 66.62D, -4681.4D)),
+            ClientViewCapability.NONE, 0, 0));
+        byte[] travelHash = new byte[32];
+        for (int index = 0; index < travelHash.length; index++) {
+            travelHash[index] = (byte) index;
+        }
+        out.add(new Vector("travel_reuse", new ClientViewMessage.TravelReuse(new UUID(12, 34), 3L, -32, -10, 2, travelHash),
+            ClientViewCapability.ALL, 23, ClientViewProtocol.FLAG_LAST));
+        out.add(new Vector("travel_cached", new ClientViewMessage.TravelCached(new UUID(12, 34), 3L, -32, -10, 2, travelHash, true),
+            ClientViewCapability.NONE, 0, 0));
+        out.add(new Vector("entity_self", new ClientViewMessage.EntitySelf(new UUID(12, 34)),
+            ClientViewCapability.ALL, 24, ClientViewProtocol.FLAG_LAST));
         return out;
+    }
+
+    static ClientViewMessage.TravelBegin travelBegin() {
+        ClientViewEnvironment base = environment();
+        ClientViewEnvironment.World world = base.world();
+        ClientViewEnvironment environment = new ClientViewEnvironment(base.gameTime(), base.sky(), base.fog(), base.lighting(),
+            base.clouds(), ClientViewEnvironment.Transform.IDENTITY, base.dimension(),
+            new ClientViewEnvironment.World("minecraft:overworld", world.clockTime(), world.biomeKey(), world.seaLevel(),
+                world.blockLight(), world.skyLight(), world.logicalHeight(), world.hasCeiling(), world.ambientLight(),
+                world.eyeMedium(), world.hasFixedTime()));
+        return new ClientViewMessage.TravelBegin(new UUID(12, 34), 3L, new UUID(56, 78), "minecraft:the_nether",
+            geometry(List.of()), new ClientViewEnvironment.Transform(Direction.S, Direction.U, Direction.E, new GeometryVector(4, 0, 6)),
+            new ClientViewMessage.TravelWorld("minecraft:overworld", "minecraft:overworld", 123456789L, false, true, 63, -64, 384),
+            new ClientViewMessage.TravelPose(-511.5D, 81.0D, -159.5D, 90.0F, -12.0F),
+            List.of(new ClientViewMessage.TravelCoordinate(-32, -10)), environment, 30_000);
     }
 
     static SectionBiomes biomeHalo() {

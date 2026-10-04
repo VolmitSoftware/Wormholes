@@ -58,6 +58,11 @@ final class DoorTravelerService
 	 */
 	void settle(Entity traveler, DoorVec3 velocity)
 	{
+		settle(traveler, velocity, false);
+	}
+
+	void settle(Entity traveler, DoorVec3 velocity, boolean seamless)
+	{
 		try
 		{
 			traveler.setVelocity(velocity == null
@@ -73,6 +78,10 @@ final class DoorTravelerService
 		{
 			if(traveler instanceof Player player)
 			{
+				if(seamless)
+				{
+					return;
+				}
 				player.playSound(
 					player.getLocation(),
 					DimensionalDoorSounds.teleportSound(),

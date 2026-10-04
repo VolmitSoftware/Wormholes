@@ -47,6 +47,7 @@ public final class ClientViewServerSession<P, B> {
     private final long zeroCopyNonce;
     private final ClientViewLane lane;
     private final ClientMeshStream<B> mesh = new ClientMeshStream<B>();
+    private final ClientPreparedTravelServer travel = new ClientPreparedTravelServer();
     private final ConcurrentLinkedQueue<Command<B>> inbox;
     private final Object handshakeLock;
     private final ClientViewRateLimiter limiter;
@@ -88,6 +89,7 @@ public final class ClientViewServerSession<P, B> {
     private FrameSplitter splitter;
     private long laneCaps;
     private boolean laneOpen;
+    private boolean entitySelfPending;
     private boolean laneSent;
     private int lastLaneSequence;
 
@@ -146,6 +148,50 @@ public final class ClientViewServerSession<P, B> {
 
     public boolean nativeRendererSelected() {
         return !closed && state == ClientViewSessionState.CLIENT_VIEW && ClientViewCapability.MESH_RENDER.in(caps);
+    }
+
+    public boolean preparedTravelSelected() {
+        return nativeRendererSelected() && ClientViewCapability.PREPARED_TRAVEL.in(caps);
+    }
+
+    public boolean preparedTravelCacheSelected() {
+        return preparedTravelSelected() && ClientViewCapability.PREPARED_TRAVEL_CACHE.in(caps);
+    }
+
+    public ClientPortalGeometry travelGeometry(UUID portal) {
+        ClientPortalGeometry geometry = platform.portals().geometry(player, portal, registry.palette());
+        return geometry == null ? null : geometry.withParent(0).withNested(List.of());
+    }
+
+    public ClientPreparedTravelServer travel() {
+        return travel;
+    }
+
+    public boolean sendTravel(ClientViewMessage message) {
+        if (!preparedTravelSelected() || !(message instanceof ClientViewMessage.TravelBegin
+            || message instanceof ClientViewMessage.TravelChunk || message instanceof ClientViewMessage.TravelEnd
+            || message instanceof ClientViewMessage.TravelCommit || message instanceof ClientViewMessage.TravelCancel
+            || message instanceof ClientViewMessage.TravelReuse && preparedTravelCacheSelected())) {
+            return false;
+        }
+        try {
+            byte[] frame = ClientViewCodec.encodeS2C(message, sequence.getAndIncrement(), 0);
+            if (frame.length > registry.options().maxFrameBytes()) {
+                return false;
+            }
+            platform.transport().send(player, frame);
+            platform.transport().flush(player);
+            framesSent.incrementAndGet();
+            bytesSent.addAndGet(frame.length);
+            return true;
+        } catch (ClientViewProtocolException failure) {
+            platform.warnings().accept("ClientView " + message.type() + " failed for player " + playerId, failure);
+            return false;
+        }
+    }
+
+    public void cancelTravel() {
+        travel.cancel().ifPresent(this::sendTravel);
     }
 
     public boolean owns(UUID portal) {
@@ -357,6 +403,7 @@ public final class ClientViewServerSession<P, B> {
 
     public void end(ClientViewMessage.ResetReason reason) {
         Objects.requireNonNull(reason, "reason");
+        cancelTravel();
         if (nativeRendererSelected() && reason != ClientViewMessage.ResetReason.DISABLED) {
             recovery.compareAndSet(null, reason);
             return;
@@ -400,6 +447,18 @@ public final class ClientViewServerSession<P, B> {
             case ClientViewMessage.MeshAck ack -> onMeshAck(ack);
             case ClientViewMessage.MeshLocal local -> onMeshLocal(local);
             case ClientViewMessage.MeshCached cached -> onMeshCached(cached);
+            case ClientViewMessage.TravelCross cross -> preparedTravelSelected()
+                ? (travel.requestCross(cross, System.currentTimeMillis()) ? ClientViewInbound.HANDLED : ClientViewInbound.IGNORED)
+                : ClientViewInbound.IGNORED;
+            case ClientViewMessage.TravelCancel cancel -> preparedTravelSelected()
+                ? (travel.cancel(cancel) ? ClientViewInbound.HANDLED : ClientViewInbound.IGNORED)
+                : ClientViewInbound.IGNORED;
+            case ClientViewMessage.TravelCached cached -> preparedTravelCacheSelected()
+                ? (travel.cached(cached) ? ClientViewInbound.HANDLED : ClientViewInbound.IGNORED)
+                : ClientViewInbound.IGNORED;
+            case ClientViewMessage.TravelReady ready -> preparedTravelSelected()
+                ? (travel.ready(ready) ? ClientViewInbound.HANDLED : ClientViewInbound.IGNORED)
+                : ClientViewInbound.IGNORED;
             case ClientViewMessage.ViewStats stats -> onViewStats(stats, now);
             case ClientViewMessage.PlateRefused refused -> onRefused(refused);
             default -> rejectInbound(limiter.violation(now));
@@ -415,6 +474,8 @@ public final class ClientViewServerSession<P, B> {
     }
 
     void close() {
+        cancelTravel();
+        travel.close();
         synchronized (handshakeLock) {
             closed = true;
             state = ClientViewSessionState.VANILLA;
@@ -1149,6 +1210,7 @@ public final class ClientViewServerSession<P, B> {
         laneScene.clear();
         cursor = registry.palette().cursor();
         laneCaps = open.accept().caps();
+        entitySelfPending = ClientViewCapability.ENTITY_SELF.in(laneCaps);
         splitter = new FrameSplitter(open.accept().maxFrameBytes(), ClientViewCapability.LINK_UNCOMPRESSED.in(laneCaps));
         laneOpen = true;
     }
@@ -1190,6 +1252,7 @@ public final class ClientViewServerSession<P, B> {
         laneScene.clear();
         laneBursts.clear();
         cursor.reset();
+        entitySelfPending = ClientViewCapability.ENTITY_SELF.in(laneCaps);
         ClientViewAckWindow active = window;
         if (active != null) {
             active.clear();
@@ -1399,7 +1462,14 @@ public final class ClientViewServerSession<P, B> {
                 continue;
             }
             try {
-                emit(List.of(scene.message()), false);
+                boolean bindSelf = entitySelfPending && scene.message() instanceof ClientViewMessage.EntityFrame;
+                List<ClientViewMessage> group = bindSelf
+                    ? List.of(new ClientViewMessage.EntitySelf(platform.entities().projectedId(playerId)), scene.message())
+                    : List.of(scene.message());
+                emit(group, false);
+                if (bindSelf) {
+                    entitySelfPending = false;
+                }
             } catch (ClientViewProtocolException failure) {
                 resendScene(slot, scene.message());
                 platform.warnings().accept("ClientView " + scene.message().type() + " failed for player " + playerId, failure);

@@ -13,12 +13,17 @@ public final class PortalIrisClipCompilation implements AutoCloseable {
 
     private final PortalIrisClipCompilation previous;
     private final boolean drawable;
+    private final boolean terrain;
     private int distance = -1;
     private Set<Integer> existingDistances = Set.of();
 
     private PortalIrisClipCompilation(ShaderKey key) {
         previous = current;
         drawable = drawable(key);
+        terrain = switch (key) {
+            case TERRAIN_SOLID, TERRAIN_CUTOUT, TERRAIN_TRANSLUCENT -> true;
+            default -> false;
+        };
         current = this;
     }
 
@@ -43,7 +48,7 @@ public final class PortalIrisClipCompilation implements AutoCloseable {
             return null;
         }
         PortalIrisClipping.Result transformed = PortalIrisClipping.transform(sources,
-            GL11C.glGetInteger(GL30C.GL_MAX_CLIP_DISTANCES));
+            GL11C.glGetInteger(GL30C.GL_MAX_CLIP_DISTANCES), scope.terrain);
         scope.distance = transformed.clipDistance();
         scope.existingDistances = transformed.existingDistances();
         return transformed;

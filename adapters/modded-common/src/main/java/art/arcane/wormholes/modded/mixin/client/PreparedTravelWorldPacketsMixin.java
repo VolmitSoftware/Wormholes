@@ -1,0 +1,33 @@
+package art.arcane.wormholes.modded.mixin.client;
+
+import art.arcane.wormholes.modded.client.WormholesClient;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.Coerce;
+
+@Mixin(ClientPacketListener.class)
+public abstract class PreparedTravelWorldPacketsMixin {
+    @WrapMethod(method = {
+        "handleAddEntity", "handleSetEntityMotion", "handleSetEntityData", "handleEntityPositionSync",
+        "handleTeleportEntity", "handleMoveEntity", "handleMinecartAlongTrack", "handleRotateMob", "handleRemoveEntities",
+        "handleChunkBlocksUpdate", "handleLevelChunkWithLight", "handleForgetLevelChunk", "handleBlockUpdate",
+        "handleTakeItemEntity", "handleAnimate", "handleHurtAnimation", "handleSwingAnimation", "handleSetTime",
+        "handleSetSpawn", "handleSetEntityPassengersPacket", "handleAddTransientBlockPacket", "handleEntityLinkPacket",
+        "handleEntityEvent", "handleDamageEvent", "handleExplosion", "handleBlockEntityData", "handleSetEquipment",
+        "handleBlockEvent", "handleBlockDestruction", "handleLevelEvent", "handleUpdateMobEffect", "handleRemoveMobEffect",
+        "handleSetCamera", "handleInitializeBorder", "handleSetBorderCenter", "handleSetBorderLerpSize", "handleSetBorderSize",
+        "handleSetBorderWarningDistance", "handleSetBorderWarningDelay", "handleSoundEvent", "handleSoundEntityEvent",
+        "handleParticleEvent", "handleLightUpdatePacket", "handleChunksBiomes", "handleSetChunkCacheCenter",
+        "handleSetChunkCacheRadius"
+    })
+    private void wormholes$sourceWorld(@Coerce Packet<ClientGamePacketListener> packet, Operation<Void> original) {
+        WormholesClient client = WormholesClient.instance();
+        if (client == null || !client.preparedTravel().deferWorldPacket(packet, () -> original.call(packet))) {
+            original.call(packet);
+        }
+    }
+}

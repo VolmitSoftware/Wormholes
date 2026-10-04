@@ -2,15 +2,289 @@ package art.arcane.wormholes.network.client;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.UUID;
 
+import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.view.EntityVisual;
 import art.arcane.wormholes.render.client.ClientPortalGeometry;
 import art.arcane.wormholes.render.plate.PlateBox;
 
 public sealed interface ClientViewMessage {
     ClientViewMessageType type();
+
+    record TravelWorld(String dimension, String dimensionType, long seed, boolean debug, boolean flat,
+                       int seaLevel, int minY, int height) {
+        public TravelWorld {
+            Objects.requireNonNull(dimension, "dimension");
+            Objects.requireNonNull(dimensionType, "dimensionType");
+            if (dimension.isEmpty() || dimensionType.isEmpty() || dimension.length() > 256 || dimensionType.length() > 256
+                || height <= 0 || height > 4096 || (height & 15) != 0 || (minY & 15) != 0) {
+                throw new IllegalArgumentException("Travel world");
+            }
+        }
+    }
+
+    record TravelPose(double x, double y, double z, float yaw, float pitch) {
+        public TravelPose {
+            if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z) || !Float.isFinite(yaw) || !Float.isFinite(pitch)
+                || Math.abs(x) > 30_000_000 || Math.abs(z) > 30_000_000 || Math.abs(y) > 20_000_000) {
+                throw new IllegalArgumentException("Travel pose");
+            }
+        }
+    }
+
+    record TravelCoordinate(int x, int z) {
+    }
+
+    record TravelChunkRevision(int x, int z, int revision) {
+        public TravelChunkRevision {
+            if (revision <= 0) {
+                throw new IllegalArgumentException("Travel chunk revision");
+            }
+        }
+    }
+
+    record TravelBegin(UUID token, long generation, UUID sourcePortal, String sourceWorld, ClientPortalGeometry sourceGeometry,
+                       ClientViewEnvironment.Transform destinationToSource, TravelWorld world, TravelPose arrival, List<TravelCoordinate> chunks, ClientViewEnvironment environment,
+                       int expiresMillis) implements ClientViewMessage {
+        public TravelBegin {
+            travelIdentity(token, generation);
+            Objects.requireNonNull(sourcePortal, "sourcePortal");
+            Objects.requireNonNull(sourceWorld, "sourceWorld");
+            Objects.requireNonNull(sourceGeometry, "sourceGeometry");
+            Objects.requireNonNull(destinationToSource, "destinationToSource");
+            Objects.requireNonNull(world, "world");
+            Objects.requireNonNull(arrival, "arrival");
+            Objects.requireNonNull(environment, "environment");
+            chunks = List.copyOf(chunks);
+            if (sourceWorld.isEmpty() || sourceWorld.length() > 256
+                || !sourceGeometry.valid() || sourceGeometry.mirror() || sourceGeometry.parentPortalKey() != 0
+                || !sourceGeometry.nested().isEmpty()
+                || chunks.isEmpty() || chunks.size() > ClientViewProtocol.MAX_TRAVEL_CHUNKS
+                || new HashSet<>(chunks).size() != chunks.size()
+                || expiresMillis <= 0 || expiresMillis > ClientViewProtocol.MAX_TRAVEL_EXPIRY_MILLIS
+                || !world.dimension().equals(environment.world().dimensionKey())
+                || !ClientViewEnvironment.Transform.IDENTITY.equals(environment.transform())) {
+                throw new IllegalArgumentException("Travel preparation");
+            }
+        }
+
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.TRAVEL_BEGIN;
+        }
+    }
+
+    record TravelChunk(UUID token, long generation, int chunkX, int chunkZ, int revision, int fragmentIndex,
+                       int fragmentCount, int totalBytes, byte[] payload) implements ClientViewMessage {
+        public TravelChunk {
+            travelIdentity(token, generation);
+            Objects.requireNonNull(payload, "payload");
+            if (revision <= 0 || totalBytes <= 0 || totalBytes > ClientViewProtocol.MAX_TRAVEL_CHUNK_BYTES
+                || fragmentCount != (totalBytes + ClientViewProtocol.TRAVEL_FRAGMENT_BYTES - 1) / ClientViewProtocol.TRAVEL_FRAGMENT_BYTES
+                || fragmentIndex < 0 || fragmentIndex >= fragmentCount
+                || payload.length != Math.min(ClientViewProtocol.TRAVEL_FRAGMENT_BYTES,
+                    totalBytes - fragmentIndex * ClientViewProtocol.TRAVEL_FRAGMENT_BYTES)) {
+                throw new IllegalArgumentException("Travel chunk fragment");
+            }
+            payload = payload.clone();
+        }
+
+        @Override
+        public byte[] payload() {
+            return payload.clone();
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof TravelChunk that && token.equals(that.token) && generation == that.generation
+                && chunkX == that.chunkX && chunkZ == that.chunkZ && revision == that.revision
+                && fragmentIndex == that.fragmentIndex && fragmentCount == that.fragmentCount && totalBytes == that.totalBytes
+                && Arrays.equals(payload, that.payload);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(token, generation, chunkX, chunkZ, revision, fragmentIndex, fragmentCount, totalBytes) * 31
+                + Arrays.hashCode(payload);
+        }
+
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.TRAVEL_CHUNK;
+        }
+    }
+
+    record TravelReuse(UUID token, long generation, int chunkX, int chunkZ, int revision, byte[] hash) implements ClientViewMessage {
+        public TravelReuse {
+            travelIdentity(token, generation);
+            Objects.requireNonNull(hash, "hash");
+            if (revision <= 0 || hash.length != ClientViewProtocol.TRAVEL_HASH_BYTES) {
+                throw new IllegalArgumentException("Travel cache proof");
+            }
+            hash = hash.clone();
+        }
+
+        @Override
+        public byte[] hash() {
+            return hash.clone();
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof TravelReuse that && token.equals(that.token) && generation == that.generation
+                && chunkX == that.chunkX && chunkZ == that.chunkZ && revision == that.revision
+                && Arrays.equals(hash, that.hash);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = Objects.hash(token, generation, chunkX, chunkZ, revision);
+            return 31 * result + Arrays.hashCode(hash);
+        }
+
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.TRAVEL_REUSE;
+        }
+    }
+
+    record TravelCached(UUID token, long generation, int chunkX, int chunkZ, int revision, byte[] hash, boolean available) implements ClientViewMessage {
+        public TravelCached {
+            travelIdentity(token, generation);
+            Objects.requireNonNull(hash, "hash");
+            if (revision <= 0 || hash.length != ClientViewProtocol.TRAVEL_HASH_BYTES) {
+                throw new IllegalArgumentException("Travel cache proof");
+            }
+            hash = hash.clone();
+        }
+
+        @Override
+        public byte[] hash() {
+            return hash.clone();
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof TravelCached that && token.equals(that.token) && generation == that.generation
+                && chunkX == that.chunkX && chunkZ == that.chunkZ && revision == that.revision && available == that.available
+                && Arrays.equals(hash, that.hash);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = Objects.hash(token, generation, chunkX, chunkZ, revision);
+            result = 31 * result + Boolean.hashCode(available);
+            return 31 * result + Arrays.hashCode(hash);
+        }
+
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.TRAVEL_CACHED;
+        }
+    }
+
+    record TravelEnd(UUID token, long generation, long contentRevision, List<TravelChunkRevision> chunks) implements ClientViewMessage {
+        public TravelEnd {
+            travelIdentity(token, generation);
+            chunks = List.copyOf(chunks);
+            if (contentRevision <= 0 || chunks.isEmpty() || chunks.size() > ClientViewProtocol.MAX_TRAVEL_CHUNKS) {
+                throw new IllegalArgumentException("Travel manifest");
+            }
+            HashSet<TravelCoordinate> coordinates = new HashSet<>();
+            for (TravelChunkRevision chunk : chunks) {
+                if (!coordinates.add(new TravelCoordinate(chunk.x(), chunk.z()))) {
+                    throw new IllegalArgumentException("Repeated travel chunk");
+                }
+            }
+        }
+
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.TRAVEL_END;
+        }
+    }
+
+    record TravelReady(UUID token, long generation, long contentRevision) implements ClientViewMessage {
+        public TravelReady {
+            travelIdentity(token, generation);
+            if (contentRevision <= 0) {
+                throw new IllegalArgumentException("Travel ready revision");
+            }
+        }
+
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.TRAVEL_READY;
+        }
+    }
+
+    record TravelCommit(UUID token, long generation, long contentRevision, String sourceWorld, String destinationWorld,
+                        TravelPose arrival, GeometryVector velocity) implements ClientViewMessage {
+        public TravelCommit {
+            travelIdentity(token, generation);
+            travelVector(velocity);
+            Objects.requireNonNull(sourceWorld, "sourceWorld");
+            Objects.requireNonNull(destinationWorld, "destinationWorld");
+            Objects.requireNonNull(arrival, "arrival");
+            if (contentRevision <= 0 || sourceWorld.isEmpty() || destinationWorld.isEmpty()
+                || sourceWorld.length() > 256 || destinationWorld.length() > 256) {
+                throw new IllegalArgumentException("Travel commit");
+            }
+        }
+
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.TRAVEL_COMMIT;
+        }
+    }
+
+    record TravelCross(UUID token, long generation, long contentRevision, TravelPose sourcePose,
+                       GeometryVector previousEye, GeometryVector currentEye) implements ClientViewMessage {
+        public TravelCross {
+            travelIdentity(token, generation);
+            Objects.requireNonNull(sourcePose, "sourcePose");
+            travelVector(previousEye);
+            travelVector(currentEye);
+            if (contentRevision <= 0 || Math.abs(previousEye.x()) > 30_000_000 || Math.abs(previousEye.z()) > 30_000_000
+                || Math.abs(currentEye.x()) > 30_000_000 || Math.abs(currentEye.z()) > 30_000_000
+                || Math.abs(previousEye.y()) > 20_000_000 || Math.abs(currentEye.y()) > 20_000_000) {
+                throw new IllegalArgumentException("Travel crossing");
+            }
+        }
+
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.TRAVEL_CROSS;
+        }
+    }
+
+    record TravelCancel(UUID token, long generation) implements ClientViewMessage {
+        public TravelCancel {
+            travelIdentity(token, generation);
+        }
+
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.TRAVEL_CANCEL;
+        }
+    }
+
+    private static void travelVector(GeometryVector vector) {
+        Objects.requireNonNull(vector, "vector");
+        if (!Double.isFinite(vector.x()) || !Double.isFinite(vector.y()) || !Double.isFinite(vector.z())) {
+            throw new IllegalArgumentException("Travel vector");
+        }
+    }
+
+    private static void travelIdentity(UUID token, long generation) {
+        Objects.requireNonNull(token, "token");
+        if (generation <= 0) {
+            throw new IllegalArgumentException("Travel generation");
+        }
+    }
 
     record Offer(int wire, int mcDataVersion, long serverCaps, int maxFrameBytes, long zeroCopyNonce) implements ClientViewMessage {
         @Override
@@ -410,6 +684,17 @@ public sealed interface ClientViewMessage {
         @Override
         public ClientViewMessageType type() {
             return ClientViewMessageType.ENTITY_EVENT;
+        }
+    }
+
+    record EntitySelf(UUID projectedId) implements ClientViewMessage {
+        public EntitySelf {
+            Objects.requireNonNull(projectedId, "projectedId");
+        }
+
+        @Override
+        public ClientViewMessageType type() {
+            return ClientViewMessageType.ENTITY_SELF;
         }
     }
 

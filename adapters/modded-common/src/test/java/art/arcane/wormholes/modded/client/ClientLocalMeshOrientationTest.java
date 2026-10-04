@@ -1,0 +1,60 @@
+package art.arcane.wormholes.modded.client;
+
+import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.modded.client.render.PortalEnvironmentTest;
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.wormholes.render.DirectionMapping;
+import art.arcane.wormholes.util.Direction;
+import net.minecraft.SharedConstants;
+import net.minecraft.server.Bootstrap;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.HugeMushroomBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import static org.junit.Assert.assertSame;
+
+public class ClientLocalMeshOrientationTest {
+    @BeforeClass
+    public static void bootstrap() {
+        SharedConstants.tryDetectVersion();
+        Bootstrap.bootStrap();
+    }
+
+    @Test
+    public void nativeMirrorSectionsRetainSourceFacesForSingleVertexReflection() throws Exception {
+        BlockState original = Blocks.RED_MUSHROOM_BLOCK.defaultBlockState()
+            .setValue(HugeMushroomBlock.UP, true)
+            .setValue(HugeMushroomBlock.DOWN, false)
+            .setValue(HugeMushroomBlock.NORTH, true)
+            .setValue(HugeMushroomBlock.SOUTH, false)
+            .setValue(HugeMushroomBlock.EAST, true)
+            .setValue(HugeMushroomBlock.WEST, false);
+        for (Direction normal : Direction.values()) {
+            for (int quarterTurns = 0; quarterTurns < 4; quarterTurns++) {
+                DirectionMapping mapping = DirectionMapping.mirror(PortalFrame.canonical(normal), quarterTurns, new double[3]);
+                Direction x = mapping.map(Direction.E);
+                Direction y = mapping.map(Direction.U);
+                Direction z = mapping.map(Direction.S);
+                GeometryVector translation = new GeometryVector(
+                    x.x() < 0 || y.x() < 0 || z.x() < 0 ? 16 : 0,
+                    x.y() < 0 || y.y() < 0 || z.y() < 0 ? 16 : 0,
+                    x.z() < 0 || y.z() < 0 || z.z() < 0 ? 16 : 0);
+                ClientLocalMeshSourcesTest.Fixture fixture = new ClientLocalMeshSourcesTest.Fixture();
+                fixture.state.set(original);
+                ClientViewEnvironment.Transform transform = new ClientViewEnvironment.Transform(x, y, z, translation);
+                fixture.session.handle(new ClientViewMessage.Environment(1, PortalEnvironmentTest.environment(transform)), fixture.sink);
+                fixture.awaitSection();
+                ClientMeshSections.Section section = fixture.session.meshes().view(1).section(0L);
+                for (int cell = 0; cell < 4096; cell++) {
+                    assertSame("normal=" + normal + " turns=" + quarterTurns + " cell=" + cell, original, section.state(cell));
+                }
+                fixture.sources.clear();
+                fixture.session.clearPortals();
+            }
+        }
+    }
+}

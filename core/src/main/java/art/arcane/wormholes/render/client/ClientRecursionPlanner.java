@@ -34,36 +34,6 @@ public final class ClientRecursionPlanner {
         return depthCap;
     }
 
-    public static boolean mirrorReaches(ClientPortalGeometry mirror, AxisAlignedBB area) {
-        if (!mirror.mirror() || area == null) {
-            return false;
-        }
-        AxisAlignedBB aperture = mirror.apertureArea();
-        PortalFrame frame = mirror.frame();
-        Direction normal = frame.getNormal();
-        int normalAxis = ClientPortalGeometry.axisOf(normal);
-        double facing = normalAxis == 0 ? normal.x() : normalAxis == 1 ? normal.y() : normal.z();
-        double origin = mirror.planeCoordinate();
-        double clearance = ProjectorFrameTransform.portalPlaneClearance(aperture, frame);
-        double depth = mirror.depthBlocks() + clearance;
-        double signedA = (low(area, normalAxis) - origin) * facing;
-        double signedB = (high(area, normalAxis) - origin) * facing;
-        double near = mirror.frontSide() ? clearance : -depth;
-        double far = mirror.frontSide() ? depth : -clearance;
-        if (Math.max(signedA, signedB) < near || Math.min(signedA, signedB) > far) {
-            return false;
-        }
-        for (int axis = 0; axis < 3; axis++) {
-            if (axis == normalAxis) {
-                continue;
-            }
-            if (high(area, axis) < low(aperture, axis) - mirror.depthBlocks() || low(area, axis) > high(aperture, axis) + mirror.depthBlocks()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     public static boolean destinationReaches(ClientPortalGeometry parent, ClientViewEnvironment.Transform transform,
                                              AxisAlignedBB destinationArea) {
         if (destinationArea == null || transform == null) {
@@ -123,11 +93,12 @@ public final class ClientRecursionPlanner {
                 continue;
             }
             out.add(new NestedCone(child, depth, chain, window));
-            if (depth < limit && !child.nested().isEmpty()) {
+            int childLimit = Math.min(limit, depth + child.recursionDepth());
+            if (depth < childLimit && !child.nested().isEmpty()) {
                 List<Window> childChain = new ArrayList<Window>(chain.size() + 1);
                 childChain.addAll(chain);
                 childChain.add(window);
-                descend(child, space, List.copyOf(childChain), depth + 1, limit, eyeX, eyeY, eyeZ, out);
+                descend(child, space, List.copyOf(childChain), depth + 1, childLimit, eyeX, eyeY, eyeZ, out);
             }
         }
     }

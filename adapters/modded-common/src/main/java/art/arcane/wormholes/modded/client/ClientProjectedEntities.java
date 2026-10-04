@@ -74,6 +74,8 @@ public final class ClientProjectedEntities {
                 if (!keep.contains(tracked.visual.id())) {
                     despawn(tracked);
                     iterator.remove();
+                } else {
+                    tracked.present = true;
                 }
             }
         }
@@ -228,6 +230,12 @@ public final class ClientProjectedEntities {
         return tracked == null ? null : tracked.visual;
     }
 
+    public boolean presentPlayer(int portalKey, UUID id) {
+        PortalEntities state = portals.get(portalKey);
+        Tracked tracked = state == null ? null : state.tracked.get(id);
+        return tracked != null && tracked.present && tracked.visual.isPlayer();
+    }
+
     public long framesApplied() {
         return framesApplied;
     }
@@ -317,6 +325,7 @@ public final class ClientProjectedEntities {
         private byte[] syncedMetadata;
         private byte[] syncedEquipment;
         private int entityId;
+        private boolean present;
 
         private Tracked(int portalKey, EntityVisual visual) {
             this.projectionId = UUID.nameUUIDFromBytes(("wormholes:projection:" + portalKey + ":" + visual.id())

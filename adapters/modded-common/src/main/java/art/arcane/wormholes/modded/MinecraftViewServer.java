@@ -540,7 +540,7 @@ public final class MinecraftViewServer implements AutoCloseable {
         if (session.meshDistance > 0 && ticks >= state.nextEnvironmentTick) {
             ViewEntityState.Center center = session.entities.center();
             ClientViewEnvironment environment = MinecraftPortalEnvironment.capture(session.level,
-                new GeometryVector(center.x(), center.y(), center.z()), ClientViewEnvironment.Transform.IDENTITY);
+                new GeometryVector(center.x(), center.y(), center.z()), ClientViewEnvironment.Transform.IDENTITY, session.level.isFlat());
             if (network.send(peer, new WireMessage.ViewEnvironment(session.portalId, environment))) {
                 state.nextEnvironmentTick = ticks + 20;
             }

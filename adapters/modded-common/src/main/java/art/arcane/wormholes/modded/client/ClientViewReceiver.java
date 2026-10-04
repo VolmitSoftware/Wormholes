@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded.client;
 
 import art.arcane.wormholes.network.client.ClientViewCodec;
+import art.arcane.wormholes.network.client.ClientViewCapability;
 import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.network.client.ClientViewProtocolException;
 import org.slf4j.Logger;
@@ -17,6 +18,7 @@ public final class ClientViewReceiver {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
 
     private final ClientViewSession session;
+    private Consumer<ClientViewMessage> travel = ignored -> { };
     private final ConcurrentLinkedQueue<Queued> queue;
     private final AtomicInteger queued;
     private final AtomicLong decodeFailures;
@@ -32,6 +34,10 @@ public final class ClientViewReceiver {
         this.replyFailures = new AtomicLong();
         this.received = new AtomicLong();
         this.receivedBytes = new AtomicLong();
+    }
+
+    public void travel(Consumer<ClientViewMessage> receiver) {
+        travel = Objects.requireNonNull(receiver);
     }
 
     public void receive(byte[] payload, Consumer<byte[]> reply) {
@@ -55,6 +61,12 @@ public final class ClientViewReceiver {
             }
             case ClientViewMessage.Accept accept -> session.accept(accept);
             case ClientViewMessage.Decline decline -> session.decline(decline);
+            case ClientViewMessage.TravelBegin ignored -> prepared(frame, payload.length);
+            case ClientViewMessage.TravelChunk ignored -> prepared(frame, payload.length);
+            case ClientViewMessage.TravelEnd ignored -> prepared(frame, payload.length);
+            case ClientViewMessage.TravelCommit ignored -> prepared(frame, payload.length);
+            case ClientViewMessage.TravelCancel ignored -> prepared(frame, payload.length);
+            case ClientViewMessage.TravelReuse ignored -> prepared(frame, payload.length);
             default -> enqueue(new Queued(frame, payload.length, System.nanoTime()));
         }
     }
@@ -96,6 +108,13 @@ public final class ClientViewReceiver {
 
     public long replyFailures() {
         return replyFailures.get();
+    }
+
+    private void prepared(ClientViewCodec.S2CFrame frame, int bytes) {
+        if (session.active() && session.has(ClientViewCapability.PREPARED_TRAVEL)) {
+            travel.accept(frame.message());
+            enqueue(new Queued(frame, bytes, System.nanoTime()));
+        }
     }
 
     private void enqueue(Queued next) {

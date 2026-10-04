@@ -456,7 +456,7 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
                 cancel(active, TraversalRefundReason.TRAVERSAL_ABORTED, true);
                 return;
             }
-            MinecraftTraversalCues.threshold(runtime, active.portal, active.crossing.point());
+            MinecraftTraversalCues.threshold(runtime, active.portal, active.crossing.point(), active.entity);
             Entity arrived = active.entity.teleport(new TeleportTransition(level, target, vector(velocity), look.yaw(), look.pitch(),
                 TeleportTransition.PLACE_PORTAL_TICKET));
             if (arrived == null) {
@@ -467,12 +467,12 @@ public final class MinecraftRtpRuntime implements AutoCloseable {
             traversals.remove(active.entity.getUUID(), active);
             active.payments.forEach(MinecraftTravelCosts.Admission::commit);
             for (ChunkPreSendTicket<ServerLevel, ServerPlayer> ticket : active.preSend) {
-                MinecraftTransit.arrived(runtime, active.portal, ticket.player(), active.level != level, ticket);
+                MinecraftTransit.arrived(runtime, active.portal, ticket.player(), active.level != level, ticket, false);
             }
             runtime.rules().arrived(arrived, active.portal);
             observe(service.completeTraversal(active.preparation, true), "complete", active.portal.getId());
             for (Entity member : arrived.getSelfAndPassengers().toList()) {
-                MinecraftTraversalCues.arrival(runtime, active.portal, member);
+                MinecraftTraversalCues.arrival(runtime, active.portal, member, false);
                 runtime.portals().recordArrival(member, active.portal);
                 if (member instanceof ServerPlayer player) {
                     runtime.atlas().departed(player, active.portal);

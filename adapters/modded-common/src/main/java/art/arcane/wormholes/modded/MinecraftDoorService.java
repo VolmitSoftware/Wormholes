@@ -11,7 +11,9 @@ import art.arcane.wormholes.door.DoorProjectionState;
 import art.arcane.wormholes.localization.WormholesMessages;
 import art.arcane.wormholes.door.view.DoorApertureFrames;
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.wormholes.portal.PortalCrossing;
 import art.arcane.wormholes.door.PocketBinding;
 import art.arcane.wormholes.door.PocketDoorDestination;
 import art.arcane.wormholes.door.PocketInstances;
@@ -97,6 +99,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -134,8 +137,10 @@ public final class MinecraftDoorService implements AutoCloseable {
     private final Map<UUID, ActiveDoor> doors = new LinkedHashMap<>();
     private final Set<UUID> pendingItems = new HashSet<>();
     private final Map<UUID, Flight> flights = new HashMap<>();
+    private final Map<UUID, Set<Entity>> preparedArrivalBodies = new HashMap<>();
     private final Map<UUID, Long> cooldowns = new HashMap<>();
     private final Map<UUID, Position> positions = new HashMap<>();
+    private final Map<UUID, DeferredCrossing> deferredCrossings = new HashMap<>();
     private final DoorAutoCloseBook autoClose = new DoorAutoCloseBook();
     private DoorStateService state;
     private MinecraftPocketRooms pockets;
@@ -206,6 +211,44 @@ public final class MinecraftDoorService implements AutoCloseable {
 
     boolean travelling(UUID entityId) {
         return flights.containsKey(entityId) || pocketTrips.containsKey(entityId) || rules.rescuing(entityId);
+    }
+
+    void recordTeleport(Entity entity) {
+        deferredCrossings.remove(entity.getUUID());
+        if (entity instanceof ServerPlayer player) {
+            positions.put(entity.getUUID(), new Position(player.level(), player.position()));
+        }
+    }
+
+    void cancelDeparture(Entity entity) {
+        Flight flight = flights.remove(entity.getUUID());
+        if (flight != null) {
+            flight.lease().close();
+        }
+        PocketTrip trip = pocketTrips.get(entity.getUUID());
+        if (trip != null) {
+            finishPocket(entity, trip, false);
+        } else if (flight != null) {
+            DoorTransitGate.complete(flight.source().cycle, flight.transit(), false, flight.source().cycle.portalActive());
+        }
+    }
+
+    public boolean canPrepare(ServerPlayer player, UUID sourceId, UUID destinationId) {
+        runtime.requireServerThread();
+        if (!enabled() || !player.isAlive() || player.hasDisconnected()) {
+            return false;
+        }
+        ActiveDoor source = doors.get(sourceId);
+        Snapshot snapshot = source == null ? null : capture(source.endpoint);
+        if (snapshot == null || !snapshot.active() || snapshot.level() != player.level() || !canEnter(player, source.endpoint)) {
+            return false;
+        }
+        if (source.endpoint.identity().kind() == DoorKind.PAIR) {
+            PlacedDoorEndpoint mate = state.findMate(source.endpoint.identity()).orElse(null);
+            return mate != null && mate.identity().itemId().equals(destinationId) && canAccess(player, mate);
+        }
+        return projectionDestination(new DoorView(snapshot.endpoint(), snapshot.level(), snapshot.plane(), snapshot.active()), player.getUUID())
+            .filter(destination -> destination.id().equals(destinationId)).isPresent();
     }
 
     public boolean canCraft(ServerPlayer player) {
@@ -512,6 +555,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         pocketOperations.tick();
         cooldowns.entrySet().removeIf(entry -> entry.getValue() <= now);
         Set<UUID> visited = new HashSet<>();
+        retryCrossings(visited);
         for (ActiveDoor door : List.copyOf(doors.values())) {
             if (pendingItems.contains(door.endpoint.identity().itemId())) {
                 continue;
@@ -530,7 +574,7 @@ public final class MinecraftDoorService implements AutoCloseable {
             AABB box = new AABB(plane.center().x() - 4.5D, plane.center().y() - 3.0D, plane.center().z() - 4.5D,
                 plane.center().x() + 4.5D, plane.center().y() + 3.0D, plane.center().z() + 4.5D);
             for (Entity entity : snapshot.level().getEntities((Entity) null, box, Entity::isAlive)) {
-                if (visited.contains(entity.getUUID()) || travelling(entity.getUUID()) || cooldowns.containsKey(entity.getUUID())
+                if (visited.contains(entity.getUUID()) || travelling(entity.getUUID()) || runtime.portals().travelling(entity.getUUID()) || cooldowns.containsKey(entity.getUUID())
                     || !canEnter(entity, door.endpoint)) {
                     continue;
                 }
@@ -547,12 +591,62 @@ public final class MinecraftDoorService implements AutoCloseable {
                 DoorTransit transit = new DoorTransit(plane, crossing.get(), entity.getYRot(), entity.getXRot(),
                     entity.getBbWidth() * 0.5D, entity.getBbHeight(), travelerClass,
                     travelerClass == DoorTravelerClass.OBJECT ? vector(entity.getDeltaMovement()) : null);
+                if (entity instanceof ServerPlayer player && runtime.clientViews().deferTravel(player.getUUID(), door.endpoint.identity().itemId())) {
+                    deferredCrossings.putIfAbsent(player.getUUID(), new DeferredCrossing(player, door, snapshot.level(), transit));
+                    continue;
+                }
                 depart(entity, door, snapshot, transit);
             }
         }
         positions.clear();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             positions.put(player.getUUID(), new Position(player.level(), player.position()));
+        }
+    }
+
+    public boolean crossPrepared(ServerPlayer player, UUID source, PortalCrossing crossing) {
+        runtime.requireServerThread();
+        if (!enabled() || !player.isAlive() || player.isPassenger() || player.isVehicle()
+            || travelling(player.getUUID()) || runtime.portals().travelling(player.getUUID()) || cooldowns.containsKey(player.getUUID())) {
+            return false;
+        }
+        ActiveDoor door = doors.get(source);
+        Snapshot snapshot = door == null ? null : capture(door.endpoint);
+        if (snapshot == null || !snapshot.active() || snapshot.level() != player.level() || !canEnter(player, door.endpoint)) {
+            return false;
+        }
+        Optional<DoorwayCrossing> entry = DoorTransitGate.prepared(snapshot.plane(), crossing, player.getBbWidth() * 0.5D, player.getBbHeight());
+        if (entry.isEmpty()) {
+            return false;
+        }
+        deferredCrossings.remove(player.getUUID());
+        door.cycle.observe(snapshot.active());
+        DoorTransit transit = new DoorTransit(snapshot.plane(), entry.get(), player.getYRot(), player.getXRot(),
+            player.getBbWidth() * 0.5D, player.getBbHeight(), DoorTravelerClass.LIVING,
+            new DoorVec3(crossing.velocity().x(), crossing.velocity().y(), crossing.velocity().z()), crossing);
+        depart(player, door, snapshot, transit);
+        return travelling(player.getUUID());
+    }
+
+    private void retryCrossings(Set<UUID> visited) {
+        Iterator<Map.Entry<UUID, DeferredCrossing>> iterator = deferredCrossings.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<UUID, DeferredCrossing> entry = iterator.next();
+            DeferredCrossing pending = entry.getValue();
+            ServerPlayer player = pending.player();
+            visited.add(entry.getKey());
+            Snapshot snapshot = capture(pending.source().endpoint);
+            if (!player.isAlive() || player.level() != pending.level() || doors.get(pending.source().endpoint.identity().itemId()) != pending.source()
+                || snapshot == null || !snapshot.active() || !snapshot.plane().equals(pending.transit().sourcePlane())
+                || travelling(player.getUUID()) || runtime.portals().travelling(player.getUUID()) || cooldowns.containsKey(player.getUUID()) || !canEnter(player, pending.source().endpoint)) {
+                iterator.remove();
+                continue;
+            }
+            if (runtime.clientViews().deferTravel(player.getUUID(), pending.source().endpoint.identity().itemId())) {
+                continue;
+            }
+            iterator.remove();
+            depart(player, pending.source(), snapshot, pending.transit());
         }
     }
 
@@ -592,6 +686,7 @@ public final class MinecraftDoorService implements AutoCloseable {
             }
             if (Boolean.TRUE.equals(removed) && doors.remove(endpoint.identity().itemId(), door)) {
                 autoClose.forget(endpoint.identity().itemId());
+                preparedArrivalBodies.remove(endpoint.identity().itemId());
             }
         }, server);
     }
@@ -616,7 +711,12 @@ public final class MinecraftDoorService implements AutoCloseable {
             flight.lease.close();
         }
         pocketTrips.remove(player.getUUID());
+        for (Set<Entity> travelers : preparedArrivalBodies.values()) {
+            travelers.removeIf(traveler -> traveler.getUUID().equals(player.getUUID()));
+        }
+        preparedArrivalBodies.values().removeIf(Set::isEmpty);
         positions.remove(player.getUUID());
+        deferredCrossings.remove(player.getUUID());
         cooldowns.remove(player.getUUID());
     }
 
@@ -633,6 +733,7 @@ public final class MinecraftDoorService implements AutoCloseable {
             flight.lease.close();
         }
         flights.clear();
+        deferredCrossings.clear();
         pocketTrips.clear();
         pocketPreviews.clear();
         pocketPreviewRetries.clear();
@@ -667,6 +768,7 @@ public final class MinecraftDoorService implements AutoCloseable {
         cooldowns.clear();
         pendingItems.clear();
         autoClose.clear();
+        preparedArrivalBodies.clear();
         ExecutorService pendingStorage = storage;
         storage = null;
         try {
@@ -716,12 +818,15 @@ public final class MinecraftDoorService implements AutoCloseable {
             LOGGER.error("Could not retain dimensional-door destination {}", destination.identity().itemId(), exception);
             return;
         }
-        Flight flight = new Flight(lease, entity.level(), entity.position(), System.currentTimeMillis() + 30_000L);
+        Flight flight = new Flight(lease, entity.level(), entity.position(), System.currentTimeMillis() + 30_000L, source, transit);
         flights.put(entity.getUUID(), flight);
+        ClientViewMessage.TravelBegin prepared = preparedCrossing(entity);
         long startedGeneration = generation;
         lease.ready().whenCompleteAsync((ready, error) -> {
             if (closed || generation != startedGeneration) {
-                lease.close();
+                if (flights.remove(entity.getUUID(), flight)) {
+                    lease.close();
+                }
                 return;
             }
             boolean success = false;
@@ -735,6 +840,7 @@ public final class MinecraftDoorService implements AutoCloseable {
                     || !current.plane().equals(transit.sourcePlane()) || entity.level() != flight.level
                     || flights.get(entity.getUUID()) != flight || entity.position().distanceToSqr(flight.point) > 1.0D
                     || System.currentTimeMillis() >= flight.expiresAt || !canEnter(entity, source.endpoint) || !canAccess(entity, destination)
+                    || prepared != null && !runtime.clientViews().crossing(entity.getUUID(), prepared)
                     || state.findEndpointByItem(source.endpoint.identity().itemId()).filter(source.endpoint::equals).isEmpty()
                     || state.findEndpointByItem(destination.identity().itemId()).filter(destination::equals).isEmpty()) {
                     return;
@@ -746,10 +852,10 @@ public final class MinecraftDoorService implements AutoCloseable {
             } catch (RuntimeException exception) {
                 LOGGER.error("Dimensional-door traversal failed for {}", entity.getUUID(), exception);
             } finally {
-                Snapshot current = capture(source.endpoint);
-                DoorTransitGate.complete(source.cycle, transit, success, current != null && current.active());
-                flights.remove(entity.getUUID(), flight);
-                lease.close();
+                boolean owned = finishFlight(entity, flight, success);
+                if (owned && !success && entity instanceof ServerPlayer player && prepared != null) {
+                    runtime.clientViews().cancelPreparation(player, prepared);
+                }
             }
         }, server);
     }
@@ -774,7 +880,7 @@ public final class MinecraftDoorService implements AutoCloseable {
             return;
         }
         PocketTrip trip = new PocketTrip(source, transit, entity.level(), entity.position(), generation,
-            System.currentTimeMillis() + 30_000L, ticket);
+            System.currentTimeMillis() + 30_000L, ticket, preparedCrossing(entity));
         pocketTrips.put(entity.getUUID(), trip);
         MainConfig config = runtime.configuration().settings().getMain();
         PocketShell shell = new PocketShell(config.pocketRoomSize, config.pocketShellMaterial, config.pocketReturnDoorMaterial);
@@ -948,7 +1054,7 @@ public final class MinecraftDoorService implements AutoCloseable {
             return;
         }
         PocketTrip trip = new PocketTrip(source, transit, entity.level(), entity.position(), generation,
-            System.currentTimeMillis() + 30_000L, ticket);
+            System.currentTimeMillis() + 30_000L, ticket, preparedCrossing(entity));
         pocketTrips.put(entity.getUUID(), trip);
         ChunkLease lease;
         try {
@@ -958,7 +1064,7 @@ public final class MinecraftDoorService implements AutoCloseable {
             finishPocket(entity, trip, false);
             return;
         }
-        Flight flight = new Flight(lease, entity.level(), entity.position(), trip.deadline());
+        Flight flight = new Flight(lease, entity.level(), entity.position(), trip.deadline(), source, transit);
         flights.put(entity.getUUID(), flight);
         lease.ready().whenCompleteAsync((ready, error) -> {
             boolean success = false;
@@ -969,7 +1075,8 @@ public final class MinecraftDoorService implements AutoCloseable {
                 if (Boolean.TRUE.equals(ready) && valid(entity, trip)) {
                     Optional<DoorVec3> point = DoorArrivals.findSafeNear(new DoorVec3(ticket.x(), ticket.y(), ticket.z()), 3,
                         candidate -> safe(entity, destination, candidate, true));
-                    success = point.isPresent() && transitTeleport(entity, source.endpoint, ticket.sourceEndpointId(), destination, point.get(), ticket.yaw(), ticket.pitch(), new DoorVec3(0, 0, 0));
+                    success = point.isPresent() && transitTeleport(entity, source.endpoint, ticket.sourceEndpointId(), destination, point.get(), ticket.yaw(), ticket.pitch(), trip.transit().carriesMomentum()
+                        ? DoorVelocityTransform.rotateYaw(trip.transit().velocity(), ticket.yaw() - trip.transit().yaw()) : new DoorVec3(0, 0, 0));
                     if (success) {
                         removeTicket(entity, ticket);
                     }
@@ -977,17 +1084,37 @@ public final class MinecraftDoorService implements AutoCloseable {
             } catch (RuntimeException exception) {
                 LOGGER.error("Pocket return failed for {}", entity.getUUID(), exception);
             } finally {
-                flights.remove(entity.getUUID(), flight);
-                lease.close();
+                if (flights.remove(entity.getUUID(), flight)) {
+                    lease.close();
+                }
                 finishPocket(entity, trip, success);
             }
         }, server);
     }
 
+    private boolean finishFlight(Entity entity, Flight flight, boolean success) {
+        if (!flights.remove(entity.getUUID(), flight)) {
+            return false;
+        }
+        try {
+            Snapshot current = capture(flight.source().endpoint);
+            DoorTransitGate.complete(flight.source().cycle, flight.transit(), success, current != null && current.active());
+            return true;
+        } finally {
+            flight.lease().close();
+        }
+    }
+
+    private ClientViewMessage.TravelBegin preparedCrossing(Entity entity) {
+        return entity instanceof ServerPlayer && runtime.clientViews().crossing(entity.getUUID())
+            ? runtime.clientViews().preparation(entity.getUUID()).orElse(null) : null;
+    }
+
     private boolean valid(Entity entity, PocketTrip trip) {
         if (!enabled() || generation != trip.generation() || pocketTrips.get(entity.getUUID()) != trip
             || !entity.isAlive() || entity.level() != trip.level() || entity.position().distanceToSqr(trip.point()) > 1.0D
-            || System.currentTimeMillis() >= trip.deadline() || !canEnter(entity, trip.source().endpoint)) {
+            || System.currentTimeMillis() >= trip.deadline() || !canEnter(entity, trip.source().endpoint)
+            || trip.prepared() != null && !runtime.clientViews().crossing(entity.getUUID(), trip.prepared())) {
             return false;
         }
         Snapshot current = capture(trip.source().endpoint);
@@ -996,7 +1123,7 @@ public final class MinecraftDoorService implements AutoCloseable {
     }
 
     private void finishPocket(Entity entity, PocketTrip trip, boolean success) {
-        if (closed || generation != trip.generation()) {
+        if (closed || generation != trip.generation() || pocketTrips.get(entity.getUUID()) != trip) {
             return;
         }
         Snapshot current = capture(trip.source().endpoint);
@@ -1005,6 +1132,9 @@ public final class MinecraftDoorService implements AutoCloseable {
         }
         DoorTransitGate.complete(trip.source().cycle, trip.transit(), success, current != null && current.active());
         pocketTrips.remove(entity.getUUID(), trip);
+        if (!success && entity instanceof ServerPlayer player && trip.prepared() != null) {
+            runtime.clientViews().cancelPreparation(player, trip.prepared());
+        }
     }
 
     void removeTicket(Entity actor, ReturnTicket expected) {
@@ -1028,9 +1158,11 @@ public final class MinecraftDoorService implements AutoCloseable {
     }
 
     private boolean teleport(Entity entity, Arrival arrival) {
+        ClientViewMessage.TravelBegin prepared = preparedCrossing(entity);
         ChunkPreSendTicket<ServerLevel, ServerPlayer> ticket = entity instanceof ServerPlayer player
             ? runtime.preSend().preSend(player, arrival.level(), (int) Math.floor(arrival.point().x()), (int) Math.floor(arrival.point().z())) : null;
         MinecraftTravelCosts.Admission admission = null;
+        ClientViewMessage.TravelCommit preparedCommit = null;
         Entity arrived = null;
         try {
             if (arrival.context().isPresent()) {
@@ -1039,13 +1171,30 @@ public final class MinecraftDoorService implements AutoCloseable {
                     return false;
                 }
             }
-            arrived = entity.teleport(new TeleportTransition(arrival.level(), vector(arrival.point()), vector(arrival.velocity()),
-                arrival.yaw(), arrival.pitch(), TeleportTransition.PLACE_PORTAL_TICKET));
+            if (entity instanceof ServerPlayer player && arrival.context().isPresent()) {
+                preparedCommit = runtime.clientViews().commitTravel(player, arrival.context().get().portalId(), arrival.level(),
+                    new ClientViewMessage.TravelPose(arrival.point().x(), arrival.point().y(), arrival.point().z(), arrival.yaw(), arrival.pitch()),
+                    new GeometryVector(arrival.velocity().x(), arrival.velocity().y(), arrival.velocity().z()));
+                if (prepared != null && preparedCommit == null) {
+                    runtime.clientViews().cancelPreparation(player, prepared);
+                    return false;
+                }
+            }
+            try (WormholesModRuntime.TeleportScope scope = runtime.beginTeleport(entity)) {
+                arrived = entity.teleport(new TeleportTransition(arrival.level(), vector(arrival.point()), vector(arrival.velocity()),
+                    arrival.yaw(), arrival.pitch(), TeleportTransition.PLACE_PORTAL_TICKET));
+            }
             if (arrived == null) {
+                if (entity instanceof ServerPlayer player) {
+                    runtime.clientViews().cancelTravel(player, preparedCommit);
+                }
                 return false;
             }
             if (admission != null) {
                 admission.commit();
+            }
+            if (entity instanceof ServerPlayer player) {
+                runtime.clientViews().completeTravel(player);
             }
         } finally {
             if (arrived == null) {
@@ -1062,9 +1211,9 @@ public final class MinecraftDoorService implements AutoCloseable {
         }
         arrived.resetFallDistance();
         cooldowns.put(arrived.getUUID(), System.currentTimeMillis() + TRANSIT_COOLDOWN_MILLIS);
-        positions.remove(arrived.getUUID());
+        runtime.travelArrived(arrived);
         try {
-            presentation.teleport(arrived, arrival.level());
+            presentation.teleport(arrived, arrival.level(), preparedCommit != null);
         } catch (RuntimeException failure) {
             LOGGER.error("Could not play dimensional-door arrival sound for {}", arrived.getUUID(), failure);
         }
@@ -1074,30 +1223,43 @@ public final class MinecraftDoorService implements AutoCloseable {
     private boolean arrive(Entity entity, ActiveDoor source, DoorTransit transit, Snapshot destination) {
         DoorwayPlane plane = destination.plane();
         int side = DoorPlanePairing.arrivalSideSign(transit.sourcePlane(), plane, transit.direction());
-        DoorVec3 nominal = DoorArrivals.arrivalPoint(plane, transit, side);
-        Optional<DoorVec3> safe = DoorArrivals.findSafeVerticalDoorStanding(nominal,
-            DoorPlanePairing.arrivalYOffsets(plane, side), point -> safe(entity, destination.level(), point,
-                transit.travelerClass() == DoorTravelerClass.LIVING && !plane.horizontal()));
-        if (safe.isEmpty()) {
-            return false;
-        }
+        DoorVec3 nominal = DoorArrivals.destinationPoint(plane, transit, side);
+        boolean standing = transit.travelerClass() == DoorTravelerClass.LIVING && !plane.horizontal();
         DoorAutoCloseBook.Arrival open = autoClose.decideArrival(destination.endpoint().identity().itemId(), destination.active());
-        if (open == DoorAutoCloseBook.Arrival.OPEN) {
-            setOpen(destination, destination.endpoint().openState() == DoorOpenState.OPEN);
-        }
-        DoorVec3 point = safe.get();
-        DoorVec3 velocity = transit.carriesMomentum() ? DoorVelocityTransform.map(transit.sourcePlane(), plane, transit.velocity()) : new DoorVec3(0, 0, 0);
-        DoorArrivals.Facing facing = DoorArrivals.arrivalFacing(plane, transit, side);
+        boolean changedOpen = false;
         boolean moved = false;
         try {
+            if (transit.preparedCrossing() != null && open == DoorAutoCloseBook.Arrival.OPEN) {
+                setOpen(destination, destination.endpoint().openState() == DoorOpenState.OPEN);
+                changedOpen = true;
+            }
+            Optional<DoorVec3> safe = transit.preparedCrossing() == null
+                ? DoorArrivals.findSafeVerticalDoorStanding(nominal, DoorPlanePairing.arrivalYOffsets(plane, side),
+                    point -> safe(entity, destination.level(), point, standing))
+                : safe(entity, destination.level(), nominal, standing) ? Optional.of(nominal) : Optional.empty();
+            if (safe.isEmpty()) {
+                return false;
+            }
+            if (!changedOpen && open == DoorAutoCloseBook.Arrival.OPEN) {
+                setOpen(destination, destination.endpoint().openState() == DoorOpenState.OPEN);
+                changedOpen = true;
+            }
+            DoorVec3 point = safe.get();
+            DoorVec3 velocity = !transit.carriesMomentum() ? new DoorVec3(0, 0, 0)
+                : transit.preparedCrossing() != null ? DoorArrivals.destinationVelocity(plane, transit, side)
+                    : DoorVelocityTransform.map(transit.sourcePlane(), plane, transit.velocity());
+            DoorArrivals.Facing facing = DoorArrivals.destinationFacing(plane, transit, side);
             moved = transitTeleport(entity, source.endpoint, destination.endpoint().identity().itemId(), destination.level(), point,
                 facing.yaw(), facing.pitch(), velocity);
             if (!moved) {
                 return false;
             }
         } finally {
-            if (!moved && open == DoorAutoCloseBook.Arrival.OPEN) {
-                setOpen(destination, destination.open());
+            if (!moved && changedOpen) {
+                Snapshot current = capture(destination.endpoint());
+                if (current != null && current.plane().equals(destination.plane()) && current.powered() == destination.powered()) {
+                    setOpen(current, destination.open());
+                }
             }
         }
         if (transit.claimsOpenCycle()) {
@@ -1107,6 +1269,9 @@ public final class MinecraftDoorService implements AutoCloseable {
             }
         }
         if (open != DoorAutoCloseBook.Arrival.LEAVE) {
+            if (transit.preparedCrossing() != null) {
+                preparedArrivalBodies.computeIfAbsent(destination.endpoint().identity().itemId(), ignored -> new HashSet<>()).add(entity);
+            }
             armClose(destination.endpoint(), autoClose.arm(destination.endpoint().identity().itemId()), 0);
         }
         return true;
@@ -1121,13 +1286,32 @@ public final class MinecraftDoorService implements AutoCloseable {
             Snapshot current = capture(endpoint);
             DoorAutoCloseBook.Decision decision = autoClose.decide(endpoint.identity().itemId(), token,
                 current != null && current.active(), doors.containsKey(endpoint.identity().itemId())
-                    && doors.get(endpoint.identity().itemId()).cycle.phase() == DoorOpenCycle.Phase.IN_TRANSIT, deferrals);
+                    && doors.get(endpoint.identity().itemId()).cycle.phase() == DoorOpenCycle.Phase.IN_TRANSIT
+                        || preparedArrivalOccupied(endpoint, current), deferrals);
             if (decision == DoorAutoCloseBook.Decision.DEFER) {
                 armClose(endpoint, token, deferrals + 1);
             } else if (decision == DoorAutoCloseBook.Decision.CLOSE && current != null && !current.powered()) {
+                preparedArrivalBodies.remove(endpoint.identity().itemId());
                 setOpen(current, endpoint.openState() != DoorOpenState.OPEN);
+            } else if (decision != DoorAutoCloseBook.Decision.SUPERSEDED) {
+                preparedArrivalBodies.remove(endpoint.identity().itemId());
             }
         }, DoorAutoCloseBook.ARRIVAL_AUTO_CLOSE_TICKS);
+    }
+
+    private boolean preparedArrivalOccupied(PlacedDoorEndpoint endpoint, Snapshot current) {
+        Set<Entity> travelers = preparedArrivalBodies.get(endpoint.identity().itemId());
+        if (travelers == null || current == null) {
+            return false;
+        }
+        AABB doorway = new AABB(current.block()).expandTowards(0, current.plane().horizontal() ? 0 : 1, 0);
+        travelers.removeIf(traveler -> !traveler.isAlive() || traveler instanceof ServerPlayer player && player.hasDisconnected()
+            || traveler.level() != current.level() || !traveler.getBoundingBox().intersects(doorway));
+        if (travelers.isEmpty()) {
+            preparedArrivalBodies.remove(endpoint.identity().itemId());
+            return false;
+        }
+        return true;
     }
 
     private boolean canEnter(Entity entity, PlacedDoorEndpoint endpoint) {
@@ -1722,8 +1906,9 @@ public final class MinecraftDoorService implements AutoCloseable {
     }
 
     private record PocketTrip(ActiveDoor source, DoorTransit transit, Level level, Vec3 point, long generation,
-                              long deadline, ReturnTicket ticket) { }
+                              long deadline, ReturnTicket ticket, ClientViewMessage.TravelBegin prepared) { }
     private record Position(ServerLevel level, Vec3 point) { }
+    private record DeferredCrossing(ServerPlayer player, ActiveDoor source, ServerLevel level, DoorTransit transit) { }
     private static final class EndpointProjection {
         private final ChunkLease lease;
         private final PlacedDoorEndpoint endpoint;
@@ -1736,5 +1921,5 @@ public final class MinecraftDoorService implements AutoCloseable {
         }
     }
 
-    private record Flight(ChunkLease lease, Level level, Vec3 point, long expiresAt) { }
+    private record Flight(ChunkLease lease, Level level, Vec3 point, long expiresAt, ActiveDoor source, DoorTransit transit) { }
 }

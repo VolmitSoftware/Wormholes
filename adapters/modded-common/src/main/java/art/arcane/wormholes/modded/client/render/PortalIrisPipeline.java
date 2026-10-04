@@ -188,7 +188,7 @@ public final class PortalIrisPipeline implements AutoCloseable {
     }
 
     void resize() {
-        if (lastView == null) {
+        if (lastView == null || !ready()) {
             return;
         }
         boolean previousInitialization = initialized;

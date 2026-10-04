@@ -10,6 +10,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.network.chat.Component;
@@ -21,13 +22,22 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.world.phys.Vec3;
 import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.concurrent.CancellationException;
 
 public final class WormholesModRuntime {
     private static final Logger LOGGER = LoggerFactory.getLogger("Wormholes");
+    private static final Map<MinecraftServer, WormholesModRuntime> ACTIVE = new ConcurrentHashMap<>();
 
     private final PriorityQueue<PendingTask> pending = new PriorityQueue<>(
         Comparator.comparingLong(PendingTask::dueTick).thenComparingLong(PendingTask::sequence));
@@ -60,6 +70,7 @@ public final class WormholesModRuntime {
     private long tick;
     private long sequence;
     private boolean running;
+    private Set<UUID> committingTeleports = Set.of();
 
     public synchronized void start(MinecraftServer server) {
         if (running) {
@@ -101,6 +112,7 @@ public final class WormholesModRuntime {
             recipeBook.open(server);
             running = true;
             api.start();
+            ACTIVE.put(server, this);
         } catch (RuntimeException error) {
             try {
                 releaseServices();
@@ -111,6 +123,42 @@ public final class WormholesModRuntime {
             throw error;
         }
         LOGGER.info("Wormholes runtime started");
+    }
+
+    public static WormholesModRuntime forServer(MinecraftServer server) {
+        return ACTIVE.get(server);
+    }
+
+    public TeleportScope beginTeleport(Entity entity) {
+        requireServerThread();
+        Set<UUID> previous = committingTeleports;
+        Set<UUID> current = new HashSet<>(previous);
+        List<Entity> participants = new ArrayList<>();
+        participants.add(entity);
+        for (int index = 0; index < participants.size(); index++) {
+            Entity participant = participants.get(index);
+            current.add(participant.getUUID());
+            participants.addAll(participant.getPassengers());
+        }
+        committingTeleports = current;
+        return new TeleportScope(this, previous);
+    }
+
+    public void authoritativeTeleport(ServerPlayer player, ServerLevel previousLevel, Vec3 previousPosition) {
+        requireServerThread();
+        if (committingTeleports.contains(player.getUUID())
+            || player.level() == previousLevel && player.position().equals(previousPosition)) {
+            return;
+        }
+        clientViews().cancelTravel(player, null);
+        travelArrived(player);
+        doors().cancelDeparture(player);
+    }
+
+    public void travelArrived(Entity entity) {
+        requireServerThread();
+        portals().recordTeleport(entity);
+        doors().recordTeleport(entity);
     }
 
     public void tick() {
@@ -430,6 +478,10 @@ public final class WormholesModRuntime {
     }
 
     private void clearRuntime() {
+        if (server != null) {
+            ACTIVE.remove(server, this);
+        }
+        committingTeleports = Set.of();
         running = false;
         pending.clear();
         portals = null;
@@ -490,4 +542,24 @@ public final class WormholesModRuntime {
 
     private record PendingTask(long dueTick, long sequence, Runnable command) {
     }
+    public static final class TeleportScope implements AutoCloseable {
+        private final WormholesModRuntime runtime;
+        private final Set<UUID> previous;
+        private boolean closed;
+
+        private TeleportScope(WormholesModRuntime runtime, Set<UUID> previous) {
+            this.runtime = runtime;
+            this.previous = previous;
+        }
+
+        @Override
+        public void close() {
+            runtime.requireServerThread();
+            if (!closed) {
+                closed = true;
+                runtime.committingTeleports = previous;
+            }
+        }
+    }
+
 }

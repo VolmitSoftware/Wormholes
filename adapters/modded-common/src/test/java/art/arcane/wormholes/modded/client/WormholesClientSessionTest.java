@@ -12,6 +12,7 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.mockito.MockedStatic;
 
 import java.io.IOException;
 import java.util.List;
@@ -20,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 public class WormholesClientSessionTest {
@@ -42,27 +44,30 @@ public class WormholesClientSessionTest {
         Minecraft minecraft = mock(Minecraft.class);
         ClientViewMessage.Fx burst = new ClientViewMessage.Fx(ClientViewProtocol.WORLD_FX_KEY,
             List.of(ClientViewEmitters.burst("minecraft:reverse_portal", 1.5D, 65.0D, 10.5D, 12, 0.4D, 0.6D, 0.4D)));
-        try {
-            when(minecraft.isPaused()).thenReturn(true);
-            when(minecraft.isWindowActive()).thenReturn(true);
-            client.receive(ClientViewCodec.encodeS2C(burst, 1, ClientViewProtocol.FLAG_LAST), null);
-            client.tick(minecraft);
-            assertEquals(0, harness.scene.particles.size());
-            when(minecraft.isPaused()).thenReturn(false);
-            when(minecraft.isWindowActive()).thenReturn(false);
-            client.receive(ClientViewCodec.encodeS2C(burst, 2, ClientViewProtocol.FLAG_LAST), null);
-            client.tick(minecraft);
-            assertEquals(0, harness.scene.particles.size());
-            client.receive(ClientViewCodec.encodeS2C(burst, 3, ClientViewProtocol.FLAG_LAST), null);
-            when(minecraft.isWindowActive()).thenReturn(true);
-            client.tick(minecraft);
-            assertEquals(0, harness.scene.particles.size());
-            client.receive(ClientViewCodec.encodeS2C(burst, 4, ClientViewProtocol.FLAG_LAST), null);
-            client.tick(minecraft);
-            assertEquals(List.of("burst minecraft:reverse_portal x12"), harness.scene.particles);
-        } finally {
-            client.disconnected();
-            ProjectionOverlay.deactivate(harness.tick.overlay());
+        try (MockedStatic<Minecraft> access = mockStatic(Minecraft.class)) {
+            access.when(Minecraft::getInstance).thenReturn(minecraft);
+            try {
+                when(minecraft.isPaused()).thenReturn(true);
+                when(minecraft.isWindowActive()).thenReturn(true);
+                client.receive(ClientViewCodec.encodeS2C(burst, 1, ClientViewProtocol.FLAG_LAST), null);
+                client.tick(minecraft);
+                assertEquals(0, harness.scene.particles.size());
+                when(minecraft.isPaused()).thenReturn(false);
+                when(minecraft.isWindowActive()).thenReturn(false);
+                client.receive(ClientViewCodec.encodeS2C(burst, 2, ClientViewProtocol.FLAG_LAST), null);
+                client.tick(minecraft);
+                assertEquals(0, harness.scene.particles.size());
+                client.receive(ClientViewCodec.encodeS2C(burst, 3, ClientViewProtocol.FLAG_LAST), null);
+                when(minecraft.isWindowActive()).thenReturn(true);
+                client.tick(minecraft);
+                assertEquals(0, harness.scene.particles.size());
+                client.receive(ClientViewCodec.encodeS2C(burst, 4, ClientViewProtocol.FLAG_LAST), null);
+                client.tick(minecraft);
+                assertEquals(List.of("burst minecraft:reverse_portal x12"), harness.scene.particles);
+            } finally {
+                client.disconnected();
+                ProjectionOverlay.deactivate(harness.tick.overlay());
+            }
         }
     }
 
@@ -75,10 +80,14 @@ public class WormholesClientSessionTest {
         previous.accept(new ClientViewMessage.Accept(1, ClientViewCapability.ALL, 20, ClientViewProtocol.DEFAULT_MAX_FRAME_BYTES, 7L, 8));
         assertEquals(ClientViewSession.State.CLIENT_VIEW, previous.state());
 
-        WormholesClient.reconfiguring();
+        Minecraft minecraft = mock(Minecraft.class);
+        try (MockedStatic<Minecraft> access = mockStatic(Minecraft.class)) {
+            access.when(Minecraft::getInstance).thenReturn(minecraft);
+            WormholesClient.reconfiguring();
 
-        assertSame(client, WormholesClient.instance());
-        assertNotSame(previous, client.session());
-        assertEquals(ClientViewSession.State.INIT, client.session().state());
+            assertSame(client, WormholesClient.instance());
+            assertNotSame(previous, client.session());
+            assertEquals(ClientViewSession.State.INIT, client.session().state());
+        }
     }
 }

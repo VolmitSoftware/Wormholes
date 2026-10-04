@@ -1,6 +1,7 @@
 package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.network.PortalSettingsTarget;
+import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.AmbientParticleStyle;
 import art.arcane.wormholes.portal.ExactItemPayment;
 import art.arcane.wormholes.config.toml.RulesConfig;
@@ -78,7 +79,11 @@ public final class MinecraftPortal extends Portal implements PortalSettingsTarge
         PortalGeometry geometry = new PortalGeometry();
         Map<String, Object> structure = PortalStateCodec.object(values, "structure");
         PortalStateCodec.readGeometry(structure, geometry);
-        return new MinecraftPortal(new Definition(PortalStateCodec.read(values), geometry,
+        State state = PortalStateCodec.read(values);
+        if (!geometry.getBlockPositions().isEmpty()) {
+            state = new State(state.id(), geometry.getApertureCenter(), state.name(), state.frame(), state.explicitFrame());
+        }
+        return new MinecraftPortal(new Definition(state, geometry,
             PortalStateCodec.string(structure, "worldKey"), values));
     }
 

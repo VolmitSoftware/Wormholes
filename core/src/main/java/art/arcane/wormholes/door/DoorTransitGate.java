@@ -2,6 +2,10 @@ package art.arcane.wormholes.door;
 
 import java.util.Objects;
 import java.util.Optional;
+import art.arcane.wormholes.door.view.DoorApertureFrames;
+import art.arcane.wormholes.portal.PortalCrossing;
+import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.wormholes.util.Direction;
 
 public final class DoorTransitGate
 {
@@ -31,6 +35,35 @@ public final class DoorTransitGate
 			return Optional.empty();
 		}
 		return plane.intersect(from, to, travelerHalfWidth, travelerHeight);
+	}
+
+	public static Optional<DoorwayCrossing> prepared(DoorwayPlane plane, PortalCrossing crossing,
+		double travelerHalfWidth, double travelerHeight)
+	{
+		Objects.requireNonNull(crossing, "crossing");
+		if(plane == null)
+		{
+			return Optional.empty();
+		}
+		PortalFrame frame = DoorApertureFrames.of(plane);
+		DoorVec3 origin = new DoorVec3(crossing.origin().x(), crossing.origin().y(), crossing.origin().z());
+		if(!frame.view(crossing.frontSide()).equals(crossing.frame()) || Math.abs(plane.signedDistance(origin)) > 0.00001D)
+		{
+			return Optional.empty();
+		}
+		Direction normal = frame.getNormal();
+		double side = (crossing.frontSide() ? 1.0D : -1.0D)
+			* (normal.x() * plane.normalX() + normal.y() * plane.normalY() + normal.z() * plane.normalZ());
+		DoorVec3 feet = new DoorVec3(crossing.point().x(), crossing.point().y(), crossing.point().z());
+		double distance = plane.signedDistance(feet);
+		DoorVec3 surface = new DoorVec3(feet.x() - plane.normalX() * distance,
+			feet.y() - plane.normalY() * distance, feet.z() - plane.normalZ() * distance);
+		double reach = Math.max(travelerHalfWidth, travelerHeight) + 0.01D;
+		DoorVec3 from = new DoorVec3(surface.x() + plane.normalX() * side * reach,
+			surface.y() + plane.normalY() * side * reach, surface.z() + plane.normalZ() * side * reach);
+		DoorVec3 to = new DoorVec3(surface.x() - plane.normalX() * side * 0.01D,
+			surface.y() - plane.normalY() * side * 0.01D, surface.z() - plane.normalZ() * side * 0.01D);
+		return detect(plane, from, to, travelerHalfWidth, travelerHeight);
 	}
 
 	public static boolean claim(DoorOpenCycle cycle, boolean openAtCrossing, boolean liveOpen)

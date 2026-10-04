@@ -29,7 +29,7 @@ public final class ChunkPreSendPlanner {
         if (!active.destinationRegionOwned()) {
             return ChunkPreSendPlan.rejected(ChunkPreSendOutcome.SKIPPED_REGION_NOT_OWNED);
         }
-        if (!active.sameChunkShape()) {
+        if (!active.sameWorld() || !active.sameChunkShape()) {
             return ChunkPreSendPlan.rejected(ChunkPreSendOutcome.SKIPPED_DIMENSION_MISMATCH);
         }
         if (!active.destinationLoaded()) {

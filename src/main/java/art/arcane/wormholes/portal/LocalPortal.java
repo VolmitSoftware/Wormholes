@@ -1,6 +1,7 @@
 package art.arcane.wormholes.portal;
 
 import art.arcane.wormholes.network.PortalSettingsTarget;
+import art.arcane.wormholes.geometry.GeometryVector;
 import java.util.Map;
 
 import java.io.IOException;
@@ -58,6 +59,11 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 		gate.rebuildView();
 	}
 
+    @Override
+    public GeometryVector getOrigin() {
+        return structure.getApertureCenter();
+    }
+
 	LocalPortalSettings settings()
 	{
 		return settings;
@@ -72,6 +78,11 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	{
 		return effects;
 	}
+
+    public boolean crossPrepared(Player player, PortalCrossing crossing)
+    {
+        return traversal.crossPrepared(player, crossing);
+    }
 
 	LocalPortalTraversal traversal()
 	{
@@ -233,6 +244,16 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 	public void playEffect(PortalEffect effect, Location location)
 	{
 		effects.playEffect(effect, location);
+	}
+
+	public void playEffect(PortalEffect effect, Location location, Entity traveler)
+	{
+		effects.playEffect(effect, location, traveler);
+	}
+
+	public void playEffect(PortalEffect effect, Location location, Entity traveler, boolean seamless)
+	{
+		effects.playEffect(effect, location, traveler, seamless);
 	}
 
 	public void playEffect(PortalEffect effect)
@@ -455,7 +476,7 @@ public class LocalPortal extends Portal implements ILocalPortal, Listener, Porta
 		return LocalPortalTransitRegistry.markTeleportInFlight(entityId, now);
 	}
 
-	static boolean isTeleportInFlight(UUID entityId, long now)
+	public static boolean isTeleportInFlight(UUID entityId, long now)
 	{
 		return LocalPortalTransitRegistry.isTeleportInFlight(entityId, now);
 	}

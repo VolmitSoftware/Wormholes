@@ -30,6 +30,7 @@ import art.arcane.wormholes.portal.PortalFrame;
 import art.arcane.wormholes.portal.PortalGeometry;
 import art.arcane.wormholes.portal.PortalType;
 import art.arcane.wormholes.portal.ProjectionRenderMode;
+import art.arcane.wormholes.portal.ProjectionMode;
 import art.arcane.wormholes.portal.rtp.MinecraftRtpRuntime;
 import art.arcane.wormholes.render.FidelitySettings;
 import art.arcane.wormholes.render.ProjectedBlockClaim;
@@ -457,6 +458,129 @@ public class MinecraftClientViewPortalAccessTest {
         assertNull(fixture.peer().nestedContext(secondBranch));
         fixture.peer().meshDepth(0);
         assertNull(portals.nestedGeometry(fixture.peer(), root, mirror.getId(), new SessionPalette()));
+    }
+
+    @Test
+    public void packetMirrorDiscoversLinkedAperturesUsingTheDestinationTransform() {
+        Fixture fixture = fixture(PortalType.PORTAL);
+        when(fixture.source().isMirrorMode()).thenReturn(true);
+        MinecraftPortal front = portal(0.0D);
+        MinecraftPortal back = portal(0.0D);
+        front.getGeometry().setArea(new AxisAlignedBB(0, 2.999D, 64, 66.999D, 4, 4.999D));
+        back.getGeometry().setArea(new AxisAlignedBB(0, 2.999D, 64, 66.999D, -4, -3.001D));
+        for (MinecraftPortal child : List.of(front, back)) {
+            when(fixture.access().eligible(child)).thenReturn(true);
+            when(fixture.access().hasDestination(child)).thenReturn(true);
+            ServerLevel world = fixture.player().level();
+            when(fixture.access().world(child)).thenReturn(world);
+        }
+        MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+        portals.frame(List.of(fixture.source(), front, back));
+        for (int turns : new int[] {0, 2}) {
+            when(fixture.access().mirrorQuarterTurns(fixture.source())).thenReturn(turns);
+            for (boolean frontSide : new boolean[] {true, false}) {
+                when(fixture.player().getEyePosition()).thenReturn(new Vec3(1.0D, 65.0D, frontSide ? 4.0D : -4.0D));
+                ClientPortalGeometry geometry = portals.geometry(fixture.peer(), fixture.source().getId(), new SessionPalette());
+                ArrayList<UUID> discovered = new ArrayList<>();
+                portals.nested(fixture.peer(), fixture.source().getId(), geometry, discovered);
+                assertEquals(List.of((frontSide ? front : back).getId()), discovered);
+            }
+        }
+    }
+
+    @Test
+    public void nativeReturnDoorDiscoversFramesMirrorsAndDoorsInItsDestinationWorld() {
+        Fixture fixture = fixture(PortalType.PORTAL);
+        fixture.peer().meshDepth(128);
+        ServerLevel pocket = fixture.player().level();
+        ServerLevel overworld = mock(ServerLevel.class);
+        when(pocket.dimension()).thenReturn(Level.NETHER);
+        when(overworld.dimension()).thenReturn(Level.OVERWORLD);
+        MinecraftProjectionWorldView destinationView = mock(MinecraftProjectionWorldView.class);
+        when(destinationView.getWorld()).thenReturn(overworld);
+        when(fixture.runtime().projections().view(overworld)).thenReturn(destinationView);
+        when(fixture.runtime().portals().resolveLevel(any())).thenAnswer(call -> {
+            MinecraftPortal portal = call.getArgument(0);
+            return "minecraft:the_nether".equals(portal.getWorldKey()) ? pocket : overworld;
+        });
+        MinecraftDoorService doors = mock(MinecraftDoorService.class);
+        when(fixture.runtime().doors()).thenReturn(doors);
+        MinecraftProjectorPortalAccess access = new MinecraftProjectorPortalAccess(fixture.runtime());
+        fixture.peer().attach(fixture.player(), access);
+        DoorItemIdentity identity = DoorItemIdentity.newReturn(UUID.randomUUID());
+        PlacedDoorEndpoint endpoint = new PlacedDoorEndpoint(new DoorPosition(UUID.randomUUID(), "minecraft:the_nether", 2, 64, 3),
+            identity, DoorOpenState.OPEN, DoorProjectionState.OFF);
+        MinecraftDoorService.DoorView rootDoor = new MinecraftDoorService.DoorView(endpoint, pocket,
+            new DoorwayPlane(2, 64, 3, Direction.N), true);
+        when(doors.projectionDestination(rootDoor, fixture.player().getUUID())).thenReturn(Optional.of(
+            new MinecraftDoorService.ProjectionDestination(UUID.randomUUID(), overworld, new GeometryVector(20.5D, 65.0D, 30.5D),
+                PortalFrame.canonical(Direction.S))));
+        when(fixture.runtime().projections().projectableDoors()).thenReturn(List.of(rootDoor));
+        fixture.runtime().configuration().settings().getDoors().projectionEnabled = false;
+        when(fixture.runtime().projections().attendable(eq(fixture.player()), any(), eq(access))).thenAnswer(call -> {
+            MinecraftPortal portal = call.getArgument(1);
+            return access.world(portal) == pocket && access.eligible(portal) && access.hasDestination(portal);
+        });
+        MinecraftClientViewPortalAccess portals = new MinecraftClientViewPortalAccess(fixture.runtime());
+        List<UUID> interest = new ArrayList<>();
+        portals.interested(fixture.peer(), interest);
+        assertEquals(List.of(identity.itemId()), interest);
+        UUID root = identity.itemId();
+        portals.prepareNested(fixture.peer(), root, null, root);
+        ClientPortalGeometry rootGeometry = portals.geometry(fixture.peer(), root, new SessionPalette()).withDepth(128);
+        assertEquals(ClientPortalGeometry.KIND_DOOR, rootGeometry.kind());
+        assertEquals(fixture.runtime().configuration().settings().getProjection().recursivePortalDepth, rootGeometry.recursionDepth());
+        GeometryVector childOrigin = fixture.peer().nestedContext(root).transform().destinationPoint(2.5D, 65.0D, -4.5D);
+        MinecraftPortal mirror = portal(childOrigin.x() - 1.5D);
+        MinecraftPortal frame = portal(childOrigin.x() + 2.5D);
+        MinecraftPortal linked = portal(childOrigin.x() + 12.5D);
+        for (MinecraftPortal child : List.of(mirror, frame)) {
+            double x = child.getOrigin().x();
+            double y = Math.floor(childOrigin.y()) - 1.0D;
+            double z = Math.floor(childOrigin.z());
+            child.getGeometry().setArea(new AxisAlignedBB(x - 1.5D, x + 1.499D, y, y + 2.999D, z, z + 0.999D));
+            when(child.getOrigin()).thenReturn(new GeometryVector(x, y + 1.5D, z + 0.5D));
+            when(child.getWorldKey()).thenReturn("minecraft:overworld");
+            when(child.getProjectionMode()).thenReturn(ProjectionMode.ON);
+            when(fixture.runtime().portals().get(child.getId())).thenReturn(child);
+        }
+        when(mirror.isMirrorMode()).thenReturn(true);
+        when(frame.getTunnelType()).thenReturn("LOCAL");
+        UUID linkedId = linked.getId();
+        when(frame.getDestinationId()).thenReturn(linkedId);
+        when(fixture.runtime().portals().get(linked.getId())).thenReturn(linked);
+        DoorItemIdentity childIdentity = DoorItemIdentity.newPersonal();
+        int childX = (int) Math.floor(childOrigin.x()) - 4;
+        int childY = (int) Math.floor(childOrigin.y()) - 1;
+        int childZ = (int) Math.floor(childOrigin.z());
+        PlacedDoorEndpoint childEndpoint = new PlacedDoorEndpoint(new DoorPosition(UUID.randomUUID(), "minecraft:overworld", childX, childY, childZ),
+            childIdentity, DoorOpenState.OPEN, DoorProjectionState.OFF);
+        MinecraftDoorService.DoorView childDoor = new MinecraftDoorService.DoorView(childEndpoint, overworld,
+            new DoorwayPlane(childX, childY, childZ, Direction.N), true);
+        when(doors.projectionDestination(childDoor, fixture.player().getUUID())).thenReturn(Optional.of(
+            new MinecraftDoorService.ProjectionDestination(UUID.randomUUID(), pocket, new GeometryVector(40.5D, 65.0D, 40.5D),
+                PortalFrame.canonical(Direction.S))));
+        when(fixture.runtime().projections().projectableDoors()).thenReturn(List.of(rootDoor, childDoor));
+        portals.frame(List.of(mirror, frame));
+        interest.clear();
+        portals.interested(fixture.peer(), interest);
+        assertEquals(List.of(root), interest);
+        ArrayList<UUID> discovered = new ArrayList<>();
+        portals.nested(fixture.peer(), root, rootGeometry, discovered);
+        assertEquals(3, discovered.size());
+        assertTrue(discovered.containsAll(List.of(mirror.getId(), frame.getId(), childIdentity.itemId())));
+        for (UUID childId : discovered) {
+            UUID branch = UUID.randomUUID();
+            portals.prepareNested(fixture.peer(), branch, root, childId);
+            assertEquals(portals.nestedEye(fixture.peer(), root), fixture.peer().nestedContext(branch).sourceEye());
+            ClientPortalGeometry childGeometry = portals.nestedGeometry(fixture.peer(), root, childId, new SessionPalette());
+            assertNotNull(childId.toString(), childGeometry);
+            assertEquals(childId.equals(childIdentity.itemId()) ? ClientPortalGeometry.KIND_DOOR : ClientPortalGeometry.KIND_FRAME,
+                childGeometry.kind());
+            assertEquals(childId.equals(mirror.getId()), childGeometry.mirror());
+            assertNotNull(portals.scene().sceneKey(fixture.peer(), branch));
+            assertEquals(childId.equals(childIdentity.itemId()) ? pocket : overworld, fixture.peer().nestedContext(branch).destinationWorld());
+        }
     }
 
     private static EntityVisual stand(UUID id, double x) {

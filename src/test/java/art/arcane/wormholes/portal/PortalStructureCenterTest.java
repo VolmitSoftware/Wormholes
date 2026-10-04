@@ -14,6 +14,7 @@ import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
 import art.arcane.wormholes.Settings;
+import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.util.Cuboid;
 import art.arcane.wormholes.util.AxisAlignedBB;
 import art.arcane.wormholes.util.Direction;
@@ -28,9 +29,19 @@ public final class PortalStructureCenterTest {
 
         Location center = structure.getCenter();
 
-        assertEquals(1.9995D, center.getX(), EPSILON);
-        assertEquals(66.4995D, center.getY(), EPSILON);
-        assertEquals(0.9995D, center.getZ(), EPSILON);
+        assertEquals(2.0D, center.getX(), EPSILON);
+        assertEquals(66.5D, center.getY(), EPSILON);
+        assertEquals(1.0D, center.getZ(), EPSILON);
+    }
+
+    @Test
+    public void restoredLocalOriginUsesGeometryRatherThanSavedInsetCenter() {
+        LocalPortal portal = LocalPortalTestSupport.portal(LocalPortalTestSupport.world("center"), PortalType.PORTAL);
+        portal.restore(new Portal.State(portal.getId(), new GeometryVector(0.4995D, 65.4995D, 1.4995D),
+            portal.getName(), portal.getFrame(), true));
+        assertEquals(new GeometryVector(0.5D, 65.5D, 1.5D), portal.getOrigin());
+        assertEquals(portal.getStructure().getApertureCenter(), portal.getOrigin());
+        assertEquals(0.999D, portal.getStructure().getArea().getXb(), 0.0D);
     }
 
     @Test
@@ -42,9 +53,9 @@ public final class PortalStructureCenterTest {
         first.add(100.0D, 100.0D, 100.0D);
         Location second = structure.getCenter();
 
-        assertEquals(1.9995D, second.getX(), EPSILON);
-        assertEquals(66.4995D, second.getY(), EPSILON);
-        assertEquals(0.9995D, second.getZ(), EPSILON);
+        assertEquals(2.0D, second.getX(), EPSILON);
+        assertEquals(66.5D, second.getY(), EPSILON);
+        assertEquals(1.0D, second.getZ(), EPSILON);
     }
 
     @Test
@@ -56,9 +67,9 @@ public final class PortalStructureCenterTest {
         structure.setArea(cuboid(10, 10, 10, 10, 12, 10));
         Location center = structure.getCenter();
 
-        assertEquals(10.4995D, center.getX(), EPSILON);
-        assertEquals(11.4995D, center.getY(), EPSILON);
-        assertEquals(10.4995D, center.getZ(), EPSILON);
+        assertEquals(10.5D, center.getX(), EPSILON);
+        assertEquals(11.5D, center.getY(), EPSILON);
+        assertEquals(10.5D, center.getZ(), EPSILON);
     }
 
     @Test

@@ -325,7 +325,7 @@ public record ClientPortalGeometry(int originX,
             + ", parentPortalKey=" + parentPortalKey + ", targetIdentity=" + targetIdentity + ", nested=" + nested + "]";
     }
 
-    static int axisOf(Direction direction) {
+    public static int axisOf(Direction direction) {
         return direction.x() != 0 ? 0 : direction.y() != 0 ? 1 : 2;
     }
 

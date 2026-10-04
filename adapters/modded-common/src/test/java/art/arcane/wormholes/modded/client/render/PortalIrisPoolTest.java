@@ -124,12 +124,17 @@ public class PortalIrisPoolTest {
             pipelines.when(() -> PortalIrisPipeline.dimension(pack, environment)).thenReturn(dimension);
             resources.when(() -> PortalIrisResources.targets(programs, 512, 256)).thenReturn(100 * MIB);
             resources.when(() -> PortalIrisResources.shareShadows(programs)).thenReturn(true);
-            pool.acquire(2, environment, 512, 256);
+            Method create = PortalIrisRenderer.class.getDeclaredMethod("create", int.class, NamespacedId.class, int.class, int.class);
+            create.setAccessible(true);
+            entries(pool).put(2, create.invoke(pool, 2, dimension, 512, 256));
             assertEquals(150 * MIB, pool.bytes());
             assertSame(shadow, shared(pool).get(dimension));
             assertEquals(1, field(shadow.getClass(), "users").getInt(shadow));
             verify(targets, never()).close();
             pool.remove(2);
+            assertEquals(150 * MIB, pool.bytes());
+            verify(targets, never()).close();
+            pool.close();
             assertEquals(0, pool.bytes());
             assertTrue(shared(pool).isEmpty());
             verify(targets).close();
@@ -191,11 +196,13 @@ public class PortalIrisPoolTest {
         ProgramSet programs = mock(ProgramSet.class);
         when(pack.getProgramSet(dimension)).thenReturn(programs);
         field(PortalIrisRenderer.class, "pack").set(pool, pack);
+        PortalTerrainMaterials materials = new PortalTerrainMaterials(true, Map.of(), 1, PortalTerrainMaterials.Lighting.VANILLA);
         try (MockedStatic<PortalIrisPipeline> dimensions = mockStatic(PortalIrisPipeline.class);
              MockedStatic<PortalIrisResources> resources = mockStatic(PortalIrisResources.class);
              MockedConstruction<TextureTarget> textures = mockConstruction(TextureTarget.class);
              MockedConstruction<PortalIrisPipeline> pipelines = mockConstruction(PortalIrisPipeline.class, (pipeline, context) -> {
                  AtomicBoolean ready = new AtomicBoolean();
+                 when(pipeline.materials()).thenReturn(materials);
                  when(pipeline.ready()).thenAnswer(call -> ready.get());
                  when(pipeline.warm(any())).thenAnswer(call -> {
                      ready.set(true);
@@ -209,9 +216,11 @@ public class PortalIrisPoolTest {
             PortalShaderRenderer.Session first = pool.acquire(1, environment, 512, 256);
             PortalShaderRenderer.Session second = pool.acquire(2, environment, 512, 256);
             assertFalse(first.ready());
+            assertSame(PortalTerrainMaterials.VANILLA, first.materials());
             assertThrows(IllegalStateException.class, () -> first.begin(view));
             assertFalse(first.warm(view));
             assertFalse(first.ready());
+            assertSame(materials, first.materials());
             assertThrows(IllegalStateException.class, () -> first.begin(view));
             assertFalse(second.warm(view));
             assertFalse(second.ready());
@@ -219,6 +228,7 @@ public class PortalIrisPoolTest {
             pool.beginFrame();
             assertTrue(first.warm(view));
             assertTrue(first.ready());
+            assertSame(materials, first.materials());
             assertTrue(first.warm(view));
             assertFalse(second.warm(view));
             pool.beginFrame();
@@ -302,7 +312,7 @@ public class PortalIrisPoolTest {
     }
 
     @Test
-    public void pendingResizeRetainsItsQueueAndRemovalCancelsBeforeReplacement() throws ReflectiveOperationException {
+    public void pendingResizeAndReopeningRetainTheShaderQueue() throws ReflectiveOperationException {
         ShaderPack pack = mock(ShaderPack.class);
         PortalIrisRenderer pool = new PortalIrisRenderer(() -> pack);
         ClientViewEnvironment environment = mock(ClientViewEnvironment.class);
@@ -345,14 +355,15 @@ public class PortalIrisPoolTest {
             verify(original).warm(view);
             assertEquals(1, pipelines.constructed().size());
             pool.remove(1);
-            verify(original).close();
-            assertEquals(0, pool.bytes());
+            verify(original, never()).close();
+            assertEquals(10 * MIB, pool.bytes());
             pool.beginFrame();
             PortalShaderRenderer.Session replacement = pool.acquire(1, environment, 512, 256);
+            assertSame(pending, replacement);
             assertFalse(replacement.warm(view));
-            assertEquals(2, pipelines.constructed().size());
+            assertEquals(1, pipelines.constructed().size());
             pool.close();
-            verify(pipelines.constructed().get(1)).close();
+            verify(original).close();
             for (TextureTarget target : textures.constructed()) {
                 verify(target).destroyBuffers();
             }

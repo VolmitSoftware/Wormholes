@@ -10,6 +10,7 @@ import art.arcane.wormholes.chunk.ChunkLease;
 import art.arcane.wormholes.chunk.presend.ChunkPreSendTicket;
 import art.arcane.wormholes.config.toml.TransitConfig;
 import art.arcane.wormholes.geometry.GeometryVector;
+import art.arcane.wormholes.network.client.ClientViewMessage;
 import art.arcane.wormholes.portal.Portal;
 import art.arcane.wormholes.portal.PortalConstruction;
 import art.arcane.wormholes.portal.PortalCrossing;
@@ -75,6 +76,8 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     private final Map<UUID, Arrival> arrivals = new HashMap<>();
     private final Map<UUID, Departure> pending = new HashMap<>();
     private final Map<UUID, Position> previousPositions = new HashMap<>();
+    private final Map<UUID, GeometryVector> observedVelocities = new HashMap<>();
+    private final Map<UUID, DeferredCrossing> deferredCrossings = new HashMap<>();
     private final ExecutorService storage = Executors.newSingleThreadExecutor(Thread.ofPlatform().name("Wormholes-portal-storage").factory());
     private final Set<UUID> visited = new HashSet<>();
     private long revision;
@@ -282,8 +285,14 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             return;
         }
         visited.clear();
+        for (ServerPlayer player : runtime.server().getPlayerList().getPlayers()) {
+            Position previous = previousPositions.get(player.getUUID());
+            observedVelocities.put(player.getUUID(), previous != null && previous.level() == player.level()
+                ? vector(player.position().subtract(previous.point())) : vector(player.getDeltaMovement()));
+        }
         long now = System.currentTimeMillis();
         arrivals.entrySet().removeIf(entry -> releaseArrival(entry.getKey(), entry.getValue(), now));
+        deferredCrossings.entrySet().removeIf(entry -> !retainedCrossing(entry.getValue(), now));
         List<UUID> expired = new ArrayList<>();
         for (Map.Entry<UUID, Departure> entry : pending.entrySet()) {
             if (entry.getValue().expiresAt() <= now) {
@@ -313,9 +322,9 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             }
             AxisAlignedBB area = source.getGeometry().captureZone(radius);
             AABB search = new AABB(area.getXa(), area.getYa(), area.getZa(), area.getXb(), area.getYb(), area.getZb());
-            for (Entity entity : level.getEntities((Entity) null, search, Entity::isAlive)) {
+            for (Entity entity : captureEntities(source, level, search)) {
                 Entity root = entity.getRootVehicle();
-                if (pending.containsKey(root.getUUID()) || visited.contains(root.getUUID()) || runtime.network().handoffs().locked(root.getUUID()) || runtime.network().entityTransfers().locked(root.getUUID()) || runtime.rtp().locked(root.getUUID())) {
+                if (pending.containsKey(root.getUUID()) || visited.contains(root.getUUID()) || runtime.doors().travelling(root.getUUID()) || runtime.network().handoffs().locked(root.getUUID()) || runtime.network().entityTransfers().locked(root.getUUID()) || runtime.rtp().locked(root.getUUID())) {
                     continue;
                 }
                 Vec3 current = root.position();
@@ -324,18 +333,29 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                     ? vector(previous.point()) : new GeometryVector(root.xo, root.yo, root.zo);
                 GeometryVector end = vector(current);
                 GeometryVector intersection = PortalCrossing.intersection(source.getFrame(), source.getOrigin(), start, end);
-                if (intersection == null || !source.getGeometry().contains(intersection)) {
+                DeferredCrossing deferred = deferredCrossings.get(root.getUUID());
+                boolean retained = deferred != null && deferred.source() == source && retainedCrossing(deferred, now) && deferred.crossing().frame().getNormal().x() * (end.x() - source.getOrigin().x())
+                        + deferred.crossing().frame().getNormal().y() * (end.y() - source.getOrigin().y())
+                        + deferred.crossing().frame().getNormal().z() * (end.z() - source.getOrigin().z()) <= 0.0D;
+                if (!retained && (intersection == null || !source.getGeometry().contains(intersection))) {
                     continue;
                 }
                 Arrival arrival = arrivals.get(root.getUUID());
-                if (arrival != null && (now < arrival.cooldownUntil()
-                    || arrival.portalId().equals(source.getId()) && overlaps(source, root))) {
+                if (arrival != null && arrival.blocks(source.getId(), overlaps(source, root), now)) {
                     continue;
                 }
                 visited.add(root.getUUID());
                 Vec3 velocity = root instanceof ServerPlayer ? current.subtract(start.x(), start.y(), start.z()) : root.getDeltaMovement();
                 PortalCrossing crossing = PortalCrossing.create(source.getFrame(), source.getOrigin(),
                     new PortalCrossing.Motion(start, end, vector(velocity), vector(root.getLookAngle())));
+                if (retained) {
+                    crossing = deferred.crossing();
+                }
+                if (!random && root instanceof ServerPlayer player && runtime.clientViews().deferTravel(player.getUUID(), source.getId())) {
+                    deferredCrossings.putIfAbsent(root.getUUID(), new DeferredCrossing(player, source, level, source.getDestinationId(), source.getDestinationServer(), crossing, now + 2_500L));
+                    continue;
+                }
+                deferredCrossings.remove(root.getUUID());
                 if (!MinecraftTransit.depart(runtime, source, root, crossing)) {
                     continue;
                 }
@@ -380,8 +400,90 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         }
     }
 
+    public GeometryVector observedVelocity(ServerPlayer player) {
+        runtime.requireServerThread();
+        return observedVelocities.getOrDefault(player.getUUID(), vector(player.getDeltaMovement()));
+    }
+
+    public boolean crossPrepared(ServerPlayer player, UUID sourceId, MinecraftPortal destination, PortalCrossing crossing) {
+        runtime.requireServerThread();
+        MinecraftPortal source = portals.get(sourceId);
+        if (closed || source == null || !source.isOpen() || source.isMirrorMode() || source.getType() == PortalType.RTP
+            || player.level() != resolveLevel(source) || player.getVehicle() != null || !player.getPassengers().isEmpty()
+            || pending.containsKey(player.getUUID()) || runtime.doors().travelling(player.getUUID()) || runtime.network().handoffs().locked(player.getUUID())
+            || runtime.network().entityTransfers().locked(player.getUUID()) || runtime.rtp().locked(player.getUUID())) {
+            return false;
+        }
+        Arrival arrival = arrivals.get(player.getUUID());
+        if (arrival != null && arrival.blocks(sourceId, overlaps(source, player), System.currentTimeMillis())) {
+            return false;
+        }
+        if (destination == null || !destination.isOpen() || destination.isMirrorMode() || !admit(player, source, destination)) {
+            return false;
+        }
+        ServerLevel targetLevel = resolveLevel(destination);
+        GeometryVector target = crossing.outPoint(destination.getFrame(), destination.getOrigin());
+        if (targetLevel == null || !targetLevel.noCollision(player, player.getBoundingBox().move(
+            target.x() - player.getX(), target.y() - player.getY(), target.z() - player.getZ()))
+            || !MinecraftTransit.depart(runtime, source, player, crossing)) {
+            return false;
+        }
+        deferredCrossings.remove(player.getUUID());
+        visited.add(player.getUUID());
+        depart(player, source, destination, crossing);
+        return true;
+    }
+
+    private List<Entity> captureEntities(MinecraftPortal source, ServerLevel level, AABB search) {
+        List<Entity> nearby = level.getEntities((Entity) null, search, Entity::isAlive);
+        List<Entity> candidates = nearby;
+        for (DeferredCrossing deferred : deferredCrossings.values()) {
+            if (deferred.source() == source && deferred.level() == level && !nearby.contains(deferred.player())) {
+                if (candidates == nearby) {
+                    candidates = new ArrayList<>(nearby);
+                }
+                candidates.add(deferred.player());
+            }
+        }
+        return candidates;
+    }
+
+    private boolean retainedCrossing(DeferredCrossing deferred, long now) {
+        MinecraftPortal source = deferred.source();
+        return now < deferred.expiresAt() && deferred.player().isAlive() && deferred.player().level() == deferred.level()
+            && portals.get(source.getId()) == source && source.isOpen() && !source.isMirrorMode()
+            && Objects.equals(source.getDestinationId(), deferred.destination())
+            && Objects.equals(source.getDestinationServer(), deferred.destinationServer())
+            && source.getOrigin().equals(deferred.crossing().origin())
+            && source.getFrame().view(deferred.crossing().frontSide()).equals(deferred.crossing().frame())
+            && !runtime.doors().travelling(deferred.player().getUUID());
+    }
+
+    private record DeferredCrossing(ServerPlayer player, MinecraftPortal source, ServerLevel level, UUID destination,
+                                    String destinationServer, PortalCrossing crossing, long expiresAt) {
+    }
+
+    boolean travelling(UUID entityId) {
+        return pending.containsKey(entityId);
+    }
+
+    void recordTeleport(Entity entity) {
+        UUID entityId = entity.getUUID();
+        deferredCrossings.remove(entityId);
+        Departure departure = pending.remove(entityId);
+        if (departure != null) {
+            departure.lease().close();
+        }
+        observedVelocities.remove(entityId);
+        if (entity instanceof ServerPlayer player) {
+            previousPositions.put(entityId, new Position(player.level(), player.position()));
+        }
+        visited.add(entityId);
+    }
+
     public void recordArrival(Entity entity, MinecraftPortal destination) {
         runtime.requireServerThread();
+        runtime.travelArrived(entity);
         long now = System.currentTimeMillis();
         arrivals.put(entity.getUUID(), new Arrival(destination.getId(),
             now + runtime.configuration().settings().getMain().teleportCooldownMillis, now + 60_000L));
@@ -391,7 +493,9 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     public void playerDisconnected(ServerPlayer player) {
         runtime.requireServerThread();
         arrivals.remove(player.getUUID());
+        deferredCrossings.remove(player.getUUID());
         previousPositions.remove(player.getUUID());
+        observedVelocities.remove(player.getUUID());
         Departure departure = pending.remove(player.getUUID());
         if (departure != null) {
             departure.lease().close();
@@ -408,6 +512,8 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
             departure.lease().close();
         }
         previousPositions.clear();
+        deferredCrossings.clear();
+        observedVelocities.clear();
         arrivals.clear();
         storage.close();
         portals.clear();
@@ -471,6 +577,8 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         ChunkLease lease = runtime.leases().retain(targetLevel,
             UUID.nameUUIDFromBytes(destination.getWorldKey().getBytes(StandardCharsets.UTF_8)),
             target.getBlockX() >> 4, target.getBlockZ() >> 4);
+        boolean predicted = entity instanceof ServerPlayer player && runtime.clientViews().crossing(player.getUUID());
+        ClientViewMessage.TravelBegin attempted = predicted ? runtime.clientViews().preparation(entity.getUUID()).orElse(null) : null;
         Departure departure = new Departure(lease, entity.level(), entity.position(), System.currentTimeMillis() + 30_000L);
         pending.put(entity.getUUID(), departure);
         lease.ready().whenCompleteAsync((ready, failure) -> {
@@ -481,19 +589,31 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 if (closed || !Boolean.TRUE.equals(ready) || !entity.isAlive() || portals.get(source.getId()) != source
                     || portals.get(destination.getId()) != destination || !runtime.nexus().perTraveler(source) && !(runtime.api() != null && runtime.api().hasResolvers()) && !Objects.equals(source.getDestinationId(), destination.getId())
                     || !source.isOpen() || !destination.isOpen() || source.isMirrorMode() || destination.isMirrorMode()
-                    || pending.get(entity.getUUID()) != departure || entity.level() != departure.level()
+                    || runtime.doors().travelling(entity.getUUID()) || pending.get(entity.getUUID()) != departure || entity.level() != departure.level()
                     || entity.position().distanceToSqr(departure.point()) > 1.0D
                     || departure.expiresAt() <= System.currentTimeMillis() || !admit(entity, source, destination)
-                    || !screenRules(entity, source)) {
+                    || !screenRules(entity, source) || predicted && !runtime.clientViews().crossing(entity.getUUID(), attempted)
+                    || predicted && !targetLevel.noCollision(entity, entity.getBoundingBox().move(
+                        target.x() - entity.getX(), target.y() - entity.getY(), target.z() - entity.getZ()))) {
                     return;
                 }
-                arrive(entity, destination, crossing, targetLevel, target, source);
+                arrive(entity, destination, crossing, targetLevel, target, source, predicted);
             } catch (RuntimeException exception) {
                 LOGGER.error("Wormholes traversal failed from {} to {} for {}", source.getId(), destination.getId(), entity.getUUID(), exception);
             } finally {
-                failRules(entity.getSelfAndPassengers().toList());
-                pending.remove(entity.getUUID(), departure);
-                lease.close();
+                if (predicted) {
+                    for (Entity member : entity.getSelfAndPassengers().toList()) {
+                        if (member instanceof ServerPlayer player) {
+                            runtime.clientViews().cancelPreparation(player, attempted);
+                        }
+                        runtime.rules().failed(member);
+                    }
+                } else {
+                    failRules(entity.getSelfAndPassengers().toList());
+                }
+                if (pending.remove(entity.getUUID(), departure)) {
+                    lease.close();
+                }
             }
         }, runtime.server());
     }
@@ -532,7 +652,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     }
 
     private void arrive(Entity entity, MinecraftPortal destination, PortalCrossing crossing, ServerLevel targetLevel,
-                        GeometryVector target, MinecraftPortal source) {
+                        GeometryVector target, MinecraftPortal source, boolean predicted) {
         TransitConfig config = runtime.configuration().settings().getTransit();
         MomentumPolicy momentum = MomentumPolicy.decode((String) source.setting("transit.momentum"));
         if (momentum == null) {
@@ -544,6 +664,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
         OrientationTransform.Look look = OrientationTransform.apply(crossing, destination.getFrame(), orientation, config.gravityFlipEnabled);
         List<ChunkPreSendTicket<ServerLevel, ServerPlayer>> preSend = new ArrayList<>();
         List<MinecraftTravelCosts.Admission> payments = new ArrayList<>();
+        List<PreparedCommit> preparedCommits = new ArrayList<>();
         boolean reloadExpected = entity.level() != targetLevel;
         Entity arrived;
         List<Entity> rig = entity.getSelfAndPassengers().toList();
@@ -569,29 +690,51 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                     preSend.add(runtime.preSend().preSend(player, targetLevel, target.getBlockX(), target.getBlockZ()));
                 }
             }
-            MinecraftTraversalCues.threshold(runtime, source, crossing.point());
-            arrived = entity.teleport(new TeleportTransition(targetLevel, vector(target), vector(velocity), look.yaw(), look.pitch(),
-                TeleportTransition.PLACE_PORTAL_TICKET));
+            MinecraftTraversalCues.threshold(runtime, source, crossing.point(), entity);
+            for (Entity member : rig) {
+                if (member instanceof ServerPlayer player) {
+                    ClientViewMessage.TravelCommit commit = runtime.clientViews().commitTravel(player, source.getId(), targetLevel,
+                        new ClientViewMessage.TravelPose(target.x(), target.y(), target.z(), look.yaw(), look.pitch()), velocity);
+                    if (commit != null) {
+                        preparedCommits.add(new PreparedCommit(player, commit));
+                    } else if (predicted) {
+                        failRules(rig);
+                        refund(payments);
+                        rollback(preSend);
+                        return;
+                    }
+                }
+            }
+            try (WormholesModRuntime.TeleportScope scope = runtime.beginTeleport(entity)) {
+                arrived = entity.teleport(new TeleportTransition(targetLevel, vector(target), vector(velocity), look.yaw(), look.pitch(),
+                    TeleportTransition.PLACE_PORTAL_TICKET));
+            }
         } catch (RuntimeException exception) {
+            cancelPrepared(preparedCommits);
             refund(payments);
             rollback(preSend);
             throw exception;
         }
         if (arrived == null) {
+            cancelPrepared(preparedCommits);
             refund(payments);
             rollback(preSend);
             return;
+        }
+        for (PreparedCommit commit : preparedCommits) {
+            runtime.clientViews().completeTravel(commit.player());
         }
         for (MinecraftTravelCosts.Admission payment : payments) {
             payment.commit();
         }
         long now = System.currentTimeMillis();
         for (ChunkPreSendTicket<ServerLevel, ServerPlayer> ticket : preSend) {
-            MinecraftTransit.arrived(runtime, source, ticket.player(), reloadExpected, ticket);
+            MinecraftTransit.arrived(runtime, source, ticket.player(), reloadExpected, ticket, prepared(preparedCommits, ticket.player().getUUID()));
         }
         long cooldown = config.objectTransitContinuous && (arrived instanceof ItemEntity || arrived instanceof Projectile)
             ? 0 : runtime.configuration().settings().getMain().teleportCooldownMillis;
         for (Entity member : arrived.getSelfAndPassengers().toList()) {
+            runtime.travelArrived(member);
             runtime.rules().arrived(member, destination);
             runtime.nexus().arrived(member, source);
             MinecraftWormholesApi api = runtime.api();
@@ -599,7 +742,7 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
                 api.emit(new MinecraftWormholesApi.Event(MinecraftWormholesApi.Kind.HANDOFF_ADMITTED, member.getUUID(), source.getId(), null, "", null, null));
                 api.emit(new MinecraftWormholesApi.Event(MinecraftWormholesApi.Kind.HANDOFF_COMPLETED, member.getUUID(), destination.getId(), null, "", null, null));
             }
-            MinecraftTraversalCues.arrival(runtime, destination, member);
+            MinecraftTraversalCues.arrival(runtime, destination, member, prepared(preparedCommits, member.getUUID()));
             if (member instanceof ServerPlayer player) {
                 runtime.atlas().departed(player, source);
             }
@@ -610,8 +753,29 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
 
     private void failRules(List<Entity> travelers) {
         for (Entity traveler : travelers) {
+            if (traveler instanceof ServerPlayer player) {
+                runtime.clientViews().cancelTravel(player, null);
+            }
             runtime.rules().failed(traveler);
         }
+    }
+
+    private void cancelPrepared(List<PreparedCommit> commits) {
+        for (PreparedCommit commit : commits) {
+            runtime.clientViews().cancelTravel(commit.player(), commit.message());
+        }
+    }
+
+    private static boolean prepared(List<PreparedCommit> commits, UUID traveler) {
+        for (PreparedCommit commit : commits) {
+            if (commit.player().getUUID().equals(traveler)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private record PreparedCommit(ServerPlayer player, ClientViewMessage.TravelCommit message) {
     }
 
     private void refund(List<MinecraftTravelCosts.Admission> payments) {
@@ -627,16 +791,13 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     }
 
     private boolean releaseArrival(UUID entityId, Arrival arrival, long now) {
-        if (arrival.expiresAt() <= now) {
+        if (now >= arrival.expiresAt) {
             return true;
         }
-        if (arrival.cooldownUntil() > now) {
-            return false;
-        }
-        MinecraftPortal portal = portals.get(arrival.portalId());
+        MinecraftPortal portal = portals.get(arrival.portalId);
         ServerLevel level = portal == null ? null : resolveLevel(portal);
         Entity entity = level == null ? null : level.getEntity(entityId);
-        return entity == null || !overlaps(portal, entity);
+        return entity == null ? now >= arrival.cooldownUntil : arrival.release(overlaps(portal, entity), now);
     }
 
     private static boolean overlaps(MinecraftPortal portal, Entity entity) {
@@ -671,6 +832,27 @@ public final class MinecraftPortalRegistry implements AutoCloseable {
     private record Departure(ChunkLease lease, Level level, Vec3 point, long expiresAt) {
     }
 
-    private record Arrival(UUID portalId, long cooldownUntil, long expiresAt) {
+    static final class Arrival {
+        private final UUID portalId;
+        private final long cooldownUntil;
+        private final long expiresAt;
+        private boolean exited;
+
+        Arrival(UUID portalId, long cooldownUntil, long expiresAt) {
+            this.portalId = portalId;
+            this.cooldownUntil = cooldownUntil;
+            this.expiresAt = expiresAt;
+        }
+
+        boolean release(boolean overlapping, long now) {
+            if (!overlapping) {
+                exited = true;
+            }
+            return now >= expiresAt || now >= cooldownUntil && exited;
+        }
+
+        boolean blocks(UUID source, boolean overlapping, long now) {
+            return now < cooldownUntil || !exited && portalId.equals(source) && overlapping;
+        }
     }
 }

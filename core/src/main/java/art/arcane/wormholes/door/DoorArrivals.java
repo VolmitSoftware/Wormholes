@@ -1,5 +1,8 @@
 package art.arcane.wormholes.door;
 
+import art.arcane.wormholes.door.view.DoorApertureFrames;
+import art.arcane.wormholes.geometry.GeometryVector;
+
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -57,6 +60,37 @@ public final class DoorArrivals
 		}
 		return plane.sidePoint(sideSign, arrivalOffset(transit));
 	}
+
+    public static DoorVec3 destinationPoint(DoorwayPlane destination, DoorTransit transit, int sideSign) {
+        if (transit.preparedCrossing() == null) {
+            return arrivalPoint(destination, transit, sideSign);
+        }
+        DoorVec3 center = destination.center();
+        GeometryVector point = transit.preparedCrossing().outPoint(DoorApertureFrames.destinationFrame(transit.sourcePlane(), destination),
+            new GeometryVector(center.x(), center.y(), center.z()));
+        return new DoorVec3(point.x(), point.y(), point.z());
+    }
+
+    public static Facing destinationFacing(DoorwayPlane destination, DoorTransit transit, int sideSign) {
+        if (transit.preparedCrossing() == null) {
+            return arrivalFacing(destination, transit, sideSign);
+        }
+        GeometryVector look = transit.preparedCrossing().outLook(DoorApertureFrames.destinationFrame(transit.sourcePlane(), destination));
+        double horizontal = Math.hypot(look.x(), look.z());
+        float yaw = (float) Math.toDegrees(Math.atan2(-look.x(), look.z()));
+        if (yaw >= 180.0F) {
+            yaw -= 360.0F;
+        }
+        return new Facing(yaw, (float) Math.toDegrees(Math.atan2(-look.y(), horizontal)));
+    }
+
+    public static DoorVec3 destinationVelocity(DoorwayPlane destination, DoorTransit transit, int sideSign) {
+        if (transit.preparedCrossing() == null) {
+            return DoorVelocityTransform.mapToSide(destination, transit, transit.velocity(), sideSign);
+        }
+        GeometryVector velocity = transit.preparedCrossing().outVelocity(DoorApertureFrames.destinationFrame(transit.sourcePlane(), destination));
+        return new DoorVec3(velocity.x(), velocity.y(), velocity.z());
+    }
 
 	private static double horizontalArrivalY(DoorwayPlane plane, DoorTransit transit, int sideSign)
 	{

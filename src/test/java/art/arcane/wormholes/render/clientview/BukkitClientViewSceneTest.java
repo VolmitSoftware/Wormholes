@@ -44,6 +44,33 @@ final class BukkitClientViewSceneTest {
     }
 
     @Test
+    void observerBindingMatchesItsOpaqueVisualBeforeTheFirstEntityFrame() throws ClientViewProtocolException {
+        try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS | ClientViewCapability.ENTITY_SELF.mask())) {
+            EntityVisual self = EntityVisual.full(fixture.playerId, "minecraft:player", 1.5D, 64.0D, 3.0D, 1.8D,
+                0.0D, 0.0D, 1.0D, 0.0F, 0.0F, 0.0D, 0.0D, 0.0D, true, "Observer", "", "", null, null,
+                EntityVisual.EMPTY, EntityVisual.EMPTY, 0);
+            ProjectionEntityView entities = (ProjectionEntityView) fixture.view;
+            when(entities.getEntities(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(self));
+            when(entities.isVisibleTo(any(Player.class), eq(fixture.playerId))).thenReturn(true);
+            fixture.route();
+            List<ClientViewMessage> messages = fixture.messages();
+            ClientViewMessage.EntitySelf binding = null;
+            for (ClientViewMessage message : messages) {
+                if (message instanceof ClientViewMessage.EntitySelf found) {
+                    binding = found;
+                } else if (message instanceof ClientViewMessage.EntityFrame frame) {
+                    assertNotNull(binding, "binding must precede the observer's first frame");
+                    assertEquals(List.of(binding.projectedId()), frame.presentIds());
+                    assertNotEquals(fixture.playerId, binding.projectedId());
+                }
+            }
+            assertNotNull(binding);
+            fixture.route();
+            assertTrue(fixture.messages().stream().noneMatch(message -> message instanceof ClientViewMessage.EntitySelf));
+        }
+    }
+
+    @Test
     void destinationLightRidesInThePlateBricksWhenLightingFidelityIsOn() throws ClientViewProtocolException {
         Settings.LIGHTING_FIDELITY = true;
         try (ClientViewFixture fixture = negotiated(ClientViewFixture.CLIENT_CAPS)) {

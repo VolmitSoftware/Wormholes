@@ -100,17 +100,62 @@ final class ClientRecursionPlannerTest {
     }
 
     @Test
-    void mirrorReachCoversTheServedSideWithinDepth() {
+    void mirrorDestinationReachCoversTheServedSideWithinDepth() {
         ClientPortalGeometry mirror = wall(0, 0, 2, true, true, List.of());
-        assertTrue(ClientRecursionPlanner.mirrorReaches(mirror, new AxisAlignedBB(3, 3.999D, 64, 66.999D, -1, 1.999D)));
-        assertFalse(ClientRecursionPlanner.mirrorReaches(mirror, new AxisAlignedBB(-4, -3.001D, 64, 66.999D, -1, 1.999D)),
-            "behind the mirror is not reflected");
-        assertFalse(ClientRecursionPlanner.mirrorReaches(mirror, new AxisAlignedBB(40, 40.999D, 64, 66.999D, -1, 1.999D)),
-            "beyond the view depth");
-        assertFalse(ClientRecursionPlanner.mirrorReaches(mirror, new AxisAlignedBB(3, 3.999D, 64, 66.999D, 60, 61.999D)),
-            "beyond the lateral reach");
-        assertFalse(ClientRecursionPlanner.mirrorReaches(wall(0, 0, 2, List.of()), new AxisAlignedBB(3, 3.999D, 64, 66.999D, -1, 1.999D)),
-            "a linked portal is not a mirror");
+        ClientViewEnvironment.Transform reflection = new ClientViewEnvironment.Transform(Direction.W, Direction.U, Direction.S,
+            new GeometryVector(1, 0, 0));
+        assertTrue(ClientRecursionPlanner.destinationReaches(mirror, reflection, new AxisAlignedBB(3, 3.999D, 64, 66.999D, -1, 1.999D)));
+        assertFalse(ClientRecursionPlanner.destinationReaches(mirror, reflection, new AxisAlignedBB(-4, -3.001D, 64, 66.999D, -1, 1.999D)));
+        assertFalse(ClientRecursionPlanner.destinationReaches(mirror, reflection, new AxisAlignedBB(40, 40.999D, 64, 66.999D, -1, 1.999D)));
+        assertFalse(ClientRecursionPlanner.destinationReaches(mirror, reflection, new AxisAlignedBB(3, 3.999D, 64, 66.999D, 60, 61.999D)));
+    }
+
+    @Test
+    void childRecursionDepthBoundsItsDescendants() {
+        ClientPortalGeometry great = wall(-30, 0, 0, List.of());
+        ClientPortalGeometry grand = wall(-20, 0, 3, List.of(great));
+        ClientPortalGeometry child = wall(-10, 0, 1, List.of(grand));
+        ClientPortalGeometry root = wall(0, 0, 4, List.of(child));
+        List<ClientRecursionPlanner.NestedCone> cones = new ClientRecursionPlanner(8).plan(root, 6.5D, 65.5D, 0.5D);
+        assertEquals(2, cones.size());
+        assertSame(child, cones.get(0).geometry());
+        assertSame(grand, cones.get(1).geometry());
+        ClientPortalGeometry leaf = wall(-10, 0, 0, List.of(grand));
+        assertEquals(1, new ClientRecursionPlanner(8).plan(root.withNested(List.of(leaf)), 6.5D, 65.5D, 0.5D).size());
+    }
+
+    @Test
+    void mixedSurfaceKindsUseTheSameReachAndNestedWindows() {
+        ClientViewEnvironment.Transform destination = new ClientViewEnvironment.Transform(Direction.E, Direction.U, Direction.S,
+            new GeometryVector(-100, 0, 0));
+        AxisAlignedBB visible = new AxisAlignedBB(89, 90, 64, 67, -1, 2);
+        AxisAlignedBB behind = new AxisAlignedBB(110, 111, 64, 67, -1, 2);
+        for (int kind : new int[]{ClientPortalGeometry.KIND_FRAME, ClientPortalGeometry.KIND_RTP,
+            ClientPortalGeometry.KIND_DOOR, ClientPortalGeometry.KIND_VANILLA_REPLACEMENT}) {
+            ClientPortalGeometry reflection = withKind(wall(-10, 0, 1, true, true, List.of()), ClientPortalGeometry.KIND_FRAME);
+            ClientPortalGeometry doorway = withKind(wall(0, 0, 3, List.of(reflection)), kind);
+            assertTrue(ClientRecursionPlanner.destinationReaches(doorway, destination, visible));
+            assertFalse(ClientRecursionPlanner.destinationReaches(doorway, destination, behind));
+            List<ClientRecursionPlanner.NestedCone> cones = new ClientRecursionPlanner(8).plan(doorway, 6.5D, 65.5D, 0.5D);
+            assertEquals(1, cones.size());
+            assertSame(reflection, cones.getFirst().geometry());
+            assertTrue(cones.getFirst().visible(-12.5D, 65.5D, 0.5D));
+        }
+        ClientPortalGeometry door = withKind(wall(3, 0, 0, false, false, List.of()), ClientPortalGeometry.KIND_DOOR);
+        ClientPortalGeometry mirror = wall(0, 0, 2, true, true, List.of(door));
+        List<ClientRecursionPlanner.NestedCone> reflected = new ClientRecursionPlanner(8).plan(mirror, 6.5D, 65.5D, 0.5D);
+        assertEquals(1, reflected.size());
+        assertSame(door, reflected.getFirst().geometry());
+        assertTrue(reflected.getFirst().contentEyeX() < 0.0D);
+    }
+
+    private static ClientPortalGeometry withKind(ClientPortalGeometry geometry, int kind) {
+        return new ClientPortalGeometry(geometry.originX(), geometry.originY(), geometry.originZ(), geometry.facing(),
+            geometry.frontSide(), geometry.quarterTurns(), geometry.mirror(), geometry.apertureWidth(), geometry.apertureHeight(),
+            geometry.apertureMask(), geometry.nearPlanePadding(), geometry.aperturePadding(), geometry.frustumCullingRatio(),
+            geometry.depthBlocks(), geometry.recursionDepth(), geometry.blackoutPolicy(), geometry.blackoutState(),
+            geometry.maskAirPolicy(), geometry.lightingPolicy(), geometry.fidelityFlags(), kind, geometry.parentPortalKey(),
+            geometry.targetIdentity(), geometry.nested());
     }
 
     private static ClientPortalGeometry wall(int x, int z, int recursionDepth, List<ClientPortalGeometry> nested) {

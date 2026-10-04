@@ -1,6 +1,7 @@
 pluginManagement {
     repositories {
         maven { url = uri('https://maven.neoforged.net/releases/') }
+        maven { url = uri('https://maven.minecraftforge.net/') }
         gradlePluginPortal()
         mavenCentral()
     }
@@ -13,5 +14,7 @@ plugins {
 rootProject.name = 'wormholes-neoforge'
 include(':core')
 project(':core').projectDir = file('../../core')
+include(':clientTestHost')
+project(':clientTestHost').projectDir = file('../forge')
 
 apply from: file('../../gradle/localization-settings.gradle')

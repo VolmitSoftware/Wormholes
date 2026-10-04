@@ -129,7 +129,7 @@ final class MinecraftEnvironmentCapture implements AutoCloseable {
                 if (request.world().getChunkSource().getChunkNow(state.chunkX, state.chunkZ) == null) {
                     throw new IllegalStateException("Destination environment chunk unloaded before capture");
                 }
-                pending.complete(MinecraftPortalEnvironment.capture(request.world(), request.eye(), request.transform()));
+                pending.complete(MinecraftPortalEnvironment.capture(request.world(), request.eye(), request.transform(), request.world().isFlat()));
             } catch (RuntimeException failure) {
                 pending.completeExceptionally(failure);
             }

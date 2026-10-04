@@ -5,6 +5,7 @@ import io.github.douira.glsl_transformer.ast.node.expression.unary.FunctionCallE
 import io.github.douira.glsl_transformer.ast.print.ASTPrinter;
 import io.github.douira.glsl_transformer.ast.query.RootSupplier;
 import io.github.douira.glsl_transformer.ast.transform.ASTParser;
+import net.irisshaders.iris.pipeline.programs.ShaderKey;
 import net.irisshaders.iris.pipeline.transform.PatchShaderType;
 import org.junit.Test;
 
@@ -13,7 +14,10 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -23,10 +27,115 @@ public class PortalIrisClippingTest {
     private static final String FRAGMENT = "#version 330 core\nout vec4 color; void main() { color = vec4(1.0); }";
 
     @Test
+    public void destinationTerrainReportsCompletedChunkFadeAcrossStages() {
+        String vertex = "#version 330 core\nconst float mc_chunkFade = -1.0; out float chunkFade;"
+            + " void main() { chunkFade = mc_chunkFade; gl_Position = vec4(1.0); }";
+        String fragment = "#version 330 core\nconst float mc_chunkFade = -1.0; in float chunkFade; out vec4 color;"
+            + " void main() { color = vec4(chunkFade, mc_chunkFade, -1.0, 1.0); }";
+        Map<PatchShaderType, String> original = Map.of(PatchShaderType.VERTEX, vertex, PatchShaderType.FRAGMENT, fragment);
+        PortalIrisClipping.Result result = PortalIrisClipping.transform(original, 8, true);
+
+        assertTrue(compact(result.sources().get(PatchShaderType.VERTEX)).contains("constfloatmc_chunkFade=1.0f;"));
+        assertTrue(compact(result.sources().get(PatchShaderType.FRAGMENT)).contains("constfloatmc_chunkFade=1.0f;"));
+        assertTrue(body(parse(result.sources().get(PatchShaderType.VERTEX)), "wormholes_clipMain")
+            .contains("chunkFade=mc_chunkFade;"));
+        assertTrue(body(parse(result.sources().get(PatchShaderType.FRAGMENT)), "main")
+            .contains("vec4(chunkFade,mc_chunkFade,-1.0f,1.0f)"));
+        assertSame(vertex, original.get(PatchShaderType.VERTEX));
+        assertSame(fragment, original.get(PatchShaderType.FRAGMENT));
+        assertTrue(vertex.contains("mc_chunkFade = -1.0"));
+    }
+
+    @Test
+    public void runtimeChunkFadeAndUnrelatedSentinelsArePreserved() {
+        String vertex = "#version 330 core\nfloat mc_chunkFade; const float other_chunkFade = -1.0;"
+            + " void main() { mc_chunkFade = clamp(float(gl_VertexID), 0.0, 1.0); gl_Position = vec4(other_chunkFade); }";
+        String fragment = "#version 330 core\nconst float mc_chunkFade = 0.25; out vec4 color;"
+            + " void main() { color = vec4(mc_chunkFade); }";
+        PortalIrisClipping.Result result = PortalIrisClipping.transform(
+            Map.of(PatchShaderType.VERTEX, vertex, PatchShaderType.FRAGMENT, fragment), 8, true);
+
+        assertTrue(compact(result.sources().get(PatchShaderType.VERTEX)).contains("floatmc_chunkFade;"));
+        assertTrue(compact(result.sources().get(PatchShaderType.VERTEX)).contains("constfloatother_chunkFade=-1.0f;"));
+        assertTrue(body(parse(result.sources().get(PatchShaderType.VERTEX)), "wormholes_clipMain")
+            .contains("mc_chunkFade=clamp(float(gl_VertexID),0.0f,1.0f)"));
+        assertSame(fragment, result.sources().get(PatchShaderType.FRAGMENT));
+    }
+
+    @Test
+    public void cachedEntityAndTerrainProgramsDoNotShareChunkFadeNormalization() {
+        PortalIrisClipping.clear();
+        String vertex = "#version 330 core\nconst float mc_chunkFade = -1.0; void main() { gl_Position = vec4(mc_chunkFade); }";
+        Map<PatchShaderType, String> sources = Map.of(PatchShaderType.VERTEX, vertex);
+        PortalIrisClipping.Result entity = PortalIrisClipping.transform(sources, 8, false);
+        PortalIrisClipping.Result terrain = PortalIrisClipping.transform(sources, 8, true);
+
+        assertNotSame(entity, terrain);
+        assertTrue(compact(entity.sources().get(PatchShaderType.VERTEX)).contains("constfloatmc_chunkFade=-1.0f;"));
+        assertTrue(compact(terrain.sources().get(PatchShaderType.VERTEX)).contains("constfloatmc_chunkFade=1.0f;"));
+        assertSame(entity, PortalIrisClipping.transform(sources, 8, false));
+        assertSame(terrain, PortalIrisClipping.transform(sources, 8, true));
+        PortalIrisClipping.clear();
+    }
+
+    @Test
+    public void mainSceneSkyAndShadowCompilationKeepTheirChunkFadeSources() {
+        String source = "#version 330 core\nconst float mc_chunkFade = -1.0; void main() { gl_Position = vec4(mc_chunkFade); }";
+        Map<PatchShaderType, String> sources = Map.of(PatchShaderType.VERTEX, source);
+        assertFalse(PortalIrisClipCompilation.active());
+        assertNull(PortalIrisClipCompilation.transform(sources));
+        for (ShaderKey key : new ShaderKey[] {ShaderKey.SKY_BASIC, ShaderKey.CLOUDS, ShaderKey.SHADOW_TERRAIN_CUTOUT}) {
+            try (PortalIrisClipCompilation compilation = PortalIrisClipCompilation.open(key)) {
+                assertFalse(PortalIrisClipCompilation.active());
+                assertNull(PortalIrisClipCompilation.transform(sources));
+                assertSame(source, sources.get(PatchShaderType.VERTEX));
+            }
+        }
+        try (PortalIrisClipCompilation compilation = PortalIrisClipCompilation.open(ShaderKey.TERRAIN_SOLID)) {
+            assertTrue(PortalIrisClipCompilation.active());
+        }
+        assertFalse(PortalIrisClipCompilation.active());
+    }
+
+    @Test
+    public void identicalProgramsReuseClippingWithoutReparsingAndSnapshotTheirInputs() {
+        PortalIrisClipping.clear();
+        EnumMap<PatchShaderType, String> sources = new EnumMap<>(PatchShaderType.class);
+        sources.put(PatchShaderType.VERTEX, VERTEX);
+        sources.put(PatchShaderType.FRAGMENT, FRAGMENT);
+        sources.put(PatchShaderType.GEOMETRY, null);
+        PortalIrisClipping.Result first = PortalIrisClipping.transform(sources, 8, false);
+        sources.put(PatchShaderType.VERTEX, VERTEX.replace("1.0", "2.0"));
+        assertNotSame(first, PortalIrisClipping.transform(sources, 8, false));
+        sources.put(PatchShaderType.VERTEX, VERTEX);
+        assertSame(first, PortalIrisClipping.transform(sources, 8, false));
+        assertNotSame(first, PortalIrisClipping.transform(sources, 4, false));
+        PortalIrisClipping.clear();
+        assertNotSame(first, PortalIrisClipping.transform(sources, 8, false));
+    }
+
+    @Test
+    public void clippingCacheEvictsLeastRecentlyUsedPrograms() {
+        PortalIrisClipping.clear();
+        Map<PatchShaderType, String> firstSources = Map.of(PatchShaderType.VERTEX, VERTEX);
+        PortalIrisClipping.Result first = PortalIrisClipping.transform(firstSources, 8, false);
+        Map<PatchShaderType, String> secondSources = Map.of(PatchShaderType.VERTEX, VERTEX.replace("1.0", "2.0"));
+        PortalIrisClipping.Result second = PortalIrisClipping.transform(secondSources, 8, false);
+        for (int index = 3; index <= 128; index++) {
+            PortalIrisClipping.transform(Map.of(PatchShaderType.VERTEX, VERTEX.replace("1.0", index + ".0")), 8, false);
+        }
+        assertSame(first, PortalIrisClipping.transform(firstSources, 8, false));
+        PortalIrisClipping.transform(Map.of(PatchShaderType.VERTEX, VERTEX.replace("1.0", "129.0")), 8, false);
+        assertSame(first, PortalIrisClipping.transform(firstSources, 8, false));
+        assertNotSame(second, PortalIrisClipping.transform(secondSources, 8, false));
+        PortalIrisClipping.clear();
+    }
+
+    @Test
     public void cachedSourcesAndFragmentRemainUnchanged() {
         Map<PatchShaderType, String> original = Map.of(PatchShaderType.VERTEX, VERTEX,
             PatchShaderType.FRAGMENT, FRAGMENT);
-        PortalIrisClipping.Result result = PortalIrisClipping.transform(original, 8);
+        PortalIrisClipping.Result result = PortalIrisClipping.transform(original, 8, false);
 
         assertEquals(0, result.clipDistance());
         assertEquals(Set.of(), result.existingDistances());
@@ -40,7 +149,7 @@ public class PortalIrisClippingTest {
     @Test
     public void olderVersionIdentifiersAreParsedWithTheirDeclaredLanguageVersion() {
         String source = "#version 330 core\nvoid main() { float sample = 1.0; gl_Position = vec4(sample); }";
-        String converted = PortalIrisClipping.transform(Map.of(PatchShaderType.VERTEX, source), 8)
+        String converted = PortalIrisClipping.transform(Map.of(PatchShaderType.VERTEX, source), 8, false)
             .sources().get(PatchShaderType.VERTEX);
 
         assertTrue(converted.contains("#version 330 core"));
@@ -51,7 +160,7 @@ public class PortalIrisClippingTest {
     public void vertexEarlyReturnsStillComputeDistanceAfterOriginalMain() {
         String source = "#version 330 core\nvoid main() { gl_Position = vec4(1.0); if (gl_VertexID == 0) return;"
             + " gl_Position.z = 2.0; }";
-        TranslationUnit tree = parse(PortalIrisClipping.transform(Map.of(PatchShaderType.VERTEX, source), 8)
+        TranslationUnit tree = parse(PortalIrisClipping.transform(Map.of(PatchShaderType.VERTEX, source), 8, false)
             .sources().get(PatchShaderType.VERTEX));
         String main = body(tree, "main");
 
@@ -67,7 +176,7 @@ public class PortalIrisClippingTest {
             + " gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position; }";
         PortalIrisClipping.Result result = PortalIrisClipping.transform(Map.of(
             PatchShaderType.VERTEX, VERTEX, PatchShaderType.TESS_CONTROL, control,
-            PatchShaderType.TESS_EVAL, evaluation), 8);
+            PatchShaderType.TESS_EVAL, evaluation), 8, false);
 
         assertSame(VERTEX, result.sources().get(PatchShaderType.VERTEX));
         assertSame(control, result.sources().get(PatchShaderType.TESS_CONTROL));
@@ -81,7 +190,7 @@ public class PortalIrisClippingTest {
             + " void main() { gl_Position = gl_in[0].gl_Position; gl_Position.z = -gl_Position.z; EmitVertex();"
             + " gl_Position.x += 1.0; EmitVertex(); EndPrimitive(); }";
         PortalIrisClipping.Result result = PortalIrisClipping.transform(Map.of(
-            PatchShaderType.VERTEX, VERTEX, PatchShaderType.GEOMETRY, geometry), 8);
+            PatchShaderType.VERTEX, VERTEX, PatchShaderType.GEOMETRY, geometry), 8, false);
         TranslationUnit tree = parse(result.sources().get(PatchShaderType.GEOMETRY));
         String main = body(tree, "main");
 
@@ -96,7 +205,7 @@ public class PortalIrisClippingTest {
     public void geometryStreamArgumentRemainsAConstantExpression() {
         String geometry = "#version 400 core\nlayout(points) in; layout(points,max_vertices=1) out;"
             + " const int stream = 1; void main() { gl_Position = gl_in[0].gl_Position; EmitStreamVertex(stream); }";
-        TranslationUnit tree = parse(PortalIrisClipping.transform(Map.of(PatchShaderType.GEOMETRY, geometry), 8)
+        TranslationUnit tree = parse(PortalIrisClipping.transform(Map.of(PatchShaderType.GEOMETRY, geometry), 8, false)
             .sources().get(PatchShaderType.GEOMETRY));
         assertEquals(1, calls(tree, "EmitStreamVertex"));
         assertTrue(body(tree, "main").contains(
@@ -109,7 +218,7 @@ public class PortalIrisClippingTest {
         String geometry = "#version 400 core\nlayout(triangles) in; layout(points,max_vertices=1) out;"
             + " void main() { gl_Position = gl_in[0].gl_Position; EmitVertex(); }";
         PortalIrisClipping.Result result = PortalIrisClipping.transform(Map.of(
-            PatchShaderType.TESS_EVAL, evaluation, PatchShaderType.GEOMETRY, geometry), 8);
+            PatchShaderType.TESS_EVAL, evaluation, PatchShaderType.GEOMETRY, geometry), 8, false);
 
         assertSame(evaluation, result.sources().get(PatchShaderType.TESS_EVAL));
         assertTrue(body(parse(result.sources().get(PatchShaderType.GEOMETRY)), "main")
@@ -126,7 +235,7 @@ public class PortalIrisClippingTest {
             + " void main() { gl_Position = gl_in[0].gl_Position; gl_ClipDistance[0] = gl_in[0].gl_ClipDistance[0];"
             + " EmitVertex(); }";
         PortalIrisClipping.Result result = PortalIrisClipping.transform(Map.of(
-            PatchShaderType.VERTEX, vertex, PatchShaderType.GEOMETRY, geometry), 8);
+            PatchShaderType.VERTEX, vertex, PatchShaderType.GEOMETRY, geometry), 8, false);
         String convertedVertex = compact(result.sources().get(PatchShaderType.VERTEX));
         String convertedGeometry = compact(result.sources().get(PatchShaderType.GEOMETRY));
 
@@ -145,7 +254,7 @@ public class PortalIrisClippingTest {
             + " gl_ClipDistance[gl_VertexID] = 1.0; }";
 
         assertThrows(IllegalArgumentException.class,
-            () -> PortalIrisClipping.transform(Map.of(PatchShaderType.VERTEX, source), 8));
+            () -> PortalIrisClipping.transform(Map.of(PatchShaderType.VERTEX, source), 8, false));
     }
 
     @Test
@@ -154,11 +263,11 @@ public class PortalIrisClippingTest {
         String collision = "#version 330 core\nuniform vec4 wormholes_ClipPlane; void main() { gl_Position = vec4(1.0); }";
 
         assertThrows(IllegalArgumentException.class,
-            () -> PortalIrisClipping.transform(Map.of(PatchShaderType.VERTEX, occupied), 1));
+            () -> PortalIrisClipping.transform(Map.of(PatchShaderType.VERTEX, occupied), 1, false));
         assertThrows(IllegalArgumentException.class,
-            () -> PortalIrisClipping.transform(Map.of(PatchShaderType.VERTEX, VERTEX), 0));
+            () -> PortalIrisClipping.transform(Map.of(PatchShaderType.VERTEX, VERTEX), 0, false));
         assertThrows(IllegalArgumentException.class,
-            () -> PortalIrisClipping.transform(Map.of(PatchShaderType.VERTEX, collision), 8));
+            () -> PortalIrisClipping.transform(Map.of(PatchShaderType.VERTEX, collision), 8, false));
     }
 
     @Test
@@ -166,7 +275,7 @@ public class PortalIrisClippingTest {
         EnumMap<PatchShaderType, String> original = new EnumMap<>(PatchShaderType.class);
         original.put(PatchShaderType.VERTEX, VERTEX);
         original.put(PatchShaderType.GEOMETRY, null);
-        PortalIrisClipping.Result result = PortalIrisClipping.transform(original, 8);
+        PortalIrisClipping.Result result = PortalIrisClipping.transform(original, 8, false);
 
         assertTrue(result.sources().containsKey(PatchShaderType.GEOMETRY));
         assertEquals(null, result.sources().get(PatchShaderType.GEOMETRY));

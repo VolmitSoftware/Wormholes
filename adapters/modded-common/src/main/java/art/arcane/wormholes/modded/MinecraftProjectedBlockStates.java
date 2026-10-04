@@ -3,6 +3,7 @@ package art.arcane.wormholes.modded;
 import art.arcane.wormholes.render.DirectionMapping;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Mirror;
+import net.minecraft.world.level.block.HugeMushroomBlock;
 import net.minecraft.world.level.block.MultifaceBlock;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
@@ -79,8 +80,8 @@ public final class MinecraftProjectedBlockStates {
             case "south" -> Direction.SOUTH;
             case "east" -> Direction.EAST;
             case "west" -> Direction.WEST;
-            case "up" -> state.getBlock() instanceof MultifaceBlock ? Direction.UP : null;
-            case "down" -> state.getBlock() instanceof MultifaceBlock ? Direction.DOWN : null;
+            case "up" -> state.getBlock() instanceof MultifaceBlock || state.getBlock() instanceof HugeMushroomBlock ? Direction.UP : null;
+            case "down" -> state.getBlock() instanceof MultifaceBlock || state.getBlock() instanceof HugeMushroomBlock ? Direction.DOWN : null;
             default -> null;
         };
     }

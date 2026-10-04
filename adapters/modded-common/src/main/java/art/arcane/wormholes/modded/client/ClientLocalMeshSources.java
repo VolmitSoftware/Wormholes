@@ -20,6 +20,7 @@ import art.arcane.wormholes.render.plate.PlateBox;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.block.Blocks;
@@ -33,7 +34,6 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
-import java.util.ArrayDeque;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -88,7 +88,8 @@ public final class ClientLocalMeshSources {
                 route.cells.displayY(position.getX(), position.getY(), position.getZ()) >> 4,
                 route.cells.displayZ(position.getX(), position.getY(), position.getZ()) >> 4);
             if (route.derived.containsKey(display)) {
-                route.enqueue(display);
+                route.refreshing.add(display);
+                route.dirty.addAndMoveToFirst(display);
             }
         }
         dirty(SectionPos.asLong(position.getX() >> 4, position.getY() >> 4, position.getZ() >> 4));
@@ -235,10 +236,7 @@ public final class ClientLocalMeshSources {
                 nextRoute = 0;
             }
             Route route = active.get(nextRoute++);
-            Long section = route.dirty.poll();
-            if (section != null) {
-                route.queued.remove(section.longValue());
-            }
+            Long section = route.dirty.isEmpty() ? null : Long.valueOf(route.dirty.removeFirstLong());
             if (section == null) {
                 if (route.cursor >= route.selection.size()) {
                     continue;
@@ -392,7 +390,7 @@ public final class ClientLocalMeshSources {
                 return null;
             }
             int source = (position.getY() & 15) << 8 | (position.getZ() & 15) << 4 | position.getX() & 15;
-            ids[cell] = palette.localId(route.reflector.reflect(snapshot.state(source)));
+            ids[cell] = palette.localId(snapshot.state(source));
             block[cell >> 1] |= (byte) (snapshot.light(false, position) << ((cell & 1) * 4));
             sky[cell >> 1] |= (byte) (snapshot.light(true, position) << ((cell & 1) * 4));
             BlockEntitySample sample = snapshot.blockEntities.get(source);
@@ -507,14 +505,12 @@ public final class ClientLocalMeshSources {
         private final ClientMeshSections.View view;
         private final ClientViewEnvironment.Transform transform;
         private final ClientViewBlockTransform cells;
-        private final ClientStateReflector reflector;
         private final String world;
         private final boolean local;
         private final List<ClientViewMessage.MeshClaim> cached = new ArrayList<>();
         private final List<Long> selection = new ArrayList<>();
         private final LongOpenHashSet selected = new LongOpenHashSet();
-        private final ArrayDeque<Long> dirty = new ArrayDeque<>();
-        private final LongOpenHashSet queued = new LongOpenHashSet();
+        private final LongLinkedOpenHashSet dirty = new LongLinkedOpenHashSet();
         private final LongOpenHashSet refreshing = new LongOpenHashSet();
         private final Long2ObjectOpenHashMap<Derived> derived = new Long2ObjectOpenHashMap<>();
         private final Set<UUID> entities = new HashSet<>();
@@ -540,9 +536,7 @@ public final class ClientLocalMeshSources {
 
         private void enqueue(long key) {
             refreshing.add(key);
-            if (queued.add(key)) {
-                dirty.add(key);
-            }
+            dirty.add(key);
         }
 
         private Route(ClientPortal portal, ClientMeshSections.View view, ClientViewEnvironment.Transform transform, GeometryVector eye, long tick, String world, boolean local) {
@@ -553,7 +547,6 @@ public final class ClientLocalMeshSources {
             this.generation = view.generation();
             this.transform = transform;
             this.cells = new ClientViewBlockTransform(transform);
-            this.reflector = new ClientStateReflector(transform);
             plan(portal.geometry(), eye, tick);
         }
 

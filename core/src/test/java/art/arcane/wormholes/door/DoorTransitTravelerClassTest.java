@@ -74,17 +74,17 @@ final class DoorTransitTravelerClassTest
 	}
 
 	@Test
-	void aLivingTransitCannotBeGivenMomentum()
+	void aPreparedLivingTransitCarriesValidatedMomentum()
 	{
-		assertThrows(IllegalArgumentException.class, () -> new DoorTransit(
-			PLANE,
-			DoorwayCrossing.Direction.FRONT_TO_BACK,
-			0.0F,
-			0.0F,
-			0.3D,
-			1.8D,
-			DoorTravelerClass.LIVING,
-			new DoorVec3(1.0D, 0.0D, 0.0D)));
+		DoorVec3 velocity = new DoorVec3(1.0D, -0.2D, 0.5D);
+		DoorTransit transit = new DoorTransit(PLANE, DoorwayCrossing.Direction.FRONT_TO_BACK,
+			0.0F, 0.0F, 0.3D, 1.8D, DoorTravelerClass.LIVING, velocity);
+		assertTrue(transit.carriesMomentum());
+		assertSame(velocity, transit.velocity());
+		DoorVec3 mapped = DoorVelocityTransform.map(PLANE, new DoorwayPlane(0, 64, 0, Direction.E), velocity);
+		assertEquals(velocity.y(), mapped.y());
+		assertEquals(velocity.x() * velocity.x() + velocity.z() * velocity.z(),
+			mapped.x() * mapped.x() + mapped.z() * mapped.z(), 0.000001D);
 	}
 
 	@Test

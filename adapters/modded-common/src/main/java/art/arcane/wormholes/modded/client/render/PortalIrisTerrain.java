@@ -6,8 +6,6 @@ import com.mojang.renderpearl.api.pipeline.ColorTargetState;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.renderpearl.api.textures.GpuSampler;
 import com.mojang.renderpearl.api.vertex.VertexFormat;
-import net.irisshaders.iris.api.v0.IrisApi;
-import net.irisshaders.iris.api.v0.IrisProgram;
 import net.irisshaders.iris.pipeline.IrisPipelines;
 import net.irisshaders.iris.pipeline.WorldRenderingPhase;
 import net.irisshaders.iris.pipeline.programs.ShaderKey;
@@ -49,12 +47,12 @@ final class PortalIrisTerrain {
             case TRANSLUCENT -> RenderPipelines.TRANSLUCENT_BLOCK;
         };
         RenderPipeline pipeline = new TerrainPipeline(original, layer, reflected);
-        IrisProgram program = switch (layer) {
-            case SOLID -> IrisProgram.TERRAIN_SOLID;
-            case CUTOUT -> IrisProgram.TERRAIN_CUTOUT;
-            case TRANSLUCENT -> IrisProgram.TRANSLUCENT;
+        ShaderKey program = switch (layer) {
+            case SOLID -> ShaderKey.TERRAIN_SOLID;
+            case CUTOUT -> ShaderKey.TERRAIN_CUTOUT;
+            case TRANSLUCENT -> ShaderKey.TERRAIN_TRANSLUCENT;
         };
-        IrisApi.getInstance().assignPipeline(pipeline, program);
+        IrisPipelines.assignPipeline(pipeline, program);
         IrisPipelines.assignPipelineShadow(pipeline, layer == ChunkSectionLayer.TRANSLUCENT
             ? ShaderKey.SHADOW_TRANSLUCENT : ShaderKey.SHADOW_TERRAIN_CUTOUT);
         return pipeline;

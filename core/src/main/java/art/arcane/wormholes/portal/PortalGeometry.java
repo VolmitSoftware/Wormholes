@@ -16,6 +16,7 @@ public final class PortalGeometry implements PortalCellAperture {
     private final List<GeometryVector> blockPositions = new ArrayList<>();
     private final ConcurrentHashMap<Direction, List<AxisAlignedBB>> apertureFaceCache = new ConcurrentHashMap<>();
     private AxisAlignedBB area;
+    private GeometryVector apertureCenter;
     private long revision;
 
     public void setArea(AxisAlignedBB area) {
@@ -78,7 +79,7 @@ public final class PortalGeometry implements PortalCellAperture {
 
     @Override
     public GeometryVector getApertureCenter() {
-        return area.min().add(area.max().subtract(area.min()).multiply(0.5D));
+        return apertureCenter;
     }
 
     public long getRevision() {
@@ -122,9 +123,32 @@ public final class PortalGeometry implements PortalCellAperture {
     }
 
     private void invalidate() {
+        apertureCenter = cellCenter();
         apertureFaceCache.clear();
         revision++;
     }
+    private GeometryVector cellCenter() {
+        if (blockPositions.isEmpty()) {
+            return area == null ? null : area.min().add(area.max().subtract(area.min()).multiply(0.5D));
+        }
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        for (GeometryVector cell : blockPositions) {
+            minX = Math.min(minX, cell.getBlockX());
+            minY = Math.min(minY, cell.getBlockY());
+            minZ = Math.min(minZ, cell.getBlockZ());
+            maxX = Math.max(maxX, cell.getBlockX());
+            maxY = Math.max(maxY, cell.getBlockY());
+            maxZ = Math.max(maxZ, cell.getBlockZ());
+        }
+        return new GeometryVector((minX + (double) maxX + 1.0D) * 0.5D,
+            (minY + (double) maxY + 1.0D) * 0.5D, (minZ + (double) maxZ + 1.0D) * 0.5D);
+    }
+
 	public boolean containsBlock(int x, int y, int z)
 	{
 		if(blockKeys.isEmpty())

@@ -16,6 +16,7 @@ import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.Objects;
+import java.util.UUID;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.function.Consumer;
@@ -50,6 +51,7 @@ public final class ClientViewSession {
     private long ignoredSceneMessages;
     private long protocolFailures;
     private boolean memoryFailureReported;
+    private UUID selfEntityId;
 
     public ClientViewSession(WormholesClientConfig config, ClientPalette palette, int dataVersion, String brandTag) {
         this.config = Objects.requireNonNull(config, "config");
@@ -74,7 +76,7 @@ public final class ClientViewSession {
         long capabilities = ClientViewCapability.of(ClientViewCapability.PLATES, ClientViewCapability.BRICK_CACHE, ClientViewCapability.DEST_LIGHT,
             ClientViewCapability.ENTITY_FRAMES, ClientViewCapability.ENTITY_EVENTS, ClientViewCapability.FX_EMITTERS, ClientViewCapability.ATMOSPHERE, ClientViewCapability.ZERO_COPY,
             ClientViewCapability.CONFIG_PHASE, ClientViewCapability.LINK_UNCOMPRESSED, ClientViewCapability.VIEW_STATS, ClientViewCapability.MESH_RENDER,
-            ClientViewCapability.LOCAL_MESH, ClientViewCapability.MESH_REUSE);
+            ClientViewCapability.LOCAL_MESH, ClientViewCapability.MESH_REUSE, ClientViewCapability.PREPARED_TRAVEL, ClientViewCapability.PREPARED_TRAVEL_CACHE, ClientViewCapability.ENTITY_SELF);
         if (config.clientMirror) {
             capabilities |= ClientViewCapability.CLIENT_MIRROR.mask();
         }
@@ -106,12 +108,20 @@ public final class ClientViewSession {
         }
         accept = received;
         caps = ClientViewCapability.intersection(received.caps(), clientCapabilities());
+        if (!ClientViewCapability.ENTITY_SELF.in(caps)) {
+            selfEntityId = null;
+        }
         nativeSelected |= ClientViewCapability.MESH_RENDER.in(caps);
         state = nativeSelected && !ClientViewCapability.MESH_RENDER.in(caps) ? State.NATIVE_RECOVERING : State.CLIENT_VIEW;
     }
 
+    public UUID selfEntityId() {
+        return selfEntityId;
+    }
+
     public void decline(ClientViewMessage.Decline received) {
         Objects.requireNonNull(received, "received");
+        selfEntityId = null;
         declineReason = received.reason();
         state = nativeSelected ? State.NATIVE_RECOVERING : State.DECLINED;
     }
@@ -128,6 +138,7 @@ public final class ClientViewSession {
             return;
         }
         state = nativeSelected ? State.NATIVE_RECOVERING : State.VANILLA;
+        selfEntityId = null;
         sink.reset(ClientViewMessage.ResetReason.PROTOCOL);
         clearPortals();
     }
@@ -181,6 +192,12 @@ public final class ClientViewSession {
         }
         try {
             switch (message) {
+                case ClientViewMessage.TravelBegin ignored -> { }
+                case ClientViewMessage.TravelChunk ignored -> { }
+                case ClientViewMessage.TravelEnd ignored -> { }
+                case ClientViewMessage.TravelCommit ignored -> { }
+                case ClientViewMessage.TravelCancel ignored -> { }
+                case ClientViewMessage.TravelReuse ignored -> { }
                 case ClientViewMessage.Palette paletteMessage -> palette.apply(paletteMessage);
                 case ClientViewMessage.Portal portal -> portal(portal);
                 case ClientViewMessage.PortalDrop drop -> drop(drop.portalKey(), sink);
@@ -223,6 +240,11 @@ public final class ClientViewSession {
                         sink.entityEvent(event);
                     } else {
                         ignoredSceneMessages++;
+                    }
+                }
+                case ClientViewMessage.EntitySelf self -> {
+                    if (ClientViewCapability.ENTITY_SELF.in(caps)) {
+                        selfEntityId = self.projectedId();
                     }
                 }
                 case ClientViewMessage.EntityFrame frame -> {
@@ -530,12 +552,14 @@ public final class ClientViewSession {
     }
 
     private void restart(Sink sink) {
+        selfEntityId = null;
         sink.restarted();
         clearPortals();
         palette.reset();
     }
 
     private void reset(ClientViewMessage.ResetReason reason, Sink sink) {
+        selfEntityId = null;
         lastReset = reason;
         resets++;
         sink.reset(reason);

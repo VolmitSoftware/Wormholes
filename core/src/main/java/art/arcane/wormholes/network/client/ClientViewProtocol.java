@@ -3,6 +3,13 @@ package art.arcane.wormholes.network.client;
 import art.arcane.wormholes.render.blockentity.BlockEntitySample;
 
 public final class ClientViewProtocol {
+    public static final int TRAVEL_HASH_BYTES = 32;
+    public static final int TRAVEL_REUSE_BYTES = 74;
+    public static final int MAX_TRAVEL_CHUNKS = 1089;
+    public static final int MAX_TRAVEL_CHUNK_BYTES = 2 * 1024 * 1024;
+    public static final int MAX_TRAVEL_BYTES = 64 * 1024 * 1024;
+    public static final int TRAVEL_FRAGMENT_BYTES = 48 * 1024;
+    public static final int MAX_TRAVEL_EXPIRY_MILLIS = 300_000;
     public static final String CHANNEL_NAMESPACE = "wormholes";
     public static final String CHANNEL_PATH = "v5";
     public static final String CHANNEL = CHANNEL_NAMESPACE + ":" + CHANNEL_PATH;

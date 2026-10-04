@@ -1,0 +1,238 @@
+package art.arcane.wormholes.modded.client.render;
+
+import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.wormholes.render.client.ClientPortalGeometry;
+import art.arcane.wormholes.util.Direction;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongIterable;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.block.BlockAndTintGetter;
+import net.minecraft.client.renderer.chunk.RenderRegionCache;
+import net.minecraft.client.renderer.chunk.RenderSectionRegion;
+import net.minecraft.core.SectionPos;
+import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
+
+import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.Map;
+import java.util.Arrays;
+
+public final class ClientTravelScene implements PortalScene {
+    private static final long SNAPSHOT_NANOS = 2_000_000L;
+    private static final int MAX_SNAPSHOTS = 64;
+    private ClientLevel level;
+    private ClientViewEnvironment environment;
+    private ClientPortalGeometry geometry;
+    private final Long2ObjectOpenHashMap<RenderSectionRegion> regions = new Long2ObjectOpenHashMap<>();
+    private final LongOpenHashSet sections = new LongOpenHashSet();
+    private final LongOpenHashSet empty = new LongOpenHashSet();
+    private final Set<ClientViewMessage.TravelCoordinate> chunks;
+    private final Long2LongOpenHashMap revisions = new Long2LongOpenHashMap();
+    private final LongLinkedOpenHashSet pendingSections = new LongLinkedOpenHashSet();
+    private long revision = 1;
+    private final ClientViewMessage.TravelWorld travelWorld;
+    private Map<ClientViewMessage.TravelCoordinate, byte[]> nativeColumns = Map.of();
+    private final Long2ObjectOpenHashMap<MeshIdentity> meshIdentities = new Long2ObjectOpenHashMap<>();
+
+    public ClientTravelScene(ClientLevel level, ClientViewMessage.TravelBegin begin) {
+        this.level = level;
+        travelWorld = begin.world();
+        environment = begin.environment();
+        chunks = new HashSet<>(begin.chunks());
+        geometry = geometry(begin.arrival());
+        for (ClientViewMessage.TravelCoordinate column : chunks) {
+            if (interior(column.x(), column.z())) {
+                for (int y = level.getMinSectionY(); y < level.getMinSectionY() + level.getSectionsCount(); y++) {
+                    long key = SectionPos.asLong(column.x(), y, column.z());
+                    sections.add(key);
+                    pendingSections.add(key);
+                }
+            }
+        }
+    }
+
+    public void rebind(ClientViewMessage.TravelBegin begin) {
+        if (!travelWorld.equals(begin.world()) || !chunks.equals(new HashSet<>(begin.chunks()))
+            || !ClientViewEnvironment.Transform.IDENTITY.equals(begin.environment().transform())) {
+            throw new IllegalArgumentException("Prepared return snapshot identity differs");
+        }
+        environment = begin.environment();
+        geometry = geometry(begin.arrival());
+    }
+
+    private static ClientPortalGeometry geometry(ClientViewMessage.TravelPose arrival) {
+        return new ClientPortalGeometry((int) Math.floor(arrival.x()), (int) Math.floor(arrival.y()),
+            (int) Math.floor(arrival.z()), Direction.N.ordinal(), true, 0, false, 1, 1, new long[]{1L},
+            0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, -1L, List.of());
+    }
+
+    public void nativeColumns(Map<ClientViewMessage.TravelCoordinate, byte[]> columns) {
+        nativeColumns = Map.copyOf(columns);
+    }
+
+    MeshIdentity meshIdentity(long key) {
+        return meshIdentities.get(key);
+    }
+
+    private MeshIdentity meshIdentity(int x, int z) {
+        if (nativeColumns.isEmpty()) {
+            return null;
+        }
+        byte[][] columns = new byte[9][];
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                byte[] data = nativeColumns.get(new ClientViewMessage.TravelCoordinate(x + dx, z + dz));
+                if (data == null) {
+                    return null;
+                }
+                columns[(dz + 1) * 3 + dx + 1] = data;
+            }
+        }
+        return new MeshIdentity(travelWorld, columns);
+    }
+
+    boolean inLevel(ClientLevel value) {
+        return level == value;
+    }
+
+    public void adoptLevel(ClientLevel level) {
+        this.level = level;
+        nativeColumns = Map.of();
+    }
+
+    public boolean complete() {
+        return pendingSections.isEmpty() && !sections.isEmpty();
+    }
+
+    public void advance() {
+        advance(System.nanoTime() + SNAPSHOT_NANOS);
+    }
+
+    private void advance(long deadline) {
+        if (pendingSections.isEmpty()) {
+            return;
+        }
+        RenderRegionCache cache = new RenderRegionCache();
+        for (int count = 0; count < MAX_SNAPSHOTS && !pendingSections.isEmpty(); count++) {
+            if (count > 0 && System.nanoTime() >= deadline) {
+                break;
+            }
+            long key = pendingSections.removeFirstLong();
+            snapshot(cache, SectionPos.x(key), SectionPos.y(key), SectionPos.z(key));
+        }
+    }
+
+    public LongIterable changedSection(long sectionKey) {
+        LongOpenHashSet changed = new LongOpenHashSet();
+        int x = SectionPos.x(sectionKey);
+        int y = SectionPos.y(sectionKey);
+        int z = SectionPos.z(sectionKey);
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                if (!interior(x + dx, z + dz)) {
+                    continue;
+                }
+                for (int dy = -1; dy <= 1; dy++) {
+                    int sectionY = y + dy;
+                    if (sectionY < level.getMinSectionY() || sectionY >= level.getMinSectionY() + level.getSectionsCount()) {
+                        continue;
+                    }
+                    long key = SectionPos.asLong(x + dx, sectionY, z + dz);
+                    pendingSections.add(key);
+                    changed.add(key);
+                }
+            }
+        }
+        return changed;
+    }
+
+    private boolean interior(int x, int z) {
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                if (!chunks.contains(new ClientViewMessage.TravelCoordinate(x + dx, z + dz))) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private void snapshot(RenderRegionCache cache, int x, int y, int z) {
+        LevelChunk chunk = level.getChunkSource().getChunk(x, z, ChunkStatus.FULL, false);
+        if (chunk == null) {
+            throw new IllegalStateException("Prepared travel chunk is missing");
+        }
+        long key = SectionPos.asLong(x, y, z);
+        sections.add(key);
+        revisions.put(key, ++revision);
+        MeshIdentity identity = meshIdentity(x, z);
+        if (identity == null) {
+            meshIdentities.remove(key);
+        } else {
+            meshIdentities.put(key, identity);
+        }
+        if (chunk.getSection(chunk.getSectionIndex(y << 4)).hasOnlyAir()) {
+            empty.add(key);
+            regions.remove(key);
+        } else {
+            empty.remove(key);
+            regions.put(key, cache.createRegion(level, key));
+        }
+    }
+
+    @Override
+    public boolean fullWorld() {
+        return true;
+    }
+
+    @Override
+    public boolean empty(long sectionKey) {
+        return empty.contains(sectionKey);
+    }
+
+    @Override
+    public ClientPortalGeometry geometry() {
+        return geometry;
+    }
+
+    @Override
+    public ClientViewEnvironment environment() {
+        return environment;
+    }
+
+    @Override
+    public BlockAndTintGetter world(long sectionKey) {
+        return regions.get(sectionKey);
+    }
+
+    @Override
+    public LongIterable sectionKeys() {
+        return sections;
+    }
+
+    @Override
+    public long revision(long sectionKey) {
+        return sections.contains(sectionKey) && !pendingSections.contains(sectionKey)
+            ? revisions.get(sectionKey) : -1;
+    }
+    record MeshIdentity(ClientViewMessage.TravelWorld world, byte[][] columns) {
+        boolean same(MeshIdentity other) {
+            if (other == null || !world.equals(other.world)) {
+                return false;
+            }
+            for (int index = 0; index < columns.length; index++) {
+                if (!Arrays.equals(columns[index], other.columns[index])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+}

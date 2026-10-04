@@ -40,7 +40,7 @@ public class ClientPortalRendererUpdatesTest {
                 dirty.remove(SECTION);
                 when(scene.revision(SECTION)).thenReturn(compiled + 1);
                 if ((compiled & 1) == 0) {
-                    renderer.invalidate(7, SECTION);
+                    renderer.invalidate(7, SECTION, true);
                 }
                 PortalSectionMesh mesh = mesh();
                 complete(renderer, portal, compiled, 0, mesh);
@@ -53,7 +53,7 @@ public class ClientPortalRendererUpdatesTest {
                 previous = displayed;
             }
             when(scene.revision(SECTION)).thenReturn(12L);
-            renderer.invalidate(7, SECTION);
+            renderer.invalidate(7, SECTION, true);
             complete(renderer, portal, 12, 0, mesh());
             assertNotSame(previous, sections.get(SECTION));
             assertTrue(dirty.contains(SECTION));

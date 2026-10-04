@@ -148,20 +148,20 @@ final class PortalTerrainVertices implements VertexConsumer {
 
     private static void normal(ByteBuffer vertices, int base) {
         int stride = FORMAT.getVertexSize();
-        float ax = vertices.getFloat(base + stride) - vertices.getFloat(base);
-        float ay = vertices.getFloat(base + stride + 4) - vertices.getFloat(base + 4);
-        float az = vertices.getFloat(base + stride + 8) - vertices.getFloat(base + 8);
-        float bx = vertices.getFloat(base + 2 * stride) - vertices.getFloat(base);
-        float by = vertices.getFloat(base + 2 * stride + 4) - vertices.getFloat(base + 4);
-        float bz = vertices.getFloat(base + 2 * stride + 8) - vertices.getFloat(base + 8);
+        float ax = vertices.getFloat(base + 2 * stride) - vertices.getFloat(base);
+        float ay = vertices.getFloat(base + 2 * stride + 4) - vertices.getFloat(base + 4);
+        float az = vertices.getFloat(base + 2 * stride + 8) - vertices.getFloat(base + 8);
+        float bx = vertices.getFloat(base + 3 * stride) - vertices.getFloat(base + stride);
+        float by = vertices.getFloat(base + 3 * stride + 4) - vertices.getFloat(base + stride + 4);
+        float bz = vertices.getFloat(base + 3 * stride + 8) - vertices.getFloat(base + stride + 8);
         float nx = ay * bz - az * by;
         float ny = az * bx - ax * bz;
         float nz = ax * by - ay * bx;
         float length = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
         if (length < 1.0E-10F) {
-            ax = vertices.getFloat(base + 3 * stride) - vertices.getFloat(base);
-            ay = vertices.getFloat(base + 3 * stride + 4) - vertices.getFloat(base + 4);
-            az = vertices.getFloat(base + 3 * stride + 8) - vertices.getFloat(base + 8);
+            bx = vertices.getFloat(base + stride) - vertices.getFloat(base);
+            by = vertices.getFloat(base + stride + 4) - vertices.getFloat(base + 4);
+            bz = vertices.getFloat(base + stride + 8) - vertices.getFloat(base + 8);
             nx = by * az - bz * ay;
             ny = bz * ax - bx * az;
             nz = bx * ay - by * ax;
@@ -212,16 +212,16 @@ final class PortalTerrainVertices implements VertexConsumer {
     private static void tangent(ByteBuffer vertices, int base) {
         int stride = FORMAT.getVertexSize();
         int uv = FORMAT.getElement("UV0").offset();
-        float ax = vertices.getFloat(base + stride) - vertices.getFloat(base);
-        float ay = vertices.getFloat(base + stride + 4) - vertices.getFloat(base + 4);
-        float az = vertices.getFloat(base + stride + 8) - vertices.getFloat(base + 8);
-        float bx = vertices.getFloat(base + 2 * stride) - vertices.getFloat(base);
-        float by = vertices.getFloat(base + 2 * stride + 4) - vertices.getFloat(base + 4);
-        float bz = vertices.getFloat(base + 2 * stride + 8) - vertices.getFloat(base + 8);
-        float au = vertices.getFloat(base + stride + uv) - vertices.getFloat(base + uv);
-        float av = vertices.getFloat(base + stride + uv + 4) - vertices.getFloat(base + uv + 4);
-        float bu = vertices.getFloat(base + 2 * stride + uv) - vertices.getFloat(base + uv);
-        float bv = vertices.getFloat(base + 2 * stride + uv + 4) - vertices.getFloat(base + uv + 4);
+        float ax = vertices.getFloat(base + 2 * stride) - vertices.getFloat(base);
+        float ay = vertices.getFloat(base + 2 * stride + 4) - vertices.getFloat(base + 4);
+        float az = vertices.getFloat(base + 2 * stride + 8) - vertices.getFloat(base + 8);
+        float bx = vertices.getFloat(base + 3 * stride) - vertices.getFloat(base + stride);
+        float by = vertices.getFloat(base + 3 * stride + 4) - vertices.getFloat(base + stride + 4);
+        float bz = vertices.getFloat(base + 3 * stride + 8) - vertices.getFloat(base + stride + 8);
+        float au = vertices.getFloat(base + 2 * stride + uv) - vertices.getFloat(base + uv);
+        float av = vertices.getFloat(base + 2 * stride + uv + 4) - vertices.getFloat(base + uv + 4);
+        float bu = vertices.getFloat(base + 3 * stride + uv) - vertices.getFloat(base + stride + uv);
+        float bv = vertices.getFloat(base + 3 * stride + uv + 4) - vertices.getFloat(base + stride + uv + 4);
         float determinant = au * bv - bu * av;
         float inverse = Math.abs(determinant) > 1.0E-10F ? 1 / determinant : 1;
         float tx = inverse * (bv * ax - av * bx);

@@ -20,7 +20,10 @@ List<String> renderHooks = ['net/minecraft/client/renderer/chunk/', 'SectionRend
 Set<String> portalRenderMixins = ['client.PortalLevelRendererMixin', 'client.PortalProjectionMixin', 'client.PortalLightmapMixin',
                                  'client.MeshLevelExtractorMixin', 'client.MeshEntityRendererMixin', 'client.MeshFeatureWindingMixin',
                                  'client.EndPortalSurfaceMixin', 'client.MeshBlockModelLighterMixin', 'client.MeshFluidLightingMixin',
-                                 'client.PortalShaderGameRendererMixin'] as Set
+                                 'client.PortalShaderGameRendererMixin', 'client.IrisPortalMainMinecraftMixin',
+                                 'client.PreparedSectionFadeMixin', 'client.PreparedLevelAccess',
+                                 'client.PreparedLevelMetadataMixin', 'client.PreparedTravelPacketMixin',
+                                 'client.PreparedTravelCameraMixin'] as Set
 
 tasks.register('buildBukkit', Copy) {
     group = 'distribution'
@@ -49,7 +52,7 @@ loaders.each { String loader, String display ->
     TaskProvider<Exec> jarTask = tasks.register("${loader}Jar", Exec) {
         group = 'build'
         workingDir(file("adapters/${loader}"))
-        commandLine(file(wrapper).absolutePath, 'build', '--console=plain',
+        commandLine(file(wrapper).absolutePath, ':build', ':core:build', '--console=plain',
             "-PwormholesVersion=${project.version}", "-PminecraftVersion=${minecraftVersion}",
             "-P${versionKey}=${loaderVersion}", "-PuseLocalVolmLib=${useLocalVolmLib}")
         if (localVolmLibCheckout != null) {
@@ -61,6 +64,9 @@ loaders.each { String loader, String display ->
             file('gradle.properties'), file('gradle/libs.versions.toml'), file('gradle/localization-settings.gradle'),
             file('.gradle/local.properties'), fileTree('gradle/wrapper'),
             fileTree('src/main/resources/languages'), fileTree('src/main/resources/wormholes-pockets-pack/data'))
+        if (loader == 'neoforge') {
+            inputs.files(file('adapters/forge/build.gradle'), fileTree('adapters/forge/src'))
+        }
         gradle.includedBuilds.find { IncludedBuild included -> new File(included.projectDir, 'localization/build.gradle').isFile() }?.with { IncludedBuild included ->
             inputs.files(fileTree(new File(included.projectDir, 'localization/src')), new File(included.projectDir, 'localization/build.gradle'),
                 fileTree(new File(included.projectDir, 'web/src')), new File(included.projectDir, 'web/build.gradle'))
@@ -112,6 +118,7 @@ loaders.each { String loader, String display ->
                         for (String renderHook : renderHooks) {
                             if (constants.contains(renderHook)
                                 && !entry.name.startsWith('art/arcane/wormholes/modded/client/render/')
+                                && entry.name != 'art/arcane/wormholes/modded/client/PreparedLevelExtractor.class'
                                 && !portalRenderMixins.any { String name -> entry.name == "art/arcane/wormholes/modded/mixin/${name.replace('.', '/')}.class" }) {
                                 throw new GradleException("${artifact.name} references the render pipeline (${renderHook}) in ${entry.name}")
                             }

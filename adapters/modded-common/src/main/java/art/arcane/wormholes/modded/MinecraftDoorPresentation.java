@@ -165,13 +165,16 @@ final class MinecraftDoorPresentation implements AutoCloseable {
             open ? DimensionalDoorSounds.openSound(material) : DimensionalDoorSounds.closeSound(material), 1.0F, 1.0F);
     }
 
-    void teleport(Entity traveler, ServerLevel level) {
+    void teleport(Entity traveler, ServerLevel level, boolean seamless) {
         float volume = (float) configuration.settings().getMain().portalSoundVolumeMultiplier;
         if (volume <= 0) {
             return;
         }
         SoundEvent sound = BuiltInRegistries.SOUND_EVENT.getOptional(Identifier.withDefaultNamespace(DimensionalDoorSounds.teleportSound())).orElseThrow();
         if (traveler instanceof ServerPlayer player) {
+            if (seamless) {
+                return;
+            }
             player.connection.send(new ClientboundSoundPacket(BuiltInRegistries.SOUND_EVENT.wrapAsHolder(sound), SoundSource.PLAYERS,
                 player.getX(), player.getY(), player.getZ(), volume, 1.0F, level.getRandom().nextLong()));
         } else {

@@ -42,6 +42,7 @@ public final class PortalIrisShaderStages {
     public static void clearCurrentContext() {
         RenderSystem.assertOnRenderThread();
         CACHE.clear(SDLVideo.SDL_GL_GetCurrentContext());
+        PortalIrisClipping.clear();
     }
 
     public static void discardOwned(int handle) {

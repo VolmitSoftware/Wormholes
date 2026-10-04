@@ -95,13 +95,19 @@ public class MinecraftClientViewServiceTest {
         service.channelRegistered(player(overworld));
         ClientViewMessage.Offer offer = (ClientViewMessage.Offer) message(sent.get(sent.size() - 1));
         assertTrue(ClientViewCapability.LOCAL_MESH.in(offer.serverCaps()));
+        assertTrue(ClientViewCapability.ENTITY_SELF.in(offer.serverCaps()));
+        assertTrue(ClientViewCapability.PREPARED_TRAVEL.in(offer.serverCaps()));
+        assertTrue(ClientViewCapability.PREPARED_TRAVEL_CACHE.in(offer.serverCaps()));
 
         byte[] hello = ClientViewCodec.encodeC2S(ClientViewHandshake.clientHello(offer, offer.mcDataVersion(),
             ClientViewCapability.ALL, 512 * 1024, 256, 0L, "fabric"));
         assertEquals(ClientViewInbound.HELLO_ACCEPTED, service.receive(connection, hello));
         ClientViewMessage.Accept accept = (ClientViewMessage.Accept) message(sent.get(sent.size() - 1));
         assertTrue(ClientViewCapability.LOCAL_MESH.in(accept.caps()));
+        assertTrue(ClientViewCapability.ENTITY_SELF.in(accept.caps()));
         assertTrue(ClientViewCapability.MESH_RENDER.in(accept.caps()));
+        assertTrue(ClientViewCapability.PREPARED_TRAVEL.in(accept.caps()));
+        assertTrue(ClientViewCapability.PREPARED_TRAVEL_CACHE.in(accept.caps()));
     }
 
     @Test

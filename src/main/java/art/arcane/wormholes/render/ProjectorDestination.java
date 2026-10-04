@@ -121,7 +121,7 @@ final class ProjectorDestination implements ProjectorScanDestination<ILocalPorta
         return view;
     }
 
-    Outcome resolve(Player observer, PortalProjector.RtpProjectionTarget rtpTarget, int meshDistance) {
+    Outcome resolve(Player observer, World viewWorld, PortalProjector.RtpProjectionTarget rtpTarget, int meshDistance) {
         boolean rtpMode = rtpTarget != null;
         mirrorMode = !rtpMode && portal.isMirrorMode();
         mirrorRotationQuarterTurns = mirrorMode ? portal.getMirrorRotation().coherentFor(portal.getFrame()).getQuarterTurns() : 0;
@@ -178,7 +178,7 @@ final class ProjectorDestination implements ProjectorScanDestination<ILocalPorta
             return Outcome.CLOSE;
         }
 
-        if (!localWorld.equals(observer.getWorld())) {
+        if (!localWorld.equals(viewWorld)) {
             return Outcome.CLOSE;
         }
 

@@ -152,11 +152,12 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
     private List<Entry> reusableEntries(NamespacedId dimension) {
         List<Entry> candidates = new ArrayList<>();
         for (Entry entry : idle) {
-            if (entry.dimension.equals(dimension) && entry.ready()) {
+            if (entry.dimension.equals(dimension)) {
                 candidates.add(entry);
             }
         }
-        candidates.sort(Comparator.comparingLong((Entry entry) -> (long) entry.target.width * entry.target.height)
+        candidates.sort(Comparator.comparing(Entry::ready)
+            .thenComparingLong(entry -> (long) entry.target.width * entry.target.height)
             .thenComparingLong(entry -> entry.bytes).reversed());
         return candidates;
     }
@@ -241,8 +242,10 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
         if (entry == null) {
             return;
         }
-        if (entry.ready() && entry.active == 0) {
-            entry.pipeline.released();
+        if (entry.active == 0) {
+            if (entry.pipeline != null) {
+                entry.pipeline.released();
+            }
             idle.addFirst(entry);
             recycled++;
             reserve();
@@ -402,7 +405,7 @@ final class PortalIrisRenderer implements PortalShaderRenderer {
 
         @Override
         public PortalTerrainMaterials materials() {
-            return ready() ? pipeline.materials() : PortalTerrainMaterials.VANILLA;
+            return pipeline == null ? PortalTerrainMaterials.VANILLA : pipeline.materials();
         }
 
         @Override

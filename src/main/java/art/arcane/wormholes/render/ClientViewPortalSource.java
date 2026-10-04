@@ -49,6 +49,10 @@ public final class ClientViewPortalSource {
     private boolean plateResolved;
     private boolean refused;
     private boolean nativeMesh;
+    private World viewWorld;
+    private double eyeX;
+    private double eyeY;
+    private double eyeZ;
     private String blackoutState;
     private long geometryRevision;
 
@@ -76,10 +80,15 @@ public final class ClientViewPortalSource {
     }
 
     public void update(Player observer, Location eye, PortalProjector.RtpProjectionTarget rtpTarget, long tick, boolean nativeMesh) {
-        if (tick == updatedTick && this.nativeMesh == nativeMesh) {
+        if (tick == updatedTick && this.nativeMesh == nativeMesh && Objects.equals(target, rtpTarget)
+            && Objects.equals(viewWorld, eye.getWorld()) && eyeX == eye.getX() && eyeY == eye.getY() && eyeZ == eye.getZ()) {
             return;
         }
         this.nativeMesh = nativeMesh;
+        viewWorld = eye.getWorld();
+        eyeX = eye.getX();
+        eyeY = eye.getY();
+        eyeZ = eye.getZ();
         updatedTick = tick;
         touchedTick = tick;
         PortalProjector.RtpProjectionTarget previous = target;
@@ -97,7 +106,7 @@ public final class ClientViewPortalSource {
             geometryRevision = 0L;
             return;
         }
-        outcome = destination.resolve(observer, rtpTarget, nativeMesh ? Math.clamp(observer.getClientViewDistance(), 2, 32) * 16 : 0);
+        outcome = destination.resolve(observer, viewWorld, rtpTarget, nativeMesh ? Math.clamp(observer.getClientViewDistance(), 2, 32) * 16 : 0);
         if (nativeMesh && destination.mirrorMode) {
             destination.mirrorRotationQuarterTurns = portal.getMirrorRotation().getQuarterTurns();
         }

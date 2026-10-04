@@ -36,7 +36,7 @@ final class ChunkPreSendBudgetGuardTest {
         long before = failureCount("PRESEND_BUDGET_OVERRUN");
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.ROLLED_BACK_BUDGET_OVERRUN, ticket.outcome());
@@ -44,7 +44,7 @@ final class ChunkPreSendBudgetGuardTest {
         assertFalse(ticket.rollbackRequired(), "the service already undid the half-sent burst");
         assertEquals(List.of(new ChunkCoordinate(0, 0), new ChunkCoordinate(40, 40)), platform.announced(),
             "the destination centre goes out, then the overrun re-centres the client on the source");
-        assertEquals(RecordingPreSendPlatform.DESTINATION_WORLD, platform.sent().getFirst().world());
+        assertEquals(RecordingPreSendPlatform.SOURCE_WORLD, platform.sent().getFirst().world());
         assertTrue(platform.sent().size() >= 2, "the rollback re-sends the source slot the burst overwrote");
         assertEquals(RecordingPreSendPlatform.SOURCE_WORLD, platform.sent().get(1).world());
         assertEquals(before + 1L, failureCount("PRESEND_BUDGET_OVERRUN"));
@@ -56,7 +56,7 @@ final class ChunkPreSendBudgetGuardTest {
         ChunkPreSendService<String, String> service = new ChunkPreSendService<>(platform, () -> ChunkPreSendOptions.of(true, 2, 64, 1000));
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.PRE_SENT_PARTIAL, ticket.outcome());

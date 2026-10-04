@@ -1,3 +1,5 @@
+import org.gradle.api.artifacts.Configuration
+import org.gradle.api.attributes.Attribute
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.WriteProperties
 import org.gradle.api.tasks.compile.JavaCompile
@@ -24,6 +26,11 @@ apply plugin: 'art.arcane.volmit-packaging'
 group = 'art.arcane'
 version = providers.gradleProperty('wormholesVersion').get()
 apply from: file('gradle/multiplatform.gradle')
+Configuration nativeShrinkLibraryClasspath = configurations.create('nativeShrinkLibraries') {
+    canBeConsumed = false
+    canBeResolved = true
+    attributes.attribute(Attribute.of('art.arcane.volmlib.native.linkage', String), 'mapped-server')
+}
 def apiVersion = '26.1'
 def main = 'art.arcane.wormholes.Wormholes'
 def bootstrapper = 'art.arcane.wormholes.survival.doors.dimension.WormholesBootstrap'
@@ -306,6 +313,8 @@ dependencies {
     implementation("com.github.VolmitSoftware.VolmLib:native-common:${volmLibCoordinate.tokenize(':').last()}")
     implementation("com.github.VolmitSoftware.VolmLib:native-v26_2_R1:${volmLibCoordinate.tokenize(':').last()}")
     implementation("com.github.VolmitSoftware.VolmLib:native-v26_3_R1:${volmLibCoordinate.tokenize(':').last()}")
+    nativeShrinkLibraries("com.github.VolmitSoftware.VolmLib:native-v26_2_R1:${volmLibCoordinate.tokenize(':').last()}")
+    nativeShrinkLibraries("com.github.VolmitSoftware.VolmLib:native-v26_3_R1:${volmLibCoordinate.tokenize(':').last()}")
     implementation("com.github.VolmitSoftware.VolmLib:volmlib-localization:${volmLibCoordinate.tokenize(':').last()}") {
         transitive = false
     }
@@ -429,6 +438,10 @@ pluginPackaging {
             taskName = 'shadowJar'
             policyName = 'Wormholes'
             requiredEntries = requiredEntries + [
+                'art/arcane/volmlib/nativelib/chunk/ChunkPacketAccess.class',
+                'art/arcane/volmlib/nativelib/chunk/ChunkPosition.class',
+                'art/arcane/volmlib/nativelib/chunk/ChunkPacketSnapshot.class',
+                'art/arcane/volmlib/nativelib/chunk/ChunkWorldContext.class',
                 'art/arcane/volmlib/nativelib/entity/EntityMetadataAccess.class',
                 'art/arcane/volmlib/nativelib/common/entity/NativeEntityMetadataAccess.class',
                 'art/arcane/volmlib/nativelib/v26_2_R1/entity/NativeEntityMetadataAccess.class',
@@ -442,6 +455,7 @@ pluginPackaging {
             prunePrefixes = ['art/arcane/volmlib/']
             keepPrefixes = ['art/arcane/volmlib/util/matter/slices/', 'art/arcane/volmlib/nativelib/']
             shrinkRules = [file('packaging/shrink.pro')]
+            shrinkLibraries.from(nativeShrinkLibraryClasspath)
             shrinkRelocations = [
                 'org.bstats'                       : "${lib}.bstats",
                 'com.github.retrooper.packetevents': "${lib}.packetevents.api",

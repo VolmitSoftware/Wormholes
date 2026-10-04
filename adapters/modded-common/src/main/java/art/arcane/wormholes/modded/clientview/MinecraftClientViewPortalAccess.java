@@ -239,6 +239,11 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
         if (!parentGeometry.mirror() || mirror == null || player == null || portals == null) {
             return;
         }
+        MinecraftClientViewScene.Destination destination = scene.destination(peer, parent, front(player, mirror));
+        if (destination == null) {
+            return;
+        }
+        ClientViewEnvironment.Transform transform = ClientViewEnvironmentTransform.of(destination.frame());
         List<MinecraftPortal> frame = candidates(peer);
         for (int i = 0; i < frame.size(); i++) {
             MinecraftPortal portal = frame.get(i);
@@ -247,7 +252,7 @@ public final class MinecraftClientViewPortalAccess implements ClientViewPortalAc
                 continue;
             }
             AxisAlignedBB area = portal.getGeometry().getArea();
-            if (ClientRecursionPlanner.mirrorReaches(parentGeometry, area)) {
+            if (ClientRecursionPlanner.destinationReaches(parentGeometry, transform, area)) {
                 out.add(portal.getId());
             }
         }

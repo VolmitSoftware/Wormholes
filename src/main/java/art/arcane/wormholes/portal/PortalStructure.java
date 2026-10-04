@@ -90,9 +90,8 @@ public class PortalStructure implements IWritable, PortalCellAperture
 		Location cached = centerCache;
 		if(cached == null)
 		{
-			Location min = corner(Direction.W, Direction.D, Direction.N);
-			Location max = corner(Direction.E, Direction.U, Direction.S);
-			cached = min.clone().add(max.clone().subtract(min).toVector().multiply(0.5));
+			GeometryVector center = geometry.getApertureCenter();
+			cached = new Location(getWorld(), center.x(), center.y(), center.z());
 			centerCache = cached;
 		}
 		return cached.clone();
@@ -101,7 +100,7 @@ public class PortalStructure implements IWritable, PortalCellAperture
 	@Override
 	public GeometryVector getApertureCenter()
 	{
-		return BukkitGeometry.vector(getCenter());
+		return geometry.getApertureCenter();
 	}
 
 	public Location randomCellCentre()

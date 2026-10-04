@@ -5,6 +5,7 @@ import art.arcane.wormholes.modded.client.render.PortalDeferredShaderPipeline;
 import art.arcane.wormholes.modded.client.render.PortalIrisShaderLoading;
 import com.google.common.collect.ImmutableList;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.renderpearl.backend.opengl.GlProgram;
 import net.irisshaders.iris.features.FeatureFlags;
@@ -21,6 +22,7 @@ import net.irisshaders.iris.shaderpack.loading.ProgramArrayId;
 import net.irisshaders.iris.shaderpack.loading.ProgramId;
 import net.irisshaders.iris.shaderpack.programs.ProgramFallbackResolver;
 import net.irisshaders.iris.shaderpack.programs.ProgramSet;
+import net.irisshaders.iris.shaderpack.programs.ComputeSource;
 import net.irisshaders.iris.shaderpack.properties.PackDirectives;
 import net.irisshaders.iris.shaderpack.properties.PackShadowDirectives;
 import net.irisshaders.iris.shaderpack.texture.TextureStage;
@@ -119,6 +121,10 @@ public abstract class IrisPortalDeferredPipelineMixin implements PortalDeferredS
             }
             defaultFBShadow = shadowRenderTargets.createFramebufferWritingToMain(new int[]{0});
         }
+    }
+
+    @Override
+    public void wormholes$completeShaders() {
         if (shadowRenderTargets != null) {
             shadowClearPasses = ClearPassCreator.createShadowClearPasses(shadowRenderTargets, false, shadowDirectives);
             shadowClearPassesFull = ClearPassCreator.createShadowClearPasses(shadowRenderTargets, true, shadowDirectives);
@@ -132,6 +138,28 @@ public abstract class IrisPortalDeferredPipelineMixin implements PortalDeferredS
         clearPassesFull = ClearPassCreator.createClearPasses(renderTargets, true, packDirectives.getRenderTargetDirectives());
         clearPasses = ClearPassCreator.createClearPasses(renderTargets, false, packDirectives.getRenderTargetDirectives());
         customUniforms.optimise();
+    }
+
+    @WrapMethod(method = "createShadowComputes")
+    private ComputeProgram[] wormholes$deferShadowComputes(ComputeSource[] sources, ProgramSet programs,
+                                                          Operation<ComputeProgram[]> original) {
+        if (!PortalIrisShaderLoading.deferred()) {
+            return original.call(sources, programs);
+        }
+        ComputeProgram[] pending = new ComputeProgram[sources.length];
+        PortalIrisShaderLoading.defer(() -> System.arraycopy(original.call(sources, programs), 0, pending, 0, pending.length));
+        return pending;
+    }
+
+    @WrapMethod(method = "createSetupComputes")
+    private ComputeProgram[] wormholes$deferSetupComputes(ComputeSource[] sources, ProgramSet programs, TextureStage stage,
+                                                         Operation<ComputeProgram[]> original) {
+        if (!PortalIrisShaderLoading.deferred()) {
+            return original.call(sources, programs, stage);
+        }
+        ComputeProgram[] pending = new ComputeProgram[sources.length];
+        PortalIrisShaderLoading.defer(() -> System.arraycopy(original.call(sources, programs, stage), 0, pending, 0, pending.length));
+        return pending;
     }
 
     @Override

@@ -12,6 +12,14 @@ import java.util.List;
 public interface PortalScene {
     ClientPortalGeometry geometry();
 
+    default boolean fullWorld() {
+        return false;
+    }
+
+    default boolean empty(long sectionKey) {
+        return false;
+    }
+
     default ClientViewEnvironment environment() {
         return null;
     }

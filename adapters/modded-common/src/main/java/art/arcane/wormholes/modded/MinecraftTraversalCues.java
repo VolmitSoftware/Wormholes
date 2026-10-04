@@ -2,6 +2,8 @@ package art.arcane.wormholes.modded;
 
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.portal.PortalType;
+import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.wormholes.render.client.session.ClientViewEmitters;
 import art.arcane.wormholes.transit.TransitionProfile;
 import art.arcane.wormholes.util.Direction;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
@@ -23,7 +25,7 @@ import net.minecraft.world.entity.Entity;
 public final class MinecraftTraversalCues {
     private MinecraftTraversalCues() { }
 
-    public static void threshold(WormholesModRuntime runtime, MinecraftPortal source, GeometryVector point) {
+    public static void threshold(WormholesModRuntime runtime, MinecraftPortal source, GeometryVector point, Entity traveler) {
         if (!runtime.configuration().settings().getTransit().cinematicsEnabled) {
             return;
         }
@@ -31,23 +33,45 @@ public final class MinecraftTraversalCues {
         if (level == null) {
             return;
         }
+        ServerPlayer excluded = traveler instanceof ServerPlayer player
+            && runtime.clientViews().seamlessTravel(player.getUUID(), source.getId()) ? player : null;
         if (runtime.configuration().settings().getMain().enableParticles) {
             Identifier key = Identifier.tryParse(TraversalCues.particleKey(profile(source).thresholdEffect()));
             ParticleType<?> selected = key == null ? null : BuiltInRegistries.PARTICLE_TYPE.getOptional(key).orElse(null);
             SimpleParticleType particle = selected instanceof SimpleParticleType simple ? simple : ParticleTypes.REVERSE_PORTAL;
-            runtime.clientViews().burst(level, particle, point.x(), point.y(), point.z(), TraversalCues.THRESHOLD_PARTICLES,
-                TraversalCues.THRESHOLD_SPREAD, TraversalCues.THRESHOLD_SPREAD, TraversalCues.THRESHOLD_SPREAD,
-                TraversalCues.THRESHOLD_SPEED);
+            if (excluded == null) {
+                runtime.clientViews().burst(level, particle, point.x(), point.y(), point.z(), TraversalCues.THRESHOLD_PARTICLES,
+                    TraversalCues.THRESHOLD_SPREAD, TraversalCues.THRESHOLD_SPREAD, TraversalCues.THRESHOLD_SPREAD,
+                    TraversalCues.THRESHOLD_SPEED);
+            } else {
+                ClientViewMessage.FxEmitter emitter = ClientViewEmitters.burst(BuiltInRegistries.PARTICLE_TYPE.getKey(particle).toString(),
+                    point.x(), point.y(), point.z(), TraversalCues.THRESHOLD_PARTICLES, TraversalCues.THRESHOLD_SPREAD,
+                    TraversalCues.THRESHOLD_SPREAD, TraversalCues.THRESHOLD_SPEED);
+                for (ServerPlayer receiver : level.players()) {
+                    if (receiver == excluded) {
+                        continue;
+                    }
+                    if (runtime.clientViews().receiver(receiver)) {
+                        if (receiver.distanceToSqr(point.x(), point.y(), point.z()) < 32.0D * 32.0D) {
+                            runtime.clientViews().oneShot(receiver, emitter);
+                        }
+                    } else {
+                        level.sendParticles(receiver, particle, false, false, point.x(), point.y(), point.z(),
+                            TraversalCues.THRESHOLD_PARTICLES, TraversalCues.THRESHOLD_SPREAD, TraversalCues.THRESHOLD_SPREAD,
+                            TraversalCues.THRESHOLD_SPREAD, TraversalCues.THRESHOLD_SPEED);
+                    }
+                }
+            }
         }
         if (soundEnabled(runtime, source)) {
-            level.playSound(null, point.x(), point.y(), point.z(), sound(TraversalCues.THRESHOLD_SOUND), SoundSource.BLOCKS,
+            level.playSound(excluded, point.x(), point.y(), point.z(), sound(TraversalCues.THRESHOLD_SOUND), SoundSource.BLOCKS,
                 volume(runtime, source), 1.3F);
         }
     }
 
-    public static void arrival(WormholesModRuntime runtime, MinecraftPortal destination, Entity traveler) {
+    public static void arrival(WormholesModRuntime runtime, MinecraftPortal destination, Entity traveler, boolean seamless) {
         if (!(traveler instanceof ServerPlayer player) || !runtime.configuration().settings().getTransit().cinematicsEnabled
-            || !soundEnabled(runtime, destination)) {
+            || !soundEnabled(runtime, destination) || seamless) {
             return;
         }
         String dimension = player.level().dimension().identifier().toString();

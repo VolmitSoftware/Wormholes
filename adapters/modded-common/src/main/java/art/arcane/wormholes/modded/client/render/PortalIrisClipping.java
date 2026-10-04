@@ -11,6 +11,8 @@ import io.github.douira.glsl_transformer.ast.node.expression.ReferenceExpression
 import io.github.douira.glsl_transformer.ast.node.expression.binary.ArrayAccessExpression;
 import io.github.douira.glsl_transformer.ast.node.expression.unary.FunctionCallExpression;
 import io.github.douira.glsl_transformer.ast.node.expression.unary.MemberAccessExpression;
+import io.github.douira.glsl_transformer.ast.node.expression.unary.NegationExpression;
+import io.github.douira.glsl_transformer.ast.node.type.initializer.ExpressionInitializer;
 import io.github.douira.glsl_transformer.ast.node.type.specifier.ArraySpecifier;
 import io.github.douira.glsl_transformer.ast.node.type.struct.StructDeclarator;
 import io.github.douira.glsl_transformer.ast.print.ASTPrinter;
@@ -24,6 +26,7 @@ import java.util.BitSet;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -35,15 +38,54 @@ public final class PortalIrisClipping {
 
     private static final String MAIN = "wormholes_clipMain";
     private static final Pattern VERSION = Pattern.compile("(?m)^\\s*#\\s*version\\s+(\\d+)\\b");
+    private static final int MAX_CACHED_PROGRAMS = 128;
+    private static final long MAX_CACHED_BYTES = 32L * 1024 * 1024;
+    private static final LinkedHashMap<Request, Cached> cache = new LinkedHashMap<>(16, 0.75f, true);
+    private static long cachedBytes;
 
     private PortalIrisClipping() {
     }
 
-    public static Result transform(Map<PatchShaderType, String> sources, int maxClipDistances) {
+    public static synchronized Result transform(Map<PatchShaderType, String> sources, int maxClipDistances, boolean terrain) {
         Objects.requireNonNull(sources);
         if (maxClipDistances <= 0) {
             throw new IllegalArgumentException("No clip distances available");
         }
+        EnumMap<PatchShaderType, String> copy = new EnumMap<>(PatchShaderType.class);
+        copy.putAll(sources);
+        Request request = new Request(Collections.unmodifiableMap(copy), maxClipDistances, terrain);
+        Cached existing = cache.get(request);
+        if (existing != null) {
+            return existing.result();
+        }
+        Result result = parse(request.sources(), maxClipDistances, terrain);
+        long bytes = sourceBytes(request.sources()) + sourceBytes(result.sources());
+        if (bytes <= MAX_CACHED_BYTES) {
+            while (!cache.isEmpty() && (cache.size() >= MAX_CACHED_PROGRAMS || cachedBytes + bytes > MAX_CACHED_BYTES)) {
+                cachedBytes -= cache.pollFirstEntry().getValue().bytes();
+            }
+            cache.put(request, new Cached(result, bytes));
+            cachedBytes += bytes;
+        }
+        return result;
+    }
+
+    static synchronized void clear() {
+        cache.clear();
+        cachedBytes = 0;
+    }
+
+    private static long sourceBytes(Map<PatchShaderType, String> sources) {
+        long bytes = 0;
+        for (String source : sources.values()) {
+            if (source != null) {
+                bytes += source.length() * 2L;
+            }
+        }
+        return bytes;
+    }
+
+    private static Result parse(Map<PatchShaderType, String> sources, int maxClipDistances, boolean terrain) {
         ASTParser parser = new ASTParser();
         EnumMap<PatchShaderType, TranslationUnit> trees = new EnumMap<>(PatchShaderType.class);
         BitSet occupied = new BitSet(maxClipDistances);
@@ -71,10 +113,11 @@ public final class PortalIrisClipping {
             TranslationUnit tree = entry.getValue();
             parser.getLexer().version = tree.getVersionStatement().version;
             boolean resized = resizeDeclarations(parser, tree, distance);
+            boolean completed = terrain && completeChunkFade(parser, tree);
             if (entry.getKey() == emitting) {
                 inject(parser, tree, emitting, distance);
             }
-            if (resized || entry.getKey() == emitting) {
+            if (resized || completed || entry.getKey() == emitting) {
                 result.put(entry.getKey(), ASTPrinter.printSimple(tree));
             }
         }
@@ -87,6 +130,23 @@ public final class PortalIrisClipping {
             distances.add(index);
         }
         return Set.copyOf(distances);
+    }
+
+    private static boolean completeChunkFade(ASTParser parser, TranslationUnit tree) {
+        boolean changed = false;
+        for (Identifier identifier : tree.getRoot().nodeIndex.getStream(Identifier.class).toList()) {
+            if (!identifier.getName().equals("mc_chunkFade")
+                || !(identifier.getParent() instanceof DeclarationMember member)
+                || !(member.getInitializer() instanceof ExpressionInitializer initializer)
+                || !(initializer.getExpression() instanceof NegationExpression negation)
+                || !(negation.getOperand() instanceof LiteralExpression literal)
+                || !literal.isFloatingPoint() || literal.getFloating() != 1.0) {
+                continue;
+            }
+            negation.replaceByAndDelete(parser.parseExpression(tree.getRoot(), "1.0"));
+            changed = true;
+        }
+        return changed;
     }
 
     private static void inspect(TranslationUnit tree, BitSet occupied, int maxClipDistances) {
@@ -188,6 +248,12 @@ public final class PortalIrisClipping {
                 call.replaceByAndDelete(parser.parseExpression(root, "(" + assignment + ", " + emission + ")"));
             }
         }
+    }
+
+    private record Request(Map<PatchShaderType, String> sources, int maxClipDistances, boolean terrain) {
+    }
+
+    private record Cached(Result result, long bytes) {
     }
 
     public record Result(Map<PatchShaderType, String> sources, int clipDistance, Set<Integer> existingDistances) {

@@ -6,11 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -19,6 +21,10 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRegisterChannelEvent;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+
+import art.arcane.volmlib.nativelib.NativeAdapters;
+import art.arcane.volmlib.nativelib.chunk.ChunkPacketAccess;
 
 import com.github.retrooper.packetevents.protocol.ConnectionState;
 
@@ -43,8 +49,35 @@ final class BukkitClientViewNegotiatorTest {
             ClientViewMessage.Offer offer = (ClientViewMessage.Offer) messages.get(0);
             ClientViewMessage.Accept accept = (ClientViewMessage.Accept) messages.get(1);
             assertTrue(ClientViewCapability.LOCAL_MESH.in(offer.serverCaps()));
+            assertTrue(ClientViewCapability.ENTITY_SELF.in(offer.serverCaps()));
             assertTrue(ClientViewCapability.LOCAL_MESH.in(accept.caps()));
+            assertTrue(ClientViewCapability.ENTITY_SELF.in(accept.caps()));
             assertTrue(ClientViewCapability.MESH_RENDER.in(accept.caps()));
+        }
+    }
+
+    @Test
+    void exactNativeSnapshotCapabilityNegotiatesReuseAndOldPreparedPeersKeepNativeTransfer() throws Exception {
+        ChunkPacketAccess packets = mock(ChunkPacketAccess.class);
+        when(packets.snapshotSupported()).thenReturn(true);
+        try (MockedStatic<NativeAdapters> adapters = mockStatic(NativeAdapters.class)) {
+            adapters.when(() -> NativeAdapters.find(ChunkPacketAccess.class)).thenReturn(Optional.of(packets));
+            for (boolean cache : new boolean[]{true, false}) {
+                try (ClientViewFixture fixture = new ClientViewFixture(ClientViewFixture.options(true, false, 100), ConnectionState.PLAY)) {
+                    fixture.clientView.observer(fixture.playerId, fixture.user).brand("fabric");
+                    assertTrue(fixture.negotiator.offerPlay(fixture.player));
+                    long caps = cache ? ClientViewCapability.ALL : ClientViewCapability.ALL & ~ClientViewCapability.PREPARED_TRAVEL_CACHE.mask();
+                    assertEquals(ClientViewInbound.HELLO_ACCEPTED, fixture.hello(caps));
+                    List<ClientViewMessage> messages = fixture.messages();
+                    ClientViewMessage.Offer offer = (ClientViewMessage.Offer) messages.get(0);
+                    ClientViewMessage.Accept accept = (ClientViewMessage.Accept) messages.get(1);
+                    assertTrue(ClientViewCapability.PREPARED_TRAVEL.in(offer.serverCaps()));
+                    assertTrue(ClientViewCapability.PREPARED_TRAVEL_CACHE.in(offer.serverCaps()));
+                    assertTrue(ClientViewCapability.PREPARED_TRAVEL.in(accept.caps()));
+                    assertEquals(cache, ClientViewCapability.PREPARED_TRAVEL_CACHE.in(accept.caps()));
+                    assertEquals(cache, fixture.session().preparedTravelCacheSelected());
+                }
+            }
         }
     }
 

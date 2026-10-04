@@ -9,7 +9,9 @@ import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.World;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
 import art.arcane.wormholes.Settings;
@@ -27,6 +29,7 @@ final class LocalPortalEffects
 	private static final int AMBIENT_OUTLINE_OPEN_WINDOW = 32;
 	private static final int AMBIENT_OUTLINE_CLOSED_WINDOW = 8;
 	private static final int AMBIENT_CORNERS_CLOSED_WINDOW = 2;
+	private static final float[] TRANSIT_PITCHES = {1.7F, 1.5F, 1.3F};
 
 	private final LocalPortal portal;
 	private final AtomicLong effectSequence = new AtomicLong();
@@ -52,15 +55,34 @@ final class LocalPortalEffects
 
 	void playEffect(PortalEffect effect, Location location)
 	{
+		playEffect(effect, location, null);
+	}
+
+	void playEffect(PortalEffect effect, Location location, Entity traveler)
+	{
+		playEffect(effect, location, traveler, traveler instanceof Player player && ClientViewEffects.seamless(player, portal.getId()));
+	}
+
+	void playEffect(PortalEffect effect, Location location, Entity traveler, boolean seamless)
+	{
 		switch(effect)
 		{
 			case PUSH:
-				spawnSimpleParticle(location, Particle.SMOKE, 6, 0.01D);
+				Player excluded = traveler instanceof Player player && seamless
+					? player : null;
+				if(Settings.ENABLE_PARTICLES && location != null && location.getWorld() != null)
+				{
+					ClientViewEffects.burst(location.getWorld(), Particle.SMOKE, location.getX(), location.getY(), location.getZ(),
+						6, 0.0D, 0.0D, 0.0D, 0.01D, excluded == null ? null : excluded.getUniqueId());
+				}
 				if(location != null && location.getWorld() != null && isPortalSoundEnabled())
 				{
-					location.getWorld().playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, Settings.portalSoundVolume(0.5f), 1.7f + (float) (Math.random() * 0.2));
-					location.getWorld().playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, Settings.portalSoundVolume(0.5f), 1.5f + (float) (Math.random() * 0.2));
-					location.getWorld().playSound(location, Sound.ENTITY_ENDERMAN_TELEPORT, Settings.portalSoundVolume(0.5f), 1.3f + (float) (Math.random() * 0.2));
+					for(float pitch : TRANSIT_PITCHES)
+					{
+						ClientViewEffects.sound(location, Sound.ENTITY_ENDERMAN_TELEPORT.getKey().toString(), SoundCategory.MASTER,
+							Settings.portalSoundVolume(0.5F), pitch + (float) (Math.random() * 0.2D),
+							excluded == null ? null : excluded.getUniqueId());
+					}
 				}
 
 				break;

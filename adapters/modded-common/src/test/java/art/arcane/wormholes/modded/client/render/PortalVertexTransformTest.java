@@ -2,6 +2,8 @@ package art.arcane.wormholes.modded.client.render;
 
 import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.network.client.ClientViewEnvironment;
+import art.arcane.wormholes.portal.PortalFrame;
+import art.arcane.wormholes.render.DirectionMapping;
 import art.arcane.wormholes.util.Direction;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
@@ -20,6 +22,47 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class PortalVertexTransformTest {
+    @Test
+    public void everyMirrorPlaneAndQuarterTurnMovesSourceFacesAndNormalsExactlyOnce() {
+        for (Direction normal : Direction.values()) {
+            for (int quarterTurns = 0; quarterTurns < 4; quarterTurns++) {
+                DirectionMapping mapping = DirectionMapping.mirror(PortalFrame.canonical(normal), quarterTurns, new double[3]);
+                Direction xAxis = mapping.map(Direction.E);
+                Direction yAxis = mapping.map(Direction.U);
+                Direction zAxis = mapping.map(Direction.S);
+                PortalVertexTransform transform = transform(xAxis, yAxis, zAxis);
+                for (Direction face : Direction.values()) {
+                    Direction reflected = mapping.map(face);
+                    try (ByteBufferBuilder allocation = new ByteBufferBuilder(512)) {
+                        BufferBuilder builder = builder(allocation);
+                        transform.target(builder).destinationBlock(BlockPos.ZERO, 0, 0, 0);
+                        transform.inputOrigin(0, 0, 0);
+                        for (int index = 0; index < 4; index++) {
+                            vertex(transform, 0.5F + face.x() * 0.5F, 0.5F + face.y() * 0.5F, 0.5F + face.z() * 0.5F,
+                                index, face.x(), face.y(), face.z());
+                        }
+                        try (MeshData mesh = builder.buildOrThrow()) {
+                            transform.winding(mesh);
+                            ByteBuffer buffer = mesh.vertexBuffer();
+                            int stride = mesh.drawState().format().getVertexSize();
+                            int[] order = {0, 3, 2, 1};
+                            for (int index = 0; index < 4; index++) {
+                                int offset = index * stride;
+                                assertEquals((xAxis.x() + yAxis.x() + zAxis.x() + reflected.x()) * 0.5F, buffer.getFloat(offset), 0);
+                                assertEquals((xAxis.y() + yAxis.y() + zAxis.y() + reflected.y()) * 0.5F, buffer.getFloat(offset + 4), 0);
+                                assertEquals((xAxis.z() + yAxis.z() + zAxis.z() + reflected.z()) * 0.5F, buffer.getFloat(offset + 8), 0);
+                                assertEquals(reflected.x() * 127, buffer.get(offset + 32));
+                                assertEquals(reflected.y() * 127, buffer.get(offset + 33));
+                                assertEquals(reflected.z() * 127, buffer.get(offset + 34));
+                                assertEquals(order[index] / 4F, buffer.getFloat(offset + 16), 0);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     @Test
     public void oppositeQuarterTurnsProduceOppositeVerticalSlabHalvesAndNormals() {
         for (boolean clockwise : new boolean[] {false, true}) {

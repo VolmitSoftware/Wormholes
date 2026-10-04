@@ -17,7 +17,10 @@ record PortalIrisSettings(boolean reloadRequired, Object2IntMap<BlockState> bloc
                           float ambientOcclusion, boolean directionalShading, boolean separateAo,
                           ChunkVertexType vertexFormat, boolean voxelizeLights, boolean separateEntities, boolean breaksAnisotropy) {
     static PortalIrisSettings capture() {
-        WorldRenderingSettings settings = WorldRenderingSettings.INSTANCE;
+        return capture(WorldRenderingSettings.INSTANCE);
+    }
+
+    static PortalIrisSettings capture(WorldRenderingSettings settings) {
         return new PortalIrisSettings(settings.isReloadRequired(), settings.getBlockStateIds(), settings.getBlockTypeIds(),
             settings.getEntityIds(), settings.getItemIds(), settings.getAmbientOcclusionLevel(), settings.shouldDisableDirectionalShading(),
             settings.shouldUseSeparateAo(), settings.getVertexFormat(), settings.shouldVoxelizeLightBlocks(),
@@ -25,7 +28,10 @@ record PortalIrisSettings(boolean reloadRequired, Object2IntMap<BlockState> bloc
     }
 
     void apply() {
-        WorldRenderingSettings settings = WorldRenderingSettings.INSTANCE;
+        apply(WorldRenderingSettings.INSTANCE);
+    }
+
+    void apply(WorldRenderingSettings settings) {
         settings.setBlockStateIds(blockIds);
         settings.setBlockTypeIds(blockTypes);
         settings.setEntityIds(entityIds);

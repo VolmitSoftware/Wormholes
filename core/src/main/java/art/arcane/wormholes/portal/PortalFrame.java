@@ -111,6 +111,13 @@ public final class PortalFrame {
 		return new GeometryVector(out[0], out[1], out[2]);
 	}
 
+	public GeometryVector transformCrossingPoint(GeometryVector point, GeometryVector fromOrigin, GeometryVector toOrigin, PortalFrame to) {
+		double distance = dot(point.x() - fromOrigin.x(), point.y() - fromOrigin.y(), point.z() - fromOrigin.z(), normal);
+		GeometryVector crossing = new GeometryVector(point.x() - distance * normal.x(), point.y() - distance * normal.y(),
+			point.z() - distance * normal.z());
+		return view(distance >= 0.0D).transformPoint(crossing, fromOrigin, toOrigin, to);
+	}
+
 	public void transformPointInto(double x, double y, double z,
 								   double fromOriginX, double fromOriginY, double fromOriginZ,
 								   double toOriginX, double toOriginY, double toOriginZ,

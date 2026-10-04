@@ -19,7 +19,10 @@ public enum ClientViewCapability {
     MESH_RENDER(12),
     ENTITY_EVENTS(13),
     LOCAL_MESH(14),
-    MESH_REUSE(15);
+    MESH_REUSE(15),
+    PREPARED_TRAVEL(16),
+    PREPARED_TRAVEL_CACHE(17),
+    ENTITY_SELF(18);
 
     public static final long NONE = 0L;
     public static final long ALL = allMask();

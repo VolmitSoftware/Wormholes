@@ -60,11 +60,17 @@ public final class ClientMeshViews {
                 for (int y = -1; y <= 1; y++) {
                     for (int z = -1; z <= 1; z++) {
                         for (int x = -1; x <= 1; x++) {
+                            if (x == 0 && y == 0 && z == 0) {
+                                continue;
+                            }
                             renderer.invalidate(portal.portalKey(), SectionPos.asLong(SectionPos.x(section) + x,
-                                SectionPos.y(section) + y, SectionPos.z(section) + z));
+                                SectionPos.y(section) + y, SectionPos.z(section) + z), false);
                         }
                     }
                 }
+            }
+            for (LongIterator iterator = view.changed().iterator(); iterator.hasNext();) {
+                renderer.invalidate(portal.portalKey(), iterator.nextLong(), true);
             }
             view.changed().clear();
         }

@@ -5,6 +5,10 @@ import art.arcane.volmlib.util.scheduling.FoliaScheduler;
 import art.arcane.volmlib.util.localization.TextKey;
 import art.arcane.wormholes.Settings;
 import art.arcane.wormholes.Wormholes;
+import art.arcane.wormholes.portal.LocalPortal;
+import art.arcane.wormholes.network.client.ClientViewMessage;
+import art.arcane.wormholes.render.clientview.BukkitClientView;
+import art.arcane.wormholes.geometry.GeometryVector;
 import art.arcane.wormholes.api.traversal.TraversalContext;
 import art.arcane.wormholes.api.traversal.TraversalDestination;
 import art.arcane.wormholes.api.traversal.TraversalRefundReason;
@@ -230,7 +234,7 @@ final class DoorTransitCoordinator
 				DoorTransitFailures.Failure.ENTRY_SHUTTING_DOWN);
 			return;
 		}
-		if(!ledger.claim(travelerId, traveler))
+		if(LocalPortal.isTeleportInFlight(travelerId, System.currentTimeMillis()) || !ledger.claim(travelerId, traveler))
 		{
 			return;
 		}
@@ -358,7 +362,7 @@ final class DoorTransitCoordinator
 			return;
 		}
 		arrivals.loadEndpointArrival(target.get(), transit, arrival ->
-			closeAndTeleport(traveler, source, arrival.location(), context.at(arrival.plane())),
+			closeAndTeleport(traveler, source, arrival.location(), context.at(arrival)),
 			() -> abortTransit(traveler, source, WormholesMessages.DOOR_LINK_UNAVAILABLE, context));
 	}
 
@@ -468,7 +472,7 @@ final class DoorTransitCoordinator
 					abortTransit(traveler, source, WormholesMessages.DOOR_RETURN_TICKET_SAVE_FAILED, ticketless);
 					return;
 				}
-				context = TransitContext.keep(travelerId, transit, pendingTicket);
+				context = TransitContext.keep(travelerId, transit, pendingTicket, ticketless.attempted());
 			}
 
 			Location arrival = pocketStructures.entryLocation(pocketWorld, space);
@@ -606,7 +610,7 @@ final class DoorTransitCoordinator
 						traveler,
 						source,
 						arrival.location(),
-						TransitContext.remove(travelerId, transit, ticket).at(arrival.plane())),
+						TransitContext.remove(travelerId, transit, ticket, ticketless.attempted()).at(arrival)),
 					() -> abortTransit(
 						traveler,
 						source,
@@ -658,7 +662,7 @@ final class DoorTransitCoordinator
 					traveler,
 					source,
 					safe.get(),
-					TransitContext.remove(ticket.playerId(), transit, ticket));
+					TransitContext.remove(ticket.playerId(), transit, ticket, ticketless.attempted()));
 			},
 			() -> abortTransit(traveler, source, WormholesMessages.DOOR_RETURN_CHUNK_FAILED, ticketless));
 	}
@@ -741,7 +745,7 @@ final class DoorTransitCoordinator
 				// An object leaves the source door standing open so the rest of the
 				// volley can follow it through the same swing, and a contact pad is
 				// never swung shut at all - closing it would open the hole underneath.
-				if(admitted.transit().claimsOpenCycle())
+				if(admitted.transit().claimsOpenCycle() && admitted.transit().preparedCrossing() == null)
 				{
 					try
 					{
@@ -952,21 +956,51 @@ final class DoorTransitCoordinator
 			return;
 		}
 		CompletableFuture<Boolean> teleportFuture;
+		BukkitClientView clientView = Wormholes.projectionManager == null ? null : Wormholes.projectionManager.clientView();
+		UUID travelerId = traveler.getUniqueId();
+		DoorVec3 arrivalVelocity = arrivalVelocity(prepared, target);
+		ClientViewMessage.TravelCommit preparedCommit = null;
+        if(prepared.attempted() != null && (clientView == null || !clientView.crossing(travelerId, prepared.attempted())))
+        {
+            rollbackChunkPreSend(prepared);
+            failTransit(traveler, source, WormholesMessages.DOOR_TRANSIT_START_FAILED, prepared);
+            return;
+        }
 		try
 		{
+			if(clientView != null && traveler instanceof Player player)
+			{
+				preparedCommit = clientView.commitTravel(player, source.endpoint().identity().itemId(), target,
+					new GeometryVector(arrivalVelocity.x(), arrivalVelocity.y(), arrivalVelocity.z()));
+			}
+            if(prepared.attempted() != null && preparedCommit == null)
+            {
+                clientView.cancelPreparation(travelerId, prepared.attempted());
+                rollbackChunkPreSend(prepared);
+                failTransit(traveler, source, WormholesMessages.DOOR_TRANSIT_START_FAILED, prepared);
+                return;
+            }
 			teleportFuture = WormholesPlatform.teleport(plugin, traveler, target, PlayerTeleportEvent.TeleportCause.PLUGIN);
 		}
 		catch(Throwable ex)
 		{
+			if(clientView != null)
+			{
+				clientView.completeTravel(travelerId, preparedCommit, false);
+			}
 			plugin.getLogger().log(Level.WARNING, "Could not initiate dimensional-door teleport", ex);
 			rollbackChunkPreSend(prepared);
 			failTransit(traveler, source, WormholesMessages.DOOR_TRANSIT_START_FAILED, prepared);
 			return;
 		}
-		DoorVec3 arrivalVelocity = arrivalVelocity(prepared, target);
+		ClientViewMessage.TravelCommit committedTravel = preparedCommit;
 		teleportFuture.whenComplete((success, error) ->
 		{
 			boolean moved = error == null && Boolean.TRUE.equals(success);
+			if(clientView != null)
+			{
+				clientView.completeTravel(travelerId, committedTravel, moved);
+			}
 			AtomicBoolean completionPending = new AtomicBoolean(true);
 			Runnable retired = () ->
 			{
@@ -992,7 +1026,10 @@ final class DoorTransitCoordinator
 					commitChunkPreSend(prepared);
 					settleTraversalCost(traveler, prepared, true, TraversalRefundReason.TELEPORT_FAILED);
 					ledger.startCooldown(prepared.travelerId(), traveler);
-					travelers.settle(traveler, arrivalVelocity);
+                    if (prepared.transit().preparedCrossing() != null && prepared.destinationPlane() != null) {
+                        runtimes.protectPreparedArrival(traveler, prepared.destinationPlane());
+                    }
+					travelers.settle(traveler, arrivalVelocity, committedTravel != null);
 				}
 				completeCycle(source, prepared, moved, false);
 				ledger.release(prepared.travelerId(), traveler);
@@ -1364,7 +1401,14 @@ final class DoorTransitCoordinator
 	 */
 	private void completeCycle(RuntimeDoor source, TransitContext context, boolean success, boolean open)
 	{
-		DoorTransitGate.complete(source.cycle(), context.transit(), success, open);
+        if (!success) {
+            runtimes.rollbackPreparedArrival(context.opening());
+        }
+        boolean preparedSuccess = success && context.transit().preparedCrossing() != null && context.transit().claimsOpenCycle();
+		DoorTransitGate.complete(source.cycle(), context.transit(), success, preparedSuccess ? source.cycle().portalActive() : open);
+        if (preparedSuccess) {
+            runtimes.closePreparedSource(source, context.transit());
+        }
 	}
 
 	/**
@@ -1395,7 +1439,7 @@ final class DoorTransitCoordinator
 		if(destination != null)
 		{
 			int side = destination.signedDistance(new DoorVec3(target.getX(), target.getY(), target.getZ())) < 0 ? -1 : 1;
-			return DoorVelocityTransform.mapToSide(destination, transit, transit.velocity(), side);
+			return DoorArrivals.destinationVelocity(destination, transit, side);
 		}
 		// The arrival yaw already encodes the source-to-destination rotation, so the
 		// same delta turns the momentum with it.
@@ -1409,6 +1453,11 @@ final class DoorTransitCoordinator
 		REMOVE_ON_SUCCESS
 	}
 
+    private static ClientViewMessage.TravelBegin preparedAttempt(UUID traveler) {
+        BukkitClientView clientView = Wormholes.projectionManager == null ? null : Wormholes.projectionManager.clientView();
+        return clientView != null && clientView.crossing(traveler) ? clientView.preparation(traveler).orElse(null) : null;
+    }
+
 	private record TransitContext(
 		UUID travelerId,
 		DoorTransit transit,
@@ -1416,7 +1465,9 @@ final class DoorTransitCoordinator
 		ReturnTicket expected,
 		DoorwayPlane destinationPlane,
 		TraversalCostGateway.Admission traversalAdmission,
-		BukkitChunkPreSendTransaction chunkPreSendTransaction)
+		BukkitChunkPreSendTransaction chunkPreSendTransaction,
+        ClientViewMessage.TravelBegin attempted,
+        DoorRuntimeIndex.PreparedOpening opening)
 	{
 		private TransitContext
 		{
@@ -1432,42 +1483,49 @@ final class DoorTransitCoordinator
 		private TransitContext at(DoorwayPlane plane)
 		{
 			return new TransitContext(
-				travelerId, transit, action, expected, plane, traversalAdmission, chunkPreSendTransaction);
+				travelerId, transit, action, expected, plane, traversalAdmission, chunkPreSendTransaction, attempted, opening);
 		}
+
+        private TransitContext at(DoorArrivalResolver.DoorArrival arrival) {
+            return new TransitContext(travelerId, transit, action, expected, arrival.plane(), traversalAdmission,
+                chunkPreSendTransaction, attempted, arrival.opening());
+        }
 
 		private TransitContext withTraversalAdmission(TraversalCostGateway.Admission admission)
 		{
 			return new TransitContext(
-				travelerId, transit, action, expected, destinationPlane, admission, chunkPreSendTransaction);
+				travelerId, transit, action, expected, destinationPlane, admission, chunkPreSendTransaction, attempted, opening);
 		}
 
 		private TransitContext withChunkPreSend(BukkitChunkPreSendTransaction transaction)
 		{
 			return new TransitContext(
-				travelerId, transit, action, expected, destinationPlane, traversalAdmission, transaction);
+				travelerId, transit, action, expected, destinationPlane, traversalAdmission, transaction, attempted, opening);
 		}
 
 		private static TransitContext none(UUID travelerId, DoorTransit transit)
 		{
-			return new TransitContext(travelerId, transit, TicketAction.NONE, null, null, null, null);
+			return new TransitContext(travelerId, transit, TicketAction.NONE, null, null, null, null, preparedAttempt(travelerId), null);
 		}
 
 		private static TransitContext keep(
 			UUID travelerId,
 			DoorTransit transit,
-			ReturnTicket ticket)
+			ReturnTicket ticket,
+            ClientViewMessage.TravelBegin attempted)
 		{
 			return new TransitContext(
-				travelerId, transit, TicketAction.KEEP_ON_SUCCESS, ticket, null, null, null);
+				travelerId, transit, TicketAction.KEEP_ON_SUCCESS, ticket, null, null, null, attempted, null);
 		}
 
 		private static TransitContext remove(
 			UUID travelerId,
 			DoorTransit transit,
-			ReturnTicket ticket)
+			ReturnTicket ticket,
+            ClientViewMessage.TravelBegin attempted)
 		{
 			return new TransitContext(
-				travelerId, transit, TicketAction.REMOVE_ON_SUCCESS, ticket, null, null, null);
+				travelerId, transit, TicketAction.REMOVE_ON_SUCCESS, ticket, null, null, null, attempted, null);
 		}
 	}
 }

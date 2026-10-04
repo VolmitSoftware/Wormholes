@@ -419,7 +419,7 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
         completions.dispatched(new PlayerHandoffCompletion.Attempt(ack.transferId(), player.getUUID(), peer, now + ARRIVAL_TTL), now);
         try {
             if (departure.source() != null) {
-                MinecraftTraversalCues.threshold(runtime, departure.source(), departure.crossing().point());
+                MinecraftTraversalCues.threshold(runtime, departure.source(), departure.crossing().point(), player);
             }
             if (departure.method() == PlayerTransferMethod.DIRECT) {
                 player.connection.send(new ClientboundTransferPacket(departure.endpoint().host(), departure.endpoint().port()));
@@ -496,8 +496,8 @@ public final class MinecraftPlayerHandoffs implements AutoCloseable {
                 finish(reservation, false, "destination teleport was rejected");
                 return;
             }
-            MinecraftTraversalCues.arrival(runtime, exit, player);
-            MinecraftTransit.arrived(runtime, exit, player, true, ticket);
+            MinecraftTraversalCues.arrival(runtime, exit, player, false);
+            MinecraftTransit.arrived(runtime, exit, player, true, ticket, false);
             runtime.portals().recordArrival(player, exit);
             runtime.network().entityTransfers().playerPlaced(player, exit, crossing);
             finish(reservation, true, "portal arrival completed");

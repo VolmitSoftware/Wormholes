@@ -1,6 +1,7 @@
 package art.arcane.wormholes.door;
 
 import java.util.Objects;
+import art.arcane.wormholes.portal.PortalCrossing;
 
 public record DoorTransit(
 	DoorwayPlane sourcePlane,
@@ -10,8 +11,14 @@ public record DoorTransit(
 	double halfWidth,
 	double height,
 	DoorTravelerClass travelerClass,
-	DoorVec3 velocity)
+	DoorVec3 velocity,
+	PortalCrossing preparedCrossing)
 {
+    public DoorTransit(DoorwayPlane sourcePlane, DoorwayCrossing crossing, float yaw, float pitch,
+                       double halfWidth, double height, DoorTravelerClass travelerClass, DoorVec3 velocity) {
+        this(sourcePlane, crossing, yaw, pitch, halfWidth, height, travelerClass, velocity, null);
+    }
+
 	public DoorTransit(DoorwayPlane sourcePlane, DoorwayCrossing.Direction direction, float yaw, float pitch)
 	{
 		this(sourcePlane, direction, yaw, pitch, 0.3D, 1.8D);
@@ -63,10 +70,6 @@ public record DoorTransit(
 		{
 			throw new IllegalArgumentException("Traveler dimensions must be finite and positive");
 		}
-		if(velocity != null && travelerClass != DoorTravelerClass.OBJECT)
-		{
-			throw new IllegalArgumentException("Only object travelers carry momentum through a door");
-		}
 	}
 
 	public DoorwayCrossing.Direction direction()
@@ -76,7 +79,7 @@ public record DoorTransit(
 
 	public boolean carriesMomentum()
 	{
-		return travelerClass == DoorTravelerClass.OBJECT;
+		return travelerClass == DoorTravelerClass.OBJECT || velocity != null;
 	}
 
 	/**

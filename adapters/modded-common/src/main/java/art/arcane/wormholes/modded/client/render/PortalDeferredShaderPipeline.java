@@ -9,6 +9,8 @@ public interface PortalDeferredShaderPipeline {
 
     void wormholes$finishShaders(ProgramSet programs);
 
+    void wormholes$completeShaders();
+
     void wormholes$resetShaders();
 
     boolean wormholes$hasShadows();

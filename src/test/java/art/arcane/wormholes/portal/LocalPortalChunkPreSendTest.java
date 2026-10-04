@@ -15,12 +15,17 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 
 public final class LocalPortalChunkPreSendTest {
     @Test
     void successfulLocalMovementKeepsTheDestinationPreSend() {
         World world = LocalPortalTestSupport.world("chunk-presend-success");
-        LocalPortal portal = LocalPortalTestSupport.portal(world, PortalType.PORTAL);
+        LocalPortal portal = spy(LocalPortalTestSupport.portal(world, PortalType.PORTAL));
         LocalPortalTestSupport.FakeEntity traveler = LocalPortalTestSupport.FakeEntity.player(
             "presend-success",
             new Location(world, 0.5D, 65.0D, 1.0D)
@@ -31,6 +36,7 @@ public final class LocalPortalChunkPreSendTest {
             new Vector(0.5D, 65.0D, 1.0D)
         );
         AtomicReference<String> owner = new AtomicReference<String>("source");
+        doNothing().when(portal).playEffect(eq(PortalEffect.PUSH), any(Location.class), same(traveler.entity()), eq(false));
 
         try (RecordingBukkitChunkPreSend recording = RecordingBukkitChunkPreSend.install(owner::get)) {
             new LocalPortalTraversal(portal, runtime(recording, true, owner)).receive(traversive);

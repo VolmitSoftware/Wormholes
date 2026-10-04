@@ -21,7 +21,7 @@ class ChunkPreSendServiceTest {
         ChunkPreSendService<String, String> service = service(platform, ChunkPreSendOptions.disabled());
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_DISABLED, ticket.outcome());
@@ -36,7 +36,7 @@ class ChunkPreSendServiceTest {
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_UNSUPPORTED_PLATFORM, ticket.outcome());
@@ -49,7 +49,7 @@ class ChunkPreSendServiceTest {
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_PLAYER_OFFLINE, ticket.outcome());
@@ -76,7 +76,7 @@ class ChunkPreSendServiceTest {
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_DESTINATION_UNLOADED, ticket.outcome());
@@ -89,7 +89,7 @@ class ChunkPreSendServiceTest {
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_REGION_NOT_OWNED, ticket.outcome());
@@ -102,7 +102,7 @@ class ChunkPreSendServiceTest {
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_REGION_NOT_OWNED, ticket.outcome());
@@ -123,7 +123,7 @@ class ChunkPreSendServiceTest {
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_REGION_NOT_OWNED, ticket.outcome());
@@ -135,7 +135,7 @@ class ChunkPreSendServiceTest {
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 16, -32
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 16, -32
         );
 
         assertEquals(ChunkPreSendOutcome.PRE_SENT, ticket.outcome());
@@ -143,7 +143,7 @@ class ChunkPreSendServiceTest {
         assertEquals(9, platform.sent().size());
         for (RecordingPreSendPlatform.Sent sent : platform.sent()) {
             assertEquals(1, sent.announcementsBefore(), "every chunk must follow the view centre announcement");
-            assertEquals(RecordingPreSendPlatform.DESTINATION_WORLD, sent.world());
+            assertEquals(RecordingPreSendPlatform.SOURCE_WORLD, sent.world());
         }
         assertEquals(9, ticket.sentChunks());
         assertEquals(9, ticket.rollback().size());
@@ -233,7 +233,7 @@ class ChunkPreSendServiceTest {
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.FAILED_VIEW_CENTER, ticket.outcome());
@@ -243,11 +243,11 @@ class ChunkPreSendServiceTest {
 
     @Test
     void theTimeBudgetTruncatesTheBurstRatherThanOverrunningTheTick() {
-        RecordingPreSendPlatform platform = new RecordingPreSendPlatform().clockStep(5_000_000L);
+        RecordingPreSendPlatform platform = new RecordingPreSendPlatform().playerChunk(40, 40).clockStep(5_000_000L);
         ChunkPreSendService<String, String> service = service(platform, ChunkPreSendOptions.of(true, 2, 64, 1000));
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.PRE_SENT_PARTIAL, ticket.outcome());
@@ -261,7 +261,7 @@ class ChunkPreSendServiceTest {
         ChunkPreSendService<String, String> service = service(platform, ChunkPreSendOptions.of(true, 9, 1000, 1000));
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.PRE_SENT_PARTIAL, ticket.outcome());
@@ -278,7 +278,7 @@ class ChunkPreSendServiceTest {
         ChunkPreSendService<String, String> service = service(platform, ChunkPreSendOptions.of(true, 3, 12, 5000));
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.PRE_SENT_PARTIAL, ticket.outcome());
@@ -297,7 +297,7 @@ class ChunkPreSendServiceTest {
         long before = WormholesTelemetry.failures();
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.PRE_SENT, ticket.outcome());
@@ -313,7 +313,7 @@ class ChunkPreSendServiceTest {
         long before = WormholesTelemetry.failures();
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.PRE_SENT_PARTIAL, ticket.outcome());
@@ -326,7 +326,7 @@ class ChunkPreSendServiceTest {
         ChunkPreSendService<String, String> service = service(platform, ChunkPreSendOptions.of(true, 9, 500, 5000));
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.PRE_SENT, ticket.outcome());
@@ -344,11 +344,11 @@ class ChunkPreSendServiceTest {
 
     @Test
     void anUnloadedChunkInsideTheRingIsSkippedAndTheBurstIsReportedAsPartial() {
-        RecordingPreSendPlatform platform = new RecordingPreSendPlatform().markUnloaded(1, 1);
+        RecordingPreSendPlatform platform = new RecordingPreSendPlatform().playerChunk(40, 40).markUnloaded(1, 1);
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.PRE_SENT_PARTIAL, ticket.outcome());
@@ -358,11 +358,11 @@ class ChunkPreSendServiceTest {
 
     @Test
     void aDeliveryFailureMidBurstLeavesARollbackCoveringOnlyWhatActuallyLanded() {
-        RecordingPreSendPlatform platform = new RecordingPreSendPlatform().sendFailsAfter(3);
+        RecordingPreSendPlatform platform = new RecordingPreSendPlatform().playerChunk(40, 40).sendFailsAfter(3);
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
 
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendOutcome.PRE_SENT_PARTIAL, ticket.outcome());
@@ -375,7 +375,7 @@ class ChunkPreSendServiceTest {
         RecordingPreSendPlatform platform = new RecordingPreSendPlatform().playerChunk(7, -3);
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 8000, 8000
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 8000, 8000
         );
         platform.sent().clear();
         platform.announced().clear();
@@ -400,7 +400,7 @@ class ChunkPreSendServiceTest {
         RecordingPreSendPlatform platform = new RecordingPreSendPlatform().playerChunk(0, 0);
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 8000, 8000
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 8000, 8000
         );
         List<ChunkCoordinate> resend = ticket.rollback().resend();
         assertEquals(9, resend.size());
@@ -433,7 +433,7 @@ class ChunkPreSendServiceTest {
         RecordingPreSendPlatform platform = new RecordingPreSendPlatform().playerChunk(0, 0);
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 8000, 8000
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 8000, 8000
         );
         ChunkCoordinate blocked = ticket.rollback().resend().get(0);
         platform.markForeignRegion(blocked.x(), blocked.z());
@@ -455,7 +455,7 @@ class ChunkPreSendServiceTest {
         RecordingPreSendPlatform platform = new RecordingPreSendPlatform().announceAccepted(false);
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 0, 0
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 0, 0
         );
 
         assertEquals(ChunkPreSendRollbackOutcome.NOT_NEEDED, service.rollback(ticket));
@@ -467,7 +467,7 @@ class ChunkPreSendServiceTest {
         RecordingPreSendPlatform platform = new RecordingPreSendPlatform();
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 8000, 8000
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 8000, 8000
         );
         service.rollback(ticket);
         int afterFirst = platform.sent().size();
@@ -481,7 +481,7 @@ class ChunkPreSendServiceTest {
         RecordingPreSendPlatform platform = new RecordingPreSendPlatform();
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 8000, 8000
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 8000, 8000
         );
         platform.sent().clear();
         platform.online(false);
@@ -495,7 +495,7 @@ class ChunkPreSendServiceTest {
         RecordingPreSendPlatform platform = new RecordingPreSendPlatform();
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 8000, 8000
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 8000, 8000
         );
         platform.sent().clear();
         platform.announceAccepted(false);
@@ -511,7 +511,7 @@ class ChunkPreSendServiceTest {
             new AtomicReference<>(ChunkPreSendOptions.of(true, 2, 25, 5000));
         ChunkPreSendService<String, String> service = new ChunkPreSendService<>(platform, options::get);
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 8000, 8000
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 8000, 8000
         );
         assertEquals(25, ticket.rollback().size());
         platform.sent().clear();
@@ -535,7 +535,7 @@ class ChunkPreSendServiceTest {
             new AtomicReference<>(ChunkPreSendOptions.of(true, 2, 25, 5000));
         ChunkPreSendService<String, String> service = new ChunkPreSendService<>(platform, options::get);
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 8000, 8000
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 8000, 8000
         );
         platform.sent().clear();
         options.set(ChunkPreSendOptions.of(true, 2, 10, 5000));
@@ -556,7 +556,7 @@ class ChunkPreSendServiceTest {
             new AtomicReference<>(ChunkPreSendOptions.of(true, 2, 25, 5000));
         ChunkPreSendService<String, String> service = new ChunkPreSendService<>(platform, options::get);
         ChunkPreSendTicket<String, String> ticket = service.preSend(
-            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 8000, 8000
+            RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.SOURCE_WORLD, 8000, 8000
         );
         platform.sent().clear();
         options.set(ChunkPreSendOptions.of(true, 2, 10, 5000));
@@ -567,28 +567,18 @@ class ChunkPreSendServiceTest {
     }
 
     @Test
-    void aCrossWorldDestinationIsPreSentAndItsRollbackCoversEverySentChunk() {
+    void aCrossWorldDestinationDoesNotPreSendOrChangeTheSourceClientWindow() {
         RecordingPreSendPlatform platform = new RecordingPreSendPlatform().playerChunk(3, 3);
         ChunkPreSendService<String, String> service = service(platform, ENABLED);
-
         ChunkPreSendTicket<String, String> ticket = service.preSend(
             RecordingPreSendPlatform.PLAYER, RecordingPreSendPlatform.DESTINATION_WORLD, 48, 48
         );
-
-        assertEquals(ChunkPreSendOutcome.PRE_SENT, ticket.outcome());
-        assertEquals(9, ticket.sentChunks());
-        assertEquals(9, ticket.plannedChunks());
-        assertEquals(9, ticket.rollback().size(), "every chunk from another world evicts a source slot");
-        for (RecordingPreSendPlatform.Sent sent : platform.sent()) {
-            assertEquals(RecordingPreSendPlatform.DESTINATION_WORLD, sent.world());
-        }
-        assertEquals(RecordingPreSendPlatform.SOURCE_WORLD, ticket.sourceWorld());
-        platform.sent().clear();
-        assertEquals(ChunkPreSendRollbackOutcome.RESTORED, service.rollback(ticket));
-        assertEquals(9, platform.sent().size());
-        for (RecordingPreSendPlatform.Sent sent : platform.sent()) {
-            assertEquals(RecordingPreSendPlatform.SOURCE_WORLD, sent.world());
-        }
+        assertEquals(ChunkPreSendOutcome.SKIPPED_DIMENSION_MISMATCH, ticket.outcome());
+        assertEquals(0, ticket.sentChunks());
+        assertTrue(platform.sent().isEmpty());
+        assertTrue(platform.announced().isEmpty());
+        assertFalse(ticket.rollbackRequired());
+        assertEquals(ChunkPreSendRollbackOutcome.NOT_NEEDED, service.rollback(ticket));
     }
 
     @Test

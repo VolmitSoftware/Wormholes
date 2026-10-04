@@ -128,7 +128,7 @@ class ChunkPreSendPlannerTest {
     @Test
     void aZeroChunkBudgetIsRefusedInsteadOfAnnouncingAViewCentreWithNothingBehindIt() {
         ChunkPreSendRequest request = new ChunkPreSendRequest(
-            true, true, true, true, true, false, true, 0, 0, 30, -40, 10, ChunkPreSendOptions.of(true, 2, 0, 5000)
+            true, true, true, true, true, true, true, 0, 0, 30, -40, 10, ChunkPreSendOptions.of(true, 2, 0, 5000)
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_NO_BUDGET, ChunkPreSendPlanner.plan(request).outcome());
@@ -137,7 +137,7 @@ class ChunkPreSendPlannerTest {
     @Test
     void aZeroTimeBudgetIsRefusedForTheSameReason() {
         ChunkPreSendRequest request = new ChunkPreSendRequest(
-            true, true, true, true, true, false, true, 0, 0, 30, -40, 10, ChunkPreSendOptions.of(true, 2, 32, 0)
+            true, true, true, true, true, true, true, 0, 0, 30, -40, 10, ChunkPreSendOptions.of(true, 2, 32, 0)
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_NO_BUDGET, ChunkPreSendPlanner.plan(request).outcome());
@@ -146,7 +146,7 @@ class ChunkPreSendPlannerTest {
     @Test
     void anUnloadedDestinationDegradesToASkipInsteadOfForcingAChunkLoad() {
         ChunkPreSendRequest request = new ChunkPreSendRequest(
-            true, true, true, false, true, false, true, 0, 0, 30, -40, 10, GENEROUS
+            true, true, true, false, true, true, true, 0, 0, 30, -40, 10, GENEROUS
         );
 
         assertEquals(ChunkPreSendOutcome.SKIPPED_DESTINATION_UNLOADED, ChunkPreSendPlanner.plan(request).outcome());
@@ -205,7 +205,7 @@ class ChunkPreSendPlannerTest {
     @Test
     void aBurstAtShippedDefaultsIsWholeRatherThanPartial() {
         ChunkPreSendRequest request = new ChunkPreSendRequest(
-            true, true, true, true, true, false, true, 0, 0, 30, -40, 10,
+            true, true, true, true, true, true, true, 0, 0, 30, -40, 10,
             ChunkPreSendOptions.of(
                 true,
                 ChunkPreSendOptions.DEFAULT_RADIUS_CHUNKS,
@@ -221,7 +221,17 @@ class ChunkPreSendPlannerTest {
         assertEquals(49, plan.size());
     }
 
+    @Test
+    void anotherWorldWithTheSameChunkShapeCannotPolluteTheCurrentClientLevel() {
+        ChunkPreSendRequest request = new ChunkPreSendRequest(
+            true, true, true, true, true, false, true, 0, 0, 30, -40, 10, GENEROUS
+        );
+
+        assertEquals(ChunkPreSendOutcome.SKIPPED_DIMENSION_MISMATCH, ChunkPreSendPlanner.plan(request).outcome());
+        assertTrue(ChunkPreSendPlanner.plan(request).chunks().isEmpty());
+    }
+
     private static ChunkPreSendRequest request(ChunkPreSendOptions options) {
-        return new ChunkPreSendRequest(true, true, true, true, true, false, true, 0, 0, 30, -40, 10, options);
+        return new ChunkPreSendRequest(true, true, true, true, true, true, true, 0, 0, 30, -40, 10, options);
     }
 }

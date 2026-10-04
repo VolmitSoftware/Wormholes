@@ -50,7 +50,7 @@ public class MinecraftEnvironmentCaptureTest {
         MinecraftEnvironmentCapture.Request request = request(fixture, new GeometryVector(-32.5D, 92, 128));
         ClientViewEnvironment environment = mock(ClientViewEnvironment.class);
         try (MockedStatic<MinecraftPortalEnvironment> sampler = mockStatic(MinecraftPortalEnvironment.class)) {
-            sampler.when(() -> MinecraftPortalEnvironment.capture(fixture.world(), request.eye(), request.transform())).thenReturn(environment);
+            sampler.when(() -> MinecraftPortalEnvironment.capture(fixture.world(), request.eye(), request.transform(), fixture.world().isFlat())).thenReturn(environment);
             assertNull(fixture.capture().capture(request));
             assertNull(fixture.capture().capture(request));
             assertFalse(fixture.capture().unavailable(request.observer(), null, request.portal()));
@@ -59,7 +59,7 @@ public class MinecraftEnvironmentCaptureTest {
             sampler.verifyNoInteractions();
             verify(fixture.lease(), never()).close();
             fixture.ownerTasks().remove().run();
-            sampler.verify(() -> MinecraftPortalEnvironment.capture(fixture.world(), request.eye(), request.transform()), times(1));
+            sampler.verify(() -> MinecraftPortalEnvironment.capture(fixture.world(), request.eye(), request.transform(), fixture.world().isFlat()), times(1));
             verify(fixture.lease(), times(1)).close();
             assertSame(environment, fixture.capture().capture(request));
             fixture.capture().close();
@@ -140,7 +140,7 @@ public class MinecraftEnvironmentCaptureTest {
         when(fixture.leases().retain(eq(fixture.world()), any(UUID.class), eq(2), eq(0))).thenReturn(secondLease);
         ClientViewEnvironment environment = mock(ClientViewEnvironment.class);
         try (MockedStatic<MinecraftPortalEnvironment> sampler = mockStatic(MinecraftPortalEnvironment.class)) {
-            sampler.when(() -> MinecraftPortalEnvironment.capture(fixture.world(), second.eye(), second.transform())).thenReturn(environment);
+            sampler.when(() -> MinecraftPortalEnvironment.capture(fixture.world(), second.eye(), second.transform(), fixture.world().isFlat())).thenReturn(environment);
             fixture.capture().capture(first);
             fixture.ready().complete(true);
             assertNull(fixture.capture().capture(second));

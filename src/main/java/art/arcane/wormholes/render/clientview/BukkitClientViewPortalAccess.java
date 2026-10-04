@@ -156,9 +156,10 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
         }
         ClientViewPortalSource mirror = observer.source(parent);
         Location eye = observer.eye();
-        if (mirror == null || eye == null) {
+        if (mirror == null || eye == null || mirror.transformFrame() == null) {
             return;
         }
+        ClientViewEnvironment.Transform transform = ClientViewEnvironmentTransform.of(mirror.transformFrame());
         double[] reflected = new double[3];
         ClientSpace.mirror(parentGeometry).toContent(eye.getX(), eye.getY(), eye.getZ(), reflected);
         observer.reflectedEye(parent, new Location(eye.getWorld(), reflected[0], reflected[1], reflected[2]));
@@ -169,7 +170,7 @@ public final class BukkitClientViewPortalAccess implements ClientViewPortalAcces
                 continue;
             }
             AxisAlignedBB area = candidate.getStructure().getArea();
-            if (ClientRecursionPlanner.mirrorReaches(parentGeometry, area)) {
+            if (ClientRecursionPlanner.destinationReaches(parentGeometry, transform, area)) {
                 out.add(candidate.getId());
             }
         }

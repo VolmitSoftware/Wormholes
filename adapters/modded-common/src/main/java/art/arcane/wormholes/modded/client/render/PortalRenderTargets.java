@@ -6,6 +6,8 @@ import com.mojang.renderpearl.api.GpuFormat;
 import net.minecraft.client.renderer.ProjectionMatrixBuffer;
 import net.minecraft.client.renderer.SkyRenderer;
 import net.minecraft.client.Minecraft;
+import java.util.HashMap;
+import java.util.Map;
 
 final class PortalRenderTargets implements AutoCloseable {
     static final int DEPTHS = ClientViewProtocol.MAX_GEOMETRY_DEPTH;
@@ -15,6 +17,51 @@ final class PortalRenderTargets implements AutoCloseable {
     private final ProjectionMatrixBuffer[] projections = new ProjectionMatrixBuffer[DEPTHS];
     private final SkyRenderer[] skies = new SkyRenderer[DEPTHS];
     private TextureTarget layer;
+    private final Map<Integer, TextureTarget> travel = new HashMap<>();
+    private final Map<Integer, SkyRenderer> travelSkies = new HashMap<>();
+
+    boolean available(int depth) {
+        TextureTarget target = scratch[depth];
+        return target != null && target.getColorTexture() != null && target.getDepthTexture() != null;
+    }
+
+    TextureTarget travel(int key) {
+        return travel.get(key);
+    }
+
+    TextureTarget travel(int key, int width, int height) {
+        TextureTarget previous = travel.get(key);
+        TextureTarget target = resize(previous, width, height);
+        travel.put(key, target);
+        if (previous != target) {
+            SkyRenderer sky = travelSkies.remove(key);
+            if (sky != null) {
+                sky.close();
+            }
+        }
+        return target;
+    }
+
+    SkyRenderer travelSky(int key) {
+        SkyRenderer sky = travelSkies.get(key);
+        if (sky == null) {
+            Minecraft minecraft = Minecraft.getInstance();
+            sky = new SkyRenderer(minecraft.getTextureManager(), minecraft.getAtlasManager(), travel.get(key));
+            travelSkies.put(key, sky);
+        }
+        return sky;
+    }
+
+    void releaseTravel(int key) {
+        SkyRenderer sky = travelSkies.remove(key);
+        if (sky != null) {
+            sky.close();
+        }
+        TextureTarget target = travel.remove(key);
+        if (target != null) {
+            target.destroyBuffers();
+        }
+    }
 
     TextureTarget layer(int width, int height) {
         layer = resize(layer, width, height);
@@ -55,6 +102,9 @@ final class PortalRenderTargets implements AutoCloseable {
 
     long bytes() {
         long bytes = layer == null ? 0 : (long) layer.width * layer.height * 8;
+        for (TextureTarget target : travel.values()) {
+            bytes += (long) target.width * target.height * 8;
+        }
         for (TextureTarget target : scratch) {
             if (target != null) {
                 bytes += (long) target.width * target.height * 8;
@@ -73,6 +123,14 @@ final class PortalRenderTargets implements AutoCloseable {
 
     @Override
     public void close() {
+        for (SkyRenderer sky : travelSkies.values()) {
+            sky.close();
+        }
+        travelSkies.clear();
+        for (TextureTarget target : travel.values()) {
+            target.destroyBuffers();
+        }
+        travel.clear();
         if (layer != null) {
             layer.destroyBuffers();
             layer = null;
